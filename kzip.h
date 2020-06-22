@@ -76,22 +76,21 @@ public:
 		uint64_t     iSize;              ///< size of file (uncompressed)
 		uint64_t     iCompSize;          ///< size of file (compressed)
 		time_t       mtime;              ///< modification time
-		uint32_t     iCRC;               ///< crc of file data
-		uint16_t     iCompMethod;        ///< compression method used
-		uint16_t     iEncryptionMethod;  ///< encryption method used
-		bool         bIsDirectory;       ///< is this a directory?
 
 		/// clear the DirEntry struct
-		void        clear();
+		void         clear();
+
+		/// return true if the entry is a directory
+		bool         IsDirectory() const;
 
 		/// return a sanitized file name (no path, no escaping, no special characters)
-		KString     SafeName() const
+		KString      SafeName() const
 		{
 			return kMakeSafeFilename(kBasename(sName), false);
 		}
 
 		/// return a sanitized path name (no escaping, no special characters)
-		KString     SafePath() const
+		KString      SafePath() const
 		{
 			return kMakeSafePathname(sName, false);
 		}
@@ -248,6 +247,8 @@ public:
 	KZip& operator=(const KZip&) = delete;
 	KZip& operator=(KZip&&) = default;
 
+	~KZip();
+
 	/// set password for encrypted archive entries
 	KZip& SetPassword(KString sPassword)
 	{
@@ -264,8 +265,8 @@ public:
 		return D.get();
 	}
 
-	/// close a zip archive - not needed, will be done by dtor or opening
-	/// another one as well
+	/// close a zip archive - not needed, will be done by dtor, ctor, or
+	/// opening another one as well
 	void Close();
 
 	/// returns count of entries in zip
@@ -336,25 +337,58 @@ public:
 	Directory FilesAndDirectories() const;
 
 	/// reads a DirEntry's file into a KOutStream
+	/// @param OutStream the stream to add to the archive
+	/// @param DirEntry the archive directory entry for the file to read
 	bool Read(KOutStream& OutStream, const DirEntry& DirEntry);
 
 	/// reads a DirEntry's file into a file sFileName
+	/// @param sFileName the file to add to the archive
+	/// @param DirEntry the archive directory entry for the file to read
 	bool Read(KStringViewZ sFileName, const DirEntry& DirEntry);
 
 	/// reads a DirEntry's file into a string to return
+	/// @param DirEntry the archive directory entry for the file to read
 	KString Read(const DirEntry& DirEntry);
 
+	/// reads all files listed in Directory into sTargetDirectory
+	/// @param Directory list of files to extract.
+	/// @param sTargetDirectory directory into which the archive will be expanded.
+	/// If it does not exist it will be created.
+	/// @param bWithSubdirectories create subdirectories on extraction, or write
+	/// all files into a flat hierarchy. Default true.
+	bool Read(const Directory& Directory, KStringViewZ sTargetDirectory, bool bWithSubdirectories = true);
+
+	/// reads all files and directories in an archive
+	/// @param sTargetDirectory directory into which the archive will be expanded.
+	/// If it does not exist it will be created.
+	/// @param bWithSubdirectories create subdirectories on extraction, or write
+	/// all files into a flat hierarchy. Default true.
+	bool ReadAll(KStringViewZ sTargetDirectory, bool bWithSubdirectories = true);
+
 	/// add a stream to the archive
+	/// @param InStream the stream to add
+	/// @param sDispname the name for the stream in the archive (including path)
 	bool Write(KInStream& InStream, KStringViewZ sDispname);
 
 	/// add a string buffer to the archive
+	/// @param sBuffer the data buffer to add
+	/// @param sDispname the name for the buffer in the archive (including path)
 	bool Write(KStringView sBuffer, KStringViewZ sDispname);
 
 	/// add a file to the archive
+	/// @param sFilename the file to add
+	/// @param sDispname the name for the file in the archive (including path)
 	bool WriteFile(KStringViewZ sFilename, KStringViewZ sDispname = KStringViewZ{});
 
 	/// adds a directory entry to the archive (does not read a directory from disk!)
-	bool AddDirectory(KStringViewZ sDispname);
+	/// @param sDispname the directory name to add to the archive
+	bool WriteDirectory(KStringViewZ sDispname);
+
+	/// writes all files in a KDirectory list into archive
+	/// @param Directory the directory list
+	/// @param sDirectoryRoot the part of the pathnames that should be removed when storing in the archive
+	/// @param sNewRoot name to use as the root directory, default none
+	bool WriteFiles(const KDirectory& Directory, KStringView sDirectoryRoot = KStringView{}, KStringView sNewRoot = KStringView{});
 
 	/// returns last error if class is not constructed to throw (default)
 	const KString& Error() const
@@ -382,8 +416,6 @@ private:
 	using deleter_t = std::function<void(void *)>;
 	using unique_void_ptr = std::unique_ptr<void, deleter_t>;
 
-	// WARNING: D must always remain the last member, so that it is deleted
-	// first (we could also write an explicit destructor..)
 	unique_void_ptr D;
 
 }; // KZip

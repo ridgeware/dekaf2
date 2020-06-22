@@ -61,7 +61,7 @@ auto zipDeleter = [](void* data)
 {
 	if (zip_close(static_cast<zip_t*>(data)))
 	{
-		kDebug(1, "cannot properly close ZIP archive - changes are discarded");
+		kWarning("cannot properly close ZIP archive - changes are discarded");
 		zip_discard(static_cast<zip_t*>(data));
 	}
 
@@ -107,6 +107,16 @@ bool KZip::SetError() const
 } // SetError
 
 //-----------------------------------------------------------------------------
+KZip::~KZip()
+//-----------------------------------------------------------------------------
+{
+	// make sure we delete the archive first, as that triggers a zip_close(),
+	// which needs the buffers in m_WriteBuffers
+	Close();
+
+} // dtor
+
+//-----------------------------------------------------------------------------
 bool KZip::Open(KStringViewZ sFilename, bool bWrite)
 //-----------------------------------------------------------------------------
 {
@@ -146,6 +156,14 @@ bool KZip::Contains(KStringViewZ sName, bool bNoPathCompare) const noexcept
 } // Contains
 
 //-----------------------------------------------------------------------------
+bool KZip::DirEntry::IsDirectory() const
+//-----------------------------------------------------------------------------
+{
+	return !sName.empty() && *sName.rbegin() == '/';
+
+} // IsDirectory
+
+//-----------------------------------------------------------------------------
 void KZip::DirEntry::clear()
 //-----------------------------------------------------------------------------
 {
@@ -154,10 +172,6 @@ void KZip::DirEntry::clear()
 	iSize             = 0;
 	iCompSize         = 0;
 	mtime             = 0;
-	iCRC              = 0;
-	iCompMethod       = 0;
-	iEncryptionMethod = 0;
-	bIsDirectory      = false;
 
 } // clear
 
@@ -194,10 +208,6 @@ bool KZip::DirEntry::from_zip_stat(const void* vzip_stat)
 	iSize             = stat->size;
 	iCompSize         = stat->comp_size;
 	mtime             = stat->mtime;
-	iCRC              = stat->crc;
-	iCompMethod       = stat->comp_method;
-	iEncryptionMethod = stat->encryption_method;
-	bIsDirectory      = !sName.empty() && *sName.rbegin() == '/';
 
 	return true;
 
@@ -262,7 +272,7 @@ KZip::Directory KZip::Files() const
 	for (std::size_t i = 0; i < size(); ++i)
 	{
 		auto Entry = Get(i);
-		if (!Entry.bIsDirectory)
+		if (!Entry.IsDirectory())
 		{
 			Files.push_back(std::move(Entry));
 		}
@@ -281,7 +291,7 @@ KZip::Directory KZip::Directories() const
 	for (std::size_t i = 0; i < size(); ++i)
 	{
 		auto Entry = Get(i);
-		if (Entry.bIsDirectory)
+		if (Entry.IsDirectory())
 		{
 			Directories.push_back(std::move(Entry));
 		}
@@ -315,7 +325,7 @@ bool KZip::Read(KOutStream& OutStream, const DirEntry& DirEntry)
 		return SetError("KZip: no file specified for reading");
 	}
 
-	if (DirEntry.bIsDirectory)
+	if (DirEntry.IsDirectory())
 	{
 		return SetError(kFormat("KZip: file is directory: {}", DirEntry.sName));
 	}
@@ -405,6 +415,84 @@ KString KZip::Read(const DirEntry& DirEntry)
 } // Read
 
 //-----------------------------------------------------------------------------
+bool KZip::Read(const Directory& Directory, KStringViewZ sTargetDirectory, bool bWithSubdirectories)
+//-----------------------------------------------------------------------------
+{
+	if (!kDirExists(sTargetDirectory))
+	{
+		if (!kCreateDir(sTargetDirectory))
+		{
+			SetError(kFormat("cannot create directory: {}", sTargetDirectory));
+		}
+	}
+
+	for (const auto& File : Directory)
+	{
+		if (File.IsDirectory())
+		{
+			if (bWithSubdirectories)
+			{
+				KString sName = sTargetDirectory;
+				sName += kDirSep;
+				sName += File.SafePath();
+
+				if (!kMakeDir(sName))
+				{
+					return SetError(kFormat("cannot create directory: {}", sName));
+				}
+			}
+		}
+		else
+		{
+			KString sName = sTargetDirectory;
+			sName += kDirSep;
+
+			if (bWithSubdirectories)
+			{
+				KString sSafePath = File.SafePath();
+				KStringView sDirname = kDirname(sSafePath);
+				if (sDirname != ".")
+				{
+					sName += sDirname;
+
+					if (!kDirExists(sName))
+					{
+						if (!kCreateDir(sName))
+						{
+							return SetError(kFormat("cannot create directory: {}", sName));
+						}
+					}
+
+					sName += kDirSep;
+				}
+				sName += kBasename(sSafePath);
+			}
+			else
+			{
+				sName += File.SafeName();
+			}
+
+			if (!Read(sName, File))
+			{
+				// error is already set
+				return false;
+			}
+		}
+	}
+
+	return true;
+
+} // Read
+
+//-----------------------------------------------------------------------------
+bool KZip::ReadAll(KStringViewZ sTargetDirectory, bool bWithSubdirectories)
+//-----------------------------------------------------------------------------
+{
+	return Read(FilesAndDirectories(), sTargetDirectory, bWithSubdirectories);
+
+} // ReadAll
+
+//-----------------------------------------------------------------------------
 bool KZip::SetEncryptionForFile(uint64_t iIndex)
 //-----------------------------------------------------------------------------
 {
@@ -431,6 +519,11 @@ bool KZip::SetEncryptionForFile(uint64_t iIndex)
 bool KZip::Write(KStringView sBuffer, KStringViewZ sDispname)
 //-----------------------------------------------------------------------------
 {
+	kDebug(2, "adding buffer with name {}", sDispname);
+
+	// we need to copy all data into a temporary buffer until
+	// the archive is closed because the architecture of libzip
+	// only stores data when destructing
 	auto pBuffer = std::make_unique<char[]>(sBuffer.size());
 
 	auto* Source = zip_source_buffer(pZip(D.get()), pBuffer.get(), sBuffer.length(), 0);
@@ -465,6 +558,8 @@ bool KZip::Write(KStringView sBuffer, KStringViewZ sDispname)
 bool KZip::WriteFile(KStringViewZ sFilename, KStringViewZ sDispname)
 //-----------------------------------------------------------------------------
 {
+	kDebug(2, "adding file '{}' with name {}", sFilename, sDispname);
+
 	if (sFilename.empty())
 	{
 		return SetError("missing file name");
@@ -512,16 +607,16 @@ bool KZip::WriteFile(KStringViewZ sFilename, KStringViewZ sDispname)
 bool KZip::Write(KInStream& InStream, KStringViewZ sDispname)
 //-----------------------------------------------------------------------------
 {
-	// TODO change to make use of a function that reads the stream
-
 	return Write (kReadAll(InStream), sDispname);
 
 } // Write
 
 //-----------------------------------------------------------------------------
-bool KZip::AddDirectory(KStringViewZ sDispname)
+bool KZip::WriteDirectory(KStringViewZ sDispname)
 //-----------------------------------------------------------------------------
 {
+	kDebug(2, "adding directory: {}", sDispname);
+
 	auto iIndex = zip_dir_add(pZip(D.get()), sDispname.c_str(), 0);
 
 	if (iIndex < 0)
@@ -532,5 +627,72 @@ bool KZip::AddDirectory(KStringViewZ sDispname)
 	return true;
 
 } // AddDirectory
+
+//-----------------------------------------------------------------------------
+bool KZip::WriteFiles(const KDirectory& Directory, KStringView sDirectoryRoot, KStringView sNewRoot)
+//-----------------------------------------------------------------------------
+{
+	sDirectoryRoot.Trim("/\\");
+	sNewRoot.Trim("/\\");
+
+	for (const auto& File : Directory)
+	{
+		// construct the name as it shall appear in the archive
+		KString sDispName;
+
+		sDispName += sNewRoot;
+
+		if (!sNewRoot.empty())
+		{
+			sDispName += kDirSep;
+		}
+
+		// search for directory root in file's path
+		auto iPos = File.Path().find(sDirectoryRoot);
+
+		if (iPos < 2 && (iPos == 0 || File.Path()[0] == kDirSep))
+		{
+			// found either at pos 0 or 1, in the latter case we remove
+			// the slash
+			sDispName += File.Path().Mid(iPos + sDirectoryRoot.size() + 1);
+		}
+		else
+		{
+			// directory root not found, remove leading slash
+			// if existing
+			if (File.Path().front() == kDirSep)
+			{
+				sDispName += File.Path().Mid(1);
+			}
+			else
+			{
+				sDispName += File.Path();
+			}
+		}
+
+		if (File.Type() == KDirectory::EntryType::DIRECTORY)
+		{
+			if (!WriteDirectory(sDispName))
+			{
+				return false;
+			}
+		}
+		else if (File.Type() == KDirectory::EntryType::REGULAR)
+		{
+			// now add the file to the archive
+			if (!WriteFile(File.Path(), sDispName))
+			{
+				return false;
+			}
+		}
+		else
+		{
+			kDebug(1, "cannot include file type {} of file {} in archive", File.TypeAsString(), File.Path());
+		}
+	}
+
+	return true;
+
+} // WriteFiles
 
 } // end of namespace dekaf2

@@ -40,54 +40,101 @@ TEST_CASE("KZip") {
 
 		KTempDir ZipDir;
 
-		KString sZipFile = kFormat("{}/{}", ZipDir.Name(), "input.zip");
+		KString sZipFile1 = kFormat("{}/{}", ZipDir.Name(), "input1.zip");
+		KString sZipFile2 = kFormat("{}/{}", ZipDir.Name(), "input2.zip");
 
 		{
-			// create the archive
-			KZip Zip(sZipFile, true);
+			// create the archive manually
+			KZip Zip(sZipFile1, true);
 
 			CHECK (Zip.is_open() );
 
 			{
 				CHECK ( Zip.Write(kFormat("{}\n{}\n", sAlpha, sAlpha), "file1"        ) );
 				CHECK ( Zip.WriteFile(sFile2, "subdir/file2" ) );
-				sFile2 = "helloo";
+				sFile2 = "helloolkdfsjlkdfjglksfjglfkdsjglkdjlgkjfdlgkjdsflkgjldskjglksnfjlkdfkhtklfjgksdjfjdgslkjdsglkhjslckhjsldhh";
 				KInFile File3(sFile3);
 				CHECK ( File3.is_open() );
 				CHECK ( Zip.Write(File3, "file3" ) );
 			}
 		}
 
-		KTempDir OutputDirectory;
-
-		KZip Zip(sZipFile);
-
-		CHECK ( Zip.is_open() );
-		CHECK ( Zip.size() == 3 );
-
-		for (const auto& File : Zip)
 		{
-			if (!File.bIsDirectory)
+			// create the archive by recursive parsing
+			KZip Zip(sZipFile2, true);
+
+			CHECK (Zip.is_open() );
+
 			{
-				Zip.Read(kFormat("{}/{}", OutputDirectory.Name(), File.SafeName()), File);
+				KDirectory Files(InputDirectory.Name(), KDirectory::EntryType::REGULAR, true);
+				Files.Sort();
+				CHECK ( Files.size() == 3 );
+				CHECK ( Zip.WriteFiles(Files, InputDirectory.Name()) );
 			}
 		}
 
 		{
-			KDirectory Directory(OutputDirectory.Name());
-			Directory.Sort();
+			// check the created archive from the manual creation
+			KTempDir OutputDirectory;
 
-			CHECK ( Directory.size() == 3 );
-			auto File = Directory.begin();
-			CHECK (     File->Filename() == "file1" );
-			CHECK ( (++File)->Filename() == "file2" );
-			CHECK ( (++File)->Filename() == "file3" );
+			KZip Zip  (sZipFile1);
+
+			CHECK ( Zip.is_open() );
+			CHECK ( Zip.size() == 3 );
+
+			Zip.ReadAll(OutputDirectory.Name());
+
+			{
+				KDirectory Directory(OutputDirectory.Name(), KDirectory::EntryType::REGULAR, true);
+				Directory.Sort();
+
+				CHECK ( Directory.size() == 3 );
+				auto File = Directory.begin();
+				CHECK (     File->Filename() == "file1" );
+				CHECK ( (++File)->Filename() == "file3" );
+				CHECK ( (++File)->Filename() == "file2" );
+			}
+
+			{
+				CHECK ( kReadAll(kFormat("{}/{}",    OutputDirectory.Name(), "file1")) == "abcdefghijklmnopqrstuvwxyz\nabcdefghijklmnopqrstuvwxyz\n" );
+				CHECK ( kReadAll(kFormat("{}/{}/{}", OutputDirectory.Name(), "subdir", "file2")) == "01234567890\n01234567890\n" );
+				CHECK ( kReadAll(kFormat("{}/{}",    OutputDirectory.Name(), "file3")) == "abcdefghijklmnopqrstuvwxyz\n01234567890\n" );
+			}
 		}
 
 		{
-			CHECK ( kReadAll(kFormat("{}/{}", OutputDirectory.Name(), "file1")) == "abcdefghijklmnopqrstuvwxyz\nabcdefghijklmnopqrstuvwxyz\n" );
-			CHECK ( kReadAll(kFormat("{}/{}", OutputDirectory.Name(), "file2")) == "01234567890\n01234567890\n" );
-			CHECK ( kReadAll(kFormat("{}/{}", OutputDirectory.Name(), "file3")) == "abcdefghijklmnopqrstuvwxyz\n01234567890\n" );
+			// check the created archive from recursive creation
+			KTempDir OutputDirectory;
+
+			KZip Zip  (sZipFile2);
+
+			CHECK ( Zip.is_open() );
+			CHECK ( Zip.size() == 3 );
+
+			for (const auto& File : Zip)
+			{
+				if (!File.IsDirectory())
+				{
+					Zip.Read(kFormat("{}/{}", OutputDirectory.Name(), File.SafeName()), File);
+				}
+			}
+
+			{
+				KDirectory Directory(OutputDirectory.Name());
+				Directory.Sort();
+
+				CHECK ( Directory.size() == 3 );
+				auto File = Directory.begin();
+				CHECK (     File->Filename() == "file1" );
+				CHECK ( (++File)->Filename() == "file2" );
+				CHECK ( (++File)->Filename() == "file3" );
+			}
+
+			{
+				CHECK ( kReadAll(kFormat("{}/{}", OutputDirectory.Name(), "file1")) == "abcdefghijklmnopqrstuvwxyz\nabcdefghijklmnopqrstuvwxyz\n" );
+				CHECK ( kReadAll(kFormat("{}/{}", OutputDirectory.Name(), "file2")) == "01234567890\n01234567890\n" );
+				CHECK ( kReadAll(kFormat("{}/{}", OutputDirectory.Name(), "file3")) == "abcdefghijklmnopqrstuvwxyz\n01234567890\n" );
+			}
 		}
 	}
 

@@ -249,6 +249,9 @@ public:
 
 	~KZip();
 
+	/// returns true if (strong, AES 256) encryption is available
+	bool HaveStrongEncryption() const;
+
 	/// set password for encrypted archive entries
 	KZip& SetPassword(KString sPassword)
 	{

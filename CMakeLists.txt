@@ -236,17 +236,11 @@ endif()
 
 # ================================= libzip =====================================
 
-# libzip - if not available it's simply skipped
+# libzip
 # warning: libzip would collide with installed packages libtcod and minizip2
 # - uninstall them if needed, or uncomment
 
-find_package(LibZip QUIET)
-if(LIBZIP_FOUND)
-	message(STATUS "configuring with libzip: ${LIBZIP_LIBRARY}")
-	set(DEKAF2_HAS_LIBZIP 1)
-else()
-	message(STATUS "No ZIP archive support. Install libzip package if needed")
-endif()
+find_package(LibZip REQUIRED)
 
 # ================================ LIBPROC ====================================
 

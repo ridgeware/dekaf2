@@ -73,13 +73,11 @@ bool KZip::SetError(KString sError) const
 {
 	kDebug (2, sError);
 	
+	m_sError = std::move(sError);
+
 	if (m_bThrow)
 	{
-		throw KError(std::move(sError));
-	}
-	else
-	{
-		m_sError = std::move(sError);
+		throw KError(kFormat("KZip: {}", m_sError));
 	}
 
 	return false;
@@ -493,13 +491,26 @@ bool KZip::ReadAll(KStringViewZ sTargetDirectory, bool bWithSubdirectories)
 } // ReadAll
 
 //-----------------------------------------------------------------------------
+bool KZip::HaveStrongEncryption() const
+//-----------------------------------------------------------------------------
+{
+#ifdef ZIP_EM_AES_256
+	return true;
+#else
+	return false;
+#endif
+}
+
+//-----------------------------------------------------------------------------
 bool KZip::SetEncryptionForFile(uint64_t iIndex)
 //-----------------------------------------------------------------------------
 {
-	// zip_encryption_method_supported is only supported from v1.7 on - unfortunately
-	// there is no macro to check the version, but only a function..
-//	if (zip_encryption_method_supported(ZIP_EM_AES_256, 0))
+#ifdef ZIP_EM_AES_256
+#if (LIBZIP_VERSION_MAJOR > 1) || (LIBZIP_VERSION_MINOR >= 7)
+	if (zip_encryption_method_supported(ZIP_EM_AES_256, 0))
+#else
 	if (true)
+#endif
 	{
 		if (zip_file_set_encryption(pZip(D.get()), iIndex, ZIP_EM_AES_256, m_sPassword.c_str()) == -1)
 		{
@@ -507,6 +518,7 @@ bool KZip::SetEncryptionForFile(uint64_t iIndex)
 		}
 	}
 	else
+#endif // of ifdef ZIP_EM_AES_256
 	{
 		return SetError("AES_256 encryption is not supported");
 	}

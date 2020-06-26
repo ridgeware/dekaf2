@@ -181,6 +181,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns the last error string, if any
 	const KString& Error() const
 	//-----------------------------------------------------------------------------
 	{
@@ -220,10 +221,20 @@ public:
 	void clear();
 	//-----------------------------------------------------------------------------
 
+	/// returns the IP address of the immediate client connection, not of any headers
+	/// as for GetBrowserIP()
+	//-----------------------------------------------------------------------------
+	KString GetConnectedClientIP() const;
+	//-----------------------------------------------------------------------------
+
 	//-----------------------------------------------------------------------------
 	// we repeat the method from KHTTPRequest here as we want to look into
 	// the remote endpoint data of the tcp connection if we do not find the IP
 	// in the headers - and the connection details are only known here..
+	/// Searches for the original requester's IP address in the Forwarded,
+	/// X-Forwarded-For and X-ProxyUser-IP headers (in that order, first found wins),
+	/// and if that remains without success returns the IP address of the immediate
+	/// client connection as for GetConnectedClientIP()
 	KString GetBrowserIP() const;
 	//-----------------------------------------------------------------------------
 

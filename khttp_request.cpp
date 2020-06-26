@@ -97,7 +97,27 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 		return SetError(kFormat("invalid status line of HTTP header: expected 'HTTP/' not '{}'", sHTTPVersion));
 	}
 
-	return KHTTPHeaders::Parse(Stream);
+	if (!KHTTPHeaders::Parse(Stream))
+	{
+		// error is already set
+		return false;
+	}
+
+	// check for HTTP conformity:
+	// need a HOST header that ideally matches us - will ATM only check for non-emptyness
+	auto it = Headers.find(KHTTPHeaders::HOST);
+
+	if (it == Headers.end())
+	{
+		return SetError("no Host header");
+	}
+
+	if (it->second.empty())
+	{
+		return SetError("empty host header");
+	}
+
+	return true;
 
 } // Parse
 

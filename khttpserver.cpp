@@ -135,6 +135,29 @@ bool KHTTPServer::Serialize()
 } // Serialize
 
 //-----------------------------------------------------------------------------
+KString KHTTPServer::GetConnectedClientIP() const
+//-----------------------------------------------------------------------------
+{
+	// check our connection endpoint
+	KString sConnectedClientIP = RemoteEndpoint;
+
+	auto iColon = sConnectedClientIP.rfind(':');
+
+	if (iColon != KString::npos)
+	{
+		// check if the colon is part of an IPv6 address,
+		// or if it is host:port
+		if (!iColon || sConnectedClientIP[iColon - 1] != ':')
+		{
+			sConnectedClientIP.erase(iColon);
+		}
+	}
+
+	return sConnectedClientIP;
+
+} // GetConnectedClientIP
+
+//-----------------------------------------------------------------------------
 KString KHTTPServer::GetBrowserIP() const
 //-----------------------------------------------------------------------------
 {
@@ -142,18 +165,7 @@ KString KHTTPServer::GetBrowserIP() const
 
 	if (sBrowserIP.empty())
 	{
-		// check our connection endpoint
-		sBrowserIP = RemoteEndpoint;
-		auto iColon = sBrowserIP.rfind(':');
-		if (iColon != KString::npos)
-		{
-			// check if the colon is part of an IPv6 address,
-			// or if it is host:port
-			if (!iColon || sBrowserIP[iColon - 1] != ':')
-			{
-				sBrowserIP.erase(iColon);
-			}
-		}
+		sBrowserIP = GetConnectedClientIP();
 	}
 
 	return sBrowserIP;

@@ -147,7 +147,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				KStream Stream(CGI, KOut);
 				Options.Out = KRESTServer::HTTP;
 				Options.iMaxKeepaliveRounds = 1; // no keepalive in CGI mode..
-				RealExecute(Options, Routes, Stream); // TODO get remote IP from env var
+				RealExecute(Options, Routes, Stream, kGetEnv(KCGIInStream::REMOTE_ADDR));
 				return true; // we return true because the request was served
 			}
 
@@ -173,7 +173,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				kDebug (2, "normal CLI request...");
 				KStream Stream(KIn, KOut);
 				Options.Out = KRESTServer::CLI;
-				RealExecute(Options, Routes, Stream, "127.0.0.1");
+				RealExecute(Options, Routes, Stream, kFirstNonEmpty<KStringView>(kGetEnv(KCGIInStream::REMOTE_ADDR), "127.0.0.1"));
 				return true; // we return true because the request was served
 			}
 

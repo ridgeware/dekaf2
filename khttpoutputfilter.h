@@ -162,7 +162,8 @@ private:
 	{
 		NONE,
 		GZIP,
-		ZLIB
+		ZLIB,
+		BZIP2
 	};
 
 	static KOutStringStream s_Empty;

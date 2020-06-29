@@ -171,7 +171,8 @@ private:
 	{
 		NONE,
 		GZIP,
-		ZLIB
+		ZLIB,
+		BZIP2
 	};
 
 	static KInStringStream s_Empty;

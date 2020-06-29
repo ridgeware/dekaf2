@@ -1,5 +1,4 @@
 /*
- //-----------------------------------------------------------------------------//
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
@@ -42,6 +41,7 @@
 
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
+#include <boost/iostreams/filter/bzip2.hpp>
 
 #include "khttpoutputfilter.h"
 #include "kchunkedtransfer.h"
@@ -74,6 +74,10 @@ bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 	{
 		m_Compression = ZLIB;
 	}
+	else if (sCompression == "bzip2")
+	{
+		m_Compression = BZIP2;
+	}
 
 	return true;
 
@@ -96,6 +100,10 @@ bool KOutHTTPFilter::SetupOutputFilter()
 		else if (m_Compression == ZLIB)
 		{
 			m_Filter->push(boost::iostreams::zlib_compressor());
+		}
+		else if (m_Compression == BZIP2)
+		{
+			m_Filter->push(boost::iostreams::bzip2_compressor());
 		}
 	}
 

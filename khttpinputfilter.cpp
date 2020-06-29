@@ -41,6 +41,7 @@
 
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
+#include <boost/iostreams/filter/bzip2.hpp>
 
 #include "khttpinputfilter.h"
 #include "kchunkedtransfer.h"
@@ -77,6 +78,10 @@ bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode)
 	{
 		m_Compression = ZLIB;
 	}
+	else if (sCompression == "bzip2")
+	{
+		m_Compression = BZIP2;
+	}
 
 	return true;
 
@@ -99,6 +104,10 @@ bool KInHTTPFilter::SetupInputFilter()
 		else if (m_Compression == ZLIB)
 		{
 			m_Filter->push(boost::iostreams::zlib_decompressor());
+		}
+		else if (m_Compression == BZIP2)
+		{
+			m_Filter->push(boost::iostreams::bzip2_decompressor());
 		}
 	}
 
@@ -205,9 +214,6 @@ void KInHTTPFilter::close()
 } // reset
 
 KInStringStream KInHTTPFilter::s_Empty;
-
-
-
 
 } // of namespace dekaf2
 

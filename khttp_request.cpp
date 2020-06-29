@@ -312,6 +312,10 @@ KStringView KHTTPRequestHeaders::SupportedCompression() const
 		{
 			return "deflate"_ksv;
 		}
+		else if (sCompression.find("bzip2") != KString::npos)
+		{
+			return "bzip2"_ksv;
+		}
 	}
 
 	return ""_ksv;

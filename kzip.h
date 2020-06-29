@@ -340,12 +340,12 @@ public:
 	Directory FilesAndDirectories() const;
 
 	/// reads a DirEntry's file into a KOutStream
-	/// @param OutStream the stream to add to the archive
+	/// @param OutStream the stream to add to from the archive
 	/// @param DirEntry the archive directory entry for the file to read
 	bool Read(KOutStream& OutStream, const DirEntry& DirEntry);
 
 	/// reads a DirEntry's file into a file sFileName
-	/// @param sFileName the file to add to the archive
+	/// @param sFileName the file to read into from the archive
 	/// @param DirEntry the archive directory entry for the file to read
 	bool Read(KStringViewZ sFileName, const DirEntry& DirEntry);
 

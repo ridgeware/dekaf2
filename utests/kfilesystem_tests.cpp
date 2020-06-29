@@ -15,6 +15,9 @@ TEST_CASE("KFilesystem") {
 	sDirectory += kDirSep;
 	sDirectory += "filetests12r4948t5/depth/three";
 
+	KString sDirectorySlash = sDirectory;
+	sDirectorySlash += kDirSep;
+
 	KString sFile = kGetTemp();
 	sFile += kDirSep;
 	sFile += "filetests12r4948t5/depth/three/KFilesystem.test";
@@ -149,13 +152,22 @@ TEST_CASE("KFilesystem") {
 		CHECK ( Dir.empty() == true );
 		CHECK ( Dir.Open(sDirectory, KDirectory::EntryType::REGULAR) == 2 );
 		CHECK ( Dir.size() == 2 );
-		CHECK ( !Dir.Find("KFilesystem.test").empty() );
-		CHECK ( !Dir.Find("test.txt").empty() );
-		CHECK ( !Dir.Find("KFi*ystem.t?st").empty() );
+		CHECK ( Dir.Find("KFilesystem.test") != Dir.end() );
+		CHECK ( Dir.Find("test.txt") != Dir.end() );
+		CHECK ( Dir.Find("KFi*ystem.t?st") != Dir.end() );
 		CHECK ( Dir.WildCardMatch("KFilesystem.test") == 1 );
 		CHECK ( Dir.WildCardMatch("*.t?st") == 1 );
 		CHECK ( Dir.WildCardMatch("*.t?st", true) == 1 );
 		CHECK ( Dir.empty() == true );
+	}
+
+	SECTION("KDirectory2")
+	{
+		KDirectory Dir(sDirectorySlash);
+		CHECK ( Dir.size() == 2 );
+		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR) == 2);
+		Dir.Sort();
+		CHECK ( Dir.begin()->Path().find(kFormat("{}{}", kDirSep, kDirSep)) == KString::npos );
 	}
 
 	SECTION("KDiskStat")

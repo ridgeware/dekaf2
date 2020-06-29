@@ -419,15 +419,15 @@ public:
 	/// @param bRemoveMatches if true remove matches, else keep only those (default = false)
 	size_t WildCardMatch(KStringView sWildCard, bool bRemoveMatches = false);
 
-	/// returns first found file name if the directory list matches sWildCard, wildcard matching is supported
+	/// returns first found directory entry if the directory list matches sWildCard, wildcard matching is supported
 	/// @param sWildCard the basic regular expression to search for (e.g. "*.tx?")
-	KStringViewZ Find(KStringView sWildCard) const;
+	const_iterator Find(KStringView sWildCard) const;
 
 	/// returns true if the directory list contains sWildCard, wildcard matching is supported
 	/// @param sWildCard the basic regular expression to search for (e.g. "*.tx?")
 	bool Contains(KStringView sWildCard) const
 	{
-		return Find(sWildCard).empty() == false;
+		return Find(sWildCard) != end();
 	}
 
 	/// sort the directory list

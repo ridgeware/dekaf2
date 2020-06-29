@@ -646,11 +646,12 @@ size_t kFileSize(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 KDirectory::DirEntry::DirEntry(KStringView BasePath, KStringView Name, EntryType Type)
 //-----------------------------------------------------------------------------
-: m_Path(BasePath)
-, m_Type(Type)
+: m_Type(Type)
 {
 	if (!BasePath.empty())
 	{
+		BasePath.TrimRight(detail::kAllowedDirSep);
+		m_Path = BasePath;
 		m_Path += kDirSep;
 	}
 	auto iPath = m_Path.size();
@@ -674,6 +675,12 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type, bool bRecursive
 	if (bClear)
 	{
 		clear();
+	}
+
+	if (sDirectory.empty())
+	{
+		kDebug(1, "directory name is empty");
+		return 0;
 	}
 
 #if DEKAF2_HAS_STD_FILESYSTEM
@@ -768,8 +775,11 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type, bool bRecursive
 
 		if (bRecursive && Entry.symlink_status().type() == fs::file_type::directory)
 		{
+			// remove trailing dir separators
+			KStringView sDir = sDirectory;
+			sDir.TrimRight(detail::kAllowedDirSep);
 			// recurse through the subdirectories
-			Open(kFormat("{}{}{}", sDirectory, kDirSep, Entry.path().filename().u8string()), Type, true, false);
+			Open(kFormat("{}{}{}", sDir, kDirSep, Entry.path().filename().u8string()), Type, true, false);
 		}
 	}
 
@@ -854,8 +864,11 @@ size_t KDirectory::Open(KStringViewZ sDirectory, EntryType Type, bool bRecursive
 
 				if (bRecursive && dir->d_type == DT_DIR)
 				{
+					// remove trailing dir separators
+					KStringView sDir = sDirectory;
+					sDir.TrimRight(detail::kAllowedDirSep);
 					// recurse through the subdirectories
-					Open(kFormat("{}{}{}", sDirectory, kDirSep, dir->d_name), Type, true, false);
+					Open(kFormat("{}{}{}", sDir, kDirSep, dir->d_name), Type, true, false);
 				}
 			}
 		}
@@ -946,18 +959,20 @@ size_t KDirectory::WildCardMatch(KStringView sWildCard, bool bRemoveMatches)
 } // WildCardMatch
 
 //-----------------------------------------------------------------------------
-KStringViewZ KDirectory::Find(KStringView sWildCard) const
+KDirectory::const_iterator KDirectory::Find(KStringView sWildCard) const
 //-----------------------------------------------------------------------------
 {
 	KRegex Regex(kWildCard2Regex(sWildCard));
-	for (auto& it : m_DirEntries)
+
+	for (auto it = cbegin(); it != cend(); ++it)
 	{
-		if (Regex.Matches(it.Filename()))
+		if (Regex.Matches(it->Filename()))
 		{
-			return it.Filename();
+			return it;
 		}
 	}
-	return KStringViewZ{};
+
+	return end();
 
 } // Find
 

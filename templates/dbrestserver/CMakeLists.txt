@@ -48,16 +48,32 @@ __SourceFiles__)
 set (HEADERS
 __HeaderFiles__)
 
+# ============================= PREPARE INSTALLATION ===================================
+
+set(bin_dest "${CMAKE_INSTALL_PREFIX}/bin")
+set(share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}")
+set(schema_dir "${share_dest}/schema")
+
+# ================================= GENERATED FILES ====================================
+
+# create and include the build directory for generated files
+set(GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY "${GENERATED_FILES_DIR}")
+
+# create the build_config header file
+configure_file("build_config.h.in" "${GENERATED_FILES_DIR}/build_config.h" @ONLY)
+
 # ================================ __ProjectName__ =====================================
 
 # Compile all __LowerProjectName__ objects
 add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES})
 target_link_libraries(${PROJECT_NAME} dekaf2 ksql2)
+target_include_directories(${PROJECT_NAME}
+	PRIVATE
+	$<BUILD_INTERFACE:${GENERATED_FILES_DIR}>
+)
 
 # ================================= INSTALLATION =====================================
-
-set(bin_dest "${CMAKE_INSTALL_PREFIX}/bin")
-set(share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}")
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${bin_dest})
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/schema DESTINATION ${share_dest} FILES_MATCHING PATTERN "*.ksql")

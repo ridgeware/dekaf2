@@ -1,5 +1,6 @@
 
 #include "db.h"
+#include "build_config.h"
 #include "__LowerProjectName__.h"
 #include <dekaf2/khttperror.h>
 #include <mutex>
@@ -29,7 +30,7 @@ void DB::EnsureSchema (bool bForce/*=false*/)
 		throw KHTTPError { KHTTPError::H5xx_ERROR, GetLastError() };
 	}
 
-	if (!KSQL::EnsureSchema("__ProjectName__", CURRENT_SCHEMA, INITIAL_SCHEMA, GetIni(), bForce))
+	if (!KSQL::EnsureSchema("__UpperProjectName__", BUILD_CONFIG::SCHEMA_DIR, "__LowerProjectName__-", CURRENT_SCHEMA, INITIAL_SCHEMA, bForce))
 	{
 		throw KHTTPError { KHTTPError::H5xx_ERROR, GetLastError() };
 	}

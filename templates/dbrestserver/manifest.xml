@@ -1,0 +1,5 @@
+<manifest>
+	<description>
+	a REST server implementation with cached database connectors
+	</description>
+</manifest>

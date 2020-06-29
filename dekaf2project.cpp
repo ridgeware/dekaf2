@@ -51,6 +51,7 @@
 #include "kreplacer.h"
 #include "kurl.h"
 #include "ksystem.h"
+#include "kxml.h"
 
 using namespace dekaf2;
 
@@ -62,10 +63,10 @@ constexpr KStringView g_Synopsis[] = {
 	"",
 	" where options are:"
 	"",
-	"  -type <ProjectType>  :: type of project, default = cli",
-	"  -path <ProjectPath>  :: path to project root, name is added, default = current directory",
-	"  -sso  <URL> <Scope>  :: URL and scope of SSO server, default = none",
-	"  -version <Version>   :: version string, default = 0.0.1"
+	"  -t,type <ProjectType>  :: type of project, default = cli",
+	"  -p,path <ProjectPath>  :: path to project root, name is added, default = current directory",
+	"  -s,sso  <URL> <Scope>  :: URL and scope of SSO server, default = none",
+	"  -v,version <Version>   :: version string, default = 0.0.1"
 };
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -93,7 +94,7 @@ private:
 	void PrintReplacedFile (KStringViewZ sOutFile, KStringViewZ sInFile);
 	void CreateBuildSystem (KStringView sBuildType);
 	void InstallTemplateDir();
-	void CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFromDir);
+	void CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFromDir, uint16_t iRecursion = 1);
 
 	KString m_sProjectType { "cli" };
 	KString m_sProjectName;
@@ -148,22 +149,22 @@ CreateProject::CreateProject ()
 		m_bIsDone = true;
 	});
 
-	m_Options.RegisterOption("path", "missing project path", [&](KStringViewZ sPath)
+	m_Options.RegisterOption("p,path", "missing project path", [&](KStringViewZ sPath)
 	{
 		m_sProjectPath = sPath;
 	});
 
-	m_Options.RegisterOption("version", "missing version string", [&](KStringViewZ sVersion)
+	m_Options.RegisterOption("v,version", "missing version string", [&](KStringViewZ sVersion)
 	{
 		m_sProjectVersion = sVersion;
 	});
 
-	m_Options.RegisterOption("type", "missing project type", [&](KStringViewZ sType)
+	m_Options.RegisterOption("t,type", "missing project type", [&](KStringViewZ sType)
 	{
 		m_sProjectType = sType;
 	});
 
-	m_Options.RegisterOption("sso", 2, "missing SSO server URL and scope", [&](KOptions::ArgList& SSO)
+	m_Options.RegisterOption("s,sso", 2, "missing SSO server URL and scope", [&](KOptions::ArgList& SSO)
 	{
 		m_SSOProvider = SSO.pop();
 		m_SSOScope    = SSO.pop();
@@ -190,6 +191,21 @@ void CreateProject::ShowAllTemplates()
 		if (!Target.empty())
 		{
 			KOut.FormatLine(" {}", Template.Filename());
+			auto ManifestFile = Target.Find("manifest.xml");
+			if (ManifestFile != Target.end())
+			{
+				KXML Manifest(KInFile(ManifestFile->Path()), true);
+				auto Description = Manifest.Child("manifest").Child("description");
+				if (Description)
+				{
+					auto sDescription = Description.GetValue();
+					sDescription.TrimLeft("\t ");
+					sDescription.TrimLeft("\r\n");
+					sDescription.TrimRight("\r\n\t ");
+					KOut.WriteLine(sDescription);
+					KOut.WriteLine();
+				}
+			}
 		}
 	}
 
@@ -290,7 +306,7 @@ void CreateProject::PrintReplacedFile(KStringViewZ sOutFile, KStringViewZ sInFil
 } // PrintReplacedFile
 
 //-----------------------------------------------------------------------------
-void CreateProject::CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFromDir)
+void CreateProject::CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFromDir, uint16_t iRecursion)
 //-----------------------------------------------------------------------------
 {
 	KOut.FormatLine(":: entering directory         : {}", sOutputDir);
@@ -302,6 +318,12 @@ void CreateProject::CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFrom
 
 	KDirectory Directory(sFromDir);
 
+	if (iRecursion == 1)
+	{
+		// do not copy the manifest from the root directory, if any
+		Directory.Match("manifest.xml", true);
+	}
+
 	Directory.Sort();
 
 	for (const auto& File : Directory)
@@ -310,7 +332,7 @@ void CreateProject::CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFrom
 		{
 			KString sNewOut  = kFormat("{}{}{}", sOutputDir, kDirSep, File.Filename());
 			KString sNewFrom = kFormat("{}{}{}", sFromDir,   kDirSep, File.Filename());
-			CopyDirRecursive(sNewOut, sNewFrom);
+			CopyDirRecursive(sNewOut, sNewFrom, ++iRecursion);
 		}
 		else
 		{

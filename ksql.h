@@ -719,7 +719,7 @@ protected:
 
 			if (sFormat == "%s")
 			{
-				kDebugLog (1, kFormat("printing string into single arg - remove the format string: {}", std::forward<Args>(args)...));
+				kDebug (3, kFormat("printing string into single arg - remove the format string: {}", std::forward<Args>(args)...));
 
 				// check if we need to apply translations again - this was the previous,
 				// expected behaviour when formatting into "%s", and some queries

@@ -3669,7 +3669,7 @@ KROW KSQL::SingleRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAP
 } // SingleRawQuery
 
 //-----------------------------------------------------------------------------
-KString KSQL::SingleStringRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)
+KString KSQL::SingleStringRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleStringRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	auto ROW = SingleRawQuery(sSQL, iFlags, sAPI);
@@ -3691,7 +3691,11 @@ int64_t KSQL::SingleIntRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringVi
 {
 	auto sValue = SingleStringRawQuery(sSQL, iFlags, sAPI);
 
-	if (!kIsInteger(sValue))
+	if (!sValue)
+	{
+		return 0;
+	}
+	else if (!kIsInteger(sValue))
 	{
 		return -1;
 	}

@@ -3691,13 +3691,13 @@ int64_t KSQL::SingleIntRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringVi
 {
 	auto sValue = SingleStringRawQuery(sSQL, iFlags, sAPI);
 
-	if (!sValue)
+	if (!GetLastError().empty())
 	{
-		return 0;
+		return -1;
 	}
 	else if (!kIsInteger(sValue))
 	{
-		return -1;
+		return 0;
 	}
 	else
 	{

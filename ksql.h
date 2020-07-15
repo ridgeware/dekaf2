@@ -335,19 +335,19 @@ public:
 	/// @param sSQL  a SQL statement that returns one integer column
 	/// @param Flags additional processing flags, default none
 	/// @param sAPI  the method name used for logging, default "ExecRawQuery"
-	int64_t        SingleIntRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
+	int64_t        SingleIntRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "SingleIntRawQuery");
 
 	/// Executes a verbatim SQL statement that returns one single string value or "" on failure
 	/// @param sSQL  a SQL statement that returns one string column
 	/// @param Flags additional processing flags, default none
 	/// @param sAPI  the method name used for logging, default "ExecRawQuery"
-	KString        SingleStringRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
+	KString        SingleStringRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "SingleStringRawQuery");
 
 	/// Executes a verbatim SQL statement that returns one single KROW
 	/// @param sSQL  a SQL statement
 	/// @param Flags additional processing flags, default none
 	/// @param sAPI  the method name used for logging, default "ExecRawQuery"
-	KROW           SingleRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
+	KROW           SingleRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "SingleRawQuery");
 
 	/// Executes an SQL statement with format arguments that returns one KROW
 	template<class... Args>

@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 
 // large portions of this code are taken from
-// https://github.com/JoachimSchurig/CppCDDB/blob/master/KTCPServer.cpp
+// https://github.com/JoachimSchurig/CppCDDB/blob/master/asioserver.cpp
 // which is under a BSD style open source license
 
 //  Copyright © 2016 Joachim Schurig. All rights reserved.

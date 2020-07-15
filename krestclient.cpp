@@ -310,6 +310,7 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime
 
 	KJSON jResponse;
 	KString sError;
+	bool bBadJson { false };
 
 	if (!kjson::Parse(jResponse, sResponse, sError))
 	{
@@ -319,6 +320,8 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime
 			// primary error
 			return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad rx json: {}", sError) });
 		}
+
+		bBadJson = true;
 	}
 
 	if (!HttpSuccess())
@@ -330,23 +333,29 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime
 			sError = Error();
 		}
 
-		KString sDetailedError;
-
-		if (m_ErrorCallback)
+		if (!bBadJson)
 		{
-			sDetailedError = m_ErrorCallback(jResponse);
-		}
-		else
-		{
-			sDetailedError = DefaultErrorCallback(jResponse);
-		}
+			KString sDetailedError;
 
-		sDetailedError.Trim();
+			if (m_ErrorCallback)
+			{
+				sDetailedError = m_ErrorCallback(jResponse);
+			}
+			else
+			{
+				sDetailedError = DefaultErrorCallback(jResponse);
+			}
 
-		if (!sDetailedError.empty())
-		{
-			sError += ", ";
-			sError += sDetailedError;
+			sDetailedError.Trim();
+
+			if (!sDetailedError.empty())
+			{
+				if (!sError.empty())
+				{
+					sError += ", ";
+				}
+				sError += sDetailedError;
+			}
 		}
 
 		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {} from {}", m_sVerb.Serialize(), m_sPath, GetStatusCode(), sError, m_URL.Serialize()) }, std::move(jResponse));

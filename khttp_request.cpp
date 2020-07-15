@@ -90,7 +90,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 	Resource = Words[1];
 	sHTTPVersion = Words[2];
 
-	kDebug(1, "{} {} {}", Words[0], Words[1], Words[2]);
+	kDebug (3, "{} {} {}", Words[0], Words[1], Words[2]);
 
 	if (!sHTTPVersion.starts_with("HTTP/"))
 	{
@@ -129,7 +129,7 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 	{
 		if (!Endpoint.empty())
 		{
-			kDebug(1, "{} http://{}{} {}",
+			kDebug(3, "{} http://{}{} {}",
 					Method.Serialize(),
 					Endpoint.Serialize(),
 					Resource.Serialize(),
@@ -142,7 +142,7 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 		}
 		else
 		{
-			kDebug(1, "{} {} {}",
+			kDebug(3, "{} {} {}",
 					Method.Serialize(),
 					Resource.Serialize(),
 					sHTTPVersion);
@@ -156,7 +156,7 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 	{
 		if (!Endpoint.empty() && Method == KHTTPMethod::CONNECT)
 		{
-			kDebug(1, "{} {} {}",
+			kDebug(3, "{} {} {}",
 					Method.Serialize(),
 					Endpoint.Serialize(),
 					sHTTPVersion);
@@ -170,8 +170,8 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 		{
 			// special case, insert a single slash for the resource to
 			// satisfy the HTTP protocol
-			kDebug(1, "resource is empty, inserting /");
-			kDebug(1, "{} / {}",
+			kDebug(3, "resource is empty, inserting /");
+			kDebug(3, "{} / {}",
 						Method.Serialize(),
 						sHTTPVersion);
 			Stream.FormatLine("{} / {}",
@@ -351,4 +351,22 @@ bool KInHTTPRequest::Parse()
 
 } // Parse
 
+//-----------------------------------------------------------------------------
+KStringView KInHTTPRequest::GetCookie (KStringView sCookieName)
+//-----------------------------------------------------------------------------
+{
+	auto& sCookies = Headers[KHTTPHeaders::COOKIE];
+	for (auto Cookie : sCookies.Split<std::vector<KStringViewPair>>(";", "="))
+	{
+		if (Cookie.first == sCookieName)
+		{
+			return Cookie.second;
+		}
+	}
+
+	return {};
+
+} // GetCookie
+
 } // end of namespace dekaf2
+

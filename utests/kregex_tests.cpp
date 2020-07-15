@@ -15,12 +15,15 @@ TEST_CASE("KRegex")
 		KRegex::ClearCache();
 		KRegex::SetMaxCacheSize(3);
 
+		CHECK ( KRegex::GetCacheSize() == 0 );
 		CHECK ( KRegex::Matches(sString, "^[0-9A-Fa-f]*$") == true  );
 		CHECK ( KRegex::Matches(sString, "^[0-6A-Fa-f]*$") == false );
 		CHECK ( KRegex::Matches(sString, "^[0-6A-Ca-c]*$") == false );
+		CHECK ( KRegex::GetCacheSize() == 3 );
 		KRegex::SetMaxCacheSize(5);
 		CHECK ( KRegex::Matches(sString, "^[0-9A-Fa-f]*$") == true  );
 		CHECK ( KRegex::Matches(sString, "^[0-4A-Ca-c]*$") == false );
+		CHECK ( KRegex::GetCacheSize() == 4 );
 		CHECK ( KRegex::Matches(sString, "^[0-9A-Fa-f]*$") == true  );
 
 		KRegex::SetMaxCacheSize(iOrigSize);
@@ -33,12 +36,16 @@ TEST_CASE("KRegex")
 		KRegex::ClearCache();
 		KRegex::SetMaxCacheSize(3);
 
+		CHECK ( KRegex::GetCacheSize() == 0 );
 		CHECK ( KRegex::Matches(sString, "^[0-9A-Fa-f]*$") == true  );
 		CHECK ( KRegex::Matches(sString, "^[0-6A-Fa-f]*$") == false );
 		CHECK ( KRegex::Matches(sString, "^[0-6A-Ca-c]*$") == false );
+		CHECK ( KRegex::GetCacheSize() == 3 );
 		KRegex::SetMaxCacheSize(2);
+		CHECK ( KRegex::GetCacheSize() == 2 );
 		CHECK ( KRegex::Matches(sString, "^[0-4A-Ca-c]*$") == false );
 		CHECK ( KRegex::Matches(sString, "^[0-9A-Fa-f]*$") == true  );
+		CHECK ( KRegex::GetCacheSize() == 2 );
 
 		KRegex::SetMaxCacheSize(iOrigSize);
 		KRegex::ClearCache();
@@ -50,11 +57,14 @@ TEST_CASE("KRegex")
 		KRegex::ClearCache();
 		KRegex::SetMaxCacheSize(3);
 
+		CHECK ( KRegex::GetCacheSize() == 0 );
 		CHECK ( KRegex::Matches(sString, "^[0-9A-Fa-f]*$") == true  );
 		CHECK ( KRegex::Matches(sString, "^[0-6A-Fa-f]*$") == false );
 		CHECK ( KRegex::Matches(sString, "^[0-6A-Ca-c]*$") == false );
+		CHECK ( KRegex::GetCacheSize() == 3 );
 		CHECK ( KRegex::Matches(sString, "^[0-4A-Ca-c]*$") == false );
 		CHECK ( KRegex::Matches(sString, "^[0-9A-Fa-f]*$") == true  );
+		CHECK ( KRegex::GetCacheSize() == 3 );
 
 		KRegex::SetMaxCacheSize(iOrigSize);
 		KRegex::ClearCache();

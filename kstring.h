@@ -593,8 +593,8 @@ public:
 	/// Splits string into token container using delimiters, trim, and escape. Returned
 	/// Container is a sequence, like a vector, or an associative container like a map.
 	/// @return a new Container. Default is a std::vector<KStringView>.
-	/// @param chPairDelim exists only for associative containers: the char that is used to separate keys and values in the sequence. Defaults to "=".
 	/// @param svDelim a string view of delimiter characters. Defaults to ",".
+	/// @param svPairDelim exists only for associative containers: a string view that is used to separate keys and values in the sequence. Defaults to "=".
 	/// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
 	/// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 	/// @param bCombineDelimiters if true skips consecutive delimiters (an action always

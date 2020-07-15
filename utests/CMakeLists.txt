@@ -50,6 +50,7 @@ set (USOURCES
 	kprops_tests.cpp
 	kquotedprintable_tests.cpp
 	kreader_tests.cpp
+	kregex_tests.cpp
 	kreplacer_tests.cpp
 	krest_tests.cpp
 	krestclient_tests.cpp

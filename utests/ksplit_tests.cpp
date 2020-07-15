@@ -632,6 +632,19 @@ TEST_CASE("kSplitEmpty")
 	}
 }
 
+TEST_CASE("String split to pairs")
+{
+	KString sInput = "Cookie1 = value 1; Cookie2= value2 ;Cookie3=value3";
+	auto Cookies = sInput.Split<std::vector<KStringViewPair>>(";", "=");
+	CHECK ( Cookies.size() == 3 );
+	CHECK ( Cookies[0].first  == "Cookie1" );
+	CHECK ( Cookies[0].second == "value 1" );
+	CHECK ( Cookies[1].first  == "Cookie2" );
+	CHECK ( Cookies[1].second == "value2"  );
+	CHECK ( Cookies[2].first  == "Cookie3" );
+	CHECK ( Cookies[2].second == "value3"  );
+}
+
 
 TEST_CASE("kSplitArgsInPlace")
 {

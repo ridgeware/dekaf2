@@ -285,6 +285,7 @@ KStringViewPair kSplitToPairInt(
 //-----------------------------------------------------------------------------
 /// Splits one element into a key value pair separated by chDelim, and trims on request.
 /// @return the split key/value pair (KStringViewPair)
+/// @param svBuffer the source char sequence (a string view)
 /// @param svPairDelim a string view that separates key from value. Defaults to "=".
 /// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
@@ -433,8 +434,8 @@ private:
 /// a KStringViewPair (std::pair<KStringView, KStringView>).
 /// @return count of added key/value pairs.
 /// @param svBuffer the source char sequence.
-/// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
+/// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
 /// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
@@ -477,8 +478,8 @@ std::size_t kSplit(
 /// @return A new Container, its type needs to have an insert() that can construct
 /// an element from a KStringViewPair (std::pair<KStringView, KStringView>).
 /// @param svBuffer the source char sequence.
-/// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
+/// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
 /// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
@@ -519,8 +520,8 @@ Container kSplits(
 /// a KStringViewPair (std::pair<KStringView, KStringView>).
 /// @return count of added key/value pairs.
 /// @param svBuffer the source char sequence.
-/// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
+/// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
 /// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
@@ -565,8 +566,8 @@ std::size_t kSplit(
 /// @return A new Container, its type needs to have a push_back() that can construct
 /// an element from a KStringViewPair (std::pair<KStringView, KStringView>).
 /// @param svBuffer the source char sequence.
-/// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
+/// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
 /// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always

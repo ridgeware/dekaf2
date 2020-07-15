@@ -282,13 +282,14 @@ inline detail::kregex::regex_t& rget(void* p)
 }
 
 //-----------------------------------------------------------------------------
-void KRegex::LogExpError()
+void KRegex::LogExpError() const
 //-----------------------------------------------------------------------------
 {
-	kWarning("{} regex '{}', here: '{}'",
-			 rget(m_Regex)->error(),
-	         rget(m_Regex)->pattern(),
-	         rget(m_Regex)->error_arg());
+	kDebug(2,
+		   "{} regex '{}', here: '{}'",
+		   Error(),
+	       Pattern(),
+	       ErrorArg());
 }
 
 //-----------------------------------------------------------------------------
@@ -372,6 +373,10 @@ KRegex::Groups KRegex::MatchGroups(KStringView sStr, size_type pos) const
 			re2groups(resGroups, vGroups);
 		}
 	}
+	else
+	{
+		LogExpError();
+	}
 
 	return vGroups;
 }
@@ -390,6 +395,10 @@ KStringView KRegex::Match(KStringView sStr, size_type pos) const
 			sGroup.assign(resGroup.data(), resGroup.size());
 		}
 	}
+	else
+	{
+		LogExpError();
+	}
 
 	return sGroup;
 }
@@ -404,6 +413,10 @@ bool KRegex::Matches(KStringView sStr, size_type pos) const
 		{
 			return true;
 		}
+	}
+	else
+	{
+		LogExpError();
 	}
 
 	return false;
@@ -429,6 +442,11 @@ size_t KRegex::Replace(std::string& sStr, KStringView sReplaceWith, bool bReplac
 			}
 		}
 	}
+	else
+	{
+		LogExpError();
+	}
+
 	return iCount;
 }
 
@@ -453,6 +471,11 @@ size_t KRegex::Replace(KString& sStr, KStringView sReplaceWith, bool bReplaceAll
 			}
 		}
 	}
+	else
+	{
+		LogExpError();
+	}
+
 	return iCount;
 }
 #endif
@@ -551,6 +574,35 @@ KString kWildCard2Regex(KStringView sInput)
 	return sRegex;
 
 } // kWildCard2Regex
+
+//-----------------------------------------------------------------------------
+void KRegex::SetMaxCacheSize(size_t iCacheSize)
+//-----------------------------------------------------------------------------
+{
+	s_Cache.SetMaxSize(iCacheSize);
+}
+
+//-----------------------------------------------------------------------------
+void KRegex::ClearCache()
+//-----------------------------------------------------------------------------
+{
+	s_Cache.clear();
+}
+
+//-----------------------------------------------------------------------------
+size_t KRegex::GetMaxCacheSize()
+//-----------------------------------------------------------------------------
+{
+	return s_Cache.GetMaxSize();
+}
+
+//-----------------------------------------------------------------------------
+size_t KRegex::GetCacheSize()
+//-----------------------------------------------------------------------------
+{
+	return s_Cache.size();
+}
+
 
 static_assert(std::is_nothrow_move_constructible<KRegex>::value,
 			  "KRegex is intended to be nothrow move constructible, but is not!");

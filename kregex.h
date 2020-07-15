@@ -167,13 +167,33 @@ public:
 	const std::string& ErrorArg() const;
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// set the maximum cache size for the regex expression cache (could also shrink)
+	static void SetMaxCacheSize(size_t iCacheSize);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// clears the regex expression cache (why should you do that)
+	static void ClearCache();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns the maximum cache size for the regex expression cache
+	static size_t GetMaxCacheSize();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns the current cache size for the regex expression cache
+	static size_t GetCacheSize();
+	//-----------------------------------------------------------------------------
+
 //----------
 protected:
 //----------
 
 	//-----------------------------------------------------------------------------
 	/// prints the details of a regex error into the debug log
-	void LogExpError();
+	void LogExpError() const;
 	//-----------------------------------------------------------------------------
 
 //----------

@@ -252,7 +252,7 @@ public:
 	/// Does not throw, nor error: it just returns the empty string if
 	/// there is no COOKIE header or if the given cookie is missing.
 	/// Note: cookie names are case-sensitive.
-	KStringView GetCookie (KStringView sCookieName);
+	KStringView GetCookie (KStringView sCookieName) const;
 	//-----------------------------------------------------------------------------
 
 protected:

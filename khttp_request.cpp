@@ -90,7 +90,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 	Resource = Words[1];
 	sHTTPVersion = Words[2];
 
-	kDebug (3, "{} {} {}", Words[0], Words[1], Words[2]);
+	kDebug (1, "{} {} {}", Words[0], Words[1], Words[2]);
 
 	if (!sHTTPVersion.starts_with("HTTP/"))
 	{
@@ -129,7 +129,7 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 	{
 		if (!Endpoint.empty())
 		{
-			kDebug(3, "{} http://{}{} {}",
+			kDebug(1, "{} http://{}{} {}",
 					Method.Serialize(),
 					Endpoint.Serialize(),
 					Resource.Serialize(),
@@ -142,7 +142,7 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 		}
 		else
 		{
-			kDebug(3, "{} {} {}",
+			kDebug(1, "{} {} {}",
 					Method.Serialize(),
 					Resource.Serialize(),
 					sHTTPVersion);
@@ -156,7 +156,7 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 	{
 		if (!Endpoint.empty() && Method == KHTTPMethod::CONNECT)
 		{
-			kDebug(3, "{} {} {}",
+			kDebug(1, "{} {} {}",
 					Method.Serialize(),
 					Endpoint.Serialize(),
 					sHTTPVersion);
@@ -170,8 +170,8 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 		{
 			// special case, insert a single slash for the resource to
 			// satisfy the HTTP protocol
-			kDebug(3, "resource is empty, inserting /");
-			kDebug(3, "{} / {}",
+			kDebug(2, "resource is empty, inserting /");
+			kDebug(1, "{} / {}",
 						Method.Serialize(),
 						sHTTPVersion);
 			Stream.FormatLine("{} / {}",
@@ -352,15 +352,19 @@ bool KInHTTPRequest::Parse()
 } // Parse
 
 //-----------------------------------------------------------------------------
-KStringView KInHTTPRequest::GetCookie (KStringView sCookieName)
+KStringView KInHTTPRequest::GetCookie (KStringView sCookieName) const
 //-----------------------------------------------------------------------------
 {
-	auto& sCookies = Headers[KHTTPHeaders::COOKIE];
-	for (auto Cookie : sCookies.Split<std::vector<KStringViewPair>>(";", "="))
+	auto CookieHeader = Headers.find(KHTTPHeaders::COOKIE);
+
+	if (CookieHeader != Headers.end())
 	{
-		if (Cookie.first == sCookieName)
+		for (auto Cookie : CookieHeader->second.Split<std::vector<KStringViewPair>>(";", "="))
 		{
-			return Cookie.second;
+			if (Cookie.first == sCookieName)
+			{
+				return Cookie.second;
+			}
 		}
 	}
 

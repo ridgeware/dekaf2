@@ -75,7 +75,6 @@ public:
 
 	/// serialize the value part of the Cookie header
 	/// @param URL the URL for which this cookie is serialized
-	/// is not valid
 	KString Serialize(const KURL& URL) const;
 
 	/// serialize the value part of the Cookie header unconditionally -

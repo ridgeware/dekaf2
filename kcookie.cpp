@@ -233,11 +233,9 @@ KString KCookie::Serialize() const
 KString KCookie::Serialize(const KURL& URL) const
 //-----------------------------------------------------------------------------
 {
-	KString sCookie;
-
 	if (!WouldSerialize(URL))
 	{
-		return sCookie;
+		return {};
 	}
 
 	return Serialize();

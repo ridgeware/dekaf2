@@ -108,7 +108,7 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 
 
 //-----------------------------------------------------------------------------
-void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
+int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 //-----------------------------------------------------------------------------
 {
 	static constexpr KStringView s_sHeaderLoggingHelp {
@@ -118,6 +118,8 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 		" -grep <substring>        :: match substring to log\n"
 		" -out <headers|log|json>  :: output target for this thread, default = headers\n"
 	};
+
+	int  iKLogLevel { 0 };
 
 	auto it = Request.Headers.find(Options.sKLogHeader);
 
@@ -147,7 +149,6 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 
 		PARTYPE iPType { START };
 
-		int  iKLogLevel { 0 };
 		bool bToKLog    { false };
 		bool bToJSON    { false };
 		bool bEGrep     { false };
@@ -282,7 +283,7 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 		if (!bValid)
 		{
 			kDebug(2, "ignoring invalid klog header: {}: {}", it->first, it->second);
-			return;
+			return 0;
 		}
 
 		if (bToKLog)
@@ -298,7 +299,7 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 			kDebug(3, "per-thread {} logging, level {}", "JSON", iKLogLevel);
 #else
 			kDebug(2, "request to switch {} logging on, but compiled without support", "json response");
-			return;
+			return 0;
 #endif
 		}
 		else
@@ -321,6 +322,8 @@ void KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 			KLog::getInstance().LogThisThreadWithGrepExpression(bEGrep, sGrep);
 		}
 	}
+
+	return iKLogLevel;
 
 } // VerifyPerThreadKLogToHeader
 
@@ -401,7 +404,15 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			// not authenticated..)
 			if (!Options.sKLogHeader.empty() && Request.Method != KHTTPMethod::OPTIONS)
 			{
-				VerifyPerThreadKLogToHeader(Options);
+				if (VerifyPerThreadKLogToHeader(Options) > 1)
+				{
+					kDebug (2, "Request: {} {} {}", Request.Method.Serialize(), Request.Resource.Path, Request.sHTTPVersion);
+					// output headers for this thread
+					for (const auto& Header : Request.Headers)
+					{
+						kDebug(2, "Header: {}: {}", Header.first, Header.second);
+					}
+				}
 			}
 
 			if (!route->Callback)

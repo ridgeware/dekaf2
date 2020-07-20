@@ -234,7 +234,8 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// check if we shall log this thread's logging output into the response headers
-	void VerifyPerThreadKLogToHeader(const Options& Options);
+	/// @return the per-thread logging level from 0 (off) to 3
+	int VerifyPerThreadKLogToHeader(const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

@@ -65,7 +65,7 @@ auto zipDeleter = [](void* data)
 		zip_discard(static_cast<zip_t*>(data));
 	}
 
-};
+}; // zipDeleter
 
 //-----------------------------------------------------------------------------
 bool KZip::SetError(KString sError) const
@@ -166,12 +166,27 @@ void KZip::DirEntry::clear()
 //-----------------------------------------------------------------------------
 {
 	sName.clear();
-	iIndex            = 0;
-	iSize             = 0;
-	iCompSize         = 0;
-	mtime             = 0;
+	iIndex    = 0;
+	iSize     = 0;
+	iCompSize = 0;
+	mtime     = 0;
 
 } // clear
+
+//-----------------------------------------------------------------------------
+uint16_t KZip::DirEntry::PercentCompressed() const
+//-----------------------------------------------------------------------------
+{
+	if (iSize)
+	{
+		return iCompSize * 100 / iSize;
+	}
+	else
+	{
+		return 100;
+	}
+
+} // PercentCompressed
 
 //-----------------------------------------------------------------------------
 bool KZip::DirEntry::from_zip_stat(const void* vzip_stat)
@@ -201,11 +216,11 @@ bool KZip::DirEntry::from_zip_stat(const void* vzip_stat)
 		return false;
 	}
 
-	sName             = stat->name;
-	iIndex            = stat->index;
-	iSize             = stat->size;
-	iCompSize         = stat->comp_size;
-	mtime             = stat->mtime;
+	sName     = stat->name;
+	iIndex    = stat->index;
+	iSize     = stat->size;
+	iCompSize = stat->comp_size;
+	mtime     = stat->mtime;
 
 	return true;
 
@@ -270,6 +285,7 @@ KZip::Directory KZip::Files() const
 	for (std::size_t i = 0; i < size(); ++i)
 	{
 		auto Entry = Get(i);
+
 		if (!Entry.IsDirectory())
 		{
 			Files.push_back(std::move(Entry));
@@ -289,6 +305,7 @@ KZip::Directory KZip::Directories() const
 	for (std::size_t i = 0; i < size(); ++i)
 	{
 		auto Entry = Get(i);
+
 		if (Entry.IsDirectory())
 		{
 			Directories.push_back(std::move(Entry));
@@ -304,6 +321,7 @@ KZip::Directory KZip::FilesAndDirectories() const
 //-----------------------------------------------------------------------------
 {
 	Directory FilesAndDirectories;
+	FilesAndDirectories.reserve(size());
 
 	for (std::size_t i = 0; i < size(); ++i)
 	{

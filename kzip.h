@@ -95,6 +95,9 @@ public:
 			return kMakeSafePathname(sName, false);
 		}
 
+		/// return compression ratio in percent
+		uint16_t     PercentCompressed() const;
+
 	//------
 	private:
 	//------

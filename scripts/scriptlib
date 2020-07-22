@@ -199,13 +199,20 @@ GetOS ()
 
 		if [[ -f /etc/debian_version ]]; then
 
-			BINDIR="debian-${ARCH}"
 			INSTALLER="apt-get"
 			INSTALL="sudo ${INSTALLER} install -y"
 			UNINSTALL="sudo ${INSTALLER} remove -y"
 			CHECKINSTALLED="dpkg -l"
 			DISTRIB="debian"
 			DEVPKG="-dev"
+
+			if [[ "$(grep ^ID=ubuntu$ /etc/os-release)" != "" ]]; then
+				# ubuntu debian..
+				BINDIR="ubuntu-${ARCH}"
+			else
+				# another debian
+				BINDIR="debian-${ARCH}"
+			fi
 
 		# is this a red hat release
 		elif [[ -f /etc/redhat-release ]]; then

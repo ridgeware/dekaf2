@@ -53,9 +53,12 @@ BuildSetup ()
 					sqlite${DEVPKG} wget doxygen graphviz libzip
 				;;
 			debian)
+				# make sure the repo content lists are current
+				sudo apt-get update -y
+
 				InstallSystemPackages cmake libboost-all${DEVPKG} openssl libssl-dev libmariadb${DEVPKG} \
 					sqlite3 libsqlite3${DEVPKG} wget doxygen graphviz git sed tar gcc \
-					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g-dev
+					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g-dev libzip${DEVPKG}
 				;;
 			*)
 				InstallSystemPackages cmake boost${DEVPKG} openssl${DEVPKG} mariadb${DEVPKG} \

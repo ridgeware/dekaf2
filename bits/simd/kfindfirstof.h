@@ -45,32 +45,45 @@
 namespace dekaf2 {
 namespace detail {
 
-size_t kFindFirstOfNoSSE(
-        KStringView haystack,
-        KStringView needles,
-        bool bNot);
+namespace no_sse {
 
-size_t kFindLastOfNoSSE(
-        KStringView haystack,
-        KStringView needles,
-        bool bNot);
+/// non-sse version of kFindFirstOf, nonetheless using a very fast std:: algorithm
+/// @param haystack the string to search in
+/// @param needles  the characters to find
+/// @param bNot     whether to search for existing (false) or non-existing (true) needles
+size_t kFindFirstOf (KStringView haystack, KStringView needles, bool bNot);
 
-size_t kFindFirstOfSSE(
-        KStringView haystack,
-        KStringView needles);
+/// non-sse version of kFindLastOf, nonetheless using a very fast std:: algorithm
+/// @param haystack the string to search in
+/// @param needles  the characters to find
+/// @param bNot     whether to search for existing (false) or non-existing (true) needles
+size_t kFindLastOf  (KStringView haystack, KStringView needles, bool bNot);
 
-size_t kFindFirstNotOfSSE(
-        KStringView haystack,
-        KStringView needles);
+} // end of namespace no_sse
 
+namespace sse {
 
-size_t kFindLastOfSSE(
-        KStringView haystack,
-        KStringView needles);
+/// sse version of kFindFirstOf
+/// @param haystack the string to search in
+/// @param needles  the characters to find
+size_t kFindFirstOf    (KStringView haystack, KStringView needles);
 
-size_t kFindLastNotOfSSE(
-        KStringView haystack,
-        KStringView needles);
+/// sse version of kFindFirstNotOf
+/// @param haystack the string to search in
+/// @param needles  the characters not to find
+size_t kFindFirstNotOf (KStringView haystack, KStringView needles);
+
+/// sse version of kFindLastOf
+/// @param haystack the string to search in
+/// @param needles  the characters to find
+size_t kFindLastOf     (KStringView haystack, KStringView needles);
+
+/// sse version of kFindLastNotOf
+/// @param haystack the string to search in
+/// @param needles  the characters not to find
+size_t kFindLastNotOf  (KStringView haystack, KStringView needles);
+
+} // end of namespace sse
 
 } // end of namespace detail
 } // end of namespace dekaf2

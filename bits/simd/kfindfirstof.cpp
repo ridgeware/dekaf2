@@ -68,9 +68,10 @@
 
 namespace dekaf2 {
 namespace detail {
+namespace no_sse {
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
+size_t kFindFirstOf(KStringView haystack, KStringView needles, bool bNot)
 //-----------------------------------------------------------------------------
 {
 	std::array<bool, 256> table {};
@@ -95,10 +96,11 @@ size_t kFindFirstOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
 	{
 		return static_cast<size_t>(it - haystack.begin());
 	}
-}
+
+} // kFindFirstOf
 
 //-----------------------------------------------------------------------------
-size_t kFindLastOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
+size_t kFindLastOf(KStringView haystack, KStringView needles, bool bNot)
 //-----------------------------------------------------------------------------
 {
 	std::array<bool, 256> table {};
@@ -123,8 +125,10 @@ size_t kFindLastOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
 	{
 		return static_cast<size_t>((it.base() - 1) - haystack.begin());
 	}
-}
 
+} // kFindLastOf
+
+} // end of namespace no_sse
 } // end of namespace detail
 } // end of namespace dekaf
 
@@ -136,43 +140,37 @@ size_t kFindLastOfNoSSE(KStringView haystack, KStringView needles, bool bNot)
 
 namespace dekaf2 {
 namespace detail {
+namespace sse    {
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstOfSSE(
-        KStringView haystack,
-        KStringView needles)
+size_t kFindFirstOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
-	return kFindFirstOfNoSSE(haystack, needles, false);
+	return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, false);
 }
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstNotOfSSE(
-        KStringView haystack,
-        KStringView needles)
+size_t kFindFirstNotOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
-	return kFindFirstOfNoSSE(haystack, needles, true);
+	return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, true);
 }
 
 //-----------------------------------------------------------------------------
-size_t kFindLastOfSSE(
-        KStringView haystack,
-        KStringView needles)
+size_t kFindLastOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
-	return kFindLastOfNoSSE(haystack, needles, false);
+	return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, false);
 }
 
 //-----------------------------------------------------------------------------
-size_t kFindLastNotOfSSE(
-        KStringView haystack,
-        KStringView needles)
+size_t kFindLastNotOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
-	return kFindLastOfNoSSE(haystack, needles, true);
+	return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
 }
 
+} // end of namespace sse
 } // end of namespace detail
 } // end of namespace dekaf2
 
@@ -192,6 +190,7 @@ size_t kFindLastNotOfSSE(
 
 namespace dekaf2 {
 namespace detail {
+namespace sse    {
 
 //-----------------------------------------------------------------------------
 DEKAF2_ALWAYS_INLINE
@@ -335,9 +334,8 @@ DEKAF2_ALWAYS_INLINE
 #else
 DEKAF2_NO_ASAN
 #endif
-size_t kFindFirstOfNeedles16(
-        KStringView haystack,
-        KStringView needles)
+size_t kFindFirstOfNeedles16(KStringView haystack,
+							 KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	// load needles
@@ -391,15 +389,14 @@ size_t kFindFirstOfNeedles16(
 //-----------------------------------------------------------------------------
 // helper method for case where needles.size() <= 16
 // caller must guarantee that short haystacks and needles don't cross page boundary
-template<bool bNot, int iOperation>
+template<int iOperation>
 #ifdef NDEBUG
 DEKAF2_ALWAYS_INLINE
 #else
 DEKAF2_NO_ASAN
 #endif
-size_t kFindLastOfNeedles16(
-        KStringView haystack,
-        KStringView needles)
+size_t kFindLastOfNeedles16(KStringView haystack,
+							KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	// load needles
@@ -436,7 +433,7 @@ size_t kFindLastOfNeedles16(
 
 			if (index < 16)
 			{
-				size_t inv = 16 - index;
+				size_t inv  = 16 - index;
 				size_t size = p + 16 - haystack.data();
 
 				// need to check for underflow in last round..
@@ -474,10 +471,9 @@ DEKAF2_ALWAYS_INLINE
 #else
 DEKAF2_NO_ASAN
 #endif
-size_t scanHaystackBlock(
-        KStringView haystack,
-        KStringView needles,
-        size_t blockStartIdx)
+size_t scanHaystackBlock(KStringView haystack,
+						 KStringView needles,
+						 size_t blockStartIdx)
 //-----------------------------------------------------------------------------
 {
 	__m128i arr1;
@@ -495,15 +491,15 @@ size_t scanHaystackBlock(
 
 	// This load is safe because needles.size() >= 16
 	auto arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needles.data()));
-	auto b = _mm_cmpestri(arr2, 16, arr1, useSize, 0);
+	auto b    = _mm_cmpestri(arr2, 16, arr1, useSize, 0);
 
 	size_t j = nextAlignedIndex(needles.data());
 
 	for (; j < needles.size(); j += 16)
 	{
-		arr2 = _mm_load_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
+		arr2       = _mm_load_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
 		auto index = _mm_cmpestri(arr2, needles.size() - j, arr1, useSize, 0);
-		b = std::min(index, b);
+		b          = std::min(index, b);
 	}
 
 	if (b < useSize)
@@ -526,10 +522,9 @@ DEKAF2_ALWAYS_INLINE
 #else
 DEKAF2_NO_ASAN
 #endif
-size_t scanHaystackBlockNot(
-        KStringView haystack,
-        KStringView needles,
-        size_t blockStartIdx)
+size_t scanHaystackBlockNot(KStringView haystack,
+							KStringView needles,
+							size_t blockStartIdx)
 //-----------------------------------------------------------------------------
 {
 	__m128i arr1;
@@ -591,10 +586,9 @@ DEKAF2_ALWAYS_INLINE
 #else
 DEKAF2_NO_ASAN
 #endif
-size_t reverseScanHaystackBlock(
-        KStringView haystack,
-        KStringView needles,
-        size_t blockStartIdx)
+size_t reverseScanHaystackBlock(KStringView haystack,
+								KStringView needles,
+								size_t blockStartIdx)
 //-----------------------------------------------------------------------------
 {
 	__m128i arr1;
@@ -654,8 +648,7 @@ DEKAF2_ALWAYS_INLINE
 #else
 DEKAF2_NO_ASAN
 #endif
-size_t reverseScanHaystackBlockNot(
-								   KStringView haystack,
+size_t reverseScanHaystackBlockNot(KStringView haystack,
 								   KStringView needles,
 								   size_t blockStartIdx)
 //-----------------------------------------------------------------------------
@@ -711,12 +704,11 @@ size_t reverseScanHaystackBlockNot(
 	}
 
 	return KStringView::npos;
-}
+
+} // reverseScanHaystackBlockNot
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstOfSSE(
-        KStringView haystack,
-        KStringView needles)
+size_t kFindFirstOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(needles.empty() || haystack.empty()))
@@ -727,14 +719,14 @@ size_t kFindFirstOfSSE(
 	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
 	{
 		// We can't safely SSE-load haystack. Use a different approach.
-		return kFindFirstOfNoSSE(haystack, needles, false);
+		return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, false);
 	}
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
 		if (DEKAF2_UNLIKELY(UnalignedPageOverflow16(needles)))
 		{
-			return kFindFirstOfNoSSE(haystack, needles, false);
+			return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, false);
 		}
 
 		// we can save some unnecessary load instructions by optimizing for
@@ -763,12 +755,10 @@ size_t kFindFirstOfSSE(
 
 	return KStringView::npos;
 
-} // kFindFirstOfSSE
+} // kFindFirstOf
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstNotOfSSE(
-        KStringView haystack,
-        KStringView needles)
+size_t kFindFirstNotOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(needles.empty() || haystack.empty()))
@@ -779,14 +769,14 @@ size_t kFindFirstNotOfSSE(
 	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
 	{
 		// We can't safely SSE-load haystack. Use a different approach.
-		return kFindFirstOfNoSSE(haystack, needles, true);
+		return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, true);
 	}
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
 		if (DEKAF2_UNLIKELY(UnalignedPageOverflow16(needles)))
 		{
-			return kFindFirstOfNoSSE(haystack, needles, true);
+			return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, true);
 		}
 
 		// we can save some unnecessary load instructions by optimizing for
@@ -815,12 +805,10 @@ size_t kFindFirstNotOfSSE(
 
 	return KStringView::npos;
 
-} // kFindFirstNotOfSSE
+} // kFindFirstNotOf
 
 //-----------------------------------------------------------------------------
-size_t kFindLastOfSSE(
-        KStringView haystack,
-        KStringView needles)
+size_t kFindLastOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {	
 	if (DEKAF2_UNLIKELY(needles.empty() || haystack.empty()))
@@ -830,18 +818,18 @@ size_t kFindLastOfSSE(
 
 	if (DEKAF2_UNLIKELY(UnalignedPageUnderflow(haystack)))
 	{
-		kFindLastOfNoSSE(haystack, needles, false);
+		dekaf2::detail::no_sse::kFindLastOf(haystack, needles, false);
 	}
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
 		if (DEKAF2_UNLIKELY(UnalignedPageOverflow16(needles)))
 		{
-			return kFindLastOfNoSSE(haystack, needles, false);
+			return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, false);
 		}
 
 		// For a 16 byte or less needle you don't need to cycle through it
-		return kFindLastOfNeedles16<false, 0b01000000>(haystack, needles);
+		return kFindLastOfNeedles16<0b01000000>(haystack, needles);
 	}
 
 	// Account for haystack < 16
@@ -883,12 +871,10 @@ size_t kFindLastOfSSE(
 
 	return KStringView::npos;
 
-} // kFindLastOfSSE
+} // kFindLastOf
 
 //-----------------------------------------------------------------------------
-size_t kFindLastNotOfSSE(
-						 KStringView haystack,
-						 KStringView needles)
+size_t kFindLastNotOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(needles.empty() || haystack.empty()))
@@ -899,25 +885,25 @@ size_t kFindLastNotOfSSE(
 	// test for underflow on haystack
 	if (DEKAF2_UNLIKELY(UnalignedPageUnderflow(haystack)))
 	{
-		kFindLastOfNoSSE(haystack, needles, true);
+		dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
 	}
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
 		if (DEKAF2_UNLIKELY(UnalignedPageOverflow16(needles)))
 		{
-			return kFindLastOfNoSSE(haystack, needles, true);
+			return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
 		}
 
 		// For a 16 byte or less needle you don't need to cycle through it
-		return kFindLastOfNeedles16<true, 0b01110000>(haystack, needles);
+		return kFindLastOfNeedles16<0b01110000>(haystack, needles);
 	}
 
 	// we have a different search strategy for the large needle case, therefore
 	// we need to test for an overflow on haystack as well
 	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
 	{
-		kFindLastOfNoSSE(haystack, needles, true);
+		dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
 	}
 
 	// Account for haystack < 16
@@ -963,8 +949,9 @@ size_t kFindLastNotOfSSE(
 
 	return KStringView::npos;
 
-} // kFindLastNotOfSSE
+} // kFindLastNotOf
 
+} // end of namespace sse
 } // end of namespace detail
 } // end of namespace dekaf2
 

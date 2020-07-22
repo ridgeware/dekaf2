@@ -59,7 +59,7 @@ void* memrchr(const void* s, int c, size_t n)
 	{
 		const char* p = static_cast<const char*>(s);
 		char ch = static_cast<char>(c);
-		size_t pos = dekaf2::detail::kFindLastOfSSE(dekaf2::KStringView(p, n), dekaf2::KStringView(&ch, 1));
+		size_t pos = dekaf2::detail::sse::kFindLastOf(dekaf2::KStringView(p, n), dekaf2::KStringView(&ch, 1));
 		if (pos != dekaf2::KStringView::npos)
 		{
 			return const_cast<char*>(p + pos);
@@ -263,7 +263,7 @@ size_t kFindFirstOfInt(
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
-		auto result = detail::kFindFirstOfSSE(haystack, needle);
+		auto result = detail::sse::kFindFirstOf(haystack, needle);
 		if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
 		{
 			return result;
@@ -272,7 +272,7 @@ size_t kFindFirstOfInt(
 	}
 #endif
 
-	auto result = detail::kFindFirstOfNoSSE(haystack, needle, false);
+	auto result = detail::no_sse::kFindFirstOf(haystack, needle, false);
 	if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
 	{
 		return result;
@@ -304,7 +304,7 @@ size_t kFindFirstNotOfInt(
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
-		auto result = detail::kFindFirstNotOfSSE(haystack, needle);
+		auto result = detail::sse::kFindFirstNotOf(haystack, needle);
 		if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
 		{
 			return result;
@@ -313,7 +313,7 @@ size_t kFindFirstNotOfInt(
 	}
 #endif
 
-	auto result = detail::kFindFirstOfNoSSE(haystack, needle, true);
+	auto result = detail::no_sse::kFindFirstOf(haystack, needle, true);
 	if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
 	{
 		return result;
@@ -353,11 +353,11 @@ size_t kFindLastOfInt(
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
-		return detail::kFindLastOfSSE(haystack, needle);
+		return detail::sse::kFindLastOf(haystack, needle);
 	}
 #endif
 
-	return detail::kFindLastOfNoSSE(haystack, needle, false);
+	return detail::no_sse::kFindLastOf(haystack, needle, false);
 
 } // kFindLastOfInt
 
@@ -387,11 +387,11 @@ size_t kFindLastNotOfInt(
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
-		return detail::kFindLastNotOfSSE(haystack, needle);
+		return detail::sse::kFindLastNotOf(haystack, needle);
 	}
 #endif
 
-	return detail::kFindLastOfNoSSE(haystack, needle, true);
+	return detail::no_sse::kFindLastOf(haystack, needle, true);
 
 } // kFindLastNotOfInt
 

@@ -14,14 +14,14 @@ static size_t KPIPE_DELAY (1);
 
 KString KPipeReaderDelayCommand(unsigned int depth, size_t second, const KString sMessage1 = "", const KString sMessage2 = "")
 {
-    return fmt::format("$dekaf/utests/kpipe_delay_test.sh {} {} '{}' '{}' 2>&1",
+    return kFormat("$dekaf/utests/kpipe_delay_test.sh {} {} '{}' '{}' 2>&1",
                 depth, second/40, sMessage1, sMessage2);
 }
 
-void kpipereader_testKillDelayTask()
+int kpipereader_testKillDelayTask()
 {
     KString sCmd("pkill -f 'kpipe_delay_test' > /dev/null 2>&1");
-    system(sCmd.c_str());
+    return std::system(sCmd.c_str());
 }
 
 TEST_CASE("KInShell")

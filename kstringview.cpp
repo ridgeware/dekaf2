@@ -719,7 +719,7 @@ double KStringView::Double() const noexcept
 void KStringView::Warn(KStringView sWhat) const
 //-----------------------------------------------------------------------------
 {
-	kWarning("{}", sWhat);
+	kWarning(sWhat);
 }
 
 //----------------------------------------------------------------------

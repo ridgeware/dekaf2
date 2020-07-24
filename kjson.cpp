@@ -215,7 +215,7 @@ const KString& GetStringRef(const KJSON& json, KStringView sKey) noexcept
 
 	return s_sEmpty;
 
-} // GetString
+} // GetStringRef
 
 //-----------------------------------------------------------------------------
 KString GetString(const KJSON& json, KStringView sKey) noexcept
@@ -312,7 +312,7 @@ const KJSON& GetObjectRef (const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
-	if (it != json.end() && it.value().is_object())
+	if (it != json.end())
 	{
 		return it.value();
 	}
@@ -484,6 +484,7 @@ KString Print (const KJSON& json) noexcept
 			case KJSON::value_t::null:
 				return "NULL";
 
+			default:
 			case KJSON::value_t::discarded:
 				return "(UNKNOWN)";
 		}

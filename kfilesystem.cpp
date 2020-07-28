@@ -1174,7 +1174,7 @@ bool kAppendFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKA
 bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds)
 //-----------------------------------------------------------------------------
 {
-	kDebug (2, "{}", sPath);
+	kDebug (2, sPath);
 
 	if (!kReadAll(sPath, sContents))
 	{

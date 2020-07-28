@@ -82,7 +82,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 	if (Words.size() != 3)
 	{
 		// garbage, bail out
-		kDebug (2, "{}", sLine);
+		kDebug (2, sLine);
 		return SetError(kFormat("invalid status line of HTTP header: {} words instead of 3", Words.size()));
 	}
 

@@ -259,7 +259,7 @@ void KCGIInStream::Stream::CreateHeader()
 	m_sHeader += kGetEnv(KCGIInStream::REQUEST_URI);
 	m_sHeader += ' ';
 	m_sHeader += kGetEnv(KCGIInStream::SERVER_PROTOCOL);
-	kDebug(1, "{}", m_sHeader);
+	kDebug(1, m_sHeader);
 	m_sHeader += "\r\n";
 
 	struct CGIVars_t { KStringViewZ sVar; KStringViewZ sHeader; };

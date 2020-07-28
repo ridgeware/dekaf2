@@ -151,7 +151,7 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 
 				if (address)
 				{
-					klog.warning("{}", kGetAddress2Line(address));
+					klog.warning(kGetAddress2Line(address));
 				}
 				break;
 			}

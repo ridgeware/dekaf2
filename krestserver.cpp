@@ -657,7 +657,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 			Serialize();
 
 			// finally, output the content:
-			kDebugLog (3, "{}", sContent);
+			kDebugLog (3, sContent);
 			Write(sContent);
 		}
 		break;
@@ -859,7 +859,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 			Serialize();
 
 			// finally, output the content:
-			kDebug (3, "{}", sContent);
+			kDebug (3, sContent);
 			Response.Write (sContent);
 		}
 		break;

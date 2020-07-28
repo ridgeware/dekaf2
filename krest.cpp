@@ -351,9 +351,8 @@ const KString& KREST::Error() const
 bool KREST::SetError(KStringView sError)
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "{}", sError);
+	kDebug (1, sError);
 	m_sError = sError;
-	kWarning(m_sError);
 	return false;
 
 } // SetError

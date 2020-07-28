@@ -296,7 +296,7 @@ bool KHTTPHeaders::HasKeepAlive() const
 bool KHTTPHeaders::SetError(KString sError) const
 //-----------------------------------------------------------------------------
 {
-	kDebug(1, "{}", sError);
+	kDebug(1, sError);
 	m_sError = std::move(sError);
 	return false;
 

@@ -262,7 +262,7 @@ void KHTTPRouter::ErrorHandler(const std::exception& ex)
 	Response.Serialize();
 
 	// finally, output the content:
-	kDebug (2, "{}", sContent);
+	kDebug (2, sContent);
 	Response.Write (sContent);
 
 } // ErrorHandler

@@ -231,7 +231,7 @@ KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMe
 
 	if (!sResponse.empty())
 	{
-		kDebug(2, "{}", sResponse);
+		kDebug(2, sResponse);
 	}
 
 	return sResponse;

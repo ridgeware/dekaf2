@@ -316,14 +316,14 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 	if (empty())
 	{
 		m_sLastError.Format("KROW::FormInsert(): no columns defined.");
-		kDebugLog (1, "{}", m_sLastError);
+		kDebugLog (1, m_sLastError);
 		return (false);
 	}
 
 	if (m_sTablename.empty())
 	{
 		m_sLastError.Format("KROW::FormInsert(): no tablename defined.");
-		kDebugLog (1, "{}", m_sLastError);
+		kDebugLog (1, m_sLastError);
 		return (false);
 	}
 

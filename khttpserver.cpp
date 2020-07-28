@@ -191,7 +191,7 @@ KString KHTTPServer::GetQueryParm(KStringView sKey, KStringView sDefault) const
 bool KHTTPServer::SetError(KStringView sError) const
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "{}", sError);
+	kDebug (1, sError);
 	m_sError = sError;
 	return false;
 

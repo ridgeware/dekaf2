@@ -323,7 +323,7 @@ KString kGetWhoAmI ()
 	}
 #endif
 
-	kDebug (2, "{}", sWhoami);
+	kDebug (2, sWhoami);
 
 	return (sWhoami);
 
@@ -445,7 +445,7 @@ int kSystem (KStringView sCommand, KString& sOutput)
 	KString sWrapped;
 	sWrapped.Format ("({}) > {} 2>&1", sCommand, sTmp);
 
-	kDebug (3, "{}", sWrapped);
+	kDebug (3, sWrapped);
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// shell out to run the command:

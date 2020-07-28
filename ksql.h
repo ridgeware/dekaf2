@@ -313,13 +313,19 @@ public:
 	bool ExecSQL (KStringView sFormat, Args&&... args)
 	{
 		m_sLastSQL = FormatSQLQuery (sFormat, std::forward<Args>(args)...);
-		bool bOK   = ExecRawSQL (m_sLastSQL, 0, "ExecSQL");
+		bool bOK   = ExecLastRawSQL (0, "ExecSQL");
 		kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 		return (bOK);
 
 	} // KSQL::ExecSQL
 
-	bool ExecRawSQL  (KStringView sSQL, Flags iFlags = 0, KStringView sAPI="ExecRawSQL");
+	inline
+	bool ExecRawSQL  (KString sSQL, Flags iFlags = 0, KStringView sAPI="ExecRawSQL")
+	{
+		m_sLastSQL = std::move(sSQL);
+		return ExecLastRawSQL(iFlags, sAPI);
+	}
+
 	bool ExecSQLFile (KStringViewZ sFilename);
 
 	/// After establishing a database connection, this is how you issue a SQL query and get results.
@@ -327,34 +333,33 @@ public:
 	bool ExecQuery (KStringView sFormat, Args&&... args)
 	{
 		m_sLastSQL = FormatSQLQuery (sFormat, std::forward<Args>(args)...);
-		return (ExecRawQuery (m_sLastSQL, 0, "ExecQuery"));
+		return (ExecLastRawQuery (0, "ExecQuery"));
 
 	} // ExecQuery
 
 	/// Executes a verbatim SQL statement that returns one single integer value or -1 on failure
 	/// @param sSQL  a SQL statement that returns one integer column
 	/// @param Flags additional processing flags, default none
-	/// @param sAPI  the method name used for logging, default "ExecRawQuery"
-	int64_t        SingleIntRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "SingleIntRawQuery");
+	/// @param sAPI  the method name used for logging, default "SingleIntRawQuery"
+	int64_t        SingleIntRawQuery (KString sSQL, Flags iFlags=0, KStringView sAPI = "SingleIntRawQuery");
 
 	/// Executes a verbatim SQL statement that returns one single string value or "" on failure
 	/// @param sSQL  a SQL statement that returns one string column
 	/// @param Flags additional processing flags, default none
-	/// @param sAPI  the method name used for logging, default "ExecRawQuery"
-	KString        SingleStringRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "SingleStringRawQuery");
+	/// @param sAPI  the method name used for logging, default "SingleStringRawQuery"
+	KString        SingleStringRawQuery (KString sSQL, Flags iFlags=0, KStringView sAPI = "SingleStringRawQuery");
 
 	/// Executes a verbatim SQL statement that returns one single KROW
 	/// @param sSQL  a SQL statement
 	/// @param Flags additional processing flags, default none
-	/// @param sAPI  the method name used for logging, default "ExecRawQuery"
-	KROW           SingleRawQuery (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "SingleRawQuery");
+	/// @param sAPI  the method name used for logging, default "SingleRawQuery"
+	KROW           SingleRawQuery (KString sSQL, Flags iFlags=0, KStringView sAPI = "SingleRawQuery");
 
 	/// Executes an SQL statement with format arguments that returns one KROW
 	template<class... Args>
 	KROW SingleQuery (KStringView sFormat, Args&&... args)
 	{
-		m_sLastSQL = FormatSQLQuery (sFormat, std::forward<Args>(args)...);
-		return (SingleRawQuery (m_sLastSQL, 0, "SingleQuery"));
+		return (SingleRawQuery (FormatSQLQuery (sFormat, std::forward<Args>(args)...), 0, "SingleQuery"));
 
 	} // KSQL::SingleQuery
 
@@ -362,8 +367,7 @@ public:
 	template<class... Args>
 	int64_t SingleIntQuery (KStringView sFormat, Args&&... args)
 	{
-		m_sLastSQL = FormatSQLQuery (sFormat, std::forward<Args>(args)...);
-		return (SingleIntRawQuery (m_sLastSQL, 0, "SingleIntQuery"));
+		return (SingleIntRawQuery (FormatSQLQuery (sFormat, std::forward<Args>(args)...), 0, "SingleIntQuery"));
 
 	} // KSQL::SingleIntQuery
 
@@ -371,12 +375,17 @@ public:
 	template<class... Args>
 	KString SingleStringQuery (KStringView sFormat, Args&&... args)
 	{
-		m_sLastSQL = FormatSQLQuery (sFormat, std::forward<Args>(args)...);
-		return (SingleStringRawQuery (m_sLastSQL, 0, "SingleStringQuery"));
+		return (SingleStringRawQuery (FormatSQLQuery (sFormat, std::forward<Args>(args)...), 0, "SingleStringQuery"));
 
 	} // KSQL::SingleStringQuery
 
-	bool           ExecRawQuery   (KStringView sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery");
+	inline
+	bool           ExecRawQuery   (KString sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery")
+	{
+		m_sLastSQL = std::move(sSQL);
+		return ExecLastRawQuery(iFlags, sAPI);
+	}
+
 	KROW::Index    GetNumCols     ();
 	KROW::Index    GetNumColumns  ()         { return (GetNumCols());       }
 	bool           NextRow        ();
@@ -532,8 +541,8 @@ public:
 	bool   QueryStarted ()         { return (m_bQueryStarted); }
 	void   EndQuery (bool bDestructor=false);
 
-	size_t  OutputQuery     (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout);
-	size_t  OutputQuery     (KStringView sSQL, OutputFormat iFormat = FORM_ASCII, FILE* fpout = stdout);
+	size_t  OutputQuery     (KString sSQL, KStringView sFormat, FILE* fpout = stdout);
+	size_t  OutputQuery     (KString sSQL, OutputFormat iFormat = FORM_ASCII, FILE* fpout = stdout);
 
 	void   DisableRetries() { m_bDisableRetries = true;  }
 	void   EnableRetries()  { m_bDisableRetries = false; }
@@ -707,6 +716,9 @@ private:
 //----------
 protected:
 //----------
+
+	bool ExecLastRawSQL (Flags iFlags=0, KStringView sAPI = "ExecLastRawSQL");
+	bool ExecLastRawQuery (Flags iFlags=0, KStringView sAPI = "ExecLastRawQuery");
 
 	//----------------------------------------------------------------------
 	template<class... Args>

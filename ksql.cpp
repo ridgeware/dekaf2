@@ -548,7 +548,7 @@ bool KSQL::SetConnect (DBT iDBType, KStringView sUsername, KStringView sPassword
 
 	SetAPISet (API::NONE); // <-- pick the default APIs for this DBType
 	InvalidateConnectSummary();
-	kDebug (1, "{}", ConnectSummary());
+	kDebug (1, ConnectSummary());
 
 	return (true);
 
@@ -569,7 +569,7 @@ bool KSQL::SetConnect (KSQL& Other)
 	SetAPISet (Other.GetAPISet());
 
 	InvalidateConnectSummary();
-	kDebug (1, "{}", ConnectSummary());
+	kDebug (1, ConnectSummary());
 
 	return (true);
 
@@ -1461,16 +1461,15 @@ void CopyIfNotSame(KString& sTarget, KStringView svView)
 }
 
 //-----------------------------------------------------------------------------
-bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="ExecRawSQL"*/)
+bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQL"*/)
 //-----------------------------------------------------------------------------
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, sSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, m_sLastSQL);
 	}
 
 	m_iNumRowsAffected  = 0;
-	CopyIfNotSame(m_sLastSQL, sSQL);
 	EndQuery();
 
 	bool   bOK          = false;
@@ -1499,12 +1498,12 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 
 						if (!m_dMYSQL)
 						{
-							kDebug (1, "failed.  aborting query or SQL:\n{}", sSQL);
+							kDebug (1, "failed.  aborting query or SQL:\n{}", m_sLastSQL);
 							break;
 						}
 					}
 
-					kDebug (3, "mysql_query(): m_dMYSQL is {}, SQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", sSQL.size());
+					kDebug (3, "mysql_query(): m_dMYSQL is {}, SQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", m_sLastSQL.size());
 					if (mysql_query (m_dMYSQL, m_sLastSQL.c_str()))
 					{
 						m_iErrorNum = mysql_errno (m_dMYSQL);
@@ -1544,7 +1543,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 			// - - - - - - - - - - - - - - - - -
 				kDebug (3, "OCIStmtPrepare...");
 				m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
-											 (text*)sSQL.data(), sSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
+											 (text*)m_sLastSQL.data(), m_sLastSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
 
 				if (!WasOCICallOK("ExecSQL:OCIStmtPrepare"))
 				{
@@ -1622,12 +1621,12 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 
 					if (!ctlib_is_initialized())
 					{
-						kDebug (1, "failed.  aborting query or SQL:\n{}", sSQL);
+						kDebug (1, "failed.  aborting query or SQL:\n{}", m_sLastSQL);
 						break; // once
 					}
 				}
 
-				bOK = ctlib_execsql (sSQL);
+				bOK = ctlib_execsql (m_sLastSQL);
 
 				if (!bOK)
 				{
@@ -1701,7 +1700,7 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 				"KSQL: {} rows affected.\n",
 					m_iWarnIfOverNumSeconds,
 					kTranslateSeconds(tTook),
-					sSQL,
+					m_sLastSQL,
 					m_iNumRowsAffected);
 
 			if (m_bpWarnIfOverNumSeconds)
@@ -1711,14 +1710,14 @@ bool KSQL::ExecRawSQL (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 			}
 			else
 			{
-				kWarningLog ("{}", sWarning);
+				kWarningLog (sWarning);
 			}
 		}
 	}
 
 	return (bOK);
 
-} // ExecRawSQL
+} // ExecLastRawSQL
 
 //-----------------------------------------------------------------------------
 bool KSQL::PreparedToRetry ()
@@ -1780,12 +1779,12 @@ bool KSQL::PreparedToRetry ()
 	{
 		if (IsFlag(F_IgnoreSQLErrors))
 		{
-			kDebug (GetDebugLevel(), "{}", GetLastError());
+			kDebug (GetDebugLevel(), GetLastError());
 			kDebug (GetDebugLevel(), "automatic retry now in progress...");
 		}
 		else
 		{
-			kWarning ("{}", GetLastError());
+			kWarning (GetLastError());
 			kWarning ("automatic retry now in progress...");
 		}
 
@@ -2211,7 +2210,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 			DoTranslations (m_sLastSQL);
 		}
 	
-		if (!ExecRawQuery (m_sLastSQL, 0, "ExecSQLFile") && !Parms.fDropStatement)
+		if (!ExecLastRawQuery (0, "ExecSQLFile") && !Parms.fDropStatement)
 		{
 			Parms.fOK   = false;
 			Parms.fDone = true;
@@ -2226,7 +2225,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 			DoTranslations (m_sLastSQL);
 		}
 
-		if (!ExecRawSQL (m_sLastSQL, 0, "ExecSQLFile") && !Parms.fDropStatement)
+		if (!ExecLastRawSQL (0, "ExecSQLFile") && !Parms.fDropStatement)
 		{
 			Parms.fOK   = false;
 			Parms.fDone = true;
@@ -2249,15 +2248,13 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 } // ExecSQLFileGo
 
 //-----------------------------------------------------------------------------
-bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="ExecRawQuery"*/)
+bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (m_sLastSQL.Contains("\n")) ? "\n" : "", m_sLastSQL);
 	}
-
-	CopyIfNotSame(m_sLastSQL, sSQL);
 
 	EndQuery();
 
@@ -2289,9 +2286,9 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 		{
 			// with mysql, I can get away with calling my ExecSQL() function for the
 			// start of queries...
-			if (!ExecRawSQL (sSQL, F_NoKlogDebug, "ExecRawQuery"))
+			if (!ExecLastRawSQL (F_NoKlogDebug, "ExecRawQuery"))
 			{
-				// note: retry logic for MySQL is inside ExecRawSQL()
+				// note: retry logic for MySQL is inside ExecLastRawSQL()
 				return (false);
 			}
 
@@ -2349,7 +2346,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 			// 1. OCI8: local "prepare" (parse) of SQL statement (note: in OCI6 this was a trip to the server)
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 
-		                             (text*)sSQL.data(), sSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
+		                             (text*)m_sLastSQL.data(), m_sLastSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			if (!WasOCICallOK("ExecQuery:OCIStmtPrepare"))
 			{
@@ -2673,7 +2670,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 
 			kDebug (KSQL2_CTDEBUG, "calling ct_command()...");
 
-			if (ct_command (m_pCtCommand, CS_LANG_CMD, sSQL.data(), sSQL.size(), CS_UNUSED) != CS_SUCCEED)
+			if (ct_command (m_pCtCommand, CS_LANG_CMD, m_sLastSQL.data(), m_sLastSQL.size(), CS_UNUSED) != CS_SUCCEED)
 			{
 				ctlib_api_error ("KSQL>ExecQuery>ct_command");
 				if (--iRetriesLeft && PreparedToRetry())
@@ -2771,7 +2768,7 @@ bool KSQL::ExecRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/
 				"{}\n",
 					m_iWarnIfOverNumSeconds,
 					kTranslateSeconds(tTook),
-					sSQL);
+					m_sLastSQL);
 
 			if (m_bpWarnIfOverNumSeconds)
 			{
@@ -3635,7 +3632,7 @@ void KSQL::FreeBufferedColArray (bool fValuesOnly/*=false*/)
 } // FreeBufferedColArray
 
 //-----------------------------------------------------------------------------
-KROW KSQL::SingleRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleRawQuery"*/)
+KROW KSQL::SingleRawQuery (KString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	KROW ROW;
@@ -3648,7 +3645,7 @@ KROW KSQL::SingleRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAP
 		m_iFlags |= F_IgnoreSQLErrors;
 		m_iFlags |= iFlags;
 
-		bool bOK = ExecRawQuery (sSQL, 0, sAPI);
+		bool bOK = ExecRawQuery (std::move(sSQL), 0, sAPI);
 
 		m_iFlags = iHold;
 
@@ -3669,10 +3666,10 @@ KROW KSQL::SingleRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAP
 } // SingleRawQuery
 
 //-----------------------------------------------------------------------------
-KString KSQL::SingleStringRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleStringRawQuery"*/)
+KString KSQL::SingleStringRawQuery (KString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleStringRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
-	auto ROW = SingleRawQuery(sSQL, iFlags, sAPI);
+	auto ROW = SingleRawQuery(std::move(sSQL), iFlags, sAPI);
 
 	if (ROW.empty())
 	{
@@ -3686,10 +3683,10 @@ KString KSQL::SingleStringRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStrin
 } // SingleStringRawQuery
 
 //-----------------------------------------------------------------------------
-int64_t KSQL::SingleIntRawQuery (KStringView sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)
+int64_t KSQL::SingleIntRawQuery (KString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
-	auto sValue = SingleStringRawQuery(sSQL, iFlags, sAPI);
+	auto sValue = SingleStringRawQuery(std::move(sSQL), iFlags, sAPI);
 
 	if (!GetLastError().empty())
 	{
@@ -4052,10 +4049,10 @@ bool KSQL::SQLError (bool fForceError/*=false*/)
 	}
 	else
 	{			
-		kWarning ("{}", m_sLastError);
+		kWarning (m_sLastError);
 		if (!m_sLastSQL.empty())
 		{
-			kWarning ("{}", m_sLastSQL);
+			kWarning (m_sLastSQL);
 		}
 	}
 
@@ -4120,7 +4117,7 @@ bool KSQL::WasOCICallOK (KStringView sContext)
 				if (m_iErrorNum == 0)         // ORA-00000: no error
 					m_iErrorNum = sqlca.sqlcode;
 
-				m_sLastError.Format ("{}", m_sErrorPrefix);
+				m_sLastError = m_sErrorPrefix;
 				oerhms ((Lda_Def*)m_dOCI6LoginDataArea, ((Cda_Def*)m_dOCI6ConnectionDataArea)->rc, (text*)m_sLastError.c_str()+strlen(m_sLastError.c_str()), MAXLEN_ERR-strlen(m_sLastError.c_str()));
 			}
 			else
@@ -4136,7 +4133,7 @@ bool KSQL::WasOCICallOK (KStringView sContext)
 			if (m_dOCI8ErrorHandle)
 			{
 				sb4 sb4Stat;
-				m_sLastError.Format ("{}", m_sErrorPrefix);
+				m_sLastError = m_sErrorPrefix;
 				OCIErrorGet (m_dOCI8ErrorHandle, 1, nullptr, &sb4Stat, (text*)m_sLastError.c_str()+strlen(m_sLastError.c_str()), MAXLEN_ERR-strlen(m_sLastError.c_str()), OCI_HTYPE_ERROR);
 				m_iErrorNum = sb4Stat;
 			}
@@ -4168,7 +4165,7 @@ bool KSQL::WasOCICallOK (KStringView sContext)
 		{
 			// translate old convention into current error messages:
 			m_iErrorNum = -m_iErrorNum;
-			m_sLastError.Format ("{}", m_sErrorPrefix);
+			m_sLastError = m_sErrorPrefix;
 			oerhms ((Lda_Def*)m_dOCI6LoginDataArea, m_iErrorNum, (text*)m_sLastError.c_str()+strlen(m_sLastError.c_str()), MAXLEN_ERR-strlen(m_sLastError.c_str()));
 			return (false);
 		}
@@ -4904,7 +4901,7 @@ KJSON KSQL::FindColumn (KStringView sColLike)
 	case DBT::ORACLE:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		m_sLastError = "KSQL::FindColumn() not coded yet for DBT::SQLSERVER";
-		kWarningLog ("{}", m_sLastError);
+		kWarningLog (m_sLastError);
 		return list;
 		break;
 
@@ -4912,7 +4909,7 @@ KJSON KSQL::FindColumn (KStringView sColLike)
 	case DBT::SQLSERVER:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		m_sLastError = "KSQL::FindColumn() not coded yet for DBT::SQLSERVER";
-		kWarningLog ("{}", m_sLastError);
+		kWarningLog (m_sLastError);
 		return list;
 		break;
 
@@ -4920,7 +4917,7 @@ KJSON KSQL::FindColumn (KStringView sColLike)
 	default:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		m_sLastError.Format ("{}DescribeTable(): {} not supported yet.", m_sErrorPrefix, TxDBType(m_iDBType));
-		kWarning ("{}", m_sLastError);
+		kWarning (m_sLastError);
 		return list;
 		break;
 	}
@@ -5459,7 +5456,7 @@ bool KSQL::_BindByName (KStringView sPlaceholder, dvoid* pValue, sb4 iValueSize,
 
 	if (!WasOCICallOK("BindByName"))
 	{
-		kDebug (GetDebugLevel(), "{}", m_sLastError);
+		kDebug (GetDebugLevel(), m_sLastError);
 		return (false);
 	}
 
@@ -5561,7 +5558,7 @@ bool KSQL::_BindByPos (uint32_t iPosition, dvoid* pValue, sb4 iValueSize, ub2 iD
 
 	if (!WasOCICallOK("BindByPos"))
 	{
-		kDebug (GetDebugLevel(), "{}", m_sLastError);
+		kDebug (GetDebugLevel(), m_sLastError);
 		return (false);
 	}
 
@@ -5622,7 +5619,7 @@ bool KSQL::Load (KROW& Row, bool bSelectAllColumns)
 		return (false);
 	}
 
-	if (!ExecRawQuery (m_sLastSQL, 0, "Load"))
+	if (!ExecLastRawQuery (0, "Load"))
 	{
 		return false;
 	}
@@ -5653,7 +5650,7 @@ bool KSQL::Insert (const KROW& Row, bool bIgnoreDupes/*=false*/)
 		iSavedFlags = SetFlags (KSQL::F_IgnoreSQLErrors);
 	}
 
-	bool bOK = ExecRawSQL (m_sLastSQL, 0, "Insert");
+	bool bOK = ExecLastRawSQL (0, "Insert");
 
 	if (!bOK && bIgnoreDupes && WasDuplicateError())
 	{
@@ -5686,7 +5683,7 @@ bool KSQL::Update (const KROW& Row)
 		DoTranslations (m_sLastSQL);
 	}
 
-	bool bOK = ExecRawSQL (m_sLastSQL, 0, "Update");
+	bool bOK = ExecLastRawSQL (0, "Update");
 
 	kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 
@@ -5700,7 +5697,7 @@ bool KSQL::Delete (const KROW& Row)
 {
 	if (!Row.FormDelete (m_sLastSQL, m_iDBType))
 	{
-		m_sLastError.Format("{}", Row.GetLastError());
+		m_sLastError = Row.GetLastError();
 		return (false);
 	}
 
@@ -5709,7 +5706,7 @@ bool KSQL::Delete (const KROW& Row)
 		DoTranslations (m_sLastSQL);
 	}
 
-	bool bOK = ExecRawSQL (m_sLastSQL, 0, "Delete");
+	bool bOK = ExecLastRawSQL (0, "Delete");
 
 	kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 
@@ -6377,7 +6374,7 @@ uint32_t KSQL::ctlib_check_errors ()
 			m_sLastError+=sAdd;
 		}
 
-		sAdd.Format("{}", ClientMsg.msgstring);
+		sAdd = ClientMsg.msgstring;
 		m_sLastError+=sAdd;
 
 		if (ClientMsg.osstringlen > 0)
@@ -6727,7 +6724,7 @@ void KSQL::ctlib_flush_results ()
 #endif
 
 //-----------------------------------------------------------------------------
-size_t KSQL::OutputQuery (KStringView sSQL, KStringView sFormat, FILE* fpout/*=stdout*/)
+size_t KSQL::OutputQuery (KString sSQL, KStringView sFormat, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
 {
 	OutputFormat iFormat = FORM_ASCII;
@@ -6745,15 +6742,15 @@ size_t KSQL::OutputQuery (KStringView sSQL, KStringView sFormat, FILE* fpout/*=s
 		iFormat = FORM_HTML;
 	}
 
-	return (OutputQuery (sSQL, iFormat, fpout));
+	return (OutputQuery (std::move(sSQL), iFormat, fpout));
 
 } // OutputQuery
 
 //-----------------------------------------------------------------------------
-size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
+size_t KSQL::OutputQuery (KString sSQL, OutputFormat iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
 {
-	if (!ExecRawQuery (sSQL, GetFlags(), "OutputQuery"))
+	if (!ExecRawQuery (std::move(sSQL), GetFlags(), "OutputQuery"))
 	{
 		return (-1);
 	}
@@ -6795,7 +6792,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 			}
 		}
 		EndQuery ();
-		ExecRawQuery (sSQL, GetFlags(), "OutputQuery");
+		ExecLastRawQuery (GetFlags(), "OutputQuery");
 	}
 
 	iNumRows = 0;
@@ -7317,9 +7314,9 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 
 		for (auto ii = std::max(++iSchemaRev, iInitialSchema); ii <= iCurrentSchema; ++ii)
 		{
-			kDebug (1, "{}", KLog::DASH);
+			kDebug (1, KLog::DASH);
 			kDebug (1, "attempting to apply schema version {} ...", ii);
-			kDebug (1, "{}", KLog::DASH);
+			kDebug (1, KLog::DASH);
 
 			KString sFile = kFormat ("{}/{}{}.ksql", sSchemaFolder, sFilenamePrefix, ii);
 
@@ -7383,7 +7380,7 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 
 		if (sError)
 		{
-			kDebug (1, "{}", sError);
+			kDebug (1, sError);
 			ExecSQL ("rollback");
 			m_sLastError = sError;
 			return false;

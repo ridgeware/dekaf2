@@ -719,7 +719,7 @@ protected:
 
 			if (sFormat == "%s")
 			{
-				kDebug (3, kFormat("printing string into single arg - remove the format string: {}", std::forward<Args>(args)...));
+				kDebug (3, "printing string into single arg - remove the format string: {}", std::forward<Args>(args)...);
 
 				// check if we need to apply translations again - this was the previous,
 				// expected behaviour when formatting into "%s", and some queries
@@ -730,9 +730,8 @@ protected:
 				}
 				else
 				{
-					KString sSQL = sFormatted;
-					DoTranslations (sSQL);
-					return sSQL;
+					DoTranslations (sFormatted);
+					return sFormatted;
 				}
 			}
 			else

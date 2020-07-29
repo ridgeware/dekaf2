@@ -45,6 +45,7 @@
 
 #include "kstring.h"
 #include "kstringview.h"
+#include "kwriter.h"
 
 namespace dekaf2
 {
@@ -53,46 +54,51 @@ namespace dekaf2
 class KBAR
 //-----------------------------------------------------------------------------
 {
-	//----------
-	public:
-	//----------
-		enum {
-			SLIDER = 0x000001,
-			STATIC = 0x000010,
 
-			DEFAULT_WIDTH     = 70,
-			DEFAULT_DONE_CHAR = '%',
+//----------
+public:
+//----------
 
-			KPS_START = 'S',
-			KPS_ADD   = 'A',
-			KPS_END   = 'E',
-			KPS_STOP  = '!'
-		};
+	enum
+	{
+		SLIDER = 0x000001,
+		STATIC = 0x000010,
 
-		KBAR  (uint64_t iExpected=0, uint32_t iWidth=DEFAULT_WIDTH, uint64_t iFlags=SLIDER, int chDone=DEFAULT_DONE_CHAR);
-		~KBAR ();
+		DEFAULT_WIDTH     = 70,
+		DEFAULT_DONE_CHAR = '%',
 
-		bool      Start  (uint64_t iExpected);
-		bool      Adjust (uint64_t iExpected);
-		bool      Move   (int64_t iDelta=1);
-		void      Break  (KStringView sMsg="!!!");
-		void      Finish ();
-		KString   GetBar (int chBlank=' ');
-		uint64_t  GetSoFar() const { return m_iSoFar; }
-		void      RepaintSlider ();
+		KPS_START = 'S',
+		KPS_ADD   = 'A',
+		KPS_END   = 'E',
+		KPS_STOP  = '!'
+	};
 
-	//----------
-	private:
-	//----------
-		void  _init();
-		void  _SliderAction(int iAction, uint64_t iSoFarLast, uint64_t iSoFarNow);
+	KBAR  (uint64_t iExpected=0, uint32_t iWidth=DEFAULT_WIDTH, uint64_t iFlags=SLIDER, int chDone=DEFAULT_DONE_CHAR, KOutStream& Out = KOut);
+	~KBAR ();
 
-		uint64_t m_iFlags;
-		uint32_t m_iWidth;
-		uint64_t m_iExpected;
-		uint64_t m_iSoFar;
-		int      m_chDone{DEFAULT_DONE_CHAR};
-		bool     m_bSliding;
-};
+	bool      Start  (uint64_t iExpected);
+	bool      Adjust (uint64_t iExpected);
+	bool      Move   (int64_t iDelta=1);
+	void      Break  (KStringView sMsg="!!!");
+	void      Finish ();
+	KString   GetBar (int chBlank=' ');
+	uint64_t  GetSoFar() const { return m_iSoFar; }
+	void      RepaintSlider ();
+
+//----------
+private:
+//----------
+
+	void  _SliderAction(int iAction, uint64_t iSoFarLast, uint64_t iSoFarNow);
+
+	uint64_t    m_iFlags;
+	uint32_t    m_iWidth;
+	uint64_t    m_iExpected;
+	uint64_t    m_iSoFar;
+	int         m_chDone{DEFAULT_DONE_CHAR};
+	KOutStream& m_Out;
+	bool        m_bSliding;
+
+}; // KBAR
 
 } // namespace dekaf2

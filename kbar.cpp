@@ -1,4 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
@@ -38,7 +37,6 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 //
-///////////////////////////////////////////////////////////////////////////////
 
 #include "kstring.h"
 #include "kbar.h"
@@ -48,16 +46,16 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KBAR::KBAR (uint64_t iExpected/*=0*/, uint32_t iWidth/*=DEFAULT_WIDTH*/, uint64_t iFlags/*=SLIDER*/, int chDone/*='%'*/)
+KBAR::KBAR (uint64_t iExpected/*=0*/, uint32_t iWidth/*=DEFAULT_WIDTH*/, uint64_t iFlags/*=SLIDER*/, int chDone/*='%'*/, KOutStream& Out/*=KOut*/)
 //-----------------------------------------------------------------------------
+: m_iFlags(iFlags)
+, m_iWidth(iWidth)
+, m_iExpected(iExpected)
+, m_iSoFar(0)
+, m_chDone(chDone)
+, m_Out(Out)
+, m_bSliding(false)
 {
-	_init();
-
-	m_iExpected = iExpected;
-	m_iWidth    = iWidth;
-	m_iFlags    = iFlags;
-	m_chDone    = chDone;
-
 	if (m_iExpected && (m_iFlags & SLIDER))
 	{
 		_SliderAction (KPS_START, 0, 0);
@@ -72,19 +70,6 @@ KBAR::~KBAR()
 {
 	Finish();
 }
-
-//-----------------------------------------------------------------------------
-void KBAR::_init()
-//-----------------------------------------------------------------------------
-{
-	m_iFlags = 0;
-	m_iWidth = 0;
-	m_iExpected = 0;
-	m_iSoFar = 0;
-	m_chDone = '%';
-	m_bSliding = false;
-
-} // _init
 
 //-----------------------------------------------------------------------------
 bool KBAR::Start (uint64_t iExpected)
@@ -161,19 +146,21 @@ bool KBAR::Move (int64_t iDelta)
 KString KBAR::GetBar (int chBlank/*=' '*/)
 //-----------------------------------------------------------------------------
 {
+	KString  sBar;
+
 	if (!m_iExpected)
 	{
-		return "";
+		return sBar;
 	}
 
 	double nPercentNow = ((double)m_iSoFar / (double)m_iExpected);
+
 	if (nPercentNow > 100.0)
 	{
 		nPercentNow = 100.0;
 	}
 
 	uint32_t iNumBarsNow  = (int) (nPercentNow  * (double)(m_iWidth));
-	KString  sBar;
 
 	kDebug (1, "{} out of {}, {}%, {} out of {} bars", m_iSoFar, m_iExpected, nPercentNow, iNumBarsNow, m_iWidth);
 
@@ -225,7 +212,7 @@ void KBAR::Break (KStringView sMsg/*="!!!"*/)
 {
 	if (m_bSliding)
 	{
-		KOut.WriteLine (sMsg);
+		m_Out.WriteLine (sMsg);
 		m_bSliding = false;
 	}
 
@@ -241,12 +228,14 @@ void KBAR::_SliderAction (int iAction, uint64_t iSoFarLast, uint64_t iSoFarNow)
 	}
 
 	double nPercentLast = ((double)iSoFarLast / (double)m_iExpected);
+
 	if (nPercentLast > 100.0)
 	{
 		nPercentLast = 100.0;
 	}
 
 	double nPercentNow = ((double)iSoFarNow / (double)m_iExpected);
+
 	if (nPercentNow > 100.0)
 	{
 		nPercentNow = 100.0;
@@ -259,30 +248,30 @@ void KBAR::_SliderAction (int iAction, uint64_t iSoFarLast, uint64_t iSoFarNow)
 	switch (iAction)
 	{
 	case KPS_START:
-		KOut.Write('v');
+		m_Out.Write('v');
 		for (ii=0; ii<m_iWidth; ++ii)
 		{
-			KOut.Write('_');
+			m_Out.Write('_');
 		}
-		KOut.Write("v\n|");
+		m_Out.Write("v\n|");
 		break;
 
 	case KPS_ADD:
 		for (ii=iNumBarsLast; ii<iNumBarsNow; ++ii)
 		{
-			KOut.Write(m_chDone);
+			m_Out.Write(m_chDone);
 		}
 		break;
 
 	case KPS_END:
 		for (ii=iNumBarsLast; ii<m_iWidth; ++ii)
 		{
-			KOut.Write(' ');
+			m_Out.Write(' ');
 		}
-		KOut.Write("|\n");
+		m_Out.Write("|\n");
 	}
 
-	KOut.Flush();
+	m_Out.Flush();
 
 } // _SliderAction
 

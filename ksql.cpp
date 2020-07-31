@@ -57,6 +57,7 @@
 #include "ksplit.h"
 #include "kstringutils.h"
 #include "kfilesystem.h"
+#include "kwebclient.h"
 #include <cstdint>
 
 #if defined(DEKAF2_IS_WINDOWS) || defined(DEKAF2_DO_NOT_HAVE_STRPTIME)
@@ -1707,6 +1708,17 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 			{
 				fprintf (m_bpWarnIfOverNumSeconds, "%s", sWarning.c_str());
 				fflush (m_bpWarnIfOverNumSeconds);
+			}
+			else if (m_sSlackChannelURL)
+			{
+				KJSON      json; json["text"] = sWarning;
+				KWebClient HTTP;
+				KString    sResponse = HTTP.Post (m_sSlackChannelURL, json.dump(), KMIME::JSON);
+
+				if (HTTP.HttpFailure())
+				{
+					kWarningLog ("got HTTP-{} from {}: {}", HTTP.GetStatusCode(), "slack", sResponse);
+				}
 			}
 			else
 			{

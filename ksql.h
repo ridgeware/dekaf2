@@ -304,9 +304,20 @@ public:
 	void   SetErrorPrefix   (KStringView sPrefix, uint32_t iLineNum = 0);
 	void   ClearErrorPrefix ()        { m_sErrorPrefix = "KSQL: "; }
 
-	void   SetWarningThreshold  (time_t iWarnIfOverNumSeconds, FILE* fpAlternativeToKlog=nullptr)
-					{ m_iWarnIfOverNumSeconds = iWarnIfOverNumSeconds;
-					  m_bpWarnIfOverNumSeconds = fpAlternativeToKlog; }
+	/// issue a klog warning everytime a query or sql statement exceeds the given number of seconds
+	void   SetWarningThreshold  (time_t iWarnIfOverNumSeconds, FILE* fpAlternativeToKlog=nullptr) {
+			m_iWarnIfOverNumSeconds  = iWarnIfOverNumSeconds;
+			m_bpWarnIfOverNumSeconds = fpAlternativeToKlog;
+	}
+
+	/// issue a warning to the given slack channel everytime a query or sql statement exceeds the given number of seconds
+	void   SetWarningThreshold  (time_t iWarnIfOverNumSeconds, KStringView sSlackChannelURL) {
+			m_iWarnIfOverNumSeconds  = iWarnIfOverNumSeconds;
+			SetSlackChannel (sSlackChannelURL);
+	}
+
+	/// establish slack channel url for posting certain types of debug information (like slow queries)
+	void   SetSlackChannel (KStringView sURL)  { m_sSlackChannelURL = sURL; }
 
 	/// After establishing a database connection, this is how you sent DDL (create table, etc.) statements to the RDBMS.
 	template<class... Args>
@@ -851,6 +862,7 @@ protected:
 	FILE*      m_bpWarnIfOverNumSeconds { nullptr };
 	KString    m_sTempDir { "/tmp" };
 	bool       m_bLiveDB { false };
+	KString    m_sSlackChannelURL;
 
 	bool  SQLError (bool fForceError=false);
 	bool  WasOCICallOK (KStringView sContext);

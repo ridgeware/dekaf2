@@ -1691,7 +1691,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 	if (m_iWarnIfOverNumSeconds)
 	{
-		auto tTook = iMilliSeconds * 1000;
+		auto tTook = (iMilliSeconds / 1000);
 		if (tTook >= m_iWarnIfOverNumSeconds)
 		{
 			KString sWarning;
@@ -1711,7 +1711,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 			}
 			else if (m_sSlackChannelURL)
 			{
-				KJSON      json; json["text"] = sWarning;
+				KJSON      json; json["text"] = kFormat ("```{}```", sWarning);
 				KWebClient HTTP;
 				KString    sResponse = HTTP.Post (m_sSlackChannelURL, json.dump(), KMIME::JSON);
 

@@ -1696,11 +1696,12 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		{
 			KString sWarning;
 			sWarning.Format (
-				"KSQL: warning: statement took longer than {} seconds (took {}):\n"
+				"KSQL: warning: statement took longer than {} seconds (took {}) against db {}:\n"
 				"{}\n"
 				"KSQL: {} rows affected.\n",
 					m_iWarnIfOverNumSeconds,
 					kTranslateSeconds(tTook),
+					ConnectSummary(),
 					m_sLastSQL,
 					m_iNumRowsAffected);
 

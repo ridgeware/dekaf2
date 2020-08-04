@@ -137,22 +137,26 @@ void Parse (KJSON& json, KStringView sJSON)
 } // Parse
 
 //-----------------------------------------------------------------------------
-KJSON Parse (KStringView sJSON, bool bThrow/*=true*/)
+KJSON Parse (KStringView sJSON) noexcept
 //-----------------------------------------------------------------------------
 {
 	KJSON json;
-	if (bThrow)
+	KString sError;
+	if (!Parse (json, sJSON, sError))
 	{
-		Parse (json, sJSON);
+		kDebug (1, sError);
 	}
-	else
-	{
-		KString sError;
-		if (!Parse (json, sJSON, sError))
-		{
-			kDebug (1, sError);
-		}
-	}
+
+	return json;
+
+} // Parse
+
+//-----------------------------------------------------------------------------
+KJSON ParseOrThrow (KStringView sJSON)
+//-----------------------------------------------------------------------------
+{
+	KJSON json;
+	Parse (json, sJSON); // will throw if invalid
 
 	return json;
 

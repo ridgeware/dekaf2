@@ -147,8 +147,13 @@ namespace kjson
 	bool Parse (KJSON& json, KInStream& InStream, KString& sError) noexcept;
 
 	/// Returned parsed string as a JSON object
-	/// if bThrow is false, just return a null object on failure
-	KJSON Parse (KStringView sJSON, bool bThrow=true);
+	/// if invalid, just return a null object on failure
+	/// does NOT throw
+	KJSON Parse (KStringView sJSON) noexcept;
+
+	/// Returned parsed string as a JSON object
+	/// if invalid, throw KError
+	KJSON ParseOrThrow (KStringView sJSON);
 
 	/// returns a string representation for the KJSON object, never throws
 	/// @param json the json input

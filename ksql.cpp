@@ -1682,55 +1682,71 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		return (SQLError());
 	}
 
-	auto iMilliSeconds = Timer.elapsed<std::chrono::milliseconds>().count();
-
-	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
-	{
-		kDebug (GetDebugLevel(), "[DB Exec Time]: {} ms", iMilliSeconds);
-	}
-
-	if (m_iWarnIfOverNumSeconds)
-	{
-		auto tTook = (iMilliSeconds / 1000);
-		if (tTook >= m_iWarnIfOverNumSeconds)
-		{
-			KString sWarning;
-			sWarning.Format (
-				"KSQL: warning: statement took longer than {} seconds (took {}) against db {}:\n"
-				"{}\n"
-				"KSQL: {} rows affected.\n",
-					m_iWarnIfOverNumSeconds,
-					kTranslateSeconds(tTook),
-					ConnectSummary(),
-					m_sLastSQL,
-					m_iNumRowsAffected);
-
-			if (m_bpWarnIfOverNumSeconds)
-			{
-				fprintf (m_bpWarnIfOverNumSeconds, "%s", sWarning.c_str());
-				fflush (m_bpWarnIfOverNumSeconds);
-			}
-			else if (m_sSlackChannelURL)
-			{
-				KJSON      json; json["text"] = kFormat ("```{}```", sWarning);
-				KWebClient HTTP;
-				KString    sResponse = HTTP.Post (m_sSlackChannelURL, json.dump(), KMIME::JSON);
-
-				if (HTTP.HttpFailure())
-				{
-					kWarningLog ("got HTTP-{} from {}: {}", HTTP.GetStatusCode(), "slack", sResponse);
-				}
-			}
-			else
-			{
-				kWarningLog (sWarning);
-			}
-		}
-	}
+	LogPerformance (Timer.elapsed<std::chrono::milliseconds>().count(), /*bIsQuery=*/false);
 
 	return (bOK);
 
 } // ExecLastRawSQL
+
+//-----------------------------------------------------------------------------
+void KSQL::LogPerformance (uint64_t iMilliseconds, bool bIsQuery)
+//-----------------------------------------------------------------------------
+{
+	if (!(GetFlags() & F_NoKlogDebug))
+	{
+		KString sThreshold;
+		if (m_iWarnIfOverMilliseconds)
+		{
+			sThreshold += kFormat (", warning set to {} ms", kFormNumber(m_iWarnIfOverMilliseconds));
+		}
+
+		kDebug (GetDebugLevel(), "took: {} ms{}", kFormNumber(iMilliseconds), sThreshold);
+	}
+
+	if (m_iWarnIfOverMilliseconds && (iMilliseconds > m_iWarnIfOverMilliseconds))
+	{
+		KString sWarning;
+		sWarning.Format (
+				"KSQL: warning: statement took longer than {} ms (took {}) against db {}:\n"
+				"{}\n",
+					kFormNumber(m_iWarnIfOverMilliseconds),
+					kFormNumber(iMilliseconds),
+					ConnectSummary(),
+					m_sLastSQL);
+
+		if (!bIsQuery)
+		{
+			sWarning += kFormat (
+			"KSQL: {} rows affected.\n",
+				kFormNumber(m_iNumRowsAffected));
+		}
+
+		// write to a file
+		if (m_fpPerformanceLog)
+		{
+			kDebugLog (1, "writing warning to special log file:\n{}", sWarning);
+			fprintf (m_fpPerformanceLog, "%s", sWarning.c_str());
+			fflush (m_fpPerformanceLog);
+		}
+		else if (m_sSlackChannelURL)
+		{
+			kDebugLog (1, "writing warning to slack channel: {}\n{}", m_sSlackChannelURL, sWarning);
+			KJSON      json; json["text"] = kFormat ("```{}```", sWarning);
+			KWebClient HTTP;
+			KString    sResponse = HTTP.Post (m_sSlackChannelURL, json.dump(), KMIME::JSON);
+
+			if (HTTP.HttpFailure())
+			{
+				kWarningLog ("got HTTP-{} from {}: {}", HTTP.GetStatusCode(), "slack", sResponse);
+			}
+		}
+		else
+		{
+			kWarningLog (sWarning);
+		}
+	}
+
+} // LogPerformance
 
 //-----------------------------------------------------------------------------
 bool KSQL::PreparedToRetry ()
@@ -2763,38 +2779,8 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 	ClearErrorPrefix();
 
-	auto iMilliSeconds = Timer.elapsed<std::chrono::milliseconds>().count();
+	LogPerformance (Timer.elapsed<std::chrono::milliseconds>().count(), /*bIsQuery=*/true);
 	
-	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
-	{
-		kDebug (GetDebugLevel(), "[DB Query Time]: {} ms", iMilliSeconds);
-	}
-
-	if (m_iWarnIfOverNumSeconds)
-	{
-		auto tTook = iMilliSeconds * 1000;
-		if (tTook >= m_iWarnIfOverNumSeconds)
-		{
-			KString sWarning;
-			sWarning.Format (
-				"warning: query took longer than {} seconds (took {}):\n"
-				"{}\n",
-					m_iWarnIfOverNumSeconds,
-					kTranslateSeconds(tTook),
-					m_sLastSQL);
-
-			if (m_bpWarnIfOverNumSeconds)
-			{
-				fprintf (m_bpWarnIfOverNumSeconds, "%s", sWarning.c_str());
-				fflush (m_bpWarnIfOverNumSeconds);
-			}
-			else
-			{
-				kWarning (sWarning);
-			}
-		}
-	}
-
 	if (IsFlag(F_BufferResults))
 	{
 		return (BufferResults());

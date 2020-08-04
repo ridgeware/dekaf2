@@ -305,14 +305,14 @@ public:
 	void   ClearErrorPrefix ()        { m_sErrorPrefix = "KSQL: "; }
 
 	/// issue a klog warning everytime a query or sql statement exceeds the given number of seconds
-	void   SetWarningThreshold  (time_t iWarnIfOverNumSeconds, FILE* fpAlternativeToKlog=nullptr) {
-			m_iWarnIfOverNumSeconds  = iWarnIfOverNumSeconds;
-			m_bpWarnIfOverNumSeconds = fpAlternativeToKlog;
+	void   SetWarningThreshold  (uint64_t iWarnIfOverMilliseconds, FILE* fpAlternativeToKlog=nullptr) {
+			m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
+			m_fpPerformanceLog        = fpAlternativeToKlog;
 	}
 
 	/// issue a warning to the given slack channel everytime a query or sql statement exceeds the given number of seconds
-	void   SetWarningThreshold  (time_t iWarnIfOverNumSeconds, KStringView sSlackChannelURL) {
-			m_iWarnIfOverNumSeconds  = iWarnIfOverNumSeconds;
+	void   SetWarningThreshold  (uint64_t iWarnIfOverMilliseconds, KStringView sSlackChannelURL) {
+			m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
 			SetSlackChannel (sSlackChannelURL);
 	}
 
@@ -663,6 +663,8 @@ public:
 private:
 //----------
 
+	void LogPerformance (uint64_t iMilliseconds, bool bIsQuery);
+
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct DBCLoader
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -858,8 +860,8 @@ protected:
 	char**     m_dBufferedColArray { nullptr };
 	KString    m_sErrorPrefix { "KSQL: " };
 	bool       m_bDisableRetries { false };
-	time_t     m_iWarnIfOverNumSeconds { 0 };
-	FILE*      m_bpWarnIfOverNumSeconds { nullptr };
+	uint64_t   m_iWarnIfOverMilliseconds { 0 };
+	FILE*      m_fpPerformanceLog { nullptr };
 	KString    m_sTempDir { "/tmp" };
 	bool       m_bLiveDB { false };
 	KString    m_sSlackChannelURL;

@@ -49,6 +49,8 @@
 #include "kstringutils.h"
 #include "kfrozen.h"
 #include "kregex.h"
+#include "kwebclient.h"
+#include "ktimer.h"
 
 namespace dekaf2 {
 
@@ -508,9 +510,30 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				}
 			}
 
+			KStopTime Timer;
+
 			// call the route handler
 			kDebug (1, "{}: {}", GetRequestMethod(), GetRequestPath());
 			route->Callback(*this);
+
+			uint64_t iMilliSeconds = Timer.elapsed<std::chrono::milliseconds>().count();
+			if (Options.m_iWarnIfOverMilliseconds && (iMilliSeconds >= Options.m_iWarnIfOverMilliseconds))
+			{
+				KString sWarning = kFormat ("{}: {}, took: {} msecs", GetRequestMethod(), GetRequestPath(), kFormNumber(iMilliSeconds));
+				kDebug (1, "{}", sWarning);
+
+				if (Options.m_sSlackChannelURL)
+				{
+					kDebug (1, "writing warning to slack channel: {}", Options.m_sSlackChannelURL);
+					KJSON      json; json["text"] = kFormat ("```{}```", sWarning);
+					KWebClient HTTP;
+					KString    sResponse = HTTP.Post (Options.m_sSlackChannelURL, json.dump(), KMIME::JSON);
+					if (HTTP.HttpFailure())
+					{
+						kDebug (1, "got HTTP-{} from {}: {}", HTTP.GetStatusCode(), "slack", sResponse);
+					}
+				}
+			}
 
 			// We offer a keep-alive if the client did not explicitly
 			// request a close. We only allow for a limited amount

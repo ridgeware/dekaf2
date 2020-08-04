@@ -117,6 +117,9 @@ public:
 		/// If no route found, shall we check if that happened because of a wrong request method?
 		bool bCheckForWrongMethod { true };
 
+		uint64_t m_iWarnIfOverMilliseconds { 0 };
+		KString  m_sSlackChannelURL;
+
 	}; // Options
 
 	//-----------------------------------------------------------------------------

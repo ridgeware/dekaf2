@@ -146,6 +146,10 @@ namespace kjson
 	/// @param sError the error string
 	bool Parse (KJSON& json, KInStream& InStream, KString& sError) noexcept;
 
+	/// Returned parsed string as a JSON object
+	/// if bThrow is false, just return a null object on failure
+	KJSON Parse (KStringView sJSON, bool bThrow=true);
+
 	/// returns a string representation for the KJSON object, never throws
 	/// @param json the json input
 	KString Print (const KJSON& json) noexcept;

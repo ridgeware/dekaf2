@@ -134,7 +134,29 @@ void Parse (KJSON& json, KStringView sJSON)
 		json = KJSON::parse(sJSON.cbegin(), sJSON.cend());
 	}
 
-} // kParse
+} // Parse
+
+//-----------------------------------------------------------------------------
+KJSON Parse (KStringView sJSON, bool bThrow/*=true*/)
+//-----------------------------------------------------------------------------
+{
+	KJSON json;
+	if (bThrow)
+	{
+		Parse (json, sJSON);
+	}
+	else
+	{
+		KString sError;
+		if (!Parse (json, sJSON, sError))
+		{
+			kDebug (1, sError);
+		}
+	}
+
+	return json;
+
+} // Parse
 
 //-----------------------------------------------------------------------------
 bool SkipLeadingSpace(KInStream& InStream)

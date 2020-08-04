@@ -651,9 +651,6 @@ public:
 						 KString sDBCFile,
 						 const IniParms& INI = IniParms{});
 
-	/// is this a production database
-	bool IsLive() const { return m_bLiveDB; }
-
 	void SetDBC (KStringView sFile) { m_sDBCFile = sFile; }
 	const KString& GetDBC () const { return m_sDBCFile;  }
 
@@ -863,7 +860,6 @@ protected:
 	uint64_t   m_iWarnIfOverMilliseconds { 0 };
 	FILE*      m_fpPerformanceLog { nullptr };
 	KString    m_sTempDir { "/tmp" };
-	bool       m_bLiveDB { false };
 	KString    m_sSlackChannelURL;
 
 	bool  SQLError (bool fForceError=false);

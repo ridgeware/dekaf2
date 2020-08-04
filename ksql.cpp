@@ -7561,8 +7561,6 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 		SetDBPort (kFirstNonEmpty<KStringView>(sSetDBPort  , kGetEnv (sDBPort), INI.Get (sDBPort)).UInt32());
 	}
 
-	m_bLiveDB= kFirstNonEmpty<KStringView>(kGetEnv (sLiveDB), INI.Get (sLiveDB)).Bool();
-
 	if (kWouldLog(1))
 	{
 		KString sChanged = ConnectSummary();

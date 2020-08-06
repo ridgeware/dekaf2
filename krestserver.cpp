@@ -354,12 +354,21 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			bool bOK = KHTTPServer::Parse();
 
-			if (iRound > 0 && !Options.sTimerHeader.empty())
+			if (iRound == 0)
+			{
+				// check if we have to start the timers
+				if (!Options.sTimerHeader.empty() || Options.TimingCallback)
+				{
+					m_Timers = std::make_unique<KTimeKeepers>();
+					m_Timers->reserve(Timer::SEND + 1);
+				}
+			}
+			else if (m_Timers)
 			{
 				// we can only start the timer after the input header
 				// parsing completes, as otherwise we would also count
 				// the keep-alive wait
-				m_timer.clear();
+				m_Timers->clear();
 			}
 
 			if (!bOK)
@@ -420,6 +429,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			if (!route->Callback)
 			{
 				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
+			}
+
+			if (m_Timers)
+			{
+				m_Timers->StoreInterval(Timer::RECEIVE);
 			}
 
 			if (Request.Method != KHTTPMethod::GET && Request.HasContent())
@@ -510,29 +524,18 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				}
 			}
 
-			KStopTime Timer;
+			if (m_Timers)
+			{
+				m_Timers->StoreInterval(Timer::PARSE);
+			}
 
 			// call the route handler
 			kDebug (1, "{}: {}", GetRequestMethod(), GetRequestPath());
 			route->Callback(*this);
 
-			uint64_t iMilliSeconds = Timer.elapsed<std::chrono::milliseconds>().count();
-			if (Options.m_iWarnIfOverMilliseconds && (iMilliSeconds >= Options.m_iWarnIfOverMilliseconds))
+			if (m_Timers)
 			{
-				KString sWarning = kFormat ("{}: {}, took: {} msecs", GetRequestMethod(), GetRequestPath(), kFormNumber(iMilliSeconds));
-				kDebug (1, "{}", sWarning);
-
-				if (Options.m_sSlackChannelURL)
-				{
-					kDebug (1, "writing warning to slack channel: {}", Options.m_sSlackChannelURL);
-					KJSON      json; json["text"] = kFormat ("```{}```", sWarning);
-					KWebClient HTTP;
-					KString    sResponse = HTTP.Post (Options.m_sSlackChannelURL, json.dump(), KMIME::JSON);
-					if (HTTP.HttpFailure())
-					{
-						kDebug (1, "got HTTP-{} from {}: {}", HTTP.GetStatusCode(), "slack", sResponse);
-					}
-				}
+				m_Timers->StoreInterval(Timer::PROCESS);
 			}
 
 			// We offer a keep-alive if the client did not explicitly
@@ -668,10 +671,15 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 			// compute and set the Content-Length header:
 			Response.Headers.Set(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(sContent.length()));
 
-			if (!Options.sTimerHeader.empty())
+			if (m_Timers)
 			{
-				// add a custom header that marks execution time for this request
-				Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_timer.elapsed<std::chrono::milliseconds>().count()));
+				m_Timers->StoreInterval(Timer::SERIALIZE);
+
+				if (!Options.sTimerHeader.empty())
+				{
+					// add a custom header that marks execution time for this request
+					Response.Headers.Add (Options.sTimerHeader, KString::to_string(std::chrono::round<std::chrono::milliseconds>(m_Timers->TotalDuration()).count()));
+				}
 			}
 
 			Response.Headers.Set (KHTTPHeaders::CONNECTION, bKeepAlive ? "keep-alive" : "close");
@@ -682,6 +690,16 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 			// finally, output the content:
 			kDebugLog (3, sContent);
 			Write(sContent);
+
+			if (m_Timers)
+			{
+				m_Timers->StoreInterval(SEND);
+
+				if (Options.TimingCallback)
+				{
+					Options.TimingCallback(*this, *m_Timers.get());
+				}
+			}
 		}
 		break;
 
@@ -870,10 +888,15 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 			// compute and set the Content-Length header:
 			Response.Headers.Set(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(sContent.length()));
 
-			if (!Options.sTimerHeader.empty())
+			if (m_Timers)
 			{
-				// add a custom header that marks execution time for this request
-				Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_timer.elapsed<std::chrono::milliseconds>().count()));
+				m_Timers->StoreInterval(Timer::SERIALIZE);
+
+				if (!Options.sTimerHeader.empty())
+				{
+					// add a custom header that marks execution time for this request
+					Response.Headers.Add (Options.sTimerHeader, KString::to_string(std::chrono::round<std::chrono::milliseconds>(m_Timers->TotalDuration()).count()));
+				}
 			}
 
 			Response.Headers.Set(KHTTPHeaders::CONNECTION, "close");
@@ -884,6 +907,16 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 			// finally, output the content:
 			kDebug (3, sContent);
 			Response.Write (sContent);
+
+			if (m_Timers)
+			{
+				m_Timers->StoreInterval(Timer::SEND);
+
+				if (Options.TimingCallback)
+				{
+					Options.TimingCallback(*this, *m_Timers.get());
+				}
+			}
 		}
 		break;
 

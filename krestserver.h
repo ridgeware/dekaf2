@@ -67,6 +67,15 @@ class KRESTServer : public KHTTPServer
 public:
 //------
 
+	enum Timer
+	{
+		RECEIVE   = 0,
+		PARSE     = 1,
+		PROCESS   = 2,
+		SERIALIZE = 3,
+		SEND      = 4
+	};
+
 	// supported output types:
 	// HTTP is standard,
 	// LAMBDA is AWS specific,
@@ -116,9 +125,9 @@ public:
 		bool bThrowIfInvalidJson { false };
 		/// If no route found, shall we check if that happened because of a wrong request method?
 		bool bCheckForWrongMethod { true };
-
-		uint64_t m_iWarnIfOverMilliseconds { 0 };
-		KString  m_sSlackChannelURL;
+		/// Set a callback function that will receive references to this instance and the TimeKeepers
+		/// after termination of one request
+		std::function<void(const KRESTServer&, const KTimeKeepers&)> TimingCallback;
 
 	}; // Options
 
@@ -250,11 +259,12 @@ protected:
 private:
 //------
 
+	std::unique_ptr<KTimeKeepers> m_Timers;
+
 	static const KRESTRoute s_EmptyRoute;
 	KString m_sRequestBody;
 	KString m_sMessage;
 	KString m_sRawOutput;
-	KStopTime m_timer;
 	KJWT m_AuthToken;
 	std::unique_ptr<KJSON> m_JsonLogger;
 

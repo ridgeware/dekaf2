@@ -52,7 +52,7 @@ KStopWatch::ConstructHalted KStopWatch::Halted;
 #endif
 
 //-----------------------------------------------------------------------------
-void KTimeKeepers::clear()
+void KDurations::clear()
 //-----------------------------------------------------------------------------
 {
 	m_timer.clear();
@@ -61,16 +61,16 @@ void KTimeKeepers::clear()
 } // clear
 
 //---------------------------------------------------------------------------
-KTimeKeepers::Interval KTimeKeepers::StartNextInterval()
+KDurations::Duration KDurations::StartNextInterval()
 //---------------------------------------------------------------------------
 {
-	m_Durations.push_back(m_timer.elapsedAndReset<Interval>());
+	m_Durations.push_back(m_timer.elapsedAndReset<Duration>());
 	return m_Durations.back();
 
 } // StartNextInterval
 
 //---------------------------------------------------------------------------
-KTimeKeepers::Interval KTimeKeepers::StoreInterval(size_type iInterval)
+KDurations::Duration KDurations::StoreInterval(size_type iInterval)
 //---------------------------------------------------------------------------
 {
 	if (m_Durations.size() < iInterval + 1)
@@ -78,14 +78,14 @@ KTimeKeepers::Interval KTimeKeepers::StoreInterval(size_type iInterval)
 		m_Durations.resize(iInterval + 1);
 	}
 
-	m_Durations[iInterval] = m_timer.elapsedAndReset<Interval>();
+	m_Durations[iInterval] = m_timer.elapsedAndReset<Duration>();
 
 	return m_Durations[iInterval];
 
 } // StoreInterval
 
 //---------------------------------------------------------------------------
-KTimeKeepers::Interval KTimeKeepers::GetDuration(std::size_t iInterval) const
+KDurations::Duration KDurations::GetDuration(std::size_t iInterval) const
 //---------------------------------------------------------------------------
 {
 	if (iInterval < m_Durations.size())
@@ -94,16 +94,16 @@ KTimeKeepers::Interval KTimeKeepers::GetDuration(std::size_t iInterval) const
 	}
 	else
 	{
-		return Interval::zero();
+		return Duration::zero();
 	}
 
 } // GetDuration
 
 //---------------------------------------------------------------------------
-KTimeKeepers::Interval KTimeKeepers::TotalDuration() const
+KDurations::Duration KDurations::TotalDuration() const
 //---------------------------------------------------------------------------
 {
-	Interval Total;
+	Duration Total;
 
 	for (const auto& Duration : m_Durations)
 	{

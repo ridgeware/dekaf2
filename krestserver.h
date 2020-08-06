@@ -127,7 +127,7 @@ public:
 		bool bCheckForWrongMethod { true };
 		/// Set a callback function that will receive references to this instance and the TimeKeepers
 		/// after termination of one request
-		std::function<void(const KRESTServer&, const KTimeKeepers&)> TimingCallback;
+		std::function<void(const KRESTServer&, const KDurations&)> TimingCallback;
 
 	}; // Options
 
@@ -259,7 +259,7 @@ protected:
 private:
 //------
 
-	std::unique_ptr<KTimeKeepers> m_Timers;
+	std::unique_ptr<KDurations> m_Timers;
 
 	static const KRESTRoute s_EmptyRoute;
 	KString m_sRequestBody;

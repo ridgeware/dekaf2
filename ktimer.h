@@ -218,7 +218,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Keeps multiple consecutive time intervals
-class KTimeKeepers
+class KDurations
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -226,8 +226,8 @@ class KTimeKeepers
 public:
 //------
 
-	using Interval       = std::chrono::nanoseconds;
-	using Storage        = std::vector<Interval>;
+	using Duration       = std::chrono::nanoseconds;
+	using Storage        = std::vector<Duration>;
 	using size_type      = Storage::size_type;
 	using const_iterator = Storage::const_iterator;
 
@@ -241,24 +241,24 @@ public:
 	}
 
 	/// start a new interval, store the current one
-	Interval StartNextInterval();
+	Duration StartNextInterval();
 
 	/// start a new interval, store the current one
 	/// @param iInterval index position to store the current interval at
-	Interval StoreInterval(size_type iInterval);
+	Duration StoreInterval(size_type iInterval);
 
 	/// get duration of an interval
 	/// @param iInterval 0 based index on intervals, returns zero duration if out of bounds
-	Interval GetDuration(size_type iInterval) const;
+	Duration GetDuration(size_type iInterval) const;
 
 	/// subscription access
-	Interval operator[](size_type iInterval) const
+	Duration operator[](size_type iInterval) const
 	{
 		return GetDuration(iInterval);
 	}
 
 	/// returns total duration
-	Interval TotalDuration() const;
+	Duration TotalDuration() const;
 
 	/// returns start iterator
 	const_iterator begin() const

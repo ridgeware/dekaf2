@@ -359,7 +359,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				// check if we have to start the timers
 				if (!Options.sTimerHeader.empty() || Options.TimingCallback)
 				{
-					m_Timers = std::make_unique<KTimeKeepers>();
+					m_Timers = std::make_unique<KDurations>();
 					m_Timers->reserve(Timer::SEND + 1);
 				}
 			}

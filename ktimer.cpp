@@ -51,6 +51,70 @@ KStopTime::ConstructHalted KStopTime::Halted;
 KStopWatch::ConstructHalted KStopWatch::Halted;
 #endif
 
+//-----------------------------------------------------------------------------
+void KTimeKeepers::clear()
+//-----------------------------------------------------------------------------
+{
+	m_timer.clear();
+	m_Durations.clear();
+
+} // clear
+
+//---------------------------------------------------------------------------
+KTimeKeepers::Interval KTimeKeepers::StartNextInterval()
+//---------------------------------------------------------------------------
+{
+	m_Durations.push_back(m_timer.elapsedAndReset<Interval>());
+	return m_Durations.back();
+
+} // StartNextInterval
+
+//---------------------------------------------------------------------------
+KTimeKeepers::Interval KTimeKeepers::StoreInterval(size_type iInterval)
+//---------------------------------------------------------------------------
+{
+	if (m_Durations.size() < iInterval + 1)
+	{
+		m_Durations.resize(iInterval + 1);
+	}
+
+	m_Durations[iInterval] = m_timer.elapsedAndReset<Interval>();
+
+	return m_Durations[iInterval];
+
+} // StoreInterval
+
+//---------------------------------------------------------------------------
+KTimeKeepers::Interval KTimeKeepers::GetDuration(std::size_t iInterval) const
+//---------------------------------------------------------------------------
+{
+	if (iInterval < m_Durations.size())
+	{
+		return m_Durations[iInterval];
+	}
+	else
+	{
+		return Interval::zero();
+	}
+
+} // GetDuration
+
+//---------------------------------------------------------------------------
+KTimeKeepers::Interval KTimeKeepers::TotalDuration() const
+//---------------------------------------------------------------------------
+{
+	Interval Total;
+
+	for (const auto& Duration : m_Durations)
+	{
+		Total += Duration;
+	}
+
+	return Total;
+
+} // TotalDuration
+
+
 //---------------------------------------------------------------------------
 KTimer::KTimer()
 //---------------------------------------------------------------------------

@@ -48,6 +48,7 @@
 #include <atomic>
 #include <unordered_map>
 #include <mutex>
+#include <vector>
 
 /// @file ktimer.h
 /// general timing facilities
@@ -91,6 +92,19 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return std::chrono::duration_cast<DurationType>(clock_t::now() - m_Start);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed time (converted into any duration type, per default nanoseconds)
+	/// and resets counter after readout
+	template<typename DurationType = std::chrono::nanoseconds>
+	DurationType elapsedAndReset()
+	//-----------------------------------------------------------------------------
+	{
+		auto tNow = clock_t::now();
+		auto dRet = std::chrono::duration_cast<DurationType>(tNow - m_Start);
+		m_Start   = tNow;
+		return dRet;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -200,6 +214,84 @@ private:
 	clock_t::duration m_iDurationSoFar { clock_t::duration::zero() };
 
 }; // KStopWatch
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Keeps multiple consecutive time intervals
+class KTimeKeepers
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	using Interval       = std::chrono::nanoseconds;
+	using Storage        = std::vector<Interval>;
+	using size_type      = Storage::size_type;
+	using const_iterator = Storage::const_iterator;
+
+	/// reset all intervals, restart clock
+	void clear();
+
+	/// reserve a certain amount of storage
+	void reserve(size_type iSize)
+	{
+		m_Durations.reserve(iSize);
+	}
+
+	/// start a new interval, store the current one
+	Interval StartNextInterval();
+
+	/// start a new interval, store the current one
+	/// @param iInterval index position to store the current interval at
+	Interval StoreInterval(size_type iInterval);
+
+	/// get duration of an interval
+	/// @param iInterval 0 based index on intervals, returns zero duration if out of bounds
+	Interval GetDuration(size_type iInterval) const;
+
+	/// subscription access
+	Interval operator[](size_type iInterval) const
+	{
+		return GetDuration(iInterval);
+	}
+
+	/// returns total duration
+	Interval TotalDuration() const;
+
+	/// returns start iterator
+	const_iterator begin() const
+	{
+		return m_Durations.begin();
+	}
+
+	/// returns end iterator
+	const_iterator end() const
+	{
+		return m_Durations.end();
+	}
+
+	/// returns count of intervals
+	size_type size() const
+	{
+		return m_Durations.size();
+	}
+
+	/// do we have intervals?
+	bool empty() const
+	{
+		return m_Durations.empty();
+	}
+
+//------
+private:
+//------
+
+	Storage   m_Durations;
+	KStopTime m_timer;
+
+}; // TimeKeepers
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KTimer can be used to call functions both repeatedly after a fixed

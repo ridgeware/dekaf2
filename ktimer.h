@@ -282,7 +282,7 @@ public:
 	DurationType GetDuration(size_type iInterval) const
 	//-----------------------------------------------------------------------------
 	{
-		return std::chrono::round<DurationType>(TotalDuration<Duration>());
+		return std::chrono::round<DurationType>(GetDuration<Duration>(iInterval));
 	}
 
 	//-----------------------------------------------------------------------------

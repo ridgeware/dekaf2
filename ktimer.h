@@ -89,7 +89,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed time (converted into any duration type, per default nanoseconds)
-	template<typename DurationType = Duration>
+	template<typename DurationType = std::chrono::nanoseconds>
 	DurationType elapsed() const
 	//-----------------------------------------------------------------------------
 	{
@@ -106,8 +106,8 @@ public:
 	//-----------------------------------------------------------------------------
 	/// returns elapsed time (converted into any duration type, per default nanoseconds)
 	/// and resets counter after readout
-	template<typename DurationType = Duration>
-	DurationType elapsedAndReset()
+	template<typename DurationType = std::chrono::nanoseconds>
+	DurationType elapsedAndClear()
 	//-----------------------------------------------------------------------------
 	{
 		auto tNow = clock_t::now();
@@ -147,7 +147,7 @@ protected:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// really simple implementation of a stop watch
-class KStopWatch : public KStopTime
+class KStopWatch : private KStopTime
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -174,11 +174,18 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed time (converted into any duration type, default is nanoseconds)
-	template<typename DurationType = Duration>
+	template<typename DurationType = std::chrono::nanoseconds>
 	DurationType elapsed() const
 	//-----------------------------------------------------------------------------
 	{
-		return std::chrono::duration_cast<DurationType>(elapsed_int());
+		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, Duration>::value)
+		{
+			return elapsed_int();
+		}
+		else
+		{
+			return std::chrono::round<DurationType>(elapsed_int());
+		}
 	}
 
 	//-----------------------------------------------------------------------------
@@ -207,7 +214,7 @@ public:
 	void clear()
 	//-----------------------------------------------------------------------------
 	{
-		m_iDurationSoFar = clock_t::duration::zero();
+		m_iDurationSoFar = Duration::zero();
 		m_bIsHalted = true;
 	}
 
@@ -217,7 +224,7 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed (active) time based on clock_t's duration type
-	clock_t::duration elapsed_int() const
+	Duration elapsed_int() const
 	//-----------------------------------------------------------------------------
 	{
 		if (!m_bIsHalted)
@@ -230,10 +237,11 @@ private:
 		}
 	}
 
+	Duration m_iDurationSoFar { Duration::zero() };
 	bool m_bIsHalted { false };
-	Duration m_iDurationSoFar { clock_t::duration::zero() };
 
 }; // KStopWatch
+
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -276,9 +284,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// get duration of an interval, rounded from internal duration type
-	/// @param iInterval 0 based index on intervals, returns zero duration if out of bounds
-	template<typename DurationType = Duration>
+	/// get duration of an interval, rounded from internal duration type,
+	/// per default nanoseconds
+	/// @param iInterval 0 based index on intervals, returns zero duration if out
+	/// of bounds
+	template<typename DurationType = std::chrono::nanoseconds>
 	DurationType GetDuration(size_type iInterval) const
 	//-----------------------------------------------------------------------------
 	{
@@ -287,7 +297,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// subscription access
-	template<typename DurationType = Duration>
+	template<typename DurationType = std::chrono::nanoseconds>
 	Duration operator[](size_type iInterval) const
 	//-----------------------------------------------------------------------------
 	{
@@ -295,8 +305,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// returns total duration, rounded from internal duration type
-	template<typename DurationType = Duration>
+	/// returns total duration, rounded from internal duration type,
+	/// per default nanoseconds
+	template<typename DurationType = std::chrono::nanoseconds>
 	DurationType TotalDuration() const
 	//-----------------------------------------------------------------------------
 	{
@@ -339,23 +350,25 @@ public:
 private:
 //------
 
-	Storage   m_Durations;
+	Storage m_Durations;
 
 }; // KDurations
 
 // gcc does not like these specializations in the class itself..
 
 //-----------------------------------------------------------------------------
-/// get duration of an interval in internal duration type (nanoseconds)
+/// get duration of an interval in internal duration type
 template<>
 KDurations::Duration KDurations::GetDuration<KDurations::Duration>(size_type iInterval) const;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// returns total duration in internal duration type (nanoseconds)
+/// returns total duration in internal duration type
 template<>
 KDurations::Duration KDurations::TotalDuration<KDurations::Duration>() const;
 //-----------------------------------------------------------------------------
+
+
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KTimer can be used to call functions both repeatedly after a fixed

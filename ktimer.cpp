@@ -63,7 +63,7 @@ void KDurations::clear()
 KDurations::Duration KDurations::StartNextInterval()
 //---------------------------------------------------------------------------
 {
-	m_Durations.push_back(elapsedAndReset<Duration>());
+	m_Durations.push_back(elapsedAndClear<Duration>());
 	return m_Durations.back();
 
 } // StartNextInterval
@@ -77,7 +77,7 @@ KDurations::Duration KDurations::StoreInterval(size_type iInterval)
 		m_Durations.resize(iInterval + 1);
 	}
 
-	m_Durations[iInterval] = elapsedAndReset<Duration>();
+	m_Durations[iInterval] = elapsedAndClear<Duration>();
 
 	return m_Durations[iInterval];
 

@@ -1721,24 +1721,15 @@ void KSQL::LogPerformance (uint64_t iMilliseconds, bool bIsQuery)
 				kFormNumber(m_iNumRowsAffected));
 		}
 
-		// write to a file
-		if (m_fpPerformanceLog)
+		if (m_TimingCallback)
+		{
+			m_TimingCallback(*this, iMilliseconds, sWarning);
+		}
+		else if (m_fpPerformanceLog)
 		{
 			kDebugLog (1, "writing warning to special log file:\n{}", sWarning);
 			fprintf (m_fpPerformanceLog, "%s", sWarning.c_str());
 			fflush (m_fpPerformanceLog);
-		}
-		else if (m_sSlackChannelURL)
-		{
-			kDebugLog (1, "writing warning to slack channel: {}\n{}", m_sSlackChannelURL, sWarning);
-			KJSON      json; json["text"] = kFormat ("```{}```", sWarning);
-			KWebClient HTTP;
-			KString    sResponse = HTTP.Post (m_sSlackChannelURL, json.dump(), KMIME::JSON);
-
-			if (HTTP.HttpFailure())
-			{
-				kWarningLog ("got HTTP-{} from {}: {}", HTTP.GetStatusCode(), "slack", sResponse);
-			}
 		}
 		else
 		{

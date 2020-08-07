@@ -305,19 +305,19 @@ public:
 	void   ClearErrorPrefix ()        { m_sErrorPrefix = "KSQL: "; }
 
 	/// issue a klog warning everytime a query or sql statement exceeds the given number of seconds
-	void   SetWarningThreshold  (uint64_t iWarnIfOverMilliseconds, FILE* fpAlternativeToKlog=nullptr) {
+	void   SetWarningThreshold  (uint64_t iWarnIfOverMilliseconds, FILE* fpAlternativeToKlog=nullptr)
+	{
 			m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
 			m_fpPerformanceLog        = fpAlternativeToKlog;
 	}
 
-	/// issue a warning to the given slack channel everytime a query or sql statement exceeds the given number of seconds
-	void   SetWarningThreshold  (uint64_t iWarnIfOverMilliseconds, KStringView sSlackChannelURL) {
+	/// call back everytime a query or sql statement exceeds the given duration
+	void   SetWarningThreshold  (uint64_t iWarnIfOverMilliseconds,
+								 std::function<void(const KSQL&, uint64_t, const KString&)> TimingCallback = nullptr)
+	{
 			m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
-			SetSlackChannel (sSlackChannelURL);
+			m_TimingCallback = TimingCallback;
 	}
-
-	/// establish slack channel url for posting certain types of debug information (like slow queries)
-	void   SetSlackChannel (KStringView sURL)  { m_sSlackChannelURL = sURL; }
 
 	/// After establishing a database connection, this is how you sent DDL (create table, etc.) statements to the RDBMS.
 	template<class... Args>
@@ -860,7 +860,7 @@ protected:
 	uint64_t   m_iWarnIfOverMilliseconds { 0 };
 	FILE*      m_fpPerformanceLog { nullptr };
 	KString    m_sTempDir { "/tmp" };
-	KString    m_sSlackChannelURL;
+	std::function<void(const KSQL&, uint64_t, const KString&)> m_TimingCallback;
 
 	bool  SQLError (bool fForceError=false);
 	bool  WasOCICallOK (KStringView sContext);

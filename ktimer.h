@@ -286,12 +286,6 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// get duration of an interval in internal duration type (nanoseconds)
-	template<>
-	Duration GetDuration<Duration>(size_type iInterval) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// subscription access
 	template<typename DurationType = Duration>
 	Duration operator[](size_type iInterval) const
@@ -308,12 +302,6 @@ public:
 	{
 		return std::chrono::round<DurationType>(TotalDuration<Duration>());
 	}
-
-	//-----------------------------------------------------------------------------
-	/// returns total duration in internal duration type (nanoseconds)
-	template<>
-	Duration TotalDuration<Duration>() const;
-	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// returns start iterator
@@ -354,6 +342,20 @@ private:
 	Storage   m_Durations;
 
 }; // KDurations
+
+// gcc does not like these specializations in the class itself..
+
+//-----------------------------------------------------------------------------
+/// get duration of an interval in internal duration type (nanoseconds)
+template<>
+KDurations::Duration KDurations::GetDuration<KDurations::Duration>(size_type iInterval) const;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// returns total duration in internal duration type (nanoseconds)
+template<>
+KDurations::Duration KDurations::TotalDuration<KDurations::Duration>() const;
+//-----------------------------------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KTimer can be used to call functions both repeatedly after a fixed

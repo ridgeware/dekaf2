@@ -678,7 +678,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				if (!Options.sTimerHeader.empty())
 				{
 					// add a custom header that marks execution time for this request
-					Response.Headers.Add (Options.sTimerHeader, KString::to_string(std::chrono::round<std::chrono::milliseconds>(m_Timers->TotalDuration()).count()));
+					Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_Timers->TotalDuration<std::chrono::milliseconds>().count()));
 				}
 			}
 
@@ -895,7 +895,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 				if (!Options.sTimerHeader.empty())
 				{
 					// add a custom header that marks execution time for this request
-					Response.Headers.Add (Options.sTimerHeader, KString::to_string(std::chrono::round<std::chrono::milliseconds>(m_Timers->TotalDuration()).count()));
+					Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_Timers->TotalDuration<std::chrono::milliseconds>().count()));
 				}
 			}
 

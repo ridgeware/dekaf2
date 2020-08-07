@@ -49,6 +49,7 @@
 #include <unordered_map>
 #include <mutex>
 #include <vector>
+#include "bits/kcppcompat.h"
 
 /// @file ktimer.h
 /// general timing facilities
@@ -65,7 +66,8 @@ class KStopTime
 public:
 //----------
 
-	using clock_t = std::chrono::steady_clock;
+	using clock_t  = std::chrono::steady_clock;
+	using Duration = clock_t::duration;
 
 	/// tag to force construction without starting the timer
 	static struct ConstructHalted {} Halted;
@@ -87,24 +89,42 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed time (converted into any duration type, per default nanoseconds)
-	template<typename DurationType = std::chrono::nanoseconds>
+	template<typename DurationType = Duration>
 	DurationType elapsed() const
 	//-----------------------------------------------------------------------------
 	{
-		return std::chrono::duration_cast<DurationType>(clock_t::now() - m_Start);
+		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, Duration>::value)
+		{
+			return clock_t::now() - m_Start;
+		}
+		else
+		{
+			return std::chrono::round<DurationType>(clock_t::now() - m_Start);
+		}
 	}
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed time (converted into any duration type, per default nanoseconds)
 	/// and resets counter after readout
-	template<typename DurationType = std::chrono::nanoseconds>
+	template<typename DurationType = Duration>
 	DurationType elapsedAndReset()
 	//-----------------------------------------------------------------------------
 	{
 		auto tNow = clock_t::now();
-		auto dRet = std::chrono::duration_cast<DurationType>(tNow - m_Start);
-		m_Start   = tNow;
-		return dRet;
+		DurationType tDuration;
+
+		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, Duration>::value)
+		{
+			tDuration = tNow - m_Start;
+		}
+		else
+		{
+			tDuration = std::chrono::round<DurationType>(tNow - m_Start);
+		}
+
+		m_Start = tNow;
+
+		return tDuration;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -154,7 +174,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed time (converted into any duration type, default is nanoseconds)
-	template<typename DurationType = std::chrono::nanoseconds>
+	template<typename DurationType = Duration>
 	DurationType elapsed() const
 	//-----------------------------------------------------------------------------
 	{
@@ -211,14 +231,14 @@ private:
 	}
 
 	bool m_bIsHalted { false };
-	clock_t::duration m_iDurationSoFar { clock_t::duration::zero() };
+	Duration m_iDurationSoFar { clock_t::duration::zero() };
 
 }; // KStopWatch
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Keeps multiple consecutive time intervals
-class KDurations
+class KDurations : private KStopTime
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -226,60 +246,103 @@ class KDurations
 public:
 //------
 
-	using Duration       = std::chrono::nanoseconds;
+	using Duration       = KStopTime::Duration;
 	using Storage        = std::vector<Duration>;
 	using size_type      = Storage::size_type;
 	using const_iterator = Storage::const_iterator;
 
+	//-----------------------------------------------------------------------------
 	/// reset all intervals, restart clock
 	void clear();
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	/// reserve a certain amount of storage
 	void reserve(size_type iSize)
+	//-----------------------------------------------------------------------------
 	{
 		m_Durations.reserve(iSize);
 	}
 
+	//-----------------------------------------------------------------------------
 	/// start a new interval, store the current one
 	Duration StartNextInterval();
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	/// start a new interval, store the current one
 	/// @param iInterval index position to store the current interval at
 	Duration StoreInterval(size_type iInterval);
+	//-----------------------------------------------------------------------------
 
-	/// get duration of an interval
+	//-----------------------------------------------------------------------------
+	/// get duration of an interval, rounded from internal duration type
 	/// @param iInterval 0 based index on intervals, returns zero duration if out of bounds
-	Duration GetDuration(size_type iInterval) const;
-
-	/// subscription access
-	Duration operator[](size_type iInterval) const
+	template<typename DurationType = Duration>
+	DurationType GetDuration(size_type iInterval) const
+	//-----------------------------------------------------------------------------
 	{
-		return GetDuration(iInterval);
+		return std::chrono::round<DurationType>(TotalDuration<Duration>());
 	}
 
-	/// returns total duration
-	Duration TotalDuration() const;
+	//-----------------------------------------------------------------------------
+	/// get duration of an interval in internal duration type (nanoseconds)
+	template<>
+	Duration GetDuration<Duration>(size_type iInterval) const;
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// subscription access
+	template<typename DurationType = Duration>
+	Duration operator[](size_type iInterval) const
+	//-----------------------------------------------------------------------------
+	{
+		return GetDuration<DurationType>(iInterval);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns total duration, rounded from internal duration type
+	template<typename DurationType = Duration>
+	DurationType TotalDuration() const
+	//-----------------------------------------------------------------------------
+	{
+		return std::chrono::round<DurationType>(TotalDuration<Duration>());
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns total duration in internal duration type (nanoseconds)
+	template<>
+	Duration TotalDuration<Duration>() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// returns start iterator
 	const_iterator begin() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_Durations.begin();
 	}
 
+	//-----------------------------------------------------------------------------
 	/// returns end iterator
 	const_iterator end() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_Durations.end();
 	}
 
+	//-----------------------------------------------------------------------------
 	/// returns count of intervals
 	size_type size() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_Durations.size();
 	}
 
+	//-----------------------------------------------------------------------------
 	/// do we have intervals?
 	bool empty() const
+	//-----------------------------------------------------------------------------
 	{
 		return m_Durations.empty();
 	}
@@ -289,9 +352,8 @@ private:
 //------
 
 	Storage   m_Durations;
-	KStopTime m_timer;
 
-}; // TimeKeepers
+}; // KDurations
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KTimer can be used to call functions both repeatedly after a fixed

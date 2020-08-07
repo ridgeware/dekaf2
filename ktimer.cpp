@@ -55,7 +55,6 @@ KStopWatch::ConstructHalted KStopWatch::Halted;
 void KDurations::clear()
 //-----------------------------------------------------------------------------
 {
-	m_timer.clear();
 	m_Durations.clear();
 
 } // clear
@@ -64,7 +63,7 @@ void KDurations::clear()
 KDurations::Duration KDurations::StartNextInterval()
 //---------------------------------------------------------------------------
 {
-	m_Durations.push_back(m_timer.elapsedAndReset<Duration>());
+	m_Durations.push_back(elapsedAndReset<Duration>());
 	return m_Durations.back();
 
 } // StartNextInterval
@@ -78,14 +77,15 @@ KDurations::Duration KDurations::StoreInterval(size_type iInterval)
 		m_Durations.resize(iInterval + 1);
 	}
 
-	m_Durations[iInterval] = m_timer.elapsedAndReset<Duration>();
+	m_Durations[iInterval] = elapsedAndReset<Duration>();
 
 	return m_Durations[iInterval];
 
 } // StoreInterval
 
 //---------------------------------------------------------------------------
-KDurations::Duration KDurations::GetDuration(std::size_t iInterval) const
+template<>
+KDurations::Duration KDurations::GetDuration<KDurations::Duration>(std::size_t iInterval) const
 //---------------------------------------------------------------------------
 {
 	if (iInterval < m_Durations.size())
@@ -100,7 +100,8 @@ KDurations::Duration KDurations::GetDuration(std::size_t iInterval) const
 } // GetDuration
 
 //---------------------------------------------------------------------------
-KDurations::Duration KDurations::TotalDuration() const
+template<>
+KDurations::Duration KDurations::TotalDuration<KDurations::Duration>() const
 //---------------------------------------------------------------------------
 {
 	Duration Total;

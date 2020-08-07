@@ -400,10 +400,11 @@ KSQL::KSQL (DBT iDBType/*=DBT::MYSQL*/, KStringView sUsername/*=nullptr*/, KStri
 //-----------------------------------------------------------------------------
 KSQL::KSQL (const KSQL& other)
 //-----------------------------------------------------------------------------
+: m_iFlags(other.m_iFlags)
+, m_iWarnIfOverMilliseconds(other.m_iWarnIfOverMilliseconds)
+, m_TimingCallback(other.m_TimingCallback)
 {
 	kDebug (3, "...");
-
-	m_iFlags = other.GetFlags();
 
 	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
 	m_sTmpResultsFile.Format ("{}/ksql-{}-{}.res", GetTempDir(), kGetPid(), kGetTid());

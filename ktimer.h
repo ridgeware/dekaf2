@@ -66,8 +66,8 @@ class KStopTime
 public:
 //----------
 
-	using clock_t  = std::chrono::steady_clock;
-	using Duration = clock_t::duration;
+	using Clock    = std::chrono::steady_clock;
+	using Duration = Clock::duration;
 
 	/// tag to force construction without starting the timer
 	static struct ConstructHalted {} Halted;
@@ -76,7 +76,7 @@ public:
 	/// constructs and starts counting
 	KStopTime()
 	//-----------------------------------------------------------------------------
-	: m_Start(clock_t::now())
+	: m_Start(Clock::now())
 	{
 	}
 
@@ -88,61 +88,56 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// returns elapsed time (converted into any duration type, per default nanoseconds)
+	/// returns elapsed time (converted into any duration type, per default
+ 	/// nanoseconds)
 	template<typename DurationType = std::chrono::nanoseconds>
-	DurationType elapsed() const
+	DurationType elapsed(Clock::time_point tNow = Clock::now()) const
 	//-----------------------------------------------------------------------------
 	{
 		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, Duration>::value)
 		{
-			return clock_t::now() - m_Start;
+			return tNow - m_Start;
 		}
 		else
 		{
-			return std::chrono::round<DurationType>(clock_t::now() - m_Start);
+			return std::chrono::round<DurationType>(tNow - m_Start);
 		}
-	}
+
+	} // elapsed
 
 	//-----------------------------------------------------------------------------
-	/// returns elapsed time (converted into any duration type, per default nanoseconds)
-	/// and resets counter after readout
+	/// returns elapsed time (converted into any duration type, per default
+	/// nanoseconds) and resets start time after readout
 	template<typename DurationType = std::chrono::nanoseconds>
 	DurationType elapsedAndClear()
 	//-----------------------------------------------------------------------------
 	{
-		auto tNow = clock_t::now();
-		DurationType tDuration;
+		auto tNow = Clock::now();
 
-		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, Duration>::value)
-		{
-			tDuration = tNow - m_Start;
-		}
-		else
-		{
-			tDuration = std::chrono::round<DurationType>(tNow - m_Start);
-		}
+		auto tDuration = elapsed(tNow);
 
 		m_Start = tNow;
 
 		return tDuration;
-	}
+
+	} // elapsedAndClear
 
 	//-----------------------------------------------------------------------------
 	/// resets start time to now
 	void clear()
 	//-----------------------------------------------------------------------------
 	{
-		m_Start = clock_t::now();
-	}
+		m_Start = Clock::now();
+
+	} // clear
 
 //----------
 protected:
 //----------
 
-	clock_t::time_point m_Start;
+	Clock::time_point m_Start;
 
 }; // KStopTime
-
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -186,16 +181,18 @@ public:
 		{
 			return std::chrono::round<DurationType>(elapsed_int());
 		}
-	}
+
+	} // elapsed
 
 	//-----------------------------------------------------------------------------
 	/// halts elapsed time counting
 	void halt()
 	//-----------------------------------------------------------------------------
 	{
-		m_iDurationSoFar += clock_t::now() - m_Start;
+		m_iDurationSoFar += Clock::now() - m_Start;
 		m_bIsHalted = true;
-	}
+
+	} // halt
 
 	//-----------------------------------------------------------------------------
 	/// resumes elapsed time counting
@@ -205,9 +202,10 @@ public:
 		if (m_bIsHalted)
 		{
 			m_bIsHalted = false;
-			m_Start = clock_t::now();
+			m_Start = Clock::now();
 		}
-	}
+
+	} // resume
 
 	//-----------------------------------------------------------------------------
 	/// resets elapsed time, stops counter - call resume() to continue
@@ -216,7 +214,8 @@ public:
 	{
 		m_iDurationSoFar = Duration::zero();
 		m_bIsHalted = true;
-	}
+
+	} // clear
 
 //----------
 private:
@@ -229,19 +228,19 @@ private:
 	{
 		if (!m_bIsHalted)
 		{
-			return (clock_t::now() - m_Start) + m_iDurationSoFar;
+			return (Clock::now() - m_Start) + m_iDurationSoFar;
 		}
 		else
 		{
 			return m_iDurationSoFar;
 		}
-	}
+
+	} // elapsed_int
 
 	Duration m_iDurationSoFar { Duration::zero() };
 	bool m_bIsHalted { false };
 
 }; // KStopWatch
-
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -305,8 +304,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// returns total duration, rounded from internal duration type,
-	/// per default nanoseconds
+	/// returns total duration of all durations, rounded from internal duration
+	/// type, per default nanoseconds
 	template<typename DurationType = std::chrono::nanoseconds>
 	DurationType TotalDuration() const
 	//-----------------------------------------------------------------------------
@@ -367,7 +366,6 @@ KDurations::Duration KDurations::GetDuration<KDurations::Duration>(size_type iIn
 template<>
 KDurations::Duration KDurations::TotalDuration<KDurations::Duration>() const;
 //-----------------------------------------------------------------------------
-
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -494,16 +492,19 @@ public:
 	static DstTimePoint TimepointCast(const SrcTimePoint tp)
 	//---------------------------------------------------------------------------
 	{
-		if (std::is_same<SrcClock, DstClock>{})
+		if DEKAF2_CONSTEXPR_IF(std::is_same<SrcClock, DstClock>::value)
 		{
 			return tp;
 		}
-		const auto src_before = SrcClock::now();
-		const auto dst_now    = DstClock::now();
-		const auto src_after  = SrcClock::now();
-		const auto src_diff   = src_after - src_before;
-		const auto src_now    = src_before + src_diff / 2;
-		return dst_now + (tp - src_now);
+		else
+		{
+			const auto src_before = SrcClock::now();
+			const auto dst_now    = DstClock::now();
+			const auto src_after  = SrcClock::now();
+			const auto src_diff   = src_after - src_before;
+			const auto src_now    = src_before + src_diff / 2;
+			return dst_now + (tp - src_now);
+		}
 	}
 
 	//---------------------------------------------------------------------------
@@ -526,40 +527,42 @@ public:
 	        int limit = 5)
 	//---------------------------------------------------------------------------
 	{
-		if (std::is_same<SrcClock, DstClock>{})
+		if DEKAF2_CONSTEXPR_IF(std::is_same<SrcClock, DstClock>::value)
 		{
 			return tp;
 		}
-
-		if (limit < 1)
+		else
 		{
-			limit = 1;
-		}
+			if (limit < 1)
+			{
+				limit = 1;
+			}
 
-		auto itercnt = 0;
-		auto src_now = ScrTimePoint {};
-		auto dst_now = DstTimePoint {};
-		auto epsilon = max_duration<SrcDuration>();
-		do
-		{
-			const auto src_before  = SrcClock::now();
-			const auto dst_between = DstClock::now();
-			const auto src_after   = SrcClock::now();
-			const auto src_diff    = src_after - src_before;
-			const auto delta       = abs_duration(src_diff);
-			if (delta < epsilon)
+			auto itercnt = 0;
+			auto src_now = ScrTimePoint {};
+			auto dst_now = DstTimePoint {};
+			auto epsilon = max_duration<SrcDuration>();
+			do
 			{
-				src_now = src_before + src_diff / 2;
-				dst_now = dst_between;
-				epsilon = delta;
+				const auto src_before  = SrcClock::now();
+				const auto dst_between = DstClock::now();
+				const auto src_after   = SrcClock::now();
+				const auto src_diff    = src_after - src_before;
+				const auto delta       = abs_duration(src_diff);
+				if (delta < epsilon)
+				{
+					src_now = src_before + src_diff / 2;
+					dst_now = dst_between;
+					epsilon = delta;
+				}
+				if (++itercnt >= limit)
+				{
+					break;
+				}
 			}
-			if (++itercnt >= limit)
-			{
-				break;
-			}
+			while (epsilon > tolerance);
+			return dst_now + (tp - src_now);
 		}
-		while (epsilon > tolerance);
-		return dst_now + (tp - src_now);
 	}
 
 	//---------------------------------------------------------------------------
@@ -580,7 +583,7 @@ private:
 	static constexpr DurationT max_duration() noexcept
 	//---------------------------------------------------------------------------
 	{
-		return DurationT {std::numeric_limits<ReprT>::max()};
+		return DurationT { std::numeric_limits<ReprT>::max() };
 	}
 
 	//---------------------------------------------------------------------------
@@ -590,7 +593,7 @@ private:
 	static constexpr DurationT abs_duration(const DurationT d) noexcept
 	//---------------------------------------------------------------------------
 	{
-		return DurationT {(d.count() < 0) ? -d.count() : d.count()};
+		return DurationT { (d.count() < 0) ? -d.count() : d.count() };
 	}
 
 	//---------------------------------------------------------------------------
@@ -623,17 +626,17 @@ private:
 	struct Timer
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		ID_t ID{INVALID};
+		ID_t ID { INVALID };
 		Timepoint ExpiresAt;
 		Interval IVal;
-		Callback CB{nullptr};
-		CallbackTimeT CBT{nullptr};
-		uint8_t Flags{NONE};
+		Callback CB { nullptr };
+		CallbackTimeT CBT { nullptr };
+		uint8_t Flags { NONE };
 	};
 
 	std::unique_ptr<std::thread> m_tTiming;
-	bool m_bShutdown{false};
-	bool m_bDestructWithJoin{false};
+	bool m_bShutdown { false };
+	bool m_bDestructWithJoin { false };
 
 	using map_t = std::unordered_map<ID_t, Timer>;
 	map_t m_Timers;

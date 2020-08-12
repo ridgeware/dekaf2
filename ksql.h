@@ -896,103 +896,32 @@ protected:
 
 }; // KSQL
 
-/////////////////////////////////////////////////////////////////////////////
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DbSemaphore
-/////////////////////////////////////////////////////////////////////////////
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	DbSemaphore (KSQL& db, KStringView sAction, bool bThrow=true, bool bWait=false)
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		: m_db {db}
-		, m_sAction {sAction}
-		, m_bThrow {bThrow}
-	{
-		if (!bWait)
-		{
-			CreateSemaphore();
-		}
-	}
 
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	~DbSemaphore ()
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	{
-		ClearSemaphore();
-	}
+	DbSemaphore (KSQL& db, KString sAction, bool bThrow=true, bool bWait=false, int16_t iTimeout = 0);
+	~DbSemaphore () { ClearSemaphore(); }
 
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	bool CreateSemaphore ()
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	{
-		m_sTablename.Format ("KSQL_SEMAPHORE_{}", m_sAction);
-		m_sLastError.clear ();
-
-		auto iSave = m_db.GetFlags ();
-		m_db.SetFlags (KSQL::F_IgnoreSQLErrors);
-		auto bOK = m_db.ExecRawSQL (kFormat ("create table {} (a int)", m_sTablename));
-		m_db.SetFlags (iSave);
-
-		if (!bOK)
-		{
-			m_sLastError.Format ("could not create semaphore '{}', table '{}' already exits", m_sAction, m_sTablename);
-			m_sTablename.clear ();
-			if (m_bThrow)
-			{
-				throw KException(m_sLastError);
-			}
-			return false;
-		}
-		else
-		{
-			return true;
-		}
-	}
-
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	bool ClearSemaphore ()
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	{
-		if (!m_sTablename)
-		{
-			return true;  // never set
-		}
-		m_sLastError.clear ();
-
-		auto iSave = m_db.GetFlags ();
-		m_db.SetFlags (KSQL::F_IgnoreSQLErrors);
-		auto bOK = m_db.ExecRawSQL (kFormat ("drop table {}", m_sTablename));
-		m_db.SetFlags (iSave);
-
-		if (!bOK)
-		{
-			m_sLastError.Format ("could not drop semaphore '{}', table '{}'", m_sAction, m_sTablename);
-			if (m_bThrow)
-			{
-				throw KException(m_sLastError);
-			}
-			return false;
-		}
-		else
-		{
-			m_sTablename.clear ();
-			return true;
-		}
-	}
-
-	bool IsCreated () { return !m_sTablename.empty(); }
-	KStringView GetLastError() { return m_sLastError; }
+	bool  CreateSemaphore (int16_t iTimeout = 0);
+	bool  ClearSemaphore ();
+	bool  IsCreated () const { return m_bIsSet; }
+	const KString& GetLastError () const { return m_sLastError; }
 
 //----------
 private:
 //----------
+
 	KSQL&    m_db;
 	KString  m_sAction;
-	KString  m_sTablename;
-	bool     m_bThrow{false};
 	KString  m_sLastError;
+	bool     m_bThrow { false };
+	bool     m_bIsSet { false };
 
 }; // DbSemaphore
 

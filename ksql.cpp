@@ -7609,6 +7609,88 @@ KString KSQL::ConvertTimestamp (KStringView sTimestamp)
 
 } // ConvertTimestap
 
+
+//-----------------------------------------------------------------------------
+DbSemaphore::DbSemaphore (KSQL& db, KString sAction, bool bThrow, bool bWait, int16_t iTimeout)
+//-----------------------------------------------------------------------------
+	: m_db      { db }
+	, m_sAction { sAction }
+	, m_bThrow  { bThrow }
+{
+	if (!bWait)
+	{
+		CreateSemaphore(iTimeout);
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+bool DbSemaphore::CreateSemaphore (int16_t iTimeout)
+//-----------------------------------------------------------------------------
+{
+	if (!m_bIsSet)
+	{
+		m_sLastError.clear ();
+
+		auto iSave = m_db.GetFlags ();
+		m_db.SetFlags (KSQL::F_IgnoreSQLErrors);
+		auto bOK = m_db.GetLock(m_sAction, iTimeout);
+		m_db.SetFlags (iSave);
+
+		if (!bOK)
+		{
+			m_sLastError.Format ("could not create named lock '{}', already exits", m_sAction);
+			kDebug(1, m_sLastError);
+
+			if (m_bThrow)
+			{
+				throw KException(m_sLastError);
+			}
+		}
+		else
+		{
+			m_bIsSet = true;
+		}
+	}
+
+	return m_bIsSet;
+
+} // CreateSemaphore
+
+//-----------------------------------------------------------------------------
+bool DbSemaphore::ClearSemaphore ()
+//-----------------------------------------------------------------------------
+{
+	if (m_bIsSet)
+	{
+		m_sLastError.clear ();
+
+		auto iSave = m_db.GetFlags ();
+		m_db.SetFlags (KSQL::F_IgnoreSQLErrors);
+		auto bOK = m_db.ReleaseLock(m_sAction);
+		m_db.SetFlags (iSave);
+
+		if (!bOK)
+		{
+			m_sLastError.Format ("could not release named lock '{}'", m_sAction);
+			kDebug(1, m_sLastError);
+
+			if (m_bThrow)
+			{
+				throw KException(m_sLastError);
+			}
+		}
+		else
+		{
+			m_bIsSet = false;
+		}
+	}
+
+	return !m_bIsSet;
+
+} // ClearSemaphore
+
+
 KSQL::DBCCache KSQL::s_DBCCache;
 
 } // namespace dekaf2

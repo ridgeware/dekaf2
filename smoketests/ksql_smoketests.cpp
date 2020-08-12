@@ -1129,6 +1129,19 @@ TEST_CASE("KSQL")
 				INFO ( "ReleaseLock()" );
 				CHECK ( b == false );
 			}
+
+			{
+				DbSemaphore Semaphore(db, "TestLock", false);
+				CHECK ( Semaphore.IsCreated() );
+				CHECK ( db.IsLocked("TestLock") );
+				CHECK ( Semaphore.CreateSemaphore() );
+				CHECK ( Semaphore.ClearSemaphore() );
+				CHECK ( Semaphore.IsCreated() == false );
+				CHECK ( db.IsLocked("TestLock") == false );
+				CHECK ( Semaphore.CreateSemaphore() );
+				CHECK ( Semaphore.CreateSemaphore() );
+			}
+			CHECK ( db.IsLocked("TestLock") == false );
 		}
 	}
 

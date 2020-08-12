@@ -7639,7 +7639,7 @@ bool DbSemaphore::CreateSemaphore (int16_t iTimeout)
 
 		if (!bOK)
 		{
-			m_sLastError.Format ("could not create named lock '{}', already exits", m_sAction);
+			m_sLastError.Format ("could not create named lock '{}', already exists", m_sAction);
 			kDebug(1, m_sLastError);
 
 			if (m_bThrow)

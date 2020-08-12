@@ -1140,6 +1140,9 @@ TEST_CASE("KSQL")
 				CHECK ( db.IsLocked("TestLock") == false );
 				CHECK ( Semaphore.CreateSemaphore() );
 				CHECK ( Semaphore.CreateSemaphore() );
+				auto db2 = db;
+				DbSemaphore Semaphore2(db2, "TestLock", false, false, 0);
+				CHECK ( Semaphore2.IsCreated() == false );
 			}
 			CHECK ( db.IsLocked("TestLock") == false );
 		}

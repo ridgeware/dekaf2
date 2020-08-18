@@ -1426,5 +1426,27 @@ TEST_CASE("KStringView") {
 		KStringView sv { "TeS@t中文Русский" };
 		CHECK ( sv.ToUpperASCII() == "TES@T中文Русский" );
 	}
+
+	SECTION("append")
+	{
+		KStringView sv { "0123456789abcdefghijklm" };
+		KStringView s1 { sv };
+		KStringView s2 { sv };
+		s1.remove_prefix(10);
+		s2.remove_suffix(13);
+		CHECK ( s1 == "abcdefghijklm"  );
+		CHECK ( s2 == "0123456789"     );
+		CHECK ( s1.append(s2) == false );
+		CHECK ( s2.append(s1)          );
+		CHECK ( s2 == sv               );
+		s2.remove_suffix(14);
+		CHECK ( s2 == "012345678"      );
+		CHECK ( s2.append(s1) == false );
+		CHECK ( s2 == "012345678"      );
+		s2 = sv;
+		s2.remove_suffix(10);
+		CHECK ( s2.append(s1)          );
+		CHECK ( s2 == sv               );
+	}
 }
 

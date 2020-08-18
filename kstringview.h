@@ -719,6 +719,67 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// append other view to this. Views must overlap or be adjacent, but other has to be to the right of this
+	DEKAF2_CONSTEXPR_14
+	bool append(self_type other)
+	//-----------------------------------------------------------------------------
+	{
+		if (data() > other.data())
+		{
+			Warn("cannot append, other view starts before this");
+			return false;
+		}
+
+		if (data() + size() < other.data())
+		{
+			Warn("non-adjacent views cannot be merged");
+			return false;
+		}
+
+		if (data() + size() >= other.data() + other.size())
+		{
+			Warn("right view is a subset of left");
+			return false;
+		}
+
+		assign(data(), (other.data() - data()) + other.size());
+
+		return true;
+	}
+
+	//--------------------------------------------------------------------------------
+	// nonstandard
+	/// merge another view with this, regardless from which side and how much overlap..
+	DEKAF2_CONSTEXPR_14
+	bool Merge(KStringView other)
+	//--------------------------------------------------------------------------------
+	{
+		if (data() > other.data())
+		{
+			if (other.data() + other.size() < data())
+			{
+				Warn("non-adjacent stringviews cannot be merged");
+				return false;
+			}
+
+			swap(other);
+		}
+
+		// now it is assured that this view starts before or at the same position as other
+
+		if (data() + size() < other.data() )
+		{
+			Warn("non-adjacent stringviews cannot be merged");
+			return false;
+		}
+
+		assign(data(), (other.data() - data()) + other.size());
+
+		return true;
+	}
+
+	//-----------------------------------------------------------------------------
 	// std::C++20
 	/// does the string start with sPattern?
 	DEKAF2_CONSTEXPR_14

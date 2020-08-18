@@ -44,6 +44,7 @@
 #include <dekaf2/ksql.h>
 #include <dekaf2/ksystem.h>
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/kstringutils.h>
 
 using namespace dekaf2;
 
@@ -91,6 +92,36 @@ KString HereDoc (KStringView sString)
 	return (sReturnMe);
 
 } // HereDoc
+
+//-----------------------------------------------------------------------------
+KString GenRandomString(int iMinSize, int iMaxSize)
+//-----------------------------------------------------------------------------
+{
+	auto iSize = kRandom(iMinSize, iMaxSize);
+
+	KString sRandom;
+
+	for (decltype(iSize) iCt = 0; iCt < iSize; ++iCt)
+	{
+		// select characters from a..z plus 3 that we convert into space
+		auto iCh = kRandom(97, 125);
+
+		if (iCh > 122)
+		{
+			if (sRandom && sRandom.back() != ' ')
+			{
+				sRandom += ' ';
+			}
+		}
+		else
+		{
+			sRandom += static_cast<char>(iCh);
+		}
+	}
+
+	return sRandom;
+
+} // GenRandomString
 
 //-----------------------------------------------------------------------------
 static bool SqlServerIdentityInsert (KSQL& db, LPCTSTR pszTablename, KStringView sOnOff)
@@ -1145,6 +1176,142 @@ TEST_CASE("KSQL")
 				CHECK ( Semaphore2.IsCreated() == false );
 			}
 			CHECK ( db.IsLocked("TestLock") == false );
+		}
+
+		// varchar vs int index
+		if (false)
+		{
+			if (!db.ExecSQL ("drop table if exists TEST_VARCHAR_INDEX"))
+			{
+				INFO (db.GetLastError());
+				FAIL_CHECK (db.GetLastError());
+			}
+
+			if (!db.ExecSQL ("drop table if exists TEST_INT_INDEX"))
+			{
+				INFO (db.GetLastError());
+				FAIL_CHECK (db.GetLastError());
+			}
+
+			if (!db.ExecRawSQL (HereDoc (R"(
+				|create table TEST_VARCHAR_INDEX (
+				|    astring   longblob        not null,
+				|    anum      bigint unsigned not null,
+				|    a2num     int unsigned    not null,
+				|    PRIMARY KEY idx_astring (astring(255))
+				|))")))
+			{
+				INFO (db.GetLastSQL());
+				FAIL_CHECK (db.GetLastError());
+			}
+
+			if (!db.ExecRawSQL (HereDoc (R"(
+				|create table TEST_INT_INDEX (
+				|    astring   longblob        not null,
+				|    anum      bigint unsigned not null primary key,
+				|    a2num     int unsigned    not null
+				|))")))
+			{
+				INFO (db.GetLastSQL());
+				FAIL_CHECK (db.GetLastError());
+			}
+
+			static constexpr int MAXTRIALS = 100000;
+
+			std::set<KString> Strings;
+
+			for (int i = 0; i < MAXTRIALS;)
+			{
+				if (Strings.insert(GenRandomString(5, 300)).second)
+				{
+					++i;
+				}
+			}
+
+			KDurations Durations;
+
+			uint64_t iCounter { 0 };
+			for (const auto& sRandom : Strings)
+			{
+				db.ExecRawSQL(kFormat(
+								   "insert into TEST_VARCHAR_INDEX \n"
+								   "   set astring = '{}', \n"
+								   "       anum    = {}, \n"
+								   "       a2num   = {}",
+								   sRandom,
+								   ++iCounter,
+								   sRandom.size()
+								));
+			}
+
+			Durations.StartNextInterval();
+
+			for (const auto& sRandom : Strings)
+			{
+				db.SingleIntRawQuery(kFormat(
+											 "SELECT a2num \n"
+											 "   from TEST_VARCHAR_INDEX \n"
+											 "  where astring = '{}'",
+											 sRandom
+										));
+			}
+
+			Durations.StartNextInterval();
+
+			for (const auto& sRandom : Strings)
+			{
+				db.ExecRawSQL(kFormat(
+								   "insert into TEST_INT_INDEX \n"
+								   "   set astring = '{}', \n"
+								   "       anum    = {}, \n"
+								   "       a2num   = {}",
+								   sRandom,
+								   sRandom.Hash(),
+								   sRandom.size()
+								));
+			}
+
+			Durations.StartNextInterval();
+
+			for (const auto& sRandom : Strings)
+			{
+				db.SingleIntRawQuery(kFormat(
+											 "SELECT a2num \n"
+											 "   from TEST_INT_INDEX \n"
+											 "  where anum = {}",
+											 sRandom.Hash()
+										));
+			}
+
+			Durations.StartNextInterval();
+
+			std::vector<KString> Labels;
+			Labels.push_back("insert varchar index");
+			Labels.push_back("select varchar index");
+			Labels.push_back("    insert int index");
+			Labels.push_back("    select int index");
+
+			for (std::size_t i = 0; i < Labels.size(); ++i)
+			{
+				KOut.FormatLine("{} : {:>6} ms total ({:3} us per query)",
+								Labels[i],
+								kFormNumber(Durations.GetDuration<std::chrono::milliseconds>(i).count()),
+								Durations.GetDuration<std::chrono::nanoseconds>(i).count() / (MAXTRIALS * 1000)
+								);
+			}
+
+			if (!db.ExecSQL ("drop table TEST_VARCHAR_INDEX"))
+			{
+				INFO (db.GetLastError());
+				FAIL_CHECK (db.GetLastError());
+			}
+
+			if (!db.ExecSQL ("drop table TEST_INT_INDEX"))
+			{
+				INFO (db.GetLastError());
+				FAIL_CHECK (db.GetLastError());
+			}
+
 		}
 	}
 

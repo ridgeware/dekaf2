@@ -88,12 +88,12 @@ KOStringStream::KOStringStream(KOStringStream&& other) noexcept
 }
 
 //-----------------------------------------------------------------------------
-void KOStringStream::str(KStringView sView)
+void KOStringStream::str(KString sString)
 //-----------------------------------------------------------------------------
 {
 	if (m_sBuffer)
 	{
-		*m_sBuffer = sView;
+		*m_sBuffer = std::move(sString);
 	}
 	else
 	{

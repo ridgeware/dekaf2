@@ -86,12 +86,12 @@ const KString& KIOStringStream::str() const
 }
 
 //-----------------------------------------------------------------------------
-void KIOStringStream::str(KStringView sView)
+void KIOStringStream::str(KString sString)
 //-----------------------------------------------------------------------------
 {
 	if (m_Buffer.sBuffer)
 	{
-		*m_Buffer.sBuffer = sView;
+		*m_Buffer.sBuffer = std::move(sString);
 	}
 	else
 	{

@@ -131,9 +131,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// set string
-	void str(KStringView sView);
+	void str(KString sString);
 	//-----------------------------------------------------------------------------
 
+	// keep this struct public - it is used in KIOStringReader
 	struct Buffer
 	{
 		KString* sBuffer { nullptr };

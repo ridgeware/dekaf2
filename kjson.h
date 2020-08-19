@@ -288,6 +288,36 @@ namespace kjson
 		return (it != json.end() && it->is_boolean());
 	}
 
+	/// adds the given integer to the given key, creates key if it does not yet exist
+	inline void Increment(KJSON& json, KStringView sKey, int64_t iAddMe=1) noexcept
+	{
+		auto it = json.find(sKey);
+		if ((it == json.end()) || !it->is_number())
+		{
+			json[sKey] = iAddMe;
+		}
+		else
+		{
+			auto iValue = it.value().get<uint64_t>();
+			json[sKey] = iAddMe + iValue;
+		}
+	}
+
+	/// subtracts the given integer from the given key, creates key if it does not yet exist
+	inline void Decrement(KJSON& json, KStringView sKey, int64_t iSubtractMe=1) noexcept
+	{
+		auto it = json.find(sKey);
+		if ((it == json.end()) || !it->is_number())
+		{
+			json[sKey] = - iSubtractMe;
+		}
+		else
+		{
+			auto iValue = it.value().get<uint64_t>();
+			json[sKey] = iValue - iSubtractMe;
+		}
+	}
+
 	/// proper json string escaping
 	/// @param sInput the unescaped input string
 	/// @param sOutput the escaped output string

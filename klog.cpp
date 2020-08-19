@@ -665,6 +665,7 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 		SetDefaults();
 		
 		KInFile file(GetDebugFlag());
+		
 		if (file.is_open())
 		{
 			m_bHadConfigFromFlagFile = true;
@@ -674,6 +675,7 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 			if (file.ReadLine(sLine))
 			{
 				size_t pos = 0;
+
 				for (auto it : sLine.Split(", "))
 				{
 					switch (pos)
@@ -705,6 +707,7 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 				while (file.ReadLine(sLine))
 				{
 					auto it = kSplitToPair(sLine);
+
 					if (!it.first.empty())
 					{
 						if (it.first == "log")

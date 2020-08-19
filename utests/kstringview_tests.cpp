@@ -1448,5 +1448,33 @@ TEST_CASE("KStringView") {
 		CHECK ( s2.append(s1)          );
 		CHECK ( s2 == sv               );
 	}
-}
 
+	SECTION("Merge")
+	{
+		KStringView sv { "0123456789abcdefghijklm" };
+		KStringView s1 { sv };
+		KStringView s2 { sv };
+		s1.remove_prefix(10);
+		CHECK ( s1 == "abcdefghijklm"  );
+		s2.remove_suffix(13);
+		CHECK ( s2 == "0123456789"     );
+		CHECK ( s1.Merge(s2)           );
+		CHECK ( s1 == sv               );
+		CHECK ( s2.Merge(s1)           );
+		CHECK ( s2 == sv               );
+		s1.remove_prefix(10);
+		CHECK ( s1 == "abcdefghijklm"  );
+		s2.remove_suffix(14);
+		CHECK ( s2 == "012345678"      );
+		CHECK ( s2.Merge(s1) == false  );
+		CHECK ( s1 == "abcdefghijklm"  );
+		CHECK ( s2 == "012345678"      );
+		CHECK ( s1.Merge(s2) == false  );
+		CHECK ( s1 == "abcdefghijklm"  );
+		CHECK ( s2 == "012345678"      );
+		s2 = sv;
+		s2.remove_suffix(10);
+		CHECK ( s2.Merge(s1)           );
+		CHECK ( s2 == sv               );
+	}
+}

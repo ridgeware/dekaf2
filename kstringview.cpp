@@ -716,10 +716,10 @@ double KStringView::Double() const noexcept
 }
 
 //-----------------------------------------------------------------------------
-void KStringView::Warn(KStringView sWhat) const
+void KStringView::Warn(KStringView sWhere, KStringView sWhat) const
 //-----------------------------------------------------------------------------
 {
-	kWarning(sWhat);
+	dekaf2::KLog::getInstance().debug_fun(-1, sWhere, sWhat);
 }
 
 //----------------------------------------------------------------------

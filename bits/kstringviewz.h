@@ -347,7 +347,7 @@ public:
 	{
 		if (pos > size())
 		{
-			Warn("pos exceeds size");
+			Warn(DEKAF2_FUNCTION_NAME, "pos exceeds size");
 			pos = size();
 		}
 		return self_type(data() + pos, size() - pos);
@@ -423,7 +423,7 @@ public:
 	{
 		if (pos)
 		{
-			Warn("impossible to erase past the begin in a KStringViewZ");
+			Warn(DEKAF2_FUNCTION_NAME, "impossible to erase past the begin in a KStringViewZ");
 		}
 		else
 		{
@@ -441,7 +441,7 @@ public:
 	{
 		if (position != begin())
 		{
-			Warn("impossible to erase past the begin in a KStringViewZ");
+			Warn(DEKAF2_FUNCTION_NAME, "impossible to erase past the begin in a KStringViewZ");
 			return end();
 		}
 		erase(static_cast<size_type>(position - begin()), 1);
@@ -456,7 +456,7 @@ public:
 	{
 		if (first != begin())
 		{
-			Warn("impossible to erase past the begin in a KStringViewZ");
+			Warn(DEKAF2_FUNCTION_NAME, "impossible to erase past the begin in a KStringViewZ");
 			return end();
 		}
 		erase(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first));

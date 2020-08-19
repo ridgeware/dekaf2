@@ -237,6 +237,9 @@ void KLogTTYSerializer::Serialize()
 			// print the full function signature only if this is a warning or exception
 			sPrefix += m_sFunctionName;
 			sPrefix += ": ";
+			sPrefix.Replace("dekaf2::", "");
+			sPrefix.Replace("::self_type", "");
+			sPrefix.Replace("::self", "");
 		}
 		else
 		{

@@ -538,7 +538,7 @@ public:
 	{
 		if DEKAF2_UNLIKELY(empty())
 		{
-			Warn("front() is not available");
+			Warn(DEKAF2_FUNCTION_NAME, "front() is not available");
 			return s_0ch;
 		}
 		return m_rep.front();
@@ -551,7 +551,7 @@ public:
 	{
 		if DEKAF2_UNLIKELY(empty())
 		{
-			Warn("back() is not available");
+			Warn(DEKAF2_FUNCTION_NAME, "back() is not available");
 			return s_0ch;
 		}
 		return m_rep.back();
@@ -622,7 +622,7 @@ public:
 	{
 		if DEKAF2_UNLIKELY(index >= size())
 		{
-			Warn("Index access out of range");
+			Warn(DEKAF2_FUNCTION_NAME, "Index access out of range");
 			return s_0ch;
 		}
 		return m_rep[index];
@@ -635,7 +635,7 @@ public:
 	{
 		if DEKAF2_UNLIKELY(index >= size())
 		{
-			Warn("Index access out of range");
+			Warn(DEKAF2_FUNCTION_NAME, "Index access out of range");
 			return s_0ch;
 		}
 		return m_rep[index];
@@ -648,7 +648,7 @@ public:
 	{
 		if (DEKAF2_UNLIKELY(pos > size()))
 		{
-			Warn("pos > size()");
+			Warn(DEKAF2_FUNCTION_NAME, "pos > size()");
 			pos = size();
 		}
 		return self_type(data() + pos, std::min(count, size() - pos));
@@ -671,7 +671,7 @@ public:
 	{
 		if (DEKAF2_UNLIKELY(n > size()))
 		{
-			Warn("n > size()");
+			Warn(DEKAF2_FUNCTION_NAME, "n > size()");
 			n = size();
 		}
 		unchecked_remove_prefix(n);
@@ -684,7 +684,7 @@ public:
 	{
 		if (DEKAF2_UNLIKELY(n > size()))
 		{
-			Warn("n > size()");
+			Warn(DEKAF2_FUNCTION_NAME, "n > size()");
 			n = size();
 		}
 		unchecked_remove_suffix(n);
@@ -727,19 +727,19 @@ public:
 	{
 		if (data() > other.data())
 		{
-			Warn("cannot append, other view starts before this");
+			Warn(DEKAF2_FUNCTION_NAME, "cannot append, other view starts before this");
 			return false;
 		}
 
 		if (data() + size() < other.data())
 		{
-			Warn("non-adjacent views cannot be merged");
+			Warn(DEKAF2_FUNCTION_NAME, "non-adjacent views cannot be merged");
 			return false;
 		}
 
 		if (data() + size() >= other.data() + other.size())
 		{
-			Warn("right view is a subset of left");
+			Warn(DEKAF2_FUNCTION_NAME, "right view is a subset of left");
 			return false;
 		}
 
@@ -752,14 +752,14 @@ public:
 	// nonstandard
 	/// merge another view with this, regardless from which side and how much overlap..
 	DEKAF2_CONSTEXPR_14
-	bool Merge(KStringView other)
+	bool Merge(self_type other)
 	//--------------------------------------------------------------------------------
 	{
 		if (data() > other.data())
 		{
 			if (other.data() + other.size() < data())
 			{
-				Warn("non-adjacent stringviews cannot be merged");
+				Warn(DEKAF2_FUNCTION_NAME, "non-adjacent views cannot be merged");
 				return false;
 			}
 
@@ -770,7 +770,7 @@ public:
 
 		if (data() + size() < other.data() )
 		{
-			Warn("non-adjacent stringviews cannot be merged");
+			Warn(DEKAF2_FUNCTION_NAME, "non-adjacent views cannot be merged");
 			return false;
 		}
 
@@ -1367,7 +1367,7 @@ protected:
 	}
 
 	//-----------------------------------------------------------------------------
-	void Warn(KStringView sWhat) const;
+	void Warn(KStringView sWhere, KStringView sWhat) const;
 	//-----------------------------------------------------------------------------
 
 	rep_type m_rep; // NOLINT: clang-tidy wants us to make this private, but it does not know that we need it protected for KStringViewZ

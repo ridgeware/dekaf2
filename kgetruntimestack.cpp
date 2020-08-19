@@ -551,6 +551,8 @@ KString kNormalizeFunctionName(KStringView sFunctionName)
 	sReturn += sFunctionName;
 
 	sReturn.Replace("dekaf2::", "");
+	sReturn.Replace("::self_type", "");
+	sReturn.Replace("::self", "");
 
 	return sReturn;
 

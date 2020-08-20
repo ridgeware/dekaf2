@@ -406,6 +406,7 @@ using KSimpleWords = KWords<std::vector<KStringView>, detail::splitting_parser::
 using KSimpleSkeletonWords = KWords<std::vector<KStringViewPair>, detail::splitting_parser::SimpleText>;
 using KSimpleHTMLWordCounter = KWords<detail::KCountingContainer<KStringView>, detail::splitting_parser::CountHTML>;
 using KSimpleHTMLWords = KWords<std::vector<KString>, detail::splitting_parser::SimpleHTML>;
+using KNormalizingHTMLWords = KWords<std::vector<KString>, detail::splitting_parser::NormalizingHTML>;
 using KSimpleHTMLSkeletonWords = KWords<std::vector<std::pair<KString, KStringView>>, detail::splitting_parser::SimpleHTML>;
 using KNormalizingHTMLSkeletonWords = KWords<std::vector<std::pair<KString, KString>>, detail::splitting_parser::NormalizingHTML>;
 

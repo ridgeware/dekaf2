@@ -320,5 +320,23 @@ TEST_CASE("KJSON")
 		CHECK ( json.dump() == R"([{"days":365,"happy":true,"key1":"val1","key2":"val2","pi":3.141529},{"days":180,"happy":false,"key1":"val3","key2":"val4","pa":3.141529}])" );
 	}
 
+	SECTION("Increment")
+	{
+		KJSON json;
+		json["val1"] = "string";
+		Increment(json, "val1",  5);
+		Increment(json, "val1", 10);
+		Increment(json, "val1");
+		CHECK ( json["val1"] == 16 );
+	}
+
+	SECTION("Decrement")
+	{
+		KJSON json;
+		Increment(json, "val1", 10);
+		Decrement(json, "val1",  2);
+		Decrement(json, "val1");
+		CHECK ( json["val1"] == 7 );
+	}
 }
 #endif

@@ -289,7 +289,7 @@ namespace kjson
 	}
 
 	/// adds the given integer to the given key, creates key if it does not yet exist
-	inline void Increment(KJSON& json, KStringView sKey, int64_t iAddMe=1) noexcept
+	inline void Increment(KJSON& json, KStringView sKey, uint64_t iAddMe=1) noexcept
 	{
 		auto it = json.find(sKey);
 		if ((it == json.end()) || !it->is_number())
@@ -299,12 +299,12 @@ namespace kjson
 		else
 		{
 			auto iValue = it.value().get<uint64_t>();
-			json[sKey] = iAddMe + iValue;
+			it.value()  = iValue + iAddMe;
 		}
 	}
 
 	/// subtracts the given integer from the given key, creates key if it does not yet exist
-	inline void Decrement(KJSON& json, KStringView sKey, int64_t iSubtractMe=1) noexcept
+	inline void Decrement(KJSON& json, KStringView sKey, uint64_t iSubtractMe=1) noexcept
 	{
 		auto it = json.find(sKey);
 		if ((it == json.end()) || !it->is_number())
@@ -314,7 +314,7 @@ namespace kjson
 		else
 		{
 			auto iValue = it.value().get<uint64_t>();
-			json[sKey] = iValue - iSubtractMe;
+			it.value()  = iValue - iSubtractMe;
 		}
 	}
 
@@ -349,5 +349,7 @@ using kjson::GetArray;
 using kjson::GetObjectRef;
 using kjson::GetObject;
 using kjson::Contains;
+using kjson::Increment;
+using kjson::Decrement;
 
 } // end of namespace dekaf2

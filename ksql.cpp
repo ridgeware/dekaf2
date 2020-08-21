@@ -1141,6 +1141,10 @@ bool KSQL::OpenConnection ()
 			else
 			{
 				kWarning(m_sLastError);
+				if (m_TimingCallback)
+				{
+					m_TimingCallback (*this, /*iMilliseconds=*/0, m_sLastError);
+				}
 			}
 			return (false);
 		}
@@ -1807,6 +1811,11 @@ bool KSQL::PreparedToRetry ()
 		{
 			kWarning (GetLastError());
 			kWarning ("automatic retry now in progress...");
+
+			if (m_TimingCallback)
+			{
+				m_TimingCallback (*this, /*iMilliseconds=*/0, kFormat ("{}\n{}", GetLastError(), "automatic retry now in progress..."));
+			}
 		}
 
 		CloseConnection ();
@@ -1822,6 +1831,10 @@ bool KSQL::PreparedToRetry ()
 		else
 		{
 			kWarning ("NEW CONNECTION FAILED.");
+			if (m_TimingCallback)
+			{
+				m_TimingCallback (*this, /*iMilliseconds=*/0, "NEW CONNECTION FAILED.");
+			}
 		}
 
 		return (true); // <-- we are now prepare for automatic retry
@@ -4040,6 +4053,10 @@ bool KSQL::SQLError (bool fForceError/*=false*/)
 	}
 	else
 	{			
+		if (m_TimingCallback)
+		{
+			m_TimingCallback (*this, /*iMilliseconds=*/0, kFormat ("{}:\n{}", m_sLastError, m_sLastSQL));
+		}
 		kWarning (m_sLastError);
 		if (!m_sLastSQL.empty())
 		{
@@ -6952,6 +6969,10 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	{
 		// we do not expect escapable characters here
 		kWarning ("possible SQL injection attempt: {}", sQueryParm);
+		if (m_TimingCallback)
+		{
+			m_TimingCallback (*this, /*iMilliseconds=*/0, kFormat ("{}:\n{}", m_sLastError, sQueryParm));
+		}
 		// note: probably leave m_sLastError alone
 		return sClause; // empty
 	}
@@ -7287,6 +7308,10 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 	{
 		kWarning("Could not acquire schema update lock within 120 seconds. Another process may be updating the schema. Abort.");
 		m_sLastError = kFormat("schema updater for table {} is locked", sSchemaVersionTable);
+		if (m_TimingCallback)
+		{
+			m_TimingCallback (*this, /*iMilliseconds=*/0, kFormat ("{}", m_sLastError));
+		}
 		return false;
 	}
 

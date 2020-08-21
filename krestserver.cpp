@@ -1015,7 +1015,20 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 			oss.Format("#{}#", Response.GetStatusCode());
 		}
 
-		KURL URL { Request.Resource };
+		KResource Resource;
+		// copy query parms piece by piece, we want to filter the path parms
+		// starting with ':'
+		for (auto& query : Request.Resource.Query.get())
+		{
+			if (query.first.front() != ':')
+			{
+				Resource.Query.get().insert(std::move(query));
+			}
+		}
+		// and copy the path
+		Resource.Path = Request.Resource.Path;
+
+		KURL URL { Resource };
 		URL.Protocol = url::KProtocol::HTTP;
 		URL.Domain.set("localhost");
 		URL.Port.clear();
@@ -1040,7 +1053,10 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 
 		if (!sPost.empty())
 		{
+			// remove any line breaks
 			sPost.Collapse("\n\r", ' ');
+			// escape single quotes for bash
+			sPost.Replace("'", "'\\''");
 			oss.Write(" -d '");
 			oss.Write(sPost);
 			oss.Write('\'');

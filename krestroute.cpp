@@ -65,6 +65,29 @@ KRESTAnalyzedPath::KRESTAnalyzedPath(KHTTPMethod _Method, KStringView _sRoute)
 
 } // KRESTAnalyzedPath
 
+//-----------------------------------------------------------------------------
+bool KRESTAnalyzedPath::HasParameter(KStringView sParam) const
+//-----------------------------------------------------------------------------
+{
+	if (bHasParameters)
+	{
+		for (auto sPart : vURLParts)
+		{
+			if (sPart.front() == '=')
+			{
+				sPart.remove_prefix(1);
+			}
+			if (sPart == sParam)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+
+} // HasParameter
+
 } // end of namespace detail
 	
 //-----------------------------------------------------------------------------

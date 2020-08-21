@@ -100,6 +100,9 @@ public:
 
 	KHTTPMethod Method;  	// e.g. GET, or empty for all
 
+	/// checks if this path contains a parameter of the given name (:param or =param)
+	bool HasParameter(KStringView sParam) const;
+
 	bool bHasParameters { false };
 
 }; // KRESTAnalyzedPath

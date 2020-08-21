@@ -1010,25 +1010,36 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 		oss.WriteLine();
 		oss.FormatLine("# {} :: from IP {}", kFormTimestamp(), Request.GetBrowserIP());
 
-		if (Response.GetStatusCode() > 299)
+		if (!Response.Good())
 		{
 			oss.Format("#{}#", Response.GetStatusCode());
 		}
 
-		KResource Resource;
-		// copy query parms piece by piece, we want to filter the path parms
-		// starting with ':'
-		for (auto& query : Request.Resource.Query.get())
-		{
-			if (query.first.front() != ':')
-			{
-				Resource.Query.get().insert(std::move(query));
-			}
-		}
-		// and copy the path
-		Resource.Path = Request.Resource.Path;
+		KURL URL;
 
-		KURL URL { Resource };
+		if (route->bHasParameters)
+		{
+			KResource Resource;
+			// copy query parms piece by piece, we want to filter the path parms
+			// starting with ':' and '='
+			for (auto& query : Request.Resource.Query.get())
+			{
+				if (!route->HasParameter(query.first))
+				{
+					Resource.Query.get().insert(query);
+				}
+			}
+
+			// and copy the path
+			Resource.Path = Request.Resource.Path;
+			// now assign to URL
+			URL = Resource;
+		}
+		else
+		{
+			URL = Request.Resource;
+		}
+
 		URL.Protocol = url::KProtocol::HTTP;
 		URL.Domain.set("localhost");
 		URL.Port.clear();

@@ -468,6 +468,12 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						else
 						{
 							kDebug (2, "request body successfully parsed as JSON");
+
+							if (Options.bRecordRequest)
+							{
+								// dump the json to record it
+								m_sRequestBody = json.rx.dump(-1);
+							}
 						}
 
 						// after we are done parsing the incoming json from the wire,
@@ -492,6 +498,12 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						else
 						{
 							kDebug (2, "request body successfully parsed as XML");
+
+							if (Options.bRecordRequest)
+							{
+								// dump the XML to record it
+								m_sRequestBody = xml.rx.Serialize(KXML::PrintFlags::Terse);
+							}
 						}
 						break;
 

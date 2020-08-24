@@ -219,6 +219,16 @@ void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint)
 		kException(e);
 	}
 
+	DEKAF2_CATCH(const boost::exception& e)
+	{
+		kWarning("boost exception");
+	}
+
+	DEKAF2_CATCH(...)
+	{
+		kWarning("unknown exception");
+	}
+
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	if (!m_iPort)
 	{

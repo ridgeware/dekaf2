@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2020, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -41,19 +41,20 @@
 
 #pragma once
 
-/// @file ksharedref.h
+/// @file ksharedptr.h
 /// A shared pointer implementation that adapts per template instance for
 /// multi/single threading case.
 /// Other than a standard shared pointer it allows the user to select between
 /// multi or single threading safe operation. This is important because the
 /// required atomic synchronization for the multi threading safe implementation
-/// costs around 50% of performance for construction / destruction.
-///
-/// Also provides a template to generate a
-/// class of any type that will hold a reference to the shared pointer.
+/// costs around 50% of performance for construction / destruction. Also, this
+/// shared pointer can be configured to use sequential-consistent memory access
+/// for the use counter, which is slower, but 100% reliable in multi threding.
+/// The std::shared_ptr uses relaxed memory access, which is unreliable.
 
 #include <atomic>
 #include <functional>
+#include <thread>
 
 namespace dekaf2
 {
@@ -66,63 +67,95 @@ namespace dekaf2
 /// Other than a standard shared pointer it allows the user to select between
 /// multi or single threading safe operation. This is important because the
 /// required atomic synchronization for the multi threading safe implementation
-/// costs around 50% of performance for construction / destruction.
-template<class T, bool bMultiThreaded = false>
-class KSharedRef
+/// costs around 50% of performance for construction / destruction. Also, this
+/// shared pointer can be configured to use sequential-consistent memory access
+/// for the use counter, which is slower, but 100% reliable in multi threding.
+/// The std::shared_ptr uses relaxed memory access, which is unreliable.
+template<class T, bool bMultiThreaded = true, bool bSequential = true>
+class KSharedPtr
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	using self_type = KSharedRef;
+
+    template<class T_, bool bMultiThreaded_, bool bSequential_, class... Args>
+    friend KSharedPtr<T_, bMultiThreaded_, bSequential_> kMakeShared(Args&&... args);
 
 //----------
 public:
 //----------
 
+	using self_type    = KSharedPtr;
+	using element_type = typename std::remove_extent<T>::type;
+
+	KSharedPtr() = default;
+
 	//-----------------------------------------------------------------------------
 	/// copy construction is allowed
-	KSharedRef(const self_type& other) noexcept
+	KSharedPtr(const self_type& other) noexcept
 	//-----------------------------------------------------------------------------
+	: m_ptr(other.m_ptr)
+	, m_Control(other.m_Control)
 	{
-		m_ref = other.m_ref;
 		inc();
 	}
-
-#ifndef _MSC_VER
-	//-----------------------------------------------------------------------------
-	/// copy construction is allowed (need to repeat the non-const case because
-	/// of perfect forwarding in another constructor)
-	KSharedRef(self_type& other) noexcept
-	//-----------------------------------------------------------------------------
-	{
-		m_ref = other.m_ref;
-		inc();
-	}
-#endif
 
 	//-----------------------------------------------------------------------------
 	/// move construction is allowed
-	KSharedRef(self_type&& other) noexcept
+	KSharedPtr(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
+	: m_ptr(std::move(other.m_ptr))
+	, m_Control(std::move(other.m_Control))
 	{
-		m_ref = std::move(other.m_ref);
-		other.m_ref = nullptr;
+		other.m_ptr = nullptr;
+		other.m_Control = nullptr;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Construction with any arguments the shared type permits.
-	/// Uses perfect forwarding.
-	template<class... Args>
-	KSharedRef(Args&&... args)
+	template<class Y>
+	explicit KSharedPtr(Y* ptr)
 	//-----------------------------------------------------------------------------
+	: m_ptr(ptr)
+	, m_Control(new ControlImpl<Y, DefaultDeleter<Y>>(ptr, DefaultDeleter<Y>()))
 	{
-		m_ref = new Reference(std::forward<Args>(args)...);
+	}
+
+	//-----------------------------------------------------------------------------
+	template<class Y, class Deleter>
+    KSharedPtr(Y* ptr, Deleter deleter)
+	//-----------------------------------------------------------------------------
+	: m_ptr(ptr)
+	, m_Control(new ControlImpl<Y, Deleter>(ptr, deleter))
+	{
 	}
 
 	//-----------------------------------------------------------------------------
 	/// destructor
-	~KSharedRef()
+	~KSharedPtr()
 	//-----------------------------------------------------------------------------
 	{
 		dec();
+	}
+
+	//-----------------------------------------------------------------------------
+	void reset() noexcept
+	//-----------------------------------------------------------------------------
+	{
+		dec();
+		m_ptr = nullptr;
+		m_Control = nullptr;
+	}
+
+	//-----------------------------------------------------------------------------
+	template<typename Y>
+	void reset(Y* ptr)
+	//-----------------------------------------------------------------------------
+	{
+		dec();
+		if (m_Control)
+		{
+			delete m_Control;
+		}
+		m_ptr = ptr;
+		m_Control = new ControlImpl<Y, DefaultDeleter<Y>>(ptr, DefaultDeleter<Y>());
 	}
 
 	//-----------------------------------------------------------------------------
@@ -131,7 +164,8 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		dec();
-		m_ref = other.m_ref;
+		m_ptr = other.m_ptr;
+		m_Control = other.m_Control;
 		inc();
 		return *this;
 	}
@@ -142,148 +176,122 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		dec();
-		m_ref = std::move(other.m_ref);
-		other.m_ref = nullptr;
+		swap(other);
 		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// returns the use count of the shared type
-	inline size_t UseCount() const
+	size_t use_count() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_ref->m_iRefCount.load(std::memory_order_seq_cst);
+		return (!m_Control) ? 0 : m_Control->use_count();
 	}
 
 	//-----------------------------------------------------------------------------
-	/// gets a const reference to the shared type
-	inline const T& get() const
+	/// returns true if use count == 1
+	bool unique() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_ref->get();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// gets a reference to the shared type
-	inline T& get()
-	//-----------------------------------------------------------------------------
-	{
-		return m_ref->get();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// gets a const reference to the shared type
-	inline operator const T&() const
-	//-----------------------------------------------------------------------------
-	{
-		return get();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// gets a reference to the shared type
-	inline operator T&()
-	//-----------------------------------------------------------------------------
-	{
-		return get();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// gets a const reference to the shared type
-	inline const T& operator*() const
-	//-----------------------------------------------------------------------------
-	{
-		return get();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// gets a reference to the shared type
-	inline T& operator*()
-	//-----------------------------------------------------------------------------
-	{
-		return get();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// gets a const pointer to the shared type
-	inline const T* operator->() const
-	//-----------------------------------------------------------------------------
-	{
-		return &get();
+		return use_count() == 1;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// gets a pointer to the shared type
-	inline T* operator->()
+	element_type* get() const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return &get();
+		return m_ptr;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// gets a pointer to the shared type
+	operator element_type*() const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return get();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// gets a reference to the shared type
+	element_type& operator*() const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return *get();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// gets a pointer to the shared type
+	element_type* operator->() const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return get();
+	}
+
+	//-----------------------------------------------------------------------------
+	operator bool() const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return get() != nullptr;
+	}
+
+	//-----------------------------------------------------------------------------
+	void swap(KSharedPtr& other) noexcept
+	//-----------------------------------------------------------------------------
+	{
+		std::swap(m_ptr, other.m_ptr);
+		std::swap(m_Control, other.m_Control);
 	}
 
 //----------
-protected:
+private:
 //----------
 
 	//-----------------------------------------------------------------------------
 	/// increase the reference count
-	inline void inc()
+	void inc() noexcept
 	//-----------------------------------------------------------------------------
 	{
-		if (m_ref)
+		if (m_Control)
 		{
-			m_ref->inc();
+			m_Control->inc();
 		}
 	}
 
 	//-----------------------------------------------------------------------------
 	/// decrease the reference count
-	inline void dec()
+	void dec() noexcept
 	//-----------------------------------------------------------------------------
 	{
-		if (m_ref && !m_ref->dec())
+		if (m_Control && !m_Control->dec())
 		{
-			delete m_ref;
+			delete m_Control;
+			m_Control = nullptr;
+			m_ptr = nullptr;
 		}
 	}
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// A struct that holds shared type and reference count in one instance.
-	/// Other than a standard shared pointer it allows the user to select between
-	/// multi or single threading safe operation. This is important because the
-	/// required atomic synchronization for the multi threading safe implementation
-	/// costs around 50% of performance for construction / destruction.
-	struct Reference
+	struct Control
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-
-	//----------
-	public:
-	//----------
-
 		using RefCount_t = std::conditional_t<bMultiThreaded, std::atomic_size_t, size_t>;
 
-		//-----------------------------------------------------------------------------
-		/// perfect-forwarding constructor. Allows any parameter that is accepted by the
-		/// shared type.
-		template<class... Args>
-		Reference(Args&&... args)
-		    : m_Reference(std::forward<Args>(args)...)
-		//-----------------------------------------------------------------------------
-		{
-		}
+		virtual ~Control() { dispose(); }
 
 		//-----------------------------------------------------------------------------
 		/// increase reference count for the multi threaded case
 		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == true>* = nullptr>
-		inline void inc()
+		void inc() noexcept
 		//-----------------------------------------------------------------------------
 		{
-			m_iRefCount.fetch_add(1, std::memory_order_relaxed);
+			m_iRefCount.fetch_add(1, bSequential ? std::memory_order_seq_cst : std::memory_order_relaxed);
 		}
 
 		//-----------------------------------------------------------------------------
 		/// increase reference count for the single threaded case
 		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == false>* = nullptr>
-		inline void inc()
+		void inc() noexcept
 		//-----------------------------------------------------------------------------
 		{
 			++m_iRefCount;
@@ -292,153 +300,123 @@ protected:
 		//-----------------------------------------------------------------------------
 		/// decrease reference count for the multi threaded case
 		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == true>* = nullptr>
-		inline size_t dec()
+		size_t dec() noexcept
 		//-----------------------------------------------------------------------------
 		{
-			return m_iRefCount.fetch_sub(1, std::memory_order_acq_rel) - 1;
+			return m_iRefCount.fetch_sub(1, bSequential ? std::memory_order_seq_cst : std::memory_order_acq_rel) - 1;
 		}
 
 		//-----------------------------------------------------------------------------
 		/// decrease reference count for the single threaded case
 		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == false>* = nullptr>
-		inline size_t dec()
+		size_t dec() noexcept
 		//-----------------------------------------------------------------------------
 		{
 			return --m_iRefCount;
 		}
 
 		//-----------------------------------------------------------------------------
-		/// gets a const reference on the shared type
-		inline const T& get() const
+		/// decrease reference count for the multi threaded case
+		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == true>* = nullptr>
+		size_t use_count() noexcept
 		//-----------------------------------------------------------------------------
 		{
-			return m_Reference;
+			return m_iRefCount.load(bSequential ? std::memory_order_seq_cst : std::memory_order_relaxed);
 		}
 
 		//-----------------------------------------------------------------------------
-		/// gets a reference on the shared type
-		inline T& get()
+		/// decrease reference count for the single threaded case
+		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == false>* = nullptr>
+		size_t use_count() noexcept
 		//-----------------------------------------------------------------------------
 		{
-			return m_Reference;
+			return m_iRefCount;
 		}
 
-		T m_Reference;
-		RefCount_t m_iRefCount{1};
+//		virtual void dispose() noexcept = 0;
+		virtual void dispose() noexcept {};
 
+		RefCount_t m_iRefCount { 1 };
 	};
 
-	Reference* m_ref;
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	template<class Y, class Deleter>
+	struct ControlImpl : public Control
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		//-----------------------------------------------------------------------------
+		ControlImpl(Y* ptr, Deleter deleter)
+		//-----------------------------------------------------------------------------
+		: m_ptr(ptr)
+		, m_deleter(deleter)
+		{
+		}
 
-};
+		//-----------------------------------------------------------------------------
+		virtual void dispose() noexcept override final
+		//-----------------------------------------------------------------------------
+		{
+			m_deleter(m_ptr);
+		}
 
+		Y* m_ptr;
+		Deleter m_deleter;
+	};
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Implements the concept of a "dependant" type on a shared type.
-/// The shared type is automatically released when the dependant
-/// type goes out of scope. Both types do not have to be of same origin.
-template<class BaseT, class DependantT, bool bMultiThreaded = false>
-class KDependant
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// helper struct to allocate object and ref count with one call to new()
+	template<class Y>
+	struct ObjectAndControl : public Control
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		//-----------------------------------------------------------------------------
+		template<class... Args>
+		ObjectAndControl(Args&&... args)
+		//-----------------------------------------------------------------------------
+		: m_Object(std::forward<Args>(args)...)
+		{
+		}
+
+		//-----------------------------------------------------------------------------
+		virtual void dispose() noexcept override final
+		//-----------------------------------------------------------------------------
+		{
+		}
+
+		Y m_Object;
+	};
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	template<class Y>
+    struct DefaultDeleter
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    {
+		//-----------------------------------------------------------------------------
+        void operator()(Y* ptr) const noexcept
+		//-----------------------------------------------------------------------------
+		{
+			delete ptr;
+		}
+    };
+
+	element_type* m_ptr { nullptr };
+	Control* m_Control  { nullptr };
+
+}; // KSharedPtr
+
+//-----------------------------------------------------------------------------
+/// create a KSharedPtr with only one allocation
+template<class T, bool bMultiThreaded = true, bool bSequential = true, class... Args>
+KSharedPtr<T, bMultiThreaded, bSequential> kMakeShared(Args&&... args)
+//-----------------------------------------------------------------------------
 {
+    KSharedPtr<T, bMultiThreaded, bSequential> ptr;
+	auto tmp_object = new typename KSharedPtr<T, bMultiThreaded, bSequential>::template ObjectAndControl<T>(std::forward<Args>(args)...);
+    ptr.m_ptr = &(tmp_object->m_Object);
+    ptr.m_Control = tmp_object;
 
-//----------
-public:
-//----------
+    return ptr;
 
-	using base_type      = BaseT;
-	using shared_type    = KSharedRef<base_type, bMultiThreaded>;
-	using dependant_type = DependantT;
+} // kMakeShared
 
-	//-----------------------------------------------------------------------------
-	/// default constructor. Constructs an empty instance with no reference to a
-	/// shared type.
-	KDependant() = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// copy construction is allowed
-	KDependant(const KDependant& other)
-	//-----------------------------------------------------------------------------
-	    : m_rep(other.m_rep)
-	    , m_dep(other.m_dep)
-	{
-	}
-
-	//-----------------------------------------------------------------------------
-	/// move construction is allowed
-	KDependant(KDependant&& other) noexcept
-	//-----------------------------------------------------------------------------
-	    : m_rep(std::move(other.m_rep))
-	    , m_dep(std::move(other.m_dep))
-	{
-	}
-
-	//-----------------------------------------------------------------------------
-	/// constructs the internal object from the shared object it depends on (if
-	/// possible)
-	KDependant(shared_type& shared)
-	//-----------------------------------------------------------------------------
-	    : m_rep(shared)
-	    , m_dep(shared)
-	{
-	}
-
-	//-----------------------------------------------------------------------------
-	/// constructs the internal object from a list of arguments. Prefixed by the
-	/// shared object it depends on
-	template<class Base, class... Dep>
-	KDependant(Base&& shared, Dep&&... dep)
-	//-----------------------------------------------------------------------------
-	    : m_rep(std::forward<Base>(shared))
-	    , m_dep(std::forward<Dep>(dep)...)
-	{
-	}
-
-	//-----------------------------------------------------------------------------
-	/// copy assignment is allowed
-	KDependant& operator=(const KDependant& other)
-	//-----------------------------------------------------------------------------
-	{
-		m_rep = other.m_rep;
-		m_dep = other.m_dep;
-		return *this;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// move assignment is allowed
-	KDependant& operator=(KDependant&& other) noexcept
-	//-----------------------------------------------------------------------------
-	{
-		m_rep = std::move(other.m_rep);
-		m_dep = std::move(other.m_dep);
-		return *this;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// gets a const reference on the internal type
-	operator const dependant_type&() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_dep;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// gets a reference on the internal type
-	operator dependant_type&()
-	//-----------------------------------------------------------------------------
-	{
-		return m_dep;
-	}
-
-//----------
-protected:
-//----------
-
-	shared_type    m_rep;
-	dependant_type m_dep;
-
-}; // KDependant
-
-
-}
+} // end of namespace dekaf2

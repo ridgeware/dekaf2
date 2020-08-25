@@ -531,6 +531,7 @@ set(PUBLIC_HEADERS
 	krsakey.h
 	krsasign.h
 	ksharedref.h
+	ksharedptr.h
 	ksignals.h
 	ksmtp.h
 	ksplit.h

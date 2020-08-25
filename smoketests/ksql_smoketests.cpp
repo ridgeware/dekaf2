@@ -836,6 +836,8 @@ TEST_CASE("KSQL")
 		kRemoveFile (sTmp);
 
 		KROW Row ("TEST_KSQL");
+		Row.AddCol ("anum",      UINT64_C(102),            KROW::PKEY);
+		Row.AddCol ("astring",   "krow insert");
 
 		kDebugLog (1, "KROW insert");
 
@@ -846,13 +848,43 @@ TEST_CASE("KSQL")
 		// KROW Operations
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-		Row.AddCol ("anum",      UINT64_C(100),            KROW::PKEY);
-		Row.AddCol ("astring",   "krow insert");
+		std::vector<KROW> Rows;
 
-		if (!db.Insert (Row))
+		{
+			KROW Row1 ("TEST_KSQL");
+			Row1.AddCol ("anum",      UINT64_C(100),            KROW::PKEY);
+			Row1.AddCol ("astring",   "krow insert");
+
+			Rows.push_back(std::move(Row1));
+
+			KROW Row2 ("TEST_KSQL");
+			Row2.AddCol ("anum",      UINT64_C(101),            KROW::PKEY);
+			Row2.AddCol ("astring",   "krow insert 101");
+
+			Rows.push_back(std::move(Row2));
+
+			KROW Row3 ("TEST_KSQL");
+			Row3.AddCol ("anum",      UINT64_C(102),            KROW::PKEY);
+			Row3.AddCol ("astring",   "krow insert 102");
+
+			Rows.push_back(std::move(Row3));
+		}
+
+		if (!db.Insert (Rows))
 		{
 			FAIL_CHECK (db.GetLastError());
 		}
+
+		{
+			KROW Row4 ("TEST_KSQL");
+			Row4.AddCol ("anum",      UINT64_C(102),            KROW::PKEY);
+			Row4.AddCol ("asring",   "krow insert 103");
+
+			Rows.push_back(std::move(Row4));
+		}
+
+		CHECK ( !db.Insert (Rows) );
+		CHECK ( db.GetLastError() == "differing column layout in rows - abort" );
 
 		kDebugLog (1, "KROW update");
 
@@ -942,7 +974,7 @@ TEST_CASE("KSQL")
 
 		Row.AddCol ("astring",   "clip me here -- all this should be GONE", 0, static_cast<KCOL::Len>(strlen("clip me here")));
 		db.Insert (Row);
-		db.ExecQuery ("select astring from TEST_KSQL where anum=100");
+		db.ExecQuery ("select astring from TEST_KSQL where anum=102");
 		db.NextRow ();
 		if (db.Get(1) != "clip me here")
 		{
@@ -955,7 +987,7 @@ TEST_CASE("KSQL")
 
 		Row.AddCol ("astring",   "clip me here' -- all this should be GONE", 0, static_cast<KCOL::Len>(strlen("clip me here'")));
 		db.Update (Row);
-		db.ExecQuery ("select astring from TEST_KSQL where anum=100");
+		db.ExecQuery ("select astring from TEST_KSQL where anum=102");
 		db.NextRow ();
 		if (db.Get(1) != "clip me here")
 		{
@@ -1313,6 +1345,7 @@ TEST_CASE("KSQL")
 			}
 
 		}
+
 	}
 
 } // TEST_CASE("ksql")

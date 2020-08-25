@@ -274,6 +274,8 @@ public:
 	bool   Load            (KROW& Row, bool bSelectAllColumns = false);
 	/// Insert one KROW object
 	bool   Insert          (const KROW& Row, bool bIgnoreDupes=false);
+	/// Insert a vector of KROW objects
+	bool   Insert          (const std::vector<KROW>& Rows, bool bIgnoreDupes=false);
 	/// Update with one KROW object (primary key selects which)
 	bool   Update          (const KROW& Row);
 	/// Delete with one KROW object (primary key selects which)
@@ -293,13 +295,13 @@ public:
 	bool   PurgeKeyList    (KStringView sPKEY, KStringView sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex="");
 
 	bool   FormInsert     (KROW& Row, KString& sSQL, bool fIdentityInsert=false)
-			{ bool fOK = Row.FormInsert (m_sLastSQL, m_iDBType, fIdentityInsert); sSQL = m_sLastSQL; return (fOK); }
+			{ return Row.FormInsert (sSQL, m_iDBType, fIdentityInsert); }
 	bool   FormUpdate     (KROW& Row, KString& sSQL)
-			{ bool fOK = Row.FormUpdate (m_sLastSQL, m_iDBType); sSQL = m_sLastSQL; return (fOK); }
+			{ return Row.FormUpdate (sSQL, m_iDBType); }
 	bool   FormDelete     (KROW& Row, KString& sSQL)
-			{ bool fOK = Row.FormDelete (m_sLastSQL, m_iDBType); sSQL = m_sLastSQL; return (fOK); }
+			{ return Row.FormDelete (sSQL, m_iDBType); }
 	bool   FormSelect     (KROW& Row, KString& sSQL, bool bSelectAllColumns = false)
-			{ bool fOK = Row.FormSelect (m_sLastSQL, m_iDBType, bSelectAllColumns); sSQL = m_sLastSQL; return (fOK); }
+			{ return Row.FormSelect (sSQL, m_iDBType, bSelectAllColumns); }
 
 	void   SetErrorPrefix   (KStringView sPrefix, uint32_t iLineNum = 0);
 	void   ClearErrorPrefix ()        { m_sErrorPrefix = "KSQL: "; }
@@ -729,6 +731,7 @@ protected:
 
 	bool ExecLastRawSQL (Flags iFlags=0, KStringView sAPI = "ExecLastRawSQL");
 	bool ExecLastRawQuery (Flags iFlags=0, KStringView sAPI = "ExecLastRawQuery");
+	bool ExecLastRawInsert(bool bIgnoreDupes=false);
 
 	//----------------------------------------------------------------------
 	template<class... Args>

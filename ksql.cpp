@@ -58,6 +58,7 @@
 #include "kstringutils.h"
 #include "kfilesystem.h"
 #include "kwebclient.h"
+#include "khash.h"
 #include <cstdint>
 
 #if defined(DEKAF2_IS_WINDOWS) || defined(DEKAF2_DO_NOT_HAVE_STRPTIME)
@@ -5636,16 +5637,11 @@ bool KSQL::Load (KROW& Row, bool bSelectAllColumns)
 
 } // Load
 
+
 //-----------------------------------------------------------------------------
-bool KSQL::Insert (const KROW& Row, bool bIgnoreDupes/*=false*/)
+bool KSQL::ExecLastRawInsert(bool bIgnoreDupes)
 //-----------------------------------------------------------------------------
 {
-	if (!Row.FormInsert (m_sLastSQL, m_iDBType))
-	{
-		m_sLastError = Row.GetLastError();
-		return (false);
-	}
-
 	if (!IsFlag(F_NoTranslations))
 	{
 		DoTranslations (m_sLastSQL);
@@ -5673,6 +5669,90 @@ bool KSQL::Insert (const KROW& Row, bool bIgnoreDupes/*=false*/)
 	kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 
 	return (bOK);
+
+} // ExecLastRawInsert
+
+//-----------------------------------------------------------------------------
+bool KSQL::Insert (const KROW& Row, bool bIgnoreDupes/*=false*/)
+//-----------------------------------------------------------------------------
+{
+	if (!Row.FormInsert (m_sLastSQL, m_iDBType))
+	{
+		m_sLastError = Row.GetLastError();
+		return (false);
+	}
+
+	return ExecLastRawInsert(bIgnoreDupes);
+
+} // Insert
+
+//-----------------------------------------------------------------------------
+bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
+//-----------------------------------------------------------------------------
+{
+	// assumed max packet size for sql API: 64 MB (default for MySQL)
+	std::size_t iMaxPacket = 64 * 1024 * 1024;
+	std::size_t iRows = 0;
+	uint64_t iFirstColumnHash = 0;
+
+	m_sLastSQL.clear();
+
+
+	for (const auto& Row : Rows)
+	{
+		// check that all rows have the same structure
+		KHash ColHash;
+
+		for (const auto& Col : Row)
+		{
+			// hash the name
+			ColHash += Col.first;
+		}
+
+		if (iFirstColumnHash == 0)
+		{
+			iFirstColumnHash = ColHash.Hash();
+		}
+		else
+		{
+			if (iFirstColumnHash != ColHash.Hash())
+			{
+				m_sLastError = "differing column layout in rows - abort";
+				kDebug(1, m_sLastError);
+				return false;
+			}
+		}
+
+		if (!Row.AppendInsert(m_sLastSQL, m_iDBType))
+		{
+			m_sLastError = Row.GetLastError();
+			return false;
+		}
+
+		// compute average size per row
+		auto iAverageRowSize = m_sLastSQL.size() / ++iRows;
+
+		if (m_sLastSQL.size() + 3 * iAverageRowSize > iMaxPacket)
+		{
+			// next row gets too close to the maximum, flush now
+			if (!ExecLastRawInsert(bIgnoreDupes))
+			{
+				return false;
+			}
+
+			iRows = 0;
+			m_sLastSQL.clear();
+		}
+	}
+
+	if (!iRows)
+	{
+		// we may either be here right after a flush or with an overall
+		// empty input vector (which is then a fail)
+		return !Rows.empty();
+	}
+
+	return ExecLastRawInsert(bIgnoreDupes);
 
 } // Insert
 

@@ -305,6 +305,49 @@ bool KROW::SetFlags (KStringView sColName, KCOL::Flags iFlags)
 }
 
 //-----------------------------------------------------------------------------
+void KROW::PrintValuesForInsert(KString& sSQL, DBT iDBType) const
+//-----------------------------------------------------------------------------
+{
+	sSQL += '(';
+
+	bool bComma = false;
+
+	for (const auto& it : *this)
+	{
+		if (it.second.IsFlag (NONCOLUMN))
+		{
+			continue;
+		}
+
+		KString sHack = (it.second.sValue.empty()) ? "" : it.second.sValue; // TODO:JOACHIM: REMOVE ME
+		sHack.MakeLower();
+		sHack.Replace(" ","");
+		bool    bHack = ((sHack == "now()") || (sHack == "now(6)") || (sHack == "{{now}}"));
+
+		if (it.second.sValue.empty() && !it.second.IsFlag (NULL_IS_NOT_NIL))
+		{
+			// Note: this is the default handling for NIL values: to place them in SQL as SQL null
+			sSQL += kFormat ("{}\n\tnull", (bComma) ? "," : "");
+		}
+		else if (bHack || it.second.HasFlag (NUMERIC | BOOLEAN | EXPRESSION))
+		{
+			sSQL += kFormat ("{}\n\t{}", (bComma) ? "," : "", it.second.sValue); // raw value, no quotes and no processing
+		}
+		else
+		{
+			// catch-all logic for all string values
+			// Note: if the value is actually NIL ('') and NULL_IS_NOT_NIL is set, then the value will
+			// be placed into SQL as '' instead of SQL null.
+			sSQL += kFormat ("{}\n\t'{}'", (bComma) ? "," : "", EscapeChars (it, iDBType));
+		}
+		bComma = true;
+	}
+
+	sSQL += "\n)";
+
+} // PrintValuesForInsert
+
+//-----------------------------------------------------------------------------
 bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*/) const
 //-----------------------------------------------------------------------------
 {
@@ -334,6 +377,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 	LogRowLayout();
 
 	bool bComma = false;
+
 	for (const auto& it : *this)
 	{
 		if (it.second.IsFlag (NONCOLUMN))
@@ -341,46 +385,14 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 			continue;
 		}
 		
-		sSQL += kFormat ("\t{}{}\n", (bComma) ? "," : "", it.first);
+		sSQL += kFormat ("{}\n\t{}", (bComma) ? "," : "", it.first);
 		bComma = true;
 	}
 
-	sSQL += ") values (\n";
+	sSQL += "\n) values ";
 
-	bComma = false;
-	for (const auto& it : *this)
-	{
-		if (it.second.IsFlag (NONCOLUMN))
-		{
-			continue;
-		}
+	PrintValuesForInsert(sSQL, iDBType);
 
-		KString sHack = (it.second.sValue.empty()) ? "" : it.second.sValue; // TODO:JOACHIM: REMOVE ME
-		sHack.MakeLower();
-		sHack.Replace(" ","");
-		bool    bHack = ((sHack == "now()") || (sHack == "now(6)") || (sHack == "{{now}}"));
-
-		if (it.second.sValue.empty() && !it.second.IsFlag (NULL_IS_NOT_NIL))
-		{
-			// Note: this is the default handling for NIL values: to place them in SQL as SQL null
-			sSQL += kFormat ("\t{}null\n", (bComma) ? "," : "");
-		}
-		else if (bHack || it.second.HasFlag (NUMERIC | BOOLEAN | EXPRESSION))
-		{
-			sSQL += kFormat ("\t{}{}\n", (bComma) ? "," : "", it.second.sValue); // raw value, no quotes and no processing
-		}
-		else
-		{
-			// catch-all logic for all string values
-			// Note: if the value is actually NIL ('') and NULL_IS_NOT_NIL is set, then the value will
-			// be placed into SQL as '' instead of SQL null.
-			sSQL += kFormat ("\t{}'{}'\n", (bComma) ? "," : "", EscapeChars (it, iDBType));
-		}
-		bComma = true;
-	}
-
-	sSQL += ")";
-	
 	if (fIdentityInsert && iDBType == DBT::SQLSERVER)
 	{
 		sSQL = kFormat("SET IDENTITY_INSERT {} ON \n"
@@ -394,6 +406,45 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 	return (true);
 
 } // FormInsert
+
+//-----------------------------------------------------------------------------
+bool KROW::AppendInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*/) const
+//-----------------------------------------------------------------------------
+{
+	if (sSQL.empty())
+	{
+		// this is the first record, create the value syntax insert..
+		return FormInsert (sSQL, iDBType, fIdentityInsert);
+	}
+
+	m_sLastError.clear(); // reset
+
+	kDebug (3, "before: {}", sSQL);
+
+	if (empty())
+	{
+		m_sLastError.Format("KROW::AppendInsert(): no columns defined.");
+		kDebugLog (1, m_sLastError);
+		return (false);
+	}
+
+	LogRowLayout();
+
+	sSQL += ",";
+
+	PrintValuesForInsert(sSQL, iDBType);
+
+	if (fIdentityInsert && iDBType == DBT::SQLSERVER)
+	{
+		kWarning ("cannot append row to existing DDL statement with IDENTITY_INSERT provision");
+		return false;
+	}
+
+	kDebug (3, "after: {}", sSQL);
+
+	return (true);
+
+} // AppendInsert
 
 //-----------------------------------------------------------------------------
 bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const

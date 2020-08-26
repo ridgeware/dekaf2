@@ -267,6 +267,7 @@ private:
 			// this actually deletes both the pointed-to object
 			// and the control block with the reference count
 			m_Control->dispose();
+			delete m_Control;
 			// we do not need to set m_Control and m_ptr to 0, as
 			// every dec() is always followed by an assignment to
 			// those members. Only when that changes make sure to
@@ -414,6 +415,7 @@ private:
 
 }; // KSharedPtr
 
+/*
 //-----------------------------------------------------------------------------
 /// create a KSharedPtr with only one allocation
 template<class T, bool bMultiThreaded = true, bool bSequential = true, class... Args>
@@ -428,5 +430,6 @@ KSharedPtr<T, bMultiThreaded, bSequential> kMakeShared(Args&&... args)
     return ptr;
 
 } // kMakeShared
+*/
 
 } // end of namespace dekaf2

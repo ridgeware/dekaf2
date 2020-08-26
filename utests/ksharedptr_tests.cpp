@@ -7,6 +7,7 @@
 
 using namespace dekaf2;
 
+#if 0
 
 TEST_CASE("KSharedPtr")
 {
@@ -62,3 +63,5 @@ TEST_CASE("KSharedPtr")
 		CHECK ( *bptr == true );
 	}
 }
+
+#endif

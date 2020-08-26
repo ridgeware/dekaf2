@@ -104,7 +104,7 @@ template<>
 KDurations::Duration KDurations::TotalDuration<KDurations::Duration>() const
 //---------------------------------------------------------------------------
 {
-	Duration Total;
+	Duration Total = Duration::zero();
 
 	for (const auto& Duration : m_Durations)
 	{

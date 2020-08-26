@@ -93,6 +93,8 @@ bool KBasePipe::Open(KString sCommand, bool bAsShellCommand, int mode)
 		}
 	}
 
+	kDebug(2, "executing: {}", sCommand);
+
 	// we need to do the object allocations in the parent
 	// process as otherwise leak detectors would claim the
 	// child has lost allocated memory (as the child would

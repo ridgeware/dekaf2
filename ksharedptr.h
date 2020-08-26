@@ -150,10 +150,6 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		dec();
-		if (m_Control)
-		{
-			delete m_Control;
-		}
 		m_ptr = ptr;
 		m_Control = new ControlImpl<Y, DefaultDeleter<Y>>(ptr, DefaultDeleter<Y>());
 	}
@@ -176,7 +172,10 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		dec();
-		swap(other);
+		m_ptr = other.m_ptr;
+		m_Control = other.m_Control;
+		other.m_ptr = nullptr;
+		other.m_Control = nullptr;
 		return *this;
 	}
 
@@ -265,9 +264,15 @@ private:
 	{
 		if (m_Control && !m_Control->dec())
 		{
-			delete m_Control;
-			m_Control = nullptr;
-			m_ptr = nullptr;
+			// this actually deletes both the pointed-to object
+			// and the control block with the reference count
+			m_Control->dispose();
+			// we do not need to set m_Control and m_ptr to 0, as
+			// every dec() is always followed by an assignment to
+			// those members. Only when that changes make sure to
+			// reset the values here..
+//			m_Control = nullptr;
+//			m_ptr = nullptr;
 		}
 	}
 
@@ -277,7 +282,13 @@ private:
 	{
 		using RefCount_t = std::conditional_t<bMultiThreaded, std::atomic_size_t, size_t>;
 
-		virtual ~Control() { dispose(); }
+		Control() = default;
+
+		//-----------------------------------------------------------------------------
+		virtual ~Control()
+		//-----------------------------------------------------------------------------
+		{
+		}
 
 		//-----------------------------------------------------------------------------
 		/// increase reference count for the multi threaded case
@@ -316,7 +327,7 @@ private:
 		}
 
 		//-----------------------------------------------------------------------------
-		/// decrease reference count for the multi threaded case
+		/// return reference count for the multi threaded case
 		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == true>* = nullptr>
 		size_t use_count() noexcept
 		//-----------------------------------------------------------------------------
@@ -325,7 +336,7 @@ private:
 		}
 
 		//-----------------------------------------------------------------------------
-		/// decrease reference count for the single threaded case
+		/// return reference count for the single threaded case
 		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == false>* = nullptr>
 		size_t use_count() noexcept
 		//-----------------------------------------------------------------------------
@@ -333,8 +344,7 @@ private:
 			return m_iRefCount;
 		}
 
-//		virtual void dispose() noexcept = 0;
-		virtual void dispose() noexcept {};
+		virtual void dispose() noexcept = 0;
 
 		RefCount_t m_iRefCount { 1 };
 	};

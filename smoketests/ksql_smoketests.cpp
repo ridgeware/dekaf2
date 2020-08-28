@@ -886,6 +886,26 @@ TEST_CASE("KSQL")
 		CHECK ( !db.Insert (Rows) );
 		CHECK ( db.GetLastError() == "differing column layout in rows - abort" );
 
+		kDebugLog (1, "KSQL auto range for loop");
+
+		if (!db.ExecQuery ("select * from TEST_KSQL"))
+		{
+			INFO (db.GetLastSQL());
+			FAIL_CHECK (db.GetLastError());
+		}
+
+		uint16_t iRows { 0 };
+
+		for (auto& row : db)
+		{
+			// get all rows..
+			++iRows;
+			CHECK ( row["astring"].size() > 0 );
+		}
+
+		INFO  ( "auto range for loop" );
+		CHECK ( iRows == 3 );
+
 		kDebugLog (1, "KROW update");
 
 		Row.AddCol ("astring", "krow update");

@@ -224,6 +224,36 @@ public:
 	bool operator== (const KSQL& other) const { return (GetHash() == other.GetHash()); }
 	bool operator!= (const KSQL& other) const { return (GetHash() != other.GetHash()); }
 
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// KSQL iterator over result rows, use it for auto range for loops like
+	/// for (auto& row : ksql) after issuing a query statement
+	class iterator
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+	public:
+
+		iterator(KSQL* pdb = nullptr)
+		: m_pdb(pdb)
+		{}
+
+		KROW* operator->() { return &m_row; }
+		KROW& operator*()  { return m_row;  }
+
+		iterator& operator++() { if (!m_pdb->NextRow(m_row)) m_pdb = nullptr; return *this; }
+		bool operator==(const iterator& other) const { return m_pdb == other.m_pdb; }
+		bool operator!=(const iterator& other) const { return !operator==(other);   }
+
+	private:
+
+		KSQL* m_pdb { nullptr };
+		KROW  m_row;
+	};
+
+	/// return begin of result rows
+	iterator begin() { return ++iterator(this); }
+	/// return end of result rows
+	iterator end()   { return iterator();       }
+
 	/// set all connection parameters
 	/// @param iDBType the DBType
 	/// @param sUsername the user name

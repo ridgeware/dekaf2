@@ -646,9 +646,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 					}
 				}
 
-				// output json if json has content or xml has not, and this is not a 204
-				// NO CONTENT response (then we prefer the empty json object)
-				if (!json.tx.empty() || (xml.tx.empty() && Response.iStatusCode != 204))
+				if (!json.tx.empty())
 				{
 					kDebug (2, "serializing JSON response");
 					sContent = json.tx.dump(iJSONPretty, '\t');

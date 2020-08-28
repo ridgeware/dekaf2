@@ -370,7 +370,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 		return (false);
 	}
 
-	sSQL += kFormat("insert into {} (\n", GetTablename());
+	sSQL += kFormat("insert into {} (", GetTablename());
 
 	kDebug (3, GetTablename());
 

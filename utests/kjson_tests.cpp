@@ -338,5 +338,18 @@ TEST_CASE("KJSON")
 		Decrement(json, "val1");
 		CHECK ( json["val1"] == 7 );
 	}
+
+	SECTION("null")
+	{
+		KJSON json;
+		CHECK ( json.is_null() );
+		CHECK ( json.dump(-1) == "null" );
+		json = KJSON::object();
+		CHECK ( json.is_object() );
+		CHECK ( json.dump(-1) == "{}" );
+		json = KJSON::parse("null");
+		CHECK ( json.is_null() );
+		CHECK ( json.dump(-1) == "null" );
+	}
 }
 #endif

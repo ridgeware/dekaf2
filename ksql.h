@@ -239,7 +239,7 @@ public:
 		KROW* operator->() { return &m_row; }
 		KROW& operator*()  { return m_row;  }
 
-		iterator& operator++() { if (!m_pdb->NextRow(m_row)) m_pdb = nullptr; return *this; }
+		iterator& operator++() { if (m_pdb && !m_pdb->NextRow(m_row)) m_pdb = nullptr; return *this; }
 		bool operator==(const iterator& other) const { return m_pdb == other.m_pdb; }
 		bool operator!=(const iterator& other) const { return !operator==(other);   }
 

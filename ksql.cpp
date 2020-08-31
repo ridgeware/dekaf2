@@ -1753,7 +1753,8 @@ bool KSQL::PreparedToRetry ()
 	// Note: this is called every time m_sLastError and m_iLastErrorNum have
 	// been set by an RDBMS error.
 
-	bool fConnectionLost = false;
+	bool bConnectionLost { false };
+	bool bDisplayWarning { false };
 
 	switch (m_iDBType)
 	{
@@ -1763,13 +1764,23 @@ bool KSQL::PreparedToRetry ()
 			{
 #ifdef CR_SERVER_GONE_ERROR
 				case CR_SERVER_GONE_ERROR:
+					bConnectionLost = true;
+					break;
+
 				case CR_SERVER_LOST:
+					bDisplayWarning = true;
+					bConnectionLost = true;
+					break;
 #else
 				case 2006:
-				case 2013:
-#endif
-					fConnectionLost = true;
+					bConnectionLost = true;
 					break;
+
+				case 2013:
+					bDisplayWarning = true;
+					bConnectionLost = true;
+					break;
+#endif
 				}
 				break;
 #endif
@@ -1782,11 +1793,15 @@ bool KSQL::PreparedToRetry ()
 					// SQL-01205: State 45, Severity 13, Line 1, Transaction (Process ID 95) was deadlocked on lock resources with
 					//  another process and has been chosen as the deadlock victim. Rerun the transaction.
 					case  1205:
-					// CTLIB-20004: Read from SQL server failed.
 					// CTLIB-20006: Write to SQL Server failed.
-					case 20004:
 					case 20006:
-						fConnectionLost = true;
+						bConnectionLost = true;
+						break;
+
+					case 20004:
+					// CTLIB-20004: Read from SQL server failed.
+						bDisplayWarning = true;
+						bConnectionLost = true;
 						break;
 
 					case 0: // spurious error
@@ -1802,14 +1817,22 @@ bool KSQL::PreparedToRetry ()
 				break;
 	}
 
-	if (fConnectionLost)
+	if (bConnectionLost)
 	{
-		kDebug (GetDebugLevel(), GetLastError());
-		kDebug (GetDebugLevel(), "automatic retry now in progress...");
-
-		if (m_TimingCallback)
+		if (IsFlag(F_IgnoreSQLErrors) || !bDisplayWarning)
 		{
-			m_TimingCallback (*this, /*iMilliseconds=*/0, kFormat ("{}\n{}", GetLastError(), "automatic retry now in progress..."));
+			kDebug (GetDebugLevel(), GetLastError());
+			kDebug (GetDebugLevel(), "automatic retry now in progress...");
+		}
+		else
+		{
+			kWarning (GetLastError());
+			kWarning ("automatic retry now in progress...");
+
+			if (m_TimingCallback)
+			{
+				m_TimingCallback (*this, /*iMilliseconds=*/0, kFormat ("{}\n{}", GetLastError(), "automatic retry now in progress..."));
+			}
 		}
 
 		CloseConnection ();

@@ -5709,6 +5709,7 @@ bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 	// assumed max packet size for sql API: 64 MB (default for MySQL)
 	std::size_t iMaxPacket = 64 * 1024 * 1024;
 	std::size_t iRows = 0;
+	static constexpr std::size_t iMaxRows = 1000;
 	uint64_t iFirstColumnHash = 0;
 
 	m_sLastSQL.clear();
@@ -5748,7 +5749,8 @@ bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 		// compute average size per row
 		auto iAverageRowSize = m_sLastSQL.size() / ++iRows;
 
-		if (m_sLastSQL.size() + 3 * iAverageRowSize > iMaxPacket)
+		if (iRows >= iMaxRows ||
+			m_sLastSQL.size() + 3 * iAverageRowSize > iMaxPacket)
 		{
 			// next row gets too close to the maximum, flush now
 			if (!ExecLastRawInsert(bIgnoreDupes))

@@ -1804,20 +1804,12 @@ bool KSQL::PreparedToRetry ()
 
 	if (fConnectionLost)
 	{
-		if (IsFlag(F_IgnoreSQLErrors))
-		{
-			kDebug (GetDebugLevel(), GetLastError());
-			kDebug (GetDebugLevel(), "automatic retry now in progress...");
-		}
-		else
-		{
-			kWarning (GetLastError());
-			kWarning ("automatic retry now in progress...");
+		kDebug (GetDebugLevel(), GetLastError());
+		kDebug (GetDebugLevel(), "automatic retry now in progress...");
 
-			if (m_TimingCallback)
-			{
-				m_TimingCallback (*this, /*iMilliseconds=*/0, kFormat ("{}\n{}", GetLastError(), "automatic retry now in progress..."));
-			}
+		if (m_TimingCallback)
+		{
+			m_TimingCallback (*this, /*iMilliseconds=*/0, kFormat ("{}\n{}", GetLastError(), "automatic retry now in progress..."));
 		}
 
 		CloseConnection ();

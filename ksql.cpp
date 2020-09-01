@@ -933,7 +933,7 @@ bool KSQL::OpenConnection ()
 			IsFlag(F_NoTranslations)   ? "NoTranslations "   : "");
 	}
 
-	kDebug (GetDebugLevel(), "connecting to {}...", ConnectSummary());
+	kDebug (GetDebugLevel(), "connecting to: {}...", ConnectSummary());
 
     #ifdef DEKAF2_HAS_ORACLE
 	char*  sOraHome = kGetEnv("ORACLE_HOME","");
@@ -7429,7 +7429,7 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 		for (auto ii = std::max(++iSchemaRev, iInitialSchema); ii <= iCurrentSchema; ++ii)
 		{
 			kDebug (1, KLog::DASH);
-			kDebug (1, "attempting to apply schema version {} ...", ii);
+			kDebug (1, "attempting to apply schema version {} to db {} ...", ii, ConnectSummary());
 			kDebug (1, KLog::DASH);
 
 			KString sFile = kFormat ("{}/{}{}.ksql", sSchemaFolder, sFilenamePrefix, ii);

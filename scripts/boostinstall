@@ -40,8 +40,8 @@ BoostSetup ()
 #==================
 {
 	ask=$1
-	VERSION="1.69.0"
-	NAME="1_69_0"
+	VERSION="1.74.0"
+	NAME="1_74_0"
 	BUILDDIR="/tmp/boost-build-${NAME}"
 	PREFIX="/opt/boost"
 

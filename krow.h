@@ -320,10 +320,10 @@ public:
 	}
 
 	/// Formats the proper RDBMS DDL statement for inserting one row into the database for the given table and column structure.
-	bool FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert=false) const;
+	bool FormInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert=false, bool bIgnore=false) const;
 
 	/// Appends the DDL statement by one more row
-	bool AppendInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert=false) const;
+	bool AppendInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert=false, bool bIgnore=true) const;
 
 	/// Formats the proper RDBMS DDL statement for updating one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).

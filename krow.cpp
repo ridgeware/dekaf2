@@ -348,7 +348,7 @@ void KROW::PrintValuesForInsert(KString& sSQL, DBT iDBType) const
 } // PrintValuesForInsert
 
 //-----------------------------------------------------------------------------
-bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*/) const
+bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=false*/) const
 //-----------------------------------------------------------------------------
 {
 	m_sLastError.clear(); // reset
@@ -370,7 +370,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 		return (false);
 	}
 
-	sSQL += kFormat("insert into {} (", GetTablename());
+	sSQL += kFormat("insert{} into {} (", bIgnore ? " ignore" : "", GetTablename());
 
 	kDebug (3, GetTablename());
 
@@ -393,7 +393,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 
 	PrintValuesForInsert(sSQL, iDBType);
 
-	if (fIdentityInsert && iDBType == DBT::SQLSERVER)
+	if (bIdentityInsert && iDBType == DBT::SQLSERVER)
 	{
 		sSQL = kFormat("SET IDENTITY_INSERT {} ON \n"
 					"{} \n"
@@ -408,13 +408,13 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*
 } // FormInsert
 
 //-----------------------------------------------------------------------------
-bool KROW::AppendInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=false*/) const
+bool KROW::AppendInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=true*/) const
 //-----------------------------------------------------------------------------
 {
 	if (sSQL.empty())
 	{
 		// this is the first record, create the value syntax insert..
-		return FormInsert (sSQL, iDBType, fIdentityInsert);
+		return FormInsert (sSQL, iDBType, bIdentityInsert, bIgnore);
 	}
 
 	m_sLastError.clear(); // reset
@@ -434,7 +434,7 @@ bool KROW::AppendInsert (KString& sSQL, DBT iDBType, bool fIdentityInsert/*=fals
 
 	PrintValuesForInsert(sSQL, iDBType);
 
-	if (fIdentityInsert && iDBType == DBT::SQLSERVER)
+	if (bIdentityInsert && iDBType == DBT::SQLSERVER)
 	{
 		kWarning ("cannot append row to existing DDL statement with IDENTITY_INSERT provision");
 		return false;

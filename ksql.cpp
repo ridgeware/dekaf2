@@ -1705,9 +1705,8 @@ void KSQL::LogPerformance (uint64_t iMilliseconds, bool bIsQuery)
 		if (m_iWarnIfOverMilliseconds)
 		{
 			sThreshold += kFormat (", warning set to {} ms", kFormNumber(m_iWarnIfOverMilliseconds));
+			kDebug (GetDebugLevel(), "took: {} ms{}", kFormNumber(iMilliseconds), sThreshold);
 		}
-
-		kDebug (GetDebugLevel(), "took: {} ms{}", kFormNumber(iMilliseconds), sThreshold);
 	}
 
 	if (m_iWarnIfOverMilliseconds && (iMilliseconds > m_iWarnIfOverMilliseconds))

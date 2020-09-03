@@ -817,6 +817,7 @@ TEST_CASE("KSQL")
 				|insert into FRED values ("@@@")@@@
 				|insert into FRED values ("@@@")            @@@
 				|
+				|analyze table FRED@@@
 				|delimiter !!
 				|drop table if exists FRED!!
 				|create table FRED (a char(10) not null)!!

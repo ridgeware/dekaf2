@@ -2267,6 +2267,50 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 			Parms.fDone = true;
 		}
 	}
+	else if (m_sLastSQL.starts_with("analyze") || m_sLastSQL.starts_with("ANALYZE"))
+	{
+		// "analyze table" is the MYSQL command for updating statistics on a table.
+		kDebug (3, "{}: statement # {} is ANALYZE...", sFilename, Parms.iStatement);
+
+		if (!IsFlag(F_NoTranslations))
+		{
+			DoTranslations (m_sLastSQL);
+		}
+
+		// analyze returns row output like a select statement, so we need to execute it as a
+		// query, but we need to set the F_IgnoreSelectKeyword flag. row output will look 
+		// something like this:
+		// +--------------------------+---------+----------+----------+
+		// | Table                    | Op      | Msg_type | Msg_text |
+		// +--------------------------+---------+----------+----------+
+		// | schema_name.table_name1  | analyze | status   | OK       |
+		// | schema_name.table_name2  | analyze | status   | OK       |
+		// +--------------------------+---------+----------+----------+
+		if (ExecLastRawQuery (F_IgnoreSelectKeyword, "ExecSQLFile"))
+		{
+			while (NextRow())
+			{
+				KStringView sTable   { Get (1, /*fTrimRight=*/false) };
+				KStringView sOp      { Get (2, /*fTrimRight=*/false) };
+				KStringView sMsgType { Get (3, /*fTrimRight=*/false) };
+				KStringView sMsgText { Get (4, /*fTrimRight=*/false) };
+
+				if ((sMsgType == "status") && (sMsgText == "OK"))
+				{
+					kDebug (2, "{} table {} {}={}", sOp, sTable, sMsgType, sMsgText);
+				}
+				else
+				{
+					kWarning ("UNEXPECTED ANALYZE RESULT: {} table {} {}={}", sOp, sTable, sMsgType, sMsgText);
+				}
+			}
+		}
+		else
+		{
+			Parms.fOK   = false;
+			Parms.fDone = true;
+		}
+	}
 	else
 	{
 		kDebug (3, "{}: statement # {} is not a query...", sFilename, Parms.iStatement);
@@ -2314,7 +2358,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 		return (false);
 	}
 
-	if (!IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.starts_with ("select") && !m_sLastSQL.starts_with("SELECT"))
+	if (!(iFlags & F_IgnoreSelectKeyword) && !IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.starts_with ("select") && !m_sLastSQL.starts_with("SELECT"))
 	{
 		m_sLastError.Format ("{}ExecQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]", m_sErrorPrefix);
 		return (SQLError());

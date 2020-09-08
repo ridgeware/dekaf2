@@ -91,6 +91,14 @@
 			return apply_visitor(visitor, std::forward<Visitable>(visitable)...);
 		}
 
+		// simulate std::holds_alternative with boost's pointer version of get<>()
+		// which returns a nullptr when the type is wrong
+		template <typename T, typename... Types>
+		bool holds_alternative(const variant<Types...>& v) noexcept
+		{
+			return get<T>(&v) != nullptr;
+		}
+
 	} // end of namespace boost
 #endif
 

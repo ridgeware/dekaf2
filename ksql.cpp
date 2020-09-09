@@ -7090,7 +7090,11 @@ bool KSQL::CommitTransaction (KStringView sOptions/*=""*/)
 {
 	// TODO: code for non-MySQL
 
-	return ExecSQL ("commit%s%s", sOptions.empty() ? "" : " ", sOptions.empty() ? KStringView("") : sOptions);
+	auto iSave = GetNumRowsAffected();
+	bool bOK   = ExecSQL ("commit%s%s", sOptions.empty() ? "" : " ", sOptions.empty() ? KStringView("") : sOptions);
+	m_iNumRowsAffected = GetNumRowsAffected() + iSave;
+
+	return bOK;
 
 } // CommitTransaction
 

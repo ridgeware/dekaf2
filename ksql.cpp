@@ -6086,9 +6086,13 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, KStringView sWhereCl
 	}
 
 	time_t tTook = time(NULL) - tStarted;
-	if (bPBAR && (tTook >= 10))
+	if (bPBAR)
 	{
-		KOut.FormatLine (":: {} : {:50} : took {}\n", kFormTimestamp(0,"%a %T"), sTablename, kTranslateSeconds(tTook));
+		bar.Finish();
+		if (tTook >= 10)
+		{
+			KOut.FormatLine (":: {} : {:50} : took {}\n", kFormTimestamp(0,"%a %T"), sTablename, kTranslateSeconds(tTook));
+		}
 	}
 
 	return true;

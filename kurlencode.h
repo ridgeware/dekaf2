@@ -313,8 +313,10 @@ class KURLEncoded
 public:
 //------
 
-	using self_type  = KURLEncoded<Decoded, chPairSep, chKeyValSep>;
-	using value_type = Decoded;
+	using self_type      = KURLEncoded<Decoded, chPairSep, chKeyValSep>;
+	using value_type     = Decoded;
+	using iterator       = typename Decoded::iterator;
+	using const_iterator = typename Decoded::const_iterator;
 
 	//-------------------------------------------------------------------------
 	KURLEncoded() = default;
@@ -444,6 +446,34 @@ public:
 				m_sDecoded.Add (std::move (sKey), std::move (sVal));
 			}
 		}
+	}
+
+	//-------------------------------------------------------------------------
+	iterator begin()
+	//-------------------------------------------------------------------------
+	{
+		return m_sDecoded.begin();
+	}
+
+	//-------------------------------------------------------------------------
+	iterator end()
+	//-------------------------------------------------------------------------
+	{
+		return m_sDecoded.end();
+	}
+
+	//-------------------------------------------------------------------------
+	const_iterator begin() const
+	//-------------------------------------------------------------------------
+	{
+		return m_sDecoded.begin();
+	}
+
+	//-------------------------------------------------------------------------
+	const_iterator end() const
+	//-------------------------------------------------------------------------
+	{
+		return m_sDecoded.end();
 	}
 
 	//-------------------------------------------------------------------------

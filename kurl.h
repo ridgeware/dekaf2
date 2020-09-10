@@ -80,7 +80,9 @@ class URIComponent
 public:
 //------
 
-	using self_type = URIComponent<Storage, Component, StartToken, RemoveStartSeparator, RemoveEndSeparator, IsString>;
+	using self_type      = URIComponent<Storage, Component, StartToken, RemoveStartSeparator, RemoveEndSeparator, IsString>;
+	using iterator       = typename Storage::iterator;
+	using const_iterator = typename Storage::const_iterator;
 
 	//-------------------------------------------------------------------------
 	/// constructs empty instance.
@@ -445,6 +447,38 @@ public:
 		// key-value pair strings _have_ to be percent encoded, as that is the
 		// natural flat-string representation for them
 		return Serialize();
+	}
+
+	//-------------------------------------------------------------------------
+	/// return begin iterator
+	iterator begin()
+	//-------------------------------------------------------------------------
+	{
+		return get().begin();
+	}
+
+	//-------------------------------------------------------------------------
+	/// return begin iterator
+	const_iterator begin() const
+	//-------------------------------------------------------------------------
+	{
+		return get().begin();
+	}
+
+	//-------------------------------------------------------------------------
+	/// return end iterator
+	iterator end()
+	//-------------------------------------------------------------------------
+	{
+		return get().end();
+	}
+
+	//-------------------------------------------------------------------------
+	/// return end iterator
+	const_iterator end() const
+	//-------------------------------------------------------------------------
+	{
+		return get().end();
 	}
 
 	//-------------------------------------------------------------------------

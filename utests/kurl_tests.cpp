@@ -1149,6 +1149,25 @@ TEST_CASE ("KURL formerly missing")
 		CHECK ( kIsSubDomainOf(Domain, url::KDomain("www.my.dot")) == false );
 		CHECK ( kIsSubDomainOf(Domain, url::KDomain("www.MY.DoMain")) == true );
 	}
+
+	SECTION("auto range")
+	{
+		KURL URL = "http://www.test.com/path?parm1=val1&parm2=val2&parm3=val3";
+		KString sOut;
+
+		for (const auto& it : URL.Query)
+		{
+			if (!sOut.empty())
+			{
+				sOut += '|';
+			}
+			sOut += it.first;
+			sOut += '-';
+			sOut += it.second;
+		}
+
+		CHECK ( sOut == "parm1-val1|parm2-val2|parm3-val3" );
+	}
 }
 
 TEST_CASE ("KURL regression tests")

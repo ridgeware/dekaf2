@@ -59,6 +59,7 @@
 #include "kfilesystem.h"
 #include "kwebclient.h"
 #include "khash.h"
+#include "kbar.h"
 #include <cstdint>
 
 #if defined(DEKAF2_IS_WINDOWS) || defined(DEKAF2_DO_NOT_HAVE_STRPTIME)
@@ -6016,6 +6017,124 @@ bool KSQL::PurgeKeyList (KStringView sPKEY, KStringView sInClause, KJSON& Change
 } // PurgeKeyList
 
 //-----------------------------------------------------------------------------
+bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, KStringView sWhereClause/*=""*/, uint16_t iFlushRows/*=1024*/, int32_t iPbarThreshold/*=500*/)
+//-----------------------------------------------------------------------------
+{
+	KBAR    bar;
+	int64_t iExpected{-1};
+	bool    bPBAR = (iPbarThreshold >= 0);
+	time_t  tStarted = time(NULL);
+
+	if (bPBAR)
+	{
+		KOut.Format (":: {} : {:50} : ", kFormTimestamp(0,"%a %T"), sTablename);
+	}
+	
+	if (bPBAR)
+	{
+		iExpected = OtherDB.SingleIntRawQuery (kFormat ("select count(*) from {} {}", sTablename, sWhereClause));
+		if (iExpected < 0)
+		{
+			KOut.FormatLine (OtherDB.GetLastError());
+			m_sLastError.Format ("{}: {}: {}", OtherDB.ConnectSummary(), OtherDB.GetLastError(), OtherDB.GetLastSQL());
+			return false;
+		}
+	}
+
+	if (bPBAR)
+	{
+		if (!iExpected)
+		{
+			KOut.Format ("empty.\n");
+		}
+		else
+		{
+			KOut.Format ("{} rows ...\n", kFormNumber(iExpected));
+		}
+	}
+
+	if (!OtherDB.ExecRawQuery (kFormat ("select * from {} {}", sTablename, sWhereClause)))
+	{
+		m_sLastError.Format ("{}: {}: {}", OtherDB.ConnectSummary(), OtherDB.GetLastError(), OtherDB.GetLastSQL());
+		return false;
+	}
+
+	if (bPBAR && (iExpected >= iPbarThreshold))
+	{
+		bar.Start (iExpected);
+	}
+
+	std::vector<KROW> BulkRows;
+	KROW row(sTablename);
+
+	while (OtherDB.NextRow (row))
+	{
+		if (bPBAR)
+		{
+			bar.Move();
+		}
+		BulkRows.push_back (row);
+		if (BulkRows.size() >= iFlushRows)
+		{
+			BulkCopyFlush (BulkRows);
+		}
+	}
+
+	if (BulkRows.size())
+	{
+		BulkCopyFlush (BulkRows, /*bLast=*/true);
+	}
+
+	time_t tTook = time(NULL) - tStarted;
+	if (bPBAR && (tTook >= 10))
+	{
+		KOut.FormatLine (":: {} : {:50} : took {}\n", kFormTimestamp(0,"%a %T"), sTablename, kTranslateSeconds(tTook));
+	}
+
+	return true;
+
+} // BulkCopy
+
+//-----------------------------------------------------------------------------
+static void BulkCopyFlush_ (const KSQL& db, std::vector<KROW>/*copy*/ BulkRows)
+//-----------------------------------------------------------------------------
+{
+	// db connection in args is only used for a template to open a new one for this thread:
+	KSQL db2 (db);
+	if (!db2.EnsureConnected())
+	{
+		KErr.FormatLine (">> spawned db connection: {}", db2.GetLastError());
+		return;
+	}
+
+	if (!db2.Insert (BulkRows))
+	{
+		KErr.FormatLine (">> spawned db connection: {}", db2.GetLastError());
+		return;
+	}
+
+} // BulkCopyFlush_
+
+//-----------------------------------------------------------------------------
+void KSQL::BulkCopyFlush (std::vector<KROW>& BulkRows, bool bLast/*=true*/)
+//-----------------------------------------------------------------------------
+{
+	// do bulk-insert on it's own thread so that we can move to the next bunch of rows:
+	std::thread SpawnMe (BulkCopyFlush_, *this, /*copy*/BulkRows);
+	if (bLast)
+	{
+		SpawnMe.join();
+	}
+	else
+	{
+		SpawnMe.detach();
+	}
+
+	BulkRows.clear();
+
+} // BulkCopyFlush
+
+//-----------------------------------------------------------------------------
 bool KSQL::UpdateOrInsert (const KROW& Row, bool* pbInserted/*=nullptr*/)
 //-----------------------------------------------------------------------------
 {
@@ -7752,7 +7871,31 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 	// we have an open database connection
 	return true;
 
-} // KSQL::EnsureConnected
+} // KSQL::EnsureConnected - 1
+
+//-----------------------------------------------------------------------------b
+bool KSQL::EnsureConnected ()
+//-----------------------------------------------------------------------------
+{
+	if (IsConnectionOpen())
+	{
+		kDebug (2, "already connected to: {}", ConnectSummary());
+		return true; // already connected
+	}
+
+	kDebug (3, "attempting to connect ...");
+
+	if (!OpenConnection())
+	{
+		return false;
+	}
+
+	kDebug (1, "connected to: {}", ConnectSummary());
+
+	// we have an open database connection
+	return true;
+
+} // KSQL::EnsureConnected - 2
 
 //-----------------------------------------------------------------------------
 KString KSQL::ConvertTimestamp (KStringView sTimestamp)

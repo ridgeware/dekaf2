@@ -324,6 +324,14 @@ public:
 	/// cascading delete of a given key from the entire database (uses data dictionary tables). returns true/false and populates all changes made in given json array. expects IN clause (without the parens)
 	bool   PurgeKeyList    (KStringView sPKEY, KStringView sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex="");
 
+	/// bulk copy a table (or portion) from another database to this one
+	/// notes:
+	///  * adjust iFlushRows up or down depending on memory concerns and row size
+	///  * if the count(*) is less than iPbarThreshold, no pbar will be shown
+	///  * use iPbarThreshold=-1 to turn off progress bar entirely and to eliminate the initial count(*) query
+	///  * after successful operation, GetNumRowsAffected() will be adjusted to the cumulative total
+	bool   BulkCopy        (KSQL& OtherDB, KStringView sTablename, KStringView sWhereClause="", uint16_t iFlushRows=1024, int32_t iPbarThreshold=500);
+
 	bool   FormInsert     (KROW& Row, KString& sSQL, bool fIdentityInsert=false)
 			{ return Row.FormInsert (sSQL, m_iDBType, fIdentityInsert); }
 	bool   FormUpdate     (KROW& Row, KString& sSQL)
@@ -683,6 +691,9 @@ public:
 						 KString sDBCFile,
 						 const IniParms& INI = IniParms{});
 
+	/// conditionally open the db connection, assuming all connection parms are already set
+	bool EnsureConnected();
+
 	void SetDBC (KStringView sFile) { m_sDBCFile = sFile; }
 	const KString& GetDBC () const { return m_sDBCFile;  }
 
@@ -691,6 +702,8 @@ public:
 //----------
 private:
 //----------
+
+	void BulkCopyFlush (std::vector<KROW>& BulkRows, bool bLast=true);
 
 	void LogPerformance (uint64_t iMilliseconds, bool bIsQuery);
 

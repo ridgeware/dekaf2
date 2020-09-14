@@ -699,8 +699,28 @@ public:
 
 	TXList  m_TxList;
 
-	struct SQLStmtStats
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class KSQLStatementStats
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+
+	//----------
+	public:
+	//----------
+
+		void      clear();
+		void      Enable(bool bYesNo);
+		uint64_t  Total() const;
+		KString   Print() const;
+
+		void      Collect(KStringView sLastSQL)
+		{
+			if DEKAF2_UNLIKELY(bEnabled)
+			{
+				Increment(sLastSQL);
+			}
+		}
+
 		uint64_t  iSelect   { 0 };
 		uint64_t  iInsert   { 0 };
 		uint64_t  iUpdate   { 0 };
@@ -714,13 +734,23 @@ public:
 		uint64_t  iTblMaint { 0 };
 		uint64_t  iInfo     { 0 };
 		uint64_t  iOther    { 0 };
+		bool      bEnabled  { false };
+
+	//----------
+	private:
+	//----------
+
+		void      Increment(KStringView sLastSQL);
 
 	}; // SQLStmtStats
 
-	void         SetSQLStmtStats(bool bValue);
-	SQLStmtStats GetSQLStmtStats();
-	uint64_t     GetSQLStmtStatsTotal();
-	void         ShowSQLStmtStats();
+	KSQLStatementStats& GetSQLStmtStats()            { return m_SQLStmtStats;         }
+
+	/*
+	void          SetSQLStmtStats(bool bValue) { m_SQLStmtStats.Enable(bValue); }
+	uint64_t      GetSQLStmtStatsTotal() const { return m_SQLStmtStats.Total(); }
+	void          ShowSQLStmtStats() const     { m_SQLStmtStats.Print();         }
+*/
 
 //----------
 private:
@@ -794,18 +824,6 @@ private:
 //----------
 protected:
 //----------
-
-	void InitializeSQLStmtStats();
-	void IncrementSQLStmtStats();
-
-	inline
-	void CollectSQLStmtStats()
-	{
-		if (m_bSQLStmtStats)
-		{
-			IncrementSQLStmtStats();
-		}
-	}
 
 	bool ExecLastRawSQL (Flags iFlags=0, KStringView sAPI = "ExecLastRawSQL");
 	bool ExecLastRawQuery (Flags iFlags=0, KStringView sAPI = "ExecLastRawQuery");
@@ -941,8 +959,7 @@ protected:
 	uint64_t   m_iWarnIfOverMilliseconds { 0 };
 	FILE*      m_fpPerformanceLog { nullptr };
 	KString    m_sTempDir { "/tmp" };
-	bool       m_bSQLStmtStats { false };
-	SQLStmtStats m_SQLStmtStats;
+	KSQLStatementStats m_SQLStmtStats;
 	std::function<void(const KSQL&, uint64_t, const KString&)> m_TimingCallback;
 
 	bool  SQLError (bool fForceError=false);

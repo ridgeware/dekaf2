@@ -1470,6 +1470,144 @@ void CopyIfNotSame(KString& sTarget, KStringView svView)
 }
 
 //-----------------------------------------------------------------------------
+void KSQL::InitializeSQLStmtStats()
+//-----------------------------------------------------------------------------
+{
+	m_SQLStmtStats.iSelect   = 0;
+	m_SQLStmtStats.iInsert   = 0;
+	m_SQLStmtStats.iUpdate   = 0;
+	m_SQLStmtStats.iDelete   = 0;
+	m_SQLStmtStats.iCreate   = 0;
+	m_SQLStmtStats.iAlter    = 0;
+	m_SQLStmtStats.iDrop     = 0;
+	m_SQLStmtStats.iTransact = 0;
+	m_SQLStmtStats.iExec     = 0;
+	m_SQLStmtStats.iAction   = 0;
+	m_SQLStmtStats.iTblMaint = 0;
+	m_SQLStmtStats.iInfo     = 0;
+	m_SQLStmtStats.iOther    = 0;
+}
+
+//-----------------------------------------------------------------------------
+void KSQL::SetSQLStmtStats(bool bValue)
+//-----------------------------------------------------------------------------
+{
+	m_bSQLStmtStats = bValue;
+	InitializeSQLStmtStats(); // We always reset the stats to 0 whenever they are turned on or off
+}
+
+//-----------------------------------------------------------------------------
+KSQL::SQLStmtStats KSQL::GetSQLStmtStats()
+//-----------------------------------------------------------------------------
+{
+	return m_SQLStmtStats;
+}
+
+//-----------------------------------------------------------------------------
+uint64_t KSQL::GetSQLStmtStatsTotal()
+//-----------------------------------------------------------------------------
+{
+	return  m_SQLStmtStats.iSelect   +
+			m_SQLStmtStats.iInsert   +
+			m_SQLStmtStats.iUpdate   +
+			m_SQLStmtStats.iDelete   +
+			m_SQLStmtStats.iCreate   +
+			m_SQLStmtStats.iAlter    +
+			m_SQLStmtStats.iDrop     +
+			m_SQLStmtStats.iTransact +
+			m_SQLStmtStats.iExec     +
+			m_SQLStmtStats.iAction   +
+			m_SQLStmtStats.iTblMaint +
+			m_SQLStmtStats.iInfo     +
+			m_SQLStmtStats.iOther;
+}
+
+//-----------------------------------------------------------------------------
+void KSQL::ShowSQLStmtStats()
+//-----------------------------------------------------------------------------
+{
+//	kWarning  ("TOTAL={}, SELECT={}, INSERT={}, UPDATE={}{}{}{}{}{}{}{}{}{}{}",
+	kDebug (1, "TOTAL={}, SELECT={}, INSERT={}, UPDATE={}{}{}{}{}{}{}{}{}{}{}",
+				GetSQLStmtStatsTotal(), m_SQLStmtStats.iSelect, m_SQLStmtStats.iInsert, m_SQLStmtStats.iUpdate, 
+				(m_SQLStmtStats.iDelete   ? kFormat(", DELETE={}",   m_SQLStmtStats.iDelete)   : ""),
+				(m_SQLStmtStats.iCreate   ? kFormat(", CREATE={}",   m_SQLStmtStats.iCreate)   : ""),
+				(m_SQLStmtStats.iAlter    ? kFormat(", ALTER={}",    m_SQLStmtStats.iAlter)    : ""),
+				(m_SQLStmtStats.iDrop     ? kFormat(", DROP={}",     m_SQLStmtStats.iDrop)     : ""),
+				(m_SQLStmtStats.iTransact ? kFormat(", TRANSACT={}", m_SQLStmtStats.iTransact) : ""),
+				(m_SQLStmtStats.iExec     ? kFormat(", EXEC={}",     m_SQLStmtStats.iExec)     : ""),
+				(m_SQLStmtStats.iAction   ? kFormat(", Action={}",   m_SQLStmtStats.iAction)   : ""),
+				(m_SQLStmtStats.iTblMaint ? kFormat(", TblMaint={}", m_SQLStmtStats.iTblMaint) : ""),
+				(m_SQLStmtStats.iInfo     ? kFormat(", Info={}",     m_SQLStmtStats.iInfo)     : ""),
+				(m_SQLStmtStats.iOther    ? kFormat(", Other={}",    m_SQLStmtStats.iOther)    : ""))
+
+}
+
+//-----------------------------------------------------------------------------
+void KSQL::IncrementSQLStmtStats()
+//-----------------------------------------------------------------------------
+{
+	KString sSQLStmt = m_sLastSQL.substr(0,20).TrimLeft().ToLower();
+	if (sSQLStmt.StartsWith("select") || sSQLStmt.StartsWith("table") || sSQLStmt.StartsWith("values"))
+	{
+		++m_SQLStmtStats.iSelect;
+	}
+	else if (sSQLStmt.StartsWith("insert") || sSQLStmt.StartsWith("import") || sSQLStmt.StartsWith("load"))
+	{
+		++m_SQLStmtStats.iInsert;
+	}
+	else if (sSQLStmt.StartsWith("update"))
+	{
+		++m_SQLStmtStats.iUpdate;
+	}
+	else if (sSQLStmt.StartsWith("delete") || sSQLStmt.StartsWith("truncate"))
+	{
+		++m_SQLStmtStats.iDelete;
+	}
+	else if (sSQLStmt.StartsWith("create"))
+	{
+		++m_SQLStmtStats.iCreate;
+	}
+	else if (sSQLStmt.StartsWith("alter") || sSQLStmt.StartsWith("rename"))
+	{
+		++m_SQLStmtStats.iAlter;
+	}
+	else if (sSQLStmt.StartsWith("drop"))
+	{
+		++m_SQLStmtStats.iDrop;
+	}
+	else if (sSQLStmt.StartsWith("start")  || sSQLStmt.StartsWith("begin") ||  // start transaction or begin transaction
+			 sSQLStmt.StartsWith("commit") || sSQLStmt.StartsWith("rollback")) // commit or rollback transaction
+	{
+		++m_SQLStmtStats.iTransact;
+	}
+	else if (sSQLStmt.StartsWith("exec") || sSQLStmt.StartsWith("call") || // stored procedure execution statements
+			 sSQLStmt.StartsWith("do"))
+	{
+		++m_SQLStmtStats.iExec;
+	}
+	else if (sSQLStmt.StartsWith("use")  || sSQLStmt.StartsWith("set") || sSQLStmt.StartsWith("grant") || 
+			 sSQLStmt.StartsWith("lock") || sSQLStmt.StartsWith("unlock"))
+	{
+		++m_SQLStmtStats.iAction;
+	}
+	else if (sSQLStmt.StartsWith("analyze") || sSQLStmt.StartsWith("optimize") ||
+			 sSQLStmt.StartsWith("check")   || sSQLStmt.StartsWith("repair")) // table maintenance statements
+	{
+		++m_SQLStmtStats.iTblMaint;
+	}
+	else if (sSQLStmt.StartsWith("desc") || sSQLStmt.StartsWith("explain") ||
+			 sSQLStmt.StartsWith("show"))
+	{
+		++m_SQLStmtStats.iInfo;
+	}
+	else
+	{
+		kDebug (1, "Other SQL={}", m_sLastSQL);
+		++m_SQLStmtStats.iOther;
+	}
+}
+
+//-----------------------------------------------------------------------------
 bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQL"*/)
 //-----------------------------------------------------------------------------
 {
@@ -1486,6 +1624,8 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 	int    iSleepFor    = 0;
 
 	KStopTime Timer;
+
+	CollectSQLStmtStats();
 
 	while (!bOK && iRetriesLeft && !m_bDisableRetries)
 	{

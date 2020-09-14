@@ -699,6 +699,29 @@ public:
 
 	TXList  m_TxList;
 
+	struct SQLStmtStats
+	{
+		uint64_t  iSelect   { 0 };
+		uint64_t  iInsert   { 0 };
+		uint64_t  iUpdate   { 0 };
+		uint64_t  iDelete   { 0 };
+		uint64_t  iCreate   { 0 };
+		uint64_t  iAlter    { 0 };
+		uint64_t  iDrop     { 0 };
+		uint64_t  iTransact { 0 };
+		uint64_t  iExec     { 0 };
+		uint64_t  iAction   { 0 };
+		uint64_t  iTblMaint { 0 };
+		uint64_t  iInfo     { 0 };
+		uint64_t  iOther    { 0 };
+
+	}; // SQLStmtStats
+
+	void         SetSQLStmtStats(bool bValue);
+	SQLStmtStats GetSQLStmtStats();
+	uint64_t     GetSQLStmtStatsTotal();
+	void         ShowSQLStmtStats();
+
 //----------
 private:
 //----------
@@ -771,6 +794,18 @@ private:
 //----------
 protected:
 //----------
+
+	void InitializeSQLStmtStats();
+	void IncrementSQLStmtStats();
+
+	inline
+	void CollectSQLStmtStats()
+	{
+		if (m_bSQLStmtStats)
+		{
+			IncrementSQLStmtStats();
+		}
+	}
 
 	bool ExecLastRawSQL (Flags iFlags=0, KStringView sAPI = "ExecLastRawSQL");
 	bool ExecLastRawQuery (Flags iFlags=0, KStringView sAPI = "ExecLastRawQuery");
@@ -906,6 +941,8 @@ protected:
 	uint64_t   m_iWarnIfOverMilliseconds { 0 };
 	FILE*      m_fpPerformanceLog { nullptr };
 	KString    m_sTempDir { "/tmp" };
+	bool       m_bSQLStmtStats { false };
+	SQLStmtStats m_SQLStmtStats;
 	std::function<void(const KSQL&, uint64_t, const KString&)> m_TimingCallback;
 
 	bool  SQLError (bool fForceError=false);

@@ -322,7 +322,7 @@ public:
 	bool   PurgeKey        (KROW& OtherKeys, KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/);
 
 	/// cascading delete of a given key from the entire database (uses data dictionary tables). returns true/false and populates all changes made in given json array. expects IN clause (without the parens)
-	bool   PurgeKeyList    (KStringView sPKEY, KStringView sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex="");
+	bool   PurgeKeyList    (KStringView sPKEY, KStringView sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex="", bool bDryRun=false, int64_t* piNumAffected=NULL);
 
 	/// bulk copy a table (or portion) from another database to this one
 	/// notes:

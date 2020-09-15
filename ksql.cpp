@@ -6090,7 +6090,7 @@ bool KSQL::PurgeKey (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, 
 } // PurgeKey
 
 //-----------------------------------------------------------------------------
-bool KSQL::PurgeKeyList (KStringView sPKEY, KStringView sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/)
+bool KSQL::PurgeKeyList (KStringView sPKEY, KStringView sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/, bool bDryRun/*=false*/, int64_t* piNumAffected/*=NULL*/)
 //-----------------------------------------------------------------------------
 {
 	ChangesMade = KJSON::array();
@@ -6105,7 +6105,7 @@ bool KSQL::PurgeKeyList (KStringView sPKEY, KStringView sInClause, KJSON& Change
 	{
 		KJSON    obj;
 		KString  sTableName = table["table_name"];
-		uint64_t iChanged{0};
+		int64_t  iChanged{0};
 
 		obj["table_name"] = sTableName;
 
@@ -6114,16 +6114,29 @@ bool KSQL::PurgeKeyList (KStringView sPKEY, KStringView sInClause, KJSON& Change
 			obj["ignored"] = true;
 			iChanged = 0;
 		}
-		else
+		else if (bDryRun)
 		{
-			if (!ExecSQL ("delete from %s /*KSQL::PurgeKey*/ where %s in (%s)", sTableName, sPKEY, sInClause))
+			iChanged = SingleIntRawQuery (kFormat ("select count(*) from {} /*KSQL::PurgeKey*/ where {} in ({})", sTableName, sPKEY, sInClause));
+			if (iChanged < 0)
 			{
 				return (false);
 			}
+			obj["rows_selected"] = iChanged;
+		}
+		else if (!ExecSQL ("delete from %s /*KSQL::PurgeKey*/ where %s in (%s)", sTableName, sPKEY, sInClause))
+		{
+			return (false);
+		}
+		else
+		{
 			iChanged = GetNumRowsAffected();
+			obj["rows_deleted"] = iChanged;
+		}
+		if (piNumAffected)
+		{
+			*piNumAffected += iChanged;
 		}
 
-		obj["rows_deleted"] = iChanged;
 		ChangesMade += obj;
 	}
 

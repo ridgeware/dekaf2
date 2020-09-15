@@ -84,7 +84,6 @@ protected:
 
 	using map_type = KMRUMap<Key, Value>;
 	map_type m_map;
-	size_t m_iMaxSize;
 
 	//-----------------------------------------------------------------------------
 	/// Creates a new cache entry.

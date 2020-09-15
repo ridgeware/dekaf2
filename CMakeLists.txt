@@ -517,6 +517,7 @@ set(PUBLIC_HEADERS
 	koutstringstream.h
 	kparallel.h
 	kpipe.h
+	kpool.h
 	kprof.h
 	kprops.h
 	kquotedprintable.h

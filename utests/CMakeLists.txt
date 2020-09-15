@@ -47,6 +47,7 @@ set (USOURCES
 	koutputtemplate_tests.cpp
 	koutshell_tests.cpp
 	kpipe_tests.cpp
+	kpool_tests.cpp
 	kprops_tests.cpp
 	kquotedprintable_tests.cpp
 	kreader_tests.cpp

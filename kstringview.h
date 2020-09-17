@@ -263,11 +263,10 @@ public:
 	KStringView(const value_type* s, size_type count) noexcept
 	//-----------------------------------------------------------------------------
 #if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
-	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW) \
-	|| defined(DEKAF2_IS_GCC)
+	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
 	: m_rep(s, count)
 #else
-	// std::string_view in clang libc++ is not resilient to nullptr assignment
+	// std::string_view in clang and gnu libc++ is not resilient to nullptr assignment
 	// - therefore we protect it
 	: m_rep(s ? s : &s_0ch, s ? count : 0)
 #endif
@@ -279,11 +278,10 @@ public:
 	KStringView(const value_type* s) noexcept
 	//-----------------------------------------------------------------------------
 #if defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
-	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW) \
-	|| defined(DEKAF2_IS_GCC)
-	    : m_rep(s)
+	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
+	: m_rep(s)
 #else
-	// std::string_view in clang libc++ is not resilient to nullptr assignment
+	// std::string_view in clang and gnu libc++ is not resilient to nullptr assignment
 	// - therefore we protect it
 	: m_rep(s ? s : &s_0ch)
 #endif

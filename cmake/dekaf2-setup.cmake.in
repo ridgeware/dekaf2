@@ -155,6 +155,9 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			# this on MacOS too
 			add_compile_options(-Wno-mismatched-tags)
 
+			# apple clang apparently has this now in one of the warning setups - not good
+			add_compile_options(-Wno-range-loop-analysis)
+
 			if (NOT IS_MACOS)
 				# this warning is unknown for AppleClang
 				add_compile_options(-Wno-return-std-move)

@@ -280,7 +280,7 @@ void KCGIInStream::Stream::CreateHeader()
 	};
 
 	// add headers from env vars
-	for (const auto it : CGIVars)
+	for (const auto& it : CGIVars)
 	{
 		KString sEnv = kGetEnv(it.sVar);
 		if (!sEnv.empty())

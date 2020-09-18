@@ -32,8 +32,8 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			SET(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
 			SET(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
 
-			# variants only appeared in v10.14 of the MACOS SDK
-			set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14")
+			# variants only appeared in v10.14 of the MACOS SDK - but we use those from boost anyway
+			#set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14")
 
 		endif()
 

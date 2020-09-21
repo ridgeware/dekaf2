@@ -134,7 +134,6 @@
 
 #ifdef DEKAF2_HAS_CPP_17
 	#define DEKAF2_CONSTEXPR_17 constexpr
-	#define DEKAF2_CONSTEXPR_IF constexpr
 #else
 	#define DEKAF2_CONSTEXPR_17 inline
 #endif
@@ -173,6 +172,16 @@
 	#define DEKAF2_HAS_EXTENSION(x) 0
 #else
 	#define DEKAF2_HAS_EXTENSION(x) __has_extension(x)
+#endif
+
+#if (__cpp_if_constexpr)
+	#define DEKAF2_CONSTEXPR_IF constexpr
+#else
+	#define DEKAF2_CONSTEXPR_IF
+#endif
+
+#if (__cpp_lib_chrono >= 201510L || DEKAF2_IS_OSX)
+	#define DEKAF2_HAS_CHRONO_ROUND 1
 #endif
 
 #if DEKAF2_HAS_CPP_ATTRIBUTE(fallthrough)

@@ -100,7 +100,11 @@ public:
 		}
 		else
 		{
+		#ifdef DEKAF2_HAS_CHRONO_ROUND
 			return std::chrono::round<DurationType>(tNow - m_Start);
+		#else
+			return std::chrono::duration_cast<DurationType>(tNow - m_Start);
+		#endif
 		}
 
 	} // elapsed
@@ -179,7 +183,11 @@ public:
 		}
 		else
 		{
+		#ifdef DEKAF2_HAS_CHRONO_ROUND
 			return std::chrono::round<DurationType>(elapsed_int());
+		#else
+			return std::chrono::duration_cast<DurationType>(elapsed_int());
+		#endif
 		}
 
 	} // elapsed
@@ -291,7 +299,11 @@ public:
 	DurationType GetDuration(size_type iInterval) const
 	//-----------------------------------------------------------------------------
 	{
+	#ifdef DEKAF2_HAS_CHRONO_ROUND
 		return std::chrono::round<DurationType>(GetDuration<Duration>(iInterval));
+	#else
+		return std::chrono::duration_cast<DurationType>(GetDuration<Duration>(iInterval));
+	#endif
 	}
 
 	//-----------------------------------------------------------------------------
@@ -310,7 +322,11 @@ public:
 	DurationType TotalDuration() const
 	//-----------------------------------------------------------------------------
 	{
+	#ifdef DEKAF2_HAS_CHRONO_ROUND
 		return std::chrono::round<DurationType>(TotalDuration<Duration>());
+	#else
+		return std::chrono::duration_cast<DurationType>(TotalDuration<Duration>());
+	#endif
 	}
 
 	//-----------------------------------------------------------------------------

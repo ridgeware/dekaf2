@@ -94,11 +94,13 @@ public:
 	DurationType elapsed(Clock::time_point tNow = Clock::now()) const
 	//-----------------------------------------------------------------------------
 	{
+	#ifdef DEKAF2_HAS_CONSTEXPR_IF
 		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, Duration>::value)
 		{
 			return tNow - m_Start;
 		}
 		else
+	#endif
 		{
 		#ifdef DEKAF2_HAS_CHRONO_ROUND
 			return std::chrono::round<DurationType>(tNow - m_Start);
@@ -177,11 +179,13 @@ public:
 	DurationType elapsed() const
 	//-----------------------------------------------------------------------------
 	{
+	#ifdef DEKAF2_HAS_CONSTEXPR_IF
 		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, Duration>::value)
 		{
 			return elapsed_int();
 		}
 		else
+	#endif
 		{
 		#ifdef DEKAF2_HAS_CHRONO_ROUND
 			return std::chrono::round<DurationType>(elapsed_int());

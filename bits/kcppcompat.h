@@ -176,6 +176,7 @@
 
 #if (__cpp_if_constexpr)
 	#define DEKAF2_CONSTEXPR_IF constexpr
+	#define DEKAF2_HAS_CONSTEXPR_IF 1
 #else
 	#define DEKAF2_CONSTEXPR_IF
 #endif

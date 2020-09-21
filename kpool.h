@@ -179,17 +179,21 @@ public:
 	void put(Value* value)
 	//-----------------------------------------------------------------------------
 	{
+		// wrap immediately into unique_ptr
+		auto ptr = std::unique_ptr<Value>(value);
+
 		m_Control.Pushed(value);
+
 		{
 			typename base_type::MyLock Lock(base_type::m_Mutex);
 
 			if (m_Pool.size() < m_iMaxSize)
 			{
-				m_Pool.push_back(std::unique_ptr<Value>(value));
+				m_Pool.push_back(std::move(ptr));
 				return;
 			}
 		}
-		delete value;
+		// default deleter will delete the ptr
 	}
 
 	//-----------------------------------------------------------------------------
@@ -210,19 +214,23 @@ public:
 			}
 		}
 
+		bool bNew { false };
+
 		if (!value)
 		{
 			value = m_Control.Create();
-			m_Control.Popped(value, true);
-		}
-		else
-		{
-			m_Control.Popped(value, false);
+			bNew  = true;
 		}
 
 		auto PoolDeleter = [this](Value* value) { this->put(value); };
 
-		return std::unique_ptr<Value, decltype(PoolDeleter)>(value, PoolDeleter);
+		auto ptr = std::unique_ptr<Value, decltype(PoolDeleter)>(value, PoolDeleter);
+
+		// call the control method _after_ wrapping the pointer so that it
+		// is exception safe
+		m_Control.Popped(value, bNew);
+
+		return ptr;
 	}
 
 //----------

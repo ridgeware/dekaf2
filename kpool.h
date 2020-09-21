@@ -53,6 +53,9 @@
 
 namespace dekaf2 {
 
+#ifdef DEKAF2_HAS_CPP_14
+// this code needs C++14, it uses (and needs) auto deduced return types
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Implements functions to create a new pool object, and to get notifications
 /// once an object is popped from the pool or pushed back into
@@ -65,26 +68,56 @@ class KPoolControl
 public:
 //----------
 
+	KPoolControl() = default;
+
+	virtual ~KPoolControl() = default;
+
 	/// returns a pointer to an object that can be deleted with delete
-	Value* Create() { return new Value(); };
+	virtual Value* Create() { return new Value(); };
 
 	/// called once an object is taken from the pool, bIsNew is set to
 	/// true when the object was newly created
-	void Popped(Value* value, bool bIsNew) {};
+	virtual void Popped(Value* value, bool bIsNew) {};
 
 	/// called once an object is returned to the pool
-	void Pushed(Value* value) {};
+	virtual void Pushed(Value* value) {};
 
 }; // KPoolControl
 
+namespace detail {
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Implements a generic pool of objects of type Value. If bShared is false,
-/// a unique_ptr is returned to the user, else a shared_ptr. Implement a class
-/// Control either as child of KPoolControl or independently, and overwrite
-/// single or all methods from KPoolControl if you want to create complex objects
-/// or get notifications about object usage.
-template<class Value, bool bShared = false, class Control = KPoolControl<Value> >
-class KPool
+/// a no-op mutex and lock
+template<bool bShared>
+struct KPoolMutex
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	struct MyMutex {};
+	struct MyLock
+	{
+		MyLock(MyMutex) {}
+	};
+
+	mutable MyMutex m_Mutex;
+
+}; // KPoolMutex
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a real mutex and lock
+template<>
+struct KPoolMutex<true>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	using MyMutex = std::mutex;
+	using MyLock  = std::lock_guard<std::mutex>;
+
+	mutable MyMutex m_Mutex;
+
+}; // KPoolMutex<true>
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+template<class Value, bool bShared = false>
+class KPoolBase : private KPoolMutex<bShared>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -92,144 +125,133 @@ class KPool
 public:
 //----------
 
-	using value_type = std::conditional_t<bShared,
-										  std::shared_ptr<Value>,
-	                                      std::unique_ptr<Value, std::function<void(Value*)>>>;
-
+	using base_type = KPoolMutex<bShared>;
 	using pool_type = std::vector<std::unique_ptr<Value>>;
 	using size_type = typename pool_type::size_type;
 
 	enum { DEFAULT_MAX_POOL_SIZE = 10000 };
 
 	//-----------------------------------------------------------------------------
-	/// ctor
-	KPool(Control& _Control = s_DefaultControl, size_t iMaxSize = DEFAULT_MAX_POOL_SIZE)
+	/// ctor, pass derived class of KPoolControl for better control
+	KPoolBase(KPoolControl<Value>& _Control = s_DefaultControl, size_t iMaxSize = DEFAULT_MAX_POOL_SIZE)
 	//-----------------------------------------------------------------------------
     : m_iMaxSize(iMaxSize)
 	, m_Control(_Control)
 	{
 	}
 
-	KPool(const KPool&) = delete;
-	KPool& operator=(const KPool&) = delete;
-	KPool(KPool&&) = default;
-	KPool& operator=(KPool&&) = default;
+	KPoolBase(const KPoolBase&) = delete;
+	KPoolBase& operator=(const KPoolBase&) = delete;
+	KPoolBase(KPoolBase&&) = default;
+	KPoolBase& operator=(KPoolBase&&) = default;
 
 	//-----------------------------------------------------------------------------
-	/// stores a Value* in the pool
-	void push_back(Value* value)
-	//-----------------------------------------------------------------------------
-	{
-		m_Control.Pushed(value);
-		int_push_back(value);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// returns either a std::unique_ptr<Value> or std::shared_ptr<Value>
-	value_type pop_back()
-	//-----------------------------------------------------------------------------
-	{
-		std::pair<Value*, bool> vb = int_pop_back();
-		m_Control.Popped(vb.first, vb.second);
-		return value_type(vb.first,
-					std::bind(&KPool::push_back, this, std::placeholders::_1));
-	}
-
-	//-----------------------------------------------------------------------------
-	/// clears the pool
-	void clear()
-	//-----------------------------------------------------------------------------
-	{
-		m_Pool.clear();
-	}
-
-	//-----------------------------------------------------------------------------
+	/// returns true if pool is currently empty
 	bool empty() const
 	//-----------------------------------------------------------------------------
 	{
+		typename base_type::MyLock Lock(base_type::m_Mutex);
 		return m_Pool.empty();
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns current size of pool
 	size_type size() const
 	//-----------------------------------------------------------------------------
 	{
+		typename base_type::MyLock Lock(base_type::m_Mutex);
 		return m_Pool.size();
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns max size for the pool
 	size_type max_size() const
 	//-----------------------------------------------------------------------------
 	{
+		typename base_type::MyLock Lock(base_type::m_Mutex);
 		return m_iMaxSize;
 	}
 
 	//-----------------------------------------------------------------------------
-	void max_size(size_type size)
+	/// stores a Value* in the pool, normally called by the customized deleter of
+	/// an object generated with get() at the end of its lifetime - this method
+	/// could actually be seen as a private method, but rare public uses may exist
+	void put(Value* value)
 	//-----------------------------------------------------------------------------
 	{
-		m_iMaxSize = size;
-	}
-
-//----------
-protected:
-//----------
-
-	//-----------------------------------------------------------------------------
-	/// stores a Value* in the pool
-	void int_push_back(Value* value)
-	//-----------------------------------------------------------------------------
-	{
-		if (size() < max_size())
+		m_Control.Pushed(value);
 		{
-			m_Pool.push_back(std::unique_ptr<Value>(value));
+			typename base_type::MyLock Lock(base_type::m_Mutex);
+
+			if (m_Pool.size() < m_iMaxSize)
+			{
+				m_Pool.push_back(std::unique_ptr<Value>(value));
+				return;
+			}
 		}
-		else
-		{
-			delete value;
-		}
+		delete value;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// returns a pair < Value*, bool >
-	std::pair<Value*, bool> int_pop_back()
+	/// returns a std::unique_ptr<Value> pointing to a valid object - convert it at
+	/// any time to a std::shared_ptr<Value> if more appropriate
+	auto get()
 	//-----------------------------------------------------------------------------
 	{
-		Value* value;
+		Value* value { nullptr };
 
-		if (empty())
+		{
+			typename base_type::MyLock Lock(base_type::m_Mutex);
+
+			if (!m_Pool.empty())
+			{
+				value = m_Pool.back().release();
+				m_Pool.pop_back();
+			}
+		}
+
+		if (!value)
 		{
 			value = m_Control.Create();
-			return { value, true };
+			m_Control.Popped(value, true);
 		}
 		else
 		{
-			value = m_Pool.back().release();
-			m_Pool.pop_back();
-			return { value, false };
+			m_Control.Popped(value, false);
 		}
+
+		auto PoolDeleter = [this](Value* value) { this->put(value); };
+
+		return std::unique_ptr<Value, decltype(PoolDeleter)>(value, PoolDeleter);
 	}
+
+//----------
+private:
+//----------
 
 	static KPoolControl<Value> s_DefaultControl;
 
 	pool_type m_Pool;
 	size_t m_iMaxSize;
-	Control& m_Control;
+	KPoolControl<Value>& m_Control;
 
-}; // KPool
+}; // KPoolBase
 
 // defines the template's static const
-template<class Value, bool bShared, class Control >
-KPoolControl<Value> KPool<Value, bShared, Control >::s_DefaultControl;
+template<class Value, bool bShared>
+KPoolControl<Value> KPoolBase<Value, bShared>::s_DefaultControl;
+
+} // end of namespace detail
+
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Implements a generic pool for shared access of objects of type Value.
-/// If bShared is false, a unique_ptr is returned to the user, else a shared_ptr.
-/// Implement a class Control either as child of KPoolControl or independently,
-/// and overwrite single or all methods from KPoolControl if you want to create
-/// complex objects or get notifications about object usage.
-template<class Value, bool bShared = false, class Control = KPoolControl<Value> >
-class KSharedPool : public KPool<Value, bShared, Control>
+/// Implements a generic pool of objects of type Value. A unique_ptr is returned
+/// to the user, easily convertible to a shared_ptr. Implement a class
+/// Control as child of KPoolControl, and override single or all methods from
+/// KPoolControl if you want to create complex objects or get notifications
+/// about object usage.
+template<class Value>
+class KPool : public detail::KPoolBase<Value, false>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -237,91 +259,41 @@ class KSharedPool : public KPool<Value, bShared, Control>
 public:
 //----------
 
-	using base_type  = KPool<Value, bShared, Control>;
+	using base_type  = detail::KPoolBase<Value, false>;
 	using size_type  = typename base_type::size_type;
-	using value_type = typename base_type::value_type;
+	using unique_ptr = decltype(base_type().get());
+	using shared_ptr = std::shared_ptr<Value>;
 
-	//-----------------------------------------------------------------------------
-	/// ctor
-	KSharedPool(Control& _Control = base_type::s_DefaultControl, size_t iMaxSize = base_type::DEFAULT_MAX_POOL_SIZE)
-	//-----------------------------------------------------------------------------
-    : base_type(_Control, iMaxSize)
-	{
-	}
+	using base_type::base_type;
 
-	//-----------------------------------------------------------------------------
-	/// stores a Value* in the pool
-	void push_back(Value* value)
-	//-----------------------------------------------------------------------------
-	{
-		base_type::m_Control.Pushed(value);
-		std::lock_guard Lock(m_Mutex);
-		base_type::int_push_back(value);
-	}
+}; // KPool
 
-	//-----------------------------------------------------------------------------
-	/// returns either a std::unique_ptr<Value> or std::shared_ptr<Value>
-	value_type pop_back()
-	//-----------------------------------------------------------------------------
-	{
-		std::pair<Value*, bool> vb;
-		{
-			std::lock_guard Lock(m_Mutex);
-			vb = base_type::int_pop_back();
-		}
-		base_type::m_Control.Popped(vb.first, vb.second);
-		return value_type(vb.first,
-					std::bind(&KSharedPool::push_back, this, std::placeholders::_1));
-	}
 
-	//-----------------------------------------------------------------------------
-	/// clears the pool
-	void clear()
-	//-----------------------------------------------------------------------------
-	{
-		std::lock_guard Lock(m_Mutex);
-		base_type::clear();
-	}
-
-	//-----------------------------------------------------------------------------
-	bool empty() const
-	//-----------------------------------------------------------------------------
-	{
-		std::lock_guard Lock(m_Mutex);
-		return base_type::empty();
-	}
-
-	//-----------------------------------------------------------------------------
-	size_type size() const
-	//-----------------------------------------------------------------------------
-	{
-		std::lock_guard Lock(m_Mutex);
-		return base_type::size();
-	}
-
-	//-----------------------------------------------------------------------------
-	size_type max_size() const
-	//-----------------------------------------------------------------------------
-	{
-		std::lock_guard Lock(m_Mutex);
-		return base_type::max_size();
-	}
-
-	//-----------------------------------------------------------------------------
-	void max_size(size_type size)
-	//-----------------------------------------------------------------------------
-	{
-		std::lock_guard Lock(m_Mutex);
-		base_type::max_size(size);
-	}
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Implements a generic pool for shared access of objects of type Value.
+/// A unique_ptr is returned to the user, easily convertible to a shared_ptr.
+/// Implement a class Control as child of KPoolControl, and override single
+/// or all methods from KPoolControl if you want to create complex objects
+/// or get notifications about object usage.
+template<class Value>
+class KSharedPool : public detail::KPoolBase<Value, true>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
 
 //----------
-private:
+public:
 //----------
 
-	mutable std::mutex m_Mutex;
+	using base_type  = detail::KPoolBase<Value, true>;
+	using size_type  = typename base_type::size_type;
+	using unique_ptr = decltype(base_type().get());
+	using shared_ptr = std::shared_ptr<Value>;
 
-};
+	using base_type::base_type;
+
+}; // KSharedPool
+
+#endif
 
 } // of namespace dekaf2
 

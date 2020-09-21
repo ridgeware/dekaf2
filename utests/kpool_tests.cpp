@@ -32,14 +32,21 @@ TEST_CASE("KPool")
 	SECTION("Unique")
 	{
 		MyControl Control;
-		KPool<MyType, false, MyControl > Pool(Control);
+		KPool<MyType> Pool(Control);
 
 		CHECK ( Pool.empty()     );
 		CHECK ( Pool.size() == 0 );
 
 		{
-			auto p = Pool.pop_back();
+			auto p = Pool.get();
 			p->sString = "hello world";
+			// KPool internally uses lambda deleters, because they reduce to one single
+			// pointer added to the type. Using std::function would add 7 words to the
+			// size of a KPool<>::unique_ptr. We want to check that this really worked.
+			CHECK ( sizeof(p) == sizeof(void*) * 2 );
+			// It is important (and difficult to code) that KPool<type>::unique_ptr
+			// returns the same type as KPool<type>.get(). Verify it worked..
+			CHECK ( (std::is_same<decltype(p), KPool<MyType>::unique_ptr>::value) == true );
 			CHECK ( p->iPopped == 1 );
 			CHECK ( p->iPushed == 0 );
 		}
@@ -48,7 +55,7 @@ TEST_CASE("KPool")
 		CHECK ( Pool.size()  == 1     );
 
 		{
-			auto p = Pool.pop_back();
+			auto p = Pool.get();
 			CHECK ( p->sString == "hello world" );
 			CHECK ( p->iPopped == 2 );
 			CHECK ( p->iPushed == 1 );
@@ -57,13 +64,16 @@ TEST_CASE("KPool")
 
 	SECTION("Shared")
 	{
-		KPool<MyType, true> Pool;
+		KPool<MyType> Pool;
 
 		CHECK ( Pool.empty()     );
 		CHECK ( Pool.size() == 0 );
 
 		{
-			auto p = Pool.pop_back();
+			KPool<MyType>::shared_ptr p = Pool.get();
+			CHECK ( sizeof(p) == sizeof(void*) * 2 );
+			CHECK ( (std::is_same<decltype(p), KPool<MyType>::shared_ptr>::value) == true );
+			CHECK ( (std::is_same<decltype(p), std::shared_ptr<MyType>>::value) == true );
 			p->sString = "hello world";
 		}
 
@@ -71,7 +81,7 @@ TEST_CASE("KPool")
 		CHECK ( Pool.size()  == 1     );
 
 		{
-			auto p = Pool.pop_back();
+			auto p = Pool.get();
 			CHECK ( p->sString == "hello world" );
 		}
 	}
@@ -79,13 +89,13 @@ TEST_CASE("KPool")
 	SECTION("Shared and Shared access")
 	{
 		MyControl Control;
-		KSharedPool<MyType, true, MyControl > Pool(Control);
+		KSharedPool<MyType> Pool(Control);
 
 		CHECK ( Pool.empty()     );
 		CHECK ( Pool.size() == 0 );
 
 		{
-			auto p = Pool.pop_back();
+			KPool<MyType>::shared_ptr p = Pool.get();
 			p->sString = "hello world";
 			CHECK ( p->iPopped == 1 );
 			CHECK ( p->iPushed == 0 );
@@ -95,7 +105,7 @@ TEST_CASE("KPool")
 		CHECK ( Pool.size()  == 1     );
 
 		{
-			auto p = Pool.pop_back();
+			KPool<MyType>::shared_ptr p = Pool.get();
 			CHECK ( p->sString == "hello world" );
 			CHECK ( p->iPopped == 2 );
 			CHECK ( p->iPushed == 1 );

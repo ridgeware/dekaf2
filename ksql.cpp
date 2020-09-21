@@ -1596,6 +1596,12 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, m_sLastSQL);
 	}
 
+	if (IsFlag(F_ReadOnlyMode))
+	{
+		m_sLastError.Format ("attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL);
+		return false;
+	}
+
 	m_iNumRowsAffected  = 0;
 	EndQuery();
 
@@ -2023,6 +2029,12 @@ bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI
 		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
 	}
 
+	if (IsFlag(F_ReadOnlyMode))
+	{
+		m_sLastError.Format ("attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL);
+		return false;
+	}
+
 	CopyIfNotSame(m_sLastSQL, sSQL);
 	ResetErrorStatus ();
 
@@ -2129,6 +2141,12 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 		m_sLastError.Format ("{}ExecSQLFile(): {} could not read from file '{}'", m_sErrorPrefix, kGetWhoAmI(), sFilename);
 		SQLError();
 		return (false);
+	}
+
+	if (IsFlag(F_ReadOnlyMode))
+	{
+		m_sLastError.Format ("attempt to perform a non-query on a READ ONLY db connection: {}", sFilename);
+		return false;
 	}
 
 	// trim all white space at end of lines (we keep the leading white space here to

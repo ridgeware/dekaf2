@@ -196,6 +196,7 @@ public:
 		F_IgnoreSelectKeyword = 1 << 4,      ///< override check in ExecQuery() for "select..."
 		F_NoKlogDebug         = 1 << 5,      ///< quietly: do not output the customary klog debug statements
 		F_AutoReset           = 1 << 6,      ///< For ctlib: refresh the connection to the server for each query
+		F_ReadOnlyMode        = 1 << 7,      ///< If connection should disallow INSERT, UPDATE, DELETE and only allow SELECT
 
 		FAC_NORMAL            = 1 << 0,      ///< FAC_NORMAL: handles empty string, single string and comma-delimed strings
 		FAC_NUMERIC           = 1 << 1,      ///< FAC_NUMERIC: handles empty string, single number and comma-delimed numbers

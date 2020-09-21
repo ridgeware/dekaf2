@@ -234,9 +234,9 @@ __ProjectName__::__ProjectName__ ()
 	{
 		auto pdb = DB::Get ();
 
-		uint16_t iAt   = pdb->GetSchema ("__UpperProjectName___SCHEMA");
+		uint16_t iAmAt = pdb->GetSchema ("__UpperProjectName___SCHEMA");
 		uint16_t iWant = DB::CURRENT_SCHEMA;
-		if (iAt != iWant)
+		if (iAmAt != iWant)
 		{
 			pdb->EnsureSchema (/*bForce=*/false);
 		}

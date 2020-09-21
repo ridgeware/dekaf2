@@ -1,16 +1,22 @@
 
-#include "__LowerProjectName__.h"
+#include "dbrestserver.h"
+#include "db.h"
 
 using namespace dekaf2;
 
 //-----------------------------------------------------------------------------
-void __ProjectName__::ApiVersion(KRESTServer& HTTP)
+void DBRestServer::ApiVersion(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
+	auto pdb = DB::Get();
+
+	auto iSchemaVersion = pdb->GetSchema ("__UpperProjectName___SCHEMA");
+
 	KJSON json
 	{
-		{ "Project", "__ProjectName__" },
-		{ "Version", "__ProjectVersion__" },
+		{ "Project", "DBRestServer" },
+		{ "Version", "0.0.1" },
+		{ "Schema" , iSchemaVersion }
 	};
 
 	HTTP.json.tx = std::move(json);

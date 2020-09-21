@@ -1,5 +1,5 @@
 <manifest>
 	<description>
-	a REST server implementation with cached database connectors
+	a REST server implementation with pooled database connectors
 	</description>
 </manifest>

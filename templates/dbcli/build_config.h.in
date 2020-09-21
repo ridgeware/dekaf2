@@ -1,0 +1,11 @@
+#pragma once
+
+#include <dekaf2/kstringview.h>
+
+namespace BUILD_CONFIG
+{
+
+static constexpr KStringViewZ SHARE_DEST { "@share_dest@" };
+static constexpr KStringViewZ SCHEMA_DIR { "@schema_dir@" };
+
+}

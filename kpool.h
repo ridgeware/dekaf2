@@ -149,7 +149,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// ctor, pass derived class of KPoolControl for better control
-	KPoolBase(KPoolControl<Value>& _Control = s_DefaultControl, size_t iMaxSize = DEFAULT_MAX_POOL_SIZE)
+	KPoolBase(KPoolControl<Value>& _Control = s_DefaultControl, size_type iMaxSize = DEFAULT_MAX_POOL_SIZE)
 	//-----------------------------------------------------------------------------
     : m_iMaxSize(iMaxSize)
 	, m_Control(_Control)
@@ -195,6 +195,15 @@ public:
 	{
 		typename base_type::MyLock Lock(base_type::m_Mutex);
 		return m_iMaxSize;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns max size for the pool
+	void max_size(size_type iMaxSize)
+	//-----------------------------------------------------------------------------
+	{
+		typename base_type::MyLock Lock(base_type::m_Mutex);
+		m_iMaxSize = iMaxSize;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -310,8 +319,8 @@ private:
 	static KPoolControl<Value> s_DefaultControl;
 
 	pool_type m_Pool;
-	size_t m_iMaxSize { 0 };
-	size_t m_iPopped  { 0 };
+	size_type m_iMaxSize { 0 };
+	size_type m_iPopped  { 0 };
 	KPoolControl<Value>& m_Control;
 
 }; // KPoolBase

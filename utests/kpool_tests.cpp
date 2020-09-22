@@ -2,6 +2,8 @@
 
 #include <dekaf2/kpool.h>
 #include <dekaf2/kstring.h>
+#include <dekaf2/kparallel.h>
+#include <dekaf2/ksystem.h>
 
 using namespace dekaf2;
 
@@ -116,6 +118,41 @@ TEST_CASE("KPool")
 			CHECK ( p->iPopped == 2 );
 			CHECK ( p->iPushed == 1 );
 		}
+	}
+
+	SECTION("multithreaded")
+	{
+		MyControl Control;
+		KSharedPool<MyType> Pool(Control, 50);
+
+		CHECK ( Pool.max_size() == 50);
+		Pool.max_size(20);
+		CHECK ( Pool.max_size() == 20);
+
+		CHECK ( Pool.empty()     );
+		CHECK ( Pool.size() == 0 );
+
+		KThreadWait Threads;
+
+		for (int iCount = 0; iCount < 50; ++iCount)
+		{
+			Threads.Add(std::make_unique<std::thread>([&Pool]()
+			{
+				for (int iLoop = 0; iLoop < 30; ++iLoop)
+				{
+					kSleepRandomMilliseconds(1, 20);
+					auto p = Pool.get();
+					p->sString = "hello";
+					kSleepRandomMilliseconds(1, 20);
+				}
+			}));
+		}
+
+		Threads.Join();
+
+		CHECK ( Pool.used() == 0  );
+		CHECK ( Pool.size() <= 20 );
+		CHECK ( Pool.size() >= std::thread::hardware_concurrency() );
 	}
 
 }

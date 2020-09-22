@@ -13,7 +13,7 @@ cmake_minimum_required(VERSION 2.6)
 
 # Make sure the build system is properly setup
 
-if (NOT WIN32 AND NOT CYGWIN)
+if (NOT WIN32 AND NOT CYGWIN AND NOT DEKAF2_NO_BUILDSETUP)
 	EXECUTE_PROCESS(
 		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/buildsetup -quiet -go
 	)

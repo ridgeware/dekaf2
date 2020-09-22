@@ -1596,6 +1596,12 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, m_sLastSQL);
 	}
 
+	if (IsFlag(F_ReadOnlyMode) && ! IsSelect(m_sLastSQL))
+	{
+		m_sLastError.Format ("attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL);
+		return false;
+	}
+
 	m_iNumRowsAffected  = 0;
 	EndQuery();
 
@@ -2023,6 +2029,12 @@ bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI
 		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
 	}
 
+	if (IsFlag(F_ReadOnlyMode) && ! IsSelect(m_sLastSQL))
+	{
+		m_sLastError.Format ("attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL);
+		return false;
+	}
+
 	CopyIfNotSame(m_sLastSQL, sSQL);
 	ResetErrorStatus ();
 
@@ -2129,6 +2141,12 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 		m_sLastError.Format ("{}ExecSQLFile(): {} could not read from file '{}'", m_sErrorPrefix, kGetWhoAmI(), sFilename);
 		SQLError();
 		return (false);
+	}
+
+	if (IsFlag(F_ReadOnlyMode))
+	{
+		m_sLastError.Format ("attempt to execute a SQL file on a READ ONLY db connection: {}", sFilename);
+		return false;
 	}
 
 	// trim all white space at end of lines (we keep the leading white space here to
@@ -2372,7 +2390,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 		kDebug (GetDebugLevel()+1, "{}: statement # {} is '{}' (stopping).", sFilename, Parms.iStatement, m_sLastSQL);
 		Parms.fOK = Parms.fDone = true;
 	}
-	else if (m_sLastSQL.starts_with("select") || m_sLastSQL.starts_with("SELECT"))
+	else if (IsSelect(m_sLastSQL))
 	{
 		kDebug (3, "{}: statement # {} is a QUERY...", sFilename, Parms.iStatement);
 
@@ -2478,7 +2496,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 		return (false);
 	}
 
-	if (!(iFlags & F_IgnoreSelectKeyword) && !IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.starts_with ("select") && !m_sLastSQL.starts_with("SELECT"))
+	if (!(iFlags & F_IgnoreSelectKeyword) && !IsFlag(F_IgnoreSelectKeyword) && ! IsSelect (m_sLastSQL))
 	{
 		m_sLastError.Format ("{}ExecQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]", m_sErrorPrefix);
 		return (SQLError());
@@ -3001,7 +3019,7 @@ bool KSQL::ParseQuery (KStringView sFormat, ...)
 		DoTranslations (m_sLastSQL);
 	}
 
-	if (!IsFlag(F_IgnoreSelectKeyword) && !m_sLastSQL.starts_with("select") && !m_sLastSQL.starts_with("SELECT"))
+	if (!IsFlag(F_IgnoreSelectKeyword) && ! IsSelect (m_sLastSQL))
 	{
 		m_sLastError.Format ("{}ParseQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]", m_sErrorPrefix);
 		return (SQLError());

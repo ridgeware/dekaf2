@@ -47,6 +47,7 @@
 
 #include "bits/kcppcompat.h"
 #include "dekaf2.h"
+#include "klog.h"
 #include <memory>
 #include <mutex>
 
@@ -155,12 +156,21 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// returns current size of pool
+	/// returns current size of pool, including used objects
 	size_type size() const
 	//-----------------------------------------------------------------------------
 	{
 		typename base_type::MyLock Lock(base_type::m_Mutex);
-		return m_Pool.size();
+		return m_Pool.size() + m_iPopped;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns used object count
+	size_type used() const
+	//-----------------------------------------------------------------------------
+	{
+		typename base_type::MyLock Lock(base_type::m_Mutex);
+		return m_iPopped;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -173,27 +183,11 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// stores a Value* in the pool, normally called by the customized deleter of
-	/// an object generated with get() at the end of its lifetime - this method
-	/// could actually be seen as a private method, but rare public uses may exist
+	/// stores a Value* in the pool, rare public uses may exist
 	void put(Value* value)
 	//-----------------------------------------------------------------------------
 	{
-		// wrap immediately into unique_ptr
-		auto ptr = std::unique_ptr<Value>(value);
-
-		m_Control.Pushed(value);
-
-		{
-			typename base_type::MyLock Lock(base_type::m_Mutex);
-
-			if (m_Pool.size() < m_iMaxSize)
-			{
-				m_Pool.push_back(std::move(ptr));
-				return;
-			}
-		}
-		// default deleter will delete the ptr
+		deleter(value, false);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -203,26 +197,33 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		Value* value { nullptr };
-
-		{
-			typename base_type::MyLock Lock(base_type::m_Mutex);
-
-			if (!m_Pool.empty())
-			{
-				value = m_Pool.back().release();
-				m_Pool.pop_back();
-			}
-		}
-
 		bool bNew { false };
+
+		for (;;)
+		{
+			{
+				typename base_type::MyLock Lock(base_type::m_Mutex);
+
+				if (!m_Pool.empty())
+				{
+					value = m_Pool.back().release();
+					m_Pool.pop_back();
+					++m_iPopped;
+				}
+			}
+
+
+		}
 
 		if (!value)
 		{
 			value = m_Control.Create();
 			bNew  = true;
+			typename base_type::MyLock Lock(base_type::m_Mutex);
+			++m_iPopped;
 		}
 
-		auto PoolDeleter = [this](Value* value) { this->put(value); };
+		auto PoolDeleter = [this](Value* value) { this->deleter(value, true); };
 
 		auto ptr = std::unique_ptr<Value, decltype(PoolDeleter)>(value, PoolDeleter);
 
@@ -237,10 +238,50 @@ public:
 private:
 //----------
 
+	//-----------------------------------------------------------------------------
+	/// stores a Value* in the pool, normally called by the customized deleter of
+	/// an object generated with get() at the end of its lifetime
+	void deleter(Value* value, bool bFromUniquePtr)
+	//-----------------------------------------------------------------------------
+	{
+		// wrap immediately into unique_ptr
+		auto ptr = std::unique_ptr<Value>(value);
+
+		if (value)
+		{
+			m_Control.Pushed(value);
+		}
+
+		{
+			typename base_type::MyLock Lock(base_type::m_Mutex);
+
+			if (bFromUniquePtr)
+			{
+				if (DEKAF2_UNLIKELY(!m_iPopped))
+				{
+					kWarning("underflow in m_iPopped");
+				}
+				else
+				{
+					--m_iPopped;
+				}
+			}
+
+			if (value && m_Pool.size() + m_iPopped < m_iMaxSize)
+			{
+				m_Pool.push_back(std::move(ptr));
+				return;
+			}
+		}
+		// default deleter will delete the ptr
+	}
+
+
 	static KPoolControl<Value> s_DefaultControl;
 
 	pool_type m_Pool;
-	size_t m_iMaxSize;
+	size_t m_iMaxSize { 0 };
+	size_t m_iPopped  { 0 };
 	KPoolControl<Value>& m_Control;
 
 }; // KPoolBase

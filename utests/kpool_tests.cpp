@@ -36,9 +36,12 @@ TEST_CASE("KPool")
 
 		CHECK ( Pool.empty()     );
 		CHECK ( Pool.size() == 0 );
+		CHECK ( Pool.used() == 0 );
 
 		{
 			auto p = Pool.get();
+			CHECK ( Pool.size() == 1 );
+			CHECK ( Pool.used() == 1 );
 			p->sString = "hello world";
 			// KPool internally uses lambda deleters, because they reduce to one single
 			// pointer added to the type. Using std::function would add 7 words to the
@@ -53,9 +56,12 @@ TEST_CASE("KPool")
 
 		CHECK ( Pool.empty() == false );
 		CHECK ( Pool.size()  == 1     );
+		CHECK ( Pool.used()  == 0     );
 
 		{
 			auto p = Pool.get();
+			CHECK ( Pool.size()  == 1     );
+			CHECK ( Pool.used()  == 1     );
 			CHECK ( p->sString == "hello world" );
 			CHECK ( p->iPopped == 2 );
 			CHECK ( p->iPushed == 1 );

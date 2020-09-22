@@ -88,7 +88,7 @@ public:
 namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a no-op mutex and lock
+/// a no-op mutex, condition_variable and lock
 template<bool bShared>
 struct KPoolMutex
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -97,9 +97,22 @@ struct KPoolMutex
 	struct MyLock
 	{
 		MyLock(MyMutex) {}
+		void lock() {}
+		void unlock() {}
+	};
+	struct MyCond
+	{
+		template<class Predicate>
+		void wait(MyLock lock, Predicate pred)
+		{
+			// simply execute predicate, do not wait on failure..
+			pred();
+		}
+		void notify_one() {}
 	};
 
 	mutable MyMutex m_Mutex;
+	mutable MyCond  m_CondVar;
 
 }; // KPoolMutex
 
@@ -110,9 +123,11 @@ struct KPoolMutex<true>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using MyMutex = std::mutex;
-	using MyLock  = std::lock_guard<std::mutex>;
+	using MyLock  = std::unique_lock<std::mutex>;
+	using MyCond  = std::condition_variable;
 
 	mutable MyMutex m_Mutex;
+	mutable MyCond  m_CondVar;
 
 }; // KPoolMutex<true>
 
@@ -199,20 +214,27 @@ public:
 		Value* value { nullptr };
 		bool bNew { false };
 
-		for (;;)
 		{
-			{
-				typename base_type::MyLock Lock(base_type::m_Mutex);
+			typename base_type::MyLock Lock(base_type::m_Mutex);
 
+			// in a shared environment wait until there is a new object
+			// available from the pool if used count reached maximum,
+			// in a non-shared environment the lambda returns immediately
+			// after execution
+			base_type::m_CondVar.wait(Lock, [this, &value]() -> bool
+			{
 				if (!m_Pool.empty())
 				{
 					value = m_Pool.back().release();
 					m_Pool.pop_back();
 					++m_iPopped;
+					return true;
 				}
-			}
-
-
+				else
+				{
+					return m_iPopped < m_iMaxSize;
+				}
+			});
 		}
 
 		if (!value)
@@ -252,6 +274,8 @@ private:
 			m_Control.Pushed(value);
 		}
 
+		bool bUnderflow { false };
+
 		{
 			typename base_type::MyLock Lock(base_type::m_Mutex);
 
@@ -259,7 +283,7 @@ private:
 			{
 				if (DEKAF2_UNLIKELY(!m_iPopped))
 				{
-					kWarning("underflow in m_iPopped");
+					bUnderflow = true;
 				}
 				else
 				{
@@ -270,12 +294,18 @@ private:
 			if (value && m_Pool.size() + m_iPopped < m_iMaxSize)
 			{
 				m_Pool.push_back(std::move(ptr));
-				return;
+				base_type::m_CondVar.notify_one();
 			}
 		}
-		// default deleter will delete the ptr
-	}
 
+		if (bUnderflow)
+		{
+			// warn outside the lock
+			kWarning("underflow in m_iPopped");
+		}
+
+		// default deleter will delete the ptr if still valid
+	}
 
 	static KPoolControl<Value> s_DefaultControl;
 

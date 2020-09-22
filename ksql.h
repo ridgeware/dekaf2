@@ -499,6 +499,9 @@ public:
 	/// convert various formats to something that the db can handle
 	static KString ConvertTimestamp (KStringView sTimestamp);
 
+	/// helper to see if something is a SELECT statement:
+	static bool IsSelect (KStringView sSQL) { return sSQL.TrimLeft().substr(0,6).ToLowerASCII().StartsWith("select"); }
+
 	#if 0 // example usage
 	KSQL sql;
 	while (sql.NextRow())

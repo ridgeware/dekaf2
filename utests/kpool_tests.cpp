@@ -152,7 +152,6 @@ TEST_CASE("KPool")
 
 		CHECK ( Pool.used() == 0  );
 		CHECK ( Pool.size() <= 20 );
-		CHECK ( Pool.size() >= std::thread::hardware_concurrency() );
 	}
 
 }

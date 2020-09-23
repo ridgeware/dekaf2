@@ -3544,9 +3544,9 @@ bool KSQL::NextRow ()
 				else
 				{
 					// make sure SQL nullptr values get left as zero-terminated C strings:
-					for (uint32_t ii=0; ii<m_iNumColumns; ++ii)
+					for (auto& Col : m_dColInfo)
 					{
-						m_dColInfo[ii].dszValue.get()[0] = 0;
+						Col.ClearContent();
 					}
 
 					//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
@@ -6696,6 +6696,12 @@ bool KSQL::ctlib_nextrow ()
 	if (!ctlib_is_initialized())
 	{
 		return false;
+	}
+
+	// make sure SQL nullptr values get left as zero-terminated C strings:
+	for (auto& Col : m_dColInfo)
+	{
+		Col.ClearContent();
 	}
 
 	CS_INT iFetched = 0;

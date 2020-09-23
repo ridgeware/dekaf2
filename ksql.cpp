@@ -2170,6 +2170,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 		sLeader.erase(3);
 	}
 	sLeader += '|';
+	sLeader.insert(0, "//");
 
 	// Special strings for supporting the "delimiter" statement
 	constexpr KStringView sDefaultDelimiter = ";";

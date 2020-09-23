@@ -262,7 +262,7 @@ public:
 
 	bool AddCol (KStringView sColName, bool Value, KCOL::Flags iFlags=BOOLEAN, KCOL::Len iMaxLen=0)
 	{
-		return (KCOLS::Add (sColName, KCOL(kFormat("{}", Value), iFlags, iMaxLen)) != KCOLS::end());
+		return (KCOLS::Add (sColName, KCOL(kFormat("{}", Value), iFlags |= BOOLEAN, iMaxLen)) != KCOLS::end());
 	}
 
 	bool AddCol (KStringView sColName, const char* Value, KCOL::Flags iFlags=NOFLAG, KCOL::Len iMaxLen=0)
@@ -293,7 +293,7 @@ public:
 		}
 		 *
 		 */
-		return (KCOLS::Add (sColName, KCOL(kFormat("{}", Value), iFlags, iMaxLen)) != KCOLS::end());
+		return (KCOLS::Add (sColName, KCOL(kFormat("{}", Value), iFlags |= NUMERIC, iMaxLen)) != KCOLS::end());
 	}
 
 	bool SetValue (KStringView sColName, KStringView sValue);

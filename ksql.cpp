@@ -3781,9 +3781,19 @@ bool KSQL::LoadColumnLayout(KROW& Row, KStringView sColumns)
 {
 	KStringView sExpandedColumns = sColumns.empty() ? "*" : sColumns;
 
-	if (!ExecRawQuery(kFormat("select {} from {} limit 0", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
+	if (GetDBType() == DBT::SQLSERVER)
 	{
-		return false;
+		if (!ExecRawQuery(kFormat("select top 0 {} from {}", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
+		{
+			return false;
+		}
+	}
+	else
+	{
+		if (!ExecRawQuery(kFormat("select {} from {} limit 0", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
+		{
+			return false;
+		}
 	}
 
 	for (KROW::Index ii=1; ii <= GetNumCols(); ++ii)
@@ -5922,7 +5932,8 @@ bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 			}
 		}
 
-		if (!Row.AppendInsert(m_sLastSQL, m_iDBType))
+		// do not use the "ignore" insert with SQLServer
+		if (!Row.AppendInsert(m_sLastSQL, m_iDBType, false, GetDBType() != DBT::SQLSERVER))
 		{
 			m_sLastError = Row.GetLastError();
 			return false;

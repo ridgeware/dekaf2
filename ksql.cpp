@@ -2184,6 +2184,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 		sLeader.erase(3);
 	}
 	sLeader += '|';
+	sLeader.insert(0, "//");
 
 	// Special strings for supporting the "delimiter" statement
 	constexpr KStringView sDefaultDelimiter = ";";
@@ -3558,9 +3559,9 @@ bool KSQL::NextRow ()
 				else
 				{
 					// make sure SQL nullptr values get left as zero-terminated C strings:
-					for (uint32_t ii=0; ii<m_iNumColumns; ++ii)
+					for (auto& Col : m_dColInfo)
 					{
-						m_dColInfo[ii].dszValue.get()[0] = 0;
+						Col.ClearContent();
 					}
 
 					//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
@@ -3795,9 +3796,19 @@ bool KSQL::LoadColumnLayout(KROW& Row, KStringView sColumns)
 {
 	KStringView sExpandedColumns = sColumns.empty() ? "*" : sColumns;
 
-	if (!ExecRawQuery(kFormat("select {} from {} limit 0", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
+	if (GetDBType() == DBT::SQLSERVER)
 	{
-		return false;
+		if (!ExecRawQuery(kFormat("select top 0 {} from {}", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
+		{
+			return false;
+		}
+	}
+	else
+	{
+		if (!ExecRawQuery(kFormat("select {} from {} limit 0", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
+		{
+			return false;
+		}
 	}
 
 	for (KROW::Index ii=1; ii <= GetNumCols(); ++ii)
@@ -5936,7 +5947,8 @@ bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 			}
 		}
 
-		if (!Row.AppendInsert(m_sLastSQL, m_iDBType))
+		// do not use the "ignore" insert with SQLServer
+		if (!Row.AppendInsert(m_sLastSQL, m_iDBType, false, GetDBType() != DBT::SQLSERVER))
 		{
 			m_sLastError = Row.GetLastError();
 			return false;
@@ -6699,6 +6711,12 @@ bool KSQL::ctlib_nextrow ()
 	if (!ctlib_is_initialized())
 	{
 		return false;
+	}
+
+	// make sure SQL nullptr values get left as zero-terminated C strings:
+	for (auto& Col : m_dColInfo)
+	{
+		Col.ClearContent();
 	}
 
 	CS_INT iFetched = 0;

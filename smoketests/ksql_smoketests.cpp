@@ -371,7 +371,7 @@ TEST_CASE("KSQL")
 			"create table TEST1_KSQL (\n"
 			"    anum      int           not null,\n"
 			"    astring   char(100)     null,\n"
-			"    adate     datetime      not null default now()\n"
+			"    adate     {{DATETIME}}  not null default {{NOW}}\n"
 			")"))
 		{
 			INFO (db.GetLastSQL());
@@ -866,7 +866,7 @@ TEST_CASE("KSQL")
 
 			KROW Row3 ("TEST_KSQL");
 			Row3.AddCol ("anum",      UINT64_C(102),            KROW::PKEY);
-			Row3.AddCol ("astring",   "krow insert 102");
+			Row3.AddCol ("astring",   ""); // test an empty value
 
 			Rows.push_back(std::move(Row3));
 		}
@@ -889,7 +889,7 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "KSQL auto range for loop");
 
-		if (!db.ExecQuery ("select * from TEST_KSQL"))
+		if (!db.ExecQuery ("select * from TEST_KSQL order by anum asc"))
 		{
 			INFO (db.GetLastSQL());
 			FAIL_CHECK (db.GetLastError());
@@ -897,14 +897,24 @@ TEST_CASE("KSQL")
 
 		uint16_t iRows { 0 };
 
+		INFO  ( "auto range for loop" );
+
 		for (auto& row : db)
 		{
 			// get all rows..
 			++iRows;
-			CHECK ( row["astring"].size() > 0 );
+			if (row["anum"] == "102")
+			{
+				KString sString = row["astring"];
+				// check that row 102 has an empty astring
+				CHECK ( sString.empty() );
+			}
+			else
+			{
+				CHECK ( row["astring"].size() > 0 );
+			}
 		}
 
-		INFO  ( "auto range for loop" );
 		CHECK ( iRows == 3 );
 
 		kDebugLog (1, "KROW update");
@@ -925,20 +935,36 @@ TEST_CASE("KSQL")
 			FAIL_CHECK (db.GetLastError());
 		}
 		
+		INFO ("UTF8 characters");
 		kDebugLog (1, "KROW insert high-byte (asian) characters");
 
 		db.SetFlags (KSQL::F_IgnoreSQLErrors);
 		db.ExecSQL ("drop table TEST_ASIAN");
 		db.SetFlags (0);
-			
-		if (!db.ExecRawSQL (HereDoc (R"(
-			|create table TEST_ASIAN (
-			|    anum      int            not null primary key,
-			|    astring   varchar(500)   null
-			|))")))
-		{	
-			INFO (db.GetLastSQL());
-			FAIL_CHECK (db.GetLastError());
+
+		if (db.GetDBType() == KSQL::DBT::SQLSERVER)
+		{
+			if (!db.ExecRawSQL (HereDoc (R"(
+				|create table TEST_ASIAN (
+				|    anum      int            not null primary key,
+				|    astring   nvarchar(500)  null
+				|))")))
+			{
+				INFO (db.GetLastSQL());
+				FAIL_CHECK (db.GetLastError());
+			}
+		}
+		else
+		{
+			if (!db.ExecRawSQL (HereDoc (R"(
+				|create table TEST_ASIAN (
+				|    anum      int            not null primary key,
+				|    astring   varchar(500)   null
+				|))")))
+			{
+				INFO (db.GetLastSQL());
+				FAIL_CHECK (db.GetLastError());
+			}
 		}
 
 		KROW URow ("TEST_ASIAN");

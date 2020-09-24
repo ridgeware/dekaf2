@@ -338,7 +338,10 @@ void KROW::PrintValuesForInsert(KString& sSQL, DBT iDBType) const
 			// catch-all logic for all string values
 			// Note: if the value is actually NIL ('') and NULL_IS_NOT_NIL is set, then the value will
 			// be placed into SQL as '' instead of SQL null.
-			sSQL += kFormat ("{}\n\t'{}'", (bComma) ? "," : "", EscapeChars (it, iDBType));
+			sSQL += kFormat ("{}\n\t{}'{}'",
+							 (bComma) ? "," : "",
+							 iDBType == DBT::SQLSERVER ? "N" : "",
+							 EscapeChars (it, iDBType));
 		}
 		bComma = true;
 	}
@@ -505,7 +508,11 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 				}
 				else
 				{
-					sSQL += kFormat ("\t{}{}='{}'\n", (bComma) ? "," : "", it.first, EscapeChars (it, iDBType));
+					sSQL += kFormat ("\t{}{}={}'{}'\n",
+									 (bComma) ? "," : "",
+									 it.first,
+									 iDBType == DBT::SQLSERVER ? "N" : "",
+									 EscapeChars (it, iDBType));
 				}
 			}
 			bComma = true;
@@ -541,7 +548,11 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 		}
 		else
 		{
-			sSQL += kFormat("{}{}='{}'\n", sPrefix, it.first, EscapeChars (it, iDBType));
+			sSQL += kFormat("{}{}={}'{}'\n",
+							sPrefix,
+							it.first,
+							iDBType == DBT::SQLSERVER ? "N" : "",
+							EscapeChars (it, iDBType));
 		}
 	}
 
@@ -614,7 +625,11 @@ bool KROW::FormSelect (KString& sSQL, DBT iDBType, bool bSelectAllColumns) const
 			}
 			else
 			{
-				sSQL += kFormat("{}{}='{}'\n", sPrefix, it.first, EscapeChars (it, iDBType));
+				sSQL += kFormat("{}{}={}'{}'\n",
+								sPrefix,
+								it.first,
+								iDBType == DBT::SQLSERVER ? "N" : "",
+								EscapeChars (it, iDBType));
 			}
 		}
 	}
@@ -673,7 +688,11 @@ bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 		}
 		else
 		{
-			sSQL += kFormat(" {} {}='{}'\n",   (!kk) ? "where" : "  and", it.first, EscapeChars (it, iDBType));
+			sSQL += kFormat(" {} {}={}'{}'\n",
+							(!kk) ? "where" : "  and",
+							it.first,
+							iDBType == DBT::SQLSERVER ? "N" : "",
+							EscapeChars (it, iDBType));
 		}
 
 		++kk;

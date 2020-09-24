@@ -793,6 +793,15 @@ private:
 		void SetColumnType(DBT iDBType, int _iNativeDataType, KCOL::Len _iMaxDataLen);
 
 #if defined(DEKAF2_HAS_ORACLE) || defined(DEKAF2_HAS_CTLIB) || defined(DEKAF2_HAS_DBLIB)
+		/// set the internal data buffer to a 0 length string
+		void ClearContent()
+		{
+			if (dszValue)
+			{
+				dszValue.get()[0] = 0;
+			}
+		}
+
 		std::unique_ptr<char[]> dszValue;
 #endif
 		KString     sColName;

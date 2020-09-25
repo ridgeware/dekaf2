@@ -193,8 +193,9 @@ size_t UTF8Bytes(Ch sch)
 	}
 	else
 	{
-		// we return a '?', so the bytecount is 1
-		return 1;
+		// we return a squared question mark 0xfffd (REPLACEMENT CHARACTER)
+		// for invalid Unicode codepoints, so the bytecount is 3
+		return 3;
 	}
 }
 
@@ -256,7 +257,9 @@ bool ToUTF8(Ch sch, Iterator& it)
 	}
 	else
 	{
-		*it++ = '?';
+		// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
+		// for invalid Unicode codepoints
+		ToUTF8(0x0fffd, it);
 		return false;
 	}
 	return true;
@@ -299,7 +302,9 @@ bool ToUTF8(Ch sch, NarrowString& sNarrow)
 	}
 	else
 	{
-		sNarrow += '?';
+		// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
+		// for invalid Unicode codepoints
+		ToUTF8(0x0fffd, sNarrow);
 		return false;
 	}
 	return true;
@@ -402,8 +407,6 @@ bool ValidUTF8(Iterator it, Iterator ie)
 
 		switch (remaining)
 		{
-
-			default:
 			case 0:
 				{
 					codepoint = 0;
@@ -436,8 +439,6 @@ bool ValidUTF8(Iterator it, Iterator ie)
 					break;
 				}
 
-			case 5:
-			case 4:
 			case 3:
 			case 2:
 			case 1:
@@ -457,6 +458,9 @@ bool ValidUTF8(Iterator it, Iterator ie)
 					}
 					break;
 				}
+
+			default:
+				return false;
 
 		}
 

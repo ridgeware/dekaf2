@@ -542,7 +542,9 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			}
 
 			// call the route handler
+			kDebug (1, KLog::DASH);
 			kDebug (1, "{}: {}", GetRequestMethod(), GetRequestPath());
+			kDebug (1, KLog::DASH);
 			route->Callback(*this);
 
 			if (m_Timers)

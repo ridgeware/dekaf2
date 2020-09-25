@@ -1612,7 +1612,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 	if (IsFlag(F_ReadOnlyMode) && ! IsSelect(m_sLastSQL))
 	{
-		m_sLastError.Format ("attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL);
+		m_sLastError.Format ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL);
 		return false;
 	}
 
@@ -1840,6 +1840,11 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 void KSQL::LogPerformance (uint64_t iMilliseconds, bool bIsQuery)
 //-----------------------------------------------------------------------------
 {
+	if (!bIsQuery)
+	{
+		kDebug (GetDebugLevel(), "KSQL: {} rows affected.\n", kFormNumber(m_iNumRowsAffected));
+	}
+
 	if (!(GetFlags() & F_NoKlogDebug))
 	{
 		KString sThreshold;
@@ -1860,13 +1865,6 @@ void KSQL::LogPerformance (uint64_t iMilliseconds, bool bIsQuery)
 					kFormNumber(iMilliseconds),
 					ConnectSummary(),
 					m_sLastSQL);
-
-		if (!bIsQuery)
-		{
-			sWarning += kFormat (
-			"KSQL: {} rows affected.\n",
-				kFormNumber(m_iNumRowsAffected));
-		}
 
 		if (m_TimingCallback)
 		{
@@ -2045,7 +2043,7 @@ bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI
 
 	if (IsFlag(F_ReadOnlyMode) && ! IsSelect(m_sLastSQL))
 	{
-		m_sLastError.Format ("attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL);
+		m_sLastError.Format ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL);
 		return false;
 	}
 
@@ -2159,7 +2157,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 
 	if (IsFlag(F_ReadOnlyMode))
 	{
-		m_sLastError.Format ("attempt to execute a SQL file on a READ ONLY db connection: {}", sFilename);
+		m_sLastError.Format ("KSQL: attempt to execute a SQL file on a READ ONLY db connection: {}", sFilename);
 		return false;
 	}
 

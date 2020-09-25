@@ -149,10 +149,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns the use count of the shared type
-	inline size_t UseCount() const
+	inline size_t use_count() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_ref->m_iRefCount.load(std::memory_order_seq_cst);
+		return m_ref->use_count();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -305,6 +305,24 @@ protected:
 		//-----------------------------------------------------------------------------
 		{
 			return --m_iRefCount;
+		}
+
+		//-----------------------------------------------------------------------------
+		/// get reference count for the multi threaded case
+		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == true>* = nullptr>
+		inline size_t use_count() const
+		//-----------------------------------------------------------------------------
+		{
+			return m_iRefCount.load(std::memory_order_acq_rel);
+		}
+
+		//-----------------------------------------------------------------------------
+		/// get reference count for the single threaded case
+		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == false>* = nullptr>
+		inline size_t use_count() const
+		//-----------------------------------------------------------------------------
+		{
+			return m_iRefCount;
 		}
 
 		//-----------------------------------------------------------------------------

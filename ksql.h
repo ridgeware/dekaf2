@@ -561,7 +561,10 @@ public:
 	/// returns status text after insert/update statements (only for MySQL)
 	KString     GetLastInfo ();
 
-	void        SetTempDir (KStringView sTempDir)  { m_sTempDir = sTempDir; }
+	/// set last error string
+	void        SetLastError (KStringView sError) { m_sLastError = sError; }
+	/// set temp directory
+	void        SetTempDir (KStringView sTempDir) { m_sTempDir = sTempDir; }
 
 	void        BuildTranslationList (TXList& pList, DBT iDBType = DBT::NONE);
 	void        DoTranslations (KString& sSQL);

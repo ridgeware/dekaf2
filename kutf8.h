@@ -84,6 +84,7 @@ using utf16_t     = uint16_t;
 using utf8_t      = uint8_t;
 
 static constexpr codepoint_t INVALID_CODEPOINT = UINT32_MAX;
+static constexpr codepoint_t REPLACEMENT_CHARACTER = 0x0fffd;
 
 struct SurrogatePair
 {
@@ -259,7 +260,7 @@ bool ToUTF8(Ch sch, Iterator& it)
 	{
 		// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
 		// for invalid Unicode codepoints
-		ToUTF8(0x0fffd, it);
+		ToUTF8(REPLACEMENT_CHARACTER, it);
 		return false;
 	}
 	return true;
@@ -304,7 +305,7 @@ bool ToUTF8(Ch sch, NarrowString& sNarrow)
 	{
 		// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
 		// for invalid Unicode codepoints
-		ToUTF8(0x0fffd, sNarrow);
+		ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
 		return false;
 	}
 	return true;
@@ -874,6 +875,117 @@ bool ToUpperUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 		return ToUTF8(std::towupper(uch), sOut);
 #endif
 	});
+}
+
+//-----------------------------------------------------------------------------
+/// Convert a wide string (UTF16 LE) that was encoded in a byte stream
+/// into a UTF8 string
+template<typename NarrowString, typename Iterator>
+KUTF8_CONSTEXPR_14
+NarrowString UTF16BytesToUTF8(Iterator it, Iterator ie)
+//-----------------------------------------------------------------------------
+{
+	NarrowString sNarrow;
+
+	for (; it != ie; )
+	{
+		SurrogatePair sp;
+		sp.first = CodepointCast(*it++) << 8;
+
+		if (KUTF8_UNLIKELY(it == ie))
+		{
+			ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
+		}
+		else
+		{
+			sp.first += CodepointCast(*it++);
+
+			if (KUTF8_UNLIKELY(IsLeadSurrogate(sp.first)))
+			{
+				// collect another 2 bytes for surrogate replacement
+				if (KUTF8_LIKELY(it != ie))
+				{
+					sp.second = CodepointCast(*it++) << 8;
+
+					if (KUTF8_LIKELY(it != ie))
+					{
+						sp.second += CodepointCast(*it++);
+
+						if (IsTrailSurrogate(sp.second))
+						{
+							ToUTF8(SurrogatesToCodepoint(sp), sNarrow);
+						}
+						else
+						{
+							// the second surrogate is not valid - simply treat them both as ucs2
+							ToUTF8(sp.first, sNarrow);
+							ToUTF8(sp.second, sNarrow);
+						}
+					}
+					else
+					{
+						ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
+					}
+				}
+				else
+				{
+					// we treat incomplete surrogates as simple ucs2
+					ToUTF8(sp.first, sNarrow);
+				}
+			}
+			else
+			{
+				ToUTF8(sp.first, sNarrow);
+			}
+		}
+	}
+
+	return sNarrow;
+}
+
+//-----------------------------------------------------------------------------
+/// Convert a wide string (UTF16 LE) that was encoded in a byte stream
+/// into a UTF8 string
+template<typename ByteString, typename NarrowString = ByteString>
+KUTF8_CONSTEXPR_14
+NarrowString UTF16BytesToUTF8(const ByteString& sUTF16Bytes)
+//-----------------------------------------------------------------------------
+{
+	return UTF16BytesToUTF8<NarrowString>(sUTF16Bytes.begin(), sUTF16Bytes.end());
+}
+
+//-----------------------------------------------------------------------------
+/// Convert a UTF8 string into a byte stream with UTF16 LE encoding
+template<typename NarrowString, typename ByteString = NarrowString>
+KUTF8_CONSTEXPR_14
+ByteString UTF8ToUTF16Bytes(const NarrowString& sUTF8String)
+//-----------------------------------------------------------------------------
+{
+	using W = typename ByteString::value_type;
+
+	ByteString sUTF16ByteString;
+	sUTF16ByteString.reserve(sUTF8String.size() * 2);
+
+	TransformUTF8(sUTF8String, sUTF16ByteString, [](codepoint_t uch, ByteString& sOut)
+	{
+		if (NeedsSurrogates(uch))
+		{
+			SurrogatePair sp = CodepointToSurrogates(uch);
+			sOut += static_cast<W>(sp.first  >> 8 & 0x0ff);
+			sOut += static_cast<W>(sp.first       & 0x0ff);
+			sOut += static_cast<W>(sp.second >> 8 & 0x0ff);
+			sOut += static_cast<W>(sp.second      & 0x0ff);
+		}
+		else
+		{
+			sOut += static_cast<W>(uch >>  8 & 0x0ff);
+			sOut += static_cast<W>(uch       & 0x0ff);
+		}
+		return true;
+
+	});
+
+	return sUTF16ByteString;
 }
 
 } // namespace Unicode

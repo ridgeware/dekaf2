@@ -96,5 +96,17 @@ TEST_CASE("UTF8") {
 		CHECK( Unicode::MidUTF8(sStr, 8, 7) == "test日本語");
 	}
 
+	SECTION("UTF8ToUTF16Bytes")
+	{
+		KString sUTF8("testäöü test日本語abc中文Русский");
+		CHECK(                 sUTF8.size() == 47     );
+		auto sBytes = Unicode::UTF8ToUTF16Bytes(sUTF8);
+		CHECK(                 sBytes.size() == 54    );
+//		CHECK( sBytes == "" );
+		auto sUTF8New = Unicode::UTF16BytesToUTF8(sBytes);
+		CHECK(                 sUTF8New.size() == 47  );
+		CHECK(                 sUTF8New == sUTF8      );
+	}
+
 }
 

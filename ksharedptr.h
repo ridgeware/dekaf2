@@ -297,7 +297,7 @@ private:
 		void inc() noexcept
 		//-----------------------------------------------------------------------------
 		{
-			m_iRefCount.fetch_add(1, bSequential ? std::memory_order_seq_cst : std::memory_order_relaxed);
+			m_iRefCount.fetch_add(1, bSequential ? std::memory_order_acq_rel : std::memory_order_relaxed);
 		}
 
 		//-----------------------------------------------------------------------------
@@ -315,7 +315,7 @@ private:
 		size_t dec() noexcept
 		//-----------------------------------------------------------------------------
 		{
-			return m_iRefCount.fetch_sub(1, bSequential ? std::memory_order_seq_cst : std::memory_order_acq_rel) - 1;
+			return m_iRefCount.fetch_sub(1, std::memory_order_acq_rel) - 1;
 		}
 
 		//-----------------------------------------------------------------------------
@@ -333,7 +333,7 @@ private:
 		size_t use_count() noexcept
 		//-----------------------------------------------------------------------------
 		{
-			return m_iRefCount.load(bSequential ? std::memory_order_seq_cst : std::memory_order_relaxed);
+			return m_iRefCount.load(bSequential ? std::memory_order_acq_rel : std::memory_order_relaxed);
 		}
 
 		//-----------------------------------------------------------------------------

@@ -68,9 +68,10 @@ namespace dekaf2
 /// multi or single threading safe operation. This is important because the
 /// required atomic synchronization for the multi threading safe implementation
 /// costs around 50% of performance for construction / destruction. Also, this
-/// shared pointer can be configured to use sequential-consistent memory access
-/// for the use counter, which is slower, but 100% reliable in multi threding.
-/// The std::shared_ptr uses relaxed memory access, which is unreliable.
+/// shared pointer can be configured to use acquire-release memory access
+/// for the use counter, which is slower, but 100% reliable in multi threading.
+/// The std::shared_ptr uses relaxed memory access for the readout of the use
+/// counter, which is unreliable.
 template<class T, bool bMultiThreaded = true, bool bSequential = true>
 class KSharedPtr
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -333,7 +334,7 @@ private:
 		size_t use_count() noexcept
 		//-----------------------------------------------------------------------------
 		{
-			return m_iRefCount.load(bSequential ? std::memory_order_acq_rel : std::memory_order_relaxed);
+			return m_iRefCount.load(bSequential ? std::memory_order_acquire : std::memory_order_relaxed);
 		}
 
 		//-----------------------------------------------------------------------------
@@ -415,7 +416,6 @@ private:
 
 }; // KSharedPtr
 
-/*
 //-----------------------------------------------------------------------------
 /// create a KSharedPtr with only one allocation
 template<class T, bool bMultiThreaded = true, bool bSequential = true, class... Args>
@@ -423,13 +423,13 @@ KSharedPtr<T, bMultiThreaded, bSequential> kMakeShared(Args&&... args)
 //-----------------------------------------------------------------------------
 {
     KSharedPtr<T, bMultiThreaded, bSequential> ptr;
+
 	auto tmp_object = new typename KSharedPtr<T, bMultiThreaded, bSequential>::template ObjectAndControl<T>(std::forward<Args>(args)...);
-    ptr.m_ptr = &(tmp_object->m_Object);
-    ptr.m_Control = tmp_object;
+    ptr.m_ptr       = &(tmp_object->m_Object);
+    ptr.m_Control   = tmp_object;
 
     return ptr;
 
 } // kMakeShared
-*/
 
 } // end of namespace dekaf2

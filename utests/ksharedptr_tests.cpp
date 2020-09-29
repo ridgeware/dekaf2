@@ -7,10 +7,17 @@
 
 using namespace dekaf2;
 
-#if 0
-
 TEST_CASE("KSharedPtr")
 {
+	SECTION("raw")
+	{
+		KSharedPtr<KString, false, false> ptr1;
+		CHECK ( ptr1.use_count() == 0 );
+		ptr1.reset(new KString("this is a string"));
+		CHECK ( ptr1.use_count() == 1 );
+		CHECK ( *ptr1 == "this is a string" );
+	}
+
 	SECTION("Basics")
 	{
 		auto ptr1 = kMakeShared<KString, false, false>("this is not a string");
@@ -63,5 +70,3 @@ TEST_CASE("KSharedPtr")
 		CHECK ( *bptr == true );
 	}
 }
-
-#endif

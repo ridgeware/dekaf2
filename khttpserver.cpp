@@ -188,6 +188,34 @@ KString KHTTPServer::GetQueryParm(KStringView sKey, KStringView sDefault) const
 } // GetQueryParm
 
 //-----------------------------------------------------------------------------
+KString KHTTPServer::GetQueryParmSafe (KStringView sKey, KStringView sDefault/*=""*/) const
+//-----------------------------------------------------------------------------
+{
+	const KString& sValueRef = Request.Resource.Query.get().Get(sKey);
+
+	if (sValueRef.empty())
+	{
+		if (sDefault)
+		{
+			return /*copy*/sDefault;
+		}
+		else
+		{
+			return {}; // NIL string
+		}
+	}
+	else
+	{
+		// sanitize the input as blanket protection from injection attacks
+		// by removing all forms of quotes: single, double, backtick and backslash
+		KString sCopy(sValueRef);
+		sCopy.RemoveIllegalChars ("\"'`\\");
+		return /*copy*/sCopy;
+	}
+
+} // GetQueryParmSafe
+
+//-----------------------------------------------------------------------------
 bool KHTTPServer::SetError(KStringView sError) const
 //-----------------------------------------------------------------------------
 {

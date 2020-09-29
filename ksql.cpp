@@ -331,6 +331,7 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 			break;
 
 		case DBT::SQLSERVER:
+		case DBT::SQLSERVER15:
 		case DBT::SYBASE:
 			switch (iNativeDataType)
 			{
@@ -752,6 +753,10 @@ bool KSQL::SetDBType (KStringView sDBType)
 	if (sDBType == "sqlserver")
 	{
 		return (SetDBType (DBT::SQLSERVER));
+	}
+	if (sDBType == "sqlserver15")
+	{
+		return (SetDBType (DBT::SQLSERVER15));
 	}
 	if (sDBType == "sybase")
 	{
@@ -1925,6 +1930,7 @@ bool KSQL::PreparedToRetry ()
 
 #if defined(DEKAF2_HAS_DBLIB) || defined(DEKAF2_HAS_CTLIB)
 			case DBT::SQLSERVER:
+			case DBT::SQLSERVER15:
 			case DBT::SYBASE:
 				switch (m_iErrorNum)
 				{
@@ -2176,7 +2182,10 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 	//   //ORA|                       -- line applies to Oracle only
 	//   //SYB|                       -- line applies to Sybase only
 	//   //MSS|                       -- line applies to (MS)SQLServer only
-	KString sLeader = (m_iDBType == DBT::SQLSERVER) ? "MSS" : TxDBType(m_iDBType).ToUpper();
+	KString sLeader = (m_iDBType == DBT::SQLSERVER || m_iDBType == DBT::SQLSERVER15)
+		? "MSS"
+		: TxDBType(m_iDBType).ToUpper();
+
 	if (sLeader.size() > 3)
 	{
 		sLeader.erase(3);
@@ -3794,7 +3803,8 @@ bool KSQL::LoadColumnLayout(KROW& Row, KStringView sColumns)
 {
 	KStringView sExpandedColumns = sColumns.empty() ? "*" : sColumns;
 
-	if (GetDBType() == DBT::SQLSERVER)
+	if (GetDBType() == DBT::SQLSERVER ||
+		GetDBType() == DBT::SQLSERVER15)
 	{
 		if (!ExecRawQuery(kFormat("select top 0 {} from {}", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
 		{
@@ -4013,7 +4023,9 @@ void KSQL::EndQuery (bool bDestructor/*=false*/)
 	#endif
 
 	#ifdef DEKAF2_HAS_CTLIB
-	if (GetDBType() == DBT::SQLSERVER || GetDBType() == DBT::SYBASE)
+	if (GetDBType() == DBT::SQLSERVER   ||
+		GetDBType() == DBT::SQLSERVER15 ||
+		GetDBType() == DBT::SYBASE)
 	{
 		ctlib_flush_results();
 	}
@@ -4491,6 +4503,7 @@ bool KSQL::SetAPISet (API iAPISet)
 		case DBT::ORACLE:               m_iAPISet = API::OCI8;        break;
 
 		case DBT::SQLSERVER:
+		case DBT::SQLSERVER15:
 		case DBT::SYBASE:               m_iAPISet = API::CTLIB;       break; // choices: API::DBLIB -or- API::CTLIB
 
 		case DBT::INFORMIX:             m_iAPISet = API::INFORMIX;    break;
@@ -4578,6 +4591,7 @@ void KSQL::BuildTranslationList (TXList& pList, DBT iDBType)
 
 			case DBT::SYBASE:
 			case DBT::SQLSERVER:
+			case DBT::SQLSERVER15:
 				pList.Add (sName, g_Translation.sSybase);
 				break;
 
@@ -4642,6 +4656,7 @@ KStringView KSQL::TxDBType (DBT iDBType) const
 		case DBT::ORACLE8:      return ("Oracle8");
 		case DBT::ORACLE:       return ("Oracle");
 		case DBT::SQLSERVER:    return ("SQLServer");
+		case DBT::SQLSERVER15:  return ("SQLServer15");
 		case DBT::SYBASE:       return ("Sybase");
 		case DBT::INFORMIX:     return ("Informix");
 		default:                return ("MysteryType");
@@ -4967,6 +4982,7 @@ bool KSQL::ListTables (KStringView sLike/*="%"*/, bool fIncludeViews/*=false*/, 
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	case DBT::SQLSERVER:
+	case DBT::SQLSERVER15:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		return (ExecQuery ("select * from sysobjects where type = 'U' and name like '{}' order by name", sLike));
 
@@ -5020,6 +5036,7 @@ bool KSQL::ListProcedures (KStringView sLike/*="%"*/, bool fRestrictToMine/*=tru
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	// case SQLSERVER:
+	// case SQLSERVER15:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		// return (ExecQuery ("select * from sysobjects where type = 'P' and name like '{}' order by name", sLike));
 
@@ -5075,6 +5092,7 @@ bool KSQL::DescribeTable (KStringView sTablename)
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	case DBT::SQLSERVER:
+	case DBT::SQLSERVER15:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		{
 			//uint32_t iFlags = GetFlags();
@@ -5130,13 +5148,14 @@ KJSON KSQL::FindColumn (KStringView sColLike)
 	case DBT::ORACLE8:
 	case DBT::ORACLE:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-		m_sLastError = "KSQL::FindColumn() not coded yet for DBT::SQLSERVER";
+		m_sLastError = "KSQL::FindColumn() not coded yet for DBT::ORACLE";
 		kWarningLog (m_sLastError);
 		return list;
 		break;
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	case DBT::SQLSERVER:
+	case DBT::SQLSERVER15:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		m_sLastError = "KSQL::FindColumn() not coded yet for DBT::SQLSERVER";
 		kWarningLog (m_sLastError);
@@ -5946,7 +5965,7 @@ bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 		}
 
 		// do not use the "ignore" insert with SQLServer
-		if (!Row.AppendInsert(m_sLastSQL, m_iDBType, false, GetDBType() != DBT::SQLSERVER))
+		if (!Row.AppendInsert(m_sLastSQL, m_iDBType, false, GetDBType() != DBT::SQLSERVER && GetDBType() != DBT::SQLSERVER15))
 		{
 			m_sLastError = Row.GetLastError();
 			return false;
@@ -6404,7 +6423,8 @@ bool KSQL::UpdateOrInsert (KROW& Row, const KROW& AdditionalInsertCols, bool* pb
 uint64_t KSQL::GetLastInsertID ()
 //-----------------------------------------------------------------------------
 {
-	if (m_iDBType == DBT::SQLSERVER)
+	if (m_iDBType == DBT::SQLSERVER ||
+		m_iDBType == DBT::SQLSERVER15)
 	{
 		int64_t iID = SingleIntQuery ("select @@identity");
 		if (iID <= 0)

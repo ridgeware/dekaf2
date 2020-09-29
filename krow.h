@@ -63,16 +63,17 @@ public:
 	{
 		// the DBT constant is used to govern certain SQL statments:
 		// never change the absolute values, they are persisted in config files
-		NONE      = 0,   // must stay zero
-		MYSQL     = 100, // assume we're connecting to MySQL
-		ORACLE6   = 206, // assume we're connecting to an Oracle6 rdbms
-		ORACLE7   = 207, // assume we're connecting to an Oracle7 rdbms
-		ORACLE8   = 208, // assume we're connecting to an Oracle8 rdbms
-		ORACLE    = 200, // use the latest assumptions about Oracle
-		SQLSERVER = 300,
-		SYBASE    = 400,
-		INFORMIX  = 500,
-		SQLITE3   = 600  // assume we're connecting to SQLite3
+		NONE        = 0,   // must stay zero
+		MYSQL       = 100, // assume we're connecting to MySQL
+		ORACLE6     = 206, // assume we're connecting to an Oracle6 rdbms
+		ORACLE7     = 207, // assume we're connecting to an Oracle7 rdbms
+		ORACLE8     = 208, // assume we're connecting to an Oracle8 rdbms
+		ORACLE      = 200, // use the latest assumptions about Oracle
+		SQLSERVER   = 300, // SQLServer with UTF-16 storage in n(var)char
+		SQLSERVER15 = 315, // SQLServer with UTF-8 storage in (var)char, from v15 onwards (2019)
+		SYBASE      = 400,
+		INFORMIX    = 500,
+		SQLITE3     = 600  // assume we're connecting to SQLite3
 	};
 
 	enum class API

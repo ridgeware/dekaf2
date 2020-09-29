@@ -127,6 +127,7 @@ bool KROW::NeedsEscape (KStringView sCol, DBT iDBType)
 	switch (iDBType)
 	{
 		case DBT::SQLSERVER:
+		case DBT::SQLSERVER15:
 		case DBT::SYBASE:
 			return NeedsEscape (sCol, ESCAPE_MSSQL);
 		case DBT::MYSQL:
@@ -176,6 +177,7 @@ KString KROW::EscapeChars (KStringView sCol, DBT iDBType)
 	switch (iDBType)
 	{
 		case DBT::SQLSERVER:
+		case DBT::SQLSERVER15:
 		case DBT::SYBASE:
 			return EscapeChars (sCol, ESCAPE_MSSQL);
 		case DBT::MYSQL:
@@ -225,9 +227,9 @@ KString KROW::EscapeChars (const KROW::value_type& Col, DBT iDBType)
 	switch (iDBType)
 	{
 		case DBT::SQLSERVER:
+		case DBT::SQLSERVER15:
 		case DBT::SYBASE:
 			return EscapeChars (Col, ESCAPE_MSSQL);
-		case DBT::MYSQL:
 		default:
 			return EscapeChars (Col, ESCAPE_MYSQL, '\\');
 	}
@@ -396,7 +398,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*
 
 	PrintValuesForInsert(sSQL, iDBType);
 
-	if (bIdentityInsert && iDBType == DBT::SQLSERVER)
+	if (bIdentityInsert && (iDBType == DBT::SQLSERVER || iDBType == DBT::SQLSERVER15))
 	{
 		sSQL = kFormat("SET IDENTITY_INSERT {} ON \n"
 					"{} \n"
@@ -437,7 +439,7 @@ bool KROW::AppendInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=fals
 
 	PrintValuesForInsert(sSQL, iDBType);
 
-	if (bIdentityInsert && iDBType == DBT::SQLSERVER)
+	if (bIdentityInsert && (iDBType == DBT::SQLSERVER || iDBType == DBT::SQLSERVER15))
 	{
 		kWarning ("cannot append row to existing DDL statement with IDENTITY_INSERT provision");
 		return false;

@@ -268,6 +268,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// get one query parm value and remove possible injection attempts: single, double, backtick and backslash
+	KString GetQueryParmSafe (KStringView sKey, KStringView sDefault="") const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// get query parms as a map
 	const url::KQueryParms& GetQueryParms() const
 	//-----------------------------------------------------------------------------

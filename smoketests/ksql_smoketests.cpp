@@ -147,8 +147,8 @@ void Check_CtSend(KSQL& db)
 //-----------------------------------------------------------------------------
 {
 	// check if this is a SQLServer connection
-	if (db.GetDBType() != KSQL::DBT::SQLSERVER ||
-		db.GetDBType() == KSQL::DBT::SQLSERVER15)
+	if (db.GetDBType() != KSQL::DBT::SQLSERVER &&
+		db.GetDBType() != KSQL::DBT::SQLSERVER15)
 	{
 		return;
 	}
@@ -201,14 +201,14 @@ TEST_CASE("KSQL")
 	KStringView BENIGNX   = "Something benign.";
 	KStringView QUOTES1   = "Fred's Fishing Pole";
 	KStringView QUOTES1x  = "Fred\\'s Fishing Pole";
-	KStringView QUOTES2   = "Fred's fishing pole's longer than mine.";
-	KStringView QUOTES2x  = "Fred\\'s fishing pole\\'s longer than mine.";
+	KStringView QUOTES2   = "Fred's `fishing` pole's \"longer\" than mine.";
+	KStringView QUOTES2x  = "Fred\\'s \\`fishing\\` pole\\'s \\\"longer\\\" than mine.";
 	KStringView SLASHES1  = "This is a \\l\\i\\t\\t\\l\\e /s/l/a/s/h test.";
 	KStringView SLASHES1x = "This is a \\\\l\\\\i\\\\t\\\\t\\\\l\\\\e /s/l/a/s/h test.";
 	KStringView SLASHES2  = "This <b>is</b>\\n a string\\r with s/l/a/s/h/e/s, \\g\\e\\t\\ i\\t\\???";
 	KStringView SLASHES2x = "This <b>is</b>\\\\n a string\\\\r with s/l/a/s/h/e/s, \\\\g\\\\e\\\\t\\\\ i\\\\t\\\\???";
-	KStringView ASIAN1    = "Chinese characters 一二三四五六七八九十";
-	KStringView ASIAN2    = "Chinese characters 十九八七六五四三二一";
+	KStringView ASIAN1    = "Chinese characters ñäöüß 一二三四五六七八九十";
+	KStringView ASIAN2    = "Chinese characters ñäöüß 十九八七六五四三二一";
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 	// test static helper methods of KROW class:
@@ -1192,8 +1192,6 @@ TEST_CASE("KSQL")
 
 		Row.clear();
 		Row.AddCol ("astring", SLASHES2, KROW::PKEY);
-
-		// { LPTSTR dszSANITY = (char*)malloc(75); kstrncpy (dszSANITY, "SANITY", 75); free (dszSANITY); }
 
 		if (!db.Delete (Row))
 		{

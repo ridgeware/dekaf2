@@ -13,9 +13,14 @@ TEST_CASE("KSharedPtr")
 	{
 		KSharedPtr<KString, false, false> ptr1;
 		CHECK ( ptr1.use_count() == 0 );
+		ptr1.reset(new KString("this is not a string"));
+		CHECK ( ptr1.use_count() == 1 );
 		ptr1.reset(new KString("this is a string"));
 		CHECK ( ptr1.use_count() == 1 );
 		CHECK ( *ptr1 == "this is a string" );
+		ptr1 = kMakeShared<KString, false, false>("this is another string");
+		CHECK ( ptr1.use_count() == 1 );
+		CHECK ( *ptr1 == "this is another string" );
 	}
 
 	SECTION("Basics")

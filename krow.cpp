@@ -50,9 +50,9 @@ namespace dekaf2 {
 // MySQL requires NUL, the quotes and backslash to be escaped. Do not escape
 // by doubling the value, as the result then depends on the context (if inside
 // single quotes, double double quotes will be seen as two, and vice verse)
-constexpr KStringView ESCAPE_MYSQL { "\'\"\\\0" };
+constexpr KStringView ESCAPE_MYSQL { "\'\"\\`\0"_ksv };
 // TODO check the rules for MSSQL, particularly for \0 and \Z
-constexpr KStringView ESCAPE_MSSQL { "\'"   };
+constexpr KStringView ESCAPE_MSSQL { "\'"_ksv   };
 
 int16_t detail::KCommonSQLBase::m_iDebugLevel { 2 };
 

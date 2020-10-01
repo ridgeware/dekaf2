@@ -572,7 +572,7 @@ StringViewZ Column::GetName()
 //--------------------------------------------------------------------------------
 {
 #ifdef SQLITE_ENABLE_COLUMN_METADATA
-	return m_Row.Good() ? sqlite3_column_origin_name(m_Row, m_Index) : "";
+	return m_Row.Statement() ? sqlite3_column_origin_name(m_Row, m_Index) : "";
 #else
 	return {};
 #endif

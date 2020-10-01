@@ -298,7 +298,11 @@ Row::RowBase::RowBase(Database& database, StringView sQuery)
 	: m_Connector(database)
 {
 	sqlite3_prepare_v2(*m_Connector, sQuery.data(), sQuery.size(), &m_Statement, nullptr);
-	m_iColumnCount = sqlite3_column_count(m_Statement);
+
+	if (m_Statement)
+	{
+		m_iColumnCount = sqlite3_column_count(m_Statement);
+	}
 
 } // ctor RowBase
 
@@ -316,6 +320,13 @@ Row::RowBase::~RowBase()
 //===================================== Row ======================================
 
 //--------------------------------------------------------------------------------
+Row::Row()
+//--------------------------------------------------------------------------------
+	: m_Row(std::make_shared<RowBase>())
+{
+}
+
+//--------------------------------------------------------------------------------
 Row::Row(Database& database, StringView sQuery)
 //--------------------------------------------------------------------------------
 	: m_Row(std::make_shared<RowBase>(database, sQuery))
@@ -323,12 +334,12 @@ Row::Row(Database& database, StringView sQuery)
 }
 
 //--------------------------------------------------------------------------------
-Column Row::Col(ColIndex iZeroBasedIndex)
+Column Row::Col(ColIndex iOneBasedIndex)
 //--------------------------------------------------------------------------------
 {
-	if (iZeroBasedIndex < m_Row->m_iColumnCount)
+	if (iOneBasedIndex && iOneBasedIndex <= m_Row->m_iColumnCount)
 	{
-		return Column(*this, iZeroBasedIndex);
+		return Column(*this, iOneBasedIndex);
 	}
 	else
 	{
@@ -350,28 +361,32 @@ Row::ColIndex Row::GetColIndex(StringView sColName)
 {
 	if (m_Row->m_NameMap.empty())
 	{
-		// build the column to index map
-		for (int iCount = 0; iCount < size(); ++iCount)
+		if (Statement())
 		{
-			m_Row->m_NameMap.insert({sqlite3_column_name(Statement(), iCount), iCount});
+			// build the column to index map
+			for (int iCount = 0; iCount < size(); ++iCount)
+			{
+				m_Row->m_NameMap.insert( { sqlite3_column_name(Statement(), iCount), iCount+1 } );
+			}
 		}
 	}
 
 	auto it = m_Row->m_NameMap.find(sColName);
+
 	if (it != m_Row->m_NameMap.end())
 	{
 		return it->second;
 	}
 
-	return INT_MAX;
+	return 0;
 
 } // GetColIndex
 
 //--------------------------------------------------------------------------------
-Column Row::operator[](ColIndex iZeroBasedIndex)
+Column Row::operator[](ColIndex iOneBasedIndex)
 //--------------------------------------------------------------------------------
 {
-	return Col(iZeroBasedIndex);
+	return Col(iOneBasedIndex);
 }
 
 //--------------------------------------------------------------------------------
@@ -385,13 +400,17 @@ Column Row::operator[](StringView sColName)
 StringViewZ Row::GetQuery() const
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_sql(*m_Row);
+	return Statement() ? sqlite3_sql(*m_Row) : "";
 }
 
 //--------------------------------------------------------------------------------
 bool Row::Reset(bool bClearBindings) noexcept
 //--------------------------------------------------------------------------------
 {
+	if (!Statement())
+	{
+		return false;
+	}
 	auto ec = sqlite3_reset(*m_Row);
 	if (ec == SQLITE_OK && bClearBindings)
 	{
@@ -412,7 +431,7 @@ bool Row::Next()
 	{
 		SetIsValid(false);
 	}
-	else
+	else if (Statement())
 	{
 		auto ec = sqlite3_step(*m_Row);
 
@@ -553,7 +572,7 @@ StringViewZ Column::GetName()
 //--------------------------------------------------------------------------------
 {
 #ifdef SQLITE_ENABLE_COLUMN_METADATA
-	return sqlite3_column_origin_name(m_Row, m_Index);
+	return m_Row.Good() ? sqlite3_column_origin_name(m_Row, m_Index) : "";
 #else
 	return {};
 #endif
@@ -564,7 +583,7 @@ StringViewZ Column::GetName()
 StringViewZ Column::GetNameAs()
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_column_name(m_Row, m_Index);
+	return m_Row.Statement() ? sqlite3_column_name(m_Row, m_Index) : "";
 
 } // GetNameAs
 
@@ -572,7 +591,7 @@ StringViewZ Column::GetNameAs()
 int32_t Column::Int32()
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_column_int(m_Row, m_Index);
+	return m_Row.Statement() ? sqlite3_column_int(m_Row, m_Index) : 0;
 }
 
 //--------------------------------------------------------------------------------
@@ -586,7 +605,7 @@ uint32_t Column::UInt32()
 int64_t Column::Int64()
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_column_int64(m_Row, m_Index);
+	return m_Row.Statement() ? sqlite3_column_int64(m_Row, m_Index) : 0;
 }
 
 //--------------------------------------------------------------------------------
@@ -600,14 +619,14 @@ uint64_t Column::UInt64()
 double Column::Double()
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_column_double(m_Row, m_Index);
+	return m_Row.Statement() ? sqlite3_column_double(m_Row, m_Index) : 0.0;
 }
 
 //--------------------------------------------------------------------------------
 StringView Column::String()
 //--------------------------------------------------------------------------------
 {
-	auto p = reinterpret_cast<const char*>(sqlite3_column_text(m_Row, m_Index));
+	auto p = m_Row.Statement() ? reinterpret_cast<const char*>(sqlite3_column_text(m_Row, m_Index)) : "";
 	return StringView(p, size());
 
 } // String
@@ -616,14 +635,14 @@ StringView Column::String()
 Column::size_type Column::size()
 //--------------------------------------------------------------------------------
 {
-	return sqlite3_column_bytes(m_Row, m_Index);
+	return m_Row.Statement() ? sqlite3_column_bytes(m_Row, m_Index) : 0;
 }
 
 //--------------------------------------------------------------------------------
 Column::ColType Column::Type()
 //--------------------------------------------------------------------------------
 {
-	switch (sqlite3_column_type(m_Row, m_Index))
+	switch (m_Row.Statement() ? sqlite3_column_type(m_Row, m_Index) : SQLITE_NULL)
 	{
 		case SQLITE_INTEGER:
 			return Integer;

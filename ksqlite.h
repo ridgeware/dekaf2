@@ -298,21 +298,22 @@ public:
 	using ColIndex  = int;
 	using size_type = std::size_t;
 
-	Row(Database& database, StringView sQuery);
-	Row() = default;
+	Row();
 	Row(const Row&) = default;
 	Row(Row&&) = default;
 	Row& operator=(const Row&) = default;
 	Row& operator=(Row&&) = default;
 
+	Row(Database& database, StringView sQuery);
+
 	/// Get a column from the result row by index
-	Column Col(ColIndex iZeroBasedIndex);
+	Column Col(ColIndex iOneBasedIndex);
 	/// Get a column from the result row by name
 	Column Col(StringView sColName);
 	/// Returns column index for given name
 	ColIndex GetColIndex(StringView sColName);
 
-	Column operator[](ColIndex iZeroBasedIndex);
+	Column operator[](ColIndex iOneBasedIndex);
 	Column operator[](StringView sColName);
 
 	/// Get the Query used to build the statement
@@ -330,6 +331,8 @@ public:
 	/// Advance to next row in result set
 	Row& operator++();
 
+	/// Return const sqlite3 object pointer
+	const sqlite3_stmt* Statement() const noexcept { return m_Row->m_Statement; }
 	/// Return sqlite3 object pointer
 	sqlite3_stmt* Statement() noexcept { return m_Row->m_Statement; }
 	operator sqlite3_stmt*()  noexcept { return Statement();        }
@@ -385,6 +388,8 @@ class Column
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+	friend class Row;
+
 //----------
 public:
 //----------
@@ -402,13 +407,6 @@ public:
 	};
 
 	Column() = default;
-	Column(const Column&) = default;
-	Column(Column&&) = default;
-	Column& operator=(const Column&) = default;
-	Column& operator=(Column&&) = default;
-
-	Column(Row& row, ColIndex iZeroBasedIndex)
-	: m_Row(row), m_Index(iZeroBasedIndex) {}
 
 	/// Get original column name
 	StringViewZ GetName();
@@ -449,6 +447,9 @@ public:
 //----------
 private:
 //----------
+
+	Column(Row& row, ColIndex iOneBasedIndex)
+	: m_Row(row), m_Index(iOneBasedIndex-1) {}
 
 	Row m_Row;
 	ColIndex m_Index { 0 };

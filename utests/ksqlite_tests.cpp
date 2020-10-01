@@ -49,10 +49,11 @@ TEST_CASE("KSQLite")
 			auto Row = Search.GetRow();
 			CHECK ( Row.size() == 3 );
 			CHECK ( Row.empty() == false );
-			CHECK ( Row.GetColIndex("bigstring") == 2 );
+			CHECK ( Row.GetColIndex("bigstring") == 3 );
+			CHECK ( Row.Col(2).Int32() == 91 );
 			CHECK ( Row.Col(1).Int32() == 91 );
-			CHECK ( Row.Col(0).Int32() == 91 );
-			CHECK ( Row.Col(2).Int32() == 1091 );
+			CHECK ( Row.Col(3).Int32() == 1091 );
+			CHECK ( Row.Col(10).Int32() == 0 );
 		}
 
 		{
@@ -71,16 +72,23 @@ TEST_CASE("KSQLite")
 				++iCt;
 				CHECK ( it.size() == 3 );
 				CHECK ( it.empty() == false );
+				CHECK ( it.Col(2).Int32() == iCt );
 				CHECK ( it.Col(1).Int32() == iCt );
-				CHECK ( it.Col(0).Int32() == iCt );
-				CHECK ( it.Col(2).Int32() == iCt + 1000 );
+				CHECK ( it.Col(3).Int32() == iCt + 1000 );
+				CHECK ( it[2].Int32() == iCt );
 				CHECK ( it[1].Int32() == iCt );
-				CHECK ( it[0].Int32() == iCt );
-				CHECK ( it[2].Int32() == iCt + 1000 );
+				CHECK ( it[3].Int32() == iCt + 1000 );
 				CHECK ( it["astring"].Int32() == iCt );
 				CHECK ( it["anum"].Int32() == iCt );
 				CHECK ( it["bigstring"].Int32() == iCt + 1000 );
 			}
+		}
+
+		{
+			KSQLite::Statement Null;
+			Null.Execute();
+			auto Row = Null.GetRow();
+			CHECK ( Row.Col(10).Int32() == 0 );
 		}
 	}
 }

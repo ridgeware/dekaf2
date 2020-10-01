@@ -434,20 +434,20 @@ KString KSQL::KSQLStatementStats::Print() const
 	}
 
 	return kFormat ("{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
-				(iTotal    ? kFormat(", TOTAL={}",    iTotal)    : ""),
-				(iSelect   ? kFormat(", SELECT={}",   iSelect)   : ""),
-				(iInsert   ? kFormat(", INSERT={}",   iInsert)   : ""),
-				(iUpdate   ? kFormat(", UPDATE={}",   iUpdate)   : ""),
-				(iDelete   ? kFormat(", DELETE={}",   iDelete)   : ""),
-				(iCreate   ? kFormat(", CREATE={}",   iCreate)   : ""),
-				(iAlter    ? kFormat(", ALTER={}",    iAlter)    : ""),
-				(iDrop     ? kFormat(", DROP={}",     iDrop)     : ""),
-				(iTransact ? kFormat(", TRANSACT={}", iTransact) : ""),
-				(iExec     ? kFormat(", EXEC={}",     iExec)     : ""),
-				(iAction   ? kFormat(", Action={}",   iAction)   : ""),
-				(iTblMaint ? kFormat(", TblMaint={}", iTblMaint) : ""),
-				(iInfo     ? kFormat(", Info={}",     iInfo)     : ""),
-				(iOther    ? kFormat(", Other={}",    iOther)    : ""));
+				(iTotal    ? kFormat("TOTAL={} ",    iTotal)    : ""),
+				(iSelect   ? kFormat("SELECT={} ",   iSelect)   : ""),
+				(iInsert   ? kFormat("INSERT={} ",   iInsert)   : ""),
+				(iUpdate   ? kFormat("UPDATE={} ",   iUpdate)   : ""),
+				(iDelete   ? kFormat("DELETE={} ",   iDelete)   : ""),
+				(iCreate   ? kFormat("CREATE={} ",   iCreate)   : ""),
+				(iAlter    ? kFormat("ALTER={} ",    iAlter)    : ""),
+				(iDrop     ? kFormat("DROP={} ",     iDrop)     : ""),
+				(iTransact ? kFormat("TRANSACT={} ", iTransact) : ""),
+				(iExec     ? kFormat("EXEC={} ",     iExec)     : ""),
+				(iAction   ? kFormat("Action={} ",   iAction)   : ""),
+				(iTblMaint ? kFormat("TblMaint={} ", iTblMaint) : ""),
+				(iInfo     ? kFormat("Info={} ",     iInfo)     : ""),
+				(iOther    ? kFormat("Other={} ",    iOther)    : ""));
 }
 
 //-----------------------------------------------------------------------------

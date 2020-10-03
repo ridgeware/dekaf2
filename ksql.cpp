@@ -7765,7 +7765,7 @@ bool KSQL::IsLocked (KStringView sName)
 
 } // IsLocked
 
-static constexpr KStringView sColName = "schema_rev";
+static constexpr KStringView SCHEMA_REV = "schema_rev";
 
 //-----------------------------------------------------------------------------
 bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
@@ -7785,7 +7785,7 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 		return true;
 	}
 
-	auto     iSigned    = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sSchemaVersionTable);
+	auto     iSigned    = (bForce) ? 0 : GetSchemaVersion (sSchemaVersionTable);
 	uint16_t iSchemaRev = (iSigned < 0) ? 0 : static_cast<uint16_t>(iSigned);
 	KString  sError;
 
@@ -7809,7 +7809,7 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 	}
 
 	// query rev again after acquiring the lock
-	iSigned    = (bForce) ? 0 : SingleIntQuery ("select %s from %s", sColName, sSchemaVersionTable);
+	iSigned    = (bForce) ? 0 : GetSchemaVersion (sSchemaVersionTable);
 	iSchemaRev = (iSigned < 0) ? 0 : static_cast<uint16_t>(iSigned);
 
 	if (iSchemaRev < iCurrentSchema)
@@ -7854,14 +7854,14 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 			{
 				ExecSQL ("drop table if exists %s", sSchemaVersionTable);
 
-				if (!ExecSQL ("create table %s ( %s smallint not null primary key )", sSchemaVersionTable, sColName))
+				if (!ExecSQL ("create table %s ( %s smallint not null primary key )", sSchemaVersionTable, SCHEMA_REV))
 				{
 					sError= GetLastError();
 					break; // for
 				}
 			}
 
-			if (!ExecSQL ("update %s set %s=%u", sSchemaVersionTable, sColName, ii))
+			if (!ExecSQL ("update %s set %s=%u", sSchemaVersionTable, SCHEMA_REV, ii))
 			{
 				sError= GetLastError();
 				break; // for
@@ -7913,12 +7913,12 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 } // EnsureSchema
 
 //-----------------------------------------------------------------------------
-uint16_t KSQL::GetSchema (KStringView sTablename)
+uint16_t KSQL::GetSchemaVersion (KStringView sTablename)
 //-----------------------------------------------------------------------------
 {
-	m_sLastSQL = kFormat("SELECT {} FROM {}", sColName, EscapeString(sTablename));
+	m_sLastSQL = kFormat("SELECT {} FROM {}", SCHEMA_REV, EscapeString(sTablename));
 
-	auto iSigned = SingleIntQuery ("select %s from %s", sColName, EscapeString(sTablename));
+	auto iSigned = SingleIntQuery (m_sLastSQL);
 
 	if (iSigned <= 0)
 	{

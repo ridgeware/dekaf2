@@ -675,7 +675,8 @@ public:
 					   const SchemaCallback& Callback = nullptr);
 
 	/// get current schema version
-	uint16_t GetSchema (KStringView sTablename);
+	uint16_t GetSchemaVersion (KStringView sTablename);
+	uint16_t GetSchema (KStringView sTablename) { return GetSchemaVersion (sTablename); } // DEPRECATED: for backward compatability only
 
 	/// Check for valid DB connection - if none, try to open one. Search
 	/// the connection parameters in

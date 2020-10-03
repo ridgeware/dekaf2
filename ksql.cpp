@@ -424,6 +424,11 @@ KString KSQL::KSQLStatementStats::Print() const
 {
 	auto iTotal = Total();
 
+	if (iTotal == 0)
+	{
+		return "TOTAL=0";
+	}
+
 	// Suppress showing the TOTAL when only one type of SQL statement was executed
 	if ((iTotal == iSelect) || (iTotal == iInsert) || (iTotal == iUpdate) || (iTotal == iDelete) ||
 		(iTotal == iCreate) || (iTotal == iAlter)  || (iTotal == iDrop)   || (iTotal == iTransact) ||

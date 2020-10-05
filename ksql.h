@@ -490,7 +490,7 @@ public:
 	bool   ExecParsedQuery ();
 	#endif
 
-	static constexpr KStringView KSQL_CONNECTION_TEST_ONLY = "KSQL_CONNECTION_TEST_ONLY";
+	static constexpr KStringViewZ KSQL_CONNECTION_TEST_ONLY = "KSQL_CONNECTION_TEST_ONLY";
 
 	static bool IsConnectionTestOnly () { return kGetEnv(KSQL_CONNECTION_TEST_ONLY.data()).Bool(); }
 

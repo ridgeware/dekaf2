@@ -54,7 +54,7 @@
 #include "kjson.h"
 #include "kcache.h"
 #include "kexception.h"
-
+#include "ksystem.h"
 //
 // Note:
 //  To use the KSQL class for ORACLE and MYSQL you do *NOT* need to
@@ -490,6 +490,10 @@ public:
 	bool   ExecParsedQuery ();
 	#endif
 
+	static constexpr KStringView KSQL_CONNECTION_TEST_ONLY = "KSQL_CONNECTION_TEST_ONLY";
+
+	static bool IsConnectionTestOnly () { return kGetEnv(KSQL_CONNECTION_TEST_ONLY.data()).Bool(); }
+
 	/// After starting a query, this is the canonical method for fetching results based on column number in the SQL query.
 	KStringView  Get         (KROW::Index iOneBasedColNum, bool fTrimRight=true);
 
@@ -682,8 +686,10 @@ public:
 	/// the connection parameters in
 	/// 1. an explicit dbc file given
 	/// 2. a dbc file given from environment or IniParms
-	/// 3. single environment vars prefixed with "sProgramName_"
-	/// 4. if dbc file name was empty, construct one from "/etc/sProgramName.dbc",
+	/// 3. single environment vars prefixed with "sIdentifier_"
+	///    where iIdentifer is one of the comma-delimed values in sIdentifierList
+	///    which are applied LEFT to RIGHT, with LAST ONE winning
+	/// 4. if dbc file name was empty, construct one from "/etc/sIdentifier.dbc",
 	///    and if existing will be loaded
 	/// 5. single IniParms with connection parameters
 	///
@@ -695,7 +701,7 @@ public:
 	/// @param sDBCFile dbc file to be used. Can be empty.
 	/// @param INI a property sheet with ini parameters which
 	/// will be searched as last resort to find connection parameters
-	bool EnsureConnected(KStringView sProgramName,
+	bool EnsureConnected(KStringView sIdentifierList,
 						 KString sDBCFile,
 						 const IniParms& INI = IniParms{});
 

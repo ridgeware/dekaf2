@@ -7932,155 +7932,162 @@ uint16_t KSQL::GetSchemaVersion (KStringView sTablename)
 } // GetSchema
 
 //-----------------------------------------------------------------------------
-bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const IniParms& INI)
+static void ApplIniAndyEnvironment (const KString& sName, KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/true>& INI, KString& sVariable)
 //-----------------------------------------------------------------------------
 {
+	{
+		auto sValue = INI.Get(sName);
+		if (sValue)
+		{
+			kDebugLog (3, "KSQL::EnsureConnected: applying ini parm: {}={}", sName, sValue);
+			sVariable = sValue;
+		}
+	}
+
+	{
+		auto sValue = kGetEnv(sName);
+		if (sValue)
+		{
+			kDebugLog (3, "KSQL::EnsureConnected: applying env var: {}={}", sName, sValue);
+			sVariable = sValue;
+		}
+	}
+
+} // ApplIniAndyEnvironment
+
+//-----------------------------------------------------------------------------
+bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const IniParms& INI)
+//-----------------------------------------------------------------------------
+{
+	kDebug (3, "sIdentifierList={}, sDBCArg={} ...", sIdentifierList, sDBCArg);
+
 	if (IsConnectionOpen())
 	{
 		kDebug (2, "already connected to: {}", ConnectSummary());
 		return true; // already connected
 	}
 
-	KString sUpperProgramName = sProgramName.ToUpper();
-	KString sDBType (kFormat("{}_DBTYPE", sUpperProgramName));
-	KString sDBUser (kFormat("{}_DBUSER", sUpperProgramName));
-	KString sDBPass (kFormat("{}_DBPASS", sUpperProgramName));
-	KString sDBHost (kFormat("{}_DBHOST", sUpperProgramName));
-	KString sDBName (kFormat("{}_DBNAME", sUpperProgramName));
-	KString sDBPort (kFormat("{}_DBPORT", sUpperProgramName));
-	KString sLiveDB (kFormat("{}_DBLIVE", sUpperProgramName));
-	KString sDBC    (kFormat("{}_DBC"   , sUpperProgramName));
+	kDebug (3, "looks like we need to connect...");
 
-	if ((sDBCFile.empty() || !kFileExists(sDBCFile)) && !sDBC.empty() && kFileExists(kGetEnv(sDBC)))
+	KString sDBType {"mysql"};
+	KString sDBUser;
+	KString sDBPass;
+	KString sDBHost {"localhost"};
+	KString sDBName;
+	KString sDBPort {0};
+	bool    bReady{false};
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// first use the DBC arg that might have been passed in, this trumps all:
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	if (sDBCArg)
 	{
-		sDBCFile = kGetEnv(sDBC);
-	}
-
-	bool bIsDefaultDBCFile = sDBCFile.empty();
-
-	if (bIsDefaultDBCFile)
-	{
-		if (!INI.Get(sDBC).empty())
+		if (kFileExists(sDBCArg))
 		{
-			sDBCFile = INI.Get(sDBC);
-			if (!kFileExists(sDBCFile))
+			kDebug (3, "using dbc={} which was passed into the KSQL constructor", sDBCArg);
+
+			// Note: the reason why the DBC arg trumps all is because this is how the CLI is typically handled
+			// if a user explicitly says "program -dbc something.dbc ..." the connection defined in that dbc file
+			// should ignore anything in INI files and in the environment.
+			if (!LoadConnect (sDBCArg))
 			{
-				sDBCFile.clear();
+				return false; // error was set
 			}
+			bReady = true;
+			kDebug (3, "all ini parms and environment vars will be ignored because of the explicit DBC specified");
 		}
-
-		if (sDBCFile.empty() && !sProgramName.empty())
+		else
 		{
-			// still no dbc file? try a default one
-			sDBCFile.Format("/etc/{}.dbc", sProgramName.ToLower());
+			kDebug (3, "ignoring dbc={} which was passed into the KSQL constructor, because file does not exist", sDBCArg);
 		}
 	}
 
-	if (kWouldLog(3))
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// otherwise build a db connection off INI file[s] and ENV VAR[s]:
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	if (!bReady)
 	{
-		kDebug (3, "looks like we need to connect...");
+		// application can pass in a LIST of identifiers for KSQL to try, e.g. "GREEN,BLUE"
+		// the db connection is built left to right with the LAST setting prevailing
+		// e.g.
+		//               GREEN_    BLUE_          NET RESULT
+		//  XXX_DBUSER   fred      sam            sam
+		//  XXX_DBNAME   flubber                  flubber
+		//  XXX_DBHOST             nutter         nutter
 
-		kDebug (3,
-			" 1. environment vars:\n"
-			"    {:<18} : {}\n"
-			"    {:<18} : {}\n"
-			"    {:<18} : {}\n"
-			"    {:<18} : {}\n"
-			"    {:<18} : {}\n"
-			"    {:<18} : {}\n"
-			"    {:<18} : {}",
-				sDBType, kGetEnv(sDBType),
-				sDBUser, kGetEnv(sDBUser),
-				sDBPass, kGetEnv(sDBPass),
-				sDBHost, kGetEnv(sDBHost),
-				sDBName, kGetEnv(sDBName),
-				sDBPort, kGetEnv(sDBPort),
-				sLiveDB, kGetEnv(sLiveDB));
-
-		kDebug (3,
-			" 2. DBC FILE:\n"
-			"    {:<18} : {} ({})",
-					"dbcfile",
-					sDBCFile,
-					kFileExists(sDBCFile) ? "exists" : "does not exist");
-
-		kDebug (3,
-			" 3. INI PARMS:\n"
-			"    {:<18} : {}\n"
-			"    {:<18} : {}\n"
-			"    {:<18} : {}\n"
-			"    {:<18} : {}\n"
-			"    {:<18} : {}\n"
-			"    {:<18} : {}\n"
-			"    {:<18} : {}",
-				sDBType, INI.Get(sDBType),
-				sDBUser, INI.Get(sDBUser),
-				sDBPass, INI.Get(sDBPass),
-				sDBHost, INI.Get(sDBHost),
-				sDBName, INI.Get(sDBName),
-				sDBPort, INI.Get(sDBPort),
-				sLiveDB, INI.Get(sLiveDB));
-	}
-	
-	const auto& sDBCContent = s_DBCCache.Get(sDBCFile);
-
-	if (!sDBCContent.empty())
-	{
-		kDebug (3, "loading: {}", sDBCFile);
-		if (!SetConnect (sDBCFile, sDBCContent))
+		for (auto sIdentifier : sIdentifierList.Split(","))
 		{
-			return false;
+			auto sIdentifierLC = sIdentifier.Trim().ToLower();
+			auto sIdentifierUC = sIdentifier.Trim().ToUpper();
+
+			// see if there is an identifier-based DBC file in a known location:
+			auto sKnown = kFormat ("/etc/{}.dbc", sIdentifierLC);
+			kDebug (3, "looking for: {}", sKnown);
+			if (kFileExists (sKnown))
+			{
+				if (!LoadConnect (sKnown))
+				{
+					return false; // error was set
+				}
+				kDebug (3, "got: {}", ConnectSummary());
+			}
+
+			// look for DBC in the environment:
+			auto sEnv = kFormat ("{}_DBC", sIdentifierUC);
+			auto sDBC = kGetEnv (sEnv);
+			if (sDBC)
+			{
+				kDebug (3, "looking for: {}", sDBC);
+				if (kFileExists (sDBC))
+				{
+					if (!LoadConnect (sDBC))
+					{
+						return false; // error was set
+					}
+					kDebug (3, "got: {}", ConnectSummary());
+				}
+				else
+				{
+					kDebug (1, "ignored {}={} because file does not exist", sEnv, sDBC);
+				}
+			}
+
+			// see if there is an identifier-based DBC entry in the INI file:
+			auto sINI    = kFormat ("/etc/{}.ini", sIdentifierLC);
+			KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/true> INI;
+			kDebug (3, "looking for: {}", sINI);
+			if (kFileExists (sINI))
+			{
+				if (!INI.Load (sINI))
+				{
+					m_sLastError.Format ("invalid ini file: {}", sINI);
+					return false;
+				}
+			}
+
+			// now allow arbitrary environmental overrides, piecemeal:
+			ApplIniAndyEnvironment (kFormat ("{}_DBTYPE", sIdentifierUC), INI, sDBType);
+			ApplIniAndyEnvironment (kFormat ("{}_DBUSER", sIdentifierUC), INI, sDBUser);
+			ApplIniAndyEnvironment (kFormat ("{}_DBPASS", sIdentifierUC), INI, sDBPass);
+			ApplIniAndyEnvironment (kFormat ("{}_DBHOST", sIdentifierUC), INI, sDBHost);
+			ApplIniAndyEnvironment (kFormat ("{}_DBNAME", sIdentifierUC), INI, sDBName);
+			ApplIniAndyEnvironment (kFormat ("{}_DBPORT", sIdentifierUC), INI, sDBPort);
 		}
+
+		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		// apply the "meshing" of these parms to the current connection:
+		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		SetDBType (sDBType);
+		SetDBUser (sDBUser);
+		SetDBPass (sDBPass);
+		SetDBHost (sDBHost);
+		SetDBName (sDBName);
+		SetDBPort (sDBPort.UInt16());
 	}
 
-	KString sInitialConfig = ConnectSummary();
-
-	kDebug (3, "checking for environment overrides (piecemeal acceptable)");
-
-	KString sSetDBType;
-	if (GetDBType() != DBT::NONE)
-	{
-		sSetDBType = TxDBType(GetDBType());
-	}
-
-	KString sSetDBPort;
-	if (GetDBPort() != 0)
-	{
-		sSetDBPort = KString::to_string(GetDBPort());
-	}
-
-	if (bIsDefaultDBCFile)
-	{
-		// we constructed the DBC file name ourselves - treat it only with higher precedence
-		// than the ini parms
-		SetDBType (kFirstNonEmpty<KStringView>(kGetEnv (sDBType), sSetDBType  , INI.Get (sDBType)));
-		SetDBUser (kFirstNonEmpty<KStringView>(kGetEnv (sDBUser), GetDBUser() , INI.Get (sDBUser)));
-		SetDBPass (kFirstNonEmpty<KStringView>(kGetEnv (sDBPass), GetDBPass() , INI.Get (sDBPass)));
-		SetDBHost (kFirstNonEmpty<KStringView>(kGetEnv (sDBHost), GetDBHost() , INI.Get (sDBHost)));
-		SetDBName (kFirstNonEmpty<KStringView>(kGetEnv (sDBName), GetDBName() , INI.Get (sDBName)));
-		SetDBPort (kFirstNonEmpty<KStringView>(kGetEnv (sDBPort), sSetDBPort  , INI.Get (sDBPort)).UInt32());
-	}
-	else
-	{
-		// we have an explicit DBC file given to us - honour it with the highest precedence
-		SetDBType (kFirstNonEmpty<KStringView>(sSetDBType  , kGetEnv (sDBType), INI.Get (sDBType)));
-		SetDBUser (kFirstNonEmpty<KStringView>(GetDBUser() , kGetEnv (sDBUser), INI.Get (sDBUser)));
-		SetDBPass (kFirstNonEmpty<KStringView>(GetDBPass() , kGetEnv (sDBPass), INI.Get (sDBPass)));
-		SetDBHost (kFirstNonEmpty<KStringView>(GetDBHost() , kGetEnv (sDBHost), INI.Get (sDBHost)));
-		SetDBName (kFirstNonEmpty<KStringView>(GetDBName() , kGetEnv (sDBName), INI.Get (sDBName)));
-		SetDBPort (kFirstNonEmpty<KStringView>(sSetDBPort  , kGetEnv (sDBPort), INI.Get (sDBPort)).UInt32());
-	}
-
-	if (kWouldLog(1))
-	{
-		KString sChanged = ConnectSummary();
-		if (sInitialConfig != sChanged)
-		{
-			kDebug (2, "db configuration changed through ini file or env vars\n  from: {}\n    to: {}",
-					sInitialConfig, sChanged);
-		}
-	}
-
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// double check that we have enough parms set:
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	if (!GetDBUser() && !GetDBPass() && !GetDBName())
 	{
 		m_sLastError.Format ("no db connection defined");
@@ -8088,6 +8095,25 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 		return false;
 	}
 
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// backdoor for QA automation
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	if (IsConnectionTestOnly())
+	{
+		KOut.FormatLine (":: {}: would have attempted a connection to:", KSQL_CONNECTION_TEST_ONLY);
+		KOut.FormatLine (":: {} = {}", "DBTYPE", TxDBType(GetDBType()));
+		KOut.FormatLine (":: {} = {}", "DBUSER", GetDBUser());
+		KOut.FormatLine (":: {} = {} (hashed)", "DBPASS", GetDBPass().Hash());
+		KOut.FormatLine (":: {} = {}", "DBHOST", GetDBHost());
+		KOut.FormatLine (":: {} = {}", "DBNAME", GetDBName());
+		KOut.FormatLine (":: {} = {}", "DBPORT", GetDBPort());
+		m_sLastError.Format ("{} set", KSQL_CONNECTION_TEST_ONLY);
+		return false;
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// now use the resulting settings to open the db connection:
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	kDebug (3, "attempting to connect ...");
 
 	if (!OpenConnection())
@@ -8097,7 +8123,9 @@ bool KSQL::EnsureConnected (KStringView sProgramName, KString sDBCFile, const In
 
 	kDebug (1, "connected to: {}", ConnectSummary());
 
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// we have an open database connection
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	return true;
 
 } // KSQL::EnsureConnected - 1

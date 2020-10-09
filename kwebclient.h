@@ -72,6 +72,10 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	KWebClient(bool bVerifyCerts, uint64_t iWarnIfOverMilliseconds, TimingCallback_t TimingCallback, KJSON* pServiceSummary);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response to an output stream
 	bool HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON);
 	//-----------------------------------------------------------------------------

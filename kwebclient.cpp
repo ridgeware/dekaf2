@@ -73,11 +73,21 @@ bool KWget (KStringView sURL, const KString& sOutfile, const KJSON& Options/*=KJ
 } // KWget
 
 //-----------------------------------------------------------------------------
-KWebClient::KWebClient(bool bVerifyCerts)
+KWebClient::KWebClient(bool bVerifyCerts/*=false*/)
 //-----------------------------------------------------------------------------
 : KHTTPClient(bVerifyCerts)
 {
 	AutoConfigureProxy(true);
+}
+
+//-----------------------------------------------------------------------------
+KWebClient::KWebClient(bool bVerifyCerts, uint64_t iWarnIfOverMilliseconds, TimingCallback_t TimingCallback, KJSON* pServiceSummary)
+//-----------------------------------------------------------------------------
+: KHTTPClient(bVerifyCerts)
+{
+	AutoConfigureProxy(true);
+	SetWarningThreshold (iWarnIfOverMilliseconds, TimingCallback);
+	SetServiceSummary (pServiceSummary);
 }
 
 //-----------------------------------------------------------------------------
@@ -186,11 +196,39 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 		// else loop into the redirection
 	}
 
-	if (kWouldLog(2))
+	auto iConnectTime  = ConnectTime.elapsed<std::chrono::milliseconds>();
+	auto iTransferTime = TransferTime.elapsed<std::chrono::milliseconds>();
+	auto iTotalTime    = iConnectTime.count() + iTransferTime.count();
+
+	kDebug(2, "connect {} ms, transfer {} ms, total {} ms", iConnectTime.count(), iTransferTime.count(), iConnectTime.count() + iTransferTime.count());
+
+	if (m_iWarnIfOverMilliseconds && m_TimingCallback)
 	{
-		auto iConnectTime  = ConnectTime.elapsed<std::chrono::milliseconds>();
-		auto iTransferTime = TransferTime.elapsed<std::chrono::milliseconds>();
-		kDebug(2, "connect {} ms, transfer {} ms, total {} ms", iConnectTime.count(), iTransferTime.count(), iConnectTime.count() + iTransferTime.count());
+		KString sSummary = kFormat ("{}: {}, took {} msecs (connect {}, transfer {})",
+			RequestMethod.Serialize(),
+			URL.Serialize(),
+			kFormNumber (iTotalTime),
+			kFormNumber (iConnectTime.count()),
+			kFormNumber (iTransferTime.count()));
+		m_TimingCallback (*this, iTotalTime, sSummary);
+	}
+
+	if (m_pServiceSummary)
+	{
+		if (!kjson::Exists (*m_pServiceSummary, "http"))
+		{
+			(*m_pServiceSummary)["http"] = KJSON::array();
+		}
+		(*m_pServiceSummary)["http"] += {
+			{ "request_method",  RequestMethod.Serialize()  },
+			{ "url",             URL.Serialize()            },
+			{ "bytes_body",      svRequestBody.size()       },
+			{ "msecs_connect",   iConnectTime.count()       },
+			{ "msecs_transfer",  iTransferTime.count()      },
+			{ "msecs_total",     iTotalTime                 },
+			{ "response_code",   Response.GetStatusCode()   },
+			{ "response_string", Response.GetStatusString() }
+		};
 	}
 
 	if (!HttpSuccess() && Error().empty())

@@ -46,6 +46,7 @@
 #include "khttp_response.h"
 #include "khttp_request.h"
 #include "khttp_method.h"
+#include "kjson.h"
 #include "kmime.h"
 #include "kurl.h"
 
@@ -64,6 +65,7 @@ public:
 //------
 
 	using self = KHTTPClient;
+	using TimingCallback_t = std::function<void(const KHTTPClient&, uint64_t, const KString&)>;
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// ABC for authenticators
@@ -407,6 +409,20 @@ public:
 	self& ClearAuthentication();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// call back everytime a web request exceeds the given duration
+	void SetWarningThreshold (uint64_t iWarnIfOverMilliseconds, TimingCallback_t TimingCallback = nullptr)
+	{
+		m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
+		m_TimingCallback = TimingCallback;
+	}
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// some applications want to keep running details about external service calls
+	void SetServiceSummary (KJSON* pServiceSummary) { m_pServiceSummary = pServiceSummary; }
+	//-----------------------------------------------------------------------------
+
 //------
 protected:
 //------
@@ -453,24 +469,28 @@ private:
 	bool SetHostHeader(const KURL& url, bool bForcePort = false);
 	//-----------------------------------------------------------------------------
 
-	std::unique_ptr<KConnection> m_Connection;
+	std::unique_ptr<KConnection>   m_Connection;
 	std::unique_ptr<Authenticator> m_Authenticator;
-	mutable KString m_sError;
-	KString m_sForcedHost;
-	KURL m_Proxy;
-	int  m_Timeout { 30 };
-	bool m_bVerifyCerts { false };
-	bool m_bRequestCompression { true };
-	bool m_bAutoProxy { false };
-	bool m_bUseHTTPProxyProtocol { false };
-	bool m_bKeepAlive { true };
+	mutable KString  m_sError;
+	KString          m_sForcedHost;
+	KURL             m_Proxy;
+	int              m_Timeout { 30 };
+	bool             m_bVerifyCerts { false };
+	bool             m_bRequestCompression { true };
+	bool             m_bAutoProxy { false };
+	bool             m_bUseHTTPProxyProtocol { false };
+	bool             m_bKeepAlive { true };
 
 //------
 public:
 //------
 
-	KOutHTTPRequest Request;
-	KInHTTPResponse Response;
+	uint64_t         m_iWarnIfOverMilliseconds { 0 };
+	TimingCallback_t m_TimingCallback { nullptr };
+	KJSON*           m_pServiceSummary { nullptr };   // running details about external service calls
+
+	KOutHTTPRequest  Request;
+	KInHTTPResponse  Response;
 
 }; // KHTTPClient
 

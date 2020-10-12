@@ -157,7 +157,7 @@ KStringViewZ::size_type KStringViewZ::find_first_not_of(KStringView sv, size_typ
 		else if (m_rep[retval] == '\0' && bHasZero)
 		{
 			// we stopped on a zero char in the middle of the string and
-			// had no zero in the search - restart the search
+			// had a zero in the search - restart the search
 			pos += retval + 1;
 		}
 		else

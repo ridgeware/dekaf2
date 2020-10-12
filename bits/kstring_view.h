@@ -311,7 +311,7 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 
 		// this find() is constexpr only if it has a needle size of less than 2
 		// for any other size another solution needs to be found still
-		DEKAF2_CONSTEXPR_17 inline
+		DEKAF2_CONSTEXPR_17
 		size_type find(basic_string_view needle, size_type pos = 0) const noexcept
 		{
 			if (needle.size() == 1)
@@ -357,7 +357,7 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 #endif
 		}
 
-		DEKAF2_CONSTEXPR_17 inline
+		DEKAF2_CONSTEXPR_17
 		size_type find(CharT ch, size_type pos = 0) const noexcept
 		{
 			if (pos >= size())
@@ -368,13 +368,13 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 			return (found) ? static_cast<size_t>(found - data()) : npos;
 		}
 
-		DEKAF2_CONSTEXPR_17 inline
+		DEKAF2_CONSTEXPR_17
 		size_type find(const CharT* s, size_type pos, size_type count) const noexcept
 		{
 			return find(basic_string_view(s, count), pos);
 		}
 
-		DEKAF2_CONSTEXPR_17 inline
+		DEKAF2_CONSTEXPR_17
 		size_type find(const CharT* s, size_type pos) const noexcept
 		{
 			return find(basic_string_view(s), pos);
@@ -471,42 +471,42 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 
 	template<typename CharT, typename Traits>
 	DEKAF2_CONSTEXPR_17
-	inline bool operator==(basic_string_view<CharT, Traits> left, basic_string_view<CharT, Traits> right) noexcept
+	bool operator==(basic_string_view<CharT, Traits> left, basic_string_view<CharT, Traits> right) noexcept
 	{
 		return left.size() == right.size() && left.compare(right) == 0;
 	}
 
 	template<typename CharT, typename Traits>
 	DEKAF2_CONSTEXPR_17
-	inline bool operator!=(basic_string_view<CharT, Traits> left, basic_string_view<CharT, Traits> right) noexcept
+	bool operator!=(basic_string_view<CharT, Traits> left, basic_string_view<CharT, Traits> right) noexcept
 	{
 		return !(left == right);
 	}
 
 	template<typename CharT, typename Traits>
 	DEKAF2_CONSTEXPR_17
-	inline bool operator< (basic_string_view<CharT, Traits> left, basic_string_view<CharT, Traits> right) noexcept
+	bool operator< (basic_string_view<CharT, Traits> left, basic_string_view<CharT, Traits> right) noexcept
 	{
 		return left.compare(right) < 0;
 	}
 
 	template<typename CharT, typename Traits>
 	DEKAF2_CONSTEXPR_17
-	inline bool operator> (basic_string_view<CharT, Traits> left, basic_string_view<CharT, Traits> right) noexcept
+	bool operator> (basic_string_view<CharT, Traits> left, basic_string_view<CharT, Traits> right) noexcept
 	{
 		return right < left;
 	}
 
 	template<typename CharT, typename Traits>
 	DEKAF2_CONSTEXPR_17
-	inline bool operator<=(basic_string_view<CharT, Traits> left, basic_string_view<CharT, Traits> right) noexcept
+	bool operator<=(basic_string_view<CharT, Traits> left, basic_string_view<CharT, Traits> right) noexcept
 	{
 		return !(left > right);
 	}
 
 	template<typename CharT, typename Traits>
 	DEKAF2_CONSTEXPR_17
-	inline bool operator>=(basic_string_view<CharT, Traits> left, basic_string_view<CharT, Traits> right) noexcept
+	bool operator>=(basic_string_view<CharT, Traits> left, basic_string_view<CharT, Traits> right) noexcept
 	{
 		return !(left < right);
 	}

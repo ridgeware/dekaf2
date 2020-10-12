@@ -138,7 +138,9 @@
 	#define DEKAF2_CONSTEXPR_17 inline
 #endif
 
-#ifdef DEKAF2_HAS_CPP_20
+#ifdef DEKAF2_HAS_CPP_20_NOT_YET
+	// need to make sure first that string classes are constexpr on all platforms,
+	// and all internal representations
 	#define DEKAF2_CONSTEXPR_20 constexpr
 #else
 	#define DEKAF2_CONSTEXPR_20 inline
@@ -181,7 +183,7 @@
 	#define DEKAF2_CONSTEXPR_IF
 #endif
 
-#if (__cpp_lib_chrono >= 201510L || DEKAF2_IS_OSX)
+#if (__cpp_lib_chrono >= 201510L || (DEKAF2_IS_OSX && DEKAF2_HAS_CPP_17))
 	#define DEKAF2_HAS_CHRONO_ROUND 1
 #endif
 

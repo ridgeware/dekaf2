@@ -1291,7 +1291,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_CONSTEXPR_14
 	bool operator==(KStringView other) const
 	//-----------------------------------------------------------------------------
 	{
@@ -1379,7 +1379,7 @@ using KStringViewPair = std::pair<KStringView, KStringView>;
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-inline bool operator==(const char* left, KStringView right)
+bool operator==(const char* left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator==(KStringView(left));
@@ -1387,7 +1387,7 @@ inline bool operator==(const char* left, KStringView right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-inline bool operator==(KStringView left, const char* right)
+bool operator==(KStringView left, const char* right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator==(KStringView(right));
@@ -1395,7 +1395,7 @@ inline bool operator==(KStringView left, const char* right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-inline bool operator!=(const char* left, KStringView right)
+bool operator!=(const char* left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator!=(KStringView(left));
@@ -1403,7 +1403,7 @@ inline bool operator!=(const char* left, KStringView right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-inline bool operator!=(KStringView left, const char* right)
+bool operator!=(KStringView left, const char* right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator!=(KStringView(right));
@@ -1440,7 +1440,7 @@ inline bool operator!=(KStringView left, const std::string& right)
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-inline bool operator==(sv::string_view left, KStringView right)
+bool operator==(sv::string_view left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator==(KStringView(left));
@@ -1448,7 +1448,7 @@ inline bool operator==(sv::string_view left, KStringView right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-inline bool operator==(KStringView left, sv::string_view right)
+bool operator==(KStringView left, sv::string_view right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator==(KStringView(right));
@@ -1456,7 +1456,7 @@ inline bool operator==(KStringView left, sv::string_view right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-inline bool operator!=(sv::string_view left, KStringView right)
+bool operator!=(sv::string_view left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator!=(KStringView(left));
@@ -1464,7 +1464,7 @@ inline bool operator!=(sv::string_view left, KStringView right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-inline bool operator!=(KStringView left, sv::string_view right)
+bool operator!=(KStringView left, sv::string_view right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator!=(KStringView(right));
@@ -1473,31 +1473,31 @@ inline bool operator!=(KStringView left, sv::string_view right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_17
-inline bool operator<(KStringView left, KStringView right)
+bool operator<(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return left.compare(right) < 0;
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-inline bool operator>(KStringView left, KStringView right)
+DEKAF2_CONSTEXPR_17
+bool operator>(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right < left;
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-inline bool operator<=(KStringView left, KStringView right)
+DEKAF2_CONSTEXPR_17
+bool operator<=(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return !(left > right);
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-inline bool operator>=(KStringView left, KStringView right)
+DEKAF2_CONSTEXPR_17
+bool operator>=(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return !(left < right);
@@ -1672,7 +1672,6 @@ size_t kFindUnescaped(KStringView haystack,
 //-----------------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-inline
 DEKAF2_CONSTEXPR_14
 bool kStartsWith(KStringView sInput, KStringView sPattern) noexcept
 //----------------------------------------------------------------------
@@ -1692,7 +1691,6 @@ bool kStartsWith(KStringView sInput, KStringView sPattern) noexcept
 } // kStartsWith
 
 //----------------------------------------------------------------------
-inline
 DEKAF2_CONSTEXPR_14
 bool kEndsWith(KStringView sInput, KStringView sPattern) noexcept
 //----------------------------------------------------------------------
@@ -1801,7 +1799,7 @@ namespace boost
 } // namespace boost
 
 //----------------------------------------------------------------------
-inline DEKAF2_CONSTEXPR_14 std::size_t dekaf2::KStringView::Hash() const
+DEKAF2_CONSTEXPR_14 std::size_t dekaf2::KStringView::Hash() const
 //----------------------------------------------------------------------
 {
 	return std::hash<dekaf2::KStringView>()(*this);
@@ -1840,8 +1838,7 @@ KStringView& KStringView::operator=(KStringViewZ other)
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_17
-inline
+DEKAF2_CONSTEXPR_14
 bool KStringView::operator==(KStringViewZ other) const
 //-----------------------------------------------------------------------------
 {
@@ -1850,7 +1847,6 @@ bool KStringView::operator==(KStringViewZ other) const
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-inline
 bool KStringView::operator!=(KStringViewZ other) const
 //-----------------------------------------------------------------------------
 {

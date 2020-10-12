@@ -107,8 +107,9 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 		kDebug(2, "created urlencoded form body from query parms");
 	}
 
-	KStopWatch TransferTime(KStopWatch::Halted);
 	KStopWatch ConnectTime(KStopWatch::Halted);
+	KStopWatch TransmitTime(KStopWatch::Halted);
+	KStopWatch ReceiveTime(KStopWatch::Halted);
 	uint16_t iRetry { 0 };
 
 	for(;;)
@@ -136,17 +137,20 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 					}
 				}
 
-				TransferTime.resume();
+				TransmitTime.resume();
 				
 				if (SendRequest (svRequestBody, MIME))
 				{
+					TransmitTime.halt();
+					ReceiveTime.resume();
+
 					Read (OutStream);
 
-					TransferTime.halt();
+					ReceiveTime.halt();
 				}
 				else
 				{
-					TransferTime.halt();
+					TransmitTime.halt();
 
 					if (Response.Fail())
 					{
@@ -186,22 +190,24 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 		// else loop into the redirection
 	}
 
-	auto iConnectTime  = ConnectTime.elapsed<std::chrono::milliseconds>();
-	auto iTransferTime = TransferTime.elapsed<std::chrono::milliseconds>();
-	auto iTotalTime    = iConnectTime.count() + iTransferTime.count();
+	auto iConnectTime  = ConnectTime.elapsed<std::chrono::milliseconds>().count();
+	auto iTransmitTime = TransmitTime.elapsed<std::chrono::milliseconds>().count();
+	auto iReceiveTime  = ReceiveTime.elapsed<std::chrono::milliseconds>().count();
+	auto iTotalTime    = iConnectTime + iTransmitTime + iReceiveTime;
 
-	kDebug(2, "connect {} ms, transfer {} ms, total {} ms", iConnectTime.count(), iTransferTime.count(), iConnectTime.count() + iTransferTime.count());
+	kDebug(2, "connect {} ms, transmit {} ms, receive {} ms, total {} ms", iConnectTime, iTransmitTime, iReceiveTime, iTotalTime);
 
 	if (m_iWarnIfOverMilliseconds &&
 		m_TimingCallback &&
 		iTotalTime > m_iWarnIfOverMilliseconds)
 	{
-		KString sSummary = kFormat ("{}: {}, took {} msecs (connect {}, transfer {})",
+		KString sSummary = kFormat ("{}: {}, took {} msecs (connect {}, transmit {}, receive {})",
 			RequestMethod.Serialize(),
 			URL.Serialize(),
 			kFormNumber (iTotalTime),
-			kFormNumber (iConnectTime.count()),
-			kFormNumber (iTransferTime.count()));
+			kFormNumber (iConnectTime),
+			kFormNumber (iTransmitTime),
+			kFormNumber (iReceiveTime));
 		m_TimingCallback (*this, iTotalTime, sSummary);
 	}
 
@@ -212,14 +218,15 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 			(*m_pServiceSummary)["http"] = KJSON::array();
 		}
 		(*m_pServiceSummary)["http"] += {
-			{ "request_method",  RequestMethod.Serialize()  },
-			{ "url",             URL.Serialize()            },
-			{ "bytes_body",      svRequestBody.size()       },
-			{ "msecs_connect",   iConnectTime.count()       },
-			{ "msecs_transfer",  iTransferTime.count()      },
-			{ "msecs_total",     iTotalTime                 },
-			{ "response_code",   Response.GetStatusCode()   },
-			{ "response_string", Response.GetStatusString() }
+			{ "request_method",     RequestMethod.Serialize()  },
+			{ "url",                URL.Serialize()            },
+			{ "bytes_request_body", svRequestBody.size()       },
+			{ "msecs_connect",      iConnectTime               },
+			{ "msecs_transmit",     iTransmitTime              },
+			{ "msecs_receive",      iReceiveTime               },
+			{ "msecs_total",        iTotalTime                 },
+			{ "response_code",      Response.GetStatusCode()   },
+			{ "response_string",    Response.GetStatusString() }
 		};
 	}
 

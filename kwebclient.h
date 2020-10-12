@@ -67,12 +67,11 @@ class KWebClient : public KHTTPClient
 public:
 //------
 
-	//-----------------------------------------------------------------------------
-	KWebClient(bool bVerifyCerts = false);
-	//-----------------------------------------------------------------------------
+	using self = KWebClient;
+	using TimingCallback_t = std::function<void(const KWebClient&, uint64_t, const KString&)>;
 
 	//-----------------------------------------------------------------------------
-	KWebClient(bool bVerifyCerts, uint64_t iWarnIfOverMilliseconds, TimingCallback_t TimingCallback, KJSON* pServiceSummary);
+	KWebClient(bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -179,14 +178,36 @@ public:
 		return *this;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// call back everytime a web request exceeds the given duration
+	self& SetTimingCallback (int64_t iWarnIfOverMilliseconds, TimingCallback_t TimingCallback = nullptr)
+	//-----------------------------------------------------------------------------
+	{
+		m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
+		m_TimingCallback = TimingCallback;
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// some applications want to keep running details about external service calls
+	self& SetServiceSummary (KJSON* pServiceSummary)
+	//-----------------------------------------------------------------------------
+	{
+		m_pServiceSummary = pServiceSummary;
+		return *this;
+	}
+
 //------
 protected:
 //------
 
-	uint16_t m_iMaxRedirects { 3 };
-	KCookies m_Cookies;
-	bool m_bAcceptCookies { true };
-	bool m_bQueryToWWWFormConversion { true };
+	KCookies         m_Cookies;
+	TimingCallback_t m_TimingCallback { nullptr };
+	int64_t          m_iWarnIfOverMilliseconds { 0 };
+	KJSON*           m_pServiceSummary { nullptr };   // running details about external service calls
+	uint16_t         m_iMaxRedirects { 3 };
+	bool             m_bAcceptCookies { true };
+	bool             m_bQueryToWWWFormConversion { true };
 
 }; // KWebClient
 

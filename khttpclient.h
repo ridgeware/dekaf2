@@ -65,7 +65,6 @@ public:
 //------
 
 	using self = KHTTPClient;
-	using TimingCallback_t = std::function<void(const KHTTPClient&, uint64_t, const KString&)>;
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// ABC for authenticators
@@ -409,20 +408,6 @@ public:
 	self& ClearAuthentication();
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	/// call back everytime a web request exceeds the given duration
-	void SetWarningThreshold (uint64_t iWarnIfOverMilliseconds, TimingCallback_t TimingCallback = nullptr)
-	{
-		m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
-		m_TimingCallback = TimingCallback;
-	}
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// some applications want to keep running details about external service calls
-	void SetServiceSummary (KJSON* pServiceSummary) { m_pServiceSummary = pServiceSummary; }
-	//-----------------------------------------------------------------------------
-
 //------
 protected:
 //------
@@ -484,10 +469,6 @@ private:
 //------
 public:
 //------
-
-	uint64_t         m_iWarnIfOverMilliseconds { 0 };
-	TimingCallback_t m_TimingCallback { nullptr };
-	KJSON*           m_pServiceSummary { nullptr };   // running details about external service calls
 
 	KOutHTTPRequest  Request;
 	KInHTTPResponse  Response;

@@ -61,16 +61,6 @@ KRestClient::KRestClient()
 } // ctor
 
 //-----------------------------------------------------------------------------
-KRestClient::KRestClient (uint64_t iWarnIfOverMilliseconds, TimingCallback_t TimingCallback, KJSON* pServiceSummary)
-//-----------------------------------------------------------------------------
-: KRestClient()
-{
-	SetWarningThreshold (iWarnIfOverMilliseconds, TimingCallback);
-	SetServiceSummary (pServiceSummary);
-
-} // ctor
-
-//-----------------------------------------------------------------------------
 KRestClient::KRestClient(KURL URL, bool bVerifyCerts)
 //-----------------------------------------------------------------------------
 : KRestClient()

@@ -81,16 +81,6 @@ KWebClient::KWebClient(bool bVerifyCerts/*=false*/)
 }
 
 //-----------------------------------------------------------------------------
-KWebClient::KWebClient(bool bVerifyCerts, uint64_t iWarnIfOverMilliseconds, TimingCallback_t TimingCallback, KJSON* pServiceSummary)
-//-----------------------------------------------------------------------------
-: KHTTPClient(bVerifyCerts)
-{
-	AutoConfigureProxy(true);
-	SetWarningThreshold (iWarnIfOverMilliseconds, TimingCallback);
-	SetServiceSummary (pServiceSummary);
-}
-
-//-----------------------------------------------------------------------------
 bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
 //-----------------------------------------------------------------------------
 {
@@ -202,7 +192,9 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 
 	kDebug(2, "connect {} ms, transfer {} ms, total {} ms", iConnectTime.count(), iTransferTime.count(), iConnectTime.count() + iTransferTime.count());
 
-	if (m_iWarnIfOverMilliseconds && m_TimingCallback)
+	if (m_iWarnIfOverMilliseconds &&
+		m_TimingCallback &&
+		iTotalTime > m_iWarnIfOverMilliseconds)
 	{
 		KString sSummary = kFormat ("{}: {}, took {} msecs (connect {}, transfer {})",
 			RequestMethod.Serialize(),

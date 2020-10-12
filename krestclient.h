@@ -51,7 +51,7 @@ namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// REST client implementation with string input/output
-class KRestClient : public KWebClient
+class KRestClient : protected KWebClient
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -65,16 +65,13 @@ public:
 	/// Default ctor - call SetURL() before any request
 	KRestClient     ();
 
-	/// alternate ctor with instrumentation
-	KRestClient     (uint64_t iWarnIfOverMilliseconds, TimingCallback_t TimingCallback, KJSON* pServiceSummary);
-
 	/// Construct with URL to connect to, including basic REST path and basic query parms.
 	/// The individual request path will be added to the basic path, same for query parms.
 	KRestClient     (KURL URL, bool bVerifyCerts);
 
 	/// Set URL to connect to, including basic REST path and basic query parms.
 	/// The individual request path will be added to the basic path, same for query parms.
-	self& SetURL    (KURL URL, bool bVerifyCerts = false);
+	self& SetURL    (KURL URL, bool bVerifyCerts);
 
 	/// Get the API URL, const version
 	const KURL& GetURL() const      { return m_URL;                                              }
@@ -156,6 +153,8 @@ public:
 	using base::GetVerifyCerts;
 	using base::AllowQueryToWWWFormConversion;
 	using base::AcceptCookies;
+	using base::SetTimingCallback;
+	using base::SetServiceSummary;
 
 //----------
 protected:

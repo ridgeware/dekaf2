@@ -317,13 +317,13 @@ public:
 	bool   UpdateOrInsert  (KROW& Row, const KROW& AdditionalInsertCols, bool* pbInserted = nullptr);
 
 	/// cascading delete of a given key from the entire database (uses data dictionary tables). returns true/false and populates all changes made in given json array. expects a single string or number (without quotes)
-	bool   PurgeKey        (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex="");
+	bool   PurgeKey        (KStringView sSchemaName, KStringView sPKEY_colname, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex="");
 
 	/// cascading delete of a given key with other composite key[s] from the entire database (uses data dictionary tables). returns true/false and populates all changes made in given json array. expects a single string or number (without quotes)
-	bool   PurgeKey        (KROW& OtherKeys, KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/);
+	bool   PurgeKey        (KStringView sSchemaName, KROW& OtherKeys, KStringView sPKEY_colname, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/);
 
 	/// cascading delete of a given key from the entire database (uses data dictionary tables). returns true/false and populates all changes made in given json array. expects IN clause (without the parens)
-	bool   PurgeKeyList    (KStringView sPKEY, KStringView sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex="", bool bDryRun=false, int64_t* piNumAffected=NULL);
+	bool   PurgeKeyList    (KStringView sSchemaName, KStringView sPKEY_colname, KStringView sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex="", bool bDryRun=false, int64_t* piNumAffected=NULL);
 
 	/// bulk copy a table (or portion) from another database to this one
 	/// notes:
@@ -598,7 +598,7 @@ public:
 	/// search data dictionary and find tables with the given column_name (or columns LIKE the given column_name if you include percent signs).
 	/// returns a JSON array: table_name, column_name, column_key, column_comment, is_nullable, column_default
 	/// empty array means column not found
-	KJSON  FindColumn    (KStringView sColLike);
+	KJSON  FindColumn    (KStringView sColLike, KString sSchemaName = "");
 
 	bool   QueryStarted ()         { return (m_bQueryStarted); }
 	void   EndQuery (bool bDestructor=false);

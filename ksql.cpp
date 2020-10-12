@@ -5119,10 +5119,12 @@ bool KSQL::DescribeTable (KStringView sTablename)
 } // DescribeTable
 
 //-----------------------------------------------------------------------------
-KJSON KSQL::FindColumn (KStringView sColLike)
+KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "{}...", sColLike);
+	KString sTableSchema = (sSchemaName ? sSchemaName : GetDBName());
+
+	kDebug (3, "{}.{}...", sTableSchema, sColLike);
 	KJSON list = KJSON::array();
 
 	switch (m_iDBType)
@@ -5131,7 +5133,8 @@ KJSON KSQL::FindColumn (KStringView sColLike)
 	case DBT::MYSQL:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		if (!ExecQuery (
-			"select table_name\n"
+			"select table_schema\n"
+			"     , table_name\n"
 			"     , column_name\n"
 			"     , column_type\n"
 			"     , column_key\n"
@@ -5141,8 +5144,9 @@ KJSON KSQL::FindColumn (KStringView sColLike)
 			"  from INFORMATION_SCHEMA.COLUMNS\n"
 			" where upper(column_name) like upper('%s')\n"
 			"   and table_schema not in ('information_schema','master')\n"
-			" order by table_name desc, 2, 3",
-				sColLike))
+			"   and table_schema = '%s'\n"
+			" order by table_schema, table_name desc, column_name, column_type",
+				sColLike, sTableSchema))
 		{
 			return list;
 		}
@@ -5179,7 +5183,7 @@ KJSON KSQL::FindColumn (KStringView sColLike)
 	KROW  row;
 	while (NextRow (row))
 	{
-		kDebug (3, "{}: found column {} in table {}", sColLike, row["column_name"], row["table_name"]);
+		kDebug (3, "{}: found column {} in table {}.{}", sColLike, row["column_name"], row["table_schema"], row["table_name"]);
 		list += row;
 	}
 
@@ -6051,7 +6055,7 @@ bool KSQL::Delete (const KROW& Row)
 } // Delete
 
 //-----------------------------------------------------------------------------
-bool KSQL::PurgeKey (KROW& OtherKeys, KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/)
+bool KSQL::PurgeKey (KStringView sSchemaName, KROW& OtherKeys, KStringView sPKEY_colname, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/)
 //-----------------------------------------------------------------------------
 {
 	KROW row = OtherKeys;
@@ -6064,7 +6068,7 @@ bool KSQL::PurgeKey (KROW& OtherKeys, KStringView sPKEY, KStringView sValue, KJS
 	{
 		ChangesMade = KJSON::array();
 	}
-	KJSON DataDict = FindColumn (sPKEY);
+	KJSON DataDict = FindColumn (sPKEY_colname, sSchemaName);
 
 	if (!BeginTransaction ())
 	{
@@ -6074,7 +6078,8 @@ bool KSQL::PurgeKey (KROW& OtherKeys, KStringView sPKEY, KStringView sValue, KJS
 	for (auto& table : DataDict)
 	{
 		KJSON    obj;
-		KString  sTableName = table["table_name"];
+		KString  sTableSchema = table["table_schema"];		
+		KString  sTableName   = table["table_name"];
 		uint64_t iChanged{0};
 
 		obj["table_name"] = sTableName;
@@ -6086,8 +6091,8 @@ bool KSQL::PurgeKey (KROW& OtherKeys, KStringView sPKEY, KStringView sValue, KJS
 		}
 		else
 		{
-			row.SetTablename (kFormat ("{} /*KSQL::PurgeKey*/", sTableName));
-			row.AddCol (sPKEY, sValue, KROW::PKEY);
+			row.SetTablename (kFormat ("{}.{} /*KSQL::PurgeKey*/", sTableSchema, sTableName));
+			row.AddCol (sPKEY_colname, sValue, KROW::PKEY);
 			if (!Delete (row))
 			{
 				return (false);
@@ -6109,11 +6114,11 @@ bool KSQL::PurgeKey (KROW& OtherKeys, KStringView sPKEY, KStringView sValue, KJS
 } // PurgeKey
 
 //-----------------------------------------------------------------------------
-bool KSQL::PurgeKey (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/)
+bool KSQL::PurgeKey (KStringView sSchemaName, KStringView sPKEY_colname, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/)
 //-----------------------------------------------------------------------------
 {
 	ChangesMade = KJSON::array();
-	KJSON DataDict = FindColumn (sPKEY);
+	KJSON DataDict = FindColumn (sPKEY_colname, sSchemaName);
 
 	if (!BeginTransaction ())
 	{
@@ -6123,10 +6128,12 @@ bool KSQL::PurgeKey (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, 
 	for (auto& table : DataDict)
 	{
 		KJSON    obj;
+		KString  sTableSchema = table["table_schema"];
 		KString  sTableName = table["table_name"];
 		uint64_t iChanged{0};
 
-		obj["table_name"] = sTableName;
+//		obj["table_schema"] = sTableSchema; // It makes sense to add this to the JSON result but it then names the smoketest baselines schema name dependent
+		obj["table_name"] = sTableName;		
 
 		if (sIgnoreRegex && sTableName.ToUpper().MatchRegex (sIgnoreRegex.ToUpper()))
 		{
@@ -6135,7 +6142,7 @@ bool KSQL::PurgeKey (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, 
 		}
 		else
 		{
-			if (!ExecSQL ("delete from %s /*KSQL::PurgeKey*/ where %s = binary '%s'", sTableName, sPKEY, sValue))
+			if (!ExecSQL ("delete from %s.%s /*KSQL::PurgeKey*/ where %s = binary '%s'", sTableSchema, sTableName, sPKEY_colname, sValue))
 			{
 				return (false);
 			}
@@ -6156,11 +6163,11 @@ bool KSQL::PurgeKey (KStringView sPKEY, KStringView sValue, KJSON& ChangesMade, 
 } // PurgeKey
 
 //-----------------------------------------------------------------------------
-bool KSQL::PurgeKeyList (KStringView sPKEY, KStringView sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/, bool bDryRun/*=false*/, int64_t* piNumAffected/*=NULL*/)
+bool KSQL::PurgeKeyList (KStringView sSchemaName, KStringView sPKEY_colname, KStringView sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/, bool bDryRun/*=false*/, int64_t* piNumAffected/*=NULL*/)
 //-----------------------------------------------------------------------------
 {
 	ChangesMade = KJSON::array();
-	KJSON DataDict = FindColumn (sPKEY);
+	KJSON DataDict = FindColumn (sPKEY_colname, sSchemaName);
 
 	if (!BeginTransaction ())
 	{
@@ -6170,6 +6177,7 @@ bool KSQL::PurgeKeyList (KStringView sPKEY, KStringView sInClause, KJSON& Change
 	for (auto& table : DataDict)
 	{
 		KJSON    obj;
+		KString  sTableSchema = table["table_schema"];
 		KString  sTableName = table["table_name"];
 		int64_t  iChanged{0};
 
@@ -6182,14 +6190,14 @@ bool KSQL::PurgeKeyList (KStringView sPKEY, KStringView sInClause, KJSON& Change
 		}
 		else if (bDryRun)
 		{
-			iChanged = SingleIntRawQuery (kFormat ("select count(*) from {} /*KSQL::PurgeKey*/ where {} in ({})", sTableName, sPKEY, sInClause));
+			iChanged = SingleIntRawQuery (kFormat ("select count(*) from {}.{} /*KSQL::PurgeKey*/ where {} in ({})", sTableSchema, sTableName, sPKEY_colname, sInClause));
 			if (iChanged < 0)
 			{
 				return (false);
 			}
 			obj["rows_selected"] = iChanged;
 		}
-		else if (!ExecSQL ("delete from %s /*KSQL::PurgeKey*/ where %s in (%s)", sTableName, sPKEY, sInClause))
+		else if (!ExecSQL ("delete from %s.%s /*KSQL::PurgeKey*/ where %s in (%s)", sTableSchema, sTableName, sPKEY_colname, sInClause))
 		{
 			return (false);
 		}

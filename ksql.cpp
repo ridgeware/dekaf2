@@ -7940,7 +7940,7 @@ uint16_t KSQL::GetSchemaVersion (KStringView sTablename)
 } // GetSchema
 
 //-----------------------------------------------------------------------------
-static void ApplIniAndyEnvironment (const KString& sName, KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/true>& INI, KString& sVariable)
+static void ApplIniAndEnvironment (const KString& sName, KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/true>& INI, KString& sVariable)
 //-----------------------------------------------------------------------------
 {
 	{
@@ -7961,7 +7961,7 @@ static void ApplIniAndyEnvironment (const KString& sName, KProps<KString, KStrin
 		}
 	}
 
-} // ApplIniAndyEnvironment
+} // ApplIniAndEnvironment
 
 //-----------------------------------------------------------------------------
 bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const IniParms& INI)
@@ -8028,6 +8028,8 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 			auto sIdentifierLC = sIdentifier.Trim().ToLower();
 			auto sIdentifierUC = sIdentifier.Trim().ToUpper();
 
+			kDebug (3, "attempting to find connection parms using: {} ...", sIdentifierUC);
+
 			// see if there is an identifier-based DBC file in a known location:
 			auto sKnown = kFormat ("/etc/{}.dbc", sIdentifierLC);
 			kDebug (3, "looking for: {}", sKnown);
@@ -8035,6 +8037,7 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 			{
 				if (!LoadConnect (sKnown))
 				{
+					kDebug (3, "{}", GetLastError());
 					return false; // error was set
 				}
 				kDebug (3, "got: {}", ConnectSummary());
@@ -8074,23 +8077,23 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 			}
 
 			// now allow arbitrary environmental overrides, piecemeal:
-			ApplIniAndyEnvironment (kFormat ("{}_DBTYPE", sIdentifierUC), INI, sDBType);
-			ApplIniAndyEnvironment (kFormat ("{}_DBUSER", sIdentifierUC), INI, sDBUser);
-			ApplIniAndyEnvironment (kFormat ("{}_DBPASS", sIdentifierUC), INI, sDBPass);
-			ApplIniAndyEnvironment (kFormat ("{}_DBHOST", sIdentifierUC), INI, sDBHost);
-			ApplIniAndyEnvironment (kFormat ("{}_DBNAME", sIdentifierUC), INI, sDBName);
-			ApplIniAndyEnvironment (kFormat ("{}_DBPORT", sIdentifierUC), INI, sDBPort);
+			ApplIniAndEnvironment (kFormat ("{}_DBTYPE", sIdentifierUC), INI, sDBType);
+			ApplIniAndEnvironment (kFormat ("{}_DBUSER", sIdentifierUC), INI, sDBUser);
+			ApplIniAndEnvironment (kFormat ("{}_DBPASS", sIdentifierUC), INI, sDBPass);
+			ApplIniAndEnvironment (kFormat ("{}_DBHOST", sIdentifierUC), INI, sDBHost);
+			ApplIniAndEnvironment (kFormat ("{}_DBNAME", sIdentifierUC), INI, sDBName);
+			ApplIniAndEnvironment (kFormat ("{}_DBPORT", sIdentifierUC), INI, sDBPort);
 		}
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		// apply the "meshing" of these parms to the current connection:
+		// apply the "meshing" of any overrides to the current connection:
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		SetDBType (sDBType);
-		SetDBUser (sDBUser);
-		SetDBPass (sDBPass);
-		SetDBHost (sDBHost);
-		SetDBName (sDBName);
-		SetDBPort (sDBPort.UInt16());
+		if (sDBType)          {    SetDBType (sDBType);         }
+		if (sDBUser)          {    SetDBUser (sDBUser);         }
+		if (sDBPass)          {    SetDBPass (sDBPass);         }
+		if (sDBHost)          {    SetDBHost (sDBHost);         }
+		if (sDBName)          {    SetDBName (sDBName);         }
+		if (sDBPort.UInt16()) {  SetDBPort (sDBPort.UInt16());  }
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

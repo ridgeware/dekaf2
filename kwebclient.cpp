@@ -208,6 +208,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 			{ "url",                 URL.Serialize()            },
 			{ "bytes_request_body",  svRequestBody.size()       },
 			{ "bytes_response_body", iRead                      },
+			{ "error_string",        Error()                    },
 			{ "msecs_connect",       iConnectTime               },
 			{ "msecs_transmit",      iTransmitTime              },
 			{ "msecs_receive",       iReceiveTime               },

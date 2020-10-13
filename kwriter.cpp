@@ -72,7 +72,7 @@ KOutStream::self_type& KOutStream::Write(KString::value_type ch)
 } // Write
 
 //-----------------------------------------------------------------------------
-/// Write a range of characters. Returns stream reference that resolves to false on failure
+/// Write a range of characters. Returns stream reference that resolves to false on failure.
 KOutStream::self_type& KOutStream::Write(const void* pAddress, size_t iCount)
 //-----------------------------------------------------------------------------
 {
@@ -95,7 +95,7 @@ KOutStream::self_type& KOutStream::Write(const void* pAddress, size_t iCount)
 } // Write
 
 //-----------------------------------------------------------------------------
-/// Read a range of characters and append to Stream. Returns count of successfully read charcters.
+/// Read a range of characters and append to Stream. Returns stream reference that resolves to false on failure.
 KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 //-----------------------------------------------------------------------------
 {

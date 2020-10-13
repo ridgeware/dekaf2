@@ -235,7 +235,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Stream into outstream
+	/// Stream into outstream, returns read character count
 	size_t Read(KOutStream& stream, size_t len = KString::npos)
 	//-----------------------------------------------------------------------------
 	{
@@ -243,7 +243,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Append to sBuffer
+	/// Append to sBuffer, returns read character count
 	size_t Read(KString& sBuffer, size_t len = KString::npos)
 	//-----------------------------------------------------------------------------
 	{

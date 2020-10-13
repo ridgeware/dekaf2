@@ -57,7 +57,7 @@ TEST_CASE("KHTTPClient")
 		KJSON json;
 		HTTP.SetServiceSummary(&json);
 		// this tests a redirect to https://www.google.fr
-		auto sResult = HTTP.Get("http://google.fr");
+		auto sResult = HTTP.Get("https://google.fr");
 		CHECK ( HTTP.HttpSuccess() == true );
 		CHECK ( sResult.empty() == false );
 		sResult = HTTP.Get("https://wxy.judgvbdfasjh.skjhgds.org");

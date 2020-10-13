@@ -74,9 +74,9 @@ public:
 		m_ostream.rdbuf(m_SBuf);
 	}
 
-    virtual int_type overflow(int_type c) override
+	virtual int_type overflow(int_type c) override
 	{
-        if (!traits_type::eq_int_type(traits_type::eof(), c))
+		if (!traits_type::eq_int_type(traits_type::eof(), c))
 		{
 			auto ch = m_SBuf->sputc(c);
 
@@ -95,14 +95,14 @@ public:
 		auto iWrote = m_SBuf->sputn(s, n);
 		m_iCount += iWrote;
 		return iWrote;
-    }
+	}
 
-    virtual int sync() override
+	virtual int sync() override
 	{
 		return m_SBuf->pubsync();
 	}
 
-    std::streamsize count() const
+	std::streamsize count() const
 	{
 		return m_iCount;
 	}

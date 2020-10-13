@@ -84,8 +84,6 @@ KWebClient::KWebClient(bool bVerifyCerts/*=false*/)
 bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
 //-----------------------------------------------------------------------------
 {
-	uint16_t iHadRedirects = 0;
-
 	// placeholder for a web form we may generate from query parms
 	KString sWWWForm;
 
@@ -110,7 +108,9 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 	KStopWatch ConnectTime(KStopWatch::Halted);
 	KStopWatch TransmitTime(KStopWatch::Halted);
 	KStopWatch ReceiveTime(KStopWatch::Halted);
-	uint16_t iRetry { 0 };
+	std::size_t iRead { 0 };
+	uint16_t iRedirects { 0 };
+	uint16_t iRetries { 0 };
 
 	for(;;)
 	{
@@ -144,7 +144,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 					TransmitTime.halt();
 					ReceiveTime.resume();
 
-					Read (OutStream);
+					iRead += Read (OutStream);
 
 					ReceiveTime.halt();
 				}
@@ -157,7 +157,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 						// check for error 598 - NETWORK READ/WRITE ERROR,
 						// allow one retry, but only if it was a reused connection
 						if (Response.GetStatusCode() == KHTTPError::H5xx_READTIMEOUT &&
-							!iRetry++ &&
+							!iRetries++ &&
 							bReuseConnection)
 						{
 							kDebug(2, "retrying connection");
@@ -180,10 +180,10 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 			break;
 		}
 
-		if (iHadRedirects++ >= m_iMaxRedirects)
+		if (iRedirects++ >= m_iMaxRedirects)
 		{
 			SetError(kFormat("number of redirects ({}) exceeds max redirection limit of {}",
-							 iHadRedirects,
+							 iRedirects,
 							 m_iMaxRedirects));
 			break;
 		}
@@ -197,6 +197,28 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 
 	kDebug(2, "connect {} ms, transmit {} ms, receive {} ms, total {} ms", iConnectTime, iTransmitTime, iReceiveTime, iTotalTime);
 
+	if (m_pServiceSummary)
+	{
+		if (!kjson::Exists (*m_pServiceSummary, "http"))
+		{
+			(*m_pServiceSummary)["http"] = KJSON::array();
+		}
+		(*m_pServiceSummary)["http"] += {
+			{ "request_method",      RequestMethod.Serialize()  },
+			{ "url",                 URL.Serialize()            },
+			{ "bytes_request_body",  svRequestBody.size()       },
+			{ "bytes_response_body", iRead                      },
+			{ "msecs_connect",       iConnectTime               },
+			{ "msecs_transmit",      iTransmitTime              },
+			{ "msecs_receive",       iReceiveTime               },
+			{ "msecs_total",         iTotalTime                 },
+			{ "num_redirects",       iRedirects                 },
+			{ "num_retries",         iRetries                   },
+			{ "response_code",       Response.GetStatusCode()   },
+			{ "response_string",     Response.GetStatusString() }
+		};
+	}
+
 	if (m_iWarnIfOverMilliseconds &&
 		m_TimingCallback &&
 		iTotalTime > m_iWarnIfOverMilliseconds)
@@ -209,25 +231,6 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 			kFormNumber (iTransmitTime),
 			kFormNumber (iReceiveTime));
 		m_TimingCallback (*this, iTotalTime, sSummary);
-	}
-
-	if (m_pServiceSummary)
-	{
-		if (!kjson::Exists (*m_pServiceSummary, "http"))
-		{
-			(*m_pServiceSummary)["http"] = KJSON::array();
-		}
-		(*m_pServiceSummary)["http"] += {
-			{ "request_method",     RequestMethod.Serialize()  },
-			{ "url",                URL.Serialize()            },
-			{ "bytes_request_body", svRequestBody.size()       },
-			{ "msecs_connect",      iConnectTime               },
-			{ "msecs_transmit",     iTransmitTime              },
-			{ "msecs_receive",      iReceiveTime               },
-			{ "msecs_total",        iTotalTime                 },
-			{ "response_code",      Response.GetStatusCode()   },
-			{ "response_string",    Response.GetStatusString() }
-		};
 	}
 
 	if (!HttpSuccess() && Error().empty())

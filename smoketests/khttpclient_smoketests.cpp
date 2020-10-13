@@ -2,6 +2,7 @@
 
 #include <dekaf2/kwebclient.h>
 #include <dekaf2/kstring.h>
+#include <dekaf2/kjson.h>
 #include <iostream>
 
 using namespace dekaf2;
@@ -29,15 +30,11 @@ TEST_CASE("KHTTPClient")
 		CHECK ( Connection.Good() == true );
 	}
 
-//	SECTION("Redirect")
-//	{
-//		KString sHTML = kHTTPGet("http://mobil.spiegel.de/test.html");
-//		CHECK ( sHTML.empty() == false );
-//	}
-
 	SECTION("TLSinTLS")
 	{
 		KMyWebClient HTTP;
+		KJSON json;
+		HTTP.SetServiceSummary(&json);
 //		HTTP.SetProxy("https://192.168.1.1:3128");
 // if above .SetProxy() call is commented out uses proxy set by env var "HTTPS_PROXY"
 
@@ -51,16 +48,21 @@ TEST_CASE("KHTTPClient")
 		sHTML = HTTP.Get("https://www.google.fr/imghp");
 		CHECK ( sHTML.empty() == false );
 		CHECK ( HTTP.GetStatusCode() == 200 );
+		kDebug(1, json.dump(1, '\t'));
 	}
 
 	SECTION("No DNS")
 	{
 		KWebClient HTTP;
-		auto sResult = HTTP.Get("https://www.google.fr");
+		KJSON json;
+		HTTP.SetServiceSummary(&json);
+		// this tests a redirect to https://www.google.fr
+		auto sResult = HTTP.Get("http://google.fr");
 		CHECK ( HTTP.HttpSuccess() == true );
 		CHECK ( sResult.empty() == false );
 		sResult = HTTP.Get("https://wxy.judgvbdfasjh.skjhgds.org");
 		CHECK ( HTTP.HttpSuccess() == false );
 		CHECK ( sResult.empty() == true );
+		kDebug(1, json.dump(1, '\t'));
 	}
 }

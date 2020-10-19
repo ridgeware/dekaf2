@@ -651,6 +651,7 @@ bool kIsValidIPv6 (KStringViewZ sIPAddr)
 KString kHostLookup (KStringViewZ sIPAddr)
 //-----------------------------------------------------------------------------
 {
+	KString sFoundHost;
 	boost::asio::ip::tcp::endpoint endpoint;
 	if (kIsValidIPv4 (sIPAddr))
 	{
@@ -670,17 +671,20 @@ KString kHostLookup (KStringViewZ sIPAddr)
 
 	boost::asio::io_service IOService;
 	boost::asio::ip::tcp::resolver Resolver (IOService);
+	boost::system::error_code ec;
 
-	try
+	auto hostIter = Resolver.resolve(endpoint, ec);
+
+	if (ec)
 	{
-		auto hostIter = Resolver.resolve (endpoint);
-		return hostIter->host_name();
+		kDebug (1, "{} --> FAILED : {}", sIPAddr, ec.message());
 	}
-	catch (boost::system::system_error& error)
+	else
 	{
-		kDebug (1, "{} --> FAILED : {}", sIPAddr, error.what());
-		return "";
+		sFoundHost = hostIter->host_name();
 	}
+
+	return sFoundHost;
 
 } // kHostLookup
 

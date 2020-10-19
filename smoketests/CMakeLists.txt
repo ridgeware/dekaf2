@@ -18,6 +18,7 @@ set (USOURCES
 	kinshell_smoketests.cpp
 	ksslstream_smoketests.cpp
 	ksql_smoketests.cpp
+	ksystem_smoketests.cpp
 )
 
 add_executable(dekaf2-smoketests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})

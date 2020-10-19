@@ -121,7 +121,7 @@ bool kIsValidIPv4 (KStringViewZ sIPAddr);
 /// Return true if the string represents a valid IPV6 address
 bool kIsValidIPv6 (KStringViewZ sIPAddr);
 
-/// Return a comma separated list of IP addresses that map to the specified hostname
+/// Return the first IP address that maps to the specified hostname
 KString kHostLookup (KStringViewZ sIPAddr);
 
 /// Sleep for the amount of nanoseconds

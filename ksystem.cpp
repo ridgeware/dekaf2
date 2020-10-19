@@ -556,7 +556,7 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 
 	boost::asio::io_service IOService;
 	boost::asio::ip::tcp::resolver Resolver(IOService);
-	boost::asio::ip::tcp::resolver::query query(sHostname.c_str(), "80");
+	boost::asio::ip::tcp::resolver::query query(sHostname.c_str(), "80", boost::asio::ip::tcp::resolver::query::numeric_service);
 	boost::system::error_code ec;
 	auto hosts = Resolver.resolve(query, ec);
 
@@ -625,6 +625,59 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 	return sRet;
 
 } // kResolveHostIPV4
+
+/// Return true if the string represents a valid IPV4 address
+bool kIsValidIPv4 (KStringViewZ sIPAddr)
+{
+	struct sockaddr_in sockAddr;
+	return inet_pton(AF_INET, sIPAddr.c_str(), &(sockAddr.sin_addr)) != 0;
+}
+
+/// Return true if the string represents a valid IPV6 address
+bool kIsValidIPv6 (KStringViewZ sIPAddr)
+{
+	struct sockaddr_in6 sockAddr;
+	return inet_pton(AF_INET6, sIPAddr.c_str(), &(sockAddr.sin6_addr)) != 0;
+}
+
+/// Return the results of a reverse DNS lookup for the specified IP
+KString kHostLookup (KStringViewZ sIPAddr)
+{
+	KString sHostname;
+
+	boost::asio::ip::tcp::endpoint endpoint;
+	if (kIsValidIPv4 (sIPAddr))
+	{
+		boost::asio::ip::address_v4 v4Addr = boost::asio::ip::address_v4::from_string (sIPAddr.c_str());
+		endpoint.address (v4Addr);
+	}
+	else if (kIsValidIPv6 (sIPAddr))
+	{
+		boost::asio::ip::address_v6 v6Addr = boost::asio::ip::address_v6::from_string (sIPAddr.c_str());
+		endpoint.address (v6Addr);
+	}
+	else
+	{
+		kDebug(1, "Invalid address specified: {} --> FAILED", sIPAddr);
+		return "";
+	}
+
+	boost::asio::io_service IOService;
+	boost::asio::ip::tcp::resolver Resolver (IOService);
+
+	try
+	{
+		auto hostIter = Resolver.resolve (endpoint);
+		return hostIter->host_name();
+	}
+	catch (boost::system::system_error& error)
+	{
+		kDebug (1, "{} --> FAILED : {}", sIPAddr, error.what());
+		return "";
+	}
+
+}
+
 
 //-----------------------------------------------------------------------------
 uint32_t kRandom(uint32_t iMin, uint32_t iMax)

@@ -45,6 +45,9 @@
 /// @file ksystem.h
 /// general system utilities for dekaf2
 
+//#include <arpa/inet.h>
+//#include <sys/socket.h>
+//#include <netdb.h>
 #include "kstring.h"
 #include "kstringview.h"
 #include "bits/kstringviewz.h"
@@ -114,6 +117,15 @@ inline KString kResolveHostIPV6 (KStringViewZ sHostname)
 {
 	return kResolveHost (sHostname, false, true);
 }
+
+/// Return true if the string represents a valid IPV4 address
+bool kIsValidIPv4 (KStringViewZ sIPAddr);
+
+/// Return true if the string represents a valid IPV6 address
+bool kIsValidIPv6 (KStringViewZ sIPAddr);
+
+/// Return a comma separated list of IP addresses that map to the specified hostname
+KString kHostLookup (KStringViewZ sIPAddr);
 
 /// Sleep for the amount of nanoseconds
 void kNanoSleep(uint64_t iNanoSeconds);

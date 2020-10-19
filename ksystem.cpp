@@ -52,9 +52,12 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#ifndef DEKAF2_IS_WINDOWS
+#ifdef DEKAF2_IS_WINDOWS
+	#include <winsock2.h>
+#else
 	#include <sys/types.h>    // for getpwuid()
 	#include <pwd.h>          // for getpwuid()
+	#include <arpa/inet.h>
 	#ifndef DEKAF2_IS_OSX
 		#include <sys/syscall.h>
 	#endif
@@ -626,25 +629,28 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 
 } // kResolveHostIPV4
 
-/// Return true if the string represents a valid IPV4 address
+//-----------------------------------------------------------------------------
 bool kIsValidIPv4 (KStringViewZ sIPAddr)
+//-----------------------------------------------------------------------------
 {
 	struct sockaddr_in sockAddr;
 	return inet_pton(AF_INET, sIPAddr.c_str(), &(sockAddr.sin_addr)) != 0;
-}
 
-/// Return true if the string represents a valid IPV6 address
+} // kIsValidIPv4
+
+//-----------------------------------------------------------------------------
 bool kIsValidIPv6 (KStringViewZ sIPAddr)
+//-----------------------------------------------------------------------------
 {
 	struct sockaddr_in6 sockAddr;
 	return inet_pton(AF_INET6, sIPAddr.c_str(), &(sockAddr.sin6_addr)) != 0;
-}
 
-/// Return the results of a reverse DNS lookup for the specified IP
+} // kIsValidIPv6
+
+//-----------------------------------------------------------------------------
 KString kHostLookup (KStringViewZ sIPAddr)
+//-----------------------------------------------------------------------------
 {
-	KString sHostname;
-
 	boost::asio::ip::tcp::endpoint endpoint;
 	if (kIsValidIPv4 (sIPAddr))
 	{
@@ -676,7 +682,7 @@ KString kHostLookup (KStringViewZ sIPAddr)
 		return "";
 	}
 
-}
+} // kHostLookup
 
 
 //-----------------------------------------------------------------------------

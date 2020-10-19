@@ -45,9 +45,6 @@
 /// @file ksystem.h
 /// general system utilities for dekaf2
 
-//#include <arpa/inet.h>
-//#include <sys/socket.h>
-//#include <netdb.h>
 #include "kstring.h"
 #include "kstringview.h"
 #include "bits/kstringviewz.h"

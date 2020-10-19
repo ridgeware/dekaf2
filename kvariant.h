@@ -68,7 +68,14 @@
 	#define DEKAF2_HAS_VARIANT 1
 	#define DEKAF2_HAS_STD_VARIANT 1
 	#define DEKAF2_VARIANT_NAMESPACE std::experimental
+#elif DEKAF2_HAS_INCLUDE(<boost/variant2/variant.hpp>)
+	// use boost::variant2 if available, it is much closer to std::variant
+	#include <boost/variant2/variant.hpp>
+	#define DEKAF2_HAS_VARIANT 1
+	#define DEKAF2_HAS_BOOST_VARIANT 2
+	#define DEKAF2_VARIANT_NAMESPACE boost::variant2
 #else
+	// use boost variant
 	#include <boost/variant.hpp>
 	#include <boost/variant/multivisitors.hpp>
 	#define DEKAF2_HAS_VARIANT 1
@@ -108,7 +115,7 @@
 
 namespace dekaf2 {
 
-#ifdef DEKAF2_HAS_BOOST_VARIANT
+#if (DEKAF2_HAS_BOOST_VARIANT == 1)
 	template<typename RETURNTYPE = void>
 	struct KVisitorBase : public var::static_visitor<RETURNTYPE> {};
 #else

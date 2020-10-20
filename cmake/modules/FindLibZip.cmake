@@ -4,7 +4,7 @@
 find_path(LIBZIP_INCLUDE_DIR NAMES zip.h)
 find_library(LIBZIP_LIBRARY NAMES zip)
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(LIBZIP DEFAULT_MSG LIBZIP_LIBRARY LIBZIP_INCLUDE_DIR)
+find_package_handle_standard_args(LibZip DEFAULT_MSG LIBZIP_LIBRARY LIBZIP_INCLUDE_DIR)
 
 if(NOT LIBZIP_FOUND)
 	set(LIBZIP_LIBRARY)

@@ -171,7 +171,8 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			# ignore warnings about empty object files
 			add_link_options(/ignore:4221)
 			# make sure MSVC does not complain about a missing windows target definition
-			add_compile_definitions(_WIN32_WINNT=0x0501)
+			# we now need at least Vista (0x0600) for inet_pton..
+			add_compile_definitions(_WIN32_WINNT=0x0600)
 			# silence the allocator warning for boost::asio
 			add_compile_definitions(_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING)
 			# silence uncaught_exception warning

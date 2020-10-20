@@ -53,7 +53,7 @@
 #include <boost/asio.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #ifdef DEKAF2_IS_WINDOWS
-	#include <winsock2.h>
+	#include <ws2tcpip.h>
 #else
 	#include <sys/types.h>    // for getpwuid()
 	#include <pwd.h>          // for getpwuid()

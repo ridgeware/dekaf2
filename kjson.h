@@ -292,30 +292,26 @@ namespace kjson
 	inline void Increment(KJSON& json, KStringView sKey, uint64_t iAddMe=1) noexcept
 	{
 		auto it = json.find(sKey);
-		if ((it == json.end()) || !it->is_number())
+		if (DEKAF2_UNLIKELY((it == json.end()) || !it->is_number()))
 		{
-			json[sKey] = iAddMe;
+			json[sKey] = 0UL;
+			it = json.find(sKey);
 		}
-		else
-		{
-			auto iValue = it.value().get<uint64_t>();
-			it.value()  = iValue + iAddMe;
-		}
+		auto iValue = it.value().get<uint64_t>();
+		it.value()  = iValue + iAddMe;
 	}
 
 	/// subtracts the given integer from the given key, creates key if it does not yet exist
 	inline void Decrement(KJSON& json, KStringView sKey, uint64_t iSubtractMe=1) noexcept
 	{
 		auto it = json.find(sKey);
-		if ((it == json.end()) || !it->is_number())
+		if (DEKAF2_UNLIKELY((it == json.end()) || !it->is_number()))
 		{
-			json[sKey] = - iSubtractMe;
+			json[sKey] = 0UL;
+			it = json.find(sKey);
 		}
-		else
-		{
-			auto iValue = it.value().get<uint64_t>();
-			it.value()  = iValue - iSubtractMe;
-		}
+		auto iValue = it.value().get<uint64_t>();
+		it.value() = iValue - iSubtractMe;
 	}
 
 	/// proper json string escaping

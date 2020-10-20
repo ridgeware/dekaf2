@@ -234,13 +234,21 @@ else()
 
 endif()
 
-# ================================= libzip =====================================
+# ================================= LIBZIP =====================================
 
 # libzip
 # warning: libzip would collide with installed packages libtcod and minizip2
 # - uninstall them if needed, or uncomment
 
-find_package(LibZip REQUIRED)
+if (IS_WINDOWS)
+	find_package(LibZip QUIET)
+else()
+	find_package(LibZip REQUIRED)
+endif()
+
+if (LIBZIP_FOUND)
+	set(DEKAF2_HAS_LIBZIP 1)
+endif()
 
 # ================================ LIBPROC ====================================
 
@@ -566,10 +574,15 @@ set(PUBLIC_HEADERS
 	kwords.h
 	kwriter.h
 	kxml.h
-	kzip.h
 	# keep this one at the end
 	khtmlentities.h
 )
+
+if (DEKAF2_HAS_LIBZIP)
+	set(PUBLIC_HEADERS ${PUBLIC_HEADERS}
+		kzip.h
+	)
+endif()
 
 if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	set(COMPAT_HEADERS
@@ -689,10 +702,15 @@ set (SOURCES
 	kwords.cpp
 	kwriter.cpp
 	kxml.cpp
-	kzip.cpp
 	# keep this one at the end
 	khtmlentities5.cpp
 )
+
+if (DEKAF2_HAS_LIBZIP)
+	set(SOURCES ${SOURCES}
+		kzip.cpp
+	)
+endif()
 
 # ============================= CONDITIONAL LIBS ==================================
 

@@ -78,8 +78,13 @@ set (USOURCES
 	kwords_tests.cpp
 	kwriter_tests.cpp
 	kxml_tests.cpp
-	kzip_tests.cpp
 )
+
+if (DEKAF2_HAS_LIBZIP)
+	set(USOURCES ${USOURCES}
+		kzip_tests.cpp
+	)
+endif()
 
 add_executable(dekaf2-utests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
 

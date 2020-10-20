@@ -68,7 +68,6 @@ class KOutStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using self_type = KOutStream;
-	using ios_type  = std::ostream;
 
 //-------
 public:

@@ -248,6 +248,8 @@ endif()
 
 if (LIBZIP_FOUND)
 	set(DEKAF2_HAS_LIBZIP 1)
+else()
+	set(LIBZIP_LIBRARY "")
 endif()
 
 # ================================ LIBPROC ====================================

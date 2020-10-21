@@ -62,6 +62,12 @@ public:
 	/// default ctor
 	KHash() = default;
 
+	/// ctor with a char
+	KHash(KStringView::value_type chInput)
+	{
+		Update(chInput);
+	}
+
 	/// ctor with a string
 	KHash(KStringView sInput)
 	{
@@ -74,11 +80,24 @@ public:
 		Update(InputStream);
 	}
 
+	/// appends a char to the hash
+	bool Update(KStringView::value_type chInput)
+	{
+		return Update(KStringView(&chInput, 1));
+	}
+
 	/// appends a string to the hash
 	bool Update(KStringView sInput);
 
 	/// appends a stream to the hash
 	bool Update(KInStream& InputStream);
+
+	/// appends a char to the hash
+	KHash& operator+=(KStringView::value_type chInput)
+	{
+		Update(chInput);
+		return *this;
+	}
 
 	/// appends a string to the hash
 	KHash& operator+=(KStringView sInput)
@@ -98,6 +117,12 @@ public:
 	std::size_t Hash() const
 	{
 		return m_iHash;
+	}
+
+	/// appends a string to the hash
+	void operator()(KStringView::value_type chInput)
+	{
+		Update(chInput);
 	}
 
 	/// appends a string to the hash

@@ -51,6 +51,7 @@
 #include "kregex.h"
 #include "kwebclient.h"
 #include "ktimer.h"
+#include "kcrashexit.h"
 
 namespace dekaf2 {
 
@@ -541,10 +542,17 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				m_Timers->StoreInterval(Timer::PARSE);
 			}
 
-			// call the route handler
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			// debug info
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			kDebug (1, KLog::DASH);
 			kDebug (1, "{}: {}", GetRequestMethod(), GetRequestPath());
 			kDebug (1, KLog::DASH);
+			kSetCrashContext (kFormat ("{}: {}",  Request.Method.Serialize(), Request.Resource.Serialize()));
+
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			// call the application method to handle this request:
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			route->Callback(*this);
 
 			if (m_Timers)

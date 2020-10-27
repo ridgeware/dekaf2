@@ -54,27 +54,25 @@
 namespace dekaf2
 {
 
+static KCrashCallback g_pCrashCallback{nullptr};
+static KString        g_sCrashContext;
+
 //-----------------------------------------------------------------------------
 void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 //-----------------------------------------------------------------------------
 {
 	auto& klog = KLog::getInstance();
+	KString sVerb {"CRASHED"};
+	KString sWarning;
 
 	// switch automatic backtracing off
 	klog.SetBackTraceLevel(-100);
 
-	// and start our own stackdump
-
-	klog.warning ("|                 *      \n");
-	klog.warning ("|            *    *    * \n");
-	klog.warning ("|              *  *  *   \n");
-
 	switch (iSignalNum)
 	{
-#ifdef UNIX
+	#ifdef UNIX
 	case SIGTERM:  // <-- [STOP] in browser causes apache to send SIGTERM to CGIs
-		klog.warning ("|         * * * KILLED * * *{}\n",
-			(getenv("REQUEST_METHOD")) ? "    -- web user hit [STOP] in browser" : "");
+		sVerb = "KILLED";
 		break;
 
 	case SIGINT:   // <-- sent from command line?
@@ -82,23 +80,38 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	case SIGHUP:   // <-- sent from command line?
 	case SIGUSR1:  // <-- sent from command line?
 	case SIGUSR2:  // <-- sent from command line?
-		klog.warning ("|       * * * CANCELLED * * *\n");
+		sVerb = "CANCELLED";
 		break;
 
 	case SIGPIPE:
-		klog.warning ("|       * * *  SIGPIPE  * * *\n");
+		sVerb = "SIGPIPE";
+		sWarning += kFormat ("|       * * *  SIGPIPE  * * *\n");
 		break;
 
-#endif
+	#endif
 	case 0:
 	default:
-		klog.warning ("|        * * * CRASHED * * *\n");
+		sVerb = "CRASHED";
 		break;
 	}
 
-	klog.warning ("|              *  *  *   \n");
-	klog.warning ("|            *    *    * \n");
-	klog.warning ("|                 *      \n");
+	// and start our own stackdump
+	if (g_sCrashContext)
+	{
+		sWarning += ">>:=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:<<\n";
+		sWarning += kFormat (">> {}: {}\n", sVerb, g_sCrashContext);
+		sWarning += ">>:=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:<<\n";
+	}
+	else
+	{
+		sWarning += kFormat ("|                 *      \n");
+		sWarning += kFormat ("|            *    *    * \n");
+		sWarning += kFormat ("|              *  *  *   \n");
+		sWarning += kFormat ("|              {}\n", sVerb);
+		sWarning += kFormat ("|              *  *  *   \n");
+		sWarning += kFormat ("|            *    *    * \n");
+		sWarning += kFormat ("|                 *      \n");
+	}
 
 	switch (iSignalNum)
 	{
@@ -106,34 +119,34 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	// self-detected crash conditions:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	case 0:
-		klog.warning ("CRASHCODE=0: self-detected crash condition.");
+		sWarning += kFormat ("CRASHCODE=0: self-detected crash condition.\n");
 		break;
 	case CRASHCODE_MEMORY:
-		klog.warning ("CRASHCODE_MEMORY: self-detected dynamic allocation error.");
+		sWarning += kFormat ("CRASHCODE_MEMORY: self-detected dynamic allocation error.\n");
 		break;
 	case CRASHCODE_TODO:
-		klog.warning ("CRASHCODE_TODO: feature not implemented yet.");
+		sWarning += kFormat ("CRASHCODE_TODO: feature not implemented yet.\n");
 		break;
 	case CRASHCODE_DEKAFUSAGE:
-		klog.warning ("CRASHCODE_DEKAFUSAGE: invalid DEKAF framework usage.");
+		sWarning += kFormat ("CRASHCODE_DEKAFUSAGE: invalid DEKAF framework usage.\n");
 		break;
 	case CRASHCODE_CORRUPT:
-		klog.warning ("CRASHCODE_CORRUPT: self-detected memory corruption.");
+		sWarning += kFormat ("CRASHCODE_CORRUPT: self-detected memory corruption.\n");
 		break;
 	case CRASHCODE_DBERROR:
-		klog.warning ("CRASHCODE_DBERROR: self-detected fatal database error.");
+		sWarning += kFormat ("CRASHCODE_DBERROR: self-detected fatal database error.\n");
 		break;
 	case CRASHCODE_DBINTEGRITY:
-		klog.warning ("CRASHCODE_DBINTEGRITY: self-detected database integrity problem.");
+		sWarning += kFormat ("CRASHCODE_DBINTEGRITY: self-detected database integrity problem.\n");
 		break;
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// standard UNIX signals:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	default:
-		klog.warning (kTranslateSignal (iSignalNum, /*fConcise=*/false));
+		sWarning += kFormat (kTranslateSignal (iSignalNum, /*fConcise=*/false));
 	}
 
-#ifndef WIN32
+	#ifndef WIN32
 	if (siginfo != nullptr)
 	{
 		switch (iSignalNum)
@@ -147,11 +160,11 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 				// try to isolate the crashing line
 				void* address = siginfo->si_addr;
 
-				klog.warning("error at address {}:", address);
+				sWarning += kFormat("error at address {}:", address);
 
 				if (address)
 				{
-					klog.warning(kGetAddress2Line(address));
+					sWarning += kFormat(kGetAddress2Line(address));
 				}
 				break;
 			}
@@ -163,22 +176,19 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 
 	if (iSignalNum != SIGINT)
 	{
-		klog.warning ("attempting to print a backtrace:");
-
-		klog.warning(kGetRuntimeStack(1));
-
-		#if 0
-		klog.warning ("enabling core dumps...");
-		rlimit core_limit = { RLIM_INFINITY, RLIM_INFINITY };
-		setrlimit (RLIMIT_CORE, &core_limit); // enable core dumps
-
-		klog.warning ("dumping core (assuming we can write to {0}})...", KFile::GetCWD());
-		abort();
-		#endif
+		sWarning += kFormat ("attempting to print a backtrace:\n");
+		sWarning += kGetRuntimeStack(1);
 	}
-#endif
+	#endif
 
-	klog.warning ("exiting program.");
+	sWarning += kFormat ("exiting program.");
+	klog.warning (sWarning);
+
+	if (g_pCrashCallback)
+	{
+		g_pCrashCallback (sWarning);
+	}
+
 	exit (-1);
 
 } // kCrashExitExt
@@ -190,6 +200,20 @@ void kCrashExit (int iSignalNum)
 	kCrashExitExt(iSignalNum, nullptr, nullptr);
 
 } // kCrashExit
+
+//-----------------------------------------------------------------------------
+void kSetCrashContext (KStringView sContext)
+//-----------------------------------------------------------------------------
+{
+	g_sCrashContext = sContext;
+}
+
+//-----------------------------------------------------------------------------
+void kSetCrashCallback (KCrashCallback pFunction)
+//-----------------------------------------------------------------------------
+{
+	g_pCrashCallback = pFunction;
+}
 
 namespace detail {
 

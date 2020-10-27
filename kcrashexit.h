@@ -46,6 +46,7 @@
 /// show reason for a program crash
 
 #include <csignal>
+#include "kstring.h"
 
 namespace dekaf2
 {
@@ -79,6 +80,14 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo = nullptr, void* context 
 void kCrashExit (int iSignalNum=0);
 
 }
+
+using KCrashCallback = std::function<void(KStringView sMessage)>;
+
+/// allow the appliation to set some context information in case the app crashes
+void kSetCrashContext (KStringView sContext);
+
+/// in addition to the KLOG, all the application to get a callback when it is crashing with the crash message (app will still exit after callback is done)
+void kSetCrashCallback (KCrashCallback pFunction);
 
 namespace detail {
 

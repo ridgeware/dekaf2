@@ -3,6 +3,7 @@
 #include <dekaf2/kprops.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/bits/kcppcompat.h>
+#include <dekaf2/kinstringstream.h>
 #include <unordered_map>
 #include <map>
 using namespace dekaf2;
@@ -744,5 +745,65 @@ TEST_CASE("KProps") {
 		CHECK ( pair4.second == true );
 		CHECK ( pair4.first->second == "value2" );
 	}
+    
+    SECTION("load unique")
+    {
+        KString sFile = R"(test=abc
+test=def
+test=xyz
+)";
+                          
+        KInStringStream iss(sFile);
+        
+        KProps<KString, KString, true, true> props;
+        CHECK ( props.Load(iss) == 1     );
+        CHECK ( props.size()    == 1     );
+        CHECK ( props["test"]   == "xyz" );
+    }
+
+    SECTION("load non-unique")
+    {
+        KString sFile = R"(test=abc
+test=def
+test=xyz
+)";
+                          
+        KInStringStream iss(sFile);
+        
+        KProps<KString, KString, true, false> props;
+        CHECK ( props.Load(iss) == 3     );
+        CHECK ( props.size()    == 3     );
+        CHECK ( props["test"]   == "xyz" );
+    }
+
+    SECTION("load non-sequential unique")
+    {
+        KString sFile = R"(test=abc
+test=def
+test=xyz
+)";
+                          
+        KInStringStream iss(sFile);
+        
+        KProps<KString, KString, false, true> props;
+        CHECK ( props.Load(iss) == 1     );
+        CHECK ( props.size()    == 1     );
+        CHECK ( props["test"]   == "xyz" );
+    }
+
+    SECTION("load non-sequential non-unique")
+    {
+        KString sFile = R"(test=abc
+test=def
+test=xyz
+)";
+                          
+        KInStringStream iss(sFile);
+        
+        KProps<KString, KString, false, false> props;
+        CHECK ( props.Load(iss) == 3     );
+        CHECK ( props.size()    == 3     );
+        CHECK ( props["test"]   == "xyz" );
+    }
 
 }

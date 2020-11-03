@@ -347,7 +347,12 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		KStringViewPair svPair = kSplitToPair(sv, m_svPairDelim, m_svTrim, m_chEscape);
-		m_Container.insert({svPair.first, svPair.second});
+		auto pair = m_Container.insert({svPair.first, svPair.second});
+        
+        if (pair.second == false)
+        {
+            pair.first->second = svPair.second;
+        }
 	}
 
 	//-----------------------------------------------------------------------------

@@ -48,7 +48,7 @@
 #include "bits/simd/kfindfirstof.h"
 #include "kctype.h"
 
-#ifdef DEKAF2_NO_GCC
+#ifndef __linux__
 void* memrchr(const void* s, int c, size_t n)
 {
 #ifdef DEKAF2_X86_64

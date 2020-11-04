@@ -102,7 +102,9 @@ KHMAC::KHMAC(ALGORITHM Algorithm, KStringView sKey, KStringView sMessage)
 			break;
 #endif
 		case NONE:
-			break;
+            kDebug(1, "no algorithm selected");
+            Release();
+            return;
 	}
 
 	if (1 != HMAC_Init_ex(hmacctx, sKey.data(), static_cast<int>(sKey.size()), callback(), nullptr))

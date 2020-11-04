@@ -134,9 +134,11 @@ KCSV::STATE KCSV::ReadColumn(KInStream& In, KString& sColumn)
 		}
 		else if (ch == m_chColumnLimiter && (!bUseFieldLimiter || bLastWasFieldLimiter))
 		{
-			bLastWasFieldLimiter = false;
-			bUseFieldLimiter = false;
-			bIsStartofColumn = true;
+// state would change to:
+//			bLastWasFieldLimiter = false;
+//			bUseFieldLimiter = false;
+//			bIsStartofColumn = true;
+// but as we return here it would never be read
 			// return with success
 			return STATE::EndOfColumn;
 		}

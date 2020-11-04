@@ -105,7 +105,9 @@ KMessageDigestBase::KMessageDigestBase(ALGORITHM Algorithm, UpdateFunc _Updater)
 			break;
 #endif
 		case NONE:
-			break;
+            kDebug(1, "no algorithm selected");
+            Release();
+            return;
 	}
 
 	if (1 != EVP_SignInit(evpctx, callback()))

@@ -157,9 +157,10 @@ public:
 	static constexpr KStringViewZ DELETE  = "DELETE";
 	static constexpr KStringViewZ OPTIONS = "OPTIONS";
 	static constexpr KStringViewZ PATCH   = "PATCH";
-	static constexpr KStringViewZ CONNECT = "CONNECT";
+    static constexpr KStringViewZ CONNECT = "CONNECT";
+    static constexpr KStringViewZ TRACE   = "TRACE";
 
-	static constexpr KStringViewZ REQUEST_METHODS = "GET,HEAD,POST,PUT,DELETE,OPTIONS,PATCH,CONNECT";
+	static constexpr KStringViewZ REQUEST_METHODS = "GET,HEAD,POST,PUT,DELETE,OPTIONS,PATCH,CONNECT,TRACE";
 
 //------
 private:

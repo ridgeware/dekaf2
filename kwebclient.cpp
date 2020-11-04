@@ -142,11 +142,14 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 				if (SendRequest (svRequestBody, MIME))
 				{
 					TransmitTime.halt();
-					ReceiveTime.resume();
-
-					iRead += Read (OutStream);
-
-					ReceiveTime.halt();
+                    
+                    if (RequestMethod != KHTTPMethod::HEAD &&
+                        RequestMethod != KHTTPMethod::TRACE)
+                    {
+                        ReceiveTime.resume();
+                        iRead += Read (OutStream);
+                        ReceiveTime.halt();
+                    }
 				}
 				else
 				{

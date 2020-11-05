@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -63,52 +62,51 @@ class KHTTPMethod
 //------
 public:
 //------
+    
+    enum Method
+    {
+        GET = 0,
+        HEAD,
+        POST,
+        PUT,
+        DELETE,
+        OPTIONS,
+        PATCH,
+        CONNECT,
+        TRACE,
+        INVALID
+   };
+
+    //-----------------------------------------------------------------------------
+    KHTTPMethod(Method method = GET)
+    //-----------------------------------------------------------------------------
+    : m_method(method)
+    {}
+    
+    //-----------------------------------------------------------------------------
+    KHTTPMethod(KStringView sMethod)
+    //-----------------------------------------------------------------------------
+    : m_method(Parse(sMethod))
+    {}
+    
+    //-----------------------------------------------------------------------------
+    KHTTPMethod(const KString& sMethod)
+    //-----------------------------------------------------------------------------
+    : KHTTPMethod(sMethod.ToView())
+    {}
+    
+    //-----------------------------------------------------------------------------
+    KHTTPMethod(const char* sMethod)
+    //-----------------------------------------------------------------------------
+    : KHTTPMethod(KStringView(sMethod))
+    {}
+    
+    //-----------------------------------------------------------------------------
+    KStringView Serialize() const;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KHTTPMethod() = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KHTTPMethod(const KHTTPMethod&) = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KHTTPMethod(KHTTPMethod&&) = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KHTTPMethod(KString sStr)
-	//-----------------------------------------------------------------------------
-	: m_method(std::move(sStr))
-	{}
-
-	//-----------------------------------------------------------------------------
-	KHTTPMethod(KStringView sv)
-	//-----------------------------------------------------------------------------
-	: KHTTPMethod(KString(sv))
-	{}
-
-	//-----------------------------------------------------------------------------
-	KHTTPMethod(KStringViewZ sv)
-	//-----------------------------------------------------------------------------
-	: KHTTPMethod(KString(sv))
-	{}
-
-	//-----------------------------------------------------------------------------
-	KHTTPMethod(const char* sv)
-	//-----------------------------------------------------------------------------
-	: KHTTPMethod(KString(sv))
-	{}
-
-	//-----------------------------------------------------------------------------
-	const KString& Serialize() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_method;
-	}
-
-	//-----------------------------------------------------------------------------
-	operator const KString&() const
+	operator KStringView() const
 	//-----------------------------------------------------------------------------
 	{
 		return Serialize();
@@ -118,7 +116,7 @@ public:
 	bool empty() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_method.empty();
+		return m_method == INVALID;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -128,106 +126,30 @@ public:
 		m_method = GET;
 	}
 
-	//-----------------------------------------------------------------------------
-	KHTTPMethod& operator=(const KHTTPMethod&) = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	KHTTPMethod& operator=(KHTTPMethod&&) = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	bool operator==(const KHTTPMethod& other) const
-	//-----------------------------------------------------------------------------
-	{
-		return m_method == other.m_method;
-	}
-
-	//-----------------------------------------------------------------------------
-	bool operator!=(const KHTTPMethod& other) const
-	//-----------------------------------------------------------------------------
-	{
-		return m_method != other.m_method;
-	}
-
-	static constexpr KStringViewZ GET     = "GET";
-	static constexpr KStringViewZ HEAD    = "HEAD";
-	static constexpr KStringViewZ POST    = "POST";
-	static constexpr KStringViewZ PUT     = "PUT";
-	static constexpr KStringViewZ DELETE  = "DELETE";
-	static constexpr KStringViewZ OPTIONS = "OPTIONS";
-	static constexpr KStringViewZ PATCH   = "PATCH";
-    static constexpr KStringViewZ CONNECT = "CONNECT";
-    static constexpr KStringViewZ TRACE   = "TRACE";
+    //-----------------------------------------------------------------------------
+    static Method Parse(KStringView sMethod);
+    //-----------------------------------------------------------------------------
 
 	static constexpr KStringViewZ REQUEST_METHODS = "GET,HEAD,POST,PUT,DELETE,OPTIONS,PATCH,CONNECT,TRACE";
 
+    friend bool operator==(KHTTPMethod, KHTTPMethod);
+    
 //------
 private:
 //------
 
-	KString m_method { GET };
+	Method m_method { GET };
 
 }; // KHTTPMethod
 
-inline bool operator==(const char* left, const KHTTPMethod& right)
+inline bool operator==(KHTTPMethod left, KHTTPMethod right)
 {
-	return left == right.Serialize();
+    return left.m_method == right.m_method;
 }
 
-inline bool operator==(const KHTTPMethod& left, const char* right)
+inline bool operator!=(KHTTPMethod left, KHTTPMethod right)
 {
-	return operator==(right, left);
-}
-
-inline bool operator!=(const char* left, const KHTTPMethod& right)
-{
-	return !operator==(left, right);
-}
-
-inline bool operator!=(const KHTTPMethod& left, const char* right)
-{
-	return !operator==(right, left);
-}
-
-inline bool operator==(KStringView left, const KHTTPMethod& right)
-{
-	return left == right.Serialize();
-}
-
-inline bool operator==(const KHTTPMethod& left, KStringView right)
-{
-	return operator==(right, left);
-}
-
-inline bool operator!=(KStringView left, const KHTTPMethod& right)
-{
-	return !operator==(left, right);
-}
-
-inline bool operator!=(const KHTTPMethod& left, KStringView right)
-{
-	return !operator==(right, left);
-}
-
-inline bool operator==(const KString& left, const KHTTPMethod& right)
-{
-	return left == right.Serialize();
-}
-
-inline bool operator==(const KHTTPMethod& left, const KString& right)
-{
-	return operator==(right, left);
-}
-
-inline bool operator!=(const KString& left, const KHTTPMethod& right)
-{
-	return !operator==(left, right);
-}
-
-inline bool operator!=(const KHTTPMethod& left, const KString& right)
-{
-	return !operator==(right, left);
+    return !operator==(left, right);
 }
 
 } // end of namespace dekaf2

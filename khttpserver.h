@@ -239,11 +239,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// get request method as a string
-	const KString& GetRequestMethod() const
+	/// get request method as a KHTTPMethod
+	KHTTPMethod GetRequestMethod() const
 	//-----------------------------------------------------------------------------
 	{
-		return Request.Method;
+        return Request.Method;
 	}
 
 	//-----------------------------------------------------------------------------

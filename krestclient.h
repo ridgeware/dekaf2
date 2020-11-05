@@ -106,7 +106,7 @@ public:
 
 	/// Set the 'Verb' (HTTP method) for the next request - can also be done implicitly
 	/// through one of the Get/Post/Put/Patch/Delete methods
-	self& Verb      (KHTTPMethod sVerb);
+	self& Verb      (KHTTPMethod Verb);
 	/// Set the Path for the next request - will be appended to a base path set at the constructor
 	self& Path      (KString sPath);
 	/// Set the Query part for the next request
@@ -170,10 +170,10 @@ protected:
 	void ResetAfterRequest();
 
 	KURL m_URL;
-	KHTTPMethod m_sVerb;
 	KString m_sPath;
 	url::KQuery m_Query;
 	KHTTPError* m_ec { nullptr };
+    KHTTPMethod m_Verb;
 	bool m_bNeedReset { false };
 
 }; // KRestClient
@@ -242,7 +242,7 @@ public:
 
 	/// Set the 'Verb' (HTTP method) for the next request - can also be done implicitly
 	/// through one of the Get/Post/Put/Patch/Delete methods
-	self& Verb     (KString sVerb)     { base::Verb(std::move(sVerb));     return *this; }
+	self& Verb     (KHTTPMethod Verb)  { base::Verb(Verb);                 return *this; }
 	/// Set the Path for the next request - will be appended to a base path set at the constructor
 	self& Path     (KString sPath)     { base::Path(std::move(sPath));     return *this; }
 	/// Set the Query part for the next request

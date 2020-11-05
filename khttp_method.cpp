@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -44,19 +43,79 @@
 
 namespace dekaf2 {
 
-#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+//-----------------------------------------------------------------------------
+KHTTPMethod::Method KHTTPMethod::Parse(KStringView sMethod)
+//-----------------------------------------------------------------------------
+{
+    Method method;
+    
+    switch (sMethod.Hash())
+    {
+        case "GET"_hash:
+            method = GET;
+            break;
+        case "HEAD"_hash:
+            method = HEAD;
+            break;
+        case "POST"_hash:
+            method = POST;
+            break;
+        case "PUT"_hash:
+            method = PUT;
+            break;
+        case "DELETE"_hash:
+            method = DELETE;
+            break;
+        case "OPTIONS"_hash:
+            method = OPTIONS;
+            break;
+        case "PATCH"_hash:
+            method = PATCH;
+            break;
+        case "CONNECT"_hash:
+            method = CONNECT;
+            break;
+        case "TRACE"_hash:
+            method = TRACE;
+            break;
+        default:
+            method = INVALID;
+            break;
+    }
+    
+    return method;
+    
+} // Method
 
-constexpr KStringViewZ KHTTPMethod::GET;
-constexpr KStringViewZ KHTTPMethod::HEAD;
-constexpr KStringViewZ KHTTPMethod::POST;
-constexpr KStringViewZ KHTTPMethod::PUT;
-constexpr KStringViewZ KHTTPMethod::DELETE;
-constexpr KStringViewZ KHTTPMethod::OPTIONS;
-constexpr KStringViewZ KHTTPMethod::PATCH;
-constexpr KStringViewZ KHTTPMethod::CONNECT;
-constexpr KStringViewZ KHTTPMethod::REQUEST_METHODS;
-
-#endif
+//-----------------------------------------------------------------------------
+KStringView KHTTPMethod::Serialize() const
+//-----------------------------------------------------------------------------
+{
+    switch (m_method)
+    {
+        case INVALID:
+            return "";
+        case GET:
+            return "GET";
+        case HEAD:
+            return "HEAD";
+        case POST:
+            return "POST";
+        case PUT:
+            return "PUT";
+        case DELETE:
+            return "DELETE";
+        case OPTIONS:
+            return "OPTIONS";
+        case PATCH:
+            return "PATCH";
+        case CONNECT:
+            return "CONNECT";
+        case TRACE:
+            return "TRACE";
+    }
+    
+} // Serialize
 
 static_assert(std::is_nothrow_move_constructible<KHTTPMethod>::value,
 			  "KHTTPMethod is intended to be nothrow move constructible, but is not!");

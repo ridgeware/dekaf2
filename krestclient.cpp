@@ -94,7 +94,7 @@ KRestClient& KRestClient::SetURL(KURL URL, bool bVerifyCerts)
 void KRestClient::clear()
 //-----------------------------------------------------------------------------
 {
-	m_sVerb.clear();
+	m_Verb.clear();
 	m_sPath.clear();
 	m_Query.clear();
 	m_ec = nullptr;
@@ -126,11 +126,11 @@ KRestClient& KRestClient::SetError(KHTTPError& ec)
 } // SetError
 
 //-----------------------------------------------------------------------------
-KRestClient& KRestClient::Verb(KHTTPMethod sVerb)
+KRestClient& KRestClient::Verb(KHTTPMethod Verb)
 //-----------------------------------------------------------------------------
 {
 	ResetAfterRequest();
-	m_sVerb = std::move(sVerb);
+	m_Verb = Verb;
 	return *this;
 
 } // Verb
@@ -194,7 +194,7 @@ bool KRestClient::NoExceptRequest (KOutStream& OutStream, KStringView sBody, KMI
 	URL.Query += m_Query;
 	m_bNeedReset = true;
 
-	return KWebClient::HttpRequest(OutStream, URL, m_sVerb, sBody, mime);
+	return KWebClient::HttpRequest(OutStream, URL, m_Verb, sBody, mime);
 
 } // NoExceptRequest
 
@@ -211,7 +211,7 @@ bool KRestClient::Request (KOutStream& OutStream, KStringView sBody, KMIME mime)
 			sError = Error();
 		}
 
-		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {} from {}", m_sVerb.Serialize(), m_sPath, GetStatusCode(), sError, m_URL.Serialize()) });
+		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {} from {}", m_Verb.Serialize(), m_sPath, GetStatusCode(), sError, m_URL.Serialize()) });
 	}
 
 	return true;
@@ -358,7 +358,7 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime
 			}
 		}
 
-		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {} from {}", m_sVerb.Serialize(), m_sPath, GetStatusCode(), sError, m_URL.Serialize()) }, std::move(jResponse));
+		return ThrowOrReturn (KHTTPError { GetStatusCode(), kFormat("{} {}: HTTP-{} {} from {}", m_Verb.Serialize(), m_sPath, GetStatusCode(), sError, m_URL.Serialize()) }, std::move(jResponse));
 	}
 
 	return jResponse;

@@ -115,6 +115,9 @@ KStringView KHTTPMethod::Serialize() const
             return "TRACE";
     }
     
+    // gcc is stupid..
+    return "";
+    
 } // Serialize
 
 static_assert(std::is_nothrow_move_constructible<KHTTPMethod>::value,

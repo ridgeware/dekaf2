@@ -60,6 +60,54 @@ TEST_CASE("KCSV")
 				CHECK ( KCSV().Read(test.second) == test.first );
 			}
 		}
+        
+        SECTION("KInCSV")
+        {
+            KString sInputBuffer;
+            
+            for (const auto& test : tests)
+            {
+                KInCSV CSV(test.second);
+                CHECK ( CSV.Read() == test.first );
+                // prepare the next test
+                sInputBuffer += test.second;
+            }
+            
+            {
+                auto test = tests.begin();
+                // the first test is empty, we will not see it in the buffer so skip it
+                ++test;
+                KInCSV CSV(sInputBuffer);
+                for (const auto& row : CSV)
+                {
+                    CHECK ( test != tests.end() );
+                    if (test != tests.end())
+                    {
+                        CHECK ( row == test->first );
+                        ++test;
+                    }
+                }
+                CHECK ( test == tests.end() );
+            }
+
+            {
+                auto test = tests.begin();
+                // the first test is empty, we will not see it in the buffer so skip it
+                ++test;
+                KInStringStream iss(sInputBuffer);
+                KInCSV CSV(iss);
+                for (const auto& row : CSV)
+                {
+                    CHECK ( test != tests.end() );
+                    if (test != tests.end())
+                    {
+                        CHECK ( row == test->first );
+                        ++test;
+                    }
+                }
+                CHECK ( test == tests.end() );
+            }
+        }
 	}
 
 	SECTION("KStack")
@@ -115,5 +163,33 @@ TEST_CASE("KCSV")
 				CHECK ( KCSV().Read<KStack<KString>>(test.second) == test.first );
 			}
 		}
+        
+        SECTION("KInCSV")
+        {
+            KString sInputBuffer;
+            
+            for (const auto& test : tests)
+            {
+                KInCSV<KStack<KString>> CSV(test.second);
+                CHECK ( CSV.Read() == test.first );
+                // prepare the next test
+                sInputBuffer += test.second;
+            }
+            
+            auto test = tests.begin();
+            // the first test is empty, we will not see it in the buffer so skip it
+            ++test;
+            KInCSV<KStack<KString>> CSV(sInputBuffer);
+            for (const auto& row : CSV)
+            {
+                CHECK ( test != tests.end() );
+                if (test != tests.end())
+                {
+                    CHECK ( row == test->first );
+                    ++test;
+                }
+            }
+            CHECK ( test == tests.end() );
+        }
 	}
 }

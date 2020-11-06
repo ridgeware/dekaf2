@@ -46,6 +46,7 @@
 /// CSV reader/writer
 
 #include <vector>
+#include <memory>
 #include "kreader.h"
 #include "kwriter.h"
 #include "kstring.h"
@@ -182,6 +183,7 @@ private:
 }; // KCSV
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+template<class Record = std::vector<KString>>
 class KInCSV : protected KCSV
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -190,32 +192,93 @@ class KInCSV : protected KCSV
 public:
 //------
 
-	//-----------------------------------------------------------------------------
-	/// construct a CSV reader with stream, record, column and field delimiters (defaulted)
-	KInCSV(KInStream& In,
-			char chRecordLimiter = '\n',
-			char chColumnLimiter = ',',
-			char chFieldLimiter  = '"')
-	//-----------------------------------------------------------------------------
-	:	KCSV(chRecordLimiter, chColumnLimiter, chFieldLimiter)
-	,	m_In(In)
-	{
-	}
+    //-----------------------------------------------------------------------------
+    /// construct a CSV reader with stream, record, column and field delimiters (defaulted)
+    KInCSV(KInStream& In,
+            char chRecordLimiter = '\n',
+            char chColumnLimiter = ',',
+            char chFieldLimiter  = '"')
+    //-----------------------------------------------------------------------------
+    :    KCSV(chRecordLimiter, chColumnLimiter, chFieldLimiter)
+    ,    m_In(In)
+    {
+    }
+
+    //-----------------------------------------------------------------------------
+    /// construct a CSV reader with string_view, record, column and field delimiters (defaulted)
+    KInCSV(KStringView sIn,
+            char chRecordLimiter = '\n',
+            char chColumnLimiter = ',',
+            char chFieldLimiter  = '"')
+    //-----------------------------------------------------------------------------
+    :   KCSV(chRecordLimiter, chColumnLimiter, chFieldLimiter)
+    ,   m_InStringStream(std::make_unique<KInStringStream>(sIn))
+    ,   m_In(*m_InStringStream)
+    {
+    }
+
+    //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    /// iterator over records, use it for auto range for loops like
+    /// for (const auto& record : csv)
+    class iterator
+    //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    {
+    public:
+
+        iterator(KInCSV* csv = nullptr)
+        : m_csv(csv)
+        {}
+
+        Record* operator->() { return &m_record; }
+        Record& operator*()  { return m_record;  }
+
+        iterator& operator++()
+        {
+            if (m_csv)
+            {
+                m_record = m_csv->Read();
+
+                if (m_record.empty())
+                {
+                    m_csv = nullptr;
+                }
+            }
+            else
+            {
+                m_record = Record{};
+            }
+
+            return *this;
+        }
+
+        bool operator==(const iterator& other) const { return m_csv == other.m_csv; }
+        bool operator!=(const iterator& other) const { return !operator==(other);   }
+
+    private:
+
+        KInCSV* m_csv { nullptr };
+        Record m_record;
+    };
+
+    /// return begin of records
+    iterator begin() { return ++iterator(this); }
+    /// return end of records
+    iterator end()   { return iterator();       }
 
 	//-----------------------------------------------------------------------------
 	/// read a vector of strings with correct escaping from an input stream
-	template<class Columns = std::vector<KString>>
-	Columns Read()
+    Record Read()
 	//-----------------------------------------------------------------------------
 	{
-		return KCSV::Read<Columns>(m_In);
+		return KCSV::Read<Record>(m_In);
 	}
 
 //------
 protected:
 //------
 
-	KInStream& m_In;
+    std::unique_ptr<KInStringStream> m_InStringStream;
+    KInStream& m_In;
 
 }; // KInCSV
 

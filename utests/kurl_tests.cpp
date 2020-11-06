@@ -242,33 +242,46 @@ SCENARIO ( "KURL unit tests on invalid data")
     {
         WHEN ( "parsing an empty string" )
         {
-            KString sEmptyString{};
-            KStringView svEmptyString = sEmptyString;
+            KStringView svEmptyString;
             dekaf2::url::KProtocol  protocol;
             dekaf2::url::KUser      user;
             dekaf2::url::KDomain    domain;
             dekaf2::url::KPath      path;
             dekaf2::url::KQuery     query;
             dekaf2::url::KFragment  fragment;
-            dekaf2::KResource       uri;
+            dekaf2::KResource       resource;
             dekaf2::KURL            url;
 
             THEN ( "check responses to empty string" )
             {
                 KStringView svProto     {protocol.Parse( svEmptyString)};
-                KStringView svUser      {user    .Parse( svProto)};
-                KStringView svDomain    {domain  .Parse( svUser)};
-                KStringView svPath      {path    .Parse( svDomain)};
-                KStringView svQuery     {query   .Parse( svPath)};
-                KStringView svFragment  {fragment.Parse( svQuery)};
-                KStringView svURI       {uri     .Parse( svFragment)};
-                KStringView svURL       {url     .Parse( svURI)};
+                KStringView svUser      {user    .Parse( svEmptyString)};
+                KStringView svDomain    {domain  .Parse( svEmptyString)};
+                KStringView svPath      {path    .Parse( svEmptyString)};
+                KStringView svQuery     {query   .Parse( svEmptyString)};
+                KStringView svFragment  {fragment.Parse( svEmptyString)};
+                KStringView svResource  {resource.Parse( svEmptyString)};
+                KStringView svURL       {url     .Parse( svEmptyString)};
 
                 // Mandatory: Protocol, Domain, and URL cannot parse empty
                 CHECK( protocol.empty () == true );  // Fail on empty
                 CHECK(     user.empty () == true );
+                CHECK(   domain.empty () == true );
+                CHECK(     path.empty () == true );
                 CHECK(    query.empty () == true );
                 CHECK( fragment.empty () == true );
+                CHECK( resource.empty () == true );
+                CHECK(      url.empty () == true );
+                
+                CHECK(    svProto.empty () == true );
+                CHECK(     svUser.empty () == true );
+                CHECK(   svDomain.empty () == true );
+                CHECK(     svPath.empty () == true );
+                CHECK(    svQuery.empty () == true );
+                CHECK( svFragment.empty () == true );
+                CHECK( svResource.empty () == true );
+                CHECK(      svURL.empty () == true );
+
             }
         }
         WHEN ( "parsing an invalid path" )
@@ -654,7 +667,6 @@ TEST_CASE ("KURL")
             KString solo ("foo:bar@");
             KString expect{"foo:bar@"};
             KString target{};
-            size_t hint{0};
 
             dekaf2::url::KUser kuser;
             solo = kuser.Parse(solo);
@@ -677,7 +689,6 @@ TEST_CASE ("KURL")
                 parm_t&  parameter = it->second;
                 KString  expect{source};
                 KString  target{};
-                size_t   hint{get<0>(parameter)};
                 size_t   done{get<1>(parameter)};
                 bool     want{get<2>(parameter)};
 
@@ -708,7 +719,6 @@ TEST_CASE ("KURL")
                 parm_t&  parameter = it->second;
                 KString  expect{source};
                 KString  target{};
-                size_t   hint{get<0>(parameter)};
                 size_t   done{get<1>(parameter)};
                 bool     want{get<2>(parameter)};
 
@@ -733,8 +743,6 @@ TEST_CASE ("KURL")
                 const KString& source = it->first;
                 parm_t&  parameter = it->second;
                 KString  target{};
-                size_t   hint        {get<0>(parameter)};
-                size_t   done        {get<1>(parameter)};
                 bool     want        {get<2>(parameter)};
                 KString  feature    {get<3>(parameter)};
                 KString  expect     {get<4>(parameter)};

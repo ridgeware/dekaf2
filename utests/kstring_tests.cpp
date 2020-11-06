@@ -658,6 +658,7 @@ TEST_CASE("KString") {
 		CHECK( it == strd.begin() );
 		strd = str;
 		it = strd.erase(strd.begin()+2);
+        CHECK( it == strd.begin()+2 );
 		stre = "013456789abcdefgh";
 		CHECK( strd == stre );
 		strd = str;
@@ -667,6 +668,7 @@ TEST_CASE("KString") {
 		CHECK( it == strd.end() );
 		strd = str;
 		it = strd.erase(strd.end()-2);
+        CHECK( it == strd.begin()+16 );
 		stre = "0123456789abcdefh";
 		CHECK( strd == stre );
 		strd = str;
@@ -687,6 +689,7 @@ TEST_CASE("KString") {
 		CHECK( it == strd.begin() );
 		strd = str;
 		it = strd.erase(strd.begin()+2, strd.begin() + 4);
+        CHECK( it == strd.begin()+2 );
 		stre = "01456789abcdefgh";
 		CHECK( strd == stre );
 		strd = str;

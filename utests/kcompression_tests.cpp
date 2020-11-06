@@ -120,10 +120,8 @@ TEST_CASE("KCompression") {
 		KIStringStream inputstream(s);
 
 		out << inputstream.rdbuf();
-		auto l1 = o.size();
 		out.write(s2.data(), s2.size());
 		out.reset();
-		auto l2 = o.size();
 
 		CHECK ( !o.empty() );
 		CHECK ( o3 != o );

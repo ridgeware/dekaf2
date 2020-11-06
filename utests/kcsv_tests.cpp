@@ -77,8 +77,7 @@ TEST_CASE("KCSV")
                 auto test = tests.begin();
                 // the first test is empty, we will not see it in the buffer so skip it
                 ++test;
-                KInCSV CSV(sInputBuffer);
-                for (const auto& row : CSV)
+                for (const auto& row : KInCSV(sInputBuffer))
                 {
                     CHECK ( test != tests.end() );
                     if (test != tests.end())
@@ -95,8 +94,7 @@ TEST_CASE("KCSV")
                 // the first test is empty, we will not see it in the buffer so skip it
                 ++test;
                 KInStringStream iss(sInputBuffer);
-                KInCSV CSV(iss);
-                for (const auto& row : CSV)
+                for (const auto& row : KInCSV(iss))
                 {
                     CHECK ( test != tests.end() );
                     if (test != tests.end())

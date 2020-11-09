@@ -7455,6 +7455,18 @@ bool KSQL::CommitTransaction (KStringView sOptions/*=""*/)
 } // CommitTransaction
 
 //-----------------------------------------------------------------------------
+bool KSQL::RollbackTransaction (KStringView sOptions/*=""*/)
+//-----------------------------------------------------------------------------
+{
+	// TODO: code for non-MySQL
+
+	bool bOK   = ExecSQL ("rollback%s%s", sOptions.empty() ? "" : " ", sOptions.empty() ? KStringView("") : sOptions);
+
+	return bOK;
+
+} // RollbackTransaction
+
+//-----------------------------------------------------------------------------
 KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags/*=FAC+NORMAL*/, KStringView sSplitBy/*=","*/)
 //-----------------------------------------------------------------------------
 {

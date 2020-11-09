@@ -611,6 +611,7 @@ public:
 
 	bool   BeginTransaction (KStringView sOptions="");
 	bool   CommitTransaction (KStringView sOptions="");
+	bool   RollbackTransaction (KStringView sOptions="");
 
 	/// helper method to form AND clauses for dynamic SQL.
 	KString FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags=FAC_NORMAL, KStringView sSplitBy=",");

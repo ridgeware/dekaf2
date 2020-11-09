@@ -131,4 +131,38 @@ TEST_CASE("KHash")
 		}
 	}
 
+	SECTION("KHash")
+	{
+		KHash hash;
+		hash += 'a';
+		hash += "bcdefg";
+		KString sStr("hijklmn");
+		hash += sStr;
+		CHECK (hash.Hash() == "abcdefghijklmn"_hash );
+		CHECK (hash.Hash() == KStringView("abcdefghijklmn").Hash() );
+		hash.clear();
+		hash += "";
+		sStr = "";
+		hash += sStr;
+		CHECK (hash.Hash() == ""_hash );
+		CHECK (hash.Hash() == KStringView("").Hash() );
+	}
+
+	SECTION("KCaseHash")
+	{
+		KCaseHash hash;
+		hash += 'A';
+		hash += "bcDEfg";
+		KString sStr("hijKlmn");
+		hash += sStr;
+		CHECK (hash.Hash() == "abcdefghijklmn"_hash );
+		CHECK (hash.Hash() == KStringView("abcdefghijklmn").Hash() );
+		hash.clear();
+		hash += "";
+		sStr = "";
+		hash += sStr;
+		CHECK (hash.Hash() == ""_hash );
+		CHECK (hash.Hash() == KStringView("").Hash() );
+	}
+
 }

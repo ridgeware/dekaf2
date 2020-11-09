@@ -81,10 +81,7 @@ public:
 	}
 
 	/// appends a char to the hash
-	bool Update(KStringView::value_type chInput)
-	{
-		return Update(KStringView(&chInput, 1));
-	}
+	bool Update(KStringView::value_type chInput);
 
 	/// appends a string to the hash
 	bool Update(KStringView sInput);
@@ -113,10 +110,10 @@ public:
 		return *this;
 	}
 
-	/// returns the hash as integer
+	/// returns the hash as integer (we want the hash value to be 0 if no input was added)
 	std::size_t Hash() const
 	{
-		return m_iHash;
+		return m_bUpdated ? m_iHash : 0;
 	}
 
 	/// appends a string to the hash
@@ -146,15 +143,120 @@ public:
 	/// clears the hash and prepares for new computation
 	void clear()
 	{
-		m_iHash = 0;
+		*this = KHash();
 	}
 
 //------
 protected:
 //------
 
-	std::size_t m_iHash { 0 };
+	std::size_t m_iHash { kHashBasis };
+	bool m_bUpdated { false };
 
-};
+}; // KHash
+
+/// Generates a ASCII case insensitive FNV hash value, also over consecutive pieces of data
+class KCaseHash
+{
+
+//------
+public:
+//------
+
+	/// default ctor
+	KCaseHash() = default;
+
+	/// ctor with a char
+	KCaseHash(KStringView::value_type chInput)
+	{
+		Update(chInput);
+	}
+
+	/// ctor with a string
+	KCaseHash(KStringView sInput)
+	{
+		Update(sInput);
+	}
+
+	/// ctor with a stream
+	KCaseHash(KInStream& InputStream)
+	{
+		Update(InputStream);
+	}
+
+	/// appends a char to the hash
+	bool Update(KStringView::value_type chInput);
+
+	/// appends a string to the hash
+	bool Update(KStringView sInput);
+
+	/// appends a stream to the hash
+	bool Update(KInStream& InputStream);
+
+	/// appends a char to the hash
+	KCaseHash& operator+=(KStringView::value_type chInput)
+	{
+		Update(chInput);
+		return *this;
+	}
+
+	/// appends a string to the hash
+	KCaseHash& operator+=(KStringView sInput)
+	{
+		Update(sInput);
+		return *this;
+	}
+
+	/// appends a stream to the hash
+	KCaseHash& operator+=(KInStream& InputStream)
+	{
+		Update(InputStream);
+		return *this;
+	}
+
+	/// returns the hash as integer (we want the hash value to be 0 if no input was added)
+	std::size_t Hash() const
+	{
+		return m_bUpdated ? m_iHash : 0;
+	}
+
+	/// appends a string to the hash
+	void operator()(KStringView::value_type chInput)
+	{
+		Update(chInput);
+	}
+
+	/// appends a string to the hash
+	void operator()(KStringView sInput)
+	{
+		Update(sInput);
+	}
+
+	/// appends a stream to the hash
+	void operator()(KInStream& InputStream)
+	{
+		Update(InputStream);
+	}
+
+	/// returns the hash as integer
+	std::size_t operator()() const
+	{
+		return Hash();
+	}
+
+	/// clears the hash and prepares for new computation
+	void clear()
+	{
+		*this = KCaseHash();
+	}
+
+//------
+protected:
+//------
+
+	std::size_t m_iHash { kHashBasis };
+	bool m_bUpdated { false };
+
+}; // KCaseHash
 
 } // of namespace dekaf2

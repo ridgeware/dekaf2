@@ -41,34 +41,91 @@
  */
 
 #include "khash.h"
+#include "kcasestring.h"
 #include <array>
 
 namespace dekaf2 {
 
 //---------------------------------------------------------------------------
+bool KHash::Update(KStringView::value_type chInput)
+//---------------------------------------------------------------------------
+{
+    m_iHash = kHash(chInput, m_iHash);
+    m_bUpdated = true;
+    return true;
+}
+
+//---------------------------------------------------------------------------
 bool KHash::Update(KStringView sInput)
 //---------------------------------------------------------------------------
 {
-	m_iHash = kHash(sInput.data(), sInput.size(), m_iHash);
-	return true;
+    if (!sInput.empty())
+    {
+        m_iHash = kHash(sInput.data(), sInput.size(), m_iHash);
+        m_bUpdated = true;
+    }
+    return true;
 }
 
 //---------------------------------------------------------------------------
 bool KHash::Update(KInStream& InputStream)
 //---------------------------------------------------------------------------
 {
-	enum { BLOCKSIZE = 4096 };
-	std::array<char, BLOCKSIZE> Buffer;
+    enum { BLOCKSIZE = 4096 };
+    std::array<char, BLOCKSIZE> Buffer;
 
-	for (;;)
-	{
-		auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
-		m_iHash = kHash(Buffer.data(), iReadChunk, m_iHash);
-		if (iReadChunk < BLOCKSIZE)
-		{
-			return true;
-		}
-	}
+    for (;;)
+    {
+        auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
+        Update(KStringView(Buffer.data(), iReadChunk));
+        if (iReadChunk < BLOCKSIZE)
+        {
+            return true;
+        }
+    }
+
+} // Update
+
+//---------------------------------------------------------------------------
+bool KCaseHash::Update(KStringView::value_type chInput)
+//---------------------------------------------------------------------------
+{
+    m_iHash = kHash(KASCII::kToLower(chInput), m_iHash);
+    m_bUpdated = true;
+    return true;
+}
+
+//---------------------------------------------------------------------------
+bool KCaseHash::Update(KStringView sInput)
+//---------------------------------------------------------------------------
+{
+    if (!sInput.empty())
+    {
+        for (auto ch : sInput)
+        {
+            m_iHash = kHash(KASCII::kToLower(ch), m_iHash);
+        }
+        m_bUpdated = true;
+    }
+    return true;
+}
+
+//---------------------------------------------------------------------------
+bool KCaseHash::Update(KInStream& InputStream)
+//---------------------------------------------------------------------------
+{
+    enum { BLOCKSIZE = 4096 };
+    std::array<char, BLOCKSIZE> Buffer;
+
+    for (;;)
+    {
+        auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
+        Update(KStringView(Buffer.data(), iReadChunk));
+        if (iReadChunk < BLOCKSIZE)
+        {
+            return true;
+        }
+    }
 
 } // Update
 

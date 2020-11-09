@@ -96,7 +96,7 @@ inline
 std::size_t kCalcCaseHash(KStringView sv)
 //-----------------------------------------------------------------------------
 {
-	auto hash = kHashBasis;
+    auto hash = sv.empty() ? 0 : kHashBasis;
 	for (auto ch : sv)
 	{
 		hash = kHash(KASCII::kToLower(ch), hash);

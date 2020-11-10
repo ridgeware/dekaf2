@@ -97,7 +97,7 @@ public:
 		};
 
 		/// Add one header to the list of fixed additional headers
-		void AddHeader(KStringView sHeader, KStringView sValue);
+		void AddHeader(KHTTPHeader Header, KStringView sValue);
 
 		/// Fixed route prefix
 		KStringView sBaseRoute;

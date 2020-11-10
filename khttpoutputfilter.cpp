@@ -57,15 +57,15 @@ bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 	close();
 
 	// find the content length
-	KStringView sRemainingContentSize = headers.Headers.Get(KHTTPHeaders::content_length);
+	KStringView sRemainingContentSize = headers.Headers.Get(KHTTPHeader::CONTENT_LENGTH);
 	if (!sRemainingContentSize.empty())
 	{
 		m_iContentSize = sRemainingContentSize.UInt64();
 	}
 
-	m_bChunked = headers.Headers.Get(KHTTPHeaders::transfer_encoding) == "chunked";
+	m_bChunked = headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
 
-	KStringView sCompression = headers.Headers.Get(KHTTPHeaders::content_encoding);
+	KStringView sCompression = headers.Headers.Get(KHTTPHeader::CONTENT_ENCODING);
 	if (sCompression == "gzip" || sCompression == "x-gzip")
 	{
 		m_Compression = GZIP;

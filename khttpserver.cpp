@@ -236,13 +236,13 @@ void KHTTPServer::EnableCompressionIfPossible()
 		return;
 	}
 
-	Response.Headers.Set (KHTTPHeaders::CONTENT_ENCODING, sCompression);
+	Response.Headers.Set (KHTTPHeader::CONTENT_ENCODING, sCompression);
 
 	// for compression we need to switch to chunked transfer, as we do not know
 	// the size of the compressed content in advance
-	Response.Headers.Set (KHTTPHeaders::TRANSFER_ENCODING, "chunked");
+	Response.Headers.Set (KHTTPHeader::TRANSFER_ENCODING, "chunked");
 	// remove the content length
-	Response.Headers.Remove (KHTTPHeaders::content_length);
+	Response.Headers.Remove (KHTTPHeader::CONTENT_LENGTH);
 
 } // EnableCompressionIfPossible
 

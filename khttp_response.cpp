@@ -112,7 +112,7 @@ bool KHTTPResponseHeaders::Serialize(KOutStream& Stream) const
 bool KHTTPResponseHeaders::HasChunking() const
 //-----------------------------------------------------------------------------
 {
-	return Headers.Get(KHTTPHeaders::transfer_encoding) == "chunked";
+	return Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
 
 } // HasChunking
 

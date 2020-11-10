@@ -254,9 +254,9 @@ void KHTTPRouter::ErrorHandler(const std::exception& ex)
 	sContent += R"(</h2></body></html>\r\n)";
 
 	// compute and set the Content-Length header:
-	Response.Headers.Set(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(sContent.length()));
-	Response.Headers.Set(KHTTPHeaders::CONTENT_TYPE, KMIME::HTML_UTF8);
-	Response.Headers.Set(KHTTPHeaders::CONNECTION, "close");
+	Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(sContent.length()));
+	Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
+	Response.Headers.Set(KHTTPHeader::CONNECTION, "close");
 
 	// write full response and headers to output
 	Response.Serialize();

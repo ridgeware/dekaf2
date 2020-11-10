@@ -524,7 +524,7 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 		// domain and port
 		Request.Endpoint = url;
 		bIsConnect = true;
-		AddHeader(KHTTPHeaders::PROXY_CONNECTION, "keep-alive");
+		AddHeader(KHTTPHeader::PROXY_CONNECTION, "keep-alive");
 	}
 	else if (m_bUseHTTPProxyProtocol)
 	{
@@ -532,7 +532,7 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 		// the server domain and port
 		Request.Endpoint = url;
 		Request.Resource = url;
-		AddHeader(KHTTPHeaders::PROXY_CONNECTION, "keep-alive");
+		AddHeader(KHTTPHeader::PROXY_CONNECTION, "keep-alive");
 	}
 	else
 	{
@@ -556,7 +556,7 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 {
 	if (!m_sForcedHost.empty())
 	{
-		AddHeader(KHTTPHeaders::HOST, m_sForcedHost);
+		AddHeader(KHTTPHeader::HOST, m_sForcedHost);
 	}
 	else if (url.Domain.empty())
 	{
@@ -568,7 +568,7 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 		|| (url.Protocol == url::KProtocol::HTTPS && url.Port == "443")))
 	{
 		// domain alone is sufficient for standard ports
-		AddHeader(KHTTPHeaders::HOST, url.Domain.Serialize());
+		AddHeader(KHTTPHeader::HOST, url.Domain.Serialize());
 	}
 	else
 	{
@@ -577,7 +577,7 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 		url.Domain.Serialize(sHost);
 		url.Port.Serialize(sHost);
 
-		AddHeader(KHTTPHeaders::HOST, sHost);
+		AddHeader(KHTTPHeader::HOST, sHost);
 	}
 
 	return true;
@@ -618,7 +618,7 @@ KHTTPClient& KHTTPClient::DigestAuthentication(KString sUsername,
 KHTTPClient& KHTTPClient::ClearAuthentication()
 //-----------------------------------------------------------------------------
 {
-	Request.Headers.Remove(KHTTPHeaders::AUTHORIZATION);
+	Request.Headers.Remove(KHTTPHeader::AUTHORIZATION);
 	m_Authenticator.reset();
 	return *this;
 
@@ -631,8 +631,8 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 	Response.clear();
 
 	// remove remaining automatic headers from previous requests
-	Request.Headers.Remove(KHTTPHeaders::CONTENT_LENGTH);
-	Request.Headers.Remove(KHTTPHeaders::CONTENT_TYPE);
+	Request.Headers.Remove(KHTTPHeader::CONTENT_LENGTH);
+	Request.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
 
 	if (Request.Resource.empty() &&
 		Request.Method != KHTTPMethod::CONNECT)
@@ -655,11 +655,11 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 			// We allow sending body data for GET requests as well, as a few
 			// applications expect doing so. It is not generally advisable due
 			// to proxy issues though.
-			AddHeader(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(svPostData.size()));
+			AddHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(svPostData.size()));
 
 			if (!svPostData.empty())
 			{
-				AddHeader(KHTTPHeaders::CONTENT_TYPE, Mime.Serialize());
+				AddHeader(KHTTPHeader::CONTENT_TYPE, Mime.Serialize());
 			}
 		}
 	}
@@ -674,12 +674,12 @@ bool KHTTPClient::SendRequest(KStringView svPostData, KMIME Mime)
 
 	if (m_Authenticator)
 	{
-		AddHeader(KHTTPHeaders::AUTHORIZATION, m_Authenticator->GetAuthHeader(Request, svPostData));
+		AddHeader(KHTTPHeader::AUTHORIZATION, m_Authenticator->GetAuthHeader(Request, svPostData));
 	}
 
 	if (m_bRequestCompression && Request.Method != KHTTPMethod::CONNECT)
 	{
-		AddHeader(KHTTPHeaders::ACCEPT_ENCODING, "gzip, bzip2, deflate");
+		AddHeader(KHTTPHeader::ACCEPT_ENCODING, "gzip, bzip2, deflate");
 	}
 
 	if (!Request.Serialize()) // this sends the request headers to the remote server
@@ -796,7 +796,7 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod)
 		case KHTTPError::H307_TEMPORARY_REDIRECT:
 		case KHTTPError::H308_PERMANENT_REDIRECT:
 			{
-				KURL Redirect = Response.Headers[KHTTPHeaders::location];
+				KURL Redirect = Response.Headers[KHTTPHeader::LOCATION];
 
 				if (!Redirect.empty())
 				{
@@ -830,9 +830,9 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod)
 				}
 
 				SetError(kFormat("invalid {} header in {} redirection: {}",
-								 KHTTPHeaders::LOCATION,
+								 KHTTPHeader(KHTTPHeader::LOCATION),
 								 Response.GetStatusCode(),
-								 Response.Headers[KHTTPHeaders::location]));
+								 Response.Headers[KHTTPHeader::LOCATION]));
 			}
 			break;
 

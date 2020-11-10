@@ -196,19 +196,19 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Adds a request header for the next request
-	KHTTPClient& AddHeader(KStringView svName, KStringView svValue)
+	KHTTPClient& AddHeader(KHTTPHeader Header, KStringView svValue)
 	//-----------------------------------------------------------------------------
 	{
-		Request.Headers.Set(svName, svValue);
+		Request.Headers.Set(std::move(Header), svValue);
 		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Adds a request header for the next request (DEPRECATED, use AddHeader() instead)
-	bool SetRequestHeader(KStringView svName, KStringView svValue)
+	bool SetRequestHeader(KHTTPHeader Header, KStringView svValue)
 	//-----------------------------------------------------------------------------
 	{
-		AddHeader(svName, svValue);
+		AddHeader(std::move(Header), svValue);
 		return true;
 	}
 

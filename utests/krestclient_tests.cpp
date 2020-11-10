@@ -27,7 +27,7 @@ void rest_login(KRESTServer& REST)
 
 void rest_settings(KRESTServer& REST)
 {
-	if (REST.Request.Headers.Get(KHTTPHeaders::AUTHORIZATION) != "1234567890")
+	if (REST.Request.Headers.Get(KHTTPHeader::AUTHORIZATION) != "1234567890")
 	{
 		throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "not authenticated" };
 	}
@@ -45,7 +45,7 @@ void rest_settings(KRESTServer& REST)
 
 void rest_patch(KRESTServer& REST)
 {
-	if (REST.Request.Headers.Get(KHTTPHeaders::AUTHORIZATION) != "1234567890")
+	if (REST.Request.Headers.Get(KHTTPHeader::AUTHORIZATION) != "1234567890")
 	{
 		throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "not authenticated" };
 	}
@@ -140,7 +140,7 @@ TEST_CASE("KRESTCLIENT")
 		KString sToken = kjson::GetStringRef(oResponse, "token");
 
 		oResponse = Host.Post("user/Tom")
-		                .AddHeader(KHTTPHeaders::AUTHORIZATION, "12345")
+		                .AddHeader(KHTTPHeader::AUTHORIZATION, "12345")
 		                .SetError(ec)
 		                .Request(
 		{
@@ -159,7 +159,7 @@ TEST_CASE("KRESTCLIENT")
 		CHECK ( kjson::GetStringRef(oResponse, "message") == "not authenticated" );
 
 		oResponse = Host.Post("user/Tom")
-		                .AddHeader(KHTTPHeaders::AUTHORIZATION, "1234567890")
+		                .AddHeader(KHTTPHeader::AUTHORIZATION, "1234567890")
 		                .SetError(ec)
 		                .Request(
 		{
@@ -178,7 +178,7 @@ TEST_CASE("KRESTCLIENT")
 		CHECK ( kjson::GetStringRef(oResponse, "message") == "unknown user" );
 
 		oResponse = Host.Post("user/Jason")
-		                .AddHeader(KHTTPHeaders::AUTHORIZATION, sToken)
+		                .AddHeader(KHTTPHeader::AUTHORIZATION, sToken)
 		                .SetError(ec)
 		                .Request(
 		{
@@ -198,7 +198,7 @@ TEST_CASE("KRESTCLIENT")
 		CHECK ( kjson::GetStringRef(oResponse, "zip" ) == "10241"  );
 
 		oResponse = Host.Patch("user/Jason/address")
-		                .AddHeader(KHTTPHeaders::AUTHORIZATION, sToken)
+		                .AddHeader(KHTTPHeader::AUTHORIZATION, sToken)
 		                .SetError(ec)
 		                .Request(
 		{

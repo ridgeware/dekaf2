@@ -105,7 +105,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 
 	// check for HTTP conformity:
 	// need a HOST header that ideally matches us - will ATM only check for non-emptyness
-	auto it = Headers.find(KHTTPHeaders::HOST);
+	auto it = Headers.find(KHTTPHeader::HOST);
 
 	if (it == Headers.end())
 	{
@@ -207,7 +207,7 @@ KString KHTTPRequestHeaders::GetBrowserIP() const
 
 	{
 		// check the Forwarded: header
-		const auto sHeader = Headers.Get(KHTTPHeaders::forwarded).ToLowerASCII();
+		const auto sHeader = Headers.Get(KHTTPHeader::FORWARDED).ToLowerASCII();
 		if (!sHeader.empty())
 		{
 			auto iStart = sHeader.find("for=");
@@ -262,7 +262,7 @@ KString KHTTPRequestHeaders::GetBrowserIP() const
 	if (sBrowserIP.empty())
 	{
 		// check the X-Forwarded-For: header
-		const auto& sHeader = Headers.Get(KHTTPHeaders::x_forwarded_for);
+		const auto& sHeader = Headers.Get(KHTTPHeader::X_FORWARDED_FOR);
 		if (!sHeader.empty())
 		{
 			auto iEnd = sHeader.find(',');
@@ -302,7 +302,7 @@ KStringView KHTTPRequestHeaders::SupportedCompression() const
 	if (HasChunking())
 	{
 		// check the client's request headers for accepted compression encodings
-		auto& sCompression = Headers.Get(KHTTPHeaders::accept_encoding);
+		auto& sCompression = Headers.Get(KHTTPHeader::ACCEPT_ENCODING);
 
 		if (sCompression.find("gzip") != KString::npos)
 		{
@@ -355,7 +355,7 @@ bool KInHTTPRequest::Parse()
 KStringView KInHTTPRequest::GetCookie (KStringView sCookieName) const
 //-----------------------------------------------------------------------------
 {
-	auto CookieHeader = Headers.find(KHTTPHeaders::COOKIE);
+	auto CookieHeader = Headers.find(KHTTPHeader::COOKIE);
 
 	if (CookieHeader != Headers.end())
 	{

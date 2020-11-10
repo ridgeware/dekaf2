@@ -116,7 +116,7 @@ public:
 	/// Add a name/value query part to existing queries
 	self& AddQuery  (KString sName, KString sValue);
 	/// Add (overwrite) a request header to existing headers
-	self& AddHeader(KStringView sName, KStringView sValue);
+	self& AddHeader(KHTTPHeader Header, KStringView sValue);
 
 	/// Set a Get method with path to call
 	self& Get       (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::GET    );  }
@@ -254,8 +254,9 @@ public:
 	                                   { base::AddQuery(std::move(sName), std::move(sValue));
 										   return *this; }
 	/// Add (overwrite) a request header to existing headers
-	self& AddHeader (KStringView sName, KStringView sValue)
-									   { base::AddHeader(sName, sValue); return *this;   }
+	self& AddHeader (KHTTPHeader Header, KStringView sValue)
+									   { base::AddHeader(std::move(Header), sValue);
+										                                   return *this; }
 
 	/// Set a Get method with path to call
 	self& Get      (KString sPath)     { base::Get(std::move(sPath));      return *this; }

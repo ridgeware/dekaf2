@@ -127,13 +127,13 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 				if (m_bAcceptCookies)
 				{
 					// remove any cookie header if set
-					Request.Headers.Remove(KHTTPHeaders::COOKIE);
+					Request.Headers.Remove(KHTTPHeader::COOKIE);
 
 					KString sCookie = m_Cookies.Serialize(URL);
 
 					if (!sCookie.empty())
 					{
-						AddHeader(KHTTPHeaders::COOKIE, sCookie);
+						AddHeader(KHTTPHeader::COOKIE, sCookie);
 					}
 				}
 
@@ -252,7 +252,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 	if (m_bAcceptCookies && HttpSuccess())
 	{
 		// check for Set-Cookie headers
-		const auto Range = Response.Headers.equal_range(KHTTPHeaders::SET_COOKIE);
+		const auto Range = Response.Headers.equal_range(KHTTPHeader::SET_COOKIE);
 
 		for (auto it = Range.first; it != Range.second; ++it)
 		{

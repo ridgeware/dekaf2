@@ -34,6 +34,7 @@ set (USOURCES
 	khtmlcontentblocks_tests.cpp
 	khtmlentities_tests.cpp
 	khttpclient_tests.cpp
+	khttp_header_tests.cpp
 	khttpserver_tests.cpp
 	kinpipe_tests.cpp
 	kinshell_tests.cpp

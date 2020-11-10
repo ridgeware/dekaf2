@@ -262,21 +262,21 @@ void KCGIInStream::Stream::CreateHeader()
 	kDebug(1, m_sHeader);
 	m_sHeader += "\r\n";
 
-	struct CGIVars_t { KStringViewZ sVar; KStringViewZ sHeader; };
+	struct CGIVars_t { KStringViewZ sVar; KHTTPHeader::Header Header; };
 	static constexpr CGIVars_t CGIVars[]
 	{
-		{ KCGIInStream::HTTP_ACCEPT,          KHTTPHeaders::ACCEPT          },
-		{ KCGIInStream::HTTP_ACCEPT_ENCODING, KHTTPHeaders::ACCEPT_ENCODING },
-		{ KCGIInStream::HTTP_ACCEPT_LANGUAGE, KHTTPHeaders::ACCEPT_LANGUAGE },
-		{ KCGIInStream::HTTP_AUTHORIZATION,   KHTTPHeaders::AUTHORIZATION   },
-		{ KCGIInStream::HTTP_CONNECTION,      KHTTPHeaders::CONNECTION      },
-		{ KCGIInStream::HTTP_COOKIE,          KHTTPHeaders::COOKIE          },
-		{ KCGIInStream::HTTP_HOST,            KHTTPHeaders::HOST            },
-		{ KCGIInStream::HTTP_REFERER,         KHTTPHeaders::REFERER         },
-		{ KCGIInStream::HTTP_USER_AGENT,      KHTTPHeaders::USER_AGENT      },
-		{ KCGIInStream::CONTENT_TYPE,         KHTTPHeaders::CONTENT_TYPE    },
-		{ KCGIInStream::CONTENT_LENGTH,       KHTTPHeaders::CONTENT_LENGTH  },
-		{ KCGIInStream::REMOTE_ADDR,          KHTTPHeaders::X_FORWARDED_FOR },
+		{ KCGIInStream::HTTP_ACCEPT,          KHTTPHeader::ACCEPT          },
+		{ KCGIInStream::HTTP_ACCEPT_ENCODING, KHTTPHeader::ACCEPT_ENCODING },
+		{ KCGIInStream::HTTP_ACCEPT_LANGUAGE, KHTTPHeader::ACCEPT_LANGUAGE },
+		{ KCGIInStream::HTTP_AUTHORIZATION,   KHTTPHeader::AUTHORIZATION   },
+		{ KCGIInStream::HTTP_CONNECTION,      KHTTPHeader::CONNECTION      },
+		{ KCGIInStream::HTTP_COOKIE,          KHTTPHeader::COOKIE          },
+		{ KCGIInStream::HTTP_HOST,            KHTTPHeader::HOST            },
+		{ KCGIInStream::HTTP_REFERER,         KHTTPHeader::REFERER         },
+		{ KCGIInStream::HTTP_USER_AGENT,      KHTTPHeader::USER_AGENT      },
+		{ KCGIInStream::CONTENT_TYPE,         KHTTPHeader::CONTENT_TYPE    },
+		{ KCGIInStream::CONTENT_LENGTH,       KHTTPHeader::CONTENT_LENGTH  },
+		{ KCGIInStream::REMOTE_ADDR,          KHTTPHeader::X_FORWARDED_FOR },
 	};
 
 	// add headers from env vars
@@ -285,7 +285,7 @@ void KCGIInStream::Stream::CreateHeader()
 		KString sEnv = kGetEnv(it.sVar);
 		if (!sEnv.empty())
 		{
-			m_sHeader += it.sHeader;
+			m_sHeader += KHTTPHeader(it.Header).Serialize();
 			m_sHeader += ": ";
 			m_sHeader += sEnv;
 			m_sHeader += "\r\n";

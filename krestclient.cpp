@@ -176,11 +176,11 @@ KRestClient& KRestClient::AddQuery(KString sName, KString sValue)
 } // AddQuery
 
 //-----------------------------------------------------------------------------
-KRestClient& KRestClient::AddHeader (KStringView sName, KStringView sValue)
+KRestClient& KRestClient::AddHeader (KHTTPHeader Header, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
 	ResetAfterRequest();
-	base::AddHeader(sName, sValue);
+	base::AddHeader(std::move(Header), sValue);
 	return *this;
 
 } // AddHeader

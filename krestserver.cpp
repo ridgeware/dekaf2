@@ -56,10 +56,10 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-void KRESTServer::Options::AddHeader(KStringView sHeader, KStringView sValue)
+void KRESTServer::Options::AddHeader(KHTTPHeader Header, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
-	ResponseHeaders.Add(sHeader, sValue);
+	ResponseHeaders.Add(std::move(Header), sValue);
 
 } // AddHeader
 
@@ -73,7 +73,7 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 			break;
 
 		case Options::ALLOW_ALL_WITH_AUTH_HEADER:
-			if (Request.Headers[KHTTPHeaders::AUTHORIZATION].empty())
+			if (Request.Headers[KHTTPHeader::AUTHORIZATION].empty())
 			{
 				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization header" };
 			}
@@ -87,7 +87,7 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 				}
 				else
 				{
-					auto& Authorization = Request.Headers[KHTTPHeaders::AUTHORIZATION];
+					auto& Authorization = Request.Headers[KHTTPHeader::AUTHORIZATION];
 
 					if (Authorization.empty())
 					{
@@ -345,7 +345,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			clear();
 
 			// per default we output JSON
-			Response.Headers.Add(KHTTPHeaders::CONTENT_TYPE, KMIME::JSON);
+			Response.Headers.Add(KHTTPHeader::CONTENT_TYPE, KMIME::JSON);
 
 			// add additional response headers
 			for (auto& it : Options.ResponseHeaders)
@@ -515,7 +515,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						kDebug (2, "read {} request body with length {} and type {}",
 								"plain",
 								m_sRequestBody.size(),
-								Request.Headers[KHTTPHeaders::CONTENT_TYPE]);
+								Request.Headers[KHTTPHeader::CONTENT_TYPE]);
 						break;
 
 					case KRESTRoute::WWWFORM:
@@ -527,7 +527,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						kDebug (2, "read {} request body with length {} and type {}",
 								"www form",
 								m_sRequestBody.size(),
-								Request.Headers[KHTTPHeaders::CONTENT_TYPE]);
+								Request.Headers[KHTTPHeader::CONTENT_TYPE]);
 						m_sRequestBody.Trim();
 						// operator+=() causes additive parsing for a query component
 						Request.Resource.Query += m_sRequestBody;
@@ -666,11 +666,11 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				}
 				else if (!xml.tx.empty())
 				{
-					if (Response.Headers.Get(KHTTPHeaders::CONTENT_TYPE) == KMIME::JSON)
+					if (Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::JSON)
 					{
 						// only set content-type to flat XML if it has not already been
 						// changed by the caller from the default JSON
-						Response.Headers.Set(KHTTPHeaders::CONTENT_TYPE, KMIME::XML);
+						Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::XML);
 					}
 
 					kDebug (2, "serializing XML response");
@@ -691,7 +691,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 			}
 
 			// compute and set the Content-Length header:
-			Response.Headers.Set(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(sContent.length()));
+			Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(sContent.length()));
 
 			if (m_Timers)
 			{
@@ -704,7 +704,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				}
 			}
 
-			Response.Headers.Set (KHTTPHeaders::CONNECTION, bKeepAlive ? "keep-alive" : "close");
+			Response.Headers.Set (KHTTPHeader::CONNECTION, bKeepAlive ? "keep-alive" : "close");
 
 			// writes response headers to output
 			Serialize();
@@ -748,11 +748,11 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				}
 				else if (!xml.tx.empty())
 				{
-					if (Response.Headers.Get(KHTTPHeaders::CONTENT_TYPE) == KMIME::JSON)
+					if (Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::JSON)
 					{
 						// only set content-type to flat XML if it has not already been
 						// changed by the caller from the default JSON
-						Response.Headers.Set(KHTTPHeaders::CONTENT_TYPE, KMIME::XML);
+						Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::XML);
 					}
 
 					KString sContent;
@@ -908,7 +908,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 			sContent += '\n';
 
 			// compute and set the Content-Length header:
-			Response.Headers.Set(KHTTPHeaders::CONTENT_LENGTH, KString::to_string(sContent.length()));
+			Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(sContent.length()));
 
 			if (m_Timers)
 			{
@@ -921,7 +921,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 				}
 			}
 
-			Response.Headers.Set(KHTTPHeaders::CONNECTION, "close");
+			Response.Headers.Set(KHTTPHeader::CONNECTION, "close");
 
 			// writes response headers to output
 			Serialize();
@@ -1057,12 +1057,12 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 		KString sAdditionalHeader;
 		if (Request.Method != KHTTPMethod::GET)
 		{
-			KString sContentType = Request.Headers.Get(KHTTPHeaders::content_type);
+			KString sContentType = Request.Headers.Get(KHTTPHeader::CONTENT_TYPE);
 			if (sContentType.empty())
 			{
 				sContentType = KMIME::JSON;
 			}
-			sAdditionalHeader.Format(" -H '{}: {}'", KHTTPHeaders::CONTENT_TYPE, sContentType);
+			sAdditionalHeader.Format(" -H '{}: {}'", KHTTPHeader::CONTENT_TYPE, sContentType);
 		}
 
 		oss.Format(R"(curl -i{} -X "{}" "{}")",

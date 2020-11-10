@@ -7460,9 +7460,11 @@ bool KSQL::RollbackTransaction (KStringView sOptions/*=""*/)
 {
 	// TODO: code for non-MySQL
 
-	bool bOK   = ExecSQL ("rollback%s%s", sOptions.empty() ? "" : " ", sOptions.empty() ? KStringView("") : sOptions);
-
-	return bOK;
+	if (!sOptions.empty())
+	{
+		return ExecSQL ("rollback %s", sOptions);
+	}
+	return ExecSQL ("rollback");
 
 } // RollbackTransaction
 

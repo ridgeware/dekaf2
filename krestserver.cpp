@@ -1062,7 +1062,7 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 			{
 				sContentType = KMIME::JSON;
 			}
-			sAdditionalHeader.Format(" -H '{}: {}'", KHTTPHeader::CONTENT_TYPE, sContentType);
+			sAdditionalHeader.Format(" -H '{}: {}'", KHTTPHeader(KHTTPHeader::CONTENT_TYPE), sContentType);
 		}
 
 		oss.Format(R"(curl -i{} -X "{}" "{}")",

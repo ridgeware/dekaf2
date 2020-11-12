@@ -103,10 +103,12 @@ endif()
 
 # prepare for install:
 set(lib_version ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR})
-set(dekaf2_bin_dest ${CMAKE_INSTALL_PREFIX}/bin)
-set(dekaf2_include_dest "${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME}-${lib_version}")
-set(dekaf2_main_lib_dest "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}-${lib_version}")
+set(dekaf2_bin_dest bin)
+set(dekaf2_include_dest "include/${PROJECT_NAME}-${lib_version}")
+set(dekaf2_main_lib_dest "lib/${PROJECT_NAME}-${lib_version}")
 set(dekaf2_lib_dest "${dekaf2_main_lib_dest}/${CMAKE_BUILD_TYPE}")
+# we use the dekaf2_share_dest to configure kconfiguration.h.in, so first set it
+# with an absolute path which we remove later on
 set(dekaf2_share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}-${lib_version}")
 
 # =================================== ENVIRONMENT ==================================
@@ -853,6 +855,9 @@ add_subdirectory(benchmarks)
 
 # ================================= INSTALLATION =====================================
 
+# now remove the install prefix from dekaf2_share_dest
+string(REPLACE "${CMAKE_INSTALL_PREFIX}/" "" dekaf2_share_dest ${dekaf2_share_dest})
+
 # always put this first, otherwise it risks to remove other already installed cmake config files
 install(EXPORT ${PROJECT_NAME} DESTINATION "${dekaf2_lib_dest}")
 
@@ -903,18 +908,20 @@ endif()
 set(CPACK_SOURCE_GENERATOR ZIP)
 set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})
 set(CPACK_SOURCE_PACKAGE_FILE_NAME ${PROJECT_NAME}-${CPACK_PACKAGE_VERSION})
+set(CPACK_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION ON)
+set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
 include(CPack)
 
 # ================================= UNINSTALL ========================================
 
 add_custom_target(uninstall
-	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_main_lib_dest}"
-	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_include_dest}"
-	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${dekaf2_share_dest}"
-	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/klog"
-	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/createdbc"
-	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/dekaf2project"
-	COMMAND "${CMAKE_COMMAND}" -E remove "${dekaf2_bin_dest}/mysql-newuser"
+	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}"
+	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}"
+	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}/${dekaf2_share_dest}"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/klog"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/createdbc"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/dekaf2project"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/mysql-newuser"
 )
 
 # =================================== THE END ========================================

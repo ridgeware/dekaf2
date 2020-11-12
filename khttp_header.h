@@ -222,7 +222,8 @@ public:
 		}
 		else
 		{
-			return m_header;
+			// make sure we spread across buckets..
+			return kHash(static_cast<char>(m_header));
 		}
 	}
 

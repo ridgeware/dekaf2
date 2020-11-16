@@ -45,6 +45,7 @@
 #include "kgetruntimestack.h"
 #include "ksignals.h"
 #include "kcrashexit.h"
+#include <mutex>
 
 #ifdef UNIX
  #include <sys/resource.h>      // to allow core dumps
@@ -56,6 +57,7 @@ namespace dekaf2
 
 static KCrashCallback g_pCrashCallback{nullptr};
 static KString        g_sCrashContext;
+static std::mutex     g_CrashMutex;
 
 //-----------------------------------------------------------------------------
 void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
@@ -184,6 +186,9 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	sWarning += kFormat ("exiting program.");
 	klog.warning (sWarning);
 
+	// make sure all access on the global vars is protected from races
+	std::lock_guard<std::mutex> Lock(g_CrashMutex);
+
 	if (g_pCrashCallback)
 	{
 		g_pCrashCallback (sWarning);
@@ -205,6 +210,8 @@ void kCrashExit (int iSignalNum)
 void kSetCrashContext (KStringView sContext)
 //-----------------------------------------------------------------------------
 {
+	// make sure all access on the global vars is protected from races
+	std::lock_guard<std::mutex> Lock(g_CrashMutex);
 	g_sCrashContext = sContext;
 }
 
@@ -212,6 +219,8 @@ void kSetCrashContext (KStringView sContext)
 void kSetCrashCallback (KCrashCallback pFunction)
 //-----------------------------------------------------------------------------
 {
+	// make sure all access on the global vars is protected from races
+	std::lock_guard<std::mutex> Lock(g_CrashMutex);
 	g_pCrashCallback = pFunction;
 }
 

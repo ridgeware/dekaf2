@@ -48,6 +48,7 @@
 
 #include <dekaf2/kstring.h>
 #include <dekaf2/kprops.h>
+#include <dekaf2/kmime.h>
 
 namespace dekaf2 {
 
@@ -141,7 +142,9 @@ public:
 
 	void      DumpStats    (KOutStream& fp, DumpFormat iFormat=DumpFormat::TEXT, KStringView sGrepString="");
 	Stats&    GetStats     () { return m_Stats; }
-	uint16_t  PushStats    (KStringView sURL, KStringView sMyUniqueIP, KString& sResponse);
+
+	/// push stats as KMIME::WWW_URL_ENCODED or KMIME::JSON
+	uint16_t  PushStats    (KString/*copy*/ sURL, KMIME iMime, KStringView sMyUniqueIP, KString& sResponse);
 
 	size_t    GatherProcs  (KStringView sCommandRegex="", bool bDoNoShowMyself=true);
 	void      DumpProcs    (KOutStream& stream, DumpFormat DumpFormat=DumpFormat::TEXT);

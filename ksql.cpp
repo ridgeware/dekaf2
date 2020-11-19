@@ -5072,7 +5072,7 @@ bool KSQL::DescribeTable (KStringView sTablename)
 			//uint32_t iFlags = GetFlags();
 			EndQuery ();
 			SetFlags (F_IgnoreSelectKeyword);
-			bool bOK = ExecQuery ("desc {}", sTablename);
+			bool bOK = ExecRawQuery (kFormat ("desc {}", sTablename));
 			//SetFlags (iFlags);
 			return (bOK);
 		}
@@ -5086,13 +5086,13 @@ bool KSQL::DescribeTable (KStringView sTablename)
 		{
 		KString sSchemaOwner = GetDBUser();
 		sSchemaOwner.MakeUpper();
-		return (ExecQuery (
+		return (ExecRawQuery (kFormat (
 			"select column_name, data_type, nullable, data_length, data_precision, ''\n"
 			"  from DBA_TAB_COLUMNS\n"
 			" where owner = '{}'\n"
 			"   and table_name = '{}'\n"
 			" order by column_id", 
-				sSchemaOwner, sTablename));
+				sSchemaOwner, sTablename)));
 		}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
@@ -5103,7 +5103,7 @@ bool KSQL::DescribeTable (KStringView sTablename)
 			//uint32_t iFlags = GetFlags();
 			EndQuery ();
 			SetFlags (F_IgnoreSelectKeyword);
-			bool bOK = ExecQuery ("sp_help {}", sTablename);
+			bool bOK = ExecRawQuery (kFormat ("sp_help {}", sTablename));
 			//SetFlags (iFlags);
 			return (bOK);
 		}

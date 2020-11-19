@@ -1324,11 +1324,29 @@ void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t 
 } // DumpPidTree
 
 //-----------------------------------------------------------------------------
-uint16_t KSystemStats::PushStats (KStringView sURL, KStringView sMyUniqueIP, KString& sResponse)
+uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, KMIME iMime, KStringView sMyUniqueIP, KString& sResponse)
 //-----------------------------------------------------------------------------
 {
-	KString sPostData;
-	sPostData.Format ("internal_ip:s={}", sMyUniqueIP);
+	KJSON   oBody;
+	KString sBody;
+
+	if (iMime == KMIME::WWW_FORM_URLENCODED)
+	{
+		sBody.Format ("internal_ip:s={}", sMyUniqueIP);
+	}
+	else if (iMime == KMIME::JSON)
+	{
+		if (!sURL.EndsWith("/"))
+		{
+			sURL += "/";
+		}
+		sURL += sMyUniqueIP;
+	}
+	else
+	{
+		sResponse.Format ("BUG: KSystem::PushStats only accepts iMime = KMIME::JSON or KMIME::WWW_FORM_URLENCODED");
+		return 0;
+	}
 
 	for (const auto& it : m_Stats)
 	{
@@ -1352,16 +1370,29 @@ uint16_t KSystemStats::PushStats (KStringView sURL, KStringView sMyUniqueIP, KSt
 			}
 		}
 
-		KString sEncValue;
-		kUrlEncode(sValue.ToView(), sEncValue);
-		KString sPair;
-		sPair.Format ("&{}:{:.1}={}", it.first, StatTypeToString(it.second.type), sEncValue);
-		sPostData += sPair;
+		if (iMime == KMIME::WWW_FORM_URLENCODED)
+		{
+			KString sEncValue;
+			kUrlEncode(sValue.ToView(), sEncValue);
+			KString sPair;
+			sPair.Format ("&{}:{:.1}={}", it.first, StatTypeToString(it.second.type), sEncValue);
+			sBody += sPair;
+		}
+		else
+		{
+			oBody[it.first] = sValue; // transport everything as a string
+		}
+
+	} // for each stat
+
+	if (iMime == KMIME::JSON)
+	{
+		sBody = oBody.dump();
 	}
 
 	kDebug (2, "sending POST to: {}", sURL);
 	KWebClient HTTP;
-	sResponse = HTTP.Post(sURL, sPostData, KMIME::WWW_FORM_URLENCODED);
+	sResponse = HTTP.Post(sURL, sBody, iMime);
 
 	if (!sResponse.empty())
 	{

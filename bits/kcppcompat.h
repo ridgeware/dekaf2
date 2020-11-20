@@ -328,6 +328,40 @@ using void_t = void;
 }
 #endif
 
+// Make sure we have std::apply from C++17 available in namespace std::
+// It does not matter if they had been declared by other code already. The compiler
+// simply picks the first one that matches.
+#ifndef DEKAF2_HAS_CPP_17
+namespace std
+{
+	#ifdef DEKAF2_HAS_CPP_14
+		namespace detail
+		{
+			template<typename F, typename Tuple, std::size_t... I>
+			decltype(auto) dekaf2_apply_impl(F&& f, Tuple&& t, std::index_sequence<I...>)
+			{
+				return std::forward<F>(f)(std::get<I>(std::forward<Tuple>(t))...);
+			}
+		} // of namespace detail
+
+		template<typename F, typename Tuple>
+		decltype(auto) apply(F&& f, Tuple&& t)
+		{
+			return detail::dekaf2_apply_impl(
+					std::forward<F>(f), std::forward<Tuple>(t),
+					std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple>>>{});
+		}
+	#else
+		// we lack a C++11 implementation..
+		template<typename F, typename Tuple>
+		decltype(auto) apply(F&& f, Tuple&& t)
+		{
+			std::static_assert(false, "dekaf2 misses a C++11-only implementation of std::apply");
+		}
+	#endif
+} // of namespace std
+#endif
+
 // define macros to teach the compiler which branch is more likely
 // to be taken - the effects are actually minimal to nonexisting,
 // so do not bother for code that is not really core

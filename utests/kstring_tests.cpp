@@ -717,6 +717,8 @@ TEST_CASE("KString") {
 		CHECK( s == "This is a string" );
 		s.Format("This is {}", str);
 		CHECK( s == "This is a string" );
+		s.Format("{:.2f}", 3.1415);
+		CHECK( s == "3.14" );
 	}
 
 	SECTION("conversion functions for KString")

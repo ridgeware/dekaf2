@@ -6197,7 +6197,7 @@ bool KSQL::PurgeKeyList (KStringView sSchemaName, KStringView sPKEY_colname, KSt
 			}
 			obj["rows_selected"] = iChanged;
 		}
-		else if (!ExecSQL ("delete from {}.{} /*KSQL::PurgeKey*/ where {} in ({})", sTableSchema, sTableName, sPKEY_colname, sInClause))
+		else if (!ExecRawSQL (kFormat("delete from {}.{} /*KSQL::PurgeKey*/ where {} in ({})", sTableSchema, sTableName, sPKEY_colname, sInClause)))
 		{
 			return (false);
 		}

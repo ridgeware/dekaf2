@@ -230,31 +230,29 @@ KUTF8_CONSTEXPR_14
 bool ToUTF8(Ch sch, Iterator& it)
 //-----------------------------------------------------------------------------
 {
-	using N = typename std::remove_reference<decltype(*it)>::type;
-
 	codepoint_t ch = CodepointCast(sch);
 
 	if (ch < 0x0080)
 	{
-		*it++ = static_cast<N>(ch);
+		*it++ = ch;
 	}
 	else if (ch < 0x0800)
 	{
-		*it++ = static_cast<N>(0xc0 | ((ch >> 6) & 0x1f));
-		*it++ = static_cast<N>(0x80 | (ch & 0x3f));
+		*it++ = (0xc0 | ((ch >> 6) & 0x1f));
+		*it++ = (0x80 | (ch & 0x3f));
 	}
 	else if (ch < 0x010000)
 	{
-		*it++ = static_cast<N>(0xe0 | ((ch >> 12) & 0x0f));
-		*it++ = static_cast<N>(0x80 | ((ch >>  6) & 0x3f));
-		*it++ = static_cast<N>(0x80 | (ch & 0x3f));
+		*it++ = (0xe0 | ((ch >> 12) & 0x0f));
+		*it++ = (0x80 | ((ch >>  6) & 0x3f));
+		*it++ = (0x80 | (ch & 0x3f));
 	}
 	else if (ch < 0x0110000)
 	{
-		*it++ = static_cast<N>(0xf0 | ((ch >> 18) & 0x07));
-		*it++ = static_cast<N>(0x80 | ((ch >> 12) & 0x3f));
-		*it++ = static_cast<N>(0x80 | ((ch >>  6) & 0x3f));
-		*it++ = static_cast<N>(0x80 | (ch & 0x3f));
+		*it++ = (0xf0 | ((ch >> 18) & 0x07));
+		*it++ = (0x80 | ((ch >> 12) & 0x3f));
+		*it++ = (0x80 | ((ch >>  6) & 0x3f));
+		*it++ = (0x80 | (ch & 0x3f));
 	}
 	else
 	{
@@ -275,40 +273,8 @@ KUTF8_CONSTEXPR_14
 bool ToUTF8(Ch sch, NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 {
-	using N=typename NarrowString::value_type;
-
-	codepoint_t ch = CodepointCast(sch);
-
-	if (ch < 0x0080)
-	{
-		sNarrow += static_cast<N>(ch);
-	}
-	else if (ch < 0x0800)
-	{
-		sNarrow += static_cast<N>(0xc0 | ((ch >> 6) & 0x1f));
-		sNarrow += static_cast<N>(0x80 | (ch & 0x3f));
-	}
-	else if (ch < 0x010000)
-	{
-		sNarrow += static_cast<N>(0xe0 | ((ch >> 12) & 0x0f));
-		sNarrow += static_cast<N>(0x80 | ((ch >>  6) & 0x3f));
-		sNarrow += static_cast<N>(0x80 | (ch & 0x3f));
-	}
-	else if (ch < 0x0110000)
-	{
-		sNarrow += static_cast<N>(0xf0 | ((ch >> 18) & 0x07));
-		sNarrow += static_cast<N>(0x80 | ((ch >> 12) & 0x3f));
-		sNarrow += static_cast<N>(0x80 | ((ch >>  6) & 0x3f));
-		sNarrow += static_cast<N>(0x80 | (ch & 0x3f));
-	}
-	else
-	{
-		// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
-		// for invalid Unicode codepoints
-		ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
-		return false;
-	}
-	return true;
+	auto it = std::back_inserter(sNarrow);
+	return ToUTF8(sch, it);
 }
 
 //-----------------------------------------------------------------------------
@@ -335,6 +301,8 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 	typename WideString::const_iterator it = sWide.cbegin();
 	typename WideString::const_iterator ie = sWide.cend();
 
+	auto OutIter = std::back_inserter(sNarrow);
+
 	for (; it != ie; ++it)
 	{
 		// make sure all surrogate logic is only compiled in for 16 bit strings
@@ -345,7 +313,7 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 			if (it == ie)
 			{
 				// we treat incomplete surrogates as simple ucs2
-				if (!ToUTF8(sp.first, sNarrow))
+				if (!ToUTF8(sp.first, OutIter))
 				{
 					return false;
 				}
@@ -356,18 +324,18 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 				if (!IsTrailSurrogate(sp.second))
 				{
 					// the second surrogate is not valid - simply treat them both as ucs2
-					if (!ToUTF8(sp.first, sNarrow))
+					if (!ToUTF8(sp.first, OutIter))
 					{
 						return false;
 					}
-					if (!ToUTF8(sp.second, sNarrow))
+					if (!ToUTF8(sp.second, OutIter))
 					{
 						return false;
 					}
 				}
 				else
 				{
-					if (!ToUTF8(SurrogatesToCodepoint(sp), sNarrow))
+					if (!ToUTF8(SurrogatesToCodepoint(sp), OutIter))
 					{
 						return false;
 					}
@@ -377,7 +345,7 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 		else
 		{
 			// default case
-			if (!ToUTF8(*it, sNarrow))
+			if (!ToUTF8(*it, OutIter))
 			{
 				return false;
 			}
@@ -466,7 +434,7 @@ bool ValidUTF8(Iterator it, Iterator ie)
 		}
 
 	}
-	return true;
+	return !remaining;
 }
 
 //-----------------------------------------------------------------------------
@@ -886,6 +854,7 @@ NarrowString UTF16BytesToUTF8(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
 	NarrowString sNarrow;
+	auto OutIter = std::back_inserter(sNarrow);
 
 	for (; it != ie; )
 	{
@@ -894,7 +863,7 @@ NarrowString UTF16BytesToUTF8(Iterator it, Iterator ie)
 
 		if (KUTF8_UNLIKELY(it == ie))
 		{
-			ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
+			ToUTF8(REPLACEMENT_CHARACTER, OutIter);
 		}
 		else
 		{
@@ -913,29 +882,29 @@ NarrowString UTF16BytesToUTF8(Iterator it, Iterator ie)
 
 						if (IsTrailSurrogate(sp.second))
 						{
-							ToUTF8(SurrogatesToCodepoint(sp), sNarrow);
+							ToUTF8(SurrogatesToCodepoint(sp), OutIter);
 						}
 						else
 						{
 							// the second surrogate is not valid - simply treat them both as ucs2
-							ToUTF8(sp.first, sNarrow);
-							ToUTF8(sp.second, sNarrow);
+							ToUTF8(sp.first, OutIter);
+							ToUTF8(sp.second, OutIter);
 						}
 					}
 					else
 					{
-						ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
+						ToUTF8(REPLACEMENT_CHARACTER, OutIter);
 					}
 				}
 				else
 				{
 					// we treat incomplete surrogates as simple ucs2
-					ToUTF8(sp.first, sNarrow);
+					ToUTF8(sp.first, OutIter);
 				}
 			}
 			else
 			{
-				ToUTF8(sp.first, sNarrow);
+				ToUTF8(sp.first, OutIter);
 			}
 		}
 	}

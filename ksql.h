@@ -364,7 +364,7 @@ public:
 	template<class... Args>
 	bool ExecSQL (KStringView sFormat, Args&&... args)
 	{
-		m_sLastSQL = FormatSQLQuery (sFormat, std::forward<Args>(args)...);
+		m_sLastSQL = FormatSQL (sFormat, std::forward<Args>(args)...);
 		bool bOK   = ExecLastRawSQL (0, "ExecSQL");
 		kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 		return (bOK);
@@ -384,7 +384,7 @@ public:
 	template<class... Args>
 	bool ExecQuery (KStringView sFormat, Args&&... args)
 	{
-		m_sLastSQL = FormatSQLQuery (sFormat, std::forward<Args>(args)...);
+		m_sLastSQL = FormatSQL (sFormat, std::forward<Args>(args)...);
 		return (ExecLastRawQuery (0, "ExecQuery"));
 
 	} // ExecQuery
@@ -411,7 +411,7 @@ public:
 	template<class... Args>
 	KROW SingleQuery (KStringView sFormat, Args&&... args)
 	{
-		return (SingleRawQuery (FormatSQLQuery (sFormat, std::forward<Args>(args)...), 0, "SingleQuery"));
+		return (SingleRawQuery (FormatSQL (sFormat, std::forward<Args>(args)...), 0, "SingleQuery"));
 
 	} // KSQL::SingleQuery
 
@@ -419,7 +419,7 @@ public:
 	template<class... Args>
 	int64_t SingleIntQuery (KStringView sFormat, Args&&... args)
 	{
-		return (SingleIntRawQuery (FormatSQLQuery (sFormat, std::forward<Args>(args)...), 0, "SingleIntQuery"));
+		return (SingleIntRawQuery (FormatSQL (sFormat, std::forward<Args>(args)...), 0, "SingleIntQuery"));
 
 	} // KSQL::SingleIntQuery
 
@@ -427,7 +427,7 @@ public:
 	template<class... Args>
 	KString SingleStringQuery (KStringView sFormat, Args&&... args)
 	{
-		return (SingleStringRawQuery (FormatSQLQuery (sFormat, std::forward<Args>(args)...), 0, "SingleStringQuery"));
+		return (SingleStringRawQuery (FormatSQL (sFormat, std::forward<Args>(args)...), 0, "SingleStringQuery"));
 
 	} // KSQL::SingleStringQuery
 
@@ -520,6 +520,15 @@ public:
 	{
 		int         iID   = row.Get("id").Int32();
 		KStringView sName = row.Get("name");
+	}
+
+	// or easier:
+
+	KSQL sql;
+	for (auto& row : sql)
+	{
+		int         iID   = row["id"].Int32();
+		KStringView sName = row["name"];
 	}
 	#endif
 
@@ -852,7 +861,7 @@ protected:
 	bool ExecLastRawSQL (Flags iFlags=0, KStringView sAPI = "ExecLastRawSQL");
 	bool ExecLastRawQuery (Flags iFlags=0, KStringView sAPI = "ExecLastRawQuery");
 	bool ExecLastRawInsert(bool bIgnoreDupes=false);
-
+/*
 	//----------------------------------------------------------------------
 	template<class... Args>
 	KString FormatSQLQuery (KStringView sFormat, Args&&... args)
@@ -892,6 +901,78 @@ protected:
 		}
 
 	} // FormatSQLQuery
+*/
+//----------
+private:
+//----------
+
+	//-----------------------------------------------------------------------------
+	template<typename T, std::enable_if_t<std::is_constructible_v<KStringView, T> == false, int> = 0>
+	auto EscapeType(T&& value)
+	//-----------------------------------------------------------------------------
+	{
+		return std::forward<T>(value);
+	}
+
+	//-----------------------------------------------------------------------------
+	template<typename T, std::enable_if_t<std::is_constructible_v<KStringView, T> == true, int> = 0>
+	auto EscapeType(T&& value)
+	//-----------------------------------------------------------------------------
+	{
+		// this is a string parameter - escape it
+		return EscapeString(std::forward<T>(value));
+	}
+
+	//-----------------------------------------------------------------------------
+	/// format no-op
+	KString FormatEscaped(KStringView sFormat)
+	//-----------------------------------------------------------------------------
+	{
+		return sFormat;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// escapes all string arguments and leaves the rest alone
+	template<class... Args, typename std::enable_if_t<sizeof...(Args) != 0, int> = 0>
+	KString FormatEscaped(KStringView sFormat, Args&&... args)
+	//-----------------------------------------------------------------------------
+	{
+		return std::apply([sFormat](auto&&... args)
+		{
+			return kFormat(sFormat, std::forward<decltype(args)>(args)...);
+		},
+		std::make_tuple(EscapeType(args)...));
+	}
+
+//----------
+public:
+//----------
+
+	//----------------------------------------------------------------------
+	/// format an SQL query with python syntax and automatically escape all string parameters
+	template<class... Args>
+	KString FormatSQL (KStringView sFormat, Args&&... args)
+	//----------------------------------------------------------------------
+	{
+		if (IsFlag(F_NoTranslations) || sFormat.find("{{") == KStringView::npos)
+		{
+			return FormatEscaped(sFormat, std::forward<Args>(args)...);
+		}
+		else
+		{
+			KString sSQL = sFormat;
+			DoTranslations (sSQL);
+			return FormatEscaped(sSQL, std::forward<Args>(args)...);
+		}
+
+	} // FormatSQL
+
+	KString    m_sLastError;
+	KString    m_sLastSQL;
+
+//----------
+private:
+//----------
 
 	Flags      m_iFlags { 0 };                  // set by calling SetFlags()
 	uint32_t   m_iErrorNum { 0 };               // db error number (e.g. ORA code)
@@ -950,7 +1031,6 @@ protected:
 	CS_CONNECTION* m_pCtConnection { nullptr };        // CTLIB
 	CS_COMMAND*    m_pCtCommand { nullptr };           // CTLIB
 	KString        m_sCursorName;
-	uint32_t       m_iCursor { 0 }; // CTLIB
 #endif
 
 #ifdef DEKAF2_HAS_ODBC
@@ -969,8 +1049,6 @@ protected:
 	bool       m_bFileIsOpen { false };
 	bool       m_bQueryStarted { false };
 	KString    m_sDBCFile;
-	KString    m_sLastSQL;
-	KString    m_sLastError;
 	KString    m_sTmpResultsFile;
 	uint64_t   m_iRowNum { 0 };
 	KROW::Index m_iNumColumns { 0 };

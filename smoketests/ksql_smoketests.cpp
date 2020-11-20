@@ -133,7 +133,7 @@ static bool SqlServerIdentityInsert (KSQL& db, LPCTSTR pszTablename, KStringView
 		// avoid this errors:
 		// Cannot insert explicit value for identity column in table 'XXX' when IDENTITY_INSERT is set to OFF.
 		// Explicit value must be specified for identity column in table 'XXX' either when IDENTITY_INSERT is set to ON or when a replication user is inserting into a NOT FOR REPLICATION identity column.
-		return (db.ExecSQL ("set identity_insert %s %s", pszTablename, sOnOff));
+		return (db.ExecSQL ("set identity_insert {} {}", pszTablename, sOnOff));
 	}
 	else
 	{
@@ -193,6 +193,20 @@ void Check_CtSend(KSQL& db)
 
 } // Check_CtSend
 
+class KSQLTest : public KSQL
+{
+public:
+
+	using KSQL::KSQL;
+
+	template<class... Args>
+	KString FormatSQLQuery(KStringView sFormat, Args&&... args)
+	{
+		return FormatSQL(sFormat, std::forward<Args>(args)...);
+	}
+
+};
+
 //-----------------------------------------------------------------------------
 TEST_CASE("KSQL")
 //-----------------------------------------------------------------------------
@@ -215,58 +229,72 @@ TEST_CASE("KSQL")
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 	SECTION("KROW::EscapeChars(BENIGN)")
 	{
-		KROW::value_type Col;
-		Col.second.sValue = BENIGN;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
+		KSQLTest DB;
+		DB.SetDBType(KSQL::DBT::MYSQL);
+		KString sEscaped ( DB.EscapeString (BENIGN));
 		CHECK (sEscaped == BENIGNX);
+		auto sSQL = DB.FormatSQLQuery("{}", BENIGN);
+		CHECK (sSQL == BENIGNX);
 	}
 
 	SECTION("KROW::EscapeChars(QUOTES1)")
 	{
-		KROW::value_type Col;
-		Col.second.sValue = QUOTES1;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
+		KSQLTest DB;
+		DB.SetDBType(KSQL::DBT::MYSQL);
+		KString sEscaped ( DB.EscapeString (QUOTES1));
 		CHECK (sEscaped == QUOTES1x);
+		auto sSQL = DB.FormatSQLQuery("{}", QUOTES1);
+		CHECK (sSQL == QUOTES1x);
 	}
 
 	SECTION("KROW::EscapeChars(QUOTES2)")
 	{
-		KROW::value_type Col;
-		Col.second.sValue = QUOTES2;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
+		KSQLTest DB;
+		DB.SetDBType(KSQL::DBT::MYSQL);
+		KString sEscaped ( DB.EscapeString (QUOTES2));
 		CHECK (sEscaped == QUOTES2x);
+		auto sSQL = DB.FormatSQLQuery("{}", QUOTES2);
+		CHECK (sSQL == QUOTES2x);
 	}
 
 	SECTION("KROW::EscapeChars(SLASHES1)")
 	{
-		KROW::value_type Col;
-		Col.second.sValue = SLASHES1;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
+		KSQLTest DB;
+		DB.SetDBType(KSQL::DBT::MYSQL);
+		KString sEscaped ( DB.EscapeString (SLASHES1));
 		CHECK (sEscaped == SLASHES1x);
+		auto sSQL = DB.FormatSQLQuery("{}", SLASHES1);
+		CHECK (sSQL == SLASHES1x);
 	}
 
 	SECTION("KROW::EscapeChars(SLASHES2)")
 	{
-		KROW::value_type Col;
-		Col.second.sValue = SLASHES2;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
+		KSQLTest DB;
+		DB.SetDBType(KSQL::DBT::MYSQL);
+		KString sEscaped ( DB.EscapeString (SLASHES2));
 		CHECK (sEscaped == SLASHES2x);
+		auto sSQL = DB.FormatSQLQuery("{}", SLASHES2);
+		CHECK (sSQL == SLASHES2x);
 	}
 
 	SECTION("KROW::EscapeChars(ASIAN1)")
 	{
-		KROW::value_type Col;
-		Col.second.sValue = ASIAN1;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
+		KSQLTest DB;
+		DB.SetDBType(KSQL::DBT::MYSQL);
+		KString sEscaped ( DB.EscapeString (ASIAN1));
 		CHECK (sEscaped == ASIAN1);
+		auto sSQL = DB.FormatSQLQuery("{}", ASIAN1);
+		CHECK (sSQL == ASIAN1);
 	}
 
 	SECTION("KROW::EscapeChars(ASIAN2)")
 	{
-		KROW::value_type Col;
-		Col.second.sValue = ASIAN1;
-		KString sEscaped ( KROW::EscapeChars (Col, KSQL::DBT::MYSQL));
-		CHECK (sEscaped == ASIAN1);
+		KSQLTest DB;
+		DB.SetDBType(KSQL::DBT::MYSQL);
+		KString sEscaped ( DB.EscapeString (ASIAN2));
+		CHECK (sEscaped == ASIAN2);
+		auto sSQL = DB.FormatSQLQuery("{}", ASIAN2);
+		CHECK (sSQL == ASIAN2);
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -393,7 +421,7 @@ TEST_CASE("KSQL")
 		}
 		CHECK (db.GetNumRowsAffected() == 1);
 
-		if (!db.ExecSQL ("%s", "update TEST1_KSQL set anum=2 where astring='row-1'"))
+		if (!db.ExecSQL ("update TEST1_KSQL set anum=2 where astring='row-1'"))
 		{
 			INFO (db.GetLastSQL());
 			FAIL_CHECK (db.GetLastError());
@@ -492,7 +520,7 @@ TEST_CASE("KSQL")
 			{
 				SqlServerIdentityInsert (db, "TEST_KSQL", "ON");
 
-				if (!db.ExecSQL ("insert into TEST_KSQL (anum,astring,bigstring,dtmnow) values (%u,'row-%u','',{{NOW}})", PRESEED+ii, ii))
+				if (!db.ExecSQL ("insert into TEST_KSQL (anum,astring,bigstring,dtmnow) values ({},'row-{}','',{{NOW}})", PRESEED+ii, ii))
 				{
 					INFO (db.GetLastSQL());
 					FAIL_CHECK (db.GetLastError());
@@ -505,7 +533,7 @@ TEST_CASE("KSQL")
 					SqlServerIdentityInsert (db, "TEST_KSQL", "OFF");
 				}
 				// do NOT specify the 'anum' column:
-				if (!db.ExecSQL ("insert into TEST_KSQL (astring,bigstring,dtmnow) values ('row-%u','',{{NOW}})", ii))
+				if (!db.ExecSQL ("insert into TEST_KSQL (astring,bigstring,dtmnow) values ('row-{}','',{{NOW}})", ii))
 				{
 					INFO (db.GetLastError());
 					FAIL_CHECK (db.GetLastError());
@@ -551,7 +579,7 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "query results (should be 1 row)");
 
-		db.ExecQuery ("select * from TEST_KSQL where anum=%u", PRESEED+5);
+		db.ExecQuery ("select * from TEST_KSQL where anum={}", PRESEED+5);
 		auto iCount = DumpRows (db);
 		if (iCount != 1)
 		{
@@ -680,7 +708,7 @@ TEST_CASE("KSQL")
 
 			db.ExecSQL (
 				"insert into TEST_KSQL (anum,astring,bigstring,dtmnow) values \n"
-					"(  %u,'row-1','',{{NOW}}),\n"
+					"(  {},'row-1','',{{NOW}}),\n"
 					"(   0,'row-2','',{{NOW}}),\n"
 					"(   0,'row-3','',{{NOW}}),\n"
 					"(   0,'row-4','',{{NOW}}),\n"
@@ -1105,7 +1133,7 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "KROW single quote select");
 
-		if (!db.ExecQuery ("select * from TEST_KSQL where anum=%d", Row.Get("anum").sValue.Int32()))
+		if (!db.ExecQuery ("select * from TEST_KSQL where anum={}", Row.Get("anum").sValue.Int32()))
 		{
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
@@ -1450,7 +1478,7 @@ void SimulateLostConnection (KSQL& db)
 			int iSpid = db.SingleIntQuery ("select @@spid");
 			if (iSpid < 0)
 				break; // connection is killed
-			printf ("You have %d seconds to issue: KILL %d\n", ss, iSpid);
+			KOut.FormatLine ("You have {} seconds to issue: KILL {}", ss, iSpid);
 			sleep (1);
 		}
 	}

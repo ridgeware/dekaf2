@@ -5142,9 +5142,9 @@ KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName)
 			"     , is_nullable\n"
 			"     , column_default\n"
 			"  from INFORMATION_SCHEMA.COLUMNS\n"
-			" where upper(column_name) like upper('%s')\n"
+			" where upper(column_name) like upper('{}')\n"
 			"   and table_schema not in ('information_schema','master')\n"
-			"   and table_schema = '%s'\n"
+			"   and table_schema = '{}'\n"
 			" order by table_schema, table_name desc, column_name, column_type",
 				sColLike, sTableSchema))
 		{
@@ -5503,7 +5503,7 @@ bool KSQL::PutBlob (KStringView sBlobTable, KStringView sBlobKey, unsigned char*
 		memcpy (szChunk, sSpot, iEncodedLenChunk);
 		szChunk[iEncodedLenChunk] = 0;
 
-		kDebug (GetDebugLevel(), "chunk '{}', part[{:02}]: encoding={}, datasize=%04lu", sBlobKey, iChunkNum, iBlobType, iDataLenChunk);
+		kDebug (GetDebugLevel(), "chunk '{}', part[{:02}]: encoding={}, datasize={:04}", sBlobKey, iChunkNum, iBlobType, iDataLenChunk);
 
 		bool bOK = ExecSQL (
 			"insert into {} (BlobKey, ChunkNum, Chunk, Encoding, EncodedSize, DataSize)\n"
@@ -5554,7 +5554,7 @@ unsigned char* KSQL::GetBlob (KStringView sBlobTable, KStringView sBlobKey, uint
 		return (nullptr); // db error
 	}
 
-	kDebug (GetDebugLevel(), "expecting %lld bytes for BlobKey='{}'", iBlobDataLen, sBlobKey);
+	kDebug (GetDebugLevel(), "expecting {} bytes for BlobKey='{}'", iBlobDataLen, sBlobKey);
 
 	if (!iBlobDataLen)
 	{
@@ -5577,7 +5577,7 @@ unsigned char* KSQL::GetBlob (KStringView sBlobTable, KStringView sBlobKey, uint
 		uint64_t    iEncodedSize    = ULongValue (4);
 		uint64_t    iDataSize       = ULongValue (5);
 
-		kDebug (GetDebugLevel(), "chunk '{}', part[{:02}]: encoding={}, datasize=%04lu", sBlobKey, iChunkNum, iEncoding, iDataSize);
+		kDebug (GetDebugLevel(), "chunk '{}', part[{:02}]: encoding={}, datasize={:04}", sBlobKey, iChunkNum, iEncoding, iDataSize);
 
 		// 1. decode this chunk:
 		kDebug (GetDebugLevel()+1, "(1): decoding this chunk...");
@@ -5606,7 +5606,7 @@ unsigned char* KSQL::GetBlob (KStringView sBlobTable, KStringView sBlobKey, uint
 	{
 		kDebug (GetDebugLevel(), "sanity check failed:");
 		kDebug (GetDebugLevel(), "    dszBlobData   = {}", dszBlobData);
-		kDebug (GetDebugLevel(), "  + iBlobDataLen  = + %8lld", iBlobDataLen);
+		kDebug (GetDebugLevel(), "  + iBlobDataLen  = + {:08}", iBlobDataLen);
 		kDebug (GetDebugLevel(), "  --------------    ----------");
 		kDebug (GetDebugLevel(), "                  = {}", dszBlobData + iBlobDataLen);
 		kDebug (GetDebugLevel(), "    but sSpot   = {}", sSpot);
@@ -5616,13 +5616,13 @@ unsigned char* KSQL::GetBlob (KStringView sBlobTable, KStringView sBlobKey, uint
 
 	if (piBlobDataLen)
 	{
-		kDebug (GetDebugLevel(), "return length set to %lld", iBlobDataLen);
+		kDebug (GetDebugLevel(), "return length set to {}", iBlobDataLen);
 
 		*piBlobDataLen = (uint64_t) iBlobDataLen;  // <-- for truly binary data, this data length is essential
 	}
 	else
 	{
-		kDebug (GetDebugLevel(), "return length (%lld) not passed back", iBlobDataLen);
+		kDebug (GetDebugLevel(), "return length ({}) not passed back", iBlobDataLen);
 	}
 
 	kDebug (GetDebugLevel(), "return data pointer sBlobData = {}", dszBlobData);
@@ -6142,7 +6142,7 @@ bool KSQL::PurgeKey (KStringView sSchemaName, KStringView sPKEY_colname, KString
 		}
 		else
 		{
-			if (!ExecSQL ("delete from %s.%s /*KSQL::PurgeKey*/ where %s = binary '%s'", sTableSchema, sTableName, sPKEY_colname, sValue))
+			if (!ExecSQL ("delete from {}.{} /*KSQL::PurgeKey*/ where {} = binary '{}'", sTableSchema, sTableName, sPKEY_colname, sValue))
 			{
 				return (false);
 			}
@@ -6197,7 +6197,7 @@ bool KSQL::PurgeKeyList (KStringView sSchemaName, KStringView sPKEY_colname, KSt
 			}
 			obj["rows_selected"] = iChanged;
 		}
-		else if (!ExecSQL ("delete from %s.%s /*KSQL::PurgeKey*/ where %s in (%s)", sTableSchema, sTableName, sPKEY_colname, sInClause))
+		else if (!ExecSQL ("delete from {}.{} /*KSQL::PurgeKey*/ where {} in ({})", sTableSchema, sTableName, sPKEY_colname, sInClause))
 		{
 			return (false);
 		}
@@ -7436,7 +7436,7 @@ bool KSQL::BeginTransaction (KStringView sOptions/*=""*/)
 {
 	// TODO: code for non-MySQL
 
-	return ExecSQL ("start transaction%s%s", sOptions.empty() ? "" : " ", sOptions.empty() ? KStringView("") : sOptions);
+	return ExecSQL ("start transaction{}{}", sOptions.empty() ? "" : " ", sOptions.empty() ? KStringView("") : sOptions);
 
 } // BeginTransaction
 
@@ -7447,7 +7447,7 @@ bool KSQL::CommitTransaction (KStringView sOptions/*=""*/)
 	// TODO: code for non-MySQL
 
 	auto iSave = GetNumRowsAffected();
-	bool bOK   = ExecSQL ("commit%s%s", sOptions.empty() ? "" : " ", sOptions.empty() ? KStringView("") : sOptions);
+	bool bOK   = ExecSQL ("commit{}{}", sOptions.empty() ? "" : " ", sOptions.empty() ? KStringView("") : sOptions);
 	m_iNumRowsAffected = GetNumRowsAffected() + iSave;
 
 	return bOK;
@@ -7462,7 +7462,7 @@ bool KSQL::RollbackTransaction (KStringView sOptions/*=""*/)
 
 	if (!sOptions.empty())
 	{
-		return ExecSQL ("rollback %s", sOptions);
+		return ExecSQL ("rollback {}", sOptions);
 	}
 	return ExecSQL ("rollback");
 
@@ -7874,16 +7874,16 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 
 			if (ii == iInitialSchema)
 			{
-				ExecSQL ("drop table if exists %s", sSchemaVersionTable);
+				ExecSQL ("drop table if exists {}", sSchemaVersionTable);
 
-				if (!ExecSQL ("create table %s ( %s smallint not null primary key )", sSchemaVersionTable, SCHEMA_REV))
+				if (!ExecSQL ("create table {} ( {} smallint not null primary key )", sSchemaVersionTable, SCHEMA_REV))
 				{
 					sError= GetLastError();
 					break; // for
 				}
 			}
 
-			if (!ExecSQL ("update %s set %s=%u", sSchemaVersionTable, SCHEMA_REV, ii))
+			if (!ExecSQL ("update {} set {}={}", sSchemaVersionTable, SCHEMA_REV, ii))
 			{
 				sError= GetLastError();
 				break; // for
@@ -7891,16 +7891,16 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 
 			auto iUpdated = GetNumRowsAffected();
 
-			if (!iUpdated && !ExecSQL ("insert into %s values (%u)", sSchemaVersionTable, ii))
+			if (!iUpdated && !ExecSQL ("insert into {} values ({})", sSchemaVersionTable, ii))
 			{
 				sError= GetLastError();
 				break; // for
 			}
 			else if (iUpdated > 1)
 			{
-				ExecSQL ("truncate table %s", sSchemaVersionTable);
+				ExecSQL ("truncate table {}", sSchemaVersionTable);
 
-				if (!ExecSQL ("insert into %s values (%u)", sSchemaVersionTable, ii))
+				if (!ExecSQL ("insert into {} values ({})", sSchemaVersionTable, ii))
 				{
 					sError= GetLastError();
 					break; // for

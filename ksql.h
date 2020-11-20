@@ -939,7 +939,14 @@ private:
 	{
 		return std::apply([sFormat](auto&&... args)
 		{
-			return kFormat(sFormat, std::forward<decltype(args)>(args)...);
+			if (sFormat.Contains("%s") || sFormat.Contains("%d") || sFormat.Contains("%u"))
+			{
+				return kPrintf(sFormat, std::forward<decltype(args)>(args)...);
+			}
+			else // assume python formatting
+			{
+				return kFormat(sFormat, std::forward<decltype(args)>(args)...);
+			}
 		},
 		std::make_tuple(EscapeType(args)...));
 	}

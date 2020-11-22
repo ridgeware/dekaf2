@@ -333,12 +333,13 @@ KString kGetWhoAmI ()
 } // kGetWhoami
 
 //-----------------------------------------------------------------------------
-KStringViewZ kGetHostname ()
+KStringViewZ kGetHostname (bool bAllowKHostname/*=true*/)
 //-----------------------------------------------------------------------------
 {
 	enum { MAXNAMELEN = 50 };
-	static bool s_bHostnameIsSet { false };
-	static char s_szHostname[MAXNAMELEN+1] = "";
+	static bool    s_bHostnameIsSet { false };
+	static KString s_sHostname;
+	static KString s_sKHostname;
 
 	// no need for MT protection, as two racing
 	// gethostname calls would return the exact
@@ -350,36 +351,60 @@ KStringViewZ kGetHostname ()
 	if (s_bHostnameIsSet)
 	{
 		// hostname already queried
-		return s_szHostname;
+		if (bAllowKHostname)
+		{
+			return s_sKHostname ? s_sKHostname : s_sHostname;
+		}
+		else
+		{
+			return s_sHostname;
+		}
 	}
 
-#ifdef DEKAF2_IS_WINDOWS
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// set (and cache) /etc/khostname:
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	if (kFileExists("/etc/khostname"))
+	{
+		s_sKHostname = kReadAll("/etc/khostname");
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// set (and cache) OS hostname:
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+	#ifdef DEKAF2_IS_WINDOWS
+
+	char szHostname[MAXNAMELEN+1]; szHostname[0] = 0;
 	DWORD nSize = MAXNAMELEN;
 	GetComputerName (
-		s_szHostname,       // name buffer
+		szHostname,       // name buffer
 		&nSize              // address of size of name buffer
 	);
 
-	if (!*s_szHostname)
-#else
-	auto sHostname = kReadAll("/etc/khostname");
-	sHostname.Trim();
+	s_sHostname = szHostname;
 
-	if (!sHostname.empty())
+	#else
+
+	if (kFileExists ("/proc/sys/kernel/hostname"))
 	{
-		std::strncpy(s_szHostname, sHostname.c_str(), MAXNAMELEN);
-		s_szHostname[MAXNAMELEN] = '\0';
-	}
-	else if (gethostname (s_szHostname, sizeof (s_szHostname)) != 0)
-#endif
-	{
-		kDebug (1, "cannot get hostname");
-		std::strncpy(s_szHostname, "hostname-error", MAXNAMELEN);
+		s_sHostname = kReadAll ("/proc/sys/kernel/hostname");
 	}
 
+	if (! s_sHostname)
+	{
+		char szHostname[MAXNAMELEN+1]; szHostname[0] = 0;
+		gethostname (szHostname, MAXNAMELEN);
+		s_sHostname = szHostname;
+	}
+
+	#endif
+
+	s_sHostname.Trim();
+	s_sKHostname.Trim();
 	s_bHostnameIsSet = true;
 
-	return s_szHostname;
+	return kGetHostname (bAllowKHostname); // <-- recurse once
 
 } // kGetHostname
 

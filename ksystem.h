@@ -82,8 +82,8 @@ KString kGetWhoAmI ();
 /// alias to kGetWhoami(): return current operating system user as a string.
 inline KString kwhoami () { return kGetWhoAmI(); }
 
-/// Return operating system hostname as a string.
-KStringViewZ kGetHostname ();
+/// Return operating system hostname (or /etc/khostname if it exists) as a string.
+KStringViewZ kGetHostname (bool bAllowKHostname=true);
 
 /// return process ID
 inline pid_t kGetPid()

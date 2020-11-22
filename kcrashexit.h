@@ -96,14 +96,21 @@ void kFailedAssert(const char* sCrashMessage);
 }
 
 inline
+void kAssert (bool bMustBeTrue, KStringView sCrashMessage)
+{
+	if (!bMustBeTrue)
+	{
+		detail::kFailedAssert(sCrashMessage.data());
+	}
+}
+
+inline
 void kAssert (bool bMustBeTrue, const char* sCrashMessage)
 {
-#ifndef NDEBUG
 	if (!bMustBeTrue)
 	{
 		detail::kFailedAssert(sCrashMessage);
 	}
-#endif
 }
 
 } // end of namespace dekaf2

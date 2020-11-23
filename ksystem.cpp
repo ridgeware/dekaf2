@@ -340,14 +340,15 @@ KStringViewZ kGetHostname (bool bAllowKHostname/*=true*/)
 	static bool    s_bHostnameIsSet { false };
 	static KString s_sHostname;
 	static KString s_sKHostname;
+	static std::recursive_mutex s_HostnameMutex;
 
-	// no need for MT protection, as two racing
-	// gethostname calls would return the exact
-	// same string, and both would be copied into
-	// the target array without collision
-	// - it is however important to protect that
-	// process by a bool that is only set after the
-	// final 0 has been written into s_szHostname
+	// as the hostname strings are now stored in
+	// dynamically allocated strings, we now _have_
+	// to protect this function with a lock against
+	// races
+
+	std::lock_guard<std::recursive_mutex> Lock(s_HostnameMutex);
+
 	if (s_bHostnameIsSet)
 	{
 		// hostname already queried

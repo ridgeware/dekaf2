@@ -8288,4 +8288,8 @@ bool DbSemaphore::ClearSemaphore ()
 
 KSQL::DBCCache KSQL::s_DBCCache;
 
+#ifndef DEKAF2_HAS_CPP_17
+constexpr KStringViewZ KSQL::KSQL_CONNECTION_TEST_ONLY;
+#endif
+
 } // namespace dekaf2

@@ -490,9 +490,9 @@ public:
 	bool   ExecParsedQuery ();
 	#endif
 
-	static constexpr KStringViewZ KSQL_CONNECTION_TEST_ONLY = "KSQL_CONNECTION_TEST_ONLY";
+	static constexpr KStringViewZ KSQL_CONNECTION_TEST_ONLY { "KSQL_CONNECTION_TEST_ONLY" };
 
-	static bool IsConnectionTestOnly () { return kGetEnv(KSQL_CONNECTION_TEST_ONLY.data()).Bool(); }
+	static bool IsConnectionTestOnly () { return kGetEnv(KSQL_CONNECTION_TEST_ONLY).Bool(); }
 
 	/// After starting a query, this is the canonical method for fetching results based on column number in the SQL query.
 	KStringView  Get         (KROW::Index iOneBasedColNum, bool fTrimRight=true);
@@ -861,47 +861,7 @@ protected:
 	bool ExecLastRawSQL (Flags iFlags=0, KStringView sAPI = "ExecLastRawSQL");
 	bool ExecLastRawQuery (Flags iFlags=0, KStringView sAPI = "ExecLastRawQuery");
 	bool ExecLastRawInsert(bool bIgnoreDupes=false);
-/*
-	//----------------------------------------------------------------------
-	template<class... Args>
-	KString FormatSQLQuery (KStringView sFormat, Args&&... args)
-	//----------------------------------------------------------------------
-	{
-		if (IsFlag(F_NoTranslations) || sFormat.find("{{") == KStringView::npos)
-		{
-			auto sFormatted = kPrintf(sFormat, std::forward<Args>(args)...);
 
-			if (sFormat == "%s")
-			{
-				kDebug (3, "printing string into single arg - remove the format string: {}", std::forward<Args>(args)...);
-
-				// check if we need to apply translations again - this was the previous,
-				// expected behaviour when formatting into "%s", and some queries
-				// rely on it..
-				if (IsFlag(F_NoTranslations) || sFormatted.find("{{") == KStringView::npos)
-				{
-					return sFormatted;
-				}
-				else
-				{
-					DoTranslations (sFormatted);
-					return sFormatted;
-				}
-			}
-			else
-			{
-				return sFormatted;
-			}
-		}
-		else
-		{
-			KString sSQL = sFormat;
-			DoTranslations (sSQL);
-			return kPrintf(sSQL, std::forward<Args>(args)...);
-		}
-
-	} // FormatSQLQuery
-*/
 //----------
 private:
 //----------
@@ -941,6 +901,7 @@ private:
 		{
 			if (sFormat.Contains("%s") || sFormat.Contains("%d") || sFormat.Contains("%u"))
 			{
+				kWarning ("bad printf-style format string in SQL command: {}", sFormat);
 				return kPrintf(sFormat, std::forward<decltype(args)>(args)...);
 			}
 			else // assume python formatting

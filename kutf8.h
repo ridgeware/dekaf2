@@ -280,7 +280,7 @@ bool ToUTF8(Ch sch, NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a UTF8 sequence returned as string of type NarrowString.
 template<typename Ch, typename NarrowString,
-         typename = std::enable_if_t<std::is_integral<Ch>::value> >
+         typename std::enable_if_t<std::is_integral<Ch>::value>* = nullptr>
 KUTF8_CONSTEXPR_14
 NarrowString ToUTF8(Ch sch)
 //-----------------------------------------------------------------------------

@@ -325,6 +325,12 @@ namespace std
 template <typename...>
 using void_t = void;
 
+template<class T>
+constexpr std::size_t tuple_size_v = tuple_size<T>::value;
+
+template< class T, class... Args >
+constexpr bool is_constructible_v = is_constructible<T, Args...>::value;
+
 }
 #endif
 

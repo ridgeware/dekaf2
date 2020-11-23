@@ -227,13 +227,9 @@ void kSetCrashCallback (KCrashCallback pFunction)
 namespace detail {
 
 //-----------------------------------------------------------------------------
-void kFailedAssert (const char* sCrashMessage)
+void kFailedAssert (KStringView sCrashMessage)
 //-----------------------------------------------------------------------------
 {
-	if (!sCrashMessage || !*sCrashMessage)
-	{
-		sCrashMessage = "<empty>";
-	}
 	KLog::getInstance().warning ("ASSERT FAILURE: {}", sCrashMessage);
 	kCrashExit (0);
 

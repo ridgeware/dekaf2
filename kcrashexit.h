@@ -91,26 +91,19 @@ void kSetCrashCallback (KCrashCallback pFunction);
 
 namespace detail {
 
-void kFailedAssert(const char* sCrashMessage);
+void kFailedAssert(KStringView sCrashMessage);
 
 }
 
 inline
 void kAssert (bool bMustBeTrue, KStringView sCrashMessage)
 {
-	if (!bMustBeTrue)
-	{
-		detail::kFailedAssert(sCrashMessage.data());
-	}
-}
-
-inline
-void kAssert (bool bMustBeTrue, const char* sCrashMessage)
-{
+#ifndef _NDEBUG
 	if (!bMustBeTrue)
 	{
 		detail::kFailedAssert(sCrashMessage);
 	}
+#endif
 }
 
 } // end of namespace dekaf2

@@ -114,6 +114,9 @@ public:
 	/// if valid, -1 if -help was called, and > 0 for error
 	int Parse(int argc, char** argv, KOutStream& out = KOut);
 
+	/// Parse arguments globbed together in a single environmentatl variable
+	int Parse(KStringView sAltCLI, KOutStream& out = KOut);
+
 	/// Parse arguments from CGI QUERY_PARMS
 	int ParseCGI(KStringViewZ sProgramName, KOutStream& out = KOut);
 
@@ -217,6 +220,8 @@ private:
 
 		void Create(int argc, char** argv);
 		void Create(const std::vector<KStringViewZ>& parms);
+		void Create(const std::vector<KString>& parms);
+
 		size_t size() const  { return m_ArgVec.size();  }
 		size_t empty() const { return m_ArgVec.empty(); }
 		iterator begin()     { return m_ArgVec.begin(); }

@@ -135,6 +135,27 @@ void KOptions::CLIParms::Create(const std::vector<KStringViewZ>& parms)
 } // CParms ctor
 
 //---------------------------------------------------------------------------
+void KOptions::CLIParms::Create(const std::vector<KString>& parms)
+//---------------------------------------------------------------------------
+{
+	m_ArgVec.clear();
+	m_ArgVec.reserve(parms.size());
+
+	for (auto& it : parms)
+	{
+		KStringViewZ zz = it;
+		m_ArgVec.push_back(zz);
+	}
+
+	if (!m_ArgVec.empty())
+	{
+		m_sProgramName = m_ArgVec.front().sArg;
+		m_ArgVec.front().bConsumed = true;
+	}
+
+} // CParms ctor
+
+//---------------------------------------------------------------------------
 KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDOUT*/, bool bThrow/*=false*/)
 //---------------------------------------------------------------------------
 	: m_sCliDebugTo(sCliDebugTo)
@@ -330,6 +351,19 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 {
 	m_CLIParms.Create(argc, argv);
 
+	return Execute(out);
+
+} // Parse
+
+//---------------------------------------------------------------------------
+int KOptions::Parse(KStringView sAltCLI, KOutStream& out)
+//---------------------------------------------------------------------------
+{
+	kDebug (1, sAltCLI);
+
+	std::vector<KString> parms;
+	kSplit (parms, sAltCLI, /*delim=*/" ", /*trim=*/" \t\r\n\b", /*escape=*/0, /*bCombineDelimiters=*/true);
+	m_CLIParms.Create(parms);
 	return Execute(out);
 
 } // Parse

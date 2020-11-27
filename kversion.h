@@ -72,20 +72,9 @@ public:
 	/// ctor for empty version
 	KVersion() = default;
 
-	/// construct from a string
-	explicit KVersion(KStringView sVersion, KStringView sSeparators = sDefaultSeparators)
-	{
-		Parse(sVersion, sSeparators);
-	}
-
-	/// construct from a string
-	explicit KVersion(const KString& sVersion, KStringView sSeparators = sDefaultSeparators)
-	{
-		Parse(sVersion, sSeparators);
-	}
-
-	/// construct from char*
-	KVersion(const char* sVersion, KStringView sSeparators = sDefaultSeparators)
+	/// construct from any string
+	template<class String>
+	KVersion(const String& sVersion, KStringView sSeparators = sDefaultSeparators)
 	{
 		Parse(sVersion, sSeparators);
 	}

@@ -575,16 +575,7 @@ String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false,
 
 	if (iBase >=2 && iBase <= 36)
 	{
-		KStringView sLookup;
-
-		if (bUppercase)
-		{
-			sLookup = s_sLookupUpper;
-		}
-		else
-		{
-			sLookup = s_sLookupLower;
-		}
+		auto sLookup = (bUppercase) ? s_sLookupUpper : s_sLookupLower;
 
 		do
 		{

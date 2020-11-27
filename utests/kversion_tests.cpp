@@ -18,6 +18,12 @@ TEST_CASE("KVersion")
 		Version = "1.273.3.4986";
 		CHECK ( Version.Serialize() == "1.273.3.4986" );
 
+		Version = "1.273.3.4986"_ks;
+		CHECK ( Version.Serialize() == "1.273.3.4986" );
+
+		Version = "1.273.3.4986"_ksv;
+		CHECK ( Version.Serialize() == "1.273.3.4986" );
+
 		Version = "1 . 2 . 3 .4";
 		CHECK ( Version.Serialize() == "1.2.3.4" );
 

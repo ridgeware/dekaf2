@@ -95,7 +95,7 @@ KStringViewZ KOptions::CLIParms::Arg_t::Dashes() const
 } // Dashes
 
 //---------------------------------------------------------------------------
-void KOptions::CLIParms::Create(int argc, char** argv)
+void KOptions::CLIParms::Create(int argc, char const* const* argv)
 //---------------------------------------------------------------------------
 {
 	m_ArgVec.clear();
@@ -124,27 +124,6 @@ void KOptions::CLIParms::Create(const std::vector<KStringViewZ>& parms)
 	for (auto it : parms)
 	{
 		m_ArgVec.push_back(it);
-	}
-
-	if (!m_ArgVec.empty())
-	{
-		m_sProgramName = m_ArgVec.front().sArg;
-		m_ArgVec.front().bConsumed = true;
-	}
-
-} // CParms ctor
-
-//---------------------------------------------------------------------------
-void KOptions::CLIParms::Create(const std::vector<KString>& parms)
-//---------------------------------------------------------------------------
-{
-	m_ArgVec.clear();
-	m_ArgVec.reserve(parms.size());
-
-	for (auto& it : parms)
-	{
-		KStringViewZ zz = it;
-		m_ArgVec.push_back(zz);
 	}
 
 	if (!m_ArgVec.empty())
@@ -310,43 +289,7 @@ void KOptions::RegisterCommand(KStringView sCommand, KStringViewZ sMissingParm, 
 }
 
 //---------------------------------------------------------------------------
-bool KOptions::IsCGIEnvironment() const
-//---------------------------------------------------------------------------
-{
-	return !kGetEnv(KCGIInStream::REQUEST_METHOD).empty();
-}
-
-//---------------------------------------------------------------------------
-int KOptions::ParseCGI(KStringViewZ sProgramName, KOutStream& out)
-//---------------------------------------------------------------------------
-{
-	url::KQuery Query;
-
-	Query.Parse(kGetEnv(KCGIInStream::QUERY_STRING));
-
-	std::vector<KStringViewZ> QueryArgs;
-
-	QueryArgs.push_back(sProgramName);
-
-	for (const auto& it : Query.get())
-	{
-		QueryArgs.emplace_back(it.first);
-		if (!it.second.empty())
-		{
-			QueryArgs.emplace_back(it.second);
-		}
-	}
-
-	m_CLIParms.Create(QueryArgs);
-
-	kDebug(2, "parsed {} arguments from CGI query string", QueryArgs.size() - 1);
-
-	return Execute(out);
-
-} // ParseCGI
-
-//---------------------------------------------------------------------------
-int KOptions::Parse(int argc, char** argv, KOutStream& out)
+int KOptions::Parse(int argc, char const* const* argv, KOutStream& out)
 //---------------------------------------------------------------------------
 {
 	m_CLIParms.Create(argc, argv);
@@ -356,17 +299,72 @@ int KOptions::Parse(int argc, char** argv, KOutStream& out)
 } // Parse
 
 //---------------------------------------------------------------------------
-int KOptions::Parse(KStringView sAltCLI, KOutStream& out)
+int KOptions::Parse(KString sCLI, KOutStream& out)
 //---------------------------------------------------------------------------
 {
-	kDebug (1, sAltCLI);
+	kDebug (1, sCLI);
 
-	std::vector<KString> parms;
-	kSplit (parms, sAltCLI, /*delim=*/" ", /*trim=*/" \t\r\n\b", /*escape=*/0, /*bCombineDelimiters=*/true);
+	// create a permanent buffer of the passed CLI
+	m_sBuffer = std::make_unique<KString>(std::move(sCLI));
+
+	std::vector<KStringViewZ> parms;
+	kSplitArgsInPlace(parms, *m_sBuffer, /*svDelim  =*/" \t\r\n\b", /*svQuotes =*/"\"'", /*chEscape =*/'\\');
+
 	m_CLIParms.Create(parms);
+
 	return Execute(out);
 
 } // Parse
+
+//---------------------------------------------------------------------------
+int KOptions::ParseCGI(KStringViewZ sProgramName, KOutStream& out)
+//---------------------------------------------------------------------------
+{
+	url::KQuery Query;
+
+	// parse and dequote the query string parameters
+	Query.Parse(kGetEnv(KCGIInStream::QUERY_STRING));
+
+	// create a permanent buffer for the strings, as the rest of
+	// KOptions operates on string views
+	m_VecBuffer = std::make_unique<std::vector<KString>>();
+	m_VecBuffer->reserve(Query.get().size());
+
+	m_VecBuffer->push_back(sProgramName);
+
+	for (const auto& it : Query.get())
+	{
+		m_VecBuffer->push_back(std::move(it.first));
+
+		if (!it.second.empty())
+		{
+			m_VecBuffer->push_back(std::move(it.second));
+		}
+	}
+
+	// create a vector of string views pointing to the string buffers
+	std::vector<KStringViewZ> QueryArgs;
+	QueryArgs.reserve(m_VecBuffer->size());
+
+	for (const auto& sArg : *m_VecBuffer)
+	{
+		QueryArgs.push_back(sArg);
+	}
+
+	m_CLIParms.Create(QueryArgs);
+
+	kDebug(2, "parsed {} arguments from CGI query string: {}", QueryArgs.size() - 1, kJoined(QueryArgs, " "));
+
+	return Execute(out);
+
+} // ParseCGI
+
+//---------------------------------------------------------------------------
+bool KOptions::IsCGIEnvironment()
+//---------------------------------------------------------------------------
+{
+	return !kGetEnv(KCGIInStream::REQUEST_METHOD).empty();
+}
 
 //---------------------------------------------------------------------------
 int KOptions::Execute(KOutStream& out)

@@ -49,6 +49,7 @@
 #include "kexception.h"
 #include "kassociative.h"
 #include <functional>
+#include <vector>
 
 
 /// @file koptions.h
@@ -112,10 +113,10 @@ public:
 
 	/// Parse arguments and call the registered callback functions. Returns 0
 	/// if valid, -1 if -help was called, and > 0 for error
-	int Parse(int argc, char** argv, KOutStream& out = KOut);
+	int Parse(int argc, char const* const* argv, KOutStream& out = KOut);
 
-	/// Parse arguments globbed together in a single environmentatl variable
-	int Parse(KStringView sAltCLI, KOutStream& out = KOut);
+	/// Parse arguments globbed together in a single string as if it was a command line
+	int Parse(KString sCLI, KOutStream& out = KOut);
 
 	/// Parse arguments from CGI QUERY_PARMS
 	int ParseCGI(KStringViewZ sProgramName, KOutStream& out = KOut);
@@ -171,7 +172,7 @@ public:
 	}
 
 	/// Returns true if we are executed inside a CGI server
-	bool IsCGIEnvironment() const;
+	static bool IsCGIEnvironment();
 
 	/// Returns arg[0] / the path and name of the called executable
 	KStringViewZ GetProgramPath() const;
@@ -213,14 +214,13 @@ private:
 		using iterator = ArgVec::iterator;
 
 		CLIParms() = default;
-		CLIParms(int argc, char** argv)
+		CLIParms(int argc, char const* const* argv)
 		{
 			Create(argc, argv);
 		}
 
-		void Create(int argc, char** argv);
+		void Create(int argc, char const* const* argv);
 		void Create(const std::vector<KStringViewZ>& parms);
-		void Create(const std::vector<KString>& parms);
 
 		size_t size() const  { return m_ArgVec.size();  }
 		size_t empty() const { return m_ArgVec.empty(); }
@@ -254,6 +254,9 @@ private:
 	}; // CallbackParams
 
 	using CommandStore = KUnorderedMap<KStringView, CallbackParams>;
+
+	std::unique_ptr<KString> m_sBuffer;
+	std::unique_ptr<std::vector<KString>> m_VecBuffer;
 
 	CLIParms           m_CLIParms;
 	CommandStore       m_Commands;

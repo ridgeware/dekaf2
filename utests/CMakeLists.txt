@@ -44,6 +44,7 @@ set (USOURCES
 	kmessagedigest_tests.cpp
 	kmime_tests.cpp
 	kmpsearch_tests.cpp
+	koptions_tests.cpp
 	koutpipe_tests.cpp
 	koutputtemplate_tests.cpp
 	koutshell_tests.cpp

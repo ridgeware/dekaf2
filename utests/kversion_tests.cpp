@@ -15,19 +15,19 @@ TEST_CASE("KVersion")
 		Version = { 7, 2, 4 };
 		CHECK ( Version.Serialize() == "7.2.4" );
 
-		Version = "1.273.3.4986";
+		Version = KVersion("1.273.3.4986");
 		CHECK ( Version.Serialize() == "1.273.3.4986" );
 
-		Version = "1.273.3.4986"_ks;
+		Version = KVersion("1.273.3.4986"_ks);
 		CHECK ( Version.Serialize() == "1.273.3.4986" );
 
-		Version = "1.273.3.4986"_ksv;
+		Version = KVersion("1.273.3.4986"_ksv);
 		CHECK ( Version.Serialize() == "1.273.3.4986" );
 
-		Version = "1 . 2 . 3 .4";
+		Version = KVersion("1 . 2 . 3 .4");
 		CHECK ( Version.Serialize() == "1.2.3.4" );
 
-		Version = "1.3a.7b";
+		Version = KVersion("1.3a.7b");
 		CHECK ( Version.Serialize() == "1.3.7" );
 
 		Version.clear();
@@ -43,19 +43,19 @@ TEST_CASE("KVersion")
 		CHECK ( Version.size() == 0 );
 		CHECK ( Version.Serialize() == "" );
 
-		Version = "1.2.1";
+		Version = KVersion("1.2.1");
 		CHECK ( Version.size() == 3    );
-		CHECK ( Version <  "1.3"       );
-		CHECK ( Version >  "1.2"       );
-		CHECK ( Version >  "1.2.0.100" );
-		CHECK ( Version >= "1.2.1"     );
-		CHECK ( Version >= "1.2.1.0.0" );
-		CHECK ( Version == "1.2.1"     );
-		CHECK ( Version == "1.2.1.0"   );
-		CHECK ( Version != "1.2.1.1"   );
+		CHECK ( Version <  KVersion("1.3")       );
+		CHECK ( Version >  KVersion("1.2")       );
+		CHECK ( Version >  KVersion("1.2.0.100") );
+		CHECK ( Version >= KVersion("1.2.1")     );
+		CHECK ( Version >= KVersion("1.2.1.0.0") );
+		CHECK ( Version == KVersion("1.2.1")     );
+		CHECK ( Version == KVersion("1.2.1.0")   );
+		CHECK ( Version != KVersion("1.2.1.1")   );
 		CHECK ( Version == (KVersion { 1, 2, 1 }) );
 
-		Version = "1.2.3.44";
+		Version = KVersion("1.2.3.44");
 		CHECK ( Version[0]     == 1  );
 		CHECK ( Version[1]     == 2  );
 		CHECK ( Version[2]     == 3  );
@@ -66,19 +66,19 @@ TEST_CASE("KVersion")
 		CHECK ( Version.Serialize() == "1.2.3.44.0.0.0.0.0.0.0" );
 		CHECK ( Version.Trim().Serialize() == "1.2.3.44" );
 
-		Version = "0.0.0.0.0";
-		CHECK ( Version == "0.0.0.0.0" );
+		Version = KVersion("0.0.0.0.0");
+		CHECK ( Version == KVersion("0.0.0.0.0") );
 		Version.Trim();
-		CHECK ( Version == "" );
+		CHECK ( Version == KVersion("") );
 		CHECK ( Version.empty() );
 
-		Version = "0.0.0.0.0.1";
-		CHECK ( Version == "0.0.0.0.0.1" );
+		Version = KVersion("0.0.0.0.0.1");
+		CHECK ( Version == KVersion("0.0.0.0.0.1") );
 		Version.Trim();
-		CHECK ( Version == "0.0.0.0.0.1" );
+		CHECK ( Version == KVersion("0.0.0.0.0.1") );
 
-		CHECK ( Version > "" );
-		CHECK ( Version > "0000" );
+		CHECK ( Version > KVersion("") );
+		CHECK ( Version > KVersion("0000") );
 	}
 
 }

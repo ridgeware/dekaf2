@@ -74,7 +74,7 @@ public:
 
 	/// construct from any string
 	template<class String>
-	KVersion(const String& sVersion, KStringView sSeparators = sDefaultSeparators)
+	explicit KVersion(const String& sVersion, KStringView sSeparators = sDefaultSeparators)
 	{
 		Parse(sVersion, sSeparators);
 	}

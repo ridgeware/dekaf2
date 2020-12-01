@@ -128,6 +128,8 @@ public:
 	/// returns error description
 	const KString& Error() const;
 
+	const KString& GetLastError() { return m_sError; }
+
 //----------
 protected:
 //----------

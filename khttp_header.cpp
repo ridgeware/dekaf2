@@ -499,7 +499,6 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 		kTrim(sValue);
 		kDebug(2, "{}: {}", sKey, sValue);
 		last = Headers.Add(sKey, sValue);
-
 	}
 
 	return SetError("HTTP header did not end with empty line");

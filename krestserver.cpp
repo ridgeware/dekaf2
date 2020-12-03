@@ -580,7 +580,14 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			{
 				if (Options.Out == HTTP)
 				{
-					kDebug (3, "no keep-alive allowed, or not supported by client - closing connection in round {}", iRound);
+					if (!Request.HasKeepAlive())
+					{
+						kDebug (3, "keep-alive not supported by client - closing connection in round {}", iRound);
+					}
+					else
+					{
+						kDebug (3, "no further keep-alive allowed - closing connection in round {}", iRound);
+					}
 				}
 				return true;
 			}

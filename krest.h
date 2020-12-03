@@ -127,8 +127,8 @@ public:
 	bool Good() const;
 	/// returns error description
 	const KString& Error() const;
-
-	const KString& GetLastError() { return m_sError; }
+	/// alias for Error()
+	const KString& GetLastError() const { return Error(); }
 
 //----------
 protected:

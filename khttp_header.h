@@ -296,8 +296,7 @@ public:
 
 	enum { MAX_LINELENGTH = 8 * 1024 };
 
-	// The key for the Header is no trimming and lower cased on comparisons, and stores the original string
-	using KHeaderMap = KProps<KHTTPHeader, KString>; // case insensitive map for header info
+	using KHeaderMap = KProps<KHTTPHeader, KString, /*Sequential =*/ true, /*Unique =*/ false>; // case insensitive map for header info
 
 	//-----------------------------------------------------------------------------
 	bool Parse(KInStream& Stream);

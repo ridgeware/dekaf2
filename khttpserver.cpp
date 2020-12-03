@@ -96,7 +96,7 @@ bool KHTTPServer::Parse()
 //-----------------------------------------------------------------------------
 {
 	Response.close();
-	
+
 	if (!Request.Parse())
 	{
 		if (!Request.Error().empty())

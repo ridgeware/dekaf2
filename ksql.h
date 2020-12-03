@@ -899,15 +899,7 @@ private:
 	{
 		return std::apply([sFormat](auto&&... args)
 		{
-			if (sFormat.Contains("%s") || sFormat.Contains("%d") || sFormat.Contains("%u"))
-			{
-				kWarning ("bad printf-style format string in SQL command: {}", sFormat);
-				return kPrintf(sFormat, std::forward<decltype(args)>(args)...);
-			}
-			else // assume python formatting
-			{
-				return kFormat(sFormat, std::forward<decltype(args)>(args)...);
-			}
+			return kFormat(sFormat, std::forward<decltype(args)>(args)...);
 		},
 		std::make_tuple(EscapeType(args)...));
 	}

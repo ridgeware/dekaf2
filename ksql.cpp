@@ -7507,7 +7507,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 			case 1: // single value
 				if (iFlags & FAC_NUMERIC)
 				{
-					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].UInt16());
+					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].UInt64());
 				}
 				else
 				{
@@ -7518,7 +7518,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 			case 2: // two values
 				if (iFlags & FAC_NUMERIC)
 				{
-					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].UInt16(), Parts[1].UInt16());
+					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].UInt64(), Parts[1].UInt64());
 				}
 				else
 				{

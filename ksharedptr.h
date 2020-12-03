@@ -72,13 +72,13 @@ namespace dekaf2
 /// for the use counter, which is slower, but 100% reliable in multi threading.
 /// The std::shared_ptr uses relaxed memory access for the readout of the use
 /// counter, which is unreliable.
-template<class T, bool bMultiThreaded = true, bool bSequential = true>
+template<class T, bool bMultiThreaded = true, bool bAcquireRelease = true>
 class KSharedPtr
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
-    template<class T_, bool bMultiThreaded_, bool bSequential_, class... Args>
-    friend KSharedPtr<T_, bMultiThreaded_, bSequential_> kMakeShared(Args&&... args);
+    template<class T_, bool bMultiThreaded_, bool bAcquireRelease_, class... Args>
+    friend KSharedPtr<T_, bMultiThreaded_, bAcquireRelease_> kMakeShared(Args&&... args);
 
 //----------
 public:
@@ -298,7 +298,7 @@ private:
 		void inc() noexcept
 		//-----------------------------------------------------------------------------
 		{
-			m_iRefCount.fetch_add(1, bSequential ? std::memory_order_acq_rel : std::memory_order_relaxed);
+			m_iRefCount.fetch_add(1, bAcquireRelease ? std::memory_order_acq_rel : std::memory_order_relaxed);
 		}
 
 		//-----------------------------------------------------------------------------
@@ -334,7 +334,7 @@ private:
 		size_t use_count() noexcept
 		//-----------------------------------------------------------------------------
 		{
-			return m_iRefCount.load(bSequential ? std::memory_order_acquire : std::memory_order_relaxed);
+			return m_iRefCount.load(bAcquireRelease ? std::memory_order_acquire : std::memory_order_relaxed);
 		}
 
 		//-----------------------------------------------------------------------------
@@ -418,13 +418,13 @@ private:
 
 //-----------------------------------------------------------------------------
 /// create a KSharedPtr with only one allocation
-template<class T, bool bMultiThreaded = true, bool bSequential = true, class... Args>
-KSharedPtr<T, bMultiThreaded, bSequential> kMakeShared(Args&&... args)
+template<class T, bool bMultiThreaded = true, bool bAcquireRelease = true, class... Args>
+KSharedPtr<T, bMultiThreaded, bAcquireRelease> kMakeShared(Args&&... args)
 //-----------------------------------------------------------------------------
 {
-    KSharedPtr<T, bMultiThreaded, bSequential> ptr;
+    KSharedPtr<T, bMultiThreaded, bAcquireRelease> ptr;
 
-	auto tmp_object = new typename KSharedPtr<T, bMultiThreaded, bSequential>::template ObjectAndControl<T>(std::forward<Args>(args)...);
+	auto tmp_object = new typename KSharedPtr<T, bMultiThreaded, bAcquireRelease>::template ObjectAndControl<T>(std::forward<Args>(args)...);
     ptr.m_ptr       = &(tmp_object->m_Object);
     ptr.m_Control   = tmp_object;
 

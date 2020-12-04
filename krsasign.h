@@ -68,7 +68,7 @@ public:
 	KRSASign(ALGORITHM Algorithm, KStringView sMessage = KStringView{});
 
 	/// returns the signature
-	KString Sign(KRSAKey& Key) const;
+	KString Sign(const KRSAKey& Key) const;
 
 }; // KRSASign
 
@@ -86,7 +86,7 @@ public:
 	KRSAVerify(ALGORITHM Algorithm, KStringView sMessage = KStringView{});
 
 	/// verifies the signature
-	bool Verify(KRSAKey& Key, KStringView sSignature) const;
+	bool Verify(const KRSAKey& Key, KStringView sSignature) const;
 
 }; // KRSASign
 

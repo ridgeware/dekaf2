@@ -64,7 +64,7 @@ KRSASign::KRSASign(ALGORITHM Algorithm, KStringView sMessage)
 } // ctor
 
 //---------------------------------------------------------------------------
-KString KRSASign::Sign(KRSAKey& Key) const
+KString KRSASign::Sign(const KRSAKey& Key) const
 //---------------------------------------------------------------------------
 {
 	KString sSignature;
@@ -107,7 +107,7 @@ KRSAVerify::KRSAVerify(ALGORITHM Algorithm, KStringView sMessage)
 } // ctor
 
 //---------------------------------------------------------------------------
-bool KRSAVerify::Verify(KRSAKey& Key, KStringView _sSignature) const
+bool KRSAVerify::Verify(const KRSAKey& Key, KStringView _sSignature) const
 //---------------------------------------------------------------------------
 {
 	if (evpctx && !Key.empty())

@@ -99,8 +99,10 @@ public:
 
 	/// copy construction
 	KRSAKey(const KRSAKey&) = delete;
+
 	/// move construction
-	KRSAKey(KRSAKey&&) = default;
+	KRSAKey(KRSAKey&& other) noexcept;
+
 	~KRSAKey()
 	{
 		clear();
@@ -109,7 +111,7 @@ public:
 	/// copy assignment
 	KRSAKey& operator=(const KRSAKey&) = delete;
 	/// move assignment
-	KRSAKey& operator=(KRSAKey&&) = default;
+	KRSAKey& operator=(KRSAKey&& other) noexcept;
 
 	/// reset the key
 	void clear();

@@ -46,6 +46,7 @@
 #include "kurl.h"
 #include "kjson.h"
 #include "krsakey.h"
+#include <unordered_map>
 #include <vector>
 
 namespace dekaf2 {
@@ -64,20 +65,33 @@ public:
 	/// query all known information about an OpenID provider
 	KOpenIDKeys (const KURL& URL);
 
-	KRSAKey GetRSAKey(KStringView sAlgorithm, KStringView sKeyID, KStringView sKeyDigest, KStringView sUseType = "sig") const;
+	/// return a reference to the RSA key that matches the given parameters
+	const KRSAKey& GetRSAKey(KStringView sKeyID, KStringView sAlgorithm, KStringView sKeyDigest, KStringView sUseType = "sig") const;
 
 	/// return error string
 	const KString& Error() const { return m_sError; }
 	/// are all info valid?
 	bool IsValid() const { return Error().empty(); }
 
-	KJSON Keys;
-
 //----------
 private:
 //----------
 
-	bool Validate() const;
+	static const KRSAKey s_EmptyKey;
+
+	struct WebKey
+	{
+		WebKey(const KJSON& parms);
+
+		KRSAKey RSAKey;
+		KString Algorithm;
+		KString Digest;
+		KString UseType;
+	};
+
+	std::unordered_map<KString, WebKey> WebKeys;
+
+	bool Validate(const KJSON& Keys) const;
 	bool SetError(KString sError) const;
 
 	mutable KString m_sError;

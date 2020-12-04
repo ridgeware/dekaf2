@@ -53,6 +53,18 @@ namespace dekaf2 {
 static constexpr KStringViewZ OpenID_Configuration = "/.well-known/openid-configuration";
 static constexpr int DEFAULT_TIMEOUT = 5;
 
+const KRSAKey KOpenIDKeys::s_EmptyKey;
+
+//-----------------------------------------------------------------------------
+KOpenIDKeys::WebKey::WebKey(const KJSON& parms)
+//-----------------------------------------------------------------------------
+: RSAKey    ( parms                             )
+, Algorithm ( kjson::GetStringRef(parms, "alg") )
+, Digest    ( kjson::GetStringRef(parms, "x5t") )
+, UseType   ( kjson::GetStringRef(parms, "use") )
+{
+}
+
 //-----------------------------------------------------------------------------
 bool KOpenIDKeys::SetError(KString sError) const
 //-----------------------------------------------------------------------------
@@ -64,7 +76,7 @@ bool KOpenIDKeys::SetError(KString sError) const
 } // SetError
 
 //-----------------------------------------------------------------------------
-bool KOpenIDKeys::Validate() const
+bool KOpenIDKeys::Validate(const KJSON& Keys) const
 //-----------------------------------------------------------------------------
 {
 	if (Keys["keys"].empty())
@@ -90,54 +102,54 @@ KOpenIDKeys::KOpenIDKeys (const KURL& URL)
 			KWebClient ProviderKeys;
 			ProviderKeys.VerifyCerts(true); // we have to verify the CERT!
 			ProviderKeys.SetTimeout(DEFAULT_TIMEOUT);
+			KJSON Keys;
 			kjson::Parse(Keys, ProviderKeys.Get(URL));
-			if (!Validate())
+
+			if (Validate(Keys))
 			{
-				Keys = KJSON{};
-			}
-		}
-	}
-	DEKAF2_CATCH (const KJSON::exception& exc)
-	{
-		SetError(kFormat("OpenID provider keys '{}' returned invalid JSON: {}", URL.Serialize(), exc.what()));
-		Keys = KJSON{};
-	}
-
-} // ctor
-
-//-----------------------------------------------------------------------------
-KRSAKey KOpenIDKeys::GetRSAKey(KStringView sAlgorithm, KStringView sKeyID, KStringView sKeyDigest, KStringView sUseType) const
-//-----------------------------------------------------------------------------
-{
-	KRSAKey Key;
-
-	DEKAF2_TRY
-	{
-		if (IsValid())
-		{
-			for (auto& it : Keys["keys"])
-			{
-				if (it["alg"] == sAlgorithm
-					&& it["kid"] == sKeyID
-					&& it["x5t"] == sKeyDigest
-					&& it["use"] == sUseType)
+				for (auto& it : Keys["keys"])
 				{
+					// only add RSA keys to our Key store
 					if (it["kty"] == "RSA")
 					{
-						Key.Create(it);
-						// TODO add cache for the created key
+						// construct RSA key and store it by its key ID
+						auto p = WebKeys.emplace(std::move(it["kid"].get_ref<KString&>()), WebKey(it));
+
+						if (p.second)
+						{
+							kDebug(2, "inserted {} {} key with ID {}",
+								   p.first->second.Algorithm,
+								   p.first->second.UseType,
+								   p.first->first);
+						}
 					}
-					break;
 				}
 			}
 		}
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
-		SetError(kFormat("invalid JSON: {}", exc.what()));
+		SetError(kFormat("OpenID provider keys '{}' returned invalid JSON: {}", URL.Serialize(), exc.what()));
 	}
 
-	return Key;
+} // ctor
+
+//-----------------------------------------------------------------------------
+const KRSAKey& KOpenIDKeys::GetRSAKey(KStringView sKeyID, KStringView sAlgorithm, KStringView sKeyDigest, KStringView sUseType) const
+//-----------------------------------------------------------------------------
+{
+	// search the key ID in our key storage
+	auto it = WebKeys.find(sKeyID);
+
+	if (it != WebKeys.end()                &&
+		it->second.Algorithm == sAlgorithm &&
+		it->second.Digest    == sKeyDigest &&
+		it->second.UseType   == sUseType)
+	{
+		return it->second.RSAKey;
+	}
+
+	return s_EmptyKey;
 
 } // GetPublicKey
 
@@ -367,7 +379,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 			}
 
 			// find the key
-			auto Key = Provider.Keys.GetRSAKey(sAlgorithm, sKeyID, sKeyDigest, "sig");
+			const auto& Key = Provider.Keys.GetRSAKey(sKeyID, sAlgorithm, sKeyDigest, "sig");
 
 			if (Key.empty())
 			{
@@ -427,10 +439,19 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 //-----------------------------------------------------------------------------
 const KString& KJWT::GetUser() const
 //-----------------------------------------------------------------------------
- {
-	 return Payload["sub"].get_ref<const KString&>();
+{
+	return Payload["sub"].get_ref<const KString&>();
 
- } // GetUser
+} // GetUser
+
+static_assert(std::is_nothrow_move_constructible<KOpenIDKeys>::value,
+			  "KOpenIDKeys is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<KOpenIDProvider>::value,
+			  "KOpenIDProvider is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<KJWT>::value,
+			  "KJWT is intended to be nothrow move constructible, but is not!");
 
 } // end of namespace dekaf2
 

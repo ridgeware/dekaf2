@@ -59,20 +59,178 @@ inline zip* pZip(void* p)
 auto zipDeleter = [](void* data)
 //-----------------------------------------------------------------------------
 {
-	if (zip_close(static_cast<zip_t*>(data)))
+	if (data)
 	{
-		kWarning("cannot properly close ZIP archive - changes are discarded");
-		zip_discard(static_cast<zip_t*>(data));
+		if (zip_close(pZip(data)))
+		{
+			kWarning("cannot properly close ZIP archive - changes are discarded");
+			zip_discard(pZip(data));
+		}
 	}
 
 }; // zipDeleter
+
+//-----------------------------------------------------------------------------
+bool KZip::DirEntry::IsDirectory() const
+//-----------------------------------------------------------------------------
+{
+	return !sName.empty() && *sName.rbegin() == '/';
+
+} // IsDirectory
+
+//-----------------------------------------------------------------------------
+void KZip::DirEntry::clear()
+//-----------------------------------------------------------------------------
+{
+	sName.clear();
+	iIndex    = 0;
+	iSize     = 0;
+	iCompSize = 0;
+	mtime     = 0;
+
+} // clear
+
+//-----------------------------------------------------------------------------
+uint16_t KZip::DirEntry::PercentCompressed() const
+//-----------------------------------------------------------------------------
+{
+	if (iSize)
+	{
+		return iCompSize * 100 / iSize;
+	}
+	else
+	{
+		return 100;
+	}
+
+} // PercentCompressed
+
+//-----------------------------------------------------------------------------
+bool KZip::DirEntry::from_zip_stat(const struct zip_stat* stat)
+//-----------------------------------------------------------------------------
+{
+	/*
+	struct zip_stat
+	{
+		zip_uint64_t valid;             // which fields have valid values
+		const char *_Nullable name;     // name of the file
+		zip_uint64_t index;             // index within archive
+		zip_uint64_t size;              // size of file (uncompressed)
+		zip_uint64_t comp_size;         // size of file (compressed)
+		time_t mtime;                   // modification time
+		zip_uint32_t crc;               // crc of file data
+		zip_uint16_t comp_method;       // compression method used
+		zip_uint16_t encryption_method; // encryption method used
+		zip_uint32_t flags;             // reserved for future use
+	};
+	*/
+
+	if (!stat)
+	{
+		clear();
+		return false;
+	}
+
+	sName     = stat->name;
+	iIndex    = stat->index;
+	iSize     = stat->size;
+	iCompSize = stat->comp_size;
+	mtime     = stat->mtime;
+
+	return true;
+
+} // from_zip_stat
+
+//-----------------------------------------------------------------------------
+KZip::iterator::iterator(KZip& Zip, uint64_t iIndex) noexcept
+//-----------------------------------------------------------------------------
+: m_Zip(&Zip)
+, m_iIndex(iIndex)
+{
+	if (iIndex < m_Zip->size())
+	{
+		m_DirEntry = m_Zip->Get(iIndex);
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KZip::iterator::reference KZip::iterator::operator*() const
+//-----------------------------------------------------------------------------
+{
+	if (m_iIndex <= m_Zip->size())
+	{
+		return m_DirEntry;
+	}
+	else
+	{
+		throw KError("KZip::iterator out of range");
+	}
+
+} // operator*
+
+//-----------------------------------------------------------------------------
+KZip::iterator& KZip::iterator::operator++() noexcept
+//-----------------------------------------------------------------------------
+{
+	if (++m_iIndex < m_Zip->size())
+	{
+		m_DirEntry = m_Zip->Get(m_iIndex);
+	}
+
+	return *this;
+
+} // operator++
+
+//-----------------------------------------------------------------------------
+KZip::iterator KZip::iterator::operator++(int) noexcept
+//-----------------------------------------------------------------------------
+{
+	iterator Copy = *this;
+
+	if (++m_iIndex < m_Zip->size())
+	{
+		m_DirEntry = m_Zip->Get(m_iIndex);
+	}
+
+	return Copy;
+
+} // operator++(int)
+
+//-----------------------------------------------------------------------------
+KZip::iterator& KZip::iterator::operator--() noexcept
+//-----------------------------------------------------------------------------
+{
+	if (--m_iIndex < m_Zip->size())
+	{
+		m_DirEntry = m_Zip->Get(m_iIndex);
+	}
+
+	return *this;
+
+} // operator--
+
+//-----------------------------------------------------------------------------
+KZip::iterator KZip::iterator::operator--(int) noexcept
+//-----------------------------------------------------------------------------
+{
+	iterator Copy = *this;
+
+	if (--m_iIndex < m_Zip->size())
+	{
+		m_DirEntry = m_Zip->Get(m_iIndex);
+	}
+
+	return Copy;
+
+} // operator--(int)
 
 //-----------------------------------------------------------------------------
 bool KZip::SetError(KString sError) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, sError);
-	
+
 	m_sError = std::move(sError);
 
 	if (m_bThrow)
@@ -152,79 +310,6 @@ bool KZip::Contains(KStringViewZ sName, bool bNoPathCompare) const noexcept
 	return zip_name_locate(pZip(D.get()), sName.c_str(), bNoPathCompare ? ZIP_FL_NODIR : 0) >= 0;
 
 } // Contains
-
-//-----------------------------------------------------------------------------
-bool KZip::DirEntry::IsDirectory() const
-//-----------------------------------------------------------------------------
-{
-	return !sName.empty() && *sName.rbegin() == '/';
-
-} // IsDirectory
-
-//-----------------------------------------------------------------------------
-void KZip::DirEntry::clear()
-//-----------------------------------------------------------------------------
-{
-	sName.clear();
-	iIndex    = 0;
-	iSize     = 0;
-	iCompSize = 0;
-	mtime     = 0;
-
-} // clear
-
-//-----------------------------------------------------------------------------
-uint16_t KZip::DirEntry::PercentCompressed() const
-//-----------------------------------------------------------------------------
-{
-	if (iSize)
-	{
-		return iCompSize * 100 / iSize;
-	}
-	else
-	{
-		return 100;
-	}
-
-} // PercentCompressed
-
-//-----------------------------------------------------------------------------
-bool KZip::DirEntry::from_zip_stat(const void* vzip_stat)
-//-----------------------------------------------------------------------------
-{
-	/*
-	struct zip_stat
-	{
-		zip_uint64_t valid;             // which fields have valid values
-		const char *_Nullable name;     // name of the file
-		zip_uint64_t index;             // index within archive
-		zip_uint64_t size;              // size of file (uncompressed)
-		zip_uint64_t comp_size;         // size of file (compressed)
-		time_t mtime;                   // modification time
-		zip_uint32_t crc;               // crc of file data
-		zip_uint16_t comp_method;       // compression method used
-		zip_uint16_t encryption_method; // encryption method used
-		zip_uint32_t flags;             // reserved for future use
-	};
-	*/
-
-	auto* stat = static_cast<const struct zip_stat*>(vzip_stat);
-
-	if (!stat)
-	{
-		clear();
-		return false;
-	}
-
-	sName     = stat->name;
-	iIndex    = stat->index;
-	iSize     = stat->size;
-	iCompSize = stat->comp_size;
-	mtime     = stat->mtime;
-
-	return true;
-
-} // from_zip_stat
 
 //-----------------------------------------------------------------------------
 struct KZip::DirEntry KZip::Get(std::size_t iIndex) const

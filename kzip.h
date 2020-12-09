@@ -48,6 +48,8 @@
 #include "kreader.h"
 #include "kfilesystem.h"
 
+struct zip_stat;
+
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -104,7 +106,7 @@ public:
 
 		friend class KZip;
 
-		bool from_zip_stat(const void* vzip_stat);
+		bool from_zip_stat(const struct zip_stat* stat);
 
 	}; // DirEntry
 
@@ -126,27 +128,9 @@ public:
 		using difference_type   = int64_t;
 		using self_type         = iterator;
 
-		iterator(KZip& Zip, uint64_t iIndex = 0) noexcept
-		: m_Zip(&Zip)
-		, m_iIndex(iIndex)
-		{
-			if (iIndex < m_Zip->size())
-			{
-				m_DirEntry = m_Zip->Get(iIndex);
-			}
-		}
+		iterator(KZip& Zip, uint64_t iIndex = 0) noexcept;
 
-		reference operator*() const
-		{
-			if (m_iIndex <= m_Zip->size())
-			{
-				return m_DirEntry;
-			}
-			else
-			{
-				throw KError("KZip::iterator out of range");
-			}
-		}
+		reference operator*() const;
 
 		pointer operator->() const
 		{
@@ -154,46 +138,16 @@ public:
 		}
 
 		// post increment
-		iterator& operator++() noexcept
-		{
-			if (++m_iIndex < m_Zip->size())
-			{
-				m_DirEntry = m_Zip->Get(m_iIndex);
-			}
-			return *this;
-		}
+		iterator& operator++() noexcept;
 
 		// pre increment
-		iterator operator++(int) noexcept
-		{
-			iterator Copy = *this;
-			if (++m_iIndex < m_Zip->size())
-			{
-				m_DirEntry = m_Zip->Get(m_iIndex);
-			}
-			return Copy;
-		}
+		iterator operator++(int) noexcept;
 
 		// post decrement
-		iterator& operator--() noexcept
-		{
-			if (--m_iIndex < m_Zip->size())
-			{
-				m_DirEntry = m_Zip->Get(m_iIndex);
-			}
-			return *this;
-		}
+		iterator& operator--() noexcept;
 
 		// pre decrement
-		iterator operator--(int) noexcept
-		{
-			iterator Copy = *this;
-			if (--m_iIndex < m_Zip->size())
-			{
-				m_DirEntry = m_Zip->Get(m_iIndex);
-			}
-			return Copy;
-		}
+		iterator operator--(int) noexcept;
 
 		// increment
 		iterator operator+(difference_type iIncrement) const noexcept

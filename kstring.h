@@ -1810,6 +1810,14 @@ namespace std
 		{
 			return dekaf2::kHash(sv.data(), sv.size());
 		}
+
+		// and provide an explicit hash function for const char*, as this avoids
+		// counting twice over the char array (KStringView's constructor counts
+		// the size of the array)
+		DEKAF2_CONSTEXPR_14 std::size_t operator()(const char* s) const noexcept
+		{
+			return dekaf2::kHash(s);
+		}
 	};
 
 	// make sure comparisons work without construction of KString
@@ -1854,7 +1862,15 @@ namespace boost
 		{
 			return dekaf2::kHash(s.data(), s.size());
 		}
-};
+
+		// and provide an explicit hash function for const char*, as this avoids
+		// counting twice over the char array (KStringView's constructor counts
+		// the size of the array)
+		DEKAF2_CONSTEXPR_14 std::size_t operator()(const char* s) const noexcept
+		{
+			return dekaf2::kHash(s);
+		}
+	};
 
 } // end of namespace boost
 

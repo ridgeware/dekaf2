@@ -638,11 +638,14 @@ namespace std
 	struct hash<dekaf2::KStringViewZ>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		typedef dekaf2::KStringViewZ argument_type;
-		typedef std::size_t result_type;
-		DEKAF2_CONSTEXPR_14 result_type operator()(argument_type s) const
+		DEKAF2_CONSTEXPR_14 std::size_t operator()(dekaf2::KStringView s) const noexcept
 		{
 			return dekaf2::kHash(s.data(), s.size());
+		}
+
+		DEKAF2_CONSTEXPR_14 std::size_t operator()(const char* s) const noexcept
+		{
+			return dekaf2::kHash(s);
 		}
 	};
 
@@ -652,15 +655,23 @@ namespace boost
 {
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// provide a boost::hash for KStringViewZ
+#if (BOOST_VERSION < 106400)
+	template<>
+	struct hash<dekaf2::KStringViewZ> : public std::unary_function<dekaf2::KStringViewZ, std::size_t>
+#else
 	template<>
 	struct hash<dekaf2::KStringViewZ>
+#endif
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		typedef dekaf2::KStringViewZ argument_type;
-		typedef std::size_t result_type;
-		DEKAF2_CONSTEXPR_14 result_type operator()(argument_type s) const
+		DEKAF2_CONSTEXPR_14 std::size_t operator()(dekaf2::KStringView s) const noexcept
 		{
 			return dekaf2::kHash(s.data(), s.size());
+		}
+
+		DEKAF2_CONSTEXPR_14 std::size_t operator()(const char* s) const noexcept
+		{
+			return dekaf2::kHash(s);
 		}
 	};
 

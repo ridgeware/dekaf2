@@ -7,7 +7,9 @@
 #
 # Note: C++20 is supported starting with 3.12, targets from subdirectories with 3.13
 #
-cmake_minimum_required(VERSION 2.6)
+# Starting with cmake 3.19, the minimal supported cmake version is 2.8.12
+#
+cmake_minimum_required(VERSION 2.8.12)
 #
 # ================================= BUILD SYSTEM SETUP =============================
 

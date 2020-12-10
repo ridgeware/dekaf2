@@ -770,12 +770,6 @@ public:
 
 	KSQLStatementStats& GetSQLStmtStats()            { return m_SQLStmtStats;         }
 
-	/*
-	void          SetSQLStmtStats(bool bValue) { m_SQLStmtStats.Enable(bValue); }
-	uint64_t      GetSQLStmtStatsTotal() const { return m_SQLStmtStats.Total(); }
-	void          ShowSQLStmtStats() const     { m_SQLStmtStats.Print();         }
-*/
-
 //----------
 private:
 //----------

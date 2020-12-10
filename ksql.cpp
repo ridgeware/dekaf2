@@ -5072,7 +5072,7 @@ bool KSQL::DescribeTable (KStringView sTablename)
 			//uint32_t iFlags = GetFlags();
 			EndQuery ();
 			SetFlags (F_IgnoreSelectKeyword);
-			bool bOK = ExecRawQuery (kFormat ("desc {}", sTablename));
+			bool bOK = ExecQuery ("desc {}", sTablename);
 			//SetFlags (iFlags);
 			return (bOK);
 		}
@@ -5086,13 +5086,13 @@ bool KSQL::DescribeTable (KStringView sTablename)
 		{
 		KString sSchemaOwner = GetDBUser();
 		sSchemaOwner.MakeUpper();
-		return (ExecRawQuery (kFormat (
+		return (ExecQuery (
 			"select column_name, data_type, nullable, data_length, data_precision, ''\n"
 			"  from DBA_TAB_COLUMNS\n"
 			" where owner = '{}'\n"
 			"   and table_name = '{}'\n"
 			" order by column_id", 
-				sSchemaOwner, sTablename)));
+				sSchemaOwner, sTablename));
 		}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
@@ -5103,7 +5103,7 @@ bool KSQL::DescribeTable (KStringView sTablename)
 			//uint32_t iFlags = GetFlags();
 			EndQuery ();
 			SetFlags (F_IgnoreSelectKeyword);
-			bool bOK = ExecRawQuery (kFormat ("sp_help {}", sTablename));
+			bool bOK = ExecQuery ("sp_help {}", sTablename);
 			//SetFlags (iFlags);
 			return (bOK);
 		}
@@ -7745,8 +7745,7 @@ bool KSQL::GetLock (KStringView sName, int16_t iTimeoutSeconds)
 {
 	if (m_iDBType == DBT::MYSQL)
 	{
-		m_sLastSQL = kFormat("SELECT GET_LOCK(\"{}\", {})", EscapeString(sName), iTimeoutSeconds);
-		return SingleIntRawQuery (m_sLastSQL, 0, "GetLock") >= 1;
+		return SingleIntQuery ("select GET_LOCK('{}', {})", sName, iTimeoutSeconds) >= 1;
 	}
 
 	kDebug(1, "not supported for {}", TxDBType(m_iDBType));
@@ -7761,8 +7760,7 @@ bool KSQL::ReleaseLock (KStringView sName)
 {
 	if (m_iDBType == DBT::MYSQL)
 	{
-		m_sLastSQL = kFormat("SELECT RELEASE_LOCK(\"{}\")", EscapeString(sName));
-		return SingleIntRawQuery (m_sLastSQL, 0, "ReleaseLock") >= 1;
+		return SingleIntQuery ("select RELEASE_LOCK('{}')", sName) >= 1;
 	}
 
 	kDebug(1, "not supported for {}", TxDBType(m_iDBType));
@@ -7777,8 +7775,7 @@ bool KSQL::IsLocked (KStringView sName)
 {
 	if (m_iDBType == DBT::MYSQL)
 	{
-		m_sLastSQL = kFormat("SELECT IS_USED_LOCK(\"{}\")", EscapeString(sName));
-		return SingleIntRawQuery (m_sLastSQL, 0, "IsLocked") >= 1;
+		return SingleIntQuery ("select IS_USED_LOCK('{}')", sName) >= 1;
 	}
 
 	kDebug(1, "not supported for {}", TxDBType(m_iDBType));
@@ -7938,9 +7935,7 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 uint16_t KSQL::GetSchemaVersion (KStringView sTablename)
 //-----------------------------------------------------------------------------
 {
-	m_sLastSQL = kFormat("SELECT {} FROM {}", SCHEMA_REV, EscapeString(sTablename));
-
-	auto iSigned = SingleIntQuery (m_sLastSQL);
+	auto iSigned = SingleIntQuery ("select {} FROM {}", SCHEMA_REV, sTablename);
 
 	if (iSigned <= 0)
 	{

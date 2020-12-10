@@ -59,7 +59,7 @@ template<class Value>
 struct LoadByConstruction
 {
 	template<class Key, typename... Args>
-	Value operator()(Key&& key, Args&& ...args) const
+	Value operator()(Key&& key, Args&& ...args)
 	{
 		return Value(std::forward<Key>(key), std::forward<Args>(args)...);
 	}
@@ -87,11 +87,11 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// Creates a new cache entry.
-	template<class K, class V>
+	template<class K = Key, class V = Value>
 	Value& Create(K&& key, V&& value)
 	//-----------------------------------------------------------------------------
 	{
-		auto it = m_map.insert(std::make_pair(std::forward<K>(key), std::forward<V>(value)));
+		auto it = m_map.insert(detail::KMutablePair<Key, Value>(std::forward<K>(key), std::forward<V>(value)));
 		return it->second;
 	}
 
@@ -115,7 +115,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Add a new key value pair to the cache.
-	template<class K, class V>
+	template<class K = Key, class V = Value>
 	Value& Set(K&& key, V&& value)
 	//-----------------------------------------------------------------------------
 	{
@@ -126,28 +126,37 @@ public:
 	/// Get a value for a key from the cache. If the key does not exist, a new
 	/// value will be created and the key value pair will be inserted into the
 	/// cache. For this to be possible, the Value type needs to be constructible
-	/// from the Key type (so, have a constructor Value(Key) ).
-	template<typename...Args>
-	Value& Get(const Key& key, Args&&...args)
+	/// from the Key type (so, have a constructor Value(Key)). Alternatively,
+	/// additional parameters can be given in args... which will be supplied
+	/// to a Load type.
+	template<class K = Key, typename...Args>
+	Value& Get(K&& key, Args&&...args)
 	//-----------------------------------------------------------------------------
 	{
-		auto it = m_map.find(key);
+		auto it = m_map.find(std::forward<K>(key));
+
 		if (it != m_map.end())
 		{
 			return it->second;
 		}
 
-		Load Loader;
-		return Create(key, Loader(key, std::forward<Args>(args)...));
+		// Create a copy of the key and move it into Create(), as the loader could
+		// also consume the key. Do not use a temporary, as we do not know which parameter
+		// is consumed first.
+		Key kk(key);
+		return Create(std::move(kk), Load()(std::forward<K>(key), std::forward<Args>(args)...));
 	}
 
 	//-----------------------------------------------------------------------------
+	// cannot be const, as the rank is changed..
 	/// Get a pointer on a value for a key from the cache. If the key does not exist,
 	/// a nullptr will be returned.
-	Value* Find(const Key& key)
+	template<class K = Key>
+	Value* Find(const K& key)
 	//-----------------------------------------------------------------------------
 	{
 		auto it = m_map.find(key);
+
 		if (it != m_map.end())
 		{
 			return &it->second;
@@ -158,7 +167,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Erase a key and its corresponding value from the cache.
-	bool Erase(const Key& key)
+	template<class K = Key>
+	bool Erase(const K& key)
 	//-----------------------------------------------------------------------------
 	{
 		return m_map.erase(key);
@@ -166,7 +176,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Erase a vector of keys and their corresponding values from the cache.
-	void Erase(const std::vector<Key>& keys)
+	template<class K = Key>
+	void Erase(const std::vector<K>& keys)
 	//-----------------------------------------------------------------------------
 	{
 		for (const auto& key : keys)
@@ -210,14 +221,23 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns true if no cached elements.
+	bool empty() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_map.empty();
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Get a value for a key from the cache. If the key does not exist, a new
 	/// value will be created and the key value pair will be inserted into the
 	/// cache. For this to be possible, the Value type needs to be constructible
 	/// from the Key type (so, have a constructor Value(Key) ).
-	Value& operator[](const Key& key)
+	template<class K = Key>
+	Value& operator[](K&& key)
 	//-----------------------------------------------------------------------------
 	{
-		return Get(key);
+		return Get(std::forward<K>(key));
 	}
 
 }; // KCache
@@ -225,7 +245,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KSharedCache wraps the Value type into a shared pointer (KSharedRef)
-/// and enables shared locking when Dekaf is set into multithreading mode
+/// and enables shared locking
 template<class Key, class Value, class Load = detail::LoadByConstruction<KSharedRef<Value, true> > >
 class KSharedCache : public KCache<Key, KSharedRef<Value, true>, Load>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -247,15 +267,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Add a new key value pair to the cache.
-	template<class K, class V>
+	template<class K = Key, class V = Value>
 	value_type& Set(K&& key, V&& value)
 	//-----------------------------------------------------------------------------
 	{
 		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf::getInstance().GetMultiThreading())
-		{
-			Lock.lock();
-		}
+
 		return base_type::Set(std::forward<K>(key), value_type(std::forward<V>(value)));
 	}
 
@@ -264,22 +281,20 @@ public:
 	/// Get a value for a key from the cache. If the key does not exist, a new
 	/// value will be created and the key value pair will be inserted into the
 	/// cache. For this to be possible, the Value type needs to be constructible
-	/// from the Key type (so, have a constructor Value(Key) ).
-	template<typename...Args>
-	value_type& Get(const Key& key, Args&&...args)
+	/// from the Key type (so, have a constructor Value(Key)). Alternatively,
+	/// additional parameters can be given in args... which will be supplied
+	/// to a Load type.
+	template<class K = Key, typename...Args>
+	value_type& Get(K&& key, Args&&...args)
 	//-----------------------------------------------------------------------------
 	{
-		if (!Dekaf::getInstance().GetMultiThreading())
-		{
-			// we can use the lock free version
-			return base_type::Get(key, std::forward<Args>(args)...);
-		}
 		// we will use shared and unique locks
 		{
 			// check in a readlock if key is existing
 			std::shared_lock<std::shared_mutex> Lock(m_Mutex);
 
-			auto it = base_type::m_map.find(key);
+			auto it = base_type::m_map.find(std::forward<K>(key));
+
 			if (it != base_type::m_map.end())
 			{
 				return it->second;
@@ -291,57 +306,42 @@ public:
 
 		// we call the base_type to search again exclusively,
 		// and to create if still not found
-		return base_type::Get(key, std::forward<Args>(args)...);
+		return base_type::Get(std::forward<K>(key), std::forward<Args>(args)...);
 	}
 
 	//-----------------------------------------------------------------------------
+	// cannot be const, as the rank is changed..
 	/// Get a pointer on a value for a key from the cache. If the key does not exist,
 	/// a nullptr will be returned.
-	value_type* Find(const Key& key)
+	template<class K = Key>
+	value_type* Find(const K& key)
 	//-----------------------------------------------------------------------------
 	{
-		if (!Dekaf::getInstance().GetMultiThreading())
-		{
-			// we can use the lock free version
-			return base_type::Find(key);
-		}
-		// we will use shared and unique locks
-		{
-			// check in a readlock if key is existing
-			std::shared_lock<std::shared_mutex> Lock(m_Mutex);
+		// check in a readlock if key is existing
+		std::shared_lock<std::shared_mutex> Lock(m_Mutex);
 
-			auto it = base_type::m_map.find(key);
-			if (it != base_type::m_map.end())
-			{
-				return &it->second;
-			}
-			return nullptr;
-		}
+		return base_type::Find(key);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Erase a key and its corresponding value from the cache.
-	bool Erase(const Key& key)
+	template<class K = Key>
+	bool Erase(const K& key)
 	//-----------------------------------------------------------------------------
 	{
-		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf::getInstance().GetMultiThreading())
-		{
-			Lock.lock();
-		}
+		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+
 		return base_type::Erase(key);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Erase a vector of keys and their corresponding values from the cache.
-	void Erase(const std::vector<Key>& keys)
+	template<class K = Key>
+	void Erase(const std::vector<K>& keys)
 	//-----------------------------------------------------------------------------
 	{
-		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf::getInstance().GetMultiThreading())
-		{
-			Lock.lock();
-		}
+		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+
 		base_type::Erase(keys);
 	}
 
@@ -352,11 +352,8 @@ public:
 	void SetMaxSize(size_t iMaxSize)
 	//-----------------------------------------------------------------------------
 	{
-		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf::getInstance().GetMultiThreading())
-		{
-			Lock.lock();
-		}
+		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+
 		return base_type::SetMaxSize(iMaxSize);
 	}
 
@@ -365,11 +362,8 @@ public:
 	size_t GetMaxSize() const
 	//-----------------------------------------------------------------------------
 	{
-		std::shared_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf::getInstance().GetMultiThreading())
-		{
-			Lock.lock();
-		}
+		std::shared_lock<std::shared_mutex> Lock(m_Mutex);
+
 		return base_type::GetMaxSize();
 	}
 
@@ -378,11 +372,8 @@ public:
 	void clear()
 	//-----------------------------------------------------------------------------
 	{
-		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf::getInstance().GetMultiThreading())
-		{
-			Lock.lock();
-		}
+		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+
 		base_type::clear();
 	}
 
@@ -391,12 +382,19 @@ public:
 	size_t size() const
 	//-----------------------------------------------------------------------------
 	{
-		std::shared_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
-		if (Dekaf::getInstance().GetMultiThreading())
-		{
-			Lock.lock();
-		}
+		std::shared_lock<std::shared_mutex> Lock(m_Mutex);
+
 		return base_type::size();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns true if no cached elements.
+	bool empty() const
+	//-----------------------------------------------------------------------------
+	{
+		std::shared_lock<std::shared_mutex> Lock(m_Mutex);
+
+		return base_type::empty();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -404,10 +402,11 @@ public:
 	/// value will be created and the key value pair will be inserted into the
 	/// cache. For this to be possible, the Value type needs to be constructible
 	/// from the Key type (so, have a constructor Value(Key) ).
-	value_type& operator[](const Key& key)
+	template<class K = Key>
+	value_type& operator[](K&& key)
 	//-----------------------------------------------------------------------------
 	{
-		return Get(key);
+		return Get(std::forward<K>(key));
 	}
 
 //----------

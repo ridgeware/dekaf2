@@ -428,11 +428,14 @@ public:
 			if (!svDelim.empty())
 			{
 				Input.SetReaderEndOfLine(svDelim.front());
+				Input.SetReaderRightTrim(svDelim);
 			}
 			KString sLine;
 			while (Input.ReadLine(sLine))
 			{
-				sLine.Trim();
+				// make sure we detect a comment line even with leading spaces
+				sLine.TrimLeft();
+
 				if (svDelim != "\n" || (!sLine.empty() && sLine.front() != '#'))
 				{
 					iNewElements += kSplit(*this, sLine, svDelim, svPairDelim);

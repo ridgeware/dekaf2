@@ -165,28 +165,17 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Insert a const element into the container, new or known. The element will be
 	/// placed at the top of the most recently used list.
-	iterator insert(const element_type& element)
+	iterator insert(element_type element)
 	//-----------------------------------------------------------------------------
 	{
-		post_insert(m_Elements.push_front(element));
-		return begin();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Insert a consumable element into the container, new or known. The element will be
-	/// placed at the top of the most recently used list. The element's value will be
-	/// transfered by a move operation if possible.
-	iterator insert(element_type&& element)
-	//-----------------------------------------------------------------------------
-	{
-		auto pair = m_Elements.push_front(std::move(element));
-		post_insert(pair);
+		post_insert(m_Elements.push_front(std::move(element)));
 		return begin();
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Erase the element with the given key from the container.
-	bool erase(const Key& key)
+	template<class K>
+	bool erase(const K& key)
 	//-----------------------------------------------------------------------------
 	{
 		auto& KeyView = m_Elements.template get<KeyIdx>();
@@ -221,7 +210,8 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Finds the element with the given key. Returns end() if not found. Moves
 	/// the element to the top of the MRU list if found.
-	iterator find(const Key& key)
+	template<class K>
+	iterator find(const K& key)
 	//-----------------------------------------------------------------------------
 	{
 		auto& KeyView = m_Elements.template get<KeyIdx>();
@@ -270,7 +260,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// Brings the element pointed at with @p it to the front.
-	void touch(iterator it)
+	void touch(const iterator& it)
 	//-----------------------------------------------------------------------------
 	{
 		if (it != begin())
@@ -283,7 +273,7 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// Depending on whether the inserted element was new or known this function
 	/// brings it to the front or checks if old elements have to be deleted.
-	void post_insert(pair_ib& pair)
+	void post_insert(const pair_ib& pair)
 	//-----------------------------------------------------------------------------
 	{
 		if (!pair.second)

@@ -288,24 +288,10 @@ public:
 	value_type& Get(K&& key, Args&&...args)
 	//-----------------------------------------------------------------------------
 	{
-		// we will use shared and unique locks
-		{
-			// check in a readlock if key is existing
-			std::shared_lock<std::shared_mutex> Lock(m_Mutex);
-
-			auto it = base_type::m_map.find(std::forward<K>(key));
-
-			if (it != base_type::m_map.end())
-			{
-				return it->second;
-			}
-		}
-
-		// acquire a write lock
+		// have to use a unique lock even for reads as the
+		// rank is changed!
 		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
 
-		// we call the base_type to search again exclusively,
-		// and to create if still not found
 		return base_type::Get(std::forward<K>(key), std::forward<Args>(args)...);
 	}
 
@@ -317,8 +303,9 @@ public:
 	value_type* Find(const K& key)
 	//-----------------------------------------------------------------------------
 	{
-		// check in a readlock if key is existing
-		std::shared_lock<std::shared_mutex> Lock(m_Mutex);
+		// have to use a unique lock even for reads as the
+		// rank is changed!
+		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
 
 		return base_type::Find(key);
 	}

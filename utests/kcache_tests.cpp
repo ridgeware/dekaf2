@@ -1,6 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/kcache.h>
+#include <dekaf2/kwriter.h>
 #include <vector>
 
 using namespace dekaf2;
@@ -27,6 +28,8 @@ TEST_CASE("KCache")
 		CHECK ( MyCache.Get("abcdefg") == "gfedcba" );
 		CHECK ( MyCache.size() == 1 );
 		CHECK ( *MyCache.Find("abcdefg") == "gfedcba" );
+
+		MyCache.clear();
 	}
 
 	SECTION("Growth")
@@ -52,6 +55,8 @@ TEST_CASE("KCache")
 		MyCache.clear();
 		CHECK ( MyCache.size() == 0 );
 		CHECK ( MyCache.empty() == true );
+
+		MyCache.clear();
 	}
 
 	SECTION("Shrink")
@@ -77,6 +82,8 @@ TEST_CASE("KCache")
 		CHECK ( MyCache.size() == 2 );
 		CHECK ( MyCache.Get("bbcdefg") == "gfedcbb"  );
 		CHECK ( MyCache.size() == 3 );
+
+		MyCache.clear();
 	}
 }
 
@@ -105,6 +112,8 @@ TEST_CASE("KSharedCache")
 		MyCache.clear();
 		CHECK ( MyCache.size() == 0 );
 		CHECK ( MyCache.empty() == true );
+
+		MyCache.clear();
 	}
 
 	SECTION("Shrink")
@@ -130,5 +139,40 @@ TEST_CASE("KSharedCache")
 		CHECK ( MyCache.size() == 2 );
 		CHECK ( MyCache.Get("bbcdefg") == "gfedcbb"  );
 		CHECK ( MyCache.size() == 3 );
+
+		MyCache.clear();
+	}
+
+	SECTION("MT")
+	{
+		KSharedCache<KString, KString, Loader> MyCache;
+
+		auto iOrigSize = MyCache.GetMaxSize();
+		MyCache.clear();
+		MyCache.SetMaxSize(10);
+
+		std::atomic_uint32_t iErrors { 0 };
+
+		if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
+		if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
+		if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
+
+		KRunThreads().Create([&iErrors,&MyCache]()
+		{
+			for (int i = 0; i < 1000; ++i)
+			{
+				if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
+				if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
+				if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
+			}
+		});
+
+		if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
+		if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
+		if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
+
+		CHECK ( iErrors == 0 );
+
+		MyCache.clear();
 	}
 }

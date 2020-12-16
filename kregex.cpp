@@ -253,7 +253,6 @@ int GlobalReplace(KString& str,
 namespace dekaf2 {
 
 namespace detail {
-
 namespace kregex {
 
 struct Loader
@@ -269,17 +268,23 @@ using cache_t = KSharedCache<KString, re2::RE2, Loader>;
 using regex_t = cache_t::value_type;
 
 } // end of namespace kregex
-
 } // end of namespace detail
 
 detail::kregex::cache_t s_Cache;
 
 //-----------------------------------------------------------------------------
-inline detail::kregex::regex_t& rget(void* p)
+inline const detail::kregex::regex_t& rget(const KUniqueVoidPtr& p)
 //-----------------------------------------------------------------------------
 {
-	return *static_cast<detail::kregex::regex_t*>(p);
+	return *static_cast<detail::kregex::regex_t*>(p.get());
 }
+
+//-----------------------------------------------------------------------------
+auto kRegexDeleter = [](void* data)
+//-----------------------------------------------------------------------------
+{
+	delete static_cast<detail::kregex::regex_t*>(data);
+};
 
 //-----------------------------------------------------------------------------
 void KRegex::LogExpError() const
@@ -334,7 +339,7 @@ const std::string& KRegex::ErrorArg() const
 /// converting constructor, takes string literals and strings
 KRegex::KRegex(KStringView expression)
 //-----------------------------------------------------------------------------
-    : m_Regex(&s_Cache.Get(expression))
+: m_Regex(new detail::kregex::regex_t(s_Cache.Get(expression)), kRegexDeleter)
 {
 	if (!Good())
 	{

@@ -48,6 +48,7 @@
 #include <vector>
 #include "kstring.h"
 #include "kstringview.h"
+#include "bits/kunique_deleter.h"
 
 namespace dekaf2
 {
@@ -200,7 +201,7 @@ protected:
 private:
 //----------
 
-	void* m_Regex;
+	KUniqueVoidPtr m_Regex;
 
 }; // KRegex
 

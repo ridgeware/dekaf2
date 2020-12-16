@@ -81,5 +81,13 @@ using KUniquePtr = std::unique_ptr<T, KUniqueDeleter<T, deleter>>;
 
 } // end of namespace detail
 
+// helper types to allow for a unique_ptr<void>, which lets us hide all
+// implementation headers from the interface and nonetheless keep exception safety
+
+using KVoidDeleter = std::function<void(void *)>;
+
+/// a unique ptr that uses a void* publicly - construct it with a customized KVoidDeleter..
+using KUniqueVoidPtr = std::unique_ptr<void, KVoidDeleter>;
+
 } // end of namespace dekaf2
 

@@ -1,6 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/kregex.h>
+#include <dekaf2/kparallel.h>
 #include <vector>
 
 using namespace dekaf2;
@@ -69,4 +70,33 @@ TEST_CASE("KRegex")
 		KRegex::SetMaxCacheSize(iOrigSize);
 		KRegex::ClearCache();
 	}
+
+	SECTION("MT")
+	{
+		auto iOrigSize = KRegex::GetMaxCacheSize();
+		KRegex::ClearCache();
+		KRegex::SetMaxCacheSize(10);
+
+		std::atomic_uint32_t iErrors { 0 };
+
+		if (KRegex::Matches(sString, "^[0-9A-Fa-f]*$") == false) { ++iErrors; }
+		if (KRegex::Matches(sString, "^[0-6A-Fa-f]*$") == true ) { ++iErrors; }
+		if (KRegex::Matches(sString, "^[0-6A-Ca-c]*$") == true ) { ++iErrors; }
+
+		KRunThreads().Create([&iErrors]()
+		{
+			for (int i = 0; i < 1000; ++i)
+			{
+				if (KRegex::Matches(sString, "^[0-9A-Fa-f]*$") == false) { ++iErrors; }
+				if (KRegex::Matches(sString, "^[0-6A-Fa-f]*$") == true ) { ++iErrors; }
+				if (KRegex::Matches(sString, "^[0-6A-Ca-c]*$") == true ) { ++iErrors; }
+			}
+		});
+
+		CHECK ( iErrors == 0 );
+
+		KRegex::SetMaxCacheSize(iOrigSize);
+		KRegex::ClearCache();
+	}
+
 }

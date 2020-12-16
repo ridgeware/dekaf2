@@ -216,7 +216,7 @@ void kDaemonize(bool bChangeDir)
 } // end of namespace detail
 
 //-----------------------------------------------------------------------------
-bool KChildProcess::Start(KStringView sCommand, KStringViewZ sChangeDirectory, bool bDaemonized)
+bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool bDaemonized)
 //-----------------------------------------------------------------------------
 {
 	if (m_child)
@@ -226,20 +226,17 @@ bool KChildProcess::Start(KStringView sCommand, KStringViewZ sChangeDirectory, b
 
 	// Build command args. Do this before forking for the first time, as otherwise
 	// ASAN would complain about memory leaks
-	auto sArgs = sCommand.Split<std::vector<KString>>(" \t", "", 0, true, true);
 
-	if (sArgs.empty())
+	std::vector<const char*> cArgs;
+
+	kSplitArgsInPlace(cArgs, sCommand);
+
+	if (cArgs.empty())
 	{
 		return SetError("no command to execute");
 	}
 
-	// convert into char* array
-	std::vector<const char*> cArgs;
-	cArgs.reserve(sArgs.size() + 1);
-	for (const auto& it : sArgs)
-	{
-		cArgs.push_back(it.c_str());
-	}
+	// execvp() needs a final nullptr in the array
 	cArgs.push_back(nullptr);
 
 	pid_t pid;
@@ -446,6 +443,7 @@ bool KChildProcess::SetError(KStringView sError)
 //-----------------------------------------------------------------------------
 {
 	m_sError = sError;
+	kDebug(1, m_sError);
 	return false;
 }
 

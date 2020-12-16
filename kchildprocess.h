@@ -98,18 +98,18 @@ public:
 	KChildProcess& operator=(KChildProcess&&) = default;
 
 	/// ctor with arguments to start child
-	KChildProcess(KStringView sCommand,
+	KChildProcess(KString sCommand,
 				  KStringViewZ sChangeDirectory = KStringViewZ{},
 				  bool bDaemonized = false)
 	{
-		Start(sCommand, sChangeDirectory, bDaemonized);
+		Start(std::move(sCommand), sChangeDirectory, bDaemonized);
 	}
 
 	~KChildProcess();
 
 	/// Start a child with sCommand, change to sChangeDirectory, and detach
 	/// from terminal if bDaemonized is true
-	bool Start(KStringView sCommand,
+	bool Start(KString sCommand,
 			   KStringViewZ sChangeDirectory = KStringViewZ{},
 			   bool bDaemonized = false);
 

@@ -135,8 +135,8 @@ auto rapidXMLDocDeleter = [](void* data)
 //-----------------------------------------------------------------------------
 KXML::KXML()
 //-----------------------------------------------------------------------------
+: D(new rapidXMLDoc, rapidXMLDocDeleter)
 {
-	D = unique_void_ptr(new rapidXMLDoc, rapidXMLDocDeleter);
 }
 
 //-----------------------------------------------------------------------------
@@ -304,7 +304,7 @@ bool KXML::Parse(KStringView string, bool bPreserveWhiteSpace, KStringView sCrea
 void KXML::clear()
 //-----------------------------------------------------------------------------
 {
-	D = unique_void_ptr(new rapidXMLDoc, rapidXMLDocDeleter);
+	D = KUniqueVoidPtr(new rapidXMLDoc, rapidXMLDocDeleter);
 	XMLData.clear();
 }
 

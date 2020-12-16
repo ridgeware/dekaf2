@@ -47,6 +47,7 @@
 #include "kwriter.h"
 #include "kreader.h"
 #include "kfilesystem.h"
+#include "bits/kunique_deleter.h"
 
 struct zip_stat;
 
@@ -371,12 +372,7 @@ private:
 	mutable KString m_sError;
 	bool m_bThrow { false };
 
-	// helper types to allow for a unique_ptr<void>, which lets us hide all
-	// implementation headers from the interface and nonetheless keep exception safety
-	using deleter_t = std::function<void(void *)>;
-	using unique_void_ptr = std::unique_ptr<void, deleter_t>;
-
-	unique_void_ptr D;
+	KUniqueVoidPtr D;
 
 }; // KZip
 

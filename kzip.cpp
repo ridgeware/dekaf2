@@ -56,6 +56,13 @@ inline zip* pZip(void* p)
 }
 
 //-----------------------------------------------------------------------------
+inline zip* pZip(const KUniqueVoidPtr& p)
+//-----------------------------------------------------------------------------
+{
+	return static_cast<zip*>(p.get());
+}
+
+//-----------------------------------------------------------------------------
 auto zipDeleter = [](void* data)
 //-----------------------------------------------------------------------------
 {
@@ -258,7 +265,7 @@ bool KZip::SetError(int iError) const
 bool KZip::SetError() const
 //-----------------------------------------------------------------------------
 {
-	return SetError(zip_strerror(pZip(D.get())));
+	return SetError(zip_strerror(pZip(D)));
 
 } // SetError
 
@@ -285,7 +292,7 @@ bool KZip::Open(KStringViewZ sFilename, bool bWrite)
 		SetError(iError);
 	}
 
-	D = unique_void_ptr(zip, zipDeleter);
+	D = KUniqueVoidPtr(zip, zipDeleter);
 
 	// do not clear before assigning a new zip - it could trigger the closure of
 	// the previous one, accessing on the buffers!
@@ -307,7 +314,7 @@ void KZip::Close()
 bool KZip::Contains(KStringViewZ sName, bool bNoPathCompare) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return zip_name_locate(pZip(D.get()), sName.c_str(), bNoPathCompare ? ZIP_FL_NODIR : 0) >= 0;
+	return zip_name_locate(pZip(D), sName.c_str(), bNoPathCompare ? ZIP_FL_NODIR : 0) >= 0;
 
 } // Contains
 
@@ -318,7 +325,7 @@ struct KZip::DirEntry KZip::Get(std::size_t iIndex) const
 	DirEntry File;
 	struct zip_stat stat;
 
-	if (zip_stat_index(pZip(D.get()), iIndex, 0, &stat) < 0)
+	if (zip_stat_index(pZip(D), iIndex, 0, &stat) < 0)
 	{
 		SetError();
 	}
@@ -339,7 +346,7 @@ struct KZip::DirEntry KZip::Get(KStringViewZ sName, bool bNoPathCompare) const
 	DirEntry File;
 	struct zip_stat stat;
 
-	if (zip_stat(pZip(D.get()), sName.c_str(), bNoPathCompare ? ZIP_FL_NODIR : 0, &stat) < 0)
+	if (zip_stat(pZip(D), sName.c_str(), bNoPathCompare ? ZIP_FL_NODIR : 0, &stat) < 0)
 	{
 		SetError();
 	}
@@ -357,7 +364,7 @@ struct KZip::DirEntry KZip::Get(KStringViewZ sName, bool bNoPathCompare) const
 std::size_t KZip::size() const noexcept
 //-----------------------------------------------------------------------------
 {
-	return zip_get_num_entries(pZip(D.get()), 0);
+	return zip_get_num_entries(pZip(D), 0);
 
 } // size
 
@@ -437,11 +444,11 @@ bool KZip::Read(KOutStream& OutStream, const DirEntry& DirEntry)
 
 	if (!m_sPassword.empty())
 	{
-		file = zip_fopen_index_encrypted(pZip(D.get()), DirEntry.iIndex, 0, m_sPassword.c_str());
+		file = zip_fopen_index_encrypted(pZip(D), DirEntry.iIndex, 0, m_sPassword.c_str());
 	}
 	else
 	{
-		file = zip_fopen_index(pZip(D.get()), DirEntry.iIndex, 0);
+		file = zip_fopen_index(pZip(D), DirEntry.iIndex, 0);
 	}
 
 	auto File = std::make_unique<std::unique_ptr<struct zip_file, int (*)(struct zip_file*)>>(file, zip_fclose);
@@ -615,7 +622,7 @@ bool KZip::SetEncryptionForFile(uint64_t iIndex)
 	if (true)
 #endif
 	{
-		if (zip_file_set_encryption(pZip(D.get()), iIndex, ZIP_EM_AES_256, m_sPassword.c_str()) == -1)
+		if (zip_file_set_encryption(pZip(D), iIndex, ZIP_EM_AES_256, m_sPassword.c_str()) == -1)
 		{
 			return SetError();
 		}
@@ -641,7 +648,7 @@ bool KZip::WriteBuffer(KStringView sBuffer, KStringViewZ sDispname)
 	// only stores data when destructing
 	auto pBuffer = std::make_unique<char[]>(sBuffer.size());
 
-	auto* Source = zip_source_buffer(pZip(D.get()), pBuffer.get(), sBuffer.length(), 0);
+	auto* Source = zip_source_buffer(pZip(D), pBuffer.get(), sBuffer.length(), 0);
 
 	if (!Source)
 	{
@@ -650,7 +657,7 @@ bool KZip::WriteBuffer(KStringView sBuffer, KStringViewZ sDispname)
 
 	std::memcpy(pBuffer.get(), sBuffer.data(), sBuffer.size());
 
-	auto iIndex = zip_file_add(pZip(D.get()), sDispname.c_str(), Source, ZIP_FL_OVERWRITE);
+	auto iIndex = zip_file_add(pZip(D), sDispname.c_str(), Source, ZIP_FL_OVERWRITE);
 
 	if (iIndex < 0)
 	{
@@ -680,7 +687,7 @@ bool KZip::WriteFile(KStringViewZ sFilename, KStringViewZ sDispname)
 		return SetError("missing file name");
 	}
 
-	auto* Source = zip_source_file(pZip(D.get()), sFilename.c_str(), 0, -1);
+	auto* Source = zip_source_file(pZip(D), sFilename.c_str(), 0, -1);
 
 	if (!Source)
 	{
@@ -701,7 +708,7 @@ bool KZip::WriteFile(KStringViewZ sFilename, KStringViewZ sDispname)
 		}
 	}
 
-	auto iIndex = zip_file_add(pZip(D.get()), sDispname.c_str(), Source, ZIP_FL_OVERWRITE);
+	auto iIndex = zip_file_add(pZip(D), sDispname.c_str(), Source, ZIP_FL_OVERWRITE);
 
 	if (iIndex < 0)
 	{
@@ -732,7 +739,7 @@ bool KZip::WriteDirectory(KStringViewZ sDispname)
 {
 	kDebug(2, "adding directory: {}", sDispname);
 
-	auto iIndex = zip_dir_add(pZip(D.get()), sDispname.c_str(), 0);
+	auto iIndex = zip_dir_add(pZip(D), sDispname.c_str(), 0);
 
 	if (iIndex < 0)
 	{

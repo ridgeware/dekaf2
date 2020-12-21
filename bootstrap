@@ -77,6 +77,22 @@ Configure ()
 
 } # Configure
 
+setx=ConfigureXcode
+#==================
+ConfigureXcode ()
+#==================
+{
+    BuildType="Xcode"
+
+    cd ${BuildType} || Die "Cannot cd into build directory ${BuildType}"
+
+    # configure CMake
+
+    cmake -G Xcode "${ME_ONLYPATH}" || Die "Cannot configure CMake project"
+
+    cd ..
+
+} # ConfigureXcode
 
 setx=Setup
 #==================
@@ -109,6 +125,11 @@ Setup ()
 
 	[[ ! -z "${bWithDebug}" ]] && Configure "Debug"
 	Configure "Release"
+ 
+    if [[ "${OS}" == "Darwin" ]]; then
+        mkdir -p "Xcode" || Die "Cannot create Xcode build directory"
+        ConfigureXcode
+    fi
 
 	[[ ! -z "${bWithDebug}" ]] && Build "Debug"
 	Build "Release"

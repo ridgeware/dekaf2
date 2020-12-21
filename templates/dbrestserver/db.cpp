@@ -10,7 +10,7 @@
 void DB::EnsureConnected ()
 //-----------------------------------------------------------------------------
 {
-	if (!KSQL::EnsureConnected("__ProjectName__", m_sDBCFile, GetIni()))
+	if (!KSQL::EnsureConnected("__ProjectName__", GetDBC(), GetIni()))
 	{
 		throw KHTTPError { KHTTPError::H5xx_ERROR, GetLastError() };
 	}

@@ -1,11 +1,11 @@
 
-#include "dbrestserver.h"
+#include "__LowerProjectName__.h"
 #include "db.h"
 
 using namespace dekaf2;
 
 //-----------------------------------------------------------------------------
-void DBRestServer::ApiVersion(KRESTServer& HTTP)
+void __ProjectName__::ApiVersion(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	auto pdb = DB::Get();
@@ -14,8 +14,8 @@ void DBRestServer::ApiVersion(KRESTServer& HTTP)
 
 	KJSON json
 	{
-		{ "Project", "DBRestServer" },
-		{ "Version", "0.0.1" },
+		{ "Project", "__ProjectName__" },
+		{ "Version", "__ProjectVersion__" },
 		{ "Schema" , iSchemaVersion }
 	};
 

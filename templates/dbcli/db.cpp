@@ -10,7 +10,7 @@
 void DB::EnsureConnected ()
 //-----------------------------------------------------------------------------
 {
-	if (!KSQL::EnsureConnected("__ProjectName__", m_sDBCFile, GetIni()))
+	if (!KSQL::EnsureConnected("__ProjectName__", GetDBC(), GetIni()))
 	{
 		throw KHTTPError { KHTTPError::H5xx_ERROR, GetLastError() };
 	}
@@ -24,7 +24,7 @@ void DB::EnsureSchema (bool bForce/*=false*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "force={} ...", bForce ? "true" : "false");
-
+  
 	if (!KSQL::EnsureSchema("__UpperProjectName__", BUILD_CONFIG::SCHEMA_DIR, "__LowerProjectName__-", CURRENT_SCHEMA, INITIAL_SCHEMA, bForce))
 	{
 		throw KHTTPError { KHTTPError::H5xx_ERROR, GetLastError() };

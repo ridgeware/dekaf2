@@ -261,8 +261,8 @@ void __ProjectName__::ApiOptions (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	// required headers for callers making preflight requests
-	HTTP.Response.Headers.Add (KHTTPHeaders::ACCESS_CONTROL_ALLOW_HEADERS, "Origin, X-Requested-With, Content-Type, Authorization");
-	HTTP.Response.Headers.Add (KHTTPHeaders::ACCESS_CONTROL_ALLOW_METHODS, "PUT, GET, POST, OPTIONS, DELETE");
+	HTTP.Response.Headers.Add (KHTTPHeader::ACCESS_CONTROL_ALLOW_HEADERS, "Origin, X-Requested-With, Content-Type, Authorization");
+	HTTP.Response.Headers.Add (KHTTPHeader::ACCESS_CONTROL_ALLOW_METHODS, "PUT, GET, POST, OPTIONS, DELETE");
 	// allow null response with CORS header
 
 } // ApiOptions
@@ -350,7 +350,7 @@ int __ProjectName__::Main (int argc, char** argv)
 	}
 
 	// bypass CORS
-	m_ServerOptions.AddHeader(KHTTPHeaders::ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+	m_ServerOptions.AddHeader(KHTTPHeader::ACCESS_CONTROL_ALLOW_ORIGIN, "*");
 
 	// add a HTTP header that counts API execution time
 	m_ServerOptions.sTimerHeader = "x-milliseconds";

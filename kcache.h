@@ -268,7 +268,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Add a new key value pair to the cache.
 	template<class K = Key, class V = Value>
-	value_type& Set(K&& key, V&& value)
+	value_type Set(K&& key, V&& value)
 	//-----------------------------------------------------------------------------
 	{
 		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
@@ -285,7 +285,7 @@ public:
 	/// additional parameters can be given in args... which will be supplied
 	/// to a Load type.
 	template<class K = Key, typename...Args>
-	value_type& Get(K&& key, Args&&...args)
+	value_type Get(K&& key, Args&&...args)
 	//-----------------------------------------------------------------------------
 	{
 		// have to use a unique lock even for reads as the
@@ -297,17 +297,26 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// cannot be const, as the rank is changed..
-	/// Get a pointer on a value for a key from the cache. If the key does not exist,
-	/// a nullptr will be returned.
+	/// Get a value for a key from the cache. If the key does not exist,
+	/// a default constructed value will be returned.
 	template<class K = Key>
-	value_type* Find(const K& key)
+	value_type Find(const K& key)
 	//-----------------------------------------------------------------------------
 	{
 		// have to use a unique lock even for reads as the
 		// rank is changed!
 		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
 
-		return base_type::Find(key);
+		auto ptr = base_type::Find(key);
+
+		if (!ptr)
+		{
+			return value_type{};
+		}
+		else
+		{
+			return *ptr;
+		}
 	}
 
 	//-----------------------------------------------------------------------------
@@ -390,7 +399,7 @@ public:
 	/// cache. For this to be possible, the Value type needs to be constructible
 	/// from the Key type (so, have a constructor Value(Key) ).
 	template<class K = Key>
-	value_type& operator[](K&& key)
+	value_type operator[](K&& key)
 	//-----------------------------------------------------------------------------
 	{
 		return Get(std::forward<K>(key));

@@ -157,7 +157,40 @@ TEST_CASE("KSharedCache")
 		if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
 		if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
 
-		KRunThreads().Create([&iErrors,&MyCache]()
+		KRunThreads(40).Create([&iErrors,&MyCache]()
+		{
+			for (int i = 0; i < 1000; ++i)
+			{
+				if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
+				if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
+				if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
+			}
+		});
+
+		if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
+		if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
+		if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
+
+		CHECK ( iErrors == 0 );
+
+		MyCache.clear();
+	}
+
+	SECTION("MT with overflow")
+	{
+		KSharedCache<KString, KString, Loader> MyCache;
+
+		auto iOrigSize = MyCache.GetMaxSize();
+		MyCache.clear();
+		MyCache.SetMaxSize(2);
+
+		std::atomic_uint32_t iErrors { 0 };
+
+		if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
+		if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
+		if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
+
+		KRunThreads(40).Create([&iErrors,&MyCache]()
 		{
 			for (int i = 0; i < 1000; ++i)
 			{

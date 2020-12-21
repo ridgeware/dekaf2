@@ -242,6 +242,9 @@ protected:
 		if (m_ref && !m_ref->dec())
 		{
 			delete m_ref;
+#ifndef NDEBUG
+			m_ref = nullptr;
+#endif
 		}
 	}
 
@@ -313,7 +316,7 @@ protected:
 		inline size_t use_count() const
 		//-----------------------------------------------------------------------------
 		{
-			return m_iRefCount.load(std::memory_order_acq_rel);
+			return m_iRefCount.load(std::memory_order_acquire);
 		}
 
 		//-----------------------------------------------------------------------------

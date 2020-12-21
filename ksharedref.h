@@ -242,7 +242,7 @@ protected:
 		if (m_ref && !m_ref->dec())
 		{
 			delete m_ref;
-#ifndef _NDEBUG
+#ifndef NDEBUG
 			m_ref = nullptr;
 #endif
 		}

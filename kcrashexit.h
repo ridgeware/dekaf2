@@ -98,7 +98,7 @@ void kFailedAssert(KStringView sCrashMessage);
 inline
 void kAssert (bool bMustBeTrue, KStringView sCrashMessage)
 {
-#ifndef _NDEBUG
+#ifndef NDEBUG
 	if (!bMustBeTrue)
 	{
 		detail::kFailedAssert(sCrashMessage);

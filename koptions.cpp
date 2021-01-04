@@ -49,8 +49,27 @@
 #include "kcgistream.h"
 #include "kurl.h"
 #include "khttp_header.h"
+#include "dekaf2.h"
 
 namespace dekaf2 {
+
+namespace {
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// small RAII helper to make sure we reset an output stream pointer
+/// when the reference for it goes out of scope
+struct KOutStreamRAII
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	KOutStreamRAII(KOutStream** Var, KOutStream& Stream) : m_Var(Var) { *Var = &Stream; }
+	~KOutStreamRAII() { *m_Var = nullptr; }
+
+private:
+	KOutStream** m_Var;
+
+}; // KOutStreamRAII
+
+} // end of anonymous namespace
 
 //---------------------------------------------------------------------------
 KOptions::CLIParms::Arg_t::Arg_t(KStringViewZ sArg_)
@@ -108,7 +127,7 @@ void KOptions::CLIParms::Create(int argc, char const* const* argv)
 
 	if (!m_ArgVec.empty())
 	{
-		m_sProgramName = m_ArgVec.front().sArg;
+		m_sProgramPathName = m_ArgVec.front().sArg;
 		m_ArgVec.front().bConsumed = true;
 	}
 
@@ -128,7 +147,7 @@ void KOptions::CLIParms::Create(const std::vector<KStringViewZ>& parms)
 
 	if (!m_ArgVec.empty())
 	{
-		m_sProgramName = m_ArgVec.front().sArg;
+		m_sProgramPathName = m_ArgVec.front().sArg;
 		m_ArgVec.front().bConsumed = true;
 	}
 
@@ -137,34 +156,90 @@ void KOptions::CLIParms::Create(const std::vector<KStringViewZ>& parms)
 //---------------------------------------------------------------------------
 KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDOUT*/, bool bThrow/*=false*/)
 //---------------------------------------------------------------------------
-	: m_sCliDebugTo(sCliDebugTo)
+	: m_bThrow(bThrow)
+	, m_sCliDebugTo(sCliDebugTo)
 	, m_bEmptyParmsIsError(bEmptyParmsIsError)
-	, m_bThrow(bThrow)
 {
+	RegisterOption("help", [&]()
+	{
+		auto& out = GetCurrentOutputStream();
+
+		if (m_sHelp)
+		{
+			for (size_t iCount = 0; iCount < m_iHelpSize; ++iCount)
+			{
+				out.WriteLine(m_sHelp[iCount]);
+			}
+			// and abort further parsing
+			throw NoError {};
+		}
+	
+		throw Error { "no help registered" };
+	});
+
+	RegisterOption("d,dd,ddd,d0", [&]()
+	{
+		auto sArg = GetCurrentArg();
+		int iLevel = (sArg == "d0") ? 0 : sArg.size();
+		KLog::getInstance().SetLevel    (iLevel);
+		KLog::getInstance().SetDebugLog (m_sCliDebugTo);
+		KLog::getInstance().KeepCLIMode (true);
+		kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
+	});
+
+	RegisterOption("dgrep,dgrepv", "grep expression", [&](KStringViewZ sGrep)
+	{
+		bool bIsInverted = GetCurrentArg() == "dgrepv";
+		
+		// if no -d option has been applied yet switch to -ddd
+		if (KLog::getInstance().GetLevel() <= 0)
+		{
+			KLog::getInstance().SetLevel (3);
+			kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
+		}
+		KLog::getInstance().SetDebugLog (m_sCliDebugTo);
+		kDebug (1, "debug {} set to: '{}'", bIsInverted	? "egrep -v" : "egrep", sGrep);
+		KLog::getInstance().LogWithGrepExpression(true, bIsInverted, sGrep);
+		KLog::getInstance().KeepCLIMode (true);
+	});
+
+	RegisterOption("ini", "ini file name", [&](KStringViewZ sIni)
+	{
+		if (ParseFile(sIni, KOut))
+		{
+			// error was already displayed - just abort parsing
+			throw NoError {};
+		}
+	});
+
 } // KOptions ctor
 
 //---------------------------------------------------------------------------
 void KOptions::Help(KOutStream& out)
 //---------------------------------------------------------------------------
 {
-	if (m_sHelp)
+	KOutStreamRAII KO(&m_CurrentOutputStream, out);
+
+	// we have a help option registered through the constructor
+	auto cbi = m_Options.find("help");
+	if (cbi == m_Options.end())
 	{
-		for (size_t iCount = 0; iCount < m_iHelpSize; ++iCount)
-		{
-			out.WriteLine(m_sHelp[iCount]);
-		}
+		SetError("no help registered");
 	}
 	else
 	{
-		// check if we have a help option registered
-		auto cbi = m_Options.find("help");
-		if (cbi == m_Options.end())
+		try
 		{
-			DEKAF2_THROW (Error("no help registered"));
+			// yes - call the function with empty args
+			ArgList Args;
+			cbi->second.func(Args);
 		}
-		// yes - call the function with empty args
-		ArgList Args;
-		cbi->second.func(Args);
+		DEKAF2_CATCH (const NoError& error)
+		{
+#ifdef _MSC_VER
+			error.what();
+#endif
+		}
 	}
 
 } // Help
@@ -316,6 +391,48 @@ int KOptions::Parse(KString sCLI, KOutStream& out)
 
 } // Parse
 
+//-----------------------------------------------------------------------------
+int KOptions::Parse(KInStream& In, KOutStream& out)
+//-----------------------------------------------------------------------------
+{
+	int iRet { 0 };
+
+	KStringView sProgName = Dekaf::getInstance().GetProgName();
+
+	for (auto& sLine : In)
+	{
+		sLine.Trim();
+
+		if (!sLine.empty() && sLine.front() != '#')
+		{
+			iRet = Parse(kFormat("{} {}", sProgName, sLine), out);
+
+			if (iRet)
+			{
+				break;
+			}
+		}
+	}
+
+	return iRet;
+
+} // Parse
+
+//-----------------------------------------------------------------------------
+int KOptions::ParseFile(KStringViewZ sFileName, KOutStream& out)
+//-----------------------------------------------------------------------------
+{
+	KInFile InFile(sFileName);
+
+	if (!InFile.is_open())
+	{
+		return SetError(kFormat("cannot open input file: {}", sFileName));
+	}
+
+	return Parse(InFile, out);
+
+} // ParseFile
+
 //---------------------------------------------------------------------------
 int KOptions::ParseCGI(KStringViewZ sProgramName, KOutStream& out)
 //---------------------------------------------------------------------------
@@ -367,11 +484,44 @@ bool KOptions::IsCGIEnvironment()
 }
 
 //---------------------------------------------------------------------------
+KOutStream& KOptions::GetCurrentOutputStream()
+//---------------------------------------------------------------------------
+{
+	if (m_CurrentOutputStream)
+	{
+		return *m_CurrentOutputStream;
+	}
+	else
+	{
+		return KOut;
+	}
+
+} // GetCurrentOutputStream
+
+//---------------------------------------------------------------------------
+int KOptions::SetError(KStringViewZ sError, KOutStream& out)
+//---------------------------------------------------------------------------
+{
+	if (m_bThrow)
+	{
+		throw KException(sError);
+	}
+	else
+	{
+		out.WriteLine(sError);
+	}
+
+	return 1;
+
+} // SetError
+
+//---------------------------------------------------------------------------
 int KOptions::Execute(KOutStream& out)
 //---------------------------------------------------------------------------
 {
+	KOutStreamRAII KO(&m_CurrentOutputStream, out);
+
 	CLIParms::iterator lastCommand;
-	KString sError;
 
 	DEKAF2_TRY
 	{
@@ -466,56 +616,6 @@ int KOptions::Execute(KOutStream& out)
 						(++it)->bConsumed = true;
 					}
 				}
-				else if (it->IsOption())
-				{
-					// argument was not evaluated
-					if (it->sArg == "help")
-					{
-						Help(out);
-						it->bConsumed = true;
-						return -1;
-					}
-
-					if (it->sArg.In("d,dd,ddd"))
-					{
-						it->bConsumed = true;
-						KLog::getInstance().SetLevel (static_cast<int>(it->sArg.size()));
-						KLog::getInstance().SetDebugLog (m_sCliDebugTo);
-						KLog::getInstance().KeepCLIMode (true);
-						kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
-					}
-					else if (it->sArg == "d0")
-					{
-						it->bConsumed = true;
-						KLog::getInstance().SetLevel (0);
-						KLog::getInstance().SetDebugLog (m_sCliDebugTo);
-						KLog::getInstance().KeepCLIMode (true);
-					}
-					else if (it->sArg.In("dgrep,dgrepv"))
-					{
-						it->bConsumed = true;
-
-						bool bIsInverted = it->sArg == "dgrepv";
-
-						// check if we have a followup argument (the grep string)
-						if (++it == m_CLIParms.end())
-						{
-							DEKAF2_THROW(MissingParameterError("need argument (grep expression)"));
-						}
-						it->bConsumed = true;
-
-						// if no -d option has been applied yet switch to -ddd
-						if (KLog::getInstance().GetLevel() <= 0)
-						{
-							KLog::getInstance().SetLevel (3);
-							kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
-						}
-						KLog::getInstance().SetDebugLog (m_sCliDebugTo);
-						kDebug (1, "debug {} set to: '{}'", bIsInverted	? "egrep -v" : "egrep", it->sArg);
-						KLog::getInstance().LogWithGrepExpression(true, bIsInverted, it->sArg);
-						KLog::getInstance().KeepCLIMode (true);
-					}
-				}
 			}
 		}
 		
@@ -524,22 +624,22 @@ int KOptions::Execute(KOutStream& out)
 
 	DEKAF2_CATCH (const MissingParameterError& error)
 	{
-		sError.Format("{}: missing parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what());
+		return SetError(kFormat("{}: missing parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what()));
 	}
 
 	DEKAF2_CATCH (const WrongParameterError& error)
 	{
-		sError.Format("{}: wrong parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what());
+		return SetError(kFormat("{}: wrong parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what()));
 	}
 
 	DEKAF2_CATCH (const BadOptionError& error)
 	{
-		sError.Format("{}: {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what());
+		return SetError(kFormat("{}: {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what()));
 	}
 
 	DEKAF2_CATCH (const Error& error)
 	{
-		sError = error.what();
+		return SetError(error.what());
 	}
 
 	DEKAF2_CATCH (const NoError& error)
@@ -547,15 +647,6 @@ int KOptions::Execute(KOutStream& out)
 #ifdef _MSC_VER
 		error.what();
 #endif
-	}
-
-	if (m_bThrow)
-	{
-		 throw KException(sError);
-	}
-	else
-	{
-		out.WriteLine(sError);
 	}
 
 	return 1;
@@ -567,7 +658,7 @@ int KOptions::Execute(KOutStream& out)
 KStringViewZ KOptions::GetProgramPath() const
 //---------------------------------------------------------------------------
 {
-	return m_CLIParms.m_sProgramName;
+	return m_CLIParms.m_sProgramPathName;
 
 } // GetProgramPath
 

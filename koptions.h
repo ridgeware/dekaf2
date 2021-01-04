@@ -118,6 +118,12 @@ public:
 	/// Parse arguments globbed together in a single string as if it was a command line
 	int Parse(KString sCLI, KOutStream& out = KOut);
 
+	/// Parse arguments line by line from a stream, multiple arguments allowed per line (like a full CLI)
+	int Parse(KInStream& In, KOutStream& out = KOut);
+
+	/// Parse arguments line by line from a file, multiple arguments allowed per line (like a full CLI)
+	int ParseFile(KStringViewZ sFileName, KOutStream& out = KOut);
+
 	/// Parse arguments from CGI QUERY_PARMS
 	int ParseCGI(KStringViewZ sProgramName, KOutStream& out = KOut);
 
@@ -171,6 +177,9 @@ public:
 		return m_sCurrentArg;
 	}
 
+	/// Get the current output stream while parsing commands/args
+	KOutStream& GetCurrentOutputStream();
+
 	/// Returns true if we are executed inside a CGI server
 	static bool IsCGIEnvironment();
 
@@ -179,6 +188,15 @@ public:
 
 	/// Returns basename of arg[0] / the name of the called executable
 	KStringView GetProgramName() const;
+
+//----------
+protected:
+//----------
+
+	/// Set error string and throw or return with error int
+	int SetError(KStringViewZ sError, KOutStream& out = KOut);
+
+	bool m_bThrow { false };
 
 //----------
 private:
@@ -229,7 +247,7 @@ private:
 		void clear()         { m_ArgVec.clear();        }
 
 		ArgVec m_ArgVec;
-		KStringViewZ m_sProgramName;
+		KStringViewZ m_sProgramPathName;
 
 	}; // CLIParms
 
@@ -265,10 +283,10 @@ private:
 	CallbackParams     m_UnknownOption;
 	KStringView        m_sCliDebugTo;
 	KStringViewZ       m_sCurrentArg;
+	KOutStream*        m_CurrentOutputStream { nullptr };
 	const KStringView* m_sHelp { nullptr };
 	size_t             m_iHelpSize { 0 };
 	bool               m_bEmptyParmsIsError { true };
-	bool               m_bThrow { false };
 
 }; // KOptions
 

@@ -44,7 +44,7 @@ TEST_CASE("KOptions")
 			"-m", "first", "second"
 		};
 
-		Options.Parse(7, CLI);
+		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
 
 		CHECK( a.bEmpty  == true );
 		CHECK( a.bSingle == true );

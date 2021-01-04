@@ -308,7 +308,13 @@ void KOptions::RegisterOption(KStringView sOptions, uint16_t iMinArgs, KStringVi
 	for (auto sOption : sOptions.Split())
 	{
 		// we cannot move Function here as it may get stored multiple times
-		m_Options.insert({sOption, { iMinArgs, sMissingParms, Function }});
+		auto Pair = m_Options.insert({sOption, CallbackParams { iMinArgs, sMissingParms, Function }});
+
+		if (!Pair.second)
+		{
+			kDebug(1, "overriding existing option: {}", sOption);
+			Pair.first->second = CallbackParams { iMinArgs, sMissingParms, Function };
+		}
 	}
 }
 
@@ -319,7 +325,13 @@ void KOptions::RegisterCommand(KStringView sCommands, uint16_t iMinArgs, KString
 	for (auto sCommand : sCommands.Split())
 	{
 		// we cannot move Function here as it may get stored multiple times
-		m_Commands.insert({sCommand, { iMinArgs, sMissingParms, Function }});
+		auto Pair = m_Commands.insert({sCommand, CallbackParams { iMinArgs, sMissingParms, Function }});
+
+		if (!Pair.second)
+		{
+			kDebug(1, "overriding existing command: {}", sCommand);
+			Pair.first->second = CallbackParams { iMinArgs, sMissingParms, Function };
+		}
 	}
 }
 

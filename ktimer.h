@@ -112,6 +112,54 @@ public:
 	} // elapsed
 
 	//-----------------------------------------------------------------------------
+	/// returns elapsed nanoseconds
+	std::chrono::nanoseconds::rep nanoseconds() const
+	//-----------------------------------------------------------------------------
+	{
+		return elapsed<std::chrono::nanoseconds>().count();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed microseconds
+	std::chrono::microseconds::rep microseconds() const
+	//-----------------------------------------------------------------------------
+	{
+		return elapsed<std::chrono::microseconds>().count();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed milliseconds
+	std::chrono::milliseconds::rep milliseconds() const
+	//-----------------------------------------------------------------------------
+	{
+		return elapsed<std::chrono::milliseconds>().count();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed seconds
+	std::chrono::seconds::rep seconds() const
+	//-----------------------------------------------------------------------------
+	{
+		return elapsed<std::chrono::seconds>().count();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed minutes
+	std::chrono::minutes::rep minutes() const
+	//-----------------------------------------------------------------------------
+	{
+		return elapsed<std::chrono::minutes>().count();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed hours
+	std::chrono::hours::rep hours() const
+	//-----------------------------------------------------------------------------
+	{
+		return elapsed<std::chrono::hours>().count();
+	}
+
+	//-----------------------------------------------------------------------------
 	/// returns elapsed time (converted into any duration type, per default
 	/// nanoseconds) and resets start time after readout
 	template<typename DurationType = std::chrono::nanoseconds>
@@ -195,6 +243,54 @@ public:
 		}
 
 	} // elapsed
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed nanoseconds
+	std::chrono::nanoseconds::rep nanoseconds() const
+	//-----------------------------------------------------------------------------
+	{
+		return elapsed<std::chrono::nanoseconds>().count();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed microseconds
+	std::chrono::microseconds::rep microseconds() const
+	//-----------------------------------------------------------------------------
+	{
+		return elapsed<std::chrono::microseconds>().count();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed milliseconds
+	std::chrono::milliseconds::rep milliseconds() const
+	//-----------------------------------------------------------------------------
+	{
+		return elapsed<std::chrono::milliseconds>().count();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed seconds
+	std::chrono::seconds::rep seconds() const
+	//-----------------------------------------------------------------------------
+	{
+		return elapsed<std::chrono::seconds>().count();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed minutes
+	std::chrono::minutes::rep minutes() const
+	//-----------------------------------------------------------------------------
+	{
+		return elapsed<std::chrono::minutes>().count();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed hours
+	std::chrono::hours::rep hours() const
+	//-----------------------------------------------------------------------------
+	{
+		return elapsed<std::chrono::hours>().count();
+	}
 
 	//-----------------------------------------------------------------------------
 	/// halts elapsed time counting
@@ -303,12 +399,51 @@ public:
 	DurationType GetDuration(size_type iInterval) const
 	//-----------------------------------------------------------------------------
 	{
-	#ifdef DEKAF2_HAS_CHRONO_ROUND
-		return std::chrono::round<DurationType>(GetDuration<Duration>(iInterval));
-	#else
-		return std::chrono::duration_cast<DurationType>(GetDuration<Duration>(iInterval));
+	#ifdef DEKAF2_HAS_CONSTEXPR_IF
+		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, Duration>::value)
+		{
+			return GetDuration<Duration>(iInterval);
+		}
+		else
 	#endif
+		{
+		#ifdef DEKAF2_HAS_CHRONO_ROUND
+			return std::chrono::round<DurationType>(GetDuration<Duration>(iInterval));
+		#else
+			return std::chrono::duration_cast<DurationType>(GetDuration<Duration>(iInterval));
+		#endif
+		}
 	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed nanoseconds of an interval
+	std::chrono::nanoseconds::rep nanoseconds(size_type iInterval) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed microseconds of an interval
+	std::chrono::microseconds::rep microseconds(size_type iInterval) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed milliseconds of an interval
+	std::chrono::milliseconds::rep milliseconds(size_type iInterval) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed seconds of an interval
+	std::chrono::seconds::rep seconds(size_type iInterval) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed minutes of an interval
+	std::chrono::minutes::rep minutes(size_type iInterval) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed hours of an interval
+	std::chrono::hours::rep hours(size_type iInterval) const;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// subscription access
@@ -326,12 +461,51 @@ public:
 	DurationType TotalDuration() const
 	//-----------------------------------------------------------------------------
 	{
-	#ifdef DEKAF2_HAS_CHRONO_ROUND
-		return std::chrono::round<DurationType>(TotalDuration<Duration>());
-	#else
-		return std::chrono::duration_cast<DurationType>(TotalDuration<Duration>());
+	#ifdef DEKAF2_HAS_CONSTEXPR_IF
+		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, Duration>::value)
+		{
+			return TotalDuration<Duration>();
+		}
+		else
 	#endif
+		{
+		#ifdef DEKAF2_HAS_CHRONO_ROUND
+			return std::chrono::round<DurationType>(TotalDuration<Duration>());
+		#else
+			return std::chrono::duration_cast<DurationType>(TotalDuration<Duration>());
+		#endif
+		}
 	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed total nanoseconds of all intervals
+	std::chrono::nanoseconds::rep nanoseconds() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed total microseconds of all intervals
+	std::chrono::microseconds::rep microseconds() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed total milliseconds of all intervals
+	std::chrono::milliseconds::rep milliseconds() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed total seconds of all intervals
+	std::chrono::seconds::rep seconds() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed total minutes of all intervals
+	std::chrono::minutes::rep minutes() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed total hours of all intervals
+	std::chrono::hours::rep hours() const;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// returns start iterator

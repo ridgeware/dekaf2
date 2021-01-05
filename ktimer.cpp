@@ -99,6 +99,48 @@ KDurations::Duration KDurations::GetDuration<KDurations::Duration>(std::size_t i
 
 } // GetDuration
 
+//-----------------------------------------------------------------------------
+std::chrono::nanoseconds::rep KDurations::nanoseconds(size_type iInterval) const
+//-----------------------------------------------------------------------------
+{
+	return GetDuration<std::chrono::nanoseconds>(iInterval).count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::microseconds::rep KDurations::microseconds(size_type iInterval) const
+//-----------------------------------------------------------------------------
+{
+	return GetDuration<std::chrono::microseconds>(iInterval).count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::milliseconds::rep KDurations::milliseconds(size_type iInterval) const
+//-----------------------------------------------------------------------------
+{
+	return GetDuration<std::chrono::milliseconds>(iInterval).count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::seconds::rep KDurations::seconds(size_type iInterval) const
+//-----------------------------------------------------------------------------
+{
+	return GetDuration<std::chrono::seconds>(iInterval).count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::minutes::rep KDurations::minutes(size_type iInterval) const
+//-----------------------------------------------------------------------------
+{
+	return GetDuration<std::chrono::minutes>(iInterval).count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::hours::rep KDurations::hours(size_type iInterval) const
+//-----------------------------------------------------------------------------
+{
+	return GetDuration<std::chrono::hours>(iInterval).count();
+}
+
 //---------------------------------------------------------------------------
 template<>
 KDurations::Duration KDurations::TotalDuration<KDurations::Duration>() const
@@ -114,6 +156,48 @@ KDurations::Duration KDurations::TotalDuration<KDurations::Duration>() const
 	return Total;
 
 } // TotalDuration
+
+//-----------------------------------------------------------------------------
+std::chrono::nanoseconds::rep KDurations::nanoseconds() const
+//-----------------------------------------------------------------------------
+{
+	return TotalDuration<std::chrono::nanoseconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::microseconds::rep KDurations::microseconds() const
+//-----------------------------------------------------------------------------
+{
+	return TotalDuration<std::chrono::microseconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::milliseconds::rep KDurations::milliseconds() const
+//-----------------------------------------------------------------------------
+{
+	return TotalDuration<std::chrono::milliseconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::seconds::rep KDurations::seconds() const
+//-----------------------------------------------------------------------------
+{
+	return TotalDuration<std::chrono::seconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::minutes::rep KDurations::minutes() const
+//-----------------------------------------------------------------------------
+{
+	return TotalDuration<std::chrono::minutes>().count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::hours::rep KDurations::hours() const
+//-----------------------------------------------------------------------------
+{
+	return TotalDuration<std::chrono::hours>().count();
+}
 
 
 //---------------------------------------------------------------------------

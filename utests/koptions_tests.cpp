@@ -17,6 +17,7 @@ TEST_CASE("KOptions")
 
 	Accomplished a;
 	KOptions Options(false);
+	KString sJoinedArgs;
 
 	Options.RegisterOption("e,empty", [&]()
 	{
@@ -35,13 +36,20 @@ TEST_CASE("KOptions")
 		CHECK( sMultiple.pop() == "second");
 	});
 
+	Options.RegisterUnknownOption([&](KOptions::ArgList& Args)
+	{
+		sJoinedArgs	= kJoined(Args);
+		Args.clear();
+	});
+
 	SECTION("argc/argv")
 	{
 		const char* CLI[] {
 			"MyProgramName",
 			"-empty",
 			"-s", "first",
-			"-m", "first", "second"
+			"-m", "first", "second",
+			"-unknown", "arg1", "arg2"
 		};
 
 		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
@@ -49,6 +57,7 @@ TEST_CASE("KOptions")
 		CHECK( a.bEmpty  == true );
 		CHECK( a.bSingle == true );
 		CHECK( a.bMulti  == true );
+		CHECK( sJoinedArgs == "arg2,arg1,unknown" );
 	}
 
 	SECTION("KString")

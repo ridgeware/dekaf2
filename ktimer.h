@@ -57,7 +57,7 @@
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Measure the time between two events
+/// Measure the time between two or more events, continuously
 class KStopTime
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -102,62 +102,40 @@ public:
 		else
 	#endif
 		{
-		#ifdef DEKAF2_HAS_CHRONO_ROUND
-			return std::chrono::round<DurationType>(tNow - m_Start);
-		#else
 			return std::chrono::duration_cast<DurationType>(tNow - m_Start);
-		#endif
 		}
 
 	} // elapsed
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed nanoseconds
-	std::chrono::nanoseconds::rep nanoseconds() const
+	std::chrono::nanoseconds::rep nanoseconds() const;
 	//-----------------------------------------------------------------------------
-	{
-		return elapsed<std::chrono::nanoseconds>().count();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed microseconds
-	std::chrono::microseconds::rep microseconds() const
+	std::chrono::microseconds::rep microseconds() const;
 	//-----------------------------------------------------------------------------
-	{
-		return elapsed<std::chrono::microseconds>().count();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed milliseconds
-	std::chrono::milliseconds::rep milliseconds() const
+	std::chrono::milliseconds::rep milliseconds() const;
 	//-----------------------------------------------------------------------------
-	{
-		return elapsed<std::chrono::milliseconds>().count();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed seconds
-	std::chrono::seconds::rep seconds() const
+	std::chrono::seconds::rep seconds() const;
 	//-----------------------------------------------------------------------------
-	{
-		return elapsed<std::chrono::seconds>().count();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed minutes
-	std::chrono::minutes::rep minutes() const
+	std::chrono::minutes::rep minutes() const;
 	//-----------------------------------------------------------------------------
-	{
-		return elapsed<std::chrono::minutes>().count();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed hours
-	std::chrono::hours::rep hours() const
+	std::chrono::hours::rep hours() const;
 	//-----------------------------------------------------------------------------
-	{
-		return elapsed<std::chrono::hours>().count();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed time (converted into any duration type, per default
@@ -195,7 +173,8 @@ protected:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// really simple implementation of a stop watch
+/// implementation of a stop watch (which is a timer that can be stopped
+/// and restarted, and only counts the time while it was not stopped)
 class KStopWatch : private KStopTime
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -203,6 +182,9 @@ class KStopWatch : private KStopTime
 //----------
 public:
 //----------
+
+	using base = KStopTime;
+	using Duration = typename base::Duration;
 
 	/// tag to force construction without starting the timer
 	static struct ConstructHalted {} Halted;
@@ -216,7 +198,7 @@ public:
 	/// constructs without starting
 	explicit KStopWatch(ConstructHalted)
 	//-----------------------------------------------------------------------------
-	: KStopTime(KStopTime::Halted)
+	: base(base::Halted)
 	, m_bIsHalted(true)
 	{
 	}
@@ -235,69 +217,47 @@ public:
 		else
 	#endif
 		{
-		#ifdef DEKAF2_HAS_CHRONO_ROUND
-			return std::chrono::round<DurationType>(elapsed_int());
-		#else
 			return std::chrono::duration_cast<DurationType>(elapsed_int());
-		#endif
 		}
 
 	} // elapsed
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed nanoseconds
-	std::chrono::nanoseconds::rep nanoseconds() const
+	std::chrono::nanoseconds::rep nanoseconds() const;
 	//-----------------------------------------------------------------------------
-	{
-		return elapsed<std::chrono::nanoseconds>().count();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed microseconds
-	std::chrono::microseconds::rep microseconds() const
+	std::chrono::microseconds::rep microseconds() const;
 	//-----------------------------------------------------------------------------
-	{
-		return elapsed<std::chrono::microseconds>().count();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed milliseconds
-	std::chrono::milliseconds::rep milliseconds() const
+	std::chrono::milliseconds::rep milliseconds() const;
 	//-----------------------------------------------------------------------------
-	{
-		return elapsed<std::chrono::milliseconds>().count();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed seconds
-	std::chrono::seconds::rep seconds() const
+	std::chrono::seconds::rep seconds() const;
 	//-----------------------------------------------------------------------------
-	{
-		return elapsed<std::chrono::seconds>().count();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed minutes
-	std::chrono::minutes::rep minutes() const
+	std::chrono::minutes::rep minutes() const;
 	//-----------------------------------------------------------------------------
-	{
-		return elapsed<std::chrono::minutes>().count();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns elapsed hours
-	std::chrono::hours::rep hours() const
+	std::chrono::hours::rep hours() const;
 	//-----------------------------------------------------------------------------
-	{
-		return elapsed<std::chrono::hours>().count();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// halts elapsed time counting
 	void halt()
 	//-----------------------------------------------------------------------------
 	{
-		m_iDurationSoFar += Clock::now() - m_Start;
+		m_iDurationSoFar += base::elapsed();
 		m_bIsHalted = true;
 
 	} // halt
@@ -310,7 +270,7 @@ public:
 		if (m_bIsHalted)
 		{
 			m_bIsHalted = false;
-			m_Start = Clock::now();
+			base::clear();
 		}
 
 	} // resume
@@ -336,7 +296,7 @@ private:
 	{
 		if (!m_bIsHalted)
 		{
-			return (Clock::now() - m_Start) + m_iDurationSoFar;
+			return base::elapsed() + m_iDurationSoFar;
 		}
 		else
 		{
@@ -361,10 +321,11 @@ class KDurations : private KStopTime
 public:
 //------
 
-	using Duration       = KStopTime::Duration;
+	using base           = KStopTime;
+	using Duration       = typename base::Duration;
 	using Storage        = std::vector<Duration>;
-	using size_type      = Storage::size_type;
-	using const_iterator = Storage::const_iterator;
+	using size_type      = typename Storage::size_type;
+	using const_iterator = typename Storage::const_iterator;
 
 	//-----------------------------------------------------------------------------
 	/// reset all intervals, restart clock
@@ -407,11 +368,7 @@ public:
 		else
 	#endif
 		{
-		#ifdef DEKAF2_HAS_CHRONO_ROUND
-			return std::chrono::round<DurationType>(GetDuration<Duration>(iInterval));
-		#else
 			return std::chrono::duration_cast<DurationType>(GetDuration<Duration>(iInterval));
-		#endif
 		}
 	}
 
@@ -469,11 +426,7 @@ public:
 		else
 	#endif
 		{
-		#ifdef DEKAF2_HAS_CHRONO_ROUND
-			return std::chrono::round<DurationType>(TotalDuration<Duration>());
-		#else
 			return std::chrono::duration_cast<DurationType>(TotalDuration<Duration>());
-		#endif
 		}
 	}
 

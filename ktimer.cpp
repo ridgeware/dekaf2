@@ -52,6 +52,102 @@ KStopWatch::ConstructHalted KStopWatch::Halted;
 #endif
 
 //-----------------------------------------------------------------------------
+/// returns elapsed nanoseconds
+std::chrono::nanoseconds::rep KStopTime::nanoseconds() const
+//-----------------------------------------------------------------------------
+{
+	return elapsed<std::chrono::nanoseconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+/// returns elapsed microseconds
+std::chrono::microseconds::rep KStopTime::microseconds() const
+//-----------------------------------------------------------------------------
+{
+	return elapsed<std::chrono::microseconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+/// returns elapsed milliseconds
+std::chrono::milliseconds::rep KStopTime::milliseconds() const
+//-----------------------------------------------------------------------------
+{
+	return elapsed<std::chrono::milliseconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+/// returns elapsed seconds
+std::chrono::seconds::rep KStopTime::seconds() const
+//-----------------------------------------------------------------------------
+{
+	return elapsed<std::chrono::seconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+/// returns elapsed minutes
+std::chrono::minutes::rep KStopTime::minutes() const
+//-----------------------------------------------------------------------------
+{
+	return elapsed<std::chrono::minutes>().count();
+}
+
+//-----------------------------------------------------------------------------
+/// returns elapsed hours
+std::chrono::hours::rep KStopTime::hours() const
+//-----------------------------------------------------------------------------
+{
+	return elapsed<std::chrono::hours>().count();
+}
+
+//-----------------------------------------------------------------------------
+/// returns elapsed nanoseconds
+std::chrono::nanoseconds::rep KStopWatch::nanoseconds() const
+//-----------------------------------------------------------------------------
+{
+	return elapsed<std::chrono::nanoseconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+/// returns elapsed microseconds
+std::chrono::microseconds::rep KStopWatch::microseconds() const
+//-----------------------------------------------------------------------------
+{
+	return elapsed<std::chrono::microseconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+/// returns elapsed milliseconds
+std::chrono::milliseconds::rep KStopWatch::milliseconds() const
+//-----------------------------------------------------------------------------
+{
+	return elapsed<std::chrono::milliseconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+/// returns elapsed seconds
+std::chrono::seconds::rep KStopWatch::seconds() const
+//-----------------------------------------------------------------------------
+{
+	return elapsed<std::chrono::seconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+/// returns elapsed minutes
+std::chrono::minutes::rep KStopWatch::minutes() const
+//-----------------------------------------------------------------------------
+{
+	return elapsed<std::chrono::minutes>().count();
+}
+
+//-----------------------------------------------------------------------------
+/// returns elapsed hours
+std::chrono::hours::rep KStopWatch::hours() const
+//-----------------------------------------------------------------------------
+{
+	return elapsed<std::chrono::hours>().count();
+}
+
+//-----------------------------------------------------------------------------
 void KDurations::clear()
 //-----------------------------------------------------------------------------
 {
@@ -85,7 +181,7 @@ KDurations::Duration KDurations::StoreInterval(size_type iInterval)
 
 //---------------------------------------------------------------------------
 template<>
-KDurations::Duration KDurations::GetDuration<KDurations::Duration>(std::size_t iInterval) const
+KDurations::Duration KDurations::GetDuration<KDurations::Duration>(size_type iInterval) const
 //---------------------------------------------------------------------------
 {
 	if (iInterval < m_Durations.size())

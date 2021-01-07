@@ -34,6 +34,10 @@
  *   - remove unsafe atomic guards, replace with a 'resize' mutex
  *   - safeguarding against lost tasks with consistent condition locking
  *
+ *  January 2021, Joachim Schurig
+ *   - allowing arbitrary return types (futures) for any task (function)
+ *    pushed to the task queue
+ *
  *********************************************************/
 
 
@@ -207,17 +211,46 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Push a class member function for asynchronous execution with arbitrary args. Receive result in returned future,
 	/// or ignore..
+	// SFINAE version for decltype(Function()) == void
 	template<typename Function, typename Object, typename... Args>
-	auto push(Function&& f, Object&& o, Args&&... args) ->std::future<decltype((o->*f)(std::forward<Args>(args)...))>
+	auto push(Function&& f, Object&& o, Args&&... args)
+	-> typename std::enable_if_t<std::is_same<decltype((o->*f)(std::forward<Args>(args)...)), void>::value,
+	                             std::future<decltype((o->*f)(std::forward<Args>(args)...))>>
 	//-----------------------------------------------------------------------------
 	{
-		std::future<decltype((o->*f)(std::forward<Args>(args)...))> future;
-
-		auto task = std::packaged_task<decltype((o->*f)(std::forward<Args>(args)...))()>(
+		auto task = std::packaged_task<void()>(
 			std::bind(std::forward<Function>(f), std::forward<Object>(o), std::forward<Args>(args)...)
 		);
 
-		future = task.get_future();
+		auto future = task.get_future();
+
+		push_packaged_task(std::move(task));
+
+		return future;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Push a class member function for asynchronous execution with arbitrary args. Receive result in returned future,
+	/// or ignore..
+	// SFINAE version for decltype(Function()) different than void
+	template<typename Function, typename Object, typename... Args>
+	auto push(Function&& f, Object&& o, Args&&... args)
+	-> typename std::enable_if_t<!std::is_same<decltype((o->*f)(std::forward<Args>(args)...)), void>::value,
+	                             std::future<decltype((o->*f)(std::forward<Args>(args)...))>>
+	//-----------------------------------------------------------------------------
+	{
+		using FutureType = decltype((o->*f)(std::forward<Args>(args)...));
+
+		auto InnerTask = std::packaged_task<FutureType()>(
+			std::bind(std::forward<Function>(f), std::forward<Object>(o), std::forward<Args>(args)...)
+		);
+
+		auto future = InnerTask.get_future();
+
+		auto task = std::packaged_task<void()>([InnerTask1 = std::move(InnerTask)]()
+		{
+			const_cast<std::packaged_task<FutureType()>*>(&InnerTask1)->operator()();
+		});
 
 		push_packaged_task(std::move(task));
 
@@ -227,17 +260,46 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Push a non-class callable for asynchronous execution with arbitrary args. Receive result in returned future,
 	/// or ignore..
+	// SFINAE version for decltype(Function()) == void
 	template<typename Function, typename... Args>
-	auto push(Function&& f, Args&&... args) ->std::future<decltype(f(std::forward<Args>(args)...))>
+	auto push(Function&& f, Args&&... args)
+	-> typename std::enable_if_t<std::is_same<decltype(f(std::forward<Args>(args)...)), void>::value,
+	                             std::future<decltype(f(std::forward<Args>(args)...))>>
 	//-----------------------------------------------------------------------------
 	{
-		std::future<decltype(f(std::forward<Args>(args)...))> future;
-
-		auto task = std::packaged_task<decltype(f(std::forward<Args>(args)...))()>(
+		auto task = std::packaged_task<void()>(
 			std::bind(std::forward<Function>(f), std::forward<Args>(args)...)
 		);
 
-		future = task.get_future();
+		auto future = task.get_future();
+
+		push_packaged_task(std::move(task));
+
+		return future;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Push a non-class callable for asynchronous execution with arbitrary args. Receive result in returned future,
+	/// or ignore (in which case you should better use void as function return type)
+	// SFINAE version for decltype(Function()) different than void
+	template<typename Function, typename... Args>
+	auto push(Function&& f, Args&&... args)
+	-> typename std::enable_if_t<!std::is_same<decltype(f(std::forward<Args>(args)...)), void>::value,
+	                             std::future<decltype(f(std::forward<Args>(args)...))>>
+	//-----------------------------------------------------------------------------
+	{
+		using FutureType = decltype(f(std::forward<Args>(args)...));
+
+		auto InnerTask = std::packaged_task<FutureType()>(
+			std::bind(std::forward<Function>(f), std::forward<Args>(args)...)
+		);
+
+		auto future = InnerTask.get_future();
+
+		auto task = std::packaged_task<void()>([InnerTask1 = std::move(InnerTask)]()
+		{
+			const_cast<std::packaged_task<FutureType()>*>(&InnerTask1)->operator()();
+		});
 
 		push_packaged_task(std::move(task));
 

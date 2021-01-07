@@ -74,6 +74,7 @@ set (USOURCES
 	ksystem_tests.cpp
 	ksystemstats_tests.cpp
 	ktcpserver_tests.cpp
+	kthreadpool_tests.cpp
 	kuntar_tests.cpp
 	kurl_tests.cpp
 	kutf8_tests.cpp

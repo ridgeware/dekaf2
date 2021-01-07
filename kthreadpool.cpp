@@ -34,6 +34,10 @@
  *   - remove unsafe atomic guards, replace with a 'resize' mutex
  *   - safeguarding against lost tasks with consistent condition locking
  *
+ *  January 2021, Joachim Schurig
+ *   - allowing arbitrary return types (futures) for any task (function)
+ *    pushed to the task queue
+ *
  *********************************************************/
 
 

@@ -247,10 +247,9 @@ public:
 
 		auto future = InnerTask.get_future();
 
-		auto task = std::packaged_task<void()>([InnerTask1 = std::move(InnerTask)]()
-		{
-			const_cast<std::packaged_task<FutureType()>*>(&InnerTask1)->operator()();
-		});
+		auto task = std::packaged_task<void()>(
+			std::move(InnerTask)
+		);
 
 		push_packaged_task(std::move(task));
 
@@ -296,10 +295,9 @@ public:
 
 		auto future = InnerTask.get_future();
 
-		auto task = std::packaged_task<void()>([InnerTask1 = std::move(InnerTask)]()
-		{
-			const_cast<std::packaged_task<FutureType()>*>(&InnerTask1)->operator()();
-		});
+		auto task = std::packaged_task<void()>(
+			std::move(InnerTask)
+		);
 
 		push_packaged_task(std::move(task));
 

@@ -9,6 +9,15 @@ TEST_CASE("KThreadPool")
 {
 	KThreadPool Queue(0);
 
+	struct MyClass
+	{
+		MyClass(int i) : m_i(i) {}
+		int Add(int i) const { return m_i + i; }
+		void Inc(int i) { m_i += i; }
+		void Dec() { --m_i; }
+		int m_i;
+	};
+
 	int i1 = 0;
 	int i2 = 0;
 
@@ -25,16 +34,29 @@ TEST_CASE("KThreadPool")
 		return "done";
 	});
 
+	MyClass C(10);
+
+	auto future3 = Queue.push(&MyClass::Inc, &C, 3);
+	auto future4 = Queue.push(&MyClass::Dec, &C);
+	auto future5 = Queue.push(&MyClass::Add, &C, 5);
+
 	auto w1 = future1.wait_for(std::chrono::seconds(2));
 	auto w2 = future2.wait_for(std::chrono::seconds(2));
+	auto w3 = future3.wait_for(std::chrono::seconds(2));
+	auto w4 = future4.wait_for(std::chrono::seconds(2));
+	auto w5 = future5.wait_for(std::chrono::seconds(2));
 
 	CHECK ( w1 == std::future_status::ready   );
 	CHECK ( w2 == std::future_status::ready   );
+	CHECK ( w3 == std::future_status::ready   );
+	CHECK ( w4 == std::future_status::ready   );
+	CHECK ( w5 == std::future_status::ready   );
 
 	CHECK ( i1 == 1 );
 	CHECK ( i2 == 2 );
 	CHECK ( future1.valid() );
 	CHECK ( future2.valid() );
 	CHECK ( future2.get() == "done" );
+	CHECK ( future5.get() == 17 );
 
 }

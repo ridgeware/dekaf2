@@ -47,6 +47,7 @@
 #include "kstring.h"
 #include "klog.h"
 #include "ksplit.h"
+#include "ktimer.h"
 #include <thread>
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -216,6 +217,55 @@ void kDaemonize(bool bChangeDir)
 } // end of namespace detail
 
 //-----------------------------------------------------------------------------
+void KChildProcess::Clear()
+//-----------------------------------------------------------------------------
+{
+
+	m_child = 0;
+	m_iExitStatus = 0;
+	m_bIsDaemonized = false;
+	m_sError.clear();
+
+} // Clear
+
+//-----------------------------------------------------------------------------
+bool KChildProcess::Fork(int(*func)(int, char**), int argc, char* argv[])
+//-----------------------------------------------------------------------------
+{
+	if (m_child)
+	{
+		return SetError("child already started!");
+	}
+
+	Clear();
+
+	pid_t pid;
+
+	if ((pid = fork()))
+	{
+		// parent
+
+		if (pid < 0)
+		{
+			return SetError(kFormat("fork(): {}", strerror(errno)));
+		}
+
+		m_child = pid;
+
+		return true;
+	}
+
+	// child
+
+	// call entry function
+	auto iError = func(argc, argv);
+
+	// and exit on return
+	exit (iError);
+
+} // Fork
+
+//-----------------------------------------------------------------------------
 bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool bDaemonized)
 //-----------------------------------------------------------------------------
 {
@@ -223,6 +273,8 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 	{
 		return SetError("child already started!");
 	}
+
+	Clear();
 
 	// Build command args. Do this before forking for the first time, as otherwise
 	// ASAN would complain about memory leaks
@@ -341,9 +393,8 @@ bool KChildProcess::Detach()
 {
 	if (m_child)
 	{
-		m_child = 0;
-		m_bIsDaemonized = false;
-		m_sError.clear();
+		// we're no more responsible for this child
+		Clear();
 		return true;
 	}
 	else
@@ -362,39 +413,58 @@ bool KChildProcess::Join(std::chrono::nanoseconds Timeout)
 		SetError("no child started");
 	}
 
-	auto tStart = std::chrono::steady_clock::now();
-	pid_t success;
-	bool bFirst { true };
+	KStopTime Timer;
+	pid_t success { 0 };
+	int status;
 
-	do
+	if (Timeout.count() == 0)
 	{
-		if (bFirst)
-		{
-			std::this_thread::sleep_for(std::chrono::microseconds(10));
-			bFirst = false;
-		}
-		else
-		{
-			std::this_thread::sleep_for(std::chrono::microseconds(500));
-		}
-
-		int status;
-		success = ::waitpid(m_child, &status, WNOHANG);
+		// wait forever, so do not loop
+		success = ::waitpid(m_child, &status, 0);
 
 		if (success < 0)
 		{
 			return SetError(kFormat("waitpid(): {}", strerror(errno)));
 		}
+	}
+	else
+	{
+		bool bFirst { true };
 
-		if (success)
+		do
 		{
-			m_child = 0;
-			m_bIsDaemonized = false;
+			if (bFirst)
+			{
+				std::this_thread::sleep_for(std::chrono::microseconds(10));
+				bFirst = false;
+			}
+			else
+			{
+				std::this_thread::sleep_for(std::chrono::microseconds(500));
+			}
+
+			int status;
+			success = ::waitpid(m_child, &status, WNOHANG);
+
+			if (success < 0)
+			{
+				return SetError(kFormat("waitpid(): {}", strerror(errno)));
+			}
+
+		} while (!success
+				 && Timeout < Timer.elapsed<std::chrono::nanoseconds>());
+	}
+
+	if (success)
+	{
+		if (WIFEXITED(status))
+		{
+			m_iExitStatus = WIFEXITED(status);
 		}
 
-	} while (!success
-			 && (Timeout.count() == 0
-				 || (std::chrono::steady_clock::now() - tStart < Timeout)));
+		m_child = 0;
+		m_bIsDaemonized = false;
+	}
 
 	return success;
 

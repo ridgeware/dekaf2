@@ -113,6 +113,9 @@ public:
 			   KStringViewZ sChangeDirectory = KStringViewZ{},
 			   bool bDaemonized = false);
 
+	/// Fork the current process image, tell an entry function and pass (or leave default empty) argc, argv values
+	bool Fork(int(*func)(int, char**), int argc = 0, char* argv[] = nullptr);
+
 	/// Detach child so that it will not be killed when this class is destructed
 	bool Detach();
 
@@ -134,6 +137,9 @@ public:
 	/// Returns the process ID of a started child
 	pid_t GetChildPID() const { return m_child; }
 
+	/// Returns the exit status of a terminated child
+	int GetExitStatus() const { return m_iExitStatus; }
+
 	/// Returns error string
 	const KString& Error() const { return m_sError; }
 
@@ -141,10 +147,12 @@ public:
 protected:
 //------
 
+	void Clear();
 	bool SetError(KStringView sError);
 
-	pid_t m_child { 0 };
-	bool m_bIsDaemonized { false };
+	pid_t   m_child         { 0 };
+	int     m_iExitStatus   { 0 };
+	bool    m_bIsDaemonized { false };
 	KString m_sError;
 
 }; // KChildProcess

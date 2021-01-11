@@ -137,8 +137,11 @@ public:
 	/// Returns the process ID of a started child
 	pid_t GetChildPID() const { return m_child; }
 
-	/// Returns the exit status of a terminated child
+	/// Returns the exit status of a terminated child (or 0)
 	int GetExitStatus() const { return m_iExitStatus; }
+
+	/// Returns the exit signal of a terminated child (or 0)
+	int GetExitSignal() const { return m_iExitSignal; }
 
 	/// Returns error string
 	const KString& Error() const { return m_sError; }
@@ -152,6 +155,7 @@ protected:
 
 	pid_t   m_child         { 0 };
 	int     m_iExitStatus   { 0 };
+	int     m_iExitSignal   { 0 };
 	bool    m_bIsDaemonized { false };
 	KString m_sError;
 

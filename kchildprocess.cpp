@@ -48,6 +48,7 @@
 #include "klog.h"
 #include "ksplit.h"
 #include "ktimer.h"
+#include "ksignals.h"
 #include <thread>
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -223,6 +224,7 @@ void KChildProcess::Clear()
 
 	m_child = 0;
 	m_iExitStatus = 0;
+	m_iExitSignal = 0;
 	m_bIsDaemonized = false;
 	m_sError.clear();
 
@@ -418,8 +420,16 @@ bool KChildProcess::Join(std::chrono::nanoseconds Timeout)
 
 	if (Timeout.count() == 0)
 	{
-		// wait forever, so do not loop
-		success = ::waitpid(m_child, &status, 0);
+		for (;;)
+		{
+			// wait forever, so do not loop
+			success = ::waitpid(m_child, &status, 0);
+
+			if (!(success < 0 && errno == EINTR))
+			{
+				break;
+			}
+		}
 
 		if (success < 0)
 		{
@@ -443,8 +453,15 @@ bool KChildProcess::Join(std::chrono::nanoseconds Timeout)
 				std::this_thread::sleep_for(std::chrono::microseconds(500));
 			}
 
-			int status;
-			success = ::waitpid(m_child, &status, WNOHANG);
+			for (;;)
+			{
+				success = ::waitpid(m_child, &status, WNOHANG);
+
+				if (!(success < 0 && errno == EINTR))
+				{
+					break;
+				}
+			}
 
 			if (success < 0)
 			{
@@ -460,6 +477,16 @@ bool KChildProcess::Join(std::chrono::nanoseconds Timeout)
 		if (WIFEXITED(status))
 		{
 			m_iExitStatus = WEXITSTATUS(status);
+			kDebug(1, "pid {} exited with value {}", success, m_iExitStatus);
+		}
+		else if (WIFSIGNALED(status))
+		{
+			m_iExitSignal = WTERMSIG(status);
+			kDebug(1, "pid {} terminated by signal {} ({})", success, m_iExitSignal, kTranslateSignal(m_iExitSignal));
+		}
+		else if (WIFSTOPPED(status))
+		{
+			kDebug(1, "pid {} stopped by signal {} ({})", success, WSTOPSIG(status), kTranslateSignal(WSTOPSIG(status)));
 		}
 
 		m_child = 0;

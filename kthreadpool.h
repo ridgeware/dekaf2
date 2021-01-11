@@ -146,7 +146,7 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	/// Construct an empty thread pool
+	/// Construct an empty thread pool - it will not start unless you resize it!
 	KThreadPool() = default;
 	//-----------------------------------------------------------------------------
 
@@ -215,7 +215,7 @@ public:
 	template<typename Function, typename Object, typename... Args>
 	auto push(Function&& f, Object&& o, Args&&... args)
 	-> typename std::enable_if_t<std::is_same<decltype((o->*f)(std::forward<Args>(args)...)), void>::value,
-	                             std::future<decltype((o->*f)(std::forward<Args>(args)...))>>
+	                             std::future<void()>>
 	//-----------------------------------------------------------------------------
 	{
 		auto task = std::packaged_task<void()>(
@@ -263,7 +263,7 @@ public:
 	template<typename Function, typename... Args>
 	auto push(Function&& f, Args&&... args)
 	-> typename std::enable_if_t<std::is_same<decltype(f(std::forward<Args>(args)...)), void>::value,
-	                             std::future<decltype(f(std::forward<Args>(args)...))>>
+	                             std::future<void()>>
 	//-----------------------------------------------------------------------------
 	{
 		auto task = std::packaged_task<void()>(

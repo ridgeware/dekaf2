@@ -60,6 +60,8 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 
 	if (!sTx.empty())
 	{
+		kDebug(3, "TX: {}", sTx);
+		
 		if (!(*m_Connection)->WriteLine(sTx).Flush().Good())
 		{
 			m_sError = "cannot send to SMTP server";
@@ -92,6 +94,8 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 				}
 				return false;
 			}
+
+			kDebug(3, "RX: {}", sLine);
 
 			if (sLine.size() > 3 && sLine[3] != ' ')
 			{

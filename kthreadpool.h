@@ -215,7 +215,7 @@ public:
 	template<typename Function, typename Object, typename... Args>
 	auto push(Function&& f, Object&& o, Args&&... args)
 	-> typename std::enable_if_t<std::is_same<decltype((o->*f)(std::forward<Args>(args)...)), void>::value,
-	                             std::future<void()>>
+	                             std::future<void>>
 	//-----------------------------------------------------------------------------
 	{
 		auto task = std::packaged_task<void()>(
@@ -263,7 +263,7 @@ public:
 	template<typename Function, typename... Args>
 	auto push(Function&& f, Args&&... args)
 	-> typename std::enable_if_t<std::is_same<decltype(f(std::forward<Args>(args)...)), void>::value,
-	                             std::future<void()>>
+	                             std::future<void>>
 	//-----------------------------------------------------------------------------
 	{
 		auto task = std::packaged_task<void()>(

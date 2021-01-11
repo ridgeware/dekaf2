@@ -448,6 +448,31 @@ public:
 private:
 //----------
 
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class PreventRecursion
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	public:
+
+		PreventRecursion()
+		: m_bOldState(s_bCalledFromInsideKlog)
+		{
+			s_bCalledFromInsideKlog = true;
+		}
+		~PreventRecursion() { s_bCalledFromInsideKlog = m_bOldState; }
+
+		bool IsRecursive() const { return m_bOldState; }
+
+	private:
+
+		static thread_local bool s_bCalledFromInsideKlog;
+
+		bool m_bOldState;
+
+	}; // PreventRecursion
+
+
 	// private ctor
 	KLog();
 
@@ -455,13 +480,13 @@ private:
 	void IntException (KStringView sWhat, KStringView sFunction, KStringView sClass);
 	bool IntOpenLog ();
 
+	static thread_local std::unique_ptr<KLogSerializer> s_PerThreadSerializer;
+	static thread_local std::unique_ptr<KLogWriter> s_PerThreadWriter;
+	static thread_local KString s_sPerThreadGrepExpression;
 	static int s_iLogLevel;
 	static thread_local bool s_bShouldShowStackOnJsonError;
 	static thread_local bool s_bPrintTimeStampOnClose;
 	static thread_local bool s_bPerThreadEGrep;
-	static thread_local std::unique_ptr<KLogSerializer> s_PerThreadSerializer;
-	static thread_local std::unique_ptr<KLogWriter> s_PerThreadWriter;
-	static thread_local KString s_sPerThreadGrepExpression;
 
 	KString m_sPathName;
 	KString m_sShortName;

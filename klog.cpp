@@ -74,12 +74,13 @@ constexpr KStringViewZ s_sJSONTrace   = "DEKAFJSONTRACE";
 constexpr KStringViewZ s_sLogName     = "dekaf.log";
 constexpr KStringViewZ s_sFlagName    = "dekaf.dbg";
 
-thread_local bool KLog::s_bShouldShowStackOnJsonError { true };
-thread_local bool KLog::s_bPrintTimeStampOnClose { false };
-thread_local bool KLog::s_bPerThreadEGrep { false };
 thread_local std::unique_ptr<KLogSerializer> KLog::s_PerThreadSerializer;
 thread_local std::unique_ptr<KLogWriter> KLog::s_PerThreadWriter;
 thread_local KString KLog::s_sPerThreadGrepExpression;
+thread_local bool KLog::s_bShouldShowStackOnJsonError { true };
+thread_local bool KLog::s_bPrintTimeStampOnClose { false };
+thread_local bool KLog::s_bPerThreadEGrep { false };
+thread_local bool KLog::PreventRecursion::s_bCalledFromInsideKlog { false };
 
 // do not initialize this static var - it risks to override a value set by KLog()'s
 // initialization before..
@@ -799,8 +800,18 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 		return false;
 	}
 
-	// we need a lock if we run in multithreading, as the serializers
-	// have data members
+	// Prevent recursive calling through internal calls to instrumented functions
+	// like, e.g. kFormTimeStamp()
+	PreventRecursion PR;
+
+	if (PR.IsRecursive())
+	{
+		return false;
+	}
+
+	// We need a lock if we run in multithreading, as the serializers
+	// have data members. We use a recursive mutex because we want to
+	// protect multiple entry points that eventually call this function.
 	std::lock_guard<std::recursive_mutex> Lock(m_LogMutex);
 
 	if (DEKAF2_LIKELY(iLevel <= s_iLogLevel) || iLevel <= s_iThreadLogLevel)

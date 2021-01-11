@@ -169,6 +169,17 @@ KString kFormTimestamp (time_t tTime, const char* szFormat)
 
 	strftime (szBuffer, iMaxBuf, szFormat, &ptmStruct);
 
+	if (kWouldLog(3))
+	{
+		kDebug(3, "ix:{} d:{} m:{} y:{} h:{} m:{} s:{} offs:{} zone:{}",
+			   tTime,
+			   ptmStruct.tm_mday, ptmStruct.tm_mon+1, ptmStruct.tm_year+1900,
+			   ptmStruct.tm_hour, ptmStruct.tm_min, ptmStruct.tm_sec,
+			   ptmStruct.tm_gmtoff, ptmStruct.tm_zone);
+
+		kDebug(3, "{}: {}", szFormat, szBuffer);
+	}
+
 	return { szBuffer };
 
 } // FormTimestamp

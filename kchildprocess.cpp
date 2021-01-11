@@ -413,7 +413,6 @@ bool KChildProcess::Join(std::chrono::nanoseconds Timeout)
 		SetError("no child started");
 	}
 
-	KStopTime Timer;
 	pid_t success { 0 };
 	int status;
 
@@ -429,6 +428,7 @@ bool KChildProcess::Join(std::chrono::nanoseconds Timeout)
 	}
 	else
 	{
+		KStopTime Timer;
 		bool bFirst { true };
 
 		do
@@ -459,7 +459,7 @@ bool KChildProcess::Join(std::chrono::nanoseconds Timeout)
 	{
 		if (WIFEXITED(status))
 		{
-			m_iExitStatus = WIFEXITED(status);
+			m_iExitStatus = WEXITSTATUS(status);
 		}
 
 		m_child = 0;

@@ -1,6 +1,7 @@
 #include "catch.hpp"
 #include <dekaf2/koptions.h>
 #include <dekaf2/ksystem.h>
+#include <dekaf2/kfilesystem.h>
 #include <dekaf2/kcgistream.h>
 
 
@@ -11,6 +12,7 @@ TEST_CASE("KOptions")
 	struct Accomplished
 	{
 		bool bEmpty  { false };
+		bool bEmpty2 { false };
 		bool bSingle { false };
 		bool bMulti  { false };
 	};
@@ -22,6 +24,11 @@ TEST_CASE("KOptions")
 	Options.RegisterOption("e,empty", [&]()
 	{
 		a.bEmpty = true;
+	});
+
+	Options.RegisterOption("empty2", [&]()
+	{
+		a.bEmpty2 = true;
 	});
 
 	Options.RegisterOption("s,single", "missing single argument", [&](KStringViewZ sSingle)
@@ -90,5 +97,63 @@ TEST_CASE("KOptions")
 		CHECK( a.bEmpty  == true  );
 		CHECK( a.bSingle == true  );
 		CHECK( a.bMulti  == false );
+	}
+
+	SECTION("IniFile")
+	{
+		KTempDir Temp;
+		CHECK ( Temp == true );
+
+		auto sIniFile = kFormat("{}/xyz.ini", Temp.Name());
+		{
+			KOutFile Out(sIniFile);
+			CHECK ( Out.is_open() == true );
+
+			Out.WriteLine("-empty2");
+			Out.WriteLine("-s first");
+			Out.WriteLine("-m first second");
+		}
+
+		const char* CLI[] {
+			"MyProgramName",
+			"-ini", sIniFile.c_str(),
+			"-empty"
+		};
+
+		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+
+		CHECK( a.bEmpty  == true );
+		CHECK( a.bEmpty2 == true );
+		CHECK( a.bSingle == true );
+		CHECK( a.bMulti  == true );
+	}
+
+	SECTION("IniFile reverse")
+	{
+		KTempDir Temp;
+		CHECK ( Temp == true );
+
+		auto sIniFile = kFormat("{}/xyz.ini", Temp.Name());
+		{
+			KOutFile Out(sIniFile);
+			CHECK ( Out.is_open() == true );
+
+			Out.WriteLine("-empty2");
+			Out.WriteLine("-s first");
+			Out.WriteLine("-m first second");
+		}
+
+		const char* CLI[] {
+			"MyProgramName",
+			"-empty",
+			"-ini", sIniFile.c_str()
+		};
+
+		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+
+		CHECK( a.bEmpty  == true );
+		CHECK( a.bEmpty2 == true );
+		CHECK( a.bSingle == true );
+		CHECK( a.bMulti  == true );
 	}
 }

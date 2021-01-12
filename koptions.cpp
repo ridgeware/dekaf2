@@ -61,10 +61,21 @@ namespace {
 struct KOutStreamRAII
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	KOutStreamRAII(KOutStream** Var, KOutStream& Stream) : m_Var(Var) { *Var = &Stream; }
-	~KOutStreamRAII() { *m_Var = nullptr; }
+	KOutStreamRAII(KOutStream** Var, KOutStream& Stream)
+	: m_Old(*Var)
+	, m_Var(Var)
+	{
+		*Var = &Stream;
+	}
+
+	~KOutStreamRAII()
+	{
+		*m_Var = m_Old;
+	}
 
 private:
+
+	KOutStream* m_Old;
 	KOutStream** m_Var;
 
 }; // KOutStreamRAII
@@ -131,7 +142,7 @@ void KOptions::CLIParms::Create(int argc, char const* const* argv)
 		m_ArgVec.front().bConsumed = true;
 	}
 
-} // CParms ctor
+} // CLIParms::Create
 
 //---------------------------------------------------------------------------
 void KOptions::CLIParms::Create(const std::vector<KStringViewZ>& parms)
@@ -151,7 +162,24 @@ void KOptions::CLIParms::Create(const std::vector<KStringViewZ>& parms)
 		m_ArgVec.front().bConsumed = true;
 	}
 
-} // CParms ctor
+} // CLIParms::Create
+
+//---------------------------------------------------------------------------
+KStringViewZ KOptions::CLIParms::GetProgramPath() const
+//---------------------------------------------------------------------------
+{
+	return m_sProgramPathName;
+
+} // CLIParms::GetProgramPath
+
+//---------------------------------------------------------------------------
+KStringView KOptions::CLIParms::GetProgramName() const
+//---------------------------------------------------------------------------
+{
+	return kBasename(GetProgramPath());
+
+} // CLIParms::GetProgramName
+
 
 //---------------------------------------------------------------------------
 KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDOUT*/, bool bThrow/*=false*/)
@@ -245,49 +273,6 @@ void KOptions::Help(KOutStream& out)
 } // Help
 
 //---------------------------------------------------------------------------
-int KOptions::Evaluate(KOutStream& out)
-//---------------------------------------------------------------------------
-{
-	if (m_CLIParms.size() < 2)
-	{
-		if (m_bEmptyParmsIsError)
-		{
-			Help(out);
-			return -1;
-		}
-	}
-
-	size_t iUnconsumed {0};
-
-	for (auto& it : m_CLIParms)
-	{
-		if (!it.bConsumed)
-		{
-			++iUnconsumed;
-		}
-	}
-
-	if (iUnconsumed)
-	{
-		out.FormatLine("have {} excess argument{}:", iUnconsumed, iUnconsumed == 1 ? "" : "s");
-
-		for (auto& it : m_CLIParms)
-		{
-			if (!it.bConsumed)
-			{
-				out.Write(it.Dashes());
-				out.WriteLine(it.sArg);
-			}
-		}
-
-		return 1;
-	}
-
-	return 0;
-
-} // Evaluate
-
-//---------------------------------------------------------------------------
 void KOptions::RegisterUnknownOption(CallbackN Function)
 //---------------------------------------------------------------------------
 {
@@ -339,9 +324,9 @@ void KOptions::RegisterCommand(KStringView sCommands, uint16_t iMinArgs, KString
 void KOptions::RegisterOption(KStringView sOption, Callback0 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterOption(sOption, 0, "", [Function](ArgList& unused)
+	RegisterOption(sOption, 0, "", [func = std::move(Function)](ArgList& unused)
 	{
-		Function();
+		func();
 	});
 }
 
@@ -349,9 +334,9 @@ void KOptions::RegisterOption(KStringView sOption, Callback0 Function)
 void KOptions::RegisterCommand(KStringView sCommand, Callback0 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterCommand(sCommand, 0, "", [Function](ArgList& unused)
+	RegisterCommand(sCommand, 0, "", [func = std::move(Function)](ArgList& unused)
 	{
-		Function();
+		func();
 	});
 }
 
@@ -359,9 +344,9 @@ void KOptions::RegisterCommand(KStringView sCommand, Callback0 Function)
 void KOptions::RegisterOption(KStringView sOption, KStringViewZ sMissingParm, Callback1 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterOption(sOption, 1, sMissingParm, [Function](ArgList& args)
+	RegisterOption(sOption, 1, sMissingParm, [func = std::move(Function)](ArgList& args)
 	{
-		Function(args.pop());
+		func(args.pop());
 	});
 }
 
@@ -369,9 +354,9 @@ void KOptions::RegisterOption(KStringView sOption, KStringViewZ sMissingParm, Ca
 void KOptions::RegisterCommand(KStringView sCommand, KStringViewZ sMissingParm, Callback1 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterCommand(sCommand, 1, sMissingParm, [Function](ArgList& args)
+	RegisterCommand(sCommand, 1, sMissingParm, [func = std::move(Function)](ArgList& args)
 	{
-		Function(args.pop());
+		func(args.pop());
 	});
 }
 
@@ -379,9 +364,7 @@ void KOptions::RegisterCommand(KStringView sCommand, KStringViewZ sMissingParm, 
 int KOptions::Parse(int argc, char const* const* argv, KOutStream& out)
 //---------------------------------------------------------------------------
 {
-	m_CLIParms.Create(argc, argv);
-
-	return Execute(out);
+	return Execute(CLIParms(argc, argv), out);
 
 } // Parse
 
@@ -392,14 +375,12 @@ int KOptions::Parse(KString sCLI, KOutStream& out)
 	kDebug (1, sCLI);
 
 	// create a permanent buffer of the passed CLI
-	m_sBuffer = std::make_unique<KString>(std::move(sCLI));
+	m_ParmBuffer.push_front(std::move(sCLI));
 
 	std::vector<KStringViewZ> parms;
-	kSplitArgsInPlace(parms, *m_sBuffer, /*svDelim  =*/" \t\r\n\b", /*svQuotes =*/"\"'", /*chEscape =*/'\\');
+	kSplitArgsInPlace(parms, m_ParmBuffer.front(), /*svDelim  =*/" \t\r\n\b", /*svQuotes =*/"\"'", /*chEscape =*/'\\');
 
-	m_CLIParms.Create(parms);
-
-	return Execute(out);
+	return Execute(CLIParms(parms), out);
 
 } // Parse
 
@@ -407,9 +388,9 @@ int KOptions::Parse(KString sCLI, KOutStream& out)
 int KOptions::Parse(KInStream& In, KOutStream& out)
 //-----------------------------------------------------------------------------
 {
-	int iRet { 0 };
-
-	KStringView sProgName = Dekaf::getInstance().GetProgName();
+	KString sCLI = kFirstNonEmpty(GetProgramPath(),
+								  Dekaf::getInstance().GetProgName(),
+								  "Unnamed");
 
 	for (auto& sLine : In)
 	{
@@ -417,16 +398,12 @@ int KOptions::Parse(KInStream& In, KOutStream& out)
 
 		if (!sLine.empty() && sLine.front() != '#')
 		{
-			iRet = Parse(kFormat("{} {}", sProgName, sLine), out);
-
-			if (iRet)
-			{
-				break;
-			}
+			sCLI += ' ';
+			sCLI += sLine;
 		}
 	}
 
-	return iRet;
+	return Parse(std::move(sCLI), out);
 
 } // Parse
 
@@ -456,35 +433,27 @@ int KOptions::ParseCGI(KStringViewZ sProgramName, KOutStream& out)
 
 	// create a permanent buffer for the strings, as the rest of
 	// KOptions operates on string views
-	m_VecBuffer = std::make_unique<std::vector<KString>>();
-	m_VecBuffer->reserve(Query.get().size());
-
-	m_VecBuffer->push_back(sProgramName);
-
-	for (const auto& it : Query.get())
-	{
-		m_VecBuffer->push_back(std::move(it.first));
-
-		if (!it.second.empty())
-		{
-			m_VecBuffer->push_back(std::move(it.second));
-		}
-	}
+	m_ParmBuffer.push_front(sProgramName);
 
 	// create a vector of string views pointing to the string buffers
 	std::vector<KStringViewZ> QueryArgs;
-	QueryArgs.reserve(m_VecBuffer->size());
+	QueryArgs.push_back(m_ParmBuffer.front());
 
-	for (const auto& sArg : *m_VecBuffer)
+	for (const auto& it : Query.get())
 	{
-		QueryArgs.push_back(sArg);
-	}
+		m_ParmBuffer.push_front(std::move(it.first));
+		QueryArgs.push_back(m_ParmBuffer.front());
 
-	m_CLIParms.Create(QueryArgs);
+		if (!it.second.empty())
+		{
+			m_ParmBuffer.push_front(std::move(it.second));
+			QueryArgs.push_back(m_ParmBuffer.front());
+		}
+	}
 
 	kDebug(2, "parsed {} arguments from CGI query string: {}", QueryArgs.size() - 1, kJoined(QueryArgs, " "));
 
-	return Execute(out);
+	return Execute(CLIParms(QueryArgs), out);
 
 } // ParseCGI
 
@@ -528,20 +497,25 @@ int KOptions::SetError(KStringViewZ sError, KOutStream& out)
 } // SetError
 
 //---------------------------------------------------------------------------
-int KOptions::Execute(KOutStream& out)
+int KOptions::Execute(CLIParms Parms, KOutStream& out)
 //---------------------------------------------------------------------------
 {
 	KOutStreamRAII KO(&m_CurrentOutputStream, out);
+
+	if (m_sProgramPathName.empty())
+	{
+		m_sProgramPathName = Parms.GetProgramPath();
+	}
 
 	CLIParms::iterator lastCommand;
 
 	DEKAF2_TRY
 	{
 
-		if (!m_CLIParms.empty())
+		if (!Parms.empty())
 		{
 			// using explicit iterators so that options can move the loop forward more than one step
-			for (auto it = m_CLIParms.begin() + 1; it != m_CLIParms.end(); ++it)
+			for (auto it = Parms.begin() + 1; it != Parms.end(); ++it)
 			{
 				lastCommand = it;
 				ArgList Args;
@@ -591,7 +565,7 @@ int KOptions::Execute(KOutStream& out)
 					it->bConsumed = true;
 
 					// isolate parms until next command and add them to the ArgList
-					for (auto it2 = it + 1; it2 != m_CLIParms.end() && !it2->IsOption(); ++it2)
+					for (auto it2 = it + 1; it2 != Parms.end() && !it2->IsOption(); ++it2)
 					{
 						Args.push_front(it2->sArg);
 					}
@@ -631,7 +605,7 @@ int KOptions::Execute(KOutStream& out)
 			}
 		}
 		
-		return Evaluate(out);
+		return Evaluate(Parms, out);
 	}
 
 	DEKAF2_CATCH (const MissingParameterError& error)
@@ -665,12 +639,54 @@ int KOptions::Execute(KOutStream& out)
 
 } // Execute
 
+//---------------------------------------------------------------------------
+int KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
+//---------------------------------------------------------------------------
+{
+	if (Parms.size() < 2)
+	{
+		if (m_bEmptyParmsIsError)
+		{
+			Help(out);
+			return -1;
+		}
+	}
+
+	size_t iUnconsumed {0};
+
+	for (const auto& it : Parms)
+	{
+		if (!it.bConsumed)
+		{
+			++iUnconsumed;
+		}
+	}
+
+	if (iUnconsumed)
+	{
+		out.FormatLine("have {} excess argument{}:", iUnconsumed, iUnconsumed == 1 ? "" : "s");
+
+		for (const auto& it : Parms)
+		{
+			if (!it.bConsumed)
+			{
+				out.Write(it.Dashes());
+				out.WriteLine(it.sArg);
+			}
+		}
+
+		return 1;
+	}
+
+	return 0;
+
+} // Evaluate
 
 //---------------------------------------------------------------------------
 KStringViewZ KOptions::GetProgramPath() const
 //---------------------------------------------------------------------------
 {
-	return m_CLIParms.m_sProgramPathName;
+	return m_sProgramPathName;
 
 } // GetProgramPath
 
@@ -681,7 +697,6 @@ KStringView KOptions::GetProgramName() const
 	return kBasename(GetProgramPath());
 
 } // GetProgramName
-
 
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE

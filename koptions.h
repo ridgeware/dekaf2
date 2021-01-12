@@ -43,11 +43,12 @@
 #pragma once
 
 #include "kstringview.h"
+#include "kstring.h"
 #include "kwriter.h"
-#include "klog.h"
 #include "kstack.h"
 #include "kexception.h"
 #include "kassociative.h"
+#include <forward_list>
 #include <functional>
 #include <vector>
 
@@ -202,8 +203,6 @@ protected:
 private:
 //----------
 
-	int Execute(KOutStream& out);
-
 	class CLIParms
 	{
 
@@ -230,12 +229,18 @@ private:
 
 		using ArgVec   = std::vector<Arg_t>;
 		using iterator = ArgVec::iterator;
+		using const_iterator = ArgVec::const_iterator;
 
 		CLIParms() = default;
 		CLIParms(int argc, char const* const* argv)
 		{
 			Create(argc, argv);
 		}
+		CLIParms(const std::vector<KStringViewZ>& parms)
+		{
+			Create(parms);
+		}
+
 
 		void Create(int argc, char const* const* argv);
 		void Create(const std::vector<KStringViewZ>& parms);
@@ -244,14 +249,17 @@ private:
 		size_t empty() const { return m_ArgVec.empty(); }
 		iterator begin()     { return m_ArgVec.begin(); }
 		iterator end()       { return m_ArgVec.end();   }
+		const_iterator begin() const { return m_ArgVec.begin(); }
+		const_iterator end()   const { return m_ArgVec.end();   }
 		void clear()         { m_ArgVec.clear();        }
+
+		KStringViewZ GetProgramPath() const;
+		KStringView GetProgramName() const;
 
 		ArgVec m_ArgVec;
 		KStringViewZ m_sProgramPathName;
 
 	}; // CLIParms
-
-	int Evaluate(KOutStream& out);
 
 	class CallbackParams
 	{
@@ -273,10 +281,17 @@ private:
 
 	using CommandStore = KUnorderedMap<KStringView, CallbackParams>;
 
-	std::unique_ptr<KString> m_sBuffer;
-	std::unique_ptr<std::vector<KString>> m_VecBuffer;
+	int Execute(CLIParms Parms, KOutStream& out);
+	int Evaluate(const CLIParms& Parms, KOutStream& out);
 
-	CLIParms           m_CLIParms;
+	// a forward_list, other than a vector, keeps all elements in place when
+	// adding more elements, which makes it perfect for the general strategy
+	// of KOptions to use string views for parameters (which are unbuffered
+	// when coming directly from the CLI, this buffer is only for CGI and
+	// ini file parms)
+	std::forward_list<KString> m_ParmBuffer;
+
+	KString            m_sProgramPathName;
 	CommandStore       m_Commands;
 	CommandStore       m_Options;
 	CallbackParams     m_UnknownCommand;

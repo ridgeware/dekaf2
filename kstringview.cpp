@@ -543,7 +543,7 @@ KStringView::size_type KStringView::copy(value_type* dest, size_type count, size
 											const_cast<char*>(data() + pos + count),
 											const_cast<char*>(dest))
 								  - dest);
-}
+} // copy
 
 //-----------------------------------------------------------------------------
 /// nonstandard: emulate erase if range is at begin or end
@@ -561,28 +561,31 @@ KStringView::self_type& KStringView::erase(size_type pos, size_type n)
 
 	n = std::min(n, size() - pos);
 
-	if (pos == 0)
+	if (n > 0)
 	{
-		remove_prefix(n);
-	}
-	else if (pos + n == size())
-	{
-		remove_suffix(n);
-	}
-	else
-	{
-		KString sError(kFormat("impossible to remove {} chars at pos {} in a string view of size {}",
-							   n, pos, size()));
+		if (pos == 0)
+		{
+			remove_prefix(n);
+		}
+		else if (pos + n == size())
+		{
+			remove_suffix(n);
+		}
+		else
+		{
+			KString sError(kFormat("impossible to remove {} chars at pos {} in a string view of size {}",
+								   n, pos, size()));
 #ifdef DEKAF2_EXCEPTIONS
-		DEKAF2_THROW(std::runtime_error(sError.c_str()));
+			DEKAF2_THROW(std::runtime_error(sError.c_str()));
 #else
-		kWarning(sError);
+			kWarning(sError);
 #endif
+		}
 	}
 
 	return *this;
 
-}
+} // erase
 
 //-----------------------------------------------------------------------------
 bool KStringView::In (KStringView sHaystack, value_type iDelim/*=','*/) const

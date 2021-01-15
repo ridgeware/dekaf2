@@ -15,6 +15,7 @@ TEST_CASE("KOptions")
 		bool bEmpty2 { false };
 		bool bSingle { false };
 		bool bMulti  { false };
+		KStringViewZ sDatabase;
 	};
 
 	Accomplished a;
@@ -31,7 +32,7 @@ TEST_CASE("KOptions")
 		a.bEmpty2 = true;
 	});
 
-	Options.RegisterOption("s,single", "missing single argument", [&](KStringViewZ sSingle)
+	Options.RegisterOption("s,single <arg>", "missing single argument", [&](KStringViewZ sSingle)
 	{
 		a.bSingle = true;
 	});
@@ -49,13 +50,27 @@ TEST_CASE("KOptions")
 		Args.clear();
 	});
 
+	Options
+		.Option("c,clear")
+		.Help("clear the entire database")
+		.MissingArgs("database")
+		.Type(KOptions::String)
+		.ToUpper()
+		.Range(1, 30)
+		.MinArgs(1)
+		.Callback([&](KStringViewZ sDatabase)
+		{
+			a.sDatabase = sDatabase;
+		});
+
 	SECTION("argc/argv")
 	{
 		const char* CLI[] {
 			"MyProgramName",
 			"-empty",
-			"-s", "first",
+			"-single", "first",
 			"-m", "first", "second",
+			"-clear", "database1",
 			"-unknown", "arg1", "arg2"
 		};
 
@@ -65,6 +80,7 @@ TEST_CASE("KOptions")
 		CHECK( a.bSingle == true );
 		CHECK( a.bMulti  == true );
 		CHECK( sJoinedArgs == "arg2,arg1,unknown" );
+		CHECK( a.sDatabase == "DATABASE1" );
 	}
 
 	SECTION("KString")
@@ -110,7 +126,7 @@ TEST_CASE("KOptions")
 			CHECK ( Out.is_open() == true );
 
 			Out.WriteLine("-empty2");
-			Out.WriteLine("-s first");
+			Out.WriteLine("-single first");
 			Out.WriteLine("-m first second");
 		}
 
@@ -156,4 +172,10 @@ TEST_CASE("KOptions")
 		CHECK( a.bSingle == true );
 		CHECK( a.bMulti  == true );
 	}
+/*
+	SECTION("Help")
+	{
+		Options.Parse("MyProg --help");
+	}
+ */
 }

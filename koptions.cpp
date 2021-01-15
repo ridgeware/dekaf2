@@ -83,6 +83,94 @@ private:
 } // end of anonymous namespace
 
 //---------------------------------------------------------------------------
+KOptions::OptionalParm::OptionalParm(KOptions& base, KStringView sOption, bool bIsCommand)
+//---------------------------------------------------------------------------
+: CallbackParam(sOption, bIsCommand ? fIsCommand : fNone)
+, m_base(&base)
+{
+}
+
+//---------------------------------------------------------------------------
+KOptions::OptionalParm::~OptionalParm()
+//---------------------------------------------------------------------------
+{
+	m_base->Register(std::move(*this));
+}
+
+//---------------------------------------------------------------------------
+KOptions::OptionalParm& KOptions::OptionalParm::Help(KStringView sHelp)
+//---------------------------------------------------------------------------
+{
+	m_sHelp = sHelp.Trim();
+	return *this;
+
+} // Help
+
+//---------------------------------------------------------------------------
+KOptions::OptionalParm& KOptions::OptionalParm::Range(int64_t iLowerBound, int64_t iUpperBound)
+//---------------------------------------------------------------------------
+{
+	if (iLowerBound > iUpperBound)
+	{
+		std::swap(iLowerBound, iUpperBound);
+	}
+
+	m_iLowerBound  = iLowerBound;
+	m_iUpperBound  = iUpperBound;
+	m_iFlags      |= fCheckBounds;
+
+	return *this;
+
+} // Range
+
+//---------------------------------------------------------------------------
+KOptions::OptionalParm& KOptions::OptionalParm::MissingArgs(KStringViewZ sMissingArgs)
+//---------------------------------------------------------------------------
+{
+	m_sMissingArgs = sMissingArgs;
+
+	if (m_iMinArgs == 0 && !m_sMissingArgs.empty())
+	{
+		m_iMinArgs = 1;
+	}
+
+	return *this;
+
+} // MissingArgs
+
+//---------------------------------------------------------------------------
+KOptions::OptionalParm& KOptions::OptionalParm::Callback(CallbackN Func)
+//---------------------------------------------------------------------------
+{
+	m_Callback = std::move(Func);
+	return *this;
+}
+
+//---------------------------------------------------------------------------
+KOptions::OptionalParm& KOptions::OptionalParm::Callback(Callback1 Func)
+//---------------------------------------------------------------------------
+{
+	Callback([func = std::move(Func)](ArgList& args)
+	{
+		func(args.pop());
+	});
+
+	return *this;
+}
+
+//---------------------------------------------------------------------------
+KOptions::OptionalParm& KOptions::OptionalParm::Callback(Callback0 Func)
+//---------------------------------------------------------------------------
+{
+	Callback([func = std::move(Func)](ArgList& unused)
+	{
+		func();
+	});
+
+	return *this;
+}
+
+//---------------------------------------------------------------------------
 KOptions::CLIParms::Arg_t::Arg_t(KStringViewZ sArg_)
 //---------------------------------------------------------------------------
 	: sArg(sArg_)
@@ -185,10 +273,15 @@ KStringView KOptions::CLIParms::GetProgramName() const
 KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDOUT*/, bool bThrow/*=false*/)
 //---------------------------------------------------------------------------
 	: m_bThrow(bThrow)
-	, m_sCliDebugTo(sCliDebugTo)
 	, m_bEmptyParmsIsError(bEmptyParmsIsError)
 {
-	RegisterOption("help", [&]()
+	SetBriefDescription("KOptions based option parsing");
+	SetMaxHelpWidth(120);
+	SetWrappedHelpIndent(0);
+
+	Option("help")
+	.Help("this text")
+	([this]()
 	{
 		auto& out = GetCurrentOutputStream();
 
@@ -198,24 +291,32 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 			{
 				out.WriteLine(m_sHelp[iCount]);
 			}
-			// and abort further parsing
-			throw NoError {};
 		}
-	
-		throw Error { "no help registered" };
+		else
+		{
+			BuildHelp(out);
+		}
+
+		// and abort further parsing
+		throw NoError {};
 	});
 
-	RegisterOption("d,dd,ddd,d0", [&]()
+	Option("d0,d,dd,ddd")
+	.Help("increasing optional stdout debug levels")
+	([this,sCliDebugTo]()
 	{
 		auto sArg = GetCurrentArg();
 		int iLevel = (sArg == "d0") ? 0 : sArg.size();
 		KLog::getInstance().SetLevel    (iLevel);
-		KLog::getInstance().SetDebugLog (m_sCliDebugTo);
+		KLog::getInstance().SetDebugLog (sCliDebugTo);
 		KLog::getInstance().KeepCLIMode (true);
 		kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
 	});
 
-	RegisterOption("dgrep,dgrepv", "grep expression", [&](KStringViewZ sGrep)
+	Option("dgrep,dgrepv <regex>")
+	.Help("search (not) for grep expression in debug output")
+	.MissingArgs("grep expression")
+	([this,sCliDebugTo](KStringViewZ sGrep)
 	{
 		bool bIsInverted = GetCurrentArg() == "dgrepv";
 		
@@ -225,13 +326,16 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 			KLog::getInstance().SetLevel (3);
 			kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
 		}
-		KLog::getInstance().SetDebugLog (m_sCliDebugTo);
+		KLog::getInstance().SetDebugLog (sCliDebugTo);
 		kDebug (1, "debug {} set to: '{}'", bIsInverted	? "egrep -v" : "egrep", sGrep);
 		KLog::getInstance().LogWithGrepExpression(true, bIsInverted, sGrep);
 		KLog::getInstance().KeepCLIMode (true);
 	});
 
-	RegisterOption("ini", "ini file name", [&](KStringViewZ sIni)
+	Option("ini <filename>")
+	.Help("load options from ini file")
+	.MissingArgs("ini file name")
+	([this](KStringViewZ sIni)
 	{
 		if (ParseFile(sIni, KOut))
 		{
@@ -242,6 +346,145 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 
 } // KOptions ctor
 
+namespace {
+
+//---------------------------------------------------------------------------
+KStringView WrapOutput(KStringView& sInput, std::size_t iMaxSize)
+//---------------------------------------------------------------------------
+{
+	auto sWrapped = sInput;
+
+	if (sWrapped.size() > iMaxSize)
+	{
+		sWrapped.erase(iMaxSize);
+
+		if (!(sInput.size() > iMaxSize && KASCII::kIsSpace(sInput[sWrapped.size()])))
+		{
+			sWrapped.erase(sWrapped.find_last_of(" \t\r\n\b"));
+		}
+		else
+		{
+			// do not erase the last part of sWrapped if it ended in a space,
+			// instead only remove trailing spaces
+			sWrapped.TrimRight();
+		}
+	}
+
+	if (sWrapped.empty())
+	{
+		if (!sInput.empty())
+		{
+			// this is only possible due to a logic error,
+			// make sure we do not loop forever
+			kDebugLog(1, "KOptions::WrapOutput() resulted in an empty string");
+			sWrapped = sInput;
+		}
+	}
+
+	sInput.remove_prefix(sWrapped.size());
+	sInput.TrimLeft();
+
+	return sWrapped;
+
+} // WrapOutput
+
+} // end of anonymous namespace
+
+//---------------------------------------------------------------------------
+void KOptions::BuildHelp(KOutStream& out) const
+//---------------------------------------------------------------------------
+{
+	std::size_t iMaxLen { 0 };
+
+	for (const auto& Callback : m_Callbacks)
+	{
+		auto iSize = (Callback.m_sNames.front() == '-') ? Callback.m_sNames.size() - 1 : Callback.m_sNames.size();
+		iMaxLen = std::max(iMaxLen, iSize);
+	}
+
+	out.WriteLine();
+	out.Format("{} -- ", GetProgramName());
+
+	{
+		auto iIndent = GetProgramName().size() + 4;
+		auto sDescription = GetBriefDescription();
+
+		auto sLimited = WrapOutput(sDescription, m_iMaxHelpRowWidth - iIndent);
+		out.WriteLine(sLimited);
+
+		iIndent += m_iWrappedHelpIndent;
+
+		while (sDescription.size())
+		{
+			auto iSpaces = iIndent;
+			while (iSpaces--)
+			{
+				out.Write(' ');
+			}
+
+			auto sLimited = WrapOutput(sDescription, m_iMaxHelpRowWidth - iIndent);
+			out.WriteLine(sLimited);
+		}
+	}
+
+	out.WriteLine();
+	out.FormatLine("usage: {} [<options>] [...]", GetProgramName());
+	out.WriteLine();
+	out.WriteLine("where <options> are:");
+
+	auto iMaxHelp  = m_iMaxHelpRowWidth - (iMaxLen + m_sSeparator.size() + 4);
+	// format wrapped help texts so that they start earlier at the left if
+	// argument size is bigger than help size
+	bool bOverlapping = iMaxHelp < iMaxLen;
+	auto sFormat   = kFormat("  {{}}{{:<{}}} {} {{}}", iMaxLen, m_sSeparator);
+	auto sOverflow = kFormat(" {{:<{}}}  {{}}",
+							 bOverlapping
+							 ? 1 + m_iWrappedHelpIndent // we need the + 1 to avoid a total of 0 which would crash kFormat
+							 : 2 + iMaxLen + m_sSeparator.size() + m_iWrappedHelpIndent);
+
+	for (const auto& Callback : m_Callbacks)
+	{
+		if (Callback.m_sNames != "!")
+		{
+			auto sHelp    = Callback.m_sHelp;
+			bool bFirst   = true;
+			auto iHelp    = iMaxHelp;
+
+			while (bFirst || sHelp.size())
+			{
+				auto sLimited = WrapOutput(sHelp, iHelp);
+
+				if (bFirst)
+				{
+					bFirst = false;
+					out.FormatLine(sFormat,
+								   (!Callback.IsCommand() && Callback.m_sNames.front() != '-') ? "-" : "",
+								   Callback.m_sNames,
+								   sLimited);
+
+					if (bOverlapping)
+					{
+						iHelp = m_iMaxHelpRowWidth - (1 + m_iWrappedHelpIndent);
+					}
+					else
+					{
+						iHelp -= m_iWrappedHelpIndent;
+					}
+				}
+				else
+				{
+					out.FormatLine(sOverflow,
+								   "",
+								   sLimited);
+				}
+			}
+		}
+	}
+
+	out.WriteLine();
+
+} // BuildHelp
+
 //---------------------------------------------------------------------------
 void KOptions::Help(KOutStream& out)
 //---------------------------------------------------------------------------
@@ -249,8 +492,9 @@ void KOptions::Help(KOutStream& out)
 	KOutStreamRAII KO(&m_CurrentOutputStream, out);
 
 	// we have a help option registered through the constructor
-	auto cbi = m_Options.find("help");
-	if (cbi == m_Options.end())
+	auto Callback = FindParam("help", true);
+
+	if (!Callback)
 	{
 		SetError("no help registered");
 	}
@@ -260,7 +504,7 @@ void KOptions::Help(KOutStream& out)
 		{
 			// yes - call the function with empty args
 			ArgList Args;
-			cbi->second.func(Args);
+			Callback->m_Callback(Args);
 		}
 		DEKAF2_CATCH (const NoError& error)
 		{
@@ -273,51 +517,105 @@ void KOptions::Help(KOutStream& out)
 } // Help
 
 //---------------------------------------------------------------------------
+KOptions::OptionalParm KOptions::Option(KStringView sOption)
+//---------------------------------------------------------------------------
+{
+	return OptionalParm(*this, sOption, false);
+}
+
+//---------------------------------------------------------------------------
+KOptions::OptionalParm KOptions::Command(KStringView sCommand)
+//---------------------------------------------------------------------------
+{
+	return OptionalParm(*this, sCommand, true);
+}
+
+//---------------------------------------------------------------------------
+const KOptions::CallbackParam* KOptions::FindParam(KStringView sName, bool bIsOption) const
+//---------------------------------------------------------------------------
+{
+	auto& Lookup = bIsOption ? m_Options : m_Commands;
+	auto it = Lookup.find(sName);
+	if (it == Lookup.end() || it->second >= m_Callbacks.size())
+	{
+		return nullptr;
+	}
+	auto Callback = &m_Callbacks[it->second];
+	// mark option as used
+	Callback->m_bUsed = true;
+	return Callback;
+
+} // FindParam
+
+//---------------------------------------------------------------------------
+void KOptions::Register(CallbackParam OptionOrCommand)
+//---------------------------------------------------------------------------
+{
+	auto& Lookup = OptionOrCommand.IsCommand() ? m_Commands : m_Options;
+	auto  iIndex = m_Callbacks.size();
+
+	for (auto sOption : OptionOrCommand.m_sNames.Split())
+	{
+		if (sOption != "!")
+		{
+			sOption.TrimLeft(OptionOrCommand.IsCommand() ? " \t\r\n\b" : " -\t\r\n\b");
+
+			if (sOption.front() == '-')
+			{
+				SetError(kFormat("a command, other than an option, may not start with - : {}", sOption));
+				return;
+			}
+
+			// strip name at first special character or space
+			sOption.erase(sOption.find_first_of(" <>[]|=\t\r\n\b"));
+		}
+
+		kDebug(3, "adding option: '{}'", sOption);
+
+		auto Pair = Lookup.insert( { sOption, iIndex } );
+
+		if (!Pair.second)
+		{
+			kDebug(1, "overriding existing {}: {}", OptionOrCommand.IsCommand() ? "command" : "option", sOption);
+			Pair.first->second = iIndex;
+		}
+	}
+
+	m_Callbacks.push_back(std::move(OptionOrCommand));
+
+	if (m_Callbacks.size() != iIndex+1)
+	{
+		SetError("registration race");
+	}
+
+} // Register
+
+//---------------------------------------------------------------------------
 void KOptions::RegisterUnknownOption(CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	m_UnknownOption.func = std::move(Function);
+	Register(CallbackParam("!", CallbackParam::fNone, 0, "", Function));
 }
 
 //---------------------------------------------------------------------------
 void KOptions::RegisterUnknownCommand(CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	m_UnknownCommand.func = std::move(Function);
+	Register(CallbackParam("!", CallbackParam::fIsCommand, 0, "", Function));
 }
 
 //---------------------------------------------------------------------------
 void KOptions::RegisterOption(KStringView sOptions, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	for (auto sOption : sOptions.Split())
-	{
-		// we cannot move Function here as it may get stored multiple times
-		auto Pair = m_Options.insert({sOption, CallbackParams { iMinArgs, sMissingParms, Function }});
-
-		if (!Pair.second)
-		{
-			kDebug(1, "overriding existing option: {}", sOption);
-			Pair.first->second = CallbackParams { iMinArgs, sMissingParms, Function };
-		}
-	}
+	Register(CallbackParam(sOptions, CallbackParam::fNone, iMinArgs, sMissingParms, Function));
 }
 
 //---------------------------------------------------------------------------
 void KOptions::RegisterCommand(KStringView sCommands, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	for (auto sCommand : sCommands.Split())
-	{
-		// we cannot move Function here as it may get stored multiple times
-		auto Pair = m_Commands.insert({sCommand, CallbackParams { iMinArgs, sMissingParms, Function }});
-
-		if (!Pair.second)
-		{
-			kDebug(1, "overriding existing command: {}", sCommand);
-			Pair.first->second = CallbackParams { iMinArgs, sMissingParms, Function };
-		}
-	}
+	Register(CallbackParam(sCommands, CallbackParam::fIsCommand, iMinArgs, sMissingParms, Function));
 }
 
 //---------------------------------------------------------------------------
@@ -497,6 +795,169 @@ int KOptions::SetError(KStringViewZ sError, KOutStream& out)
 } // SetError
 
 //---------------------------------------------------------------------------
+KString KOptions::BadBoundsReason(ArgTypes Type, KStringView sParm, int64_t iMinBound, int64_t iMaxBound) const
+//---------------------------------------------------------------------------
+{
+	switch (Type)
+	{
+		case Integer:
+		case Float:
+			return kFormat("{} is not in limits [{}..{}]", sParm, iMinBound, iMaxBound);
+
+		case String:
+		case File:
+		case Path:
+		case Directory:
+		case Email:
+		case URL:
+			return kFormat("length of {} not in limits [{}..{}]", sParm.size(), iMinBound, iMaxBound);
+
+		default:
+			break;
+	}
+
+	return {};
+
+} // BadBoundsReason
+
+//---------------------------------------------------------------------------
+bool KOptions::ValidBounds(ArgTypes Type, KStringView sParm, int64_t iMinBound, int64_t iMaxBound) const
+//---------------------------------------------------------------------------
+{
+	switch (Type)
+	{
+		case Integer:
+		{
+			auto iValue = sParm.Int64();
+			return iValue >= iMinBound && iValue <= iMaxBound;
+		}
+
+		case Float:
+		{
+			auto iValue = sParm.Double();
+			return iValue >= iMinBound && iValue <= iMaxBound;
+		}
+
+		case String:
+		case File:
+		case Path:
+		case Directory:
+		case Email:
+		case URL:
+		{
+			auto iValue = static_cast<int64_t>(sParm.size());
+			return iValue >= iMinBound && iValue <= iMaxBound;
+		}
+
+		default:
+			break;
+	}
+
+	return true;
+
+} // ValidBounds
+
+//---------------------------------------------------------------------------
+KString KOptions::BadArgReason(ArgTypes Type, KStringView sParm) const
+//---------------------------------------------------------------------------
+{
+	switch (Type)
+	{
+		case Integer:
+			return kFormat("not an integer: {}", sParm);
+
+		case Float:
+			return kFormat("not a float: {}", sParm);
+
+		case Boolean:
+			return kFormat("not a boolean: {}", sParm);
+
+		case String:
+			return kFormat("not a string: {}", sParm);
+
+		case File:
+			return kFormat("not an existing file: {}", sParm);
+
+		case Directory:
+			return kFormat("not an existing directory: {}", sParm);
+
+		case Path:
+			return kFormat("not an existing directory base: {}", sParm);
+
+		case Email:
+			return kFormat("not an email: {}", sParm);
+
+		case URL:
+			return kFormat("not a URL: {}", sParm);
+	}
+
+	return {};
+
+} // BadArgReason
+
+//---------------------------------------------------------------------------
+bool KOptions::ValidArgType(ArgTypes Type, KStringViewZ sParm) const
+//---------------------------------------------------------------------------
+{
+	switch (Type)
+	{
+		case Integer:
+			return kIsInteger(sParm);
+
+		case Float:
+			return kIsFloat(sParm);
+
+		case Boolean:
+			return true;
+
+		case String:
+			return true;
+
+		case File:
+			return kFileExists(sParm);
+
+		case Directory:
+			return kDirExists(sParm);
+
+		case Path:
+		{
+			KString sDirname = kDirname(sParm);
+			return kDirExists(sDirname);
+		}
+
+		case Email:
+			return kIsEmail(sParm);
+
+		case URL:
+			return kIsURL(sParm);
+	}
+
+	return true;
+
+} // ValidArgType
+
+//---------------------------------------------------------------------------
+KStringViewZ KOptions::ModifyArgument(KStringViewZ sArg, const CallbackParam* Callback)
+//---------------------------------------------------------------------------
+{
+	if (Callback->ToLower())
+	{
+		m_ParmBuffer.push_front(sArg.ToLower());
+	}
+	else if (Callback->ToUpper())
+	{
+		m_ParmBuffer.push_front(sArg.ToUpper());
+	}
+	else
+	{
+		return sArg;
+	}
+
+	return m_ParmBuffer.front().ToView();
+
+} // ModifyArgument
+
+//---------------------------------------------------------------------------
 int KOptions::Execute(CLIParms Parms, KOutStream& out)
 //---------------------------------------------------------------------------
 {
@@ -519,45 +980,24 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 			{
 				lastCommand = it;
 				ArgList Args;
-				CallbackParams* Callback { nullptr };
 				bool bIsUnknown { false };
-
-				auto& Store = it->IsOption() ? m_Options : m_Commands;
 				m_sCurrentArg = it->sArg;
-				auto cbi = Store.find(KStringView(it->sArg));
-				if (DEKAF2_UNLIKELY(cbi == Store.end()))
+
+				auto Callback = FindParam(it->sArg, it->IsOption());
+
+				if (DEKAF2_UNLIKELY(Callback == nullptr))
 				{
 					// check if we have a handler for an unknown arg
-					if (it->IsOption())
+					Callback = FindParam("!", it->IsOption());
+
+					if (Callback)
 					{
-						if (m_UnknownOption.func)
-						{
-							Callback = &m_UnknownOption;
-							// we pass the current Arg as the first arg of Args,
-							// but we need to take care to not take it into account
-							// when we readjust the remaining args after calling the
-							// callback
-							Args.push_front(it->sArg);
-							bIsUnknown = true;
-						}
+						// we pass the current Arg as the first arg of Args,
+						// but we need to take care to not take it into account
+						// when we readjust the remaining args after calling the
+						Args.push_front(it->sArg);
+						bIsUnknown = true;
 					}
-					else
-					{
-						if (m_UnknownCommand.func)
-						{
-							Callback = &m_UnknownCommand;
-							// we pass the current Arg as the first arg of Args,
-							// but we need to take care to not take it into account
-							// when we readjust the remaining args after calling the
-							// callback
-							Args.push_front(it->sArg);
-							bIsUnknown = true;
-						}
-					}
-				}
-				else
-				{
-					Callback = &cbi->second;
 				}
 
 				if (Callback)
@@ -567,23 +1007,36 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 					// isolate parms until next command and add them to the ArgList
 					for (auto it2 = it + 1; it2 != Parms.end() && !it2->IsOption(); ++it2)
 					{
-						Args.push_front(it2->sArg);
+						Args.push_front(ModifyArgument(it2->sArg, Callback));
+
+						if (Args.size() <= Callback->m_iMinArgs)
+						{
+							// check minimum arguments for compliance with the requested type
+							if (!ValidArgType(Callback->m_ArgType, Args.front()))
+							{
+								DEKAF2_THROW(WrongParameterError(BadArgReason(Callback->m_ArgType, Args.front())));
+							}
+							else if (Callback->CheckBounds() && !ValidBounds(Callback->m_ArgType, Args.front(), Callback->m_iLowerBound, Callback->m_iUpperBound))
+							{
+								DEKAF2_THROW(WrongParameterError(BadBoundsReason(Callback->m_ArgType, Args.front(), Callback->m_iLowerBound, Callback->m_iUpperBound)));
+							}
+						}
 					}
 
-					if (Callback->iMinArgs > Args.size())
+					if (Callback->m_iMinArgs > Args.size())
 					{
-						if (!Callback->sMissingParms.empty())
+						if (!Callback->m_sMissingArgs.empty())
 						{
-							DEKAF2_THROW(MissingParameterError(Callback->sMissingParms));
+							DEKAF2_THROW(MissingParameterError(Callback->m_sMissingArgs));
 						}
-						DEKAF2_THROW(MissingParameterError(kFormat("{} arguments required, but only {} found", Callback->iMinArgs, Args.size())));
+						DEKAF2_THROW(MissingParameterError(kFormat("{} arguments required, but only {} found", Callback->m_iMinArgs, Args.size())));
 					}
 
 					// keep record of the initial args count
 					auto iOldSize = Args.size();
 
 					// finally call the callback
-					Callback->func(Args);
+					Callback->m_Callback(Args);
 
 					if (iOldSize < Args.size())
 					{
@@ -652,6 +1105,8 @@ int KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
 		}
 	}
 
+	bool bError { false };
+
 	size_t iUnconsumed {0};
 
 	for (const auto& it : Parms)
@@ -675,10 +1130,25 @@ int KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
 			}
 		}
 
-		return 1;
+		bError = true;
 	}
 
-	return 0;
+	// now check for required options
+	for (auto& Callback : m_Callbacks)
+	{
+		if (Callback.Missing())
+		{
+			bError = true;
+			out.FormatLine("missing required argument: {}{}", Callback.IsCommand() ? "" : "-", Callback.m_sNames);
+		}
+		else
+		{
+			// reset flag
+			Callback.m_bUsed = false;
+		}
+	}
+
+	return bError; // 0 or 1
 
 } // Evaluate
 

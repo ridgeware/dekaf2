@@ -508,6 +508,44 @@ TEST_CASE("KStringUtils") {
 		CHECK( !kIsInteger(s) );
 	}
 
+	SECTION("kIsUnsigned on strings")
+	{
+		KString s;
+		s = "1";
+		CHECK( kIsUnsigned(s) );
+		s = "123456";
+		CHECK( kIsUnsigned(s) );
+		s = "-123456";
+		CHECK( !kIsUnsigned(s) );
+		s = "+123456";
+		CHECK( kIsUnsigned(s) );
+		s = "123a456";
+		CHECK( !kIsUnsigned(s) );
+		s = "aa";
+		CHECK( !kIsUnsigned(s) );
+		s = "";
+		CHECK( !kIsUnsigned(s) );
+	}
+
+	SECTION("kIsUnsigned on char*")
+	{
+		const char* s;
+		s = "1";
+		CHECK( kIsUnsigned(s) );
+		s = "123456";
+		CHECK( kIsUnsigned(s) );
+		s = "-123456";
+		CHECK( !kIsUnsigned(s) );
+		s = "+123456";
+		CHECK( kIsUnsigned(s) );
+		s = "123a456";
+		CHECK( !kIsUnsigned(s) );
+		s = "aa";
+		CHECK( !kIsUnsigned(s) );
+		s = "";
+		CHECK( !kIsUnsigned(s) );
+	}
+
 	SECTION("kIsFloat on strings")
 	{
 		KString s;
@@ -609,6 +647,7 @@ TEST_CASE("KStringUtils") {
 			std::vector<std::pair<stype, int64_t>> svector = {
 			    {  "123456789",  123456789 },
 			    { "-123456789", -123456789 },
+				{ "+123456789",  123456789 },
 			    { "12345abcd2",  12345     },
 			    {   "abcde123",  0         }
 			};
@@ -625,6 +664,7 @@ TEST_CASE("KStringUtils") {
 			std::vector<std::pair<stype, int64_t>> svector = {
 			    {  "123456789",  123456789 },
 			    { "-123456789", -123456789 },
+				{ "+123456789",  123456789 },
 			    { "12345abcd2",  12345     },
 			    {   "abcde123",  0         }
 			};
@@ -651,6 +691,7 @@ TEST_CASE("KStringUtils") {
 			    {       "00FF",  255         },
 			    {  "123456789",  4886718345  },
 			    { "-123456789", -4886718345  },
+				{ "+123456789",  4886718345  },
 			    { "12345abcd2",  78187773138 },
 			    {   "abcde123",  2882396451  }
 			};
@@ -674,6 +715,7 @@ TEST_CASE("KStringUtils") {
 			    {       "00FF",  255         },
 			    {  "123456789",  4886718345  },
 			    { "-123456789", -4886718345  },
+				{ "+123456789",  4886718345  },
 			    { "12345abcd2",  78187773138 },
 			    {   "abcde123",  2882396451  }
 			};

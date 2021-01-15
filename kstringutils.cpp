@@ -338,7 +338,7 @@ KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
 } // kTranslateSeconds
 
 //-----------------------------------------------------------------------------
-bool kIsInteger(KStringView str) noexcept
+bool kIsInteger(KStringView str, bool bSigned) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (str.empty())
@@ -354,7 +354,7 @@ bool kIsInteger(KStringView str) noexcept
 	{
 		if (!KASCII::kIsDigit(*buf++))
 		{
-			if (buf != start + 1 || (*start != '-' && *start != '+'))
+			if (buf != start + 1 || ((!bSigned || *start != '-') && *start != '+'))
 			{
 				return false;
 			}

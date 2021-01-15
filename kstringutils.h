@@ -454,8 +454,16 @@ inline size_t kCountChar(KStringView str, const char ch) noexcept
 
 //-----------------------------------------------------------------------------
 /// Returns true if str contains an integer, possibly with a leading + or -
-bool kIsInteger(KStringView str) noexcept;
+bool kIsInteger(KStringView str, bool bSigned = true) noexcept;
 //-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Returns true if str contains an unsigned integer, possibly with a leading +
+inline bool kIsUnsigned(KStringView str) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kIsInteger(str, false);
+}
 
 //-----------------------------------------------------------------------------
 /// Returns true if str contains a float, possibly with a leading + or -
@@ -496,11 +504,19 @@ Integer kToInt(const char* data, size_t size, bool bIsHex = false) noexcept
 		--size;
 	}
 
-	if (size && *data == '-')
+	if (size)
 	{
-		bNeg = true;
-		++data;
-		--size;
+		if (*data == '-')
+		{
+			bNeg = true;
+			++data;
+			--size;
+		}
+		else if (*data == '+')
+		{
+			++data;
+			--size;
+		}
 	}
 
 	if (!bIsHex)

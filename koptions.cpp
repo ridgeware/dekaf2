@@ -936,7 +936,7 @@ bool KOptions::ValidArgType(ArgTypes Type, KStringViewZ sParm) const
 			return kIsUnsigned(sParm);
 
 		case Float:
-			return kIsFloat(sParm);
+			return kIsFloat(sParm) || kIsInteger(sParm);
 
 		case Boolean:
 			return true;

@@ -63,6 +63,8 @@ TEST_CASE("KOptions")
 			a.sDatabase = sDatabase;
 		});
 
+	Options.Command("run").Help("start running")([](){});
+
 	SECTION("argc/argv")
 	{
 		const char* CLI[] {

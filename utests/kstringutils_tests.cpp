@@ -487,6 +487,10 @@ TEST_CASE("KStringUtils") {
 		CHECK( !kIsInteger(s) );
 		s = "";
 		CHECK( !kIsInteger(s) );
+		s = "+";
+		CHECK( !kIsInteger(s) );
+		s = "-";
+		CHECK( !kIsInteger(s) );
 	}
 
 	SECTION("kIsInteger on char*")
@@ -505,6 +509,10 @@ TEST_CASE("KStringUtils") {
 		s = "aa";
 		CHECK( !kIsInteger(s) );
 		s = "";
+		CHECK( !kIsInteger(s) );
+		s = "+";
+		CHECK( !kIsInteger(s) );
+		s = "-";
 		CHECK( !kIsInteger(s) );
 	}
 
@@ -525,6 +533,10 @@ TEST_CASE("KStringUtils") {
 		CHECK( !kIsUnsigned(s) );
 		s = "";
 		CHECK( !kIsUnsigned(s) );
+		s = "+";
+		CHECK( !kIsUnsigned(s) );
+		s = "-";
+		CHECK( !kIsUnsigned(s) );
 	}
 
 	SECTION("kIsUnsigned on char*")
@@ -543,6 +555,10 @@ TEST_CASE("KStringUtils") {
 		s = "aa";
 		CHECK( !kIsUnsigned(s) );
 		s = "";
+		CHECK( !kIsUnsigned(s) );
+		s = "+";
+		CHECK( !kIsUnsigned(s) );
+		s = "-";
 		CHECK( !kIsUnsigned(s) );
 	}
 

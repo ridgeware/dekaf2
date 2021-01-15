@@ -354,7 +354,7 @@ bool kIsInteger(KStringView str, bool bSigned) noexcept
 	{
 		if (!KASCII::kIsDigit(*buf++))
 		{
-			if (buf != start + 1 || ((!bSigned || *start != '-') && *start != '+'))
+			if (!size || buf != start + 1 || ((!bSigned || *start != '-') && *start != '+'))
 			{
 				return false;
 			}

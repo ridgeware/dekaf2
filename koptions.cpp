@@ -428,60 +428,76 @@ void KOptions::BuildHelp(KOutStream& out) const
 	}
 
 	out.WriteLine();
-	out.FormatLine("usage: {} [<options>] [...]", GetProgramName());
+	out.FormatLine("usage: {}{}{}",
+				   GetProgramName(),
+				   m_bHaveOptions ? " [<options>]" : "",
+				   m_bHaveCommands ? " [<actions>]" : "");
 	out.WriteLine();
-	out.WriteLine("where <options> are:");
 
-	auto iMaxHelp  = m_iMaxHelpRowWidth - (iMaxLen + m_sSeparator.size() + 4);
+	auto iMaxHelp  = m_iMaxHelpRowWidth - (iMaxLen + m_sSeparator.size() + 5);
 	// format wrapped help texts so that they start earlier at the left if
 	// argument size is bigger than help size
 	bool bOverlapping = iMaxHelp < iMaxLen;
-	auto sFormat   = kFormat("  {{}}{{:<{}}} {} {{}}", iMaxLen, m_sSeparator);
-	auto sOverflow = kFormat(" {{:<{}}}  {{}}",
+	auto sFormat   = kFormat("   {{}}{{:<{}}} {{}}{} {{}}", iMaxLen, m_sSeparator);
+	auto sOverflow = kFormat("  {{:<{}}}  {{}}",
 							 bOverlapping
 							 ? 1 + m_iWrappedHelpIndent // we need the + 1 to avoid a total of 0 which would crash kFormat
 							 : 2 + iMaxLen + m_sSeparator.size() + m_iWrappedHelpIndent);
 
-	for (const auto& Callback : m_Callbacks)
+	auto Show = [&](bool bCommands)
 	{
-		if (Callback.m_sNames != "!")
+		for (const auto& Callback : m_Callbacks)
 		{
-			auto sHelp    = Callback.m_sHelp;
-			bool bFirst   = true;
-			auto iHelp    = iMaxHelp;
-
-			while (bFirst || sHelp.size())
+			if (Callback.IsCommand() == bCommands && Callback.m_sNames != "!")
 			{
-				auto sLimited = WrapOutput(sHelp, iHelp);
+				auto sHelp    = Callback.m_sHelp;
+				bool bFirst   = true;
+				auto iHelp    = iMaxHelp;
 
-				if (bFirst)
+				while (bFirst || sHelp.size())
 				{
-					bFirst = false;
-					out.FormatLine(sFormat,
-								   (!Callback.IsCommand() && Callback.m_sNames.front() != '-') ? "-" : "",
-								   Callback.m_sNames,
-								   sLimited);
+					auto sLimited = WrapOutput(sHelp, iHelp);
 
-					if (bOverlapping)
+					if (bFirst)
 					{
-						iHelp = m_iMaxHelpRowWidth - (1 + m_iWrappedHelpIndent);
+						bFirst = false;
+						out.FormatLine(sFormat,
+									   (!Callback.IsCommand() && Callback.m_sNames.front() != '-') ? "-" : "",
+									   Callback.m_sNames,
+									   bCommands ? " " : "",
+									   sLimited);
+
+						if (bOverlapping)
+						{
+							iHelp = m_iMaxHelpRowWidth - (1 + m_iWrappedHelpIndent);
+						}
+						else
+						{
+							iHelp -= m_iWrappedHelpIndent;
+						}
 					}
 					else
 					{
-						iHelp -= m_iWrappedHelpIndent;
+						out.FormatLine(sOverflow, "", sLimited);
 					}
-				}
-				else
-				{
-					out.FormatLine(sOverflow,
-								   "",
-								   sLimited);
 				}
 			}
 		}
+	};
+
+	if (m_bHaveOptions)
+	{
+		out.WriteLine("where <options> are:");
+		Show(false);
+		out.WriteLine();
 	}
 
-	out.WriteLine();
+	if (m_bHaveCommands)
+	{
+		out.FormatLine("{} <actions> are:", m_bHaveOptions ? "and" : "where");
+		Show(true);
+		out.WriteLine();
+	}
 
 } // BuildHelp
 
@@ -568,6 +584,15 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 
 			// strip name at first special character or space
 			sOption.erase(sOption.find_first_of(" <>[]|=\t\r\n\b"));
+
+			if (OptionOrCommand.IsCommand())
+			{
+				m_bHaveCommands = true;
+			}
+			else
+			{
+				m_bHaveOptions = true;
+			}
 		}
 
 		kDebug(3, "adding option: '{}'", sOption);
@@ -866,6 +891,9 @@ KString KOptions::BadArgReason(ArgTypes Type, KStringView sParm) const
 		case Integer:
 			return kFormat("not an integer: {}", sParm);
 
+		case Unsigned:
+			return kFormat("not an unsigned integer: {}", sParm);
+
 		case Float:
 			return kFormat("not a float: {}", sParm);
 
@@ -903,6 +931,9 @@ bool KOptions::ValidArgType(ArgTypes Type, KStringViewZ sParm) const
 	{
 		case Integer:
 			return kIsInteger(sParm);
+
+		case Unsigned:
+			return kIsUnsigned(sParm);
 
 		case Float:
 			return kIsFloat(sParm);
@@ -1004,8 +1035,10 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 				{
 					it->bConsumed = true;
 
+					auto iMaxArgs = Callback->m_iMaxArgs;
+
 					// isolate parms until next command and add them to the ArgList
-					for (auto it2 = it + 1; it2 != Parms.end() && !it2->IsOption(); ++it2)
+					for (auto it2 = it + 1; iMaxArgs-- > 0 && it2 != Parms.end() && !it2->IsOption(); ++it2)
 					{
 						Args.push_front(ModifyArgument(it2->sArg, Callback));
 
@@ -1136,7 +1169,7 @@ int KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
 	// now check for required options
 	for (auto& Callback : m_Callbacks)
 	{
-		if (Callback.Missing())
+		if (Callback.IsRequired() && !Callback.m_bUsed)
 		{
 			bError = true;
 			out.FormatLine("missing required argument: {}{}", Callback.IsCommand() ? "" : "-", Callback.m_sNames);

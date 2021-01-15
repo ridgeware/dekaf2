@@ -149,6 +149,7 @@ public:
 	enum ArgTypes
 	{
 		Integer,
+		Unsigned,
 		Float,
 		Boolean,
 		String,
@@ -203,6 +204,7 @@ private:
 		int64_t      m_iLowerBound  { 0 };
 		int64_t      m_iUpperBound  { 0 };
 		uint16_t     m_iMinArgs     { 0 };
+		uint16_t     m_iMaxArgs     { 65535  };
 		uint16_t     m_iFlags       { fNone  };
 		ArgTypes     m_ArgType      { String };
 		mutable bool m_bUsed        { false  };
@@ -212,7 +214,6 @@ private:
 		bool         CheckBounds() const { return m_iFlags & fCheckBounds;  }
 		bool         ToLower()     const { return m_iFlags & fToLower;      }
 		bool         ToUpper()     const { return m_iFlags & fToUpper;      }
-		bool         Missing()     const { return IsRequired() && !m_bUsed; }
 
 	}; // CallbackParam
 
@@ -230,7 +231,9 @@ public:
 
 		/// set the minimum count of expected arguments (default 0)
 		OptionalParm& MinArgs(uint16_t iMinArgs)  { m_iMinArgs = iMinArgs;  return *this; }
-		/// set the type of the expected argument: Integer,Float,Boolean,String,ExistingFile,ExistingPathOf,ExistingDirectory,Email,URL
+		/// set the maximum count of expected arguments (default 65535)
+		OptionalParm& MaxArgs(uint16_t iMaxArgs)  { m_iMaxArgs = iMaxArgs;  return *this; }
+		/// set the type of the expected argument: Integer,Unsigned,Float,Boolean,String,File,Path,Directory,Email,URL
 		OptionalParm& Type(ArgTypes Type)         { m_ArgType  = Type;      return *this; }
 		/// set the range for integer and float arguments, or the size for string arguments
 		OptionalParm& Range(int64_t iLowerBound, int64_t iUpperBound);
@@ -440,6 +443,8 @@ private:
 	std::size_t        m_iMaxHelpRowWidth { 100 };
 	std::size_t        m_iWrappedHelpIndent { 1 };
 	bool               m_bEmptyParmsIsError { true };
+	bool               m_bHaveOptions  { false };
+	bool               m_bHaveCommands { false };
 
 }; // KOptions
 

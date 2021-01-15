@@ -130,7 +130,8 @@ CreateProject::CreateProject ()
 	});
 
 	// keep the -name option, it was the previous way to set the name
-	m_Options.RegisterOption("name", "missing project name", [&](KStringViewZ sName)
+	m_Options.Option("name").MissingArgs("missing project name")
+	([&](KStringViewZ sName)
 	{
 		if (!m_sProjectName.empty())
 		{
@@ -139,7 +140,7 @@ CreateProject::CreateProject ()
 		m_sProjectName = sName;
 	});
 
-	m_Options.RegisterOption("help",[&]()
+	m_Options.Option("help")([&]()
 	{
 		for (const auto& it : g_Synopsis)
 		{
@@ -149,22 +150,26 @@ CreateProject::CreateProject ()
 		m_bIsDone = true;
 	});
 
-	m_Options.RegisterOption("p,path", "missing project path", [&](KStringViewZ sPath)
+	m_Options.Option("p,path").MissingArgs("missing project path")
+	([&](KStringViewZ sPath)
 	{
 		m_sProjectPath = sPath;
 	});
 
-	m_Options.RegisterOption("v,version", "missing version string", [&](KStringViewZ sVersion)
+	m_Options.Option("v,version").MissingArgs("missing version string")
+	([&](KStringViewZ sVersion)
 	{
 		m_sProjectVersion = sVersion;
 	});
 
-	m_Options.RegisterOption("t,type", "missing project type", [&](KStringViewZ sType)
+	m_Options.Option("t,type").MissingArgs("missing project type")
+	([&](KStringViewZ sType)
 	{
 		m_sProjectType = sType;
 	});
 
-	m_Options.RegisterOption("s,sso", 2, "missing SSO server URL and scope", [&](KOptions::ArgList& SSO)
+	m_Options.Option("s,sso").MinArgs(2).MissingArgs("missing SSO server URL and scope")
+	([&](KOptions::ArgList& SSO)
 	{
 		m_SSOProvider = SSO.pop();
 		m_SSOScope    = SSO.pop();

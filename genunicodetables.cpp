@@ -435,12 +435,13 @@ int main(int argc, char** argv)
 
 	int iError { 0 };
 
-	Options.RegisterOption("annotate", [&]()
+	Options.Option("annotate")([&]()
 	{
 		bAnnotate = true;
 	});
 
-	Options.RegisterOption("cpp", "need output file name", [&](KStringViewZ sFileName)
+	Options.Option("cpp").MissingArgs("need output file name")
+	([&](KStringViewZ sFileName)
 	{
 		iError = BuildTables(sFileName);
 	});

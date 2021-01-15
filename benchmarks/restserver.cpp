@@ -85,39 +85,45 @@ int main(int argc, char** argv)
 
 	CLI.RegisterHelp(g_sHelp);
 
-	CLI.RegisterOption("p", "port number", [&](KStringViewZ sArg)
+	CLI.Option("p").MissingArgs("port number")
+	.Type(KOptions::Integer).Range(1, 65535)
+	([&](KStringViewZ sArg)
 	{
 		Options.iPort = sArg.UInt16();
 	});
 
-	CLI.RegisterOption("c", "concurency", [&](KStringViewZ sArg)
+	CLI.Option("c").MissingArgs("concurency").Type(KOptions::Integer)
+	([&](KStringViewZ sArg)
 	{
 		Options.iMaxConnections = sArg.UInt16();
 	});
 
-	CLI.RegisterOption("t", "timeout", [&](KStringViewZ sArg)
+	CLI.Option("t").MissingArgs("timeout").Type(KOptions::Integer)
+	([&](KStringViewZ sArg)
 	{
 		Options.iTimeout = sArg.UInt16();
 	});
 
-	CLI.RegisterOption("k", "max keepalive rounds", [&](KStringViewZ sArg)
+	CLI.Option("k").MissingArgs("max keepalive rounds").Type(KOptions::Integer)
+	([&](KStringViewZ sArg)
 	{
 		Options.iMaxKeepaliveRounds = sArg.UInt16();
 	});
 
-	CLI.RegisterOption("simple", [&]()
+	CLI.Option("simple")([&]()
 	{
 		bSimpleServer = true;
 	});
 
-	CLI.RegisterOption("klog", "klog header", [&](KStringViewZ sArg)
+	CLI.Option("klog").MissingArgs("klog header")
+	([&](KStringViewZ sArg)
 	{
 		Options.sKLogHeader = sArg;
 	});
 
 	bool bRun { false };
 
-	CLI.RegisterCommand("run", [&]()
+	CLI.Command("run")([&]()
 	{
 		bRun = true;
 	});

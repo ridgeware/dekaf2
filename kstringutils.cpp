@@ -378,6 +378,7 @@ bool kIsFloat(KStringView str, KStringView::value_type chDecimalSeparator) noexc
 	const auto* buf   = start;
 	size_t size       = str.size();
 	bool bDeciSeen    = false;
+	bool bHadDigit    = false;
 
 	while (size--)
 	{
@@ -396,11 +397,15 @@ bool kIsFloat(KStringView str, KStringView::value_type chDecimalSeparator) noexc
 				return false;
 			}
 		}
+		else
+		{
+			bHadDigit = true;
+		}
 		++buf;
 	}
 
 	// to qualify as a float we need a decimal separator (we do not accept exponential representations)
-	return bDeciSeen;
+	return bDeciSeen && bHadDigit;
 
 } // kIsFloat
 

@@ -579,6 +579,14 @@ TEST_CASE("KStringUtils") {
 		CHECK( !kIsFloat(s) );
 		s = "";
 		CHECK( !kIsFloat(s) );
+		s = "+";
+		CHECK( !kIsFloat(s) );
+		s = "-";
+		CHECK( !kIsFloat(s) );
+		s = "+.";
+		CHECK( !kIsFloat(s) );
+		s = "-.";
+		CHECK( !kIsFloat(s) );
 		s = "1.1";
 		CHECK( kIsFloat(s) );
 		s = "123.456";

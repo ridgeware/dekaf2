@@ -44,7 +44,7 @@ CMakeSetup ()
 	ask=$1
 
 	# check version of installed cmake
-	sCMakeVersion=$(cmake --version 2>/dev/null | sed 's|[^0-9.]||g')
+	sCMakeVersion=$(cmake --version 2>/dev/null | sed 's|[^0-9.]||g' | head -1)
 	if [ "$sCMakeVersion" == "" ]; then
 		CMakeMajor="0"
 		CMakeMinor="0"
@@ -52,6 +52,8 @@ CMakeSetup ()
 		CMakeMajor=$(echo $sCMakeVersion | cut -d . -f 1)
 		CMakeMinor=$(echo $sCMakeVersion | cut -d . -f 2)
 	fi
+
+	echo ":: you have cmake $sCMakeVersion ($CMakeMajor.$CMakeMinor) and need at least 3.13 ..."
 
 	# we want at least 3.13
 	if [ $CMakeMajor -lt 3 ] || ( [ $CMakeMajor -eq 3 ] && [ $CMakeMinor -lt 13 ] ); then

@@ -83,11 +83,15 @@ private:
 } // end of anonymous namespace
 
 //---------------------------------------------------------------------------
-KOptions::OptionalParm::OptionalParm(KOptions& base, KStringView sOption, bool bIsCommand)
+KOptions::OptionalParm::OptionalParm(KOptions& base, KStringView sOption, KStringViewZ sArgDescription, bool bIsCommand)
 //---------------------------------------------------------------------------
-: CallbackParam(sOption, bIsCommand ? fIsCommand : fNone)
+: CallbackParam(sOption, sArgDescription, bIsCommand ? fIsCommand : fNone)
 , m_base(&base)
 {
+	if (m_iMinArgs == 0 && !m_sMissingArgs.empty())
+	{
+		m_iMinArgs = 1;
+	}
 }
 
 //---------------------------------------------------------------------------
@@ -122,21 +126,6 @@ KOptions::OptionalParm& KOptions::OptionalParm::Range(int64_t iLowerBound, int64
 	return *this;
 
 } // Range
-
-//---------------------------------------------------------------------------
-KOptions::OptionalParm& KOptions::OptionalParm::MissingArgs(KStringViewZ sMissingArgs)
-//---------------------------------------------------------------------------
-{
-	m_sMissingArgs = sMissingArgs;
-
-	if (m_iMinArgs == 0 && !m_sMissingArgs.empty())
-	{
-		m_iMinArgs = 1;
-	}
-
-	return *this;
-
-} // MissingArgs
 
 //---------------------------------------------------------------------------
 KOptions::OptionalParm& KOptions::OptionalParm::Callback(CallbackN Func)
@@ -313,9 +302,8 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 		kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
 	});
 
-	Option("dgrep,dgrepv <regex>")
+	Option("dgrep,dgrepv <regex>", "grep expression")
 	.Help("search (not) for grep expression in debug output")
-	.MissingArgs("grep expression")
 	([this,sCliDebugTo](KStringViewZ sGrep)
 	{
 		bool bIsInverted = GetCurrentArg() == "dgrepv";
@@ -332,9 +320,8 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 		KLog::getInstance().KeepCLIMode (true);
 	});
 
-	Option("ini <filename>")
+	Option("ini <filename>", "ini file name")
 	.Help("load options from ini file")
-	.MissingArgs("ini file name")
 	([this](KStringViewZ sIni)
 	{
 		if (ParseFile(sIni, KOut))
@@ -438,6 +425,9 @@ void KOptions::BuildHelp(KOutStream& out) const
 	// format wrapped help texts so that they start earlier at the left if
 	// argument size is bigger than help size
 	bool bOverlapping = iMaxHelp < iMaxLen;
+	// kFormat crashes when we insert the spacing parm at the same time with
+	// the actual parms, therefore we prepare the format strings before inserting
+	// the parms
 	auto sFormat   = kFormat("   {{}}{{:<{}}} {{}}{} {{}}", iMaxLen, m_sSeparator);
 	auto sOverflow = kFormat("  {{:<{}}}  {{}}",
 							 bOverlapping
@@ -450,9 +440,14 @@ void KOptions::BuildHelp(KOutStream& out) const
 		{
 			if (Callback.IsCommand() == bCommands && Callback.m_sNames != "!")
 			{
-				auto sHelp    = Callback.m_sHelp;
 				bool bFirst   = true;
 				auto iHelp    = iMaxHelp;
+				auto sHelp    = Callback.m_sHelp;
+
+				if (sHelp.empty())
+				{
+					sHelp     = Callback.m_sMissingArgs;
+				}
 
 				while (bFirst || sHelp.size())
 				{
@@ -533,17 +528,17 @@ void KOptions::Help(KOutStream& out)
 } // Help
 
 //---------------------------------------------------------------------------
-KOptions::OptionalParm KOptions::Option(KStringView sOption)
+KOptions::OptionalParm KOptions::Option(KStringView sOption, KStringViewZ sArgDescription)
 //---------------------------------------------------------------------------
 {
-	return OptionalParm(*this, sOption, false);
+	return OptionalParm(*this, sOption, sArgDescription, false);
 }
 
 //---------------------------------------------------------------------------
-KOptions::OptionalParm KOptions::Command(KStringView sCommand)
+KOptions::OptionalParm KOptions::Command(KStringView sCommand, KStringViewZ sArgDescription)
 //---------------------------------------------------------------------------
 {
-	return OptionalParm(*this, sCommand, true);
+	return OptionalParm(*this, sCommand, sArgDescription, true);
 }
 
 //---------------------------------------------------------------------------

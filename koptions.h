@@ -182,8 +182,9 @@ private:
 
 		CallbackParam() = default;
 
-		CallbackParam(KStringView sNames, uint16_t fFlags)
+		CallbackParam(KStringView sNames, KStringViewZ sMissingArgs, uint16_t fFlags)
 		: m_sNames       ( sNames          )
+		, m_sMissingArgs ( sMissingArgs    )
 		, m_iFlags       ( fFlags          )
 		{
 		}
@@ -226,7 +227,7 @@ public:
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 	public:
-		OptionalParm(KOptions& base, KStringView sOption, bool bIsCommand);
+		OptionalParm(KOptions& base, KStringView sOption, KStringViewZ sArgDescription, bool bIsCommand);
 		~OptionalParm();
 
 		/// set the minimum count of expected arguments (default 0)
@@ -243,8 +244,6 @@ public:
 		OptionalParm& ToLower()                   { m_iFlags |= fToLower;   return *this; }
 		/// convert argument to upper case
 		OptionalParm& ToUpper()                   { m_iFlags |= fToUpper;   return *this; }
-		/// set the text to be shown for a missing argument
-		OptionalParm& MissingArgs(KStringViewZ sMissingArgs);
 		/// set the callback for the parameter as a function void(KOptions::ArgList&)
 		OptionalParm& Callback(CallbackN Func);
 		/// set the callback for the parameter as a function void(KStringViewZ)
@@ -263,9 +262,9 @@ public:
 	}; // OptionalParm
 
 	/// Start definition of a new option. Have it follow by any chained count of methods of OptionalParms, like Option("clear").Help("clear all data").Callback([&](){ RunClear() });
-	OptionalParm Option(KStringView sOption);
+	OptionalParm Option(KStringView sOption, KStringViewZ sArgDescription = KStringViewZ{});
 	/// Start definition of a new command. Have it follow by any chained count of methods of OptionalParms, like Command("clear").Help("clear all data").Callback([&](){ RunClear() });
-	OptionalParm Command(KStringView sCommand);
+	OptionalParm Command(KStringView sCommand, KStringViewZ sArgDescription = KStringViewZ{});
 
 	/// Register a CallbackParam (typically done by the destructor of CallbackParam..)
 	void Register(CallbackParam OptionOrCommand);

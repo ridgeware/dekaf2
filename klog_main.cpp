@@ -425,7 +425,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 			Actions.bCompleted = true;
 		});
 
-		Options.Option("log").MissingArgs("need pathname for output log")
+		Options.Option("log", "pathname for output log")
 		([&](KStringViewZ sPath)
 		{
 			if (!KLog::getInstance().SetDebugLog (sPath))
@@ -434,7 +434,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 			}
 		});
 
-		Options.Option("flag").MissingArgs("need pathname for debug flag")
+		Options.Option("flag", "pathname for debug flag")
 		([&](KStringViewZ sPath)
 		{
 			if (!KLog::getInstance().SetDebugFlag (sPath))
@@ -448,7 +448,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 			Actions.bFollowFlag = true;
 		});
 
-		Options.Command("listen").MissingArgs("need port number")
+		Options.Command("listen", "port number")
 		.Type(KOptions::Integer).Range(1, 65535)
 		([&](KStringViewZ sPort)
 		{
@@ -462,7 +462,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 
 	} // ! CGI environment
 
-	Options.Command("grep").MissingArgs("need search string")
+	Options.Command("grep", "search string")
 	([&](KStringViewZ sRegex)
 	{
 		Actions.sGrepString = sRegex;
@@ -515,7 +515,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 		out->Format ("{}\n", KLog::getInstance().GetDebugLog());
 	});
 
-	Options.Command("setlog").MissingArgs("missing argument")
+	Options.Command("setlog", "debug log name")
 	([&](KStringViewZ sPath)
 	{
 		if (KLog::getInstance().SetDebugLog (sPath))
@@ -529,19 +529,19 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 		}
 	});
 
-	Options.Option("set").Type(KOptions::Integer).MissingArgs("missing argument")
+	Options.Option("set").Type(KOptions::Unsigned)
 	([&](KStringViewZ sArg)
 	{
 		SetLevel(sArg.UInt16());
 	});
 
-	Options.Command("trace").MissingArgs("missing argument")
+	Options.Command("trace")
 	([&](KStringViewZ sTrace)
 	{
 		AddConfigKeyValue("trace", sTrace, true);
 	});
 
-	Options.Command("untrace").MissingArgs("missing argument - did you mean notrace?")
+	Options.Command("untrace", "did you mean notrace?")
 	([&](KStringViewZ sTrace)
 	{
 		DeleteConfigKeyValue("trace", sTrace, true);
@@ -553,19 +553,19 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 		out->WriteLine("all trace strings removed");
 	});
 
-	Options.Command("tracelevel").Type(KOptions::Integer).MissingArgs("missing argument")
+	Options.Command("tracelevel").Type(KOptions::Integer)
 	([&](KStringViewZ sArg)
 	{
 		SetBackTraceLevel(sArg.Int16());
 	});
 
-	Options.Command("tracejson").MissingArgs("missing argument")
+	Options.Command("tracejson")
 	([&](KStringViewZ sArg)
 	{
 		SetJSONTraceLevel(sArg);
 	});
 
-	Options.Command("show").Type(KOptions::Integer).MissingArgs("number of lines")
+	Options.Command("show", "number of lines").Type(KOptions::Unsigned)
 	([&](KStringViewZ sArg)
 	{
 		Actions.iDumpLines = sArg.UInt32();

@@ -51,9 +51,8 @@ TEST_CASE("KOptions")
 	});
 
 	Options
-		.Option("c,clear")
+		.Option("c,clear", "database name")
 		.Help("clear the entire database")
-		.MissingArgs("database")
 		.Type(KOptions::String)
 		.ToUpper()
 		.Range(1, 30)

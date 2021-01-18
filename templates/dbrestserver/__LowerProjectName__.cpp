@@ -102,7 +102,7 @@ __ProjectName__::__ProjectName__ ()
 
 	m_CLI.RegisterHelp(g_Help);
 
-	m_CLI.RegisterOption("cgi", 0, "", [&](KOptions::ArgList& sArgs)
+	m_CLI.Option("cgi").MinArgs(0)([&](KOptions::ArgList& sArgs)
 	{
 		if (m_ServerOptions.Type != KREST::UNDEFINED)
 		{
@@ -113,7 +113,7 @@ __ProjectName__::__ProjectName__ ()
 		SetupInputFile(sArgs);
 	});
 
-	m_CLI.RegisterOption("fcgi", 0, "", [&](KOptions::ArgList& sArgs)
+	m_CLI.Option("fcgi").MinArgs(0)([&](KOptions::ArgList& sArgs)
 	{
 		if (m_ServerOptions.Type != KREST::UNDEFINED)
 		{
@@ -124,7 +124,7 @@ __ProjectName__::__ProjectName__ ()
 		SetupInputFile(sArgs);
 	});
 
-	m_CLI.RegisterOption("lambda", 0, "", [&](KOptions::ArgList& sArgs)
+	m_CLI.Option("lambda").MinArgs(0)([&](KOptions::ArgList& sArgs)
 	{
 		if (m_ServerOptions.Type != KREST::UNDEFINED)
 		{
@@ -135,7 +135,9 @@ __ProjectName__::__ProjectName__ ()
 		SetupInputFile(sArgs);
 	});
 
-	m_CLI.RegisterOption("http,port", "port number", [&](KStringViewZ sPort)
+	m_CLI.Option("http,port", "port number")
+	.Type(KOptions::Unsigned).Range(1, 65535)
+	([&](KStringViewZ sPort)
 	{
 		if (m_ServerOptions.Type != KREST::UNDEFINED)
 		{
@@ -144,41 +146,31 @@ __ProjectName__::__ProjectName__ ()
 
 		m_ServerOptions.iPort = sPort.UInt16();
 
-		if (m_ServerOptions.iPort == 0)
-		{
-			throw KOptions::WrongParameterError("port number has to be between 1 and 65535");
-		}
-
 		m_ServerOptions.Type = KREST::HTTP;
 		KLog::getInstance().SetMode(KLog::SERVER);
 	});
 
-	m_CLI.RegisterOption("tls", [&]()
+	m_CLI.Option("tls")([&]()
 	{
 		m_ServerOptions.bUseTLS = true;
 	});
 
-	m_CLI.RegisterOption("cert", "need certificate filepath", [&](KStringViewZ Arg)
+	m_CLI.Option("cert", "need certificate filepath")
+	.Type(KOptions::File)
+	([&](KStringViewZ Arg)
 	{
 		m_ServerOptions.sCert = Arg;
-
-		if (!kFileExists(m_ServerOptions.sCert))
-		{
-			throw KOptions::WrongParameterError(kFormat("certificate file '{}' not found", m_ServerOptions.sCert));
-		}
 	});
 
-	m_CLI.RegisterOption("key", "need key filepath", [&](KStringViewZ Arg)
+	m_CLI.Option("key", "need key filepath")
+	.Type(KOptions::File)
+	([&](KStringViewZ Arg)
 	{
 		m_ServerOptions.sKey = Arg;
-
-		if (!kFileExists(m_ServerOptions.sKey))
-		{
-			throw KOptions::WrongParameterError(kFormat("key file '{}' not found", m_ServerOptions.sKey));
-		}
 	});
 
-	m_CLI.RegisterOption("socket", "unix socket file", [&](KStringViewZ sSocketFile)
+	m_CLI.Option("socket", "unix socket file")
+	([&](KStringViewZ sSocketFile)
 	{
 		if (m_ServerOptions.Type != KREST::UNDEFINED)
 		{
@@ -195,17 +187,15 @@ __ProjectName__::__ProjectName__ ()
 		KLog::getInstance().SetMode(KLog::SERVER);
 	});
 
-	m_CLI.RegisterOption("n", "need number of max connections", [&](KStringViewZ sArg)
+	m_CLI.Option("n", "need number of max connections")
+	.Type(KOptions::Unsigned).Range(1, 65535)
+	([&](KStringViewZ sArg)
 	{
 		m_ServerOptions.iMaxConnections = sArg.UInt16();
-
-		if (!m_ServerOptions.iMaxConnections)
-		{
-			throw KOptions::WrongParameterError("number of max connections has to be > 1");
-		}
 	});
 
-	m_CLI.RegisterOption("baseroute", "need base route prefix", [&](KStringViewZ sArg)
+	m_CLI.Option("baseroute", "need base route prefix")
+	([&](KStringViewZ sArg)
 	{
 		if (sArg.front() != '/')
 		{
@@ -215,22 +205,22 @@ __ProjectName__::__ProjectName__ ()
 		m_ServerOptions.sBaseRoute = sArg;
 	});
 
-	m_CLI.RegisterOption("ssolevel", "SSO level", [&](KStringViewZ sSSOLevel)
+	m_CLI.Option("ssolevel", "SSO level")
+	.Type(KOptions::Unsigned).Range(1, 3)
+	([&](KStringViewZ sSSOLevel)
 	{
 		m_ServerOptions.iSSOLevel = sSSOLevel.UInt16();
 	});
 
-	m_CLI.RegisterOption("dbc", "dbc file name", [&](KStringViewZ sFileName)
+	m_CLI.Option("dbc", "dbc file name")
+	.Type(KOptions::File)
+	([&](KStringViewZ sFileName)
 	{
-		if (!kFileExists (sFileName))
-		{
-			throw KOptions::WrongParameterError(kFormat("dbc file does not exist: {}", sFileName));
-		}
 		// set the static DBC file
 		DB::SetDBCFilename (sFileName);
 	});
 
-	m_CLI.RegisterOption("schema", [&]()
+	m_CLI.Option("schema")([&]()
 	{
 		auto pdb = DB::Get ();
 
@@ -243,20 +233,20 @@ __ProjectName__::__ProjectName__ ()
 		m_ServerOptions.bTerminate = true;
 	});
 
-	m_CLI.RegisterOption("schemaforce", [&]()
+	m_CLI.Option("schemaforce")([&]()
 	{
 		kDebug (1, "schema FORCE logic");
 		DB::Get ()->EnsureSchema (/*bForce=*/true);
 		m_ServerOptions.bTerminate = true;
 	});
 
-	m_CLI.RegisterOption("sim", "url", [&](KStringViewZ sArg)
+	m_CLI.Option("sim", "url")([&](KStringViewZ sArg)
 	{
 		m_ServerOptions.Simulate.API = sArg;
 		m_ServerOptions.Type = KREST::SIMULATE_HTTP;
 	});
 
-	m_CLI.RegisterOption("X,request", "request_method", [&](KStringViewZ sMethod)
+	m_CLI.Option("X,request", "request_method")([&](KStringViewZ sMethod)
 	{
 		m_ServerOptions.Simulate.Method = sMethod.ToUpperASCII();
 
@@ -266,7 +256,7 @@ __ProjectName__::__ProjectName__ ()
 		}
 	});
 
-	m_CLI.RegisterOption("D,data", "request_body", [&](KStringViewZ sArg)
+	m_CLI.Option("D,data", "request_body")([&](KStringViewZ sArg)
 	{
 		if (sArg.StartsWith("@"))
 		{
@@ -283,7 +273,7 @@ __ProjectName__::__ProjectName__ ()
 		}
 	});
 
-	m_CLI.RegisterOption("version,rev,revision", [&]()
+	m_CLI.Option("version,rev,revision")([&]()
 	{
 		KRESTServer HTTP;
 		ApiVersion (HTTP);

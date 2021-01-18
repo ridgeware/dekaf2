@@ -1013,6 +1013,14 @@ bool KSystemStats::AddCalculations ()
 	// add a few hand-picked calculations (if we have the stats that compose them):
 
 	kDebug (2, "computing a few parms ...");
+	if (m_Stats.Contains ("cpuinfo_num_cores"))
+	{
+		auto   nLoad    = m_Stats["load_average_1min"].sValue.Double();
+		auto   nCores   = m_Stats["cpuinfo_num_cores"].sValue.Double();
+		double nLPC     = (nCores > 0.0) ? (nLoad / nCores) : 0.0;
+
+		Add ("load_per_core", nLPC, StatType::FLOAT);
+	}
 
 	if (m_Stats.Contains ("meminfo_memfree_kb") && m_Stats.Contains ("meminfo_memtotal_kb"))
 	{

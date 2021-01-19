@@ -46,7 +46,57 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-void KHTMLContentBlocks::ContentBlock(KStringView sContentBlock)
+void KHTMLContentBlocks::BlockContent::FlushText()
+//-----------------------------------------------------------------------------
+{
+	if (!m_sContent.empty())
+	{
+		m_Content.push_back(std::make_unique<KHTMLText>(m_sContent));
+		m_sContent.clear();
+	}
+}
+
+//-----------------------------------------------------------------------------
+void KHTMLContentBlocks::BlockContent::Text(char ch)
+//-----------------------------------------------------------------------------
+{
+	if (!KASCII::kIsSpace(ch))
+	{
+		m_bHadTextContent = true;
+	}
+	m_sContent += ch;
+}
+
+//-----------------------------------------------------------------------------
+void KHTMLContentBlocks::BlockContent::InlineTag(const KHTMLTag& Tag)
+//-----------------------------------------------------------------------------
+{
+	FlushText();
+	m_Content.push_back(std::make_unique<KHTMLTag>(Tag));
+}
+
+//-----------------------------------------------------------------------------
+void KHTMLContentBlocks::BlockContent::clear()
+//-----------------------------------------------------------------------------
+{
+	m_Content.clear();
+	m_sContent.clear();
+	m_bHadTextContent = false;
+}
+
+//-----------------------------------------------------------------------------
+void KHTMLContentBlocks::BlockContent::Serialize(KString& sOut) const
+//-----------------------------------------------------------------------------
+{
+	for (const auto& it : m_Content)
+	{
+		it->Serialize(sOut);
+	}
+}
+
+
+//-----------------------------------------------------------------------------
+void KHTMLContentBlocks::ContentBlock(BlockContent& Block)
 //-----------------------------------------------------------------------------
 {
 	// base version does nothing
@@ -87,21 +137,22 @@ void KHTMLContentBlocks::Skeleton(const KHTMLObject& Object)
 void KHTMLContentBlocks::FlushContentBlock()
 //-----------------------------------------------------------------------------
 {
-	if (!m_sContentBlock.empty())
+	if (!m_BlockContent.empty())
 	{
-		if (m_bHadTextContent)
+		m_BlockContent.Completed();
+
+		if (m_BlockContent.HadTextContent())
 		{
-			ContentBlock(m_sContentBlock);
+			ContentBlock(m_BlockContent);
 		}
 		else
 		{
-			for (auto ch : m_sContentBlock)
-			{
-				Skeleton(ch);
-			}
+			KString sSerialized;
+			m_BlockContent.Serialize(sSerialized);
+			Skeleton(sSerialized);
 		}
-		m_sContentBlock.clear();
-		m_bHadTextContent = false;
+
+		m_BlockContent.clear();
 	}
 
 } // FlushContentBlock
@@ -115,6 +166,7 @@ void KHTMLContentBlocks::Object(KHTMLObject& Object)
 		case KHTMLObject::TAG:
 		{
 			auto& Tag = reinterpret_cast<KHTMLTag&>(Object);
+
 			if (!Tag.IsInline())
 			{
 				FlushContentBlock();
@@ -124,7 +176,7 @@ void KHTMLContentBlocks::Object(KHTMLObject& Object)
 			else
 			{
 				// push the inline tag into the content block
-				Tag.Serialize(m_sContentBlock);
+				m_BlockContent.InlineTag(Tag);
 			}
 			break;
 		}
@@ -132,7 +184,7 @@ void KHTMLContentBlocks::Object(KHTMLObject& Object)
 		case KHTMLObject::COMMENT:
 			// the effect of this check is that we throw away comments inside of
 			// content blocks with real content
-			if (!m_bHadTextContent)
+			if (!m_BlockContent.HadTextContent())
 			{
 				FlushContentBlock();
 				Skeleton(Object);
@@ -159,13 +211,7 @@ void KHTMLContentBlocks::Finished()
 void KHTMLContentBlocks::Content(char ch)
 //-----------------------------------------------------------------------------
 {
-	if (!KASCII::kIsSpace(ch))
-	{
-		m_bHadTextContent = true;
-	}
-	
-	// push the char into the content block
-	m_sContentBlock += ch;
+	m_BlockContent.Text(ch);
 
 } // Content
 
@@ -173,7 +219,7 @@ void KHTMLContentBlocks::Content(char ch)
 void KHTMLContentBlocks::Script(char ch)
 //-----------------------------------------------------------------------------
 {
-	m_sContentBlock += ch;
+	m_BlockContent.NoText(ch);
 
 } // Script
 

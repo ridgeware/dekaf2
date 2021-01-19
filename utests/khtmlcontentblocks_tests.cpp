@@ -47,15 +47,22 @@ TEST_CASE("KHTMLContentBlocks")
 
 		protected:
 
-			virtual void ContentBlock(KStringView sContentBlock) override
+			virtual void ContentBlock(BlockContent& Block) override
 			{
-				m_Blocks.push_back(sContentBlock);
-				m_OutStream.Write(sContentBlock);
+				KString sContent;
+				Block.Serialize(sContent);
+				m_OutStream.Write(sContent);
+				m_Blocks.push_back(std::move(sContent));
 			}
 
 			virtual void Skeleton(char ch) override
 			{
 				m_OutStream.Write(ch);
+			}
+
+			virtual void Skeleton(KStringView sSkeleton) override
+			{
+				m_OutStream.Write(sSkeleton);
 			}
 
 		private:

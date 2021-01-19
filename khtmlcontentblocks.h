@@ -1,5 +1,4 @@
 /*
- //-----------------------------------------------------------------------------//
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
@@ -55,11 +54,62 @@ class KHTMLContentBlocks : public KHTMLParser
 public:
 //------
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class BlockContent
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//------
+	public:
+	//------
+
+		using value_type = std::unique_ptr<KHTMLObject>;
+		using ContentVector = std::vector<value_type>;
+		using iterator = ContentVector::iterator;
+		using const_iterator = ContentVector::const_iterator;
+		using size_type = ContentVector::size_type;
+
+		// data access
+
+		void Serialize(KString& sOut) const;
+		bool HadTextContent() const { return m_bHadTextContent; }
+		const_iterator begin() const { return m_Content.begin(); }
+		const_iterator end() const { return m_Content.end(); }
+		iterator begin() { return m_Content.begin(); }
+		iterator end() { return m_Content.end(); }
+		const KHTMLObject& operator[](size_type index) const { return *m_Content[index]; }
+		KHTMLObject& operator[](size_type index) { return *m_Content[index]; }
+		bool empty() const { return m_Content.empty() && m_sContent.empty(); }
+		size_type size() const { return m_Content.size(); }
+
+		// construction
+		void Text(char ch);
+		void NoText(char ch) { m_sContent += ch; }
+		void InlineTag(const KHTMLTag& Tag);
+		void Completed() { FlushText(); }
+		void clear();
+
+	//------
+	protected:
+	//------
+
+		ContentVector m_Content;
+
+	//------
+	private:
+	//------
+
+		void FlushText();
+		KString m_sContent;
+		bool m_bHadTextContent { false };
+
+	}; // BlockContent
+
 //------
 protected:
 //------
 
-	virtual void ContentBlock(KStringView sContentBlock);
+	virtual void ContentBlock(BlockContent& Block);
 	virtual void Skeleton(char ch);
 	virtual void Skeleton(KStringView sSkeleton);
 	virtual void Skeleton(const KHTMLObject& Object);
@@ -76,8 +126,7 @@ protected:
 private:
 //------
 
-	KString m_sContentBlock;
-	bool m_bHadTextContent { false };
+	BlockContent m_BlockContent;
 
 }; // KHTMLContentBlocks
 

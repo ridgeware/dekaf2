@@ -4,12 +4,13 @@
 #include <dekaf2/kparallel.h>
 #include <dekaf2/ktimer.h>
 #include <dekaf2/kwriter.h>
+#include <dekaf2/kprof.h>
 #include <re2/re2.h>
 #include <vector>
 
 using namespace dekaf2;
 
-static constexpr KStringView sString { "736f6d6520626f72696e6720616e64206c656e6774687920737472696e6720776974686f757420616e79207265616c206d65616e696e67" };
+static constexpr KStringView sString { "736f6d6520626f72696e6720616e64206c656e6774687920737472696e6720776974686f757420616e79207265616c206d656137536e69679e67" };
 
 TEST_CASE("KRegex")
 {
@@ -173,4 +174,46 @@ TEST_CASE("KRegex")
 //		KOut.FormatLine("elapsed 3: {} ns", Watch3.elapsed().count());
 //		KOut.FormatLine("elapsed 4: {} ns", Watch4.elapsed().count());
 	}
+/*
+	SECTION("Performance2")
+	{
+		KStopWatch Watch1;
+		for (int i = 0; i < 10000; ++i)
+		{
+			auto iPos = sString.Contains("6137536e69679e67");
+		}
+		Watch1.halt();
+
+		KRegex regex1("6137536e69679e67");
+		KStopWatch Watch2;
+		for (int i = 0; i < 10000; ++i)
+		{
+			regex1.Match(sString);
+//			auto sMatched = sString.MatchRegex("6137536e69679e67");
+		}
+		Watch2.halt();
+
+		KStopWatch Watch3;
+		for (int i = 0; i < 10000; ++i)
+		{
+			auto result = sString.Contains("6d6UU561375") | sString.Contains("36e69679e67");
+		}
+		Watch3.halt();
+
+		KRegex regex2("(6d6UU561375|36e69679e67)");
+		KStopWatch Watch4;
+		for (int i = 0; i < 10000; ++i)
+		{
+			regex2.Match(sString);
+//			auto sMatched = sString.MatchRegex("(6d6UU561375|36e69679e67)");
+		}
+		Watch4.halt();
+
+		KOut.FormatLine("string length: {}", sString.size());
+		KOut.FormatLine("elapsed 1: {} ns", Watch1.elapsed().count() / 10000);
+		KOut.FormatLine("elapsed 2: {} ns", Watch2.elapsed().count() / 10000);
+		KOut.FormatLine("elapsed 3: {} ns", Watch3.elapsed().count() / 10000);
+		KOut.FormatLine("elapsed 4: {} ns", Watch4.elapsed().count() / 10000);
+	}
+*/
 }

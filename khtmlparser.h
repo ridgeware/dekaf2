@@ -62,7 +62,7 @@ public:
 	enum ObjectType
 	{
 		NONE,
-		CONTENT,
+		TEXT,
 		TAG,
 		COMMENT,
 		DOCUMENTTYPE,
@@ -98,6 +98,34 @@ public:
 	virtual ObjectType Type() const;
 
 }; // KHTMLObject
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a text run
+class KHTMLText : public KHTMLObject
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	KHTMLText() = default;
+	KHTMLText(KString _sText)
+	: sText(std::move(_sText))
+	{
+	}
+
+	virtual bool Parse(KStringView sInput) override;
+	virtual void Serialize(KOutStream& OutStream) const override;
+	virtual void Serialize(KString& sOut) const override;
+
+	virtual void clear() override;
+	virtual bool empty() const override;
+	virtual ObjectType Type() const override;
+
+	KString sText;
+
+}; // KHTMLText
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// an object with text and a lead-in and lead-out string

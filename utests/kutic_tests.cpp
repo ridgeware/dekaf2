@@ -25,23 +25,6 @@ TEST_CASE("KUTIC")
 	</html>
 	)");
 
-	KStringView sExpected = (R"(
-	<?xml-stylesheet type="text/xsl" href="style.xsl"?>
-	<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
-	"http://www.w3.org/TR/html4/strict.dtd">
-	<html>
-	<head><!-- with a comment here! >> -> until here --><!--- just one more --->
-	<title>A study of population dynamics</title>
-	</head>
-	<body>
-	<!----- another comment here until here ---> <!--really?>-->
-	<script> this is <a <new <a href="www.w3c.org">scripting</a> language> </script>
-	<img checked href="http://www.xyz.com/my/image.png" title=Ñicé />
-	<p class='fancy' id=self style="curly"></p>
-	</body>
-	</html>
-	)");
-
 	SECTION("basic parsing")
 	{
 		KHTMLUTICParser HTML;
@@ -63,18 +46,27 @@ TEST_CASE("KUTIC")
 
 		protected:
 
-			virtual void ContentBlock(KStringView sContentBlock) override
+			virtual void ContentBlock(KHTMLContentBlocks::BlockContent& Block) override
 			{
-				if (MatchesUTICS())
+				KString sContent;
+				Block.Serialize(sContent);
+
+				m_OutStream.Write(sContent);
+
+				if (MatchesUTICs())
 				{
-					m_Blocks.push_back(sContentBlock);
-					m_OutStream.Write(sContentBlock);
+					m_Blocks.push_back(std::move(sContent));
 				}
 			}
 
 			virtual void Skeleton(char ch) override
 			{
 				m_OutStream.Write(ch);
+			}
+
+			virtual void Skeleton(KStringView sSkeleton) override
+			{
+				m_OutStream.Write(sSkeleton);
 			}
 
 		private:
@@ -86,10 +78,10 @@ TEST_CASE("KUTIC")
 		KString sOutput;
 		KOutStringStream oss(sOutput);
 		KHTMLSerializer HTMLSerializer(oss);
-		HTMLSerializer.AddUTIC({ false, "", "/body/p/", "/self/", "fancy/" });
+		HTMLSerializer.AddUTIC({ false, "", "/body/p/", "/self/", "/fancy/" });
 		HTMLSerializer.Parse(sHTML);
 
-		CHECK ( sExpected == sOutput );
+		CHECK ( sHTML == sOutput );
 		CHECK ( HTMLSerializer.m_Blocks.size() == 1 );
 		if (HTMLSerializer.m_Blocks.size() == 1)
 		{

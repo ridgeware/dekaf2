@@ -1,9 +1,8 @@
 /*
- //-----------------------------------------------------------------------------//
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
- // Copyright (c) 2018, Ridgeware, Inc.
+ // Copyright (c) 2021, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -41,11 +40,12 @@
  */
 
 #include "kutic.h"
+#include "kprops.h"
 
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-void KUTICElement::Add(KStringView sElement)
+void KParsedUTICElement::Add(KStringView sElement)
 //-----------------------------------------------------------------------------
 {
 	m_sList += sElement;
@@ -54,7 +54,7 @@ void KUTICElement::Add(KStringView sElement)
 } // Add
 
 //-----------------------------------------------------------------------------
-bool KUTICElement::Reduce()
+bool KParsedUTICElement::Reduce()
 //-----------------------------------------------------------------------------
 {
 	// we always have at least one char in the list
@@ -75,7 +75,7 @@ bool KUTICElement::Reduce()
 } // Reduce
 
 //-----------------------------------------------------------------------------
-void KUTIC::Add(KStringView sTag, KStringView sID, KStringView sClass)
+void KParsedUTIC::Add(KStringView sTag, KStringView sID, KStringView sClass)
 //-----------------------------------------------------------------------------
 {
 	m_TIC[Tag].Add(sTag);
@@ -87,7 +87,7 @@ void KUTIC::Add(KStringView sTag, KStringView sID, KStringView sClass)
 } // Add
 
 //-----------------------------------------------------------------------------
-bool KUTIC::Reduce()
+bool KParsedUTIC::Reduce()
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(!m_iDepth))
@@ -104,7 +104,7 @@ bool KUTIC::Reduce()
 } // Reduce
 
 //-----------------------------------------------------------------------------
-void KUTIC::clear()
+void KParsedUTIC::clear()
 //-----------------------------------------------------------------------------
 {
 	m_TIC[Tag].clear();
@@ -114,12 +114,106 @@ void KUTIC::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-bool KUTIC::Matches(const KUTICSearcher& Searcher) const
+bool KParsedUTIC::Matches(const KUTIC& Searcher) const
 //-----------------------------------------------------------------------------
 {
 	return *this == Searcher;
 
 } // Matches
+
+//-----------------------------------------------------------------------------
+bool KUTIC::AppendFromFile(std::shared_ptr<std::vector<KUTIC>>& UTICs, KStringViewZ sFileName)
+//-----------------------------------------------------------------------------
+{
+	if (!UTICs)
+	{
+		auto UTICs = std::make_shared<std::vector<KUTIC>>();
+	}
+
+	KInFile File(sFileName);
+
+	if (File.is_open())
+	{
+		for (KStringView sLine : File)
+		{
+			sLine.TrimLeft();
+
+			if (!sLine.empty())
+			{
+				if (sLine.front() != '#')
+				{
+					auto UTIC = sLine.Split();
+
+					if (UTIC.size() == 4)
+					{
+						UTICs->push_back({ true, UTIC[0], UTIC[1], UTIC[2], UTIC[3] });
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		kDebug(1, "cannot open: {}", sFileName);
+		return false;
+	}
+
+	return true;
+
+} // LoadFromFile
+
+//-----------------------------------------------------------------------------
+bool KUTIC::AppendFromJSON(std::shared_ptr<std::vector<KUTIC>>& UTICs, bool bInclude, const KJSON& json)
+//-----------------------------------------------------------------------------
+{
+	if (!UTICs)
+	{
+		auto UTICs = std::make_shared<std::vector<KUTIC>>();
+	}
+
+	if (json.is_array())
+	{
+		for (auto& it : json)
+		{
+			UTICs->push_back(
+			{
+				bInclude,
+				kjson::GetStringRef(it, "U"),
+				kjson::GetStringRef(it, "T"),
+				kjson::GetStringRef(it, "I"),
+				kjson::GetStringRef(it, "C"),
+			});
+		}
+	}
+	else
+	{
+		kDebug(1, "json is not an array of objects");
+		return false;
+	}
+
+	return true;
+
+} // LoadFromJSON
+
+//-----------------------------------------------------------------------------
+std::shared_ptr<std::vector<KUTIC>> KUTIC::LoadFromFile(KStringViewZ sFileName)
+//-----------------------------------------------------------------------------
+{
+	auto UTICs = std::make_shared<std::vector<KUTIC>>();
+	AppendFromFile(UTICs, sFileName);
+	return UTICs;
+
+} // LoadFromFile
+
+//-----------------------------------------------------------------------------
+std::shared_ptr<std::vector<KUTIC>> KUTIC::LoadFromJSON(bool bInclude, const KJSON& json)
+//-----------------------------------------------------------------------------
+{
+	auto UTICs = std::make_shared<std::vector<KUTIC>>();
+	AppendFromJSON(UTICs, true, json);
+	return UTICs;
+
+} // LoadFromJSON
 
 
 //-----------------------------------------------------------------------------
@@ -158,7 +252,7 @@ void KHTMLUTICParser::Object(KHTMLObject& Object)
 } // Object
 
 //-----------------------------------------------------------------------------
-bool KHTMLUTICParser::MatchesUTICS(const std::vector<KUTICSearcher>& Searchers, bool bDefaultMatches) const
+bool KHTMLUTICParser::MatchesUTICs(const std::vector<KUTIC>& Searchers, bool bDefaultMatches) const
 //-----------------------------------------------------------------------------
 {
 	for (const auto& SearchedUTIC : Searchers)
@@ -174,14 +268,30 @@ bool KHTMLUTICParser::MatchesUTICS(const std::vector<KUTICSearcher>& Searchers, 
 } // MatchesUTICS
 
 //-----------------------------------------------------------------------------
-bool KHTMLUTICParser::MatchesUTICS(bool bDefaultMatches) const
+bool KHTMLUTICParser::MatchesUTICs(bool bDefaultMatches) const
 //-----------------------------------------------------------------------------
 {
-	return MatchesUTICS(m_UTICs, bDefaultMatches);
+	if (!m_SharedUTICs)
+	{
+		return bDefaultMatches;
+	}
+	return MatchesUTICs(*m_SharedUTICs, bDefaultMatches);
 
 } // MatchesUTICS
 
-bool operator==(const KUTIC& left, const KUTICSearcher& right)
+//-----------------------------------------------------------------------------
+void KHTMLUTICParser::AddUTIC(KUTIC Searcher)
+//-----------------------------------------------------------------------------
+{
+	if (!m_SharedUTICs)
+	{
+		m_SharedUTICs = std::make_shared<std::vector<KUTIC>>();
+	}
+	m_SharedUTICs->push_back(std::move(Searcher));
+
+} // AddUTIC
+
+bool operator==(const KParsedUTIC& left, const KUTIC& right)
 {
 	return left.URL().Contains(right.URL())   &&
 	       left.Tags()      == right.Tags()   &&
@@ -189,17 +299,17 @@ bool operator==(const KUTIC& left, const KUTICSearcher& right)
 	       left.Classes()   == right.Classes();
 }
 
-bool operator==(const KUTICSearcher& left, const KUTIC& right)
+bool operator==(const KUTIC& left, const KParsedUTIC& right)
 {
 	return operator==(right, left);
 }
 
-bool operator!=(const KUTIC& left, const KUTICSearcher& right)
+bool operator!=(const KParsedUTIC& left, const KUTIC& right)
 {
 	return !operator==(left, right);
 }
 
-bool operator!=(const KUTICSearcher& left, const KUTIC& right)
+bool operator!=(const KUTIC& left, const KParsedUTIC& right)
 {
 	return !operator==(left, right);
 }

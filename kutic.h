@@ -1,9 +1,8 @@
 /*
- //-----------------------------------------------------------------------------//
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
- // Copyright (c) 2018, Ridgeware, Inc.
+ // Copyright (c) 2021, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -43,15 +42,16 @@
 #pragma once
 
 #include "khtmlcontentblocks.h"
+#include "kjson.h"
 #include <array>
 
 namespace dekaf2 {
 
-class KUTICSearchElement;
+class KUTICElement;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Class that holds a single UTIC element
-class KUTICElement
+class KParsedUTICElement
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -59,7 +59,7 @@ class KUTICElement
 public:
 //------
 
-	KUTICElement() = default;
+	KParsedUTICElement() = default;
 
 	/// Add stack value for each traversed HTML node
 	void Add(KStringView sElement);
@@ -71,37 +71,37 @@ public:
 	KStringView Element() const { return m_sList; }
 	/// Returns true if the search matches the stack.
 	/// Empty search always matches.
-	bool Matches(const KUTICSearchElement& Element) const;
+	bool Matches(const KUTICElement& Element) const;
 
 //------
 protected:
 //------
 
 	/// protected constructor to allow a child class to explicitly set the stack
-	KUTICElement(KStringView sList)
+	KParsedUTICElement(KStringView sList)
 	: m_sList(sList)
 	{
 	}
 
 	KString m_sList { "/" };
 
-}; // KUTICElement
+}; // KParsedUTICElement
 
 inline
-bool operator==(const KUTICElement& left, const KUTICElement& right)
+bool operator==(const KParsedUTICElement& left, const KParsedUTICElement& right)
 {
 	return left.Element() == right.Element();
 }
 
 inline
-bool operator!=(const KUTICElement& left, const KUTICElement& right)
+bool operator!=(const KParsedUTICElement& left, const KParsedUTICElement& right)
 {
 	return !operator==(left, right);
 }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// single search element, derived from KUTICElement, but without stack logic
-class KUTICSearchElement : private KUTICElement
+/// single search element, derived from KParsedUTICElement, but without stack logic
+class KUTICElement : private KParsedUTICElement
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -110,22 +110,22 @@ public:
 //------
 
 	/// Construct and set the search element
-	KUTICSearchElement(KStringView sSearch = KStringView{})
-	: KUTICElement(sSearch)
+	KUTICElement(KStringView sSearch = KStringView{})
+	: KParsedUTICElement(sSearch)
 	{
 	}
 
-	KUTICSearchElement(const char* sSearch)
-	: KUTICSearchElement(KStringView(sSearch))
+	KUTICElement(const char* sSearch)
+	: KUTICElement(KStringView(sSearch))
 	{
 	}
 
-	KUTICSearchElement(const KString& sSearch)
-	: KUTICSearchElement(KStringView(sSearch))
+	KUTICElement(const KString& sSearch)
+	: KUTICElement(KStringView(sSearch))
 	{
 	}
 
-	using base = KUTICElement;
+	using base = KParsedUTICElement;
 	using base::clear;
 	using base::Element;
 
@@ -133,41 +133,41 @@ public:
 private:
 //------
 
-}; // KUTICSearchElement
+}; // KUTICElement
 
 inline
-bool KUTICElement::Matches(const KUTICSearchElement& Element) const
+bool KParsedUTICElement::Matches(const KUTICElement& Element) const
 {
 	return m_sList.Contains(Element.Element());
 }
 
 inline
-bool operator==(const KUTICElement& left, const KUTICSearchElement& right)
+bool operator==(const KParsedUTICElement& left, const KUTICElement& right)
 {
 	return left.Matches(right);
 }
 
 inline
-bool operator==(const KUTICSearchElement& left, const KUTICElement& right)
+bool operator==(const KUTICElement& left, const KParsedUTICElement& right)
 {
 	return operator==(right, left);
 }
 
 inline
-bool operator!=(const KUTICElement& left, const KUTICSearchElement& right)
+bool operator!=(const KParsedUTICElement& left, const KUTICElement& right)
 {
 	return !operator==(left, right);
 }
 
 inline
-bool operator!=(const KUTICSearchElement& left, const KUTICElement& right)
+bool operator!=(const KUTICElement& left, const KParsedUTICElement& right)
 {
 	return !operator==(left, right);
 }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// class that holds URL, tag, ID, and class to compare with in KUTIC
-class KUTICSearcher
+/// class that holds URL, tag, ID, and class to compare with in KParsedUTIC
+class KUTIC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -175,14 +175,14 @@ class KUTICSearcher
 public:
 //------
 
-	KUTICSearcher() = default;
+	KUTIC() = default;
 
-	/// Construct a KUTICSearcher object that can be matched against any KUTIC
-	KUTICSearcher(bool bPositiveMatch,
-				  KStringView sURL,
-				  KUTICSearchElement Tags,
-				  KUTICSearchElement IDs,
-				  KUTICSearchElement Classes)
+	/// Construct a KUTIC object that can be matched against any KParsedUTIC
+	KUTIC(bool bPositiveMatch,
+		  KStringView sURL,
+		  KUTICElement Tags,
+		  KUTICElement IDs,
+		  KUTICElement Classes)
 	: m_sURL(sURL)
 	, m_Tags(std::move(Tags))
 	, m_IDs(std::move(IDs))
@@ -192,27 +192,37 @@ public:
 	}
 
 	KStringView URL() const { return m_sURL; }
-	const KUTICSearchElement& Tags()    const { return m_Tags;    }
-	const KUTICSearchElement& IDs()     const { return m_IDs;     }
-	const KUTICSearchElement& Classes() const { return m_Classes; }
+	const KUTICElement& Tags()    const { return m_Tags;    }
+	const KUTICElement& IDs()     const { return m_IDs;     }
+	const KUTICElement& Classes() const { return m_Classes; }
 	bool PositiveMatch() const { return m_bPositiveMatch; }
+
+	/// load UTICs from a file, comma separated U, T, I, C line by line, append to existing list
+	static bool AppendFromFile(std::shared_ptr<std::vector<KUTIC>>& UTICs, KStringViewZ sFileName);
+	/// give a json array with objects containing U T I C properties, append to existing list
+	static bool AppendFromJSON(std::shared_ptr<std::vector<KUTIC>>& UTICs, bool bInclude, const KJSON& json);
+
+	/// load UTICs from a file, comma separated U, T, I, C line by line
+	static std::shared_ptr<std::vector<KUTIC>> LoadFromFile(KStringViewZ sFileName);
+	/// give a json array with objects containing U T I C properties
+	static std::shared_ptr<std::vector<KUTIC>> LoadFromJSON(bool bInclude, const KJSON& json);
 
 //------
 private:
 //------
 
-	KString            m_sURL;
-	KUTICSearchElement m_Tags;
-	KUTICSearchElement m_IDs;
-	KUTICSearchElement m_Classes;
-	bool               m_bPositiveMatch;
+	KString      m_sURL;
+	KUTICElement m_Tags;
+	KUTICElement m_IDs;
+	KUTICElement m_Classes;
+	bool         m_bPositiveMatch;
 
-}; // KUTICSearcher
+}; // KUTIC
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KUTIC class which holds URL, tag stack, ID stack and class stack
+/// KParsedUTIC class which holds URL, tag stack, ID stack and class stack
 /// for each HTML content block while parsing
-class KUTIC
+class KParsedUTIC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -227,8 +237,8 @@ public:
 		Class = 2
 	};
 
-	KUTIC() = default;
-	KUTIC(KStringView sURL)
+	KParsedUTIC() = default;
+	KParsedUTIC(KStringView sURL)
 	: m_sURL(sURL)
 	{
 	}
@@ -245,30 +255,30 @@ public:
 	///  Returns the URL as flat string
 	KStringView URL()             const { return m_sURL;       }
 	/// Returns the tag stack as flat string
-	const KUTICElement& Tags()    const { return m_TIC[Tag];   }
+	const KParsedUTICElement& Tags()    const { return m_TIC[Tag];   }
 	/// Returns the ID stack as flat string
-	const KUTICElement& IDs()     const { return m_TIC[ID];    }
+	const KParsedUTICElement& IDs()     const { return m_TIC[ID];    }
 	/// Returns the Class stack as flat string
-	const KUTICElement& Classes() const { return m_TIC[Class]; }
+	const KParsedUTICElement& Classes() const { return m_TIC[Class]; }
 
 	/// Returns true if all three search strings match the HTML node.
 	/// Empty search always matches.
-	bool Matches(const KUTICSearcher& Searcher) const;
+	bool Matches(const KUTIC& Searcher) const;
 
 //------
 private:
 //------
 
-	std::array<KUTICElement, 3> m_TIC;
+	std::array<KParsedUTICElement, 3> m_TIC;
 	std::size_t m_iDepth { 0 };
 	KString m_sURL;
 
-}; // KUTIC
+}; // KParsedUTIC
 
-bool operator==(const KUTIC& left, const KUTICSearcher& right);
-bool operator==(const KUTICSearcher& left, const KUTIC& right);
-bool operator!=(const KUTIC& left, const KUTICSearcher& right);
-bool operator!=(const KUTICSearcher& left, const KUTIC& right);
+bool operator==(const KParsedUTIC& left, const KUTIC& right);
+bool operator==(const KUTIC& left, const KParsedUTIC& right);
+bool operator!=(const KParsedUTIC& left, const KUTIC& right);
+bool operator!=(const KUTIC& left, const KParsedUTIC& right);
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A parser that builds the UTIC schema while parsing HTML for content blocks
@@ -282,20 +292,21 @@ public:
 //------
 
 	/// Add UTIC search definitions that will be checked when calling MatchesUTICS().
-	/// @param Searcher a KUTICSearcher object, which is basically constructed from four strings for U T I C stacks
-	void AddUTIC(KUTICSearcher Searcher)
-	{
-		m_UTICs.push_back(std::move(Searcher));
-	}
+	/// @param Searcher a KUTIC object, which is basically constructed from four strings for U T I C stacks
+	void AddUTIC(KUTIC Searcher);
+
+	/// Set a set of UTIC search definitions that will be checked when calling MatchesUTICS().
+	/// Overrides any UTIC added with AddUTIC()
+	void SetUTICs(std::shared_ptr<std::vector<KUTIC>>& SearchSet) { m_SharedUTICs = SearchSet; }
 
 	/// Check all stored UTIC definitions for a match
 	/// @param bDefaultMatches determines the result for a stack that did not match any definition
-	bool MatchesUTICS(bool bDefaultMatches = true) const;
+	bool MatchesUTICs(bool bDefaultMatches = true) const;
 
 	/// Check all UTIC definitions in Searchers for a match
-	/// @param Searchers vector of KUTICSearcher objects with the search definitions
+	/// @param Searchers vector of KUTIC objects with the search definitions
 	/// @param bDefaultMatches determines the result for a stack that did not match any definition
-	bool MatchesUTICS(const std::vector<KUTICSearcher>& Searchers, bool bDefaultMatches = true) const;
+	bool MatchesUTICs(const std::vector<KUTIC>& Searchers, bool bDefaultMatches = true) const;
 
 //------
 protected:
@@ -308,10 +319,10 @@ private:
 //------
 
 	// the UTIC search masks to either include or exclude
-	std::vector<KUTICSearcher> m_UTICs;
+	std::shared_ptr<std::vector<KUTIC>> m_SharedUTICs;
 
 	// the UTIC stacks as we parse through the HTML
-	KUTIC m_UTIC;
+	KParsedUTIC m_UTIC;
 
 }; // KHTMLUTICParser
 

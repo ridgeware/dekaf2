@@ -1002,6 +1002,7 @@ void KRESTServer::SetStatus (int iCode)
 		case KHTTPError::H2xx_CREATED:      Response.SetStatus (201, "CREATED");                break;
 		case KHTTPError::H2xx_UPDATED:      Response.SetStatus (201, "UPDATED");                break;
 		case KHTTPError::H2xx_DELETED:      Response.SetStatus (201, "DELETED");                break;
+		case KHTTPError::H2xx_NO_CONTENT:   Response.SetStatus (204, "NO CONTENT");             break;
 		case KHTTPError::H2xx_ALREADY:      Response.SetStatus (208, "ALREADY DONE");           break;
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -340,6 +340,7 @@ const std::string& KRegex::ErrorArg() const
 KRegex::KRegex(KStringView expression)
 //-----------------------------------------------------------------------------
 : m_Regex(new detail::kregex::regex_t(s_Cache.Get(expression)), kRegexDeleter)
+, m_bIsEmpty(expression.empty())
 {
 	if (!Good())
 	{
@@ -371,11 +372,18 @@ KRegex::Groups KRegex::MatchGroups(KStringView sStr, size_type pos) const
 
 	if DEKAF2_LIKELY((Good()))
 	{
-		reGroups resGroups;
-		resGroups.resize(static_cast<size_t>(rget(m_Regex)->NumberOfCapturingGroups()+1));
-		if (rget(m_Regex)->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, &resGroups[0], static_cast<int>(resGroups.size())))
+		if (DEKAF2_UNLIKELY(m_bIsEmpty))
 		{
-			re2groups(resGroups, vGroups);
+			vGroups.push_back(KStringView(sStr.data(), 0));
+		}
+		else
+		{
+			reGroups resGroups;
+			resGroups.resize(static_cast<size_t>(rget(m_Regex)->NumberOfCapturingGroups()+1));
+			if (rget(m_Regex)->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, &resGroups[0], static_cast<int>(resGroups.size())))
+			{
+				re2groups(resGroups, vGroups);
+			}
 		}
 	}
 	else
@@ -394,10 +402,17 @@ KStringView KRegex::Match(KStringView sStr, size_type pos) const
 
 	if (DEKAF2_LIKELY(Good()))
 	{
-		reGroup resGroup;
-		if (rget(m_Regex)->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, &resGroup, 1))
+		if (DEKAF2_UNLIKELY(m_bIsEmpty))
 		{
-			sGroup.assign(resGroup.data(), resGroup.size());
+			sGroup = KStringView(sStr.data(), 0);
+		}
+		else
+		{
+			reGroup resGroup;
+			if (rget(m_Regex)->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, &resGroup, 1))
+			{
+				sGroup.assign(resGroup.data(), resGroup.size());
+			}
 		}
 	}
 	else
@@ -414,7 +429,7 @@ bool KRegex::Matches(KStringView sStr, size_type pos) const
 {
 	if (DEKAF2_LIKELY(Good()))
 	{
-		if (rget(m_Regex)->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, nullptr, 0))
+		if (m_bIsEmpty || rget(m_Regex)->Match(re2::StringPiece(sStr.data(), sStr.size()), pos, sStr.size(), re2::RE2::UNANCHORED, nullptr, 0))
 		{
 			return true;
 		}

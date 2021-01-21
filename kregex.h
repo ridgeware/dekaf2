@@ -202,6 +202,7 @@ private:
 //----------
 
 	KUniqueVoidPtr m_Regex;
+	bool m_bIsEmpty;
 
 }; // KRegex
 

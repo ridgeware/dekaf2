@@ -43,6 +43,7 @@
 
 #include "khtmlcontentblocks.h"
 #include "kjson.h"
+#include "kregex.h"
 #include <array>
 
 namespace dekaf2 {
@@ -100,8 +101,8 @@ bool operator!=(const KParsedUTICElement& left, const KParsedUTICElement& right)
 }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// single search element, derived from KParsedUTICElement, but without stack logic
-class KUTICElement : private KParsedUTICElement
+/// single search element
+class KUTICElement
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -111,7 +112,7 @@ public:
 
 	/// Construct and set the search element
 	KUTICElement(KStringView sSearch = KStringView{})
-	: KParsedUTICElement(sSearch)
+	: m_Regex(sSearch)
 	{
 	}
 
@@ -125,30 +126,29 @@ public:
 	{
 	}
 
-	using base = KParsedUTICElement;
-	using base::clear;
-	using base::Element;
+	/// Returns true if the search matches the stack.
+	/// Empty search always matches.
+	bool Matches(const KParsedUTICElement& Element) const
+	{
+		return m_Regex.Matches(Element.Element());
+	}
 
 //------
 private:
 //------
 
+	KRegex m_Regex;
+
 }; // KUTICElement
 
 inline
-bool KParsedUTICElement::Matches(const KUTICElement& Element) const
-{
-	return m_sList.Contains(Element.Element());
-}
-
-inline
-bool operator==(const KParsedUTICElement& left, const KUTICElement& right)
+bool operator==(const KUTICElement& left, const KParsedUTICElement& right)
 {
 	return left.Matches(right);
 }
 
 inline
-bool operator==(const KUTICElement& left, const KParsedUTICElement& right)
+bool operator==(const KParsedUTICElement& left, const KUTICElement& right)
 {
 	return operator==(right, left);
 }

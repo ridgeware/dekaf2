@@ -145,7 +145,7 @@ void KSignals::WaitForSignals()
 		if (sig > 0)
 		{
 			// we received a signal
-			kDebug(2, "received signal {}", kTranslateSignal(sig));
+			kDebug(2, "received signal {} ({})", kTranslateSignal(sig), sig);
 
 			// check if we have a function to call for
 			LookupFunc(sig);

@@ -244,7 +244,8 @@ bool KChildProcess::Fork(int(*func)(int, char**), int argc, char* argv[])
 
 	pid_t pid;
 
-	if (Dekaf::IsStarted())
+	// temporarily disable forking through Dekaf::Fork()
+	if (false && Dekaf::IsStarted())
 	{
 		// fork through Dekaf, as we may need to stop and restart timer and signal threads
 		pid = Dekaf::getInstance().Fork();

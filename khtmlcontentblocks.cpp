@@ -94,6 +94,14 @@ void KHTMLContentBlocks::BlockContent::Serialize(KString& sOut) const
 	}
 }
 
+//-----------------------------------------------------------------------------
+KString KHTMLContentBlocks::BlockContent::Serialize() const
+//-----------------------------------------------------------------------------
+{
+	KString sOut;
+	Serialize(sOut);
+	return sOut;
+}
 
 //-----------------------------------------------------------------------------
 void KHTMLContentBlocks::ContentBlock(BlockContent& Block)

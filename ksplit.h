@@ -73,7 +73,7 @@ namespace dekaf2
 ///
 /// @code
 /// std::vector<KStringView> Words;
-/// auto iWordCount = kSplit(Words, "This sentence has five words");
+/// auto iWordCount = kSplit(Words, "This sentence has five words", " ");
 /// @endcode
 template<typename Container,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == false
@@ -241,7 +241,7 @@ std::size_t kSplit(
 /// is not considered part of the token. Defaults to false.
 ///
 /// @code
-/// auto Words = kSplits<std::vector<KStringView>>("This sentence has five words");
+/// auto Words = kSplits("This sentence has five words", " ");
 /// @endcode
 template<typename Container = std::vector<KStringView>,
 	typename std::enable_if_t<detail::has_key_type<Container>::value == false

@@ -64,6 +64,7 @@ namespace dekaf2
 {
 
 constexpr KStringViewZ DefaultLocale = "en_US.UTF-8";
+bool Dekaf::s_bStarted  = false;
 bool Dekaf::s_bShutdown = false;
 
 #if defined(DEKAF2_HAS_LIBPROC) || defined(DEKAF2_IS_UNIX)
@@ -137,6 +138,9 @@ Dekaf::Dekaf()
 
 	// allow KLog() calls from dekaf now
 	m_bInConstruction = false;
+
+	// and mark Dekaf as active
+	s_bStarted = true;
 }
 
 //---------------------------------------------------------------------------
@@ -470,6 +474,64 @@ void Dekaf::Daemonize()
 #endif
 
 }
+
+//---------------------------------------------------------------------------
+pid_t Dekaf::Fork()
+//---------------------------------------------------------------------------
+{
+	pid_t pid;
+
+	bool bRestartTimer = (m_Timer != nullptr);
+
+	if (bRestartTimer)
+	{
+		// if we would not stop the timer it might just right now be in a locked
+		// state, which would block child timers forever
+		StopDefaultTimer();
+	}
+
+	kDebug(2, "forking");
+
+	if ((pid = fork()))
+	{
+		// parent
+
+		// restart the timer if it had been running before
+		if (bRestartTimer)
+		{
+			StartDefaultTimer();
+		}
+
+		return pid;
+	}
+
+	// child
+
+	// block all signals before we start the timer
+	kBlockAllSignals();
+
+	// parent's timer thread is now out of scope,
+	// we have to start our own (and before we
+	// start the signal thread, because we want
+	// the timer to have an empty sigmask)
+	if (bRestartTimer)
+	{
+		m_Timer.reset(); // should be nullptr anyway
+		m_OneSecTimers.clear();
+		StartDefaultTimer();
+	}
+
+	// parent's signal handler thread is now out of scope,
+	// we have to start our own
+	if (m_Signals)
+	{
+		m_Signals.reset();
+		StartSignalHandlerThread();
+	}
+
+	return pid; // 0
+
+} // Fork
 
 //---------------------------------------------------------------------------
 void Dekaf::ShutDown(bool bImmediately)

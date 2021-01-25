@@ -44,6 +44,7 @@
 
 #ifndef DEKAF2_IS_WINDOWS
 
+#include "dekaf2.h"
 #include "kstring.h"
 #include "klog.h"
 #include "ksplit.h"
@@ -243,7 +244,17 @@ bool KChildProcess::Fork(int(*func)(int, char**), int argc, char* argv[])
 
 	pid_t pid;
 
-	if ((pid = fork()))
+	if (Dekaf::IsStarted())
+	{
+		// fork through Dekaf, as we may need to stop and restart timer and signal threads
+		pid = Dekaf::getInstance().Fork();
+	}
+	else
+	{
+		pid = fork();
+	}
+
+	if (pid)
 	{
 		// parent
 

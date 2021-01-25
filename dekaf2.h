@@ -191,12 +191,21 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Make a dekaf2 application a system daemon. We need to run this
-	/// inside the Dekaf2 class because we have to stop the running timer
+	/// inside the Dekaf class because we have to stop the running timer
 	/// and restart it again after becoming a daemon. If you have to call this
 	/// method please call it as early as possible, best before any file or thread
 	/// related activity. But in general let systemd do this for you. Today, handling
 	/// daemonization from inside the executable is no more an accepted approach.
 	void Daemonize();
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Fork a dekaf2 application. We need to run this inside the Dekaf2 class
+	/// because we have to start threads like those for timer and signal again
+	/// after forking. Also, we need to reset some of Dekaf's member variables.
+	/// @return returns the child pid to the parent, and 0 to the child. A negative
+	/// result is an error that should be retrieved with strerror(errno).
+	pid_t Fork();
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -219,6 +228,14 @@ public:
 	/// is false may wait up to one second for the timer to join.
 	void ShutDown(bool bImmediately = true);
 	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Check if dekaf is started / constructed
+	static bool IsStarted()
+	//---------------------------------------------------------------------------
+	{
+		return s_bStarted;
+	}
 
 	//---------------------------------------------------------------------------
 	/// Check if dekaf is shutdown / deconstructed
@@ -268,8 +285,8 @@ private:
 	KTimer::Timepoint m_iCurrentTimepoint;
 	std::default_random_engine m_Random;
 	bool m_bInConstruction { true };
+	static bool s_bStarted;
 	static bool s_bShutdown;
-
 
 }; // Dekaf
 

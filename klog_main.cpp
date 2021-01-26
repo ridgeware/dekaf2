@@ -58,6 +58,7 @@
 #include "kreplacer.h"
 #include "kconfiguration.h"
 #include "khtmlentities.h"
+#include "kcrashexit.h"
 #include <csignal>
 
 using namespace dekaf2;
@@ -401,6 +402,8 @@ void TestBacktraces()
 	kException(KException{"just kidding!"});
 	kUnknownException();
 	kDebug(-3, "hello");
+
+	kSetCrashContext("just crashing..");
 	volatile bool* bang = 0;
 	if (*bang) {}
 

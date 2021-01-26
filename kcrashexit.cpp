@@ -55,9 +55,9 @@
 namespace dekaf2
 {
 
-static KCrashCallback g_pCrashCallback{nullptr};
-static KString        g_sCrashContext;
-static std::mutex     g_CrashMutex;
+static KCrashCallback       g_pCrashCallback{nullptr};
+thread_local static KString g_tl_sCrashContext;
+static std::mutex           g_CrashMutex;
 
 //-----------------------------------------------------------------------------
 void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
@@ -98,10 +98,10 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	}
 
 	// and start our own stackdump
-	if (g_sCrashContext)
+	if (g_tl_sCrashContext)
 	{
 		sWarning += ">>:=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:<<\n";
-		sWarning += kFormat (">> {}: {}\n", sVerb, g_sCrashContext);
+		sWarning += kFormat (">> {}: {}\n", sVerb, g_tl_sCrashContext);
 		sWarning += ">>:=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:<<\n";
 	}
 	else
@@ -121,25 +121,25 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	// self-detected crash conditions:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	case 0:
-		sWarning += kFormat ("CRASHCODE=0: self-detected crash condition.\n");
+		sWarning += kFormat ("CRASHCODE=0: self-detected crash condition\n");
 		break;
 	case CRASHCODE_MEMORY:
-		sWarning += kFormat ("CRASHCODE_MEMORY: self-detected dynamic allocation error.\n");
+		sWarning += kFormat ("CRASHCODE_MEMORY: self-detected dynamic allocation error\n");
 		break;
 	case CRASHCODE_TODO:
-		sWarning += kFormat ("CRASHCODE_TODO: feature not implemented yet.\n");
+		sWarning += kFormat ("CRASHCODE_TODO: feature not implemented yet\n");
 		break;
 	case CRASHCODE_DEKAFUSAGE:
-		sWarning += kFormat ("CRASHCODE_DEKAFUSAGE: invalid DEKAF framework usage.\n");
+		sWarning += kFormat ("CRASHCODE_DEKAFUSAGE: invalid DEKAF framework usage\n");
 		break;
 	case CRASHCODE_CORRUPT:
-		sWarning += kFormat ("CRASHCODE_CORRUPT: self-detected memory corruption.\n");
+		sWarning += kFormat ("CRASHCODE_CORRUPT: self-detected memory corruption\n");
 		break;
 	case CRASHCODE_DBERROR:
-		sWarning += kFormat ("CRASHCODE_DBERROR: self-detected fatal database error.\n");
+		sWarning += kFormat ("CRASHCODE_DBERROR: self-detected fatal database error\n");
 		break;
 	case CRASHCODE_DBINTEGRITY:
-		sWarning += kFormat ("CRASHCODE_DBINTEGRITY: self-detected database integrity problem.\n");
+		sWarning += kFormat ("CRASHCODE_DBINTEGRITY: self-detected database integrity problem\n");
 		break;
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// standard UNIX signals:
@@ -162,7 +162,7 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 				// try to isolate the crashing line
 				void* address = siginfo->si_addr;
 
-				sWarning += kFormat("error at address {}:", address);
+				sWarning += kFormat("\nerror at address {}:", address);
 
 				if (address)
 				{
@@ -178,7 +178,7 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 
 	if (iSignalNum != SIGINT)
 	{
-		sWarning += kFormat ("attempting to print a backtrace:\n");
+		sWarning += kFormat ("\nattempting to print a backtrace:\n");
 		sWarning += kGetRuntimeStack(1);
 	}
 	#endif
@@ -210,9 +210,7 @@ void kCrashExit (int iSignalNum)
 void kSetCrashContext (KStringView sContext)
 //-----------------------------------------------------------------------------
 {
-	// make sure all access on the global vars is protected from races
-	std::lock_guard<std::mutex> Lock(g_CrashMutex);
-	g_sCrashContext = sContext;
+	g_tl_sCrashContext = sContext;
 }
 
 //-----------------------------------------------------------------------------

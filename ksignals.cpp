@@ -319,77 +319,77 @@ const char* kTranslateSignal (int iSignalNum, bool bConcise/*=TRUE*/)
 
 		#ifdef SIGHUP
 		case SIGHUP:
-			return (bConcise ? "SIGHUP"  : "SIGHUP: Hangup (POSIX).");
+			return (bConcise ? "SIGHUP"  : "SIGHUP: Hangup");
 		#endif
 
 		#ifdef SIGINT
 		case SIGINT:
-			return (bConcise ? "SIGINT"  : "SIGINT: Interrupt (ANSI).");
+			return (bConcise ? "SIGINT"  : "SIGINT: Interrupt");
 		#endif
 
 		#ifdef SIGQUIT
 		case SIGQUIT:
-			return (bConcise ? "SIGQUIT" : "SIGQUIT: Quit (POSIX).");
+			return (bConcise ? "SIGQUIT" : "SIGQUIT: Quit");
 		#endif
 
 		#ifdef SIGILL
 		case SIGILL:
-			return (bConcise ? "SIGILL"  : "SIGILL: Illegal instruction (ANSI).");
+			return (bConcise ? "SIGILL"  : "SIGILL: Illegal instruction");
 		#endif
 
 		#ifdef SIGTRAP
 		case SIGTRAP:
-			return (bConcise ? "SIGTRAP" : "SIGTRAP: trace trap (not reset when caught).");
+			return (bConcise ? "SIGTRAP" : "SIGTRAP: trace trap (not reset when caught)");
 		#endif
 
 		#ifdef SIGABRT
 		case SIGABRT: // aka SIGIOT
-			return (bConcise ? "SIGABRT" : "SIGABRT: used by abort, replace SIGIOT in the future.");
+			return (bConcise ? "SIGABRT" : "SIGABRT: used by abort, replace SIGIOT in the future");
 		#endif
 
 		#ifdef SIGEMT
 		case SIGEMT:
-			return (bConcise ? "SIGEMT" : "SIGEMT: EMT instruction.");
+			return (bConcise ? "SIGEMT" : "SIGEMT: EMT instruction");
 		#endif
 
 		#ifdef SIGFPE
 		case SIGFPE:
-			return (bConcise ? "SIGFPE"  : "SIGFPE: Floating-point exception (ANSI).");
+			return (bConcise ? "SIGFPE"  : "SIGFPE: Floating-point exception");
 		#endif
 
 		#ifdef SIGKILL
 		case SIGKILL:
-			return (bConcise ? "SIGKILL" : "SIGKILL: kill (cannot be caught or ignored).");
+			return (bConcise ? "SIGKILL" : "SIGKILL: kill (cannot be caught or ignored)");
 		#endif
 
 		#ifdef SIGBUS
 		case SIGBUS:
-			return (bConcise ? "SIGBUS"  : "SIGBUS: BUS error (4.2 BSD).");
+			return (bConcise ? "SIGBUS"  : "SIGBUS: BUS error");
 		#endif
 
 		#ifdef SIGSEGV
 		case SIGSEGV:
-			return (bConcise ? "SIGSEGV" : "SIGSEGV: Segmentation violation (ANSI).");
+			return (bConcise ? "SIGSEGV" : "SIGSEGV: Segmentation violation");
 		#endif
 
 		#ifdef SIGSYS
 		case SIGSYS:
-			return (bConcise ? "SIGSYS" : "SIGSYS: bad argument to system call.");
+			return (bConcise ? "SIGSYS" : "SIGSYS: bad argument to system call");
 		#endif
 
 		#ifdef SIGPIPE
 		case SIGPIPE:
-			return (bConcise ? "SIGPIPE" : "SIGPIPE: Broken pipe (POSIX).");
+			return (bConcise ? "SIGPIPE" : "SIGPIPE: Broken pipe");
 		#endif
 
 		#ifdef SIGALRM
 		case SIGALRM:
-			return (bConcise ? "SIGALRM" : "SIGALRM: alarm clock.");
+			return (bConcise ? "SIGALRM" : "SIGALRM: alarm clock");
 		#endif
 
 		#ifdef SIGTERM
 		case SIGTERM:
-			return (bConcise ? "SIGTERM" : "SIGTERM: Termination (ANSI).");
+			return (bConcise ? "SIGTERM" : "SIGTERM: Termination");
 		#endif
 
 		#ifdef SIGUSR1
@@ -404,52 +404,52 @@ const char* kTranslateSignal (int iSignalNum, bool bConcise/*=TRUE*/)
 
 		#ifdef SIGCHLD
 		case SIGCHLD: // aka SIGCLD
-			return (bConcise ? "SIGCHLD" : "SIGCHLD: child status change alias (POSIX).");
+			return (bConcise ? "SIGCHLD" : "SIGCHLD: child status change");
 		#endif
 
 		#ifdef SIGPWR
 		case SIGPWR:
-			return (bConcise ? "SIGPWR" : "SIGPWR: power-fail restart.");
+			return (bConcise ? "SIGPWR" : "SIGPWR: power-fail restart");
 		#endif
 
 		#ifdef SIGWINCH
 		case SIGWINCH:
-			return (bConcise ? "SIGWINCH" : "SIGWINCH: window size change.");
+			return (bConcise ? "SIGWINCH" : "SIGWINCH: window size change");
 		#endif
 
 		#ifdef SIGURG
 		case SIGURG:
-			return (bConcise ? "SIGURG" : "SIGURG: urgent socket condition.");
+			return (bConcise ? "SIGURG" : "SIGURG: urgent socket condition");
 		#endif
 
 		#ifdef SIGIO
 		case SIGIO: // aka SIGPOLL:
-			return (bConcise ? "SIGIO" : "SIGIO: socket I/O possible (SIGPOLL alias).");
+			return (bConcise ? "SIGIO" : "SIGIO: socket I/O possible (SIGPOLL alias)");
 		#endif
 
 		#ifdef SIGSTOP
 		case SIGSTOP:
-			return (bConcise ? "SIGSTOP" : "SIGSTOP: stop (cannot be caught or ignored).");
+			return (bConcise ? "SIGSTOP" : "SIGSTOP: stop (cannot be caught or ignored)");
 		#endif
 
 		#ifdef SIGTSTP
 		case SIGTSTP:
-			return (bConcise ? "SIGTSTP" : "SIGTSTP: user stop requested from tty.");
+			return (bConcise ? "SIGTSTP" : "SIGTSTP: user stop requested from tty");
 		#endif
 
 		#ifdef SIGCONT
 		case SIGCONT:
-			return (bConcise ? "SIGCONT" : "SIGCONT: stopped process has been continued.");
+			return (bConcise ? "SIGCONT" : "SIGCONT: stopped process has been continued");
 		#endif
 
 		#ifdef SIGTTIN
 		case SIGTTIN:
-			return (bConcise ? "SIGTTIN" : "SIGTTIN: background tty read attempted.");
+			return (bConcise ? "SIGTTIN" : "SIGTTIN: background tty read attempted");
 		#endif
 
 		#ifdef SIGTTOU
 		case SIGTTOU:
-			return (bConcise ? "SIGTTOU" : "SIGTTOU: background tty write attempted.");
+			return (bConcise ? "SIGTTOU" : "SIGTTOU: background tty write attempted");
 		#endif
 
 		#ifdef SIGVTALRM
@@ -459,47 +459,47 @@ const char* kTranslateSignal (int iSignalNum, bool bConcise/*=TRUE*/)
 
 		#ifdef SIGPROF
 		case SIGPROF:
-			return (bConcise ? "SIGPROF" : "SIGPROF: profiling timer expired.");
+			return (bConcise ? "SIGPROF" : "SIGPROF: profiling timer expired");
 		#endif
 
 		#ifdef SIGXCPU
 		case SIGXCPU:
-			return (bConcise ? "SIGXCPU" : "SIGXCPU: exceeded cpu limit.");
+			return (bConcise ? "SIGXCPU" : "SIGXCPU: exceeded cpu limit");
 		#endif
 
 		#ifdef SIGXFSZ
 		case SIGXFSZ:
-			return (bConcise ? "SIGXFSZ" : "SIGXFSZ: exceeded file size limit.");
+			return (bConcise ? "SIGXFSZ" : "SIGXFSZ: exceeded file size limit");
 		#endif
 
 		#ifdef SIGWAITING
 		case SIGWAITING:
-			return (bConcise ? "SIGWAITING" : "SIGWAITING: process's lwps are blocked.");
+			return (bConcise ? "SIGWAITING" : "SIGWAITING: process's lwps are blocked");
 		#endif
 
 		#ifdef SIGLWP
 		case SIGLWP:
-			return (bConcise ? "SIGLWP" : "SIGLWP: special signal used by thread library.");
+			return (bConcise ? "SIGLWP" : "SIGLWP: special signal used by thread library");
 		#endif
 
 		#ifdef SIGFREEZE
 		case SIGFREEZE:
-			return (bConcise ? "SIGFREEZE" : "SIGFREEZE: special signal used by CPR.");
+			return (bConcise ? "SIGFREEZE" : "SIGFREEZE: special signal used by CPR");
 		#endif
 
 		#ifdef SIGTHAW
 		case SIGTHAW:
-			return (bConcise ? "SIGTHAW" : "SIGTHAW: special signal used by CPR.");
+			return (bConcise ? "SIGTHAW" : "SIGTHAW: special signal used by CPR");
 		#endif
 
 		#ifdef SIGCANCEL
 		case SIGCANCEL:
-			return (bConcise ? "SIGCANCEL" : "SIGCANCEL: thread cancellation signal used by libthread.");
+			return (bConcise ? "SIGCANCEL" : "SIGCANCEL: thread cancellation signal used by libthread");
 		#endif
 
 		#if defined(SIGLOST) && (!defined(SIGPWR) || SIGPWR != SIGLOST)
 		case SIGLOST:
-			return (bConcise ? "SIGLOST" : "SIGLOST: resource lost (eg, record-lock lost).");
+			return (bConcise ? "SIGLOST" : "SIGLOST: resource lost (eg, record-lock lost)");
 		#endif
 
 	default:

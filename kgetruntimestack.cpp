@@ -160,6 +160,14 @@ StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 				}
 			}
 #endif
+			if (vsResult.empty())
+			{
+				// addr2line unsuccessful, simply copy addresses back
+				for (const auto& it : vsAddress)
+				{
+					vsResult.push_back(it);
+				}
+			}
 		}
 	}
 
@@ -659,6 +667,9 @@ KStackFrame::KStackFrame(KStringView sTraceline)
 {
 #ifdef DEKAF2_IS_OSX
 	// parse atos-output
+	//
+	// in debug builds, the format is:
+	// dekaf2::KOptions::Parse(int, char const* const*, dekaf2::KOutStream&) (koptions.cpp:685)
 	// isolate filename
 	if (!sTraceline.empty() && sTraceline.back() == ')')
 	{
@@ -711,6 +722,32 @@ KStackFrame::KStackFrame(KStringView sTraceline)
 	}
 #endif
 
+	if (sFunction.empty() && !sTraceline.empty())
+	{
+		if (sTraceline.starts_with("0x"))
+		{
+			// cut off after first space (if any)
+			sTraceline.erase(sTraceline.find(' '));
+			sFunction = sTraceline;
+		}
+		else
+		{
+#ifdef DEKAF2_IS_OSX
+			// parse atos-output
+			//
+			// in release builds, atos often returns function name + byte offset
+			// like: _sigtramp + 29
+			auto iPlus = sTraceline.rfind(" + ");
+
+			if (iPlus != KStringView::npos)
+			{
+				sLineNumber = sTraceline.ToView(iPlus + 3);
+				sFunction   = sTraceline.ToView(0, iPlus);
+			}
+#endif
+		}
+	}
+
 } // ctor
 
 //-----------------------------------------------------------------------------
@@ -748,9 +785,21 @@ KString KStackFrame::Serialize(bool bNormalize) const
 	}
 
 	sLine += '(';
-	sLine += sFile;
-	sLine += ':';
-	sLine += sLineNumber;
+
+	if (sFile.empty() && !sLineNumber.empty())
+	{
+		// e.g. atos byte offset
+		sLine += '+';
+		sLine += sLineNumber;
+	}
+	else
+	{
+		// full filename : line number
+		sLine += sFile;
+		sLine += ':';
+		sLine += sLineNumber;
+	}
+
 	sLine += ')';
 
 	return sLine;

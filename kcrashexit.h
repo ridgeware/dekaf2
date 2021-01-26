@@ -83,8 +83,11 @@ void kCrashExit (int iSignalNum=0);
 
 using KCrashCallback = std::function<void(KStringView sMessage)>;
 
-/// allow the appliation to set some context information in case the app crashes
+/// allow the appliation to set some thread specific context information in case the app crashes
 void kSetCrashContext (KStringView sContext);
+
+/// allow the appliation to append to thread specific context information in case the app crashes
+void kAppendCrashContext (KStringView sContext, KStringView sSeparator = "\n");
 
 /// in addition to the KLOG, all the application to get a callback when it is crashing with the crash message (app will still exit after callback is done)
 void kSetCrashCallback (KCrashCallback pFunction);

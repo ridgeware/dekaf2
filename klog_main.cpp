@@ -399,11 +399,14 @@ void TestBacktraces()
 	KString s = json["hello"];
 	DEKAF2_LOG_EXCEPTION
 
+	kSetCrashContext("just crashing..");
+
 	kException(KException{"just kidding!"});
 	kUnknownException();
 	kDebug(-3, "hello");
 
-	kSetCrashContext("just crashing..");
+	kAppendCrashContext("right now");
+
 	volatile bool* bang = 0;
 	if (*bang) {}
 

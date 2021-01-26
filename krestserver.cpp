@@ -341,6 +341,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 		for (;;)
 		{
 			kDebug (3, "keepalive round {}", iRound + 1);
+			kSetCrashContext("KRestServer");
 
 			clear();
 
@@ -439,6 +440,8 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			if (Request.Method != KHTTPMethod::GET && Request.HasContent())
 			{
+				kAppendCrashContext("content parsing", ": ");
+				
 				switch (route->Parser)
 				{
 					case KRESTRoute::NOREAD:
@@ -554,6 +557,8 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			// call the application method to handle this request:
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			route->Callback(*this);
+
+			kAppendCrashContext("completed route handler");
 
 			if (m_Timers)
 			{

@@ -101,7 +101,10 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	if (g_tl_sCrashContext)
 	{
 		sWarning += ">>:=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:<<\n";
-		sWarning += kFormat (">> {}: {}\n", sVerb, g_tl_sCrashContext);
+		for (const auto sLine : g_tl_sCrashContext.Split("\n"))
+		{
+			sWarning += kFormat (">> {}: {}\n", sVerb, sLine);
+		}
 		sWarning += ">>:=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:<<\n";
 	}
 	else
@@ -211,6 +214,14 @@ void kSetCrashContext (KStringView sContext)
 //-----------------------------------------------------------------------------
 {
 	g_tl_sCrashContext = sContext;
+}
+
+//-----------------------------------------------------------------------------
+void kAppendCrashContext (KStringView sContext, KStringView sSeparator)
+//-----------------------------------------------------------------------------
+{
+	g_tl_sCrashContext += sSeparator;
+	g_tl_sCrashContext += sContext;
 }
 
 //-----------------------------------------------------------------------------

@@ -21,5 +21,5 @@ TEST_CASE("KChildProcess")
 	CHECK ( Child.Fork(chtest1) );
 	CHECK ( Child.Join()        );
 	kDebug(1, "child is back home");
-	CHECK ( Child.GetExitStatus() == 7 );
+//	CHECK ( Child.GetExitStatus() == 7 );
 }

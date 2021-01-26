@@ -684,11 +684,13 @@ KStackFrame::KStackFrame(KStringView sTraceline)
 	// isolate filename
 	if (!sTraceline.empty())
 	{
-		auto fend = sTraceline.rfind('/');
+		// keep the original trace line intact, we may need it later
+		auto sLine = sTraceline;
+		auto fend = sLine.rfind('/');
 		auto pos = fend;
 		if (pos == KStringView::npos)
 		{
-			pos = sTraceline.rfind(" at ");
+			pos = sLine.rfind(" at ");
 			if (pos != KStringView::npos)
 			{
 				pos += 3;
@@ -697,12 +699,12 @@ KStackFrame::KStackFrame(KStringView sTraceline)
 		if (pos != KStringView::npos)
 		{
 			++pos;
-			auto end = sTraceline.find(' ', pos);
+			auto end = sLine.find(' ', pos);
 			if (end == KStringView::npos)
 			{
-				end = sTraceline.size();
+				end = sLine.size();
 			}
-			auto sFileAndLine = sTraceline.ToView(pos, end - pos);
+			auto sFileAndLine = sLine.ToView(pos, end - pos);
 #endif
 #ifdef DEKAF2_IS_UNIX // UNIX includes OSX
 			auto sFile = sFileAndLine;
@@ -715,36 +717,33 @@ KStackFrame::KStackFrame(KStringView sTraceline)
 				sFile.remove_suffix(sFile.size() - pos);
 			}
 
-			sTraceline.remove_suffix(sTraceline.size() - fend);
-			sTraceline.TrimRight();
-			*this = { sTraceline, sFile, sLine };
+			sLine.remove_suffix(sLine.size() - fend);
+			sLine.TrimRight();
+			*this = { sLine, sFile, sLine };
 		}
 	}
 #endif
 
 	if (sFunction.empty() && !sTraceline.empty())
 	{
-		if (sTraceline.starts_with("0x"))
-		{
-			// cut off after first space (if any)
-			sTraceline.erase(sTraceline.find(' '));
-			sFunction = sTraceline;
-		}
-		else
-		{
 #ifdef DEKAF2_IS_OSX
-			// parse atos-output
-			//
-			// in release builds, atos often returns function name + byte offset
-			// like: _sigtramp + 29
-			auto iPlus = sTraceline.rfind(" + ");
+		// parse atos-output
+		//
+		// in release builds, atos often returns function name + byte offset
+		// like: _sigtramp + 29
+		auto iPlus = sTraceline.rfind(" + ");
 
-			if (iPlus != KStringView::npos)
-			{
-				sLineNumber = sTraceline.ToView(iPlus + 3);
-				sFunction   = sTraceline.ToView(0, iPlus);
-			}
+		if (iPlus != KStringView::npos)
+		{
+			sLineNumber = sTraceline.ToView(iPlus + 3);
+			sFunction   = sTraceline.ToView(0, iPlus);
+		}
 #endif
+		if (sFunction.empty())
+		{
+			// just print what you have (this may include addr2line output that has
+			// neither filename nor line number, only the naked function)
+			sFunction = sTraceline;
 		}
 	}
 

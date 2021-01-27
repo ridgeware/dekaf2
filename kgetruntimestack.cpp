@@ -65,8 +65,8 @@ namespace dekaf2
 using StringVec = std::vector<KString>;
 using FrameVec  = std::vector<KStackFrame>;
 
-namespace detail
-{
+namespace detail {
+namespace bt {
 
 //-----------------------------------------------------------------------------
 // This function will try and invoke the external addr2line code to map a vector
@@ -264,8 +264,6 @@ KStringView GetStackAddress (KStringView sBacktraceLine)
 
 } // GetStackAddress
 
-} // namespace detail
-
 #ifdef WIN32
 	#define SUPPORT_GDBATTACH_PRINTCALLSTACK 0
 	#define SUPPORT_BACKTRACE_PRINTCALLSTACK 0
@@ -281,9 +279,6 @@ KStringView GetStackAddress (KStringView sBacktraceLine)
 #endif
 
 #if SUPPORT_GDBATTACH_PRINTCALLSTACK
-
-namespace detail
-{
 
 //-----------------------------------------------------------------------------
 StringVec GetGDBCallstack (int iSkipStackLines)
@@ -376,12 +371,93 @@ StringVec GetGDBCallstack (int iSkipStackLines)
 	return Stack;
 }
 
-} // namespace detail
 #endif
 
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
-namespace detail
-{
+
+/*
+Linux clang release:
+
+ attempting to print a backtrace:
+  11 detail::GetBacktraceCallstack() (:)
+  10 kGetBacktrace() (:)
+   9 kGetRuntimeStack() (:)
+   8 kCrashExitExt() (:)
+   7 ??() (:)
+   6 TestBacktraces() (:)
+...
+= -5
+
+Linux clang debug:
+
+  23 asan_interceptors.cpp.o:?() (asan_interceptors.cpp.o:)
+  22 detail::GetBacktraceCallstack() (kgetruntimestack.cpp:)
+  21 detail::GetBacktraceVector() (kgetruntimestack.cpp:)
+  20 kGetBacktrace() (kgetruntimestack.cpp:)
+  19 kGetRuntimeStack() (kgetruntimestack.cpp:)
+  18 /home/vagrant/src/dekaf2/kcrashexit.cpp:185() (kcrashexit.cpp:)
+  17 ??() (:)
+  16 TestBacktraces() (klog_main.cpp:)
+...
+= -7
+
+Linux gcc release:
+
+ attempting to print a backtrace:
+  13 detail::GetBacktraceCallstack() (:)
+  12 detail::GetBacktraceVector() (:)
+  11 kGetBacktrace() (:)
+  10 kGetRuntimeStack() (:)
+   9 kCrashExitExt() (:)
+   8 ??() (:)
+   7 TestBacktraces() (:)
+...
+= -6
+
+Linux gcc debug:
+
+ attempting to print a backtrace:
+  23 ??() (:)
+  22 detail::GetBacktraceCallstack() (kgetruntimestack.cpp:)
+  21 detail::GetBacktraceVector() (kgetruntimestack.cpp:)
+  20 kGetBacktrace() (kgetruntimestack.cpp:)
+  19 kGetRuntimeStack() (kgetruntimestack.cpp:)
+  18 (kcrashexit.cpp:)
+  17 ??() (:)
+  16 TestBacktraces() (klog_main.cpp:)
+...
+= -7
+
+OSX clang release:
+
+ attempting to print a backtrace:
+  10 detail::GetBacktraceCallstack() (+65)
+   9 kGetBacktrace() (+53)
+   8 kGetRuntimeStack() (+35)
+   7 kCrashExitExt() (+2815)
+   6 _sigtramp() (+29)
+   5 folly::fbstring_core::reserveSmall() (+207)
+...
+= -5
+
+OSX clang debug:
+
+ attempting to print a backtrace:
+  25 detail::GetBacktraceCallstack() (kgetruntimestack.cpp)
+  24 detail::GetBacktraceVector() (kgetruntimestack.cpp)
+  23 kGetBacktrace() (kgetruntimestack.cpp)
+  22 kGetRuntimeStack() (kgetruntimestack.cpp)
+  21 (kcrashexit.cpp)
+  20 _sigtramp() (+29)
+  19 0x0000ffff()
+...
+= -6
+
+ therefore: search for kGetBacktrace, and peel another frame off
+            depending if the call came through kGetBacktrace or
+            kGetRuntimeStack ..
+
+ */
 
 //-----------------------------------------------------------------------------
 FrameVec GetBacktraceCallstack (int iSkipStackLines)
@@ -396,17 +472,9 @@ FrameVec GetBacktraceCallstack (int iSkipStackLines)
 
 	std::vector<KStringView> Addresses;
 
-	// account for own stack frame
-	++iSkipStackLines;
-
-#ifndef DEKAF2_IS_OSX
-	// need to skip one more frame on Linux
-	++iSkipStackLines;
-#endif
-
-	for (int ii = iSkipStackLines; ii < iStackSize; ++ii)
+	for (int ii = 0; ii < iStackSize; ++ii)
 	{
-		Addresses.push_back(detail::GetStackAddress(Names[ii]));
+		Addresses.push_back(GetStackAddress(Names[ii]));
 	}
 
 	auto vStack = Addr2Line(Addresses);
@@ -415,55 +483,60 @@ FrameVec GetBacktraceCallstack (int iSkipStackLines)
 
 	FrameVec Frames;
 
+	bool bHadkGetBacktrace { false };
+
 	for (const auto& it : vStack)
 	{
-		Frames.push_back(KStackFrame(it));
+		KStackFrame Frame(it);
+
+		if (!bHadkGetBacktrace)
+		{
+			auto sFunction = kNormalizeFunctionName(Frame.sFunction);
+			if (sFunction.starts_with("kGetBacktrace"))
+			{
+				bHadkGetBacktrace = true;
+			}
+			continue;
+		}
+		else if (iSkipStackLines > 0)
+		{
+			--iSkipStackLines;
+			continue;
+		}
+
+		Frames.push_back(std::move(Frame));
+	}
+
+	if (Frames.empty())
+	{
+		// return all frames if above filter did not match
+		for (const auto& it : vStack)
+		{
+			Frames.push_back(KStackFrame(it));
+		}
 	}
 
 	return Frames;
 
 } // GetBacktraceCallstack
 
-} // namespace detail
 #endif
 
 //-----------------------------------------------------------------------------
-FrameVec kGetBacktraceVector (int iSkipStackLines)
+FrameVec GetBacktraceVector (int iSkipStackLines)
 //-----------------------------------------------------------------------------
 {
 	FrameVec Stack;
 
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
 
-	// account for own stack frame
-	++iSkipStackLines;
-
-	Stack = detail::GetBacktraceCallstack(iSkipStackLines);
+	Stack = GetBacktraceCallstack(iSkipStackLines);
 
 #endif
 
 	return Stack;
 
-} // kGetBacktraceVector
-
-//-----------------------------------------------------------------------------
-KString kGetBacktrace (int iSkipStackLines)
-//-----------------------------------------------------------------------------
-{
-	KString sStack;
-
-#if SUPPORT_BACKTRACE_PRINTCALLSTACK
-
-	// account for own stack frame
-	++iSkipStackLines;
-
-	sStack = detail::PrintFrameVector(kGetBacktraceVector(iSkipStackLines), true);
-
-#endif
-
-	return sStack;
-
-} // kGetBacktrace
+} // GetBacktraceVector
 
 //-----------------------------------------------------------------------------
 KStringView RemoveFunctionParms(KStringView sFunction)
@@ -499,13 +572,16 @@ KStringView RemoveFunctionParms(KStringView sFunction)
 
 } // RemoveFunctionParms
 
+} // end of namespace bt
+} // end of namespace detail
+
 //-----------------------------------------------------------------------------
 KString kNormalizeFunctionName(KStringView sFunctionName)
 //-----------------------------------------------------------------------------
 {
 	KString sReturn;
 
-	sFunctionName = RemoveFunctionParms(sFunctionName);
+	sFunctionName = detail::bt::RemoveFunctionParms(sFunctionName);
 
 	// now scan back until first space, but take care to skip template types (<xyz<abc> >)
 	int iTLevel { 0 };
@@ -567,6 +643,22 @@ KString kNormalizeFunctionName(KStringView sFunctionName)
 } // kNormalizeFunctionName
 
 //-----------------------------------------------------------------------------
+KString kGetBacktrace (int iSkipStackLines)
+//-----------------------------------------------------------------------------
+{
+	KString sStack;
+
+#if SUPPORT_BACKTRACE_PRINTCALLSTACK
+
+	sStack = detail::bt::PrintFrameVector(detail::bt::GetBacktraceVector(iSkipStackLines), true);
+
+#endif
+
+	return sStack;
+
+} // kGetBacktrace
+
+//-----------------------------------------------------------------------------
 KString kGetRuntimeStack (int iSkipStackLines)
 //-----------------------------------------------------------------------------
 {
@@ -576,7 +668,7 @@ KString kGetRuntimeStack (int iSkipStackLines)
 	++iSkipStackLines;
 
 #if SUPPORT_GDBATTACH_PRINTCALLSTACK
-	sStack = detail::PrintStackVector(detail::GetGDBCallstack(iSkipStackLines));
+	sStack = detail::bt::PrintStackVector(detail::bt::GetGDBCallstack(iSkipStackLines));
 #endif
 
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
@@ -601,7 +693,7 @@ KJSON kGetRuntimeStackJSON (int iSkipStackLines)
 	// account for own stack frame
 	++iSkipStackLines;
 
-	auto sStack = kGetBacktraceVector(iSkipStackLines);
+	auto sStack = detail::bt::GetBacktraceVector(iSkipStackLines);
 
 	for (auto& item : sStack)
 	{
@@ -620,7 +712,7 @@ KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles)
 	// account for own stack frame
 	++iSkipStackLines;
 
-	auto Stack = kGetBacktraceVector(iSkipStackLines);
+	auto Stack = detail::bt::GetBacktraceVector(iSkipStackLines);
 
 	for (auto& Frame : Stack)
 	{
@@ -640,7 +732,7 @@ KString kGetAddress2Line(KStringView sAddresses)
 {
 	auto vAddresses = sAddresses.Split(" ");
 
-	auto vResult = detail::Addr2Line(vAddresses);
+	auto vResult = detail::bt::Addr2Line(vAddresses);
 
 	if (vResult.size() == 1)
 	{
@@ -648,7 +740,7 @@ KString kGetAddress2Line(KStringView sAddresses)
 	}
 	else
 	{
-		return detail::PrintStackVector(vResult);
+		return detail::bt::PrintStackVector(vResult);
 	}
 
 } // kGetAddress2Line
@@ -673,24 +765,26 @@ KStackFrame::KStackFrame(KStringView sTraceline)
 	// isolate filename
 	if (!sTraceline.empty() && sTraceline.back() == ')')
 	{
-		auto fend = sTraceline.rfind('(');
+		// keep the original trace line intact, we may need it later
+		auto sInput = sTraceline;
+		auto fend = sInput.rfind('(');
 		auto pos = fend;
 		if (pos != KStringView::npos)
 		{
 			++pos;
-			auto sFileAndLine = sTraceline.ToView(pos, sTraceline.size()-(pos+1));
+			auto sFileAndLine = sInput.ToView(pos, sInput.size()-(pos+1));
 #elif DEKAF2_IS_UNIX
 	// parse addr2line output
 	// isolate filename
 	if (!sTraceline.empty())
 	{
 		// keep the original trace line intact, we may need it later
-		auto sLine = sTraceline;
-		auto fend = sLine.rfind('/');
+		auto sInput = sTraceline;
+		auto fend = sInput.rfind('/');
 		auto pos = fend;
 		if (pos == KStringView::npos)
 		{
-			pos = sLine.rfind(" at ");
+			pos = sInput.rfind(" at ");
 			if (pos != KStringView::npos)
 			{
 				pos += 3;
@@ -699,12 +793,12 @@ KStackFrame::KStackFrame(KStringView sTraceline)
 		if (pos != KStringView::npos)
 		{
 			++pos;
-			auto end = sLine.find(' ', pos);
+			auto end = sInput.find(' ', pos);
 			if (end == KStringView::npos)
 			{
-				end = sLine.size();
+				end = sInput.size();
 			}
-			auto sFileAndLine = sLine.ToView(pos, end - pos);
+			auto sFileAndLine = sInput.ToView(pos, end - pos);
 #endif
 #ifdef DEKAF2_IS_UNIX // UNIX includes OSX
 			auto sFile = sFileAndLine;
@@ -717,9 +811,13 @@ KStackFrame::KStackFrame(KStringView sTraceline)
 				sFile.remove_suffix(sFile.size() - pos);
 			}
 
-			sLine.remove_suffix(sLine.size() - fend);
-			sLine.TrimRight();
-			*this = { sLine, sFile, sLine };
+			if (fend != KStringView::npos)
+			{
+				sInput.remove_suffix(sInput.size() - fend);
+			}
+
+			sInput.TrimRight();
+			*this = { sInput, sFile, sLine };
 		}
 	}
 #endif
@@ -783,23 +881,27 @@ KString KStackFrame::Serialize(bool bNormalize) const
 		}
 	}
 
-	sLine += '(';
+	if (!sFile.empty())
+	{
+		sLine += '(';
+		sLine += sFile;
 
-	if (sFile.empty() && !sLineNumber.empty())
+		if (!sLineNumber.empty())
+		{
+			sLine += ':';
+			sLine += sLineNumber;
+		}
+		
+		sLine += ')';
+	}
+	else if (!sLineNumber.empty())
 	{
 		// e.g. atos byte offset
+		sLine += '(';
 		sLine += '+';
 		sLine += sLineNumber;
+		sLine += ')';
 	}
-	else
-	{
-		// full filename : line number
-		sLine += sFile;
-		sLine += ':';
-		sLine += sLineNumber;
-	}
-
-	sLine += ')';
 
 	return sLine;
 

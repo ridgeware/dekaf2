@@ -257,7 +257,7 @@ size_t kFindFirstOfInt(
 		haystack.remove_prefix(pos);
 	}
 
-#ifdef DEKAF2_X86_64
+#ifdef DEKAF2_X86_64_NO
 #ifdef DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
 	if (DEKAF2_LIKELY(has_sse42))

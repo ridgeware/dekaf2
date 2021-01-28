@@ -257,14 +257,14 @@ size_t kFindFirstOfInt(
 		haystack.remove_prefix(pos);
 	}
 
-#ifdef DEKAF2_X86_64_NO
+#ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
 		auto result = detail::sse::kFindFirstOf(haystack, needle);
-		if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
+		if (result == KStringView::npos)
 		{
 			return result;
 		}
@@ -273,7 +273,7 @@ size_t kFindFirstOfInt(
 #endif
 
 	auto result = detail::no_sse::kFindFirstOf(haystack, needle, false);
-	if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
+	if (result == KStringView::npos)
 	{
 		return result;
 	}

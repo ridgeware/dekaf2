@@ -113,6 +113,8 @@ public:
 		KStringView sAuthScope;
 		/// Allow KLog profiling triggered by a KLOG header?
 		KStringView sKLogHeader;
+		/// Server name for this instance, will be used in diagnostic output
+		KStringView sServername;
 		/// DoS prevention - max rounds in keep-alive
 		mutable uint16_t iMaxKeepaliveRounds { 10 };
 		/// Which of the three output formats?

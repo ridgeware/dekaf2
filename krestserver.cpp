@@ -551,7 +551,13 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			kDebug (1, KLog::DASH);
 			kDebug (1, "{}: {}", GetRequestMethod(), GetRequestPath());
 			kDebug (1, KLog::DASH);
-			kSetCrashContext (kFormat ("{}: {}",  Request.Method.Serialize(), Request.Resource.Serialize()));
+
+			kSetCrashContext (kFormat ("{}: {}\nHost: {} Remote IP: {}",
+									   Request.Method.Serialize(),
+									   Request.Resource.Serialize(),
+									   Options.sServername,
+									   Request.GetBrowserIP())
+							  );
 
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			// call the application method to handle this request:

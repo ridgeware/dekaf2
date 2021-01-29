@@ -55,6 +55,9 @@
 #include "kcache.h"
 #include "kexception.h"
 #include "ksystem.h"
+#include <tuple>
+#include <type_traits>
+
 //
 // Note:
 //  To use the KSQL class for ORACLE and MYSQL you do *NOT* need to

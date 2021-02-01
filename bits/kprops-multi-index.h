@@ -87,7 +87,7 @@ protected:
 			boost::multi_index::multi_index_container<
 				Element,
 				boost::multi_index::indexed_by<
-					std::conditional_t<
+	                typename std::conditional<
 						Unique,
 						// the non-sequential unique variant
 						boost::multi_index::hashed_unique<
@@ -97,7 +97,7 @@ protected:
 						boost::multi_index::hashed_non_unique<
 							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>
 						>
-					>
+					>::type
 				>
 			>;
 
@@ -129,7 +129,7 @@ protected:
 			boost::multi_index::multi_index_container<
 				Element,
 				boost::multi_index::indexed_by<
-					std::conditional_t<
+				    typename std::conditional<
 						Unique,
 						// the sequential unique variant
 						boost::multi_index::hashed_unique<
@@ -139,7 +139,7 @@ protected:
 						boost::multi_index::hashed_non_unique<
 							boost::multi_index::tag<IndexByKey>, boost::multi_index::member<Element, Key, &Element::first>
 						>
-					>,
+					>::type,
 					boost::multi_index::random_access<
 						boost::multi_index::tag<IndexBySeq>
 					>

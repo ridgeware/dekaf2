@@ -190,7 +190,7 @@ public:
 		MAX_BLOBCHUNKSIZE     =  2000,       ///< LCD between Oracle, Sybase, MySQL, and Informix
 //		MAXLEN_CURSORNAME     =    50,
 		NUM_RETRIES           =     5,       ///< when db connection is lost
-		MAX_CHARS_CTLIB       = 8000,        ///< varchar columns hold at most 8000 characters.
+		MAX_CHARS_CTLIB       =  8000,       ///< varchar columns hold at most 8000 characters.
 
 		F_IgnoreSQLErrors     = 1 << 0,      ///< only effects the WarningLog
 		F_BufferResults       = 1 << 1,      ///< for use with ResetBuffer()
@@ -864,7 +864,7 @@ private:
 //----------
 
 	//-----------------------------------------------------------------------------
-	template<typename T, std::enable_if_t<std::is_constructible_v<KStringView, T> == false, int> = 0>
+	template<typename T, std::enable_if_t<std::is_constructible<KStringView, T>::value == false, int> = 0>
 	auto EscapeType(T&& value)
 	//-----------------------------------------------------------------------------
 	{
@@ -872,7 +872,7 @@ private:
 	}
 
 	//-----------------------------------------------------------------------------
-	template<typename T, std::enable_if_t<std::is_constructible_v<KStringView, T> == true, int> = 0>
+	template<typename T, std::enable_if_t<std::is_constructible<KStringView, T>::value == true, int> = 0>
 	auto EscapeType(T&& value)
 	//-----------------------------------------------------------------------------
 	{

@@ -119,16 +119,16 @@ template<class T>
 struct is_narrow_c_str
   : std::integral_constant<
       bool,
-      std::is_same<char const *, std::decay_t<T>>::value ||
-      std::is_same<char *,       std::decay_t<T>>::value
+      std::is_same<char const *, typename std::decay<T>::type>::value ||
+      std::is_same<char *,       typename std::decay<T>::type>::value
 > {};
 
 template<class T>
 struct is_wide_c_str
   : std::integral_constant<
       bool,
-      std::is_same<wchar_t const *, std::decay_t<T>>::value ||
-      std::is_same<wchar_t *,       std::decay_t<T>>::value
+      std::is_same<wchar_t const *, typename std::decay<T>::type>::value ||
+      std::is_same<wchar_t *,       typename std::decay<T>::type>::value
 > {};
 
 template<class T>
@@ -143,22 +143,22 @@ template<class T>
 struct is_narrow_cpp_str
   : std::integral_constant<
       bool,
-      std::is_same<const KStringViewZ, std::decay_t<T>>::value ||
-      std::is_same<KStringViewZ,       std::decay_t<T>>::value ||
-      std::is_same<const KStringView,  std::decay_t<T>>::value ||
-      std::is_same<KStringView,        std::decay_t<T>>::value ||
-      std::is_same<const KString,      std::decay_t<T>>::value ||
-      std::is_same<KString,            std::decay_t<T>>::value ||
-      std::is_same<const std::string,  std::decay_t<T>>::value ||
-      std::is_same<std::string,        std::decay_t<T>>::value
+      std::is_same<const KStringViewZ, typename std::decay<T>::type>::value ||
+      std::is_same<KStringViewZ,       typename std::decay<T>::type>::value ||
+      std::is_same<const KStringView,  typename std::decay<T>::type>::value ||
+      std::is_same<KStringView,        typename std::decay<T>::type>::value ||
+      std::is_same<const KString,      typename std::decay<T>::type>::value ||
+      std::is_same<KString,            typename std::decay<T>::type>::value ||
+      std::is_same<const std::string,  typename std::decay<T>::type>::value ||
+      std::is_same<std::string,        typename std::decay<T>::type>::value
 > {};
 
 template<class T>
 struct is_wide_cpp_str
   : std::integral_constant<
       bool,
-      std::is_same<const std::wstring, std::decay_t<T>>::value ||
-      std::is_same<std::wstring,       std::decay_t<T>>::value
+      std::is_same<const std::wstring, typename std::decay<T>::type>::value ||
+      std::is_same<std::wstring,       typename std::decay<T>::type>::value
 > {};
 
 template<class T>

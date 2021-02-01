@@ -262,7 +262,7 @@ protected:
 	public:
 	//----------
 
-		using RefCount_t = std::conditional_t<bMultiThreaded, std::atomic_size_t, size_t>;
+		using RefCount_t = typename std::conditional<bMultiThreaded, std::atomic_size_t, size_t>::type;
 
 		//-----------------------------------------------------------------------------
 		/// perfect-forwarding constructor. Allows any parameter that is accepted by the

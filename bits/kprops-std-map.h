@@ -66,11 +66,11 @@ protected:
 //----------
 
 	using map_type =
-	    std::conditional_t<
+	    typename std::conditional<
 	        Unique,
 	        std::unordered_map<Key, Value>,
 	        std::unordered_multimap<Key, Value>
-	    >;
+	    >::type;
 	using map_value_type = typename map_type::value_type;
 
 	// we need a default constructed map_value_type to
@@ -232,11 +232,11 @@ public:
 	using map_type       = typename base_type::map_type;
 	using map_value_type = typename base_type::map_value_type;
 	using MapValueRef    =
-		std::conditional_t<
+	    typename std::conditional<
 	        std::is_const<base_type>::value,
 	        std::reference_wrapper<const map_value_type>,
 	        std::reference_wrapper<map_value_type>
-	    >;
+	    >::type;
 
 //----------
 protected:

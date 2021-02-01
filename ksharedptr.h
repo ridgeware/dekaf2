@@ -282,7 +282,7 @@ private:
 	struct Control
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		using RefCount_t = std::conditional_t<bMultiThreaded, std::atomic_size_t, size_t>;
+		using RefCount_t = typename std::conditional<bMultiThreaded, std::atomic_size_t, size_t>::type;
 
 		Control() = default;
 

@@ -490,11 +490,11 @@ pid_t Dekaf::Fork()
 		StopDefaultTimer();
 	}
 
-	kDebug(2, "forking");
-
 	if ((pid = fork()))
 	{
 		// parent
+
+		kDebug(2, "new pid: {}", pid);
 
 		// restart the timer if it had been running before
 		if (bRestartTimer)

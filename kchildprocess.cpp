@@ -244,7 +244,6 @@ bool KChildProcess::Fork(int(*func)(int, char**), int argc, char* argv[])
 
 	pid_t pid;
 
-	// temporarily disable forking through Dekaf::Fork()
 	if (Dekaf::IsStarted())
 	{
 		// fork through Dekaf, as we may need to stop and restart timer and signal threads
@@ -253,6 +252,11 @@ bool KChildProcess::Fork(int(*func)(int, char**), int argc, char* argv[])
 	else
 	{
 		pid = fork();
+
+		if (pid)
+		{
+			kDebug(2, "new pid: {}", pid);
+		}
 	}
 
 	if (pid)
@@ -316,6 +320,8 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 			return SetError(kFormat("fork(): {}", strerror(errno)));
 		}
 
+		kDebug(2, "new pid: {}", pid);
+
 		m_child = pid;
 
 		return true;
@@ -353,15 +359,6 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 
 		m_child = pid;
 
-		if (!sChangeDirectory.empty())
-		{
-			if (chdir(sChangeDirectory.c_str()))
-			{
-				SetError(kFormat("chdir to {} failed: {}", sChangeDirectory, std::strerror(errno)));
-				exit(1);
-			}
-		}
-
 		// umask never fails, and it returns the previous umask
 		umask(S_IWGRP | S_IWOTH);
 
@@ -391,6 +388,15 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 	else
 	{
 		detail::kCloseOwnFilesForExec(false);
+	}
+
+	if (!sChangeDirectory.empty())
+	{
+		if (chdir(sChangeDirectory.c_str()))
+		{
+			SetError(kFormat("chdir to {} failed: {}", sChangeDirectory, std::strerror(errno)));
+			exit(1);
+		}
 	}
 
 	::execvp(cArgs[0], const_cast<char* const*>(cArgs.data()));

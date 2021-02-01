@@ -67,7 +67,8 @@ KJSON kGetRuntimeStackJSON (int iSkipStackLines = 0);
 /// shorter than the one of kGetRuntimeStack, and intended for logging
 /// purposes during the runtime of the application.
 /// @param iSkipStackLines Number of top stack lines to drop. Defaults to 0.
-KString kGetBacktrace (int iSkipStackLines = 0);
+/// @param bNormalize If true, remove parameters from function calls
+KString kGetBacktrace (int iSkipStackLines = 0, bool bNormalize = true);
 
 /// resolve an address to the symbol and line number it represents
 KString kGetAddress2Line(const void* pAddress);

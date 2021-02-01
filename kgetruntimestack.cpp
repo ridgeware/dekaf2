@@ -358,6 +358,11 @@ StringVec GetGDBCallstack (int iSkipStackLines)
 					}
 				}
 
+				if (sLine.ends_with(") ()"))
+				{
+					sLine.remove_suffix(3);
+				}
+
 				Stack.push_back(sLine);
 			}
 		}
@@ -523,22 +528,6 @@ FrameVec GetBacktraceCallstack (int iSkipStackLines)
 #endif
 
 //-----------------------------------------------------------------------------
-FrameVec GetBacktraceVector (int iSkipStackLines)
-//-----------------------------------------------------------------------------
-{
-	FrameVec Stack;
-
-#if SUPPORT_BACKTRACE_PRINTCALLSTACK
-
-	Stack = GetBacktraceCallstack(iSkipStackLines);
-
-#endif
-
-	return Stack;
-
-} // GetBacktraceVector
-
-//-----------------------------------------------------------------------------
 KStringView RemoveFunctionParms(KStringView sFunction)
 //-----------------------------------------------------------------------------
 {
@@ -643,14 +632,14 @@ KString kNormalizeFunctionName(KStringView sFunctionName)
 } // kNormalizeFunctionName
 
 //-----------------------------------------------------------------------------
-KString kGetBacktrace (int iSkipStackLines)
+KString kGetBacktrace (int iSkipStackLines, bool bNormalize)
 //-----------------------------------------------------------------------------
 {
 	KString sStack;
 
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
 
-	sStack = detail::bt::PrintFrameVector(detail::bt::GetBacktraceVector(iSkipStackLines), true);
+	sStack = detail::bt::PrintFrameVector(detail::bt::GetBacktraceCallstack(iSkipStackLines), bNormalize);
 
 #endif
 
@@ -675,7 +664,7 @@ KString kGetRuntimeStack (int iSkipStackLines)
 	// fall back to libc based backtrace if GDB is not available
 	if (sStack.empty())
 	{
-		sStack = kGetBacktrace(iSkipStackLines);
+		sStack = kGetBacktrace(iSkipStackLines, false);
 	}
 #endif
 
@@ -693,7 +682,7 @@ KJSON kGetRuntimeStackJSON (int iSkipStackLines)
 	// account for own stack frame
 	++iSkipStackLines;
 
-	auto sStack = detail::bt::GetBacktraceVector(iSkipStackLines);
+	auto sStack = detail::bt::GetBacktraceCallstack(iSkipStackLines);
 
 	for (auto& item : sStack)
 	{
@@ -712,7 +701,8 @@ KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles)
 	// account for own stack frame
 	++iSkipStackLines;
 
-	auto Stack = detail::bt::GetBacktraceVector(iSkipStackLines);
+#if SUPPORT_BACKTRACE_PRINTCALLSTACK
+	auto Stack = detail::bt::GetBacktraceCallstack(iSkipStackLines);
 
 	for (auto& Frame : Stack)
 	{
@@ -721,6 +711,7 @@ KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles)
 			return Frame;
 		}
 	}
+#endif
 
 	return {};
 
@@ -780,15 +771,11 @@ KStackFrame::KStackFrame(KStringView sTraceline)
 	{
 		// keep the original trace line intact, we may need it later
 		auto sInput = sTraceline;
-		auto fend = sInput.rfind('/');
+		auto fend = sInput.rfind(" at ");
 		auto pos = fend;
-		if (pos == KStringView::npos)
+		if (pos != KStringView::npos)
 		{
-			pos = sInput.rfind(" at ");
-			if (pos != KStringView::npos)
-			{
-				pos += 3;
-			}
+			pos += 3;
 		}
 		if (pos != KStringView::npos)
 		{
@@ -894,7 +881,7 @@ KString KStackFrame::Serialize(bool bNormalize) const
 		
 		sLine += ')';
 	}
-	else if (!sLineNumber.empty())
+	else if (!sLineNumber.empty() && sLineNumber != "?")
 	{
 		// e.g. atos byte offset
 		sLine += '(';

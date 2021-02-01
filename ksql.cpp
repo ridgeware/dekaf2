@@ -2286,8 +2286,9 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 					m_sLastError.Format ("{}:{}: malformed {{token}}: {}", sFilename, Parms.iLineNum, sStart);
 					return (false);
 				}
+				KStringView sKey   = sStart.substr(strlen("{{"), iEnd-strlen("{{")).Trim();
 				KStringView sValue = sStart.substr(iEnd+strlen("}}")).Trim();
-				m_TxList.Add (sStart.substr(strlen("{{")), sValue);
+				m_TxList.Add (sKey, sValue);
 				sStart.clear();
 				fFoundSpecialLeader = true;
 			}

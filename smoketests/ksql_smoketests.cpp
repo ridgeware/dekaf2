@@ -741,7 +741,8 @@ TEST_CASE("KSQL")
 		KString sContents1 = HereDoc(R"(
 		    |delete from TEST_KSQL;
 		    |//MSS|set identity_insert TEST_KSQL on;
-		    |insert into TEST_KSQL (anum) values (10);
+			|//define {{TBLNAM}} TEST_KSQL
+		    |insert into {{TBLNAM}} (anum) values (10);
 		    |insert into TEST_KSQL (anum) values (20);
 		    |#include "${INCLUDEME}"
 		    |//MSS|set identity_insert TEST_KSQL off;

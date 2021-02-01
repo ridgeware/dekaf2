@@ -56,13 +56,6 @@ bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 {
 	close();
 
-	// find the content length
-	KStringView sRemainingContentSize = headers.Headers.Get(KHTTPHeader::CONTENT_LENGTH);
-	if (!sRemainingContentSize.empty())
-	{
-		m_iContentSize = sRemainingContentSize.UInt64();
-	}
-
 	m_bChunked = headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
 
 	KStringView sCompression = headers.Headers.Get(KHTTPHeader::CONTENT_ENCODING);
@@ -202,7 +195,6 @@ void KOutHTTPFilter::close()
 		m_Compression = NONE;
 		m_bChunked = false;
 		m_bAllowCompression = true;
-		m_iContentSize = -1;
 	}
 
 } // close

@@ -174,7 +174,6 @@ private:
 	COMP m_Compression { NONE };
 	bool m_bChunked { false };
 	bool m_bAllowCompression { true };
-	std::streamsize m_iContentSize { -1 };
 
 }; // KHTTPOutputFilter
 

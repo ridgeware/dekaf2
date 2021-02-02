@@ -383,7 +383,7 @@ size_t kFindFirstOfNeedles16(KStringView haystack,
 	// not found
 	return KStringView::npos;
 
-} // kFindFirstNotOfNeedles16
+} // kFindFirstOfNeedles16
 
 
 //-----------------------------------------------------------------------------

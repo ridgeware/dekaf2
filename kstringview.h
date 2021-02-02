@@ -184,11 +184,11 @@ bool kEndsWith(KStringView sInput, KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-bool kContains(KStringView sInput, KStringView sPattern);
+bool kContains(KStringView sInput, KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-bool kContains(KStringView sInput, char ch);
+bool kContains(KStringView sInput, char ch) noexcept;
 //----------------------------------------------------------------------
 
 // forward declarations
@@ -818,6 +818,24 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	// std::C++>20
+	/// does the string contain the sPattern?
+	bool contains(self_type other) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return kContains(*this, other);
+	}
+
+	//-----------------------------------------------------------------------------
+	// std::C++>20
+	/// does the string contain the ch?
+	bool contains(value_type ch) const noexcept
+	//-----------------------------------------------------------------------------
+	{
+		return kContains(*this, ch);
+	}
+
+	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// does the string start with sPattern? (Now deprecated, replace by starts_with())
 	DEKAF2_CONSTEXPR_14
@@ -839,8 +857,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	/// does the string contain the sPattern?
-	bool Contains(self_type other) const
+	/// does the string contain the sPattern? (Now deprecated, replace by contains())
+	bool Contains(self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return kContains(*this, other);
@@ -848,8 +866,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	/// does the string contain the ch?
-	bool Contains(value_type ch) const
+	/// does the string contain the ch? (Now deprecated, replace by contains())
+	bool Contains(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return kContains(*this, ch);
@@ -1711,7 +1729,7 @@ bool kEndsWith(KStringView sInput, KStringView sPattern) noexcept
 
 //----------------------------------------------------------------------
 inline
-bool kContains(KStringView sInput, KStringView sPattern)
+bool kContains(KStringView sInput, KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
@@ -1730,7 +1748,7 @@ bool kContains(KStringView sInput, KStringView sPattern)
 
 //----------------------------------------------------------------------
 inline
-bool kContains(KStringView sInput, const char ch)
+bool kContains(KStringView sInput, const char ch) noexcept
 //----------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(sInput.empty()))

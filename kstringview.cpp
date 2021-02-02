@@ -49,7 +49,9 @@
 #include "kctype.h"
 
 #ifndef __linux__
+//-----------------------------------------------------------------------------
 void* memrchr(const void* s, int c, size_t n)
+//-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
@@ -97,6 +99,7 @@ size_t kFind(
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+
 	if (DEKAF2_UNLIKELY(needle.size() == 1))
 	{
 		// flip to single char search if only one char is in the search argument
@@ -188,6 +191,7 @@ size_t kRFind(
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
 	|| defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
 	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
+
 	if (DEKAF2_UNLIKELY(needle.size() == 1))
 	{
 		return kRFind(haystack, needle[0], pos);

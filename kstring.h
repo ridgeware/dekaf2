@@ -471,17 +471,25 @@ public:
 	/// does the string end with sChar?
 	bool ends_with(value_type ch) const noexcept;
 
+	// std::C++>20
+	/// does the string contain the ch?
+	bool contains(value_type ch) const noexcept;
+
+	// std::C++>20
+	/// does the string contain the sPattern?
+	bool contains(KStringView sPattern) const noexcept;
+
 	/// does the string start with sPattern? (Now deprecated, replace by starts_with())
 	bool StartsWith(KStringView sPattern) const noexcept;
 
 	/// does the string end with sPattern? (Now deprecated, replace by ends_with())
 	bool EndsWith(KStringView sPattern) const noexcept;
 
-	/// does the string contain the sPattern?
-	bool Contains(KStringView sPattern) const;
+	/// does the string contain the sPattern? (Now deprecated, replace by contains())
+	bool Contains(KStringView sPattern) const noexcept;
 
-	/// does the string contain the ch?
-	bool Contains(value_type ch) const;
+	/// does the string contain the ch? (Now deprecated, replace by contains())
+	bool Contains(value_type ch) const noexcept;
 
 	/// changes the string to lowercase (UTF8)
 	self& MakeLower();
@@ -1313,6 +1321,20 @@ inline bool KString::ends_with(value_type ch) const noexcept
 }
 
 //-----------------------------------------------------------------------------
+inline bool KString::contains(KStringView sPattern) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kContains(*this, sPattern);
+}
+
+//-----------------------------------------------------------------------------
+inline bool KString::contains(const KString::value_type ch) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kContains(*this, ch);
+}
+
+//-----------------------------------------------------------------------------
 inline bool KString::StartsWith(KStringView sPattern) const noexcept
 //-----------------------------------------------------------------------------
 {
@@ -1327,14 +1349,14 @@ inline bool KString::EndsWith(KStringView sPattern) const noexcept
 }
 
 //-----------------------------------------------------------------------------
-inline bool KString::Contains(KStringView sPattern) const
+inline bool KString::Contains(KStringView sPattern) const noexcept
 //-----------------------------------------------------------------------------
 {
 	return kContains(*this, sPattern);
 }
 
 //-----------------------------------------------------------------------------
-inline bool KString::Contains(const KString::value_type ch) const
+inline bool KString::Contains(const KString::value_type ch) const noexcept
 //-----------------------------------------------------------------------------
 {
 	return kContains(*this, ch);

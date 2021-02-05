@@ -1363,6 +1363,19 @@ TEST_CASE("KString") {
 		CHECK ( sLine.ends_with('t') == false );
 	}
 
+	SECTION ("contains")
+	{
+		KString sLine = "This is a line with some data";
+
+		CHECK ( sLine.contains("This") == true );
+		CHECK ( sLine.contains("This is") == true );
+		CHECK ( sLine.contains("his") == true );
+		CHECK ( sLine.contains("is") == true );
+		CHECK ( sLine.contains("data") == true );
+		CHECK ( sLine.contains("nothing") == false );
+		CHECK ( sLine.contains("") == true );
+	}
+
 	SECTION ("StartsWith")
 	{
 		KString sLine = "This is a line with some data";

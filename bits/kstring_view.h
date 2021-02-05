@@ -416,6 +416,24 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 			return ends_with(basic_string_view(s));
 		}
 
+		DEKAF2_CONSTEXPR_17
+		bool contains(CharT ch) const noexcept
+		{
+			return find(ch) != npos;
+		}
+
+		DEKAF2_CONSTEXPR_17
+		bool contains(basic_string_view sv) const noexcept
+		{
+			return find(sv) != npos;
+		}
+
+		DEKAF2_CONSTEXPR_17
+		bool contains(const CharT* s) const noexcept
+		{
+			return find(s) != npos;
+		}
+
 		static constexpr DEKAF2_ALWAYS_INLINE
 		size_type constexpr_strlen(const CharT* s) noexcept
 		{

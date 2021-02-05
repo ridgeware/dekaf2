@@ -389,7 +389,7 @@ void CreateProject::CreateBuildSystem(KStringView sBuildType)
 		kSystem(kFormat("cmake -DCMAKE_BUILD_TYPE={} -S {} -B {}", sBuildType, m_sOutputDir, sBuildDir), sShellOutput);
 	}
 
-	if (sShellOutput.ToLowerASCII().Contains("error"))
+	if (sShellOutput.ToLowerASCII().contains("error"))
 	{
 		KErr.WriteLine();
 		KErr.WriteLine(sShellOutput);

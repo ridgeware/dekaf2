@@ -2049,7 +2049,7 @@ bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.contains("\n")) ? "\n" : "", sSQL);
 	}
 
 	if (IsFlag(F_ReadOnlyMode) && ! IsSelect(m_sLastSQL))
@@ -2514,7 +2514,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (m_sLastSQL.Contains("\n")) ? "\n" : "", m_sLastSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (m_sLastSQL.contains("\n")) ? "\n" : "", m_sLastSQL);
 	}
 
 	EndQuery();
@@ -3065,7 +3065,7 @@ bool KSQL::ParseRawQuery (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sA
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.Contains("\n")) ? "\n" : "", sSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.contains("\n")) ? "\n" : "", sSQL);
 	}
 
 	CopyIfNotSame(m_sLastSQL, sSQL);
@@ -4233,7 +4233,7 @@ time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 		return (0);
 	}
 
-	if (sVal.Contains("ERR"))
+	if (sVal.contains("ERR"))
 	{
 		m_sLastError.Format ("{}IntValue(row={},col={}): {}", m_sErrorPrefix, m_iRowNum, iOneBasedColNum+1, sVal);
 		SQLError();
@@ -7541,7 +7541,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 		for (KString sOne : sQueryParm.Split(sSplitBy))
 		{
 			sOne.Replace ('*','%',/*start=*/0,/*bAll=*/true); // allow * wildcards too
-			if (!sOne.Contains ("%"))
+			if (!sOne.contains ("%"))
 			{
 				sOne = kFormat ("{}{}{}", "%", sOne, "%");
 			}
@@ -7590,7 +7590,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	// single value (no comma):
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
-	else if (!sQueryParm.Contains(sSplitBy))
+	else if (!sQueryParm.contains(sSplitBy))
 	{
 		if (iFlags & FAC_NUMERIC)
 		{
@@ -7600,7 +7600,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 		{
 			KString sOne (sQueryParm);
 			sOne.Replace ('*','%',/*start=*/0,/*bAll=*/true); // allow * wildcards too
-			if (!sOne.Contains ("%"))
+			if (!sOne.contains ("%"))
 			{
 				sOne = kFormat ("{}{}{}", "%", sOne, "%");
 			}
@@ -7693,7 +7693,7 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const 
 	for (auto parm : ParmList)
 	{
 		KString sParm (parm);
-		bool    bDesc = sParm.Contains(" desc");
+		bool    bDesc = sParm.contains(" desc");
 		bool    bFound{false};
 
 		sParm.Replace (" descending","");

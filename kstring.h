@@ -471,11 +471,11 @@ public:
 	/// does the string end with sChar?
 	bool ends_with(value_type ch) const noexcept;
 
-	// std::C++>20
+	// std::C++23
 	/// does the string contain the ch?
 	bool contains(value_type ch) const noexcept;
 
-	// std::C++>20
+	// std::C++23
 	/// does the string contain the sPattern?
 	bool contains(KStringView sPattern) const noexcept;
 

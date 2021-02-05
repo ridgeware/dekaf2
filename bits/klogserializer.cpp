@@ -145,11 +145,11 @@ bool KLogSerializer::Matches(bool bEgrep, bool bInverted, KStringView sGrepExpre
 		}
 		else
 		{
-			bMatches = m_sFunctionName.ToLower().Contains(sGrepExpression);
+			bMatches = m_sFunctionName.ToLower().contains(sGrepExpression);
 
 			if (!bMatches)
 			{
-				bMatches = m_sMessage.ToLower().Contains(sGrepExpression);
+				bMatches = m_sMessage.ToLower().contains(sGrepExpression);
 			}
 		}
 

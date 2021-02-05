@@ -103,11 +103,11 @@ TEST_CASE("KSystem")
 
 			CHECK ( iRet == DEKAF2_POPEN_COMMAND_NOT_FOUND );
 			INFO  ( sOutput );
-			CHECK ( sOutput.Contains("abasdkhjfgbsarkjghvasgskufhse") );
+			CHECK ( sOutput.contains("abasdkhjfgbsarkjghvasgskufhse") );
 #ifdef DEKAF2_IS_WINDOWS
-			CHECK ( sOutput.Contains("not recognized") );
+			CHECK ( sOutput.contains("not recognized") );
 #else
-			CHECK ( sOutput.Contains("not found") );
+			CHECK ( sOutput.contains("not found") );
 #endif
 		}
 

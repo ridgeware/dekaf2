@@ -61,7 +61,7 @@ KRESTAnalyzedPath::KRESTAnalyzedPath(KHTTPMethod _Method, KStringView _sRoute)
 	: KHTTPAnalyzedPath(std::move(_sRoute))
 	, Method(std::move(_Method))
 {
-	bHasParameters = sRoute.Contains("/:") || sRoute.Contains("/=");
+	bHasParameters = sRoute.contains("/:") || sRoute.contains("/=");
 
 } // KRESTAnalyzedPath
 

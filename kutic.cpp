@@ -293,7 +293,7 @@ void KHTMLUTICParser::AddUTIC(KUTIC Searcher)
 
 bool operator==(const KParsedUTIC& left, const KUTIC& right)
 {
-	return left.URL().Contains(right.URL())   &&
+	return left.URL().contains(right.URL())   &&
 	       left.Tags()      == right.Tags()   &&
 	       left.IDs()       == right.IDs()    &&
 	       left.Classes()   == right.Classes();

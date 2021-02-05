@@ -582,7 +582,7 @@ bool RecursiveMatchValue (const KJSON& json, KStringView sSearch)
 	{
 		KString sLowerValue = json.dump();
 		sLowerValue.MakeLower();
-		if (sLowerValue.Contains (sSearch))
+		if (sLowerValue.contains (sSearch))
 		{
 			return true; // this value contains the string
 		}

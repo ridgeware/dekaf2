@@ -201,6 +201,7 @@ public:
 	using base_type::rfind;
 	using base_type::starts_with;
 	using base_type::ends_with;
+	using base_type::contains;
 
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) && defined(DEKAF2_IS_GCC)
 	// we have a super fast implementation for these signatures in GLIBC, let

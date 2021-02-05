@@ -166,7 +166,7 @@ std::size_t kSplit (
 			if (DEKAF2_UNLIKELY(svBuffer.empty()))
 			{
 				// add a last empty element if this delimiter is not a space and the trim sequence does not contain the delimiter either
-				bAddLastEmptyElement = thisDelimiter != ' ' && !svTrim.Contains(thisDelimiter);
+				bAddLastEmptyElement = thisDelimiter != ' ' && !svTrim.contains(thisDelimiter);
 			}
 		}
 		else

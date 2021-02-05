@@ -1228,6 +1228,19 @@ TEST_CASE("KStringView") {
 		CHECK ( sLine.ends_with('t') == false );
 	}
 
+	SECTION ("contains")
+	{
+		KStringView sLine = "This is a line with some data";
+
+		CHECK ( sLine.contains("This") == true );
+		CHECK ( sLine.contains("This is") == true );
+		CHECK ( sLine.contains("his") == true );
+		CHECK ( sLine.contains("is") == true );
+		CHECK ( sLine.contains("data") == true );
+		CHECK ( sLine.contains("nothing") == false );
+		CHECK ( sLine.contains("") == true );
+	}
+
 	SECTION ("StartsWith")
 	{
 		KStringView sLine = "This is a line with some data";

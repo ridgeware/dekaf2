@@ -990,7 +990,7 @@ bool KSystemStats::GatherNetstat ()
 	AddIntStatIfFileExists ("ipv4_ipfrag_time",          "/proc/sys/net/ipv4/ipfrag_time");
 	AddIntStatIfFileExists ("ipv4_tcp_keepalive_time",   "/proc/sys/net/ipv4/tcp_keepalive_time");
 
-	if (m_Stats.Contains("ipv4_ip_local_port_range"))
+	if (m_Stats.contains("ipv4_ip_local_port_range"))
 	{
 		// the ip_local_port_range file has a min and max:
 		auto Parts = m_Stats["ipv4_ip_local_port_range"].sValue.Split(" ");
@@ -1013,7 +1013,7 @@ bool KSystemStats::AddCalculations ()
 	// add a few hand-picked calculations (if we have the stats that compose them):
 
 	kDebug (2, "computing a few parms ...");
-	if (m_Stats.Contains ("cpuinfo_num_cores"))
+	if (m_Stats.contains ("cpuinfo_num_cores"))
 	{
 		auto   nLoad    = m_Stats["load_average_1min"].sValue.Double();
 		auto   nCores   = m_Stats["cpuinfo_num_cores"].sValue.Double();
@@ -1022,7 +1022,7 @@ bool KSystemStats::AddCalculations ()
 		Add ("load_per_core", nLPC, StatType::FLOAT);
 	}
 
-	if (m_Stats.Contains ("meminfo_memfree_kb") && m_Stats.Contains ("meminfo_memtotal_kb"))
+	if (m_Stats.contains ("meminfo_memfree_kb") && m_Stats.contains ("meminfo_memtotal_kb"))
 	{
 		int_t  iTotal     = m_Stats["meminfo_memtotal_kb"].sValue.Int64();
 		int_t  iFree      = m_Stats["meminfo_memfree_kb"].sValue.Int64();
@@ -1046,7 +1046,7 @@ bool KSystemStats::AddCalculations ()
 		}
 	}
 
-	if (m_Stats.Contains ("meminfo_swapfree_kb") && m_Stats.Contains ("meminfo_swaptotal_kb"))
+	if (m_Stats.contains ("meminfo_swapfree_kb") && m_Stats.contains ("meminfo_swaptotal_kb"))
 	{
 #ifdef DEKAF2_HAS_INT128
 		int_t  iTotal   = m_Stats["meminfo_swaptotal_kb"].sValue.Int128();

@@ -180,7 +180,7 @@ TEST_CASE("KRegex")
 		KStopWatch Watch1;
 		for (int i = 0; i < 10000; ++i)
 		{
-			auto iPos = sString.Contains("6137536e69679e67");
+			auto iPos = sString.contains("6137536e69679e67");
 		}
 		Watch1.halt();
 
@@ -196,7 +196,7 @@ TEST_CASE("KRegex")
 		KStopWatch Watch3;
 		for (int i = 0; i < 10000; ++i)
 		{
-			auto result = sString.Contains("6d6UU561375") | sString.Contains("36e69679e67");
+			auto result = sString.contains("6d6UU561375") | sString.contains("36e69679e67");
 		}
 		Watch3.halt();
 

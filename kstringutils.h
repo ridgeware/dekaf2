@@ -242,7 +242,7 @@ String& kCollapse(String& string, KStringView svCollapse, typename String::value
 
 	for (;it != ie; ++it)
 	{
-		if (DEKAF2_UNLIKELY(svCollapse.Contains(*it)))
+		if (DEKAF2_UNLIKELY(svCollapse.contains(*it)))
 		{
 			bLastWasFound = true;
 		}
@@ -281,7 +281,7 @@ String& kCollapseAndTrim(String& string, KStringView svCollapse, typename String
 
 	for (;it != ie; ++it)
 	{
-		if (DEKAF2_UNLIKELY(svCollapse.Contains(*it)))
+		if (DEKAF2_UNLIKELY(svCollapse.contains(*it)))
 		{
 			if (ins != string.begin())
 			{

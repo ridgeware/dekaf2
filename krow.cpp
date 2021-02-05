@@ -819,7 +819,7 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 		{
 			// TODO get a strategy as to how to and if to adapt to locales with other chars than . as the
 			// decimal separator
-			if (col.second.sValue.Contains('.'))
+			if (col.second.sValue.contains('.'))
 			{
 				json[sKey] = col.second.sValue.Double();
 			}

@@ -825,8 +825,8 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 		{
 			for (const auto& sTrace : m_Traces)
 			{
-				if (sFunction.Contains(sTrace) ||
-					sMessage.Contains(sTrace))
+				if (sFunction.contains(sTrace) ||
+					sMessage.contains(sTrace))
 				{
 					iLevel = m_iBackTrace;
 					break;

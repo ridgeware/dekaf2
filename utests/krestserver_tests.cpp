@@ -67,7 +67,7 @@ x-klog: -level 1
 		}});
 		Browser.Execute(Options, Routes);
 
-		sResponse.Contains("KRESTServer::Output(): HTTP-200: OK\r\nx-klog");
+		sResponse.contains("KRESTServer::Output(): HTTP-200: OK\r\nx-klog");
 		sResponse.ClipAtReverse("\r\n\r\n");
 		sResponse.remove_prefix("\r\n\r\n");
 		KJSON json;

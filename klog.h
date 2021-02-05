@@ -235,11 +235,6 @@ public:
 #endif
 	};
 
-	//---------------------------------------------------------------------------
-	/// Create a Writer of specific type
-	static std::unique_ptr<KLogWriter> CreateWriter(Writer writer, KStringView sLogname = KStringView{});
-	//---------------------------------------------------------------------------
-
 	enum class Serializer
 	{
 		TTY,
@@ -252,18 +247,33 @@ public:
 	};
 
 	//---------------------------------------------------------------------------
+	/// Create a Writer of specific type
+	static std::unique_ptr<KLogWriter> CreateWriter(Writer writer, KStringView sLogname = KStringView{});
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
 	/// Create a Serializer of specific type
 	static std::unique_ptr<KLogSerializer> CreateSerializer(Serializer serializer);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
 	/// Set the log writer directly instead of opening one implicitly with SetDebugLog()
-	bool SetWriter(std::unique_ptr<KLogWriter> logger);
+	self& SetWriter(std::unique_ptr<KLogWriter> logger);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Set the log writer directly instead of opening one implicitly with SetDebugLog()
+	self& SetWriter(Writer writer, KStringView sLogname = KStringView{});
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
 	/// Set the log serializer directly instead of opening one implicitly with SetDebugLog()
-	bool SetSerializer(std::unique_ptr<KLogSerializer> serializer);
+	self& SetSerializer(std::unique_ptr<KLogSerializer> serializer);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Set the log serializer directly instead of opening one implicitly with SetDebugLog()
+	self& SetSerializer(Serializer serializer);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------

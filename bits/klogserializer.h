@@ -233,7 +233,7 @@ protected:
 
 	KJSON& m_json;
 
-}; // KLogJSONObjectSerializer
+}; // KLogJSONArraySerializer
 
 #endif // of DEKAF2_KLOG_WITH_TCP
 

@@ -425,20 +425,36 @@ bool KLog::SetDebugLog(KStringView sLogfile)
 } // SetDebugLog
 
 //---------------------------------------------------------------------------
-bool KLog::SetWriter(std::unique_ptr<KLogWriter> logger)
+KLog& KLog::SetWriter(std::unique_ptr<KLogWriter> logger)
 //---------------------------------------------------------------------------
 {
 	m_Logger = std::move(logger);
-	return m_Logger != nullptr && m_Logger->Good();
+	return *this;
 
 } // SetWriter
 
 //---------------------------------------------------------------------------
-bool KLog::SetSerializer(std::unique_ptr<KLogSerializer> serializer)
+KLog& KLog::SetWriter(Writer writer, KStringView sLogname)
+//---------------------------------------------------------------------------
+{
+	return SetWriter(CreateWriter(writer, sLogname));
+
+} // SetWriter
+
+//---------------------------------------------------------------------------
+KLog& KLog::SetSerializer(std::unique_ptr<KLogSerializer> serializer)
 //---------------------------------------------------------------------------
 {
 	m_Serializer = std::move(serializer);
-	return m_Serializer != nullptr;
+	return *this;
+
+} // SetSerializer
+
+//---------------------------------------------------------------------------
+KLog& KLog::SetSerializer(Serializer serializer)
+//---------------------------------------------------------------------------
+{
+	return SetSerializer(CreateSerializer(serializer));
 
 } // SetSerializer
 

@@ -550,6 +550,11 @@ KString::size_type KString::Replace(
 		return 0;
 	}
 
+	if (DEKAF2_UNLIKELY(sSearch.size() == 1 && sReplace.size() == 1))
+	{
+		return Replace(sSearch.front(), sReplace.front(), pos, bReplaceAll);
+	}
+
 	typedef KString::size_type size_type;
 	typedef KString::value_type value_type;
 

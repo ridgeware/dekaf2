@@ -65,7 +65,7 @@ std::ostream& kfFormat(std::ostream& os, KStringView sFormat, fmt::format_args a
 	}
 	DEKAF2_CATCH (std::exception& e)
 	{
-		kTraceDownCaller(4, "klog.h,kformat.cpp,kformat.h",
+		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h",
 						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));
 	}
 	return os;
@@ -84,7 +84,7 @@ KString kFormat(KStringView sFormat, fmt::format_args args)
 	}
 	DEKAF2_CATCH (std::exception& e)
 	{
-		kTraceDownCaller(4, "klog.h,kformat.cpp,kformat.h",
+		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h",
 						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));
 	}
 	return sOut;
@@ -102,7 +102,7 @@ std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, fmt::printf_args a
 	}
 	DEKAF2_CATCH (std::exception& e)
 	{
-		kTraceDownCaller(4, "klog.h,kformat.cpp,kformat.h",
+		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h",
 						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));
 	}
 	return os;
@@ -121,7 +121,7 @@ KString kPrintf(KStringView sFormat, fmt::printf_args args)
 	}
 	DEKAF2_CATCH (std::exception& e)
 	{
-		kTraceDownCaller(4, "klog.h,kformat.cpp,kformat.h",
+		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h",
 						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));
 	}
 	return { buffer.data(), buffer.size() };

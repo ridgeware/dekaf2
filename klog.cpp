@@ -954,10 +954,14 @@ void KLog::JSONTrace(KStringView sFunction)
 	{
 		if (m_bGlobalShouldOnlyShowCallerOnJsonError)
 		{
-			static constexpr KStringView s_sJSONSkipFiles { "parser.hpp,json_sax.hpp,json.hpp,krow.cpp,"
-				               "to_json.hpp,from_json.hpp,adl_serializer.hpp,krow.h,kjson.hpp,kjson.cpp" };
+			static constexpr KStringView s_sJSONSkipFiles {
+				"kgetruntimestack.cpp,kgetruntimestack.h,klog.cpp,klog.h,"
+				"parser.hpp,json_sax.hpp,json.hpp,krow.cpp,"
+				"to_json.hpp,from_json.hpp,adl_serializer.hpp,krow.h,"
+				"kjson.hpp,kjson.cpp"
+			};
 
-			TraceDownCaller(3, s_sJSONSkipFiles, "JSON Exception");
+			TraceDownCaller(1, s_sJSONSkipFiles, "JSON Exception");
 		}
 		else
 		{

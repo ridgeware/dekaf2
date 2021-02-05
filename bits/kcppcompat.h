@@ -50,6 +50,7 @@
 #include "kconfiguration.h"
 #include <climits>
 #include <cinttypes>
+#include <type_traits>
 
 #define DEKAF2_xstringify(x) #x
 #define DEKAF2_stringify(x) DEKAF2_xstringify(x)
@@ -205,6 +206,16 @@
 	#define DEKAF2_DEPRECATED(msg) __declspec(deprecated(msg))
 #else
 	#define DEKAF2_DEPRECATED(msg)
+#endif
+
+#if DEKAF2_HAS_CPP_20
+	#define DEKAF2_IS_CONSTANT_EVALUATED() std::is_constant_evaluated()
+#elif defined __GNUC__ // valid for both GCC and CLANG
+	#if __has_builtin(__builtin_is_constant_evaluated)
+		#define DEKAF2_IS_CONSTANT_EVALUATED() __builtin_is_constant_evaluated()
+	#else
+		#define DEKAF2_IS_CONSTANT_EVALUATED() (false)
+	#endif
 #endif
 
 // configure exception behavior

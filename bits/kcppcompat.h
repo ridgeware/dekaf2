@@ -211,11 +211,11 @@
 #if DEKAF2_HAS_CPP_20
 	#define DEKAF2_IS_CONSTANT_EVALUATED() std::is_constant_evaluated()
 #elif defined __GNUC__ // valid for both GCC and CLANG
-	#if __has_builtin(__builtin_is_constant_evaluated)
-		#define DEKAF2_IS_CONSTANT_EVALUATED() __builtin_is_constant_evaluated()
-	#else
+//	#if __has_builtin(__builtin_is_constant_evaluated)
+//		#define DEKAF2_IS_CONSTANT_EVALUATED() __builtin_is_constant_evaluated()
+//	#else
 		#define DEKAF2_IS_CONSTANT_EVALUATED() (false)
-	#endif
+//	#endif
 #endif
 
 // configure exception behavior

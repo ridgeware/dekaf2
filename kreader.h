@@ -308,7 +308,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Read a line of text. Returns false if no input available. Stops at delimiter
+	/// Reads a line of text. Returns false if no input available. Stops at delimiter
 	/// character defined and optionally right trims the string from the trim
 	/// definition. Per default does not contain the end-of-line character in the
 	/// returned string.
@@ -323,12 +323,33 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Reads a line of text and returns it. Stops at delimiter
+	/// character defined and optionally right trims the string from the trim
+	/// definition. Per default does not contain the end-of-line character in the
+	/// returned string.
+	KString ReadLine()
+	//-----------------------------------------------------------------------------
+	{
+		KString sLine;
+		kReadLine(InStream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter);
+		return sLine;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Returns the complete content of a file in a string. Returns false if no input
 	/// available. Fails on non-seekable inputs, e.g. streams.
 	bool ReadAll(KString& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
 		return kReadAll(InStream(), sBuffer, true);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns the complete content of a file in the returned string. Fails on non-seekable inputs, e.g. streams.
+	KString ReadAll()
+	//-----------------------------------------------------------------------------
+	{
+		return kReadAll(InStream(), true);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -341,11 +362,28 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns the remaining content of a file in a string. Does not fail on non-seekable
+	/// inputs, but tries to read the utmost.
+	KString ReadRemaining()
+	//-----------------------------------------------------------------------------
+	{
+		return kReadAll(InStream(), false);
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Alias for ReadAll
 	bool GetContent(KString& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
 		return ReadAll(sBuffer);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Alias for ReadAll
+	KString GetContent()
+	//-----------------------------------------------------------------------------
+	{
+		return ReadAll();
 	}
 
 	//-----------------------------------------------------------------------------

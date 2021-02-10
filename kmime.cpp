@@ -174,39 +174,42 @@ KMIME KMIME::CreateByExtension(KStringView sFilename, KMIME Default)
 } // CreateByExtension
 
 //-----------------------------------------------------------------------------
-bool KMIME::ByInspection(KStringView sFilename, KMIME Default)
+bool KMIME::ByInspection(KStringViewZ sFilename, KMIME Default)
 //-----------------------------------------------------------------------------
 {
 #ifndef DEKAF2_IS_WINDOWS
-	KInShell Shell(kFormat("file --mime-type '{}'", sFilename));
-
-	if (Shell.is_open())
+	if (kFileExists(sFilename, true))
 	{
-		auto sMime = Shell.ReadLine();
-		auto iClip = sMime.rfind(": ");
+		KInShell Shell(kFormat("file --mime-type '{}'", sFilename));
 
-		if (iClip != KString::npos)
+		if (Shell.is_open())
 		{
-			sMime.erase(0, iClip + 2);
-		}
+			auto sMime = Shell.ReadLine();
+			auto iClip = sMime.rfind(": ");
 
-		m_mime = sMime;
+			if (iClip != KString::npos)
+			{
+				sMime.erase(0, iClip + 2);
+			}
 
-		if (m_mime != NONE)
-		{
-			return true;
+			m_mime = sMime;
+
+			if (m_mime != NONE)
+			{
+				return true;
+			}
 		}
 	}
 #endif
 
 	m_mime = Default;
-	
+
 	return false;
 
 } // ByInspection
 
 //-----------------------------------------------------------------------------
-KMIME KMIME::CreateByInspection(KStringView sFilename, KMIME Default)
+KMIME KMIME::CreateByInspection(KStringViewZ sFilename, KMIME Default)
 //-----------------------------------------------------------------------------
 {
 	KMIME mime;

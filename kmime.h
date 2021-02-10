@@ -116,13 +116,13 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Set MIME type according to inspection of sFilename. Use Default if no
 	/// association found.
-	bool ByInspection(KStringView sFilename, KMIME Default = NONE);
+	bool ByInspection(KStringViewZ sFilename, KMIME Default = NONE);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Generate a KMIME instance with the MIME type set according to inspection
 	/// of sFilename. Use Default if no association found.
-	static KMIME CreateByInspection(KStringView sFilename, KMIME Default = NONE);
+	static KMIME CreateByInspection(KStringViewZ sFilename, KMIME Default = NONE);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

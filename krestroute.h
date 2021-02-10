@@ -77,9 +77,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Construct a REST path. Typically used for the request path in a HTTP query.
-	/// Notice that _sRoute is a KStringView, and the pointed-to
-	/// string must stay visible during the lifetime of this class
-	KRESTPath(KHTTPMethod _Method, KStringView _sRoute);
+	KRESTPath(KHTTPMethod _Method, KString _sRoute);
 	//-----------------------------------------------------------------------------
 
 	KHTTPMethod Method;  	// e.g. GET, or empty for all

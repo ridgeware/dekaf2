@@ -46,9 +46,9 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KRESTPath::KRESTPath(KHTTPMethod _Method, KStringView _sRoute)
+KRESTPath::KRESTPath(KHTTPMethod _Method, KString _sRoute)
 //-----------------------------------------------------------------------------
-	: KHTTPPath(_sRoute)
+	: KHTTPPath(std::move(_sRoute))
 	, Method(std::move(_Method))
 {
 } // KRESTPath

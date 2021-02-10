@@ -1630,14 +1630,14 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 	EndQuery();
 
 	bool   bOK          = false;
-	int    iRetriesLeft = NUM_RETRIES;
+	int    iRetriesLeft = m_bDisableRetries ? 1 : NUM_RETRIES;
 	int    iSleepFor    = 0;
 
 	KStopTime Timer;
 
 	m_SQLStmtStats.Collect(m_sLastSQL);
 
-	while (!bOK && iRetriesLeft && !m_bDisableRetries)
+	while (!bOK && iRetriesLeft)
 	{
 		ResetErrorStatus ();
 
@@ -1836,11 +1836,12 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 	ClearErrorPrefix();
 
-	if (!bOK) {
+	if (!bOK)
+	{
 		return (SQLError());
 	}
 
-	LogPerformance (Timer.elapsed<std::chrono::milliseconds>().count(), /*bIsQuery=*/false);
+	LogPerformance (Timer.milliseconds(), /*bIsQuery=*/false);
 
 	return (bOK);
 
@@ -3011,7 +3012,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 	ClearErrorPrefix();
 
-	LogPerformance (Timer.elapsed<std::chrono::milliseconds>().count(), /*bIsQuery=*/true);
+	LogPerformance (Timer.milliseconds(), /*bIsQuery=*/true);
 	
 	if (IsFlag(F_BufferResults))
 	{
@@ -4008,13 +4009,9 @@ void KSQL::EndQuery (bool bDestructor/*=false*/)
 	{
 		kDebug (3, "  ...");
 	}
-
-	if (m_bQueryStarted)
+	else
 	{
-		if (!bDestructor)
-		{
-			kDebug (GetDebugLevel()+1, "  {} row{} fetched.", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
-		}
+		kDebug (GetDebugLevel()+1, "  {} row{} fetched.", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
 	}
 
     #ifdef DEKAF2_HAS_MYSQL

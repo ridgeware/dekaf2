@@ -404,12 +404,12 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			RequestPath = KRESTPath(Request.Method, sURLPath);
 
 			// find the right route
-			route = &Routes.FindRoute(RequestPath, Request.Resource.Query, Options.bCheckForWrongMethod);
+			Route = &Routes.FindRoute(RequestPath, Request.Resource.Query, Options.bCheckForWrongMethod);
 
 			// OPTIONS method is allowed without Authorization header (it is used to request
 			// for Authorization permission)
 			if (Options.AuthLevel != Options::ALLOW_ALL
-				&& route->bAuth
+				&& Route->bAuth
 				&& Request.Method != KHTTPMethod::OPTIONS)
 			{
 				VerifyAuthentication(Options);
@@ -430,7 +430,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				}
 			}
 
-			if (!route->Callback)
+			if (!Route->Callback)
 			{
 				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
 			}
@@ -444,7 +444,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			{
 				kAppendCrashContext("content parsing", ": ");
 				
-				switch (route->Parser)
+				switch (Route->Parser)
 				{
 					case KRESTRoute::NOREAD:
 						break;
@@ -564,7 +564,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			// call the application method to handle this request:
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
-			route->Callback(*this);
+			Route->Callback(*this);
 
 			kAppendCrashContext("completed route handler");
 
@@ -691,7 +691,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				// the content:
 				if (!m_sMessage.empty())
 				{
-					if (!json.tx.empty() || route->Parser == KRESTRoute::JSON)
+					if (!json.tx.empty() || Route->Parser == KRESTRoute::JSON)
 					{
 						json.tx["message"] = std::move(m_sMessage);
 					}
@@ -699,7 +699,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 
 				if (m_JsonLogger && !m_JsonLogger->empty() && !Options.sKLogHeader.empty())
 				{
-					if ((!json.tx.empty() || route->Parser == KRESTRoute::JSON)
+					if ((!json.tx.empty() || Route->Parser == KRESTRoute::JSON)
 						&& json.tx.is_object())
 					{
 						json.tx[Options.sKLogHeader] = std::move(*m_JsonLogger);
@@ -865,7 +865,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 			{
 				if (!m_sMessage.empty())
 				{
-					if (!json.tx.empty() || route->Parser == KRESTRoute::JSON)
+					if (!json.tx.empty() || Route->Parser == KRESTRoute::JSON)
 					{
 						json.tx["message"] = std::move(m_sMessage);
 					}
@@ -1114,14 +1114,14 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 
 		KURL URL;
 
-		if (route->bHasParameters)
+		if (Route->bHasParameters)
 		{
 			KResource Resource;
 			// copy query parms piece by piece, we want to filter the path parms
 			// starting with ':' and '='
 			for (auto& query : Request.Resource.Query.get())
 			{
-				if (!route->HasParameter(query.first))
+				if (!Route->HasParameter(query.first))
 				{
 					Resource.Query.get().insert(query);
 				}
@@ -1209,6 +1209,6 @@ void KRESTServer::clear()
 } // clear
 
 // our empty route..
-const KRESTRoute KRESTServer::s_EmptyRoute({}, false, "/empty", nullptr, KRESTRoute::NOREAD);
+const KRESTRoute KRESTServer::s_EmptyRoute({}, false, "/empty", "", nullptr, KRESTRoute::NOREAD);
 
 } // end of namespace dekaf2

@@ -221,7 +221,7 @@ public:
 
 	json_t json;
 	xml_t  xml;
-	const KRESTRoute* route       { &s_EmptyRoute        };
+	const KRESTRoute* Route       { &s_EmptyRoute        };
 	KRESTPath         RequestPath { KHTTPMethod::GET, "" };
 
 	//-----------------------------------------------------------------------------

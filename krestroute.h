@@ -69,6 +69,12 @@ public:
 
 	using URLParts = std::vector<KStringView>;
 
+	KRESTPath(const KRESTPath&) = default;
+	KRESTPath(KRESTPath&&) = default;
+	KRESTPath& operator=(const KRESTPath&) = default;
+	KRESTPath& operator=(KRESTPath&&) = default;
+
+
 	//-----------------------------------------------------------------------------
 	/// Construct a REST path. Typically used for the request path in a HTTP query.
 	/// Notice that _sRoute is a KStringView, and the pointed-to
@@ -95,7 +101,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Construct an analyzed REST path. Notice that _sRoute is a KStringView, and
 	/// the pointed-to string must stay visible during the lifetime of this class.
-	KRESTAnalyzedPath(KHTTPMethod _Method, KStringView _sRoute);
+	KRESTAnalyzedPath(KHTTPMethod _Method, KString _sRoute);
 	//-----------------------------------------------------------------------------
 
 	KHTTPMethod Method;  	// e.g. GET, or empty for all
@@ -131,20 +137,45 @@ public:
 	using Parameters = std::vector<std::pair<KStringView, KStringView>>;
 
 	//-----------------------------------------------------------------------------
-	/// Construct a REST route on a function. Notice that _sRoute is a KStringView, and the pointed-to
-	/// string must stay visible during the lifetime of this class
-	KRESTRoute(KHTTPMethod _Method, bool _bAuth, KStringView _sRoute, RESTCallback _Callback, ParserType _Parser = JSON);
+	/// Construct a REST route on a function
+	KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, KString _sDocumentRoot, RESTCallback _Callback, ParserType _Parser = JSON);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Construct a REST route on an object member function. Notice that _sRoute is a KStringView, and the pointed-to
-	/// string must stay visible during the lifetime of this class. Also, the object reference
+	/// Construct a REST route on a function
+	KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, RESTCallback _Callback, ParserType _Parser = JSON)
+	//-----------------------------------------------------------------------------
+	: KRESTRoute(_Method, _bAuth, std::move(_sRoute), KString{}, _Callback, _Parser)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Construct a REST route for a web server
+	KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, KString _sDocumentRoot, ParserType _Parser = NOREAD)
+	//-----------------------------------------------------------------------------
+	: KRESTRoute(_Method, _bAuth, std::move(_sRoute), std::move(_sDocumentRoot), nullptr, _Parser)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Construct a REST route on an object member function. The object reference
 	/// must stay valid throughout the lifetime of this class (it is a reference on a constructed
 	/// object which method will be called)
 	template<class Object>
-	KRESTRoute(KHTTPMethod _Method, bool _bAuth, KStringView _sRoute, Object& object, MemberFunction<Object> _Callback, ParserType _Parser = JSON)
+	KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, KString _sDocumentRoot, Object& object, MemberFunction<Object> _Callback, ParserType _Parser = JSON)
 	//-----------------------------------------------------------------------------
-	: KRESTRoute(std::move(_Method), _bAuth, _sRoute, std::bind(_Callback, &object, std::placeholders::_1), _Parser)
+	: KRESTRoute(std::move(_Method), _bAuth, std::move(_sRoute), std::move(_sDocumentRoot), std::bind(_Callback, &object, std::placeholders::_1), _Parser)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Construct a REST route on an object member function. The object reference
+	/// must stay valid throughout the lifetime of this class (it is a reference on a constructed
+	/// object which method will be called)
+	template<class Object>
+	KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, Object& object, MemberFunction<Object> _Callback, ParserType _Parser = JSON)
+	//-----------------------------------------------------------------------------
+	: KRESTRoute(std::move(_Method), _bAuth, std::move(_sRoute), KString{}, std::bind(_Callback, &object, std::placeholders::_1), _Parser)
 	{
 	}
 
@@ -154,9 +185,15 @@ public:
 	bool Matches(const KRESTPath& Path, Parameters& Params, bool bCompareMethods = true) const;
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// Default webserver implementation for static pages
+	static void WebServer(KRESTServer& HTTP);
+	//-----------------------------------------------------------------------------
+
 	RESTCallback Callback;
-	ParserType Parser;
-	bool bAuth;
+	KString      sDocumentRoot;
+	ParserType   Parser;
+	bool         bAuth;
 
 }; // KRESTRoute
 
@@ -223,19 +260,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// ctor
-	KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute = nullptr, bool _bAuth = false);
+	KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute = nullptr, KString sDocumentRoot = KString{}, bool _bAuth = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Add a REST route. Notice that _Route contains a KStringView, of which the pointed-to
-	/// string must stay visible during the lifetime of this class
-	void AddRoute(const KRESTRoute& _Route);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Add a REST route. Notice that _Route contains a KStringView, of which the pointed-to
-	/// string must stay visible during the lifetime of this class
-	void AddRoute(KRESTRoute&& _Route);
+	/// Add a REST route
+	void AddRoute(KRESTRoute _Route);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -290,7 +320,7 @@ private:
 
 	using Routes = std::vector<KRESTRoute>;
 
-	Routes m_Routes;
+	Routes     m_Routes;
 	KRESTRoute m_DefaultRoute;
 
 }; // KRESTRoutes

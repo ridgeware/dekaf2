@@ -77,6 +77,16 @@ TEST_CASE("KREST")
 			bMatchedMultiWildcards = true;
 		}});
 
+		constexpr KStringView sWebContent = "<html><body>hello world</body></html>";
+		KTempDir WebRoot;
+		{
+			KOutFile OutFile(kFormat("{}/file.html", WebRoot.Name()));
+			CHECK ( OutFile.is_open() );
+			OutFile.Write(sWebContent);
+		}
+
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/web/*", WebRoot.Name() });
+
 		KString sOut;
 		KOutStringStream oss(sOut);
 
@@ -219,11 +229,20 @@ TEST_CASE("KREST")
 		CHECK ( REST.Simulate(Options, Routes, "/wildcard/in/middle/and/end", oss) == true );
 		CHECK ( bMatchedMultiWildcards == true  );
 
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/web/file.html", oss) == true );
+		auto iPos = sOut.find("\r\n\r\n");
+		CHECK ( iPos != npos );
+		if (iPos != npos)
+		{
+			sOut.erase(0, iPos+4);
+		}
+		CHECK ( sOut == sWebContent );
 	}
 
 	SECTION("HTTP SIM STATIC TABLE")
 	{
-		KRESTRoutes::FunctionTable RTable[]
+		constexpr KRESTRoutes::FunctionTable RTable[]
 		{
 			{ "GET", false, "/test",               rest_test },
 			{ "GET", false, "/help",               rest_test, KRESTRoute::PLAIN },
@@ -240,7 +259,7 @@ TEST_CASE("KREST")
 
 		RClass RR;
 
-		KRESTRoutes::MemberFunctionTable<RClass> MTable[]
+		constexpr KRESTRoutes::MemberFunctionTable<RClass> MTable[]
 		{
 			{ "GET", false, "/rr/test",               &RClass::rest_test2 },
 			{ "GET", false, "/rr/help",               &RClass::rest_test2, KRESTRoute::PLAIN },

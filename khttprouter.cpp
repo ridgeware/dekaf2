@@ -46,24 +46,63 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KHTTPRoute::KHTTPRoute(KStringView _sRoute, HTTPCallback _Callback)
+KHTTPRoute::KHTTPRoute(KString _sRoute, KString _sDocumentRoot, HTTPCallback _Callback)
 //-----------------------------------------------------------------------------
 	: detail::KHTTPAnalyzedPath(std::move(_sRoute))
-	, Callback(std::move(_Callback))
+	, Callback((!_Callback && !_sDocumentRoot.empty()) ? &KHTTPRoute::WebServer : std::move(_Callback))
+	, sDocumentRoot(std::move(_sDocumentRoot))
 {
 }
 
 //-----------------------------------------------------------------------------
-bool KHTTPRoutes::AddRoute(const KHTTPRoute& _Route)
+void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 //-----------------------------------------------------------------------------
 {
-	m_Routes.push_back(_Route);
-	return true;
+	if (HTTP.Request.Method != KHTTPMethod::GET)
+	{
+		kDebug(1, "invalid method: {}", HTTP.Request.Method.Serialize());
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid method: {}", HTTP.Request.Method.Serialize()) };
+	}
 
-} // AddRoute
+	KStringView sResource = HTTP.Request.Resource.Path.get();
+
+	if (!sResource.remove_prefix(HTTP.Route->sRoute) || sResource.front() != '/')
+	{
+		kDebug(1, "invalid document path (internal error): {}", sResource);
+		throw KHTTPError { KHTTPError::H5xx_ERROR, "invalid path" };
+	}
+
+	sResource.remove_prefix(1); // the leading slash
+
+	if (!kIsSafePathname(sResource))
+	{
+		kDebug(1, "invalid document path: {}", sResource);
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid path" };
+	}
+
+	KString sFileSystemPath = HTTP.Route->sDocumentRoot;
+	sFileSystemPath += kDirSep;
+	sFileSystemPath += sResource;
+
+	auto MIME = KMIME::CreateByExtension(sFileSystemPath);
+
+	if (MIME == KMIME::NONE)
+	{
+		MIME = KMIME::CreateByInspection(sFileSystemPath, KMIME::BINARY);
+	}
+
+	HTTP.Response.Headers.Add(KHTTPHeader::CONTENT_TYPE, MIME);
+
+//	TBD if (!HTTP.SetFileToOutput(sFileSystemPath))
+	{
+		kDebug(1, "file not found: {}", sFileSystemPath);
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
+	}
+
+} // WebServer
 
 //-----------------------------------------------------------------------------
-bool KHTTPRoutes::AddRoute(KHTTPRoute&& _Route)
+bool KHTTPRoutes::AddRoute(KHTTPRoute _Route)
 //-----------------------------------------------------------------------------
 {
 	m_Routes.push_back(std::move(_Route));
@@ -167,6 +206,8 @@ const KHTTPRoute& KHTTPRoutes::FindRoute(const KHTTPPath& Path) const
 		return m_DefaultRoute;
 	}
 
+	// no match at all
+	kDebug (2, "invalid path: {}", Path.sRoute);
 	throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("invalid path {}", Path.sRoute) };
 
 } // FindRoute
@@ -184,6 +225,7 @@ bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
 	try
 	{
 		Response.clear();
+		Route = nullptr;
 
 		if (!KHTTPServer::Parse())
 		{
@@ -201,14 +243,18 @@ bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
 		// try to remove a trailing / - we treat /path and /path/ as the same address
 		sURLPath.remove_suffix("/");
 
-		auto Route = Routes.FindRoute(KHTTPPath(sURLPath));
+		KHTTPPath RequestedPath(sURLPath);
 
-		if (!Route.Callback)
+		Route = &Routes.FindRoute(RequestedPath);
+
+		if (!Route->Callback)
 		{
 			throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
 		}
-
-		Route.Callback(*this);
+		else
+		{
+			Route->Callback(*this);
+		}
 
 		return true;
 	}

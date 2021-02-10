@@ -48,7 +48,7 @@ namespace dekaf2 {
 //-----------------------------------------------------------------------------
 KRESTPath::KRESTPath(KHTTPMethod _Method, KStringView _sRoute)
 //-----------------------------------------------------------------------------
-	: KHTTPPath(std::move(_sRoute))
+	: KHTTPPath(_sRoute)
 	, Method(std::move(_Method))
 {
 } // KRESTPath
@@ -56,13 +56,12 @@ KRESTPath::KRESTPath(KHTTPMethod _Method, KStringView _sRoute)
 namespace detail {
 
 //-----------------------------------------------------------------------------
-KRESTAnalyzedPath::KRESTAnalyzedPath(KHTTPMethod _Method, KStringView _sRoute)
+KRESTAnalyzedPath::KRESTAnalyzedPath(KHTTPMethod _Method, KString _sRoute)
 //-----------------------------------------------------------------------------
 	: KHTTPAnalyzedPath(std::move(_sRoute))
 	, Method(std::move(_Method))
+	, bHasParameters(sRoute.contains("/:") || sRoute.contains("/="))
 {
-	bHasParameters = sRoute.contains("/:") || sRoute.contains("/=");
-
 } // KRESTAnalyzedPath
 
 //-----------------------------------------------------------------------------
@@ -89,16 +88,64 @@ bool KRESTAnalyzedPath::HasParameter(KStringView sParam) const
 } // HasParameter
 
 } // end of namespace detail
-	
+
 //-----------------------------------------------------------------------------
-KRESTRoute::KRESTRoute(KHTTPMethod _Method, bool _bAuth, KStringView _sRoute, RESTCallback _Callback, ParserType _Parser)
+KRESTRoute::KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, KString _sDocumentRoot, RESTCallback _Callback, ParserType _Parser)
 //-----------------------------------------------------------------------------
 	: detail::KRESTAnalyzedPath(std::move(_Method), std::move(_sRoute))
-	, Callback(std::move(_Callback))
+	, Callback((!_Callback && !_sDocumentRoot.empty()) ? &KRESTRoute::WebServer : std::move(_Callback))
+	, sDocumentRoot(std::move(_sDocumentRoot))
 	, Parser(_Parser)
 	, bAuth(_bAuth)
 {
 } // KRESTRoute
+
+//-----------------------------------------------------------------------------
+void KRESTRoute::WebServer(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	if (HTTP.Request.Method != KHTTPMethod::GET)
+	{
+		kDebug(1, "invalid method: {}", HTTP.Request.Method.Serialize());
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid method: {}", HTTP.Request.Method.Serialize()) };
+	}
+
+	KStringView sResource = HTTP.RequestPath.sRoute;
+
+	if (!sResource.remove_prefix(HTTP.Route->sRoute) || sResource.front() != '/')
+	{
+		kDebug(1, "invalid document path (internal error): {}", sResource);
+		throw KHTTPError { KHTTPError::H5xx_ERROR, "invalid path" };
+	}
+
+	sResource.remove_prefix(1); // the leading slash
+
+	if (!kIsSafePathname(sResource))
+	{
+		kDebug(1, "invalid document path: {}", sResource);
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid path" };
+	}
+	
+	KString sFileSystemPath = HTTP.Route->sDocumentRoot;
+	sFileSystemPath += kDirSep;
+	sFileSystemPath += sResource;
+
+	auto MIME = KMIME::CreateByExtension(sFileSystemPath);
+
+	if (MIME == KMIME::NONE)
+	{
+		MIME = KMIME::CreateByInspection(sFileSystemPath, KMIME::BINARY);
+	}
+
+	HTTP.Response.Headers.Add(KHTTPHeader::CONTENT_TYPE, MIME);
+
+	if (!HTTP.SetFileToOutput(sFileSystemPath))
+	{
+		kDebug(1, "file not found: {}", sFileSystemPath);
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
+	}
+
+} // WebServer
 
 //-----------------------------------------------------------------------------
 bool KRESTRoute::Matches(const KRESTPath& Path, Parameters& Params, bool bCompareMethods) const
@@ -200,22 +247,14 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters& Params, bool bCompar
 
 
 //-----------------------------------------------------------------------------
-KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute, bool _bAuth)
+KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute, KString sDocumentRoot, bool _bAuth)
 //-----------------------------------------------------------------------------
-	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, _bAuth, "/", std::move(DefaultRoute)))
+	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, _bAuth, "/", std::move(sDocumentRoot), std::move(DefaultRoute)))
 {
 }
 
 //-----------------------------------------------------------------------------
-void KRESTRoutes::AddRoute(const KRESTRoute& _Route)
-//-----------------------------------------------------------------------------
-{
-	m_Routes.push_back(_Route);
-
-} // AddRoute
-
-//-----------------------------------------------------------------------------
-void KRESTRoutes::AddRoute(KRESTRoute&& _Route)
+void KRESTRoutes::AddRoute(KRESTRoute _Route)
 //-----------------------------------------------------------------------------
 {
 	m_Routes.push_back(std::move(_Route));
@@ -245,15 +284,15 @@ void KRESTRoutes::clear()
 const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Params, bool bCheckForWrongMethod) const
 //-----------------------------------------------------------------------------
 {
-	kDebug (2, "looking up: [{:<7}] {}" , Path.Method.Serialize(), Path.sRoute);
+	kDebug (2, "looking up: {} {}" , Path.Method.Serialize(), Path.sRoute);
 
 	// check for a matching route
 	for (const auto& it : m_Routes)
 	{
-		kDebug (3, "evaluating: [{:<7}] {}" , it.Method.Serialize(), it.sRoute);
+		kDebug (3, "evaluating: {} {}" , it.Method.Serialize(), it.sRoute);
 		if (it.Matches(Path, Params, true))
 		{
-			kDebug (2, "     found: [{:<7}] {}" , it.Method.Serialize(), it.sRoute);
+			kDebug (2, "     found: {} {}" , it.Method.Serialize(), it.sRoute);
 			return it;
 		}
 	}

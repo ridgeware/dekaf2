@@ -59,12 +59,11 @@ class KHTTPPath
 public:
 //------
 
-	using URLParts = std::vector<KStringView>;
+	using URLParts = std::vector<KString>;
 
 	//-----------------------------------------------------------------------------
-	/// Construct a HTTP path. Notice that _sRoute is a KStringView, and the pointed-to
-	/// string must stay visible during the lifetime of this class
-	KHTTPPath(KStringView _sRoute);
+	/// Construct a HTTP path
+	KHTTPPath(KString _sRoute);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -72,8 +71,8 @@ public:
 	static size_t SplitURL(URLParts& Parts, KStringView sURLPath);
 	//-----------------------------------------------------------------------------
 
-	KStringView sRoute;      // e.g. "/some/path/index.html" or "/documents/*" or "/help"
-	URLParts vURLParts;
+	KString     sRoute;      // e.g. "/some/path/index.html" or "/documents/*" or "/help"
+	URLParts    vURLParts;   // vector of the split path parts
 
 }; // KHTTPPath
 
@@ -89,9 +88,8 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	/// Construct an analyzed HTTP path. Notice that _sRoute is a KStringView, and
-	/// the pointed-to string must stay visible during the lifetime of this class.
-	KHTTPAnalyzedPath(KStringView _sRoute);
+	/// Construct an analyzed HTTP path
+	KHTTPAnalyzedPath(KString _sRoute);
 	//-----------------------------------------------------------------------------
 
 	bool bHasWildCardAtEnd { false };

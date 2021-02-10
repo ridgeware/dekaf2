@@ -54,6 +54,8 @@
 
 namespace dekaf2 {
 
+class KHTTPRouter;
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KHTTPRoute : public detail::KHTTPAnalyzedPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -63,13 +65,18 @@ class KHTTPRoute : public detail::KHTTPAnalyzedPath
 public:
 //------
 
-	using HTTPCallback = std::function<void(KHTTPServer&)>;
+	using HTTPCallback = std::function<void(KHTTPRouter&)>;
 
-	/// Construct a HTTP route. Notice that _sRoute is a KStringView, and the pointed-to
-	/// string must stay visible during the lifetime of this class
-	KHTTPRoute(KStringView _sRoute, HTTPCallback _Callback);
+	/// Construct a HTTP route
+	KHTTPRoute(KString _sRoute, KString _sDocumentRoot, HTTPCallback _Callback);
+
+	//-----------------------------------------------------------------------------
+	/// Default webserver implementation for static pages
+	static void WebServer(KHTTPRouter& HTTP);
+	//-----------------------------------------------------------------------------
 
 	HTTPCallback Callback;
+	KString      sDocumentRoot;
 
 }; // KHTTPRoute
 
@@ -91,13 +98,8 @@ public:
 		HTTPHandler Handler;
 	};
 
-	/// Add a HTTP route. Notice that _Route contains a KStringView, of which the pointed-to
-	/// string must stay visible during the lifetime of this class
-	bool AddRoute(const KHTTPRoute& _Route);
-
-	/// Add a HTTP route. Notice that _Route contains a KStringView, of which the pointed-to
-	/// string must stay visible during the lifetime of this class
-	bool AddRoute(KHTTPRoute&& _Route);
+	/// Add a HTTP route
+	bool AddRoute(KHTTPRoute _Route);
 
 	template<std::size_t COUNT>
 	bool AddRouteTable(const RouteTable (&Routes)[COUNT])
@@ -125,7 +127,7 @@ private:
 
 	using Routes = std::vector<KHTTPRoute>;
 
-	Routes m_Routes;
+	Routes     m_Routes;
 	KHTTPRoute m_DefaultRoute;
 
 }; // KHTTPRoutes
@@ -146,6 +148,8 @@ public:
 
 	/// handler for one request
 	bool Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute);
+
+	const KHTTPRoute* Route { nullptr };
 
 //------
 protected:

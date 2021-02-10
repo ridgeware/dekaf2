@@ -46,7 +46,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KHTTPPath::KHTTPPath(KStringView _sRoute)
+KHTTPPath::KHTTPPath(KString _sRoute)
 //-----------------------------------------------------------------------------
 	: sRoute(std::move(_sRoute))
 {
@@ -64,7 +64,6 @@ size_t KHTTPPath::SplitURL(URLParts& Parts, KStringView sURLPath)
 //-----------------------------------------------------------------------------
 {
 	Parts.clear();
-	Parts.reserve(2);
 	sURLPath.remove_prefix("/");
 	return kSplit(Parts, sURLPath, "/", "");
 
@@ -73,7 +72,7 @@ size_t KHTTPPath::SplitURL(URLParts& Parts, KStringView sURLPath)
 namespace detail {
 
 //-----------------------------------------------------------------------------
-KHTTPAnalyzedPath::KHTTPAnalyzedPath(KStringView _sRoute)
+KHTTPAnalyzedPath::KHTTPAnalyzedPath(KString _sRoute)
 //-----------------------------------------------------------------------------
 	: KHTTPPath(std::move(_sRoute))
 {

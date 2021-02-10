@@ -401,8 +401,10 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			// try to remove a trailing / - we treat /path and /path/ as the same address
 			sURLPath.remove_suffix("/");
 
+			RequestPath = KRESTPath(Request.Method, sURLPath);
+
 			// find the right route
-			route = &Routes.FindRoute(KRESTPath(Request.Method, sURLPath), Request.Resource.Query, Options.bCheckForWrongMethod);
+			route = &Routes.FindRoute(RequestPath, Request.Resource.Query, Options.bCheckForWrongMethod);
 
 			// OPTIONS method is allowed without Authorization header (it is used to request
 			// for Authorization permission)
@@ -621,6 +623,40 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 } // Execute
 
+//-----------------------------------------------------------------------------
+bool KRESTServer::SetStreamToOutput(std::unique_ptr<KInStream> Stream, std::size_t iContentLength)
+//-----------------------------------------------------------------------------
+{
+	if (!Stream || !Stream->Good())
+	{
+		kDebug(1, "stream is not good for reading");
+		return false;
+	}
+
+	m_Stream = std::move(Stream);
+	m_iContentLength = iContentLength;
+
+	return true;
+
+} // SetStreamToOutput
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::SetFileToOutput(KStringViewZ sFile)
+//-----------------------------------------------------------------------------
+{
+	auto iContentLength = kFileSize(sFile);
+
+	if (iContentLength == npos)
+	{
+		kDebug(1, "file does not exist: {}", sFile);
+		return false;
+	}
+
+	kDebug(2, "open file: {}", sFile);
+	return SetStreamToOutput(std::make_unique<KInFile>(sFile), iContentLength);
+
+} // SetFileToOutput
+
 #ifdef NDEBUG
 	static constexpr int iJSONPretty { -1 };
 	static constexpr int iXMLPretty { KXML::NoIndents | KXML::NoLinefeeds };
@@ -650,7 +686,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				// caller should have set it
 				sContent = std::move(m_sRawOutput);
 			}
-			else
+			else if (DEKAF2_LIKELY(m_Stream == nullptr))
 			{
 				// the content:
 				if (!m_sMessage.empty())
@@ -709,7 +745,15 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 			}
 
 			// compute and set the Content-Length header:
-			Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(sContent.length()));
+			if (!m_Stream)
+			{
+				m_iContentLength = sContent.length();
+			}
+
+			if (m_iContentLength != npos)
+			{
+				Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(m_iContentLength));
+			}
 
 			if (m_Timers)
 			{
@@ -728,8 +772,16 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 			Serialize();
 
 			// finally, output the content:
-			kDebugLog (3, sContent);
-			Write(sContent);
+			if (m_Stream)
+			{
+				kDebug(3, "read from stream");
+				Write (*m_Stream, m_iContentLength);
+			}
+			else
+			{
+				kDebugLog (3, sContent);
+				Write(sContent);
+			}
 
 			if (m_Timers)
 			{
@@ -752,6 +804,10 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 			if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
 			{
 				tjson["body"] = std::move(m_sRawOutput);
+			}
+			else if (DEKAF2_UNLIKELY(m_Stream != nullptr))
+			{
+				tjson["body"] = kReadAll(*m_Stream);
 			}
 			else
 			{
@@ -800,6 +856,10 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 			if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
 			{
 				Response.UnfilteredStream().WriteLine(m_sRawOutput);
+			}
+			else if (DEKAF2_UNLIKELY(m_Stream != nullptr))
+			{
+				Response.UnfilteredStream().Write(*m_Stream, m_iContentLength);
 			}
 			else
 			{
@@ -1133,12 +1193,18 @@ void KRESTServer::clear()
 {
 	Request.clear();
 	Response.clear();
+
 	json.clear();
 	xml.clear();
+
 	m_sRequestBody.clear();
 	m_sMessage.clear();
 	m_sRawOutput.clear();
+	m_Stream.reset();
+	m_iContentLength = npos;
+	m_AuthToken.clear();
 	m_JsonLogger.reset();
+	// do not clear m_Timer, the main Execute loop takes care of it
 
 } // clear
 

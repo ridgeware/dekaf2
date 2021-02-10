@@ -152,6 +152,16 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// set file output (mutually exclusive to other output types)
+	bool SetFileToOutput(KStringViewZ sFile);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// set file output (mutually exclusive to other output types)
+	bool SetStreamToOutput(std::unique_ptr<KInStream> Stream, std::size_t iContentLength);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// set raw (non-json) output
 	void SetRawOutput(KString sRaw)
 	//-----------------------------------------------------------------------------
@@ -211,7 +221,8 @@ public:
 
 	json_t json;
 	xml_t  xml;
-	const KRESTRoute* route { &s_EmptyRoute };
+	const KRESTRoute* route       { &s_EmptyRoute        };
+	KRESTPath         RequestPath { KHTTPMethod::GET, "" };
 
 	//-----------------------------------------------------------------------------
 	/// get the JSON payload struct of the JWT auth token
@@ -266,14 +277,17 @@ protected:
 private:
 //------
 
-	std::unique_ptr<KDurations> m_Timers;
-
 	static const KRESTRoute s_EmptyRoute;
+
 	KString m_sRequestBody;
 	KString m_sMessage;
 	KString m_sRawOutput;
+	std::unique_ptr<KInStream> m_Stream; // stream that shall be sent
+	std::size_t m_iContentLength;        // content length for stream output
 	KJWT m_AuthToken;
 	std::unique_ptr<KJSON> m_JsonLogger;
+	std::unique_ptr<KDurations> m_Timers;
+
 
 }; // KRESTServer
 

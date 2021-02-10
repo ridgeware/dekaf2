@@ -128,7 +128,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Read a range of characters and append to Stream. Returns stream reference
 	/// that resolves to false on failure.
-	self_type& Write(KInStream& Stream, size_t iCount);
+	self_type& Write(KInStream& Stream, size_t iCount = npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

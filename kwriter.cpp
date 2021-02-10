@@ -108,13 +108,14 @@ KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 
 		auto iReadChunk = Stream.Read(Buffer.data(), iChunk);
 
+		Write(Buffer.data(), iReadChunk);
+		
+		iCount -= iReadChunk;
+
 		if (iReadChunk != iChunk)
 		{
 			break;
 		}
-
-		Write(Buffer.data(), iReadChunk);
-		iCount -= iReadChunk;
 	}
 
 	return *this;

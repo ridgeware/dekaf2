@@ -444,6 +444,15 @@ const KString& KJWT::GetUser() const
 
 } // GetUser
 
+//-----------------------------------------------------------------------------
+void KJWT::clear()
+//-----------------------------------------------------------------------------
+{
+	*this = KJWT();
+
+} // clear
+
+
 #ifndef DEKAF2_IS_WINDOWS
 static_assert(std::is_nothrow_move_constructible<KOpenIDKeys>::value,
 			  "KOpenIDKeys is intended to be nothrow move constructible, but is not!");

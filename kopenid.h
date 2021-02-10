@@ -168,6 +168,9 @@ public:
 	KJSON Header;
 	KJSON Payload;
 
+	/// clear all data
+	void clear();
+
 //----------
 private:
 //----------

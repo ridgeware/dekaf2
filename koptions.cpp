@@ -144,6 +144,9 @@ KOptions::OptionalParm& KOptions::OptionalParm::Callback(Callback1 Func)
 		func(args.pop());
 	});
 
+	m_iMinArgs = 1;
+	m_iMaxArgs = 1;
+
 	return *this;
 }
 
@@ -155,6 +158,9 @@ KOptions::OptionalParm& KOptions::OptionalParm::Callback(Callback0 Func)
 	{
 		func();
 	});
+
+	m_iMinArgs = 0;
+	m_iMaxArgs = 0;
 
 	return *this;
 }
@@ -824,6 +830,9 @@ KString KOptions::BadBoundsReason(ArgTypes Type, KStringView sParm, int64_t iMin
 		case Float:
 			return kFormat("{} is not in limits [{}..{}]", sParm, iMinBound, iMaxBound);
 
+		case Unsigned:
+			return kFormat("{} is not in limits [{}..{}]", sParm, static_cast<uint64_t>(iMinBound), static_cast<uint64_t>(iMaxBound));
+
 		case String:
 		case File:
 		case Path:
@@ -850,6 +859,12 @@ bool KOptions::ValidBounds(ArgTypes Type, KStringView sParm, int64_t iMinBound, 
 		{
 			auto iValue = sParm.Int64();
 			return iValue >= iMinBound && iValue <= iMaxBound;
+		}
+
+		case Unsigned:
+		{
+			auto iValue = sParm.UInt64();
+			return iValue >= static_cast<uint64_t>(iMinBound) && iValue <= static_cast<uint64_t>(iMaxBound);
 		}
 
 		case Float:

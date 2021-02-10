@@ -473,7 +473,11 @@ TEST_CASE("KStringUtils") {
 	SECTION("kIsInteger on strings")
 	{
 		KString s;
+		s = "0";
+		CHECK( kIsInteger(s) );
 		s = "1";
+		CHECK( kIsInteger(s) );
+		s = "-1";
 		CHECK( kIsInteger(s) );
 		s = "123456";
 		CHECK( kIsInteger(s) );
@@ -496,7 +500,11 @@ TEST_CASE("KStringUtils") {
 	SECTION("kIsInteger on char*")
 	{
 		const char* s;
+		s = "0";
+		CHECK( kIsInteger(s) );
 		s = "1";
+		CHECK( kIsInteger(s) );
+		s = "-1";
 		CHECK( kIsInteger(s) );
 		s = "123456";
 		CHECK( kIsInteger(s) );
@@ -519,8 +527,12 @@ TEST_CASE("KStringUtils") {
 	SECTION("kIsUnsigned on strings")
 	{
 		KString s;
+		s = "0";
+		CHECK( kIsUnsigned(s) );
 		s = "1";
 		CHECK( kIsUnsigned(s) );
+		s = "-1";
+		CHECK( !kIsUnsigned(s) );
 		s = "123456";
 		CHECK( kIsUnsigned(s) );
 		s = "-123456";
@@ -542,8 +554,12 @@ TEST_CASE("KStringUtils") {
 	SECTION("kIsUnsigned on char*")
 	{
 		const char* s;
+		s = "0";
+		CHECK( kIsUnsigned(s) );
 		s = "1";
 		CHECK( kIsUnsigned(s) );
+		s = "-1";
+		CHECK( !kIsUnsigned(s) );
 		s = "123456";
 		CHECK( kIsUnsigned(s) );
 		s = "-123456";

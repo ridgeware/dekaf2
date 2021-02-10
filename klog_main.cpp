@@ -431,7 +431,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 			Actions.bCompleted = true;
 		});
 
-		Options.Option("log", "pathname for output log")
+		Options.Option("log", "pathname for output log").Type(KOptions::Path)
 		([&](KStringViewZ sPath)
 		{
 			if (!KLog::getInstance().SetDebugLog (sPath))
@@ -440,7 +440,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 			}
 		});
 
-		Options.Option("flag", "pathname for debug flag")
+		Options.Option("flag", "pathname for debug flag").Type(KOptions::Path)
 		([&](KStringViewZ sPath)
 		{
 			if (!KLog::getInstance().SetDebugFlag (sPath))
@@ -454,8 +454,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 			Actions.bFollowFlag = true;
 		});
 
-		Options.Command("listen", "port number")
-		.Type(KOptions::Integer).Range(1, 65535)
+		Options.Command("listen", "port number").Type(KOptions::Integer).Range(1, 65535)
 		([&](KStringViewZ sPort)
 		{
 			Actions.iPort = sPort.UInt16();
@@ -468,7 +467,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 
 	} // ! CGI environment
 
-	Options.Command("grep", "search string")
+	Options.Command("grep", "search string").Type(KOptions::String)
 	([&](KStringViewZ sRegex)
 	{
 		Actions.sGrepString = sRegex;
@@ -533,9 +532,9 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 		{
 			err->Format ("klog: error setting new debug log to {}.\n", sPath);
 		}
-	});
+	}).MinArgs(0);
 
-	Options.Option("set").Type(KOptions::Unsigned)
+	Options.Command("set").Type(KOptions::Unsigned).Range(0, 3)
 	([&](KStringViewZ sArg)
 	{
 		SetLevel(sArg.UInt16());

@@ -41,12 +41,17 @@
 
 #pragma once
 
-#include <boost/container/vector.hpp>
 #include "kstringview.h"
 #include "kwriter.h"
 #include "kreader.h"
 #include "kreplacer.h"
 #include "khttp_header.h"
+
+#ifndef DEKAF2_HAS_CPP_17
+	#include <boost/container/vector.hpp>
+#else
+	#include <vector>
+#endif
 
 namespace dekaf2 {
 
@@ -106,6 +111,18 @@ public:
 	/// Generate a KMIME instance with the MIME type set according to the extension
 	/// of sFilename. Use Default if no association found.
 	static KMIME CreateByExtension(KStringView sFilename, KMIME Default = NONE);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set MIME type according to inspection of sFilename. Use Default if no
+	/// association found.
+	bool ByInspection(KStringView sFilename, KMIME Default = NONE);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Generate a KMIME instance with the MIME type set according to inspection
+	/// of sFilename. Use Default if no association found.
+	static KMIME CreateByInspection(KStringView sFilename, KMIME Default = NONE);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -269,8 +286,14 @@ class KMIMEPart
 public:
 //----------
 
+#ifndef DEKAF2_HAS_CPP_17
 	// boost::container allows use of incomplete types
 	using Storage = boost::container::vector<KMIMEPart>;
+#else
+	// std::vector beginning with C++17 allows incomplete types in the
+	// template instantiation
+	using Storage = std::vector<KMIMEPart>;
+#endif
 	using iterator = Storage::iterator;
 
 	KMIMEPart(KMIME MIME = KMIME::NONE);

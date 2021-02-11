@@ -622,21 +622,41 @@ size_t kFileSize(KStringViewZ sFilePath)
 
 	std::error_code ec;
 
-	auto size = fs::file_size(kToFilesystemPath(sFilePath), ec);
+	auto fsPath = kToFilesystemPath(sFilePath);
+
+	auto size = fs::file_size(fsPath, ec);
+
 	if (ec)
 	{
 		kDebug(2, "{}: {}", sFilePath, ec.message());
 		return npos;
 	}
+
+	auto status = fs::status(fsPath, ec);
+
+	if (ec)
+	{
+		kDebug (2, "{}: {}", sFilePath, ec.message());
+		return npos;
+	}
+
+	if (fs::is_directory(status))
+	{
+		return npos;
+	}
+
 	return size;
 
 #else
 
 	struct stat StatStruct;
-	if (stat (sFilePath.c_str(), &StatStruct) < 0)
+
+	if (stat (sFilePath.c_str(), &StatStruct) < 0
+		|| (StatStruct.st_mode & S_IFREG) == 0)
 	{
-		return npos;  // <-- file doesn't exist
+		return npos;  // <-- file doesn't exist or is not a regular file
 	}
+
 	return StatStruct.st_size;
 	
 #endif

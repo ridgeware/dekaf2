@@ -9,18 +9,21 @@
 
 using namespace dekaf2;
 
-TEST_CASE("KFilesystem") {
+// make this a global, as otherwise the different test sections would create
+// and remove the temp dir again and again, but we want persistence for the tests
+KTempDir TempDir;
 
-	KString sDirectory = kGetTemp();
-	sDirectory += kDirSep;
-	sDirectory += "filetests12r4948t5/depth/three";
+TEST_CASE("KFilesystem")
+{
+	KString sDirectory = TempDir.Name();
+	sDirectory += "/test/depth/three";
 
 	KString sDirectorySlash = sDirectory;
 	sDirectorySlash += kDirSep;
 
-	KString sFile = kGetTemp();
+	KString sFile = sDirectory;
 	sFile += kDirSep;
-	sFile += "filetests12r4948t5/depth/three/KFilesystem.test";
+	sFile += "KFilesystem.test";
 
 	KString sOut {
 		"line 1\n"
@@ -89,7 +92,11 @@ TEST_CASE("KFilesystem") {
 	SECTION("KFile stats")
 	{
 		CHECK( kFileExists(sFile, true) == true );
+		CHECK( kDirExists(sDirectory) == true );
 		CHECK( kGetSize(sFile) == 63 );
+		CHECK( kGetSize(sDirectory) == npos );
+		CHECK( kFileSize(sFile) == 63 );
+		CHECK( kFileSize(sDirectory) == npos );
 	}
 
 	SECTION("name manipulations")
@@ -324,13 +331,4 @@ TEST_CASE("KFilesystem") {
 		CHECK ( kMakeSafePathname("WÖRLD.txt..", false)    == "WÖRLD.txt"            );
 	}
 
-}
-
-TEST_CASE("KFilesystem cleanup")
-{
-	KString sDirectory = kGetTemp();
-	sDirectory += kDirSep;
-	sDirectory += "filetests12r4948t5";
-	CHECK ( kRemoveDir(sDirectory) == true );
-	CHECK ( kDirExists(sDirectory) == false);
 }

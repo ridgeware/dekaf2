@@ -43,11 +43,11 @@
 #include <fcntl.h>
 
 #include "bits/kcppcompat.h"
-#include "bits/kfilesystem.h"
 
 #include "kreader.h"
 #include "kwriter.h" // we need KOutStream
 #include "klog.h"
+#include "kfilesystem.h"
 
 namespace dekaf2
 {
@@ -134,23 +134,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 ssize_t kGetSize(KStringViewZ sFileName)
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_HAS_STD_FILESYSTEM
-	std::error_code ec;
-	auto iSize = static_cast<ssize_t>(fs::file_size(kToFilesystemPath(sFileName), ec));
-	if (ec)
-	{
-		iSize = -1;
-	}
-	return iSize;
-#else // default to posix interface
-	struct stat buf;
-	if (!::stat(sFileName.c_str(), &buf))
-	{
-		return buf.st_size;
-	}
-
-	return -1;
-#endif
+	return kFileSize(sFileName);
 
 } // kGetSize
 

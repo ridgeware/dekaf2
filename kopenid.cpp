@@ -351,7 +351,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 
 	if (Part.size() != 3)
 	{
-		return SetError(kFormat("wrong part count in token string, expected 3 parts, got {}", Part.size()));
+		return SetError(kFormat("wrong part count in token string, expected 3 parts, got {}: {}", Part.size(), sBase64Token));
 	}
 
 	DEKAF2_TRY

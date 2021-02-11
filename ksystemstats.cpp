@@ -1374,6 +1374,11 @@ uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, KMIME iMime, KStringView
 		return 0;
 	}
 
+	if (true) // add unique tracker on the url
+	{
+		sURL += kFormat ("?uniq={}", kFormat ("{}|{}", time(NULL), sMyUniqueIP).Hash());
+	}
+
 	for (const auto& it : m_Stats)
 	{
 		KString sValue (it.second.sValue);

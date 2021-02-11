@@ -493,6 +493,7 @@ set(PUBLIC_HEADERS
 	kencode.h
 	kexception.h
 	kfdstream.h
+	kfileserver.h
 	kfilesystem.h
 	kformat.h
 	kfrozen.h
@@ -635,6 +636,7 @@ set (SOURCES
 	kctype.cpp
 	kencode.cpp
 	kfdstream.cpp
+	kfileserver.cpp
 	kfilesystem.cpp
 	kformat.cpp
 	kgetruntimestack.cpp

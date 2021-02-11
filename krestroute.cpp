@@ -42,6 +42,7 @@
 #include "krestroute.h"
 #include "krestserver.h"
 #include "khttperror.h"
+#include "kfileserver.h"
 
 namespace dekaf2 {
 
@@ -110,40 +111,15 @@ void KRESTRoute::WebServer(KRESTServer& HTTP)
 		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid method: {}", HTTP.Request.Method.Serialize()) };
 	}
 
-	KStringView sResource = HTTP.RequestPath.sRoute;
+	KFileServer FileServer;
 
-	if (!sResource.remove_prefix(HTTP.Route->sRoute) || sResource.front() != '/')
-	{
-		kDebug(1, "invalid document path (internal error): {}", sResource);
-		throw KHTTPError { KHTTPError::H5xx_ERROR, "invalid path" };
-	}
+	FileServer.Open(HTTP.Route->sDocumentRoot,
+					HTTP.RequestPath.sRoute,
+					HTTP.Route->sRoute);
 
-	sResource.remove_prefix(1); // the leading slash
+	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, FileServer.GetMIMEType(true));
 
-	if (!kIsSafePathname(sResource))
-	{
-		kDebug(1, "invalid document path: {}", sResource);
-		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid path" };
-	}
-	
-	KString sFileSystemPath = HTTP.Route->sDocumentRoot;
-	sFileSystemPath += kDirSep;
-	sFileSystemPath += sResource;
-
-	auto MIME = KMIME::CreateByExtension(sFileSystemPath);
-
-	if (MIME == KMIME::NONE)
-	{
-		MIME = KMIME::CreateByInspection(sFileSystemPath, KMIME::BINARY);
-	}
-
-	HTTP.Response.Headers.Add(KHTTPHeader::CONTENT_TYPE, MIME);
-
-	if (!HTTP.SetFileToOutput(sFileSystemPath))
-	{
-		kDebug(1, "file not found: {}", sFileSystemPath);
-		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
-	}
+	HTTP.SetStreamToOutput(FileServer.GetStreamForReading(), FileServer.GetFileSize());
 
 } // WebServer
 

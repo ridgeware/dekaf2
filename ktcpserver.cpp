@@ -339,6 +339,7 @@ void KTCPServer::TCPServer(bool ipv6)
 			acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
 			if (!m_bQuit)
 			{
+				++m_iTotalAccepted;
 #if defined(_MSC_VER) || !defined(DEKAF2_HAS_CPP_14)
 				// unfortunately MSC and C++11 does not know how to move a variable into a lambda scope
 				auto* Stream = stream.release();
@@ -372,6 +373,7 @@ void KTCPServer::TCPServer(bool ipv6)
 			acceptor.accept(stream->GetTCPSocket(), remote_endpoint);
 			if (!m_bQuit)
 			{
+				++m_iTotalAccepted;
 #if defined(_MSC_VER) || !defined(DEKAF2_HAS_CPP_14)
 				// unfortunately MSC and C++11 does not know how to move a variable into a lambda scope
 				auto* Stream = stream.release();
@@ -439,6 +441,7 @@ void KTCPServer::UnixServer()
 			acceptor.accept(stream->GetUnixSocket());
 			if (!m_bQuit)
 			{
+				++m_iTotalAccepted;
 				stream->Timeout(m_iTimeout);
 #if defined(_MSC_VER) || !defined(DEKAF2_HAS_CPP_14)
 				// unfortunately C++11 does not know how to move a variable into a lambda scope
@@ -471,6 +474,26 @@ void KTCPServer::UnixServer()
 
 } // UnixServer
 #endif
+
+//-----------------------------------------------------------------------------
+KTCPServer::Diagnostics KTCPServer::GetDiagnostics() const
+//-----------------------------------------------------------------------------
+{
+	Diagnostics Diag;
+
+	Diag.UpTime = m_Uptime;
+
+	if (m_ThreadPool)
+	{
+		Diag.iTotalThreads  = m_ThreadPool->size();
+		Diag.iIdleThreads   = m_ThreadPool->n_idle();
+		Diag.iUsedThreads   = Diag.iTotalThreads - Diag.iIdleThreads;
+		Diag.iTotalAccepted = m_iTotalAccepted;
+	}
+
+	return Diag;
+
+} // GetDiagnostics
 
 //-----------------------------------------------------------------------------
 bool KTCPServer::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword)
@@ -514,6 +537,9 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 			return false;
 		}
 	}
+
+	m_Uptime.clear();
+	m_iTotalAccepted = 0;
 
 	if (m_bBlock)
 	{

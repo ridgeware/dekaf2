@@ -129,6 +129,8 @@ public:
 	const KString& Error() const;
 	/// alias for Error()
 	const KString& GetLastError() const { return Error(); }
+	/// get diagnostics when running with a TCP server
+	KTCPServer::Diagnostics GetDiagnostics() const;
 
 //----------
 protected:

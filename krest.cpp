@@ -365,5 +365,20 @@ bool KREST::Good() const
 
 } // Good
 
+//-----------------------------------------------------------------------------
+KTCPServer::Diagnostics KREST::GetDiagnostics() const
+//-----------------------------------------------------------------------------
+{
+	if (m_Server)
+	{
+		return m_Server->GetDiagnostics();
+	}
+	else
+	{
+		return KTCPServer::Diagnostics{};
+	}
+
+} // GetDiagnostics
+
 
 } // end of namespace dekaf2

@@ -77,6 +77,7 @@
 #include "kstream.h"
 #include "kstring.h"
 #include "kthreadpool.h"
+#include "ktimer.h"
 
 namespace dekaf2
 {
@@ -196,6 +197,21 @@ public:
 	bool RegisterShutdownWithSignal(int iSignal);
 	//-----------------------------------------------------------------------------
 
+	struct Diagnostics
+	{
+		std::size_t iTotalThreads  { 0 };
+		std::size_t iIdleThreads   { 0 };
+		std::size_t iUsedThreads   { 0 };
+		std::size_t iTotalAccepted { 0 };
+		KStopTime   UpTime;
+
+	}; // Diagnostics
+
+	//-----------------------------------------------------------------------------
+	/// Return server diagnostics like idle threads, total requests, uptime
+	Diagnostics GetDiagnostics() const;
+	//-----------------------------------------------------------------------------
+
 //-------
 protected:
 //-------
@@ -306,6 +322,8 @@ private:
 #endif
 	std::unique_ptr<KThreadPool> m_ThreadPool;
 	std::atomic_int m_iStarted { 0 };
+	std::atomic_uint64_t m_iTotalAccepted { 0 };
+	KStopTime m_Uptime;
 
 	KString m_sCert;
 	KString m_sKey;

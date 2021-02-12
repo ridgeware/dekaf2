@@ -71,6 +71,39 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 					HTTP.Request.Resource.Path.get(),
 					HTTP.Route->sRoute);
 
+	if (!FileServer.Exists())
+	{
+		// if the current path points to a directory, check if the real request had
+		// a slash at the end - in that case, try to serve /index.html. Else, redirect
+		// to the path with a slash at the end
+		if (FileServer.IsDirectory())
+		{
+			const auto& sOriginalResource = HTTP.Request.Resource.Path.get();
+
+			if (sOriginalResource.back() == '/')
+			{
+				// try index.html
+				KString sRequest = sOriginalResource;
+				sRequest += "/index.html";
+
+				FileServer.Open(HTTP.Route->sDocumentRoot,
+								sRequest,
+								HTTP.Route->sRoute);
+			}
+			else
+			{
+				// redirect
+				KString sRedirect = sOriginalResource;
+				sRedirect += '/';
+
+				HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY, "Moved Permanently");
+				HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, sRedirect);
+
+				return;
+			}
+		}
+	}
+
 	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, FileServer.GetMIMEType(true));
 	
 // TBD HTTP.SetStreamToOutput(FileServer.GetStreamForReading(), FileServer.GetFileSize());
@@ -218,7 +251,10 @@ bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
 		sURLPath.remove_prefix(sBaseRoute);
 
 		// try to remove a trailing / - we treat /path and /path/ as the same address
-		sURLPath.remove_suffix("/");
+		if (sURLPath.back() == '/')
+		{
+			sURLPath.remove_suffix(1);
+		}
 
 		KHTTPPath RequestedPath(sURLPath);
 
@@ -228,10 +264,8 @@ bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
 		{
 			throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
 		}
-		else
-		{
-			Route->Callback(*this);
-		}
+
+		Route->Callback(*this);
 
 		return true;
 	}

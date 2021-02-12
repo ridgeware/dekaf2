@@ -76,6 +76,12 @@ public:
 	/// @param sBaseRoute The base path valid for this request. Will be substracted from sRequest.
 	bool Open(KStringView sDocumentRoot, KStringView sRequest, KStringView sBaseRoute);
 
+	/// Checks if the requested file exists
+	bool Exists() const { return m_iFileSize != npos; }
+
+	/// Checks if the requested file is a directory
+	bool IsDirectory() const;
+
 	/// Returns the file system path as created by Open()
 	const KString& GetFileSystemPath() const { return m_sFileSystemPath; }
 

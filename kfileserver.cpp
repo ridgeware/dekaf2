@@ -40,6 +40,7 @@
 */
 
 #include "kfileserver.h"
+#include "kfilesystem.h"
 #include "khttperror.h"
 
 namespace dekaf2 {
@@ -50,7 +51,7 @@ bool KFileServer::Open(KStringView sDocumentRoot, KStringView sRequest, KStringV
 {
 	clear();
 
-	if (!sRequest.remove_prefix(sBaseRoute) || sRequest.front() != '/')
+	if (!sRequest.remove_prefix(sBaseRoute) || (!sRequest.empty() && sRequest.front() != '/'))
 	{
 		kDebug(1, "invalid document path (internal error): {}", sRequest);
 
@@ -64,19 +65,22 @@ bool KFileServer::Open(KStringView sDocumentRoot, KStringView sRequest, KStringV
 		}
 	}
 
-	sRequest.remove_prefix(1); // the leading slash
-
-	if (!sRequest.empty() && !kIsSafePathname(sRequest))
+	if (!sRequest.empty())
 	{
-		kDebug(1, "invalid document path: {}", sRequest);
+		sRequest.remove_prefix(1); // the leading slash
 
-		if (m_bThrow)
+		if (!sRequest.empty() && !kIsSafePathname(sRequest))
 		{
-			throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid path" };
-		}
-		else
-		{
-			return false;
+			kDebug(1, "invalid document path: {}", sRequest);
+
+			if (m_bThrow)
+			{
+				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid path" };
+			}
+			else
+			{
+				return false;
+			}
 		}
 	}
 
@@ -179,6 +183,14 @@ KMIME KFileServer::GetMIMEType(bool bInspect)
 	return m_mime;
 
 } // GetMIMEType
+
+//-----------------------------------------------------------------------------
+bool KFileServer::IsDirectory() const
+//-----------------------------------------------------------------------------
+{
+	return m_iFileSize == npos && kDirExists(m_sFileSystemPath);
+
+} // IsDirectory
 
 //-----------------------------------------------------------------------------
 void KFileServer::clear()

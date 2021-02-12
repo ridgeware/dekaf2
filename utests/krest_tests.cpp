@@ -120,7 +120,6 @@ TEST_CASE("KREST")
 		CHECK ( REST.Simulate(Options, Routes, "/base/route/help", oss) == true );
 		CHECK ( REST.Simulate(Options, Routes, "/help/", oss) == true );
 		CHECK ( REST.Simulate(Options, Routes, "/base/route/help/", oss) == true );
-		return;
 
 		sOut.clear();
 		bCalledHelp = false;
@@ -233,7 +232,7 @@ TEST_CASE("KREST")
 		bMatchedMultiWildcards = false;
 		CHECK ( REST.Simulate(Options, Routes, "/wildcard/in/middle/and/end", oss) == true );
 		CHECK ( bMatchedMultiWildcards == true  );
-/*
+
 		sOut.clear();
 		CHECK ( REST.Simulate(Options, Routes, "/web/index.html", oss) == true );
 		auto iPos = sOut.find("\r\n\r\n");
@@ -243,14 +242,19 @@ TEST_CASE("KREST")
 			sOut.erase(0, iPos+4);
 		}
 		CHECK ( sOut == sWebContent );
-*/
+
 		sOut.clear();
 		CHECK ( REST.Simulate(Options, Routes, "/web", oss) == true );
-		auto iPos2 = sOut.find("\r\n\r\n");
-		CHECK ( iPos2 != npos );
-		if (iPos2 != npos)
+		CHECK ( sOut.starts_with("HTTP/1.1 301 ") );
+		CHECK ( sOut.contains("\r\nLocation: /web/\r\n") );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/web/", oss) == true );
+		auto iPos3 = sOut.find("\r\n\r\n");
+		CHECK ( iPos3 != npos );
+		if (iPos3 != npos)
 		{
-			sOut.erase(0, iPos2+4);
+			sOut.erase(0, iPos3+4);
 		}
 		CHECK ( sOut == sWebContent );
 	}

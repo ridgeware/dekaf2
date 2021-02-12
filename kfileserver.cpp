@@ -66,7 +66,7 @@ bool KFileServer::Open(KStringView sDocumentRoot, KStringView sRequest, KStringV
 
 	sRequest.remove_prefix(1); // the leading slash
 
-	if (!kIsSafePathname(sRequest))
+	if (!sRequest.empty() && !kIsSafePathname(sRequest))
 	{
 		kDebug(1, "invalid document path: {}", sRequest);
 

@@ -52,6 +52,8 @@
 #include "kwebclient.h"
 #include "ktimer.h"
 #include "kcrashexit.h"
+#include "kwriter.h"
+#include "kcountingstreambuf.h"
 
 namespace dekaf2 {
 
@@ -399,7 +401,10 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			sURLPath.remove_prefix(Options.sBaseRoute);
 
 			// try to remove a trailing / - we treat /path and /path/ as the same address
-			sURLPath.remove_suffix("/");
+			if (sURLPath.back() == '/')
+			{
+				sURLPath.remove_suffix(1);
+			}
 
 			RequestPath = KRESTPath(Request.Method, sURLPath);
 
@@ -584,6 +589,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			Output(Options, bKeepAlive);
 
+			if (Options.sJSONAccessLogFile)
+			{
+				WriteJSONAccessLog(Options);
+			}
+
 			if (Options.bRecordRequest)
 			{
 				RecordRequestForReplay(Options);
@@ -614,6 +624,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 		ErrorHandler(ex, Options);
 	}
 
+	if (Options.sJSONAccessLogFile)
+	{
+		WriteJSONAccessLog(Options);
+	}
+
 	if (Options.bRecordRequest)
 	{
 		RecordRequestForReplay(Options);
@@ -622,6 +637,52 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 	return false;
 
 } // Execute
+
+//-----------------------------------------------------------------------------
+void KRESTServer::WriteJSONAccessLog(const Options& Options)
+//-----------------------------------------------------------------------------
+{
+	static KOutStream LogStream = kOpenOutStream(Options.sJSONAccessLogFile, std::ios::app);
+
+	KString sTXType;
+
+	switch (Options.Out)
+	{
+		case HTTP:
+			sTXType = "HTTP";
+			break;
+
+		case LAMBDA:
+			sTXType = "LAMBDA";
+			break;
+
+		case CLI:
+			sTXType = "CLI";
+			break;
+	}
+
+	KJSON LogLine {
+		{ "time"      , kFormTimestamp(0, "%d/%b/%Y:%H:%M:%S %z") },
+		{ "remoteIP"  , Request.GetBrowserIP()                    },
+		{ "host"      , Request.Headers[KHTTPHeader::HOST]        },
+		{ "request"   , Request.Resource.Path.get()               },
+		{ "query"     , Request.Resource.Query.Serialize()        },
+		{ "method"    , Request.Method.Serialize()                },
+		{ "status"    , Response.iStatusCode                      },
+		{ "tx-size"   , m_iContentLength                          },
+		{ "tx-type"   , sTXType                                   },
+		{ "userAgent" , Request.Headers[KHTTPHeader::USER_AGENT]  },
+		{ "referer"   , Request.Headers[KHTTPHeader::REFERER]     }
+	};
+
+	if (m_Timers)
+	{
+		LogLine.push_back({ "TTLB", m_Timers->milliseconds() });
+	}
+
+	kLogger(LogStream, LogLine.dump(-1));
+
+} // WriteJSONAccessLog
 
 //-----------------------------------------------------------------------------
 bool KRESTServer::SetStreamToOutput(std::unique_ptr<KInStream> Stream, std::size_t iContentLength)
@@ -775,7 +836,19 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 			if (m_Stream)
 			{
 				kDebug(3, "read from stream");
-				Write (*m_Stream, m_iContentLength);
+
+				if (m_iContentLength == npos)
+				{
+					KCountingOutputStreamBuf Counter(Response.FilteredStream());
+
+					Write (*m_Stream, m_iContentLength);
+
+					m_iContentLength = Counter.count();
+				}
+				else
+				{
+					Write (*m_Stream, m_iContentLength);
+				}
 			}
 			else
 			{
@@ -847,12 +920,16 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				jheaders += { header.first, header.second };
 			}
 
+			m_iContentLength = kjson::GetStringRef(tjson, "body").size();
+
 			Response.UnfilteredStream() << tjson.dump(iJSONPretty, '\t') << "\n";
 		}
 		break;
 
 		case CLI:
 		{
+			KCountingOutputStreamBuf Counter(Response.UnfilteredStream());
+
 			if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
 			{
 				Response.UnfilteredStream().WriteLine(m_sRawOutput);
@@ -887,6 +964,8 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 					}
 				}
 			}
+
+			m_iContentLength = Counter.count();
 
 			if (!Options.sKLogHeader.empty())
 			{
@@ -1173,16 +1252,9 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 		oss.WriteLine();
 		oss.Flush();
 
-		KOutFile RecordFile(Options.sRecordFile, std::ios::app);
+		static KOutStream RecordStream = kOpenOutStream(Options.sRecordFile, std::ios::app);
 
-		if (!RecordFile.is_open())
-		{
-			kDebug (3, "cannot open {}", Options.sRecordFile);
-			return;
-		}
-
-		// write the output in one run to avoid thread segmentation
-		RecordFile.Write(sRecord).Flush();
+		kLogger(RecordStream, sRecord);
 	}
 
 } // RecordRequestForReplay

@@ -46,76 +46,7 @@
 #include "khttpinputfilter.h"
 #include "kchunkedtransfer.h"
 #include "kstringstream.h"
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// helper class to count the characters written through a streambuf
-class CountingOutputStreamBuf : std::streambuf
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//-------
-public:
-//-------
-
-	CountingOutputStreamBuf(dekaf2::KOutStream& outstream)
-	: m_ostream(outstream.OutStream())
-	, m_SBuf(m_ostream.rdbuf(this))
-	{
-	}
-
-	CountingOutputStreamBuf(std::ostream& ostream)
-	: m_ostream(ostream)
-	, m_SBuf(m_ostream.rdbuf(this))
-	{
-	}
-
-	virtual ~CountingOutputStreamBuf()
-	{
-		m_ostream.rdbuf(m_SBuf);
-	}
-
-	virtual int_type overflow(int_type c) override
-	{
-		if (!traits_type::eq_int_type(traits_type::eof(), c))
-		{
-			auto ch = m_SBuf->sputc(c);
-
-			if (!traits_type::eq_int_type(traits_type::eof(), ch))
-			{
-				++m_iCount;
-			}
-
-			return ch;
-		}
-		return c;
-	}
-
-	virtual std::streamsize xsputn(const char_type* s, std::streamsize n) override
-	{
-		auto iWrote = m_SBuf->sputn(s, n);
-		m_iCount += iWrote;
-		return iWrote;
-	}
-
-	virtual int sync() override
-	{
-		return m_SBuf->pubsync();
-	}
-
-	std::streamsize count() const
-	{
-		return m_iCount;
-	}
-
-//-------
-private:
-//-------
-
-	std::ostream& m_ostream;
-	std::streambuf* m_SBuf { nullptr };
-	std::streamsize m_iCount { 0 };
-
-}; // CountingOutputStreamBuf
+#include "kcountingstreambuf.h"
 
 namespace dekaf2 {
 
@@ -213,7 +144,7 @@ size_t KInHTTPFilter::Read(KOutStream& OutStream, size_t len)
 {
 	auto& In(FilteredStream());
 
-	CountingOutputStreamBuf Count(OutStream);
+	KCountingOutputStreamBuf Count(OutStream);
 
 	if (len == KString::npos)
 	{

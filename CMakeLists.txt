@@ -486,6 +486,7 @@ set(PUBLIC_HEADERS
 	kcompression.h
 	kconnection.h
 	kcookie.h
+	kcountingstreambuf.h
 	kcrashexit.h
 	kcrc.h
 	kcsv.h
@@ -630,6 +631,7 @@ set (SOURCES
 	kcompression.cpp
 	kconnection.cpp
 	kcookie.cpp
+	kcountingstreambuf.cpp
 	kcrashexit.cpp
 	kcrc.cpp
 	kcsv.cpp

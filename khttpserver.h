@@ -174,7 +174,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Write one line, including EOL
-	bool WriteLine(KStringView sBuffer)
+	size_t WriteLine(KStringView sBuffer)
 	//-----------------------------------------------------------------------------
 	{
 		return Response.WriteLine(sBuffer);

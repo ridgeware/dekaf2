@@ -103,6 +103,8 @@ public:
 		KStringView sBaseRoute;
 		/// If non-empty creates a header with execution time
 		KStringView sTimerHeader;
+		/// File to write the json access log into
+		KStringViewZ sJSONAccessLogFile;
 		/// File to record request into - filename may not change during execution
 		KStringViewZ sRecordFile;
 		/// Fixed additional headers
@@ -255,6 +257,11 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// generate error output
 	void ErrorHandler(const std::exception& ex, const Options& Options);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// write the access log
+	void WriteJSONAccessLog(const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

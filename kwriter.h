@@ -208,6 +208,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Get the end-of-line sequence (defaults to "LF", may differ depending on platform)
+	const KString& GetWriterEndOfLine() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_sDelimiter;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Get the std::ostream
 	const std::ostream& OutStream() const
 	//-----------------------------------------------------------------------------
@@ -417,6 +425,16 @@ public:
 	using base_type::open;
 
 };
+
+//-----------------------------------------------------------------------------
+/// open a stream from any of the supported stream schemata, like file, URL, stdout, stderr (URL not yet supported)
+extern KOutStream kOpenOutStream(KStringViewZ sSchema, std::ios::openmode openmode = std::ios::app);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// universal logger implemented with an output queue - make sure the Stream is valid until the program ends
+extern void kLogger(KOutStream& Stream, KString sMessage, bool bFlush = true);
+//-----------------------------------------------------------------------------
 
 } // end of namespace dekaf2
 

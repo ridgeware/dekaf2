@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2020, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -39,130 +39,53 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include <iostream>
-#include <fstream>
-#include "kwriter.h"
-#include "kreader.h"
-#include "klog.h"
-#include "kthreadpool.h"
-#include "kurl.h"
+#include "kcountingstreambuf.h"
 
-namespace dekaf2
-{
-
-KOutStream KErr(std::cerr);
-KOutStream KOut(std::cout);
+namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-/// Write a character. Returns stream reference that resolves to false on failure
-KOutStream::self_type& KOutStream::Write(KString::value_type ch)
+KCountingOutputStreamBuf::~KCountingOutputStreamBuf()
 //-----------------------------------------------------------------------------
 {
-	auto streambuf = OutStream().rdbuf();
+	m_ostream.rdbuf(m_SBuf);
+}
 
-	if (streambuf != nullptr)
+//-----------------------------------------------------------------------------
+std::streambuf::int_type KCountingOutputStreamBuf::overflow(int_type c)
+//-----------------------------------------------------------------------------
+{
+	if (!traits_type::eq_int_type(traits_type::eof(), c))
 	{
-		typename std::ostream::int_type iCh = streambuf->sputc(ch);
-		if (std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof()))
+		auto ch = m_SBuf->sputc(c);
+
+		if (!traits_type::eq_int_type(traits_type::eof(), ch))
 		{
-			OutStream().setstate(std::ios_base::badbit);
-		}
-	}
-
-	return *this;
-
-} // Write
-
-//-----------------------------------------------------------------------------
-/// Write a range of characters. Returns stream reference that resolves to false on failure.
-KOutStream::self_type& KOutStream::Write(const void* pAddress, size_t iCount)
-//-----------------------------------------------------------------------------
-{
-	if (iCount)
-	{
-		auto streambuf = OutStream().rdbuf();
-
-		if (streambuf != nullptr)
-		{
-			auto iWrote = static_cast<size_t>(streambuf->sputn(static_cast<const std::ostream::char_type*>(pAddress), iCount));
-			if (iWrote != iCount)
-			{
-				OutStream().setstate(std::ios_base::badbit);
-			}
-		}
-	}
-
-	return *this;
-
-} // Write
-
-//-----------------------------------------------------------------------------
-/// Read a range of characters and append to Stream. Returns stream reference that resolves to false on failure.
-KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
-//-----------------------------------------------------------------------------
-{
-	enum { COPY_BUFSIZE = 4096 };
-	std::array<char, COPY_BUFSIZE> Buffer;
-
-	for (;iCount;)
-	{
-		auto iChunk = std::min(Buffer.size(), iCount);
-
-		auto iReadChunk = Stream.Read(Buffer.data(), iChunk);
-
-		Write(Buffer.data(), iReadChunk);
-		
-		iCount -= iReadChunk;
-
-		if (iReadChunk != iChunk)
-		{
-			break;
-		}
-	}
-
-	return *this;
-
-} // Write
-
-template class KWriter<std::ofstream>;
-
-//-----------------------------------------------------------------------------
-KOutStream kOpenOutStream(KStringViewZ sSchema, std::ios::openmode openmode)
-//-----------------------------------------------------------------------------
-{
-	if (sSchema == KLog::STDOUT)
-	{
-		return std::cout;
-	}
-	else if (sSchema == KLog::STDERR)
-	{
-		return std::cerr;
-	}
-	else
-	{
-		return KOutFile(sSchema, openmode);
-	}
-
-} // kOpenOutStream
-
-//-----------------------------------------------------------------------------
-void kLogger(KOutStream& Stream, KString sMessage, bool bFlush)
-//-----------------------------------------------------------------------------
-{
-	static KThreadPool LogWriter(1);
-
-	LogWriter.push([&Stream](KString sMessage, bool bFlush)
-	{
-		Stream.Write(sMessage);
-
-		if (bFlush)
-		{
-			Stream.Flush();
+			++m_iCount;
 		}
 
-	}, std::move(sMessage), bFlush);
+		return ch;
+	}
+	return c;
 
-} // kLogger
+} // overflow
+
+//-----------------------------------------------------------------------------
+std::streamsize KCountingOutputStreamBuf::xsputn(const char_type* s, std::streamsize n)
+//-----------------------------------------------------------------------------
+{
+	auto iWrote = m_SBuf->sputn(s, n);
+	m_iCount += iWrote;
+	return iWrote;
+
+} // xsputn
+
+//-----------------------------------------------------------------------------
+int KCountingOutputStreamBuf::sync()
+//-----------------------------------------------------------------------------
+{
+	return m_SBuf->pubsync();
+
+} // sync
 
 } // end of namespace dekaf2
 

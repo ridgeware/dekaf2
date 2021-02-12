@@ -817,7 +817,7 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 	}
 
 	// Prevent recursive calling through internal calls to instrumented functions
-	// like, e.g. kFormTimeStamp()
+	// like, e.g. kFormTimestamp()
 	PreventRecursion PR;
 
 	if (PR.IsRecursive())

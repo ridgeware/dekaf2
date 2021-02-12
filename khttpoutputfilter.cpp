@@ -170,15 +170,22 @@ size_t KOutHTTPFilter::Write(KStringView sBuffer)
 } // Write
 
 //-----------------------------------------------------------------------------
-bool KOutHTTPFilter::WriteLine(KStringView sBuffer)
+size_t KOutHTTPFilter::WriteLine(KStringView sBuffer)
 //-----------------------------------------------------------------------------
 {
 	auto& Out(FilteredStream());
 
 	Out.WriteLine(sBuffer);
 
-	return Out.Good();
-
+	if (Out.Good())
+	{
+		return sBuffer.size() + Out.GetWriterEndOfLine().size();
+	}
+	else
+	{
+		return 0;
+	}
+	
 } // WriteLine
 
 //-----------------------------------------------------------------------------

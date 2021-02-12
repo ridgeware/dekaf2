@@ -127,20 +127,20 @@ KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 template class KWriter<std::ofstream>;
 
 //-----------------------------------------------------------------------------
-KOutStream kOpenOutStream(KStringViewZ sSchema, std::ios::openmode openmode)
+std::unique_ptr<KOutStream> kOpenOutStream(KStringViewZ sSchema, std::ios::openmode openmode)
 //-----------------------------------------------------------------------------
 {
 	if (sSchema == KLog::STDOUT)
 	{
-		return std::cout;
+		return std::make_unique<KOutStream>(std::cout);
 	}
 	else if (sSchema == KLog::STDERR)
 	{
-		return std::cerr;
+		return std::make_unique<KOutStream>(std::cerr);
 	}
 	else
 	{
-		return KOutFile(sSchema, openmode);
+		return std::make_unique<KOutFile>(sSchema, openmode);
 	}
 
 } // kOpenOutStream
@@ -151,16 +151,16 @@ void kLogger(KOutStream& Stream, KString sMessage, bool bFlush)
 {
 	static KThreadPool LogWriter(1);
 
-	LogWriter.push([&Stream](KString sMessage, bool bFlush)
+	LogWriter.push([](KOutStream* Stream, KString sMessage, bool bFlush)
 	{
-		Stream.Write(sMessage);
+		Stream->WriteLine(sMessage);
 
 		if (bFlush)
 		{
-			Stream.Flush();
+			Stream->Flush();
 		}
 
-	}, std::move(sMessage), bFlush);
+	}, &Stream, std::move(sMessage), bFlush);
 
 } // kLogger
 

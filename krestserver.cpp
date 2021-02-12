@@ -642,7 +642,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 void KRESTServer::WriteJSONAccessLog(const Options& Options)
 //-----------------------------------------------------------------------------
 {
-	static KOutStream LogStream = kOpenOutStream(Options.sJSONAccessLogFile, std::ios::app);
+	static auto LogStream = kOpenOutStream(Options.sJSONAccessLogFile, std::ios::app);
 
 	KString sTXType;
 
@@ -680,7 +680,7 @@ void KRESTServer::WriteJSONAccessLog(const Options& Options)
 		LogLine.push_back({ "TTLB", m_Timers->milliseconds() });
 	}
 
-	kLogger(LogStream, LogLine.dump(-1));
+	kLogger(*LogStream, LogLine.dump(-1));
 
 } // WriteJSONAccessLog
 
@@ -1015,6 +1015,8 @@ void KRESTServer::xml_t::clear()
 void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 //-----------------------------------------------------------------------------
 {
+	m_iContentLength = 0;
+	
 	auto xex = dynamic_cast<const KHTTPError*>(&ex);
 
 	if (xex)
@@ -1249,12 +1251,11 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 			oss.Write('\'');
 		}
 
-		oss.WriteLine();
 		oss.Flush();
 
-		static KOutStream RecordStream = kOpenOutStream(Options.sRecordFile, std::ios::app);
+		static auto RecordStream = kOpenOutStream(Options.sRecordFile, std::ios::app);
 
-		kLogger(RecordStream, sRecord);
+		kLogger(*RecordStream, sRecord);
 	}
 
 } // RecordRequestForReplay

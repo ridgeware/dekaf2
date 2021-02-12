@@ -241,73 +241,94 @@ bool KSystemStats::GatherProcInfo ()
 	KString sLoadAvg;
 	KString sUptime;
 
+	if (kDirExists ("/proc"))
 	{
-		kDebug (2, "reading {} ...", PROC_VERSION);
-		KInFile oProcFile(PROC_VERSION);
-		oProcFile.ReadAll(sVersion);
-		kDebug(3, "contents of {}: {}", PROC_VERSION, sVersion);
-	}
-	{
-		kDebug (2, "reading {} ...", PROC_LOADAVG);
-		KInFile oLoadFile(PROC_LOADAVG);
-		oLoadFile.ReadAll(sLoadAvg);
-	}
-	{
-		kDebug (2, "reading {} ...", PROC_UPTIME);
-		KInFile oUptimeFile(PROC_UPTIME);
-		oUptimeFile.ReadAll(sUptime);
-	}
-
-	if (!sLoadAvg.empty())
-	{
-		sVersion.TrimRight();
-		kDebug (2, "LOADAVG: {}", sLoadAvg);
-		sLoadAvg.Replace('/', ' ',true);
-		auto Parts = sLoadAvg.Split(" ");
-
-		// 4th item had a slash and became 2 items with the Replace+kSplit above, and last field is just most recent PID (disregard)
-		if (Parts.size() == 6)
 		{
-			Add ("load_average_1min",  Parts.at(0), StatType::FLOAT);
-			Add ("load_average_5min",  Parts.at(1), StatType::FLOAT);
-			Add ("load_average_15min", Parts.at(2), StatType::FLOAT);
-			Add ("threads_runnable",   Parts.at(3), StatType::INTEGER);
-			Add ("threads_total",      Parts.at(4), StatType::INTEGER);
+			kDebug (2, "reading {} ...", PROC_VERSION);
+			KInFile oProcFile(PROC_VERSION);
+			oProcFile.ReadAll(sVersion);
+			kDebug(3, "contents of {}: {}", PROC_VERSION, sVersion);
 		}
-	}
-
-	if (!sUptime.empty())
-	{
-		sUptime.TrimRight();
-		kDebug (2, "UPTIME: {}", sUptime);
-		auto Parts = sUptime.Split(" ");
-		if (Parts.size() == 2)
 		{
-			double nTotal = Parts.at(0).Double();
-			double nIdle  = Parts.at(1).Double();
-			if (nTotal > 0.0)
+			kDebug (2, "reading {} ...", PROC_LOADAVG);
+			KInFile oLoadFile(PROC_LOADAVG);
+			oLoadFile.ReadAll(sLoadAvg);
+		}
+		{
+			kDebug (2, "reading {} ...", PROC_UPTIME);
+			KInFile oUptimeFile(PROC_UPTIME);
+			oUptimeFile.ReadAll(sUptime);
+		}
+	
+		if (!sLoadAvg.empty())
+		{
+			sVersion.TrimRight();
+			kDebug (2, "LOADAVG: {}", sLoadAvg);
+			sLoadAvg.Replace('/', ' ',true);
+			auto Parts = sLoadAvg.Split(" ");
+	
+			// 4th item had a slash and became 2 items with the Replace+kSplit above, and last field is just most recent PID (disregard)
+			if (Parts.size() == 6)
 			{
-				KStringView sTotal (Parts.at(0));
-				sTotal.ClipAt(".");
-				KStringView sIdle (Parts.at(1));
-				sIdle.ClipAt(".");
-				Add ("uptime_seconds",      sTotal,                   StatType::INTEGER);
-				Add ("uptime_idle_seconds", sIdle,                    StatType::INTEGER);
-				Add ("uptime_idle_percent", ((nIdle * 100) / nTotal), StatType::INTEGER);
-			}
-			else
-			{
-				kDebug(2, "invalid value for {}: {}", "uptime_seconds", nTotal);
+				Add ("load_average_1min",  Parts.at(0), StatType::FLOAT);
+				Add ("load_average_5min",  Parts.at(1), StatType::FLOAT);
+				Add ("load_average_15min", Parts.at(2), StatType::FLOAT);
+				Add ("threads_runnable",   Parts.at(3), StatType::INTEGER);
+				Add ("threads_total",      Parts.at(4), StatType::INTEGER);
 			}
 		}
-	}
+	
+		if (!sUptime.empty())
+		{
+			sUptime.TrimRight();
+			kDebug (2, "UPTIME: {}", sUptime);
+			auto Parts = sUptime.Split(" ");
+			if (Parts.size() == 2)
+			{
+				double nTotal = Parts.at(0).Double();
+				double nIdle  = Parts.at(1).Double();
+				if (nTotal > 0.0)
+				{
+					KStringView sTotal (Parts.at(0));
+					sTotal.ClipAt(".");
+					KStringView sIdle (Parts.at(1));
+					sIdle.ClipAt(".");
+					Add ("uptime_seconds",      sTotal,                   StatType::INTEGER);
+					Add ("uptime_idle_seconds", sIdle,                    StatType::INTEGER);
+					Add ("uptime_idle_percent", ((nIdle * 100) / nTotal), StatType::INTEGER);
+				}
+				else
+				{
+					kDebug(2, "invalid value for {}: {}", "uptime_seconds", nTotal);
+				}
+			}
+		}
 
-	if (!sVersion.empty())
+		if (!sVersion.empty())
+		{
+			sVersion.TrimRight();
+			Add ("unix_version", sVersion, StatType::STRING);
+		}	
+	}
+	else
 	{
-		sVersion.TrimRight();
-		Add ("unix_version", sVersion, StatType::STRING);
-	}
+		kDebug (2, "no /proc tables, so running uptime...");
 
+		KString sScratch;
+		kSystem ("uptime", sScratch);
+		sScratch.Trim();
+
+		// CentOS:
+		//  19:03:25 up 121 days,  4:21,  2 users,  load average: 0.01, 0.04, 0.08
+		// MacOS:
+		// 19:03  up  1:14, 2 users, load averages: 1.24 1.60 1.77
+
+		auto Parts = sScratch.Split(" ");
+		Add ("load_average_1min",  Parts.at(Parts.size()-3), StatType::FLOAT);
+		Add ("load_average_5min",  Parts.at(Parts.size()-2), StatType::FLOAT);
+		Add ("load_average_15min", Parts.at(Parts.size()-1), StatType::FLOAT);
+	}
+	
 	kDebug (2, "sizing {} ...", KLog::getInstance().GetDebugLog());
 	Add ("bytes_klog",             NeverNegative (kFileSize (KLog::getInstance().GetDebugLog())),StatType::INTEGER);
 	kDebug (2, "sizing a bunch of files in /var/log ...");
@@ -321,22 +342,6 @@ bool KSystemStats::GatherProcInfo ()
 	Add ("bytes_var_log_secure",   NeverNegative (kFileSize ("/var/log/secure")),   StatType::INTEGER);
 	Add ("bytes_var_log_wtmp",     NeverNegative (kFileSize ("/var/log/wtmp")),     StatType::INTEGER);
 
-/*
-// might be too heavy - lets think about this some more...
-	UCHAR8 Md5Passwd[16];
-	UCHAR8 Md5Shadow[16];
-	UCHAR8 Md5Group[16];
-	char   szHexDigest[32+1];
-
-	kDebugLog ("KSystemStats: computing hashes on a bunch of files in /etc ...");
-	kmd5_file ("/etc/passwd", Md5Passwd);
-	kmd5_file ("/etc/shadow", Md5Shadow);
-	kmd5_file ("/etc/group",  Md5Group);
-
-	Add ("md5_passwd", kmd5_tohex (Md5Passwd, szHexDigest), STRING);
-	Add ("md5_shadow", kmd5_tohex (Md5Shadow, szHexDigest), STRING);
-	Add ("md5_group",  kmd5_tohex (Md5Group,  szHexDigest), STRING);
-*/
 	return (true);
 
 } // GatherProcInfo

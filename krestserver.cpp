@@ -66,6 +66,15 @@ void KRESTServer::Options::AddHeader(KHTTPHeader Header, KStringView sValue)
 } // AddHeader
 
 //-----------------------------------------------------------------------------
+bool KRESTServer::Options::SetJSONAccessLog(KStringViewZ sJSONAccessLogFile)
+//-----------------------------------------------------------------------------
+{
+	JSONLogStream = kOpenOutStream(sJSONAccessLogFile, std::ios::app);
+	return JSONLogStream != nullptr;
+
+} // SetJSONAccessLog
+
+//-----------------------------------------------------------------------------
 void KRESTServer::VerifyAuthentication(const Options& Options)
 //-----------------------------------------------------------------------------
 {
@@ -589,7 +598,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			Output(Options, bKeepAlive);
 
-			if (Options.sJSONAccessLogFile)
+			if (Options.JSONLogStream)
 			{
 				WriteJSONAccessLog(Options);
 			}
@@ -624,7 +633,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 		ErrorHandler(ex, Options);
 	}
 
-	if (Options.sJSONAccessLogFile)
+	if (Options.JSONLogStream)
 	{
 		WriteJSONAccessLog(Options);
 	}
@@ -642,9 +651,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 void KRESTServer::WriteJSONAccessLog(const Options& Options)
 //-----------------------------------------------------------------------------
 {
-	static auto LogStream = kOpenOutStream(Options.sJSONAccessLogFile, std::ios::app);
-
-	KString sTXType;
+	KStringView sTXType;
 
 	switch (Options.Out)
 	{
@@ -677,10 +684,11 @@ void KRESTServer::WriteJSONAccessLog(const Options& Options)
 
 	if (m_Timers)
 	{
+		// "time to last byte"
 		LogLine.push_back({ "TTLB", m_Timers->milliseconds() });
 	}
 
-	kLogger(*LogStream, LogLine.dump(-1));
+	kLogger(*Options.JSONLogStream, LogLine.dump(-1));
 
 } // WriteJSONAccessLog
 
@@ -746,6 +754,8 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				// we output something else - do not set the content type, the
 				// caller should have set it
 				sContent = std::move(m_sRawOutput);
+
+				m_iContentLength = sContent.length();
 			}
 			else if (DEKAF2_LIKELY(m_Stream == nullptr))
 			{
@@ -797,18 +807,14 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 					}
 					kDebug (2, "XML response has {} bytes", sContent.length());
 				}
+
+				m_iContentLength = sContent.length();
 			}
 
 			if (!Options.sKLogHeader.empty())
 			{
 				// finally switch logging off if enabled
 				KLog::getInstance().LogThisThreadToKLog(-1);
-			}
-
-			// compute and set the Content-Length header:
-			if (!m_Stream)
-			{
-				m_iContentLength = sContent.length();
 			}
 
 			if (m_iContentLength != npos)
@@ -1253,6 +1259,12 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 
 		oss.Flush();
 
+		// Making this a static could lead to wrong output streams if multiple servers
+		// were started with different record files. But given that this is an extremely
+		// rare condition as the record function is a debug method which should never be
+		// used in parallel in real usage, we currently leave the code as is. A remedy
+		// would be to move the stream construction into the Options struct, as is done
+		// for the JSONAccessLog.
 		static auto RecordStream = kOpenOutStream(Options.sRecordFile, std::ios::app);
 
 		kLogger(*RecordStream, sRecord);

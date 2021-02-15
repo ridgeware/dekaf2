@@ -99,12 +99,13 @@ public:
 		/// Add one header to the list of fixed additional headers
 		void AddHeader(KHTTPHeader Header, KStringView sValue);
 
+		/// Set the file name for the json access log
+		bool SetJSONAccessLog(KStringViewZ sJSONAccessLogFile);
+
 		/// Fixed route prefix
 		KStringView sBaseRoute;
 		/// If non-empty creates a header with execution time
 		KStringView sTimerHeader;
-		/// File to write the json access log into
-		KStringViewZ sJSONAccessLogFile;
 		/// File to record request into - filename may not change during execution
 		KStringViewZ sRecordFile;
 		/// Fixed additional headers
@@ -132,6 +133,8 @@ public:
 		/// Set a callback function that will receive references to this instance and the TimeKeepers
 		/// after termination of one request
 		std::function<void(const KRESTServer&, const KDurations&)> TimingCallback;
+		/// The stream used for the JSON access log writer - normally set by SetJSONAccessLog()
+		std::unique_ptr<KOutStream> JSONLogStream;
 
 	}; // Options
 

@@ -6,6 +6,8 @@
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/klog.h>
 
+#ifndef DEKAF2_IS_WINDOWS
+
 using namespace dekaf2;
 
 int chtest1(int argc, char** argv)
@@ -23,3 +25,5 @@ TEST_CASE("KChildProcess")
 	kDebug(1, "child is back home");
 	CHECK ( Child.GetExitStatus() == 7 );
 }
+
+#endif

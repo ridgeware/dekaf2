@@ -85,26 +85,26 @@ int main(int argc, char** argv)
 
 	CLI.RegisterHelp(g_sHelp);
 
-	CLI.Option("p").MissingArgs("port number")
+	CLI.Option("p", "port number")
 	.Type(KOptions::Integer).Range(1, 65535)
 	([&](KStringViewZ sArg)
 	{
 		Options.iPort = sArg.UInt16();
 	});
 
-	CLI.Option("c").MissingArgs("concurency").Type(KOptions::Integer)
+	CLI.Option("c", "concurency").Type(KOptions::Integer)
 	([&](KStringViewZ sArg)
 	{
 		Options.iMaxConnections = sArg.UInt16();
 	});
 
-	CLI.Option("t").MissingArgs("timeout").Type(KOptions::Integer)
+	CLI.Option("t", "timeout").Type(KOptions::Integer)
 	([&](KStringViewZ sArg)
 	{
 		Options.iTimeout = sArg.UInt16();
 	});
 
-	CLI.Option("k").MissingArgs("max keepalive rounds").Type(KOptions::Integer)
+	CLI.Option("k", "max keepalive rounds").Type(KOptions::Integer)
 	([&](KStringViewZ sArg)
 	{
 		Options.iMaxKeepaliveRounds = sArg.UInt16();
@@ -115,7 +115,7 @@ int main(int argc, char** argv)
 		bSimpleServer = true;
 	});
 
-	CLI.Option("klog").MissingArgs("klog header")
+	CLI.Option("klog", "klog header")
 	([&](KStringViewZ sArg)
 	{
 		Options.sKLogHeader = sArg;

@@ -440,7 +440,7 @@ int main(int argc, char** argv)
 		bAnnotate = true;
 	});
 
-	Options.Option("cpp").MissingArgs("need output file name")
+	Options.Option("cpp", "need output file name")
 	([&](KStringViewZ sFileName)
 	{
 		iError = BuildTables(sFileName);

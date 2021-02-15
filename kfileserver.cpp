@@ -90,7 +90,6 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 	m_sFileSystemPath = sDocumentRoot;
 	m_sFileSystemPath += kDirSep;
 	m_sFileSystemPath += sRequest;
-
 	m_iFileSize       = kFileSize(m_sFileSystemPath);
 
 	if (IsDirectory())
@@ -101,6 +100,13 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 			m_sFileSystemPath += kDirSep;
 			m_sFileSystemPath += m_sDirIndexFile;
 			m_iFileSize       = kFileSize(m_sFileSystemPath);
+
+			if (!Exists() && kExtension(m_sFileSystemPath) == "html")
+			{
+				// check for (index).htm if extension was .html
+				m_sFileSystemPath.remove_suffix(1);
+				m_iFileSize = kFileSize(m_sFileSystemPath);
+			}
 		}
 		else
 		{

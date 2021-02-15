@@ -218,13 +218,25 @@ public:
 		: sMethod(_sMethod)
 		, bAuth(_bAuth)
 		, sRoute(_sRoute)
+		, sDocumentRoot(KStringView{})
 		, Handler(_Handler)
+		, Parser(_Parser)
+		{}
+
+		constexpr // create a WebServer item in the function table
+		FunctionTable(KStringView _sMethod, bool _bAuth, KStringView _sRoute, KStringView _sDocumentRoot, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
+		: sMethod(_sMethod)
+		, bAuth(_bAuth)
+		, sRoute(_sRoute)
+		, sDocumentRoot(_sDocumentRoot)
+		, Handler(nullptr)
 		, Parser(_Parser)
 		{}
 
 		KStringView sMethod;
 		bool bAuth;
 		KStringView sRoute;
+		KStringView sDocumentRoot;
 		KRESTRoute::Function Handler;
 		KRESTRoute::ParserType Parser = KRESTRoute::JSON;
 	};
@@ -243,13 +255,25 @@ public:
 		: sMethod(_sMethod)
 		, bAuth(_bAuth)
 		, sRoute(_sRoute)
+		, sDocumentRoot(KStringView{})
 		, Handler(_Handler)
+		, Parser(_Parser)
+		{}
+
+		constexpr
+		MemberFunctionTable(KStringView _sMethod, bool _bAuth, KStringView _sRoute, KStringView _sDocumentRoot, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
+		: sMethod(_sMethod)
+		, bAuth(_bAuth)
+		, sRoute(_sRoute)
+		, sDocumentRoot(_sDocumentRoot)
+		, Handler(nullptr)
 		, Parser(_Parser)
 		{}
 
 		KStringView sMethod;
 		bool bAuth;
 		KStringView sRoute;
+		KStringView sDocumentRoot;
 		KRESTRoute::MemberFunction<Object> Handler;
 		KRESTRoute::ParserType Parser = KRESTRoute::JSON;
 	};
@@ -275,7 +299,7 @@ public:
 		m_Routes.reserve(m_Routes.size() + COUNT);
 		for (size_t i = 0; i < COUNT; ++i)
 		{
-			AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].Handler, Routes[i].Parser));
+			AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, Routes[i].Handler, Routes[i].Parser));
 		}
 	}
 
@@ -288,7 +312,7 @@ public:
 		m_Routes.reserve(m_Routes.size() + COUNT);
 		for (size_t i = 0; i < COUNT; ++i)
 		{
-			AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, object, Routes[i].Handler, Routes[i].Parser));
+			AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, object, Routes[i].Handler, Routes[i].Parser));
 		}
 	}
 

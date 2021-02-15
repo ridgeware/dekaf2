@@ -46,12 +46,15 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KFileServer::Open(KStringView sDocumentRoot, KStringView sRequest, KStringView sBaseRoute)
+bool KFileServer::Open(KStringView sDocumentRoot,
+					   KStringView sRequest,
+					   KStringView sRoute,
+					   KStringView sOriginalRequest)
 //-----------------------------------------------------------------------------
 {
 	clear();
 
-	if (!sRequest.remove_prefix(sBaseRoute) || (!sRequest.empty() && sRequest.front() != '/'))
+	if (!sRequest.remove_prefix(sRoute) || (!sRequest.empty() && sRequest.front() != '/'))
 	{
 		kDebug(1, "invalid document path (internal error): {}", sRequest);
 
@@ -89,6 +92,22 @@ bool KFileServer::Open(KStringView sDocumentRoot, KStringView sRequest, KStringV
 	m_sFileSystemPath += sRequest;
 
 	m_iFileSize       = kFileSize(m_sFileSystemPath);
+
+	if (IsDirectory())
+	{
+		if (sOriginalRequest.back() == '/')
+		{
+			// try index.html
+			m_sFileSystemPath += kDirSep;
+			m_sFileSystemPath += m_sDirIndexFile;
+			m_iFileSize       = kFileSize(m_sFileSystemPath);
+		}
+		else
+		{
+			m_bReDirectory = true;
+			return false;
+		}
+	}
 
 	return true;
 
@@ -197,8 +216,9 @@ void KFileServer::clear()
 //-----------------------------------------------------------------------------
 {
 	m_sFileSystemPath.clear();
-	m_mime      = KMIME::NONE;
-	m_iFileSize = npos;
+	m_mime         = KMIME::NONE;
+	m_iFileSize    = npos;
+	m_bReDirectory = false;
 
 } // clear
 

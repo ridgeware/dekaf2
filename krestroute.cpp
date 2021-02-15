@@ -115,44 +115,23 @@ void KRESTRoute::WebServer(KRESTServer& HTTP)
 
 	FileServer.Open(HTTP.Route->sDocumentRoot,
 					HTTP.RequestPath.sRoute,
-					HTTP.Route->sRoute);
+					HTTP.Route->sRoute,
+					HTTP.Request.Resource.Path.get());
 
-	if (!FileServer.Exists())
+	if (FileServer.RedirectAsDirectory())
 	{
-		// if the current path points to a directory, check if the real request had
-		// a slash at the end - in that case, try to serve /index.html. Else, redirect
-		// to the path with a slash at the end
-		if (FileServer.IsDirectory())
-		{
-			const auto& sOriginalResource = HTTP.Request.Resource.Path.get();
+		// redirect
+		KString sRedirect = HTTP.Request.Resource.Path.get();
+		sRedirect += '/';
 
-			if (sOriginalResource.back() == '/')
-			{
-				// try index.html
-				KString sRequest = HTTP.RequestPath.sRoute;
-				sRequest += "/index.html";
-
-				FileServer.Open(HTTP.Route->sDocumentRoot,
-								sRequest,
-								HTTP.Route->sRoute);
-			}
-			else
-			{
-				// redirect
-				KString sRedirect = sOriginalResource;
-				sRedirect += '/';
-
-				HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY, "Moved Permanently");
-				HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, sRedirect);
-
-				return;
-			}
-		}
+		HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY, "Moved Permanently");
+		HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, std::move(sRedirect));
 	}
-
-	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, FileServer.GetMIMEType(true));
-
-	HTTP.SetStreamToOutput(FileServer.GetStreamForReading(), FileServer.GetFileSize());
+	else
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, FileServer.GetMIMEType(true));
+		HTTP.SetStreamToOutput(FileServer.GetStreamForReading(), FileServer.GetFileSize());
+	}
 
 } // WebServer
 
@@ -301,7 +280,7 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 		kDebug (3, "evaluating: {} {}" , it.Method.Serialize(), it.sRoute);
 		if (it.Matches(Path, Params, true))
 		{
-			kDebug (2, "     found: {} {}" , it.Method.Serialize(), it.sRoute);
+			kDebug (2, "     found: {} {}", it.Method.Serialize(), it.sRoute);
 			return it;
 		}
 	}

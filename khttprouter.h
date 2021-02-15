@@ -71,6 +71,11 @@ public:
 	KHTTPRoute(KString _sRoute, KString _sDocumentRoot, HTTPCallback _Callback);
 
 	//-----------------------------------------------------------------------------
+	/// Compare this route part by part with a given path, and return true if matching.
+	bool Matches(const KHTTPPath& Path) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Default webserver implementation for static pages
 	static void WebServer(KHTTPRouter& HTTP);
 	//-----------------------------------------------------------------------------
@@ -89,7 +94,7 @@ class KHTTPRoutes
 public:
 //------
 
-	typedef void (*HTTPHandler)(KHTTPServer& REST);
+	using HTTPHandler = void(*)(KHTTPServer& REST);
 
 	struct RouteTable
 	{

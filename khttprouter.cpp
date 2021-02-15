@@ -56,6 +56,81 @@ KHTTPRoute::KHTTPRoute(KString _sRoute, KString _sDocumentRoot, HTTPCallback _Ca
 }
 
 //-----------------------------------------------------------------------------
+bool KHTTPRoute::Matches(const KHTTPPath& Path) const
+//-----------------------------------------------------------------------------
+{
+	if (!bHasWildCardFragment)
+	{
+		if (DEKAF2_UNLIKELY(bHasWildCardAtEnd))
+		{
+			// this is a plain route with a wildcard at the end
+			if (DEKAF2_UNLIKELY(Path.sRoute.starts_with(sRoute)))
+			{
+				// take care that we only match full fragments, not parts of them
+				if (Path.sRoute.size() == sRoute.size() || Path.sRoute[sRoute.size()] == '/')
+				{
+					return true;
+				}
+			}
+		}
+		else
+		{
+			// this is a plain route - we do not check part by part
+			if (DEKAF2_UNLIKELY(Path.sRoute == sRoute))
+			{
+				return true;
+			}
+		}
+	}
+	else
+	{
+		// we have wildcard fragments, check part by part of the route
+		if (vURLParts.size() >= Path.vURLParts.size())
+		{
+			auto req = Path.vURLParts.cbegin();
+			bool bFound { true };
+			bool bEndOfPath { false };
+
+			for (auto& part : vURLParts)
+			{
+				if (DEKAF2_UNLIKELY(bEndOfPath))
+				{
+					// route was longer than path
+					bFound = false;
+					break;
+				}
+
+				if (DEKAF2_LIKELY(part != *req))
+				{
+					if (DEKAF2_LIKELY(part != "*"))
+					{
+						// this is not a wildcard
+						// therefore this route is not matching
+						bFound = false;
+						break;
+					}
+				}
+
+				// found, continue comparison
+				if (++req == Path.vURLParts.cend())
+				{
+					// end of Path reached, check that no route fragment is missing
+					bEndOfPath = true;
+				}
+			}
+
+			if (bFound)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+
+} // Matches
+
+//-----------------------------------------------------------------------------
 void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 //-----------------------------------------------------------------------------
 {
@@ -69,45 +144,25 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 
 	FileServer.Open(HTTP.Route->sDocumentRoot,
 					HTTP.Request.Resource.Path.get(),
-					HTTP.Route->sRoute);
+					HTTP.Route->sRoute,
+					HTTP.Request.Resource.Path.get());
 
-	if (!FileServer.Exists())
+	if (FileServer.RedirectAsDirectory())
 	{
-		// if the current path points to a directory, check if the real request had
-		// a slash at the end - in that case, try to serve /index.html. Else, redirect
-		// to the path with a slash at the end
-		if (FileServer.IsDirectory())
-		{
-			const auto& sOriginalResource = HTTP.Request.Resource.Path.get();
+		// redirect
+		KString sRedirect = HTTP.Request.Resource.Path.get();
+		sRedirect += '/';
 
-			if (sOriginalResource.back() == '/')
-			{
-				// try index.html
-				KString sRequest = sOriginalResource;
-				sRequest += "/index.html";
-
-				FileServer.Open(HTTP.Route->sDocumentRoot,
-								sRequest,
-								HTTP.Route->sRoute);
-			}
-			else
-			{
-				// redirect
-				KString sRedirect = sOriginalResource;
-				sRedirect += '/';
-
-				HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY, "Moved Permanently");
-				HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, sRedirect);
-
-				return;
-			}
-		}
+		HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY, "Moved Permanently");
+		HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, std::move(sRedirect));
 	}
-
-	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, FileServer.GetMIMEType(true));
-	
-// TBD HTTP.SetStreamToOutput(FileServer.GetStreamForReading(), FileServer.GetFileSize());
-	throw KHTTPError { KHTTPError::H5xx_NOTIMPL, "not yet implemented" };
+	else
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, FileServer.GetMIMEType(true));
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(FileServer.GetFileSize()));
+		HTTP.Serialize();
+		HTTP.Write(*FileServer.GetStreamForReading());
+	}
 
 } // WebServer
 
@@ -141,78 +196,21 @@ void KHTTPRoutes::clear()
 const KHTTPRoute& KHTTPRoutes::FindRoute(const KHTTPPath& Path) const
 //-----------------------------------------------------------------------------
 {
+	kDebug (2, "looking up: {}" , Path.sRoute);
+
 	for (const auto& it : m_Routes)
 	{
-		if (!it.bHasWildCardFragment)
+		kDebug (3, "evaluating: {}", it.sRoute);
+		if (it.Matches(Path))
 		{
-			if (DEKAF2_UNLIKELY(it.bHasWildCardAtEnd))
-			{
-				// this is a plain route with a wildcard at the end
-				if (DEKAF2_UNLIKELY(Path.sRoute.starts_with(it.sRoute)))
-				{
-					// take care that we only match full fragments, not parts of them
-					if (Path.sRoute.size() == it.sRoute.size() || Path.sRoute[it.sRoute.size()] == '/')
-					{
-						return it;
-					}
-				}
-			}
-			else
-			{
-				// this is a plain route - we do not check part by part
-				if (DEKAF2_UNLIKELY(Path.sRoute == it.sRoute))
-				{
-					return it;
-				}
-			}
-		}
-		else
-		{
-			// we have wildcard fragments, check part by part of the route
-			if (it.vURLParts.size() >= Path.vURLParts.size())
-			{
-				auto req = Path.vURLParts.cbegin();
-				bool bFound { true };
-				bool bEndOfPath { false };
-
-				for (auto& part : it.vURLParts)
-				{
-					if (DEKAF2_UNLIKELY(bEndOfPath))
-					{
-						// route was longer than path
-						bFound = false;
-						break;
-					}
-
-					if (DEKAF2_LIKELY(part != *req))
-					{
-						if (DEKAF2_LIKELY(part != "*"))
-						{
-							// this is not a wildcard
-							// therefore this route is not matching
-							bFound = false;
-							break;
-						}
-					}
-
-					// found, continue comparison
-					if (++req == Path.vURLParts.cend())
-					{
-						// end of Path reached, check that no route fragment is missing
-						bEndOfPath = true;
-					}
-				}
-
-				if (bFound)
-				{
-					return it;
-				}
-			}
+			kDebug (2, "     found: {}", it.sRoute);
+			return it;
 		}
 	}
 
 	if (m_DefaultRoute.Callback)
 	{
+		kDebug (2, "not found, returning default route");
 		return m_DefaultRoute;
 	}
 
@@ -294,7 +292,16 @@ void KHTTPRouter::ErrorHandler(const std::exception& ex)
 		Response.SetStatus(KHTTPError::H5xx_ERROR, "INTERNAL SERVER ERROR");
 	}
 
+	// we need to set the HTTP version here explicitly, as we could throw as early
+	// that no version is set - which will corrupt headers and body..
+	Response.sHTTPVersion = "HTTP/1.1";
+
 	KStringViewZ sError = ex.what();
+
+	kDebug (1, "HTTP-{}: {}\n{}",  Response.iStatusCode, Response.sStatusString, sError);
+
+	// do not compress/chunk error messages
+	ConfigureCompression(false);
 
 	KString sContent = R"(<html><head>Error</head><body><h2>)";
 
@@ -315,11 +322,11 @@ void KHTTPRouter::ErrorHandler(const std::exception& ex)
 	Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
 	Response.Headers.Set(KHTTPHeader::CONNECTION, "close");
 
-	// write full response and headers to output
-	Response.Serialize();
+	// write response headers to output
+	Serialize();
 
 	// finally, output the content:
-	kDebug (2, sContent);
+	kDebug (3, sContent);
 	Response.Write (sContent);
 
 } // ErrorHandler

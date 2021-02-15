@@ -64,23 +64,35 @@ public:
 //------
 
 	/// Simple file server implementation
-	/// @param bThrow If true, errors lead to KHTTPErrors thrown
-	KFileServer(bool bThrow = true)
-	: m_bThrow(bThrow)
+	/// @param bThrow If true, errors lead to KHTTPErrors thrown. Default true.
+	/// @param sDirIndexFile file name to serve when resource is a directory, per default index.html
+	KFileServer(bool bThrow = true, KString sDirIndexFile = "index.html")
+	: m_sDirIndexFile(std::move(sDirIndexFile))
+	, m_bThrow(bThrow)
 	{
 	}
 
 	/// Prepare for file access. May throw.
-	/// @param sDocumentRoot The file system directory that is the root for all requests.
-	/// @param sRequest The resource request with the full external path, e.g. http base path.
-	/// @param sBaseRoute The base path valid for this request. Will be substracted from sRequest.
-	bool Open(KStringView sDocumentRoot, KStringView sRequest, KStringView sBaseRoute);
+	/// @param sDocumentRoot The file system directory that contains all served files.
+	/// @param sRequest The normalized resource request with the full external path,
+	/// but stripped by the base route prefix and an eventual trailing slash.
+	/// @param sRoute The base path valid for this request. Will be substracted from sRequest.
+	/// @param sOriginalRequest The resource request before normalization, as it came in via e.g. http.
+	bool Open(KStringView sDocumentRoot,
+			  KStringView sRequest,
+			  KStringView sRoute,
+			  KStringView sOriginalRequest);
 
 	/// Checks if the requested file exists
 	bool Exists() const { return m_iFileSize != npos; }
 
 	/// Checks if the requested file is a directory
 	bool IsDirectory() const;
+
+	/// Checks if the requested file is a directory, but the original request did not have a slash at the end.
+	/// This is needed for HTTP redirects, as we cannot simply append a index.html in that case to the
+	/// directory name to serve the index, but have to make sure the client sees the slash after the directory..
+	bool RedirectAsDirectory() const { return m_bReDirectory; }
 
 	/// Returns the file system path as created by Open()
 	const KString& GetFileSystemPath() const { return m_sFileSystemPath; }
@@ -104,10 +116,12 @@ public:
 protected:
 //------
 
+	KString     m_sDirIndexFile;
 	KString     m_sFileSystemPath;
-	KMIME       m_mime { KMIME::NONE };
-	std::size_t m_iFileSize  { npos  };
-	bool        m_bThrow     { true  };
+	KMIME       m_mime   { KMIME::NONE };
+	std::size_t m_iFileSize    { npos  };
+	bool        m_bThrow       { true  };
+	bool        m_bReDirectory { false };
 
 }; // KFileServer
 

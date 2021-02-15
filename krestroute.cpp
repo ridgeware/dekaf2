@@ -167,7 +167,7 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters& Params, bool bCompar
 		else
 		{
 			// we have parameters or wildcard fragments, check part by part of the route
-			if (vURLParts.size() >= Path.vURLParts.size())
+			if (!Path.vURLParts.empty() && vURLParts.size() >= Path.vURLParts.size())
 			{
 				Params.clear();
 				auto req = Path.vURLParts.cbegin();

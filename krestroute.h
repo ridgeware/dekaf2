@@ -312,7 +312,14 @@ public:
 		m_Routes.reserve(m_Routes.size() + COUNT);
 		for (size_t i = 0; i < COUNT; ++i)
 		{
-			AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, object, Routes[i].Handler, Routes[i].Parser));
+			if (Routes[i].Handler != nullptr)
+			{
+				AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, object, Routes[i].Handler, Routes[i].Parser));
+			}
+			else
+			{
+				AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, Routes[i].Parser));
+			}
 		}
 	}
 

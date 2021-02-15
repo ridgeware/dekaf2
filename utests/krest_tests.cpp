@@ -261,6 +261,14 @@ TEST_CASE("KREST")
 
 	SECTION("HTTP SIM STATIC TABLE")
 	{
+		constexpr KStringView sWebContent = "<html><body>hello world</body></html>";
+		KTempDir WebRoot;
+		{
+			KOutFile OutFile(kFormat("{}/index.htm", WebRoot.Name()));
+			CHECK ( OutFile.is_open() );
+			OutFile.Write(sWebContent);
+		}
+
 		constexpr KRESTRoutes::FunctionTable RTable[]
 		{
 			{ "GET", false, "/test",               rest_test },
@@ -278,13 +286,14 @@ TEST_CASE("KREST")
 
 		RClass RR;
 
-		constexpr KRESTRoutes::MemberFunctionTable<RClass> MTable[]
+		KRESTRoutes::MemberFunctionTable<RClass> MTable[]
 		{
 			{ "GET", false, "/rr/test",               &RClass::rest_test2 },
 			{ "GET", false, "/rr/help",               &RClass::rest_test2, KRESTRoute::PLAIN },
 			{ "GET", false, "rr/noslashpath",         &RClass::rest_test2, KRESTRoute::JSON  },
 			{ "GET", false, "/rr/user/:NAME/address", &RClass::rest_test2 },
 			{ "GET", false, "/rr/user/:UID",          &RClass::rest_test2 },
+			{ "GET", false, "/web/*",                 WebRoot.Name()      }
 		};
 
 		KRESTRoutes Routes;
@@ -341,6 +350,16 @@ TEST_CASE("KREST")
 
 		sOut.clear();
 		CHECK ( REST.Simulate(Options, Routes, "/rr/user/Peter/address", oss) == true );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/web/", oss) == true );
+		auto iPos3 = sOut.find("\r\n\r\n");
+		CHECK ( iPos3 != npos );
+		if (iPos3 != npos)
+		{
+			sOut.erase(0, iPos3+4);
+		}
+		CHECK ( sOut == sWebContent );
 
 	}
 

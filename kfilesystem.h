@@ -81,7 +81,7 @@ constexpr KStringView kUnsafeFilenameChars { "#%&{}<>*? $!'\":@+`|=\\/" };
 #ifdef DEKAF2_HAS_CPP_14
 constexpr KStringView kUnsafePathnameChars = kUnsafeFilenameChars.ToView(0, kUnsafeFilenameChars.size() - 2);
 #else
-constexpr KStringView kUnsafeFilenameChars { "#%&{}<>*? $!'\":@+`|=" };
+constexpr KStringView kUnsafePathnameChars { "#%&{}<>*? $!'\":@+`|=" };
 #endif
 constexpr KStringView kUnsafeLimiterChars  { " .-_" };
 }

@@ -479,6 +479,8 @@ void Dekaf::Daemonize()
 pid_t Dekaf::Fork()
 //---------------------------------------------------------------------------
 {
+#ifndef DEKAF2_IS_WINDOWS
+
 	pid_t pid;
 
 	bool bRestartTimer = (m_Timer != nullptr);
@@ -530,6 +532,13 @@ pid_t Dekaf::Fork()
 	}
 
 	return pid; // 0
+
+#else
+
+	kWarning("not supported on Windows");
+	return 0;
+
+#endif
 
 } // Fork
 

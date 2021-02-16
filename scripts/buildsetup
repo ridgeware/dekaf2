@@ -39,7 +39,7 @@ BuildSetup ()
 		case "${DISTRIB}" in
 			centos)
 				InstallSystemPackages centos-release-scl
-				InstallSystemPackages devtoolset-7 rh-git29
+				InstallSystemPackages devtoolset-7
 				;;
 			rhel)
 				InstallSystemPackages yum-config-manager
@@ -91,7 +91,8 @@ BuildSetup ()
 			# enable gcc 7 for the subsequent install
 			source scl_source enable devtoolset-7
 			# and git 2.9 as well
-			source /opt/rh/rh-git29/enable
+			# git-2.9 appears to have vanished from centos7 by now
+#			source /opt/rh/rh-git29/enable
 			if [ ! -d "/opt/boost" ]
 			then
 				# install boost from source
@@ -117,7 +118,7 @@ BuildSetup ()
 			Info "execute the following to make sure you use a modern gcc:"
 			Info ""
 			Info "    source scl_source enable devtoolset-7"
-			Info "    source /opt/rh/rh-git29/enable"
+#			Info "    source /opt/rh/rh-git29/enable"
 		fi
 	fi
 

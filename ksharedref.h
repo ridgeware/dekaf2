@@ -288,7 +288,7 @@ protected:
 
 		//-----------------------------------------------------------------------------
 		/// increase reference count for the multi threaded case
-		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == true>* = nullptr>
+		template<bool bMT = bMultiThreaded, typename std::enable_if<bMT == true, int>::type = 0>
 		inline void inc()
 		//-----------------------------------------------------------------------------
 		{
@@ -297,7 +297,7 @@ protected:
 
 		//-----------------------------------------------------------------------------
 		/// increase reference count for the single threaded case
-		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == false>* = nullptr>
+		template<bool bMT = bMultiThreaded, typename std::enable_if<bMT == false, int>::type = 0>
 		inline void inc()
 		//-----------------------------------------------------------------------------
 		{
@@ -306,7 +306,7 @@ protected:
 
 		//-----------------------------------------------------------------------------
 		/// decrease reference count for the multi threaded case
-		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == true>* = nullptr>
+		template<bool bMT = bMultiThreaded, typename std::enable_if<bMT == true, int>::type = 0>
 		inline size_t dec()
 		//-----------------------------------------------------------------------------
 		{
@@ -315,7 +315,7 @@ protected:
 
 		//-----------------------------------------------------------------------------
 		/// decrease reference count for the single threaded case
-		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == false>* = nullptr>
+		template<bool bMT = bMultiThreaded, typename std::enable_if<bMT == false, int>::type = 0>
 		inline size_t dec()
 		//-----------------------------------------------------------------------------
 		{
@@ -324,7 +324,7 @@ protected:
 
 		//-----------------------------------------------------------------------------
 		/// get reference count for the multi threaded case
-		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == true>* = nullptr>
+		template<bool bMT = bMultiThreaded, typename std::enable_if<bMT == true, int>::type = 0>
 		inline size_t use_count() const
 		//-----------------------------------------------------------------------------
 		{
@@ -333,7 +333,7 @@ protected:
 
 		//-----------------------------------------------------------------------------
 		/// get reference count for the single threaded case
-		template<bool bMT = bMultiThreaded, typename std::enable_if_t<bMT == false>* = nullptr>
+		template<bool bMT = bMultiThreaded, typename std::enable_if<bMT == false, int>::type = 0>
 		inline size_t use_count() const
 		//-----------------------------------------------------------------------------
 		{

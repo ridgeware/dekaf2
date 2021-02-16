@@ -805,6 +805,8 @@ target_include_directories(dekaf2
 	$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${LIBZIP_INCLUDE_DIR}>
+	# for centos libzip:
+	/include
 )
 
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2)

@@ -1154,7 +1154,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// SFINAE, only active for non-integral Sequential instances
 	/// Gets the element at index position. Returns empty element if out of range.
-	template<class T = Key, bool Seq = Sequential, typename = std::enable_if_t<!std::is_integral<T>::value && Seq == true> >
+	template<class T = Key, bool Seq = Sequential, typename std::enable_if<!std::is_integral<T>::value && Seq == true, int>::type = 0 >
 	map_value_type& operator[](size_t index)
 	//-----------------------------------------------------------------------------
 	{
@@ -1164,7 +1164,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// SFINAE, only active for non-integral Sequential instances
 	/// Gets the element at index position. Returns empty element if out of range.
-	template<class T = Key, bool Seq = Sequential, typename = std::enable_if_t<!std::is_integral<T>::value && Seq == true> >
+	template<class T = Key, bool Seq = Sequential, typename std::enable_if<!std::is_integral<T>::value && Seq == true, int>::type >
 	const map_value_type& operator[](size_t index) const
 	//-----------------------------------------------------------------------------
 	{
@@ -1174,7 +1174,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// SFINAE && perfect forwarding, only active for non-integral K, or if the Key is integral
 	/// Gets the element with the given key. Returns empty element if not found.
-	template<class K, class T = Key, typename = std::enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
+	template<class K, class T = Key, typename std::enable_if<std::is_integral<T>::value || !std::is_integral<K>::value, int>::type >
 	const Value& operator[](K&& key) const
 	//-----------------------------------------------------------------------------
 	{
@@ -1184,7 +1184,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// SFINAE && perfect forwarding, only active for non-integral K, or if the Key is integral
 	/// Gets the element with the given key. Returns empty element if not found.
-	template<class K, class T = Key, typename = std::enable_if_t<std::is_integral<T>::value || !std::is_integral<K>::value> >
+	template<class K, class T = Key, typename std::enable_if<std::is_integral<T>::value || !std::is_integral<K>::value, int>::type >
 	Value& operator[](K&& key)
 	//-----------------------------------------------------------------------------
 	{

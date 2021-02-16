@@ -73,7 +73,7 @@ std::ostream& kfFormat(std::ostream& os, KStringView sFormat)
 
 //-----------------------------------------------------------------------------
 /// formats a std::ostream using Python syntax
-template<class... Args, typename std::enable_if_t<sizeof...(Args) != 0, int> = 0>
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
 std::ostream& kfFormat(std::ostream& os, KStringView sFormat, Args&&... args)
 //-----------------------------------------------------------------------------
 {
@@ -91,7 +91,7 @@ KString kFormat(KStringView sFormat)
 
 //-----------------------------------------------------------------------------
 /// formats a KString using Python syntax
-template<class... Args, typename std::enable_if_t<sizeof...(Args) != 0, int> = 0>
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
 KString kFormat(KStringView sFormat, Args&&... args)
 //-----------------------------------------------------------------------------
 {
@@ -110,7 +110,7 @@ std::ostream& kfPrintf(std::ostream& os, KStringView sFormat)
 
 //-----------------------------------------------------------------------------
 /// formats a file using POSIX printf syntax
-template<class... Args, typename std::enable_if_t<sizeof...(Args) != 0, int> = 0>
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
 std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, Args&&... args)
 //-----------------------------------------------------------------------------
 {
@@ -128,7 +128,7 @@ KString kPrintf(KStringView sFormat)
 
 //-----------------------------------------------------------------------------
 /// formats a KString using POSIX printf syntax
-template<class... Args, typename std::enable_if_t<sizeof...(Args) != 0, int> = 0>
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
 KString kPrintf(KStringView sFormat, Args&&... args)
 //-----------------------------------------------------------------------------
 {

@@ -90,7 +90,7 @@ bool kStrIn (KStringView sNeedle, const char* Haystack[]);
 
 //----------------------------------------------------------------------
 template<class Container,
-	typename std::enable_if_t<!detail::is_cpp_str<Container>::value>* = nullptr>
+	typename std::enable_if<!detail::is_cpp_str<Container>::value, int>::type = 0>
 DEKAF2_CONSTEXPR_14
 bool kStrIn (KStringView sNeedle, const Container& Haystack)
 //----------------------------------------------------------------------
@@ -568,7 +568,7 @@ First kFirstNonEmpty(First sFirst)
 
 //-----------------------------------------------------------------------------
 /// return the first in a sequence of objects that is not .empty()
-template<class First, class...More, typename std::enable_if_t<sizeof...(More) != 0, int> = 0>
+template<class First, class...More, typename std::enable_if<sizeof...(More) != 0, int>::type = 0>
 First kFirstNonEmpty(First sFirst, More&&...more)
 //-----------------------------------------------------------------------------
 {

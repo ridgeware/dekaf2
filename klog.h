@@ -306,7 +306,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// this function is deprecated - use kDebug() instead!
-	template<class... Args, typename std::enable_if_t<sizeof...(Args) != 1, int> = 0>
+	template<class... Args, typename std::enable_if<sizeof...(Args) != 1, int>::type = 0>
 	inline bool debug(int iLevel, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
@@ -315,7 +315,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// this function is deprecated - use kDebug() instead!
-	template<class... Args, typename std::enable_if_t<sizeof...(Args) == 1, int> = 0>
+	template<class... Args, typename std::enable_if<sizeof...(Args) == 1, int>::type = 0>
 	inline bool debug(int iLevel, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
@@ -324,7 +324,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// this function is deprecated - use kDebug() instead!
-	template<class... Args, typename std::enable_if_t<sizeof...(Args) != 1, int> = 0>
+	template<class... Args, typename std::enable_if<sizeof...(Args) != 1, int>::type = 0>
 	inline bool debug_fun(int iLevel, KStringView sFunction, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
@@ -333,7 +333,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// this function is deprecated - use kDebug() instead!
-	template<class... Args, typename std::enable_if_t<sizeof...(Args) == 1, int> = 0>
+	template<class... Args, typename std::enable_if<sizeof...(Args) == 1, int>::type = 0>
 	inline bool debug_fun(int iLevel, KStringView sFunction, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
@@ -349,7 +349,7 @@ public:
 	/// Logs a warning. Takes any arguments that can be formatted through the
 	/// standard formatter of the library. A warning is a debug message with
 	/// level -1.
-	template<class... Args, typename std::enable_if_t<sizeof...(Args) != 1, int> = 0>
+	template<class... Args, typename std::enable_if<sizeof...(Args) != 1, int>::type = 0>
 	inline bool warning(Args&&... args)
 	//---------------------------------------------------------------------------
 	{
@@ -360,7 +360,7 @@ public:
 	/// Logs a warning. Takes any arguments that can be formatted through the
 	/// standard formatter of the library. A warning is a debug message with
 	/// level -1.
-	template<class... Args, typename std::enable_if_t<sizeof...(Args) == 1, int> = 0>
+	template<class... Args, typename std::enable_if<sizeof...(Args) == 1, int>::type = 0>
 	inline bool warning(Args&&... args)
 	//---------------------------------------------------------------------------
 	{

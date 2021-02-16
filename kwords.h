@@ -1,5 +1,4 @@
 /*
-//////////////////////////////////////////////////////////////////////////////
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
@@ -263,7 +262,7 @@ private:
 /// Version of kSplitWords that fills a container with KStringViewPairs, where
 /// .first is the word and .second is the preceeding skeleton
 template<typename Container, typename Parser = detail::splitting_parser::SimpleText>
-typename std::enable_if_t<std::is_constructible<typename Container::value_type, KStringViewPair>::value, size_t>
+typename std::enable_if<std::is_constructible<typename Container::value_type, KStringViewPair>::value, size_t>::type
 kSplitWords (
         Container& cContainer,
         KStringView sBuffer

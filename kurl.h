@@ -259,7 +259,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// generate content into string from members (not user or password)
-	template<URIPart C = Component, typename std::enable_if_t<C != URIPart::User && C != URIPart::Password, int> = 0 >
+	template<URIPart C = Component, typename std::enable_if<C != URIPart::User && C != URIPart::Password, int>::type = 0 >
 	bool Serialize (KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
@@ -278,7 +278,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// generate content into string from user or password
-	template<URIPart C = Component, typename std::enable_if_t<C == URIPart::User || C == URIPart::Password, int> = 0 >
+	template<URIPart C = Component, typename std::enable_if<C == URIPart::User || C == URIPart::Password, int>::type = 0 >
 	bool Serialize (KString& sTarget, char chSuffix = '@') const
 	//-------------------------------------------------------------------------
 	{
@@ -309,7 +309,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// generate content into stream from members (not user or password)
-	template<URIPart C = Component, typename std::enable_if_t<C != URIPart::User && C != URIPart::Password, int> = 0 >
+	template<URIPart C = Component, typename std::enable_if<C != URIPart::User && C != URIPart::Password, int>::type = 0 >
 	bool Serialize (KOutStream& sTarget) const
 	//-------------------------------------------------------------------------
 	{
@@ -328,7 +328,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// generate content into stream from user or password
-	template<URIPart C = Component, typename std::enable_if_t<C == URIPart::User || C == URIPart::Password, int> = 0 >
+	template<URIPart C = Component, typename std::enable_if<C == URIPart::User || C == URIPart::Password, int>::type = 0 >
 	bool Serialize (KOutStream& sTarget, char chSuffix = '@') const
 	//-------------------------------------------------------------------------
 	{
@@ -396,7 +396,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return the key-value value
-	template<bool X = IsString, typename std::enable_if_t<!X, int> = 0 >
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	const KString& operator[] (KStringView sv) const
 	//-------------------------------------------------------------------------
 	{
@@ -405,7 +405,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return the key-value value
-	template<bool X = IsString, typename std::enable_if_t<!X, int> = 0 >
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	KString& operator[] (KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -414,7 +414,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// modify member by setting argument
-	template<bool X = IsString, typename std::enable_if_t<X, int> = 0 >
+	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
 	void set (KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -423,7 +423,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// operator KStringView () returns the decoded string
-	template<bool X = IsString, typename std::enable_if_t<X, int> = 0 >
+	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
 	operator KStringView () const
 	//-------------------------------------------------------------------------
 	{
@@ -440,7 +440,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return percent-decoded content (for query part)
-	template<bool X = IsString, typename std::enable_if_t<!X, int> = 0 >
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	KString Decoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -483,7 +483,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return percent-decoded content (for string parts)
-	template<bool X = IsString, typename std::enable_if_t<X, int> = 0 >
+	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
 	const typename Storage::value_type& Decoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -493,7 +493,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// operator+=(KStringView) for the query part parses the encoded string
 	/// and appends to existing query parms
-	template<bool X = IsString, typename std::enable_if_t<!X, int> = 0 >
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	URIComponent& operator+=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -503,7 +503,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// operator+=(url::KQuery) appends to existing query parms
-	template<bool X = IsString, typename std::enable_if_t<!X, int> = 0 >
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	URIComponent& operator+=(self_type Query)
 	//-------------------------------------------------------------------------
 	{
@@ -516,7 +516,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// operator=(KStringView) for the query part parses the encoded string
-	template<bool X = IsString, typename std::enable_if_t<!X, int> = 0 >
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	URIComponent& operator=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -526,7 +526,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// operator=(KStringView) sets the decoded string
-	template<bool X = IsString, typename std::enable_if_t<X, int> = 0 >
+	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
 	URIComponent& operator=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{

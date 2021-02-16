@@ -323,7 +323,7 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if_t<X == '\0', int> = 0>
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	void get(KString& sTarget) const
 	//-------------------------------------------------------------------------
 	{
@@ -346,7 +346,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	// the non-Key-Value encoding
-	template<const char X = chPairSep, typename std::enable_if_t<X == '\0', int> = 0>
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	void Serialize(KString& sEncoded, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
@@ -355,7 +355,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	// the Key-Value encoding
-	template<const char X = chPairSep, typename std::enable_if_t<X != '\0', int> = 0>
+	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
 	void Serialize(KString& sEncoded, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
@@ -396,7 +396,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if_t<X == '\0', int> = 0>
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	void Parse(KStringView sv, URIPart Component)
 	//-------------------------------------------------------------------------
 	{
@@ -405,7 +405,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	// the Key-Value decoding
-	template<const char X = chPairSep, typename std::enable_if_t<X != '\0', int> = 0>
+	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
 	void Parse(KStringView sv, URIPart Component)
 	//-------------------------------------------------------------------------
 	{
@@ -477,7 +477,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if_t<X == '\0', int> = 0>
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	void set(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -499,7 +499,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if_t<X == '\0', int> = 0>
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	KURLEncoded& operator=(KStringView sv)
 	//-------------------------------------------------------------------------
 	{
@@ -522,7 +522,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if_t<X == '\0', int> = 0>
+	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	friend bool operator< (const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
@@ -530,7 +530,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if_t<X != '\0', int> = 0>
+	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
 	friend bool operator< (const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{

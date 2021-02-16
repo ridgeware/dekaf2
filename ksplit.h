@@ -76,8 +76,8 @@ namespace dekaf2
 /// auto iWordCount = kSplit(Words, "This sentence has five words", " ");
 /// @endcode
 template<typename Container,
-	typename std::enable_if_t<detail::has_key_type<Container>::value == false
-								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == false, int> = 0 >
+	typename std::enable_if<detail::has_key_type<Container>::value == false
+								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == false, int>::type = 0 >
 std::size_t kSplit (
         Container&  cContainer,
         KStringView svBuffer,
@@ -244,8 +244,8 @@ std::size_t kSplit(
 /// auto Words = kSplits("This sentence has five words", " ");
 /// @endcode
 template<typename Container = std::vector<KStringView>,
-	typename std::enable_if_t<detail::has_key_type<Container>::value == false
-								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == false, int> = 0 >
+	typename std::enable_if<detail::has_key_type<Container>::value == false
+								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == false, int>::type = 0 >
 Container kSplits(
 //-----------------------------------------------------------------------------
 			  KStringView svBuffer,
@@ -458,7 +458,7 @@ private:
 /// // -> Pairs == {{ "Apples", "Oranges" },{ "Red", "1" },{ "Blue, "2" },{ "Green", "3" }}
 /// @endcode
 template<typename Container,
-	typename std::enable_if_t<detail::has_key_type<Container>::value == true, int> = 0 >
+	typename std::enable_if<detail::has_key_type<Container>::value == true, int>::type = 0 >
 std::size_t kSplit(
         Container&  cContainer,
         KStringView svBuffer,
@@ -501,7 +501,7 @@ std::size_t kSplit(
 /// @endcode
 
 template<typename Container,
-	typename std::enable_if_t<detail::has_key_type<Container>::value == true, int> = 0 >
+	typename std::enable_if<detail::has_key_type<Container>::value == true, int>::type = 0 >
 Container kSplits(
 			  KStringView svBuffer,
 			  KStringView svDelim  = ",",             // default: comma delimiter
@@ -544,8 +544,8 @@ Container kSplits(
 /// // -> Pairs == {{ "Apples", "Oranges" },{ "Red", "1" },{ "Blue, "2" },{ "Green", "3" }}
 /// @endcode
 template<typename Container,
-	typename std::enable_if_t<detail::has_key_type<Container>::value == false
-								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == true, int> = 0 >
+	typename std::enable_if<detail::has_key_type<Container>::value == false
+								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == true, int>::type = 0 >
 std::size_t kSplit(
         Container&  cContainer,
         KStringView svBuffer,
@@ -589,8 +589,8 @@ std::size_t kSplit(
 /// @endcode
 
 template<typename Container,
-	typename std::enable_if_t<detail::has_key_type<Container>::value == false
-								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == true, int> = 0 >
+	typename std::enable_if<detail::has_key_type<Container>::value == false
+								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == true, int>::type = 0 >
 Container kSplits(
 			  KStringView svBuffer,
 			  KStringView svDelim  = ",",             // default: comma delimiter

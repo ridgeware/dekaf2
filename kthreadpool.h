@@ -214,8 +214,8 @@ public:
 	// SFINAE version for decltype(Function()) == void
 	template<typename Function, typename Object, typename... Args>
 	auto push(Function&& f, Object&& o, Args&&... args)
-	-> typename std::enable_if_t<std::is_same<decltype((o->*f)(std::forward<Args>(args)...)), void>::value,
-	                             std::future<void>>
+	-> typename std::enable_if<std::is_same<decltype((o->*f)(std::forward<Args>(args)...)), void>::value,
+	                             std::future<void>>::type
 	//-----------------------------------------------------------------------------
 	{
 		auto task = std::packaged_task<void()>(
@@ -235,8 +235,8 @@ public:
 	// SFINAE version for decltype(Function()) different than void
 	template<typename Function, typename Object, typename... Args>
 	auto push(Function&& f, Object&& o, Args&&... args)
-	-> typename std::enable_if_t<!std::is_same<decltype((o->*f)(std::forward<Args>(args)...)), void>::value,
-	                             std::future<decltype((o->*f)(std::forward<Args>(args)...))>>
+	-> typename std::enable_if<!std::is_same<decltype((o->*f)(std::forward<Args>(args)...)), void>::value,
+	                             std::future<decltype((o->*f)(std::forward<Args>(args)...))>>::type
 	//-----------------------------------------------------------------------------
 	{
 		using FutureType = decltype((o->*f)(std::forward<Args>(args)...));
@@ -262,8 +262,8 @@ public:
 	// SFINAE version for decltype(Function()) == void
 	template<typename Function, typename... Args>
 	auto push(Function&& f, Args&&... args)
-	-> typename std::enable_if_t<std::is_same<decltype(f(std::forward<Args>(args)...)), void>::value,
-	                             std::future<void>>
+	-> typename std::enable_if<std::is_same<decltype(f(std::forward<Args>(args)...)), void>::value,
+	                             std::future<void>>::type
 	//-----------------------------------------------------------------------------
 	{
 		auto task = std::packaged_task<void()>(
@@ -283,8 +283,8 @@ public:
 	// SFINAE version for decltype(Function()) different than void
 	template<typename Function, typename... Args>
 	auto push(Function&& f, Args&&... args)
-	-> typename std::enable_if_t<!std::is_same<decltype(f(std::forward<Args>(args)...)), void>::value,
-	                             std::future<decltype(f(std::forward<Args>(args)...))>>
+	-> typename std::enable_if<!std::is_same<decltype(f(std::forward<Args>(args)...)), void>::value,
+	                             std::future<decltype(f(std::forward<Args>(args)...))>>::type
 	//-----------------------------------------------------------------------------
 	{
 		using FutureType = decltype(f(std::forward<Args>(args)...));

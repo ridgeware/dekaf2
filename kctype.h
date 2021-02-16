@@ -868,7 +868,7 @@ inline bool kIsXDigit(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 template<class CP,
-         typename = std::enable_if_t<std::is_integral<CP>::value>
+         typename std::enable_if<std::is_integral<CP>::value, int>::type = 0
 >
 inline CP kToLower(CP ch)
 //-----------------------------------------------------------------------------
@@ -878,7 +878,7 @@ inline CP kToLower(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP,
-         typename = std::enable_if_t<std::is_integral<CP>::value>
+         typename std::enable_if<std::is_integral<CP>::value, int>::type = 0
 >
 inline CP kToUpper(CP ch)
 //-----------------------------------------------------------------------------

@@ -864,7 +864,7 @@ private:
 //----------
 
 	//-----------------------------------------------------------------------------
-	template<typename T, std::enable_if_t<std::is_constructible<KStringView, T>::value == false, int> = 0>
+	template<typename T, typename std::enable_if<std::is_constructible<KStringView, T>::type == false, int>::type = 0>
 	auto EscapeType(T&& value)
 	//-----------------------------------------------------------------------------
 	{
@@ -872,7 +872,7 @@ private:
 	}
 
 	//-----------------------------------------------------------------------------
-	template<typename T, std::enable_if_t<std::is_constructible<KStringView, T>::value == true, int> = 0>
+	template<typename T, typename std::enable_if<std::is_constructible<KStringView, T>::type == true, int>::type = 0>
 	auto EscapeType(T&& value)
 	//-----------------------------------------------------------------------------
 	{
@@ -890,7 +890,7 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// escapes all string arguments and leaves the rest alone
-	template<class... Args, typename std::enable_if_t<sizeof...(Args) != 0, int> = 0>
+	template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
 	KString FormatEscaped(KStringView sFormat, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{

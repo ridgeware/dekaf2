@@ -864,7 +864,7 @@ private:
 //----------
 
 	//-----------------------------------------------------------------------------
-	template<typename T, typename std::enable_if<std::is_constructible<KStringView, T>::type == false, int>::type = 0>
+	template<typename T, typename std::enable_if<std::is_constructible<KStringView, T>::value == false, int>::type = 0>
 	auto EscapeType(T&& value)
 	//-----------------------------------------------------------------------------
 	{
@@ -872,7 +872,7 @@ private:
 	}
 
 	//-----------------------------------------------------------------------------
-	template<typename T, typename std::enable_if<std::is_constructible<KStringView, T>::type == true, int>::type = 0>
+	template<typename T, typename std::enable_if<std::is_constructible<KStringView, T>::value == true, int>::type = 0>
 	auto EscapeType(T&& value)
 	//-----------------------------------------------------------------------------
 	{

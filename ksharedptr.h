@@ -53,8 +53,6 @@
 /// The std::shared_ptr uses relaxed memory access, which is unreliable.
 
 #include <atomic>
-#include <functional>
-#include <thread>
 
 namespace dekaf2
 {

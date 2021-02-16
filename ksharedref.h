@@ -53,7 +53,7 @@
 /// class of any type that will hold a reference to the shared pointer.
 
 #include <atomic>
-#include <functional>
+#include <type_traits>
 
 namespace dekaf2
 {
@@ -87,16 +87,6 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// copy construction is allowed (need to repeat the non-const case because
-	/// of perfect forwarding in another constructor)
-	KSharedRef(self_type& other) noexcept
-	//-----------------------------------------------------------------------------
-	{
-		m_ref = other.m_ref;
-		inc();
-	}
-
-	//-----------------------------------------------------------------------------
 	/// move construction is allowed
 	KSharedRef(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
@@ -108,11 +98,35 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Construction with any arguments the shared type permits.
 	/// Uses perfect forwarding.
-	template<class... Args>
+	// make sure this does not cover the copy constructor by requesting an args count
+	// of != 1
+	template<class... Args,
+		typename std::enable_if<
+			sizeof...(Args) != 1, int
+		>::type = 0
+	>
 	KSharedRef(Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
 		m_ref = new Reference(std::forward<Args>(args)...);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Construction of the shared type with any single argument.
+	/// Uses perfect forwarding.
+	// make sure this does not cover the copy constructor by requesting the single
+	// arg being of a different type than self_type
+	template<class Arg,
+		typename std::enable_if<
+			!std::is_same<
+				typename std::decay<Arg>::type, self_type
+			>::value, int
+		>::type = 0
+	>
+	KSharedRef(Arg&& arg)
+	//-----------------------------------------------------------------------------
+	{
+		m_ref = new Reference(std::forward<Arg>(arg));
 	}
 
 	//-----------------------------------------------------------------------------

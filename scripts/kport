@@ -1,0 +1,93 @@
+#! /bin/bash
+
+#%
+#% kport - porting utility for use from port-independent scripts and makefiles
+#%
+#% usage: kport <parm>
+#%
+#% where <parm> is:
+#%   -arch    : architecture: solaris, win32, freebsd, hp10, AWS etc.
+#%   -archx   : architecture (with version)
+#%   bindir   : same as -archx
+#%
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# ARCHITECTURE
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#------------+--------------------------------------+------------------------------------------------------------------------------------------------------------------------
+# desired    | /etc/redhat-release                  | uname -a
+#------------+--------------------------------------+------------------------------------------------------------------------------------------------------------------------
+# osx        |                                      | Darwin maynard-dhcp-194-178-10-10.transperfect.com 19.6.0 Darwin Kernel Version 19.6.0: Tue Nov 10 00:10:30 PST 2020; root:xnu-6153.141.10~1/RELEASE_X86_64 x86_64
+# osxm1      |                                      | a Mac running the new M1 chipset
+# alinux     |                                      | Linux version 4.1.7-15.23.amzn1.x86_64 (mockbuild@gobi-build-60006) (gcc version 4.8.3 20140911 (Red Hat 4.8.3-9) (GCC) ) #1 SMP Mon Sep 14 23:20:33 UTC 2015
+# f29        | Fedora release 29 (Twenty Nine)      | Linux aws-f29 5.2.17-100.fc29.x86_64 #1 SMP Mon Sep 23 14:09:29 UTC 2019 x86_64 x86_64 x86_64 GNU/Linux
+# f32        | Fedora release 32 (Thirty Two)       | Linux may-qa-fedora32-03 5.6.8-300.fc32.x86_64 #1 SMP Wed Apr 29 19:01:34 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux
+# centos64v7 | CentOS Linux release 7.7.1908 (Core) | Linux may-anleonard-apache-04 3.10.0-1062.1.2.el7.x86_64 #1 SMP Mon Sep 30 14:19:46 UTC 2019 x86_64 x86_64 x86_64 GNU/Linux
+# centos64v7 | Red Hat Enterprise Linux Server release 7.6 (Maipo) | Linux may-oladm01 3.10.0-957.10.1.el7.x86_64 #1 SMP Thu Feb 7 07:12:53 UTC 2019 x86_64 x86_64 x86_64 GNU/Linux
+#------------+--------------------------------------+------------------------------------------------------------------------------------------------------------------------
+# 
+case $(file /bin/ls) in
+*32-bit*)
+	bits=32
+	;;
+*64-bit*)
+	bits=64
+	;;
+*128-bit*)
+	bits=128
+	;;
+esac
+
+arch=$(uname -a)
+[[ -f /etc/redhat-release ]] && arch=$(cat /etc/redhat-release)
+
+case "$arch" in
+	"Darwin"*)
+		BIN="osx"
+		;;
+	"Fedora release"*)
+		BIN=$(echo "$arch" | awk '{printf ("f%d", $3)}')
+		;;
+	*SUSE*|*suse*)
+		BIN="suse${bits}"
+		;;
+	*Gentoo*|*gentoo*)
+		BIN="gentoo${bits}"
+		;;
+	*Debian*)
+		BIN="debian${bits}"
+		;;
+	*Ubuntu*|*ubuntu*)
+		BIN="ubuntu${bits}"
+		;;
+	FreeBSD|OpenBSD|*BSD)
+		BIN="freebsd"
+		;;
+	*amzn*|*AMZN*) # must be before Red Hat
+		version=$(cat /etc/system-release-cpe | sed -r 's,cpe:\/o:amazon:linux:,,g' | sed -r 's,:ga,,g')
+		BIN="aws${bits}v${version}"
+		;;
+	"CentOS Linux release"*)
+		BIN=$(echo "$arch" | tr '.' ' ' | awk -v "bits=$bits" '{printf ("centos%sv%d", bits, $4)}')
+		;;
+	"Red Hat Enterprise Linux Server release 7"*)
+		BIN=$(echo "$arch" | tr '.' ' ' | awk -v "bits=$bits" '{printf ("centos%sv%d", bits, $7)}')
+		;;
+	*)
+		echo ">> dont know about arch: $arch"
+		exit 1
+		;;
+esac
+
+case "$1" in
+	-arch|-ARCH|arch|ARCH)
+		echo "$BIN" | sed -e 's/v[0-9]*//' # strip version number
+		;;
+	-archx|-ARCHX|-bindir|-BINDIR|bindir|BINDIR)
+		echo "$BIN"
+		;;
+	*)
+		awk  '($0 ~ /^#%/) {print substr($0,3)}' $0
+		exit 1
+		;;
+esac

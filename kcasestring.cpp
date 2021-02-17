@@ -45,7 +45,7 @@
 
 namespace dekaf2 {
 
-static const unsigned char toLowcase[] =
+static constexpr unsigned char toLowcase[] =
 {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
@@ -80,6 +80,34 @@ static const unsigned char toLowcase[] =
 	0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
+
+namespace {
+
+//-----------------------------------------------------------------------------
+auto Equal = [](KStringView left, KStringView right,
+				std::function<bool(const char, const char)> func) -> bool
+//-----------------------------------------------------------------------------
+{
+	KStringView::size_type len = left.size();
+
+	if (len != right.size())
+	{
+		return false;
+	}
+
+	if (len == 0 || left.data() == right.data())
+	{
+		return true;
+	}
+
+	return std::equal(left.begin(),
+					  left.end(),
+					  right.begin(),
+					  func);
+
+};
+
+} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
 int kCaseCompare(KStringView left, KStringView right)
@@ -159,24 +187,10 @@ int kCaseCompareLeft(KStringView left, KStringView right)
 bool kCaseEqual(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
-	KStringView::size_type len = left.size();
-	if (len != right.size())
-	{
-		return false;
-	}
-
-	if (len == 0 || left.data() == right.data())
-	{
-		return true;
-	}
-
-	return std::equal(left.begin(),
-	                  left.end(),
-	                  right.begin(),
-	                  [](const char c1, const char c2)
+	return Equal(left, right, [](const char c1, const char c2)
 	{
 		return toLowcase[static_cast<unsigned char>(c1)]
-		        == toLowcase[static_cast<unsigned char>(c2)];
+				== toLowcase[static_cast<unsigned char>(c2)];
 	});
 }
 
@@ -184,23 +198,62 @@ bool kCaseEqual(KStringView left, KStringView right)
 bool kCaseEqualLeft(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
-	KStringView::size_type len = left.size();
-	if (len != right.size())
+	return Equal(left, right, [](const char c1, const char c2)
 	{
-		return false;
-	}
+		return toLowcase[static_cast<unsigned char>(c1)]
+				== static_cast<unsigned char>(c2);
+	});
+}
 
-	if (len == 0 || left.data() == right.data())
+//-----------------------------------------------------------------------------
+/// tests for case insensitive equality at begin of left string
+bool kCaseBeginsWith(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
+{
+	return (left.size() >= right.size())
+			&& Equal(left.Left(right.size()), right, [](const char c1, const char c2)
 	{
-		return true;
-	}
+		return toLowcase[static_cast<unsigned char>(c1)]
+				== toLowcase[static_cast<unsigned char>(c2)];
+	});
+}
 
-	return std::equal(left.begin(),
-	                  left.end(),
-	                  right.begin(),
-	                  [](const char c1, const char c2)
+//-----------------------------------------------------------------------------
+/// tests for case insensitive equality at end of left string
+bool kCaseEndsWith(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
+{
+	return (left.size() >= right.size())
+			&& Equal(left.Right(right.size()), right, [](const char c1, const char c2)
 	{
-		return toLowcase[static_cast<unsigned char>(c1)] == c2;
+		return toLowcase[static_cast<unsigned char>(c1)]
+				== toLowcase[static_cast<unsigned char>(c2)];
+	});
+}
+
+//-----------------------------------------------------------------------------
+/// tests for case insensitive equality at begin of left string
+bool kCaseBeginsWithLeft(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
+{
+	return (left.size() >= right.size())
+			&& Equal(left.Left(right.size()), right, [](const char c1, const char c2)
+	{
+		return toLowcase[static_cast<unsigned char>(c1)]
+				== static_cast<unsigned char>(c2);
+	});
+}
+
+//-----------------------------------------------------------------------------
+/// tests for case insensitive equality at end of left string
+bool kCaseEndsWithLeft(KStringView left, KStringView right)
+//-----------------------------------------------------------------------------
+{
+	return (left.size() >= right.size())
+			&& Equal(left.Right(right.size()), right, [](const char c1, const char c2)
+	{
+		return toLowcase[static_cast<unsigned char>(c1)]
+				== static_cast<unsigned char>(c2);
 	});
 }
 

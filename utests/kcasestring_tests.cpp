@@ -8,6 +8,111 @@ using namespace dekaf2;
 
 TEST_CASE("KCaseString") {
 
+	SECTION("kCaseBeginsWith")
+	{
+		struct parms_t
+		{
+			KStringView left;
+			KStringView right;
+			bool        result;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ "aBcDeFgHiJ",         "AbC" , true  },
+			{ "aBcDeFgHiJ",         "aBc" , true  },
+			{ "aBcDeFgHiJ",         "CBA" , false },
+			{ "aBcDeFgHiJ", "aBcDeFgHiJk" , false },
+			{ "aBcDeFgHiJ",  "AbCdEfGhIj" , true  },
+			{           "",            "" , true  },
+			{           "",         "ABC" , false },
+			{        "ABC",            "" , true  },
+		};
+
+		for (const auto& it : pvector)
+		{
+			CHECK ( kCaseBeginsWith(it.left, it.right) == it.result );
+		}
+	}
+
+	SECTION("kCaseBeginsWithLeft")
+	{
+		struct parms_t
+		{
+			KStringView left;
+			KStringView right;
+			bool        result;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ "aBcDeFgHiJ",         "AbC" , false },
+			{ "aBcDeFgHiJ",         "abc" , true  },
+			{ "aBcDeFgHiJ",         "aBc" , false },
+			{ "aBcDeFgHiJ",         "CBA" , false },
+			{ "aBcDeFgHiJ", "abcdefghijk" , false },
+			{ "aBcDeFgHiJ",  "abcdefghij" , true  },
+			{           "",            "" , true  },
+			{           "",         "ABC" , false },
+			{        "ABC",            "" , true  },
+		};
+
+		for (const auto& it : pvector)
+		{
+			CHECK ( kCaseBeginsWithLeft(it.left, it.right) == it.result );
+		}
+	}
+
+	SECTION("kCaseEndsWith")
+	{
+		struct parms_t
+		{
+			KStringView left;
+			KStringView right;
+			bool        result;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ "aBcDeFgHiJ",         "hIj" , true  },
+			{ "aBcDeFgHiJ",         "HiJ" , true  },
+			{ "aBcDeFgHiJ",         "XXX" , false },
+			{ "aBcDeFgHiJ", "kaBcDeFgHiJ" , false },
+			{ "aBcDeFgHiJ",  "AbCdEfGhIj" , true  },
+			{           "",            "" , true  },
+			{           "",         "ABC" , false },
+			{        "ABC",            "" , true  },
+		};
+
+		for (const auto& it : pvector)
+		{
+			CHECK ( kCaseEndsWith(it.left, it.right) == it.result );
+		}
+	}
+
+	SECTION("kCaseEndsWithLeft")
+	{
+		struct parms_t
+		{
+			KStringView left;
+			KStringView right;
+			bool        result;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ "aBcDeFgHiJ",         "hij" , true  },
+			{ "aBcDeFgHiJ",         "HiJ" , false },
+			{ "aBcDeFgHiJ",         "XXX" , false },
+			{ "aBcDeFgHiJ", "kabcdefghij" , false },
+			{ "aBcDeFgHiJ",  "abcdefghij" , true  },
+			{           "",            "" , true  },
+			{           "",         "ABC" , false },
+			{        "ABC",            "" , true  },
+		};
+
+		for (const auto& it : pvector)
+		{
+			CHECK ( kCaseEndsWithLeft(it.left, it.right) == it.result );
+		}
+	}
+
 	SECTION("const char compares")
 	{
 		KCaseStringView csv;

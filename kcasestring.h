@@ -58,6 +58,16 @@ bool kCaseEqual(KStringView left, KStringView right);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// tests for case insensitive equality at begin of left string
+bool kCaseBeginsWith(KStringView left, KStringView right);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// tests for case insensitive equality at end of left string
+bool kCaseEndsWith(KStringView left, KStringView right);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// compares case insensitive, trims strings before compare
 int kCaseCompareTrim(KStringView left, KStringView right, KStringView svTrim = " \t\r\n\b");
 //-----------------------------------------------------------------------------
@@ -75,6 +85,18 @@ int kCaseCompareLeft(KStringView left, KStringView right);
 //-----------------------------------------------------------------------------
 /// tests for case insensitive equality, assuming right string in lowercase
 bool kCaseEqualLeft(KStringView left, KStringView right);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// tests for case insensitive equality at begin of left string, assuming right string in lowercase
+/// (despite the name this tests for left beginning with right)
+bool kCaseBeginsWithLeft(KStringView left, KStringView right);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// tests for case insensitive equality at end of left string, assuming right string in lowercase
+/// (despite the name this tests for left ending with right)
+bool kCaseEndsWithLeft(KStringView left, KStringView right);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

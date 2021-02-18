@@ -39,7 +39,7 @@ BuildSetup ()
 		case "${DISTRIB}" in
 			centos)
 				InstallSystemPackages centos-release-scl
-				InstallSystemPackages devtoolset-7
+				InstallSystemPackages devtoolset-7 devtoolset-7-libasan-devel devtoolset-7-libubsan-devel
 				;;
 			rhel)
 				InstallSystemPackages yum-config-manager

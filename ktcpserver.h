@@ -197,19 +197,15 @@ public:
 	bool RegisterShutdownWithSignal(int iSignal);
 	//-----------------------------------------------------------------------------
 
-	struct Diagnostics
-	{
-		std::size_t iTotalThreads  { 0 };
-		std::size_t iIdleThreads   { 0 };
-		std::size_t iUsedThreads   { 0 };
-		std::size_t iTotalAccepted { 0 };
-		KStopTime   UpTime;
-
-	}; // Diagnostics
-
 	//-----------------------------------------------------------------------------
 	/// Return server diagnostics like idle threads, total requests, uptime
-	Diagnostics GetDiagnostics() const;
+	KThreadPool::Diagnostics GetDiagnostics() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Shall we log the shutdown?
+	/// @param callback callback function called at each shutdown thread with some diagnostics
+	void RegisterShutdownCallback(KThreadPool::ShutdownCallback callback);
 	//-----------------------------------------------------------------------------
 
 //-------
@@ -322,8 +318,6 @@ private:
 #endif
 	std::unique_ptr<KThreadPool> m_ThreadPool;
 	std::atomic_int m_iStarted { 0 };
-	std::atomic_uint64_t m_iTotalAccepted { 0 };
-	KStopTime m_Uptime;
 
 	KString m_sCert;
 	KString m_sKey;

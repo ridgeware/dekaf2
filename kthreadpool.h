@@ -166,12 +166,39 @@ public:
 	~KThreadPool();
 	//-----------------------------------------------------------------------------
 
+	struct Diagnostics
+	{
+		std::size_t iTotalThreads  { 0 };
+		std::size_t iIdleThreads   { 0 };
+		std::size_t iUsedThreads   { 0 };
+		std::size_t iTotalTasks    { 0 };
+		std::size_t iWaitingTasks  { 0 };
+		bool        bWasIdle       { false };
+
+	}; // Diagnostics
+
+	//-----------------------------------------------------------------------------
+	/// Query current threadpool status - ignore bWasIdle param
+	Diagnostics get_diagnostics(bool bWasIdle = false) const;
+	//-----------------------------------------------------------------------------
+
+	using ShutdownCallback = std::function<void(Diagnostics)>;
+
+	//-----------------------------------------------------------------------------
+	/// Shall we log the shutdown?
+	/// @param callback callback function called at each shutdown thread with some diagnostics
+	void register_shutdown_callback(ShutdownCallback callback)
+	//-----------------------------------------------------------------------------
+	{
+		m_shutdown_callback = callback;
+	}
+
 	//-----------------------------------------------------------------------------
 	/// Get the total number of threads in the pool
 	size_t size() const
 	//-----------------------------------------------------------------------------
 	{
-		std::unique_lock<std::mutex> lock(m_resize_mutex);
+		std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
 		return m_threads.size();
 	}
 
@@ -312,16 +339,21 @@ private:
 
 	void setup_thread( size_t i );
 
+	void notify_thread_shutdown(bool bWasIdle);
+
 	std::vector<std::unique_ptr<std::thread>>             m_threads;
-	std::vector<std::shared_ptr<std::atomic<bool>>>       m_abort;
+	std::vector<std::shared_ptr<std::atomic_bool>>        m_abort;
 	detail::threadpool::Queue<std::packaged_task<void()>> m_queue;
 
-	std::atomic<size_t>      ma_n_idle { 0 };
-	std::atomic<bool>        ma_interrupt { false };
+	std::atomic_size_t       m_iTotalTasks { 0 };
+	std::atomic_size_t       ma_n_idle     { 0 };
+	std::atomic_size_t       ma_iAlreadyStopped { 0 };
+	std::atomic_bool         ma_interrupt  { false };
 
-	mutable std::mutex       m_resize_mutex;
+	mutable std::recursive_mutex m_resize_mutex;
 	mutable std::mutex       m_cond_mutex;
 	std::condition_variable  m_cond_var;
+	ShutdownCallback         m_shutdown_callback;
 
 }; // KThreadPool
 

@@ -81,7 +81,7 @@ void KThreadPool::restart()
 void KThreadPool::resize(size_t nThreads)
 //-----------------------------------------------------------------------------
 {
-	std::unique_lock<std::mutex> lock(m_resize_mutex);
+	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
 
 	size_t oldNThreads = m_threads.size();
 
@@ -111,6 +111,12 @@ void KThreadPool::resize(size_t nThreads)
 
 		m_threads .resize(nThreads); // safe to delete because the threads are detached
 		m_abort   .resize(nThreads); // safe to delete because the threads have copies of shared_ptr of the flags, not originals
+
+		// This comes too early for most stopped threads, but we need to
+		// reset it as otherwise the count remains wrong forever. As we
+		// typically use this for the shutdown callback on destruction
+		// this does not affect normal use cases
+		ma_iAlreadyStopped = 0;
 	}
 
 } // resize
@@ -119,7 +125,7 @@ void KThreadPool::resize(size_t nThreads)
 void KThreadPool::stop( bool kill )
 //-----------------------------------------------------------------------------
 {
-	std::unique_lock<std::mutex> lock(m_resize_mutex);
+	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
 
 	if (kill)
 	{
@@ -130,6 +136,11 @@ void KThreadPool::stop( bool kill )
 	}
 
 	ma_interrupt = true;
+
+	// have to unlock here, as we stop other threads that may
+	// wish to access to the size member when printing their
+	// shutdown diagnostics
+	lock.unlock();
 
 	m_cond_var.notify_all();  // stop all waiting threads
 
@@ -142,11 +153,15 @@ void KThreadPool::stop( bool kill )
 		}
 	}
 
+	// and lock again to do the final resize
+	lock.lock();
+
 	m_queue   .clear(m_cond_mutex);
 	m_threads .clear();
 	m_abort   .clear();
 	ma_n_idle = 0;
 	ma_interrupt = false;
+	ma_iAlreadyStopped = 0;
 
 } // stop
 
@@ -159,11 +174,11 @@ void KThreadPool::setup_thread( size_t i )
 //-----------------------------------------------------------------------------
 {
 	// a copy of the shared ptr to the abort
-	std::shared_ptr<std::atomic<bool>> abort_ptr(m_abort[i]);
+	std::shared_ptr<std::atomic_bool> abort_ptr(m_abort[i]);
 
 	auto f = [this, abort_ptr]()
 	{
-		std::atomic<bool> & abort = *abort_ptr;
+		std::atomic_bool & abort = *abort_ptr;
 		std::packaged_task<void()> _f;
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
 
@@ -179,6 +194,8 @@ void KThreadPool::setup_thread( size_t i )
 
 				if (abort)
 				{
+					notify_thread_shutdown(false);
+
 					return; // return even if the queue is not empty yet
 				}
 
@@ -186,6 +203,20 @@ void KThreadPool::setup_thread( size_t i )
 
 				more_tasks = m_queue.pop(_f);
 			}
+
+			if (ma_interrupt)
+			{
+				// unlock the cond mutex, the diagnostic output needs it, too
+				lock.unlock();
+
+				notify_thread_shutdown(false);
+
+				return;
+			}
+
+			// only enter the cond_wait if ma_interrupt is false, as
+			// that is the global flag to shut down after all tasks
+			// are completed
 
 			++ma_n_idle;
 
@@ -197,9 +228,19 @@ void KThreadPool::setup_thread( size_t i )
 
 			--ma_n_idle;
 
-			if ( ! more_tasks)
+			if (!more_tasks)
 			{
 				// we stopped waiting either because of interruption or abort
+				// (it suffices to test for !more_tasks because otherwise the
+				// wakeup from the cond_wait would only have happened if there
+				// were more tasks..), and entering in ma_interrupt state would
+				// only happen with !more_tasks either
+
+				// unlock the cond mutex, the diagnostic output needs it, too
+				lock.unlock();
+
+				notify_thread_shutdown(true);
+
 				return;
 			}
 		}
@@ -223,6 +264,36 @@ void KThreadPool::push_packaged_task(std::packaged_task<void()> task)
 	m_cond_var.notify_one();
 
 } // push_packaged_task
+
+//-----------------------------------------------------------------------------
+KThreadPool::Diagnostics KThreadPool::get_diagnostics(bool bWasIdle) const
+//-----------------------------------------------------------------------------
+{
+	Diagnostics Diag;
+
+	Diag.iTotalThreads  = size() - ma_iAlreadyStopped;
+	Diag.iIdleThreads   = n_idle();
+	Diag.iUsedThreads   = Diag.iTotalThreads - Diag.iIdleThreads;
+	Diag.iTotalTasks    = m_iTotalTasks;
+	Diag.iWaitingTasks  = n_queued();
+	Diag.bWasIdle       = bWasIdle;
+
+	return Diag;
+
+} // get_diagnostics
+
+//-----------------------------------------------------------------------------
+void KThreadPool::notify_thread_shutdown(bool bWasIdle)
+//-----------------------------------------------------------------------------
+{
+	++ma_iAlreadyStopped;
+
+	if (m_shutdown_callback)
+	{
+		m_shutdown_callback(get_diagnostics(bWasIdle));
+	}
+
+} // notify_thread_shutdown
 
 } // end of namespace dekaf2
 

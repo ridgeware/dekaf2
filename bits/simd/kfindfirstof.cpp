@@ -136,7 +136,24 @@ size_t kFindLastOf(KStringView haystack, KStringView needles, bool bNot)
 // MSC does not offer a test for __SSE4_2__ support in the compiler,
 // so we simply always assume it is there for MSC
 
-#if (!defined(__SSE4_2__)) && (!defined _MSC_VER)
+// GCC 6 and 7 have serious problems with inlining and intrinsics and
+// ASAN attributes, and there is no solution except upgrading the compiler:
+//
+// /opt/rh/devtoolset-7/root/usr/lib/gcc/x86_64-redhat-linux/7/include/pmmintrin.h: In function 'size_t dekaf2::detail::sse::kFindFirstOfNeedles16(dekaf2::KStringView, dekaf2::KStringView) [with bool bNot = false; int iOperation = 0]':
+// /opt/rh/devtoolset-7/root/usr/lib/gcc/x86_64-redhat-linux/7/include/pmmintrin.h:110:1: error: inlining failed in call to always_inline '__m128i _mm_lddqu_si128(const __m128i*)': function attribute mismatch
+//  _mm_lddqu_si128 (__m128i const *__P)
+//  ^~~~~~~~~~~~~~~
+//
+// Therefore, in debug mode with gcc < 8 we simply switch SSE off and
+// fall back to traditional code
+
+#if (!defined __clang__ && __GNUC__ < 8)
+	#ifndef NDEBUG
+		#define KFINDFIRSTOF_NO_SSE = 1
+	#endif
+#endif
+
+#if ((!defined(__SSE4_2__)) && (!defined _MSC_VER) || (defined KFINDFIRSTOF_NO_SSE))
 
 namespace dekaf2 {
 namespace detail {

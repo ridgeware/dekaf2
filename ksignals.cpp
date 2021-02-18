@@ -156,17 +156,18 @@ void KSignals::WaitForSignals()
 #endif
 
 //-----------------------------------------------------------------------------
-void KSignals::LookupFunc(int signal)
+void KSignals::LookupFunc(int iSignal)
 //-----------------------------------------------------------------------------
 {
 	sigmap_t callable;
 
 	{
 		std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-		auto it = s_SigFuncs.find(signal);
+		auto it = s_SigFuncs.find(iSignal);
 		if (it == s_SigFuncs.end())
 		{
 			// signal function not found.
+			kDebug(2, "no handler for {}", kTranslateSignal(iSignal));
 			return;
 		}
 		callable = it->second;
@@ -176,12 +177,14 @@ void KSignals::LookupFunc(int signal)
 	{
 		m_Threads.CreateOne([&]()
 		{
-			callable.func(signal);
+			kDebug(2, "calling handler for {} as separate thread", kTranslateSignal(iSignal));
+			callable.func(iSignal);
 		});
 	}
 	else
 	{
-		callable.func(signal);
+		kDebug(2, "calling handler for {} in signal handler thread", kTranslateSignal(iSignal));
+		callable.func(iSignal);
 	}
 
 } // LookupFunc
@@ -190,6 +193,8 @@ void KSignals::LookupFunc(int signal)
 void KSignals::IntDelSignalHandler(int iSignal, signal_func_t func)
 //-----------------------------------------------------------------------------
 {
+	kDebug(2, "removing handler for {}", kTranslateSignal(iSignal));
+
 	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
 	s_SigFuncs.erase(iSignal);
 
@@ -199,6 +204,8 @@ void KSignals::IntDelSignalHandler(int iSignal, signal_func_t func)
 void KSignals::SetSignalHandler(int iSignal, std_func_t func, bool bAsThread)
 //-----------------------------------------------------------------------------
 {
+	kDebug(2, "registering handler for {}", kTranslateSignal(iSignal));
+
 	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
 	s_SigFuncs[iSignal] = { std::move(func), bAsThread };
 
@@ -208,6 +215,8 @@ void KSignals::SetSignalHandler(int iSignal, std_func_t func, bool bAsThread)
 void KSignals::SetCSignalHandler(int iSignal, signal_func_t func, bool bAsThread)
 //-----------------------------------------------------------------------------
 {
+	kDebug(2, "registering handler for {}", kTranslateSignal(iSignal));
+
 	if (func == SIG_IGN || func == SIG_DFL)
 	{
 		IntDelSignalHandler(iSignal, func);
@@ -241,9 +250,15 @@ KSignals::KSignals(bool bStartHandlerThread)
 	{
 		BlockAllSignals();
 
+		auto DefaultHandler = [](int iSignal)
+		{
+			kDebug(2, "dekaf2 default handler for {}, now calling exit(0)", kTranslateSignal(iSignal));
+			std::exit(0);
+		};
+
 		// terminate gracefully on SIGINT and SIGTERM
-		SetSignalHandler(SIGINT,  [](int unused){ std::exit(0); });
-		SetSignalHandler(SIGTERM, [](int unused){ std::exit(0); });
+		SetSignalHandler(SIGINT,  DefaultHandler);
+		SetSignalHandler(SIGTERM, DefaultHandler);
 
 #ifdef DEKAF2_IS_WINDOWS
 		// On Windows place signal handlers for the settable signals

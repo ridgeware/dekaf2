@@ -85,7 +85,8 @@ static constexpr unsigned char toLowcase[] =
 
 //-----------------------------------------------------------------------------
 bool kCaseEqualInt(KStringView left, KStringView right,
-			  std::function<bool(const char, const char)> func)
+				   std::function<bool(const char, const char)> func,
+				   bool bAllowShortCircuit)
 //-----------------------------------------------------------------------------
 {
 	KStringView::size_type len = left.size();
@@ -95,7 +96,7 @@ bool kCaseEqualInt(KStringView left, KStringView right,
 		return false;
 	}
 
-	if (len == 0 || left.data() == right.data())
+	if (len == 0 || (bAllowShortCircuit && left.data() == right.data()))
 	{
 		return true;
 	}
@@ -191,7 +192,7 @@ bool kCaseEqual(KStringView left, KStringView right)
 	{
 		return toLowcase[static_cast<unsigned char>(c1)]
 				== toLowcase[static_cast<unsigned char>(c2)];
-	});
+	}, true);
 }
 
 //-----------------------------------------------------------------------------
@@ -202,7 +203,7 @@ bool kCaseEqualLeft(KStringView left, KStringView right)
 	{
 		return toLowcase[static_cast<unsigned char>(c1)]
 				== static_cast<unsigned char>(c2);
-	});
+	}, false);
 }
 
 //-----------------------------------------------------------------------------
@@ -214,7 +215,7 @@ bool kCaseBeginsWith(KStringView left, KStringView right)
 	{
 		return toLowcase[static_cast<unsigned char>(c1)]
 				== toLowcase[static_cast<unsigned char>(c2)];
-	});
+	}, true);
 }
 
 //-----------------------------------------------------------------------------
@@ -226,7 +227,7 @@ bool kCaseEndsWith(KStringView left, KStringView right)
 	{
 		return toLowcase[static_cast<unsigned char>(c1)]
 				== toLowcase[static_cast<unsigned char>(c2)];
-	});
+	}, true);
 }
 
 //-----------------------------------------------------------------------------
@@ -238,7 +239,7 @@ bool kCaseBeginsWithLeft(KStringView left, KStringView right)
 	{
 		return toLowcase[static_cast<unsigned char>(c1)]
 				== static_cast<unsigned char>(c2);
-	});
+	}, false);
 }
 
 //-----------------------------------------------------------------------------
@@ -250,7 +251,7 @@ bool kCaseEndsWithLeft(KStringView left, KStringView right)
 	{
 		return toLowcase[static_cast<unsigned char>(c1)]
 				== static_cast<unsigned char>(c2);
-	});
+	}, false);
 }
 
 //-----------------------------------------------------------------------------

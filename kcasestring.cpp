@@ -45,6 +45,8 @@
 
 namespace dekaf2 {
 
+namespace {
+
 static constexpr unsigned char toLowcase[] =
 {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -81,11 +83,9 @@ static constexpr unsigned char toLowcase[] =
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
 
-namespace {
-
 //-----------------------------------------------------------------------------
-auto Equal = [](KStringView left, KStringView right,
-				std::function<bool(const char, const char)> func) -> bool
+bool kCaseEqualInt(KStringView left, KStringView right,
+			  std::function<bool(const char, const char)> func)
 //-----------------------------------------------------------------------------
 {
 	KStringView::size_type len = left.size();
@@ -187,7 +187,7 @@ int kCaseCompareLeft(KStringView left, KStringView right)
 bool kCaseEqual(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
-	return Equal(left, right, [](const char c1, const char c2)
+	return kCaseEqualInt(left, right, [](const char c1, const char c2)
 	{
 		return toLowcase[static_cast<unsigned char>(c1)]
 				== toLowcase[static_cast<unsigned char>(c2)];
@@ -198,7 +198,7 @@ bool kCaseEqual(KStringView left, KStringView right)
 bool kCaseEqualLeft(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
-	return Equal(left, right, [](const char c1, const char c2)
+	return kCaseEqualInt(left, right, [](const char c1, const char c2)
 	{
 		return toLowcase[static_cast<unsigned char>(c1)]
 				== static_cast<unsigned char>(c2);
@@ -206,12 +206,11 @@ bool kCaseEqualLeft(KStringView left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-/// tests for case insensitive equality at begin of left string
 bool kCaseBeginsWith(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return (left.size() >= right.size())
-			&& Equal(left.Left(right.size()), right, [](const char c1, const char c2)
+			&& kCaseEqualInt(left.Left(right.size()), right, [](const char c1, const char c2)
 	{
 		return toLowcase[static_cast<unsigned char>(c1)]
 				== toLowcase[static_cast<unsigned char>(c2)];
@@ -219,12 +218,11 @@ bool kCaseBeginsWith(KStringView left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-/// tests for case insensitive equality at end of left string
 bool kCaseEndsWith(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return (left.size() >= right.size())
-			&& Equal(left.Right(right.size()), right, [](const char c1, const char c2)
+			&& kCaseEqualInt(left.Right(right.size()), right, [](const char c1, const char c2)
 	{
 		return toLowcase[static_cast<unsigned char>(c1)]
 				== toLowcase[static_cast<unsigned char>(c2)];
@@ -232,12 +230,11 @@ bool kCaseEndsWith(KStringView left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-/// tests for case insensitive equality at begin of left string
 bool kCaseBeginsWithLeft(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return (left.size() >= right.size())
-			&& Equal(left.Left(right.size()), right, [](const char c1, const char c2)
+			&& kCaseEqualInt(left.Left(right.size()), right, [](const char c1, const char c2)
 	{
 		return toLowcase[static_cast<unsigned char>(c1)]
 				== static_cast<unsigned char>(c2);
@@ -245,12 +242,11 @@ bool kCaseBeginsWithLeft(KStringView left, KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-/// tests for case insensitive equality at end of left string
 bool kCaseEndsWithLeft(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return (left.size() >= right.size())
-			&& Equal(left.Right(right.size()), right, [](const char c1, const char c2)
+			&& kCaseEqualInt(left.Right(right.size()), right, [](const char c1, const char c2)
 	{
 		return toLowcase[static_cast<unsigned char>(c1)]
 				== static_cast<unsigned char>(c2);

@@ -30,6 +30,7 @@ TEST_CASE("KCaseString") {
 
 		for (const auto& it : pvector)
 		{
+			INFO  ( kFormat("'{}' '{}'", it.left, it.right) );
 			CHECK ( kCaseBeginsWith(it.left, it.right) == it.result );
 		}
 	}
@@ -57,6 +58,7 @@ TEST_CASE("KCaseString") {
 
 		for (const auto& it : pvector)
 		{
+			INFO  ( kFormat("'{}' '{}'", it.left, it.right) );
 			CHECK ( kCaseBeginsWithLeft(it.left, it.right) == it.result );
 		}
 	}
@@ -83,6 +85,7 @@ TEST_CASE("KCaseString") {
 
 		for (const auto& it : pvector)
 		{
+			INFO  ( kFormat("'{}' '{}'", it.left, it.right) );
 			CHECK ( kCaseEndsWith(it.left, it.right) == it.result );
 		}
 	}
@@ -109,6 +112,7 @@ TEST_CASE("KCaseString") {
 
 		for (const auto& it : pvector)
 		{
+			INFO  ( kFormat("'{}' '{}'", it.left, it.right) );
 			CHECK ( kCaseEndsWithLeft(it.left, it.right) == it.result );
 		}
 	}

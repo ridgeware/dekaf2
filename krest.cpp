@@ -117,7 +117,8 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 						m_Server->SetSSLCertificates(Options.sCert, Options.sKey);
 					}
 				}
-				m_Server->RegisterShutdownWithSignal(Options.iRegisterSignalForShutdown);
+				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
+				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 				m_Server->Start(Options.iTimeout, Options.bBlocking);
 				return true;
 			}
@@ -129,7 +130,8 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				kDebug(1, "starting standalone HTTP server on socket file {}...", Options.sSocketFile);
 				Options.Out = KRESTServer::HTTP;
 				m_Server = std::make_unique<RESTServer>(Options, Routes, Options.sSocketFile, Options.iMaxConnections);
-				m_Server->RegisterShutdownWithSignal(Options.iRegisterSignalForShutdown);
+				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
+				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 				m_Server->Start(Options.iTimeout, Options.bBlocking);
 				return true;
 			}
@@ -366,19 +368,25 @@ bool KREST::Good() const
 } // Good
 
 //-----------------------------------------------------------------------------
-KTCPServer::Diagnostics KREST::GetDiagnostics() const
+KThreadPool::Diagnostics KREST::GetDiagnostics() const
 //-----------------------------------------------------------------------------
 {
-	if (m_Server)
-	{
-		return m_Server->GetDiagnostics();
-	}
-	else
-	{
-		return KTCPServer::Diagnostics{};
-	}
+	return m_Server ? m_Server->GetDiagnostics() : KThreadPool::Diagnostics{};
 
 } // GetDiagnostics
+
+//-----------------------------------------------------------------------------
+void KREST::RegisterShutdownCallback(KThreadPool::ShutdownCallback callback)
+//-----------------------------------------------------------------------------
+{
+	m_ShutdownCallback = std::move(callback);
+
+	if (m_Server)
+	{
+	   m_Server->RegisterShutdownCallback(callback);
+	}
+
+} // RegisterShutdownCallback
 
 
 } // end of namespace dekaf2

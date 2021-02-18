@@ -903,8 +903,7 @@ int main (int argc, char* argv[])
 	{
 		out->Format ("klog: listening to port {} ...\n", Actions.iPort);
 		KlogServer server (Actions.iPort, /*bSSL=*/false);
-		server.RegisterShutdownWithSignal(SIGTERM);
-		server.RegisterShutdownWithSignal(SIGINT);
+		server.RegisterShutdownWithSignals({ SIGTERM, SIGINT });
 		server.Start(/*iTimeoutInSeconds=*/static_cast<uint16_t>(-1), /*bBlocking=*/true);
 	}
 

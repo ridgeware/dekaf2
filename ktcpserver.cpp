@@ -682,40 +682,43 @@ bool KTCPServer::Stop()
 
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::RegisterShutdownWithSignal(int iSignal)
+bool KTCPServer::RegisterShutdownWithSignals(std::vector<int> Signals)
 //-----------------------------------------------------------------------------
 {
-	if (iSignal)
+	auto SignalHandlers = Dekaf::getInstance().Signals();
+
+	if (!SignalHandlers)
 	{
-		auto Signals = Dekaf::getInstance().Signals();
+		kDebug(1, "cannot register shutdown handlers, no signal handler thread started");
 
-		if (Signals)
-		{
-			// register with iSignal
-			Signals->SetSignalHandler(iSignal, [&](int signal)
-			{
-				// stop the tcp server
-				this->Stop();
-
-				auto Signals = Dekaf::getInstance().Signals();
-
-				if (Signals)
-				{
-					// reset signal handler to call exit()
-					Signals->SetSignalHandler(signal, [](int signal)
-					{
-						std::exit(0);
-					});
-				}
-			});
-
-			return true;
-		}
-
-		kDebug(1, "cannot register with {}, no signal handler thread started", kTranslateSignal(iSignal));
+		return false;
 	}
 
-	return false;
+	for (auto iSignal : Signals)
+	{
+		// register with iSignal
+		SignalHandlers->SetSignalHandler(iSignal, [&](int signal)
+		{
+			kDebug(1, "received {}, shutting down", kTranslateSignal(signal))
+
+			auto SignalHandlers = Dekaf::getInstance().Signals();
+
+			if (SignalHandlers)
+			{
+				// reset signal handler to call exit()
+				SignalHandlers->SetSignalHandler(signal, [](int signal)
+				{
+					std::exit(0);
+				});
+			}
+
+			// stop the tcp server
+			this->Stop();
+
+		});
+	}
+
+	return true;
 
 } // RegisterShutdownWithSignal
 

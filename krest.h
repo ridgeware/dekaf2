@@ -96,8 +96,8 @@ public:
 		uint16_t iMaxConnections { 20 };
 		/// timeout in seconds (default 5)
 		uint16_t iTimeout { 5 };
-		/// signal that will shutdown the server (default SIGTERM)
-		int iRegisterSignalForShutdown { SIGTERM };
+		/// signals that will shutdown the server (default SIGINT, SIGTERM)
+		std::vector<int> RegisterSignalsForShutdown { SIGINT, SIGTERM };
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 		/// unix socket file to listen
 		KStringViewZ sSocketFile;
@@ -130,7 +130,10 @@ public:
 	/// alias for Error()
 	const KString& GetLastError() const { return Error(); }
 	/// get diagnostics when running with a TCP server
-	KTCPServer::Diagnostics GetDiagnostics() const;
+	KThreadPool::Diagnostics GetDiagnostics() const;
+	/// Shall we log the shutdown in TCP server mode?
+	/// @param callback callback function called at each shutdown thread with some diagnostics
+	void RegisterShutdownCallback(KThreadPool::ShutdownCallback callback);
 
 //----------
 protected:
@@ -180,12 +183,13 @@ private:
 	//----------
 
 		const KREST::Options& m_Options;
-		const KRESTRoutes& m_Routes;
+		const KRESTRoutes&    m_Routes;
 
 	}; // RESTServer
 
-	KString m_sError;
-	std::unique_ptr<RESTServer> m_Server;
+	KString                       m_sError;
+	std::unique_ptr<RESTServer>   m_Server;
+	KThreadPool::ShutdownCallback m_ShutdownCallback;
 
 }; // KREST
 

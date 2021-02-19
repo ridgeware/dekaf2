@@ -94,7 +94,7 @@ void KThreadPool::resize(size_t nThreads)
 		for (size_t i = oldNThreads; i < nThreads; ++i)
 		{
 			m_abort[i] = std::make_shared<std::atomic<bool>>(false);
-			setup_thread(i);
+			run_thread(i);
 		}
 	}
 	else
@@ -170,7 +170,7 @@ void KThreadPool::stop( bool kill )
 //  - the queue is empty, then it waits (idle)
 //  - its abort flag is set (terminate without emptying the queue)
 //  - a global interrupt is set, then only idle threads terminate
-void KThreadPool::setup_thread( size_t i )
+void KThreadPool::run_thread( size_t i )
 //-----------------------------------------------------------------------------
 {
 	// a copy of the shared ptr to the abort
@@ -222,8 +222,14 @@ void KThreadPool::setup_thread( size_t i )
 
 			m_cond_var.wait(lock, [this, &_f, &more_tasks, &abort]()
 			{
+				if (abort || ma_interrupt)
+				{
+					return true;
+				}
+
 				more_tasks = m_queue.pop(_f);
-				return abort || ma_interrupt || more_tasks;
+
+				return more_tasks;
 			});
 
 			--ma_n_idle;

@@ -337,7 +337,7 @@ private:
 
 	void push_packaged_task(std::packaged_task<void()> task);
 
-	void setup_thread( size_t i );
+	void run_thread( size_t i );
 
 	void notify_thread_shutdown(bool bWasIdle);
 

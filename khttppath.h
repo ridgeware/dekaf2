@@ -44,6 +44,8 @@
 #include <vector>
 #include "kstring.h"
 #include "kstringview.h"
+#include "ktimer.h"
+#include "kthreadsafe.h"
 
 /// @file khttpath.h
 /// Primitives for HTTP routing
@@ -67,8 +69,18 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Returns count of path parts (sections between / )
+	size_t PartCount() const { return vURLParts.size(); }
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Returns a string view with the first iPartCount parts of the path
+	KStringView GetFirstParts(size_t iPartCount) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// static method to split a URL into parts
-	static size_t SplitURL(URLParts& Parts, KStringView sURLPath);
+	static URLParts SplitURL(KStringView sURLPath);
 	//-----------------------------------------------------------------------------
 
 	KString     sRoute;      // e.g. "/some/path/index.html" or "/documents/*" or "/help"
@@ -92,7 +104,9 @@ public:
 	KHTTPAnalyzedPath(KString _sRoute);
 	//-----------------------------------------------------------------------------
 
-	bool bHasWildCardAtEnd { false };
+	mutable KThreadSafe<KDurations> Durations; // measuring timing and count for this path / route
+
+	bool bHasWildCardAtEnd    { false };
 	bool bHasWildCardFragment { false };
 
 }; // KHTTPAnalyzedPath

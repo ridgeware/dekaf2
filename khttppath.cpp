@@ -49,23 +49,50 @@ namespace dekaf2 {
 KHTTPPath::KHTTPPath(KString _sRoute)
 //-----------------------------------------------------------------------------
 	: sRoute(std::move(_sRoute))
+	, vURLParts(SplitURL(sRoute))
 {
 	if (!sRoute.empty() && sRoute.front() != '/')
 	{
 		kWarning("error: route does not start with a slash: {}", sRoute);
 	}
 
-	SplitURL(vURLParts, sRoute);
-
 } // KHTTPPath
 
 //-----------------------------------------------------------------------------
-size_t KHTTPPath::SplitURL(URLParts& Parts, KStringView sURLPath)
+KStringView KHTTPPath::GetFirstParts(size_t iPartCount) const
 //-----------------------------------------------------------------------------
 {
-	Parts.clear();
+	KString sPath;
+	KStringView::size_type iLength { 0 };
+
+	if (iPartCount <= vURLParts.size())
+	{
+		for (const auto& sPart : vURLParts)
+		{
+			if (!iPartCount++)
+			{
+				break;
+			}
+
+			iLength += sPart.size() + 1;
+		}
+	}
+	else
+	{
+		kDebug(1, "bad part count requested: have {}, requested {}", vURLParts.size(), iPartCount);
+	}
+
+	return KStringView(sRoute.data(), iLength);
+
+} // GetFirstParts
+
+//-----------------------------------------------------------------------------
+KHTTPPath::URLParts KHTTPPath::SplitURL(KStringView sURLPath)
+//-----------------------------------------------------------------------------
+{
 	sURLPath.remove_prefix("/");
-	return kSplit(Parts, sURLPath, "/", "");
+
+	return kSplits<URLParts>(sURLPath, "/", "");
 
 } // SplitURL
 

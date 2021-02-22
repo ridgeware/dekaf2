@@ -613,6 +613,12 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				RecordRequestForReplay(Options);
 			}
 
+			if (m_Timers)
+			{
+				// add stats for this request
+				Route->Durations.unique().get() += *m_Timers;
+			}
+
 			if (!bKeepAlive)
 			{
 				if (Options.Out == HTTP)

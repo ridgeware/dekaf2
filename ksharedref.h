@@ -81,8 +81,8 @@ public:
 	/// copy construction is allowed
 	KSharedRef(const self_type& other) noexcept
 	//-----------------------------------------------------------------------------
+	: m_ref(other.m_ref)
 	{
-		m_ref = other.m_ref;
 		inc();
 	}
 
@@ -90,14 +90,13 @@ public:
 	/// move construction is allowed
 	KSharedRef(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
+	: m_ref(std::move(other.m_ref))
 	{
-		m_ref = std::move(other.m_ref);
 		other.m_ref = nullptr;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Construction with any arguments the shared type permits.
-	/// Uses perfect forwarding.
+	/// Construction with any arguments the shared type permits. This includes the default constructor.
 	// make sure this does not cover the copy constructor by requesting an args count
 	// of != 1
 	template<class... Args,
@@ -107,13 +106,12 @@ public:
 	>
 	KSharedRef(Args&&... args)
 	//-----------------------------------------------------------------------------
+	: m_ref(new Reference(std::forward<Args>(args)...))
 	{
-		m_ref = new Reference(std::forward<Args>(args)...);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Construction of the shared type with any single argument.
-	/// Uses perfect forwarding.
 	// make sure this does not cover the copy constructor by requesting the single
 	// arg being of a different type than self_type
 	template<class Arg,
@@ -125,8 +123,8 @@ public:
 	>
 	KSharedRef(Arg&& arg)
 	//-----------------------------------------------------------------------------
+	: m_ref(new Reference(std::forward<Arg>(arg)))
 	{
-		m_ref = new Reference(std::forward<Arg>(arg));
 	}
 
 	//-----------------------------------------------------------------------------

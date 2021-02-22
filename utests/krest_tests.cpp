@@ -388,8 +388,7 @@ TEST_CASE("KREST")
 		{
 			sOut.erase(0, iPos2+4);
 		}
-		CHECK ( sOut == sWebContent );
-
+		CHECK ( sOut == "<html><head>HTTP Error 404</head><body><h2>404 file not found</h2></body></html>" );
 	}
 
 }

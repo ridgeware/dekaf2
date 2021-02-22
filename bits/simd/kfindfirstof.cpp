@@ -147,7 +147,7 @@ size_t kFindLastOf(KStringView haystack, KStringView needles, bool bNot)
 // Therefore, in debug mode with gcc < 8 we simply switch SSE off and
 // fall back to traditional code
 
-#if (!defined __clang__ && __GNUC__ < 8)
+#if (!defined __clang__ && defined __GNUC__ && __GNUC__ < 8)
 	#ifndef NDEBUG
 		#define KFINDFIRSTOF_NO_SSE = 1
 	#endif

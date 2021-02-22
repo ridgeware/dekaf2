@@ -1052,10 +1052,11 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 		// finally switch logging off if enabled
 		KLog::getInstance().LogThisThreadToKLog(-1);
 
+		// and check if there is a json klog output
 		auto it = json.tx.find("klog");
-		if (it != json.tx.end())
+		if (it != json.tx.end() && !it->empty())
 		{
-			// save the klog
+			// yes, save the klog
 			EmptyJSON["klog"] = std::move(*it);
 		}
 	}
@@ -1066,19 +1067,35 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 	{
 		case HTTP:
 		{
-			if (sError.empty())
+			KString sContent;
+
+			if (json.tx.empty() &&
+				Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::HTML_UTF8)
 			{
-				json.tx["message"] = Response.sStatusString;
+				// write the error message as a HTML page if there is no
+				// JSON error output and the content type is HTML
+				sContent = kFormat(R"(<html><head>HTTP Error {}</head><body><h2>{} {}</h2></body></html>)",
+								   Response.GetStatusCode(),
+								   Response.GetStatusCode(),
+								   sError.empty() ? Response.GetStatusString().ToView() : sError);
 			}
 			else
 			{
-				json.tx["message"] = sError;
+				// write the error message as a json struct
+				if (sError.empty())
+				{
+					json.tx["message"] = Response.sStatusString;
+				}
+				else
+				{
+					json.tx["message"] = sError;
+				}
+
+				sContent = json.tx.dump(iJSONPretty, '\t');
+
+				// ensure that all JSON responses end in a newline:
+				sContent += '\n';
 			}
-
-			KString sContent = json.tx.dump(iJSONPretty, '\t');
-
-			// ensure that all JSON responses end in a newline:
-			sContent += '\n';
 
 			// compute and set the Content-Length header:
 			Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(sContent.length()));

@@ -282,9 +282,16 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 
 		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.lowest_layer().is_open())
 		{
-			kDebug(1, "cannot read from tls stream with {}: {}",
-				   stream->sEndpoint,
-				   stream->ec.message());
+			if (stream->ec.value() == boost::asio::error::eof)
+			{
+				kDebug(2, "input stream got closed by endpoint {}", stream->sEndpoint);
+			}
+			else
+			{
+				kDebug(1, "cannot read from tls stream with endpoint {}: {}",
+					   stream->sEndpoint,
+					   stream->ec.message());
+			}
 		}
 	}
 
@@ -343,9 +350,16 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 
 			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.lowest_layer().is_open())
 			{
-				kDebug(1, "cannot write to tls stream with {}: {}",
-					   stream->sEndpoint,
-					   stream->ec.message());
+				if (stream->ec.value() == boost::asio::error::eof)
+				{
+					kDebug(2, "output stream got closed by endpoint {}", stream->sEndpoint);
+				}
+				else
+				{
+					kDebug(1, "cannot write to tls stream with endpoint {}: {}",
+						   stream->sEndpoint,
+						   stream->ec.message());
+				}
 				break;
 			}
 		}

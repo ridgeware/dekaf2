@@ -190,6 +190,10 @@ void KThreadPool::run_thread( size_t i )
 			{
 				lock.unlock();
 
+				// increase total task counter
+				++ma_iTotalTasks;
+
+				// and run the task
 				(_f)();
 
 				if (abort)
@@ -280,7 +284,7 @@ KThreadPool::Diagnostics KThreadPool::get_diagnostics(bool bWasIdle) const
 	Diag.iTotalThreads  = size() - ma_iAlreadyStopped;
 	Diag.iIdleThreads   = n_idle();
 	Diag.iUsedThreads   = Diag.iTotalThreads - Diag.iIdleThreads;
-	Diag.iTotalTasks    = m_iTotalTasks;
+	Diag.iTotalTasks    = ma_iTotalTasks;
 	Diag.iWaitingTasks  = n_queued();
 	Diag.bWasIdle       = bWasIdle;
 

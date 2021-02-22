@@ -345,10 +345,10 @@ private:
 	std::vector<std::shared_ptr<std::atomic_bool>>        m_abort;
 	detail::threadpool::Queue<std::packaged_task<void()>> m_queue;
 
-	std::atomic_size_t       m_iTotalTasks { 0 };
-	std::atomic_size_t       ma_n_idle     { 0 };
+	std::atomic_size_t       ma_iTotalTasks { 0 };
+	std::atomic_size_t       ma_n_idle      { 0 };
 	std::atomic_size_t       ma_iAlreadyStopped { 0 };
-	std::atomic_bool         ma_interrupt  { false };
+	std::atomic_bool         ma_interrupt   { false };
 
 	mutable std::recursive_mutex m_resize_mutex;
 	mutable std::mutex       m_cond_mutex;

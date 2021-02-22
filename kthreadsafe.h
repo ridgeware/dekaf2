@@ -219,14 +219,6 @@ public:
 		return SharedLocked(*this);
 	}
 
-	//-----------------------------------------------------------------------------
-	/// Get an accessor on the shared type with a unique lock (good for reading and writing)
-	UniqueLocked operator->()
-	//-----------------------------------------------------------------------------
-	{
-		return unique();
-	}
-
 //----------
 private:
 //----------

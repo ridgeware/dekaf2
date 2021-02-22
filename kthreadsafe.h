@@ -128,13 +128,13 @@ public:
 		}
 
 		/// get const pointer on object
-		const T* operator->()
+		const T* operator->() const
 		{
 			return &get();
 		}
 
 		/// get const reference on object
-		const T& operator*()
+		const T& operator*() const
 		{
 			return get();
 		}
@@ -156,7 +156,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	KThreadSafe(KThreadSafe&& other)
+	KThreadSafe(KThreadSafe&& other) noexcept
 	//-----------------------------------------------------------------------------
 	: m_Shared(std::move(other.unique().get()))
 	{
@@ -213,7 +213,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get an accessor on the shared type with a shared lock (only good for reading)
-	SharedLocked shared()
+	SharedLocked shared() const
 	//-----------------------------------------------------------------------------
 	{
 		return SharedLocked(*this);

@@ -402,6 +402,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			Response.SetStatus(200, "OK");
 			Response.sHTTPVersion = "HTTP/1.1";
 
+			if (m_Timers)
+			{
+				m_Timers->StoreInterval(Timer::RECEIVE);
+			}
+
 			kDebug (2, "incoming: {} {}", Request.Method.Serialize(), Request.Resource.Path);
 
 			KStringView sURLPath = Request.Resource.Path;
@@ -444,14 +449,14 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				}
 			}
 
+			if (m_Timers)
+			{
+				m_Timers->StoreInterval(Timer::ROUTE);
+			}
+
 			if (!Route->Callback)
 			{
 				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
-			}
-
-			if (m_Timers)
-			{
-				m_Timers->StoreInterval(Timer::RECEIVE);
 			}
 
 			if (Request.Method != KHTTPMethod::GET && Request.HasContent())

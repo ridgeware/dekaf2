@@ -70,10 +70,11 @@ public:
 	enum Timer
 	{
 		RECEIVE   = 0,
-		PARSE     = 1,
-		PROCESS   = 2,
-		SERIALIZE = 3,
-		SEND      = 4
+		ROUTE     = 1,
+		PARSE     = 2,
+		PROCESS   = 3,
+		SERIALIZE = 4,
+		SEND      = 5
 	};
 
 	// supported output types:

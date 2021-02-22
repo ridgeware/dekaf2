@@ -156,30 +156,6 @@ void KDurations::clear()
 } // clear
 
 //---------------------------------------------------------------------------
-KDurations::Duration KDurations::StartNextInterval()
-//---------------------------------------------------------------------------
-{
-	m_Durations.push_back(elapsedAndClear<Duration>());
-	return m_Durations.back();
-
-} // StartNextInterval
-
-//---------------------------------------------------------------------------
-KDurations::Duration KDurations::StoreInterval(size_type iInterval)
-//---------------------------------------------------------------------------
-{
-	if (m_Durations.size() < iInterval + 1)
-	{
-		m_Durations.resize(iInterval + 1);
-	}
-
-	m_Durations[iInterval] = elapsedAndClear<Duration>();
-
-	return m_Durations[iInterval];
-
-} // StoreInterval
-
-//---------------------------------------------------------------------------
 template<>
 KDurations::Duration KDurations::GetDuration<KDurations::Duration>(size_type iInterval) const
 //---------------------------------------------------------------------------
@@ -295,6 +271,154 @@ std::chrono::hours::rep KDurations::hours() const
 	return TotalDuration<std::chrono::hours>().count();
 }
 
+//-----------------------------------------------------------------------------
+KDurations KDurations::operator+(const KDurations& other) const
+//-----------------------------------------------------------------------------
+{
+	KDurations temp(*this);
+	return temp += other;
+}
+
+//-----------------------------------------------------------------------------
+KDurations::self& KDurations::operator+=(const KDurations& other)
+//-----------------------------------------------------------------------------
+{
+	if (size() < other.size())
+	{
+		if (!empty())
+		{
+			kDebug(2, "resizing object to match count of other intervals from {} to {}", size(), other.size());
+		}
+
+		m_Durations.resize(other.size());
+	}
+
+	const auto iSize = size();
+
+	for (size_type i = 0; i < iSize; ++i)
+	{
+		m_Durations[i] += other.m_Durations[i];
+	}
+
+	m_iRounds += other.m_iRounds;
+
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+KDurations KDurations::operator-(const KDurations& other) const
+//-----------------------------------------------------------------------------
+{
+	KDurations temp(*this);
+	return temp -= other;
+}
+
+//-----------------------------------------------------------------------------
+KDurations::self& KDurations::operator-=(const KDurations& other)
+//-----------------------------------------------------------------------------
+{
+	if (size() < other.size())
+	{
+		if (!empty())
+		{
+			kDebug(2, "resizing object to match count of other intervals from {} to {}", size(), other.size());
+		}
+
+		m_Durations.resize(other.size());
+	}
+
+	const auto iSize = size();
+
+	for (size_type i = 0; i < iSize; ++i)
+	{
+		m_Durations[i] -= other.m_Durations[i];
+	}
+
+	m_iRounds -= other.m_iRounds;
+
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+KDurations KDurations::operator*(size_type iMultiplier) const
+//-----------------------------------------------------------------------------
+{
+	KDurations temp(*this);
+	return temp *= iMultiplier;
+}
+
+//-----------------------------------------------------------------------------
+KDurations::self& KDurations::operator*=(size_type iMultiplier)
+//-----------------------------------------------------------------------------
+{
+	for (auto& it : m_Durations)
+	{
+		it *= iMultiplier;
+	}
+
+	m_iRounds *= iMultiplier;
+
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+KDurations KDurations::operator/(size_type iDivisor) const
+//-----------------------------------------------------------------------------
+{
+	KDurations temp(*this);
+	return temp /= iDivisor;
+}
+
+//-----------------------------------------------------------------------------
+KDurations::self& KDurations::operator/=(size_type iDivisor)
+//-----------------------------------------------------------------------------
+{
+	if (iDivisor)
+	{
+		for (auto& it : m_Durations)
+		{
+			it /= iDivisor;
+		}
+
+		m_iRounds /= iDivisor;
+	}
+	else
+	{
+		kWarning("cannot divide by 0");
+	}
+
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+void KStopDurations::clear()
+//-----------------------------------------------------------------------------
+{
+	base::clear();
+	m_Timer.clear();
+
+} // clear
+
+//---------------------------------------------------------------------------
+void KStopDurations::StartNextInterval()
+//---------------------------------------------------------------------------
+{
+	push_back(m_Timer.elapsedAndClear<Duration>());
+
+} // StartNextInterval
+
+//---------------------------------------------------------------------------
+void KStopDurations::StoreInterval(size_type iInterval)
+//---------------------------------------------------------------------------
+{
+	if (size() < iInterval + 1)
+	{
+		resize(iInterval + 1);
+	}
+
+	operator[](iInterval) += m_Timer.elapsedAndClear<Duration>();
+
+} // StoreInterval
 
 //---------------------------------------------------------------------------
 KTimer::KTimer()

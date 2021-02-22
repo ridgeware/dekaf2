@@ -313,7 +313,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Keeps multiple consecutive time intervals
-class KDurations : private KStopTime
+class KDurations
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -321,8 +321,8 @@ class KDurations : private KStopTime
 public:
 //------
 
-	using base           = KStopTime;
-	using Duration       = typename base::Duration;
+	using self           = KDurations;
+	using Duration       = typename KStopTime::Duration;
 	using Storage        = std::vector<Duration>;
 	using size_type      = typename Storage::size_type;
 	using const_iterator = typename Storage::const_iterator;
@@ -333,7 +333,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// reserve a certain amount of storage
+	/// reserve intervals
 	void reserve(size_type iSize)
 	//-----------------------------------------------------------------------------
 	{
@@ -341,15 +341,28 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// start a new interval, store the current one
-	Duration StartNextInterval();
+	/// resize for intervals
+	void resize(size_type iSize)
 	//-----------------------------------------------------------------------------
+	{
+		m_Durations.resize(iSize);
+	}
 
 	//-----------------------------------------------------------------------------
-	/// start a new interval, store the current one
-	/// @param iInterval index position to store the current interval at
-	Duration StoreInterval(size_type iInterval);
+	/// push back another interval
+	void push_back(Duration duration)
 	//-----------------------------------------------------------------------------
+	{
+		m_Durations.push_back(duration);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// get last interval
+	const Duration& back() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Durations.back();
+	}
 
 	//-----------------------------------------------------------------------------
 	/// get duration of an interval, rounded from internal duration type,
@@ -492,11 +505,73 @@ public:
 		return m_Durations.empty();
 	}
 
+	//-----------------------------------------------------------------------------
+	const Duration& operator[](size_type i) const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Durations[i];
+	}
+
+	//-----------------------------------------------------------------------------
+	Duration& operator[](size_type i)
+	//-----------------------------------------------------------------------------
+	{
+		return m_Durations[i];
+	}
+
+	//-----------------------------------------------------------------------------
+	size_type Rounds() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_iRounds;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// add other intervals to this, expands size if necessary
+	KDurations operator+(const KDurations& other) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// add other intervals to this, expands size if necessary
+	self& operator+=(const KDurations& other);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// substract other intervals from this, expands size if necessary
+	KDurations operator-(const KDurations& other) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// substract other intervals from this, expands size if necessary
+	self& operator-=(const KDurations& other);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// multiply intervals by an integer
+	KDurations operator*(size_type iMultiplier) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// multiply intervals by an integer
+	self& operator*=(size_type iMultiplier);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// divide intervals by an integer
+	KDurations operator/(size_type iDivisor) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// divide intervals by an integer
+	self& operator/=(size_type iDivisor);
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------
 
-	Storage m_Durations;
+	Storage   m_Durations;
+	size_type m_iRounds { 1 };
 
 }; // KDurations
 
@@ -514,6 +589,42 @@ template<>
 KDurations::Duration KDurations::TotalDuration<KDurations::Duration>() const;
 //-----------------------------------------------------------------------------
 
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Measures multiple consecutive time intervals
+class KStopDurations : public KDurations
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	using base = KDurations;
+
+	//-----------------------------------------------------------------------------
+	/// reset all intervals, restart clock
+	void clear();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// start a new interval, store the current one
+	void StartNextInterval();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// start a new interval, store the current one
+	/// @param iInterval index position to store the current interval at
+	void StoreInterval(size_type iInterval);
+	//-----------------------------------------------------------------------------
+
+//----------
+private:
+//----------
+
+	KStopTime m_Timer;
+
+}; // KStopDurations
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KTimer can be used to call functions both repeatedly after a fixed

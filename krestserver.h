@@ -297,7 +297,7 @@ private:
 	std::size_t m_iContentLength;        // content length for stream output
 	KJWT m_AuthToken;
 	std::unique_ptr<KJSON> m_JsonLogger;
-	std::unique_ptr<KDurations> m_Timers;
+	std::unique_ptr<KStopDurations> m_Timers;
 
 
 }; // KRESTServer

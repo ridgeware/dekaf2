@@ -79,7 +79,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// copy construction is allowed
-	KSharedRef(const self_type& other) noexcept
+	KSharedRef(const self_type& other)
 	//-----------------------------------------------------------------------------
 	: m_ref(other.m_ref)
 	{

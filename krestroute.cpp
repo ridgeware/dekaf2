@@ -94,7 +94,7 @@ bool KRESTAnalyzedPath::HasParameter(KStringView sParam) const
 KRESTRoute::KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, KString _sDocumentRoot, RESTCallback _Callback, ParserType _Parser)
 //-----------------------------------------------------------------------------
 	: detail::KRESTAnalyzedPath(std::move(_Method), std::move(_sRoute))
-	, Callback((!_Callback && !_sDocumentRoot.empty()) ? &KRESTRoute::WebServer : std::move(_Callback))
+	, Callback(std::move(_Callback))
 	, sDocumentRoot(std::move(_sDocumentRoot))
 	, Parser(_Parser)
 	, bAuth(_bAuth)
@@ -102,44 +102,10 @@ KRESTRoute::KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, KStrin
 } // KRESTRoute
 
 //-----------------------------------------------------------------------------
-void KRESTRoute::WebServer(KRESTServer& HTTP)
+bool KRESTRoute::Matches(const KRESTPath& Path, Parameters* Params, bool bCompareMethods, bool bCheckWebservers) const
 //-----------------------------------------------------------------------------
 {
-	if (HTTP.Request.Method != KHTTPMethod::GET)
-	{
-		kDebug(1, "invalid method: {}", HTTP.Request.Method.Serialize());
-		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid method: {}", HTTP.Request.Method.Serialize()) };
-	}
-
-	KFileServer FileServer;
-
-	FileServer.Open(HTTP.Route->sDocumentRoot,
-					HTTP.RequestPath.sRoute,
-					HTTP.Route->sRoute,
-					HTTP.Request.Resource.Path.get());
-
-	if (FileServer.RedirectAsDirectory())
-	{
-		// redirect
-		KString sRedirect = HTTP.Request.Resource.Path.get();
-		sRedirect += '/';
-
-		HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY, "Moved Permanently");
-		HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, std::move(sRedirect));
-	}
-	else
-	{
-		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, FileServer.GetMIMEType(true));
-		HTTP.SetStreamToOutput(FileServer.GetStreamForReading(), FileServer.GetFileSize());
-	}
-
-} // WebServer
-
-//-----------------------------------------------------------------------------
-bool KRESTRoute::Matches(const KRESTPath& Path, Parameters& Params, bool bCompareMethods) const
-//-----------------------------------------------------------------------------
-{
-	if (!bCompareMethods || Method.empty() || Method == Path.Method)
+	if ((!bCompareMethods || Method.empty() || Method == Path.Method) && (bCheckWebservers || sDocumentRoot.empty()))
 	{
 		if (!bHasParameters && !bHasWildCardFragment)
 		{
@@ -169,7 +135,11 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters& Params, bool bCompar
 			// we have parameters or wildcard fragments, check part by part of the route
 			if (!Path.vURLParts.empty() && vURLParts.size() >= Path.vURLParts.size())
 			{
-				Params.clear();
+				if (Params)
+				{
+					Params->clear();
+				}
+
 				auto req = Path.vURLParts.cbegin();
 				bool bFound { true };
 				bool bOnlyParms { false };
@@ -192,7 +162,10 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters& Params, bool bCompar
 						if (DEKAF2_UNLIKELY(part.front() == ':'))
 						{
 							// this is a variable, add the value to our temporary query parms
-							Params.push_back({part, *req});
+							if (Params)
+							{
+								Params->push_back({part, *req});
+							}
 						}
 						else if (DEKAF2_UNLIKELY(part.front() == '='))
 						{
@@ -201,7 +174,10 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters& Params, bool bCompar
 							// remove the '='
 							sName.remove_prefix(1);
 							// and add the value to our temporary query parms
-							Params.push_back({sName, *req});
+							if (Params)
+							{
+								Params->push_back({sName, *req});
+							}
 						}
 						else if (DEKAF2_LIKELY(part != "*"))
 						{
@@ -269,6 +245,27 @@ void KRESTRoutes::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
+bool KRESTRoutes::CheckForWrongMethod(const KRESTPath& Path) const
+//-----------------------------------------------------------------------------
+{
+	// check if we only missed a route because of a wrong request method
+	for (const auto& it : m_Routes)
+	{
+		// do not test if method was empty (= all would have matched) or OPTIONS
+		if (!it.Method.empty() && (it.Method != KHTTPMethod::OPTIONS))
+		{
+			if (it.Matches(Path, nullptr, false, false))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+
+} // CheckForWrongMethod
+
+//-----------------------------------------------------------------------------
 const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Params, bool bCheckForWrongMethod) const
 //-----------------------------------------------------------------------------
 {
@@ -278,7 +275,7 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 	for (const auto& it : m_Routes)
 	{
 		kDebug (3, "evaluating: {} {}" , it.Method.Serialize(), it.sRoute);
-		if (it.Matches(Path, Params, true))
+		if (it.Matches(Path, &Params, true, true))
 		{
 			kDebug (2, "     found: {} {}", it.Method.Serialize(), it.sRoute);
 			return it;
@@ -294,17 +291,10 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 
 	if (bCheckForWrongMethod)
 	{
-		// now check if we only missed a route because of a wrong request method
-		for (const auto& it : m_Routes)
+		if (CheckForWrongMethod(Path))
 		{
-			if (!it.Method.empty() && (it.Method != KHTTPMethod::OPTIONS))
-			{
-				if (it.Matches(Path, Params, false))
-				{
-					kDebug (2, "request method {} not supported for path: {}", Path.Method.Serialize(), Path.sRoute);
-					throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", Path.Method.Serialize(), Path.sRoute) };
-				}
-			}
+			kDebug (2, "request method {} not supported for path: {}", Path.Method.Serialize(), Path.sRoute);
+			throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", Path.Method.Serialize(), Path.sRoute) };
 		}
 	}
 
@@ -331,6 +321,59 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Par
 	return ret;
 
 } // FindRoute
+
+//-----------------------------------------------------------------------------
+void KRESTRoutes::WebServer(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	if (HTTP.Request.Method != KHTTPMethod::GET)
+	{
+		kDebug(1, "invalid method: {}", HTTP.Request.Method.Serialize());
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid method: {}", HTTP.Request.Method.Serialize()) };
+	}
+
+	KFileServer FileServer;
+
+	FileServer.Open(HTTP.Route->sDocumentRoot,
+					HTTP.RequestPath.sRoute,
+					HTTP.Route->sRoute,
+					HTTP.Request.Resource.Path.get());
+
+	if (FileServer.RedirectAsDirectory())
+	{
+		// redirect
+		KString sRedirect = HTTP.Request.Resource.Path.get();
+		sRedirect += '/';
+
+		HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY, "Moved Permanently");
+		HTTP.Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
+		HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, std::move(sRedirect));
+	}
+	else if (FileServer.Exists())
+	{
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, FileServer.GetMIMEType(true));
+		HTTP.SetStreamToOutput(FileServer.GetStreamForReading(), FileServer.GetFileSize());
+	}
+	else
+	{
+		// This file does not exist.. now check if we should better return
+		// a REST error code, or a HTTP server error code
+
+		if (CheckForWrongMethod(HTTP.RequestPath))
+		{
+			kDebug (2, "request method {} not supported for path: {}", HTTP.RequestPath.Method.Serialize(), HTTP.RequestPath.sRoute);
+			throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", HTTP.RequestPath.Method.Serialize(), HTTP.RequestPath.sRoute) };
+		}
+		else
+		{
+			kDebug(1, "Cannot open file: {}", FileServer.GetFileSystemPath());
+			HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
+			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
+		}
+
+	}
+
+} // WebServer
 
 static_assert(std::is_nothrow_move_constructible<KRESTPath>::value,
 			  "KRESTPath is intended to be nothrow move constructible, but is not!");

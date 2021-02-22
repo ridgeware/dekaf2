@@ -85,7 +85,7 @@ TEST_CASE("KREST")
 			OutFile.Write(sWebContent);
 		}
 
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/web/*", WebRoot.Name() });
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/web/*", WebRoot.Name(), Routes, &KRESTRoutes::WebServer });
 
 		KString sOut;
 		KOutStringStream oss(sOut);
@@ -268,6 +268,11 @@ TEST_CASE("KREST")
 			CHECK ( OutFile.is_open() );
 			OutFile.Write(sWebContent);
 		}
+		{
+			KOutFile OutFile(kFormat("{}/test.html", WebRoot.Name()));
+			CHECK ( OutFile.is_open() );
+			OutFile.Write(sWebContent);
+		}
 
 		constexpr KRESTRoutes::FunctionTable RTable[]
 		{
@@ -286,6 +291,9 @@ TEST_CASE("KREST")
 
 		RClass RR;
 
+		KString sTestRoot = WebRoot.Name();
+		sTestRoot += "/test.html";
+
 		KRESTRoutes::MemberFunctionTable<RClass> MTable[]
 		{
 			{ "GET", false, "/rr/test",               &RClass::rest_test2 },
@@ -293,6 +301,7 @@ TEST_CASE("KREST")
 			{ "GET", false, "rr/noslashpath",         &RClass::rest_test2, KRESTRoute::JSON  },
 			{ "GET", false, "/rr/user/:NAME/address", &RClass::rest_test2 },
 			{ "GET", false, "/rr/user/:UID",          &RClass::rest_test2 },
+			{ "GET", false, "/test.html",             sTestRoot           },
 			{ "GET", false, "/web/*",                 WebRoot.Name()      }
 		};
 
@@ -353,11 +362,31 @@ TEST_CASE("KREST")
 
 		sOut.clear();
 		CHECK ( REST.Simulate(Options, Routes, "/web/", oss) == true );
-		auto iPos3 = sOut.find("\r\n\r\n");
-		CHECK ( iPos3 != npos );
-		if (iPos3 != npos)
+		auto iPos = sOut.find("\r\n\r\n");
+		CHECK ( iPos != npos );
+		if (iPos != npos)
 		{
-			sOut.erase(0, iPos3+4);
+			sOut.erase(0, iPos+4);
+		}
+		CHECK ( sOut == sWebContent );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/test.html", oss) == true );
+		auto iPos1 = sOut.find("\r\n\r\n");
+		CHECK ( iPos1 != npos );
+		if (iPos1 != npos)
+		{
+			sOut.erase(0, iPos1+4);
+		}
+		CHECK ( sOut == sWebContent );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/web/unknown.html", oss) == false );
+		auto iPos2 = sOut.find("\r\n\r\n");
+		CHECK ( iPos2 != npos );
+		if (iPos2 != npos)
+		{
+			sOut.erase(0, iPos2+4);
 		}
 		CHECK ( sOut == sWebContent );
 

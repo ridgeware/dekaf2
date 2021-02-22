@@ -88,8 +88,13 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 	}
 
 	m_sFileSystemPath = sDocumentRoot;
-	m_sFileSystemPath += kDirSep;
-	m_sFileSystemPath += sRequest;
+
+	if (!sRequest.empty())
+	{
+		m_sFileSystemPath += kDirSep;
+		m_sFileSystemPath += sRequest;
+	}
+
 	m_iFileSize       = kFileSize(m_sFileSystemPath);
 
 	if (IsDirectory())

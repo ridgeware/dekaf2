@@ -148,14 +148,6 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Construct a REST route for a web server
-	KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, KString _sDocumentRoot, ParserType _Parser = NOREAD)
-	//-----------------------------------------------------------------------------
-	: KRESTRoute(_Method, _bAuth, std::move(_sRoute), std::move(_sDocumentRoot), nullptr, _Parser)
-	{
-	}
-
-	//-----------------------------------------------------------------------------
 	/// Construct a REST route on an object member function. The object reference
 	/// must stay valid throughout the lifetime of this class (it is a reference on a constructed
 	/// object which method will be called)
@@ -180,12 +172,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Compare this route part by part with a given path, and return true if matching.
 	/// Params returns the variables in the path.
-	bool Matches(const KRESTPath& Path, Parameters& Params, bool bCompareMethods = true) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Default webserver implementation for static pages
-	static void WebServer(KRESTServer& HTTP);
+	bool Matches(const KRESTPath& Path, Parameters* Params = nullptr, bool bCompareMethods = true, bool bCheckWebservers = true) const;
 	//-----------------------------------------------------------------------------
 
 	RESTCallback Callback;
@@ -318,7 +305,7 @@ public:
 			}
 			else
 			{
-				AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, Routes[i].Parser));
+				AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, *this, &KRESTRoutes::WebServer, Routes[i].Parser));
 			}
 		}
 	}
@@ -341,6 +328,19 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Throws KHTTPError if no matching route found - fills additional params in Path into Params
 	const KRESTRoute& FindRoute(const KRESTPath& Path, url::KQuery& Params, bool bCheckForWrongMethod) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Default webserver implementation for static pages
+	void WebServer(KRESTServer& HTTP);
+	//-----------------------------------------------------------------------------
+
+//------
+protected:
+//------
+
+	//-----------------------------------------------------------------------------
+	bool CheckForWrongMethod(const KRESTPath& Path) const;
 	//-----------------------------------------------------------------------------
 
 //------

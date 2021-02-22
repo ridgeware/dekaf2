@@ -49,7 +49,7 @@ namespace dekaf2 {
 bool KFileServer::Open(KStringView sDocumentRoot,
 					   KStringView sRequest,
 					   KStringView sRoute,
-					   KStringView sOriginalRequest)
+					   bool        bHadLeadingSlash)
 //-----------------------------------------------------------------------------
 {
 	clear();
@@ -99,7 +99,7 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 
 	if (IsDirectory())
 	{
-		if (sOriginalRequest.back() == '/')
+		if (bHadLeadingSlash)
 		{
 			// try index.html
 			m_sFileSystemPath += kDirSep;

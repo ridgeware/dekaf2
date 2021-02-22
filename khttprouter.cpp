@@ -145,7 +145,7 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 	FileServer.Open(HTTP.Route->sDocumentRoot,
 					HTTP.Request.Resource.Path.get(),
 					HTTP.Route->sRoute,
-					HTTP.Request.Resource.Path.get());
+					HTTP.Request.Resource.Path.get().back() == '/');
 
 	if (FileServer.RedirectAsDirectory())
 	{

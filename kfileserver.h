@@ -77,11 +77,11 @@ public:
 	/// @param sRequest The normalized resource request with the full external path,
 	/// but stripped by the base route prefix and an eventual trailing slash.
 	/// @param sRoute The base path valid for this request. Will be substracted from sRequest.
-	/// @param sOriginalRequest The resource request before normalization, as it came in via e.g. http.
+	/// @param bHadLeadingSlash did the original request have a leading slash, so that we can search for the index file?
 	bool Open(KStringView sDocumentRoot,
 			  KStringView sRequest,
 			  KStringView sRoute,
-			  KStringView sOriginalRequest);
+			  bool        bHadLeadingSlash);
 
 	/// Checks if the requested file exists
 	bool Exists() const { return m_iFileSize != npos; }

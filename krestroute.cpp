@@ -337,7 +337,7 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 	FileServer.Open(HTTP.Route->sDocumentRoot,
 					HTTP.RequestPath.sRoute,
 					HTTP.Route->sRoute,
-					HTTP.Request.Resource.Path.get());
+					HTTP.Request.Resource.Path.get().back() == '/');
 
 	if (FileServer.RedirectAsDirectory())
 	{

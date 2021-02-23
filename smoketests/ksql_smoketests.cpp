@@ -1342,7 +1342,7 @@ TEST_CASE("KSQL")
 				}
 			}
 
-			KDurations Durations;
+			KStopDurations Durations;
 
 			uint64_t iCounter { 0 };
 			for (const auto& sRandom : Strings)

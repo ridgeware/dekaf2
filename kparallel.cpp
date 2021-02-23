@@ -141,13 +141,13 @@ void KBlockOnID::Data::Lock(size_t ID)
 	lockmap_t::iterator it;
 
 	{
-		std::lock_guard<std::mutex> lock(m_map_mutex);
+		auto id_mutexes = m_id_mutexes.unique();
 
-		it = m_id_mutexes.find(ID);
+		it = id_mutexes->find(ID);
 		
-		if (it == m_id_mutexes.end())
+		if (it == id_mutexes->end())
 		{
-			it = m_id_mutexes.emplace(ID, std::make_unique<std::mutex>()).first;
+			it = id_mutexes->emplace(ID, std::make_unique<std::mutex>()).first;
 		}
 	}
 
@@ -159,14 +159,13 @@ void KBlockOnID::Data::Lock(size_t ID)
 bool KBlockOnID::Data::Unlock(size_t ID)
 //-----------------------------------------------------------------------------
 {
-	lockmap_t::iterator it;
+	lockmap_t::const_iterator it;
 	bool bFoundLock;
 
 	{
-		std::lock_guard<std::mutex> lock(m_map_mutex);
-
-		it = m_id_mutexes.find(ID);
-		bFoundLock = it != m_id_mutexes.end();
+		auto id_mutexes = m_id_mutexes.shared();
+		it = id_mutexes->find(ID);
+		bFoundLock = it != id_mutexes->end();
 	}
 
 	if (bFoundLock)

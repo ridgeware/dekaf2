@@ -55,6 +55,7 @@
 #include <map>
 #include <csignal>
 #include "kparallel.h"
+#include "kthreadsafe.h"
 
 namespace dekaf2
 {
@@ -179,8 +180,7 @@ private:
 	static const std::array<int, 11> m_SettableSigs;
 #endif
 
-	static std::mutex s_SigSetMutex;
-	static std::map<int, sigmap_t> s_SigFuncs;
+	static KThreadSafe<std::map<int, sigmap_t> > s_SigFuncs;
 	static KRunThreads m_Threads;
 
 };

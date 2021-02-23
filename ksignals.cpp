@@ -108,8 +108,7 @@ void KSignals::BlockAllSignals(bool bExceptSEGVandFPE)
 {
 	kBlockAllSignals(bExceptSEGVandFPE);
 
-	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-	s_SigFuncs.clear();
+	s_SigFuncs.unique()->clear();
 
 } // BlockAllSignals
 
@@ -162,9 +161,9 @@ void KSignals::LookupFunc(int iSignal)
 	sigmap_t callable;
 
 	{
-		std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-		auto it = s_SigFuncs.find(iSignal);
-		if (it == s_SigFuncs.end())
+		auto SigFuncs = s_SigFuncs.shared();
+		auto it = SigFuncs->find(iSignal);
+		if (it == SigFuncs->end())
 		{
 			// signal function not found.
 			kDebug(2, "no handler for {}", kTranslateSignal(iSignal));
@@ -195,8 +194,7 @@ void KSignals::IntDelSignalHandler(int iSignal, signal_func_t func)
 {
 	kDebug(2, "removing handler for {}", kTranslateSignal(iSignal));
 
-	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-	s_SigFuncs.erase(iSignal);
+	s_SigFuncs.unique()->erase(iSignal);
 
 } // IntDelSignalHandler
 
@@ -206,8 +204,7 @@ void KSignals::SetSignalHandler(int iSignal, std_func_t func, bool bAsThread)
 {
 	kDebug(2, "registering handler for {}", kTranslateSignal(iSignal));
 
-	std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-	s_SigFuncs[iSignal] = { std::move(func), bAsThread };
+	s_SigFuncs.unique().get()[iSignal] = { std::move(func), bAsThread };
 
 } // SetSignalHandler
 
@@ -223,8 +220,7 @@ void KSignals::SetCSignalHandler(int iSignal, signal_func_t func, bool bAsThread
 	}
 	else
 	{
-		std::lock_guard<std::mutex> Lock(s_SigSetMutex);
-		s_SigFuncs[iSignal] = { func, bAsThread };
+		s_SigFuncs.unique().get()[iSignal] = { func, bAsThread };
 	}
 
 } // SetCSignalHandler
@@ -275,8 +271,7 @@ KSignals::KSignals(bool bStartHandlerThread)
 
 } // ctor
 
-std::mutex KSignals::s_SigSetMutex;
-std::map<int, KSignals::sigmap_t> KSignals::s_SigFuncs;
+KThreadSafe<std::map<int, KSignals::sigmap_t> > KSignals::s_SigFuncs;
 KRunThreads KSignals::m_Threads;
 
 const std::array<int,

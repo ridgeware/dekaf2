@@ -52,6 +52,7 @@
 #include <atomic>
 #include <functional>
 #include "bits/kcppcompat.h"
+#include "kthreadsafe.h"
 
 namespace dekaf2
 {
@@ -403,8 +404,7 @@ public:
 	//----------
 
 		using lockmap_t = std::map<size_t, std::unique_ptr<std::mutex>>;
-		lockmap_t m_id_mutexes;
-		std::mutex m_map_mutex;
+		KThreadSafe<lockmap_t> m_id_mutexes;
 
 	}; // Data
 

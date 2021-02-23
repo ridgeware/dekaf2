@@ -452,17 +452,21 @@ KTimer::~KTimer()
 } // dtor
 
 //---------------------------------------------------------------------------
-KTimer::ID_t KTimer::AddTimer(Timer&& timer)
+KTimer::ID_t KTimer::AddTimer(Timer timer)
 //---------------------------------------------------------------------------
 {
-	if (timer.ID == INVALID)
+	auto ID = timer.ID;
+
+	if (ID == INVALID)
 	{
-		timer.ID = GetNextID();
+		ID = GetNextID();
 	}
 
-	std::lock_guard<std::mutex> Lock(m_TimerMutex);
+	// need a separate lock object because we return the effective timer ID
+	// through the new iterator, which could be removed by another thread otherwise
+	auto Timers = m_Timers.unique();
 
-	auto ret = m_Timers.emplace(timer.ID, std::move(timer));
+	auto ret = Timers->emplace(ID, std::move(timer));
 
 	if (ret.second)
 	{
@@ -569,11 +573,11 @@ void KTimer::SleepUntil(time_t tp)
 bool KTimer::Cancel(ID_t ID)
 //---------------------------------------------------------------------------
 {
-	std::lock_guard<std::mutex> Lock(m_TimerMutex);
+	auto Timers = m_Timers.unique();
 
-	auto it = m_Timers.find(ID);
+	auto it = Timers->find(ID);
 
-	if (it == m_Timers.end())
+	if (it == Timers->end())
 	{
 		// ID not known for this KTimer
 		return false;
@@ -604,17 +608,17 @@ void KTimer::TimingLoop()
 
 		auto now = Clock::now();
 
-		std::lock_guard<std::mutex> Lock(m_TimerMutex);
+		auto Timers = m_Timers.unique();
 
 		// check all timers for their expiration date
-		for (auto& it : m_Timers)
+		for (auto& it : Timers.get())
 		{
 			auto& Timer = it.second;
 
 			if ((Timer.Flags & REMOVED) == REMOVED)
 			{
 				// remove this timer
-				m_Timers.erase(Timer.ID);
+				Timers->erase(Timer.ID);
 			}
 			else if (Timer.ExpiresAt < now)
 			{
@@ -633,7 +637,7 @@ void KTimer::TimingLoop()
 				if ((Timer.Flags & ONCE) == ONCE)
 				{
 					// remove this timer
-					m_Timers.erase(Timer.ID);
+					Timers->erase(Timer.ID);
 				}
 				else
 				{

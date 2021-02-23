@@ -50,6 +50,7 @@
 #include <mutex>
 #include <vector>
 #include "bits/kcppcompat.h"
+#include "kthreadsafe.h"
 
 /// @file ktimer.h
 /// general timing facilities
@@ -861,7 +862,7 @@ private:
 	struct Timer;
 
 	//---------------------------------------------------------------------------
-	ID_t AddTimer(Timer&& timer);
+	ID_t AddTimer(Timer timer);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -897,8 +898,7 @@ private:
 	bool m_bDestructWithJoin { false };
 
 	using map_t = std::unordered_map<ID_t, Timer>;
-	map_t m_Timers;
-	std::mutex m_TimerMutex;
+	KThreadSafe<map_t> m_Timers;
 
 }; // KTimer
 

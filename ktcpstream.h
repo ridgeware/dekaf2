@@ -63,11 +63,11 @@ class KTCPIOStream : public std::iostream
 {
 	using base_type = std::iostream;
 
-	enum { DEFAULT_TIMEOUT = 15 };
-
 //----------
 public:
 //----------
+
+	enum { DEFAULT_TIMEOUT = 15 };
 
 	//-----------------------------------------------------------------------------
 	/// Construcs an unconnected stream
@@ -207,11 +207,11 @@ private:
 using KTCPStream = KReaderWriter<KTCPIOStream>;
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KTCPStream> CreateKTCPStream();
+std::unique_ptr<KTCPStream> CreateKTCPStream(int iSecondsTimeout = KTCPStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint);
+std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, int iSecondsTimeout = KTCPStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 
 } // namespace dekaf2

@@ -161,7 +161,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// this interface uses KURL instead of KTCPEndPoint to allow construction like "https://www.abc.de" - otherwise the protocol would be lost..
-	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceSSL = false, bool bVerifyCerts = false);
+	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceSSL = false, bool bVerifyCerts = false, int iSecondsTimeout = 15);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -228,7 +228,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(const KTCPEndPoint& Endpoint);
+	bool Connect(const KTCPEndPoint& Endpoint, int iSecondsTimeout = 15);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -261,7 +261,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(KStringViewZ sSocketFile);
+	bool Connect(KStringViewZ sSocketFile, int iSecondsTimeout = 15);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -294,7 +294,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts = false);
+	bool Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts = false, bool bManualHandshake = false, int iSecondsTimeout = 15);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

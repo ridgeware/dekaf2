@@ -469,11 +469,11 @@ std::unique_ptr<KSSLStream> CreateKSSLServer(KSSLContext& Context);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KSSLClient> CreateKSSLClient(bool bVerifyCerts = false);
+std::unique_ptr<KSSLClient> CreateKSSLClient(bool bVerifyCerts = false, int iSecondsTimeout = KSSLIOStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KSSLClient> CreateKSSLClient(const KTCPEndPoint& EndPoint, bool bVerifyCerts = false, bool bManualHandshake = false);
+std::unique_ptr<KSSLClient> CreateKSSLClient(const KTCPEndPoint& EndPoint, bool bVerifyCerts = false, bool bManualHandshake = false, int iSecondsTimeout = KSSLIOStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 
 } // end of namespace dekaf2

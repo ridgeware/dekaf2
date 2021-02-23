@@ -408,6 +408,8 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 {
 	m_Stream.bNeedHandshake = true;
 
+	kDebug(2, "resolving domain {}", Endpoint.Domain.get());
+
 	boost::asio::ip::tcp::resolver Resolver(m_Stream.IOService);
 	boost::asio::ip::tcp::resolver::query query(Endpoint.Domain.get().c_str(), Endpoint.Port.get().c_str());
 	auto hosts = Resolver.resolve(query, m_Stream.ec);
@@ -444,6 +446,8 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 			m_Stream.ec = ec;
 		});
 
+		kDebug(2, "trying to connect to endpoint {}", Endpoint.Serialize());
+
 		m_Stream.RunTimed();
 	}
 
@@ -455,6 +459,8 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 
 	// make sure client side SNI works..
 	SSL_set_tlsext_host_name(m_Stream.Socket.native_handle(), Endpoint.Domain.get().c_str());
+
+	kDebug(2, "connected to endpoint {}", Endpoint.Serialize());
 
 	return true;
 
@@ -469,17 +475,17 @@ std::unique_ptr<KSSLStream> CreateKSSLServer(KSSLContext& Context)
 }
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KSSLClient> CreateKSSLClient(bool bVerifyCerts)
+std::unique_ptr<KSSLClient> CreateKSSLClient(bool bVerifyCerts, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KSSLClient>(bVerifyCerts ? s_KSSLContextWithVerification : s_KSSLContextNoVerification);
+	return std::make_unique<KSSLClient>(bVerifyCerts ? s_KSSLContextWithVerification : s_KSSLContextNoVerification, iSecondsTimeout);
 }
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KSSLClient> CreateKSSLClient(const KTCPEndPoint& EndPoint, bool bVerifyCerts, bool bManualHandshake)
+std::unique_ptr<KSSLClient> CreateKSSLClient(const KTCPEndPoint& EndPoint, bool bVerifyCerts, bool bManualHandshake, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
-	auto Client = CreateKSSLClient(bVerifyCerts);
+	auto Client = CreateKSSLClient(bVerifyCerts, iSecondsTimeout);
 
 	if (bManualHandshake)
 	{

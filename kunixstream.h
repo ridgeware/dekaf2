@@ -66,11 +66,11 @@ class KUnixIOStream : public std::iostream
 {
 	using base_type = std::iostream;
 
-	enum { DEFAULT_TIMEOUT = 1 * 15 };
-
 //----------
 public:
 //----------
+
+	enum { DEFAULT_TIMEOUT = 1 * 15 };
 
 	//-----------------------------------------------------------------------------
 	/// Construcs an unconnected stream
@@ -207,11 +207,11 @@ private:
 using KUnixStream = KReaderWriter<KUnixIOStream>;
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KUnixStream> CreateKUnixStream();
+std::unique_ptr<KUnixStream> CreateKUnixStream(int iSecondsTimeout = KUnixIOStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile);
+std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile, int iSecondsTimeout = KUnixIOStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 
 } // namespace dekaf2

@@ -183,10 +183,10 @@ bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, KTCPEndPoint 
 } // setConnection
 
 //-----------------------------------------------------------------------------
-bool KTCPConnection::Connect(const KTCPEndPoint& Endpoint)
+bool KTCPConnection::Connect(const KTCPEndPoint& Endpoint, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
-	return setConnection(CreateKTCPStream(Endpoint), Endpoint);
+	return setConnection(CreateKTCPStream(Endpoint, iSecondsTimeout), Endpoint);
 
 } // Connect
 
@@ -227,10 +227,10 @@ KString KTCPConnection::Error() const
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 
 //-----------------------------------------------------------------------------
-bool KUnixConnection::Connect(KStringViewZ sSocketFile)
+bool KUnixConnection::Connect(KStringViewZ sSocketFile, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
-	return setConnection(CreateKUnixStream(sSocketFile), sSocketFile);
+	return setConnection(CreateKUnixStream(sSocketFile, iSecondsTimeout), sSocketFile);
 
 } // Connect
 
@@ -272,10 +272,10 @@ KString KUnixConnection::Error() const
 
 
 //-----------------------------------------------------------------------------
-bool KSSLConnection::Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts)
+bool KSSLConnection::Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bManualHandshake, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
-	return setConnection(CreateKSSLClient(Endpoint, bVerifyCerts), Endpoint.Serialize());
+	return setConnection(CreateKSSLClient(Endpoint, bVerifyCerts, bManualHandshake, iSecondsTimeout), Endpoint.Serialize());
 
 } // Connect
 
@@ -341,14 +341,14 @@ KString KSSLConnection::Error() const
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL, bool bVerifyCerts)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL, bool bVerifyCerts, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	if (URL.Protocol == url::KProtocol::UNIX)
 	{
 		auto C = std::make_unique<KUnixConnection>();
-		C->Connect(URL.Path.get());
+		C->Connect(URL.Path.get(), iSecondsTimeout);
 		return C;
 	}
 #endif
@@ -363,13 +363,13 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 	if ((url::KProtocol::UNDEFINED && Port == "443") || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
 		auto C = std::make_unique<KSSLConnection>();
-		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts);
+		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts, false, iSecondsTimeout);
 		return C;
 	}
 	else // NOLINT: we want the else after return..
 	{
 		auto C = std::make_unique<KTCPConnection>();
-		C->Connect(KTCPEndPoint(URL.Domain, Port));
+		C->Connect(KTCPEndPoint(URL.Domain, Port), iSecondsTimeout);
 		return C;
 	}
 

@@ -178,6 +178,8 @@ bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 		m_Stream.ec = ec;
 	});
 
+	kDebug(2, "trying to connect to unix domain socket {}", sSocketFile);
+
 	m_Stream.RunTimed();
 
 	if (!Good() || !m_Stream.Socket.is_open())
@@ -186,6 +188,8 @@ bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 		return false;
 	}
 
+	kDebug(2, "connect to unix domain socket {}", sSocketFile);
+
 	return true;
 
 } // connect
@@ -193,17 +197,17 @@ bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KUnixStream> CreateKUnixStream()
+std::unique_ptr<KUnixStream> CreateKUnixStream(int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KUnixStream>();
+	return std::make_unique<KUnixStream>(iSecondsTimeout);
 }
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile)
+std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KUnixStream>(sSocketFile);
+	return std::make_unique<KUnixStream>(sSocketFile, iSecondsTimeout);
 }
 
 } // of namespace dekaf2

@@ -166,6 +166,8 @@ bool KTCPIOStream::Timeout(int iSeconds)
 bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 //-----------------------------------------------------------------------------
 {
+	kDebug(2, "resolving domain {}", Endpoint.Domain.get());
+
 	boost::asio::ip::tcp::resolver Resolver(m_Stream.IOService);
 	boost::asio::ip::tcp::resolver::query query(Endpoint.Domain.get().c_str(), Endpoint.Port.get().c_str());
 	auto hosts = Resolver.resolve(query, m_Stream.ec);
@@ -192,6 +194,8 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 			m_Stream.ec = ec;
 		});
 
+		kDebug(2, "trying to connect to endpoint {}", Endpoint.Serialize());
+
 		m_Stream.RunTimed();
 	}
 
@@ -201,6 +205,8 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 		return false;
 	}
 
+	kDebug(2, "connected to endpoint {}", Endpoint.Serialize());
+
 	return true;
 
 } // connect
@@ -208,17 +214,17 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KTCPStream> CreateKTCPStream()
+std::unique_ptr<KTCPStream> CreateKTCPStream(int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KTCPStream>();
+	return std::make_unique<KTCPStream>(iSecondsTimeout);
 }
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint)
+std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KTCPStream>(EndPoint);
+	return std::make_unique<KTCPStream>(EndPoint, iSecondsTimeout);
 }
 
 } // of namespace dekaf2

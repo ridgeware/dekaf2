@@ -96,6 +96,12 @@ public:
 			return get();
 		}
 
+		/// get reference on object
+		operator T&()
+		{
+			return get();
+		}
+
 	//----------
 	private:
 	//----------
@@ -135,6 +141,12 @@ public:
 
 		/// get const reference on object
 		const T& operator*() const
+		{
+			return get();
+		}
+
+		/// get const reference on object
+		operator const T&() const
 		{
 			return get();
 		}

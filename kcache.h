@@ -271,7 +271,7 @@ public:
 	value_type Set(K&& key, V&& value)
 	//-----------------------------------------------------------------------------
 	{
-		std::unique_lock<std::shared_mutex> Lock(m_Mutex, std::defer_lock);
+		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
 
 		return base_type::Set(std::forward<K>(key), value_type(std::forward<V>(value)));
 	}

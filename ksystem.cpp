@@ -337,75 +337,66 @@ KStringViewZ kGetHostname (bool bAllowKHostname/*=true*/)
 //-----------------------------------------------------------------------------
 {
 	enum { MAXNAMELEN = 50 };
-	static bool    s_bHostnameIsSet { false };
-	static KString s_sHostname;
-	static KString s_sKHostname;
-	static std::recursive_mutex s_HostnameMutex;
 
-	// as the hostname strings are now stored in
-	// dynamically allocated strings, we now _have_
-	// to protect this function with a lock against
-	// races
-
-	std::lock_guard<std::recursive_mutex> Lock(s_HostnameMutex);
-
-	if (s_bHostnameIsSet)
+	struct Names
 	{
-		// hostname already queried
-		if (bAllowKHostname)
+		Names()
 		{
-			return s_sKHostname ? s_sKHostname : s_sHostname;
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			// set (and cache) /etc/khostname:
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			if (kFileExists("/etc/khostname"))
+			{
+				sKHostname = kReadAll("/etc/khostname");
+			}
+
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			// set (and cache) OS hostname:
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+			#ifdef DEKAF2_IS_WINDOWS
+
+			char szHostname[MAXNAMELEN+1]; szHostname[0] = 0;
+			DWORD nSize = MAXNAMELEN;
+			GetComputerName (
+				szHostname,       // name buffer
+				&nSize              // address of size of name buffer
+			);
+
+			sHostname = szHostname;
+
+			#else
+
+			if (kFileExists ("/proc/sys/kernel/hostname"))
+			{
+				sHostname = kReadAll ("/proc/sys/kernel/hostname");
+			}
+
+			if (! sHostname)
+			{
+				char szHostname[MAXNAMELEN+1]; szHostname[0] = 0;
+				gethostname (szHostname, MAXNAMELEN);
+				sHostname = szHostname;
+			}
+
+			#endif
+
+			sHostname.Trim();
+			sKHostname.Trim();
+
+			if (sKHostname.empty())
+			{
+				sKHostname = sHostname;
+			}
 		}
-		else
-		{
-			return s_sHostname;
-		}
-	}
 
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// set (and cache) /etc/khostname:
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	if (kFileExists("/etc/khostname"))
-	{
-		s_sKHostname = kReadAll("/etc/khostname");
-	}
+		KString sHostname;
+		KString sKHostname;
+	};
 
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// set (and cache) OS hostname:
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	static Names s_Names;
 
-	#ifdef DEKAF2_IS_WINDOWS
-
-	char szHostname[MAXNAMELEN+1]; szHostname[0] = 0;
-	DWORD nSize = MAXNAMELEN;
-	GetComputerName (
-		szHostname,       // name buffer
-		&nSize              // address of size of name buffer
-	);
-
-	s_sHostname = szHostname;
-
-	#else
-
-	if (kFileExists ("/proc/sys/kernel/hostname"))
-	{
-		s_sHostname = kReadAll ("/proc/sys/kernel/hostname");
-	}
-
-	if (! s_sHostname)
-	{
-		char szHostname[MAXNAMELEN+1]; szHostname[0] = 0;
-		gethostname (szHostname, MAXNAMELEN);
-		s_sHostname = szHostname;
-	}
-
-	#endif
-
-	s_sHostname.Trim();
-	s_sKHostname.Trim();
-	s_bHostnameIsSet = true;
-
-	return kGetHostname (bAllowKHostname); // <-- recurse once
+	return (bAllowKHostname) ? s_Names.sKHostname : s_Names.sHostname;
 
 } // kGetHostname
 

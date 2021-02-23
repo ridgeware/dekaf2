@@ -188,7 +188,7 @@ bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 		return false;
 	}
 
-	kDebug(2, "connect to unix domain socket {}", sSocketFile);
+	kDebug(2, "connected to unix domain socket {}", sSocketFile);
 
 	return true;
 

@@ -51,7 +51,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Template for generic threadsafe sharing for non-atomic types
-template<class T>
+template<class T, class MutexType = std::shared_mutex>
 class KThreadSafe
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -106,7 +106,7 @@ public:
 	private:
 	//----------
 
-		std::unique_lock<std::shared_mutex> m_Lock;
+		std::unique_lock<MutexType> m_Lock;
 		T& m_Shared;
 
 	}; // UniqueLocked
@@ -155,7 +155,7 @@ public:
 	private:
 	//----------
 
-		std::shared_lock<std::shared_mutex> m_Lock;
+		std::shared_lock<MutexType> m_Lock;
 		const T& m_Shared;
 
 	}; // SharedLocked
@@ -236,7 +236,7 @@ private:
 //----------
 
 	T m_Shared;
-	mutable std::shared_mutex m_Mutex;
+	mutable MutexType m_Mutex;
 
 }; // KThreadSafe
 

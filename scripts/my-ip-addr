@@ -1,0 +1,26 @@
+#!/bin/bash
+
+export PROG=$(basename $0)
+
+# RE5 and RE6:
+# eth0      Link encap:Ethernet  HWaddr 00:0C:29:84:55:52  
+#           inet addr:10.10.78.150  Bcast:10.10.78.255  Mask:255.255.255.0
+
+# RE7:
+# ens32: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+#         inet 10.10.78.28  netmask 255.255.255.0  broadcast 10.10.78.255
+#         inet6 fe80::20c:29ff:fe80:6f2f  prefixlen 64  scopeid 0x20<link>
+
+case $# in
+	0)
+		/sbin/ifconfig | sed -e 's/.*inet addr:/inet /' | awk '($1 == "inet") {print $2; exit 0}' # <-- pick first interface
+		;;
+	1)
+		nic=$1
+		/sbin/ifconfig $nic | sed -e 's/.*inet addr:/inet /' | awk '($1 == "inet") {print $2; exit 0}'
+		;;
+	*)
+		printf "usage: %s [ nic ]\n" $PROG
+		exit 1
+	;;
+esac

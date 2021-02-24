@@ -329,7 +329,7 @@ public:
 	using const_iterator = typename Storage::const_iterator;
 
 	//-----------------------------------------------------------------------------
-	/// reset all intervals, restart clock
+	/// reset all intervals
 	void clear();
 	//-----------------------------------------------------------------------------
 

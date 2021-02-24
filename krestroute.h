@@ -46,6 +46,7 @@
 #include "kstring.h"
 #include "kstringview.h"
 #include "kurl.h"
+#include "kjson.h"
 #include <vector>
 #include <memory>
 
@@ -333,6 +334,11 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Default webserver implementation for static pages
 	void WebServer(KRESTServer& HTTP);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Return detailed statistics on each route
+	KJSON GetRouterStats() const;
 	//-----------------------------------------------------------------------------
 
 //------

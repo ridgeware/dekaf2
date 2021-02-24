@@ -43,6 +43,7 @@
 #include "krestserver.h"
 #include "khttperror.h"
 #include "kfileserver.h"
+#include "kjson.h"
 
 namespace dekaf2 {
 
@@ -374,6 +375,51 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 	}
 
 } // WebServer
+
+//-----------------------------------------------------------------------------
+KJSON KRESTRoutes::GetRouterStats() const
+//-----------------------------------------------------------------------------
+{
+	KJSON Stats = KJSON::array();
+
+	for (const auto& Route : m_Routes)
+	{
+		auto Statistics = Route.Statistics.shared().get();
+
+		auto iRounds = Statistics.Durations.Rounds();
+
+		if (iRounds)
+		{
+			// due to the nature of Duration counts, we have to substract 1
+			--iRounds;
+		}
+
+		if (iRounds)
+		{
+			KJSON jUSecs {
+				{ "total" , Statistics.Durations.microseconds() / iRounds  }
+			};
+
+			for (const auto& it : KRESTServer::Timers)
+			{
+				jUSecs.push_back({ it.sLabel, Statistics.Durations.microseconds(it.Value) / iRounds });
+			}
+
+			KJSON jRoute {
+				{ "route"   , Route.sRoute        },
+				{ "count"   , iRounds             },
+				{ "rxbytes" , Statistics.iRxBytes },
+				{ "txbytes" , Statistics.iTxBytes },
+				{ "usecs"   , std::move(jUSecs)   }
+			};
+
+			Stats.push_back(jRoute);
+		}
+	}
+
+	return Stats;
+
+} // GetRouterStats
 
 static_assert(std::is_nothrow_move_constructible<KRESTPath>::value,
 			  "KRESTPath is intended to be nothrow move constructible, but is not!");

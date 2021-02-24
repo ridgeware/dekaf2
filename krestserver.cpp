@@ -345,6 +345,9 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
+	// provide a pointer to the current set of routes
+	this->Routes = &Routes;
+
 	try
 	{
 		uint16_t iRound { 0 };
@@ -459,6 +462,8 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
 			}
 
+			m_iRequestBodyLength = 0;
+
 			if (Request.Method != KHTTPMethod::GET && Request.HasContent())
 			{
 				kAppendCrashContext("content parsing", ": ");
@@ -536,9 +541,10 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						// read body and store for later access
 						kDebug (2, "reading {} request body", "plain");
 						m_sRequestBody = KHTTPServer::Read();
+						m_iRequestBodyLength = m_sRequestBody.size();
 						kDebug (2, "read {} request body with length {} and type {}",
 								"plain",
-								m_sRequestBody.size(),
+								m_iRequestBodyLength,
 								Request.Headers[KHTTPHeader::CONTENT_TYPE]);
 						break;
 
@@ -548,9 +554,10 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 						// received query parms in the URL
 						kDebug (2, "reading {} request body", "www form");
 						m_sRequestBody = KHTTPServer::Read();
+						m_iRequestBodyLength = m_sRequestBody.size();
 						kDebug (2, "read {} request body with length {} and type {}",
 								"www form",
-								m_sRequestBody.size(),
+								m_iRequestBodyLength,
 								Request.Headers[KHTTPHeader::CONTENT_TYPE]);
 						m_sRequestBody.Trim();
 						// operator+=() causes additive parsing for a query component
@@ -616,7 +623,10 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			if (m_Timers)
 			{
 				// add stats for this request
-				Route->Durations.unique().get() += *m_Timers;
+				auto Stats = Route->Statistics.unique();
+				Stats->Durations += *m_Timers;
+				Stats->iTxBytes  += m_iContentLength;
+				Stats->iRxBytes  += m_iRequestBodyLength;
 			}
 
 			if (!bKeepAlive)

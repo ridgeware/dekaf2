@@ -77,6 +77,22 @@ public:
 		SEND      = 5
 	};
 
+	struct TimerLabel
+	{
+		Timer       Value;
+		KStringView sLabel;
+	};
+
+	static constexpr std::array<TimerLabel, SEND + 1> Timers
+	{{
+		{ RECEIVE   , "rx"        },
+		{ ROUTE     , "route"     },
+		{ PARSE     , "parse"     },
+		{ PROCESS   , "process"   },
+		{ SERIALIZE , "serialize" },
+		{ SEND      , "tx"        }
+	}};
+
 	// supported output types:
 	// HTTP is standard,
 	// LAMBDA is AWS specific,
@@ -227,8 +243,9 @@ public:
 
 	json_t json;
 	xml_t  xml;
-	const KRESTRoute* Route       { &s_EmptyRoute        };
-	KRESTPath         RequestPath { KHTTPMethod::GET, "" };
+	const KRESTRoute*  Route       { &s_EmptyRoute        };
+	const KRESTRoutes* Routes      { nullptr              };
+ 	KRESTPath          RequestPath { KHTTPMethod::GET, "" };
 
 	//-----------------------------------------------------------------------------
 	/// get the JSON payload struct of the JWT auth token
@@ -295,6 +312,7 @@ private:
 	KString m_sRawOutput;
 	std::unique_ptr<KInStream> m_Stream; // stream that shall be sent
 	std::size_t m_iContentLength;        // content length for stream output
+	std::size_t m_iRequestBodyLength;    // size of received request body
 	KJWT m_AuthToken;
 	std::unique_ptr<KJSON> m_JsonLogger;
 	std::unique_ptr<KStopDurations> m_Timers;

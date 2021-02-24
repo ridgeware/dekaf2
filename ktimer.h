@@ -887,7 +887,7 @@ private:
 	{
 		ID_t ID { INVALID };
 		Timepoint ExpiresAt;
-		Interval IVal;
+		Interval IVal { Interval::zero() };
 		Callback CB { nullptr };
 		CallbackTimeT CBT { nullptr };
 		uint8_t Flags { NONE };

@@ -406,11 +406,20 @@ KJSON KRESTRoutes::GetRouterStats() const
 			}
 
 			KJSON jRoute {
-				{ "route"   , Route.sRoute        },
-				{ "count"   , iRounds             },
-				{ "rxbytes" , Statistics.iRxBytes },
-				{ "txbytes" , Statistics.iTxBytes },
-				{ "usecs"   , std::move(jUSecs)   }
+				{ "method"   , Route.Method.Serialize() },
+				{ "route"    , Route.sRoute             },
+				{ "requests" , iRounds                  },
+				{ "bytes"    , {
+					{ "total", {
+						{ "rx"   , Statistics.iRxBytes  },
+						{ "tx"   , Statistics.iTxBytes  }
+					}},
+					{ "avg"  , {
+						{ "rx"   , Statistics.iRxBytes / iRounds },
+						{ "tx"   , Statistics.iTxBytes / iRounds }
+					}}
+				}},
+				{ "usecs"    , std::move(jUSecs)        }
 			};
 
 			Stats.push_back(jRoute);

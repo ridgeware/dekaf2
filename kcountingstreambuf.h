@@ -44,8 +44,10 @@
 /// @file kcountingstreambuf.h
 /// a streambuf that counts the bytes flowing through it
 
-#include <ostream>
 #include "kwriter.h"
+#include "kreader.h"
+#include <ostream>
+#include <istream>
 
 namespace dekaf2 {
 
@@ -59,24 +61,54 @@ class KCountingOutputStreamBuf : std::streambuf
 public:
 //-------
 
+	//-----------------------------------------------------------------------------
 	KCountingOutputStreamBuf(dekaf2::KOutStream& outstream)
+	//-----------------------------------------------------------------------------
 	: m_ostream(outstream.OutStream())
 	, m_SBuf(m_ostream.rdbuf(this))
 	{
 	}
 
-	KCountingOutputStreamBuf(std::ostream& ostream)
+	//-----------------------------------------------------------------------------
+	explicit KCountingOutputStreamBuf(std::iostream& iostream)
+	//-----------------------------------------------------------------------------
+	: m_ostream(iostream)
+	, m_SBuf(m_ostream.rdbuf(this))
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	explicit KCountingOutputStreamBuf(std::ostream& ostream)
+	//-----------------------------------------------------------------------------
 	: m_ostream(ostream)
 	, m_SBuf(m_ostream.rdbuf(this))
 	{
 	}
 
+	//-----------------------------------------------------------------------------
 	virtual ~KCountingOutputStreamBuf();
-	
-	virtual int_type overflow(int_type c) override;
-	virtual std::streamsize xsputn(const char_type* s, std::streamsize n) override;
-	virtual int sync() override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// get count of written bytes so far
 	std::streamsize count() const { return m_iCount; }
+	//-----------------------------------------------------------------------------
+
+//-------
+protected:
+//-------
+
+	//-----------------------------------------------------------------------------
+	virtual int_type overflow(int_type c) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual std::streamsize xsputn(const char_type* s, std::streamsize n) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual int sync() override;
+	//-----------------------------------------------------------------------------
 
 //-------
 private:
@@ -87,6 +119,78 @@ private:
 	std::streamsize m_iCount  { 0 };
 
 }; // KCountingOutputStreamBuf
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// helper class to count the characters read through a streambuf
+class KCountingInputStreamBuf : std::streambuf
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//-------
+public:
+//-------
+
+	//-----------------------------------------------------------------------------
+	explicit KCountingInputStreamBuf(dekaf2::KInStream& instream)
+	//-----------------------------------------------------------------------------
+	: m_istream(instream.InStream())
+	, m_SBuf(m_istream.rdbuf(this))
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	explicit KCountingInputStreamBuf(std::iostream& iostream)
+	//-----------------------------------------------------------------------------
+	: m_istream(iostream)
+	, m_SBuf(m_istream.rdbuf(this))
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	explicit KCountingInputStreamBuf(std::istream& istream)
+	//-----------------------------------------------------------------------------
+	: m_istream(istream)
+	, m_SBuf(m_istream.rdbuf(this))
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	virtual ~KCountingInputStreamBuf();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// get count of read bytes so far
+	std::streamsize count() const { return m_iCount; }
+	//-----------------------------------------------------------------------------
+
+//-------
+protected:
+//-------
+
+	//-----------------------------------------------------------------------------
+	virtual int_type underflow() override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual std::streamsize xsgetn(char_type* s, std::streamsize n) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual pos_type seekoff(off_type off,
+							 std::ios_base::seekdir dir,
+							 std::ios_base::openmode which = std::ios_base::in | std::ios_base::out ) override;
+	//-----------------------------------------------------------------------------
+
+//-------
+private:
+//-------
+
+	std::istream&   m_istream;
+	std::streambuf* m_SBuf       { nullptr };
+	std::streamsize m_iCount     { 0 };
+	char_type       m_chBuf;
+
+}; // KCountingInputStreamBuf
 
 } // end of namespace dekaf2
 

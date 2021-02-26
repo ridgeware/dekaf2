@@ -74,7 +74,9 @@ std::streamsize KCountingOutputStreamBuf::xsputn(const char_type* s, std::stream
 //-----------------------------------------------------------------------------
 {
 	auto iWrote = m_SBuf->sputn(s, n);
+
 	m_iCount += iWrote;
+
 	return iWrote;
 
 } // xsputn
@@ -86,6 +88,81 @@ int KCountingOutputStreamBuf::sync()
 	return m_SBuf->pubsync();
 
 } // sync
+
+//-----------------------------------------------------------------------------
+KCountingInputStreamBuf::~KCountingInputStreamBuf()
+//-----------------------------------------------------------------------------
+{
+	m_istream.rdbuf(m_SBuf);
+}
+
+//-----------------------------------------------------------------------------
+std::streambuf::int_type KCountingInputStreamBuf::underflow()
+//-----------------------------------------------------------------------------
+{
+	auto ch = m_SBuf->sbumpc();
+
+	if (!traits_type::eq_int_type(traits_type::eof(), ch))
+	{
+		m_chBuf = ch;
+		setg(&m_chBuf, &m_chBuf, &m_chBuf+1);
+		++m_iCount;
+	}
+
+	return ch;
+
+} // underflow
+
+//-----------------------------------------------------------------------------
+std::streamsize KCountingInputStreamBuf::xsgetn(char_type* s, std::streamsize n)
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iExtracted = 0;
+
+	{
+		// read as many chars as possible directly from the stream buffer
+		// (keep in mind that the stream buffer is not necessarily our
+		// own one-char buffer, but could be replaced by other stream buffers)
+		std::streamsize iReadInStreamBuf = std::min(n, in_avail());
+		
+		if (iReadInStreamBuf > 0)
+		{
+			std::memcpy(s, gptr(), static_cast<size_t>(iReadInStreamBuf));
+			s += iReadInStreamBuf;
+			n -= iReadInStreamBuf;
+			iExtracted = iReadInStreamBuf;
+			// adjust stream buffer pointers
+			setg(eback(), gptr()+iReadInStreamBuf, egptr());
+		}
+	}
+
+	if (n > 0)
+	{
+		// read remaining chars directly from the callbacḱ function
+		auto iRead = m_SBuf->sgetn(s, n);
+		// iRead is -1 on error
+		if (iRead > 0)
+		{
+			iExtracted += iRead;
+		}
+	}
+
+	m_iCount += iExtracted;
+
+	return iExtracted;
+
+} // xsgetn
+
+//-----------------------------------------------------------------------------
+std::streambuf::pos_type KCountingInputStreamBuf::seekoff(off_type off,
+														  std::ios_base::seekdir dir,
+														  std::ios_base::openmode which)
+//-----------------------------------------------------------------------------
+{
+	// invalidate read buffer, if any
+	setg(0, 0, 0);
+	return m_SBuf->pubseekoff(off, dir, which);
+}
 
 } // end of namespace dekaf2
 

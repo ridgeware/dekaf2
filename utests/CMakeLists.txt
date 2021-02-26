@@ -24,6 +24,7 @@ set (USOURCES
 	kchildprocess_tests.cpp
 	kcompression_tests.cpp
 	kcookie_tests.cpp
+	kcountingstreambuf_tests.cpp
 	kcrc_tests.cpp
 	kcsv_tests.cpp
 	khash_tests.cpp

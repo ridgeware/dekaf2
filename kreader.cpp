@@ -74,7 +74,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 
 		auto streambuf = Stream.rdbuf();
 
-		if (!streambuf)
+		if (DEKAF2_UNLIKELY(!streambuf))
 		{
 			kDebug(1, "no streambuf");
 			return -1;
@@ -105,8 +105,10 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 		{
 			return endPos;
 		}
-
-		return endPos - curPos;
+		else
+		{
+			return endPos - curPos;
+		}
 	}
 
 	DEKAF2_CATCH (std::exception& e)
@@ -142,14 +144,14 @@ ssize_t kGetSize(KStringViewZ sFileName)
 bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
 //-----------------------------------------------------------------------------
 {
-	if (!Stream.good())
+	if (DEKAF2_UNLIKELY(!Stream.good()))
 	{
 		return false;
 	}
 
 	auto streambuf = Stream.rdbuf();
 
-	if (!streambuf)
+	if (DEKAF2_UNLIKELY(!streambuf))
 	{
 		kDebug(1, "no streambuf");
 		return false;
@@ -158,7 +160,7 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
 	// We will simply try to read blocks until we fail or reach a
 	// max size.
 
-	enum { BUFSIZE = 4096 };
+	constexpr std::size_t BUFSIZE { 4096 };
 	std::array<char, BUFSIZE> buf;
 
 	// This approach can be really dangerous on endless input streams,
@@ -172,11 +174,9 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
 	{
 		auto iRead = streambuf->sgetn(buf.data(), buf.size());
 
-		if (iRead > 0)
+		if (DEKAF2_LIKELY(iRead > 0))
 		{
-			auto uiRead = static_cast<std::size_t>(iRead);
-
-			sContent.append(buf.data(), uiRead);
+			sContent.append(buf.data(), static_cast<std::size_t>(iRead));
 
 			if (sContent.size() > iLimit)
 			{
@@ -185,7 +185,7 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
 			}
 		}
 
-		if (iRead < static_cast<std::streamsize>(buf.size()))
+		if (DEKAF2_UNLIKELY(iRead < static_cast<std::streamsize>(buf.size())))
 		{
 			// either eof or other error
 			break;
@@ -206,7 +206,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	// get size of the file.
 	auto iSize = kGetSize(Stream, bFromStart);
 
-	if (!iSize)
+	if (DEKAF2_UNLIKELY(!iSize))
 	{
 		// empty file
 		return true;
@@ -232,7 +232,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 
 	auto streambuf = Stream.rdbuf();
 
-	if (!streambuf)
+	if (DEKAF2_UNLIKELY(!streambuf))
 	{
 		kDebug(1, "no streambuf");
 		return false;
@@ -310,8 +310,25 @@ bool kAppendAll(KStringViewZ sFileName, KString& sContent)
 		// empty file
 		return true;
 	}
+	else if (iSize < 0)
+	{
+		// We could not determine the input size - this might be a
+		// proc file system entry or some other special file. Simply
+		// let's try to open it and check if we can append by reading
+		// until eof
 
-	if (iSize > 0)
+		KInFile Stream(sFileName);
+
+		if (!Stream.is_open())
+		{
+			kDebug(2, "cannot open file '{}'", sFileName);
+		}
+		else
+		{
+			return kAppendAllUnseekable(Stream, sContent);
+		}
+	}
+	else if (iSize > 0)
 	{
 		// We use an unbuffered file descriptor read on MacOS because
 		// with sub-optimal iostream implementations like the one coming
@@ -649,7 +666,7 @@ size_t KInStream::Read(KString& sBuffer, size_t iCount)
 size_t KInStream::Read(KOutStream& Stream, size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	enum { COPY_BUFSIZE = 4096 };
+	constexpr std::size_t COPY_BUFSIZE { 4096 };
 	std::array<char, COPY_BUFSIZE> Buffer;
 	size_t iRead = 0;
 

@@ -122,15 +122,15 @@ std::streambuf::pos_type KInStringStreamBuf::seekoff(off_type off,
 
 	switch (dir)
 	{
-		case std::ios_base::seekdir::beg:
+		case std::ios_base::beg:
 			pRead = eback() + off;
 			break;
 
-		case std::ios_base::seekdir::end:
+		case std::ios_base::end:
 			pRead = egptr() - off;
 			break;
 
-		case std::ios_base::seekdir::cur:
+		case std::ios_base::cur:
 			pRead = gptr() + off;
 			break;
 

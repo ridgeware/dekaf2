@@ -63,4 +63,85 @@ std::streamsize detail::KStringReader(void* sBuffer, std::streamsize iCount, voi
 
 } // detail::KStringReader
 
+
+//-----------------------------------------------------------------------------
+bool KInStringStreamBuf::open(KStringView sView)
+//-----------------------------------------------------------------------------
+{
+	auto data = const_cast<char*>(sView.data());
+	setg(data, data, data + sView.size());
+	return true;
+
+} // open
+
+//-----------------------------------------------------------------------------
+std::streambuf::int_type KInStringStreamBuf::underflow()
+//-----------------------------------------------------------------------------
+{
+	// there is no further data..
+	return traits_type::eof();
+
+} // underflow
+
+//-----------------------------------------------------------------------------
+std::streamsize KInStringStreamBuf::xsgetn(char_type* s, std::streamsize n)
+//-----------------------------------------------------------------------------
+{
+	// read as many chars as possible directly from the stream buffer
+	// (keep in mind that the stream buffer is not necessarily our
+	// own one-char buffer, but could be replaced by other stream buffers)
+	std::streamsize iReadInStreamBuf = std::min(n, in_avail());
+
+	if (iReadInStreamBuf > 0)
+	{
+		std::memcpy(s, gptr(), static_cast<size_t>(iReadInStreamBuf));
+		s += iReadInStreamBuf;
+		n -= iReadInStreamBuf;
+		// adjust stream buffer pointers
+		setg(eback(), gptr()+iReadInStreamBuf, egptr());
+	}
+
+	return iReadInStreamBuf;
+
+} // xsgetn
+
+//-----------------------------------------------------------------------------
+std::streambuf::pos_type KInStringStreamBuf::seekoff(off_type off,
+													 std::ios_base::seekdir dir,
+													 std::ios_base::openmode which)
+//-----------------------------------------------------------------------------
+{
+	if ((which & std::ios_base::in) == 0)
+	{
+		return pos_type(off_type(-1));
+	}
+
+	char_type* pRead;
+
+	switch (dir)
+	{
+		case std::ios_base::beg:
+			pRead = eback() + off;
+			break;
+
+		case std::ios_base::end:
+			pRead = egptr() - off;
+			break;
+
+		case std::ios_base::cur:
+			pRead = gptr() + off;
+			break;
+	}
+
+	if (pRead < eback() || pRead > egptr())
+	{
+		return pos_type(off_type(-1));
+	}
+
+	setg(eback(), pRead, egptr());
+
+	return pRead - eback();
+
+} // seekoff
+
 } // end namespace dekaf2

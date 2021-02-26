@@ -62,7 +62,131 @@ std::streamsize KStringReader(void* sBuffer, std::streamsize iCount, void* sSour
 } // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// This input stream class reads from a KStringView
+class KInStringStreamBuf : public std::streambuf
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+ //----------
+
+	//-----------------------------------------------------------------------------
+	KInStringStreamBuf(KStringView sView = KStringView{})
+	//-----------------------------------------------------------------------------
+	{
+		open(sView);
+	}
+
+	//-----------------------------------------------------------------------------
+	bool open(KStringView sView);
+	//-----------------------------------------------------------------------------
+
+//----------
+protected:
+//----------
+
+	//-----------------------------------------------------------------------------
+	virtual int_type underflow() override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual std::streamsize xsgetn(char_type* s, std::streamsize n) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual pos_type seekoff(off_type off,
+							 std::ios_base::seekdir dir,
+							 std::ios_base::openmode which = std::ios_base::in | std::ios_base::out ) override;
+	//-----------------------------------------------------------------------------
+
+}; // KInStringStreamBuf
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// This input stream class reads from a KStringView. It is about 10% slower than the non-seekable
+/// KIStringStream ..
+class KSeekableIStringStream : public std::istream
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	using base_type = std::istream;
+
+	//-----------------------------------------------------------------------------
+	KSeekableIStringStream()
+	//-----------------------------------------------------------------------------
+	: base_type(&m_KIStreamBuf)
+	{}
+
+	//-----------------------------------------------------------------------------
+	KSeekableIStringStream(const KSeekableIStringStream&) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KSeekableIStringStream(KSeekableIStringStream&& other) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KSeekableIStringStream(KStringView sView)
+	//-----------------------------------------------------------------------------
+	: base_type(&m_KIStreamBuf)
+	, m_KIStreamBuf(sView)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	KSeekableIStringStream& operator=(KSeekableIStringStream&& other) = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KSeekableIStringStream& operator=(const KSeekableIStringStream&) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// open a string for reading
+	void open(KStringView sView)
+	//-----------------------------------------------------------------------------
+	{
+		m_KIStreamBuf.open(sView);
+	}
+
+	//-----------------------------------------------------------------------------
+	bool is_open() const
+	//-----------------------------------------------------------------------------
+	{
+		return true;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// get a copy of the string
+	KStringView str()
+	//-----------------------------------------------------------------------------
+	{
+		return {};
+	}
+
+	//-----------------------------------------------------------------------------
+	/// set string
+	void str(KStringView newView)
+	//-----------------------------------------------------------------------------
+	{
+		open(newView);
+	}
+
+//----------
+protected:
+//----------
+
+	KInStringStreamBuf m_KIStreamBuf;
+
+}; // KSeekableIStringStream
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// This input stream class reads from a KStringView. It is about 10% faster than the seekable
+/// KSeekableIStringStream
 class KIStringStream : public std::istream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -153,5 +277,8 @@ protected:
 
 /// String stream that reads copy-free from a KStringView / KString
 using KInStringStream  = KReader<KIStringStream>;
+
+/// Seekable string stream that reads copy-free from a KStringView / KString
+using KSeekableInStringStream  = KReader<KSeekableIStringStream>;
 
 } // end of namespace dekaf2

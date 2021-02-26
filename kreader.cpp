@@ -165,7 +165,6 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
 	// therefore we do wrap it into a try-catch block and limit the
 	// rx size to ~1 GB.
 
-	std::size_t iTotal { 0 };
 	static constexpr std::size_t iLimit = 1*1024*1024*1024;
 
 	DEKAF2_TRY_EXCEPTION
@@ -179,16 +178,14 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
 
 			sContent.append(buf.data(), uiRead);
 
-			iTotal += uiRead;
-
-			if (iTotal > iLimit)
+			if (sContent.size() > iLimit)
 			{
 				kWarning("stepped over limit of {} MB for non-seekable input stream - aborted reading", iLimit / (1024*1024) );
 				break;
 			}
 		}
 
-		if (iRead <= 0)
+		if (iRead < static_cast<std::streamsize>(buf.size()))
 		{
 			// either eof or other error
 			break;
@@ -206,14 +203,6 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
 bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 //-----------------------------------------------------------------------------
 {
-	auto streambuf = Stream.rdbuf();
-
-	if (!streambuf)
-	{
-		kDebug(1, "no streambuf");
-		return false;
-	}
-
 	// get size of the file.
 	auto iSize = kGetSize(Stream, bFromStart);
 
@@ -238,6 +227,14 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 	if (bFromStart && !kRewind(Stream))
 	{
 		kDebug(1, "cannot rewind stream");
+		return false;
+	}
+
+	auto streambuf = Stream.rdbuf();
+
+	if (!streambuf)
+	{
+		kDebug(1, "no streambuf");
 		return false;
 	}
 

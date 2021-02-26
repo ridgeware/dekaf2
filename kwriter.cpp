@@ -60,13 +60,20 @@ KOutStream::self_type& KOutStream::Write(KString::value_type ch)
 {
 	auto streambuf = OutStream().rdbuf();
 
-	if (streambuf != nullptr)
+	std::ostream::int_type iCh;
+
+	if (DEKAF2_LIKELY(streambuf != nullptr))
 	{
-		typename std::ostream::int_type iCh = streambuf->sputc(ch);
-		if (std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof()))
-		{
-			OutStream().setstate(std::ios_base::badbit);
-		}
+		iCh = streambuf->sputc(ch);
+	}
+	else
+	{
+		iCh = std::ostream::traits_type::eof();
+	}
+
+	if (DEKAF2_UNLIKELY(std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof())))
+	{
+		OutStream().setstate(std::ios_base::badbit);
 	}
 
 	return *this;
@@ -78,18 +85,18 @@ KOutStream::self_type& KOutStream::Write(KString::value_type ch)
 KOutStream::self_type& KOutStream::Write(const void* pAddress, size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	if (iCount)
-	{
-		auto streambuf = OutStream().rdbuf();
+	auto streambuf = OutStream().rdbuf();
 
-		if (streambuf != nullptr)
-		{
-			auto iWrote = static_cast<size_t>(streambuf->sputn(static_cast<const std::ostream::char_type*>(pAddress), iCount));
-			if (iWrote != iCount)
-			{
-				OutStream().setstate(std::ios_base::badbit);
-			}
-		}
+	std::size_t iWrote { 0 };
+
+	if (DEKAF2_LIKELY(streambuf != nullptr))
+	{
+		iWrote = static_cast<size_t>(streambuf->sputn(static_cast<const std::ostream::char_type*>(pAddress), iCount));
+	}
+
+	if (DEKAF2_UNLIKELY(iWrote != iCount))
+	{
+		OutStream().setstate(std::ios_base::badbit);
 	}
 
 	return *this;
@@ -102,6 +109,7 @@ KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	enum { COPY_BUFSIZE = 4096 };
+
 	std::array<char, COPY_BUFSIZE> Buffer;
 
 	for (;iCount;)
@@ -110,7 +118,10 @@ KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 
 		auto iReadChunk = Stream.Read(Buffer.data(), iChunk);
 
-		Write(Buffer.data(), iReadChunk);
+		if (!Write(Buffer.data(), iReadChunk).Good())
+		{
+			break;
+		}
 		
 		iCount -= iReadChunk;
 

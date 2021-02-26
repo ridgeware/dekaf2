@@ -144,20 +144,22 @@ size_t KInHTTPFilter::Read(KOutStream& OutStream, size_t len)
 {
 	auto& In(FilteredStream());
 
-	KCountingOutputStreamBuf Count(OutStream);
-
 	if (len == KString::npos)
 	{
+		KCountingOutputStreamBuf Count(OutStream);
+
 		// read until eof
 		// ignore len, copy full stream
 		OutStream.OutStream() << In.InStream().rdbuf();
+
+		return Count.count();
 	}
 	else
 	{
 		OutStream.Write(In, len);
-	}
 
-	return Count.count();
+		return len;
+	}
 
 } // Read
 

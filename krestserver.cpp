@@ -342,6 +342,115 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 } // VerifyPerThreadKLogToHeader
 
 //-----------------------------------------------------------------------------
+void KRESTServer::Parse(const Options& Options)
+//-----------------------------------------------------------------------------
+{
+	kAppendCrashContext("content parsing", ": ");
+
+	KCountingInputStreamBuf Counter(KHTTPServer::InStream());
+
+	switch (Route->Parser)
+	{
+		case KRESTRoute::NOREAD:
+			break;
+
+		case KRESTRoute::JSON:
+		{
+			// try to read input as JSON - if it fails just skip
+
+			// nobody wants stack traces in the klog when hackers throw crappy json (and attacks)
+			// at their rest server.  so we need to turn off stack traces while we attempt to
+			// parse incoming json from the wire:
+			bool bResetFlag = KLog::getInstance().ShowStackOnJsonError (false);
+
+			// parse the content into json.rx
+			KString sError;
+
+			kDebug (2, "parsing JSON request");
+			if (!kjson::Parse(json.rx, KHTTPServer::InStream(), sError))
+			{
+				kDebug (2, "request body is not JSON: {}", sError);
+				json.rx.clear();
+				if (Options.bThrowIfInvalidJson)
+				{
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat ("invalid JSON: {}", sError) };
+				}
+			}
+			else
+			{
+				kDebug (2, "request body successfully parsed as JSON");
+
+				if (Options.bRecordRequest)
+				{
+					// dump the json to record it
+					m_sRequestBody = json.rx.dump(-1);
+				}
+			}
+
+			// after we are done parsing the incoming json from the wire,
+			// restore stack traces for failures in the json that application may
+			// form while processing a request:
+			KLog::getInstance().ShowStackOnJsonError (bResetFlag);
+		}
+		break;
+
+		case KRESTRoute::XML:
+			// read input as XML
+			kDebug (2, "parsing XML request");
+			if (!xml.rx.Parse(KHTTPServer::InStream(), true))
+			{
+				kDebug (2, "request body is not XML");
+				xml.rx.clear();
+				if (Options.bThrowIfInvalidJson)
+				{
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid XML" };
+				}
+			}
+			else
+			{
+				kDebug (2, "request body successfully parsed as XML");
+
+				if (Options.bRecordRequest)
+				{
+					// dump the XML to record it
+					m_sRequestBody = xml.rx.Serialize(KXML::PrintFlags::Terse);
+				}
+			}
+			break;
+
+		case KRESTRoute::PLAIN:
+			// read body and store for later access
+			kDebug (2, "reading {} request body", "plain");
+			m_sRequestBody = KHTTPServer::Read();
+			kDebug (2, "read {} request body with length {} and type {}",
+					"plain",
+					m_sRequestBody.size(),
+					Request.Headers[KHTTPHeader::CONTENT_TYPE]);
+			break;
+
+		case KRESTRoute::WWWFORM:
+		{
+			// read input as urlencoded www form data and append it to the
+			// received query parms in the URL
+			kDebug (2, "reading {} request body", "www form");
+			m_sRequestBody = KHTTPServer::Read();
+			kDebug (2, "read {} request body with length {} and type {}",
+					"www form",
+					m_sRequestBody.size(),
+					Request.Headers[KHTTPHeader::CONTENT_TYPE]);
+			m_sRequestBody.Trim();
+			// operator+=() causes additive parsing for a query component
+			Request.Resource.Query += m_sRequestBody;
+		}
+		break;
+
+	}
+
+	m_iRequestBodyLength = Counter.count();
+
+} // Parse
+
+//-----------------------------------------------------------------------------
 bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
@@ -466,106 +575,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			if (Request.Method != KHTTPMethod::GET && Request.HasContent())
 			{
-				kAppendCrashContext("content parsing", ": ");
-				
-				switch (Route->Parser)
-				{
-					case KRESTRoute::NOREAD:
-						break;
-
-					case KRESTRoute::JSON:
-					{
-						// try to read input as JSON - if it fails just skip
-
-						// nobody wants stack traces in the klog when hackers throw crappy json (and attacks)
-						// at their rest server.  so we need to turn off stack traces while we attempt to
-						// parse incoming json from the wire:
-						bool bResetFlag = KLog::getInstance().ShowStackOnJsonError (false);
-
-						// parse the content into json.rx
-						KString sError;
-
-						kDebug (2, "parsing JSON request");
-						if (!kjson::Parse(json.rx, KHTTPServer::InStream(), sError))
-						{
-							kDebug (2, "request body is not JSON: {}", sError);
-							json.rx.clear();
-							if (Options.bThrowIfInvalidJson)
-							{
-								throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat ("invalid JSON: {}", sError) };
-							}
-						}
-						else
-						{
-							kDebug (2, "request body successfully parsed as JSON");
-
-							if (Options.bRecordRequest)
-							{
-								// dump the json to record it
-								m_sRequestBody = json.rx.dump(-1);
-							}
-						}
-
-						// after we are done parsing the incoming json from the wire,
-						// restore stack traces for failures in the json that application may
-						// form while processing a request:
-						KLog::getInstance().ShowStackOnJsonError (bResetFlag);
-					}
-					break;
-
-					case KRESTRoute::XML:
-						// read input as XML
-						kDebug (2, "parsing XML request");
-						if (!xml.rx.Parse(KHTTPServer::InStream(), true))
-						{
-							kDebug (2, "request body is not XML");
-							xml.rx.clear();
-							if (Options.bThrowIfInvalidJson)
-							{
-								throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid XML" };
-							}
-						}
-						else
-						{
-							kDebug (2, "request body successfully parsed as XML");
-
-							if (Options.bRecordRequest)
-							{
-								// dump the XML to record it
-								m_sRequestBody = xml.rx.Serialize(KXML::PrintFlags::Terse);
-							}
-						}
-						break;
-
-					case KRESTRoute::PLAIN:
-						// read body and store for later access
-						kDebug (2, "reading {} request body", "plain");
-						m_sRequestBody = KHTTPServer::Read();
-						m_iRequestBodyLength = m_sRequestBody.size();
-						kDebug (2, "read {} request body with length {} and type {}",
-								"plain",
-								m_iRequestBodyLength,
-								Request.Headers[KHTTPHeader::CONTENT_TYPE]);
-						break;
-
-					case KRESTRoute::WWWFORM:
-					{
-						// read input as urlencoded www form data and append it to the
-						// received query parms in the URL
-						kDebug (2, "reading {} request body", "www form");
-						m_sRequestBody = KHTTPServer::Read();
-						m_iRequestBodyLength = m_sRequestBody.size();
-						kDebug (2, "read {} request body with length {} and type {}",
-								"www form",
-								m_iRequestBodyLength,
-								Request.Headers[KHTTPHeader::CONTENT_TYPE]);
-						m_sRequestBody.Trim();
-						// operator+=() causes additive parsing for a query component
-						Request.Resource.Query += m_sRequestBody;
-					}
-					break;
-
-				}
+				Parse(Options);
 			}
 
 			if (m_Timers)

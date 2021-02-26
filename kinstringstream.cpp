@@ -89,7 +89,7 @@ std::streamsize KInStringStreamBuf::xsgetn(char_type* s, std::streamsize n)
 //-----------------------------------------------------------------------------
 {
 	// read as many chars as possible directly from the stream buffer
-	std::streamsize iRead = std::min(n, in_avail());
+	auto iRead = std::min(n, in_avail());
 
 	if (iRead > 0)
 	{
@@ -139,7 +139,7 @@ std::streambuf::pos_type KInStringStreamBuf::seekoff(off_type off,
 
 	if (pRead < eback() || pRead > egptr())
 	{
-		kDebug(1, "offset out of range: {}", off);
+		kDebug(1, "offset out of range in mode {}: {}", dir, off);
 		return pos_type(off_type(-1));
 	}
 

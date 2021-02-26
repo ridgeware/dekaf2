@@ -40,6 +40,7 @@
 */
 
 #include "kinstringstream.h"
+#include "klog.h"
 
 namespace dekaf2 {
 
@@ -113,6 +114,7 @@ std::streambuf::pos_type KInStringStreamBuf::seekoff(off_type off,
 {
 	if ((which & std::ios_base::in) == 0)
 	{
+		kDebug(1, "we only have an input arena");
 		return pos_type(off_type(-1));
 	}
 
@@ -120,21 +122,28 @@ std::streambuf::pos_type KInStringStreamBuf::seekoff(off_type off,
 
 	switch (dir)
 	{
-		case std::ios_base::beg:
+		case std::ios_base::seekdir::beg:
 			pRead = eback() + off;
 			break;
 
-		case std::ios_base::end:
+		case std::ios_base::seekdir::end:
 			pRead = egptr() - off;
 			break;
 
-		case std::ios_base::cur:
+		case std::ios_base::seekdir::cur:
 			pRead = gptr() + off;
 			break;
+
+		default:
+			// weird libstdc++ implementations on RH require
+			// _S_ios_seekdir_end as switch case??
+			kDebug(1, "bad stream library implementation");
+			return pos_type(off_type(-1));
 	}
 
 	if (pRead < eback() || pRead > egptr())
 	{
+		kDebug(1, "offset out of range: {}", off);
 		return pos_type(off_type(-1));
 	}
 

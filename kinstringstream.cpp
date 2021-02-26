@@ -45,7 +45,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-/// this is the custom KString reader
+/// this is the custom KStringView reader
 std::streamsize detail::KStringReader(void* sBuffer, std::streamsize iCount, void* sSourceBuf)
 //-----------------------------------------------------------------------------
 {
@@ -89,20 +89,16 @@ std::streamsize KInStringStreamBuf::xsgetn(char_type* s, std::streamsize n)
 //-----------------------------------------------------------------------------
 {
 	// read as many chars as possible directly from the stream buffer
-	// (keep in mind that the stream buffer is not necessarily our
-	// own one-char buffer, but could be replaced by other stream buffers)
-	std::streamsize iReadInStreamBuf = std::min(n, in_avail());
+	std::streamsize iRead = std::min(n, in_avail());
 
-	if (iReadInStreamBuf > 0)
+	if (iRead > 0)
 	{
-		std::memcpy(s, gptr(), static_cast<size_t>(iReadInStreamBuf));
-		s += iReadInStreamBuf;
-		n -= iReadInStreamBuf;
+		std::memcpy(s, gptr(), static_cast<size_t>(iRead));
 		// adjust stream buffer pointers
-		setg(eback(), gptr()+iReadInStreamBuf, egptr());
+		setg(eback(), gptr()+iRead, egptr());
 	}
 
-	return iReadInStreamBuf;
+	return iRead;
 
 } // xsgetn
 

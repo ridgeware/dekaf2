@@ -227,7 +227,7 @@ inline size_t goodMallocSize(size_t minSize) noexcept {
 
   if (!usingJEMalloc()) {
 #ifdef FOLLY_PROVIDE_EXPONENTIAL_MALLOC_FALLBACK
-	  size_t result = 1 << ((sizeof(size_t) * 8 - portableCLZ(minSize)));
+	  size_t result = static_cast<size_t>(1) << (sizeof(size_t) * 8 - portableCLZ(minSize));
 	  const size_t pageSize = 4098;
 	  const size_t mallocHeader = 4 * sizeof(void*);
 	  if (result >= pageSize && result - mallocHeader >= minSize) {

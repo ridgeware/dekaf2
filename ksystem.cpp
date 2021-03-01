@@ -54,7 +54,9 @@
 #include <boost/asio/ip/tcp.hpp>
 #ifdef DEKAF2_IS_WINDOWS
 	#include <ws2tcpip.h>
+	#include <sysinfoapi.h>   // for getTotalSystemMemory()
 #else
+	#include <unistd.h>       // for sysconf()
 	#include <sys/types.h>    // for getpwuid()
 	#include <pwd.h>          // for getpwuid()
 	#include <arpa/inet.h>
@@ -762,6 +764,59 @@ void kSleepRandomMilliseconds (uint32_t iMin, uint32_t iMax)
 	kMilliSleep(iSleep);
 
 } // kSleepRandomMilliseconds
+
+//-----------------------------------------------------------------------------
+std::size_t kGetPageSize()
+//-----------------------------------------------------------------------------
+{
+
+#ifndef DEKAF2_IS_WINDOWS
+
+	static auto iPageSize = sysconf(_SC_PAGE_SIZE);
+
+	return iPageSize;
+
+#else
+
+	static auto iPageSize = []() -> std::size_t
+	{
+		SYSTEM_INFO sysInfo;
+		GetSystemInfo(&sysInfo);
+		return sysInfo.dwPageSize;
+	}();
+
+	return iPageSize;
+
+#endif
+
+} // kGetPageSize
+
+//-----------------------------------------------------------------------------
+std::size_t kGetPhysicalMemory()
+//-----------------------------------------------------------------------------
+{
+
+#ifndef DEKAF2_IS_WINDOWS
+
+	static auto iPhysPages = sysconf(_SC_PHYS_PAGES);
+
+	return kGetPageSize() * iPhysPages;
+
+#else
+
+	static auto iPhysMemory = []() -> std::size_t
+	{
+		MEMORYSTATUSEX status;
+		status.dwLength = sizeof(status);
+		GlobalMemoryStatusEx(&status);
+		return status.ullTotalPhys;
+	}();
+
+	return iPhysMemory;
+
+#endif
+
+} // kGetPhysicalMemory
 
 } // end of namespace dekaf2
 

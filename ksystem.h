@@ -148,5 +148,11 @@ inline void kSleepRandomSeconds (uint32_t iMinSeconds, uint32_t iMaxSeconds)
 	kSleepRandomMilliseconds (iMinSeconds * 1000, iMaxSeconds * 1000);
 }
 
+/// Returns the page size used on this CPU/MMU
+std::size_t kGetPageSize();
+
+/// Returns the physical memory installed on this machine
+std::size_t kGetPhysicalMemory();
+
 } // end of namespace dekaf2
 

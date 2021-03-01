@@ -89,6 +89,12 @@ KStringViewZ::size_type KStringViewZ::find_first_of(KStringView sv, size_type po
 		}
 	}
 
+	if (bHasZero && search.empty())
+	{
+		kDebug(1, "had all zero search set, fall back to KStringView");
+		return KStringView::find_first_of(sv, pos);
+	}
+
 	// we now can safely use strcspn(), as all strings are 0 terminated.
 	for (;;)
 	{
@@ -144,6 +150,12 @@ KStringViewZ::size_type KStringViewZ::find_first_not_of(KStringView sv, size_typ
 		{
 			break;
 		}
+	}
+
+	if (bHasZero && search.empty())
+	{
+		kDebug(1, "had all zero search set, fall back to KStringView");
+		return KStringView::find_first_not_of(sv, pos);
 	}
 
 	// we now can safely use strspn(), as all strings are 0 terminated.

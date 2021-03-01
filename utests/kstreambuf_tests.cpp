@@ -12,11 +12,14 @@ TEST_CASE("KStreamBuf") {
 		KNullStreamBuf NullBuf;
 		std::istream MyNullStream(&NullBuf);
 		KInStream iss(MyNullStream);
+
 		KString sOutput;
 		// the following will trip the limit warning for endless input streams:
 		// kAppendAllUnseekable(): stepped over limit of 1024 MB for non-seekable input stream - aborted reading
 		iss.ReadRemaining(sOutput);
-		CHECK ( sOutput.find_first_not_of("\0") == npos );
+
+		KString sNull(1, '\0');
+		CHECK ( sOutput.find_first_not_of(sNull) == npos );
 	}
 
 	SECTION("KNullBuf with KCountingInputStreamBuf")
@@ -28,9 +31,10 @@ TEST_CASE("KStreamBuf") {
 
 		KString sOutput;
 		iss.Read(sOutput, 10*1024*1024);
-		CHECK ( sOutput.find_first_not_of("\0") == npos );
+
+		KString sNull(1, '\0');
+		CHECK ( sOutput.find_first_not_of(sNull) == npos );
 		CHECK ( Counter.count() == 10*1024*1024 );
 	}
-
 }
 

@@ -121,24 +121,23 @@ std::streamsize KCountingInputStreamBuf::xsgetn(char_type* s, std::streamsize n)
 
 	{
 		// read as many chars as possible directly from the stream buffer
-		// (keep in mind that the stream buffer is not necessarily our
-		// own one-char buffer, but could be replaced by other stream buffers)
-		std::streamsize iReadInStreamBuf = std::min(n, in_avail());
-		
-		if (iReadInStreamBuf > 0)
+		iExtracted = std::min(n, in_avail());
+
+		if (iExtracted > 0)
 		{
-			std::memcpy(s, gptr(), static_cast<size_t>(iReadInStreamBuf));
-			s += iReadInStreamBuf;
-			n -= iReadInStreamBuf;
-			iExtracted = iReadInStreamBuf;
+			std::memcpy(s, gptr(), static_cast<size_t>(iExtracted));
 			// adjust stream buffer pointers
-			setg(eback(), gptr()+iReadInStreamBuf, egptr());
+			setg(eback(), gptr() + iExtracted, egptr());
+			// and substract already copied bytes
+			n -= iExtracted;
 		}
 	}
 
 	if (n > 0)
 	{
-		// read remaining chars directly from the callbacḱ function
+		// advance s by the already copied bytes above (or 0)
+		s += iExtracted;
+		// read remaining chars directly from the callback function
 		auto iRead = m_SBuf->sgetn(s, n);
 		// iRead is -1 on error
 		if (iRead > 0)

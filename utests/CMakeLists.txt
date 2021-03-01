@@ -68,6 +68,7 @@ set (USOURCES
 	ksqlite_tests.cpp
 	kstack_tests.cpp
 	kstring_tests.cpp
+	kstreambuf_tests.cpp
 	kstringstream_tests.cpp
 	kstringutils_tests.cpp
 	kstringview_tests.cpp

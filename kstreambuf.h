@@ -43,8 +43,51 @@
 #pragma once
 
 #include <streambuf>
+#include <array>
 
 namespace dekaf2 {
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a streambuf that reads from /dev/null and writes to /dev/null (and is fast at it)
+class KNullStreamBuf : public std::streambuf
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//-------
+public:
+//-------
+
+	//-----------------------------------------------------------------------------
+	virtual ~KNullStreamBuf();
+	//-----------------------------------------------------------------------------
+
+//-------
+protected:
+//-------
+
+	//-----------------------------------------------------------------------------
+	virtual std::streamsize xsgetn(char_type* s, std::streamsize n) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual int_type underflow() override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual std::streamsize xsputn(const char_type* s, std::streamsize n) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual int_type overflow(int_type ch) override;
+	//-----------------------------------------------------------------------------
+
+//-------
+private:
+//-------
+
+	char_type m_chBuf;
+
+};
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a customizable input stream buffer
@@ -92,10 +135,12 @@ protected:
 private:
 //-------
 
-	Reader m_CallbackR{nullptr};
-	void* m_CustomPointerR{nullptr};
-	enum { STREAMBUFSIZE = 256 };
-	char_type m_buf[STREAMBUFSIZE];
+	static constexpr std::streamsize STREAMBUFSIZE { 256 };
+
+	Reader m_CallbackR     { nullptr };
+	void* m_CustomPointerR { nullptr };
+
+	std::array<char_type, STREAMBUFSIZE> m_buf;
 
 }; // KInStreamBuf
 
@@ -228,7 +273,7 @@ public:
 	//-----------------------------------------------------------------------------
 	: dekaf2::KOutStreamBuf(cb, CustomPointer)
 	{
-		setp(m_buf, m_buf+STREAMBUFSIZE);
+		setp(m_buf.data(), m_buf.data()+STREAMBUFSIZE);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -268,11 +313,13 @@ private:
 	std::streamsize FlushableSize() const
 	//-----------------------------------------------------------------------------
 	{
-		return pptr() - m_buf;
+		return pptr() - m_buf.data();
 	}
 
-	enum { STREAMBUFSIZE = 4096, DIRECTWRITE = 2048 };
-	char_type m_buf[STREAMBUFSIZE];
+	static constexpr std::streamsize STREAMBUFSIZE { 4096 };
+	static constexpr std::streamsize DIRECTWRITE   { 2048 };
+
+	std::array<char_type, STREAMBUFSIZE> m_buf;
 
 	static_assert(STREAMBUFSIZE - DIRECTWRITE >= DIRECTWRITE, "buffer size has to be at least twice as large as the direct write threshold");
 
@@ -303,7 +350,7 @@ public:
 	//-----------------------------------------------------------------------------
 	: KStreamBuf(rcb, wcb, CustomPointerR, CustomPointerW)
 	{
-		setp(m_buf, m_buf+STREAMBUFSIZE);
+		setp(m_buf.data(), m_buf.data()+STREAMBUFSIZE);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -343,16 +390,16 @@ private:
 	std::streamsize FlushableSize() const
 	//-----------------------------------------------------------------------------
 	{
-		return pptr() - m_buf;
+		return pptr() - m_buf.data();
 	}
 
-	enum { STREAMBUFSIZE = 4096, DIRECTWRITE = 2048 };
-	char_type m_buf[STREAMBUFSIZE];
+	static constexpr std::streamsize STREAMBUFSIZE { 4096 };
+	static constexpr std::streamsize DIRECTWRITE   { 2048 };
+
+	std::array<char_type, STREAMBUFSIZE> m_buf;
 
 	static_assert(STREAMBUFSIZE - DIRECTWRITE >= DIRECTWRITE, "buffer size has to be at least twice as large as the direct write threshold");
 
 }; // KBufferedStreamBuf
-
-
 
 }

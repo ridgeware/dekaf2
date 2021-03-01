@@ -41,10 +41,48 @@
 */
 
 #include "kstreambuf.h"
-#include <cstring>
+#include <cstring> // memcpy()..
 #include <algorithm>
 
 namespace dekaf2 {
+
+//-----------------------------------------------------------------------------
+KNullStreamBuf::~KNullStreamBuf()
+//-----------------------------------------------------------------------------
+{
+}
+
+//-----------------------------------------------------------------------------
+std::streambuf::int_type KNullStreamBuf::overflow(int_type ch)
+//-----------------------------------------------------------------------------
+{
+	return ch;
+}
+
+//-----------------------------------------------------------------------------
+std::streamsize KNullStreamBuf::xsputn(const char_type* s, std::streamsize n)
+//-----------------------------------------------------------------------------
+{
+	return n;
+}
+
+//-----------------------------------------------------------------------------
+std::streambuf::int_type KNullStreamBuf::underflow()
+//-----------------------------------------------------------------------------
+{
+	m_chBuf = 0;
+	setg(&m_chBuf, &m_chBuf, &m_chBuf+1);
+	return 0;
+}
+
+//-----------------------------------------------------------------------------
+std::streamsize KNullStreamBuf::xsgetn(char_type* s, std::streamsize n)
+//-----------------------------------------------------------------------------
+{
+	std::memset(s, 0, n);
+	return n;
+}
+
 
 //-----------------------------------------------------------------------------
 KInStreamBuf::~KInStreamBuf()
@@ -56,50 +94,58 @@ KInStreamBuf::~KInStreamBuf()
 std::streamsize KInStreamBuf::xsgetn(char_type* s, std::streamsize n)
 //-----------------------------------------------------------------------------
 {
-	std::streamsize iExtracted = 0;
+	std::streamsize iTotal { 0 };
 
+	// read as many chars as possible directly from the stream buffer
+	auto iRead = std::min(n, in_avail());
+
+	if (iRead > 0)
 	{
-		// read as many chars as possible directly from the stream buffer
-		std::streamsize iReadInStreamBuf = std::min(n, in_avail());
-		if (iReadInStreamBuf > 0)
-		{
-			std::memcpy(s, gptr(), static_cast<size_t>(iReadInStreamBuf));
-			s += iReadInStreamBuf;
-			n -= iReadInStreamBuf;
-			iExtracted = iReadInStreamBuf;
-			// adjust stream buffer pointers
-			setg(eback(), gptr()+iReadInStreamBuf, egptr());
-		}
+		// copy directly from streambuf
+		std::memcpy(s, gptr(), static_cast<size_t>(iRead));
+
+		n     -= iRead;
+		iTotal = iRead;
+
+		// adjust the stream buffer pointers
+		setg(eback(), gptr()+iRead, egptr());
 	}
 
 	if (n > 0)
 	{
+		// advance buffer by read chars
+		s += iRead;
 		// read remaining chars directly from the callbacḱ function
-		auto iRead = m_CallbackR(s, n, m_CustomPointerR);
+		iRead = m_CallbackR(s, n, m_CustomPointerR);
+
 		// iRead is -1 on error
 		if (iRead > 0)
 		{
-			iExtracted += iRead;
+			iTotal += iRead;
 		}
 	}
 
-	return iExtracted;
+	return iTotal;
 }
 
 //-----------------------------------------------------------------------------
 KInStreamBuf::int_type KInStreamBuf::underflow()
 //-----------------------------------------------------------------------------
 {
-	std::streamsize rb = m_CallbackR(m_buf, STREAMBUFSIZE, m_CustomPointerR);
-	if (rb > 0)
+	// call the data provider
+	auto rb = m_CallbackR(m_buf.data(), STREAMBUFSIZE, m_CustomPointerR);
+
+	if (rb <= 0)
 	{
-		setg(m_buf, m_buf, m_buf+rb);
-		return traits_type::to_int_type(m_buf[0]);
-	}
-	else
-	{
+		// no more characters
 		return traits_type::eof();
 	}
+
+	// set new read arena
+	setg(m_buf.data(), m_buf.data(), m_buf.data()+rb);
+
+	// and return first char to indicate it is not EOF
+	return traits_type::to_int_type(m_buf[0]);
 }
 
 //-----------------------------------------------------------------------------
@@ -144,8 +190,6 @@ KStreamBuf::int_type KStreamBuf::overflow(int_type ch)
 
 
 
-
-
 //-----------------------------------------------------------------------------
 KBufferedOutStreamBuf::~KBufferedOutStreamBuf()
 //-----------------------------------------------------------------------------
@@ -173,6 +217,7 @@ std::streamsize KBufferedOutStreamBuf::xsputn(const char_type* s, std::streamsiz
 		else if (iFilled > 0)
 		{
 			auto iNeedToFill = DIRECTWRITE - iFilled;
+
 			if (n - iNeedToFill >= DIRECTWRITE)
 			{
 				// fill buffer with iNeedToFill chars so that it reaches
@@ -211,8 +256,9 @@ std::streamsize KBufferedOutStreamBuf::xsputn(const char_type* s, std::streamsiz
 
 	while (n)
 	{
-		std::streamsize iAvail = RemainingSize();
-		std::streamsize iWriteInStreamBuf = std::min(n, iAvail);
+		auto iAvail = RemainingSize();
+		auto iWriteInStreamBuf = std::min(n, iAvail);
+
 		if (iWriteInStreamBuf > 0)
 		{
 			std::memcpy(pptr(), s, static_cast<size_t>(iWriteInStreamBuf));
@@ -258,12 +304,13 @@ KBufferedOutStreamBuf::int_type KBufferedOutStreamBuf::overflow(int_type ch)
 int KBufferedOutStreamBuf::sync()
 //-----------------------------------------------------------------------------
 {
-	std::streamsize iToWrite = FlushableSize();
-	std::streamsize iWrote { 0 };
+	auto iToWrite = FlushableSize();
+	decltype(iToWrite) iWrote { 0 };
+
 	if (iToWrite)
 	{
-		iWrote = base_type::xsputn(m_buf, pptr() - m_buf);
-		setp(m_buf, m_buf+STREAMBUFSIZE);
+		iWrote = base_type::xsputn(m_buf.data(), pptr() - m_buf.data());
+		setp(m_buf.data(), m_buf.data()+STREAMBUFSIZE);
 	}
 
 	return (iWrote == iToWrite) ? 0 : -1;
@@ -300,6 +347,7 @@ std::streamsize KBufferedStreamBuf::xsputn(const char_type* s, std::streamsize n
 		else if (iFilled > 0)
 		{
 			auto iNeedToFill = DIRECTWRITE - iFilled;
+
 			if (n - iNeedToFill >= DIRECTWRITE)
 			{
 				// fill buffer with iNeedToFill chars so that it reaches
@@ -338,8 +386,9 @@ std::streamsize KBufferedStreamBuf::xsputn(const char_type* s, std::streamsize n
 
 	while (n)
 	{
-		std::streamsize iAvail = RemainingSize();
-		std::streamsize iWriteInStreamBuf = std::min(n, iAvail);
+		auto iAvail = RemainingSize();
+		auto iWriteInStreamBuf = std::min(n, iAvail);
+
 		if (iWriteInStreamBuf > 0)
 		{
 			std::memcpy(pptr(), s, static_cast<size_t>(iWriteInStreamBuf));
@@ -371,7 +420,7 @@ KBufferedStreamBuf::int_type KBufferedStreamBuf::overflow(int_type ch)
 {
 	if (!traits_type::eq_int_type(ch, traits_type::eof()))
 	{
-		char_type cch = ch;
+		auto cch = traits_type::to_char_type(ch);
 		return (xsputn(&cch, 1) == 1) ? 0 : traits_type::eof();
 	}
 	else
@@ -385,17 +434,17 @@ KBufferedStreamBuf::int_type KBufferedStreamBuf::overflow(int_type ch)
 int KBufferedStreamBuf::sync()
 //-----------------------------------------------------------------------------
 {
-	std::streamsize iToWrite = FlushableSize();
-	std::streamsize iWrote { 0 };
+	auto iToWrite = FlushableSize();
+	decltype(iToWrite) iWrote { 0 };
+
 	if (iToWrite)
 	{
-		iWrote = base_type::xsputn(m_buf, iToWrite);
-		setp(m_buf, m_buf+STREAMBUFSIZE);
+		iWrote = base_type::xsputn(m_buf.data(), iToWrite);
+		setp(m_buf.data(), m_buf.data()+STREAMBUFSIZE);
 	}
 
 	return (iWrote == iToWrite) ? 0 : -1;
 
 } // sync
-
 
 }

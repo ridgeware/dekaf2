@@ -83,6 +83,10 @@ TEST_CASE("KSystem")
 		CHECK ( iRet == 0 );
 		CHECK ( sOutput == "this is some\nmultiline text\noutput\n" );
 
+		iRet = kSystem("echo 123 && sleep 1 && echo this is some text", sOutput);
+		CHECK ( iRet == 0 );
+		CHECK ( sOutput == "123\nthis is some text\n" );
+
 #ifdef DEKAF2_IS_WINDOWS
 		iRet = kSystem("dir", sOutput);
 #else

@@ -54,6 +54,101 @@ KOutStream KErr(std::cerr);
 KOutStream KOut(std::cout);
 
 //-----------------------------------------------------------------------------
+std::size_t kWriteToFileDesc(int fd, const void* sBuffer, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	if (fd < 0)
+	{
+		kDebug(1, "no file descriptor");
+		return 0;
+	}
+
+	std::streamsize iWrote { 0 };
+
+#ifndef DEKAF2_IS_WINDOWS
+
+	do
+	{
+		iWrote = ::write(fd, sBuffer, iCount);
+	}
+	while (iWrote < 0 && errno == EINTR);
+	// we use these readers and writers in pipes and shells
+	// which may die and generate a SIGCHLD, which interrupts
+	// file reads and writes..
+
+	if (iWrote < 0)
+	{
+		kDebug(1, "cannot write to file desc: {}", strerror(errno));
+
+		return 0;
+	}
+	else if (static_cast<std::size_t>(iWrote) != iCount)
+	{
+		// do some logging
+		kDebug(1, "could only write {} bytes instead of {} to file desc: {}", iWrote, iCount, strerror(errno));
+	}
+
+	return iWrote;
+
+#else // IS WINDOWS
+
+	// we might need to loop on the write, as _write() only allows INT32_MAX sized writes
+
+	auto chBuffer = static_cast<const char*>(sBuffer);
+
+	auto iWrite { iCount };
+	std::size_t iTotal { 0 };
+
+	for(;;)
+	{
+		iWrote = _write(fd, chBuffer,
+						 static_cast<uint32_t>((iWrite > std::numeric_limits<int32_t>::max())
+											   ? std::numeric_limits<int32_t>::max()
+											   : iWrite));
+
+		if (DEKAF2_LIKELY(iWrote > 0))
+		{
+			iTotal += iWrote;
+
+			if (DEKAF2_LIKELY(iTotal >= iCount))
+			{
+				// all written
+				break;
+			}
+
+			chBuffer += iWrote;
+			iWrite   -= iWrote;
+		}
+		else if (iWrote == 0)
+		{
+			break;
+		}
+		else // if (iWrote < 0)
+		{
+			// repeat if we got interrupted
+			if (errno != EINTR)
+			{
+				// else we got another error
+				kDebug(1, "cannot write to file desc: {}", strerror(errno));
+				// invalidate return, we did not fullfill our contract
+				return 0;
+			}
+		}
+	}
+
+	if (static_cast<std::size_t>(iTotal) != iCount)
+	{
+		// do some logging
+		kDebug(1, "could only write {} bytes instead of {} to file desc: {}", iTotal, iCount, strerror(errno));
+	}
+
+	return iTotal;
+
+#endif
+
+} // kWriteToFileDesc
+
+//-----------------------------------------------------------------------------
 /// Write a character. Returns stream reference that resolves to false on failure
 KOutStream::self_type& KOutStream::Write(KString::value_type ch)
 //-----------------------------------------------------------------------------

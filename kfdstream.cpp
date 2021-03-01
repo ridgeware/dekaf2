@@ -41,6 +41,7 @@
 
 
 #include "kfdstream.h"
+#include "kreader.h"
 #include "klog.h"
 #include <sys/stat.h>
 #ifdef DEKAF2_IS_WINDOWS
@@ -57,36 +58,14 @@ namespace detail {
 std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc)
 //-----------------------------------------------------------------------------
 {
-	std::streamsize iRead { 0 };
-
-	if (filedesc)
+	if (DEKAF2_UNLIKELY(filedesc == nullptr))
 	{
-		int fd = *static_cast<int*>(filedesc);
-
-		if (fd >= 0)
-		{
-			do
-			{
-#ifdef DEKAF2_IS_WINDOWS
-				iRead = _read(fd, sBuffer, static_cast<uint32_t>(iCount));
-#else
-				iRead = ::read(fd, sBuffer, static_cast<size_t>(iCount));
-#endif
-			}
-			while (iRead == -1 && errno == EINTR);
-			// we use these readers and writers in pipes and shells
-			// which may die and generate a SIGCHLD, which interrupts
-			// file reads and writes..
-		}
-
-		if (iRead < 0)
-		{
-			// do some logging
-			kWarning("cannot read from file: {}", strerror(errno));
-		}
+		return 0;
 	}
 
-	return iRead;
+	int fd = *static_cast<int*>(filedesc);
+
+	return kReadFromFileDesc(fd, sBuffer, iCount);
 
 } // FileDescReader
 
@@ -94,36 +73,15 @@ std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* file
 std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc)
 //-----------------------------------------------------------------------------
 {
-	std::streamsize iWrote { 0 };
 
-	if (filedesc)
+	if (DEKAF2_UNLIKELY(filedesc == nullptr))
 	{
-		int fd = *static_cast<int*>(filedesc);
-
-		if (fd >= 0)
-		{
-			do
-			{
-#ifdef DEKAF2_IS_WINDOWS
-				iWrote = _write(fd, sBuffer, static_cast<uint32_t>(iCount));
-#else
-				iWrote = ::write(fd, sBuffer, static_cast<size_t>(iCount));
-#endif
-			}
-			while (iWrote == -1 && errno == EINTR);
-			// we use these readers and writers in pipes and shells
-			// which may die and generate a SIGCHLD, which interrupts
-			// file reads and writes..
-		}
-
-		if (iWrote != iCount)
-		{
-			// do some logging
-			kWarning("cannot write to file: {}", strerror(errno));
-		}
+		return 0;
 	}
 
-	return iWrote;
+	int fd = *static_cast<int*>(filedesc);
+
+	return kWriteToFileDesc(fd, sBuffer, iCount);
 
 } // FileDescWriter
 

@@ -352,12 +352,12 @@ bool kAppendAll(KStringViewZ sFileName, KString& sContent)
 			sContent.resize_uninitialized(iContent + iSize);
 			auto iRead = File.Read(&sContent[iContent], iSize);
 
-			if (iRead < static_cast<size_t>(iSize))
+			if (iRead < static_cast<std::size_t>(iSize))
 			{
 				sContent.resize(iContent + iRead);
 			}
 
-			return iRead == static_cast<size_t>(iSize);
+			return iRead == static_cast<std::size_t>(iSize);
 		}
 
 		kDebug(2, "cannot open file '{}'", sFileName);
@@ -370,16 +370,16 @@ bool kAppendAll(KStringViewZ sFileName, KString& sContent)
 		{
 			auto iContent = sContent.size();
 			sContent.resize_uninitialized(iContent + iSize);
-			auto iRead = read(fd, &sContent[iContent], iSize);
+			auto iRead = kReadFromFileDesc(fd, &sContent[iContent], iSize);
 
 			close(fd);
 
-			if (iRead < iSize)
+			if (iRead < static_cast<std::size_t>(iSize))
 			{
 				sContent.resize(iContent + iRead);
 			}
 
-			return iRead == iSize;
+			return iRead == static_cast<std::size_t>(iSize);
 		}
 
 		kDebug(2, "cannot open file '{}': {}", sFileName, strerror(errno));
@@ -525,6 +525,78 @@ bool kReadLine(std::istream& Stream,
 
 } // kReadLine
 
+//-----------------------------------------------------------------------------
+std::size_t kReadFromFileDesc(int fd, void* sBuffer, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	if (fd < 0)
+	{
+		kDebug(1, "no file descriptor");
+		return 0;
+	}
+
+	auto chBuffer = static_cast<char*>(sBuffer);
+
+	std::size_t iWant   { iCount };
+	std::size_t iTotal  { 0 };
+
+	for(;;)
+	{
+#ifndef DEKAF2_IS_WINDOWS
+		auto iRead = ::read(fd, chBuffer, iWant);
+#else
+		auto iRead = _read(fd, chBuffer,
+							static_cast<uint32_t>((iWant > std::numeric_limits<int32_t>::max())
+												  ? std::numeric_limits<int32_t>::max()
+												  : iWant));
+#endif
+		// iRead == 0 == EOF
+		// iRead  < 0 == error
+		// iRead  > 0 == read bytes
+		// iRead  < iWant: check for eof (by doing one more read and check for 0)
+
+		// We use these readers and writers in pipes and shells
+		// which may die and generate a SIGCHLD, which interrupts
+		// file reads and writes. Also, when reading the output of
+		// a pipe or socket, we may read faster than the input gets
+		// generated, therefore we have to test for EOF (iRead == 0)
+
+		if (DEKAF2_LIKELY(iRead > 0))
+		{
+			iTotal   += iRead;
+
+			if (DEKAF2_LIKELY(iTotal >= iCount))
+			{
+				// we read the requested amount, this is the normal exit
+				break;
+			}
+
+			chBuffer += iRead;
+			iWant    -= iRead;
+		}
+		else if (iRead == 0)
+		{
+			// EOF, we read less than requested, but that is OK as we
+			// reached the end of file
+			break;
+		}
+		else // if (iRead < 0)
+		{
+			// repeat if we got interrupted
+			if (errno != EINTR)
+			{
+				// else we got another error
+				kDebug(1, "cannot read from file desc: {}", strerror(errno));
+				// invalidate return, we did not fullfill our contract
+				iTotal = 0;
+				break;
+			}
+		}
+	}
+
+	return iTotal;
+
+} // kReadFromFileDesc
 
 //-----------------------------------------------------------------------------
 KInStream::const_kreader_line_iterator::const_kreader_line_iterator(base_iterator& it, bool bToEnd)

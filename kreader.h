@@ -103,6 +103,9 @@ ssize_t kGetSize(KStringViewZ sFileName);
 /// Reposition the device of a std::istream to the beginning. Fails on non-seekable istreams.
 bool kRewind(std::istream& Stream);
 
+/// Reads iCount chars from file descriptor into sBuffer, even on growing pipes or other unseekable inputs
+std::size_t kReadFromFileDesc(int fd, void* sBuffer, std::size_t iCount);
+
 // forward declaration for Read(KOutStream&)
 class KOutStream;
 

@@ -57,6 +57,9 @@
 namespace dekaf2
 {
 
+/// Writes iCount chars from sBuffer into file descriptor, signal safe
+std::size_t kWriteToFileDesc(int fd, const void* sBuffer, std::size_t iCount);
+
 class KInStream; // fwd decl
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

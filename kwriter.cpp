@@ -47,6 +47,12 @@
 #include "kthreadpool.h"
 #include "kurl.h"
 
+#ifdef DEKAF2_IS_WINDOWS
+	#include <io.h>
+#else
+	#include <unistd.h>
+#endif
+
 namespace dekaf2
 {
 

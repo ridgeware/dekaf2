@@ -50,6 +50,12 @@
 #include "kfilesystem.h"
 #include "ksystem.h"
 
+#ifdef DEKAF2_IS_WINDOWS
+	#include <io.h>
+#else
+	#include <unistd.h>
+#endif
+
 namespace dekaf2
 {
 

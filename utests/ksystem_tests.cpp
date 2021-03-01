@@ -79,13 +79,25 @@ TEST_CASE("KSystem")
 		CHECK ( sOutput == "this is some text\n" );
 #endif
 
-		iRet = kSystem("echo 'this is some\nmultiline text\noutput'", sOutput);
+		iRet = kSystem("echo this is some && echo multiline text && echo output", sOutput);
 		CHECK ( iRet == 0 );
+#ifdef DEKAF2_IS_WINDOWS
+		CHECK ( sOutput.starts_with("this is some") );
+		CHECK ( sOutput.ends_with("output\n") );
+#else
 		CHECK ( sOutput == "this is some\nmultiline text\noutput\n" );
+#endif
 
+#ifdef DEKAF2_IS_WINDOWS
+		iRet = kSystem("echo 123 && timeout /t 1 && echo this is some text", sOutput);
+		CHECK ( iRet == 0 );
+		CHECK ( sOutput.starts_with("123") );
+		CHECK ( sOutput.ends_with("this is some text\n") );
+#else
 		iRet = kSystem("echo 123 && sleep 1 && echo this is some text", sOutput);
 		CHECK ( iRet == 0 );
 		CHECK ( sOutput == "123\nthis is some text\n" );
+#endif
 
 #ifdef DEKAF2_IS_WINDOWS
 		iRet = kSystem("dir", sOutput);

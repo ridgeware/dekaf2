@@ -94,7 +94,11 @@ TEST_CASE("KFilesystem")
 		CHECK( kFileExists(sFile, true) == true );
 		CHECK( kDirExists(sDirectory) == true );
 		CHECK( kGetSize(sFile) == 63 );
+#ifndef DEKAF2_IS_WINDOWS
 		CHECK( kGetSize(sDirectory) == npos );
+#else
+		CHECK( kGetSize(sDirectory) == -1 );
+#endif
 		CHECK( kFileSize(sFile) == 63 );
 		CHECK( kFileSize(sDirectory) == npos );
 	}

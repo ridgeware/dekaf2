@@ -45,6 +45,12 @@
 #include "klog.h"
 #include <sys/stat.h>
 
+#ifdef DEKAF2_IS_WINDOWS
+	#include <io.h>
+#else
+	#include <unistd.h>
+#endif
+
 namespace dekaf2 {
 
 namespace detail {

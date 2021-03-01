@@ -347,8 +347,6 @@ void KRESTServer::Parse(const Options& Options)
 {
 	kAppendCrashContext("content parsing", ": ");
 
-	KCountingInputStreamBuf Counter(KHTTPServer::InStream());
-
 	switch (Route->Parser)
 	{
 		case KRESTRoute::NOREAD:
@@ -445,8 +443,6 @@ void KRESTServer::Parse(const Options& Options)
 		break;
 
 	}
-
-	m_iRequestBodyLength = Counter.count();
 
 } // Parse
 
@@ -573,6 +569,8 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			m_iRequestBodyLength = 0;
 
+			KCountingInputStreamBuf InputCounter(KHTTPServer::InStream());
+
 			if (Request.Method != KHTTPMethod::GET && Request.HasContent())
 			{
 				Parse(Options);
@@ -619,6 +617,8 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			               && Request.HasKeepAlive();
 
 			Output(Options, bKeepAlive);
+
+			m_iRequestBodyLength = InputCounter.count();
 
 			if (Options.JSONLogStream)
 			{
@@ -707,6 +707,7 @@ void KRESTServer::WriteJSONAccessLog(const Options& Options)
 		{ "query"     , Request.Resource.Query.Serialize()        },
 		{ "method"    , Request.Method.Serialize()                },
 		{ "status"    , Response.iStatusCode                      },
+		{ "rx-size"   , m_iRequestBodyLength                      },
 		{ "tx-size"   , m_iContentLength                          },
 		{ "tx-type"   , sTXType                                   },
 		{ "userAgent" , Request.Headers[KHTTPHeader::USER_AGENT]  },
@@ -860,7 +861,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				if (!Options.sTimerHeader.empty())
 				{
 					// add a custom header that marks execution time for this request
-					Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_Timers->TotalDuration<std::chrono::milliseconds>().count()));
+					Response.Headers.Set (Options.sTimerHeader, KString::to_string(m_Timers->milliseconds()));
 				}
 			}
 

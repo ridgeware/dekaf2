@@ -430,7 +430,7 @@ public:
 };
 
 //-----------------------------------------------------------------------------
-/// open a stream from any of the supported stream schemata, like file, URL, stdout, stderr (URL not yet supported)
+/// open a stream from any of the supported stream schemata, like file, stdout, stderr
 extern std::unique_ptr<KOutStream> kOpenOutStream(KStringViewZ sSchema, std::ios::openmode openmode = std::ios::app);
 //-----------------------------------------------------------------------------
 

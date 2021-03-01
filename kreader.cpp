@@ -48,6 +48,7 @@
 #include "kwriter.h" // we need KOutStream
 #include "klog.h"
 #include "kfilesystem.h"
+#include "ksystem.h"
 
 namespace dekaf2
 {
@@ -113,18 +114,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 
 	DEKAF2_CATCH (std::exception& e)
 	{
-		if (kContains(e.what(), "random"))
-		{
-			kDebug(3, e.what());
-		}
-		else
-		{
-#ifdef DEKAF2_EXCEPTIONS
-			DEKAF2_THROW(e);
-#else
-			kException(e);
-#endif
-		}
+		kDebug(3, e.what());
 	}
 
 	return -1;
@@ -167,7 +157,7 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
 	// therefore we do wrap it into a try-catch block and limit the
 	// rx size to ~1 GB.
 
-	static constexpr std::size_t iLimit = 1*1024*1024*1024;
+	auto iLimit = std::min(std::size_t(1*1024*1024*1024), kGetPhysicalMemory() / 4);
 
 	DEKAF2_TRY_EXCEPTION
 	for (;;)
@@ -180,7 +170,7 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
 
 			if (sContent.size() > iLimit)
 			{
-				kWarning("stepped over limit of {} MB for non-seekable input stream - aborted reading", iLimit / (1024*1024) );
+				kDebug(1, "stepped over limit of {} MB for non-seekable input stream - aborted reading", iLimit / (1024*1024) );
 				break;
 			}
 		}
@@ -447,14 +437,12 @@ void myLocalGetline(std::istream& Stream, KString& sLine, KString::value_type de
 			return;
 		}
 
-		if (DEKAF2_LIKELY(ch != delimiter))
-		{
-			sLine += ch;
-		}
-		else
+		if (DEKAF2_UNLIKELY(ch == delimiter))
 		{
 			return;
 		}
+
+		sLine += ch;
 	}
 }
 #endif
@@ -648,12 +636,24 @@ bool KInStream::UnRead()
 
 	if (DEKAF2_UNLIKELY(!streambuf))
 	{
+		InStream().setstate(std::ios::failbit);
+
 		return false;
 	}
 
 	auto iCh = streambuf->sungetc();
 
-	return !std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof());
+	if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
+	{
+		// could not unread - note that this does not have to be a stream error,
+		// therefore we do not set badbit or failbit
+		return false;
+	}
+
+	// make sure we are no more in eof state if we were before
+	InStream().clear();
+
+	return true;
 
 } // UnRead
 
@@ -666,6 +666,8 @@ std::istream::int_type KInStream::Read()
 
 	if (DEKAF2_UNLIKELY(streambuf == nullptr))
 	{
+		InStream().setstate(std::ios::failbit);
+
 		return std::istream::traits_type::eof();
 	}
 
@@ -685,25 +687,28 @@ std::istream::int_type KInStream::Read()
 size_t KInStream::Read(void* pAddress, size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	if (iCount)
+	auto streambuf = InStream().rdbuf();
+
+	if (DEKAF2_UNLIKELY(streambuf == nullptr))
 	{
-		auto streambuf = InStream().rdbuf();
+		InStream().setstate(std::ios::failbit);
 
-		if (DEKAF2_LIKELY(streambuf != nullptr))
-		{
-			auto iRead = streambuf->sgetn(static_cast<std::istream::char_type*>(pAddress), iCount);
-
-			if (DEKAF2_UNLIKELY(iRead <= 0))
-			{
-				InStream().setstate(std::ios::eofbit);
-				iRead = 0;
-			}
-
-			return static_cast<size_t>(iRead);
-		}
+		return 0;
 	}
 
-	return 0;
+	auto iRead = streambuf->sgetn(static_cast<std::istream::char_type*>(pAddress), iCount);
+
+	if (DEKAF2_UNLIKELY(iRead < 0))
+	{
+		InStream().setstate(std::ios::badbit);
+		iRead = 0;
+	}
+	else if (DEKAF2_UNLIKELY(static_cast<size_t>(iRead) < iCount))
+	{
+		InStream().setstate(std::ios::eofbit);
+	}
+
+	return static_cast<size_t>(iRead);
 
 } // Read
 
@@ -742,14 +747,14 @@ size_t KInStream::Read(KOutStream& Stream, size_t iCount)
 	std::array<char, COPY_BUFSIZE> Buffer;
 	size_t iRead = 0;
 
-	for (;iCount;)
+	for (;iCount && Good();)
 	{
 		auto iChunk = std::min(Buffer.size(), iCount);
 		auto iReadChunk = Read(Buffer.data(), iChunk);
 		iRead  += iReadChunk;
 		iCount -= iReadChunk;
 
-		if (!Stream.Write(Buffer.data(), iReadChunk).OutStream().good() || iReadChunk < iChunk)
+		if (!Stream.Write(Buffer.data(), iReadChunk).Good() || iReadChunk < iChunk)
 		{
 			break;
 		}

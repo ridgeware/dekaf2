@@ -950,15 +950,19 @@ bool KString::ClipAtReverse(KStringView sClipAtReverse)
 } // ClipAtReverse
 
 //----------------------------------------------------------------------
-void KString::RemoveIllegalChars(KStringView sIllegalChars)
+KString::size_type KString::RemoveIllegalChars(KStringView sIllegalChars)
 //----------------------------------------------------------------------
 {
+	auto ilen = size();
 	size_type pos;
+
 	for (size_type lastpos = size(); (pos = find_last_of(sIllegalChars, lastpos)) != npos; )
 	{
 		erase(pos, 1);
 		lastpos = pos;
 	}
+
+	return ilen - size();
 }
 
 //-----------------------------------------------------------------------------

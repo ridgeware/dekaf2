@@ -595,8 +595,8 @@ public:
 	/// otherwise do not alter the string
 	bool ClipAtReverse(KStringView sClipAtReverse);
 
-	/// remove any occurence of the characters in sIllegalChars
-	void RemoveIllegalChars(KStringView sIllegalChars);
+	/// Remove any occurence of the characters in sIllegalChars, returns count of removed chars
+	size_type RemoveIllegalChars(KStringView sIllegalChars);
 
 	/// Splits string into token container using delimiters, trim, and escape. Returned
 	/// Container is a sequence, like a vector, or an associative container like a map.

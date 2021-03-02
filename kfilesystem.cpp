@@ -1489,52 +1489,53 @@ KString kMakeSafePathname(KStringView sName, bool bToLowercase, KStringView sEmp
 } // kMakeSafePathname
 
 //-----------------------------------------------------------------------------
-KTempDir::KTempDir (bool bDeleteOnDestruction, bool bCreateNow/*=true*/)
-//-----------------------------------------------------------------------------
-: m_bDeleteOnDestruction(bDeleteOnDestruction)
-{
-	if (bCreateNow)
-	{
-		MakeDir ();
-	}
-
-} // KTempDir ctor
-
-//-----------------------------------------------------------------------------
-bool KTempDir::MakeDir ()
+const KString& KTempDir::Name()
 //-----------------------------------------------------------------------------
 {
-	// create only once..
 	if (m_sTempDirName.empty())
 	{
-		KString sDirName;
+		m_sTempDirName = MakeDir();
+	}
 
-		for (int i = 0; i < 100; ++i)
+	return m_sTempDirName;
+
+} // Name
+
+//-----------------------------------------------------------------------------
+KString KTempDir::MakeDir ()
+//-----------------------------------------------------------------------------
+{
+	KString sDirName;
+
+	for (int i = 0; i < 100; ++i)
+	{
+		sDirName = kFormat ("{}{}{}-{}-{}",
+							kGetTemp(),
+							kDirSep,
+							kFirstNonEmpty(Dekaf::getInstance().GetProgName(), "dekaf"),
+							kGetTid(),
+							kRandom (10000, 99999));
+
+		if (kDirExists(sDirName))
 		{
-			sDirName = kFormat ("{}{}{}-{}",
-								kGetTemp(),
-								kDirSep,
-								kFirstNonEmpty(Dekaf::getInstance().GetProgName(), "dekaf"),
-								kRandom (10000, 99999));
+			continue;
+		}
+		else
+		{
+			if (kCreateDir (sDirName))
+			{
+				kDebug(2, "created temp directory: {}", m_sTempDirName);
 
-			if (kDirExists(sDirName))
-			{
-				continue;
-			}
-			else
-			{
-				if (kCreateDir (sDirName))
-				{
-					m_sTempDirName = std::move(sDirName);
-					kDebug(2, "created temp directory: {}", m_sTempDirName);
-					return true;
-				}
+				return sDirName;
 			}
 		}
 	}
 
 	kDebug (1, "failed to create temp directory");
-	return false;
+
+	sDirName.clear();
+
+	return sDirName;
 
 } // MakeDir
 
@@ -1542,21 +1543,32 @@ bool KTempDir::MakeDir ()
 KTempDir::~KTempDir()
 //-----------------------------------------------------------------------------
 {
-	if (m_bDeleteOnDestruction &&
-		!m_sTempDirName.empty() &&
-		kDirExists(m_sTempDirName))
-	{
-		if (kRemoveDir(m_sTempDirName))
-		{
-			kDebug (2, "removed temp directory: {}", m_sTempDirName);
-		}
-		else
-		{
-			kDebug (1, "failed to remove temp directory: {}", m_sTempDirName);
-		}
-	}
+	clear();
 
 } // KTempDir dtor
+
+//-----------------------------------------------------------------------------
+void KTempDir::clear()
+//-----------------------------------------------------------------------------
+{
+	if (!m_sTempDirName.empty())
+	{
+		if (m_bDeleteOnDestruction)
+		{
+			if (kRemoveDir(m_sTempDirName))
+			{
+				kDebug (2, "removed temp directory: {}", m_sTempDirName);
+			}
+			else
+			{
+				kDebug (1, "failed to remove temp directory: {}", m_sTempDirName);
+			}
+		}
+
+		m_sTempDirName.clear();
+	}
+
+} // clear
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARS
 namespace detail {

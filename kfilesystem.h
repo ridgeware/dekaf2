@@ -519,35 +519,40 @@ class KTempDir
 public:
 //----------
 
-	/// Create temp directory. The creation is not safe against race conditions.
+	/// Create temp directory
 	/// @param bDeleteOnDestruction delete directory and contents on destruction?
-	/// @param bCreateNow create now, or later on request
-	KTempDir (bool bDeleteOnDestruction = true, bool bCreateNow = true);
+	KTempDir (bool bDeleteOnDestruction = true)
+	: m_bDeleteOnDestruction(bDeleteOnDestruction)
+	{
+	}
+
 	~KTempDir ();
 
-	/// in case the folder was not created during construction (because bCreateNow was false), create it now
-	bool MakeDir ();
-
 	/// get the name of the temp directory
-	const KString& Name() const
-	{
-		return m_sTempDirName;
-	}
+	const KString& Name();
 
 	/// do we have a temp directory?
-	operator bool() const
+	operator bool()
 	{
-		return !m_sTempDirName.empty();
+		return !Name().empty();
 	}
 
-	operator const KString&() const
+	operator const KString&()
 	{
-		return m_sTempDirName;
+		return Name();
 	}
+
+	/// reset status to the one directly after construction, so,
+	/// removes all files if bDeleteOnDestruction was set, and
+	/// will create a new directory once Name() is called
+	void clear();
 
 //----------
 private:
 //----------
+
+	/// create the temp folder now
+	KString MakeDir();
 
 	KString m_sTempDirName;
 	bool m_bDeleteOnDestruction;

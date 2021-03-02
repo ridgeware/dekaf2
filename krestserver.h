@@ -49,6 +49,7 @@
 #include "kxml.h"
 #include "ktimer.h"
 #include "kopenid.h"
+#include "kfilesystem.h"
 #include <vector>
 #include <memory>
 
@@ -115,9 +116,13 @@ public:
 		};
 
 		/// Add one header to the list of fixed additional headers
+		/// @param Header the KHTTPHeader to add
+		/// @param sValue the value for the header
 		void AddHeader(KHTTPHeader Header, KStringView sValue);
 
 		/// Set the file name for the json access log
+		/// @param sJSONAccessLogFile the filename for the access log, or "stdout" / "stderr" for console output
+		/// @return true if file can be opened, false otherwise
 		bool SetJSONAccessLog(KStringViewZ sJSONAccessLogFile);
 
 		/// Fixed route prefix
@@ -136,11 +141,11 @@ public:
 		KStringView sKLogHeader;
 		/// Server name for this instance, will be used in diagnostic output
 		KStringView sServername;
-		/// DoS prevention - max rounds in keep-alive
+		/// DoS prevention - max rounds in keep-alive (default 10)
 		mutable uint16_t iMaxKeepaliveRounds { 10 };
-		/// Which of the three output formats?
+		/// Which of the three output formats HTTP, LAMBDA, CLI (default HTTP) ?
 		mutable OutputType Out { HTTP };
-		/// Which authentication level?
+		/// Which authentication level: ALLOW_ALL, ALLOW_ALL_WITH_AUTH_HEADER, VERIFY_AUTH_HEADER ?
 		AUTH_LEVEL AuthLevel { ALLOW_ALL };
 		/// Shall we record into the sRecordFile? Value is expected to change during execution (could be made an atomic, but we don't care for a few missing records)
 		bool bRecordRequest { false };
@@ -282,9 +287,20 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Get a temporary directory that is guaranteed to exist until this REST request is answered.
+	/// All content and the directory will be removed after the REST connection got closed.
+	const KString& GetTempDir()
+	//-----------------------------------------------------------------------------
+	{
+		return m_TempDir.Name();
+	}
+
+	//-----------------------------------------------------------------------------
 	/// get the referer url from the header
 	const KString& GetReferer() const;
-	///----------------------------------------------------------------------------
+	//-----------------------------------------------------------------------------
+
+
 
 //------
 protected:
@@ -347,6 +363,7 @@ private:
 	std::size_t m_iContentLength;        // content length for stream output
 	std::size_t m_iRequestBodyLength;    // size of received request body
 	KJWT m_AuthToken;
+	KTempDir m_TempDir;                  // create a KTempDir object
 	std::unique_ptr<KJSON> m_JsonLogger;
 	std::unique_ptr<KStopDurations> m_Timers;
 

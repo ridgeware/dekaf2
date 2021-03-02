@@ -1345,6 +1345,7 @@ void KRESTServer::clear()
 	m_iContentLength = npos;
 	m_AuthToken.clear();
 	m_JsonLogger.reset();
+	m_TempDir.clear();
 	// do not clear m_Timer, the main Execute loop takes care of it
 
 } // clear

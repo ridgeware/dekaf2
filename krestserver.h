@@ -58,7 +58,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// HTTP REST server with JSON input / output
+/// HTTP REST server with JSON, XML, or plain input / output
 class KRESTServer : public KHTTPServer
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -103,6 +103,7 @@ public:
 	using KHTTPServer::KHTTPServer;
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Options for the KRESTServer class
 	struct Options
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -157,34 +158,41 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// handler for one request
+	/// @param Options the options for the KRESTServer
+	/// @param Routes the KRESTRoutes object with all routing callbacks
+	/// @return true on success, false in case of error
 	bool Execute(const Options& Options, const KRESTRoutes& Routes);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// get the content body of a POST or PUT request
-	const KString& GetRequestBody() const
+	/// get the content body of a POST or PUT request, only guaranteed to be successful for routes of PLAIN type
+	const KString& GetRequestBody() const;
 	//-----------------------------------------------------------------------------
-	{
-		return m_sRequestBody;
-	}
 
 	//-----------------------------------------------------------------------------
-	/// set status code and corresponding default status string
+	/// set success status code and corresponding default status string - for errors throw a KHTTPError..
+	/// @param iCode a HTTP success status code
 	void SetStatus(int iCode);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// set file output (mutually exclusive to other output types)
+	/// set file to output (mutually exclusive to other output types)
+	/// @param sFile the filename of the file to output
+	/// @return true if file exists and can be opened, false otherwise
 	bool SetFileToOutput(KStringViewZ sFile);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// set file output (mutually exclusive to other output types)
-	bool SetStreamToOutput(std::unique_ptr<KInStream> Stream, std::size_t iContentLength);
+	/// set stream to output (mutually exclusive to other output types)
+	/// @param Stream an open stream to read from
+	/// @param iContentLength the count of bytes to read, or npos for read until EOF
+	/// @return true if stream is good for reading, false otherwise
+	bool SetStreamToOutput(std::unique_ptr<KInStream> Stream, std::size_t iContentLength = npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// set raw (non-json) output
+	/// set raw (non-json/non-xml) output
+	/// @param sRaw the string to output
 	void SetRawOutput(KString sRaw)
 	//-----------------------------------------------------------------------------
 	{
@@ -192,7 +200,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// add raw (non-json) output to existing output
+	/// add raw (non-json/non-xml) output to existing output
+	/// @param sRaw the string to append to the existing raw output
 	void AddRawOutput(KStringView sRaw)
 	//-----------------------------------------------------------------------------
 	{
@@ -209,17 +218,20 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// set output json["message"] string
-	void SetMessage(KStringView sMessage)
+	/// @param sMessage the message string
+	void SetMessage(KString sMessage)
 	//-----------------------------------------------------------------------------
 	{
-		m_sMessage = sMessage;
+		m_sMessage = std::move(sMessage);
 	}
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct json_t
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+		/// the json input object
 		KJSON rx;
+		/// the json output obect
 		KJSON tx;
 
 		//-----------------------------------------------------------------------------
@@ -232,7 +244,9 @@ public:
 	struct xml_t
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+		/// the xml input object
 		KXML rx;
+		/// the xml output obect
 		KXML tx;
 
 		//-----------------------------------------------------------------------------
@@ -241,10 +255,15 @@ public:
 		//-----------------------------------------------------------------------------
 	};
 
+	/// the json input/output object
 	json_t json;
+	/// the xml input/output object
 	xml_t  xml;
+	/// the selected KRESTRoute
 	const KRESTRoute*  Route       { &s_EmptyRoute        };
+	/// the KRESTRoutes object used for routing
 	const KRESTRoutes* Routes      { nullptr              };
+	/// the incoming request with method and path
  	KRESTPath          RequestPath { KHTTPMethod::GET, "" };
 
 	//-----------------------------------------------------------------------------
@@ -258,6 +277,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// check user's identity and access - throws if not permitted
 	/// (normally called automatically for routes flagged with SSO)
+	/// @param Options the options for the KRESTServer
 	void VerifyAuthentication(const Options& Options);
 	//-----------------------------------------------------------------------------
 
@@ -272,31 +292,39 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// parse input (if requested by method and route)
+	/// @param Options the options for the KRESTServer
 	void Parse(const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// generate success output
+	/// @param Options the options for the KRESTServer
+	/// @param bKeepAlive if false the Connection header will be set to close
 	void Output(const Options& Options, bool bKeepAlive);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// generate error output
+	/// @param ex the exception with the error status
+	/// @param Options the options for the KRESTServer
 	void ErrorHandler(const std::exception& ex, const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// write the access log
+	/// @param Options the options for the KRESTServer
 	void WriteJSONAccessLog(const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// check if request shall be recorded, and doing it
+	/// @param Options the options for the KRESTServer
 	void RecordRequestForReplay(const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// check if we shall log this thread's logging output into the response headers
+	/// @param Options the options for the KRESTServer
 	/// @return the per-thread logging level from 0 (off) to 3
 	int VerifyPerThreadKLogToHeader(const Options& Options);
 	//-----------------------------------------------------------------------------

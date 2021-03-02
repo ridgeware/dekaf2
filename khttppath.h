@@ -53,6 +53,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A HTTP path object, used as base class for all HTTP and REST path / route objects
 class KHTTPPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -64,7 +65,8 @@ public:
 	using URLParts = std::vector<KString>;
 
 	//-----------------------------------------------------------------------------
-	/// Construct a HTTP path
+	/// Construct a HTTP path from a HTTP request path
+	/// @param _sRoute the HTTP path, like "/some/path/index.html" or "/documents/*" or "/help"
 	KHTTPPath(KString _sRoute);
 	//-----------------------------------------------------------------------------
 
@@ -75,6 +77,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns a string view with the first iPartCount parts of the path
+	/// @param iPartCount how many parts of the path to return in a string
+	/// @return a stringview on the first parts of the path
 	KStringView GetFirstParts(size_t iPartCount) const;
 	//-----------------------------------------------------------------------------
 
@@ -91,6 +95,7 @@ public:
 namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A HTTP path object that performs some analysis on the path, to accelerate routing
 class KHTTPAnalyzedPath : public KHTTPPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -101,16 +106,19 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Construct an analyzed HTTP path
+	/// @param _sRoute the HTTP path, like "/some/path/index.html" or "/documents/*" or "/help"
 	KHTTPAnalyzedPath(KString _sRoute);
 	//-----------------------------------------------------------------------------
 
+	/// a struct with usage and timing statistics of the path / route
 	struct Stats
 	{
-		KDurations  Durations; // timing and count
-		std::size_t iRxBytes;  // received bytes (total)
-		std::size_t iTxBytes;  // transmitted bytes (total)
+		KDurations  Durations; ///< timing and count
+		std::size_t iRxBytes;  ///< received bytes (total)
+		std::size_t iTxBytes;  ///< transmitted bytes (total)
 	};
 
+	/// A threadsafe object with usage and timing statistics
 	mutable KThreadSafe<Stats> Statistics;
 
 	bool bHasWildCardAtEnd    { false };

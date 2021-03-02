@@ -79,7 +79,7 @@ bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint)
 	Response.SetOutputStream(Stream);
 	Request.SetInputStream(Stream);
 
-	return true;
+	return Stream.InStream().good() && Stream.OutStream().good();
 
 } // Accept
 
@@ -135,6 +135,16 @@ bool KHTTPServer::Serialize()
 } // Serialize
 
 //-----------------------------------------------------------------------------
+KString KHTTPServer::Read()
+//-----------------------------------------------------------------------------
+{
+	KString sBuffer;
+	Read(sBuffer);
+	return sBuffer;
+
+} // Read
+
+//-----------------------------------------------------------------------------
 KString KHTTPServer::GetConnectedClientIP() const
 //-----------------------------------------------------------------------------
 {
@@ -173,10 +183,25 @@ KString KHTTPServer::GetBrowserIP() const
 } // GetBrowserIP
 
 //-----------------------------------------------------------------------------
+const KString& KHTTPServer::GetRequestPath() const
+//-----------------------------------------------------------------------------
+{
+	return Request.Resource.Path.get();
+}
+
+//-----------------------------------------------------------------------------
+/// get one query parm value as a const string ref
+const KString& KHTTPServer::GetQueryParm(KStringView sKey) const
+//-----------------------------------------------------------------------------
+{
+	return Request.Resource.Query.get().Get(sKey);
+}
+
+//-----------------------------------------------------------------------------
 KString KHTTPServer::GetQueryParm(KStringView sKey, KStringView sDefault) const
 //-----------------------------------------------------------------------------
 {
-	KString sValue = Request.Resource.Query.get().Get(sKey);
+	KString sValue = GetQueryParm(sKey);
 
 	if (sValue.empty())
 	{
@@ -191,36 +216,34 @@ KString KHTTPServer::GetQueryParm(KStringView sKey, KStringView sDefault) const
 KString KHTTPServer::GetQueryParmSafe (KStringView sKey, KStringView sDefault/*=""*/) const
 //-----------------------------------------------------------------------------
 {
-	const KString& sValueRef = Request.Resource.Query.get().Get(sKey);
+	KString sValue = GetQueryParm(sKey, sDefault);
 
-	if (sValueRef.empty())
+	// sanitize the input as blanket protection from injection attacks
+	// by removing all forms of quotes: single, double, backtick and backslash
+	auto iRemoved = sValue.RemoveIllegalChars ("\"'`\\");
+
+	if (iRemoved)
 	{
-		if (sDefault)
-		{
-			return /*copy*/sDefault;
-		}
-		else
-		{
-			return {}; // NIL string
-		}
+		kDebug(1, "removed {} bad chars from: {}", iRemoved, sKey);
 	}
-	else
-	{
-		// sanitize the input as blanket protection from injection attacks
-		// by removing all forms of quotes: single, double, backtick and backslash
-		KString sCopy(sValueRef);
-		sCopy.RemoveIllegalChars ("\"'`\\");
-		return /*copy*/sCopy;
-	}
+
+	return sValue;
 
 } // GetQueryParmSafe
 
 //-----------------------------------------------------------------------------
-bool KHTTPServer::SetError(KStringView sError) const
+const url::KQueryParms& KHTTPServer::GetQueryParms() const
+//-----------------------------------------------------------------------------
+{
+	return Request.Resource.Query.get();
+}
+
+//-----------------------------------------------------------------------------
+bool KHTTPServer::SetError(KString sError) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, sError);
-	m_sError = sError;
+	m_sError = std::move(sError);
 	return false;
 
 } // SetError

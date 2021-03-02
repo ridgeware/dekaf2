@@ -75,6 +75,13 @@ bool KRESTServer::Options::SetJSONAccessLog(KStringViewZ sJSONAccessLogFile)
 } // SetJSONAccessLog
 
 //-----------------------------------------------------------------------------
+const KString& KRESTServer::GetRequestBody() const
+//-----------------------------------------------------------------------------
+{
+	return m_sRequestBody;
+}
+
+//-----------------------------------------------------------------------------
 void KRESTServer::VerifyAuthentication(const Options& Options)
 //-----------------------------------------------------------------------------
 {

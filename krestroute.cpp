@@ -212,9 +212,9 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters* Params, bool bCompar
 
 
 //-----------------------------------------------------------------------------
-KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute, KString sDocumentRoot, bool _bAuth)
+KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute, KString sDocumentRoot, bool bAuth)
 //-----------------------------------------------------------------------------
-	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, _bAuth, "/", std::move(sDocumentRoot), std::move(DefaultRoute)))
+	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, bAuth, "/", std::move(sDocumentRoot), std::move(DefaultRoute)))
 {
 }
 

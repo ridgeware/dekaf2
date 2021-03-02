@@ -825,6 +825,7 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
+	/// If called, the KTimer object will wait for its timer thread to terminate before leaving the constructor
 	void DestructWithJoin()
 	//---------------------------------------------------------------------------
 	{

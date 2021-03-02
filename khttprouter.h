@@ -57,6 +57,7 @@ namespace dekaf2 {
 class KHTTPRouter;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// One HTTP route
 class KHTTPRoute : public detail::KHTTPAnalyzedPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -67,16 +68,22 @@ public:
 
 	using HTTPCallback = std::function<void(KHTTPRouter&)>;
 
+	//-----------------------------------------------------------------------------
 	/// Construct a HTTP route
+	/// @param _sRoute a HTTP route, wildcard allowed: /www/path/*
+	/// @param _sDocumentRoot the file system path to be used for serving GET requests, or empty
+	/// @param _Callback a method that will be called when the route matches the request, or empty (in which case a simple web server with _DocumentRoot is started)
 	KHTTPRoute(KString _sRoute, KString _sDocumentRoot, HTTPCallback _Callback);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Compare this route part by part with a given path, and return true if matching.
+	/// @param Path a HTTP request path, like /www/path/myfile.html or /route/for/callback
 	bool Matches(const KHTTPPath& Path) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Default webserver implementation for static pages
+	/// Default webserver implementation for static pages, can be used as callback parameter for routes
 	static void WebServer(KHTTPRouter& HTTP);
 	//-----------------------------------------------------------------------------
 
@@ -86,6 +93,7 @@ public:
 }; // KHTTPRoute
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A collection of HTTP routes
 class KHTTPRoutes
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -96,6 +104,7 @@ public:
 
 	using HTTPHandler = void(*)(KHTTPServer& REST);
 
+	/// struct to set up an array of routes
 	struct RouteTable
 	{
 		KStringView sMethod;
@@ -106,6 +115,7 @@ public:
 	/// Add a HTTP route
 	bool AddRoute(KHTTPRoute _Route);
 
+	/// Add an array of Routes
 	template<std::size_t COUNT>
 	bool AddRouteTable(const RouteTable (&Routes)[COUNT])
 	{
@@ -120,10 +130,14 @@ public:
 		return true;
 	}
 
+	/// Set s default route to be taken if no route matches. Default = error
 	void SetDefaultRoute(KHTTPRoute::HTTPCallback Callback);
+
+	/// Clear the routes
 	void clear();
 
-	/// throws if no matching route found
+	/// Find a route matching the  Path, throws if no matching route found and no default route set
+	/// @param Path a http request path, like /www/index.html
 	const KHTTPRoute& FindRoute(const KHTTPPath& Path) const;
 
 //------
@@ -138,6 +152,7 @@ private:
 }; // KHTTPRoutes
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// minimalistic HTTP router / server implementation
 class KHTTPRouter : public KHTTPServer
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -154,6 +169,7 @@ public:
 	/// handler for one request
 	bool Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute);
 
+	/// the found KHTTPRoute for the request
 	const KHTTPRoute* Route { nullptr };
 
 //------

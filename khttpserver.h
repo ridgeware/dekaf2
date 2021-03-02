@@ -65,10 +65,14 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
+	/// Construct default HTTP server. Call Accept() to associate a stream.
 	KHTTPServer() = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Construct HTTP server around a stream
+	/// @param Stream the IO stream
+	/// @param sRemoteEndpoint IP address of the direct connection
 	KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint);
 	//-----------------------------------------------------------------------------
 
@@ -89,25 +93,33 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Associate a stream with the HTTP server
+	/// @param Stream the IO stream
+	/// @param sRemoteEndpoint IP address of the direct connection
+	/// @return true if Stream is ready for IO, false otherwise
 	bool Accept(KStream& Stream, KStringView sRemoteEndpoint);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Disconnect from client
 	void Disconnect();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// receive request and headers (and setup the filtered input stream)
+	/// @return true if request could be parsed, false otherwise
 	bool Parse();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// write reponse headers (and setup the filtered output stream)
+	/// @return true if response could be serialized, false otherwise
 	bool Serialize();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// get the input stream object
+	/// @return the (filtered/uncompressed) input stream
 	KInStream& InStream()
 	//-----------------------------------------------------------------------------
 	{
@@ -116,6 +128,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// get the output stream object
+	/// @return the output stream (that will eventually be fltered/compressed)
 	KOutStream& OutStream()
 	//-----------------------------------------------------------------------------
 	{
@@ -124,14 +137,20 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Read POST/PUT content into stream
-	size_t Read(KOutStream& stream, size_t len = KString::npos)
+	/// @param Stream the stream to read into
+	/// @param len the number of bytes to read, or npos to read until EOF
+	/// @return the count of read bytes
+	size_t Read(KOutStream& Stream, size_t len = KString::npos)
 	//-----------------------------------------------------------------------------
 	{
-		return Request.Read(stream, len);
+		return Request.Read(Stream, len);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Read POST/PUT content into string
+	/// @param sBuffer the string to read into
+	/// @param len the number of bytes to read, or npos to read until EOF
+	/// @return the count of read bytes
 	size_t Read(KString& sBuffer, size_t len = KString::npos)
 	//-----------------------------------------------------------------------------
 	{
@@ -140,16 +159,14 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Return entire POST/PUT content in a string
-	KString Read()
+	/// @return a string with the read content
+	KString Read();
 	//-----------------------------------------------------------------------------
-	{
-		KString sBuffer;
-		Read(sBuffer);
-		return sBuffer;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Read POST/PUT content line by line into string
+	/// @param sBuffer the string to read into
+	/// @return true if a line was available, false otherwise
 	bool ReadLine(KString& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
@@ -158,14 +175,19 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Stream from instream
-	size_t Write(KInStream& stream, size_t len = KString::npos)
+	/// @param Stream the stream to read from
+	/// @param len the number of bytes to read, or npos to read until EOF
+	/// @return the count of written bytes
+	size_t Write(KInStream& Stream, size_t len = KString::npos)
 	//-----------------------------------------------------------------------------
 	{
-		return Response.Write(stream, len);
+		return Response.Write(Stream, len);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Write sBuffer
+	/// @param sBuffer the string view to read from
+	/// @return the count of written bytes
 	size_t Write(KStringView sBuffer)
 	//-----------------------------------------------------------------------------
 	{
@@ -173,7 +195,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Write one line, including EOL
+	/// Write one line, including EOL (which is CR/LF)
+	/// @param sBuffer the string view to read from
+	/// @return the count of written bytes
 	size_t WriteLine(KStringView sBuffer)
 	//-----------------------------------------------------------------------------
 	{
@@ -182,6 +206,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns the last error string, if any
+	/// @return a const ref on the error string
 	const KString& Error() const
 	//-----------------------------------------------------------------------------
 	{
@@ -191,7 +216,8 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Automatically check if the output in this connection can be compressed, and
 	/// enable compression. This depends on the Accept-Encoding request header and
-	/// the client HTTP version. This option is active per default.
+	/// the client HTTP version. This option is active per default after construction of this class.
+	/// @param bYesNo if true, check if output can be compressed
 	void ConfigureCompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
@@ -201,6 +227,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Disable uncompress of incoming request, even if the respective request
 	/// headers are set.
+	/// @param bYesNo if false, do not uncompress input
 	void AllowUncompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
@@ -210,6 +237,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Disable compression of outgoing response, even if the respective response
 	/// headers are set.
+	/// @param bYesNo if false, do not compress output
 	void AllowCompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
@@ -223,6 +251,7 @@ public:
 
 	/// returns the IP address of the immediate client connection, not of any headers
 	/// as for GetBrowserIP()
+	/// @return a string with the IP address of the connection
 	//-----------------------------------------------------------------------------
 	KString GetConnectedClientIP() const;
 	//-----------------------------------------------------------------------------
@@ -235,11 +264,13 @@ public:
 	/// X-Forwarded-For and X-ProxyUser-IP headers (in that order, first found wins),
 	/// and if that remains without success returns the IP address of the immediate
 	/// client connection as for GetConnectedClientIP()
+	/// @return a string with the IP address of the original requester
 	KString GetBrowserIP() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// get request method as a KHTTPMethod
+	/// @return the HTTP request method
 	KHTTPMethod GetRequestMethod() const
 	//-----------------------------------------------------------------------------
 	{
@@ -247,45 +278,48 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// get request path as a string
-	const KString& GetRequestPath() const
+	/// get request path as a const string ref
+	const KString& GetRequestPath() const;
 	//-----------------------------------------------------------------------------
-	{
-		return Request.Resource.Path.get();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// get one query parm value as a const string ref
-	const KString& GetQueryParm(KStringView sKey) const
+	/// @param sKey the name of the requested query parm
+	/// @return the value for the requested query parm
+	const KString& GetQueryParm(KStringView sKey) const;
 	//-----------------------------------------------------------------------------
-	{
-		return Request.Resource.Query.get().Get(sKey);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// get one query parm value with default value if missing
+	/// @param sKey the name of the requested query parm
+	/// @param sDefault the default return value if there is no value for the key
+	/// @return the value for the requested query parm
 	KString GetQueryParm(KStringView sKey, KStringView sDefault) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// get one query parm value and remove possible injection attempts: single, double, backtick and backslash
-	KString GetQueryParmSafe (KStringView sKey, KStringView sDefault="") const;
+	/// @param sKey the name of the requested query parm
+	/// @param sDefault the default return value if there is no value for the key, empty string by default
+	/// @return the sanitized value for the requested query parm
+	KString GetQueryParmSafe (KStringView sKey, KStringView sDefault = KStringView{}) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// get query parms as a map
-	const url::KQueryParms& GetQueryParms() const
+	/// @return const ref on the map object with all query parms
+	const url::KQueryParms& GetQueryParms() const;
 	//-----------------------------------------------------------------------------
-	{
-		return Request.Resource.Query.get();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// set one query key/value parm
-	void SetQueryParm(KStringView sKey, KStringView sValue)
+	/// @param sKey the name for the query parm
+	/// @param sValue the value for the query parm
+	template<typename Key, typename Value>
+	void SetQueryParm(Key&& sKey, Value&& sValue)
 	//-----------------------------------------------------------------------------
 	{
-		Request.Resource.Query.get().Add(sKey, sValue);
+		Request.Resource.Query.get().Add(std::forward<Key>(sKey), std::forward<Value>(sValue));
 	}
 
 //------
@@ -297,7 +331,10 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool SetError(KStringView sError) const;
+	/// Set the error string, also outputs to debug log
+	/// @param sError the error string
+	/// @return always false
+	bool SetError(KString sError) const;
 	//-----------------------------------------------------------------------------
 
 //------

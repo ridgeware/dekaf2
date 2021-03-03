@@ -1029,14 +1029,6 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 } // Output
 
 //-----------------------------------------------------------------------------
-const KString& KRESTServer::GetReferer() const
-//-----------------------------------------------------------------------------
-{
-	return Request.Headers[KHTTPHeader::REFERER];
-
-} // GetReferer
-
-//-----------------------------------------------------------------------------
 void KRESTServer::json_t::clear()
 //-----------------------------------------------------------------------------
 {

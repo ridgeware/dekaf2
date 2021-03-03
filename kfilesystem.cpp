@@ -1524,7 +1524,7 @@ KString KTempDir::MakeDir ()
 		{
 			if (kCreateDir (sDirName))
 			{
-				kDebug(2, "created temp directory: {}", m_sTempDirName);
+				kDebug(2, "created temp directory: {}", sDirName);
 
 				return sDirName;
 			}

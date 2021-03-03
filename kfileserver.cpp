@@ -60,7 +60,7 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 
 		if (m_bThrow)
 		{
-			throw KHTTPError { KHTTPError::H5xx_ERROR, "invalid path" };
+			throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("invalid path: {}", sRequest) };
 		}
 		else
 		{
@@ -78,7 +78,7 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 
 			if (m_bThrow)
 			{
-				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid path" };
+				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid path: /{}", sRequest) };
 			}
 			else
 			{

@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [[ "$1" = "-x" ]]; then
+	set -x
+	shift
+fi
+
 export PROG=$(basename $0)
 
 # RE5 and RE6:
@@ -11,16 +16,37 @@ export PROG=$(basename $0)
 #         inet 10.10.78.28  netmask 255.255.255.0  broadcast 10.10.78.255
 #         inet6 fe80::20c:29ff:fe80:6f2f  prefixlen 64  scopeid 0x20<link>
 
+setx=get
+#==============================
+get ()
+#==============================
+{
+	if [[ "$1" != "" ]]; then
+		local nic=$1
+		(/sbin/ifconfig $nic | sed -e 's/.*inet addr:/inet /' | awk '($1 == "inet") {print $2; exit 0}') 2>/dev/null
+	else
+		/sbin/ifconfig | sed -e 's/.*inet addr:/inet /' | awk '($1 == "inet") {print $2; exit 0}' # <-- pick first interface
+	fi
+
+} # get
+
+setx=MAIN
+#====================
+# MAIN
+#====================
 case $# in
 	0)
-		/sbin/ifconfig | sed -e 's/.*inet addr:/inet /' | awk '($1 == "inet") {print $2; exit 0}' # <-- pick first interface
+		# first try eth0:
+		ip=$(get eth0);   [[ "$ip"   != "" ]] && echo "$ip" && exit 0
+		ip=$(get ens160); [[ "$ip"   != "" ]] && echo "$ip" && exit 0
+		ip=$(get ens32);  [[ "$ip"   != "" ]] && echo "$ip" && exit 0
+		get # <-- give up and pick the first interface
 		;;
 	1)
-		nic=$1
-		/sbin/ifconfig $nic | sed -e 's/.*inet addr:/inet /' | awk '($1 == "inet") {print $2; exit 0}'
+		get $1
 		;;
 	*)
-		printf "usage: %s [ nic ]\n" $PROG
+		printf "usage: %s [<nic>]\n" $PROG
 		exit 1
 	;;
 esac

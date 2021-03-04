@@ -7684,6 +7684,7 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const 
 	}
 
 	auto ParmList = sCommaDelimedSort.Split (",");
+	kDebug (2, "sort='{}' has {} parms ...", sCommaDelimedSort, ParmList.size());
 
 	bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
 
@@ -7701,6 +7702,8 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const 
 		sParm.Replace (" asc",       "");
 		sParm.Replace (" ",          "");
 
+		kDebug (2, "matching sort parm: {}", sParm);
+
 		for (auto& it : Config.items())
 		{
 			try
@@ -7710,6 +7713,7 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const 
 
 				if (sMatchParm.ToLower() == sParm.ToLower())
 				{
+					kDebug (2, "matched sort parm: {} to: {}", sParm, sDbCol);
 					sOrderBy += kFormat ("{} {}{}\n", sOrderBy ? "     ," : " order by", sDbCol, bDesc ? " desc" : "");
 					bFound = true;
 					break; // inner for

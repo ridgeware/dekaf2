@@ -258,6 +258,64 @@ KString kNormalizePath(KStringView sPath);
 //-----------------------------------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Retrieve information that is typically in the stat struct about a file
+class KFileStat
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// Construct default KFileStat object
+	KFileStat() = default;
+
+	/// Construct KFileStat object on a file
+	/// @param sFilename the file for which the status should be read
+	KFileStat(const KStringViewZ sFilename);
+
+	/// Returns file access mode
+	mode_t GetMode()             const { return m_mode;  }
+
+	/// Returns file's owner UID
+	uid_t  GetUID()              const { return m_uid;   }
+
+	/// Returns file's owner GID
+	gid_t  GetGID()              const { return m_gid;   }
+
+	/// Returns file's last access time
+	time_t GetAccessTime()       const { return m_atime; }
+
+	/// Returns file's last modification time
+	time_t GetModificationTime() const { return m_mtime; }
+
+	/// Returns file's creation time
+	time_t GetCreationTime()     const { return m_ctime; }
+
+	/// Returns file's size
+	size_t GetSize()             const { return m_size;  }
+
+//----------
+private:
+//----------
+
+	mode_t m_mode  { 0 };
+	uid_t  m_uid   { 0 };
+	gid_t  m_gid   { 0 };
+	time_t m_atime { 0 };
+	time_t m_mtime { 0 };
+	time_t m_ctime { 0 };
+	size_t m_size  { 0 };
+
+}; // KFileStat
+
+//-----------------------------------------------------------------------------
+/// Returns a KFileStat object for the passed file name
+/// @param sFilename the filename for which a KFileStat object shall be created
+KFileStat kFileStat(KStringViewZ sFilename);
+//-----------------------------------------------------------------------------
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve and filter directory listings
 class KDirectory
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -336,10 +394,55 @@ public:
 			return KDirectory::TypeAsString(m_Type);
 		}
 
+		/// Returns file access mode
+		mode_t Mode()             const
+		{
+			return FileStat().GetMode();
+		}
+
+		/// Returns file's owner UID
+		uid_t  UID()              const
+		{
+			return FileStat().GetUID();
+		}
+
+		/// Returns file's owner GID
+		gid_t  GID()              const
+		{
+			return FileStat().GetGID();
+		}
+
+		/// Returns file's last access time
+		time_t AccessTime()       const
+		{
+			return FileStat().GetAccessTime();
+		}
+
+		/// Returns file's last modification time
+		time_t ModificationTime() const
+		{
+			return FileStat().GetModificationTime();
+		}
+
+		/// Returns file's creation time
+		time_t CreationTime()     const
+		{
+			return FileStat().GetCreationTime();
+		}
+
+		/// Returns file's size
+		size_t Size()             const
+		{
+			return FileStat().GetSize();
+		}
+
 	//----------
 	private:
 	//----------
 
+		KFileStat& FileStat() const;
+
+		mutable std::unique_ptr<KFileStat> m_Stat;
 		KString      m_Path;
 		KStringViewZ m_Filename;
 		EntryType    m_Type { EntryType::ALL };
@@ -430,8 +533,17 @@ public:
 		return Find(sWildCard) != end();
 	}
 
+	enum class SortBy
+	{
+		NAME,
+		SIZE,
+		DATE,
+		UID,
+		GID
+	};
+
 	/// sort the directory list
-	void Sort();
+	void Sort(SortBy = SortBy::NAME, bool bReverse = false);
 
 //----------
 protected:

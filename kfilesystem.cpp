@@ -582,33 +582,37 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 	std::error_code ec;
 
 	auto ftime = fs::last_write_time(kToFilesystemPath(sFilePath), ec);
+
 	if (ec)
 	{
 		kDebug(2, "{}: {}", sFilePath, ec.message());
 		return -1;
 	}
+
 #if defined(DEKAF2_IS_WINDOWS) && !defined(DEKAF2_IS_CPP_20)
+
 	// unfortunately windows uses its own filetime ticks (100 nanoseconds since 1.1.1601)
 	// this will change with C++20!
 	static constexpr uint64_t WINDOWS_TICK = 10000000;
 	static constexpr uint64_t SEC_TO_UNIX_EPOCH = 11644473600LL;
 	return (ftime.time_since_epoch().count() / WINDOWS_TICK - SEC_TO_UNIX_EPOCH);
+
 #else
+
 	return decltype(ftime)::clock::to_time_t(ftime);
+
 #endif
 
 #else
 
 	struct stat StatStruct;
+
 	if (stat (sFilePath.c_str(), &StatStruct) < 0)
 	{
 		return -1;  // <-- file doesn't exist
 	}
-#ifdef DEKAF2_IS_OSX
-	return StatStruct.st_mtimespec.tv_sec;
-#else
-	return StatStruct.st_mtim.tv_sec;
-#endif
+
+	return StatStruct.st_mtime;
 
 #endif
 
@@ -664,6 +668,45 @@ size_t kFileSize(KStringViewZ sFilePath)
 } // kFileSize
 
 //-----------------------------------------------------------------------------
+KFileStat::KFileStat(const KStringViewZ sFilename)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_UNIX
+
+	// use the good ole stat() system call, it fetches all information with one call
+
+	struct stat StatStruct;
+
+	if (!stat(sFilename.c_str(), &StatStruct))
+	{
+		m_mode  = StatStruct.st_mode;
+		m_uid   = StatStruct.st_uid;
+		m_gid   = StatStruct.st_gid;
+		m_atime = StatStruct.st_atime;
+		m_mtime = StatStruct.st_mtime;
+		m_ctime = StatStruct.st_ctime;
+		m_size  = StatStruct.st_size;
+	}
+
+#else
+
+	// TODO windows would have issues with utf8 file names
+
+#endif
+
+} // Open
+
+static_assert(std::is_nothrow_move_constructible<KFileStat>::value,
+			  "KFileStat is intended to be nothrow move constructible, but is not!");
+
+//-----------------------------------------------------------------------------
+KFileStat kFileStat(KStringViewZ sFilename)
+//-----------------------------------------------------------------------------
+{
+	return KFileStat(sFilename);
+}
+
+//-----------------------------------------------------------------------------
 KDirectory::DirEntry::DirEntry(KStringView BasePath, KStringView Name, EntryType Type)
 //-----------------------------------------------------------------------------
 : m_Type(Type)
@@ -679,6 +722,22 @@ KDirectory::DirEntry::DirEntry(KStringView BasePath, KStringView Name, EntryType
 	m_Filename = m_Path.ToView(iPath);
 
 } // DirEntry ctor
+
+//-----------------------------------------------------------------------------
+KFileStat& KDirectory::DirEntry::FileStat() const
+//-----------------------------------------------------------------------------
+{
+	if (!m_Stat)
+	{
+		m_Stat = std::make_unique<KFileStat>(m_Path);
+	}
+
+	return *m_Stat;
+
+} // FileStat
+
+static_assert(std::is_nothrow_move_constructible<KDirectory::DirEntry>::value,
+			  "KDirectory::DirEntry is intended to be nothrow move constructible, but is not!");
 
 //-----------------------------------------------------------------------------
 void KDirectory::clear()
@@ -997,10 +1056,48 @@ KDirectory::const_iterator KDirectory::Find(KStringView sWildCard) const
 } // Find
 
 //-----------------------------------------------------------------------------
-void KDirectory::Sort()
+void KDirectory::Sort(SortBy SortBy, bool bReverse)
 //-----------------------------------------------------------------------------
 {
-	std::sort(m_DirEntries.begin(), m_DirEntries.end());
+	switch (SortBy)
+	{
+		case SortBy::NAME:
+			std::sort(m_DirEntries.begin(), m_DirEntries.end());
+			break;
+
+		case SortBy::SIZE:
+			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [](const DirEntry& left, const DirEntry& right)
+			{
+				return left.Size() > right.Size();
+			});
+			break;
+
+		case SortBy::DATE:
+			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [](const DirEntry& left, const DirEntry& right)
+			{
+					return left.ModificationTime() > right.ModificationTime();
+			});
+			break;
+
+		case SortBy::UID:
+			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [](const DirEntry& left, const DirEntry& right)
+			{
+					return left.UID() > right.UID();
+			});
+			break;
+
+		case SortBy::GID:
+			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [](const DirEntry& left, const DirEntry& right)
+			{
+					return left.GID() > right.GID();
+			});
+			break;
+	}
+
+	if (bReverse)
+	{
+		std::reverse(m_DirEntries.begin(), m_DirEntries.end());
+	}
 
 } // Sort
 
@@ -1033,6 +1130,9 @@ KStringViewZ KDirectory::TypeAsString(EntryType Type)
 	return "OTHER"; // gcc wants this. we do not want default: above
 
 } // TypeAsString
+
+static_assert(std::is_nothrow_move_constructible<KDirectory>::value,
+			  "KDirectory is intended to be nothrow move constructible, but is not!");
 
 //-----------------------------------------------------------------------------
 void KDiskStat::clear()

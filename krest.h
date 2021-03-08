@@ -94,8 +94,8 @@ public:
 		uint16_t iPort { 0 };
 		/// max simultaneous connections (default 20)
 		uint16_t iMaxConnections { 20 };
-		/// timeout in seconds (default 1)
-		uint16_t iTimeout { 1 };
+		/// timeout in seconds (default 2)
+		uint16_t iTimeout { 2 };
 		/// signals that will shutdown the server (default SIGINT, SIGTERM)
 		std::vector<int> RegisterSignalsForShutdown { SIGINT, SIGTERM };
 #ifdef DEKAF2_HAS_UNIX_SOCKETS

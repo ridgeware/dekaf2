@@ -689,7 +689,7 @@ size_t kFileSize(KStringViewZ sFilePath)
 	#define DEKAF2_S_ISLNK(m)  S_ISLNK(m)
 	#define DEKAF2_S_ISSOCK(m) S_ISSOCK(m)
 
-#elif DEKAF2_HAS_STD_FILESYSTEM
+#elif defined(DEKAF2_HAS_STD_FILESYSTEM)
 
 	#define DEKAF2_FILESTAT_USE_STD_FILESYSTEM
 
@@ -707,13 +707,13 @@ size_t kFileSize(KStringViewZ sFilePath)
 	#define DEKAF2_S_IFLNK     0120000
 	#define DEKAF2_S_IFSOCK    0140000
 
-	#define DEKAF2_S_ISBLK(m)  (((m) & S_IFMT) == S_IFBLK)
-	#define DEKAF2_S_ISCHR(m)  (((m) & S_IFMT) == S_IFCHR)
-	#define DEKAF2_S_ISDIR(m)  (((m) & S_IFMT) == S_IFDIR)
-	#define DEKAF2_S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
-	#define DEKAF2_S_ISREG(m)  (((m) & S_IFMT) == S_IFREG)
-	#define DEKAF2_S_ISLNK(m)  (((m) & S_IFMT) == S_IFLNK)
-	#define DEKAF2_S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+	#define DEKAF2_S_ISBLK(m)  (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFBLK)
+	#define DEKAF2_S_ISCHR(m)  (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFCHR)
+	#define DEKAF2_S_ISDIR(m)  (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFDIR)
+	#define DEKAF2_S_ISFIFO(m) (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFIFO)
+	#define DEKAF2_S_ISREG(m)  (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFREG)
+	#define DEKAF2_S_ISLNK(m)  (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFLNK)
+	#define DEKAF2_S_ISSOCK(m) (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFSOCK)
 
 #endif
 

@@ -241,9 +241,19 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 	{
 		SetError(Response.GetStatusString());
 
-		if (svRequestBody)
+		if (kWouldLog(2))
 		{
-			kDebug(2, "{} {}\n{}", RequestMethod.Serialize(), URL.KResource::Serialize(), svRequestBody);
+			if (!svRequestBody.empty())
+			{
+				if (!kIsBinary(svRequestBody))
+				{
+					kDebug(2, "{} {}\n{}", RequestMethod.Serialize(), URL.KResource::Serialize(), svRequestBody.LeftUTF8(1000));
+				}
+			}
+			else
+			{
+				kDebug(2, "{} {}", RequestMethod.Serialize(), URL.KResource::Serialize());
+			}
 		}
 
 		kDebug(2, "{} {} from URL {}", Response.iStatusCode, Response.sStatusString, URL.Serialize());
@@ -273,9 +283,16 @@ KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMe
 	KOutStringStream oss(sResponse);
 	HttpRequest(oss, URL, RequestMethod, svRequestBody, MIME);
 
-	if (!sResponse.empty())
+	if (kWouldLog(2))
 	{
-		kDebug(2, sResponse);
+		if (!sResponse.empty())
+		{
+			if (!kIsBinary(sResponse))
+			{
+				kDebug(2, sResponse.LeftUTF8(1000));
+			}
+		}
+		kDebug(2, "received {} bytes", sResponse.size());
 	}
 
 	return sResponse;

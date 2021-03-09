@@ -669,28 +669,52 @@ size_t kFileSize(KStringViewZ sFilePath)
 
 
 #ifdef DEKAF2_IS_UNIX
+
 	#define DEKAF2_FILESTAT_USE_STAT
+
+	#define DEKAF2_S_IFMT      S_IFMT
+	#define DEKAF2_S_IFIFO     S_IFIFO
+	#define DEKAF2_S_IFCHR     S_IFCHR
+	#define DEKAF2_S_IFDIR     S_IFDIR
+	#define DEKAF2_S_IFBLK     S_IFBLK
+	#define DEKAF2_S_IFREG     S_IFREG
+	#define DEKAF2_S_IFLNK     S_IFLNK
+	#define DEKAF2_S_IFSOCK    S_IFSOCK
+
+	#define DEKAF2_S_ISBLK(m)  S_ISBLK(m)
+	#define DEKAF2_S_ISCHR(m)  S_ISCHR(m)
+	#define DEKAF2_S_ISDIR(m)  S_ISDIR(m)
+	#define DEKAF2_S_ISFIFO(m) S_ISFIFO(m)
+	#define DEKAF2_S_ISREG(m)  S_ISREG(m)
+	#define DEKAF2_S_ISLNK(m)  S_ISLNK(m)
+	#define DEKAF2_S_ISSOCK(m) S_ISSOCK(m)
+
 #elif DEKAF2_HAS_STD_FILESYSTEM
+
 	#define DEKAF2_FILESTAT_USE_STD_FILESYSTEM
-	#ifndef S_IFMT
-		#define S_IFMT      0170000
-		#define S_IFIFO     0010000
-		#define S_IFCHR     0020000
-		#define S_IFDIR     0040000
-		#define S_IFBLK     0060000
-		#define S_IFREG     0100000
-		#define S_IFLNK     0120000
-		#define S_IFSOCK    0140000
-	#endif
-	#ifndef S_ISREG
-		#define S_ISBLK(m)  (((m) & S_IFMT) == S_IFBLK)
-		#define S_ISCHR(m)  (((m) & S_IFMT) == S_IFCHR)
-		#define S_ISDIR(m)  (((m) & S_IFMT) == S_IFDIR)
-		#define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
-		#define S_ISREG(m)  (((m) & S_IFMT) == S_IFREG)
-		#define S_ISLNK(m)  (((m) & S_IFMT) == S_IFLNK)
-		#define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
-	#endif
+
+	// these bit definitions are only used internally
+	// and do not need to match the target file system
+	// - we use the std::filesystem functions and types
+	// to interface with the real file system
+
+	#define DEKAF2_S_IFMT      0170000
+	#define DEKAF2_S_IFIFO     0010000
+	#define DEKAF2_S_IFCHR     0020000
+	#define DEKAF2_S_IFDIR     0040000
+	#define DEKAF2_S_IFBLK     0060000
+	#define DEKAF2_S_IFREG     0100000
+	#define DEKAF2_S_IFLNK     0120000
+	#define DEKAF2_S_IFSOCK    0140000
+
+	#define DEKAF2_S_ISBLK(m)  (((m) & S_IFMT) == S_IFBLK)
+	#define DEKAF2_S_ISCHR(m)  (((m) & S_IFMT) == S_IFCHR)
+	#define DEKAF2_S_ISDIR(m)  (((m) & S_IFMT) == S_IFDIR)
+	#define DEKAF2_S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+	#define DEKAF2_S_ISREG(m)  (((m) & S_IFMT) == S_IFREG)
+	#define DEKAF2_S_ISLNK(m)  (((m) & S_IFMT) == S_IFLNK)
+	#define DEKAF2_S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+
 #endif
 
 //-----------------------------------------------------------------------------
@@ -714,19 +738,19 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 		m_size  = StatStruct.st_size;
 	}
 
-#elif DEKAF2_FILESTAT_USE_STD_FILESYSTEM
+#elif defined(DEKAF2_FILESTAT_USE_STD_FILESYSTEM)
 
 	// windows would have issues with utf8 file names, therefore use the
 	// std::filesystem interface (which however needs multiple calls)
 
 	std::error_code ec;
-	auto fsPath = kToFilesystemPath(sPath);
+	auto fsPath = kToFilesystemPath(sFilename);
 
 	auto status = fs::status(fsPath, ec);
 
 	if (ec)
 	{
-		kDebug(1, "{}: {}", sPath, ec.message());
+		kDebug(1, "{}: {}", sFilename, ec.message());
 		m_mode = 0;
 	}
 	else
@@ -735,33 +759,33 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 
 		switch (ftype)
 		{
-			fs::file_type::regular:
-				m_mode = S_IFREG;
+			case fs::file_type::regular:
+				m_mode = DEKAF2_S_IFREG;
 				break;
 
-			fs::file_type::directory:
-				m_mode = S_IFDIR;
+			case fs::file_type::directory:
+				m_mode = DEKAF2_S_IFDIR;
 				break;
 
-			fs::file_type::symlink:
-				m_mode = S_IFLNK;
+			case fs::file_type::symlink:
+				m_mode = DEKAF2_S_IFLNK;
 				break;
 
 	#ifdef DEKAF2_HAS_CPP_17
-			fs::file_type::block:
-				m_mode = S_IFREG;
+			case fs::file_type::block:
+				m_mode = DEKAF2_S_IFREG;
 				break;
 	#endif
-			fs::file_type::character:
-				m_mode = S_IFCHR;
+			case fs::file_type::character:
+				m_mode = DEKAF2_S_IFCHR;
 				break;
 
-			fs::file_type::fifo:
-				m_mode = S_IFIFO;
+			case fs::file_type::fifo:
+				m_mode = DEKAF2_S_IFIFO;
 				break;
 
-			fs::file_type::socket:
-				m_mode = S_IFSOCK;
+			case fs::file_type::socket:
+				m_mode = DEKAF2_S_IFSOCK;
 				break;
 
 			default:
@@ -776,7 +800,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 
 	if (ec)
 	{
-		kDebug(1, "{}: {}", sPath, ec.message());
+		kDebug(1, "{}: {}", sFilename, ec.message());
 		m_size = 0;
 	}
 
@@ -784,7 +808,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 
 	if (ec)
 	{
-		kDebug(1, "{}: {}", sPath, ec.message());
+		kDebug(1, "{}: {}", sFilename, ec.message());
 	}
 	else
 	{
@@ -826,31 +850,31 @@ int KFileStat::GetAccessMode() const
 KFileType KFileStat::GetType() const
 //-----------------------------------------------------------------------------
 {
-	if (S_ISREG(m_mode))
+	if (DEKAF2_S_ISREG(m_mode))
 	{
 		return KFileType::REGULAR;
 	}
-	else if (S_ISDIR(m_mode))
+	else if (DEKAF2_S_ISDIR(m_mode))
 	{
 		return KFileType::DIRECTORY;
 	}
-	else if (S_ISLNK(m_mode))
+	else if (DEKAF2_S_ISLNK(m_mode))
 	{
 		return KFileType::LINK;
 	}
-	else if (S_ISSOCK(m_mode))
+	else if (DEKAF2_S_ISSOCK(m_mode))
 	{
 		return KFileType::SOCKET;
 	}
-	else if (S_ISFIFO(m_mode))
+	else if (DEKAF2_S_ISFIFO(m_mode))
 	{
 		return KFileType::FIFO;
 	}
-	else if (S_ISBLK(m_mode))
+	else if (DEKAF2_S_ISBLK(m_mode))
 	{
 		return KFileType::BLOCK;
 	}
-	else if (S_ISCHR(m_mode))
+	else if (DEKAF2_S_ISCHR(m_mode))
 	{
 		return KFileType::CHARACTER;
 	}
@@ -865,7 +889,7 @@ KFileType KFileStat::GetType() const
 bool KFileStat::IsDirectory() const
 //-----------------------------------------------------------------------------
 {
-	return S_ISDIR(m_mode);
+	return DEKAF2_S_ISDIR(m_mode);
 
 } // IsDirectory
 
@@ -873,7 +897,7 @@ bool KFileStat::IsDirectory() const
 bool KFileStat::IsFile() const
 //-----------------------------------------------------------------------------
 {
-	return S_ISREG(m_mode);
+	return DEKAF2_S_ISREG(m_mode);
 
 } // IsFile
 
@@ -881,7 +905,7 @@ bool KFileStat::IsFile() const
 bool KFileStat::IsSymlink() const
 //-----------------------------------------------------------------------------
 {
-	return S_ISLNK(m_mode);
+	return DEKAF2_S_ISLNK(m_mode);
 
 } // IsSymlink
 
@@ -889,7 +913,7 @@ bool KFileStat::IsSymlink() const
 bool KFileStat::Exists() const
 //-----------------------------------------------------------------------------
 {
-	return (m_mode & S_IFMT) != 0;
+	return (m_mode & DEKAF2_S_IFMT) != 0;
 
 } // Exists
 

@@ -44,6 +44,7 @@
 #include "kurl.h"
 #include "dekaf2.h"
 #include "kregex.h"
+#include <time.h>
 
 namespace dekaf2
 {
@@ -148,13 +149,79 @@ KString kFormString(KStringView sInp, typename KString::value_type separator, ty
 } // kFormString
 
 //-----------------------------------------------------------------------------
-KString kFormTimestamp (time_t tTime, const char* szFormat)
+bool kIsBinary(KStringView sBuffer)
 //-----------------------------------------------------------------------------
 {
-	enum { iMaxBuf = 100 };
-	char szBuffer[iMaxBuf+1];
+	return !Unicode::ValidUTF8(sBuffer);
 
-	struct tm ptmStruct;
+} // kIsBinary
+
+namespace {
+
+constexpr std::array<KStringViewZ, 7> AbbreviatedWeekdays
+{
+	{
+		"Sun",
+		"Mon",
+		"Tue",
+		"Wed",
+		"Thu",
+		"Fri",
+		"Sat"
+	}
+};
+
+constexpr std::array<KStringViewZ, 12> AbbreviatedMonths
+{
+	{
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec"
+	}
+};
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_17
+KStringViewZ kGetAbbreviatedWeekday(std::size_t iDay)
+//-----------------------------------------------------------------------------
+{
+	if (iDay < AbbreviatedWeekdays.size())
+	{
+		return AbbreviatedWeekdays[iDay];
+	}
+
+	return {};
+
+} // kGetAbbreviatedWeekday
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_17
+KStringViewZ kGetAbbreviatedMonth(std::size_t iMonth)
+//-----------------------------------------------------------------------------
+{
+	if (iMonth < AbbreviatedMonths.size())
+	{
+		return AbbreviatedMonths[iMonth];
+	}
+
+	return {};
+
+} // kGetAbbreviatedMonth
+
+//-----------------------------------------------------------------------------
+struct tm kGetBrokenDownTime (time_t tTime, bool bAsLocalTime)
+//-----------------------------------------------------------------------------
+{
+	struct tm time;
 
 	if (!tTime)
 	{
@@ -162,12 +229,24 @@ KString kFormTimestamp (time_t tTime, const char* szFormat)
 	}
 
 #ifdef DEKAF2_IS_WINDOWS
-	gmtime_s(&ptmStruct, &tTime);
+	if (bAsLocalTime)
+	{
+		localtime_s(&time, &tTime);
+	}
+	else
+	{
+		gmtime_s(&time, &tTime);
+	}
 #else
-	gmtime_r(&tTime, &ptmStruct);
+	if (bAsLocalTime)
+	{
+		localtime_r(&tTime, &time);
+	}
+	else
+	{
+		gmtime_r(&tTime, &time);
+	}
 #endif
-
-	strftime (szBuffer, iMaxBuf, szFormat, &ptmStruct);
 
 	if (kWouldLog(3))
 	{
@@ -176,25 +255,74 @@ KString kFormTimestamp (time_t tTime, const char* szFormat)
 
 		kDebug(3, "ix:{} d:{} m:{} y:{} h:{} m:{} s:{} offs:{} zone:{}",
 			   tTime,
-			   ptmStruct.tm_mday, ptmStruct.tm_mon+1, ptmStruct.tm_year+1900,
-			   ptmStruct.tm_hour, ptmStruct.tm_min, ptmStruct.tm_sec,
-			   ptmStruct.tm_gmtoff, ptmStruct.tm_zone);
+			   time.tm_mday,   time.tm_mon+1, time.tm_year+1900,
+			   time.tm_hour,   time.tm_min,   time.tm_sec,
+			   time.tm_gmtoff, time.tm_zone);
 
 #else
 
 		kDebug(3, "ix:{} d:{} m:{} y:{} h:{} m:{} s:{}",
 			   tTime,
-			   ptmStruct.tm_mday, ptmStruct.tm_mon+1, ptmStruct.tm_year+1900,
-			   ptmStruct.tm_hour, ptmStruct.tm_min, ptmStruct.tm_sec);
+			   time.tm_mday, time.tm_mon+1, time.tm_year+1900,
+			   time.tm_hour, time.tm_min,   time.tm_sec);
 
 #endif
 
-		kDebug(3, "{}: {}", szFormat, szBuffer);
 	}
 
-	return { szBuffer };
+	return time;
 
-} // FormTimestamp
+}; // kGetBrokenDownTime
+
+//-----------------------------------------------------------------------------
+KString kFormWebTimestamp (time_t tTime, KStringView sTimezoneDesignator)
+//-----------------------------------------------------------------------------
+{
+	auto time = kGetBrokenDownTime(tTime, false);
+
+	return kFormat("{}, {:02} {} {:04} {:02}:{:02}:{:02} {}",
+				   kGetAbbreviatedWeekday(time.tm_wday),
+				   time.tm_mday,
+				   kGetAbbreviatedMonth(time.tm_mon),
+				   time.tm_year + 1900,
+				   time.tm_hour,
+				   time.tm_min,
+				   time.tm_sec,
+				   sTimezoneDesignator);
+
+} // kFormWebTimestamp
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+KString kFormTimestamp (time_t tTime, const char* szFormat, bool bAsLocalTime)
+//-----------------------------------------------------------------------------
+{
+	auto time = kGetBrokenDownTime(tTime, bAsLocalTime);
+
+	std::array<char, 100> sBuffer;
+
+	auto iLength = strftime (sBuffer.data(), sBuffer.size(), szFormat, &time);
+
+	return { sBuffer.data(), iLength };
+
+} // kFormTimestamp
+
+//-----------------------------------------------------------------------------
+KString kFormHTTPTimestamp (time_t tTime)
+//-----------------------------------------------------------------------------
+{
+	return kFormWebTimestamp(tTime, "GMT");
+
+} // kFormHTTPTimestamp
+
+//-----------------------------------------------------------------------------
+KString kFormSMTPTimestamp (time_t tTime)
+//-----------------------------------------------------------------------------
+{
+	return kFormWebTimestamp(tTime, "-0000");
+
+} // kFormSMTPTimestamp
 
 //-----------------------------------------------------------------------------
 KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)

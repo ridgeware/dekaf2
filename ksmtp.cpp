@@ -233,7 +233,7 @@ bool KSMTP::Send(const KMail& Mail)
 	}
 
 	KString sDate("Date: ");
-	sDate += kFormTimestamp(Mail.Time(), "%a, %d %b %Y %H:%M:%S %z");
+	sDate += kFormSMTPTimestamp(Mail.Time());
 
 	if (!Talk(sDate, ""))
 	{

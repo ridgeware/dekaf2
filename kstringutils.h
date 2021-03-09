@@ -369,9 +369,29 @@ std::size_t kReplaceVariables (String& sString, StringView sOpen, StringView sCl
 } // kReplaceVariables
 
 //-----------------------------------------------------------------------------
-/// Create a UTC time stamp following strftime patterns. If tTime is 0, current time is
+/// Check if buffer content is binary content, not text
+bool kIsBinary(KStringView sBuffer);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Create a time stamp following strftime patterns. If tTime is 0, current time is
 /// used.
-KString kFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%M:%S");
+/// @param tTime Seconds since epoch. If 0, query current time from the system
+/// @param pszFormat format string
+/// @param bLocalTime use tTime as local time instead of utc
+KString kFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%M:%S", bool bAsLocalTime = false);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Create a HTTP time stamp
+/// @param tTime Seconds since epoch. If 0, query current time from the system
+KString kFormHTTPTimestamp (time_t tTime = 0);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Create a SMTP time stamp
+/// @param tTime Seconds since epoch. If 0, query current time from the system
+KString kFormSMTPTimestamp (time_t tTime = 0);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

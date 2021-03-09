@@ -401,6 +401,23 @@ KStringView KHTTPHeader::Serialize() const
 
 } // Serialize
 
+//-----------------------------------------------------------------------------
+KString KHTTPHeader::DateToString(time_t tTime)
+//-----------------------------------------------------------------------------
+{
+	return kFormHTTPTimestamp(tTime);
+
+} // DateToString
+
+//-----------------------------------------------------------------------------
+/// read a date from a string with HTTP date formatting
+time_t KHTTPHeader::StringToDate(KStringView sTime)
+//-----------------------------------------------------------------------------
+{
+	return 0; // TBD
+	
+} // StringToDate
+
 static_assert(std::is_nothrow_move_constructible<KHTTPHeader>::value,
 			  "KHTTPHeader is intended to be nothrow move constructible, but is not!");
 

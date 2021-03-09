@@ -46,6 +46,7 @@
 #include "kreader.h"
 #include "kwriter.h"
 #include "kmime.h"
+#include "kfilesystem.h"
 #include <memory>
 
 /// @file kfileserver.h
@@ -84,10 +85,10 @@ public:
 			  bool        bHadLeadingSlash);
 
 	/// Checks if the requested file exists
-	bool Exists() const { return m_iFileSize != npos; }
+	bool Exists() const { return m_FileStat.IsFile(); }
 
 	/// Checks if the requested file is a directory
-	bool IsDirectory() const;
+	bool IsDirectory() const { return m_FileStat.IsDirectory(); }
 
 	/// Checks if the requested file is a directory, but the original request did not have a slash at the end.
 	/// This is needed for HTTP redirects, as we cannot simply append a index.html in that case to the
@@ -97,8 +98,8 @@ public:
 	/// Returns the file system path as created by Open()
 	const KString& GetFileSystemPath() const { return m_sFileSystemPath; }
 
-	/// Returns the file size, or npos if not found.
-	std::size_t GetFileSize() const { return m_iFileSize; }
+	/// Returns KFileStat information about a file
+	const KFileStat& GetFileStat() const { return m_FileStat; }
 
 	/// Returns a stream good for reading the resource. May throw.
 	std::unique_ptr<KInStream> GetStreamForReading();
@@ -119,7 +120,7 @@ protected:
 	KString     m_sDirIndexFile;
 	KString     m_sFileSystemPath;
 	KMIME       m_mime   { KMIME::NONE };
-	std::size_t m_iFileSize    { npos  };
+	KFileStat   m_FileStat;
 	bool        m_bThrow       { true  };
 	bool        m_bReDirectory { false };
 

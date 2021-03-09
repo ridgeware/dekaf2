@@ -181,7 +181,7 @@ CreateProject::CreateProject ()
 void CreateProject::ShowAllTemplates()
 //-----------------------------------------------------------------------------
 {
-	KDirectory Templates(kFormat("{}{}templates", DEKAF2_SHARED_DIRECTORY, kDirSep), KDirectory::EntryType::DIRECTORY);
+	KDirectory Templates(kFormat("{}{}templates", DEKAF2_SHARED_DIRECTORY, kDirSep), KFileType::DIRECTORY);
 	Templates.Sort();
 
 	KOut.WriteLine();
@@ -191,7 +191,7 @@ void CreateProject::ShowAllTemplates()
 	for (const auto& Template : Templates)
 	{
 		// check if the template directory is empty - then ignore it
-		KDirectory Target(Template.Path(), KDirectory::EntryType::REGULAR);
+		KDirectory Target(Template.Path(), KFileType::REGULAR);
 
 		if (!Target.empty())
 		{
@@ -333,7 +333,7 @@ void CreateProject::CopyDirRecursive(KStringViewZ sOutputDir, KStringViewZ sFrom
 
 	for (const auto& File : Directory)
 	{
-		if (File.Type() == KDirectory::EntryType::DIRECTORY)
+		if (File.Type() == KFileType::DIRECTORY)
 		{
 			KString sNewOut  = kFormat("{}{}{}", sOutputDir, kDirSep, File.Filename());
 			KString sNewFrom = kFormat("{}{}{}", sFromDir,   kDirSep, File.Filename());

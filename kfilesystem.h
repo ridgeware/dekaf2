@@ -43,7 +43,7 @@
 #pragma once
 
 /// @file kfilesystem.h
-/// remaining standalone functions and classes around files and the file system
+/// standalone functions and classes around files and the file system
 
 #include <cinttypes>
 #include <vector>
@@ -257,8 +257,21 @@ KString kMakeSafePathname(KStringView sName, bool bToLowercase = true, KStringVi
 KString kNormalizePath(KStringView sPath);
 //-----------------------------------------------------------------------------
 
+enum class KFileType
+{
+	ALL,
+	BLOCK,
+	CHARACTER,
+	DIRECTORY,
+	FIFO,
+	LINK,
+	REGULAR,
+	SOCKET,
+	OTHER
+};
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Retrieve information that is typically in the stat struct about a file
+/// Retrieve information about a file hat is typically found in the stat struct
 class KFileStat
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -275,13 +288,13 @@ public:
 	KFileStat(const KStringViewZ sFilename);
 
 	/// Returns file access mode
-	mode_t GetMode()             const { return m_mode;  }
+	int GetAccessMode()          const;
 
 	/// Returns file's owner UID
-	uid_t  GetUID()              const { return m_uid;   }
+	uint32_t GetUID()            const { return m_uid;   }
 
 	/// Returns file's owner GID
-	gid_t  GetGID()              const { return m_gid;   }
+	uint32_t GetGID()            const { return m_gid;   }
 
 	/// Returns file's last access time
 	time_t GetAccessTime()       const { return m_atime; }
@@ -289,23 +302,38 @@ public:
 	/// Returns file's last modification time
 	time_t GetModificationTime() const { return m_mtime; }
 
-	/// Returns file's creation time
-	time_t GetCreationTime()     const { return m_ctime; }
+	/// Returns file's status change time (writes, but also inode changes)
+	time_t GetChangeTime()       const { return m_ctime; }
 
 	/// Returns file's size
 	size_t GetSize()             const { return m_size;  }
+
+	/// Returns file's type
+	KFileType GetType()          const;
+
+	/// Is this a directory entry?
+	bool IsDirectory() const;
+
+	/// Is this a file?
+	bool IsFile() const;
+
+	/// Is this a symlink
+	bool IsSymlink() const;
+
+	/// Does this object exist?
+	bool Exists() const;
 
 //----------
 private:
 //----------
 
-	mode_t m_mode  { 0 };
-	uid_t  m_uid   { 0 };
-	gid_t  m_gid   { 0 };
-	time_t m_atime { 0 };
-	time_t m_mtime { 0 };
-	time_t m_ctime { 0 };
-	size_t m_size  { 0 };
+	uint32_t m_mode  { 0 };
+	uint32_t m_uid   { 0 };
+	uint32_t m_gid   { 0 };
+	time_t   m_atime { 0 };
+	time_t   m_mtime { 0 };
+	time_t   m_ctime { 0 };
+	size_t   m_size  { 0 };
 
 }; // KFileStat
 
@@ -325,20 +353,10 @@ class KDirectory
 public:
 //----------
 
-	enum class EntryType
-	{
-		ALL,
-		BLOCK,
-		CHARACTER,
-		DIRECTORY,
-		FIFO,
-		LINK,
-		REGULAR,
-		SOCKET,
-		OTHER
-	};
+	// deprecated name
+	using EntryType = KFileType;
 
-	static KStringViewZ TypeAsString(EntryType Type);
+	static KStringViewZ TypeAsString(KFileType Type);
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper type that keeps one directory entry, with its name, full path and type
@@ -350,9 +368,9 @@ public:
 	public:
 	//----------
 
-		DirEntry() : m_Type(EntryType::ALL) {}
+		DirEntry() : m_Type(KFileType::ALL) {}
 
-		DirEntry(KStringView BasePath, KStringView Name, EntryType Type);
+		DirEntry(KStringView BasePath, KStringView Name, KFileType Type);
 
 		bool operator<(const DirEntry& other) const
 		{
@@ -383,7 +401,7 @@ public:
 		}
 
 		/// returns directory entry type
-		EntryType Type() const
+		KFileType Type() const
 		{
 			return m_Type;
 		}
@@ -395,19 +413,19 @@ public:
 		}
 
 		/// Returns file access mode
-		mode_t Mode()             const
+		int Mode()                const
 		{
-			return FileStat().GetMode();
+			return FileStat().GetAccessMode();
 		}
 
 		/// Returns file's owner UID
-		uid_t  UID()              const
+		uint32_t UID()            const
 		{
 			return FileStat().GetUID();
 		}
 
 		/// Returns file's owner GID
-		gid_t  GID()              const
+		uint32_t GID()            const
 		{
 			return FileStat().GetGID();
 		}
@@ -424,10 +442,10 @@ public:
 			return FileStat().GetModificationTime();
 		}
 
-		/// Returns file's creation time
-		time_t CreationTime()     const
+		/// Returns file's status change time
+		time_t ChangeTime()       const
 		{
-			return FileStat().GetCreationTime();
+			return FileStat().GetChangeTime();
 		}
 
 		/// Returns file's size
@@ -436,16 +454,17 @@ public:
 			return FileStat().GetSize();
 		}
 
+		/// Return the KFileStat component as a const ref
+		const KFileStat& FileStat() const;
+
 	//----------
 	private:
 	//----------
 
-		KFileStat& FileStat() const;
-
 		mutable std::unique_ptr<KFileStat> m_Stat;
 		KString      m_Path;
 		KStringViewZ m_Filename;
-		EntryType    m_Type { EntryType::ALL };
+		KFileType    m_Type { KFileType::ALL };
 
 	}; // DirEntry
 
@@ -456,11 +475,11 @@ public:
 	/// default ctor
 	KDirectory() = default;
 
-	/// ctor that will open a directory and store all entries that are of EntryType Type
+	/// ctor that will open a directory and store all entries that are of FileType Type
 	/// @param sDirectory the direcory path to open
-	/// @param Type the EntryType to search for, default = ALL
+	/// @param Type the FileType to search for, default = ALL
 	/// @param bRecursive traverse subdirectories recursively, default = false
-	KDirectory(KStringViewZ sDirectory, EntryType Type = EntryType::ALL, bool bRecursive = false)
+	KDirectory(KStringViewZ sDirectory, KFileType Type = KFileType::ALL, bool bRecursive = false)
 	{
 		Open(sDirectory, Type, bRecursive, false);
 	}
@@ -487,19 +506,19 @@ public:
 	/// clear list of directory entries
 	void clear();
 
-	/// open a directory and store all entries that are of EntryType Type
+	/// open a directory and store all entries that are of FileType Type
 	/// @param sDirectory the direcory path to open
-	/// @param Type the EntryType to search for, default = ALL
+	/// @param Type the FileType to search for, default = ALL
 	/// @param bRecursive traverse subdirectories recursively, default = false
 	/// @param bClear remove existing (previously found) directory entries, default = true
-	size_t Open(KStringViewZ sDirectory, EntryType Type = EntryType::ALL, bool bRecursive = false, bool bClear = true);
+	size_t Open(KStringViewZ sDirectory, KFileType Type = KFileType::ALL, bool bRecursive = false, bool bClear = true);
 
-	/// open a directory and store all entries that are of EntryType Type
+	/// open a directory and store all entries that are of FileType Type
 	/// @param sDirectory the direcory path to open
-	/// @param Type the EntryType to search for, default = ALL
+	/// @param Type the FileType to search for, default = ALL
 	/// @param bRecursive traverse subdirectories recursively, default = false
 	/// @param bClear remove existing (previously found) directory entries, default = true
-	size_t operator()(KStringViewZ sDirectory, EntryType Type = EntryType::ALL, bool bRecursive = false, bool bClear = true)
+	size_t operator()(KStringViewZ sDirectory, KFileType Type = KFileType::ALL, bool bRecursive = false, bool bClear = true)
 	{
 		return Open(sDirectory, Type, bRecursive, bClear);
 	}
@@ -507,10 +526,10 @@ public:
 	/// remove all hidden files, that is, files that start with a dot
 	void RemoveHidden();
 
-	/// match or remove all files that have EntryType Type from the list, returns count of matched entries
-	/// @param Type the EntryType to search for
+	/// match or remove all files that have FileType Type from the list, returns count of matched entries
+	/// @param Type the FileType to search for
 	/// @param bRemoveMatches if true remove matches, else keep only those (default = false)
-	size_t Match(EntryType Type, bool bRemoveMatches = false);
+	size_t Match(KFileType Type, bool bRemoveMatches = false);
 
 	/// match or remove all files that match the regular expression sRegex from the list, returns count of matched entries
 	/// @param sRegex the regular expression to search for

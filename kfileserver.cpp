@@ -95,7 +95,7 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 		m_sFileSystemPath += sRequest;
 	}
 
-	m_iFileSize       = kFileSize(m_sFileSystemPath);
+	m_FileStat = KFileStat(m_sFileSystemPath);
 
 	if (IsDirectory())
 	{
@@ -104,13 +104,13 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 			// try index.html
 			m_sFileSystemPath += kDirSep;
 			m_sFileSystemPath += m_sDirIndexFile;
-			m_iFileSize       = kFileSize(m_sFileSystemPath);
+			m_FileStat         = KFileStat(m_sFileSystemPath);
 
 			if (!Exists() && kExtension(m_sFileSystemPath) == "html")
 			{
 				// check for (index).htm if extension was .html
 				m_sFileSystemPath.remove_suffix(1);
-				m_iFileSize = kFileSize(m_sFileSystemPath);
+				m_FileStat = KFileStat(m_sFileSystemPath);
 			}
 		}
 		else
@@ -130,7 +130,7 @@ std::unique_ptr<KInStream> KFileServer::GetStreamForReading()
 {
 	std::unique_ptr<KInFile> Stream;
 
-	if (m_iFileSize != npos)
+	if (m_FileStat.IsFile())
 	{
 		Stream = std::make_unique<KInFile>(m_sFileSystemPath);
 	}
@@ -185,7 +185,7 @@ KMIME KFileServer::GetMIMEType(bool bInspect)
 {
 	if (m_mime == KMIME::NONE)
 	{
-		if (m_iFileSize != npos)
+		if (m_FileStat.IsFile())
 		{
 			m_mime = KMIME::CreateByExtension(m_sFileSystemPath);
 
@@ -215,20 +215,12 @@ KMIME KFileServer::GetMIMEType(bool bInspect)
 } // GetMIMEType
 
 //-----------------------------------------------------------------------------
-bool KFileServer::IsDirectory() const
-//-----------------------------------------------------------------------------
-{
-	return m_iFileSize == npos && kDirExists(m_sFileSystemPath);
-
-} // IsDirectory
-
-//-----------------------------------------------------------------------------
 void KFileServer::clear()
 //-----------------------------------------------------------------------------
 {
 	m_sFileSystemPath.clear();
 	m_mime         = KMIME::NONE;
-	m_iFileSize    = npos;
+	m_FileStat     = KFileStat();
 	m_bReDirectory = false;
 
 } // clear

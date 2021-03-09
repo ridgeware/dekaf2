@@ -152,8 +152,8 @@ TEST_CASE("KFilesystem")
 	{
 		KDirectory Dir(sDirectory);
 		CHECK ( Dir.size() == 2 );
-		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR) == 2);
-		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR, true) == 2);
+		CHECK ( Dir.Match( KFileType::REGULAR) == 2);
+		CHECK ( Dir.Match( KFileType::REGULAR, true) == 2);
 		CHECK ( Dir.empty() == true );
 		CHECK ( Dir.Open(sDirectory) == 2 );
 		Dir.RemoveHidden();
@@ -161,7 +161,7 @@ TEST_CASE("KFilesystem")
 		CHECK ( Dir.Match(".*\\.test") == 1 );
 		CHECK ( Dir.Match(".*\\.test", true) == 1 );
 		CHECK ( Dir.empty() == true );
-		CHECK ( Dir.Open(sDirectory, KDirectory::EntryType::REGULAR) == 2 );
+		CHECK ( Dir.Open(sDirectory, KFileType::REGULAR) == 2 );
 		CHECK ( Dir.size() == 2 );
 		CHECK ( Dir.Find("KFilesystem.test") != Dir.end() );
 		CHECK ( Dir.Find("test.txt") != Dir.end() );
@@ -176,7 +176,7 @@ TEST_CASE("KFilesystem")
 	{
 		KDirectory Dir(sDirectorySlash);
 		CHECK ( Dir.size() == 2 );
-		CHECK ( Dir.Match( KDirectory::EntryType::REGULAR) == 2);
+		CHECK ( Dir.Match( KFileType::REGULAR) == 2);
 		Dir.Sort();
 		CHECK ( Dir.begin()->Path().find(kFormat("{}{}", kDirSep, kDirSep)) == KString::npos );
 	}

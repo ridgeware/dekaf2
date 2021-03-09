@@ -792,14 +792,14 @@ bool KZip::WriteFiles(const KDirectory& Directory, KStringView sDirectoryRoot, K
 			}
 		}
 
-		if (File.Type() == KDirectory::EntryType::DIRECTORY)
+		if (File.Type() == KFileType::DIRECTORY)
 		{
 			if (!WriteDirectory(sDispName))
 			{
 				return false;
 			}
 		}
-		else if (File.Type() == KDirectory::EntryType::REGULAR)
+		else if (File.Type() == KFileType::REGULAR)
 		{
 			// now add the file to the archive
 			if (!WriteFile(File.Path(), sDispName))

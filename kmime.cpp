@@ -571,7 +571,7 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 	if (kDirExists(sPathname))
 	{
 		// get all regular files
-		KDirectory Dir(sPathname, KDirectory::EntryType::REGULAR);
+		KDirectory Dir(sPathname, KFileType::REGULAR);
 
 		// remove the manifest if existing, we do not want to send it
 		bool bHasManifest = Dir.WildCardMatch("manifest.ini", true);

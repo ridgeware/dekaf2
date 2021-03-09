@@ -1686,7 +1686,7 @@ KString kMakeSafeFilename(KStringView sName, bool bToLowercase, KStringView sEmp
 		{
 			KCodePoint Cp(uch);
 
-			if (!Cp.IsAlNum())
+			if (uch != '_' && !Cp.IsAlNum())
 			{
 				if (lastCp == 0)
 				{

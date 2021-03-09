@@ -735,7 +735,11 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 		m_atime = StatStruct.st_atime;
 		m_mtime = StatStruct.st_mtime;
 		m_ctime = StatStruct.st_ctime;
-		m_size  = StatStruct.st_size;
+
+		if (!IsDirectory())
+		{
+			m_size = StatStruct.st_size;
+		}
 	}
 
 #elif defined(DEKAF2_FILESTAT_USE_STD_FILESYSTEM)
@@ -796,12 +800,15 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 		m_mode |= static_cast<int>(status.permissions());
 	}
 
-	m_size = fs::file_size(fsPath, ec);
-
-	if (ec)
+	if (!IsDirectory())
 	{
-		kDebug(1, "{}: {}", sFilename, ec.message());
-		m_size = 0;
+		m_size = fs::file_size(fsPath, ec);
+
+		if (ec)
+		{
+			kDebug(1, "{}: {}", sFilename, ec.message());
+			m_size = 0;
+		}
 	}
 
 	auto ftime = fs::last_write_time(fsPath, ec);
@@ -842,7 +849,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 int KFileStat::GetAccessMode() const
 //-----------------------------------------------------------------------------
 {
-	return (m_mode & ~S_IFMT);
+	return (m_mode & ~DEKAF2_S_IFMT);
 
 } // GetAccessMode
 
@@ -850,38 +857,34 @@ int KFileStat::GetAccessMode() const
 KFileType KFileStat::GetType() const
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_S_ISREG(m_mode))
+	switch ((m_mode & DEKAF2_S_IFMT))
 	{
-		return KFileType::REGULAR;
+		case DEKAF2_S_IFREG:
+			return KFileType::REGULAR;
+
+		case DEKAF2_S_IFDIR:
+			return KFileType::DIRECTORY;
+
+		case DEKAF2_S_IFLNK:
+			return KFileType::LINK;
+
+		case DEKAF2_S_IFSOCK:
+			return KFileType::SOCKET;
+
+		case DEKAF2_S_IFIFO:
+			return KFileType::FIFO;
+
+		case DEKAF2_S_IFBLK:
+			return KFileType::BLOCK;
+
+		case DEKAF2_S_IFCHR:
+			return KFileType::CHARACTER;
+
+		default:
+			break;
 	}
-	else if (DEKAF2_S_ISDIR(m_mode))
-	{
-		return KFileType::DIRECTORY;
-	}
-	else if (DEKAF2_S_ISLNK(m_mode))
-	{
-		return KFileType::LINK;
-	}
-	else if (DEKAF2_S_ISSOCK(m_mode))
-	{
-		return KFileType::SOCKET;
-	}
-	else if (DEKAF2_S_ISFIFO(m_mode))
-	{
-		return KFileType::FIFO;
-	}
-	else if (DEKAF2_S_ISBLK(m_mode))
-	{
-		return KFileType::BLOCK;
-	}
-	else if (DEKAF2_S_ISCHR(m_mode))
-	{
-		return KFileType::CHARACTER;
-	}
-	else
-	{
-		return KFileType::OTHER;
-	}
+
+	return KFileType::OTHER;
 
 } // GetFileType
 

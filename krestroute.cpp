@@ -353,9 +353,8 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 	else if (FileServer.Exists())
 	{
 		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, FileServer.GetMIMEType(true));
-		// Date: <day-name>, <day> <month> <year> <hour>:<minute>:<second> GMT
-		HTTP.Response.Headers.Set(KHTTPHeader::DATE, KHTTPHeader::DateToString(FileServer.GetFileStat().GetModificationTime()));
-		HTTP.SetStreamToOutput(FileServer.GetStreamForReading(), FileServer.GetFileStat().GetSize());
+		HTTP.Response.Headers.Set(KHTTPHeader::DATE, KHTTPHeader::DateToString(FileServer.GetFileStat().ModificationTime()));
+		HTTP.SetStreamToOutput(FileServer.GetStreamForReading(), FileServer.GetFileStat().Size());
 	}
 	else
 	{

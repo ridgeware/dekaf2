@@ -846,7 +846,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 } // KFileStat
 
 //-----------------------------------------------------------------------------
-int KFileStat::GetAccessMode() const
+int KFileStat::AccessMode() const
 //-----------------------------------------------------------------------------
 {
 	return (m_mode & ~DEKAF2_S_IFMT);
@@ -854,7 +854,7 @@ int KFileStat::GetAccessMode() const
 } // GetAccessMode
 
 //-----------------------------------------------------------------------------
-KFileType KFileStat::GetType() const
+KFileType KFileStat::Type() const
 //-----------------------------------------------------------------------------
 {
 	switch ((m_mode & DEKAF2_S_IFMT))

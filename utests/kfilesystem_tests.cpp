@@ -107,17 +107,17 @@ TEST_CASE("KFilesystem")
 	{
 		KFileStat fs(sFile);
 		CHECK( fs.Exists()      == true  );
-		CHECK( fs.GetType()     == KFileType::REGULAR );
+		CHECK( fs.Type()        == KFileType::REGULAR );
 		CHECK( fs.IsFile()      == true  );
 		CHECK( fs.IsDirectory() == false );
-		CHECK( fs.GetSize()     == 63    );
+		CHECK( fs.Size()        == 63    );
 
 		fs = KFileStat(sDirectory);
 		CHECK( fs.Exists()      == true  );
-		CHECK( fs.GetType()     == KFileType::DIRECTORY );
+		CHECK( fs.Type()        == KFileType::DIRECTORY );
 		CHECK( fs.IsFile()      == false );
 		CHECK( fs.IsDirectory() == true  );
-		CHECK( fs.GetSize()     == 0     );
+		CHECK( fs.Size()        == 0     );
 	}
 
 	SECTION("name manipulations")
@@ -181,8 +181,8 @@ TEST_CASE("KFilesystem")
 		CHECK ( Dir.Open(sDirectory, KFileType::REGULAR) == 2 );
 		CHECK ( Dir.size() == 2 );
 		CHECK ( Dir.Find("KFilesystem.test") != Dir.end() );
-		CHECK ( Dir.Find("KFilesystem.test")->FileStat().GetSize() == 63 );
-		CHECK ( Dir.Find("KFilesystem.test")->FileStat().GetType() == KFileType::REGULAR );
+		CHECK ( Dir.Find("KFilesystem.test")->FileStat().Size() == 63 );
+		CHECK ( Dir.Find("KFilesystem.test")->FileStat().Type() == KFileType::REGULAR );
 		CHECK ( Dir.Find("KFilesystem.test")->Type() == KFileType::REGULAR );
 		CHECK ( Dir.Find("test.txt") != Dir.end() );
 		CHECK ( Dir.Find("KFi*ystem.t?st") != Dir.end() );

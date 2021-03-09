@@ -159,9 +159,8 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 	else
 	{
 		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, FileServer.GetMIMEType(true));
-		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(FileServer.GetFileStat().GetSize()));
-		// Date: <day-name>, <day> <month> <year> <hour>:<minute>:<second> GMT
-		HTTP.Response.Headers.Set(KHTTPHeader::DATE, KHTTPHeader::DateToString(FileServer.GetFileStat().GetModificationTime()));
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(FileServer.GetFileStat().Size()));
+		HTTP.Response.Headers.Set(KHTTPHeader::DATE, KHTTPHeader::DateToString(FileServer.GetFileStat().ModificationTime()));
 		HTTP.Serialize();
 		HTTP.Write(*FileServer.GetStreamForReading());
 	}

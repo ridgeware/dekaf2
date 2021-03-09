@@ -288,28 +288,28 @@ public:
 	KFileStat(const KStringViewZ sFilename);
 
 	/// Returns file access mode
-	int GetAccessMode()          const;
+	int AccessMode()          const;
 
 	/// Returns file's owner UID
-	uint32_t GetUID()            const { return m_uid;   }
+	uint32_t UID()            const { return m_uid;   }
 
 	/// Returns file's owner GID
-	uint32_t GetGID()            const { return m_gid;   }
+	uint32_t GID()            const { return m_gid;   }
 
 	/// Returns file's last access time
-	time_t GetAccessTime()       const { return m_atime; }
+	time_t AccessTime()       const { return m_atime; }
 
 	/// Returns file's last modification time
-	time_t GetModificationTime() const { return m_mtime; }
+	time_t ModificationTime() const { return m_mtime; }
 
 	/// Returns file's status change time (writes, but also inode changes)
-	time_t GetChangeTime()       const { return m_ctime; }
+	time_t ChangeTime()       const { return m_ctime; }
 
 	/// Returns file's size
-	size_t GetSize()             const { return m_size;  }
+	size_t Size()             const { return m_size;  }
 
 	/// Returns file's type
-	KFileType GetType()          const;
+	KFileType Type()          const;
 
 	/// Is this a directory entry?
 	bool IsDirectory() const;
@@ -415,43 +415,43 @@ public:
 		/// Returns file access mode
 		int Mode()                const
 		{
-			return FileStat().GetAccessMode();
+			return FileStat().AccessMode();
 		}
 
 		/// Returns file's owner UID
 		uint32_t UID()            const
 		{
-			return FileStat().GetUID();
+			return FileStat().UID();
 		}
 
 		/// Returns file's owner GID
 		uint32_t GID()            const
 		{
-			return FileStat().GetGID();
+			return FileStat().GID();
 		}
 
 		/// Returns file's last access time
 		time_t AccessTime()       const
 		{
-			return FileStat().GetAccessTime();
+			return FileStat().AccessTime();
 		}
 
 		/// Returns file's last modification time
 		time_t ModificationTime() const
 		{
-			return FileStat().GetModificationTime();
+			return FileStat().ModificationTime();
 		}
 
 		/// Returns file's status change time
 		time_t ChangeTime()       const
 		{
-			return FileStat().GetChangeTime();
+			return FileStat().ChangeTime();
 		}
 
 		/// Returns file's size
 		size_t Size()             const
 		{
-			return FileStat().GetSize();
+			return FileStat().Size();
 		}
 
 		/// Return the KFileStat component as a const ref

@@ -809,7 +809,7 @@ bool KZip::WriteFiles(const KDirectory& Directory, KStringView sDirectoryRoot, K
 		}
 		else
 		{
-			kDebug(1, "cannot include file type {} of file {} in archive", File.TypeAsString(), File.Path());
+			kDebug(1, "cannot include file type {} of file {} in archive", File.Serialize(), File.Path());
 		}
 	}
 

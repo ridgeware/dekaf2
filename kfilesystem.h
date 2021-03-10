@@ -257,18 +257,54 @@ KString kMakeSafePathname(KStringView sName, bool bToLowercase = true, KStringVi
 KString kNormalizePath(KStringView sPath);
 //-----------------------------------------------------------------------------
 
-enum class KFileType
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// holds a file type, constructs from different inputs
+class KFileType
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	ALL,
-	BLOCK,
-	CHARACTER,
-	DIRECTORY,
-	FIFO,
-	LINK,
-	REGULAR,
-	SOCKET,
-	OTHER
-};
+
+//------
+public:
+//------
+
+	enum FileType
+	{
+		ALL,
+		BLOCK,
+		CHARACTER,
+		DIRECTORY,
+		FIFO,
+		LINK,
+		REGULAR,
+		SOCKET,
+		OTHER
+	};
+
+	KFileType() = default;
+
+	/// constructs from a FileType
+	KFileType(FileType ftype)
+	: m_FType(ftype)
+	{
+	}
+
+	/// constructs from a Unix mode combination
+	KFileType(uint32_t mode);
+
+	/// returns a string serialization of the file type
+	KStringViewZ Serialize() const;
+
+	operator FileType() const { return m_FType; }
+
+//------
+private:
+//------
+
+	enum FileType m_FType { ALL };
+
+}; // KFileType
+
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve information about a file hat is typically found in the stat struct
@@ -312,16 +348,16 @@ public:
 	KFileType Type()          const;
 
 	/// Is this a directory entry?
-	bool IsDirectory() const;
+	bool IsDirectory()        const;
 
 	/// Is this a file?
-	bool IsFile() const;
+	bool IsFile()             const;
 
 	/// Is this a symlink
-	bool IsSymlink() const;
+	bool IsSymlink()          const;
 
 	/// Does this object exist?
-	bool Exists() const;
+	bool Exists()             const;
 
 //----------
 private:
@@ -337,11 +373,6 @@ private:
 
 }; // KFileStat
 
-//-----------------------------------------------------------------------------
-/// Returns a KFileStat object for the passed file name
-/// @param sFilename the filename for which a KFileStat object shall be created
-KFileStat kFileStat(KStringViewZ sFilename);
-//-----------------------------------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve and filter directory listings
@@ -356,10 +387,9 @@ public:
 	// deprecated name
 	using EntryType = KFileType;
 
-	static KStringViewZ TypeAsString(KFileType Type);
-
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// helper type that keeps one directory entry, with its name, full path and type
+	/// Helper type that keeps one directory entry, with its name, full path and type.
+	/// Expands on request to a KFileStat.
 	class DirEntry
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -407,9 +437,9 @@ public:
 		}
 
 		/// returns directory entry type as name
-		KStringViewZ TypeAsString() const
+		KStringViewZ Serialize() const
 		{
-			return KDirectory::TypeAsString(m_Type);
+			return m_Type.Serialize();
 		}
 
 		/// Returns file access mode
@@ -464,7 +494,7 @@ public:
 		mutable std::unique_ptr<KFileStat> m_Stat;
 		KString      m_Path;
 		KStringViewZ m_Filename;
-		KFileType    m_Type { KFileType::ALL };
+		KFileType    m_Type;
 
 	}; // DirEntry
 
@@ -572,6 +602,7 @@ protected:
 
 }; // KDirectory
 
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Get disk capacity
 class KDiskStat
@@ -639,6 +670,7 @@ private:
 	KString m_sError;
 
 }; // KDiskStat
+
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// generate a temp directory, and remove it with the destructor if requested to

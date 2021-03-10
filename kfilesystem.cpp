@@ -718,6 +718,78 @@ size_t kFileSize(KStringViewZ sFilePath)
 #endif
 
 //-----------------------------------------------------------------------------
+KFileType::KFileType(uint32_t mode)
+//-----------------------------------------------------------------------------
+{
+	switch ((mode & DEKAF2_S_IFMT))
+	{
+		case DEKAF2_S_IFREG:
+			m_FType = KFileType::REGULAR;
+			break;
+
+		case DEKAF2_S_IFDIR:
+			m_FType = KFileType::DIRECTORY;
+			break;
+
+		case DEKAF2_S_IFLNK:
+			m_FType = KFileType::LINK;
+			break;
+
+		case DEKAF2_S_IFSOCK:
+			m_FType = KFileType::SOCKET;
+			break;
+
+		case DEKAF2_S_IFIFO:
+			m_FType = KFileType::FIFO;
+			break;
+
+		case DEKAF2_S_IFBLK:
+			m_FType = KFileType::BLOCK;
+			break;
+
+		case DEKAF2_S_IFCHR:
+			m_FType = KFileType::CHARACTER;
+			break;
+
+		default:
+			m_FType = KFileType::OTHER;
+			break;
+	}
+
+} // KFileType
+
+//-----------------------------------------------------------------------------
+KStringViewZ KFileType::Serialize() const
+//-----------------------------------------------------------------------------
+{
+	switch (m_FType)
+	{
+		case ALL:
+			return "ALL";
+		case BLOCK:
+			return "BLOCK";
+		case CHARACTER:
+			return "CHARACTER";
+		case DIRECTORY:
+			return "DIRECTORY";
+		case FIFO:
+			return "PIPE";
+		case LINK:
+			return "SYMLINK";
+		case REGULAR:
+			return "FILE";
+		case SOCKET:
+			return "SOCKET";
+		case OTHER:
+			return "OTHER";
+	}
+
+	// gcc is stupid..
+	return "";
+
+} // Serialize
+
+//-----------------------------------------------------------------------------
 KFileStat::KFileStat(const KStringViewZ sFilename)
 //-----------------------------------------------------------------------------
 {
@@ -777,7 +849,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 
 	#ifdef DEKAF2_HAS_CPP_17
 			case fs::file_type::block:
-				m_mode = DEKAF2_S_IFREG;
+				m_mode = DEKAF2_S_IFBLK;
 				break;
 	#endif
 			case fs::file_type::character:
@@ -924,12 +996,6 @@ bool KFileStat::Exists() const
 static_assert(std::is_nothrow_move_constructible<KFileStat>::value,
 			  "KFileStat is intended to be nothrow move constructible, but is not!");
 
-//-----------------------------------------------------------------------------
-KFileStat kFileStat(KStringViewZ sFilename)
-//-----------------------------------------------------------------------------
-{
-	return KFileStat(sFilename);
-}
 
 //-----------------------------------------------------------------------------
 KDirectory::DirEntry::DirEntry(KStringView BasePath, KStringView Name, KFileType Type)
@@ -1002,9 +1068,11 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileType Type, bool bRecursive
 		fs::file_type dtype;
 		switch (Type)
 		{
+	#ifdef DEKAF2_HAS_CPP_17
 			case KFileType::BLOCK:
 				dtype = fs::file_type::block;
 				break;
+	#endif
 			case KFileType::CHARACTER:
 				dtype = fs::file_type::character;
 				break;
@@ -1044,9 +1112,11 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileType Type, bool bRecursive
 
 			switch (ftype)
 			{
+	#ifdef DEKAF2_HAS_CPP_17
 				case fs::file_type::block:
 					FT = KFileType::BLOCK;
 					break;
+	#endif
 				case fs::file_type::character:
 					FT = KFileType::CHARACTER;
 					break;
@@ -1293,28 +1363,28 @@ void KDirectory::Sort(SortBy SortBy, bool bReverse)
 		case SortBy::SIZE:
 			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [](const DirEntry& left, const DirEntry& right)
 			{
-				return left.Size() > right.Size();
+				return left.Size() < right.Size();
 			});
 			break;
 
 		case SortBy::DATE:
 			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [](const DirEntry& left, const DirEntry& right)
 			{
-					return left.ModificationTime() > right.ModificationTime();
+					return left.ModificationTime() < right.ModificationTime();
 			});
 			break;
 
 		case SortBy::UID:
 			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [](const DirEntry& left, const DirEntry& right)
 			{
-					return left.UID() > right.UID();
+					return left.UID() < right.UID();
 			});
 			break;
 
 		case SortBy::GID:
 			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [](const DirEntry& left, const DirEntry& right)
 			{
-					return left.GID() > right.GID();
+					return left.GID() < right.GID();
 			});
 			break;
 	}
@@ -1326,36 +1396,6 @@ void KDirectory::Sort(SortBy SortBy, bool bReverse)
 
 } // Sort
 
-//-----------------------------------------------------------------------------
-KStringViewZ KDirectory::TypeAsString(KFileType Type)
-//-----------------------------------------------------------------------------
-{
-	switch (Type)
-	{
-		case KFileType::ALL:
-			return "ALL";
-		case KFileType::BLOCK:
-			return "BLOCK";
-		case KFileType::CHARACTER:
-			return "CHARACTER";
-		case KFileType::DIRECTORY:
-			return "DIRECTORY";
-		case KFileType::FIFO:
-			return "FIFO";
-		case KFileType::LINK:
-			return "LINK";
-		case KFileType::REGULAR:
-			return "REGULAR";
-		case KFileType::SOCKET:
-			return "SOCKET";
-		case KFileType::OTHER:
-			return "OTHER";
-	}
-
-	return "OTHER"; // gcc wants this. we do not want default: above
-
-} // TypeAsString
-
 static_assert(std::is_nothrow_move_constructible<KDirectory>::value,
 			  "KDirectory is intended to be nothrow move constructible, but is not!");
 
@@ -1363,9 +1403,9 @@ static_assert(std::is_nothrow_move_constructible<KDirectory>::value,
 void KDiskStat::clear()
 //-----------------------------------------------------------------------------
 {
-	m_Free = 0;
-	m_Total = 0;
-	m_Used = 0;
+	m_Free       = 0;
+	m_Total      = 0;
+	m_Used       = 0;
 	m_SystemFree = 0;
 	m_sError.clear();
 
@@ -1474,6 +1514,8 @@ KDiskStat& KDiskStat::Check(KStringViewZ sPath)
 
 } // Check
 
+namespace {
+
 //-----------------------------------------------------------------------------
 bool IntWriteFile(KStringViewZ sPath, std::ios_base::openmode OpenMode, KStringView sContents, int iMode)
 //-----------------------------------------------------------------------------
@@ -1498,6 +1540,8 @@ bool IntWriteFile(KStringViewZ sPath, std::ios_base::openmode OpenMode, KStringV
 	return (true);
 
 } // IntWriteFile
+
+} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
 bool kWriteFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKAF2_MODE_CREATE_FILE */)

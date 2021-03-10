@@ -221,6 +221,9 @@ void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint)
 
 	DEKAF2_CATCH(const boost::exception& e)
 	{
+#ifdef DEKAF2_IS_WINDOWS
+		e.what();
+#endif
 		kWarning("boost exception");
 	}
 

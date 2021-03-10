@@ -71,7 +71,7 @@ public:
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 		/// filename to read HTTP request from
-		KStringViewZ sFilename;
+		KString sFilename;
 		/// API to call
 		KResource API;
 		/// HTTP method to use
@@ -100,16 +100,16 @@ public:
 		std::vector<int> RegisterSignalsForShutdown { SIGINT, SIGTERM };
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 		/// unix socket file to listen
-		KStringViewZ sSocketFile;
+		KString sSocketFile;
 #endif
 		/// start as blocking server in same thread or unblocking in separate thread
 		bool bBlocking { true };
 		/// are the PEM cert and key filenames (default) or buffers with the actual PEMs?
 		bool bPEMsAreFilenames { true };
 		/// the PEM certificate
-		KStringViewZ sCert;
+		KString sCert;
 		/// the PEM private key
-		KStringViewZ sKey;
+		KString sKey;
 		/// Parameters controling the simulation mode
 		SimulationParms Simulate;
 

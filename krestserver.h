@@ -126,21 +126,21 @@ public:
 		bool SetJSONAccessLog(KStringViewZ sJSONAccessLogFile);
 
 		/// Fixed route prefix
-		KStringView sBaseRoute;
-		/// If non-empty creates a header with execution time
-		KStringView sTimerHeader;
-		/// File to record request into - filename may not change during execution
-		KStringViewZ sRecordFile;
+		KString sBaseRoute;
+		/// If non-empty creates a header with the given name and the milliseconds needed for execution
+		KString sTimerHeader;
+		/// File to record requests into - filename may not change during execution
+		KString sRecordFile;
 		/// Fixed additional headers
 		KHTTPHeaders::KHeaderMap ResponseHeaders;
 		/// Valid authentication instances for user verification
 		KOpenIDProviderList Authenticators;
 		/// If non-empty, check that SSO token authorizes one of thse given scopes (comma separated list)
-		KStringView sAuthScope;
+		KString sAuthScope;
 		/// Allow KLog profiling triggered by a KLOG header?
-		KStringView sKLogHeader;
+		KString sKLogHeader;
 		/// Server name for this instance, will be used in diagnostic output
-		KStringView sServername;
+		KString sServername;
 		/// DoS prevention - max rounds in keep-alive (default 10)
 		mutable uint16_t iMaxKeepaliveRounds { 10 };
 		/// Which of the three output formats HTTP, LAMBDA, CLI (default HTTP) ?

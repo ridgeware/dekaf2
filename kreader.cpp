@@ -137,7 +137,7 @@ ssize_t kGetSize(KStringViewZ sFileName)
 } // kGetSize
 
 //-----------------------------------------------------------------------------
-bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
+bool kAppendAllUnseekable(std::istream& Stream, KString& sContent, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(!Stream.good()))
@@ -163,7 +163,7 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
 	// therefore we do wrap it into a try-catch block and limit the
 	// rx size to ~1 GB.
 
-	auto iLimit = std::min(std::size_t(1*1024*1024*1024), kGetPhysicalMemory() / 4);
+	auto iLimit = std::min(iMaxRead, std::min(std::size_t(1*1024*1024*1024), kGetPhysicalMemory() / 4));
 
 	DEKAF2_TRY_EXCEPTION
 	for (;;)
@@ -176,7 +176,11 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
 
 			if (sContent.size() > iLimit)
 			{
-				kDebug(1, "stepped over limit of {} MB for non-seekable input stream - aborted reading", iLimit / (1024*1024) );
+				// only warn if the limit was not iMaxRead
+				if (sContent.size() < iMaxRead)
+				{
+					kDebug(1, "stepped over limit of {} MB for non-seekable input stream - aborted reading", iLimit / (1024*1024) );
+				}
 				break;
 			}
 		}
@@ -196,7 +200,7 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent)
 } // kAppendAllUnseekable
 
 //-----------------------------------------------------------------------------
-bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
+bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	// get size of the file.
@@ -216,7 +220,12 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 		// Note that we do not err out when bFromStart was set, because
 		// semantically, doing a ReadAll or AppendAll on an unseekable
 		// input stream means: return all that is available
-		return kAppendAllUnseekable(Stream, sContent);
+		return kAppendAllUnseekable(Stream, sContent, iMaxRead);
+	}
+
+	if (static_cast<std::size_t>(iSize) > iMaxRead)
+	{
+		iSize = iMaxRead;
 	}
 
 	// position stream to the beginning
@@ -250,14 +259,18 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 		sContent.resize(uiContentSize + iRead);
 	}
 
-	// we should now be at the end of the input..
-	if (std::istream::traits_type::eq_int_type(streambuf->sgetc(), std::istream::traits_type::eof()))
+	// only test for eof if the limit was not iMaxRead
+	if (sContent.size() < iMaxRead)
 	{
-		Stream.setstate(std::ios_base::eofbit);
-	}
-	else
-	{
-		kDebug (1, "stream grew during read, did not read new content");
+		// we should now be at the end of the input..
+		if (std::istream::traits_type::eq_int_type(streambuf->sgetc(), std::istream::traits_type::eof()))
+		{
+			Stream.setstate(std::ios_base::eofbit);
+		}
+		else
+		{
+			kDebug (1, "stream grew during read, did not read new content");
+		}
 	}
 
 	if (iRead != uiSize)
@@ -271,20 +284,20 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart)
 } // kAppendAll
 
 //-----------------------------------------------------------------------------
-bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart)
+bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	sContent.clear();
-	return kAppendAll(Stream, sContent, bFromStart);
+	return kAppendAll(Stream, sContent, bFromStart, iMaxRead);
 
 } // kReadAll
 
 //-----------------------------------------------------------------------------
-KString kReadAll(std::istream& Stream, bool bFromStart)
+KString kReadAll(std::istream& Stream, bool bFromStart, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	KString sContent;
-	kAppendAll(Stream, sContent, bFromStart);
+	kAppendAll(Stream, sContent, bFromStart, iMaxRead);
 	return sContent;
 
 } // kReadAll
@@ -294,11 +307,9 @@ KString kReadAll(std::istream& Stream, bool bFromStart)
 #endif
 
 //-----------------------------------------------------------------------------
-bool kAppendAll(KStringViewZ sFileName, KString& sContent)
+bool kAppendAll(KStringViewZ sFileName, KString& sContent, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
-	sContent.clear();
-
 	auto iSize(kGetSize(sFileName));
 
 	if (!iSize)
@@ -321,11 +332,16 @@ bool kAppendAll(KStringViewZ sFileName, KString& sContent)
 		}
 		else
 		{
-			return kAppendAllUnseekable(Stream, sContent);
+			return kAppendAllUnseekable(Stream, sContent, iMaxRead);
 		}
 	}
 	else if (iSize > 0)
 	{
+		if (static_cast<std::size_t>(iSize) > iMaxRead)
+		{
+			iSize = iMaxRead;
+		}
+
 		// We use an unbuffered file descriptor read on MacOS because
 		// with sub-optimal iostream implementations like the one coming
 		// with clang on the mac it is about five times faster than
@@ -389,20 +405,20 @@ bool kAppendAll(KStringViewZ sFileName, KString& sContent)
 } // kAppendAll
 
 //-----------------------------------------------------------------------------
-bool kReadAll(KStringViewZ sFileName, KString& sContent)
+bool kReadAll(KStringViewZ sFileName, KString& sContent, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	sContent.clear();
-	return kAppendAll(sFileName, sContent);
+	return kAppendAll(sFileName, sContent, iMaxRead);
 
 } // kReadAll
 
 //-----------------------------------------------------------------------------
-KString kReadAll(KStringViewZ sFileName)
+KString kReadAll(KStringViewZ sFileName, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	KString sContent;
-	kAppendAll(sFileName, sContent);
+	kAppendAll(sFileName, sContent, iMaxRead);
 	return sContent;
 
 } // kReadAll

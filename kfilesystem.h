@@ -151,11 +151,8 @@ inline bool kRemoveDir (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 /// Read entire text file into a single string and convert DOS newlines if
 /// bToUnixLineFeeds is true. The base function (that is also called by this
-/// variant) is kReadAll(). This function does not allow to read "special"
-/// files like those in /proc , because it tries to determine the file size
-/// in advance (which is 0 for virtual files). Please resort to KInFile.ReadRemaining()
-/// for such files.
-bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds);
+/// variant) is kReadAll().
+bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds, std::size_t iMaxRead = npos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

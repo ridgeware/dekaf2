@@ -68,31 +68,54 @@ bool kReadLine(std::istream& Stream,
 /// Appends all content of a std::istream device to a string. Reads from current
 /// position until end of stream and therefore works on unseekable streams.
 /// Reads directly in the underlying streambuf
-bool kAppendAllUnseekable(std::istream& Stream, KString& sContent);
+/// @param Stream the input stream
+/// @param sContent the string to fill with the content of the file
+/// @param bFromStart if true will seek to start before reading
+/// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+bool kAppendAllUnseekable(std::istream& Stream, KString& sContent, std::size_t iMaxRead = npos);
 
 /// Appends all content of a std::istream device to a string. Fails on non-seekable
 /// istreams if bFromStart is true, otherwise reads until end of stream.
 /// Reads directly in the underlying streambuf
-bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart = true);
+/// @param Stream the input stream
+/// @param sContent the string to fill with the content of the file
+/// @param bFromStart if true will seek to start before reading
+/// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart = true, std::size_t iMaxRead = npos);
 
 /// Read all content of a std::istream device into a string. Fails on non-seekable
 /// istreams if bFromStart is true, otherwise reads until end of stream.
 /// Reads directly in the underlying streambuf
-bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart = true);
+/// @param Stream the input stream
+/// @param sContent the string to fill with the content of the file
+/// @param bFromStart if true will seek to start before reading
+/// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart = true, std::size_t iMaxRead = npos);
 
 /// Read all content of a std::istream device into a string. Fails on non-seekable
 /// istreams if bFromStart is true, otherwise reads until end of stream.
 /// Reads directly in the underlying streambuf
-KString kReadAll(std::istream& Stream, bool bFromStart = true);
+/// @param Stream the input stream
+/// @param bFromStart if true will seek to start before reading
+/// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+KString kReadAll(std::istream& Stream, bool bFromStart = true, std::size_t iMaxRead = npos);
 
 /// Read all content of a file with name sFileName into a string, append to sContent
-bool kAppendAll(KStringViewZ sFileName, KString& sContent);
+/// @param sFileName the input file's name
+/// @param sContent the string to fill with the content of the file
+/// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+bool kAppendAll(KStringViewZ sFileName, KString& sContent, std::size_t iMaxRead = npos);
 
 /// Read all content of a file with name sFileName into a string
-bool kReadAll(KStringViewZ sFileName, KString& sContent);
+/// @param sFileName the input file's name
+/// @param sContent the string to fill with the content of the file
+/// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+bool kReadAll(KStringViewZ sFileName, KString& sContent, std::size_t iMaxRead = npos);
 
-/// Read all content of a file with name sFileName into a string
-KString kReadAll(KStringViewZ sFileName);
+/// Returns all content of a file with name sFileName as a string
+/// @param sFileName the input file's name
+/// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+KString kReadAll(KStringViewZ sFileName, std::size_t iMaxRead = npos);
 
 /// Get the total size of a std::istream device. Returns -1 on Failure. Fails on non-seekable istreams.
 ssize_t kGetSize(std::istream& Stream, bool bFromStart = true);

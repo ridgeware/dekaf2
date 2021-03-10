@@ -1560,12 +1560,12 @@ bool kAppendFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKA
 } // kAppendFile
 
 //-----------------------------------------------------------------------------
-bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds)
+bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, sPath);
 
-	if (!kReadAll(sPath, sContents))
+	if (!kReadAll(sPath, sContents, iMaxRead))
 	{
 		return false;
 	}

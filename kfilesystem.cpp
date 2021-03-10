@@ -1357,41 +1357,39 @@ void KDirectory::Sort(SortBy SortBy, bool bReverse)
 	switch (SortBy)
 	{
 		case SortBy::NAME:
-			std::sort(m_DirEntries.begin(), m_DirEntries.end());
+			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [bReverse](const DirEntry& left, const DirEntry& right)
+			{
+				return left.Path() > right.Path() == bReverse;
+			});
 			break;
 
 		case SortBy::SIZE:
-			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [](const DirEntry& left, const DirEntry& right)
+			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [bReverse](const DirEntry& left, const DirEntry& right)
 			{
-				return left.Size() < right.Size();
+				return left.Size() > right.Size() == bReverse;
 			});
 			break;
 
 		case SortBy::DATE:
-			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [](const DirEntry& left, const DirEntry& right)
+			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [bReverse](const DirEntry& left, const DirEntry& right)
 			{
-					return left.ModificationTime() < right.ModificationTime();
+					return left.ModificationTime() > right.ModificationTime() == bReverse;
 			});
 			break;
 
 		case SortBy::UID:
-			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [](const DirEntry& left, const DirEntry& right)
+			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [bReverse](const DirEntry& left, const DirEntry& right)
 			{
-					return left.UID() < right.UID();
+					return left.UID() > right.UID() == bReverse;
 			});
 			break;
 
 		case SortBy::GID:
-			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [](const DirEntry& left, const DirEntry& right)
+			std::sort(m_DirEntries.begin(), m_DirEntries.end(), [bReverse](const DirEntry& left, const DirEntry& right)
 			{
-					return left.GID() < right.GID();
+					return left.GID() > right.GID() == bReverse;
 			});
 			break;
-	}
-
-	if (bReverse)
-	{
-		std::reverse(m_DirEntries.begin(), m_DirEntries.end());
 	}
 
 } // Sort

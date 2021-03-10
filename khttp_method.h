@@ -102,15 +102,8 @@ public:
     {}
     
     //-----------------------------------------------------------------------------
-    KStringView Serialize() const;
+    KStringViewZ Serialize() const;
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	operator KStringView() const
-	//-----------------------------------------------------------------------------
-	{
-		return Serialize();
-	}
 
 	//-----------------------------------------------------------------------------
 	bool empty() const
@@ -126,14 +119,16 @@ public:
 		m_method = GET;
 	}
 
+	//-----------------------------------------------------------------------------
+	operator Method() const { return m_method; }
+	//-----------------------------------------------------------------------------
+
     //-----------------------------------------------------------------------------
     static Method Parse(KStringView sMethod);
     //-----------------------------------------------------------------------------
 
 	static constexpr KStringViewZ REQUEST_METHODS = "GET,HEAD,POST,PUT,DELETE,OPTIONS,PATCH,CONNECT,TRACE";
 
-    friend bool operator==(KHTTPMethod, KHTTPMethod);
-    
 //------
 private:
 //------
@@ -141,15 +136,5 @@ private:
 	Method m_method { GET };
 
 }; // KHTTPMethod
-
-inline bool operator==(KHTTPMethod left, KHTTPMethod right)
-{
-    return left.m_method == right.m_method;
-}
-
-inline bool operator!=(KHTTPMethod left, KHTTPMethod right)
-{
-    return !operator==(left, right);
-}
 
 } // end of namespace dekaf2

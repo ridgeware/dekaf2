@@ -88,7 +88,7 @@ KHTTPMethod::Method KHTTPMethod::Parse(KStringView sMethod)
 } // Method
 
 //-----------------------------------------------------------------------------
-KStringView KHTTPMethod::Serialize() const
+KStringViewZ KHTTPMethod::Serialize() const
 //-----------------------------------------------------------------------------
 {
     switch (m_method)

@@ -1804,9 +1804,40 @@ KString kMakeSafeFilename(KStringView sName, bool bToLowercase, KStringView sEmp
 } // kMakeSafeFilename
 
 //-----------------------------------------------------------------------------
-bool kIsSafePathname(KStringView sName)
+bool kIsSafePathname(KStringView sName, bool bAllowAbsolutePath, bool bAllowTrailingSlash)
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_IS_WINDOWS
+	if (bAllowAbsolutePath)
+	{
+		// try to get rid of the drive prefix, if any
+		auto iPos = sName.find_first_of(detail::kAllowedDirSep);
+
+		if (iPos != KStringView::npos && sName[iPos] == ':')
+		{
+			sName.remove_prefix(iPos + 1);
+		}
+	}
+#endif
+
+	if (bAllowAbsolutePath && !sName.empty())
+	{
+		if (detail::kAllowedDirSep.find(sName.front()) != KStringView::npos)
+		{
+			// we allow to remove only one slash, not repeated ones
+			sName.remove_prefix(1);
+		}
+	}
+
+	if (bAllowTrailingSlash && !sName.empty())
+	{
+		if (detail::kAllowedDirSep.find(sName.back()) != KStringView::npos)
+		{
+			// we allow to remove only one slash, not repeated ones
+			sName.remove_suffix(1);
+		}
+	}
+
 	return kMakeSafePathname(sName, false) == sName;
 
 } // kIsSafePathname

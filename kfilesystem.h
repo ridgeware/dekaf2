@@ -239,7 +239,10 @@ KString kMakeSafeFilename(KStringView sName, bool bToLowercase = true, KStringVi
 //-----------------------------------------------------------------------------
 /// Returns true if a path name is safe to use, means it cannot escape from a
 /// directory or uses problematic characters
-bool kIsSafePathname(KStringView sName);
+/// @param sName the path to check
+/// @param bAllowAbsolutePath if false, only relative paths are allowed (= no leading slash)
+/// @param bAllowTrailingSlash if true, a directory separator as last character is permitted
+bool kIsSafePathname(KStringView sName, bool bAllowAbsolutePath = false, bool bAllowTrailingSlash = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

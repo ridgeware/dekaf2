@@ -286,6 +286,11 @@ TEST_CASE("KFilesystem")
 		CHECK ( kIsSafePathname("hel.-lo/wor-ld.txt")    == false );
 		CHECK ( kIsSafePathname("")                      == false );
 		CHECK ( kIsSafePathname("/hello/world.txt")      == false );
+		CHECK ( kIsSafePathname("hello/world/", false, true) == true  );
+		CHECK ( kIsSafePathname("/hello/world/", true, true) == true  );
+		CHECK ( kIsSafePathname("/hello/world//", true, true) == false );
+		CHECK ( kIsSafePathname("/hello/world.txt", true)== true  );
+		CHECK ( kIsSafePathname("//hello/world.txt", true)== false );
 		CHECK ( kIsSafePathname("hello/../../world.txt") == false );
 		CHECK ( kIsSafePathname("../../world.txt")       == false );
 		CHECK ( kIsSafePathname("world.txt/")            == false );

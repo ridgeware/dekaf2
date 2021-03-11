@@ -40,6 +40,7 @@
 
 #include "kformat.h"
 #include "kstring.h"
+#include "koutstringstream.h"
 #include "bits/kcppcompat.h"
 #include <fmt/ostream.h>
 #include <fmt/printf.h>
@@ -114,17 +115,14 @@ std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, fmt::printf_args a
 KString kPrintf(KStringView sFormat, fmt::printf_args args)
 //-----------------------------------------------------------------------------
 {
-	fmt::memory_buffer buffer;
-	DEKAF2_TRY
+	KString sOut;
+	
 	{
-		fmt::printf(buffer, sFormat.operator fmt::string_view(), args);
+		KOutStringStream oss(sOut);
+		kfPrintf(oss, sFormat, args);
 	}
-	DEKAF2_CATCH (std::exception& e)
-	{
-		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h",
-						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));
-	}
-	return { buffer.data(), buffer.size() };
+
+	return sOut;
 
 } // kFormat
 

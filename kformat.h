@@ -47,6 +47,7 @@
 #include "kstringview.h"
 #include <fmt/core.h>
 #include <fmt/printf.h>
+#include <fmt/chrono.h>
 
 namespace dekaf2 {
 

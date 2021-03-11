@@ -232,6 +232,7 @@ public:
 	using base_type::Left;
 	using base_type::LeftUTF8;
 	using base_type::operator bool;
+	using base_type::operator fmt::string_view;
 
 	//-----------------------------------------------------------------------------
 	// nonstandard

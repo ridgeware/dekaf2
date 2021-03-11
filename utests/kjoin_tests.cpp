@@ -225,7 +225,7 @@ TEST_CASE("kJoin")
 		KString sResult;
 		kJoin(sResult, map);
 
-		CHECK (sResult == "1=1,2=2.42,3=3.14153,4=4" );
+		CHECK (sResult == "1=1,2=2.42,3=3.141528,4=4" );
 	}
 
 	SECTION("kprops/string/kFormat")
@@ -315,7 +315,7 @@ TEST_CASE("kJoin")
 		KOutStringStream oss(sResult);
 		kJoin(oss, map);
 
-		CHECK (sResult == "1=1,2=2.42,3=3.14153,4=4" );
+		CHECK (sResult == "1=1,2=2.42,3=3.141528,4=4" );
 	}
 
 	SECTION("kprops/stream/kFormat")
@@ -465,7 +465,7 @@ TEST_CASE("kJoined")
 
 		KString sResult = kJoined(map);
 
-		CHECK (sResult == "1=1,2=2.42,3=3.14153,4=4" );
+		CHECK (sResult == "1=1,2=2.42,3=3.141528,4=4" );
 	}
 
 	SECTION("kprops/string/kFormat")

@@ -16,8 +16,20 @@ TEST_CASE("kFormat")
 		CHECK ( kFormat("{}", KHTTPMethod(KHTTPMethod::POST))  == "POST" );
 		CHECK ( kFormat("{}", KHTTPHeader(KHTTPHeader::DATE))  == "Date" );
 		CHECK ( kFormat("{}", KCaseString("hello"))            == "hello" );
-//		KURL URL("https://user:pass@domain.com:444/this%20is/the/path?to=parameta");
-//		CHECK ( kFormat("{}", URL) == "https://user:pass@domain.com:444/this%20is/the/path?to=parameta" );
+	}
+
+	SECTION("KURL")
+	{
+		KURL URL("https://user:pass@domain.com:444/this%20is/the/path?to=parameta");
+		CHECK ( kFormat("{}", URL) == "https://user:pass@domain.com:444/this%20is/the/path?to=parameta" );
+		CHECK ( kFormat("{}", URL.Protocol)   == "https://" );
+		CHECK ( kFormat("{}", URL.User)       == "user" );
+		CHECK ( kFormat("{}", URL.Password)   == "pass" );
+		CHECK ( kFormat("{}", URL.Domain)     == "domain.com" );
+		CHECK ( kFormat("{}", URL.Port)       == "444" );
+		CHECK ( kFormat("{}", URL.Path)       == "/this%20is/the/path" );
+		CHECK ( kFormat("{}", URL.Query)      == "to=parameta" );
+		CHECK ( kFormat("{}", KResource(URL)) == "/this%20is/the/path?to=parameta" );
 	}
 
 	SECTION("chrono")

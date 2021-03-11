@@ -47,6 +47,7 @@
 #include "kstring.h"
 #include "kprops.h"
 #include "kstream.h"
+#include "kformat.h"
 #include <cinttypes>
 
 
@@ -1267,3 +1268,117 @@ public:
 }; // KTCPEndPoint
 
 } // of namespace dekaf2
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+// kFormat formatters
+
+template <>
+struct fmt::formatter<dekaf2::url::KUser>: formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::url::KUser& URICompoment, FormatContext& ctx)
+	{
+		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
+	}
+};
+
+template <>
+struct fmt::formatter<dekaf2::url::KPassword>: formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::url::KPassword& URICompoment, FormatContext& ctx)
+	{
+		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
+	}
+};
+
+template <>
+struct fmt::formatter<dekaf2::url::KDomain>: formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::url::KDomain& URICompoment, FormatContext& ctx)
+	{
+		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
+	}
+};
+
+template <>
+struct fmt::formatter<dekaf2::url::KPort>: formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::url::KPort& URICompoment, FormatContext& ctx)
+	{
+		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
+	}
+};
+
+template <>
+struct fmt::formatter<dekaf2::url::KPath>: formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::url::KPath& URICompoment, FormatContext& ctx)
+	{
+		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
+	}
+};
+
+template <>
+struct fmt::formatter<dekaf2::url::KQuery>: formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::url::KQuery& URICompoment, FormatContext& ctx)
+	{
+		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
+	}
+};
+
+template <>
+struct fmt::formatter<dekaf2::url::KFragment>: formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::url::KFragment& URICompoment, FormatContext& ctx)
+	{
+		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
+	}
+};
+
+template <>
+struct fmt::formatter<dekaf2::url::KProtocol>: formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::url::KProtocol& URICompoment, FormatContext& ctx)
+	{
+		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
+	}
+};
+
+template <>
+struct fmt::formatter<dekaf2::KResource>: formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KResource& Resource, FormatContext& ctx)
+	{
+		return formatter<string_view>::format(Resource.Serialize(), ctx);
+	}
+};
+
+template <>
+struct fmt::formatter<dekaf2::KURL>: formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KURL& URL, FormatContext& ctx)
+	{
+		return formatter<string_view>::format(URL.Serialize(), ctx);
+	}
+};
+
+template <>
+struct fmt::formatter<dekaf2::KTCPEndPoint>: formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KTCPEndPoint& EndPoint, FormatContext& ctx)
+	{
+		return formatter<string_view>::format(EndPoint.Serialize(), ctx);
+	}
+};

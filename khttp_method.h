@@ -42,7 +42,7 @@
 #pragma once
 
 #include "kstringview.h"
-#include "kstring.h"
+#include "kformat.h"
 
 #ifdef DEKAF2_IS_WINDOWS
 	// Windows has a DELETE macro somewhere which interferes with
@@ -120,14 +120,6 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	// enable kFormat to serialize
-	operator fmt::string_view() const
-	//-----------------------------------------------------------------------------
-	{
-		return Serialize();
-	}
-
-	//-----------------------------------------------------------------------------
 	operator Method() const { return m_method; }
 	//-----------------------------------------------------------------------------
 
@@ -146,3 +138,13 @@ private:
 }; // KHTTPMethod
 
 } // end of namespace dekaf2
+
+template <>
+struct fmt::formatter<dekaf2::KHTTPMethod> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KHTTPMethod& Method, FormatContext& ctx)
+	{
+		return formatter<string_view>::format(Method.Serialize(), ctx);
+	}
+};

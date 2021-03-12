@@ -44,7 +44,7 @@
 #include "kstringview.h"
 #include "kcasestring.h"
 #include "kprops.h"
-#include <fmt/format.h>
+#include "kformat.h"
 #include <memory>
 
 namespace dekaf2 {
@@ -260,6 +260,16 @@ inline bool operator!=(const KHTTPHeader& left, const KHTTPHeader& right)
 }
 
 } // end of namespace dekaf2
+
+template <>
+struct fmt::formatter<dekaf2::KHTTPHeader> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KHTTPHeader& Header, FormatContext& ctx)
+	{
+		return formatter<string_view>::format(Header.Serialize(), ctx);
+	}
+};
 
 namespace std
 {

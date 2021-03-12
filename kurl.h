@@ -1274,7 +1274,7 @@ public:
 // kFormat formatters
 
 template <>
-struct fmt::formatter<dekaf2::url::KUser>: formatter<string_view>
+struct fmt::formatter<dekaf2::url::KUser> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::url::KUser& URICompoment, FormatContext& ctx)
@@ -1284,7 +1284,7 @@ struct fmt::formatter<dekaf2::url::KUser>: formatter<string_view>
 };
 
 template <>
-struct fmt::formatter<dekaf2::url::KPassword>: formatter<string_view>
+struct fmt::formatter<dekaf2::url::KPassword> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::url::KPassword& URICompoment, FormatContext& ctx)
@@ -1294,7 +1294,7 @@ struct fmt::formatter<dekaf2::url::KPassword>: formatter<string_view>
 };
 
 template <>
-struct fmt::formatter<dekaf2::url::KDomain>: formatter<string_view>
+struct fmt::formatter<dekaf2::url::KDomain> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::url::KDomain& URICompoment, FormatContext& ctx)
@@ -1304,7 +1304,7 @@ struct fmt::formatter<dekaf2::url::KDomain>: formatter<string_view>
 };
 
 template <>
-struct fmt::formatter<dekaf2::url::KPort>: formatter<string_view>
+struct fmt::formatter<dekaf2::url::KPort> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::url::KPort& URICompoment, FormatContext& ctx)
@@ -1314,7 +1314,7 @@ struct fmt::formatter<dekaf2::url::KPort>: formatter<string_view>
 };
 
 template <>
-struct fmt::formatter<dekaf2::url::KPath>: formatter<string_view>
+struct fmt::formatter<dekaf2::url::KPath> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::url::KPath& URICompoment, FormatContext& ctx)
@@ -1324,7 +1324,7 @@ struct fmt::formatter<dekaf2::url::KPath>: formatter<string_view>
 };
 
 template <>
-struct fmt::formatter<dekaf2::url::KQuery>: formatter<string_view>
+struct fmt::formatter<dekaf2::url::KQuery> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::url::KQuery& URICompoment, FormatContext& ctx)
@@ -1334,7 +1334,7 @@ struct fmt::formatter<dekaf2::url::KQuery>: formatter<string_view>
 };
 
 template <>
-struct fmt::formatter<dekaf2::url::KFragment>: formatter<string_view>
+struct fmt::formatter<dekaf2::url::KFragment> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::url::KFragment& URICompoment, FormatContext& ctx)
@@ -1344,7 +1344,7 @@ struct fmt::formatter<dekaf2::url::KFragment>: formatter<string_view>
 };
 
 template <>
-struct fmt::formatter<dekaf2::url::KProtocol>: formatter<string_view>
+struct fmt::formatter<dekaf2::url::KProtocol> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::url::KProtocol& URICompoment, FormatContext& ctx)
@@ -1354,7 +1354,7 @@ struct fmt::formatter<dekaf2::url::KProtocol>: formatter<string_view>
 };
 
 template <>
-struct fmt::formatter<dekaf2::KResource>: formatter<string_view>
+struct fmt::formatter<dekaf2::KResource> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::KResource& Resource, FormatContext& ctx)
@@ -1364,7 +1364,7 @@ struct fmt::formatter<dekaf2::KResource>: formatter<string_view>
 };
 
 template <>
-struct fmt::formatter<dekaf2::KURL>: formatter<string_view>
+struct fmt::formatter<dekaf2::KURL> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::KURL& URL, FormatContext& ctx)
@@ -1374,7 +1374,7 @@ struct fmt::formatter<dekaf2::KURL>: formatter<string_view>
 };
 
 template <>
-struct fmt::formatter<dekaf2::KTCPEndPoint>: formatter<string_view>
+struct fmt::formatter<dekaf2::KTCPEndPoint> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::KTCPEndPoint& EndPoint, FormatContext& ctx)

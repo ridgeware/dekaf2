@@ -392,10 +392,6 @@ public:
 	KJSON GetRouterStats() const;
 	//-----------------------------------------------------------------------------
 
-//------
-protected:
-//------
-
 	//-----------------------------------------------------------------------------
 	/// Checks if a route was not matched only because of the request method.
 	/// @param Path the REST path from a request to match with the routes

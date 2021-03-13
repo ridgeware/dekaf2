@@ -111,18 +111,21 @@ std::streamsize KInStreamBuf::xsgetn(char_type* s, std::streamsize n)
 		setg(eback(), gptr()+iRead, egptr());
 	}
 
-	if (n > 0)
+	while (n)
 	{
 		// advance buffer by read chars
 		s += iRead;
 		// read remaining chars directly from the callbacḱ function
 		iRead = m_CallbackR(s, n, m_CustomPointerR);
 
-		// iRead is -1 on error
-		if (iRead > 0)
+		// iRead is 0 on EOF or possibly < 0 on error
+		if (iRead <= 0)
 		{
-			iTotal += iRead;
+			break;
 		}
+
+		iTotal += iRead;
+		n      -= iRead;
 	}
 
 	return iTotal;

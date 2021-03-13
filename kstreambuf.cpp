@@ -111,7 +111,7 @@ std::streamsize KInStreamBuf::xsgetn(char_type* s, std::streamsize n)
 		setg(eback(), gptr()+iRead, egptr());
 	}
 
-	while (n)
+	while (n > 0)
 	{
 		// advance buffer by read chars
 		s += iRead;

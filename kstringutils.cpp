@@ -190,34 +190,6 @@ constexpr std::array<KStringViewZ, 12> AbbreviatedMonths
 };
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_17
-KStringViewZ kGetAbbreviatedWeekday(std::size_t iDay)
-//-----------------------------------------------------------------------------
-{
-	if (iDay < AbbreviatedWeekdays.size())
-	{
-		return AbbreviatedWeekdays[iDay];
-	}
-
-	return {};
-
-} // kGetAbbreviatedWeekday
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_17
-KStringViewZ kGetAbbreviatedMonth(std::size_t iMonth)
-//-----------------------------------------------------------------------------
-{
-	if (iMonth < AbbreviatedMonths.size())
-	{
-		return AbbreviatedMonths[iMonth];
-	}
-
-	return {};
-
-} // kGetAbbreviatedMonth
-
-//-----------------------------------------------------------------------------
 struct tm kGetBrokenDownTime (time_t tTime, bool bAsLocalTime)
 //-----------------------------------------------------------------------------
 {
@@ -293,6 +265,55 @@ KString kFormWebTimestamp (time_t tTime, KStringView sTimezoneDesignator)
 } // kFormWebTimestamp
 
 } // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+KStringViewZ kGetAbbreviatedWeekday(uint16_t iDay)
+//-----------------------------------------------------------------------------
+{
+	if (iDay < AbbreviatedWeekdays.size())
+	{
+		return AbbreviatedWeekdays[iDay];
+	}
+
+	return {};
+
+} // kGetAbbreviatedWeekday
+
+//-----------------------------------------------------------------------------
+KStringViewZ kGetAbbreviatedMonth(uint16_t iMonth)
+//-----------------------------------------------------------------------------
+{
+	if (iMonth < AbbreviatedMonths.size())
+	{
+		return AbbreviatedMonths[iMonth];
+	}
+
+	return {};
+
+} // kGetAbbreviatedMonth
+
+//-----------------------------------------------------------------------------
+/// Returns day of week for every gregorian date. Sunday = 0.
+uint16_t kDayOfWeek(uint16_t iDay, uint16_t iMonth, uint16_t iYear)
+//-----------------------------------------------------------------------------
+{
+	static constexpr std::array<uint16_t, 12> MonthOffsets {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+
+	if (iMonth < 1 || iMonth > 12)
+	{
+		// prevent us from crashing
+		kDebug(1, "invalid month: {}", iMonth);
+		return 0;
+	}
+
+	if (iMonth < 3)
+	{
+		iYear -= 1;
+	}
+
+	return (iYear + iYear/4 - iYear/100 + iYear/400 + MonthOffsets[iMonth-1] + iDay) % 7;
+
+} // kDayOfWeek
 
 //-----------------------------------------------------------------------------
 KString kFormTimestamp (time_t tTime, const char* szFormat, bool bAsLocalTime)

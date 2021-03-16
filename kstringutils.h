@@ -374,6 +374,21 @@ bool kIsBinary(KStringView sBuffer);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Get the English abbreviated weekday, input 0..6, 0 = Sun
+KStringViewZ kGetAbbreviatedWeekday(uint16_t iDay);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Get the English abbreviated month, input 0..11, 0 = Jan
+KStringViewZ kGetAbbreviatedMonth(uint16_t iMonth);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Returns day of week for every gregorian date. Sunday = 0.
+uint16_t kDayOfWeek(uint16_t iDay, uint16_t iMonth, uint16_t iYear);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Create a time stamp following strftime patterns. If tTime is 0, current time is
 /// used.
 /// @param tTime Seconds since epoch. If 0, query current time from the system

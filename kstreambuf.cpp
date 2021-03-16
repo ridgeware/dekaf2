@@ -205,7 +205,7 @@ std::streamsize KBufferedOutStreamBuf::xsputn(const char_type* s, std::streamsiz
 {
 	std::streamsize iWrote { 0 };
 
-	for (; n >= DIRECTWRITE; )
+	while (n >= DIRECTWRITE)
 	{
 		auto iFilled = FlushableSize();
 
@@ -257,7 +257,7 @@ std::streamsize KBufferedOutStreamBuf::xsputn(const char_type* s, std::streamsiz
 		return iWrote + base_type::xsputn(s, n);
 	}
 
-	while (n)
+	while (n > 0)
 	{
 		auto iAvail = RemainingSize();
 		auto iWriteInStreamBuf = std::min(n, iAvail);
@@ -335,7 +335,7 @@ std::streamsize KBufferedStreamBuf::xsputn(const char_type* s, std::streamsize n
 {
 	std::streamsize iWrote { 0 };
 
-	for (; n >= DIRECTWRITE; )
+	while (n >= DIRECTWRITE)
 	{
 		auto iFilled = FlushableSize();
 
@@ -387,7 +387,7 @@ std::streamsize KBufferedStreamBuf::xsputn(const char_type* s, std::streamsize n
 		return iWrote + base_type::xsputn(s, n);
 	}
 
-	while (n)
+	while (n > 0)
 	{
 		auto iAvail = RemainingSize();
 		auto iWriteInStreamBuf = std::min(n, iAvail);

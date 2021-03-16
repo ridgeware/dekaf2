@@ -93,7 +93,8 @@ public:
 	/// find variable in the replace list
 	const_iterator find(KStringView sKey) const { return m_RepMap.find(sKey); }
 
-	/// add a search and replace value to the replace list (without lead-in/lead-out)
+	/// add a search and replace value to the replace list (without lead-in/lead-out),
+	/// replaces existing value
 	bool insert(KStringView sSearch, KStringView sReplace);
 
 	/// remove a replacement from the replace list

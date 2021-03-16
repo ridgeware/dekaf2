@@ -552,6 +552,7 @@ set(PUBLIC_HEADERS
 	ksharedptr.h
 	ksignals.h
 	ksmtp.h
+	ksnippets.h
 	ksplit.h
 	ksslclient.h
 	ksslstream.h
@@ -692,6 +693,7 @@ set (SOURCES
 	krsasign.cpp
 	ksignals.cpp
 	ksmtp.cpp
+	ksnippets.cpp
 	ksplit.cpp
 	ksslstream.cpp
 	kstream.cpp

@@ -65,6 +65,7 @@ set (USOURCES
 	krow_tests.cpp
 	ksharedptr_tests.cpp
 	ksharedref_tests.cpp
+	ksnippets_tests.cpp
 	ksplit_tests.cpp
 	ksqlite_tests.cpp
 	kstack_tests.cpp

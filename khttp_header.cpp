@@ -696,7 +696,7 @@ bool KHTTPHeaders::SetError(KString sError) const
 } // SetError
 
 //-----------------------------------------------------------------------------
-KHTTPHeaders::BasicAuthParms KHTTPHeaders::GetBasicAuthParms()
+KHTTPHeaders::BasicAuthParms KHTTPHeaders::GetBasicAuthParms() const
 //-----------------------------------------------------------------------------
 {
 	BasicAuthParms Parms;

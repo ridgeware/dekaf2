@@ -158,6 +158,9 @@ public:
 		std::function<void(const KRESTServer&, const KDurations&)> TimingCallback;
 		/// The stream used for the JSON access log writer - normally set by SetJSONAccessLog()
 		std::unique_ptr<KOutStream> JSONLogStream;
+		/// Set a general purpose callback function that will be called after route matching, and before route callbacks.
+		/// Could be used e.g. for additional authentication, like basic. May throw to abort calling the route's callback.
+		std::function<void(KRESTServer&)> PostRouteCallback;
 
 	}; // Options
 

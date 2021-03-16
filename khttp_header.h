@@ -369,7 +369,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// decodes, if existing, a Basic Authentication header and returns the clear text
 	/// username and password
-	BasicAuthParms GetBasicAuthParms();
+	BasicAuthParms GetBasicAuthParms() const;
 	//-----------------------------------------------------------------------------
 
 //------

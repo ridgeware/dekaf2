@@ -540,6 +540,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			// find the right route
 			Route = &Routes.FindRoute(RequestPath, Request.Resource.Query, Options.bCheckForWrongMethod);
 
+			if (!Route->Callback)
+			{
+				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
+			}
+
 			// OPTIONS method is allowed without Authorization header (it is used to request
 			// for Authorization permission)
 			if (Options.AuthLevel != Options::ALLOW_ALL
@@ -547,6 +552,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				&& Request.Method != KHTTPMethod::OPTIONS)
 			{
 				VerifyAuthentication(Options);
+			}
+
+			if (Options.PostRouteCallback)
+			{
+				Options.PostRouteCallback(*this);
 			}
 
 			// switch logging only after authorization (but not for OPTIONS, as it is
@@ -567,11 +577,6 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			if (m_Timers)
 			{
 				m_Timers->StoreInterval(Timer::ROUTE);
-			}
-
-			if (!Route->Callback)
-			{
-				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
 			}
 
 			m_iRequestBodyLength = 0;

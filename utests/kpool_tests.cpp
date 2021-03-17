@@ -134,16 +134,16 @@ TEST_CASE("KPool")
 
 		KThreadWait Threads;
 
-		for (int iCount = 0; iCount < 50; ++iCount)
+		for (int iCount = 0; iCount < 20; ++iCount)
 		{
 			Threads.Add(std::make_unique<std::thread>([&Pool]()
 			{
 				for (int iLoop = 0; iLoop < 30; ++iLoop)
 				{
-					kSleepRandomMilliseconds(1, 20);
+					kSleepRandomMilliseconds(1, 10);
 					auto p = Pool.get();
 					p->sString = "hello";
-					kSleepRandomMilliseconds(1, 20);
+					kSleepRandomMilliseconds(1, 10);
 				}
 			}));
 		}

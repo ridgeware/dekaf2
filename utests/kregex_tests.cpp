@@ -89,7 +89,7 @@ TEST_CASE("KRegex")
 
 		KRunThreads().Create([&iErrors]()
 		{
-			for (int i = 0; i < 1000; ++i)
+			for (int i = 0; i < 300; ++i)
 			{
 				if (KRegex::Matches(sString, "^[0-9A-Fa-f]*$") == false) { ++iErrors; }
 				if (KRegex::Matches(sString, "^[0-6A-Fa-f]*$") == true ) { ++iErrors; }
@@ -117,7 +117,7 @@ TEST_CASE("KRegex")
 
 		KRunThreads().Create([&iErrors]()
 		{
-			for (int i = 0; i < 1000; ++i)
+			for (int i = 0; i < 300; ++i)
 			{
 				if (KRegex::Matches(sString, "^[0-9A-Fa-f]*$") == false) { ++iErrors; }
 				if (KRegex::Matches(sString, "^[0-6A-Fa-f]*$") == true ) { ++iErrors; }

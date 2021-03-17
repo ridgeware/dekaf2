@@ -157,9 +157,9 @@ TEST_CASE("KSharedCache")
 		if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
 		if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
 
-		KRunThreads(40).Create([&iErrors,&MyCache]()
+		KRunThreads(20).Create([&iErrors,&MyCache]()
 		{
-			for (int i = 0; i < 1000; ++i)
+			for (int i = 0; i < 500; ++i)
 			{
 				if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
 				if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
@@ -190,9 +190,9 @@ TEST_CASE("KSharedCache")
 		if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
 		if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
 
-		KRunThreads(40).Create([&iErrors,&MyCache]()
+		KRunThreads(20).Create([&iErrors,&MyCache]()
 		{
-			for (int i = 0; i < 1000; ++i)
+			for (int i = 0; i < 500; ++i)
 			{
 				if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
 				if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }

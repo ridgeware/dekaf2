@@ -1180,7 +1180,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 				if (!Options.sTimerHeader.empty())
 				{
 					// add a custom header that marks execution time for this request
-					Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_Timers->TotalDuration<std::chrono::milliseconds>().count()));
+					Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_Timers->milliseconds()));
 				}
 			}
 

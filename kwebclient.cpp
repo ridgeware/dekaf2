@@ -193,9 +193,9 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 		// else loop into the redirection
 	}
 
-	auto iConnectTime  = ConnectTime.elapsed<std::chrono::milliseconds>().count();
-	auto iTransmitTime = TransmitTime.elapsed<std::chrono::milliseconds>().count();
-	auto iReceiveTime  = ReceiveTime.elapsed<std::chrono::milliseconds>().count();
+	auto iConnectTime  = ConnectTime.milliseconds();
+	auto iTransmitTime = TransmitTime.milliseconds();
+	auto iReceiveTime  = ReceiveTime.milliseconds();
 	auto iTotalTime    = iConnectTime + iTransmitTime + iReceiveTime;
 
 	kDebug(2, "connect {} ms, transmit {} ms, receive {} ms, total {} ms", iConnectTime, iTransmitTime, iReceiveTime, iTotalTime);

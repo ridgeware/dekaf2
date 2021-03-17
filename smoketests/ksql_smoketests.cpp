@@ -1409,8 +1409,8 @@ TEST_CASE("KSQL")
 			{
 				KOut.FormatLine("{} : {:>6} ms total ({:3} us per query)",
 								Labels[i],
-								kFormNumber(Durations.GetDuration<std::chrono::milliseconds>(i).count()),
-								Durations.GetDuration<std::chrono::nanoseconds>(i).count() / (MAXTRIALS * 1000)
+								kFormNumber(Durations.milliseconds(i)),
+								Durations.nanoseconds(i) / (MAXTRIALS * 1000)
 								);
 			}
 

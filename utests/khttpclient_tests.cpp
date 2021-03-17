@@ -120,7 +120,7 @@ TEST_CASE("KHTTPClient") {
 		KStopTime Stop;
 		CHECK( Client.SendRequest() == false );
 		// allow for a millisecond of fail time
-		CHECK( Stop.elapsed<std::chrono::microseconds>().count() < 1000 );
+		CHECK( Stop.microseconds() < 1000 );
 	}
 
 }

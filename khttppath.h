@@ -46,6 +46,7 @@
 #include "kstringview.h"
 #include "ktimer.h"
 #include "kthreadsafe.h"
+#include "kregex.h"
 
 /// @file khttpath.h
 /// Primitives for HTTP routing
@@ -127,5 +128,21 @@ public:
 }; // KHTTPAnalyzedPath
 
 } // end of namespace detail
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KHTTPRewrite
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	KHTTPRewrite(KStringView _sRegex, KString _sTo);
+
+	KRegex  RegexFrom;
+	KString sTo;
+
+}; // KHTTPRewrite
 
 } // end of namespace dekaf2

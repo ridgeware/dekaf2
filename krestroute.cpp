@@ -227,6 +227,22 @@ void KRESTRoutes::AddRoute(KRESTRoute _Route)
 } // AddRoute
 
 //-----------------------------------------------------------------------------
+void KRESTRoutes::AddRewrite(KHTTPRewrite _Rewrite)
+//-----------------------------------------------------------------------------
+{
+	m_Rewrites.push_back(std::move(_Rewrite));
+
+} // AddRewrite
+
+//-----------------------------------------------------------------------------
+void KRESTRoutes::AddRedirect(KHTTPRewrite _Redirect)
+//-----------------------------------------------------------------------------
+{
+	m_Redirects.push_back(std::move(_Redirect));
+
+} // AddRewrite
+
+//-----------------------------------------------------------------------------
 void KRESTRoutes::SetDefaultRoute(KRESTRoute::RESTCallback Callback, bool bAuth, KRESTRoute::ParserType Parser)
 //-----------------------------------------------------------------------------
 {
@@ -241,9 +257,32 @@ void KRESTRoutes::clear()
 //-----------------------------------------------------------------------------
 {
 	m_Routes.clear();
+	m_Rewrites.clear();
 	m_DefaultRoute.Callback = nullptr;
 
 } // clear
+
+//-----------------------------------------------------------------------------
+std::size_t KRESTRoutes::RegexMatchPath(KString& sPath, const Rewrites& Rewrites)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iRewrites { 0 };
+
+	for (const auto& it : Rewrites)
+	{
+		kDebug(2, "evaluating {} to match {} > {}", sPath, it.RegexFrom.Pattern(), it.sTo);
+
+		if (it.RegexFrom.Replace(sPath, it.sTo) > 0)
+		{
+			kDebug(1, "matched, changed path to {}", sPath);
+
+			++iRewrites;
+		}
+	}
+
+	return iRewrites;
+
+} // RegexMatchPath
 
 //-----------------------------------------------------------------------------
 bool KRESTRoutes::CheckForWrongMethod(const KRESTPath& Path) const
@@ -346,9 +385,17 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 		KString sRedirect = HTTP.Request.Resource.Path.get();
 		sRedirect += '/';
 
-		HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY, "Moved Permanently");
 		HTTP.Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
 		HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, std::move(sRedirect));
+
+		if (HTTP.Request.Method == KHTTPMethod::GET || HTTP.Request.Method == KHTTPMethod::HEAD)
+		{
+			HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY, "Moved Permanently");
+		}
+		else
+		{
+			HTTP.Response.SetStatus(KHTTPError::H308_PERMANENT_REDIRECT, "Permanent Redirect");
+		}
 	}
 	else if (FileServer.Exists())
 	{
@@ -372,7 +419,6 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 			HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
 			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
 		}
-
 	}
 
 } // WebServer

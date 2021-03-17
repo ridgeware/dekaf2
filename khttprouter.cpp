@@ -153,8 +153,17 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 		KString sRedirect = HTTP.Request.Resource.Path.get();
 		sRedirect += '/';
 
-		HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY, "Moved Permanently");
+		HTTP.Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
 		HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, std::move(sRedirect));
+
+		if (HTTP.Request.Method == KHTTPMethod::GET || HTTP.Request.Method == KHTTPMethod::HEAD)
+		{
+			HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY, "Moved Permanently");
+		}
+		else
+		{
+			HTTP.Response.SetStatus(KHTTPError::H308_PERMANENT_REDIRECT, "Permanent Redirect");
+		}
 	}
 	else
 	{

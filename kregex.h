@@ -99,14 +99,16 @@ public:
 
 	// member function interface
 	//-----------------------------------------------------------------------------
-	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
+	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text,
+	/// where \0 is the overall match group
 	size_t Replace(std::string& sStr, KStringView sReplaceWith, bool bReplaceAll = true) const;
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	// member function interface
 	//-----------------------------------------------------------------------------
-	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
+	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text,
+	/// where \0 is the overall match group
 	size_t Replace(KString& sStr, KStringView sReplaceWith, bool bReplaceAll = true) const;
 	//-----------------------------------------------------------------------------
 #endif
@@ -131,14 +133,16 @@ public:
 
 	// static interface
 	//-----------------------------------------------------------------------------
-	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
+	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text,
+	/// where \0 is the overall match group
 	static size_t Replace(std::string& sStr, KStringView sRegex, KStringView sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	// static interface
 	//-----------------------------------------------------------------------------
-	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text
+	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text,
+	/// where \0 is the overall match group
 	static size_t Replace(KString& sStr, KStringView sRegex, KStringView sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
 #endif

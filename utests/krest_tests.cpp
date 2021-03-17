@@ -296,6 +296,9 @@ TEST_CASE("KREST")
 
 		KRESTRoutes::MemberFunctionTable<RClass> MTable[]
 		{
+			{ "REWRITE",  false, "^/www/" , "/web/"  },
+			{ "REDIRECT", false, "^/www2/", "/web/"  },
+
 			{ "GET", false, "/rr/test",               &RClass::rest_test2 },
 			{ "GET", false, "/rr/help",               &RClass::rest_test2, KRESTRoute::PLAIN },
 			{ "GET", false, "rr/noslashpath",         &RClass::rest_test2, KRESTRoute::JSON  },
@@ -369,6 +372,22 @@ TEST_CASE("KREST")
 			sOut.erase(0, iPos+4);
 		}
 		CHECK ( sOut == sWebContent );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/www/", oss) == true );
+		auto iPos3 = sOut.find("\r\n\r\n");
+		CHECK ( iPos3 != npos );
+		if (iPos3 != npos)
+		{
+			sOut.erase(0, iPos3+4);
+		}
+		CHECK ( sOut == sWebContent );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/www2/path/to/index.html", oss) == false );
+		CHECK ( sOut.contains("HTTP/1.1 301 MOVED PERMANENTLY") );
+		CHECK ( sOut.contains("Location: /web/path/to/index.html") );
+		CHECK ( sOut.contains("Content-Length: 0") );
 
 		sOut.clear();
 		CHECK ( REST.Simulate(Options, Routes, "/test.html", oss) == true );

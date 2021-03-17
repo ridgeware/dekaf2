@@ -132,4 +132,12 @@ KHTTPAnalyzedPath::KHTTPAnalyzedPath(KString _sRoute)
 
 } // end of namespace detail
 
+
+KHTTPRewrite::KHTTPRewrite(KStringView _sRegex, KString _sTo)
+: RegexFrom(_sRegex)
+, sTo(std::move(_sTo))
+{
+}
+
+
 } // end of namespace dekaf2

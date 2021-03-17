@@ -243,7 +243,7 @@ void kUrlEncode (KStringView sSource, String& sTarget, const bool excludeTable[2
 	{
 		auto ch = static_cast<unsigned char>(sSource[iIndex]);
 		// Do not encode either alnum or encoding excluded characters.
-		if ((!(ch & ~0x7f) && KASCII::kIsAlNum (ch)) || excludeTable[ch])
+		if ((KASCII::kIsAlNum (ch)) || excludeTable[ch])
 		{
 			sTarget += ch;
 		}

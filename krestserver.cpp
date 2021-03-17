@@ -524,10 +524,29 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			kDebug (2, "incoming: {} {}", Request.Method.Serialize(), Request.Resource.Path);
 
-			KStringView sURLPath = Request.Resource.Path;
+			KString sURLPath = Request.Resource.Path.get();
 
 			// try to remove_prefix, do not complain if not existing
 			sURLPath.remove_prefix(Options.sBaseRoute);
+
+			// check if we have rewrite rules for the request path
+			Routes.RewritePath(sURLPath);
+
+			// check if we have redirect rules for the request path
+			if (Routes.RedirectPath(sURLPath) > 0)
+			{
+				Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
+				Response.Headers.Set(KHTTPHeader::LOCATION, sURLPath);
+
+				if (Request.Method == KHTTPMethod::GET || Request.Method == KHTTPMethod::HEAD)
+				{
+					throw KHTTPError { KHTTPError::H301_MOVED_PERMANENTLY, "MOVED PERMANENTLY" };
+				}
+				else
+				{
+					throw KHTTPError { KHTTPError::H308_PERMANENT_REDIRECT, "PERMANENT REDIRECT" };
+				}
+			}
 
 			// try to remove a trailing / - we treat /path and /path/ as the same address
 			if (sURLPath.back() == '/')
@@ -829,8 +848,13 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				{
 					kDebug (2, "serializing JSON response");
 					sContent = json.tx.dump(iJSONPretty, '\t');
+
 					// ensure that all JSON responses end in a newline:
-					sContent += '\n';
+					if (!sContent.empty() && sContent.back() != '\n')
+					{
+						sContent += '\n';
+					}
+
 					kDebug (2, "JSON response has {} bytes", sContent.length());
 				}
 				else if (!xml.tx.empty())
@@ -844,11 +868,13 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 
 					kDebug (2, "serializing XML response");
 					xml.tx.Serialize(sContent, iXMLPretty);
+
 					// ensure that all XML responses end in a newline:
-					if (sContent.back() != '\n')
+					if (!sContent.empty() && sContent.back() != '\n')
 					{
 						sContent += '\n';
 					}
+
 					kDebug (2, "XML response has {} bytes", sContent.length());
 				}
 
@@ -1105,32 +1131,43 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 		{
 			KString sContent;
 
-			if (json.tx.empty() &&
-				Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::HTML_UTF8)
+			// do not create a response body for 3xx responses
+			if (Response.GetStatusCode() / 100 != 3)
 			{
-				// write the error message as a HTML page if there is no
-				// JSON error output and the content type is HTML
-				sContent = kFormat(R"(<html><head>HTTP Error {}</head><body><h2>{} {}</h2></body></html>)",
-								   Response.GetStatusCode(),
-								   Response.GetStatusCode(),
-								   sError.empty() ? Response.GetStatusString().ToView() : sError);
-			}
-			else
-			{
-				// write the error message as a json struct
-				if (sError.empty())
+				if (json.tx.empty() &&
+					Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::HTML_UTF8)
 				{
-					json.tx["message"] = Response.sStatusString;
+					// write the error message as a HTML page if there is no
+					// JSON error output and the content type is HTML
+					sContent = kFormat(R"(<html><head>HTTP Error {}</head><body><h2>{} {}</h2></body></html>)",
+									   Response.GetStatusCode(),
+									   Response.GetStatusCode(),
+									   sError.empty() ? Response.GetStatusString().ToView() : sError);
 				}
 				else
 				{
-					json.tx["message"] = sError;
+					// write the error message as a json struct
+					if (sError.empty())
+					{
+						json.tx["message"] = Response.sStatusString;
+					}
+					else
+					{
+						json.tx["message"] = sError;
+					}
+
+					sContent = json.tx.dump(iJSONPretty, '\t');
+
+					// ensure that all JSON responses end in a newline:
+					if (!sContent.empty() && sContent.back() != '\n')
+					{
+						sContent += '\n';
+					}
 				}
-
-				sContent = json.tx.dump(iJSONPretty, '\t');
-
-				// ensure that all JSON responses end in a newline:
-				sContent += '\n';
+			}
+			else
+			{
+				Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
 			}
 
 			// compute and set the Content-Length header:

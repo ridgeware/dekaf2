@@ -318,15 +318,39 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Add a request route rewrite rule
+	/// @param _Rewrite the rewrite rule to add
+	void AddRewrite(KHTTPRewrite _Rewrite);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Add a request route redirect rule
+	/// @param _Redirect the redirect rule to add
+	void AddRedirect(KHTTPRewrite _Redirect);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Add routes from an array of route and handler function definitions
 	template<std::size_t COUNT>
 	void AddFunctionTable(const FunctionTable (&Routes)[COUNT])
 	//-----------------------------------------------------------------------------
 	{
 		m_Routes.reserve(m_Routes.size() + COUNT);
+
 		for (size_t i = 0; i < COUNT; ++i)
 		{
-			AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, Routes[i].Handler, Routes[i].Parser));
+			if (Routes[i].sMethod == "REWRITE")
+			{
+				AddRewrite(KHTTPRewrite(Routes[i].sRoute, Routes[i].sDocumentRoot));
+			}
+			else if (Routes[i].sMethod == "REDIRECT")
+			{
+				AddRedirect(KHTTPRewrite(Routes[i].sRoute, Routes[i].sDocumentRoot));
+			}
+			else
+			{
+				AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, Routes[i].Handler, Routes[i].Parser));
+			}
 		}
 	}
 
@@ -337,6 +361,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		m_Routes.reserve(m_Routes.size() + COUNT);
+
 		for (size_t i = 0; i < COUNT; ++i)
 		{
 			if (Routes[i].Handler != nullptr)
@@ -345,7 +370,18 @@ public:
 			}
 			else
 			{
-				AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, *this, &KRESTRoutes::WebServer, Routes[i].Parser));
+				if (Routes[i].sMethod == "REWRITE")
+				{
+					AddRewrite(KHTTPRewrite(Routes[i].sRoute, Routes[i].sDocumentRoot));
+				}
+				else if (Routes[i].sMethod == "REDIRECT")
+				{
+					AddRedirect(KHTTPRewrite(Routes[i].sRoute, Routes[i].sDocumentRoot));
+				}
+				else
+				{
+					AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, *this, &KRESTRoutes::WebServer, Routes[i].Parser));
+				}
 			}
 		}
 	}
@@ -362,6 +398,25 @@ public:
 	/// Clear all routes
 	void clear();
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Rewrite a request path by matching with the rewrite rules - all are applied consecutively in the
+	/// order of their definition
+	/// @return count of matching rewrite rules that changed the path
+	std::size_t RewritePath(KString& sPath) const
+	//-----------------------------------------------------------------------------
+	{
+		return RegexMatchPath(sPath, m_Rewrites);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Redirect a request path by matching with the redirect rules - all are applied consecutively in the
+	/// order of their definition. Throws a permanent redirect if matching
+	std::size_t RedirectPath(KString& sPath) const
+	//-----------------------------------------------------------------------------
+	{
+		return RegexMatchPath(sPath, m_Redirects);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Throws KHTTPError if no matching route found - fills additonal params in Path into Params
@@ -403,9 +458,17 @@ public:
 private:
 //------
 
-	using Routes = std::vector<KRESTRoute>;
+	using Routes    = std::vector<KRESTRoute>;
+	using Rewrites  = std::vector<KHTTPRewrite>;
+	using Redirects = std::vector<KHTTPRewrite>;
+
+	//-----------------------------------------------------------------------------
+	static std::size_t RegexMatchPath(KString& sPath, const Rewrites& Rewrites);
+	//-----------------------------------------------------------------------------
 
 	Routes     m_Routes;
+	Rewrites   m_Rewrites;
+	Redirects  m_Redirects;
 	KRESTRoute m_DefaultRoute;
 
 }; // KRESTRoutes

@@ -11,7 +11,9 @@ using namespace dekaf2;
 
 // make this a global, as otherwise the different test sections would create
 // and remove the temp dir again and again, but we want persistence for the tests
+namespace {
 KTempDir TempDir;
+}
 
 TEST_CASE("KFilesystem")
 {

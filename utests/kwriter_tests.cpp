@@ -11,6 +11,10 @@
 
 using namespace dekaf2;
 
+namespace {
+KTempDir TempDir;
+}
+
 class KMyServer : public KTCPServer
 {
 
@@ -125,7 +129,7 @@ TEST_CASE("KWriter") {
 
 	SECTION("Printf")
 	{
-		KString sFile("/tmp/kwriter_test_sdfjhkshg23.txt");
+		KString sFile(kFormat("{}/printf.txt", TempDir.Name()));
 		{
 			KOutFile out(sFile);
 			int i = 123;
@@ -137,7 +141,6 @@ TEST_CASE("KWriter") {
 			inf.ReadLine(sRead);
 			CHECK (sRead == "test: 123");
 		}
-		kRemoveFile(sFile);
 	}
 
 	SECTION("Short write to file")
@@ -145,35 +148,31 @@ TEST_CASE("KWriter") {
 		KString sLarge;
 		sLarge += "01234567890123456789012345678901234567890123456789012345678901234567890123456789";
 
-		KString sFile("/tmp/kwriter_test_sdfjhkshg24.txt");
+		KString sFile(kFormat("{}/short.txt", TempDir.Name()));
 		KOutFile stream(sFile);
 		stream.Write(sLarge);
 		CHECK( stream.Good() == true );
 		stream.close();
 
 		CHECK ( kFileSize(sFile) == sLarge.size() );
-
-		kRemoveFile(sFile);
 	}
 
 	SECTION("Large write to file")
 	{
 		KString sLarge;
-		sLarge.reserve(16*1024*1024);
-		for (size_t ct = 0; ct < 16*1024*1024 / 80; ++ct)
+		sLarge.reserve(1*1024*1024);
+		for (size_t ct = 0; ct < 1*1024*1024 / 80; ++ct)
 		{
 			sLarge += "01234567890123456789012345678901234567890123456789012345678901234567890123456789";
 		}
 
-		KString sFile("/tmp/kwriter_test_sdfjhkshg25.txt");
+		KString sFile(kFormat("{}large.txt", TempDir.Name()));
 		KOutFile stream(sFile);
 		stream.Write(sLarge);
 		CHECK( stream.Good() == true );
 		stream.close();
 
 		CHECK ( kFileSize(sFile) == sLarge.size() );
-
-		kRemoveFile(sFile);
 	}
 
 #ifndef DEKAF2_IS_WINDOWS
@@ -203,8 +202,8 @@ TEST_CASE("KWriter") {
 	SECTION("Large write to TCP socket")
 	{
 		KString sLarge;
-		sLarge.reserve(16*1024*1024);
-		for (size_t ct = 0; ct < 16*1024*1024 / 80; ++ct)
+		sLarge.reserve(1*1024*1024);
+		for (size_t ct = 0; ct < 1*1024*1024 / 80; ++ct)
 		{
 			sLarge += "01234567890123456789012345678901234567890123456789012345678901234567890123456789";
 		}
@@ -233,10 +232,11 @@ TEST_CASE("KWriter") {
 		KString sLarge;
 		sLarge = "01234567890123456789012345678901234567890123456789012345678901234567890123456789";
 
-		KMyServer Server("/tmp/unixsocket2364576", 5);
+		auto sSocket = kFormat("{}/short.socket", TempDir.Name());
+		KMyServer Server(sSocket, 5);
 		Server.Start(5, false);
 
-		KUnixStream stream("/tmp/unixsocket2364576", 5);
+		KUnixStream stream(sSocket, 5);
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();
@@ -253,16 +253,17 @@ TEST_CASE("KWriter") {
 	SECTION("Large write to Unix socket")
 	{
 		KString sLarge;
-		sLarge.reserve(16*1024*1024);
-		for (size_t ct = 0; ct < 16*1024*1024 / 80; ++ct)
+		sLarge.reserve(1*1024*1024);
+		for (size_t ct = 0; ct < 1*1024*1024 / 80; ++ct)
 		{
 			sLarge += "01234567890123456789012345678901234567890123456789012345678901234567890123456789";
 		}
 
-		KMyServer Server("/tmp/unixsocket2364577", 5);
+		auto sSocket = kFormat("{}/large.socket", TempDir.Name());
+		KMyServer Server(sSocket, 5);
 		Server.Start(5, false);
 
-		KUnixStream stream("/tmp/unixsocket2364577", 5);
+		KUnixStream stream(sSocket, 5);
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();
@@ -304,8 +305,8 @@ TEST_CASE("KWriter") {
 	SECTION("Large write to TLS socket")
 	{
 		KString sLarge;
-		sLarge.reserve(16*1024*1024);
-		for (size_t ct = 0; ct < 16*1024*1024 / 80; ++ct)
+		sLarge.reserve(1*1024*1024);
+		for (size_t ct = 0; ct < 1*1024*1024 / 80; ++ct)
 		{
 			sLarge += "01234567890123456789012345678901234567890123456789012345678901234567890123456789";
 		}

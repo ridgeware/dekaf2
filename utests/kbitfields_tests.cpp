@@ -62,45 +62,48 @@ TEST_CASE("KBitfields")
 	{
 		KBitfields<2, 6, 1, 7> bf16;
 
+		// speed the permutation tests up by an order of magnitude..
+		#define CCHECK(x) if ((x) == false) CHECK(x)
+
 		for (int i = 0; i <= UINT16_MAX; ++i)
 		{
 			bf16.setStore(0);
 			bf16.set<0>(i);
-			CHECK ( bf16.get<0>() == (i & 0x03) );
-			CHECK ( bf16.get<1>() == 0 );
-			CHECK ( bf16.get<2>() == 0 );
-			CHECK ( bf16.get<3>() == 0 );
-			CHECK ( bf16.getStore() == (i & 0x03) );
+			CCHECK ( bf16.get<0>() == (i & 0x03) );
+			CCHECK ( bf16.get<1>() == 0 );
+			CCHECK ( bf16.get<2>() == 0 );
+			CCHECK ( bf16.get<3>() == 0 );
+			CCHECK ( bf16.getStore() == (i & 0x03) );
 		}
 		for (int i = 0; i <= UINT16_MAX; ++i)
 		{
 			bf16.setStore(0);
 			bf16.set<1>(i);
-			CHECK ( bf16.get<0>() == 0 );
-			CHECK ( bf16.get<1>() == (i & 0x3f) );
-			CHECK ( bf16.get<2>() == 0 );
-			CHECK ( bf16.get<3>() == 0 );
-			CHECK ( bf16.getStore() == ((i & 0x3f) << 2) );
+			CCHECK ( bf16.get<0>() == 0 );
+			CCHECK ( bf16.get<1>() == (i & 0x3f) );
+			CCHECK ( bf16.get<2>() == 0 );
+			CCHECK ( bf16.get<3>() == 0 );
+			CCHECK ( bf16.getStore() == ((i & 0x3f) << 2) );
 		}
 		for (int i = 0; i <= UINT16_MAX; ++i)
 		{
 			bf16.setStore(0);
 			bf16.set<2>(i);
-			CHECK ( bf16.get<0>() == 0 );
-			CHECK ( bf16.get<1>() == 0 );
-			CHECK ( bf16.get<2>() == (i & 0x01) );
-			CHECK ( bf16.get<3>() == 0 );
-			CHECK ( bf16.getStore() == ((i & 0x01) << 8) );
+			CCHECK ( bf16.get<0>() == 0 );
+			CCHECK ( bf16.get<1>() == 0 );
+			CCHECK ( bf16.get<2>() == (i & 0x01) );
+			CCHECK ( bf16.get<3>() == 0 );
+			CCHECK ( bf16.getStore() == ((i & 0x01) << 8) );
 		}
 		for (int i = 0; i <= UINT16_MAX; ++i)
 		{
 			bf16.setStore(0);
 			bf16.set<3>(i);
-			CHECK ( bf16.get<0>() == 0 );
-			CHECK ( bf16.get<1>() == 0 );
-			CHECK ( bf16.get<2>() == 0 );
-			CHECK ( bf16.get<3>() == (i & 0x7f) );
-			CHECK ( bf16.getStore() == ((i & 0x7f) << 9) );
+			CCHECK ( bf16.get<0>() == 0 );
+			CCHECK ( bf16.get<1>() == 0 );
+			CCHECK ( bf16.get<2>() == 0 );
+			CCHECK ( bf16.get<3>() == (i & 0x7f) );
+			CCHECK ( bf16.getStore() == ((i & 0x7f) << 9) );
 		}
 	}
 

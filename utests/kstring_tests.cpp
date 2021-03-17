@@ -18,17 +18,23 @@ TEST_CASE("KString") {
 
 	SECTION("large allocation")
 	{
-		KString s;
-
-		// we want 1GB, but drop on machines with lower phys memory
-		auto iMaxSize = std::min(std::size_t(1*1024*1024*1024), kGetPhysicalMemory() / 4);
-
-		for (;s.size() < iMaxSize;)
+		// Run this test only in one of 20 test runs. It takes a long
+		// time and needs only be verified after changes on the
+		// string allocation scheme
+		if (kRandom(1, 20) == 1)
 		{
-			s += "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890";
-		}
+			KString s;
 
-		CHECK ( s.size() >= iMaxSize );
+			// we want 1GB, but drop on machines with lower phys memory
+			auto iMaxSize = std::min(std::size_t(1*1024*1024*1024), kGetPhysicalMemory() / 4);
+
+			for (;s.size() < iMaxSize;)
+			{
+				s += "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890";
+			}
+
+			CHECK ( s.size() >= iMaxSize );
+		}
 	}
 
 	SECTION("self assignment")

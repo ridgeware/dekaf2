@@ -33,6 +33,8 @@ typedef KProps<KString, KString, true, false> KProp_t;
         " expect='" << source << "'" <<\
     )
 
+// speed the permutation tests up by an order of magnitude..
+#define CCHECK(x) if ((x) == false) CHECK(x)
 
 SCENARIO ( "KURL unit tests on valid data" )
 {
@@ -132,8 +134,8 @@ SCENARIO ( "KURL unit tests on valid data" )
                         KString sAfter = query[sKey];
                         INFO ("Before:" + sBefore);
                         INFO (" After:" + sAfter);
-                        CHECK (svConvert == "");
-                        CHECK (query[sKey].size() == 1);
+                        CCHECK (svConvert == "");
+                        CCHECK (query[sKey].size() == 1);
                     }
                 }
             }
@@ -391,8 +393,8 @@ SCENARIO ( "KURL unit tests on invalid data")
                             dekaf2::url::KQuery bad;
                             bad.Parse(svConvert);
                         }
-                        CHECK (sResult.size() == 3);
-                        CHECK (sResult == sValue);
+                        CCHECK (sResult.size() == 3);
+                        CCHECK (sResult == sValue);
                     }
 
                 }

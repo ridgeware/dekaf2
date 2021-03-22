@@ -8,13 +8,17 @@
 
 using namespace dekaf2;
 
+namespace {
+KTempDir TempDir;
+}
+
 TEST_CASE("KSQLite")
 {
 	SECTION("Basic creation")
 	{
-		kRemoveFile("/tmp/sqlite_test.db");
+		auto sFilename = kFormat("{}/sqlite_test.db", TempDir.Name());
 
-		KSQLite::Database db("/tmp/sqlite_test.db", KSQLite::Mode::READWRITECREATE);
+		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
 
 		if (!db.ExecuteVoid (
 						 "create table TEST_KSQL (\n"

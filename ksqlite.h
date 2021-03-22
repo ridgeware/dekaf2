@@ -231,6 +231,7 @@ public:
 	// the copy constructor creates a new Connector
 	Database(const Database& other);
 	Database(Database&&) = default;
+	Database& operator=(const Database&);
 	Database& operator=(Database&&) = default;
 	/// Open database in file with given name, use given mode to open
 	Database(StringViewZ sFilename, Mode iMode = Mode::READONLY);

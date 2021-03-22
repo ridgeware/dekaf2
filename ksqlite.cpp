@@ -192,6 +192,15 @@ Database::Database(const Database& other)
 } // copy ctor
 
 //--------------------------------------------------------------------------------
+Database& Database::operator=(const Database& other)
+//--------------------------------------------------------------------------------
+{
+	m_Connector = std::make_shared<detail::DBConnector>(*other.Connector());
+	return *this;
+
+} // operator=()
+
+//--------------------------------------------------------------------------------
 bool Database::Connect(StringViewZ sFilename, Mode iMode)
 //--------------------------------------------------------------------------------
 {

@@ -270,8 +270,9 @@ void KSnippets::clear()
 
 } // clear
 
-static_assert(std::is_nothrow_move_constructible<KSnippets>::value,
-			  "KStringCompose is intended to be nothrow move constructible, but is not!");
+// if std::unordered_map is not yet supported by this lib to be nothrow, don't test dependant class
+static_assert(!std::is_nothrow_move_constructible<std::unordered_map<int, int>>::value || std::is_nothrow_move_constructible<KSnippets>::value,
+			  "KSnippets is intended to be nothrow move constructible, but is not!");
 
 } // of namespace dekaf2
 

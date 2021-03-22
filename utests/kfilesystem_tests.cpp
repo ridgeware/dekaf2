@@ -280,18 +280,21 @@ TEST_CASE("KFilesystem")
 		CHECK ( kIsSafePathname("hello\\world.txt")      == true  );
 		CHECK ( kIsSafePathname("hel.l-o\\wor-ld.txt")   == true  );
 		CHECK ( kIsSafePathname("hel.l-o\\wor_ld.txt")   == true  );
+		CHECK ( kIsSafePathname("\\hello\\world.txt", true)== true  );
+		CHECK ( kIsSafePathname("hello\\world\\", false, true) == true  );
+		CHECK ( kIsSafePathname("\\hello\\world\\", true, true) == true  );
+		CHECK ( kIsSafePathname("\\hello\\world\\\\", true, true) == false );
 #else
 		CHECK ( kIsSafePathname("hello/world.txt")       == true  );
 		CHECK ( kIsSafePathname("hel.l-o/wor-ld.txt")    == true  );
 		CHECK ( kIsSafePathname("hel.l-o/wor_ld.txt")    == true  );
-#endif
-		CHECK ( kIsSafePathname("hel.-lo/wor-ld.txt")    == false );
-		CHECK ( kIsSafePathname("")                      == false );
 		CHECK ( kIsSafePathname("/hello/world.txt")      == false );
 		CHECK ( kIsSafePathname("hello/world/", false, true) == true  );
 		CHECK ( kIsSafePathname("/hello/world/", true, true) == true  );
 		CHECK ( kIsSafePathname("/hello/world//", true, true) == false );
-		CHECK ( kIsSafePathname("/hello/world.txt", true)== true  );
+#endif
+		CHECK ( kIsSafePathname("hel.-lo/wor-ld.txt")    == false );
+		CHECK ( kIsSafePathname("")                      == false );
 		CHECK ( kIsSafePathname("//hello/world.txt", true)== false );
 		CHECK ( kIsSafePathname("hello/../../world.txt") == false );
 		CHECK ( kIsSafePathname("../../world.txt")       == false );

@@ -71,6 +71,9 @@
 #include <boost/asio/ip/v6_only.hpp>
 #include <boost/asio/basic_socket_iostream.hpp>
 #include <boost/system/system_error.hpp>
+#ifndef _MSC_VER
+#include <boost/exception/diagnostic_information.hpp>
+#endif
 
 #include "ktcpserver.h"
 #include "ksslstream.h"
@@ -221,10 +224,9 @@ void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint)
 
 	DEKAF2_CATCH(const boost::exception& e)
 	{
-#ifdef DEKAF2_IS_WINDOWS
-		e.what();
+#ifndef _MSC_VER
+		kWarning(boost::diagnostic_information(e));
 #endif
-		kWarning("boost exception");
 	}
 
 	DEKAF2_CATCH(...)

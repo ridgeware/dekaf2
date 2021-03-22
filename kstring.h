@@ -625,10 +625,8 @@ public:
 	self& Join(const T& Container, Parms&&... parms);
 
 	/// convert to representation type
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	operator const string_type&() const { return m_rep; }
 	operator string_type&() { return m_rep; }
-#endif
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	/// convert to std::string

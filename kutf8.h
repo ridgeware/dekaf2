@@ -455,34 +455,35 @@ KUTF8_CONSTEXPR_14
 Iterator LeftUTF8(Iterator it, Iterator ie, size_t n)
 //-----------------------------------------------------------------------------
 {
-	for (; KUTF8_LIKELY(it != ie && n-- > 0) ;)
+	for (; KUTF8_LIKELY(it < ie && n-- > 0) ;)
 	{
 		codepoint_t ch = CodepointCast(*it);
 
-		++it;
-
 		if (KUTF8_LIKELY(ch < 128))
 		{
+			it += 1;
 		}
 		else if ((ch & 0x0e0) == 0x0c0)
 		{
-			if (it != ie) ++it;
+			it += 2;
 		}
 		else if ((ch & 0x0f0) == 0x0e0)
 		{
-			if (it != ie) ++it;
-			if (it != ie) ++it;
+			it += 3;
 		}
 		else if ((ch & 0x0f8) == 0x0f0)
 		{
-			if (it != ie) ++it;
-			if (it != ie) ++it;
-			if (it != ie) ++it;
+			it += 4;
 		}
 		else
 		{
 			break; // invalid..
 		}
+	}
+
+	if (it > ie)
+	{
+		it = ie;
 	}
 
 	return it;
@@ -567,29 +568,25 @@ size_t CountUTF8(Iterator it, Iterator ie)
 {
 	size_t iCount { 0 };
 
-	for (; KUTF8_LIKELY(it != ie) ;)
+	for (; KUTF8_LIKELY(it < ie) ;)
 	{
 		codepoint_t ch = CodepointCast(*it);
 
-		++it;
-
 		if (KUTF8_LIKELY(ch < 128))
 		{
+			it += 1;
 		}
 		else if ((ch & 0x0e0) == 0x0c0)
 		{
-			if (it != ie) ++it;
+			it += 2;
 		}
 		else if ((ch & 0x0f0) == 0x0e0)
 		{
-			if (it != ie) ++it;
-			if (it != ie) ++it;
+			it += 3;
 		}
 		else if ((ch & 0x0f8) == 0x0f0)
 		{
-			if (it != ie) ++it;
-			if (it != ie) ++it;
-			if (it != ie) ++it;
+			it += 4;
 		}
 		else
 		{
@@ -597,7 +594,63 @@ size_t CountUTF8(Iterator it, Iterator ie)
 		}
 
 		++iCount;
+	}
 
+	if (it > ie && iCount)
+	{
+		// the last codepoint was not complete - substract one
+		--iCount;
+	}
+
+	return iCount;
+}
+
+//-----------------------------------------------------------------------------
+// we repeat most of the code of the simple CountUTF8 here because
+// the comparison with iMaxCount costs around 20% of performance
+/// Count number of codepoints in UTF8 range, stop at iMaxCount.
+template<typename Iterator>
+KUTF8_CONSTEXPR_14
+size_t CountUTF8(Iterator it, Iterator ie, std::size_t iMaxCount)
+//-----------------------------------------------------------------------------
+{
+	size_t iCount { 0 };
+
+	for (; KUTF8_LIKELY(it < ie) ;)
+	{
+		codepoint_t ch = CodepointCast(*it);
+
+		if (KUTF8_LIKELY(ch < 128))
+		{
+			it += 1;
+		}
+		else if ((ch & 0x0e0) == 0x0c0)
+		{
+			it += 2;
+		}
+		else if ((ch & 0x0f0) == 0x0e0)
+		{
+			it += 3;
+		}
+		else if ((ch & 0x0f8) == 0x0f0)
+		{
+			it += 4;
+		}
+		else
+		{
+			break; // invalid..
+		}
+
+		if (KUTF8_UNLIKELY(++iCount >= iMaxCount))
+		{
+			break;
+		}
+	}
+
+	if (it > ie && iCount)
+	{
+		// the last codepoint was not complete - substract one
+		--iCount;
 	}
 
 	return iCount;
@@ -611,6 +664,16 @@ size_t CountUTF8(const NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 {
 	return CountUTF8(sNarrow.begin(), sNarrow.end());
+}
+
+//-----------------------------------------------------------------------------
+/// Count number of codepoints in UTF8 string, stop at iMaxCount
+template<typename NarrowString>
+KUTF8_CONSTEXPR_14
+size_t CountUTF8(const NarrowString& sNarrow, std::size_t iMaxCount)
+//-----------------------------------------------------------------------------
+{
+	return CountUTF8(sNarrow.begin(), sNarrow.end(), iMaxCount);
 }
 
 //-----------------------------------------------------------------------------

@@ -106,7 +106,7 @@ void* memmem(void* _haystack, size_t haystack_len, const void* _needle, size_t n
 
 #endif
 
-KString::value_type KString::s_0ch_v[2] = "\0";
+KString::value_type KString::s_0ch_v { '\0' };
 
 //------------------------------------------------------------------------------
 void KString::log_exception(const std::exception& e, const char* sWhere)
@@ -950,13 +950,13 @@ bool KString::ClipAtReverse(KStringView sClipAtReverse)
 } // ClipAtReverse
 
 //----------------------------------------------------------------------
-KString::size_type KString::RemoveIllegalChars(KStringView sIllegalChars)
+KString::size_type KString::RemoveChars(KStringView sChars)
 //----------------------------------------------------------------------
 {
 	auto ilen = size();
 	size_type pos;
 
-	for (size_type lastpos = size(); (pos = find_last_of(sIllegalChars, lastpos)) != npos; )
+	for (size_type lastpos = size(); (pos = find_last_of(sChars, lastpos)) != npos; )
 	{
 		erase(pos, 1);
 		lastpos = pos;

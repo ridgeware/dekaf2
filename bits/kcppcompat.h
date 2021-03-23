@@ -278,7 +278,7 @@ namespace dekaf2 {
 // prepare for the shared_mutex enabler below - this has to go into
 // the base namespace
 #ifdef DEKAF2_HAS_CPP_14
-#include <shared_mutex>
+	#include <shared_mutex>
 	#include <mutex> // to be balanced with the C++11 case below
 #else
 	#include <mutex>
@@ -382,7 +382,7 @@ namespace std
 // define macros to teach the compiler which branch is more likely
 // to be taken - the effects are actually minimal to nonexisting,
 // so do not bother for code that is not really core
-#if defined(__GNUC__) && __GNUC__ >= 4
+#if defined __clang__ || (defined(__GNUC__) && __GNUC__ >= 4)
 	#define DEKAF2_LIKELY(expression)   (__builtin_expect((expression), 1))
 	#define DEKAF2_UNLIKELY(expression) (__builtin_expect((expression), 0))
 #else

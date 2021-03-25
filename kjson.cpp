@@ -110,6 +110,7 @@ bool Parse (KJSON& json, KStringView sJSON, KString& sError) noexcept
 		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
 		return true;
 	}
+
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
 		sError.Format ("JSON[{:03d}]: {}", exc.id, exc.what());
@@ -140,8 +141,9 @@ void Parse (KJSON& json, KStringView sJSON)
 KJSON Parse (KStringView sJSON) noexcept
 //-----------------------------------------------------------------------------
 {
-	KJSON json;
+	KJSON   json;
 	KString sError;
+
 	if (!Parse (json, sJSON, sError))
 	{
 		kDebug (1, sError);
@@ -156,6 +158,7 @@ KJSON ParseOrThrow (KStringView sJSON)
 //-----------------------------------------------------------------------------
 {
 	KJSON json;
+
 	Parse (json, sJSON); // will throw if invalid
 
 	return json;
@@ -205,6 +208,7 @@ bool Parse (KJSON& json, KInStream& InStream, KString& sError) noexcept
 		InStream >> json;
 		return true;
 	}
+
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
 		sError.Format ("JSON[{:03d}]: {}", exc.id, exc.what());
@@ -234,6 +238,7 @@ const KString& GetStringRef(const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
+
 	if (it != json.end() && it.value().is_string())
 	{
 		return it.value().get_ref<const KString&>();
@@ -250,6 +255,7 @@ KString GetString(const KJSON& json, KStringView sKey) noexcept
 	KString sReturn;
 
 	auto it = json.find(sKey);
+
 	if (it != json.end())
 	{
 		// convert to string whatever the input..
@@ -267,6 +273,7 @@ uint64_t GetUInt(const KJSON& json, KStringView sKey) noexcept
 	uint64_t iReturn { 0 };
 
 	auto it = json.find(sKey);
+
 	if (it != json.end())
 	{
 		if (it->is_number())
@@ -290,6 +297,7 @@ int64_t GetInt(const KJSON& json, KStringView sKey) noexcept
 	int64_t iReturn { 0 };
 
 	auto it = json.find(sKey);
+
 	if (it != json.end())
 	{
 		if (it->is_number())
@@ -313,6 +321,7 @@ bool GetBool(const KJSON& json, KStringView sKey) noexcept
 	bool bReturn { 0 };
 
 	auto it = json.find(sKey);
+
 	if (it != json.end())
 	{
 		if (it->is_boolean())
@@ -338,6 +347,7 @@ const KJSON& GetObjectRef (const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
+
 	if (it != json.end())
 	{
 		return it.value();
@@ -352,6 +362,7 @@ const KJSON& GetArray (const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
+
 	if (it != json.end() && it.value().is_array())
 	{
 		return it.value();
@@ -368,11 +379,13 @@ const KJSON& GetObject (const KJSON& json, KStringView sKey) noexcept
 	DEKAF2_TRY
 	{
 		auto it = json.find(sKey);
+
 		if (it != json.end())
 		{
 			return it.value();
 		}
 	}
+
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
 		kDebug(1, "JSON[{:03d}]: {}", exc.id, exc.what());
@@ -515,6 +528,7 @@ KString Print (const KJSON& json) noexcept
 				return "(UNKNOWN)";
 		}
 	}
+	
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
 		kDebug(1, "JSON[{:03d}]: {}", exc.id, exc.what());

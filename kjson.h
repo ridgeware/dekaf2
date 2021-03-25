@@ -42,6 +42,8 @@
 
 #pragma once
 
+#include "klog.h"
+#define JSON_THROW_USER(exception) { kJSONTrace(); throw exception; }
 #include <nlohmann/json.hpp>
 #include <fmt/format.h>
 #include "kstring.h"

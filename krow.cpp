@@ -727,6 +727,7 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags,
 			return AddCol(sColName, Value.dump(-1), iFlags | JSON, iMaxLen);
 
 		case KJSON::value_t::string:
+		case KJSON::value_t::binary:
 			return AddCol(sColName, Value.get<KJSON::string_t>(), iFlags | NOFLAG, iMaxLen);
 
 		case KJSON::value_t::number_integer:

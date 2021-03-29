@@ -199,7 +199,13 @@ TEST_CASE("KFilesystem")
 		KDirectory Dir(sDirectorySlash);
 		CHECK ( Dir.size() == 2 );
 		CHECK ( Dir.Match( KFileType::REGULAR) == 2);
-		Dir.Sort();
+		Dir.Sort(KDirectory::SortBy::SIZE, true);
+		CHECK ( Dir[0].Filename() == "KFilesystem.test" );
+		CHECK ( Dir[0].Size() == 63 );
+		CHECK ( Dir[1].Filename() == "test.txt" );
+		CHECK ( Dir[1].Size() == 0 );
+		CHECK ( Dir[2].Filename() == "" );
+		CHECK ( Dir[2].Size() == 0 );
 		CHECK ( Dir.begin()->Path().find(kFormat("{}{}", kDirSep, kDirSep)) == KString::npos );
 	}
 

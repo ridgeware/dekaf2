@@ -997,6 +997,8 @@ static_assert(std::is_nothrow_move_constructible<KFileStat>::value,
 			  "KFileStat is intended to be nothrow move constructible, but is not!");
 
 
+const KFileStat KDirectory::DirEntry::s_EmptyStat;
+
 //-----------------------------------------------------------------------------
 KDirectory::DirEntry::DirEntry(KStringView BasePath, KStringView Name, KFileType Type)
 //-----------------------------------------------------------------------------
@@ -1020,7 +1022,14 @@ const KFileStat& KDirectory::DirEntry::FileStat() const
 {
 	if (!m_Stat)
 	{
-		m_Stat = std::make_unique<KFileStat>(m_Path);
+		if (!m_Path.empty())
+		{
+			m_Stat = std::make_unique<KFileStat>(m_Path);
+		}
+		else
+		{
+			return s_EmptyStat;
+		}
 	}
 
 	return *m_Stat;
@@ -1029,6 +1038,9 @@ const KFileStat& KDirectory::DirEntry::FileStat() const
 
 static_assert(std::is_nothrow_move_constructible<KDirectory::DirEntry>::value,
 			  "KDirectory::DirEntry is intended to be nothrow move constructible, but is not!");
+
+
+const KDirectory::DirEntry KDirectory::s_Empty;
 
 //-----------------------------------------------------------------------------
 void KDirectory::clear()
@@ -1974,6 +1986,9 @@ constexpr KStringViewZ kLineRightTrims;
 constexpr KStringViewZ kAllowedDirSep;
 constexpr KStringViewZ kCurrentDir;
 constexpr KStringViewZ kCurrentDirWithSep;
+constexpr KStringViewZ kUnsafeFilenameChars;
+constexpr KStringViewZ kUnsafePathnameChars;
+constexpr KStringViewZ kUnsafeLimiterChars;
 }
 #endif
 

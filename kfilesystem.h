@@ -491,6 +491,11 @@ public:
 	private:
 	//----------
 
+		// needed to avoid MT races for KDirectory on operator[] when running
+		// multiple KDirectory at the same time with empty path names for the
+		// first time
+		static const KFileStat s_EmptyStat;
+
 		mutable std::unique_ptr<KFileStat> m_Stat;
 		KString      m_Path;
 		KStringViewZ m_Filename;
@@ -499,8 +504,8 @@ public:
 	}; // DirEntry
 
 	using DirEntries     = std::vector<DirEntry>;
-	using iterator       = DirEntries::iterator;
 	using const_iterator = DirEntries::const_iterator;
+	using size_type      = DirEntries::size_type;
 
 	/// default ctor
 	KDirectory() = default;
@@ -522,13 +527,9 @@ public:
 	const_iterator begin() const { return m_DirEntries.begin(); }
 	/// returns const_iterator to the end of the directory list
 	const_iterator end() const { return m_DirEntries.end(); }
-	/// returns iterator to the start of the directory list
-	iterator begin() { return m_DirEntries.begin(); }
-	/// returns iterator to the end of the directory list
-	iterator end() { return m_DirEntries.end(); }
 
 	/// count of matched directory entries
-	size_t size() const { return m_DirEntries.size(); }
+	size_type size() const { return m_DirEntries.size(); }
 
 	/// did no directory entry match?
 	bool empty() const { return m_DirEntries.empty(); }
@@ -536,19 +537,31 @@ public:
 	/// clear list of directory entries
 	void clear();
 
-	/// open a directory and store all entries that are of FileType Type
-	/// @param sDirectory the direcory path to open
-	/// @param Type the FileType to search for, default = ALL
-	/// @param bRecursive traverse subdirectories recursively, default = false
-	/// @param bClear remove existing (previously found) directory entries, default = true
-	size_t Open(KStringViewZ sDirectory, KFileType Type = KFileType::ALL, bool bRecursive = false, bool bClear = true);
+	/// get the directory enty at position pos, never throws, returns empty entry if out of bounds
+	const DirEntry& at(size_type pos) const noexcept
+	{
+		return (pos < size()) ? m_DirEntries[pos] : s_Empty;
+	}
+
+	/// get the directory enty at position pos, never throws, returns empty entry if out of bounds
+	const DirEntry& operator[](size_type pos) const noexcept
+	{
+		return at(pos);
+	}
 
 	/// open a directory and store all entries that are of FileType Type
 	/// @param sDirectory the direcory path to open
 	/// @param Type the FileType to search for, default = ALL
 	/// @param bRecursive traverse subdirectories recursively, default = false
 	/// @param bClear remove existing (previously found) directory entries, default = true
-	size_t operator()(KStringViewZ sDirectory, KFileType Type = KFileType::ALL, bool bRecursive = false, bool bClear = true)
+	size_type Open(KStringViewZ sDirectory, KFileType Type = KFileType::ALL, bool bRecursive = false, bool bClear = true);
+
+	/// open a directory and store all entries that are of FileType Type
+	/// @param sDirectory the direcory path to open
+	/// @param Type the FileType to search for, default = ALL
+	/// @param bRecursive traverse subdirectories recursively, default = false
+	/// @param bClear remove existing (previously found) directory entries, default = true
+	size_type operator()(KStringViewZ sDirectory, KFileType Type = KFileType::ALL, bool bRecursive = false, bool bClear = true)
 	{
 		return Open(sDirectory, Type, bRecursive, bClear);
 	}
@@ -559,17 +572,17 @@ public:
 	/// match or remove all files that have FileType Type from the list, returns count of matched entries
 	/// @param Type the FileType to search for
 	/// @param bRemoveMatches if true remove matches, else keep only those (default = false)
-	size_t Match(KFileType Type, bool bRemoveMatches = false);
+	size_type Match(KFileType Type, bool bRemoveMatches = false);
 
 	/// match or remove all files that match the regular expression sRegex from the list, returns count of matched entries
 	/// @param sRegex the regular expression to search for
 	/// @param bRemoveMatches if true remove matches, else keep only those (default = false)
-	size_t Match(KStringView sRegex, bool bRemoveMatches = false);
+	size_type Match(KStringView sRegex, bool bRemoveMatches = false);
 
 	/// match or remove all files that match the basic regular expression sWildCard from the list, returns count of matched entries
 	/// @param sWildCard the basic regular expression to search for (e.g. "*.tx?")
 	/// @param bRemoveMatches if true remove matches, else keep only those (default = false)
-	size_t WildCardMatch(KStringView sWildCard, bool bRemoveMatches = false);
+	size_type WildCardMatch(KStringView sWildCard, bool bRemoveMatches = false);
 
 	/// returns first found directory entry if the directory list matches sWildCard, wildcard matching is supported
 	/// @param sWildCard the basic regular expression to search for (e.g. "*.tx?")
@@ -599,6 +612,12 @@ protected:
 //----------
 
 	DirEntries m_DirEntries;
+
+//----------
+private:
+//----------
+
+	static const DirEntry s_Empty;
 
 }; // KDirectory
 
@@ -710,12 +729,12 @@ public:
 	/// will create a new directory once Name() is called
 	void clear();
 
+	/// create the temp folder - static method
+	static KString MakeDir();
+
 //----------
 private:
 //----------
-
-	/// create the temp folder now
-	KString MakeDir();
 
 	KString m_sTempDirName;
 	bool m_bDeleteOnDestruction;

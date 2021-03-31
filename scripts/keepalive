@@ -1,0 +1,155 @@
+#! /bin/sh
+
+#%
+#% keepalive - dumb thing to keep connection open
+#%
+#% usage: keepalive [-more]
+#%
+#% history:
+#%   keef
+#%
+
+#==============================
+Break ()
+#==============================
+{
+	clear
+	exit 1
+
+} # Break
+
+#==============================
+MyIP ()
+#==============================
+{
+	/sbin/ifconfig | sed -e 's/.*inet addr:/inet /' | awk '($1 == "inet") {print $2; exit 0}' # <-- pick first interface
+
+} # MyIP
+
+#==============================
+Hostname ()
+#==============================
+{
+	h=$(hostname)
+
+	if [ -f /etc/khostname ]; then
+		k=$(cat /etc/khostname)
+		h=$(echo "$h" | awk -F. '{print $1}')  # trim possible domain name
+		echo "$k / $h"
+	else
+		echo "$h"
+	fi
+		
+} # Hostname
+
+#==============================
+PrintLoad ()
+#==============================
+{
+	if [ "$option" != "-more" ]; then
+		return 0
+	fi
+
+	#  16:10:57 up 12 days,  4:57,  2 users,  load average: 0.05, 0.03, 0.00
+	load=$(uptime | sed -e 's/.*load average: //')
+	printf "|::::::::::::::::::|     Load: %-28.28s|::::::::::::::::::|\n" "$load"
+
+} # PrintLoad
+
+#==============================
+PrintUsers ()
+#==============================
+{
+	if [ "$option" != "-more" ]; then
+		return 0
+	fi
+
+	users=$(who | awk '{printf ("%s%s", (NR>1) ? ", " : "", $1)} END {printf ("\n")}')
+	printf "| users: %-69.69s|\n" "$users"
+	printf "+-----------------------------------------------------------------------------+\n"
+
+} # PrintUsers
+
+#==============================
+# MAIN SHELL BODY
+#==============================
+
+option="$1"
+if [ $# -ne 0 ] && [ "$option" != "-more" ]; then
+	awk '/^#%/ {print substr($0,3)}' $0
+	exit 1
+fi
+
+trap Break SIGINT SIGTERM
+
+ip=$(MyIP)
+host=$(Hostname)
+
+clear
+cat << EOF
+
++-----------+-----------------------------------------------------------------+
+| keepalive |:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::|
+|-----------+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::|
+|:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::|
+|::::::::::::::::::+---------------------------------------+::::::::::::::::::|
+EOF
+
+printf "|::::::::::::::::::|       IP: %-28.28s|::::::::::::::::::|\n" "$ip"
+printf "|::::::::::::::::::| Hostname: %-28.28s|::::::::::::::::::|\n" "$host"
+PrintLoad
+
+cat << EOF
+|::::::::::::::::::+---------------------------------------+::::::::::::::::::|
+|:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::|
+|:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::|
+|:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::|
++-----------------------------------------------------------------------------+
+EOF
+
+PrintUsers
+echo ""
+[ -f /etc/motd ] && cat /etc/motd
+
+count=0
+while [ 1 ]
+do
+	mod=$(expr $count "%" 4)
+	case "$mod" in
+		0) c="|";;
+		1) c="/";;
+		2) c="-";;
+		3) c="\\";;
+	esac
+	Home="[;H"
+	SaveCursor="[s[7"
+	RestoreCursor="[8[u"
+	GotoTopCorner="[1;1f"
+	GotoHOME="[1;2f"
+	GotoKEEF="[3;3f"
+	GotoLoad="[9;1f"
+	GotoUsers="[15;1f"
+	Clear="[2J"
+
+	printf "${GotoTopCorner}($c)"
+	if [ $mod -eq 3 ]; then
+		printf "${GotoKEEF}KEEF"
+	else
+		printf "${GotoKEEF}keep"
+	fi
+
+	count=$(expr $count + 1)
+	if [ $count -ge 12 ]; then
+		printf "${GotoLoad}"
+		PrintLoad
+
+		printf "${GotoUsers}"
+		PrintUsers
+   		count=0
+	fi
+
+	printf "$GotoHOME"
+
+	sleep 1
+done
+

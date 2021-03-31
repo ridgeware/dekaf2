@@ -1,0 +1,78 @@
+#! /bin/sh
+
+#% 
+#% psgrep - grep PS listing for something
+#% 
+#% usage: psgrep [-kill] <grepstr> [<delay>] [<repeat>]
+#%
+#% keef created a long time ago to save typing
+#%
+
+fKill=0
+if [ "$1" = "-kill" ]; then
+	fKill=1
+	shift
+fi
+
+if [ $# -lt 1 ]; then
+    awk '/^#%/{print substr($0,3)}' $0
+    exit 3
+fi
+
+grepstr=$1
+delay=$2
+repeat=$3
+tmpfile=/tmp/psgrep$$
+
+if [ $(uname) = FreeBSD ]; then
+    # BSD:
+    PS="ps -auxww"
+elif [ -f /usr/ucb/ps ]; then
+    # Solaris 5.x:
+    PS="/usr/ucb/ps -auxww"
+else
+    # SysV:
+    PS="/bin/ps -efww"
+fi
+
+if [ ! -f /tmp/psgrep.top ]; then
+	$PS | head -1 > /tmp/psgrep.top 2>&1
+fi
+
+cat /tmp/psgrep.top
+
+$PS | grep $1 | grep -v "grep .*$1" > $tmpfile
+if [ $? -eq 0 ]; then
+    repeat=""
+fi
+
+# loop until process appears in PS listing:
+if [ "$repeat" != "" ]; then
+    while [ $repeat -gt 0 ]; do
+	$PS | grep $1 | grep -v "grep .*$1" > $tmpfile
+	if [ $? -eq 0 ]; then
+	    repeat=0		# <- found it !
+	else
+	    sleep $delay
+	    repeat=`expr $repeat - 1`
+	fi
+    done
+    code=1
+fi
+
+if [ `cat $tmpfile | wc -l` -eq 0 ]; then
+    echo "($grepstr process not found)" > $tmpfile
+fi
+
+cat $tmpfile | sort -n
+echo ""
+
+if [ $fKill -eq 1 ]; then
+	echo "killing PIDs ..."
+	cat $tmpfile | awk '($2 > 0) {printf ("kill %d; sleep 1; kill -9 %d\n", $2, $2)}' | sh > /dev/null 2>&1
+fi
+
+rm -f $tmpfile
+exit 0
+
+

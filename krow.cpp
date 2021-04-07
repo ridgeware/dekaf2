@@ -310,6 +310,8 @@ bool KROW::SetFlags (KStringView sColName, KCOL::Flags iFlags)
 void KROW::PrintValuesForInsert(KString& sSQL, DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	sSQL += '(';
 
 	bool bComma = false;
@@ -356,6 +358,8 @@ void KROW::PrintValuesForInsert(KString& sSQL, DBT iDBType) const
 bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=false*/) const
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	m_sLastError.clear(); // reset
 	sSQL.clear();
 
@@ -416,6 +420,8 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*
 bool KROW::AppendInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=true*/) const
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	if (sSQL.empty())
 	{
 		// this is the first record, create the value syntax insert..
@@ -455,6 +461,8 @@ bool KROW::AppendInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=fals
 bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	m_sLastError.clear(); // reset
 	sSQL.clear();
 	
@@ -566,6 +574,8 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 bool KROW::FormSelect (KString& sSQL, DBT iDBType, bool bSelectAllColumns) const
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	m_sLastError.clear(); // reset
 	sSQL.clear();
 
@@ -646,6 +656,8 @@ bool KROW::FormSelect (KString& sSQL, DBT iDBType, bool bSelectAllColumns) const
 bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	m_sLastError.clear(); // reset
 	sSQL.clear();
 
@@ -717,6 +729,8 @@ bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags, KCOL::Len iMaxLen)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	// make sure all type flags are removed
 	iFlags &= MODE_FLAGS;
 
@@ -765,6 +779,8 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags,
 KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	KJSON json;
 
 	for (auto& col : *this)
@@ -902,7 +918,7 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 KString KROW::to_csv (bool bHeaders/*=false*/, uint64_t iFlags/*=0*/)
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 	// shall we print modified header columns?
 	if (DEKAF2_UNLIKELY(bHeaders && (iFlags & (KEYS_TO_LOWER | KEYS_TO_UPPER))))

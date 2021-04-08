@@ -53,6 +53,7 @@
 #include <functional>
 #include "bits/kcppcompat.h"
 #include "kthreadsafe.h"
+#include "klog.h"
 
 namespace dekaf2
 {
@@ -68,8 +69,7 @@ class KThreadWait
 private:
 //----------
 
-	using threads_t = std::vector<std::unique_ptr<std::thread>>;
-	threads_t threads;
+	std::vector<std::unique_ptr<std::thread>> threads;
 
 //----------
 public:
@@ -77,13 +77,19 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Destructor waits for all threads to join
-	~KThreadWait();
+	~KThreadWait()
 	//-----------------------------------------------------------------------------
+	{
+		Join();
+	}
 
 	//-----------------------------------------------------------------------------
 	/// add a new thread to the list of started threads
-	void Add(std::unique_ptr<std::thread> newThread);
+	void Add(std::unique_ptr<std::thread> newThread)
 	//-----------------------------------------------------------------------------
+	{
+		threads.push_back(std::move(newThread));
+	}
 
 	//-----------------------------------------------------------------------------
 	/// wait for all threads to join
@@ -163,10 +169,8 @@ public:
 	template<class Function, class... Args>
 	void CreateOne(Function&& f, Args&&... args)
 	{
-		s_bHasThreadsStarted = true;
 		// create the thread and start it
-		Store(std::make_unique<std::thread>(&KRunThreads::RunThread<Function, Args...>, this,
-		                      std::forward<Function>(f), std::forward<Args>(args)...));
+		Store(std::make_unique<std::thread>(std::forward<Function>(f), std::forward<Args>(args)...));
 	}
 	//-----------------------------------------------------------------------------
 
@@ -185,43 +189,14 @@ public:
 			++iCount;
 		}
 
-		AnnounceNewThreads(iCount);
+		kDebugLog(2, "KRunThreads::Create(): started {} additional threads", iCount);
 
 		return iCount;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Checks if threads have already been started since startup.
-	/// @return true if at least one thread has already been started, otherwise false.
-	static bool HasThreadsStarted()
-	//-----------------------------------------------------------------------------
-	{
-		return s_bHasThreadsStarted;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Gets the internal number of this thread. Each started thread gets an
-	/// incrementing number.
-	static size_t GetThreadNum()
-	//-----------------------------------------------------------------------------
-	{
-		return s_iThreadNum;
 	}
 
 //----------
 protected:
 //----------
-
-	//-----------------------------------------------------------------------------
-	/// The internal thread start function. This redirection is needed to assign
-	/// each thread an incrementing thread number.
-	template<class Function, class... Args>
-	void RunThread(Function&& f, Args&&... args)
-	//-----------------------------------------------------------------------------
-	{
-		s_iThreadNum = ++s_iThreadIdCount;
-		std::bind(std::forward<Function>(f), std::forward<Args>(args)...)();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// store (or detach) the new thread object
@@ -232,16 +207,9 @@ protected:
 private:
 //----------
 
-	// this only exists to avoid including klog.h in the header
-	void AnnounceNewThreads(size_t iCount);
-
 	size_t                     m_numThreads;
 	std::chrono::microseconds  m_pause { 0 };
 	bool                       m_start_detached { false };
-
-	static bool                s_bHasThreadsStarted;
-	static thread_local size_t s_iThreadNum;
-	static std::atomic_size_t  s_iThreadIdCount;
 
 }; // KRunThreads
 

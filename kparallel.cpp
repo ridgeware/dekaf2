@@ -40,23 +40,8 @@
 */
 
 #include "kparallel.h"
-#include "klog.h"
 
 namespace dekaf2 {
-
-bool                KRunThreads::s_bHasThreadsStarted{false};
-thread_local size_t KRunThreads::s_iThreadNum{0};
-std::atomic_size_t  KRunThreads::s_iThreadIdCount{0};
-
-
-//-----------------------------------------------------------------------------
-/// add a new thread to the list of started threads
-void KThreadWait::Add(std::unique_ptr<std::thread> newThread)
-//-----------------------------------------------------------------------------
-{
-	threads.emplace_back(std::move(newThread));
-
-} // Add
 
 //-----------------------------------------------------------------------------
 /// wait for all threads to join
@@ -73,15 +58,6 @@ void KThreadWait::Join()
 	}
 
 } // Join
-
-//-----------------------------------------------------------------------------
-/// Destructor waits for all threads to join
-KThreadWait::~KThreadWait()
-//-----------------------------------------------------------------------------
-{
-	Join();
-
-} // dtor
 
 //-----------------------------------------------------------------------------
 /// sets number of threads to #cpu if numThreads == 0, but
@@ -101,14 +77,6 @@ size_t KRunThreads::SetSize(size_t iNumThreads, size_t iMaxThreads) noexcept
 	return m_numThreads;
 
 } // SetSize
-
-//-----------------------------------------------------------------------------
-void KRunThreads::AnnounceNewThreads(size_t iCount)
-//-----------------------------------------------------------------------------
-{
-	kDebugLog(2, "KRunThreads::Create(): started {} additional threads", iCount);
-
-} // AnnounceNewThreads
 
 //-----------------------------------------------------------------------------
 /// store (or detach) the new thread object

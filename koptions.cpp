@@ -584,7 +584,12 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 			}
 
 			// strip name at first special character or space
-			sOption.erase(sOption.find_first_of(" <>[]|=\t\r\n\b"));
+			auto pos = sOption.find_first_of(" <>[]|=\t\r\n\b");
+
+			if (pos != KStringView::npos)
+			{
+				sOption.erase(pos);
+			}
 
 			if (OptionOrCommand.IsCommand())
 			{

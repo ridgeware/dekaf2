@@ -118,6 +118,12 @@ bool KSSLContext::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KSt
 		return false;
 	}
 
+	if (sKey.empty())
+	{
+		// maybe the cert has both, the cert and the key
+		sKey = sCert;
+	}
+
 	m_Context.use_private_key_file(sKey.c_str(), boost::asio::ssl::context::pem, ec);
 
 	if (ec)
@@ -159,6 +165,12 @@ bool KSSLContext::SetSSLCertificates(KStringView sCert, KStringView sKey, KStrin
 	{
 		kDebug(1, "cannot set certificate: {}", ec.message());
 		return false;
+	}
+
+	if (sKey.empty())
+	{
+		// maybe the cert has both, the cert and the key
+		sKey = sCert;
 	}
 
 	m_Context.use_private_key(boost::asio::const_buffer(sKey.data(), sKey.size()), boost::asio::ssl::context::pem, ec);

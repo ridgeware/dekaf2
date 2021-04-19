@@ -564,9 +564,9 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 
 	if (IsSSL())
 	{
-		if (m_sCert.empty() || m_sKey.empty())
+		if (m_sCert.empty())
 		{
-			kWarning("cannot start SSL server on port {}, have no certificates", m_iPort);
+			kWarning("cannot start SSL server on port {}, have no certificate", m_iPort);
 			return false;
 		}
 	}

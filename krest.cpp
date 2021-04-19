@@ -88,13 +88,12 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					{
 						return SetError(kFormat("TLS certificate does not exist: {}", Options.sCert));
 					}
-					if (Options.sKey.empty())
+					if (!Options.sKey.empty())
 					{
-						return SetError("TLS mode requested, but no private key");
-					}
-					if (Options.bPEMsAreFilenames && !kFileExists(Options.sKey))
-					{
-						return SetError(kFormat("TLS private key file does not exist: {}", Options.sKey));
+						if (Options.bPEMsAreFilenames && !kFileExists(Options.sKey))
+						{
+							return SetError(kFormat("TLS private key file does not exist: {}", Options.sKey));
+						}
 					}
 				}
 

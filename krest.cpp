@@ -116,6 +116,18 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					{
 						m_Server->SetSSLCertificates(Options.sCert, Options.sKey);
 					}
+					if (!Options.sDHPrimes.empty())
+					{
+						if (Options.bPEMsAreFilenames)
+						{
+							m_Server->LoadDHPrimes(Options.sDHPrimes);
+						}
+						else
+						{
+							m_Server->SetDHPrimes(Options.sDHPrimes);
+						}
+					}
+					m_Server->SetAllowedCipherSuites(Options.sAllowedCipherSuites);
 				}
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);

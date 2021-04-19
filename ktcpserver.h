@@ -157,14 +157,32 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Set the SSL/TLS certificate files
+	/// Load the SSL/TLS certificates from files (.pem format)
 	bool LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword = KStringView{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Set the SSL/TLS certificates as strings
+	/// Set the SSL/TLS certificates from strings (.pem format)
 	bool SetSSLCertificates(KStringView sCert, KStringView sKey, KStringView sPassword = KStringView{});
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Load DH key exchange primes from file (.pem format)
+	bool LoadDHPrimes(KStringViewZ sDHPrimesFile);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set DH key exchange primes from string (.pem format)
+	bool SetDHPrimes(KStringViewZ sDHPrimes);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set the allowed cipher suites (if empty, an OpenSSL default is used)
+	void SetAllowedCipherSuites(KString sAllowedCipherSuites)
+	//-----------------------------------------------------------------------------
+	{
+		m_sAllowedCipherSuites = std::move(sAllowedCipherSuites);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Start the server
@@ -322,6 +340,8 @@ private:
 	KString m_sCert;
 	KString m_sKey;
 	KString m_sPassword;
+	KString m_sDHPrimes;
+	KString m_sAllowedCipherSuites;
 	uint16_t m_iPort { 0 };
 	uint16_t m_iTimeout { 15 };
 	bool m_bBlock { true };

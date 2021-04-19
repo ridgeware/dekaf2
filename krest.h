@@ -104,12 +104,19 @@ public:
 #endif
 		/// start as blocking server in same thread or unblocking in separate thread
 		bool bBlocking { true };
-		/// are the PEM cert and key filenames (default) or buffers with the actual PEMs?
+		/// are the PEM cert and key and dh prime filenames (default) or buffers with the actual PEMs?
 		bool bPEMsAreFilenames { true };
 		/// the PEM certificate
 		KString sCert;
 		/// the PEM private key
 		KString sKey;
+		/// the primes used for non-elliptic-curve Diffie-Hellman perfect forward secrecy key exchange (.pem format)
+		/// (leave empty to use elliptic curve DHE only)
+		KString sDHPrimes;
+		/// allowed cipher suites, colon separated - you are allowed to mix TLS 1.2 and 1.3
+		/// suites, they will be applied as matching (refer to the OpenSSL documentation).
+		/// defaults to "PFS", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305
+		KString sAllowedCipherSuites { "PFS" };
 		/// Parameters controling the simulation mode
 		SimulationParms Simulate;
 

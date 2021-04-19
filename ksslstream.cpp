@@ -41,6 +41,8 @@
 
 #include "ksslstream.h"
 #include "klog.h"
+#include "kfrozen.h"
+#include <openssl/opensslv.h>
 
 namespace dekaf2 {
 
@@ -167,11 +169,155 @@ bool KSSLContext::SetSSLCertificates(KStringView sCert, KStringView sKey, KStrin
 		return false;
 	}
 
+	kDebug(2, "TLS certificates successfully set");
 	return true;
 
 #endif
 
 } // SetSSLCertificates
+
+//-----------------------------------------------------------------------------
+bool KSSLContext::SetDHPrimes(KStringView sDHPrimes)
+//-----------------------------------------------------------------------------
+{
+	if (sDHPrimes.empty())
+	{
+		return true;
+	}
+
+	boost::system::error_code ec;
+
+	m_Context.use_tmp_dh(boost::asio::const_buffer(sDHPrimes.data(), sDHPrimes.size()), ec);
+
+	if (ec)
+	{
+		kDebug(1, "cannot set DH primes: {}", ec.message());
+		return false;
+	}
+
+	kDebug(2, "DH primes successfully set, server will use perfect forward secrecy");
+	return true;
+
+} // SetDHPrime
+
+//-----------------------------------------------------------------------------
+bool KSSLContext::SetAllowedCipherSuites(KStringView sCipherSuites)
+//-----------------------------------------------------------------------------
+{
+	// the TLS 1.3 cipher suites are only supported since OpenSSL 1.1.1,
+	// and they use a different interface to be set ...
+	//
+	// check if we have some
+
+	if (sCipherSuites.empty())
+	{
+		return true;
+	}
+
+#ifdef DEKAF2_HAS_FROZEN
+	// this set is created at compile time
+	static constexpr auto s_TLSv13Ciphers {frozen::make_unordered_set( {
+#else
+	// this set is created at run time
+	static const std::unordered_set<KStringView> s_TLSv13Ciphers {
+#endif
+		"TLS_AES_128_GCM_SHA256"_ksv,
+		"TLS_AES_256_GCM_SHA384"_ksv,
+		"TLS_CHACHA20_POLY1305_SHA256"_ksv,
+		"TLS_AES_128_CCM_SHA256"_ksv,
+		"TLS_AES_128_CCM_8_SHA256"_ksv
+#ifdef DEKAF2_HAS_FROZEN
+	})};
+#else
+	};
+#endif
+
+	if (sCipherSuites == "PFS")
+	{
+		// only allow perfect forward secrecy, and GCM or POLY1305
+		sCipherSuites =
+		"TLS_AES_256_GCM_SHA384"
+		":TLS_CHACHA20_POLY1305_SHA256"
+		":TLS_AES_128_GCM_SHA256"
+		":ECDHE-ECDSA-AES256-GCM-SHA384"
+		":ECDHE-ECDSA-CHACHA20-POLY1305"
+		":ECDHE-ECDSA-AES128-GCM-SHA256"
+		":ECDHE-RSA-AES256-GCM-SHA384"
+		":ECDHE-RSA-CHACHA20-POLY1305"
+		":ECDHE-RSA-AES128-GCM-SHA256";
+	}
+
+	auto Ciphers = sCipherSuites.Split(":, ");
+
+	KString sCipherV12;
+	KString sCipherV13;
+
+	for (const auto sCipher : Ciphers)
+	{
+		if (!sCipher.empty())
+		{
+			if (s_TLSv13Ciphers.find(sCipher) != s_TLSv13Ciphers.end())
+			{
+#if OPENSSL_VERSION_NUMBER >= 0x010101000
+				if (!sCipherV13.empty())
+				{
+					sCipherV13 += ':';
+				}
+				sCipherV13 += sCipher;
+#endif
+			}
+			else
+			{
+				if (!sCipherV12.empty())
+				{
+					sCipherV12 += ':';
+				}
+				sCipherV12 += sCipher;
+			}
+		}
+	}
+
+	bool bSuccess { false };
+
+	if (!sCipherV13.empty() || !sCipherV12.empty())
+	{
+		if (sCipherV12.empty())
+		{
+			kDebug(2, "disable TLSv1.2 (no cipher selected)");
+			SSL_CTX_set_cipher_list(m_Context.native_handle(), "");
+		}
+		else
+		{
+			kDebug(2, "set TLSv1.2 cipher suites {}", sCipherV12);
+			if (SSL_CTX_set_cipher_list (m_Context.native_handle(), sCipherV12.c_str()))
+			{
+				bSuccess = true;
+			}
+			else
+			{
+				kDebug(1, "setting TLSv1.2 cipher suites failed: {}", sCipherV12);
+			}
+		}
+	}
+
+#if OPENSSL_VERSION_NUMBER >= 0x010101000
+	if (!sCipherV13.empty())
+	{
+		kDebug(2, "set TLSv1.3 cipher suites {}", sCipherV13);
+		if (SSL_CTX_set_ciphersuites(m_Context.native_handle(), sCipherV13.c_str()))
+		{
+			bSuccess = true;
+		}
+		else
+		{
+			kDebug(1, "setting TLSv1.3 cipher suites failed: {}", sCipherV13);
+		}
+	}
+#endif
+
+	return bSuccess;
+
+} // SetAllowedCipherSuites
 
 static KSSLContext s_KSSLContextNoVerification   { false, false };
 static KSSLContext s_KSSLContextWithVerification { false, true  };

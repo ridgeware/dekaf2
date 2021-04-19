@@ -327,11 +327,21 @@ void KTCPServer::TCPServer(bool ipv6)
 	if (IsSSL())
 	{
 
-		// the SSL version of the server
+		// the TLS version of the server
 
 		KSSLContext SSLContext(true, false);
 
 		if (!SSLContext.SetSSLCertificates(m_sCert, m_sKey, m_sPassword))
+		{
+			return; // already logged
+		}
+
+		if (!SSLContext.SetDHPrimes(m_sDHPrimes))
+		{
+			return; // already logged
+		}
+
+		if (!SSLContext.SetAllowedCipherSuites(m_sAllowedCipherSuites))
 		{
 			return; // already logged
 		}
@@ -517,9 +527,26 @@ bool KTCPServer::SetSSLCertificates(KStringView sCert, KStringView sKey, KString
 	m_sPassword = sPassword;
 	m_sCert = sCert;
 	m_sKey = sKey;
-	return true; // TODO add validity check
+	return true;
 
 } // SetSSLCertificates
+
+//-----------------------------------------------------------------------------
+bool KTCPServer::LoadDHPrimes(KStringViewZ sDHPrimesFile)
+//-----------------------------------------------------------------------------
+{
+	return kReadAll(sDHPrimesFile, m_sDHPrimes);
+
+} // LoadDHPrimes
+
+//-----------------------------------------------------------------------------
+bool KTCPServer::SetDHPrimes(KStringViewZ sDHPrimes)
+//-----------------------------------------------------------------------------
+{
+	m_sDHPrimes = sDHPrimes;
+	return true;
+
+} // SetDHPrimes
 
 //-----------------------------------------------------------------------------
 bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)

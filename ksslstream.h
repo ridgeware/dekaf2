@@ -71,13 +71,23 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// When using this stream object as a server, set its SSL certificate files here
+	/// When using this stream object as a server, set its SSL certificate files here (.pem format)
 	bool LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword = KStringView{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// When using this stream object as a server, set its SSL certificate buffers here
+	/// When using this stream object as a server, set its SSL certificate buffers here (strings in .pem format)
 	bool SetSSLCertificates(KStringView sCert, KStringView sKey, KStringView sPassword = KStringView{});
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// When using this stream object as a server, set the DH key exchange primes here (string in .pem format)
+	bool SetDHPrimes(KStringView sDHPrimes = KStringView{});
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set the allowed Cipher suites, separated by colons (check the OpenSSL documentation for names)
+	bool SetAllowedCipherSuites(KStringView sCipherSuites);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

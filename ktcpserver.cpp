@@ -516,7 +516,9 @@ bool KTCPServer::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KStr
 //-----------------------------------------------------------------------------
 {
 	m_sPassword = sPassword;
-	return kReadAll(sCert, m_sCert) && kReadAll(sKey, m_sKey);
+	m_sCert.clear();
+	m_sKey.clear();
+	return kReadAll(sCert, m_sCert) && (m_sKey.empty() || kReadAll(sKey, m_sKey));
 
 } // SetSSLCertificateFiles
 

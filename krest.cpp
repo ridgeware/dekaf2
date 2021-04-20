@@ -109,21 +109,33 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				{
 					if (Options.bPEMsAreFilenames)
 					{
-						m_Server->LoadSSLCertificates(Options.sCert, Options.sKey);
+						if (!m_Server->LoadSSLCertificates(Options.sCert, Options.sKey))
+						{
+							return SetError("could not load TLS certificate");
+						}
 					}
 					else
 					{
-						m_Server->SetSSLCertificates(Options.sCert, Options.sKey);
+						if (!m_Server->SetSSLCertificates(Options.sCert, Options.sKey))
+						{
+							return SetError("could not set TLS certificate");
+						}
 					}
 					if (!Options.sDHPrimes.empty())
 					{
 						if (Options.bPEMsAreFilenames)
 						{
-							m_Server->LoadDHPrimes(Options.sDHPrimes);
+							if (!m_Server->LoadDHPrimes(Options.sDHPrimes))
+							{
+								return SetError("could not load DH primes");
+							}
 						}
 						else
 						{
-							m_Server->SetDHPrimes(Options.sDHPrimes);
+							if (!m_Server->SetDHPrimes(Options.sDHPrimes))
+							{
+								return SetError("could not set DH primes");
+							}
 						}
 					}
 					m_Server->SetAllowedCipherSuites(Options.sAllowedCipherSuites);

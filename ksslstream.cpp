@@ -212,6 +212,10 @@ bool KSSLContext::SetDHPrimes(KStringView sDHPrimes)
 
 } // SetDHPrime
 
+#if OPENSSL_VERSION_NUMBER >= 0x010101000
+	#define DEKAF2_HAS_TLSv13
+#endif
+
 //-----------------------------------------------------------------------------
 bool KSSLContext::SetAllowedCipherSuites(KStringView sCipherSuites)
 //-----------------------------------------------------------------------------
@@ -259,70 +263,60 @@ bool KSSLContext::SetAllowedCipherSuites(KStringView sCipherSuites)
 		":ECDHE-RSA-AES128-GCM-SHA256";
 	}
 
-	auto Ciphers = sCipherSuites.Split(":, ");
+	std::vector<KStringView> CipherV12;
+	std::vector<KStringView> CipherV13;
 
-	KString sCipherV12;
-	KString sCipherV13;
-
-	for (const auto sCipher : Ciphers)
+	for (const auto sCipher : sCipherSuites.Split(":, "))
 	{
 		if (!sCipher.empty())
 		{
-			if (s_TLSv13Ciphers.find(sCipher) != s_TLSv13Ciphers.end())
+			if (s_TLSv13Ciphers.find(sCipher) == s_TLSv13Ciphers.end())
 			{
-#if OPENSSL_VERSION_NUMBER >= 0x010101000
-				if (!sCipherV13.empty())
-				{
-					sCipherV13 += ':';
-				}
-				sCipherV13 += sCipher;
-#endif
+				CipherV12.push_back(sCipher);
 			}
 			else
 			{
-				if (!sCipherV12.empty())
-				{
-					sCipherV12 += ':';
-				}
-				sCipherV12 += sCipher;
+				CipherV13.push_back(sCipher);
 			}
 		}
 	}
 
 	bool bSuccess { false };
 
-	if (!sCipherV13.empty() || !sCipherV12.empty())
+	if (!CipherV13.empty() || !CipherV12.empty())
 	{
-		if (sCipherV12.empty())
+		if (CipherV12.empty())
 		{
 			kDebug(2, "disable TLSv1.2 (no cipher selected)");
 			SSL_CTX_set_cipher_list(m_Context.native_handle(), "");
 		}
 		else
 		{
-			kDebug(2, "set TLSv1.2 cipher suites {}", sCipherV12);
-			if (SSL_CTX_set_cipher_list (m_Context.native_handle(), sCipherV12.c_str()))
+			auto sCiphers = kJoined(CipherV12, ":");
+			kDebug(2, "set TLSv1.2 cipher suites {}", sCiphers);
+			if (SSL_CTX_set_cipher_list (m_Context.native_handle(), sCiphers.c_str()))
 			{
 				bSuccess = true;
 			}
 			else
 			{
-				kDebug(1, "setting TLSv1.2 cipher suites failed: {}", sCipherV12);
+				kDebug(1, "setting TLSv1.2 cipher suites failed: {}", sCiphers);
 			}
 		}
 	}
 
-#if OPENSSL_VERSION_NUMBER >= 0x010101000
-	if (!sCipherV13.empty())
+#ifdef DEKAF2_HAS_TLSv13
+	if (!CipherV13.empty())
 	{
-		kDebug(2, "set TLSv1.3 cipher suites {}", sCipherV13);
-		if (SSL_CTX_set_ciphersuites(m_Context.native_handle(), sCipherV13.c_str()))
+		auto sCiphers = kJoined(CipherV13, ":");
+		kDebug(2, "set TLSv1.3 cipher suites {}", sCiphers);
+		if (SSL_CTX_set_ciphersuites(m_Context.native_handle(), sCiphers.c_str()))
 		{
 			bSuccess = true;
 		}
 		else
 		{
-			kDebug(1, "setting TLSv1.3 cipher suites failed: {}", sCipherV13);
+			kDebug(1, "setting TLSv1.3 cipher suites failed: {}", sCiphers);
 		}
 	}
 #endif

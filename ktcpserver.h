@@ -251,7 +251,7 @@ protected:
 	/// Virtual hook to override with a completely new session management logic
 	/// (either calling Accept(), CreateParameters(), Init() and Request() below,
 	/// or anything else)
-	virtual void Session(KStream& stream, KStringView sRemoteEndPoint);
+	virtual void Session(KStream& stream, KStringView sRemoteEndPoint, int iSocketFd);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -320,7 +320,7 @@ private:
 #endif
 
 	//-----------------------------------------------------------------------------
-	void RunSession(KStream& stream, KString sRemoteEndPoint);
+	void RunSession(KStream& stream, KString sRemoteEndPoint, int iSocketFd);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

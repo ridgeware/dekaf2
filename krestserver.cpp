@@ -75,6 +75,32 @@ bool KRESTServer::Options::SetJSONAccessLog(KStringViewZ sJSONAccessLogFile)
 } // SetJSONAccessLog
 
 //-----------------------------------------------------------------------------
+void KRESTServer::SetDisconnected()
+//-----------------------------------------------------------------------------
+{
+	kDebug(1, "remote end disconnected");
+	m_bIsDisconnected = true;
+}
+
+//-----------------------------------------------------------------------------
+bool KRESTServer::IsDisconnected()
+//-----------------------------------------------------------------------------
+{
+	return m_bIsDisconnected;
+}
+
+//-----------------------------------------------------------------------------
+void KRESTServer::ThrowIfDisconnected()
+//-----------------------------------------------------------------------------
+{
+	if (IsDisconnected())
+	{
+		kDebug(2, "throwing");
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "remote end disconnected" };
+	}
+}
+
+//-----------------------------------------------------------------------------
 const KString& KRESTServer::GetRequestBody() const
 //-----------------------------------------------------------------------------
 {
@@ -626,6 +652,9 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 									   Request.GetBrowserIP())
 							  );
 
+			// check that we are still connected to the remote end
+			ThrowIfDisconnected();
+
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			// call the application method to handle this request:
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -801,6 +830,8 @@ bool KRESTServer::SetFileToOutput(KStringViewZ sFile)
 void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 //-----------------------------------------------------------------------------
 {
+	ThrowIfDisconnected();
+
 	// only allow output compression if this is HTTP mode
 	ConfigureCompression(Options.Out == HTTP);
 
@@ -1084,6 +1115,12 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 //-----------------------------------------------------------------------------
 {
 	m_iContentLength = 0;
+
+	if (IsDisconnected())
+	{
+		kDebug(1, "remote end disconnected");
+		return;
+	}
 	
 	auto xex = dynamic_cast<const KHTTPError*>(&ex);
 

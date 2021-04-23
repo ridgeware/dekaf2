@@ -535,6 +535,7 @@ set(PUBLIC_HEADERS
 	kparallel.h
 	kpipe.h
 	kpool.h
+	kpoll.h
 	kprof.h
 	kprops.h
 	kquotedprintable.h
@@ -678,6 +679,7 @@ set (SOURCES
 	koutstringstream.cpp
 	kparallel.cpp
 	kpipe.cpp
+	kpoll.cpp
 	kprof.cpp
 	kprops.cpp
 	kquotedprintable.cpp

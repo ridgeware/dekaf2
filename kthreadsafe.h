@@ -46,6 +46,7 @@
 /// generic threadsafe sharing for non-atomic types
 
 #include <mutex>
+#include "bits/kcppcompat.h"
 
 namespace dekaf2 {
 

@@ -43,6 +43,7 @@
 
 #include "krestserver.h"
 #include "ktcpserver.h"
+#include "kpoll.h"
 #include <csignal>
 
 /// @file krest.h
@@ -117,6 +118,10 @@ public:
 		/// suites, they will be applied as matching (refer to the OpenSSL documentation).
 		/// defaults to "PFS", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305
 		KString sAllowedCipherSuites { "PFS" };
+		/// do we want to poll connections for disconnects?
+		bool bPollForDisconnect { false };
+		/// additional callback function to call in case of disconnect, argument is the thread ID
+		std::function<void(std::size_t)> DisconnectCallback;
 		/// Parameters controling the simulation mode
 		SimulationParms Simulate;
 
@@ -164,26 +169,18 @@ private:
 
 		//-----------------------------------------------------------------------------
 		template<typename... Args>
-		RESTServer(const KREST::Options& Options, const KRESTRoutes& Routes, Args&&... args)
+		RESTServer(const KREST::Options& Options, const KRESTRoutes& Routes, KPoll& Poll, Args&&... args)
 		//-----------------------------------------------------------------------------
 			: KTCPServer(std::forward<Args>(args)...)
 			, m_Options(Options)
 			, m_Routes(Routes)
+			, m_Poll(Poll)
 		{
 		}
 
 		//-----------------------------------------------------------------------------
-		void Session (KStream& Stream, KStringView sRemoteEndpoint) override final
+		void Session (KStream& Stream, KStringView sRemoteEndpoint, int iSocketFd) override final;
 		//-----------------------------------------------------------------------------
-		{
-			KRESTServer Request;
-
-			Request.Accept(Stream, sRemoteEndpoint);
-			Request.Execute(m_Options, m_Routes);
-			Request.Disconnect();
-
-		} // Session
-
 
 	//----------
 	protected:
@@ -191,12 +188,14 @@ private:
 
 		const KREST::Options& m_Options;
 		const KRESTRoutes&    m_Routes;
+		KPoll&                m_Poll;
 
 	}; // RESTServer
 
 	KString                       m_sError;
 	std::unique_ptr<RESTServer>   m_Server;
 	KThreadPool::ShutdownCallback m_ShutdownCallback;
+	std::unique_ptr<KPoll>        m_Poll;
 
 }; // KREST
 

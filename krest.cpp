@@ -43,8 +43,50 @@
 #include "kcgistream.h"
 #include "klambdastream.h"
 #include "kfilesystem.h"
+#include <poll.h>
 
 namespace dekaf2 {
+
+//-----------------------------------------------------------------------------
+void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, int iSocketFd)
+//-----------------------------------------------------------------------------
+{
+	KRESTServer Request;
+
+	if (m_Options.bPollForDisconnect)
+	{
+		// add the current connection to the KPoll watcher
+		KPoll::Parameters Params;
+		Params.iParameter = kGetTid();
+		Params.bOnce      = true; // trigger only once - when the connection is gone it is gone
+		Params.iEvents    = POLLERR | POLLHUP;
+		Params.Callback   = [this, &Request](std::size_t iParam)
+		{
+			Request.SetDisconnected();
+
+			if (m_Options.DisconnectCallback)
+			{
+				m_Options.DisconnectCallback(iParam);
+			}
+		};
+		m_Poll.Add(iSocketFd, std::move(Params));
+	}
+
+	Request.Accept(Stream, sRemoteEndpoint);
+	Request.Execute(m_Options, m_Routes);
+
+	if (m_Options.bPollForDisconnect)
+	{
+		if (!Request.IsDisconnected())
+		{
+			m_Poll.Remove(iSocketFd);
+		}
+	}
+
+	Request.Disconnect();
+
+} // Session
+
 
 //-----------------------------------------------------------------------------
 bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStream& Stream, KStringView sRemoteIP)
@@ -78,16 +120,19 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				KLog::getInstance().SetMode(KLog::SERVER);
 
 				bool bUseTLS = !Options.sCert.empty() || !Options.sKey.empty();
+
 				if (bUseTLS)
 				{
 					if (Options.sCert.empty())
 					{
 						return SetError("TLS mode requested, but no certificate");
 					}
+
 					if (Options.bPEMsAreFilenames && !kFileExists(Options.sCert))
 					{
 						return SetError(kFormat("TLS certificate does not exist: {}", Options.sCert));
 					}
+
 					if (!Options.sKey.empty())
 					{
 						if (Options.bPEMsAreFilenames && !kFileExists(Options.sKey))
@@ -104,7 +149,10 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 
 				kDebug(1, "starting standalone {} server on port {}...", bUseTLS ? "HTTPS" : "HTTP", Options.iPort);
 				Options.Out = KRESTServer::HTTP;
-				m_Server = std::make_unique<RESTServer>(Options, Routes, Options.iPort, bUseTLS, Options.iMaxConnections);
+
+				m_Poll   = std::make_unique<KPoll>(100);
+				m_Server = std::make_unique<RESTServer>(Options, Routes, *m_Poll, Options.iPort, bUseTLS, Options.iMaxConnections);
+
 				if (bUseTLS)
 				{
 					if (Options.bPEMsAreFilenames)
@@ -121,6 +169,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 							return SetError("could not set TLS certificate");
 						}
 					}
+
 					if (!Options.sDHPrimes.empty())
 					{
 						if (Options.bPEMsAreFilenames)
@@ -140,6 +189,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					}
 					m_Server->SetAllowedCipherSuites(Options.sAllowedCipherSuites);
 				}
+
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 				m_Server->Start(Options.iTimeout, Options.bBlocking);
@@ -152,7 +202,8 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				KLog::getInstance().SetMode(KLog::SERVER);
 				kDebug(1, "starting standalone HTTP server on socket file {}...", Options.sSocketFile);
 				Options.Out = KRESTServer::HTTP;
-				m_Server = std::make_unique<RESTServer>(Options, Routes, Options.sSocketFile, Options.iMaxConnections);
+				m_Poll   = std::make_unique<KPoll>(100);
+				m_Server = std::make_unique<RESTServer>(Options, Routes, *m_Poll, Options.sSocketFile, Options.iMaxConnections);
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 				m_Server->Start(Options.iTimeout, Options.bBlocking);

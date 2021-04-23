@@ -157,7 +157,7 @@ KString KTCPServer::Request(KString& qstr, Parameters& parameters)
 }
 
 //-----------------------------------------------------------------------------
-void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint)
+void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint, int iSocketFd)
 //-----------------------------------------------------------------------------
 {
 	if (Accepted(stream, sRemoteEndPoint))
@@ -187,7 +187,7 @@ void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint)
 } // Session
 
 //-----------------------------------------------------------------------------
-void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint)
+void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint, int iSocketFd)
 //-----------------------------------------------------------------------------
 {
 	// make sure we adjust this thread's log level to the global log level,
@@ -212,7 +212,7 @@ void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint)
 	{
 		// run the actual Session code protected by
 		// an exception handler
-		Session(stream, sRemoteEndPoint);
+		Session(stream, sRemoteEndPoint, iSocketFd);
 	}
 	
 	DEKAF2_CATCH(const std::exception& e)
@@ -364,7 +364,7 @@ void KTCPServer::TCPServer(bool ipv6)
 				m_ThreadPool->push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 				{
 #endif
-					RunSession(*moved_stream, to_string(remote_endpoint));
+					RunSession(*moved_stream, to_string(remote_endpoint), moved_stream->GetTCPSocket().native_handle());
 					// the thread pool keeps the object alive until it is
 					// overwritten in round robin, therefore we have to call
 					// Disconnect explicitly now to shut down the connection
@@ -397,7 +397,7 @@ void KTCPServer::TCPServer(bool ipv6)
 				m_ThreadPool->push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 				{
 #endif
-					RunSession(*moved_stream, to_string(remote_endpoint));
+					RunSession(*moved_stream, to_string(remote_endpoint), moved_stream->GetTCPSocket().native_handle());
 					// the thread pool keeps the object alive until it is
 					// overwritten in round robin, therefore we have to call
 					// Disconnect explicitly now to shut down the connection
@@ -465,7 +465,7 @@ void KTCPServer::UnixServer()
 				m_ThreadPool->push([ this, moved_stream = std::move(stream) ]()
 				{
 #endif
-					RunSession(*moved_stream, m_sSocketFile);
+					RunSession(*moved_stream, m_sSocketFile, moved_stream->GetUnixSocket().native_handle());
 					// the thread pool keeps the object alive until it is
 					// overwritten in round robin, therefore we have to call
 					// Disconnect explicitly now to shut down the connection

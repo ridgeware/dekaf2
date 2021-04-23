@@ -50,6 +50,7 @@
 #include "ktimer.h"
 #include "kopenid.h"
 #include "kfilesystem.h"
+#include "kpoll.h"
 #include <vector>
 #include <memory>
 
@@ -298,6 +299,21 @@ public:
 		return m_TempDir.Name();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Called from KPoll if connection was disconnected by the remote end
+	void SetDisconnected();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Returns true if the connection is disconnected
+	bool IsDisconnected();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Throws if the connection is disconnected
+	void ThrowIfDisconnected();
+	//-----------------------------------------------------------------------------
+
 //------
 protected:
 //------
@@ -362,7 +378,7 @@ private:
 	KTempDir m_TempDir;                  // create a KTempDir object
 	std::unique_ptr<KJSON> m_JsonLogger;
 	std::unique_ptr<KStopDurations> m_Timers;
-
+	bool m_bIsDisconnected { false };
 
 }; // KRESTServer
 

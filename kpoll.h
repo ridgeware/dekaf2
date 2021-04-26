@@ -43,13 +43,20 @@
 /// @file kpoll.h
 /// Maintaining a list of file descriptors and associated actions to call when the file descriptor creates an event
 
+#include "bits/kcppcompat.h"
+
+// there is no poll on windows, so these classes remain non-functional currently
+#ifndef DEKAF2_IS_WINDOWS
+
 #include "kthreadsafe.h"
 #include <functional>
 #include <thread>
 #include <atomic>
 #include <memory>
+#include <vector>
 #include <unordered_map>
 #include <cinttypes>
+#include <poll.h>
 
 namespace dekaf2 {
 
@@ -63,7 +70,8 @@ class KPoll
 public:
 //----------
 
-	using CallbackT = std::function<void(std::size_t)>;
+	/// the callback 
+	using CallbackT = std::function<void(int, uint16_t, std::size_t)>;
 
 	struct Parameters
 	{
@@ -78,8 +86,8 @@ public:
 	, m_bAutoStart(bAutoStart)
 	{
 	}
-	
-	~KPoll();
+
+	virtual ~KPoll();
 
 	/// add a file descriptor to watch
 	void Add(int fd, Parameters Parms);
@@ -92,20 +100,81 @@ public:
 	void Stop();
 
 //----------
-private:
+protected:
 //----------
 
-	void Watch();
+	void BuildPollVec(std::vector<pollfd>& fds);
+	void Triggered(int fd, uint16_t events);
+	virtual void Watch();
 
 	KThreadSafe<std::unordered_map<int, Parameters>> m_FileDescriptors;
-
-	std::unique_ptr<std::thread> m_Thread;
 
 	uint32_t         m_iTimeout   {   100 };
 	std::atomic_bool m_bModified  { false };
 	std::atomic_bool m_bStop      { false };
+
+//----------
+private:
+//----------
+
+	std::unique_ptr<std::thread> m_Thread;
+
 	bool             m_bAutoStart {  true };
 
 }; // KPoll
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Watch sockets for disconnects - no need to set an event mask. Adapts to different trigger
+/// conditions on MacOS and Linux
+class KSocketWatch : public KPoll
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	using KPoll::KPoll;
+
+//----------
+protected:
+//----------
+
+	virtual void Watch() override final;
+
+}; // KSocketWatch
+
+#else // DEKAF2_IS_WINDOWS
+
+/// non-functional version for Windows
+class KPoll
+{
+
+//----------
+public:
+//----------
+
+	/// the callback
+	using CallbackT = std::function<void(int, uint16_t, std::size_t)>;
+
+	struct Parameters
+	{
+		CallbackT   Callback;
+		std::size_t iParameter { 0 };
+		uint16_t    iEvents    { 0 };
+		bool        bOnce      { false };
+	};
+
+	KPoll(uint32_t iMilliseconds = 100, bool bAutoStart = true) {}
+	void Add(int fd, Parameters Parms) {}
+	void Remove(int fd) {}
+	void Start() {}
+	void Stop() {}
+
+}; // KPoll
+
+using KSocketWatch = KPoll;
+
+#endif // DEKAF2_IS_WINDOWS
 
 } // end of namespace dekaf2

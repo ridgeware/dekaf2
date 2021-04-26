@@ -59,8 +59,7 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 		KPoll::Parameters Params;
 		Params.iParameter = kGetTid();
 		Params.bOnce      = true; // trigger only once - when the connection is gone it is gone
-		Params.iEvents    = POLLERR | POLLHUP;
-		Params.Callback   = [this, &Request](std::size_t iParam)
+		Params.Callback   = [this, &Request](int fd, uint16_t events, std::size_t iParam)
 		{
 			Request.SetDisconnected();
 
@@ -69,7 +68,7 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 				m_Options.DisconnectCallback(iParam);
 			}
 		};
-		m_Poll.Add(iSocketFd, std::move(Params));
+		m_SocketWatch.Add(iSocketFd, std::move(Params));
 	}
 
 	Request.Accept(Stream, sRemoteEndpoint);
@@ -79,7 +78,7 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 	{
 		if (!Request.IsDisconnected())
 		{
-			m_Poll.Remove(iSocketFd);
+			m_SocketWatch.Remove(iSocketFd);
 		}
 	}
 
@@ -150,8 +149,8 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				kDebug(1, "starting standalone {} server on port {}...", bUseTLS ? "HTTPS" : "HTTP", Options.iPort);
 				Options.Out = KRESTServer::HTTP;
 
-				m_Poll   = std::make_unique<KPoll>(100);
-				m_Server = std::make_unique<RESTServer>(Options, Routes, *m_Poll, Options.iPort, bUseTLS, Options.iMaxConnections);
+				m_SocketWatch = std::make_unique<KSocketWatch>(250);
+				m_Server = std::make_unique<RESTServer>(Options, Routes, *m_SocketWatch, Options.iPort, bUseTLS, Options.iMaxConnections);
 
 				if (bUseTLS)
 				{
@@ -202,8 +201,8 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				KLog::getInstance().SetMode(KLog::SERVER);
 				kDebug(1, "starting standalone HTTP server on socket file {}...", Options.sSocketFile);
 				Options.Out = KRESTServer::HTTP;
-				m_Poll   = std::make_unique<KPoll>(100);
-				m_Server = std::make_unique<RESTServer>(Options, Routes, *m_Poll, Options.sSocketFile, Options.iMaxConnections);
+				m_SocketWatch = std::make_unique<KSocketWatch>(250);
+				m_Server = std::make_unique<RESTServer>(Options, Routes, *m_SocketWatch, Options.sSocketFile, Options.iMaxConnections);
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 				m_Server->Start(Options.iTimeout, Options.bBlocking);

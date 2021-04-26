@@ -169,12 +169,12 @@ private:
 
 		//-----------------------------------------------------------------------------
 		template<typename... Args>
-		RESTServer(const KREST::Options& Options, const KRESTRoutes& Routes, KPoll& Poll, Args&&... args)
+		RESTServer(const KREST::Options& Options, const KRESTRoutes& Routes, KSocketWatch& SocketWatch, Args&&... args)
 		//-----------------------------------------------------------------------------
 			: KTCPServer(std::forward<Args>(args)...)
 			, m_Options(Options)
 			, m_Routes(Routes)
-			, m_Poll(Poll)
+			, m_SocketWatch(SocketWatch)
 		{
 		}
 
@@ -188,14 +188,14 @@ private:
 
 		const KREST::Options& m_Options;
 		const KRESTRoutes&    m_Routes;
-		KPoll&                m_Poll;
+		KSocketWatch&         m_SocketWatch;
 
 	}; // RESTServer
 
 	KString                       m_sError;
 	std::unique_ptr<RESTServer>   m_Server;
 	KThreadPool::ShutdownCallback m_ShutdownCallback;
-	std::unique_ptr<KPoll>        m_Poll;
+	std::unique_ptr<KSocketWatch> m_SocketWatch;
 
 }; // KREST
 

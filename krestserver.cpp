@@ -628,7 +628,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			KCountingInputStreamBuf InputCounter(KHTTPServer::InStream());
 
-			if (Request.Method != KHTTPMethod::GET && Request.HasContent())
+			if (Request.HasContent(true))
 			{
 				Parse(Options);
 			}

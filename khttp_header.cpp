@@ -566,7 +566,7 @@ std::streamsize KHTTPHeaders::ContentLength() const
 } // ContentLength
 
 //-----------------------------------------------------------------------------
-bool KHTTPHeaders::HasContent() const
+bool KHTTPHeaders::HasContent(bool bForRequest) const
 //-----------------------------------------------------------------------------
 {
 	auto iSize = ContentLength();
@@ -576,6 +576,12 @@ bool KHTTPHeaders::HasContent() const
 		if (Headers.Get(KHTTPHeader::TRANSFER_ENCODING).ToLowerASCII() == "chunked")
 		{
 			return true;
+		}
+
+		if (bForRequest)
+		{
+			// a request cannot be terminated by a connection close
+			return false;
 		}
 
 		auto& sConnection = Headers.Get(KHTTPHeader::CONNECTION);

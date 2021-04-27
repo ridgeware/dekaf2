@@ -86,6 +86,7 @@ set (USOURCES
 	kutf8iterator_tests.cpp
 	kutic_tests.cpp
 	kversion_tests.cpp
+	kwebclient_tests.cpp
 	kwords_tests.cpp
 	kwriter_tests.cpp
 	kxml_tests.cpp

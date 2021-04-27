@@ -176,6 +176,22 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	KThreadSafe& operator=(const KThreadSafe& other)
+	//-----------------------------------------------------------------------------
+	{
+		unique().get() = other.shared().get();
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	KThreadSafe& operator=(KThreadSafe&& other) noexcept
+	//-----------------------------------------------------------------------------
+	{
+		unique().get() = std::move(other.unique().get());
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Construction with any arguments the shared type permits. Is also the default constructor.
 	// make sure this does not cover the copy constructor by requesting an args count
 	// of != 1

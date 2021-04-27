@@ -60,6 +60,9 @@ class KREST
 public:
 //----------
 
+	KREST() = default;
+	~KREST();
+
 	enum ServerType { UNDEFINED, HTTP, CGI, FCGI, LAMBDA, CLI, SIMULATE_HTTP
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	                  , UNIX

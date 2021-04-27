@@ -8,6 +8,8 @@
 
 using namespace dekaf2;
 
+namespace {
+
 void rest_login(KRESTServer& REST)
 {
 	if (REST.GetQueryParm("user") == "Jason"
@@ -60,6 +62,8 @@ void rest_patch(KRESTServer& REST)
 		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "unknown user" };
 	}
 }
+
+} // end of anonymous namespace
 
 TEST_CASE("KRESTCLIENT")
 {

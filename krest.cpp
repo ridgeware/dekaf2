@@ -86,6 +86,21 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 
 } // Session
 
+//-----------------------------------------------------------------------------
+KREST::~KREST()
+//-----------------------------------------------------------------------------
+{
+	if (m_SocketWatch)
+	{
+		m_SocketWatch->Stop();
+	}
+
+	if (m_Server)
+	{
+		m_Server->Stop();
+	}
+
+} // dtor
 
 //-----------------------------------------------------------------------------
 bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStream& Stream, KStringView sRemoteIP)

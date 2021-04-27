@@ -11,6 +11,10 @@
 
 using namespace dekaf2;
 
+namespace {
+
+bool g_bDone { false };
+
 void rest_test_no_timeout(KRESTServer& REST)
 {
 	REST.SetRawOutput(REST.GetRequestBody());
@@ -22,13 +26,7 @@ void rest_test_timeout_1(KRESTServer& REST)
 	kMilliSleep(1100);
 	REST.SetRawOutput(REST.GetRequestBody());
 	REST.SetStatus(200);
-}
-
-void rest_test_timeout_2(KRESTServer& REST)
-{
-	kMilliSleep(1100);
-	REST.SetRawOutput(REST.GetRequestBody());
-	REST.SetStatus(200);
+	g_bDone = true;
 }
 
 class KTinyHTTPServer2 : public KTCPServer
@@ -69,7 +67,7 @@ protected:
 	{
 		m_rx.push_back(qstr);
 		KString tmp;
-		if (qstr == "some body");
+		if (qstr == "some body")
 		{
 			if (m_iTimeout == 1)
 			{
@@ -83,6 +81,8 @@ protected:
 	KString m_sResponse;
 	int m_iTimeout { 0 };
 };
+
+}
 
 TEST_CASE("KWebClient") {
 
@@ -116,7 +116,6 @@ TEST_CASE("KWebClient") {
 			{ "GET",  false, "/test0",      rest_test_no_timeout, KRESTRoute::PLAIN },
 			{ "POST", false, "/test0",      rest_test_no_timeout, KRESTRoute::PLAIN },
 			{ "POST", false, "/test1",      rest_test_timeout_1,  KRESTRoute::PLAIN },
-			{ "POST", false, "/test2",      rest_test_timeout_2,  KRESTRoute::PLAIN },
 		};
 
 		KRESTRoutes Routes;
@@ -126,6 +125,7 @@ TEST_CASE("KWebClient") {
 		KREST::Options Options;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = 7653;
+		Options.bPollForDisconnect = false;
 		Options.bBlocking = false;
 
 		KREST REST;
@@ -159,6 +159,12 @@ TEST_CASE("KWebClient") {
 		CHECK( HTTP.GetStatusCode() == 598 );
 		CHECK( HTTP.Error() == "Operation canceled" );
 		HTTP.Disconnect();
+
+		// it is difficult to know when the TCP server is done
+		while (!g_bDone)
+		{
+			kMilliSleep(10);
+		}
 	}
 
 }

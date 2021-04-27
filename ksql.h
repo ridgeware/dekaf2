@@ -507,9 +507,12 @@ public:
 	static KString ConvertTimestamp (KStringView sTimestamp);
 
 	/// helper to see if something is a SELECT statement:
-	static bool IsSelect (KStringView sSQL) { return sSQL.TrimLeft().substr(0,6).ToLowerASCII().StartsWith("select"); }
+	static bool IsSelect (KStringView sSQL);
 
-	#if 0 // example usage
+	/// helper to see if something is a KILL statement:
+	static bool IsKill (KStringView sSQL);
+
+#if 0 // example usage
 	KSQL sql;
 	while (sql.NextRow())
 	{
@@ -724,6 +727,15 @@ public:
 	void SetDBC (KStringView sFile) { m_sDBCFile = sFile; }
 	const KString& GetDBC () const { return m_sDBCFile;  }
 
+	/// returns the connection ID for the current connection, or 0
+	uint64_t GetConnectionID();
+
+	/// kills connection with ID iConnectionID
+	bool KillConnection(uint64_t iConnectionID);
+
+	/// kills running query of connection with ID iConnectionID
+	bool KillQuery(uint64_t iConnectionID);
+
 	TXList  m_TxList;
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -847,6 +859,7 @@ private:
 	void   ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms);
 	void   ResetErrorStatus ();
 	const  KColInfo& GetColProps (KROW::Index iOneBasedColNum);
+	void   ResetConnectionID () { m_iConnectionID = 0; }
 
 	// my own struct for column attributes and data coming back from queries:
 	KColInfos  m_dColInfo;
@@ -1012,6 +1025,7 @@ private:
 	uint64_t   m_iNumRowsBuffered { 0 };
 	uint64_t   m_iNumRowsAffected { 0 };
 	uint64_t   m_iLastInsertID { 0 };
+	uint64_t   m_iConnectionID { 0 };
 	char**     m_dBufferedColArray { nullptr };
 	KString    m_sErrorPrefix { "KSQL: " };
 	bool       m_bDisableRetries { false };

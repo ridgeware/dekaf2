@@ -193,6 +193,37 @@ void Check_CtSend(KSQL& db)
 
 } // Check_CtSend
 
+void KillConnectionTest(KSQL& db)
+{
+	// check if this is a MySQL connection
+	if (db.GetDBType() != KSQL::DBT::MYSQL)
+	{
+		return;
+	}
+
+	// create a second connection
+	KSQL db2(db);
+
+	CHECK( db2.EnsureConnected() );
+
+	if (!db2.IsConnectionOpen())
+	{
+		// stop here..
+		return;
+	}
+
+	auto iConnectionID = db2.GetConnectionID();
+
+	CHECK ( iConnectionID > 0 );
+
+	CHECK ( db.KillConnection(iConnectionID) );
+
+	auto iNewConnectionID = db2.SingleIntRawQuery("SELECT CONNECTION_ID()");
+
+	CHECK ( iNewConnectionID > 0 );
+	CHECK ( iConnectionID != iNewConnectionID );
+}
+
 class KSQLTest : public KSQL
 {
 public:
@@ -354,6 +385,8 @@ TEST_CASE("KSQL")
 		{
 			return; // bail now --> all the rest of the tests will just blow up anyway
 		}
+
+		KillConnectionTest(db);
 
 		{
 			constexpr KStringViewZ sBefore   = "insert into FRED values ('this is {{not}} a valid {{token}}', {{NOW}})";

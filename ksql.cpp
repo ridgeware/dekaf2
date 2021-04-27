@@ -1057,6 +1057,7 @@ bool KSQL::OpenConnection ()
 	}
 
 	InvalidateConnectSummary ();
+	ResetConnectionID ();
 
 	if (kWouldLog(GetDebugLevel() + 1))
 	{
@@ -1469,6 +1470,7 @@ void KSQL::CloseConnection (bool bDestructor/*=false*/)
 		}
 
 		ResetErrorStatus ();
+		ResetConnectionID ();
 
 		switch (m_iAPISet)
 		{
@@ -1612,6 +1614,20 @@ void CopyIfNotSame(KString& sTarget, KStringView svView)
 }
 
 //-----------------------------------------------------------------------------
+bool KSQL::IsSelect (KStringView sSQL)
+//-----------------------------------------------------------------------------
+{
+	return sSQL.TrimLeft().substr(0,6).ToLowerASCII().StartsWith("select");
+}
+
+//-----------------------------------------------------------------------------
+bool KSQL::IsKill (KStringView sSQL)
+//-----------------------------------------------------------------------------
+{
+	return sSQL.TrimLeft().substr(0,4).ToLowerASCII().StartsWith("kill");
+}
+
+//-----------------------------------------------------------------------------
 bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQL"*/)
 //-----------------------------------------------------------------------------
 {
@@ -1620,7 +1636,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, m_sLastSQL);
 	}
 
-	if (IsFlag(F_ReadOnlyMode) && ! IsSelect(m_sLastSQL))
+	if (IsFlag(F_ReadOnlyMode) && ! IsSelect(m_sLastSQL) && ! IsKill(m_sLastSQL))
 	{
 		m_sLastError.Format ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL);
 		return false;
@@ -8175,6 +8191,77 @@ bool KSQL::EnsureConnected ()
 	return true;
 
 } // KSQL::EnsureConnected - 2
+
+//-----------------------------------------------------------------------------
+uint64_t KSQL::GetConnectionID()
+//-----------------------------------------------------------------------------
+{
+	if (!m_iConnectionID)
+	{
+		int64_t iID { 0 };
+
+		switch (GetDBType())
+		{
+			case DBT::MYSQL:
+				iID = SingleIntRawQuery("select CONNECTION_ID()");
+				break;
+
+			case DBT::SQLSERVER:
+			case DBT::SQLSERVER15:
+				iID = SingleIntRawQuery("select @@spid");
+				break;
+
+			default:
+				kDebug(2, "DB Type not supported: {}", TxDBType(GetDBType()));
+				break;
+		}
+
+		if (iID > 0)
+		{
+			m_iConnectionID = static_cast<uint64_t>(iID);
+		}
+	}
+
+	return m_iConnectionID;
+
+} // GetConnectionID
+
+//-----------------------------------------------------------------------------
+bool KSQL::KillConnection(uint64_t iConnectionID)
+//-----------------------------------------------------------------------------
+{
+	if (iConnectionID == 0)
+	{
+		kDebug(2, "missing connection ID");
+		return false;
+	}
+
+	return ExecSQL("kill {}", iConnectionID);
+
+} // KillConnection
+
+//-----------------------------------------------------------------------------
+bool KSQL::KillQuery(uint64_t iConnectionID)
+//-----------------------------------------------------------------------------
+{
+	if (iConnectionID == 0)
+	{
+		kDebug(2, "missing connection ID");
+		return false;
+	}
+
+	switch (GetDBType())
+	{
+		case DBT::MYSQL:
+			return ExecSQL("kill query {}", iConnectionID);
+
+		default:
+			kDebug(2, "DB Type not supported: {}", TxDBType(GetDBType()));
+	}
+
+	return false;
+
+} // KillQuery
 
 //-----------------------------------------------------------------------------
 KString KSQL::ConvertTimestamp (KStringView sTimestamp)

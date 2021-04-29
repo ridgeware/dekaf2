@@ -54,7 +54,10 @@ namespace dekaf2 {
 KPoll::~KPoll()
 //-----------------------------------------------------------------------------
 {
-	Stop();
+	if (m_Thread)
+	{
+		Stop();
+	}
 
 } // dtor
 
@@ -89,6 +92,7 @@ void KPoll::Stop()
 		kDebug(1, "stopping watcher");
 		m_bStop = true;
 		m_Thread->join();
+		m_Thread.reset();
 		kDebug(1, "watcher stopped");
 	}
 
@@ -178,25 +182,28 @@ void KPoll::Triggered(int fd, uint16_t events)
 		// find the associated map entry
 		auto it = FileDescriptors->find(fd);
 
-		if (it != FileDescriptors->end())
-		{
-			// get callback and parm
-			CBP = std::move(it->second);
-
-			// check if we should only trigger once
-			if (CBP.bOnce)
-			{
-				// and remove the file descriptor from the map
-				FileDescriptors->erase(it);
-				// and set a flag to rebuild the vector
-				m_bModified = true;
-			}
-		}
-		else
+		if (it == FileDescriptors->end())
 		{
 			// this fd is no more existing in the map
 			kDebug(2, "could not find fd {}", fd);
 			m_bModified = true;
+			return;
+		}
+
+		// check if we should only trigger once
+		if (it->second.bOnce)
+		{
+			// get callback and parm
+			CBP = std::move(it->second);
+			// and remove the file descriptor from the map
+			FileDescriptors->erase(it);
+			// and set a flag to rebuild the vector
+			m_bModified = true;
+		}
+		else
+		{
+			// copy callback and parm
+			CBP = it->second;
 		}
 	}
 

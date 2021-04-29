@@ -55,6 +55,7 @@
 #include "kcache.h"
 #include "kexception.h"
 #include "ksystem.h"
+#include "kthreadsafe.h"
 #include <tuple>
 #include <type_traits>
 
@@ -728,7 +729,7 @@ public:
 	const KString& GetDBC () const { return m_sDBCFile;  }
 
 	/// returns the connection ID for the current connection, or 0
-	uint64_t GetConnectionID();
+	uint64_t GetConnectionID(bool bQueryIfUnknown = true);
 
 	/// kills connection with ID iConnectionID
 	bool KillConnection(uint64_t iConnectionID);
@@ -806,6 +807,30 @@ private:
 	using DBCCache = KCache<KString, KString, DBCLoader>;
 
 	static DBCCache s_DBCCache;
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// keep a list of connection IDs, thread safe
+	class ConnectionIDs
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		void Add(uint64_t iConnectionID);
+		bool Has(uint64_t iConnectionID) const;
+		bool HasAndRemove(uint64_t iConnectionID);
+
+	//----------
+	private:
+	//----------
+
+		KThreadSafe<std::set<uint64_t>> m_Connections;
+
+	}; // Connections
+
+	static ConnectionIDs s_CanceledConnections;
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// keeps column information

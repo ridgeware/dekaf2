@@ -218,7 +218,14 @@ void KillConnectionTest(KSQL& db)
 
 	CHECK ( db.KillConnection(iConnectionID) );
 
+	// the connection is canceled, and will not be restarted at the first trial
 	auto iNewConnectionID = db2.SingleIntRawQuery("SELECT CONNECTION_ID()");
+
+	CHECK ( iNewConnectionID == -1 );
+
+	// now the connection will be reestablished, as the ID had been removed from
+	// the list of voluntarily canceled connections
+	iNewConnectionID = db2.SingleIntRawQuery("SELECT CONNECTION_ID()");
 
 	CHECK ( iNewConnectionID > 0 );
 	CHECK ( iConnectionID != iNewConnectionID );

@@ -1918,6 +1918,14 @@ bool KSQL::PreparedToRetry ()
 	// Note: this is called every time m_sLastError and m_iLastErrorNum have
 	// been set by an RDBMS error.
 
+	if (m_iConnectionID > 0 && s_CanceledConnections.HasAndRemove(m_iConnectionID))
+	{
+		// this was a canceled connection or query - do not retry
+		kDebug(2, "connection was canceled, retry aborted");
+		m_iConnectionID = 0;
+		return false;
+	}
+
 	bool bConnectionLost { false };
 	bool bDisplayWarning { false };
 
@@ -8193,10 +8201,50 @@ bool KSQL::EnsureConnected ()
 } // KSQL::EnsureConnected - 2
 
 //-----------------------------------------------------------------------------
-uint64_t KSQL::GetConnectionID()
+void KSQL::ConnectionIDs::Add(uint64_t iConnectionID)
 //-----------------------------------------------------------------------------
 {
-	if (!m_iConnectionID)
+	m_Connections.unique()->insert(iConnectionID);
+
+} // ConnectionIDs::Add
+
+//-----------------------------------------------------------------------------
+bool KSQL::ConnectionIDs::Has(uint64_t iConnectionID) const
+//-----------------------------------------------------------------------------
+{
+	auto Connections = m_Connections.shared();
+
+	return Connections->find(iConnectionID) != Connections->end();
+
+} // ConnectionIDs::Has
+
+//-----------------------------------------------------------------------------
+bool KSQL::ConnectionIDs::HasAndRemove(uint64_t iConnectionID)
+//-----------------------------------------------------------------------------
+{
+	auto Connections = m_Connections.unique();
+
+	auto it = Connections->find(iConnectionID);
+
+	if (it != Connections->end())
+	{
+		Connections->erase(it);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+
+} // ConnectionIDs::HasAndRemove
+
+KSQL::ConnectionIDs KSQL::s_CanceledConnections;
+
+//-----------------------------------------------------------------------------
+uint64_t KSQL::GetConnectionID(bool bQueryIfUnknown)
+//-----------------------------------------------------------------------------
+{
+	if (!m_iConnectionID && bQueryIfUnknown)
 	{
 		int64_t iID { 0 };
 
@@ -8213,13 +8261,15 @@ uint64_t KSQL::GetConnectionID()
 
 			default:
 				kDebug(2, "DB Type not supported: {}", TxDBType(GetDBType()));
-				break;
+				return 0;
 		}
 
-		if (iID > 0)
-		{
-			m_iConnectionID = static_cast<uint64_t>(iID);
-		}
+		kDebug(2, "queried connection ID: {}", m_iConnectionID);
+		m_iConnectionID = static_cast<uint64_t>(iID);
+	}
+	else
+	{
+		kDebug(2, "return connection ID: {}", m_iConnectionID);
 	}
 
 	return m_iConnectionID;
@@ -8236,7 +8286,24 @@ bool KSQL::KillConnection(uint64_t iConnectionID)
 		return false;
 	}
 
-	return ExecSQL("kill {}", iConnectionID);
+	// we have to add the ID to the static list _before_ actually
+	// canceling it, as otherwise it might become reconnected
+	// before we added it to the list
+	s_CanceledConnections.Add(iConnectionID);
+
+	if (ExecSQL("kill {}", iConnectionID))
+	{
+		kDebug(2, "canceled connection ID {}", iConnectionID);
+		s_CanceledConnections.Add(iConnectionID);
+		return true;
+	}
+	else
+	{
+		kDebug(2, "could not cancel connection ID {}", iConnectionID);
+		// remove from list if failed
+		s_CanceledConnections.HasAndRemove(iConnectionID);
+		return false;
+	}
 
 } // KillConnection
 
@@ -8250,16 +8317,38 @@ bool KSQL::KillQuery(uint64_t iConnectionID)
 		return false;
 	}
 
+	bool bRet { false };
+
+	// we have to add the ID to the static list _before_ actually
+	// canceling it, as otherwise it might become restarted
+	// before we added it to the list
+	s_CanceledConnections.Add(iConnectionID);
+
 	switch (GetDBType())
 	{
 		case DBT::MYSQL:
-			return ExecSQL("kill query {}", iConnectionID);
+			bRet = ExecSQL("kill query {}", iConnectionID);
+			break;
 
 		default:
 			kDebug(2, "DB Type not supported: {}", TxDBType(GetDBType()));
+			break;
 	}
 
-	return false;
+	if (bRet)
+	{
+		kDebug(2, "canceled query of connection ID {}", iConnectionID);
+		return true;
+	}
+	else
+	{
+		kDebug(2, "could not cancel query of connection ID {}", iConnectionID);
+		// remove from list if failed
+		s_CanceledConnections.HasAndRemove(iConnectionID);
+		return false;
+	}
+
+	return bRet;
 
 } // KillQuery
 

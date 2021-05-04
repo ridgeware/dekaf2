@@ -44,7 +44,6 @@
 #include "kcgistream.h"
 #include "klambdastream.h"
 #include "kfilesystem.h"
-#include <poll.h>
 
 namespace dekaf2 {
 

@@ -37,7 +37,7 @@ public:
 	{
 	}
 
-	void Session(KStream& stream, KStringView sRemoteEndPoint) override final
+	void Session(KStream& stream, KStringView sRemoteEndPoint, int iSocketFd) override final
 	{
 		stream.SetReaderRightTrim("\r\n");
 

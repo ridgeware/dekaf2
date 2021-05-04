@@ -58,6 +58,7 @@
 #include "kthreadsafe.h"
 #include <tuple>
 #include <type_traits>
+#include <set>
 
 //
 // Note:

@@ -374,6 +374,6 @@ void KSocketWatch::Watch()
 
 } // Watch
 
-#endif // DEKAF2_IS_WINDOWS
-
 } // end of namespace dekaf2
+
+#endif // DEKAF2_IS_WINDOWS

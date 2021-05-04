@@ -39,6 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
+#include "bits/kcppcompat.h"
 #include "krest.h"
 #include "kcgistream.h"
 #include "klambdastream.h"
@@ -52,6 +53,8 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 //-----------------------------------------------------------------------------
 {
 	KRESTServer Request;
+
+#ifndef DEKAF2_IS_WINDOWS
 
 	if (m_Options.bPollForDisconnect)
 	{
@@ -71,8 +74,12 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 		m_SocketWatch.Add(iSocketFd, std::move(Params));
 	}
 
+#endif
+
 	Request.Accept(Stream, sRemoteEndpoint);
 	Request.Execute(m_Options, m_Routes);
+
+#ifndef DEKAF2_IS_WINDOWS
 
 	if (m_Options.bPollForDisconnect)
 	{
@@ -81,6 +88,8 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 			m_SocketWatch.Remove(iSocketFd);
 		}
 	}
+
+#endif
 
 	Request.Disconnect();
 

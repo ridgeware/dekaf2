@@ -146,6 +146,8 @@ protected:
 
 #else // DEKAF2_IS_WINDOWS
 
+namespace dekaf2 {
+
 /// non-functional version for Windows
 class KPoll
 {

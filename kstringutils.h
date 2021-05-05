@@ -594,6 +594,27 @@ Integer kToInt(const char* data, size_t size, bool bIsHex = false) noexcept
 
 //-----------------------------------------------------------------------------
 template<class First>
+First kFirstNonZero(First iFirst)
+//-----------------------------------------------------------------------------
+{
+	return iFirst;
+}
+
+//-----------------------------------------------------------------------------
+/// return the first in a sequence of objects that is not .empty()
+template<class First, class...More, typename std::enable_if<sizeof...(More) != 0, int>::type = 0>
+First kFirstNonZero(First iFirst, More&&...more)
+//-----------------------------------------------------------------------------
+{
+	if (! iFirst)
+	{
+		return iFirst;
+	}
+	return kFirstNonZero<First>(std::forward<More>(more)...);
+}
+
+//-----------------------------------------------------------------------------
+template<class First>
 First kFirstNonEmpty(First sFirst)
 //-----------------------------------------------------------------------------
 {

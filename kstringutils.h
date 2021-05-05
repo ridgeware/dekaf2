@@ -606,7 +606,7 @@ template<class First, class...More, typename std::enable_if<sizeof...(More) != 0
 First kFirstNonZero(First iFirst, More&&...more)
 //-----------------------------------------------------------------------------
 {
-	if (! iFirst)
+	if (iFirst)
 	{
 		return iFirst;
 	}

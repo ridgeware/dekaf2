@@ -6278,19 +6278,19 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, KStringView sWhereCl
 		}
 		else
 		{
-			KOut.Format ("{} rows... ", kFormNumber(iExpected));
+			KOut.FormatLine ("{} rows... ", kFormNumber(iExpected));
 			auto iTarget = SingleIntRawQuery (kFormat ("select count(*) from {} {}", sTablename, sWhereClause));
 			if (iTarget < 0)
 			{
-				KOut.FormatLine ("table does not exist in target, skipping copy.");
+				KOut.FormatLine (":: table does not exist in target, skipping copy.");
 			}
 			else if (iTarget == iExpected)
 			{
-				KOut.FormatLine ("target already has {} rows, skipping copy.", kFormNumber(iExpected), sWhereClause);
+				KOut.FormatLine (":: target already has {} rows, skipping copy.", kFormNumber(iExpected), sWhereClause);
 			}
 			else if (iTarget)
 			{
-				KOut.FormatLine ("target has {} rows, issuing a delete before the copy...", kFormNumber(iExpected));
+				KOut.FormatLine (":: target has {} rows, issuing a delete before the copy...", kFormNumber(iExpected));
 				ExecRawSQL (kFormat ("delete from {} {}", sTablename, sWhereClause));
 				KOut.FormatLine (":: purged {} rows from: {} {}", GetNumRowsAffected(), ConnectSummary(), sTablename);
 			}

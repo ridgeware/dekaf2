@@ -615,7 +615,9 @@ public:
 	/// search data dictionary and find tables with the given column_name (or columns LIKE the given column_name if you include percent signs).
 	/// returns a JSON array: table_name, column_name, column_key, column_comment, is_nullable, column_default
 	/// empty array means column not found
-	KJSON  FindColumn    (KStringView sColLike, KString sSchemaName = "");
+	/// optional sTablenamePrefix will restrict the results to tables/views matching that LIKE pattern
+	KJSON  FindColumn    (KStringView sColLike, KString sSchemaName=""/*current dbname*/, KStringView sTableNameLike="%");
+
 
 	bool   QueryStarted ()         { return (m_bQueryStarted); }
 	void   EndQuery (bool bDestructor=false);

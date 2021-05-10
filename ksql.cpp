@@ -5141,7 +5141,7 @@ bool KSQL::DescribeTable (KStringView sTablename)
 } // DescribeTable
 
 //-----------------------------------------------------------------------------
-KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName)
+KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName/*current dbname*/, KStringView sTableNameLike/*="%"*/)
 //-----------------------------------------------------------------------------
 {
 	KString sTableSchema = (sSchemaName ? sSchemaName : GetDBName());
@@ -5167,10 +5167,13 @@ KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName)
 			" where upper(column_name) like upper('{}')\n"
 			"   and table_schema not in ('information_schema','master')\n"
 			"   and table_schema = '{}'\n"
+			"   and table_name like '{}'\n"
 			" order by table_schema, table_name desc, column_name, column_type",
-				sColLike, sTableSchema))
+				sColLike,
+				sTableSchema,
+				sTableNameLike))
 		{
-			return list;
+			return list; // empty
 		}
 		break;
 
@@ -5181,7 +5184,7 @@ KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		m_sLastError = "KSQL::FindColumn() not coded yet for DBT::ORACLE";
 		kWarningLog (m_sLastError);
-		return list;
+		return list; // empty
 		break;
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
@@ -5190,7 +5193,7 @@ KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		m_sLastError = "KSQL::FindColumn() not coded yet for DBT::SQLSERVER";
 		kWarningLog (m_sLastError);
-		return list;
+		return list; // empty
 		break;
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
@@ -5198,7 +5201,7 @@ KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		m_sLastError.Format ("{}DescribeTable(): {} not supported yet.", m_sErrorPrefix, TxDBType(m_iDBType));
 		kWarning (m_sLastError);
-		return list;
+		return list; // empty
 		break;
 	}
 

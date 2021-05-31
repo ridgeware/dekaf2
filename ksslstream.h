@@ -44,9 +44,7 @@
 /// @file ksslstream.h
 /// provides an implementation of std::iostreams supporting SSL/TLS
 
-#include <boost/asio.hpp>
-#include <boost/asio/ssl.hpp>
-#include <boost/asio/ip/tcp.hpp>
+#include "bits/kasio.h"
 #include "kstring.h"
 #include "kstream.h" // TODO remove
 #include "kstreambuf.h"

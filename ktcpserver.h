@@ -73,7 +73,7 @@
 
 #include <cinttypes>
 #include <thread>
-#include <boost/asio/io_service.hpp>
+#include "bits/kasio.h"
 #include "kstream.h"
 #include "kstring.h"
 #include "kthreadpool.h"

@@ -44,7 +44,7 @@
 /// @file kasiostream.h
 /// provides asio stream abstraction with deadline timer
 
-#include <boost/asio.hpp>
+#include "kasio.h"
 #include "../kstring.h"
 #include "../klog.h"
 

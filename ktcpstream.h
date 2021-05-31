@@ -44,8 +44,7 @@
 /// @file ktcpstream.h
 /// provides an implementation of std::iostreams for TCP
 
-#include <boost/asio.hpp>
-#include <boost/asio/ip/tcp.hpp>
+#include "bits/kasio.h"
 #include "bits/kasiostream.h"
 #include "kstring.h"
 #include "kstream.h" // TODO remove

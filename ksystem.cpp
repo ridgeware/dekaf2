@@ -50,8 +50,7 @@
 #include "dekaf2.h"
 #include "kinshell.h"
 
-#include <boost/asio.hpp>
-#include <boost/asio/ip/tcp.hpp>
+#include "bits/kasio.h"
 #ifdef DEKAF2_IS_WINDOWS
 	#include <ws2tcpip.h>
 	#include <sysinfoapi.h>   // for getTotalSystemMemory()

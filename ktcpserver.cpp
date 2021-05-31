@@ -67,9 +67,7 @@
 */
 
 #include <thread>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ip/v6_only.hpp>
-#include <boost/asio/basic_socket_iostream.hpp>
+#include "bits/kasio.h"
 #include <boost/system/system_error.hpp>
 #ifndef _MSC_VER
 #include <boost/exception/diagnostic_information.hpp>

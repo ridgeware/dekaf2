@@ -48,7 +48,7 @@
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 
-#include <boost/asio.hpp>
+#include "bits/kasio.h"
 #include "bits/kasiostream.h"
 #include "kstringview.h"
 #include "kstream.h"

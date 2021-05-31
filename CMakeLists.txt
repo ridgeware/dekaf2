@@ -444,6 +444,7 @@ add_subdirectory(from EXCLUDE_FROM_ALL)
 
 set (BITS_HEADERS
 	# KEEP ALPHABETIZED
+	bits/kasio.h
 	bits/kasiostream.h
 	bits/kbaseshell.h
 	bits/kbasepipe.h

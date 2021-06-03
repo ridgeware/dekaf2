@@ -240,6 +240,8 @@ KString KROW::EscapeChars (const KROW::value_type& Col, DBT iDBType)
 std::size_t KROW::CreateColumns(KStringView sColumns)
 //-----------------------------------------------------------------------------
 {
+	// expects a comma-delimed list of columns (without table aliases)
+
 	std::size_t iCreated { 0 };
 
 	for (const auto sColumn : sColumns.Split())

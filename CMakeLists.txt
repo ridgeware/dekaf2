@@ -127,6 +127,8 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 	set (IS_MACOS ON)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	set (IS_WINDOWS ON)
+	# get the Windows major version
+	string(REGEX MATCH "^([0-9]+)" WINDOWS_VERSION ${CMAKE_SYSTEM_VERSION})
 else ()
 	set (IS_LINUX ON)
 endif()
@@ -149,6 +151,7 @@ if (IS_WINDOWS)
 	SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 	SET(DEKAF2_USE_FBSTRING_AS_KSTRING OFF)
 	SET(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW OFF)
+	# we check for unix sockets on Windows 10 or later once we know the boost version
 else ()
 	# on Unixes, enable unix sockets and pipes
 	SET(DEKAF2_HAS_UNIX_SOCKETS ON)
@@ -380,6 +383,15 @@ endif()
 
 message(STATUS "boost-hdrs: ${Boost_INCLUDE_DIR}")
 message(STATUS "boost-libs: ${Boost_LIBRARIES}")
+
+if (IS_WINDOWS)
+	# enable unix sockets if Windows >= 10 and Boost >= 1.75
+	if (WINDOWS_VERSION GREATER_EQUAL 10)
+		if (Boost_VERSION_MACRO GREATER_EQUAL 107500)
+			SET(DEKAF2_HAS_UNIX_SOCKETS ON)
+		endif()
+	endif()
+endif()
 
 # ================================= DOXYGEN ==================================
 

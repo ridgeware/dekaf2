@@ -128,6 +128,8 @@ class KMap : public boost::multi_index::multi_index_container<
 >
 {
 public:
+	using mapped_type = Value;
+
 	template<typename K>
 	const Value& operator[](K&& key) const
 	{
@@ -186,6 +188,8 @@ class KMultiMap : public boost::multi_index::multi_index_container<
 {
 
 public:
+	using mapped_type = Value;
+
 	template<typename K>
 	const Value& operator[](K&& key) const
 	{
@@ -289,6 +293,8 @@ class KUnorderedMap : public boost::multi_index::multi_index_container<
 >
 {
 public:
+	using mapped_type = Value;
+
 	template<typename K>
 	const Value& operator[](K&& key) const
 	{
@@ -348,6 +354,8 @@ class KUnorderedMultiMap : public boost::multi_index::multi_index_container<
 >
 {
 public:
+	using mapped_type = Value;
+
 	template<typename K>
 	const Value& operator[](K&& key) const
 	{

@@ -57,7 +57,7 @@ namespace dekaf2
 //-----------------------------------------------------------------------------
 /// join for sequential containers, outputs to strings and streams
 template<typename Container, typename Result,
-	typename std::enable_if<detail::has_key_type<Container>::value == false
+	typename std::enable_if<detail::is_map_type<Container>::value == false
 								&& std::is_constructible<KString, typename Container::value_type>::value == true, int>::type = 0 >
 void kJoin (Result& Out,
 			const Container& ctContainer,
@@ -96,7 +96,7 @@ void kJoin (Result& Out,
 //-----------------------------------------------------------------------------
 /// join for sequential containers, outputs to strings and streams, converts through kFormat
 template<typename Container, typename Result,
-	typename std::enable_if<detail::has_key_type<Container>::value == false
+	typename std::enable_if<detail::is_map_type<Container>::value == false
 								&& std::is_constructible<KString, typename Container::value_type>::value == false, int>::type = 0 >
 void kJoin (Result& Out,
 			const Container& ctContainer,
@@ -135,7 +135,7 @@ void kJoin (Result& Out,
 //-----------------------------------------------------------------------------
 /// join for associative containers, outputs to strings and streams
 template<typename Container, typename Result,
-	typename std::enable_if<detail::has_key_type<Container>::value == true
+	typename std::enable_if<detail::is_map_type<Container>::value == true
 								&& std::is_constructible<KString, typename Container::key_type>::value == true
 								&& std::is_constructible<KString, typename Container::mapped_type>::value == true, int>::type = 0 >
 void kJoin (Result& Out,
@@ -175,7 +175,7 @@ void kJoin (Result& Out,
 //-----------------------------------------------------------------------------
 /// join for associative containers, outputs to strings and streams, converts through kFormat
 template<typename Container, typename Result,
-	typename std::enable_if<detail::has_key_type<Container>::value == true
+	typename std::enable_if<detail::is_map_type<Container>::value == true
 								&& (std::is_constructible<KString, typename Container::key_type>::value == false
 								 || std::is_constructible<KString, typename Container::mapped_type>::value == false), int>::type = 0 >
 void kJoin (Result& Out,

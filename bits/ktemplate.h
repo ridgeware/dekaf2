@@ -78,6 +78,30 @@ struct has_key_type : std::false_type { };
 template< class T >
 struct has_key_type<T, std::void_t<typename T::key_type>> : std::true_type { };
 
+// primary template handles types that have no mapped_type member:
+template< class, class = std::void_t<> >
+struct has_mapped_type : std::false_type { };
+
+// specialization recognizes types that do have a mapped_type member:
+template< class T >
+struct has_mapped_type<T, std::void_t<typename T::mapped_type>> : std::true_type { };
+
+template<class T>
+struct is_map_type
+  : std::integral_constant<
+	  bool,
+	  has_key_type<T>::value &&
+	  has_mapped_type<T>::value
+> {};
+
+template<class T>
+struct is_set_type
+  : std::integral_constant<
+	  bool,
+	  has_key_type<T>::value &&
+	  !has_mapped_type<T>::value
+> {};
+
 // returns has_size<T>::value == true when type has a size() member function
 template <typename T>
 class has_size

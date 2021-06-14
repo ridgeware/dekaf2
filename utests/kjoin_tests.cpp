@@ -5,7 +5,7 @@
 #include <dekaf2/koutstringstream.h>
 #include <vector>
 #include <map>
-#include <unordered_map>
+#include <set>
 #include <list>
 
 
@@ -51,6 +51,21 @@ TEST_CASE("kJoin")
 		kJoin(sResult, list);
 
 		CHECK (sResult == "one,two,three,four" );
+	}
+
+	SECTION("set/string")
+	{
+		std::set<KStringView> set {
+			"one",
+			"two",
+			"three",
+			"four"
+		};
+
+		KString sResult;
+		kJoin(sResult, set);
+
+		CHECK (sResult == "four,one,three,two" );
 	}
 
 	SECTION("map/string")
@@ -126,6 +141,22 @@ TEST_CASE("kJoin")
 		CHECK (sResult == "one,two,three,four" );
 	}
 
+	SECTION("set/stream")
+	{
+		std::set<KStringView> set {
+			"one",
+			"two",
+			"three",
+			"four"
+		};
+
+		KString sResult;
+		KOutStringStream oss(sResult);
+		kJoin(oss, set);
+
+		CHECK (sResult == "four,one,three,two" );
+	}
+
 	SECTION("map/stream")
 	{
 		std::map<KStringView, KStringView> map {
@@ -194,6 +225,21 @@ TEST_CASE("kJoin")
 
 		KString sResult;
 		kJoin(sResult, list);
+
+		CHECK (sResult == "1,2,3,4" );
+	}
+
+	SECTION("set/string/kFormat")
+	{
+		std::set<uint64_t> set {
+			1,
+			2,
+			3,
+			4
+		};
+
+		KString sResult;
+		kJoin(sResult, set);
 
 		CHECK (sResult == "1,2,3,4" );
 	}
@@ -282,6 +328,22 @@ TEST_CASE("kJoin")
 		KString sResult;
 		KOutStringStream oss(sResult);
 		kJoin(oss, list);
+
+		CHECK (sResult == "1,2,3,4" );
+	}
+
+	SECTION("set/stream/kFormat")
+	{
+		std::set<uint64_t> set {
+			1,
+			2,
+			3,
+			4
+		};
+
+		KString sResult;
+		KOutStringStream oss(sResult);
+		kJoin(oss, set);
 
 		CHECK (sResult == "1,2,3,4" );
 	}
@@ -375,6 +437,20 @@ TEST_CASE("kJoined")
 		CHECK (sResult == "one,two,three,four" );
 	}
 
+	SECTION("set/string")
+	{
+		std::set<KStringView> set {
+			"one",
+			"two",
+			"three",
+			"four"
+		};
+
+		KString sResult = kJoined(set);
+
+		CHECK (sResult == "four,one,three,two" );
+	}
+
 	SECTION("map/string")
 	{
 		std::map<KStringView, KStringView> map {
@@ -436,6 +512,20 @@ TEST_CASE("kJoined")
 		};
 
 		KString sResult = kJoined(list);
+
+		CHECK (sResult == "1,2,3,4" );
+	}
+
+	SECTION("set/string/kFormat")
+	{
+		std::set<uint64_t> set {
+			1,
+			2,
+			3,
+			4
+		};
+
+		KString sResult = kJoined(set);
 
 		CHECK (sResult == "1,2,3,4" );
 	}

@@ -3,13 +3,14 @@
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/ksplit.h>
 #include <dekaf2/kprops.h>
+#include <dekaf2/kassociative.h>
 #include <map>
+#include <set>
+#include <list>
 
 
 using namespace dekaf2;
 using std::vector;
-
-//typedef KSplit<vector, KStringView> delim_t;
 
 SCENARIO ( "ksplit unit tests on valid data" )
 {
@@ -356,7 +357,6 @@ TEST_CASE("kSplitToPair")
 
 TEST_CASE("kSplit for maps")
 {
-
 	SECTION("split default map")
 	{
 		// source, left target, right target
@@ -375,6 +375,37 @@ TEST_CASE("kSplit for maps")
 		{
 			INFO(it[0]);
 			std::map<KStringView, KStringView> aMap;
+			auto iCount = kSplit(aMap, it[0]);
+			if (ct == 0) CHECK (iCount == 0);
+			else
+			{
+				CHECK( iCount == 1 );
+				CHECK( aMap.size() == 1 );
+				CHECK( aMap.begin()->first == it[1] );
+				CHECK( aMap.begin()->second == it[2] );
+			}
+			++ct;
+		}
+	}
+
+	SECTION("split default KMap")
+	{
+		// source, left target, right target
+		std::vector<std::vector<KStringView>> stest
+		{
+			{ "", "", "" },
+			{ "key1=val1", "key1", "val1" },
+			{ "key1=val1=val2", "key1", "val1=val2" },
+			{ " \t key1    =\t  val1 \n", "key1", "val1" },
+			{ "key 1=val 1", "key 1", "val 1" },
+			{ " \t key 1    =\t  val 1 \n", "key 1", "val 1" },
+		};
+
+		int ct = 0;
+		for (auto& it : stest)
+		{
+			INFO(it[0]);
+			KMap<KStringView, KStringView> aMap;
 			auto iCount = kSplit(aMap, it[0]);
 			if (ct == 0) CHECK (iCount == 0);
 			else
@@ -663,6 +694,65 @@ TEST_CASE("kSplitArgsInPlace")
 				INFO (argVector[i]);
 				CHECK( strcmp(compVector[i], argVector[i]) == 0);
 			}
+		}
+	}
+}
+
+TEST_CASE("kSplit for sets")
+{
+	SECTION("split default set")
+	{
+		auto Result = kSplits<std::set<KStringView>>("aaa,ccc , bbb ,  ddd", ",");
+		CHECK (Result.size() == 4);
+		if (Result.size() == 4)
+		{
+			auto it = Result.begin();
+			CHECK (*it++ == "aaa");
+			CHECK (*it++ == "bbb");
+			CHECK (*it++ == "ccc");
+			CHECK (*it++ == "ddd");
+		}
+	}
+
+	SECTION("split KSet")
+	{
+		auto Result = kSplits<KSet<KStringView>>("aaa,ccc , bbb ,  ddd", ",");
+		CHECK (Result.size() == 4);
+		if (Result.size() == 4)
+		{
+			auto it = Result.begin();
+			CHECK (*it++ == "aaa");
+			CHECK (*it++ == "bbb");
+			CHECK (*it++ == "ccc");
+			CHECK (*it++ == "ddd");
+		}
+	}
+
+	SECTION("split mutiset")
+	{
+		auto Result = kSplits<std::multiset<KStringView>>("aaa,ccc , bbb ,  ddd", ",");
+		CHECK (Result.size() == 4);
+		if (Result.size() == 4)
+		{
+			auto it = Result.begin();
+			CHECK (*it++ == "aaa");
+			CHECK (*it++ == "bbb");
+			CHECK (*it++ == "ccc");
+			CHECK (*it++ == "ddd");
+		}
+	}
+
+	SECTION("split KMultiSet")
+	{
+		auto Result = kSplits<KMultiSet<KStringView>>("aaa,ccc , bbb ,  ddd", ",");
+		CHECK (Result.size() == 4);
+		if (Result.size() == 4)
+		{
+			auto it = Result.begin();
+			CHECK (*it++ == "aaa");
+			CHECK (*it++ == "bbb");
+			CHECK (*it++ == "ccc");
+			CHECK (*it++ == "ddd");
 		}
 	}
 }

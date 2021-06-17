@@ -113,8 +113,9 @@ void KHTTPError::SetStatusString()
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// HTTP 500s: server-side problems
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		case H5xx_ERROR:        m_sStatusString = "INTERNAL SERVER ERROR";  break;
-		case H5xx_NOTIMPL:      m_sStatusString = "NOT IMPLEMENTED";        break;
+		case H5xx_ERROR:        m_sStatusString = "INTERNAL SERVER ERROR";      break;
+		case H5xx_NOTIMPL:      m_sStatusString = "NOT IMPLEMENTED";            break;
+		case H5xx_UNAVAILABLE:  m_sStatusString = "SERVICE UNAVAILABLE";        break;
 		case H5xx_READTIMEOUT:  m_sStatusString = "NETWORK READ TIMEOUT ERROR"; break;
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -85,9 +85,10 @@ public:
 		H4xx_BADMETHOD  = 405,
 		H4xx_CONFLICT   = 409,
 
-		H5xx_ERROR      = 500,
-		H5xx_NOTIMPL    = 501,
-		H5xx_READTIMEOUT= 598
+		H5xx_ERROR       = 500,
+		H5xx_NOTIMPL     = 501,
+		H5xx_UNAVAILABLE = 503,
+		H5xx_READTIMEOUT = 598
 	};
 
 	KHTTPError() = default;

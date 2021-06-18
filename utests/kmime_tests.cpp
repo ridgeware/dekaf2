@@ -44,6 +44,8 @@ TEST_CASE("KMIME")
 
 	}
 
+// C++11 has problems destroying the KMIMEMultiPartFormData ..
+#ifndef DEKAF2_HAS_CPP_14
 	SECTION("KMIMEMultiPart")
 	{
 		KMIMEMultiPartFormData Parts;
@@ -125,7 +127,6 @@ Content-Disposition: inline
 		sFormData   .ReplaceRegex("_KMIME_Part_[0-9]+_[0-9]+\\.[0-9]+-", "_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]-");
 		CHECK ( sContentType == sExpectedContentType );
 		CHECK ( sFormData    == sExpected2 );
-
-
 	}
+#endif // (CPP 11)
 }

@@ -536,11 +536,7 @@ ReturnString RightUTF8(const NarrowString& sNarrow, size_t n)
 //-----------------------------------------------------------------------------
 {
 	auto it = RightUTF8(sNarrow.begin(), sNarrow.end(), n);
-#ifndef _MSC_VER
-	return ReturnString(it, sNarrow.end() - it);
-#else
 	return ReturnString(sNarrow.data() + (it - sNarrow.begin()), sNarrow.end() - it);
-#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -552,11 +548,7 @@ ReturnString MidUTF8(const NarrowString& sNarrow, size_t pos, size_t n)
 {
 	auto it = LeftUTF8(sNarrow.begin(), sNarrow.end(), pos);
 	auto ie = LeftUTF8(it, sNarrow.end(), n);
-#ifndef _MSC_VER
-	return ReturnString(it, ie - it);
-#else
 	return ReturnString(sNarrow.data() + (it - sNarrow.begin()), ie - it);
-#endif
 }
 
 //-----------------------------------------------------------------------------

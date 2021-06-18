@@ -529,8 +529,8 @@ template<class Integer>
 Integer kToInt(const char* data, size_t size, bool bIsHex = false) noexcept
 //-----------------------------------------------------------------------------
 {
-	Integer iVal{0};
-	bool    bNeg{false};
+	Integer iVal { 0 };
+	bool    bNeg { false };
 
 	while (size && KASCII::kIsSpace(*data))
 	{
@@ -601,7 +601,7 @@ First kFirstNonZero(First iFirst)
 }
 
 //-----------------------------------------------------------------------------
-/// return the first in a sequence of objects that is not .empty()
+/// return the first in a sequence of objects that is not zero (or false)
 template<class First, class...More, typename std::enable_if<sizeof...(More) != 0, int>::type = 0>
 First kFirstNonZero(First iFirst, More&&...more)
 //-----------------------------------------------------------------------------
@@ -644,7 +644,7 @@ String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false,
 
 	String sResult;
 
-	if (iBase >=2 && iBase <= 36)
+	if (iBase >= 2 && iBase <= 36)
 	{
 		auto sLookup = (bUppercase) ? s_sLookupUpper : s_sLookupLower;
 

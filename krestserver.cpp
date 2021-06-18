@@ -1424,4 +1424,8 @@ void KRESTServer::clear()
 // our empty route..
 const KRESTRoute KRESTServer::s_EmptyRoute({}, false, "/empty", "", nullptr, KRESTRoute::NOREAD);
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr std::array<KRESTServer::TimerLabel, KRESTServer::SEND + 1> KRESTServer::Timers;
+#endif
+
 } // end of namespace dekaf2

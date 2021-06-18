@@ -8461,6 +8461,47 @@ bool DbSemaphore::ClearSemaphore ()
 
 } // ClearSemaphore
 
+//-----------------------------------------------------------------------------
+bool KSQL::ShowCounts (KStringView sRegex/*=""*/)
+//-----------------------------------------------------------------------------
+{
+	std::vector<KString> Tables;
+	uint8_t iMax = 0;
+
+	auto iSave = SetFlags (F_IgnoreSelectKeyword);
+	if (!ExecQuery ("show tables"))
+	{
+		return false;
+	}
+
+	while (NextRow())
+	{
+		auto sTablename = Get(1);
+		if (!sRegex || sTablename.ToLower().MatchRegex(sRegex.ToLower()))
+		{
+			Tables.push_back (sTablename);
+			if (sTablename.length() > iMax) {
+				iMax = sTablename.length();
+			}
+		}
+	}
+
+	EndQuery();
+	SetFlags (iSave);
+
+	KString sFormat;
+	sFormat.Format (":: {}:<{}{}  ...  ", "{", iMax, "}");
+
+	for (auto& sTable : Tables)
+	{
+		KOut.Write (kFormat (sFormat, sTable));
+		uint64_t iCount = SingleIntQuery ("select count(*) from {}", sTable);
+		KOut.WriteLine (kFormat ("{:>15}", kFormNumber(iCount)));
+	}
+
+	return true;
+
+} // ShowCounts
 
 KSQL::DBCCache KSQL::s_DBCCache;
 

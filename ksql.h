@@ -514,6 +514,9 @@ public:
 	/// helper to see if something is a KILL statement:
 	static bool IsKill (KStringView sSQL);
 
+	/// produce a summary of all [matching] tables with row counts (to KOut)
+	bool ShowCounts (KStringView sRegex="");
+
 #if 0 // example usage
 	KSQL sql;
 	while (sql.NextRow())

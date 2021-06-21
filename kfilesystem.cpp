@@ -1287,6 +1287,21 @@ void KDirectory::RemoveHidden()
 } // RemoveHidden
 
 //-----------------------------------------------------------------------------
+void KDirectory::RemoveAppleResourceFiles()
+//-----------------------------------------------------------------------------
+{
+	// erase-remove idiom..
+	m_DirEntries.erase(std::remove_if(m_DirEntries.begin(),
+									  m_DirEntries.end(),
+									  [](const DirEntries::value_type& elem)
+									  {
+										  return elem.Filename().starts_with("._");
+									  }),
+					   m_DirEntries.end());
+
+} // RemoveAppleResourceFiles
+
+//-----------------------------------------------------------------------------
 size_t KDirectory::Match(KFileType Type, bool bRemoveMatches)
 //-----------------------------------------------------------------------------
 {

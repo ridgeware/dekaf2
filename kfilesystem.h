@@ -569,6 +569,9 @@ public:
 	/// remove all hidden files, that is, files that start with a dot
 	void RemoveHidden();
 
+	/// remove all Apple Resource Fork files, that is, files that start with a dot and an underscore
+	void RemoveAppleResourceFiles();
+
 	/// match or remove all files that have FileType Type from the list, returns count of matched entries
 	/// @param Type the FileType to search for
 	/// @param bRemoveMatches if true remove matches, else keep only those (default = false)

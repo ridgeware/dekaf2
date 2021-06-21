@@ -42,6 +42,7 @@ TEST_CASE("KZip") {
 
 		KString sZipFile1 = kFormat("{}/{}", ZipDir.Name(), "input1.zip");
 		KString sZipFile2 = kFormat("{}/{}", ZipDir.Name(), "input2.zip");
+		KString sZipFile3 = kFormat("{}/{}", ZipDir.Name(), "input3.zip");
 
 		{
 			// create the archive manually
@@ -70,6 +71,17 @@ TEST_CASE("KZip") {
 				Files.Sort();
 				CHECK ( Files.size() == 3 );
 				CHECK ( Zip.WriteFiles(Files, InputDirectory.Name()) );
+			}
+		}
+
+		{
+			// create the archive by recursive parsing
+			KZip Zip(sZipFile3, true);
+
+			CHECK (Zip.is_open() );
+
+			{
+				CHECK ( Zip.WriteFiles(InputDirectory.Name()) );
 			}
 		}
 
@@ -110,6 +122,41 @@ TEST_CASE("KZip") {
 
 			CHECK ( Zip.is_open() );
 			CHECK ( Zip.size() == 3 );
+
+			for (const auto& File : Zip)
+			{
+				if (!File.IsDirectory())
+				{
+					Zip.Read(kFormat("{}/{}", OutputDirectory.Name(), File.SafeName()), File);
+				}
+			}
+
+			{
+				KDirectory Directory(OutputDirectory.Name());
+				Directory.Sort();
+
+				CHECK ( Directory.size() == 3 );
+				auto File = Directory.begin();
+				CHECK (     File->Filename() == "file1" );
+				CHECK ( (++File)->Filename() == "file2" );
+				CHECK ( (++File)->Filename() == "file3" );
+			}
+
+			{
+				CHECK ( kReadAll(kFormat("{}/{}", OutputDirectory.Name(), "file1")) == "abcdefghijklmnopqrstuvwxyz\nabcdefghijklmnopqrstuvwxyz\n" );
+				CHECK ( kReadAll(kFormat("{}/{}", OutputDirectory.Name(), "file2")) == "01234567890\n01234567890\n" );
+				CHECK ( kReadAll(kFormat("{}/{}", OutputDirectory.Name(), "file3")) == "abcdefghijklmnopqrstuvwxyz\n01234567890\n" );
+			}
+		}
+
+		{
+			// check the created archive from recursive creation
+			KTempDir OutputDirectory;
+
+			KZip Zip  (sZipFile3);
+
+			CHECK ( Zip.is_open() );
+			CHECK ( Zip.size() == 4 );  // we have 4, because we have the subdirectory as a sinle directory entry as well
 
 			for (const auto& File : Zip)
 			{

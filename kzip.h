@@ -351,6 +351,12 @@ public:
 	/// @param sNewRoot name to use as the root directory, default none
 	bool WriteFiles(const KDirectory& Directory, KStringView sDirectoryRoot = KStringView{}, KStringView sNewRoot = KStringView{});
 
+	/// writes all files in a sSourceDirectory into archive
+	/// @param sSourceDirectory the source directory to read files from
+	/// @param sNewRoot name to use as the root directory, default none
+	/// @param bRecursive read files recursively, default true
+	bool WriteFiles(KStringViewZ sSourceDirectory, KStringView sNewRoot = KStringView{}, bool bRecursive = true, bool bSorted = false);
+
 	/// returns last error if class is not constructed to throw (default)
 	const KString& Error() const
 	{

@@ -817,4 +817,20 @@ bool KZip::WriteFiles(const KDirectory& Directory, KStringView sDirectoryRoot, K
 
 } // WriteFiles
 
+//-----------------------------------------------------------------------------
+bool KZip::WriteFiles(KStringViewZ sSourceDirectory, KStringView sNewRoot, bool bRecursive, bool bSorted)
+//-----------------------------------------------------------------------------
+{
+	KDirectory Directory(sSourceDirectory, KFileType::ALL, bRecursive);
+
+	if (bSorted)
+	{
+		Directory.Sort();
+	}
+
+	return WriteFiles(Directory, sSourceDirectory, sNewRoot);
+
+} // WriteFiles
+
+
 } // end of namespace dekaf2

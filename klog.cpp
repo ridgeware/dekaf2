@@ -803,7 +803,7 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 	// It also allows to call functions with potential KLog output in the
 	// constructor of KLog, because the Logger and Serializer is only set at
 	// the end of construction. Until then, logging is disabled.
-	if (!m_Logger || !m_Serializer)
+	if (!Available())
 	{
 		return false;
 	}

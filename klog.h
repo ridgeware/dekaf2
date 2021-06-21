@@ -305,6 +305,14 @@ public:
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
+	/// Returns true while KLog is available - indication that the executable is neiter in init or exit state
+	bool Available() const
+	//---------------------------------------------------------------------------
+	{
+		return (m_Logger && m_Serializer);
+	}
+
+	//---------------------------------------------------------------------------
 	/// this function is deprecated - use kDebug() instead!
 	template<class... Args, typename std::enable_if<sizeof...(Args) != 1, int>::type = 0>
 	inline bool debug(int iLevel, Args&&... args)

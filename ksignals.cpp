@@ -143,11 +143,15 @@ void KSignals::WaitForSignals()
 
 		if (sig > 0)
 		{
-			// we received a signal
-			kDebug(2, "received signal {} ({})", kTranslateSignal(sig), sig);
+			// check that we are neither in init or exit
+			if (KLog::getInstance().Available())
+			{
+				// we received a signal
+				kDebug(2, "received signal {} ({})", kTranslateSignal(sig), sig);
 
-			// check if we have a function to call for
-			LookupFunc(sig);
+				// check if we have a function to call for
+				LookupFunc(sig);
+			}
 		}
 	}
 
@@ -274,7 +278,7 @@ KSignals::KSignals(bool bStartHandlerThread)
 KThreadSafe<std::map<int, KSignals::sigmap_t> > KSignals::s_SigFuncs;
 KRunThreads KSignals::m_Threads;
 
-const std::array<int,
+constexpr std::array<int,
 #ifdef DEKAF2_IS_WINDOWS
                  5
 #else

@@ -2293,7 +2293,7 @@ KString KHTMLEntity::Decode(KStringView sIn)
 
 							for (;it != ie; ++it)
 							{
-								auto iCh = kFromHexChar(*it);
+								auto iCh = kFromBase36(*it);
 
 								if (iCh > 15)
 								{
@@ -2426,7 +2426,7 @@ KString ConvertNumerical(KStringView sIn)
 
 			for (;++it != ie;)
 			{
-				auto iCh = kFromHexChar(*it);
+				auto iCh = kFromBase36(*it);
 
 				if (iCh > 15)
 				{

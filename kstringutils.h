@@ -516,81 +516,116 @@ bool kIsURL(KStringView str) noexcept;
 
 // exception free conversions
 
-//-----------------------------------------------------------------------------
-/// Converts a hex digit into the corresponding integer value. Returns -1 if not
-/// a valid digit
-uint16_t kFromHexChar(char ch) noexcept;
-//-----------------------------------------------------------------------------
+namespace detail {
+
+extern const uint8_t LookupBase36[256];
+
+}
 
 //-----------------------------------------------------------------------------
-/// Converts a character array starting at data with length size into an integer.
-/// If bIsHex is true input will be interpreted as hex string
-template<class Integer>
-Integer kToInt(const char* data, size_t size, bool bIsHex = false) noexcept
+/// Converts any base36 digit into the corresponding integer value. Returns 0xFF if not
+/// a valid digit
+inline
+uint8_t kFromBase36(char ch) noexcept
 //-----------------------------------------------------------------------------
 {
-	Integer iVal { 0 };
-	bool    bNeg { false };
+	return dekaf2::detail::LookupBase36[static_cast<unsigned char>(ch)];
+}
 
-	while (size && KASCII::kIsSpace(*data))
+//-----------------------------------------------------------------------------
+/// Converts a hex digit into the corresponding integer value. Returns 0xFF if not
+/// a valid digit
+inline
+uint8_t kFromHexChar(char ch) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto iVal = kFromBase36(ch);
+
+	if (iVal > 15)
 	{
-		++data;
-		--size;
-	}
-
-	if (size)
-	{
-		if (*data == '-')
-		{
-			bNeg = true;
-			++data;
-			--size;
-		}
-		else if (*data == '+')
-		{
-			++data;
-			--size;
-		}
-	}
-
-	if (!bIsHex)
-	{
-		for (; size > 0; --size)
-		{
-			auto ch = *data++;
-
-			if (!KASCII::kIsDigit(ch))
-			{
-				break;
-			}
-
-			iVal *= 10;
-			iVal += ch - '0';
-		}
-	}
-	else
-	{
-		for (; size > 0; --size)
-		{
-			auto iCh = kFromHexChar(*data++);
-			if (iCh > 15)
-			{
-				break;
-			}
-
-			iVal *= 16;
-			iVal += iCh;
-		}
-
-	}
-
-	if (bNeg)
-	{
-		iVal *= -1;
+		iVal = 0xFF;
 	}
 
 	return iVal;
 }
+
+//-----------------------------------------------------------------------------
+template<class Integer>
+Integer kToInt(KStringView sNumber, uint16_t iBase = 10) noexcept
+//-----------------------------------------------------------------------------
+{
+	static_assert(std::is_arithmetic<Integer>::value, "arithmetic type required");
+
+	Integer iVal { 0 };
+
+	if (DEKAF2_LIKELY(iBase <= 36))
+	{
+		// work on numbers expressed by ASCII alnum - accept negative values
+		// by a '-' prefix, or positive values by a '+' prefix or none
+
+		sNumber.TrimLeft();
+
+		if (!sNumber.empty())
+		{
+			bool bNeg { false };
+
+			switch (sNumber.front())
+			{
+				case '-':
+					bNeg = true;
+					DEKAF2_FALLTHROUGH;
+				case '+':
+					sNumber.remove_prefix(1);
+					break;
+			}
+
+			for (const auto ch : sNumber)
+			{
+				auto iBase36 = kFromBase36(ch);
+
+				if (iBase36 >= iBase)
+				{
+					// just in case this view was converted from a char* array with a max size
+					// but which ended early on a null byte (or on a space), then abort without
+					// error
+
+					if (ch != 0 && !KASCII::kIsSpace(ch))
+					{
+						// this is a value overflow (the number was not encoded in this base)
+//						kDebug(2, "string value is at least of base {}, not of {}", iBase36 - 1, iBase);
+					}
+					break;
+				}
+
+				iVal *= iBase;
+				iVal += iBase36;
+			}
+
+			if (bNeg)
+			{
+				iVal *= -1;
+			}
+		}
+	}
+	else if (DEKAF2_UNLIKELY(iBase == 256))
+	{
+		// this is a pure binary encoding, do not trim anything, do not assume
+		// signed values from prefixes
+
+		for (const auto ch : sNumber)
+		{
+			iVal *= 256;
+			iVal += static_cast<unsigned char>(ch);
+		}
+	}
+	else
+	{
+//		kDebug(1, "invalid integer base of {}, must be in range 2..36,256", iBase);
+	}
+
+	return iVal;
+
+} // kToInt
 
 //-----------------------------------------------------------------------------
 template<class First>

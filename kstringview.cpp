@@ -652,42 +652,42 @@ bool KStringView::Bool() const noexcept
 int16_t KStringView::Int16(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<int16_t>(data(), size(), bIsHex);
+	return kToInt<int16_t>(*this, bIsHex ? 16 : 10);
 }
 
 //-----------------------------------------------------------------------------
 uint16_t KStringView::UInt16(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<uint16_t>(data(), size(), bIsHex);
+	return kToInt<uint16_t>(*this, bIsHex ? 16 : 10);
 }
 
 //-----------------------------------------------------------------------------
 int32_t KStringView::Int32(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<int32_t>(data(), size(), bIsHex);
+	return kToInt<int32_t>(*this, bIsHex ? 16 : 10);
 }
 
 //-----------------------------------------------------------------------------
 uint32_t KStringView::UInt32(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<uint32_t>(data(), size(), bIsHex);
+	return kToInt<uint32_t>(*this, bIsHex ? 16 : 10);
 }
 
 //-----------------------------------------------------------------------------
 int64_t KStringView::Int64(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<int64_t>(data(), size(), bIsHex);
+	return kToInt<int64_t>(*this, bIsHex ? 16 : 10);
 }
 
 //-----------------------------------------------------------------------------
 uint64_t KStringView::UInt64(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<uint64_t>(data(), size(), bIsHex);
+	return kToInt<uint64_t>(*this, bIsHex ? 16 : 10);
 }
 
 #ifdef DEKAF2_HAS_INT128
@@ -695,14 +695,14 @@ uint64_t KStringView::UInt64(bool bIsHex) const noexcept
 int128_t KStringView::Int128(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<int128_t>(data(), size(), bIsHex);
+	return kToInt<int128_t>(*this, bIsHex ? 16 : 10);
 }
 
 //-----------------------------------------------------------------------------
 uint128_t KStringView::UInt128(bool bIsHex) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kToInt<uint128_t>(data(), size(), bIsHex);
+	return kToInt<uint128_t>(*this, bIsHex ? 16 : 10);
 }
 #endif
 

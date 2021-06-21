@@ -694,7 +694,7 @@ TEST_CASE("KStringUtils") {
 
 			for (const auto& it : svector)
 			{
-				CHECK ( kToInt<int64_t>(it.first.data(), it.first.size()) == it.second );
+				CHECK ( kToInt<int64_t>(it.first) == it.second );
 			}
 		}
 
@@ -711,7 +711,7 @@ TEST_CASE("KStringUtils") {
 
 			for (const auto& it : svector)
 			{
-				CHECK ( kToInt<int64_t>(it.first.data(), it.first.size()) == it.second );
+				CHECK ( kToInt<int64_t>(it.first) == it.second );
 			}
 		}
 	}
@@ -738,7 +738,7 @@ TEST_CASE("KStringUtils") {
 
 			for (const auto& it : svector)
 			{
-				CHECK ( kToInt<int64_t>(it.first.data(), it.first.size(), true) == it.second );
+				CHECK ( kToInt<int64_t>(it.first, 16) == it.second );
 			}
 		}
 
@@ -762,7 +762,7 @@ TEST_CASE("KStringUtils") {
 
 			for (const auto& it : svector)
 			{
-				CHECK ( kToInt<int64_t>(it.first.data(), it.first.size(), true) == it.second );
+				CHECK ( kToInt<int64_t>(it.first, 16) == it.second );
 			}
 		}
 	}

@@ -88,18 +88,22 @@ KString KDec::Hex(KStringView sIn)
 
 	for (size_t iCt = 0; iCt < iTotal;)
 	{
-		auto iVal1 = kFromHexChar(sIn[iCt++]);
+		auto iVal1 = kFromBase36(sIn[iCt++]);
+
 		if (iVal1 > 15)
 		{
 			kWarning("invalid hex char");
 			break;
 		}
-		auto iVal2 = kFromHexChar(sIn[iCt++]);
+
+		auto iVal2 = kFromBase36(sIn[iCt++]);
+
 		if (iVal2 > 15)
 		{
 			kWarning("invalid hex char");
 			break;
 		}
+
 		sRet += iVal1 * 16 + iVal2;
 	}
 

@@ -214,7 +214,8 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 				else
 				{
 					// convert next nibble
-					auto iNibble = kFromHexChar(c); // NOLINT: conversion from int to char is OK for hex chars
+					auto iNibble = kFromBase36(c); // NOLINT: conversion from int to char is OK for hex chars
+
 					if (iNibble <= MAX_HEX)
 					{
 						m_iRemainingInChunk <<= 4;

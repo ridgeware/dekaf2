@@ -230,8 +230,8 @@ KString KQuotedPrintable::Decode(KStringView sInput, bool bDotStuffing)
 			}
 			else
 			{
-				uint16_t iValue = kFromHexChar(LeadChar) << 4;
-				iValue += kFromHexChar(ch);
+				uint16_t iValue = kFromBase36(LeadChar) << 4;
+				iValue += kFromBase36(ch);
 				out += static_cast<KString::value_type>(iValue);
 			}
 		}

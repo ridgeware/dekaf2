@@ -314,6 +314,12 @@ public:
 	void ThrowIfDisconnected();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// Serialize output with indents or condensed
+	/// @param bYesNo if true, output json/xml with indents, if false output condensed (default in non-debug code)
+	void PrettyPrint(bool bYesNo);
+	//-----------------------------------------------------------------------------
+
 //------
 protected:
 //------
@@ -366,6 +372,11 @@ protected:
 private:
 //------
 
+	static constexpr int iJSONTerse  { -1 };
+	static constexpr int iJSONPretty {  1 };
+	static constexpr int iXMLTerse   { KXML::NoIndents | KXML::NoLinefeeds };
+	static constexpr int iXMLPretty  { KXML::Default };
+
 	static const KRESTRoute s_EmptyRoute;
 
 	KString m_sRequestBody;
@@ -378,7 +389,22 @@ private:
 	KTempDir m_TempDir;                  // create a KTempDir object
 	std::unique_ptr<KJSON> m_JsonLogger;
 	std::unique_ptr<KStopDurations> m_Timers;
+	int m_iJSONPrint {
+#ifdef NDEBUG
+		iJSONTerse
+#else
+		iJSONPretty
+#endif
+	};
+	int m_iXMLPrint {
+#ifdef NDEBUG
+		iXMLTerse
+#else
+		iXMLPretty
+#endif
+	};
 	bool m_bIsDisconnected { false };
+
 
 }; // KRESTServer
 

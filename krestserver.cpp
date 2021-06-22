@@ -818,14 +818,6 @@ bool KRESTServer::SetFileToOutput(KStringViewZ sFile)
 
 } // SetFileToOutput
 
-#ifdef NDEBUG
-	static constexpr int iJSONPretty { -1 };
-	static constexpr int iXMLPretty { KXML::NoIndents | KXML::NoLinefeeds };
-#else
-	static constexpr int iJSONPretty { 1 };
-	static constexpr int iXMLPretty { KXML::Default };
-#endif
-
 //-----------------------------------------------------------------------------
 void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 //-----------------------------------------------------------------------------
@@ -878,7 +870,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				if (!json.tx.empty())
 				{
 					kDebug (2, "serializing JSON response");
-					sContent = json.tx.dump(iJSONPretty, '\t');
+					sContent = json.tx.dump(m_iJSONPrint, '\t');
 
 					// ensure that all JSON responses end in a newline:
 					if (!sContent.empty() && sContent.back() != '\n')
@@ -898,7 +890,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 					}
 
 					kDebug (2, "serializing XML response");
-					xml.tx.Serialize(sContent, iXMLPretty);
+					xml.tx.Serialize(sContent, m_iXMLPrint);
 
 					// ensure that all XML responses end in a newline:
 					if (!sContent.empty() && sContent.back() != '\n')
@@ -1010,7 +1002,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 					}
 
 					KString sContent;
-					xml.tx.Serialize(sContent, iXMLPretty);
+					xml.tx.Serialize(sContent, m_iXMLPrint);
 					tjson["body"] = std::move(sContent);
 				}
 			}
@@ -1029,7 +1021,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 
 			m_iContentLength = kjson::GetStringRef(tjson, "body").size();
 
-			Response.UnfilteredStream() << tjson.dump(iJSONPretty, '\t') << "\n";
+			Response.UnfilteredStream() << tjson.dump(m_iJSONPrint, '\t') << "\n";
 		}
 		break;
 
@@ -1057,15 +1049,15 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 
 				if (!json.tx.empty())
 				{
-					Response.UnfilteredStream() << json.tx.dump(iJSONPretty, '\t');
+					Response.UnfilteredStream() << json.tx.dump(m_iJSONPrint, '\t');
 					// finish with a linefeed (the json serializer does not add one)
 					Response.UnfilteredStream().WriteLine();
 				}
 				else if (!xml.tx.empty())
 				{
-					xml.tx.Serialize(Response.UnfilteredStream(), iXMLPretty);
+					xml.tx.Serialize(Response.UnfilteredStream(), m_iXMLPrint);
 					// the xml serializer adds a linefeed in default mode, add another one if not
-					if (iXMLPretty & KXML::NoLinefeeds)
+					if (m_iXMLPrint & KXML::NoLinefeeds)
 					{
 						Response.UnfilteredStream().WriteLine();
 					}
@@ -1400,6 +1392,15 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 } // RecordRequestForReplay
 
 //-----------------------------------------------------------------------------
+void KRESTServer::PrettyPrint(bool bYesNo)
+//-----------------------------------------------------------------------------
+{
+	m_iJSONPrint = bYesNo ? iJSONPretty : iJSONTerse;
+	m_iXMLPrint  = bYesNo ? iXMLPretty  : iXMLTerse;
+
+} // PrettyPrint
+
+//-----------------------------------------------------------------------------
 void KRESTServer::clear()
 //-----------------------------------------------------------------------------
 {
@@ -1418,6 +1419,20 @@ void KRESTServer::clear()
 	m_JsonLogger.reset();
 	m_TempDir.clear();
 	// do not clear m_Timer, the main Execute loop takes care of it
+
+	m_iJSONPrint =
+#ifdef NDEBUG
+		iJSONTerse;
+#else
+		iJSONPretty;
+#endif
+	m_iXMLPrint =
+#ifdef NDEBUG
+		iXMLTerse;
+#else
+		iXMLPretty;
+#endif
+
 
 } // clear
 

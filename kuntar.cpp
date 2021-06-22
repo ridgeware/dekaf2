@@ -82,7 +82,9 @@
 
 #include "kuntar.h"
 #include "kfilesystem.h"
+#include "kstringutils.h"
 #include "klog.h"
+#include "kexception.h"
 
 #include <cstring>
 #include <array>
@@ -91,189 +93,298 @@
 
 namespace dekaf2 {
 
-namespace tar {
+KUnTar::iterator::iterator(KUnTar* UnTar) noexcept
+: m_UnTar(UnTar)
+{
+	operator++();
+}
 
 //-----------------------------------------------------------------------------
-void Header::reset()
+KUnTar::iterator::reference KUnTar::iterator::operator*() const
 //-----------------------------------------------------------------------------
 {
-    if (!m_keep_members_once)
+	if (m_UnTar)
 	{
-        m_file_size = 0;
-        m_modification_time = 0;
-        m_filename.clear();
-        m_linkname.clear();
-        m_is_end = false;
-        m_is_ustar = false;
-        m_entrytype = Unknown;
-    }
-    else
+		return *m_UnTar;
+	}
+	else
 	{
-		m_keep_members_once = false;
+		throw KError("KUnTar::iterator out of range");
+	}
+}
+
+//-----------------------------------------------------------------------------
+KUnTar::iterator& KUnTar::iterator::operator++() noexcept
+//-----------------------------------------------------------------------------
+{
+	if (m_UnTar)
+	{
+		if (m_UnTar->Next() == false)
+		{
+			m_UnTar = nullptr;
+		}
+	}
+	
+	return *this;
+
+} // operator++
+
+//-----------------------------------------------------------------------------
+void KUnTar::Decoded::Reset()
+//-----------------------------------------------------------------------------
+{
+	if (!m_bKeepMembersOnce)
+	{
+		m_sFilename.clear();
+		m_sLinkname.clear();
+		m_sUser.clear();
+		m_sGroup.clear();
+		m_iMode             = 0;
+		m_iUserId           = 0;
+		m_iGroupId          = 0;
+		m_iFilesize         = 0;
+		m_tModificationTime = 0;
+		m_bIsEnd            = false;
+		m_bIsUstar          = false;
+		m_EntryType         = tar::Unknown;
+	}
+	else
+	{
+		m_bKeepMembersOnce = false;
 	}
 
-} // reset
+} // Reset
 
 //-----------------------------------------------------------------------------
-void Header::clear()
+void KUnTar::Decoded::clear()
 //-----------------------------------------------------------------------------
 {
-	static_assert(sizeof(tar::Header::raw) == 512, "tar header struct has to be 512 bytes of size");
-	static_assert(sizeof(tar::Header::header) <= 512, "tar header struct has to be 512 bytes of size");
-
-	std::memset(raw.header, 0, HeaderLen);
-	m_keep_members_once = false;
-    reset();
+	m_bKeepMembersOnce = false;
+	Reset();
 
 } // clear
 
 //-----------------------------------------------------------------------------
-bool Header::Analyze()
+uint64_t KUnTar::Decoded::FromNumbers(const char* pStart, uint16_t iSize)
 //-----------------------------------------------------------------------------
 {
-    // check for end header
-    if (raw.header[0] == 0)
+	// check if the null byte came before the end of the array
+	iSize = ::strnlen(pStart, iSize);
+
+	KStringView sView(pStart, iSize);
+
+	auto chFirst = sView.front();
+
+	if (DEKAF2_UNLIKELY(m_bIsUstar && ((chFirst & 0x80) != 0)))
+	{
+		// MSB is set, this is a binary encoding
+		if (DEKAF2_UNLIKELY((chFirst & 0x7F) != 0))
+		{
+			// create a local copy with removed MSB bit
+			KString sBuffer(sView);
+			sBuffer[0] = (chFirst & 0x7f);
+			return kToInt<uint64_t>(sBuffer, 256);
+		}
+		else
+		{
+			sView.remove_prefix(1);
+			return kToInt<uint64_t>(sView, 256);
+		}
+	}
+	else
+	{
+		// this is an octal encoding
+		return kToInt<uint64_t>(sView, 8);
+	}
+
+} // FromNumbers
+
+//-----------------------------------------------------------------------------
+bool KUnTar::Decoded::Decode(const tar::TarHeader& TarHeader)
+//-----------------------------------------------------------------------------
+{
+	Reset();
+
+	// check for end header
+    if (TarHeader.raw[0] == 0)
 	{
         // check if full header is 0, then this is the end header of an archive
-        m_is_end = true;
+        m_bIsEnd = true;
 
-		for (auto ch : raw.header)
+		for (auto ch : TarHeader.raw)
 		{
             if (ch)
 			{
-                m_is_end = false;
+                m_bIsEnd = false;
                 break;
             }
         }
 
-		if (m_is_end)
+		if (m_bIsEnd)
 		{
 			return true;
 		}
     }
 
+	// keep this on top before calling FromNumbers(), which has a dependency
+	m_bIsUstar = (std::memcmp("ustar", TarHeader.extension.ustar.indicator, 5) == 0);
+
     // validate checksum
     {
-        uint64_t header_checksum = std::strtoull(header.checksum, nullptr, 8);
-        std::memset(header.checksum, ' ', 8);
-        uint64_t sum = 0;
-        for (auto ch : raw.header)
+        uint64_t header_checksum = FromNumbers(TarHeader.checksum, 8);
+        uint64_t sum { 0 };
+
+		// we calculate with unsigned chars first, as that is what today's
+		// tars typically do
+
+		for (uint16_t iPos = 0; iPos < 148; ++iPos)
 		{
-			sum += ch;
+			sum += static_cast<uint8_t>(TarHeader.raw[iPos]);
 		}
-        if (header_checksum != sum)
+
+		for (uint16_t iPos = 0; iPos < 8; ++iPos)
 		{
-			kDebug(2, "invalid header checksum");
-			return false;
+			sum += ' ';
+		}
+
+		for (uint16_t iPos = 148 + 8; iPos < tar::HeaderLen; ++iPos)
+		{
+			sum += static_cast<uint8_t>(TarHeader.raw[iPos]);
+		}
+
+		if (header_checksum != sum)
+		{
+			// try again with signed chars, which were used by some implementations
+
+			sum = 0;
+
+			for (uint16_t iPos = 0; iPos < 148; ++iPos)
+			{
+				sum += TarHeader.raw[iPos];
+			}
+
+			for (uint16_t iPos = 0; iPos < 8; ++iPos)
+			{
+				sum += ' ';
+			}
+
+			for (uint16_t iPos = 148 + 8; iPos < tar::HeaderLen; ++iPos)
+			{
+				sum += TarHeader.raw[iPos];
+			}
+
+			if (header_checksum != sum)
+			{
+				// that failed, too
+				kDebug(2, "invalid header checksum");
+				return false;
+			}
 		}
     }
 
-    m_is_ustar = (memcmp("ustar", header.extension.ustar.indicator, 5) == 0);
+	m_iMode     = FromNumbers(TarHeader.mode, 8);
+	m_iUserId   = FromNumbers(TarHeader.owner_ids.user,  8);
+	m_iGroupId  = FromNumbers(TarHeader.owner_ids.group, 8);
 
-    // extract the filename
-    m_filename.assign(header.file_name, std::min((size_t)100, ::strnlen(header.file_name, 100)));
-
-    if (m_is_ustar)
+	if (m_bIsUstar)
 	{
-        // check if there is a filename prefix
-        size_t plen = ::strnlen(header.extension.ustar.filename_prefix, 155);
-        // yes, insert it before the existing filename
-        if (plen)
-		{
-            m_filename = KString(header.extension.ustar.filename_prefix,
-								 std::min((size_t)155, plen)) + "/" + m_filename;
-        }
-    }
+		// copy user and group
+		m_sUser.assign(TarHeader.extension.ustar.owner_names.user,
+					  ::strnlen(TarHeader.extension.ustar.owner_names.user, 32));
+		m_sGroup.assign(TarHeader.extension.ustar.owner_names.group,
+					   ::strnlen(TarHeader.extension.ustar.owner_names.group, 32));
 
-    if (!m_filename.empty() && *m_filename.rbegin() == '/')
+		// check if there is a filename prefix
+		auto plen = ::strnlen(TarHeader.extension.ustar.filename_prefix, 155);
+
+		// insert the prefix before the existing filename
+		if (plen)
+		{
+			m_sFilename.assign(TarHeader.extension.ustar.filename_prefix, plen);
+			m_sFilename += '/';
+		}
+	}
+
+	// append file name to a prefix (or none)
+	m_sFilename.append(TarHeader.file_name, ::strnlen(TarHeader.file_name, 100));
+
+	auto TypeFlag = TarHeader.extension.ustar.type_flag;
+
+    if (!m_sFilename.empty() && m_sFilename.back() == '/')
 	{
         // make sure we detect also pre-1988 directory names :)
-        if (!header.extension.ustar.type_flag)
+		if (!TypeFlag)
 		{
-			header.extension.ustar.type_flag = '5';
+			TypeFlag = '5';
 		}
     }
 
     // now analyze the entry type
 
-    switch (header.extension.ustar.type_flag)
+    switch (TypeFlag)
 	{
         case 0:
         case '0':
+		// treat contiguous file as normal
+		case '7':
             // normal file
-            if (m_entrytype == Longname1)
+            if (m_EntryType == tar::Longname1)
 			{
                 // this is a subsequent read on GNU tar long names
                 // the current block contains only the filename and the next block contains metadata
                 // set the filename from the current header
-                m_filename.assign(header.file_name,
-								  std::min((size_t)HeaderLen, ::strnlen(header.file_name, HeaderLen)));
+                m_sFilename.assign(TarHeader.file_name,
+								  ::strnlen(TarHeader.file_name, tar::HeaderLen));
                 // the next header contains the metadata, so replace the header before reading the metadata
-                m_entrytype = Longname2;
-                m_keep_members_once = true;
+                m_EntryType        = tar::Longname2;
+                m_bKeepMembersOnce = true;
                 return true;
             }
-            m_entrytype = File;
-
-            header.file_bytes_terminator = 0;
-            if ((header.file_bytes_octal[0] & 0x80) != 0)
-			{
-                m_file_size = std::strtoull(header.file_bytes_octal, nullptr, 256);
-            }
-			else
-			{
-                m_file_size = std::strtoull(header.file_bytes_octal, nullptr, 8);
-            }
-            
-            header.modification_time_terminator = 0;
-            m_modification_time = std::strtoull(header.modification_time_octal, nullptr, 8);
-            break;
+            m_EntryType         = tar::File;
+			m_iFilesize         = FromNumbers(TarHeader.file_bytes, 12);
+			m_tModificationTime = FromNumbers(TarHeader.modification_time , 12);
+			break;
 
         case '1':
             // link
-            m_entrytype = Link;
-            m_linkname.assign(header.extension.ustar.linked_file_name,
-							  std::min((size_t)100, ::strnlen(header.file_name, 100)));
+            m_EntryType = tar::Link;
+            m_sLinkname.assign(TarHeader.extension.ustar.linked_file_name,
+							  ::strnlen(TarHeader.file_name, 100));
             break;
 
         case '2':
             // symlink
-            m_entrytype = Symlink;
-            m_linkname.assign(header.extension.ustar.linked_file_name,
-							  std::min((size_t)100, ::strnlen(header.file_name, 100)));
+            m_EntryType = tar::Symlink;
+            m_sLinkname.assign(TarHeader.extension.ustar.linked_file_name,
+							  ::strnlen(TarHeader.file_name, 100));
             break;
 
         case '5':
             // directory
-            m_entrytype = Directory;
-            m_file_size = 0;
-
-            header.modification_time_terminator = 0;
-            m_modification_time = std::strtoull(header.modification_time_octal, nullptr, 8);
+            m_EntryType         = tar::Directory;
+            m_iFilesize         = 0;
+			m_tModificationTime = FromNumbers(TarHeader.modification_time, 12);
             break;
 
         case '6':
             // fifo
-            m_entrytype = Fifo;
+            m_EntryType = tar::Fifo;
             break;
 
         case 'L':
             // GNU long filename
-            m_entrytype = Longname1;
-            m_keep_members_once = true;
+            m_EntryType        = tar::Longname1;
+            m_bKeepMembersOnce = true;
             return true;
 
         default:
-            m_entrytype = Unknown;
+            m_EntryType = tar::Unknown;
             break;
     }
 
 	return true;
 
-} // Header::Analyze
-
-} // end of namespace tar
-
+} // Decode
 
 //-----------------------------------------------------------------------------
 KUnTar::KUnTar(KInStream& Stream, int AcceptedTypes, bool bSkipAppleResourceForks)
@@ -302,8 +413,7 @@ bool KUnTar::Read(void* buf, size_t len)
 
 	if (rb != len)
 	{
-		kDebug(2, "unexpected end of input stream, trying to read {} bytes, but got {}", len, rb);
-		return false;
+		return SetError(kFormat("unexpected end of input stream, trying to read {} bytes, but got only {}", len, rb));
 	}
 
 	return true;
@@ -314,10 +424,10 @@ bool KUnTar::Read(void* buf, size_t len)
 size_t KUnTar::CalcPadding()
 //-----------------------------------------------------------------------------
 {
-	if (m_header.Type() == tar::File)
+	if (Type() == tar::File)
 	{
 		// check if we have to skip some padding bytes (tar files have a block size of 512)
-		return (tar::Header::HeaderLen - (m_header.Filesize() % tar::Header::HeaderLen)) % tar::Header::HeaderLen;
+		return (tar::HeaderLen - (Filesize() % tar::HeaderLen)) % tar::HeaderLen;
 	}
 
 	return 0;
@@ -332,11 +442,11 @@ bool KUnTar::ReadPadding()
 
 	if (padding)
 	{
-		// this invalidates the (raw) header, but it is a handy buffer to read up to 512
-		// bytes into here (and we do not need it anymore)
-		if (!Read(*m_header, padding))
+		std::array<char, tar::HeaderLen> Padding;
+
+		if (!Read(Padding.data(), padding))
 		{
-			return false;
+			return SetError("cannot read block padding");
 		}
 	}
 
@@ -348,9 +458,12 @@ bool KUnTar::ReadPadding()
 bool KUnTar::Next()
 //-----------------------------------------------------------------------------
 {
+	// delete a previous error
+	m_Error.clear();
+
     do
 	{
-		if (!m_bIsConsumed && (m_header.Type() == tar::File))
+		if (!m_bIsConsumed && (Type() == tar::File))
 		{
 			if (!SkipCurrentFile())
 			{
@@ -358,31 +471,33 @@ bool KUnTar::Next()
 			}
 		}
 
-        m_header.reset();
+		tar::TarHeader TarHeader;
 
-		if (!Read(*m_header, tar::Header::HeaderLen))
+		if (!Read(&TarHeader, tar::HeaderLen))
 		{
-			return false;
+			return SetError("cannot not read tar header");
 		}
 
-		if (!m_header.Analyze())
+		if (!m_Header.Decode(TarHeader))
 		{
-			return false;
+			// the only false return from Decode happens on a bad checksum compare
+			return SetError("invalid tar header (bad checksum)");
 		}
 
         // this is the only valid exit condition from reading a tar archive - end header reached
-        if (m_header.IsEnd())
+        if (m_Header.IsEnd())
 		{
+			// no error!
 			return false;
 		}
 
-        if (m_header.Type() == tar::File)
+        if (Type() == tar::File)
 		{
 			m_bIsConsumed = false;
         }
 
-    } while ((m_header.Type() & m_AcceptedTypes) == 0
-			 || (m_bSkipAppleResourceForks && m_header.Filename().starts_with("./._")));
+    } while ((Type() & m_AcceptedTypes) == 0
+			 || (m_bSkipAppleResourceForks && kBasename(Filename()).starts_with("._")));
 
     return true;
 
@@ -408,11 +523,18 @@ bool KUnTar::Skip(size_t iSize)
 		{
 			break;
 		}
-		iRead += iChunk;
+		iRead   += iChunk;
 		iRemain -= iChunk;
 	}
 
-	return iRead == iSize;
+	if (iRead == iSize)
+	{
+		return true;
+	}
+	else
+	{
+		return SetError("cannot not skip file");
+	}
 
 } // Skip
 
@@ -420,7 +542,7 @@ bool KUnTar::Skip(size_t iSize)
 bool KUnTar::SkipCurrentFile()
 //-----------------------------------------------------------------------------
 {
-	return Skip(m_header.Filesize() + CalcPadding());
+	return Skip(Filesize() + CalcPadding());
 
 } // SkipCurrentFile
 
@@ -428,16 +550,14 @@ bool KUnTar::SkipCurrentFile()
 bool KUnTar::Read(KOutStream& OutStream)
 //-----------------------------------------------------------------------------
 {
-	if (m_header.Type() != tar::File)
+	if (Type() != tar::File)
 	{
-		kDebug(2, "cannot read - not a file");
-		return false;
+		return SetError("cannot read - current tar entry is not a file");
 	}
 
-	if (!OutStream.Write(m_Stream, m_header.Filesize()).Good())
+	if (!OutStream.Write(m_Stream, Filesize()).Good())
 	{
-		kDebug(2, "cannot write to stream");
-		return false;
+		return SetError("cannot write to output stream");
 	}
 
 	if (!ReadPadding())
@@ -457,17 +577,16 @@ bool KUnTar::Read(KString& sBuffer)
 {
 	sBuffer.clear();
 
-	if (m_header.Type() != tar::File)
+	if (Type() != tar::File)
 	{
-		kDebug(2, "cannot read - not a file");
-		return false;
+		return SetError("cannot read - current tar entry is not a file");
 	}
 	
 	// resize the buffer to be able to read the file size
-	sBuffer.resize_uninitialized(m_header.Filesize());
+	sBuffer.resize_uninitialized(Filesize());
 
 	// read the file into the buffer
-	if (!Read(&sBuffer[0], m_header.Filesize()))
+	if (!Read(&sBuffer[0], Filesize()))
 	{
 		return false;
 	}
@@ -495,7 +614,7 @@ bool KUnTar::File(KString& sName, KString& sBuffer)
 		return false;
 	}
 
-	if (m_header.Type() == tar::File)
+	if (Type() == tar::File)
 	{
 		if (!Read(sBuffer))
 		{
@@ -503,12 +622,22 @@ bool KUnTar::File(KString& sName, KString& sBuffer)
 		}
 	}
 
-    sName = m_header.Filename();
+    sName = Filename();
 
     return true;
 
 } // File
 
+//-----------------------------------------------------------------------------
+bool KUnTar::SetError(KString sError)
+//-----------------------------------------------------------------------------
+{
+	m_Error = std::move(sError);
+	kDebug(2, m_Error);
+
+	return false;
+
+} // SetError
 
 //-----------------------------------------------------------------------------
 KUnTarCompressed::KUnTarCompressed(COMPRESSION Compression,

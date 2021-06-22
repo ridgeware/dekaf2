@@ -473,6 +473,7 @@ set (BITS_HEADERS
 	bits/kprops-std-map.h
 	bits/kstring_view.h
 	bits/kstringviewz.h
+	bits/ktarheader.h
 	bits/ktemplate.h
 	bits/kunique_deleter.h
 	bits/kurldualencode.h

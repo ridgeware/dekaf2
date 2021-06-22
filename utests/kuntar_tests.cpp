@@ -11,19 +11,18 @@
 
 using namespace dekaf2;
 
+namespace {
+KTempDir TempDir;
+}
+
 TEST_CASE("KUnTar")
 {
-	KString sBaseDir;
-	sBaseDir = kGetTemp();
-	sBaseDir += kDirSep;
-	sBaseDir += "test_tar_23498";
+	KString sBaseDir = TempDir.Name();
 	sBaseDir += kDirSep;
 
 	SECTION("Create archive")
 	{
 		KString sTarDir = sBaseDir + "myfolder";
-
-		kRemoveDir(sBaseDir);
 
 		CHECK ( kCreateDir(sTarDir) == true );
 
@@ -50,13 +49,13 @@ TEST_CASE("KUnTar")
 			KInShell Shell(kFormat("cd {} && tar -r -f {}test1.tar myfolder{}file2.txt", sBaseDir, sBaseDir, kDirSep));
 		}
 		{
-			KOutFile File(sTarDir + "file3.txt");
+			KOutFile File(sTarDir + "filé3.txt");
 			File.WriteLine("this is yet another line 1");
 			File.WriteLine("this is yet another line 2");
 		}
-		CHECK ( kFileExists(sTarDir + "file3.txt") );
+		CHECK ( kFileExists(sTarDir + "filé3.txt") );
 		{
-			KInShell Shell(kFormat("cd {} && tar -r -f {}test1.tar myfolder{}file3.txt", sBaseDir, sBaseDir, kDirSep));
+			KInShell Shell(kFormat("cd {} && tar -r -f {}test1.tar myfolder{}filé3.txt", sBaseDir, sBaseDir, kDirSep));
 		}
 		{
 			KInShell Shell(kFormat("cd {} && cp test1.tar test2.tar && cp test1.tar test3.tar", sBaseDir));
@@ -83,6 +82,7 @@ TEST_CASE("KUnTar")
 		KString sContent;
 		CHECK ( untar.Read(sContent) );
 		CHECK ( sContent == "this is line 1\nthis is line 2\n" );
+		CHECK ( untar.Error() == "" );
 
 		CHECK ( untar.Next() );
 		CHECK ( untar.Filename() == "myfolder/file2.txt" );
@@ -90,15 +90,18 @@ TEST_CASE("KUnTar")
 		CHECK ( untar.Type() == tar::File );
 		CHECK ( untar.Read(sContent) );
 		CHECK ( sContent == "this is another line 1\nthis is another line 2\n" );
+		CHECK ( untar.Error() == "" );
 
 		CHECK ( untar.Next() );
-		CHECK ( untar.Filename() == "myfolder/file3.txt" );
+		CHECK ( untar.Filename() == "myfolder/filé3.txt" );
 		CHECK ( untar.Filesize() == 54 );
 		CHECK ( untar.Type() == tar::File );
 		CHECK ( untar.Read(sContent) );
 		CHECK ( sContent == "this is yet another line 1\nthis is yet another line 2\n" );
+		CHECK ( untar.Error() == "" );
 
 		CHECK ( untar.Next() == false );
+		CHECK ( untar.Error() == "" );
 	}
 
 	SECTION("gzip compressed")
@@ -111,6 +114,7 @@ TEST_CASE("KUnTar")
 		KString sContent;
 		CHECK ( untar.Read(sContent) );
 		CHECK ( sContent == "this is line 1\nthis is line 2\n" );
+		CHECK ( untar.Error() == "" );
 
 		CHECK ( untar.Next() );
 		CHECK ( untar.Filename() == "myfolder/file2.txt" );
@@ -118,15 +122,18 @@ TEST_CASE("KUnTar")
 		CHECK ( untar.Type() == tar::File );
 		CHECK ( untar.Read(sContent) );
 		CHECK ( sContent == "this is another line 1\nthis is another line 2\n" );
+		CHECK ( untar.Error() == "" );
 
 		CHECK ( untar.Next() );
-		CHECK ( untar.Filename() == "myfolder/file3.txt" );
+		CHECK ( untar.Filename() == "myfolder/filé3.txt" );
 		CHECK ( untar.Filesize() == 54 );
 		CHECK ( untar.Type() == tar::File );
 		CHECK ( untar.Read(sContent) );
 		CHECK ( sContent == "this is yet another line 1\nthis is yet another line 2\n" );
+		CHECK ( untar.Error() == "" );
 
 		CHECK ( untar.Next() == false );
+		CHECK ( untar.Error() == "" );
 	}
 
 	SECTION("bzip2 compressed")
@@ -139,6 +146,7 @@ TEST_CASE("KUnTar")
 		KString sContent;
 		CHECK ( untar.Read(sContent) );
 		CHECK ( sContent == "this is line 1\nthis is line 2\n" );
+		CHECK ( untar.Error() == "" );
 
 		CHECK ( untar.Next() );
 		CHECK ( untar.Filename() == "myfolder/file2.txt" );
@@ -146,15 +154,18 @@ TEST_CASE("KUnTar")
 		CHECK ( untar.Type() == tar::File );
 		CHECK ( untar.Read(sContent) );
 		CHECK ( sContent == "this is another line 1\nthis is another line 2\n" );
+		CHECK ( untar.Error() == "" );
 
 		CHECK ( untar.Next() );
-		CHECK ( untar.Filename() == "myfolder/file3.txt" );
+		CHECK ( untar.Filename() == "myfolder/filé3.txt" );
 		CHECK ( untar.Filesize() == 54 );
 		CHECK ( untar.Type() == tar::File );
 		CHECK ( untar.Read(sContent) );
 		CHECK ( sContent == "this is yet another line 1\nthis is yet another line 2\n" );
+		CHECK ( untar.Error() == "" );
 
 		CHECK ( untar.Next() == false );
+		CHECK ( untar.Error() == "" );
 	}
 
 	SECTION("bzip2 compressed, all types")
@@ -164,6 +175,7 @@ TEST_CASE("KUnTar")
 		CHECK ( untar.Filename() == "myfolder/" );
 		CHECK ( untar.Filesize() == 0 );
 		CHECK ( untar.Type() == tar::Directory );
+		CHECK ( untar.Error() == "" );
 
 		CHECK ( untar.Next() );
 		CHECK ( untar.Filename() == "myfolder/file1.txt" );
@@ -172,6 +184,7 @@ TEST_CASE("KUnTar")
 		KString sContent;
 		CHECK ( untar.Read(sContent) );
 		CHECK ( sContent == "this is line 1\nthis is line 2\n" );
+		CHECK ( untar.Error() == "" );
 
 		CHECK ( untar.Next() );
 		CHECK ( untar.Filename() == "myfolder/file2.txt" );
@@ -179,28 +192,96 @@ TEST_CASE("KUnTar")
 		CHECK ( untar.Type() == tar::File );
 		CHECK ( untar.Read(sContent) );
 		CHECK ( sContent == "this is another line 1\nthis is another line 2\n" );
+		CHECK ( untar.Error() == "" );
 
 		CHECK ( untar.Next() );
-		CHECK ( untar.Filename() == "myfolder/file3.txt" );
+		CHECK ( untar.Filename() == "myfolder/filé3.txt" );
 		CHECK ( untar.Filesize() == 54 );
 		CHECK ( untar.Type() == tar::File );
 		CHECK ( untar.Read(sContent) );
 		CHECK ( sContent == "this is yet another line 1\nthis is yet another line 2\n" );
+		CHECK ( untar.Error() == "" );
 
 		CHECK ( untar.Next() == false );
+		CHECK ( untar.Error() == "" );
 	}
 
-}
+	SECTION("uncompressed, iterator access")
+	{
+		std::size_t iCount = 0;
+		KUnTar untar(sBaseDir + "test1.tar");
 
-TEST_CASE("KUnTar cleanup")
-{
-	KString sBaseDir;
-	sBaseDir = kGetTemp();
-	sBaseDir += kDirSep;
-	sBaseDir += "test_tar_23498";
-	sBaseDir += kDirSep;
+		for (auto& File : untar)
+		{
+			KString sContent;
 
-	CHECK ( kRemoveDir(sBaseDir) );
+			switch (++iCount)
+			{
+				case 1:
+					CHECK ( File.Filename() == "myfolder/file1.txt" );
+					CHECK ( File.Filesize() == 30 );
+					CHECK ( File.Type()     == tar::File );
+					CHECK ( File.Read(sContent) );
+					CHECK ( sContent == "this is line 1\nthis is line 2\n" );
+					break;
+				case 2:
+					CHECK ( File.Filename() == "myfolder/file2.txt" );
+					CHECK ( File.Filesize() == 46 );
+					CHECK ( File.Type() == tar::File );
+					CHECK ( File.Read(sContent) );
+					CHECK ( sContent == "this is another line 1\nthis is another line 2\n" );
+					break;
+				case 3:
+					CHECK ( File.Filename() == "myfolder/filé3.txt" );
+					CHECK ( File.Filesize() == 54 );
+					CHECK ( File.Type() == tar::File );
+					CHECK ( File.Read(sContent) );
+					CHECK ( sContent == "this is yet another line 1\nthis is yet another line 2\n" );
+					break;
+			}
+
+			CHECK ( File.Error() == "" );
+		}
+	}
+
+	SECTION("bzip2 compressed, iterator access")
+	{
+		std::size_t iCount = 0;
+		KUnTarBZip2 untar(sBaseDir + "test3.tar.bz2");
+
+		for (auto& File : untar)
+		{
+			KString sContent;
+
+			switch (++iCount)
+			{
+				case 1:
+					CHECK ( File.Filename() == "myfolder/file1.txt" );
+					CHECK ( File.Filesize() == 30 );
+					CHECK ( File.Type()     == tar::File );
+					CHECK ( File.Read(sContent) );
+					CHECK ( sContent == "this is line 1\nthis is line 2\n" );
+					break;
+				case 2:
+					CHECK ( File.Filename() == "myfolder/file2.txt" );
+					CHECK ( File.Filesize() == 46 );
+					CHECK ( File.Type() == tar::File );
+					CHECK ( File.Read(sContent) );
+					CHECK ( sContent == "this is another line 1\nthis is another line 2\n" );
+					break;
+				case 3:
+					CHECK ( File.Filename() == "myfolder/filé3.txt" );
+					CHECK ( File.Filesize() == 54 );
+					CHECK ( File.Type() == tar::File );
+					CHECK ( File.Read(sContent) );
+					CHECK ( sContent == "this is yet another line 1\nthis is yet another line 2\n" );
+					break;
+			}
+
+			CHECK ( File.Error() == "" );
+		}
+	}
+
 }
 
 #endif

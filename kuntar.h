@@ -77,110 +77,9 @@
 #include "kreader.h"
 #include "kwriter.h"
 
+#include "bits/ktarheader.h"
+
 namespace dekaf2 {
-
-namespace tar {
-
-enum EntryType
-{
-	Unknown   = 0,
-	File      = 1,
-	Directory = 2,
-	Link      = 4,
-	Symlink   = 8,
-	Fifo      = 16,
-	Longname1 = 32,
-	Longname2 = 64,
-	All       = 127
-};
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Representation of the header structure of a tar archive
-class Header
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	enum { HeaderLen = 512 };
-
-    Header() { clear(); }
-
-    void clear();
-    void reset();
-    char* operator*() { return raw.header; }
-    bool Analyze();
-    bool IsEnd() const { return m_is_end; }
-    EntryType Type() const { return m_entrytype; }
-    bool IsFile() const { return Type() == File; }
-    bool IsDirectory() const { return Type() == Directory; }
-    const KString& Filename() const { return m_filename; }
-    const KString& Linkname() const { return m_linkname; }
-    size_t Filesize() const { return m_file_size; }
-
-//----------
-private:
-//----------
-
-	/// the header structure
-    union {
-        struct {
-            char header[HeaderLen];
-        } raw;
-        struct {
-            char file_name[100];
-            char mode[8];
-            struct {
-                char user[8];
-                char group[8];
-            } owner_ids;
-
-            char file_bytes_octal[11];
-            char file_bytes_terminator;
-            char modification_time_octal[11];
-            char modification_time_terminator;
-
-            char checksum[8];
-
-            union {
-                struct {
-                    char link_indicator;
-                    char linked_file_name[100];
-                } legacy;
-                struct {
-                    char type_flag;
-                    char linked_file_name[100];
-                    char indicator[6];
-                    char version[2];
-                    struct {
-                        char user[32];
-                        char group[32];
-                    } owner_names;
-                    struct {
-                        char major[8];
-                        char minor[8];
-                    } device;
-                    char filename_prefix[155];
-                } ustar;
-            } extension;
-        } header;
-    };
-
-    uint64_t m_file_size;
-    uint64_t m_modification_time;
-    KString m_filename;
-    KString m_linkname;
-    EntryType m_entrytype;
-	bool m_is_end;
-	bool m_is_ustar;
-    bool m_keep_members_once;
-
-}; // Header
-
-} // end of namespace tar
-
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Tar unarchiver for uncompressed archives
@@ -191,6 +90,52 @@ class KUnTar
 //----------
 public:
 //----------
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class iterator
+	{
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+	//------
+	public:
+	//------
+
+		using iterator_category = std::forward_iterator_tag;
+		using value_type        = KUnTar;
+		using pointer           = value_type*;
+		using reference         = value_type&;
+
+		iterator(KUnTar* UnTar = nullptr) noexcept;
+
+		reference operator*() const;
+
+		pointer operator->() const
+		{
+			return & operator*();
+		}
+
+		// post increment
+		iterator& operator++() noexcept;
+
+		bool operator==(const iterator& other) const noexcept
+		{
+			return m_UnTar == other.m_UnTar;
+		}
+
+		bool operator!=(const iterator& other) const noexcept
+		{
+			return !operator==(other);
+		}
+
+	//------
+	private:
+	//------
+
+		KUnTar* m_UnTar { nullptr };
+
+	}; // iterator
+
+	using const_iterator = iterator;
 
 	/// Construct around an open stream
 	KUnTar(KInStream& Stream,
@@ -210,17 +155,77 @@ public:
     /// Advance to next entry in an archive, returns false at error or end of archive
 	bool Next();
 
-    /// Get type of the current file
-	tar::EntryType Type() const { return m_header.Type(); }
-
     /// Get name of the current file (when the type is File, Link or Symlink)
-    const KString& Filename() const { return m_header.Filename(); }
+    const KString& Filename() const
+	{
+		return m_Header.m_sFilename;
+	}
 
 	/// Get link name of the current file (when the type is Link or Symlink)
-    const KString& Linkname() const { return m_header.Linkname(); }
+    const KString& Linkname() const
+	{
+		return m_Header.m_sLinkname;
+	}
 
 	/// Get size in bytes of the current file (when the type is File)
-	uint64_t Filesize() const { return m_header.Filesize(); }
+	uint64_t Filesize() const
+	{
+		return m_Header.m_iFilesize;
+	}
+
+	/// Returns the type of the current tar entry
+	tar::EntryType Type() const
+	{
+		return m_Header.m_EntryType;
+	}
+
+	/// Returns true if current tar entry type is File
+	bool IsFile() const
+	{
+		return Type() == tar::File;
+	}
+
+	/// Returns true if current tar entry type is Directory
+	bool IsDirectory() const
+	{
+		return Type() == tar::Directory;
+	}
+
+	/// Returns the owner name of the tar entry
+	const KString& User() const
+	{
+		return m_Header.m_sUser;
+	}
+
+	/// Returns the group name of the tar entry
+	const KString& Group() const
+	{
+		return m_Header.m_sGroup;
+	}
+
+	/// Returns the owner ID of the tar entry
+	uint32_t UserID() const
+	{
+		return m_Header.m_iUserId;
+	}
+
+	/// Returns the group ID of the tar entry
+	uint32_t GroupID() const
+	{
+		return m_Header.m_iGroupId;
+	}
+
+	/// Returns the file mode of the tar entry
+	uint32_t Mode() const
+	{
+		return m_Header.m_iMode;
+	}
+
+	/// Returns the modification time of the tar entry
+	time_t ModificationTime() const
+	{
+		return m_Header.m_tModificationTime;
+	}
 
 	/// Read content of the current file into a KOutStream (when the type is File)
 	bool Read(KOutStream& OutStream);
@@ -228,22 +233,99 @@ public:
 	/// Read content of the current file into a KString (when the type is File)
 	bool Read(KString& sBuffer);
 
+	/// Returns error description on failure
+	const KString& Error() const
+	{
+		return m_Error;
+	}
+
+	iterator begin() noexcept
+	{
+		return iterator(this);
+	}
+
+	const_iterator begin() const noexcept
+	{
+		return const_iterator(const_cast<KUnTar*>(this));
+	}
+
+	const_iterator cbegin() const noexcept
+	{
+		return const_iterator(const_cast<KUnTar*>(this));
+	}
+
+	iterator end() noexcept
+	{
+		return iterator();
+	}
+
+	const_iterator end() const noexcept
+	{
+		return const_iterator();
+	}
+
+	const_iterator cend() const noexcept
+	{
+		return const_iterator();
+	}
+
 //----------
 private:
 //----------
 
 	size_t CalcPadding();
-	bool ReadPadding();
-	bool Skip(size_t iSize);
-	bool SkipCurrentFile();
-	bool Read(void* buf, size_t len);
+	bool   ReadPadding();
+	bool   Skip(size_t iSize);
+	bool   SkipCurrentFile();
+	bool   Read(void* buf, size_t len);
+	bool   SetError(KString sError);
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class Decoded
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		void     clear();
+		void     Reset();
+		uint64_t FromNumbers(const char* pStart, uint16_t iSize);
+		bool     Decode(const tar::TarHeader& TarHeader);
+		bool     IsEnd() const
+		{
+			return m_bIsEnd;
+		}
+
+		KString   m_sFilename;
+		KString   m_sLinkname;
+		KString   m_sUser;
+		KString   m_sGroup;
+		uint32_t  m_iMode;
+		uint32_t  m_iUserId;
+		uint32_t  m_iGroupId;
+		uint64_t  m_iFilesize;
+		time_t    m_tModificationTime;
+		tar::EntryType m_EntryType    { tar::Unknown };
+
+	//----------
+	private:
+	//----------
+
+		bool      m_bIsEnd            { false };
+		bool      m_bIsUstar          { false };
+		bool      m_bKeepMembersOnce  { false };
+
+	}; // Decoded
+
+	Decoded                  m_Header;
+	KString                  m_Error;
 	std::unique_ptr<KInFile> m_File;
-	KInStream& m_Stream;
-	int m_AcceptedTypes;
-	bool m_bSkipAppleResourceForks;
-	mutable bool m_bIsConsumed { true };
-	tar::Header m_header;
+	KInStream&               m_Stream;
+	int                      m_AcceptedTypes;
+	bool                     m_bSkipAppleResourceForks;
+	mutable bool             m_bIsConsumed { true };
 
 }; // KUnTar
 
@@ -293,8 +375,8 @@ private:
 	void SetupFilter(COMPRESSION Compression, KInStream& InStream);
 
 	boost::iostreams::filtering_istream m_Filter;
-	KInStream m_FilteredInStream { m_Filter };
-	std::unique_ptr<KInFile> m_File;
+	KInStream                           m_FilteredInStream { m_Filter };
+	std::unique_ptr<KInFile>            m_File;
 
 }; // KUnTarCompressed
 

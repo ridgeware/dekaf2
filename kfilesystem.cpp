@@ -536,6 +536,82 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 } // kCreateDir
 
 //-----------------------------------------------------------------------------
+bool kCreateSymlink(KStringViewZ sOrigin, KStringViewZ sSymlink)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+
+	std::error_code ec;
+
+#ifdef DEKAF2_IS_UNIX
+	fs::create_symlink(kToFilesystemPath(sOrigin), kToFilesystemPath(sSymlink), ec);
+#else
+	// find out if the origin is a directory, and use a special API call if it is
+	if (kDirExists(sOrigin))
+	{
+		fs::create_directory_symlink(kToFilesystemPath(sOrigin), kToFilesystemPath(sSymlink), ec);
+	}
+	else
+	{
+		fs::create_symlink(kToFilesystemPath(sOrigin), kToFilesystemPath(sSymlink), ec);
+	}
+#endif
+
+	if (ec)
+	{
+		kDebug(2, ec.message());
+		return false;
+	}
+
+	return true;
+
+#else
+
+	if (::symlink(sOrigin.c_str(), sSymlink.c_str()))
+	{
+		kDebug (1, "failed: {} > {}: {}", sOrigin, sSymlink, strerror (errno));
+		return false;
+	}
+
+	return true;
+
+#endif
+
+} // kCreateSymlink
+
+//-----------------------------------------------------------------------------
+bool kCreateHardlink(KStringViewZ sOrigin, KStringViewZ sHardlink)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+
+	std::error_code ec;
+
+	fs::create_hard_link(kToFilesystemPath(sOrigin), kToFilesystemPath(sHardlink), ec);
+
+	if (ec)
+	{
+		kDebug(2, ec.message());
+		return false;
+	}
+
+	return true;
+
+#else
+
+	if (::link(sOrigin.c_str(), sHardlink.c_str()))
+	{
+		kDebug (1, "failed: {} > {}: {}", sOrigin, sHardlink, strerror (errno));
+		return false;
+	}
+
+	return true;
+
+#endif
+
+} // kCreateHardlink
+
+//-----------------------------------------------------------------------------
 bool kTouchFile(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_FILE */)
 //-----------------------------------------------------------------------------
 {

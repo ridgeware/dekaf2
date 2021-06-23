@@ -180,6 +180,20 @@ inline bool kMakeDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR)
 }
 
 //-----------------------------------------------------------------------------
+/// Create a symbolic link
+/// @param sOrigin the existing file
+/// @param sSymlink the symbolic link to create (may cross file system boundaries)
+bool kCreateSymlink(KStringViewZ sOrigin, KStringViewZ sSymlink);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Create a hard link
+/// @param sOrigin the existing file
+/// @param sHardlink the hard link to create (may not cross file system boundaries)
+bool kCreateHardlink(KStringViewZ sOrigin, KStringViewZ sHardlink);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Create a file if it does not exist, including the directory component.
 /// If the file exists, advance its last mod timestamp.
 bool kTouchFile(KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_FILE);

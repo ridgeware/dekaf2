@@ -79,7 +79,7 @@ enum EntryType
 	Unknown   =   0,
 	File      =   1,
 	Directory =   2,
-	Link      =   4,
+	Hardlink  =   4,
 	Symlink   =   8,
 	Fifo      =  16,
 	Longname1 =  32,

@@ -76,6 +76,7 @@
 #include "kstring.h"
 #include "kreader.h"
 #include "kwriter.h"
+#include "kfilesystem.h"
 
 #include "bits/ktarheader.h"
 
@@ -139,13 +140,20 @@ public:
 
 	/// Construct around an open stream
 	KUnTar(KInStream& Stream,
-		   int AcceptedTypes = tar::File,
+		   int AcceptedTypes = tar::All,
 		   bool bSkipAppleResourceForks = false);
 
 	/// Construct from an archive file name
 	KUnTar(KStringView sArchiveFilename,
-		   int AcceptedTypes = tar::File,
+		   int AcceptedTypes = tar::All,
 		   bool bSkipAppleResourceForks = false);
+
+	/// reads all files and directories in an archive
+	/// @param sTargetDirectory directory into which the archive will be expanded.
+	/// If it does not exist it will be created.
+	/// @param bWithSubdirectories create subdirectories on extraction, or write
+	/// all files into a flat hierarchy. Default true.
+	bool ReadAll(KStringViewZ sTargetDirectory, bool bWithSubdirectories = true);
 
     /// Simple interface: call for subsequent files, with sBuffer getting filled
 	/// with the file's data. Returns false if end of archive. Additional properties
@@ -161,10 +169,34 @@ public:
 		return m_Header.m_sFilename;
 	}
 
+	/// Return a sanitized file name (no path, no escaping, no special characters)
+	KString SafeName() const
+	{
+		return kMakeSafeFilename(kBasename(Filename()), false);
+	}
+
+	/// Return a sanitized path name (no escaping, no special characters)
+	KString SafePath() const
+	{
+		return kMakeSafePathname(Filename(), false);
+	}
+
 	/// Get link name of the current file (when the type is Link or Symlink)
     const KString& Linkname() const
 	{
 		return m_Header.m_sLinkname;
+	}
+
+	/// Return a sanitized file name (no path, no escaping, no special characters)
+	KString SafeLinkName() const
+	{
+		return kMakeSafeFilename(kBasename(Linkname()), false);
+	}
+
+	/// Return a sanitized path name (no escaping, no special characters)
+	KString SafeLinkPath() const
+	{
+		return kMakeSafePathname(Linkname(), false);
 	}
 
 	/// Get size in bytes of the current file (when the type is File)
@@ -189,6 +221,18 @@ public:
 	bool IsDirectory() const
 	{
 		return Type() == tar::Directory;
+	}
+
+	/// Returns true if current tar entry type is a hard link
+	bool IsHardlink() const
+	{
+		return Type() == tar::Hardlink;
+	}
+
+	/// Returns true if current tar entry type is a symbolic link
+	bool IsSymlink() const
+	{
+		return Type() == tar::Symlink;
 	}
 
 	/// Returns the owner name of the tar entry
@@ -233,6 +277,9 @@ public:
 	/// Read content of the current file into a KString (when the type is File)
 	bool Read(KString& sBuffer);
 
+	/// Read content of the current file into a file sFilename
+	bool ReadFile(KStringViewZ sFilename);
+
 	/// Returns error description on failure
 	const KString& Error() const
 	{
@@ -273,12 +320,13 @@ public:
 private:
 //----------
 
-	size_t CalcPadding();
-	bool   ReadPadding();
-	bool   Skip(size_t iSize);
-	bool   SkipCurrentFile();
-	bool   Read(void* buf, size_t len);
-	bool   SetError(KString sError);
+	size_t  CalcPadding();
+	bool    ReadPadding();
+	bool    Skip(size_t iSize);
+	bool    SkipCurrentFile();
+	bool    Read(void* buf, size_t len);
+	bool    SetError(KString sError);
+	KString CreateTargetDirectory(KStringViewZ sBaseDir, KStringViewZ sEntry, bool bWithSubdirectories);
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class Decoded
@@ -351,19 +399,19 @@ public:
 	/// Construct around an open stream. Compression type options are NONE, GZIP, BZIP2.
 	KUnTarCompressed(COMPRESSION Compression,
 					 KInStream& InStream,
-					 int AcceptedTypes = tar::File,
+					 int AcceptedTypes = tar::All,
 					 bool bSkipAppleResourceForks = false);
 
 	/// Construct from an archive file name. Compression type options are NONE, GZIP, BZIP2,
 	/// AUTODETECT. If AUTODETECT, compression will be set from the file name suffix.
 	KUnTarCompressed(COMPRESSION Compression,
 					 KStringView sArchiveFilename,
-					 int AcceptedTypes = tar::File,
+					 int AcceptedTypes = tar::All,
 					 bool bSkipAppleResourceForks = false);
 
 	/// Construct from an archive file name. Compression will be set from the file name suffix.
 	KUnTarCompressed(KStringView sArchiveFilename,
-					 int AcceptedTypes = tar::File,
+					 int AcceptedTypes = tar::All,
 					 bool bSkipAppleResourceForks = false)
 	: KUnTarCompressed(AUTODETECT, sArchiveFilename, AcceptedTypes, bSkipAppleResourceForks)
 	{}
@@ -393,14 +441,14 @@ public:
 
 	/// Construct around an open stream
 	KUnTarGZip(KInStream& InStream,
-			   int AcceptedTypes = tar::File,
+			   int AcceptedTypes = tar::All,
 			   bool bSkipAppleResourceForks = false)
 	: KUnTarCompressed(GZIP, InStream, AcceptedTypes, bSkipAppleResourceForks)
 	{}
 
 	/// Construct from an archive file name
 	KUnTarGZip(KStringView sArchiveFilename,
-			   int AcceptedTypes = tar::File,
+			   int AcceptedTypes = tar::All,
 			   bool bSkipAppleResourceForks = false)
 	: KUnTarCompressed(GZIP, sArchiveFilename, AcceptedTypes, bSkipAppleResourceForks)
 	{}
@@ -420,14 +468,14 @@ public:
 
 	/// Construct around an open stream
 	KUnTarBZip2(KInStream& InStream,
-			   int AcceptedTypes = tar::File,
+			   int AcceptedTypes = tar::All,
 			   bool bSkipAppleResourceForks = false)
 	: KUnTarCompressed(BZIP2, InStream, AcceptedTypes, bSkipAppleResourceForks)
 	{}
 
 	/// Construct from an archive file name
 	KUnTarBZip2(KStringView sArchiveFilename,
-			   int AcceptedTypes = tar::File,
+			   int AcceptedTypes = tar::All,
 			   bool bSkipAppleResourceForks = false)
 	: KUnTarCompressed(BZIP2, sArchiveFilename, AcceptedTypes, bSkipAppleResourceForks)
 	{}

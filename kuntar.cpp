@@ -347,7 +347,7 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& TarHeader)
 
         case '1':
             // link
-            m_EntryType = tar::Link;
+            m_EntryType = tar::Hardlink;
             m_sLinkname.assign(TarHeader.extension.ustar.linked_file_name,
 							  ::strnlen(TarHeader.file_name, 100));
             break;
@@ -424,7 +424,7 @@ bool KUnTar::Read(void* buf, size_t len)
 size_t KUnTar::CalcPadding()
 //-----------------------------------------------------------------------------
 {
-	if (Type() == tar::File)
+	if (Filesize() > 0)
 	{
 		// check if we have to skip some padding bytes (tar files have a block size of 512)
 		return (tar::HeaderLen - (Filesize() % tar::HeaderLen)) % tar::HeaderLen;
@@ -463,7 +463,7 @@ bool KUnTar::Next()
 
     do
 	{
-		if (!m_bIsConsumed && (Type() == tar::File))
+		if (!m_bIsConsumed && (Filesize() > 0))
 		{
 			if (!SkipCurrentFile())
 			{
@@ -491,7 +491,7 @@ bool KUnTar::Next()
 			return false;
 		}
 
-        if (Type() == tar::File)
+        if (Filesize() > 0)
 		{
 			m_bIsConsumed = false;
         }
@@ -601,6 +601,133 @@ bool KUnTar::Read(KString& sBuffer)
 	return true;
 
 } // Read
+
+//-----------------------------------------------------------------------------
+bool KUnTar::ReadFile(KStringViewZ sFilename)
+//-----------------------------------------------------------------------------
+{
+	KOutFile File(sFilename, std::ios_base::out & std::ios_base::trunc);
+
+	if (!File.is_open())
+	{
+		return SetError(kFormat("cannot create file {}", sFilename));
+	}
+
+	return Read(File);
+
+} // ReadFile
+
+//-----------------------------------------------------------------------------
+KString KUnTar::CreateTargetDirectory(KStringViewZ sBaseDir, KStringViewZ sEntry, bool bWithSubdirectories)
+//-----------------------------------------------------------------------------
+{
+	KString sName = sBaseDir;
+	sName += kDirSep;
+
+	if (bWithSubdirectories)
+	{
+		KString     sSafePath = kMakeSafePathname(sEntry, false);
+		KStringView sDirname  = kDirname(sSafePath);
+
+		if (sDirname != ".")
+		{
+			sName += sDirname;
+
+			if (!kCreateDir(sName))
+			{
+				SetError(kFormat("cannot create directory: {}", sName));
+				return KString{};
+			}
+
+			sName += kDirSep;
+		}
+		sName += kBasename(sSafePath);
+	}
+	else
+	{
+		sName += kMakeSafeFilename(kBasename(sEntry), false);
+	}
+
+	return sName;
+
+} // CreateTargetDirectory
+
+//-----------------------------------------------------------------------------
+bool KUnTar::ReadAll(KStringViewZ sTargetDirectory, bool bWithSubdirectories)
+//-----------------------------------------------------------------------------
+{
+	if (!kDirExists(sTargetDirectory))
+	{
+		if (!kCreateDir(sTargetDirectory))
+		{
+			return SetError(kFormat("cannot create directory: {}", sTargetDirectory));
+		}
+	}
+
+	for (auto& File : *this)
+	{
+		switch (File.Type())
+		{
+			case tar::Directory:
+			case tar::File:
+				{
+					auto sName = CreateTargetDirectory(sTargetDirectory, SafePath(), bWithSubdirectories);
+
+					if (sName.empty())
+					{
+						// error is already set
+						return false;
+					}
+
+					if (File.Type() == tar::File)
+					{
+						if (!ReadFile(sName))
+						{
+							// error is already set
+							return false;
+						}
+					}
+				}
+				break;
+
+			case tar::Hardlink:
+			case tar::Symlink:
+				{
+					auto sLink = CreateTargetDirectory(sTargetDirectory, SafePath(), bWithSubdirectories);
+
+					if (sLink.empty())
+					{
+						// error is already set
+						return false;
+					}
+
+					KString sOrigin = (bWithSubdirectories) ? File.SafeLinkPath() : File.SafeLinkName();
+
+					if (File.Type() == tar::Symlink)
+					{
+						if (!kCreateSymlink(sOrigin, sLink))
+						{
+							return SetError(kFormat("cannot create symlink {} > {}", sOrigin, sLink));
+						}
+					}
+					else
+					{
+						if (!kCreateHardlink(sOrigin, sLink))
+						{
+							return SetError(kFormat("cannot create hardlink {} > {}", sOrigin, sLink));
+						}
+					}
+				}
+				break;
+
+			default:
+				break;
+		}
+	}
+
+	return true;
+
+} // ReadAll
 
 //-----------------------------------------------------------------------------
 bool KUnTar::File(KString& sName, KString& sBuffer)

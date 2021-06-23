@@ -530,7 +530,7 @@ bool KZip::Read(const Directory& Directory, KStringViewZ sTargetDirectory, bool 
 	{
 		if (!kCreateDir(sTargetDirectory))
 		{
-			SetError(kFormat("cannot create directory: {}", sTargetDirectory));
+			return SetError(kFormat("cannot create directory: {}", sTargetDirectory));
 		}
 	}
 

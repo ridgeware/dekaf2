@@ -75,6 +75,10 @@ BuildSetup ()
 				;;
 		esac
 
+		if [[ "$BINDIR" == "aarmv2" ]]; then
+			InstallSystemPackages gcc10 gcc10-c++
+		fi
+
 		if [ "${DISTRIB}" == "centos" ] || [ "${DISTRIB}" == "rhel" ]
 		then
  			# disable /bin/git replacement for now

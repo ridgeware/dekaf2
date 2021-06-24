@@ -82,15 +82,15 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Constructor which takes and executes command immediately
-	KOutShell(KString sCommand)
+	KOutShell(KString sCommand, KStringViewZ sShell = "/bin/sh")
 	//-----------------------------------------------------------------------------
 	{
-		Open(std::move(sCommand));
+		Open(std::move(sCommand), sShell);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Executes given command via a shell pipe which input can be written to
-	bool Open(KString sCommand);
+	bool Open(KString sCommand, KStringViewZ sShell = "/bin/sh");
 	//-----------------------------------------------------------------------------
 
 }; // END KOutShell

@@ -48,10 +48,10 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-bool KPipe::Open(KString sCommand, bool bAsShellCommand)
+bool KPipe::Open(KString sCommand, KStringViewZ sShell)
 //-----------------------------------------------------------------------------
 {
-	if (!KBasePipe::Open(std::move(sCommand), bAsShellCommand, PipeRead | PipeWrite))
+	if (!KBasePipe::Open(std::move(sCommand), sShell, PipeRead | PipeWrite))
 	{
 		return false;
 	}

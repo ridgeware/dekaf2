@@ -14,7 +14,7 @@ TEST_CASE("KOutPipe")
 
 	SECTION("KOutPipe  write_pipe")
 	{
-		KOutPipe pipe("/bin/sh -c \"mkdir /tmp/koutpipetests\"");
+		KOutPipe pipe("mkdir /tmp/koutpipetests", "/bin/sh");
 		KString str("rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7\n\n");
 
 		CHECK(pipe.Open("/bin/sh -c \"cat > /tmp/koutpipetests/koutpipetest1.file\""));

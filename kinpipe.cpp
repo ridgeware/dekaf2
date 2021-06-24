@@ -47,15 +47,16 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-bool KInPipe::Open(KString sCommand, bool bAsShellCommand)
+bool KInPipe::Open(KString sCommand, KStringViewZ sShell)
 //-----------------------------------------------------------------------------
 {
-	if (!KBasePipe::Open(std::move(sCommand), bAsShellCommand, PipeRead))
+	if (!KBasePipe::Open(std::move(sCommand), sShell, PipeRead))
 	{
 		return false;
 	}
 
 	KFDReader::open(m_readPdes[0]);
+	
 	return KFDReader::good();
 
 } // Open

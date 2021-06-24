@@ -60,7 +60,7 @@ TEST_CASE("KInShell")
     {
         KInShell pipe;
 
-        CHECK(pipe.Open("sleep 1"));
+        CHECK(pipe.Open("sleep 1", "/bin/sh"));
 
         CHECK(pipe.is_open());
 

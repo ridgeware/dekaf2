@@ -48,24 +48,31 @@ namespace dekaf2
 #ifdef DEKAF2_IS_UNIX
 
 //-----------------------------------------------------------------------------
-bool KInShell::Open(KString sCommand)
+bool KInShell::Open(KString sCommand, KStringViewZ sShell)
 //-----------------------------------------------------------------------------
 {
-	return KInPipe::Open(std::move(sCommand), true);
+	return KInPipe::Open(std::move(sCommand), sShell);
 
 } // Open
 
 #else
 
 //-----------------------------------------------------------------------------
-bool KInShell::Open(KString sCommand)
+bool KInShell::Open(KString sCommand, KStringViewZ sShell)
 //-----------------------------------------------------------------------------
 {
+	if (!sShell.empty() && sShell != "/bin/sh")
+	{
+		kDebug(1, "shell '{}' will be ignored and '/bin/sh' be used", sShell);
+	}
+
 	if (!IntOpen(std::move(sCommand), false))
 	{
 		return false;
 	}
+	
 	KFPReader::open(m_pipe);
+	
 	return KFPReader::good();
 
 } // Open

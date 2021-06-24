@@ -66,8 +66,19 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Opens a pipe. If sShell is not empty will execute command in a sub shell.
+	/// @param sCommand the command to execute
+	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh")
+	KPipe(KString sCommand, KStringViewZ sShell = "")
+	//-----------------------------------------------------------------------------
+	{
+		Open(std::move(sCommand), sShell);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// legacy, deprecated!
 	/// Opens a pipe. If bAsShellCommand is true will execute command in a sub shell.
-	KPipe(KString sCommand, bool bAsShellCommand = false)
+	KPipe(KString sCommand, bool bAsShellCommand)
 	//-----------------------------------------------------------------------------
 	{
 		Open(std::move(sCommand), bAsShellCommand);
@@ -81,9 +92,20 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Opens a pipe. If bAsShellCommand is true will execute command in a sub shell.
-	bool Open(KString sCommand, bool bAsShellCommand = false);
+	/// Opens a pipe. If sShell is not empty will execute command in a sub shell.
+	/// @param sCommand the command to execute
+	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh")
+	bool Open(KString sCommand, KStringViewZ sShell = "");
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// legacy, deprecated!
+	/// Opens a pipe. If bAsShellCommand is true will execute command in a sub shell.
+	bool Open(KString sCommand, bool bAsShellCommand)
+	//-----------------------------------------------------------------------------
+	{
+		return Open(std::move(sCommand), KStringViewZ(bAsShellCommand ? "/bin/sh" : ""));
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Closes a pipe, waits for iWaitMilliseconds then kills child process, if -1

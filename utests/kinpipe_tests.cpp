@@ -19,14 +19,14 @@ TEST_CASE("KInPipe")
 {
 	SECTION("KInPipe normal Open and Close")
 	{
-		KInPipe pipe("/bin/sh -c \"mkdir /tmp/kinpipetests\"");
+		KInPipe pipe("mkdir /tmp/kinpipetests", "/bin/sh");
 		pipe.SetReaderTrim("");
 
 		CHECK(pipe.Open("/bin/sh -c \"echo 'some random datum' > /tmp/kinpipetests/kinpipetest.file\""));
 		pipe.Wait(1000);
 		CHECK_FALSE(pipe.IsRunning());
 		CHECK(0 == pipe.Close());
-		CHECK(pipe.Open("/bin/sh -c \"ls -al /tmp/kinpipetests/kinpipetest.file | grep kinpipetest | wc -l\""));
+		CHECK(pipe.Open("ls -al /tmp/kinpipetests/kinpipetest.file | grep kinpipetest | wc -l", "/bin/sh"));
 
 		KString sCurrentLine;
 

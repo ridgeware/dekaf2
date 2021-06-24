@@ -54,7 +54,7 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-bool KBasePipe::Open(KString sCommand, bool bAsShellCommand, int mode)
+bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, int mode)
 //-----------------------------------------------------------------------------
 {
 	Close(mode); // ensure a previous pipe is closed
@@ -102,15 +102,15 @@ bool KBasePipe::Open(KString sCommand, bool bAsShellCommand, int mode)
 
 	std::vector<const char*> argV;
 
-	if (bAsShellCommand)
+	if (sShell.empty())
 	{
-		argV.push_back("/bin/sh");
-		argV.push_back("-c");
-		argV.push_back(sCommand.c_str());
+		kSplitArgsInPlace(argV, sCommand);
 	}
 	else
 	{
-		kSplitArgsInPlace(argV, sCommand);
+		argV.push_back(sShell.c_str());
+		argV.push_back("-c");
+		argV.push_back(sCommand.c_str());
 	}
 
 	// terminate with nullptr

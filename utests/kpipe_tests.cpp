@@ -14,7 +14,7 @@ TEST_CASE("KPipe")
 
 	SECTION("KOutPipe  write_pipe and confirm by reading")
 	{
-		KPipe pipe("/bin/sh -c \"mkdir /tmp/kpipetests\"");
+		KPipe pipe("mkdir /tmp/kpipetests", "/bin/sh");
 		KString sCurrentLine;
 		KString str("rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7\n\n");
 		pipe.SetReaderTrim("");

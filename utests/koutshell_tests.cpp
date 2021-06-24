@@ -42,7 +42,7 @@ TEST_CASE("KOutShell")
 
 		KInShell readPipe;
 		readPipe.SetReaderTrim("");
-		CHECK(readPipe.Open("cat /tmp/KOutShelltest.file"));
+		CHECK(readPipe.Open("cat /tmp/KOutShelltest.file", "/bin/sh"));
 		KString output;
 		for (auto iter = readPipe.begin(); iter != readPipe.end(); ++iter)
 		{

@@ -240,11 +240,19 @@ GetOS ()
 
 		elif [[ ${fAmazon} -ne 0 ]]; then
 
-			local sMajorRevision=$(grep -Po '(?<=cpe:/o:amazon:linux:).+(?=:ga)' /etc/system-release-cpe)
+			local sRelease=$(cat /etc/system-release-cpe)
+			if [[ ${sRelease} == "cpe:2.3:o:amazon:amazon_linux:2" ]]; then
+				local sMajorRevision="2"
+				BINDIR="aarmv${sMajorRevision}"
+				DISTRIB="amazon"
+				BaseOS="aws"
+			else
+				local sMajorRevision=$(grep -Po '(?<=cpe:/o:amazon:linux:).+(?=:ga)' /etc/system-release-cpe)
+				BINDIR="aws64v${sMajorRevision}"
+				DISTRIB="amazon"
+				BaseOS="aws"
+			fi
 			[[ "${sMajorRevision}" != "" ]] || Die "could not determine major revision of Amazon AWS VM"
-			BINDIR="aws64v${sMajorRevision}"
-			DISTRIB="amazon"
-			BaseOS="aws"
 
 		fi
 

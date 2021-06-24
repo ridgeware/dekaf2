@@ -76,7 +76,7 @@ BoostSetup ()
 
 	cd boost_${NAME} || BoostSetupAbort "cannot cd into source directory ${BUILDDIR}/boost_${NAME}"
 
-	./bootstrap.sh --prefix=${PREFIX} || BoostSetupAbort "cannot execute ./bootstrap.sh --prefix=${PREFIX}"
+	${SETMODERNCC} ./bootstrap.sh --prefix=${PREFIX} || BoostSetupAbort "cannot execute ./bootstrap.sh --prefix=${PREFIX}"
 
 	# boost sometimes fails on building some of the hundreds of modules and returns with an error.
 	# However, we postpone the error check into cmake, so we do not evaluate a partial failure here.

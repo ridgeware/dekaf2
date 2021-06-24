@@ -55,11 +55,11 @@ CMakeSetup ()
 
 	echo ":: you have cmake $sCMakeVersion ($CMakeMajor.$CMakeMinor) and need at least 3.13 ..."
 
-	# we want at least 3.13, but install 3.20 if not found
+	# we want at least 3.13
 	if [ $CMakeMajor -lt 3 ] || ( [ $CMakeMajor -eq 3 ] && [ $CMakeMinor -lt 13 ] ); then
 
-		sCmakeFolder="v3.20"         # e.g. https://cmake.org/files/v3.20/
-		sCMakeNewVersion="3.20.5"    # e.g. https://cmake.org/files/v3.20/cmake-3.20.5.tar.gz
+		sCmakeFolder="v3.13"         # e.g. https://cmake.org/files/v3.13/
+		sCMakeNewVersion="3.13.5"    # e.g. https://cmake.org/files/v3.13/cmake-3.13.5.tar.gz
 
  		test -z "$BINDIR" && Die "BINDIR label cannot be determined"
 
@@ -110,8 +110,7 @@ CMakeSetup ()
 			if [[ "$BINDIR" == "aarmv2" ]]; then
 				# we need a newer compiler on aws arm linux 2
 				InstallSystemPackages gcc10 gcc10-c++
-				local SETCC="CC=gcc10"
-				local SETCXX="CXX=gcc10-g++"
+				local SETCC="env CC=gcc10-gcc CXX=gcc10-g++"
 			fi
 
 			local CMakeURL="https://cmake.org/files/${sCmakeFolder}/cmake-${sCMakeNewVersion}.tar.gz"
@@ -139,11 +138,11 @@ CMakeSetup ()
 					|| CMakeSetupAbort "cannot patch cmake"
 
 			Info "building CMake ${sCMakeNewVersion}"
-			${SETCC} ${SETCXX} ./bootstrap \
+			${SETCC} ./bootstrap \
 				--no-system-libs \
 				--prefix=/usr \
 				--datadir=share/cmake \
-				--docdir=share/doc/cmake-3.21 \
+				--docdir=share/doc/cmake-3.13 \
 				--mandir=share/man \
 				--parallel=4 \
 			&& make -j4 \
@@ -178,7 +177,7 @@ CMakeSetup ()
 			CMakeNewMinor=$(echo $sCMakeNewInstVersion | cut -d . -f 2)
 
 			# expected 3.21
-			if [ $CMakeNewMajor -eq 3 ] && [ $CMakeNewMinor -eq 20 ]; then
+			if [ $CMakeNewMajor -eq 3 ] && [ $CMakeNewMinor -eq 13 ]; then
 				Info "successfully installed CMake ${sCMakeNewInstVersion}"
 			else
 				Die "CMake ${sCMakeNewVersion} failed to install - found version ${sCMakeNewInstVersion} instead"

@@ -71,7 +71,7 @@ Configure ()
 
 	# configure CMake
 
-	cmake -DCMAKE_BUILD_TYPE=${BuildType} "${ME_ONLYPATH}" || Die "Cannot configure CMake project"
+	${SETMODERNCC} cmake -DCMAKE_BUILD_TYPE=${BuildType} "${ME_ONLYPATH}" || Die "Cannot configure CMake project"
 
 	cd ..
 

@@ -55,11 +55,11 @@ CMakeSetup ()
 
 	echo ":: you have cmake $sCMakeVersion ($CMakeMajor.$CMakeMinor) and need at least 3.13 ..."
 
-	# we want at least 3.13, but install 3.21 if not found
+	# we want at least 3.13, but install 3.20 if not found
 	if [ $CMakeMajor -lt 3 ] || ( [ $CMakeMajor -eq 3 ] && [ $CMakeMinor -lt 13 ] ); then
 
-		sCmakeFolder="v3.21"         # e.g. https://cmake.org/files/v3.21/
-		sCMakeNewVersion="3.21.0"    # e.g. https://cmake.org/files/v3.21/cmake-3.21.0.tar.gz
+		sCmakeFolder="v3.20"         # e.g. https://cmake.org/files/v3.20/
+		sCMakeNewVersion="3.20.5"    # e.g. https://cmake.org/files/v3.20/cmake-3.20.5.tar.gz
 
  		test -z "$BINDIR" && Die "BINDIR label cannot be determined"
 
@@ -108,18 +108,19 @@ CMakeSetup ()
 			esac
 
 			if [[ "$BINDIR" == "aarmv2" ]]; then
-				// we need a newer compiler on aws arm linux 2
+				# we need a newer compiler on aws arm linux 2
 				InstallSystemPackages gcc10 gcc10-c++
 				local SETCC="CC=gcc10"
 				local SETCXX="CXX=gcc10-g++"
 			fi
 
-			Info "downloading CMake ${sCMakeNewVersion}"
+			local CMakeURL="https://cmake.org/files/${sCmakeFolder}/cmake-${sCMakeNewVersion}.tar.gz"
+			Info "downloading CMake ${sCMakeNewVersion} from ${CMakeURL}"
 			if [ "${BINDIR}" == "redhat64v6" ] || [ "${BINDIR}" == "redhat64" ] || [ "${BINDIR}" == "centos64v6" ]; then
-				wget -q --no-check-certificate https://cmake.org/files/${sCmakeFolder}/cmake-${sCMakeNewVersion}.tar.gz \
-					|| CMakeSetupAbort "cannot download cmake"
+				wget -q --no-check-certificate ${CMakeURL} \
+					|| CMakeSetupAbort "cannot download cmake (no-check-certificate)"
 			else
-				wget -q https://cmake.org/files/${sCmakeFolder}/cmake-${sCMakeNewVersion}.tar.gz \
+				wget -q ${CMakeURL} \
 					|| CMakeSetupAbort "cannot download cmake"
 			fi
 
@@ -177,7 +178,7 @@ CMakeSetup ()
 			CMakeNewMinor=$(echo $sCMakeNewInstVersion | cut -d . -f 2)
 
 			# expected 3.21
-			if [ $CMakeNewMajor -eq 3 ] && [ $CMakeNewMinor -eq 21 ]; then
+			if [ $CMakeNewMajor -eq 3 ] && [ $CMakeNewMinor -eq 20 ]; then
 				Info "successfully installed CMake ${sCMakeNewInstVersion}"
 			else
 				Die "CMake ${sCMakeNewVersion} failed to install - found version ${sCMakeNewInstVersion} instead"

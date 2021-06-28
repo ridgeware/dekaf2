@@ -379,7 +379,13 @@ if (NOT Boost_FOUND)
 		EXECUTE_PROCESS(
 			COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/boostinstall -ask
 		)
-		message(FATAL_ERROR "Please restart the build now")
+		message(STATUS "")
+		message(STATUS "Boost should now be installed.")
+		message(STATUS "Please remove the file ${CMAKE_CURRENT_BINARY_DIR}/CMakeCache.txt")
+		message(STATUS "or remove the full build folder ${CMAKE_CURRENT_BINARY_DIR}")
+		message(STATUS "and then restart the cmake build")
+		message(STATUS "")
+		message(FATAL_ERROR "")
 	endif()
 endif()
 

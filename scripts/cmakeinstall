@@ -108,9 +108,9 @@ CMakeSetup ()
 			esac
 
 			if [[ "$BINDIR" == "aarmv2" ]]; then
-				# we need a newer compiler on aws arm linux 2
-				InstallSystemPackages gcc10 gcc10-c++
-				local SETCC="env CC=gcc10-gcc CXX=gcc10-g++"
+				# we need clang on aws arm linux 2
+				InstallSystemPackages clang clang++
+				local SETCC="env CC=clang CXX=clang++"
 			fi
 
 			local CMakeURL="https://cmake.org/files/${sCmakeFolder}/cmake-${sCMakeNewVersion}.tar.gz"

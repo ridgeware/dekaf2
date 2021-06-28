@@ -79,10 +79,10 @@ BoostSetup ()
 	cd boost_${NAME} || BoostSetupAbort "cannot cd into source directory ${BUILDDIR}/boost_${NAME}"
 
 	if [[ "$BINDIR" == "aarmv2" ]]; then
-		# we need a newer compiler on aws arm linux 2 (and we need the old g++ as well for bootstrap)
-		InstallSystemPackages gcc-c++ gcc10 gcc10-c++
-		echo "using gcc : 10.2 : /usr/bin/gcc10-g++ ; " >> tools/build/src/user-config.jam
-		local SETCC_B2="--toolset=gcc-10.2"
+		# we need clang on aws arm linux 2 (and we need g++ as well for bootstrap)
+		InstallSystemPackages clang clang++ g++
+		echo "using clang : 11.1 : /usr/bin/clang++ ; " >> tools/build/src/user-config.jam
+		local SETCC_B2="--toolset=clang-11.1"
 	fi
 
 	./bootstrap.sh --prefix=${PREFIX} || BoostSetupAbort "cannot execute ${SETCC_BOOTSTRAP} ./bootstrap.sh --prefix=${PREFIX}"

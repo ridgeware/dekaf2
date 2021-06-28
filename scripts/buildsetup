@@ -77,7 +77,7 @@ BuildSetup ()
 
 		if [[ "$BINDIR" == "aarmv2" ]]; then
 #			InstallSystemPackages gcc10 gcc10-c++ g++
-			InstallSystemPackages clang clang++
+			InstallSystemPackages clang
 		fi
 
 		if [ "${DISTRIB}" == "centos" ] || [ "${DISTRIB}" == "rhel" ]

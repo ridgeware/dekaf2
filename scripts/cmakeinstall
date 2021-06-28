@@ -109,7 +109,7 @@ CMakeSetup ()
 
 			if [[ "$BINDIR" == "aarmv2" ]]; then
 				# we need clang on aws arm linux 2
-				InstallSystemPackages clang clang++
+				InstallSystemPackages clang
 				local SETCC="env CC=clang CXX=clang++"
 			fi
 

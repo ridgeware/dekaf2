@@ -80,7 +80,7 @@ BoostSetup ()
 
 	if [[ "$BINDIR" == "aarmv2" ]]; then
 		# we need clang on aws arm linux 2 (and we need g++ as well for bootstrap)
-		InstallSystemPackages clang clang++ g++
+		InstallSystemPackages clang g++
 		echo "using clang : 11.1 : /usr/bin/clang++ ; " >> tools/build/src/user-config.jam
 		local SETCC_B2="--toolset=clang-11.1"
 	fi

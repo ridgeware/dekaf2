@@ -149,7 +149,6 @@ setx=GetOS
 GetOS ()
 #==================
 {
-
 	# upon successful completion we will have the following global variables set:
 	#
 	# INSTALLER      : yum, apt-get, brew
@@ -166,12 +165,13 @@ GetOS ()
 	# SETMODERNCC    : either empty, or for some environments a env setup for newer compilers
 	#                  (like "env CC=gcc10-gcc CXX=gcc10-g++" )
 
+	SUDO=sudo; [[ ! -z ${CODEBUILD_BUILD_IMAGE} ]] && local SUDO=""
 	INSTALLER="yum"
-	INSTALL="sudo yum install -y"
-	UNINSTALL="sudo yum remove -y"
-	CHECKINSTALLED="sudo yum list installed"
-	STARTSERVICE="sudo systemctl start"
-	STOPSERVICE="sudo systemctl stop"
+	INSTALL="${SUDO} yum install -y"
+	UNINSTALL="${SUDO} yum remove -y"
+	CHECKINSTALLED="${SUDO} yum list installed"
+	STARTSERVICE="${SUDO} systemctl start"
+	STOPSERVICE="${SUDO} systemctl stop"
 	ARCH=$(uname -m)
 	OS=$(uname -s)
 	DEVPKG="-devel"
@@ -202,8 +202,8 @@ GetOS ()
 		if [[ -f /etc/debian_version ]]; then
 
 			INSTALLER="apt-get"
-			INSTALL="sudo ${INSTALLER} install -y"
-			UNINSTALL="sudo ${INSTALLER} remove -y"
+			INSTALL="${SUDO} ${INSTALLER} install -y"
+			UNINSTALL="${SUDO} ${INSTALLER} remove -y"
 			CHECKINSTALLED="dpkg -l"
 			DISTRIB="debian"
 			DEVPKG="-dev"

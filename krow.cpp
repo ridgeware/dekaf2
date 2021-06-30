@@ -121,32 +121,6 @@ bool KROW::NeedsEscape (KStringView sCol, KStringView sCharsToEscape)
 } // NeedsEscape
 
 //-----------------------------------------------------------------------------
-bool KROW::NeedsEscape (KStringView sCol, DBT iDBType)
-//-----------------------------------------------------------------------------
-{
-	switch (iDBType)
-	{
-		case DBT::SQLSERVER:
-		case DBT::SQLSERVER15:
-		case DBT::SYBASE:
-			return NeedsEscape (sCol, ESCAPE_MSSQL);
-		case DBT::MYSQL:
-		default:
-			return NeedsEscape (sCol, ESCAPE_MYSQL);
-	}
-
-} // NeedsEscape
-
-//-----------------------------------------------------------------------------
-bool KROW::NeedsEscape (KStringView sCol)
-//-----------------------------------------------------------------------------
-{
-	// use the most restrictive charsToEscape if we do not know the DBType
-	return NeedsEscape(sCol, ESCAPE_MYSQL);
-
-} // NeedsEscape
-
-//-----------------------------------------------------------------------------
 KString KROW::EscapeChars (KStringView sCol, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
 //-----------------------------------------------------------------------------
 {
@@ -169,6 +143,23 @@ KString KROW::EscapeChars (KStringView sCol, KStringView sCharsToEscape, KString
 	return sEscaped;
 
 } // EscapeChars
+
+//-----------------------------------------------------------------------------
+KStringView KROW::EscapedCharacters (DBT iDBType)
+//-----------------------------------------------------------------------------
+{
+	switch (iDBType)
+	{
+		case DBT::SQLSERVER:
+		case DBT::SQLSERVER15:
+		case DBT::SYBASE:
+			return ESCAPE_MSSQL;
+		case DBT::MYSQL:
+		default:
+			return ESCAPE_MYSQL;
+	}
+
+} // EscapedCharacters
 
 //-----------------------------------------------------------------------------
 KString KROW::EscapeChars (KStringView sCol, DBT iDBType)

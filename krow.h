@@ -372,9 +372,15 @@ public:
 	// - - - - - - - - - - - - - - - -
 	static KString FlagsToString (uint64_t iFlags);
 
+	/// returns the list of chars that are escaped for a given DBType, or per default for MySQL, as that
+	/// provides the superset of escaped characters
+	static KStringView EscapedCharacters (DBT iDBType = DBT::MYSQL);
+
 	static bool NeedsEscape (KStringView sCol, KStringView sCharsToEscape);
-	static bool NeedsEscape (KStringView sCol, DBT iDBType);
-	static bool NeedsEscape (KStringView sCol);
+	static bool NeedsEscape (KStringView sCol, DBT iDBType = DBT::MYSQL)
+	{
+		return NeedsEscape(sCol, EscapedCharacters(iDBType));
+	}
 
 	static KString EscapeChars (KStringView sCol, KStringView sCharsToEscape,
 								KString::value_type iEscapeChar = 0);

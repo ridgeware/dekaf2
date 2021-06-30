@@ -684,6 +684,12 @@ public:
 		return KROW::NeedsEscape(sCol, m_iDBType);
 	}
 
+	/// returns the list of chars that are escaped for the current DBType
+	KStringView EscapedCharacters() const
+	{
+		return KROW::EscapedCharacters(m_iDBType);
+	}
+
 	bool GetLock (KStringView sName, int16_t iTimeoutSeconds = -1);
 	bool ReleaseLock (KStringView sName);
 	bool IsLocked (KStringView sName);

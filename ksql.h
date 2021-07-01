@@ -332,10 +332,13 @@ public:
 
 	/// bulk copy a table (or portion) from another database to this one
 	/// notes:
-	///  * adjust iFlushRows up or down depending on memory concerns and row size
-	///  * if the count(*) is less than iPbarThreshold, no pbar will be shown
-	///  * use iPbarThreshold=-1 to turn off progress bar entirely and to eliminate the initial count(*) query
-	///  * after successful operation, GetNumRowsAffected() will be adjusted to the cumulative total
+	/// @param OtherDB the db to copy from
+	/// @param sTablename the table to copy from
+	/// @param sWhereClause an optional where clause
+	/// @param iFlushRows adjust iFlushRows up or down depending on memory concerns and row size
+	/// @param iPbarThreshold if the count(*) is less than this, no pbar will be shown;
+	/// use iPbarThreshold=-1 to turn off progress bar entirely and to eliminate the initial count(*) query
+	/// after successful operation, GetNumRowsAffected() will be adjusted to the cumulative total
 	bool   BulkCopy        (KSQL& OtherDB, KStringView sTablename, KStringView sWhereClause="", uint16_t iFlushRows=1024, int32_t iPbarThreshold=500);
 
 	bool   FormInsert     (KROW& Row, KString& sSQL, bool fIdentityInsert=false)
@@ -644,17 +647,17 @@ public:
 	/// General purpose helper method to create "order by X.column1 desc, Y.column2, ..."
 	/// Designed to support (among other things) ANT table sorting.
 	///
-	/// sCommaDelimedSort - The first argument is your UI's
+	/// @param sCommaDelimedSort The first argument is your UI's
 	///   query parameter (which ANT calls 'sort').  The value is a comma-delimed list of table
 	///   columns to sort the results by (which ANT or your UI framework builds as web users click on
 	///   UI elements to affect the sorting).
 	///
-	/// sOrderBy - The 2nd argument is the return value (SQL "order by" clause).  Note that you can
+	/// @param sOrderBy The 2nd argument is the return value (SQL "order by" clause).  Note that you can
 	///   either pass in an empty string or you can pass in an initial "order by" and allow this
 	///   method to ammend it.  The method returns sOrderBy untouched if sCommaDelimedSort is empty
 	///   or if there is otherwise nothing to sort by.
 	///
-	/// Config - The last argument is an key/value object of mappings from column
+	/// @param Config The last argument is an key/value object of mappings from column
 	///   names that the UI understands to physical database column expressions that are in your query.
 	///   e.g. Let's say you API has a column that the UI knows as "Status".  In the SQL query, the
 	///   status column is actually called "status_code" and is pulled from a table with the alias "C".

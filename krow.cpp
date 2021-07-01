@@ -126,6 +126,7 @@ KString KROW::EscapeChars (KStringView sCol, KStringView sCharsToEscape, KString
 {
 	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
 	KString sEscaped;
+	sEscaped.reserve(sCol.size());
 
 	for (KStringView::size_type iStart; (iStart = sCol.find_first_of(sCharsToEscape)) != KStringView::npos; )
 	{
@@ -267,14 +268,13 @@ bool KROW::SetValue (KStringView sColName, KStringView sValue)
 }
 
 //-----------------------------------------------------------------------------
-// TODO remove if possible, it does not set the KSQL column type properly
 bool KROW::SetValue (KStringView sColName, int64_t iValue)
 //-----------------------------------------------------------------------------
 {
 	auto it = KCOLS::find (sColName);
 	if (it == KCOLS::end())
 	{
-		return (KCOLS::Add (sColName, KCOL(KString::to_string(iValue))) != KCOLS::end());
+		return (KCOLS::Add (sColName, KCOL(KString::to_string(iValue), NUMERIC)) != KCOLS::end());
 	}
 	else
 	{

@@ -236,6 +236,8 @@ public:
 
 	using KCOLS::KCOLS;
 
+	/// Set the name of the table - could also be done through construction of KROW
+	/// @param sTablename the name of the table
 	void SetTablename (KStringView sTablename)
 	{
 		m_sTablename = sTablename;
@@ -254,24 +256,54 @@ public:
 		return AddCol(sKeyColName, Value, PKEY);
 	}
 
+	/// Create or set a column from a JSON value
+	/// @param sColName Name of the column
+	/// @param Value JSON value to serialize as the column value
+	/// @param iFlags special column or name flags, default none
+	/// @param iLen limit size of column string (after string escape), default 0 = unlimited
+	/// @return bool success of operation
 	bool AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags=NOFLAG, KCOL::Len iMaxLen=0);
 
+	/// Create or set a column from a boolean value
+	/// @param sColName Name of the column
+	/// @param Value boolean to serialize as the column value
+	/// @param iFlags special column or name flags, default BOOLEAN
+	/// @param iLen limit size of column string (after string escape), default 0 = unlimited
+	/// @return bool success of operation
 	bool AddCol (KStringView sColName, bool Value, KCOL::Flags iFlags=BOOLEAN, KCOL::Len iMaxLen=0)
 	{
-		return (KCOLS::Add (sColName, KCOL(kFormat("{}", Value), (iFlags | BOOLEAN), iMaxLen)) != KCOLS::end());
+		return (KCOLS::Add (sColName, KCOL(Value ? "true" : "false", (iFlags | BOOLEAN), iMaxLen)) != KCOLS::end());
 	}
 
+	/// Create or set a column from a const char* value
+	/// @param sColName Name of the column
+	/// @param Value const char* to serialize as the column value
+	/// @param iFlags special column or name flags, default none
+	/// @param iLen limit size of column string (after string escape), default 0 = unlimited
+	/// @return bool success of operation
 	bool AddCol (KStringView sColName, const char* Value, KCOL::Flags iFlags=NOFLAG, KCOL::Len iMaxLen=0)
 	{
 		return (KCOLS::Add (sColName, KCOL(Value, iFlags, iMaxLen)) != KCOLS::end());
 	}
 
+	/// Create or set a column from a string value
+	/// @param sColName Name of the column
+	/// @param Value string to serialize as the column value
+	/// @param iFlags special column or name flags, default none
+	/// @param iLen limit size of column string (after string escape), default 0 = unlimited
+	/// @return bool success of operation
 	template<typename COLTYPE, typename std::enable_if<detail::is_narrow_cpp_str<COLTYPE>::value, int>::type = 0>
-	bool AddCol (KStringView sColName, COLTYPE Value, KCOL::Flags iFlags=0, KCOL::Len iMaxLen=0)
+	bool AddCol (KStringView sColName, COLTYPE Value, KCOL::Flags iFlags=NOFLAG, KCOL::Len iMaxLen=0)
 	{
 		return (KCOLS::Add (sColName, KCOL(Value, iFlags, iMaxLen)) != KCOLS::end());
 	}
 
+	/// Create or set a column from any value that can be printed through kFormat (e.g. numbers)
+	/// @param sColName Name of the column
+	/// @param Value value to serialize as the column value
+	/// @param iFlags special column or name flags, default NUMERIC
+	/// @param iLen limit size of column string (after string escape), default 0 = unlimited
+	/// @return bool success of operation
 	template<typename COLTYPE, typename std::enable_if<!detail::is_narrow_cpp_str<COLTYPE>::value, int>::type = 0>
 	bool AddCol (KStringView sColName, COLTYPE Value, KCOL::Flags iFlags=NUMERIC, KCOL::Len iMaxLen=0)
 	{
@@ -292,11 +324,24 @@ public:
 		return (KCOLS::Add (sColName, KCOL(kFormat("{}", Value), iFlags |= NUMERIC, iMaxLen)) != KCOLS::end());
 	}
 
+	/// Just set the value of a column from a string, do not touch flags or max len if already set.
+	/// Will create a new column with default type (string) if not existing.
+	/// @param sColName Name of the column
+	/// @param sValue new string value for the column
+	/// @return bool success of operation
 	bool SetValue (KStringView sColName, KStringView sValue);
 
-	// TODO remove if possible, it does not set the KSQL column type properly
+	/// Just set the value of a column from a string, do not touch flags or max len if already set.
+	/// Will create a new column with type NUMERIC if not existing.
+	/// @param sColName Name of the column
+	/// @param iValue new signed 64 bit value for the column
+	/// @return bool success of operation
 	bool SetValue (KStringView sColName, int64_t iValue);
 
+	/// Just set the flags of a column, do not touch value or max len if already set
+	/// @param sColName Name of the column
+	/// @param iFlags special column or name flags
+	/// @return bool success of operation, fails if column does not exist
 	bool SetFlags (KStringView sColName, KCOL::Flags iFlags);
 
 	/// association arrays, e.g. row["column_name"] --> the value for that columm

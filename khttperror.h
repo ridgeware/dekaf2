@@ -65,6 +65,7 @@ public:
 	{
 		H2xx_OK         = 200,  // each new code needs logic in SetStatusString()
 		H2xx_CREATED    = 201,
+		H2xx_ACCEPTED   = 202,
 		H2xx_NO_CONTENT = 204,
 		H2xx_UPDATED    = 290,
 		H2xx_DELETED    = 291,

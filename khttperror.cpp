@@ -84,6 +84,7 @@ void KHTTPError::SetStatusString()
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		case H2xx_OK:           m_sStatusString = "OK";                     break;
 		case H2xx_CREATED:      m_sStatusString = "CREATED";                break;
+		case H2xx_ACCEPTED:     m_sStatusString = "ACCEPTED";               break;
 		case H2xx_NO_CONTENT:   m_sStatusString = "NO CONTENT";             break;
 		case H2xx_UPDATED:      m_sStatusString = "UPDATED";                break;
 		case H2xx_DELETED:      m_sStatusString = "DELETED";                break;

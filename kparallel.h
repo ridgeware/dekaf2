@@ -44,14 +44,10 @@
 /// @file kparallel.h
 /// collection of classes and functions for parallelization support
 
-#include <memory>
 #include <thread>
-#include <mutex>
-#include <vector>
-#include <map>
-#include <atomic>
-#include <functional>
-#include "bits/kcppcompat.h"
+#include <utility>
+#include <unordered_map>
+#include "kthreads.h"
 #include "kthreadsafe.h"
 #include "klog.h"
 
@@ -59,65 +55,15 @@ namespace dekaf2
 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Base class for generated threads. Maintains a list of started threads
-/// (and hence keeps them alive) and ensures they have joined at destruction.
-class KThreadWait
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-private:
-//----------
-
-	std::vector<std::unique_ptr<std::thread>> threads;
-
-//----------
-public:
-//----------
-
-	//-----------------------------------------------------------------------------
-	/// Destructor waits for all threads to join
-	~KThreadWait()
-	//-----------------------------------------------------------------------------
-	{
-		Join();
-	}
-
-	//-----------------------------------------------------------------------------
-	/// add a new thread to the list of started threads
-	void Add(std::unique_ptr<std::thread> newThread)
-	//-----------------------------------------------------------------------------
-	{
-		threads.push_back(std::move(newThread));
-	}
-
-	//-----------------------------------------------------------------------------
-	/// wait for all threads to join
-	void Join();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// return count of started threads
-	size_t size() const
-	//-----------------------------------------------------------------------------
-	{
-		return threads.size();
-	}
-
-}; // KThreadWait
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Runs a number of threads that call a given function. The number of threads
 /// is automatically set to the number of processor cores if no count is given.
 /// All threads have to join at destruction of the class, except those started
-/// in detached mode. The thread launch mechanism maintains a thread counter
-/// which can be accessed in a running thread via CRunThread's static method
-/// get_ThreadNum(). The logging facilities use this.
+/// in detached mode.
 ///
 /// This class also allows for an arbitrary number of different threads in
 /// different modes to be started. The common denominator is that all joinable
 /// threads have to join when the destructor of the class instance is called.
-class KRunThreads : public KThreadWait
+class KRunThreads : public KThreads
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -149,14 +95,6 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// request a delay after starting each thread
-	void StartWithPause(std::chrono::microseconds pause)
-	//-----------------------------------------------------------------------------
-	{
-		m_pause = pause;
-	}
-
-	//-----------------------------------------------------------------------------
 	/// create new threads in detached mode?
 	void StartDetached(bool yesno = true)
 	//-----------------------------------------------------------------------------
@@ -167,10 +105,10 @@ public:
 	//-----------------------------------------------------------------------------
 	/// create one thread, calling function f with arguments args
 	template<class Function, class... Args>
-	void CreateOne(Function&& f, Args&&... args)
+	std::thread::id CreateOne(Function&& f, Args&&... args)
 	{
 		// create the thread and start it
-		Store(std::make_unique<std::thread>(std::forward<Function>(f), std::forward<Args>(args)...));
+		return Store(std::thread(std::forward<Function>(f), std::forward<Args>(args)...));
 	}
 	//-----------------------------------------------------------------------------
 
@@ -200,16 +138,15 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// store (or detach) the new thread object
-	void Store(std::unique_ptr<std::thread>&& thread);
+	std::thread::id Store(std::thread thread);
 	//-----------------------------------------------------------------------------
 
 //----------
 private:
 //----------
 
-	size_t                     m_numThreads;
-	std::chrono::microseconds  m_pause { 0 };
-	bool                       m_start_detached { false };
+	size_t m_numThreads;
+	bool   m_start_detached { false };
 
 }; // KRunThreads
 
@@ -371,7 +308,7 @@ public:
 	private:
 	//----------
 
-		using lockmap_t = std::map<size_t, std::unique_ptr<std::mutex>>;
+		using lockmap_t = std::unordered_map<size_t, std::unique_ptr<std::mutex>>;
 		KThreadSafe<lockmap_t> m_id_mutexes;
 
 	}; // Data

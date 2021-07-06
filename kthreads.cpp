@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2017-2021, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -39,120 +39,129 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kparallel.h"
+#include "kthreads.h"
+#include "klog.h"
 
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-/// sets number of threads to #cpu if numThreads == 0, but
-/// not higher than maxThreads if maxThreads > 0.
-size_t KRunThreads::SetSize(size_t iNumThreads, size_t iMaxThreads) noexcept
+/// add a new thread to the list of started threads while in unique lock
+std::thread::id KThreads::AddUniquelyLocked(KThreadSafe<Storage>::UniqueLocked& Threads, std::thread newThread)
 //-----------------------------------------------------------------------------
 {
-	m_numThreads = iNumThreads;
-	if (!m_numThreads) {
-		// calculate number of threads if auto value (0) given:
-		m_numThreads = std::thread::hardware_concurrency();
-	}
-	if (iMaxThreads && m_numThreads > iMaxThreads)
-	{
-		m_numThreads = iMaxThreads;
-	}
-	return m_numThreads;
+	auto id = newThread.get_id();
 
-} // SetSize
+	kDebug(2, "adding thread with id {}", id);
+
+	Threads->emplace(id, std::move(newThread));
+
+	return id;
+
+} // AddUniquelyLocked
 
 //-----------------------------------------------------------------------------
-/// store (or detach) the new thread object
-std::thread::id KRunThreads::Store(std::thread thread)
+/// add a new thread to the list of started threads
+std::thread::id KThreads::Add(std::thread newThread)
 //-----------------------------------------------------------------------------
 {
-	if (m_start_detached)
+	// create the lock first, compilers do not have to follow left-to-right argument evaluation
+	auto Threads = m_Threads.unique();
+
+	return AddUniquelyLocked(Threads, std::move(newThread));
+
+} // Add
+
+//-----------------------------------------------------------------------------
+bool KThreads::Remove(std::thread::id ThreadID)
+//-----------------------------------------------------------------------------
+{
+	bool bSuccess = m_Threads.unique()->erase(ThreadID);
+
+	if (bSuccess)
 	{
-		// detach
-		thread.detach();
-		// return empty thread id
-		return std::thread::id{};
+		kDebug(2, "removed thread with id {}", ThreadID);
 	}
 	else
 	{
-		// add it to the KThreads object and return thread id
-		return Add(std::move(thread));
+		kDebug(2, "cannot remove thread with id {}", ThreadID);
 	}
 
-} // Store
+	return bSuccess;
+
+} // Remove
 
 //-----------------------------------------------------------------------------
-void KBlockOnID::Data::Lock(size_t ID)
+/// wait for all threads to join
+void KThreads::Join()
 //-----------------------------------------------------------------------------
 {
-	lockmap_t::iterator it;
+	auto Threads = m_Threads.unique();
 
+	if (!Threads->empty())
 	{
-		auto id_mutexes = m_id_mutexes.unique();
-
-		it = id_mutexes->find(ID);
-		
-		if (it == id_mutexes->end())
+		for (auto& it : *Threads)
 		{
-			it = id_mutexes->emplace(ID, std::make_unique<std::mutex>()).first;
+			kDebug(2, "now waiting for {} threads to finish", Threads->size());
+
+			if (it.second.joinable())
+			{
+				it.second.join();
+			}
 		}
+
+		Threads->clear();
+
+		kDebug(1, "all threads finished");
 	}
 
-	it->second->lock();
-
-} // Data::Lock
+} // Join
 
 //-----------------------------------------------------------------------------
-bool KBlockOnID::Data::Unlock(size_t ID)
+/// wait for one thread to join
+bool KThreads::Join(std::thread::id ThreadID)
 //-----------------------------------------------------------------------------
 {
-	lockmap_t::const_iterator it;
-	bool bFoundLock;
+	std::thread Thread;
 
 	{
-		auto id_mutexes = m_id_mutexes.shared();
-		it = id_mutexes->find(ID);
-		bFoundLock = it != id_mutexes->end();
+		auto Threads = m_Threads.unique();
+
+		auto it = Threads->find(ThreadID);
+
+		if (it == Threads->end())
+		{
+			kDebug(2, "thread {} not found", ThreadID);
+			return false;
+		}
+
+		Thread = std::move(it->second);
+
+		Threads->erase(it);
 	}
 
-	if (bFoundLock)
+	if (Thread.joinable())
 	{
-		it->second->unlock();
+		kDebug(2, "now waiting for thread {} to finish", ThreadID);
+		Thread.join();
+		kDebug(2, "thread {} finished", ThreadID);
+		return true;
 	}
 	else
 	{
-		kWarning("cannot unlock lock for ID {}", ID);
+		kDebug(2, "thread {} is not joinable", ThreadID);
+		return false;
 	}
 
-	return bFoundLock;
-
-} // Data::Unlock
+} // Join
 
 //-----------------------------------------------------------------------------
-void kParallelForEachPrintProgress(size_t iMax, size_t iDone, size_t iRunning)
+/// return count of started threads
+size_t KThreads::size() const
 //-----------------------------------------------------------------------------
 {
-	if (!iMax)
-	{
-		return;
-	}
+	return m_Threads.shared()->size();
 
-	if ((iDone * 100 % iMax) != 0)
-	{
-		return;
-	}
-
-//	size_t iPercent    = iDone    * 100 / iMax;
-//	size_t iInProgress = iRunning * 100 / iMax;
-
-	// TODO add output
-//	cVerboseOut(2, "%s parallel_for_each: completed %lu%%, in progress %lu%% \n",
-//				OK(),
-//				iPercent,
-//				iInProgress);
-
-} // kParallelForEachPrintProgress
+} // size
 
 } // end of namespace dekaf2
 

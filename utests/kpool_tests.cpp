@@ -2,7 +2,7 @@
 
 #include <dekaf2/kpool.h>
 #include <dekaf2/kstring.h>
-#include <dekaf2/kparallel.h>
+#include <dekaf2/kthreads.h>
 #include <dekaf2/ksystem.h>
 
 using namespace dekaf2;
@@ -132,11 +132,11 @@ TEST_CASE("KPool")
 		CHECK ( Pool.empty()     );
 		CHECK ( Pool.size() == 0 );
 
-		KThreadWait Threads;
+		KThreads Threads;
 
 		for (int iCount = 0; iCount < 20; ++iCount)
 		{
-			Threads.Add(std::make_unique<std::thread>([&Pool]()
+			Threads.Add(std::thread([&Pool]()
 			{
 				for (int iLoop = 0; iLoop < 30; ++iLoop)
 				{

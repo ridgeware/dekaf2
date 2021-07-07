@@ -48,7 +48,7 @@ TEST_CASE("KREST")
 
 		Routes.AddRoute({ KHTTPMethod::GET, false, "/user/=NAME/address", [&](KRESTServer& http)
 		{
-			sName = http.Request.Resource.Query["NAME"];
+			sName = http.GetQueryParmSafe("NAME");
 		}});
 
 		Routes.AddRoute({ KHTTPMethod::GET, false, "/throw", [&](KRESTServer& http)
@@ -169,6 +169,9 @@ TEST_CASE("KREST")
 		CHECK ( bCalledNoSlashPath == false );
 		CHECK ( sUID == "7654" );
 		CHECK ( sName == "Peter" );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/user/\"; DROP DATABASE CLIENTS/address", oss) == false );
 
 		sOut.clear();
 #ifdef NDEBUG

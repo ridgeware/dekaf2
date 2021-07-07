@@ -213,25 +213,6 @@ KString KHTTPServer::GetQueryParm(KStringView sKey, KStringView sDefault) const
 } // GetQueryParm
 
 //-----------------------------------------------------------------------------
-KString KHTTPServer::GetQueryParmSafe (KStringView sKey, KStringView sDefault/*=""*/) const
-//-----------------------------------------------------------------------------
-{
-	KString sValue = GetQueryParm(sKey, sDefault);
-
-	// sanitize the input as blanket protection from injection attacks
-	// by removing all forms of quotes: single, double, backtick and backslash
-	auto iRemoved = sValue.RemoveChars ("\"'`\\");
-
-	if (iRemoved)
-	{
-		kDebug(1, "removed {} bad chars from: {}", iRemoved, sKey);
-	}
-
-	return sValue;
-
-} // GetQueryParmSafe
-
-//-----------------------------------------------------------------------------
 const url::KQueryParms& KHTTPServer::GetQueryParms() const
 //-----------------------------------------------------------------------------
 {

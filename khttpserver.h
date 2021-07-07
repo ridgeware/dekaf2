@@ -298,14 +298,6 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// get one query parm value and remove possible injection attempts: single, double, backtick and backslash
-	/// @param sKey the name of the requested query parm
-	/// @param sDefault the default return value if there is no value for the key, empty string by default
-	/// @return the sanitized value for the requested query parm
-	KString GetQueryParmSafe (KStringView sKey, KStringView sDefault = KStringView{}) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// get query parms as a map
 	/// @return const ref on the map object with all query parms
 	const url::KQueryParms& GetQueryParms() const;

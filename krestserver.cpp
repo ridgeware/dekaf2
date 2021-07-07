@@ -54,6 +54,7 @@
 #include "kcrashexit.h"
 #include "kwriter.h"
 #include "kcountingstreambuf.h"
+#include "krow.h"
 
 namespace dekaf2 {
 
@@ -99,6 +100,36 @@ void KRESTServer::ThrowIfDisconnected()
 		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "remote end disconnected" };
 	}
 }
+
+//-----------------------------------------------------------------------------
+const KString& KRESTServer::GetQueryParmSafe(KStringView sKey) const
+//-----------------------------------------------------------------------------
+{
+	const auto& sValue = GetQueryParm(sKey);
+
+	if (KROW::NeedsEscape(sValue))
+	{
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("{}: invalid input string, may not contain any of: {}", sKey, KROW::EscapedCharacters()) };
+	}
+
+	return sValue;
+
+} // GetQueryParmSafe
+
+//-----------------------------------------------------------------------------
+KString KRESTServer::GetQueryParmSafe(KStringView sKey, KStringView sDefault) const
+//-----------------------------------------------------------------------------
+{
+	KString sValue = GetQueryParmSafe(sKey);
+
+	if (sValue.empty())
+	{
+		sValue = sDefault;
+	}
+
+	return sValue;
+
+} // GetQueryParmSafe
 
 //-----------------------------------------------------------------------------
 const KString& KRESTServer::GetRequestBody() const

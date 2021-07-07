@@ -212,7 +212,7 @@ bool KSSLContext::SetDHPrimes(KStringView sDHPrimes)
 
 } // SetDHPrime
 
-#if OPENSSL_VERSION_NUMBER >= 0x010101000
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L
 	#define DEKAF2_HAS_TLSv13
 #endif
 

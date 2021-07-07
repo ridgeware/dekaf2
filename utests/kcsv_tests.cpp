@@ -67,7 +67,8 @@ TEST_CASE("KCSV")
             
             for (const auto& test : tests)
             {
-                KInCSV CSV(test.second);
+				// need the <> for default param in C++11 and 14
+				KInCSV<> CSV(test.second);
                 CHECK ( CSV.Read() == test.first );
                 // prepare the next test
                 sInputBuffer += test.second;
@@ -77,7 +78,7 @@ TEST_CASE("KCSV")
                 auto test = tests.begin();
                 // the first test is empty, we will not see it in the buffer so skip it
                 ++test;
-                for (const auto& row : KInCSV(sInputBuffer))
+                for (const auto& row : KInCSV<>(sInputBuffer))
                 {
                     CHECK ( test != tests.end() );
                     if (test != tests.end())
@@ -94,7 +95,7 @@ TEST_CASE("KCSV")
                 // the first test is empty, we will not see it in the buffer so skip it
                 ++test;
                 KInStringStream iss(sInputBuffer);
-                for (const auto& row : KInCSV(iss))
+                for (const auto& row : KInCSV<>(iss))
                 {
                     CHECK ( test != tests.end() );
                     if (test != tests.end())

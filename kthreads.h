@@ -46,6 +46,8 @@
 
 #include <thread>
 #include <utility>
+#include <functional>
+#include <vector>
 #include <unordered_map>
 #include "kthreadsafe.h"
 
@@ -66,6 +68,7 @@ private:
 	using Storage = std::unordered_map<std::thread::id, std::thread>;
 
 	KThreadSafe<Storage> m_Threads;
+	KThreadSafe<std::vector<std::thread>> m_Decay;
 
 //----------
 protected:
@@ -73,7 +76,22 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// add a new thread to the list of started threads while in unique lock
-	std::thread::id AddUniquelyLocked(KThreadSafe<Storage>::UniqueLocked& Threads, std::thread newThread);
+	std::thread::id AddLocked(KThreadSafe<Storage>::UniqueLocked& Threads, std::thread newThread);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// remove a thread from the list of started threads, offer option to warn if not found
+	bool RemoveInt(std::thread::id ThreadID, bool bWarnIfFailed);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// wait for all non-decaying threads to join
+	void JoinInt();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// wait for all decaying threads to join
+	void DecayInt();
 	//-----------------------------------------------------------------------------
 
 //----------
@@ -99,27 +117,36 @@ public:
 	std::thread::id Create(Function&& f, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
-		// create the lock first, compilers do not have to follow left-to-right argument evaluation
+		// do the housekeeping
+		DecayInt();
+
+		// we use the detour with std::bind because otherwise (apple) clang errs
+		// on some lambda parameters when forwarding f and args
+		auto Callable = std::bind(std::forward<Function>(f), std::forward<Args>(args)...);
+
+		// create the lock first, compilers do not have to follow left-to-right
+		// argument evaluation
 		auto Threads = m_Threads.unique();
 
-		auto id = AddUniquelyLocked(Threads, std::thread([this](Function&& f, Args&&... args)
+		// finally create the lambda that will be executed in the new thread,
+		// and store the thread in the map
+		return AddLocked(Threads, std::thread([this, Func=std::move(Callable)]()
 		{
 			// call the callable
-			(f)(std::forward<Args>(args)...);
+			Func();
 
-			// and remove the thread id
-			Remove(std::this_thread::get_id());
-
-		}, std::forward<Function>(f), std::forward<Args>(args)...));
-
-		return id;
-
-	} // Create
+			// and remove this thread from the map
+			RemoveInt(std::this_thread::get_id(), false);
+		}));
+	}
 
 	//-----------------------------------------------------------------------------
 	/// remove a thread from the list of started threads
-	bool Remove(std::thread::id ThreadID);
+	bool Remove(std::thread::id ThreadID)
 	//-----------------------------------------------------------------------------
+	{
+		return RemoveInt(ThreadID, true);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// wait for all threads to join
@@ -134,6 +161,11 @@ public:
 	//-----------------------------------------------------------------------------
 	/// return count of started threads
 	size_t size() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// return true if no started threads
+	bool empty() const;
 	//-----------------------------------------------------------------------------
 
 }; // KThreads

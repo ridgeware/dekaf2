@@ -45,8 +45,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-/// add a new thread to the list of started threads while in unique lock
-std::thread::id KThreads::AddUniquelyLocked(KThreadSafe<Storage>::UniqueLocked& Threads, std::thread newThread)
+std::thread::id KThreads::AddLocked(KThreadSafe<Storage>::UniqueLocked& Threads, std::thread newThread)
 //-----------------------------------------------------------------------------
 {
 	auto id = newThread.get_id();
@@ -57,67 +56,120 @@ std::thread::id KThreads::AddUniquelyLocked(KThreadSafe<Storage>::UniqueLocked& 
 
 	return id;
 
-} // AddUniquelyLocked
+} // AddLocked
 
 //-----------------------------------------------------------------------------
-/// add a new thread to the list of started threads
 std::thread::id KThreads::Add(std::thread newThread)
 //-----------------------------------------------------------------------------
 {
 	// create the lock first, compilers do not have to follow left-to-right argument evaluation
 	auto Threads = m_Threads.unique();
 
-	return AddUniquelyLocked(Threads, std::move(newThread));
+	return AddLocked(Threads, std::move(newThread));
 
 } // Add
 
 //-----------------------------------------------------------------------------
-bool KThreads::Remove(std::thread::id ThreadID)
+bool KThreads::RemoveInt(std::thread::id ThreadID, bool bWarnIfFailed)
 //-----------------------------------------------------------------------------
 {
-	bool bSuccess = m_Threads.unique()->erase(ThreadID);
+	std::thread Thread;
 
-	if (bSuccess)
 	{
-		kDebug(2, "removed thread with id {}", ThreadID);
-	}
-	else
-	{
-		kDebug(2, "cannot remove thread with id {}", ThreadID);
-	}
+		auto Threads = m_Threads.unique();
 
-	return bSuccess;
+		auto it = Threads->find(ThreadID);
 
-} // Remove
-
-//-----------------------------------------------------------------------------
-/// wait for all threads to join
-void KThreads::Join()
-//-----------------------------------------------------------------------------
-{
-	auto Threads = m_Threads.unique();
-
-	if (!Threads->empty())
-	{
-		for (auto& it : *Threads)
+		if (it == Threads->end())
 		{
-			kDebug(2, "now waiting for {} threads to finish", Threads->size());
-
-			if (it.second.joinable())
+			// do not warn if this is called from Create() - a Join()
+			// may have come in between
+			if (bWarnIfFailed)
 			{
-				it.second.join();
+				kDebug(2, "cannot remove thread with id {} - not found", ThreadID);
 			}
+			return false;
 		}
 
-		Threads->clear();
+		Thread = std::move(it->second);
 
-		kDebug(1, "all threads finished");
+		Threads->erase(it);
 	}
 
-} // Join
+	m_Decay.unique()->push_back(std::move(Thread));
+
+	kDebug(2, "removed thread with id {}", ThreadID);
+	return true;
+
+} // RemoveInt
 
 //-----------------------------------------------------------------------------
-/// wait for one thread to join
+void KThreads::DecayInt()
+//-----------------------------------------------------------------------------
+{
+	auto Threads = m_Decay.unique();
+
+	std::size_t iSize = Threads->size();
+	auto iCount = iSize;
+
+	for (auto& Thread : *Threads)
+	{
+		if (Thread.joinable())
+		{
+			kDebug(2, "now waiting for {} decaying threads to finish: {}", iCount, Thread.get_id());
+			Thread.join();
+		}
+
+		--iCount;
+	}
+
+	if (iSize)
+	{
+		Threads->clear();
+		kDebug(1, "all decaying threads finished");
+	}
+
+} // DecayInt
+
+//-----------------------------------------------------------------------------
+void KThreads::JoinInt()
+//-----------------------------------------------------------------------------
+{
+	std::thread Thread;
+	std::size_t iSize { 0 };
+
+	for (;;)
+	{
+		{
+			auto Threads = m_Threads.unique();
+
+			auto it = Threads->begin();
+
+			if (it == Threads->end())
+			{
+				if (iSize)
+				{
+					// mute output if there was no thread to begin with
+					kDebug(1, "all threads finished");
+				}
+				return;
+			}
+
+			Thread = std::move(it->second);
+			iSize  = Threads->size();
+			Threads->erase(it);
+		}
+
+		if (Thread.joinable())
+		{
+			kDebug(2, "now waiting for {} threads to finish: {}", iSize, Thread.get_id());
+			Thread.join();
+		}
+	}
+
+} // JoinInt
+
+//-----------------------------------------------------------------------------
 bool KThreads::Join(std::thread::id ThreadID)
 //-----------------------------------------------------------------------------
 {
@@ -155,11 +207,27 @@ bool KThreads::Join(std::thread::id ThreadID)
 } // Join
 
 //-----------------------------------------------------------------------------
-/// return count of started threads
+void KThreads::Join()
+//-----------------------------------------------------------------------------
+{
+	JoinInt();
+	DecayInt();
+
+} // Join
+
+//-----------------------------------------------------------------------------
 size_t KThreads::size() const
 //-----------------------------------------------------------------------------
 {
 	return m_Threads.shared()->size();
+
+} // size
+
+//-----------------------------------------------------------------------------
+bool KThreads::empty() const
+//-----------------------------------------------------------------------------
+{
+	return m_Threads.shared()->empty();
 
 } // size
 

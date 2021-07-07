@@ -52,6 +52,7 @@ set (USOURCES
 	koutpipe_tests.cpp
 	koutputtemplate_tests.cpp
 	koutshell_tests.cpp
+	kparallel_tests.cpp
 	kpipe_tests.cpp
 	kpool_tests.cpp
 	kprops_tests.cpp
@@ -80,6 +81,7 @@ set (USOURCES
 	ksystemstats_tests.cpp
 	ktcpserver_tests.cpp
 	kthreadpool_tests.cpp
+	kthreads_tests.cpp
 	kthreadsafe_tests.cpp
 	kuntar_tests.cpp
 	kurl_tests.cpp

@@ -145,7 +145,7 @@ protected:
 private:
 //----------
 
-	size_t m_numThreads;
+	size_t m_numThreads     { 0 };
 	bool   m_start_detached { false };
 
 }; // KRunThreads

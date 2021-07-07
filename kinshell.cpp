@@ -41,6 +41,7 @@
 */
 
 #include "kinshell.h"
+#include "klog.h"
 
 namespace dekaf2
 {

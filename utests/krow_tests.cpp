@@ -21,6 +21,7 @@ TEST_CASE("KROW")
 
 	CHECK ( row.size() == 8 );
 
+#ifndef _MSC_VER // MSC has issues with \" inside R"()";
 	SECTION("to_json")
 	{
 		{
@@ -45,6 +46,7 @@ TEST_CASE("KROW")
 			CHECK ( jNewRow.dump(-1) == R"({"\"col2":"string2\"",",col3":"string3,","col1":"string1","col4":true,"col5":123,"col6":123.456,"col7":18446744073709551615})" );
 		}
 	}
+#endif
 
 	SECTION("to_csv")
 	{

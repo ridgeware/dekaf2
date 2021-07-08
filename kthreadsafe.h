@@ -47,6 +47,7 @@
 
 #include <mutex>
 #include "bits/kcppcompat.h"
+#include "bits/ktemplate.h"
 
 namespace dekaf2 {
 
@@ -103,6 +104,14 @@ public:
 			return get();
 		}
 
+		/// helper for subscript access - acts as a proxy for the real object
+		template<typename KeyType, typename Map = T,
+		         typename std::enable_if<detail::is_map_type<Map>::value == true, int>::type = 0>
+		typename Map::mapped_type& operator[](KeyType&& Key)
+		{
+			return get().operator[](std::forward<KeyType>(Key));
+		}
+
 	//----------
 	private:
 	//----------
@@ -150,6 +159,14 @@ public:
 		operator const T&() const
 		{
 			return get();
+		}
+
+		/// helper for subscript access - acts as a proxy for the real object
+		template<typename KeyType, typename Map = T,
+		         typename std::enable_if<detail::is_map_type<Map>::value == true, int>::type = 0>
+		const typename Map::mapped_type& operator[](KeyType&& Key)
+		{
+			return get().at(std::forward<KeyType>(Key));
 		}
 
 	//----------

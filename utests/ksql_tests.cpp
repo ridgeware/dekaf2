@@ -42,6 +42,8 @@
 
 #include "catch.hpp"
 #include <dekaf2/ksql.h>
+#include <dekaf2/kjson.h>
+#include <dekaf2/kstring.h>
 
 using namespace dekaf2;
 
@@ -143,6 +145,37 @@ TEST_CASE("KSQL")
 		CHECK (kFormatSQL("{}", SLASHES2) == SLASHES2x );
 		CHECK (kFormatSQL("{}", ASIAN1  ) == ASIAN1    );
 		CHECK (kFormatSQL("{}", ASIAN2  ) == ASIAN2    );
+	}
+
+	SECTION("FormAndClause")
+	{
+		KSQL DB;
+		DB.SetDBType(KSQL::DBT::MYSQL);
+
+		auto sResult = DB.FormAndClause("mycol", "a'a|bb|cc|dd|ee|ff|gg", KSQL::FAC_NORMAL, "|");
+		CHECK (sResult == "   and mycol in ('a\\'a','bb','cc','dd','ee','ff','gg')\n" );
+
+		sResult = DB.FormAndClause("mycol", "a'a|bb|cc|dd|ee|ff|gg", KSQL::FAC_LIKE, "|");
+		CHECK (sResult == "   and (mycol like '%a\\'a%'\n    or mycol like '%bb%'\n    or mycol like '%cc%'\n    or mycol like '%dd%'\n    or mycol like '%ee%'\n    or mycol like '%ff%'\n    or mycol like '%gg%')\n" );
+	}
+
+	SECTION("FormOrderBy")
+	{
+		KSQL DB;
+		DB.SetDBType(KSQL::DBT::MYSQL);
+
+		KString sOrderBy;
+		DB.FormOrderBy("aa,bb,cc,dd,ee,ff,gg", sOrderBy, {
+			{ "aa",       "x'x"         },
+			{ "bb",       "bb"         },
+			{ "cc",       "cc"         },
+			{ "dd",       "yy"         },
+			{ "ee",       "ee"         },
+			{ "ff",       "ff"         },
+			{ "gg",       "gg"         },
+		});
+		CHECK ( DB.GetLastError() == "" );
+		CHECK ( sOrderBy == " order by x\\'x\n     , bb\n     , cc\n     , yy\n     , ee\n     , ff\n     , gg\n" );
 	}
 
 }

@@ -7506,19 +7506,6 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 		return sClause; // empty
 	}
 
-	if (NeedsEscape(sQueryParm))
-	{
-		// we do not expect escapable characters here
-		// however the code below would now be hardened for them
-		kWarning ("possible SQL injection attempt: {}", sQueryParm);
-		if (m_TimingCallback)
-		{
-			m_TimingCallback (*this, /*iMilliseconds=*/0, kFormat ("{}:\n{}", m_sLastError, sQueryParm));
-		}
-		// note: probably leave m_sLastError alone
-		return sClause; // empty
-	}
-
 	KString sLowerParm (sQueryParm);
 	sLowerParm.MakeLower();
 
@@ -7660,7 +7647,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 			}
 		}
 
-		sClause = FormatSQL ("   and {} in ({})", sDbCol, sList);
+		sClause = kFormat ("   and {} in ({})", EscapeString(sDbCol), sList);
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -

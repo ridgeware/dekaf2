@@ -3837,14 +3837,14 @@ bool KSQL::LoadColumnLayout(KROW& Row, KStringView sColumns)
 	if (GetDBType() == DBT::SQLSERVER ||
 		GetDBType() == DBT::SQLSERVER15)
 	{
-		if (!ExecRawQuery(kFormat("select top 0 {} from {}", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
+		if (!ExecRawQuery(FormatSQL("select top 0 {} from {}", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
 		{
 			return false;
 		}
 	}
 	else
 	{
-		if (!ExecRawQuery(kFormat("select {} from {} limit 0", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
+		if (!ExecRawQuery(FormatSQL("select {} from {} limit 0", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
 		{
 			return false;
 		}
@@ -6116,6 +6116,7 @@ bool KSQL::PurgeKey (KStringView sSchemaName, KROW& OtherKeys, KStringView sPKEY
 		}
 		else
 		{
+			// do not escape the table name - KROW takes care of that
 			row.SetTablename (kFormat ("{}.{} /*KSQL::PurgeKey*/", sTableSchema, sTableName));
 			row.AddCol (sPKEY_colname, sValue, KROW::PKEY);
 			if (!Delete (row))
@@ -7508,6 +7509,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	if (NeedsEscape(sQueryParm))
 	{
 		// we do not expect escapable characters here
+		// however the code below would now be hardened for them
 		kWarning ("possible SQL injection attempt: {}", sQueryParm);
 		if (m_TimingCallback)
 		{
@@ -7532,22 +7534,22 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 			case 1: // single value
 				if (iFlags & FAC_NUMERIC)
 				{
-					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].UInt64());
+					sClause = FormatSQL ("   and {} = {}", sDbCol, Parts[0].UInt64());
 				}
 				else
 				{
-					sClause = kFormat ("   and {} = '{}'", sDbCol, Parts[0]);
+					sClause = FormatSQL ("   and {} = '{}'", sDbCol, Parts[0]);
 				}
 				break;
 
 			case 2: // two values
 				if (iFlags & FAC_NUMERIC)
 				{
-					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].UInt64(), Parts[1].UInt64());
+					sClause = FormatSQL ("   and {} between {} and {}", sDbCol, Parts[0].UInt64(), Parts[1].UInt64());
 				}
 				else
 				{
-					sClause = kFormat ("   and {} between '{}' and '{}'", sDbCol, Parts[0], Parts[1]);
+					sClause = FormatSQL ("   and {} between '{}' and '{}'", sDbCol, Parts[0], Parts[1]);
 				}
 				break;
 
@@ -7567,7 +7569,8 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 			sOne.Replace ('*','%',/*start=*/0,/*bAll=*/true); // allow * wildcards too
 			if (!sOne.contains ("%"))
 			{
-				sOne = kFormat ("{}{}{}", "%", sOne, "%");
+				// sOne is inserted later with string escape, no need to escape here
+				sOne = kFormat("%{}%", sOne);
 			}
 			if (sClause)
 			{
@@ -7576,11 +7579,11 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 					sClause += ')'; // needs an extra close paren
 				}
 				sClause += '\n';
-				sClause += kFormat ("    or {} like '{}'", sDbCol, sOne); // OR and no parens
+				sClause += FormatSQL ("    or {} like '{}'", sDbCol, sOne); // OR and no parens
 			}
 			else
 			{
-				sClause += kFormat ("   and ({} like '{}'", sDbCol, sOne); // open paren
+				sClause += FormatSQL ("   and ({} like '{}'", sDbCol, sOne); // open paren
 			}
 		}
 		if (sClause)
@@ -7594,7 +7597,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	else if (iFlags & FAC_TEXT_CONTAINS)
 	{
-		sClause = kFormat ("   and lower({}) like '%{}%'", sDbCol, sLowerParm);
+		sClause = FormatSQL ("   and lower({}) like '%{}%'", sDbCol, sLowerParm);
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -7608,7 +7611,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 			return sClause; // empty
 		}
 
-		sClause = kFormat ("   and {} >= date_sub(now(), interval 1 {})", sDbCol, sLowerParm);
+		sClause = FormatSQL ("   and {} >= date_sub(now(), interval 1 {})", sDbCol, sLowerParm);
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -7618,7 +7621,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	{
 		if (iFlags & FAC_NUMERIC)
 		{
-			sClause = kFormat ("   and {} = {}", sDbCol, sQueryParm.UInt64());
+			sClause = FormatSQL ("   and {} = {}", sDbCol, sQueryParm.UInt64());
 		}
 		else if (iFlags & FAC_LIKE)
 		{
@@ -7626,14 +7629,15 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 			sOne.Replace ('*','%',/*start=*/0,/*bAll=*/true); // allow * wildcards too
 			if (!sOne.contains ("%"))
 			{
-				sOne = kFormat ("{}{}{}", "%", sOne, "%");
+				// sOne is inserted later with string escape, no need to escape here
+				sOne = kFormat ("%{}%", sOne);
 			}
 
-			sClause = kFormat ("   and {} like '{}'", sDbCol, sOne);
+			sClause = FormatSQL ("   and {} like '{}'", sDbCol, sOne);
 		}
 		else
 		{
-			sClause = kFormat ("   and {} = '{}'", sDbCol, sQueryParm);
+			sClause = FormatSQL ("   and {} = '{}'", sDbCol, sQueryParm);
 		}
 	}
 
@@ -7648,15 +7652,15 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 		{
 			if (iFlags & FAC_NUMERIC)
 			{
-				sList += kFormat ("{}{}", sList ? "," : "", sOne.UInt64());
+				sList += FormatSQL ("{}{}", sList ? "," : "", sOne.UInt64());
 			}
 			else
 			{
-				sList += kFormat ("{}'{}'", sList ? "," : "", sOne);
+				sList += FormatSQL ("{}'{}'", sList ? "," : "", sOne);
 			}
 		}
 
-		sClause = kFormat ("   and {} in ({})", sDbCol, sList);
+		sClause = FormatSQL ("   and {} in ({})", sDbCol, sList);
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -7736,7 +7740,7 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const 
 			try
 			{
 				KString sMatchParm = it.key();
-				KString sDbCol     = it.value();
+				KString sDbCol     = EscapeString(it.value());
 
 				if (sMatchParm.ToLower() == sParm.ToLower())
 				{

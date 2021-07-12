@@ -68,6 +68,7 @@ set (USOURCES
 	ksharedref_tests.cpp
 	ksnippets_tests.cpp
 	ksplit_tests.cpp
+	ksql_tests.cpp
 	ksqlite_tests.cpp
 	kstack_tests.cpp
 	kstring_tests.cpp
@@ -104,8 +105,8 @@ endif()
 add_executable(dekaf2-utests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
 
 if(SQLITE3_FOUND)
-	target_link_libraries(dekaf2-utests dekaf2 ksqlite re2)
+	target_link_libraries(dekaf2-utests dekaf2 ksqlite ksql2 re2)
 else()
-	target_link_libraries(dekaf2-utests dekaf2 re2)
+	target_link_libraries(dekaf2-utests dekaf2 ksql2 re2)
 endif()
 

@@ -918,7 +918,7 @@ private:
 
 	//-----------------------------------------------------------------------------
 	template<typename T, typename std::enable_if<std::is_constructible<KStringView, T>::value == false, int>::type = 0>
-	auto EscapeType(T&& value)
+	static auto EscapeType(DBT iDBType, T&& value)
 	//-----------------------------------------------------------------------------
 	{
 		return std::forward<T>(value);
@@ -926,37 +926,52 @@ private:
 
 	//-----------------------------------------------------------------------------
 	template<typename T, typename std::enable_if<std::is_constructible<KStringView, T>::value == true, int>::type = 0>
-	auto EscapeType(T&& value)
+	static auto EscapeType(DBT iDBType, T&& value)
 	//-----------------------------------------------------------------------------
 	{
 		// this is a string parameter - escape it
-		return EscapeString(std::forward<T>(value));
+		return KROW::EscapeChars (std::forward<T>(value), iDBType);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// format no-op
-	KString FormatEscaped(KStringView sFormat)
+	static KString FormatEscaped(DBT iDBType, KStringView sFormat)
 	//-----------------------------------------------------------------------------
 	{
 		return sFormat;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// escapes all string arguments and leaves the rest alone
+	/// static - escapes all string arguments and leaves the rest alone
 	template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
-	KString FormatEscaped(KStringView sFormat, Args&&... args)
+	static KString FormatEscaped(DBT iDBType, KStringView sFormat, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
 		return std::apply([sFormat](auto&&... args)
 		{
 			return kFormat(sFormat, std::forward<decltype(args)>(args)...);
 		},
-		std::make_tuple(EscapeType(args)...));
-	}
+		std::make_tuple(EscapeType(iDBType, args)...));
+
+	} // FormatEscaped
 
 //----------
 public:
 //----------
+
+	// hide this FormatSQL from general use, as we want users to prefer the one
+	// with automatic DBT deduction
+	struct format_detail
+	{
+		//-----------------------------------------------------------------------------
+		/// static - escapes all string arguments and leaves the rest alone, assumes maximum set of escape chars (MySQL)
+		template<class... Args>
+		static KString FormatSQL(DBT iDBType, KStringView sFormat, Args&&... args)
+		//-----------------------------------------------------------------------------
+		{
+			return FormatEscaped(iDBType, sFormat, std::forward<Args>(args)...);
+		}
+	};
 
 	//----------------------------------------------------------------------
 	/// format an SQL query with python syntax and automatically escape all string parameters
@@ -966,13 +981,13 @@ public:
 	{
 		if (IsFlag(F_NoTranslations) || sFormat.find("{{") == KStringView::npos)
 		{
-			return FormatEscaped(sFormat, std::forward<Args>(args)...);
+			return FormatEscaped(m_iDBType, sFormat, std::forward<Args>(args)...);
 		}
 		else
 		{
 			KString sSQL = sFormat;
 			DoTranslations (sSQL);
-			return FormatEscaped(sSQL, std::forward<Args>(args)...);
+			return FormatEscaped(m_iDBType, sSQL, std::forward<Args>(args)...);
 		}
 
 	} // FormatSQL
@@ -1108,6 +1123,28 @@ private:
 	bool DecodeDBCData(KStringView sBuffer, KStringView sDBCFile);
 
 }; // KSQL
+
+//----------------------------------------------------------------------
+/// format an SQL query with python syntax and automatically escape all string parameters
+/// @param sFormat the format string
+/// @param iDBType the SQL database type to select the escape characters for
+template<class... Args>
+KString kFormatSQL (KSQL::DBT iDBType, KStringView sFormat, Args&&... args)
+//----------------------------------------------------------------------
+{
+	return KSQL::format_detail::FormatSQL(iDBType, sFormat, std::forward<Args>(args)...);
+}
+
+//----------------------------------------------------------------------
+/// format an SQL query with python syntax and automatically escape all string parameters with the
+/// maximum of escape characters (=MySQL)
+/// @param sFormat the format string
+template<class... Args>
+KString kFormatSQL (KStringView sFormat, Args&&... args)
+//----------------------------------------------------------------------
+{
+	return KSQL::format_detail::FormatSQL(KSQL::DBT::MYSQL, sFormat, std::forward<Args>(args)...);
+}
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DbSemaphore

@@ -231,20 +231,6 @@ void KillConnectionTest(KSQL& db)
 	CHECK ( iConnectionID != iNewConnectionID );
 }
 
-class KSQLTest : public KSQL
-{
-public:
-
-	using KSQL::KSQL;
-
-	template<class... Args>
-	KString FormatSQLQuery(KStringView sFormat, Args&&... args)
-	{
-		return FormatSQL(sFormat, std::forward<Args>(args)...);
-	}
-
-};
-
 //-----------------------------------------------------------------------------
 TEST_CASE("KSQL")
 //-----------------------------------------------------------------------------
@@ -261,79 +247,6 @@ TEST_CASE("KSQL")
 	KStringView SLASHES2x = "This <b>is</b>\\\\n a string\\\\r with s/l/a/s/h/e/s, \\\\g\\\\e\\\\t\\\\ i\\\\t\\\\???";
 	KStringView ASIAN1    = "Chinese characters ñäöüß 一二三四五六七八九十";
 	KStringView ASIAN2    = "Chinese characters ñäöüß 十九八七六五四三二一";
-
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-	// test static helper methods of KROW class:
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-	SECTION("KROW::EscapeChars(BENIGN)")
-	{
-		KSQLTest DB;
-		DB.SetDBType(KSQL::DBT::MYSQL);
-		KString sEscaped ( DB.EscapeString (BENIGN));
-		CHECK (sEscaped == BENIGNX);
-		auto sSQL = DB.FormatSQLQuery("{}", BENIGN);
-		CHECK (sSQL == BENIGNX);
-	}
-
-	SECTION("KROW::EscapeChars(QUOTES1)")
-	{
-		KSQLTest DB;
-		DB.SetDBType(KSQL::DBT::MYSQL);
-		KString sEscaped ( DB.EscapeString (QUOTES1));
-		CHECK (sEscaped == QUOTES1x);
-		auto sSQL = DB.FormatSQLQuery("{}", QUOTES1);
-		CHECK (sSQL == QUOTES1x);
-	}
-
-	SECTION("KROW::EscapeChars(QUOTES2)")
-	{
-		KSQLTest DB;
-		DB.SetDBType(KSQL::DBT::MYSQL);
-		KString sEscaped ( DB.EscapeString (QUOTES2));
-		CHECK (sEscaped == QUOTES2x);
-		auto sSQL = DB.FormatSQLQuery("{}", QUOTES2);
-		CHECK (sSQL == QUOTES2x);
-	}
-
-	SECTION("KROW::EscapeChars(SLASHES1)")
-	{
-		KSQLTest DB;
-		DB.SetDBType(KSQL::DBT::MYSQL);
-		KString sEscaped ( DB.EscapeString (SLASHES1));
-		CHECK (sEscaped == SLASHES1x);
-		auto sSQL = DB.FormatSQLQuery("{}", SLASHES1);
-		CHECK (sSQL == SLASHES1x);
-	}
-
-	SECTION("KROW::EscapeChars(SLASHES2)")
-	{
-		KSQLTest DB;
-		DB.SetDBType(KSQL::DBT::MYSQL);
-		KString sEscaped ( DB.EscapeString (SLASHES2));
-		CHECK (sEscaped == SLASHES2x);
-		auto sSQL = DB.FormatSQLQuery("{}", SLASHES2);
-		CHECK (sSQL == SLASHES2x);
-	}
-
-	SECTION("KROW::EscapeChars(ASIAN1)")
-	{
-		KSQLTest DB;
-		DB.SetDBType(KSQL::DBT::MYSQL);
-		KString sEscaped ( DB.EscapeString (ASIAN1));
-		CHECK (sEscaped == ASIAN1);
-		auto sSQL = DB.FormatSQLQuery("{}", ASIAN1);
-		CHECK (sSQL == ASIAN1);
-	}
-
-	SECTION("KROW::EscapeChars(ASIAN2)")
-	{
-		KSQLTest DB;
-		DB.SetDBType(KSQL::DBT::MYSQL);
-		KString sEscaped ( DB.EscapeString (ASIAN2));
-		CHECK (sEscaped == ASIAN2);
-		auto sSQL = DB.FormatSQLQuery("{}", ASIAN2);
-		CHECK (sSQL == ASIAN2);
-	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// test KSQL class...

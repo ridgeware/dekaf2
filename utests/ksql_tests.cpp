@@ -153,10 +153,16 @@ TEST_CASE("KSQL")
 		DB.SetDBType(KSQL::DBT::MYSQL);
 
 		auto sResult = DB.FormAndClause("mycol", "a'a|bb|cc|dd|ee|ff|gg", KSQL::FAC_NORMAL, "|");
-		CHECK (sResult == "   and mycol in ('a\\'a','bb','cc','dd','ee','ff','gg')\n" );
+		sResult.CollapseAndTrim();
+		CHECK (sResult == "and mycol in ('a\\'a','bb','cc','dd','ee','ff','gg')" );
 
 		sResult = DB.FormAndClause("mycol", "a'a|bb|cc|dd|ee|ff|gg", KSQL::FAC_LIKE, "|");
-		CHECK (sResult == "   and (mycol like '%a\\'a%'\n    or mycol like '%bb%'\n    or mycol like '%cc%'\n    or mycol like '%dd%'\n    or mycol like '%ee%'\n    or mycol like '%ff%'\n    or mycol like '%gg%')\n" );
+		sResult.CollapseAndTrim();
+		CHECK (sResult == "and (mycol like '%a\\'a%' or mycol like '%bb%' or mycol like '%cc%' or mycol like '%dd%' or mycol like '%ee%' or mycol like '%ff%' or mycol like '%gg%')" );
+
+		sResult = DB.FormAndClause("if(ifnull(I.test,0) in (100,101),'value1','value2')", "val'ue1", KSQL::FAC_NORMAL, ",");
+		sResult.CollapseAndTrim();
+		CHECK (sResult == "and if(ifnull(I.test,0) in (100,101),'value1','value2') = 'val\\'ue1'" );
 	}
 
 	SECTION("FormOrderBy")
@@ -165,8 +171,8 @@ TEST_CASE("KSQL")
 		DB.SetDBType(KSQL::DBT::MYSQL);
 
 		KString sOrderBy;
-		DB.FormOrderBy("aa,bb,cc,dd,ee,ff,gg", sOrderBy, {
-			{ "aa",       "x'x"         },
+		DB.FormOrderBy("Äa, BB descend , cc ascending, dd,Ee,ff desc,gg", sOrderBy, {
+			{ "Äa",       "x'x"        },
 			{ "bb",       "bb"         },
 			{ "cc",       "cc"         },
 			{ "dd",       "yy"         },
@@ -175,7 +181,8 @@ TEST_CASE("KSQL")
 			{ "gg",       "gg"         },
 		});
 		CHECK ( DB.GetLastError() == "" );
-		CHECK ( sOrderBy == " order by x\\'x\n     , bb\n     , cc\n     , yy\n     , ee\n     , ff\n     , gg\n" );
+		sOrderBy.CollapseAndTrim();
+		CHECK ( sOrderBy == "order by x\\'x , bb desc , cc , yy , ee , ff desc , gg" );
 	}
 
 }

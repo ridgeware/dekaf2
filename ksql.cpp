@@ -7498,13 +7498,18 @@ bool KSQL::RollbackTransaction (KStringView sOptions/*=""*/)
 KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags/*=FAC+NORMAL*/, KStringView sSplitBy/*=","*/)
 //-----------------------------------------------------------------------------
 {
+	m_sLastError.clear();
+
 	KString sClause;
 
-	m_sLastError.clear();
 	if (sQueryParm.empty())
 	{
 		return sClause; // empty
 	}
+
+	// We assume the db column name to be from safe input, it may contain expressions
+	// and escapable characters. The query parms however need escaping.
+	kDebug (2, "dbcol={}, queryparm={}, splitby={}", sDbCol, sQueryParm, sSplitBy);
 
 	KString sLowerParm (sQueryParm);
 	sLowerParm.MakeLower();
@@ -7521,22 +7526,22 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 			case 1: // single value
 				if (iFlags & FAC_NUMERIC)
 				{
-					sClause = FormatSQL ("   and {} = {}", sDbCol, Parts[0].UInt64());
+					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].UInt64());
 				}
 				else
 				{
-					sClause = FormatSQL ("   and {} = '{}'", sDbCol, Parts[0]);
+					sClause = kFormat ("   and {} = '{}'", sDbCol, EscapeString(Parts[0]));
 				}
 				break;
 
 			case 2: // two values
 				if (iFlags & FAC_NUMERIC)
 				{
-					sClause = FormatSQL ("   and {} between {} and {}", sDbCol, Parts[0].UInt64(), Parts[1].UInt64());
+					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].UInt64(), Parts[1].UInt64());
 				}
 				else
 				{
-					sClause = FormatSQL ("   and {} between '{}' and '{}'", sDbCol, Parts[0], Parts[1]);
+					sClause = kFormat ("   and {} between '{}' and '{}'", sDbCol, EscapeString(Parts[0]), EscapeString(Parts[1]));
 				}
 				break;
 
@@ -7566,11 +7571,11 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 					sClause += ')'; // needs an extra close paren
 				}
 				sClause += '\n';
-				sClause += FormatSQL ("    or {} like '{}'", sDbCol, sOne); // OR and no parens
+				sClause += kFormat ("    or {} like '{}'", sDbCol, EscapeString(sOne)); // OR and no parens
 			}
 			else
 			{
-				sClause += FormatSQL ("   and ({} like '{}'", sDbCol, sOne); // open paren
+				sClause += kFormat ("   and ({} like '{}'", sDbCol, EscapeString(sOne)); // open paren
 			}
 		}
 		if (sClause)
@@ -7584,7 +7589,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	else if (iFlags & FAC_TEXT_CONTAINS)
 	{
-		sClause = FormatSQL ("   and lower({}) like '%{}%'", sDbCol, sLowerParm);
+		sClause = kFormat ("   and lower({}) like '%{}%'", sDbCol, EscapeString(sLowerParm));
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -7595,10 +7600,11 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 		if (!kStrIn (sLowerParm, "minute,hour,day,week,month,quarter,year"))
 		{
 			m_sLastError.Format ("invalid time period: {}, should be one of: minute,hour,day,week,month,quarter,year", sQueryParm);
+			kDebug (2, GetLastError());
 			return sClause; // empty
 		}
 
-		sClause = FormatSQL ("   and {} >= date_sub(now(), interval 1 {})", sDbCol, sLowerParm);
+		sClause = kFormat ("   and {} >= date_sub(now(), interval 1 {})", sDbCol, EscapeString(sLowerParm));
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -7608,7 +7614,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	{
 		if (iFlags & FAC_NUMERIC)
 		{
-			sClause = FormatSQL ("   and {} = {}", sDbCol, sQueryParm.UInt64());
+			sClause = kFormat ("   and {} = {}", sDbCol, sQueryParm.UInt64());
 		}
 		else if (iFlags & FAC_LIKE)
 		{
@@ -7620,11 +7626,11 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 				sOne = kFormat ("%{}%", sOne);
 			}
 
-			sClause = FormatSQL ("   and {} like '{}'", sDbCol, sOne);
+			sClause = kFormat ("   and {} like '{}'", sDbCol, EscapeString(sOne));
 		}
 		else
 		{
-			sClause = FormatSQL ("   and {} = '{}'", sDbCol, sQueryParm);
+			sClause = kFormat ("   and {} = '{}'", sDbCol, EscapeString(sQueryParm));
 		}
 	}
 
@@ -7639,15 +7645,15 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 		{
 			if (iFlags & FAC_NUMERIC)
 			{
-				sList += FormatSQL ("{}{}", sList ? "," : "", sOne.UInt64());
+				sList += kFormat ("{}{}", sList ? "," : "", sOne.UInt64());
 			}
 			else
 			{
-				sList += FormatSQL ("{}'{}'", sList ? "," : "", sOne);
+				sList += kFormat ("{}'{}'", sList ? "," : "", EscapeString(sOne));
 			}
 		}
 
-		sClause = kFormat ("   and {} in ({})", EscapeString(sDbCol), sList);
+		sClause = kFormat ("   and {} in ({})", sDbCol, sList);
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -7661,6 +7667,8 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 		}
 		sClause += '\n';
 	}
+
+	kDebug (2, "clause={}", sClause);
 
 	return sClause;
 
@@ -7681,6 +7689,8 @@ KString KSQL::FormGroupBy (uint8_t iNumCols)
 		sGroupBy += "\n";
 	}
 
+	kDebug (2, "groupby={}", sGroupBy);
+
 	return sGroupBy;
 
 } // FormGroupBy
@@ -7689,15 +7699,15 @@ KString KSQL::FormGroupBy (uint8_t iNumCols)
 bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const KJSON& Config)
 //-----------------------------------------------------------------------------
 {
-	kDebug (2, "...");
-
 	if (Config.is_null())
 	{
+		kDebug (2, "empty config");
 		return true;
 	}
 	else if (! Config.is_object())
 	{
 		m_sLastError.Format ("BUG: FormOrderBy: Config is not object of key/value pairs: {}", Config.dump('\t'));
+		kDebug (2, GetLastError());
 		return false;
 	}
 
@@ -7720,17 +7730,15 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const 
 		sParm.Replace (" asc",       "");
 		sParm.Replace (" ",          "");
 
-		kDebug (2, "matching sort parm: {}", sParm);
-
 		for (auto& it : Config.items())
 		{
 			try
 			{
-				KString sMatchParm = it.key();
-				KString sDbCol     = EscapeString(it.value());
+				const auto& sMatchParm = it.key();
 
-				if (sMatchParm.ToLower() == sParm.ToLower())
+				if (kCaseEqual(sMatchParm, sParm))
 				{
+					KString sDbCol = EscapeString(it.value());
 					kDebug (2, "matched sort parm: {} to: {}", sParm, sDbCol);
 					sOrderBy += kFormat ("{} {}{}\n", sOrderBy ? "     ," : " order by", sDbCol, bDesc ? " desc" : "");
 					bFound = true;
@@ -7740,6 +7748,7 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const 
 			catch (const KJSON::exception& exc)
 			{
 				m_sLastError.Format ("BUG: FormOrderBy: Config is not object of key/value pairs: {}", Config.dump('\t'));
+				kDebug (2, GetLastError());
 				KLog::getInstance().ShowStackOnJsonError(bResetFlag);
 				return false;
 			}
@@ -7749,6 +7758,7 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const 
 		{
 			// runtime/user error: attempt to sort by a column that is not specified in the Config:
 			m_sLastError.Format ("attempt to sort by unknown column '{}'", sParm);
+			kDebug (2, GetLastError());
 			KLog::getInstance().ShowStackOnJsonError(bResetFlag);
 			return false;
 		}

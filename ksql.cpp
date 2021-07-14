@@ -7738,7 +7738,8 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const 
 
 				if (kCaseEqual(sMatchParm, sParm))
 				{
-					KString sDbCol = EscapeString(it.value());
+					// do not escape the configured column name
+					const KString& sDbCol = it.value();
 					kDebug (2, "matched sort parm: {} to: {}", sParm, sDbCol);
 					sOrderBy += kFormat ("{} {}{}\n", sOrderBy ? "     ," : " order by", sDbCol, bDesc ? " desc" : "");
 					bFound = true;

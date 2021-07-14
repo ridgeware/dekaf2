@@ -182,7 +182,7 @@ TEST_CASE("KSQL")
 		});
 		CHECK ( DB.GetLastError() == "" );
 		sOrderBy.CollapseAndTrim();
-		CHECK ( sOrderBy == "order by x\\'x , bb desc , cc , yy , ee , ff desc , gg" );
+		CHECK ( sOrderBy == "order by x'x , bb desc , cc , yy , ee , ff desc , gg" );
 	}
 
 }

@@ -49,12 +49,12 @@ TEST_CASE("KThreads")
 		CHECK ( Threads.empty() == true );
 		CHECK ( Threads.size() == 0 );
 
-		auto id = Threads.Create([]()
+		Threads.Create([]()
 		{
 			kMilliSleep(50);
 		});
 
-		id = Threads.Create(&Foo::Bar, &F, sTest);
+		Threads.Create(&Foo::Bar, &F, sTest);
 
 		Threads.Join();
 

@@ -25,7 +25,7 @@ TEST_CASE("KParallel")
 {
 	KRunThreads Threads;
 
-	auto id = Threads.Create([]()
+	Threads.Create([]()
 	{
 		kMilliSleep(50);
 	});
@@ -33,7 +33,7 @@ TEST_CASE("KParallel")
 	KString sTest = "Hello";
 	Foo F;
 
-	id = Threads.Create(&Foo::Bar, &F, sTest);
+	Threads.Create(&Foo::Bar, &F, sTest);
 
 	CHECK ( Threads.empty() == false );
 	CHECK ( Threads.size() == std::thread::hardware_concurrency() );

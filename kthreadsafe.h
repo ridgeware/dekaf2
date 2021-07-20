@@ -112,6 +112,13 @@ public:
 			return get().operator[](std::forward<KeyType>(Key));
 		}
 
+		template<typename KeyType, typename Array = T,
+				 typename std::enable_if<detail::is_std_array<Array>::value == true, int>::type = 0>
+		typename Array::value_type& operator[](KeyType&& Key)
+		{
+			return get().operator[](std::forward<KeyType>(Key));
+		}
+
 	//----------
 	private:
 	//----------
@@ -165,6 +172,13 @@ public:
 		template<typename KeyType, typename Map = T,
 		         typename std::enable_if<detail::is_map_type<Map>::value == true, int>::type = 0>
 		const typename Map::mapped_type& operator[](KeyType&& Key)
+		{
+			return get().at(std::forward<KeyType>(Key));
+		}
+
+		template<typename KeyType, typename Array = T,
+				 typename std::enable_if<detail::is_std_array<Array>::value == true, int>::type = 0>
+		const typename Array::value_type& operator[](KeyType&& Key)
 		{
 			return get().at(std::forward<KeyType>(Key));
 		}

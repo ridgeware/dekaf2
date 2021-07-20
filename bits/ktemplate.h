@@ -102,6 +102,20 @@ struct is_set_type
 	  !has_mapped_type<T>::value
 > {};
 
+template <typename Container>
+struct is_std_array : std::false_type { };
+
+template <typename T, std::size_t S>
+struct is_std_array<std::array<T, S>> : std::true_type { };
+
+template<typename T, typename Index, typename = void>
+struct has_subscript_operator : std::false_type { };
+
+template<typename T, typename Index>
+struct has_subscript_operator<T, Index, std::void_t<
+	decltype(std::declval<T>()[std::declval<Index>()])
+>> : std::true_type { };
+
 // returns has_size<T>::value == true when type has a size() member function
 template <typename T>
 class has_size

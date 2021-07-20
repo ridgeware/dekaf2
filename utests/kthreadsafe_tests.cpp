@@ -3,6 +3,7 @@
 #include <dekaf2/kthreadsafe.h>
 #include <dekaf2/kstring.h>
 #include <map>
+#include <array>
 
 using namespace dekaf2;
 
@@ -52,4 +53,14 @@ TEST_CASE("KThreadSafe")
 	map->erase("Key1");
 
 	CHECK ( map->empty() == true );
+
+	KThreadSafe<std::array<int, 10>> Array1;
+	Array1.unique()[1] = 1;
+
+	CHECK ( Array1.shared()[1] == 1 );
+
+	auto Array = Array1.unique();
+	Array[1] = 2;
+
+	CHECK ( Array[1] == 2 );
 }

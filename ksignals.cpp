@@ -304,13 +304,15 @@ constexpr std::array<int,
 };
 
 //-----------------------------------------------------------------------------
-const char* kTranslateSignal (int iSignalNum, bool bConcise/*=TRUE*/)
+KStringView kTranslateSignal (int iSignalNum, bool bConcise/*=TRUE*/)
 //-----------------------------------------------------------------------------
 {
+	KStringView sReturn;
+
 	switch (iSignalNum)
 	{
 	case 0:
-		return ("");
+		return sReturn;
 
 	#ifdef DEKAF2_IS_WINDOWS
 		// taken from WINCON.H:
@@ -326,199 +328,274 @@ const char* kTranslateSignal (int iSignalNum, bool bConcise/*=TRUE*/)
 		// we can distinguish between 0 (internal crash detection)
 		// and CTRL_BREAK_EVENT (which windows defines as 0):
 		case 1000 + /* CTRL_BREAK_EVENT */ 1:
-			return (bConcise ? "CTRL_BREAK_EVENT" : "CTRL_BREAK_EVENT: win32 interrupt");
+			sReturn = "CTRL_BREAK_EVENT: win32 interrupt"_ksv;
+			break;
+
 		case 1000 + /* CTRL_C_EVENT */ 0:
-			return (bConcise ? "CTRL_C_EVENT"     : "CTRL_C_EVENT: win32 SERVICE_CONTROL_STOP interrupt");
+			sReturn = "CTRL_C_EVENT: win32 SERVICE_CONTROL_STOP interrupt"_ksv;
+			break;
 	#endif
 
 		#ifdef SIGHUP
 		case SIGHUP:
-			return (bConcise ? "SIGHUP"  : "SIGHUP: Hangup");
+			sReturn = "SIGHUP: hangup"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGINT
 		case SIGINT:
-			return (bConcise ? "SIGINT"  : "SIGINT: Interrupt");
+			sReturn = "SIGINT: interrupt from keyboard"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGQUIT
 		case SIGQUIT:
-			return (bConcise ? "SIGQUIT" : "SIGQUIT: Quit");
+			sReturn = "SIGQUIT: quit"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGILL
 		case SIGILL:
-			return (bConcise ? "SIGILL"  : "SIGILL: Illegal instruction");
+			sReturn = "SIGILL: illegal instruction"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGTRAP
 		case SIGTRAP:
-			return (bConcise ? "SIGTRAP" : "SIGTRAP: trace trap (not reset when caught)");
+			sReturn = "SIGTRAP: trace trap"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGABRT
-		case SIGABRT: // aka SIGIOT
-			return (bConcise ? "SIGABRT" : "SIGABRT: used by abort, replace SIGIOT in the future");
+		case SIGABRT:
+			sReturn = "SIGABRT: abort"_ksv;
+			break;
+		#endif
+
+		#if defined(SIGIOT) && SIGIOT != SIGABRT
+		case SIGIOT:
+			sReturn = "SIGIOT: abort"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGEMT
 		case SIGEMT:
-			return (bConcise ? "SIGEMT" : "SIGEMT: EMT instruction");
+			sReturn = "SIGEMT: emulator trap instruction"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGFPE
 		case SIGFPE:
-			return (bConcise ? "SIGFPE"  : "SIGFPE: Floating-point exception");
+			sReturn = "SIGFPE: floating-point exception"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGKILL
 		case SIGKILL:
-			return (bConcise ? "SIGKILL" : "SIGKILL: kill (cannot be caught or ignored)");
+			sReturn = "SIGKILL: kill (cannot be caught or ignored)"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGBUS
 		case SIGBUS:
-			return (bConcise ? "SIGBUS"  : "SIGBUS: BUS error");
+			sReturn = "SIGBUS: bus error"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGSEGV
 		case SIGSEGV:
-			return (bConcise ? "SIGSEGV" : "SIGSEGV: Segmentation violation");
+			sReturn = "SIGSEGV: segmentation violation"_ksv;
+			break;
+		#endif
+
+		#ifdef SIGSTKFLT
+		case SIGSTKFLT:
+			sReturn = "SIGSTKFLT: stack fault on coprocessor";
+			break;
 		#endif
 
 		#ifdef SIGSYS
 		case SIGSYS:
-			return (bConcise ? "SIGSYS" : "SIGSYS: bad argument to system call");
+			sReturn = "SIGSYS: bad argument to system call"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGPIPE
 		case SIGPIPE:
-			return (bConcise ? "SIGPIPE" : "SIGPIPE: Broken pipe");
+			sReturn = "SIGPIPE: broken pipe"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGALRM
 		case SIGALRM:
-			return (bConcise ? "SIGALRM" : "SIGALRM: alarm clock");
+			sReturn = "SIGALRM: alarm clock"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGTERM
 		case SIGTERM:
-			return (bConcise ? "SIGTERM" : "SIGTERM: Termination");
+			sReturn = "SIGTERM: termination"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGUSR1
 		case SIGUSR1:
-			return (bConcise ? "SIGUSR1" : "SIGUSR1: user signal 1");
+			sReturn = "SIGUSR1: user signal 1"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGUSR2
 		case SIGUSR2:
-			return (bConcise ? "SIGUSR2" : "SIGUSR2: user signal 2");
+			sReturn = "SIGUSR2: user signal 2"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGCHLD
-		case SIGCHLD: // aka SIGCLD
-			return (bConcise ? "SIGCHLD" : "SIGCHLD: child status change");
+		case SIGCHLD:
+			sReturn = "SIGCHLD: child status change"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGPWR
 		case SIGPWR:
-			return (bConcise ? "SIGPWR" : "SIGPWR: power-fail restart");
+			sReturn = "SIGPWR: power-fail restart"_ksv;
+			break;
+		#endif
+
+		#if defined(SIGLOST) && SIGPWR != SIGLOST
+		case SIGLOST:
+			sReturn = "SIGLOST: resource lost (eg, record-lock lost)"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGWINCH
 		case SIGWINCH:
-			return (bConcise ? "SIGWINCH" : "SIGWINCH: window size change");
+			sReturn = "SIGWINCH: terminal window size change"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGURG
 		case SIGURG:
-			return (bConcise ? "SIGURG" : "SIGURG: urgent socket condition");
+			sReturn = "SIGURG: urgent socket condition"_ksv;
+			break;
 		#endif
 
-		#ifdef SIGIO
-		case SIGIO: // aka SIGPOLL:
-			return (bConcise ? "SIGIO" : "SIGIO: socket I/O possible (SIGPOLL alias)");
+		#ifdef SIGPOLL
+		case SIGPOLL:
+			sReturn = "SIGPOLL: socket I/O possible"_ksv;
+			break;
+		#endif
+
+		#if defined(SIGIO) && SIGIO != SIGPOLL
+		case SIGIO:
+			sReturn = "SIGIO: socket I/O possible"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGSTOP
 		case SIGSTOP:
-			return (bConcise ? "SIGSTOP" : "SIGSTOP: stop (cannot be caught or ignored)");
+			sReturn = "SIGSTOP: stop (cannot be caught or ignored)"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGTSTP
 		case SIGTSTP:
-			return (bConcise ? "SIGTSTP" : "SIGTSTP: user stop requested from tty");
+			sReturn = "SIGTSTP: user stop requested from tty"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGCONT
 		case SIGCONT:
-			return (bConcise ? "SIGCONT" : "SIGCONT: stopped process has been continued");
+			sReturn = "SIGCONT: stopped process has been continued"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGTTIN
 		case SIGTTIN:
-			return (bConcise ? "SIGTTIN" : "SIGTTIN: background tty read attempted");
+			sReturn = "SIGTTIN: background tty read attempted"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGTTOU
 		case SIGTTOU:
-			return (bConcise ? "SIGTTOU" : "SIGTTOU: background tty write attempted");
+			sReturn = "SIGTTOU: background tty write attempted"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGVTALRM
 		case SIGVTALRM:
-			return (bConcise ? "SIGVTALRM" : "SIGVTALRM: virtual timer expired.");
+			sReturn = "SIGVTALRM: virtual timer expired"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGPROF
 		case SIGPROF:
-			return (bConcise ? "SIGPROF" : "SIGPROF: profiling timer expired");
+			sReturn = "SIGPROF: profiling timer expired"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGXCPU
 		case SIGXCPU:
-			return (bConcise ? "SIGXCPU" : "SIGXCPU: exceeded cpu limit");
+			sReturn = "SIGXCPU: exceeded cpu limit"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGXFSZ
 		case SIGXFSZ:
-			return (bConcise ? "SIGXFSZ" : "SIGXFSZ: exceeded file size limit");
+			sReturn = "SIGXFSZ: exceeded file size limit"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGWAITING
 		case SIGWAITING:
-			return (bConcise ? "SIGWAITING" : "SIGWAITING: process's lwps are blocked");
+			sReturn = "SIGWAITING: process's lwps are blocked"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGLWP
 		case SIGLWP:
-			return (bConcise ? "SIGLWP" : "SIGLWP: special signal used by thread library");
+			sReturn = "SIGLWP: special signal used by thread library"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGFREEZE
 		case SIGFREEZE:
-			return (bConcise ? "SIGFREEZE" : "SIGFREEZE: special signal used by CPR");
+			sReturn = "SIGFREEZE: special signal used by CPR"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGTHAW
 		case SIGTHAW:
-			return (bConcise ? "SIGTHAW" : "SIGTHAW: special signal used by CPR");
+			sReturn = "SIGTHAW: special signal used by CPR"_ksv;
+			break;
 		#endif
 
 		#ifdef SIGCANCEL
 		case SIGCANCEL:
-			return (bConcise ? "SIGCANCEL" : "SIGCANCEL: thread cancellation signal used by libthread");
+			sReturn = "SIGCANCEL: thread cancellation signal used by libthread"_ksv;
+			break;
 		#endif
 
-		#if defined(SIGLOST) && (!defined(SIGPWR) || SIGPWR != SIGLOST)
-		case SIGLOST:
-			return (bConcise ? "SIGLOST" : "SIGLOST: resource lost (eg, record-lock lost)");
-		#endif
-
-	default:
-		return ("UNKNOWN");
+		default:
+#if defined(SIGRTMIN) && defined(SIGRTMAX)
+			if (iSignalNum >= SIGRTMIN && iSignalNum <= SIGRTMAX)
+			{
+				sReturn = "SIGRT: real time signal"_ksv;
+			}
+			else
+#endif
+			{
+				sReturn = "UNKNOWN: unknown signal"_ksv;
+			}
+			break;
 	}
+
+	if (bConcise)
+	{
+		sReturn.erase(sReturn.find(':'));
+	}
+
+	return sReturn;
 
 } // kTranslateSignal
 

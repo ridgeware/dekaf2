@@ -192,7 +192,7 @@ private:
 /// @param bConcise
 /// true (default) returns signal name only. false returns a short description
 /// of the signal as well.
-const char* kTranslateSignal (int iSignalNum, bool bConcise = true);
+KStringView kTranslateSignal (int iSignalNum, bool bConcise = true);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

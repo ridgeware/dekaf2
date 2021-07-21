@@ -5964,17 +5964,51 @@ bool KSQL::Insert (const KROW& Row, bool bIgnoreDupes/*=false*/)
 bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 //-----------------------------------------------------------------------------
 {
-	// assumed max packet size for sql API: 64 MB (default for MySQL)
-	std::size_t iMaxPacket = 64 * 1024 * 1024;
-	std::size_t iRows = 0;
 	static constexpr std::size_t iMaxRows = 1000;
-	uint64_t iFirstColumnHash = 0;
+
+	KString     sLastTablename;
+	// assumed max packet size for sql API: 64 MB (default for MySQL)
+	std::size_t iMaxPacket       = 64 * 1024 * 1024;
+	std::size_t iRows            = 0;
+	uint64_t    iFirstColumnHash = 0;
+	uint64_t    iInsertedRows    = 0;
 
 	m_sLastSQL.clear();
 
-
 	for (const auto& Row : Rows)
 	{
+		if (!iRows)
+		{
+			if (!Row.GetTablename().empty())
+			{
+				sLastTablename = Row.GetTablename();
+			}
+			else
+			{
+				// set the tablename from the previous list, it
+				// will be used to start the value insert again
+				Row.SetTablename(sLastTablename);
+			}
+		}
+		else if (!Row.GetTablename().empty() &&
+				 sLastTablename != Row.GetTablename())
+		{
+			// start a new bulk insert for the new table
+			auto bResult = ExecLastRawInsert(bIgnoreDupes);
+
+			iInsertedRows += GetNumRowsAffected();
+
+			if (!bResult)
+			{
+				return false;
+			}
+			
+			iRows = 0;
+			iFirstColumnHash = 0;
+			m_sLastSQL.clear();
+			sLastTablename = Row.GetTablename();
+		}
+
 		// check that all rows have the same structure
 		KHash ColHash;
 
@@ -5994,6 +6028,7 @@ bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 			{
 				m_sLastError = "differing column layout in rows - abort";
 				kDebug(1, m_sLastError);
+				m_iNumRowsAffected = iInsertedRows;
 				return false;
 			}
 		}
@@ -6002,6 +6037,7 @@ bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 		if (!Row.AppendInsert(m_sLastSQL, m_iDBType, false, GetDBType() != DBT::SQLSERVER && GetDBType() != DBT::SQLSERVER15))
 		{
 			m_sLastError = Row.GetLastError();
+			m_iNumRowsAffected = iInsertedRows;
 			return false;
 		}
 
@@ -6014,9 +6050,11 @@ bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 			// next row gets too close to the maximum, flush now
 			if (!ExecLastRawInsert(bIgnoreDupes))
 			{
+				m_iNumRowsAffected = iInsertedRows + GetNumRowsAffected();
 				return false;
 			}
 
+			iInsertedRows += GetNumRowsAffected();
 			iRows = 0;
 			m_sLastSQL.clear();
 		}
@@ -6029,7 +6067,12 @@ bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 		return !Rows.empty();
 	}
 
-	return ExecLastRawInsert(bIgnoreDupes);
+	auto bResult = ExecLastRawInsert(bIgnoreDupes);
+
+	iInsertedRows += GetNumRowsAffected();
+	m_iNumRowsAffected = iInsertedRows;
+
+	return bResult;
 
 } // Insert
 

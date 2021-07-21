@@ -292,6 +292,7 @@ TEST_CASE("KSQL")
 		db.SetFlags (KSQL::F_IgnoreSQLErrors);
 		db.ExecSQL ("drop table TEST_KSQL");
 		db.ExecSQL ("drop table TEST1_KSQL");
+		db.ExecSQL ("drop table TEST2_KSQL");
 		db.ExecSQL ("drop table TEST_KSQL_BLOB");
 		db.ExecSQL ("drop table BOGUS_TABLE");
 		db.ExecSQL ("drop table BOGUS_TABLE");
@@ -841,6 +842,10 @@ TEST_CASE("KSQL")
 
 		std::vector<KROW> Rows;
 
+		if (!db.ExecSQL("create table if not exists TEST2_KSQL like TEST_KSQL"))
+		{
+			FAIL_CHECK (db.GetLastError());
+		}
 		{
 			KROW Row1 ("TEST_KSQL");
 			Row1.AddCol ("anum",      UINT64_C(100),            KROW::PKEY);
@@ -848,7 +853,8 @@ TEST_CASE("KSQL")
 
 			Rows.push_back(std::move(Row1));
 
-			KROW Row2 ("TEST_KSQL");
+			// test missing table name - should now be kept over from last
+			KROW Row2;
 			Row2.AddCol ("anum",      UINT64_C(101),            KROW::PKEY);
 			Row2.AddCol ("astring",   "krow insert 101");
 
@@ -859,6 +865,18 @@ TEST_CASE("KSQL")
 			Row3.AddCol ("astring",   ""); // test an empty value
 
 			Rows.push_back(std::move(Row3));
+
+			KROW Row4 ("TEST2_KSQL");
+			Row4.AddCol ("anum",      UINT64_C(100),            KROW::PKEY);
+			Row4.AddCol ("astring",   "value 1");
+
+			Rows.push_back(std::move(Row4));
+
+			KROW Row5 ("TEST2_KSQL");
+			Row5.AddCol ("anum",      UINT64_C(101),            KROW::PKEY);
+			Row5.AddCol ("astring",   "value 2");
+
+			Rows.push_back(std::move(Row5));
 		}
 
 		if (!db.Insert (Rows))
@@ -866,16 +884,25 @@ TEST_CASE("KSQL")
 			FAIL_CHECK (db.GetLastError());
 		}
 
-		{
-			KROW Row4 ("TEST_KSQL");
-			Row4.AddCol ("anum",      UINT64_C(102),            KROW::PKEY);
-			Row4.AddCol ("asring",   "krow insert 103");
+		CHECK ( db.GetNumRowsAffected() == 5 );
 
-			Rows.push_back(std::move(Row4));
+		{
+			KROW Row6 ("TEST2_KSQL");
+			Row6.AddCol ("anum",      UINT64_C(102),            KROW::PKEY);
+			Row6.AddCol ("asring",   "krow insert 103");
+
+			Rows.push_back(std::move(Row6));
 		}
 
 		CHECK ( !db.Insert (Rows) );
 		CHECK ( db.GetLastError() == "differing column layout in rows - abort" );
+
+		CHECK ( db.SingleIntQuery("select count(*) from TEST2_KSQL") == 2 );
+
+		if (!db.ExecSQL("drop table TEST2_KSQL"))
+		{
+			FAIL_CHECK (db.GetLastError());
+		}
 
 		kDebugLog (1, "KSQL auto range for loop");
 

@@ -238,8 +238,9 @@ public:
 
 	/// Set the name of the table - could also be done through construction of KROW
 	/// @param sTablename the name of the table
-	void SetTablename (KStringView sTablename)
+	void SetTablename (KStringView sTablename) const
 	{
+		// this method is const!
 		m_sTablename = sTablename;
 	}
 
@@ -469,7 +470,7 @@ private:
 
 	void PrintValuesForInsert(KString& sSQL, DBT iDBType) const;
 
-	KString m_sTablename;
+	mutable KString m_sTablename;
 	mutable KString m_sLastError;
 
 }; // KROW

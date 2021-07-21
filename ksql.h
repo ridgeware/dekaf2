@@ -310,7 +310,9 @@ public:
 	bool   Load            (KROW& Row, bool bSelectAllColumns = false);
 	/// Insert one KROW object
 	bool   Insert          (const KROW& Row, bool bIgnoreDupes=false);
-	/// Insert a vector of KROW objects
+	/// Insert a vector of KROW objects. It is permitted to add KROW objects for different tables, the
+	/// bulk insert automatically ends one insert and starts another. Only the first in a series of KROW
+	/// objects needs to have the table name set.
 	bool   Insert          (const std::vector<KROW>& Rows, bool bIgnoreDupes=false);
 	/// Update with one KROW object (primary key selects which)
 	bool   Update          (const KROW& Row);

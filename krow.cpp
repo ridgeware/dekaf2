@@ -360,14 +360,14 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*
 	
 	if (empty())
 	{
-		m_sLastError.Format("KROW::FormInsert(): no columns defined.");
+		m_sLastError = "KROW::FormInsert(): no columns defined.";
 		kDebugLog (1, m_sLastError);
 		return (false);
 	}
 
 	if (m_sTablename.empty())
 	{
-		m_sLastError.Format("KROW::FormInsert(): no tablename defined.");
+		m_sLastError = "KROW::FormInsert(): no tablename defined.";
 		kDebugLog (1, m_sLastError);
 		return (false);
 	}
@@ -427,7 +427,7 @@ bool KROW::AppendInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=fals
 
 	if (empty())
 	{
-		m_sLastError.Format("KROW::AppendInsert(): no columns defined.");
+		m_sLastError = "KROW::AppendInsert(): no columns defined.";
 		kDebugLog (1, m_sLastError);
 		return (false);
 	}
@@ -440,7 +440,8 @@ bool KROW::AppendInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=fals
 
 	if (bIdentityInsert && (iDBType == DBT::SQLSERVER || iDBType == DBT::SQLSERVER15))
 	{
-		kWarning ("cannot append row to existing DDL statement with IDENTITY_INSERT provision");
+		m_sLastError = "KROW::AppendInsert(): cannot append row to existing DDL statement with IDENTITY_INSERT provision";
+		kDebugLog (1, m_sLastError);
 		return false;
 	}
 

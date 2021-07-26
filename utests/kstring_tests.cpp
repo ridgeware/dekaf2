@@ -1226,12 +1226,12 @@ TEST_CASE("KString") {
 			CHECK(kToUpper(ch) == 214);
 		}
 		{
-			char ch = 0xf6; // oe
+			char ch = static_cast<char>(0xf6); // oe
 			CHECK(kIsLower(ch));
 			CHECK(static_cast<unsigned char>(kToUpper(ch)) == 0xd6);
 		}
 		{
-			char ch = 0xf6; // oe
+			char ch = static_cast<char>(0xf6); // oe
 			CHECK(KASCII::kIsLower(ch) == false);
 			CHECK(static_cast<unsigned char>(KASCII::kToUpper(ch)) == 0xf6);
 		}

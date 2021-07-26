@@ -169,7 +169,7 @@ uint64_t KUnTar::Decoded::FromNumbers(const char* pStart, uint16_t iSize)
 //-----------------------------------------------------------------------------
 {
 	// check if the null byte came before the end of the array
-	iSize = ::strnlen(pStart, iSize);
+	iSize = static_cast<uint16_t>(::strnlen(pStart, iSize));
 
 	KStringView sView(pStart, iSize);
 
@@ -282,9 +282,9 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& TarHeader)
 		}
     }
 
-	m_iMode     = FromNumbers(TarHeader.mode, 8);
-	m_iUserId   = FromNumbers(TarHeader.owner_ids.user,  8);
-	m_iGroupId  = FromNumbers(TarHeader.owner_ids.group, 8);
+	m_iMode     = static_cast<uint32_t>(FromNumbers(TarHeader.mode, 8));
+	m_iUserId   = static_cast<uint32_t>(FromNumbers(TarHeader.owner_ids.user,  8));
+	m_iGroupId  = static_cast<uint32_t>(FromNumbers(TarHeader.owner_ids.group, 8));
 
 	if (m_bIsUstar)
 	{

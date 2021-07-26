@@ -689,9 +689,7 @@ KFileType KFileTypeFromStdFilesystem(fs::file_type ftype)
 
 } // KFileTypeFromStdFilesystem
 
-#endif // of DEKAF2_HAS_STD_FILESYSTEM
-
-#ifdef DEKAF2_IS_UNIX
+#else // of DEKAF2_HAS_STD_FILESYSTEM
 
 //-----------------------------------------------------------------------------
 KFileType KFileTypeFromDirentry(uint8_t d_type)
@@ -729,7 +727,7 @@ KFileType KFileTypeFromDirentry(uint8_t d_type)
 
 } // KFileTypeFromDirentry
 
-#endif // of DEKAF2_IS_UNIX
+#endif // of DEKAF2_HAS_STD_FILESYSTEM
 
 } // end of anonymous namespace
 

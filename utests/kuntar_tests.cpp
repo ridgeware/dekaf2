@@ -402,7 +402,7 @@ TEST_CASE("KUnTar")
 		CHECK ( untar.ReadAll(TempDir.Name()) );
 
 		// get a recursive directory listing
-		KDirectory Files(TempDir.Name(), KFileType::ALL, true);
+		KDirectory Files(TempDir.Name(), KFileTypes::ALL, true);
 		Files.Sort();
 		CHECK ( Files.size() == 6 );
 
@@ -421,25 +421,25 @@ TEST_CASE("KUnTar")
 				case 2:
 					CHECK ( sPath       == "myfolder/file1.txt" );
 					CHECK ( File.Size() == 30 );
-					CHECK ( File.Type() == KFileType::REGULAR );
+					CHECK ( File.Type() == KFileType::FILE );
 					CHECK ( kReadAll(File.Path()) == "this is line 1\nthis is line 2\n" );
 					break;
 				case 3:
 					CHECK ( sPath       == "myfolder/file2.txt" );
 					CHECK ( File.Size() == 46 );
-					CHECK ( File.Type() == KFileType::REGULAR );
+					CHECK ( File.Type() == KFileType::FILE );
 					CHECK ( kReadAll(File.Path()) == "this is another line 1\nthis is another line 2\n" );
 					break;
 				case 4:
 					CHECK ( sPath       == "myfolder/filé3.txt" );
 					CHECK ( File.Size() == 54 );
-					CHECK ( File.Type() == KFileType::REGULAR );
+					CHECK ( File.Type() == KFileType::FILE );
 					CHECK ( kReadAll(File.Path()) == "this is yet another line 1\nthis is yet another line 2\n" );
 					break;
 				case 5:
 					CHECK ( sPath       == "myfolder/hardlink.txt" );
 					CHECK ( File.Size() == 46 );
-					CHECK ( File.Type() == KFileType::REGULAR );
+					CHECK ( File.Type() == KFileType::FILE );
 					CHECK ( kReadAll(File.Path()) == "this is another line 1\nthis is another line 2\n" );
 					break;
 				case 6:
@@ -459,7 +459,7 @@ TEST_CASE("KUnTar")
 		CHECK ( untar.ReadAll(TempDir.Name()) );
 
 		// get a recursive directory listing
-		KDirectory Files(TempDir.Name(), KFileType::ALL, true);
+		KDirectory Files(TempDir.Name(), KFileTypes::ALL, true);
 		Files.Sort();
 		CHECK ( Files.size() == 6 );
 
@@ -478,25 +478,25 @@ TEST_CASE("KUnTar")
 				case 2:
 					CHECK ( sPath       == "myfolder/file1.txt" );
 					CHECK ( File.Size() == 30 );
-					CHECK ( File.Type() == KFileType::REGULAR );
+					CHECK ( File.Type() == KFileType::FILE );
 					CHECK ( kReadAll(File.Path()) == "this is line 1\nthis is line 2\n" );
 					break;
 				case 3:
 					CHECK ( sPath       == "myfolder/file2.txt" );
 					CHECK ( File.Size() == 46 );
-					CHECK ( File.Type() == KFileType::REGULAR );
+					CHECK ( File.Type() == KFileType::FILE );
 					CHECK ( kReadAll(File.Path()) == "this is another line 1\nthis is another line 2\n" );
 					break;
 				case 4:
 					CHECK ( sPath       == "myfolder/filé3.txt" );
 					CHECK ( File.Size() == 54 );
-					CHECK ( File.Type() == KFileType::REGULAR );
+					CHECK ( File.Type() == KFileType::FILE );
 					CHECK ( kReadAll(File.Path()) == "this is yet another line 1\nthis is yet another line 2\n" );
 					break;
 				case 5:
 					CHECK ( sPath       == "myfolder/hardlink.txt" );
 					CHECK ( File.Size() == 46 );
-					CHECK ( File.Type() == KFileType::REGULAR );
+					CHECK ( File.Type() == KFileType::FILE );
 					CHECK ( kReadAll(File.Path()) == "this is another line 1\nthis is another line 2\n" );
 					break;
 				case 6:

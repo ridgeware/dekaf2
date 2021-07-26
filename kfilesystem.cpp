@@ -91,146 +91,73 @@ bool kChangeMode(KStringViewZ sPath, int iMode)
 
 	return true;
 
-}
+} // kChangeMode
 
 //-----------------------------------------------------------------------------
 int kGetMode(KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_HAS_STD_FILESYSTEM
+	KFileStat Stat(sPath);
 
-	std::error_code ec;
-
-	int mode = static_cast<int>(fs::status(kToFilesystemPath(sPath), ec).permissions());
-
-	if (ec)
-	{
-		kDebug(1, "{}: {}", sPath, ec.message());
-		mode = 0;
-	}
-
-	return mode;
-
-#else
-
-	struct stat StatStruct;
-
-	if (stat (sPath.c_str(), &StatStruct) < 0)
-	{
-		kDebug(1, "{}: {}", sPath, strerror(errno));
-		return 0;
-	}
-
-	return StatStruct.st_mode;
-
-#endif
+	return Stat.AccessMode();
 
 } // kGetMode
 
 //-----------------------------------------------------------------------------
-bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestForEmptyFile)
+bool kExists (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_HAS_STD_FILESYSTEM
+	KFileStat Stat(sPath);
 
-	std::error_code ec;
+	return Stat.Exists();
 
-	fs::file_status status = fs::status(kToFilesystemPath(sPath), ec);
+} // kExists
 
-	if (ec)
+//-----------------------------------------------------------------------------
+bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile)
+//-----------------------------------------------------------------------------
+{
+	KFileStat Stat(sPath);
+
+	if (Stat.IsFile())
 	{
-		kDebug (3, "{}: {}", sPath, ec.message());
-		return false;
-	}
-
-	if (!fs::exists(status))
-	{
-		return false;
-	}
-
-	if (bAsFile)
-	{
-		if (fs::is_directory(status))
+		if (bTestForEmptyFile && Stat.Size() == 0)
 		{
-			kDebug (3, "entry exists, but is not a file: {}", sPath);
-			return false;
+			kDebug (3, "entry exists, but is empty: {}", sPath);
+			return false;    // <-- exists, is a file but is zero length
 		}
-	}
-	else if (bAsDirectory)
-	{
-		if (!fs::is_directory(status))
-		{
-			kDebug (3, "entry exists, but is not a directory: {}", sPath);
-			return false;
-		}
-		else
-		{
-			return true;
-		}
-	}
 
-	if (!bTestForEmptyFile)
-	{
-		// exists and is a file
-		return true;
-	}
-
-	if (fs::is_empty(kToFilesystemPath(sPath), ec))
-	{
-		kDebug (3, "entry exists, but is empty: {}", sPath);
-		return false;
-	}
-
-	if (ec)
-	{
-		kDebug (3, ec.message());
-		return false;
-	}
-
-	return true;
-
-#else
-
-	struct stat StatStruct;
-	if (stat (sPath.c_str(), &StatStruct) < 0)
-	{
-		return false;  // <-- file/dir doesn't exist
-	}
-
-	if (bAsFile)
-	{
-		if ((StatStruct.st_mode & S_IFREG) == 0)
-		{
-			kDebug (3, "entry exists, but is not a file: {}", sPath);
-			return false;   // <-- exists, but is not a file
-		}
-	}
-	else if (bAsDirectory)
-	{
-		if ((StatStruct.st_mode & S_IFDIR) == 0)
-		{
-			kDebug (3, "entry exists, but is not a directory: {}", sPath);
-			return false;   // <-- exists, but is not a directory
-		}
-		return true;
-	}
-
-	if (!bTestForEmptyFile)
-	{
 		return true;    // <-- exists and is a file
 	}
 
-	if (StatStruct.st_size <= 0)
+	if (Stat.Exists())
 	{
-		kDebug (3, "entry exists, but is empty: {}", sPath);
-		return false;    // <-- exists, is a file but is zero length
+		kDebug (3, "entry exists, but is not a file: {}", sPath);
 	}
 
-	return true;     // <-- exists, is a file and is non-zero length
+	return false;
 
-#endif
+} // kFileExists
 
-} // kExists
+//-----------------------------------------------------------------------------
+bool kDirExists (KStringViewZ sPath)
+//-----------------------------------------------------------------------------
+{
+	KFileStat Stat(sPath);
+
+	if (Stat.IsDirectory())
+	{
+		return true;
+	}
+
+	if (Stat.Exists())
+	{
+		kDebug (3, "entry exists, but is not a directory: {}", sPath);
+	}
+
+	return false;
+
+} // kDirExists
 
 //-----------------------------------------------------------------------------
 KStringView kExtension(KStringView sFilePath)
@@ -653,44 +580,14 @@ bool kTouchFile(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_FILE */)
 time_t kGetLastMod(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_HAS_STD_FILESYSTEM) && (DEKAF2_NO_GCC || DEKAF2_GCC_MAJOR_VERSION > 9)
+	KFileStat Stat(sFilePath);
 
-	std::error_code ec;
-
-	auto ftime = fs::last_write_time(kToFilesystemPath(sFilePath), ec);
-
-	if (ec)
-	{
-		kDebug(2, "{}: {}", sFilePath, ec.message());
-		return -1;
-	}
-
-#if defined(DEKAF2_IS_WINDOWS) && !defined(DEKAF2_IS_CPP_20)
-
-	// unfortunately windows uses its own filetime ticks (100 nanoseconds since 1.1.1601)
-	// this will change with C++20!
-	static constexpr uint64_t WINDOWS_TICK = 10000000;
-	static constexpr uint64_t SEC_TO_UNIX_EPOCH = 11644473600LL;
-	return (ftime.time_since_epoch().count() / WINDOWS_TICK - SEC_TO_UNIX_EPOCH);
-
-#else
-
-	return decltype(ftime)::clock::to_time_t(ftime);
-
-#endif
-
-#else
-
-	struct stat StatStruct;
-
-	if (stat (sFilePath.c_str(), &StatStruct) < 0)
+	if (!Stat.Exists())
 	{
 		return -1;  // <-- file doesn't exist
 	}
 
-	return StatStruct.st_mtime;
-
-#endif
+	return Stat.ModificationTime();
 
 } // kGetLastMod
 
@@ -698,141 +595,143 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 size_t kFileSize(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_HAS_STD_FILESYSTEM
+	KFileStat Stat(sFilePath);
 
-	std::error_code ec;
-
-	auto fsPath = kToFilesystemPath(sFilePath);
-
-	auto size = fs::file_size(fsPath, ec);
-
-	if (ec)
-	{
-		kDebug(2, "{}: {}", sFilePath, ec.message());
-		return npos;
-	}
-
-	auto status = fs::status(fsPath, ec);
-
-	if (ec)
-	{
-		kDebug (2, "{}: {}", sFilePath, ec.message());
-		return npos;
-	}
-
-	if (fs::is_directory(status))
-	{
-		return npos;
-	}
-
-	return size;
-
-#else
-
-	struct stat StatStruct;
-
-	if (stat (sFilePath.c_str(), &StatStruct) < 0
-		|| (StatStruct.st_mode & S_IFREG) == 0)
+	if (!Stat.IsFile())
 	{
 		return npos;  // <-- file doesn't exist or is not a regular file
 	}
 
-	return StatStruct.st_size;
-	
-#endif
+	return Stat.Size();
 
 } // kFileSize
 
+namespace {
 
 #ifdef DEKAF2_IS_UNIX
 
-	#define DEKAF2_FILESTAT_USE_STAT
-
-	#define DEKAF2_S_IFMT      S_IFMT
-	#define DEKAF2_S_IFIFO     S_IFIFO
-	#define DEKAF2_S_IFCHR     S_IFCHR
-	#define DEKAF2_S_IFDIR     S_IFDIR
-	#define DEKAF2_S_IFBLK     S_IFBLK
-	#define DEKAF2_S_IFREG     S_IFREG
-	#define DEKAF2_S_IFLNK     S_IFLNK
-	#define DEKAF2_S_IFSOCK    S_IFSOCK
-
-	#define DEKAF2_S_ISBLK(m)  S_ISBLK(m)
-	#define DEKAF2_S_ISCHR(m)  S_ISCHR(m)
-	#define DEKAF2_S_ISDIR(m)  S_ISDIR(m)
-	#define DEKAF2_S_ISFIFO(m) S_ISFIFO(m)
-	#define DEKAF2_S_ISREG(m)  S_ISREG(m)
-	#define DEKAF2_S_ISLNK(m)  S_ISLNK(m)
-	#define DEKAF2_S_ISSOCK(m) S_ISSOCK(m)
-
-#elif defined(DEKAF2_HAS_STD_FILESYSTEM)
-
-	#define DEKAF2_FILESTAT_USE_STD_FILESYSTEM
-
-	// these bit definitions are only used internally
-	// and do not need to match the target file system
-	// - we use the std::filesystem functions and types
-	// to interface with the real file system
-
-	#define DEKAF2_S_IFMT      0170000
-	#define DEKAF2_S_IFIFO     0010000
-	#define DEKAF2_S_IFCHR     0020000
-	#define DEKAF2_S_IFDIR     0040000
-	#define DEKAF2_S_IFBLK     0060000
-	#define DEKAF2_S_IFREG     0100000
-	#define DEKAF2_S_IFLNK     0120000
-	#define DEKAF2_S_IFSOCK    0140000
-
-	#define DEKAF2_S_ISBLK(m)  (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFBLK)
-	#define DEKAF2_S_ISCHR(m)  (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFCHR)
-	#define DEKAF2_S_ISDIR(m)  (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFDIR)
-	#define DEKAF2_S_ISFIFO(m) (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFIFO)
-	#define DEKAF2_S_ISREG(m)  (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFREG)
-	#define DEKAF2_S_ISLNK(m)  (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFLNK)
-	#define DEKAF2_S_ISSOCK(m) (((m) & DEKAF2_S_IFMT) == DEKAF2_S_IFSOCK)
-
-#endif
-
 //-----------------------------------------------------------------------------
-KFileType::KFileType(uint32_t mode)
+KFileType KFileTypeFromUnixMode(uint32_t mode)
 //-----------------------------------------------------------------------------
 {
-	switch ((mode & DEKAF2_S_IFMT))
+	switch ((mode & S_IFMT))
 	{
-		case DEKAF2_S_IFREG:
-			m_FType = KFileType::REGULAR;
-			break;
+		case S_IFREG:
+			return KFileType::FILE;
 
-		case DEKAF2_S_IFDIR:
-			m_FType = KFileType::DIRECTORY;
-			break;
+		case S_IFDIR:
+			return KFileType::DIRECTORY;
 
-		case DEKAF2_S_IFLNK:
-			m_FType = KFileType::LINK;
-			break;
+		case S_IFLNK:
+			return KFileType::LINK;
 
-		case DEKAF2_S_IFSOCK:
-			m_FType = KFileType::SOCKET;
-			break;
+		case S_IFSOCK:
+			return KFileType::SOCKET;
 
-		case DEKAF2_S_IFIFO:
-			m_FType = KFileType::FIFO;
-			break;
+		case S_IFIFO:
+			return KFileType::PIPE;
 
-		case DEKAF2_S_IFBLK:
-			m_FType = KFileType::BLOCK;
-			break;
+		case S_IFBLK:
+			return KFileType::BLOCK;
 
-		case DEKAF2_S_IFCHR:
-			m_FType = KFileType::CHARACTER;
-			break;
+		case S_IFCHR:
+			return KFileType::CHARACTER;
 
 		default:
-			m_FType = KFileType::OTHER;
-			break;
+			return KFileType::UNKNOWN;
 	}
 
-} // KFileType
+	return KFileType::UNKNOWN;
+
+} // KFileTypeFromUnixMode
+
+#endif // of DEKAF2_IS_UNIX
+
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+
+//-----------------------------------------------------------------------------
+KFileType KFileTypeFromStdFilesystem(fs::file_type ftype)
+//-----------------------------------------------------------------------------
+{
+	switch (ftype)
+	{
+#ifdef DEKAF2_HAS_CPP_17
+		case fs::file_type::block:
+			return KFileType::BLOCK;
+#endif
+		case fs::file_type::not_found:
+			return KFileType::UNEXISTING;
+
+		case fs::file_type::character:
+			return KFileType::CHARACTER;
+
+		case fs::file_type::directory:
+			return KFileType::DIRECTORY;
+
+		case fs::file_type::fifo:
+			return KFileType::PIPE;
+
+		case fs::file_type::symlink:
+			return KFileType::LINK;
+
+		case fs::file_type::regular:
+			return KFileType::FILE;
+
+		case fs::file_type::socket:
+			return KFileType::SOCKET;
+
+		default:
+		case fs::file_type::unknown:
+			return KFileType::UNKNOWN;
+	}
+
+	return KFileType::UNKNOWN;
+
+} // KFileTypeFromStdFilesystem
+
+#endif // of DEKAF2_HAS_STD_FILESYSTEM
+
+#ifdef DEKAF2_IS_UNIX
+
+//-----------------------------------------------------------------------------
+KFileType KFileTypeFromDirentry(uint8_t d_type)
+//-----------------------------------------------------------------------------
+{
+	switch (d_type)
+	{
+		case DT_BLK:
+			return KFileType::BLOCK;
+
+		case DT_CHR:
+			return KFileType::CHARACTER;
+
+		case DT_DIR:
+			return KFileType::DIRECTORY;
+
+		case DT_FIFO:
+			return KFileType::PIPE;
+
+		case DT_LNK:
+			return KFileType::LINK;
+
+		case DT_REG:
+			return KFileType::FILE;
+
+		case DT_SOCK:
+			return KFileType::SOCKET;
+
+		default:
+		case DT_UNKNOWN:
+			return KFileType::UNKNOWN;
+	}
+
+	return KFileType::UNKNOWN;
+
+} // KFileTypeFromDirentry
+
+#endif // of DEKAF2_IS_UNIX
+
+} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
 KStringViewZ KFileType::Serialize() const
@@ -840,30 +739,77 @@ KStringViewZ KFileType::Serialize() const
 {
 	switch (m_FType)
 	{
-		case ALL:
-			return "ALL";
+		case UNEXISTING:
+			return "UNEXISTING";
+		case FILE:
+			return "FILE";
+		case DIRECTORY:
+			return "DIRECTORY";
+		case LINK:
+			return "SYMLINK";
+		case PIPE:
+			return "PIPE";
 		case BLOCK:
 			return "BLOCK";
 		case CHARACTER:
 			return "CHARACTER";
-		case DIRECTORY:
-			return "DIRECTORY";
-		case FIFO:
-			return "PIPE";
-		case LINK:
-			return "SYMLINK";
-		case REGULAR:
-			return "FILE";
 		case SOCKET:
 			return "SOCKET";
-		case OTHER:
-			return "OTHER";
+		case UNKNOWN:
+			return "UNKNOWN";
 	}
 
-	// gcc is stupid..
-	return "";
+	return "ERROR";
 
 } // Serialize
+
+//-----------------------------------------------------------------------------
+std::vector<KStringViewZ> KFileTypes::Serialize() const
+//-----------------------------------------------------------------------------
+{
+	std::vector<KStringViewZ> Result;
+
+	if (m_Types == 255)
+	{
+		Result.push_back("ALL");
+	}
+	else
+	{
+		uint8_t mask = 1;
+
+		for (;;)
+		{
+			auto iMasked = m_Types & mask;
+
+			if (iMasked != 0)
+			{
+				Result.push_back(KFileType(KFileType::FileType(iMasked)).Serialize());
+			}
+
+			if (mask >= 127)
+			{
+				break;
+			}
+
+			mask <<= 1;
+		}
+	}
+	
+	return Result;
+
+} // Serialize
+
+const KFileTypes KFileTypes::ALL = static_cast<KFileType::FileType>(255);
+
+#ifdef DEKAF2_IS_UNIX
+
+	#define DEKAF2_FILESTAT_USE_STAT
+
+#elif defined(DEKAF2_HAS_STD_FILESYSTEM)
+
+	#define DEKAF2_FILESTAT_USE_STD_FILESYSTEM
+
+#endif
 
 //-----------------------------------------------------------------------------
 KFileStat::KFileStat(const KStringViewZ sFilename)
@@ -877,12 +823,13 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 
 	if (!stat(sFilename.c_str(), &StatStruct))
 	{
-		m_mode  = StatStruct.st_mode;
-		m_uid   = StatStruct.st_uid;
-		m_gid   = StatStruct.st_gid;
 		m_atime = StatStruct.st_atime;
 		m_mtime = StatStruct.st_mtime;
 		m_ctime = StatStruct.st_ctime;
+		m_mode  = StatStruct.st_mode & ~S_IFMT;
+		m_uid   = StatStruct.st_uid;
+		m_gid   = StatStruct.st_gid;
+		m_ftype = KFileTypeFromUnixMode(StatStruct.st_mode);
 
 		if (!IsDirectory())
 		{
@@ -907,45 +854,8 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 	}
 	else
 	{
-		auto ftype = status.type();
-
-		switch (ftype)
-		{
-			case fs::file_type::regular:
-				m_mode = DEKAF2_S_IFREG;
-				break;
-
-			case fs::file_type::directory:
-				m_mode = DEKAF2_S_IFDIR;
-				break;
-
-			case fs::file_type::symlink:
-				m_mode = DEKAF2_S_IFLNK;
-				break;
-
-	#ifdef DEKAF2_HAS_CPP_17
-			case fs::file_type::block:
-				m_mode = DEKAF2_S_IFBLK;
-				break;
-	#endif
-			case fs::file_type::character:
-				m_mode = DEKAF2_S_IFCHR;
-				break;
-
-			case fs::file_type::fifo:
-				m_mode = DEKAF2_S_IFIFO;
-				break;
-
-			case fs::file_type::socket:
-				m_mode = DEKAF2_S_IFSOCK;
-				break;
-
-			default:
-				m_mode = 0;
-				break;
-		}
-
-		m_mode |= static_cast<int>(status.permissions());
+		m_ftype = KFileTypeFromStdFilesystem(status.type());
+		m_mode  = static_cast<int>(status.permissions());
 	}
 
 	if (!IsDirectory())
@@ -993,87 +903,11 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 
 } // KFileStat
 
-//-----------------------------------------------------------------------------
-int KFileStat::AccessMode() const
-//-----------------------------------------------------------------------------
-{
-	return (m_mode & ~DEKAF2_S_IFMT);
-
-} // GetAccessMode
-
-//-----------------------------------------------------------------------------
-KFileType KFileStat::Type() const
-//-----------------------------------------------------------------------------
-{
-	switch ((m_mode & DEKAF2_S_IFMT))
-	{
-		case DEKAF2_S_IFREG:
-			return KFileType::REGULAR;
-
-		case DEKAF2_S_IFDIR:
-			return KFileType::DIRECTORY;
-
-		case DEKAF2_S_IFLNK:
-			return KFileType::LINK;
-
-		case DEKAF2_S_IFSOCK:
-			return KFileType::SOCKET;
-
-		case DEKAF2_S_IFIFO:
-			return KFileType::FIFO;
-
-		case DEKAF2_S_IFBLK:
-			return KFileType::BLOCK;
-
-		case DEKAF2_S_IFCHR:
-			return KFileType::CHARACTER;
-
-		default:
-			break;
-	}
-
-	return KFileType::OTHER;
-
-} // GetFileType
-
-//-----------------------------------------------------------------------------
-bool KFileStat::IsDirectory() const
-//-----------------------------------------------------------------------------
-{
-	return DEKAF2_S_ISDIR(m_mode);
-
-} // IsDirectory
-
-//-----------------------------------------------------------------------------
-bool KFileStat::IsFile() const
-//-----------------------------------------------------------------------------
-{
-	return DEKAF2_S_ISREG(m_mode);
-
-} // IsFile
-
-//-----------------------------------------------------------------------------
-bool KFileStat::IsSymlink() const
-//-----------------------------------------------------------------------------
-{
-	return DEKAF2_S_ISLNK(m_mode);
-
-} // IsSymlink
-
-//-----------------------------------------------------------------------------
-bool KFileStat::Exists() const
-//-----------------------------------------------------------------------------
-{
-	return (m_mode & DEKAF2_S_IFMT) != 0;
-
-} // Exists
-
-
 static_assert(std::is_nothrow_move_constructible<KFileStat>::value,
 			  "KFileStat is intended to be nothrow move constructible, but is not!");
 
-
 const KFileStat KDirectory::DirEntry::s_EmptyStat;
+
 
 //-----------------------------------------------------------------------------
 KDirectory::DirEntry::DirEntry(KStringView BasePath, KStringView Name, KFileType Type)
@@ -1127,7 +961,7 @@ void KDirectory::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-size_t KDirectory::Open(KStringViewZ sDirectory, KFileType Type, bool bRecursive, bool bClear)
+size_t KDirectory::Open(KStringViewZ sDirectory, KFileTypes Types, bool bRecursive, bool bClear)
 //-----------------------------------------------------------------------------
 {
 	if (bClear)
@@ -1153,86 +987,19 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileType Type, bool bRecursive
 			break;
 		}
 
-		fs::file_type dtype;
-		switch (Type)
+		fs::file_type ftype = Entry.symlink_status(ec).type();
+
+		if (ec)
 		{
-	#ifdef DEKAF2_HAS_CPP_17
-			case KFileType::BLOCK:
-				dtype = fs::file_type::block;
-				break;
-	#endif
-			case KFileType::CHARACTER:
-				dtype = fs::file_type::character;
-				break;
-			case KFileType::DIRECTORY:
-				dtype = fs::file_type::directory;
-				break;
-			case KFileType::FIFO:
-				dtype = fs::file_type::fifo;
-				break;
-			case KFileType::LINK:
-				dtype = fs::file_type::symlink;
-				break;
-			case KFileType::ALL:
-			case KFileType::REGULAR:
-				dtype = fs::file_type::regular;
-				break;
-			case KFileType::SOCKET:
-				dtype = fs::file_type::socket;
-				break;
-			default:
-			case KFileType::OTHER:
-				dtype = fs::file_type::not_found;
-				break;
+			kDebug(2, "{}: {}", sDirectory, ec.message());
+			break;
 		}
 
-		if (Type == KFileType::ALL)
+		KFileType FT(KFileTypeFromStdFilesystem(ftype));
+
+		if (Types.contains(FT))
 		{
-			fs::file_type ftype = Entry.symlink_status(ec).type();
-
-			if (ec)
-			{
-				kDebug(2, "{}: {}", sDirectory, ec.message());
-				break;
-			}
-
-			KFileType FT;
-
-			switch (ftype)
-			{
-	#ifdef DEKAF2_HAS_CPP_17
-				case fs::file_type::block:
-					FT = KFileType::BLOCK;
-					break;
-	#endif
-				case fs::file_type::character:
-					FT = KFileType::CHARACTER;
-					break;
-				case fs::file_type::directory:
-					FT = KFileType::DIRECTORY;
-					break;
-				case fs::file_type::fifo:
-					FT = KFileType::FIFO;
-					break;
-				case fs::file_type::symlink:
-					FT = KFileType::LINK;
-					break;
-				case fs::file_type::regular:
-					FT = KFileType::REGULAR;
-					break;
-				case fs::file_type::socket:
-					FT = KFileType::SOCKET;
-					break;
-				default:
-				case fs::file_type::not_found:
-					FT = KFileType::OTHER;
-					break;
-			}
 			m_DirEntries.emplace_back(sDirectory, Entry.path().filename().u8string(), FT);
-		}
-		else if (Entry.symlink_status().type() == dtype)
-		{
-			m_DirEntries.emplace_back(sDirectory, Entry.path().filename().u8string(), Type);
 		}
 
 		if (bRecursive && Entry.symlink_status().type() == fs::file_type::directory)
@@ -1241,41 +1008,11 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileType Type, bool bRecursive
 			KStringView sDir = sDirectory;
 			sDir.TrimRight(detail::kAllowedDirSep);
 			// recurse through the subdirectories
-			Open(kFormat("{}{}{}", sDir, kDirSep, Entry.path().filename().u8string()), Type, true, false);
+			Open(kFormat("{}{}{}", sDir, kDirSep, Entry.path().filename().u8string()), Types, true, false);
 		}
 	}
 
 #else
-
-	unsigned char dtype;
-	switch (Type)
-	{
-		case KFileType::BLOCK:
-			dtype = DT_BLK;
-			break;
-		case KFileType::CHARACTER:
-			dtype = DT_CHR;
-			break;
-		case KFileType::DIRECTORY:
-			dtype = DT_DIR;
-			break;
-		case KFileType::FIFO:
-			dtype = DT_FIFO;
-			break;
-		case KFileType::LINK:
-			dtype = DT_LNK;
-			break;
-		case KFileType::ALL:
-		case KFileType::REGULAR:
-			dtype = DT_REG;
-			break;
-		case KFileType::SOCKET:
-			dtype = DT_SOCK;
-			break;
-		case KFileType::OTHER:
-			dtype = DT_UNKNOWN;
-			break;
-	}
 
 	auto d = ::opendir(sDirectory.c_str());
 	if (d)
@@ -1286,42 +1023,11 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileType Type, bool bRecursive
 			// exclude . and .. as std::filesystem excludes them, too
 			if (strcmp(dir->d_name, ".") != 0 && strcmp(dir->d_name, "..") != 0)
 			{
-				if (Type == KFileType::ALL)
+				KFileType FT = KFileTypeFromDirentry(dir->d_type);
+
+				if (Types.contains(FT))
 				{
-					KFileType FT;
-					switch (dir->d_type)
-					{
-						case DT_BLK:
-							FT = KFileType::BLOCK;
-							break;
-						case DT_CHR:
-							FT = KFileType::CHARACTER;
-							break;
-						case DT_DIR:
-							FT = KFileType::DIRECTORY;
-							break;
-						case DT_FIFO:
-							FT = KFileType::FIFO;
-							break;
-						case DT_LNK:
-							FT = KFileType::LINK;
-							break;
-						case DT_REG:
-							FT = KFileType::REGULAR;
-							break;
-						case DT_SOCK:
-							FT = KFileType::SOCKET;
-							break;
-						default:
-						case DT_UNKNOWN:
-							FT = KFileType::OTHER;
-							break;
-					}
 					m_DirEntries.emplace_back(sDirectory, dir->d_name, FT);
-				}
-				else if (dir->d_type == dtype)
-				{
-					m_DirEntries.emplace_back(sDirectory, dir->d_name, Type);
 				}
 
 				if (bRecursive && dir->d_type == DT_DIR)
@@ -1330,7 +1036,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileType Type, bool bRecursive
 					KStringView sDir = sDirectory;
 					sDir.TrimRight(detail::kAllowedDirSep);
 					// recurse through the subdirectories
-					Open(kFormat("{}{}{}", sDir, kDirSep, dir->d_name), Type, true, false);
+					Open(kFormat("{}{}{}", sDir, kDirSep, dir->d_name), Types, true, false);
 				}
 			}
 		}

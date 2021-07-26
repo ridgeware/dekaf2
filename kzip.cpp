@@ -799,7 +799,7 @@ bool KZip::WriteFiles(const KDirectory& Directory, KStringView sDirectoryRoot, K
 				return false;
 			}
 		}
-		else if (File.Type() == KFileType::REGULAR)
+		else if (File.Type() == KFileType::FILE)
 		{
 			// now add the file to the archive
 			if (!WriteFile(File.Path(), sDispName))
@@ -821,7 +821,7 @@ bool KZip::WriteFiles(const KDirectory& Directory, KStringView sDirectoryRoot, K
 bool KZip::WriteFiles(KStringViewZ sSourceDirectory, KStringView sNewRoot, bool bRecursive, bool bSorted)
 //-----------------------------------------------------------------------------
 {
-	KDirectory Directory(sSourceDirectory, KFileType::ALL, bRecursive);
+	KDirectory Directory(sSourceDirectory, KFileTypes::ALL, bRecursive);
 
 	if (bSorted)
 	{

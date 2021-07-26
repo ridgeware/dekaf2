@@ -191,7 +191,7 @@ void CreateProject::ShowAllTemplates()
 	for (const auto& Template : Templates)
 	{
 		// check if the template directory is empty - then ignore it
-		KDirectory Target(Template.Path(), KFileType::REGULAR);
+		KDirectory Target(Template.Path(), KFileType::FILE);
 
 		if (!Target.empty())
 		{

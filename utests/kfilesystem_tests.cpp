@@ -91,6 +91,26 @@ TEST_CASE("KFilesystem")
 		KOutFile fOut(sDirectory + "/test.txt");
 	}
 
+	SECTION("change mode")
+	{
+		CHECK( kFileExists(sFile, true) == true );
+
+		auto iOldMode = kGetMode(sFile);
+		auto iNewMode = iOldMode | 0700;
+
+		CHECK ( kChangeMode(sFile, iNewMode) );
+
+		auto iVerifyMode = kGetMode(sFile);
+
+		CHECK ( iVerifyMode == iNewMode );
+
+		CHECK ( kChangeMode(sFile, iOldMode) );
+
+		iVerifyMode = kGetMode(sFile);
+
+		CHECK ( iVerifyMode == iOldMode );
+	}
+
 	SECTION("KFile stats")
 	{
 		CHECK( kFileExists(sFile, true) == true );
@@ -105,11 +125,40 @@ TEST_CASE("KFilesystem")
 		CHECK( kFileSize(sDirectory)    == npos );
 	}
 
+	SECTION("KFileType")
+	{
+		KFileType ft(KFileType::DIRECTORY);
+		CHECK ( ft == KFileType::DIRECTORY );
+		ft = KFileType::PIPE;
+		CHECK ( ft == KFileType::PIPE );
+		CHECK ( ft.Serialize() == "PIPE" );
+	}
+
+	SECTION("KFileTypes")
+	{
+		auto ft1(KFileType::PIPE + KFileType::BLOCK);
+		CHECK ( kJoined(ft1.Serialize(), "|") == "PIPE|BLOCK" );
+		auto ft2 = KFileType::DIRECTORY + KFileType::FILE;
+		CHECK ( kJoined(ft2.Serialize(), "|") == "FILE|DIRECTORY" );
+		auto ft3(KFileType::PIPE | KFileType::BLOCK);
+		CHECK ( kJoined(ft3.Serialize(), "|") == "PIPE|BLOCK" );
+		auto ft4 = KFileType::DIRECTORY | KFileType::FILE;
+		CHECK ( kJoined(ft4.Serialize(), "|") == "FILE|DIRECTORY" );
+		auto ft5(KFileType::PIPE | KFileType::BLOCK | KFileType::CHARACTER);
+		CHECK ( kJoined(ft5.Serialize(), "|") == "PIPE|BLOCK|CHARACTER" );
+		auto ft6(KFileTypes::ALL);
+		CHECK ( kJoined(ft6.Serialize(), "|") == "ALL" );
+		auto ft7(KFileType::PIPE + KFileType::BLOCK | KFileType::CHARACTER + KFileType::FILE);
+		CHECK ( kJoined(ft7.Serialize(), "|") == "FILE|PIPE|BLOCK|CHARACTER" );
+		auto ft8(KFileType::PIPE | KFileType::BLOCK + KFileType::CHARACTER | KFileType::FILE);
+		CHECK ( kJoined(ft8.Serialize(), "|") == "FILE|PIPE|BLOCK|CHARACTER" );
+	}
+
 	SECTION("KFileStat")
 	{
 		KFileStat fs(sFile);
 		CHECK( fs.Exists()      == true  );
-		CHECK( fs.Type()        == KFileType::REGULAR );
+		CHECK( fs.Type()        == KFileType::FILE );
 		CHECK( fs.IsFile()      == true  );
 		CHECK( fs.IsDirectory() == false );
 		CHECK( fs.Size()        == 63    );
@@ -171,8 +220,8 @@ TEST_CASE("KFilesystem")
 	{
 		KDirectory Dir(sDirectory);
 		CHECK ( Dir.size() == 2 );
-		CHECK ( Dir.Match( KFileType::REGULAR) == 2);
-		CHECK ( Dir.Match( KFileType::REGULAR, true) == 2);
+		CHECK ( Dir.Match( KFileType::FILE) == 2);
+		CHECK ( Dir.Match( KFileType::FILE, true) == 2);
 		CHECK ( Dir.empty() == true );
 		CHECK ( Dir.Open(sDirectory) == 2 );
 		Dir.RemoveHidden();
@@ -180,12 +229,12 @@ TEST_CASE("KFilesystem")
 		CHECK ( Dir.Match(".*\\.test") == 1 );
 		CHECK ( Dir.Match(".*\\.test", true) == 1 );
 		CHECK ( Dir.empty() == true );
-		CHECK ( Dir.Open(sDirectory, KFileType::REGULAR) == 2 );
+		CHECK ( Dir.Open(sDirectory, KFileType::FILE) == 2 );
 		CHECK ( Dir.size() == 2 );
 		CHECK ( Dir.Find("KFilesystem.test") != Dir.end() );
 		CHECK ( Dir.Find("KFilesystem.test")->FileStat().Size() == 63 );
-		CHECK ( Dir.Find("KFilesystem.test")->FileStat().Type() == KFileType::REGULAR );
-		CHECK ( Dir.Find("KFilesystem.test")->Type() == KFileType::REGULAR );
+		CHECK ( Dir.Find("KFilesystem.test")->FileStat().Type() == KFileType::FILE );
+		CHECK ( Dir.Find("KFilesystem.test")->Type() == KFileType::FILE );
 		CHECK ( Dir.Find("test.txt") != Dir.end() );
 		CHECK ( Dir.Find("KFi*ystem.t?st") != Dir.end() );
 		CHECK ( Dir.WildCardMatch("KFilesystem.test") == 1 );
@@ -198,7 +247,7 @@ TEST_CASE("KFilesystem")
 	{
 		KDirectory Dir(sDirectorySlash);
 		CHECK ( Dir.size() == 2 );
-		CHECK ( Dir.Match( KFileType::REGULAR) == 2);
+		CHECK ( Dir.Match( KFileType::FILE) == 2);
 		Dir.Sort(KDirectory::SortBy::SIZE, true);
 		CHECK ( Dir[0].Filename() == "KFilesystem.test" );
 		CHECK ( Dir[0].Size() == 63 );

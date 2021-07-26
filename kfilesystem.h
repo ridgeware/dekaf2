@@ -102,25 +102,19 @@ int kGetMode(KStringViewZ sPath);
 
 //-----------------------------------------------------------------------------
 /// Checks if a file system entity exists
-bool kExists (KStringViewZ sPath, bool bAsFile, bool bAsDirectory, bool bTestForEmptyFile = false);
+bool kExists (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Checks if a file exists.
 /// @param bTestForEmptyFile If true treats a file as non-existing if its size is 0
-inline bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile = false)
+bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile = false);
 //-----------------------------------------------------------------------------
-{
-	return kExists(sPath, true, false, bTestForEmptyFile);
-}
 
 //-----------------------------------------------------------------------------
 /// Checks if a directory exists
-inline bool kDirExists (KStringViewZ sPath)
+bool kDirExists (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
-{
-	return kExists(sPath, false, true, false);
-}
 
 //-----------------------------------------------------------------------------
 /// rename a file or directory
@@ -271,9 +265,10 @@ KString kMakeSafePathname(KStringView sName, bool bToLowercase = true, KStringVi
 KString kNormalizePath(KStringView sPath);
 //-----------------------------------------------------------------------------
 
+class KFileTypes;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// holds a file type, constructs from different inputs
+/// holds one file type, constructs from different inputs
 class KFileType
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -282,46 +277,164 @@ class KFileType
 public:
 //------
 
-	enum FileType
+	enum FileType : uint8_t
 	{
-		ALL,
-		BLOCK,
-		CHARACTER,
-		DIRECTORY,
-		FIFO,
-		LINK,
-		REGULAR,
-		SOCKET,
-		OTHER
+		UNEXISTING = 0,
+		FILE       = 1 << 0,
+		DIRECTORY  = 1 << 1,
+		LINK       = 1 << 2,
+		PIPE       = 1 << 3,
+		BLOCK      = 1 << 4,
+		CHARACTER  = 1 << 5,
+		SOCKET     = 1 << 6,
+		UNKNOWN    = 1 << 7
 	};
 
+	constexpr
 	KFileType() = default;
 
 	/// constructs from a FileType
+	constexpr
 	KFileType(FileType ftype)
 	: m_FType(ftype)
 	{
 	}
-
-	/// constructs from a Unix mode combination
-	KFileType(uint32_t mode);
 
 	/// returns a string serialization of the file type
 	KStringViewZ Serialize() const;
 
 	operator FileType() const { return m_FType; }
 
+	friend KFileTypes operator|(const KFileType first, const KFileType second);
+	friend KFileTypes operator|(const FileType  first, const FileType  second);
+
 //------
 private:
 //------
 
-	enum FileType m_FType { ALL };
+	FileType m_FType { UNEXISTING };
 
 }; // KFileType
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// holds a mask of file types, constructs from different inputs
+class KFileTypes
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	constexpr
+	KFileTypes() = default;
+
+	/// constructs from a KFileType
+	constexpr KFileTypes(KFileType ftype)
+	: m_Types(ftype)
+	{
+	}
+
+	/// constructs from a KFileType::FileType
+	constexpr KFileTypes(KFileType::FileType ftype)
+	: m_Types(ftype)
+	{
+	}
+
+	void push_back(KFileType ftype)
+	{
+		m_Types = KFileType(static_cast<KFileType::FileType>(static_cast<uint8_t>(m_Types) | static_cast<uint8_t>(ftype)));
+	}
+
+	void operator+=(KFileType ftype)
+	{
+		push_back(ftype);
+	}
+
+	void operator|=(KFileType ftype)
+	{
+		push_back(ftype);
+	}
+
+	bool contains(KFileType ftype) const
+	{
+		return (m_Types & ftype);
+	}
+
+	/// returns a vector with string serializations of the file types - join them for single output
+	std::vector<KStringViewZ> Serialize() const;
+
+	static const KFileTypes ALL;
+
+	friend KFileTypes operator|(KFileTypes first, const KFileTypes second);
+
+//------
+private:
+//------
+
+	KFileType m_Types { KFileType::UNEXISTING };
+
+}; // KFileTypes
+
+inline
+KFileTypes operator|(const KFileType::FileType first, const KFileType::FileType second)
+{
+	return KFileType(static_cast<KFileType::FileType>(static_cast<uint8_t>(first) + static_cast<uint8_t>(second)));
+}
+
+inline
+KFileTypes operator+(const KFileType::FileType first, const KFileType::FileType second)
+{
+	return first | second;
+}
+
+inline
+KFileTypes operator|(const KFileType first, const KFileType second)
+{
+	return first.m_FType | second.m_FType;
+}
+
+inline
+KFileTypes operator+(const KFileType first, const KFileType second)
+{
+	return first | second;
+}
+
+inline
+KFileTypes operator|(KFileTypes first, const KFileType second)
+{
+	first.push_back(second);
+	return first;
+}
+
+inline
+KFileTypes operator|(KFileTypes first, const KFileType::FileType second)
+{
+	first.push_back(second);
+	return first;
+}
+
+inline
+KFileTypes operator+(const KFileTypes first, const KFileType second)
+{
+	return first | second;
+}
+
+inline
+KFileTypes operator+(const KFileTypes first, const KFileType::FileType second)
+{
+	return first | second;
+}
+
+inline
+KFileTypes operator|(KFileTypes first, const KFileTypes second)
+{
+	first.push_back(second.m_Types);
+	return first;
+}
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Retrieve information about a file hat is typically found in the stat struct
+/// Retrieve information about a file that is typically found in the stat struct
 class KFileStat
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -338,7 +451,7 @@ public:
 	KFileStat(const KStringViewZ sFilename);
 
 	/// Returns file access mode
-	int AccessMode()          const;
+	int AccessMode()          const { return m_mode;  }
 
 	/// Returns file's owner UID
 	uint32_t UID()            const { return m_uid;   }
@@ -359,31 +472,59 @@ public:
 	size_t Size()             const { return m_size;  }
 
 	/// Returns file's type
-	KFileType Type()          const;
+	KFileType Type()          const { return m_ftype; }
 
 	/// Is this a directory entry?
-	bool IsDirectory()        const;
+	bool IsDirectory()        const { return m_ftype == KFileType::DIRECTORY;  }
 
 	/// Is this a file?
-	bool IsFile()             const;
+	bool IsFile()             const { return m_ftype == KFileType::FILE;       }
 
 	/// Is this a symlink
-	bool IsSymlink()          const;
+	bool IsSymlink()          const { return m_ftype == KFileType::LINK;       }
 
 	/// Does this object exist?
-	bool Exists()             const;
+	bool Exists()             const { return m_ftype != KFileType::UNEXISTING; }
+
+	// setters to create a KFileStat object piece wise
+	// (no change to any file system object):
+
+	/// Set file access mode
+	void SetAccessMode(uint32_t mode)      { m_mode  = mode;  }
+
+	/// Set file's owner UID
+	void SetUID(uint32_t uid)              { m_uid   = uid;   }
+
+	/// Set file's owner GID
+	void SetGID(uint32_t gid)              { m_gid   = gid;   }
+
+	/// Set file's last access time
+	void SetAccessTime(time_t atime)       { m_atime = atime; }
+
+	/// Set file's last modification time
+	void SetModificationTime(time_t mtime) { m_mtime = mtime; }
+
+	/// Set file's status change time (writes, but also inode changes)
+	void SetChangeTime(time_t ctime)       { m_ctime = ctime; }
+
+	/// Set file's size
+	void SetSize(size_t size)              { m_size  = size;  }
+
+	/// Set file's type
+	void SetType(KFileType ftype)          { m_ftype = ftype; }
 
 //----------
 private:
 //----------
 
-	uint32_t m_mode  { 0 };
-	uint32_t m_uid   { 0 };
-	uint32_t m_gid   { 0 };
-	time_t   m_atime { 0 };
-	time_t   m_mtime { 0 };
-	time_t   m_ctime { 0 };
-	size_t   m_size  { 0 };
+	time_t    m_atime { 0 };
+	time_t    m_mtime { 0 };
+	time_t    m_ctime { 0 };
+	size_t    m_size  { 0 };
+	uint32_t  m_mode  { 0 };
+	uint32_t  m_uid   { 0 };
+	uint32_t  m_gid   { 0 };
+	KFileType m_ftype;
 
 }; // KFileStat
 
@@ -412,7 +553,7 @@ public:
 	public:
 	//----------
 
-		DirEntry() : m_Type(KFileType::ALL) {}
+		DirEntry() = default;
 
 		DirEntry(KStringView BasePath, KStringView Name, KFileType Type);
 
@@ -513,7 +654,7 @@ public:
 		mutable std::unique_ptr<KFileStat> m_Stat;
 		KString      m_Path;
 		KStringViewZ m_Filename;
-		KFileType    m_Type;
+		KFileType    m_Type { KFileType::UNEXISTING };
 
 	}; // DirEntry
 
@@ -526,11 +667,11 @@ public:
 
 	/// ctor that will open a directory and store all entries that are of FileType Type
 	/// @param sDirectory the direcory path to open
-	/// @param Type the FileType to search for, default = ALL
+	/// @param Types the FileTypes to search for, default = ALL
 	/// @param bRecursive traverse subdirectories recursively, default = false
-	KDirectory(KStringViewZ sDirectory, KFileType Type = KFileType::ALL, bool bRecursive = false)
+	KDirectory(KStringViewZ sDirectory, KFileTypes Types = KFileTypes::ALL, bool bRecursive = false)
 	{
-		Open(sDirectory, Type, bRecursive, false);
+		Open(sDirectory, Types, bRecursive, false);
 	}
 
 	/// returns const_iterator to the start of the directory list
@@ -565,19 +706,19 @@ public:
 
 	/// open a directory and store all entries that are of FileType Type
 	/// @param sDirectory the direcory path to open
-	/// @param Type the FileType to search for, default = ALL
+	/// @param Types the FileTypes to search for, default = ALL
 	/// @param bRecursive traverse subdirectories recursively, default = false
 	/// @param bClear remove existing (previously found) directory entries, default = true
-	size_type Open(KStringViewZ sDirectory, KFileType Type = KFileType::ALL, bool bRecursive = false, bool bClear = true);
+	size_type Open(KStringViewZ sDirectory, KFileTypes Type = KFileTypes::ALL, bool bRecursive = false, bool bClear = true);
 
 	/// open a directory and store all entries that are of FileType Type
 	/// @param sDirectory the direcory path to open
-	/// @param Type the FileType to search for, default = ALL
+	/// @param Types the FileTypes to search for, default = ALL
 	/// @param bRecursive traverse subdirectories recursively, default = false
 	/// @param bClear remove existing (previously found) directory entries, default = true
-	size_type operator()(KStringViewZ sDirectory, KFileType Type = KFileType::ALL, bool bRecursive = false, bool bClear = true)
+	size_type operator()(KStringViewZ sDirectory, KFileTypes Types = KFileTypes::ALL, bool bRecursive = false, bool bClear = true)
 	{
-		return Open(sDirectory, Type, bRecursive, bClear);
+		return Open(sDirectory, Types, bRecursive, bClear);
 	}
 
 	/// remove all hidden files, that is, files that start with a dot

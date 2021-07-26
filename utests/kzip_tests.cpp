@@ -67,7 +67,7 @@ TEST_CASE("KZip") {
 			CHECK (Zip.is_open() );
 
 			{
-				KDirectory Files(InputDirectory.Name(), KFileType::REGULAR, true);
+				KDirectory Files(InputDirectory.Name(), KFileType::FILE, true);
 				Files.Sort();
 				CHECK ( Files.size() == 3 );
 				CHECK ( Zip.WriteFiles(Files, InputDirectory.Name()) );
@@ -97,7 +97,7 @@ TEST_CASE("KZip") {
 			Zip.ReadAll(OutputDirectory.Name());
 
 			{
-				KDirectory Directory(OutputDirectory.Name(), KFileType::REGULAR, true);
+				KDirectory Directory(OutputDirectory.Name(), KFileType::FILE, true);
 				Directory.Sort();
 
 				CHECK ( Directory.size() == 3 );

@@ -254,6 +254,14 @@
 	#define DEKAF2_NO_ASAN
 #endif
 
+#if defined(__SANITIZE_ADDRESS__)
+	#define DEKAF2_HAS_ASAN
+#elif defined(__clang__)
+	#if __has_feature(address_sanitizer)
+		#define DEKAF2_HAS_ASAN
+	#endif
+#endif
+
 namespace dekaf2 {
 #if (UINTPTR_MAX == 0xffff)
 	#define DEKAF2_IS_16_BITS = 1

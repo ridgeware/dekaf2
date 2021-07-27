@@ -3926,9 +3926,9 @@ KROW KSQL::SingleRawQuery (KString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 	{
 		kDebugLog (GetDebugLevel(), "KSQL::{}(): expected one row back and didn't get it", sAPI);
 	}
-	else if (NextRow())
+	else if (kWouldLog(1) && NextRow())
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): expected one row back, but got at least two", sAPI);
+		kDebugLog (1, "KSQL::{}(): expected one row back, but got at least two", sAPI);
 	}
 
 	EndQuery();
@@ -3952,7 +3952,7 @@ KString KSQL::SingleStringRawQuery (KString sSQL, Flags iFlags/*=0*/, KStringVie
 
 	if (ROW.size() > 1)
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): expected one result column, but got {}", sAPI, ROW.size());
+		kDebugLog (1, "KSQL::{}(): expected one result column, but got {}", sAPI, ROW.size());
 	}
 
 	return ROW.GetValue(0);

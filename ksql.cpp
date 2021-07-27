@@ -1694,17 +1694,23 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 						m_iNumRowsAffected = (uint64_t) iNumRows;
 					}
 
-					kDebug (3, "mysql_insert_id()...");
-					my_ulonglong iNewID = mysql_insert_id (m_dMYSQL);
-					m_iLastInsertID = (uint64_t) iNewID;
+					if (!IsSelect (m_sLastSQL))
+					{
+						// only refresh the last insert ID if this was NOT a
+						// select statement - otherwise we get the last insert ID
+						// from the last insert over and over again
+						kDebug (3, "mysql_insert_id()...");
+						my_ulonglong iNewID = mysql_insert_id (m_dMYSQL);
+						m_iLastInsertID = (uint64_t) iNewID;
 
-					if (m_iLastInsertID)
-					{
-						kDebug (GetDebugLevel(), "last insert ID = {}", m_iLastInsertID);
-					}
-					else
-					{
-						kDebug (3, "no insert ID.");
+						if (m_iLastInsertID)
+						{
+							kDebug (GetDebugLevel(), "last insert ID = {}", m_iLastInsertID);
+						}
+						else
+						{
+							kDebug (3, "no insert ID.");
+						}
 					}
 
 					bOK = true;
@@ -2539,7 +2545,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (m_sLastSQL.contains("\n")) ? "\n" : "", m_sLastSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (m_sLastSQL.contains('\n')) ? "\n" : "", m_sLastSQL);
 	}
 
 	EndQuery();
@@ -2560,7 +2566,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 	#if defined(DEKAF2_HAS_CTLIB)
 	uint32_t iRetriesLeft = NUM_RETRIES;
 	#endif
-	
+
 	ResetErrorStatus ();
 
 	switch (m_iAPISet)
@@ -3904,29 +3910,28 @@ KROW KSQL::SingleRawQuery (KString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 {
 	KROW ROW;
 
-	EndQuery ();
+	Flags iHold = GetFlags();
+	SetFlag(F_IgnoreSQLErrors);
+	SetFlag(iFlags);
 
-	if (IsConnectionOpen() || OpenConnection())
+	bool bOK = ExecRawQuery (std::move(sSQL), 0, sAPI);
+
+	SetFlags(iHold);
+
+	if (!bOK)
 	{
-		Flags iHold = GetFlags();
-		m_iFlags |= F_IgnoreSQLErrors;
-		m_iFlags |= iFlags;
-
-		bool bOK = ExecRawQuery (std::move(sSQL), 0, sAPI);
-
-		m_iFlags = iHold;
-
-		if (!bOK)
-		{
-			kDebugLog (GetDebugLevel(), "KSQL::{}(): sql error: {}", sAPI, GetLastError());
-		}
-		else if (!NextRow(ROW))
-		{
-			kDebugLog (GetDebugLevel(), "KSQL::{}(): expected one row back and didn't get it", sAPI);
-		}
-
-		EndQuery();
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): sql error: {}", sAPI, GetLastError());
 	}
+	else if (!NextRow(ROW))
+	{
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): expected one row back and didn't get it", sAPI);
+	}
+	else if (NextRow())
+	{
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): expected one row back, but got at least two", sAPI);
+	}
+
+	EndQuery();
 
 	return ROW;
 
@@ -3944,6 +3949,11 @@ KString KSQL::SingleStringRawQuery (KString sSQL, Flags iFlags/*=0*/, KStringVie
 	}
 
 	kDebugLog (GetDebugLevel(), "KSQL::{}(): got {}\n", sAPI, ROW.GetValue(0));
+
+	if (ROW.size() > 1)
+	{
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): expected one result column, but got {}", sAPI, ROW.size());
+	}
 
 	return ROW.GetValue(0);
 

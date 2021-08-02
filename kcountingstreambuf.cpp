@@ -44,11 +44,43 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
+KCountingOutputStreamBuf::KCountingOutputStreamBuf(std::ostream& ostream)
+//-----------------------------------------------------------------------------
+: m_ostream(&ostream)
+, m_SBuf(m_ostream->rdbuf(this))
+{
+}
+
+//-----------------------------------------------------------------------------
 KCountingOutputStreamBuf::~KCountingOutputStreamBuf()
 //-----------------------------------------------------------------------------
 {
-	m_ostream.rdbuf(m_SBuf);
-}
+	Detach();
+
+} // dtor
+
+//-----------------------------------------------------------------------------
+void KCountingOutputStreamBuf::Attach(std::ostream& ostream)
+//-----------------------------------------------------------------------------
+{
+	Detach();
+	m_ostream = &ostream;
+	m_SBuf    = m_ostream->rdbuf(this);
+
+} // Attach
+
+//-----------------------------------------------------------------------------
+void KCountingOutputStreamBuf::Detach()
+//-----------------------------------------------------------------------------
+{
+	if (m_ostream != nullptr)
+	{
+		m_ostream->rdbuf(m_SBuf);
+		m_ostream = nullptr;
+		m_SBuf    = nullptr;
+	}
+
+} // Detach
 
 //-----------------------------------------------------------------------------
 std::streambuf::int_type KCountingOutputStreamBuf::overflow(int_type c)
@@ -90,11 +122,43 @@ int KCountingOutputStreamBuf::sync()
 } // sync
 
 //-----------------------------------------------------------------------------
+KCountingInputStreamBuf::KCountingInputStreamBuf(std::istream& istream)
+//-----------------------------------------------------------------------------
+: m_istream(&istream)
+, m_SBuf(m_istream->rdbuf(this))
+{
+}
+
+//-----------------------------------------------------------------------------
 KCountingInputStreamBuf::~KCountingInputStreamBuf()
 //-----------------------------------------------------------------------------
 {
-	m_istream.rdbuf(m_SBuf);
-}
+	Detach();
+
+} // dtor
+
+//-----------------------------------------------------------------------------
+void KCountingInputStreamBuf::Attach(std::istream& istream)
+//-----------------------------------------------------------------------------
+{
+	Detach();
+	m_istream = &istream;
+	m_SBuf    = m_istream->rdbuf(this);
+
+} // Attach
+
+//-----------------------------------------------------------------------------
+void KCountingInputStreamBuf::Detach()
+//-----------------------------------------------------------------------------
+{
+	if (m_istream != nullptr)
+	{
+		m_istream->rdbuf(m_SBuf);
+		m_istream = nullptr;
+		m_SBuf    = nullptr;
+	}
+
+} // Detach
 
 //-----------------------------------------------------------------------------
 std::streambuf::int_type KCountingInputStreamBuf::underflow()

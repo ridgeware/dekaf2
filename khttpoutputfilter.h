@@ -1,5 +1,4 @@
 /*
- //-----------------------------------------------------------------------------//
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
@@ -86,8 +85,8 @@ public:
 	void SetOutputStream(KOutStream& OutStream)
 	//-----------------------------------------------------------------------------
 	{
+		close();
 		m_OutStream = &OutStream;
-// TODO		m_Filter.reset();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -150,6 +149,19 @@ public:
 		return m_OutStream && m_OutStream->OutStream().fail();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// get count of written bytes so far - this is not reliable in-flight, as boost::iostreams do not properly
+	/// flush on compressed streams when requested to do so. This count is only reliable after close() ..
+	std::streamsize Count() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// reset count of written bytes - this is not reliable in-flight, as boost::iostreams do not properly
+	/// flush on compressed streams when requested to do so. Do not use this function when compression
+	/// is in the pipeline (in which case it will return with false). It will though work after close() ..
+	bool ResetCount();
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------
@@ -168,12 +180,16 @@ private:
 
 	static KOutStringStream s_Empty;
 
-	KOutStream* m_OutStream { &s_Empty };
-	std::unique_ptr<boost::iostreams::filtering_ostream> m_Filter { std::make_unique<boost::iostreams::filtering_ostream>() };
-	KOutStream m_FilteredOutStream { *m_Filter };
-	COMP m_Compression { NONE };
-	bool m_bChunked { false };
-	bool m_bAllowCompression { true };
+	KOutStream*     m_OutStream         { &s_Empty  };
+	// We made the filter a unique_ptr because we want to be able to move
+	// construct this class. We never reset it so it will never be null.
+	std::unique_ptr<boost::iostreams::filtering_ostream>
+	                m_Filter            { std::make_unique<boost::iostreams::filtering_ostream>() };
+	KOutStream      m_FilteredOutStream { *m_Filter };
+	std::streamsize m_iCount            { 0         };
+	COMP            m_Compression       { NONE      };
+	bool            m_bChunked          { false     };
+	bool            m_bAllowCompression { true      };
 
 }; // KHTTPOutputFilter
 

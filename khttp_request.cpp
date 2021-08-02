@@ -304,13 +304,13 @@ KStringView KHTTPRequestHeaders::SupportedCompression() const
 		// check the client's request headers for accepted compression encodings
 		auto& sCompression = Headers.Get(KHTTPHeader::ACCEPT_ENCODING);
 
-		if (sCompression.find("gzip") != KString::npos)
-		{
-			return "gzip"_ksv;
-		}
-		else if (sCompression.find("deflate") != KString::npos)
+		if (sCompression.find("deflate") != KString::npos)
 		{
 			return "deflate"_ksv;
+		}
+		else if (sCompression.find("gzip") != KString::npos)
+		{
+			return "gzip"_ksv;
 		}
 		else if (sCompression.find("bzip2") != KString::npos)
 		{

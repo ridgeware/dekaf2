@@ -111,12 +111,15 @@ bool KInHTTPFilter::SetupInputFilter()
 		}
 	}
 
+	m_iCount = 0;
+
 	// we use the chunked reader also in the unchunked case -
 	// it protects us from reading more than content length bytes
 	// into the buffered iostreams
 	KChunkedSource Source(UnfilteredStream(),
 						  m_bChunked,
-						  m_iContentSize);
+						  m_iContentSize,
+						  &m_iCount);
 
 	// and finally add our source stream to the filtering_istream
 	m_Filter->push(Source);
@@ -139,6 +142,58 @@ KInStream& KInHTTPFilter::FilteredStream()
 } // Stream
 
 //-----------------------------------------------------------------------------
+std::streamsize KInHTTPFilter::Count() const
+//-----------------------------------------------------------------------------
+{
+	if (!m_Filter->empty())
+	{
+		auto chunker = m_Filter->component<KChunkedSource>(m_Filter->size()-1);
+
+		if (chunker)
+		{
+			// this sync does not work with uncompression!
+			m_Filter->strict_sync();
+			return chunker->Count();
+		}
+		else
+		{
+			kDebug(1, "cannot get KChunkedSource component from output pipeline");
+			return 0;
+		}
+	}
+	else
+	{
+		return m_iCount;
+	}
+
+} // Count
+
+//-----------------------------------------------------------------------------
+bool KInHTTPFilter::ResetCount()
+//-----------------------------------------------------------------------------
+{
+	if (!m_Filter->empty())
+	{
+		auto chunker = m_Filter->component<KChunkedSource>(m_Filter->size()-1);
+
+		if (chunker)
+		{
+			m_Filter->strict_sync();
+			chunker->ResetCount();
+		}
+		else
+		{
+			kDebug(1, "cannot get KChunkedSource component from output pipeline");
+			return false;
+		}
+	}
+
+	m_iCount = 0;
+	return true;
+
+} // ResetCount
+
+//-----------------------------------------------------------------------------
 size_t KInHTTPFilter::Read(KOutStream& OutStream, size_t len)
 //-----------------------------------------------------------------------------
 {
@@ -152,7 +207,7 @@ size_t KInHTTPFilter::Read(KOutStream& OutStream, size_t len)
 		// ignore len, copy full stream
 		OutStream.OutStream() << In.InStream().rdbuf();
 
-		return Count.count();
+		return Count.Count();
 	}
 	else
 	{
@@ -196,10 +251,10 @@ void KInHTTPFilter::close()
 	if (!m_Filter->empty())
 	{
 		m_Filter->reset();
-		m_Compression = NONE;
-		m_bChunked = false;
+		m_Compression         = NONE;
+		m_bChunked            = false;
 		m_bAllowUncompression = true;
-		m_iContentSize = -1;
+		m_iContentSize        = -1;
 	}
 
 } // reset

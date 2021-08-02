@@ -48,13 +48,25 @@ namespace dekaf2 {
 
 
 //-----------------------------------------------------------------------------
-KChunkedSource::KChunkedSource(KInStream& src, bool bIsChunked, std::streamsize iContentLen)
+KChunkedSource::KChunkedSource(KInStream& src, bool bIsChunked, std::streamsize iContentLen, std::streamsize* pCount)
 //-----------------------------------------------------------------------------
-    : m_src { src }
-    , m_iContentLen(iContentLen)
-    , m_State { bIsChunked ? StartingUp : IsNotChunked }
+    : m_src         { src         }
+    , m_iContentLen { iContentLen }
+    , m_pCount      { pCount      }
+    , m_State       { bIsChunked ? StartingUp : IsNotChunked }
 {
 } // ctor
+
+//-----------------------------------------------------------------------------
+KChunkedSource::~KChunkedSource()
+//-----------------------------------------------------------------------------
+{
+	if (m_pCount)
+	{
+		*m_pCount = m_iCount;
+	}
+
+} // dtor
 
 //-----------------------------------------------------------------------------
 std::streamsize KChunkedSource::read(char* s, std::streamsize n)
@@ -85,6 +97,8 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 			{
 				return iResult;
 			}
+
+			++m_iCount;
 		}
 		else
 		{
@@ -113,6 +127,8 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 					m_State = Finished;
 				}
 
+				m_iCount += iResult;
+
 				if (m_iContentLen >= 0)
 				{
 					if (m_iContentLen >= iResult)
@@ -139,6 +155,7 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 				auto ird = m_src.Read(s + iResult, len);
 
+				m_iCount += ird;
 				m_iRemainingInChunk -= ird;
 				iResult += ird;
 
@@ -294,12 +311,24 @@ KString KChunkedSource::read()
 } // read
 
 //-----------------------------------------------------------------------------
-KChunkedSink::KChunkedSink(KOutStream& sink, bool bIsChunked)
+KChunkedSink::KChunkedSink(KOutStream& sink, bool bIsChunked, std::streamsize* pCount)
 //-----------------------------------------------------------------------------
-    : m_sink { sink }
+    : m_sink       { sink       }
+    , m_pCount     { pCount     }
     , m_bIsChunked { bIsChunked }
 {
 } // ctor
+
+//-----------------------------------------------------------------------------
+KChunkedSink::~KChunkedSink()
+//-----------------------------------------------------------------------------
+{
+	if (m_pCount)
+	{
+		*m_pCount = m_iCount;
+	}
+
+} // dtor
 
 //-----------------------------------------------------------------------------
 std::streamsize KChunkedSink::write(const char* s, std::streamsize n)
@@ -313,15 +342,19 @@ std::streamsize KChunkedSink::write(const char* s, std::streamsize n)
 	if (m_bIsChunked)
 	{
 		// write the chunk header
-		m_sink.Format("{}\r\n", KString::to_hexstring(n));
+		auto sHeader = kFormat("{}\r\n", KString::to_hexstring(n));
+		m_iCount += sHeader.size();
+		m_sink.Write(sHeader);
 	}
 
 	m_sink.Write(s, n);
+	m_iCount += n;
 
 	if (m_bIsChunked)
 	{
 		// write end of chunk
 		m_sink.Write("\r\n");
+		m_iCount += 2;
 	}
 
 	return n;
@@ -337,6 +370,7 @@ void KChunkedSink::close()
 		// write end of chunking header
 		m_sink.Write("0\r\n\r\n");
 		m_bIsChunked = false;
+		m_iCount += 5;
 	}
 
 } // close

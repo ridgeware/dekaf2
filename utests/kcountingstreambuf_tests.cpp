@@ -21,7 +21,7 @@ TEST_CASE("KCountingStreambuf")
 		sOutput += iss.ReadRemaining();
 
 		CHECK ( sInput == sOutput );
-		CHECK ( Counter.count() == sInput.size() );
+		CHECK ( Counter.Count() == sInput.size() );
 	}
 
 	SECTION("KCountingOutputStreambuf")
@@ -37,7 +37,7 @@ TEST_CASE("KCountingStreambuf")
 		oss.Write(sInput.data() + 1, sInput.size() - 1);
 
 		CHECK ( sInput == sOutput );
-		CHECK ( Counter.count() == sInput.size() );
+		CHECK ( Counter.Count() == sInput.size() );
 	}
 
 }

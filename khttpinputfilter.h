@@ -159,6 +159,18 @@ public:
 		return m_InStream && m_InStream->InStream().fail();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// get count of read bytes so far - this is not reliable in-flight, as pipeline buffers may already have been filled.
+	/// It will though work reliably after close() ..
+	std::streamsize Count() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// reset count of read bytes - this is not reliable in-flight, as pipeline buffers may already have been filled.
+	/// It will though work reliably after close() ..
+	bool ResetCount();
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------
@@ -177,13 +189,17 @@ private:
 
 	static KInStringStream s_Empty;
 
-	KInStream* m_InStream { &s_Empty };
-	std::unique_ptr<boost::iostreams::filtering_istream> m_Filter { std::make_unique<boost::iostreams::filtering_istream>() };
-	KInStream m_FilteredInStream { *m_Filter };
-	COMP m_Compression { NONE };
-	bool m_bChunked { false };
-	bool m_bAllowUncompression { true };
-	std::streamsize m_iContentSize { -1 };
+	KInStream*      m_InStream            { &s_Empty  };
+	// We made the filter a unique_ptr because we want to be able to move
+	// construct this class. We never reset it so it will never be null.
+	std::unique_ptr<boost::iostreams::filtering_istream>
+					m_Filter              { std::make_unique<boost::iostreams::filtering_istream>() };
+	KInStream       m_FilteredInStream    { *m_Filter };
+	std::streamsize m_iContentSize        { -1        };
+	std::streamsize m_iCount              { 0         };
+	COMP            m_Compression         { NONE      };
+	bool            m_bChunked            { false     };
+	bool            m_bAllowUncompression { true      };
 
 };
 

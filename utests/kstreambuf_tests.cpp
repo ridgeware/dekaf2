@@ -34,7 +34,7 @@ TEST_CASE("KStreamBuf") {
 
 		KString sNull(1, '\0');
 		CHECK ( sOutput.find_first_not_of(sNull) == npos );
-		CHECK ( Counter.count() == 10*1024*1024 );
+		CHECK ( Counter.Count() == 10*1024*1024 );
 	}
 }
 

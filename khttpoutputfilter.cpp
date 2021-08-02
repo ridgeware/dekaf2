@@ -59,6 +59,7 @@ bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 	m_bChunked = headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
 
 	KStringView sCompression = headers.Headers.Get(KHTTPHeader::CONTENT_ENCODING);
+	
 	if (sCompression == "gzip" || sCompression == "x-gzip")
 	{
 		m_Compression = GZIP;
@@ -88,24 +89,38 @@ bool KOutHTTPFilter::SetupOutputFilter()
 	{
 		if (m_Compression == GZIP)
 		{
+			kDebug(2, "using gzip compression")
 			m_Filter->push(boost::iostreams::gzip_compressor());
 		}
 		else if (m_Compression == ZLIB)
 		{
+			kDebug(2, "using zlib compression")
 			m_Filter->push(boost::iostreams::zlib_compressor());
 		}
 		else if (m_Compression == BZIP2)
 		{
+			kDebug(2, "using bzip2 compression")
 			m_Filter->push(boost::iostreams::bzip2_compressor());
 		}
 	}
+	else
+	{
+		kDebug(2, "no compression");
+	}
+
+	if (m_bChunked)
+	{
+		kDebug(2, "chunked TX");
+	}
+
+	m_iCount = 0;
 
 	// we use the chunked writer also in the unchunked case, but
 	// without writing chunks
-	KChunkedSink Sink(UnfilteredStream(), m_bChunked);
+	KChunkedSink Sink(UnfilteredStream(), m_bChunked, &m_iCount);
 
 	// and finally add our source stream to the filtering_istream
-	m_Filter->push(Sink);
+	m_Filter->push(std::move(Sink));
 
 	return true;
 
@@ -122,6 +137,75 @@ KOutStream& KOutHTTPFilter::FilteredStream()
 	}
 	return m_FilteredOutStream;
 }
+
+//-----------------------------------------------------------------------------
+std::streamsize KOutHTTPFilter::Count() const
+//-----------------------------------------------------------------------------
+{
+	if (!m_Filter->empty())
+	{
+		// we cannot reliably read the count when we compress - no way to flush
+		if (m_bAllowCompression && m_Compression == NONE)
+		{
+			auto chunker = m_Filter->component<KChunkedSink>(m_Filter->size()-1);
+
+			if (chunker)
+			{
+				// this sync does not work with compression!
+				m_Filter->strict_sync();
+				return chunker->Count();
+			}
+			else
+			{
+				kDebug(1, "cannot get KChunkedSink component from output pipeline");
+				return 0;
+			}
+		}
+		else
+		{
+			kDebug(1, "cannot read count with a compressing pipeline before close()");
+			return 0;
+		}
+	}
+	else
+	{
+		return m_iCount;
+	}
+
+} // Count
+
+//-----------------------------------------------------------------------------
+bool KOutHTTPFilter::ResetCount()
+//-----------------------------------------------------------------------------
+{
+	if (!m_Filter->empty())
+	{
+		// we cannot reliably reset the count when we compress - no way to flush
+		if (m_bAllowCompression && m_Compression == NONE)
+		{
+			auto chunker = m_Filter->component<KChunkedSink>(m_Filter->size()-1);
+
+			if (chunker)
+			{
+				m_Filter->strict_sync();
+				chunker->ResetCount();
+			}
+			else
+			{
+				kDebug(1, "cannot get KChunkedSink component from output pipeline");
+				return false;
+			}
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	m_iCount = 0;
+	return true;
+
+} // ResetCount
 
 //-----------------------------------------------------------------------------
 size_t KOutHTTPFilter::Write(KInStream& InStream, size_t len)
@@ -195,12 +279,14 @@ void KOutHTTPFilter::close()
 	if (!m_Filter->empty())
 	{
 		m_Filter->reset();
+
 		if (m_OutStream)
 		{
 			m_OutStream->Flush();
 		}
-		m_Compression = NONE;
-		m_bChunked = false;
+
+		m_Compression       = NONE;
+		m_bChunked          = false;
 		m_bAllowCompression = true;
 	}
 

@@ -81,6 +81,7 @@ if [[ $# -lt 5 ]]; then
 	exit 0
 fi
 
+RootUser="-uroot"; [[ ! -z "$MYROOTUSER" ]] && export RootUser="$MYROOTUSER"
 RootPassArg="$1"
 NewUser="$2"
 NewPass="$3"
@@ -114,13 +115,13 @@ esac
 
 if [[ "$CreateDB" = "yes" ]]; then
 	bDBExists=0
-	mysql -uroot $RootPassArg $DBHostArg --execute="use $DBName;" 2>/dev/null && bDBExists=1
+	mysql ${RootUser} $RootPassArg $DBHostArg --execute="use $DBName;" 2>/dev/null && bDBExists=1
 
 	if [[ "$bDBExists" -ne 0 ]]; then
 		echo "${ME}: Warning: Database '$DBName' already exists. Ignoring -new directive."
 	else
 		echo "creating new database '$DBName'..."
-		mysqladmin -uroot $RootPassArg $DBHostArg create $DBName
+		mysqladmin ${RootUser} $RootPassArg $DBHostArg create $DBName
 		[[ $? -ne 0 ]] && exit 1
 	fi
 fi
@@ -128,7 +129,7 @@ fi
 HOSTNAME=`hostname`
 
 echo "creating new user '$NewUser'..."
-mysql -uroot $RootPassArg $DBHostArg <<-EOF
+mysql ${RootUser} $RootPassArg $DBHostArg <<-EOF
 	# MySQL doesn't provide "drop user if exists" until 5.7.8.
 	# MySQL docs indicate "grant usage" can be used to "create a user that has no privileges"
 	# But unlike "create user" it doesn't fail if the user already exists.
@@ -143,7 +144,7 @@ if [[ $? -ne 0 ]]; then
 	exit 1
 fi
 
-mysql -uroot $RootPassArg $DBHostArg <<-EOF
+mysql ${RootUser} $RootPassArg $DBHostArg <<-EOF
 	drop user \`$NewUser\`@'$HOSTNAME';
 	drop user \`$NewUser\`@'localhost';
 	drop user \`$NewUser\`@'%';

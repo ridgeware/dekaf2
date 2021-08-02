@@ -20,11 +20,12 @@
 #%   Feb 2011 : added select permission
 #%   May 2016 : aligned number of inserts and deletes (we were missing localhost on deletes)
 #%   Jul 2016 : added -h<dbhost> argument
-#%   Aug 2016 : Rewritten to use "create user" "grant", etc rather than direct access to the user database.
+#%   Aug 2016 : rewritten to use "create user" "grant", etc rather than direct access to the user database.
+#%   Aug 2021 : added support for alternate root users (for AWS RDS), $MYROOTUSER, defaults to 'root'
 #%
 
 # Produce an error if an attempt is made to read an uninitialized variable:
-set -u
+#set -u  :: no (keef wants $MYROOTUSER optional)
 
 # Produce an execution trace in the program's output, if requested
 if [[ $# -gt 0 ]] && [[ "$1" = '-x' ]]; then
@@ -81,7 +82,7 @@ if [[ $# -lt 5 ]]; then
 	exit 0
 fi
 
-RootUser="-uroot"; [[ ! -z "$MYROOTUSER" ]] && export RootUser="$MYROOTUSER"
+RootUser="-uroot"; [[ ! -z "$MYROOTUSER" ]] && RootUser="-u$MYROOTUSER"
 RootPassArg="$1"
 NewUser="$2"
 NewPass="$3"

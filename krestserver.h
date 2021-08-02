@@ -51,6 +51,7 @@
 #include "kopenid.h"
 #include "kfilesystem.h"
 #include "kpoll.h"
+#include "khttplog.h"
 #include <vector>
 #include <memory>
 
@@ -121,10 +122,7 @@ public:
 		/// @param sValue the value for the header
 		void AddHeader(KHTTPHeader Header, KStringView sValue);
 
-		/// Set the file name for the json access log
-		/// @param sJSONAccessLogFile the filename for the access log, or "stdout" / "stderr" for console output
-		/// @return true if file can be opened, false otherwise
-		bool SetJSONAccessLog(KStringViewZ sJSONAccessLogFile);
+		KHTTPLog Logger;
 
 		/// Fixed route prefix
 		KString sBaseRoute;
@@ -157,8 +155,6 @@ public:
 		/// Set a callback function that will receive references to this instance and the TimeKeepers
 		/// after termination of one request
 		std::function<void(const KRESTServer&, const KDurations&)> TimingCallback;
-		/// The stream used for the JSON access log writer - normally set by SetJSONAccessLog()
-		std::unique_ptr<KOutStream> JSONLogStream;
 		/// Set a general purpose callback function that will be called after route matching, and before route callbacks.
 		/// Could be used e.g. for additional authentication, like basic. May throw to abort calling the route's callback.
 		std::function<void(KRESTServer&)> PostRouteCallback;
@@ -335,6 +331,69 @@ public:
 	void PrettyPrint(bool bYesNo);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	std::size_t GetRequestBodyLength() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_iRequestBodyLength;
+	}
+
+	//-----------------------------------------------------------------------------
+	std::size_t GetRequestHeaderLength() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_iRequestHeaderLength;
+	}
+
+	//-----------------------------------------------------------------------------
+	std::size_t GetContentLength() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_iContentLength;
+	}
+
+	//-----------------------------------------------------------------------------
+	std::size_t GetReceivedBytes() const
+	//-----------------------------------------------------------------------------
+	{
+		return GetRequestHeaderLength() + GetRequestBodyLength();
+	}
+
+	//-----------------------------------------------------------------------------
+	std::size_t GetSentBytes() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_iTXBytes;
+	}
+
+	//-----------------------------------------------------------------------------
+	uint16_t GetKeepaliveRound() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_iRound;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool GetKeepalive() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_bKeepAlive;
+	}
+
+	//-----------------------------------------------------------------------------
+	std::chrono::microseconds::rep GetTimeToLastByte() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Timers ? m_Timers->microseconds() : 0;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool GetLostConnection() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_bLostConnection;
+	}
+
 //------
 protected:
 //------
@@ -348,8 +407,7 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// generate success output
 	/// @param Options the options for the KRESTServer
-	/// @param bKeepAlive if false the Connection header will be set to close
-	void Output(const Options& Options, bool bKeepAlive);
+	void Output(const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -357,12 +415,6 @@ protected:
 	/// @param ex the exception with the error status
 	/// @param Options the options for the KRESTServer
 	void ErrorHandler(const std::exception& ex, const Options& Options);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// write the access log
-	/// @param Options the options for the KRESTServer
-	void WriteJSONAccessLog(const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -394,16 +446,22 @@ private:
 
 	static const KRESTRoute s_EmptyRoute;
 
-	KString m_sRequestBody;
-	KString m_sMessage;
-	KString m_sRawOutput;
+	KString     m_sRequestBody;
+	KString     m_sMessage;
+	KString     m_sRawOutput;
 	std::unique_ptr<KInStream> m_Stream; // stream that shall be sent
-	std::size_t m_iContentLength;        // content length for stream output
+	std::size_t m_iTXBytes;              // size of sent headers and content, after compression
+	std::size_t m_iContentLength;        // content length for stream output (before compression)
+	std::size_t m_iRequestHeaderLength;  // size of received query and headers
 	std::size_t m_iRequestBodyLength;    // size of received request body
-	KJWT m_AuthToken;
-	KTempDir m_TempDir;                  // create a KTempDir object
+	KJWT        m_AuthToken;
+	KTempDir    m_TempDir;               // create a KTempDir object
 	std::unique_ptr<KJSON> m_JsonLogger;
 	std::unique_ptr<KStopDurations> m_Timers;
+	uint16_t    m_iRound;                // keepalive rounds
+	bool        m_bKeepAlive;            // whether connection will be kept alive
+	bool        m_bLostConnection;       // whether we lost our peer during flight
+
 	int m_iJSONPrint {
 #ifdef NDEBUG
 		iJSONTerse

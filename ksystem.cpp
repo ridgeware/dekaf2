@@ -417,6 +417,30 @@ uint64_t kGetTid()
 
 } // kGetTid
 
+//-----------------------------------------------------------------------------
+uint32_t kGetUid()
+//-----------------------------------------------------------------------------
+{
+#if !defined(DEKAF2_IS_WINDOWS)
+	return getuid();
+#else
+	return 0;
+#endif
+
+} // kGetUid
+
+//-----------------------------------------------------------------------------
+uint32_t kGetGid()
+//-----------------------------------------------------------------------------
+{
+#if !defined(DEKAF2_IS_WINDOWS)
+	return getgid();
+#else
+	return 0;
+#endif
+
+} // kGetGid
+
 // It is preferable to use KInShell / popen for the call to system as it
 // avoids the creation of a temporary output file. Also, on Unixes, KInShell
 // actually is KInPipe, which uses fork and exec, and takes care to delete all

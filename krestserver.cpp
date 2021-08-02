@@ -67,15 +67,6 @@ void KRESTServer::Options::AddHeader(KHTTPHeader Header, KStringView sValue)
 } // AddHeader
 
 //-----------------------------------------------------------------------------
-bool KRESTServer::Options::SetJSONAccessLog(KStringViewZ sJSONAccessLogFile)
-//-----------------------------------------------------------------------------
-{
-	JSONLogStream = kOpenOutStream(sJSONAccessLogFile, std::ios::app);
-	return JSONLogStream != nullptr;
-
-} // SetJSONAccessLog
-
-//-----------------------------------------------------------------------------
 void KRESTServer::SetDisconnected()
 //-----------------------------------------------------------------------------
 {
@@ -519,11 +510,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 	try
 	{
-		uint16_t iRound { 0 };
+		m_iRound = 0;
 
 		for (;;)
 		{
-			kDebug (3, "keepalive round {}", iRound + 1);
+			kDebug (3, "keepalive round {}", m_iRound + 1);
 			kSetCrashContext("KRestServer");
 
 			clear();
@@ -537,9 +528,18 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				Response.Headers.Add(it.first, it.second);
 			}
 
-			bool bOK = KHTTPServer::Parse();
+			bool bOK { false };
 
-			if (iRound == 0)
+			{
+				KCountingInputStreamBuf InputCounter(Request.UnfilteredStream());
+
+				bOK = KHTTPServer::Parse();
+
+				// store rx header length
+				m_iRequestHeaderLength = InputCounter.Count();
+			}
+
+			if (m_iRound == 0)
 			{
 				// check if we have to start the timers
 				if (!Options.sTimerHeader.empty() || Options.TimingCallback)
@@ -560,8 +560,12 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			{
 				if (KHTTPServer::Error().empty())
 				{
+					if (m_iRequestHeaderLength > 0)
+					{
+						kDebug(2, "connection closed during request, reveived {} bytes of header", m_iRequestHeaderLength);
+					}
 					// close silently
-					kDebug (3, "read timeout in keepalive round {}", iRound + 1);
+					kDebug (3, "read timeout in keepalive round {}", m_iRound + 1);
 					return false;
 				}
 				else
@@ -655,10 +659,6 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				m_Timers->StoreInterval(Timer::ROUTE);
 			}
 
-			m_iRequestBodyLength = 0;
-
-			KCountingInputStreamBuf InputCounter(KHTTPServer::InStream());
-
 			if (Request.HasContent(Request.Method == KHTTPMethod::GET))
 			{
 				Parse(Options);
@@ -668,6 +668,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			{
 				m_Timers->StoreInterval(Timer::PARSE);
 			}
+
+			// we store this count() twice, because some routes may read the
+			// request themselves, but we want to assure we have a value should
+			// an exception be thrown
+			m_iRequestBodyLength = Request.Count();
 
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			// debug info
@@ -693,6 +698,9 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			kAppendCrashContext("completed route handler");
 
+			Request.close();
+			m_iRequestBodyLength = Request.Count();
+
 			if (m_Timers)
 			{
 				m_Timers->StoreInterval(Timer::PROCESS);
@@ -703,18 +711,13 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			// of keep-alive rounds, as this blocks one thread of
 			// execution and could lead to a DoS if an attacker would
 			// hold as many connections as we have simultaneous threads.
-			bool bKeepAlive = (Options.Out == HTTP)
-			               && (++iRound < Options.iMaxKeepaliveRounds)
-			               && Request.HasKeepAlive();
+			m_bKeepAlive = (Options.Out == HTTP)
+						&& (m_iRound+1 < Options.iMaxKeepaliveRounds)
+						&& Request.HasKeepAlive();
 
-			Output(Options, bKeepAlive);
+			Output(Options);
 
-			m_iRequestBodyLength = InputCounter.count();
-
-			if (Options.JSONLogStream)
-			{
-				WriteJSONAccessLog(Options);
-			}
+			Options.Logger.Log(*this);
 
 			if (Options.bRecordRequest)
 			{
@@ -730,21 +733,24 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				Stats->iRxBytes  += m_iRequestBodyLength;
 			}
 
-			if (!bKeepAlive)
+			if (!m_bKeepAlive)
 			{
 				if (Options.Out == HTTP)
 				{
 					if (!Request.HasKeepAlive())
 					{
-						kDebug (3, "keep-alive not supported by client - closing connection in round {}", iRound);
+						kDebug (2, "keep-alive not supported by client - closing connection in round {}", m_iRound);
 					}
 					else
 					{
-						kDebug (3, "no further keep-alive allowed - closing connection in round {}", iRound);
+						kDebug (2, "no further keep-alive allowed - closing connection in round {}", m_iRound);
 					}
 				}
 				return true;
 			}
+
+			// increase keepalive round explicitly here, not before..
+			++m_iRound;
 		}
 
 		return true;
@@ -755,10 +761,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 		ErrorHandler(ex, Options);
 	}
 
-	if (Options.JSONLogStream)
-	{
-		WriteJSONAccessLog(Options);
-	}
+	Options.Logger.Log(*this);
 
 	if (Options.bRecordRequest)
 	{
@@ -768,52 +771,6 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 	return false;
 
 } // Execute
-
-//-----------------------------------------------------------------------------
-void KRESTServer::WriteJSONAccessLog(const Options& Options)
-//-----------------------------------------------------------------------------
-{
-	KStringView sTXType;
-
-	switch (Options.Out)
-	{
-		case HTTP:
-			sTXType = "HTTP";
-			break;
-
-		case LAMBDA:
-			sTXType = "LAMBDA";
-			break;
-
-		case CLI:
-			sTXType = "CLI";
-			break;
-	}
-
-	KJSON LogLine {
-		{ "time"      , kFormTimestamp(0, "%d/%b/%Y:%H:%M:%S %z") },
-		{ "remoteIP"  , Request.GetBrowserIP()                    },
-		{ "host"      , Request.Headers[KHTTPHeader::HOST]        },
-		{ "request"   , Request.Resource.Path.get()               },
-		{ "query"     , Request.Resource.Query.Serialize()        },
-		{ "method"    , Request.Method.Serialize()                },
-		{ "status"    , Response.iStatusCode                      },
-		{ "rx-size"   , m_iRequestBodyLength                      },
-		{ "tx-size"   , m_iContentLength                          },
-		{ "tx-type"   , sTXType                                   },
-		{ "userAgent" , Request.Headers[KHTTPHeader::USER_AGENT]  },
-		{ "referer"   , Request.Headers[KHTTPHeader::REFERER]     }
-	};
-
-	if (m_Timers)
-	{
-		// "time to last byte"
-		LogLine.push_back({ "TTLB", m_Timers->milliseconds() });
-	}
-
-	kLogger(*Options.JSONLogStream, LogLine.dump(-1));
-
-} // WriteJSONAccessLog
 
 //-----------------------------------------------------------------------------
 bool KRESTServer::SetStreamToOutput(std::unique_ptr<KInStream> Stream, std::size_t iContentLength)
@@ -850,7 +807,7 @@ bool KRESTServer::SetFileToOutput(KStringViewZ sFile)
 } // SetFileToOutput
 
 //-----------------------------------------------------------------------------
-void KRESTServer::Output(const Options& Options, bool bKeepAlive)
+void KRESTServer::Output(const Options& Options)
 //-----------------------------------------------------------------------------
 {
 	ThrowIfDisconnected();
@@ -957,10 +914,24 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				}
 			}
 
-			Response.Headers.Set (KHTTPHeader::CONNECTION, bKeepAlive ? "keep-alive" : "close");
+			Response.Headers.Set (KHTTPHeader::CONNECTION, m_bKeepAlive ? "keep-alive" : "close");
 
-			// writes response headers to output
-			Serialize();
+			{
+				// the headers get written directly to the unfiltered stream,
+				// therefore we have to count them outside of the filter pipeline
+				KCountingOutputStreamBuf OutputCounter(Response.UnfilteredStream());
+
+				// writes response headers to output
+				Serialize();
+
+				m_iTXBytes = OutputCounter.Count();
+
+				// with the next write now the filter pipeline gets kicked off,
+				// and the unfiltered stream is only a copy of the real
+				// stream used for output, therefore its streambuf is no
+				// more updated by writes and can no more be used for counting,
+				// so we detach proactively
+			}
 
 			// finally, output the content:
 			if (m_Stream)
@@ -969,11 +940,12 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 
 				if (m_iContentLength == npos)
 				{
-					KCountingOutputStreamBuf Counter(Response.FilteredStream());
+					// account for copied content from a stream as well
+					KCountingInputStreamBuf Counter(*m_Stream);
 
 					Write (*m_Stream, m_iContentLength);
 
-					m_iContentLength = Counter.count();
+					m_iContentLength = Counter.Count();
 				}
 				else
 				{
@@ -995,6 +967,13 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 					Options.TimingCallback(*this, *m_Timers.get());
 				}
 			}
+
+			// we have to force the output pipeline to close to reliably
+			// flush all content
+			Response.close();
+
+			m_iTXBytes += Response.Count();
+			kDebug(2, "sent bytes: {}", m_iTXBytes);
 		}
 		break;
 
@@ -1095,7 +1074,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 				}
 			}
 
-			m_iContentLength = Counter.count();
+			m_iContentLength = Counter.Count();
 
 			if (!Options.sKLogHeader.empty())
 			{
@@ -1109,6 +1088,7 @@ void KRESTServer::Output(const Options& Options, bool bKeepAlive)
 	if (!Response.UnfilteredStream().Good())
 	{
 		kDebug (2, "write error, connection lost");
+		m_bLostConnection = true;
 	}
 
 } // Output
@@ -1230,8 +1210,10 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 				Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
 			}
 
+			m_iContentLength = sContent.size();
+
 			// compute and set the Content-Length header:
-			Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(sContent.length()));
+			Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(m_iContentLength));
 
 			if (m_Timers)
 			{
@@ -1246,8 +1228,14 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 			Response.Headers.Set(KHTTPHeader::CONNECTION, "close");
 
-			// writes response headers to output
-			Serialize();
+			{
+				KCountingOutputStreamBuf OutputCounter(Response.UnfilteredStream());
+
+				// writes response headers to output
+				Serialize();
+
+				m_iTXBytes = OutputCounter.Count();
+			}
 
 			// finally, output the content:
 			kDebug (3, sContent);
@@ -1262,6 +1250,13 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 					Options.TimingCallback(*this, *m_Timers.get());
 				}
 			}
+
+			// we have to force the output pipeline to close to reliably
+			// flush all content
+			Response.close();
+
+			m_iTXBytes += Response.Count();
+			kDebug(2, "sent bytes: {}", m_iTXBytes);
 		}
 		break;
 
@@ -1293,6 +1288,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 	if (!Response.UnfilteredStream().Good())
 	{
 		kDebug (1, "write error, connection lost");
+		m_bLostConnection = true;
 	}
 
 } // ErrorHandler
@@ -1446,7 +1442,10 @@ void KRESTServer::clear()
 	m_sMessage.clear();
 	m_sRawOutput.clear();
 	m_Stream.reset();
-	m_iContentLength = npos;
+	m_iTXBytes             = 0;
+	m_iContentLength       = npos;
+	m_iRequestHeaderLength = 0;
+	m_iRequestBodyLength   = 0;
 	m_AuthToken.clear();
 	m_JsonLogger.reset();
 	m_TempDir.clear();

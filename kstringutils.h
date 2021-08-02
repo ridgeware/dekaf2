@@ -410,6 +410,13 @@ KString kFormSMTPTimestamp (time_t tTime = 0);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Create a common log format  time stamp
+/// @param tTime Seconds since epoch. If 0, query current time from the system
+KString kFormCommonLogTimestamp(time_t tTime = 0, bool bAsLocalTime = false);
+//-----------------------------------------------------------------------------
+
+
+//-----------------------------------------------------------------------------
 /// Form a string that expresses a duration
 KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm = false);
 //-----------------------------------------------------------------------------

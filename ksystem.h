@@ -94,6 +94,12 @@ inline pid_t kGetPid()
 /// return thread ID
 uint64_t kGetTid();
 
+/// return own UID
+uint32_t kGetUid();
+
+/// return own GID
+uint32_t kGetGid();
+
 /// Execute the given command, redirect stdout and stderr into a temp file and then return in the given sOutput string.  Return code matches the exit code command that was run: 0 is normally an indication of success.
 int kSystem (KStringView sCommand, KString& sOutput);
 

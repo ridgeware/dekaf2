@@ -335,9 +335,53 @@ KString kFormTimestamp (time_t tTime, const char* szFormat, bool bAsLocalTime)
 
 	auto iLength = strftime (sBuffer.data(), sBuffer.size(), szFormat, &time);
 
+	if (iLength == sBuffer.size())
+	{
+		kWarning("format string too long: {}", szFormat);
+	}
+
 	return { sBuffer.data(), iLength };
 
 } // kFormTimestamp
+
+//-----------------------------------------------------------------------------
+KString kFormCommonLogTimestamp(time_t tTime, bool bAsLocalTime)
+//-----------------------------------------------------------------------------
+{
+	auto time = kGetBrokenDownTime(tTime, bAsLocalTime);
+
+	if (!bAsLocalTime)
+	{
+		// [18/Sep/2011:19:18:28 +0000]
+		return kFormat("[{:02}/{}/{:04}:{:02}:{:02}:{:02} +0000]",
+					   time.tm_mday,
+					   kGetAbbreviatedMonth(time.tm_mon),
+					   time.tm_year + 1900,
+					   time.tm_hour,
+					   time.tm_min,
+					   time.tm_sec);
+	}
+	else
+	{
+		char chSign         = time.tm_gmtoff < 0 ? '-' : '+';
+		auto iMinutesOffset = abs(time.tm_gmtoff / 60);
+		auto iHoursOffset   = iMinutesOffset / 60;
+		iMinutesOffset      = iMinutesOffset % 60;
+
+		// [18/Sep/2011:19:18:28 -0400]
+		return kFormat("[{:02}/{}/{:04}:{:02}:{:02}:{:02} {}{:02}{:02}]",
+					   time.tm_mday,
+					   kGetAbbreviatedMonth(time.tm_mon),
+					   time.tm_year + 1900,
+					   time.tm_hour,
+					   time.tm_min,
+					   time.tm_sec,
+					   chSign,
+					   iHoursOffset,
+					   iMinutesOffset);
+	}
+
+} // kFormCommonLogTimestamp
 
 //-----------------------------------------------------------------------------
 KString kFormHTTPTimestamp (time_t tTime)

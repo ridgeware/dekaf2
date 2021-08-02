@@ -223,6 +223,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_CONSTEXPR_14
 	std::size_t Hash() const
 	//-----------------------------------------------------------------------------
 	{
@@ -276,6 +277,7 @@ namespace std
 	/// provide a std::hash for KHTTPHeader
 	template<> struct hash<dekaf2::KHTTPHeader>
 	{
+		DEKAF2_CONSTEXPR_14
 		std::size_t operator()(const dekaf2::KHTTPHeader& header) const noexcept
 		{
 			return header.Hash();
@@ -295,6 +297,7 @@ namespace boost
 	template<> struct hash<dekaf2::KHTTPHeader>
 #endif
 	{
+		DEKAF2_CONSTEXPR_14
 		std::size_t operator()(const dekaf2::KHTTPHeader& header) const noexcept
 		{
 			return header.Hash();

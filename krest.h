@@ -154,7 +154,7 @@ public:
 protected:
 //----------
 
-	bool RealExecute(const Options& Options, const KRESTRoutes& Routes, KStream& Stream, KStringView sRemoteIP = "0.0.0.0");
+	bool RealExecute(const Options& Options, const KRESTRoutes& Routes, KStream& Stream, KStringView sRemoteIP, url::KProtocol Proto, uint16_t iPort);
 	bool SetError(KStringView sError);
 
 //----------

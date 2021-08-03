@@ -56,20 +56,22 @@ void KHTTPServer::clear()
 }
 
 //-----------------------------------------------------------------------------
-KHTTPServer::KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint)
+KHTTPServer::KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort)
 //-----------------------------------------------------------------------------
 {
-	Accept(Stream, sRemoteEndpoint);
+	Accept(Stream, sRemoteEndpoint, Proto, iPort);
 
 } // Ctor
 
 //-----------------------------------------------------------------------------
-bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint)
+bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort)
 //-----------------------------------------------------------------------------
 {
 	SetError(KStringView{});
 
 	RemoteEndpoint = sRemoteEndpoint;
+	Protocol       = Proto;
+	Port           = iPort;
 
 	Stream.SetReaderEndOfLine('\n');
 	Stream.SetReaderLeftTrim("");
@@ -168,10 +170,31 @@ KString KHTTPServer::GetConnectedClientIP() const
 } // GetConnectedClientIP
 
 //-----------------------------------------------------------------------------
-KString KHTTPServer::GetBrowserIP() const
+uint16_t KHTTPServer::GetConnectedClientPort() const
 //-----------------------------------------------------------------------------
 {
-	KString sBrowserIP(Request.GetBrowserIP());
+	// check our connection endpoint
+	auto iColon = RemoteEndpoint.rfind(':');
+
+	if (iColon != KString::npos)
+	{
+		// check if the colon is part of an IPv6 address,
+		// or if it is host:port
+		if (!iColon || RemoteEndpoint[iColon - 1] != ':')
+		{
+			return RemoteEndpoint.Mid(iColon + 1).UInt16();
+		}
+	}
+
+	return 0;
+
+} // GetConnectedClientPort
+
+//-----------------------------------------------------------------------------
+KString KHTTPServer::GetRemoteIP() const
+//-----------------------------------------------------------------------------
+{
+	auto sBrowserIP = Request.GetRemoteIP();
 
 	if (sBrowserIP.empty())
 	{
@@ -180,7 +203,43 @@ KString KHTTPServer::GetBrowserIP() const
 
 	return sBrowserIP;
 
-} // GetBrowserIP
+} // GetRemoteIP
+
+//-----------------------------------------------------------------------------
+url::KProtocol KHTTPServer::GetRemoteProto() const
+//-----------------------------------------------------------------------------
+{
+	auto Proto = Request.GetRemoteProto();
+
+	if (Proto == url::KProtocol::UNDEFINED)
+	{
+		// we fallback to the direct connection protocol in any case
+		Proto = Protocol;
+	}
+
+	return Proto;
+
+} // GetRemoteProto
+
+//-----------------------------------------------------------------------------
+uint16_t KHTTPServer::GetRemotePort() const
+//-----------------------------------------------------------------------------
+{
+	auto iPort = Request.GetRemotePort();
+
+	if (iPort == 0)
+	{
+		if (Request.GetRemoteIP().empty())
+		{
+			// we only take the connected client port if
+			// we do not have any proxying involved
+			iPort = GetConnectedClientPort();
+		}
+	}
+
+	return iPort;
+
+} // GetRemotePort
 
 //-----------------------------------------------------------------------------
 const KString& KHTTPServer::GetRequestPath() const

@@ -22,7 +22,7 @@ x-klog: -out json -level 1
 		KInStringStream iss(sRequest);
 		KOutStringStream oss(sResponse);
 		KStream stream(iss, oss);
-		KRESTServer Browser(stream, "192.168.178.1:234");
+		KRESTServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		KRESTServer::Options Options;
 		Options.sKLogHeader = "x-klog";
 		KRESTRoutes Routes;
@@ -57,7 +57,7 @@ x-klog: -level 1
 		KInStringStream iss(sRequest);
 		KOutStringStream oss(sResponse);
 		KStream stream(iss, oss);
-		KRESTServer Browser(stream, "192.168.178.1:234");
+		KRESTServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		KRESTServer::Options Options;
 		Options.sKLogHeader = "x-klog";
 		KRESTRoutes Routes;

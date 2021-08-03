@@ -275,7 +275,7 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// Request the stream timeout requested for this instance (set it in own
 	/// session handlers for reading and writing on the stream)
-	inline uint16_t GetTimeout() const
+	uint16_t GetTimeout() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_iTimeout;
@@ -290,10 +290,18 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// Returns true if the server is in SSL/TLS mode.
-	inline bool IsSSL() const
+	bool IsSSL() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_bIsSSL;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get the port we're bound to - returns 0 for unix sockets
+	uint16_t GetPort() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_iPort;
 	}
 
 //-------

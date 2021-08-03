@@ -200,14 +200,16 @@ bool KHTTPRequestHeaders::HasChunking() const
 } // HasChunking
 
 //-----------------------------------------------------------------------------
-KString KHTTPRequestHeaders::GetBrowserIP() const
+KString KHTTPRequestHeaders::GetRemoteIP() const
 //-----------------------------------------------------------------------------
 {
 	KString sBrowserIP;
 
 	{
 		// check the Forwarded: header
+		// (note that we cannot use a ref due to the tolower conversion)
 		const auto sHeader = Headers.Get(KHTTPHeader::FORWARDED).ToLowerASCII();
+
 		if (!sHeader.empty())
 		{
 			auto iStart = sHeader.find("for=");
@@ -290,7 +292,105 @@ KString KHTTPRequestHeaders::GetBrowserIP() const
 
 	return sBrowserIP;
 
-} // GetBrowserIP
+} // GetRemoteIP
+
+//-----------------------------------------------------------------------------
+uint16_t KHTTPRequestHeaders::GetRemotePort() const
+//-----------------------------------------------------------------------------
+{
+	uint16_t iPort { 0 };
+
+	{
+		// check the Forwarded: header
+		// (note that we cannot use a ref due to the tolower conversion)
+		const auto sHeader = Headers.Get(KHTTPHeader::FORWARDED).ToLowerASCII();
+
+		if (!sHeader.empty())
+		{
+			auto iStart = sHeader.find("for=");
+			if (iStart != KString::npos)
+			{
+				auto iEnd = sHeader.find_first_of(",;", iStart+4);
+				// KString is immune against npos in substr()
+				auto sBrowserIP = sHeader.substr(iStart+4, iEnd-(iStart+4));
+				sBrowserIP.Trim();
+
+				// The header may be an ipv6 address, which has a
+				// different format in the Forwarded: header than
+				// in X-Forwarded-For, so we normalize it
+				// Forwarded   = "[2001:db8:cafe::17]:4711"
+				// X-Forwarded = 2001:db8:cafe::17 (no port)
+				if (sBrowserIP.size() > 1 && sBrowserIP.front() == '"')
+				{
+					if (sBrowserIP[1] == '[')
+					{
+						// check for the closing ]:
+						auto iPos = sBrowserIP.find("]:");
+						if (iPos != KString::npos)
+						{
+							iEnd = sBrowserIP.find('"', iPos);
+							auto sBrowserPort = sBrowserIP.substr(iPos + 2, iEnd-(iStart+2));
+							iPort = sBrowserPort.UInt16();
+						}
+					}
+				}
+				else
+				{
+					// IPv4 address, remove :port
+					auto iPos = sBrowserIP.find(':');
+					if (iPos != KString::npos)
+					{
+						auto sBrowserPort = sBrowserIP.substr(iPos+1);
+						iPort = sBrowserPort.UInt16();
+					}
+				}
+			}
+		}
+	}
+
+	return iPort;
+
+} // GetRemotePort
+
+//-----------------------------------------------------------------------------
+url::KProtocol KHTTPRequestHeaders::GetRemoteProto() const
+//-----------------------------------------------------------------------------
+{
+	url::KProtocol Proto;
+	KStringView sProto;
+
+	// check the Forwarded: header
+	// (note that we cannot use a ref due to the tolower conversion)
+	auto sHeader = Headers.Get(KHTTPHeader::FORWARDED).ToLowerASCII();
+
+	if (!sHeader.empty())
+	{
+		auto iStart = sHeader.find("proto=");
+		if (iStart != KString::npos)
+		{
+			auto iEnd = sHeader.find_first_of(",;", iStart+6);
+			// KString is immune against npos in substr()
+			sProto = sHeader.substr(iStart+6, iEnd-(iStart+6));
+			sProto.Trim();
+			Proto.Parse(sProto, true);
+		}
+	}
+
+	if (Proto != url::KProtocol::UNDEFINED)
+	{
+		return Proto;
+	}
+
+	sHeader = Headers.Get(KHTTPHeader::X_FORWARDED_PROTO).ToLowerASCII();
+
+	if (!sHeader.empty())
+	{
+		Proto.Parse(sHeader, true);
+	}
+
+	return Proto;
+
+} // GetRemoteProto
 
 //-----------------------------------------------------------------------------
 KStringView KHTTPRequestHeaders::SupportedCompression() const

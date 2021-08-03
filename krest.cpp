@@ -75,7 +75,10 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 
 #endif
 
-	Request.Accept(Stream, sRemoteEndpoint);
+	Request.Accept(Stream,
+				   sRemoteEndpoint,
+				   IsSSL() ? url::KProtocol::HTTPS : url::KProtocol::HTTP,
+				   GetPort());
 	Request.Execute(m_Options, m_Routes);
 
 #ifndef DEKAF2_IS_WINDOWS
@@ -111,14 +114,14 @@ KREST::~KREST()
 } // dtor
 
 //-----------------------------------------------------------------------------
-bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStream& Stream, KStringView sRemoteIP)
+bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStream& Stream, KStringView sRemoteIP, url::KProtocol Proto, uint16_t iPort)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "...");
 
 	KRESTServer Request;
 	
-	Request.Accept(Stream, sRemoteIP);
+	Request.Accept(Stream, sRemoteIP, Proto, iPort);
 	bool bRet = Request.Execute(Options, Routes);
 	Request.Disconnect();
 
@@ -245,7 +248,12 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				KStream Stream(CGI, KOut);
 				Options.Out = KRESTServer::HTTP;
 				Options.iMaxKeepaliveRounds = 1; // no keepalive in CGI mode..
-				RealExecute(Options, Routes, Stream, kGetEnv(KCGIInStream::REMOTE_ADDR));
+				RealExecute(Options,
+							Routes,
+							Stream,
+							kGetEnv(KCGIInStream::REMOTE_ADDR),
+							kGetEnv(KCGIInStream::SERVER_PORT),
+							kGetEnv(KCGIInStream::SERVER_PROTOCOL).UInt16());
 				return true; // we return true because the request was served
 			}
 
@@ -261,7 +269,12 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				KStream Stream(Lambda, KOut);
 				Options.Out = KRESTServer::LAMBDA;
 				Options.iMaxKeepaliveRounds = 1; // no keepalive in Lambda mode..
-				RealExecute(Options, Routes, Stream); // TODO get remote IP from env var
+				RealExecute(Options,
+							Routes,
+							Stream,
+							"0.0.0.0",
+							url::KProtocol::HTTP,
+							0); // TODO get remote IP, proto, port from env var
 				return true; // we return true because the request was served
 			}
 
@@ -271,7 +284,12 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				kDebug (2, "normal CLI request...");
 				KStream Stream(KIn, KOut);
 				Options.Out = KRESTServer::CLI;
-				RealExecute(Options, Routes, Stream, kFirstNonEmpty<KStringView>(kGetEnv(KCGIInStream::REMOTE_ADDR), "127.0.0.1"));
+				RealExecute(Options,
+							Routes,
+							Stream,
+							kFirstNonEmpty<KStringView>(kGetEnv(KCGIInStream::REMOTE_ADDR), "127.0.0.1"),
+							url::KProtocol::HTTP,
+							0);
 				return true; // we return true because the request was served
 			}
 
@@ -304,7 +322,12 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 				}
 				KStream Stream(CGI, OutStream);
 				Options.Out = KRESTServer::HTTP;
-				RealExecute(Options, Routes, Stream, "127.0.0.1");
+				RealExecute(Options,
+							Routes,
+							Stream,
+							"127.0.0.1",
+							url::KProtocol::HTTP,
+							0);
 				return true; // we return true because the request was served
 			}
 
@@ -315,7 +338,12 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 				KLambdaInStream Lambda(File);
 				KStream Stream(Lambda, OutStream);
 				Options.Out = KRESTServer::LAMBDA;
-				RealExecute(Options, Routes, Stream, "127.0.0.1");
+				RealExecute(Options,
+							Routes,
+							Stream,
+							"127.0.0.1",
+							url::KProtocol::HTTP,
+							0);
 				return true; // we return true because the request was served
 			}
 
@@ -402,7 +430,12 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, const KR
 	KInStringStream String(sRequest);
 	KStream Stream(String, OutStream);
 	Options.Out = KRESTServer::HTTP;
-	return RealExecute(Options, Routes, Stream, "127.0.0.1");
+	return RealExecute(Options,
+					   Routes,
+					   Stream,
+					   "127.0.0.1",
+					   url::KProtocol::HTTP,
+					   0);
 
 } // Simulate
 

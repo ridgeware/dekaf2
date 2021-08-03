@@ -164,6 +164,7 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 					if (m_AuthToken.Check(Authorization, Options.Authenticators, Options.sAuthScope))
 					{
 						// success
+						SetAuthenticatedUser(kjson::GetString(GetAuthToken(), "sub"));
 						return;
 					}
 				}
@@ -685,7 +686,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 									   Request.Method.Serialize(),
 									   Request.Resource.Serialize(),
 									   Options.sServername,
-									   Request.GetBrowserIP())
+									   Request.GetRemoteIP())
 							  );
 
 			// check that we are still connected to the remote end
@@ -1339,7 +1340,7 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 
 		// we can now write the request into the recording file
 		oss.WriteLine();
-		oss.FormatLine("# {} :: from IP {}", kFormTimestamp(), Request.GetBrowserIP());
+		oss.FormatLine("# {} :: from IP {}", kFormTimestamp(), Request.GetRemoteIP());
 
 		if (!Response.Good())
 		{

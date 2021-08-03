@@ -89,7 +89,17 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Searches for the original requester's IP address in the Forwarded,
 	/// X-Forwarded-For and X-ProxyUser-IP headers (in that order, first found wins)
-	KString GetBrowserIP() const;
+	KString GetRemoteIP() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Searches for the original requester's port in the Forwarded header
+	uint16_t GetRemotePort() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Searches for the original requester's protocol in the Forwarded and X-Forwarded-Proto header
+	url::KProtocol GetRemoteProto() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

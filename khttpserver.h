@@ -73,7 +73,7 @@ public:
 	/// Construct HTTP server around a stream
 	/// @param Stream the IO stream
 	/// @param sRemoteEndpoint IP address of the direct connection
-	KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint);
+	KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -97,7 +97,7 @@ public:
 	/// @param Stream the IO stream
 	/// @param sRemoteEndpoint IP address of the direct connection
 	/// @return true if Stream is ready for IO, false otherwise
-	bool Accept(KStream& Stream, KStringView sRemoteEndpoint);
+	bool Accept(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -249,11 +249,17 @@ public:
 	void clear();
 	//-----------------------------------------------------------------------------
 
-	/// returns the IP address of the immediate client connection, not of any headers
-	/// as for GetBrowserIP()
-	/// @return a string with the IP address of the connection
 	//-----------------------------------------------------------------------------
+	/// returns the IP address of the immediate client connection, not of any headers
+	/// as for GetRemoteIP()
+	/// @return a string with the IP address of the connection
 	KString GetConnectedClientIP() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns the port of the immediate client connection, not of any headers
+	/// @return the peer port of the connection
+	uint16_t GetConnectedClientPort() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -265,7 +271,31 @@ public:
 	/// and if that remains without success returns the IP address of the immediate
 	/// client connection as for GetConnectedClientIP()
 	/// @return a string with the IP address of the original requester
-	KString GetBrowserIP() const;
+	KString GetRemoteIP() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Alias for GetRemoteIP(), now deprecated
+	KString GetBrowserIP() const
+	//-----------------------------------------------------------------------------
+	{
+		return GetRemoteIP();
+	}
+
+	//-----------------------------------------------------------------------------
+	// we repeat the method from KHTTPRequest here as we want to look into
+	// the remote endpoint data of the tcp connection if we do not find the protocol
+	// in the headers - and the connection details are only known here..
+	/// Searches for the original requester's protocol in the Forwarded and X-Forwarded-Proto header
+	url::KProtocol GetRemoteProto() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// we repeat the method from KHTTPRequest here as we want to look into
+	// the remote endpoint data of the tcp connection if we do not find the port
+	// in the headers - and the connection details are only known here..
+	/// Searches for the original requester's port in the Forwarded header
+	uint16_t GetRemotePort() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -314,9 +344,25 @@ public:
 		Request.Resource.Query.get().Add(std::forward<Key>(sKey), std::forward<Value>(sValue));
 	}
 
+	//-----------------------------------------------------------------------------
+	/// returns the name of a user who was successfully authenticated (by another module which sets this user name)
+	const KString& GetAuthenticatedUser() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_sAuthenticatedUser;
+	}
+
 //------
 protected:
 //------
+
+	//-----------------------------------------------------------------------------
+	/// confirm a user name as being authenticated
+	void SetAuthenticatedUser(KString sAuthenticatedUser)
+	//-----------------------------------------------------------------------------
+	{
+		m_sAuthenticatedUser = std::move(sAuthenticatedUser);
+	}
  
 	//-----------------------------------------------------------------------------
 	bool ReadHeader();
@@ -337,6 +383,7 @@ private:
 	void EnableCompressionIfPossible();
 	//-----------------------------------------------------------------------------
 
+	KString m_sAuthenticatedUser;
 	mutable KString m_sError;
 	long m_Timeout { 30 };
 	bool m_bConfigureCompression { true };
@@ -345,9 +392,11 @@ private:
 public:
 //------
 
-	KInHTTPRequest Request;
+	KInHTTPRequest   Request;
 	KOutHTTPResponse Response;
-	KString RemoteEndpoint;
+	KString          RemoteEndpoint;
+	url::KProtocol   Protocol { url::KProtocol::HTTP };
+	uint16_t         Port     { 0 };
 
 }; // KHTTPServer
 

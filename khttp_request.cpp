@@ -312,7 +312,7 @@ uint16_t KHTTPRequestHeaders::GetRemotePort() const
 			{
 				auto iEnd = sHeader.find_first_of(",;", iStart+4);
 				// KString is immune against npos in substr()
-				auto sBrowserIP = sHeader.substr(iStart+4, iEnd-(iStart+4));
+				auto sBrowserIP = sHeader.ToView(iStart+4, iEnd-(iStart+4));
 				sBrowserIP.Trim();
 
 				// The header may be an ipv6 address, which has a
@@ -329,7 +329,7 @@ uint16_t KHTTPRequestHeaders::GetRemotePort() const
 						if (iPos != KString::npos)
 						{
 							iEnd = sBrowserIP.find('"', iPos);
-							auto sBrowserPort = sBrowserIP.substr(iPos + 2, iEnd-(iStart+2));
+							auto sBrowserPort = sBrowserIP.ToView(iPos + 2, iEnd-(iStart+2));
 							iPort = sBrowserPort.UInt16();
 						}
 					}
@@ -357,7 +357,6 @@ url::KProtocol KHTTPRequestHeaders::GetRemoteProto() const
 //-----------------------------------------------------------------------------
 {
 	url::KProtocol Proto;
-	KStringView sProto;
 
 	// check the Forwarded: header
 	// (note that we cannot use a ref due to the tolower conversion)
@@ -369,8 +368,8 @@ url::KProtocol KHTTPRequestHeaders::GetRemoteProto() const
 		if (iStart != KString::npos)
 		{
 			auto iEnd = sHeader.find_first_of(",;", iStart+6);
-			// KString is immune against npos in substr()
-			sProto = sHeader.substr(iStart+6, iEnd-(iStart+6));
+			// KString is immune against npos in ToView()
+			auto sProto = sHeader.ToView(iStart+6, iEnd-(iStart+6));
 			sProto.Trim();
 			Proto.Parse(sProto, true);
 		}

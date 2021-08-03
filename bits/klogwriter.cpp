@@ -315,32 +315,9 @@ bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOu
 	{
 		if (!sLine.empty())
 		{
-			KString sValue;
-			sValue.reserve(sLine.size());
-
-			for (auto ch : sLine)
-			{
-				// escape non-printable characters..
-				if (DEKAF2_UNLIKELY(ch == '\\'))
-				{
-					sValue += '\\';
-					sValue += '\\';
-				}
-				else if (DEKAF2_UNLIKELY(!ch || KASCII::kIsCntrl(ch)))
-				{
-					sValue += '\\';
-					sValue += 'x';
-					KEnc::HexAppend(sValue, ch);
-				}
-				else
-				{
-					sValue += ch;
-				}
-			}
-
 			// it is a bug that we cannot use a KString as the key to add a new
 			// header but have to convert it into a KStringView first..
-			m_Headers.Headers.Add(kFormat("{}-{:05d}", m_sHeader, m_iCounter++).ToView(), std::move(sValue));
+			m_Headers.Headers.Add(kFormat("{}-{:05d}", m_sHeader, m_iCounter++).ToView(), kEscapeForLogging(sLine));
 		}
 	}
 

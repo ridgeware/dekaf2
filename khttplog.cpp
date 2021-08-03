@@ -113,7 +113,7 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	/// escape any evil characters (basically, double quotes and backslashes..)
+	/// escape any evil characters (basically, double quotes, backslashes, spaces, control characters)
 	void Escape(KStringView sInput)
 	//-----------------------------------------------------------------------------
 	{
@@ -123,21 +123,7 @@ public:
 		}
 		else
 		{
-			for (;;)
-			{
-				auto iPos = sInput.find_first_of("\"\\");
-
-				if (iPos == KStringView::npos)
-				{
-					break;
-				}
-
-				m_sLogline += sInput.substr(0, iPos);
-				m_sLogline += '\\';
-				m_sLogline += sInput[iPos];
-				sInput.remove_prefix(++iPos);
-			}
-			m_sLogline += sInput;
+			kEscapeForLogging(m_sLogline, sInput);
 		}
 
 	} // Escape

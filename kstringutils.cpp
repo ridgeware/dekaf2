@@ -44,6 +44,7 @@
 #include "kurl.h"
 #include "dekaf2.h"
 #include "kregex.h"
+#include "kencode.h"
 #include <time.h>
 
 namespace dekaf2
@@ -649,6 +650,69 @@ bool kIsURL(KStringView str) noexcept
 {
 	return KURL(str).IsURL();
 }
+
+//-----------------------------------------------------------------------------
+void kEscapeForLogging(KString& sLog, KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	sLog.reserve(sLog.size() + sInput.size());
+	
+	for (auto ch : sInput)
+	{
+		auto ctype = KASCII::kCharType(ch);
+
+		if (DEKAF2_UNLIKELY(KASCII::kIsSpace(ctype)))
+		{
+			switch (ch)
+			{
+				case ' ':
+					sLog += ' ';
+					break;
+
+				case '\r':
+					sLog += "\\r";
+					break;
+
+				case '\n':
+					sLog += "\\n";
+					break;
+
+				case '\t':
+					sLog += "\\t";
+					break;
+
+				case '\b':
+					sLog += "\\b";
+					break;
+
+				case '\v':
+					sLog += "\\v";
+					break;
+
+				case '\f':
+					sLog += "\\f";
+					break;
+			}
+		}
+		else if (DEKAF2_UNLIKELY(KASCII::kIsCntrl(ctype)))
+		{
+			// escape non-printable characters..
+			sLog += '\\';
+			sLog += 'x';
+			KEnc::HexAppend(sLog, ch);
+		}
+		else if (DEKAF2_UNLIKELY(ch == '\\' || ch == '"'))
+		{
+			sLog += '\\';
+			sLog += ch;
+		}
+		else
+		{
+			sLog += ch;
+		}
+	}
+
+} // kEscapeForLogging
 
 } // end of namespace dekaf2
 

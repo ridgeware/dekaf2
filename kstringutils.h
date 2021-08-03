@@ -733,4 +733,20 @@ String kSignedToString(int64_t i, uint16_t iBase = 10, bool bZeroPad = false, bo
 
 } // kSignedToString
 
+//-----------------------------------------------------------------------------
+/// Escape or hex encode problematic characters, append to sLog
+void kEscapeForLogging(KString& sLog, KStringView sInput);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Escape or hex encode problematic characters
+inline KString kEscapeForLogging(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	KString sLog;
+	kEscapeForLogging(sLog, sInput);
+	return sLog;
+
+} // kEscapeForLogging
+
 } // end of namespace dekaf2

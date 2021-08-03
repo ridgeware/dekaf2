@@ -44,7 +44,7 @@
 #include "kwriter.h"
 #include "kjson.h"
 #include "krestserver.h"
-#include <mutex>
+#include "kencode.h"
 
 namespace dekaf2 {
 
@@ -314,8 +314,12 @@ void KHTTPLog::WriteAccessLog(const KRESTServer& HTTP) const
 	Log += HTTP.GetBrowserIP();
 	// %l Remote logname (from identd, if supplied). This will return a dash unless mod_ident is present and IdentityCheck is set On.
 	Log += "";
-	// %u Remote user if the request was authenticated. May be bogus if return status (%s) is 401 (unauthorized).
-	Log += kjson::GetString(HTTP.GetAuthToken(), "sub");
+	// %u Remote user if the request was authenticated
+	auto sUser = kEscapeForLogging(HTTP.GetAuthenticatedUser());
+	// remove all spaces
+	sUser.RemoveChars(" ");
+	// finally append (without quotes, hence the filtering above)
+	Log += sUser;
 	// %t Time the request was received, in the format [18/Sep/2011:19:18:28 -0400]. The last number indicates the timezone offset from GMT
 	Log += kFormCommonLogTimestamp();
 	// \"%r\" First line of request
@@ -399,24 +403,24 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						state = Variable;
 						continue;
 
-					case 'a':
+					case 'a': // remote IP
 					case 'h': // remote hostname - we log the IP
 						Log.Write(HTTP.GetBrowserIP());
 						break;
 
 					case 'A': // local IP address (interface)
-						Log.Write("");
+						Log.Write(""); // TBD
 						break;
 
-					case 'b':
+					case 'b': // content length with -
 						Log.Write(HTTP.GetContentLength());
 						break;
 
-					case 'B':
+					case 'B': // content length with 0
 						Log.Raw(HTTP.GetContentLength());
 						break;
 
-					case 'D':
+					case 'D': // TTLB in usecs
 						Log.Write(HTTP.GetTimeToLastByte());
 						break;
 
@@ -426,21 +430,20 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						Log.Write("");
 						break;
 
-					case 'H': // protocol
-						Log.Write(""); // TBD
+					case 'H': // protocol (HTTP or HTTPS)
+						Log.Write(HTTP.Protocol.Serialize());
 						break;
 
-					case 'k':
-						// we request the keepalive after the value was increased for the next round..
+					case 'k': // keepalive round, 0 based
 						Log.Raw(HTTP.GetKeepaliveRound());
 						break;
 
-					case 'm':
+					case 'm': // request method
 						Log.Write(HTTP.Request.Method.Serialize());
 						break;
 
 					case 'p': // canonical port
-						Log.Write(0); // TBD
+						Log.Write(HTTP.Port);
 						break;
 
 					case 'P': // pid - we insert the tid
@@ -455,7 +458,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						else
 						{
 							Log.RawChar('?');
-							Log.Raw(HTTP.Request.Resource.Query.Serialize());
+							Log.Escape(HTTP.Request.Resource.Query.Serialize());
 						}
 						break;
 
@@ -480,16 +483,16 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						break;
 
 					case 'u': // remote user
-						Log.Write(kjson::GetString(HTTP.GetAuthToken(), "sub"));
+						Log.Escape(HTTP.GetAuthenticatedUser());
 						break;
 
 					case 'U': // URL path, without query
-						Log.Write(HTTP.Request.Resource.Path.Serialize());
+						Log.Escape(HTTP.Request.Resource.Path.Serialize());
 						break;
 
 					case 'v': // canonical server name
 					case 'V': // server name
-						Log.Write(HTTP.Request.Headers.Get(KHTTPHeader::HOST));
+						Log.Escape(HTTP.Request.Headers.Get(KHTTPHeader::HOST));
 						break;
 
 					//	Connection status when response is completed:
@@ -537,7 +540,15 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 				{
 					case 'a': // {c}a direct peer IP address
 					case 'h': // {c}h direct peer hostname
-						Log.Write(HTTP.GetConnectedClientIP());
+						if (sVariable == "c")
+						{
+							Log.Write(HTTP.GetConnectedClientIP());
+						}
+						else
+						{
+							kDebug(1, "bad variable '{{{}}}{}'", sVariable, ch);
+							Log.Write("");
+						}
 						break;
 
 					case 'i': // request header
@@ -557,11 +568,43 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						break;
 
 					case 'p': // port
-						Log.Write(0); // TBD
+						if (sVariable == "canonical")
+						{
+							Log.Write(HTTP.Port);
+						}
+						else if (sVariable == "local")
+						{
+							Log.Write(HTTP.Port);
+						}
+						else if (sVariable == "remote")
+						{
+							Log.Write(HTTP.GetRemotePort());
+						}
+						else
+						{
+							kDebug(1, "bad variable '{{{}}}{}'", sVariable, ch);
+							Log.Write(0);
+						}
 						break;
 
 					case 'P': // pid or tid
-						Log.Write(kGetTid());
+						if (sVariable == "pid")
+						{
+							Log.Write(kGetPid());
+						}
+						else if (sVariable == "tid")
+						{
+							Log.Write(kGetTid());
+						}
+						else if (sVariable == "hextid")
+						{
+							Log.Write(KString::to_string(kGetTid(), 16, true, false));
+						}
+						else
+						{
+							kDebug(1, "bad variable '{{{}}}{}'", sVariable, ch);
+							Log.Write(0);
+						}
 						break;
 
 					case 'T': // used time in various formats
@@ -579,6 +622,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						}
 						else
 						{
+							kDebug(1, "bad variable '{{{}}}{}'", sVariable, ch);
 							Log.Write(0);
 						}
 
@@ -587,6 +631,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 					case 't': // time in various formats
 					case 'n': // other module
 					default:  // not supported
+						kDebug(1, "selection '{{{}}}{}' not handled", sVariable, ch);
 						Log.Write(0);
 						break;
 				}

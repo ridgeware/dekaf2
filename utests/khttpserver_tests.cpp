@@ -200,5 +200,47 @@ Forwarded: for=192.0.2.43:1234, for=198.51.100.17; proto=https
 		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTPS );
 	}
 
+	SECTION("RequestLine")
+	{
+		KStringView sRequest;
+sRequest =
+(R"(GET  / HTTP/1.1
+Host: www.test.com
+Forwarded: for=192.0.2.43:1234, for=198.51.100.17; proto=https
+
+)");
+		KString sResponse;
+		KInStringStream iss(sRequest);
+		KOutStringStream oss(sResponse);
+		KStream stream(iss, oss);
+		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
+		Browser.Parse();
+		CHECK ( Browser.Error() == "invalid request line" );
+		CHECK ( Browser.GetBrowserIP() == "192.168.178.1" );
+		CHECK ( Browser.GetRemotePort() == 234 );
+		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
+	}
+
+	SECTION("RequestLine")
+	{
+		KStringView sRequest;
+sRequest =
+(R"(GET / FTP/1.1
+Host: www.test.com
+Forwarded: for=192.0.2.43:1234, for=198.51.100.17; proto=https
+
+)");
+		KString sResponse;
+		KInStringStream iss(sRequest);
+		KOutStringStream oss(sResponse);
+		KStream stream(iss, oss);
+		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
+		Browser.Parse();
+		CHECK ( Browser.Error() == "invalid request line" );
+		CHECK ( Browser.GetBrowserIP() == "192.168.178.1" );
+		CHECK ( Browser.GetRemotePort() == 234 );
+		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
+	}
+
 }
 

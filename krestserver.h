@@ -121,9 +121,8 @@ public:
 		/// @param Header the KHTTPHeader to add
 		/// @param sValue the value for the header
 		void AddHeader(KHTTPHeader Header, KStringView sValue);
-
+		/// Configure the KHTTPLog object with its Open() method
 		KHTTPLog Logger;
-
 		/// Fixed route prefix
 		KString sBaseRoute;
 		/// If non-empty creates a header with the given name and the milliseconds needed for execution

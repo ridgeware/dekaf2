@@ -317,7 +317,7 @@ class KHTTPHeaders
 public:
 //------
 
-	enum { MAX_LINELENGTH = 8 * 1024 };
+	static std::size_t constexpr MAX_LINELENGTH = 8 * 1024;
 
 	using KHeaderMap = KProps<KHTTPHeader, KString, /*Sequential =*/ true, /*Unique =*/ false>; // case insensitive map for header info
 

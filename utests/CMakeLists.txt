@@ -33,12 +33,14 @@ set (USOURCES
 	kfilesystem_tests.cpp
 	kformat_tests.cpp
 	kgetruntimestack_tests.cpp
+	khash_tests.cpp
 	khmac_tests.cpp
 	khtmlparser_tests.cpp
 	khtmlcontentblocks_tests.cpp
 	khtmlentities_tests.cpp
-	khttpclient_tests.cpp
 	khttp_header_tests.cpp
+	khttp_request_tests.cpp
+	khttpclient_tests.cpp
 	khttplog_tests.cpp
 	khttpserver_tests.cpp
 	kinpipe_tests.cpp

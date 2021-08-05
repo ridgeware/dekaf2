@@ -50,6 +50,61 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Holds information about the original request line of an incoming request
+class KInHTTPRequestLine
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	/// default ctor
+	KInHTTPRequestLine() = default;
+
+	/// construct from request line string
+	KInHTTPRequestLine(KString sRequestLine)
+	{
+		Parse(std::move(sRequestLine));
+	}
+
+	/// parse the request line and check meticulously its format
+	std::vector<KStringView> Parse(KString sRequestLine);
+	/// is this a valid request line?
+	bool                     IsValid()     const { return m_iMethodLen > 0; }
+	/// get  the full string of the request line, even if it was not valid
+	const KString&           Get()         const { return m_sFull;          }
+	/// get the method string, empty if not valid
+	KStringView              GetMethod()   const;
+	/// get the resource string (path+query), empty if not valid
+	KStringView              GetResource() const;
+	/// get the path string, empty if not valid
+	KStringView              GetPath()     const;
+	/// get the query string, empty if not valid
+	KStringView              GetQuery()    const;
+	/// get the http version string, empty if not valid
+	KStringView              GetVersion()  const;
+	/// clear all content
+	void                     clear();
+
+//------
+private:
+//------
+
+	KString      m_sFull;
+	uint16_t     m_iPathLen    { 0 };
+	uint8_t      m_iMethodLen  { 0 };
+	uint8_t      m_iVersionLen { 0 };
+
+//------
+public:
+//------
+
+	static constexpr auto MAX_REQUESTLINELENGTH = std::numeric_limits<decltype(m_iPathLen)>::max();
+
+}; // KInHTTPRequestLine
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KHTTPRequestHeaders : public KHTTPHeaders
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -112,11 +167,14 @@ public:
 public:
 //----------
 
-	KHTTPMethod Method;
-	KResource Resource;
+	KHTTPMethod        Method;
+	KResource          Resource;
+	// for logging purposes on incoming requests we store a copy of the original
+	// request line
+	KInHTTPRequestLine RequestLine;
 	// for HTTPS CONNECT and proxied HTTP requests we need the domain and port
 	// of the target server
-	KTCPEndPoint Endpoint;
+	KTCPEndPoint       Endpoint;
 
 }; // KHTTPRequestHeaders
 
@@ -256,7 +314,6 @@ public:
 	bool Parse();
 	//-----------------------------------------------------------------------------
 
-
 	//-----------------------------------------------------------------------------
 	/// Retrieve the given cookie value from the COOKIE header.
 	/// Does not throw, nor error: it just returns the empty string if
@@ -265,7 +322,9 @@ public:
 	KStringView GetCookie (KStringView sCookieName) const;
 	//-----------------------------------------------------------------------------
 
+//----------
 protected:
+//----------
 
 	//-----------------------------------------------------------------------------
 	/// make parent class Parse() inaccessible

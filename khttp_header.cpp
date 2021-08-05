@@ -463,7 +463,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 	KString sLine;
 	KHeaderMap::iterator last = Headers.end();
 
-	while (Stream.ReadLine(sLine))
+	while (Stream.ReadLine(sLine, MAX_LINELENGTH + 1))
 	{
 		if (sLine.empty())
 		{

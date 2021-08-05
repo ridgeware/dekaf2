@@ -59,11 +59,18 @@ namespace dekaf2
 
 /// Read a line of text until EOF or delimiter from a std::istream. Right trim values of sTrimRight.
 /// Reads directly in the underlying streambuf
+/// @param Stream the input stream
+/// @param sLine the string to read into
+/// @param sTrimRight right trim characters, default \n
+/// @param sTrimLeft left trim characters, default none
+/// @param delimiter the char until which to read to, default \n
+/// @param iMaxRead the maximum count of characters to be read
 bool kReadLine(std::istream& Stream,
                KString& sLine,
                KStringView sTrimRight = "\n",
                KStringView sTrimLeft = "",
-               KString::value_type delimiter = '\n');
+               KString::value_type delimiter = '\n',
+			   std::size_t iMaxRead = npos);
 
 /// Appends all content of a std::istream device to a string. Reads from current
 /// position until end of stream and therefore works on unseekable streams.
@@ -342,10 +349,10 @@ public:
 	/// Please note that this method does _not_ return the stream reference,
 	/// but a boolean. std::istreams would not read a file with a missing newline
 	/// at the end successfully, but report an error. This function succeeds.
-	bool ReadLine(KString& sLine)
+	bool ReadLine(KString& sLine, size_t iMaxRead = npos)
 	//-----------------------------------------------------------------------------
 	{
-		return kReadLine(InStream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter);
+		return kReadLine(InStream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter, iMaxRead);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -353,11 +360,11 @@ public:
 	/// character defined and optionally right trims the string from the trim
 	/// definition. Per default does not contain the end-of-line character in the
 	/// returned string.
-	KString ReadLine()
+	KString ReadLine(std::size_t iMaxRead = npos)
 	//-----------------------------------------------------------------------------
 	{
 		KString sLine;
-		kReadLine(InStream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter);
+		kReadLine(InStream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter, iMaxRead);
 		return sLine;
 	}
 

@@ -423,13 +423,12 @@ KString kReadAll(KStringViewZ sFileName, std::size_t iMaxRead)
 
 } // kReadAll
 
-#ifdef DEKAF2_IS_OSX
-#define DEKAF2_USE_OWN_GETLINE
-#endif
-
-#ifdef DEKAF2_USE_OWN_GETLINE
 //-----------------------------------------------------------------------------
-void myLocalGetline(std::istream& Stream, KString& sLine, KString::value_type delimiter)
+// own implementation, reads iMaxRead characters, returns true if delimiter was found
+bool myLocalGetline(std::istream&       Stream,
+					KString&            sLine,
+					KString::value_type delimiter,
+					std::size_t         iMaxRead = npos)
 //-----------------------------------------------------------------------------
 {
 	sLine.clear();
@@ -440,11 +439,16 @@ void myLocalGetline(std::istream& Stream, KString& sLine, KString::value_type de
 	{
 		Stream.setstate(std::ios::failbit);
 
-		return;
+		return false;
 	}
 
 	for (;;)
 	{
+		if (iMaxRead-- == 0)
+		{
+			return false;
+		}
+
 		auto ch = streambuf->sbumpc();
 
 		if (DEKAF2_UNLIKELY(std::istream::traits_type::eq_int_type(ch, std::istream::traits_type::eof())))
@@ -456,17 +460,20 @@ void myLocalGetline(std::istream& Stream, KString& sLine, KString::value_type de
 				Stream.setstate(std::ios::failbit);
 			}
 
-			return;
+			return false;
 		}
 
 		if (DEKAF2_UNLIKELY(ch == delimiter))
 		{
-			return;
+			return true;
 		}
 
 		sLine += ch;
 	}
 }
+
+#ifdef DEKAF2_IS_OSX
+#define DEKAF2_USE_OWN_GETLINE
 #endif
 
 //-----------------------------------------------------------------------------
@@ -474,7 +481,8 @@ bool kReadLine(std::istream& Stream,
                KString& sLine,
                KStringView sTrimRight,
                KStringView sTrimLeft,
-               KString::value_type delimiter)
+               KString::value_type delimiter,
+			   std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(!Stream.good()))
@@ -483,11 +491,27 @@ bool kReadLine(std::istream& Stream,
 		return false;
 	}
 
+	bool bFoundDelimiter;
+
 #ifdef DEKAF2_USE_OWN_GETLINE
-	myLocalGetline(Stream, sLine, delimiter);
+
+	bFoundDelimiter = myLocalGetline(Stream, sLine, delimiter, iMaxRead);
+
 #else
-	// do not implement your own version of std::getline without performance checks ..
-	std::getline(Stream, sLine, delimiter);
+
+	if (iMaxRead == npos)
+	{
+		// do not implement your own version of std::getline without
+		// performance checks ..
+		std::getline(Stream, sLine, delimiter);
+		bFoundDelimiter = Stream.good();
+	}
+	else
+	{
+		// however, if you need a max read limitation ..
+		bFoundDelimiter = myLocalGetline(Stream, sLine, delimiter, iMaxRead);
+	}
+
 #endif
 
 	if (DEKAF2_UNLIKELY(Stream.fail()))
@@ -502,8 +526,11 @@ bool kReadLine(std::istream& Stream,
 	{
 		if (!Stream.eof())
 		{
-			// std::getline does not store the EOL character, but we want to
-			sLine += delimiter;
+			if (bFoundDelimiter)
+			{
+				// std::getline does not store the EOL character, but we want to
+				sLine += delimiter;
+			}
 		}
 	}
 	else
@@ -511,12 +538,11 @@ bool kReadLine(std::istream& Stream,
 		// add the delimiter char only if it is not a member of sTrimRight
 		if (sTrimRight.find(delimiter) == KString::npos)
 		{
-			if (!Stream.eof())
+			if (bFoundDelimiter)
 			{
 				// std::getline does not store the EOL character, but we want to
 				sLine += delimiter;
 			}
-
 			sLine.TrimRight(sTrimRight);
 		}
 		else if (sTrimRight.size() > 1)

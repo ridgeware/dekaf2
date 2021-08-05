@@ -17,6 +17,10 @@
 
 using namespace dekaf2;
 
+namespace {
+KTempDir TempDir;
+}
+
 TEST_CASE("KReader") {
 
 	SECTION("KInFile exception safety")
@@ -32,7 +36,7 @@ TEST_CASE("KReader") {
 
 		SECTION("nonexisting file")
 		{
-			KInFile File("/tmp/this_file_should_not_exist_ASKJFHsdkfgj37r6");
+			KInFile File(TempDir.Name() + "/this_file_should_not_exist_ASKJFHsdkfgj37r6");
 			CHECK ( File.ReadLine(buf) == false );
 			CHECK ( buf.empty()        == true  );
 		}
@@ -80,7 +84,7 @@ TEST_CASE("KReader") {
 
 	}
 
-	KString sFile = kGetTemp();
+	KString sFile = TempDir.Name();
 	sFile += kDirSep;
 	sFile += "KReader.test";
 
@@ -472,6 +476,34 @@ TEST_CASE("KReader") {
 		{
 			CHECK( it.starts_with("line ") == true );
 		}
+	}
+
+	SECTION("readline with limit")
+	{
+		KInFile File(sFile);
+		File.SetReaderEndOfLine('|');
+		File.SetReaderRightTrim("|");
+		auto sLine = File.ReadLine(0);
+		CHECK ( sLine.size() == 0 );
+		sLine = File.ReadLine(1);
+		CHECK ( sLine.size() == 1 );
+		sLine = File.ReadLine(20);
+		CHECK ( sLine.size() == 20 );
+		sLine = File.ReadLine();
+		CHECK ( sLine.size() == 41 );
+		File.close();
+
+		File.open(sFile);
+		File.SetReaderEndOfLine('|');
+		File.SetReaderRightTrim("");
+		sLine = File.ReadLine(0);
+		CHECK ( sLine.size() == 0 );
+		sLine = File.ReadLine(1);
+		CHECK ( sLine.size() == 1 );
+		sLine = File.ReadLine(20);
+		CHECK ( sLine.size() == 20 );
+		sLine = File.ReadLine();
+		CHECK ( sLine.size() == 41 );
 	}
 
 }

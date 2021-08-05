@@ -4,8 +4,6 @@
 #include <dekaf2/krestserver.h>
 #include <dekaf2/kfilesystem.h>
 
-#ifndef DEKAF2_IS_WINDOWS
-
 using namespace dekaf2;
 
 namespace {
@@ -29,4 +27,3 @@ TEST_CASE("KHTTPLog")
 
 }
 
-#endif // !Windows

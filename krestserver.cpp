@@ -1347,35 +1347,6 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 			oss.Format("#{}#", Response.GetStatusCode());
 		}
 
-		KURL URL;
-
-		if (Route->bHasParameters)
-		{
-			KResource Resource;
-			// copy query parms piece by piece, we want to filter the path parms
-			// starting with ':' and '='
-			for (auto& query : Request.Resource.Query.get())
-			{
-				if (!Route->HasParameter(query.first))
-				{
-					Resource.Query.get().insert(query);
-				}
-			}
-
-			// and copy the path
-			Resource.Path = Request.Resource.Path;
-			// now assign to URL
-			URL = Resource;
-		}
-		else
-		{
-			URL = Request.Resource;
-		}
-
-		URL.Protocol = url::KProtocol::HTTP;
-		URL.Domain.set("localhost");
-		URL.Port.clear();
-
 		KString sAdditionalHeader;
 		if (Request.Method != KHTTPMethod::GET)
 		{
@@ -1387,10 +1358,10 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 			sAdditionalHeader.Format(" -H '{}: {}'", KHTTPHeader(KHTTPHeader::CONTENT_TYPE), sContentType);
 		}
 
-		oss.Format(R"(curl -i{} -X "{}" "{}")",
+		oss.Format(R"(curl -i{} -X "{}" "http://localhost{}")",
 						  sAdditionalHeader,
 						  Request.Method.Serialize(),
-						  URL.Serialize());
+						  Request.RequestLine.GetResource());
 
 		KString sPost { GetRequestBody() };
 

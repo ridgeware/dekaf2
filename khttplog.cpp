@@ -323,7 +323,7 @@ void KHTTPLog::WriteAccessLog(const KRESTServer& HTTP) const
 	// %t Time the request was received, in the format [18/Sep/2011:19:18:28 -0400]. The last number indicates the timezone offset from GMT
 	Log += kFormCommonLogTimestamp();
 	// \"%r\" First line of request
-	Log.Quote(kFormat("{} {} {}", HTTP.Request.Method, HTTP.Request.Resource, HTTP.Request.sHTTPVersion));
+	Log.Quote(HTTP.Request.RequestLine.Get());
 	// %>s final http status
 	Log += HTTP.Response.GetStatusCode();
 	// %b content-length, uncompressed
@@ -446,28 +446,24 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						Log.Write(HTTP.Port);
 						break;
 
-					case 'P': // pid - we insert the tid
-						Log.Write(kGetTid());
+					case 'P': // pid
+						Log.Write(kGetPid());
 						break;
 
 					case 'q': // query string (prepended with a ? if a query string exists, otherwise an empty string)
-						if (HTTP.Request.Resource.Query.empty())
+						if (HTTP.Request.RequestLine.GetQuery().empty())
 						{
 							Log.Raw("");
 						}
 						else
 						{
 							Log.RawChar('?');
-							Log.Escape(HTTP.Request.Resource.Query.Serialize());
+							Log.Escape(HTTP.Request.RequestLine.GetQuery());
 						}
 						break;
 
-					case 'r': // "first line"
-						Log.Escape(kFormat("{} {} {}", HTTP.Request.Method, HTTP.Request.Resource, HTTP.Request.sHTTPVersion));
-						break;
-
-					case 'R': // "handler"
-						Log.Write("");
+					case 'r': // "first line" - the request line
+						Log.Escape(HTTP.Request.RequestLine.Get());
 						break;
 
 					case 's':
@@ -495,11 +491,11 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						Log.Escape(HTTP.Request.Headers.Get(KHTTPHeader::HOST));
 						break;
 
-					//	Connection status when response is completed:
-					//	X =	Connection aborted before the response completed.
-					//	+ =	Connection may be kept alive after the response is sent.
-					//	- =	Connection will be closed after the response is sent
 					case 'X':
+						//	Connection status when response is completed:
+						//	X =	Connection aborted before the response completed.
+						//	+ =	Connection may be kept alive after the response is sent.
+						//	- =	Connection will be closed after the response is sent
 						Log.RawChar(HTTP.GetLostConnection() ? 'X' : HTTP.GetKeepalive() ? '+' : '-');
 						break;
 
@@ -515,6 +511,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						Log.Write(HTTP.GetReceivedBytes() + HTTP.GetSentBytes());
 						break;
 
+					case 'R': // "handler"
 					default:
 						kDebug(1, "selection '{}' not handled", ch);
 						Log.Write("");

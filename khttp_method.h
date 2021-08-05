@@ -63,7 +63,7 @@ class KHTTPMethod
 public:
 //------
     
-    enum Method
+    enum Method : uint8_t
     {
         GET = 0,
         HEAD,

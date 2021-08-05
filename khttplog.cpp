@@ -439,7 +439,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						break;
 
 					case 'm': // request method
-						Log.Write(HTTP.Request.Method.Serialize());
+						Log.Write(HTTP.Request.RequestLine.GetMethod());
 						break;
 
 					case 'p': // canonical port

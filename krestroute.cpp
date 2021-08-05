@@ -309,6 +309,12 @@ bool KRESTRoutes::CheckForWrongMethod(const KRESTPath& Path) const
 const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Params, bool bCheckForWrongMethod) const
 //-----------------------------------------------------------------------------
 {
+	if (bCheckForWrongMethod && Path.Method == KHTTPMethod::INVALID)
+	{
+		kDebug (2, "invalid request method");
+		throw KHTTPError { KHTTPError::H4xx_BADMETHOD, "invalid request method" };
+	}
+
 	kDebug (2, "looking up: {} {}" , Path.Method.Serialize(), Path.sRoute);
 
 	// check for a matching route

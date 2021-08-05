@@ -576,6 +576,12 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				}
 			}
 
+			if (Request.Method == KHTTPMethod::INVALID)
+			{
+				kDebug (2, "invalid request method: {}", Request.RequestLine.GetMethod());
+				throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("invalid request method: {}", Request.RequestLine.GetMethod()) };
+			}
+
 			Response.SetStatus(200, "OK");
 			Response.sHTTPVersion = "HTTP/1.1";
 

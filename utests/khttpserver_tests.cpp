@@ -19,7 +19,7 @@ TEST_CASE("KHTTPServer") {
 	 Forwarded: for=192.0.2.60; proto=http; by=203.0.113.43
 */
 
-	SECTION("GetBrowserIP 1")
+	SECTION("GetRemoteIP 1")
 	{
 		KStringView sRequest;
 		sRequest =
@@ -36,12 +36,12 @@ X-ProxyUser-Ip: 203.0.113.19
 		KStream stream(iss, oss);
 		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		Browser.Parse();
-		CHECK ( Browser.GetBrowserIP() == "192.0.2.60" );
+		CHECK ( Browser.GetRemoteIP() == "192.0.2.60" );
 		CHECK ( Browser.GetRemotePort() == 0 );
 		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTPS );
 	}
 
-	SECTION("GetBrowserIP 2")
+	SECTION("GetRemoteIP 2")
 	{
 		KStringView sRequest;
 		sRequest =
@@ -56,12 +56,12 @@ X-Forwarded-For: 203.0.113.195, 70.41.3.18, 150.172.238.178
 		KStream stream(iss, oss);
 		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		Browser.Parse();
-		CHECK ( Browser.GetBrowserIP() == "203.0.113.195" );
+		CHECK ( Browser.GetRemoteIP() == "203.0.113.195" );
 		CHECK ( Browser.GetRemotePort() == 0 );
 		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
 	}
 
-	SECTION("GetBrowserIP 2")
+	SECTION("GetRemoteIP 2")
 	{
 		KStringView sRequest;
 		sRequest =
@@ -75,12 +75,12 @@ Host: www.test.com
 		KStream stream(iss, oss);
 		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTPS, 80);
 		Browser.Parse();
-		CHECK ( Browser.GetBrowserIP() == "192.168.178.1" );
+		CHECK ( Browser.GetRemoteIP() == "192.168.178.1" );
 		CHECK ( Browser.GetRemotePort() == 234 );
 		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTPS );
 	}
 
-	SECTION("GetBrowserIP 3")
+	SECTION("GetRemoteIP 3")
 	{
 		KStringView sRequest;
 		sRequest =
@@ -95,12 +95,12 @@ X-Forwarded-For: 2001:db8:85a3:8d3:1319:8a2e:370:7348
 		KStream stream(iss, oss);
 		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		Browser.Parse();
-		CHECK ( Browser.GetBrowserIP() == "2001:db8:85a3:8d3:1319:8a2e:370:7348" );
+		CHECK ( Browser.GetRemoteIP() == "2001:db8:85a3:8d3:1319:8a2e:370:7348" );
 		CHECK ( Browser.GetRemotePort() == 0 );
 		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
 	}
 
-	SECTION("GetBrowserIP 4")
+	SECTION("GetRemoteIP 4")
 	{
 		KStringView sRequest;
 		sRequest =
@@ -115,12 +115,12 @@ X-Forwarded-For: 203.0.113.195
 		KStream stream(iss, oss);
 		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		Browser.Parse();
-		CHECK ( Browser.GetBrowserIP() == "203.0.113.195" );
+		CHECK ( Browser.GetRemoteIP() == "203.0.113.195" );
 		CHECK ( Browser.GetRemotePort() == 0 );
 		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
 	}
 
-	SECTION("GetBrowserIP 5")
+	SECTION("GetRemoteIP 5")
 	{
 		KStringView sRequest;
 		sRequest =
@@ -135,12 +135,12 @@ X-ProxyUser-Ip: 203.0.113.19
 		KStream stream(iss, oss);
 		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		Browser.Parse();
-		CHECK ( Browser.GetBrowserIP() == "203.0.113.19" );
+		CHECK ( Browser.GetRemoteIP() == "203.0.113.19" );
 		CHECK ( Browser.GetRemotePort() == 0 );
 		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
 	}
 
-	SECTION("GetBrowserIP 6")
+	SECTION("GetRemoteIP 6")
 	{
 		KStringView sRequest;
 		sRequest =
@@ -155,12 +155,12 @@ Forwarded: For="[2001:db8:cafe::17]:4711"
 		KStream stream(iss, oss);
 		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		Browser.Parse();
-		CHECK ( Browser.GetBrowserIP() == "2001:db8:cafe::17" );
+		CHECK ( Browser.GetRemoteIP() == "2001:db8:cafe::17" );
 		CHECK ( Browser.GetRemotePort() == 4711 );
 		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
 	}
 
-	SECTION("GetBrowserIP 7")
+	SECTION("GetRemoteIP 7")
 	{
 		KStringView sRequest;
 		sRequest =
@@ -175,12 +175,12 @@ Forwarded: for="[2001:db8:cafe::17]"
 		KStream stream(iss, oss);
 		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		Browser.Parse();
-		CHECK ( Browser.GetBrowserIP() == "2001:db8:cafe::17" );
+		CHECK ( Browser.GetRemoteIP() == "2001:db8:cafe::17" );
 		CHECK ( Browser.GetRemotePort() == 0 );
 		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
 	}
 
-	SECTION("GetBrowserIP 8")
+	SECTION("GetRemoteIP 8")
 	{
 		KStringView sRequest;
 sRequest =
@@ -195,7 +195,7 @@ Forwarded: for=192.0.2.43:1234, for=198.51.100.17; proto=https
 		KStream stream(iss, oss);
 		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		Browser.Parse();
-		CHECK ( Browser.GetBrowserIP() == "192.0.2.43" );
+		CHECK ( Browser.GetRemoteIP() == "192.0.2.43" );
 		CHECK ( Browser.GetRemotePort() == 1234 );
 		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTPS );
 	}
@@ -216,7 +216,7 @@ Forwarded: for=192.0.2.43:1234, for=198.51.100.17; proto=https
 		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		Browser.Parse();
 		CHECK ( Browser.Error() == "invalid request line" );
-		CHECK ( Browser.GetBrowserIP() == "192.168.178.1" );
+		CHECK ( Browser.GetRemoteIP() == "192.168.178.1" );
 		CHECK ( Browser.GetRemotePort() == 234 );
 		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
 	}
@@ -237,7 +237,7 @@ Forwarded: for=192.0.2.43:1234, for=198.51.100.17; proto=https
 		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		Browser.Parse();
 		CHECK ( Browser.Error() == "invalid request line" );
-		CHECK ( Browser.GetBrowserIP() == "192.168.178.1" );
+		CHECK ( Browser.GetRemoteIP() == "192.168.178.1" );
 		CHECK ( Browser.GetRemotePort() == 234 );
 		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
 	}

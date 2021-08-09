@@ -279,11 +279,11 @@ void KHTTPLog::WriteJSONAccessLog(const KRESTServer& HTTP) const
 	PrintJSONLog Log;
 
 	Log.Write("time"      , kFormCommonLogTimestamp().Mid(1, 26)                     ); // cut off the framing []
-	Log.Write("remoteIP"  , HTTP.GetBrowserIP()                                      );
+	Log.Write("remoteIP"  , HTTP.GetRemoteIP()                                       );
 	Log.Write("host"      , HTTP.Request.Headers.Get(KHTTPHeader::HOST)              );
 	Log.Write("request"   , HTTP.Request.Resource.Path.get()                         );
 	Log.Write("query"     , HTTP.Request.Resource.Query.Serialize()                  );
-	Log.Write("method"    , HTTP.Request.Method.Serialize()                          );
+	Log.Write("method"    , HTTP.Request.RequestLine.GetMethod()                     );
 	Log.Write("status"    , HTTP.Response.GetStatusCode()                            );
 	Log.Write("rx-size"   , HTTP.GetRequestBodyLength()                              );
 	Log.Write("rx-recv"   , HTTP.GetReceivedBytes()                                  );
@@ -311,7 +311,7 @@ void KHTTPLog::WriteAccessLog(const KRESTServer& HTTP) const
 	// LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %V %I %O %P %D; \"%{X-Forwarded-For}i\"" extended
 
 	// %h - remote IP / hostname
-	Log += HTTP.GetBrowserIP();
+	Log += HTTP.GetRemoteIP();
 	// %l Remote logname (from identd, if supplied). This will return a dash unless mod_ident is present and IdentityCheck is set On.
 	Log += "";
 	// %u Remote user if the request was authenticated
@@ -405,7 +405,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 
 					case 'a': // remote IP
 					case 'h': // remote hostname - we log the IP
-						Log.Write(HTTP.GetBrowserIP());
+						Log.Write(HTTP.GetRemoteIP());
 						break;
 
 					case 'A': // local IP address (interface)

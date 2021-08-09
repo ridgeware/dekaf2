@@ -352,10 +352,6 @@ public:
 		return m_sAuthenticatedUser;
 	}
 
-//------
-protected:
-//------
-
 	//-----------------------------------------------------------------------------
 	/// confirm a user name as being authenticated
 	void SetAuthenticatedUser(KString sAuthenticatedUser)
@@ -363,7 +359,11 @@ protected:
 	{
 		m_sAuthenticatedUser = std::move(sAuthenticatedUser);
 	}
- 
+
+//------
+protected:
+//------
+
 	//-----------------------------------------------------------------------------
 	bool ReadHeader();
 	//-----------------------------------------------------------------------------

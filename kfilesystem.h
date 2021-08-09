@@ -282,13 +282,15 @@ public:
 		UNEXISTING = 0,
 		FILE       = 1 << 0,
 		DIRECTORY  = 1 << 1,
-		LINK       = 1 << 2,
+		SYMLINK    = 1 << 2,
 		PIPE       = 1 << 3,
 		BLOCK      = 1 << 4,
 		CHARACTER  = 1 << 5,
 		SOCKET     = 1 << 6,
 		UNKNOWN    = 1 << 7
 	};
+
+	static constexpr uint8_t MAX = UNKNOWN;
 
 	constexpr
 	KFileType() = default;
@@ -450,6 +452,12 @@ public:
 	/// @param sFilename the file for which the status should be read
 	KFileStat(const KStringViewZ sFilename);
 
+	/// Returns inode number (only on supported file systems, otherwise 0)
+	uint64_t Inode()          const { return m_inode; }
+
+	/// Returns inode link count (only on supported file systems, otherwise 0)
+	uint16_t Links()          const { return m_links; }
+
 	/// Returns file access mode
 	int AccessMode()          const { return m_mode;  }
 
@@ -481,13 +489,22 @@ public:
 	bool IsFile()             const { return m_ftype == KFileType::FILE;       }
 
 	/// Is this a symlink
-	bool IsSymlink()          const { return m_ftype == KFileType::LINK;       }
+	bool IsSymlink()          const { return m_ftype == KFileType::SYMLINK;    }
 
 	/// Does this object exist?
 	bool Exists()             const { return m_ftype != KFileType::UNEXISTING; }
 
 	// setters to create a KFileStat object piece wise
 	// (no change to any file system object):
+
+	/// Sets all values to reasonable defaults for the current user if not already set
+	KFileStat& SetDefaults();
+
+	/// Set Inode number
+	void SetInode(uint64_t inode)          { m_inode = inode; }
+
+	/// Set Inode link count
+	void SetLinks(uint16_t links)          { m_links = links; }
 
 	/// Set file access mode
 	void SetAccessMode(uint32_t mode)      { m_mode  = mode;  }
@@ -517,6 +534,7 @@ public:
 private:
 //----------
 
+	uint64_t  m_inode { 0 };
 	time_t    m_atime { 0 };
 	time_t    m_mtime { 0 };
 	time_t    m_ctime { 0 };
@@ -524,6 +542,7 @@ private:
 	uint32_t  m_mode  { 0 };
 	uint32_t  m_uid   { 0 };
 	uint32_t  m_gid   { 0 };
+	uint16_t  m_links { 0 };
 	KFileType m_ftype;
 
 }; // KFileStat
@@ -538,9 +557,6 @@ class KDirectory
 //----------
 public:
 //----------
-
-	// deprecated name
-	using EntryType = KFileType;
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// Helper type that keeps one directory entry, with its name, full path and type.
@@ -637,6 +653,18 @@ public:
 		size_t Size()             const
 		{
 			return FileStat().Size();
+		}
+
+		/// Returns file's inode number (only on supported file systems, otherwise 0)
+		uint64_t Inode()          const
+		{
+			return FileStat().Inode();
+		}
+
+		/// Returns file's inode link count (only on supported file systems, otherwise 0)
+		uint64_t Links()          const
+		{
+			return FileStat().Links();
 		}
 
 		/// Return the KFileStat component as a const ref

@@ -449,7 +449,7 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 			{
 				if (::mkdir(sNewPath.c_str(), iMode))
 				{
-					kDebug(2, "{}: {}", sPath, strerror(errno));
+					kDebug(2, "{}: {}", sNewPath, strerror(errno));
 					return false;
 				}
 			}
@@ -623,7 +623,7 @@ KFileType KFileTypeFromUnixMode(uint32_t mode)
 			return KFileType::DIRECTORY;
 
 		case S_IFLNK:
-			return KFileType::LINK;
+			return KFileType::SYMLINK;
 
 		case S_IFSOCK:
 			return KFileType::SOCKET;
@@ -659,6 +659,7 @@ KFileType KFileTypeFromStdFilesystem(fs::file_type ftype)
 		case fs::file_type::block:
 			return KFileType::BLOCK;
 #endif
+		case fs::file_type::none:
 		case fs::file_type::not_found:
 			return KFileType::UNEXISTING;
 
@@ -672,7 +673,7 @@ KFileType KFileTypeFromStdFilesystem(fs::file_type ftype)
 			return KFileType::PIPE;
 
 		case fs::file_type::symlink:
-			return KFileType::LINK;
+			return KFileType::SYMLINK;
 
 		case fs::file_type::regular:
 			return KFileType::FILE;
@@ -710,7 +711,7 @@ KFileType KFileTypeFromDirentry(uint8_t d_type)
 			return KFileType::PIPE;
 
 		case DT_LNK:
-			return KFileType::LINK;
+			return KFileType::SYMLINK;
 
 		case DT_REG:
 			return KFileType::FILE;
@@ -743,7 +744,7 @@ KStringViewZ KFileType::Serialize() const
 			return "FILE";
 		case DIRECTORY:
 			return "DIRECTORY";
-		case LINK:
+		case SYMLINK:
 			return "SYMLINK";
 		case PIPE:
 			return "PIPE";
@@ -784,7 +785,7 @@ std::vector<KStringViewZ> KFileTypes::Serialize() const
 				Result.push_back(KFileType(KFileType::FileType(iMasked)).Serialize());
 			}
 
-			if (mask >= 127)
+			if (mask >= KFileType::MAX)
 			{
 				break;
 			}
@@ -821,12 +822,14 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 
 	if (!stat(sFilename.c_str(), &StatStruct))
 	{
+		m_inode = StatStruct.st_ino;
 		m_atime = StatStruct.st_atime;
 		m_mtime = StatStruct.st_mtime;
 		m_ctime = StatStruct.st_ctime;
 		m_mode  = StatStruct.st_mode & ~S_IFMT;
 		m_uid   = StatStruct.st_uid;
 		m_gid   = StatStruct.st_gid;
+		m_links = StatStruct.st_nlink;
 		m_ftype = KFileTypeFromUnixMode(StatStruct.st_mode);
 
 		if (!IsDirectory())
@@ -900,6 +903,63 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 #endif
 
 } // KFileStat
+
+//-----------------------------------------------------------------------------
+KFileStat& KFileStat::SetDefaults()
+//-----------------------------------------------------------------------------
+{
+	time_t tNow { 0 };
+
+	if (ModificationTime() == 0)
+	{
+		tNow = Dekaf::getInstance().GetCurrentTime();
+		SetModificationTime(tNow);
+	}
+	else
+	{
+		tNow = ModificationTime();
+	}
+
+	if (AccessTime() == 0)
+	{
+		SetAccessTime(tNow);
+	}
+
+	if (ChangeTime() == 0)
+	{
+		SetChangeTime(tNow);
+	}
+
+	if (UID() == 0)
+	{
+		SetUID(kGetUid());
+	}
+
+	if (GID() == 0)
+	{
+		SetGID(kGetGid());
+	}
+
+	if (Type() == KFileType::UNEXISTING)
+	{
+		SetType(KFileType::FILE);
+	}
+
+	if (AccessMode() == 0)
+	{
+		if (IsDirectory())
+		{
+			SetAccessMode(DEKAF2_MODE_CREATE_DIR);
+		}
+		else
+		{
+			SetAccessMode(DEKAF2_MODE_CREATE_FILE);
+		}
+	}
+
+	return *this;
+
+} // SetDefaults
 
 static_assert(std::is_nothrow_move_constructible<KFileStat>::value,
 			  "KFileStat is intended to be nothrow move constructible, but is not!");

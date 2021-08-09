@@ -445,7 +445,7 @@ TEST_CASE("KUnTar")
 				case 6:
 					CHECK ( sPath       == "myfolder/symlink.txt" );
 					CHECK ( File.Size() == 46 );
-					CHECK ( File.Type() == KFileType::LINK );
+					CHECK ( File.Type() == KFileType::SYMLINK );
 					CHECK ( kReadAll(File.Path()) == "this is another line 1\nthis is another line 2\n" );
 					break;
 			}
@@ -502,7 +502,7 @@ TEST_CASE("KUnTar")
 				case 6:
 					CHECK ( sPath       == "myfolder/symlink.txt" );
 					CHECK ( File.Size() == 46 );
-					CHECK ( File.Type() == KFileType::LINK );
+					CHECK ( File.Type() == KFileType::SYMLINK );
 					CHECK ( kReadAll(File.Path()) == "this is another line 1\nthis is another line 2\n" );
 					break;
 			}

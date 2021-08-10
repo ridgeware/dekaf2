@@ -130,6 +130,21 @@ bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStre
 } // Execute
 
 //-----------------------------------------------------------------------------
+int KREST::GetResult()
+//-----------------------------------------------------------------------------
+{
+	if (m_Server)
+	{
+		return m_Server->GetResult();
+	}
+	else
+	{
+		return 0;
+	}
+
+} // GetResult
+
+//-----------------------------------------------------------------------------
 bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {

@@ -59,10 +59,10 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-void KRESTServer::Options::AddHeader(KHTTPHeader Header, KStringView sValue)
+void KRESTServer::Options::AddHeader(KHTTPHeader Header, KString sValue)
 //-----------------------------------------------------------------------------
 {
-	ResponseHeaders.Add(std::move(Header), sValue);
+	ResponseHeaders.Add(std::move(Header), std::move(sValue));
 
 } // AddHeader
 
@@ -580,6 +580,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			{
 				kDebug (2, "invalid request method: {}", Request.RequestLine.GetMethod());
 				throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("invalid request method: {}", Request.RequestLine.GetMethod()) };
+			}
+
+			if (!Options.bServiceIsReady)
+			{
+				throw KHTTPError { KHTTPError::H5xx_UNAVAILABLE, "service unavailable" };
 			}
 
 			Response.SetStatus(200, "OK");

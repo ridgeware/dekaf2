@@ -120,7 +120,7 @@ public:
 		/// Add one header to the list of fixed additional headers
 		/// @param Header the KHTTPHeader to add
 		/// @param sValue the value for the header
-		void AddHeader(KHTTPHeader Header, KStringView sValue);
+		void AddHeader(KHTTPHeader Header, KString sValue);
 		/// Configure the KHTTPLog object with its Open() method
 		KHTTPLog Logger;
 		/// Fixed route prefix
@@ -133,7 +133,7 @@ public:
 		KHTTPHeaders::KHeaderMap ResponseHeaders;
 		/// Valid authentication instances for user verification
 		KOpenIDProviderList Authenticators;
-		/// If non-empty, check that SSO token authorizes one of thse given scopes (comma separated list)
+		/// If non-empty, check that SSO token authorizes one of the given scopes (comma separated list)
 		KString sAuthScope;
 		/// Allow KLog profiling triggered by a KLOG header?
 		KString sKLogHeader;
@@ -151,6 +151,8 @@ public:
 		bool bThrowIfInvalidJson { false };
 		/// If no route found, shall we check if that happened because of a wrong request method?
 		bool bCheckForWrongMethod { true };
+		/// whenever this value is set to false, the REST server will respond all requests with a HTTP 503 SERVICE UNAVAILABLE
+		bool bServiceIsReady { true };
 		/// Set a callback function that will receive references to this instance and the TimeKeepers
 		/// after termination of one request
 		std::function<void(const KRESTServer&, const KDurations&)> TimingCallback;

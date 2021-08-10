@@ -149,6 +149,8 @@ public:
 	/// Shall we log the shutdown in TCP server mode?
 	/// @param callback callback function called at each shutdown thread with some diagnostics
 	void RegisterShutdownCallback(KThreadPool::ShutdownCallback callback);
+	/// get the result of the server operation - will wait for an async server to terminate
+	int GetResult();
 
 //----------
 protected:

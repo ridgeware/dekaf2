@@ -73,6 +73,7 @@
 
 #include <cinttypes>
 #include <thread>
+#include <future>
 #include "bits/kasio.h"
 #include "kstream.h"
 #include "kstring.h"
@@ -226,6 +227,11 @@ public:
 	void RegisterShutdownCallback(KThreadPool::ShutdownCallback callback);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// return the future once it is available (== once the server has terminated)
+	int GetResult();
+	//-----------------------------------------------------------------------------
+
 //-------
 protected:
 //-------
@@ -344,6 +350,7 @@ private:
 #endif
 	std::unique_ptr<KThreadPool> m_ThreadPool;
 	std::atomic_int m_iStarted { 0 };
+	std::future<int> m_future;
 
 	KString m_sCert;
 	KString m_sKey;

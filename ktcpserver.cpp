@@ -549,12 +549,23 @@ bool KTCPServer::SetDHPrimes(KStringViewZ sDHPrimes)
 } // SetDHPrimes
 
 //-----------------------------------------------------------------------------
+int KTCPServer::GetResult()
+//-----------------------------------------------------------------------------
+{
+	return m_future.get();
+}
+
+//-----------------------------------------------------------------------------
 bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 //-----------------------------------------------------------------------------
 {
+	std::promise<int> promise;
+	m_future = promise.get_future();
+
 	if (IsRunning())
 	{
 		kWarning("Server is already running on port {}", m_iPort);
+		promise.set_value(2);
 		return false;
 	}
 
@@ -567,6 +578,7 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 		if (m_sCert.empty())
 		{
 			kWarning("cannot start SSL server on port {}, have no certificate", m_iPort);
+			promise.set_value(3);
 			return false;
 		}
 	}
@@ -583,18 +595,29 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 		{
 			TCPServer(m_bStartIPv6);
 		}
+		promise.set_value(0);
 	}
 	else
 	{
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 		if (!m_sSocketFile.empty())
 		{
-			m_unix_server = std::make_unique<std::thread>(&KTCPServer::UnixServer, this);
+			m_unix_server = std::make_unique<std::thread>([this](std::promise<int> promise)
+			{
+				promise.set_value_at_thread_exit(0);
+				UnixServer();
+
+			},(std::move(promise)));
 		}
 		else
 #endif
 		{
-			m_ipv6_server = std::make_unique<std::thread>(&KTCPServer::TCPServer, this, m_bStartIPv6);
+			m_ipv6_server = std::make_unique<std::thread>([this](std::promise<int> promise)
+			{
+				promise.set_value_at_thread_exit(0);
+				TCPServer(m_bStartIPv6);
+
+			},(std::move(promise)));
 		}
 
 		// give the thread time to start up before we return in non-blocking code

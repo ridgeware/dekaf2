@@ -508,7 +508,10 @@ KTCPEndPoint::KTCPEndPoint(const KURL& URL)
 {
 	if (Port.empty())
 	{
-		Port = KString::to_string(URL.Protocol.DefaultPort());
+		if (URL.Protocol.DefaultPort() > 0)
+		{
+			Port = KString::to_string(URL.Protocol.DefaultPort());
+		}
 	}
 }
 

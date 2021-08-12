@@ -148,6 +148,7 @@ public:
 	using base::SetProxy;
 	using base::AutoConfigureProxy;
 	using base::AllowRedirects;
+	using base::RequestCompression;
 	using base::AllowCompression;
 	using base::VerifyCerts;
 	using base::GetVerifyCerts;

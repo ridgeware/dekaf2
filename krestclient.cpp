@@ -75,12 +75,15 @@ KRestClient& KRestClient::SetURL(KURL URL, bool bVerifyCerts)
 {
 	m_URL = std::move(URL);
 
-	// check that path ends with a slash
-	if (m_URL.Path.get().back() != '/')
+	if (m_URL.Protocol != url::KProtocol::UNIX)
 	{
-		m_URL.Path.get() += '/';
+		// check that path ends with a slash
+		if (m_URL.Path.get().back() != '/')
+		{
+			m_URL.Path.get() += '/';
+		}
+		// do not clear the query part - we will use it if it is set
 	}
-	// do not clear the query part - we will use it if it is set
 
 	m_URL.Fragment.clear();
 
@@ -189,12 +192,29 @@ KRestClient& KRestClient::AddHeader (KHTTPHeader Header, KStringView sValue)
 bool KRestClient::NoExceptRequest (KOutStream& OutStream, KStringView sBody, KMIME mime) noexcept
 //-----------------------------------------------------------------------------
 {
-	KURL URL { m_URL };
-	URL.Path.get() += m_sPath;
-	URL.Query += m_Query;
-	m_bNeedReset = true;
+	if (m_URL.Protocol != url::KProtocol::UNIX)
+	{
+		KURL URL { m_URL };
+		URL.Path.get() += m_sPath;
+		URL.Query += m_Query;
+		m_bNeedReset = true;
 
-	return KWebClient::HttpRequest(OutStream, URL, m_Verb, sBody, mime);
+		return KWebClient::HttpRequest(OutStream, URL, m_Verb, sBody, mime);
+	}
+	else
+	{
+		// for unix socket connections we technically need two URLs,
+		// one with the socket path (which is a file system path) and
+		// one with the request path (which is a URL path)
+		KURL RequestURL;
+		RequestURL.Domain.get() = "localhost";
+		RequestURL.Path.get() = '/';
+		RequestURL.Path.get() += m_sPath;
+		RequestURL.Query += m_Query;
+		m_bNeedReset = true;
+
+		return KWebClient::HttpRequest(OutStream, m_URL, RequestURL, m_Verb, sBody, mime);
+	}
 
 } // NoExceptRequest
 

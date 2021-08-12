@@ -200,14 +200,14 @@ void KHTTPClient::clear()
 	Request.clear();
 	Response.clear();
 	m_sError.clear();
-	m_bRequestCompression = true;
 	m_Authenticator.reset();
 
 	// do not reset m_bUseHTTPProxyProtocol here - it stays valid until
-	// the setup of a new connection
-	// same for m_sForcedHost
-	// same for m_iMaxRedirects
-	// same for m_bLastResponseFailed
+	// the setup of a new connection, and
+	// m_sForcedHost
+	// m_iMaxRedirects
+	// m_bRequestCompression
+	// remain valid until destruction
 
 } // clear
 
@@ -776,7 +776,7 @@ bool KHTTPClient::Parse()
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod)
+bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod, bool bNoHostChange)
 //-----------------------------------------------------------------------------
 {
 	// check for redirections
@@ -800,21 +800,33 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod)
 
 				if (!Redirect.empty())
 				{
-					if (Redirect.Query.empty())
-					{
-						Redirect.Query = URL.Query;
-					}
 					if (Redirect.Protocol.empty())
 					{
 						Redirect.Protocol = URL.Protocol;
+					}
+					else if (bNoHostChange)
+					{
+						return SetError("not allowed to redirect protocol");
+					}
+					if (Redirect.Query.empty())
+					{
+						Redirect.Query = URL.Query;
 					}
 					if (Redirect.Port.empty() && !URL.Port.empty() && Redirect.Domain.empty())
 					{
 						Redirect.Port = URL.Port;
 					}
+					else if (bNoHostChange)
+					{
+						return SetError("not allowed to redirect port");
+					}
 					if (Redirect.Domain.empty())
 					{
 						Redirect.Domain = URL.Domain;
+					}
+					else if (bNoHostChange)
+					{
+						return SetError("not allowed to redirect domain");
 					}
 					// we deliberately drop username and password in a redirection
 
@@ -849,6 +861,8 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod)
 bool KHTTPClient::AlreadyConnected(const KTCPEndPoint& EndPoint) const
 //-----------------------------------------------------------------------------
 {
+	// TBD: currently all local unix socket endpoints appear all empty.. and hence
+	// compare equal..
 	if (!m_bKeepAlive || !m_Connection || !m_Connection->Good())
 	{
 		return false;

@@ -441,8 +441,9 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// sets a redirect target depending on the returned status code and location
-	/// header, possibly changing RequestMethod
-	bool CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod);
+	/// header, possibly changing RequestMethod. If bNoHostChange is set, no change in protocol, domain
+	/// and port are allowed
+	bool CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod, bool bNoHostChange = false);
 	//-----------------------------------------------------------------------------
 
 //------

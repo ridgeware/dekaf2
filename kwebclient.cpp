@@ -81,7 +81,7 @@ KWebClient::KWebClient(bool bVerifyCerts/*=false*/)
 }
 
 //-----------------------------------------------------------------------------
-bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
+bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestURL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
 //-----------------------------------------------------------------------------
 {
 	// placeholder for a web form we may generate from query parms
@@ -89,7 +89,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 
 	if (m_bQueryToWWWFormConversion &&
 		svRequestBody.empty() &&
-		!URL.Query.empty() &&
+		!RequestURL.Query.empty() &&
 		RequestMethod != KHTTPMethod::GET &&
 		RequestMethod != KHTTPMethod::OPTIONS &&
 		RequestMethod != KHTTPMethod::HEAD &&
@@ -97,8 +97,8 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 	{
 		// we automatically create a www form as body data if there are
 		// query parms but no post data (and the method is not GET)
-		URL.Query.Serialize(sWWWForm);
-		URL.Query.clear();
+		RequestURL.Query.Serialize(sWWWForm);
+		RequestURL.Query.clear();
 		// now point post data into the form
 		svRequestBody = sWWWForm;
 		MIME = KMIME::WWW_FORM_URLENCODED;
@@ -112,24 +112,30 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 	uint16_t iRedirects { 0 };
 	uint16_t iRetries { 0 };
 
+	// do we have a separate URL to connect to?
+	bool bHaveSeparateConnectURL = !HostURL.empty();
+
+	// avoid a copy, use a ref
+	KURL& ConnectURL = bHaveSeparateConnectURL ? HostURL : RequestURL;
+
 	for(;;)
 	{
 		ConnectTime.resume();
 
-		bool bReuseConnection = AlreadyConnected(URL);
+		bool bReuseConnection = AlreadyConnected(ConnectURL);
 
-		if (bReuseConnection || Connect(URL))
+		if (bReuseConnection || Connect(ConnectURL))
 		{
 			ConnectTime.halt();
 
-			if (Resource(URL, RequestMethod))
+			if (Resource(RequestURL, RequestMethod))
 			{
 				if (m_bAcceptCookies)
 				{
 					// remove any cookie header if set
 					Request.Headers.Remove(KHTTPHeader::COOKIE);
 
-					KString sCookie = m_Cookies.Serialize(URL);
+					KString sCookie = m_Cookies.Serialize(RequestURL);
 
 					if (!sCookie.empty())
 					{
@@ -178,7 +184,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 			}
 		}
 
-		if (!CheckForRedirect(URL, RequestMethod))
+		if (!CheckForRedirect(RequestURL, RequestMethod, bHaveSeparateConnectURL))
 		{
 			break;
 		}
@@ -208,7 +214,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 		}
 		(*m_pServiceSummary)["http"] += {
 			{ "request_method",      RequestMethod.Serialize()  },
-			{ "url",                 URL.Serialize()            },
+			{ "url",                 RequestURL.Serialize()     },
 			{ "bytes_request_body",  svRequestBody.size()       },
 			{ "bytes_response_body", iRead                      },
 			{ "error_string",        Error()                    },
@@ -229,7 +235,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 	{
 		KString sSummary = kFormat ("{}: {}, took {} msecs (connect {}, transmit {}, receive {})",
 			RequestMethod.Serialize(),
-			URL.Serialize(),
+			RequestURL.Serialize(),
 			kFormNumber (iTotalTime),
 			kFormNumber (iConnectTime),
 			kFormNumber (iTransmitTime),
@@ -247,16 +253,16 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 			{
 				if (!kIsBinary(svRequestBody))
 				{
-					kDebug(2, "{} {}\n{}", RequestMethod.Serialize(), URL.KResource::Serialize(), svRequestBody.LeftUTF8(1000));
+					kDebug(2, "{} {}\n{}", RequestMethod.Serialize(), RequestURL.KResource::Serialize(), svRequestBody.LeftUTF8(1000));
 				}
 			}
 			else
 			{
-				kDebug(2, "{} {}", RequestMethod.Serialize(), URL.KResource::Serialize());
+				kDebug(2, "{} {}", RequestMethod.Serialize(), RequestURL.KResource::Serialize());
 			}
 		}
 
-		kDebug(2, "{} {} from URL {}", Response.iStatusCode, Response.sStatusString, URL.Serialize());
+		kDebug(2, "{} {} from URL {}", Response.iStatusCode, Response.sStatusString, RequestURL.Serialize());
 	}
 
 	if (m_bAcceptCookies && HttpSuccess())
@@ -267,7 +273,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod Reque
 		for (auto it = Range.first; it != Range.second; ++it)
 		{
 			// add each cookie
-			m_Cookies.Parse(URL, it->second);
+			m_Cookies.Parse(RequestURL, it->second);
 		}
 	}
 
@@ -281,7 +287,7 @@ KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMe
 {
 	KString sResponse;
 	KOutStringStream oss(sResponse);
-	HttpRequest(oss, URL, RequestMethod, svRequestBody, MIME);
+	HttpRequest(oss, KURL{}, URL, RequestMethod, svRequestBody, MIME);
 
 	if (kWouldLog(2))
 	{

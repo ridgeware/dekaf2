@@ -75,9 +75,17 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Send given request method and return raw response to an output stream
-	bool HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON);
+	/// Send given request method and return raw response to an output stream - this variant is needed for Unix socket requests, which need a separate URL for the connection target
+	bool HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestURL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Send given request method and return raw response to an output stream
+	bool HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON)
+	//-----------------------------------------------------------------------------
+	{
+		return HttpRequest (OutStream, KURL{}, URL, RequestMethod, svRequestBody, MIME);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response as a string

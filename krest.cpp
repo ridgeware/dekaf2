@@ -479,6 +479,7 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 			return Simulate(Options, Routes, Options.Simulate.API);
 
 		case KREST::UNDEFINED:
+			kDebug(1, "no KREST server type defined");
 			return false;
 
 	} // switch (xOptions.Type)

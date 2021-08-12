@@ -429,7 +429,7 @@ void KTCPServer::UnixServer()
 	kDebug(2, "opening listener on unix socket at {}", m_sSocketFile);
 
 	// remove an existing socket
-	kRemoveFile(m_sSocketFile);
+	kRemoveSocket(m_sSocketFile);
 
 	boost::asio::local::stream_protocol::endpoint local_endpoint(m_sSocketFile.c_str());
 	boost::asio::local::stream_protocol::acceptor acceptor(m_asio, local_endpoint, true); // true == reuse addr
@@ -478,7 +478,7 @@ void KTCPServer::UnixServer()
 		}
 
 		// remove the socket
-		kRemoveFile(m_sSocketFile);
+		kRemoveSocket(m_sSocketFile);
 	}
 	DEKAF2_LOG_EXCEPTION
 

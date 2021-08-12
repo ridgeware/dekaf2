@@ -139,6 +139,12 @@ public:
 		KString sKLogHeader;
 		/// Server name for this instance, will be used in diagnostic output
 		KString sServername;
+		/// Set a callback function that will receive references to this instance and the TimeKeepers
+		/// after termination of one request
+		std::function<void(const KRESTServer&, const KDurations&)> TimingCallback;
+		/// Set a general purpose callback function that will be called after route matching, and before route callbacks.
+		/// Could be used e.g. for additional authentication, like basic. May throw to abort calling the route's callback.
+		std::function<void(KRESTServer&)> PostRouteCallback;
 		/// DoS prevention - max rounds in keep-alive (default 10)
 		mutable uint16_t iMaxKeepaliveRounds { 10 };
 		/// Which of the three output formats HTTP, LAMBDA, CLI (default HTTP) ?
@@ -151,14 +157,12 @@ public:
 		bool bThrowIfInvalidJson { false };
 		/// If no route found, shall we check if that happened because of a wrong request method?
 		bool bCheckForWrongMethod { true };
-		/// whenever this value is set to false, the REST server will respond all requests with a HTTP 503 SERVICE UNAVAILABLE
+		/// Whenever this value is set to false, the REST server will respond all requests with a HTTP 503 SERVICE UNAVAILABLE
 		bool bServiceIsReady { true };
-		/// Set a callback function that will receive references to this instance and the TimeKeepers
-		/// after termination of one request
-		std::function<void(const KRESTServer&, const KDurations&)> TimingCallback;
-		/// Set a general purpose callback function that will be called after route matching, and before route callbacks.
-		/// Could be used e.g. for additional authentication, like basic. May throw to abort calling the route's callback.
-		std::function<void(KRESTServer&)> PostRouteCallback;
+		/// Allow output compression (default true)
+		bool bAllowCompression { true };
+		/// Show timer header in microseconds (default false = milliseconds)
+		bool bMicrosecondTimerHeader { false };
 
 	}; // Options
 

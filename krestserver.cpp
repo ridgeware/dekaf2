@@ -825,7 +825,7 @@ void KRESTServer::Output(const Options& Options)
 	ThrowIfDisconnected();
 
 	// only allow output compression if this is HTTP mode
-	ConfigureCompression(Options.Out == HTTP);
+	ConfigureCompression(Options.Out == HTTP && Options.bAllowCompression);
 
 	kDebug (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
 
@@ -922,7 +922,14 @@ void KRESTServer::Output(const Options& Options)
 				if (!Options.sTimerHeader.empty())
 				{
 					// add a custom header that marks execution time for this request
-					Response.Headers.Set (Options.sTimerHeader, KString::to_string(m_Timers->milliseconds()));
+					if (Options.bMicrosecondTimerHeader)
+					{
+						Response.Headers.Set (Options.sTimerHeader, KString::to_string(m_Timers->microseconds()));
+					}
+					else
+					{
+						Response.Headers.Set (Options.sTimerHeader, KString::to_string(m_Timers->milliseconds()));
+					}
 				}
 			}
 

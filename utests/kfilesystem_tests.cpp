@@ -131,27 +131,27 @@ TEST_CASE("KFilesystem")
 		CHECK ( ft == KFileType::DIRECTORY );
 		ft = KFileType::PIPE;
 		CHECK ( ft == KFileType::PIPE );
-		CHECK ( ft.Serialize() == "PIPE" );
+		CHECK ( ft.Serialize() == "pipe" );
 	}
 
 	SECTION("KFileTypes")
 	{
 		auto ft1(KFileType::PIPE + KFileType::BLOCK);
-		CHECK ( kJoined(ft1.Serialize(), "|") == "PIPE|BLOCK" );
+		CHECK ( kJoined(ft1.Serialize(), "|") == "pipe|block" );
 		auto ft2 = KFileType::DIRECTORY + KFileType::FILE;
-		CHECK ( kJoined(ft2.Serialize(), "|") == "FILE|DIRECTORY" );
+		CHECK ( kJoined(ft2.Serialize(), "|") == "file|directory" );
 		auto ft3(KFileType::PIPE | KFileType::BLOCK);
-		CHECK ( kJoined(ft3.Serialize(), "|") == "PIPE|BLOCK" );
+		CHECK ( kJoined(ft3.Serialize(), "|") == "pipe|block" );
 		auto ft4 = KFileType::DIRECTORY | KFileType::FILE;
-		CHECK ( kJoined(ft4.Serialize(), "|") == "FILE|DIRECTORY" );
+		CHECK ( kJoined(ft4.Serialize(), "|") == "file|directory" );
 		auto ft5(KFileType::PIPE | KFileType::BLOCK | KFileType::CHARACTER);
-		CHECK ( kJoined(ft5.Serialize(), "|") == "PIPE|BLOCK|CHARACTER" );
+		CHECK ( kJoined(ft5.Serialize(), "|") == "pipe|block|character" );
 		auto ft6(KFileTypes::ALL);
-		CHECK ( kJoined(ft6.Serialize(), "|") == "ALL" );
+		CHECK ( kJoined(ft6.Serialize(), "|") == "all" );
 		auto ft7(KFileType::PIPE + KFileType::BLOCK | KFileType::CHARACTER + KFileType::FILE);
-		CHECK ( kJoined(ft7.Serialize(), "|") == "FILE|PIPE|BLOCK|CHARACTER" );
+		CHECK ( kJoined(ft7.Serialize(), "|") == "file|pipe|block|character" );
 		auto ft8(KFileType::PIPE | KFileType::BLOCK + KFileType::CHARACTER | KFileType::FILE);
-		CHECK ( kJoined(ft8.Serialize(), "|") == "FILE|PIPE|BLOCK|CHARACTER" );
+		CHECK ( kJoined(ft8.Serialize(), "|") == "file|pipe|block|character" );
 	}
 
 	SECTION("KFileStat")

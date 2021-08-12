@@ -127,12 +127,13 @@ bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile)
 			return false;    // <-- exists, is a file but is zero length
 		}
 
+		kDebug (3, "file exists: {}", sPath);
 		return true;    // <-- exists and is a file
 	}
 
 	if (Stat.Exists())
 	{
-		kDebug (3, "entry exists, but is not a file: {}", sPath);
+		kDebug (3, "entry exists, but is a {}, not a file: {}", Stat.Type().Serialize(), sPath);
 	}
 
 	return false;
@@ -147,12 +148,13 @@ bool kDirExists (KStringViewZ sPath)
 
 	if (Stat.IsDirectory())
 	{
+		kDebug (3, "directory exists: {}", sPath);
 		return true;
 	}
 
 	if (Stat.Exists())
 	{
-		kDebug (3, "entry exists, but is not a directory: {}", sPath);
+		kDebug (3, "entry exists, but is a {}, not a directory: {}", Stat.Type().Serialize(), sPath);
 	}
 
 	return false;
@@ -735,26 +737,26 @@ KStringViewZ KFileType::Serialize() const
 	switch (m_FType)
 	{
 		case UNEXISTING:
-			return "UNEXISTING";
+			return "unexisting";
 		case FILE:
-			return "FILE";
+			return "file";
 		case DIRECTORY:
-			return "DIRECTORY";
+			return "directory";
 		case SYMLINK:
-			return "SYMLINK";
+			return "symlink";
 		case PIPE:
-			return "PIPE";
+			return "pipe";
 		case BLOCK:
-			return "BLOCK";
+			return "block";
 		case CHARACTER:
-			return "CHARACTER";
+			return "character";
 		case SOCKET:
-			return "SOCKET";
+			return "socket";
 		case UNKNOWN:
-			return "UNKNOWN";
+			return "unknown";
 	}
 
-	return "ERROR";
+	return "error";
 
 } // Serialize
 
@@ -766,7 +768,7 @@ std::vector<KStringViewZ> KFileTypes::Serialize() const
 
 	if (m_Types == 255)
 	{
-		Result.push_back("ALL");
+		Result.push_back("all");
 	}
 	else
 	{
@@ -1138,7 +1140,7 @@ void KDirectory::RemoveAppleResourceFiles()
 } // RemoveAppleResourceFiles
 
 //-----------------------------------------------------------------------------
-size_t KDirectory::Match(KFileType Type, bool bRemoveMatches)
+size_t KDirectory::Match(KFileTypes Types, bool bRemoveMatches)
 //-----------------------------------------------------------------------------
 {
 	size_t iMatched { 0 };
@@ -1146,9 +1148,9 @@ size_t KDirectory::Match(KFileType Type, bool bRemoveMatches)
 	// erase-remove idiom..
 	m_DirEntries.erase(std::remove_if(m_DirEntries.begin(),
 									  m_DirEntries.end(),
-									  [&iMatched, Type, bRemoveMatches](const DirEntries::value_type& elem)
+									  [&iMatched, Types, bRemoveMatches](const DirEntries::value_type& elem)
 									  {
-										  bool bMatches = (elem.Type() == Type);
+										  bool bMatches = (Types.contains(elem.Type()));
 										  if (bMatches)
 										  {
 											  ++iMatched;

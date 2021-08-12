@@ -145,10 +145,10 @@ void KHTMLContentBlocks::Skeleton(const KHTMLObject& Object)
 void KHTMLContentBlocks::FlushContentBlock()
 //-----------------------------------------------------------------------------
 {
+	m_BlockContent.Completed();
+
 	if (!m_BlockContent.empty())
 	{
-		m_BlockContent.Completed();
-
 		if (m_BlockContent.HadTextContent())
 		{
 			ContentBlock(m_BlockContent);
@@ -171,7 +171,7 @@ void KHTMLContentBlocks::Object(KHTMLObject& Object)
 {
 	switch (Object.Type())
 	{
-		case KHTMLObject::TAG:
+		case KHTMLTag::TYPE:
 		{
 			auto& Tag = reinterpret_cast<KHTMLTag&>(Object);
 
@@ -189,7 +189,7 @@ void KHTMLContentBlocks::Object(KHTMLObject& Object)
 			break;
 		}
 
-		case KHTMLObject::COMMENT:
+		case KHTMLComment::TYPE:
 			// the effect of this check is that we throw away comments inside of
 			// content blocks with real content
 			if (!m_BlockContent.HadTextContent())

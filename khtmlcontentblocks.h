@@ -80,7 +80,7 @@ public:
 		iterator end() { return m_Content.end(); }
 		const KHTMLObject& operator[](size_type index) const { return *m_Content[index]; }
 		KHTMLObject& operator[](size_type index) { return *m_Content[index]; }
-		bool empty() const { return m_Content.empty() && m_sContent.empty(); }
+		bool empty() const { return m_Content.empty(); }
 		size_type size() const { return m_Content.size(); }
 
 		// construction

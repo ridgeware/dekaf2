@@ -62,13 +62,6 @@ void KHTMLObject::clear()
 }
 
 //-----------------------------------------------------------------------------
-KHTMLObject::ObjectType KHTMLObject::Type() const
-//-----------------------------------------------------------------------------
-{
-	return NONE;
-}
-
-//-----------------------------------------------------------------------------
 bool KHTMLObject::Parse(KInStream& InStream, KStringView sOpening)
 //-----------------------------------------------------------------------------
 {
@@ -122,6 +115,175 @@ void KHTMLObject::Serialize(KString& sOut) const
 } // Serialize
 
 //-----------------------------------------------------------------------------
+KString KHTMLObject::Serialize() const
+//-----------------------------------------------------------------------------
+{
+	KString sSerialized;
+	Serialize(sSerialized);
+	return sSerialized;
+
+} // Serialize
+
+//-----------------------------------------------------------------------------
+bool KHTMLObject::IsInlineTag(KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	// https://en.wikipedia.org/wiki/HTML_element#Inline_elements
+
+#ifdef DEKAF2_HAS_FROZEN
+	// this set is created at compile time
+	static constexpr auto s_InlineTags {frozen::make_unordered_set(	{
+#else
+	// this set is created at run time
+	static const std::unordered_set<KStringView> s_InlineTags {
+#endif
+		"a"_ksv,
+		"abbr"_ksv,
+		"acronym"_ksv,
+		"dfn"_ksv,
+		"em"_ksv,
+		"strong"_ksv,
+		"code"_ksv,
+		"kbd"_ksv,
+		"samp"_ksv,
+		"var"_ksv,
+		"b"_ksv,
+		"i"_ksv,
+		"u"_ksv,
+		"small"_ksv,
+		"s"_ksv,
+		"big"_ksv,
+		"strike"_ksv,
+		"tt"_ksv,
+		"font"_ksv,
+		"span"_ksv,
+		"br"_ksv,
+		"bdi"_ksv,
+		"bdo"_ksv,
+		"cite"_ksv,
+		"data"_ksv,
+		"del"_ksv,
+		"ins"_ksv,
+		"img"_ksv, // img is a de-facto inline tag
+		"mark"_ksv,
+		"q"_ksv,
+		"rb"_ksv,
+		"rp"_ksv,
+		"rt"_ksv,
+		"rtc"_ksv,
+		"ruby"_ksv,
+		"script"_ksv,
+		"sub"_ksv,
+		"template"_ksv,
+		"time"_ksv,
+		"wbr"_ksv
+#ifdef DEKAF2_HAS_FROZEN
+	})};
+#else
+	};
+#endif
+
+	return s_InlineTags.find(sName) != s_InlineTags.end();
+
+} // IsInline
+
+//-----------------------------------------------------------------------------
+bool KHTMLObject::IsStandaloneTag(KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	// https://en.wikipedia.org/wiki/HTML_element#Void_elements
+
+#ifdef DEKAF2_HAS_FROZEN
+	// this set is created at compile time
+	static constexpr auto s_StandaloneTags {frozen::make_unordered_set(	{
+#else
+	// this set is created at run time
+	static const std::unordered_set<KStringView> s_StandaloneTags {
+#endif
+		"area"_ksv,
+		"base"_ksv,
+		"br"_ksv,
+		"col"_ksv,
+		"command"_ksv,
+		"embed"_ksv,
+		"hr"_ksv,
+		"img"_ksv,
+		"keygen"_ksv,
+		"link"_ksv,
+		"meta"_ksv,
+		"param"_ksv,
+		"source"_ksv,
+		"track"_ksv,
+		"wbr"_ksv
+#ifdef DEKAF2_HAS_FROZEN
+	})};
+#else
+	};
+#endif
+
+	return s_StandaloneTags.find(sName) != s_StandaloneTags.end();
+
+} // IsStandalone
+
+//-----------------------------------------------------------------------------
+bool KHTMLObject::IsBooleanAttribute(KStringView sAttributeName)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_FROZEN
+	// this set is created at compile time
+	static constexpr auto s_BooleanAttributes {frozen::make_unordered_set(	{
+#else
+	// this set is created at run time
+	static const std::unordered_set<KStringView> s_BooleanAttributes {
+#endif
+		"async"_ksv,
+		"autocomplete"_ksv,
+		"autofocus"_ksv,
+		"autoplay"_ksv,
+		"border"_ksv,
+		"challenge"_ksv,
+		"checked"_ksv,
+		"compact"_ksv,
+		"contenteditable"_ksv,
+		"controls"_ksv,
+		"default"_ksv,
+		"defer"_ksv,
+		"disabled"_ksv,
+		"formnovalidate"_ksv,
+		"frameborder"_ksv,
+		"hidden"_ksv,
+		"indeterminate"_ksv,
+		"ismap"_ksv,
+		"loop"_ksv,
+		"multiple"_ksv,
+		"muted"_ksv,
+		"nohref"_ksv,
+		"noresize"_ksv,
+		"noshade"_ksv,
+		"novalidate"_ksv,
+		"nowrap"_ksv,
+		"open"_ksv,
+		"readonly"_ksv,
+		"required"_ksv,
+		"reversed"_ksv,
+		"scoped"_ksv,
+		"scrolling"_ksv,
+		"seamless"_ksv,
+		"selected"_ksv,
+		"sortable"_ksv,
+		"spellcheck"_ksv,
+		"translate"_ksv
+#ifdef DEKAF2_HAS_FROZEN
+	})};
+#else
+	};
+#endif
+
+	return s_BooleanAttributes.find(sAttributeName) != s_BooleanAttributes.end();
+
+} // IsInline
+
+//-----------------------------------------------------------------------------
 bool KHTMLText::Parse(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
@@ -155,13 +317,6 @@ bool KHTMLText::empty() const
 //-----------------------------------------------------------------------------
 {
 	return sText.empty();
-}
-
-//-----------------------------------------------------------------------------
-KHTMLObject::ObjectType KHTMLText::Type() const
-//-----------------------------------------------------------------------------
-{
-	return TEXT;
 }
 
 //-----------------------------------------------------------------------------
@@ -480,21 +635,32 @@ KStringView KHTMLAttributes::Get(KStringView sAttributeName) const
 } // Get
 
 //-----------------------------------------------------------------------------
-bool KHTMLAttributes::Add(KHTMLAttribute&& Attribute)
+void KHTMLAttributes::Set(KHTMLAttribute Attribute)
 //-----------------------------------------------------------------------------
 {
-	return m_Attributes.insert(std::move(Attribute)).second;
+	if (Attribute.Name.empty())
+	{
+		kDebug(1, "trying to add an attribute with an empty name");
+		return;
+	}
 
-} // Add
+	if (Attribute.Value.empty())
+	{
+		if (!KHTMLObject::IsBooleanAttribute(Attribute.Name))
+		{
+			kDebug(2, "trying to add an attribute '{}' with an empty value that is not a predefined boolean attribute", Attribute.Name);
+			return;
+		}
+	}
 
-//-----------------------------------------------------------------------------
-void KHTMLAttributes::Replace(KHTMLAttribute&& Attribute)
-//-----------------------------------------------------------------------------
-{
-	m_Attributes.erase(Attribute);
+	auto it = m_Attributes.find(Attribute);
+	if (it != m_Attributes.end())
+	{
+		m_Attributes.erase(it);
+	}
 	m_Attributes.insert(std::move(Attribute));
 
-} // Replace
+} // Add
 
 //-----------------------------------------------------------------------------
 bool KHTMLAttributes::Parse(KBufferedReader& InStream, KStringView sOpening)
@@ -522,7 +688,7 @@ bool KHTMLAttributes::Parse(KBufferedReader& InStream, KStringView sOpening)
 				attribute.Parse(InStream);
 				if (!attribute.empty())
 				{
-					Add(std::move(attribute));
+					Set(std::move(attribute));
 				}
 			}
 		}
@@ -557,68 +723,6 @@ void KHTMLAttributes::Serialize(KOutStream& OutStream) const
 } // Serialize
 
 //-----------------------------------------------------------------------------
-bool KHTMLTag::IsInline() const
-//-----------------------------------------------------------------------------
-{
-	// https://en.wikipedia.org/wiki/HTML_element#Inline_elements
-
-#ifdef DEKAF2_HAS_FROZEN
-	// this set is created at compile time
-	static constexpr auto s_InlineTags {frozen::make_unordered_set(	{
-#else
-	// this set is created at run time
-	static const std::unordered_set<KStringView> s_InlineTags {
-#endif
-		"a"_ksv,
-		"abbr"_ksv,
-		"acronym"_ksv,
-		"dfn"_ksv,
-		"em"_ksv,
-		"strong"_ksv,
-		"code"_ksv,
-		"kbd"_ksv,
-		"samp"_ksv,
-		"var"_ksv,
-		"b"_ksv,
-		"i"_ksv,
-		"u"_ksv,
-		"small"_ksv,
-		"s"_ksv,
-		"big"_ksv,
-		"strike"_ksv,
-		"tt"_ksv,
-		"font"_ksv,
-		"span"_ksv,
-		"br"_ksv,
-		"bdi"_ksv,
-		"bdo"_ksv,
-		"cite"_ksv,
-		"data"_ksv,
-		"del"_ksv,
-		"ins"_ksv,
-		"mark"_ksv,
-		"q"_ksv,
-		"rb"_ksv,
-		"rp"_ksv,
-		"rt"_ksv,
-		"rtc"_ksv,
-		"ruby"_ksv,
-		"script"_ksv,
-		"sub"_ksv,
-		"template"_ksv,
-		"time"_ksv,
-		"wbr"_ksv
-#ifdef DEKAF2_HAS_FROZEN
-	})};
-#else
-	};
-#endif
-
-	return s_InlineTags.find(Name) != s_InlineTags.end();
-
-} // IsInline
-
-//-----------------------------------------------------------------------------
 void KHTMLTag::clear()
 //-----------------------------------------------------------------------------
 {
@@ -635,13 +739,6 @@ bool KHTMLTag::empty() const
 	return Name.empty();
 
 } // empty
-
-//-----------------------------------------------------------------------------
-KHTMLObject::ObjectType KHTMLTag::Type() const
-//-----------------------------------------------------------------------------
-{
-	return TAG;
-}
 
 //-----------------------------------------------------------------------------
 bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening)
@@ -813,14 +910,6 @@ void KHTMLTag::Serialize(KOutStream& OutStream) const
 
 } // Serialize
 
-
-//-----------------------------------------------------------------------------
-KHTMLObject::ObjectType KHTMLComment::Type() const
-//-----------------------------------------------------------------------------
-{
-	return COMMENT;
-}
-
 //-----------------------------------------------------------------------------
 bool KHTMLComment::SearchForLeadOut(KBufferedReader& InStream)
 //-----------------------------------------------------------------------------
@@ -855,13 +944,6 @@ bool KHTMLComment::SearchForLeadOut(KBufferedReader& InStream)
 } // SearchForLeadOut
 
 //-----------------------------------------------------------------------------
-KHTMLObject::ObjectType KHTMLDocumentType::Type() const
-//-----------------------------------------------------------------------------
-{
-	return DOCUMENTTYPE;
-}
-
-//-----------------------------------------------------------------------------
 bool KHTMLDocumentType::SearchForLeadOut(KBufferedReader& InStream)
 //-----------------------------------------------------------------------------
 {
@@ -883,13 +965,6 @@ bool KHTMLDocumentType::SearchForLeadOut(KBufferedReader& InStream)
 	}
 
 } // SearchForLeadOut
-
-//-----------------------------------------------------------------------------
-KHTMLObject::ObjectType KHTMLProcessingInstruction::Type() const
-//-----------------------------------------------------------------------------
-{
-	return PROCESSINGINSTRUCTION;
-}
 
 //-----------------------------------------------------------------------------
 bool KHTMLProcessingInstruction::SearchForLeadOut(KBufferedReader& InStream)
@@ -919,13 +994,6 @@ bool KHTMLProcessingInstruction::SearchForLeadOut(KBufferedReader& InStream)
 
 } // SearchForLeadOut
 
-
-//-----------------------------------------------------------------------------
-KHTMLObject::ObjectType KHTMLCData::Type() const
-//-----------------------------------------------------------------------------
-{
-	return CDATA;
-}
 
 //-----------------------------------------------------------------------------
 bool KHTMLCData::SearchForLeadOut(KBufferedReader& InStream)

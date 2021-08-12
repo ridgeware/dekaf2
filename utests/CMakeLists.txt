@@ -37,6 +37,7 @@ set (USOURCES
 	khmac_tests.cpp
 	khtmlparser_tests.cpp
 	khtmlcontentblocks_tests.cpp
+	khtmldom_tests.cpp
 	khtmlentities_tests.cpp
 	khttp_header_tests.cpp
 	khttp_request_tests.cpp

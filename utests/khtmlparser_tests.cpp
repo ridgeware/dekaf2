@@ -154,7 +154,7 @@ TEST_CASE("KHTMLParser")
 
 			virtual void Object(KHTMLObject& Object) override
 			{
-				if (Object.Type() == KHTMLObject::TAG)
+				if (Object.Type() == KHTMLTag::TYPE)
 				{
 					KHTMLTag& tag = static_cast<KHTMLTag&>(Object);
 					if (tag.Name == "body" && tag.IsOpening())
@@ -207,7 +207,7 @@ TEST_CASE("KHTMLParser")
 
 			virtual void Object(KHTMLObject& Object) override
 			{
-				if (Object.Type() == KHTMLObject::TAG)
+				if (Object.Type() == KHTMLTag::TYPE)
 				{
 					KHTMLTag& tag = static_cast<KHTMLTag&>(Object);
 					if (tag.Attributes.Get("class") == "shallow")

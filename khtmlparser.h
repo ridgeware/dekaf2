@@ -45,6 +45,7 @@
 #include "kstring.h"
 #include "kstream.h"
 #include "kbufferedreader.h"
+#include "khash.h"
 #include <set>
 
 namespace dekaf2 {
@@ -58,18 +59,6 @@ class KHTMLObject
 //------
 public:
 //------
-
-	enum ObjectType
-	{
-		NONE,
-		TEXT,
-		TAG,
-		COMMENT,
-		DOCUMENTTYPE,
-		PROCESSINGINSTRUCTION,
-		CDATA,
-		INVALID
-	};
 
 	KHTMLObject() = default;
 	KHTMLObject(const KHTMLObject&) = default;
@@ -85,6 +74,7 @@ public:
 
 	virtual bool Parse(KStringView sInput);
 	virtual void Serialize(KString& sOut) const;
+	KString Serialize() const;
 
 	KHTMLObject& operator=(KStringView sInput)
 	{
@@ -95,9 +85,34 @@ public:
 	virtual void clear();
 	// make this base an ABC
 	virtual bool empty() const = 0;
-	virtual ObjectType Type() const;
+	// we do not use typeid(*this).name because it is not constexpr, but we need the
+	// constexpr property for the Type() computation in derived classes
+	virtual KStringView TypeName() const = 0;
+	// we do not use std::type_index(typeid(*this)) because it is not trivial nor constexpr
+	// - instead, on some platforms, it computes a string hash at every call
+	virtual std::size_t Type() const = 0;
+
+	// return a copy of yourself
+	virtual std::unique_ptr<KHTMLObject> Clone() const = 0;
+
+	/// returns true if sTag is one of the predefined inline tags
+	static bool IsInlineTag(KStringView sTag);
+	/// returns true if sTag is one of the predefined standalone/empty/void tags
+	static bool IsStandaloneTag(KStringView sTag);
+	/// returns true if sAttributeName is one of the predefined boolean attributes
+	static bool IsBooleanAttribute(KStringView sAttributeName);
 
 }; // KHTMLObject
+
+inline bool operator==(const KHTMLObject& left, const KHTMLObject& right)
+{
+	return left.Type() == right.Type();
+}
+
+inline bool operator<(const KHTMLObject& left, const KHTMLObject& right)
+{
+	return left.Type() < right.Type();
+}
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a text run
@@ -105,9 +120,13 @@ class KHTMLText : public KHTMLObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+	static constexpr KStringView s_sObjectName = "KHTMLText";
+
 //------
 public:
 //------
+
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	KHTMLText() = default;
 	KHTMLText(KString _sText)
@@ -121,7 +140,9 @@ public:
 
 	virtual void clear() override;
 	virtual bool empty() const override;
-	virtual ObjectType Type() const override;
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t Type() const override { return TYPE; }
+	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLText>(*this); }
 
 	KString sText;
 
@@ -137,8 +158,9 @@ class KHTMLStringObject : public KHTMLObject
 public:
 //------
 
-	KHTMLStringObject(KStringView sLeadIn, KStringView sLeadOut)
-	: m_sLeadIn(sLeadIn)
+	KHTMLStringObject(KStringView sLeadIn, KStringView sLeadOut, KString sValue)
+	: Value(std::move(sValue))
+	, m_sLeadIn(sLeadIn)
 	, m_sLeadOut(sLeadOut)
 	{}
 
@@ -175,7 +197,7 @@ protected:
 }; // KHTMLStringObject
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTMLAttribute : public KHTMLObject
+class KHTMLAttribute
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -183,26 +205,21 @@ class KHTMLAttribute : public KHTMLObject
 public:
 //------
 
-#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION < 70000) || defined(_MSC_VER)
-	// older GCCs need a default constructor here as they do not honor the using directive below
 	KHTMLAttribute() = default;
-#endif
 
-	KHTMLAttribute(KStringView sName, KStringView sValue=KStringView{}, char _Quote='"')
-	: Name(sName)
-	, Value(sValue)
+	KHTMLAttribute(KString sName, KString sValue, char _Quote='"')
+	: Name(std::move(sName))
+	, Value(std::move(sValue))
 	, Quote(_Quote)
 	{
 	}
 
-	using KHTMLObject::KHTMLObject;
+	bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{});
+	void Serialize(KOutStream& OutStream) const;
+	void Serialize(KString& sOut) const;
 
-	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}) override;
-	virtual void Serialize(KOutStream& OutStream) const override;
-	virtual void Serialize(KString& sOut) const override;
-
-	virtual void clear() override;
-	virtual bool empty() const override;
+	void clear();
+	bool empty() const;
 
 	KString Name {};
 	KString Value {};
@@ -211,7 +228,7 @@ public:
 }; // KHTMLAttribute
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTMLAttributes : public KHTMLObject
+class KHTMLAttributes
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -276,41 +293,34 @@ public:
 
 	KStringView Get(KStringView sAttributeName) const;
 
-	void Set(KStringView sAttributeName, KStringView sAttributeValue, char Quote='"')
+	void Set(KString sAttributeName, KString sAttributeValue, char Quote='"')
 	{
-		Replace(KHTMLAttribute({sAttributeName, sAttributeValue, Quote}));
+		if (!sAttributeName.empty() && !sAttributeValue.empty())
+		{
+			Set(KHTMLAttribute(std::move(sAttributeName), std::move(sAttributeValue), Quote));
+		}
 	}
 
-	bool Add(KHTMLAttribute&& Attribute);
-	bool Add(const KHTMLAttribute& Attribute)
-	{
-		return Add(KHTMLAttribute(Attribute));
-	}
-
-	void Replace(KHTMLAttribute&& Attribute);
-	void Replace(const KHTMLAttribute& Attribute)
-	{
-		Replace(KHTMLAttribute(Attribute));
-	}
+	void Set(KHTMLAttribute Attribute);
 
 	KHTMLAttributes& operator+=(const KHTMLAttribute& Attribute)
 	{
-		Add(Attribute);
+		Set(Attribute);
 		return *this;
 	}
 
 	KHTMLAttributes& operator+=(KHTMLAttribute&& Attribute)
 	{
-		Add(std::move(Attribute));
+		Set(std::move(Attribute));
 		return *this;
 	}
 
-	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}) override;
-	virtual void Serialize(KOutStream& OutStream) const override;
-	virtual void Serialize(KString& sOut) const override;
+	bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{});
+	void Serialize(KOutStream& OutStream) const;
+	void Serialize(KString& sOut) const;
 
-	virtual void clear() override;
-	virtual bool empty() const override;
+	void clear();
+	bool empty() const;
 
 //------
 protected:
@@ -325,9 +335,13 @@ class KHTMLTag : public KHTMLObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+	static constexpr KStringView s_sObjectName = "KHTMLTag";
+
 //------
 public:
 //------
+
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	enum TagType { NONE, OPEN, CLOSE, STANDALONE };
 
@@ -345,12 +359,14 @@ public:
 
 	virtual void clear() override;
 	virtual bool empty() const override;
-	virtual ObjectType Type() const override;
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t Type() const override { return TYPE; }
+	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLTag>(*this); }
 
-	bool IsInline() const;
-	bool IsOpening() const    { return TagType == OPEN;       }
-	bool IsClosing() const    { return TagType == CLOSE;      }
-	bool IsStandalone() const { return TagType == STANDALONE; }
+	bool IsInline() const     { return KHTMLObject::IsInlineTag(Name); }
+	bool IsOpening() const    { return TagType == OPEN;                }
+	bool IsClosing() const    { return TagType == CLOSE;               }
+	bool IsStandalone() const { return TagType == STANDALONE;          }
 
 //------
 public:
@@ -362,25 +378,30 @@ public:
 
 }; // KHTMLTag
 
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a HTML comment
 class KHTMLComment : public KHTMLStringObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+	static constexpr KStringView s_sObjectName = "KHTMLComment";
+
 //------
 public:
 //------
 
-	KHTMLComment()
-	: KHTMLStringObject(LEAD_IN, LEAD_OUT)
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	KHTMLComment(KString sValue = KString{})
+	: KHTMLStringObject(LEAD_IN, LEAD_OUT, std::move(sValue))
 	{}
 
 	// forward all constructors
 	using KHTMLStringObject::KHTMLStringObject;
 
-	virtual ObjectType Type() const override;
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t Type() const override { return TYPE; }
+	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLComment>(*this); }
 
 	static constexpr KStringView LEAD_IN  = "<!--";
 	static constexpr KStringView LEAD_OUT = "-->";
@@ -399,18 +420,24 @@ class KHTMLDocumentType : public KHTMLStringObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+	static constexpr KStringView s_sObjectName = "KHTMLDocumentType";
+
 //------
 public:
 //------
 
-	KHTMLDocumentType()
-	: KHTMLStringObject(LEAD_IN, LEAD_OUT)
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	KHTMLDocumentType(KString sValue = KString{})
+	: KHTMLStringObject(LEAD_IN, LEAD_OUT, std::move(sValue))
 	{}
 
 	// forward all constructors
 	using KHTMLStringObject::KHTMLStringObject;
 
-	virtual ObjectType Type() const override;
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t Type() const override { return TYPE; }
+	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLDocumentType>(*this); }
 
 	static constexpr KStringView LEAD_IN  = "<!";
 	static constexpr KStringView LEAD_OUT = ">";
@@ -429,18 +456,24 @@ class KHTMLProcessingInstruction : public KHTMLStringObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+	static constexpr KStringView s_sObjectName = "KHTMLProcessingInstruction";
+
 //------
 public:
 //------
 
-	KHTMLProcessingInstruction()
-	: KHTMLStringObject(LEAD_IN, LEAD_OUT)
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	KHTMLProcessingInstruction(KString sValue = KString{})
+	: KHTMLStringObject(LEAD_IN, LEAD_OUT, std::move(sValue))
 	{}
 
 	// forward all constructors
 	using KHTMLStringObject::KHTMLStringObject;
 
-	virtual ObjectType Type() const override;
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t Type() const override { return TYPE; }
+	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLProcessingInstruction>(*this); }
 
 	static constexpr KStringView LEAD_IN  = "<?";
 	static constexpr KStringView LEAD_OUT = "?>";
@@ -459,18 +492,24 @@ class KHTMLCData : public KHTMLStringObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+	static constexpr KStringView s_sObjectName = "KHTMLCData";
+
 //------
 public:
 //------
 
-	KHTMLCData()
-	: KHTMLStringObject(LEAD_IN, LEAD_OUT)
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	KHTMLCData(KString sValue = KString{})
+	: KHTMLStringObject(LEAD_IN, LEAD_OUT, std::move(sValue))
 	{}
 
 	// forward all constructors
 	using KHTMLStringObject::KHTMLStringObject;
 
-	virtual ObjectType Type() const override;
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t Type() const override { return TYPE; }
+	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLCData>(*this); }
 
 	static constexpr KStringView LEAD_IN  = "<![CDATA[";
 	static constexpr KStringView LEAD_OUT = "]]>";
@@ -536,4 +575,32 @@ private:
 
 
 } // end of namespace dekaf2
+
+namespace std
+{
+	template<>
+	struct hash<dekaf2::KHTMLObject>
+	{
+		DEKAF2_CONSTEXPR_14
+		std::size_t operator()(const dekaf2::KHTMLObject& o) const noexcept
+		{
+			return o.Type();
+		}
+	};
+
+} // end of namespace std
+
+namespace boost
+{
+	template<>
+	struct hash<dekaf2::KHTMLObject>
+	{
+		DEKAF2_CONSTEXPR_14
+		std::size_t operator()(const dekaf2::KHTMLObject& o) const noexcept
+		{
+			return o.Type();
+		}
+	};
+
+} // end of namespace boost
 

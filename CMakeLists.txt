@@ -524,6 +524,7 @@ set(PUBLIC_HEADERS
 	khash.h
 	khmac.h
 	khtmlcontentblocks.h
+	khtmldom.h
 	khtmlparser.h
 	khttpclient.h
 	khttperror.h
@@ -672,6 +673,7 @@ set (SOURCES
 	khash.cpp
 	khmac.cpp
 	khtmlcontentblocks.cpp
+	khtmldom.cpp
 	khtmlentities.cpp
 	khtmlparser.cpp
 	khttpclient.cpp

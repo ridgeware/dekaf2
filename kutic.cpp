@@ -227,7 +227,7 @@ void KHTMLUTICParser::Object(KHTMLObject& Object)
 
 	switch (Object.Type())
 	{
-		case KHTMLObject::TAG:
+		case KHTMLTag::TYPE:
 		{
 			auto& Tag = reinterpret_cast<KHTMLTag&>(Object);
 

@@ -581,7 +581,7 @@ namespace std
 	template<>
 	struct hash<dekaf2::KHTMLObject>
 	{
-		DEKAF2_CONSTEXPR_14
+		DEKAF2_CONSTEXPR_20
 		std::size_t operator()(const dekaf2::KHTMLObject& o) const noexcept
 		{
 			return o.Type();
@@ -595,7 +595,7 @@ namespace boost
 	template<>
 	struct hash<dekaf2::KHTMLObject>
 	{
-		DEKAF2_CONSTEXPR_14
+		DEKAF2_CONSTEXPR_20
 		std::size_t operator()(const dekaf2::KHTMLObject& o) const noexcept
 		{
 			return o.Type();

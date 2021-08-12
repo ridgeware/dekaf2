@@ -287,28 +287,24 @@ bool kRename (KStringViewZ sOldPath, KStringViewZ sNewPath)
 } // kRename
 
 //-----------------------------------------------------------------------------
-bool kRemove (KStringViewZ sPath, bool bDir)
+bool kRemove (KStringViewZ sPath, KFileTypes Types)
 //-----------------------------------------------------------------------------
 {
-	if (bDir)
-	{
-		if (kFileExists (sPath))
-		{
-			kDebug (1, "cannot remove file: {}", sPath);
-			return false;
-		}
+	KFileStat Stat(sPath);
 
-		if (!kDirExists (sPath))
-		{
-			return true;
-		}
-	}
-	else
+	if (Stat.Type() == KFileType::UNEXISTING)
 	{
-		if (!kFileExists (sPath))
-		{
-			return true;
-		}
+		kDebug(2, "file does not exist, return success: {}", sPath);
+		return true;
+	}
+
+	if (!Types.contains(Stat.Type()))
+	{
+		kDebug(1, "cannot remove fs entity: bad type {} for {}, requested was {}",
+			   Stat.Type().Serialize(),
+			   sPath,
+			   kJoined(Types.Serialize()));
+		return false;
 	}
 
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
@@ -318,7 +314,7 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 	fs::permissions (Path, fs::perms::all, ec); // chmod (ignore failures)
 	ec.clear();
 
-	if (bDir)
+	if (Stat.Type() == KFileType::DIRECTORY)
 	{
 		fs::remove_all (Path, ec);
 	}
@@ -340,7 +336,7 @@ bool kRemove (KStringViewZ sPath, bool bDir)
 
 		if (unlink (sPath.c_str()) != 0)
 		{
-			if (bDir && (rmdir (sPath.c_str()) != 0))
+			if (Stat.Type() == KFileType::DIRECTORY && (rmdir (sPath.c_str()) != 0))
 			{
 				KString sCmd;
 				sCmd.Format ("rm -rf \"{}\"", sPath);

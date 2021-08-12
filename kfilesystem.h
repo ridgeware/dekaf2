@@ -122,27 +122,6 @@ bool kRename (KStringViewZ sOldPath, KStringViewZ sNewPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Remove (unlink) a file or directory tree
-bool kRemove (KStringViewZ sPath, bool bDir);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Remove (unlink) a file
-inline bool kRemoveFile (KStringViewZ sPath)
-//-----------------------------------------------------------------------------
-{
-	return kRemove (sPath, false);
-}
-
-//-----------------------------------------------------------------------------
-/// Remove (unlink) a directory (folder) hierarchically
-inline bool kRemoveDir (KStringViewZ sPath)
-//-----------------------------------------------------------------------------
-{
-	return kRemove (sPath, true);
-}
-
-//-----------------------------------------------------------------------------
 /// Read entire text file into a single string and convert DOS newlines if
 /// bToUnixLineFeeds is true. The base function (that is also called by this
 /// variant) is kReadAll().
@@ -546,6 +525,35 @@ private:
 	KFileType m_ftype;
 
 }; // KFileStat
+
+//-----------------------------------------------------------------------------
+/// Remove (unlink) a file or directory tree, matching Types (for the first file)
+bool kRemove (KStringViewZ sPath, KFileTypes Types);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Remove (unlink) a file
+inline bool kRemoveFile (KStringViewZ sPath)
+//-----------------------------------------------------------------------------
+{
+	return kRemove (sPath, KFileType::FILE | KFileType::SYMLINK);
+}
+
+//-----------------------------------------------------------------------------
+/// Remove (unlink) a directory (folder) hierarchically
+inline bool kRemoveDir (KStringViewZ sPath)
+//-----------------------------------------------------------------------------
+{
+	return kRemove (sPath, KFileType::DIRECTORY);
+}
+
+//-----------------------------------------------------------------------------
+/// Remove (unlink) a unix socket
+inline bool kRemoveSocket (KStringViewZ sPath)
+//-----------------------------------------------------------------------------
+{
+	return kRemove (sPath, KFileType::SOCKET);
+}
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

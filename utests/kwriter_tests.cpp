@@ -232,7 +232,16 @@ TEST_CASE("KWriter") {
 		KString sLarge;
 		sLarge = "01234567890123456789012345678901234567890123456789012345678901234567890123456789";
 
-		auto sSocket = kFormat("{}/short.socket", TempDir.Name());
+
+		KString sSocket;
+#ifdef DEKAF2_IS_OSX
+		// OSX has a very narrow limit on unix socket file name length,
+		// and a very long temp folder name, so we use just /tmp ..
+		kSystem("rm -f /tmp/short.socket");
+		sSocket = "/tmp/short.socket";
+#else
+		sSocket = kFormat("{}/short.socket", TempDir.Name());
+#endif
 		KMyServer Server(sSocket, 5);
 		Server.Start(5, false);
 
@@ -259,7 +268,15 @@ TEST_CASE("KWriter") {
 			sLarge += "01234567890123456789012345678901234567890123456789012345678901234567890123456789";
 		}
 
-		auto sSocket = kFormat("{}/large.socket", TempDir.Name());
+		KString sSocket;
+#ifdef DEKAF2_IS_OSX
+		// OSX has a very narrow limit on unix socket file name length,
+		// and a very long temp folder name, so we use just /tmp ..
+		kSystem("rm -f /tmp/large.socket");
+		sSocket = "/tmp/large.socket";
+#else
+		sSocket = kFormat("{}/large.socket", TempDir.Name());
+#endif
 		KMyServer Server(sSocket, 5);
 		Server.Start(5, false);
 

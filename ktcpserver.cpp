@@ -431,6 +431,11 @@ void KTCPServer::UnixServer()
 	// remove an existing socket
 	kRemoveSocket(m_sSocketFile);
 
+	if (m_sSocketFile.size() > 108)
+	{
+		kDebug(1, "the socket file name length of {} characters might be too long for some file systems - a typical limit is 108 characters", m_sSocketFile.size());
+	}
+
 	boost::asio::local::stream_protocol::endpoint local_endpoint(m_sSocketFile.c_str());
 	boost::asio::local::stream_protocol::acceptor acceptor(m_asio, local_endpoint, true); // true == reuse addr
 

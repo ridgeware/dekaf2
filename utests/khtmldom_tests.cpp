@@ -88,15 +88,6 @@ TEST_CASE("KHTML")
 	</body>
 </html>
 )");
-	constexpr KStringView sScript = " this is <a <new <a href=\"www.w3c.org\">scripting</a> language> ";
-
-	constexpr KStringView sEntities_in = (R"(
-	&amp; &aring;&oslash; &amp &amp! &amp< i &am</i &<i<mg> &am<body>some content</body>
-	)");
-
-	constexpr KStringView sEntities_out = (R"(
-	& åø & &! &< i &am</i &<i<mg> &am<body>some content</body>
-	)");
 
 	SECTION("parsing and rebuilding into string")
 	{

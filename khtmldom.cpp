@@ -50,7 +50,8 @@ namespace dekaf2 {
 //-----------------------------------------------------------------------------
 KHTMLElement::KHTMLElement(const KHTMLElement& other)
 //-----------------------------------------------------------------------------
-: Name(other.Name)
+: KHTMLObject(other)
+, Name(other.Name)
 , Attributes(other.Attributes)
 {
 	for (auto& Child : other.Children)

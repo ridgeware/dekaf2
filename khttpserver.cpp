@@ -300,6 +300,14 @@ void KHTTPServer::EnableCompressionIfPossible()
 		return;
 	}
 
+	KMIME mime(Response.Headers.Get(KHTTPHeader::CONTENT_TYPE));
+
+	if (!mime.IsCompressable())
+	{
+		kDebug(2, "MIME type {} is not compressable", mime.Serialize());
+		return;
+	}
+
 	Response.Headers.Set (KHTTPHeader::CONTENT_ENCODING, sCompression);
 
 	// for compression we need to switch to chunked transfer, as we do not know

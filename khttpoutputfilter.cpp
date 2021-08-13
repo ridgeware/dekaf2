@@ -59,28 +59,19 @@ bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 
 	m_bChunked = headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
 
-	KMIME mime(headers.Headers.Get(KHTTPHeader::CONTENT_TYPE));
+	KStringView sCompression = headers.Headers.Get(KHTTPHeader::CONTENT_ENCODING);
 
-	if (mime.IsCompressable())
+	if (sCompression == "gzip" || sCompression == "x-gzip")
 	{
-		KStringView sCompression = headers.Headers.Get(KHTTPHeader::CONTENT_ENCODING);
-
-		if (sCompression == "gzip" || sCompression == "x-gzip")
-		{
-			m_Compression = GZIP;
-		}
-		else if (sCompression == "deflate")
-		{
-			m_Compression = ZLIB;
-		}
-		else if (sCompression == "bzip2")
-		{
-			m_Compression = BZIP2;
-		}
+		m_Compression = GZIP;
 	}
-	else
+	else if (sCompression == "deflate")
 	{
-		kDebug(2, "MIME type {} is not compressable", mime.Serialize());
+		m_Compression = ZLIB;
+	}
+	else if (sCompression == "bzip2")
+	{
+		m_Compression = BZIP2;
 	}
 
 	return true;

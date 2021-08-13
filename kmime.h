@@ -120,6 +120,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Is this MIME type potentially compressable? (jpg, zip e.g. are not)
+	bool IsCompressable();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Generate a KMIME instance with the MIME type set according to inspection
 	/// of sFilename. Use Default if no association found.
 	static KMIME CreateByInspection(KStringViewZ sFilename, KMIME Default = NONE);

@@ -46,6 +46,7 @@
 #include "khttpoutputfilter.h"
 #include "kchunkedtransfer.h"
 #include "kstringstream.h"
+#include "kmime.h"
 
 
 namespace dekaf2 {
@@ -58,19 +59,28 @@ bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 
 	m_bChunked = headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
 
-	KStringView sCompression = headers.Headers.Get(KHTTPHeader::CONTENT_ENCODING);
-	
-	if (sCompression == "gzip" || sCompression == "x-gzip")
+	KMIME mime(headers.Headers.Get(KHTTPHeader::CONTENT_TYPE));
+
+	if (mime.IsCompressable())
 	{
-		m_Compression = GZIP;
+		KStringView sCompression = headers.Headers.Get(KHTTPHeader::CONTENT_ENCODING);
+
+		if (sCompression == "gzip" || sCompression == "x-gzip")
+		{
+			m_Compression = GZIP;
+		}
+		else if (sCompression == "deflate")
+		{
+			m_Compression = ZLIB;
+		}
+		else if (sCompression == "bzip2")
+		{
+			m_Compression = BZIP2;
+		}
 	}
-	else if (sCompression == "deflate")
+	else
 	{
-		m_Compression = ZLIB;
-	}
-	else if (sCompression == "bzip2")
-	{
-		m_Compression = BZIP2;
+		kDebug(2, "MIME type {} is not compressable", mime.Serialize());
 	}
 
 	return true;

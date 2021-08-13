@@ -219,6 +219,42 @@ KMIME KMIME::CreateByInspection(KStringViewZ sFilename, KMIME Default)
 } // CreateByInspection
 
 //-----------------------------------------------------------------------------
+bool KMIME::IsCompressable()
+//-----------------------------------------------------------------------------
+{
+	switch (m_mime.Hash())
+	{
+		case AAC.Hash():
+		case OGA.Hash():
+		case SWF.Hash():
+		case BZ2.Hash():
+		case DOCX.Hash():
+		case JAR.Hash():
+		case ODP.Hash():
+		case ODS.Hash():
+		case ODT.Hash():
+		case OGX.Hash():
+		case PPTX.Hash():
+		case RAR.Hash():
+		case ZIP.Hash():
+		case SEVENZIP.Hash():
+		case JPEG.Hash():
+		case GIF.Hash():
+		case PNG.Hash():
+		case AVI.Hash():
+		case MPEG.Hash():
+		case OGV.Hash():
+			return false;
+
+		default:
+			return true;
+	}
+
+	return true;
+
+} // IsCompressable
+
+//-----------------------------------------------------------------------------
 KMIMEPart::KMIMEPart(KMIME MIME)
 //-----------------------------------------------------------------------------
 : m_MIME(MIME)

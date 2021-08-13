@@ -74,6 +74,8 @@
 #include <cinttypes>
 #include <thread>
 #include <future>
+#include <mutex>
+#include <condition_variable>
 #include "bits/kasio.h"
 #include "kstream.h"
 #include "kstring.h"
@@ -93,7 +95,7 @@ class KTCPServer
 public:
 //-------
 
-	using self_type     = KTCPServer;
+	using self_type = KTCPServer;
 
 	//-----------------------------------------------------------------------------
 	/// Construct a server, but do not yet start it.
@@ -337,34 +339,35 @@ private:
 	void RunSession(KStream& stream, KString sRemoteEndPoint, int iSocketFd);
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	void StopServerThread(ServerType SType);
-	//-----------------------------------------------------------------------------
-
-	boost::asio::io_service m_asio;
-	std::unique_ptr<std::thread> m_ipv4_server;
-	std::unique_ptr<std::thread> m_ipv6_server;
+	boost::asio::io_service                   m_asio;
+	std::vector<std::unique_ptr<std::thread>> m_Servers;
+	std::vector<std::shared_ptr<boost::asio::ip::tcp::acceptor>>
+	                                          m_TCPAcceptors;
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
-	std::unique_ptr<std::thread> m_unix_server;
-	KString m_sSocketFile;
+	std::shared_ptr<boost::asio::local::stream_protocol::acceptor>
+		                                      m_UnixAcceptor;
 #endif
-	std::unique_ptr<KThreadPool> m_ThreadPool;
-	std::atomic_int m_iStarted { 0 };
-	std::future<int> m_future;
+	std::mutex                                m_StartupMutex;
+	std::condition_variable                   m_StartedUp;
 
-	KString m_sCert;
-	KString m_sKey;
-	KString m_sPassword;
-	KString m_sDHPrimes;
-	KString m_sAllowedCipherSuites;
-	uint16_t m_iPort { 0 };
-	uint16_t m_iTimeout { 15 };
-	bool m_bBlock { true };
-	bool m_bQuit { false };
-	bool m_bStartIPv4 { true };
-	bool m_bStartIPv6 { true };
-	bool m_bIsSSL { false };
-	bool m_bIsListening { false };
+	KThreadPool      m_ThreadPool;
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+	KString          m_sSocketFile;
+#endif
+	KString          m_sCert;
+	KString          m_sKey;
+	KString          m_sPassword;
+	KString          m_sDHPrimes;
+	KString          m_sAllowedCipherSuites;
+	std::future<int> m_ResultAsFuture;
+	std::atomic_int  m_iStarted             {     0 };
+	uint16_t         m_iPort                {     0 };
+	uint16_t         m_iTimeout             {    15 };
+	bool             m_bBlock               {  true };
+	bool             m_bQuit                { false };
+	bool             m_bStartIPv4           {  true };
+	bool             m_bStartIPv6           {  true };
+	bool             m_bIsSSL               { false };
 
 }; // KTCPServer
 

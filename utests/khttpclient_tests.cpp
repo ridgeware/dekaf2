@@ -82,6 +82,7 @@ TEST_CASE("KHTTPClient") {
 			CHECK( server.m_rx[2] == "Accept-Encoding: gzip, bzip2, deflate");
 			CHECK( server.m_rx[3] == "");
 		}
+		server.Stop();
 	}
 
 	SECTION("check serialization")

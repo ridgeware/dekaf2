@@ -302,9 +302,9 @@ void KHTTPServer::EnableCompressionIfPossible()
 
 	KMIME mime(Response.Headers.Get(KHTTPHeader::CONTENT_TYPE));
 
-	if (!mime.IsCompressable())
+	if (!mime.IsCompressible())
 	{
-		kDebug(2, "MIME type {} is not compressable", mime.Serialize());
+		kDebug(2, "MIME type {} is not compressible", mime.Serialize());
 		return;
 	}
 

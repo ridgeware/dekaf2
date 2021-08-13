@@ -219,7 +219,7 @@ KMIME KMIME::CreateByInspection(KStringViewZ sFilename, KMIME Default)
 } // CreateByInspection
 
 //-----------------------------------------------------------------------------
-bool KMIME::IsCompressable()
+bool KMIME::IsCompressible()
 //-----------------------------------------------------------------------------
 {
 	switch (m_mime.Hash())
@@ -252,7 +252,7 @@ bool KMIME::IsCompressable()
 
 	return true;
 
-} // IsCompressable
+} // IsCompressible
 
 //-----------------------------------------------------------------------------
 KMIMEPart::KMIMEPart(KMIME MIME)

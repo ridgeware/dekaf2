@@ -209,7 +209,8 @@ public:
 		FAC_BETWEEN           = 1 << 3,      ///< FAC_BETWEEN: handles empty string, single number and number range with a dash
 		FAC_LIKE              = 1 << 4,      ///< FAC_LIKE: use LIKE operator instead of EQUALS
 		FAC_TEXT_CONTAINS     = 1 << 5,      ///< FAC_TEXT_CONTAINS: full-text search using SQL tolower and like operator
-		FAC_TIME_PERIODS      = 1 << 6       ///< FAC_TIME_PERIODS: time intervals >= 'hour', 'day', 'week', 'month' or 'year'
+		FAC_TIME_PERIODS      = 1 << 6,      ///< FAC_TIME_PERIODS: time intervals >= 'hour', 'day', 'week', 'month' or 'year'
+		FAC_DECIMAL           = 1 << 7       ///< FAC_DECIMAL: like FAC_NUMERIC but expects float/double
 	};
 
 	/// default constructor, can also be used to configure connection details

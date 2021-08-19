@@ -7572,14 +7572,18 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	if (iFlags & FAC_BETWEEN)
 	{
-		auto Parts = sQueryParm.Split("-");
+		auto Parts = sQueryParm.Split(sSplitBy);
 
 		switch (Parts.size())
 		{
 			case 1: // single value
-				if (iFlags & FAC_NUMERIC)
+				if (iFlags & FAC_DECIMAL)
 				{
-					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].UInt64());
+					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].Double());
+				}
+				else if (iFlags & FAC_NUMERIC)
+				{
+					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].Int64());
 				}
 				else
 				{
@@ -7588,9 +7592,13 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 				break;
 
 			case 2: // two values
-				if (iFlags & FAC_NUMERIC)
+				if (iFlags & FAC_DECIMAL)
 				{
-					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].UInt64(), Parts[1].UInt64());
+					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].Double(), Parts[1].Double());
+				}
+				else if (iFlags & FAC_NUMERIC)
+				{
+					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].Int64(), Parts[1].Int64());
 				}
 				else
 				{
@@ -7665,9 +7673,13 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	else if (!sQueryParm.contains(sSplitBy))
 	{
-		if (iFlags & FAC_NUMERIC)
+		if (iFlags & FAC_DECIMAL)
 		{
-			sClause = kFormat ("   and {} = {}", sDbCol, sQueryParm.UInt64());
+			sClause = kFormat ("   and {} = {}", sDbCol, sQueryParm.Double());
+		}
+		else if (iFlags & FAC_NUMERIC)
+		{
+			sClause = kFormat ("   and {} = {}", sDbCol, sQueryParm.Int64());
 		}
 		else if (iFlags & FAC_LIKE)
 		{
@@ -7696,9 +7708,13 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 
 		for (const auto& sOne : sQueryParm.Split(sSplitBy))
 		{
-			if (iFlags & FAC_NUMERIC)
+			if (iFlags & FAC_DECIMAL)
 			{
-				sList += kFormat ("{}{}", sList ? "," : "", sOne.UInt64());
+				sList += kFormat ("{}{}", sList ? "," : "", sOne.Double());
+			}
+			else if (iFlags & FAC_NUMERIC)
+			{
+				sList += kFormat ("{}{}", sList ? "," : "", sOne.Int64());
 			}
 			else
 			{

@@ -7581,9 +7581,13 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 				{
 					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].Double());
 				}
-				else if (iFlags & FAC_NUMERIC)
+				else if (iFlags & FAC_SIGNED)
 				{
 					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].Int64());
+				}
+				else if (iFlags & FAC_NUMERIC)
+				{
+					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].UInt64());
 				}
 				else
 				{
@@ -7596,9 +7600,13 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 				{
 					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].Double(), Parts[1].Double());
 				}
-				else if (iFlags & FAC_NUMERIC)
+				else if (iFlags & FAC_SIGNED)
 				{
 					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].Int64(), Parts[1].Int64());
+				}
+				else if (iFlags & FAC_NUMERIC)
+				{
+					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].UInt64(), Parts[1].UInt64());
 				}
 				else
 				{
@@ -7677,9 +7685,13 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 		{
 			sClause = kFormat ("   and {} = {}", sDbCol, sQueryParm.Double());
 		}
-		else if (iFlags & FAC_NUMERIC)
+		else if (iFlags & FAC_SIGNED)
 		{
 			sClause = kFormat ("   and {} = {}", sDbCol, sQueryParm.Int64());
+		}
+		else if (iFlags & FAC_NUMERIC)
+		{
+			sClause = kFormat ("   and {} = {}", sDbCol, sQueryParm.UInt64());
 		}
 		else if (iFlags & FAC_LIKE)
 		{
@@ -7712,9 +7724,13 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 			{
 				sList += kFormat ("{}{}", sList ? "," : "", sOne.Double());
 			}
-			else if (iFlags & FAC_NUMERIC)
+			else if (iFlags & FAC_SIGNED)
 			{
 				sList += kFormat ("{}{}", sList ? "," : "", sOne.Int64());
+			}
+			else if (iFlags & FAC_NUMERIC)
+			{
+				sList += kFormat ("{}{}", sList ? "," : "", sOne.UInt64());
 			}
 			else
 			{

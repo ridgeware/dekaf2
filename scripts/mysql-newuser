@@ -131,12 +131,19 @@ HOSTNAME=`hostname`
 
 echo "creating new user '$NewUser'..."
 mysql ${RootUser} $RootPassArg $DBHostArg <<-EOF
-	# MySQL doesn't provide "drop user if exists" until 5.7.8.
-	# MySQL docs indicate "grant usage" can be used to "create a user that has no privileges"
-	# But unlike "create user" it doesn't fail if the user already exists.
-	grant usage on *.* to \`$NewUser\`@'$HOSTNAME' identified by '$NewPass';
-	grant usage on *.* to \`$NewUser\`@'localhost' identified by '$NewPass';
-	grant usage on *.* to \`$NewUser\`@'%'         identified by '$NewPass';
+	drop user if exists \`$NewUser\`@'%';
+	drop user if exists \`$NewUser\`@'localhost';
+	drop user if exists \`$NewUser\`@'$HOSTNAME';
+
+	create user \`$NewUser\`@'%'         identified by '$NewPass';
+	create user \`$NewUser\`@'localhost' identified by '$NewPass';
+	create user \`$NewUser\`@'$HOSTNAME' identified by '$NewPass';
+
+	grant $(Join ', ' "${Privileges[@]}") on \`$DBName\`.* to \`$NewUser\`@'%'         $GrantOption;
+	grant $(Join ', ' "${Privileges[@]}") on \`$DBName\`.* to \`$NewUser\`@'localhost' $GrantOption;
+	grant $(Join ', ' "${Privileges[@]}") on \`$DBName\`.* to \`$NewUser\`@'$HOSTNAME' $GrantOption;
+
+  flush privileges;
 EOF
 
 # Error out if we were unable to create the user
@@ -144,20 +151,4 @@ if [[ $? -ne 0 ]]; then
 	echo "${ME}: Error: Unable to create MySQL user account with user name '$NewUser'"
 	exit 1
 fi
-
-mysql ${RootUser} $RootPassArg $DBHostArg <<-EOF
-	drop user \`$NewUser\`@'$HOSTNAME';
-	drop user \`$NewUser\`@'localhost';
-	drop user \`$NewUser\`@'%';
-
-	create user \`$NewUser\`@'$HOSTNAME' identified by '$NewPass';
-	create user \`$NewUser\`@'localhost' identified by '$NewPass';
-	create user \`$NewUser\`@'%'         identified by '$NewPass';
-
-	grant $(Join ', ' "${Privileges[@]}") on \`$DBName\`.* to \`$NewUser\`@'$HOSTNAME' $GrantOption;
-	grant $(Join ', ' "${Privileges[@]}") on \`$DBName\`.* to \`$NewUser\`@'localhost' $GrantOption;
-	grant $(Join ', ' "${Privileges[@]}") on \`$DBName\`.* to \`$NewUser\`@'%'         $GrantOption;
-
-    flush privileges;
-EOF
 

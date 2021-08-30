@@ -45,6 +45,7 @@
 #include <sqlite3.h>
 
 #ifdef DEKAF2
+#include "klog.h"
 namespace dekaf2 {
 #endif
 
@@ -106,12 +107,15 @@ bool detail::DBConnector::Connect(StringViewZ sFilename, Mode iMode)
 				break;
 		}
 		auto ec = sqlite3_open_v2(sFilename.c_str(), &m_DB, iFlags, nullptr);
-		if (ec == SQLITE_OK)
+		if (Success(ec))
 		{
 			return true;
 		}
 		else
 		{
+#ifdef DEKAF2
+			kDebug(1, "error: {}", sqlite3_errstr(ec));
+#endif
 			sqlite3_close(m_DB);
 			m_DB = nullptr;
 		}
@@ -220,7 +224,16 @@ Statement Database::Prepare(StringView sQuery)
 bool Database::ExecuteVoid(StringViewZ sQuery)
 //--------------------------------------------------------------------------------
 {
-	return Success(sqlite3_exec(*Connector(), sQuery.c_str(), nullptr, nullptr, nullptr));
+	auto ec = sqlite3_exec(*Connector(), sQuery.c_str(), nullptr, nullptr, nullptr);
+	if (!Success(ec))
+	{
+#ifdef DEKAF2
+		kDebug(1, "error: {}", sqlite3_errstr(ec));
+		kDebug(1, sQuery);
+		return false;
+#endif
+	}
+	return true;
 
 } // Execute
 
@@ -251,7 +264,14 @@ Database::result_type Database::Execute(StringViewZ sQuery)
 //--------------------------------------------------------------------------------
 {
 	result_type ResultSet;
-	sqlite3_exec(*Connector(), sQuery.c_str(), ResultCallback, &ResultSet, nullptr);
+	auto ec = sqlite3_exec(*Connector(), sQuery.c_str(), ResultCallback, &ResultSet, nullptr);
+	if (!Success(ec))
+	{
+#ifdef DEKAF2
+		kDebug(1, "error: {}", sqlite3_errstr(ec));
+		kDebug(1, sQuery);
+#endif
+	}
 	return ResultSet;
 
 } // Execute
@@ -306,7 +326,15 @@ Row::RowBase::RowBase(Database& database, StringView sQuery)
 //--------------------------------------------------------------------------------
 	: m_Connector(database)
 {
-	sqlite3_prepare_v2(*m_Connector, sQuery.data(), sQuery.size(), &m_Statement, nullptr);
+	auto ec = sqlite3_prepare_v2(*m_Connector, sQuery.data(), sQuery.size(), &m_Statement, nullptr);
+
+	if (!Success(ec))
+	{
+#ifdef DEKAF2
+		kDebug(1, "error: {}", sqlite3_errstr(ec));
+		kDebug(1, sQuery);
+#endif
+	}
 
 	if (m_Statement)
 	{

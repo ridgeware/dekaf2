@@ -824,8 +824,19 @@ void KRESTServer::Output(const Options& Options)
 {
 	ThrowIfDisconnected();
 
-	// only allow output compression if this is HTTP mode
-	ConfigureCompression(Options.Out == HTTP && Options.bAllowCompression);
+	bool bOutputContent { true };
+
+	// do not create a response for 202 and 3xxs
+	if (Response.GetStatusCode() == KHTTPError::H2xx_NO_CONTENT ||
+		Response.GetStatusCode() / 100 == 3)
+	{
+		m_iContentLength = 0;
+		bOutputContent   = false;
+		Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
+	}
+
+	// only allow output compression if this is HTTP mode and if we allow compression and have content
+	ConfigureCompression(Options.Out == HTTP && Options.bAllowCompression && bOutputContent);
 
 	kDebug (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
 
@@ -835,7 +846,11 @@ void KRESTServer::Output(const Options& Options)
 		{
 			KString sContent;
 
-			if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
+			if (!bOutputContent)
+			{
+				// we do not have content to output (per the HTTP protocol)
+			}
+			else if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
 			{
 				// we output something else - do not set the content type, the
 				// caller should have set it
@@ -952,29 +967,32 @@ void KRESTServer::Output(const Options& Options)
 				// so we detach proactively
 			}
 
-			// finally, output the content:
-			if (m_Stream)
+			if (bOutputContent)
 			{
-				kDebug(3, "read from stream");
-
-				if (m_iContentLength == npos)
+				// finally, output the content:
+				if (m_Stream)
 				{
-					// account for copied content from a stream as well
-					KCountingInputStreamBuf Counter(*m_Stream);
+					kDebug(3, "read from stream");
 
-					Write (*m_Stream, m_iContentLength);
+					if (m_iContentLength == npos)
+					{
+						// account for copied content from a stream as well
+						KCountingInputStreamBuf Counter(*m_Stream);
 
-					m_iContentLength = Counter.Count();
+						Write (*m_Stream, m_iContentLength);
+
+						m_iContentLength = Counter.Count();
+					}
+					else
+					{
+						Write (*m_Stream, m_iContentLength);
+					}
 				}
 				else
 				{
-					Write (*m_Stream, m_iContentLength);
+					kDebugLog (3, sContent);
+					Write(sContent);
 				}
-			}
-			else
-			{
-				kDebugLog (3, sContent);
-				Write(sContent);
 			}
 
 			if (m_Timers)
@@ -1002,7 +1020,11 @@ void KRESTServer::Output(const Options& Options)
 			tjson["statusCode"] = Response.iStatusCode;
 			tjson["isBase64Encoded"] = false;
 
-			if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
+			if (!bOutputContent)
+			{
+				// we do not have content to output (per the HTTP protocol)
+			}
+			else if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
 			{
 				tjson["body"] = std::move(m_sRawOutput);
 			}
@@ -1058,6 +1080,10 @@ void KRESTServer::Output(const Options& Options)
 		{
 			KCountingOutputStreamBuf Counter(Response.UnfilteredStream());
 
+			if (!bOutputContent)
+			{
+				// we do not have content to output (per the HTTP protocol)
+			}
 			if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
 			{
 				Response.UnfilteredStream().WriteLine(m_sRawOutput);
@@ -1323,7 +1349,7 @@ void KRESTServer::SetStatus (int iCode)
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		case KHTTPError::H2xx_OK:           Response.SetStatus (200, "OK");                     break;
 		case KHTTPError::H2xx_CREATED:      Response.SetStatus (201, "CREATED");                break;
-		case KHTTPError::H2xx_ACCEPTED:     Response.SetStatus (202, "ACCEPTED");                break;
+		case KHTTPError::H2xx_ACCEPTED:     Response.SetStatus (202, "ACCEPTED");               break;
 		case KHTTPError::H2xx_UPDATED:      Response.SetStatus (201, "UPDATED");                break;
 		case KHTTPError::H2xx_DELETED:      Response.SetStatus (201, "DELETED");                break;
 		case KHTTPError::H2xx_NO_CONTENT:   Response.SetStatus (204, "NO CONTENT");             break;

@@ -158,20 +158,31 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 
 		if (HTTP.Request.Method == KHTTPMethod::GET || HTTP.Request.Method == KHTTPMethod::HEAD)
 		{
-			HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY, "Moved Permanently");
+			HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY);
 		}
 		else
 		{
-			HTTP.Response.SetStatus(KHTTPError::H308_PERMANENT_REDIRECT, "Permanent Redirect");
+			HTTP.Response.SetStatus(KHTTPError::H308_PERMANENT_REDIRECT);
 		}
 	}
 	else
 	{
-		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, FileServer.GetMIMEType(true));
-		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(FileServer.GetFileStat().Size()));
-		HTTP.Response.Headers.Set(KHTTPHeader::DATE, KHTTPHeader::DateToString(FileServer.GetFileStat().ModificationTime()));
-		HTTP.Serialize();
-		HTTP.Write(*FileServer.GetStreamForReading());
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE    , FileServer.GetMIMEType(true));
+
+		auto tIfModifiedSince = kParseHTTPTimestamp(HTTP.Request.Headers.Get(KHTTPHeader::IF_MODIFIED_SINCE));
+		auto tLastModified    = FileServer.GetFileStat().ModificationTime();
+
+		if (tLastModified <= tIfModifiedSince)
+		{
+			HTTP.Response.SetStatus(KHTTPError::H304_NOT_MODIFIED);
+		}
+		else
+		{
+			HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH  , KString::to_string(FileServer.GetFileStat().Size()));
+			HTTP.Response.Headers.Set(KHTTPHeader::LAST_MODIFIED   , KHTTPHeader::DateToString(tLastModified));
+			HTTP.Serialize();
+			HTTP.Write(*FileServer.GetStreamForReading());
+		}
 	}
 
 } // WebServer

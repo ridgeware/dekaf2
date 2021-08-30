@@ -257,6 +257,8 @@ void KTCPServer::TCPServer(bool ipv6)
 	
 	boost::asio::ip::v6_only v6_only(false);
 
+	kDebug(2, "opening listener on port {}", m_iPort);
+
 	tcp::endpoint local_endpoint((ipv6) ? tcp::v6() : tcp::v4(), m_iPort);
 	auto acceptor = std::make_shared<tcp::acceptor>(m_asio, local_endpoint, true); // true means reuse_addr
 	m_TCPAcceptors.push_back(acceptor);
@@ -281,6 +283,7 @@ void KTCPServer::TCPServer(bool ipv6)
 				{
 					// else open v4 explicitly in another thread
 					m_Servers.push_back(std::make_unique<std::thread>(&KTCPServer::TCPServer, this, false));
+					m_bHaveSeparatev4Thread = true;
 				}
 			}
 		}
@@ -404,6 +407,8 @@ void KTCPServer::TCPServer(bool ipv6)
 
 	DEKAF2_LOG_EXCEPTION
 
+	kDebug(2, "server is closing");
+
 } // TCPServer
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
@@ -482,6 +487,8 @@ void KTCPServer::UnixServer()
 	}
 	DEKAF2_LOG_EXCEPTION
 
+	kDebug(2, "server is closing");
+
 } // UnixServer
 #endif
 
@@ -552,6 +559,8 @@ int KTCPServer::GetResult()
 bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 //-----------------------------------------------------------------------------
 {
+	kDebug(2, "starting server");
+
 	m_iTimeout = iTimeoutInSeconds;
 	m_bBlock   = bBlock;
 	m_bQuit    = false;
@@ -589,7 +598,7 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 			TCPServer(m_bStartIPv6);
 		}
 		promise.set_value(0);
-
+		kDebug(2, "stopped blocking server");
 		return true;
 	}
 	else
@@ -624,6 +633,46 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 
 } // Start
 
+#if (BOOST_VERSION < 107000)
+//-----------------------------------------------------------------------------
+void KTCPServer::StopServerThread(ServerType SType)
+//-----------------------------------------------------------------------------
+{
+	boost::asio::ip::address localhost;
+
+	// now connect to localhost on the listen port
+	switch (SType)
+	{
+		case TCPv6:
+			localhost.from_string("::1");
+			break;
+
+		case TCPv4:
+			localhost.from_string("127.0.0.1");
+			break;
+
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+		case Unix:
+			// connect to socket file
+			boost::system::error_code ec;
+			boost::asio::local::stream_protocol::socket s(m_asio);
+			s.connect(boost::asio::local::stream_protocol::endpoint(m_sSocketFile.c_str()), ec);
+			// wait a little to avoid acceptor exception
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			return;
+#endif
+	}
+
+	boost::system::error_code ec;
+	tcp::endpoint remote_endpoint(localhost, m_iPort);
+	boost::asio::ip::tcp::socket socket(m_asio);
+	socket.connect(remote_endpoint, ec);
+	// wait a little to avoid acceptor exception
+	std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+} // StopServerThread
+#endif
+
 //-----------------------------------------------------------------------------
 // The process to stop a running server is a bit convoluted. Because the acceptor
 // can not be interrupted, we simply fire up a client thread per server to trigger
@@ -632,7 +681,12 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 bool KTCPServer::Stop()
 //-----------------------------------------------------------------------------
 {
-	kDebug(2, "stopping server");
+	if (!IsRunning())
+	{
+		return true;
+	}
+
+	kDebug(2, "closing listeners");
 
 	m_bQuit = true;
 
@@ -640,22 +694,74 @@ bool KTCPServer::Stop()
 	{
 		if (Acceptor && Acceptor->is_open())
 		{
-			Acceptor->close();
+			boost::system::error_code ec;
+			kDebug(2, "cancelling TCP listener");
+			Acceptor->cancel(ec);
+			if (ec)
+			{
+				kDebug(1, "error cancelling listener: {}", ec.message());
+			}
+			kDebug(2, "closing TCP listener");
+			Acceptor->close(ec);
+			if (ec)
+			{
+				kDebug(1, "error closing listener: {}", ec.message());
+			}
 		}
 	}
 	m_TCPAcceptors.clear();
 
+#if (BOOST_VERSION < 107000)
+	kMilliSleep(10);
+
+	// give it another shot for older systems
+	if (m_bStartIPv6)
+	{
+		StopServerThread(TCPv6);
+		if (m_bHaveSeparatev4Thread)
+		{
+			StopServerThread(TCPv4);
+		}
+	}
+	else if (m_bStartIPv4)
+	{
+		StopServerThread(TCPv4);
+	}
+#endif
+	m_bHaveSeparatev4Thread	= false;
+
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 	if (m_UnixAcceptor && m_UnixAcceptor->is_open())
 	{
-		m_UnixAcceptor->close();
+		boost::system::error_code ec;
+		kDebug(2, "cancelling unix listener");
+		m_UnixAcceptor->cancel(ec);
+		if (ec)
+		{
+			kDebug(1, "error closing listener: {}", ec.message());
+		}
+		kDebug(2, "closing unix listener");
+		m_UnixAcceptor->close(ec);
+		if (ec)
+		{
+			kDebug(1, "error closing listener: {}", ec.message());
+		}
+
+#if (BOOST_VERSION < 107000)
+		// give it another shot for older systems
+		StopServerThread(Unix);
+#endif
 	}
 	m_UnixAcceptor.reset();
+#endif
 
 	for (auto& Server : m_Servers)
 	{
 		Server->join();
 	}
 	m_Servers.clear();
+
+	kDebug(2, "listeners closed");
 
 	return true;
 

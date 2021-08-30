@@ -339,6 +339,12 @@ private:
 	void RunSession(KStream& stream, KString sRemoteEndPoint, int iSocketFd);
 	//-----------------------------------------------------------------------------
 
+#if (BOOST_VERSION < 107000)
+	//-----------------------------------------------------------------------------
+	void StopServerThread(ServerType SType);
+	//-----------------------------------------------------------------------------
+#endif
+
 	boost::asio::io_service                   m_asio;
 	std::vector<std::unique_ptr<std::thread>> m_Servers;
 	std::vector<std::shared_ptr<boost::asio::ip::tcp::acceptor>>
@@ -367,6 +373,7 @@ private:
 	bool             m_bQuit                { false };
 	bool             m_bStartIPv4           {  true };
 	bool             m_bStartIPv6           {  true };
+	bool             m_bHaveSeparatev4Thread{ false };
 	bool             m_bIsSSL               { false };
 
 }; // KTCPServer

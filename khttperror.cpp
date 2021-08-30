@@ -71,61 +71,61 @@ uint16_t KHTTPError::GetHTTPStatusCode() const
 } // GetHTTPStatusCode
 
 //-----------------------------------------------------------------------------
-void KHTTPError::SetStatusString()
+KStringView KHTTPError::GetStatusString(uint16_t iStatusCode)
 //-----------------------------------------------------------------------------
 {
-	switch (value())
+	switch (iStatusCode)
 	{
 		// reset
-		case 0:                 m_sStatusString.clear();                    break;
+		case 0:                       return KStringView{};
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// HTTP 200s: ok
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		case H2xx_OK:           m_sStatusString = "OK";                     break;
-		case H2xx_CREATED:      m_sStatusString = "CREATED";                break;
-		case H2xx_ACCEPTED:     m_sStatusString = "ACCEPTED";               break;
-		case H2xx_NO_CONTENT:   m_sStatusString = "NO CONTENT";             break;
-		case H2xx_UPDATED:      m_sStatusString = "UPDATED";                break;
-		case H2xx_DELETED:      m_sStatusString = "DELETED";                break;
-		case H2xx_ALREADY:      m_sStatusString = "ALREADY DONE";           break;
+		case H2xx_OK:                 return "OK";
+		case H2xx_CREATED:            return "CREATED";
+		case H2xx_ACCEPTED:           return "ACCEPTED";
+		case H2xx_NO_CONTENT:         return "NO CONTENT";
+		case H2xx_UPDATED:            return "UPDATED";
+		case H2xx_DELETED:            return "DELETED";
+		case H2xx_ALREADY:            return "ALREADY DONE";
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// HTTP 300s: redirects
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		case H301_MOVED_PERMANENTLY:  m_sStatusString = "MOVED PERMANENTLY";  break;
-		case H302_MOVED_TEMPORARILY:  m_sStatusString = "MOVED TEMPORARILY";  break;
-		case H303_SEE_OTHER:          m_sStatusString = "SEE OTHER";          break;
-		case H304_NOT_MODIFIED:       m_sStatusString = "NOT MODIFIED";       break;
-		case H305_USE_PROXY:          m_sStatusString = "USE PROXY";          break;
-		case H307_TEMPORARY_REDIRECT: m_sStatusString = "TEMPORARY REDIRECT"; break;
-		case H308_PERMANENT_REDIRECT: m_sStatusString = "PERMANENT REDIRECT"; break;
+		case H301_MOVED_PERMANENTLY:  return "MOVED PERMANENTLY";
+		case H302_MOVED_TEMPORARILY:  return "MOVED TEMPORARILY";
+		case H303_SEE_OTHER:          return "SEE OTHER";
+		case H304_NOT_MODIFIED:       return "NOT MODIFIED";
+		case H305_USE_PROXY:          return "USE PROXY";
+		case H307_TEMPORARY_REDIRECT: return "TEMPORARY REDIRECT";
+		case H308_PERMANENT_REDIRECT: return "PERMANENT REDIRECT";
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// HTTP 400s: client invocation problems
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		case H4xx_BADREQUEST:   m_sStatusString = "BAD REQUEST";            break;
-		case H4xx_FORBIDDEN:    m_sStatusString = "FORBIDDEN";              break;
-		case H4xx_NOTAUTH:      m_sStatusString = "NOT AUTHORIZED";         break;
-		case H4xx_NOTFOUND:     m_sStatusString = "NOT FOUND";              break;
-		case H4xx_BADMETHOD:    m_sStatusString = "METHOD NOT ALLOWED";     break;
-		case H4xx_CONFLICT:     m_sStatusString = "CONFLICT";               break;
+		case H4xx_BADREQUEST:         return "BAD REQUEST";
+		case H4xx_FORBIDDEN:          return "FORBIDDEN";
+		case H4xx_NOTAUTH:            return "NOT AUTHORIZED";
+		case H4xx_NOTFOUND:           return "NOT FOUND";
+		case H4xx_BADMETHOD:          return "METHOD NOT ALLOWED";
+		case H4xx_CONFLICT:           return "CONFLICT";
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// HTTP 500s: server-side problems
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		case H5xx_ERROR:        m_sStatusString = "INTERNAL SERVER ERROR";      break;
-		case H5xx_NOTIMPL:      m_sStatusString = "NOT IMPLEMENTED";            break;
-		case H5xx_UNAVAILABLE:  m_sStatusString = "SERVICE UNAVAILABLE";        break;
-		case H5xx_READTIMEOUT:  m_sStatusString = "NETWORK READ TIMEOUT ERROR"; break;
+		case H5xx_ERROR:              return "INTERNAL SERVER ERROR";
+		case H5xx_NOTIMPL:            return "NOT IMPLEMENTED";
+		case H5xx_UNAVAILABLE:        return "SERVICE UNAVAILABLE";
+		case H5xx_READTIMEOUT:        return "NETWORK READ TIMEOUT ERROR";
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// FALL THROUGH: blow up with a 500 error
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		default:                m_sStatusString = "INTERNAL SERVER ERROR";
-			kWarning ("BUG: called with code {}", value());
-			break;
+		default:
+			kWarning ("BUG: called with code {}", iStatusCode);
+			return "INTERNAL SERVER ERROR";
 	}
 
-} // SetStatusString
+} // GetStatusString
 

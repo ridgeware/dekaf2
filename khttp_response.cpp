@@ -128,6 +128,23 @@ void KHTTPResponseHeaders::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
+void KHTTPResponseHeaders::SetStatus(uint16_t iCode, KStringView sMessage)
+//-----------------------------------------------------------------------------
+{
+	iStatusCode = iCode;
+
+	if (sMessage.empty())
+	{
+		sStatusString = KHTTPError::GetStatusString(iStatusCode);
+	}
+	else
+	{
+		sStatusString = sMessage;
+	}
+
+} // SetStatus
+
+//-----------------------------------------------------------------------------
 bool KOutHTTPResponse::Serialize()
 //-----------------------------------------------------------------------------
 {

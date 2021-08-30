@@ -81,12 +81,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void SetStatus(uint16_t iCode, KStringView sMessage)
+	void SetStatus(uint16_t iCode, KStringView sMessage = KStringView{});
 	//-----------------------------------------------------------------------------
-	{
-		iStatusCode = iCode;
-		sStatusString = sMessage;
-	}
 
 	//-----------------------------------------------------------------------------
 	uint16_t GetStatusCode() const

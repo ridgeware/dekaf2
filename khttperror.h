@@ -63,33 +63,33 @@ public:
 
 	enum
 	{
-		H2xx_OK         = 200,  // each new code needs logic in SetStatusString()
-		H2xx_CREATED    = 201,
-		H2xx_ACCEPTED   = 202,
-		H2xx_NO_CONTENT = 204,
-		H2xx_UPDATED    = 290,
-		H2xx_DELETED    = 291,
-		H2xx_ALREADY    = 292,
+		H2xx_OK                 = 200,  // each new code needs logic in GetStatusString()
+		H2xx_CREATED            = 201,
+		H2xx_ACCEPTED           = 202,
+		H2xx_NO_CONTENT         = 204,
+		H2xx_UPDATED            = 290,
+		H2xx_DELETED            = 291,
+		H2xx_ALREADY            = 292,
 
-		H301_MOVED_PERMANENTLY = 301,
-		H302_MOVED_TEMPORARILY = 302,
-		H303_SEE_OTHER         = 303,
-		H304_NOT_MODIFIED      = 304,
-		H305_USE_PROXY         = 305,
-		H307_TEMPORARY_REDIRECT= 307,
-		H308_PERMANENT_REDIRECT= 308,
+		H301_MOVED_PERMANENTLY  = 301,
+		H302_MOVED_TEMPORARILY  = 302,
+		H303_SEE_OTHER          = 303,
+		H304_NOT_MODIFIED       = 304,
+		H305_USE_PROXY          = 305,
+		H307_TEMPORARY_REDIRECT = 307,
+		H308_PERMANENT_REDIRECT = 308,
 
-		H4xx_BADREQUEST = 400,
-		H4xx_NOTAUTH    = 401,
-		H4xx_FORBIDDEN  = 403,
-		H4xx_NOTFOUND   = 404,
-		H4xx_BADMETHOD  = 405,
-		H4xx_CONFLICT   = 409,
+		H4xx_BADREQUEST         = 400,
+		H4xx_NOTAUTH            = 401,
+		H4xx_FORBIDDEN          = 403,
+		H4xx_NOTFOUND           = 404,
+		H4xx_BADMETHOD          = 405,
+		H4xx_CONFLICT           = 409,
 
-		H5xx_ERROR       = 500,
-		H5xx_NOTIMPL     = 501,
-		H5xx_UNAVAILABLE = 503,
-		H5xx_READTIMEOUT = 598
+		H5xx_ERROR              = 500,
+		H5xx_NOTIMPL            = 501,
+		H5xx_UNAVAILABLE        = 503,
+		H5xx_READTIMEOUT        = 598
 	};
 
 	KHTTPError() = default;
@@ -98,7 +98,7 @@ public:
 	KHTTPError(uint16_t _iStatusCode, S1&& _sError)
 	: KError(std::forward<S1>(_sError), _iStatusCode)
 	{
-		SetStatusString();
+		m_sStatusString = GetStatusString(_iStatusCode);
 	}
 
 	template<class S1, class S2>
@@ -135,12 +135,12 @@ public:
 		return value() != 0 && (value() >= 300 || value() < 200);
 	}
 
+	/// gets the status string depending on the status code
+	static KStringView GetStatusString(uint16_t iStatusCode);
+
 //----------
 protected:
 //----------
-
-	/// sets the status string depending on the status code
-	void SetStatusString();
 
 	KString m_sStatusString;
 

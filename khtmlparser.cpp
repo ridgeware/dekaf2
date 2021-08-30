@@ -208,6 +208,7 @@ bool KHTMLObject::IsStandaloneTag(KStringView sName)
 		"embed"_ksv,
 		"hr"_ksv,
 		"img"_ksv,
+		"input"_ksv,
 		"keygen"_ksv,
 		"link"_ksv,
 		"meta"_ksv,
@@ -338,7 +339,7 @@ bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening)
 //-----------------------------------------------------------------------------
 {
 	// <!-- opens a comment until -->
-	// <! opens a DTD until >
+	// <!DOCTYPE opens a DTD until >
 	// <? opens a processing instruction until ?>
 
 	auto iStart = sOpening.size();
@@ -354,13 +355,20 @@ bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening)
 		while (iStart < iLeadIn)
 		{
 			auto ch = InStream.Read();
-			if (ch == m_sLeadIn[iStart])
+			if (KASCII::kToUpper(ch) == m_sLeadIn[iStart])
 			{
 				++iStart;
 			}
 			else
 			{
-				return false;
+				if (KASCII::kIsSpace(ch) && m_sLeadIn[iStart] == ' ')
+				{
+					++iStart;
+				}
+				else
+				{
+					return false;
+				}
 			}
 		}
 	}
@@ -640,7 +648,7 @@ void KHTMLAttributes::Set(KHTMLAttribute Attribute)
 {
 	if (Attribute.Name.empty())
 	{
-		kDebug(1, "trying to add an attribute with an empty name");
+		kDebug(1, "cannot add an attribute with an empty name");
 		return;
 	}
 
@@ -648,19 +656,28 @@ void KHTMLAttributes::Set(KHTMLAttribute Attribute)
 	{
 		if (!KHTMLObject::IsBooleanAttribute(Attribute.Name))
 		{
-			kDebug(2, "trying to add an attribute '{}' with an empty value that is not a predefined boolean attribute", Attribute.Name);
+			kDebug(2, "cannot add an attribute '{}' with an empty value that is not a predefined boolean attribute", Attribute.Name);
 			return;
 		}
 	}
 
-	auto it = m_Attributes.find(Attribute);
+	Remove(Attribute.Name);
+
+	m_Attributes.insert(std::move(Attribute));
+
+} // Add
+
+//-----------------------------------------------------------------------------
+void KHTMLAttributes::Remove(KStringView sAttributeName)
+//-----------------------------------------------------------------------------
+{
+	auto it = m_Attributes.find(sAttributeName);
 	if (it != m_Attributes.end())
 	{
 		m_Attributes.erase(it);
 	}
-	m_Attributes.insert(std::move(Attribute));
 
-} // Add
+} // Get
 
 //-----------------------------------------------------------------------------
 bool KHTMLAttributes::Parse(KBufferedReader& InStream, KStringView sOpening)

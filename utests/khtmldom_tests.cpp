@@ -47,14 +47,18 @@ TEST_CASE("KHTML")
 	<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 	<html>
 	<head><!-- with a comment here! >> -> until here --><!--- just one more --->
-	<title> A study of population dynamics   </title>
+	<title>A study of population dynamics</title>
 	</head>
 	<body>
-			 <tr><td align="center" nowrap>   hi   </td></tr>
+		<table>
+			 <tr><td align="center" nowrap>hi</td></tr>
+		</table>
 			 <!----- another comment here until here ---> <!--really?>-->
-			 <script type="nicely"> this is <a <new <a href="www.w3c.org">scripting</a> language> </script>
-			 <img checked href="http://www.xyz.com/my/image.png" title=Ñicé /><br />
-			 <p class='fancy' id=self style="curly">And finally <i class='shallow'>some</i> content</p>
+		<p>
+			<script type="lang/nicely"> this is <a <new <a href="www.w3c.org">scripting</a> language> </script>
+			<img checked src="http://www.xyz.com/my/image.png" title=Ñicé /><br />
+		</p>
+		<p class='fancy' id=self style="curly">And <i class='shallow'>some</i> content</p>
 	</body>
 	</html>
 	)");
@@ -65,26 +69,47 @@ TEST_CASE("KHTML")
 	<head>
 		<!-- with a comment here! >> -> until here -->
 		<!--- just one more --->
-		<title> A study of population dynamics </title>
+		<title>
+			A study of population dynamics
+		</title>
 	</head>
 	<body>
-		<tr>
-			<td align="center" nowrap> hi </td>
-		</tr>
+		<table>
+			<tr>
+				<td align="center" nowrap>
+					hi
+				</td>
+			</tr>
+		</table>
 		<!----- another comment here until here --->
 		<!--really?>-->
-<script type="nicely"> this is <a <new <a href="www.w3c.org">scripting</a> language> </script><img checked href="http://www.xyz.com/my/image.png" title=Ñicé /><br /><p class='fancy' id=self style="curly">And finally <i class='shallow'>some</i></p>
-</body>
+		<p>
+			<script type="lang/nicely"> this is <a <new <a href="www.w3c.org">scripting</a> language> </script><img checked src="http://www.xyz.com/my/image.png" title=Ñicé/><br/>
+		</p>
+		<p class='fancy' id=self style="curly">
+			And <i class='shallow'>some</i> content
+		</p>
+	</body>
 </html>
 )");
 
 	constexpr KStringView sSerialized2 = (R"(<html class="main">
-	<header>
-		<title>This is the title</title>
-	</header>
+	<head>
+		<title>
+			This is the title
+		</title>
+		<meta viewport="width=device-width, initial-scale=1.0"/>
+	</head>
 	<body>
-		<p id="MyPar">This &lt;is&gt; &amp;a <i>web</i>page</p>
+		<p id="MyPar">
+			This &lt;is&gt; &amp;a <i>web</i>page<br/>
+			More text
+		</p>
 		<p class="emptyClass" id="emptyPar"></p>
+		<h2>
+			This is the title
+		</h2>
+		<a href="/some/link"><img src="/another/link/img.png"/></a>that is all
 	</body>
 </html>
 )");
@@ -118,9 +143,10 @@ TEST_CASE("KHTML")
 			KHTML Page;
 			auto& html = Page.Add("html");
 			html.SetClass("main");
-			auto& header = html.Add("header");
-			auto& title = header.Add("title");
+			auto& head = html.Add("head");
+			auto& title = head.Add("title");
 			title.AddText("This is the");
+			head.Add("meta").SetAttribute("viewport", "width=device-width, initial-scale=1.0");
 			auto& body = html.Add("body");
 			auto& par = body.Add("p");
 			par.SetID("MyPar1");
@@ -129,8 +155,13 @@ TEST_CASE("KHTML")
 			auto& italic = par.Add("i");
 			italic.AddText("web");
 			par.AddText("page");
+			par.Add("br");
+			par.AddText("More text");
 			title.AddText(" title");
 			body.Add("p", "emptyPar", "emptyClass");
+			body.Add("h2").AddText("This is the title");
+			body.Add("a").SetAttribute("href", "/some/link").Add("img").SetAttribute("src", "/another/link/img.png");
+			body.AddText("that is all");
 			KString sCRLF = sSerialized2;
 			sCRLF.Replace("\n", "\r\n");
 			CHECK ( Page.Serialize() == sCRLF );

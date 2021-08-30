@@ -51,12 +51,12 @@ namespace dekaf2 {
 KHTMLElement::KHTMLElement(const KHTMLElement& other)
 //-----------------------------------------------------------------------------
 : KHTMLObject(other)
-, Name(other.Name)
-, Attributes(other.Attributes)
+, m_Name(other.m_Name)
+, m_Attributes(other.m_Attributes)
 {
-	for (auto& Child : other.Children)
+	for (auto& Child : other.m_Children)
 	{
-		Children.push_back(Child->Clone());
+		m_Children.push_back(Child->Clone());
 	}
 
 } // copy ctor
@@ -65,119 +65,125 @@ KHTMLElement::KHTMLElement(const KHTMLElement& other)
 KHTMLElement::KHTMLElement(const KHTMLTag& Tag)
 //-----------------------------------------------------------------------------
 {
-	Name = Tag.Name;
-	Attributes = Tag.Attributes;
+	m_Name = Tag.Name;
+	m_Attributes = Tag.Attributes;
 }
 
 //-----------------------------------------------------------------------------
 KHTMLElement::KHTMLElement(KHTMLTag&& Tag)
 //-----------------------------------------------------------------------------
 {
-	Name = std::move(Tag.Name);
-	Attributes = std::move(Tag.Attributes);
+	m_Name = std::move(Tag.Name);
+	m_Attributes = std::move(Tag.Attributes);
 }
+
+//-----------------------------------------------------------------------------
+KHTMLElement::KHTMLElement(KString sName, KStringView sID, KStringView sClass)
+//-----------------------------------------------------------------------------
+: m_Name(std::move(sName))
+{
+	if (!sID.empty())
+	{
+		SetID(sID);
+	}
+
+	if (!sClass.empty())
+	{
+		SetClass(sClass);
+	}
+
+} // ctor
 
 //-----------------------------------------------------------------------------
 bool KHTMLElement::Parse(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
-	Name = sInput;
+	m_Name = sInput;
 	return true;
 }
 
 //-----------------------------------------------------------------------------
-void KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent) const
+bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent, bool bIsFirstAfterLinefeed) const
 //-----------------------------------------------------------------------------
 {
+	// bIsFirstAfterLinefeed means: last output was a linefeed
+	// returns bIsFirstAfterLinefeed
+
 	auto bIsStandalone = IsStandalone();
 	auto bIsInline     = IsInline();
-	bool bIsRoot       = Name.empty();
+	bool bIsRoot       = m_Name.empty();
 
-	kDebug(3, "up: <{}>, Indent={}, IsStandalone={}, IsInline={}, IsRoot={}", Name, iIndent, bIsStandalone, bIsInline, bIsRoot);
+	kDebug(3, "up: <{}>, Indent={}, IsStandalone={}, IsInline={}, IsRoot={}, IsFirst={}", m_Name, iIndent, bIsStandalone, bIsInline, bIsRoot, bIsFirstAfterLinefeed);
 
-	auto PrintIndent   = [bIsInline,&chIndent,&OutStream](uint16_t iIndent)
+	auto PrintIndent   = [&bIsFirstAfterLinefeed,chIndent,&OutStream](uint16_t iIndent)
 	{
-		if (chIndent && !bIsInline)
+		if (bIsFirstAfterLinefeed)
 		{
-			for (;iIndent-- > 0;)
+			if (chIndent)
 			{
-				OutStream.Write(chIndent);
+				for (;iIndent-- > 0;)
+				{
+					OutStream.Write(chIndent);
+				}
 			}
+			bIsFirstAfterLinefeed = false;
 		}
 	};
 
-	if (!Name.empty())
+	auto WriteLinefeed = [&bIsFirstAfterLinefeed,&OutStream]()
+	{
+		static constexpr KStringView sLineFeed { "\r\n" };
+
+		OutStream.Write(sLineFeed);
+		bIsFirstAfterLinefeed = true;
+	};
+
+	if (!m_Name.empty())
 	{
 		PrintIndent(iIndent);
 		OutStream.Write('<');
-		OutStream.Write(Name);
+		OutStream.Write(m_Name);
 
-		Attributes.Serialize(OutStream);
+		m_Attributes.Serialize(OutStream);
 
 		if (bIsStandalone)
 		{
-			OutStream.Write(" />");
-			kDebug(3, "down: <{}/>", Name);
-			return;
-		}
+			kDebug(3, "down: <{}/>", m_Name);
+			OutStream.Write("/>");
 
-		if (bIsInline)
-		{
-			chIndent = 0;
+			if (!bIsInline || m_Name.ToLowerASCII().In("br,hr"))
+			{
+				WriteLinefeed();
+				return true;
+			}
+
+			return false;
 		}
 
 		OutStream.Write('>');
 
 		if (!bIsInline)
 		{
-			if (!Children.empty())
+			if (!m_Children.empty())
 			{
-				switch (Children.front()->Type())
-				{
-					case KHTMLElement::TYPE:
-					{
-						auto* Element = reinterpret_cast<KHTMLElement*>(Children.front().get());
-
-						if (!Element->IsInline() || !Element->IsStandalone())
-						{
-							OutStream.Write("\r\n");
-						}
-						else
-						{
-							chIndent = 0;
-						}
-					}
-					break;
-
-					case KHTMLText::TYPE:
-						chIndent = 0;
-						break;
-
-					default:
-						OutStream.Write("\r\n");
-						break;
-				}
+				WriteLinefeed();
 			}
 		}
 	}
 
-	for (const auto& it : Children)
+	for (const auto& it : m_Children)
 	{
 		kDebug(3, "child: {}", it->TypeName());
 
-		auto iType = it->Type();
+		auto iType { it->Type() };
 
 		switch (iType)
 		{
 			case KHTMLElement::TYPE:
 			{
-				auto* Element = reinterpret_cast<KHTMLElement*>(it.get());
-				if (Element->IsInline())
-				{
-					chIndent = 0;
-				}
-				// print here, instead of calling Serialize() below
-				Element->Print(OutStream, chIndent, iIndent + (bIsRoot ? 0 : 1));
+				auto* Element = static_cast<KHTMLElement*>(it.get());
+				// print KHTMLElements here, instead of calling Serialize() below
+				bIsFirstAfterLinefeed = Element->Print(OutStream, chIndent, iIndent + (bIsRoot ? 0 : 1), bIsFirstAfterLinefeed);
 			}
 			continue;
 
@@ -187,13 +193,11 @@ void KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent)
 				PrintIndent(iIndent + (bIsRoot ? 0 : 1));
 				break;
 
-			case KHTMLText::TYPE:
-				chIndent = 0;
-				break;
-
 			default:
 				break;
 		}
+
+		PrintIndent(iIndent+1);
 
 		it->Serialize(OutStream);
 
@@ -202,29 +206,51 @@ void KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent)
 			case KHTMLComment::TYPE:
 			case KHTMLProcessingInstruction::TYPE:
 			case KHTMLDocumentType::TYPE:
-				OutStream.Write("\r\n");
+				WriteLinefeed();
 				break;
+
+			case KHTMLText::TYPE:
+			{
+				auto* Element = static_cast<KHTMLText*>(it.get());
+				if (!Element->sText.empty() && Element->sText.back() == '\n')
+				{
+					bIsFirstAfterLinefeed = true;
+				}
+			}
+			break;
 		}
 	}
 
-	if (!Name.empty())
+	if (!m_Name.empty())
 	{
-		if (!Children.empty())
+		if (!m_Children.empty())
 		{
-			PrintIndent(iIndent);
+			if (!bIsInline)
+			{
+				if (!bIsFirstAfterLinefeed)
+				{
+					WriteLinefeed();
+				}
+			}
+			if (bIsFirstAfterLinefeed)
+			{
+				PrintIndent(iIndent);
+				bIsFirstAfterLinefeed = false;
+			}
 		}
 
 		OutStream.Write("</");
-		OutStream.Write(Name);
+		OutStream.Write(m_Name);
 		OutStream.Write('>');
 
 		if (!bIsInline)
 		{
-			OutStream.Write("\r\n");
+			WriteLinefeed();
 		}
 	}
 
-	kDebug(3, "down: </{}>", Name);
+	kDebug(3, "down: </{}>", m_Name);
+	return bIsFirstAfterLinefeed;
 
 } // Print
 
@@ -256,52 +282,90 @@ void KHTMLElement::Serialize(KOutStream& OutStream) const
 void KHTMLElement::clear()
 //-----------------------------------------------------------------------------
 {
-	Name.clear();
-	Attributes.clear();
-	Children.clear();
+	m_Name.clear();
+	m_Attributes.clear();
+	m_Children.clear();
 }
 
 //-----------------------------------------------------------------------------
 bool KHTMLElement::empty() const
 //-----------------------------------------------------------------------------
 {
-	return Name.empty() && Children.empty();
+	return m_Name.empty() && m_Children.empty();
 }
 
 //-----------------------------------------------------------------------------
-KHTMLElement::KHTMLElement(KString sName, KStringView sID, KStringView sClass)
-//-----------------------------------------------------------------------------
-: Name(std::move(sName))
-{
-	SetID(sID);
-	SetClass(sClass);
-}
-
-//-----------------------------------------------------------------------------
-void KHTMLElement::AddText(KStringView sContent)
+KHTMLElement::self& KHTMLElement::AddText(KStringView sContent)
 //-----------------------------------------------------------------------------
 {
-	// merge with last text node if possible
-	if (Children.empty() || Children.back()->Type() != KHTMLText::TYPE)
+	if (!sContent.empty())
 	{
-		Add(KHTMLText(KHTMLEntity::EncodeMandatory(sContent)));
+		// merge with last text node if possible
+		if (m_Children.empty() || m_Children.back()->Type() != KHTMLText::TYPE)
+		{
+			Add(KHTMLText(KHTMLEntity::EncodeMandatory(sContent)));
+		}
+		else
+		{
+			auto* Text = reinterpret_cast<KHTMLText*>(m_Children.back().get());
+			Text->sText += KHTMLEntity::EncodeMandatory(sContent);
+		}
+	}
+	return *this;
+
+} // AddText
+
+//-----------------------------------------------------------------------------
+KHTMLElement::self& KHTMLElement::AddRawText(KStringView sContent)
+//-----------------------------------------------------------------------------
+{
+	if (!sContent.empty())
+	{
+		// do not escape and do not merge with last text node - this is for scripts and bad code
+		Add(KHTMLText(sContent));
+	}
+	return *this;
+	
+} // AddText
+
+//-----------------------------------------------------------------------------
+KHTMLElement::self& KHTMLElement::SetBoolAttribute(KString sName, bool bYesNo)
+//-----------------------------------------------------------------------------
+{
+	if (IsBooleanAttribute(sName))
+	{
+		if (bYesNo)
+		{
+			m_Attributes.Set(std::move(sName), "");
+		}
+		else
+		{
+			RemoveAttribute(sName);
+		}
 	}
 	else
 	{
-		auto* Text = reinterpret_cast<KHTMLText*>(Children.back().get());
-		Text->sText += KHTMLEntity::EncodeMandatory(sContent);
+		m_Attributes.Set(std::move(sName), bYesNo ? "true" : "false");
 	}
+	return *this;
 
-} // AddText
+} // SetBoolAttribute
 
 //-----------------------------------------------------------------------------
-void KHTMLElement::AddRawText(KStringView sContent)
+KHTMLElement::self& KHTMLElement::SetAttribute(KString sName, KString sValue, bool bRemoveIfEmptyValue)
 //-----------------------------------------------------------------------------
 {
-	// do not escape and do not merge with last text node - this is for scripts and bad code
-	Add(KHTMLText(sContent));
+	if (bRemoveIfEmptyValue && sValue.empty())
+	{
+		m_Attributes.Remove(sName);
+	}
+	else
+	{
+		m_Attributes.Set(std::move(sName), std::move(sValue));
+	}
+	return *this;
 
-} // AddText
+} // SetAttribute
 
 //-----------------------------------------------------------------------------
 void KHTML::Serialize(KOutStream& Stream, char chIndent) const
@@ -332,7 +396,6 @@ void KHTML::clear()
 	m_Hierarchy.clear();
 	m_sContent.clear();
 	m_sError.clear();
-	m_bOpenElement = false;
 	m_bLastWasSpace = false;
 	m_bDoNotEscape = false;
 
@@ -388,12 +451,11 @@ void KHTML::Object(KHTMLObject& Object)
 			{
 				if (m_Hierarchy.size() > 1)
 				{
-					if (m_Hierarchy.back()->Name != Tag.Name)
+					if (m_Hierarchy.back()->GetName() != Tag.Name)
 					{
-						SetError(kFormat("invalid html - start and end tag differ: {} <> {}", m_Hierarchy.back()->Name, Tag.Name));
+						SetError(kFormat("invalid html - start and end tag differ: {} <> {}", m_Hierarchy.back()->GetName(), Tag.Name));
 					}
 					m_Hierarchy.pop_back();
-					m_bOpenElement = false;
 				}
 				else
 				{
@@ -409,7 +471,6 @@ void KHTML::Object(KHTMLObject& Object)
 				{
 					// get one level deeper
 					m_Hierarchy.push_back(&Element);
-					m_bOpenElement = true;
 				}
 			}
 		}
@@ -417,25 +478,25 @@ void KHTML::Object(KHTMLObject& Object)
 
 		case KHTMLComment::TYPE:
 		{
-			m_Hierarchy.back()->Add(reinterpret_cast<KHTMLComment&>(Object));
+			m_Hierarchy.back()->Add(static_cast<KHTMLComment&>(Object));
 		}
 		break;
 
 		case KHTMLCData::TYPE:
 		{
-			m_Hierarchy.back()->Add(reinterpret_cast<KHTMLCData&>(Object));
+			m_Hierarchy.back()->Add(static_cast<KHTMLCData&>(Object));
 		}
 		break;
 
 		case KHTMLProcessingInstruction::TYPE:
 		{
-			m_Hierarchy.back()->Add(reinterpret_cast<KHTMLProcessingInstruction&>(Object));
+			m_Hierarchy.back()->Add(static_cast<KHTMLProcessingInstruction&>(Object));
 		}
 		break;
 
 		case KHTMLDocumentType::TYPE:
 		{
-			m_Hierarchy.back()->Add(reinterpret_cast<KHTMLDocumentType&>(Object));
+			m_Hierarchy.back()->Add(static_cast<KHTMLDocumentType&>(Object));
 		}
 		break;
 	}
@@ -461,23 +522,20 @@ void KHTML::Finished()
 void KHTML::Content(char ch)
 //-----------------------------------------------------------------------------
 {
-	if (m_bOpenElement)
+	if (KASCII::kIsSpace(ch))
 	{
-		if (KASCII::kIsSpace(ch))
+		if (m_bLastWasSpace)
 		{
-			if (m_bLastWasSpace)
-			{
-				return;
-			}
-			m_bLastWasSpace = true;
-			ch = ' ';
+			return;
 		}
-		else
-		{
-			m_bLastWasSpace = false;
-		}
-		m_sContent += ch;
+		m_bLastWasSpace = true;
+		ch = ' ';
 	}
+	else
+	{
+		m_bLastWasSpace = false;
+	}
+	m_sContent += ch;
 
 } // Content
 

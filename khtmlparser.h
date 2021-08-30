@@ -295,10 +295,7 @@ public:
 
 	void Set(KString sAttributeName, KString sAttributeValue, char Quote='"')
 	{
-		if (!sAttributeName.empty() && !sAttributeValue.empty())
-		{
-			Set(KHTMLAttribute(std::move(sAttributeName), std::move(sAttributeValue), Quote));
-		}
+		Set(KHTMLAttribute(std::move(sAttributeName), std::move(sAttributeValue), Quote));
 	}
 
 	void Set(KHTMLAttribute Attribute);
@@ -308,6 +305,8 @@ public:
 		Set(Attribute);
 		return *this;
 	}
+
+	void Remove(KStringView sAttributeName);
 
 	KHTMLAttributes& operator+=(KHTMLAttribute&& Attribute)
 	{
@@ -439,7 +438,7 @@ public:
 	virtual std::size_t Type() const override { return TYPE; }
 	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLDocumentType>(*this); }
 
-	static constexpr KStringView LEAD_IN  = "<!";
+	static constexpr KStringView LEAD_IN  = "<!DOCTYPE ";
 	static constexpr KStringView LEAD_OUT = ">";
 
 //------

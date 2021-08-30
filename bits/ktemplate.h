@@ -133,6 +133,12 @@ public:
 	static constexpr bool const value = sizeof(Test<T>(0)) == sizeof(Yes);
 };
 
+template <typename>
+struct is_chrono_duration : std::false_type {};
+
+template <typename R, typename P>
+struct is_chrono_duration<std::chrono::duration<R, P>> : std::true_type {};
+
 } // of namespace detail
 
 } // of namespace dekaf2

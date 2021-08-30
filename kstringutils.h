@@ -415,6 +415,19 @@ KString kFormSMTPTimestamp (time_t tTime = 0);
 KString kFormCommonLogTimestamp(time_t tTime = 0, bool bAsLocalTime = false);
 //-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
+/// Parse a HTTP time stamp - only accepts GMT timezone
+/// @param sTime time stamp to parse
+/// @return time_t of the time stamp or 0 for error
+time_t kParseHTTPTimestamp (KStringView sTime);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Parse a SMTP time stamp - accepts variable timezone in -0500 format
+/// @param sTime time stamp to parse
+/// @return time_t of the time stamp or 0 for error
+time_t kParseSMTPTimestamp (KStringView sTime);
+//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Form a string that expresses a duration

@@ -275,6 +275,86 @@ KString kFormWebTimestamp (time_t tTime, KStringView sTimezoneDesignator)
 
 } // kFormWebTimestamp
 
+//-----------------------------------------------------------------------------
+time_t kParseWebTimestamp (KStringView sTime, bool bOnlyGMT)
+//-----------------------------------------------------------------------------
+{
+	time_t tTime { 0 };
+
+	// "Tue, 03 Aug 2021 10:23:42 GMT"
+	// "Tue, 03 Aug 2021 10:23:42 -0500"
+
+	auto Part = sTime.Split(" ,:");
+
+	if (Part.size() == 8)
+	{
+		struct tm time;
+
+		time.tm_mday = Part[1].UInt16();
+
+		auto it = std::find_if(AbbreviatedMonths.begin(), AbbreviatedMonths.end(), [&Part](const KStringView mon)
+							   {
+			// need the down conversion from KStringViewZ to KStringView,
+			// as otherwise operator==() would be ambiguous -> TODO
+			return mon == Part[2];
+		});
+
+		if (it != AbbreviatedMonths.end())
+		{
+			time.tm_mon    = (it - AbbreviatedMonths.begin());
+			time.tm_year   = Part[3].UInt16() - 1900;
+			time.tm_hour   = Part[4].UInt16();
+			time.tm_min    = Part[5].UInt16();
+			time.tm_sec    = Part[6].UInt16();
+			auto sTimezone = Part[7];
+
+			if (bOnlyGMT && sTimezone == "GMT")
+			{
+				tTime = timegm(&time);
+			}
+			else
+			{
+				// check for numeric timezone, like -0200
+
+				if (kIsInteger(sTimezone))
+				{
+					bool bMinus = sTimezone.front() == '-';
+
+					if (bMinus || sTimezone.front() == '+')
+					{
+						sTimezone.remove_prefix(1);
+					}
+
+					if (sTimezone.size() == 4)
+					{
+						auto   iHours   = sTimezone.Left(2).UInt16();
+						auto   iMinutes = sTimezone.Right(2).UInt16();
+						time_t iOffset  = iHours * 60 * 60 + iMinutes * 60;
+
+						if (iOffset < 24*60*60)
+						{
+							if (bMinus)
+							{
+								iOffset *= -1;
+							}
+
+							tTime = timegm(&time) + iOffset;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (!tTime && !sTime.empty())
+	{
+		kDebug(2, "bad timestamp: {}", sTime);
+	}
+
+	return tTime;
+
+} // kParseWebTimestamp
+
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
@@ -399,6 +479,22 @@ KString kFormSMTPTimestamp (time_t tTime)
 	return kFormWebTimestamp(tTime, "-0000");
 
 } // kFormSMTPTimestamp
+
+//-----------------------------------------------------------------------------
+time_t kParseHTTPTimestamp (KStringView sTime)
+//-----------------------------------------------------------------------------
+{
+	return kParseWebTimestamp(sTime, true);
+
+} // kParseHTTPTimestamp
+
+//-----------------------------------------------------------------------------
+time_t kParseSMTPTimestamp (KStringView sTime)
+//-----------------------------------------------------------------------------
+{
+	return kParseWebTimestamp(sTime, false);
+
+} // kParseSMTPTimestamp
 
 //-----------------------------------------------------------------------------
 KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
@@ -565,6 +661,7 @@ bool kIsInteger(KStringView str, bool bSigned) noexcept
 	const auto* start = str.data();
 	const auto* buf   = start;
 	size_t size       = str.size();
+	bool bHadDigit { false };
 
 	while (size--)
 	{
@@ -575,9 +672,13 @@ bool kIsInteger(KStringView str, bool bSigned) noexcept
 				return false;
 			}
 		}
+		else
+		{
+			bHadDigit = true;
+		}
 	}
 
-	return true;
+	return bHadDigit;
 
 } // kIsInteger
 

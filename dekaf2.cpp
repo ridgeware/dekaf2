@@ -64,8 +64,8 @@ namespace dekaf2
 {
 
 constexpr KStringViewZ DefaultLocale = "en_US.UTF-8";
-bool Dekaf::s_bStarted  = false;
-bool Dekaf::s_bShutdown = false;
+std::atomic_bool Dekaf::s_bStarted  = false;
+std::atomic_bool Dekaf::s_bShutdown = false;
 
 #if defined(DEKAF2_HAS_LIBPROC) || defined(DEKAF2_IS_UNIX)
 //---------------------------------------------------------------------------
@@ -252,7 +252,7 @@ void Dekaf::SetRandomSeed()
 {
 	std::random_device RandDevice;
 
-	m_Random.seed(RandDevice());
+	m_Random.unique()->seed(RandDevice());
 
 	srand(RandDevice());
 #ifndef DEKAF2_IS_WINDOWS
@@ -270,7 +270,7 @@ uint32_t Dekaf::GetRandomValue(uint32_t iMin, uint32_t iMax)
 //-----------------------------------------------------------------------------
 {
 	std::uniform_int_distribution<uint32_t> uniform_dist(iMin, iMax);
-	return uniform_dist(m_Random);
+	return uniform_dist(m_Random.unique().get());
 
 } // kRandom
 
@@ -430,7 +430,6 @@ void Dekaf::OneSecTimer(KTimer::Timepoint tp)
 
 	if (m_OneSecTimerMutex.try_lock())
 	{
-
 		for (const auto& it : m_OneSecTimers)
 		{
 			it();

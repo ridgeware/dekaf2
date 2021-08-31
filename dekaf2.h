@@ -47,6 +47,7 @@
 
 #include <atomic>
 #include "kconfiguration.h"
+#include "kthreadsafe.h"
 #ifdef DEKAF2_HAS_MINIFOLLY
 #include <folly/CpuId.h>
 #endif
@@ -277,16 +278,12 @@ private:
 	KTimer::ID_t m_OneSecTimerID;
 	std::mutex m_OneSecTimerMutex;
 	std::vector<OneSecCallback> m_OneSecTimers;
-	// we do not make this an atomic, although it rather should be
-	// because we do not want the fence around it and because we
-	// trust that the compiler eventually loads a new value in
-	// readers
-	time_t m_iCurrentTime;
+	std::atomic<time_t> m_iCurrentTime;
 	KTimer::Timepoint m_iCurrentTimepoint;
-	std::default_random_engine m_Random;
+	KThreadSafe<std::default_random_engine> m_Random;
 	bool m_bInConstruction { true };
-	static bool s_bStarted;
-	static bool s_bShutdown;
+	static std::atomic_bool s_bStarted;
+	static std::atomic_bool s_bShutdown;
 
 }; // Dekaf
 

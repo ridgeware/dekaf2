@@ -13,7 +13,7 @@ using namespace dekaf2;
 
 namespace {
 
-bool g_bDone { false };
+std::atomic_bool g_bDone { false };
 
 void rest_test_no_timeout(KRESTServer& REST)
 {

@@ -895,7 +895,7 @@ private:
 	};
 
 	std::unique_ptr<std::thread> m_tTiming;
-	bool m_bShutdown { false };
+	std::atomic_bool m_bShutdown { false };
 	bool m_bDestructWithJoin { false };
 
 	using map_t = std::unordered_map<ID_t, Timer>;

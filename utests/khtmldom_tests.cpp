@@ -7,7 +7,6 @@
 
 using namespace dekaf2;
 
-
 KString print_diff(KStringView s1, KStringView s2)
 {
 	KString sOut;
@@ -33,9 +32,9 @@ KString print_diff(KStringView s1, KStringView s2)
 		{
 			iPos = 0;
 		}
-		sOut += s1.Mid(iPos, 10);
-		sOut += " <> ";
-		sOut += s2.Mid(iPos, 10);
+		sOut += s1.Mid(iPos, 20);
+		sOut += " != ";
+		sOut += s2.Mid(iPos, 20);
 	}
 	return sOut;
 }

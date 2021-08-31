@@ -95,6 +95,7 @@ set (USOURCES
 	kutic_tests.cpp
 	kversion_tests.cpp
 	kwebclient_tests.cpp
+	kwebobjects_tests.cpp
 	kwords_tests.cpp
 	kwriter_tests.cpp
 	kxml_tests.cpp

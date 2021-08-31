@@ -609,6 +609,7 @@ set(PUBLIC_HEADERS
 	kvariant.h
 	kversion.h
 	kwebclient.h
+	kwebobjects.h
 	kwords.h
 	kwriter.h
 	kxml.h
@@ -745,6 +746,7 @@ set (SOURCES
 	kutic.cpp
 	kversion.cpp
 	kwebclient.cpp
+	kwebobjects.cpp
 	kwords.cpp
 	kwriter.cpp
 	kxml.cpp

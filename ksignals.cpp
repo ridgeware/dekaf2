@@ -241,6 +241,32 @@ void KSignals::SetAllSignalHandlers(std_func_t func, bool bAsThread)
 } // SetAllSignalHandlers
 
 //-----------------------------------------------------------------------------
+void KSignals::SetDefaultHandler(int iSignal)
+//-----------------------------------------------------------------------------
+{
+	auto DefaultHandler = [](int iSignal)
+	{
+		kDebug(2, "dekaf2 default handler for {}, now calling exit(0)", kTranslateSignal(iSignal));
+		std::exit(0);
+	};
+
+	switch (iSignal)
+	{
+		case SIGINT:
+		case SIGTERM:
+			kDebug(2, "setting dekaf2 default handler for {}", kTranslateSignal(iSignal));
+			SetSignalHandler(iSignal, DefaultHandler);
+			break;
+
+		default:
+			kDebug(2, "setting system default handler for {}", kTranslateSignal(iSignal));
+			IntDelSignalHandler(iSignal, SIG_DFL);
+			break;
+	}
+
+} // SetDekaf2DefaultHandler
+
+//-----------------------------------------------------------------------------
 KSignals::KSignals(bool bStartHandlerThread)
 //-----------------------------------------------------------------------------
 {
@@ -250,15 +276,9 @@ KSignals::KSignals(bool bStartHandlerThread)
 	{
 		BlockAllSignals();
 
-		auto DefaultHandler = [](int iSignal)
-		{
-			kDebug(2, "dekaf2 default handler for {}, now calling exit(0)", kTranslateSignal(iSignal));
-			std::exit(0);
-		};
-
 		// terminate gracefully on SIGINT and SIGTERM
-		SetSignalHandler(SIGINT,  DefaultHandler);
-		SetSignalHandler(SIGTERM, DefaultHandler);
+		SetDefaultHandler(SIGINT);
+		SetDefaultHandler(SIGTERM);
 
 #ifdef DEKAF2_IS_WINDOWS
 		// On Windows place signal handlers for the settable signals

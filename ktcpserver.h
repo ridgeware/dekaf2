@@ -356,6 +356,7 @@ private:
 	std::mutex                                m_StartupMutex;
 	std::condition_variable                   m_StartedUp;
 
+	std::vector<int> m_RegisteredSignals;
 	KThreadPool      m_ThreadPool;
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	KString          m_sSocketFile;
@@ -369,8 +370,8 @@ private:
 	std::atomic_int  m_iStarted             {     0 };
 	uint16_t         m_iPort                {     0 };
 	uint16_t         m_iTimeout             {    15 };
+	std::atomic_bool m_bQuit                { false };
 	bool             m_bBlock               {  true };
-	bool             m_bQuit                { false };
 	bool             m_bStartIPv4           {  true };
 	bool             m_bStartIPv6           {  true };
 	bool             m_bHaveSeparatev4Thread{ false };

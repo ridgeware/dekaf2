@@ -149,6 +149,11 @@ public:
 		IntDelSignalHandler(iSignal, SIG_IGN);
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Reset signal to default signal handler of KSignals
+	void SetDefaultHandler(int iSignal);
+	//-----------------------------------------------------------------------------
+
 //----------
 private:
 //----------

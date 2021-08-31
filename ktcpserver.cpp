@@ -792,17 +792,16 @@ bool KTCPServer::RegisterShutdownWithSignals(std::vector<int> Signals)
 
 			if (SignalHandlers)
 			{
-				// reset signal handler to call exit()
-				SignalHandlers->SetSignalHandler(signal, [](int signal)
-				{
-					std::exit(0);
-				});
+				// reset signal handler
+				SignalHandlers->SetDefaultHandler(signal);
 			}
 
 			// stop the tcp server
 			this->Stop();
 
 		});
+
+		m_RegisteredSignals.push_back(iSignal);
 	}
 
 	return true;
@@ -834,6 +833,18 @@ KTCPServer::KTCPServer(KStringView sSocketFile, uint16_t iMaxConnections)
 KTCPServer::~KTCPServer()
 //-----------------------------------------------------------------------------
 {
+	auto SignalHandlers = Dekaf::getInstance().Signals();
+
+	if (SignalHandlers)
+	{
+		for (auto iSignal : m_RegisteredSignals)
+		{
+			// reset signal handler to call exit()
+			SignalHandlers->SetDefaultHandler(iSignal);
+		}
+		m_RegisteredSignals.clear();
+	}
+	
 	Stop();
 }
 

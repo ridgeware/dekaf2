@@ -6,6 +6,13 @@
 
 using namespace dekaf2;
 
+// This test works, but somehow the signal gets the catch framework into
+// a bad state so that other tests spuriously fail when this test is run.
+// Therefore it is in general disabled, except when we want to explicitly
+// test this use case.
+
+#ifdef DEKAF2_ENABLE_KTCPSERVER_TEST
+
 TEST_CASE("KTCPServer")
 {
 	KTCPServer server(6789, false);
@@ -23,3 +30,4 @@ TEST_CASE("KTCPServer")
 	t1.join();
 }
 
+#endif

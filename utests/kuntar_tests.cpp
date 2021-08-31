@@ -37,7 +37,7 @@ TEST_CASE("KUnTar")
 		}
 		CHECK ( kFileExists(sTarDir + "file1.txt") );
 		{
-			KInShell Shell(kFormat("cd {} && tar -c -f {}test1.tar myfolder", sBaseDir, sBaseDir));
+			KInShell Shell(kFormat("cd {} && tar -c -f test1.tar myfolder", sBaseDir));
 		}
 		{
 			KOutFile File(sTarDir + "file2.txt");
@@ -46,28 +46,28 @@ TEST_CASE("KUnTar")
 		}
 		CHECK ( kFileExists(sTarDir + "file2.txt") );
 		{
-			KInShell Shell(kFormat("cd {} && tar -r -f {}test1.tar myfolder{}file2.txt", sBaseDir, sBaseDir, kDirSep));
+			KInShell Shell(kFormat("cd {} && tar -r -f test1.tar myfolder/file2.txt", sBaseDir));
 		}
 		{
 			KOutFile File(sTarDir + "filé3.txt");
 			File.WriteLine("this is yet another line 1");
 			File.WriteLine("this is yet another line 2");
 		}
+		CHECK ( kFileExists(sTarDir + "filé3.txt") );
 		{
 			kSetCWD(sTarDir);
 			kCreateSymlink ("file2.txt", "symlink.txt");
 			kCreateHardlink("file2.txt", "hardlink.txt");
 			kSetCWD(sBaseDir);
 		}
-		CHECK ( kFileExists(sTarDir + "filé3.txt") );
 		{
-			KInShell Shell(kFormat("cd {} && tar -r -f {}test1.tar myfolder{}filé3.txt", sBaseDir, sBaseDir, kDirSep));
+			KInShell Shell(kFormat("cd {} && tar -r -f test1.tar myfolder/filé3.txt", sBaseDir));
 		}
 		{
-			KInShell Shell(kFormat("cd {} && tar -r -f {}test1.tar myfolder{}symlink.txt", sBaseDir, sBaseDir, kDirSep));
+			KInShell Shell(kFormat("cd {} && tar -r -f test1.tar myfolder/symlink.txt", sBaseDir));
 		}
 		{
-			KInShell Shell(kFormat("cd {} && tar -r -f {}test1.tar myfolder{}hardlink.txt", sBaseDir, sBaseDir, kDirSep));
+			KInShell Shell(kFormat("cd {} && tar -r -f test1.tar myfolder/hardlink.txt", sBaseDir));
 		}
 		{
 			KInShell Shell(kFormat("cd {} && cp test1.tar test2.tar && cp test1.tar test3.tar", sBaseDir));

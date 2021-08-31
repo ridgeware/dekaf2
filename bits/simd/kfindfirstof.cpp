@@ -835,7 +835,7 @@ size_t kFindLastOf(KStringView haystack, KStringView needles)
 
 	if (DEKAF2_UNLIKELY(UnalignedPageUnderflow(haystack)))
 	{
-		dekaf2::detail::no_sse::kFindLastOf(haystack, needles, false);
+		return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, false);
 	}
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
@@ -902,7 +902,7 @@ size_t kFindLastNotOf(KStringView haystack, KStringView needles)
 	// test for underflow on haystack
 	if (DEKAF2_UNLIKELY(UnalignedPageUnderflow(haystack)))
 	{
-		dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
+		return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
 	}
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
@@ -920,7 +920,7 @@ size_t kFindLastNotOf(KStringView haystack, KStringView needles)
 	// we need to test for an overflow on haystack as well
 	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
 	{
-		dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
+		return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
 	}
 
 	// Account for haystack < 16

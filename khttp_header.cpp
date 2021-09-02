@@ -40,6 +40,7 @@
 */
 
 #include "khttp_header.h"
+#include "kstring.h"
 #include "kctype.h"
 #include "kbase64.h"
 

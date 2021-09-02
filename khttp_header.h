@@ -42,6 +42,7 @@
 #pragma once
 
 #include "kstringview.h"
+#include "kstring.h"
 #include "kcasestring.h"
 #include "kprops.h"
 #include "kformat.h"

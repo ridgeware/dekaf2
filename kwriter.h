@@ -194,6 +194,7 @@ public:
 	/// Write a fmt::printf() formatted argument list. Returns stream reference that
 	/// resolves to false on failure. Now DEPRECATED, please use Format()!
 	template<class... Args>
+	DEKAF2_DEPRECATED("only for compatibility with old code")
 	self_type& Printf(Args&&... args)
 	//-----------------------------------------------------------------------------
 	{

@@ -40,6 +40,7 @@
  */
 
 #include "khttp_request.h"
+#include "kstring.h"
 
 namespace dekaf2 {
 

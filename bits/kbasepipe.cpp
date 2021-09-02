@@ -48,6 +48,7 @@
 #include "../ksignals.h"
 #include "../kchildprocess.h"
 #include "../klog.h"
+#include "../kstring.h"
 #include <csignal>
 
 namespace dekaf2

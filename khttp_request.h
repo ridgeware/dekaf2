@@ -46,6 +46,7 @@
 #include "khttpoutputfilter.h"
 #include "khttpinputfilter.h"
 #include "kurl.h"
+#include "kstring.h"
 
 namespace dekaf2 {
 

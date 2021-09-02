@@ -41,6 +41,7 @@
 */
 
 #include "kbufferedreader.h"
+#include "kstring.h"
 #include "klog.h"
 #include <algorithm>
 

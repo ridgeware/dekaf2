@@ -41,6 +41,7 @@
 
 #pragma once
 
+#include "kstring.h"
 #include "kstringview.h"
 #include "kconnection.h"
 #include "khttp_response.h"

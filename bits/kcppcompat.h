@@ -209,15 +209,15 @@
 #endif
 
 #if DEKAF2_HAS_CPP_ATTRIBUTE(gsl::Owner)
-	#define DEKAF2_OWNER(x) [[gsl::Owner(x)]]
+	#define DEKAF2_GSL_OWNER(x) [[gsl::Owner(x)]]
 #else
-	#define DEKAF2_OWNER(x)
+	#define DEKAF2_GSL_OWNER(x)
 #endif
 
 #if DEKAF2_HAS_CPP_ATTRIBUTE(gsl::Pointer)
-	#define DEKAF2_POINTER(x) [[gsl::Pointer(x)]]
+	#define DEKAF2_GSL_POINTER(x) [[gsl::Pointer(x)]]
 #else
-	#define DEKAF2_POINTER(x)
+	#define DEKAF2_GSL_POINTER(x)
 #endif
 
 #if DEKAF2_HAS_CPP_20

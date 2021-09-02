@@ -665,8 +665,6 @@ TEST_CASE("KStringView") {
 	{
 		KString s;
 		KStringView sv = "a string view";
-		s.Printf("This is %s", sv);
-		CHECK( s == "This is a string view" );
 		s.Format("This is {}", sv);
 		CHECK( s == "This is a string view" );
 	}

@@ -55,7 +55,9 @@ namespace detail {
 
 std::ostream& kfFormat(std::ostream& os, KStringView sFormat, fmt::format_args args);
 KString kFormat(KStringView sFormat, fmt::format_args args);
+DEKAF2_DEPRECATED("only for compatibility with old code")
 std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, fmt::printf_args args);
+DEKAF2_DEPRECATED("only for compatibility with old code")
 KString kPrintf(KStringView sFormat, fmt::printf_args args);
 
 } // end of namespace detail
@@ -102,6 +104,7 @@ KString kFormat(KStringView sFormat, Args&&... args)
 //-----------------------------------------------------------------------------
 /// format-noop for a file
 inline
+DEKAF2_DEPRECATED("only for compatibility with old code")
 std::ostream& kfPrintf(std::ostream& os, KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
@@ -112,6 +115,7 @@ std::ostream& kfPrintf(std::ostream& os, KStringView sFormat)
 //-----------------------------------------------------------------------------
 /// formats a file using POSIX printf syntax
 template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+DEKAF2_DEPRECATED("only for compatibility with old code")
 std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, Args&&... args)
 //-----------------------------------------------------------------------------
 {
@@ -121,6 +125,7 @@ std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, Args&&... args)
 //-----------------------------------------------------------------------------
 /// format no-op
 inline
+DEKAF2_DEPRECATED("only for compatibility with old code")
 KString kPrintf(KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
@@ -130,6 +135,7 @@ KString kPrintf(KStringView sFormat)
 //-----------------------------------------------------------------------------
 /// formats a KString using POSIX printf syntax
 template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+DEKAF2_DEPRECATED("only for compatibility with old code")
 KString kPrintf(KStringView sFormat, Args&&... args)
 //-----------------------------------------------------------------------------
 {

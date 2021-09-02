@@ -721,7 +721,7 @@ KStringView KString::ToView(size_type pos, size_type n) const
 } // ToView
 
 //----------------------------------------------------------------------
-KString& KString::MakeLower()
+KString& KString::MakeLower() &
 //----------------------------------------------------------------------
 {
 	char* sOut { data() };
@@ -734,7 +734,7 @@ KString& KString::MakeLower()
 } // MakeLower
 
 //----------------------------------------------------------------------
-KString& KString::MakeUpper()
+KString& KString::MakeUpper() &
 //----------------------------------------------------------------------
 {
 	char* sOut { data() };
@@ -747,7 +747,7 @@ KString& KString::MakeUpper()
 } // MakeUpper
 
 //----------------------------------------------------------------------
-KString& KString::MakeLowerLocale()
+KString& KString::MakeLowerLocale() &
 //----------------------------------------------------------------------
 {
 	for (auto& it : m_rep)
@@ -759,7 +759,7 @@ KString& KString::MakeLowerLocale()
 } // MakeLowerLocale
 
 //----------------------------------------------------------------------
-KString& KString::MakeUpperLocale()
+KString& KString::MakeUpperLocale() &
 //----------------------------------------------------------------------
 {
 	for (auto& it : m_rep)
@@ -771,7 +771,7 @@ KString& KString::MakeUpperLocale()
 } // MakeUpperLocale
 
 //----------------------------------------------------------------------
-KString& KString::MakeLowerASCII()
+KString& KString::MakeLowerASCII() &
 //----------------------------------------------------------------------
 {
 	for (auto& it : m_rep)
@@ -783,7 +783,7 @@ KString& KString::MakeLowerASCII()
 } // MakeLowerASCII
 
 //----------------------------------------------------------------------
-KString& KString::MakeUpperASCII()
+KString& KString::MakeUpperASCII() &
 //----------------------------------------------------------------------
 {
 	for (auto& it : m_rep)
@@ -795,7 +795,7 @@ KString& KString::MakeUpperASCII()
 } // MakeUpperASCII
 
 //----------------------------------------------------------------------
-KString& KString::PadLeft(size_t iWidth, value_type chPad)
+KString& KString::PadLeft(size_t iWidth, value_type chPad) &
 //----------------------------------------------------------------------
 {
 	dekaf2::kPadLeft(m_rep, iWidth, chPad);
@@ -803,7 +803,7 @@ KString& KString::PadLeft(size_t iWidth, value_type chPad)
 }
 
 //----------------------------------------------------------------------
-KString& KString::PadRight(size_t iWidth, value_type chPad)
+KString& KString::PadRight(size_t iWidth, value_type chPad) &
 //----------------------------------------------------------------------
 {
 	dekaf2::kPadRight(m_rep, iWidth, chPad);
@@ -811,7 +811,7 @@ KString& KString::PadRight(size_t iWidth, value_type chPad)
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimLeft()
+KString& KString::TrimLeft() &
 //----------------------------------------------------------------------
 {
 	dekaf2::kTrimLeft(m_rep, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
@@ -819,7 +819,7 @@ KString& KString::TrimLeft()
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimLeft(value_type chTrim)
+KString& KString::TrimLeft(value_type chTrim) &
 //----------------------------------------------------------------------
 {
 	dekaf2::kTrimLeft(m_rep, [chTrim](value_type ch){ return ch == chTrim; } );
@@ -827,7 +827,7 @@ KString& KString::TrimLeft(value_type chTrim)
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimLeft(KStringView sTrim)
+KString& KString::TrimLeft(KStringView sTrim) &
 //----------------------------------------------------------------------
 {
 	if (sTrim.size() == 1)
@@ -839,7 +839,7 @@ KString& KString::TrimLeft(KStringView sTrim)
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimRight()
+KString& KString::TrimRight() &
 //----------------------------------------------------------------------
 {
 	dekaf2::kTrimRight(m_rep, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
@@ -847,7 +847,7 @@ KString& KString::TrimRight()
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimRight(value_type chTrim)
+KString& KString::TrimRight(value_type chTrim) &
 //----------------------------------------------------------------------
 {
 	dekaf2::kTrimRight(m_rep, [chTrim](value_type ch){ return ch == chTrim; } );
@@ -855,7 +855,7 @@ KString& KString::TrimRight(value_type chTrim)
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimRight(KStringView sTrim)
+KString& KString::TrimRight(KStringView sTrim) &
 //----------------------------------------------------------------------
 {
 	if (sTrim.size() == 1)
@@ -867,7 +867,7 @@ KString& KString::TrimRight(KStringView sTrim)
 }
 
 //----------------------------------------------------------------------
-KString& KString::Trim()
+KString& KString::Trim() &
 //----------------------------------------------------------------------
 {
 	dekaf2::kTrim(m_rep, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
@@ -875,7 +875,7 @@ KString& KString::Trim()
 }
 
 //----------------------------------------------------------------------
-KString& KString::Trim(value_type chTrim)
+KString& KString::Trim(value_type chTrim) &
 //----------------------------------------------------------------------
 {
 	dekaf2::kTrim(m_rep, [chTrim](value_type ch){ return ch == chTrim; } );
@@ -883,7 +883,7 @@ KString& KString::Trim(value_type chTrim)
 }
 
 //----------------------------------------------------------------------
-KString& KString::Trim(KStringView sTrim)
+KString& KString::Trim(KStringView sTrim) &
 //----------------------------------------------------------------------
 {
 	if (sTrim.size() == 1)
@@ -895,7 +895,7 @@ KString& KString::Trim(KStringView sTrim)
 }
 
 //----------------------------------------------------------------------
-KString& KString::Collapse()
+KString& KString::Collapse() &
 //----------------------------------------------------------------------
 {
 	return kCollapse(*this, " \f\n\r\t\v\b", ' ');
@@ -903,7 +903,7 @@ KString& KString::Collapse()
 }
 
 //----------------------------------------------------------------------
-KString& KString::Collapse(KStringView svCollapse, value_type chTo)
+KString& KString::Collapse(KStringView svCollapse, value_type chTo) &
 //----------------------------------------------------------------------
 {
 	kCollapse(*this, svCollapse, chTo);
@@ -911,7 +911,7 @@ KString& KString::Collapse(KStringView svCollapse, value_type chTo)
 }
 
 //----------------------------------------------------------------------
-KString& KString::CollapseAndTrim()
+KString& KString::CollapseAndTrim() &
 //----------------------------------------------------------------------
 {
 	return kCollapseAndTrim(*this, " \f\n\r\t\v\b", ' ');
@@ -919,7 +919,7 @@ KString& KString::CollapseAndTrim()
 }
 
 //----------------------------------------------------------------------
-KString& KString::CollapseAndTrim(KStringView svCollapse, value_type chTo)
+KString& KString::CollapseAndTrim(KStringView svCollapse, value_type chTo) &
 //----------------------------------------------------------------------
 {
 	kCollapseAndTrim(*this, svCollapse, chTo);

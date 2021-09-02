@@ -127,22 +127,6 @@ TEST_CASE("KWriter") {
 
 	kSetCWD("/tmp");
 
-	SECTION("Printf")
-	{
-		KString sFile(kFormat("{}/printf.txt", TempDir.Name()));
-		{
-			KOutFile out(sFile);
-			int i = 123;
-			out.Printf("test: %d\n", i);
-		}
-		{
-			KInFile inf(sFile);
-			KString sRead;
-			inf.ReadLine(sRead);
-			CHECK (sRead == "test: 123");
-		}
-	}
-
 	SECTION("Short write to file")
 	{
 		KString sLarge;

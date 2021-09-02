@@ -737,12 +737,8 @@ TEST_CASE("KString") {
 	{
 		KString s;
 		KString str = "a string";
-		s.Printf("This is %s", str);
-		CHECK( s == "This is a string" );
 		s.Format("This is {}", str);
 		CHECK( s == "This is a string" );
-		s.Format("{:.2f}", 3.1415);
-		CHECK( s == "3.14" );
 	}
 
 	SECTION("conversion functions for KString")
@@ -1690,5 +1686,30 @@ TEST_CASE("KString") {
 		}
 	}
 
+	SECTION("trimming")
+	{
+		KString sTrim;
+
+		sTrim.Trim();
+		sTrim.Trim(' ');
+		sTrim.Trim("    ");
+		sTrim.TrimLeft();
+		sTrim.TrimLeft(' ');
+		sTrim.TrimLeft("    ");
+		sTrim.TrimRight();
+		sTrim.TrimRight(' ');
+		sTrim.TrimRight("    ");
+
+		KString sNew;
+		sNew = KString().Trim();
+		sNew = KString().Trim(' ');
+		sNew = KString().Trim("   ");
+		sNew = KString().TrimLeft();
+		sNew = KString().TrimLeft(' ');
+		sNew = KString().TrimLeft("   ");
+		sNew = KString().TrimRight();
+		sNew = KString().TrimRight(' ');
+		sNew = KString().TrimRight("   ");
+	}
 }
 

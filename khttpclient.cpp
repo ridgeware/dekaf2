@@ -43,6 +43,7 @@
 #include "khttperror.h"
 #include "kbase64.h"
 #include "kmessagedigest.h"
+#include "kstring.h"
 
 namespace dekaf2 {
 

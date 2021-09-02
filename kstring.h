@@ -102,7 +102,7 @@ KString kToLowerASCII(KStringView sInput);
 /// that offers most string functions from languages like Python or Javascript,
 /// handles most error cases in a benign way and speeds up searching
 /// up to 50 times compared to std::string implementations
-class DEKAF2_OWNER() KString
+class DEKAF2_GSL_OWNER() KString
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -430,10 +430,15 @@ public:
 
 	/// print arguments with fmt::format
 	template<class... Args>
-	self& Format(Args&&... args);
+	self& Format(Args&&... args) &;
+
+	/// print arguments with fmt::format
+	template<class... Args>
+	self&& Format(Args&&... args) && { return std::move(Format(std::forward<Args>(args)...)); }
 
 	/// print arguments with fmt::printf - now DEPRECATED, please use Format()!
 	template<class... Args>
+	DEKAF2_DEPRECATED("only for compatibility with old code")
 	self& Printf(Args&&... args);
 
 	/// match with regular expression and return the overall match (group 0)
@@ -452,16 +457,16 @@ public:
 	size_type Replace(value_type chSearch, value_type chReplace, size_type pos = 0, bool bReplaceAll = true);
 
 	// std::C++20
-	/// does the string start with sPattern?
-	bool starts_with(KStringView sPattern) const noexcept;
+	/// does the string start with sSubString?
+	bool starts_with(KStringView sSubString) const noexcept;
 
 	// std::C++20
 	/// does the string start with sChar?
 	bool starts_with(value_type	ch) const noexcept;
 
 	// std::C++20
-	/// does the string end with sPattern?
-	bool ends_with(KStringView sPattern) const noexcept;
+	/// does the string end with sSubString?
+	bool ends_with(KStringView sSubString) const noexcept;
 
 	// std::C++20
 	/// does the string end with sChar?
@@ -472,38 +477,56 @@ public:
 	bool contains(value_type ch) const noexcept;
 
 	// std::C++23
-	/// does the string contain the sPattern?
-	bool contains(KStringView sPattern) const noexcept;
+	/// does the string contain the sSubString?
+	bool contains(KStringView sSubString) const noexcept;
 
-	/// does the string start with sPattern? (Now deprecated, replace by starts_with())
-	bool StartsWith(KStringView sPattern) const noexcept;
+	/// does the string start with sSubString? (Now deprecated, replace by starts_with())
+	bool StartsWith(KStringView sSubString) const noexcept;
 
-	/// does the string end with sPattern? (Now deprecated, replace by ends_with())
-	bool EndsWith(KStringView sPattern) const noexcept;
+	/// does the string end with sSubString? (Now deprecated, replace by ends_with())
+	bool EndsWith(KStringView sSubString) const noexcept;
 
-	/// does the string contain the sPattern? (Now deprecated, replace by contains())
-	bool Contains(KStringView sPattern) const noexcept;
+	/// does the string contain the sSubString? (Now deprecated, replace by contains())
+	bool Contains(KStringView sSubString) const noexcept;
 
 	/// does the string contain the ch? (Now deprecated, replace by contains())
 	bool Contains(value_type ch) const noexcept;
 
 	/// changes the string to lowercase (UTF8)
-	self& MakeLower();
+	self& MakeLower() &;
+
+	/// changes the string to lowercase (UTF8)
+	self&& MakeLower() && { return std::move(MakeLower()); }
 
 	/// changes the string to uppercase (UTF8)
-	self& MakeUpper();
+	self& MakeUpper() &;
+
+	/// changes the string to uppercase (UTF8)
+	self&& MakeUpper() && { return std::move(MakeUpper()); }
 
 	/// changes the string to lowercase according to the current locale (does not work with UTF8 strings)
-	self& MakeLowerLocale();
+	self& MakeLowerLocale() &;
+
+	/// changes the string to lowercase according to the current locale (does not work with UTF8 strings)
+	self&& MakeLowerLocale() && { return std::move(MakeLowerLocale()); }
 
 	/// changes the string to uppercase according to the current locale (does not work with UTF8 strings)
-	self& MakeUpperLocale();
+	self& MakeUpperLocale() &;
+
+	/// changes the string to uppercase according to the current locale (does not work with UTF8 strings)
+	self&& MakeUpperLocale() && { return std::move(MakeUpperLocale()); }
 
 	/// changes the string to lowercase assuming ASCII encoding
-	self& MakeLowerASCII();
+	self& MakeLowerASCII() &;
+
+	/// changes the string to lowercase assuming ASCII encoding
+	self&& MakeLowerASCII() && { return std::move(MakeLowerASCII()); }
 
 	/// changes the string to uppercase assuming ASCII encoding
-	self& MakeUpperASCII();
+	self& MakeUpperASCII() &;
+
+	/// changes the string to uppercase assuming ASCII encoding
+	self&& MakeUpperASCII() && { return std::move(MakeUpperASCII()); }
 
 	/// returns a copy of the string in uppercase (UTF8)
 	KString ToUpper() const;
@@ -548,41 +571,71 @@ public:
 	KStringViewZ RightUTF8(size_type iCount) const;
 
 	/// pads string at the left up to iWidth size with chPad
-	self& PadLeft(size_t iWidth, value_type chPad = ' ');
+	self& PadLeft(size_t iWidth, value_type chPad = ' ') &;
+	/// pads string at the left up to iWidth size with chPad
+	self&& PadLeft(size_t iWidth, value_type chPad = ' ') && { return std::move(PadLeft(iWidth, chPad)); }
 
 	/// pads string at the right up to iWidth size with chPad
-	self& PadRight(size_t iWidth, value_type chPad = ' ');
+	self& PadRight(size_t iWidth, value_type chPad = ' ') &;
+	/// pads string at the right up to iWidth size with chPad
+	self&& PadRight(size_t iWidth, value_type chPad = ' ') && { return std::move(PadRight(iWidth, chPad)); }
 
 	/// removes white space from the left of the string
-	self& TrimLeft();
+	self& TrimLeft() &;
+	/// removes white space from the left of the string
+	self&& TrimLeft() && { return std::move(TrimLeft()); }
 	/// removes chTrim from the left of the string
-	self& TrimLeft(value_type chTrim);
+	self& TrimLeft(value_type chTrim) &;
+	/// removes chTrim from the left of the string
+	self&& TrimLeft(value_type chTrim) && { return std::move(TrimLeft(chTrim)); }
 	/// removes any character in sTrim from the left of the string
-	self& TrimLeft(KStringView sTrim);
+	self& TrimLeft(KStringView sTrim) &;
+	/// removes any character in sTrim from the left of the string
+	self&& TrimLeft(KStringView sTrim) &&;
 
 	/// removes white space from the right of the string
-	self& TrimRight();
+	self& TrimRight() &;
+	/// removes white space from the right of the string
+	self&& TrimRight() && { return std::move(TrimRight()); }
 	/// removes chTrim from the right of the string
-	self& TrimRight(value_type chTrim);
+	self& TrimRight(value_type chTrim) &;
+	/// removes chTrim from the right of the string
+	self&& TrimRight(value_type chTrim) && { return std::move(TrimRight(chTrim)); }
 	/// removes any character in sTrim from the right of the string
-	self& TrimRight(KStringView sTrim);
+	self& TrimRight(KStringView sTrim)&;
+	/// removes any character in sTrim from the right of the string
+	self&& TrimRight(KStringView sTrim) &&;
 
 	/// removes white space from the left and right of the string
-	self& Trim();
+	self& Trim() &;
+	/// removes white space from the left and right of the string
+	self&& Trim() && { return std::move(Trim()); }
 	/// removes chTrim from the left and right of the string
-	self& Trim(value_type chTrim);
+	self& Trim(value_type chTrim) &;
+	/// removes chTrim from the left and right of the string
+	self&& Trim(value_type chTrim) && { return std::move(Trim(chTrim)); }
 	/// removes any character in sTrim from the left and right of the string
-	self& Trim(KStringView sTrim);
+	self& Trim(KStringView sTrim) &;
+	/// removes any character in sTrim from the left and right of the string
+	self&& Trim(KStringView sTrim) &&;
 
 	/// Collapses multiple white space to one space
-	self& Collapse();
+	self& Collapse() &;
+	/// Collapses multiple white space to one space
+	self&& Collapse() && { return std::move(Collapse()); }
 	/// Collapses consecutive chars in svCollapse to one instance of chTo
-	self& Collapse(KStringView svCollapse, value_type chTo);
+	self& Collapse(KStringView svCollapse, value_type chTo) &;
+	/// Collapses consecutive chars in svCollapse to one instance of chTo
+	self&& Collapse(KStringView svCollapse, value_type chTo) &&;
 
 	/// Collapses multiple white space to one space and trims left and right white space
-	self& CollapseAndTrim();
+	self& CollapseAndTrim() &;
+	/// Collapses multiple white space to one space and trims left and right white space
+	self&& CollapseAndTrim() && { return std::move(CollapseAndTrim()); }
 	/// Collapses consecutive chars in svCollapse to one instance of chTo and trims the same chars left and right
-	self& CollapseAndTrim(KStringView svCollapse, value_type chTo);
+	self& CollapseAndTrim(KStringView svCollapse, value_type chTo) &;
+	/// Collapses consecutive chars in svCollapse to one instance of chTo and trims the same chars left and right
+	self&& CollapseAndTrim(KStringView svCollapse, value_type chTo) &&;
 
 	/// Clip removing sClipAt and everything to its right if found; otherwise do not alter the string
 	bool ClipAt(KStringView sClipAt);
@@ -621,7 +674,16 @@ public:
 	/// @param svPairDelim a stringview that is inserted between key and value of an
 	/// associative element
 	template<typename T, typename... Parms>
-	self& Join(const T& Container, Parms&&... parms);
+	self& Join(const T& Container, Parms&&... parms) &;
+
+	/// Append a sequence of tokens. If the container is an associative type (e.g. a map),
+	/// key-value pairs are added.
+	/// @return *this
+	/// @param svDelim a stringview that is inserted between elements
+	/// @param svPairDelim a stringview that is inserted between key and value of an
+	/// associative element
+	template<typename T, typename... Parms>
+	self&& Join(const T& Container, Parms&&... parms) && { return std::move(Join(Container, std::forward<Parms>(parms)...)); }
 
 	/// convert to representation type
 	operator const string_type&()    const { return m_rep;               }
@@ -1276,17 +1338,17 @@ inline bool KString::remove_prefix(KStringView prefix)
 }
 
 //-----------------------------------------------------------------------------
-inline bool KString::starts_with(KStringView sPattern) const noexcept
+inline bool KString::starts_with(KStringView sSubString) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kStartsWith(*this, sPattern);
+	return kStartsWith(*this, sSubString);
 }
 
 //-----------------------------------------------------------------------------
-inline bool KString::ends_with(KStringView sPattern) const noexcept
+inline bool KString::ends_with(KStringView sSubString) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kEndsWith(*this, sPattern);
+	return kEndsWith(*this, sSubString);
 }
 
 //-----------------------------------------------------------------------------
@@ -1304,10 +1366,10 @@ inline bool KString::ends_with(value_type ch) const noexcept
 }
 
 //-----------------------------------------------------------------------------
-inline bool KString::contains(KStringView sPattern) const noexcept
+inline bool KString::contains(KStringView sSubString) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kContains(*this, sPattern);
+	return kContains(*this, sSubString);
 }
 
 //-----------------------------------------------------------------------------
@@ -1318,24 +1380,24 @@ inline bool KString::contains(const KString::value_type ch) const noexcept
 }
 
 //-----------------------------------------------------------------------------
-inline bool KString::StartsWith(KStringView sPattern) const noexcept
+inline bool KString::StartsWith(KStringView sSubString) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return starts_with(sPattern);
+	return starts_with(sSubString);
 }
 
 //-----------------------------------------------------------------------------
-inline bool KString::EndsWith(KStringView sPattern) const noexcept
+inline bool KString::EndsWith(KStringView sSubString) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return ends_with(sPattern);
+	return ends_with(sSubString);
 }
 
 //-----------------------------------------------------------------------------
-inline bool KString::Contains(KStringView sPattern) const noexcept
+inline bool KString::Contains(KStringView sSubString) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kContains(*this, sPattern);
+	return kContains(*this, sSubString);
 }
 
 //-----------------------------------------------------------------------------
@@ -1402,6 +1464,41 @@ inline bool KString::In(KStringView sHaystack, value_type iDelim) const
 }
 
 //-----------------------------------------------------------------------------
+inline KString::self&& KString::TrimLeft(KStringView sTrim) &&
+//-----------------------------------------------------------------------------
+{
+	return std::move(TrimLeft(sTrim));
+}
+
+//-----------------------------------------------------------------------------
+inline KString::self&& KString::TrimRight(KStringView sTrim) &&
+//-----------------------------------------------------------------------------
+{
+	return std::move(TrimRight(sTrim));
+}
+
+//-----------------------------------------------------------------------------
+inline KString::self&& KString::Trim(KStringView sTrim) &&
+//-----------------------------------------------------------------------------
+{
+	return std::move(Trim(sTrim));
+}
+
+//-----------------------------------------------------------------------------
+inline KString::self&& KString::Collapse(KStringView svCollapse, value_type chTo) &&
+//-----------------------------------------------------------------------------
+{
+	return std::move(Collapse(svCollapse, chTo));
+}
+
+//-----------------------------------------------------------------------------
+inline KString::self&& KString::CollapseAndTrim(KStringView svCollapse, value_type chTo) &&
+//-----------------------------------------------------------------------------
+{
+	return std::move(CollapseAndTrim(svCollapse, chTo));
+}
+
+//-----------------------------------------------------------------------------
 template<typename T, typename...Parms>
 T KString::Split(Parms&&... parms) const
 //-----------------------------------------------------------------------------
@@ -1413,7 +1510,7 @@ T KString::Split(Parms&&... parms) const
 
 //-----------------------------------------------------------------------------
 template<typename T, typename...Parms>
-KString::self& KString::Join(const T& Container, Parms&&... parms)
+KString::self& KString::Join(const T& Container, Parms&&... parms) &
 //-----------------------------------------------------------------------------
 {
 	kJoin(*this, Container, std::forward<Parms>(parms)...);
@@ -1788,7 +1885,7 @@ inline KString::operator fmt::string_view() const
 
 //----------------------------------------------------------------------
 template<class... Args>
-KString& KString::Format(Args&&... args)
+KString& KString::Format(Args&&... args) &
 //----------------------------------------------------------------------
 {
 	*this = kFormat(std::forward<Args>(args)...);

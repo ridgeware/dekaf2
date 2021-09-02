@@ -53,7 +53,7 @@ namespace dekaf2 {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A string_view type with a guaranteed trailing zero that can be used on
 /// any C API
-class KStringViewZ : private KStringView
+class DEKAF2_POINTER() KStringViewZ : private KStringView
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

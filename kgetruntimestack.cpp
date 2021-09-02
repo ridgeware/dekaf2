@@ -257,7 +257,7 @@ KStringView GetStackAddress (KStringView sBacktraceLine)
 
 	if (e == KString::npos)
 	{
-		return KString();
+		return KStringView();
 	}
 
 	return sBacktraceLine.substr(i + 1, e - i - 1);

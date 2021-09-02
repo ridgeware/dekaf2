@@ -214,7 +214,7 @@ TEST_CASE("KStringView") {
 
 		// Ensure logic doesn't break down no matter what the start position is
 
-		for (int i = 0; i < 92; i++)
+		for (std::size_t i = 0; i < 92; i++)
 		{
 			KStringView temp(&haystack3[0][i]);
 			CHECK(temp.find_last_of('z') == 91 - i);
@@ -258,7 +258,7 @@ TEST_CASE("KStringView") {
 			CHECK(temp.find_last_not_of('z') == 90 - i);
 		}
 
-		for (int i = 0; i < 26; i++)
+		for (std::size_t i = 0; i < 26; i++)
 		{
 			KStringView tneedle(&needle3[2][i]);
 			KStringView temp(&haystack3[0][i]);
@@ -358,7 +358,7 @@ TEST_CASE("KStringView") {
 
 		// Ensure logic doesn't break down no matter what the start position is
 
-		for (int i = 0; i < 92; i++)
+		for (std::size_t i = 0; i < 92; i++)
 		{
 			KStringView temp(&haystack3[0][i]);
 			CHECK(temp.find_first_of('z') == 91 - i);
@@ -413,7 +413,7 @@ TEST_CASE("KStringView") {
 			CHECK(temp.find_first_not_of('z') == 0);
 		}
 
-		for (int i = 0; i < 26; i++)
+		for (std::size_t i = 0; i < 26; i++)
 		{
 			KStringView tneedle(&needle3[2][i]);
 			KStringView temp(&haystack3[0][i]);
@@ -458,7 +458,7 @@ TEST_CASE("KStringView") {
 
 		CHECK(sv.find_first_of(needle[0]) == 132);
 
-		for (int i = 0; i < 184; i++)
+		for (std::size_t i = 0; i < 184; i++)
 		{
 			INFO("i = " + std::to_string(i));
 			KStringView tsv(&haystack[0][i]);
@@ -490,7 +490,7 @@ TEST_CASE("KStringView") {
 				CHECK(tsv.find_last_of("z") == 183 - i);
 			}
 		}
-		for (int i = 0; i < 26; i++)
+		for (std::size_t i = 0; i < 26; i++)
 		{
 			INFO("i = " + std::to_string(i));
 			KStringView tsv(&haystack[0][i]);

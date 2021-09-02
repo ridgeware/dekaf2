@@ -102,7 +102,7 @@ KString kToLowerASCII(KStringView sInput);
 /// that offers most string functions from languages like Python or Javascript,
 /// handles most error cases in a benign way and speeds up searching
 /// up to 50 times compared to std::string implementations
-class KString 
+class DEKAF2_OWNER() KString
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

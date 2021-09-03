@@ -128,7 +128,7 @@ public:
 
 	/// Insert an element into the list of children, return child reference
 	template<typename T,
-	typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
+	         typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
 	T& Insert(iterator it, T Object)
 	{
 		auto up = std::make_unique<T>(std::move(Object));
@@ -169,20 +169,24 @@ public:
 
 	/// Add an element to the list of children, return parent reference
 	template<typename T,
-	typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
-	KHTMLElement& operator+=(const T& Object)
+	         typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
+	T& operator+=(const T& Object)
 	{
-		Add(Object);
-		return *this;
+		return Add(Object);
 	}
 
 	/// Add an element to the list of children, return parent reference
 	template<typename T,
-	typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
-	KHTMLElement& operator+=(T&& Object)
+	         typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
+	T& operator+=(T&& Object)
 	{
-		Add(std::move(Object));
-		return *this;
+		return Add(std::move(Object));
+	}
+
+	/// Construct a new KHTMLElement and add it to the list of children, return child reference
+	KHTMLElement& operator+=(KString sElementName)
+	{
+		return Add(KHTMLElement(std::move(sElementName)));
 	}
 
 	/// Add a text element to the list of children. Adjacent text elements get merged. Text is automatically escaped.
@@ -203,7 +207,7 @@ public:
 	/// @param sName the attribute name
 	/// @param bYesNo boolean attribute value
 	template<typename Boolean,
-	    typename std::enable_if<std::is_same<Boolean, bool>::value == true, int>::type = 0>
+	         typename std::enable_if<std::is_same<Boolean, bool>::value == true, int>::type = 0>
 	self& SetAttribute(KString sName, Boolean bYesNo)
 	{
 		return SetBoolAttribute(std::move(sName), bYesNo);
@@ -213,8 +217,8 @@ public:
 	/// @param sName the attribute name
 	/// @param iValue numeric attribute value
 	template<typename Numeric,
-	    typename std::enable_if<std::is_arithmetic<Numeric>::value   == true
-	                         && std::is_same<Numeric, bool>::value == false, int>::type = 0>
+	         typename std::enable_if<std::is_arithmetic<Numeric>::value   == true
+	                              && std::is_same<Numeric, bool>::value == false, int>::type = 0>
 	self& SetAttribute(KString sName, Numeric iValue, KStringView sFormat = "{}")
 	{
 		return SetAttribute(std::move(sName), kFormat(sFormat, iValue));

@@ -104,6 +104,30 @@ public:
 
 }; // KHTMLObject
 
+template<typename T,
+		 typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
+inline KOutStream& operator <<(KOutStream& stream, const T& Object)
+{
+	Object.Serialize(stream);
+	return stream;
+}
+
+template<typename T,
+		 typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
+inline KInStream& operator >>(KInStream& stream, T& Object)
+{
+	Object.Parse(stream);
+	return stream;
+}
+
+template<typename T,
+		 typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
+inline KInStream& operator <<(T& Object, KInStream& stream)
+{
+	Object.Parse(stream);
+	return stream;
+}
+
 inline bool operator==(const KHTMLObject& left, const KHTMLObject& right)
 {
 	return left.Type() == right.Type();
@@ -572,6 +596,21 @@ private:
 
 }; // KHTMLParser
 
+template<typename T,
+		 typename std::enable_if<std::is_base_of<KHTMLParser, T>::value == true, int>::type = 0>
+inline KInStream& operator >>(KInStream& stream, T& Object)
+{
+	Object.Parse(stream);
+	return stream;
+}
+
+template<typename T,
+		 typename std::enable_if<std::is_base_of<KHTMLParser, T>::value == true, int>::type = 0>
+inline KInStream& operator <<(T& Object, KInStream& stream)
+{
+	Object.Parse(stream);
+	return stream;
+}
 
 } // end of namespace dekaf2
 

@@ -49,6 +49,7 @@
 #include "kstreambuf.h"
 #include "kstring.h"
 #include "koutstringstream.h"
+#include "kinstringstream.h"
 #include "kstream.h"
 
 namespace dekaf2 {

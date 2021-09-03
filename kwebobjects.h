@@ -1187,7 +1187,7 @@ public:
 
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
-	FieldSet(KStringView sLegend, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
+	FieldSet(KStringView sLegend = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
 	: KWebObject("fieldset", sID, Classes)
 	{
 		if (!sLegend.empty())

@@ -115,16 +115,32 @@ TEST_CASE("KHTML")
 
 	SECTION("parsing and rebuilding into string")
 	{
-		KHTML HTML;
-		bool ret = HTML.Parse(sHTML);
-		CHECK ( ret == true );
 		KString sCRLF = sSerialized1;
 		sCRLF.Replace("\n", "\r\n");
-		CHECK ( HTML.Serialize() == sCRLF );
-		auto sDiff = print_diff(HTML.Serialize(), sCRLF);
-		if (!sDiff.empty())
+
 		{
-			FAIL_CHECK ( sDiff );
+			KHTML HTML;
+			bool ret = HTML.Parse(sHTML);
+			CHECK ( ret == true );
+			CHECK ( HTML.Serialize() == sCRLF );
+
+			auto sDiff = print_diff(HTML.Serialize(), sCRLF);
+			if (!sDiff.empty())
+			{
+				FAIL_CHECK ( sDiff );
+			}
+		}
+		{
+			KInStringStream iss(sHTML);
+			KHTML HTML;
+			iss >> HTML;
+			CHECK ( HTML.Serialize() == sCRLF );
+		}
+		{
+			KInStringStream iss(sHTML);
+			KHTML HTML;
+			HTML << iss;
+			CHECK ( HTML.Serialize() == sCRLF );
 		}
 	}
 
@@ -146,8 +162,8 @@ TEST_CASE("KHTML")
 			auto& title = head.Add("title");
 			title.AddText("This is the");
 			head.Add("meta").SetAttribute("viewport", "width=device-width, initial-scale=1.0");
-			auto& body = html.Add("body");
-			auto& par = body.Add("p");
+			auto& body = html += "body";
+			auto& par  = body += "p";
 			par.SetID("MyPar1");
 			par.SetID("MyPar");
 			par.AddText("This <is> &a ");
@@ -166,12 +182,15 @@ TEST_CASE("KHTML")
 			CHECK ( Page.Serialize() == sCRLF );
 
 			auto& DOM = Page.DOM();
-
 			CHECK ( DOM.Print() == sCRLF );
 
 			auto DOM2 = DOM;
-
 			CHECK ( DOM2.Print() == sCRLF );
+
+			KString sStream;
+			KOutStringStream oss(sStream);
+			oss << DOM2;
+			CHECK( sStream == sCRLF );
 		}
 	}
 }

@@ -63,7 +63,6 @@ TEST_CASE("KCache")
 	{
 		KCache<KString, KString, Loader> MyCache;
 
-		auto iOrigSize = MyCache.GetMaxSize();
 		MyCache.clear();
 		MyCache.SetMaxSize(3);
 
@@ -120,7 +119,6 @@ TEST_CASE("KSharedCache")
 	{
 		KSharedCache<KString, KString, Loader> MyCache;
 
-		auto iOrigSize = MyCache.GetMaxSize();
 		MyCache.clear();
 		MyCache.SetMaxSize(3);
 
@@ -147,7 +145,6 @@ TEST_CASE("KSharedCache")
 	{
 		KSharedCache<KString, KString, Loader> MyCache;
 
-		auto iOrigSize = MyCache.GetMaxSize();
 		MyCache.clear();
 		MyCache.SetMaxSize(10);
 
@@ -180,7 +177,6 @@ TEST_CASE("KSharedCache")
 	{
 		KSharedCache<KString, KString, Loader> MyCache;
 
-		auto iOrigSize = MyCache.GetMaxSize();
 		MyCache.clear();
 		MyCache.SetMaxSize(2);
 

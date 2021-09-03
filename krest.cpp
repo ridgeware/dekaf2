@@ -528,7 +528,7 @@ void KREST::RegisterShutdownCallback(KThreadPool::ShutdownCallback callback)
 
 	if (m_Server)
 	{
-	   m_Server->RegisterShutdownCallback(callback);
+	   m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 	}
 
 } // RegisterShutdownCallback

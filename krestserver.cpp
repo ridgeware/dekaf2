@@ -1400,6 +1400,12 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 				sContentType = KMIME::JSON;
 			}
 			sAdditionalHeader.Format(" -H '{}: {}'", KHTTPHeader(KHTTPHeader::CONTENT_TYPE), sContentType);
+
+			KString& sReferer = Request.Headers.Get(KHTTPHeader::REFERER);
+			if (!sReferer.empty())
+			{
+				sAdditionalHeader += kFormat(" -H '{}: {}'", KHTTPHeader(KHTTPHeader::REFERER), sReferer);
+			}
 		}
 
 		oss.Format(R"(curl -i{} -X "{}" "http://localhost{}")",

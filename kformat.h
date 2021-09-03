@@ -55,9 +55,7 @@ namespace detail {
 
 std::ostream& kfFormat(std::ostream& os, KStringView sFormat, fmt::format_args args);
 KString kFormat(KStringView sFormat, fmt::format_args args);
-DEKAF2_DEPRECATED("only for compatibility with old code")
 std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, fmt::printf_args args);
-DEKAF2_DEPRECATED("only for compatibility with old code")
 KString kPrintf(KStringView sFormat, fmt::printf_args args);
 
 } // end of namespace detail

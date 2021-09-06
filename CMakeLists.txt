@@ -546,6 +546,7 @@ set(PUBLIC_HEADERS
 	klambdastream.h
 	klog.h
 	kmail.h
+	kmakecopyable.h
 	kmessagedigest.h
 	kmime.h
 	kmpsearch.h

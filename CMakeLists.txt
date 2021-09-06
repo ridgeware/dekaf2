@@ -574,6 +574,7 @@ set(PUBLIC_HEADERS
 	krow.h
 	krsakey.h
 	krsasign.h
+	ksharedmemory.h
 	ksharedref.h
 	ksharedptr.h
 	ksignals.h
@@ -722,6 +723,7 @@ set (SOURCES
 	krow.cpp
 	krsakey.cpp
 	krsasign.cpp
+	ksharedmemory.cpp
 	ksignals.cpp
 	ksmtp.cpp
 	ksnippets.cpp
@@ -811,6 +813,14 @@ else()
 	)
 endif()
 
+if (IS_LINUX)
+	# librt is needed for posix shared memory on linux, but not on macOS (where linking to it
+	# causes an error, but shared memory functions are nonetheless available)
+	set (RT
+		rt
+	)
+endif()
+
 target_link_libraries(dekaf2
 	PUBLIC
 		fmt
@@ -826,6 +836,7 @@ target_link_libraries(dekaf2
 		${FSLIB}
 		${libproc_LIBRARIES}
 		${LIBZIP_LIBRARY}
+		${RT}
 		re2
 	)
 

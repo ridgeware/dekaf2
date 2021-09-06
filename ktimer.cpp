@@ -462,8 +462,6 @@ KTimer::ID_t KTimer::AddTimer(Timer timer)
 		ID = GetNextID();
 	}
 
-	// need a separate lock object because we return the effective timer ID
-	// through the new iterator, which could be removed by another thread otherwise
 	auto Timers = m_Timers.unique();
 
 	auto ret = Timers->emplace(ID, std::move(timer));
@@ -483,11 +481,16 @@ KTimer::ID_t KTimer::AddTimer(Timer timer)
 KTimer::ID_t KTimer::CallEvery(Interval intv, Callback CB)
 //---------------------------------------------------------------------------
 {
+	if (intv.count() == 0)
+	{
+		return INVALID;
+	}
+
 	Timer timer;
 	timer.ExpiresAt = Clock::now() + intv;
-	timer.IVal = intv;
-	timer.CB = std::move(CB);
-	timer.Flags = NONE;
+	timer.IVal      = intv;
+	timer.CB        = std::move(CB);
+	timer.Flags     = NONE;
 
 	return AddTimer(std::move(timer));
 
@@ -499,8 +502,8 @@ KTimer::ID_t KTimer::CallOnce(Timepoint tp, Callback CB)
 {
 	Timer timer;
 	timer.ExpiresAt = tp;
-	timer.CB = std::move(CB);
-	timer.Flags = ONCE;
+	timer.CB        = std::move(CB);
+	timer.Flags     = ONCE;
 
 	return AddTimer(std::move(timer));
 
@@ -510,12 +513,17 @@ KTimer::ID_t KTimer::CallOnce(Timepoint tp, Callback CB)
 KTimer::ID_t KTimer::CallEvery(time_t intv, CallbackTimeT CBT)
 //---------------------------------------------------------------------------
 {
+	if (intv == 0)
+	{
+		return INVALID;
+	}
+
 	Timer timer;
-	Interval iv = std::chrono::seconds(intv);
+	Interval iv     = std::chrono::seconds(intv);
 	timer.ExpiresAt = Clock::now() + iv;
-	timer.IVal = iv;
-	timer.CBT = std::move(CBT);
-	timer.Flags = TIMET;
+	timer.IVal      = iv;
+	timer.CBT       = std::move(CBT);
+	timer.Flags     = TIMET;
 
 	return AddTimer(std::move(timer));
 
@@ -526,11 +534,11 @@ KTimer::ID_t KTimer::CallOnce(time_t tp, CallbackTimeT CBT)
 //---------------------------------------------------------------------------
 {
 	Timer timer;
-	timer.ExpiresAt = Clock::now();
-	time_t now = ToTimeT(timer.ExpiresAt);
+	timer.ExpiresAt  = Clock::now();
+	time_t now       = ToTimeT(timer.ExpiresAt);
 	timer.ExpiresAt += std::chrono::seconds(tp - now);
-	timer.CBT = std::move(CBT);
-	timer.Flags = ONCE | TIMET;
+	timer.CBT        = std::move(CBT);
+	timer.Flags      = ONCE | TIMET;
 
 	return AddTimer(std::move(timer));
 
@@ -561,9 +569,9 @@ void KTimer::SleepFor(time_t intv)
 void KTimer::SleepUntil(time_t tp)
 //---------------------------------------------------------------------------
 {
-	auto cnow = Clock::now();
-	time_t now = ToTimeT(cnow);
-	cnow += std::chrono::seconds(tp - now);
+	auto cnow   = Clock::now();
+	time_t now  = ToTimeT(cnow);
+	cnow       += std::chrono::seconds(tp - now);
 
 	std::this_thread::sleep_until(cnow);
 
@@ -583,8 +591,8 @@ bool KTimer::Cancel(ID_t ID)
 		return false;
 	}
 
-	// mark as removed
-	it->second.Flags |= REMOVED;
+	Timers->erase(it);
+
 	return true;
 
 } // Cancel
@@ -615,12 +623,7 @@ void KTimer::TimingLoop()
 		{
 			auto& Timer = it.second;
 
-			if ((Timer.Flags & REMOVED) == REMOVED)
-			{
-				// remove this timer
-				Timers->erase(Timer.ID);
-			}
-			else if (Timer.ExpiresAt < now)
+			if (Timer.ExpiresAt < now)
 			{
 				if ((Timer.Flags & TIMET) == TIMET)
 				{
@@ -654,7 +657,7 @@ void KTimer::TimingLoop()
 KTimer::ID_t KTimer::GetNextID()
 //---------------------------------------------------------------------------
 {
-	static std::atomic<KTimer::ID_t> s_LastID{INVALID};
+	static std::atomic<KTimer::ID_t> s_LastID { INVALID };
 
 	ID_t ID = ++s_LastID;
 

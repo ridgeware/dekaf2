@@ -641,13 +641,14 @@ class KTimer
 public:
 //----------
 
-	using ID_t = size_t;
-	enum { INVALID = 0 };
+	using ID_t          = size_t;
 	using Clock         = std::chrono::system_clock;
 	using Interval      = Clock::duration;
 	using Timepoint     = Clock::time_point;
 	using Callback      = std::function<void(Timepoint)>;
 	using CallbackTimeT = std::function<void(time_t)>;
+
+	static constexpr ID_t INVALID { 0 };
 
 	//---------------------------------------------------------------------------
 	KTimer();
@@ -879,27 +880,26 @@ private:
 		NONE    = 0,
 		ONCE    = 1 << 0, // this timer shall be run only once
 		TIMET   = 1 << 1, // this timer shall be called with a time_t argument
-		REMOVED = 1 << 2  // this timer is deleted
 	};
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct Timer
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		ID_t ID { INVALID };
-		Timepoint ExpiresAt;
-		Interval IVal { Interval::zero() };
-		Callback CB { nullptr };
-		CallbackTimeT CBT { nullptr };
-		uint8_t Flags { NONE };
+		ID_t          ID    { INVALID          };
+		Timepoint     ExpiresAt;
+		Interval      IVal  { Interval::zero() };
+		Callback      CB    { nullptr          };
+		CallbackTimeT CBT   { nullptr          };
+		uint8_t       Flags { NONE             };
 	};
 
 	std::unique_ptr<std::thread> m_tTiming;
-	std::atomic_bool m_bShutdown { false };
-	bool m_bDestructWithJoin { false };
+	std::atomic_bool             m_bShutdown         { false };
+	bool                         m_bDestructWithJoin { false };
 
 	using map_t = std::unordered_map<ID_t, Timer>;
-	KThreadSafe<map_t> m_Timers;
+	KThreadSafe<map_t>           m_Timers;
 
 }; // KTimer
 

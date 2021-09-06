@@ -88,6 +88,10 @@ public:
 	//-------------------------------------------------------------------------
 	/// constructs empty instance.
 	URIComponent () = default;
+	URIComponent (const URIComponent&) = default;
+	URIComponent& operator=(const URIComponent&) = default;
+	URIComponent (URIComponent&&) noexcept = default;
+	URIComponent& operator=(URIComponent&&) noexcept = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
@@ -886,6 +890,10 @@ public:
 
 	//-------------------------------------------------------------------------
 	KResource() = default;
+	KResource (const KResource&) = default;
+	KResource& operator=(const KResource&) = default;
+	KResource (KResource&&) noexcept = default;
+	KResource& operator=(KResource&&) noexcept = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------

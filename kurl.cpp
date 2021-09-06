@@ -578,4 +578,37 @@ bool operator==(const KTCPEndPoint& left, const KTCPEndPoint& right)
 	        && left.Port == right.Port;
 }
 
+static_assert(std::is_nothrow_move_constructible<KURL>::value,
+			  "KURL is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<KResource>::value,
+			  "KResource is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<KTCPEndPoint>::value,
+			  "KTCPEndPoint is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<url::KUser>::value,
+			  "url::KUser is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<url::KPassword>::value,
+			  "url::KPassword is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<url::KDomain>::value,
+			  "url::KDomain is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<url::KPort>::value,
+			  "url::KPort is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<url::KPath>::value,
+			  "url::KPath is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<url::KQuery>::value,
+			  "url::KQuery is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<url::KFragment>::value,
+			  "url::KFragment is intended to be nothrow move constructible, but is not!");
+
+static_assert(std::is_nothrow_move_constructible<url::KProtocol>::value,
+			  "url::KProtocol is intended to be nothrow move constructible, but is not!");
+
 } // namespace dekaf2

@@ -798,14 +798,42 @@ std::vector<KStringViewZ> KFileTypes::Serialize() const
 
 const KFileTypes KFileTypes::ALL = static_cast<KFileType::FileType>(255);
 
-#ifdef DEKAF2_IS_UNIX
+#ifdef DEKAF2_FILESTAT_USE_STAT
+//-----------------------------------------------------------------------------
+void KFileStat::FromStat(struct stat& StatStruct)
+//-----------------------------------------------------------------------------
+{
+	m_inode = StatStruct.st_ino;
+	m_atime = StatStruct.st_atime;
+	m_mtime = StatStruct.st_mtime;
+	m_ctime = StatStruct.st_ctime;
+	m_mode  = StatStruct.st_mode & ~S_IFMT;
+	m_uid   = StatStruct.st_uid;
+	m_gid   = StatStruct.st_gid;
+	m_links = StatStruct.st_nlink;
+	m_ftype = KFileTypeFromUnixMode(StatStruct.st_mode);
 
-	#define DEKAF2_FILESTAT_USE_STAT
+	if (!IsDirectory())
+	{
+		m_size = StatStruct.st_size;
+	}
 
-#elif defined(DEKAF2_HAS_STD_FILESYSTEM)
+} // FromStat
 
-	#define DEKAF2_FILESTAT_USE_STD_FILESYSTEM
+//-----------------------------------------------------------------------------
+KFileStat::KFileStat(int iFileDescriptor)
+//-----------------------------------------------------------------------------
+{
+	// use the good ole fstat() system call, it fetches all information with one call
 
+	struct stat StatStruct;
+
+	if (!fstat(iFileDescriptor, &StatStruct))
+	{
+		FromStat(StatStruct);
+	}
+
+} // ctor
 #endif
 
 //-----------------------------------------------------------------------------
@@ -820,20 +848,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 
 	if (!stat(sFilename.c_str(), &StatStruct))
 	{
-		m_inode = StatStruct.st_ino;
-		m_atime = StatStruct.st_atime;
-		m_mtime = StatStruct.st_mtime;
-		m_ctime = StatStruct.st_ctime;
-		m_mode  = StatStruct.st_mode & ~S_IFMT;
-		m_uid   = StatStruct.st_uid;
-		m_gid   = StatStruct.st_gid;
-		m_links = StatStruct.st_nlink;
-		m_ftype = KFileTypeFromUnixMode(StatStruct.st_mode);
-
-		if (!IsDirectory())
-		{
-			m_size = StatStruct.st_size;
-		}
+		FromStat(StatStruct);
 	}
 
 #elif defined(DEKAF2_FILESTAT_USE_STD_FILESYSTEM)

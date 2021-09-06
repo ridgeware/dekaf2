@@ -45,10 +45,11 @@
 /// @file kfilesystem.h
 /// standalone functions and classes around files and the file system
 
-#include <cinttypes>
-#include <vector>
+#include "bits/kcppcompat.h"
 #include "kstringview.h"
 #include "kstring.h"
+#include <cinttypes>
+#include <vector>
 
 namespace dekaf2
 {
@@ -415,6 +416,12 @@ KFileTypes operator|(KFileTypes first, const KFileTypes second)
 	return first;
 }
 
+#ifdef DEKAF2_IS_UNIX
+	#define DEKAF2_FILESTAT_USE_STAT
+#elif defined(DEKAF2_HAS_STD_FILESYSTEM)
+	#define DEKAF2_FILESTAT_USE_STD_FILESYSTEM
+#endif
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve information about a file that is typically found in the stat struct
 class KFileStat
@@ -431,6 +438,16 @@ public:
 	/// Construct KFileStat object on a file
 	/// @param sFilename the file for which the status should be read
 	KFileStat(const KStringViewZ sFilename);
+
+#ifdef DEKAF2_FILESTAT_USE_STAT
+	/// Construct KFileStat object on a file handle
+	/// @param iFileDescriptor the file handle for which the status should be read
+	KFileStat(int iFileDescriptor);
+
+	/// Construct KFileStat object on a struct stat
+	/// @param StatStruct the stat struct from which the status should be read
+	KFileStat(struct stat& StatStruct) { FromStat(StatStruct); }
+#endif
 
 	/// Returns inode number (only on supported file systems, otherwise 0)
 	uint64_t Inode()          const { return m_inode; }
@@ -513,6 +530,10 @@ public:
 //----------
 private:
 //----------
+
+#ifdef DEKAF2_FILESTAT_USE_STAT
+	void FromStat(struct stat& StatStruct);
+#endif
 
 	uint64_t  m_inode { 0 };
 	time_t    m_atime { 0 };

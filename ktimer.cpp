@@ -421,10 +421,11 @@ void KStopDurations::StoreInterval(size_type iInterval)
 } // StoreInterval
 
 //---------------------------------------------------------------------------
-KTimer::KTimer()
+KTimer::KTimer(Interval Granularity)
 //---------------------------------------------------------------------------
 {
-	m_tTiming = std::make_unique<std::thread>(&KTimer::TimingLoop, this);
+	m_bShutdown = std::make_shared<std::atomic_bool>(false);
+	m_tTiming   = std::make_shared<std::thread>(&KTimer::TimingLoop, this, Granularity);
 
 } // ctor
 
@@ -433,7 +434,7 @@ KTimer::~KTimer()
 //---------------------------------------------------------------------------
 {
 	// signal the thread to shutdown
-	m_bShutdown = true;
+	*m_bShutdown = true;
 
 	if (m_tTiming)
 	{
@@ -455,16 +456,14 @@ KTimer::~KTimer()
 KTimer::ID_t KTimer::AddTimer(Timer timer)
 //---------------------------------------------------------------------------
 {
-	auto ID = timer.ID;
-
-	if (ID == INVALID)
+	if (timer.ID == INVALID)
 	{
-		ID = GetNextID();
+		timer.ID = GetNextID();
 	}
 
 	auto Timers = m_Timers.unique();
 
-	auto ret = Timers->emplace(ID, std::move(timer));
+	auto ret = Timers->emplace(timer.ID, std::move(timer));
 
 	if (ret.second)
 	{
@@ -598,19 +597,24 @@ bool KTimer::Cancel(ID_t ID)
 } // Cancel
 
 //---------------------------------------------------------------------------
-void KTimer::TimingLoop()
+void KTimer::TimingLoop(Interval Granularity)
 //---------------------------------------------------------------------------
 {
 	// make sure we do not catch signals in this thread (this can happen if
 	// the signal handler thread had not been started at init of dekaf2)
 	kBlockAllSignals();
 
+	// create a copy of the class variable, as this is a shared_ptr,
+	// both instances will point to the same bool
+	auto bShutdown(m_bShutdown);
+
 	for (;;)
 	{
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+		std::this_thread::sleep_for(Granularity);
 
-		if (Dekaf::IsShutDown() || m_bShutdown)
+		if (*bShutdown || Dekaf::IsShutDown())
 		{
+			// exit this thread.. parent class is gone
 			return;
 		}
 

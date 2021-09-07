@@ -651,7 +651,7 @@ public:
 	static constexpr ID_t INVALID { 0 };
 
 	//---------------------------------------------------------------------------
-	KTimer();
+	KTimer(Interval Granularity = std::chrono::seconds(1));
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -858,7 +858,7 @@ private:
 	}
 
 	//---------------------------------------------------------------------------
-	void TimingLoop();
+	void TimingLoop(Interval Granularity);
 	//---------------------------------------------------------------------------
 
 	struct Timer;
@@ -894,12 +894,12 @@ private:
 		uint8_t       Flags { NONE             };
 	};
 
-	std::unique_ptr<std::thread> m_tTiming;
-	std::atomic_bool             m_bShutdown         { false };
-	bool                         m_bDestructWithJoin { false };
+	std::shared_ptr<std::thread>      m_tTiming;
+	std::shared_ptr<std::atomic_bool> m_bShutdown;
+	bool                              m_bDestructWithJoin { false };
 
 	using map_t = std::unordered_map<ID_t, Timer>;
-	KThreadSafe<map_t>           m_Timers;
+	KThreadSafe<map_t>                m_Timers;
 
 }; // KTimer
 

@@ -88,6 +88,7 @@ set (USOURCES
 	kthreadpool_tests.cpp
 	kthreads_tests.cpp
 	kthreadsafe_tests.cpp
+	ktimer_tests.cpp
 	kuntar_tests.cpp
 	kurl_tests.cpp
 	kutf8_tests.cpp

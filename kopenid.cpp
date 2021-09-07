@@ -299,8 +299,8 @@ KOpenIDProvider::KOpenIDProvider (KURL URL, KStringView sScope, KTimer::Interval
 		// evaluating against an old set of Keys, as we do lockless access on the Keys and only
 		// move them out to a single decaying stage (which means that after one refresh interval,
 		// access on them is UB)
-//		kDebug(1, "refresh interval lower than one hour, changing to hourly, daily is recommended");
-//		m_RefreshInterval = std::chrono::hours(1);
+		kDebug(1, "refresh interval lower than one hour, changing to hourly, daily is recommended");
+		m_RefreshInterval = std::chrono::hours(1);
 	}
 
 	Refresh();

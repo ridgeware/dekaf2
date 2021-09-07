@@ -45,7 +45,6 @@
 #include "klog.h"
 #include "kbase64.h"
 #include "krsasign.h"
-#include "dekaf2.h"
 #include <vector>
 
 namespace dekaf2 {
@@ -164,7 +163,7 @@ bool KOpenIDProvider::SetError(KString sError) const
 } // SetError
 
 //-----------------------------------------------------------------------------
-bool KOpenIDProvider::Validate(const KURL& URL, KStringView sScope) const
+bool KOpenIDProvider::Validate(const KJSON& Configuration, const KURL& URL, KStringView sScope) const
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, Configuration.dump(1, '\t'));
@@ -212,43 +211,99 @@ bool KOpenIDProvider::Validate(const KURL& URL, KStringView sScope) const
 } // Validate
 
 //-----------------------------------------------------------------------------
-KOpenIDProvider::KOpenIDProvider (KURL URL, KStringView sScope)
+void KOpenIDProvider::Refresh(KTimer::Timepoint Now)
 //-----------------------------------------------------------------------------
 {
-	if (URL.Protocol != url::KProtocol::HTTPS)
+	if (Now < m_LastRefresh + m_RefreshInterval)
 	{
-		SetError(kFormat("provider URL does not use HTTPS: {}", URL.Serialize()));
+		return;
+	}
+
+	m_LastRefresh = Now;
+
+	if (m_URL.Protocol != url::KProtocol::HTTPS)
+	{
+		SetError(kFormat("provider URL does not use HTTPS, but has to: {}", m_URL.Serialize()));
+		m_RefreshInterval.zero();
 	}
 	else
 	{
-		URL.Path = OpenID_Configuration;
-		URL.Query.clear();
-		URL.Fragment.clear();
-
 		DEKAF2_TRY
 		{
+			kDebug(2, "polling OpenID provider {} for keys", m_URL);
 			KWebClient Provider;
 			Provider.VerifyCerts(true); // we have to verify the CERT!
 			Provider.SetTimeout(DEFAULT_TIMEOUT);
-			kjson::Parse(Configuration, Provider.Get(URL));
+			m_URL.Path = OpenID_Configuration;
+
+			KJSON Configuration;
+			kjson::Parse(Configuration, Provider.Get(m_URL));
+
 			// verify accuracy of information
-			URL.Path.clear();
-			if (Validate(URL, sScope))
+			m_URL.Path.clear();
+
+			if (Validate(Configuration, m_URL, m_sScope))
 			{
 				// only query keys if valid data
-				Keys = KOpenIDKeys(Configuration["jwks_uri"].get_ref<const KString&>());
-			}
-			else
-			{
-				Configuration = KJSON{};
+				auto Keys = KOpenIDKeys(Configuration["jwks_uri"].get_ref<const KString&>());
+
+				if (!Keys.empty())
+				{
+					m_DecayingKeys = std::move(m_Keys);
+					auto& sIssuer  = kjson::GetStringRef(Configuration, "issuer");
+					m_Keys         = std::make_unique<KeysAndIssuer>(KeysAndIssuer { std::move(Keys), std::move(sIssuer) } );
+					kDebug(2, "got {} valid keys from provider", m_Keys->Keys.size(), m_URL);
+				}
+				else
+				{
+					kDebug(1, "got no keys when polling provider {}", m_URL);
+				}
 			}
 		}
 		DEKAF2_CATCH (const KJSON::exception& exc)
 		{
-			SetError(kFormat("OpenID provider '{}' returned invalid JSON: {}", URL.Serialize(), exc.what()));
-			Configuration = KJSON{};
+			SetError(kFormat("OpenID provider '{}' returned invalid JSON: {}", m_URL.Serialize(), exc.what()));
 		}
 	}
+
+	if (!m_Keys)
+	{
+		m_Keys = std::make_unique<KeysAndIssuer>();
+	}
+
+	if (!m_CurrentKeys)
+	{
+		m_CurrentKeys = std::make_unique<std::atomic<KeysAndIssuer*>>(m_Keys.get());
+	}
+	else
+	{
+		// atomically switch to new keys
+		*m_CurrentKeys = m_Keys.get();
+	}
+
+} // Refresh
+
+//-----------------------------------------------------------------------------
+KOpenIDProvider::KOpenIDProvider (KURL URL, KStringView sScope, KTimer::Interval RefreshInterval)
+//-----------------------------------------------------------------------------
+: m_sScope(sScope)
+, m_URL(std::move(URL))
+, m_RefreshInterval(RefreshInterval)
+{
+	m_URL.Query.clear();
+	m_URL.Fragment.clear();
+
+	if (m_RefreshInterval < std::chrono::hours(1))
+	{
+		// we need a refresh interval of at least an hour to make sure all users have finished
+		// evaluating against an old set of Keys, as we do lockless access on the Keys and only
+		// move them out to a single decaying stage (which means that after one refresh interval,
+		// access on them is UB)
+//		kDebug(1, "refresh interval lower than one hour, changing to hourly, daily is recommended");
+//		m_RefreshInterval = std::chrono::hours(1);
+	}
+
+	Refresh();
 
 } // ctor
 
@@ -278,16 +333,16 @@ bool KJWT::SetError(KString sError)
 } // SetError
 
 //-----------------------------------------------------------------------------
-bool KJWT::Validate(const KOpenIDProvider& Provider, KStringView sScope, time_t tClockLeeway)
+bool KJWT::Validate(KStringView sIssuer, KStringView sScope, time_t tClockLeeway)
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, Payload.dump(1, '\t'));
 
-	if (Payload["iss"] != Provider.Configuration["issuer"])
+	if (Payload["iss"] != sIssuer)
 	{
 		return SetError(kFormat("Payload issuer {} does not match Provider issuer {}",
 								Payload["iss"].get_ref<const KString&>(),
-								Provider.Configuration["issuer"].get_ref<const KString&>()));
+								sIssuer));
 	}
 
 	if (!sScope.empty())
@@ -378,8 +433,11 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 				break;
 			}
 
+			// get access on the atomic storage
+			auto& KeysAndIssuer = Provider.Get();
+
 			// find the key
-			const auto& Key = Provider.Keys.GetRSAKey(sKeyID, sAlgorithm, sKeyDigest, "sig");
+			const auto& Key = KeysAndIssuer.Keys.GetRSAKey(sKeyID, sAlgorithm, sKeyDigest, "sig");
 
 			if (Key.empty())
 			{
@@ -424,7 +482,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 			SetError("");
 
 			// exit here if we cannot validate
-			return Validate(Provider, sScope, tClockLeeway);
+			return Validate(KeysAndIssuer.sIssuer, sScope, tClockLeeway);
 		}
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)

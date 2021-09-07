@@ -147,20 +147,20 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 
 		case Options::VERIFY_AUTH_HEADER:
 			{
+				auto& Authorization = Request.Headers[KHTTPHeader::AUTHORIZATION];
+
+				if (Authorization.empty())
+				{
+					// failure
+					throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization header" };
+				}
+
 				if (Options.Authenticators.empty())
 				{
 					kWarning("authenticator list is empty");
 				}
 				else
 				{
-					auto& Authorization = Request.Headers[KHTTPHeader::AUTHORIZATION];
-
-					if (Authorization.empty())
-					{
-						// failure
-						throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization header" };
-					}
-
 					if (m_AuthToken.Check(Authorization, Options.Authenticators, Options.sAuthScope))
 					{
 						// success

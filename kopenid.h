@@ -46,8 +46,11 @@
 #include "kurl.h"
 #include "kjson.h"
 #include "krsakey.h"
+#include "ktimer.h"
+#include "dekaf2.h"
 #include <unordered_map>
 #include <vector>
+#include <atomic>
 
 namespace dekaf2 {
 
@@ -72,6 +75,9 @@ public:
 	const KString& Error() const { return m_sError; }
 	/// are all info valid?
 	bool IsValid() const { return Error().empty(); }
+
+	bool empty() const { return WebKeys.empty(); }
+	std::size_t size() const { return WebKeys.size(); }
 
 //----------
 private:
@@ -109,26 +115,47 @@ public:
 //----------
 
 	KOpenIDProvider () = default;
+	KOpenIDProvider (KOpenIDProvider&&) noexcept = default;
+	KOpenIDProvider& operator=(KOpenIDProvider&&) noexcept = default;
 	/// query all known information about an OpenID provider, check if scope is
 	/// provided if not empty
-	KOpenIDProvider (KURL URL, KStringView sScope = KStringView{});
+	KOpenIDProvider (KURL URL,
+					 KStringView sScope = KStringView{},
+					 KTimer::Interval RefreshInterval = std::chrono::hours(24));
 
 	/// return error string
 	const KString& Error() const { return m_sError; }
 	/// are all info valid?
 	bool IsValid() const { return Error().empty(); }
 
-	KJSON Configuration;
-	KOpenIDKeys Keys;
+	KTimer::Timepoint LastRefresh() const;
+
+	struct KeysAndIssuer
+	{
+		KOpenIDKeys Keys;
+		KString     sIssuer;
+	};
+
+	const KeysAndIssuer& Get() const { return *m_CurrentKeys.get()->load(); }
+
+	void Refresh(KTimer::Timepoint Now = Dekaf::getInstance().GetCurrentTimepoint());
 
 //----------
 private:
 //----------
 
-	bool Validate(const KURL& URL, KStringView sScope) const;
+	bool Validate(const KJSON& Configuration, const KURL& URL, KStringView sScope) const;
 	bool SetError(KString sError) const;
 
-	mutable KString m_sError;
+	std::unique_ptr<KeysAndIssuer>               m_Keys;
+	std::unique_ptr<KeysAndIssuer>               m_DecayingKeys;
+	std::unique_ptr<std::atomic<KeysAndIssuer*>> m_CurrentKeys;
+
+	mutable KString   m_sError;
+	KString           m_sScope;
+	KURL              m_URL;
+	KTimer::Interval  m_RefreshInterval;
+	KTimer::Timepoint m_LastRefresh;
 
 }; // KOpenIDProvider
 
@@ -175,7 +202,7 @@ public:
 private:
 //----------
 
-	bool Validate(const KOpenIDProvider& Provider, KStringView sScope, time_t tClockLeeway);
+	bool Validate(KStringView sIssuer, KStringView sScope, time_t tClockLeeway);
 	bool SetError(KString sError);
 	void ClearJSON();
 

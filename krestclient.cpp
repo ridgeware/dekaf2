@@ -75,16 +75,7 @@ KRestClient& KRestClient::SetURL(KURL URL, bool bVerifyCerts)
 {
 	m_URL = std::move(URL);
 
-	if (m_URL.Protocol != url::KProtocol::UNIX)
-	{
-		// check that path ends with a slash
-		if (m_URL.Path.get().back() != '/')
-		{
-			m_URL.Path.get() += '/';
-		}
-		// do not clear the query part - we will use it if it is set
-	}
-
+	// do not clear the query part - we will use it if it is set
 	m_URL.Fragment.clear();
 
 	KHTTPClient::VerifyCerts(bVerifyCerts);
@@ -195,6 +186,15 @@ bool KRestClient::NoExceptRequest (KOutStream& OutStream, KStringView sBody, KMI
 	if (m_URL.Protocol != url::KProtocol::UNIX)
 	{
 		KURL URL { m_URL };
+
+		if (!m_sPath.empty() && m_sPath.front() != '/')
+		{
+			if (URL.Path.get().back() != '/')
+			{
+				URL.Path.get() += '/';
+			}
+		}
+		
 		URL.Path.get() += m_sPath;
 		URL.Query += m_Query;
 		m_bNeedReset = true;

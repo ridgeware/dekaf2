@@ -51,6 +51,13 @@
 #include <cinttypes>
 #include <vector>
 
+#ifdef DEKAF2_IS_UNIX
+	#define DEKAF2_FILESTAT_USE_STAT
+	#include <sys/stat.h>
+#elif defined(DEKAF2_HAS_STD_FILESYSTEM)
+	#define DEKAF2_FILESTAT_USE_STD_FILESYSTEM
+#endif
+
 namespace dekaf2
 {
 
@@ -415,12 +422,6 @@ KFileTypes operator|(KFileTypes first, const KFileTypes second)
 	first.push_back(second.m_Types);
 	return first;
 }
-
-#ifdef DEKAF2_IS_UNIX
-	#define DEKAF2_FILESTAT_USE_STAT
-#elif defined(DEKAF2_HAS_STD_FILESYSTEM)
-	#define DEKAF2_FILESTAT_USE_STD_FILESYSTEM
-#endif
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve information about a file that is typically found in the stat struct

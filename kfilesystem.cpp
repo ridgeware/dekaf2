@@ -57,11 +57,6 @@
 #include "kctype.h"
 #include "kutf8.h"
 
-#if (DEKAF2_IS_GCC && DEKAF2_GCC_MAJOR_VERSION < 10)
-#include <sys/stat.h>
-#endif
-
-
 
 namespace dekaf2
 {

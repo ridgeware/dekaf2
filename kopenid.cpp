@@ -515,7 +515,10 @@ void KJWT::clear()
 static_assert(std::is_nothrow_move_constructible<KOpenIDKeys>::value,
 			  "KOpenIDKeys is intended to be nothrow move constructible, but is not!");
 
-static_assert(std::is_nothrow_move_constructible<KOpenIDProvider>::value,
+// gcc 8.3.1 does not support atomics ptrs noexcept move construction, so we drop this
+// test in case..
+static_assert(!std::is_nothrow_move_constructible<std::atomic<void*>>::value ||
+			  std::is_nothrow_move_constructible<KOpenIDProvider>::value,
 			  "KOpenIDProvider is intended to be nothrow move constructible, but is not!");
 #endif
 

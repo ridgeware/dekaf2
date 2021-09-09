@@ -115,8 +115,6 @@ public:
 //----------
 
 	KOpenIDProvider () = default;
-	KOpenIDProvider (KOpenIDProvider&&) noexcept = default;
-	KOpenIDProvider& operator=(KOpenIDProvider&&) noexcept = default;
 	/// query all known information about an OpenID provider, check if scope is
 	/// provided if not empty
 	KOpenIDProvider (KURL URL,

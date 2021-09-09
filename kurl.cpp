@@ -578,10 +578,14 @@ bool operator==(const KTCPEndPoint& left, const KTCPEndPoint& right)
 	        && left.Port == right.Port;
 }
 
-static_assert(std::is_nothrow_move_constructible<KURL>::value,
+// old boost::multi_index versions are not noexcept move constructable, so we drop this
+// test in case..
+static_assert(!std::is_nothrow_move_constructible<URLEncodedQuery>::value ||
+			  std::is_nothrow_move_constructible<KURL>::value,
 			  "KURL is intended to be nothrow move constructible, but is not!");
 
-static_assert(std::is_nothrow_move_constructible<KResource>::value,
+static_assert(!std::is_nothrow_move_constructible<URLEncodedQuery>::value ||
+			  std::is_nothrow_move_constructible<KResource>::value,
 			  "KResource is intended to be nothrow move constructible, but is not!");
 
 static_assert(std::is_nothrow_move_constructible<KTCPEndPoint>::value,
@@ -602,7 +606,8 @@ static_assert(std::is_nothrow_move_constructible<url::KPort>::value,
 static_assert(std::is_nothrow_move_constructible<url::KPath>::value,
 			  "url::KPath is intended to be nothrow move constructible, but is not!");
 
-static_assert(std::is_nothrow_move_constructible<url::KQuery>::value,
+static_assert(!std::is_nothrow_move_constructible<URLEncodedQuery>::value ||
+			  std::is_nothrow_move_constructible<url::KQuery>::value,
 			  "url::KQuery is intended to be nothrow move constructible, but is not!");
 
 static_assert(std::is_nothrow_move_constructible<url::KFragment>::value,

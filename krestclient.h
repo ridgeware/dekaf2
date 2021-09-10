@@ -118,6 +118,9 @@ public:
 	/// Add (overwrite) a request header to existing headers
 	self& AddHeader(KHTTPHeader Header, KStringView sValue);
 
+	/// Return a header's content from the response
+	const KString& GetResponseHeader(KHTTPHeader Header) { return Response.Headers.Get(Header);  }
+
 	/// Set a Get method with path to call
 	self& Get       (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::GET    );  }
 	/// Set a Head method with path to call

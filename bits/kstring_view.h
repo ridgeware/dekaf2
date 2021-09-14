@@ -67,8 +67,7 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 #endif
 
 #if defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW) \
-	|| (!defined(DEKAF2_HAS_STD_STRING_VIEW) \
-		&& !defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW))
+	|| !defined(DEKAF2_HAS_STD_STRING_VIEW)
 
 	/// tiny but nearly complete string_view implementation - it only does not have rfind() nor find_first/last_(not)_of() (but those are supplied through KStringView)
 

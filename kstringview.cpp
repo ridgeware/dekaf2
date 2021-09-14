@@ -192,7 +192,6 @@ size_t kRFind(
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
-	|| defined(DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW) \
 	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
 
 	if (DEKAF2_UNLIKELY(needle.size() == 1))

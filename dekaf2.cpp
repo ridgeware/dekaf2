@@ -295,9 +295,6 @@ KStringView Dekaf::GetVersionInformation() const
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 		" fbstring"
 #endif
-#ifdef DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
-		" fbstringview"
-#endif
 #ifdef DEKAF2_USE_OPTIMIZED_STRING_FIND
 		" optimized_string_find"
 #endif

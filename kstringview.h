@@ -780,7 +780,7 @@ public:
 	bool starts_with(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return front() == ch;
+		return empty() ? false : m_rep.front() == ch;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -800,7 +800,7 @@ public:
 	bool ends_with(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return back() == ch;
+		return empty() ? false : m_rep.back() == ch;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1704,33 +1704,16 @@ inline
 bool kContains(KStringView sInput, KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
-	{
-		return false;
-	}
-
-	if (DEKAF2_UNLIKELY(sPattern.empty()))
-	{
-		return true;
-	}
-
 	return kFind(sInput, sPattern) != KStringView::npos;
-
-} // kContains
+}
 
 //----------------------------------------------------------------------
 inline
 bool kContains(KStringView sInput, const char ch) noexcept
 //----------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(sInput.empty()))
-	{
-		return false;
-	}
-
 	return kFind(sInput, ch) != KStringView::npos;
-
-} // kContains
+}
 
 inline namespace literals {
 

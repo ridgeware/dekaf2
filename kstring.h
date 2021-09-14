@@ -1355,14 +1355,14 @@ inline bool KString::ends_with(KStringView sSubString) const noexcept
 inline bool KString::starts_with(value_type ch) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return front() == ch;
+	return empty() ? false : m_rep.front() == ch;
 }
 
 //-----------------------------------------------------------------------------
 inline bool KString::ends_with(value_type ch) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return back() == ch;
+	return empty() ? false : m_rep.back() == ch;
 }
 
 //-----------------------------------------------------------------------------

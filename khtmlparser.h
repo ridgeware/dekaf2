@@ -317,6 +317,8 @@ public:
 
 	KStringView Get(KStringView sAttributeName) const;
 
+	bool Has(KStringView sAttributeName) const;
+
 	void Set(KString sAttributeName, KString sAttributeValue, char Quote='"')
 	{
 		Set(KHTMLAttribute(std::move(sAttributeName), std::move(sAttributeValue), Quote));

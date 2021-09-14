@@ -86,6 +86,9 @@ namespace dekaf2 {
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
+namespace detail {
+constexpr KStringView kASCIISpaces;
+}
 constexpr KStringView::size_type KStringView::npos;
 constexpr KStringView::value_type KStringView::s_0ch;
 
@@ -760,8 +763,7 @@ KStringView KStringView::Right(size_type iCount) const
 KStringView& KStringView::TrimLeft()
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(*this, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
-	return *this;
+	return TrimLeft(detail::kASCIISpaces);
 }
 
 //----------------------------------------------------------------------
@@ -776,11 +778,7 @@ KStringView& KStringView::TrimLeft(value_type chTrim)
 KStringView& KStringView::TrimLeft(KStringView sTrim)
 //----------------------------------------------------------------------
 {
-	if (sTrim.size() == 1)
-	{
-		return TrimLeft(sTrim[0]);
-	}
-	dekaf2::kTrimLeft(*this, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
+	dekaf2::kTrimLeft(*this, sTrim);
 	return *this;
 }
 
@@ -788,8 +786,7 @@ KStringView& KStringView::TrimLeft(KStringView sTrim)
 KStringView& KStringView::TrimRight()
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimRight(*this, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
-	return *this;
+	return TrimRight(detail::kASCIISpaces);
 }
 
 //----------------------------------------------------------------------
@@ -804,11 +801,20 @@ KStringView& KStringView::TrimRight(value_type chTrim)
 KStringView& KStringView::TrimRight(KStringView sTrim)
 //----------------------------------------------------------------------
 {
-	if (sTrim.size() == 1)
+	// for some reason the template generalization of kTrimRight(KStringView, KStringView)
+	// does not work on entirely trimmable strings (with apple clang 12) - so we code the
+	// same algorithm here again
+	auto iDelete = find_last_not_of(sTrim);
+
+	if (iDelete == npos)
 	{
-		return TrimRight(sTrim[0]);
+		clear();
 	}
-	dekaf2::kTrimRight(*this, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
+	else
+	{
+		erase(iDelete + 1);
+	}
+
 	return *this;
 }
 
@@ -816,8 +822,7 @@ KStringView& KStringView::TrimRight(KStringView sTrim)
 KStringView& KStringView::Trim()
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrim(*this, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
-	return *this;
+	return Trim(detail::kASCIISpaces);
 }
 
 //----------------------------------------------------------------------
@@ -832,11 +837,8 @@ KStringView& KStringView::Trim(value_type chTrim)
 KStringView& KStringView::Trim(KStringView sTrim)
 //----------------------------------------------------------------------
 {
-	if (sTrim.size() == 1)
-	{
-		return Trim(sTrim[0]);
-	}
-	dekaf2::kTrim(*this, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
+	TrimRight(sTrim);
+	TrimLeft(sTrim);
 	return *this;
 }
 

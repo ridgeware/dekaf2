@@ -232,6 +232,14 @@ public:
 		return m_Attributes.Get(sName);
 	}
 
+	/// Check for existance of an attribute
+	/// @param sName the attribute name
+	/// @return true it exists, otherwise false
+	bool HasAttribute(KStringView sName) const
+	{
+		return m_Attributes.Has(sName);
+	}
+
 	/// Remove an attribute
 	/// @param sName the attribute name
 	void RemoveAttribute(KStringView sName)

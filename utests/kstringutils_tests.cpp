@@ -714,6 +714,13 @@ TEST_CASE("KStringUtils") {
 				CHECK ( kToInt<int64_t>(it.first) == it.second );
 			}
 		}
+
+		SECTION("Types")
+		{
+			CHECK ( kToInt<uint16_t>("12345"  ) == 12345     );
+			CHECK ( kToInt<float>   ("1234567") == 1234567.0 );
+			CHECK ( kToInt<double>  ("1234567") == 1234567.0 );
+		}
 	}
 
 	SECTION("kToInt Hex")

@@ -162,6 +162,27 @@ text-decoration: none
 						yellow
 					</label>
 				</fieldset>
+				<fieldset>
+					<legend>
+						Radios with enums
+					</legend>
+					<label>
+						<input name="_fobj9" type="radio" value="0"/>
+						red
+					</label>
+					<label>
+						<input name="_fobj9" type="radio" value="1"/>
+						green
+					</label>
+					<label>
+						<input name="_fobj9" type="radio" value="2"/>
+						blue
+					</label>
+					<label>
+						<input checked name="_fobj9" type="radio" value="3"/>
+						yellow
+					</label>
+				</fieldset>
 			</form>
 		</div>
 		<a href="link" title="title"><img alt="AltText" loading="lazy" src="another/link"/></a>
@@ -169,6 +190,8 @@ text-decoration: none
 	</body>
 </html>
 )";
+		enum COLOR { RED, GREEN, BLUE, YELLOW };
+
 		struct Config
 		{
 			KString sDataDir { "this/is/preset" };
@@ -176,9 +199,10 @@ text-decoration: none
 			KString sMailTo;
 			KString sMailFrom;
 			KString sSMTPServer;
-			KString sRadio;
+			KString sRadio     { "blue" };
 			KString sSelection { "Sel2" };
 			int     iMotionArea = 0;
+			COLOR   Color    { GREEN };
 			std::chrono::high_resolution_clock::duration dInterval { 0 };
 			double m_fMinConfidence { 0.0 };
 			bool bNoDetect   { false };
@@ -197,6 +221,7 @@ text-decoration: none
 		Parms.Add("confidence", "0.55"  );
 		Parms.Add("_fobj3"    , "1001"  ); // this value is too large for the object (max = 1000)
 		Parms.Add("selection" , "_fobj7");
+		Parms.Add("_fobj9"    , "3"     );
 
 		html::Page page("My First Web Page", "en");
 
@@ -284,6 +309,14 @@ text-decoration: none
 				group += html::RadioButton(m_Config.sRadio).SetValue("green" ).SetLabelAfter("green" );
 				group += html::RadioButton(m_Config.sRadio).SetValue("blue"  ).SetLabelAfter("blue"  );
 				group += html::RadioButton(m_Config.sRadio).SetValue("yellow").SetLabelAfter("yellow");
+			}
+
+			{
+				auto& group = form.Add(html::FieldSet("Radios with enums"));
+				group += html::RadioButton(m_Config.Color).SetValue(RED   ).SetLabelAfter("red"   );
+				group += html::RadioButton(m_Config.Color).SetValue(GREEN ).SetLabelAfter("green" );
+				group += html::RadioButton(m_Config.Color).SetValue(BLUE  ).SetLabelAfter("blue"  );
+				group += html::RadioButton(m_Config.Color).SetValue(YELLOW).SetLabelAfter("yellow");
 			}
 
 			form.Generate();

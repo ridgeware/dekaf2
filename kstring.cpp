@@ -814,7 +814,7 @@ KString& KString::PadRight(size_t iWidth, value_type chPad) &
 KString& KString::TrimLeft() &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(m_rep, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
+	dekaf2::kTrimLeft(*this);
 	return *this;
 }
 
@@ -830,11 +830,7 @@ KString& KString::TrimLeft(value_type chTrim) &
 KString& KString::TrimLeft(KStringView sTrim) &
 //----------------------------------------------------------------------
 {
-	if (sTrim.size() == 1)
-	{
-		return TrimLeft(sTrim[0]);
-	}
-	dekaf2::kTrimLeft(m_rep, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
+	dekaf2::kTrimLeft(*this, sTrim);
 	return *this;
 }
 
@@ -842,7 +838,7 @@ KString& KString::TrimLeft(KStringView sTrim) &
 KString& KString::TrimRight() &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimRight(m_rep, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
+	dekaf2::kTrimRight(*this);
 	return *this;
 }
 
@@ -858,11 +854,7 @@ KString& KString::TrimRight(value_type chTrim) &
 KString& KString::TrimRight(KStringView sTrim) &
 //----------------------------------------------------------------------
 {
-	if (sTrim.size() == 1)
-	{
-		return TrimRight(sTrim[0]);
-	}
-	dekaf2::kTrimRight(m_rep, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
+	dekaf2::kTrimRight(*this, sTrim);
 	return *this;
 }
 
@@ -870,7 +862,7 @@ KString& KString::TrimRight(KStringView sTrim) &
 KString& KString::Trim() &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrim(m_rep, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
+	dekaf2::kTrim(*this);
 	return *this;
 }
 
@@ -886,11 +878,7 @@ KString& KString::Trim(value_type chTrim) &
 KString& KString::Trim(KStringView sTrim) &
 //----------------------------------------------------------------------
 {
-	if (sTrim.size() == 1)
-	{
-		return Trim(sTrim[0]);
-	}
-	dekaf2::kTrim(m_rep, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
+	dekaf2::kTrim(*this, sTrim);
 	return *this;
 }
 
@@ -898,7 +886,7 @@ KString& KString::Trim(KStringView sTrim) &
 KString& KString::Collapse() &
 //----------------------------------------------------------------------
 {
-	return kCollapse(*this, " \f\n\r\t\v\b", ' ');
+	return kCollapse(*this, detail::kASCIISpaces, ' ');
 	return *this;
 }
 
@@ -914,7 +902,7 @@ KString& KString::Collapse(KStringView svCollapse, value_type chTo) &
 KString& KString::CollapseAndTrim() &
 //----------------------------------------------------------------------
 {
-	return kCollapseAndTrim(*this, " \f\n\r\t\v\b", ' ');
+	return kCollapseAndTrim(*this, detail::kASCIISpaces, ' ');
 	return *this;
 }
 

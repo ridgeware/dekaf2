@@ -229,7 +229,7 @@ public:
 	using const_pointer          = const pointer;
 	using traits_type            = rep_type::traits_type;
 
-	static constexpr size_type npos = std::string::npos;
+	static constexpr size_type npos = size_type(-1);
 
 	//-----------------------------------------------------------------------------
 	constexpr
@@ -531,7 +531,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
-	const value_type& front() const
+	const value_type& front() const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		if DEKAF2_UNLIKELY(empty())
@@ -544,7 +544,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
-	const value_type& back() const
+	const value_type& back() const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		if DEKAF2_UNLIKELY(empty())
@@ -794,7 +794,7 @@ public:
 	bool starts_with(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return starts_with(self_type(&ch, 1));
+		return front() == ch;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -814,7 +814,7 @@ public:
 	bool ends_with(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return ends_with(self_type(&ch, 1));
+		return back() == ch;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1050,7 +1050,7 @@ public:
 	/// @return a new Container. Default is a std::vector<KStringView>.
 	/// @param svDelim a string view of delimiter characters. Defaults to ",".
 	/// @param svPairDelim exists only for associative containers: a string view that is used to separate keys and values in the sequence. Defaults to "=".
-	/// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
+	/// @param svTrim a string containing chars to remove from token ends. Defaults to " \f\n\r\t\v\b".
 	/// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 	/// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 	/// taken for found spaces if defined as delimiter). Defaults to false.
@@ -1394,6 +1394,11 @@ protected:
 
 using KStringViewPair = std::pair<KStringView, KStringView>;
 
+namespace detail {
+
+static constexpr KStringView kASCIISpaces { " \f\n\r\t\v\b" };
+
+} // end of namespace detail
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
@@ -1534,7 +1539,7 @@ size_t kFind(
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	// we keep this inlined as then the compiler can evaluate const expressions
 	// (memchr() is actually a compiler-builtin with gcc)
-	if (DEKAF2_UNLIKELY(pos > haystack.size()))
+	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
 	{
 		return KStringView::npos;
 	}

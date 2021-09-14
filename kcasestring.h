@@ -69,12 +69,12 @@ bool kCaseEndsWith(KStringView left, KStringView right);
 
 //-----------------------------------------------------------------------------
 /// compares case insensitive, trims strings before compare
-int kCaseCompareTrim(KStringView left, KStringView right, KStringView svTrim = " \t\r\n\b");
+int kCaseCompareTrim(KStringView left, KStringView right, KStringView svTrim = detail::kASCIISpaces);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// tests trimmed strings for case insensitive equality
-bool kCaseEqualTrim(KStringView left, KStringView right, KStringView svTrim = " \t\r\n\b");
+bool kCaseEqualTrim(KStringView left, KStringView right, KStringView svTrim = detail::kASCIISpaces);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
@@ -102,13 +102,13 @@ bool kCaseEndsWithLeft(KStringView left, KStringView right);
 //-----------------------------------------------------------------------------
 /// compares case insensitive, trims strings before compare,
 /// assuming right string trimmed and in lowercase
-int kCaseCompareTrimLeft(KStringView left, KStringView right, KStringView svTrim = " \t\r\n\b");
+int kCaseCompareTrimLeft(KStringView left, KStringView right, KStringView svTrim = detail::kASCIISpaces);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// tests trimmed strings for case insensitive equality
 /// assuming right string trimmed and in lowercase
-bool kCaseEqualTrimLeft(KStringView left, KStringView right, KStringView svTrim = " \t\r\n\b");
+bool kCaseEqualTrimLeft(KStringView left, KStringView right, KStringView svTrim = detail::kASCIISpaces);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
@@ -128,7 +128,7 @@ std::size_t kCalcCaseHash(KStringView sv)
 
 //-----------------------------------------------------------------------------
 /// calculates a hash for case insensitive trimmed string
-std::size_t kCalcCaseHashTrim(KStringView, KStringView svTrim = " \t\r\n\b");
+std::size_t kCalcCaseHashTrim(KStringView, KStringView svTrim = detail::kASCIISpaces);
 //-----------------------------------------------------------------------------
 
 
@@ -140,8 +140,8 @@ namespace casestring {
 struct TrimWhiteSpaces
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	static constexpr KStringView svTrimLeft  {" \t\n\r\b"};
-	static constexpr KStringView svTrimRight {" \t\n\r\b"};
+	static constexpr KStringView svTrimLeft  { detail::kASCIISpaces };
+	static constexpr KStringView svTrimRight { detail::kASCIISpaces };
 };
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

@@ -552,7 +552,7 @@ void KHTMLAttribute::Serialize(KString& sOut) const
 			if (!Quote)
 			{
 				// lazy check if we need a quote (maybe the value was changed)
-				if (Value.find_first_of(" \t\r\n\b\"'=<>`") != KString::npos)
+				if (Value.find_first_of(" \f\v\t\r\n\b\"'=<>`") != KString::npos)
 				{
 					Quote = '"';
 				}
@@ -589,7 +589,7 @@ void KHTMLAttribute::Serialize(KOutStream& OutStream) const
 			if (!Quote)
 			{
 				// lazy check if we need a quote (maybe the value was changed)
-				if (Value.find_first_of(" \t\r\n\b\"'=<>`") != KString::npos)
+				if (Value.find_first_of(" \f\v\t\r\n\b\"'=<>`") != KString::npos)
 				{
 					Quote = '"';
 				}
@@ -641,6 +641,14 @@ KStringView KHTMLAttributes::Get(KStringView sAttributeName) const
 	}
 
 } // Get
+
+//-----------------------------------------------------------------------------
+bool KHTMLAttributes::Has(KStringView sAttributeName) const
+//-----------------------------------------------------------------------------
+{
+	return m_Attributes.find(sAttributeName) != m_Attributes.end();
+
+} // Has
 
 //-----------------------------------------------------------------------------
 void KHTMLAttributes::Set(KHTMLAttribute Attribute)

@@ -88,14 +88,7 @@ size_t kFindFirstOf(KStringView haystack, KStringView needles, bool bNot)
 		return table[static_cast<unsigned char>(c)] != bNot;
 	});
 
-	if (it == haystack.end())
-	{
-		return KStringView::npos;
-	}
-	else
-	{
-		return static_cast<size_t>(it - haystack.begin());
-	}
+	return (it == haystack.end()) ? KStringView::npos : static_cast<size_t>(it - haystack.begin());
 
 } // kFindFirstOf
 
@@ -117,14 +110,7 @@ size_t kFindLastOf(KStringView haystack, KStringView needles, bool bNot)
 		return table[static_cast<unsigned char>(c)] != bNot;
 	});
 
-	if (it == haystack.rend())
-	{
-		return KStringView::npos;
-	}
-	else
-	{
-		return static_cast<size_t>((it.base() - 1) - haystack.begin());
-	}
+	return (it == haystack.rend()) ? KStringView::npos : static_cast<size_t>((it.base() - 1) - haystack.begin());
 
 } // kFindLastOf
 

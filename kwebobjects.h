@@ -1725,35 +1725,6 @@ protected:
 		DispValue();
 	}
 
-	template<typename X = Arithmetic,
-			 typename std::enable_if<std::is_signed<X>::value == false, int>::type = 0>
-	void SetNumericValue(KStringView sValue)
-	{
-		SetNumericValue(sValue.UInt64());
-	}
-
-	template<typename X = Arithmetic,
-	         typename std::enable_if<std::is_signed<X>::value == true &&
-	                                 std::is_floating_point<X>::value == false, int>::type = 0>
-	void SetNumericValue(KStringView sValue)
-	{
-		SetNumericValue(sValue.Int64());
-	}
-
-	template<typename X = Arithmetic,
-	         typename std::enable_if<std::is_same<double, X>::value, int>::type = 0>
-	void SetNumericValue(KStringView sValue)
-	{
-		SetNumericValue(sValue.Double());
-	}
-
-	template<typename X = Arithmetic,
-	         typename std::enable_if<std::is_same<float, X>::value, int>::type = 0>
-	void SetNumericValue(KStringView sValue)
-	{
-		SetNumericValue(sValue.Float());
-	}
-
 	virtual void Reset(KWebObjectBase* Element) override
 	{
 		// no need to do anything as Sync is always called for number inputs
@@ -1761,7 +1732,8 @@ protected:
 
 	virtual void Sync(KWebObjectBase* Element, KStringView sValue) override
 	{
-		SetNumericValue(sValue);
+		m_iValue = std::min(std::max(kFromString<Arithmetic>(sValue), m_iMin), m_iMax);
+		DispValue();
 	}
 
 	virtual void* AddressOfInputStorage() override
@@ -1923,8 +1895,7 @@ public:
 	self& SetValue(const ValueType& Value) &
 	{
 		parent::SetChecked(Value == m_Result);
-		auto sValue = kFormat("{}", Value);
-		parent::SetValue(sValue);
+		parent::SetValue(kFormat("{}", Value));
 		return *this;
 	}
 	self&& SetValue(const ValueType& Value) &&
@@ -1946,48 +1917,11 @@ protected:
 		static_cast<Input*>(Element)->SetChecked(false);
 	}
 
-	template<typename X = ValueType,
-	         typename std::enable_if<std::is_signed<X>::value == false &&
-	                                 detail::is_narrow_cpp_str<X>::value == false, int>::type = 0>
-	ValueType GetRadioValue(KStringView sValue)
-	{
-		return static_cast<ValueType>(sValue.UInt64());
-	}
-
-	template<typename X = ValueType,
-	         typename std::enable_if<std::is_signed<X>::value == true &&
-	                                 std::is_floating_point<X>::value == false, int>::type = 0>
-	ValueType GetRadioValue(KStringView sValue)
-	{
-		return static_cast<ValueType>(sValue.Int64());
-	}
-
-	template<typename X = ValueType,
-	         typename std::enable_if<std::is_same<double, X>::value, int>::type = 0>
-	ValueType GetRadioValue(KStringView sValue)
-	{
-		return sValue.Double();
-	}
-
-	template<typename X = ValueType,
-	         typename std::enable_if<std::is_same<float, X>::value, int>::type = 0>
-	ValueType GetRadioValue(KStringView sValue)
-	{
-		return sValue.Float();
-	}
-
-	template<typename X = ValueType,
-	         typename std::enable_if<detail::is_narrow_cpp_str<X>::value, int>::type = 0>
-	ValueType GetRadioValue(KStringView sValue)
-	{
-		return sValue;
-	}
-
 	virtual void Sync(KWebObjectBase* Element, KStringView sValue) override
 	{
 		if (sValue == Element->GetAttribute("value"))
 		{
-			m_Result = GetRadioValue(sValue);
+			kFromString(m_Result, sValue);
 			static_cast<Input*>(Element)->SetChecked(true);
 		}
 	}
@@ -2212,7 +2146,7 @@ public:
 	virtual std::size_t WebObjectType() const override { return TYPE; }
 
 //----------
-public:
+protected:
 //----------
 
 	virtual void Reset(KWebObjectBase* Element) override

@@ -655,7 +655,7 @@ public:
 	/// @return a new Container. Default is a std::vector<KStringView>.
 	/// @param svDelim a string view of delimiter characters. Defaults to ",".
 	/// @param svPairDelim exists only for associative containers: a string view that is used to separate keys and values in the sequence. Defaults to "=".
-	/// @param svTrim a string containing chars to remove from token ends. Defaults to " \t\r\n\b".
+	/// @param svTrim a string containing chars to remove from token ends. Defaults to " \f\n\r\t\v\b".
 	/// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 	/// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 	/// taken for found spaces if defined as delimiter). Defaults to false.
@@ -1355,14 +1355,14 @@ inline bool KString::ends_with(KStringView sSubString) const noexcept
 inline bool KString::starts_with(value_type ch) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kStartsWith(*this, KStringView(std::addressof(ch), 1));
+	return front() == ch;
 }
 
 //-----------------------------------------------------------------------------
 inline bool KString::ends_with(value_type ch) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kEndsWith(*this, KStringView(std::addressof(ch), 1));
+	return back() == ch;
 }
 
 //-----------------------------------------------------------------------------

@@ -353,7 +353,7 @@ KStringView WrapOutput(KStringView& sInput, std::size_t iMaxSize)
 
 		if (!(sInput.size() > iMaxSize && KASCII::kIsSpace(sInput[sWrapped.size()])))
 		{
-			sWrapped.erase(sWrapped.find_last_of(" \t\r\n\b"));
+			sWrapped.erase(sWrapped.find_last_of(detail::kASCIISpaces));
 		}
 		else
 		{
@@ -575,7 +575,7 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 	{
 		if (sOption != "!")
 		{
-			sOption.TrimLeft(OptionOrCommand.IsCommand() ? " \t\r\n\b" : " -\t\r\n\b");
+			sOption.TrimLeft(OptionOrCommand.IsCommand() ? " \f\v\t\r\n\b" : " -\f\v\t\r\n\b");
 
 			if (sOption.front() == '-')
 			{
@@ -707,7 +707,7 @@ int KOptions::Parse(KString sCLI, KOutStream& out)
 	m_ParmBuffer.push_front(std::move(sCLI));
 
 	std::vector<KStringViewZ> parms;
-	kSplitArgsInPlace(parms, m_ParmBuffer.front(), /*svDelim  =*/" \t\r\n\b", /*svQuotes =*/"\"'", /*chEscape =*/'\\');
+	kSplitArgsInPlace(parms, m_ParmBuffer.front(), /*svDelim  =*/" \f\v\t\r\n\b", /*svQuotes =*/"\"'", /*chEscape =*/'\\');
 
 	return Execute(CLIParms(parms), out);
 

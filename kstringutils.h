@@ -125,8 +125,9 @@ String& kPadRight(String& string, size_t iWidth, typename String::value_type chP
 
 //-----------------------------------------------------------------------------
 /// removes any character in svTrim from the left of the string
-template<class String>
-String& kTrimLeft(String& string, KStringView svTrim)
+template<class String,
+         typename std::enable_if<detail::is_narrow_cpp_str<String>::value, int>::type = 0>
+String& kTrimLeft(String& string, KStringView svTrim = detail::kASCIISpaces)
 //-----------------------------------------------------------------------------
 {
 	auto iDelete = string.find_first_not_of(svTrim);
@@ -154,7 +155,8 @@ String& kTrimLeft(String& string, Compare cmp)
 
 //-----------------------------------------------------------------------------
 /// removes white space from the left of the string
-template<class String>
+template<class String,
+         typename std::enable_if<detail::is_narrow_cpp_str<String>::value == false, int>::type = 0>
 String& kTrimLeft(String& string)
 //-----------------------------------------------------------------------------
 {
@@ -163,12 +165,17 @@ String& kTrimLeft(String& string)
 
 //-----------------------------------------------------------------------------
 /// removes any character in svTrim from the right of the string
-template<class String>
-String& kTrimRight(String& string, KStringView svTrim)
+template<class String,
+         typename std::enable_if<detail::is_narrow_cpp_str<String>::value, int>::type = 0>
+String& kTrimRight(String& string, KStringView svTrim = detail::kASCIISpaces)
 //-----------------------------------------------------------------------------
 {
 	auto iDelete = string.find_last_not_of(svTrim);
-	if (iDelete != String::npos)
+	if (iDelete == String::npos)
+	{
+		string.clear();
+	}
+	else
 	{
 		string.erase(iDelete + 1);
 	}
@@ -192,7 +199,8 @@ String& kTrimRight(String& string, Compare cmp)
 
 //-----------------------------------------------------------------------------
 /// removes white space from the right of the string
-template<class String>
+template<class String,
+         typename std::enable_if<detail::is_narrow_cpp_str<String>::value == false, int>::type = 0>
 String& kTrimRight(String& string)
 //-----------------------------------------------------------------------------
 {
@@ -201,8 +209,9 @@ String& kTrimRight(String& string)
 
 //-----------------------------------------------------------------------------
 /// removes any character in svTrim from the left and right of the string
-template<class String>
-String& kTrim(String& string, KStringView svTrim)
+template<class String,
+         typename std::enable_if<detail::is_narrow_cpp_str<String>::value, int>::type = 0>
+String& kTrim(String& string, KStringView svTrim = detail::kASCIISpaces)
 //-----------------------------------------------------------------------------
 {
 	kTrimRight(string, svTrim);
@@ -221,7 +230,8 @@ String& kTrim(String& string, Compare cmp)
 
 //-----------------------------------------------------------------------------
 /// removes white space from the left and right of the string
-template<class String>
+template<class String,
+         typename std::enable_if<detail::is_narrow_cpp_str<String>::value == false, int>::type = 0>
 String& kTrim(String& string)
 //-----------------------------------------------------------------------------
 {
@@ -570,12 +580,11 @@ uint8_t kFromHexChar(char ch) noexcept
 }
 
 //-----------------------------------------------------------------------------
-template<class Integer>
+template<class Integer,
+         typename std::enable_if<std::is_arithmetic<Integer>::value, int>::type = 0>
 Integer kToInt(KStringView sNumber, uint16_t iBase = 10) noexcept
 //-----------------------------------------------------------------------------
 {
-	static_assert(std::is_arithmetic<Integer>::value, "arithmetic type required");
-
 	Integer iVal { 0 };
 
 	if (DEKAF2_LIKELY(iBase <= 36))
@@ -745,6 +754,70 @@ String kSignedToString(int64_t i, uint16_t iBase = 10, bool bZeroPad = false, bo
 	return kUnsignedToString<String>(ui, iBase, bZeroPad, bUppercase, bIsNeg);
 
 } // kSignedToString
+
+//-----------------------------------------------------------------------------
+inline
+void kFromString(float& Value, KStringView sValue, uint16_t iBase = 10)
+//-----------------------------------------------------------------------------
+{
+	Value = sValue.Float();
+}
+
+//-----------------------------------------------------------------------------
+inline
+void kFromString(double& Value, KStringView sValue, uint16_t iBase = 10)
+//-----------------------------------------------------------------------------
+{
+	Value = sValue.Double();
+}
+
+//-----------------------------------------------------------------------------
+template<typename T,
+		 typename std::enable_if<std::is_integral<T>::value == false &&
+								 std::is_enum    <T>::value == false &&
+                                 std::is_assignable<T, KStringView>::value == true, int>::type = 0>
+void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)
+//-----------------------------------------------------------------------------
+{
+	Value = sValue;
+}
+
+//-----------------------------------------------------------------------------
+template<typename T,
+		 typename std::enable_if<detail::has_Parse<T>::value == true, int>::type = 0>
+void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)
+//-----------------------------------------------------------------------------
+{
+	Value.Parse(sValue);
+}
+
+//-----------------------------------------------------------------------------
+template<typename T,
+		 typename std::enable_if<std::is_integral<T>::value == true, int>::type = 0>
+void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)
+//-----------------------------------------------------------------------------
+{
+	Value = kToInt<T>(sValue, iBase);
+}
+
+//-----------------------------------------------------------------------------
+template<typename T,
+		 typename std::enable_if<std::is_enum<T>::value == true, int>::type = 0>
+void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)
+//-----------------------------------------------------------------------------
+{
+	Value = static_cast<T>(kToInt<int64_t>(sValue, iBase));
+}
+
+//-----------------------------------------------------------------------------
+template<typename T>
+T kFromString(KStringView sValue, uint16_t iBase = 10)
+//-----------------------------------------------------------------------------
+{
+	T Value;
+	kFromString(Value, sValue, iBase);
+	return Value;
+}
 
 //-----------------------------------------------------------------------------
 /// Escape or hex encode problematic characters, append to sLog

@@ -116,22 +116,26 @@ struct has_subscript_operator<T, Index, std::void_t<
 	decltype(std::declval<T>()[std::declval<Index>()])
 >> : std::true_type { };
 
-// returns has_size<T>::value == true when type has a size() member function
-template <typename T>
-class has_size
-{
-private:
-	typedef char Yes;
-	typedef char No[2];
+#define DEKAF2_HAS_MEMBER_FUNCTION(function, has_name)                           \
+	template <typename T>                                                        \
+	class has_name                                                               \
+	{                                                                            \
+	private:                                                                     \
+		typedef char Yes;                                                        \
+		typedef char No[2];                                                      \
+                                                                                 \
+		template<typename C> static auto Test(void*)                             \
+		-> decltype(size_t{std::declval<C const>().function()}, Yes{});          \
+                                                                                 \
+		template<typename> static No& Test(...);                                 \
+                                                                                 \
+	public:                                                                      \
+		static constexpr bool const value = sizeof(Test<T>(0)) == sizeof(Yes);   \
+	}
 
-	template<typename C> static auto Test(void*)
-	-> decltype(size_t{std::declval<C const>().size()}, Yes{});
-
-	template<typename> static No& Test(...);
-
-public:
-	static constexpr bool const value = sizeof(Test<T>(0)) == sizeof(Yes);
-};
+DEKAF2_HAS_MEMBER_FUNCTION(size,      has_size     );
+DEKAF2_HAS_MEMBER_FUNCTION(Parse,     has_Parse    );
+DEKAF2_HAS_MEMBER_FUNCTION(Serialize, has_Serialize);
 
 template <typename>
 struct is_chrono_duration : std::false_type {};
@@ -140,17 +144,6 @@ template <typename R, typename P>
 struct is_chrono_duration<std::chrono::duration<R, P>> : std::true_type {};
 
 } // of namespace detail
-
-} // of namespace dekaf2
-
-// now include kstring / view.h for the string tests
-
-//#include "../kstring.h"
-//#include "../kstringview.h"
-//#include "kstringviewz.h"
-
-namespace dekaf2
-{
 
 class KString;
 class KStringView;

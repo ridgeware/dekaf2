@@ -141,6 +141,7 @@ struct _cs_blk_row;          typedef struct _cs_blk_row CS_BLK_ROW;
 typedef struct st_mysql MYSQL;
 typedef char** MYSQL_ROW;
 typedef struct st_mysql_res MYSQL_RES;
+typedef unsigned long* MYSQL_ROW_LENS; // this one is not a MYSQL type, but it is returned from mysql_fetch_lengths()
 #endif
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1023,9 +1024,10 @@ private:
 	mutable KString m_sConnectSummary;
 
 #ifdef DEKAF2_HAS_MYSQL
-	MYSQL*     m_dMYSQL { nullptr };                   // MYSQL      m_mysql;
-	MYSQL_ROW  m_MYSQLRow { nullptr };                 // MYSQL_ROW  m_row;
-	MYSQL_RES* m_dMYSQLResult { nullptr };             // MYSQL_RES* m_presult;
+	MYSQL*         m_dMYSQL       { nullptr };     // MYSQL      m_mysql;
+	MYSQL_ROW      m_MYSQLRow     { nullptr };     // MYSQL_ROW  m_row;
+	MYSQL_ROW_LENS m_MYSQLRowLens { nullptr };	   // stores the result of mysql_fetch_lengths() for one row
+	MYSQL_RES*     m_dMYSQLResult { nullptr };     // MYSQL_RES* m_presult;
 #endif
 
 #ifdef DEKAF2_HAS_ORACLE

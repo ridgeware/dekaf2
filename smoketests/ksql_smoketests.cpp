@@ -840,6 +840,11 @@ TEST_CASE("KSQL")
 		{
 			FAIL_CHECK (db.GetLastError());
 		}
+
+		// prepare a value with 0 byte
+		KString sZero = "krow insert 101";
+		sZero.insert(4, 1, 0); // insert a zero byte after "krow"
+
 		{
 			KROW Row1 ("TEST_KSQL");
 			Row1.AddCol ("anum",      UINT64_C(100),            KROW::PKEY);
@@ -850,7 +855,7 @@ TEST_CASE("KSQL")
 			// test missing table name - should now be kept over from last
 			KROW Row2;
 			Row2.AddCol ("anum",      UINT64_C(101),            KROW::PKEY);
-			Row2.AddCol ("astring",   "krow insert 101");
+			Row2.AddCol ("astring",   sZero);
 
 			Rows.push_back(std::move(Row2));
 
@@ -914,7 +919,13 @@ TEST_CASE("KSQL")
 		{
 			// get all rows..
 			++iRows;
-			if (row["anum"] == "102")
+			if (row["anum"] == "101")
+			{
+				KString sString = row["astring"];
+				// check that row 101 has a 0 byte
+				CHECK ( sString == sZero );
+			}
+			else if (row["anum"] == "102")
 			{
 				KString sString = row["astring"];
 				// check that row 102 has an empty astring

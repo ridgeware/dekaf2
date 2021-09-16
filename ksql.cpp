@@ -3350,33 +3350,36 @@ bool KSQL::BufferResults ()
 
 		while ((m_MYSQLRow = mysql_fetch_row (m_dMYSQLResult)))
 		{
+			m_MYSQLRowLens = mysql_fetch_lengths(m_dMYSQLResult);
+
 			++m_iNumRowsBuffered;
 			for (KROW::Index ii=0; ii<m_iNumColumns; ++ii)
 			{
-				char* colval = (m_MYSQLRow)[ii];
-				if (!colval)
+				KString sColVal;
+				if (m_MYSQLRowLens)
 				{
-					colval = (char*)"";   // <-- change db nullptr to cstring ""
-				}
-				
-				// we need to assure that no newlines are in buffered data:
-				char* spot = strchr (colval, '\n');
-				while (spot)
-				{
-					*spot = 2; // <-- change them to ^B
-					spot = strchr (spot+1, '\n');
-				}
-				if (strlen(colval) > 50)
-				{
-					kDebug (3, "  buffered: row[{}]col[{}]: strlen()={}", m_iNumRowsBuffered, ii+1, strlen(colval));
+					sColVal = KStringView(m_MYSQLRow[ii], m_MYSQLRowLens[ii]);
 				}
 				else
 				{
-					kDebug (3, "  buffered: row[{}]col[{}]: '{}'", m_iNumRowsBuffered, ii+1, colval);
+					// fall back to C strcpy
+					sColVal = m_MYSQLRow[ii];
 				}
 
-				file.FormatLine ("{}|{}|{}", m_iNumRowsBuffered, ii+1, strlen(colval));
-				file.FormatLine ("{}\n", colval ? colval : "");
+				// we need to assure that no newlines are in buffered data:
+				sColVal.Replace('\n', 2);  // <-- change them to ^B (warning: this kills binary columns, it should be switched to an escaping format)
+
+				if (sColVal.size() > 50)
+				{
+					kDebug (3, "  buffered: row[{}]col[{}]: strlen()={}", m_iNumRowsBuffered, ii+1, sColVal.size());
+				}
+				else
+				{
+					kDebug (3, "  buffered: row[{}]col[{}]: '{}'", m_iNumRowsBuffered, ii+1, sColVal);
+				}
+
+				file.FormatLine ("{}|{}|{}", m_iNumRowsBuffered, ii+1, sColVal.size());
+				file.FormatLine ("{}\n", sColVal);
 			}
 		}
 		break;
@@ -3572,11 +3575,13 @@ bool KSQL::NextRow ()
 				{
 					++m_iRowNum;
 					kDebug (3, "mysql_fetch_row gave us row {}", m_iRowNum);
+					m_MYSQLRowLens = mysql_fetch_lengths(m_dMYSQLResult);
 					return true;
 				}
 				else
 				{
 					kDebug (3, "{} row{} fetched (end was hit)", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
+					m_MYSQLRowLens = nullptr;
 					return false;
 				}
 				break;
@@ -4189,7 +4194,16 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 			// - - - - - - - - - - - - - - - - -
 				if (m_MYSQLRow)
 				{
-					sRtnValue = static_cast<MYSQL_ROW>(m_MYSQLRow)[iOneBasedColNum-1];
+					if (m_MYSQLRowLens)
+					{
+						sRtnValue = KStringView(static_cast<MYSQL_ROW>(m_MYSQLRow)[iOneBasedColNum-1],
+												m_MYSQLRowLens[iOneBasedColNum-1]);
+					}
+					else
+					{
+						// fall back to C strcpy
+						sRtnValue = static_cast<MYSQL_ROW>(m_MYSQLRow)[iOneBasedColNum-1];
+					}
 				}
 				else
 				{

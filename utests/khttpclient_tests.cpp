@@ -4,10 +4,15 @@
 #include <dekaf2/ktcpserver.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/ktimer.h>
+#include <dekaf2/kfilesystem.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 
 using namespace dekaf2;
+
+namespace {
+KTempDir TempDir;
+}
 
 class KTinyHTTPServer : public KTCPServer
 {
@@ -57,7 +62,7 @@ TEST_CASE("KHTTPClient") {
 	SECTION("check connection setup")
 	{
 		KTinyHTTPServer server(7654, false, 3);
-		server.Start(30, false);
+		server.Start(2, false);
 		server.clear();
 
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
@@ -88,7 +93,7 @@ TEST_CASE("KHTTPClient") {
 	SECTION("check serialization")
 	{
 		KTinyHTTPServer server(7654, false);
-		server.Start(10, false);
+		server.Start(2, false);
 		server.clear();
 
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
@@ -115,13 +120,63 @@ TEST_CASE("KHTTPClient") {
 		}
 	}
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+	SECTION("check unix sockets")
+	{
+		auto sSocketFile = kFormat("{}/test1.socket", TempDir.Name());
+		KTinyHTTPServer server(sSocketFile);
+		server.Start(2, false);
+		server.clear();
+
+		// unix sockets require a different URL for the connection (the file system path
+		// to the socket) and the request (a relative path on the http server side)
+
+		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
+
+		KHTTPClient cHTTP;
+		KURL ConnectURL = kFormat("unix://{}", sSocketFile);
+		cHTTP.Connect(ConnectURL); // the file system path
+		cHTTP.Resource(URL); // the request path (protocol and domain parts are not used)
+		CHECK( cHTTP.Serialize() == true );
+		CHECK( cHTTP.Parse() == true );
+		KString shtml;
+		cHTTP.Read(shtml);
+		CHECK( shtml == "0123456789");
+		CHECK( server.m_rx.size() == 3 );
+		if (server.m_rx.size() == 3)
+		{
+			CHECK( server.m_rx[0] == "GET /path?query=val&another=here HTTP/1.1" );
+			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
+			CHECK( server.m_rx[2] == "");
+		}
+
+		// now repeat the connection (to simulate a reused client)
+		server.clear();
+		cHTTP.Connect(ConnectURL); // the file system path
+		cHTTP.Resource(URL); // the request path (protocol and domain parts are not used)
+		CHECK( cHTTP.Serialize() == true );
+		CHECK( cHTTP.Parse() == true );
+		shtml.clear();
+		cHTTP.Read(shtml);
+		CHECK( shtml == "0123456789");
+		CHECK( server.m_rx.size() == 3 );
+		if (server.m_rx.size() == 3)
+		{
+			CHECK( server.m_rx[0] == "GET /path?query=val&another=here HTTP/1.1" );
+			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
+			CHECK( server.m_rx[2] == "");
+		}
+
+	}
+#endif
+
 	SECTION("failing connection")
 	{
 		KHTTPClient Client("http://koltun-ballet-boston.com/");
 		KStopTime Stop;
 		CHECK( Client.SendRequest() == false );
-		// allow for a millisecond of fail time
-		CHECK( Stop.microseconds() < 1000 );
+		// allow for ten millisecond of fail time
+		CHECK( Stop.microseconds() < 10000 );
 	}
 
 }

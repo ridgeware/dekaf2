@@ -571,6 +571,7 @@ set(PUBLIC_HEADERS
 	krow.h
 	krsakey.h
 	krsasign.h
+	kscopeguard.h
 	ksharedmemory.h
 	ksharedref.h
 	ksharedptr.h

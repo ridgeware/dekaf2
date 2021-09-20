@@ -38,77 +38,26 @@
 // +-------------------------------------------------------------------------+
 */
 
-/*
- * A C++11 implementation of scope guards
- *
- */
-
-#pragma once
-
-/// @file kscopeguard.h
-/// Ad-hoc definition of RAII exit actions
-
-#include <functional>
-#include <utility>
+#include "kscopeguard.h"
 
 namespace dekaf2 {
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// C++11 implementation of a scope guard - a RAII helper that executes arbitrary callables at end of scope
-class KScopeGuard
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//-----------------------------------------------------------------------------
+void KScopeGuard::call() noexcept
+//-----------------------------------------------------------------------------
 {
-
-//----------
-public:
-//----------
-
-	KScopeGuard() = default;
-	KScopeGuard(const KScopeGuard&) = delete;
-
-	KScopeGuard(KScopeGuard&& other) noexcept
-	: m_Callable(std::move(other.m_Callable))
+	if (m_Callable)
 	{
-		other.dismiss();
+		try
+		{
+			m_Callable();
+		}
+		catch (...)
+		{
+		}
 	}
 
-	/// Construct a scope guard from any type of callable with function signature void(void), e.g. a lambda
-	/// At end of life of Guard the callable will be called, if not either been trigger() ed or dismiss() ed before.
-	/// Sample:
-	/// @code KScopeGuard Guard = [fd]{ close(fd); };
-	template<class Func>
-	KScopeGuard(const Func& callable)
-	: m_Callable(callable)
-	{}
-
-	/// Calls the callable if still valid
-	~KScopeGuard() noexcept
-	{
-		call();
-	}
-
-	/// Call the callable immediately if still valid, invalidates it after execution
-	void trigger() noexcept
-	{
-		call();
-		m_Callable = nullptr;
-	}
-
-	/// Dismiss (delete) the callable so that it will not be executed at end of scope
-	void dismiss() noexcept
-	{
-		m_Callable = nullptr;
-	}
-
-//----------
-private:
-//----------
-
-	void call() noexcept;
-
-	std::function<void()> m_Callable;
-
-}; // KScopeGuard
+} // call
 
 } // end of namespace dekaf2
 

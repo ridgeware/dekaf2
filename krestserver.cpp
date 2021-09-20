@@ -1178,7 +1178,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 	}
 	else
 	{
-		Response.SetStatus(KHTTPError::H5xx_ERROR, "INTERNAL SERVER ERROR");
+		Response.SetStatus(KHTTPError::H5xx_ERROR);
 	}
 
 	// we need to set the HTTP version here explicitly, as we could throw as early

@@ -60,6 +60,7 @@
 #include "kwebclient.h"
 #include "khash.h"
 #include "kbar.h"
+#include "kscopeguard.h"
 #include <cstdint>
 
 #if defined(DEKAF2_IS_WINDOWS) || defined(DEKAF2_DO_NOT_HAVE_STRPTIME)
@@ -568,6 +569,57 @@ KSQL::~KSQL ()
 } // destructor
 
 //-----------------------------------------------------------------------------
+void KSQL::ClearError()
+//-----------------------------------------------------------------------------
+{
+	m_sLastErrorSetOnlyWithSetError.clear();
+	m_iErrorSetOnlyWithSetError = 0;
+
+} // ClearError
+
+//-----------------------------------------------------------------------------
+bool KSQL::SetError(KString sError, uint32_t iErrorNum, bool bNoThrow)
+//-----------------------------------------------------------------------------
+{
+	m_sLastErrorSetOnlyWithSetError = std::move(sError);
+	m_iErrorSetOnlyWithSetError     = iErrorNum;
+
+	bool bIgnore = IsFlag(F_IgnoreSQLErrors);
+
+	if (!m_sErrorPrefix.empty() && !m_sLastErrorSetOnlyWithSetError.starts_with(m_sErrorPrefix))
+	{
+		m_sLastErrorSetOnlyWithSetError.insert(0, m_sErrorPrefix);
+	}
+
+	kDebug(GetDebugLevel(), m_sLastErrorSetOnlyWithSetError);
+
+	if (!bIgnore && !m_sLastSQL.empty())
+	{
+		kDebug (GetDebugLevel(), m_sLastSQL);
+	}
+
+	if (m_TimingCallback)
+	{
+		m_TimingCallback (*this, /*iMilliseconds=*/0, GetLastError());
+	}
+
+	if (!bNoThrow && m_bMayThrow && (!bIgnore))
+	{
+		auto iErrorNum = GetLastErrorNum();
+
+		if (iErrorNum == 0)
+		{
+			iErrorNum = -1;
+		}
+
+		throw Exception(GetLastError(), iErrorNum);
+	}
+
+	return false;
+
+} // SetError
+
+//-----------------------------------------------------------------------------
 void KSQL::FreeAll (bool bDestructor/*=false*/)
 //-----------------------------------------------------------------------------
 {
@@ -671,8 +723,7 @@ void KSQL::FreeAll (bool bDestructor/*=false*/)
 	kDebug (3, "..."); \
 	if (IsConnectionOpen()) \
 	{ \
-		m_sLastError.Format ("{}{} cannot change database connection when it's already open", m_sErrorPrefix, FUNC); \
-		return (false); \
+		return SetError(kFormat("{} cannot change database connection when it's already open", FUNC)); \
 	}
 
 
@@ -769,8 +820,7 @@ bool KSQL::SetDBType (KStringView sDBType)
 	}
 #endif
 
-	m_sLastError.Format ("unsupported dbtype: {}", sDBType);
-	return (false);
+	return SetError(kFormat ("unsupported dbtype: {}", sDBType));
 
 } // SetDBType
 
@@ -849,8 +899,7 @@ bool KSQL::SaveConnect (const KString& sDBCFile)
 			// Store DBC as a version 2 file if we can
 			if (!dbc_v2.Save(sDBCFile))
 			{
-				m_sLastError.Format ("{}SaveConnect(): could not write to '{}'.", m_sErrorPrefix, sDBCFile);
-				return (false);
+				return SetError(kFormat ("SaveConnect(): could not write to '{}'.", sDBCFile));
 			}
 			return true;
 		}
@@ -870,14 +919,12 @@ bool KSQL::SaveConnect (const KString& sDBCFile)
 			// Store DBC as a version 2 file if we can
 			if (!dbc_v3.Save(sDBCFile))
 			{
-				m_sLastError.Format ("{}SaveConnect(): could not write to '{}'.", m_sErrorPrefix, sDBCFile);
-				return (false);
+				return SetError(kFormat ("SaveConnect(): could not write to '{}'.", sDBCFile));
 			}
 			return true;
 		}
 	}
-	m_sLastError.Format ("{}SaveConnect(): could not encode all strings into '{}' - too long.", m_sErrorPrefix, sDBCFile);
-	return false;
+	return SetError(kFormat ("SaveConnect(): could not encode all strings into '{}' - too long.", sDBCFile));
 
 } // SaveConnect
 
@@ -914,22 +961,16 @@ bool KSQL::DecodeDBCData (KStringView sBuffer, KStringView sDBCFile)
 		   This version of the software can't process the data, but it may be a future version of DBC,
 		   so provide a helpful error message.
 		*/
-		m_sLastError.Format("unrecognized DBC version in DBC file '{}'.", sDBCFile);
-		kDebug(GetDebugLevel(), m_sLastError);
-		return false;
+		return SetError(kFormat ("unrecognized DBC version in DBC file '{}'.", sDBCFile));
 	}
 	else
 	{
-		m_sLastError.Format ("invalid header on DBC file '{}'.", sDBCFile);
-		kDebug(GetDebugLevel(), m_sLastError);
-		return (false);
+		return SetError(kFormat ("invalid header on DBC file '{}'.", sDBCFile));
 	}
 
 	if (!dbc->SetBuffer(sBuffer))
 	{
-		m_sLastError.Format ("corrupted DBC file '{}'.", sDBCFile);
-		kDebug(GetDebugLevel(), m_sLastError);
-		return (false);
+		return SetError(kFormat ("corrupted DBC file '{}'.", sDBCFile));
 	}
 
 	m_iDBType    = dbc->GetDBT();
@@ -952,9 +993,7 @@ bool KSQL::SetConnect (const KString& sDBCFile, const KString& sDBCFileContent)
 
 	if (IsConnectionOpen())
 	{
-		m_sLastError.Format ("can't call SetConnect on an OPEN DATABASE");
-		kDebug (GetDebugLevel(), m_sLastError);
-		return (false);
+		return SetError("can't call SetConnect on an OPEN DATABASE");
 	}
 
 	m_iDBType           = DBT::NONE;
@@ -973,9 +1012,7 @@ bool KSQL::SetConnect (const KString& sDBCFile, const KString& sDBCFileContent)
 
 	if (sDBCFileContent.empty())
 	{
-		m_sLastError.Format ("empty DBC file '{}'", sDBCFile);
-		kDebug (GetDebugLevel(), m_sLastError);
-		return (false);
+		return SetError(kFormat ("empty DBC file '{}'", sDBCFile));
 	}
 
 	if (!DecodeDBCData(sDBCFileContent, sDBCFile))
@@ -999,9 +1036,7 @@ bool KSQL::LoadConnect (const KString& sDBCFile)
 
 	if (IsConnectionOpen())
 	{
-		m_sLastError.Format ("can't call LoadConnect on an OPEN DATABASE");
-		kDebug (GetDebugLevel(), m_sLastError);
-		return (false);
+		return SetError ("can't call LoadConnect on an OPEN DATABASE");
 	}
 
 	kDebug (GetDebugLevel(), "opening '{}'...", sDBCFile);
@@ -1050,7 +1085,8 @@ bool KSQL::OpenConnection ()
 		return (true);
 	}
 
-	m_sLastError.clear();
+	ClearError();
+
 	if (m_iAPISet == API::NONE)
 	{
 		SetAPISet (API::NONE); // <-- pick the default APIs for this DBType
@@ -1096,15 +1132,12 @@ bool KSQL::OpenConnection ()
 	iPortNum = GetDBPort();
 	#endif
 
-	ResetErrorStatus ();
-
 	switch (m_iAPISet)
 	{
 	// - - - - - - - - - - - - - - - - -
 	case API::NONE:
 	// - - - - - - - - - - - - - - - - -
-		m_sLastError.Format ("{}CANNOT CONNECT (no connect info!)", m_sErrorPrefix);
-		return (SQLError ());
+		return SetError("CANNOT CONNECT (no connect info!)");
 
     #ifdef DEKAF2_HAS_MYSQL
 	// - - - - - - - - - - - - - - - - -
@@ -1136,13 +1169,15 @@ bool KSQL::OpenConnection ()
 		if (!mysql_real_connect (m_dMYSQL, m_sHostname.c_str(), m_sUsername.c_str(), m_sPassword.c_str(), m_sDatabase.c_str(), /*port*/ iPortNum, /*sock*/nullptr,
 			/*flag*/CLIENT_FOUND_ROWS)) // <-- this flag corrects the behavior of GetNumRowsAffected()
 		{
-			m_iErrorNum = mysql_errno (m_dMYSQL);
-			m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error(m_dMYSQL));
+			auto iErrorNum = mysql_errno (m_dMYSQL);
+			auto sError    = kFormat ("KSQL: MSQL-{}: {}", iErrorNum, mysql_error(m_dMYSQL));
+
 			if (m_dMYSQL)
 			{
 				mysql_close(m_dMYSQL);
 			}
-			return (SQLError ());
+
+			return SetError (sError, iErrorNum);
 		}
 
 		mysql_set_character_set (m_dMYSQL, "utf8"); // by default
@@ -1156,15 +1191,13 @@ bool KSQL::OpenConnection ()
 		// ODBC initialization:
 		if (SQLAllocEnv (&m_Environment) != SQL_SUCCESS)
 		{
-			m_sLastError.Format ("{}SQLAllocEnv() failed", m_sErrorPrefix);
-			return (SQLError ());
+			return SetError("SQLAllocEnv() failed");
 		}
 
 		if (SQLAllocConnect (m_Environment, &m_hdbc) != SQL_SUCCESS)
 		{
-			m_sLastError.Format ("{}SQLAllocConnect() failed", m_sErrorPrefix);
 			SQLFreeEnv (m_Environment);
-			return (SQLError ());
+			return SetError("SQLAllocConnect() failed");
 		}
 
 		m_sConnectOutput.clear();
@@ -1275,24 +1308,13 @@ bool KSQL::OpenConnection ()
 		OCIAttrSet (m_dOCI8Session, OCI_HTYPE_SESSION, m_sDatabase, m_sDatabase.length(), ?????    -- cannot override ORACLE_SID ???
 
 		//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-		m_iErrorNum = OCISessionBegin ((OCISvcCtx*)m_dOCI8ServerContext, (OCIError*)m_dOCI8ErrorHandle, (OCISession*)m_dOCI8Session, 
+		auto iErrorNum = OCISessionBegin ((OCISvcCtx*)m_dOCI8ServerContext, (OCIError*)m_dOCI8ErrorHandle, (OCISession*)m_dOCI8Session,
 			OCI_CRED_RDBMS, m_iOraSessionMode);
 		//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-		if (!WasOCICallOK("OpenConnection:OCISessionBegin"))
+		KString sError;
+		if (!WasOCICallOK("OpenConnection:OCISessionBegin", iErrorNum, sError))
 		{
-			if (IsFlag(F_IgnoreSQLErrors))
-			{
-				kDebug (GetDebugLevel(), m_sLastError);
-			}
-			else
-			{
-				kWarning(m_sLastError);
-				if (m_TimingCallback)
-				{
-					m_TimingCallback (*this, /*iMilliseconds=*/0, m_sLastError);
-				}
-			}
-			return (false);
+			return SetError(sError, iErrorNum);
 		}
 
 		// associate the session with the server context handle:
@@ -1307,14 +1329,15 @@ bool KSQL::OpenConnection ()
 		// OCILogoff (OCISvcCtx *svchp, OCIError *errhp);
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		m_iErrorNum = OCILogon ((OCIEnv*)m_dOCI8EnvHandle, (OCIError*)m_dOCI8ErrorHandle, (OCISvcCtx**)(&m_dOCI8ServerContext),
+		auto iErrorNum = OCILogon ((OCIEnv*)m_dOCI8EnvHandle, (OCIError*)m_dOCI8ErrorHandle, (OCISvcCtx**)(&m_dOCI8ServerContext),
 			(text*) m_sUsername.c_str(), m_sUsername.length()),
 			(text*) m_sPassword.c_str(), m_sPassword.length()),
 			(text*) m_sHostname.c_str(), m_sHostname.length()));  // FYI: m_sHostname holds the ORACLE_SID
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		if (!WasOCICallOK("OpenConnection:OCILogon"))
+		KString sError;
+		if (!WasOCICallOK("OpenConnection:OCILogon", iErrorNum, sError))
 		{
-			return (SQLError());
+			return SetError(sError, iErrorNum);
 		}
 	#endif
 
@@ -1350,25 +1373,26 @@ bool KSQL::OpenConnection ()
 
 		// Attach to ORACLE as user/pass = DBName/Password
 		//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-		m_iErrorNum = olog ((Lda_Def*)m_dOCI6LoginDataArea, (ub1*)m_sOCI6HostDataArea, 
+		auto iErrorNum = olog ((Lda_Def*)m_dOCI6LoginDataArea, (ub1*)m_sOCI6HostDataArea,
 				(text *)m_sUsername, strlen(m_sUsername),
 		        (text *)m_sPassword, strlen(m_sPassword),
 				(text *)m_sHostname, strlen(m_sHostname), OCI_LM_DEF);  // FYI: m_sHostname holds the ORACLE_SID
 		//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+		KString sError;
 		if (!WasOCICallOK("OpenConnection:olog"))
 		{
-			return (SQLError());
+			return SetError(sError, iErrorNum);
 		}
 
 		kDebug (GetDebugLevel()+1, "OCI6: connect through olog() succeeded.\n");
 	
 		// Only one cursor is associated with each KSQL instance, so open it now:
 		//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-		m_iErrorNum = oopen ((Cda_Def*)m_dOCI6ConnectionDataArea, (Lda_Def*)m_dOCI6LoginDataArea, nullptr, -1, -1, nullptr, -1);
+		iErrorNum = oopen ((Cda_Def*)m_dOCI6ConnectionDataArea, (Lda_Def*)m_dOCI6LoginDataArea, nullptr, -1, -1, nullptr, -1);
 		//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-		if (!WasOCICallOK("OpenConnection:oopen"))
+		if (!WasOCICallOK("OpenConnection:oopen", iErrorNum, sError))
 		{
-			return (SQLError());
+			return SetError(sError, iErrorNum);
 		}
 
 		break;
@@ -1413,11 +1437,8 @@ bool KSQL::OpenConnection ()
 	// - - - - - - - - - - - - - - - - -
 		if (!ctlib_login())
 		{
-			if (m_sLastError.empty())
-			{
-				m_sLastError.Format ("{}CTLIB: connection failed.", m_sErrorPrefix);
-			}
-			return (SQLError ());
+			// ctlib_login logs and throws, or returns false - no need to further log here
+			return false;
 		}
 		break;
 	#endif
@@ -1426,8 +1447,7 @@ bool KSQL::OpenConnection ()
 	case API::INFORMIX:
 	default:
 	// - - - - - - - - - - - - - - - - -
-		m_sLastError.Format ("{}API Set not coded yet ({})", m_sErrorPrefix, TxAPISet(GetAPISet()));
-		return (SQLError ());
+		return SetError(kFormat ("API Set not coded yet ({})", TxAPISet(GetAPISet())));
 	}
 
 	m_bConnectionIsOpen = true;
@@ -1460,8 +1480,6 @@ void KSQL::CloseConnection (bool bDestructor/*=false*/)
 		kDebug (3, "...");
 	}
 
-	m_sLastError.clear();
-
 	if (IsConnectionOpen())
 	{
 		if (!bDestructor)
@@ -1469,7 +1487,7 @@ void KSQL::CloseConnection (bool bDestructor/*=false*/)
 			kDebug (GetDebugLevel(), "disconnecting from {}...", ConnectSummary());
 		}
 
-		ResetErrorStatus ();
+		ClearError ();
 		ResetConnectionID ();
 
 		switch (m_iAPISet)
@@ -1638,16 +1656,19 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 	if (IsFlag(F_ReadOnlyMode) && ! IsSelect(m_sLastSQL) && ! IsKill(m_sLastSQL))
 	{
-		m_sLastError.Format ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL);
-		return false;
+		return SetError(kFormat ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL));
 	}
 
 	m_iNumRowsAffected  = 0;
 	EndQuery();
 
-	bool   bOK          = false;
-	int    iRetriesLeft = m_bDisableRetries ? 1 : NUM_RETRIES;
-	int    iSleepFor    = 0;
+	bool    bOK          = false;
+	int     iRetriesLeft = m_bDisableRetries ? 1 : NUM_RETRIES;
+	int     iSleepFor    = 0;
+	// we delay error output until the end of the loop, therefore
+	// temporarily store the error here
+	int     iErrorNum    = -1;
+	KString sError;
 
 	KStopTime Timer;
 
@@ -1655,7 +1676,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 	while (!bOK && iRetriesLeft)
 	{
-		ResetErrorStatus ();
+		ClearError ();
 
 		switch (m_iAPISet)
 		{
@@ -1681,8 +1702,8 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 					kDebug (3, "mysql_query(): m_dMYSQL is {}, SQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", m_sLastSQL.size());
 					if (mysql_query (m_dMYSQL, m_sLastSQL.c_str()))
 					{
-						m_iErrorNum = mysql_errno (m_dMYSQL);
-						m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error(m_dMYSQL));
+						iErrorNum = mysql_errno (m_dMYSQL);
+						sError    = kFormat ("KSQL: MSQL-{}: {}", iErrorNum, mysql_error(m_dMYSQL));
 						break;
 					}
 
@@ -1723,10 +1744,10 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 			case API::OCI8:
 			// - - - - - - - - - - - - - - - - -
 				kDebug (3, "OCIStmtPrepare...");
-				m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
-											 (text*)m_sLastSQL.data(), m_sLastSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
+				iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
+											(text*)m_sLastSQL.data(), m_sLastSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
 
-				if (!WasOCICallOK("ExecSQL:OCIStmtPrepare"))
+				if (!WasOCICallOK("ExecSQL:OCIStmtPrepare", iErrorNum, sError))
 				{
 					break;
 				}
@@ -1735,16 +1756,16 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 				// application can selectively commit transactions at the end of each
 				// statement execution, saving an extra roundtrip by calling OCITransCommit().
 				kDebug (3, "OCIStmtExecute...");
-				m_iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, 0,
+				iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, 0,
 								 (CONST OCISnapshot *) nullptr, (OCISnapshot *) nullptr, IsFlag(F_NoAutoCommit) ? 0 : OCI_COMMIT_ON_SUCCESS);
 
-				if (!WasOCICallOK("ExecSQL:OCIStmtExecute"))
+				if (!WasOCICallOK("ExecSQL:OCIStmtExecute", iErrorNum, sError))
 				{
 					break;
 				}
 
 				m_iNumRowsAffected = 0;
-				m_iErrorNum = OCIAttrGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, &m_iNumRowsAffected,
+				iErrorNum = OCIAttrGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, &m_iNumRowsAffected,
 					0, OCI_ATTR_ROW_COUNT, (OCIError*)m_dOCI8ErrorHandle);
 
 				bOK = true;
@@ -1755,16 +1776,16 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 			// - - - - - - - - - - - - - - - - -
 				// let the RDBMS parse the SQL expression:
 				kDebug (3, "oparse...");
-				m_iErrorNum = oparse ((Cda_Def*)m_dOCI6ConnectionDataArea, (text *)m_sLastSQL.c_str(), (sb4) -1, (sword) PARSE_NO_DEFER, (ub4) PARSE_V7_LNG);
-				if (!WasOCICallOK("ExecSQL:oparse"))
+				iErrorNum = oparse ((Cda_Def*)m_dOCI6ConnectionDataArea, (text *)m_sLastSQL.c_str(), (sb4) -1, (sword) PARSE_NO_DEFER, (ub4) PARSE_V7_LNG);
+				if (!WasOCICallOK("ExecSQL:oparse", iErrorNum, sError))
 				{
 					break;
 				}
 
 				// execute it:
 				kDebug (3, "oexec...");
-				m_iErrorNum = oexec ((Cda_Def*)m_dOCI6ConnectionDataArea);
-				if (!WasOCICallOK("ExecSQL:oexec"))
+				iErrorNum = oexec ((Cda_Def*)m_dOCI6ConnectionDataArea);
+				if (!WasOCICallOK("ExecSQL:oexec", iErrorNum, sError))
 				{
 					break;
 				}
@@ -1772,10 +1793,10 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 				// now issue a "commit" or it will be rolled back automatically:
 				if (!IsFlag(F_NoAutoCommit))
 				{
-					m_iErrorNum = ocom ((Lda_Def*)m_dOCI6LoginDataArea);
-					if (!WasOCICallOK("ExecSQL:ocom"))
+					iErrorNum = ocom ((Lda_Def*)m_dOCI6LoginDataArea);
+					if (!WasOCICallOK("ExecSQL:ocom", iErrorNum, sError))
 					{
-						m_sLastError += "\non auto commit.";
+						sError += "\non auto commit.";
 						break;
 					}
 				}
@@ -1829,7 +1850,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 		if (!bOK)
 		{
-			if (!(iRetriesLeft--) || !PreparedToRetry())
+			if (!(iRetriesLeft--) || !PreparedToRetry(iErrorNum))
 			{
 				iRetriesLeft = 0; // stop looping
 			}
@@ -1856,11 +1877,9 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 	} // retry loop
 
-	ClearErrorPrefix();
-
 	if (!bOK)
 	{
-		return (SQLError());
+		return SetError(sError, iErrorNum);
 	}
 
 	LogPerformance (Timer.milliseconds(), /*bIsQuery=*/false);
@@ -1918,7 +1937,7 @@ void KSQL::LogPerformance (uint64_t iMilliseconds, bool bIsQuery)
 } // LogPerformance
 
 //-----------------------------------------------------------------------------
-bool KSQL::PreparedToRetry ()
+bool KSQL::PreparedToRetry (uint32_t iErrorNum)
 //-----------------------------------------------------------------------------
 {
 	// Note: this is called every time m_sLastError and m_iLastErrorNum have
@@ -1939,7 +1958,7 @@ bool KSQL::PreparedToRetry ()
 	{
 #ifdef DEKAF2_HAS_MYSQL
 		case DBT::MYSQL:
-			switch (m_iErrorNum)
+			switch (iErrorNum)
 			{
 #ifdef CR_SERVER_GONE_ERROR
 				case CR_SERVER_GONE_ERROR:
@@ -1968,7 +1987,7 @@ bool KSQL::PreparedToRetry ()
 			case DBT::SQLSERVER:
 			case DBT::SQLSERVER15:
 			case DBT::SYBASE:
-				switch (m_iErrorNum)
+				switch (iErrorNum)
 				{
 					// SQL-01205: State 45, Severity 13, Line 1, Transaction (Process ID 95) was deadlocked on lock resources with
 					//  another process and has been chosen as the deadlock victim. Rerun the transaction.
@@ -2022,7 +2041,8 @@ bool KSQL::PreparedToRetry ()
 		{
 			kDebug (GetDebugLevel(), "new connection looks good.");
 		}
-		else if (IsFlag(F_IgnoreSQLErrors)) {
+		else if (IsFlag(F_IgnoreSQLErrors))
+		{
 			kDebug (GetDebugLevel(), "NEW CONNECTION FAILED.");
 		}
 		else
@@ -2097,11 +2117,12 @@ bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI
 		// - - - - - - - - - - - - - - - - -
 		case API::OCI8:
 		// - - - - - - - - - - - - - - - - -
-			m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
+			auto iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
 										 (text*)sSQL.data(), sSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
-			if (!WasOCICallOK("ParseSQL:OCIStmtPrepare"))
+			KString sError;
+			if (!WasOCICallOK("ParseSQL:OCIStmtPrepare", iErrorNum, sError))
 			{
-				return (SQLError (/*fForceError=*/false));
+				return SetError(sError, iErrorNum);
 			}
 
 			m_bStatementParsed = true;
@@ -2140,15 +2161,16 @@ bool KSQL::ExecParsedSQL ()
 		// - - - - - - - - - - - - - - - - -
 		case API::OCI8:
 		// - - - - - - - - - - - - - - - - -
-			m_iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, 0,
+			auto iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, 0,
 							 (CONST OCISnapshot *) nullptr, (OCISnapshot *) nullptr, IsFlag(F_NoAutoCommit) ? 0 : OCI_COMMIT_ON_SUCCESS);
-			if (!WasOCICallOK("ParseSQL:OCIStmtExecute"))
+			KString sError;
+			if (!WasOCICallOK("ParseSQL:OCIStmtExecute", iErrorNum, sError))
 			{
-				return (SQLError (/*fForceError=*/false));
+				return SetError(sError, iErrorNum);
 			}
 
 			m_iNumRowsAffected = 0;
-			m_iErrorNum = OCIAttrGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, &m_iNumRowsAffected,
+			iErrorNum = OCIAttrGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, &m_iNumRowsAffected,
 				0, OCI_ATTR_ROW_COUNT, (OCIError*)m_dOCI8ErrorHandle);
 
 			break;
@@ -2162,8 +2184,6 @@ bool KSQL::ExecParsedSQL ()
 
 	m_idxBindVar = 0; // <-- reset index into m_OCIBindArray[]
 
-	ClearErrorPrefix();
-
 	return (true);
 
 } // ExecParsedSQL
@@ -2175,6 +2195,11 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 {
 	kDebug (3, "...");
 
+	KScopeGuard Guard = [this]()
+	{
+		ClearErrorPrefix();
+	};
+
 	EndQuery ();
 	if (!IsConnectionOpen() && !OpenConnection())
 	{
@@ -2185,22 +2210,18 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 
 	if (!kFileExists (sFilename))
 	{
-		m_sLastError.Format ("{}:ExecSQLFile(): file '{}' does not exist.", m_sErrorPrefix, sFilename);
-		return (SQLError());
+		return SetError(kFormat ("ExecSQLFile(): file '{}' does not exist.", sFilename));
 	}
 
 	KInFile File(sFilename);
 	if (!File.is_open())
 	{
-		m_sLastError.Format ("{}ExecSQLFile(): {} could not read from file '{}'", m_sErrorPrefix, kGetWhoAmI(), sFilename);
-		SQLError();
-		return (false);
+		return SetError(kFormat ("ExecSQLFile(): {} could not read from file '{}'", kGetWhoAmI(), sFilename));
 	}
 
 	if (IsFlag(F_ReadOnlyMode))
 	{
-		m_sLastError.Format ("KSQL: attempt to execute a SQL file on a READ ONLY db connection: {}", sFilename);
-		return false;
+		return SetError(kFormat ("KSQL: attempt to execute a SQL file on a READ ONLY db connection: {}", sFilename));
 	}
 
 	// trim all white space at end of lines (we keep the leading white space here to
@@ -2251,8 +2272,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 			auto Parts = sStart.Split("\""_ksv, ""_ksv);
 			if (Parts.size() < 2)
 			{
-				m_sLastError.Format ("{}:{}: malformed include directive (file should be enclosed in double quotes).", sFilename, Parms.iLineNum);
-				return (SQLError());
+				return SetError(kFormat ("{}:{}: malformed include directive (file should be enclosed in double quotes).", sFilename, Parms.iLineNum));
 			}
 
 			// Allow for ${myvar} variable expansion on include filenames
@@ -2267,14 +2287,13 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 
 			if (!kFileExists (sIncludedFile))
 			{
-				m_sLastError.Format ("{}:{}: missing include file: {}", sFilename, Parms.iLineNum, sIncludedFile);
-				return (SQLError());
+				return SetError(kFormat ("{}:{}: missing include file: {}", sFilename, Parms.iLineNum, sIncludedFile));
 			}
 			kDebug (GetDebugLevel(), "{}, line {}: recursing to include file: {}", sFilename, Parms.iLineNum, sIncludedFile);
 			if (!ExecSQLFile (sIncludedFile))
 			{
-				// m_sLastError is already set
-				return (SQLError());
+				// Error is already set
+				return false;
 			}
 			continue; // done with #include
 		}
@@ -2308,14 +2327,12 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 				sStart.TrimLeft();
 				if (!sStart.starts_with("{{"_ksv))
 				{
-					m_sLastError.Format ("{}:{}: malformed token: {}", sFilename, Parms.iLineNum, sStart);
-					return (false);
+					return SetError(kFormat ("{}:{}: malformed token: {}", sFilename, Parms.iLineNum, sStart));
 				}
 				auto iEnd = sStart.find("}}"_ksv);
 				if (iEnd == KStringView::npos)
 				{
-					m_sLastError.Format ("{}:{}: malformed {{token}}: {}", sFilename, Parms.iLineNum, sStart);
-					return (false);
+					return SetError(kFormat ("{}:{}: malformed {{token}}: {}", sFilename, Parms.iLineNum, sStart));
 				}
 				KStringView sKey   = sStart.substr(strlen("{{"), iEnd-strlen("{{")).Trim();
 				KStringView sValue = sStart.substr(iEnd+strlen("}}")).Trim();
@@ -2415,8 +2432,6 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 
 	kDebug (GetDebugLevel(), "{}: TotalRowsAffected = {}", sFilename, Parms.iTotalRowsAffected);
 	m_iNumRowsAffected = Parms.iTotalRowsAffected;
-
-	ClearErrorPrefix ();
 
 	return (Parms.fOK);
 
@@ -2557,8 +2572,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 	if (!(iFlags & F_IgnoreSelectKeyword) && !IsFlag(F_IgnoreSelectKeyword) && ! IsSelect (m_sLastSQL))
 	{
-		m_sLastError.Format ("{}ExecQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]", m_sErrorPrefix);
-		return (SQLError());
+		return SetError ("ExecQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]");
 	}
 
 	KStopTime Timer;
@@ -2567,7 +2581,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 	uint32_t iRetriesLeft = NUM_RETRIES;
 	#endif
 
-	ResetErrorStatus ();
+	ClearError ();
 
 	switch (m_iAPISet)
 	{
@@ -2589,16 +2603,15 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 			if (!m_dMYSQLResult)
 			{
 				kDebug(1, "expected query results but got none. Did you intend to use ExecSQL() instead of ExecQuery() ?");
-				m_iErrorNum = mysql_errno (m_dMYSQL);
-				if (m_iErrorNum == 0)
+				auto iErrorNum = mysql_errno (m_dMYSQL);
+				if (iErrorNum == 0)
 				{
-					m_sLastError = "KSQL: expected query results but got none. Did you intend to use ExecSQL() instead of ExecQuery() ?";
+					return SetError("KSQL: expected query results but got none. Did you intend to use ExecSQL() instead of ExecQuery() ?", iErrorNum);
 				}
 				else
 				{
-					m_sLastError.Format ("{}MSQL-{}: {}", m_sErrorPrefix, GetLastErrorNum(), mysql_error(m_dMYSQL));
+					return SetError(kFormat("KSQL: MSQL-{}: {}", iErrorNum, mysql_error(m_dMYSQL)), iErrorNum);
 				}
-				return (SQLError());
 			}
 
 			kDebug (3, "getting col info from mysql...\nmysql_field_count()...");
@@ -2637,35 +2650,36 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			// 1. OCI8: local "prepare" (parse) of SQL statement (note: in OCI6 this was a trip to the server)
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 
+			auto iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
 		                             (text*)m_sLastSQL.data(), m_sLastSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			if (!WasOCICallOK("ExecQuery:OCIStmtPrepare"))
+			KString sError;
+			if (!WasOCICallOK("ExecQuery:OCIStmtPrepare", iErrorNum, sError))
 			{
-				return (SQLError (/*fForceError=*/false));
+				return SetError(sError, iErrorNum);
 			}
 
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			// 2. OCI8: pre-execute (parse only) -- redundant trip to server until I get this all working
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			m_iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 
+			iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
 					/*iters=*/1, /*rowoff=*/0, /*snap_in=*/nullptr, /*snap_out=*/nullptr, OCI_DESCRIBE_ONLY);
 
-			if (!WasOCICallOK("ExecQuery:OCIStmtExecute(parse)"))
+			if (!WasOCICallOK("ExecQuery:OCIStmtExecute(parse)", iErrorNum, sError))
 			{
-				return (SQLError (/*fForceError=*/false));
+				return SetError(sError, iErrorNum);
 			}
 
 			// Get the number of columns in the query:
-			m_iErrorNum = OCIAttrGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, &m_iNumColumns,
+			iErrorNum = OCIAttrGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, &m_iNumColumns,
 				0, OCI_ATTR_PARAM_COUNT, (OCIError*)m_dOCI8ErrorHandle);
 
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			// 3. OCI8: allocate storage for the results set:
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			if (!WasOCICallOK("ExecQuery:OCIAttrGet(numcols)"))
+			if (!WasOCICallOK("ExecQuery:OCIAttrGet(numcols)", iErrorNum, sError))
 			{
-				return (SQLError (/*fForceError=*/false));
+				return SetError(sError, iErrorNum);
 			}
 
 			m_dColInfo.clear();
@@ -2686,10 +2700,10 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 				kDebug (3, "  retrieving info about col # {}", ii);
 
 				// get parameter for column ii:
-				m_iErrorNum = OCIParamGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, (OCIError*)m_dOCI8ErrorHandle, (void**)&pColParam, ii);
-				if (!WasOCICallOK("ExecQuery:OCIParamGet"))
+				iErrorNum = OCIParamGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, (OCIError*)m_dOCI8ErrorHandle, (void**)&pColParam, ii);
+				if (!WasOCICallOK("ExecQuery:OCIParamGet", iErrorNum, sError))
 				{
-					return (SQLError());
+					return SetError(sError, iErrorNum);
 				}
 
 				if (!pColParam)
@@ -2698,30 +2712,30 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 				}
 
 				// Retrieve the data type attribute:
-				m_iErrorNum = OCIAttrGet ((dvoid*) pColParam, OCI_DTYPE_PARAM, 
+				iErrorNum = OCIAttrGet ((dvoid*) pColParam, OCI_DTYPE_PARAM,
 					(dvoid*) &iDataType, (ub4 *) nullptr, OCI_ATTR_DATA_TYPE,
 					(OCIError*)m_dOCI8ErrorHandle);
-				if (!WasOCICallOK("ExecQuery:OCIAttrGet(datatype)"))
+				if (!WasOCICallOK("ExecQuery:OCIAttrGet(datatype)", iErrorNum, sError))
 				{
-					return (SQLError());
+					return SetError(sError, iErrorNum);
 				}
 
 				// Retrieve the column name attribute:
-				m_iErrorNum = OCIAttrGet ((dvoid*) pColParam, OCI_DTYPE_PARAM, 
+				iErrorNum = OCIAttrGet ((dvoid*) pColParam, OCI_DTYPE_PARAM,
 					(dvoid**) &dszColName, (ub4 *) &iLenColName, OCI_ATTR_NAME, 
 					(OCIError*)m_dOCI8ErrorHandle);
-				if (!WasOCICallOK("ExecQuery:OCIAttrGet(colname)"))
+				if (!WasOCICallOK("ExecQuery:OCIAttrGet(colname)", iErrorNum, sError))
 				{
-					return (SQLError());
+					return SetError(sError, iErrorNum);
 				}
 
 				// Retreive the maximum datasize:
-				m_iErrorNum = OCIAttrGet ((dvoid*) pColParam, OCI_DTYPE_PARAM, 
+				iErrorNum = OCIAttrGet ((dvoid*) pColParam, OCI_DTYPE_PARAM,
 					(void**) &iMaxDataSize, (ub4 *) nullptr, OCI_ATTR_DATA_SIZE,
 					(OCIError*)m_dOCI8ErrorHandle);
-				if (!WasOCICallOK("ExecQuery:OCIAttrGet(datasize)"))
+				if (!WasOCICallOK("ExecQuery:OCIAttrGet(datasize)", iErrorNum, sError))
 				{
-					return (SQLError());
+					return SetError(sError, iErrorNum);
 				}
 
 				KColInfo ColInfo;
@@ -2735,16 +2749,16 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 				OCIDefine* dDefine;
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-				m_iErrorNum = OCIDefineByPos ((OCIStmt*)m_dOCI8Statement, &dDefine, (OCIError*)m_dOCI8ErrorHandle,
+				iErrorNum = OCIDefineByPos ((OCIStmt*)m_dOCI8Statement, &dDefine, (OCIError*)m_dOCI8ErrorHandle,
 							ii,                                   // column number
 							(dvoid *)(ColInfo.dszValue.get()),    // data pointer
 							ColInfo.iMaxDataLen,                  // max data length
 							SQLT_STR,                             // always bind as a zero-terminated string
 							(dvoid *) 0, (ub2 *) 0, (ub2 *) 0, OCI_DEFAULT);
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-				if (!WasOCICallOK("ExecQuery:OCIDefineByPos"))
+				if (!WasOCICallOK("ExecQuery:OCIDefineByPos", iErrorNum, sError))
 				{
-					return (SQLError());
+					return SetError(sError, iErrorNum);
 				}
 
 				OCIHandleFree ((dvoid*)dDefine, OCI_HTYPE_DEFINE);
@@ -2756,13 +2770,13 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			// 5. OCI8: execute statement (start the query)...
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			m_iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, 0,
+			iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, 0,
 						 (OCISnapshot *) nullptr, (OCISnapshot *) nullptr, OCI_DEFAULT);
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			m_iOCI8FirstRowStat = m_iErrorNum;
-			if ((m_iErrorNum != OCI_NO_DATA) && !WasOCICallOK("ExecQuery:OCIStmtExecute"))
+			m_iOCI8FirstRowStat = iErrorNum;
+			if ((iErrorNum != OCI_NO_DATA) && !WasOCICallOK("ExecQuery:OCIStmtExecute", iErrorNum, sError))
 			{
-				return (SQLError());
+				return SetError(sError, iErrorNum);
 			}
 
 			// FYI: m_iOCI8FirstRowStat will indicate whether or not OCIStmtExecute() returned the first row
@@ -2780,11 +2794,12 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 			kDebug (3, "  calling oparse() to parse SQL statement...");
 
 			//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-			m_iErrorNum = oparse((Cda_Def*)m_dOCI6ConnectionDataArea, (text *)m_sLastSQL.c_str(), -1, PARSE_NO_DEFER, PARSE_V7_LNG);
+			iErrorNum = oparse((Cda_Def*)m_dOCI6ConnectionDataArea, (text *)m_sLastSQL.c_str(), -1, PARSE_NO_DEFER, PARSE_V7_LNG);
 			//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-			if (!WasOCICallOK("ExecQuery:oparse"))
+			KString sError;
+			if (!WasOCICallOK("ExecQuery:oparse", iErrorNum, sError))
 			{
-				return (SQLError  (/*fForceError=*/false));
+				return SetError(sError, iErrorNum);
 			}
 
 			int   iMaxWidth=0;
@@ -2810,7 +2825,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 				sb4 sb4MaxDataSize = iMaxDataSize;
 
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-				m_iErrorNum = odescr((Cda_Def*)m_dOCI6ConnectionDataArea,
+				iErrorNum = odescr((Cda_Def*)m_dOCI6ConnectionDataArea,
 					m_iNumColumns+1,
 					&sb4MaxWidth,      // max data width coming down the pipe
 					&sb2DataType,
@@ -2827,15 +2842,17 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 				iColNameLen        = sb4ColNameLen;
 				iMaxDataSize       = sb4MaxDataSize;
 
-				if (!WasOCICallOK("ExecQuery:odescr1"))
+				if (!WasOCICallOK("ExecQuery:odescr1", iErrorNum, sError))
 				{
 					if (!tmpMaxDataLen)
 					{
-						m_iErrorNum = 0;
+						iErrorNum = 0;
 						break; // no more columns
 					}
 					if (((Cda_Def*)m_dOCI6ConnectionDataArea)->rc != VAR_NOT_IN_LIST)
-						return (SQLError());
+					{
+						return SetError(sError, iErrorNum);
+					}
 				}
 				else
 				{
@@ -2869,7 +2886,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 				kDebug (3, "    col[{}]: filling in my m_Columns[] struct...", ii);
 
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-				m_iErrorNum = odescr((Cda_Def*)m_dOCI6ConnectionDataArea, ii,
+				iErrorNum = odescr((Cda_Def*)m_dOCI6ConnectionDataArea, ii,
 					&sb4MaxWidth,
 					&sb2DataType,
 					(signed char*)sColName,   // column name (protected from overrung by iColNameLen)
@@ -2885,9 +2902,9 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 				iColNameLen  = sb4ColNameLen;
 				iMaxDataSize = sb4MaxDataSize;
 
-				if (!WasOCICallOK("ExecQuery:odescr2"))
+				if (!WasOCICallOK("ExecQuery:odescr2", iErrorNum, sError))
 				{
-					return (SQLError());
+					return SetError(sError, iErrorNum);
 				}
 
 				KColInfo ColInfo;
@@ -2906,7 +2923,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 				// bind some memory to each column to hold the results which will be coming back:
 				kDebug (3, "    col[{}]: calling odefin() to bind memory...", ii);
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-				m_iErrorNum = odefin ((Cda_Def*)m_dOCI6ConnectionDataArea,
+				iErrorNum = odefin ((Cda_Def*)m_dOCI6ConnectionDataArea,
 							ii,
 							(ub1 *)(*ColInfo.dszValue),          // data pointer
 							ColInfo.iMaxDataLen,                 // max data length
@@ -2919,9 +2936,9 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 							&iColRetlen,
 							&iColRetcode);
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-				if (!WasOCICallOK("ExecQuery:odefin"))
+				if (!WasOCICallOK("ExecQuery:odefin", iErrorNum, sError))
 				{
-					return (SQLError());
+					return SetError(sError, iErrorNum);
 				}
 
 				m_dColInfo.push_back(std::move(ColInfo));
@@ -2933,11 +2950,11 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			kDebug (3, "  calling oexec() to actually begin the SQL statement...");
 			//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-			m_iErrorNum = oexec ((Cda_Def*)m_dOCI6ConnectionDataArea);
+			iErrorNum = oexec ((Cda_Def*)m_dOCI6ConnectionDataArea);
 			//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-			if (!WasOCICallOK("ExecQuery:oexec"))
+			if (!WasOCICallOK("ExecQuery:oexec", iErrorNum, sError))
 			{
-				return (SQLError());
+				return SetError(sError, iErrorNum);
 			}
 		}
 		while (false); // do once
@@ -2951,12 +2968,12 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 		do
 		{
 			kDebug (KSQL2_CTDEBUG, "ensuring that no dangling messages are in the ct queue...");
-			
+
 			if(IsFlag(F_AutoReset))
 			{
 				ctlib_login();
 			}
-			
+
 			ctlib_flush_results ();
 			ctlib_clear_errors ();
 
@@ -2965,11 +2982,11 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 			if (ct_command (m_pCtCommand, CS_LANG_CMD, m_sLastSQL.data(), m_sLastSQL.size(), CS_UNUSED) != CS_SUCCEED)
 			{
 				ctlib_api_error ("KSQL>ExecQuery>ct_command");
-				if (--iRetriesLeft && PreparedToRetry())
+				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum))
 				{
 					continue;
 				}
-				return (SQLError());
+				return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 			}
 
 			kDebug (KSQL2_CTDEBUG, "calling ct_send()...");
@@ -2977,29 +2994,29 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 			if (ct_send(m_pCtCommand) != CS_SUCCEED)
 			{
 				ctlib_api_error ("KSQL>ExecQuery>ct_send");
-				if (--iRetriesLeft && PreparedToRetry())
+				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum))
 				{
 					continue;
 				}
-				return (SQLError());
+				return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 			}
 
 			if (!ctlib_prepare_results ())
 			{
-				if (--iRetriesLeft && PreparedToRetry())
+				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum))
 				{
 					continue;
 				}
-				return (SQLError());
+				return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 			}
 
 			if (ctlib_check_errors() != 0)
 			{
-				if (--iRetriesLeft && PreparedToRetry())
+				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum))
 				{
 					continue;
 				}
-				return (SQLError());
+				return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 			}
 
 			break; // success
@@ -3014,7 +3031,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 	case API::ODBC:
 	default:
 	// - - - - - - - - - - - - - - - - -
-		kWarning ("unsupported API Set ({})", TxAPISet(m_iAPISet));
+		SetError(kFormat("unsupported API Set ({})", TxAPISet(m_iAPISet)));
 		kCrashExit (CRASHCODE_DEKAFUSAGE);
 	}
 
@@ -3039,8 +3056,6 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 	m_iRowNum           = 0;
 	m_iNumRowsBuffered  = 0;
 	m_iNumRowsAffected  = 0;
-
-	ClearErrorPrefix();
 
 	LogPerformance (Timer.milliseconds(), /*bIsQuery=*/true);
 	
@@ -3080,8 +3095,7 @@ bool KSQL::ParseQuery (KStringView sFormat, ...)
 
 	if (!IsFlag(F_IgnoreSelectKeyword) && ! IsSelect (m_sLastSQL))
 	{
-		m_sLastError.Format ("{}ParseQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]", m_sErrorPrefix);
-		return (SQLError());
+		return SetError ("ParseQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]");
 	}
 
 	return (ParseRawQuery (m_sLastSQL, 0, "ParseQuery"));
@@ -3110,11 +3124,14 @@ bool KSQL::ParseRawQuery (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sA
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			// 1. OCI8: local "prepare" (parse) of SQL statement (note: in OCI6 this was a trip to the server)
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			m_iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
+			auto iErrorNum = OCIStmtPrepare ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
 										 (text*)sSQL.data(), sSQL.size(), OCI_NTV_SYNTAX, OCI_DEFAULT);
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			if (!WasOCICallOK("ParseQuery:OCIStmtPrepare"))
-				return (SQLError (/*fForceError=*/false));
+			KString sError;
+			if (!WasOCICallOK("ParseQuery:OCIStmtPrepare", iErrorNum, sError))
+			{
+				return SetError(sError, iErrorNum);
+			}
 
 			m_bStatementParsed = true;
 			break;
@@ -3159,21 +3176,25 @@ bool KSQL::ExecParsedQuery ()
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			// 2. OCI8: pre-execute (parse only) -- redundant trip to server until I get this all working
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			m_iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 
+			auto iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle,
 					/*iters=*/1, /*rowoff=*/0, /*snap_in=*/nullptr, /*snap_out=*/nullptr, OCI_DESCRIBE_ONLY);
-
-			if (!WasOCICallOK("ExecParsedQuery:OCIStmtExecute(parse)"))
-				return (SQLError (/*fForceError=*/false));
+			KString sError;
+			if (!WasOCICallOK("ExecParsedQuery:OCIStmtExecute(parse)", iErrorNum, sError))
+			{
+				return SetError(sError, iErrorNum);
+			}
 
 			// Get the number of columns in the query:
-			m_iErrorNum = OCIAttrGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, &m_iNumColumns,
+			iErrorNum = OCIAttrGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, &m_iNumColumns,
 				0, OCI_ATTR_PARAM_COUNT, (OCIError*)m_dOCI8ErrorHandle);
 
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			// 3. OCI8: allocate storage for the results set:
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			if (!WasOCICallOK("ExecParsedQuery:OCIAttrGet(numcols)"))
-				return (SQLError (/*fForceError=*/false));
+			if (!WasOCICallOK("ExecParsedQuery:OCIAttrGet(numcols)", iErrorNum, sError))
+			{
+				return SetError(sError, iErrorNum);
+			}
 
 			m_dColInfo.clear();
 			m_dColInfo.reserve(m_iNumColumns);
@@ -3193,33 +3214,41 @@ bool KSQL::ExecParsedQuery ()
 				kDebug (3, "  retrieving info about col # {}", ii);
 
 				// get parameter for column ii:
-				m_iErrorNum = OCIParamGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, (OCIError*)m_dOCI8ErrorHandle, (void**)&pColParam, ii);
-				if (!WasOCICallOK("ExecParsedQuery:OCIParamGet"))
-					return (SQLError());
+				iErrorNum = OCIParamGet ((OCIStmt*)m_dOCI8Statement, OCI_HTYPE_STMT, (OCIError*)m_dOCI8ErrorHandle, (void**)&pColParam, ii);
+				if (!WasOCICallOK("ExecParsedQuery:OCIParamGet", iErrorNum, sError))
+				{
+					return SetError(sError, iErrorNum);
+				}
 
 				if (!pColParam)
 					kDebug (GetDebugLevel(), "OCI: pColParam is nullptr but was supposed to get allocated by OCIParamGet");
 
 				// Retrieve the data type attribute:
-				m_iErrorNum = OCIAttrGet ((dvoid*) pColParam, OCI_DTYPE_PARAM, 
+				iErrorNum = OCIAttrGet ((dvoid*) pColParam, OCI_DTYPE_PARAM,
 					(dvoid*) &iDataType, (ub4 *) nullptr, OCI_ATTR_DATA_TYPE,
 					(OCIError*)m_dOCI8ErrorHandle);
-				if (!WasOCICallOK("ExecParsedQuery:OCIAttrGet(datatype)"))
-					return (SQLError());
+				if (!WasOCICallOK("ExecParsedQuery:OCIAttrGet(datatype)", iErrorNum, sError))
+				{
+					return SetError(sError, iErrorNum);
+				}
 
 				// Retrieve the column name attribute:
-				m_iErrorNum = OCIAttrGet ((dvoid*) pColParam, OCI_DTYPE_PARAM, 
+				mErrorNum = OCIAttrGet ((dvoid*) pColParam, OCI_DTYPE_PARAM,
 					(dvoid**) &dszColName, (ub4 *) &iLenColName, OCI_ATTR_NAME, 
 					(OCIError*)m_dOCI8ErrorHandle);
-				if (!WasOCICallOK("ExecParsedQuery:OCIAttrGet(colname)"))
-					return (SQLError());
+				if (!WasOCICallOK("ExecParsedQuery:OCIAttrGet(colname)", iErrorNum, sError))
+				{
+					return SetError(sError, iErrorNum);
+				}
 
 				// Retreive the maximum datasize:
-				m_iErrorNum = OCIAttrGet ((dvoid*) pColParam, OCI_DTYPE_PARAM, 
+				iErrorNum = OCIAttrGet ((dvoid*) pColParam, OCI_DTYPE_PARAM,
 					(void**) &iMaxDataSize, (ub4 *) nullptr, OCI_ATTR_DATA_SIZE,
 					(OCIError*)m_dOCI8ErrorHandle);
-				if (!WasOCICallOK("ExecParsedQuery:OCIAttrGet(datasize)"))
-					return (SQLError());
+				if (!WasOCICallOK("ExecParsedQuery:OCIAttrGet(datasize)", iErrorNum, sError))
+				{
+					return SetError(sError, iErrorNum);
+				}
 
 				KColInfo ColInfo;
 
@@ -3232,16 +3261,16 @@ bool KSQL::ExecParsedQuery ()
 
 				OCIDefine* dDefine;
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-				m_iErrorNum = OCIDefineByPos ((OCIStmt*)m_dOCI8Statement, &dDefine, (OCIError*)m_dOCI8ErrorHandle,
+				iErrorNum = OCIDefineByPos ((OCIStmt*)m_dOCI8Statement, &dDefine, (OCIError*)m_dOCI8ErrorHandle,
 							ii,                                   // column number
 							(dvoid *)(ColInfo.dszValue.get()),    // data pointer
 							ColInfo.iMaxDataLen,                  // max data length
 							SQLT_STR,                             // always bind as a zero-terminated string
 							(dvoid *) 0, (ub2 *) 0, (ub2 *) 0, OCI_DEFAULT);
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-				if (!WasOCICallOK("ExecParsedQuery:OCIDefineByPos"))
+				if (!WasOCICallOK("ExecParsedQuery:OCIDefineByPos", iErrorNum, sError))
 				{
-					return (SQLError());
+					return SetError(sError, iErrorNum);
 				}
 
 				OCIHandleFree ((dvoid*)dDefine, OCI_HTYPE_DEFINE);
@@ -3253,13 +3282,13 @@ bool KSQL::ExecParsedQuery ()
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			// 5. OCI8: execute statement (start the query)...
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
-			m_iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, 0,
+			iErrorNum = OCIStmtExecute ((OCISvcCtx*)m_dOCI8ServerContext, (OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, 0,
 						 (OCISnapshot *) nullptr, (OCISnapshot *) nullptr, OCI_DEFAULT);
 			// -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
 			m_iOCI8FirstRowStat = m_iErrorNum;
-			if ((m_iErrorNum != OCI_NO_DATA) && !WasOCICallOK("ExecParsedQuery:OCIStmtExecute"))
+			if ((iErrorNum != OCI_NO_DATA) && !WasOCICallOK("ExecParsedQuery:OCIStmtExecute", iErrorNum, sError))
 			{
-				return (SQLError());
+				return SetError(sError, iErrorNum);
 			}
 
 			// FYI: m_iOCI8FirstRowStat will indicate whether or not OCIStmtExecute() returned the first row
@@ -3301,9 +3330,8 @@ KROW::Index KSQL::GetNumCols ()
 
 	if (!QueryStarted())
 	{
-		m_sLastError.Format ("{}GetNumCols(): called when query was not started.", m_sErrorPrefix);
-		SQLError();
-		return (0);
+		// bool false converts to 0
+		return SetError("GetNumCols(): called when query was not started.");
 	}
 
 	return (m_iNumColumns);
@@ -3318,8 +3346,7 @@ bool KSQL::BufferResults ()
 
 	if (!QueryStarted())
 	{
-		m_sLastError.Format ("{}BufferResults(): called when query was not started.", m_sErrorPrefix);
-		return (SQLError());
+		return SetError("BufferResults(): called when query was not started.");
 	}
 
 	if (kFileExists (m_sTmpResultsFile))
@@ -3330,15 +3357,13 @@ bool KSQL::BufferResults ()
 	KOutFile file(m_sTmpResultsFile);
 	if (!file.Good())
 	{
-		m_sLastError.Format ("{}BufferResults(): could not buffer results b/c {} could not write to '{}'", m_sErrorPrefix,
-			kwhoami(), m_sTmpResultsFile);
-		SQLError();
-		return (false);
+		return SetError(kFormat ("BufferResults(): could not buffer results b/c {} could not write to '{}'",
+								 kwhoami(), m_sTmpResultsFile));
 	}
 
 	m_iNumRowsBuffered = 0;
 
-	ResetErrorStatus ();
+	ClearError ();
 
 	switch (m_iAPISet)
 	{
@@ -3391,6 +3416,8 @@ bool KSQL::BufferResults ()
 	// - - - - - - - - - - - - - - - - -
 		while (1)
 		{
+			uint32_t iErrorNum = 0;
+
 			if (!m_iNumRowsBuffered)
 			{
 				if (m_iOCI8FirstRowStat == OCI_NO_DATA)
@@ -3400,8 +3427,7 @@ bool KSQL::BufferResults ()
 				}
 
 				// OCI8: first row was already (implicitly) fetched by OCIStmtExecute() [yuk]
-				m_iErrorNum = m_iOCI8FirstRowStat;
-				m_sLastError.clear();
+				iErrorNum = m_iOCI8FirstRowStat;
 
 				kDebug (3, "  OCI8: first row was already fetched by OCIStmtExecute()");
 			}
@@ -3414,9 +3440,10 @@ bool KSQL::BufferResults ()
 				}
 
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-				m_iErrorNum = OCIStmtFetch ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, OCI_FETCH_NEXT, OCI_DEFAULT);
+				iErrorNum = OCIStmtFetch ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, OCI_FETCH_NEXT, OCI_DEFAULT);
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-				if (!WasOCICallOK("BufferResults::OCIStmtFetch"))
+				KString sError;
+				if (!WasOCICallOK("BufferResults::OCIStmtFetch", iErrorNum, sError))
 				{
 					kDebug (3, "OCIStmtFetch() says we're done");
 					break; // end of data from select
@@ -3455,9 +3482,10 @@ bool KSQL::BufferResults ()
 		{
 			kDebug (3, "calling ofetch() to grab the next row...");
 			//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-			m_iErrorNum = ofetch ((Cda_Def*)m_dOCI6ConnectionDataArea);
+			auto iErrorNum = ofetch ((Cda_Def*)m_dOCI6ConnectionDataArea);
 			//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-			if (!WasOCICallOK("BufferResults:ofetch"))
+			KString sResult;
+			if (!WasOCICallOK("BufferResults:ofetch"), iErrorNum, sResult)
 			{
 				kDebug (3, "ofetch() says we're done");
 				break; // end of data from select
@@ -3514,10 +3542,8 @@ bool KSQL::BufferResults ()
 #endif
 	if (!m_bpBufferedResults)
 	{
-		m_sLastError.Format ("{}BufferResults(): bizarre: {} could not read from '{}', right after creating it.", m_sErrorPrefix,
-			kwhoami(), m_sTmpResultsFile);
-		SQLError();
-		return (false);
+		return SetError(kFormat ("BufferResults(): bizarre: {} could not read from '{}', right after creating it.",
+								 kwhoami(), m_sTmpResultsFile));
 	}
 
 	m_bFileIsOpen = true;
@@ -3546,8 +3572,7 @@ bool KSQL::NextRow ()
 
 	if (DEKAF2_UNLIKELY(!QueryStarted()))
 	{
-		m_sLastError.Format ("{}NextRow(): next row called, but no ExecQuery() was started.", m_sErrorPrefix);
-		return (SQLError());
+		return SetError("NextRow(): next row called, but no ExecQuery() was started.");
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -3560,7 +3585,7 @@ bool KSQL::NextRow ()
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		kDebug (3, "fetching row...");
 
-		ResetErrorStatus ();
+		ClearError ();
 
 		switch (m_iAPISet)
 		{
@@ -3591,6 +3616,8 @@ bool KSQL::NextRow ()
 				// - - - - - - - - - - - - - - - - -
 			case API::OCI8:
 				// - - - - - - - - - - - - - - - - -
+				uint32_t iErrorNum = 0;
+
 				if (!m_iRowNum)
 				{
 					if (m_iOCI8FirstRowStat == OCI_NO_DATA)
@@ -3600,8 +3627,7 @@ bool KSQL::NextRow ()
 					}
 
 					// OCI8: first row was already (implicitly) fetched by OCIStmtExecute() [yuk]
-					m_iErrorNum = m_iOCI8FirstRowStat;
-					m_sLastError.clear();
+					iErrorNum = m_iOCI8FirstRowStat;
 
 					kDebug (3, "OCI8: first row was already fetched by OCIStmtExecute()");
 				}
@@ -3614,9 +3640,10 @@ bool KSQL::NextRow ()
 					}
 
 					//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-					m_iErrorNum = OCIStmtFetch ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, OCI_FETCH_NEXT, OCI_DEFAULT);
+					iErrorNum = OCIStmtFetch ((OCIStmt*)m_dOCI8Statement, (OCIError*)m_dOCI8ErrorHandle, 1, OCI_FETCH_NEXT, OCI_DEFAULT);
 					//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-					if (!WasOCICallOK("NextRow:OCIStmtFetch"))
+					KString sError;
+					if (!WasOCICallOK("NextRow:OCIStmtFetch", iErrorNum, sError))
 					{
 						kDebug (3, "OCIStmtFetch() says we're done");
 						return (false); // end of data from select
@@ -3635,9 +3662,10 @@ bool KSQL::NextRow ()
 				kDebug (3, "calling ofetch() to grab the next row...");
 
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-				m_iErrorNum = ofetch ((Cda_Def*)m_dOCI6ConnectionDataArea);
+				auto iErrorNum = ofetch ((Cda_Def*)m_dOCI6ConnectionDataArea);
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-				if (!WasOCICallOK("NextRow:ofetch"))
+				KString sError;
+				if (!WasOCICallOK("NextRow:ofetch", iErrorNum, sError))
 				{
 					kDebug (3, "ofetch() says we're done");
 					return (false); // end of data from select
@@ -3688,13 +3716,11 @@ bool KSQL::NextRow ()
 
 		if (!m_bFileIsOpen)
 		{
-			m_sLastError.Format ("{}NextRow(): BUG: results are supposed to be buffered but m_bFileIsOpen says false.", m_sErrorPrefix);
-			return (SQLError());
+			return SetError("NextRow(): BUG: results are supposed to be buffered but m_bFileIsOpen says false.");
 		}
 		else if (!m_bpBufferedResults)
 		{
-			m_sLastError.Format ("{}NextRow(): BUG: results are supposed to be buffered but m_bpBufferedResults is nullptr!!", m_sErrorPrefix);
-			return (SQLError());
+			return SetError("NextRow(): BUG: results are supposed to be buffered but m_bpBufferedResults is nullptr!!");
 		}
 
 		FreeBufferedColArray (/*fValuesOnly=*/true); // <-- from last row
@@ -3724,15 +3750,13 @@ bool KSQL::NextRow ()
 
 			else if (!bOK)
 			{
-				m_sLastError.Format ("{}NextRow(): ran out of lines in buffered results file.", m_sErrorPrefix);
-				return (SQLError());
+				return SetError("NextRow(): ran out of lines in buffered results file.");
 			}
 
 			if (szStatLine[strlen(szStatLine)-1] != '\n')
 			{
-				m_sLastError.Format ("{}NextRow(): buffered results corrupted stat line for row={}, col={}: '{}'", m_sErrorPrefix, 
-					(uint64_t)m_iRowNum, ii+1, szStatLine);
-				return (SQLError());
+				return SetError(kFormat ("NextRow(): buffered results corrupted stat line for row={}, col={}: '{}'",
+										 m_iRowNum, ii+1, szStatLine));
 			}
 
 			szStatLine[strlen(szStatLine)-1] = 0; // <-- trim the newline
@@ -3741,9 +3765,8 @@ bool KSQL::NextRow ()
 			KStack<KStringView> Parts;
 			if (kSplit (Parts, szStatLine, "|", "") != 3)
 			{
-				m_sLastError.Format ("{}NextRow(): buffered results corrupted stat line for row={}, col={}: '{}'", m_sErrorPrefix, 
-					(uint64_t)m_iRowNum, ii+1, szStatLine);
-				return (SQLError());
+				return SetError(kFormat ("NextRow(): buffered results corrupted stat line for row={}, col={}: '{}'",
+										 m_iRowNum, ii+1, szStatLine));
 			}
 
 			uint64_t iCheckRowNum = Parts[0].UInt64();
@@ -3763,9 +3786,8 @@ bool KSQL::NextRow ()
 					kWarning ("CheckRowNum = {} [should be {}]", iCheckRowNum, m_iRowNum);
 					kWarning ("CheckColNum = {} [should be {}]", iCheckColNum, ii+1);
 				}
-				m_sLastError.Format ("{}NextRow(): buffered results stat line out of sync for row={}, col={}", m_sErrorPrefix, 
-					(uint64_t)m_iRowNum, ii+1);
-				return (SQLError());
+				return SetError(kFormat ("NextRow(): buffered results stat line out of sync for row={}, col={}",
+										 m_iRowNum, ii+1));
 			}
 
 			if (iDataLen > 50)
@@ -3787,9 +3809,8 @@ bool KSQL::NextRow ()
 			// sanity check: there should be a newline at exactly value[iDataLen]:
 			if (!bOK || ((m_dBufferedColArray[ii])[iDataLen] != '\n'))
 			{
-				m_sLastError.Format ("{}NextRow(): buffered results corrupted data line for row={}, col={}", m_sErrorPrefix, 
-					(uint64_t)m_iRowNum, ii+1);
-				return (SQLError());
+				return SetError(kFormat ("NextRow(): buffered results corrupted data line for row={}, col={}",
+										 m_iRowNum, ii+1));
 			}
 
 			(m_dBufferedColArray[ii])[iDataLen] = 0;  // <-- trim the newline
@@ -3995,14 +4016,12 @@ bool KSQL::ResetBuffer ()
 
 	if (!m_bQueryStarted)
 	{
-		m_sLastError.Format ("{}ResetBuffer(): no query is currently open.", m_sErrorPrefix);
-		return (SQLError());
+		return SetError ("ResetBuffer(): no query is currently open.");
 	}
 	
 	if (!IsFlag (F_BufferResults))
 	{
-		m_sLastError.Format ("{}ResetBuffer(): F_BufferResults flag needs to be set *before* query is run.", m_sErrorPrefix);
-		return (SQLError());
+		return SetError ("ResetBuffer(): F_BufferResults flag needs to be set *before* query is run.");
 	}
 
 	if (m_bFileIsOpen)
@@ -4022,10 +4041,8 @@ bool KSQL::ResetBuffer ()
 #endif
 	if (!m_bpBufferedResults)
 	{
-		m_sLastError.Format ("{}ResetBuffer(): bizarre: {} could not read from '{}'.", m_sErrorPrefix,
-			kwhoami(), m_sTmpResultsFile);
-		SQLError();
-		return (false);
+		return SetError(kFormat ("ResetBuffer(): bizarre: {} could not read from '{}'.",
+								 kwhoami(), m_sTmpResultsFile));
 	}
 
 	m_bFileIsOpen = true;
@@ -4126,21 +4143,19 @@ const KSQL::KColInfo& KSQL::GetColProps (KROW::Index iOneBasedColNum)
 
 	if (!QueryStarted())
 	{
-		m_sLastError.Format ("{}{}() called, but no ExecQuery() was started.", m_sErrorPrefix, "GetColProps");
-		SQLError();
+		SetError(kFormat ("{}() called, but no ExecQuery() was started.", "GetColProps"));
 		return (s_NullResult);
 	}
 
 	if (iOneBasedColNum == 0)
 	{
-		m_sLastError.Format ("{}{}() called with ColNum < 1 ({})", m_sErrorPrefix, "GetColProps", iOneBasedColNum);
+		SetError(kFormat ("{}() called with ColNum < 1 ({})", "GetColProps", iOneBasedColNum));
 		return (s_NullResult);
 	}
 
 	else if (iOneBasedColNum > m_dColInfo.size())
 	{
-		m_sLastError.Format ("{}{}() called with ColNum > {} ({})", m_sErrorPrefix, "GetColProps",  
-			m_iNumColumns, iOneBasedColNum);
+		SetError(kFormat ("{}() called with ColNum > {} ({})", "GetColProps", m_iNumColumns, iOneBasedColNum));
 		return (s_NullResult);
 	}
 
@@ -4156,15 +4171,13 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 
 	if (!QueryStarted())
 	{
-		m_sLastError.Format ("{}() called, but no ExecQuery() was started.", m_sErrorPrefix);
-		SQLError();
+		SetError("() called, but no ExecQuery() was started.");
 		return ("ERR:NOQUERY-KSQL::Get()");
 	}
 
 	if (!m_iRowNum)
 	{
-		m_sLastError.Format ("{}() called, but NextRow() not called or did not return a row.", m_sErrorPrefix);
-		SQLError();
+		SetError("() called, but NextRow() not called or did not return a row.");
 		return ("ERR:NOROW-KSQL::Get()");
 	}
 
@@ -4280,8 +4293,7 @@ time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 
 	if (sVal.contains("ERR"))
 	{
-		m_sLastError.Format ("{}IntValue(row={},col={}): {}", m_sErrorPrefix, m_iRowNum, iOneBasedColNum+1, sVal);
-		SQLError();
+		SetError(kFormat ("IntValue(row={},col={}): {}", m_iRowNum, iOneBasedColNum+1, sVal));
 		return (0);
 	}
  
@@ -4299,9 +4311,8 @@ time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 	}
 	else
 	{
-		m_sLastError.Format ("{}UnixTime({}): expected '{}' to look like '20010302213436' or '2001-03-21 06:18:33'",
-		                     m_sErrorPrefix, iOneBasedColNum, sVal);
-		SQLError();
+		SetError(kFormat ("UnixTime({}): expected '{}' to look like '20010302213436' or '2001-03-21 06:18:33'",
+						  iOneBasedColNum, sVal));
 		return (0);
 	}
 
@@ -4318,65 +4329,30 @@ time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 
 } // KSQL::GetUnixTime
 
+#ifdef DEKAF2_HAS_ORACLE
 //-----------------------------------------------------------------------------
-bool KSQL::SQLError (bool fForceError/*=false*/)
-//-----------------------------------------------------------------------------
-{
-	kDebug (3, "...");
-
-	// FYI: there is nothing database specific in this member function
-
-	if (m_sLastError.empty())
-	{
-		kDebug (GetDebugLevel(), "something is amuck.  SQLError() called, but m_sLastError is empty.");
-		m_sLastError.Format("unknown SQL error");
-	}
-	
-	if (IsFlag(F_IgnoreSQLErrors) && !fForceError)
-	{
-		kDebug (GetDebugLevel(), "IGNORED: {}", m_sLastError);
-	}
-	else
-	{			
-		if (m_TimingCallback)
-		{
-			m_TimingCallback (*this, /*iMilliseconds=*/0, kFormat ("{}:\n{}", m_sLastError, m_sLastSQL));
-		}
-		kWarning (m_sLastError);
-		if (!m_sLastSQL.empty())
-		{
-			kWarning (m_sLastSQL);
-		}
-	}
-
-	return (false);  // <-- return code still needs to be false, just no verbosity into the log
-
-} // KSQL::SQLError
-
-//-----------------------------------------------------------------------------
-bool KSQL::WasOCICallOK (KStringView sContext)
+bool KSQL::WasOCICallOK (KStringView sContext, uint32_t iErrorNum, KString& sError)
 //-----------------------------------------------------------------------------
 {
-	m_sLastError.clear();
-    #ifdef DEKAF2_HAS_ORACLE
-	switch (m_iErrorNum)
+	sError.clear();
+	switch (iErrorNum)
 	{
 	case OCI_SUCCESS: // 0
-		m_sLastError.Format ("{}{}() returned {} ({})", m_sErrorPrefix, sContext, m_iErrorNum, "OCI_SUCCESS");
+		sError.Format ("{}() returned {} ({})", sContext, m_iErrorNum, "OCI_SUCCESS");
 		kDebugLog (3, "  {} -- returned OCI_SUCCESS", sContext);
 		return (true);
 
 	case OCI_SUCCESS_WITH_INFO:
-		m_sLastError.Format ("{}{}() returned {} ({})", m_sErrorPrefix, sContext, m_iErrorNum, "OCI_SUCCESS_WITH_INFO");
+		sError.Format ("{}() returned {} ({})", sContext, m_iErrorNum, "OCI_SUCCESS_WITH_INFO");
 		kDebugLog (3, "  {} -- returned OCI_SUCCESS_WITH_INFO", sContext);
 		return (true);
 
 	case OCI_NEED_DATA:
-		m_sLastError.Format ("{}OCI-{:05}: OCI_NEED_DATA [{}]", m_sErrorPrefix, m_iErrorNum, sContext);
+		sError.Format ("OCI-{:05}: OCI_NEED_DATA [{}]", m_iErrorNum, sContext);
 		break; // error
 
 	case OCI_INVALID_HANDLE:
-		m_sLastError.Format ("{}OCI-{:05}: OCI_INVALID_HANDLE [{}]", m_sErrorPrefix, m_iErrorNum, sContext);
+		sError.Format ("OCI-{:05}: OCI_INVALID_HANDLE [{}]", m_iErrorNum, sContext);
 		break; // error
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -4388,33 +4364,35 @@ bool KSQL::WasOCICallOK (KStringView sContext)
 		//            again for completion. 
 
 	case OCI_STILL_EXECUTING:  // ORA-03123
-		m_sLastError.Format ("{}OCI-{:05}: OCI_STILL_EXECUTE [{}]", m_sErrorPrefix, m_iErrorNum, sContext);
+		sError.Format ("OCI-{:05}: OCI_STILL_EXECUTE [{}]", m_iErrorNum, sContext);
 		break; // error
 
 	case OCI_CONTINUE:
-		m_sLastError.Format ("{}OCI-{:05}: OCI_CONTINUE [{}]", m_sErrorPrefix, m_iErrorNum, sContext);
+		sError.Format ("OCI-{:05}: OCI_CONTINUE [{}]", m_iErrorNum, sContext);
 		break; // error
 
 	case NO_DATA_FOUND:  // <-- old
 	case -1403:          // <-- OERR_NODATA
 	case OCI_NO_DATA:    // <-- current
 //		m_iErrorNum = OCI_NO_DATA;
-//		m_sLastError.Format ("{}OCI-{:05}: OCI_NO_DATA [{}]", m_sErrorPrefix, m_iErrorNum, sContext);
+//		sError.Format ("OCI-{:05}: OCI_NO_DATA [{}]", m_iErrorNum, sContext);
 //		break; // error
 	case OCI_ERROR:
 		if (GetAPISet() == API::OCI6)
 		{
 			if (m_dOCI6LoginDataArea && m_dOCI6ConnectionDataArea)
 			{
-				m_iErrorNum = ((Cda_Def*)m_dOCI6ConnectionDataArea)->rc;
-				if (m_iErrorNum == 0)         // ORA-00000: no error
-					m_iErrorNum = sqlca.sqlcode;
-
-				m_sLastError = m_sErrorPrefix;
-				oerhms ((Lda_Def*)m_dOCI6LoginDataArea, ((Cda_Def*)m_dOCI6ConnectionDataArea)->rc, (text*)m_sLastError.c_str()+strlen(m_sLastError.c_str()), MAXLEN_ERR-strlen(m_sLastError.c_str()));
+				iErrorNum = ((Cda_Def*)m_dOCI6ConnectionDataArea)->rc;
+				if (iErrorNum == 0)
+				{
+					// ORA-00000: no error
+					iErrorNum = sqlca.sqlcode;
+				}
+				// TODO rewrite!
+				oerhms ((Lda_Def*)m_dOCI6LoginDataArea, ((Cda_Def*)m_dOCI6ConnectionDataArea)->rc, (text*)sError.c_str()+strlen(sError.c_str()), MAXLEN_ERR-strlen(sError.c_str()));
 			}
 			else
-				m_sLastError.Format ("{}unknown error (m_dOCI6LoginDataArea not allocated yet)", m_sErrorPrefix);
+				sError = "unknown error (m_dOCI6LoginDataArea not allocated yet)";
 		}
 		else // API::OCI8
 		{
@@ -4426,26 +4404,27 @@ bool KSQL::WasOCICallOK (KStringView sContext)
 			if (m_dOCI8ErrorHandle)
 			{
 				sb4 sb4Stat;
-				m_sLastError = m_sErrorPrefix;
-				OCIErrorGet (m_dOCI8ErrorHandle, 1, nullptr, &sb4Stat, (text*)m_sLastError.c_str()+strlen(m_sLastError.c_str()), MAXLEN_ERR-strlen(m_sLastError.c_str()), OCI_HTYPE_ERROR);
-				m_iErrorNum = sb4Stat;
+				// TODO rewrite!
+				OCIErrorGet (m_dOCI8ErrorHandle, 1, nullptr, &sb4Stat, (text*)sError.c_str()+strlen(sError.c_str()), MAXLEN_ERR-strlen(sError.c_str()), OCI_HTYPE_ERROR);
+				iErrorNum = sb4Stat;
 			}
 			else
 			{
-				m_sLastError.Format ("{}unknown error (m_dOCI8ErrorHandler not allocated yet)", m_sErrorPrefix);
+				sError = "unknown error (m_dOCI8ErrorHandler not allocated yet)";
 			}
 		}
 
-		if (strchr (m_sLastError.c_str(), '\n'))
-			*(strchr (m_sLastError.c_str(),'\n')) = 0;
-		snprintf (m_sLastError+strlen(m_sLastError), MAXLEN_ERR, " [{}]", sContext);
+		// TODO rewrite!
+		if (strchr (sError.c_str(), '\n'))
+			*(strchr (sError.c_str(),'\n')) = 0;
+		snprintf (sError+strlen(sError), MAXLEN_ERR, " [{}]", sContext);
 
-		if ( (m_iErrorNum == 0)    // ORA-00000: no error
-		  || (m_iErrorNum == 1405) // ORA-01405: fetched column value is nullptr
-		  || (m_iErrorNum == 1406) // ORA-01406: fetched column value was truncated
+		if ( (iErrorNum == 0)    // ORA-00000: no error
+		  || (iErrorNum == 1405) // ORA-01405: fetched column value is nullptr
+		  || (iErrorNum == 1406) // ORA-01406: fetched column value was truncated
 		)
 		{
-			kDebugLog (3, "  {} -- [ok] returned {}", sContext, m_sLastError.c_str());
+			kDebugLog (3, "  {} -- [ok] returned {}", sContext, sError.c_str());
 			return (true);
 		}
 		break;
@@ -4454,51 +4433,51 @@ bool KSQL::WasOCICallOK (KStringView sContext)
 	default:
 	//----------
 
-		if ((m_iErrorNum < 0) && (GetAPISet() == API::OCI6) && m_dOCI6LoginDataArea)
+		if ((iErrorNum < 0) && (GetAPISet() == API::OCI6) && m_dOCI6LoginDataArea)
 		{
 			// translate old convention into current error messages:
-			m_iErrorNum = -m_iErrorNum;
-			m_sLastError = m_sErrorPrefix;
-			oerhms ((Lda_Def*)m_dOCI6LoginDataArea, m_iErrorNum, (text*)m_sLastError.c_str()+strlen(m_sLastError.c_str()), MAXLEN_ERR-strlen(m_sLastError.c_str()));
+			iErrorNum = -m_iErrorNum;
+			// TODO rewrite!
+			oerhms ((Lda_Def*)m_dOCI6LoginDataArea, iErrorNum, (text*)sError.c_str()+strlen(sError.c_str()), MAXLEN_ERR-strlen(sError.c_str()));
 			return (false);
 		}
 
 		switch (m_iErrorNum)
 		{
 			// discovered during development with OCI6:
-			case  4:    m_sLastError.Format ("{}ORA-00004: object does not exist (?)", m_sErrorPrefix);         break;
+			case  4:    sError = "ORA-00004: object does not exist (?)";         break;
 
 			// taken from ldap/public/omupi.h because my switch default was getting called on OCI6 calls:
-			//se -1:    m_sLastError.Format ("{}OERR_DUP: duplicate value in index", m_sErrorPrefix);           break; -- dupe of OCI_ERROR
-			case -54:   m_sLastError.Format ("{}OERR_LOCKED: table locked", m_sErrorPrefix);                    break;
-			case -904:  m_sLastError.Format ("{}OERR_NOCOL: unknown column name", m_sErrorPrefix);              break;
-			case -913:  m_sLastError.Format ("{}OERR_2MNYVALS: too many values", m_sErrorPrefix);               break;
-			case -942:  m_sLastError.Format ("{}OERR_NOTABLE: unknown table or view", m_sErrorPrefix);          break;
-			case -955:  m_sLastError.Format ("{}OERR_KNOWN: object already exists", m_sErrorPrefix);            break;
-			case -1002: m_sLastError.Format ("{}OERR_FOOSQ: fetch out of sequence", m_sErrorPrefix);            break;
-			case -1009: m_sLastError.Format ("{}OERR_MPARAM: missing mandatory param", m_sErrorPrefix);         break;
-			case -1017: m_sLastError.Format ("{}OERR_PASSWD: incorrect username or password", m_sErrorPrefix);  break;
-			case -1089: m_sLastError.Format ("{}OERR_SHTDWN: shutdown", m_sErrorPrefix);                        break;
-			case -1430: m_sLastError.Format ("{}OERR_DUPCOL: column already exists", m_sErrorPrefix);           break;
-			case -1451: m_sLastError.Format ("{}OERR_NULL: column already null", m_sErrorPrefix);               break;
-			case -1722: m_sLastError.Format ("{}OERR_INVNUM: invalid number", m_sErrorPrefix);                  break;
-			case -3113: m_sLastError.Format ("{}OERR_EOFCC: end-of-file on comm channel", m_sErrorPrefix);      break;
-			case -3114: m_sLastError.Format ("{}OERR_NOCONN: not connected", m_sErrorPrefix);                   break;
-			case -6111: m_sLastError.Format ("{}OERR_TCPDISC: TCP disconnect", m_sErrorPrefix);                 break;
-			case -6550: m_sLastError.Format ("{}OERR_PLSERR: PL/SQL problem", m_sErrorPrefix);                  break;
+			//se -1:    sError = "OERR_DUP: duplicate value in index";           break; -- dupe of OCI_ERROR
+			case -54:   sError = "OERR_LOCKED: table locked";                    break;
+			case -904:  sError = "OERR_NOCOL: unknown column name";              break;
+			case -913:  sError = "OERR_2MNYVALS: too many values";               break;
+			case -942:  sError = "OERR_NOTABLE: unknown table or view";          break;
+			case -955:  sError = "OERR_KNOWN: object already exists";            break;
+			case -1002: sError = "OERR_FOOSQ: fetch out of sequence";            break;
+			case -1009: sError = "OERR_MPARAM: missing mandatory param";         break;
+			case -1017: sError = "OERR_PASSWD: incorrect username or password";  break;
+			case -1089: sError = "OERR_SHTDWN: shutdown";                        break;
+			case -1430: sError = "OERR_DUPCOL: column already exists";           break;
+			case -1451: sError = "OERR_NULL: column already null";               break;
+			case -1722: sError = "OERR_INVNUM: invalid number";                  break;
+			case -3113: sError = "OERR_EOFCC: end-of-file on comm channel";      break;
+			case -3114: sError = "OERR_NOCONN: not connected";                   break;
+			case -6111: sError = "OERR_TCPDISC: TCP disconnect";                 break;
+			case -6550: sError = "OERR_PLSERR: PL/SQL problem";                  break;
 
 			default:
-				m_sLastError.Format ("{}{}() returned {} ({})", m_sErrorPrefix, sContext, m_iErrorNum, "UNKNOWN OCI RTN");
+				sError.Format("{}() returned {} ({})", sContext, m_iErrorNum, "UNKNOWN OCI RTN");
 		}
 
 	}
 
-	kDebugLog (3, "  {} -- returned {}", sContext, m_sLastError);
-	#endif
+	kDebugLog (3, "  {} -- returned {}", sContext, sError));
 
 	return (false);  // <-- on error, m_saLastError is formatted, but not sent anywhere yet
 
 } // WasOCICallOK
+#endif
 
 //-----------------------------------------------------------------------------
 bool KSQL::SetAPISet (API iAPISet)
@@ -4506,8 +4485,7 @@ bool KSQL::SetAPISet (API iAPISet)
 {
 	if (IsConnectionOpen())
 	{
-		m_sLastError.Format ("{}SetAPISet(): connection is already open.", m_sErrorPrefix);
-		return (SQLError());
+		return SetError("SetAPISet(): connection is already open.");
 	}
 
 	InvalidateConnectSummary ();
@@ -4541,8 +4519,7 @@ bool KSQL::SetAPISet (API iAPISet)
 	{
 
 		case DBT::NONE:
-			m_sLastError.Format ("{}SetAPISet(): API mismatch: database type not set.", m_sErrorPrefix);
-			return (false);
+			return SetError("SetAPISet(): API mismatch: database type not set.");
 
 		case DBT::MYSQL:                m_iAPISet = API::MYSQL;       break;
 
@@ -4560,8 +4537,7 @@ bool KSQL::SetAPISet (API iAPISet)
 		case DBT::INFORMIX:             m_iAPISet = API::INFORMIX;    break;
 
 		default:
-			m_sLastError.Format ("{}SetAPISet(): unsupported database type ({})", m_sErrorPrefix, TxDBType(m_iDBType));
-			return (SQLError());
+			return SetError(kFormat ("SetAPISet(): unsupported database type ({})", TxDBType(m_iDBType)));
 	}
 
 	return (true);
@@ -4578,9 +4554,7 @@ KSQL::Flags KSQL::SetFlags (Flags iFlags)
 
 	//if (QueryStarted())  KEEF: i dont care about this anymore.  let the flags apply to the next action
 	//{
-	//	m_sLastError.Format ("{}SetFlags(): you cannot change flags while a query is in process.", m_sErrorPrefix);
-	//	SQLError();
-	//	return (false);
+	//  return SetError ("SetFlags(): you cannot change flags while a query is in process.");
 	//}
 
 	auto iSaved = m_iFlags;
@@ -5040,8 +5014,7 @@ bool KSQL::ListTables (KStringView sLike/*="%"*/, bool fIncludeViews/*=false*/, 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	default:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-		m_sLastError.Format ("{}ListTables(): {} not supported yet.", m_sErrorPrefix, TxDBType(m_iDBType));
-		return (SQLError());
+		return SetError(kFormat ("ListTables(): {} not supported yet.", TxDBType(m_iDBType)));
 	}
 
 	return (false);
@@ -5094,8 +5067,7 @@ bool KSQL::ListProcedures (KStringView sLike/*="%"*/, bool fRestrictToMine/*=tru
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	default:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-		m_sLastError.Format ("{}ListProcedures(): {} not supported yet.", m_sErrorPrefix, TxDBType(m_iDBType));
-		return (SQLError());
+		return SetError(kFormat( "ListProcedures(): {} not supported yet.", TxDBType(m_iDBType)));
 	}
 
 	return (false);
@@ -5158,8 +5130,7 @@ bool KSQL::DescribeTable (KStringView sTablename)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	default:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-		m_sLastError.Format ("{}DescribeTable(): {} not supported yet.", m_sErrorPrefix, TxDBType(m_iDBType));
-		return (SQLError());
+		return SetError(kFormat ("DescribeTable(): {} not supported yet.", TxDBType(m_iDBType)));
 	}
 
 } // DescribeTable
@@ -5206,27 +5177,21 @@ KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName/*current dbnam
 	case DBT::ORACLE8:
 	case DBT::ORACLE:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-		m_sLastError = "KSQL::FindColumn() not coded yet for DBT::ORACLE";
-		kWarningLog (m_sLastError);
+		SetError(kFormat ("KSQL::FindColumn() not coded yet for {}", TxDBType(m_iDBType)));
 		return list; // empty
-		break;
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	case DBT::SQLSERVER:
 	case DBT::SQLSERVER15:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-		m_sLastError = "KSQL::FindColumn() not coded yet for DBT::SQLSERVER";
-		kWarningLog (m_sLastError);
+		SetError(kFormat ("KSQL::FindColumn() not coded yet for {}", TxDBType(m_iDBType)));
 		return list; // empty
-		break;
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	default:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-		m_sLastError.Format ("{}DescribeTable(): {} not supported yet.", m_sErrorPrefix, TxDBType(m_iDBType));
-		kWarning (m_sLastError);
+		SetError(kFormat ("KSQL::FindColumn() not coded yet for {}", TxDBType(m_iDBType)));
 		return list; // empty
-		break;
 	}
 
 	KROW  row;
@@ -5261,8 +5226,7 @@ unsigned char* KSQL::EncodeData (unsigned char* sBlobData, BlobType iBlobType, u
 	{
 		if (iBlobType != BT_ASCII)
 		{
-			m_sLastError.Format ("{}EncodeData(): fInPlace is true, but BlobType is not ASCII", m_sErrorPrefix);
-			SQLError();
+			SetError ("EncodeData(): fInPlace is true, but BlobType is not ASCII");
 			return (nullptr);
 		}
 
@@ -5313,8 +5277,7 @@ unsigned char* KSQL::EncodeData (unsigned char* sBlobData, BlobType iBlobType, u
 	// - - - - - - - - - -
 		if (!iBlobDataLen)
 		{
-			m_sLastError.Format ("{}EncodeData(): BlobType is BINARY, but iBlobDataLen not specified", m_sErrorPrefix);
-			SQLError();
+			SetError ("EncodeData(): BlobType is BINARY, but iBlobDataLen not specified");
 			return (nullptr);
 		}
 
@@ -5336,8 +5299,7 @@ unsigned char* KSQL::EncodeData (unsigned char* sBlobData, BlobType iBlobType, u
 		return (dszEncodedBlob); // <-- new memory
 	}	
 
-	m_sLastError.Format ("{}EncodeData(): unsupported BlobType={}", m_sErrorPrefix, iBlobType);
-	SQLError();
+	SetError(kFormat ("EncodeData(): unsupported BlobType={}", iBlobType));
 	return (nullptr); // <-- failed (no new memory to free)
 
 } // EncodeData
@@ -5363,8 +5325,7 @@ unsigned char* KSQL::DecodeData (unsigned char* sBlobData, BlobType iBlobType, u
 	{
 		if (iBlobType != BT_ASCII)
 		{
-			m_sLastError.Format ("{}DecodeData(): fInPlace is true, but BlobType is not ASCII", m_sErrorPrefix);
-			SQLError();
+			SetError ("DecodeData(): fInPlace is true, but BlobType is not ASCII");
 			return (nullptr);
 		}
 
@@ -5415,8 +5376,7 @@ unsigned char* KSQL::DecodeData (unsigned char* sBlobData, BlobType iBlobType, u
 	// - - - - - - - - - -
 		if (!iEncodedLen)
 		{
-			m_sLastError.Format ("{}DecodeData(): BlobType is BINARY, but iEncodedLen not specified", m_sErrorPrefix);
-			SQLError();
+			SetError ("DecodeData(): BlobType is BINARY, but iEncodedLen not specified");
 			return (nullptr);
 		}
 
@@ -5464,8 +5424,7 @@ unsigned char* KSQL::DecodeData (unsigned char* sBlobData, BlobType iBlobType, u
 
 				//kDebugMemory ((const char*) sBlobData, 0, /*iLinesBefore=*/0, /*iLinesAfter=*/iEncodedLen/8);
 
-				m_sLastError.Format ("{}DecodeData(): corrupted blob (details in klog)", m_sErrorPrefix);
-				SQLError();
+				SetError ("DecodeData(): corrupted blob (details in klog)");
 				return (nullptr);
 			}
 
@@ -5481,8 +5440,7 @@ unsigned char* KSQL::DecodeData (unsigned char* sBlobData, BlobType iBlobType, u
 		return (dszDecodedBlob); // <-- new memory
 	}	
 
-	m_sLastError.Format ("{}DecodeData(): unsupported BlobType={}", m_sErrorPrefix, iBlobType);
-	SQLError();
+	SetError(kFormat ("DecodeData(): unsupported BlobType={}", iBlobType));
 	return (nullptr); // <-- failed (no new memory to free)
 
 } // DecodeData
@@ -5495,8 +5453,7 @@ bool KSQL::PutBlob (KStringView sBlobTable, KStringView sBlobKey, unsigned char*
 
 	if (!sBlobTable || !sBlobKey || !sBlobData)
 	{
-		m_sLastError.Format ("{}PutBlob(): BlobTable, BlobKey or BlobData is nullptr", m_sErrorPrefix);
-		return (SQLError());
+		return SetError ("PutBlob(): BlobTable, BlobKey or BlobData is nullptr");
 	}
 
 	enum {MAXLEN = 2000};
@@ -5514,8 +5471,7 @@ bool KSQL::PutBlob (KStringView sBlobTable, KStringView sBlobKey, unsigned char*
 		// - - - - - - - - - -
 			if (!iBlobDataLen)
 			{
-				m_sLastError.Format ("KSQL:PutBlob(): BlobType is BINARY, but iBlobDataLen not specified");
-				return (SQLError());
+				return SetError ("KSQL:PutBlob(): BlobType is BINARY, but iBlobDataLen not specified");
 			}
 			break;
 	}
@@ -5922,12 +5878,12 @@ bool KSQL::Load (KROW& Row, bool bSelectAllColumns)
 {
 	if (!Row.FormSelect (m_sLastSQL, m_iDBType, bSelectAllColumns))
 	{
-		m_sLastError = Row.GetLastError();
-		return (false);
+		return SetError(Row.GetLastError());
 	}
 
 	if (!ExecLastRawQuery (0, "Load"))
 	{
+		// ExecLastRawQuery sets the errors itself
 		return false;
 	}
 
@@ -5976,8 +5932,7 @@ bool KSQL::Insert (const KROW& Row, bool bIgnoreDupes/*=false*/)
 {
 	if (!Row.FormInsert (m_sLastSQL, m_iDBType))
 	{
-		m_sLastError = Row.GetLastError();
-		return (false);
+		return SetError(Row.GetLastError());
 	}
 
 	return ExecLastRawInsert(bIgnoreDupes);
@@ -6050,19 +6005,16 @@ bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 		{
 			if (iFirstColumnHash != ColHash.Hash())
 			{
-				m_sLastError = "differing column layout in rows - abort";
-				kDebug(1, m_sLastError);
 				m_iNumRowsAffected = iInsertedRows;
-				return false;
+				return SetError("differing column layout in rows - abort");
 			}
 		}
 
 		// do not use the "ignore" insert with SQLServer
 		if (!Row.AppendInsert(m_sLastSQL, m_iDBType, false, GetDBType() != DBT::SQLSERVER && GetDBType() != DBT::SQLSERVER15))
 		{
-			m_sLastError = Row.GetLastError();
 			m_iNumRowsAffected = iInsertedRows;
-			return false;
+			return SetError(Row.GetLastError());
 		}
 
 		// compute average size per row
@@ -6106,8 +6058,7 @@ bool KSQL::Update (const KROW& Row)
 {
 	if (!Row.FormUpdate (m_sLastSQL, m_iDBType))
 	{
-		m_sLastError = Row.GetLastError();
-		return (false);
+		return SetError(Row.GetLastError());
 	}
 
 	if (!IsFlag(F_NoTranslations))
@@ -6129,8 +6080,7 @@ bool KSQL::Delete (const KROW& Row)
 {
 	if (!Row.FormDelete (m_sLastSQL, m_iDBType))
 	{
-		m_sLastError = Row.GetLastError();
-		return (false);
+		return SetError(Row.GetLastError());
 	}
 
 	if (!IsFlag(F_NoTranslations))
@@ -6139,6 +6089,11 @@ bool KSQL::Delete (const KROW& Row)
 	}
 
 	bool bOK = ExecLastRawSQL (0, "Delete");
+
+	if (!bOK)
+	{
+		return false;
+	}
 
 	kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 
@@ -6336,8 +6291,7 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, KStringView sWhereCl
 		if (iExpected < 0)
 		{
 			KOut.FormatLine (OtherDB.GetLastError());
-			m_sLastError.Format ("{}: {}: {}", OtherDB.ConnectSummary(), OtherDB.GetLastError(), OtherDB.GetLastSQL());
-			return false;
+			return SetError(kFormat ("{}: {}: {}", OtherDB.ConnectSummary(), OtherDB.GetLastError(), OtherDB.GetLastSQL()));
 		}
 	}
 
@@ -6374,8 +6328,7 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, KStringView sWhereCl
 
 	if (!OtherDB.ExecRawQuery (kFormat ("select * from {} {}", sTablename, sWhereClause)))
 	{
-		m_sLastError.Format ("{}: {}: {}", OtherDB.ConnectSummary(), OtherDB.GetLastError(), OtherDB.GetLastSQL());
-		return false;
+		return SetError(kFormat ("{}: {}: {}", OtherDB.ConnectSummary(), OtherDB.GetLastError(), OtherDB.GetLastSQL()));
 	}
 
 	if (bPBAR && (iExpected >= iPbarThreshold))
@@ -6579,13 +6532,13 @@ bool KSQL::ctlib_is_initialized()
 bool KSQL::ctlib_login ()
 //-----------------------------------------------------------------------------
 {
-	m_sLastError.clear();
+	m_sCtLibLastError.clear();
 
 	kDebug (KSQL2_CTDEBUG, "cs_ctx_alloc()");
 	if (cs_ctx_alloc (CS_VERSION_100, &m_pCtContext) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>cs_ctx_alloc");
-		return (SQLError());
+		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 	}
 
 	#if 0
@@ -6603,14 +6556,14 @@ bool KSQL::ctlib_login ()
 	if (ct_init (m_pCtContext, CS_VERSION_100) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>ct_init failed");
-		return (SQLError());
+		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 	}
 
 	kDebug (KSQL2_CTDEBUG, "ct_con_alloc()");
 	if (ct_con_alloc (m_pCtContext, &m_pCtConnection) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>ct_con_alloc");
-		return (SQLError());
+		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 	}
 
 	kDebug (KSQL2_CTDEBUG, "ct_con_props() set username");
@@ -6618,7 +6571,7 @@ bool KSQL::ctlib_login ()
 	if (ct_con_props (m_pCtConnection, CS_SET, CS_USERNAME, sUser.data(), sUser.size(), nullptr) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>set username");
-		return (SQLError());
+		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 	}
 
 	kDebug (KSQL2_CTDEBUG, "ct_con_props() set password");
@@ -6626,7 +6579,7 @@ bool KSQL::ctlib_login ()
 	if (ct_con_props (m_pCtConnection, CS_SET, CS_PASSWORD, sPass.data(), sPass.size(), nullptr) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>set password");
-		return (SQLError());
+		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 	}
 
 	kDebug (KSQL2_CTDEBUG, "connecting as {} to {}.{}\n", GetDBUser(), GetDBHost(), GetDBName());
@@ -6642,7 +6595,7 @@ bool KSQL::ctlib_login ()
 		{
 			//try to connect 3 times.
 			ctlib_api_error ("ctlib_login>ct_connect");
-			return (SQLError());
+			return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 		}
 	}
 
@@ -6650,15 +6603,14 @@ bool KSQL::ctlib_login ()
 	if (ct_cmd_alloc (m_pCtConnection, &m_pCtCommand) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>ct_cmd_alloc");
-		return (SQLError());
+		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 	}
 
 	if (!GetDBName().empty())
 	{
 		if (ctlib_execsql(kFormat("use {}", GetDBName())) != CS_SUCCEED)
 		{
-			m_sLastError.Format ("{}CTLIB: login ok, could not attach to database: {}", m_sErrorPrefix, GetDBName());
-			return (false);
+			return SetError(kFormat("CTLIB: login ok, could not attach to database: {}", GetDBName()));
 		}
 	}
 
@@ -6668,7 +6620,7 @@ bool KSQL::ctlib_login ()
 	if (ct_diag (m_pCtConnection, CS_INIT, CS_UNUSED, CS_UNUSED, nullptr) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>ct_init(CS_INIT) failed");
-		return (SQLError());
+		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 	}
 
 	return (true);
@@ -6685,7 +6637,7 @@ bool KSQL::ctlib_logout ()
 		if (ct_cancel(m_pCtConnection, nullptr, CS_CANCEL_ALL) != CS_SUCCEED)
 		{
 			ctlib_api_error ("ctlib_logout>ct_cancel");
-			return (SQLError());
+			return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 		}
 	}
 
@@ -6764,14 +6716,14 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 	if (ct_command (m_pCtCommand, CS_LANG_CMD, sSQL.data(), sSQL.size(), CS_UNUSED) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_execsql>ct_command");
-		return (SQLError());
+		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 	}
 
 	kDebug (KSQL2_CTDEBUG, "calling ct_send()...");
 	if (ct_send (m_pCtCommand) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_execsql>ct_send");
-		return (SQLError());
+		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 	}
 
 	kDebug (KSQL2_CTDEBUG, "calling ct_results()...");
@@ -6810,11 +6762,12 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 			default:
 				kDebug (KSQL2_CTDEBUG, "iResultType ??? ({})", iResultType);
 				ctlib_api_error ("ctlib_execsql>ct_results");
-				return (SQLError());
+				return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 		}
 	}
 
 	uint32_t iNumErrors = ctlib_check_errors();
+
 	if (iNumErrors)
 	{
 		kDebug (KSQL2_CTDEBUG, "returning false");
@@ -6876,9 +6829,10 @@ bool KSQL::ctlib_api_error (KStringView sContext)
 	kDebug (3, sContext);
 
 	uint32_t iMessages = ctlib_check_errors ();
+
 	if (!iMessages)
 	{
-		m_sLastError.Format ("CT-Lib: API Error: {}", sContext);
+		m_sCtLibLastError.Format ("CT-Lib: API Error: {}", sContext);
 	}
 
 	return (false);
@@ -6900,7 +6854,7 @@ uint32_t KSQL::ctlib_check_errors ()
 	CS_SERVERMSG ServerMsg; memset (&ServerMsg, 0, sizeof(ServerMsg));
 	int          ii;
 
-	m_sLastError.clear();
+	m_sCtLibLastError.clear();
 
 	kDebug (KSQL2_CTDEBUG, "calling ct_diag...");
 
@@ -6938,17 +6892,15 @@ uint32_t KSQL::ctlib_check_errors ()
 		// 	CS_INT sqlstatelen;
 		// } CS_CLIENTMSG;
 
-		m_iErrorNum = ClientMsg.msgnumber;
+		m_iCtLibErrorNum = ClientMsg.msgnumber;
 
 		if (ii)
 		{
-			m_sLastError += "\n";	
+			m_sCtLibLastError += "\n";
 		}
-		m_sLastError += m_sErrorPrefix;	
+		m_sCtLibLastError += m_sErrorPrefix;
 
-		KString sAdd;
-		sAdd.Format("CTLIB-{:05}: ", ClientMsg.msgnumber);
-		m_sLastError += sAdd;	
+		m_sCtLibLastError += kFormat("CTLIB-{:05}: ", ClientMsg.msgnumber);
 
 		int iLayer    = CS_LAYER(ClientMsg.msgnumber);
 		int iOrigin   = CS_ORIGIN(ClientMsg.msgnumber);
@@ -6956,29 +6908,24 @@ uint32_t KSQL::ctlib_check_errors ()
 
 		if (iLayer)
 		{
-			sAdd.Format("Layer {}, ", iLayer);
-			m_sLastError+=sAdd;	
+			m_sCtLibLastError += kFormat("Layer {}, ", iLayer);
 		}
 
 		if (iOrigin)
 		{
-			sAdd.Format("Origin {}, ", iOrigin);
-			m_sLastError+=sAdd;
+			m_sCtLibLastError += kFormat("Origin {}, ", iOrigin);
 		}
 
 		if (iSeverity)
 		{
-			sAdd.Format("Severity {}, ", iSeverity);
-			m_sLastError+=sAdd;
+			m_sCtLibLastError += kFormat("Severity {}, ", iSeverity);
 		}
 
-		sAdd = ClientMsg.msgstring;
-		m_sLastError+=sAdd;
+		m_sCtLibLastError += ClientMsg.msgstring;
 
 		if (ClientMsg.osstringlen > 0)
 		{
-			sAdd.Format("{}OS-{:05}: {}", m_sErrorPrefix, ClientMsg.osnumber, ClientMsg.osstring);
-			m_sLastError+=sAdd;
+			m_sCtLibLastError += kFormat("OS-{:05}: {}", ClientMsg.osnumber, ClientMsg.osstring);
 		}
 
 		++iNumErrors;
@@ -7022,9 +6969,9 @@ uint32_t KSQL::ctlib_check_errors ()
 		// 	CS_INT sqlstatelen;
 		// } CS_SERVERMSG;
 
-		if (!m_iErrorNum)
+		if (!m_iCtLibErrorNum)
 		{
-			m_iErrorNum = ServerMsg.msgnumber;
+			m_iCtLibErrorNum = ServerMsg.msgnumber;
 		}
 		else
 		{
@@ -7033,38 +6980,35 @@ uint32_t KSQL::ctlib_check_errors ()
 
 		if (ii)
 		{
-			m_sLastError += "\n";
+			m_sCtLibLastError += "\n";
 		}
-		m_sLastError += m_sErrorPrefix;
+		// this is the sole place except SetError() where we reference m_sErrorPrefix..
+		// TODO replace by smart insert after '\n' in SetError()
+		m_sCtLibLastError += m_sErrorPrefix;
 
-		KString sAdd;
-		sAdd.Format("SQL-{:05}: ", ServerMsg.msgnumber);
-		m_sLastError += sAdd;
+		m_sCtLibLastError += kFormat("SQL-{:05}: ", ServerMsg.msgnumber);
 
 		if (ServerMsg.proclen)
 		{
-			m_sLastError += ServerMsg.proc;
+			m_sCtLibLastError += ServerMsg.proc;
 		}
 
 		if (ServerMsg.state)
 		{
-			sAdd.Format("State {}, ", ServerMsg.state);
-			m_sLastError += sAdd;
+			m_sCtLibLastError += kFormat("State {}, ", ServerMsg.state);
 		}
 
 		if (ServerMsg.severity)
 		{
-			sAdd.Format("Severity {}, ", ServerMsg.severity);
-			m_sLastError += sAdd;
+			m_sCtLibLastError += kFormat("Severity {}, ", ServerMsg.severity);
 		}
 
 		if (ServerMsg.line)
 		{
-			sAdd.Format("Line {}, ", ServerMsg.line);
-			m_sLastError += sAdd;
+			m_sCtLibLastError += kFormat("Line {}, ", ServerMsg.line);
 		}
 
-		m_sLastError += ServerMsg.text;
+		m_sCtLibLastError += ServerMsg.text;
 
 		++iNumErrors;
 	}
@@ -7082,7 +7026,8 @@ bool KSQL::ctlib_clear_errors ()
 		return false;
 	}
 
-	m_iErrorNum = 0;
+	m_sCtLibLastError.clear();
+	m_iCtLibErrorNum = 0;
 
 	kDebug (KSQL2_CTDEBUG, "calling ct_diag...");
 	if (ct_diag (m_pCtConnection, CS_CLEAR, CS_ALLMSG_TYPE, CS_UNUSED, nullptr) != CS_SUCCEED)
@@ -7172,7 +7117,7 @@ bool KSQL::ctlib_prepare_results ()
 	if (ct_res_info (m_pCtCommand, CS_NUMDATA, &iNumCols, CS_UNUSED, nullptr) != CS_SUCCEED)
 	{
 		ctlib_api_error ("NextRow>ct_res_info");
-		return (SQLError());
+		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 	}
 	m_iNumColumns = (uint32_t) iNumCols;
 
@@ -7190,7 +7135,7 @@ bool KSQL::ctlib_prepare_results ()
 		if (ct_describe (m_pCtCommand, ii+1, &colinfo) != CS_SUCCEED)
 		{
 			ctlib_api_error ("NextRow>ct_describe) failed for a column");
-			return (SQLError());
+			return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 		}
 
 		if (colinfo.status & CS_RETURN)
@@ -7233,7 +7178,7 @@ bool KSQL::ctlib_prepare_results ()
 		if (ct_bind (m_pCtCommand, ii+1, &datafmt, ColInfo.dszValue.get(), nullptr, &(ColInfo.indp)) != CS_SUCCEED)
 		{
 			ctlib_api_error ("NextRow>ct_bind");
-			return (SQLError());
+			return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 		}
 
 		m_dColInfo.push_back(std::move(ColInfo));
@@ -7515,15 +7460,6 @@ size_t KSQL::OutputQuery (KString sSQL, OutputFormat iFormat/*=FORM_ASCII*/, FIL
 } // OutputQuery
 
 //-----------------------------------------------------------------------------
-void KSQL::ResetErrorStatus ()
-//-----------------------------------------------------------------------------
-{
-	m_iErrorNum  = 0;
-	m_sLastError.clear();
-
-} // ResetErrorStatus
-
-//-----------------------------------------------------------------------------
 bool KSQL::BeginTransaction (KStringView sOptions/*=""*/)
 //-----------------------------------------------------------------------------
 {
@@ -7565,8 +7501,6 @@ bool KSQL::RollbackTransaction (KStringView sOptions/*=""*/)
 KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags/*=FAC+NORMAL*/, KStringView sSplitBy/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	m_sLastError.clear();
-
 	KString sClause;
 
 	if (sQueryParm.empty())
@@ -7682,8 +7616,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_
 	{
 		if (!kStrIn (sLowerParm, "minute,hour,day,week,month,quarter,year"))
 		{
-			m_sLastError.Format ("invalid time period: {}, should be one of: minute,hour,day,week,month,quarter,year", sQueryParm);
-			kDebug (2, GetLastError());
+			SetError(kFormat ("invalid time period: {}, should be one of: minute,hour,day,week,month,quarter,year", sQueryParm));
 			return sClause; // empty
 		}
 
@@ -7805,15 +7738,18 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const 
 	}
 	else if (! Config.is_object())
 	{
-		m_sLastError.Format ("BUG: FormOrderBy: Config is not object of key/value pairs: {}", Config.dump('\t'));
-		kDebug (2, GetLastError());
-		return false;
+		return SetError(kFormat ("BUG: FormOrderBy: Config is not object of key/value pairs: {}", Config.dump('\t')));
 	}
 
 	auto ParmList = sCommaDelimedSort.Split (",");
 	kDebug (2, "sort='{}' has {} parms ...", sCommaDelimedSort, ParmList.size());
 
-	bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
+	bool bResetFlag   = KLog::getInstance().ShowStackOnJsonError(false);
+	// make sure the setting is automatically reset, even when throwing
+	KScopeGuard Guard = [bResetFlag]()
+	{
+		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
+	};
 
 	for (auto parm : ParmList)
 	{
@@ -7847,20 +7783,14 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const 
 			}
 			catch (const KJSON::exception& exc)
 			{
-				m_sLastError.Format ("BUG: FormOrderBy: Config is not object of key/value pairs: {}", Config.dump('\t'));
-				kDebug (2, GetLastError());
-				KLog::getInstance().ShowStackOnJsonError(bResetFlag);
-				return false;
+				return SetError(kFormat ("BUG: FormOrderBy: Config is not object of key/value pairs: {}", Config.dump('\t')));
 			}
 		}
 
 		if (!bFound)
 		{
 			// runtime/user error: attempt to sort by a column that is not specified in the Config:
-			m_sLastError.Format ("attempt to sort by unknown column '{}'", sParm);
-			kDebug (2, GetLastError());
-			KLog::getInstance().ShowStackOnJsonError(bResetFlag);
-			return false;
+			return SetError(kFormat ("attempt to sort by unknown column '{}'", sParm));
 		}
 	}
 
@@ -7949,12 +7879,7 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 	if (!GetLock (sSchemaVersionTable, 120))
 	{
 		kWarning("Could not acquire schema update lock within 120 seconds. Another process may be updating the schema. Abort.");
-		m_sLastError = kFormat("schema updater for table {} is locked", sSchemaVersionTable);
-		if (m_TimingCallback)
-		{
-			m_TimingCallback (*this, /*iMilliseconds=*/0, kFormat ("{}", m_sLastError));
-		}
-		return false;
+		return SetError(kFormat("schema updater for table {} is locked", sSchemaVersionTable));
 	}
 
 	// query rev again after acquiring the lock
@@ -8040,13 +7965,13 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 		{
 			kDebug (1, sError);
 			ExecSQL ("rollback");
-			m_sLastError = sError;
-			return false;
+			return SetError(sError);
 		}
 		else
 		{
 			if (!CommitTransaction())
 			{
+				// would throw in CommitTransaction()
 				return false;
 			}
 		}
@@ -8210,8 +8135,7 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 			{
 				if (!INI.Load (sINI))
 				{
-					m_sLastError.Format ("invalid ini file: {}", sINI);
-					return false;
+					return SetError(kFormat ("invalid ini file: {}", sINI));
 				}
 			}
 
@@ -8240,9 +8164,7 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	if (!GetDBUser() && !GetDBPass() && !GetDBName())
 	{
-		m_sLastError.Format ("no db connection defined");
-		kDebug (1, m_sLastError);
-		return false;
+		return SetError ("no db connection defined");
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -8257,7 +8179,9 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 		KOut.FormatLine (":: {} = {}", "DBHOST", GetDBHost());
 		KOut.FormatLine (":: {} = {}", "DBNAME", GetDBName());
 		KOut.FormatLine (":: {} = {}", "DBPORT", GetDBPort());
-		m_sLastError.Format ("{} set", KSQL_CONNECTION_TEST_ONLY);
+		auto iFlags = SetFlag(F_IgnoreSQLErrors);
+		SetError(kFormat ("{} set", KSQL_CONNECTION_TEST_ONLY));
+		SetFlags(iFlags);
 		return false;
 	}
 

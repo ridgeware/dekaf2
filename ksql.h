@@ -169,6 +169,12 @@ class KSQL : public detail::KCommonSQLBase
 public:
 //----------
 
+	/// KSQL exception class
+	struct Exception : public KException
+	{
+		using KException::KException;
+	};
+
 	/// KSQL processing flags
 	using Flags  = uint16_t;
 	/// value translations
@@ -356,7 +362,7 @@ public:
 			{ return Row.FormSelect (sSQL, m_iDBType, bSelectAllColumns); }
 
 	void   SetErrorPrefix   (KStringView sPrefix, uint32_t iLineNum = 0);
-	void   ClearErrorPrefix ()        { m_sErrorPrefix = "KSQL: "; }
+	void   ClearErrorPrefix ()        { m_sErrorPrefix.clear(); }
 
 	/// issue a klog warning everytime a query or sql statement exceeds the given number of seconds
 	void   SetWarningThreshold  (uint64_t iWarnIfOverMilliseconds, FILE* fpAlternativeToKlog=nullptr)
@@ -570,9 +576,9 @@ public:
 	const KString& GetTempDir()    const { return (m_sTempDir);        }
 
 	/// returns last error string
-	const KString& GetLastError () const { return (m_sLastError);      }
+	const KString& GetLastError () const { return (m_sLastErrorSetOnlyWithSetError);      }
 	/// returns last error number
-	uint32_t    GetLastErrorNum () const { return (m_iErrorNum);       }
+	uint32_t    GetLastErrorNum () const { return (m_iErrorSetOnlyWithSetError);       }
 	/// returns true for MySQL duplicate index error
 	bool        WasDuplicateError() const { return (GetLastErrorNum() == 1062); /*TODO:MySQL only*/ }
 	int         GetLastOCIError () const { return (GetLastErrorNum()); }
@@ -593,10 +599,8 @@ public:
 	/// returns status text after insert/update statements (only for MySQL)
 	KString     GetLastInfo ();
 
-	/// set last error string
-	void        SetLastError (KStringView sError) { m_sLastError = sError; }
 	/// set temp directory
-	void        SetTempDir (KStringView sTempDir) { m_sTempDir = sTempDir; }
+	void        SetTempDir (KString sTempDir) { m_sTempDir = std::move(sTempDir); }
 
 	void        BuildTranslationList (TXList& pList, DBT iDBType = DBT::NONE);
 	void        DoTranslations (KString& sSQL);
@@ -697,6 +701,11 @@ public:
 	{
 		return KROW::EscapedCharacters(m_iDBType);
 	}
+
+	/// Allow KSQL to throw in case of SQL errors. Returns previous throw status
+	bool SetThrow(bool bYesNo) { std::swap(m_bMayThrow, bYesNo); return bYesNo; }
+	/// returns true if KSQL is allowed to throw
+	bool GetThrow() const { return m_bMayThrow; }
 
 	bool GetLock (KStringView sName, int16_t iTimeoutSeconds = -1);
 	bool ReleaseLock (KStringView sName);
@@ -902,7 +911,6 @@ private:
 	}; // SQLFileParms
 
 	void   ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms);
-	void   ResetErrorStatus ();
 	const  KColInfo& GetColProps (KROW::Index iOneBasedColNum);
 	void   ResetConnectionID () { m_iConnectionID = 0; }
 
@@ -913,9 +921,26 @@ private:
 protected:
 //----------
 
+	/// sets m_sLastError, then either throws a KSQL exception if allowed to do, or returns false
+	/// @param sError the error string to set
+	/// @param iErrorNum the db specific error number, if available, default -1
+	/// @return always false
+	bool SetError(KString sError, uint32_t iErrorNum = -1, bool bNoThrow = false);
+	/// sets m_sLastError, and returns false (never throws, even if KSQL is configured to do so)
+	/// @param sError the error string to set
+	/// @param iErrorNum the db specific error number, if available, default -1
+	/// @return always false
+	bool SetErrorNoThrow(KString sError, uint32_t iErrorNum = -1)
+	{
+		return SetError(std::move(sError), iErrorNum, true);
+	}
+	/// Reset error string and error status
+	void ClearError();
 	bool ExecLastRawSQL (Flags iFlags=0, KStringView sAPI = "ExecLastRawSQL");
 	bool ExecLastRawQuery (Flags iFlags=0, KStringView sAPI = "ExecLastRawQuery");
 	bool ExecLastRawInsert(bool bIgnoreDupes=false);
+	/// Reset last sql command string - only needed in multi-tenant environments for client isolation
+	void ClearLastSQL() { m_sLastSQL.clear(); }
 
 //----------
 private:
@@ -997,15 +1022,14 @@ public:
 
 	} // FormatSQL
 
-	KString    m_sLastError;
-	KString    m_sLastSQL;
-
 //----------
 private:
 //----------
 
-	Flags      m_iFlags { 0 };                  // set by calling SetFlags()
-	uint32_t   m_iErrorNum { 0 };               // db error number (e.g. ORA code)
+	KString    m_sLastSQL;
+	KString    m_sLastErrorSetOnlyWithSetError;   // error string. Never set directly, only via SetError()
+	uint32_t   m_iErrorSetOnlyWithSetError { 0 }; // db error number (e.g. ORA code). Never set directly, only via SetError()
+	Flags      m_iFlags { 0 };                    // set by calling SetFlags()
 #if defined(DEKAF2_HAS_MYSQL)
 	DBT        m_iDBType { DBT::MYSQL };
 	API        m_iAPISet { API::MYSQL };
@@ -1079,6 +1103,7 @@ private:
 	bool       m_bConnectionIsOpen { false };
 	bool       m_bFileIsOpen { false };
 	bool       m_bQueryStarted { false };
+	bool       m_bMayThrow { false };
 	KString    m_sDBCFile;
 	KString    m_sTmpResultsFile;
 	uint64_t   m_iRowNum { 0 };
@@ -1088,7 +1113,7 @@ private:
 	uint64_t   m_iLastInsertID { 0 };
 	uint64_t   m_iConnectionID { 0 };
 	char**     m_dBufferedColArray { nullptr };
-	KString    m_sErrorPrefix { "KSQL: " };
+	KString    m_sErrorPrefix;
 	bool       m_bDisableRetries { false };
 	uint64_t   m_iWarnIfOverMilliseconds { 0 };
 	FILE*      m_fpPerformanceLog { nullptr };
@@ -1096,16 +1121,15 @@ private:
 	KSQLStatementStats m_SQLStmtStats;
 	std::function<void(const KSQL&, uint64_t, const KString&)> m_TimingCallback;
 
-	bool  SQLError (bool fForceError=false);
-	bool  WasOCICallOK (KStringView sContext);
 	bool  BufferResults ();
 	void  FreeAll (bool bDestructor=false);
 	void  FreeBufferedColArray (bool fValuesOnly=false);
 	void  FormatConnectSummary () const;
 	void  InvalidateConnectSummary () const { m_sConnectSummary.clear(); }
-	bool  PreparedToRetry ();
+	bool  PreparedToRetry (uint32_t iErrorNum);
 
     #ifdef DEKAF2_HAS_ORACLE
+	bool  WasOCICallOK    (KStringView sContext, uint32_t iErrorNum, KString& sError);
 	bool _BindByName      (KStringView sPlaceholder, dvoid* pValue, sb4 iValueSize, ub2 iDataType);
 	bool _BindByPos       (uint32_t iPosition, dvoid* pValue, sb4 iValueSize, ub2 iDataType);
 	//OL _ArrayBindByName (KStringView sPlaceholder, dvoid* pValue, sb4 iValueSize, ub2 iDataType); - TODO
@@ -1124,6 +1148,8 @@ private:
 	bool     ctlib_clear_errors      ();
 	bool     ctlib_prepare_results   ();
 	void     ctlib_flush_results     ();
+	KString  m_sCtLibLastError;
+	uint32_t m_iCtLibErrorNum { 0 };
 	#endif
 
 	bool DecodeDBCData(KStringView sBuffer, KStringView sDBCFile);

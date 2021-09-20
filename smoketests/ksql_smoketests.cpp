@@ -254,6 +254,9 @@ TEST_CASE("KSQL")
 	{
 		KSQL db; // <-- shared across the remaining tests
 
+		// we run the tests now in throwing mode
+		db.SetThrow(true);
+
 		if (g_sDbcFile.empty())
 		{
 			return;  // <--- other other tests are useless
@@ -893,8 +896,10 @@ TEST_CASE("KSQL")
 			Rows.push_back(std::move(Row6));
 		}
 
+		auto bOldStatus = db.SetThrow(false);
 		CHECK ( !db.Insert (Rows) );
 		CHECK ( db.GetLastError() == "differing column layout in rows - abort" );
+		db.SetThrow(bOldStatus);
 
 		CHECK ( db.SingleIntQuery("select count(*) from TEST2_KSQL") == 2 );
 

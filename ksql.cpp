@@ -7990,7 +7990,7 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 uint16_t KSQL::GetSchemaVersion (KStringView sTablename)
 //-----------------------------------------------------------------------------
 {
-	auto iSigned = SingleIntQuery ("select {} FROM {}", SCHEMA_REV, sTablename);
+	auto iSigned = SingleIntQuery ("select {} from {}", SCHEMA_REV, sTablename);
 
 	if (iSigned <= 0)
 	{

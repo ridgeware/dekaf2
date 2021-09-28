@@ -243,9 +243,28 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 		m_TimingCallback (*this, iTotalTime, sSummary);
 	}
 
-	if (!HttpSuccess() && Error().empty())
+	if (HttpSuccess())
 	{
-		SetError(Response.GetStatusString());
+		if (m_bAcceptCookies)
+		{
+			// check for Set-Cookie headers
+			const auto Range = Response.Headers.equal_range(KHTTPHeader::SET_COOKIE);
+
+			for (auto it = Range.first; it != Range.second; ++it)
+			{
+				// add each cookie
+				m_Cookies.Parse(RequestURL, it->second);
+			}
+		}
+
+		return true; // return with success..
+	}
+	else // HttpSuccess() -> false
+	{
+		if (Error().empty())
+		{
+			SetError(Response.GetStatusString());
+		}
 
 		if (kWouldLog(2))
 		{
@@ -260,24 +279,12 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 			{
 				kDebug(2, "{} {}", RequestMethod.Serialize(), RequestURL.KResource::Serialize());
 			}
+
+			kDebug(2, "{} {} from URL {}", Response.iStatusCode, Response.sStatusString, RequestURL.Serialize());
 		}
 
-		kDebug(2, "{} {} from URL {}", Response.iStatusCode, Response.sStatusString, RequestURL.Serialize());
+		return false; // return with failure
 	}
-
-	if (m_bAcceptCookies && HttpSuccess())
-	{
-		// check for Set-Cookie headers
-		const auto Range = Response.Headers.equal_range(KHTTPHeader::SET_COOKIE);
-
-		for (auto it = Range.first; it != Range.second; ++it)
-		{
-			// add each cookie
-			m_Cookies.Parse(RequestURL, it->second);
-		}
-	}
-
-	return HttpSuccess();
 
 } // HttpRequest
 

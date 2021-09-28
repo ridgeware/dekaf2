@@ -187,16 +187,24 @@ bool KRestClient::NoExceptRequest (KOutStream& OutStream, KStringView sBody, KMI
 	{
 		KURL URL { m_URL };
 
-		if (!m_sPath.empty() && m_sPath.front() != '/')
+		if (!m_sPath.empty())
 		{
-			if (URL.Path.get().back() != '/')
+			if (m_sPath.front() != '/')
 			{
-				URL.Path.get() += '/';
+				if (URL.Path.get().back() != '/')
+				{
+					URL.Path.get() += '/';
+				}
 			}
+
+			URL.Path.get() += m_sPath;
+		}
+
+		if (!m_Query.empty())
+		{
+			URL.Query += m_Query;
 		}
 		
-		URL.Path.get() += m_sPath;
-		URL.Query += m_Query;
 		m_bNeedReset = true;
 
 		return KWebClient::HttpRequest(OutStream, URL, m_Verb, sBody, mime);
@@ -391,7 +399,7 @@ KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
 {
 	try
 	{
-		return RequestAndParseResponse(json.empty() ? "" : json.dump(iPretty), Mime);
+		return RequestAndParseResponse(json.empty() ? KString{} : json.dump(iPretty), Mime);
 	}
 	catch (const KJSON::exception& ex)
 	{

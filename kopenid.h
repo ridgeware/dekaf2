@@ -134,7 +134,7 @@ public:
 		KString     sIssuer;
 	};
 
-	const KeysAndIssuer& Get() const { return *m_CurrentKeys.get()->load(); }
+	const KeysAndIssuer& Get() const { return *m_CurrentKeys.get()->load(std::memory_order_relaxed); }
 
 	void Refresh(KTimer::Timepoint Now = Dekaf::getInstance().GetCurrentTimepoint());
 

@@ -132,7 +132,7 @@ public:
 	/// returns true when state is an error
 	operator bool() const
 	{
-		return value() != 0 && (value() >= 300 || value() < 200);
+		return value() != 0 && (value() / 100 != 2);
 	}
 
 	/// gets the status string depending on the status code

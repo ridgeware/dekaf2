@@ -41,7 +41,7 @@
  */
 
 #include "kopenid.h"
-#include "kwebclient.h"
+#include "krestclient.h"
 #include "klog.h"
 #include "kbase64.h"
 #include "krsasign.h"
@@ -50,7 +50,7 @@
 namespace dekaf2 {
 
 static constexpr KStringViewZ OpenID_Configuration = "/.well-known/openid-configuration";
-static constexpr int DEFAULT_TIMEOUT = 5;
+static constexpr int DEFAULT_OPENID_TCP_TIMEOUT = 5;
 
 const KRSAKey KOpenIDKeys::s_EmptyKey;
 
@@ -98,11 +98,9 @@ KOpenIDKeys::KOpenIDKeys (const KURL& URL)
 		}
 		else
 		{
-			KWebClient ProviderKeys;
-			ProviderKeys.VerifyCerts(true); // we have to verify the CERT!
-			ProviderKeys.SetTimeout(DEFAULT_TIMEOUT);
-			KJSON Keys;
-			kjson::Parse(Keys, ProviderKeys.Get(URL));
+			KJsonRestClient ProviderKeys(URL, true); // we have to verify the CERT!
+			ProviderKeys.SetTimeout(DEFAULT_OPENID_TCP_TIMEOUT);
+			auto Keys = ProviderKeys.Get("").Request();
 
 			if (Validate(Keys))
 			{
@@ -125,6 +123,10 @@ KOpenIDKeys::KOpenIDKeys (const KURL& URL)
 				}
 			}
 		}
+	}
+	DEKAF2_CATCH (const KHTTPError& exc)
+	{
+		SetError(kFormat("{}: {}", URL.Serialize(), exc.message()));
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
@@ -231,27 +233,21 @@ void KOpenIDProvider::Refresh(KTimer::Timepoint Now)
 		DEKAF2_TRY
 		{
 			kDebug(2, "polling OpenID provider {} for keys", m_URL);
-			KWebClient Provider;
-			Provider.VerifyCerts(true); // we have to verify the CERT!
-			Provider.SetTimeout(DEFAULT_TIMEOUT);
-			m_URL.Path = OpenID_Configuration;
-
-			KJSON Configuration;
-			kjson::Parse(Configuration, Provider.Get(m_URL));
+			KJsonRestClient Provider(m_URL, true); // we have to verify the CERT!
+			Provider.SetTimeout(DEFAULT_OPENID_TCP_TIMEOUT);
+			auto Configuration = Provider.Get(OpenID_Configuration).Request();
 
 			// verify accuracy of information
-			m_URL.Path.clear();
-
 			if (Validate(Configuration, m_URL, m_sScope))
 			{
 				// only query keys if valid data
-				auto Keys = KOpenIDKeys(Configuration["jwks_uri"].get_ref<const KString&>());
+				auto Keys = KOpenIDKeys(kjson::GetStringRef(Configuration, "jwks_uri"));
 
 				if (!Keys.empty())
 				{
 					m_DecayingKeys = std::move(m_Keys);
 					auto& sIssuer  = kjson::GetStringRef(Configuration, "issuer");
-					m_Keys         = std::make_unique<KeysAndIssuer>(KeysAndIssuer { std::move(Keys), std::move(sIssuer) } );
+					m_Keys         = std::make_unique<KeysAndIssuer>(KeysAndIssuer { std::move(Keys), sIssuer } );
 					kDebug(2, "got {} valid keys from provider", m_Keys->Keys.size(), m_URL);
 				}
 				else
@@ -260,8 +256,13 @@ void KOpenIDProvider::Refresh(KTimer::Timepoint Now)
 				}
 			}
 		}
+		DEKAF2_CATCH (const KHTTPError& exc)
+		{
+			SetError(kFormat("{}: {}", m_URL.Serialize(), exc.message()));
+		}
 		DEKAF2_CATCH (const KJSON::exception& exc)
 		{
+			// we protect Validate() with this catch
 			SetError(kFormat("OpenID provider '{}' returned invalid JSON: {}", m_URL.Serialize(), exc.what()));
 		}
 	}
@@ -278,7 +279,7 @@ void KOpenIDProvider::Refresh(KTimer::Timepoint Now)
 	else
 	{
 		// atomically switch to new keys
-		*m_CurrentKeys = m_Keys.get();
+		m_CurrentKeys.get()->store(m_Keys.get(), std::memory_order_relaxed);
 	}
 
 } // Refresh

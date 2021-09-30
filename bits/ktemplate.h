@@ -230,6 +230,126 @@ struct is_str
       is_c_str<T>::value
 > {};
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// helper class to wrap one object reference and access it through a proxy object
+template<class T>
+class ReferenceProxy
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	ReferenceProxy(T& proxied) : m_proxied(proxied) {};
+
+	/// get reference on object
+	T& get()
+	{
+		return m_proxied;
+	}
+
+	/// get pointer on object
+	T* operator->()
+	{
+		return &get();
+	}
+
+	/// get reference on object
+	T& operator*()
+	{
+		return get();
+	}
+
+	/// get reference on object
+	operator T&()
+	{
+		return get();
+	}
+
+	/// helper for subscript access - acts as a proxy for the real object
+	template<typename KeyType, typename Map = T,
+			 typename std::enable_if<detail::is_map_type<Map>::value == true, int>::type = 0>
+	typename Map::mapped_type& operator[](KeyType&& Key)
+	{
+		return get().operator[](std::forward<KeyType>(Key));
+	}
+
+	template<typename KeyType, typename Array = T,
+			 typename std::enable_if<detail::is_std_array<Array>::value == true, int>::type = 0>
+	typename Array::value_type& operator[](KeyType&& Key)
+	{
+		return get().operator[](std::forward<KeyType>(Key));
+	}
+
+//----------
+private:
+//----------
+
+	T& m_proxied;
+
+}; // ReferenceProxy
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// helper class to const wrap one object reference and access it through a proxy object
+template<class T>
+class ConstReferenceProxy
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	ConstReferenceProxy(const T& proxied) : m_proxied(proxied) {};
+
+	/// get const reference on object
+	const T& get() const
+	{
+		return m_proxied;
+	}
+
+	/// get const pointer on object
+	const T* operator->() const
+	{
+		return &get();
+	}
+
+	/// get const reference on object
+	const T& operator*() const
+	{
+		return get();
+	}
+
+	/// get const reference on object
+	operator const T&() const
+	{
+		return get();
+	}
+
+	/// helper for subscript access - acts as a proxy for the real object
+	template<typename KeyType, typename Map = T,
+			 typename std::enable_if<detail::is_map_type<Map>::value == true, int>::type = 0>
+	const typename Map::mapped_type& operator[](KeyType&& Key)
+	{
+		return get().at(std::forward<KeyType>(Key));
+	}
+
+	template<typename KeyType, typename Array = T,
+			 typename std::enable_if<detail::is_std_array<Array>::value == true, int>::type = 0>
+	const typename Array::value_type& operator[](KeyType&& Key)
+	{
+		return get().at(std::forward<KeyType>(Key));
+	}
+
+//----------
+private:
+//----------
+
+	const T& m_proxied;
+
+}; // ConstReferenceProxy
+
 } // of namespace detail
 
 } // of namespace dekaf2

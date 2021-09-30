@@ -66,7 +66,7 @@ public:
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper type for unique locked access
-	class UniqueLocked
+	class UniqueLocked : public detail::ReferenceProxy<T>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 
@@ -75,48 +75,9 @@ public:
 	//----------
 
 		UniqueLocked(KThreadSafe& Parent)
-		: m_Lock(Parent.m_Mutex)
-		, m_Shared(Parent.m_Shared)
+		: detail::ReferenceProxy<T>(Parent.m_Shared)
+		, m_Lock(Parent.m_Mutex)
 		{
-		}
-
-		/// get reference on object
-		T& get()
-		{
-			return m_Shared;
-		}
-
-		/// get pointer on object
-		T* operator->()
-		{
-			return &get();
-		}
-
-		/// get reference on object
-		T& operator*()
-		{
-			return get();
-		}
-
-		/// get reference on object
-		operator T&()
-		{
-			return get();
-		}
-
-		/// helper for subscript access - acts as a proxy for the real object
-		template<typename KeyType, typename Map = T,
-		         typename std::enable_if<detail::is_map_type<Map>::value == true, int>::type = 0>
-		typename Map::mapped_type& operator[](KeyType&& Key)
-		{
-			return get().operator[](std::forward<KeyType>(Key));
-		}
-
-		template<typename KeyType, typename Array = T,
-				 typename std::enable_if<detail::is_std_array<Array>::value == true, int>::type = 0>
-		typename Array::value_type& operator[](KeyType&& Key)
-		{
-			return get().operator[](std::forward<KeyType>(Key));
 		}
 
 	//----------
@@ -124,13 +85,12 @@ public:
 	//----------
 
 		std::unique_lock<MutexType> m_Lock;
-		T& m_Shared;
 
 	}; // UniqueLocked
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper type for shared locked access
-	class SharedLocked
+	class SharedLocked : public detail::ConstReferenceProxy<T>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 
@@ -139,48 +99,9 @@ public:
 	//----------
 
 		SharedLocked(const KThreadSafe& Parent)
-		: m_Lock(Parent.m_Mutex)
-		, m_Shared(Parent.m_Shared)
+		: detail::ConstReferenceProxy<T>(Parent.m_Shared)
+		, m_Lock(Parent.m_Mutex)
 		{
-		}
-
-		/// get const reference on object
-		const T& get() const
-		{
-			return m_Shared;
-		}
-
-		/// get const pointer on object
-		const T* operator->() const
-		{
-			return &get();
-		}
-
-		/// get const reference on object
-		const T& operator*() const
-		{
-			return get();
-		}
-
-		/// get const reference on object
-		operator const T&() const
-		{
-			return get();
-		}
-
-		/// helper for subscript access - acts as a proxy for the real object
-		template<typename KeyType, typename Map = T,
-		         typename std::enable_if<detail::is_map_type<Map>::value == true, int>::type = 0>
-		const typename Map::mapped_type& operator[](KeyType&& Key)
-		{
-			return get().at(std::forward<KeyType>(Key));
-		}
-
-		template<typename KeyType, typename Array = T,
-				 typename std::enable_if<detail::is_std_array<Array>::value == true, int>::type = 0>
-		const typename Array::value_type& operator[](KeyType&& Key)
-		{
-			return get().at(std::forward<KeyType>(Key));
 		}
 
 	//----------
@@ -188,7 +109,6 @@ public:
 	//----------
 
 		std::shared_lock<MutexType> m_Lock;
-		const T& m_Shared;
 
 	}; // SharedLocked
 

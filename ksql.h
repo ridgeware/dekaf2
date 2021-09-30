@@ -707,6 +707,51 @@ public:
 	/// returns true if KSQL is allowed to throw
 	bool GetThrow() const { return m_bMayThrow; }
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// helper object to proxy access to KSQL and reset the Throw/NoThrow state after use
+	class ThrowingKSQL : public detail::ReferenceProxy<KSQL>
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		ThrowingKSQL(KSQL& sql, bool bYesNo)
+		: ReferenceProxy(sql)
+		, m_bResetTo(sql.SetThrow(bYesNo))
+		{
+		}
+
+		~ThrowingKSQL()
+		{
+			// reset initial state
+			get().SetThrow(m_bResetTo);
+		}
+
+	//----------
+	private:
+	//----------
+
+		bool  m_bResetTo;
+
+	}; // ThrowingKSQL
+
+	/// returns helper object to access to KSQL in throwing mode, and reset mode after use
+	/// @code use like:
+	/// ksql.Throw()->ExecSQL("...");
+	/// or
+	/// auto sql = ksql.Throw();
+	/// sql->ExecSQL("...");
+	ThrowingKSQL Throw()   { return ThrowingKSQL(*this, true ); }
+	/// returns helper object to access to KSQL in non-throwing mode, and reset mode after use
+	/// @code use like:
+	/// ksql.NoThrow()->ExecSQL("...");
+	/// or
+	/// auto sql = ksql.NoThrow();
+	/// sql->ExecSQL("...");
+	ThrowingKSQL NoThrow() { return ThrowingKSQL(*this, false); }
+
 	bool GetLock (KStringView sName, int16_t iTimeoutSeconds = -1);
 	bool ReleaseLock (KStringView sName);
 	bool IsLocked (KStringView sName);

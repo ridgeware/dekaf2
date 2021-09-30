@@ -442,16 +442,16 @@ public:
 	self& Printf(Args&&... args);
 
 	/// match with regular expression and return the overall match (group 0)
-	KStringView MatchRegex(KStringView sRegEx, size_type pos = 0) const;
+	KStringView MatchRegex(const KStringView sRegEx, size_type pos = 0) const;
 
 	/// match with regular expression and return all match groups
-	std::vector<KStringView> MatchRegexGroups(KStringView sRegEx, size_type pos = 0) const;
+	std::vector<KStringView> MatchRegexGroups(const KStringView sRegEx, size_type pos = 0) const;
 
 	/// replace with regular expression, sReplaceWith may address sub-groups with \\1 etc., modifies string and returns number of replacements made
-	size_type ReplaceRegex(KStringView sRegEx, KStringView sReplaceWith, bool bReplaceAll = true);
+	size_type ReplaceRegex(const KStringView sRegEx, const KStringView sReplaceWith, bool bReplaceAll = true);
 
 	/// replace one part of the string with another string, modifies string
-	size_type Replace(KStringView sSearch, KStringView sReplace, size_type pos = 0, bool bReplaceAll = true);
+	size_type Replace(const KStringView sSearch, const KStringView sReplace, size_type pos = 0, bool bReplaceAll = true);
 
 	/// replace one char of the string with another char, modifies string and returns number of replacements made
 	size_type Replace(value_type chSearch, value_type chReplace, size_type pos = 0, bool bReplaceAll = true);
@@ -1583,14 +1583,14 @@ inline uint128_t KString::UInt128(bool bIsHex) const noexcept
 #endif
 
 //-----------------------------------------------------------------------------
-inline KStringView KString::MatchRegex(KStringView sRegEx, size_type pos) const
+inline KStringView KString::MatchRegex(const KStringView sRegEx, size_type pos) const
 //-----------------------------------------------------------------------------
 {
 	return ToView().MatchRegex(sRegEx, pos);
 }
 
 //-----------------------------------------------------------------------------
-inline std::vector<KStringView> KString::MatchRegexGroups(KStringView sRegEx, size_type pos) const
+inline std::vector<KStringView> KString::MatchRegexGroups(const KStringView sRegEx, size_type pos) const
 //-----------------------------------------------------------------------------
 {
 	return ToView().MatchRegexGroups(sRegEx, pos);
@@ -1850,8 +1850,8 @@ inline KString operator+(KString&& left, KString::value_type right)
 
 //------------------------------------------------------------------------------
 inline std::size_t kReplace(KString& string,
-                            KStringView sSearch,
-                            KStringView sReplaceWith,
+                            const KStringView sSearch,
+                            const KStringView sReplaceWith,
                             KString::size_type pos = 0,
                             bool bReplaceAll = true)
 //------------------------------------------------------------------------------

@@ -134,6 +134,20 @@ TEST_CASE("KStringView") {
 		CHECK( sv.find_last_of('-') == KStringView::npos );
 		CHECK( sv.find_last_of("-") == KStringView::npos );
 		CHECK( sv.find_last_of("!-") == KStringView::npos );
+
+		auto iPos = sv.find_last_of("abcdef");
+		CHECK ( iPos == 15 );
+		CHECK ( sv[iPos] == 'f' );
+		auto iPos2 = sv.find_last_of("abcdef", --iPos);
+		CHECK ( iPos2 == 14 );
+		CHECK ( sv[iPos2] == 'e' );
+
+		iPos = sv.find_last_not_of(" \r\n\t");
+		CHECK ( iPos == 15 );
+		CHECK ( sv[iPos] == 'f' );
+		iPos2 = sv.find_last_not_of(" \r\n\t", --iPos);
+		CHECK ( iPos2 == 14 );
+		CHECK ( sv[iPos2] == 'e' );
 	}
 
 	SECTION("find_last_of find_last_not_of with controlled 'noise'")

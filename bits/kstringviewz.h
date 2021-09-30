@@ -50,6 +50,15 @@
 
 namespace dekaf2 {
 
+class KStringViewZ;
+
+inline namespace literals {
+
+	/// provide a string literal for KStringViewZ
+	constexpr dekaf2::KStringViewZ operator"" _ksz(const char *data, std::size_t size);
+
+} // namespace literals
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A string_view type with a guaranteed trailing zero that can be used on
 /// any C API
@@ -95,6 +104,9 @@ private:
 	//-----------------------------------------------------------------------------
 	: base_type { s, count }
 	{}
+
+	// make the literal operator a friend, so that it can access the private constructor
+	friend constexpr KStringViewZ literals::operator "" _ksz (const char *data, std::size_t size);
 
 //----------
 public:
@@ -206,8 +218,8 @@ public:
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) && defined(DEKAF2_IS_GCC)
 	// we have a super fast implementation for these signatures in GLIBC, let
 	// them superseede base_type's version
-	size_type find_first_of(KStringView sv, size_type pos = 0) const;
-	size_type find_first_not_of(KStringView sv, size_type pos = 0) const;
+	size_type find_first_of(KString search, size_type pos = 0) const;
+	size_type find_first_not_of(KString search, size_type pos = 0) const;
 #endif
 	
 	using base_type::find_first_of;
@@ -347,12 +359,16 @@ public:
 	self_type ToView(size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		if (pos > size())
+		const auto iSize = size();
+
+		if (pos > iSize)
 		{
+#ifndef NDEBUG
 			Warn(DEKAF2_FUNCTION_NAME, "pos exceeds size");
-			pos = size();
+#endif
+			pos = iSize;
 		}
-		return self_type(data() + pos, size() - pos);
+		return self_type(data() + pos, iSize - pos);
 	}
 
 	//----------------------------------------------------------------------
@@ -362,22 +378,27 @@ public:
 	base_type ToView(size_type pos, size_type n) const noexcept
 	//----------------------------------------------------------------------
 	{
-		if (pos > size())
+		const auto iSize = size();
+
+		if (pos > iSize)
 		{
 			// do not warn
-			pos = size();
+			pos = iSize;
 		}
-		if (n > size())
+
+		if (n > iSize)
 		{
-			n = size() - pos;
+			n = iSize - pos;
 		}
-		else if (pos + n > size())
+		else if (pos + n > iSize)
 		{
-			n = size() - pos;
+			n = iSize - pos;
 		}
+
 		return KStringView(data() + pos, n);
 
 	} // ToView
+
 	//-----------------------------------------------------------------------------
 	/// returns a C style char array with trailing zero - the reason this class
 	/// exists
@@ -407,10 +428,13 @@ public:
 	self_type substr(size_type pos) const
 	//-----------------------------------------------------------------------------
 	{
-		if (pos < size())
+		const auto iSize = size();
+
+		if (DEKAF2_LIKELY(pos < iSize))
 		{
-			return { data() + pos, size() - pos };
+			return { data() + pos, iSize - pos };
 		}
+
 		return {};
 	}
 
@@ -420,50 +444,20 @@ public:
 	//-----------------------------------------------------------------------------
 	/// nonstandard: emulate erase if range is at begin, otherwise does
 	/// nothing (but emits a warning to the debug log)
-	self& erase(size_type pos = 0, size_type n = npos)
+	self& erase(size_type pos = 0, size_type n = npos);
 	//-----------------------------------------------------------------------------
-	{
-		if (pos)
-		{
-			Warn(DEKAF2_FUNCTION_NAME, "impossible to erase past the begin in a KStringViewZ");
-		}
-		else
-		{
-			n = std::min(n, size());
-			unchecked_remove_prefix(n);
-		}
-		return *this;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: emulate erase if position is at begin, otherwise does
 	/// nothing (but emits a warning to the debug log)
-	iterator erase(const_iterator position)
+	iterator erase(const_iterator position);
 	//-----------------------------------------------------------------------------
-	{
-		if (position != begin())
-		{
-			Warn(DEKAF2_FUNCTION_NAME, "impossible to erase past the begin in a KStringViewZ");
-			return end();
-		}
-		erase(static_cast<size_type>(position - begin()), 1);
-		return begin();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: emulate erase if range is at begin, otherwise does
 	/// nothing (but emits a warning to the debug log)
-	iterator erase(const_iterator first, const_iterator last)
+	iterator erase(const_iterator first, const_iterator last);
 	//-----------------------------------------------------------------------------
-	{
-		if (first != begin())
-		{
-			Warn(DEKAF2_FUNCTION_NAME, "impossible to erase past the begin in a KStringViewZ");
-			return end();
-		}
-		erase(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first));
-		return begin();
-	}
 
 	// not using base_type::remove_suffix;
 
@@ -616,16 +610,13 @@ inline bool operator!=(KStringViewZ left, sv::string_view right)
 }
 #endif
 
-
-
 inline namespace literals {
 
 	/// provide a string literal for KStringViewZ
-	constexpr dekaf2::KStringViewZ operator"" _ksz(const char *data, std::size_t size) // NOLINT
+	constexpr dekaf2::KStringViewZ operator"" _ksz(const char *data, std::size_t size)
 	{
-		// literals are always 0-terminated, therefore we can construct via a char*
-		// (and strlen will be called as a compile-time constant expression..)
-		return { data };
+		// we can access a private constructor of KStringViewZ because we are a friend..
+		return { data, size };
 	}
 
 } // namespace literals

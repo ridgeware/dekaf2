@@ -55,22 +55,20 @@ namespace dekaf2 {
 // We can however not use strcspn() for ranges (including KStringView),
 // as there is no trailing zero byte.
 //----------------------------------------------------------------------
-KStringViewZ::size_type KStringViewZ::find_first_of(KStringView sv, size_type pos) const
+KStringViewZ::size_type KStringViewZ::find_first_of(KString search, size_type pos) const
 //----------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(pos >= size()))
+	const auto iSize = size();
+
+	if (DEKAF2_UNLIKELY(pos >= iSize))
 	{
 		return npos;
 	}
 
-	if (DEKAF2_UNLIKELY(sv.size() == 1))
+	if (DEKAF2_UNLIKELY(search.size() == 1))
 	{
 		return find(sv[0], pos);
 	}
-
-	// This is not as costly as it looks due to SSO. And there is no
-	// way around it if we want to use strcspn() and its enormous performance.
-	KString search(sv);
 
 	// now we need to filter out the possible 0 chars in the search string
 	bool bHasZero(false);
@@ -92,14 +90,15 @@ KStringViewZ::size_type KStringViewZ::find_first_of(KStringView sv, size_type po
 	if (bHasZero && search.empty())
 	{
 		kDebug(1, "had all zero search set, fall back to KStringView");
-		return KStringView::find_first_of(sv, pos);
+		return KStringView::find_first_of('\0', pos);
 	}
 
 	// we now can safely use strcspn(), as all strings are 0 terminated.
 	for (;;)
 	{
 		auto retval = std::strcspn(c_str() + pos, search.c_str()) + pos;
-		if (retval >= size())
+
+		if (retval >= iSize)
 		{
 			return npos;
 		}
@@ -123,17 +122,15 @@ KStringViewZ::size_type KStringViewZ::find_first_of(KStringView sv, size_type po
 // We can however not use strspn() for ranges (including KStringView),
 // as there is no trailing zero byte.
 //----------------------------------------------------------------------
-KStringViewZ::size_type KStringViewZ::find_first_not_of(KStringView sv, size_type pos) const
+KStringViewZ::size_type KStringViewZ::find_first_not_of(KString search, size_type pos) const
 //----------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(pos >= size()))
+	const auto iSize = size();
+
+	if (DEKAF2_UNLIKELY(pos >= iSize))
 	{
 		return npos;
 	}
-
-	// This is not as costly as it looks due to SSO. And there is no
-	// way around it if we want to use strspn() and its enormous performance.
-	KString search(sv);
 
 	// now we need to filter out the possible 0 chars in the search string
 	bool bHasZero(false);
@@ -155,14 +152,15 @@ KStringViewZ::size_type KStringViewZ::find_first_not_of(KStringView sv, size_typ
 	if (bHasZero && search.empty())
 	{
 		kDebug(1, "had all zero search set, fall back to KStringView");
-		return KStringView::find_first_not_of(sv, pos);
+		return KStringView::find_first_not_of('\0', pos);
 	}
 
 	// we now can safely use strspn(), as all strings are 0 terminated.
 	for (;;)
 	{
 		auto retval = std::strspn(c_str() + pos, search.c_str()) + pos;
-		if (retval >= size())
+
+		if (retval >= iSize)
 		{
 			return npos;
 		}
@@ -185,12 +183,14 @@ KStringViewZ::size_type KStringViewZ::find_first_not_of(KStringView sv, size_typ
 KStringViewZ KStringViewZ::Right(size_type iCount) const noexcept
 //----------------------------------------------------------------------
 {
-	if (iCount > size())
+	const auto iSize = size();
+
+	if (iCount > iSize)
 	{
 		// do not warn
-		iCount = size();
+		iCount = iSize;
 	}
-	return KStringViewZ(data() + size() - iCount, iCount);
+	return KStringViewZ(data() + iSize - iCount, iCount);
 
 } // Right
 
@@ -227,14 +227,64 @@ bool KStringViewZ::ClipAtReverse(KStringView sClipAtReverse)
 //----------------------------------------------------------------------
 {
 	size_type pos = find(sClipAtReverse);
+
 	if (pos != npos)
 	{
 		erase(0, pos);
 		return true;
 	}
+	
 	return false;
 
 } // ClipAtReverse
+
+//-----------------------------------------------------------------------------
+KStringViewZ::self& KStringViewZ::erase(size_type pos, size_type n)
+//-----------------------------------------------------------------------------
+{
+	if (pos)
+	{
+#ifndef NDEBUG
+		Warn(DEKAF2_FUNCTION_NAME, "impossible to erase past the begin in a KStringViewZ");
+#endif
+	}
+	else
+	{
+		n = std::min(n, size());
+		unchecked_remove_prefix(n);
+	}
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+KStringViewZ::iterator KStringViewZ::erase(const_iterator position)
+//-----------------------------------------------------------------------------
+{
+	if (position != begin())
+	{
+#ifndef NDEBUG
+		Warn(DEKAF2_FUNCTION_NAME, "impossible to erase past the begin in a KStringViewZ");
+#endif
+		return end();
+	}
+	erase(static_cast<size_type>(position - begin()), 1);
+	return begin();
+}
+
+//-----------------------------------------------------------------------------
+KStringViewZ::iterator KStringViewZ::erase(const_iterator first, const_iterator last)
+//-----------------------------------------------------------------------------
+{
+	if (first != begin())
+	{
+#ifndef NDEBUG
+		Warn(DEKAF2_FUNCTION_NAME, "impossible to erase past the begin in a KStringViewZ");
+#endif
+		return end();
+	}
+	erase(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first));
+	return begin();
+}
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 constexpr KStringViewZ::value_type KStringViewZ::s_empty;

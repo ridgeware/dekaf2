@@ -81,29 +81,29 @@ class KStringView;
 
 //-----------------------------------------------------------------------------
 size_t kFind(
-        KStringView haystack,
-        KStringView needle,
+        const KStringView haystack,
+        const KStringView needle,
         size_t pos = 0);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 size_t kRFind(
-        KStringView haystack,
-        KStringView needle,
+        const KStringView haystack,
+        const KStringView needle,
         size_t pos = std::string::npos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
 size_t kFind(
-        KStringView haystack,
+        const KStringView haystack,
         char needle,
         size_t pos = 0);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 size_t kRFind(
-        KStringView haystack,
+        const KStringView haystack,
         char needle,
         size_t pos = std::string::npos);
 //-----------------------------------------------------------------------------
@@ -113,28 +113,28 @@ namespace detail { namespace stringview {
 //-----------------------------------------------------------------------------
 size_t kFindFirstOfInt(
         KStringView haystack,
-        KStringView needle,
+        const KStringView needle,
         size_t pos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 size_t kFindFirstNotOfInt(
         KStringView haystack,
-        KStringView needle,
+        const KStringView needle,
         size_t pos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 size_t kFindLastOfInt(
         KStringView haystack,
-        KStringView needle,
+        const KStringView needle,
         size_t pos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 size_t kFindLastNotOfInt(
         KStringView haystack,
-        KStringView needle,
+        const KStringView needle,
         size_t pos);
 //-----------------------------------------------------------------------------
 
@@ -143,47 +143,47 @@ size_t kFindLastNotOfInt(
 //-----------------------------------------------------------------------------
 size_t kFindFirstOf(
         KStringView haystack,
-        KStringView needle,
+        const KStringView needle,
         size_t pos = 0);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 size_t kFindFirstNotOf(
         KStringView haystack,
-        KStringView needle,
+        const KStringView needle,
         size_t pos = 0);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 size_t kFindLastOf(
         KStringView haystack,
-        KStringView needle,
-        size_t pos = std::string::npos);
+        const KStringView needle,
+        size_t pos = npos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 size_t kFindLastNotOf(
         KStringView haystack,
-        KStringView needle,
-        size_t pos = std::string::npos);
+        const KStringView needle,
+        size_t pos = npos);
 //-----------------------------------------------------------------------------
 
 //----------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-bool kStartsWith(KStringView sInput, KStringView sPattern) noexcept;
+bool kStartsWith(const KStringView sInput, const KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-bool kEndsWith(KStringView sInput, KStringView sPattern) noexcept;
+bool kEndsWith(const KStringView sInput, const KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-bool kContains(KStringView sInput, KStringView sPattern) noexcept;
+bool kContains(const KStringView sInput, const KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-bool kContains(KStringView sInput, char ch) noexcept;
+bool kContains(const KStringView sInput, char ch) noexcept;
 //----------------------------------------------------------------------
 
 // forward declarations
@@ -522,7 +522,9 @@ public:
 	{
 		if DEKAF2_UNLIKELY(empty())
 		{
+#ifndef NDEBUG
 			Warn(DEKAF2_FUNCTION_NAME, "front() is not available");
+#endif
 			return s_0ch;
 		}
 		return m_rep.front();
@@ -535,7 +537,9 @@ public:
 	{
 		if DEKAF2_UNLIKELY(empty())
 		{
+#ifndef NDEBUG
 			Warn(DEKAF2_FUNCTION_NAME, "back() is not available");
+#endif
 			return s_0ch;
 		}
 		return m_rep.back();
@@ -606,7 +610,9 @@ public:
 	{
 		if DEKAF2_UNLIKELY(index >= size())
 		{
+#ifndef NDEBUG
 			Warn(DEKAF2_FUNCTION_NAME, "Index access out of range");
+#endif
 			return s_0ch;
 		}
 		return m_rep[index];
@@ -619,7 +625,9 @@ public:
 	{
 		if DEKAF2_UNLIKELY(index >= size())
 		{
+#ifndef NDEBUG
 			Warn(DEKAF2_FUNCTION_NAME, "Index access out of range");
+#endif
 			return s_0ch;
 		}
 		return m_rep[index];
@@ -632,7 +640,9 @@ public:
 	{
 		if (DEKAF2_UNLIKELY(pos > size()))
 		{
+#ifndef NDEBUG
 			Warn(DEKAF2_FUNCTION_NAME, "pos > size()");
+#endif
 			pos = size();
 		}
 		return self_type(data() + pos, std::min(count, size() - pos));
@@ -655,7 +665,9 @@ public:
 	{
 		if (DEKAF2_UNLIKELY(n > size()))
 		{
+#ifndef NDEBUG
 			Warn(DEKAF2_FUNCTION_NAME, "n > size()");
+#endif
 			n = size();
 		}
 		unchecked_remove_prefix(n);
@@ -668,7 +680,9 @@ public:
 	{
 		if (DEKAF2_UNLIKELY(n > size()))
 		{
+#ifndef NDEBUG
 			Warn(DEKAF2_FUNCTION_NAME, "n > size()");
+#endif
 			n = size();
 		}
 		unchecked_remove_suffix(n);
@@ -677,7 +691,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	DEKAF2_CONSTEXPR_14
-	bool remove_prefix(self_type other)
+	bool remove_prefix(const self_type other)
 	//-----------------------------------------------------------------------------
 	{
 		if (DEKAF2_LIKELY(starts_with(other)))
@@ -691,7 +705,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	DEKAF2_CONSTEXPR_14
-	bool remove_suffix(self_type other)
+	bool remove_suffix(const self_type other)
 	//-----------------------------------------------------------------------------
 	{
 		if (DEKAF2_LIKELY(ends_with(other)))
@@ -706,24 +720,30 @@ public:
 	// nonstandard
 	/// append other view to this. Views must overlap or be adjacent, but other has to be to the right of this
 	DEKAF2_CONSTEXPR_14
-	bool append(self_type other)
+	bool append(const self_type other)
 	//-----------------------------------------------------------------------------
 	{
 		if (data() > other.data())
 		{
+#ifndef NDEBUG
 			Warn(DEKAF2_FUNCTION_NAME, "cannot append, other view starts before this");
+#endif
 			return false;
 		}
 
 		if (data() + size() < other.data())
 		{
+#ifndef NDEBUG
 			Warn(DEKAF2_FUNCTION_NAME, "non-adjacent views cannot be merged");
+#endif
 			return false;
 		}
 
 		if (data() + size() >= other.data() + other.size())
 		{
+#ifndef NDEBUG
 			Warn(DEKAF2_FUNCTION_NAME, "right view is a subset of left");
+#endif
 			return false;
 		}
 
@@ -743,7 +763,9 @@ public:
 		{
 			if (other.data() + other.size() < data())
 			{
+#ifndef NDEBUG
 				Warn(DEKAF2_FUNCTION_NAME, "non-adjacent views cannot be merged");
+#endif
 				return false;
 			}
 
@@ -754,7 +776,9 @@ public:
 
 		if (data() + size() < other.data() )
 		{
+#ifndef NDEBUG
 			Warn(DEKAF2_FUNCTION_NAME, "non-adjacent views cannot be merged");
+#endif
 			return false;
 		}
 
@@ -767,7 +791,7 @@ public:
 	// std::C++20
 	/// does the string start with sPattern?
 	DEKAF2_CONSTEXPR_14
-	bool starts_with(self_type other) const noexcept
+	bool starts_with(const self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return kStartsWith(*this, other);
@@ -787,7 +811,7 @@ public:
 	// std::C++20
 	/// does the string end with sPattern?
 	DEKAF2_CONSTEXPR_14
-	bool ends_with(self_type other) const noexcept
+	bool ends_with(const self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return kEndsWith(*this, other);
@@ -806,7 +830,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// std::C++23
 	/// does the string contain the sPattern?
-	bool contains(self_type other) const noexcept
+	bool contains(const self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return kContains(*this, other);
@@ -825,7 +849,7 @@ public:
 	// nonstandard
 	/// does the string start with sPattern? (Now deprecated, replace by starts_with())
 	DEKAF2_CONSTEXPR_14
-	bool StartsWith(self_type other) const noexcept
+	bool StartsWith(const self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return starts_with(other);
@@ -835,7 +859,7 @@ public:
 	// nonstandard
 	/// does the string end with sPattern? (Now deprecated, replace by ends_with())
 	DEKAF2_CONSTEXPR_14
-	bool EndsWith(self_type other) const noexcept
+	bool EndsWith(const self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return ends_with(other);
@@ -844,7 +868,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// does the string contain the sPattern? (Now deprecated, replace by contains())
-	bool Contains(self_type other) const noexcept
+	bool Contains(const self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return kContains(*this, other);
@@ -898,13 +922,13 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// match with regular expression and return the overall match (group 0)
-	KStringView MatchRegex(KStringView sRegEx, size_type pos = 0) const;
+	KStringView MatchRegex(const KStringView sRegEx, size_type pos = 0) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// match with regular expression and return all match groups
-	std::vector<KStringView> MatchRegexGroups(KStringView sRegEx, size_type pos = 0) const;
+	std::vector<KStringView> MatchRegexGroups(const KStringView sRegEx, size_type pos = 0) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -977,7 +1001,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes any character in sTrim from the left of the string
-	self& TrimLeft(KStringView sTrim);
+	self& TrimLeft(const KStringView sTrim);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -995,7 +1019,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes any character in sTrim from the right of the string
-	self& TrimRight(KStringView sTrim);
+	self& TrimRight(const KStringView sTrim);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -1013,20 +1037,20 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes any character in sTrim from the left and right of the string
-	self& Trim(KStringView sTrim);
+	self& Trim(const KStringView sTrim);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// Clip removing sClipAt and everything to its right if found; otherwise do not alter the string
-	bool ClipAt(KStringView sClipAt);
+	bool ClipAt(const KStringView sClipAt);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// Clip removing everything to the left of sClipAtReverse so that sClipAtReverse becomes the beginning of the string;
 	/// otherwise do not alter the string
-	bool ClipAtReverse(KStringView sClipAtReverse);
+	bool ClipAtReverse(const KStringView sClipAtReverse);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -1110,14 +1134,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type rfind(self_type sv, size_type pos = npos) const noexcept
+	size_type rfind(const self_type sv, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return kRFind(*this, sv, pos);
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type find_first_of(self_type sv, size_type pos = 0) const noexcept
+	size_type find_first_of(const self_type sv, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return kFindFirstOf(*this, sv, pos);
@@ -1146,7 +1170,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type find_last_of(self_type sv, size_type pos = npos) const noexcept
+	size_type find_last_of(const self_type sv, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return kFindLastOf(*this, sv, pos);
@@ -1174,7 +1198,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type find_first_not_of(self_type sv, size_type pos = 0) const noexcept
+	size_type find_first_not_of(const self_type sv, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return kFindFirstNotOf(*this, sv, pos);
@@ -1202,7 +1226,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type find_last_not_of(self_type sv, size_type pos = npos) const noexcept
+	size_type find_last_not_of(const self_type sv, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return kFindLastNotOf(*this, sv, pos);
@@ -1229,8 +1253,10 @@ public:
 		return find_last_not_of(self_type(&ch, 1), pos);
 	}
 
+	//-----------------------------------------------------------------------------
 	/// is string one of the values in sHaystack, delimited by iDelim?
-	bool In (KStringView sHaystack, value_type iDelim=',') const;
+	bool In (const KStringView sHaystack, value_type iDelim=',') const;
+	//-----------------------------------------------------------------------------
 
 	// conversions
 
@@ -1296,7 +1322,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
-	bool operator==(KStringView other) const
+	bool operator==(const KStringView other) const
 	//-----------------------------------------------------------------------------
 	{
 		return size() == other.size() && !compare(other);
@@ -1304,7 +1330,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
-	bool operator!=(KStringView other) const
+	bool operator!=(const KStringView other) const
 	//-----------------------------------------------------------------------------
 	{
 		return !operator==(other);
@@ -1312,12 +1338,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
-	bool operator==(KStringViewZ other) const;
+	bool operator==(const KStringViewZ other) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
-	bool operator!=(KStringViewZ other) const;
+	bool operator!=(const KStringViewZ other) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -1384,7 +1410,7 @@ static constexpr KStringView kASCIISpaces { " \f\n\r\t\v\b" };
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-bool operator==(const char* left, KStringView right)
+bool operator==(const char* left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator==(KStringView(left));
@@ -1392,7 +1418,7 @@ bool operator==(const char* left, KStringView right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-bool operator==(KStringView left, const char* right)
+bool operator==(const KStringView left, const char* right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator==(KStringView(right));
@@ -1400,7 +1426,7 @@ bool operator==(KStringView left, const char* right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-bool operator!=(const char* left, KStringView right)
+bool operator!=(const char* left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator!=(KStringView(left));
@@ -1408,35 +1434,35 @@ bool operator!=(const char* left, KStringView right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-bool operator!=(KStringView left, const char* right)
+bool operator!=(const KStringView left, const char* right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator!=(KStringView(right));
 }
 
 //-----------------------------------------------------------------------------
-inline bool operator==(const std::string& left, KStringView right)
+inline bool operator==(const std::string& left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator==(KStringView(left));
 }
 
 //-----------------------------------------------------------------------------
-inline bool operator==(KStringView left, const std::string& right)
+inline bool operator==(const KStringView left, const std::string& right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator==(KStringView(right));
 }
 
 //-----------------------------------------------------------------------------
-inline bool operator!=(const std::string& left, KStringView right)
+inline bool operator!=(const std::string& left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator!=(KStringView(left));
 }
 
 //-----------------------------------------------------------------------------
-inline bool operator!=(KStringView left, const std::string& right)
+inline bool operator!=(const KStringView left, const std::string& right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator!=(KStringView(right));
@@ -1445,7 +1471,7 @@ inline bool operator!=(KStringView left, const std::string& right)
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-bool operator==(sv::string_view left, KStringView right)
+bool operator==(sv::string_view left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator==(KStringView(left));
@@ -1453,7 +1479,7 @@ bool operator==(sv::string_view left, KStringView right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-bool operator==(KStringView left, sv::string_view right)
+bool operator==(const KStringView left, const sv::string_view right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator==(KStringView(right));
@@ -1461,7 +1487,7 @@ bool operator==(KStringView left, sv::string_view right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-bool operator!=(sv::string_view left, KStringView right)
+bool operator!=(const sv::string_view left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right.operator!=(KStringView(left));
@@ -1469,7 +1495,7 @@ bool operator!=(sv::string_view left, KStringView right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-bool operator!=(KStringView left, sv::string_view right)
+bool operator!=(const KStringView left, const sv::string_view right)
 //-----------------------------------------------------------------------------
 {
 	return left.operator!=(KStringView(right));
@@ -1478,7 +1504,7 @@ bool operator!=(KStringView left, sv::string_view right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_17
-bool operator<(KStringView left, KStringView right)
+bool operator<(const KStringView left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return left.compare(right) < 0;
@@ -1486,7 +1512,7 @@ bool operator<(KStringView left, KStringView right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_17
-bool operator>(KStringView left, KStringView right)
+bool operator>(const KStringView left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return right < left;
@@ -1494,7 +1520,7 @@ bool operator>(KStringView left, KStringView right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_17
-bool operator<=(KStringView left, KStringView right)
+bool operator<=(const KStringView left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return !(left > right);
@@ -1502,7 +1528,7 @@ bool operator<=(KStringView left, KStringView right)
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_17
-bool operator>=(KStringView left, KStringView right)
+bool operator>=(const KStringView left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
 	return !(left < right);
@@ -1513,22 +1539,23 @@ bool operator>=(KStringView left, KStringView right)
 inline
 DEKAF2_CONSTEXPR_14
 size_t kFind(
-        KStringView haystack,
+		const KStringView haystack,
         const char needle,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+	const auto iHaystackSize = haystack.size();
 	// we keep this inlined as then the compiler can evaluate const expressions
 	// (memchr() is actually a compiler-builtin with gcc)
-	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
+	if (DEKAF2_UNLIKELY(pos >= iHaystackSize))
 	{
 		return KStringView::npos;
 	}
 #if defined(DEKAF2_IS_CLANG) || defined(DEKAF2_IS_GCC)
-	auto ret = static_cast<const char*>(__builtin_memchr(haystack.data()+pos, needle, haystack.size()-pos));
+	auto ret = static_cast<const char*>(__builtin_memchr(haystack.data()+pos, needle, iHaystackSize-pos));
 #else
-	auto ret = static_cast<const char*>(memchr(haystack.data()+pos, needle, haystack.size()-pos));
+	auto ret = static_cast<const char*>(memchr(haystack.data()+pos, needle, iHaystackSize-pos));
 #endif
 	if (DEKAF2_UNLIKELY(ret == nullptr))
 	{
@@ -1543,7 +1570,7 @@ size_t kFind(
 //-----------------------------------------------------------------------------
 inline
 size_t kRFind(
-        KStringView haystack,
+        const KStringView haystack,
         const char needle,
         size_t pos)
 //-----------------------------------------------------------------------------
@@ -1551,11 +1578,12 @@ size_t kRFind(
 #if !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	return static_cast<KStringView::rep_type>(haystack).rfind(needle, pos);
 #else
+	const auto iHaystackSize = haystack.size();
 	// we keep this inlined as then the compiler can evaluate const expressions
 	// (memrchr() is actually a compiler-builtin with gcc)
-	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
+	if (DEKAF2_UNLIKELY(pos >= iHaystackSize))
 	{
-		pos = haystack.size();
+		pos = iHaystackSize;
 	}
 	else
 	{
@@ -1573,8 +1601,8 @@ size_t kRFind(
 //-----------------------------------------------------------------------------
 inline
 size_t kFindFirstOf(
-        KStringView haystack,
-        KStringView needle,
+		KStringView haystack,
+		const KStringView needle,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
@@ -1589,8 +1617,8 @@ size_t kFindFirstOf(
 //-----------------------------------------------------------------------------
 inline
 size_t kFindFirstNotOf(
-        KStringView haystack,
-        KStringView needle,
+		KStringView haystack,
+		const KStringView needle,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
@@ -1605,8 +1633,8 @@ size_t kFindFirstNotOf(
 //-----------------------------------------------------------------------------
 inline
 size_t kFindLastOf(
-        KStringView haystack,
-        KStringView needle,
+		KStringView haystack,
+		const KStringView needle,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
@@ -1621,8 +1649,8 @@ size_t kFindLastOf(
 //-----------------------------------------------------------------------------
 inline
 size_t kFindLastNotOf(
-        KStringView haystack,
-        KStringView needle,
+		KStringView haystack,
+		const KStringView needle,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
@@ -1637,8 +1665,8 @@ size_t kFindLastNotOf(
 //-----------------------------------------------------------------------------
 /// Find delimiter chars prefixed by even number of escape characters (0, 2, ...).
 /// Ignore delimiter chars prefixed by odd number of escapes.
-size_t kFindFirstOfUnescaped(KStringView haystack,
-                             KStringView needle,
+size_t kFindFirstOfUnescaped(const KStringView haystack,
+							 const KStringView needle,
                              KStringView::value_type chEscape,
                              KStringView::size_type pos = 0);
 //-----------------------------------------------------------------------------
@@ -1646,7 +1674,7 @@ size_t kFindFirstOfUnescaped(KStringView haystack,
 //-----------------------------------------------------------------------------
 /// Find delimiter char prefixed by even number of escape characters (0, 2, ...).
 /// Ignore delimiter chars prefixed by odd number of escapes.
-size_t kFindUnescaped(KStringView haystack,
+size_t kFindUnescaped(const KStringView haystack,
                       KStringView::value_type needle,
                       KStringView::value_type chEscape,
                       KStringView::size_type pos = 0);
@@ -1655,53 +1683,58 @@ size_t kFindUnescaped(KStringView haystack,
 //-----------------------------------------------------------------------------
 /// Find delimiter string prefixed by even number of escape characters (0, 2, ...).
 /// Ignore delimiter string prefixed by odd number of escapes.
-size_t kFindUnescaped(KStringView haystack,
-                      KStringView needle,
+size_t kFindUnescaped(const KStringView haystack,
+					  const KStringView needle,
                       KStringView::value_type chEscape,
                       KStringView::size_type pos = 0);
 //-----------------------------------------------------------------------------
 
 //----------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-bool kStartsWith(KStringView sInput, KStringView sPattern) noexcept
+bool kStartsWith(const KStringView sInput, const KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
+	const auto iPatternSize = sPattern.size();
+
+	if (DEKAF2_UNLIKELY(sInput.size() < iPatternSize))
 	{
 		return false;
 	}
 
-	if (DEKAF2_UNLIKELY(sPattern.empty()))
+	if (DEKAF2_UNLIKELY(iPatternSize == 0))
 	{
 		return true;
 	}
 
-	return !std::memcmp(sInput.data(), sPattern.data(), sPattern.size());
+	return !std::memcmp(sInput.data(), sPattern.data(), iPatternSize);
 
 } // kStartsWith
 
 //----------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
-bool kEndsWith(KStringView sInput, KStringView sPattern) noexcept
+bool kEndsWith(const KStringView sInput, const KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(sInput.size() < sPattern.size()))
+	const auto iInputSize   = sInput.size();
+	const auto iPatternSize = sPattern.size();
+
+	if (DEKAF2_UNLIKELY(iInputSize < iPatternSize))
 	{
 		return false;
 	}
 
-	if (DEKAF2_UNLIKELY(sPattern.empty()))
+	if (DEKAF2_UNLIKELY(iPatternSize == 0))
 	{
 		return true;
 	}
 
-	return !std::memcmp(sInput.data() + sInput.size() - sPattern.size(), sPattern.data(), sPattern.size());
+	return !std::memcmp(sInput.data() + iInputSize - iPatternSize, sPattern.data(), iPatternSize);
 
 } // kEndsWith
 
 //----------------------------------------------------------------------
 inline
-bool kContains(KStringView sInput, KStringView sPattern) noexcept
+bool kContains(const KStringView sInput, const KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
 	return kFind(sInput, sPattern) != KStringView::npos;
@@ -1709,7 +1742,7 @@ bool kContains(KStringView sInput, KStringView sPattern) noexcept
 
 //----------------------------------------------------------------------
 inline
-bool kContains(KStringView sInput, const char ch) noexcept
+bool kContains(const KStringView sInput, const char ch) noexcept
 //----------------------------------------------------------------------
 {
 	return kFind(sInput, ch) != KStringView::npos;

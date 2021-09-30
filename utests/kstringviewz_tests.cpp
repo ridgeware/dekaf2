@@ -67,21 +67,26 @@ TEST_CASE("KStringViewZ") {
 
 	SECTION("find_first_of")
 	{
-		KStringViewZ sv("0123456  9abcdef h");
-		CHECK( sv.find_first_of(' ') == 7 );
-		CHECK( sv.find_first_of(" ") == 7 );
-		CHECK( sv.find_first_of(" d") == 7 );
-		CHECK( sv.find_first_of('0') == 0 );
-		CHECK( sv.find_first_of("0") == 0 );
-		CHECK( sv.find_first_of("02") == 0 );
-		CHECK( sv.find_first_of('h') == 17 );
-		CHECK( sv.find_first_of("h") == 17 );
-		CHECK( sv.find_first_of("h-") == 17 );
-		CHECK( sv.find_first_of("ab f") == 7 );
-		CHECK( sv.find_first_of("abf ") == 7 );
-		CHECK( sv.find_first_of('-') == KStringViewZ::npos );
-		CHECK( sv.find_first_of("-") == KStringViewZ::npos );
-		CHECK( sv.find_first_of("!-") == KStringViewZ::npos );
+		KStringViewZ sv("0123456  9\0abcdef h"_ksz);
+		CHECK( sv.find_first_of('\0')      == 10 );
+		CHECK( sv.find_first_of("\0"_ksv)  == 10 );
+		CHECK( sv.find_first_of("b\0"_ksv) == 10 );
+		CHECK( sv.find_first_of("\0b"_ksv) == 10 );
+		CHECK( sv.find_first_of("\09"_ksv) == 9 );
+		CHECK( sv.find_first_of(' ')       == 7 );
+		CHECK( sv.find_first_of(" ")       == 7 );
+		CHECK( sv.find_first_of(" d")      == 7 );
+		CHECK( sv.find_first_of('0')       == 0 );
+		CHECK( sv.find_first_of("0")       == 0 );
+		CHECK( sv.find_first_of("02")      == 0 );
+		CHECK( sv.find_first_of('h')       == 18 );
+		CHECK( sv.find_first_of("h")       == 18 );
+		CHECK( sv.find_first_of("h-")      == 18 );
+		CHECK( sv.find_first_of("ab f")    == 7 );
+		CHECK( sv.find_first_of("abf ")    == 7 );
+		CHECK( sv.find_first_of('-')       == KStringViewZ::npos );
+		CHECK( sv.find_first_of("-")       == KStringViewZ::npos );
+		CHECK( sv.find_first_of("!-")      == KStringViewZ::npos );
 	}
 
 	SECTION("find_first_of with pos")
@@ -502,7 +507,7 @@ TEST_CASE("KStringViewZ") {
 
 	SECTION("find_first_not_of")
 	{
-		KStringViewZ sv("0123456  9abcdef h");
+		KStringViewZ sv("0123456  9\0abcdef h"_ksz);
 		KStringViewZ sv2("0123456  9abcdefh "); // slight variant for find last not of
 		CHECK( sv.find_first_not_of(' ') == 0 );
 		CHECK( sv.find_first_not_of(" ") == 0 );
@@ -510,10 +515,10 @@ TEST_CASE("KStringViewZ") {
 		CHECK( sv.find_first_not_of('0') == 1 );
 		CHECK( sv.find_first_not_of("0") == 1 );
 		CHECK( sv.find_first_not_of("02") == 1 );
-		CHECK( sv.find_first_not_of("0123456789abcdef ") == 17 ); // This test revealed problems
-		CHECK( sv.find_last_not_of("0123456789abcdef ") == 17 ); // In this case, both should be same
+		CHECK( sv.find_first_not_of("0123456789abcdef \0"_ksv) == 18 ); // This test revealed problems
+		CHECK( sv.find_last_not_of("0123456789abcdef \0"_ksv) == 18 ); // In this case, both should be same
 		CHECK( sv2.find_last_not_of("0123456789abcdef ") == 16 ); // Checking for positional bugs
-		CHECK( sv.find_first_not_of("0123456789abcdefgh ") == KStringViewZ::npos );
+		CHECK( sv.find_first_not_of("0123456789abcdefgh \0"_ksv) == KStringViewZ::npos );
 	}
 
 	SECTION("find_first_not_of with pos")

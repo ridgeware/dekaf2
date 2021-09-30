@@ -96,30 +96,34 @@ constexpr KStringView::value_type KStringView::s_0ch;
 
 //-----------------------------------------------------------------------------
 size_t kFind(
-        KStringView haystack,
-        KStringView needle,
+        const KStringView haystack,
+        const KStringView needle,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 
-	if (DEKAF2_UNLIKELY(needle.size() == 1))
+	const auto iNeedleSize = needle.size();
+
+	if (DEKAF2_UNLIKELY(iNeedleSize == 1))
 	{
 		// flip to single char search if only one char is in the search argument
 		return kFind(haystack, needle[0], pos);
 	}
 
-	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
+	const auto iHaystackSize = haystack.size();
+
+	if (DEKAF2_UNLIKELY(pos >= iHaystackSize))
 	{
 		return KStringView::npos;
 	}
 
-	if (DEKAF2_UNLIKELY(needle.empty()))
+	if (DEKAF2_UNLIKELY(iNeedleSize == 0))
 	{
 		return KStringView::npos;
 	}
 
-	if (DEKAF2_UNLIKELY(needle.size() > (haystack.size() - pos)))
+	if (DEKAF2_UNLIKELY(iNeedleSize > (iHaystackSize - pos)))
 	{
 		return KStringView::npos;
 	}
@@ -129,9 +133,9 @@ size_t kFind(
 	// glibc has an excellent memmem implementation, so we use it
 
 	auto found = static_cast<const char*>(::memmem(haystack.data() + pos,
-	                                               haystack.size() - pos,
+	                                               iHaystackSize   - pos,
 	                                               needle.data(),
-	                                               needle.size()));
+	                                               iNeedleSize));
 
 	if (DEKAF2_UNLIKELY(!found))
 	{
@@ -151,7 +155,7 @@ size_t kFind(
 	{
 		auto found = static_cast<const char*>(::memchr(haystack.data() + pos,
 													  needle[0],
-													  (haystack.size() - pos - needle.size()) + 1));
+													  (iHaystackSize - pos - iNeedleSize) + 1));
 		if (DEKAF2_UNLIKELY(!found))
 		{
 			return KStringView::npos;
@@ -162,7 +166,7 @@ size_t kFind(
 		// due to aligned loads it is faster to compare the full needle again
 		if (std::memcmp(haystack.data() + pos,
 						needle.data(),
-						needle.size()) == 0)
+						iNeedleSize) == 0)
 		{
 			return pos;
 		}
@@ -186,22 +190,26 @@ size_t kFind(
 #endif
 //-----------------------------------------------------------------------------
 size_t kRFind(
-        KStringView haystack,
-        KStringView needle,
+        const KStringView haystack,
+        const KStringView needle,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
 	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
 
-	if (DEKAF2_UNLIKELY(needle.size() == 1))
+	const auto iNeedleSize = needle.size();
+
+	if (DEKAF2_UNLIKELY(iNeedleSize == 1))
 	{
 		return kRFind(haystack, needle[0], pos);
 	}
 
-	if (DEKAF2_LIKELY(needle.size() <= haystack.size()))
+	const auto iHaystackSize = haystack.size();
+
+	if (DEKAF2_LIKELY(iNeedleSize <= iHaystackSize))
 	{
-		pos = std::min(haystack.size() - needle.size(), pos);
+		pos = std::min(iHaystackSize - iNeedleSize, pos);
 
 		for(;;)
 		{
@@ -217,7 +225,7 @@ size_t kRFind(
 
 			if (std::memcmp(haystack.data() + pos + 1,
 			                needle.data() + 1,
-			                needle.size() - 1) == 0)
+			                iNeedleSize - 1) == 0)
 			{
 				return pos;
 			}
@@ -244,23 +252,28 @@ namespace detail { namespace stringview {
 //-----------------------------------------------------------------------------
 size_t kFindFirstOfInt(
         KStringView haystack,
-        KStringView needle,
+        const KStringView needle,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
+	if (DEKAF2_UNLIKELY(needle.empty()))
+	{
+		return KStringView::npos;
+	}
+
 	if (DEKAF2_UNLIKELY(needle.size() == 1))
 	{
 		return kFind(haystack, needle[0], pos);
 	}
 
-	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
-	{
-		return KStringView::npos;
-	}
-
 	if (DEKAF2_UNLIKELY(pos > 0))
 	{
 		haystack.remove_prefix(pos);
+	}
+
+	if (DEKAF2_UNLIKELY(haystack.empty()))
+	{
+		return KStringView::npos;
 	}
 
 #ifdef DEKAF2_X86_64
@@ -290,11 +303,11 @@ size_t kFindFirstOfInt(
 //-----------------------------------------------------------------------------
 size_t kFindFirstNotOfInt(
         KStringView haystack,
-        KStringView needle,
+        const KStringView needle,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
+	if (DEKAF2_UNLIKELY(needle.empty()))
 	{
 		return KStringView::npos;
 	}
@@ -302,6 +315,11 @@ size_t kFindFirstNotOfInt(
 	if (DEKAF2_UNLIKELY(pos > 0))
 	{
 		haystack.remove_prefix(pos);
+	}
+
+	if (DEKAF2_UNLIKELY(haystack.empty()))
+	{
+		return KStringView::npos;
 	}
 
 #ifdef DEKAF2_X86_64
@@ -331,26 +349,28 @@ size_t kFindFirstNotOfInt(
 //-----------------------------------------------------------------------------
 size_t kFindLastOfInt(
         KStringView haystack,
-        KStringView needle,
+        const KStringView needle,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
+	if (DEKAF2_UNLIKELY(needle.empty()))
+	{
+		return KStringView::npos;
+	}
+
 	if (DEKAF2_UNLIKELY(needle.size() == 1))
 	{
 		return kRFind(haystack, needle[0], pos);
 	}
 
+	if (DEKAF2_UNLIKELY(pos < haystack.size()))
+	{
+		haystack.remove_suffix(haystack.size() - (pos+1));
+	}
+
 	if (DEKAF2_UNLIKELY(haystack.empty()))
 	{
 		return KStringView::npos;
-	}
-
-	if (DEKAF2_UNLIKELY(pos != KStringView::npos))
-	{
-		if (pos < haystack.size() - 1)
-		{
-			haystack.remove_suffix((haystack.size() - 1) - pos);
-		}
 	}
 
 #ifdef DEKAF2_X86_64
@@ -370,21 +390,23 @@ size_t kFindLastOfInt(
 //-----------------------------------------------------------------------------
 size_t kFindLastNotOfInt(
         KStringView haystack,
-        KStringView needle,
+        const KStringView needle,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(haystack.empty()))
+	if (DEKAF2_UNLIKELY(needle.empty()))
 	{
 		return KStringView::npos;
 	}
 
-	if (DEKAF2_UNLIKELY(pos != KStringView::npos))
+	if (DEKAF2_UNLIKELY(pos < haystack.size()))
 	{
-		if (pos < haystack.size() - 1)
-		{
-			haystack.remove_suffix((haystack.size() - 1) - pos);
-		}
+		haystack.remove_suffix(haystack.size() - (pos+1));
+	}
+
+	if (DEKAF2_UNLIKELY(haystack.empty()))
+	{
+		return KStringView::npos;
 	}
 
 #ifdef DEKAF2_X86_64
@@ -404,8 +426,8 @@ size_t kFindLastNotOfInt(
 } } // end of namespace detail::stringview
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstOfUnescaped(KStringView haystack,
-                             KStringView needle,
+size_t kFindFirstOfUnescaped(const KStringView haystack,
+                             const KStringView needle,
                              KStringView::value_type chEscape,
                              KStringView::size_type pos)
 //-----------------------------------------------------------------------------
@@ -447,7 +469,7 @@ size_t kFindFirstOfUnescaped(KStringView haystack,
 } // kFindFirstOfUnescaped
 
 //-----------------------------------------------------------------------------
-size_t kFindUnescaped(KStringView haystack,
+size_t kFindUnescaped(const KStringView haystack,
                       KStringView::value_type needle,
                       KStringView::value_type chEscape,
                       KStringView::size_type pos)
@@ -490,8 +512,8 @@ size_t kFindUnescaped(KStringView haystack,
 } // kFindUnescaped
 
 //-----------------------------------------------------------------------------
-size_t kFindUnescaped(KStringView haystack,
-                      KStringView needle,
+size_t kFindUnescaped(const KStringView haystack,
+                      const KStringView needle,
                       KStringView::value_type chEscape,
                       KStringView::size_type pos)
 //-----------------------------------------------------------------------------
@@ -559,7 +581,7 @@ KStringView::self_type& KStringView::erase(size_type pos, size_type n)
 	if (DEKAF2_UNLIKELY(pos > size()))
 	{
 		// this allows constructs like sStr.erase(sStr.find("clipme")) without
-		// having too much warnings
+		// having too many warnings
 		kDebug(3, "attempt to erase past end of string view of size {}: pos {}, n {}",
 				 size(), pos, n);
 		return *this;
@@ -594,7 +616,7 @@ KStringView::self_type& KStringView::erase(size_type pos, size_type n)
 } // erase
 
 //-----------------------------------------------------------------------------
-bool KStringView::In (KStringView sHaystack, value_type iDelim/*=','*/) const
+bool KStringView::In (const KStringView sHaystack, value_type iDelim/*=','*/) const
 //-----------------------------------------------------------------------------
 {
 	// gcc 4.8.5 needs the non-brace initialization here..
@@ -732,14 +754,14 @@ void KStringView::Warn(KStringView sWhere, KStringView sWhat) const
 }
 
 //----------------------------------------------------------------------
-KStringView KStringView::MatchRegex(KStringView sRegEx, size_type pos) const
+KStringView KStringView::MatchRegex(const KStringView sRegEx, size_type pos) const
 //----------------------------------------------------------------------
 {
 	return dekaf2::KRegex::Match(*this, sRegEx, pos);
 }
 
 //----------------------------------------------------------------------
-std::vector<KStringView> KStringView::MatchRegexGroups(KStringView sRegEx, size_type pos) const
+std::vector<KStringView> KStringView::MatchRegexGroups(const KStringView sRegEx, size_type pos) const
 //----------------------------------------------------------------------
 {
 	return dekaf2::KRegex::MatchGroups(*this, sRegEx, pos);
@@ -774,7 +796,7 @@ KStringView& KStringView::TrimLeft(value_type chTrim)
 }
 
 //----------------------------------------------------------------------
-KStringView& KStringView::TrimLeft(KStringView sTrim)
+KStringView& KStringView::TrimLeft(const KStringView sTrim)
 //----------------------------------------------------------------------
 {
 	dekaf2::kTrimLeft(*this, sTrim);
@@ -797,7 +819,7 @@ KStringView& KStringView::TrimRight(value_type chTrim)
 }
 
 //----------------------------------------------------------------------
-KStringView& KStringView::TrimRight(KStringView sTrim)
+KStringView& KStringView::TrimRight(const KStringView sTrim)
 //----------------------------------------------------------------------
 {
 	// for some reason the template generalization of kTrimRight(KStringView, KStringView)
@@ -833,7 +855,7 @@ KStringView& KStringView::Trim(value_type chTrim)
 }
 
 //----------------------------------------------------------------------
-KStringView& KStringView::Trim(KStringView sTrim)
+KStringView& KStringView::Trim(const KStringView sTrim)
 //----------------------------------------------------------------------
 {
 	TrimRight(sTrim);
@@ -842,7 +864,7 @@ KStringView& KStringView::Trim(KStringView sTrim)
 }
 
 //----------------------------------------------------------------------
-bool KStringView::ClipAt(KStringView sClipAt)
+bool KStringView::ClipAt(const KStringView sClipAt)
 //----------------------------------------------------------------------
 {
 	size_type pos = find(sClipAt);
@@ -856,7 +878,7 @@ bool KStringView::ClipAt(KStringView sClipAt)
 } // ClipAt
 
 //----------------------------------------------------------------------
-bool KStringView::ClipAtReverse(KStringView sClipAtReverse)
+bool KStringView::ClipAtReverse(const KStringView sClipAtReverse)
 //----------------------------------------------------------------------
 {
 	erase(0, find(sClipAtReverse));

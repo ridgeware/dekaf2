@@ -67,7 +67,7 @@ KStringViewZ::size_type KStringViewZ::find_first_of(KString search, size_type po
 
 	if (DEKAF2_UNLIKELY(search.size() == 1))
 	{
-		return find(sv[0], pos);
+		return find(search[0], pos);
 	}
 
 	// now we need to filter out the possible 0 chars in the search string

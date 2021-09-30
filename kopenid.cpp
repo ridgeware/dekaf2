@@ -499,7 +499,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 const KString& KJWT::GetUser() const
 //-----------------------------------------------------------------------------
 {
-	return Payload["sub"].get_ref<const KString&>();
+	return kjson::GetStringRef(Payload, "sub");
 
 } // GetUser
 

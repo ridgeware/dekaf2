@@ -709,7 +709,8 @@ public:
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper object to proxy access to KSQL and reset the Throw/NoThrow state after use
-	class ThrowingKSQL : public detail::ReferenceProxy<KSQL>
+	template<class SQL>
+	class ThrowingSQL : public detail::ReferenceProxy<SQL>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 
@@ -717,16 +718,18 @@ public:
 	public:
 	//----------
 
-		ThrowingKSQL(KSQL& sql, bool bYesNo)
-		: ReferenceProxy(sql)
+		using base = detail::ReferenceProxy<SQL>;
+
+		ThrowingSQL(SQL& sql, bool bYesNo)
+		: base(sql)
 		, m_bResetTo(sql.SetThrow(bYesNo))
 		{
 		}
 
-		~ThrowingKSQL()
+		~ThrowingSQL()
 		{
 			// reset initial state
-			get().SetThrow(m_bResetTo);
+			base::get().SetThrow(m_bResetTo);
 		}
 
 	//----------
@@ -735,7 +738,7 @@ public:
 
 		bool  m_bResetTo;
 
-	}; // ThrowingKSQL
+	}; // ThrowingSQL
 
 	/// returns helper object to access to KSQL in throwing mode, and reset mode after use
 	/// @code use like:
@@ -743,14 +746,14 @@ public:
 	/// or
 	/// auto sql = ksql.Throw();
 	/// sql->ExecSQL("...");
-	ThrowingKSQL Throw()   { return ThrowingKSQL(*this, true ); }
+	auto Throw()   { return ThrowingSQL(*this, true ); }
 	/// returns helper object to access to KSQL in non-throwing mode, and reset mode after use
 	/// @code use like:
 	/// ksql.NoThrow()->ExecSQL("...");
 	/// or
 	/// auto sql = ksql.NoThrow();
 	/// sql->ExecSQL("...");
-	ThrowingKSQL NoThrow() { return ThrowingKSQL(*this, false); }
+	auto NoThrow() { return ThrowingSQL(*this, false); }
 
 	bool GetLock (KStringView sName, int16_t iTimeoutSeconds = -1);
 	bool ReleaseLock (KStringView sName);

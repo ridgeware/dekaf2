@@ -217,9 +217,9 @@ public:
 
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) && defined(DEKAF2_IS_GCC)
 	// we have a super fast implementation for these signatures in GLIBC, let
-	// them superseede base_type's version
-	size_type find_first_of(KString search, size_type pos = 0) const;
-	size_type find_first_not_of(KString search, size_type pos = 0) const;
+	// them supersede base_type's version
+	size_type find_first_of(KStringView search, size_type pos = 0) const;
+	size_type find_first_not_of(KStringView search, size_type pos = 0) const;
 #endif
 	
 	using base_type::find_first_of;

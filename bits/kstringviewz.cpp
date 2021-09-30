@@ -55,7 +55,7 @@ namespace dekaf2 {
 // We can however not use strcspn() for ranges (including KStringView),
 // as there is no trailing zero byte.
 //----------------------------------------------------------------------
-KStringViewZ::size_type KStringViewZ::find_first_of(KString search, size_type pos) const
+KStringViewZ::size_type KStringViewZ::find_first_of(KStringView sv, size_type pos) const
 //----------------------------------------------------------------------
 {
 	const auto iSize = size();
@@ -65,10 +65,14 @@ KStringViewZ::size_type KStringViewZ::find_first_of(KString search, size_type po
 		return npos;
 	}
 
-	if (DEKAF2_UNLIKELY(search.size() == 1))
+	if (DEKAF2_UNLIKELY(sv.size() == 1))
 	{
-		return find(search[0], pos);
+		return find(sv[0], pos);
 	}
+
+	// This is not as costly as it looks due to SSO. And there is no
+	// way around it if we want to use strcspn() and its enormous performance.
+	KString search(sv);
 
 	// now we need to filter out the possible 0 chars in the search string
 	bool bHasZero(false);
@@ -122,7 +126,7 @@ KStringViewZ::size_type KStringViewZ::find_first_of(KString search, size_type po
 // We can however not use strspn() for ranges (including KStringView),
 // as there is no trailing zero byte.
 //----------------------------------------------------------------------
-KStringViewZ::size_type KStringViewZ::find_first_not_of(KString search, size_type pos) const
+KStringViewZ::size_type KStringViewZ::find_first_not_of(KStringView sv, size_type pos) const
 //----------------------------------------------------------------------
 {
 	const auto iSize = size();
@@ -131,6 +135,10 @@ KStringViewZ::size_type KStringViewZ::find_first_not_of(KString search, size_typ
 	{
 		return npos;
 	}
+
+	// This is not as costly as it looks due to SSO. And there is no
+	// way around it if we want to use strspn() and its enormous performance.
+	KString search(sv);
 
 	// now we need to filter out the possible 0 chars in the search string
 	bool bHasZero(false);

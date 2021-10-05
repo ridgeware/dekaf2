@@ -43,6 +43,7 @@
 #pragma once
 
 #include <chrono>
+#include <memory>
 #include <thread>
 #include <functional>
 #include <atomic>

@@ -355,15 +355,15 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 }
 
 //-----------------------------------------------------------------------------
-/// Check if a UTF8 string uses only valid sequences
+/// Return iterator at position where a UTF8 string uses invalid sequences
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-bool ValidUTF8(Iterator it, Iterator ie)
+Iterator InvalidUTF8(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-	uint16_t remaining { 0 };
-	codepoint_t codepoint { 0 };
+	codepoint_t codepoint   { 0 };
 	codepoint_t lower_limit { 0 };
+	uint16_t    remaining   { 0 };
 
 	for (; it != ie; ++it)
 	{
@@ -371,7 +371,9 @@ bool ValidUTF8(Iterator it, Iterator ie)
 
 		if (sizeof(*it) > 1 && ch > 0x0ff)
 		{
-			return false;
+			// error, even with char sizes > one byte UTF8 single
+			// values cannot exceed 255
+			return it;
 		}
 
 		switch (remaining)
@@ -379,31 +381,34 @@ bool ValidUTF8(Iterator it, Iterator ie)
 			case 0:
 				{
 					codepoint = 0;
+
 					if (ch < 128)
 					{
+						// ok, single 7 bit codepoint
 						break;
 					}
 					else if ((ch & 0x0e0) == 0x0c0)
 					{
-						remaining = 1;
+						remaining   = 1;
 						lower_limit = 0x080;
-						codepoint = ch & 0x01f;
+						codepoint   = ch & 0x01f;
 					}
 					else if ((ch & 0x0f0) == 0x0e0)
 					{
-						remaining = 2;
+						remaining   = 2;
 						lower_limit = 0x0800;
-						codepoint = ch & 0x0f;
+						codepoint   = ch & 0x0f;
 					}
 					else if ((ch & 0x0f8) == 0x0f0)
 					{
-						remaining = 3;
+						remaining   = 3;
 						lower_limit = 0x010000;
-						codepoint = ch & 0x07;
+						codepoint   = ch & 0x07;
 					}
 					else
 					{
-						return false;
+						// error, we only support 1..4 byte UTF8 sequences
+						return it;
 					}
 					break;
 				}
@@ -414,27 +419,48 @@ bool ValidUTF8(Iterator it, Iterator ie)
 				{
 					if ((ch & 0x0c0) != 0x080)
 					{
-						return false;
+						// error, MSB not set
+						return it;
 					}
+
 					codepoint <<= 6;
 					codepoint |= (ch & 0x03f);
+
 					if (!--remaining)
 					{
 						if (codepoint < lower_limit)
 						{
-							return false;
+							// error, ambiguous encoding
+							return it;
 						}
 					}
 					break;
 				}
 
 			default:
-				return false;
+				// error, we only support 1..4 byte UTF8 sequences
+				return it;
 
 		}
 
 	}
-	return !remaining;
+
+	// If we have remaining > 0 we expect more input but are already at the end.
+	// This case can only happen if we have read at least one byte of input,
+	// so we return --it as the error location and can be sure it does not point
+	// before the start of input. We do not return the real position of it, which
+	// is ie, as returning ie is the success indication..
+	return (remaining) ? --it : ie;
+}
+
+//-----------------------------------------------------------------------------
+/// Check if a UTF8 string uses only valid sequences
+template<typename Iterator>
+KUTF8_CONSTEXPR_14
+bool ValidUTF8(Iterator it, Iterator ie)
+//-----------------------------------------------------------------------------
+{
+	return InvalidUTF8(it, ie) == ie;
 }
 
 //-----------------------------------------------------------------------------
@@ -445,6 +471,26 @@ bool ValidUTF8(const NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 {
 	return ValidUTF8(sNarrow.begin(), sNarrow.end());
+}
+
+//-----------------------------------------------------------------------------
+/// Check if a UTF8 string uses only valid sequences
+/// @return position of first invalid sequence, or npos if not found
+template<typename NarrowString>
+KUTF8_CONSTEXPR_14
+typename NarrowString::size_type InvalidUTF8(const NarrowString& sNarrow)
+//-----------------------------------------------------------------------------
+{
+	auto it = InvalidUTF8(sNarrow.begin(), sNarrow.end());
+
+	if (it == sNarrow.end())
+	{
+		return NarrowString::npos;
+	}
+	else
+	{
+		return it - sNarrow.begin();
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -690,31 +736,33 @@ codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
 		return ch;
 	}
 
-	if (sizeof(N) > 1 && ch > 0x0ff)
+	if (KUTF8_UNLIKELY(sizeof(N) > 1 && ch > 0x0ff))
 	{
+		// error, even with char sizes > one byte UTF8 single
+		// values cannot exceed 255
 		return INVALID_CODEPOINT;
 	}
 
 	// need to initialize the vars for constexpr, so let's take
 	// the most probable value (for 2 byte sequences)
-	uint16_t remaining = 1;
 	codepoint_t lower_limit = 0x080;
-	codepoint_t codepoint = ch & 0x01f;
+	codepoint_t codepoint   = ch & 0x01f;
+	uint16_t    remaining   = 1;
 
 	if ((ch & 0x0e0) == 0x0c0)
 	{
 	}
 	else if ((ch & 0x0f0) == 0x0e0)
 	{
-		remaining = 2;
+		remaining   = 2;
 		lower_limit = 0x0800;
-		codepoint = ch & 0x0f;
+		codepoint   = ch & 0x0f;
 	}
 	else if ((ch & 0x0f8) == 0x0f0)
 	{
-		remaining = 3;
+		remaining   = 3;
 		lower_limit = 0x010000;
-		codepoint = ch & 0x07;
+		codepoint   = ch & 0x07;
 	}
 	else
 	{
@@ -727,12 +775,15 @@ codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
 
 		if (KUTF8_UNLIKELY((sizeof(N) > 1 && ch > 0x0ff)))
 		{
-			break; // invalid
+			// error, even with char sizes > one byte UTF8 single
+			// values cannot exceed 255
+			break;
 		}
 
 		if (KUTF8_UNLIKELY((ch & 0x0c0) != 0x080))
 		{
-			break; // invalid
+			// error, MSB not set
+			break;
 		}
 
 		codepoint <<= 6;
@@ -742,7 +793,8 @@ codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
 		{
 			if (KUTF8_UNLIKELY(codepoint < lower_limit))
 			{
-				break; // invalid
+				// error, ambiguous encoding
+				break;
 			}
 
 			return codepoint; // valid

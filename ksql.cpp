@@ -595,7 +595,7 @@ bool KSQL::SetError(KString sError, uint32_t iErrorNum, bool bNoThrow)
 
 	if (!bIgnore && !m_sLastSQL.empty())
 	{
-		kDebug (GetDebugLevel(), m_sLastSQL);
+		kDebug (GetDebugLevel(), m_sLastSQL.Left(4096));
 	}
 
 	if (m_TimingCallback)
@@ -1651,7 +1651,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, m_sLastSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, m_sLastSQL.Left(4096));
 	}
 
 	if (IsFlag(F_ReadOnlyMode) && ! IsSelect(m_sLastSQL) && ! IsKill(m_sLastSQL))
@@ -1694,7 +1694,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 						if (!m_dMYSQL)
 						{
-							kDebug (1, "failed.  aborting query or SQL:\n{}", m_sLastSQL);
+							kDebug (1, "failed.  aborting query or SQL:\n{}", m_sLastSQL.Left(4096));
 							break;
 						}
 					}
@@ -1823,7 +1823,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 					if (!ctlib_is_initialized())
 					{
-						kDebug (1, "failed.  aborting query or SQL:\n{}", m_sLastSQL);
+						kDebug (1, "failed.  aborting query or SQL:\n{}", m_sLastSQL.Left(4096));
 						break; // once
 					}
 				}
@@ -2453,7 +2453,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 
 	SetErrorPrefix (sFilename, Parms.iLineNumStart);
 
-	kDebug (GetDebugLevel()+1, "{}: statement # {}:\n{}\n", sFilename, Parms.iStatement, m_sLastSQL);
+	kDebug (GetDebugLevel()+1, "{}: statement # {}:\n{}\n", sFilename, Parms.iStatement, m_sLastSQL.Left(4096));
 
 	if (m_sLastSQL.empty())
 	{
@@ -2461,7 +2461,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 	}
 	else if (m_sLastSQL == "exit\n"   || m_sLastSQL == "quit\n")
 	{
-		kDebug (GetDebugLevel()+1, "{}: statement # {} is '{}' (stopping).", sFilename, Parms.iStatement, m_sLastSQL);
+		kDebug (GetDebugLevel()+1, "{}: statement # {} is '{}' (stopping).", sFilename, Parms.iStatement, m_sLastSQL.Left(4096));
 		Parms.fOK = Parms.fDone = true;
 	}
 	else if (IsSelect(m_sLastSQL))
@@ -2560,7 +2560,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (m_sLastSQL.contains('\n')) ? "\n" : "", m_sLastSQL);
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (m_sLastSQL.contains('\n')) ? "\n" : "", m_sLastSQL.Left(4096));
 	}
 
 	EndQuery();

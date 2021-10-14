@@ -116,6 +116,12 @@ public:
 		return m_bUpdated ? m_iHash : 0;
 	}
 
+	/// returns the hash as integer (we want the hash value to be 0 if no input was added)
+	operator std::size_t() const
+	{
+		return Hash();
+	}
+
 	/// appends a string to the hash
 	void operator()(KStringView::value_type chInput)
 	{
@@ -218,6 +224,12 @@ public:
 	std::size_t Hash() const
 	{
 		return m_bUpdated ? m_iHash : 0;
+	}
+
+	/// returns the hash as integer (we want the hash value to be 0 if no input was added)
+	operator std::size_t() const
+	{
+		return Hash();
 	}
 
 	/// appends a string to the hash

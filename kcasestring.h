@@ -114,16 +114,10 @@ bool kCaseEqualTrimLeft(KStringView left, KStringView right, KStringView svTrim 
 //-----------------------------------------------------------------------------
 /// calculates a hash for case insensitive string
 DEKAF2_CONSTEXPR_14
-inline
 std::size_t kCalcCaseHash(KStringView sv)
 //-----------------------------------------------------------------------------
 {
-    auto hash = sv.empty() ? 0 : kHashBasis;
-	for (auto ch : sv)
-	{
-		hash = kHash(KASCII::kToLower(ch), hash);
-	}
-	return hash;
+	return kCaseHash(sv.data(), sv.size());
 }
 
 //-----------------------------------------------------------------------------
@@ -232,6 +226,14 @@ public:
 	/// nonstandard: output the hash value of instance by calling std::hash() for the type
 	std::size_t Hash() const;
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// same as Hash(), added for compatibility with KStringView
+	std::size_t CaseHash() const
+	//-----------------------------------------------------------------------------
+	{
+		return Hash();
+	}
 
 };
 
@@ -380,6 +382,14 @@ public:
 	/// nonstandard: output the hash value of instance by calling std::hash() for the type
 	std::size_t Hash() const;
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// same as Hash(), added for compatibility with KString
+	std::size_t CaseHash() const
+	//-----------------------------------------------------------------------------
+	{
+		return Hash();
+	}
 
 };
 

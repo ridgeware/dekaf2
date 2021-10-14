@@ -90,7 +90,7 @@ bool KHash::Update(KInStream& InputStream)
 bool KCaseHash::Update(KStringView::value_type chInput)
 //---------------------------------------------------------------------------
 {
-    m_iHash = kHash(KASCII::kToLower(chInput), m_iHash);
+    m_iHash = kCaseHash(chInput, m_iHash);
     m_bUpdated = true;
     return true;
 }
@@ -103,7 +103,7 @@ bool KCaseHash::Update(KStringView sInput)
     {
         for (auto ch : sInput)
         {
-            m_iHash = kHash(KASCII::kToLower(ch), m_iHash);
+            m_iHash = kCaseHash(ch, m_iHash);
         }
         m_bUpdated = true;
     }

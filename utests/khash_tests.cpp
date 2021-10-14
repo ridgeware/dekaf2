@@ -99,6 +99,43 @@ TEST_CASE("KHash")
 				break;
 #endif
 		}
+
+		sHello = "häLlO";
+
+		switch (sHello.CaseHash())
+		{
+			default:
+				CHECK ( false );
+				break;
+
+			case "HälLo"_casehash:
+				CHECK ( true );
+				break;
+
+			case kCaseHash("hehe"):
+				CHECK ( false );
+				break;
+
+#ifdef DEKAF2_HAS_CPP_14
+			case kCaseHash("helo"_ksv.data(), 4):
+				CHECK ( false );
+				break;
+
+			case KStringViewZ("hillo").Hash():
+				CHECK ( false );
+				break;
+			case kCaseHash("hihi", 4):
+				CHECK ( false );
+				break;
+			case kCaseHash(huhu, 4):
+				CHECK ( false );
+				break;
+#endif
+		}
+
+		CHECK ( "häLlO"_ksv.CaseHash() == "häLlO"_ks.CaseHash() );
+		CHECK ( "häLlO"_ksv.Hash()     == "häLlO"_ks.Hash() );
+		CHECK ( "häLlO"_ksv.Hash()     != "häLlO"_ks.CaseHash() );
 	}
 
 	SECTION("CaseString")
@@ -111,12 +148,12 @@ TEST_CASE("KHash")
 				CHECK ( false );
 				break;
 
-			case "hällo"_hash:
+			case "hälLo"_casehash:
 				CHECK ( true );
 				break;
 
 #ifdef DEKAF2_HAS_CPP_14
-			case KStringView("halo").Hash():
+			case KStringView("halo").CaseHash():
 				CHECK ( false );
 				break;
 
@@ -144,6 +181,7 @@ TEST_CASE("KHash")
 		hash += "";
 		sStr = "";
 		hash += sStr;
+		CHECK (hash        == hash.Hash() );
 		CHECK (hash.Hash() == ""_hash );
 		CHECK (hash.Hash() == KStringView("").Hash() );
 	}
@@ -161,6 +199,7 @@ TEST_CASE("KHash")
 		hash += "";
 		sStr = "";
 		hash += sStr;
+		CHECK (hash        == hash.Hash() );
 		CHECK (hash.Hash() == ""_hash );
 		CHECK (hash.Hash() == KStringView("").Hash() );
 	}

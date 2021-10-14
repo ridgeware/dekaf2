@@ -229,6 +229,7 @@ public:
 	
 	// non standard
 	using base_type::Hash;
+	using base_type::CaseHash;
 	using base_type::clear;
 	using base_type::StartsWith;
 	using base_type::EndsWith;

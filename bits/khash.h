@@ -48,6 +48,7 @@
 #include <cinttypes>
 #include <climits>
 #include "kcppcompat.h"
+#include "../kctype.h" // for ASCII lowercase conversion
 
 namespace dekaf2 {
 
@@ -65,10 +66,15 @@ static constexpr size_t prime = UINT32_C(16777619);
 #endif
 
 constexpr
-inline
 std::size_t hash(const char data, std::size_t hash) noexcept
 {
 	return (hash ^ static_cast<unsigned char>(data)) * prime;
+}
+
+constexpr
+std::size_t casehash(const char data, std::size_t hash) noexcept
+{
+	return (hash ^ static_cast<unsigned char>(KASCII::kToLower(data))) * prime;
 }
 
 DEKAF2_CONSTEXPR_14
@@ -80,6 +86,20 @@ std::size_t hash(const char* data, std::size_t size, std::size_t hash) noexcept
 		// and because we want to keep data compatibility we continue
 		// to do so
 		hash ^= static_cast<unsigned char>(*data++);
+		hash *= prime;
+	}
+	return hash;
+}
+
+DEKAF2_CONSTEXPR_14
+std::size_t casehash(const char* data, std::size_t size, std::size_t hash) noexcept
+{
+	while (size-- > 0)
+	{
+		// we previously implemented the FNV hash with unsigned bytes,
+		// and because we want to keep data compatibility we continue
+		// to do so
+		hash ^= static_cast<unsigned char>(KASCII::kToLower(*data++));
 		hash *= prime;
 	}
 	return hash;
@@ -100,6 +120,20 @@ std::size_t hash(const char* data, std::size_t hash) noexcept
 	return hash;
 }
 
+DEKAF2_CONSTEXPR_14
+std::size_t casehash(const char* data, std::size_t hash) noexcept
+{
+	while (auto ch = *data++)
+	{
+		// we previously implemented the FNV hash with unsigned bytes,
+		// and because we want to keep data compatibility we continue
+		// to do so
+		hash ^= static_cast<unsigned char>(KASCII::kToLower(ch));
+		hash *= prime;
+	}
+	return hash;
+}
+
 #ifndef DEKAF2_HAS_CPP_14
 // C++11 version of constexpr fnv computation - not well suited for runtime computation
 // because of the recursive approach
@@ -115,6 +149,19 @@ std::size_t hash_constexpr(char c, const char* data, std::size_t hash) noexcept
 	return c == 0 ? hash : hash_constexpr(data[0], data + 1, (hash ^ static_cast<unsigned char>(c)) * prime);
 }
 
+// C++11 version of lowercase constexpr fnv computation - not well suited for runtime computation
+// because of the recursive approach
+constexpr
+std::size_t casehash_constexpr(const char* data, std::size_t size, std::size_t hash) noexcept
+{
+	return size == 0 ? hash : casehash_constexpr(data + 1, size - 1, (hash ^ static_cast<unsigned char>(KASCII::kToLower(*data))) * prime);
+}
+
+constexpr
+std::size_t casehash_constexpr(char c, const char* data, std::size_t hash) noexcept
+{
+	return c == 0 ? hash : hash_constexpr(data[0], data + 1, (hash ^ static_cast<unsigned char>(KASCII::kToLower(c))) * prime);
+}
 #endif
 
 } // end of namespace fnv1a
@@ -122,10 +169,11 @@ std::size_t hash_constexpr(char c, const char* data, std::size_t hash) noexcept
 
 constexpr std::size_t kHashBasis = hash::fnv1a::basis;
 
+inline namespace literals {
+
 //---------------------------------------------------------------------------
 /// literal type for constexpr hash computations, e.g. for switch statements
 constexpr
-inline
 std::size_t operator"" _hash(const char* data, std::size_t size) noexcept
 //---------------------------------------------------------------------------
 {
@@ -135,6 +183,21 @@ std::size_t operator"" _hash(const char* data, std::size_t size) noexcept
 	return size != 0 ? hash::fnv1a::hash_constexpr(data, size, kHashBasis) : 0;
 #endif
 }
+
+//---------------------------------------------------------------------------
+/// literal type for lowercase constexpr hash computations, e.g. for switch statements
+constexpr
+std::size_t operator"" _casehash(const char* data, std::size_t size) noexcept
+//---------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_CPP_14
+	return size != 0 ? hash::fnv1a::casehash(data, size, kHashBasis) : 0;
+#else
+	return size != 0 ? hash::fnv1a::casehash_constexpr(data, size, kHashBasis) : 0;
+#endif
+}
+
+} // end of namespace literals
 
 //---------------------------------------------------------------------------
 /// hash function for arbitrary data, feed back hash value for consecutive calls
@@ -159,7 +222,6 @@ std::size_t kHash(const char* data, std::size_t size, std::size_t hash) noexcept
 //---------------------------------------------------------------------------
 /// hash function for zero terminated strings
 constexpr
-inline
 std::size_t kHash(const char* data) noexcept
 //---------------------------------------------------------------------------
 {
@@ -173,11 +235,43 @@ std::size_t kHash(const char* data) noexcept
 //---------------------------------------------------------------------------
 /// hash function for one char, feed back hash value for consecutive calls
 constexpr
-inline
 std::size_t kHash(char data, std::size_t hash = kHashBasis) noexcept
 //---------------------------------------------------------------------------
 {
 	return hash::fnv1a::hash(data, hash);
+}
+
+// and now the same again for ASCII lowercase hashes
+
+//---------------------------------------------------------------------------
+// hash function for const char*, converted to ASCII lowercase
+DEKAF2_CONSTEXPR_14
+std::size_t kCaseHash(const char* data, std::size_t size, std::size_t hash = kHashBasis) noexcept
+//---------------------------------------------------------------------------
+{
+	return size != 0 ? hash::fnv1a::casehash(data, size, hash) : 0;
+}
+
+//---------------------------------------------------------------------------
+/// hash function for zero terminated strings, converted to ASCII lowercase
+constexpr
+std::size_t kCaseHash(const char* data) noexcept
+//---------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_CPP_14
+	return *data != 0 ? hash::fnv1a::casehash(data, kHashBasis) : 0;
+#else
+	return *data != 0 ? hash::fnv1a::casehash_constexpr(data[0], data + 1, kHashBasis) : 0;
+#endif
+}
+
+//---------------------------------------------------------------------------
+/// hash function for one char, converted to ASCII lowercase, feed back hash value for consecutive calls
+constexpr
+std::size_t kCaseHash(char data, std::size_t hash = kHashBasis) noexcept
+//---------------------------------------------------------------------------
+{
+	return hash::fnv1a::casehash(data, hash);
 }
 
 namespace kfrozen {
@@ -186,7 +280,6 @@ namespace kfrozen {
 /// compile time evaluation - for C++11 and later. Do not use it for runtime
 /// computations with C++11.
 constexpr
-inline
 std::size_t kHash(const char* data, std::size_t size, std::size_t hash = kHashBasis) noexcept
 //---------------------------------------------------------------------------
 {

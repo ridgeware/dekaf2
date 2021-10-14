@@ -1063,8 +1063,7 @@ TEST_CASE("KSQL")
 		db.NextRow ();
 		if (db.Get(1) != "clip me here")
 		{
-			kWarning ("string not clipped properly: '{}'", db.Get(1));
-			FAIL_CHECK (db.GetLastError());
+			FAIL_CHECK ( kFormat("string not clipped properly: '{}' != '{}'", db.Get(1), "clip me here") );
 		}
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -60,4 +60,77 @@ TEST_CASE("KROW")
 		CHECK ( sCSV == "string1,\"string2\"\"\",\"string3,\",1,123,123.456,18446744073709551615\r\n" );
 	}
 
+	SECTION("MySQL escapes")
+	{
+		{
+			KROW::value_type Value { "key", KCOL { "123456789' ", 0, 11 } };
+			auto sEscaped = KROW::EscapeChars(Value, "\'\"\\`\0"_ksv, '\\');
+			CHECK ( sEscaped == "123456789\\'" );
+			CHECK ( sEscaped.size() == 11 );
+		}
+		{
+			KROW::value_type Value { "key", KCOL { "123456789' ", 0, 10 } };
+			auto sEscaped = KROW::EscapeChars(Value, "\'\"\\`\0"_ksv, '\\');
+			CHECK ( sEscaped == "123456789" );
+			CHECK ( sEscaped.size() == 9 );
+		}
+		{
+			KROW::value_type Value { "key", KCOL { "123456|||' ", 0, 10 } };
+			auto sEscaped = KROW::EscapeChars(Value, "|\'\"\\`\0"_ksv, '|');
+			CHECK ( sEscaped == "123456||||" );
+			CHECK ( sEscaped.size() == 10 );
+		}
+		{
+			KROW::value_type Value { "key", KCOL { "123456\\\\\\' ", 0, 10 } };
+			auto sEscaped = KROW::EscapeChars(Value, "\'\"\\`\0"_ksv, '\\');
+			CHECK ( sEscaped == "123456\\\\\\\\" );
+			CHECK ( sEscaped.size() == 10 );
+		}
+		{
+			KROW::value_type Value { "key", KCOL { "\\\\\\\\\\\\\\\\\\\\' ", 0, 10 } };
+			auto sEscaped = KROW::EscapeChars(Value, "\'\"\\`\0"_ksv, '\\');
+			CHECK ( sEscaped == "\\\\\\\\\\\\\\\\\\\\" );
+			CHECK ( sEscaped.size() == 10 );
+		}
+		{
+			KROW::value_type Value { "key", KCOL { "\\\\\\\\\\\\\\\\\\' ", 0, 10 } };
+			auto sEscaped = KROW::EscapeChars(Value, "\'\"\\`\0"_ksv, '\\');
+			CHECK ( sEscaped == "\\\\\\\\\\\\\\\\\\\\" );
+			CHECK ( sEscaped.size() == 10 );
+		}
+	}
+
+	SECTION("MSSQL escapes")
+	{
+		{
+			KROW::value_type Value { "key", KCOL { "123456789' ", 0, 11 } };
+			auto sEscaped = KROW::EscapeChars(Value, "\"'"_ksv, '\0');
+			CHECK ( sEscaped == "123456789" );
+			CHECK ( sEscaped.size() == 9 );
+		}
+		{
+			KROW::value_type Value { "key", KCOL { "123456789' ", 0, 10 } };
+			auto sEscaped = KROW::EscapeChars(Value, "\"'"_ksv, '\0');
+			CHECK ( sEscaped == "123456789" );
+			CHECK ( sEscaped.size() == 9 );
+		}
+		{
+			KROW::value_type Value { "key", KCOL { "123456|||' ", 0, 10 } };
+			auto sEscaped = KROW::EscapeChars(Value, "|\"'"_ksv, '\0');
+			CHECK ( sEscaped == "123456" );
+			CHECK ( sEscaped.size() == 6 );
+		}
+		{
+			KROW::value_type Value { "key", KCOL { "123456'''' ", 0, 10 } };
+			auto sEscaped = KROW::EscapeChars(Value, "\"'"_ksv, '\0');
+			CHECK ( sEscaped == "123456" );
+			CHECK ( sEscaped.size() == 6 );
+		}
+		{
+			KROW::value_type Value { "key", KCOL { "'''''''''''' ", 0, 10 } };
+			auto sEscaped = KROW::EscapeChars(Value, "\"'"_ksv, '\0');
+			CHECK ( sEscaped == "" );
+			CHECK ( sEscaped.size() == 0 );
+		}
+	}
 }

@@ -184,28 +184,52 @@ KString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEsca
 //-----------------------------------------------------------------------------
 {
 	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
-	KString sEscaped = EscapeChars(Col.second.sValue, sCharsToEscape, iEscapeChar);
-	
+
+	KString sEscaped;
+
 	// check if we shall clip the string
 	auto iMaxLen = Col.second.GetMaxLen();
+
 	if (iMaxLen)
 	{
+		sEscaped = EscapeChars(Col.second.sValue.Left(iMaxLen), sCharsToEscape, iEscapeChar);
+
 		if (sEscaped.size() > iMaxLen)
 		{
-			kDebug (1, "clipping {}='{:.10}...' to {} chars", Col.first, sEscaped, iMaxLen);
+			kDebug (1, "clipping {}='{:.10}...' with length {} to {} chars", Col.first, sEscaped, sEscaped.size(), iMaxLen);
 
-			auto cClipped = sEscaped[iMaxLen-1];
-			// watch out for a trailing escape:
-			if (sCharsToEscape.find(cClipped) != KStringView::npos)
+			auto iClipAt { iMaxLen };
+
+			// watch out for a trailing escape or escape char, depending on the algorithm:
+			if (iEscapeChar)
 			{
-				sEscaped.resize(iMaxLen-1);
+				// now walk back to the begin of a sequence of backslashes
+				while (iClipAt > 0 && sEscaped[iClipAt-1] == iEscapeChar)
+				{
+					--iClipAt;
+				}
+				// now walk forth in pairs of backslashes as long as there is room
+				while (iClipAt+2 <= iMaxLen)
+				{
+					iClipAt += 2;
+				}
 			}
 			else
 			{
-				sEscaped.resize(iMaxLen);
+				// as long as we are not completely sure about the MS escapes we just drop all of
+				// them trailing a cutoff string
+				while (iClipAt > 0 && sCharsToEscape.find(sEscaped[iClipAt-1]) != KStringView::npos)
+				{
+					--iClipAt;
+				}
 			}
-		}
 
+			sEscaped.resize(iClipAt);
+		}
+	}
+	else
+	{
+		sEscaped = EscapeChars(Col.second.sValue, sCharsToEscape, iEscapeChar);
 	}
 
 	return sEscaped;

@@ -12,7 +12,7 @@ using namespace dekaf2;
 
 namespace {
 
-const std::string& fs()
+const std::string& fstr()
 {
 	static std::string s { "xyz" };
 	return s;
@@ -106,7 +106,7 @@ TEST_CASE("StringBalance") {
 		KStringView ksv;
 		KStringViewZ ksz = s;
 
-		ks = fs();
+		ks = fstr();
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 		ks = fsv();
 #endif
@@ -160,7 +160,7 @@ TEST_CASE("StringBalance") {
 			KString ks5(oksz);
 		}
 
-		ks += fs();
+		ks += fstr();
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 		ks += fsv();
 #endif

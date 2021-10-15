@@ -553,7 +553,8 @@ bool Contains (const KJSON& json, KStringView sString) noexcept
 				{
 					for (auto& it : json)
 					{
-						if (it == sString)
+						// gcc 8 needs the explicit get()..
+						if (it.get_ref<const KString&>() == sString)
 						{
 							return true;
 						}

@@ -129,18 +129,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// return the KStringView version of the MIME type
+	/// return the KStringViewZ version of the MIME type
 	DEKAF2_CONSTEXPR_20
-	operator KStringView() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_mime;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// return the KStringView version of the MIME type
-	DEKAF2_CONSTEXPR_20
-	operator const KString&() const
+	operator KStringViewZ() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_mime;
@@ -307,7 +298,7 @@ public:
 protected:
 //----------
 
-	void MIME(KMIME _MIME) { m_MIME = _MIME; }
+	void MIME(KMIME _MIME) { m_MIME = std::move(_MIME); }
 	bool CreateMultiPartBoundary() const;
 
 	KMIME   m_MIME;
@@ -425,7 +416,7 @@ public:
 
 	/// sFilename is loaded as data for this part. MIME type is automatically detected,
 	/// or can be set explicitly through the MIME parameter
-	KMIMEFile(KStringView sControlName, KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(MIME) { File(sControlName, sFilename); }
+	KMIMEFile(KStringView sControlName, KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(std::move(MIME)) { File(sControlName, sFilename); }
 	/// set a KMIMEFile from sData, with sDispname and MIME MIME type
 	KMIMEFile(KStringView sControlName, KStringView sData, KStringView sDispname, KMIME MIME = KMIME::NONE);
 
@@ -443,9 +434,9 @@ public:
 
 	/// sFilename is loaded as data for this part. MIME type is automatically detected,
 	/// or can be set explicitly through the MIME parameter
-	KMIMEFileInline(KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(MIME) { File("", sFilename); m_sFileName.clear(); }
+	KMIMEFileInline(KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(std::move(MIME)) { File("", sFilename); m_sFileName.clear(); }
 	/// the open stream is loaded as data for this part. MIME type has to be set manually.
-	KMIMEFileInline(KInStream& stream, KMIME MIME) : KMIMEPart(MIME) { Stream("", stream, KStringView{}); }
+	KMIMEFileInline(KInStream& stream, KMIME MIME) : KMIMEPart(std::move(MIME)) { Stream("", stream, KStringView{}); }
 
 }; // KMIMEFile
 

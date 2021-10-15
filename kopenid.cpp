@@ -170,7 +170,8 @@ bool KOpenIDProvider::Validate(const KJSON& Configuration, const KURL& URL, KStr
 {
 	kDebug(3, Configuration.dump(1, '\t'));
 
-	if (Configuration["issuer"] != URL.Serialize())
+	// gcc 8 needs the explicit get()..
+	if (Configuration["issuer"].get_ref<const KString&>() != URL.Serialize())
 	{
 		return SetError(kFormat("issuer ({}) does not match URL ({})",
 								Configuration["issuer"].get_ref<const KString&>(),
@@ -339,7 +340,8 @@ bool KJWT::Validate(KStringView sIssuer, KStringView sScope, time_t tClockLeeway
 {
 	kDebug(3, Payload.dump(1, '\t'));
 
-	if (Payload["iss"] != sIssuer)
+	// gcc 8 needs the explicit get()..
+	if (Payload["iss"].get_ref<const KString&>() != sIssuer)
 	{
 		return SetError(kFormat("Payload issuer {} does not match Provider issuer {}",
 								Payload["iss"].get_ref<const KString&>(),

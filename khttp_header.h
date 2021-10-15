@@ -380,7 +380,10 @@ public:
 		}
 
 		// not found..
+#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 90000
+		// gcc 8.3.1 complains that kDebug is not constexpr..
 		kDebug(0, "missing switch case: {}", m_header);
+#endif
 		return "";
 	}
 
@@ -601,7 +604,13 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 90000
 	DEKAF2_CONSTEXPR_14
+#else
+	// gcc 8.3.1 insists that all paths through a constexpr function
+	// have to be constexpr..
+	DEKAF2_CONSTEXPR_20
+#endif
 	friend bool operator==(const KHTTPHeader& left, const KHTTPHeader& right)
 	//-----------------------------------------------------------------------------
 	{
@@ -629,7 +638,13 @@ private:
 }; // KHTTPHeader
 
 //-----------------------------------------------------------------------------
+#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 90000
 DEKAF2_CONSTEXPR_14
+#else
+// gcc 8.3.1 insists that all paths through a constexpr function
+// have to be constexpr..
+DEKAF2_CONSTEXPR_20
+#endif
 bool operator!=(const KHTTPHeader& left, const KHTTPHeader& right)
 //-----------------------------------------------------------------------------
 {

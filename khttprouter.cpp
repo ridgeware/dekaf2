@@ -167,7 +167,7 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 	}
 	else
 	{
-		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE    , FileServer.GetMIMEType(true));
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE    , FileServer.GetMIMEType(true).Serialize());
 
 		auto tIfModifiedSince = kParseHTTPTimestamp(HTTP.Request.Headers.Get(KHTTPHeader::IF_MODIFIED_SINCE));
 		auto tLastModified    = FileServer.GetFileStat().ModificationTime();

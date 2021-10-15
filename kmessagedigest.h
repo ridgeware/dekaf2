@@ -174,7 +174,7 @@ public:
 	/// returns the message digest
 	const KString& Digest() const;
 	/// returns the message digest
-	operator const KString&() const
+	operator KStringView() const
 	{
 		return Digest();
 	}

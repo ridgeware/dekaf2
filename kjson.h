@@ -52,75 +52,14 @@
 
 namespace dekaf2 {
 
-using KJSON = nlohmann::basic_json<std::map, std::vector, dekaf2::KString >;
+using KJSON = nlohmann::basic_json<std::map, std::vector, dekaf2::KString>;
 
 class KROW;
 
-// ADL resolvers for KStringView and KStringViewZ (KString is the
-// built-in json string type, and therefore does not need conversion)
+// ADL resolvers
 
-inline void to_json(KJSON& j, const dekaf2::KStringView& s)
-{
-	j = KJSON::string_t(s);
-}
-
-inline void to_json(KJSON& j, const dekaf2::KStringViewZ& s)
-{
-	j = KJSON::string_t(s);
-}
-
-void to_json(KJSON& j, const KROW& row);
+void to_json  (KJSON& j, const KROW& row);
 void from_json(const KJSON& j, KROW& row);
-
-inline void from_json(const KJSON& j, dekaf2::KStringViewZ& s)
-{
-	s = j.get_ref<const KJSON::string_t&>();
-}
-
-inline void from_json(const KJSON& j, dekaf2::KStringView& s)
-{
-	s = j.get_ref<const KJSON::string_t&>();
-}
-
-inline bool operator==(KStringView left, const KJSON& right)
-{
-	return left == right.get_ref<const KJSON::string_t&>();
-}
-
-inline bool operator==(const KJSON& left, KStringView right)
-{
-	return operator==(right, left);
-}
-
-inline bool operator!=(KStringView left, const KJSON& right)
-{
-	return !operator==(left, right);
-}
-
-inline bool operator!=(const KJSON& left, KStringView right)
-{
-	return !operator==(right, left);
-}
-
-inline bool operator==(const KString& left, const KJSON& right)
-{
-	return left == right.get_ref<const KJSON::string_t&>();
-}
-
-inline bool operator==(const KJSON& left, const KString& right)
-{
-	return operator==(right, left);
-}
-
-inline bool operator!=(const KString& left, const KJSON& right)
-{
-	return !operator==(left, right);
-}
-
-inline bool operator!=(const KJSON& left, const KString& right)
-{
-	return !operator==(right, left);
-}
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 namespace kjson

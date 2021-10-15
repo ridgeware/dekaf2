@@ -800,13 +800,13 @@ public:
 		AddRawText(std::move(sScript));
 	}
 
-	self& SetType(KMIME MIME) &
+	self& SetType(const KMIME& MIME) &
 	{
 		SetAttribute("type", MIME.Serialize());
 		return *this;
 	}
 
-	self&& SetType(KMIME MIME) &&
+	self&& SetType(const KMIME& MIME) &&
 	{
 		return std::move(SetType(MIME));
 	}
@@ -962,13 +962,13 @@ public:
 		SetRel("icon");
 	}
 
-	self& SetType(KMIME MIME) &
+	self& SetType(const KMIME& MIME) &
 	{
 		SetAttribute("type", MIME.Serialize());
 		return *this;
 	}
 
-	self&& SetType(KMIME MIME) &&
+	self&& SetType(const KMIME& MIME) &&
 	{
 		return std::move(SetType(MIME));
 	}

@@ -315,9 +315,7 @@ bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOu
 	{
 		if (!sLine.empty())
 		{
-			// it is a bug that we cannot use a KString as the key to add a new
-			// header but have to convert it into a KStringView first..
-			m_Headers.Headers.Add(kFormat("{}-{:05d}", m_sHeader, m_iCounter++).ToView(), kEscapeForLogging(sLine));
+			m_Headers.Headers.Add(kFormat("{}-{:05d}", m_sHeader, m_iCounter++), kEscapeForLogging(sLine));
 		}
 	}
 

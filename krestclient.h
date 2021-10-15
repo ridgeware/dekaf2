@@ -85,7 +85,7 @@ public:
 
 	/// Send the REST request including body to the target and return the response.
 	/// Throws or sets error object for non-200 responses.
-	KString Request (KStringView sBody, KMIME mime);
+	KString Request (KStringView sBody, const KMIME& mime);
 	/// Send the REST request including a multipart form body to the target and return the response.
 	/// Throws or sets error object for non-200 responses.
 	KString Request (const KMIMEMultiPart& MultiPart);
@@ -96,7 +96,7 @@ public:
 	/// Send the REST request including body to the target. Expects unstructured data
 	/// written to OutStream as response.
 	/// Throws or sets error object for non-200 responses.
-	bool Request (KOutStream& OutStream, KStringView sBody, KMIME mime);
+	bool Request (KOutStream& OutStream, KStringView sBody, const KMIME& mime);
 	/// Send the REST request including a multipart form body to the target. Expects unstructured data
 	/// written to OutStream as response.
 	/// Throws or sets error object for non-200 responses.
@@ -119,7 +119,7 @@ public:
 	self& AddHeader(KHTTPHeader Header, KStringView sValue);
 
 	/// Return a header's content from the response
-	const KString& GetResponseHeader(KHTTPHeader Header) { return Response.Headers.Get(Header);  }
+	const KString& GetResponseHeader(KHTTPHeader Header) const { return Response.Headers.Get(Header); }
 
 	/// Set a Get method with path to call
 	self& Get       (KString sPath) { return Path(std::move(sPath)).Verb(KHTTPMethod::GET    );  }
@@ -166,7 +166,7 @@ protected:
 
 	/// Send the REST request including an eventual body to the target and write the response to OutStream.
 	/// Does not throw
-	bool NoExceptRequest (KOutStream& OutStream, KStringView sBody, KMIME mime) noexcept;
+	bool NoExceptRequest (KOutStream& OutStream, KStringView sBody, const KMIME& mime) noexcept;
 	/// Throws the error if no error object is set, otherwise sets the error object and
 	/// returns false
 	bool ThrowOrReturn (KHTTPError&& ec, bool bRetval = false);
@@ -230,7 +230,7 @@ public:
 
 	/// Send the REST request including an eventual JSON body to the target and return the response.
 	/// Throws or sets error object for non-200 responses.
-	KJSON Request  (const KJSON& json = KJSON{}, KMIME Mime = KMIME::JSON);
+	KJSON Request  (const KJSON& json = KJSON{}, const KMIME& Mime = KMIME::JSON);
 	/// Send the REST request including a multipart form body to the target and return the response.
 	/// Throws or sets error object for non-200 responses.
 	KJSON Request (const KMIMEMultiPart& MultiPart);
@@ -238,7 +238,7 @@ public:
 	/// Send the REST request including an eventual JSON body to the target. Expects unstructured data
 	/// written to OutStream as response.
 	/// Throws or sets error object for non-200 responses.
-	bool Request (KOutStream& OutStream, const KJSON& json = KJSON{}, KMIME Mime = KMIME::JSON);
+	bool Request (KOutStream& OutStream, const KJSON& json = KJSON{}, const KMIME& Mime = KMIME::JSON);
 	/// Send the REST request including a multipart form body to the target. Expects unstructured data
 	/// written to OutStream as response.
 	/// Throws or sets error object for non-200 responses.
@@ -261,6 +261,9 @@ public:
 	self& AddHeader (KHTTPHeader Header, KStringView sValue)
 									   { base::AddHeader(std::move(Header), sValue);
 										                                   return *this; }
+	/// Return a header's content from the response
+	const KString& GetResponseHeader(KHTTPHeader Header) const
+	                                   { return base::GetResponseHeader(Header);         }
 
 	/// Set a Get method with path to call
 	self& Get      (KString sPath)     { base::Get(std::move(sPath));      return *this; }
@@ -283,7 +286,7 @@ protected:
 	/// returns the retval
 	KJSON ThrowOrReturn (KHTTPError&& ec, KJSON&& retval = KJSON{});
 
-	KJSON RequestAndParseResponse(KStringView sRequest, KMIME Mime);
+	KJSON RequestAndParseResponse(KStringView sRequest, const KMIME& Mime);
 
 //----------
 private:

@@ -42,6 +42,7 @@
 #include "kfileserver.h"
 #include "kfilesystem.h"
 #include "khttperror.h"
+#include "klog.h"
 
 namespace dekaf2 {
 
@@ -180,7 +181,7 @@ std::unique_ptr<KOutStream> KFileServer::GetStreamForWriting()
 } // GetStreamForWriting
 
 //-----------------------------------------------------------------------------
-KMIME KFileServer::GetMIMEType(bool bInspect)
+const KMIME& KFileServer::GetMIMEType(bool bInspect)
 //-----------------------------------------------------------------------------
 {
 	if (m_mime == KMIME::NONE)

@@ -81,15 +81,15 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response to an output stream
-	bool HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON)
+	bool HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (OutStream, KURL{}, URL, RequestMethod, svRequestBody, MIME);
+		return HttpRequest (OutStream, KURL{}, std::move(URL), RequestMethod, svRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response as a string
-	KString HttpRequest (KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON);
+	KString HttpRequest (KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -102,10 +102,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get from URL, with request body, store response body in return value KString
-	KString Get(KURL URL, KStringView svRequestBody, KMIME MIME)
+	KString Get(KURL URL, KStringView svRequestBody, const KMIME& MIME)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (std::move(URL), KHTTPMethod::GET, svRequestBody, std::move(MIME));
+		return HttpRequest (std::move(URL), KHTTPMethod::GET, svRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -118,18 +118,18 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Post to URL, store response body in return value KString
-	KString Post(KURL URL, KStringView svRequestBody, KMIME MIME)
+	KString Post(KURL URL, KStringView svRequestBody, const KMIME& MIME)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (std::move(URL), KHTTPMethod::POST, svRequestBody, std::move(MIME));
+		return HttpRequest (std::move(URL), KHTTPMethod::POST, svRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Deletes URL, store response body in return value KString
-	KString Delete(KURL URL, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME{})
+	KString Delete(KURL URL, KStringView svRequestBody = KStringView{}, const KMIME& MIME = KMIME{})
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (std::move(URL), KHTTPMethod::DELETE, svRequestBody, std::move(MIME));
+		return HttpRequest (std::move(URL), KHTTPMethod::DELETE, svRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -143,19 +143,19 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Put to URL - returns true if response is in the 2xx range
-	bool Put(KURL URL, KStringView svRequestBody, KMIME MIME)
+	bool Put(KURL URL, KStringView svRequestBody, const KMIME& MIME)
 	//-----------------------------------------------------------------------------
 	{
-		HttpRequest (std::move(URL), KHTTPMethod::PUT, svRequestBody, std::move(MIME));
+		HttpRequest (std::move(URL), KHTTPMethod::PUT, svRequestBody, MIME);
 		return HttpSuccess();
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Patch URL - store response body in return value KString
-	KString Patch(KURL URL, KStringView svRequestBody, KMIME MIME)
+	KString Patch(KURL URL, KStringView svRequestBody, const KMIME& MIME)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (std::move(URL), KHTTPMethod::PATCH, svRequestBody, std::move(MIME));
+		return HttpRequest (std::move(URL), KHTTPMethod::PATCH, svRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -231,7 +231,7 @@ bool kHTTPHead(KURL URL);
 
 //-----------------------------------------------------------------------------
 /// Post to URL, store body in return value KString
-KString kHTTPPost(KURL URL, KStringView svPostData, KMIME Mime);
+KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime);
 //-----------------------------------------------------------------------------
 
 } // end of namespace dekaf2

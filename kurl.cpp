@@ -1,5 +1,4 @@
 /*
-//=============================================================================
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
@@ -39,7 +38,6 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 //
-//=============================================================================
 */
 
 #include "kstringview.h"
@@ -146,7 +144,7 @@ namespace detail {
 template class URIComponent<URLEncodedString, URIPart::User,     '\0', false, true,  true >;
 template class URIComponent<URLEncodedString, URIPart::Password, '\0', false, true,  true >;
 template class URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false, true >;
-template class URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false, true >;
+template class URIComponent<URLEncodedUInt,   URIPart::Port,     ':',  true,  false, false>;
 template class URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false, true >;
 template class URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false, false>;
 template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false, true >;
@@ -427,6 +425,16 @@ bool operator==(const KResource& left, const KResource& right)
 	    && left.Query    == right.Query;
 }
 
+//-------------------------------------------------------------------------
+bool KResource::operator<(const KResource& other) const
+//-------------------------------------------------------------------------
+{
+	if (Path  < other.Path ) return true;
+	if (Path  > other.Path ) return false;
+	if (Query < other.Query) return true;
+
+	return false;
+}
 
 //-------------------------------------------------------------------------
 KStringView KURL::Parse(KStringView svSource)
@@ -498,6 +506,28 @@ bool operator==(const KURL& left, const KURL& right)
 	        && left.Path     == right.Path
 	        && left.Query    == right.Query
 	        && left.Fragment == right.Fragment;
+}
+
+//-------------------------------------------------------------------------
+bool KURL::operator<(const KURL& other) const
+//-------------------------------------------------------------------------
+{
+	if (Protocol < other.Protocol) return true;
+	if (Protocol > other.Protocol) return false;
+	if (User     < other.User    ) return true;
+	if (User     > other.User    ) return false;
+	if (Password < other.Password) return true;
+	if (Password > other.Password) return false;
+	if (Domain   < other.Domain  ) return true;
+	if (Domain   > other.Domain  ) return false;
+	if (Port     < other.Port    ) return true;
+	if (Port     > other.Port    ) return false;
+	if (Path     < other.Path    ) return true;
+	if (Path     > other.Path    ) return false;
+	if (Query    < other.Query   ) return true;
+	if (Query    > other.Query   ) return false;
+	if (Fragment < other.Fragment) return true;
+	return false;
 }
 
 //-------------------------------------------------------------------------
@@ -575,7 +605,17 @@ bool operator==(const KTCPEndPoint& left, const KTCPEndPoint& right)
 //-------------------------------------------------------------------------
 {
 	return left.Domain == right.Domain
-	        && left.Port == right.Port;
+	    && left.Port   == right.Port;
+}
+
+//-------------------------------------------------------------------------
+bool KTCPEndPoint::operator<(const KTCPEndPoint& other) const
+//-------------------------------------------------------------------------
+{
+	if (Domain < other.Domain) return true;
+	if (Domain > other.Domain) return false;
+	if (Port   < other.Port  ) return true;
+	return false;
 }
 
 // old boost::multi_index versions are not noexcept move constructable, so we drop this

@@ -563,7 +563,7 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 	kDebug(2, "resolving domain {}", Endpoint.Domain.get());
 
 	boost::asio::ip::tcp::resolver Resolver(m_Stream.IOService);
-	boost::asio::ip::tcp::resolver::query query(Endpoint.Domain.get().c_str(), Endpoint.Port.get().c_str());
+	boost::asio::ip::tcp::resolver::query query(Endpoint.Domain.get().c_str(), Endpoint.Port.Serialize().c_str());
 	auto hosts = Resolver.resolve(query, m_Stream.ec);
 
 	if (Good())

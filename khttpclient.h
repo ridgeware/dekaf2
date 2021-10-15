@@ -205,16 +205,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Adds a request header for the next request (DEPRECATED, use AddHeader() instead)
-	bool SetRequestHeader(KHTTPHeader Header, KStringView svValue)
-	//-----------------------------------------------------------------------------
-	{
-		AddHeader(std::move(Header), svValue);
-		return true;
-	}
-
-	//-----------------------------------------------------------------------------
-	bool SendRequest(KStringView svPostData = KStringView{}, KMIME Mime = KMIME::TEXT_PLAIN);
+	bool SendRequest(KStringView svPostData = KStringView{}, const KMIME& Mime = KMIME::TEXT_PLAIN);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

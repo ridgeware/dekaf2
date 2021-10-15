@@ -279,18 +279,10 @@ public:
 	{
 	}
 
-#ifdef _MSC_VER
-	// MSC refuses base class conversion if we pass the extended class by value..
 	//-----------------------------------------------------------------------------
 	constexpr
 	KStringView(const KStringViewZ& svz) noexcept;
 	//-----------------------------------------------------------------------------
-#else
-	//-----------------------------------------------------------------------------
-	constexpr
-	KStringView(KStringViewZ svz) noexcept;
-	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	KStringView(const KString& str) noexcept;
@@ -301,18 +293,10 @@ public:
 	self& operator=(const self_type& other) noexcept = default;
 	//-----------------------------------------------------------------------------
 
-#ifdef _MSC_VER
-	// MSC refuses base class conversion if we pass the extended class by value..
 	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
 	self& operator=(const KStringViewZ& other);
 	//-----------------------------------------------------------------------------
-#else
-	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
-	self& operator=(KStringViewZ other);
-	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	self& operator=(const KString& other);
@@ -344,15 +328,23 @@ public:
 		*this = self_type(other);
 		return *this;
 	}
-#endif
 
 	//-----------------------------------------------------------------------------
 	constexpr
-	operator const rep_type&() const
+	sv::string_view ToStdView() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_rep;
+		return sv::string_view(data(), size());
 	}
+
+	//-----------------------------------------------------------------------------
+	constexpr
+	operator sv::string_view() const
+	//-----------------------------------------------------------------------------
+	{
+		return ToStdView();
+	}
+#endif
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
@@ -381,7 +373,7 @@ public:
 	void assign(const value_type* start, size_type size)
 	//-----------------------------------------------------------------------------
 	{
-		assign(start, start + size);
+		m_rep = rep_type(start, size);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -390,16 +382,7 @@ public:
 	void assign(const value_type* start, const value_type* end)
 	//-----------------------------------------------------------------------------
 	{
-		m_rep = self_type(start, static_cast<size_type>(end - start));
-	}
-
-	//-----------------------------------------------------------------------------
-	// nonstandard
-	DEKAF2_CONSTEXPR_14
-	void reset(const value_type* start, size_type size)
-	//-----------------------------------------------------------------------------
-	{
-		assign(start, size);
+		assign(start, static_cast<size_type>(end - start));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -546,16 +529,16 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_CONSTEXPR_14
 	int compare(const self_type& other) const
 	//-----------------------------------------------------------------------------
 	{
 		// uses __builtin_memcmp(), OK
-		return m_rep.compare(other);
+		return m_rep.compare(rep_type(other.data(), other.size()));
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_CONSTEXPR_14
 	int compare(size_type pos1, size_type count1,
 	            self_type other) const
 	//-----------------------------------------------------------------------------
@@ -564,7 +547,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_CONSTEXPR_14
 	int compare(size_type pos1, size_type count1,
 	            self_type other,
 	            size_type pos2, size_type count2) const
@@ -574,7 +557,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_CONSTEXPR_14
 	int compare(const value_type* str) const
 	//-----------------------------------------------------------------------------
 	{
@@ -582,7 +565,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_CONSTEXPR_14
 	int compare(size_type pos1, size_type count1,
 	            const value_type* str) const
 	//-----------------------------------------------------------------------------
@@ -591,7 +574,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_CONSTEXPR_14
 	int compare(size_type pos1, size_type count1,
 	            const value_type* str, size_type count2) const
 	//-----------------------------------------------------------------------------
@@ -643,7 +626,7 @@ public:
 #ifndef NDEBUG
 			Warn(DEKAF2_FUNCTION_NAME, "pos > size()");
 #endif
-			pos = size();
+			return {};
 		}
 		return self_type(data() + pos, std::min(count, size() - pos));
 	}
@@ -1060,7 +1043,7 @@ public:
 	/// @return a new Container. Default is a std::vector<KStringView>.
 	/// @param svDelim a string view of delimiter characters. Defaults to ",".
 	/// @param svPairDelim exists only for associative containers: a string view that is used to separate keys and values in the sequence. Defaults to "=".
-	/// @param svTrim a string containing chars to remove from token ends. Defaults to " \f\n\r\t\v\b".
+	/// @param svTrim a string containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
 	/// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 	/// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 	/// taken for found spaces if defined as delimiter). Defaults to false.
@@ -1084,6 +1067,12 @@ public:
 	/// nonstandard: output the hash value of instance by calling std::hash() for the type
 	DEKAF2_CONSTEXPR_14
 	std::size_t Hash() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// nonstandard: output the hash value of a lowercase ASCII version of the instance by calling std::hash() for the type
+	DEKAF2_CONSTEXPR_14
+	std::size_t CaseHash() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -1321,43 +1310,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// returns true if sOther is same
 	DEKAF2_CONSTEXPR_14
-	bool operator==(const KStringView other) const
+	bool Equal(KStringView sOther)
 	//-----------------------------------------------------------------------------
 	{
-		return size() == other.size() && !compare(other);
-	}
-
-	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
-	bool operator!=(const KStringView other) const
-	//-----------------------------------------------------------------------------
-	{
-		return !operator==(other);
-	}
-
-	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
-	bool operator==(const KStringViewZ other) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
-	bool operator!=(const KStringViewZ other) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	bool operator==(const KString& other) const
-	//-----------------------------------------------------------------------------
-	{
-		return operator==(KStringView(other));
-	}
-
-	//-----------------------------------------------------------------------------
-	bool operator!=(const KString& other) const
-	//-----------------------------------------------------------------------------
-	{
-		return operator!=(KStringView(other));
+		return size() == sOther.size() && !compare(sOther);
 	}
 
 //----------
@@ -1408,99 +1366,29 @@ static constexpr KStringView kASCIISpaces { " \f\n\r\t\v\b" };
 
 } // end of namespace detail
 
+// ======================= comparisons ========================
+
 //-----------------------------------------------------------------------------
+template<typename T, typename U,
+		 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
+                                 std::is_convertible<const U&, KStringView>::value == true, int>::type = 0>
 DEKAF2_CONSTEXPR_14
-bool operator==(const char* left, const KStringView right)
+bool operator==(const T& left, const U& right)
 //-----------------------------------------------------------------------------
 {
-	return right.operator==(KStringView(left));
+	return KStringView(left).Equal(right);
 }
 
 //-----------------------------------------------------------------------------
+template<typename T, typename U,
+		 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
+                                 std::is_convertible<const U&, KStringView>::value == true, int>::type = 0>
 DEKAF2_CONSTEXPR_14
-bool operator==(const KStringView left, const char* right)
+bool operator!=(const T& left, const U& right)
 //-----------------------------------------------------------------------------
 {
-	return left.operator==(KStringView(right));
+	return !operator==(left, right);
 }
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-bool operator!=(const char* left, const KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return right.operator!=(KStringView(left));
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-bool operator!=(const KStringView left, const char* right)
-//-----------------------------------------------------------------------------
-{
-	return left.operator!=(KStringView(right));
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator==(const std::string& left, const KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return right.operator==(KStringView(left));
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator==(const KStringView left, const std::string& right)
-//-----------------------------------------------------------------------------
-{
-	return left.operator==(KStringView(right));
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator!=(const std::string& left, const KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return right.operator!=(KStringView(left));
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator!=(const KStringView left, const std::string& right)
-//-----------------------------------------------------------------------------
-{
-	return left.operator!=(KStringView(right));
-}
-
-#ifdef DEKAF2_HAS_STD_STRING_VIEW
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-bool operator==(sv::string_view left, const KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return right.operator==(KStringView(left));
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-bool operator==(const KStringView left, const sv::string_view right)
-//-----------------------------------------------------------------------------
-{
-	return left.operator==(KStringView(right));
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-bool operator!=(const sv::string_view left, const KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return right.operator!=(KStringView(left));
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-bool operator!=(const KStringView left, const sv::string_view right)
-//-----------------------------------------------------------------------------
-{
-	return left.operator!=(KStringView(right));
-}
-#endif
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_17
@@ -1531,8 +1419,10 @@ DEKAF2_CONSTEXPR_17
 bool operator>=(const KStringView left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
-	return !(left < right);
+	return !(right < left);
 }
+
+// ======================= end comparisons ========================
 
 
 //-----------------------------------------------------------------------------
@@ -1822,52 +1712,33 @@ DEKAF2_CONSTEXPR_14 std::size_t dekaf2::KStringView::Hash() const
 	return std::hash<dekaf2::KStringView>()(*this);
 }
 
+//----------------------------------------------------------------------
+DEKAF2_CONSTEXPR_14 std::size_t dekaf2::KStringView::CaseHash() const
+//----------------------------------------------------------------------
+{
+	return dekaf2::kCaseHash(data(), size());
+}
+
 #include "bits/kstringviewz.h"
 #include "ksplit.h"
 
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-inline
 constexpr
-#ifdef _MSC_VER
 KStringView::KStringView(const KStringViewZ& svz) noexcept
-#else
-KStringView::KStringView(KStringViewZ svz) noexcept
-#endif
 //-----------------------------------------------------------------------------
 : KStringView(svz.data(), svz.size())
 {
 }
 
 //-----------------------------------------------------------------------------
-inline
 DEKAF2_CONSTEXPR_14
-#ifdef _MSC_VER
 KStringView& KStringView::operator=(const KStringViewZ& other)
-#else
-KStringView& KStringView::operator=(KStringViewZ other)
-#endif
 //-----------------------------------------------------------------------------
 {
 	assign(other.data(), other.size());
 	return *this;
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-bool KStringView::operator==(KStringViewZ other) const
-//-----------------------------------------------------------------------------
-{
-	return size() == other.size() && !compare(KStringView(other));
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-bool KStringView::operator!=(KStringViewZ other) const
-//-----------------------------------------------------------------------------
-{
-	return !operator==(other);
 }
 
 } // end of namespace dekaf2

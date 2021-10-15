@@ -246,48 +246,18 @@ inline bool operator==(KCaseStringViewBase<TrimmingLeft> left, KCaseStringViewBa
 }
 
 //-----------------------------------------------------------------------------
-template<typename TrimmingLeft>
-inline bool operator==(KCaseStringViewBase<TrimmingLeft> left, const char* right)
+template<typename TrimmingLeft, typename T,
+		 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+inline bool operator==(KCaseStringViewBase<TrimmingLeft> left, const T& right)
 //-----------------------------------------------------------------------------
 {
 	return kCaseEqualTrim<TrimmingLeft, detail::casestring::NoTrim>(left, right);
 }
 
 //-----------------------------------------------------------------------------
-template<typename TrimmingRight>
-inline bool operator==(const char* left, const KCaseStringViewBase<TrimmingRight> right)
-//-----------------------------------------------------------------------------
-{
-	return right == left;
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingLeft>
-inline bool operator==(KCaseStringViewBase<TrimmingLeft> left, KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return kCaseEqualTrim<TrimmingLeft, detail::casestring::NoTrim>(left, right);
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingRight>
-inline bool operator==(KStringView left, const KCaseStringViewBase<TrimmingRight> right)
-//-----------------------------------------------------------------------------
-{
-	return right == left;
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingLeft>
-inline bool operator==(KCaseStringViewBase<TrimmingLeft> left, const KString& right)
-//-----------------------------------------------------------------------------
-{
-	return kCaseEqualTrim<TrimmingLeft, detail::casestring::NoTrim>(left, right.ToView());
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingRight>
-inline bool operator==(const KString& left, const KCaseStringViewBase<TrimmingRight> right)
+template<typename TrimmingRight, typename T,
+         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+inline bool operator==(const T& left, const KCaseStringViewBase<TrimmingRight> right)
 //-----------------------------------------------------------------------------
 {
 	return right == left;
@@ -302,51 +272,21 @@ inline bool operator!=(KCaseStringViewBase<TrimmingLeft> left, KCaseStringViewBa
 }
 
 //-----------------------------------------------------------------------------
-template<typename TrimmingLeft>
-inline bool operator!=(KCaseStringViewBase<TrimmingLeft> left, const char* right)
+template<typename TrimmingLeft, typename T,
+         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+inline bool operator!=(KCaseStringViewBase<TrimmingLeft> left, const T& right)
 //-----------------------------------------------------------------------------
 {
 	return !(left == right);
 }
 
 //-----------------------------------------------------------------------------
-template<typename TrimmingRight>
-inline bool operator!=(const char* left, const KCaseStringViewBase<TrimmingRight> right)
+template<typename TrimmingRight, typename T,
+         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+inline bool operator!=(const T& left, const KCaseStringViewBase<TrimmingRight> right)
 //-----------------------------------------------------------------------------
 {
 	return right != left;
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingLeft>
-inline bool operator!=(KCaseStringViewBase<TrimmingLeft> left, KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return !(left == right);
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingRight>
-inline bool operator!=(KStringView left, const KCaseStringViewBase<TrimmingRight> right)
-//-----------------------------------------------------------------------------
-{
-	return right != left;
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingLeft>
-inline bool operator!=(KCaseStringViewBase<TrimmingLeft> left, const KString& right)
-//-----------------------------------------------------------------------------
-{
-	return !(left == right);
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingRight>
-inline bool operator!=(const KString& left, const KCaseStringViewBase<TrimmingRight> right)
-//-----------------------------------------------------------------------------
-{
-	return right == left;
 }
 
 
@@ -402,48 +342,18 @@ inline bool operator==(const KCaseStringBase<TrimmingLeft>& left, const KCaseStr
 }
 
 //-----------------------------------------------------------------------------
-template<typename TrimmingLeft>
-inline bool operator==(const KCaseStringBase<TrimmingLeft>& left, const char* right)
+template<typename TrimmingLeft, typename T,
+         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+inline bool operator==(const KCaseStringBase<TrimmingLeft>& left, const T& right)
 //-----------------------------------------------------------------------------
 {
 	return kCaseEqualTrim<TrimmingLeft, detail::casestring::NoTrim>(left.ToView(), right);
 }
 
 //-----------------------------------------------------------------------------
-template<typename TrimmingRight>
-inline bool operator==(const char* left, const KCaseStringBase<TrimmingRight>& right)
-//-----------------------------------------------------------------------------
-{
-	return right == left;
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingLeft>
-inline bool operator==(const KCaseStringBase<TrimmingLeft>& left, KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return kCaseEqualTrim<TrimmingLeft, detail::casestring::NoTrim>(left.ToView(), right);
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingRight>
-inline bool operator==(KStringView left, const KCaseStringBase<TrimmingRight>& right)
-//-----------------------------------------------------------------------------
-{
-	return right == left;
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingLeft>
-inline bool operator==(const KCaseStringBase<TrimmingLeft>& left, const KString& right)
-//-----------------------------------------------------------------------------
-{
-	return kCaseEqualTrim<TrimmingLeft, detail::casestring::NoTrim>(left.ToView(), right.ToView());
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingRight>
-inline bool operator==(const KString& left, const KCaseStringBase<TrimmingRight>& right)
+template<typename TrimmingRight, typename T,
+         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+inline bool operator==(const T& left, const KCaseStringBase<TrimmingRight>& right)
 //-----------------------------------------------------------------------------
 {
 	return right == left;
@@ -458,51 +368,21 @@ inline bool operator!=(const KCaseStringBase<TrimmingLeft>& left, const KCaseStr
 }
 
 //-----------------------------------------------------------------------------
-template<typename TrimmingLeft>
-inline bool operator!=(const KCaseStringBase<TrimmingLeft>& left, const char* right)
+template<typename TrimmingLeft, typename T,
+         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+inline bool operator!=(const KCaseStringBase<TrimmingLeft>& left, const T& right)
 //-----------------------------------------------------------------------------
 {
 	return !(left == right);
 }
 
 //-----------------------------------------------------------------------------
-template<typename TrimmingRight>
-inline bool operator!=(const char* left, const KCaseStringBase<TrimmingRight>& right)
+template<typename TrimmingRight, typename T,
+         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+inline bool operator!=(const T& left, const KCaseStringBase<TrimmingRight>& right)
 //-----------------------------------------------------------------------------
 {
 	return right != left;
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingLeft>
-inline bool operator!=(const KCaseStringBase<TrimmingLeft>& left, KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return !(left == right);
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingRight>
-inline bool operator!=(KStringView left, const KCaseStringBase<TrimmingRight>& right)
-//-----------------------------------------------------------------------------
-{
-	return right != left;
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingLeft>
-inline bool operator!=(const KCaseStringBase<TrimmingLeft>& left, const KString& right)
-//-----------------------------------------------------------------------------
-{
-	return !(left == right);
-}
-
-//-----------------------------------------------------------------------------
-template<typename TrimmingRight>
-inline bool operator!=(const KString& left, const KCaseStringBase<TrimmingRight>& right)
-//-----------------------------------------------------------------------------
-{
-	return right == left;
 }
 
 extern template class KCaseStringViewBase<detail::casestring::NoTrim>;

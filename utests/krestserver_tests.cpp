@@ -24,7 +24,7 @@ x-klog: -out json -level 1
 		KStream stream(iss, oss);
 		KRESTServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		KRESTServer::Options Options;
-		Options.sKLogHeader = "x-klog";
+		Options.KLogHeader = "x-klog";
 		KRESTRoutes Routes;
 		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
 		{
@@ -59,7 +59,7 @@ x-klog: -level 1
 		KStream stream(iss, oss);
 		KRESTServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		KRESTServer::Options Options;
-		Options.sKLogHeader = "x-klog";
+		Options.KLogHeader = "x-klog";
 		KRESTRoutes Routes;
 		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
 		{

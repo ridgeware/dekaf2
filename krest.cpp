@@ -256,9 +256,9 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				KLog::getInstance().SetMode(KLog::SERVER);
 				kDebug (3, "normal CGI request...");
 				KCGIInStream CGI(KIn);
-				if (!Options.sKLogHeader.empty())
+				if (!Options.KLogHeader.empty())
 				{
-					CGI.AddCGIVar(KCGIInStream::ConvertHTTPHeaderNameToCGIVar(Options.sKLogHeader), Options.sKLogHeader);
+					CGI.AddCGIVar(KCGIInStream::ConvertHTTPHeaderNameToCGIVar(Options.KLogHeader), Options.KLogHeader);
 				}
 				KStream Stream(CGI, KOut);
 				Options.Out = KRESTServer::HTTP;
@@ -267,7 +267,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 							Routes,
 							Stream,
 							kGetEnv(KCGIInStream::REMOTE_ADDR),
-							kGetEnv(KCGIInStream::SERVER_PORT),
+							url::KProtocol(kGetEnv(KCGIInStream::SERVER_PORT)), // TODO check for this conversion
 							kGetEnv(KCGIInStream::SERVER_PROTOCOL).UInt16());
 				return true; // we return true because the request was served
 			}
@@ -331,9 +331,9 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 				kDebug(2, "simulated CGI request with input file: {}", Options.Simulate.sFilename);
 				KInFile File(Options.Simulate.sFilename);
 				KCGIInStream CGI(File);
-				if (!Options.sKLogHeader.empty())
+				if (!Options.KLogHeader.empty())
 				{
-					CGI.AddCGIVar(KCGIInStream::ConvertHTTPHeaderNameToCGIVar(Options.sKLogHeader), Options.sKLogHeader);
+					CGI.AddCGIVar(KCGIInStream::ConvertHTTPHeaderNameToCGIVar(Options.KLogHeader), Options.KLogHeader);
 				}
 				KStream Stream(CGI, OutStream);
 				Options.Out = KRESTServer::HTTP;

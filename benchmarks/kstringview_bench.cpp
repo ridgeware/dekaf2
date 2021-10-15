@@ -7,7 +7,7 @@
 #include <dekaf2/kprof.h>
 #include <dekaf2/kstring.h>
 
-#if DEKAF2_GCC_VERSION < 5000
+#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION < 5000
 static const char* str0 = "";
 static const char* str15 = "123456789012345";
 static const char* str23 = "12345678901234567890123";

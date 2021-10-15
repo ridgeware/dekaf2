@@ -180,7 +180,7 @@ KRestClient& KRestClient::AddHeader (KHTTPHeader Header, KStringView sValue)
 } // AddHeader
 
 //-----------------------------------------------------------------------------
-bool KRestClient::NoExceptRequest (KOutStream& OutStream, KStringView sBody, KMIME mime) noexcept
+bool KRestClient::NoExceptRequest (KOutStream& OutStream, KStringView sBody, const KMIME& mime) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (m_URL.Protocol != url::KProtocol::UNIX)
@@ -227,7 +227,7 @@ bool KRestClient::NoExceptRequest (KOutStream& OutStream, KStringView sBody, KMI
 } // NoExceptRequest
 
 //-----------------------------------------------------------------------------
-bool KRestClient::Request (KOutStream& OutStream, KStringView sBody, KMIME mime)
+bool KRestClient::Request (KOutStream& OutStream, KStringView sBody, const KMIME& mime)
 //-----------------------------------------------------------------------------
 {
 	if (!NoExceptRequest(OutStream, sBody, mime))
@@ -255,7 +255,7 @@ bool KRestClient::Request (KOutStream& OutStream, const KMIMEMultiPart& MultiPar
 } // Request
 
 //-----------------------------------------------------------------------------
-KString KRestClient::Request (KStringView sBody, KMIME mime)
+KString KRestClient::Request (KStringView sBody, const KMIME& mime)
 //-----------------------------------------------------------------------------
 {
 	KString sResponse;
@@ -329,7 +329,7 @@ KString KJsonRestClient::DefaultErrorCallback(const KJSON& jResponse, KStringVie
 } // DefaultErrorCallback
 
 //-----------------------------------------------------------------------------
-KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime)
+KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, const KMIME& Mime)
 //-----------------------------------------------------------------------------
 {
 	KString sResponse;
@@ -394,7 +394,7 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, KMIME Mime
 } // RequestAndParseResponse
 
 //-----------------------------------------------------------------------------
-KJSON KJsonRestClient::Request (const KJSON& json, KMIME Mime)
+KJSON KJsonRestClient::Request (const KJSON& json, const KMIME& Mime)
 //-----------------------------------------------------------------------------
 {
 	try
@@ -417,7 +417,7 @@ KJSON KJsonRestClient::Request (const KMIMEMultiPart& MultiPart)
 } // Request
 
 //-----------------------------------------------------------------------------
-bool KJsonRestClient::Request (KOutStream& OutStream, const KJSON& json, KMIME Mime)
+bool KJsonRestClient::Request (KOutStream& OutStream, const KJSON& json, const KMIME& Mime)
 //-----------------------------------------------------------------------------
 {
 	try
@@ -426,7 +426,8 @@ bool KJsonRestClient::Request (KOutStream& OutStream, const KJSON& json, KMIME M
 	}
 	catch (const KJSON::exception& ex)
 	{
-		return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad tx json: {}", ex.what()) });
+		ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad tx json: {}", ex.what()) });
+		return false;
 	}
 
 } // Request

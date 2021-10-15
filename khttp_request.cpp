@@ -290,8 +290,8 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 		}
 	}
 
-	Method = Words[0];
-	Resource = Words[1];
+	Method       = Words[0];
+	Resource     = Words[1];
 	sHTTPVersion = Words[2];
 
 	kDebug (1, "{} {} {}", Words[0], Words[1], Words[2]);

@@ -1353,7 +1353,7 @@ void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t 
 } // DumpPidTree
 
 //-----------------------------------------------------------------------------
-uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, KMIME iMime, KStringView sMyUniqueIP, KString& sResponse)
+uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStringView sMyUniqueIP, KString& sResponse)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");

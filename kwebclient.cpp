@@ -58,6 +58,7 @@ bool KWget (KStringView sURL, const KString& sOutfile, const KJSON& Options/*=KJ
 
 	KWebClient http;
 	KString sResponse = http.HttpRequest (sURL);
+
 	if (http.HttpFailure())
 	{
 		return false;
@@ -289,12 +290,12 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 } // HttpRequest
 
 //-----------------------------------------------------------------------------
-KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
+KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, const KMIME& MIME/* = KMIME::JSON*/)
 //-----------------------------------------------------------------------------
 {
 	KString sResponse;
 	KOutStringStream oss(sResponse);
-	HttpRequest(oss, KURL{}, URL, RequestMethod, svRequestBody, MIME);
+	HttpRequest(oss, KURL{}, std::move(URL), RequestMethod, svRequestBody, MIME);
 
 	if (kWouldLog(2))
 	{
@@ -331,11 +332,11 @@ bool kHTTPHead(KURL URL)
 } // kHTTPHead
 
 //-----------------------------------------------------------------------------
-KString kHTTPPost(KURL URL, KStringView svPostData, KMIME Mime)
+KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime)
 //-----------------------------------------------------------------------------
 {
 	KWebClient HTTP(/* bVerifyCerts = */ true);
-	return HTTP.Post(std::move(URL), svPostData, std::move(Mime));
+	return HTTP.Post(std::move(URL), svPostData, Mime);
 
 } // kHTTPPost
 

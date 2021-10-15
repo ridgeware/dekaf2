@@ -756,6 +756,24 @@ String kSignedToString(int64_t i, uint16_t iBase = 10, bool bZeroPad = false, bo
 } // kSignedToString
 
 //-----------------------------------------------------------------------------
+template<typename T, class String = KString,
+         typename std::enable_if<std::is_unsigned<T>::value && std::is_arithmetic<T>::value, int>::type = 0>
+String kIntToString(T i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false)
+//-----------------------------------------------------------------------------
+{
+	return kUnsignedToString(i, iBase, bZeroPad, bUppercase);
+}
+
+//-----------------------------------------------------------------------------
+template<typename T, class String = KString,
+		 typename std::enable_if<std::is_signed<T>::value && std::is_arithmetic<T>::value, int>::type = 0>
+String kIntToString(T i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false)
+//-----------------------------------------------------------------------------
+{
+	return kSignedToString(i, iBase, bZeroPad, bUppercase);
+}
+
+//-----------------------------------------------------------------------------
 inline
 void kFromString(float& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------

@@ -275,7 +275,7 @@ KString KUnixConnection::Error() const
 bool KSSLConnection::Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bManualHandshake, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
-	return setConnection(CreateKSSLClient(Endpoint, bVerifyCerts, bManualHandshake, iSecondsTimeout), Endpoint.Serialize());
+	return setConnection(CreateKSSLClient(Endpoint, bVerifyCerts, bManualHandshake, iSecondsTimeout), Endpoint);
 
 } // Connect
 
@@ -360,7 +360,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 		Port = KString::to_string(URL.Protocol.DefaultPort());
 	}
 
-	if ((url::KProtocol::UNDEFINED && Port == "443") || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
+	if ((url::KProtocol::UNDEFINED && Port == 443) || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
 		auto C = std::make_unique<KSSLConnection>();
 		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts, false, iSecondsTimeout);

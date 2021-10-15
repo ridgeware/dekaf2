@@ -4,7 +4,6 @@
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/kprops.h>
 #include <vector>
-#include <iostream>
 
 using namespace dekaf2;
 

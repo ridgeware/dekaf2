@@ -116,11 +116,11 @@ void KString::log_exception(const std::exception& e, const char* sWhere)
 }
 
 //------------------------------------------------------------------------------
-KString& KString::append(const string_type& str, size_type pos, size_type n)
+KString& KString::append(const KString& str, size_type pos, size_type n)
 //------------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	m_rep.append(str, pos, n);
+	m_rep.append(str.m_rep, pos, n);
 	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
@@ -172,42 +172,18 @@ void KString::resize_uninitialized(size_type n)
 	resize(n);
 }
 
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 //------------------------------------------------------------------------------
-KString& KString::append(const std::string& str, size_type pos, size_type n)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	m_rep.append(str, pos, n);
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-#endif
-
-//------------------------------------------------------------------------------
-KString& KString::assign(const string_type& str, size_type pos, size_type n)
+KString& KString::assign(const KString& str, size_type pos, size_type n)
 //------------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	m_rep.assign(str, pos, n);
+	m_rep.assign(str.m_rep, pos, n);
 	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 //------------------------------------------------------------------------------
-KString& KString::assign(const std::string& str, size_type pos, size_type n)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	m_rep.assign(str, pos, n);
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-#endif
-
-//------------------------------------------------------------------------------
-KString& KString::replace(size_type pos, size_type n, const string_type& str)
+KString& KString::replace(size_type pos, size_type n, const KString& str)
 //------------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
@@ -218,13 +194,13 @@ KString& KString::replace(size_type pos, size_type n, const string_type& str)
 		n = iSize - pos;
 	}
 
-	m_rep.replace(pos, n, str);
+	m_rep.replace(pos, n, str.m_rep);
 	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
 //------------------------------------------------------------------------------
-KString& KString::replace(size_type pos1, size_type n1, const string_type& str, size_type pos2, size_type n2)
+KString& KString::replace(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2)
 //------------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
@@ -235,7 +211,7 @@ KString& KString::replace(size_type pos1, size_type n1, const string_type& str, 
 		n1 = iSize - pos1;
 	}
 
-	m_rep.replace(pos1, n1, str, pos2, n2);
+	m_rep.replace(pos1, n1, str.m_rep, pos2, n2);
 	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
@@ -322,11 +298,11 @@ KString& KString::replace(size_type pos, size_type n1, size_type n2, value_type 
 }
 
 //------------------------------------------------------------------------------
-KString& KString::replace(iterator i1, iterator i2, const string_type& str)
+KString& KString::replace(iterator i1, iterator i2, const KString& str)
 //------------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	m_rep.replace(i1, i2, str);
+	m_rep.replace(i1, i2, str.m_rep);
 	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
@@ -379,20 +355,42 @@ KString& KString::replace(iterator i1, iterator i2, KStringView sv)
 }
 
 //------------------------------------------------------------------------------
-KString KString::substr(size_type pos, size_type n/*=npos*/) const
+KString KString::substr(size_type pos, size_type n/*=npos*/) const &
 //------------------------------------------------------------------------------
 {
-	DEKAF2_TRY_EXCEPTION
 	const auto iSize = size();
+
+	if (DEKAF2_UNLIKELY(pos >= iSize))
+	{
+		return KString{};
+	}
 
 	if (n > iSize || pos + n > iSize)
 	{
 		n = iSize - pos;
 	}
+	return KString(data() + pos, n);
+}
 
-	return m_rep.substr(pos, n);
-	DEKAF2_LOG_EXCEPTION
-	return KString();
+//------------------------------------------------------------------------------
+KString KString::substr(size_type pos, size_type n/*=npos*/) &&
+//------------------------------------------------------------------------------
+{
+	const auto iSize = size();
+
+	if (DEKAF2_UNLIKELY(pos >= iSize))
+	{
+		clear();
+	}
+	else
+	{
+		erase(0, pos);
+		if (n < iSize - pos)
+		{
+			resize(n);
+		}
+	}
+	return std::move(*this);
 }
 
 //------------------------------------------------------------------------------
@@ -406,21 +404,21 @@ KString::size_type KString::copy(value_type* s, size_type n, size_type pos) cons
 }
 
 //------------------------------------------------------------------------------
-KString& KString::insert(size_type pos, const string_type& str)
+KString& KString::insert(size_type pos, const KString& str)
 //------------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	m_rep.insert(pos, str);
+	m_rep.insert(pos, str.m_rep);
 	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
 //------------------------------------------------------------------------------
-KString& KString::insert(size_type pos1, const string_type& str, size_type pos2, size_type n)
+KString& KString::insert(size_type pos1, const KString& str, size_type pos2, size_type n)
 //------------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	m_rep.insert(pos1, str, pos2, n);
+	m_rep.insert(pos1, str.m_rep, pos2, n);
 	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
@@ -655,7 +653,7 @@ KString::size_type KString::Replace(
 			if (DEKAF2_UNLIKELY(pos))
 			{
 				// copy the skipped part of the source string
-				sResult.append(m_rep, 0, pos);
+				sResult.append(*this, 0, pos);
 			}
 
 			while (pszFound)

@@ -97,14 +97,14 @@ TEST_CASE("KSharedCache")
 		MyCache.SetMaxSize(3);
 
 		CHECK ( MyCache.size() == 0 );
-		CHECK ( MyCache.Get("abcdefg") == "gfedcba"  );
-		CHECK ( MyCache.Get("abccefg") == "gfeccba"  );
-		CHECK ( MyCache.Get("bbcdefg") == "gfedcbb"  );
-		CHECK ( MyCache.Get("abcdefg") == "gfedcba"  );
-		CHECK ( MyCache.Get("1234567") == "7654321"  );
+		CHECK ( *MyCache.Get("abcdefg") == "gfedcba"  );
+		CHECK ( *MyCache.Get("abccefg") == "gfeccba"  );
+		CHECK ( *MyCache.Get("bbcdefg") == "gfedcbb"  );
+		CHECK ( *MyCache.Get("abcdefg") == "gfedcba"  );
+		CHECK ( *MyCache.Get("1234567") == "7654321"  );
 		CHECK ( MyCache.size() == 3 );
 		MyCache.SetMaxSize(5);
-		CHECK ( MyCache.Get("abccefg") == "gfeccba"  );
+		CHECK ( *MyCache.Get("abccefg") == "gfeccba"  );
 		CHECK ( MyCache.size() == 4 );
 
 		MyCache.SetMaxSize(iOrigSize);
@@ -123,19 +123,19 @@ TEST_CASE("KSharedCache")
 		MyCache.SetMaxSize(3);
 
 		CHECK ( MyCache.size() == 0 );
-		CHECK ( MyCache.Get("abcdefg") == "gfedcba"  );
-		CHECK ( MyCache.Get("abccefg") == "gfeccba"  );
-		CHECK ( MyCache.Get("bbcdefg") == "gfedcbb"  );
-		CHECK ( MyCache.Get("abcdefg") == "gfedcba"  );
-		CHECK ( MyCache.Get("1234567") == "7654321"  );
+		CHECK ( *MyCache.Get("abcdefg") == "gfedcba"  );
+		CHECK ( *MyCache.Get("abccefg") == "gfeccba"  );
+		CHECK ( *MyCache.Get("bbcdefg") == "gfedcbb"  );
+		CHECK ( *MyCache.Get("abcdefg") == "gfedcba"  );
+		CHECK ( *MyCache.Get("1234567") == "7654321"  );
 		CHECK ( MyCache.size() == 3 );
 		MyCache.SetMaxSize(2);
 		CHECK ( MyCache.size() == 2 );
 		MyCache.SetMaxSize(3);
-		CHECK ( MyCache.Get("abcdefg") == "gfedcba"  );
-		CHECK ( MyCache.Get("1234567") == "7654321"  );
+		CHECK ( *MyCache.Get("abcdefg") == "gfedcba"  );
+		CHECK ( *MyCache.Get("1234567") == "7654321"  );
 		CHECK ( MyCache.size() == 2 );
-		CHECK ( MyCache.Get("bbcdefg") == "gfedcbb"  );
+		CHECK ( *MyCache.Get("bbcdefg") == "gfedcbb"  );
 		CHECK ( MyCache.size() == 3 );
 
 		MyCache.clear();
@@ -150,23 +150,23 @@ TEST_CASE("KSharedCache")
 
 		std::atomic_uint32_t iErrors { 0 };
 
-		if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
-		if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
-		if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
+		if (*MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
+		if (*MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
+		if (*MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
 
 		KRunThreads(20).Create([&iErrors,&MyCache]()
 		{
 			for (int i = 0; i < 500; ++i)
 			{
-				if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
-				if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
-				if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
+				if (*MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
+				if (*MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
+				if (*MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
 			}
 		});
 
-		if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
-		if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
-		if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
+		if (*MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
+		if (*MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
+		if (*MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
 
 		CHECK ( iErrors == 0 );
 
@@ -182,23 +182,23 @@ TEST_CASE("KSharedCache")
 
 		std::atomic_uint32_t iErrors { 0 };
 
-		if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
-		if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
-		if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
+		if (*MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
+		if (*MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
+		if (*MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
 
 		KRunThreads(20).Create([&iErrors,&MyCache]()
 		{
 			for (int i = 0; i < 500; ++i)
 			{
-				if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
-				if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
-				if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
+				if (*MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
+				if (*MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
+				if (*MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
 			}
 		});
 
-		if (MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
-		if (MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
-		if (MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
+		if (*MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
+		if (*MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
+		if (*MyCache.Get("bbcdefg") != "gfedcbb") { ++iErrors; }
 
 		CHECK ( iErrors == 0 );
 

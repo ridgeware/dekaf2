@@ -1,7 +1,5 @@
 #include <map>
 #include <tuple>
-#include <sstream>
-#include <iomanip>
 
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/kctype.h>
@@ -9,21 +7,15 @@
 #include <dekaf2/kurl.h>
 
 using namespace dekaf2;
-using std::get;
-using std::map;
-using std::tuple;
-using std::stringstream;
-using std::hex;
 
 //            hint    final   flag
 //            get<0>  get<1>  get<2> get<3>   get<4>
-typedef tuple<size_t, size_t, bool,  KString, KString> parm_t;
-typedef map<KString, parm_t> test_t;
+typedef std::tuple<size_t, size_t, bool,  KString, KString> parm_t;
+typedef std::map<KString, parm_t> test_t;
 // get<3> is unused but could be used if catch.hpp has output support.
 // It is used to identify qualities of URL analyzed by KURL and friends.
 
 typedef KProps<KString, KString, true, false> KProp_t;
-
 
 #define VIEW_STE(id,source,target,expect) \
     INFO("VIEW[" <<\
@@ -89,10 +81,10 @@ SCENARIO ( "KURL unit tests on valid data" )
                         KStringView (source.c_str(), source.size ());
                     parm_t&  parameter = it->second;
                     KString  target{};
-                    size_t   hint   {get<0>(parameter)};
-                    size_t   done   {get<1>(parameter)};
-                    bool     want   {get<2>(parameter)};
-                    KString  expect {get<4>(parameter)};
+                    size_t   hint   {std::get<0>(parameter)};
+                    size_t   done   {std::get<1>(parameter)};
+                    bool     want   {std::get<2>(parameter)};
+                    KString  expect {std::get<4>(parameter)};
                     if (expect.size() == 0)
                     {
                         expect = source;
@@ -408,8 +400,8 @@ TEST_CASE ("KURL")
 {
     //            hint    final   flag
     //            get<0>  get<1>  get<2> get<3>   get<4>
-    typedef tuple<size_t, size_t, bool,  KString, KString> parm_t;
-    typedef map<KString, parm_t> test_t;
+    typedef std::tuple<size_t, size_t, bool,  KString, KString> parm_t;
+    typedef std::map<KString, parm_t> test_t;
     // get<3> is unused but could be used if catch.hpp has output support.
     // It is used to identify qualities of URL analyzed by KURL and friends.
 
@@ -691,8 +683,8 @@ TEST_CASE ("KURL")
                 parm_t&  parameter = it->second;
                 KString  expect{source};
                 KString  target{};
-                size_t   done{get<1>(parameter)};
-                bool     want{get<2>(parameter)};
+                size_t   done{std::get<1>(parameter)};
+                bool     want{std::get<2>(parameter)};
 
                 dekaf2::KURL kurl  (source);
                 bool have{kurl.Serialize (target)};
@@ -721,8 +713,8 @@ TEST_CASE ("KURL")
                 parm_t&  parameter = it->second;
                 KString  expect{source};
                 KString  target{};
-                size_t   done{get<1>(parameter)};
-                bool     want{get<2>(parameter)};
+                size_t   done{std::get<1>(parameter)};
+                bool     want{std::get<2>(parameter)};
 
                 dekaf2::KURL kurl  (svSource);
                 bool have{kurl.Serialize (target)};
@@ -745,9 +737,9 @@ TEST_CASE ("KURL")
                 const KString& source = it->first;
                 parm_t&  parameter = it->second;
                 KString  target{};
-                bool     want        {get<2>(parameter)};
-                KString  feature    {get<3>(parameter)};
-                KString  expect     {get<4>(parameter)};
+                bool     want    { std::get<2>(parameter) };
+                KString  feature { std::get<3>(parameter) };
+                KString  expect  { std::get<4>(parameter) };
 
                 dekaf2::KURL kurl  (source);
                 bool have{kurl.Serialize (target)};
@@ -947,25 +939,25 @@ TEST_CASE ("KURL formerly missing")
         CHECK ( sSerialized == svURL );
 
         svURL = "http://news.example.com/money/$5.2-billion-merger";
-        URL   = svURL;
+		URL = svURL;
         sSerialized.clear();
         URL.Serialize(sSerialized);
         CHECK ( sSerialized == "http://news.example.com/money/%245.2-billion-merger" );
 
         svURL = "https://spam.example.com/viagra-only-$2-per-pill*";
-        URL   = svURL;
+		URL = svURL;
         sSerialized.clear();
         URL.Serialize(sSerialized);
         CHECK ( sSerialized == "https://spam.example.com/viagra-only-%242-per-pill%2A" );
 
         svURL = "http://example.com/path/foo:bogus";
-        URL   = svURL;
+		URL = svURL;
         sSerialized.clear();
         URL.Serialize(sSerialized);
         CHECK ( sSerialized == "http://example.com/path/foo%3Abogus" );
 
         svURL = "http://example.com/path+test/foo%20bogus?foo+bogus%2Btest#foo%20bogus+test";
-        URL   = svURL;
+		URL = svURL;
         sSerialized.clear();
         URL.Serialize(sSerialized);
         CHECK ( sSerialized == "http://example.com/path%2Btest/foo%20bogus?foo+bogus%2Btest#foo%20bogus%2Btest" );
@@ -979,37 +971,37 @@ TEST_CASE ("KURL formerly missing")
         KString sSerialized;
 
         svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
-        URL   = svURL;
+		URL = KURL(svURL);
         sSerialized.clear();
         URL.Serialize(sSerialized);
         CHECK ( sSerialized == svURL );
 
         svURL = "http://news.example.com/money/$5.2-billion-merger";
-        URL   = svURL;
+		URL = svURL;
         sSerialized.clear();
         URL.Serialize(sSerialized);
         CHECK ( sSerialized == "http://news.example.com/money/%245.2-billion-merger" );
 
         svURL = "https://spam.example.com/viagra-only-$2-per-pill*";
-        URL   = svURL;
+		URL = svURL;
         sSerialized.clear();
         URL.Serialize(sSerialized);
         CHECK ( sSerialized == "https://spam.example.com/viagra-only-%242-per-pill%2A" );
 
         svURL = "http://example.com/path/foo:bogus";
-        URL   = svURL;
+		URL = svURL;
         sSerialized.clear();
         URL.Serialize(sSerialized);
         CHECK ( sSerialized == "http://example.com/path/foo%3Abogus" );
 
         svURL = "http://example.com/path+test/foo%20bogus?foo+bogus%2Btest#foo%20bogus+test";
-        URL   = svURL;
+		URL = svURL;
         sSerialized.clear();
         URL.Serialize(sSerialized);
         CHECK ( sSerialized == "http://example.com/path%2Btest/foo%20bogus?foo+bogus%2Btest#foo%20bogus%2Btest" );
 
         svURL = "whatever://fred:secret@www.test.com:7654/works.html;param;a=b;multi=a,b,c,d;this=that?foo=bar&you=me#fragment";
-        URL   = svURL;
+		URL = svURL;
         svURL = URL.Password;
         CHECK ( svURL == "secret" );
         KString bar = URL.Query.get().find("foo")->second;
@@ -1022,16 +1014,15 @@ TEST_CASE ("KURL formerly missing")
         URL.Serialize(sSerialized);
         svURL = "https://fred:secret@www.test.com:7654/changed.xml?foo=r%C3%B6b&you=wh%C3%B8#fragment";
         CHECK ( sSerialized == svURL );
-// commented out because of type deduction trouble in CATCH
-//        CHECK ( URL.Protocol.getProtocol() == dekaf2::url::KProtocol::HTTPS );
-//        CHECK ( URL.Protocol == dekaf2::url::KProtocol::HTTPS );
+        CHECK ( URL.Protocol.getProtocol() == dekaf2::url::KProtocol::HTTPS );
+        CHECK ( URL.Protocol == dekaf2::url::KProtocol::HTTPS );
     }
 
     SECTION("KURL various schemes")
     {
         KURL URL;
 
-        URL = "http://that.server.name/with_a_path";
+        URL = "http://that.server.name/with_a_path"_ksv;
         CHECK ( URL.IsHttpURL() == true );
         CHECK ( URL.Domain.get() == "that.server.name" );
         CHECK ( URL.Path.get() == "/with_a_path" );
@@ -1040,20 +1031,21 @@ TEST_CASE ("KURL formerly missing")
         URL = "log.server.my.domain:35";
         CHECK ( URL.IsHttpURL() == false );
         CHECK ( URL.Domain.get() == "log.server.my.domain" );
-		CHECK ( URL.Port.get() == "35" );
+		CHECK ( URL.Port.get() == 35 );
+		CHECK ( URL.Port == 35 );
         CHECK ( URL.Path.get() == "" );
 		CHECK ( URL.Serialize() == "log.server.my.domain:35" );
 
-		URL = "/path/to/file";
+		URL = "/path/to/file"_ksz;
 		CHECK ( URL.IsHttpURL() == false );
 		CHECK ( URL.Domain.empty() == true );
 		CHECK ( URL.Path.get() == "/path/to/file" );
 		CHECK ( URL.Serialize() == "/path/to/file" );
 
-		URL = "//domain.com:35/path/to/file";
+		URL = "//domain.com:35/path/to/file"_ks;
 		CHECK ( URL.IsHttpURL() == true );
 		CHECK ( URL.Domain.get() == "domain.com" );
-		CHECK ( URL.Port.get() == "35" );
+		CHECK ( URL.Port.get() == 35 );
 		CHECK ( URL.Path.get() == "/path/to/file" );
 		CHECK ( URL.Serialize() == "//domain.com:35/path/to/file" );
     }
@@ -1162,7 +1154,7 @@ TEST_CASE ("KURL formerly missing")
 
 	SECTION("auto range")
 	{
-		KURL URL = "http://www.test.com/path?parm1=val1&parm2=val2&parm3=val3";
+		KURL URL = "http://www.test.com/path?parm1=val1&parm2=val2&parm3=val3"_ksv;
 		KString sOut;
 
 		for (const auto& it : URL.Query)
@@ -1182,17 +1174,102 @@ TEST_CASE ("KURL formerly missing")
 
 TEST_CASE ("KURL regression tests")
 {
-	KURL URL;
+	KURL URL("http://third.second-level.com/path/TomatoJuice/2B66-3D@77-AC7F-EE58");
+	KURL URL2 = URL;
+
+	KTCPEndPoint EndPoint = URL;
+	KTCPEndPoint EndPoint2 = EndPoint;
+
+	KResource Resource("/this/is/a/path?with=query&parms=last");
+	KResource Resource2 = Resource;
+	KResource Resource3("/this/is/a/path?with=query&parms=later");
+
+	CHECK       ( URL == URL2 );
+	CHECK_FALSE ( URL != URL2 );
+	CHECK_FALSE ( URL  < URL2 );
+	CHECK_FALSE ( URL  > URL2 );
+	CHECK       ( URL == "http://third.second-level.com/path/TomatoJuice/2B66-3D@77-AC7F-EE58"_ksv );
+
+	CHECK       ( EndPoint == EndPoint2 );
+	CHECK_FALSE ( EndPoint != EndPoint2 );
+	CHECK_FALSE ( EndPoint  < EndPoint2 );
+	CHECK_FALSE ( EndPoint  > EndPoint2 );
+
+	CHECK       ( Resource == Resource2 );
+	CHECK_FALSE ( Resource != Resource2 );
+	CHECK_FALSE ( Resource  < Resource2 );
+	CHECK_FALSE ( Resource  > Resource2 );
+	CHECK       ( Resource  < Resource3 );
+	CHECK_FALSE ( Resource == Resource3 );
+	CHECK       ( Resource != Resource3 );
+	CHECK_FALSE ( Resource  > Resource3 );
+
+	CHECK ( URL.Protocol  == URL2.Protocol );
+	CHECK ( URL.Protocol.Decoded()  == "http://" );
+	CHECK ( URL.Protocol  == "http://"     );
+	CHECK ( URL.Protocol  == "http://"_ks  );
+	CHECK ( URL.Protocol  == "http://"_ksv );
+	CHECK ( URL.Protocol  == "http://"_ksz );
+	CHECK ( "http://"     == URL.Protocol );
+	CHECK ( "http://"_ks  == URL.Protocol );
+	CHECK ( "http://"_ksv == URL.Protocol );
+	CHECK ( "http://"_ksz == URL.Protocol );
+	CHECK ( URL.Protocol  != "https://" );
+	CHECK ( URL.Protocol  == url::KProtocol("http://") );
+
+//	CHECK ( URL.Protocol  == std::string("http://") );      // we cannot offer this implicit comparison
+//	CHECK ( URL.Protocol  == std::string_view("http://") ); // we cannot offer this implicit comparison
+
+	CHECK_FALSE ( URL.Protocol  != URL2.Protocol );
+	CHECK_FALSE ( URL.Protocol  != "http://" );
+	CHECK_FALSE ( URL.Protocol  != "http://"_ksv );
+	CHECK_FALSE ( URL.Protocol  != "http://"_ksz );
+	CHECK_FALSE ( "http://"     != URL.Protocol );
+	CHECK_FALSE ( "http://"_ksv != URL.Protocol );
+	CHECK_FALSE ( "http://"_ksz != URL.Protocol );
+	CHECK_FALSE ( URL.Protocol  == "https://" );
+	CHECK_FALSE ( URL.Protocol  != url::KProtocol("http://") );
+
+	CHECK ( URL.Domain == "third.second-level.com" );
+	CHECK ( URL.Domain == "third.second-level.com"_ksv );
+	CHECK ( URL.Domain == "third.second-level.com"_ksz );
+	CHECK ( URL.Domain == "third.second-level.com"_ks );
+	CHECK ( "third.second-level.com"     == URL.Domain );
+	CHECK ( "third.second-level.com"_ks  == URL.Domain );
+	CHECK ( "third.second-level.com"_ksv == URL.Domain );
+	CHECK ( URL.Domain == std::string("third.second-level.com") );
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+	CHECK ( URL.Domain == std::string_view("third.second-level.com") );
+#endif
+	CHECK ( URL.Domain == url::KDomain("third.second-level.com") );
+
+	CHECK_FALSE ( URL.Domain != "third.second-level.com" );
+	CHECK_FALSE ( URL.Domain != "third.second-level.com"_ksv );
+	CHECK_FALSE ( URL.Domain != "third.second-level.com"_ksz );
+	CHECK_FALSE ( URL.Domain != "third.second-level.com"_ks );
+	CHECK_FALSE ( "third.second-level.com"     != URL.Domain );
+	CHECK_FALSE ( "third.second-level.com"_ks  != URL.Domain );
+	CHECK_FALSE ( "third.second-level.com"_ksv != URL.Domain );
+	CHECK_FALSE ( URL.Domain != std::string("third.second-level.com") );
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+	CHECK_FALSE ( URL.Domain != std::string_view("third.second-level.com") );
+#endif
+	CHECK_FALSE ( URL.Domain != url::KDomain("third.second-level.com") );
+
+	CHECK ( URL.Domain < url::KDomain("zzz.third-level.com") );
+	CHECK ( URL.Domain <= url::KDomain("zzz.third-level.com") );
+	CHECK ( url::KDomain("zzz.third-level.com") > URL.Domain );
+
+	CHECK ( URL.Path == "/path/TomatoJuice/2B66-3D@77-AC7F-EE58" );
+	CHECK ( URL.Path == url::KPath("/path/TomatoJuice/2B66-3D@77-AC7F-EE58") );
+	CHECK ( URL.Path != url::KPath("/no/TomatoJuice/2B66-3D@77-AC7F-EE58") );
 
 	URL = "http://third.second-level.com/path/TomatoJuice/2B66-3D@77-AC7F-EE58";
 	CHECK ( URL.Protocol == "http://" );
 	CHECK ( URL.Domain == "third.second-level.com" );
+	CHECK ( URL.Domain != "some.second-level.com" );
 	CHECK ( URL.Path == "/path/TomatoJuice/2B66-3D@77-AC7F-EE58" );
-
-	URL = "http://third.second-level.com/path/TomatoJuice/2B66-3D@77-AC7F-EE58";
-	CHECK ( URL.Protocol == "http://" );
-	CHECK ( URL.Domain == "third.second-level.com" );
-	CHECK ( URL.Path == "/path/TomatoJuice/2B66-3D@77-AC7F-EE58" );
+	CHECK ( URL.Path != "/no/TomatoJuice/2B66-3D@77-AC7F-EE58" );
 
 	URL = "level.com/path/TomatoJuice/2B66-3D@77-AC7F-EE58";
 	CHECK ( URL.Protocol == "" );
@@ -1228,4 +1305,28 @@ TEST_CASE ("KURL regression tests")
 	CHECK ( URL.Password == "Jerry" );
 	CHECK ( URL.Domain == "third.second-level.com" );
 	CHECK ( URL.Path == "/path/TomatoJuice/2B66-3D@77-AC7F-EE58" );
+}
+
+TEST_CASE ("KURLPort")
+{
+	{
+		url::KPort port("123");
+		CHECK ( port == 123 );
+	}
+	{
+		url::KPort port(333);
+		CHECK ( port == 333 );
+	}
+	url::KPort port = 123;
+	port = 1234;
+	port = "12345";
+	uint16_t iPort = port;
+	CHECK ( iPort == 12345 );
+	KString sPort = port.Serialize();
+	CHECK ( sPort == "12345" );
+
+	KURL URL = "http://test.com:12345/path/to";
+	CHECK ( URL.Port == 12345 );
+	URL.Port = 54321;
+	CHECK ( URL.Serialize() == "http://test.com:54321/path/to" );
 }

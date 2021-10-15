@@ -41,11 +41,11 @@
 
 #pragma once
 
+#include "kstring.h"
 #include "kstringview.h"
 #include "kwriter.h"
 #include "kreader.h"
 #include "kreplacer.h"
-#include "khttp_header.h"
 
 #ifndef DEKAF2_HAS_CPP_17
 	#include <boost/container/vector.hpp>
@@ -67,56 +67,45 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Construct an empty MIME type (NONE)
-	DEKAF2_CONSTEXPR_20
-	KMIME()
+	KMIME() = default;
 	//-----------------------------------------------------------------------------
-	    : m_mime()
-	{}
 
 	//-----------------------------------------------------------------------------
 	/// Construct a MIME type with an arbitrary type
+	template<typename T,
+			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
 	DEKAF2_CONSTEXPR_20
-	KMIME(KString&& sMIME)
+	KMIME(T&& sMIME)
 	//-----------------------------------------------------------------------------
-	    : m_mime(std::move(sMIME))
+		: m_mime(std::forward<T>(sMIME))
 	{}
 
-	//-----------------------------------------------------------------------------
-	/// Construct a MIME type with an arbitrary type
-	DEKAF2_CONSTEXPR_20
-	KMIME(KStringView sMIME)
-	//-----------------------------------------------------------------------------
-		: m_mime(sMIME)
-	{}
-
-#ifdef _MSC_VER
-	//-----------------------------------------------------------------------------
-	// MSC has issues with conversions from KStringViewZ to KStringView, therefore
-	// we add this constructor
-	/// Construct a MIME type with an arbitrary type
-	DEKAF2_CONSTEXPR_20
-	KMIME(KStringViewZ sMIME)
-	//-----------------------------------------------------------------------------
-		: m_mime(sMIME)
-	{}
-#endif
+	//-------------------------------------------------------------------------
+	template<typename T,
+			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+	KMIME& operator=(T&& sv)
+	//-------------------------------------------------------------------------
+	{
+		m_mime = std::forward<T>(sv);
+		return *this;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Set MIME type according to the extension of sFilename. Use Default if no
 	/// association found.
-	bool ByExtension(KStringView sFilename, KMIME Default = NONE);
+	bool ByExtension(KStringView sFilename, KStringView Default = NONE);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Generate a KMIME instance with the MIME type set according to the extension
 	/// of sFilename. Use Default if no association found.
-	static KMIME CreateByExtension(KStringView sFilename, KMIME Default = NONE);
+	static KMIME CreateByExtension(KStringView sFilename, KStringView Default = NONE);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Set MIME type according to inspection of sFilename. Use Default if no
 	/// association found.
-	bool ByInspection(KStringViewZ sFilename, KMIME Default = NONE);
+	bool ByInspection(KStringViewZ sFilename, KStringView Default = NONE);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -127,7 +116,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Generate a KMIME instance with the MIME type set according to inspection
 	/// of sFilename. Use Default if no association found.
-	static KMIME CreateByInspection(KStringViewZ sFilename, KMIME Default = NONE);
+	static KMIME CreateByInspection(KStringViewZ sFilename, KStringView Default = NONE);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -140,28 +129,21 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// return the const KString& version of the MIME type
+	/// return the KStringView version of the MIME type
+	DEKAF2_CONSTEXPR_20
+	operator KStringView() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_mime;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// return the KStringView version of the MIME type
 	DEKAF2_CONSTEXPR_20
 	operator const KString&() const
 	//-----------------------------------------------------------------------------
 	{
-		return Serialize();
-	}
-
-	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_20
-	bool operator==(const KMIME& other) const
-	//-----------------------------------------------------------------------------
-	{
-		return m_mime == other.m_mime;
-	}
-
-	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_20
-	bool operator!=(const KMIME& other) const
-	//-----------------------------------------------------------------------------
-	{
-		return m_mime != other.m_mime;
+		return m_mime;
 	}
 
 	static constexpr KStringViewZ NONE                   = "";
@@ -246,39 +228,6 @@ private:
 	KString m_mime { NONE };
 
 }; // KMIME
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_20
-bool operator==(KStringView left, const KMIME& right)
-//-----------------------------------------------------------------------------
-{
-	return left.operator==(right);
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_20
-bool operator==(const KMIME& left, KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return right.operator==(left);
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_20
-bool operator!=(KStringView left, const KMIME& right)
-//-----------------------------------------------------------------------------
-{
-	return left.operator!=(right);
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_20
-bool operator!=(const KMIME& left, KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return right.operator!=(left);
-}
-
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

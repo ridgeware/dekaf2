@@ -8,15 +8,39 @@
 
 using namespace dekaf2;
 
+namespace {
+
+#ifndef DEKAF2_HAS_CPP_14
 KString Normalized(KStringView sInput)
 {
 	KString sOut { sInput };
 	sOut.Replace("\r\n", "\n");
 	return sOut;
 }
+#endif
+
+void testMime(const KMIME& mime)
+{
+}
+
+} // end of anonymous namespace
 
 TEST_CASE("KMIME")
 {
+	SECTION("assignment")
+	{
+		KMIME a;
+		a = "abc";
+		a = "abc"_ks;
+		a = "abc"_ksv;
+		a = "abc"_ksz;
+		a = std::string("abc");
+
+		testMime("abc"_ks);
+		testMime("abc"_ksv);
+		testMime("abc"_ksz);
+	}
+
 	SECTION("by extension")
 	{
 		KMIME a;

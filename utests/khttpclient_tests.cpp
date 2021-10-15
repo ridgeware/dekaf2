@@ -134,7 +134,7 @@ TEST_CASE("KHTTPClient") {
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
 
 		KHTTPClient cHTTP;
-		KURL ConnectURL = kFormat("unix://{}", sSocketFile);
+		KURL ConnectURL(kFormat("unix://{}", sSocketFile));
 		cHTTP.Connect(ConnectURL); // the file system path
 		cHTTP.Resource(URL); // the request path (protocol and domain parts are not used)
 		CHECK( cHTTP.Serialize() == true );

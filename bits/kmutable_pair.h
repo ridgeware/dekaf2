@@ -90,7 +90,42 @@ struct KMutablePair
 	bool operator!=(const KMutablePair& other) const
 	//-----------------------------------------------------------------------------
 	{
-		return (other.first != first) || (other.second != second);
+		return !other.operator==(*this);
+	}
+
+	//-----------------------------------------------------------------------------
+	bool operator<(const KMutablePair& other) const
+	//-----------------------------------------------------------------------------
+	{
+		if (first < other.first) return true;
+
+		if (first == other.first)
+		{
+			return second < other.second;
+		}
+
+		return false;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool operator>(const KMutablePair& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return other < *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool operator<=(const KMutablePair& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return !(*this > other);
+	}
+
+	//-----------------------------------------------------------------------------
+	bool operator>=(const KMutablePair& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return !(other < *this);
 	}
 
 	Key           first;

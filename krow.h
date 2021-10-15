@@ -125,20 +125,11 @@ public:
 
 	KCOL () = default;
 
+	explicit
 	KCOL (KString _sValue, Flags iFlags=0, Len iMaxLen=0)
 		: sValue(std::move(_sValue))
 		, m_iMaxLen(iMaxLen)
 		, m_iFlags(iFlags)
-	{
-	}
-
-	KCOL (KStringView _sValue, Flags iFlags=0, Len iMaxLen=0)
-		: KCOL(KString(_sValue), iFlags, iMaxLen)
-	{
-	}
-
-	KCOL (const char* _sValue, Flags iFlags=0, Len iMaxLen=0)
-		: KCOL(KString(_sValue), iFlags, iMaxLen)
 	{
 	}
 

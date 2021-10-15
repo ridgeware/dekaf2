@@ -61,7 +61,7 @@ namespace dekaf2
 /// a KStringView.
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
-/// @param svTrim a string view containing chars to remove from token ends. Defaults to " \f\n\r\t\v\b".
+/// @param svTrim a string view containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
@@ -96,7 +96,7 @@ std::size_t kSplit (
 	{
 		if (DEKAF2_LIKELY(!svTrim.empty()))
 		{
-			// Strip prefix space characters.
+			// Strip prefix trim characters.
 			auto iFound = svBuffer.find_first_not_of (svTrim);
 			if (iFound != KStringView::npos)
 			{
@@ -230,7 +230,7 @@ std::size_t kSplit(
 /// an element from a KStringView.
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
-/// @param svTrim a string view containing chars to remove from token ends. Defaults to " \f\n\r\t\v\b".
+/// @param svTrim a string view containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
@@ -247,7 +247,6 @@ template<typename Container = std::vector<KStringView>,
 	typename std::enable_if<detail::has_key_type<Container>::value == false
 								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == false, int>::type = 0 >
 Container kSplits(
-//-----------------------------------------------------------------------------
 			  KStringView svBuffer,
 			  KStringView svDelim  = ",",                  // default: comma delimiter
 			  KStringView svTrim   = detail::kASCIISpaces, // default: trim all whitespace
@@ -255,6 +254,7 @@ Container kSplits(
 			  bool        bCombineDelimiters = false,      // default: create an element for each delimiter char found
 			  bool        bQuotesAreEscapes  = false       // default: treat double quotes like any other char
 )
+//-----------------------------------------------------------------------------
 {
 	Container ctContainer;
 	kSplit(ctContainer, svBuffer, svDelim, svTrim, chEscape, bCombineDelimiters, bQuotesAreEscapes);
@@ -287,7 +287,7 @@ KStringViewPair kSplitToPairInt(
 /// @return the split key/value pair (KStringViewPair)
 /// @param svBuffer the source char sequence (a string view)
 /// @param svPairDelim a string view that separates key from value. Defaults to "=".
-/// @param svTrim a string containing chars to remove from token ends. Defaults to " \f\n\r\t\v\b".
+/// @param svTrim a string containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 ///
 /// @code
@@ -488,7 +488,7 @@ private:
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
 /// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
-/// @param svTrim a string containing chars to remove from token ends. Defaults to " \f\n\r\t\v\b".
+/// @param svTrim a string containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
@@ -532,7 +532,7 @@ std::size_t kSplit(
 /// @return count of added values.
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
-/// @param svTrim a string containing chars to remove from token ends. Defaults to " \f\n\r\t\v\b".
+/// @param svTrim a string containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
@@ -575,7 +575,7 @@ std::size_t kSplit(
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
 /// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
-/// @param svTrim a string containing chars to remove from token ends. Defaults to " \f\n\r\t\v\b".
+/// @param svTrim a string containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
@@ -599,8 +599,8 @@ Container kSplits(
 			  const char  chEscape = '\0',                 // default: ignore escapes
 			  bool        bCombineDelimiters = false,      // default: create an element for each delimiter char found
 			  bool        bQuotesAreEscapes  = false       // default: treat double quotes like any other char
-//-----------------------------------------------------------------------------
 )
+//-----------------------------------------------------------------------------
 {
 	Container cContainer;
 	kSplit(cContainer, svBuffer, svDelim, svTrim, chEscape, bCombineDelimiters, bQuotesAreEscapes);
@@ -614,7 +614,7 @@ Container kSplits(
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
 /// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
-/// @param svTrim a string containing chars to remove from token ends. Defaults to " \f\n\r\t\v\b".
+/// @param svTrim a string containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
@@ -639,8 +639,8 @@ Container kSplits(
 			  const char  chEscape = '\0',                 // default: ignore escapes
 			  bool        bCombineDelimiters = false,      // default: create an element for each delimiter char found
 			  bool        bQuotesAreEscapes  = false       // default: treat double quotes like any other char
+		)
 //-----------------------------------------------------------------------------
-)
 {
 	Container cContainer;
 	kSplit(cContainer, svBuffer, svPairDelim, svDelim, svTrim, chEscape, bCombineDelimiters, bQuotesAreEscapes);
@@ -656,7 +656,7 @@ Container kSplits(
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
 /// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
-/// @param svTrim a string containing chars to remove from token ends. Defaults to " \f\n\r\t\v\b".
+/// @param svTrim a string containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
@@ -702,7 +702,7 @@ std::size_t kSplit(
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
 /// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
-/// @param svTrim a string containing chars to remove from token ends. Defaults to " \f\n\r\t\v\b".
+/// @param svTrim a string containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
@@ -728,8 +728,8 @@ Container kSplits(
 			  const char  chEscape = '\0',                 // default: ignore escapes
 			  bool        bCombineDelimiters = false,      // default: create an element for each delimiter char found
 			  bool        bQuotesAreEscapes  = false       // default: treat double quotes like any other char
+	)
 //-----------------------------------------------------------------------------
-)
 {
 	Container cContainer;
 	kSplit(cContainer, svBuffer, svPairDelim, svDelim, svTrim, chEscape, bCombineDelimiters, bQuotesAreEscapes);

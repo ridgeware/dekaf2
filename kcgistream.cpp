@@ -45,6 +45,7 @@
 #include "ksystem.h"
 #include "khttp_header.h"
 #include "kctype.h"
+#include <array>
 
 namespace dekaf2 {
 
@@ -263,8 +264,8 @@ void KCGIInStream::Stream::CreateHeader()
 	m_sHeader += "\r\n";
 
 	struct CGIVars_t { KStringViewZ sVar; KHTTPHeader::Header Header; };
-	static constexpr CGIVars_t CGIVars[]
-	{
+	static constexpr std::array<CGIVars_t, 12> CGIVars
+	{{
 		{ KCGIInStream::HTTP_ACCEPT,          KHTTPHeader::ACCEPT          },
 		{ KCGIInStream::HTTP_ACCEPT_ENCODING, KHTTPHeader::ACCEPT_ENCODING },
 		{ KCGIInStream::HTTP_ACCEPT_LANGUAGE, KHTTPHeader::ACCEPT_LANGUAGE },
@@ -277,7 +278,7 @@ void KCGIInStream::Stream::CreateHeader()
 		{ KCGIInStream::CONTENT_TYPE,         KHTTPHeader::CONTENT_TYPE    },
 		{ KCGIInStream::CONTENT_LENGTH,       KHTTPHeader::CONTENT_LENGTH  },
 		{ KCGIInStream::REMOTE_ADDR,          KHTTPHeader::X_FORWARDED_FOR },
-	};
+	}};
 
 	// add headers from env vars
 	for (const auto& it : CGIVars)

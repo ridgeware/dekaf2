@@ -283,10 +283,11 @@ KMail& KMail::AddReplaceVar(KStringView sKey, KStringView sValue)
 } // AddReplaceVar
 
 //-----------------------------------------------------------------------------
-bool KMail::Attach(KStringView sFilename, KMIME MIME)
+bool KMail::Attach(KStringView sFilename, const KMIME& MIME)
 //-----------------------------------------------------------------------------
 {
 	KMIMEPart File(MIME);
+	
 	if (File.File("", sFilename))
 	{
 		Attach(std::move(File));

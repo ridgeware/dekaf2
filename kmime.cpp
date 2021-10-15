@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -54,7 +53,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KMIME::ByExtension(KStringView sFilename, KMIME Default)
+bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 //-----------------------------------------------------------------------------
 {
 
@@ -64,72 +63,72 @@ bool KMIME::ByExtension(KStringView sFilename, KMIME Default)
 	static const std::unordered_map<KStringView, KStringViewZ> s_Extension_Map
 #endif
 	{
-		{ "aac"_ksv,   AAC },
-		{ "mid"_ksv,   MIDI },
-		{ "midi"_ksv,  MIDI },
-		{ "oga"_ksv,   OGA },
-		{ "wav"_ksv,   WAV },
-		{ "weba"_ksv,  WEBA },
+		{ "aac"_ksv  , AAC        },
+		{ "mid"_ksv  , MIDI       },
+		{ "midi"_ksv , MIDI       },
+		{ "oga"_ksv  , OGA        },
+		{ "wav"_ksv  , WAV        },
+		{ "weba"_ksv , WEBA       },
 
-		{ "bin"_ksv,   BINARY },
-		{ "js"_ksv,    JAVASCRIPT },
-		{ "json"_ksv,  JSON },
-		{ "xml"_ksv,   XML },
-		{ "swf"_ksv,   SWF },
-		{ "bz2"_ksv,   BZ2 },
-		{ "csh"_ksv,   CSH },
-		{ "doc"_ksv,   DOC },
-		{ "docx"_ksv,  DOCX },
-		{ "epub"_ksv,  EPUB },
-		{ "jar"_ksv,   JAR },
-		{ "odp"_ksv,   ODP },
-		{ "ods"_ksv,   ODS },
-		{ "odt"_ksv,   ODT },
-		{ "ogx"_ksv,   OGX },
-		{ "pdf"_ksv,   PDF },
-		{ "ppt"_ksv,   PPT },
-		{ "pptx"_ksv,  PPTX },
-		{ "rar"_ksv,   RAR },
-		{ "rtf"_ksv,   RTF },
-		{ "sh"_ksv,    SH },
-		{ "tar"_ksv,   TAR },
-		{ "ts"_ksv,    TS },
-		{ "vsd"_ksv,   VSD },
-		{ "xhtml"_ksv, XHTML },
-		{ "xls"_ksv,   XLS },
-		{ "xlsx"_ksv,  XLSX },
-		{ "zip"_ksv,   ZIP },
-		{ "7z"_ksv,    SEVENZIP },
+		{ "bin"_ksv  , BINARY     },
+		{ "js"_ksv   , JAVASCRIPT },
+		{ "json"_ksv , JSON       },
+		{ "xml"_ksv  , XML        },
+		{ "swf"_ksv  , SWF        },
+		{ "bz2"_ksv  , BZ2        },
+		{ "csh"_ksv  , CSH        },
+		{ "doc"_ksv  , DOC        },
+		{ "docx"_ksv , DOCX       },
+		{ "epub"_ksv , EPUB       },
+		{ "jar"_ksv  , JAR        },
+		{ "odp"_ksv  , ODP        },
+		{ "ods"_ksv  , ODS        },
+		{ "odt"_ksv  , ODT        },
+		{ "ogx"_ksv  , OGX        },
+		{ "pdf"_ksv  , PDF        },
+		{ "ppt"_ksv  , PPT        },
+		{ "pptx"_ksv , PPTX       },
+		{ "rar"_ksv  , RAR        },
+		{ "rtf"_ksv  , RTF        },
+		{ "sh"_ksv   , SH         },
+		{ "tar"_ksv  , TAR        },
+		{ "ts"_ksv   , TS         },
+		{ "vsd"_ksv  , VSD        },
+		{ "xhtml"_ksv, XHTML      },
+		{ "xls"_ksv  , XLS        },
+		{ "xlsx"_ksv , XLSX       },
+		{ "zip"_ksv  , ZIP        },
+		{ "7z"_ksv   , SEVENZIP   },
 
-		{ "eot"_ksv,   EOT },
-		{ "otf"_ksv,   OTF },
-		{ "ttc"_ksv,   TTC },
-		{ "ttf"_ksv,   TTF },
-		{ "woff"_ksv,  WOFF },
-		{ "woff2"_ksv, WOFF2 },
+		{ "eot"_ksv  , EOT        },
+		{ "otf"_ksv  , OTF        },
+		{ "ttc"_ksv  , TTC        },
+		{ "ttf"_ksv  , TTF        },
+		{ "woff"_ksv , WOFF       },
+		{ "woff2"_ksv, WOFF2      },
 
-		{ "jpg"_ksv,   JPEG },
-		{ "jpeg"_ksv,  JPEG },
-		{ "gif"_ksv,   GIF },
-		{ "png"_ksv,   PNG },
-		{ "ico"_ksv,   ICON },
-		{ "svg"_ksv,   SVG },
-		{ "tif"_ksv,   TIFF },
-		{ "tiff"_ksv,  TIFF },
-		{ "webp"_ksv,  WEBP },
+		{ "jpg"_ksv  , JPEG       },
+		{ "jpeg"_ksv , JPEG       },
+		{ "gif"_ksv  , GIF        },
+		{ "png"_ksv  , PNG        },
+		{ "ico"_ksv  , ICON       },
+		{ "svg"_ksv  , SVG        },
+		{ "tif"_ksv  , TIFF       },
+		{ "tiff"_ksv , TIFF       },
+		{ "webp"_ksv , WEBP       },
 
-		{ "txt"_ksv,   TEXT_UTF8 },
-		{ "htm"_ksv,   HTML_UTF8 },
-		{ "html"_ksv,  HTML_UTF8 },
-		{ "css"_ksv,   CSS },
-		{ "csv"_ksv,   CSV },
-		{ "ics"_ksv,   CALENDAR },
-		{ "po"_ksv,    PO },
+		{ "txt"_ksv  , TEXT_UTF8  },
+		{ "htm"_ksv  , HTML_UTF8  },
+		{ "html"_ksv , HTML_UTF8  },
+		{ "css"_ksv  , CSS        },
+		{ "csv"_ksv  , CSV        },
+		{ "ics"_ksv  , CALENDAR   },
+		{ "po"_ksv   , PO         },
 
-		{ "avi"_ksv,   AVI },
-		{ "mpeg"_ksv,  MPEG },
-		{ "ogv"_ksv,   OGV },
-		{ "webm"_ksv,  WEBM },
+		{ "avi"_ksv  , AVI        },
+		{ "mpeg"_ksv , MPEG       },
+		{ "ogv"_ksv  , OGV        },
+		{ "webm"_ksv , WEBM       },
 	};
 
 #ifdef DEKAF2_HAS_FROZEN
@@ -164,7 +163,7 @@ bool KMIME::ByExtension(KStringView sFilename, KMIME Default)
 } // ByExtension
 
 //-----------------------------------------------------------------------------
-KMIME KMIME::CreateByExtension(KStringView sFilename, KMIME Default)
+KMIME KMIME::CreateByExtension(KStringView sFilename, KStringView Default)
 //-----------------------------------------------------------------------------
 {
 	KMIME mime;
@@ -174,7 +173,7 @@ KMIME KMIME::CreateByExtension(KStringView sFilename, KMIME Default)
 } // CreateByExtension
 
 //-----------------------------------------------------------------------------
-bool KMIME::ByInspection(KStringViewZ sFilename, KMIME Default)
+bool KMIME::ByInspection(KStringViewZ sFilename, KStringView Default)
 //-----------------------------------------------------------------------------
 {
 #ifndef DEKAF2_IS_WINDOWS
@@ -209,7 +208,7 @@ bool KMIME::ByInspection(KStringViewZ sFilename, KMIME Default)
 } // ByInspection
 
 //-----------------------------------------------------------------------------
-KMIME KMIME::CreateByInspection(KStringViewZ sFilename, KMIME Default)
+KMIME KMIME::CreateByInspection(KStringViewZ sFilename, KStringView Default)
 //-----------------------------------------------------------------------------
 {
 	KMIME mime;
@@ -257,7 +256,7 @@ bool KMIME::IsCompressible()
 //-----------------------------------------------------------------------------
 KMIMEPart::KMIMEPart(KMIME MIME)
 //-----------------------------------------------------------------------------
-: m_MIME(MIME)
+: m_MIME(std::move(MIME))
 {
 	CreateMultiPartBoundary();
 }
@@ -265,7 +264,7 @@ KMIMEPart::KMIMEPart(KMIME MIME)
 //-----------------------------------------------------------------------------
 KMIMEPart::KMIMEPart(KString sMessage, KMIME MIME)
 //-----------------------------------------------------------------------------
-: m_MIME(MIME), m_Data(std::move(sMessage))
+: m_MIME(std::move(MIME)), m_Data(std::move(sMessage))
 {
 	CreateMultiPartBoundary();
 }
@@ -273,7 +272,7 @@ KMIMEPart::KMIMEPart(KString sMessage, KMIME MIME)
 //-----------------------------------------------------------------------------
 KMIMEPart::KMIMEPart(KString sControlName, KString sValue, KMIME MIME)
 //-----------------------------------------------------------------------------
-: m_MIME(MIME)
+: m_MIME(std::move(MIME))
 , m_Data(std::move(sValue))
 , m_sControlName(std::move(sControlName))
 {
@@ -301,7 +300,7 @@ bool KMIMEPart::CreateMultiPartBoundary() const
 bool KMIMEPart::IsMultiPart() const
 //-----------------------------------------------------------------------------
 {
-	return KStringView(m_MIME).starts_with("multipart/");
+	return m_MIME.Serialize().starts_with("multipart/");
 
 } // IsMultiPart
 
@@ -309,7 +308,7 @@ bool KMIMEPart::IsMultiPart() const
 bool KMIMEPart::IsBinary() const
 //-----------------------------------------------------------------------------
 {
-	return !KStringView(m_MIME).starts_with("text/");
+	return !m_MIME.Serialize().starts_with("text/");
 
 } // IsBinary
 
@@ -317,7 +316,7 @@ bool KMIMEPart::IsBinary() const
 KMIME KMIMEPart::ContentType() const
 //-----------------------------------------------------------------------------
 {
-	KString sContentType = m_MIME;
+	KString sContentType = m_MIME.Serialize();
 
 	if (CreateMultiPartBoundary())
 	{
@@ -583,7 +582,7 @@ bool KMIMEPart::File(KStringView sControlName, KStringView sFilename, KStringVie
 //-----------------------------------------------------------------------------
 KMIMEFile::KMIMEFile(KStringView sControlName, KStringView sData, KStringView sDispname, KMIME MIME)
 //-----------------------------------------------------------------------------
-: KMIMEPart(MIME)
+: KMIMEPart(std::move(MIME))
 {
 	m_Data = sData;
 	m_sControlName = sControlName;
@@ -592,10 +591,6 @@ KMIMEFile::KMIMEFile(KStringView sControlName, KStringView sData, KStringView sD
 	if (MIME == KMIME::NONE)
 	{
 		m_MIME.ByExtension(sDispname, KMIME::BINARY);
-	}
-	else
-	{
-		m_MIME = MIME;
 	}
 
 } // ctor

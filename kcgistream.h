@@ -46,6 +46,7 @@
 
 #include "kstring.h"
 #include "kstreambuf.h"
+#include "khttp_header.h"
 #include <vector>
 
 namespace dekaf2
@@ -85,10 +86,28 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Add custom translations from a CGI var to a HTTP header. Has to be set before
+	/// any read from the stream.
+	void AddCGIVar(KString sCGIVar, const KHTTPHeader& HTTPHeader)
+	//-----------------------------------------------------------------------------
+	{
+		AddCGIVar(std::move(sCGIVar), KString(HTTPHeader.Serialize()));
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Converts a HTTP header name into a CGI var name, like "Accept-Encoding" ->
 	/// "HTTP_ACCEPT_ENCODING"
 	static KString ConvertHTTPHeaderNameToCGIVar(KStringView sHeadername);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Converts a HTTP header name into a CGI var name, like "Accept-Encoding" ->
+	/// "HTTP_ACCEPT_ENCODING"
+	static KString ConvertHTTPHeaderNameToCGIVar(KHTTPHeader Headername)
+	//-----------------------------------------------------------------------------
+	{
+		return ConvertHTTPHeaderNameToCGIVar(Headername.Serialize());
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Converts a CGI var name into a HTTP header name, like "HTTP_ACCEPT_ENCODING"

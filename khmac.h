@@ -122,7 +122,7 @@ public:
 	/// returns the HMAC
 	const KString& HMAC() const;
 	/// returns the HMAC
-	operator const KString&() const
+	operator KStringView() const
 	{
 		return HMAC();
 	}

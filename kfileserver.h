@@ -108,7 +108,7 @@ public:
 	std::unique_ptr<KOutStream> GetStreamForWriting();
 
 	/// Returns the mime type of the resource. May throw if file not found.
-	KMIME GetMIMEType(bool bInspect);
+	const KMIME& GetMIMEType(bool bInspect);
 
 	/// Clears all state (included by Open())
 	void clear();

@@ -191,7 +191,7 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 
 	int  iKLogLevel { 0 };
 
-	auto it = Request.Headers.find(Options.sKLogHeader);
+	auto it = Request.Headers.find(Options.KLogHeader);
 
 	if (it != Request.Headers.end())
 	{
@@ -375,7 +375,7 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 		else
 		{
 #ifdef DEKAF2_KLOG_WITH_TCP
-			KLog::getInstance().LogThisThreadToResponseHeaders(iKLogLevel, Response, Options.sKLogHeader);
+			KLog::getInstance().LogThisThreadToResponseHeaders(iKLogLevel, Response, Options.KLogHeader.Serialize());
 			kDebug(3, "per-thread {} logging, level {}", "response header", iKLogLevel);
 			if (bHelp)
 			{
@@ -543,7 +543,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			if (m_iRound == 0)
 			{
 				// check if we have to start the timers
-				if (!Options.sTimerHeader.empty() || Options.TimingCallback)
+				if (!Options.TimerHeader.empty() || Options.TimingCallback)
 				{
 					m_Timers = std::make_unique<KStopDurations>();
 					m_Timers->reserve(Timer::SEND + 1);
@@ -653,7 +653,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			// switch logging only after authorization (but not for OPTIONS, as it is
 			// not authenticated..)
-			if (!Options.sKLogHeader.empty() && Request.Method != KHTTPMethod::OPTIONS)
+			if (!Options.KLogHeader.empty() && Request.Method != KHTTPMethod::OPTIONS)
 			{
 				if (VerifyPerThreadKLogToHeader(Options) > 1)
 				{
@@ -869,12 +869,12 @@ void KRESTServer::Output(const Options& Options)
 					}
 				}
 
-				if (m_JsonLogger && !m_JsonLogger->empty() && !Options.sKLogHeader.empty())
+				if (m_JsonLogger && !m_JsonLogger->empty() && !Options.KLogHeader.empty())
 				{
 					if ((!json.tx.empty() || Route->Parser == KRESTRoute::JSON)
 						&& json.tx.is_object())
 					{
-						json.tx[Options.sKLogHeader] = std::move(*m_JsonLogger);
+						json.tx[Options.KLogHeader.Serialize()] = std::move(*m_JsonLogger);
 					}
 					else
 					{
@@ -919,7 +919,7 @@ void KRESTServer::Output(const Options& Options)
 				m_iContentLength = sContent.length();
 			}
 
-			if (!Options.sKLogHeader.empty())
+			if (!Options.KLogHeader.empty())
 			{
 				// finally switch logging off if enabled
 				KLog::getInstance().LogThisThreadToKLog(-1);
@@ -934,16 +934,16 @@ void KRESTServer::Output(const Options& Options)
 			{
 				m_Timers->StoreInterval(Timer::SERIALIZE);
 
-				if (!Options.sTimerHeader.empty())
+				if (!Options.TimerHeader.empty())
 				{
 					// add a custom header that marks execution time for this request
 					if (Options.bMicrosecondTimerHeader)
 					{
-						Response.Headers.Set (Options.sTimerHeader, KString::to_string(m_Timers->microseconds()));
+						Response.Headers.Set (Options.TimerHeader, KString::to_string(m_Timers->microseconds()));
 					}
 					else
 					{
-						Response.Headers.Set (Options.sTimerHeader, KString::to_string(m_Timers->milliseconds()));
+						Response.Headers.Set (Options.TimerHeader, KString::to_string(m_Timers->milliseconds()));
 					}
 				}
 			}
@@ -1058,7 +1058,7 @@ void KRESTServer::Output(const Options& Options)
 				}
 			}
 
-			if (!Options.sKLogHeader.empty())
+			if (!Options.KLogHeader.empty())
 			{
 				// finally switch logging off if enabled
 				KLog::getInstance().LogThisThreadToKLog(-1);
@@ -1121,7 +1121,7 @@ void KRESTServer::Output(const Options& Options)
 
 			m_iContentLength = Counter.Count();
 
-			if (!Options.sKLogHeader.empty())
+			if (!Options.KLogHeader.empty())
 			{
 				// finally switch logging off if enabled
 				KLog::getInstance().LogThisThreadToKLog(-1);
@@ -1194,7 +1194,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 	KJSON EmptyJSON;
 
-	if (!Options.sKLogHeader.empty())
+	if (!Options.KLogHeader.empty())
 	{
 		// finally switch logging off if enabled
 		KLog::getInstance().LogThisThreadToKLog(-1);
@@ -1264,10 +1264,10 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 			{
 				m_Timers->StoreInterval(Timer::SERIALIZE);
 
-				if (!Options.sTimerHeader.empty())
+				if (!Options.TimerHeader.empty())
 				{
 					// add a custom header that marks execution time for this request
-					Response.Headers.Add (Options.sTimerHeader, KString::to_string(m_Timers->milliseconds()));
+					Response.Headers.Add (Options.TimerHeader, KString::to_string(m_Timers->milliseconds()));
 				}
 			}
 

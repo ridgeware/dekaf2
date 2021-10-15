@@ -126,7 +126,7 @@ public:
 		/// Fixed route prefix
 		KString sBaseRoute;
 		/// If non-empty creates a header with the given name and the milliseconds needed for execution
-		KString sTimerHeader;
+		KHTTPHeader TimerHeader;
 		/// File to record requests into - filename may not change during execution
 		KString sRecordFile;
 		/// Fixed additional headers
@@ -136,7 +136,7 @@ public:
 		/// If non-empty, check that SSO token authorizes one of the given scopes (comma separated list)
 		KString sAuthScope;
 		/// Allow KLog profiling triggered by a KLOG header?
-		KString sKLogHeader;
+		KHTTPHeader KLogHeader;
 		/// Server name for this instance, will be used in diagnostic output
 		KString sServername;
 		/// Set a callback function that will receive references to this instance and the TimeKeepers

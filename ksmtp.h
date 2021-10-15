@@ -64,6 +64,7 @@ class KSMTP
 //----------
 public:
 //----------
+
 	/// Ctor - connects to mail relay. Relay may contain a user's name and pass, or
 	/// they can be set explicitly with sUsername / sPassword, which will override
 	/// anything in the URL.

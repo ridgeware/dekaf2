@@ -66,13 +66,13 @@ namespace detail {
 // KProps
 // For some of the class methods we need specializations
 template<
-        class Storage,
-        URIPart Component,
-        const char StartToken,
-        bool RemoveStartSeparator,
-        bool RemoveEndSeparator,
-        bool IsString
-        >
+	class Storage,
+	URIPart Component,
+	const char StartToken,
+	bool RemoveStartSeparator,
+	bool RemoveEndSeparator,
+	bool IsString
+>
 class URIComponent
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -82,8 +82,6 @@ public:
 //------
 
 	using self_type      = URIComponent<Storage, Component, StartToken, RemoveStartSeparator, RemoveEndSeparator, IsString>;
-	using iterator       = typename Storage::iterator;
-	using const_iterator = typename Storage::const_iterator;
 
 	//-------------------------------------------------------------------------
 	/// constructs empty instance.
@@ -96,6 +94,16 @@ public:
 	//-------------------------------------------------------------------------
 	{
 		Parse (svSource);
+	}
+
+	//-------------------------------------------------------------------------
+	template<typename T, typename U = typename Storage::value_type,
+	         typename std::enable_if<std::is_pod<U>::value == true &&
+	                                 std::is_convertible<T, U>::value == true, int>::type = 0>
+	URIComponent (const T& t)
+	//-------------------------------------------------------------------------
+	{
+		get() = t;
 	}
 
 	//-------------------------------------------------------------------------
@@ -432,6 +440,15 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// operator KStringView () returns the decoded string
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	operator typename Storage::value_type () const
+	//-------------------------------------------------------------------------
+	{
+		return get();
+	}
+
+	//-------------------------------------------------------------------------
 	/// return percent-encoded content
 	KString Encoded() const
 	//-------------------------------------------------------------------------
@@ -452,7 +469,8 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return begin iterator
-	iterator begin()
+	template<typename T = typename Storage::value_type, typename std::enable_if<std::is_pod<T>::value == false, int>::type = 0 >
+	auto begin()
 	//-------------------------------------------------------------------------
 	{
 		return get().begin();
@@ -460,7 +478,8 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return begin iterator
-	const_iterator begin() const
+	template<typename T = typename Storage::value_type, typename std::enable_if<std::is_pod<T>::value == false, int>::type = 0 >
+	auto begin() const
 	//-------------------------------------------------------------------------
 	{
 		return get().begin();
@@ -468,7 +487,8 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return end iterator
-	iterator end()
+	template<typename T = typename Storage::value_type, typename std::enable_if<std::is_pod<T>::value == false, int>::type = 0 >
+	auto end()
 	//-------------------------------------------------------------------------
 	{
 		return get().end();
@@ -476,7 +496,8 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return end iterator
-	const_iterator end() const
+	template<typename T = typename Storage::value_type, typename std::enable_if<std::is_pod<T>::value == false, int>::type = 0 >
+	auto end() const
 	//-------------------------------------------------------------------------
 	{
 		return get().end();
@@ -484,8 +505,8 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return percent-decoded content (for string parts)
-	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
-	const typename Storage::value_type& Decoded() const
+	template<typename T = Storage, bool X = IsString, typename std::enable_if<X, int>::type = 0 >
+	const typename T::value_type& Decoded() const
 	//-------------------------------------------------------------------------
 	{
 		return get();
@@ -544,6 +565,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	friend bool operator==(const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
@@ -551,6 +573,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	friend bool operator!=(const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
@@ -568,7 +591,7 @@ public:
 	friend bool operator> (const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
-		return operator<(right, left);
+		return left.m_sStorage > right.m_sStorage;
 	}
 
 //------
@@ -578,12 +601,23 @@ private:
 	Storage m_sStorage;
 	mutable bool m_bHadStartSeparator { false };
 
-};
+}; // URIComponent
+
+/*
+template<
+	class Storage,
+	URIPart Component,
+	const char StartToken,
+	bool RemoveStartSeparator,
+	bool RemoveEndSeparator,
+	bool IsString
+ >
+*/
 
 extern template class URIComponent<URLEncodedString, URIPart::User,     '\0', false, true,  true >;
 extern template class URIComponent<URLEncodedString, URIPart::Password, '\0', false, true,  true >;
 extern template class URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false, true >;
-extern template class URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false, true >;
+extern template class URIComponent<URLEncodedUInt,   URIPart::Port,     ':',  true,  false, false>;
 extern template class URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false, true >;
 extern template class URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false, false>;
 extern template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false, true >;
@@ -593,7 +627,7 @@ extern template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  tr
 using KUser     = detail::URIComponent<URLEncodedString, URIPart::User,     '\0', false, true,  true >;
 using KPassword = detail::URIComponent<URLEncodedString, URIPart::Password, '\0', false, true,  true >;
 using KDomain   = detail::URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false, true >;
-using KPort     = detail::URIComponent<URLEncodedString, URIPart::Port,     ':',  true,  false, true >;
+using KPort     = detail::URIComponent<URLEncodedUInt,   URIPart::Port,     ':',  true,  false, false>;
 using KPath     = detail::URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false, true >;
 using KQuery    = detail::URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false, false>;
 using KFragment = detail::URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false, true >;
@@ -653,6 +687,22 @@ public:
 	//-------------------------------------------------------------------------
 	{
 		Parse (svSource, true);
+	}
+
+	//-------------------------------------------------------------------------
+	/// constructs instance and parses source into members
+	KProtocol (const KString& sSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sSource, true);
+	}
+
+	//-------------------------------------------------------------------------
+	/// constructs instance and parses source into members
+	KProtocol (const char* sSource)
+	//-------------------------------------------------------------------------
+	{
+		Parse (sSource, true);
 	}
 
 	//-------------------------------------------------------------------------
@@ -720,7 +770,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// operator KString returns the decoded string
+	/// operator KStringView returns the decoded string
 	operator KStringView() const
 	//-------------------------------------------------------------------------
 	{
@@ -758,28 +808,6 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// operator=(KStringView) parses the argument
-	KProtocol& operator=(KStringView sv)
-	//-------------------------------------------------------------------------
-	{
-		set(sv);
-		return *this;
-	}
-	//-------------------------------------------------------------------------
-	bool operator== (eProto iProto) const
-	//-------------------------------------------------------------------------
-	{
-		return iProto == m_eProto;
-	}
-
-	//-------------------------------------------------------------------------
-	bool operator!= (eProto iProto) const
-	//-------------------------------------------------------------------------
-	{
-		return !operator== (iProto);
-	}
-
-	//-------------------------------------------------------------------------
 	/// compares other instance with this
 	friend bool operator== (const KProtocol& left, const KProtocol& right)
 	//-------------------------------------------------------------------------
@@ -799,15 +827,47 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// compares other instance with this
-	//-------------------------------------------------------------------------
 	friend bool operator!= (const KProtocol& left, const KProtocol& right)
+	//-------------------------------------------------------------------------
 	{
 		return !(left == right);
 	}
 
 	//-------------------------------------------------------------------------
-	/// Predicate: Are there contents?
-	inline bool empty () const
+	bool operator<(const KProtocol& other) const
+	//-------------------------------------------------------------------------
+	{
+		if (DEKAF2_UNLIKELY(m_eProto == UNKNOWN))
+		{
+			return m_sProto < other.m_sProto;
+		}
+
+		return m_eProto < other.m_eProto;
+	}
+
+	//-------------------------------------------------------------------------
+	bool operator>(const KProtocol& other) const
+	//-------------------------------------------------------------------------
+	{
+		return other.operator<(*this);
+	}
+
+	//-------------------------------------------------------------------------
+	bool operator<=(const KProtocol& other) const
+	//-------------------------------------------------------------------------
+	{
+		return !operator>(other);
+	}
+
+	//-------------------------------------------------------------------------
+	bool operator>=(const KProtocol& other) const
+	//-------------------------------------------------------------------------
+	{
+		return !operator<(other);
+	}
+	//-------------------------------------------------------------------------
+	/// returns true if protocol was set/parsed
+	bool empty () const
 	//-------------------------------------------------------------------------
 	{
 		return (m_eProto == UNDEFINED);
@@ -817,49 +877,16 @@ public:
 	uint16_t DefaultPort() const;
 	//-------------------------------------------------------------------------
 
-
 //------
 private:
 //------
 
 	void SetProto(KStringView svProto);
 
-	KString m_sProto {};
-	eProto  m_eProto {UNDEFINED};
+	KString m_sProto;
+	eProto  m_eProto { UNDEFINED };
 
-};
-
-// we add these operator==(const char*) to get the same behavior for all
-// types in the url:: namespace. To compare with KStringView or KString
-// an explicit conversion has to be requested to avoid ambiguities.
-
-//-----------------------------------------------------------------------------
-inline bool operator==(const KProtocol& left, const char* right)
-//-----------------------------------------------------------------------------
-{
-	return KStringView(left) == KStringView(right);
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator==(const char* left, const KProtocol& right)
-//-----------------------------------------------------------------------------
-{
-	return KStringView(left) == KStringView(right);
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator!=(const KProtocol& left, const char* right)
-//-----------------------------------------------------------------------------
-{
-	return KStringView(left) != KStringView(right);
-}
-
-//-----------------------------------------------------------------------------
-inline bool operator!=(const char* left, const KProtocol& right)
-//-----------------------------------------------------------------------------
-{
-	return KStringView(left) != KStringView(right);
-}
+}; // KProtocol
 
 } // end of namespace url
 
@@ -889,29 +916,27 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	KResource(KStringView sv)
+	template<typename T,
+			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+	KResource(const T& sv)
 	//-------------------------------------------------------------------------
 	{
 		Parse(sv);
 	}
 
 	//-------------------------------------------------------------------------
-	KResource(const KString& str)
-	//-------------------------------------------------------------------------
-	{
-		Parse(str);
-	}
-
-	//-------------------------------------------------------------------------
-	KResource(const char* sp)
-	//-------------------------------------------------------------------------
-	{
-		Parse(sp);
-	}
-
-	//-------------------------------------------------------------------------
 	KResource(const KURL& url);
 	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	template<typename T,
+			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+	KResource& operator=(const T& sv)
+	//-------------------------------------------------------------------------
+	{
+		Parse(sv);
+		return *this;
+	}
 
 	//-------------------------------------------------------------------------
 	KStringView Parse(KStringView svSource);
@@ -983,6 +1008,32 @@ public:
 		return !operator==(left, right);
 	}
 
+	//-------------------------------------------------------------------------
+	bool operator<(const KResource& other) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	bool operator>(const KResource& other) const
+	//-------------------------------------------------------------------------
+	{
+		return other.operator<(*this);
+	}
+
+	//-------------------------------------------------------------------------
+	bool operator<=(const KResource& other) const
+	//-------------------------------------------------------------------------
+	{
+		return !operator>(other);
+	}
+
+	//-------------------------------------------------------------------------
+	bool operator>=(const KResource& other) const
+	//-------------------------------------------------------------------------
+	{
+		return !operator<(other);
+	}
+
+
 	url::KPath      Path;
 	url::KQuery     Query;
 
@@ -1011,24 +1062,12 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	KURL(KStringView sv)
+	template<typename T,
+			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+	KURL(const T& sv)
 	//-------------------------------------------------------------------------
 	{
 		Parse(sv);
-	}
-
-	//-------------------------------------------------------------------------
-	KURL(const KString& str)
-	//-------------------------------------------------------------------------
-	{
-		Parse(str);
-	}
-
-	//-------------------------------------------------------------------------
-	KURL(const char* sp)
-	//-------------------------------------------------------------------------
-	{
-		Parse(sp);
 	}
 
 	//-------------------------------------------------------------------------
@@ -1036,6 +1075,16 @@ public:
 	//-------------------------------------------------------------------------
 		: KResource(std::move(Resource))
 	{
+	}
+
+	//-------------------------------------------------------------------------
+	template<typename T,
+			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+	KURL& operator=(const T& sv)
+	//-------------------------------------------------------------------------
+	{
+		Parse(sv);
+		return *this;
 	}
 
 	//-------------------------------------------------------------------------
@@ -1139,6 +1188,31 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	bool operator<(const KURL& other) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	bool operator>(const KURL& other) const
+	//-------------------------------------------------------------------------
+	{
+		return other.operator<(*this);
+	}
+
+	//-------------------------------------------------------------------------
+	bool operator<=(const KURL& other) const
+	//-------------------------------------------------------------------------
+	{
+		return !operator>(other);
+	}
+
+	//-------------------------------------------------------------------------
+	bool operator>=(const KURL& other) const
+	//-------------------------------------------------------------------------
+	{
+		return !operator<(other);
+	}
+
+	//-------------------------------------------------------------------------
 	KString GetBaseDomain() const
 	//-------------------------------------------------------------------------
 	{
@@ -1170,24 +1244,12 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	KTCPEndPoint(KStringView sv)
+	template<typename T,
+			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+	KTCPEndPoint(const T& sv)
 	//-------------------------------------------------------------------------
 	{
 		Parse(sv);
-	}
-
-	//-------------------------------------------------------------------------
-	KTCPEndPoint(const KString& str)
-	//-------------------------------------------------------------------------
-	{
-		Parse(str);
-	}
-
-	//-------------------------------------------------------------------------
-	KTCPEndPoint(const char* sp)
-	//-------------------------------------------------------------------------
-	{
-		Parse(sp);
 	}
 
 	//-------------------------------------------------------------------------
@@ -1207,6 +1269,16 @@ public:
 	    : Domain(sDomain)
 		, Port(KString::to_string(iPort))
 	{}
+
+	//-------------------------------------------------------------------------
+	template<typename T,
+			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+	KTCPEndPoint& operator=(const T& sv)
+	//-------------------------------------------------------------------------
+	{
+		Parse(sv);
+		return *this;
+	}
 
 	//-------------------------------------------------------------------------
 	KStringView Parse(KStringView svSource);
@@ -1262,6 +1334,31 @@ public:
 		return !operator==(left, right);
 	}
 
+	//-------------------------------------------------------------------------
+	bool operator<(const KTCPEndPoint& other) const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	bool operator>(const KTCPEndPoint& other) const
+	//-------------------------------------------------------------------------
+	{
+		return other.operator<(*this);
+	}
+
+	//-------------------------------------------------------------------------
+	bool operator<=(const KTCPEndPoint& other) const
+	//-------------------------------------------------------------------------
+	{
+		return !operator>(other);
+	}
+
+	//-------------------------------------------------------------------------
+	bool operator>=(const KTCPEndPoint& other) const
+	//-------------------------------------------------------------------------
+	{
+		return !operator<(other);
+	}
+	
 	url::KDomain    Domain;
 	url::KPort      Port;
 

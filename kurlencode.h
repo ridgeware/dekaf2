@@ -304,7 +304,12 @@ void kUrlEncode (KStringView sSource, String& sTarget, URIPart encoding)
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<typename Decoded, const char chPairSep = '\0', const char chKeyValSep = '\0'>
+template<
+	typename Decoded,
+	const char chPairSep = '\0',
+	const char chKeyValSep = '\0',
+	bool bIsPod = std::is_pod<Decoded>::value
+>
 class KURLEncoded
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -315,8 +320,6 @@ public:
 
 	using self_type      = KURLEncoded<Decoded, chPairSep, chKeyValSep>;
 	using value_type     = Decoded;
-	using iterator       = typename Decoded::iterator;
-	using const_iterator = typename Decoded::const_iterator;
 
 	//-------------------------------------------------------------------------
 	KURLEncoded() = default;
@@ -345,8 +348,17 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	// the non-Key-Value encoding
-	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	// the non-Key-Value POD encoding
+	template<const char X = chPairSep, bool P = bIsPod, typename std::enable_if<X == '\0' && P == true, int>::type = 0>
+	void Serialize(KString& sEncoded, URIPart Component) const
+	//-------------------------------------------------------------------------
+	{
+		sEncoded += kIntToString(m_sDecoded);
+	}
+
+	//-------------------------------------------------------------------------
+	// the non-Key-Value non-POD encoding
+	template<const char X = chPairSep, bool P = bIsPod, typename std::enable_if<X == '\0' && P == false, int>::type = 0>
 	void Serialize(KString& sEncoded, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
@@ -396,7 +408,15 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
+	template<const char X = chPairSep, bool P = bIsPod, typename std::enable_if<X == '\0' && P == true, int>::type = 0>
+	void Parse(KStringView sv, URIPart Component)
+	//-------------------------------------------------------------------------
+	{
+		m_sDecoded = sv.Int64();
+	}
+
+	//-------------------------------------------------------------------------
+	template<const char X = chPairSep, bool P = bIsPod, typename std::enable_if<X == '\0' && P == false, int>::type = 0>
 	void Parse(KStringView sv, URIPart Component)
 	//-------------------------------------------------------------------------
 	{
@@ -449,28 +469,32 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	iterator begin()
+	 template<bool X = bIsPod, typename std::enable_if<!X, int>::type = 0 >
+	 auto begin()
 	//-------------------------------------------------------------------------
 	{
 		return m_sDecoded.begin();
 	}
 
 	//-------------------------------------------------------------------------
-	iterator end()
+	template<bool X = bIsPod, typename std::enable_if<!X, int>::type = 0 >
+	auto end()
 	//-------------------------------------------------------------------------
 	{
 		return m_sDecoded.end();
 	}
 
 	//-------------------------------------------------------------------------
-	const_iterator begin() const
+	template<bool X = bIsPod, typename std::enable_if<!X, int>::type = 0 >
+	auto begin() const
 	//-------------------------------------------------------------------------
 	{
 		return m_sDecoded.begin();
 	}
 
 	//-------------------------------------------------------------------------
-	const_iterator end() const
+	template<bool X = bIsPod, typename std::enable_if<!X, int>::type = 0 >
+	auto end() const
 	//-------------------------------------------------------------------------
 	{
 		return m_sDecoded.end();
@@ -485,6 +509,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	template<bool X = bIsPod, typename std::enable_if<X == false, int>::type = 0>
 	bool empty() const
 	//-------------------------------------------------------------------------
 	{
@@ -492,10 +517,27 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	template<bool X = bIsPod, typename std::enable_if<X == true, int>::type = 0>
+	bool empty() const
+	//-------------------------------------------------------------------------
+	{
+		return m_sDecoded == Decoded{};
+	}
+
+	//-------------------------------------------------------------------------
+	template<bool X = bIsPod, typename std::enable_if<X == false, int>::type = 0>
 	void clear()
 	//-------------------------------------------------------------------------
 	{
 		m_sDecoded.clear ();
+	}
+
+	//-------------------------------------------------------------------------
+	template<bool X = bIsPod, typename std::enable_if<X == true, int>::type = 0>
+	void clear()
+	//-------------------------------------------------------------------------
+	{
+		m_sDecoded = Decoded{};
 	}
 
 	//-------------------------------------------------------------------------
@@ -522,19 +564,10 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	friend bool operator< (const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
 		return left.get() < right.get();
-	}
-
-	//-------------------------------------------------------------------------
-	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	friend bool operator< (const self_type& left, const self_type& right)
-	//-------------------------------------------------------------------------
-	{
-		return left.Serialize(URIPart::Path) < right.Serialize(URIPart::Path);
 	}
 
 	//-------------------------------------------------------------------------
@@ -543,8 +576,6 @@ public:
 	{
 		return operator<(right, left);
 	}
-
-	// we do not have an operator< for the KProps variant
 
 //------
 protected:
@@ -560,10 +591,12 @@ extern template void kUrlDecode(KStringView sSource, KString& sTarget, bool bPlu
 extern template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);
 extern template void kUrlEncode (KStringView sSource, KString& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
 
+extern template class KURLEncoded<uint16_t>;
 extern template class KURLEncoded<KString>;
 extern template class KURLEncoded<KProps<KString, KString, true, false>, '&', '='>;
 #endif // of _MSC_VER
 
+using URLEncodedUInt   = KURLEncoded<uint16_t>;
 using URLEncodedString = KURLEncoded<KString>;
 using URLEncodedQuery  = KURLEncoded<KProps<KString, KString, /*Sequential=*/true, /*Unique=*/false>, '&', '='>;
 

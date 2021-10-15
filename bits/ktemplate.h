@@ -102,6 +102,15 @@ struct is_set_type
 	  !has_mapped_type<T>::value
 > {};
 
+// primary template handles types that have no json_pointer member type:
+template< class, class = std::void_t<> >
+struct is_json_type : std::false_type { };
+
+// specialization recognizes types that do have a json_pointer member type and
+// therefore most likely are our JSON type:
+template< class T >
+struct is_json_type<T, std::void_t<typename T::json_pointer>> : std::true_type { };
+
 template <typename Container>
 struct is_std_array : std::false_type { };
 

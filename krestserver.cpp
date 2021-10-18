@@ -508,6 +508,8 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 {
 	// provide a pointer to the current set of routes
 	this->Routes = &Routes;
+	// and options
+	this->pOptions = &Options;
 
 	try
 	{
@@ -723,7 +725,8 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			// of keep-alive rounds, as this blocks one thread of
 			// execution and could lead to a DoS if an attacker would
 			// hold as many connections as we have simultaneous threads.
-			m_bKeepAlive = (Options.Out == HTTP)
+			m_bKeepAlive = !m_bIsStreaming
+						&& (Options.Out == HTTP)
 						&& (m_iRound+1 < Options.iMaxKeepaliveRounds)
 						&& Request.HasKeepAlive();
 
@@ -819,9 +822,109 @@ bool KRESTServer::SetFileToOutput(KStringViewZ sFile)
 } // SetFileToOutput
 
 //-----------------------------------------------------------------------------
+void KRESTServer::WriteHeaders(const Options& Options)
+//-----------------------------------------------------------------------------
+{
+	if (!Options.KLogHeader.empty())
+	{
+		// finally switch logging off if enabled
+		KLog::getInstance().LogThisThreadToKLog(-1);
+	}
+
+	if (m_iContentLength != npos)
+	{
+		Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(m_iContentLength));
+	}
+
+	if (m_Timers)
+	{
+		m_Timers->StoreInterval(Timer::SERIALIZE);
+
+		if (!Options.TimerHeader.empty())
+		{
+			// add a custom header that marks execution time for this request
+			if (Options.bMicrosecondTimerHeader)
+			{
+				Response.Headers.Set (Options.TimerHeader, KString::to_string(m_Timers->microseconds()));
+			}
+			else
+			{
+				Response.Headers.Set (Options.TimerHeader, KString::to_string(m_Timers->milliseconds()));
+			}
+		}
+	}
+
+	Response.Headers.Set (KHTTPHeader::CONNECTION, m_bKeepAlive ? "keep-alive" : "close");
+
+	{
+		// the headers get written directly to the unfiltered stream,
+		// therefore we have to count them outside of the filter pipeline
+		KCountingOutputStreamBuf OutputCounter(Response.UnfilteredStream());
+
+		// writes response headers to output
+		Serialize();
+
+		m_iTXBytes = OutputCounter.Count();
+
+		// with the next write now the filter pipeline gets kicked off,
+		// and the unfiltered stream is only a copy of the real
+		// stream used for output, therefore its streambuf is no
+		// more updated by writes and can no more be used for counting,
+		// so we detach proactively
+	}
+
+} // WriteHeaders
+
+//-----------------------------------------------------------------------------
+void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders)
+//-----------------------------------------------------------------------------
+{
+	if (m_bIsStreaming)
+	{
+		return;
+	}
+
+	ThrowIfDisconnected();
+
+	if (!this->pOptions)
+	{
+		throw KHTTPError { KHTTPError::H5xx_ERROR, "config error" };
+	}
+
+	if (this->pOptions->Out != HTTP)
+	{
+		throw KHTTPError { KHTTPError::H5xx_NOTIMPL, "streaming mode only allowed in HTTP output mode" };
+	}
+
+	// do not signal nor perform a keep alive connection
+	m_bKeepAlive = false;
+
+	if (!bWriteHeaders)
+	{
+		return;
+	}
+
+	// Compression can be a problem in streaming mode because we cannot reliably flush
+	// the output then. Also, we may not know the media type in advance, and hence
+	// switch compression on for already compressed media..
+	ConfigureCompression(this->pOptions->bAllowCompression && bAllowCompressionIfPossible);
+
+	WriteHeaders(*this->pOptions);
+
+	m_bIsStreaming = true;
+
+} // Stream
+
+//-----------------------------------------------------------------------------
 void KRESTServer::Output(const Options& Options)
 //-----------------------------------------------------------------------------
 {
+	if (m_bIsStreaming)
+	{
+		// nothing to do here, we are at end of stream apparently
+		return;
+	}
+
 	ThrowIfDisconnected();
 
 	bool bOutputContent { true };
@@ -888,7 +991,7 @@ void KRESTServer::Output(const Options& Options)
 					sContent = json.tx.dump(m_iJSONPrint, '\t');
 
 					// ensure that all JSON responses end in a newline:
-					if (!sContent.empty() && sContent.back() != '\n')
+					if (!sContent.ends_with('\n'))
 					{
 						sContent += '\n';
 					}
@@ -908,7 +1011,7 @@ void KRESTServer::Output(const Options& Options)
 					xml.tx.Serialize(sContent, m_iXMLPrint);
 
 					// ensure that all XML responses end in a newline:
-					if (!sContent.empty() && sContent.back() != '\n')
+					if (!sContent.ends_with('\n'))
 					{
 						sContent += '\n';
 					}
@@ -919,53 +1022,7 @@ void KRESTServer::Output(const Options& Options)
 				m_iContentLength = sContent.length();
 			}
 
-			if (!Options.KLogHeader.empty())
-			{
-				// finally switch logging off if enabled
-				KLog::getInstance().LogThisThreadToKLog(-1);
-			}
-
-			if (m_iContentLength != npos)
-			{
-				Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(m_iContentLength));
-			}
-
-			if (m_Timers)
-			{
-				m_Timers->StoreInterval(Timer::SERIALIZE);
-
-				if (!Options.TimerHeader.empty())
-				{
-					// add a custom header that marks execution time for this request
-					if (Options.bMicrosecondTimerHeader)
-					{
-						Response.Headers.Set (Options.TimerHeader, KString::to_string(m_Timers->microseconds()));
-					}
-					else
-					{
-						Response.Headers.Set (Options.TimerHeader, KString::to_string(m_Timers->milliseconds()));
-					}
-				}
-			}
-
-			Response.Headers.Set (KHTTPHeader::CONNECTION, m_bKeepAlive ? "keep-alive" : "close");
-
-			{
-				// the headers get written directly to the unfiltered stream,
-				// therefore we have to count them outside of the filter pipeline
-				KCountingOutputStreamBuf OutputCounter(Response.UnfilteredStream());
-
-				// writes response headers to output
-				Serialize();
-
-				m_iTXBytes = OutputCounter.Count();
-
-				// with the next write now the filter pipeline gets kicked off,
-				// and the unfiltered stream is only a copy of the real
-				// stream used for output, therefore its streambuf is no
-				// more updated by writes and can no more be used for counting,
-				// so we detach proactively
-			}
+			WriteHeaders(Options);
 
 			if (bOutputContent)
 			{
@@ -1162,8 +1219,6 @@ void KRESTServer::xml_t::clear()
 void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 //-----------------------------------------------------------------------------
 {
-	m_iContentLength = 0;
-
 	if (IsDisconnected())
 	{
 		kDebug(1, "remote end disconnected");
@@ -1188,6 +1243,13 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 	KStringViewZ sError = ex.what();
 
 	kDebug (1, "HTTP-{}: {}\n{}",  Response.iStatusCode, Response.sStatusString, sError);
+
+	if (m_bIsStreaming)
+	{
+		return;
+	}
+
+	m_iContentLength = 0;
 
 	// do not compress/chunk error messages
 	ConfigureCompression(false);
@@ -1244,7 +1306,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 					sContent = json.tx.dump(iJSONPretty, '\t');
 
 					// ensure that all JSON responses end in a newline:
-					if (!sContent.empty() && sContent.back() != '\n')
+					if (!sContent.ends_with('\n'))
 					{
 						sContent += '\n';
 					}
@@ -1471,6 +1533,7 @@ void KRESTServer::clear()
 	m_AuthToken.clear();
 	m_JsonLogger.reset();
 	m_TempDir.clear();
+	m_bIsStreaming         = false;
 	// do not clear m_Timer, the main Execute loop takes care of it
 
 	m_iJSONPrint =

@@ -288,6 +288,8 @@ public:
 	const KRESTRoute*  Route       { &s_EmptyRoute        };
 	/// the KRESTRoutes object used for routing
 	const KRESTRoutes* Routes      { nullptr              };
+	/// the current set of Options
+	const Options*     pOptions    { nullptr              };
 	/// the incoming request with method and path
  	KRESTPath          RequestPath { KHTTPMethod::GET, "" };
 
@@ -399,6 +401,13 @@ public:
 		return m_bLostConnection;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// switch to streaming output - this writes first the headers (if requested), and then leaves the output stream open
+	/// @param bAllowCompressionIfPossible switch compression on if possible
+	/// @param bWriteHeaders output headers - if false, neither headers nor end-of-header is written to the output
+	void Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders = true);
+	//-----------------------------------------------------------------------------
+
 //------
 protected:
 //------
@@ -407,6 +416,11 @@ protected:
 	/// parse input (if requested by method and route)
 	/// @param Options the options for the KRESTServer
 	void Parse(const Options& Options);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// write headers, called by Stream() and Output()
+	void WriteHeaders(const Options& Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -466,6 +480,7 @@ private:
 	uint16_t    m_iRound;                // keepalive rounds
 	bool        m_bKeepAlive;            // whether connection will be kept alive
 	bool        m_bLostConnection;       // whether we lost our peer during flight
+	bool        m_bIsStreaming;          // true if we switched to streaming output
 
 	int m_iJSONPrint {
 #ifdef NDEBUG

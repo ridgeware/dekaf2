@@ -23,7 +23,7 @@ class Protected
 {
 public:
 
-	Protected()
+	Protected(char chFill = '2')
 	: iPageSize(sysconf(_SC_PAGE_SIZE))
 	{
 		if (iPageSize < 0)
@@ -43,9 +43,9 @@ public:
 			throw KError { "cannot get buffer" };
 		}
 
-		memset(pProtected + iPageSize * 0, '1', iPageSize);
-		memset(pProtected + iPageSize * 1, '2', iPageSize);
-		memset(pProtected + iPageSize * 2, '3', iPageSize);
+		memset(pProtected + iPageSize * 0,    '1', iPageSize);
+		memset(pProtected + iPageSize * 1, chFill, iPageSize);
+		memset(pProtected + iPageSize * 2,    '3', iPageSize);
 
 		if (mprotect(pProtected + iPageSize * 0, iPageSize, PROT_NONE) == -1)
 		{
@@ -126,6 +126,43 @@ TEST_CASE("SIMD")
 				CCHECK ( sString.find_last_not_of("13") != KStringView::npos );
 				CCHECK ( sString.find_last_not_of("---------------------------20") == KStringView::npos );
 				CCHECK ( sString.find_last_not_of("---------------------------13") != KStringView::npos );
+			}
+		}
+
+		Protected Needles('9');
+
+		for (std::size_t iStrLen = 1; iStrLen <= 32; ++iStrLen)
+		{
+			KStringView sString(Page.Address(), Page.PageSize());
+
+			for (std::size_t iOffset = 0; iOffset < 128 - iStrLen; ++iOffset)
+			{
+				KStringView sNeedles(Needles.Address() + iOffset, iStrLen);
+
+				CCHECK ( sString.find(sNeedles)          == KStringView::npos );
+				CCHECK ( sString.rfind(sNeedles)         == KStringView::npos );
+				CCHECK ( sString.find_first_of(sNeedles) == KStringView::npos );
+				CCHECK ( sString.find_last_of(sNeedles)  == KStringView::npos );
+
+				KStringView sNeedles2(Page.Address() + iOffset, iStrLen);
+
+				CCHECK ( sString.find_first_not_of(sNeedles2) == KStringView::npos );
+				CCHECK ( sString.find_last_not_of(sNeedles2)  == KStringView::npos );
+			}
+
+			for (std::size_t iOffset = Page.PageSize() - 128 - iStrLen; iOffset < Page.PageSize() - iStrLen; ++iOffset)
+			{
+				KStringView sNeedles(Needles.Address() + iOffset, iStrLen);
+
+				CCHECK ( sString.find(sNeedles)          == KStringView::npos );
+				CCHECK ( sString.rfind(sNeedles)         == KStringView::npos );
+				CCHECK ( sString.find_first_of(sNeedles) == KStringView::npos );
+				CCHECK ( sString.find_last_of(sNeedles)  == KStringView::npos );
+
+				KStringView sNeedles2(Page.Address() + iOffset, iStrLen);
+
+				CCHECK ( sString.find_first_not_of(sNeedles2) == KStringView::npos );
+				CCHECK ( sString.find_last_not_of(sNeedles2)  == KStringView::npos );
 			}
 		}
 	}

@@ -73,7 +73,7 @@ KSemaphoreMutex::KSemaphoreMutex(key_t iIPCKey) noexcept
 
 		if (m_iSem < 0)
 		{
-			kDebug(2, "semget: {}", strerror(errno));
+			kDebug(2, "semget({}): {}", m_iIPCKey, strerror(errno));
 			return;
 		}
 
@@ -83,7 +83,7 @@ KSemaphoreMutex::KSemaphoreMutex(key_t iIPCKey) noexcept
 		// init semaphore with 1
 		if (semctl (m_iSem, 0, SETVAL, 1) < 0)
 		{
-			kDebug(2, "semctl: {}", strerror(errno));
+			kDebug(2, "semctl({}): {}", m_iIPCKey, strerror(errno));
 			return;
 		}
 	}
@@ -105,7 +105,7 @@ KSemaphoreMutex::~KSemaphoreMutex()
 	{
 		if (semctl (m_iSem, 0, IPC_RMID, 0) < 0)
 		{
-			kDebug(2, "semctl: {}", strerror(errno));
+			kDebug(2, "semctl({}): {}", m_iIPCKey, strerror(errno));
 		}
 	}
 
@@ -125,7 +125,7 @@ bool KSemaphoreMutex::operation(int iOperation, bool bTry)
 		// EAGAIN means semaphore is locked
 		if (!bTry || errno != EAGAIN)
 		{
-			kDebug(2, "semop: {}", strerror(errno));
+			kDebug(2, "semop({}): {}", m_iIPCKey, strerror(errno));
 		}
 		return false;
 	}
@@ -158,8 +158,27 @@ detail::KSharedMemoryBase::KSharedMemoryBase(KStringView sPathname,
 
 		if (m_iFD < 0)
 		{
-			SetError(kFormat("shm_open({}): {}", m_sPathname, KStringView(strerror(errno))));
-			return;
+			if (errno != EEXIST || !bForceCreation)
+			{
+				SetError(kFormat("shm_open({}): {}", m_sPathname, KStringView(strerror(errno))));
+				return;
+			}
+			// try to remove
+			if (shm_unlink(m_sPathname.c_str()) < 0)
+			{
+				// could not remove
+				SetError(kFormat("shm_unlink for shm_open({}): {}", m_sPathname, KStringView(strerror(errno))));
+				return;
+			}
+			kDebug(2, "removed existing shared memory({})", m_sPathname);
+			// now try to open again
+			m_iFD = shm_open(m_sPathname.c_str(), O_CREAT | O_EXCL | O_RDWR, iMode);
+
+			if (m_iFD < 0)
+			{
+				SetError(kFormat("2:shm_open({}): {}", m_sPathname, KStringView(strerror(errno))));
+				return;
+			}
 		}
 
 		m_bIsCreator = true;
@@ -167,7 +186,7 @@ detail::KSharedMemoryBase::KSharedMemoryBase(KStringView sPathname,
 		// set requested size
 		if (ftruncate(m_iFD, m_iSize) < 0)
 		{
-			SetError(kFormat("ftruncate({}): {}", m_iSize, KStringView(strerror(errno))));
+			SetError(kFormat("ftruncate({},{}): {}", m_sPathname, m_iSize, KStringView(strerror(errno))));
 			return;
 		}
 	}
@@ -177,7 +196,7 @@ detail::KSharedMemoryBase::KSharedMemoryBase(KStringView sPathname,
 	if (m_pAddr == MAP_FAILED)
 	{
 		m_pAddr = nullptr;
-		SetError(kFormat("mmap: {}", KStringView(strerror(errno))));
+		SetError(kFormat("mmap({}): {}", m_sPathname, KStringView(strerror(errno))));
 		return;
 	}
 
@@ -191,7 +210,7 @@ detail::KSharedMemoryBase::~KSharedMemoryBase()
 	{
 		if (munmap(m_pAddr, m_iSize) < 0)
 		{
-			SetError(kFormat("munmap: {}", KStringView(strerror(errno))));
+			SetError(kFormat("munmap({}): {}", m_sPathname, KStringView(strerror(errno))));
 		}
 	}
 
@@ -199,7 +218,7 @@ detail::KSharedMemoryBase::~KSharedMemoryBase()
 	{
 		if (close(m_iFD) < 0)
 		{
-			SetError(kFormat("close: {}", KStringView(strerror(errno))));
+			SetError(kFormat("close({}): {}", m_sPathname, KStringView(strerror(errno))));
 		}
 	}
 
@@ -209,7 +228,7 @@ detail::KSharedMemoryBase::~KSharedMemoryBase()
 		{
 			if (shm_unlink(m_sPathname.c_str()) < 0)
 			{
-				SetError(kFormat("shm_unlink: {}", KStringView(strerror(errno))));
+				SetError(kFormat("shm_unlink({}): {}", m_sPathname, KStringView(strerror(errno))));
 			}
 		}
 	}

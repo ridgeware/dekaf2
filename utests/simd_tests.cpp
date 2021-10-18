@@ -79,9 +79,9 @@ public:
 	}
 
 private:
-	void*       pAligned   = nullptr;
-	char*       pProtected = nullptr;
-	std::size_t iPageSize  = -1;
+	void*          pAligned   = nullptr;
+	char*          pProtected = nullptr;
+	std::ptrdiff_t iPageSize  = -1;
 
 }; // Protected
 

@@ -4,10 +4,16 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/bits/kcppcompat.h>
 #include <dekaf2/kinstringstream.h>
+#include <dekaf2/kfilesystem.h>
 #include <unordered_map>
 #include <map>
 using namespace dekaf2;
 
+namespace {
+
+KTempDir TempDir;
+
+}
 
 TEST_CASE("KProps") {
 
@@ -664,9 +670,14 @@ TEST_CASE("KProps") {
 		MyProps.emplace("row3-col1", "row3-col2");
 		MyProps.emplace("row4-col1", "row4-col2");
 
-		CHECK( MyProps.Store("/tmp/kprops-stored.txt") == 4 );
-		CHECK( NewProps.Load("/tmp/kprops-stored.txt") == 4 );
+		KString sFilename = kFormat("{}{}kprops-stored.txt", TempDir.Name(), kDirSep);
+		CHECK( MyProps.Store(sFilename) == 4 );
+		CHECK( NewProps.Load(sFilename) == 4 );
 		CHECK( MyProps == NewProps );
+
+		static constexpr KStringView sExpectedData = "#! KPROPS\nrow1-col1=row1-col2\nrow2-col1=row2-col2\nrow3-col1=row3-col2\nrow4-col1=row4-col2\n";
+		auto sData = kReadAll(sFilename);
+		CHECK ( sData == sExpectedData );
 	}
 
 	SECTION("std::map")

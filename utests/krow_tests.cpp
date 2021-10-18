@@ -1,7 +1,14 @@
 #include "catch.hpp"
 #include <dekaf2/krow.h>
+#include <dekaf2/kfilesystem.h>
 
 using namespace dekaf2;
+
+namespace {
+
+KTempDir TempDir;
+
+}
 
 TEST_CASE("KROW")
 {
@@ -132,5 +139,21 @@ TEST_CASE("KROW")
 			CHECK ( sEscaped == "" );
 			CHECK ( sEscaped.size() == 0 );
 		}
+	}
+
+	SECTION("StoreLoad")
+	{
+		KROW row;
+		row.AddCol("key1", "value1");
+		row.AddCol("key2", "value2");
+		row.AddCol("key3", "value3");
+
+		KString sFilename = kFormat("{}{}RowDump", TempDir.Name(), kDirSep);
+		row.Store(sFilename);
+
+		KROW row2;
+		row2.Load(sFilename);
+
+		CHECK ( row == row2 );
 	}
 }

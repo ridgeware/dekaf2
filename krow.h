@@ -125,12 +125,18 @@ public:
 
 	KCOL () = default;
 
-	explicit
-	KCOL (KString _sValue, Flags iFlags=0, Len iMaxLen=0)
-		: sValue(std::move(_sValue))
+	template<typename T,
+			 typename std::enable_if<std::is_convertible<const T&, KString>::value == true, int>::type = 0>
+	KCOL (T&& _sValue, Flags iFlags=0, Len iMaxLen=0)
+		: sValue(std::forward<T>(_sValue))
 		, m_iMaxLen(iMaxLen)
 		, m_iFlags(iFlags)
 	{
+	}
+
+	operator KStringView() const
+	{
+		return sValue;
 	}
 
 	void clear()
@@ -215,13 +221,8 @@ public:
 
 	KROW () = default;
 
-	KROW (const char* szTablename)
-	    : m_sTablename(szTablename)
-	{
-	}
-
-	KROW (KStringView sTablename)
-	    : m_sTablename(sTablename)
+	KROW (KString sTablename)
+	    : m_sTablename(std::move(sTablename))
 	{
 	}
 
@@ -229,10 +230,10 @@ public:
 
 	/// Set the name of the table - could also be done through construction of KROW
 	/// @param sTablename the name of the table
-	void SetTablename (KStringView sTablename) const
+	void SetTablename (KString sTablename) const
 	{
 		// this method is const!
-		m_sTablename = sTablename;
+		m_sTablename = std::move(sTablename);
 	}
 
 	/// Create default columms for the list of columns in sColumns

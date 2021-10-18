@@ -187,6 +187,7 @@ public:
 
 	static constexpr KStringViewZ BMP                    = "image/bmp";
 	static constexpr KStringViewZ JPEG                   = "image/jpeg";
+	static constexpr KStringViewZ JPEG2000               = "image/jp2";
 	static constexpr KStringViewZ GIF                    = "image/gif";
 	static constexpr KStringViewZ PNG                    = "image/png";
 	static constexpr KStringViewZ ICON                   = "image/x-icon";
@@ -197,6 +198,7 @@ public:
 	static constexpr KStringViewZ MULTIPART_FORM_DATA    = "multipart/form-data";
 	static constexpr KStringViewZ MULTIPART_ALTERNATIVE  = "multipart/alternative";
 	static constexpr KStringViewZ MULTIPART_MIXED        = "multipart/mixed";
+	static constexpr KStringViewZ MULTIPART_MIXED_REPLACE= "multipart/x-mixed-replace";
 	static constexpr KStringViewZ MULTIPART_RELATED      = "multipart/related";
 
 	static constexpr KStringViewZ TEXT_PLAIN             = "text/plain";

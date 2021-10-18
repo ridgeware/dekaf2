@@ -63,6 +63,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include "kfindfirstof.h"
 #include "../kcppcompat.h"
 
@@ -476,7 +477,7 @@ DEKAF2_NO_ASAN
 #endif
 size_t scanHaystackBlock(KStringView haystack,
 						 KStringView needles,
-						 size_t blockStartIdx)
+						 std::ptrdiff_t blockStartIdx)
 //-----------------------------------------------------------------------------
 {
 	__m128i arr1;
@@ -527,7 +528,7 @@ DEKAF2_NO_ASAN
 #endif
 size_t scanHaystackBlockNot(KStringView haystack,
 							KStringView needles,
-							size_t blockStartIdx)
+							std::ptrdiff_t blockStartIdx)
 //-----------------------------------------------------------------------------
 {
 	__m128i arr1;
@@ -591,7 +592,7 @@ DEKAF2_NO_ASAN
 #endif
 size_t reverseScanHaystackBlock(KStringView haystack,
 								KStringView needles,
-								size_t blockStartIdx)
+								std::ptrdiff_t blockStartIdx)
 //-----------------------------------------------------------------------------
 {
 	__m128i arr1;
@@ -653,7 +654,7 @@ DEKAF2_NO_ASAN
 #endif
 size_t reverseScanHaystackBlockNot(KStringView haystack,
 								   KStringView needles,
-								   size_t blockStartIdx)
+								   std::ptrdiff_t blockStartIdx)
 //-----------------------------------------------------------------------------
 {
 	__m128i arr1;
@@ -818,6 +819,13 @@ size_t kFindLastOf(KStringView haystack, KStringView needles)
 
 		// For a 16 byte or less needle you don't need to cycle through it
 		return kFindLastOfNeedles16<0b01000000>(haystack, needles);
+	}
+
+	// we have a different search strategy for the large needle case, therefore
+	// we need to test for an overflow on haystack as well
+	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
+	{
+		return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, false);
 	}
 
 	// Account for haystack < 16

@@ -100,6 +100,7 @@ set (USOURCES
 	kwords_tests.cpp
 	kwriter_tests.cpp
 	kxml_tests.cpp
+	simd_tests.cpp
 	string_balance_tests.cpp
 )
 

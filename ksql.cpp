@@ -1655,6 +1655,7 @@ bool KSQL::IsKill (KStringView sSQL)
 bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQL"*/)
 //-----------------------------------------------------------------------------
 {
+	kAppendCrashContext("SQL 0");
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
 		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, m_sLastSQL.Left(4096));
@@ -1665,6 +1666,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		return SetError(kFormat ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL));
 	}
 
+	kAppendCrashContext("1", "");
 	m_iNumRowsAffected  = 0;
 	EndQuery();
 
@@ -1678,10 +1680,12 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 	KStopTime Timer;
 
+	kAppendCrashContext("2", "");
 	m_SQLStmtStats.Collect(m_sLastSQL);
 
 	while (!bOK && iRetriesLeft)
 	{
+		kAppendCrashContext("3", "");
 		ClearError ();
 
 		switch (m_iAPISet)
@@ -1693,18 +1697,22 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 				{
 					if (!m_dMYSQL)
 					{
+						kAppendCrashContext("4", "");
 						kDebug (1, "lost m_dMYSQL pointer.  Reopening connection ...");
 
 						CloseConnection();
+						kAppendCrashContext("5", "");
 						OpenConnection();
 
 						if (!m_dMYSQL)
 						{
+							kAppendCrashContext("6", "");
 							kDebug (1, "failed.  aborting query or SQL:\n{}", m_sLastSQL.Left(4096));
 							break;
 						}
 					}
 
+					kAppendCrashContext("7", "");
 					kDebug (3, "mysql_query(): m_dMYSQL is {}, SQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", m_sLastSQL.size());
 					if (mysql_query (m_dMYSQL, m_sLastSQL.c_str()))
 					{
@@ -1713,6 +1721,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 						break;
 					}
 
+					kAppendCrashContext("8", "");
 					m_iNumRowsAffected = 0;
 					kDebug (3, "mysql_affected_rows()...");
 					my_ulonglong iNumRows = mysql_affected_rows (m_dMYSQL);
@@ -1721,6 +1730,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 						m_iNumRowsAffected = (uint64_t) iNumRows;
 					}
 
+					kAppendCrashContext("9", "");
 					if (!IsSelect (m_sLastSQL))
 					{
 						// only refresh the last insert ID if this was NOT a
@@ -1740,6 +1750,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 						}
 					}
 
+					kAppendCrashContext("!", "");
 					bOK = true;
 				}
 				break;

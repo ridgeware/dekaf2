@@ -185,4 +185,13 @@ TEST_CASE("KSQL")
 		CHECK ( sOrderBy == "order by x'x , bb desc , cc , yy , ee , ff desc , gg" );
 	}
 
+	SECTION("IsSelect")
+	{
+		CHECK ( KSQL::IsSelect("  \t\n SeleCt * from table"_ksv) == true );
+		CHECK ( KSQL::IsSelect(KStringView{}) == false );
+		CHECK ( KSQL::IsSelect("select"_ksv ) == true  );
+		CHECK ( KSQL::IsSelect("selec"_ksv  ) == false );
+		CHECK ( KSQL::IsSelect("      "_ksv ) == false );
+		CHECK ( KSQL::IsSelect(",    "_ksv  ) == false );
+	}
 }

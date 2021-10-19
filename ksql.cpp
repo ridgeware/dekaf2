@@ -1148,23 +1148,23 @@ bool KSQL::OpenConnection ()
 			m_sHostname = "localhost";
 		}
 
-		static std::mutex s_OnceInitMutex;
-		static bool s_fOnceInitFlag = false;
-		if (!s_fOnceInitFlag)
+		// init the mysql lib, exactly once
+		static std::once_flag s_once;
+		std::call_once(s_once, []
 		{
-			std::lock_guard<std::mutex> Lock(s_OnceInitMutex);
-			if (!s_fOnceInitFlag)
-			{
-				kDebug (3, "mysql_library_init()...");
-				mysql_library_init(0, nullptr, nullptr);
-				s_fOnceInitFlag = true;
-			}
-		}
+			kDebug (2, "mysql_library_init()...");
+			mysql_library_init(0, nullptr, nullptr);
+		});
 
-		kDebug (3, "mysql_init()...");
+		kDebug (2, "mysql_init()...");
 		m_dMYSQL = mysql_init (nullptr);
 
-		kDebug (3, "mysql_real_connect()...");
+		if (!m_dMYSQL)
+		{
+			return SetError("could not init mysql connector");
+		}
+
+		kDebug (2, "mysql_real_connect()...");
 
 		if (!mysql_real_connect (m_dMYSQL, m_sHostname.c_str(), m_sUsername.c_str(), m_sPassword.c_str(), m_sDatabase.c_str(), /*port*/ iPortNum, /*sock*/nullptr,
 			/*flag*/CLIENT_FOUND_ROWS)) // <-- this flag corrects the behavior of GetNumRowsAffected()
@@ -1172,10 +1172,8 @@ bool KSQL::OpenConnection ()
 			auto iErrorNum = mysql_errno (m_dMYSQL);
 			auto sError    = kFormat ("KSQL: MSQL-{}: {}", iErrorNum, mysql_error(m_dMYSQL));
 
-			if (m_dMYSQL)
-			{
-				mysql_close(m_dMYSQL);
-			}
+			mysql_close(m_dMYSQL);
+			m_dMYSQL = nullptr;
 
 			return SetError (sError, iErrorNum);
 		}
@@ -1450,8 +1448,6 @@ bool KSQL::OpenConnection ()
 		return SetError(kFormat ("API Set not coded yet ({})", TxAPISet(GetAPISet())));
 	}
 
-	m_bConnectionIsOpen = true;
-		
 	kDebug (3, "connection is now open...");
 
 	if (!IsFlag(F_NoTranslations))
@@ -1467,7 +1463,9 @@ bool KSQL::OpenConnection ()
 	}
 	#endif
 
-	return (IsConnectionOpen());
+	m_bConnectionIsOpen = true;
+
+	return true;
 
 } // OpenConnection
 
@@ -1496,11 +1494,19 @@ void KSQL::CloseConnection (bool bDestructor/*=false*/)
 		// - - - - - - - - - - - - - - - - -
 		case API::MYSQL:
 		// - - - - - - - - - - - - - - - - -
-			if (!bDestructor)
+			if (m_dMYSQL)
 			{
-				kDebug (3, "mysql_close()...");
+				if (!bDestructor)
+				{
+					kDebug (2, "mysql_close()...");
+				}
+				mysql_close (m_dMYSQL);
+				m_dMYSQL = nullptr;
 			}
-			mysql_close (m_dMYSQL);
+			else
+			{
+				kDebug(1, "mysql connector was already null");
+			}
 			break;
 		#endif
 
@@ -1635,14 +1641,14 @@ void CopyIfNotSame(KString& sTarget, KStringView svView)
 bool KSQL::IsSelect (KStringView sSQL)
 //-----------------------------------------------------------------------------
 {
-	return sSQL.TrimLeft().substr(0,6).ToLowerASCII().StartsWith("select");
+	return sSQL.TrimLeft().substr(0,6).ToLowerASCII().starts_with("select");
 }
 
 //-----------------------------------------------------------------------------
 bool KSQL::IsKill (KStringView sSQL)
 //-----------------------------------------------------------------------------
 {
-	return sSQL.TrimLeft().substr(0,4).ToLowerASCII().StartsWith("kill");
+	return sSQL.TrimLeft().substr(0,4).ToLowerASCII().starts_with("kill");
 }
 
 //-----------------------------------------------------------------------------

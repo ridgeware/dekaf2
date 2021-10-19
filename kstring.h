@@ -44,7 +44,9 @@
 
 /// @file kstring.h
 /// dekaf2's own string class - a wrapper around std::string or folly::fbstring
-/// that handles most error cases in a benign way and has rapid fast searches
+/// that offers most string functions from languages like Python or Javascript,
+/// handles most error cases in a benign way and speeds up searching
+/// up to 50 times compared to std::string implementations
 
 #include <string>
 #include <istream>
@@ -498,22 +500,40 @@ public:
 	self&& MakeUpperASCII() && { return std::move(MakeUpperASCII()); }
 
 	/// returns a copy of the string in uppercase (UTF8)
-	KString ToUpper() const;
+	KString ToUpper() const &;
+
+	/// returns a copy of the string in uppercase (UTF8)
+	self&& ToUpper() && { return std::move(MakeUpper()); }
 
 	/// returns a copy of the string in lowercase (UTF8)
-	KString ToLower() const;
+	KString ToLower() const &;
+
+	/// returns a copy of the string in lowercase (UTF8)
+	KString ToLower() && { return std::move(MakeLower()); }
 
 	/// returns a copy of the string in uppercase according to the current locale (does not work with UTF8 strings)
-	KString ToUpperLocale() const;
+	KString ToUpperLocale() const &;
+
+	/// returns a copy of the string in uppercase according to the current locale (does not work with UTF8 strings)
+	self&& ToUpperLocale() && { return std::move(MakeUpperLocale()); }
 
 	/// returns a copy of the string in lowercase according to the current locale (does not work with UTF8 strings)
-	KString ToLowerLocale() const;
+	KString ToLowerLocale() const &;
+
+	/// returns a copy of the string in lowercase according to the current locale (does not work with UTF8 strings)
+	self&& ToLowerLocale() && { return std::move(MakeLowerLocale()); }
 
 	/// returns a copy of the string in uppercase assuming ASCII encoding
-	KString ToUpperASCII() const;
+	KString ToUpperASCII() const &;
+
+	/// returns a copy of the string in uppercase assuming ASCII encoding
+	self&& ToUpperASCII() && { return std::move(MakeUpperASCII()); }
 
 	/// returns a copy of the string in lowercase assuming ASCII encoding
-	KString ToLowerASCII() const;
+	KString ToLowerASCII() const &;
+
+	/// returns a copy of the string in lowercase assuming ASCII encoding
+	self&& ToLowerASCII() && { return std::move(MakeLowerASCII()); }
 
 	/// returns leftmost iCount chars of string
 	KStringView Left(size_type iCount) const;
@@ -1434,42 +1454,42 @@ inline bool KString::Contains(const KString::value_type ch) const noexcept
 }
 
 //-----------------------------------------------------------------------------
-inline KString KString::ToUpper() const
+inline KString KString::ToUpper() const &
 //-----------------------------------------------------------------------------
 {
 	return kToUpper(KStringView(*this));
 }
 
 //-----------------------------------------------------------------------------
-inline KString KString::ToLower() const
+inline KString KString::ToLower() const &
 //-----------------------------------------------------------------------------
 {
 	return kToLower(KStringView(*this));
 }
 
 //-----------------------------------------------------------------------------
-inline KString KString::ToUpperLocale() const
+inline KString KString::ToUpperLocale() const &
 //-----------------------------------------------------------------------------
 {
 	return kToUpperLocale(KStringView(*this));
 }
 
 //-----------------------------------------------------------------------------
-inline KString KString::ToLowerLocale() const
+inline KString KString::ToLowerLocale() const &
 //-----------------------------------------------------------------------------
 {
 	return kToLowerLocale(KStringView(*this));
 }
 
 //-----------------------------------------------------------------------------
-inline KString KString::ToUpperASCII() const
+inline KString KString::ToUpperASCII() const &
 //-----------------------------------------------------------------------------
 {
 	return kToUpperASCII(KStringView(*this));
 }
 
 //-----------------------------------------------------------------------------
-inline KString KString::ToLowerASCII() const
+inline KString KString::ToLowerASCII() const &
 //-----------------------------------------------------------------------------
 {
 	return kToLowerASCII(KStringView(*this));

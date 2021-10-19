@@ -57,6 +57,14 @@ TEST_CASE("KString") {
 		}
 	}
 
+	SECTION("substr")
+	{
+		KString s = "1234567890123456789012345678901234567890";
+		CHECK ( s.substr(1, 10) == "2345678901" );
+		// test the rvalue version!
+		CHECK ( KString("1234567890123456789012345678901234567890").substr(1, 10) == "2345678901" );
+	}
+
 /*
  * This blows up log output with a trace. Only test on request.
  *
@@ -1302,6 +1310,36 @@ TEST_CASE("KString") {
 			KString s(it.input);
 			KString o = s.ToUpper();
 			CHECK ( o == it.output );
+			// check rvalue version
+			o = KString(it.input).ToUpper();
+			CHECK ( o == it.output );
+		}
+	}
+
+	SECTION("ToUpperASCII")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""         , ""        },
+			{ "hello"    , "HELLO"   },
+			{ "öäü"      , "öäü"     },
+			{ "HELLO"    , "HELLO"   },
+			{ "ÖÄÜ"      , "ÖÄÜ"     },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			KString o = s.ToUpperASCII();
+			CHECK ( o == it.output );
+			// check rvalue version
+			o = KString(it.input).ToUpperASCII();
+			CHECK ( o == it.output );
 		}
 	}
 
@@ -1325,6 +1363,36 @@ TEST_CASE("KString") {
 		{
 			KString s(it.input);
 			KString o = s.ToLower();
+			CHECK ( o == it.output );
+			// check rvalue version
+			o = KString(it.input).ToLower();
+			CHECK ( o == it.output );
+		}
+	}
+
+	SECTION("ToLowerASCII")
+	{
+		struct parms_t
+		{
+			KString output;
+			KString input;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""         , ""        },
+			{ "hello"    , "HELLO"   },
+			{ "öäü"      , "öäü"     },
+			{ "hello"    , "hello"   },
+			{ "öäü"      , "öäü"     },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			KString o = s.ToLowerASCII();
+			CHECK ( o == it.output );
+			// check rvalue version
+			o = KString(it.input).ToLowerASCII();
 			CHECK ( o == it.output );
 		}
 	}

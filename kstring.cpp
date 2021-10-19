@@ -93,9 +93,10 @@ void* memmem(void* _haystack, size_t haystack_len, const void* _needle, size_t n
 
 		pos = static_cast<size_t>(found - haystack);
 
-		if (std::memcmp(haystack + pos + 1,
-						needle + 1,
-						needle_len - 1) == 0)
+		// compare the full needle again, as it is most probably aligned
+		if (std::memcmp(haystack + pos,
+						needle,
+						needle_len) == 0)
 		{
 			return haystack + pos;
 		}

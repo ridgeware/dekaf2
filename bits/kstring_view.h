@@ -110,7 +110,7 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 		basic_string_view(const basic_string_view& other) noexcept = default;
 
 		basic_string_view(const std::string& strStr) noexcept
-		: m_pszString(strStr.c_str())
+		: m_pszString(strStr.data())
 		, m_iSize(strStr.size())
 		{}
 

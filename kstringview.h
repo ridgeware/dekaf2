@@ -1444,7 +1444,11 @@ size_t kFind(
 		return KStringView::npos;
 	}
 
+#if defined(DEKAF2_IS_CLANG) || defined(DEKAF2_IS_GCC)
+	auto ret = static_cast<const char*>(__builtin_memchr(haystack.data()+pos, needle, iHaystackSize-pos));
+#else
 	auto ret = static_cast<const char*>(memchr(haystack.data()+pos, needle, iHaystackSize-pos));
+#endif
 
 	if (DEKAF2_UNLIKELY(ret == nullptr))
 	{

@@ -26,6 +26,7 @@ TEST_CASE("KStringView") {
 	SECTION("find")
 	{
 		KStringView sv("0123456  9abcdef h");
+		CHECK( sv.find("") == 0 );
 		CHECK( sv.find(' ') == 7 );
 		CHECK( sv.find(" ") == 7 );
 		CHECK( sv.find(" 9") == 8 );
@@ -1249,7 +1250,7 @@ TEST_CASE("KStringView") {
 		CHECK ( sLine.contains("is") == true );
 		CHECK ( sLine.contains("data") == true );
 		CHECK ( sLine.contains("nothing") == false );
-		CHECK ( sLine.contains("") == false );
+		CHECK ( sLine.contains("") == true );
 	}
 
 	SECTION ("StartsWith")
@@ -1287,7 +1288,7 @@ TEST_CASE("KStringView") {
 		CHECK ( sLine.Contains("is") == true );
 		CHECK ( sLine.Contains("data") == true );
 		CHECK ( sLine.Contains("nothing") == false );
-		CHECK ( sLine.Contains("") == false );
+		CHECK ( sLine.Contains("") == true );
 	}
 
 	SECTION ("operator bool()")

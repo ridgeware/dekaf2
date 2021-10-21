@@ -1461,7 +1461,7 @@ TEST_CASE("KString") {
 		CHECK ( sLine.contains("is") == true );
 		CHECK ( sLine.contains("data") == true );
 		CHECK ( sLine.contains("nothing") == false );
-		CHECK ( sLine.contains("") == false );
+		CHECK ( sLine.contains("") == true );
 	}
 
 	SECTION ("StartsWith")
@@ -1499,7 +1499,7 @@ TEST_CASE("KString") {
 		CHECK ( sLine.Contains("is") == true );
 		CHECK ( sLine.Contains("data") == true );
 		CHECK ( sLine.Contains("nothing") == false );
-		CHECK ( sLine.Contains("") == false );
+		CHECK ( sLine.Contains("") == true );
 	}
 
 	SECTION ("operator bool()")

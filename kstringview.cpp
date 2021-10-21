@@ -48,6 +48,8 @@
 #include "bits/simd/kfindfirstof.h"
 #include "kctype.h"
 
+namespace dekaf2 {
+
 #ifndef __linux__
 //-----------------------------------------------------------------------------
 void* memrchr(const void* s, int c, size_t n)
@@ -82,16 +84,47 @@ void* memrchr(const void* s, int c, size_t n)
 }
 #endif
 
-namespace dekaf2 {
+#ifndef __GLIBC__
+//-----------------------------------------------------------------------------
+void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, size_t iNeedleSize)
+//-----------------------------------------------------------------------------
+{
+	// libc has a very slow memmem implementation (about 100 times slower than glibc),
+	// so we write our own, which is only about 2 times slower
 
-#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+	if (!iNeedleSize || !needle || !haystack)
+	{
+		// an empty needle matches the start of any haystack
+		return const_cast<void*>(haystack);
+	}
 
-namespace detail {
-constexpr KStringView kASCIISpaces;
+	auto pHaystack = static_cast<const char*>(haystack);
+	auto pNeedle   = static_cast<const char*>(needle);
+
+	for(;iNeedleSize < iHaystackSize;)
+	{
+		auto pFound = static_cast<const char*>(std::memchr(pHaystack, pNeedle[0], (iHaystackSize - iNeedleSize) + 1));
+
+		if (DEKAF2_UNLIKELY(!pFound))
+		{
+			return nullptr;
+		}
+
+		// due to aligned loads it is faster to compare the full needle again
+		if (std::memcmp(pFound, pNeedle, iNeedleSize) == 0)
+		{
+			return const_cast<char*>(pFound);
+		}
+
+		auto iAdvance = static_cast<size_t>(pFound - pHaystack) + 1;
+
+		pHaystack     += iAdvance;
+		iHaystackSize -= iAdvance;
+	}
+
+	// no match
+	return nullptr;
 }
-constexpr KStringView::size_type KStringView::npos;
-constexpr KStringView::value_type KStringView::s_0ch;
-
 #endif
 
 //-----------------------------------------------------------------------------
@@ -111,31 +144,23 @@ size_t kFind(
 		return kFind(haystack, needle[0], pos);
 	}
 
-	const auto iHaystackSize = haystack.size();
-
-	if (DEKAF2_UNLIKELY(pos >= iHaystackSize))
-	{
-		return KStringView::npos;
-	}
-
-	if (DEKAF2_UNLIKELY(iNeedleSize == 0))
-	{
-		return KStringView::npos;
-	}
-
-	if (DEKAF2_UNLIKELY(iNeedleSize > (iHaystackSize - pos)))
-	{
-		return KStringView::npos;
-	}
-
-#ifndef DEKAF2_NO_GCC
+#ifdef __GLIBC__
 
 	// glibc has an excellent memmem implementation, so we use it
 
 	auto found = static_cast<const char*>(::memmem(haystack.data() + pos,
-	                                               iHaystackSize   - pos,
+												   haystack.size() - pos,
 	                                               needle.data(),
 	                                               iNeedleSize));
+#else
+	// libc has a very slow memmem implementation (about 100 times slower than glibc),
+	// so we use our own, which is only about 2 times slower
+
+	auto found = static_cast<const char*>(dekaf2::memmem(haystack.data() + pos,
+														 haystack.size() - pos,
+														 needle.data(),
+														 iNeedleSize));
+#endif
 
 	if (DEKAF2_UNLIKELY(!found))
 	{
@@ -145,36 +170,6 @@ size_t kFind(
 	{
 		return static_cast<size_t>(found - haystack.data());
 	}
-
-#else
-
-	// libc has a very slow memmem implementation (about 100 times slower than glibc),
-	// so we write our own
-
-	for(;;)
-	{
-		auto found = static_cast<const char*>(::memchr(haystack.data() + pos,
-													  needle[0],
-													  (iHaystackSize - pos - iNeedleSize) + 1));
-		if (DEKAF2_UNLIKELY(!found))
-		{
-			return KStringView::npos;
-		}
-
-		pos = static_cast<size_t>(found - haystack.data());
-
-		// due to aligned loads it is faster to compare the full needle again
-		if (std::memcmp(haystack.data() + pos,
-						needle.data(),
-						iNeedleSize) == 0)
-		{
-			return pos;
-		}
-
-		++pos;
-	}
-
-#endif
 
 #else // non-optimized
 
@@ -203,6 +198,11 @@ size_t kRFind(
 	if (DEKAF2_UNLIKELY(iNeedleSize == 1))
 	{
 		return kRFind(haystack, needle[0], pos);
+	}
+
+	if (DEKAF2_UNLIKELY(!iNeedleSize))
+	{
+		return haystack.size();
 	}
 
 	const auto iHaystackSize = haystack.size();
@@ -888,6 +888,17 @@ bool KStringView::ClipAtReverse(const KStringView sClipAtReverse)
 
 static_assert(std::is_nothrow_move_constructible<KStringView>::value,
 			  "KStringView is intended to be nothrow move constructible, but is not!");
+
+
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+
+namespace detail {
+constexpr KStringView kASCIISpaces;
+}
+constexpr KStringView::size_type KStringView::npos;
+constexpr KStringView::value_type KStringView::s_0ch;
+
+#endif
 
 } // end of namespace dekaf2
 

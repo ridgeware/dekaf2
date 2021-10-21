@@ -61,10 +61,6 @@
 	#define DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW 1
 #endif
 
-#ifndef __linux__
-	extern void* memrchr(const void* s, int c, size_t n);
-#endif
-
 // older gcc versions have the cpp17 flag, but their libstdc++ does not
 // support the constexpr reverse iterators
 #define DEKAF2_CONSTEXPR_REVERSE_ITERATORS
@@ -76,6 +72,10 @@
 #endif
 
 namespace dekaf2 {
+
+#ifndef __linux__
+	extern void* memrchr(const void* s, int c, size_t n);
+#endif
 
 class KStringView;
 
@@ -1435,22 +1435,22 @@ size_t kFind(
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
-	const auto iHaystackSize = haystack.size();
 	// we keep this inlined as then the compiler can evaluate const expressions
-	// (memchr() is actually a compiler-builtin with gcc)
+	// (memchr() is actually a compiler-builtin)
+	const auto iHaystackSize = haystack.size();
+
 	if (DEKAF2_UNLIKELY(pos >= iHaystackSize))
 	{
 		return KStringView::npos;
 	}
-#if defined(DEKAF2_IS_CLANG) || defined(DEKAF2_IS_GCC)
-	auto ret = static_cast<const char*>(__builtin_memchr(haystack.data()+pos, needle, iHaystackSize-pos));
-#else
+
 	auto ret = static_cast<const char*>(memchr(haystack.data()+pos, needle, iHaystackSize-pos));
-#endif
+
 	if (DEKAF2_UNLIKELY(ret == nullptr))
 	{
 		return KStringView::npos;
 	}
+
 	return static_cast<size_t>(ret - haystack.data());
 #else
 	return static_cast<KStringView::rep_type>(haystack).find(needle, pos);
@@ -1465,12 +1465,9 @@ size_t kRFind(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
-#if !defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
-	return static_cast<KStringView::rep_type>(haystack).rfind(needle, pos);
-#else
+#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	const auto iHaystackSize = haystack.size();
-	// we keep this inlined as then the compiler can evaluate const expressions
-	// (memrchr() is actually a compiler-builtin with gcc)
+
 	if (DEKAF2_UNLIKELY(pos >= iHaystackSize))
 	{
 		pos = iHaystackSize;
@@ -1479,12 +1476,17 @@ size_t kRFind(
 	{
 		++pos;
 	}
+
 	auto found = static_cast<const char*>(memrchr(haystack.data(), needle, pos));
+
 	if (DEKAF2_UNLIKELY(!found))
 	{
 		return KStringView::npos;
 	}
+
 	return static_cast<size_t>(found - haystack.data());
+#else
+	return static_cast<KStringView::rep_type>(haystack).rfind(needle, pos);
 #endif
 }
 

@@ -88,12 +88,12 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 	// placeholder for a web form we may generate from query parms
 	KString sWWWForm;
 
-	if (m_bQueryToWWWFormConversion &&
-		svRequestBody.empty() &&
-		!RequestURL.Query.empty() &&
-		RequestMethod != KHTTPMethod::GET &&
+	if (m_bQueryToWWWFormConversion           &&
+		svRequestBody.empty()                 &&
+		!RequestURL.Query.empty()             &&
+		RequestMethod != KHTTPMethod::GET     &&
 		RequestMethod != KHTTPMethod::OPTIONS &&
-		RequestMethod != KHTTPMethod::HEAD &&
+		RequestMethod != KHTTPMethod::HEAD    &&
 		RequestMethod != KHTTPMethod::CONNECT)
 	{
 		// we automatically create a www form as body data if there are
@@ -106,12 +106,13 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 		kDebug(2, "created urlencoded form body from query parms");
 	}
 
-	KStopWatch ConnectTime(KStopWatch::Halted);
-	KStopWatch TransmitTime(KStopWatch::Halted);
-	KStopWatch ReceiveTime(KStopWatch::Halted);
-	std::size_t iRead { 0 };
-	uint16_t iRedirects { 0 };
-	uint16_t iRetries { 0 };
+	KStopWatch ConnectTime  (KStopWatch::Halted);
+	KStopWatch TransmitTime (KStopWatch::Halted);
+	KStopWatch ReceiveTime  (KStopWatch::Halted);
+
+	std::size_t iRead      { 0 };
+	uint16_t    iRedirects { 0 };
+	uint16_t    iRetries   { 0 };
 
 	// do we have a separate URL to connect to?
 	bool bHaveSeparateConnectURL = !HostURL.empty();

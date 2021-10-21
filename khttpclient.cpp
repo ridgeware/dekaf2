@@ -683,16 +683,18 @@ bool KHTTPClient::SendRequest(KStringView svPostData, const KMIME& Mime)
 		AddHeader(KHTTPHeader::ACCEPT_ENCODING, "gzip, bzip2, deflate");
 	}
 
-	if (!Request.Serialize()) // this sends the request headers to the remote server
+	// send the request headers to the remote server
+	if (!Serialize())
 	{
 		kDebugLog(2, "cannot write header");
-		return SetNetworkError(false, Request.Error());
+		return false;
 	}
 
 	if (!svPostData.empty())
 	{
 		kDebug(2, "sending {} bytes of body with mime '{}'", svPostData.size(), Mime.Serialize());
 		kDebug(3, svPostData);
+
 		if (Request.Write(svPostData) != svPostData.size())
 		{
 			kDebug(2, "cannot write body");

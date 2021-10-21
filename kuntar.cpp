@@ -199,6 +199,10 @@ uint64_t KUnTar::Decoded::FromNumbers(const char* pStart, uint16_t iSize)
 
 } // FromNumbers
 
+#if (__GNUC__ > 10)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overread"
+#endif
 //-----------------------------------------------------------------------------
 bool KUnTar::Decoded::Decode(const tar::TarHeader& TarHeader)
 //-----------------------------------------------------------------------------
@@ -385,6 +389,9 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& TarHeader)
 	return true;
 
 } // Decode
+#if (__GNUC__ > 10)
+#pragma GCC diagnostic pop
+#endif
 
 //-----------------------------------------------------------------------------
 KUnTar::KUnTar(KInStream& Stream, int AcceptedTypes, bool bSkipAppleResourceForks)

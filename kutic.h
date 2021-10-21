@@ -191,11 +191,11 @@ public:
 	{
 	}
 
-	KStringView URL() const { return m_sURL; }
-	const KUTICElement& Tags()    const { return m_Tags;    }
-	const KUTICElement& IDs()     const { return m_IDs;     }
-	const KUTICElement& Classes() const { return m_Classes; }
-	bool PositiveMatch() const { return m_bPositiveMatch; }
+	KStringView         URL()           const { return m_sURL;           }
+	const KUTICElement& Tags()          const { return m_Tags;           }
+	const KUTICElement& IDs()           const { return m_IDs;            }
+	const KUTICElement& Classes()       const { return m_Classes;        }
+	bool                PositiveMatch() const { return m_bPositiveMatch; }
 
 	/// load UTICs from a file, comma separated U, T, I, C line by line, append to existing list
 	static bool AppendFromFile(std::shared_ptr<std::vector<KUTIC>>& UTICs, KStringViewZ sFileName);
@@ -253,7 +253,7 @@ public:
 	void clear();
 
 	///  Returns the URL as flat string
-	KStringView URL()             const { return m_sURL;       }
+	KStringView URL()   const { return m_sURL;   }
 	/// Returns the tag stack as flat string
 	const KParsedUTICElement& Tags()    const { return m_TIC[Tag];   }
 	/// Returns the ID stack as flat string

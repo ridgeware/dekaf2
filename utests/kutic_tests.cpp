@@ -82,11 +82,10 @@ TEST_CASE("KUTIC")
 		HTMLSerializer.Parse(sHTML);
 
 		CHECK ( sHTML == sOutput );
-		CHECK ( HTMLSerializer.m_Blocks.size() == 2 );
-		if (HTMLSerializer.m_Blocks.size() == 2)
+		CHECK ( HTMLSerializer.m_Blocks.size() == 1 );
+		if (HTMLSerializer.m_Blocks.size() == 1)
 		{
 			CHECK ( HTMLSerializer.m_Blocks[0] == "A study of population dynamics" );
-			CHECK ( HTMLSerializer.m_Blocks[1] == "And finally <i class='shallow'>some</i> content" );
 		}
 	}
 

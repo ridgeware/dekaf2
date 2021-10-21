@@ -635,13 +635,15 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 	// continue to write into a deleted file descriptor.
 	if (m_bLogIsRegularFile)
 	{
-		if (!kFileExists(m_sLogName))
+		KFileStat File(m_sLogName);
+
+		if (!File.Exists())
 		{
 			// file was removed.. reopen
 			SetWriter(CreateWriter(Writer::FILE, m_sLogName));
 		}
 		// check if file grew too big
-		else if (kFileSize(m_sLogName) > 10 * 1024 * 1024)
+		else if (File.Size() > 10 * 1024 * 1024)
 		{
 			if (GetLevel() > 1)
 			{

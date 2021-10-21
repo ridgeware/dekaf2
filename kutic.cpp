@@ -256,14 +256,14 @@ bool KHTMLUTICParser::MatchesUTICs(const std::vector<KUTIC>& Searchers, bool bDe
 //-----------------------------------------------------------------------------
 {
 	for (const auto& SearchedUTIC : Searchers)
-   {
-	   if (m_UTIC == SearchedUTIC)
-	   {
-		   return SearchedUTIC.PositiveMatch();
-	   }
-   }
+	{
+		if (m_UTIC == SearchedUTIC)
+		{
+			return SearchedUTIC.PositiveMatch();
+		}
+	}
 
-   return bDefaultMatches;
+	return bDefaultMatches;
 
 } // MatchesUTICS
 

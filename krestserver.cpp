@@ -843,14 +843,10 @@ void KRESTServer::WriteHeaders(const Options& Options)
 		if (!Options.TimerHeader.empty())
 		{
 			// add a custom header that marks execution time for this request
-			if (Options.bMicrosecondTimerHeader)
-			{
-				Response.Headers.Set (Options.TimerHeader, KString::to_string(m_Timers->microseconds()));
-			}
-			else
-			{
-				Response.Headers.Set (Options.TimerHeader, KString::to_string(m_Timers->milliseconds()));
-			}
+			Response.Headers.Set (Options.TimerHeader,
+								  KString::to_string(Options.bMicrosecondTimerHeader
+													 ? m_Timers->microseconds()
+													 : m_Timers->milliseconds()));
 		}
 	}
 

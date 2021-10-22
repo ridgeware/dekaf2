@@ -975,6 +975,10 @@ bool KString::ClipAtReverse(KStringView sClipAtReverse)
 
 } // ClipAtReverse
 
+#if (__GNUC__ > 10)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 //----------------------------------------------------------------------
 KString::size_type KString::RemoveChars(KStringView sChars)
 //----------------------------------------------------------------------
@@ -990,6 +994,9 @@ KString::size_type KString::RemoveChars(KStringView sChars)
 
 	return ilen - size();
 }
+#if (__GNUC__ > 10)
+#pragma GCC diagnostic pop
+#endif
 
 //-----------------------------------------------------------------------------
 float KString::Float() const noexcept

@@ -8063,7 +8063,7 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 	KString sDBPass;
 	KString sDBHost {"localhost"};
 	KString sDBName;
-	KString sDBPort {0};
+	KString sDBPort;
 	bool    bReady{false};
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

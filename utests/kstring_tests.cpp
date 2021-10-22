@@ -1779,5 +1779,22 @@ TEST_CASE("KString") {
 		sNew = KString().TrimRight(' ');
 		sNew = KString().TrimRight("   ");
 	}
+
+	SECTION("RemoveChars")
+	{
+		KString s = "abcdddefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz";
+		auto iRemoved = s.RemoveChars("dgh");
+		CHECK (iRemoved == 8 );
+		CHECK (s == "abcefijklmnopqrstuvwxyzabcefijklmnopqrstuvwxyz" );
+		iRemoved = s.RemoveChars("1234");
+		CHECK (iRemoved == 0 );
+		iRemoved = s.RemoveChars("abxyz");
+		CHECK (iRemoved == 10 );
+		CHECK (s == "cefijklmnopqrstuvwcefijklmnopqrstuvw" );
+		s.clear();
+		iRemoved = s.RemoveChars("1234");
+		CHECK (iRemoved == 0 );
+		CHECK ( s == "" );
+	}
 }
 

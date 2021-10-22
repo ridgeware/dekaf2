@@ -974,7 +974,7 @@ bool KString::ClipAtReverse(KStringView sClipAtReverse)
 
 } // ClipAtReverse
 
-#if (__GNUC__ > 10)
+#if (__GNUC__ > 6)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
 #endif
@@ -982,18 +982,25 @@ bool KString::ClipAtReverse(KStringView sClipAtReverse)
 KString::size_type KString::RemoveChars(KStringView sChars)
 //----------------------------------------------------------------------
 {
-	auto ilen = size();
-	size_type pos;
+	auto iOrigLen = size();
+	auto pos      = iOrigLen;
 
-	for (size_type lastpos = size(); (pos = find_last_of(sChars, lastpos)) != npos; )
+	for (;;)
 	{
-		erase(pos, 1);
-		lastpos = pos;
+		pos = find_last_of(sChars, pos);
+
+		if (DEKAF2_UNLIKELY(pos >= size()))
+		{
+			break;
+		}
+
+		m_rep.erase(pos, 1);
 	}
 
-	return ilen - size();
-}
-#if (__GNUC__ > 10)
+	return iOrigLen - size();
+
+} // RemoveChars
+#if (__GNUC__ > 6)
 #pragma GCC diagnostic pop
 #endif
 

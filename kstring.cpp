@@ -514,18 +514,11 @@ KString& KString::insert(size_type pos, KStringView sv)
 KString& KString::erase(size_type pos, size_type n)
 //------------------------------------------------------------------------------
 {
-	DEKAF2_TRY_EXCEPTION
-	auto iSize = size();
-
-	if (pos < iSize)
+	// std::string::erase(pos, n) only throws when pos > size()
+	if (DEKAF2_LIKELY(pos < size()))
 	{
-		if (n > iSize - pos)
-		{
-			n = iSize - pos;
-		}
 		m_rep.erase(pos, n);
 	}
-	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
@@ -533,29 +526,35 @@ KString& KString::erase(size_type pos, size_type n)
 KString::iterator KString::erase(iterator position)
 //------------------------------------------------------------------------------
 {
-	DEKAF2_TRY_EXCEPTION
-	// we turn this into a indexed erase, because
+	// we turn this into an indexed erase because
 	// the std::string iterator erase does not test for
 	// iterator out of range and segfaults if out of range..
-	m_rep.erase(static_cast<size_type>(position - begin()), 1);
+	auto pos = static_cast<size_type>(position - begin());
+
+	if (DEKAF2_LIKELY(pos < size()))
+	{
+		m_rep.erase(pos, 1);
+	}
+
 	return position;
-	DEKAF2_LOG_EXCEPTION
-	return end();
 }
 
 //------------------------------------------------------------------------------
 KString::iterator KString::erase(iterator first, iterator last)
 //------------------------------------------------------------------------------
 {
-	DEKAF2_TRY_EXCEPTION
-	// we turn this into a indexed erase, because
+	// we turn this into an indexed erase because
 	// the std::string iterator erase does not test for
 	// iterator out of range and segfaults if out of range..
-	m_rep.erase(static_cast<size_type>(first - begin()),
-				static_cast<size_type>(last - first));
+	auto pos = static_cast<size_type>(first - begin());
+
+	if (DEKAF2_LIKELY(pos < size()))
+	{
+		auto n = static_cast<size_type>(last - first);
+		m_rep.erase(pos, n);
+	}
+
 	return first;
-	DEKAF2_LOG_EXCEPTION
-	return end();
 }
 
 //----------------------------------------------------------------------

@@ -214,7 +214,7 @@ size_t KOutHTTPFilter::Write(KInStream& InStream, size_t len)
 {
 	auto& Out(FilteredStream());
 
-	if (len == KString::npos)
+	if (len == npos)
 	{
 		// write until eof
 		Out.OutStream() << InStream.InStream().rdbuf();

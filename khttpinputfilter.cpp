@@ -199,7 +199,7 @@ size_t KInHTTPFilter::Read(KOutStream& OutStream, size_t len)
 {
 	auto& In(FilteredStream());
 
-	if (len == KString::npos)
+	if (len == npos)
 	{
 		KCountingOutputStreamBuf Count(OutStream);
 

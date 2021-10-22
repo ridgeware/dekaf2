@@ -220,7 +220,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// POST/PUT from stream
-	size_t Write(KInStream& stream, size_t len = KString::npos)
+	size_t Write(KInStream& stream, size_t len = npos)
 	//-----------------------------------------------------------------------------
 	{
 		return Request.Write(stream, len);
@@ -228,7 +228,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Stream into outstream, returns read character count
-	size_t Read(KOutStream& stream, size_t len = KString::npos)
+	size_t Read(KOutStream& stream, size_t len = npos)
 	//-----------------------------------------------------------------------------
 	{
 		return Response.Read(stream, len);
@@ -236,7 +236,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Append to sBuffer, returns read character count
-	size_t Read(KString& sBuffer, size_t len = KString::npos)
+	size_t Read(KString& sBuffer, size_t len = npos)
 	//-----------------------------------------------------------------------------
 	{
 		return Response.Read(sBuffer, len);

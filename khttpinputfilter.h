@@ -119,12 +119,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Stream into OutStream
-	size_t Read(KOutStream& OutStream, size_t len = KString::npos);
+	size_t Read(KOutStream& OutStream, size_t len = npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Append to sBuffer
-	size_t Read(KString& sBuffer, size_t len = KString::npos);
+	size_t Read(KString& sBuffer, size_t len = npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

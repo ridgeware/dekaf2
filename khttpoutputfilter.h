@@ -117,7 +117,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Stream from InStream into OutStream
-	size_t Write(KInStream& InStream, size_t len = KString::npos);
+	size_t Write(KInStream& InStream, size_t len = npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

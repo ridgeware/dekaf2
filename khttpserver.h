@@ -140,7 +140,7 @@ public:
 	/// @param Stream the stream to read into
 	/// @param len the number of bytes to read, or npos to read until EOF
 	/// @return the count of read bytes
-	size_t Read(KOutStream& Stream, size_t len = KString::npos)
+	size_t Read(KOutStream& Stream, size_t len = npos)
 	//-----------------------------------------------------------------------------
 	{
 		return Request.Read(Stream, len);
@@ -151,7 +151,7 @@ public:
 	/// @param sBuffer the string to read into
 	/// @param len the number of bytes to read, or npos to read until EOF
 	/// @return the count of read bytes
-	size_t Read(KString& sBuffer, size_t len = KString::npos)
+	size_t Read(KString& sBuffer, size_t len = npos)
 	//-----------------------------------------------------------------------------
 	{
 		return Request.Read(sBuffer, len);
@@ -178,7 +178,7 @@ public:
 	/// @param Stream the stream to read from
 	/// @param len the number of bytes to read, or npos to read until EOF
 	/// @return the count of written bytes
-	size_t Write(KInStream& Stream, size_t len = KString::npos)
+	size_t Write(KInStream& Stream, size_t len = npos)
 	//-----------------------------------------------------------------------------
 	{
 		return Response.Write(Stream, len);

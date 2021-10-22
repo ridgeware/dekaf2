@@ -193,6 +193,13 @@ const KString& KHTTPClient::DigestAuthenticator::GetAuthHeader(const KOutHTTPReq
 
 } // DigestAuthenticator::GetAuthHeader
 
+//-----------------------------------------------------------------------------
+bool KHTTPClient::DigestAuthenticator::NeedsContentData() const
+//-----------------------------------------------------------------------------
+{
+	return sQoP == "auth-int";
+
+} // DigestAuthenticator::NeedsContentData
 
 //-----------------------------------------------------------------------------
 void KHTTPClient::clear()
@@ -626,7 +633,7 @@ KHTTPClient& KHTTPClient::ClearAuthentication()
 } // ClearAuthentication
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::SendRequest(KStringView svPostData, const KMIME& Mime)
+bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream, size_t len, const KMIME& Mime)
 //-----------------------------------------------------------------------------
 {
 	Response.clear();
@@ -650,32 +657,40 @@ bool KHTTPClient::SendRequest(KStringView svPostData, const KMIME& Mime)
 		Request.Method != KHTTPMethod::OPTIONS &&
 		Request.Method != KHTTPMethod::CONNECT)
 	{
-		if (Request.Method != KHTTPMethod::GET ||
-			!svPostData.empty())
+		// We allow sending body data for GET requests as well, as a few
+		// applications expect doing so. It is not generally advisable due
+		// to proxy issues though.
+		if (len != npos && len > 0)
 		{
-			// We allow sending body data for GET requests as well, as a few
-			// applications expect doing so. It is not generally advisable due
-			// to proxy issues though.
-			AddHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(svPostData.size()));
+			AddHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(len));
+		}
 
-			if (!svPostData.empty())
-			{
-				AddHeader(KHTTPHeader::CONTENT_TYPE, Mime.Serialize());
-			}
+		if (Mime != KMIME::NONE && (len > 0 || PostDataStream))
+		{
+			AddHeader(KHTTPHeader::CONTENT_TYPE, Mime.Serialize());
 		}
 	}
 	else
 	{
-		if (!svPostData.empty())
-		{
-			kDebug(1, "cannot send body data with {} request, data removed", Request.Method.Serialize())
-			svPostData.clear();
-		}
+		kDebug(1, "cannot send body data with {} request, data ignored", Request.Method.Serialize())
+		len = 0;
 	}
 
 	if (m_Authenticator)
 	{
-		AddHeader(KHTTPHeader::AUTHORIZATION, m_Authenticator->GetAuthHeader(Request, svPostData));
+		if (m_Authenticator->NeedsContentData())
+		{
+			if (!svPostData)
+			{
+				// we cannot authenticate a stream if the content needs to be part of the authentication
+				return SetError("cannot authenticate stream with given authentication method");
+			}
+			AddHeader(KHTTPHeader::AUTHORIZATION, m_Authenticator->GetAuthHeader(Request, *svPostData));
+		}
+		else
+		{
+			AddHeader(KHTTPHeader::AUTHORIZATION, m_Authenticator->GetAuthHeader(Request, ""));
+		}
 	}
 
 	if (m_bRequestCompression && Request.Method != KHTTPMethod::CONNECT)
@@ -690,12 +705,29 @@ bool KHTTPClient::SendRequest(KStringView svPostData, const KMIME& Mime)
 		return false;
 	}
 
-	if (!svPostData.empty())
+	if (len > 0)
 	{
-		kDebug(2, "sending {} bytes of body with mime '{}'", svPostData.size(), Mime.Serialize());
-		kDebug(3, svPostData);
+		if (kWouldLog(2))
+		{
+			if (len != npos)
+			{
+				kDebug(2, "sending {} bytes of body with mime '{}'", len, Mime);
 
-		if (Request.Write(svPostData) != svPostData.size())
+				if (svPostData)
+				{
+					kDebug(3, svPostData->Left(4096));
+				}
+			}
+			else
+			{
+				kDebug(2, "sending streamed body with mime '{}'", Mime);
+			}
+		}
+
+		// write the content, either from a string view or a stream
+		auto iWrote = (svPostData) ? Request.Write(*svPostData) : Request.Write(*PostDataStream, len);
+
+		if (iWrote != len)
 		{
 			kDebug(2, "cannot write body");
 			return SetNetworkError(false, Request.Error());
@@ -708,7 +740,8 @@ bool KHTTPClient::SendRequest(KStringView svPostData, const KMIME& Mime)
 	}
 
 	return Parse();
-}
+
+} // SendRequest
 
 //-----------------------------------------------------------------------------
 bool KHTTPClient::Serialize()

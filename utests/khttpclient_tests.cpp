@@ -5,6 +5,7 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/ktimer.h>
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/koutstringstream.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 
@@ -177,6 +178,33 @@ TEST_CASE("KHTTPClient") {
 		CHECK( Client.SendRequest() == false );
 		// allow for ten millisecond of fail time
 		CHECK( Stop.microseconds() < 10000 );
+	}
+
+	SECTION("send a stream")
+	{
+		KTinyHTTPServer server(7654, false);
+		server.Start(2, false);
+		server.clear();
+
+		KStringView sContent = "this is our streamed content\n";
+		KInStringStream iss(sContent);
+
+		KHTTPClient HTTP("http://127.0.0.1:7654/abc", KHTTPMethod::POST);
+		HTTP.SendRequest(iss);
+		KString shtml;
+		HTTP.Read(shtml);
+		CHECK( shtml == "0123456789");
+		CHECK( server.m_rx.size() == 6 );
+		if (server.m_rx.size() == 6)
+		{
+			CHECK( server.m_rx[0] == "POST /abc HTTP/1.1" );
+			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
+			CHECK( server.m_rx[2] == "Content-Type: text/plain");
+			CHECK( server.m_rx[3] == "Accept-Encoding: gzip, bzip2, deflate");
+			CHECK( server.m_rx[4] == "");
+			sContent.remove_suffix(1);
+			CHECK( server.m_rx[5] == sContent);
+		}
 	}
 
 }

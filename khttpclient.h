@@ -79,6 +79,7 @@ public:
 
 		virtual ~Authenticator() = default;
 		virtual const KString& GetAuthHeader(const KOutHTTPRequest& Request, KStringView sBody) = 0;
+		virtual bool NeedsContentData() const { return false; }
 
 	}; // Authenticator
 
@@ -125,6 +126,7 @@ public:
 							KString _sOpaque,
 							KString _sQoP);
 		virtual const KString& GetAuthHeader(const KOutHTTPRequest& Request, KStringView sBody) override;
+		virtual bool NeedsContentData() const override;
 
 		KString sRealm;
 		KString sNonce;
@@ -205,8 +207,18 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	bool SendRequest(KStringView svPostData = KStringView{}, const KMIME& Mime = KMIME::TEXT_PLAIN);
+	bool SendRequest(KInStream& PostDataStream, size_t len = npos, const KMIME& Mime = KMIME::TEXT_PLAIN)
 	//-----------------------------------------------------------------------------
+	{
+		return SendRequest(nullptr, &PostDataStream, len, Mime);
+	}
+
+	//-----------------------------------------------------------------------------
+	bool SendRequest(KStringView svPostData = KStringView{}, const KMIME& Mime = KMIME::TEXT_PLAIN)
+	//-----------------------------------------------------------------------------
+	{
+		return SendRequest(&svPostData, nullptr, svPostData.size(), Mime);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// write request headers (and setup the filtered output stream)
@@ -436,6 +448,11 @@ protected:
 	/// header, possibly changing RequestMethod. If bNoHostChange is set, no change in protocol, domain
 	/// and port are allowed
 	bool CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod, bool bNoHostChange = false);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// send a request either with a stream to read body data from, or a stringview
+	bool SendRequest(KStringView* svPostData, KInStream* PostDataStream, size_t len, const KMIME& Mime);
 	//-----------------------------------------------------------------------------
 
 //------

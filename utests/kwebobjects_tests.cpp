@@ -187,6 +187,19 @@ text-decoration: none
 		</div>
 		<a href="link" title="title"><img alt="AltText" loading="lazy" src="another/link"/></a>
 		<a href="link" title="title"><img alt="AltText" loading="lazy" src="another/link"/></a>
+		<table>
+			<tr>
+				<td>
+					&lt;d1&gt;
+				</td>
+				<td>
+					d2
+				</td>
+				<td>
+					d3
+				</td>
+			</tr>
+		</table>
 	</body>
 </html>
 )";
@@ -326,6 +339,13 @@ text-decoration: none
 			body += html::LineBreak();
 			body += html::Link("link").SetTitle("title").Append(html::Image("another/link", "AltText").SetLoading(html::Image::LAZY));
 			body += html::LineBreak();
+
+			auto& table = body  += html::Table();
+			auto& row1  = table += html::TableRow();
+			auto& data1 = row1  += html::TableData();
+			data1 += html::Text("<d1>");
+			(row1 += html::TableData()).Add(html::Text("d2"));
+			(row1 += html::TableData()).Add(html::Text("d3"));
 
 			html::TextInput ti(m_Config.sMailTo, "mailto");
 			ti.Synchronize(Parms);

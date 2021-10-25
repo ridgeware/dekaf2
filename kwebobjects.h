@@ -682,6 +682,35 @@ protected:
 		return SetDefer(bYesNo);
 	}
 
+	template<typename Arithmetic>
+	self& SetColSpan(Arithmetic iSpan) &
+	{
+		static_assert(std::is_arithmetic<Arithmetic>::value, "need arithmetic type");
+		SetAttribute("colspan", iSpan);
+		return This();
+	}
+
+	template<typename Arithmetic>
+	self&& SetColSpan(Arithmetic iMax) &&
+	{
+		return std::move(SetColSpan(iMax));
+	}
+
+	template<typename Arithmetic>
+	self& SetRowSpan(Arithmetic iSpan) &
+	{
+		static_assert(std::is_arithmetic<Arithmetic>::value, "need arithmetic type");
+		SetAttribute("rowspan", iSpan);
+		return This();
+	}
+
+	template<typename Arithmetic>
+	self&& SetRowSpan(Arithmetic iMax) &&
+	{
+		return std::move(SetRowSpan(iMax));
+	}
+
+
 //----------
 private:
 //----------
@@ -865,6 +894,101 @@ public:
 	virtual std::size_t WebObjectType() const override { return TYPE; }
 
 }; // Paragraph
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class Table : public KWebObject<Table>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	static constexpr KStringView s_sObjectName = "Table";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	Table(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
+	: KWebObject("table", sID, Classes)
+	{
+	}
+
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t WebObjectType() const override { return TYPE; }
+
+}; // Table
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class TableRow : public KWebObject<TableRow>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	static constexpr KStringView s_sObjectName = "TableRow";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	TableRow(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
+	: KWebObject("tr", sID, Classes)
+	{
+	}
+
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t WebObjectType() const override { return TYPE; }
+
+}; // TableRow
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class TableData : public KWebObject<TableData>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	static constexpr KStringView s_sObjectName = "TableData";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	TableData(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
+	: KWebObject("td", sID, Classes)
+	{
+	}
+
+	using KWebObject::SetColSpan;
+	using KWebObject::SetRowSpan;
+
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t WebObjectType() const override { return TYPE; }
+
+}; // TableData
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class TableHeader : public KWebObject<TableHeader>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	static constexpr KStringView s_sObjectName = "TableHeader";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	TableHeader(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
+	: KWebObject("th", sID, Classes)
+	{
+	}
+
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t WebObjectType() const override { return TYPE; }
+
+}; // TableHeader
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Link : public KWebObject<Link>

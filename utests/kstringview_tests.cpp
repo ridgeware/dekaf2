@@ -3,6 +3,7 @@
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/kprops.h>
+#include <dekaf2/bits/kcppcompat.h>
 #include <vector>
 
 using namespace dekaf2;
@@ -16,11 +17,16 @@ TEST_CASE("KStringView") {
 		// fatal error C1001: An internal error has occurred in the compiler.
 		// (compiler file 'msc1.cpp', line 1518)
 		// To work around this problem, try simplifying or changing the program near the locations listed above.
+	#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION > 90000
 		static constexpr KStringView sv1 { nullptr };
-		CHECK(sv1.empty());
 		static constexpr KStringView sv2 = nullptr;
+	#else
+		static KStringView sv1 { nullptr };
+		static KStringView sv2 = nullptr;
+	#endif
+		CHECK ( sv1.empty() );
 		CHECK ( sv2.empty() );
-#endif
+	#endif
 	}
 
 	SECTION("find")

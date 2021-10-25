@@ -707,6 +707,15 @@ public:
 	/// returns true if KSQL is allowed to throw
 	bool GetThrow() const { return m_bMayThrow; }
 
+	/// Load entire data dictionary into a JSON structure for the given schema (or current connection).
+	/// Optionally restrict by tablename prefix (case insensitive).
+	KJSON LoadSchema (KStringView sDBName="", KStringView sStartsWith="");
+
+	/// Diff two data dictionaries, returned by prior calls to LoadSchema().
+	/// Produces two summaries of the diffs: one structured (JSON) and the other serialized (ASCII "diff" output).
+	/// Returns the number of diffs (or 0 if no diffs).
+	int32_t DiffSchemas (const KJSON& Schema1, const KJSON& Schema2, KJSON& Diffs, KString& sSummary);
+
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper object to proxy access to KSQL and reset the Throw/NoThrow state after use
 	template<class SQL>

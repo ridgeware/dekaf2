@@ -8545,6 +8545,114 @@ bool KSQL::ShowCounts (KStringView sRegex/*=""*/)
 
 } // ShowCounts
 
+//-----------------------------------------------------------------------------
+KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""*/)
+//-----------------------------------------------------------------------------
+{
+	if (!sDBName)
+	{
+		sDBName = GetDBName();
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// table info obtained via:
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// desc XAPIS_USER;
+	// +--------------------+--------------+------+-----+---------------------+-------+
+	// | Field              | Type         | Null | Key | Default             | Extra |
+	// +--------------------+--------------+------+-----+---------------------+-------+
+	// | user_key           | char(19)     | NO   | PRI | NULL                |       |
+	// | email              | varchar(250) | NO   | UNI | NULL                |       |
+	// | first_name         | varchar(250) | YES  |     | NULL                |       |
+	// | last_name          | varchar(250) | YES  |     | NULL                |       |
+	// | company_name       | varchar(250) | YES  |     | NULL                |       |
+	// | phone              | varchar(50)  | YES  |     | NULL                |       |
+	// | is_active          | tinyint(1)   | NO   |     | 1                   |       |
+	// | can_create_group   | tinyint(1)   | NO   |     | 1                   |       |
+	// | can_create_project | tinyint(1)   | NO   |     | 1                   |       |
+	// | group_key          | char(19)     | YES  |     | NULL                |       |
+	// | ui_view            | varchar(20)  | NO   |     | normal              |       |
+	// | bb_ldap_username   | varchar(20)  | YES  |     | NULL                |       |
+	// | avatar_url         | text         | YES  |     | NULL                |       |
+	// | created_utc        | timestamp    | NO   |     | current_timestamp() |       |
+	// | created_user       | char(19)     | NO   |     | NULL                |       |
+	// | lastmod_utc        | timestamp    | NO   |     | current_timestamp() |       |
+	// | lastmod_user       | char(19)     | NO   |     | NULL                |       |
+	// | user_type          | varchar(10)  | YES  |     | NULL                |       |
+	// +--------------------+--------------+------+-----+---------------------+-------+
+	//
+	// or obtained with this query:
+	//  select *
+	//    from INFORMATION_SCHEMA.COLUMNS
+	//   where table_schema = '{}'                     <-- sDBName
+	//     and upper(table_name) like upper('{}%')     <-- sStartsWith
+	//   order by table_name
+	//       , ordinal_position
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// index info for each table is obtained via:
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// show indexs from XAPIS_USER;
+	// +------------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+	// | Table      | Non_unique | Key_name | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
+	// +------------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+	// | xapis_user |          0 | PRIMARY  |            1 | user_key    | A         |           0 |     NULL | NULL   |      | BTREE      |         |               |
+	// | xapis_user |          0 | IDX01    |            1 | email       | A         |           0 |     NULL | NULL   |      | BTREE      |         |               |
+	// +------------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+	//
+	// or in this sytem table:
+	// index info is stored in INFORMATION_SCHEMA.STATISTICS
+	// +---------------+---------------+------+-----+---------+-------+
+	// | Field         | Type          | Null | Key | Default | Extra |
+	// +---------------+---------------+------+-----+---------+-------+
+	// | TABLE_CATALOG | varchar(512)  | NO   |     |         |       |
+	// | TABLE_SCHEMA  | varchar(64)   | NO   |     |         |       |
+	// | TABLE_NAME    | varchar(64)   | NO   |     |         |       |
+	// | NON_UNIQUE    | bigint(1)     | NO   |     | 0       |       |
+	// | INDEX_SCHEMA  | varchar(64)   | NO   |     |         |       |
+	// | INDEX_NAME    | varchar(64)   | NO   |     |         |       |
+	// | SEQ_IN_INDEX  | bigint(2)     | NO   |     | 0       |       |
+	// | COLUMN_NAME   | varchar(64)   | NO   |     |         |       |
+	// | COLLATION     | varchar(1)    | YES  |     | NULL    |       |
+	// | CARDINALITY   | bigint(21)    | YES  |     | NULL    |       |
+	// | SUB_PART      | bigint(3)     | YES  |     | NULL    |       |
+	// | PACKED        | varchar(10)   | YES  |     | NULL    |       |
+	// | NULLABLE      | varchar(3)    | NO   |     |         |       |
+	// | INDEX_TYPE    | varchar(16)   | NO   |     |         |       |
+	// | COMMENT       | varchar(16)   | YES  |     | NULL    |       |
+	// | INDEX_COMMENT | varchar(1024) | NO   |     |         |       |
+	// +---------------+---------------+------+-----+---------+-------+
+
+	// thinking:
+	// "tables": [
+	//    {
+	//       "tablename": "XAPIS_FLUBBER",
+	//       "columns": [
+	//           {
+	//               
+	//           }
+	//       ]
+	//       "indexes": [
+	//           ...
+	//       ]
+	// ]
+
+	return {}; // TODO
+
+} // LoadSchema
+
+//-----------------------------------------------------------------------------
+int32_t KSQL::DiffSchemas (const KJSON& Schema1, const KJSON& Schema2, KJSON& Diffs, KString& sSummary)
+//-----------------------------------------------------------------------------
+{
+	int32_t iNumDiffs{0};
+
+	// TODO: build Diffs (json) and sSummary (nice "diff" style ascii output) and retur iNumDiffsn
+
+	return iNumDiffs;
+
+} // DiffSchemas
+
 KSQL::DBCCache KSQL::s_DBCCache;
 
 #ifndef DEKAF2_HAS_CPP_17

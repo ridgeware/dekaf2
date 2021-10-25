@@ -55,6 +55,7 @@
 #include "bits/kcppcompat.h"
 #include "bits/kstring_view.h"
 #include "bits/khash.h"
+#include "bits/ktemplate.h"
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 #include <folly/FBString.h>
 #endif
@@ -67,7 +68,18 @@ namespace dekaf2
 class KString;
 class KStringView;
 class KStringViewZ;
-template <class Value> class KStack;
+
+namespace detail {
+	template<class T>
+	struct is_kstringview_convertible
+	: std::integral_constant<
+		bool,
+		std::is_convertible<const T&, KStringView>::value &&
+		!std::is_convertible<const T&, const char*>::value &&
+		!detail::is_json_type<T>::value
+	  > {};
+}
+
 
 //----------------------------------------------------------------------
 /// returns a copy of the string in uppercase (UTF8)
@@ -156,8 +168,7 @@ public:
 	KString (const KStringView& sv);
 	KString (const KStringViewZ& svz);
 	template<typename T,
-	         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-	                                 std::is_convertible<const T&, const value_type*>::value == false, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
 	explicit KString (const T& sv);
 
 	// other constructors
@@ -176,7 +187,7 @@ public:
 	KString (value_type *s, size_type n, size_type c, AcquireMallocatedString a) : KString (s, n) { if (s) delete(s); }
 #endif
 	template<typename T,
-	         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
 	KString (const T& sv, size_type pos, size_type n);
 
 	// assignment operators
@@ -185,8 +196,7 @@ public:
 	self& operator= (value_type ch);
 	self& operator= (const value_type *s);
 	template<typename T,
-	         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-	                                 std::is_convertible<const T&, const value_type*>::value == false, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
 	self& operator= (const T& sv);
 
 	self& operator+= (const KString& s);
@@ -194,8 +204,7 @@ public:
 	self& operator+= (const value_type *s);
 	self& operator+= (std::initializer_list<value_type> il);
 	template<typename T,
-	         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-	                                 std::is_convertible<const T&, const value_type*>::value == false, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
 	self& operator+= (const T& sv);
 
 	iterator                begin()            noexcept       { return m_rep.begin();        }
@@ -248,12 +257,10 @@ public:
 	self& append(_InputIterator first, _InputIterator last)   { m_rep.append(first, last);          return *this; }
 	self& append(std::initializer_list<value_type> il)        { m_rep.append(il);                   return *this; }
 	template<typename T,
-	         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-	                                 std::is_convertible<const T&, const value_type*>::value == false, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
 	self& append(const T& sv);
 	template<typename T,
-	         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-	                                 std::is_convertible<const T&, const value_type*>::value == false, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
 	self& append(const T& sv, size_type pos, size_type n = npos);
 
 	self& push_back(const value_type chPushBack)              { m_rep.push_back(chPushBack);        return *this; }
@@ -269,12 +276,10 @@ public:
 	self& assign(std::initializer_list<value_type> il)        { m_rep.assign(il);                   return *this; }
 	self& assign(KString&& str) noexcept                      { m_rep.assign(std::move(str.m_rep)); return *this; }
 	template<typename T,
-	         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-	                                 std::is_convertible<const T&, const value_type*>::value == false, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
 	self& assign(const T& sv);
 	template<typename T,
-	         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-	                                 std::is_convertible<const T&, const value_type*>::value == false, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
 	self& assign(const T& sv, size_type pos, size_type n = npos);
 
 	int compare(const KString& str)                                                const;
@@ -855,8 +860,7 @@ inline KString::KString(const KStringViewZ& svz)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
- 								 std::is_convertible<const T&, const KString::value_type*>::value == false, int>::type>
+         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
 inline KString::KString(const T& sv)
 //-----------------------------------------------------------------------------
 : KString(KStringView(sv))
@@ -865,7 +869,7 @@ inline KString::KString(const T& sv)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type>
+         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
 KString::KString(const T& sv, size_type pos, size_type n)
 //-----------------------------------------------------------------------------
 : KString(KStringView(sv).substr(pos, n))
@@ -874,8 +878,7 @@ KString::KString(const T& sv, size_type pos, size_type n)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-								 std::is_convertible<const T&, const KString::value_type*>::value == false, int>::type>
+         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
 inline KString& KString::assign(const T& sv)
 //-----------------------------------------------------------------------------
 {
@@ -886,12 +889,11 @@ inline KString& KString::assign(const T& sv)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-								 std::is_convertible<const T&, const KString::value_type*>::value == false, int>::type>
+         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
 KString& KString::assign(const T& sv, size_type pos, size_type n)
 //-----------------------------------------------------------------------------
 {
-	return assign(sv.substr(pos, n));
+	return assign(KStringView(sv).substr(pos, n));
 }
 
 //-----------------------------------------------------------------------------
@@ -910,8 +912,7 @@ inline KString& KString::operator= (const value_type *s)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-                                 std::is_convertible<const T&, const KString::value_type*>::value == false, int>::type>
+         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
 inline KString& KString::operator= (const T& sv)
 //-----------------------------------------------------------------------------
 {
@@ -920,8 +921,7 @@ inline KString& KString::operator= (const T& sv)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-								 std::is_convertible<const T&, const KString::value_type*>::value == false, int>::type>
+         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
 inline KString& KString::append(const T& sv)
 //-----------------------------------------------------------------------------
 {
@@ -932,8 +932,7 @@ inline KString& KString::append(const T& sv)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-								 std::is_convertible<const T&, const KString::value_type*>::value == false, int>::type>
+         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
 KString& KString::append(const T& sv, size_type pos, size_type n)
 //-----------------------------------------------------------------------------
 {
@@ -963,8 +962,7 @@ inline KString& KString::operator+= (std::initializer_list<value_type> il)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-                                 std::is_convertible<const T&, const KString::value_type*>::value == false, int>::type>
+         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
 inline KString& KString::operator+= (const T& sv)
 //-----------------------------------------------------------------------------
 {

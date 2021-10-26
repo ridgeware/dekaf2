@@ -8549,95 +8549,148 @@ bool KSQL::ShowCounts (KStringView sRegex/*=""*/)
 KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""*/)
 //-----------------------------------------------------------------------------
 {
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// tables obtained via:
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// show tables like 'TEST%';
+	// +------------------------------+
+	// | Tables_in_ksql (TEST%) |
+	// +------------------------------+
+	// | testschema1_ksql             |
+	// | testschema22_ksql            |
+	// | testschema2_ksql             |
+	// +------------------------------+
+	// 3 rows in set (0.007 sec)
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// table and index info obtained via:
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// show create table testschema1_ksql;
+	// +------------------+--------------------------------------------------+
+	// | Table            | Create Table                                     |
+	// +------------------+--------------------------------------------------+
+	// | testschema1_ksql | CREATE TABLE `testschema1_ksql` (
+	//   `anum` int(11) NOT NULL,
+	//   `astring` char(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+	//   `adate` timestamp NOT NULL DEFAULT current_timestamp(),
+	//   `newstring` char(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+	//   PRIMARY KEY (`astring`),
+	//   KEY `idx01` (`anum`)
+	// ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci |
+	// +------------------+--------------------------------------------------+
+	// 1 row in set (0.000 sec)
+
+	// result:
+	// {
+	// 	"tables": [
+	// 		{
+	// 			"columns": [
+	// 				{
+	// 					"anum": "int(11) NOT NULL"
+	// 				},
+	// 				{
+	// 					"astring": "char(100) COLLATE utf8mb4_unicode_ci NOT NULL"
+	// 				},
+	// 				{
+	// 					"adate": "timestamp NOT NULL DEFAULT current_timestamp()"
+	// 				},
+	// 				{
+	// 					"PRIMARY KEY": "(`astring`)"
+	// 				},
+	// 				{
+	// 					"idx01": "(`anum`)"
+	// 				}
+	// 			],
+	// 			"tablename": "TESTSCHEMA1_KSQL"
+	// 		}
+	// 	]
+	// }
+
 	if (!sDBName)
 	{
 		sDBName = GetDBName();
 	}
 
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// table info obtained via:
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// desc XAPIS_USER;
-	// +--------------------+--------------+------+-----+---------------------+-------+
-	// | Field              | Type         | Null | Key | Default             | Extra |
-	// +--------------------+--------------+------+-----+---------------------+-------+
-	// | user_key           | char(19)     | NO   | PRI | NULL                |       |
-	// | email              | varchar(250) | NO   | UNI | NULL                |       |
-	// | first_name         | varchar(250) | YES  |     | NULL                |       |
-	// | last_name          | varchar(250) | YES  |     | NULL                |       |
-	// | company_name       | varchar(250) | YES  |     | NULL                |       |
-	// | phone              | varchar(50)  | YES  |     | NULL                |       |
-	// | is_active          | tinyint(1)   | NO   |     | 1                   |       |
-	// | can_create_group   | tinyint(1)   | NO   |     | 1                   |       |
-	// | can_create_project | tinyint(1)   | NO   |     | 1                   |       |
-	// | group_key          | char(19)     | YES  |     | NULL                |       |
-	// | ui_view            | varchar(20)  | NO   |     | normal              |       |
-	// | bb_ldap_username   | varchar(20)  | YES  |     | NULL                |       |
-	// | avatar_url         | text         | YES  |     | NULL                |       |
-	// | created_utc        | timestamp    | NO   |     | current_timestamp() |       |
-	// | created_user       | char(19)     | NO   |     | NULL                |       |
-	// | lastmod_utc        | timestamp    | NO   |     | current_timestamp() |       |
-	// | lastmod_user       | char(19)     | NO   |     | NULL                |       |
-	// | user_type          | varchar(10)  | YES  |     | NULL                |       |
-	// +--------------------+--------------+------+-----+---------------------+-------+
-	//
-	// or obtained with this query:
-	//  select *
-	//    from INFORMATION_SCHEMA.COLUMNS
-	//   where table_schema = '{}'                     <-- sDBName
-	//     and upper(table_name) like upper('{}%')     <-- sStartsWith
-	//   order by table_name
-	//       , ordinal_position
+	KJSON jSchema;
 
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// index info for each table is obtained via:
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// show indexs from XAPIS_USER;
-	// +------------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
-	// | Table      | Non_unique | Key_name | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
-	// +------------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
-	// | xapis_user |          0 | PRIMARY  |            1 | user_key    | A         |           0 |     NULL | NULL   |      | BTREE      |         |               |
-	// | xapis_user |          0 | IDX01    |            1 | email       | A         |           0 |     NULL | NULL   |      | BTREE      |         |               |
-	// +------------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
-	//
-	// or in this sytem table:
-	// index info is stored in INFORMATION_SCHEMA.STATISTICS
-	// +---------------+---------------+------+-----+---------+-------+
-	// | Field         | Type          | Null | Key | Default | Extra |
-	// +---------------+---------------+------+-----+---------+-------+
-	// | TABLE_CATALOG | varchar(512)  | NO   |     |         |       |
-	// | TABLE_SCHEMA  | varchar(64)   | NO   |     |         |       |
-	// | TABLE_NAME    | varchar(64)   | NO   |     |         |       |
-	// | NON_UNIQUE    | bigint(1)     | NO   |     | 0       |       |
-	// | INDEX_SCHEMA  | varchar(64)   | NO   |     |         |       |
-	// | INDEX_NAME    | varchar(64)   | NO   |     |         |       |
-	// | SEQ_IN_INDEX  | bigint(2)     | NO   |     | 0       |       |
-	// | COLUMN_NAME   | varchar(64)   | NO   |     |         |       |
-	// | COLLATION     | varchar(1)    | YES  |     | NULL    |       |
-	// | CARDINALITY   | bigint(21)    | YES  |     | NULL    |       |
-	// | SUB_PART      | bigint(3)     | YES  |     | NULL    |       |
-	// | PACKED        | varchar(10)   | YES  |     | NULL    |       |
-	// | NULLABLE      | varchar(3)    | NO   |     |         |       |
-	// | INDEX_TYPE    | varchar(16)   | NO   |     |         |       |
-	// | COMMENT       | varchar(16)   | YES  |     | NULL    |       |
-	// | INDEX_COMMENT | varchar(1024) | NO   |     |         |       |
-	// +---------------+---------------+------+-----+---------+-------+
+	if (sDBName.empty())
+	{
+		SetError("no database name");
+		return jSchema;
+	}
 
-	// thinking:
-	// "tables": [
-	//    {
-	//       "tablename": "XAPIS_FLUBBER",
-	//       "columns": [
-	//           {
-	//               
-	//           }
-	//       ]
-	//       "indexes": [
-	//           ...
-	//       ]
-	// ]
+	if (!ExecSQL("use {}", sDBName))
+	{
+		return jSchema;
+	}
 
-	return {}; // TODO
+	auto iOldFlags = SetFlag(F_IgnoreSelectKeyword);
+
+	KScopeGuard GuardFlags = [this,iOldFlags]
+	{
+		SetFlags(iOldFlags);
+	};
+
+	if (!ExecQuery("show tables like '{}%'", sStartsWith))
+	{
+		return jSchema;
+	}
+
+	std::vector<KString> Tables;
+
+	for (const auto& row : *this)
+	{
+		Tables.push_back(row.GetValue(0).ToUpper());
+	}
+
+	for (const auto& sTable : Tables)
+	{
+		if (!ExecQuery("show create table {}", sTable) || !NextRow())
+		{
+			return jSchema;
+		}
+
+		KStringView sCreateTable = Get(2);
+
+		auto CreateTable = sCreateTable.Split("\n", ", ");
+
+		// create a new table info
+		KJSON jTable;
+		jTable["tablename"] = sTable;
+
+		for (auto sLine : CreateTable)
+		{
+			if (sLine.starts_with('`') || sLine.remove_prefix("KEY "))
+			{
+				// column definition: `created_utc`
+				// index definition: KEY `IDX01`
+
+				sLine.remove_prefix(1);
+				auto iPos = sLine.find('`');
+				if (iPos == KStringView::npos)
+				{
+					SetError(kFormat("bad column definition: `{}", sLine));
+				}
+				KStringView sColName(sLine.data(), iPos);
+				sLine.remove_prefix(iPos + 2);
+				jTable["columns"].push_back(KJSON
+				{
+					{ sColName, sLine }
+				});
+			}
+			else if (sLine.remove_prefix("PRIMARY KEY "))
+			{
+				jTable["columns"].push_back(KJSON
+				{
+					{ "PRIMARY KEY", sLine }
+				});
+			}
+		}
+
+		jSchema["tables"].push_back(jTable);
+	}
+
+	return jSchema;
 
 } // LoadSchema
 
@@ -8645,11 +8698,173 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 int32_t KSQL::DiffSchemas (const KJSON& Schema1, const KJSON& Schema2, KJSON& Diffs, KString& sSummary)
 //-----------------------------------------------------------------------------
 {
-	int32_t iNumDiffs{0};
+	int32_t iDiffs { 0 };
 
-	// TODO: build Diffs (json) and sSummary (nice "diff" style ascii output) and retur iNumDiffsn
+	try
+	{
+		Diffs = KJSON::diff(Schema1, Schema2);
 
-	return iNumDiffs;
+		sSummary.clear();
+
+		if (!Diffs.empty())
+		{
+			KJSON OldArray = kjson::GetArray(Schema1, "tables");
+			KJSON NewArray = kjson::GetArray(Schema2, "tables");
+
+			//-----------------------------------------------------------------------------
+			auto FindTable = [](const KJSON& Array, const KString& sProperty, const KString& sName) -> const KJSON&
+			//-----------------------------------------------------------------------------
+			{
+				static const KJSON s_jEmpty;
+
+				for (const auto& jElement : Array)
+				{
+					if (jElement[sProperty] == sName)
+					{
+						return jElement;
+					}
+				}
+				return s_jEmpty;
+			};
+
+			//-----------------------------------------------------------------------------
+			auto FindField = [](const KJSON& Array, const KString& sName) -> const KJSON&
+			//-----------------------------------------------------------------------------
+			{
+				static const KJSON s_jEmpty;
+
+				for (const auto& jElement : Array)
+				{
+					if (jElement.items().begin().key() == sName)
+					{
+						return jElement;
+					}
+				}
+				return s_jEmpty;
+			};
+
+			//-----------------------------------------------------------------------------
+			auto PrintColumn = [&sSummary](bool left, const KJSON& jColumn)
+			//-----------------------------------------------------------------------------
+			{
+				if (jColumn.is_object() && !jColumn.empty())
+				{
+					auto it = jColumn.items();
+					sSummary += kFormat("{} {} {}\n",
+										left ? '<' : '>',
+										it.begin().key(),
+										it.begin().value().get_ref<const KString&>());
+				}
+			};
+
+			//-----------------------------------------------------------------------------
+			auto PrintColumnDiff = [&](const KString& sTableName, const KJSON& left, const KJSON& right)
+			//-----------------------------------------------------------------------------
+			{
+				sSummary += sTableName;
+				if (left.is_null())
+				{
+					sSummary += " (only in right schema)";
+				}
+				if (right.is_null())
+				{
+					sSummary += " (only in left schema)";
+				}
+				sSummary += '\n';
+
+				std::set<KStringView> VisitedColumns;
+
+				if (left.is_array())
+				{
+					for (const auto& jLeftColumn : left)
+					{
+						auto& sField       = jLeftColumn.items().begin().key();
+						auto& jRightColumn = FindField(right, sField);
+
+						if (jRightColumn.is_object())
+						{
+							VisitedColumns.insert(sField);
+
+							if (jRightColumn == jLeftColumn)
+							{
+								// no diff
+								continue;
+							}
+							// columns differ
+							PrintColumn(true,  jLeftColumn);
+							PrintColumn(false, jRightColumn);
+						}
+						else
+						{
+							PrintColumn(true, jLeftColumn);
+						}
+						++iDiffs;
+					}
+				}
+
+				if (right.is_array())
+				{
+					for (const auto& jRightColumn : right)
+					{
+						auto& sField = jRightColumn.items().begin().key();
+						// check if already visited
+						if (VisitedColumns.find(sField) != VisitedColumns.end())
+						{
+							continue;
+						}
+						PrintColumn(false, jRightColumn);
+						++iDiffs;
+					}
+				}
+			};
+			//-----------------------------------------------------------------------------
+
+			std::set<KStringView> VisitedTables;
+
+			for (const auto& jOldTable : OldArray)
+			{
+				const KString& sTableName = jOldTable["tablename"];
+				// find the table in the new list
+				auto& jNewTable = FindTable(NewArray, "tablename", sTableName);
+
+				if (jNewTable.is_object())
+				{
+					VisitedTables.insert(sTableName);
+
+					if (jOldTable == jNewTable)
+					{
+						// no diff..
+						continue;
+					}
+					// tables differ
+					PrintColumnDiff(sTableName, kjson::GetArray(jOldTable, "columns"), kjson::GetArray(jNewTable, "columns"));
+				}
+				else
+				{
+					// table exists only in OldArray..
+					PrintColumnDiff(sTableName, kjson::GetArray(jOldTable, "columns"), KJSON{});
+				}
+			}
+
+			for (const auto& jNewTable : NewArray)
+			{
+				const KString& sTableName = jNewTable["tablename"];
+				// check if we have it already visited
+				if (VisitedTables.find(sTableName) != VisitedTables.end())
+				{
+					continue;
+				}
+				// table exists only in NewArray..
+				PrintColumnDiff(sTableName, KJSON{}, kjson::GetArray(jNewTable, "columns"));
+			}
+		}
+	}
+	catch (const KJSON::exception& jex)
+	{
+		SetError(jex.what());
+	}
+
+	return iDiffs;
 
 } // DiffSchemas
 

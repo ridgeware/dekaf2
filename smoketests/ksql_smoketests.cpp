@@ -1279,6 +1279,103 @@ TEST_CASE("KSQL")
 			CHECK ( db.IsLocked("TestLock") == false );
 		}
 
+		db.ExecSQL("drop table if exists TESTSCHEMA_KSQL");
+		db.ExecSQL("drop table if exists TESTSCHEMA1_KSQL");
+		db.ExecSQL("drop table if exists TESTSCHEMA2_KSQL");
+		db.ExecSQL("drop table if exists TESTSCHEMA22_KSQL");
+
+		if (!db.ExecSQL (
+			"create table TESTSCHEMA1_KSQL (\n"
+			"    anum      int           not null,\n"
+			"    astring   char(100)     not null primary key,\n"
+			"    adate     {{DATETIME}}  not null default {{NOW}},\n"
+			"    key idx01 (anum) \n"
+			")"))
+		{
+			INFO (db.GetLastSQL());
+			FAIL_CHECK (db.GetLastError());
+		}
+
+		if (!db.ExecSQL (
+			"create table TESTSCHEMA2_KSQL (\n"
+			"    anum      bigint        not null,\n"
+			"    astring   char(100)     not null primary key,\n"
+			"    adate     {{DATETIME}}  not null default {{NOW}},\n"
+			"    newstring char(200)     null,"
+			"    key idx01 (anum) \n"
+			")"))
+		{
+			INFO (db.GetLastSQL());
+			FAIL_CHECK (db.GetLastError());
+		}
+
+		if (!db.ExecSQL (
+			"create table TESTSCHEMA22_KSQL (\n"
+			"    anum      bigint        not null,\n"
+			"    astring   char(10)      not null primary key,\n"
+			"    adate     {{DATETIME}}  not null default {{NOW}},\n"
+			"    newstring char(200)     null,"
+			"    key idx01 (anum) \n"
+			")"))
+		{
+			INFO (db.GetLastSQL());
+			FAIL_CHECK (db.GetLastError());
+		}
+
+		auto jSchema1 = db.LoadSchema("", "TESTSCHEMA1_KSQL");
+		auto jSchema3 = db.LoadSchema("", "TESTSCHEMA");
+
+		KJSON jDiff;
+		KString sDiff;
+		auto iChanges = db.DiffSchemas(jSchema1, jSchema3, jDiff, sDiff);
+		CHECK ( iChanges == 12 );
+		CHECK ( sDiff == R"(TESTSCHEMA22_KSQL (only in right schema)
+> anum bigint(20) NOT NULL
+> astring char(10) COLLATE utf8mb4_unicode_ci NOT NULL
+> adate timestamp NOT NULL DEFAULT current_timestamp()
+> newstring char(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+> PRIMARY KEY (`astring`)
+> idx01 (`anum`)
+TESTSCHEMA2_KSQL (only in right schema)
+> anum bigint(20) NOT NULL
+> astring char(100) COLLATE utf8mb4_unicode_ci NOT NULL
+> adate timestamp NOT NULL DEFAULT current_timestamp()
+> newstring char(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+> PRIMARY KEY (`astring`)
+> idx01 (`anum`)
+)" );
+//		KOut.WriteLine(sDiff);
+
+		db.ExecSQL("drop table if exists TESTSCHEMA1_KSQL");
+
+		if (!db.ExecSQL (
+			"create table TESTSCHEMA1_KSQL (\n"
+			"    anum      int           not null,\n"
+			"    astring   char(10)      not null primary key,\n"
+			"    adate     {{DATETIME}}  not null default {{NOW}},\n"
+			"    newstring char(200)     null,"
+			"    key idx01 (anum) \n"
+			")"))
+		{
+			INFO (db.GetLastSQL());
+			FAIL_CHECK (db.GetLastError());
+		}
+
+		auto jSchema2 = db.LoadSchema("", "TESTSCHEMA1_KSQL");
+
+		iChanges = db.DiffSchemas(jSchema1, jSchema2, jDiff, sDiff);
+		CHECK ( iChanges == 2 );
+		CHECK ( sDiff == R"(TESTSCHEMA1_KSQL
+< astring char(100) COLLATE utf8mb4_unicode_ci NOT NULL
+> astring char(10) COLLATE utf8mb4_unicode_ci NOT NULL
+> newstring char(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+)" );
+//		KOut.WriteLine(sDiff);
+
+		db.ExecSQL("drop table if exists TESTSCHEMA1_KSQL");
+		db.ExecSQL("drop table if exists TESTSCHEMA2_KSQL");
+		db.ExecSQL("drop table if exists TESTSCHEMA22_KSQL");
+
 		// varchar vs int index
 		if (false)
 		{

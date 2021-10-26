@@ -714,7 +714,7 @@ public:
 	/// Diff two data dictionaries, returned by prior calls to LoadSchema().
 	/// Produces two summaries of the diffs: one structured (JSON) and the other serialized (ASCII "diff" output).
 	/// Returns the number of diffs (or 0 if no diffs).
-	int32_t DiffSchemas (const KJSON& Schema1, const KJSON& Schema2, KJSON& Diffs, KString& sSummary);
+	int32_t DiffSchemas (const KJSON& Schema1, const KJSON& Schema2, KJSON& Diffs, KString& sSummary, KStringView sLeftSchema="left schema", KStringView sRightSchema="right schema");
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper object to proxy access to KSQL and reset the Throw/NoThrow state after use

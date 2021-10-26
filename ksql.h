@@ -707,18 +707,36 @@ public:
 	/// returns true if KSQL is allowed to throw
 	bool GetThrow() const { return m_bMayThrow; }
 
+	//::::::::::::::::::::::
+	class DIFF
+	//::::::::::::::::::::::
+	{
+		public:
+		static constexpr KStringViewZ diff_prefix{"diff_prefix"};
+		static constexpr KStringViewZ left_schema{"left_schema"};
+		static constexpr KStringViewZ left_prefix{"left_prefix"};
+		static constexpr KStringViewZ right_schema{"right_schema"};
+		static constexpr KStringViewZ right_prefix{"right_prefix"};
+		static constexpr KStringViewZ include_columns_on_missing_tables{"include_columns_on_missing_tables"};
+		static constexpr KStringViewZ ignore_collate{"ignore_collate"};
+
+	}; // DIFF
+
 	/// Load entire data dictionary into a JSON structure for the given schema (or current connection).
 	/// Optionally restrict by tablename prefix (case insensitive).
-	KJSON LoadSchema (KStringView sDBName="", KStringView sStartsWith="");
+	KJSON LoadSchema (KStringView sDBName="", KStringView sStartsWith="", const KJSON& options={});
 
 	/// Diff two data dictionaries, returned by prior calls to LoadSchema().
 	/// Produces two summaries of the diffs: one structured (JSON) and the other serialized (ASCII "diff" output).
 	/// Returns the number of diffs (or 0 if no diffs).
 	size_t DiffSchemas (const KJSON& Schema1, const KJSON& Schema2,
 						KJSON& Diffs, KString& sSummary,
-						KStringView sLeftSchema="left schema",
-						KStringView sRightSchema="right schema",
-						bool bShowMissingTablesWithColumns = false);
+						const KJSON& options={
+							{DIFF::left_schema,"left schema"},
+							{DIFF::left_prefix,"<"},
+							{DIFF::right_schema,"right schema"},
+							{DIFF::right_prefix,">"}
+						});
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper object to proxy access to KSQL and reset the Throw/NoThrow state after use

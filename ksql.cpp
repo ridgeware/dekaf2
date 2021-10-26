@@ -8546,7 +8546,7 @@ bool KSQL::ShowCounts (KStringView sRegex/*=""*/)
 } // ShowCounts
 
 //-----------------------------------------------------------------------------
-KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""*/)
+KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""*/, const KJSON& options/*={}*/)
 //-----------------------------------------------------------------------------
 {
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -8656,15 +8656,21 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 			return KJSON{};
 		}
 
-		KStringView sCreateTable = Get(2);
+		KString/*copy*/ sCreateTable = Get(2);
 
-		auto CreateTable = sCreateTable.Split("\n", ", ");
+		if (kjson::GetBool(options,DIFF::ignore_collate))
+		{
+			// remove collate from each column def, e.g. COLLATE utf8mb4_unicode_ci
+			sCreateTable.ReplaceRegex ("COLLATE [a-zA-Z0-9_]* ", "", /*all=*/true);
+		}
+
+		auto CreateTableLines = sCreateTable.Split("\n", ", ");
 
 		// create a new table info
 		KJSON jTable;
 		jTable["tablename"] = sTable;
 
-		for (auto sLine : CreateTable)
+		for (auto sLine : CreateTableLines)
 		{
 			if (sLine.starts_with('`') || sLine.remove_prefix("KEY "))
 			{
@@ -8677,6 +8683,7 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 				{
 					SetError(kFormat("bad column definition: `{}", sLine));
 				}
+
 				KStringView sColName(sLine.data(), iPos);
 				sLine.remove_prefix(iPos + 2);
 				jTable["columns"].push_back(KJSON
@@ -8703,16 +8710,15 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 //-----------------------------------------------------------------------------
 size_t KSQL::DiffSchemas (const KJSON& Schema1, const KJSON& Schema2,
 						   KJSON& Diffs, KString& sSummary,
-						   KStringView sLeftSchema/*="left schema"*/,
-						   KStringView sRightSchema/*="right schema"*/,
-						   bool bShowMissingTablesWithColumns/*=false*/)
+						   const KJSON& options/*={}*/)
 //-----------------------------------------------------------------------------
 {
 	size_t iDiffs { 0 };
+	bool   bShowMissingTablesWithColumns = kjson::GetBool(options,DIFF::include_columns_on_missing_tables);
 
 	try
 	{
-		Diffs = KJSON::diff(Schema1, Schema2);
+		Diffs = KJSON::diff (Schema1, Schema2);
 
 		sSummary.clear();
 
@@ -8760,10 +8766,11 @@ size_t KSQL::DiffSchemas (const KJSON& Schema1, const KJSON& Schema2,
 				if (jColumn.is_object() && !jColumn.empty())
 				{
 					auto it = jColumn.items();
-					sSummary += kFormat("{} {} {}\n",
-										left ? '<' : '>',
-										it.begin().key(),
-										it.begin().value().get_ref<const KString&>());
+					sSummary += kFormat("{}{} {} {}\n",
+						kjson::GetString(options,DIFF::diff_prefix),
+						left ? kjson::GetString(options,DIFF::left_prefix) : kjson::GetString(options,DIFF::right_prefix),
+						it.begin().key(),
+						it.begin().value().get_ref<const KString&>());
 				}
 			};
 
@@ -8771,31 +8778,36 @@ size_t KSQL::DiffSchemas (const KJSON& Schema1, const KJSON& Schema2,
 			auto PrintColumnDiff = [&](const KString& sTableName, const KJSON& left, const KJSON& right)
 			//-----------------------------------------------------------------------------
 			{
+				sSummary += kjson::GetString(options,DIFF::diff_prefix);
 				sSummary += sTableName;
 
 				if (left.is_null())
 				{
-					sSummary += kFormat (" <-- only in {}\n", sRightSchema);
+					sSummary += kFormat (" <-- only in {}\n", kjson::GetString(options,DIFF::right_schema));
 
 					if (!bShowMissingTablesWithColumns)
 					{
 						++iDiffs;
+						sSummary += "\n";
 						return;
 					}
 				}
 				else if (right.is_null())
 				{
-					sSummary += kFormat (" <-- only in {}\n", sLeftSchema);
+					sSummary += kFormat (" <-- only in {}\n", kjson::GetString(options,DIFF::left_schema));
 
 					if (!bShowMissingTablesWithColumns)
 					{
 						++iDiffs;
+						sSummary += "\n";
 						return;
 					}
 				}
 				else
 				{
-					sSummary += kFormat(" < {} > {}\n", sLeftSchema, sRightSchema);
+					sSummary += kFormat(" {} vs. {}\n",
+						kjson::GetString(options,DIFF::left_schema),
+						kjson::GetString(options,DIFF::right_schema));
 				}
 
 				std::set<KStringView> VisitedColumns;
@@ -8836,6 +8848,8 @@ size_t KSQL::DiffSchemas (const KJSON& Schema1, const KJSON& Schema2,
 						++iDiffs;
 					}
 				}
+
+				sSummary += "\n";
 			};
 			//-----------------------------------------------------------------------------
 

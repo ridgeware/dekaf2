@@ -8541,7 +8541,7 @@ class basic_json
                 for (auto it = source.cbegin(); it != source.cend(); ++it)
                 {
                     // escape the key name to be used in a JSON patch
-                    const auto key = json_pointer::escape(it.key());
+                    const auto key = json_pointer::escape(it.key().ToStdString());
 
                     if (target.find(it.key()) != target.end())
                     {
@@ -8565,7 +8565,7 @@ class basic_json
                     if (source.find(it.key()) == source.end())
                     {
                         // found a key that is not in this -> add it
-                        const auto key = json_pointer::escape(it.key());
+                        const auto key = json_pointer::escape(it.key().ToStdString());
                         result.push_back(
                         {
                             {"op", "add"}, {"path", path + "/" + key},

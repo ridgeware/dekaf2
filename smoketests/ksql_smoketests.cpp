@@ -1328,21 +1328,9 @@ TEST_CASE("KSQL")
 		KJSON jDiff;
 		KString sDiff;
 		auto iChanges = db.DiffSchemas(jSchema1, jSchema3, jDiff, sDiff);
-		CHECK ( iChanges == 12 );
-		CHECK ( sDiff == R"(TESTSCHEMA22_KSQL (only in right schema)
-> anum bigint(20) NOT NULL
-> astring char(10) COLLATE utf8mb4_unicode_ci NOT NULL
-> adate timestamp NOT NULL DEFAULT current_timestamp()
-> newstring char(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL
-> PRIMARY KEY (`astring`)
-> idx01 (`anum`)
-TESTSCHEMA2_KSQL (only in right schema)
-> anum bigint(20) NOT NULL
-> astring char(100) COLLATE utf8mb4_unicode_ci NOT NULL
-> adate timestamp NOT NULL DEFAULT current_timestamp()
-> newstring char(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL
-> PRIMARY KEY (`astring`)
-> idx01 (`anum`)
+		CHECK ( iChanges == 2 );
+		CHECK ( sDiff == R"(TESTSCHEMA22_KSQL <-- only in right schema
+TESTSCHEMA2_KSQL <-- only in right schema
 )" );
 //		KOut.WriteLine(sDiff);
 
@@ -1365,7 +1353,7 @@ TESTSCHEMA2_KSQL (only in right schema)
 
 		iChanges = db.DiffSchemas(jSchema1, jSchema2, jDiff, sDiff);
 		CHECK ( iChanges == 2 );
-		CHECK ( sDiff == R"(TESTSCHEMA1_KSQL
+		CHECK ( sDiff == R"(TESTSCHEMA1_KSQL < left schema > right schema
 < astring char(100) COLLATE utf8mb4_unicode_ci NOT NULL
 > astring char(10) COLLATE utf8mb4_unicode_ci NOT NULL
 > newstring char(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL

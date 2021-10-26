@@ -8606,8 +8606,6 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 	// 	]
 	// }
 
-	auto bPriorThrow = SetThrow (true);
-
 	if (!sDBName)
 	{
 		sDBName = GetDBName();
@@ -8618,9 +8616,13 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 	if (sDBName.empty())
 	{
 		SetError("no database name");
+		return KJSON{};
 	}
 
-	ExecSQL("use {}", sDBName); // or throw
+	if (!ExecSQL("use {}", sDBName))
+	{
+		return KJSON{};
+	}
 
 	auto iOldFlags = SetFlag(F_IgnoreSelectKeyword);
 
@@ -8629,7 +8631,10 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 		SetFlags(iOldFlags);
 	};
 
-	ExecQuery("show tables like '{}%'", sStartsWith); // or throw
+	if (!ExecQuery("show tables like '{}%'", sStartsWith))
+	{
+		return KJSON{};
+	}
 
 	std::vector<KString> Tables;
 
@@ -8640,10 +8645,15 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 
 	for (const auto& sTable : Tables)
 	{
-		ExecQuery("show create table {}", sTable); // or throw
+		if (!ExecQuery("show create table {}", sTable))
+		{
+			return KJSON{};
+		}
+
 		if (!NextRow())
 		{
 			SetError (kFormat ("did not get a row back from: {}", GetLastSQL()));
+			return KJSON{};
 		}
 
 		KStringView sCreateTable = Get(2);
@@ -8686,17 +8696,19 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 		jSchema["tables"].push_back(jTable);
 	}
 
-	SetThrow (bPriorThrow);
-
 	return jSchema;
 
 } // LoadSchema
 
 //-----------------------------------------------------------------------------
-int32_t KSQL::DiffSchemas (const KJSON& Schema1, const KJSON& Schema2, KJSON& Diffs, KString& sSummary, KStringView sLeftSchema/*="left schema"*/, KStringView sRightSchema/*="right schema"*/)
+size_t KSQL::DiffSchemas (const KJSON& Schema1, const KJSON& Schema2,
+						   KJSON& Diffs, KString& sSummary,
+						   KStringView sLeftSchema/*="left schema"*/,
+						   KStringView sRightSchema/*="right schema"*/,
+						   bool bShowMissingTablesWithColumns/*=false*/)
 //-----------------------------------------------------------------------------
 {
-	int32_t iDiffs { 0 };
+	size_t iDiffs { 0 };
 
 	try
 	{
@@ -8704,7 +8716,7 @@ int32_t KSQL::DiffSchemas (const KJSON& Schema1, const KJSON& Schema2, KJSON& Di
 
 		sSummary.clear();
 
-		if (! Diffs.empty())
+		if (!Diffs.empty())
 		{
 			KJSON OldArray = kjson::GetArray(Schema1, "tables");
 			KJSON NewArray = kjson::GetArray(Schema2, "tables");
@@ -8742,84 +8754,88 @@ int32_t KSQL::DiffSchemas (const KJSON& Schema1, const KJSON& Schema2, KJSON& Di
 			};
 
 			//-----------------------------------------------------------------------------
-			auto PrintColumn = [&sSummary](bool left, const KJSON& jColumn, KStringView sLeftSchema, KStringView sRightSchema)
+			auto PrintColumn = [&](bool left, const KJSON& jColumn)
 			//-----------------------------------------------------------------------------
 			{
 				if (jColumn.is_object() && !jColumn.empty())
 				{
 					auto it = jColumn.items();
 					sSummary += kFormat("{} {} {}\n",
-										left ? kFormat("{}|", sLeftSchema) : kFormat("{}|", sRightSchema),
+										left ? '<' : '>',
 										it.begin().key(),
 										it.begin().value().get_ref<const KString&>());
 				}
 			};
 
 			//-----------------------------------------------------------------------------
-			auto PrintColumnDiff = [&](const KString& sTableName, const KJSON& left, const KJSON& right, KStringView sLeftSchema, KStringView sRightSchema)
+			auto PrintColumnDiff = [&](const KString& sTableName, const KJSON& left, const KJSON& right)
 			//-----------------------------------------------------------------------------
 			{
 				sSummary += sTableName;
-				do // once
+
+				if (left.is_null())
 				{
-					if (left.is_null())
-					{
-						sSummary += kFormat (" <-- only in {}\n", sRightSchema);
-						break; // do once
-					}
-					if (right.is_null())
-					{
-						sSummary += kFormat (" <-- only in {}\n", sLeftSchema);
-						break; // do once
-					}
-					sSummary += '\n';
+					sSummary += kFormat (" <-- only in {}\n", sRightSchema);
 
-					std::set<KStringView> VisitedColumns;
-
-					if (left.is_array())
+					if (!bShowMissingTablesWithColumns)
 					{
-						for (const auto& jLeftColumn : left)
-						{
-							auto& sField       = jLeftColumn.items().begin().key();
-							auto& jRightColumn = FindField(right, sField);
-	
-							if (jRightColumn.is_object())
-							{
-								VisitedColumns.insert(sField);
-	
-								if (jRightColumn == jLeftColumn)
-								{
-									// no diff
-									continue;
-								}
-								// columns differ
-								PrintColumn(true,  jLeftColumn,  sLeftSchema, sRightSchema);
-								PrintColumn(false, jRightColumn, sLeftSchema, sRightSchema);
-							}
-							else
-							{
-								PrintColumn(true, jLeftColumn, sLeftSchema, sRightSchema);
-							}
-							++iDiffs;
-						}
-					}
-
-					if (right.is_array())
-					{
-						for (const auto& jRightColumn : right)
-						{
-							auto& sField = jRightColumn.items().begin().key();
-							// check if already visited
-							if (VisitedColumns.find(sField) != VisitedColumns.end())
-							{
-								continue;
-							}
-							PrintColumn(false, jRightColumn, sLeftSchema, sRightSchema);
-							++iDiffs;
-						}
+						++iDiffs;
+						return;
 					}
 				}
-				while (false); // do once
+				else if (right.is_null())
+				{
+					sSummary += kFormat (" <-- only in {}\n", sLeftSchema);
+
+					if (!bShowMissingTablesWithColumns)
+					{
+						++iDiffs;
+						return;
+					}
+				}
+				else
+				{
+					sSummary += kFormat(" < {} > {}\n", sLeftSchema, sRightSchema);
+				}
+
+				std::set<KStringView> VisitedColumns;
+
+				if (left.is_array())
+				{
+					for (const auto& jLeftColumn : left)
+					{
+						auto& sField       = jLeftColumn.items().begin().key();
+						auto& jRightColumn = FindField(right, sField);
+						VisitedColumns.insert(sField);
+						// check if equal
+						if (jRightColumn == jLeftColumn)
+						{
+							// no diff
+							continue;
+						}
+
+						// columns differ
+						PrintColumn(true,  jLeftColumn);
+						PrintColumn(false, jRightColumn);
+						++iDiffs;
+					}
+				}
+
+				if (right.is_array())
+				{
+					for (const auto& jRightColumn : right)
+					{
+						auto& sField = jRightColumn.items().begin().key();
+						// check if already visited
+						if (VisitedColumns.find(sField) != VisitedColumns.end())
+						{
+							continue;
+						}
+
+						PrintColumn(false, jRightColumn);
+						++iDiffs;
+					}
+				}
 			};
 			//-----------------------------------------------------------------------------
 
@@ -8827,41 +8843,31 @@ int32_t KSQL::DiffSchemas (const KJSON& Schema1, const KJSON& Schema2, KJSON& Di
 
 			for (const auto& jOldTable : OldArray)
 			{
-				const KString& sTableName = jOldTable["tablename"];
+				const KString& sTableName = kjson::GetStringRef(jOldTable, "tablename");
 				// find the table in the new list
 				auto& jNewTable = FindTable(NewArray, "tablename", sTableName);
+				VisitedTables.insert(sTableName);
 
-				if (jNewTable.is_object())
+				if (jOldTable == jNewTable)
 				{
-					VisitedTables.insert(sTableName);
-
-					if (jOldTable == jNewTable)
-					{
-						// no diff..
-						continue;
-					}
-
-					// tables differ:
-					PrintColumnDiff (sTableName, kjson::GetArray(jOldTable, "columns"), kjson::GetArray(jNewTable, "columns"), sLeftSchema, sRightSchema);
+					// no diff..
+					continue;
 				}
-				else
-				{
-					// table exists only in OldArray..
-					PrintColumnDiff (sTableName, kjson::GetArray(jOldTable, "columns"), KJSON{}, sLeftSchema, sRightSchema);
-				}
+
+				// tables differ
+				PrintColumnDiff(sTableName, kjson::GetArray(jOldTable, "columns"), kjson::GetArray(jNewTable, "columns"));
 			}
 
 			for (const auto& jNewTable : NewArray)
 			{
-				const KString& sTableName = jNewTable["tablename"];
+				const KString& sTableName = kjson::GetStringRef(jNewTable, "tablename");
 				// check if we have it already visited
 				if (VisitedTables.find(sTableName) != VisitedTables.end())
 				{
 					continue;
 				}
-
 				// table exists only in NewArray..
-				PrintColumnDiff (sTableName, KJSON{}, kjson::GetArray(jNewTable, "columns"), sLeftSchema, sRightSchema);
+				PrintColumnDiff(sTableName, KJSON{}, kjson::GetArray(jNewTable, "columns"));
 			}
 		}
 	}

@@ -8735,7 +8735,7 @@ size_t KSQL::DiffSchemas (const KJSON& Schema1, const KJSON& Schema2,
 
 				for (const auto& jElement : Array)
 				{
-					if (jElement[sProperty] == sName)
+					if (kjson::GetStringRef(jElement,sProperty) == sName)
 					{
 						return jElement;
 					}

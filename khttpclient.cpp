@@ -660,7 +660,11 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 		// We allow sending body data for GET requests as well, as a few
 		// applications expect doing so. It is not generally advisable due
 		// to proxy issues though.
-		if (len != npos && len > 0)
+		if (len == npos)
+		{
+			AddHeader(KHTTPHeader::TRANSFER_ENCODING, "chunked");
+		}
+		else if (len != npos && len > 0)
 		{
 			AddHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(len));
 		}

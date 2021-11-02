@@ -194,16 +194,22 @@ TEST_CASE("KHTTPClient") {
 		KString shtml;
 		HTTP.Read(shtml);
 		CHECK( shtml == "0123456789");
-		CHECK( server.m_rx.size() == 6 );
-		if (server.m_rx.size() == 6)
+		CHECK( server.m_rx.size() == 11 );
+		if (server.m_rx.size() == 11)
 		{
 			CHECK( server.m_rx[0] == "POST /abc HTTP/1.1" );
 			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
-			CHECK( server.m_rx[2] == "Content-Type: text/plain");
-			CHECK( server.m_rx[3] == "Accept-Encoding: gzip, bzip2, deflate");
-			CHECK( server.m_rx[4] == "");
+			CHECK( server.m_rx[2] == "Transfer-Encoding: chunked");
+			CHECK( server.m_rx[3] == "Content-Type: text/plain");
+			CHECK( server.m_rx[4] == "Accept-Encoding: gzip, bzip2, deflate");
+			CHECK( server.m_rx[5] == "");
 			sContent.remove_suffix(1);
-			CHECK( server.m_rx[5] == sContent);
+			// follows the response wrapped in the chunking protocol
+			CHECK( server.m_rx[6] == "1D"     );
+			CHECK( server.m_rx[7] == sContent );
+			CHECK( server.m_rx[8] == ""       );
+			CHECK( server.m_rx[9] == "0"      );
+			CHECK( server.m_rx[10] == ""      );
 		}
 	}
 

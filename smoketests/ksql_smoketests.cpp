@@ -1330,7 +1330,9 @@ TEST_CASE("KSQL")
 		auto iChanges = db.DiffSchemas(jSchema1, jSchema3, jDiff, sDiff);
 		CHECK ( iChanges == 2 );
 		CHECK ( sDiff == R"(TESTSCHEMA22_KSQL <-- only in right schema
+
 TESTSCHEMA2_KSQL <-- only in right schema
+
 )" );
 //		KOut.WriteLine(sDiff);
 
@@ -1353,10 +1355,11 @@ TESTSCHEMA2_KSQL <-- only in right schema
 
 		iChanges = db.DiffSchemas(jSchema1, jSchema2, jDiff, sDiff);
 		CHECK ( iChanges == 2 );
-		CHECK ( sDiff == R"(TESTSCHEMA1_KSQL < left schema > right schema
+		CHECK ( sDiff == R"(TESTSCHEMA1_KSQL left schema vs. right schema
 < astring char(100) COLLATE utf8mb4_unicode_ci NOT NULL
 > astring char(10) COLLATE utf8mb4_unicode_ci NOT NULL
 > newstring char(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+
 )" );
 //		KOut.WriteLine(sDiff);
 

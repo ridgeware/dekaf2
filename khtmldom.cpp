@@ -445,7 +445,7 @@ void KHTML::Object(KHTMLObject& Object)
 	{
 		case KHTMLTag::TYPE:
 		{
-			auto& Tag = reinterpret_cast<KHTMLTag&>(Object);
+			auto& Tag = static_cast<KHTMLTag&>(Object);
 
 			if (Tag.IsClosing())
 			{

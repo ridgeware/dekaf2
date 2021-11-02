@@ -135,24 +135,11 @@ public:
 	/// Add an element to the list of children, return child reference
 	template<typename T,
 		typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
-	T& Add(const T& Object)
-	{
-		auto up = std::make_unique<T>(Object);
-		auto* p = up.get();
-		m_Children.push_back(std::move(up));
-//		kDebug(2, "copy-adding child of type {} to {}, address {}", Object.TypeName(), TypeName(), static_cast<void*>(p));
-		return *p;
-	}
-
-	/// Add an element to the list of children, return child reference
-	template<typename T,
-		typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
-	T& Add(T&& Object)
+	T& Add(T Object)
 	{
 		auto up = std::make_unique<T>(std::move(Object));
 		auto* p = up.get();
 		m_Children.push_back(std::move(up));
-//		kDebug(2, "move-adding child of type {} to {}, address {}", Object.TypeName(), TypeName(), static_cast<void*>(p));
 		return *p;
 	}
 
@@ -165,15 +152,7 @@ public:
 	/// Add an element to the list of children, return parent reference
 	template<typename T,
 	         typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
-	T& operator+=(const T& Object)
-	{
-		return Add(Object);
-	}
-
-	/// Add an element to the list of children, return parent reference
-	template<typename T,
-	         typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
-	T& operator+=(T&& Object)
+	T& operator+=(T Object)
 	{
 		return Add(std::move(Object));
 	}

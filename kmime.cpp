@@ -588,7 +588,7 @@ KMIMEFile::KMIMEFile(KStringView sControlName, KStringView sData, KStringView sD
 	m_sControlName = sControlName;
 	m_sFileName = sDispname;
 
-	if (MIME == KMIME::NONE)
+	if (m_MIME == KMIME::NONE)
 	{
 		m_MIME.ByExtension(sDispname, KMIME::BINARY);
 	}

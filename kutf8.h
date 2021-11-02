@@ -45,6 +45,8 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <type_traits>
+#include <iterator>
 
 static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 compiler");
 
@@ -60,6 +62,12 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 	#define KUTF8_CONSTEXPR_14 constexpr
 #else
 	#define KUTF8_CONSTEXPR_14
+#endif
+
+#if __cplusplus >= 201703L
+	#define KUTF8_CONSTEXPR_20 constexpr
+#else
+	#define KUTF8_CONSTEXPR_20
 #endif
 
 #if __cplusplus > 201402L
@@ -880,6 +888,7 @@ bool FromUTF8(const NarrowString& sNarrow, Functor func)
 template<typename NarrowString, typename WideString,
          typename std::enable_if<!std::is_function<WideString>::value
 		                        && (!std::is_class<WideString>::value || detail::HasSize<WideString>::value), int>::type = 0>
+KUTF8_CONSTEXPR_20
 bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 //-----------------------------------------------------------------------------
 {

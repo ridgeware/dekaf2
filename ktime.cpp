@@ -437,7 +437,7 @@ KString kFormCommonLogTimestamp(time_t tTime, bool bAsLocalTime)
 		auto iTZID          = GetDynamicTimeZoneInformation(&TZID);
 		if (iTZID != TIME_ZONE_ID_INVALID)
 		{
-			iBias = pTZID.Bias * 60;
+			iBias = TZID.Bias * 60;
 		}
 		else
 		{

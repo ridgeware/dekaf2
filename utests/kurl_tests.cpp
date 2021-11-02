@@ -1328,7 +1328,7 @@ TEST_CASE ("KURLPort")
 	CHECK ( sPort == "12345" );
 
 	KURL URL = "http://test.com:12345/path/to";
-	CHECK ( URL.Port == 12345 );
+	CHECK ( URL.Port.get() == 12345 );
 	URL.Port.get() = 54321;
 	CHECK ( URL.Serialize() == "http://test.com:54321/path/to" );
 }

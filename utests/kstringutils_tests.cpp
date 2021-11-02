@@ -973,47 +973,4 @@ TEST_CASE("KStringUtils") {
 		CHECK ( sRet == "hello" );
 	}
 
-	SECTION("kParseHTTPTimestamp")
-	{
-		static constexpr KStringView sOrigTime     = "Tue, 03 Aug 2021 10:23:42 GMT";
-		static constexpr KStringView sBadOrigTime1 = "Tue, 03 Aug 2021 10:23:42 CET";
-		static constexpr KStringView sBadOrigTime2 = "Tue, 03 NaN 2021 10:23:42 GMT";
-		static constexpr KStringView sBadOrigTime3 = "10:23:42";
-
-		auto tTime = kParseHTTPTimestamp(sOrigTime);
-		CHECK ( tTime != 0 );
-		auto sTime = kFormHTTPTimestamp(tTime);
-		CHECK ( sTime == sOrigTime );
-		CHECK ( kParseHTTPTimestamp(sBadOrigTime1) == 0 );
-		CHECK ( kParseHTTPTimestamp(sBadOrigTime2) == 0 );
-		CHECK ( kParseHTTPTimestamp(sBadOrigTime3) == 0 );
-	}
-
-	SECTION("kParseSMTPTimestamp")
-	{
-		static constexpr KStringView sOrigTime1 = "Tue, 03 Aug 2021 10:23:42 -0000";
-		static constexpr KStringView sOrigTime2 = "Tue, 03 Aug 2021 10:23:42 -0330";
-		static constexpr KStringView sOrigTime3 = "Tue, 03 Aug 2021 10:23:42 +1101";
-		static constexpr KStringView sBadOrigTime1 = "Tue, 03 Aug 2021 10:23:42 CET";
-		static constexpr KStringView sBadOrigTime2 = "Tue, 03 Aug 2021 10:23:42 -00";
-
-		auto tTime = kParseSMTPTimestamp(sOrigTime1);
-		CHECK (tTime != 0);
-		auto sTime = kFormSMTPTimestamp(tTime);
-		CHECK (sTime == sOrigTime1);
-
-		tTime = kParseSMTPTimestamp(sOrigTime2);
-		CHECK (tTime != 0);
-		sTime = kFormSMTPTimestamp(tTime);
-		CHECK (sTime == "Tue, 03 Aug 2021 06:53:42 -0000");
-
-		tTime = kParseSMTPTimestamp(sOrigTime3);
-		CHECK (tTime != 0);
-		sTime = kFormSMTPTimestamp(tTime);
-		CHECK (sTime == "Tue, 03 Aug 2021 21:24:42 -0000");
-
-		CHECK ( kParseSMTPTimestamp(sBadOrigTime1) == 0 );
-		CHECK ( kParseSMTPTimestamp(sBadOrigTime2) == 0 );
-	}
-
 }

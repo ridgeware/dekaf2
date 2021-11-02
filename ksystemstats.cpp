@@ -50,6 +50,7 @@
 #include <dekaf2/kstream.h>
 #include <dekaf2/kjson.h>
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/ktime.h>
 
 namespace dekaf2 {
 

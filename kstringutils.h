@@ -44,16 +44,16 @@
 /// @file kstringutils.h
 /// standalone string utility functions
 
-#include <cinttypes>
-#include <algorithm>
-#include <cstring>
-#include <cctype>
-#include <map>
 #include "kstring.h"
 #include "kstringview.h"
 #include "ksystem.h"
 #include "kctype.h"
 #include "bits/ktemplate.h"
+#include <cinttypes>
+#include <algorithm>
+#include <cstring>
+#include <cctype>
+#include <map>
 
 namespace dekaf2
 {
@@ -381,67 +381,6 @@ std::size_t kReplaceVariables (String& sString, StringView sOpen, StringView sCl
 //-----------------------------------------------------------------------------
 /// Check if buffer content is binary content, not text
 bool kIsBinary(KStringView sBuffer);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Get the English abbreviated weekday, input 0..6, 0 = Sun
-KStringViewZ kGetAbbreviatedWeekday(uint16_t iDay);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Get the English abbreviated month, input 0..11, 0 = Jan
-KStringViewZ kGetAbbreviatedMonth(uint16_t iMonth);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Returns day of week for every gregorian date. Sunday = 0.
-uint16_t kDayOfWeek(uint16_t iDay, uint16_t iMonth, uint16_t iYear);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Create a time stamp following strftime patterns. If tTime is 0, current time is
-/// used.
-/// @param tTime Seconds since epoch. If 0, query current time from the system
-/// @param pszFormat format string
-/// @param bLocalTime use tTime as local time instead of utc
-KString kFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%M:%S", bool bAsLocalTime = false);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Create a HTTP time stamp
-/// @param tTime Seconds since epoch. If 0, query current time from the system
-KString kFormHTTPTimestamp (time_t tTime = 0);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Create a SMTP time stamp
-/// @param tTime Seconds since epoch. If 0, query current time from the system
-KString kFormSMTPTimestamp (time_t tTime = 0);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Create a common log format  time stamp
-/// @param tTime Seconds since epoch. If 0, query current time from the system
-KString kFormCommonLogTimestamp(time_t tTime = 0, bool bAsLocalTime = false);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Parse a HTTP time stamp - only accepts GMT timezone
-/// @param sTime time stamp to parse
-/// @return time_t of the time stamp or 0 for error
-time_t kParseHTTPTimestamp (KStringView sTime);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Parse a SMTP time stamp - accepts variable timezone in -0500 format
-/// @param sTime time stamp to parse
-/// @return time_t of the time stamp or 0 for error
-time_t kParseSMTPTimestamp (KStringView sTime);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Form a string that expresses a duration
-KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

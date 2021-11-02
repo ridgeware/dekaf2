@@ -43,6 +43,7 @@
 #include "khttperror.h"
 #include "klog.h"
 #include "kfileserver.h"
+#include "ktime.h"
 
 namespace dekaf2 {
 

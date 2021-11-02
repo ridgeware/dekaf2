@@ -55,6 +55,7 @@
 #include "kwriter.h"
 #include "kcountingstreambuf.h"
 #include "krow.h"
+#include "ktime.h"
 
 namespace dekaf2 {
 

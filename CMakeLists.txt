@@ -597,6 +597,7 @@ set(PUBLIC_HEADERS
 	kthreadpool.h
 	kthreads.h
 	kthreadsafe.h
+	ktime.h
 	ktimer.h
 	kunixstream.h
 	kuntar.h
@@ -740,6 +741,7 @@ set (SOURCES
 	ktcpstream.cpp
 	kthreadpool.cpp
 	kthreads.cpp
+	ktime.cpp
 	ktimer.cpp
 	kunixstream.cpp
 	kuntar.cpp

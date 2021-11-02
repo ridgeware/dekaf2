@@ -549,13 +549,34 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	#include <BaseTsd.h>
 	using ssize_t = SSIZE_T;
 	using pid_t = int;
-	#include <cstdio>
-	#define popen _popen
-	#define pclose _pclose
+
 	#include <process.h>
-	#define getpid _getpid
-	#define strncasecmp _strnicmp
-	#define strcasecmp _stricmp
+	#ifndef getpid
+		#define getpid _getpid
+	#endif
+
+	#include <cstdio>
+	#ifndef popen
+		#define popen _popen
+	#endif
+	#ifndef pclose
+		#define pclose _pclose
+	#endif
+	#ifndef strncasecmp
+		#define strncasecmp _strnicmp
+	#endif
+	#ifndef strcasecmp
+		#define strcasecmp _stricmp
+	#endif
+	#ifndef timegm
+		#define timegm _mkgmtime
+	#endif
+	#ifndef localtime_r
+		#define localtime_r(a, b) localtime_s(b, a)
+	#endif
+	#ifndef gmtime_r
+		#define gmtime_r(a, b) gmtime_s(b, a)
+	#endif
 
 	#ifndef WIFSIGNALED
 		#define WIFSIGNALED(x) ((x) == 3)

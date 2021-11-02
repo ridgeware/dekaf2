@@ -44,6 +44,7 @@
 #include "kbase64.h"
 #include "klog.h"
 #include "kquotedprintable.h"
+#include "ktime.h"
 
 
 namespace dekaf2 {

@@ -44,6 +44,7 @@
 #include "khttperror.h"
 #include "kfileserver.h"
 #include "kjson.h"
+#include "ktime.h"
 
 namespace dekaf2 {
 

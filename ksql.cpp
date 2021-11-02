@@ -61,6 +61,7 @@
 #include "khash.h"
 #include "kbar.h"
 #include "kscopeguard.h"
+#include "ktime.h"
 #include <cstdint>
 
 #if defined(DEKAF2_IS_WINDOWS) || defined(DEKAF2_DO_NOT_HAVE_STRPTIME)

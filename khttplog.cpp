@@ -45,6 +45,7 @@
 #include "kjson.h"
 #include "krestserver.h"
 #include "kencode.h"
+#include "ktime.h"
 
 namespace dekaf2 {
 

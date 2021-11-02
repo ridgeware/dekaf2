@@ -46,6 +46,7 @@
 #include <dekaf2/kgetruntimestack.h>
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/klog.h> // for KLog::DASH ..
+#include <dekaf2/ktime.h>
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 	#include <dekaf2/kjson.h>

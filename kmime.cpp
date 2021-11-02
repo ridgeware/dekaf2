@@ -217,6 +217,11 @@ KMIME KMIME::CreateByInspection(KStringViewZ sFilename, KStringView Default)
 
 } // CreateByInspection
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4307)
+#endif
+
 //-----------------------------------------------------------------------------
 bool KMIME::IsCompressible()
 //-----------------------------------------------------------------------------
@@ -252,6 +257,10 @@ bool KMIME::IsCompressible()
 	return true;
 
 } // IsCompressible
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 //-----------------------------------------------------------------------------
 KMIMEPart::KMIMEPart(KMIME MIME)

@@ -414,6 +414,11 @@ public:
 		m_sHeader.reset();
 	}
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4307)
+#endif
+
 	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
 	static Header Parse(KStringView sHeader)
@@ -579,6 +584,10 @@ public:
 		return OTHER;
 
 	} // Parse
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 	//-----------------------------------------------------------------------------
 	/// create a string with correct HTTP date formatting

@@ -62,7 +62,11 @@ inline namespace literals {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A string_view type with a guaranteed trailing zero that can be used on
 /// any C API
+#ifndef DEKAF2_IS_WINDOWS
 class DEKAF2_GSL_POINTER() KStringViewZ : private KStringView
+#else
+class KStringViewZ : private KStringView
+#endif
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

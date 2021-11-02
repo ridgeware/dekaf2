@@ -45,7 +45,7 @@
 #include "klog.h"
 #include <re2/re2.h>
 
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+#ifdef DEKAF2_ADD_REGEX_FOR_KSTRING
 #include <re2/../util/utf.h>
 
 namespace dekaf2
@@ -470,7 +470,7 @@ size_t KRegex::Replace(std::string& sStr, KStringView sReplaceWith, bool bReplac
 	return iCount;
 }
 
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+#ifdef DEKAF2_ADD_REGEX_FOR_KSTRING
 //-----------------------------------------------------------------------------
 size_t KRegex::Replace(KString& sStr, KStringView sReplaceWith, bool bReplaceAll) const
 //-----------------------------------------------------------------------------
@@ -535,7 +535,7 @@ size_t KRegex::Replace(std::string& sStr, KStringView sRegex, KStringView sRepla
 	return regex.Replace(sStr, sReplaceWith, bReplaceAll);
 }
 
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+#ifdef DEKAF2_ADD_REGEX_FOR_KSTRING
 //-----------------------------------------------------------------------------
 size_t KRegex::Replace(KString& sStr, KStringView sRegex, KStringView sReplaceWith, bool bReplaceAll)
 //-----------------------------------------------------------------------------

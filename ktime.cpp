@@ -43,8 +43,13 @@
 #include "kstringutils.h"
 #include "dekaf2.h"
 #include "bits/kcppcompat.h"
+
 #ifdef DEKAF2_IS_WINDOWS
-#include <timezoneapi.h>
+	#include <windows.h>
+	#include <timezoneapi.h>
+	#ifdef GetCurrentTime
+		#undef GetCurrentTime
+	#endif
 #endif
 
 namespace dekaf2 {
@@ -93,9 +98,23 @@ struct tm kGetBrokenDownTime (time_t tTime, bool bAsLocalTime)
 		tTime = Dekaf::getInstance().GetCurrentTime();
 	}
 
-	// note that for Windows we have defines in kcppcompat.h
-	// #define localtime_r(a, b) localtime_s(b, a)
-	// #define gmtime_r(a, b) gmtime_s(b, a)
+#ifdef DEKAF2_IS_WINDOWS
+
+	if (bAsLocalTime)
+	{
+		localtime_s(&time, &tTime);
+	}
+	else
+	{
+		gmtime_s(&time, &tTime);
+	}
+
+	kDebug(3, "ix:{} d:{} m:{} y:{} h:{} m:{} s:{}",
+		   tTime,
+		   time.tm_mday, time.tm_mon+1, time.tm_year+1900,
+		   time.tm_hour, time.tm_min,   time.tm_sec);
+
+#else
 
 	if (bAsLocalTime)
 	{
@@ -105,15 +124,6 @@ struct tm kGetBrokenDownTime (time_t tTime, bool bAsLocalTime)
 	{
 		gmtime_r(&tTime, &time);
 	}
-
-#ifdef DEKAF2_IS_WINDOWS
-
-	kDebug(3, "ix:{} d:{} m:{} y:{} h:{} m:{} s:{}",
-		   tTime,
-		   time.tm_mday, time.tm_mon+1, time.tm_year+1900,
-		   time.tm_hour, time.tm_min,   time.tm_sec);
-
-#else
 
 	kDebug(3, "ix:{} d:{} m:{} y:{} h:{} m:{} s:{} offs:{} zone:{}",
 		   tTime,
@@ -169,7 +179,7 @@ time_t kParseWebTimestamp (KStringView sTime, bool bOnlyGMT)
 
 		if (it != AbbreviatedMonths.end())
 		{
-			time.tm_mon    = (it - AbbreviatedMonths.begin());
+			time.tm_mon    = static_cast<int>(it - AbbreviatedMonths.begin());
 			time.tm_year   = Part[3].UInt16() - 1900;
 			time.tm_hour   = Part[4].UInt16();
 			time.tm_min    = Part[5].UInt16();
@@ -288,16 +298,16 @@ int32_t KLocalTime::GetUTCOffset() const
 
 #else
 
-	DYNAMIC_TIME_ZONE_INFORMATION* pTZID;
+	DYNAMIC_TIME_ZONE_INFORMATION* pTZID = nullptr;
 	auto iTZID = GetDynamicTimeZoneInformation(pTZID);
-	if (iTZD != TIME_ZONE_ID_INVALID && pTZID != nullptr)
+	if (iTZID != TIME_ZONE_ID_INVALID && pTZID != nullptr)
 	{
 		return pTZID->Bias * 60;
 	}
 
 	kDebug(2, "cannot read time zone information");
 	// fall back to costlier computation
-	return timegm(const_cast<::tm*>(&m_time)) - ToTimeT();
+	return static_cast<int32_t>(timegm(const_cast<::tm*>(&m_time)) - ToTimeT());
 
 #endif
 
@@ -415,9 +425,9 @@ KString kFormCommonLogTimestamp(time_t tTime, bool bAsLocalTime)
 #ifdef DEKAF2_IS_WINDOWS
 
 		int32_t iBias { 0 };
-		DYNAMIC_TIME_ZONE_INFORMATION* pTZID;
+		DYNAMIC_TIME_ZONE_INFORMATION* pTZID = nullptr;
 		auto iTZID          = GetDynamicTimeZoneInformation(pTZID);
-		if (iTZD != TIME_ZONE_ID_INVALID && pTZID != nullptr)
+		if (iTZID != TIME_ZONE_ID_INVALID && pTZID != nullptr)
 		{
 			iBias = pTZID->Bias;
 		}

@@ -2332,7 +2332,7 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	Text() = default;
-	Text(KStringView sText = KStringView{});
+	Text(KStringView sText);
 
 	self&  AddText(KStringView sContent) &;
 	self&& AddText(KStringView sContent) &&
@@ -2360,7 +2360,7 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	RawText() = default;
-	RawText(KString sText = KString{});
+	RawText(KString sText);
 
 	self&  AddRawText(KStringView sContent) &;
 	self&& AddRawText(KStringView sContent) &&

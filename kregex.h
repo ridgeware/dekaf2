@@ -45,6 +45,8 @@
 /// @file kregex.h
 /// The Regular Expression encapsulation
 
+#define DEKAF2_ADD_REGEX_FOR_KSTRING 1
+
 #include <vector>
 #include "kstring.h"
 #include "kstringview.h"
@@ -104,7 +106,7 @@ public:
 	size_t Replace(std::string& sStr, KStringView sReplaceWith, bool bReplaceAll = true) const;
 	//-----------------------------------------------------------------------------
 
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+#ifdef DEKAF2_ADD_REGEX_FOR_KSTRING
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text,
@@ -138,7 +140,7 @@ public:
 	static size_t Replace(std::string& sStr, KStringView sRegex, KStringView sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
 
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+#ifdef DEKAF2_ADD_REGEX_FOR_KSTRING
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text,

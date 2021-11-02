@@ -571,12 +571,6 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	#ifndef timegm
 		#define timegm _mkgmtime
 	#endif
-	#ifndef localtime_r
-		#define localtime_r(a, b) localtime_s(b, a)
-	#endif
-	#ifndef gmtime_r
-		#define gmtime_r(a, b) gmtime_s(b, a)
-	#endif
 
 	#ifndef WIFSIGNALED
 		#define WIFSIGNALED(x) ((x) == 3)

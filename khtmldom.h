@@ -63,11 +63,6 @@ public:
 
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
-#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION < 70000) || defined(_MSC_VER)
-	// older GCCs need a default constructor here as they do not honor the using directive below
-	KHTMLElement() = default;
-#endif
-
 	using KHTMLObject::KHTMLObject;
 	using KHTMLObject::Parse;
 	using KHTMLObject::Serialize;

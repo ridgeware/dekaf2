@@ -41,6 +41,8 @@
 
 #pragma once
 
+#include "bits/kcppcompat.h"
+#ifndef DEKAF2_IS_WINDOWS
 #include "kstringview.h"
 #include "kstring.h"
 #include "kthreadsafe.h"
@@ -218,3 +220,5 @@ using KIPCSafeSharedMemory = KIPCSafe<KSharedMemory<Object>, iIPCKey>;
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 } // end of namespace dekaf2
+
+#endif // DEKAF2_IS_WINDOWS

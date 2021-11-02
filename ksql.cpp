@@ -936,14 +936,12 @@ bool KSQL::DecodeDBCData (KStringView sBuffer, KStringView sDBCFile)
 
 	if (sBuffer.starts_with("KSQLDBC1"))
 	{
-		#ifdef WIN32
-		m_sLastError.Format ("old format (DBC1) doesn't work on win32");
-		kDebug(GetDebugLevel(), m_sLastError);
-		return (false);
-		#else
+#ifdef WIN32
+		return SetError("old format (DBC1) doesn't work on win32");
+#else
 		kDebug((GetDebugLevel() + 1), "old format (1)");
 		dbc = std::make_unique<DBCFILEv1>();
-		#endif
+#endif
 	}
 	else if (sBuffer.starts_with("KSQLDBC2"))
 	{

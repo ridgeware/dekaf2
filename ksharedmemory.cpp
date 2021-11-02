@@ -40,6 +40,7 @@
  */
 
 #include "ksharedmemory.h"
+#ifndef DEKAF2_IS_WINDOWS
 #include "kfilesystem.h"
 #include "ksystem.h"
 #include "klog.h"
@@ -246,3 +247,5 @@ bool detail::KSharedMemoryBase::SetError(KString sError)
 } // SetError
 
 } // end of namespace dekaf2
+
+#endif // DEKAF2_IS_WINDOWS

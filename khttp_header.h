@@ -41,6 +41,7 @@
 
 #pragma once
 
+#include "bits/kcppcompat.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include "kcasestring.h"
@@ -149,7 +150,9 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+#ifndef DEKAF2_IS_WINDOWS
 	DEKAF2_CONSTEXPR_14
+#endif
 	KHTTPHeader(const KHTTPHeader& other)
 	//-----------------------------------------------------------------------------
 	: m_header(other.m_header)

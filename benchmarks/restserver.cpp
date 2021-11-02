@@ -118,7 +118,7 @@ int main(int argc, char** argv)
 	CLI.Option("klog", "klog header")
 	([&](KStringViewZ sArg)
 	{
-		Options.sKLogHeader = sArg;
+		Options.KLogHeader = sArg;
 	});
 
 	bool bRun { false };

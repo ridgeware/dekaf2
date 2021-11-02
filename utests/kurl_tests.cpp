@@ -1032,7 +1032,9 @@ TEST_CASE ("KURL formerly missing")
         CHECK ( URL.IsHttpURL() == false );
         CHECK ( URL.Domain.get() == "log.server.my.domain" );
 		CHECK ( URL.Port.get() == 35 );
+#ifndef DEKAF2_IS_WINDOWS
 		CHECK ( URL.Port == 35 );
+#endif
         CHECK ( URL.Path.get() == "" );
 		CHECK ( URL.Serialize() == "log.server.my.domain:35" );
 
@@ -1311,11 +1313,11 @@ TEST_CASE ("KURLPort")
 {
 	{
 		url::KPort port("123");
-		CHECK ( port == 123 );
+		CHECK ( port.get() == 123 );
 	}
 	{
 		url::KPort port(333);
-		CHECK ( port == 333 );
+		CHECK ( port.get() == 333 );
 	}
 	url::KPort port = 123;
 	port = 1234;
@@ -1327,6 +1329,6 @@ TEST_CASE ("KURLPort")
 
 	KURL URL = "http://test.com:12345/path/to";
 	CHECK ( URL.Port == 12345 );
-	URL.Port = 54321;
+	URL.Port.get() = 54321;
 	CHECK ( URL.Serialize() == "http://test.com:54321/path/to" );
 }

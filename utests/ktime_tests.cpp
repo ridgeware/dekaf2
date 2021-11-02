@@ -1,6 +1,8 @@
 #include "catch.hpp"
 
 #include <dekaf2/ktime.h>
+#include <dekaf2/ksystem.h>
+#include <dekaf2/kscopeguard.h>
 
 using namespace dekaf2;
 
@@ -100,6 +102,15 @@ TEST_CASE("KTime") {
 		CHECK ( UTC2.GetDayName()   == "Mon" );
 		CHECK ( UTC2.IsPM()         == true  );
 
+		KString sOldTZ = kGetEnv("TZ");
+		KScopeGuard TZGuard = [&sOldTZ] { kSetEnv("TZ", sOldTZ); };
+
+#ifdef DEKAF2_IS_WINDOWS
+		kSetEnv("TZ", "GST-1GDT"); // "German Standard Time -1 German Daylight Time (note both timezone names are unknown in Germany..)
+#else
+		kSetEnv("TZ", "CET");      // set Central European Time as timezone
+#endif
+
 		KLocalTime Local1;
 		Local1 = UTC1;
 		CHECK ( Local1.Format()       == "1974-01-01 00:59:59" );
@@ -114,6 +125,7 @@ TEST_CASE("KTime") {
 		CHECK ( Local1.IsPM()         == false );
 		CHECK ( Local1.GetMonthName() == "Jan" );
 		CHECK ( Local1.GetDayName()   == "Tue" );
+		CHECK ( Local1.GetUTCOffset() == 3600  );
 	}
 	
 }

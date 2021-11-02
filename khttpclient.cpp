@@ -349,7 +349,7 @@ bool KHTTPClient::Connect(const KURL& url)
 		{
 			// which protocol?
 			bool bIsHTTPS = url.Protocol == url::KProtocol::HTTPS ||
-			                (url::KProtocol::UNDEFINED && url.Port == 443);
+			                (url::KProtocol::UNDEFINED && url.Port.get() == 443);
 
 			// try to read proxy setup from environment
 			KURL Proxy(kGetEnv(bIsHTTPS ? "HTTPS_PROXY" : "HTTP_PROXY"));
@@ -375,8 +375,8 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 	}
 
 	// which protocol on which connection segment?
-	bool bTargetIsHTTPS = url.Protocol   == url::KProtocol::HTTPS || (url::KProtocol::UNDEFINED && url.Port   == 443);
-	bool bProxyIsHTTPS  = Proxy.Protocol == url::KProtocol::HTTPS || (url::KProtocol::UNDEFINED && Proxy.Port == 443);
+	bool bTargetIsHTTPS = url.Protocol   == url::KProtocol::HTTPS || (url::KProtocol::UNDEFINED && url.Port.get()   == 443);
+	bool bProxyIsHTTPS  = Proxy.Protocol == url::KProtocol::HTTPS || (url::KProtocol::UNDEFINED && Proxy.Port.get() == 443);
 
 	if (!bTargetIsHTTPS)
 	{
@@ -572,8 +572,8 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 	}
 	else if (!bForcePort
 		&& (url.Port.empty()
-		|| (url.Protocol == url::KProtocol::HTTP  && url.Port ==  80)
-		|| (url.Protocol == url::KProtocol::HTTPS && url.Port == 443)))
+		|| (url.Protocol == url::KProtocol::HTTP  && url.Port.get() ==  80)
+		|| (url.Protocol == url::KProtocol::HTTPS && url.Port.get() == 443)))
 	{
 		// domain alone is sufficient for standard ports
 		AddHeader(KHTTPHeader::HOST, url.Domain.Serialize());

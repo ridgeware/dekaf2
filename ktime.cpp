@@ -298,15 +298,23 @@ int32_t KLocalTime::GetUTCOffset() const
 
 #else
 
-	DYNAMIC_TIME_ZONE_INFORMATION* pTZID = nullptr;
-	auto iTZID = GetDynamicTimeZoneInformation(pTZID);
-	if (iTZID != TIME_ZONE_ID_INVALID && pTZID != nullptr)
+	/* The problem with GetDynamicTimeZoneInformation() is that it does not
+	 * return the correct timezone for the user, only for the system. Therefore
+	 * we use the costly approach to compute the diff through calling both
+	 * mktime() and timegm()..
+
+	DYNAMIC_TIME_ZONE_INFORMATION TZID;
+	auto iTZID = GetDynamicTimeZoneInformation(&TZID);
+	if (iTZD != TIME_ZONE_ID_INVALID)
 	{
-		return pTZID->Bias * 60;
+		return TZID.Bias * 60;
 	}
 
 	kDebug(2, "cannot read time zone information");
-	// fall back to costlier computation
+
+	 *
+	 */
+
 	return static_cast<int32_t>(timegm(const_cast<::tm*>(&m_time)) - ToTimeT());
 
 #endif
@@ -425,18 +433,19 @@ KString kFormCommonLogTimestamp(time_t tTime, bool bAsLocalTime)
 #ifdef DEKAF2_IS_WINDOWS
 
 		int32_t iBias { 0 };
-		DYNAMIC_TIME_ZONE_INFORMATION* pTZID = nullptr;
-		auto iTZID          = GetDynamicTimeZoneInformation(pTZID);
-		if (iTZID != TIME_ZONE_ID_INVALID && pTZID != nullptr)
+		DYNAMIC_TIME_ZONE_INFORMATION TZID;
+		auto iTZID          = GetDynamicTimeZoneInformation(&TZID);
+		if (iTZID != TIME_ZONE_ID_INVALID)
 		{
-			iBias = pTZID->Bias;
+			iBias = pTZID.Bias * 60;
 		}
 		else
 		{
 			kDebug(2, "cannot read time zone information");
+			iBias = static_cast<int32_t>(timegm(const_cast<::tm*>(&time)) - mktime(const_cast<::tm*>(&time)));
 		}
 		char chSign         = iBias < 0 ? '-' : '+';
-		auto iMinutes       = abs(iBias);
+		auto iMinutes       = abs(iBias / 60);
 		auto iHoursOffset   = iMinutes / 60;
 		auto iMinutesOffset = iMinutes % 60;
 

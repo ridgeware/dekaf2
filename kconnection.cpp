@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -360,7 +359,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 		Port = KString::to_string(URL.Protocol.DefaultPort());
 	}
 
-	if ((url::KProtocol::UNDEFINED && Port == 443) || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
+	if ((url::KProtocol::UNDEFINED && Port.get() == 443) || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
 		auto C = std::make_unique<KSSLConnection>();
 		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts, false, iSecondsTimeout);

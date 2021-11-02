@@ -8521,8 +8521,9 @@ bool KSQL::ShowCounts (KStringView sRegex/*=""*/)
 		if (!sRegex || sTablename.ToLower().MatchRegex(sRegex.ToLower()))
 		{
 			Tables.push_back (sTablename);
-			if (sTablename.length() > iMax) {
-				iMax = sTablename.length();
+			if (sTablename.length() > iMax)
+			{
+				iMax = static_cast<decltype(iMax)>(sTablename.length());
 			}
 		}
 	}

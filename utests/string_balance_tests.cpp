@@ -100,7 +100,6 @@ TEST_CASE("StringBalance") {
 #else
 		s = "abcdefghijk";
 #endif
-		s.substr(0,2);
 
 		KString ks;
 		KStringView ksv;

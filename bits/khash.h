@@ -50,6 +50,11 @@
 #include "kcppcompat.h"
 #include "../kctype.h" // for ASCII lowercase conversion
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4307)
+#endif
+
 namespace dekaf2 {
 
 namespace hash {
@@ -294,3 +299,6 @@ std::size_t kHash(const char* data, std::size_t size, std::size_t hash = kHashBa
 
 } // end of namespace dekaf2
 
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif

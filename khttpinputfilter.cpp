@@ -147,7 +147,7 @@ std::streamsize KInHTTPFilter::Count() const
 {
 	if (!m_Filter->empty())
 	{
-		auto chunker = m_Filter->component<KChunkedSource>(m_Filter->size()-1);
+		auto chunker = m_Filter->component<KChunkedSource>(static_cast<int>(m_Filter->size()-1));
 
 		if (chunker)
 		{
@@ -174,7 +174,7 @@ bool KInHTTPFilter::ResetCount()
 {
 	if (!m_Filter->empty())
 	{
-		auto chunker = m_Filter->component<KChunkedSource>(m_Filter->size()-1);
+		auto chunker = m_Filter->component<KChunkedSource>(static_cast<int>(m_Filter->size()-1));
 
 		if (chunker)
 		{

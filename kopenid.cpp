@@ -227,7 +227,7 @@ void KOpenIDProvider::Refresh(KTimer::Timepoint Now)
 	if (m_URL.Protocol != url::KProtocol::HTTPS)
 	{
 		SetError(kFormat("provider URL does not use HTTPS, but has to: {}", m_URL.Serialize()));
-		m_RefreshInterval.zero();
+		m_RefreshInterval = m_RefreshInterval.zero();
 	}
 	else
 	{

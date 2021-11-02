@@ -99,9 +99,9 @@ std::vector<KStringView> KInHTTPRequestLine::Parse(KString sRequestLine)
 								{
 									if (sVersion.starts_with("HTTP/"))
 									{
-										m_iPathLen    = iPathLen;
-										m_iMethodLen  = iMethodLen;
-										m_iVersionLen = iVersionLen;
+										m_iPathLen    = static_cast<decltype(m_iPathLen   )>(iPathLen   );
+										m_iMethodLen  = static_cast<decltype(m_iMethodLen )>(iMethodLen );
+										m_iVersionLen = static_cast<decltype(m_iVersionLen)>(iVersionLen);
 
 										return Words;
 									}

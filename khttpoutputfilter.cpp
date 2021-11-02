@@ -148,7 +148,7 @@ std::streamsize KOutHTTPFilter::Count() const
 		// we cannot reliably read the count when we compress - no way to flush
 		if (m_bAllowCompression && m_Compression == NONE)
 		{
-			auto chunker = m_Filter->component<KChunkedSink>(m_Filter->size()-1);
+			auto chunker = m_Filter->component<KChunkedSink>(static_cast<int>(m_Filter->size()-1));
 
 			if (chunker)
 			{
@@ -184,7 +184,7 @@ bool KOutHTTPFilter::ResetCount()
 		// we cannot reliably reset the count when we compress - no way to flush
 		if (m_bAllowCompression && m_Compression == NONE)
 		{
-			auto chunker = m_Filter->component<KChunkedSink>(m_Filter->size()-1);
+			auto chunker = m_Filter->component<KChunkedSink>(static_cast<int>(m_Filter->size()-1));
 
 			if (chunker)
 			{

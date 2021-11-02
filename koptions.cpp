@@ -302,7 +302,7 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 	{
 		auto sArg = GetCurrentArg();
 		auto iLevel = (sArg == "d0") ? 0 : sArg.size();
-		KLog::getInstance().SetLevel    (iLevel);
+		KLog::getInstance().SetLevel    (static_cast<int>(iLevel));
 		KLog::getInstance().SetDebugLog (sCliDebugTo);
 		KLog::getInstance().KeepCLIMode (true);
 		kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());

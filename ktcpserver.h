@@ -82,6 +82,10 @@
 #include "kthreadpool.h"
 #include "ktimer.h"
 
+#if (BOOST_VERSION < 107000) || !defined(DEKAF2_IS_MACOS)
+	#define DEKAF2_TCPSERVER_CONNECT_TO_STOP
+#endif
+
 namespace dekaf2
 {
 
@@ -339,7 +343,7 @@ private:
 	void RunSession(KStream& stream, KString sRemoteEndPoint, int iSocketFd);
 	//-----------------------------------------------------------------------------
 
-#if (BOOST_VERSION < 107000)
+#ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP
 	//-----------------------------------------------------------------------------
 	void StopServerThread(ServerType SType);
 	//-----------------------------------------------------------------------------

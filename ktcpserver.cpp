@@ -633,7 +633,8 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 
 } // Start
 
-#if (BOOST_VERSION < 107000)
+#ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP
+
 //-----------------------------------------------------------------------------
 void KTCPServer::StopServerThread(ServerType SType)
 //-----------------------------------------------------------------------------
@@ -652,6 +653,7 @@ void KTCPServer::StopServerThread(ServerType SType)
 			break;
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
+
 		case Unix:
 			// connect to socket file
 			boost::system::error_code ec;
@@ -660,7 +662,9 @@ void KTCPServer::StopServerThread(ServerType SType)
 			// wait a little to avoid acceptor exception
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			return;
+
 #endif
+
 	}
 
 	boost::system::error_code ec;
@@ -671,6 +675,7 @@ void KTCPServer::StopServerThread(ServerType SType)
 	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
 } // StopServerThread
+
 #endif
 
 //-----------------------------------------------------------------------------
@@ -711,7 +716,8 @@ bool KTCPServer::Stop()
 	}
 	m_TCPAcceptors.clear();
 
-#if (BOOST_VERSION < 107000)
+#ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP
+
 	kMilliSleep(10);
 
 	// give it another shot for older systems
@@ -727,10 +733,13 @@ bool KTCPServer::Stop()
 	{
 		StopServerThread(TCPv4);
 	}
+
 #endif
+
 	m_bHaveSeparatev4Thread	= false;
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
+
 	if (m_UnixAcceptor && m_UnixAcceptor->is_open())
 	{
 		boost::system::error_code ec;
@@ -747,12 +756,16 @@ bool KTCPServer::Stop()
 			kDebug(1, "error closing listener: {}", ec.message());
 		}
 
-#if (BOOST_VERSION < 107000)
+#ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP
+
 		// give it another shot for older systems
 		StopServerThread(Unix);
+
 #endif
+
 	}
 	m_UnixAcceptor.reset();
+
 #endif
 
 	for (auto& Server : m_Servers)

@@ -71,7 +71,7 @@ uint16_t kDayOfWeek(uint16_t iDay, uint16_t iMonth, uint16_t iYear);
 /// Create a time stamp following strftime patterns.
 /// @param time time struct
 /// @param pszFormat format string
-KString kFormTimestamp (const ::tm& time, const char* pszFormat = "%Y-%m-%d %H:%M:%S");
+KString kFormTimestamp (const std::tm& time, const char* pszFormat = "%Y-%m-%d %H:%M:%S");
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
@@ -198,7 +198,7 @@ protected:
 	/// construct from a time_t epoch time, either as local or as GMT / UTC time
 	KBrokenDownTimeBase (time_t tGMTime, bool bAsLocalTime);
 	/// construct from a struct tm time
-	KBrokenDownTimeBase (const ::tm& tm_time) : m_time(tm_time) {}
+	KBrokenDownTimeBase (const std::tm& tm_time) : m_time(tm_time) {}
 
 	// the only data member
 	std::tm m_time {};
@@ -225,7 +225,7 @@ public:
 	/// construct from a time_t epoch time, as local time
 	KLocalTime (time_t tGMTime) : base(tGMTime, true) {}
 	/// construct from a struct tm time
-	KLocalTime (const ::tm& tm_time) : base(tm_time) {}
+	KLocalTime (const std::tm& tm_time) : base(tm_time) {}
 	/// construct from a KGMTime
 	KLocalTime (const KUTCTime& gmtime);
 
@@ -255,7 +255,7 @@ public:
 	/// construct from a time_t epoch time,  as GMT / UTC time
 	KUTCTime (time_t tGMTime) : base(tGMTime, false) {}
 	/// construct from a struct tm time
-	KUTCTime (const ::tm& tm_time) : base(tm_time) {}
+	KUTCTime (const std::tm& tm_time) : base(tm_time) {}
 	/// construct from a KLocalTime
 	KUTCTime (const KLocalTime& localtime);
 

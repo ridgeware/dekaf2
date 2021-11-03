@@ -284,7 +284,7 @@ KLocalTime::KLocalTime(const KUTCTime& gmtime)
 time_t KLocalTime::ToTimeT() const
 //-----------------------------------------------------------------------------
 {
-	return mktime(const_cast<::tm*>(&m_time));
+	return mktime(const_cast<std::tm*>(&m_time));
 
 } // ToTimeT
 
@@ -315,7 +315,7 @@ int32_t KLocalTime::GetUTCOffset() const
 	 *
 	 */
 
-	return static_cast<int32_t>(timegm(const_cast<::tm*>(&m_time)) - ToTimeT());
+	return static_cast<int32_t>(timegm(const_cast<std::tm*>(&m_time)) - ToTimeT());
 
 #endif
 
@@ -332,7 +332,7 @@ KUTCTime::KUTCTime(const KLocalTime& localtime)
 time_t KUTCTime::ToTimeT() const
 //-----------------------------------------------------------------------------
 {
-	return timegm(const_cast<::tm*>(&m_time));
+	return timegm(const_cast<std::tm*>(&m_time));
 
 } // ToTimeT
 
@@ -386,7 +386,7 @@ uint16_t kDayOfWeek(uint16_t iDay, uint16_t iMonth, uint16_t iYear)
 } // kDayOfWeek
 
 //-----------------------------------------------------------------------------
-KString kFormTimestamp (const ::tm& time, const char* szFormat)
+KString kFormTimestamp (const std::tm& time, const char* szFormat)
 //-----------------------------------------------------------------------------
 {
 	std::array<char, 100> sBuffer;
@@ -442,7 +442,7 @@ KString kFormCommonLogTimestamp(time_t tTime, bool bAsLocalTime)
 		else
 		{
 			kDebug(2, "cannot read time zone information");
-			iBias = static_cast<int32_t>(timegm(const_cast<::tm*>(&time)) - mktime(const_cast<::tm*>(&time)));
+			iBias = static_cast<int32_t>(timegm(const_cast<std::tm*>(&time)) - mktime(const_cast<std::tm*>(&time)));
 		}
 		char chSign         = iBias < 0 ? '-' : '+';
 		auto iMinutes       = abs(iBias / 60);

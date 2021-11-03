@@ -81,24 +81,21 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 				   GetPort());
 	Request.Execute(m_Options, m_Routes);
 
-
-#ifndef DEKAF2_IS_WINDOWS
-
-	if (m_Options.bPollForDisconnect)
+	// get out of here if the tcp server is shutting down - otherwise
+	// UBSAN complains about accessing the derived class, which is no
+	// more existing
+	if (!KTCPServer::IsShuttingDown())
 	{
-		if (!Request.IsDisconnected())
+#ifndef DEKAF2_IS_WINDOWS
+		if (m_Options.bPollForDisconnect)
 		{
-			// get out of here if the tcp server is shutting down - otherwise
-			// UBSAN complains about accessing the derived class, which is no
-			// more existing
-			if (!KTCPServer::IsShuttingDown())
+			if (!Request.IsDisconnected())
 			{
 				m_SocketWatch.Remove(iSocketFd);
 			}
 		}
-	}
-
 #endif
+	}
 
 	Request.Disconnect();
 

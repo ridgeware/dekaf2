@@ -316,6 +316,14 @@ protected:
 		return m_iPort;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Returns true when the server is in the shutdown process
+	bool IsShuttingDown() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_bQuit;
+	}
+
 //-------
 private:
 //-------

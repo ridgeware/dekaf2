@@ -254,7 +254,8 @@ bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
 {
 	try
 	{
-		Response.clear();
+		KHTTPServer::clear();
+
 		Route = nullptr;
 
 		if (!KHTTPServer::Parse())

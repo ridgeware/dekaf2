@@ -645,15 +645,23 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
 			}
 
-			if (Route->Option(KRESTRoute::Options::GENERIC_AUTH) && Options.AuthCallback)
+			if (Route->Option(KRESTRoute::Options::GENERIC_AUTH))
 			{
-				SetAuthenticatedUser(Options.AuthCallback(*this));
+				if (Options.AuthCallback)
+				{
+					SetAuthenticatedUser(Options.AuthCallback(*this));
+				}
+				else
+				{
+					kDebug(2, "no auth callback for: {}", Route->sRoute);
+				}
 			}
+
+			bool bSSOAccepted { false };
 
 			// OPTIONS method is allowed without Authorization header (it is used to request
 			// for Authorization permission)
-			if (Options.AuthLevel != Options::ALLOW_ALL
-				&& Route->Option(KRESTRoute::Options::SSO_AUTH)
+			if (Route->Option(KRESTRoute::Options::SSO_AUTH)
 				&& Request.Method != KHTTPMethod::OPTIONS)
 			{
 				// check if this route permits other authentication methods (probably triggered
@@ -661,6 +669,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				if (!Route->Option(KRESTRoute::Options::GENERIC_AUTH) || GetAuthenticatedUser().empty())
 				{
 					VerifyAuthentication(Options);
+					bSSOAccepted = true;
 				}
 			}
 
@@ -669,7 +678,17 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				Options.PostRouteCallback(*this);
 			}
 
-			// switch logging only after authorization (but not for OPTIONS, as it is
+			if (!bSSOAccepted
+				&& Route->Option(KRESTRoute::Options::GENERIC_AUTH)
+				&& Request.Method != KHTTPMethod::OPTIONS
+				&& GetAuthenticatedUser().empty())
+			{
+				// generic auth was requested, but neither SSO nor any other authentication method
+				// resulted in a user name
+				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization" };
+			}
+
+			// switch header logging only after authorization (but not for OPTIONS, as it is
 			// not authenticated..)
 			if (!Options.KLogHeader.empty() && Request.Method != KHTTPMethod::OPTIONS)
 			{
@@ -1528,8 +1547,7 @@ void KRESTServer::PrettyPrint(bool bYesNo)
 void KRESTServer::clear()
 //-----------------------------------------------------------------------------
 {
-	Request.clear();
-	Response.clear();
+	KHTTPServer::clear();
 
 	json.clear();
 	xml.clear();
@@ -1560,7 +1578,6 @@ void KRESTServer::clear()
 #else
 		iXMLPretty;
 #endif
-
 
 } // clear
 

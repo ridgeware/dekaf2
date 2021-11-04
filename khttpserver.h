@@ -354,19 +354,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// confirm a user name as being authenticated
-	void SetAuthenticatedUser(KString sAuthenticatedUser)
+	void SetAuthenticatedUser(KString sAuthenticatedUser);
 	//-----------------------------------------------------------------------------
-	{
-		m_sAuthenticatedUser = std::move(sAuthenticatedUser);
-	}
 
 //------
 protected:
 //------
-
-	//-----------------------------------------------------------------------------
-	bool ReadHeader();
-	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Set the error string, also outputs to debug log
@@ -383,10 +376,9 @@ private:
 	void EnableCompressionIfPossible();
 	//-----------------------------------------------------------------------------
 
-	KString m_sAuthenticatedUser;
-	mutable KString m_sError;
-	long m_Timeout { 30 };
-	bool m_bConfigureCompression { true };
+	KString          m_sAuthenticatedUser;
+	mutable KString  m_sError;
+	bool             m_bConfigureCompression { true };
 
 //------
 public:

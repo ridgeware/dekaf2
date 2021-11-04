@@ -43,15 +43,18 @@
 
 namespace dekaf2 {
 
-
 //-----------------------------------------------------------------------------
 void KHTTPServer::clear()
 //-----------------------------------------------------------------------------
 {
+	// this clear is called once per new receive round - we therefore clear
+	// everything that is not related to the connection itself
 	Request.clear();
 	Response.clear();
+	// we also clear the authenticated user, as the connection may be proxied
+	// and shared by multiple users
+	m_sAuthenticatedUser.clear();
 	m_sError.clear();
-	RemoteEndpoint.clear();
 	m_bConfigureCompression = true;
 }
 
@@ -278,6 +281,25 @@ const url::KQueryParms& KHTTPServer::GetQueryParms() const
 	return Request.Resource.Query.get();
 
 } // GetQueryParms
+
+//-----------------------------------------------------------------------------
+void KHTTPServer::SetAuthenticatedUser(KString sAuthenticatedUser)
+//-----------------------------------------------------------------------------
+{
+	if (kWouldLog(2))
+	{
+		if (!m_sAuthenticatedUser.empty())
+		{
+			kDebug(2, "removing old authenticated user: '{}'", m_sAuthenticatedUser);
+		}
+		if (!sAuthenticatedUser.empty())
+		{
+			kDebug(2, "setting new authenticated user:  '{}'", sAuthenticatedUser);
+		}
+	}
+	m_sAuthenticatedUser = std::move(sAuthenticatedUser);
+
+} // SetAuthenticatedUser
 
 //-----------------------------------------------------------------------------
 bool KHTTPServer::SetError(KString sError) const

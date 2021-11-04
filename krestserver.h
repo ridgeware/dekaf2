@@ -142,10 +142,10 @@ public:
 		/// Set a callback function that will receive references to this instance and the TimeKeepers
 		/// after termination of one request
 		std::function<void(const KRESTServer&, const KDurations&)> TimingCallback;
-		/// Set a general purpose callback function that will be called after route matching, but before SSO and before route callbacks.
+		/// Set an authentication callback function that will be called after route matching, but before SSO and before route callbacks.
 		/// The flag KRESTRoute::Options::GENERIC_AUTH must be set for the route for this callback being called.
-		/// Could be used e.g. for additional authentication, like basic, or special routing needs. May throw to abort processing.
-		/// Returned string will be stored as the authenticated user's name
+		/// Could be used e.g. for additional authentication, like basic. May throw to abort processing.
+		/// Returned string will be stored as the authenticated user's name.
 		std::function<KString(KRESTServer&)> AuthCallback;
 		/// Set a general purpose callback function that will be called before route matching, and before route callbacks.
 		/// Could be used e.g. for additional authentication, like basic, or special routing needs. May throw to abort processing.
@@ -157,17 +157,19 @@ public:
 		mutable uint16_t iMaxKeepaliveRounds { 10 };
 		/// Which of the three output formats HTTP, LAMBDA, CLI (default HTTP) ?
 		mutable OutputType Out { HTTP };
-		/// Which authentication level: ALLOW_ALL, ALLOW_ALL_WITH_AUTH_HEADER, VERIFY_AUTH_HEADER ?
+		/// Which authentication level: ALLOW_ALL, ALLOW_ALL_WITH_AUTH_HEADER, VERIFY_AUTH_HEADER ? (default = ALLOW_ALL)
 		AUTH_LEVEL AuthLevel { ALLOW_ALL };
 		/// Shall we record into the sRecordFile? Value is expected to change during execution (could be made an atomic, but we don't care for a few missing records)
 		bool bRecordRequest { false };
-		/// Shall we throw if the request body contains invalid JSON?
+		/// Shall we throw if the request body contains invalid JSON? (default = false)
 		bool bThrowIfInvalidJson { false };
-		/// If no route found, shall we check if that happened because of a wrong request method?
+		/// If no route found, shall we check if that happened because of a wrong request method? (This requires a second, more costly
+		/// scan of the route table just to change the error message slightly) (default = true)
 		bool bCheckForWrongMethod { true };
 		/// Whenever this value is set to false, the REST server will respond all requests with a HTTP 503 SERVICE UNAVAILABLE
+		/// (default = true)
 		bool bServiceIsReady { true };
-		/// Allow output compression (default true)
+		/// Allow output compression if the MIME type is compressible (default = true)
 		bool bAllowCompression { true };
 		/// Show timer header in microseconds (default false = milliseconds)
 		bool bMicrosecondTimerHeader { false };

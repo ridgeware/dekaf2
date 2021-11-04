@@ -93,13 +93,13 @@ bool KRESTAnalyzedPath::HasParameter(KStringView sParam) const
 } // end of namespace detail
 
 //-----------------------------------------------------------------------------
-KRESTRoute::KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, KString _sDocumentRoot, RESTCallback _Callback, ParserType _Parser)
+KRESTRoute::KRESTRoute(KHTTPMethod _Method, class Options _Options, KString _sRoute, KString _sDocumentRoot, RESTCallback _Callback, ParserType _Parser)
 //-----------------------------------------------------------------------------
 	: detail::KRESTAnalyzedPath(std::move(_Method), std::move(_sRoute))
 	, Callback(std::move(_Callback))
 	, sDocumentRoot(std::move(_sDocumentRoot))
 	, Parser(_Parser)
-	, bAuth(_bAuth)
+	, Option(_Options)
 {
 } // KRESTRoute
 
@@ -213,9 +213,9 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters* Params, bool bCompar
 
 
 //-----------------------------------------------------------------------------
-KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute, KString sDocumentRoot, bool bAuth)
+KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute, KString sDocumentRoot, KRESTRoute::Options Options)
 //-----------------------------------------------------------------------------
-	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, bAuth, "/", std::move(sDocumentRoot), std::move(DefaultRoute)))
+	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, Options, "/", std::move(sDocumentRoot), std::move(DefaultRoute)))
 {
 }
 
@@ -244,12 +244,12 @@ void KRESTRoutes::AddRedirect(KHTTPRewrite _Redirect)
 } // AddRewrite
 
 //-----------------------------------------------------------------------------
-void KRESTRoutes::SetDefaultRoute(KRESTRoute::RESTCallback Callback, bool bAuth, KRESTRoute::ParserType Parser)
+void KRESTRoutes::SetDefaultRoute(KRESTRoute::RESTCallback Callback, KRESTRoute::Options Options, KRESTRoute::ParserType Parser)
 //-----------------------------------------------------------------------------
 {
 	m_DefaultRoute.Callback = std::move(Callback);
 	m_DefaultRoute.Parser = Parser;
-	m_DefaultRoute.bAuth = bAuth;
+	m_DefaultRoute.Option = Options;
 
 } // SetDefaultRoute
 

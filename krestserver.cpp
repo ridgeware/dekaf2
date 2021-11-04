@@ -600,6 +600,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			kDebug (2, "incoming: {} {}", Request.Method.Serialize(), Request.Resource.Path);
 
+			if (Options.PreRouteCallback)
+			{
+				Options.PreRouteCallback(*this);
+			}
+
 			KString sURLPath = Request.Resource.Path.get();
 
 			// try to remove_prefix, do not complain if not existing
@@ -643,10 +648,15 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			// OPTIONS method is allowed without Authorization header (it is used to request
 			// for Authorization permission)
 			if (Options.AuthLevel != Options::ALLOW_ALL
-				&& Route->bAuth
+				&& Route->Option(KRESTRoute::Options::SSO_AUTH)
 				&& Request.Method != KHTTPMethod::OPTIONS)
 			{
-				VerifyAuthentication(Options);
+				// check if this route permits other authentication methods (probably triggered
+				// in PreRouteCallback()) and has confirmed a valid user
+				if (!Route->Option(KRESTRoute::Options::GENERIC_AUTH) || GetAuthenticatedUser().empty())
+				{
+					VerifyAuthentication(Options);
+				}
 			}
 
 			if (Options.PostRouteCallback)

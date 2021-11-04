@@ -132,6 +132,43 @@ class KRESTRoute : public detail::KRESTAnalyzedPath
 public:
 //------
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class Options
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//------
+	public:
+	//------
+
+		enum OPT { SSO_AUTH = 1, GENERIC_AUTH = 2 };
+
+		constexpr
+		Options() = default;
+
+		constexpr
+		Options(bool bSSO) : m_Options(SSO_AUTH) {} // fallback for old bAuth parameter in route construction
+
+		DEKAF2_CONSTEXPR_14
+		Options(std::initializer_list<OPT> il) { for (auto opt : il) Set(opt); }
+
+		constexpr
+		bool Has(OPT opt) const        { return (m_Options & opt) != 0; }
+
+		constexpr
+		void Set(OPT opt)              { m_Options |= opt;              }
+
+		constexpr
+		bool operator()(OPT opt) const { return Has(opt);               }
+
+	//------
+	private:
+	//------
+
+		uint16_t m_Options {};
+
+	}; // Options
+
 	enum ParserType { PLAIN, JSON, XML, WWWFORM, NOREAD };
 
 	using Function = void(*)(KRESTServer& REST);
@@ -146,24 +183,24 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Construct a REST route for a free function
 	/// @param _Method the HTTP method to match with (or empty method for any method)
-	/// @param _bAuth set to true if SSO authentication is required for this route
+	/// @param _Options set various options for this route, e.g. SSO authentication (takes an initializer list for multiple options)
 	/// @param _sRoute a REST route, wildcards allowed: /my/path/*/:user/name
 	/// @param _sDocumentRoot the file system path to be used for serving GET requests, or empty
 	/// @param _Callback a method that will be called when the route matches the request, may not be empty
 	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing
-	KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, KString _sDocumentRoot, RESTCallback _Callback, ParserType _Parser = JSON);
+	KRESTRoute(KHTTPMethod _Method, Options _Options, KString _sRoute, KString _sDocumentRoot, RESTCallback _Callback, ParserType _Parser = JSON);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Construct a REST route for a free function
 	/// @param _Method the HTTP method to match with (or empty method for any method)
-	/// @param _bAuth set to true if SSO authentication is required for this route
+	/// @param _Options set various options for this route, e.g. SSO authentication (takes an initializer list for multiple options)
 	/// @param _sRoute a REST route, wildcards allowed: /my/path/*/:user/name
 	/// @param _Callback a method that will be called when the route matches the request, may not be empty
 	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing
-	KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, RESTCallback _Callback, ParserType _Parser = JSON)
+	KRESTRoute(KHTTPMethod _Method, Options _Options, KString _sRoute, RESTCallback _Callback, ParserType _Parser = JSON)
 	//-----------------------------------------------------------------------------
-	: KRESTRoute(_Method, _bAuth, std::move(_sRoute), KString{}, _Callback, _Parser)
+	: KRESTRoute(_Method, _Options, std::move(_sRoute), KString{}, _Callback, _Parser)
 	{
 	}
 
@@ -172,16 +209,16 @@ public:
 	/// must stay valid throughout the lifetime of this class (it is a reference on a constructed
 	/// object which method will be called)
 	/// @param _Method the HTTP method to match with (or empty method for any method)
-	/// @param _bAuth set to true if SSO authentication is required for this route
+	/// @param _Options set various options for this route, e.g. SSO authentication (takes an initializer list for multiple options)
 	/// @param _sRoute a REST route, wildcards allowed: /my/path/*/:user/name
 	/// @param _sDocumentRoot the file system path to be used for serving GET requests, or empty
 	/// @param _Object the object for the method to be called, may not be empty
 	/// @param _Callback the object method that will be called when the route matches the request, may not be empty
 	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing
 	template<class Object>
-	KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, KString _sDocumentRoot, Object& _Object, MemberFunction<Object> _Callback, ParserType _Parser = JSON)
+	KRESTRoute(KHTTPMethod _Method, Options _Options, KString _sRoute, KString _sDocumentRoot, Object& _Object, MemberFunction<Object> _Callback, ParserType _Parser = JSON)
 	//-----------------------------------------------------------------------------
-	: KRESTRoute(std::move(_Method), _bAuth, std::move(_sRoute), std::move(_sDocumentRoot), std::bind(_Callback, &_Object, std::placeholders::_1), _Parser)
+	: KRESTRoute(std::move(_Method), _Options, std::move(_sRoute), std::move(_sDocumentRoot), std::bind(_Callback, &_Object, std::placeholders::_1), _Parser)
 	{
 	}
 
@@ -190,15 +227,15 @@ public:
 	/// must stay valid throughout the lifetime of this class (it is a reference on a constructed
 	/// object which method will be called)
 	/// @param _Method the HTTP method to match with (or empty method for any method)
-	/// @param _bAuth set to true if SSO authentication is required for this route
+	/// @param _Options set various options for this route, e.g. SSO authentication (takes an initializer list for multiple options)
 	/// @param _sRoute a REST route, wildcards allowed: /my/path/*/:user/name
 	/// @param _Object the object for the method to be called, may not be empty
 	/// @param _Callback the object method that will be called when the route matches the request, may not be empty
 	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing
 	template<class Object>
-	KRESTRoute(KHTTPMethod _Method, bool _bAuth, KString _sRoute, Object& object, MemberFunction<Object> _Callback, ParserType _Parser = JSON)
+	KRESTRoute(KHTTPMethod _Method, Options _Options, KString _sRoute, Object& object, MemberFunction<Object> _Callback, ParserType _Parser = JSON)
 	//-----------------------------------------------------------------------------
-	: KRESTRoute(std::move(_Method), _bAuth, std::move(_sRoute), KString{}, std::bind(_Callback, &object, std::placeholders::_1), _Parser)
+	: KRESTRoute(std::move(_Method), _Options, std::move(_sRoute), KString{}, std::bind(_Callback, &object, std::placeholders::_1), _Parser)
 	{
 	}
 
@@ -214,7 +251,7 @@ public:
 	RESTCallback Callback;
 	KString      sDocumentRoot;
 	ParserType   Parser;
-	bool         bAuth;
+	Options      Option;
 
 }; // KRESTRoute
 
@@ -237,9 +274,9 @@ public:
 
 		// C++11 needs a constructor for initializer list initialization
 		constexpr
-		FunctionTable(KStringView _sMethod, bool _bAuth, KStringView _sRoute, KRESTRoute::Function _Handler, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
+		FunctionTable(KStringView _sMethod, KRESTRoute::Options _Options, KStringView _sRoute, KRESTRoute::Function _Handler, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
 		: sMethod(_sMethod)
-		, bAuth(_bAuth)
+		, Options(_Options)
 		, sRoute(_sRoute)
 		, sDocumentRoot(KStringView{})
 		, Handler(_Handler)
@@ -247,9 +284,9 @@ public:
 		{}
 
 		constexpr // create a WebServer item in the function table
-		FunctionTable(KStringView _sMethod, bool _bAuth, KStringView _sRoute, KStringView _sDocumentRoot, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
+		FunctionTable(KStringView _sMethod, KRESTRoute::Options _Options, KStringView _sRoute, KStringView _sDocumentRoot, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
 		: sMethod(_sMethod)
-		, bAuth(_bAuth)
+		, Options(_Options)
 		, sRoute(_sRoute)
 		, sDocumentRoot(_sDocumentRoot)
 		, Handler(nullptr)
@@ -257,7 +294,7 @@ public:
 		{}
 
 		KStringView sMethod;
-		bool bAuth;
+		KRESTRoute::Options Options;
 		KStringView sRoute;
 		KStringView sDocumentRoot;
 		KRESTRoute::Function Handler;
@@ -274,9 +311,9 @@ public:
 
 		// C++11 needs a constructor for initializer list initialization
 		constexpr
-		MemberFunctionTable(KStringView _sMethod, bool _bAuth, KStringView _sRoute, KRESTRoute::MemberFunction<Object> _Handler, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
+		MemberFunctionTable(KStringView _sMethod, KRESTRoute::Options _Options, KStringView _sRoute, KRESTRoute::MemberFunction<Object> _Handler, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
 		: sMethod(_sMethod)
-		, bAuth(_bAuth)
+		, Options(_Options)
 		, sRoute(_sRoute)
 		, sDocumentRoot(KStringView{})
 		, Handler(_Handler)
@@ -284,9 +321,9 @@ public:
 		{}
 
 		constexpr // create a WebServer item in the function table
-		MemberFunctionTable(KStringView _sMethod, bool _bAuth, KStringView _sRoute, KStringView _sDocumentRoot, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
+		MemberFunctionTable(KStringView _sMethod, KRESTRoute::Options _Options, KStringView _sRoute, KStringView _sDocumentRoot, KRESTRoute::ParserType _Parser = KRESTRoute::JSON)
 		: sMethod(_sMethod)
-		, bAuth(_bAuth)
+		, Options(_Options)
 		, sRoute(_sRoute)
 		, sDocumentRoot(_sDocumentRoot)
 		, Handler(nullptr)
@@ -294,7 +331,7 @@ public:
 		{}
 
 		KStringView sMethod;
-		bool bAuth;
+		KRESTRoute::Options Options;
 		KStringView sRoute;
 		KStringView sDocumentRoot;
 		KRESTRoute::MemberFunction<Object> Handler;
@@ -307,8 +344,8 @@ public:
 	/// Construct KRESTRoutes object
 	/// @param DefaultRoute default callback if none of the routes matches, defaults to nullptr
 	/// @param sDocumentRoot string associated to the default route, defaults to empty string
-	/// @param bAuth set to true if SSO authentication is required for the default route, defaults to false
-	KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute = nullptr, KString sDocumentRoot = KString{}, bool bAuth = false);
+	/// @param Options set various options for this route, e.g. SSO authentication (takes an initializer list for multiple options)
+	KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute = nullptr, KString sDocumentRoot = KString{}, KRESTRoute::Options Options = KRESTRoute::Options{} );
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -349,7 +386,7 @@ public:
 			}
 			else
 			{
-				AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, Routes[i].Handler, Routes[i].Parser));
+				AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].Options, Routes[i].sRoute, Routes[i].sDocumentRoot, Routes[i].Handler, Routes[i].Parser));
 			}
 		}
 	}
@@ -366,7 +403,7 @@ public:
 		{
 			if (Routes[i].Handler != nullptr)
 			{
-				AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, object, Routes[i].Handler, Routes[i].Parser));
+				AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].Options, Routes[i].sRoute, Routes[i].sDocumentRoot, object, Routes[i].Handler, Routes[i].Parser));
 			}
 			else
 			{
@@ -380,7 +417,7 @@ public:
 				}
 				else
 				{
-					AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].bAuth, Routes[i].sRoute, Routes[i].sDocumentRoot, *this, &KRESTRoutes::WebServer, Routes[i].Parser));
+					AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].Options, Routes[i].sRoute, Routes[i].sDocumentRoot, *this, &KRESTRoutes::WebServer, Routes[i].Parser));
 				}
 			}
 		}
@@ -389,9 +426,9 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Set default route (matching all path requests not satisfied by other routes)
 	/// @param Callback default callback if none of the routes matches
-	/// @param bAuth set to true if SSO authentication is required for the default route, defaults to false
+	/// @param Options set various options for this route, e.g. SSO authentication (takes an initializer list for multiple options)
 	/// @param Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing
-	void SetDefaultRoute(KRESTRoute::RESTCallback Callback, bool bAuth = false, KRESTRoute::ParserType Parser = KRESTRoute::JSON);
+	void SetDefaultRoute(KRESTRoute::RESTCallback Callback, KRESTRoute::Options Options = KRESTRoute::Options{}, KRESTRoute::ParserType Parser = KRESTRoute::JSON);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

@@ -142,6 +142,9 @@ public:
 		/// Set a callback function that will receive references to this instance and the TimeKeepers
 		/// after termination of one request
 		std::function<void(const KRESTServer&, const KDurations&)> TimingCallback;
+		/// Set a general purpose callback function that will be called before route matching, and before route callbacks.
+		/// Could be used e.g. for additional authentication, like basic, or special routing needs. May throw to abort processing.
+		std::function<void(KRESTServer&)> PreRouteCallback;
 		/// Set a general purpose callback function that will be called after route matching, and before route callbacks.
 		/// Could be used e.g. for additional authentication, like basic. May throw to abort calling the route's callback.
 		std::function<void(KRESTServer&)> PostRouteCallback;

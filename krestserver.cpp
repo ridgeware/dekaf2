@@ -645,6 +645,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
 			}
 
+			if (Route->Option(KRESTRoute::Options::GENERIC_AUTH) && Options.AuthCallback)
+			{
+				SetAuthenticatedUser(Options.AuthCallback(*this));
+			}
+
 			// OPTIONS method is allowed without Authorization header (it is used to request
 			// for Authorization permission)
 			if (Options.AuthLevel != Options::ALLOW_ALL

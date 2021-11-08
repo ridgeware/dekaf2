@@ -645,7 +645,8 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
 			}
 
-			if (Route->Option(KRESTRoute::Options::GENERIC_AUTH))
+			if (Route->Option(KRESTRoute::Options::GENERIC_AUTH)
+				&& Request.Method != KHTTPMethod::OPTIONS)
 			{
 				if (Options.AuthCallback)
 				{

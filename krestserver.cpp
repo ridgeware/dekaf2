@@ -645,48 +645,45 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
 			}
 
-			if (Route->Option(KRESTRoute::Options::GENERIC_AUTH)
-				&& Request.Method != KHTTPMethod::OPTIONS)
-			{
-				if (Options.AuthCallback)
-				{
-					SetAuthenticatedUser(Options.AuthCallback(*this));
-				}
-				else
-				{
-					kDebug(2, "no auth callback for: {}", Route->sRoute);
-				}
-			}
-
-			bool bSSOAccepted { false };
-
 			// OPTIONS method is allowed without Authorization header (it is used to request
 			// for Authorization permission)
-			if (Route->Option(KRESTRoute::Options::SSO_AUTH)
-				&& Request.Method != KHTTPMethod::OPTIONS)
+			if (Request.Method != KHTTPMethod::OPTIONS)
 			{
-				// check if this route permits other authentication methods (probably triggered
-				// in PreRouteCallback()) and has confirmed a valid user
-				if (!Route->Option(KRESTRoute::Options::GENERIC_AUTH) || GetAuthenticatedUser().empty())
+				if (Route->Option(KRESTRoute::Options::GENERIC_AUTH))
 				{
-					VerifyAuthentication(Options);
-					bSSOAccepted = true;
+					if (Options.AuthCallback)
+					{
+						SetAuthenticatedUser(Options.AuthCallback(*this));
+					}
+					else
+					{
+						kDebug(2, "no auth callback for: {}", Route->sRoute);
+					}
+				}
+
+				if (Route->Option(KRESTRoute::Options::SSO_AUTH))
+				{
+					// check if this route permits other authentication methods (probably triggered
+					// in AuthCallback()) and has confirmed a valid user
+					if (!Route->Option(KRESTRoute::Options::GENERIC_AUTH) || GetAuthenticatedUser().empty())
+					{
+						// no - use the loaded authenticators
+						VerifyAuthentication(Options);
+					}
+				}
+
+				if (Route->Option(KRESTRoute::Options::GENERIC_AUTH)
+					&& GetAuthenticatedUser().empty())
+				{
+					// generic auth was requested, but neither SSO nor any other authentication method
+					// resulted in a user name
+					throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization" };
 				}
 			}
 
 			if (Options.PostRouteCallback)
 			{
 				Options.PostRouteCallback(*this);
-			}
-
-			if (!bSSOAccepted
-				&& Route->Option(KRESTRoute::Options::GENERIC_AUTH)
-				&& Request.Method != KHTTPMethod::OPTIONS
-				&& GetAuthenticatedUser().empty())
-			{
-				// generic auth was requested, but neither SSO nor any other authentication method
-				// resulted in a user name
-				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization" };
 			}
 
 			// switch header logging only after authorization (but not for OPTIONS, as it is

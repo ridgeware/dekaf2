@@ -73,6 +73,8 @@ TEST_CASE("KRESTCLIENT")
 		Options.Type = KREST::HTTP;
 		Options.iPort = 6780;
 		Options.bBlocking = false;
+		// we set the option although we have no SSO route to check the server code
+		Options.AuthLevel = KRESTServer::Options::ALLOW_ALL_WITH_AUTH_HEADER;
 
 		KRESTRoutes::FunctionTable RTable[]
 		{

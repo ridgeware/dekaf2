@@ -141,13 +141,13 @@ public:
 	public:
 	//------
 
-		enum OPT { SSO_AUTH = 1, GENERIC_AUTH = 2 };
+		enum OPT { NONE = 0, SSO_AUTH = 1, GENERIC_AUTH = 2 };
 
 		constexpr
 		Options() = default;
 
 		constexpr
-		Options(bool bSSO) : m_Options(SSO_AUTH) {} // fallback for old bAuth parameter in route construction
+		Options(bool bSSO) : m_Options(bSSO ? SSO_AUTH : NONE) {} // fallback for old bAuth parameter in route construction
 
 		DEKAF2_CONSTEXPR_14
 		Options(std::initializer_list<OPT> il) { for (auto opt : il) Set(opt); }

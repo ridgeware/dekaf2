@@ -44,6 +44,13 @@ TEST_CASE("KREST")
 			sUID = http.Request.Resource.Query[":UID"];
 		}});
 
+		KString sAuth;
+
+		Routes.AddRoute({ KHTTPMethod::GET, { KRESTRoute::Options::SSO_AUTH, KRESTRoute::Options::GENERIC_AUTH }, "/auth/:AUTH", [&](KRESTServer& http)
+		{
+			sAuth = http.Request.Resource.Query[":AUTH"];
+		}});
+
 		KString sName;
 
 		Routes.AddRoute({ KHTTPMethod::GET, false, "/user/=NAME/address", [&](KRESTServer& http)
@@ -92,6 +99,11 @@ TEST_CASE("KREST")
 
 		KREST::Options Options;
 		Options.Type = KREST::SIMULATE_HTTP;
+		Options.AuthLevel = KRESTServer::Options::ALLOW_ALL_WITH_AUTH_HEADER;
+		Options.AuthCallback = [&](KRESTServer& HTTP) -> KString
+		{
+			return "somebody";
+		};
 
 		KREST REST;
 
@@ -169,6 +181,10 @@ TEST_CASE("KREST")
 		CHECK ( bCalledNoSlashPath == false );
 		CHECK ( sUID == "7654" );
 		CHECK ( sName == "Peter" );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/auth/authenticated", oss) == true );
+		CHECK ( sAuth == "authenticated" );
 
 		sOut.clear();
 		CHECK ( REST.Simulate(Options, Routes, "/user/\"; DROP DATABASE CLIENTS/address", oss) == false );

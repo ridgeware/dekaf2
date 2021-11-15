@@ -20,21 +20,11 @@
  * under the License.
  */
 
-#ifndef FROZEN_LETITGO_CONSTEXPR_ASSERT_H
-#define FROZEN_LETITGO_CONSTEXPR_ASSERT_H
+#ifndef FROZEN_LETITGO_VERSION_H
+#define FROZEN_LETITGO_VERSION_H
 
-#include <cassert>
-
-#ifdef _MSC_VER
-
-// FIXME: find a way to implement that correctly for msvc
-#define constexpr_assert(cond, msg)
-
-#else
-
-#define constexpr_assert(cond, msg)\
-    assert(cond && msg);
-#endif
+#define FROZEN_MAJOR_VERSION 1
+#define FROZEN_MINOR_VERSION 0
+#define FROZEN_PATCH_VERSION 1
 
 #endif
-

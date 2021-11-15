@@ -20,21 +20,31 @@
  * under the License.
  */
 
-#ifndef FROZEN_LETITGO_CONSTEXPR_ASSERT_H
-#define FROZEN_LETITGO_CONSTEXPR_ASSERT_H
+#ifndef FROZEN_LETITGO_BITS_TYPE_TRAITS_H
+#define FROZEN_LETITGO_BITS_TYPE_TRAITS_H
 
-#include <cassert>
+#include <type_traits>
 
-#ifdef _MSC_VER
+namespace frozen {
 
-// FIXME: find a way to implement that correctly for msvc
-#define constexpr_assert(cond, msg)
+namespace bits {
 
-#else
+template <class...>
+using void_t = void;
 
-#define constexpr_assert(cond, msg)\
-    assert(cond && msg);
+template <class, class, class = void_t<>>
+struct has_is_transparent
+{};
+template <class T, class U>
+struct has_is_transparent<T, U, void_t<typename T::is_transparent>>
+{
+  typedef void type;
+};
+
+template <class T, class U>
+using has_is_transparent_t = typename has_is_transparent<T, U>::type;
+
+} // namespace bits
+} // namespace frozen
+
 #endif
-
-#endif
-

@@ -79,15 +79,22 @@ struct elsa<dekaf2::KStringView>
 {
 	constexpr std::size_t operator()(dekaf2::KStringView value) const
 	{
-		return value.Hash();
+		// a fast and simple hash
+		std::size_t hash = 5381;
+		for (std::size_t i = 0; i < value.size(); ++i)
+		{
+		  hash = hash * 33 + static_cast<std::size_t>(value[i]);
+		}
+		return hash;
 	}
 
 	constexpr std::size_t operator()(dekaf2::KStringView value, std::size_t seed) const
 	{
-		std::size_t hash = seed;
+		// this is FNV1a 32 bit, seeded
+		std::size_t hash = (static_cast<std::size_t>(2166136261U) ^ seed) * static_cast<std::size_t>(16777619U);
 		for (std::size_t i = 0; i < value.size(); ++i)
 		{
-			hash = (hash ^ static_cast<unsigned char>(value[i])) * 1099511628211;
+			hash = (hash ^ static_cast<std::size_t>(value[i])) * static_cast<std::size_t>(16777619U);
 		}
 		return hash;
 	}
@@ -98,15 +105,22 @@ struct elsa<dekaf2::KStringViewZ>
 {
 	constexpr std::size_t operator()(dekaf2::KStringViewZ value) const
 	{
-		return value.Hash();
+		// a fast and simple hash
+		std::size_t hash = 5381;
+		for (std::size_t i = 0; i < value.size(); ++i)
+		{
+		  hash = hash * 33 + static_cast<std::size_t>(value[i]);
+		}
+		return hash;
 	}
 
 	constexpr std::size_t operator()(dekaf2::KStringViewZ value, std::size_t seed) const
 	{
-		std::size_t hash = seed;
+		// this is FNV1a 32 bit, seeded
+		std::size_t hash = (static_cast<std::size_t>(2166136261U) ^ seed) * static_cast<std::size_t>(16777619U);
 		for (std::size_t i = 0; i < value.size(); ++i)
 		{
-			hash = (hash ^ static_cast<unsigned char>(value[i])) * 1099511628211;
+			hash = (hash ^ static_cast<std::size_t>(value[i])) * static_cast<std::size_t>(16777619U);
 		}
 		return hash;
 	}

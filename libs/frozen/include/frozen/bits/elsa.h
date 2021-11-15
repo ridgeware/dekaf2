@@ -23,6 +23,8 @@
 #ifndef FROZEN_LETITGO_ELSA_H
 #define FROZEN_LETITGO_ELSA_H
 
+#include <type_traits>
+
 namespace frozen {
 
 template <class T> struct elsa {

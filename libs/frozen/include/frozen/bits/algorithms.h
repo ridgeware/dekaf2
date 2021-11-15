@@ -23,9 +23,11 @@
 #ifndef FROZEN_LETITGO_BITS_ALGORITHMS_H
 #define FROZEN_LETITGO_BITS_ALGORITHMS_H
 
-#include <frozen/bits/basic_types.h>
+#include "frozen/bits/basic_types.h"
+
 #include <limits>
 #include <tuple>
+
 namespace frozen {
 
 namespace bits {
@@ -112,7 +114,7 @@ constexpr Iterator partition(Iterator left, Iterator right, Compare const &compa
   auto pivot = left + (right - left) / 2;
   auto value = *pivot;
   cswap(*right, *pivot);
-  for (auto it = left; it < right; ++it) {
+  for (auto it = left; 0 < right - it; ++it) {
     if (compare(*it, value)) {
       cswap(*it, *left);
       left++;
@@ -124,7 +126,7 @@ constexpr Iterator partition(Iterator left, Iterator right, Compare const &compa
 
 template <typename Iterator, class Compare>
 constexpr void quicksort(Iterator left, Iterator right, Compare const &compare) {
-  while (left < right) {
+  while (0 < right - left) {
     auto new_pivot = bits::partition(left, right, compare);
     quicksort(left, new_pivot, compare);
     left = new_pivot + 1;
@@ -195,6 +197,30 @@ constexpr bool binary_search(ForwardIt first, const T &value,
                              Compare const &compare) {
   ForwardIt where = lower_bound<N>(first, value, compare);
   return (!(where == first + N) && !(compare(value, *where)));
+}
+
+
+template<class InputIt1, class InputIt2>
+constexpr bool equal(InputIt1 first1, InputIt1 last1, InputIt2 first2)
+{
+  for (; first1 != last1; ++first1, ++first2) {
+    if (!(*first1 == *first2)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+template<class InputIt1, class InputIt2>
+constexpr bool lexicographical_compare(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2)
+{
+  for (; (first1 != last1) && (first2 != last2); ++first1, ++first2) {
+    if (*first1 < *first2)
+      return true;
+    if (*first2 < *first1)
+      return false;
+  }
+  return (first1 == last1) && (first2 != last2);
 }
 
 } // namespace bits

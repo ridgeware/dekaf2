@@ -88,10 +88,10 @@ constexpr std::array<KStringViewZ, 12> AbbreviatedMonths
 };
 
 //-----------------------------------------------------------------------------
-struct tm kGetBrokenDownTime (time_t tTime, bool bAsLocalTime)
+std::tm kGetBrokenDownTime (time_t tTime, bool bAsLocalTime)
 //-----------------------------------------------------------------------------
 {
-	struct tm time;
+	std::tm time;
 
 	if (!tTime)
 	{

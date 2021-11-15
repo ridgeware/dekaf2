@@ -1170,7 +1170,7 @@ void KRESTServer::Output(const Options& Options)
 			{
 				// we do not have content to output (per the HTTP protocol)
 			}
-			if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
+			else if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
 			{
 				Response.UnfilteredStream().WriteLine(m_sRawOutput);
 			}

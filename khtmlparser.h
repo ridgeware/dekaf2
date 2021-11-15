@@ -48,11 +48,6 @@
 #include "khash.h"
 #include <set>
 
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable:4307)
-#endif
-
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -648,7 +643,3 @@ namespace boost
 	};
 
 } // end of namespace boost
-
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif

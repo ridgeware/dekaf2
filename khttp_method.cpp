@@ -43,11 +43,6 @@
 
 namespace dekaf2 {
 
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable:4307)
-#endif
-
 //-----------------------------------------------------------------------------
 KHTTPMethod::Method KHTTPMethod::Parse(KStringView sMethod)
 //-----------------------------------------------------------------------------
@@ -91,10 +86,6 @@ KHTTPMethod::Method KHTTPMethod::Parse(KStringView sMethod)
     return method;
     
 } // Method
-
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
 
 //-----------------------------------------------------------------------------
 KStringViewZ KHTTPMethod::Serialize() const

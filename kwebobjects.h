@@ -48,11 +48,6 @@
 #include <chrono>
 #include <unordered_map>
 
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable:4307)
-#endif
-
 namespace dekaf2 {
 namespace html {
 
@@ -2398,7 +2393,3 @@ public:
 
 } // end of namespace html
 } // end of namespace dekaf2
-
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif

@@ -97,6 +97,9 @@
 	#define _CRT_SECURE_NO_WARNINGS
 	// works on >= VS 2013
 	#pragma warning(disable:4996)
+	// "warning C4307: '*': integral constant overflow" (on an unsigned type..) - this is a comp bug
+	// that was only fixed in recent (> 2017) MSVC versions
+	#pragma warning(disable:4307)
 #endif
 
 #if (__cplusplus < 201103L && !DEKAF2_HAS_CPP_11)

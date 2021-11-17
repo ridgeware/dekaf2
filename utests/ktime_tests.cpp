@@ -3,6 +3,7 @@
 #include <dekaf2/ktime.h>
 #include <dekaf2/ksystem.h>
 #include <dekaf2/kscopeguard.h>
+#include <array>
 
 using namespace dekaf2;
 
@@ -137,6 +138,126 @@ TEST_CASE("KTime") {
 		CHECK ( Local1.GetUTCOffset() == 3600  );
  */
 
+	}
+
+	SECTION("kParseTimestamp")
+	{
+		auto tTime = kParseTimestamp("???, DD NNN YYYY hh:mm:ss ???", "Tue, 03 Aug 2021 10:23:42 GMT");
+		auto sTime = kFormHTTPTimestamp(tTime);
+		CHECK ( sTime == "Tue, 03 Aug 2021 10:23:42 GMT" );
+
+		tTime = kParseTimestamp("???, DD NNN YYYY hh:mm:ss zzz", "Tue, 03 Aug 2021 10:23:42 GMT");
+		sTime = kFormHTTPTimestamp(tTime);
+		CHECK ( sTime == "Tue, 03 Aug 2021 10:23:42 GMT" );
+
+		tTime = kParseTimestamp("???, DD NNN YYYY hh:mm:ss ZZZZZ", "Tue, 03 Aug 2021 10:23:42 -0430");
+		sTime = kFormHTTPTimestamp(tTime);
+		CHECK ( sTime == "Tue, 03 Aug 2021 14:53:42 GMT" );
+
+		tTime = kParseTimestamp("???, DD NNN YYYY hh:mm:ss ZZZZZ", "Tue,  3 Aug 2021 10:23:42 -0430");
+		sTime = kFormHTTPTimestamp(tTime);
+		CHECK ( sTime == "Tue, 03 Aug 2021 14:53:42 GMT" );
+
+		tTime = kParseTimestamp("???, DD NNN YY hh:mm:ss ZZZZZ", "Tue, 03 Aug 21 10:23:42 -0430");
+		sTime = kFormHTTPTimestamp(tTime);
+		CHECK ( sTime == "Tue, 03 Aug 2021 14:53:42 GMT" );
+
+		tTime = kParseTimestamp("???, DD NNN YYYY hh:mm:ss zzz", "Tue, 03 Aug 2021 10:23:42 PDT");
+		sTime = kFormHTTPTimestamp(tTime);
+		CHECK ( sTime == "Tue, 03 Aug 2021 17:23:42 GMT" );
+
+		tTime = kParseTimestamp("Tue, 03 Aug 2021 10:23:42 GMT");
+		sTime = kFormHTTPTimestamp(tTime);
+		CHECK ( sTime == "Tue, 03 Aug 2021 10:23:42 GMT" );
+
+		tTime = kParseTimestamp("Tue, 03 Aug 2021 10:23:42 -0430");
+		sTime = kFormHTTPTimestamp(tTime);
+		CHECK ( sTime == "Tue, 03 Aug 2021 14:53:42 GMT" );
+
+		tTime = kParseTimestamp("Tue,  3 Aug 2021 10:23:42 -0430");
+		sTime = kFormHTTPTimestamp(tTime);
+		CHECK ( sTime == "Tue, 03 Aug 2021 14:53:42 GMT" );
+	}
+
+	SECTION("kParseTimestamp 2")
+	{
+		static constexpr std::array<std::pair<KStringView, KStringView>, 55> Timestamps
+		{{
+			{ "Tue, 03 Aug 2021 11:23:42 +0100", "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "Tue, 03 Aug 2021 12:23:42 CEST" , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "Tue, 03 Aug 2021 11:23:42 CET"  , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03 03:23:42.211 -0700"  , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03 03:23:42,211 -0700"  , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021 Aug 03 12:23:42.211 CEST"  , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021 Aug 03 11:23:42.211 CET"   , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03 02:53:42.211-0730"   , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03 02:53:42,211-0730"   , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "03/Aug/2021:02:53:42 -0730"     , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "03/Aug/2021 02:53:42 -0730"     , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "Aug 03 02:53:42 -0730 2021"     , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03 02:53:42 -0730"      , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "Aug 03, 2021 10:23:42 AM"       , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "Aug 03, 2021 10:23:42 PM"       , "Tue, 03 Aug 2021 22:23:42 GMT" },
+			{ "2021-08-03 02:53:42-0730"       , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03T02:53:42-0730"       , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03T10:23:42.321Z"       , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021 Aug 03 10:23:42.321"       , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "03-Aug-2021 10:23:42.321"       , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021 Aug 03 11:23:42 CET"       , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03 11:23:42 CET"        , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03 10:23:42.335"        , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03T10:23:42.335"        , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03 10:23:42,335"        , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03*10:23:42:335"        , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "20210803 10:23:42.345"          , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "Aug 03 2021 10:23:42"           , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "10:23:42 Aug 03 2021"           , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "Aug 03 10:23:42 2021"           , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03T10:23:42Z"           , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "03 Aug 2021 10:23:42"           , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "03-Aug-2021 10:23:42"           , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "03/Aug/2021 10:23:42"           , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "03/Aug/2021:10:23:42"           , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03 10:23:42"            , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03T10:23:42"            , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021-08-03*10:23:42"            , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021/08/03 10:23:42"            , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "2021/08/03*10:23:42"            , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "10:23:42 03-08-2021"            , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "03-08-2021 10:23:42"            , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "10:23:42 03.08.2021"            , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "03.08.2021 10:23:42"            , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "10:23:42 03/08/2021"            , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "03/08/2021 10:23:42"            , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "10:23:42 03-08-21"              , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "03-08-21 10:23:42"              , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "10:23:42 03.08.21"              , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "03.08.21 10:23:42"              , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "10:23:42 03/08/21"              , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "03/08/21 10:23:42"              , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "20210803T102342Z"               , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "210803 10:23:42"                , "Tue, 03 Aug 2021 10:23:42 GMT" },
+			{ "20210803102342"                 , "Tue, 03 Aug 2021 10:23:42 GMT" }
+		}};
+
+		for (auto& Timestamp : Timestamps)
+		{
+			auto tTime = kParseTimestamp(Timestamp.first);
+			auto sTime = kFormHTTPTimestamp(tTime);
+			INFO  ( Timestamp.first );
+			CHECK ( sTime == Timestamp.second );
+		}
+	}
+
+	SECTION("kGetTimezoneOffset")
+	{
+		CHECK ( kGetTimezoneOffset("XYZ" ) == -1  );
+		CHECK ( kGetTimezoneOffset("GMT" ) ==  0  );
+		CHECK ( kGetTimezoneOffset("CET" ) ==  1 * 60 * 60 );
+		CHECK ( kGetTimezoneOffset("NPT" ) == (5 * 60 + 45) * 60 );
+		CHECK ( kGetTimezoneOffset("NZST") == 12 * 60 * 60 );
+		CHECK ( kGetTimezoneOffset("COST") == -4 * 60 * 60 );
+		CHECK ( kGetTimezoneOffset("HST" ) == -10 * 60 * 60 );
 	}
 
 }

@@ -116,6 +116,31 @@ time_t kParseSMTPTimestamp (KStringView sTime);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Parse a time zone name like EDT / GMT / CEST in uppercase and return offset to GMT in seconds
+/// @return time_t of timezone offset (seconds), or -1 in case of error
+time_t kGetTimezoneOffset(KStringView sTimezone);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Parse any timestamp that matches a format string built from h m s D M Y, and a S z Z N ?
+/// Y(ear) could be 2 or 4 digits,
+/// aa = am/pm, case insensitive
+/// S = milliseconds (ignored for output, but checked for 0..9)
+/// zzz = time zone like "EST"
+/// ZZZZZ = time zone like "-0630",
+/// NNN = abbreviated month name like "jan" (case insensitive),
+/// ? = any character matches
+/// example: "???, DD NNN YYYY hh:mm:ss zzz" for a web time stamp
+/// @return time_t of the time stamp or 0 for error
+time_t kParseTimestamp(KStringView sFormat, KStringView sTimestamp);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// parse a timestamp from predefined formats
+time_t kParseTimestamp(KStringView sTimestamp);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Form a string that expresses a duration
 KString kTranslateSeconds(uint64_t iNumSeconds, bool bLongForm = false);
 //-----------------------------------------------------------------------------

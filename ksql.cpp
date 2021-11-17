@@ -64,30 +64,6 @@
 #include "ktime.h"
 #include <cstdint>
 
-#if defined(DEKAF2_IS_WINDOWS) || defined(DEKAF2_DO_NOT_HAVE_STRPTIME)
-	#include <ctime>
-	#include <iomanip>
-	#include <sstream>
-
-	extern "C" char* strptime(const char* s,
-							  const char* f,
-							  struct tm* tm)
-	{
-		std::istringstream input(s);
-		input.imbue(std::locale(setlocale(LC_ALL, nullptr)));
-		input >> std::get_time(tm, f);
-		if (input.fail())
-		{
-			return nullptr;
-		}
-		return (char*)(s + input.tellg());
-	}
-#endif
-
-#ifndef DEKAF2_DO_NOT_HAVE_STRPTIME
-#include <ctime>   // for strptime()
-#endif
-
 #ifndef _WIN32
 #include <sys/time.h>
 #endif
@@ -4312,37 +4288,35 @@ time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 		SetError(kFormat ("IntValue(row={},col={}): {}", m_iRowNum, iOneBasedColNum+1, sVal));
 		return (0);
 	}
+
+	time_t tTime { 0 };
+
+	switch (sVal.size())
+	{
+		// try the expected formats first
+		case "1965-03-31 12:00:00"_ksv.size():
+			tTime = kParseTimestamp("YYYY-MM-DD hh:mm:ss", sVal);
+			break;
+
+		case "20010302213436"_ksv.size():
+			tTime = kParseTimestamp("YYYYMMDDhhmmss", sVal);
+			break;
+	}
+
+	if (!tTime)
+	{
+		// try if any of the other predefined time stamps matches
+		tTime = kParseTimestamp(sVal);
+
+		if (!tTime)
+		{
+			SetError(kFormat ("UnixTime({}): expected '{}' to look like '20010302213436' or '2001-03-21 06:18:33'",
+							  iOneBasedColNum, sVal));
+		}
+	}
+
+	return tTime;
  
-	struct tm TimeStruct;
-
-	int iSecs;
-
-	if (sscanf (sVal.c_str(), "%*04d-%*02d-%*02d %*02d:%*02d:%02d", &iSecs) == 1) // e.g. "1965-03-31 12:00:00"
-	{
-		strptime (sVal.c_str(), "%Y-%m-{} %H:%M:{}", &TimeStruct);
-	}
-	else if (sVal.size() == std::strlen ("20010302213436")) // e.g. "20010302213436"  which means 2001-03-02 21:34:36
-	{
-		strptime (sVal.c_str(), "%Y%m{}%H%M{}", &TimeStruct);
-	}
-	else
-	{
-		SetError(kFormat ("UnixTime({}): expected '{}' to look like '20010302213436' or '2001-03-21 06:18:33'",
-						  iOneBasedColNum, sVal));
-		return (0);
-	}
-
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// mktime() will fill in the missing info in the time struct and
-	// return the unix time (uint64_t):
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	time_t iUnixTime = mktime (&TimeStruct);
-
-	//kDebugTmStruct ((char*)"KSQL:UnixTime()", &TimeStruct, /*iMinDebugLevel=*/2);
-	kDebug (GetDebugLevel()+1, "  unixtime = {}", iUnixTime);
-
-	return (iUnixTime);
-
 } // KSQL::GetUnixTime
 
 #ifdef DEKAF2_HAS_ORACLE

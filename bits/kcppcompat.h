@@ -648,5 +648,27 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 */
 #endif
 
+// provide symbol export flags for dynamic linking
+#ifdef DEKAF2_IS_WINDOWS
+	#ifdef DEKAF2_DYNAMIC_LIBRARY
+		#ifdef DEKAF2_LIBRARY_BUILD
+			#define DEKAF2_PUBLIC __declspec(dllexport)
+		#else
+			#define DEKAF2_PUBLIC __declspec(dllimport)
+		#endif
+	#else
+		#define DEKAF2_PUBLIC
+	#endif
+	#define DEKAF2_PRIVATE
+#else
+	#if __GNUC__ >= 4 // which includes clang
+		#define DEKAF2_PUBLIC  __attribute__((visibility("default")))
+		#define DEKAF2_PRIVATE __attribute__((visibility("hidden")))
+	#else
+		#define DEKAF2_PUBLIC
+		#define DEKAF2_PRIVATE
+	#endif
+#endif
+
 #undef DEKAF2_LE_BE_CONSTEXPR
 

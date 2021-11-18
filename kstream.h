@@ -52,7 +52,7 @@ namespace dekaf2
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The generalized bidirectional stream abstraction for dekaf2
-class KStream : public KInStream, public KOutStream
+class DEKAF2_PUBLIC KStream : public KInStream, public KOutStream
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using self_type   = KStream;
@@ -112,7 +112,7 @@ extern KStream KInOut;
 /// The templatized bidirectional stream abstraction for dekaf2. Can be constructed
 /// around any std::iostream.
 template<class IOStream>
-class KReaderWriter
+class DEKAF2_PUBLIC KReaderWriter
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
         : public IOStream
         , public KStream
@@ -177,9 +177,11 @@ public:
 
 extern template class KReaderWriter<std::fstream>;
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// File stream based on std::fstream
 // std::fstream does not understand KString and KStringView, so let's help it
-class KFile : public KReaderWriter<std::fstream>
+class DEKAF2_PUBLIC KFile : public KReaderWriter<std::fstream>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 public:
 

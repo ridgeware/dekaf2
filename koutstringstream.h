@@ -63,7 +63,7 @@ std::streamsize KStringWriter(const void* sBuffer, std::streamsize iCount, void*
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This output stream class stores into a KString
-class KOStringStream : public std::ostream
+class DEKAF2_PUBLIC KOStringStream : public std::ostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //----------

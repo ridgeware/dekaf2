@@ -57,7 +57,7 @@ namespace dekaf2 {
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KRSASign gives the interface for all RSA signature algorithms. The
 /// framework allows to calculate signatures out of strings and streams.
-class KRSASign : public KMessageDigestBase
+class DEKAF2_PUBLIC KRSASign : public KMessageDigestBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -75,7 +75,7 @@ public:
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KRSAVerify gives the interface for all RSA signature verification algorithms. The
 /// framework allows to calculate signatures out of strings and streams.
-class KRSAVerify : public KMessageDigestBase
+class DEKAF2_PUBLIC KRSAVerify : public KMessageDigestBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

@@ -51,7 +51,7 @@ namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// REST client implementation with string input/output
-class KRestClient : protected KWebClient
+class DEKAF2_PUBLIC KRestClient : protected KWebClient
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -184,7 +184,7 @@ protected:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// REST client implementation with JSON input/output
-class KJsonRestClient : public KRestClient
+class DEKAF2_PUBLIC KJsonRestClient : public KRestClient
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

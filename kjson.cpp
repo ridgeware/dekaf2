@@ -396,6 +396,98 @@ const KJSON& GetObject (const KJSON& json, KStringView sKey) noexcept
 } // GetObject
 
 //-----------------------------------------------------------------------------
+bool Exists (const KJSON& json, KStringView sKey) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto it = json.find(sKey);
+	return (it != json.end());
+}
+
+//-----------------------------------------------------------------------------
+bool IsObject(const KJSON& json, KStringView sKey) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto it = json.find(sKey);
+	return (it != json.end() && it->is_object());
+}
+
+//-----------------------------------------------------------------------------
+bool IsArray(const KJSON& json, KStringView sKey) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto it = json.find(sKey);
+	return (it != json.end() && it->is_array());
+}
+
+//-----------------------------------------------------------------------------
+bool IsString(const KJSON& json, KStringView sKey) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto it = json.find(sKey);
+	return (it != json.end() && it->is_string());
+}
+
+//-----------------------------------------------------------------------------
+bool IsInteger(const KJSON& json, KStringView sKey) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto it = json.find(sKey);
+	return (it != json.end() && it->is_number_integer());
+}
+
+//-----------------------------------------------------------------------------
+bool IsFloat(const KJSON& json, KStringView sKey) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto it = json.find(sKey);
+	return (it != json.end() && it->is_number_float());
+}
+
+//-----------------------------------------------------------------------------
+bool IsNull(const KJSON& json, KStringView sKey) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto it = json.find(sKey);
+	return (it != json.end() && it->is_null());
+}
+
+//-----------------------------------------------------------------------------
+bool IsBoolean(const KJSON& json, KStringView sKey) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto it = json.find(sKey);
+	return (it != json.end() && it->is_boolean());
+}
+
+//-----------------------------------------------------------------------------
+void Increment(KJSON& json, KStringView sKey, uint64_t iAddMe) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto it = json.find(sKey);
+	if (DEKAF2_UNLIKELY((it == json.end()) || !it->is_number()))
+	{
+		json[sKey] = 0UL;
+		it = json.find(sKey);
+	}
+	auto iValue = it.value().get<uint64_t>();
+	it.value()  = iValue + iAddMe;
+}
+
+//-----------------------------------------------------------------------------
+void Decrement(KJSON& json, KStringView sKey, uint64_t iSubstractMe) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto it = json.find(sKey);
+	if (DEKAF2_UNLIKELY((it == json.end()) || !it->is_number()))
+	{
+		json[sKey] = 0UL;
+		it = json.find(sKey);
+	}
+	auto iValue = it.value().get<uint64_t>();
+	it.value() = iValue - iSubstractMe;
+}
+
+//-----------------------------------------------------------------------------
 void Escape (KStringView sInput, KString& sOutput)
 //-----------------------------------------------------------------------------
 {

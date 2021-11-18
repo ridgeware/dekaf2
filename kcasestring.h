@@ -49,70 +49,83 @@ namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
 /// compares case insensitive
+DEKAF2_PUBLIC
 int kCaseCompare(KStringView left, KStringView right);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// tests for case insensitive equality
+DEKAF2_PUBLIC
 bool kCaseEqual(KStringView left, KStringView right);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// tests for case insensitive equality at begin of left string
+DEKAF2_PUBLIC
 bool kCaseBeginsWith(KStringView left, KStringView right);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// tests for case insensitive equality at end of left string
+DEKAF2_PUBLIC
 bool kCaseEndsWith(KStringView left, KStringView right);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// compares case insensitive, trims strings before compare
+DEKAF2_PUBLIC
 int kCaseCompareTrim(KStringView left, KStringView right, KStringView svTrim = detail::kASCIISpaces);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// tests trimmed strings for case insensitive equality
+DEKAF2_PUBLIC
 bool kCaseEqualTrim(KStringView left, KStringView right, KStringView svTrim = detail::kASCIISpaces);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// compares case insensitive, assuming right string in lowercase
+DEKAF2_PUBLIC
 int kCaseCompareLeft(KStringView left, KStringView right);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// tests for case insensitive equality, assuming right string in lowercase
+DEKAF2_PUBLIC
 bool kCaseEqualLeft(KStringView left, KStringView right);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// tests for case insensitive equality at begin of left string, assuming right string in lowercase
 /// (despite the name this tests for left beginning with right)
+DEKAF2_PUBLIC
 bool kCaseBeginsWithLeft(KStringView left, KStringView right);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// tests for case insensitive equality at end of left string, assuming right string in lowercase
 /// (despite the name this tests for left ending with right)
+DEKAF2_PUBLIC
 bool kCaseEndsWithLeft(KStringView left, KStringView right);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// compares case insensitive, trims strings before compare,
 /// assuming right string trimmed and in lowercase
+DEKAF2_PUBLIC
 int kCaseCompareTrimLeft(KStringView left, KStringView right, KStringView svTrim = detail::kASCIISpaces);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// tests trimmed strings for case insensitive equality
 /// assuming right string trimmed and in lowercase
+DEKAF2_PUBLIC
 bool kCaseEqualTrimLeft(KStringView left, KStringView right, KStringView svTrim = detail::kASCIISpaces);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// calculates a hash for case insensitive string
+DEKAF2_PUBLIC
 DEKAF2_CONSTEXPR_14
 std::size_t kCalcCaseHash(KStringView sv)
 //-----------------------------------------------------------------------------
@@ -122,6 +135,7 @@ std::size_t kCalcCaseHash(KStringView sv)
 
 //-----------------------------------------------------------------------------
 /// calculates a hash for case insensitive trimmed string
+DEKAF2_PUBLIC
 std::size_t kCalcCaseHashTrim(KStringView, KStringView svTrim = detail::kASCIISpaces);
 //-----------------------------------------------------------------------------
 
@@ -131,7 +145,7 @@ namespace detail {
 namespace casestring {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-struct TrimWhiteSpaces
+struct DEKAF2_PUBLIC TrimWhiteSpaces
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView svTrimLeft  { detail::kASCIISpaces };
@@ -139,7 +153,7 @@ struct TrimWhiteSpaces
 };
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-struct NoTrim
+struct DEKAF2_PUBLIC NoTrim
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView svTrimLeft  {};

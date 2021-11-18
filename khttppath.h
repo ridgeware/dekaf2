@@ -55,7 +55,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A HTTP path object, used as base class for all HTTP and REST path / route objects
-class KHTTPPath
+class DEKAF2_PUBLIC KHTTPPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -97,7 +97,7 @@ namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A HTTP path object that performs some analysis on the path, to accelerate routing
-class KHTTPAnalyzedPath : public KHTTPPath
+class DEKAF2_PUBLIC KHTTPAnalyzedPath : public KHTTPPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -130,7 +130,7 @@ public:
 } // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPRewrite
+class DEKAF2_PUBLIC KHTTPRewrite
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

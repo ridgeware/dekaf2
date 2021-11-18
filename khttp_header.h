@@ -53,7 +53,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPHeader
+class DEKAF2_PUBLIC KHTTPHeader
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -648,6 +648,7 @@ DEKAF2_CONSTEXPR_14
 // have to be constexpr..
 DEKAF2_CONSTEXPR_20
 #endif
+DEKAF2_PUBLIC
 bool operator!=(const KHTTPHeader& left, const KHTTPHeader& right)
 //-----------------------------------------------------------------------------
 {
@@ -703,7 +704,7 @@ namespace boost
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPHeaders
+class DEKAF2_PUBLIC KHTTPHeaders
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

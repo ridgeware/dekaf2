@@ -53,7 +53,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// helper class to count the characters written through a streambuf
-class KCountingOutputStreamBuf : std::streambuf
+class DEKAF2_PUBLIC KCountingOutputStreamBuf : std::streambuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -133,7 +133,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// helper class to count the characters read through a streambuf
-class KCountingInputStreamBuf : std::streambuf
+class DEKAF2_PUBLIC KCountingInputStreamBuf : std::streambuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

@@ -63,9 +63,9 @@ namespace dekaf2
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Write to a shell instance
 #ifdef DEKAF2_IS_UNIX
-class KOutShell : public KOutPipe
+class DEKAF2_PUBLIC KOutShell : public KOutPipe
 #else
-class KOutShell : public KBaseShell, public KFPWriter
+class DEKAF2_PUBLIC KOutShell : public KBaseShell, public KFPWriter
 #endif
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

@@ -60,7 +60,7 @@ namespace dekaf2
 /// directly, but rather use its static functions that construct regex
 /// objects on the fly. The KRegex class uses a static regex object cache
 /// to make reuse of constructed regexes easy.
-class KRegex
+class DEKAF2_PUBLIC KRegex
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	

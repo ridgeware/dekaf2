@@ -53,7 +53,7 @@ namespace dekaf2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::istream implementation
-class KLambdaInStream : public std::istream
+class DEKAF2_PUBLIC KLambdaInStream : public std::istream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using base_type = std::istream;
@@ -95,7 +95,7 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader
-	static std::streamsize StreamReader(void* sBuffer, std::streamsize iCount, void* stream);
+	DEKAF2_PRIVATE static std::streamsize StreamReader(void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
 }; // KLambdaInStream

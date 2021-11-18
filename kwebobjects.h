@@ -52,7 +52,7 @@ namespace dekaf2 {
 namespace html {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Class
+class DEKAF2_PUBLIC Class
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -78,7 +78,7 @@ protected:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A collection of class names to add to an element's class attribute
-class Classes
+class DEKAF2_PUBLIC Classes
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -128,7 +128,7 @@ protected:
 } // end of namespace html
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KWebObjectBase : public KHTMLElement
+class DEKAF2_PUBLIC KWebObjectBase : public KHTMLElement
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -724,7 +724,7 @@ private:
 namespace html {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class HTML : public KWebObject<HTML>
+class DEKAF2_PUBLIC HTML : public KWebObject<HTML>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -747,7 +747,7 @@ public:
 }; // HTML
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Page : public KWebObject<Page>
+class DEKAF2_PUBLIC Page : public KWebObject<Page>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Page";
@@ -783,7 +783,7 @@ private:
 }; // Page
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Div : public KWebObject<Div>
+class DEKAF2_PUBLIC Div : public KWebObject<Div>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -806,7 +806,7 @@ public:
 }; // Div
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Script : public KWebObject<Script>
+class DEKAF2_PUBLIC Script : public KWebObject<Script>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -850,7 +850,7 @@ public:
 }; // Script
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Span : public KWebObject<Span>
+class DEKAF2_PUBLIC Span : public KWebObject<Span>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -873,7 +873,7 @@ public:
 }; // Span
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Paragraph : public KWebObject<Paragraph>
+class DEKAF2_PUBLIC Paragraph : public KWebObject<Paragraph>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -896,7 +896,7 @@ public:
 }; // Paragraph
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Table : public KWebObject<Table>
+class DEKAF2_PUBLIC Table : public KWebObject<Table>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -919,7 +919,7 @@ public:
 }; // Table
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class TableRow : public KWebObject<TableRow>
+class DEKAF2_PUBLIC TableRow : public KWebObject<TableRow>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -942,7 +942,7 @@ public:
 }; // TableRow
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class TableData : public KWebObject<TableData>
+class DEKAF2_PUBLIC TableData : public KWebObject<TableData>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -968,7 +968,7 @@ public:
 }; // TableData
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class TableHeader : public KWebObject<TableHeader>
+class DEKAF2_PUBLIC TableHeader : public KWebObject<TableHeader>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -991,7 +991,7 @@ public:
 }; // TableHeader
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Link : public KWebObject<Link>
+class DEKAF2_PUBLIC Link : public KWebObject<Link>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1028,7 +1028,7 @@ public:
 using A = Link;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class StyleSheet : public KWebObject<StyleSheet>
+class DEKAF2_PUBLIC StyleSheet : public KWebObject<StyleSheet>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1061,7 +1061,7 @@ public:
 }; // StyleSheet
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class FavIcon : public KWebObject<FavIcon>
+class DEKAF2_PUBLIC FavIcon : public KWebObject<FavIcon>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1116,7 +1116,7 @@ public:
 }; // FavIcon
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Break : public KWebObject<Break>
+class DEKAF2_PUBLIC Break : public KWebObject<Break>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1139,7 +1139,7 @@ public:
 }; // Break
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class HorizontalRuler : public KWebObject<HorizontalRuler>
+class DEKAF2_PUBLIC HorizontalRuler : public KWebObject<HorizontalRuler>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "HorizontalRuler";
@@ -1162,7 +1162,7 @@ public:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// <header>
-class Header : public KWebObject<Header>
+class DEKAF2_PUBLIC Header : public KWebObject<Header>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1186,7 +1186,7 @@ public:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// <h1/h2/h3/h4/h5/h6>
-class Heading : public KWebObject<Heading>
+class DEKAF2_PUBLIC Heading : public KWebObject<Heading>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1206,7 +1206,7 @@ public:
 }; // Heading
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Image : public KWebObject<Image>
+class DEKAF2_PUBLIC Image : public KWebObject<Image>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1237,7 +1237,7 @@ public:
 }; // Image
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Form : public KWebObject<Form>
+class DEKAF2_PUBLIC Form : public KWebObject<Form>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1275,7 +1275,7 @@ protected:
 }; // Form
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Legend : public KWebObject<Legend>
+class DEKAF2_PUBLIC Legend : public KWebObject<Legend>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1299,7 +1299,7 @@ public:
 }; // Legend
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class FieldSet : public KWebObject<FieldSet>
+class DEKAF2_PUBLIC FieldSet : public KWebObject<FieldSet>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1326,7 +1326,7 @@ public:
 }; // FieldSet
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Button : public KWebObject<Button>
+class DEKAF2_PUBLIC Button : public KWebObject<Button>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1372,7 +1372,7 @@ public:
 }; // Button
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Input : public KWebObject<Input>
+class DEKAF2_PUBLIC Input : public KWebObject<Input>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -2117,7 +2117,7 @@ protected:
 }; // CheckBox
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Option : public KWebObject<Option>
+class DEKAF2_PUBLIC Option : public KWebObject<Option>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -2160,7 +2160,7 @@ public:
 }; // Option
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Select : public KWebObject<Select>
+class DEKAF2_PUBLIC Select : public KWebObject<Select>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -2317,7 +2317,7 @@ protected:
 }; // Selection
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Text : public KHTMLText
+class DEKAF2_PUBLIC Text : public KHTMLText
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -2345,7 +2345,7 @@ public:
 }; // Text
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class RawText : public KHTMLText
+class DEKAF2_PUBLIC RawText : public KHTMLText
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -2373,7 +2373,7 @@ public:
 }; // Text
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class LineBreak : public KHTMLText
+class DEKAF2_PUBLIC LineBreak : public KHTMLText
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

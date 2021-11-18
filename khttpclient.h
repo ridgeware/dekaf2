@@ -57,7 +57,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPClient
+class DEKAF2_PUBLIC KHTTPClient
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -461,7 +461,7 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// sets the Host: header, leaves port out if standard and bForcePort is false
-	bool SetHostHeader(const KURL& url, bool bForcePort = false);
+	DEKAF2_PRIVATE bool SetHostHeader(const KURL& url, bool bForcePort = false);
 	//-----------------------------------------------------------------------------
 
 	std::unique_ptr<KConnection>   m_Connection;

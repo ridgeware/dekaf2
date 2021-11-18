@@ -65,7 +65,7 @@ std::streamsize KIOStringReader(void* sBuffer, std::streamsize iCount, void* sSo
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This stream class reads and writes from / to KString
-class KIOStringStream : public std::iostream
+class DEKAF2_PUBLIC KIOStringStream : public std::iostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

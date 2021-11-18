@@ -53,9 +53,13 @@ namespace dekaf2 {
 
 namespace detail {
 
+DEKAF2_PUBLIC
 std::ostream& kfFormat(std::ostream& os, KStringView sFormat, fmt::format_args args);
+DEKAF2_PUBLIC
 KString kFormat(KStringView sFormat, fmt::format_args args);
+DEKAF2_PUBLIC
 std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, fmt::printf_args args);
+DEKAF2_PUBLIC
 KString kPrintf(KStringView sFormat, fmt::printf_args args);
 
 } // end of namespace detail
@@ -64,7 +68,7 @@ KString kPrintf(KStringView sFormat, fmt::printf_args args);
 
 //-----------------------------------------------------------------------------
 /// format no-op for std::ostream
-inline
+inline DEKAF2_PUBLIC
 std::ostream& kfFormat(std::ostream& os, KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
@@ -83,7 +87,7 @@ std::ostream& kfFormat(std::ostream& os, KStringView sFormat, Args&&... args)
 
 //-----------------------------------------------------------------------------
 /// format no-op
-inline
+inline DEKAF2_PUBLIC
 KString kFormat(KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
@@ -101,7 +105,7 @@ KString kFormat(KStringView sFormat, Args&&... args)
 
 //-----------------------------------------------------------------------------
 /// format-noop for a file
-inline
+inline DEKAF2_PUBLIC
 DEKAF2_DEPRECATED("only for compatibility with old code")
 std::ostream& kfPrintf(std::ostream& os, KStringView sFormat)
 //-----------------------------------------------------------------------------
@@ -122,7 +126,7 @@ std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, Args&&... args)
 
 //-----------------------------------------------------------------------------
 /// format no-op
-inline
+inline DEKAF2_PUBLIC
 DEKAF2_DEPRECATED("only for compatibility with old code")
 KString kPrintf(KStringView sFormat)
 //-----------------------------------------------------------------------------

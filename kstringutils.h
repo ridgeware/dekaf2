@@ -59,10 +59,12 @@ namespace dekaf2
 {
 
 //----------------------------------------------------------------------
+DEKAF2_PUBLIC
 bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim = ',');
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
+DEKAF2_PUBLIC
 inline bool kStrIn (KStringView sNeedle, KStringView sHaystack, char iDelim = ',')
 //----------------------------------------------------------------------
 {
@@ -70,6 +72,7 @@ inline bool kStrIn (KStringView sNeedle, KStringView sHaystack, char iDelim = ',
 }
 
 //----------------------------------------------------------------------
+DEKAF2_PUBLIC
 inline bool kStrIn (const char* sNeedle, KStringView sHaystack, char iDelim = ',')
 //----------------------------------------------------------------------
 {
@@ -77,6 +80,7 @@ inline bool kStrIn (const char* sNeedle, KStringView sHaystack, char iDelim = ',
 }
 
 //----------------------------------------------------------------------
+DEKAF2_PUBLIC
 inline bool kStrIn (KStringView sNeedle, const char* sHaystack, char iDelim = ',')
 //----------------------------------------------------------------------
 {
@@ -84,6 +88,7 @@ inline bool kStrIn (KStringView sNeedle, const char* sHaystack, char iDelim = ',
 }
 
 //----------------------------------------------------------------------
+DEKAF2_PUBLIC
 bool kStrIn (KStringView sNeedle, const char* Haystack[]);
 //----------------------------------------------------------------------
 
@@ -380,6 +385,7 @@ std::size_t kReplaceVariables (String& sString, StringView sOpen, StringView sCl
 
 //-----------------------------------------------------------------------------
 /// Check if buffer content is binary content, not text
+DEKAF2_PUBLIC
 bool kIsBinary(KStringView sBuffer);
 //-----------------------------------------------------------------------------
 
@@ -435,6 +441,7 @@ String kFormNumber(Arithmetic i, typename String::value_type separator = ',', ty
 
 //-----------------------------------------------------------------------------
 /// Copy sInp and insert separator every n digits
+DEKAF2_PUBLIC
 KString kFormString(KStringView sInp, typename KString::value_type separator = ',', typename KString::size_type every = 3);
 //-----------------------------------------------------------------------------
 
@@ -449,6 +456,7 @@ inline size_t kCountChar(const Container& container, const typename Container::v
 
 //-----------------------------------------------------------------------------
 /// Count occurence of ch in str (to catch char* as well)
+DEKAF2_PUBLIC
 inline size_t kCountChar(KStringView str, const char ch) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -457,11 +465,13 @@ inline size_t kCountChar(KStringView str, const char ch) noexcept
 
 //-----------------------------------------------------------------------------
 /// Returns true if str contains an integer, possibly with a leading + or -
+DEKAF2_PUBLIC
 bool kIsInteger(KStringView str, bool bSigned = true) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Returns true if str contains an unsigned integer, possibly with a leading +
+DEKAF2_PUBLIC
 inline bool kIsUnsigned(KStringView str) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -470,16 +480,19 @@ inline bool kIsUnsigned(KStringView str) noexcept
 
 //-----------------------------------------------------------------------------
 /// Returns true if str contains a float, possibly with a leading + or -
+DEKAF2_PUBLIC
 bool kIsFloat(KStringView str, KStringView::value_type chDecimalSeparator = '.') noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Returns true if str contains a syntactically valid email address
+DEKAF2_PUBLIC
 bool kIsEmail(KStringView str) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Returns true if str contains a syntactically valid URL
+DEKAF2_PUBLIC
 bool kIsURL(KStringView str) noexcept;
 //-----------------------------------------------------------------------------
 
@@ -494,7 +507,7 @@ extern const uint8_t LookupBase36[256];
 //-----------------------------------------------------------------------------
 /// Converts any base36 digit into the corresponding integer value. Returns 0xFF if not
 /// a valid digit
-inline
+inline DEKAF2_PUBLIC
 uint8_t kFromBase36(char ch) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -504,7 +517,7 @@ uint8_t kFromBase36(char ch) noexcept
 //-----------------------------------------------------------------------------
 /// Converts a hex digit into the corresponding integer value. Returns 0xFF if not
 /// a valid digit
-inline
+inline DEKAF2_PUBLIC
 uint8_t kFromHexChar(char ch) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -778,11 +791,13 @@ T kFromString(KStringView sValue, uint16_t iBase = 10)
 
 //-----------------------------------------------------------------------------
 /// Escape or hex encode problematic characters, append to sLog
+DEKAF2_PUBLIC
 void kEscapeForLogging(KString& sLog, KStringView sInput);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Escape or hex encode problematic characters
+DEKAF2_PUBLIC
 inline KString kEscapeForLogging(KStringView sInput)
 //-----------------------------------------------------------------------------
 {

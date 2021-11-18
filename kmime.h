@@ -57,7 +57,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a MIME type
-class KMIME
+class DEKAF2_PUBLIC KMIME
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -225,7 +225,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// one part of a MIME structure
-class KMIMEPart
+class DEKAF2_PUBLIC KMIMEPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -317,7 +317,7 @@ protected:
 using KMIMEMultiPart = KMIMEPart;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KMIMEMultiPartFormData : public KMIMEMultiPart
+class DEKAF2_PUBLIC KMIMEMultiPartFormData : public KMIMEMultiPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -330,7 +330,7 @@ public:
 }; // KMIMEMultiPartFormData
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KMIMEMultiPartMixed : public KMIMEMultiPart
+class DEKAF2_PUBLIC KMIMEMultiPartMixed : public KMIMEMultiPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -343,7 +343,7 @@ public:
 }; // KMIMEMultiPartMixed
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KMIMEMultiPartRelated : public KMIMEMultiPart
+class DEKAF2_PUBLIC KMIMEMultiPartRelated : public KMIMEMultiPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -356,7 +356,7 @@ public:
 }; // KMIMEMultiPartRelated
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KMIMEMultiPartAlternative : public KMIMEMultiPart
+class DEKAF2_PUBLIC KMIMEMultiPartAlternative : public KMIMEMultiPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -370,7 +370,7 @@ public:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a MIME part holding UTF8 plain text
-class KMIMEText : public KMIMEPart
+class DEKAF2_PUBLIC KMIMEText : public KMIMEPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -389,7 +389,7 @@ public:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a MIME part holding a UTF8 HTML message
-class KMIMEHTML : public KMIMEPart
+class DEKAF2_PUBLIC KMIMEHTML : public KMIMEPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -408,7 +408,7 @@ public:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A MIME part holding a file
-class KMIMEFile : public KMIMEPart
+class DEKAF2_PUBLIC KMIMEFile : public KMIMEPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -426,7 +426,7 @@ public:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A MIME part holding a file that will be displayed inline
-class KMIMEFileInline : public KMIMEPart
+class DEKAF2_PUBLIC KMIMEFileInline : public KMIMEPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -447,7 +447,7 @@ public:
 /// index.html and or index.txt exist, those will become the body part. All
 /// additional files become part of a multipart/related structure, typically
 /// used for a html message with inline images.
-class KMIMEDirectory : public KMIMEMultiPart
+class DEKAF2_PUBLIC KMIMEDirectory : public KMIMEMultiPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

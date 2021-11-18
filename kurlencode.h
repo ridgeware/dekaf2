@@ -71,7 +71,7 @@ enum class URIPart : uint8_t
 namespace detail {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KUrlEncodingTables
+class DEKAF2_PUBLIC KUrlEncodingTables
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

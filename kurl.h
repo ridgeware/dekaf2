@@ -54,6 +54,7 @@
 namespace dekaf2 {
 
 //-------------------------------------------------------------------------
+DEKAF2_PUBLIC
 KString kGetBaseDomain (KStringView sHostName);
 //-------------------------------------------------------------------------
 
@@ -636,7 +637,7 @@ using KQueryParms = URLEncodedQuery::value_type;
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 // The URL Schema is a bit different from the other URI components, therefore
 // we handle it manually
-class KProtocol
+class DEKAF2_PUBLIC KProtocol
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -895,6 +896,7 @@ private:
 /// returns true if the second parameter is a subdomain of the first
 /// @param Domain the base domain
 /// @param SubDomain the sub domain
+DEKAF2_PUBLIC
 bool kIsSubDomainOf(const url::KDomain& Domain, const url::KDomain& SubDomain);
 //-------------------------------------------------------------------------
 
@@ -903,7 +905,7 @@ bool kIsSubDomainOf(const url::KDomain& Domain, const url::KDomain& SubDomain);
 class KURL;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KResource
+class DEKAF2_PUBLIC KResource
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1049,7 +1051,7 @@ protected:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KURL : public KResource
+class DEKAF2_PUBLIC KURL : public KResource
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1231,7 +1233,7 @@ public:
 }; // KURL
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KTCPEndPoint
+class DEKAF2_PUBLIC KTCPEndPoint
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

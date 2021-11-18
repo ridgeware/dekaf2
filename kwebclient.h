@@ -59,7 +59,7 @@ namespace dekaf2 {
 bool KWget (KStringView sURL, const KString& sOutfile, const KJSON& Options=KJSON{});
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KWebClient : public KHTTPClient
+class DEKAF2_PUBLIC KWebClient : public KHTTPClient
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -221,16 +221,19 @@ protected:
 
 //-----------------------------------------------------------------------------
 /// Get from URL, store body in return value KString
+DEKAF2_PUBLIC
 KString kHTTPGet(KURL URL);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Head from URL - returns true if response is in the 2xx range
+DEKAF2_PUBLIC
 bool kHTTPHead(KURL URL);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Post to URL, store body in return value KString
+DEKAF2_PUBLIC
 KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime);
 //-----------------------------------------------------------------------------
 

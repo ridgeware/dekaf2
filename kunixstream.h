@@ -61,7 +61,7 @@ namespace dekaf2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream TCP implementation with timeout.
-class KUnixIOStream : public std::iostream
+class DEKAF2_PUBLIC KUnixIOStream : public std::iostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using base_type = std::iostream;
@@ -193,11 +193,13 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader
+	DEKAF2_PRIVATE
 	static std::streamsize UnixStreamReader(void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf writer
+	DEKAF2_PRIVATE
 	static std::streamsize UnixStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
@@ -207,10 +209,12 @@ private:
 using KUnixStream = KReaderWriter<KUnixIOStream>;
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 std::unique_ptr<KUnixStream> CreateKUnixStream(int iSecondsTimeout = KUnixIOStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile, int iSecondsTimeout = KUnixIOStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 

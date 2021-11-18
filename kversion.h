@@ -53,7 +53,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Helper class for version number parsing and comparison
-class KVersion
+class DEKAF2_PUBLIC KVersion
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -146,8 +146,8 @@ private:
 
 }; // KVersion
 
-extern bool operator==(const KVersion& left, const KVersion& right);
-extern bool operator<(const KVersion& left, const KVersion& right);
+extern DEKAF2_PUBLIC bool operator==(const KVersion& left, const KVersion& right);
+extern DEKAF2_PUBLIC bool operator<(const KVersion& left, const KVersion& right);
 
 inline bool operator!=(const KVersion& left, const KVersion& right)
 {

@@ -42,6 +42,7 @@
 
 #pragma once
 
+#include "bits/kcppcompat.h"
 #include <streambuf>
 #include <array>
 
@@ -49,7 +50,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a streambuf that reads from /dev/null and writes to /dev/null (and is fast at it)
-class KNullStreamBuf : public std::streambuf
+class DEKAF2_PUBLIC KNullStreamBuf : public std::streambuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -91,7 +92,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a customizable input stream buffer
-class KInStreamBuf : public std::streambuf
+class DEKAF2_PUBLIC KInStreamBuf : public std::streambuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -146,7 +147,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a customized output stream buffer
-class KOutStreamBuf : public std::streambuf
+class DEKAF2_PUBLIC KOutStreamBuf : public std::streambuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -198,7 +199,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a customizable input / output stream buffer
-class KStreamBuf : public KInStreamBuf
+class DEKAF2_PUBLIC KStreamBuf : public KInStreamBuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -251,7 +252,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a customized buffered output stream buffer
-class KBufferedOutStreamBuf : public KOutStreamBuf
+class DEKAF2_PUBLIC KBufferedOutStreamBuf : public KOutStreamBuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -328,7 +329,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a customizable buffered input / output stream buffer
-class KBufferedStreamBuf : public KStreamBuf
+class DEKAF2_PUBLIC KBufferedStreamBuf : public KStreamBuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

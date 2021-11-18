@@ -51,7 +51,7 @@ namespace dekaf2 {
 namespace detail {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KCommonSQLBase
+class DEKAF2_PUBLIC KCommonSQLBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -105,7 +105,7 @@ private:
 } // end of namespace detail
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KCOL
+class DEKAF2_PUBLIC KCOL
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -197,18 +197,18 @@ private:
 
 }; // KCOL
 
+DEKAF2_PUBLIC
 bool operator==(const KCOL& left, const KCOL& right);
-inline
+inline DEKAF2_PUBLIC
 bool operator!=(const KCOL& left, const KCOL& right)
 {
 	return !operator==(left, right);
 }
 
-
 using KCOLS = KProps <KString, KCOL, /*order-matters=*/true, /*unique-keys*/true>;
 
 //-----------------------------------------------------------------------------
-class KROW : public KCOLS, public detail::KCommonSQLBase
+class DEKAF2_PUBLIC KROW : public KCOLS, public detail::KCommonSQLBase
 //-----------------------------------------------------------------------------
 {
 
@@ -460,6 +460,7 @@ public:
 private:
 //----------
 
+	DEKAF2_PRIVATE
 	void PrintValuesForInsert(KString& sSQL, DBT iDBType) const;
 
 	mutable KString m_sTablename;

@@ -48,7 +48,7 @@
 
 namespace dekaf2 {
 
-class KUTICElement;
+class DEKAF2_PUBLIC KUTICElement;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Class that holds a single UTIC element
@@ -102,7 +102,7 @@ bool operator!=(const KParsedUTICElement& left, const KParsedUTICElement& right)
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// single search element
-class KUTICElement
+class DEKAF2_PUBLIC KUTICElement
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -167,7 +167,7 @@ bool operator!=(const KUTICElement& left, const KParsedUTICElement& right)
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// class that holds URL, tag, ID, and class to compare with in KParsedUTIC
-class KUTIC
+class DEKAF2_PUBLIC KUTIC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -222,7 +222,7 @@ private:
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KParsedUTIC class which holds URL, tag stack, ID stack and class stack
 /// for each HTML content block while parsing
-class KParsedUTIC
+class DEKAF2_PUBLIC KParsedUTIC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -275,15 +275,19 @@ private:
 
 }; // KParsedUTIC
 
+DEKAF2_PUBLIC
 bool operator==(const KParsedUTIC& left, const KUTIC& right);
+DEKAF2_PUBLIC
 bool operator==(const KUTIC& left, const KParsedUTIC& right);
+DEKAF2_PUBLIC
 bool operator!=(const KParsedUTIC& left, const KUTIC& right);
+DEKAF2_PUBLIC
 bool operator!=(const KUTIC& left, const KParsedUTIC& right);
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A parser that builds the UTIC schema while parsing HTML for content blocks
 /// UTIC = URL, tag stack, ID stack, class stack to address or identify specific content blocks
-class KHTMLUTICParser : public KHTMLContentBlocks
+class DEKAF2_PUBLIC KHTMLUTICParser : public KHTMLContentBlocks
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

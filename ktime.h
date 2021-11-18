@@ -54,16 +54,19 @@ namespace dekaf2
 
 //-----------------------------------------------------------------------------
 /// Get the English abbreviated weekday, input 0..6, 0 = Sun
+DEKAF2_PUBLIC
 KStringViewZ kGetAbbreviatedWeekday(uint16_t iDay);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get the English abbreviated month, input 0..11, 0 = Jan
+DEKAF2_PUBLIC
 KStringViewZ kGetAbbreviatedMonth(uint16_t iMonth);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Returns day of week for every gregorian date. Sunday = 0.
+DEKAF2_PUBLIC
 uint16_t kDayOfWeek(uint16_t iDay, uint16_t iMonth, uint16_t iYear);
 //-----------------------------------------------------------------------------
 
@@ -71,6 +74,7 @@ uint16_t kDayOfWeek(uint16_t iDay, uint16_t iMonth, uint16_t iYear);
 /// Create a time stamp following strftime patterns.
 /// @param time time struct
 /// @param pszFormat format string
+DEKAF2_PUBLIC
 KString kFormTimestamp (const std::tm& time, const char* pszFormat = "%Y-%m-%d %H:%M:%S");
 //-----------------------------------------------------------------------------
 
@@ -80,24 +84,28 @@ KString kFormTimestamp (const std::tm& time, const char* pszFormat = "%Y-%m-%d %
 /// @param tTime Seconds since epoch. If 0, query current time from the system
 /// @param pszFormat format string
 /// @param bLocalTime use tTime as local time instead of utc
+DEKAF2_PUBLIC
 KString kFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%M:%S", bool bAsLocalTime = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Create a HTTP time stamp
 /// @param tTime Seconds since epoch. If 0, query current time from the system
+DEKAF2_PUBLIC
 KString kFormHTTPTimestamp (time_t tTime = 0);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Create a SMTP time stamp
 /// @param tTime Seconds since epoch. If 0, query current time from the system
+DEKAF2_PUBLIC
 KString kFormSMTPTimestamp (time_t tTime = 0);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Create a common log format  time stamp
 /// @param tTime Seconds since epoch. If 0, query current time from the system
+DEKAF2_PUBLIC
 KString kFormCommonLogTimestamp(time_t tTime = 0, bool bAsLocalTime = false);
 //-----------------------------------------------------------------------------
 
@@ -105,6 +113,7 @@ KString kFormCommonLogTimestamp(time_t tTime = 0, bool bAsLocalTime = false);
 /// Parse a HTTP time stamp - only accepts GMT timezone
 /// @param sTime time stamp to parse
 /// @return time_t of the time stamp or 0 for error
+DEKAF2_PUBLIC
 time_t kParseHTTPTimestamp (KStringView sTime);
 //-----------------------------------------------------------------------------
 
@@ -112,12 +121,14 @@ time_t kParseHTTPTimestamp (KStringView sTime);
 /// Parse a SMTP time stamp - accepts variable timezone in -0500 format
 /// @param sTime time stamp to parse
 /// @return time_t of the time stamp or 0 for error
+DEKAF2_PUBLIC
 time_t kParseSMTPTimestamp (KStringView sTime);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Parse a time zone name like EDT / GMT / CEST in uppercase and return offset to GMT in seconds
 /// @return time_t of timezone offset (seconds), or -1 in case of error
+DEKAF2_PUBLIC
 time_t kGetTimezoneOffset(KStringView sTimezone);
 //-----------------------------------------------------------------------------
 
@@ -132,16 +143,19 @@ time_t kGetTimezoneOffset(KStringView sTimezone);
 /// ? = any character matches
 /// example: "???, DD NNN YYYY hh:mm:ss zzz" for a web time stamp
 /// @return time_t of the time stamp or 0 for error
+DEKAF2_PUBLIC
 time_t kParseTimestamp(KStringView sFormat, KStringView sTimestamp);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// parse a timestamp from predefined formats
+DEKAF2_PUBLIC
 time_t kParseTimestamp(KStringView sTimestamp);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Form a string that expresses a duration
+DEKAF2_PUBLIC
 KString kTranslateSeconds(uint64_t iNumSeconds, bool bLongForm = false);
 //-----------------------------------------------------------------------------
 
@@ -149,7 +163,7 @@ namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A wrapper around datetime functions that works cross platform
-class KBrokenDownTimeBase
+class DEKAF2_PUBLIC KBrokenDownTime
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -157,9 +171,9 @@ class KBrokenDownTimeBase
 public:
 //--------
 
-	using self = KBrokenDownTimeBase;
+	using self = KBrokenDownTime;
 
-	KBrokenDownTimeBase() = default;
+	KBrokenDownTime() = default;
 
 	/// return day of month (1-based)
 	uint16_t GetDay    () const { return m_time.tm_mday;        }
@@ -221,14 +235,14 @@ protected:
 //--------
 
 	/// construct from a time_t epoch time, either as local or as GMT / UTC time
-	KBrokenDownTimeBase (time_t tGMTime, bool bAsLocalTime);
+	KBrokenDownTime (time_t tGMTime, bool bAsLocalTime);
 	/// construct from a struct tm time
-	KBrokenDownTimeBase (const std::tm& tm_time) : m_time(tm_time) {}
+	KBrokenDownTime (const std::tm& tm_time) : m_time(tm_time) {}
 
 	// the only data member
 	std::tm m_time {};
 
-}; // KBrokenDownTimeBase
+}; // KBrokenDownTime
 
 } // end of namespace detail
 
@@ -236,7 +250,7 @@ class KUTCTime;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A wrapper around datetime functions that works cross platform - time is local time
-class KLocalTime : public detail::KBrokenDownTimeBase
+class DEKAF2_PUBLIC KLocalTime : public detail::KBrokenDownTime
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -244,7 +258,7 @@ class KLocalTime : public detail::KBrokenDownTimeBase
 public:
 //--------
 
-	using base = detail::KBrokenDownTimeBase;
+	using base = detail::KBrokenDownTime;
 
 	KLocalTime() = default;
 	/// construct from a time_t epoch time, as local time
@@ -266,7 +280,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A wrapper around datetime functions that works cross platform - time is UTC / GMT
-class KUTCTime : public detail::KBrokenDownTimeBase
+class DEKAF2_PUBLIC KUTCTime : public detail::KBrokenDownTime
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -274,7 +288,7 @@ class KUTCTime : public detail::KBrokenDownTimeBase
 public:
 //--------
 
-	using base = detail::KBrokenDownTimeBase;
+	using base = detail::KBrokenDownTime;
 
 	KUTCTime() = default;
 	/// construct from a time_t epoch time,  as GMT / UTC time

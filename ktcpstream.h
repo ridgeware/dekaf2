@@ -57,7 +57,7 @@ namespace dekaf2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream TCP implementation with timeout.
-class KTCPIOStream : public std::iostream
+class DEKAF2_PUBLIC KTCPIOStream : public std::iostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using base_type = std::iostream;
@@ -192,11 +192,13 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader
+	DEKAF2_PRIVATE
 	static std::streamsize TCPStreamReader(void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf writer
+	DEKAF2_PRIVATE
 	static std::streamsize TCPStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
@@ -206,10 +208,12 @@ private:
 using KTCPStream = KReaderWriter<KTCPIOStream>;
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 std::unique_ptr<KTCPStream> CreateKTCPStream(int iSecondsTimeout = KTCPStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, int iSecondsTimeout = KTCPStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 

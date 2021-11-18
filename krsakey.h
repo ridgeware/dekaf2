@@ -54,7 +54,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// RSA key class to transform formats
-class KRSAKey
+class DEKAF2_PUBLIC KRSAKey
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

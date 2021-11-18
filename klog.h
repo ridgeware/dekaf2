@@ -91,7 +91,7 @@ class KHTTPHeaders;
 /// KLog is implemented as a singleton. It is guaranteed to be
 /// instantiated whenever it is called, also in the early initialization
 /// phase of the program for e.g. static types.
-class KLog
+class DEKAF2_PUBLIC KLog
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -467,7 +467,7 @@ private:
 //----------
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	class PreventRecursion
+	class DEKAF2_PRIVATE PreventRecursion
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 
@@ -489,7 +489,6 @@ private:
 		bool m_bOldState;
 
 	}; // PreventRecursion
-
 
 	// private ctor
 	KLog();

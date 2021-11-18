@@ -62,7 +62,7 @@ std::streamsize KStringReader(void* sBuffer, std::streamsize iCount, void* sSour
 } // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KInStringStreamBuf : public std::streambuf
+class DEKAF2_PUBLIC KInStringStreamBuf : public std::streambuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -104,7 +104,7 @@ protected:
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This input stream class reads from a KStringView. It is about 10% slower than the non-seekable
 /// KIStringStream ..
-class KSeekableIStringStream : public std::istream
+class DEKAF2_PUBLIC KSeekableIStringStream : public std::istream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -187,7 +187,7 @@ protected:
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This input stream class reads from a KStringView. It is about 10% faster than the seekable
 /// KSeekableIStringStream
-class KIStringStream : public std::istream
+class DEKAF2_PUBLIC KIStringStream : public std::istream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

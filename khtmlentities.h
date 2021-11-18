@@ -50,7 +50,7 @@
 
 namespace dekaf2 {
 
-class KHTMLEntity
+class DEKAF2_PUBLIC KHTMLEntity
 {
 
 public:

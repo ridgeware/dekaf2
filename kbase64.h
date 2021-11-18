@@ -49,7 +49,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Base64 with standard character set (not URL safe), padding appended, linebreaks
-class KBase64
+class DEKAF2_PUBLIC KBase64
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -71,7 +71,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Base64 with URL safe character set, no appended padding
-class KBase64Url
+class DEKAF2_PUBLIC KBase64Url
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

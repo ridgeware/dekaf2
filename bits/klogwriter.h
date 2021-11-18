@@ -70,12 +70,14 @@ class KConnection;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// ABC for the LogWriter object
-class KLogWriter
+class DEKAF2_PUBLIC KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+	
 	KLogWriter() = default;
 	virtual ~KLogWriter();
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) = 0;
@@ -85,12 +87,14 @@ public:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// LogWriter to /dev/null
-class KLogNullWriter : public KLogWriter
+class DEKAF2_PUBLIC KLogNullWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KLogNullWriter() = default;
 	virtual ~KLogNullWriter();
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override { return true; }
@@ -100,12 +104,14 @@ public:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter that instantiates around any std::ostream
-class KLogStdWriter : public KLogWriter
+class DEKAF2_PUBLIC KLogStdWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KLogStdWriter(std::ostream& iostream)
 	    : m_OutStream(iostream)
 	{}
@@ -115,6 +121,7 @@ public:
 //----------
 private:
 //----------
+
 	std::ostream& m_OutStream;
 
 }; // KLogStdWriter
@@ -122,12 +129,14 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter that opens a file
-class KLogFileWriter : public KLogWriter
+class DEKAF2_PUBLIC KLogFileWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KLogFileWriter(KStringView sFileName);
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override { return m_OutFile.good(); }
@@ -135,18 +144,21 @@ public:
 //----------
 private:
 //----------
+
 	KOutFile m_OutFile;
 
 }; // KLogFileWriter
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter that writes into a string, possibly with concatenation chars
-class KLogStringWriter : public KLogWriter
+class DEKAF2_PUBLIC KLogStringWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	/// The sConcat will be written between individual log messages.
 	/// It will not be written after the last message
 	KLogStringWriter(KString& sOutString, KString sConcat = "\n");
@@ -156,6 +168,7 @@ public:
 //----------
 private:
 //----------
+
 	KString& m_OutString;
 	KString m_sConcat;
 
@@ -165,12 +178,14 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter that writes into a JSON array
-class KLogJSONWriter : public KLogWriter
+class DEKAF2_PUBLIC KLogJSONWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KLogJSONWriter(KJSON& json);
 	virtual ~KLogJSONWriter();
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
@@ -179,6 +194,7 @@ public:
 //----------
 private:
 //----------
+
 	KJSON& m_json;
 
 }; // KLogJSONWriter
@@ -189,12 +205,14 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter for the syslog
-class KLogSyslogWriter : public KLogWriter
+class DEKAF2_PUBLIC KLogSyslogWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KLogSyslogWriter() {}
 	virtual ~KLogSyslogWriter() {}
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
@@ -208,12 +226,14 @@ public:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter that writes to any TCP endpoint
-class KLogTCPWriter : public KLogWriter
+class DEKAF2_PUBLIC KLogTCPWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KLogTCPWriter(KStringView sURL);
 	virtual ~KLogTCPWriter();
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
@@ -230,12 +250,14 @@ protected:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter that writes to any TCP endpoint using the HTTP(s) protocol
-class KLogHTTPWriter : public KLogWriter
+class DEKAF2_PUBLIC KLogHTTPWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KLogHTTPWriter(KStringView sURL);
 	virtual ~KLogHTTPWriter();
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
@@ -252,12 +274,14 @@ protected:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Logwriter that writes into a HTTP header
-class KLogHTTPHeaderWriter : public KLogWriter
+class DEKAF2_PUBLIC KLogHTTPHeaderWriter : public KLogWriter
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
 //----------
 public:
 //----------
+
 	KLogHTTPHeaderWriter(KHTTPHeaders& HTTPHeaders, KStringView sHeader = "x-klog");
 	virtual ~KLogHTTPHeaderWriter();
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;

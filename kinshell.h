@@ -63,9 +63,9 @@ namespace dekaf2
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Read on a shell instance
 #ifdef DEKAF2_IS_UNIX
-class KInShell : public KInPipe
+class DEKAF2_PUBLIC KInShell : public KInPipe
 #else
-class KInShell : public KBaseShell, public KFPReader
+class DEKAF2_PUBLIC KInShell : public KBaseShell, public KFPReader
 #endif
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

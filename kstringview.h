@@ -80,6 +80,7 @@ namespace dekaf2 {
 class KStringView;
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 size_t kFind(
         const KStringView haystack,
         const KStringView needle,
@@ -87,6 +88,7 @@ size_t kFind(
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 size_t kRFind(
         const KStringView haystack,
         const KStringView needle,
@@ -94,7 +96,7 @@ size_t kRFind(
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
+DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 size_t kFind(
         const KStringView haystack,
         char needle,
@@ -102,6 +104,7 @@ size_t kFind(
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 size_t kRFind(
         const KStringView haystack,
         char needle,
@@ -141,6 +144,7 @@ size_t kFindLastNotOfInt(
 } } // end of namespace detail::stringview
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 size_t kFindFirstOf(
         KStringView haystack,
         const KStringView needle,
@@ -148,6 +152,7 @@ size_t kFindFirstOf(
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 size_t kFindFirstNotOf(
         KStringView haystack,
         const KStringView needle,
@@ -155,6 +160,7 @@ size_t kFindFirstNotOf(
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 size_t kFindLastOf(
         KStringView haystack,
         const KStringView needle,
@@ -162,6 +168,7 @@ size_t kFindLastOf(
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 size_t kFindLastNotOf(
         KStringView haystack,
         const KStringView needle,
@@ -169,20 +176,22 @@ size_t kFindLastNotOf(
 //-----------------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
+DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kStartsWith(const KStringView sInput, const KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
+DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kEndsWith(const KStringView sInput, const KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
+DEKAF2_PUBLIC
 bool kContains(const KStringView sInput, const KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
+DEKAF2_PUBLIC
 bool kContains(const KStringView sInput, char ch) noexcept;
 //----------------------------------------------------------------------
 
@@ -196,9 +205,9 @@ class KStringViewZ;
 /// throwing and speeds up searching up to 50 times compared to std::string_view
 /// implementations.
 #ifndef DEKAF2_IS_WINDOWS
-class DEKAF2_GSL_POINTER() KStringView
+class DEKAF2_PUBLIC DEKAF2_GSL_POINTER() KStringView
 #else
-class KStringView
+class DEKAF2_PUBLIC KStringView
 #endif
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1396,7 +1405,7 @@ bool operator!=(const T& left, const U& right)
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_17
+DEKAF2_CONSTEXPR_17 DEKAF2_PUBLIC
 bool operator<(const KStringView left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -1404,7 +1413,7 @@ bool operator<(const KStringView left, const KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_17
+DEKAF2_CONSTEXPR_17 DEKAF2_PUBLIC
 bool operator>(const KStringView left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -1412,7 +1421,7 @@ bool operator>(const KStringView left, const KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_17
+DEKAF2_CONSTEXPR_17 DEKAF2_PUBLIC
 bool operator<=(const KStringView left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -1420,7 +1429,7 @@ bool operator<=(const KStringView left, const KStringView right)
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_17
+DEKAF2_CONSTEXPR_17 DEKAF2_PUBLIC
 bool operator>=(const KStringView left, const KStringView right)
 //-----------------------------------------------------------------------------
 {
@@ -1566,6 +1575,7 @@ size_t kFindLastNotOf(
 //-----------------------------------------------------------------------------
 /// Find delimiter chars prefixed by even number of escape characters (0, 2, ...).
 /// Ignore delimiter chars prefixed by odd number of escapes.
+DEKAF2_PUBLIC
 size_t kFindFirstOfUnescaped(const KStringView haystack,
 							 const KStringView needle,
                              KStringView::value_type chEscape,
@@ -1575,6 +1585,7 @@ size_t kFindFirstOfUnescaped(const KStringView haystack,
 //-----------------------------------------------------------------------------
 /// Find delimiter char prefixed by even number of escape characters (0, 2, ...).
 /// Ignore delimiter chars prefixed by odd number of escapes.
+DEKAF2_PUBLIC
 size_t kFindUnescaped(const KStringView haystack,
                       KStringView::value_type needle,
                       KStringView::value_type chEscape,
@@ -1584,6 +1595,7 @@ size_t kFindUnescaped(const KStringView haystack,
 //-----------------------------------------------------------------------------
 /// Find delimiter string prefixed by even number of escape characters (0, 2, ...).
 /// Ignore delimiter string prefixed by odd number of escapes.
+DEKAF2_PUBLIC
 size_t kFindUnescaped(const KStringView haystack,
 					  const KStringView needle,
                       KStringView::value_type chEscape,
@@ -1591,7 +1603,7 @@ size_t kFindUnescaped(const KStringView haystack,
 //-----------------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
+DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kStartsWith(const KStringView sInput, const KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
@@ -1612,7 +1624,7 @@ bool kStartsWith(const KStringView sInput, const KStringView sPattern) noexcept
 } // kStartsWith
 
 //----------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
+DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kEndsWith(const KStringView sInput, const KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
@@ -1634,7 +1646,7 @@ bool kEndsWith(const KStringView sInput, const KStringView sPattern) noexcept
 } // kEndsWith
 
 //----------------------------------------------------------------------
-inline
+inline DEKAF2_PUBLIC
 bool kContains(const KStringView sInput, const KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
@@ -1642,7 +1654,7 @@ bool kContains(const KStringView sInput, const KStringView sPattern) noexcept
 }
 
 //----------------------------------------------------------------------
-inline
+inline DEKAF2_PUBLIC
 bool kContains(const KStringView sInput, const char ch) noexcept
 //----------------------------------------------------------------------
 {
@@ -1660,7 +1672,8 @@ inline namespace literals {
 } // namespace literals
 
 //-----------------------------------------------------------------------------
-inline std::ostream& operator <<(std::ostream& stream, KStringView str)
+inline DEKAF2_PUBLIC
+std::ostream& operator <<(std::ostream& stream, KStringView str)
 //-----------------------------------------------------------------------------
 {
 	stream.write(str.data(), str.size());
@@ -1717,14 +1730,14 @@ namespace boost
 } // namespace boost
 
 //----------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14 std::size_t dekaf2::KStringView::Hash() const
+DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC std::size_t dekaf2::KStringView::Hash() const
 //----------------------------------------------------------------------
 {
 	return std::hash<dekaf2::KStringView>()(*this);
 }
 
 //----------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14 std::size_t dekaf2::KStringView::CaseHash() const
+DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC std::size_t dekaf2::KStringView::CaseHash() const
 //----------------------------------------------------------------------
 {
 	return dekaf2::kCaseHash(data(), size());

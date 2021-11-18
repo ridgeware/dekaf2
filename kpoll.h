@@ -62,7 +62,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Maintaining a list of file descriptors and associated actions to call when the file descriptor creates an event
-class KPoll
+class DEKAF2_PUBLIC KPoll
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -126,7 +126,7 @@ private:
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Watch sockets for disconnects - no need to set an event mask. Adapts to different trigger
 /// conditions on MacOS and Linux
-class KSocketWatch : public KPoll
+class DEKAF2_PUBLIC KSocketWatch : public KPoll
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -148,8 +148,10 @@ protected:
 
 namespace dekaf2 {
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// non-functional version for Windows
-class KPoll
+class DEKAF2_PUBLIC KPoll
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //----------

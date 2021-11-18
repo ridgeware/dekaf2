@@ -52,7 +52,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Holds information about the original request line of an incoming request
-class KInHTTPRequestLine
+class DEKAF2_PUBLIC KInHTTPRequestLine
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -106,7 +106,7 @@ public:
 }; // KInHTTPRequestLine
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPRequestHeaders : public KHTTPHeaders
+class DEKAF2_PUBLIC KHTTPRequestHeaders : public KHTTPHeaders
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -181,7 +181,7 @@ public:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KOutHTTPRequest : public KHTTPRequestHeaders, public KOutHTTPFilter
+class DEKAF2_PUBLIC KOutHTTPRequest : public KHTTPRequestHeaders, public KOutHTTPFilter
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -258,7 +258,7 @@ protected:
 };
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KInHTTPRequest : public KHTTPRequestHeaders, public KInHTTPFilter
+class DEKAF2_PUBLIC KInHTTPRequest : public KHTTPRequestHeaders, public KInHTTPFilter
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

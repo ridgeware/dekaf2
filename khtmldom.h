@@ -49,7 +49,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Basic element of a HTML DOM structure
-class KHTMLElement : public KHTMLObject
+class DEKAF2_PUBLIC KHTMLElement : public KHTMLObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -288,7 +288,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Parses HTML into a DOM structure
-class KHTML : public KHTMLParser
+class DEKAF2_PUBLIC KHTML : public KHTMLParser
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

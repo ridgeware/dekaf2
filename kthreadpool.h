@@ -43,6 +43,7 @@
 
 #pragma once
 
+#include "bits/kcppcompat.h"
 #include <functional>
 #include <thread>
 #include <atomic>
@@ -137,7 +138,7 @@ private:
 /// ThreadPool implementation in form of a task queue - you define the number
 /// of concurrent threads, and push tasks which then will be picked by the
 /// next free thread
-class KThreadPool
+class DEKAF2_PUBLIC KThreadPool
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -335,10 +336,13 @@ public:
 private:
 //------
 
+	DEKAF2_PRIVATE
 	void push_packaged_task(std::packaged_task<void()> task);
 
+	DEKAF2_PRIVATE
 	void run_thread( size_t i );
 
+	DEKAF2_PRIVATE
 	void notify_thread_shutdown(bool bWasIdle);
 
 	std::vector<std::unique_ptr<std::thread>>             m_threads;

@@ -65,6 +65,7 @@ namespace detail {
 /// by anyone other than the Dekaf() class itself. As a user, call Dekaf().Daemonize()
 /// as early in the process as possible, best before any file and thread based
 /// activity. And best do not use it at all but let instead systemd do the work for you.
+DEKAF2_PUBLIC
 void kDaemonize(bool bChangeDir = false);
 //-----------------------------------------------------------------------------
 
@@ -75,6 +76,7 @@ void kDaemonize(bool bChangeDir = false);
 /// control over the open flags of std::fstream and of included libraries. This
 /// function is to be called in a child after fork() and before exec(). Exempt
 /// is an array of file descriptors of iExemptSize that shall not be closed.
+DEKAF2_PUBLIC
 void kCloseOwnFilesForExec(bool bIncludeStandardIO, int Exempt[] = nullptr, size_t iExemptSize = 0);
 //-----------------------------------------------------------------------------
 
@@ -82,7 +84,7 @@ void kCloseOwnFilesForExec(bool bIncludeStandardIO, int Exempt[] = nullptr, size
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Start and control a child process
-class KChildProcess
+class DEKAF2_PUBLIC KChildProcess
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

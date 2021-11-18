@@ -58,6 +58,7 @@ namespace dekaf2
 {
 
 /// Writes iCount chars from sBuffer into file descriptor, signal safe
+DEKAF2_PUBLIC
 std::size_t kWriteToFileDesc(int fd, const void* sBuffer, std::size_t iCount);
 
 class KInStream; // fwd decl
@@ -67,7 +68,7 @@ class KInStream; // fwd decl
 /// std::ostream. Provides localization friendly formatting methods and a fast
 /// bypass of std::ostream's formatting functions by directly writing to the
 /// std::streambuf. Is used as a component for KWriter.
-class KOutStream
+class DEKAF2_PUBLIC KOutStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using self_type = KOutStream;
@@ -355,11 +356,16 @@ public:
 
 extern template class KWriter<std::ofstream>;
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// File writer based on std::ofstream
 // std::ofstream does not understand KString and KStringView, so let's help it
-class KOutFile : public KWriter<std::ofstream>
+class DEKAF2_PUBLIC KOutFile : public KWriter<std::ofstream>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//-------
 public:
+//-------
 
 	using base_type = KWriter<std::ofstream>;
 
@@ -432,12 +438,12 @@ public:
 
 //-----------------------------------------------------------------------------
 /// open a stream from any of the supported stream schemata, like file, stdout, stderr
-extern std::unique_ptr<KOutStream> kOpenOutStream(KStringViewZ sSchema, std::ios::openmode openmode = std::ios::app);
+extern DEKAF2_PUBLIC std::unique_ptr<KOutStream> kOpenOutStream(KStringViewZ sSchema, std::ios::openmode openmode = std::ios::app);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// universal logger implemented with an output queue - make sure the Stream is valid until the program ends
-extern void kLogger(KOutStream& Stream, KString sMessage, bool bFlush = true);
+extern DEKAF2_PUBLIC void kLogger(KOutStream& Stream, KString sMessage, bool bFlush = true);
 //-----------------------------------------------------------------------------
 
 } // end of namespace dekaf2

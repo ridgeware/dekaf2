@@ -53,7 +53,7 @@
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KSystemStats
+class DEKAF2_PUBLIC KSystemStats
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -109,7 +109,7 @@ public:
 	private:
 	//----------
 
-		void CheckType()
+		DEKAF2_PRIVATE void CheckType()
 		{
 			if (type == StatType::AUTO)
 			{
@@ -185,8 +185,11 @@ private:
 	Stats     m_Procs;
 	KString   m_sLastError;
 
+	DEKAF2_PRIVATE
 	void AddDiskStat (KStringView sValue, KStringView sDevice, KStringView sStat);
+	DEKAF2_PRIVATE
 	void DumpPidTree (KOutStream& stream, uint64_t iPPID, uint64_t iLevel);
+	DEKAF2_PRIVATE
 	void AddIntStatIfFileExists (KStringViewZ sStatName, KStringViewZ  sStatFilePath);
 
 }; // KSystemStats

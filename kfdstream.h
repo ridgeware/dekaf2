@@ -80,7 +80,7 @@ std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void*
 /// (mainly to allow its usage with pipes, for general file I/O use std::ifstream)
 /// (really, do it - this one is really slow on small writes to files, on purpose,
 /// because pipes should not be buffered!)
-class KInputFDStream : public std::istream
+class DEKAF2_PUBLIC KInputFDStream : public std::istream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -191,7 +191,7 @@ protected:
 /// (mainly to allow its usage with pipes, for general file I/O use std::ifstream)
 /// (really, do it - this one does not implement the full streambuf interface and
 /// may therefore be slower, and it is not seekable)
-class KInputFPStream : public std::istream
+class DEKAF2_PUBLIC KInputFPStream : public std::istream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //----------
@@ -297,7 +297,7 @@ protected:
 /// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
 /// (really, do it - this one is really slow on small writes to files, on purpose,
 /// because pipes should not be buffered!)
-class KOutputFDStream : public std::ostream
+class DEKAF2_PUBLIC KOutputFDStream : public std::ostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -416,7 +416,7 @@ protected:
 /// (mainly to allow its usage with pipes, for general file I/O use std::ofstream)
 /// (really, do it - this one does not implement the full streambuf interface and
 /// may therefore be slower, and it is not seekable)
-class KOutputFPStream : public std::ostream
+class DEKAF2_PUBLIC KOutputFPStream : public std::ostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -525,7 +525,7 @@ protected:
 /// (mainly to allow its usage with pipes, for general file I/O use std::fstream)
 /// (really, do it - this one is really slow on small writes to files, on purpose,
 /// because pipes should not be buffered!)
-class KInOutFDStream : public std::iostream
+class DEKAF2_PUBLIC KInOutFDStream : public std::iostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

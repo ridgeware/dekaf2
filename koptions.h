@@ -60,7 +60,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KOptions
+class DEKAF2_PUBLIC KOptions
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -348,14 +348,16 @@ private:
 //----------
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	class CLIParms
+	class DEKAF2_PRIVATE CLIParms
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 
+	//----------
 	public:
+	//----------
 
 		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-		struct Arg_t
+		struct DEKAF2_PRIVATE Arg_t
 		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 		{
 			Arg_t() = default;
@@ -367,7 +369,9 @@ private:
 			KStringViewZ sArg;
 			bool bConsumed { false };
 
+		//----------
 		private:
+		//----------
 
 			static constexpr KStringViewZ s_sDoubleDash = "--";
 
@@ -413,14 +417,23 @@ private:
 
 	using CommandLookup = KUnorderedMap<KStringView, std::size_t>;
 
+	DEKAF2_PRIVATE
 	KStringViewZ ModifyArgument(KStringViewZ sArg, const CallbackParam* Callback);
+	DEKAF2_PRIVATE
 	KString BadBoundsReason(ArgTypes Type, KStringView sParm, int64_t iMinBound, int64_t iMaxBound) const;
+	DEKAF2_PRIVATE
 	bool ValidBounds(ArgTypes Type, KStringView sParm, int64_t iMinBound, int64_t iMaxBound) const;
+	DEKAF2_PRIVATE
 	KString BadArgReason(ArgTypes Type, KStringView sParm) const;
+	DEKAF2_PRIVATE
 	bool ValidArgType(ArgTypes Type, KStringViewZ sParm) const;
+	DEKAF2_PRIVATE
 	const CallbackParam* FindParam(KStringView sName, bool bIsOption) const;
+	DEKAF2_PRIVATE
 	int Execute(CLIParms Parms, KOutStream& out);
+	DEKAF2_PRIVATE
 	int Evaluate(const CLIParms& Parms, KOutStream& out);
+	DEKAF2_PRIVATE
 	void BuildHelp(KOutStream& out) const;
 
 	// a forward_list, other than a vector, keeps all elements in place when

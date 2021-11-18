@@ -55,7 +55,7 @@ namespace dekaf2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Holds a configured ssl context - will be used in the constructor of KSSLIOStream
-class KSSLContext
+class DEKAF2_PUBLIC KSSLContext
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -114,6 +114,7 @@ private:
 //----------
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_PRIVATE
 	std::string PasswordCallback(std::size_t max_length, boost::asio::ssl::context::password_purpose purpose) const;
 	//-----------------------------------------------------------------------------
 
@@ -280,7 +281,7 @@ struct KAsioSSLStream
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream SSL/TLS implementation with timeout.
-class KSSLIOStream : public std::iostream
+class DEKAF2_PUBLIC KSSLIOStream : public std::iostream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using base_type = std::iostream;
@@ -451,15 +452,18 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader
+	DEKAF2_PRIVATE
 	static std::streamsize SSLStreamReader(void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf writer
+	DEKAF2_PRIVATE
 	static std::streamsize SSLStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_PRIVATE
 	static bool handshake(KAsioSSLStream<tcpstream>* stream);
 	//-----------------------------------------------------------------------------
 
@@ -473,14 +477,17 @@ using KSSLStream = KReaderWriter<KSSLIOStream>;
 using KSSLClient = KSSLStream;
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 std::unique_ptr<KSSLStream> CreateKSSLServer(KSSLContext& Context);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 std::unique_ptr<KSSLClient> CreateKSSLClient(bool bVerifyCerts = false, int iSecondsTimeout = KSSLIOStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 std::unique_ptr<KSSLClient> CreateKSSLClient(const KTCPEndPoint& EndPoint, bool bVerifyCerts = false, bool bManualHandshake = false, int iSecondsTimeout = KSSLIOStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 

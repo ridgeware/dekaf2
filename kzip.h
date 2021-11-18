@@ -56,7 +56,7 @@ namespace dekaf2 {
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Wrapper class around libzip to give easy access from C++ to the files in
 /// a zip archive or to create or append to one
-class KZip
+class DEKAF2_PUBLIC KZip
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -367,10 +367,10 @@ public:
 private:
 //------
 
-	bool SetError(KString sError) const;
-	bool SetError(int iError) const;
-	bool SetError() const;
-	bool SetEncryptionForFile(uint64_t iIndex);
+	DEKAF2_PRIVATE bool SetError(KString sError) const;
+	DEKAF2_PRIVATE bool SetError(int iError) const;
+	DEKAF2_PRIVATE bool SetError() const;
+	DEKAF2_PRIVATE bool SetEncryptionForFile(uint64_t iIndex);
 
 	using Buffer = std::unique_ptr<char[]>;
 	std::vector<Buffer> m_WriteBuffers;

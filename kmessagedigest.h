@@ -62,7 +62,7 @@ namespace dekaf2 {
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KMessageDigestBase constructs the basic algorithms for message digest
 /// computations
-class KMessageDigestBase
+class DEKAF2_PUBLIC KMessageDigestBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -150,7 +150,7 @@ protected:
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KMessageDigest gives the interface for all message digest algorithms. The
 /// framework allows to calculate digests out of strings and streams.
-class KMessageDigest : public KMessageDigestBase
+class DEKAF2_PUBLIC KMessageDigest : public KMessageDigestBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -196,7 +196,7 @@ protected:
 }; // KMessageDigest
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KMD5 : public KMessageDigest
+class DEKAF2_PUBLIC KMD5 : public KMessageDigest
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -217,7 +217,7 @@ public:
 }; // KMD5
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KSHA1 : public KMessageDigest
+class DEKAF2_PUBLIC KSHA1 : public KMessageDigest
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -238,7 +238,7 @@ public:
 }; // KSHA1
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KSHA224 : public KMessageDigest
+class DEKAF2_PUBLIC KSHA224 : public KMessageDigest
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -259,7 +259,7 @@ public:
 }; // KSHA224
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KSHA256 : public KMessageDigest
+class DEKAF2_PUBLIC KSHA256 : public KMessageDigest
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -280,7 +280,7 @@ public:
 }; // KSHA256
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KSHA384 : public KMessageDigest
+class DEKAF2_PUBLIC KSHA384 : public KMessageDigest
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -301,7 +301,7 @@ public:
 }; // KSHA384
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KSHA512 : public KMessageDigest
+class DEKAF2_PUBLIC KSHA512 : public KMessageDigest
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -326,7 +326,7 @@ public:
 #define DEKAF2_HAS_BLAKE2 1
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KBLAKE2S : public KMessageDigest
+class DEKAF2_PUBLIC KBLAKE2S : public KMessageDigest
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -349,7 +349,7 @@ public:
 using KHASH256 = KBLAKE2S;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KBLAKE2B : public KMessageDigest
+class DEKAF2_PUBLIC KBLAKE2B : public KMessageDigest
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

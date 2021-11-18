@@ -57,7 +57,7 @@ namespace dekaf2 {
 /// This class speaks the SMTP protocol with a mail relay. It takes a KMail class
 /// as the mail to be sent. Multiple mails can be sent consecutively in one
 /// session.
-class KSMTP
+class DEKAF2_PUBLIC KSMTP
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -103,8 +103,10 @@ private:
 	using ESMTPParms = KMap<KString, KString>;
 
 	/// Talk to MTA and check response
+	DEKAF2_PRIVATE
 	bool Talk(KStringView sTX, KStringView sRx, ESMTPParms* parms = nullptr, bool bDisconnectOnFailure = true);
 	/// Pretty print and send to MTA one set of addresses
+	DEKAF2_PRIVATE
 	bool PrettyPrint(KStringView sHeader, const KMail::map_t& map);
 
 	mutable KString m_sError;

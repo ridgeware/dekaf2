@@ -51,7 +51,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KChunkedSource : public boost::iostreams::source
+class DEKAF2_PUBLIC KChunkedSource : public boost::iostreams::source
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -120,7 +120,7 @@ private:
 };
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KChunkedSink : public boost::iostreams::sink
+class DEKAF2_PUBLIC KChunkedSink : public boost::iostreams::sink
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

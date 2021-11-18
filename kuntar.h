@@ -84,7 +84,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Tar unarchiver for uncompressed archives
-class KUnTar
+class DEKAF2_PUBLIC KUnTar
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -94,8 +94,8 @@ public:
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class iterator
-	{
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
 
 	//------
 	public:
@@ -320,12 +320,19 @@ public:
 private:
 //----------
 
+	DEKAF2_PRIVATE
 	size_t  CalcPadding();
+	DEKAF2_PRIVATE
 	bool    ReadPadding();
+	DEKAF2_PRIVATE
 	bool    Skip(size_t iSize);
+	DEKAF2_PRIVATE
 	bool    SkipCurrentFile();
+	DEKAF2_PRIVATE
 	bool    Read(void* buf, size_t len);
+	DEKAF2_PRIVATE
 	bool    SetError(KString sError);
+	DEKAF2_PRIVATE
 	KString CreateTargetDirectory(KStringViewZ sBaseDir, KStringViewZ sEntry, bool bWithSubdirectories);
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

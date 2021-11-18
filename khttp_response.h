@@ -49,7 +49,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPResponseHeaders : public KHTTPHeaders
+class DEKAF2_PUBLIC KHTTPResponseHeaders : public KHTTPHeaders
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -119,7 +119,7 @@ public:
 }; // KHTTPResponseHeaders
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KOutHTTPResponse : public KHTTPResponseHeaders, public KOutHTTPFilter
+class DEKAF2_PUBLIC KOutHTTPResponse : public KHTTPResponseHeaders, public KOutHTTPFilter
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -195,7 +195,7 @@ protected:
 };
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KInHTTPResponse : public KHTTPResponseHeaders, public KInHTTPFilter
+class DEKAF2_PUBLIC KInHTTPResponse : public KHTTPResponseHeaders, public KInHTTPFilter
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -265,7 +265,9 @@ public:
 		return !Fail() && KHTTPResponseHeaders::Good();
 	}
 
+//----------
 protected:
+//----------
 
 	//-----------------------------------------------------------------------------
 	/// make parent class Parse() inaccessible

@@ -54,7 +54,7 @@ namespace dekaf2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Execute another process and attach read pipe to its std::out
-class KInPipe : public KFDReader, public KBasePipe
+class DEKAF2_PUBLIC KInPipe : public KFDReader, public KBasePipe
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

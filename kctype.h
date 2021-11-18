@@ -75,7 +75,7 @@ Unicode::codepoint_t CodepointCast(Ch sch)
 }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KCodePoint
+class DEKAF2_PUBLIC KCodePoint
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -782,6 +782,7 @@ namespace KASCII {
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline KCodePoint::CTYPE kCharType(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -790,6 +791,7 @@ inline KCodePoint::CTYPE kCharType(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsSpace(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -798,6 +800,7 @@ inline bool kIsSpace(KCodePoint::CTYPE ctype)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsSpace(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -806,6 +809,7 @@ inline bool kIsSpace(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsBlank(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -814,6 +818,7 @@ inline bool kIsBlank(KCodePoint::CTYPE ctype)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsBlank(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -822,6 +827,7 @@ inline bool kIsBlank(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsDigit(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -830,6 +836,7 @@ inline bool kIsDigit(KCodePoint::CTYPE ctype)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsDigit(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -838,6 +845,7 @@ inline bool kIsDigit(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsXDigit(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -846,6 +854,7 @@ inline bool kIsXDigit(KCodePoint::CTYPE ctype)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsXDigit(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -854,6 +863,7 @@ inline bool kIsXDigit(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsAlpha(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -862,6 +872,7 @@ inline bool kIsAlpha(KCodePoint::CTYPE ctype)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsAlpha(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -870,6 +881,7 @@ inline bool kIsAlpha(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsAlNum(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -878,6 +890,7 @@ inline bool kIsAlNum(KCodePoint::CTYPE ctype)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsAlNum(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -886,6 +899,7 @@ inline bool kIsAlNum(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsPunct(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -894,6 +908,7 @@ inline bool kIsPunct(KCodePoint::CTYPE ctype)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsPunct(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -902,6 +917,7 @@ inline bool kIsPunct(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsLower(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -910,6 +926,7 @@ inline bool kIsLower(KCodePoint::CTYPE ctype)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsLower(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -918,6 +935,7 @@ inline bool kIsLower(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsUpper(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -926,6 +944,7 @@ inline bool kIsUpper(KCodePoint::CTYPE ctype)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsUpper(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -934,6 +953,7 @@ inline bool kIsUpper(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsPrint(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -942,6 +962,7 @@ inline bool kIsPrint(KCodePoint::CTYPE ctype)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsPrint(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -950,6 +971,7 @@ inline bool kIsPrint(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsCntrl(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -958,6 +980,7 @@ inline bool kIsCntrl(KCodePoint::CTYPE ctype)
 
 //-----------------------------------------------------------------------------
 constexpr
+DEKAF2_PUBLIC
 inline bool kIsCntrl(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -1051,8 +1074,8 @@ inline bool kIsPunct(CP ch)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-inline bool kIsDigit(uint16_t ch)
+template<class CP>
+inline bool kIsDigit(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsDigit();
@@ -1067,8 +1090,8 @@ inline bool kIsUnicodeDigit(CP ch)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-inline bool kIsXDigit(uint16_t ch)
+template<class CP>
+inline bool kIsXDigit(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsXDigit();

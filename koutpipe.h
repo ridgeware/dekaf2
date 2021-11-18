@@ -53,7 +53,7 @@ namespace dekaf2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Execute another process and attach write pipe to its std::in
-class KOutPipe : public KFDWriter, public KBasePipe
+class DEKAF2_PUBLIC KOutPipe : public KFDWriter, public KBasePipe
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

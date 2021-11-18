@@ -50,7 +50,7 @@ namespace dekaf2 {
 class KRESTServer;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTTPLog
+class DEKAF2_PUBLIC KHTTPLog
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
@@ -69,13 +69,17 @@ public:
 
 	KHTTPLog() = default;
 
+	/// Set the format and file name for the access log
+	/// @param LogFormat one of JSON, COMMON, COMBINED, EXTENDED, PARSED
+	/// @param sAccessLogFile the filename for the access log, or "stdout" / "stderr" for console output
+	/// @return true if file can be opened, false otherwise
 	KHTTPLog(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringView sFormat = KStringView{})
 	{
 		Open(LogFormat, sAccessLogFile, sFormat);
 	}
 
 	/// Set the format and file name for the access log - can only be called once per instance
-	/// @param format one of JSON, COMMON, COMBINED, EXTENDED, PARSED
+	/// @param LogFormat one of JSON, COMMON, COMBINED, EXTENDED, PARSED
 	/// @param sAccessLogFile the filename for the access log, or "stdout" / "stderr" for console output
 	/// @return true if file can be opened, false otherwise
 	bool Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringView sFormat = KStringView{});
@@ -92,8 +96,11 @@ public:
 private:
 //------
 
+	DEKAF2_PRIVATE
 	void WriteJSONAccessLog   (const KRESTServer& HTTP) const;
+	DEKAF2_PRIVATE
 	void WriteParsedAccessLog (const KRESTServer& HTTP) const;
+	DEKAF2_PRIVATE
 	void WriteAccessLog       (const KRESTServer& HTTP) const;
 
 	KString                             m_sFormat;

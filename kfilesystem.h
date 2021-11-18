@@ -99,6 +99,7 @@ constexpr KStringView kUnsafeLimiterChars  { " .-_" };
 /// Change file or directory permissions to value iMode. iMode can be set both by
 /// POSIX permission bits or std::filesystem::perms permission bits (as they use
 /// the same numerical constants)
+DEKAF2_PUBLIC
 bool kChangeMode(KStringViewZ sPath, int iMode);
 //-----------------------------------------------------------------------------
 
@@ -106,27 +107,32 @@ bool kChangeMode(KStringViewZ sPath, int iMode);
 /// Query file or directory permissions. In case of failure 0 is returned (to
 /// avoid accidentially detecting permission bits set if not checked for negative
 /// value).
+DEKAF2_PUBLIC
 int kGetMode(KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Checks if a file system entity exists
+DEKAF2_PUBLIC
 bool kExists (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Checks if a file exists.
 /// @param bTestForEmptyFile If true treats a file as non-existing if its size is 0
+DEKAF2_PUBLIC
 bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Checks if a directory exists
+DEKAF2_PUBLIC
 bool kDirExists (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// rename a file or directory
+DEKAF2_PUBLIC
 bool kRename (KStringViewZ sOldPath, KStringViewZ sNewPath);
 //-----------------------------------------------------------------------------
 
@@ -134,27 +140,32 @@ bool kRename (KStringViewZ sOldPath, KStringViewZ sNewPath);
 /// Read entire text file into a single string and convert DOS newlines if
 /// bToUnixLineFeeds is true. The base function (that is also called by this
 /// variant) is kReadAll().
+DEKAF2_PUBLIC
 bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds, std::size_t iMaxRead = npos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Create (or truncate) a file and write the given contents and then chmod the file if
 /// perms are different than 0666 (the default)
+DEKAF2_PUBLIC
 bool kWriteFile (KStringViewZ sPath, KStringView sContents, int iMode = DEKAF2_MODE_CREATE_FILE);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// If not existing, create a file. Append contents and close again.
+DEKAF2_PUBLIC
 bool kAppendFile (KStringViewZ sPath, KStringView sContents, int iMode = DEKAF2_MODE_CREATE_FILE);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Create a directory (folder) hierarchically
+DEKAF2_PUBLIC
 bool kCreateDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Alias for kCreateDir
+DEKAF2_PUBLIC
 inline bool kMakeDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR)
 //-----------------------------------------------------------------------------
 {
@@ -165,6 +176,7 @@ inline bool kMakeDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR)
 /// Create a symbolic link
 /// @param sOrigin the existing file
 /// @param sSymlink the symbolic link to create (may cross file system boundaries)
+DEKAF2_PUBLIC
 bool kCreateSymlink(KStringViewZ sOrigin, KStringViewZ sSymlink);
 //-----------------------------------------------------------------------------
 
@@ -172,47 +184,56 @@ bool kCreateSymlink(KStringViewZ sOrigin, KStringViewZ sSymlink);
 /// Create a hard link
 /// @param sOrigin the existing file
 /// @param sHardlink the hard link to create (may not cross file system boundaries)
+DEKAF2_PUBLIC
 bool kCreateHardlink(KStringViewZ sOrigin, KStringViewZ sHardlink);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Create a file if it does not exist, including the directory component.
 /// If the file exists, advance its last mod timestamp.
+DEKAF2_PUBLIC
 bool kTouchFile(KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_FILE);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Isolate the extension of a path (filename extension after a dot)
+DEKAF2_PUBLIC
 KStringView kExtension(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Remove the extension from a path (filename extension after a dot)
+DEKAF2_PUBLIC
 KStringView kRemoveExtension(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Isolate the basename of a path (filename without directory)
+DEKAF2_PUBLIC
 KStringView kBasename(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Isolate the dirname of a path (directory name without the fileame)
+DEKAF2_PUBLIC
 KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get last modification time of a file, returns -1 if file not found
+DEKAF2_PUBLIC
 time_t kGetLastMod(KStringViewZ sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found or is not a regular file
+DEKAF2_PUBLIC
 size_t kFileSize(KStringViewZ sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found or is not a regular file
+DEKAF2_PUBLIC
 inline size_t kGetNumBytes(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
@@ -222,6 +243,7 @@ inline size_t kGetNumBytes(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 /// Returns true if a file name is safe to use, means it cannot escape from a
 /// directory or uses problematic characters
+DEKAF2_PUBLIC
 bool kIsSafeFilename(KStringView sName);
 //-----------------------------------------------------------------------------
 
@@ -229,6 +251,7 @@ bool kIsSafeFilename(KStringView sName);
 /// Returns a file name that is safe to use, means it cannot escape from a
 /// directory or uses problematic characters. The input string is the base for
 /// the file name
+DEKAF2_PUBLIC
 KString kMakeSafeFilename(KStringView sName, bool bToLowercase = true, KStringView sEmptyName = "none");
 //-----------------------------------------------------------------------------
 
@@ -238,6 +261,7 @@ KString kMakeSafeFilename(KStringView sName, bool bToLowercase = true, KStringVi
 /// @param sName the path to check
 /// @param bAllowAbsolutePath if false, only relative paths are allowed (= no leading slash)
 /// @param bAllowTrailingSlash if true, a directory separator as last character is permitted
+DEKAF2_PUBLIC
 bool kIsSafePathname(KStringView sName, bool bAllowAbsolutePath = false, bool bAllowTrailingSlash = false);
 //-----------------------------------------------------------------------------
 
@@ -245,11 +269,13 @@ bool kIsSafePathname(KStringView sName, bool bAllowAbsolutePath = false, bool bA
 /// Returns a path name that is safe to use, means it cannot escape from a
 /// directory or uses problematic characters. The input string is the base for
 /// the path name
+DEKAF2_PUBLIC
 KString kMakeSafePathname(KStringView sName, bool bToLowercase = true, KStringView sEmptyName = "none");
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// resolve .. and . parts of the input path, and make it an absolute path
+DEKAF2_PUBLIC
 KString kNormalizePath(KStringView sPath);
 //-----------------------------------------------------------------------------
 
@@ -257,7 +283,7 @@ class KFileTypes;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// holds one file type, constructs from different inputs
-class KFileType
+class DEKAF2_PUBLIC KFileType
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -308,7 +334,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// holds a mask of file types, constructs from different inputs
-class KFileTypes
+class DEKAF2_PUBLIC KFileTypes
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -366,57 +392,57 @@ private:
 
 }; // KFileTypes
 
-inline
+inline DEKAF2_PUBLIC
 KFileTypes operator|(const KFileType::FileType first, const KFileType::FileType second)
 {
 	return KFileType(static_cast<KFileType::FileType>(static_cast<uint8_t>(first) + static_cast<uint8_t>(second)));
 }
 
-inline
+inline DEKAF2_PUBLIC
 KFileTypes operator+(const KFileType::FileType first, const KFileType::FileType second)
 {
 	return first | second;
 }
 
-inline
+inline DEKAF2_PUBLIC
 KFileTypes operator|(const KFileType first, const KFileType second)
 {
 	return first.m_FType | second.m_FType;
 }
 
-inline
+inline DEKAF2_PUBLIC
 KFileTypes operator+(const KFileType first, const KFileType second)
 {
 	return first | second;
 }
 
-inline
+inline DEKAF2_PUBLIC
 KFileTypes operator|(KFileTypes first, const KFileType second)
 {
 	first.push_back(second);
 	return first;
 }
 
-inline
+inline DEKAF2_PUBLIC
 KFileTypes operator|(KFileTypes first, const KFileType::FileType second)
 {
 	first.push_back(second);
 	return first;
 }
 
-inline
+inline DEKAF2_PUBLIC
 KFileTypes operator+(const KFileTypes first, const KFileType second)
 {
 	return first | second;
 }
 
-inline
+inline DEKAF2_PUBLIC
 KFileTypes operator+(const KFileTypes first, const KFileType::FileType second)
 {
 	return first | second;
 }
 
-inline
+inline DEKAF2_PUBLIC
 KFileTypes operator|(KFileTypes first, const KFileTypes second)
 {
 	first.push_back(second.m_Types);
@@ -425,7 +451,7 @@ KFileTypes operator|(KFileTypes first, const KFileTypes second)
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve information about a file that is typically found in the stat struct
-class KFileStat
+class DEKAF2_PUBLIC KFileStat
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -533,6 +559,7 @@ private:
 //----------
 
 #ifdef DEKAF2_FILESTAT_USE_STAT
+	DEKAF2_PRIVATE
 	void FromStat(struct stat& StatStruct);
 #endif
 
@@ -551,11 +578,13 @@ private:
 
 //-----------------------------------------------------------------------------
 /// Remove (unlink) a file or directory tree, matching Types (for the first file)
+DEKAF2_PUBLIC
 bool kRemove (KStringViewZ sPath, KFileTypes Types);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Remove (unlink) a file
+DEKAF2_PUBLIC
 inline bool kRemoveFile (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
@@ -564,6 +593,7 @@ inline bool kRemoveFile (KStringViewZ sPath)
 
 //-----------------------------------------------------------------------------
 /// Remove (unlink) a directory (folder) hierarchically
+DEKAF2_PUBLIC
 inline bool kRemoveDir (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
@@ -572,6 +602,7 @@ inline bool kRemoveDir (KStringViewZ sPath)
 
 //-----------------------------------------------------------------------------
 /// Remove (unlink) a unix socket
+DEKAF2_PUBLIC
 inline bool kRemoveSocket (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
@@ -581,7 +612,7 @@ inline bool kRemoveSocket (KStringViewZ sPath)
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve and filter directory listings
-class KDirectory
+class DEKAF2_PUBLIC KDirectory
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -841,7 +872,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Get disk capacity
-class KDiskStat
+class DEKAF2_PUBLIC KDiskStat
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -910,7 +941,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// generate a temp directory, and remove it with the destructor if requested to
-class KTempDir
+class DEKAF2_PUBLIC KTempDir
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

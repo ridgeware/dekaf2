@@ -264,6 +264,7 @@ Container kSplits(
 namespace detail {
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 KStringViewPair kSplitToPairInt(
         KStringView svBuffer,
         KStringView svPairDelim
@@ -271,6 +272,7 @@ KStringViewPair kSplitToPairInt(
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
 KStringViewPair kSplitToPairInt(
         KStringView svBuffer,
         KStringView svPairDelim,

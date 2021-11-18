@@ -58,7 +58,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// read and write CSV files
-class KCSV
+class DEKAF2_PUBLIC KCSV
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -184,7 +184,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<class Record = std::vector<KString>>
-class KInCSV : protected KCSV
+class DEKAF2_PUBLIC KInCSV : protected KCSV
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -220,7 +220,7 @@ public:
     //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     /// iterator over records, use it for auto range for loops like
     /// for (const auto& record : csv)
-    class iterator
+    class DEKAF2_PUBLIC iterator
     //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     {
     public:
@@ -283,7 +283,7 @@ protected:
 }; // KInCSV
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KOutCSV : protected KCSV
+class DEKAF2_PUBLIC KOutCSV : protected KCSV
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

@@ -62,7 +62,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// HTTP REST server with JSON, XML, or plain input / output
-class KRESTServer : public KHTTPServer
+class DEKAF2_PUBLIC KRESTServer : public KHTTPServer
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

@@ -63,7 +63,7 @@ namespace dekaf2
 /// This class also allows for an arbitrary number of different threads in
 /// different modes to be started. The common denominator is that all joinable
 /// threads have to join when the destructor of the class instance is called.
-class KRunThreads : public KThreads
+class DEKAF2_PUBLIC KRunThreads : public KThreads
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -152,6 +152,7 @@ private:
 
 //-----------------------------------------------------------------------------
 /// Default implementation of the progress printer for kParallelForEach()
+DEKAF2_PUBLIC
 void kParallelForEachPrintProgress(size_t iMax, size_t iDone, size_t iRunning);
 //-----------------------------------------------------------------------------
 
@@ -265,7 +266,7 @@ void kParallelForEach(Container& c,
 /// Provides an execution barrier that only lets one of multiple equal ID
 /// values execute. All other instances with the same value have to wait until
 /// the first one finishes, then the next, and so on.
-class KBlockOnID
+class DEKAF2_PUBLIC KBlockOnID
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

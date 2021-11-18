@@ -64,7 +64,7 @@ namespace dekaf2 {
 /// The GNU std::iostream library is however as fast standalone, so this
 /// additional layer would not be needed. But it does not cost performance
 /// either. This is an ABC.
-class KBufferedReader
+class DEKAF2_PUBLIC KBufferedReader
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -192,7 +192,7 @@ protected:
 }; // KBufferedReader
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KBufferedStreamReader : public KBufferedReader
+class DEKAF2_PUBLIC KBufferedStreamReader : public KBufferedReader
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -231,7 +231,7 @@ private:
 }; // KBufferedStreamReader
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KBufferedStringReader : public KBufferedReader
+class DEKAF2_PUBLIC KBufferedStringReader : public KBufferedReader
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -267,7 +267,7 @@ private:
 }; // KBufferedStreamReader
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KBufferedFileReader : public KBufferedReader
+class DEKAF2_PUBLIC KBufferedFileReader : public KBufferedReader
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

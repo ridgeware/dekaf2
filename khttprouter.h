@@ -58,7 +58,7 @@ class KHTTPRouter;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// One HTTP route
-class KHTTPRoute : public detail::KHTTPAnalyzedPath
+class DEKAF2_PUBLIC KHTTPRoute : public detail::KHTTPAnalyzedPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -94,7 +94,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A collection of HTTP routes
-class KHTTPRoutes
+class DEKAF2_PUBLIC KHTTPRoutes
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -153,7 +153,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// minimalistic HTTP router / server implementation
-class KHTTPRouter : public KHTTPServer
+class DEKAF2_PUBLIC KHTTPRouter : public KHTTPServer
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

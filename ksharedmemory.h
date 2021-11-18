@@ -54,7 +54,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// IPC semaphore mutex, usable cross processes with std::unique_lock, std::lock_guard, KThreadSafe, etc..
-class KSemaphoreMutex
+class DEKAF2_PUBLIC KSemaphoreMutex
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -120,7 +120,7 @@ using KIPCSafe = KThreadSafe<IPCObject, KKeyedSemaphoreMutex<iIPCKey>>;
 namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KSharedMemoryBase
+class DEKAF2_PUBLIC KSharedMemoryBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

@@ -44,6 +44,7 @@
 /// @file kstringviewz.h
 /// string view implementation with a trailing zero
 
+#include "kcppcompat.h"
 #include "../kstringview.h"
 #include "../kutf8.h"
 #include "khash.h"
@@ -63,9 +64,9 @@ inline namespace literals {
 /// A string_view type with a guaranteed trailing zero that can be used on
 /// any C API
 #ifndef DEKAF2_IS_WINDOWS
-class DEKAF2_GSL_POINTER() KStringViewZ : private KStringView
+class DEKAF2_PUBLIC DEKAF2_GSL_POINTER() KStringViewZ : private KStringView
 #else
-class KStringViewZ : private KStringView
+class DEKAF2_PUBLIC KStringViewZ : private KStringView
 #endif
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

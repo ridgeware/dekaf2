@@ -54,7 +54,7 @@ namespace  dekaf2
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A container with accessors from std::deque plus std::stack, and range protection
 template<class Value>
-class KStack
+class DEKAF2_PUBLIC KStack
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

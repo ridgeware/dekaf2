@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -50,7 +49,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KConnection
+class DEKAF2_PUBLIC KConnection
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -213,7 +212,7 @@ private:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KTCPConnection : public KConnection
+class DEKAF2_PUBLIC KTCPConnection : public KConnection
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -246,7 +245,7 @@ public:
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KUnixConnection : public KConnection
+class DEKAF2_PUBLIC KUnixConnection : public KConnection
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -279,7 +278,7 @@ public:
 #endif
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KSSLConnection : public KConnection
+class DEKAF2_PUBLIC KSSLConnection : public KConnection
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -323,7 +322,6 @@ public:
 	//-----------------------------------------------------------------------------
 
 };
-
 
 } // end of namespace dekaf2
 

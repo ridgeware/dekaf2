@@ -53,7 +53,7 @@ namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A HTTP error to throw or to return
-class KHTTPError : public KError
+class DEKAF2_PUBLIC KHTTPError : public KError
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

@@ -60,7 +60,7 @@ namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Measure the time between two or more events, continuously
-class KStopTime
+class DEKAF2_PUBLIC KStopTime
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -177,7 +177,7 @@ protected:
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// implementation of a stop watch (which is a timer that can be stopped
 /// and restarted, and only counts the time while it was not stopped)
-class KStopWatch : private KStopTime
+class DEKAF2_PUBLIC KStopWatch : private KStopTime
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -315,7 +315,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Keeps multiple consecutive time intervals
-class KDurations
+class DEKAF2_PUBLIC KDurations
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -594,7 +594,7 @@ KDurations::Duration KDurations::TotalDuration<KDurations::Duration>() const;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Measures multiple consecutive time intervals
-class KStopDurations : public KDurations
+class DEKAF2_PUBLIC KStopDurations : public KDurations
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -634,7 +634,7 @@ private:
 /// a fixed time point. Granularity is low (1 second), it is intended for
 /// cleanup purposes or similar repetitive tasks, not high precision
 /// timing.
-class KTimer
+class DEKAF2_PUBLIC KTimer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -859,20 +859,24 @@ private:
 	}
 
 	//---------------------------------------------------------------------------
+	DEKAF2_PRIVATE
 	void TimingLoop(Interval Granularity);
 	//---------------------------------------------------------------------------
 
 	struct Timer;
 
 	//---------------------------------------------------------------------------
+	DEKAF2_PRIVATE
 	ID_t AddTimer(Timer timer);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
+	DEKAF2_PRIVATE
 	static void StartCallback();
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
+	DEKAF2_PRIVATE
 	static ID_t GetNextID();
 	//---------------------------------------------------------------------------
 

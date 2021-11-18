@@ -83,31 +83,37 @@ namespace detail {
 
 //----------------------------------------------------------------------
 /// returns a copy of the string in uppercase (UTF8)
+DEKAF2_PUBLIC
 KString kToUpper(KStringView sInput);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
 /// returns a copy of the string in lowercase (UTF8)
+DEKAF2_PUBLIC
 KString kToLower(KStringView sInput);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
 /// returns a copy of the string in uppercase according to the current locale (does not work with UTF8 strings)
+DEKAF2_PUBLIC
 KString kToUpperLocale(KStringView sInput);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
 /// returns a copy of the string in lowercase according to the current locale (does not work with UTF8 strings)
+DEKAF2_PUBLIC
 KString kToLowerLocale(KStringView sInput);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
 /// returns a copy of the string in uppercase assuming ASCII encoding
+DEKAF2_PUBLIC
 KString kToUpperASCII(KStringView sInput);
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
 /// returns a copy of the string in lowercase assuming ASCII encoding
+DEKAF2_PUBLIC
 KString kToLowerASCII(KStringView sInput);
 //----------------------------------------------------------------------
 
@@ -117,9 +123,9 @@ KString kToLowerASCII(KStringView sInput);
 /// handles most error cases in a benign way and speeds up searching
 /// up to 50 times compared to std::string implementations
 #ifndef DEKAF2_IS_WINDOWS
-class DEKAF2_GSL_OWNER() KString
+class DEKAF2_PUBLIC DEKAF2_GSL_OWNER() KString
 #else
-class KString
+class DEKAF2_PUBLIC KString
 #endif
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

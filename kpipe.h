@@ -52,7 +52,7 @@ namespace dekaf2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Execute another process and attach pipes to its std::in and std::out
-class KPipe : public KBasePipe, public KFDStream
+class DEKAF2_PUBLIC KPipe : public KBasePipe, public KFDStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

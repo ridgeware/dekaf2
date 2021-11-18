@@ -55,7 +55,7 @@ namespace dekaf2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::istream CGI implementation
-class KCGIInStream : public std::istream
+class DEKAF2_PUBLIC KCGIInStream : public std::istream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using base_type = std::istream;
@@ -168,7 +168,7 @@ private:
 //----------
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	class Stream
+	class DEKAF2_PRIVATE Stream
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 	//----------

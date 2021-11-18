@@ -47,6 +47,7 @@
 
 #if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 
+#include "bits/kcppcompat.h"
 #include <map>
 #include <cinttypes>
 #include <cstring>
@@ -515,7 +516,7 @@ namespace dekaf2
 
 #if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 #ifndef DEKAF2_DISABLE_AUTOMATIC_PROFILER
-extern thread_local enabled::KSharedProfiler g_Prof;
+extern DEKAF2_PUBLIC thread_local enabled::KSharedProfiler g_Prof;
 #endif
 #endif
 
@@ -525,15 +526,15 @@ typedef enabled::KSharedProfiler SharedProfiler;
 typedef enabled::KProf KProf;
 
 #ifndef DEKAF2_DISABLE_AUTOMATIC_PROFILER
-inline void kProfSleep()
+DEKAF2_PUBLIC inline void kProfSleep()
 {
 	g_Prof.sleep();
 }
-inline void kProfWake()
+DEKAF2_PUBLIC inline void kProfWake()
 {
 	g_Prof.wake();
 }
-inline void kProfFinalize()
+DEKAF2_PUBLIC inline void kProfFinalize()
 {
 	g_Prof.finalize();
 }
@@ -546,11 +547,11 @@ typedef disabled::KSharedProfiler KSharedProfiler;
 typedef disabled::KProf KProf;
 
 #ifndef DEKAF2_DISABLE_AUTOMATIC_PROFILER
-inline void kProfSleep()
+DEKAF2_PUBLIC inline void kProfSleep()
 {}
-inline void kProfWake()
+DEKAF2_PUBLIC inline void kProfWake()
 {}
-inline void kProfFinalize()
+DEKAF2_PUBLIC inline void kProfFinalize()
 {}
 #endif
 

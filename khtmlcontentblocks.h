@@ -46,7 +46,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTMLContentBlocks : public KHTMLParser
+class DEKAF2_PUBLIC KHTMLContentBlocks : public KHTMLParser
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

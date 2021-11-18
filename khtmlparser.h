@@ -52,7 +52,7 @@ namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Interface
-class KHTMLObject
+class DEKAF2_PUBLIC KHTMLObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -128,11 +128,13 @@ inline KInStream& operator <<(T& Object, KInStream& stream)
 	return stream;
 }
 
+DEKAF2_PUBLIC
 inline bool operator==(const KHTMLObject& left, const KHTMLObject& right)
 {
 	return left.Type() == right.Type();
 }
 
+DEKAF2_PUBLIC
 inline bool operator<(const KHTMLObject& left, const KHTMLObject& right)
 {
 	return left.Type() < right.Type();
@@ -140,7 +142,7 @@ inline bool operator<(const KHTMLObject& left, const KHTMLObject& right)
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a text run
-class KHTMLText : public KHTMLObject
+class DEKAF2_PUBLIC KHTMLText : public KHTMLObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -174,7 +176,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// an object with text and a lead-in and lead-out string
-class KHTMLStringObject : public KHTMLObject
+class DEKAF2_PUBLIC KHTMLStringObject : public KHTMLObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -221,7 +223,7 @@ protected:
 }; // KHTMLStringObject
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTMLAttribute
+class DEKAF2_PUBLIC KHTMLAttribute
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -252,7 +254,7 @@ public:
 }; // KHTMLAttribute
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTMLAttributes
+class DEKAF2_PUBLIC KHTMLAttributes
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -260,7 +262,7 @@ class KHTMLAttributes
 private:
 //------
 
-	struct less_for_attribute
+	struct DEKAF2_PRIVATE less_for_attribute
 	{
 		// enable find(const T&) overloads in C++14
 		using is_transparent = void;
@@ -356,7 +358,7 @@ protected:
 }; // KHTMLAttributes
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHTMLTag : public KHTMLObject
+class DEKAF2_PUBLIC KHTMLTag : public KHTMLObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -405,7 +407,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a HTML comment
-class KHTMLComment : public KHTMLStringObject
+class DEKAF2_PUBLIC KHTMLComment : public KHTMLStringObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -441,7 +443,7 @@ protected:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a HTML document type declaration
-class KHTMLDocumentType : public KHTMLStringObject
+class DEKAF2_PUBLIC KHTMLDocumentType : public KHTMLStringObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -477,7 +479,7 @@ protected:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a HTML processing instruction
-class KHTMLProcessingInstruction : public KHTMLStringObject
+class DEKAF2_PUBLIC KHTMLProcessingInstruction : public KHTMLStringObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -513,7 +515,7 @@ protected:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a HTML CDATA section
-class KHTMLCData : public KHTMLStringObject
+class DEKAF2_PUBLIC KHTMLCData : public KHTMLStringObject
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -550,7 +552,7 @@ protected:
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Streaming HTML parser that isolates HTML objects and content and allows
 /// child classes to override output methods
-class KHTMLParser
+class DEKAF2_PUBLIC KHTMLParser
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -586,13 +588,13 @@ protected:
 private:
 //------
 
-	void Script(KStringView sScript);
-	void Invalid(KStringView sInvalid);
-	void Invalid(const KHTMLStringObject& Object);
-	void Invalid(const KHTMLTag& Tag);
-	void SkipScript(KBufferedReader& InStream);
-	void SkipInvalid(KBufferedReader& InStream);
-	void EmitEntityAsUTF8(KBufferedReader& InStream);
+	DEKAF2_PRIVATE void Script(KStringView sScript);
+	DEKAF2_PRIVATE void Invalid(KStringView sInvalid);
+	DEKAF2_PRIVATE void Invalid(const KHTMLStringObject& Object);
+	DEKAF2_PRIVATE void Invalid(const KHTMLTag& Tag);
+	DEKAF2_PRIVATE void SkipScript(KBufferedReader& InStream);
+	DEKAF2_PRIVATE void SkipInvalid(KBufferedReader& InStream);
+	DEKAF2_PRIVATE void EmitEntityAsUTF8(KBufferedReader& InStream);
 
 	bool m_bEmitEntitiesAsUTF8 { false };
 

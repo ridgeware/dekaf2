@@ -60,7 +60,7 @@ class KRESTServer;
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A route (request path) without resource handler. Typically used for the
 /// request path in a REST query.
-class KRESTPath : public KHTTPPath
+class DEKAF2_PUBLIC KRESTPath : public KHTTPPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -92,7 +92,7 @@ namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A REST path object that performs some analysis on the path, to accelerate routing
-class KRESTAnalyzedPath : public KHTTPAnalyzedPath
+class DEKAF2_PUBLIC KRESTAnalyzedPath : public KHTTPAnalyzedPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -124,7 +124,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A route (request path) to a resource handler
-class KRESTRoute : public detail::KRESTAnalyzedPath
+class DEKAF2_PUBLIC KRESTRoute : public detail::KRESTAnalyzedPath
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -257,7 +257,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Storage object for all routes of a REST server
-class KRESTRoutes
+class DEKAF2_PUBLIC KRESTRoutes
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -500,6 +500,7 @@ private:
 	using Redirects = std::vector<KHTTPRewrite>;
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_PRIVATE
 	static std::size_t RegexMatchPath(KString& sPath, const Rewrites& Rewrites);
 	//-----------------------------------------------------------------------------
 

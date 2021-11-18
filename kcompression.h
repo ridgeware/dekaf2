@@ -57,7 +57,7 @@ namespace dekaf2 {
 namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KCompressionBase
+class DEKAF2_PUBLIC KCompressionBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
@@ -86,7 +86,7 @@ public:
 /// KCompressOStream is a std::ostream which allows to compress in and out of strings and streams.
 /// It is possible to construct the class without output target, in which case
 /// any attempt to compress will fail until an output is set.
-class KCompressOStream : public detail::KCompressionBase, public detail::KCompressionBase::compressor
+class DEKAF2_PUBLIC KCompressOStream : public detail::KCompressionBase, public detail::KCompressionBase::compressor
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
@@ -140,7 +140,7 @@ private:
 /// KUnCompressIStream is a std::istream that allows to decompress in and out of strings and streams.
 /// It is possible to construct the class without input source, in which case
 /// any attempt to decompress will fail until an input is set.
-class KUnCompressIStream : public detail::KCompressionBase, public detail::KCompressionBase::uncompressor
+class DEKAF2_PUBLIC KUnCompressIStream : public detail::KCompressionBase, public detail::KCompressionBase::uncompressor
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
@@ -198,7 +198,7 @@ using KUnCompress = KReader<KUnCompressIStream>;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// GZIP compressor
-class KGZip : public KCompress
+class DEKAF2_PUBLIC KGZip : public KCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
@@ -221,7 +221,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// GZIP uncompressor
-class KUnGZip : public KUnCompress
+class DEKAF2_PUBLIC KUnGZip : public KUnCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
@@ -244,7 +244,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// BZIP2 compressor
-class KBZip2 : public KCompress
+class DEKAF2_PUBLIC KBZip2 : public KCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
@@ -268,7 +268,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// BZIP2 uncompressor
-class KUnBZip2 : public KUnCompress
+class DEKAF2_PUBLIC KUnBZip2 : public KUnCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
@@ -291,7 +291,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// ZLIB compressor
-class KZlib : public KCompress
+class DEKAF2_PUBLIC KZlib : public KCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
@@ -314,7 +314,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// ZLIB uncompressor
-class KUnZlib : public KUnCompress
+class DEKAF2_PUBLIC KUnZlib : public KUnCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------

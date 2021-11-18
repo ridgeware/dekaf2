@@ -740,14 +740,14 @@ time_t kParseTimestamp(KStringView sTimestamp)
 namespace detail {
 
 //-----------------------------------------------------------------------------
-KBrokenDownTimeBase::KBrokenDownTimeBase(time_t tGMTime, bool bAsLocalTime)
+KBrokenDownTime::KBrokenDownTime(time_t tGMTime, bool bAsLocalTime)
 //-----------------------------------------------------------------------------
 : m_time(kGetBrokenDownTime(tGMTime, bAsLocalTime))
 {
 } // ctor
 
 //-----------------------------------------------------------------------------
-uint16_t KBrokenDownTimeBase::GetWeekday() const
+uint16_t KBrokenDownTime::GetWeekday() const
 //-----------------------------------------------------------------------------
 {
 	// we do not use the tm_wday value as it is not updated
@@ -758,7 +758,7 @@ uint16_t KBrokenDownTimeBase::GetWeekday() const
 } // GetWeekday
 
 //-----------------------------------------------------------------------------
-KStringViewZ KBrokenDownTimeBase::GetDayName() const
+KStringViewZ KBrokenDownTime::GetDayName() const
 //-----------------------------------------------------------------------------
 {
 	return kGetAbbreviatedWeekday(GetWeekday());
@@ -766,7 +766,7 @@ KStringViewZ KBrokenDownTimeBase::GetDayName() const
 } // GetDayName
 
 //-----------------------------------------------------------------------------
-KStringViewZ KBrokenDownTimeBase::GetMonthName() const
+KStringViewZ KBrokenDownTime::GetMonthName() const
 //-----------------------------------------------------------------------------
 {
 	return kGetAbbreviatedMonth(m_time.tm_mon);

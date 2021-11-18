@@ -60,7 +60,7 @@ namespace dekaf2
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Base class for KLog serialization. Takes the data to be written someplace.
-class KLogData
+class DEKAF2_PUBLIC KLogData
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -101,7 +101,7 @@ protected:
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Extension of the data base class. Adds the generic serialization methods
 /// as virtual functions.
-class KLogSerializer : public KLogData
+class DEKAF2_PUBLIC KLogSerializer : public KLogData
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -131,7 +131,7 @@ protected:
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Specialization of the serializer for TTY like output devices: creates
 /// simple text lines of output
-class KLogTTYSerializer : public KLogSerializer
+class DEKAF2_PUBLIC KLogTTYSerializer : public KLogSerializer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -151,7 +151,7 @@ protected:
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Specialization of the serializer for the Syslog: creates simple text lines
 /// of output, but without the prefix like timestamp and warning level
-class KLogSyslogSerializer : public KLogTTYSerializer
+class DEKAF2_PUBLIC KLogSyslogSerializer : public KLogTTYSerializer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -171,7 +171,7 @@ protected:
 /// Specialization of the serializer for HTTP headers: creates simple text lines
 /// of output, but without the prefix like timestamp, pid, tid, program name,
 /// but with an upcounting microsecond time stamp
-class KLogHTTPHeaderSerializer : public KLogTTYSerializer
+class DEKAF2_PUBLIC KLogHTTPHeaderSerializer : public KLogTTYSerializer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -200,7 +200,7 @@ protected:
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Specialization of the serializer for JSON output: creates a serialized
 /// JSON object
-class KLogJSONSerializer : public KLogSerializer
+class DEKAF2_PUBLIC KLogJSONSerializer : public KLogSerializer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -215,7 +215,7 @@ protected:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Specialization of the serializer for JSON output: creates a JSON array
-class KLogJSONArraySerializer : public KLogJSONSerializer
+class DEKAF2_PUBLIC KLogJSONArraySerializer : public KLogJSONSerializer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

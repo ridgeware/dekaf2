@@ -65,6 +65,7 @@ namespace dekaf2
 /// @param sTrimLeft left trim characters, default none
 /// @param delimiter the char until which to read to, default \n
 /// @param iMaxRead the maximum count of characters to be read
+DEKAF2_PUBLIC
 bool kReadLine(std::istream& Stream,
                KString& sLine,
                KStringView sTrimRight = "\n",
@@ -79,6 +80,7 @@ bool kReadLine(std::istream& Stream,
 /// @param sContent the string to fill with the content of the file
 /// @param bFromStart if true will seek to start before reading
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+DEKAF2_PUBLIC
 bool kAppendAllUnseekable(std::istream& Stream, KString& sContent, std::size_t iMaxRead = npos);
 
 /// Appends all content of a std::istream device to a string. Fails on non-seekable
@@ -88,6 +90,7 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent, std::size_t i
 /// @param sContent the string to fill with the content of the file
 /// @param bFromStart if true will seek to start before reading
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+DEKAF2_PUBLIC
 bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart = true, std::size_t iMaxRead = npos);
 
 /// Read all content of a std::istream device into a string. Fails on non-seekable
@@ -97,6 +100,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart = true,
 /// @param sContent the string to fill with the content of the file
 /// @param bFromStart if true will seek to start before reading
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+DEKAF2_PUBLIC
 bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart = true, std::size_t iMaxRead = npos);
 
 /// Read all content of a std::istream device into a string. Fails on non-seekable
@@ -105,35 +109,43 @@ bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart = true, s
 /// @param Stream the input stream
 /// @param bFromStart if true will seek to start before reading
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+DEKAF2_PUBLIC
 KString kReadAll(std::istream& Stream, bool bFromStart = true, std::size_t iMaxRead = npos);
 
 /// Read all content of a file with name sFileName into a string, append to sContent
 /// @param sFileName the input file's name
 /// @param sContent the string to fill with the content of the file
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+DEKAF2_PUBLIC
 bool kAppendAll(KStringViewZ sFileName, KString& sContent, std::size_t iMaxRead = npos);
 
 /// Read all content of a file with name sFileName into a string
 /// @param sFileName the input file's name
 /// @param sContent the string to fill with the content of the file
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+DEKAF2_PUBLIC
 bool kReadAll(KStringViewZ sFileName, KString& sContent, std::size_t iMaxRead = npos);
 
 /// Returns all content of a file with name sFileName as a string
 /// @param sFileName the input file's name
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+DEKAF2_PUBLIC
 KString kReadAll(KStringViewZ sFileName, std::size_t iMaxRead = npos);
 
 /// Get the total size of a std::istream device. Returns -1 on Failure. Fails on non-seekable istreams.
+DEKAF2_PUBLIC
 ssize_t kGetSize(std::istream& Stream, bool bFromStart = true);
 
 /// Get the total size of a file with name sFileName. Returns -1 on Failure.
+DEKAF2_PUBLIC
 ssize_t kGetSize(KStringViewZ sFileName);
 
 /// Reposition the device of a std::istream to the beginning. Fails on non-seekable istreams.
+DEKAF2_PUBLIC
 bool kRewind(std::istream& Stream);
 
 /// Reads iCount chars from file descriptor into sBuffer, even on growing pipes or other unseekable inputs
+DEKAF2_PUBLIC
 std::size_t kReadFromFileDesc(int fd, void* sBuffer, std::size_t iCount);
 
 // forward declaration for Read(KOutStream&)
@@ -144,7 +156,7 @@ class KOutStream;
 /// std::istream, and has iterators and read accessors that attach to the
 /// std::streambuf of the istream. Provides a line iterator on the file
 /// content, and can trim returned lines. Is used as a component for KReader.
-class KInStream
+class DEKAF2_PUBLIC KInStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using self_type = KInStream;
@@ -682,9 +694,11 @@ public:
 
 extern template class KReader<std::ifstream>;
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// File reader based on std::ifstream
 // std::ifstream does not understand KString and KStringView, so let's help it
-class KInFile : public KReader<std::ifstream>
+class DEKAF2_PUBLIC KInFile : public KReader<std::ifstream>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 public:
 

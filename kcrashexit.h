@@ -72,11 +72,13 @@ extern "C" {
 /// display signal that led to crash (if any) and force a stackdump
 /// @param iSignalNum The caught signal or one of the special signal
 /// numbers to indicate library internal failures.
+DEKAF2_PUBLIC
 void kCrashExitExt (int iSignalNum, siginfo_t* siginfo = nullptr, void* context = nullptr);
 
 /// display signal that led to crash (if any) and force a stackdump
 /// @param iSignalNum The caught signal or one of the special signal
 /// numbers to indicate library internal failures.
+DEKAF2_PUBLIC
 void kCrashExit (int iSignalNum=0);
 
 }
@@ -84,21 +86,26 @@ void kCrashExit (int iSignalNum=0);
 using KCrashCallback = std::function<void(KStringView sMessage)>;
 
 /// allow the appliation to set some thread specific context information in case the app crashes
+DEKAF2_PUBLIC
 void kSetCrashContext (KStringView sContext);
 
 /// allow the appliation to append to thread specific context information in case the app crashes
+DEKAF2_PUBLIC
 void kAppendCrashContext (KStringView sContext, KStringView sSeparator = "\n");
 
 /// in addition to the KLOG, all the application to get a callback when it is crashing with the crash message (app will still exit after callback is done)
+DEKAF2_PUBLIC
 void kSetCrashCallback (KCrashCallback pFunction);
 
 namespace detail {
 
+DEKAF2_PRIVATE
 void kFailedAssert(KStringView sCrashMessage);
 
 }
 
 inline
+DEKAF2_PUBLIC
 void kAssert (bool bMustBeTrue, KStringView sCrashMessage)
 {
 #ifndef NDEBUG

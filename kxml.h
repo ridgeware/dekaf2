@@ -54,7 +54,7 @@ class KXMLNode;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Accessor to the attributes of one KXMLNode; is also its own iterator
-class KXMLAttribute
+class DEKAF2_PUBLIC KXMLAttribute
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -159,7 +159,7 @@ class KXML;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Accessor to one XML node and its attributes and children; is also its own iterator
-class KXMLNode
+class DEKAF2_PUBLIC KXMLNode
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -288,7 +288,7 @@ protected:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Basic XML support. Fast XML parsing and serialization.
-class KXML
+class DEKAF2_PUBLIC KXML
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

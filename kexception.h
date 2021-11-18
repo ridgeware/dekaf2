@@ -52,7 +52,7 @@ namespace dekaf2
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Basic dekaf2 exception class inheriting from std::runtime_error, and adding
 /// a uint16_t error code. Can also be used for error returns.
-class KException : public std::runtime_error
+class DEKAF2_PUBLIC KException : public std::runtime_error
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

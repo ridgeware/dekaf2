@@ -93,7 +93,7 @@ enum
 };
 
 /// the header structure
-union TarHeader
+union DEKAF2_PUBLIC TarHeader
 {
 	char raw[HeaderLen];
 

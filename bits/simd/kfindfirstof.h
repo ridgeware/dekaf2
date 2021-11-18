@@ -51,13 +51,13 @@ namespace no_sse {
 /// @param haystack the string to search in
 /// @param needles  the characters to find
 /// @param bNot     whether to search for existing (false) or non-existing (true) needles
-size_t kFindFirstOf (KStringView haystack, KStringView needles, bool bNot);
+DEKAF2_PUBLIC size_t kFindFirstOf (KStringView haystack, KStringView needles, bool bNot);
 
 /// non-sse version of kFindLastOf, nonetheless using a very fast std:: algorithm
 /// @param haystack the string to search in
 /// @param needles  the characters to find
 /// @param bNot     whether to search for existing (false) or non-existing (true) needles
-size_t kFindLastOf  (KStringView haystack, KStringView needles, bool bNot);
+DEKAF2_PUBLIC size_t kFindLastOf  (KStringView haystack, KStringView needles, bool bNot);
 
 } // end of namespace no_sse
 
@@ -66,22 +66,22 @@ namespace sse {
 /// sse version of kFindFirstOf
 /// @param haystack the string to search in
 /// @param needles  the characters to find
-size_t kFindFirstOf    (KStringView haystack, KStringView needles);
+DEKAF2_PUBLIC size_t kFindFirstOf    (KStringView haystack, KStringView needles);
 
 /// sse version of kFindFirstNotOf
 /// @param haystack the string to search in
 /// @param needles  the characters not to find
-size_t kFindFirstNotOf (KStringView haystack, KStringView needles);
+DEKAF2_PUBLIC size_t kFindFirstNotOf (KStringView haystack, KStringView needles);
 
 /// sse version of kFindLastOf
 /// @param haystack the string to search in
 /// @param needles  the characters to find
-size_t kFindLastOf     (KStringView haystack, KStringView needles);
+DEKAF2_PUBLIC size_t kFindLastOf     (KStringView haystack, KStringView needles);
 
 /// sse version of kFindLastNotOf
 /// @param haystack the string to search in
 /// @param needles  the characters not to find
-size_t kFindLastNotOf  (KStringView haystack, KStringView needles);
+DEKAF2_PUBLIC size_t kFindLastNotOf  (KStringView haystack, KStringView needles);
 
 } // end of namespace sse
 

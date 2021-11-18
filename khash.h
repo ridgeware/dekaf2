@@ -51,8 +51,10 @@
 
 namespace dekaf2 {
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Generates a FNV hash value, also over consecutive pieces of data
-class KHash
+class DEKAF2_PUBLIC KHash
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
@@ -161,8 +163,10 @@ protected:
 
 }; // KHash
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Generates a ASCII case insensitive FNV hash value, also over consecutive pieces of data
-class KCaseHash
+class DEKAF2_PUBLIC KCaseHash
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------

@@ -58,7 +58,7 @@ namespace dekaf2 {
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KHMAC gives the interface for all HMAC algorithms. The
 /// framework allows to calculate HMACs out of strings and streams.
-class KHMAC
+class DEKAF2_PUBLIC KHMAC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -144,7 +144,7 @@ protected:
 }; // KHMAC
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHMAC_MD5 : public KHMAC
+class DEKAF2_PUBLIC KHMAC_MD5 : public KHMAC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -159,7 +159,7 @@ public:
 }; // KHMAC_MD5
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHMAC_SHA1 : public KHMAC
+class DEKAF2_PUBLIC KHMAC_SHA1 : public KHMAC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -174,7 +174,7 @@ public:
 }; // KSHA1
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHMAC_SHA224 : public KHMAC
+class DEKAF2_PUBLIC KHMAC_SHA224 : public KHMAC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -189,7 +189,7 @@ public:
 }; // KHMAC_SHA224
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHMAC_SHA256 : public KHMAC
+class DEKAF2_PUBLIC KHMAC_SHA256 : public KHMAC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -204,7 +204,7 @@ public:
 }; // KHMAC_SHA256
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHMAC_SHA384 : public KHMAC
+class DEKAF2_PUBLIC KHMAC_SHA384 : public KHMAC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -219,7 +219,7 @@ public:
 }; // KHMAC_SHA384
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHMAC_SHA512 : public KHMAC
+class DEKAF2_PUBLIC KHMAC_SHA512 : public KHMAC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -238,7 +238,7 @@ public:
 #define DEKAF2_HAS_KHMAC_BLAKE2 1
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHMAC_BLAKE2S : public KHMAC
+class DEKAF2_PUBLIC KHMAC_BLAKE2S : public KHMAC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -255,7 +255,7 @@ public:
 using KHMAC256 = KHMAC_BLAKE2S;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class KHMAC_BLAKE2B : public KHMAC
+class DEKAF2_PUBLIC KHMAC_BLAKE2B : public KHMAC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

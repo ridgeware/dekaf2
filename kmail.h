@@ -57,7 +57,7 @@ namespace dekaf2 {
 /// This class takes all information for an email message. It can then be used
 /// as an argument for the KSMTP class, or sent via the convenience Send()
 /// method of KMail, which internally calls KSMTP.
-class KMail
+class DEKAF2_PUBLIC KMail
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -209,7 +209,7 @@ public:
 private:
 //----------
 
-	self& Add(KStringView sWhich, map_t& map, KString Key, KString Value = KString{});
+	DEKAF2_PRIVATE self& Add(KStringView sWhich, map_t& map, KString Key, KString Value = KString{});
 
 	map_t m_To;
 	map_t m_Cc;

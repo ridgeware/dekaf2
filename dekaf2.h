@@ -65,7 +65,7 @@ namespace dekaf2
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Basic initialization of the library.
-class Dekaf
+class DEKAF2_PUBLIC Dekaf
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -290,7 +290,7 @@ private:
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Helper class to initialize Dekaf and KLog with named parameters - just an
 /// alternative to kInit with its anonymous parms..
-class KInit
+class DEKAF2_PUBLIC KInit
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -318,6 +318,7 @@ public:
 //---------------------------------------------------------------------------
 /// Shortcut to initialize Dekaf and KLog in one call - however, not needed for
 /// default settings as those are automatically set at startup
+DEKAF2_PUBLIC
 void kInit(KStringView sName = KStringView{},
            KStringViewZ sDebugLog = KStringViewZ{},
            KStringViewZ sDebugFlag = KStringViewZ{},

@@ -53,7 +53,7 @@ namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Replace variables with values
-class KOutputTemplate
+class DEKAF2_PUBLIC KOutputTemplate
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

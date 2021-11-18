@@ -56,7 +56,7 @@ namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Replace variables with values
-class KSnippets
+class DEKAF2_PUBLIC KSnippets
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -97,6 +97,7 @@ public:
 private:
 //----------
 
+	DEKAF2_PRIVATE
 	void IsolateSnippets(KStringView sBuffer, KStringView sLeadIn, KStringView sLeadOut);
 
 	std::forward_list<KString> m_Buffer;

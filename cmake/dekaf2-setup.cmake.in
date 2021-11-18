@@ -128,6 +128,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 				# satisfy new build mode of boost-1.69
 				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
 			endif()
+			add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility=hidden>)
 
 		elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
@@ -150,6 +151,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 				# satisfy new build mode of boost-1.69
 				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
 			endif()
+			add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility=hidden>)
 
 			# linux clang is way too picky at warnings, but it does not matter to disable
 			# this on MacOS too

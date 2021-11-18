@@ -56,7 +56,7 @@ namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// holds all keys from a validated OpenID provider
-class KOpenIDKeys
+class DEKAF2_PUBLIC KOpenIDKeys
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -85,7 +85,7 @@ private:
 
 	static const KRSAKey s_EmptyKey;
 
-	struct WebKey
+	struct DEKAF2_PRIVATE WebKey
 	{
 		WebKey(const KJSON& parms);
 
@@ -97,7 +97,9 @@ private:
 
 	std::unordered_map<KString, WebKey> WebKeys;
 
+	DEKAF2_PRIVATE
 	bool Validate(const KJSON& Keys) const;
+	DEKAF2_PRIVATE
 	bool SetError(KString sError) const;
 
 	mutable KString m_sError;
@@ -106,7 +108,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// holds all data from a validated OpenID provider
-class KOpenIDProvider
+class DEKAF2_PUBLIC KOpenIDProvider
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -142,7 +144,9 @@ public:
 private:
 //----------
 
+	DEKAF2_PRIVATE
 	bool Validate(const KJSON& Configuration, const KURL& URL, KStringView sScope) const;
+	DEKAF2_PRIVATE
 	bool SetError(KString sError) const;
 
 	std::unique_ptr<KeysAndIssuer>               m_Keys;
@@ -161,7 +165,7 @@ using KOpenIDProviderList = std::vector<KOpenIDProvider>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// holds an authentication token and validates it
-class KJWT
+class DEKAF2_PUBLIC KJWT
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -200,8 +204,11 @@ public:
 private:
 //----------
 
+	DEKAF2_PRIVATE
 	bool Validate(KStringView sIssuer, KStringView sScope, time_t tClockLeeway);
+	DEKAF2_PRIVATE
 	bool SetError(KString sError);
+	DEKAF2_PRIVATE
 	void ClearJSON();
 
 	mutable KString m_sError;

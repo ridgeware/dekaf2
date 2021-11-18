@@ -67,7 +67,7 @@ namespace dekaf2
 /// from the signal handler.
 /// On Windows, this class is much less useful, as Windows only has very limited
 /// signal support. Only SIGTERM, SIGSEGV and SIGABRT can be used for real purposes.
-class KSignals
+class DEKAF2_PUBLIC KSignals
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -160,20 +160,23 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// only call with func == SIG_IGN or SIG_DFL
+	DEKAF2_PRIVATE
 	void IntDelSignalHandler(int iSignal, signal_func_t func);
 	//-----------------------------------------------------------------------------
 
 #ifndef DEKAF2_IS_WINDOWS
 	//-----------------------------------------------------------------------------
+	DEKAF2_PRIVATE
 	void WaitForSignals();
 	//-----------------------------------------------------------------------------
 #endif
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_PRIVATE
 	static void LookupFunc(int signal);
 	//-----------------------------------------------------------------------------
 
-	struct sigmap_t
+	struct DEKAF2_PRIVATE sigmap_t
 	{
 		std_func_t func;
 		bool bAsThread;
@@ -197,6 +200,7 @@ private:
 /// @param bConcise
 /// true (default) returns signal name only. false returns a short description
 /// of the signal as well.
+DEKAF2_PUBLIC
 KStringView kTranslateSignal (int iSignalNum, bool bConcise = true);
 //-----------------------------------------------------------------------------
 
@@ -206,6 +210,7 @@ KStringView kTranslateSignal (int iSignalNum, bool bConcise = true);
 /// @param bExceptSEGVandFPE
 /// true (default) installs kCrashExit (backtrace) as handler functions for
 /// SIGSEGV and SIGFPE.
+DEKAF2_PUBLIC
 void kBlockAllSignals(bool bExceptSEGVandFPE = true);
 //-----------------------------------------------------------------------------
 

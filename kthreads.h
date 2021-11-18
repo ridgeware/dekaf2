@@ -57,7 +57,7 @@ namespace dekaf2
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Base class for generated threads. Maintains a list of started threads
 /// (and hence keeps them alive) and ensures they have joined at destruction.
-class KThreads
+class DEKAF2_PUBLIC KThreads
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

@@ -53,7 +53,7 @@ namespace dekaf2 {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Replace variables with values, with configurable lead-in and lead-out
 /// sequences like "{{" "}}"
-class KReplacer
+class DEKAF2_PUBLIC KReplacer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -150,7 +150,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Replace variables with values, using "{{" and "}}" as the lead-in/out
-class KVariables : public KReplacer
+class DEKAF2_PUBLIC KVariables : public KReplacer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

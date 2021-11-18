@@ -48,6 +48,7 @@
 /// @file kscopeguard.h
 /// Ad-hoc definition of RAII exit actions
 
+#include "bits/kcppcompat.h"
 #include <functional>
 #include <utility>
 
@@ -55,7 +56,7 @@ namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// C++11 implementation of a scope guard - a RAII helper that executes arbitrary callables at end of scope
-class KScopeGuard
+class DEKAF2_PUBLIC KScopeGuard
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

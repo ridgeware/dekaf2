@@ -532,7 +532,7 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 
 #ifndef npos
 	// npos is used in dekaf2 as error return for unsigned return types
-	static constexpr size_t npos = static_cast<size_t>(-1);
+	static constexpr std::size_t npos = static_cast<std::size_t>(-1);
 #endif
 
 } // end of namespace dekaf2

@@ -822,6 +822,11 @@ if (IS_LINUX)
 	)
 endif()
 
+if (IS_MACOS)
+	# we need the core foundation framework for the locale retrieval on MacOS..
+	set (CORE_FOUNDATION "-framework Foundation")
+endif()
+
 target_link_libraries(dekaf2
 	PUBLIC
 		fmt
@@ -838,6 +843,7 @@ target_link_libraries(dekaf2
 		${libproc_LIBRARIES}
 		${LIBZIP_LIBRARY}
 		${RT}
+		${CORE_FOUNDATION}
 		re2
 	)
 

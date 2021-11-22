@@ -108,7 +108,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Set the unicode locale. If empty defaults to the locale set by the current user.
-	bool SetUnicodeLocale(KStringView name = KStringView{});
+	bool SetUnicodeLocale(KStringViewZ name = KStringViewZ{});
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------

@@ -103,23 +103,8 @@ TEST_CASE("KTime") {
 		CHECK ( UTC2.GetDayName()   == "Mon" );
 		CHECK ( UTC2.IsPM()         == true  );
 
-/*
- * The local time zone tests depend on too many moving parts to
- * have them executed per default, particularly due to differences
- * across Linux distributions (not all switch on TZ settings).
- * We leave the code in, but comment it out, so that it can be
- * used for manual tests.
- */
-
-/*
-		KString sOldTZ = kGetEnv("TZ");
-		KScopeGuard TZGuard = [&sOldTZ] { kSetEnv("TZ", sOldTZ); };
-
-#ifdef DEKAF2_IS_WINDOWS
-		kSetEnv("TZ", "GST-1GDT"); // "German Standard Time -1 German Daylight Time (note both timezone names are unknown in Germany..)
-#else
-		kSetEnv("TZ", "CET");      // set Central European Time as timezone
-#endif
+		auto oldLocale = std::locale::global(std::locale("de_DE.UTF-8"));
+		KScopeGuard TZGuard = [&oldLocale] { std::locale::global(oldLocale); };
 
 		KLocalTime Local1;
 		Local1 = UTC1;
@@ -136,8 +121,6 @@ TEST_CASE("KTime") {
 		CHECK ( Local1.GetMonthName() == "Jan" );
 		CHECK ( Local1.GetDayName()   == "Tue" );
 		CHECK ( Local1.GetUTCOffset() == 3600  );
- */
-
 	}
 
 	SECTION("kParseTimestamp")

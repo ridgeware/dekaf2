@@ -841,5 +841,21 @@ std::size_t kGetPhysicalMemory()
 
 } // kGetPhysicalMemory
 
+//-----------------------------------------------------------------------------
+bool kSetGlobalLocale(KStringViewZ sLocale)
+//-----------------------------------------------------------------------------
+{
+	return Dekaf::getInstance().SetUnicodeLocale(sLocale);
+
+} // kSetGlobalLocale
+
+//-----------------------------------------------------------------------------
+std::locale kGetGlobalLocale()
+//-----------------------------------------------------------------------------
+{
+	return std::locale();
+
+} // kGetGlobalLocale
+
 } // end of namespace dekaf2
 

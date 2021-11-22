@@ -48,6 +48,7 @@
 #include "kstring.h"
 #include "kstringview.h"
 #include "bits/kstringviewz.h"
+#include <locale>
 
 namespace dekaf2
 {
@@ -190,6 +191,16 @@ std::size_t kGetPageSize();
 /// Returns the physical memory installed on this machine
 DEKAF2_PUBLIC
 std::size_t kGetPhysicalMemory();
+
+/// Set the global locale for all threads, set to environment preset if sLocale == empty
+/// @par sLocale the locale string to construct the std::locale from. Use a unicode aware locale.
+/// @return true if locale could be set, false otherwise
+DEKAF2_PUBLIC
+bool kSetGlobalLocale(KStringViewZ sLocale = KStringViewZ{});
+
+/// @return the currently set global locale
+DEKAF2_PUBLIC
+std::locale kGetGlobalLocale();
 
 } // end of namespace dekaf2
 

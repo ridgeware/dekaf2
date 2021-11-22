@@ -41,13 +41,6 @@
 */
 
 #include "dekaf2.h"
-#include <clocale>
-#include <cstdlib>
-#include <cwctype>
-#include <ctime>
-#include <iostream>
-#include <fstream>
-#include <random>
 #include "klog.h"
 #include "kfilesystem.h"
 #include "kcrashexit.h"
@@ -63,6 +56,13 @@
 #include <CoreFoundation/CoreFoundation.h> // for locale retrieval
 #endif
 
+#include <cstdlib>
+#include <cwctype>
+#include <ctime>
+#include <iostream>
+#include <fstream>
+#include <random>
+#include <locale>
 
 namespace dekaf2
 {
@@ -198,7 +198,7 @@ KString GetUserLocale()
 	auto ie      = sLocale.end();
 	auto iDotPos = npos;
 
-	for (; it != ie; ++ it)
+	for (; it != ie; ++it)
 	{
 		if (*it == '.')
 		{
@@ -216,8 +216,7 @@ KString GetUserLocale()
 			{
 				if (++it != ie && KASCII::kToUpper(*it) == 'F')
 				{
-					++it;
-					if (it != ie && *it == '8')
+					if (++it != ie && *it == '8')
 					{
 						// we accept this locale as UTF-8ish
 						return sLocale;

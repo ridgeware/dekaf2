@@ -103,24 +103,27 @@ TEST_CASE("KTime") {
 		CHECK ( UTC2.GetDayName()   == "Mon" );
 		CHECK ( UTC2.IsPM()         == true  );
 
-		auto oldLocale = std::locale::global(std::locale("de_DE.UTF-8"));
-		KScopeGuard TZGuard = [&oldLocale] { std::locale::global(oldLocale); };
+		auto oldLocale = kGetGlobalLocale();
+		if (kSetGlobalLocale("de_DE.UTF-8"))
+		{
+			KScopeGuard TZGuard = [&oldLocale] { std::locale::global(oldLocale); };
 
-		KLocalTime Local1;
-		Local1 = UTC1;
-		CHECK ( Local1.Format()       == "1974-01-01 00:59:59" );
-		CHECK ( Local1.ToTimeT()      == 126230399 );
-		CHECK ( Local1.GetDay()       == 1     );
-		CHECK ( Local1.GetMonth()     == 1     );
-		CHECK ( Local1.GetYear()      == 1974  );
-		CHECK ( Local1.GetHour()      == 0     );
-		CHECK ( Local1.GetMinute()    == 59    );
-		CHECK ( Local1.GetSecond()    == 59    );
-		CHECK ( Local1.GetHour12()    == 0     );
-		CHECK ( Local1.IsPM()         == false );
-		CHECK ( Local1.GetMonthName() == "Jan" );
-		CHECK ( Local1.GetDayName()   == "Tue" );
-		CHECK ( Local1.GetUTCOffset() == 3600  );
+			KLocalTime Local1;
+			Local1 = UTC1;
+			CHECK ( Local1.Format()       == "1974-01-01 00:59:59" );
+			CHECK ( Local1.ToTimeT()      == 126230399 );
+			CHECK ( Local1.GetDay()       == 1     );
+			CHECK ( Local1.GetMonth()     == 1     );
+			CHECK ( Local1.GetYear()      == 1974  );
+			CHECK ( Local1.GetHour()      == 0     );
+			CHECK ( Local1.GetMinute()    == 59    );
+			CHECK ( Local1.GetSecond()    == 59    );
+			CHECK ( Local1.GetHour12()    == 0     );
+			CHECK ( Local1.IsPM()         == false );
+			CHECK ( Local1.GetMonthName() == "Jan" );
+			CHECK ( Local1.GetDayName()   == "Tue" );
+			CHECK ( Local1.GetUTCOffset() == 3600  );
+		}
 	}
 
 	SECTION("kParseTimestamp")

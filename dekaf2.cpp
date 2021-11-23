@@ -193,51 +193,6 @@ KString GetUserLocale()
 
 #endif
 
-	// string operations have to happen barefoot as dekaf2 may not yet be constructed
-	auto it      = sLocale.begin();
-	auto ie      = sLocale.end();
-	auto iDotPos = npos;
-
-	for (; it != ie; ++it)
-	{
-		if (*it == '.')
-		{
-			iDotPos = it - sLocale.begin();
-			break;
-		}
-	}
-
-	if (iDotPos != npos)
-	{
-		// we have a dot, but check if the suffix is some utf 8
-		if (++it != ie && KASCII::kToUpper(*it) == 'U')
-		{
-			if (++it != ie && KASCII::kToUpper(*it) == 'T')
-			{
-				if (++it != ie && KASCII::kToUpper(*it) == 'F')
-				{
-					if (++it != ie && *it == '8')
-					{
-						// we accept this locale as UTF-8ish
-						return sLocale;
-					}
-					else if (it != ie && (*it == '-' || *it == '_'))
-					{
-						if (++it != ie && *it == '8')
-						{
-							// we accept this locale as UTF-8ish
-							return sLocale;
-						}
-					}
-				}
-			}
-		}
-		// else cut the suffix off and add utf 8
-		sLocale.erase(iDotPos, KString::npos);
-	}
-	// we do not have a dot, append the utf 8 suffix
-	sLocale += ".UTF-8";
-
 	return sLocale;
 }
 
@@ -246,9 +201,7 @@ DEKAF2_PRIVATE
 bool CTypeIsUnicodeAware()
 //---------------------------------------------------------------------------
 {
-//#ifndef DEKAF2_IS_WINDOWS
-	return (std::iswupper(0x53d) && std::towupper(0x17f) == 0x53);
-//#endif
+	return (std::iswupper(0x190) && std::towupper(0x25b) == 0x190);
 }
 
 //---------------------------------------------------------------------------
@@ -287,48 +240,46 @@ bool Dekaf::SetUnicodeLocale(KStringViewZ sName)
 			std::locale::global(std::locale(DefaultLocale.c_str()));
 		}
 		DEKAF2_CATCH (const std::exception& ex) {}
-	}
 
+		if (!CTypeIsUnicodeAware())
+		{
 #ifndef DEKAF2_IS_WINDOWS
-	if (!CTypeIsUnicodeAware())
-	{
-		// last resort, slow:
-		// we will try to query all installed locales and
-		// pick the first one with UTF-8 support..
-		if (std::system("locale -a | grep -v -e ^C | grep -m 1 -i -s UTF-*8 > /tmp/dekaf2init.txt") >= 0)
-		{
-			std::ifstream file("/tmp/dekaf2init.txt");
-			std::array<char, 51> UnicodeLocale;
-			file.getline(UnicodeLocale.data(), UnicodeLocale.size(), '\n');
-			UnicodeLocale[50] = '\0';
-			m_sLocale = UnicodeLocale.data();
-			DEKAF2_TRY
+			// last resort, slow:
+			// we will try to query all installed locales and
+			// pick the first one with UTF-8 support..
+			if (std::system("locale -a | grep -v -e ^C | grep -m 1 -i -s UTF-*8 > /tmp/dekaf2init.txt") >= 0)
 			{
-				std::locale::global(std::locale(m_sLocale.c_str()));
+				std::ifstream file("/tmp/dekaf2init.txt");
+				std::array<char, 51> UnicodeLocale;
+				file.getline(UnicodeLocale.data(), UnicodeLocale.size(), '\n');
+				UnicodeLocale[50] = '\0';
+				m_sLocale = UnicodeLocale.data();
+				DEKAF2_TRY
+				{
+					std::locale::global(std::locale(m_sLocale.c_str()));
+				}
+				DEKAF2_CATCH (const std::exception& ex) {}
 			}
-			DEKAF2_CATCH (const std::exception& ex) {}
-		}
-		else
-		{
-			std::cerr << "dekaf2: call to std::system failed when selecting locales" << std::endl;
-		}
+			else
+			{
+				std::cerr << "dekaf2: call to std::system failed when selecting locales" << std::endl;
+			}
 
-		if (std::system("rm -f /tmp/dekaf2init.txt") < 0)
-		{
-			std::cerr << "dekaf2: call to std::system failed when selecting locales" << std::endl;
+			if (std::system("rm -f /tmp/dekaf2init.txt") < 0)
+			{
+				std::cerr << "dekaf2: call to std::system failed when selecting locales" << std::endl;
+			}
+
+			if (!CTypeIsUnicodeAware())
+#endif
+			{
+				std::cerr << "dekaf2: cannot set C++ locale to Unicode" << std::endl;
+				return false;
+			}
 		}
 	}
-#endif
 
 	m_sLocale = std::locale().name();
-
-#ifndef DEKAF2_IS_WINDOWS
-	if (!CTypeIsUnicodeAware())
-	{
-		std::cerr << "dekaf2: cannot set C++ locale to Unicode" << std::endl;
-		return false;
-	}
-#endif
 
 	return true;
 }

@@ -61,7 +61,7 @@ int main( int argc, char* const argv[] )
 	KLog::getInstance().KeepCLIMode(true);
 
 	// make sure we use a utf8 locale with english number rules for the utests
-	std::locale::global(std::locale("en_US.UTF-8"));
+	kSetGlobalLocale("en_US.UTF-8");
 
 	bool bSynopsis{false};
 	int  iLast{0};

@@ -1796,5 +1796,28 @@ TEST_CASE("KString") {
 		CHECK (iRemoved == 0 );
 		CHECK ( s == "" );
 	}
+
+	SECTION("ClipAt")
+	{
+		KString s = "//aaa";
+		bool bFound = s.ClipAt("//");
+		CHECK ( s == "" );
+		CHECK ( bFound == true );
+
+		s = "//";
+		bFound = s.ClipAt("//");
+		CHECK ( s == "" );
+		CHECK ( bFound == true );
+
+		s = "aaa//";
+		bFound = s.ClipAt("//");
+		CHECK ( s == "aaa" );
+		CHECK ( bFound == true );
+
+		s = "aaa//bbb";
+		bFound = s.ClipAt("//");
+		CHECK ( s == "aaa" );
+		CHECK ( bFound == true );
+	}
 }
 

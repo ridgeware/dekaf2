@@ -101,7 +101,7 @@ void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, siz
 	auto pHaystack = static_cast<const char*>(haystack);
 	auto pNeedle   = static_cast<const char*>(needle);
 
-	for(;iNeedleSize < iHaystackSize;)
+	for(;iNeedleSize <= iHaystackSize;)
 	{
 		auto pFound = static_cast<const char*>(std::memchr(pHaystack, pNeedle[0], (iHaystackSize - iNeedleSize) + 1));
 

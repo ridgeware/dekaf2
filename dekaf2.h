@@ -107,7 +107,10 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	/// Set the unicode locale. If empty defaults to the locale set by the current user.
+	/// Set the unicode locale. If empty defaults to the locale set by the current user. If that one is not unicode
+	/// aware, we will try to set the locale to en_US.UTF-8, and if not found to any Unicode aware locale
+	/// of the system with the primary goal to end up with a locale setting that allows for Unicode aware
+	/// std::iswupper() etc calls. This method is called with an empty argument by the constructor of the class.
 	bool SetUnicodeLocale(KStringViewZ name = KStringViewZ{});
 	//---------------------------------------------------------------------------
 

@@ -211,16 +211,10 @@ bool Dekaf::SetUnicodeLocale(KStringViewZ sName)
 	if (!sName.empty())
 	{
 		// set to a specific locale, return false if unknown or not unicode
-		DEKAF2_TRY
-		{
-			std::locale::global(std::locale(sName.c_str()));
-		}
-		DEKAF2_CATCH (const std::exception& ex)
+		if (!kSetGlobalLocale(sName))
 		{
 			return false;
 		}
-
-		m_sLocale = std::locale().name();
 
 		return CTypeIsUnicodeAware();
 	}
@@ -234,14 +228,8 @@ bool Dekaf::SetUnicodeLocale(KStringViewZ sName)
 
 	if (!CTypeIsUnicodeAware())
 	{
-		DEKAF2_TRY
-		{
-			// try to set our default locale (en_US.UTF-8)
-			std::locale::global(std::locale(DefaultLocale.c_str()));
-		}
-		DEKAF2_CATCH (const std::exception& ex) {}
-
-		if (!CTypeIsUnicodeAware())
+		// try to set our default locale (en_US.UTF-8)
+		if (!kSetGlobalLocale(DefaultLocale) || !CTypeIsUnicodeAware())
 		{
 #ifndef DEKAF2_IS_WINDOWS
 			// last resort, slow:
@@ -253,12 +241,11 @@ bool Dekaf::SetUnicodeLocale(KStringViewZ sName)
 				std::array<char, 51> UnicodeLocale;
 				file.getline(UnicodeLocale.data(), UnicodeLocale.size(), '\n');
 				UnicodeLocale[50] = '\0';
-				m_sLocale = UnicodeLocale.data();
-				DEKAF2_TRY
+
+				if (!kSetGlobalLocale(UnicodeLocale.data()))
 				{
-					std::locale::global(std::locale(m_sLocale.c_str()));
+					std::cerr << "dekaf2: cannot set locale to " << UnicodeLocale.data() << std::endl;
 				}
-				DEKAF2_CATCH (const std::exception& ex) {}
 			}
 			else
 			{
@@ -278,8 +265,6 @@ bool Dekaf::SetUnicodeLocale(KStringViewZ sName)
 			}
 		}
 	}
-
-	m_sLocale = std::locale().name();
 
 	return true;
 }
@@ -674,6 +659,15 @@ KInit& KInit::SetOnlyShowCallerOnJsonError(bool bYesNo)
 	return *this;
 
 } // SetOnlyShowCallerOnJsonError
+
+//---------------------------------------------------------------------------
+KInit& KInit::SetLocale(KStringViewZ sLocale)
+//---------------------------------------------------------------------------
+{
+	Dekaf::getInstance().SetUnicodeLocale(sLocale);
+	return *this;
+
+} // SetLocale
 
 //---------------------------------------------------------------------------
 void kInit (KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, bool bShouldDumpCore/*=false*/, bool bEnableMultiThreading/*=false*/, bool bStartSignalHandlerThread/*=true*/)

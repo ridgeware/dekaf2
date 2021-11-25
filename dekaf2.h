@@ -112,14 +112,6 @@ public:
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	/// Get the unicode locale.
-	const KString& GetUnicodeLocale()
-	//---------------------------------------------------------------------------
-	{
-		return m_sLocale;
-	}
-
-	//---------------------------------------------------------------------------
 	/// Set random seeds of various random number generators.
 	/// If available uses a hardware random device for the seeds.
 	void SetRandomSeed();
@@ -266,8 +258,7 @@ private:
 	void StopDefaultTimer();
 	//---------------------------------------------------------------------------
 
-	std::atomic_bool m_bIsMultiThreading{false};
-	KString m_sLocale;
+	std::atomic_bool m_bIsMultiThreading { false };
 	KString m_sProgPath;
 	KString m_sProgName;
 #ifdef DEKAF2_HAS_MINIFOLLY
@@ -309,6 +300,7 @@ public:
 	self& SetMultiThreading(bool bYesNo = true);
 	self& SetOnlyShowCallerOnJsonError(bool bYesNo = true);
 	self& SetLevel(int iLevel);
+	self& SetLocale(KStringViewZ sLocale = "en_US.UTF-8");
 
 }; // KInit
 

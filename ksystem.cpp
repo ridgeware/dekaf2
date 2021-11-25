@@ -845,7 +845,28 @@ std::size_t kGetPhysicalMemory()
 bool kSetGlobalLocale(KStringViewZ sLocale)
 //-----------------------------------------------------------------------------
 {
-	return Dekaf::getInstance().SetUnicodeLocale(sLocale);
+	DEKAF2_TRY
+	{
+		std::locale::global(std::locale(sLocale.c_str()));
+
+		// take care, we may call this function from inside dekaf2's constructor
+		if (Dekaf::IsStarted())
+		{
+			kDebug(1, "changed global locale to {}", sLocale);
+		}
+	}
+	DEKAF2_CATCH (const std::exception& ex)
+	{
+		// take care, we may call this function from inside dekaf2's constructor
+		if (Dekaf::IsStarted())
+		{
+			kDebug(1, "failed to change global locale to {}", sLocale);
+		}
+
+		return false;
+	}
+
+	return true;
 
 } // kSetGlobalLocale
 

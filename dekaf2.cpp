@@ -214,11 +214,24 @@ bool Dekaf::SetUnicodeLocale(KStringViewZ sName)
 		return kSetGlobalLocale(sName) && CTypeIsUnicodeAware();
 	}
 
-	// try to set the user's locale as is setup in env or system
+	// this is the standard way to set the user locale from the environment
+	// or system config
+	if (kSetGlobalLocale(std::locale("").name()) && CTypeIsUnicodeAware())
+	{
+		return true;
+	}
+
+#ifdef DEKAF2_IS_OSX
+
+	// Unfortunately the standard way does not work on a MacOS app that
+	// is not started from the CLI. Now query the system config through
+	// the CoreFramework:
 	if (kSetGlobalLocale(GetUserLocale()) && CTypeIsUnicodeAware())
 	{
 		return true;
 	}
+
+#endif
 
 	// try to set our default locale (en_US.UTF-8)
 	if (kSetGlobalLocale(DefaultLocale) && CTypeIsUnicodeAware())

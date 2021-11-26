@@ -1672,7 +1672,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ MarkNonspacing          , Mark        ,      0 }, //  1562 
 	{ PunctuationOther        , Punctuation ,      0 }, //  1563 
 	{ OtherFormat             , Other       ,      0 }, //  1564 
-	{ OtherNotAssigned        , Other       ,      0 }, //  1565 
+	{ PunctuationOther        , Punctuation ,      0 }, //  1565 
 	{ PunctuationOther        , Punctuation ,      0 }, //  1566 
 	{ PunctuationOther        , Punctuation ,      0 }, //  1567 
 	{ LetterOther             , Letter      ,      0 }, //  1568 
@@ -2267,54 +2267,54 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ OtherNotAssigned        , Other       ,      0 }, //  2157 
 	{ OtherNotAssigned        , Other       ,      0 }, //  2158 
 	{ OtherNotAssigned        , Other       ,      0 }, //  2159 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2160 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2161 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2162 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2163 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2164 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2165 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2166 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2167 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2168 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2169 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2170 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2171 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2172 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2173 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2174 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2175 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2176 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2177 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2178 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2179 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2180 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2181 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2182 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2183 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2184 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2185 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2186 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2187 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2188 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2189 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2190 
+	{ LetterOther             , Letter      ,      0 }, //  2160 
+	{ LetterOther             , Letter      ,      0 }, //  2161 
+	{ LetterOther             , Letter      ,      0 }, //  2162 
+	{ LetterOther             , Letter      ,      0 }, //  2163 
+	{ LetterOther             , Letter      ,      0 }, //  2164 
+	{ LetterOther             , Letter      ,      0 }, //  2165 
+	{ LetterOther             , Letter      ,      0 }, //  2166 
+	{ LetterOther             , Letter      ,      0 }, //  2167 
+	{ LetterOther             , Letter      ,      0 }, //  2168 
+	{ LetterOther             , Letter      ,      0 }, //  2169 
+	{ LetterOther             , Letter      ,      0 }, //  2170 
+	{ LetterOther             , Letter      ,      0 }, //  2171 
+	{ LetterOther             , Letter      ,      0 }, //  2172 
+	{ LetterOther             , Letter      ,      0 }, //  2173 
+	{ LetterOther             , Letter      ,      0 }, //  2174 
+	{ LetterOther             , Letter      ,      0 }, //  2175 
+	{ LetterOther             , Letter      ,      0 }, //  2176 
+	{ LetterOther             , Letter      ,      0 }, //  2177 
+	{ LetterOther             , Letter      ,      0 }, //  2178 
+	{ LetterOther             , Letter      ,      0 }, //  2179 
+	{ LetterOther             , Letter      ,      0 }, //  2180 
+	{ LetterOther             , Letter      ,      0 }, //  2181 
+	{ LetterOther             , Letter      ,      0 }, //  2182 
+	{ LetterOther             , Letter      ,      0 }, //  2183 
+	{ SymbolModifier          , Symbol      ,      0 }, //  2184 
+	{ LetterOther             , Letter      ,      0 }, //  2185 
+	{ LetterOther             , Letter      ,      0 }, //  2186 
+	{ LetterOther             , Letter      ,      0 }, //  2187 
+	{ LetterOther             , Letter      ,      0 }, //  2188 
+	{ LetterOther             , Letter      ,      0 }, //  2189 
+	{ LetterOther             , Letter      ,      0 }, //  2190 
 	{ OtherNotAssigned        , Other       ,      0 }, //  2191 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2192 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2193 
+	{ OtherFormat             , Other       ,      0 }, //  2192 
+	{ OtherFormat             , Other       ,      0 }, //  2193 
 	{ OtherNotAssigned        , Other       ,      0 }, //  2194 
 	{ OtherNotAssigned        , Other       ,      0 }, //  2195 
 	{ OtherNotAssigned        , Other       ,      0 }, //  2196 
 	{ OtherNotAssigned        , Other       ,      0 }, //  2197 
 	{ OtherNotAssigned        , Other       ,      0 }, //  2198 
 	{ OtherNotAssigned        , Other       ,      0 }, //  2199 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2200 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2201 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2202 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2203 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2204 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2205 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2206 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2207 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2200 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2201 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2202 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2203 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2204 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2205 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2206 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2207 
 	{ LetterOther             , Letter      ,      0 }, //  2208 
 	{ LetterOther             , Letter      ,      0 }, //  2209 
 	{ LetterOther             , Letter      ,      0 }, //  2210 
@@ -2336,7 +2336,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterOther             , Letter      ,      0 }, //  2226 
 	{ LetterOther             , Letter      ,      0 }, //  2227 
 	{ LetterOther             , Letter      ,      0 }, //  2228 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2229 
+	{ LetterOther             , Letter      ,      0 }, //  2229 
 	{ LetterOther             , Letter      ,      0 }, //  2230 
 	{ LetterOther             , Letter      ,      0 }, //  2231 
 	{ LetterOther             , Letter      ,      0 }, //  2232 
@@ -2345,27 +2345,27 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterOther             , Letter      ,      0 }, //  2235 
 	{ LetterOther             , Letter      ,      0 }, //  2236 
 	{ LetterOther             , Letter      ,      0 }, //  2237 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2238 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2239 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2240 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2241 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2242 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2243 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2244 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2245 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2246 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2247 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2248 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2249 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2250 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2251 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2252 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2253 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2254 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2255 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2256 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2257 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2258 
+	{ LetterOther             , Letter      ,      0 }, //  2238 
+	{ LetterOther             , Letter      ,      0 }, //  2239 
+	{ LetterOther             , Letter      ,      0 }, //  2240 
+	{ LetterOther             , Letter      ,      0 }, //  2241 
+	{ LetterOther             , Letter      ,      0 }, //  2242 
+	{ LetterOther             , Letter      ,      0 }, //  2243 
+	{ LetterOther             , Letter      ,      0 }, //  2244 
+	{ LetterOther             , Letter      ,      0 }, //  2245 
+	{ LetterOther             , Letter      ,      0 }, //  2246 
+	{ LetterOther             , Letter      ,      0 }, //  2247 
+	{ LetterOther             , Letter      ,      0 }, //  2248 
+	{ LetterModifier          , Letter      ,      0 }, //  2249 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2250 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2251 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2252 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2253 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2254 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2255 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2256 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2257 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2258 
 	{ MarkNonspacing          , Mark        ,      0 }, //  2259 
 	{ MarkNonspacing          , Mark        ,      0 }, //  2260 
 	{ MarkNonspacing          , Mark        ,      0 }, //  2261 
@@ -3008,7 +3008,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ OtherNotAssigned        , Other       ,      0 }, //  2898 
 	{ OtherNotAssigned        , Other       ,      0 }, //  2899 
 	{ OtherNotAssigned        , Other       ,      0 }, //  2900 
-	{ OtherNotAssigned        , Other       ,      0 }, //  2901 
+	{ MarkNonspacing          , Mark        ,      0 }, //  2901 
 	{ MarkNonspacing          , Mark        ,      0 }, //  2902 
 	{ MarkSpacingCombining    , Mark        ,      0 }, //  2903 
 	{ OtherNotAssigned        , Other       ,      0 }, //  2904 
@@ -3239,7 +3239,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterOther             , Letter      ,      0 }, //  3129 
 	{ OtherNotAssigned        , Other       ,      0 }, //  3130 
 	{ OtherNotAssigned        , Other       ,      0 }, //  3131 
-	{ OtherNotAssigned        , Other       ,      0 }, //  3132 
+	{ MarkNonspacing          , Mark        ,      0 }, //  3132 
 	{ LetterOther             , Letter      ,      0 }, //  3133 
 	{ MarkNonspacing          , Mark        ,      0 }, //  3134 
 	{ MarkNonspacing          , Mark        ,      0 }, //  3135 
@@ -3272,7 +3272,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterOther             , Letter      ,      0 }, //  3162 
 	{ OtherNotAssigned        , Other       ,      0 }, //  3163 
 	{ OtherNotAssigned        , Other       ,      0 }, //  3164 
-	{ OtherNotAssigned        , Other       ,      0 }, //  3165 
+	{ LetterOther             , Letter      ,      0 }, //  3165 
 	{ OtherNotAssigned        , Other       ,      0 }, //  3166 
 	{ OtherNotAssigned        , Other       ,      0 }, //  3167 
 	{ LetterOther             , Letter      ,      0 }, //  3168 
@@ -3400,7 +3400,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ OtherNotAssigned        , Other       ,      0 }, //  3290 
 	{ OtherNotAssigned        , Other       ,      0 }, //  3291 
 	{ OtherNotAssigned        , Other       ,      0 }, //  3292 
-	{ OtherNotAssigned        , Other       ,      0 }, //  3293 
+	{ LetterOther             , Letter      ,      0 }, //  3293 
 	{ LetterOther             , Letter      ,      0 }, //  3294 
 	{ OtherNotAssigned        , Other       ,      0 }, //  3295 
 	{ LetterOther             , Letter      ,      0 }, //  3296 
@@ -3439,7 +3439,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ MarkNonspacing          , Mark        ,      0 }, //  3329 
 	{ MarkSpacingCombining    , Mark        ,      0 }, //  3330 
 	{ MarkSpacingCombining    , Mark        ,      0 }, //  3331 
-	{ OtherNotAssigned        , Other       ,      0 }, //  3332 
+	{ LetterOther             , Letter      ,      0 }, //  3332 
 	{ LetterOther             , Letter      ,      0 }, //  3333 
 	{ LetterOther             , Letter      ,      0 }, //  3334 
 	{ LetterOther             , Letter      ,      0 }, //  3335 
@@ -3564,7 +3564,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterOther             , Letter      ,      0 }, //  3454 
 	{ LetterOther             , Letter      ,      0 }, //  3455 
 	{ OtherNotAssigned        , Other       ,      0 }, //  3456 
-	{ OtherNotAssigned        , Other       ,      0 }, //  3457 
+	{ MarkNonspacing          , Mark        ,      0 }, //  3457 
 	{ MarkSpacingCombining    , Mark        ,      0 }, //  3458 
 	{ MarkSpacingCombining    , Mark        ,      0 }, //  3459 
 	{ OtherNotAssigned        , Other       ,      0 }, //  3460 
@@ -6008,7 +6008,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterOther             , Letter      ,      0 }, //  5898 
 	{ LetterOther             , Letter      ,      0 }, //  5899 
 	{ LetterOther             , Letter      ,      0 }, //  5900 
-	{ OtherNotAssigned        , Other       ,      0 }, //  5901 
+	{ LetterOther             , Letter      ,      0 }, //  5901 
 	{ LetterOther             , Letter      ,      0 }, //  5902 
 	{ LetterOther             , Letter      ,      0 }, //  5903 
 	{ LetterOther             , Letter      ,      0 }, //  5904 
@@ -6016,7 +6016,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ MarkNonspacing          , Mark        ,      0 }, //  5906 
 	{ MarkNonspacing          , Mark        ,      0 }, //  5907 
 	{ MarkNonspacing          , Mark        ,      0 }, //  5908 
-	{ OtherNotAssigned        , Other       ,      0 }, //  5909 
+	{ MarkSpacingCombining    , Mark        ,      0 }, //  5909 
 	{ OtherNotAssigned        , Other       ,      0 }, //  5910 
 	{ OtherNotAssigned        , Other       ,      0 }, //  5911 
 	{ OtherNotAssigned        , Other       ,      0 }, //  5912 
@@ -6026,7 +6026,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ OtherNotAssigned        , Other       ,      0 }, //  5916 
 	{ OtherNotAssigned        , Other       ,      0 }, //  5917 
 	{ OtherNotAssigned        , Other       ,      0 }, //  5918 
-	{ OtherNotAssigned        , Other       ,      0 }, //  5919 
+	{ LetterOther             , Letter      ,      0 }, //  5919 
 	{ LetterOther             , Letter      ,      0 }, //  5920 
 	{ LetterOther             , Letter      ,      0 }, //  5921 
 	{ LetterOther             , Letter      ,      0 }, //  5922 
@@ -6047,7 +6047,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterOther             , Letter      ,      0 }, //  5937 
 	{ MarkNonspacing          , Mark        ,      0 }, //  5938 
 	{ MarkNonspacing          , Mark        ,      0 }, //  5939 
-	{ MarkNonspacing          , Mark        ,      0 }, //  5940 
+	{ MarkSpacingCombining    , Mark        ,      0 }, //  5940 
 	{ PunctuationOther        , Punctuation ,      0 }, //  5941 
 	{ PunctuationOther        , Punctuation ,      0 }, //  5942 
 	{ OtherNotAssigned        , Other       ,      0 }, //  5943 
@@ -6266,7 +6266,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ MarkNonspacing          , Mark        ,      0 }, //  6156 
 	{ MarkNonspacing          , Mark        ,      0 }, //  6157 
 	{ OtherFormat             , Other       ,      0 }, //  6158 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6159 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6159 
 	{ NumberDecimalDigit      , Number      ,      0 }, //  6160 
 	{ NumberDecimalDigit      , Number      ,      0 }, //  6161 
 	{ NumberDecimalDigit      , Number      ,      0 }, //  6162 
@@ -6954,22 +6954,22 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ MarkNonspacing          , Mark        ,      0 }, //  6844 
 	{ MarkNonspacing          , Mark        ,      0 }, //  6845 
 	{ MarkEnclosing           , Mark        ,      0 }, //  6846 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6847 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6848 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6849 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6850 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6851 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6852 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6853 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6854 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6855 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6856 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6857 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6858 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6859 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6860 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6861 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6862 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6847 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6848 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6849 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6850 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6851 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6852 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6853 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6854 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6855 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6856 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6857 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6858 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6859 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6860 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6861 
+	{ MarkNonspacing          , Mark        ,      0 }, //  6862 
 	{ OtherNotAssigned        , Other       ,      0 }, //  6863 
 	{ OtherNotAssigned        , Other       ,      0 }, //  6864 
 	{ OtherNotAssigned        , Other       ,      0 }, //  6865 
@@ -7095,7 +7095,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterOther             , Letter      ,      0 }, //  6985 
 	{ LetterOther             , Letter      ,      0 }, //  6986 
 	{ LetterOther             , Letter      ,      0 }, //  6987 
-	{ OtherNotAssigned        , Other       ,      0 }, //  6988 
+	{ LetterOther             , Letter      ,      0 }, //  6988 
 	{ OtherNotAssigned        , Other       ,      0 }, //  6989 
 	{ OtherNotAssigned        , Other       ,      0 }, //  6990 
 	{ OtherNotAssigned        , Other       ,      0 }, //  6991 
@@ -7144,8 +7144,8 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ SymbolOther             , Symbol      ,      0 }, //  7034 
 	{ SymbolOther             , Symbol      ,      0 }, //  7035 
 	{ SymbolOther             , Symbol      ,      0 }, //  7036 
-	{ OtherNotAssigned        , Other       ,      0 }, //  7037 
-	{ OtherNotAssigned        , Other       ,      0 }, //  7038 
+	{ PunctuationOther        , Punctuation ,      0 }, //  7037 
+	{ PunctuationOther        , Punctuation ,      0 }, //  7038 
 	{ OtherNotAssigned        , Other       ,      0 }, //  7039 
 	{ MarkNonspacing          , Mark        ,      0 }, //  7040 
 	{ MarkNonspacing          , Mark        ,      0 }, //  7041 
@@ -7781,7 +7781,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ MarkNonspacing          , Mark        ,      0 }, //  7671 
 	{ MarkNonspacing          , Mark        ,      0 }, //  7672 
 	{ MarkNonspacing          , Mark        ,      0 }, //  7673 
-	{ OtherNotAssigned        , Other       ,      0 }, //  7674 
+	{ MarkNonspacing          , Mark        ,      0 }, //  7674 
 	{ MarkNonspacing          , Mark        ,      0 }, //  7675 
 	{ MarkNonspacing          , Mark        ,      0 }, //  7676 
 	{ MarkNonspacing          , Mark        ,      0 }, //  7677 
@@ -8491,7 +8491,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ SymbolCurrency          , Symbol      ,      0 }, //  8381 
 	{ SymbolCurrency          , Symbol      ,      0 }, //  8382 
 	{ SymbolCurrency          , Symbol      ,      0 }, //  8383 
-	{ OtherNotAssigned        , Other       ,      0 }, //  8384 
+	{ SymbolCurrency          , Symbol      ,      0 }, //  8384 
 	{ OtherNotAssigned        , Other       ,      0 }, //  8385 
 	{ OtherNotAssigned        , Other       ,      0 }, //  8386 
 	{ OtherNotAssigned        , Other       ,      0 }, //  8387 
@@ -11266,7 +11266,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ SymbolOther             , Symbol      ,      0 }, // 11156 
 	{ SymbolOther             , Symbol      ,      0 }, // 11157 
 	{ OtherNotAssigned        , Other       ,      0 }, // 11158 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11159 
+	{ SymbolOther             , Symbol      ,      0 }, // 11159 
 	{ SymbolOther             , Symbol      ,      0 }, // 11160 
 	{ SymbolOther             , Symbol      ,      0 }, // 11161 
 	{ SymbolOther             , Symbol      ,      0 }, // 11162 
@@ -11418,7 +11418,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterUppercase         , Letter      ,     66 }, // 11308 
 	{ LetterUppercase         , Letter      ,     66 }, // 11309 
 	{ LetterUppercase         , Letter      ,     66 }, // 11310 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11311 
+	{ LetterUppercase         , Letter      ,     66 }, // 11311 
 	{ LetterLowercase         , Letter      ,     66 }, // 11312 
 	{ LetterLowercase         , Letter      ,     66 }, // 11313 
 	{ LetterLowercase         , Letter      ,     66 }, // 11314 
@@ -11466,7 +11466,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterLowercase         , Letter      ,     66 }, // 11356 
 	{ LetterLowercase         , Letter      ,     66 }, // 11357 
 	{ LetterLowercase         , Letter      ,     66 }, // 11358 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11359 
+	{ LetterLowercase         , Letter      ,     66 }, // 11359 
 	{ LetterUppercase         , Letter      ,      4 }, // 11360 
 	{ LetterLowercase         , Letter      ,      4 }, // 11361 
 	{ LetterUppercase         , Letter      ,     40 }, // 11362 
@@ -11963,20 +11963,20 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ PunctuationOther        , Punctuation ,      0 }, // 11853 
 	{ PunctuationOther        , Punctuation ,      0 }, // 11854 
 	{ PunctuationOther        , Punctuation ,      0 }, // 11855 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11856 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11857 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11858 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11859 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11860 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11861 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11862 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11863 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11864 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11865 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11866 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11867 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11868 
-	{ OtherNotAssigned        , Other       ,      0 }, // 11869 
+	{ SymbolOther             , Symbol      ,      0 }, // 11856 
+	{ SymbolOther             , Symbol      ,      0 }, // 11857 
+	{ PunctuationOther        , Punctuation ,      0 }, // 11858 
+	{ PunctuationOther        , Punctuation ,      0 }, // 11859 
+	{ PunctuationOther        , Punctuation ,      0 }, // 11860 
+	{ PunctuationOpen         , Punctuation ,      0 }, // 11861 
+	{ PunctuationClose        , Punctuation ,      0 }, // 11862 
+	{ PunctuationOpen         , Punctuation ,      0 }, // 11863 
+	{ PunctuationClose        , Punctuation ,      0 }, // 11864 
+	{ PunctuationOpen         , Punctuation ,      0 }, // 11865 
+	{ PunctuationClose        , Punctuation ,      0 }, // 11866 
+	{ PunctuationOpen         , Punctuation ,      0 }, // 11867 
+	{ PunctuationClose        , Punctuation ,      0 }, // 11868 
+	{ PunctuationDash         , Punctuation ,      0 }, // 11869 
 	{ OtherNotAssigned        , Other       ,      0 }, // 11870 
 	{ OtherNotAssigned        , Other       ,      0 }, // 11871 
 	{ OtherNotAssigned        , Other       ,      0 }, // 11872 
@@ -12838,11 +12838,11 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterOther             , Letter      ,      0 }, // 12728 
 	{ LetterOther             , Letter      ,      0 }, // 12729 
 	{ LetterOther             , Letter      ,      0 }, // 12730 
-	{ OtherNotAssigned        , Other       ,      0 }, // 12731 
-	{ OtherNotAssigned        , Other       ,      0 }, // 12732 
-	{ OtherNotAssigned        , Other       ,      0 }, // 12733 
-	{ OtherNotAssigned        , Other       ,      0 }, // 12734 
-	{ OtherNotAssigned        , Other       ,      0 }, // 12735 
+	{ LetterOther             , Letter      ,      0 }, // 12731 
+	{ LetterOther             , Letter      ,      0 }, // 12732 
+	{ LetterOther             , Letter      ,      0 }, // 12733 
+	{ LetterOther             , Letter      ,      0 }, // 12734 
+	{ LetterOther             , Letter      ,      0 }, // 12735 
 	{ SymbolOther             , Symbol      ,      0 }, // 12736 
 	{ SymbolOther             , Symbol      ,      0 }, // 12737 
 	{ SymbolOther             , Symbol      ,      0 }, // 12738 
@@ -13162,7 +13162,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ SymbolOther             , Symbol      ,      0 }, // 13052 
 	{ SymbolOther             , Symbol      ,      0 }, // 13053 
 	{ SymbolOther             , Symbol      ,      0 }, // 13054 
-	{ OtherNotAssigned        , Other       ,      0 }, // 13055 
+	{ SymbolOther             , Symbol      ,      0 }, // 13055 
 	{ SymbolOther             , Symbol      ,      0 }, // 13056 
 	{ SymbolOther             , Symbol      ,      0 }, // 13057 
 	{ SymbolOther             , Symbol      ,      0 }, // 13058 
@@ -20001,16 +20001,16 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterOther             , Letter      ,      0 }, // 19891 
 	{ LetterOther             , Letter      ,      0 }, // 19892 
 	{ LetterOther             , Letter      ,      0 }, // 19893 
-	{ OtherNotAssigned        , Other       ,      0 }, // 19894 
-	{ OtherNotAssigned        , Other       ,      0 }, // 19895 
-	{ OtherNotAssigned        , Other       ,      0 }, // 19896 
-	{ OtherNotAssigned        , Other       ,      0 }, // 19897 
-	{ OtherNotAssigned        , Other       ,      0 }, // 19898 
-	{ OtherNotAssigned        , Other       ,      0 }, // 19899 
-	{ OtherNotAssigned        , Other       ,      0 }, // 19900 
-	{ OtherNotAssigned        , Other       ,      0 }, // 19901 
-	{ OtherNotAssigned        , Other       ,      0 }, // 19902 
-	{ OtherNotAssigned        , Other       ,      0 }, // 19903 
+	{ LetterOther             , Letter      ,      0 }, // 19894 
+	{ LetterOther             , Letter      ,      0 }, // 19895 
+	{ LetterOther             , Letter      ,      0 }, // 19896 
+	{ LetterOther             , Letter      ,      0 }, // 19897 
+	{ LetterOther             , Letter      ,      0 }, // 19898 
+	{ LetterOther             , Letter      ,      0 }, // 19899 
+	{ LetterOther             , Letter      ,      0 }, // 19900 
+	{ LetterOther             , Letter      ,      0 }, // 19901 
+	{ LetterOther             , Letter      ,      0 }, // 19902 
+	{ LetterOther             , Letter      ,      0 }, // 19903 
 	{ SymbolOther             , Symbol      ,      0 }, // 19904 
 	{ SymbolOther             , Symbol      ,      0 }, // 19905 
 	{ SymbolOther             , Symbol      ,      0 }, // 19906 
@@ -41051,22 +41051,22 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterOther             , Letter      ,      0 }, // 40941 
 	{ LetterOther             , Letter      ,      0 }, // 40942 
 	{ LetterOther             , Letter      ,      0 }, // 40943 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40944 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40945 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40946 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40947 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40948 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40949 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40950 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40951 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40952 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40953 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40954 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40955 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40956 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40957 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40958 
-	{ OtherNotAssigned        , Other       ,      0 }, // 40959 
+	{ LetterOther             , Letter      ,      0 }, // 40944 
+	{ LetterOther             , Letter      ,      0 }, // 40945 
+	{ LetterOther             , Letter      ,      0 }, // 40946 
+	{ LetterOther             , Letter      ,      0 }, // 40947 
+	{ LetterOther             , Letter      ,      0 }, // 40948 
+	{ LetterOther             , Letter      ,      0 }, // 40949 
+	{ LetterOther             , Letter      ,      0 }, // 40950 
+	{ LetterOther             , Letter      ,      0 }, // 40951 
+	{ LetterOther             , Letter      ,      0 }, // 40952 
+	{ LetterOther             , Letter      ,      0 }, // 40953 
+	{ LetterOther             , Letter      ,      0 }, // 40954 
+	{ LetterOther             , Letter      ,      0 }, // 40955 
+	{ LetterOther             , Letter      ,      0 }, // 40956 
+	{ LetterOther             , Letter      ,      0 }, // 40957 
+	{ LetterOther             , Letter      ,      0 }, // 40958 
+	{ LetterOther             , Letter      ,      0 }, // 40959 
 	{ LetterOther             , Letter      ,      0 }, // 40960 
 	{ LetterOther             , Letter      ,      0 }, // 40961 
 	{ LetterOther             , Letter      ,      0 }, // 40962 
@@ -43051,32 +43051,32 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterLowercase         , Letter      ,      4 }, // 42941 
 	{ LetterUppercase         , Letter      ,      4 }, // 42942 
 	{ LetterLowercase         , Letter      ,      4 }, // 42943 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42944 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42945 
+	{ LetterUppercase         , Letter      ,      4 }, // 42944 
+	{ LetterLowercase         , Letter      ,      4 }, // 42945 
 	{ LetterUppercase         , Letter      ,      4 }, // 42946 
 	{ LetterLowercase         , Letter      ,      4 }, // 42947 
 	{ LetterUppercase         , Letter      ,     98 }, // 42948 
 	{ LetterUppercase         , Letter      ,     44 }, // 42949 
 	{ LetterUppercase         , Letter      ,     80 }, // 42950 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42951 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42952 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42953 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42954 
+	{ LetterUppercase         , Letter      ,      4 }, // 42951 
+	{ LetterLowercase         , Letter      ,      4 }, // 42952 
+	{ LetterUppercase         , Letter      ,      4 }, // 42953 
+	{ LetterLowercase         , Letter      ,      4 }, // 42954 
 	{ OtherNotAssigned        , Other       ,      0 }, // 42955 
 	{ OtherNotAssigned        , Other       ,      0 }, // 42956 
 	{ OtherNotAssigned        , Other       ,      0 }, // 42957 
 	{ OtherNotAssigned        , Other       ,      0 }, // 42958 
 	{ OtherNotAssigned        , Other       ,      0 }, // 42959 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42960 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42961 
+	{ LetterUppercase         , Letter      ,      4 }, // 42960 
+	{ LetterLowercase         , Letter      ,      4 }, // 42961 
 	{ OtherNotAssigned        , Other       ,      0 }, // 42962 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42963 
+	{ LetterLowercase         , Letter      ,      0 }, // 42963 
 	{ OtherNotAssigned        , Other       ,      0 }, // 42964 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42965 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42966 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42967 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42968 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42969 
+	{ LetterLowercase         , Letter      ,      0 }, // 42965 
+	{ LetterUppercase         , Letter      ,      4 }, // 42966 
+	{ LetterLowercase         , Letter      ,      4 }, // 42967 
+	{ LetterUppercase         , Letter      ,      4 }, // 42968 
+	{ LetterLowercase         , Letter      ,      4 }, // 42969 
 	{ OtherNotAssigned        , Other       ,      0 }, // 42970 
 	{ OtherNotAssigned        , Other       ,      0 }, // 42971 
 	{ OtherNotAssigned        , Other       ,      0 }, // 42972 
@@ -43101,11 +43101,11 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ OtherNotAssigned        , Other       ,      0 }, // 42991 
 	{ OtherNotAssigned        , Other       ,      0 }, // 42992 
 	{ OtherNotAssigned        , Other       ,      0 }, // 42993 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42994 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42995 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42996 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42997 
-	{ OtherNotAssigned        , Other       ,      0 }, // 42998 
+	{ LetterModifier          , Letter      ,      0 }, // 42994 
+	{ LetterModifier          , Letter      ,      0 }, // 42995 
+	{ LetterModifier          , Letter      ,      0 }, // 42996 
+	{ LetterUppercase         , Letter      ,      4 }, // 42997 
+	{ LetterLowercase         , Letter      ,      4 }, // 42998 
 	{ LetterOther             , Letter      ,      0 }, // 42999 
 	{ LetterModifier          , Letter      ,      0 }, // 43000 
 	{ LetterModifier          , Letter      ,      0 }, // 43001 
@@ -43159,7 +43159,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ SymbolOther             , Symbol      ,      0 }, // 43049 
 	{ SymbolOther             , Symbol      ,      0 }, // 43050 
 	{ SymbolOther             , Symbol      ,      0 }, // 43051 
-	{ OtherNotAssigned        , Other       ,      0 }, // 43052 
+	{ MarkNonspacing          , Mark        ,      0 }, // 43052 
 	{ OtherNotAssigned        , Other       ,      0 }, // 43053 
 	{ OtherNotAssigned        , Other       ,      0 }, // 43054 
 	{ OtherNotAssigned        , Other       ,      0 }, // 43055 
@@ -43987,10 +43987,10 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterLowercase         , Letter      ,      0 }, // 43877 
 	{ LetterLowercase         , Letter      ,      0 }, // 43878 
 	{ LetterLowercase         , Letter      ,      0 }, // 43879 
-	{ OtherNotAssigned        , Other       ,      0 }, // 43880 
-	{ OtherNotAssigned        , Other       ,      0 }, // 43881 
-	{ OtherNotAssigned        , Other       ,      0 }, // 43882 
-	{ OtherNotAssigned        , Other       ,      0 }, // 43883 
+	{ LetterLowercase         , Letter      ,      0 }, // 43880 
+	{ LetterModifier          , Letter      ,      0 }, // 43881 
+	{ SymbolModifier          , Symbol      ,      0 }, // 43882 
+	{ SymbolModifier          , Symbol      ,      0 }, // 43883 
 	{ OtherNotAssigned        , Other       ,      0 }, // 43884 
 	{ OtherNotAssigned        , Other       ,      0 }, // 43885 
 	{ OtherNotAssigned        , Other       ,      0 }, // 43886 
@@ -64557,7 +64557,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ SymbolModifier          , Symbol      ,      0 }, // 64447 
 	{ SymbolModifier          , Symbol      ,      0 }, // 64448 
 	{ SymbolModifier          , Symbol      ,      0 }, // 64449 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64450 
+	{ SymbolModifier          , Symbol      ,      0 }, // 64450 
 	{ OtherNotAssigned        , Other       ,      0 }, // 64451 
 	{ OtherNotAssigned        , Other       ,      0 }, // 64452 
 	{ OtherNotAssigned        , Other       ,      0 }, // 64453 
@@ -64939,22 +64939,22 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterOther             , Letter      ,      0 }, // 64829 
 	{ PunctuationClose        , Punctuation ,      0 }, // 64830 
 	{ PunctuationOpen         , Punctuation ,      0 }, // 64831 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64832 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64833 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64834 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64835 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64836 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64837 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64838 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64839 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64840 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64841 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64842 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64843 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64844 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64845 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64846 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64847 
+	{ SymbolOther             , Symbol      ,      0 }, // 64832 
+	{ SymbolOther             , Symbol      ,      0 }, // 64833 
+	{ SymbolOther             , Symbol      ,      0 }, // 64834 
+	{ SymbolOther             , Symbol      ,      0 }, // 64835 
+	{ SymbolOther             , Symbol      ,      0 }, // 64836 
+	{ SymbolOther             , Symbol      ,      0 }, // 64837 
+	{ SymbolOther             , Symbol      ,      0 }, // 64838 
+	{ SymbolOther             , Symbol      ,      0 }, // 64839 
+	{ SymbolOther             , Symbol      ,      0 }, // 64840 
+	{ SymbolOther             , Symbol      ,      0 }, // 64841 
+	{ SymbolOther             , Symbol      ,      0 }, // 64842 
+	{ SymbolOther             , Symbol      ,      0 }, // 64843 
+	{ SymbolOther             , Symbol      ,      0 }, // 64844 
+	{ SymbolOther             , Symbol      ,      0 }, // 64845 
+	{ SymbolOther             , Symbol      ,      0 }, // 64846 
+	{ SymbolOther             , Symbol      ,      0 }, // 64847 
 	{ LetterOther             , Letter      ,      0 }, // 64848 
 	{ LetterOther             , Letter      ,      0 }, // 64849 
 	{ LetterOther             , Letter      ,      0 }, // 64850 
@@ -65082,7 +65082,7 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ OtherNotAssigned        , Other       ,      0 }, // 64972 
 	{ OtherNotAssigned        , Other       ,      0 }, // 64973 
 	{ OtherNotAssigned        , Other       ,      0 }, // 64974 
-	{ OtherNotAssigned        , Other       ,      0 }, // 64975 
+	{ SymbolOther             , Symbol      ,      0 }, // 64975 
 	{ OtherNotAssigned        , Other       ,      0 }, // 64976 
 	{ OtherNotAssigned        , Other       ,      0 }, // 64977 
 	{ OtherNotAssigned        , Other       ,      0 }, // 64978 
@@ -65129,8 +65129,8 @@ const KCodePoint::Property KCodePoint::CodePoints[]
 	{ LetterOther             , Letter      ,      0 }, // 65019 
 	{ SymbolCurrency          , Symbol      ,      0 }, // 65020 
 	{ SymbolOther             , Symbol      ,      0 }, // 65021 
-	{ OtherNotAssigned        , Other       ,      0 }, // 65022 
-	{ OtherNotAssigned        , Other       ,      0 }, // 65023 
+	{ SymbolOther             , Symbol      ,      0 }, // 65022 
+	{ SymbolOther             , Symbol      ,      0 }, // 65023 
 	{ MarkNonspacing          , Mark        ,      0 }, // 65024 
 	{ MarkNonspacing          , Mark        ,      0 }, // 65025 
 	{ MarkNonspacing          , Mark        ,      0 }, // 65026 

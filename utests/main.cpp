@@ -61,7 +61,11 @@ int main( int argc, char* const argv[] )
 	KLog::getInstance().KeepCLIMode(true);
 
 	// make sure we use a utf8 locale with english number rules for the utests
-	kSetGlobalLocale("en_US.UTF-8");
+	if (!kSetGlobalLocale("en_US.UTF-8"))
+	{
+		KErr.FormatLine("cannot set en_US.UTF-8 locale, locale is {}", kGetGlobalLocale().name());
+		return -1;
+	}
 
 	bool bSynopsis{false};
 	int  iLast{0};

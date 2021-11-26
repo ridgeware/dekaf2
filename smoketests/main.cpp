@@ -77,6 +77,13 @@ int main( int argc, char* const argv[] )
 	           .SetLevel(0)
 	           .SetOnlyShowCallerOnJsonError(true);
 
+	// make sure we use a utf8 locale with english number rules for the utests
+	if (!kSetGlobalLocale("en_US.UTF-8"))
+	{
+		KErr.FormatLine("cannot set en_US.UTF-8 locale, locale is {}", kGetGlobalLocale().name());
+		return -1;
+	}
+
 	signal (SIGILL,  &kCrashExit);
 	signal (SIGFPE,  &kCrashExit);
 #ifndef DEKAF2_IS_WINDOWS

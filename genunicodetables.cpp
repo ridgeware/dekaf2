@@ -6,6 +6,7 @@
 #include <dekaf2/kctype.h>
 #include <dekaf2/ksplit.h>
 #include <dekaf2/kfrozen.h>
+#include <dekaf2/dekaf2.h>
 #include <vector>
 
 
@@ -429,6 +430,8 @@ int BuildTables(KStringViewZ sFileName)
 int main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
+	KInit(false).SetLocale();
+
 	KOptions Options(false);
 
 	Options.RegisterHelp(g_Help);

@@ -106,7 +106,7 @@ private:
 
 class CaseFold CaseFold;
 
-constexpr uint32_t CODEPOINT_MAX = 0xFFFF;
+constexpr uint32_t CODEPOINT_MAX = 0x1FFFF;
 
 bool bAnnotate = false;
 
@@ -239,8 +239,8 @@ CodePoint::CodePoint(KStringView sLine)
 		bIsFirst      = Part[1].ends_with("First>");
 		bIsLast       = Part[1].ends_with("Last>");
 
-		auto iToUpper = Part[12].UInt16(true);
-		auto iToLower = Part[13].UInt16(true);
+		auto iToUpper = Part[12].UInt32(true);
+		auto iToLower = Part[13].UInt32(true);
 
 		if (iCodepoint <= CODEPOINT_MAX)
 		{
@@ -432,7 +432,7 @@ int main(int argc, char** argv)
 {
 	KInit(false).SetLocale();
 
-	KOptions Options(false);
+	KOptions Options(true);
 
 	Options.RegisterHelp(g_Help);
 

@@ -42,10 +42,7 @@
 #pragma once
 
 /// @file kctype.h
-/// fast unicode character type detection and conversion -
-/// necessary because Windows does not support std::towupper() etc. for Unicode.
-/// Unixes profit as well, as these routines assume the Unicode codepage without
-/// checking the current locale.
+/// fast unicode character type detection and conversion
 
 #include <type_traits>
 #include <cstdint>
@@ -289,7 +286,7 @@ private:
 		LL, LL, LL, LL, LL, LL, LL, LL, LL, LL, LL, PP, PP, PP, PP, CC, // 0x70
 	};
 
-	static constexpr size_t MAX_TABLE = 0xFFFF;
+	static constexpr size_t MAX_TABLE = 0x1FFFF;
 	static constexpr Unicode::codepoint_t MAX_ASCII = 0x7F;
 
 	static const int32_t  CaseFolds[];
@@ -388,11 +385,7 @@ public:
 		}
 		else
 		{
-	#ifdef DEKAF2_IS_WINDOWS
-			return false;
-	#else
 			return std::iswspace(m_CodePoint);
-	#endif
 		}
 	}
 
@@ -422,11 +415,7 @@ public:
 		}
 		else
 		{
-	#ifdef DEKAF2_IS_WINDOWS
-			return false;
-	#else
 			return std::iswblank(m_CodePoint);
-	#endif
 		}
 	}
 
@@ -456,11 +445,7 @@ public:
 		}
 		else
 		{
-	#ifdef DEKAF2_IS_WINDOWS
-			return false;
-	#else
 			return std::iswlower(m_CodePoint);
-	#endif
 		}
 	}
 
@@ -490,11 +475,7 @@ public:
 		}
 		else
 		{
-	#ifdef DEKAF2_IS_WINDOWS
-			return false;
-	#else
 			return std::iswupper(m_CodePoint);
-	#endif
 		}
 	}
 
@@ -554,11 +535,7 @@ public:
 		}
 		else
 		{
-	#ifdef DEKAF2_IS_WINDOWS
-			return false;
-	#else
 			return std::iswalpha(m_CodePoint);
-	#endif
 		}
 	}
 
@@ -588,11 +565,7 @@ public:
 		}
 		else
 		{
-	#ifdef DEKAF2_IS_WINDOWS
-			return false;
-	#else
 			return std::iswalnum(m_CodePoint);
-	#endif
 		}
 	}
 
@@ -622,11 +595,7 @@ public:
 		}
 		else
 		{
-	#ifdef DEKAF2_IS_WINDOWS
-			return false;
-	#else
 			return std::iswpunct(m_CodePoint);
-	#endif
 		}
 	}
 
@@ -734,11 +703,7 @@ public:
 		}
 		else
 		{
-#ifdef DEKAF2_IS_WINDOWS
-			return m_CodePoint;
-#else
 			return std::towupper(m_CodePoint);
-#endif
 		}
 	}
 
@@ -752,11 +717,7 @@ public:
 		}
 		else
 		{
-#ifdef DEKAF2_IS_WINDOWS
-			return m_CodePoint;
-#else
 			return std::towlower(m_CodePoint);
-#endif
 		}
 	}
 

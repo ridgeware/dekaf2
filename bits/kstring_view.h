@@ -483,7 +483,7 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 	// defines the template's static const for c++ < 17
 	template<typename CharT, typename Traits>
-	const CharT basic_string_view<CharT, Traits>::s_chEmpty;
+	constexpr CharT basic_string_view<CharT, Traits>::s_chEmpty;
 #endif
 
 	template<typename CharT, typename Traits>

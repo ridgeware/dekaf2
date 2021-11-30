@@ -46,7 +46,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KHTTPUserAgent
+class DEKAF2_PUBLIC DEKAF2_DEPRECATED("no more maintained") KHTTPUserAgent
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

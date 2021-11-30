@@ -657,8 +657,11 @@ bool operator!=(const KHTTPHeader& left, const KHTTPHeader& right)
 
 } // end of namespace dekaf2
 
+namespace fmt
+{
+
 template <>
-struct fmt::formatter<dekaf2::KHTTPHeader> : formatter<string_view>
+struct formatter<dekaf2::KHTTPHeader> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::KHTTPHeader& Header, FormatContext& ctx)
@@ -666,6 +669,8 @@ struct fmt::formatter<dekaf2::KHTTPHeader> : formatter<string_view>
 		return formatter<string_view>::format(Header.Serialize(), ctx);
 	}
 };
+
+} // end of namespace fmt
 
 namespace std
 {

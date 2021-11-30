@@ -209,7 +209,7 @@ std::size_t kSplit (
 
 } // kSplit with string of delimiters
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) && (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION_MAJOR > 5)
 // precompile for std::vector<KStringView>
 extern template
 std::size_t kSplit(

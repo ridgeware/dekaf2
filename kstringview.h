@@ -1337,8 +1337,10 @@ protected:
 //----------
 
 	//-----------------------------------------------------------------------------
+#ifdef DEKAF2_HAS_CPP_14
 	DEKAF2_ALWAYS_INLINE
 	DEKAF2_CONSTEXPR_14
+#endif
 	void unchecked_remove_prefix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
@@ -1350,8 +1352,10 @@ protected:
 	}
 
 	//-----------------------------------------------------------------------------
+#ifdef DEKAF2_HAS_CPP_14
 	DEKAF2_ALWAYS_INLINE
 	DEKAF2_CONSTEXPR_14
+#endif
 	void unchecked_remove_suffix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
@@ -1440,7 +1444,6 @@ bool operator>=(const KStringView left, const KStringView right)
 
 
 //-----------------------------------------------------------------------------
-inline
 DEKAF2_CONSTEXPR_14
 size_t kFind(
 		const KStringView haystack,

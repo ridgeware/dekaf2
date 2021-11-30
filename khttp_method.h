@@ -139,8 +139,11 @@ private:
 
 } // end of namespace dekaf2
 
+namespace fmt
+{
+
 template <>
-struct fmt::formatter<dekaf2::KHTTPMethod> : formatter<string_view>
+struct formatter<dekaf2::KHTTPMethod> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::KHTTPMethod& Method, FormatContext& ctx)
@@ -148,3 +151,5 @@ struct fmt::formatter<dekaf2::KHTTPMethod> : formatter<string_view>
 		return formatter<string_view>::format(Method.Serialize(), ctx);
 	}
 };
+
+} // end of namespace fmt

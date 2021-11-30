@@ -255,7 +255,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns substring starting at iStart until end of string
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	self_type Mid(size_type iStart) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -265,7 +265,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns substring starting at iStart with size iCount
-	constexpr
+	DEKAF2_CONSTEXPR_14
 	base_type Mid(size_type iStart, size_type iCount) const noexcept
 	//-----------------------------------------------------------------------------
 	{

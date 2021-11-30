@@ -367,12 +367,6 @@ namespace std
 template <typename...>
 using void_t = void;
 
-template<class T>
-constexpr std::size_t tuple_size_v = tuple_size<T>::value;
-
-template< class T, class... Args >
-constexpr bool is_constructible_v = is_constructible<T, Args...>::value;
-
 }
 #endif
 
@@ -402,9 +396,9 @@ namespace std
 	#else
 		// we lack a C++11 implementation..
 		template<typename F, typename Tuple>
-		decltype(auto) apply(F&& f, Tuple&& t)
+		auto apply(F&& f, Tuple&& t)
 		{
-			std::static_assert(false, "dekaf2 misses a C++11-only implementation of std::apply");
+			static_assert(false, "dekaf2 misses a C++11-only implementation of std::apply");
 		}
 	#endif
 } // of namespace std

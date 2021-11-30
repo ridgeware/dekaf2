@@ -265,8 +265,12 @@ public:
 	KLocalTime (time_t tGMTime) : base(tGMTime, true) {}
 	/// construct from a struct tm time
 	KLocalTime (const std::tm& tm_time) : base(tm_time) {}
-	/// construct from a KGMTime
+	/// construct from a KUTCTime
 	KLocalTime (const KUTCTime& gmtime);
+	/// construct from a string representation
+	KLocalTime (KStringView sTimestamp) : KLocalTime(kParseTimestamp(sTimestamp)) {}
+	/// construct from a string representation with format description
+	KLocalTime (KStringView sFormat, KStringView sTimestamp) : KLocalTime(kParseTimestamp(sFormat, sTimestamp)) {}
 
 	/// return time_t
 	time_t ToTimeT () const;
@@ -297,6 +301,10 @@ public:
 	KUTCTime (const std::tm& tm_time) : base(tm_time) {}
 	/// construct from a KLocalTime
 	KUTCTime (const KLocalTime& localtime);
+	/// construct from a string representation
+	KUTCTime (KStringView sTimestamp) : KUTCTime(kParseTimestamp(sTimestamp)) {}
+	/// construct from a string representation with format description
+	KUTCTime (KStringView sFormat, KStringView sTimestamp) : KUTCTime(kParseTimestamp(sFormat, sTimestamp)) {}
 
 	/// return time_t
 	time_t ToTimeT () const;

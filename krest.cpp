@@ -201,14 +201,14 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				{
 					if (Options.bPEMsAreFilenames)
 					{
-						if (!m_Server->LoadSSLCertificates(Options.sCert, Options.sKey))
+						if (!m_Server->LoadSSLCertificates(Options.sCert, Options.sKey, Options.sTLSPassword))
 						{
 							return SetError("could not load TLS certificate");
 						}
 					}
 					else
 					{
-						if (!m_Server->SetSSLCertificates(Options.sCert, Options.sKey))
+						if (!m_Server->SetSSLCertificates(Options.sCert, Options.sKey, Options.sTLSPassword))
 						{
 							return SetError("could not set TLS certificate");
 						}

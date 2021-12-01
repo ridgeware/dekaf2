@@ -114,6 +114,8 @@ public:
 		KString sCert;
 		/// the PEM private key
 		KString sKey;
+		/// the password (if any) needed to decode sCert and sKey
+		KString sTLSPassword;
 		/// the primes used for non-elliptic-curve Diffie-Hellman perfect forward secrecy key exchange (.pem format)
 		/// (leave empty to use elliptic curve DHE only)
 		KString sDHPrimes;

@@ -307,11 +307,6 @@ size_t kFindFirstNotOfInt(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(needle.empty()))
-	{
-		return KStringView::npos;
-	}
-
 	if (DEKAF2_UNLIKELY(pos > 0))
 	{
 		haystack.remove_prefix(pos);
@@ -320,6 +315,11 @@ size_t kFindFirstNotOfInt(
 	if (DEKAF2_UNLIKELY(haystack.empty()))
 	{
 		return KStringView::npos;
+	}
+
+	if (DEKAF2_UNLIKELY(needle.empty()))
+	{
+		return 0;
 	}
 
 #ifdef DEKAF2_X86_64
@@ -394,11 +394,6 @@ size_t kFindLastNotOfInt(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(needle.empty()))
-	{
-		return KStringView::npos;
-	}
-
 	if (DEKAF2_UNLIKELY(pos < haystack.size()))
 	{
 		haystack.remove_suffix(haystack.size() - (pos+1));
@@ -407,6 +402,11 @@ size_t kFindLastNotOfInt(
 	if (DEKAF2_UNLIKELY(haystack.empty()))
 	{
 		return KStringView::npos;
+	}
+
+	if (DEKAF2_UNLIKELY(needle.empty()))
+	{
+		return haystack.size() - 1;
 	}
 
 #ifdef DEKAF2_X86_64

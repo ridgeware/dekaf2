@@ -48,7 +48,7 @@
 #include "kstringview.h"
 
 /// @file ksplit.h
-/// Highly configurable tokenizer template.
+/// Highly configurable tokenizer templates
 
 namespace dekaf2
 {
@@ -56,7 +56,6 @@ namespace dekaf2
 //-----------------------------------------------------------------------------
 /// Splits string into token container using delimiters, trim, and escape. Container is
 /// a sequence, like a vector.
-/// @return count of added tokens.
 /// @param cContainer needs to have a push_back() that can construct an element from
 /// a KStringView.
 /// @param svBuffer the source char sequence.
@@ -70,6 +69,7 @@ namespace dekaf2
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
+/// @return count of added tokens.
 ///
 /// @code
 /// std::vector<KStringView> Words;
@@ -226,8 +226,6 @@ std::size_t kSplit(
 //-----------------------------------------------------------------------------
 /// Splits string into token container using delimiters, trim, and escape. Returned
 /// Container is a sequence, like a vector.
-/// @return a new Container, its type needs to have a push_back() that can construct
-/// an element from a KStringView.
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
 /// @param svTrim a string view containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
@@ -239,6 +237,8 @@ std::size_t kSplit(
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
+/// @return a new Container, its type needs to have a push_back() that can construct
+/// an element from a KStringView.
 ///
 /// @code
 /// auto Words = kSplits("This sentence has five words", " ");
@@ -286,11 +286,11 @@ KStringViewPair kSplitToPairInt(
 
 //-----------------------------------------------------------------------------
 /// Splits one element into a key value pair separated by chDelim, and trims on request.
-/// @return the split key/value pair (KStringViewPair)
 /// @param svBuffer the source char sequence (a string view)
 /// @param svPairDelim a string view that separates key from value. Defaults to "=".
 /// @param svTrim a string containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
+/// @return the split key/value pair (KStringViewPair)
 ///
 /// @code
 /// auto Pair = kSplitToPair("Apples = Oranges");
@@ -486,7 +486,6 @@ private:
 /// Splitting strings into a series of key value pairs (container is a map).
 /// @param cContainer needs to have a insert() that can construct an element from
 /// a KStringViewPair (std::pair<KStringView, KStringView>).
-/// @return count of added key/value pairs.
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
 /// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
@@ -499,6 +498,7 @@ private:
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
+/// @return count of added key/value pairs.
 ///
 /// @code
 /// std::map<KStringView, KStringView> Pairs;
@@ -531,7 +531,6 @@ std::size_t kSplit(
 /// Splitting strings into a series of values (container is a set).
 /// @param cContainer needs to have a insert() that can construct an element from
 /// a KStringView.
-/// @return count of added values.
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
 /// @param svTrim a string containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
@@ -543,6 +542,7 @@ std::size_t kSplit(
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
+/// @return count of added values.
 ///
 /// @code
 /// std::set<KStringView> Fruits;
@@ -571,12 +571,9 @@ std::size_t kSplit(
 }
 
 //-----------------------------------------------------------------------------
-/// Splitting strings into a series of key value pairs (container is a map).
-/// @return A new Container, its type needs to have an insert() that can construct
-/// an element from a KStringViewPair (std::pair<KStringView, KStringView>).
+/// Splitting strings into a series of key value pairs (container is a set).
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
-/// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
 /// @param svTrim a string containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
@@ -586,6 +583,8 @@ std::size_t kSplit(
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
+/// @return A new Container, its type needs to have an insert() that can construct
+/// an element from a KStringView.
 ///
 /// @code
 /// auto Fruits = kSplits<std::set<KStringView>>("Apples, Oranges, Kiwis ,Bananas ");
@@ -611,8 +610,6 @@ Container kSplits(
 
 //-----------------------------------------------------------------------------
 /// Splitting strings into a series of key value pairs (container is a map).
-/// @return A new Container, its type needs to have an insert() that can construct
-/// an element from a KStringViewPair (std::pair<KStringView, KStringView>).
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
 /// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
@@ -625,6 +622,8 @@ Container kSplits(
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
+/// @return A new Container, its type needs to have an insert() that can construct
+/// an element from a KStringViewPair (std::pair<KStringView, KStringView>).
 ///
 /// @code
 /// auto Pairs = kSplits<std::map<KStringView, KStringView>>(Pairs, "Apples = Oranges, Red = 1, Blue = 2,Green=3");
@@ -654,7 +653,6 @@ Container kSplits(
 /// like std::vector).
 /// @param cContainer needs to have a push_back() that can construct an element from
 /// a KStringViewPair (std::pair<KStringView, KStringView>).
-/// @return count of added key/value pairs.
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
 /// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
@@ -667,6 +665,7 @@ Container kSplits(
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
+/// @return count of added key/value pairs.
 ///
 /// @code
 /// std::vector<std::pair<KStringView, KStringView>> Pairs;
@@ -699,8 +698,6 @@ std::size_t kSplit(
 //-----------------------------------------------------------------------------
 /// Splitting strings into a series of key value pairs (container is a sequence type
 /// like std::vector).
-/// @return A new Container, its type needs to have a push_back() that can construct
-/// an element from a KStringViewPair (std::pair<KStringView, KStringView>).
 /// @param svBuffer the source char sequence.
 /// @param svDelim a string view of delimiter characters. Defaults to ",".
 /// @param svPairDelim the string view that is used to separate keys and values in the sequence. Defaults to "=".
@@ -713,6 +710,8 @@ std::size_t kSplit(
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
 /// is not considered part of the token. Defaults to false.
+/// @return A new Container, its type needs to have a push_back() that can construct
+/// an element from a KStringViewPair (std::pair<KStringView, KStringView>).
 ///
 /// @code
 /// auto Pairs = kSplits<std::vector<std::pair<KStringView, KStringView>>>(Pairs, "Apples = Oranges, Red = 1, Blue = 2,Green=3");
@@ -747,13 +746,15 @@ Container kSplits(
 /// @param svDelim a string view of delimiter characters. Defaults to " \f\n\r\t\v\b".
 /// @param svQuotes a string view of quote characters. Defaults to "\"'".
 /// @param chEscape Escape character for delimiters. Defaults to '\\'.
+/// @return count of added tokens.
 ///
 /// @code
 /// std::vector<char*> Words;
-/// bool bHaveWords = kSplitInPlace(Words, "This sentence has five words");
+/// auto iHaveWords = kSplitInPlace(Words, "This sentence has five words");
+/// // -> iHaveWords == 5
 /// @endcode
 template<typename Container, typename String>
-bool kSplitArgsInPlace(
+std::size_t kSplitArgsInPlace(
 	Container&  cContainer,
 	String&     sBuffer,
 	KStringView svDelim  = detail::kASCIISpaces, // default: whitespace delimiter
@@ -765,6 +766,7 @@ bool kSplitArgsInPlace(
 	char* pStart { nullptr };
 	char quoteChar { 0 };
 	bool bEscaped { false };
+	std::size_t iOriginalSize = cContainer.size();
 
 	for (auto& ch : sBuffer)
 	{
@@ -825,7 +827,7 @@ bool kSplitArgsInPlace(
 		cContainer.push_back(pStart);
 	}
 
-	return !cContainer.empty();
+	return cContainer.size() - iOriginalSize;
 
 } // kSplitArgsInPlace
 

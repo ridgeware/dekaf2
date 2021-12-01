@@ -51,16 +51,6 @@ DEKAF2_ALWAYS_INLINE
 bool StripPrefix(KStringView& svBuffer, const KStringView& svTrim)
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_UNLIKELY(svBuffer.empty()))
-	{
-		return false;
-	}
-
-	if (DEKAF2_UNLIKELY(svTrim.empty()))
-	{
-		return true;
-	}
-
 	// Strip prefix space characters.
 	auto iFound = svBuffer.find_first_not_of (svTrim);
 

@@ -147,6 +147,8 @@ public:
 		/// Could be used e.g. for additional authentication, like basic. May throw to abort processing.
 		/// Returned string will be stored as the authenticated user's name.
 		std::function<KString(KRESTServer&)> AuthCallback;
+		/// Set a function that will be called in case of a failed authentication attempt, e.g. to force a redirect to a login page
+		std::function<void(KRESTServer&)> FailedAuthCallback;
 		/// Set a general purpose callback function that will be called before route matching, and before route callbacks.
 		/// Could be used e.g. for additional authentication, like basic, or special routing needs. May throw to abort processing.
 		std::function<void(KRESTServer&)> PreRouteCallback;

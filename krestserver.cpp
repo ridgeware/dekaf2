@@ -137,43 +137,45 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 	switch (Options.AuthLevel)
 	{
 		case Options::ALLOW_ALL:
-			break;
+			return;
 
 		case Options::ALLOW_ALL_WITH_AUTH_HEADER:
-			if (Request.Headers[KHTTPHeader::AUTHORIZATION].empty())
+			if (!Request.Headers.Get(KHTTPHeader::AUTHORIZATION).empty())
 			{
-				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization header" };
+				return;
 			}
 			break;
 
 		case Options::VERIFY_AUTH_HEADER:
 			{
-				auto& Authorization = Request.Headers[KHTTPHeader::AUTHORIZATION];
+				auto& Authorization = Request.Headers.Get(KHTTPHeader::AUTHORIZATION);
 
-				if (Authorization.empty())
+				if (!Authorization.empty())
 				{
-					// failure
-					throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization header" };
-				}
-
-				if (Options.Authenticators.empty())
-				{
-					kWarning("authenticator list is empty");
-				}
-				else
-				{
-					if (m_AuthToken.Check(Authorization, Options.Authenticators, Options.sAuthScope))
+					if (Options.Authenticators.empty())
 					{
-						// success
-						SetAuthenticatedUser(kjson::GetString(GetAuthToken(), "sub"));
-						return;
+						kWarning("authenticator list is empty");
+					}
+					else
+					{
+						if (m_AuthToken.Check(Authorization, Options.Authenticators, Options.sAuthScope))
+						{
+							// success
+							SetAuthenticatedUser(kjson::GetString(GetAuthToken(), "sub"));
+							return;
+						}
 					}
 				}
-				// failure
-				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization" };
 			}
 			break;
 	}
+
+	if (Options.FailedAuthCallback)
+	{
+		Options.FailedAuthCallback(*this);
+	}
+
+	throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization" };
 
 } // VerifyAuthentication
 
@@ -677,6 +679,11 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				{
 					// generic auth was requested, but neither SSO nor any other authentication method
 					// resulted in a user name
+					if (Options.FailedAuthCallback)
+					{
+						Options.FailedAuthCallback(*this);
+					}
+
 					throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization" };
 				}
 			}

@@ -84,7 +84,7 @@ KSSLContext::KSSLContext(bool bIsServer, bool bVerifyCerts)
 
 	if (ec)
 	{
-		kDebug(1, "error setting SSL options {}: {}", options, ec.message());
+		SetError(kFormat("error setting SSL options {}: {}", options, ec.message()));
 	}
 
 	if (bVerifyCerts)
@@ -106,16 +106,14 @@ bool KSSLContext::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KSt
 
 	if (ec)
 	{
-		kDebug(1, "cannot set password callback: {}", ec.message());
-		return false;
+		return SetError(kFormat("cannot set password callback: {}", ec.message()));
 	}
 
 	m_Context.use_certificate_chain_file(sCert.c_str(), ec);
 
 	if (ec)
 	{
-		kDebug(1, "cannot set certificate file {}: {}", sCert, ec.message());
-		return false;
+		return SetError(kFormat("cannot set certificate file {}: {}", sCert, ec.message()));
 	}
 
 	if (sKey.empty())
@@ -128,10 +126,10 @@ bool KSSLContext::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KSt
 
 	if (ec)
 	{
-		kDebug(1, "cannot set key file {}: {}", sKey, ec.message());
-		return false;
+		return SetError(kFormat("cannot set key file {}: {}", sKey, ec.message()));
 	}
 
+	kDebug(2, "TLS certificates successfully loaded");
 	return true;
 
 } // LoadSSLCertificates
@@ -155,16 +153,14 @@ bool KSSLContext::SetSSLCertificates(KStringView sCert, KStringView sKey, KStrin
 
 	if (ec)
 	{
-		kDebug(1, "cannot set password callback: {}", ec.message());
-		return false;
+		return SetError(kFormat("cannot set password callback: {}", ec.message()));
 	}
 
 	m_Context.use_certificate_chain(boost::asio::const_buffer(sCert.data(), sCert.size()), ec);
 
 	if (ec)
 	{
-		kDebug(1, "cannot set certificate: {}", ec.message());
-		return false;
+		return SetError(kFormat("cannot set certificate: {}", ec.message()));
 	}
 
 	if (sKey.empty())
@@ -177,8 +173,7 @@ bool KSSLContext::SetSSLCertificates(KStringView sCert, KStringView sKey, KStrin
 
 	if (ec)
 	{
-		kDebug(1, "cannot set key: {}", ec.message());
-		return false;
+		return SetError(kFormat("cannot set key: {}", ec.message()));
 	}
 
 	kDebug(2, "TLS certificates successfully set");
@@ -203,8 +198,7 @@ bool KSSLContext::SetDHPrimes(KStringView sDHPrimes)
 
 	if (ec)
 	{
-		kDebug(1, "cannot set DH primes: {}", ec.message());
-		return false;
+		return SetError(kFormat("cannot set DH primes: {}", ec.message()));
 	}
 
 	kDebug(2, "DH primes successfully set, server will use perfect forward secrecy");
@@ -300,7 +294,7 @@ bool KSSLContext::SetAllowedCipherSuites(KStringView sCipherSuites)
 			}
 			else
 			{
-				kDebug(1, "setting TLSv1.2 cipher suites failed: {}", sCiphers);
+				SetError(kFormat("setting TLSv1.2 cipher suites failed: {}", sCiphers));
 			}
 		}
 	}
@@ -316,7 +310,7 @@ bool KSSLContext::SetAllowedCipherSuites(KStringView sCipherSuites)
 		}
 		else
 		{
-			kDebug(1, "setting TLSv1.3 cipher suites failed: {}", sCiphers);
+			SetError(kFormat("setting TLSv1.3 cipher suites failed: {}", sCiphers));
 		}
 	}
 #endif
@@ -324,6 +318,16 @@ bool KSSLContext::SetAllowedCipherSuites(KStringView sCipherSuites)
 	return bSuccess;
 
 } // SetAllowedCipherSuites
+
+//-----------------------------------------------------------------------------
+bool KSSLContext::SetError(KString sError)
+//-----------------------------------------------------------------------------
+{
+	m_sError = std::move(sError);
+	kDebug(1, m_sError);
+	return false;
+
+} // SetError
 
 static KSSLContext s_KSSLContextNoVerification   { false, false };
 static KSSLContext s_KSSLContextWithVerification { false, true  };

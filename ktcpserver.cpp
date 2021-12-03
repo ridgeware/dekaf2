@@ -250,10 +250,10 @@ bool KTCPServer::IsPortAvailable(uint16_t iPort)
 } // IsPortAvailable
 
 //-----------------------------------------------------------------------------
-void KTCPServer::TCPServer(bool ipv6)
+bool KTCPServer::TCPServer(bool ipv6)
 //-----------------------------------------------------------------------------
 {
-	DEKAF2_TRY_EXCEPTION
+	DEKAF2_TRY {
 	
 	boost::asio::ip::v6_only v6_only(false);
 
@@ -293,10 +293,9 @@ void KTCPServer::TCPServer(bool ipv6)
 
 	if (!acceptor->is_open())
 	{
-		kDebug(1, "IPv{} listener for port {} could not open",
-		         (ipv6) ? '6' : '4',
-		         m_iPort);
-		return;
+		return SetError(kFormat("IPv{} listener for port {} could not open",
+		                        (ipv6) ? '6' : '4',
+		                        m_iPort));
 	}
 
 	AtomicStarted Started(m_iStarted);
@@ -309,17 +308,17 @@ void KTCPServer::TCPServer(bool ipv6)
 
 		if (!SSLContext.SetSSLCertificates(m_sCert, m_sKey, m_sPassword))
 		{
-			return; // already logged
+			return SetError(SSLContext.Error(), true); // already logged
 		}
 
 		if (!SSLContext.SetDHPrimes(m_sDHPrimes))
 		{
-			return; // already logged
+			return SetError(SSLContext.Error(), true); // already logged
 		}
 
 		if (!SSLContext.SetAllowedCipherSuites(m_sAllowedCipherSuites))
 		{
-			return; // already logged
+			return SetError(SSLContext.Error(), true); // already logged
 		}
 
 		for (;;)
@@ -335,9 +334,9 @@ void KTCPServer::TCPServer(bool ipv6)
 			{
 				if (!m_bQuit)
 				{
-					kDebug(1, "listen error: {}", ec.message());
+					return SetError(kFormat("accept error: {}", ec.message()));
 				}
-				break;
+				return true;
 			}
 
 			kDebug(2, "accepting TLS connection from {}", to_string(remote_endpoint));
@@ -378,9 +377,9 @@ void KTCPServer::TCPServer(bool ipv6)
 			{
 				if (!m_bQuit)
 				{
-					kDebug(1, "listen error: {}", ec.message());
+					return SetError(kFormat("accept error: {}", ec.message()));
 				}
-				break;
+				return true;
 			}
 
 			kDebug(2, "accepting TCP connection from {}", to_string(remote_endpoint));
@@ -405,18 +404,23 @@ void KTCPServer::TCPServer(bool ipv6)
 
 	}
 
-	DEKAF2_LOG_EXCEPTION
+	} DEKAF2_CATCH(const std::exception& e)
+	{
+		SetError(kFormat("exception: ()", e.what()));
+	}
 
 	kDebug(2, "server is closing");
+
+	return false;
 
 } // TCPServer
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 //-----------------------------------------------------------------------------
-void KTCPServer::UnixServer()
+bool KTCPServer::UnixServer()
 //-----------------------------------------------------------------------------
 {
-	DEKAF2_TRY_EXCEPTION
+	DEKAF2_TRY {
 
 	kDebug(2, "opening listener on unix socket at {}", m_sSocketFile);
 
@@ -439,7 +443,7 @@ void KTCPServer::UnixServer()
 
 	if (!acceptor->is_open())
 	{
-		kDebug(1, "listener for socket file {} could not open", m_sSocketFile);
+		SetError(kFormat("listener for socket file {} could not open", m_sSocketFile));
 	}
 	else
 	{
@@ -457,9 +461,9 @@ void KTCPServer::UnixServer()
 			{
 				if (!m_bQuit)
 				{
-					kDebug(1, "listen error: {}", ec.message());
+					return SetError(kFormat("accept error: {}", ec.message()));
 				}
-				break;
+				return true;
 			}
 
 			kDebug(2, "accepting connection from local unix socket");
@@ -485,9 +489,15 @@ void KTCPServer::UnixServer()
 		// remove the socket
 		kRemoveSocket(m_sSocketFile);
 	}
-	DEKAF2_LOG_EXCEPTION
+
+	} DEKAF2_CATCH(const std::exception& e)
+	{
+		SetError(kFormat("exception: ()", e.what()));
+	}
 
 	kDebug(2, "server is closing");
+
+	return false;
 
 } // UnixServer
 #endif
@@ -570,18 +580,16 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 
 	if (IsRunning())
 	{
-		kWarning("Server is already running on port {}", m_iPort);
 		promise.set_value(2);
-		return false;
+		return SetError(kFormat("Server is already running on port {}", m_iPort));
 	}
 
 	if (IsSSL())
 	{
 		if (m_sCert.empty())
 		{
-			kWarning("cannot start SSL server on port {}, have no certificate", m_iPort);
 			promise.set_value(3);
-			return false;
+			return SetError(kFormat("cannot start SSL server on port {}, have no certificate", m_iPort));
 		}
 	}
 
@@ -704,13 +712,13 @@ bool KTCPServer::Stop()
 			Acceptor->cancel(ec);
 			if (ec)
 			{
-				kDebug(1, "error cancelling listener: {}", ec.message());
+				SetError(kFormat("error cancelling listener: {}", ec.message()));
 			}
 			kDebug(2, "closing TCP listener");
 			Acceptor->close(ec);
 			if (ec)
 			{
-				kDebug(1, "error closing listener: {}", ec.message());
+				SetError(kFormat("error closing listener: {}", ec.message()));
 			}
 		}
 	}
@@ -747,13 +755,13 @@ bool KTCPServer::Stop()
 		m_UnixAcceptor->cancel(ec);
 		if (ec)
 		{
-			kDebug(1, "error closing listener: {}", ec.message());
+			SetError(kFormat("error closing listener: {}", ec.message()));
 		}
 		kDebug(2, "closing unix listener");
 		m_UnixAcceptor->close(ec);
 		if (ec)
 		{
-			kDebug(1, "error closing listener: {}", ec.message());
+			SetError(kFormat("error closing listener: {}", ec.message()));
 		}
 
 #ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP
@@ -789,9 +797,7 @@ bool KTCPServer::RegisterShutdownWithSignals(std::vector<int> Signals)
 
 	if (!SignalHandlers)
 	{
-		kDebug(1, "cannot register shutdown handlers, no signal handler thread started");
-
-		return false;
+		return SetError("cannot register shutdown handlers, no signal handler thread started");
 	}
 
 	for (auto iSignal : Signals)
@@ -866,6 +872,20 @@ KTCPServer::param_t KTCPServer::CreateParameters()
 //-----------------------------------------------------------------------------
 {
 	return std::make_unique<Parameters>();
+}
+
+//-----------------------------------------------------------------------------
+bool KTCPServer::SetError(KString sError, bool bNoLogging)
+//-----------------------------------------------------------------------------
+{
+	m_sError = std::move(sError);
+
+	if (!bNoLogging)
+	{
+		kDebug(1, m_sError);
+	}
+
+	return false;
 }
 
 } // end of namespace dekaf2

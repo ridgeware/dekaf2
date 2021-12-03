@@ -238,6 +238,14 @@ public:
 	int GetResult();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// Get error string, if any
+	const KString& Error() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_sError;
+	}
+
 //-------
 protected:
 //-------
@@ -324,6 +332,11 @@ protected:
 		return m_bQuit;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Set error string and log
+	bool SetError(KString sError, bool bNoLogging = false);
+	//-----------------------------------------------------------------------------
+
 //-------
 private:
 //-------
@@ -339,13 +352,13 @@ private:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	void TCPServer(bool ipv6);
+	bool TCPServer(bool ipv6);
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	void UnixServer();
+	bool UnixServer();
 	//-----------------------------------------------------------------------------
 #endif
 
@@ -382,6 +395,7 @@ private:
 	KString          m_sPassword;
 	KString          m_sDHPrimes;
 	KString          m_sAllowedCipherSuites;
+	KString          m_sError;
 	std::future<int> m_ResultAsFuture;
 	std::atomic_int  m_iStarted             {     0 };
 	uint16_t         m_iPort                {     0 };

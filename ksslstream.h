@@ -69,17 +69,21 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// When using this stream object as a server, set its SSL certificate files here (.pem format)
+	/// When using this stream object as a server, set its SSL certificate files here (PEM format)
+	/// The cert file may contain an appended certificate chain as well, and the key if sKey is empty.
+	/// It is however important to have the cert first in the file.
 	bool LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword = KStringView{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// When using this stream object as a server, set its SSL certificate buffers here (strings in .pem format)
+	/// When using this stream object as a server, set its SSL certificate buffers here (strings in PEM format)
+	/// The cert string buffer may contain an appended certificate chain as well, and the key if sKey is empty.
+	/// It is however important to have the cert first in the buffer.
 	bool SetSSLCertificates(KStringView sCert, KStringView sKey, KStringView sPassword = KStringView{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// When using this stream object as a server, set the DH key exchange primes here (string in .pem format)
+	/// When using this stream object as a server, set the pre-computed DH key exchange primes here (string in PEM format)
 	bool SetDHPrimes(KStringView sDHPrimes = KStringView{});
 	//-----------------------------------------------------------------------------
 
@@ -109,15 +113,28 @@ public:
 		return m_bVerify;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Get error string, if any
+	const KString& Error() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_sError;
+	}
+
 //----------
 private:
 //----------
+
+	//-----------------------------------------------------------------------------
+	bool SetError(KString sError);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
 	std::string PasswordCallback(std::size_t max_length, boost::asio::ssl::context::password_purpose purpose) const;
 	//-----------------------------------------------------------------------------
 
+	KString m_sError;
 #if (BOOST_VERSION < 106600)
 	static boost::asio::io_service s_IO_Service;
 #endif

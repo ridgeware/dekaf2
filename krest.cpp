@@ -236,7 +236,10 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
-				m_Server->Start(Options.iTimeout, Options.bBlocking);
+				if (!m_Server->Start(Options.iTimeout, Options.bBlocking))
+				{
+					return SetError(m_Server->Error(), true); // already logged
+				}
 				return true;
 			}
 
@@ -250,7 +253,10 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				m_Server = std::make_unique<RESTServer>(Options, Routes, *m_SocketWatch, Options.sSocketFile, Options.iMaxConnections);
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
-				m_Server->Start(Options.iTimeout, Options.bBlocking);
+				if (!m_Server->Start(Options.iTimeout, Options.bBlocking))
+				{
+					return SetError(m_Server->Error(), true); // already logged
+				}
 				return true;
 			}
 #endif
@@ -314,8 +320,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 
 		case SIMULATE_HTTP:
 			// nothing to do here..
-			SetError ("please use Simulate() for SIMULATE_HTTP REST request type");
-			return false;
+			return SetError ("please use Simulate() for SIMULATE_HTTP REST request type");
 	}
 
 	return true;
@@ -483,8 +488,7 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 			return Simulate(Options, Routes, Options.Simulate.API);
 
 		case KREST::UNDEFINED:
-			kDebug(1, "no KREST server type defined");
-			return false;
+			return SetError("no KREST server type defined");
 
 	} // switch (xOptions.Type)
 
@@ -499,11 +503,16 @@ const KString& KREST::Error() const
 } // Error
 
 //-----------------------------------------------------------------------------
-bool KREST::SetError(KStringView sError)
+bool KREST::SetError(KStringView sError, bool bNoLogging)
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, sError);
 	m_sError = sError;
+
+	if (!bNoLogging)
+	{
+		kDebug (1, m_sError);
+	}
+
 	return false;
 
 } // SetError

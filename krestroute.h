@@ -141,7 +141,13 @@ public:
 	public:
 	//------
 
-		enum OPT { NONE = 0, SSO_AUTH = 1, GENERIC_AUTH = 2 };
+		enum OPT
+		{
+			NONE         = 0,
+			SSO_AUTH     = 1 << 0,
+			GENERIC_AUTH = 1 << 1,
+			NO_SSO_SCOPE = 1 << 2
+		};
 
 		constexpr
 		Options() = default;

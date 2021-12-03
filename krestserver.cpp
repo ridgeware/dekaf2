@@ -163,7 +163,15 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 					}
 					else
 					{
-						if (m_AuthToken.Check(Authorization, Options.Authenticators, Options.sAuthScope))
+						KStringView sScope;
+
+						if (!this->Route->Option.Has(KRESTRoute::Options::NO_SSO_SCOPE))
+						{
+							// set the general SSO scope when NO_SSO_SCOPE is unset
+							sScope = Options.sAuthScope;
+						}
+
+						if (m_AuthToken.Check(Authorization, Options.Authenticators, sScope))
 						{
 							// success
 							SetAuthenticatedUser(kjson::GetString(GetAuthToken(), "sub"));

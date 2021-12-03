@@ -137,17 +137,22 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 	switch (Options.AuthLevel)
 	{
 		case Options::ALLOW_ALL:
+			kDebug(2, "ALLOW_ALL");
+			SetAuthenticatedUser("anonymous");
 			return;
 
 		case Options::ALLOW_ALL_WITH_AUTH_HEADER:
+			kDebug(2, "ALLOW_ALL_WITH_AUTH_HEADER");
 			if (!Request.Headers.Get(KHTTPHeader::AUTHORIZATION).empty())
 			{
+				SetAuthenticatedUser("pseudo-auth");
 				return;
 			}
 			break;
 
 		case Options::VERIFY_AUTH_HEADER:
 			{
+				kDebug(2, "VERIFY_AUTH_HEADER");
 				auto& Authorization = Request.Headers.Get(KHTTPHeader::AUTHORIZATION);
 
 				if (!Authorization.empty())
@@ -165,6 +170,10 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 							return;
 						}
 					}
+				}
+				else
+				{
+					kDebug(2, "auth header is empty..");
 				}
 			}
 			break;

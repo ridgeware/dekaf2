@@ -194,7 +194,7 @@ TEST_CASE("KHTTPClient") {
 		KString shtml;
 		HTTP.Read(shtml);
 		CHECK( shtml == "0123456789");
-		CHECK( server.m_rx.size() == 11 );
+		kMilliSleep(50);
 		if (server.m_rx.size() == 11)
 		{
 			CHECK( server.m_rx[0] == "POST /abc HTTP/1.1" );
@@ -210,6 +210,12 @@ TEST_CASE("KHTTPClient") {
 			CHECK( server.m_rx[8] == ""       );
 			CHECK( server.m_rx[9] == "0"      );
 			CHECK( server.m_rx[10] == ""      );
+		}
+		else
+		{
+			KString sJoined = kJoined(server.m_rx);
+			INFO (sJoined);
+			CHECK( server.m_rx.size() == 11 );
 		}
 	}
 

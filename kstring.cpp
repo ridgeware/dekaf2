@@ -519,7 +519,7 @@ KString::iterator KString::erase(iterator position)
 	// iterator out of range and segfaults if out of range..
 	auto pos = static_cast<size_type>(position - begin());
 
-	if (DEKAF2_LIKELY(pos < size()))
+	if (DEKAF2_LIKELY(pos <= size()))
 	{
 		m_rep.erase(pos, 1);
 		return position;
@@ -540,7 +540,7 @@ KString::iterator KString::erase(iterator first, iterator last)
 	// iterator out of range and segfaults if out of range..
 	auto pos = static_cast<size_type>(first - begin());
 
-	if (DEKAF2_LIKELY(pos < size()))
+	if (DEKAF2_LIKELY(pos <= size()))
 	{
 		auto n = static_cast<size_type>(last - first);
 		m_rep.erase(pos, n);

@@ -71,6 +71,17 @@ public:
 				}
 				else
 				{
+#if 0
+					if (Unicode::UTF8Bytes(iCodepoint) != Unicode::UTF8Bytes(iFoldedTo))
+					{
+						KErr.FormatLine("size {} != size {}, for fold from {} to {} ({})",
+									   Unicode::UTF8Bytes(iCodepoint),
+									   Unicode::UTF8Bytes(iFoldedTo),
+									   Unicode::ToUTF8<KString>(iCodepoint),
+									   Unicode::ToUTF8<KString>(iFoldedTo),
+									   bToLower ? "lower" : "upper");
+					}
+#endif
 					FoldVec.push_back(iFoldDist);
 					return FoldVec.size() - 1;
 				}
@@ -84,7 +95,7 @@ public:
 	void Write(KOutStream& File)
 	//-----------------------------------------------------------------------------
 	{
-		File.WriteLine("const int32_t KCodePoint::CaseFolds[]");
+		File.WriteLine("const std::array<int32_t, KCodePoint::MAX_CASEFOLDS + 1> KCodePoint::CaseFolds");
 		File.WriteLine("{");
 
 		int iCount { 0 };
@@ -345,8 +356,8 @@ bool WriteTables(KStringViewZ sFileName)
 
 	File.WriteLine();
 
-	File.WriteLine("const KCodePoint::Property KCodePoint::CodePoints[]");
-	File.WriteLine("{");
+	File.WriteLine("const std::array<KCodePoint::Property, KCodePoint::MAX_TABLE + 1> KCodePoint::CodePoints");
+	File.WriteLine("{{");
 
 	int iCount { 0 };
 
@@ -355,7 +366,7 @@ bool WriteTables(KStringViewZ sFileName)
 		File.FormatLine("\t{{ {:23s} , {:12s}, {:6d} }}, // {:5d} {}", it.sCategory, it.sType, it.iCaseFold, iCount++, it.sOriginalLine);
 	}
 
-	File.WriteLine("};");
+	File.WriteLine("}};");
 
 	KOut.FormatLine(":: Wrote {} CodePoint values", CodePoints.size());
 

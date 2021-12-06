@@ -274,7 +274,7 @@ bool ToUTF8(Ch sch, Iterator& it)
 
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a UTF8 sequence appended to string sNarrow.
-template<typename Ch, typename NarrowString,
+template<typename NarrowString, typename Ch,
          typename std::enable_if<std::is_integral<Ch>::value
 	                            && detail::HasSize<NarrowString>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
@@ -287,7 +287,7 @@ bool ToUTF8(Ch sch, NarrowString& sNarrow)
 
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a UTF8 sequence returned as string of type NarrowString.
-template<typename Ch, typename NarrowString,
+template<typename NarrowString, typename Ch,
          typename std::enable_if<std::is_integral<Ch>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
 NarrowString ToUTF8(Ch sch)
@@ -300,7 +300,7 @@ NarrowString ToUTF8(Ch sch)
 
 //-----------------------------------------------------------------------------
 /// Convert a wide string (UTF16 or UTF32) into a UTF8 string
-template<typename WideString, typename NarrowString,
+template<typename NarrowString, typename WideString,
          typename std::enable_if<!std::is_integral<WideString>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
 bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)

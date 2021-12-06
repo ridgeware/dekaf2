@@ -47,6 +47,7 @@
 #include <type_traits>
 #include <cstdint>
 #include <cwctype>
+#include <array>
 #include "bits/kcppcompat.h"
 
 namespace dekaf2 {
@@ -273,7 +274,15 @@ public:
 private:
 //------
 
-	static constexpr CTYPE ASCIITable[0x80]
+	//-----------------------------------------------------------------------------
+	Property GetHighUnicodeProperty() const;
+	//-----------------------------------------------------------------------------
+
+	static constexpr Unicode::codepoint_t MAX_ASCII     = 0x7F;
+	static constexpr Unicode::codepoint_t MAX_CASEFOLDS = 0xFF;
+	static constexpr Unicode::codepoint_t MAX_TABLE     = 0x1FFFF;
+
+	static constexpr std::array<CTYPE, MAX_ASCII + 1> ASCIITable
 	{
 	 // 0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xA 0xB 0xC 0xD 0xE 0xF
 		CC, CC, CC, CC, CC, CC, CC, CC, CC, BL, SP, SP, SP, SP, SP, CC, // 0x00
@@ -286,11 +295,8 @@ private:
 		LL, LL, LL, LL, LL, LL, LL, LL, LL, LL, LL, PP, PP, PP, PP, CC, // 0x70
 	};
 
-	static constexpr size_t MAX_TABLE = 0x1FFFF;
-	static constexpr Unicode::codepoint_t MAX_ASCII = 0x7F;
-
-	static const int32_t  CaseFolds[];
-	static const Property CodePoints[];
+	static const std::array<int32_t , MAX_CASEFOLDS + 1> CaseFolds;
+	static const std::array<Property, MAX_TABLE     + 1> CodePoints;
 
 	Unicode::codepoint_t m_CodePoint { 0 };
 
@@ -302,7 +308,14 @@ public:
 	Property GetProperty() const
 	//-----------------------------------------------------------------------------
 	{
-		return CodePoints[m_CodePoint & MAX_TABLE];
+		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
+		{
+			return CodePoints[m_CodePoint];
+		}
+		else
+		{
+			return GetHighUnicodeProperty();
+		}
 	}
 
 	//-----------------------------------------------------------------------------
@@ -325,7 +338,7 @@ public:
 	{
 		auto Prop = GetProperty();
 
-		if (Prop.Category != LetterLowercase)
+		if (Prop.Category == LetterUppercase)
 		{
 			return CaseFolds[Prop.CaseFold];
 		}
@@ -385,7 +398,7 @@ public:
 		}
 		else
 		{
-			return std::iswspace(m_CodePoint);
+			return false;
 		}
 	}
 
@@ -415,7 +428,7 @@ public:
 		}
 		else
 		{
-			return std::iswblank(m_CodePoint);
+			return false;
 		}
 	}
 
@@ -445,7 +458,7 @@ public:
 		}
 		else
 		{
-			return std::iswlower(m_CodePoint);
+			return false;
 		}
 	}
 
@@ -475,7 +488,7 @@ public:
 		}
 		else
 		{
-			return std::iswupper(m_CodePoint);
+			return false;
 		}
 	}
 
@@ -529,14 +542,7 @@ public:
 	bool IsAlpha() const
 	//-----------------------------------------------------------------------------
 	{
-		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
-		{
-			return CodePoints[m_CodePoint].IsAlpha();
-		}
-		else
-		{
-			return std::iswalpha(m_CodePoint);
-		}
+		return GetProperty().IsAlpha();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -559,14 +565,7 @@ public:
 	bool IsAlNum() const
 	//-----------------------------------------------------------------------------
 	{
-		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
-		{
-			return CodePoints[m_CodePoint].IsAlNum();
-		}
-		else
-		{
-			return std::iswalnum(m_CodePoint);
-		}
+		return GetProperty().IsAlNum();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -589,14 +588,7 @@ public:
 	bool IsPunct() const
 	//-----------------------------------------------------------------------------
 	{
-		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
-		{
-			return CodePoints[m_CodePoint].IsPunct();
-		}
-		else
-		{
-			return std::iswpunct(m_CodePoint);
-		}
+		return GetProperty().IsPunct();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -697,42 +689,28 @@ public:
 	KCodePoint ToUpper() const
 	//-----------------------------------------------------------------------------
 	{
-		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
-		{
-			return m_CodePoint + GetCaseFoldToUpper();
-		}
-		else
-		{
-			return std::towupper(m_CodePoint);
-		}
+		return m_CodePoint + GetCaseFoldToUpper();
 	}
 
 	//-----------------------------------------------------------------------------
 	KCodePoint ToLower() const
 	//-----------------------------------------------------------------------------
 	{
-		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
-		{
-			return m_CodePoint - GetCaseFoldToLower();
-		}
-		else
-		{
-			return std::towlower(m_CodePoint);
-		}
+		return m_CodePoint - GetCaseFoldToLower();
 	}
 
 	//-----------------------------------------------------------------------------
 	void MakeUpper()
 	//-----------------------------------------------------------------------------
 	{
-		*this = ToUpper();
+		m_CodePoint += GetCaseFoldToUpper();
 	}
 
 	//-----------------------------------------------------------------------------
 	void MakeLower()
 	//-----------------------------------------------------------------------------
 	{
-		*this = ToLower();
+		m_CodePoint -= GetCaseFoldToLower();
 	}
 
 }; // class KCodePoint

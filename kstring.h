@@ -359,7 +359,7 @@ public:
 	template<class _InputIterator>
 	void insert(const_iterator it, _InputIterator beg, _InputIterator end)              { m_rep.insert(it, beg, end);                 }
 	// should be const_iterator with C++11, but is not supported by libstdc++
-	self& insert (iterator it, std::initializer_list<value_type> il);
+	iterator insert (iterator it, std::initializer_list<value_type> il);
 	self& insert(size_type pos, KStringView sv);
 	self& insert(size_type pos, const std::string& str);
 	self& insert(size_type pos1, const std::string& str, size_type pos2, size_type n = npos);

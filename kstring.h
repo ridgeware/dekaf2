@@ -515,16 +515,10 @@ public:
 	self&& MakeUpperASCII() && { return std::move(MakeUpperASCII()); }
 
 	/// returns a copy of the string in uppercase (UTF8)
-	KString ToUpper() const &;
-
-	/// returns a copy of the string in uppercase (UTF8)
-	self&& ToUpper() && { return std::move(MakeUpper()); }
+	KString ToUpper() const;
 
 	/// returns a copy of the string in lowercase (UTF8)
-	KString ToLower() const &;
-
-	/// returns a copy of the string in lowercase (UTF8)
-	KString ToLower() && { return std::move(MakeLower()); }
+	KString ToLower() const;
 
 	/// returns a copy of the string in uppercase according to the current locale (does not work with UTF8 strings)
 	KString ToUpperLocale() const &;
@@ -1462,14 +1456,14 @@ inline bool KString::Contains(const KString::value_type ch) const noexcept
 }
 
 //-----------------------------------------------------------------------------
-inline KString KString::ToUpper() const &
+inline KString KString::ToUpper() const
 //-----------------------------------------------------------------------------
 {
 	return kToUpper(KStringView(*this));
 }
 
 //-----------------------------------------------------------------------------
-inline KString KString::ToLower() const &
+inline KString KString::ToLower() const
 //-----------------------------------------------------------------------------
 {
 	return kToLower(KStringView(*this));

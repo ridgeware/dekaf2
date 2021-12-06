@@ -757,15 +757,52 @@ KStringView KString::ToView(size_type pos, size_type n) const
 
 } // ToView
 
+/*
+ for the following case folds, the utf8 sizes of
+ upper and lower codepoint are not the same -
+ therefore we cannot do a case change in place..
+
+ size 2 != size 1, for fold from İ to i (toupper)
+ size 2 != size 1, for fold from ı to I (tolower)
+ size 2 != size 1, for fold from ſ to S (tolower)
+ size 2 != size 3, for fold from Ⱥ to ⱥ (toupper)
+ size 2 != size 3, for fold from Ⱦ to ⱦ (toupper)
+ size 2 != size 3, for fold from ȿ to Ȿ (tolower)
+ size 2 != size 3, for fold from ɐ to Ɐ (tolower)
+ size 2 != size 3, for fold from ɑ to Ɑ (tolower)
+ size 2 != size 3, for fold from ɒ to Ɒ (tolower)
+ size 2 != size 3, for fold from ɜ to Ɜ (tolower)
+ size 2 != size 3, for fold from ɡ to Ɡ (tolower)
+ size 2 != size 3, for fold from ɥ to Ɥ (tolower)
+ size 2 != size 3, for fold from ɦ to Ɦ (tolower)
+ size 2 != size 3, for fold from ɫ to Ɫ (tolower)
+ size 2 != size 3, for fold from ɬ to Ɬ (tolower)
+ size 2 != size 3, for fold from ɱ to Ɱ (tolower)
+ size 2 != size 3, for fold from ɽ to Ɽ (tolower)
+ size 2 != size 3, for fold from ʂ to Ʂ (tolower)
+ size 2 != size 3, for fold from ʇ to Ʇ (tolower)
+ size 2 != size 3, for fold from ʝ to Ʝ (tolower)
+ size 2 != size 3, for fold from ʞ to Ʞ (tolower)
+ size 3 != size 2, for fold from ᲀ to В (tolower)
+ size 3 != size 2, for fold from ᲁ to Д (tolower)
+ size 3 != size 2, for fold from ᲂ to О (tolower)
+ size 3 != size 2, for fold from ᲃ to С (tolower)
+ size 3 != size 2, for fold from ᲅ to Т (tolower)
+ size 3 != size 2, for fold from ᲆ to Ъ (tolower)
+ size 3 != size 2, for fold from ᲇ to Ѣ (tolower)
+ size 3 != size 2, for fold from ẞ to ß (toupper)
+ size 3 != size 2, for fold from ι to Ι (tolower)
+ size 3 != size 2, for fold from Ω to ω (toupper)
+ size 3 != size 1, for fold from K to k (toupper)
+ size 3 != size 2, for fold from Å to å (toupper)
+ */
+
 //----------------------------------------------------------------------
 KString& KString::MakeLower() &
 //----------------------------------------------------------------------
 {
-	char* sOut { data() };
-	Unicode::FromUTF8(*this, [&](Unicode::codepoint_t ch)
-	{
-		return Unicode::ToUTF8(kToLower(ch), sOut);
-	});
+	KString sLower = kToLower(ToView());
+	sLower.swap(*this);
 	return *this;
 
 } // MakeLower
@@ -774,11 +811,8 @@ KString& KString::MakeLower() &
 KString& KString::MakeUpper() &
 //----------------------------------------------------------------------
 {
-	char* sOut { data() };
-	Unicode::FromUTF8(*this, [&](Unicode::codepoint_t ch)
-	{
-		return Unicode::ToUTF8(kToUpper(ch), sOut);
-	});
+	KString sUpper = kToUpper(ToView());
+	sUpper.swap(*this);
 	return *this;
 
 } // MakeUpper

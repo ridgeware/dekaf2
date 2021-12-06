@@ -1249,12 +1249,22 @@ TEST_CASE("KString") {
 			KString output;
 		};
 
-		std::vector<parms_t> pvector = {
+		std::vector<parms_t> pvector =
+		{
 			{ ""         , ""        },
 			{ "hello"    , "HELLO"   },
 			{ "öäü"      , "ÖÄÜ"     },
 			{ "HELLO"    , "HELLO"   },
 			{ "ÖÄÜ"      , "ÖÄÜ"     },
+			{ "ⴀⴃ"     , "ႠႣ"      },
+			{ "ალჯ"      , "ᲐᲚᲯ"     },
+			{ "δθμ"      , "ΔΘΜ"     },
+			{ "οδυσσευς" , "ΟΔΥΣΣΕΥΣ"},
+			{ "οδυσσευσ" , "ΟΔΥΣΣΕΥΣ"},
+			{ "ꝗɠŋա𐐲𐑅"   , "ꝖƓŊԱ𐐊𐐝" },
+			{ "жъꚁꙭ"     , "ЖЪꚀꙬ"   },
+			{ "ϡϧϯꜻꜿⱥⱡⱦ" , "ϠϦϮꜺꜾȺⱠȾ"},
+			{ "ꜩꝙꞣꞇ"     , "ꜨꝘꞢꞆ"  },
 		};
 
 		for (const auto& it : pvector)
@@ -1273,12 +1283,21 @@ TEST_CASE("KString") {
 			KString input;
 		};
 
-		std::vector<parms_t> pvector = {
+		std::vector<parms_t> pvector =
+		{
 			{ ""         , ""        },
 			{ "hello"    , "HELLO"   },
 			{ "öäü"      , "ÖÄÜ"     },
 			{ "hello"    , "hello"   },
 			{ "öäü"      , "öäü"     },
+			{ "ⴀⴃ"     , "ႠႣ"      },
+			{ "ალჯ"      , "ᲐᲚᲯ"     },
+			{ "δθμ"      , "ΔΘΜ"     },
+			{ "οδυσσευσ" , "ΟΔΥΣΣΕΥΣ"},
+			{ "ꝗɠŋա𐐲𐑅"   , "ꝖƓŊԱ𐐊𐐝" },
+			{ "жъꚁꙭ"     , "ЖЪꚀꙬ"   },
+			{ "ϡϧϯꜻꜿⱥⱡⱦ" , "ϠϦϮꜺꜾȺⱠȾ"},
+			{ "ꜩꝙꞣꞇ"     , "ꜨꝘꞢꞆ"  },
 		};
 
 		for (const auto& it : pvector)
@@ -1297,12 +1316,22 @@ TEST_CASE("KString") {
 			KString output;
 		};
 
-		std::vector<parms_t> pvector = {
+		std::vector<parms_t> pvector =
+		{
 			{ ""         , ""        },
 			{ "hello"    , "HELLO"   },
 			{ "öäü"      , "ÖÄÜ"     },
 			{ "HELLO"    , "HELLO"   },
 			{ "ÖÄÜ"      , "ÖÄÜ"     },
+			{ "ⴀⴃ"     , "ႠႣ"      },
+			{ "ალჯ"      , "ᲐᲚᲯ"     },
+			{ "δθμ"      , "ΔΘΜ"     },
+			{ "οδυσσευς" , "ΟΔΥΣΣΕΥΣ"},
+			{ "οδυσσευσ" , "ΟΔΥΣΣΕΥΣ"},
+			{ "ꝗɠŋա𐐲𐑅"   , "ꝖƓŊԱ𐐊𐐝" },
+			{ "жъꚁꙭ"     , "ЖЪꚀꙬ"   },
+			{ "ϡϧϯꜻꜿⱥⱡⱦ" , "ϠϦϮꜺꜾȺⱠȾ"},
+			{ "ꜩꝙꞣꞇ"     , "ꜨꝘꞢꞆ"  },
 		};
 
 		for (const auto& it : pvector)
@@ -1330,6 +1359,7 @@ TEST_CASE("KString") {
 			{ "öäü"      , "öäü"     },
 			{ "HELLO"    , "HELLO"   },
 			{ "ÖÄÜ"      , "ÖÄÜ"     },
+			{ "ⴀⴃ"     , "ⴀⴃ"      },
 		};
 
 		for (const auto& it : pvector)
@@ -1351,12 +1381,21 @@ TEST_CASE("KString") {
 			KString input;
 		};
 
-		std::vector<parms_t> pvector = {
+		std::vector<parms_t> pvector =
+		{
 			{ ""         , ""        },
 			{ "hello"    , "HELLO"   },
 			{ "öäü"      , "ÖÄÜ"     },
 			{ "hello"    , "hello"   },
 			{ "öäü"      , "öäü"     },
+			{ "ⴀⴃ"     , "ႠႣ"      },
+			{ "ალჯ"      , "ᲐᲚᲯ"     },
+			{ "δθμ"      , "ΔΘΜ"     },
+			{ "οδυσσευσ" , "ΟΔΥΣΣΕΥΣ"},
+			{ "ꝗɠŋա𐐲𐑅"   , "ꝖƓŊԱ𐐊𐐝" },
+			{ "жъꚁꙭ"     , "ЖЪꚀꙬ"   },
+			{ "ϡϧϯꜻꜿⱥⱡⱦ" , "ϠϦϮꜺꜾȺⱠȾ"},
+			{ "ꜩꝙꞣꞇ"     , "ꜨꝘꞢꞆ"  },
 		};
 
 		for (const auto& it : pvector)

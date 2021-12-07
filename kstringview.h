@@ -985,6 +985,24 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// returns KCcodePoint at UTF8 position iCount
+	KCodePoint AtUTF8(size_type iCount) const
+	//-----------------------------------------------------------------------------
+	{
+		return Unicode::AtUTF8(*this, iCount);
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns true if string contains UTF8 runs
+	bool HasUTF8() const
+	//-----------------------------------------------------------------------------
+	{
+		return Unicode::HasUTF8(*this);
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
 	/// removes white space from the left of the string
 	self& TrimLeft();
 	//-----------------------------------------------------------------------------

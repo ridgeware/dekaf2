@@ -1508,4 +1508,33 @@ TEST_CASE("KStringView") {
 		CHECK ( s2.Merge(s1)           );
 		CHECK ( s2 == sv               );
 	}
+
+	SECTION("HasUTF8")
+	{
+		CHECK ( KStringView(""            ).HasUTF8() == false );
+		CHECK ( KStringView("abcdefg12345").HasUTF8() == false );
+		CHECK ( KStringView("àbcdefg12345").HasUTF8() == true  );
+		CHECK ( KStringView("abcdefà12345").HasUTF8() == true  );
+		CHECK ( KStringView("abcdef12345à").HasUTF8() == true  );
+		CHECK ( KStringView("abc\23412345").HasUTF8() == false );
+		CHECK ( KStringView("abc\210\1231").HasUTF8() == false );
+		CHECK ( KStringView("âbc\210\1231").HasUTF8() == true  );
+		CHECK ( KStringView("abc\210\123â").HasUTF8() == false );
+	}
+
+	SECTION("AtUTF8")
+	{
+		CHECK ( KStringView(""     ).AtUTF8(9) == Unicode::INVALID_CODEPOINT );
+		CHECK ( KStringView("abcæå").AtUTF8(0) ==   'a' );
+		CHECK ( KStringView("abcæå").AtUTF8(1) ==   'b' );
+		CHECK ( KStringView("abcæå").AtUTF8(2) ==   'c' );
+		CHECK ( KStringView("abcæå").AtUTF8(3) ==   230 );
+		CHECK ( KStringView("abcæå").AtUTF8(4) ==   229 );
+		CHECK ( KStringView("aꜩꝙæå").AtUTF8(3) ==  230 );
+		CHECK ( KStringView("aꜩꝙæå").AtUTF8(4) ==  229 );
+		CHECK ( KStringView("åabcæ").AtUTF8(0) ==   229 );
+		CHECK ( KStringView("åꜩbcꝙ").AtUTF8(3) ==  'c' );
+		CHECK ( KStringView("åꜩbcꝙ").AtUTF8(4) == 42841 );
+		CHECK ( KStringView("abcæå").AtUTF8(5) == Unicode::INVALID_CODEPOINT );
+	}
 }

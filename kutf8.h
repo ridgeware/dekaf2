@@ -844,6 +844,61 @@ codepoint_t PrevCodepointFromUTF8(Iterator& it, Iterator ibegin)
 }
 
 //-----------------------------------------------------------------------------
+/// Return codepoint after pos UTF8 codepoints
+template<typename Iterator>
+KUTF8_CONSTEXPR_14
+codepoint_t AtUTF8(Iterator it, Iterator ie, size_t pos)
+//-----------------------------------------------------------------------------
+{
+	auto it2 = LeftUTF8(it, ie, pos);
+	return NextCodepointFromUTF8(it2, ie);
+}
+
+//-----------------------------------------------------------------------------
+/// Return codepoint after pos UTF8 codepoints
+template<typename NarrowString>
+KUTF8_CONSTEXPR_14
+codepoint_t AtUTF8(const NarrowString& sNarrow, size_t pos)
+//-----------------------------------------------------------------------------
+{
+	return AtUTF8(sNarrow.begin(), sNarrow.end(), pos);
+}
+
+//-----------------------------------------------------------------------------
+/// Returns true if the first non-ASCII codepoint is valid UTF8
+template<typename Iterator>
+KUTF8_CONSTEXPR_14
+bool HasUTF8(Iterator it, Iterator ie)
+//-----------------------------------------------------------------------------
+{
+	for (; KUTF8_LIKELY(it < ie) ;)
+	{
+		codepoint_t ch = CodepointCast(*it);
+
+		if (KUTF8_LIKELY(ch < 128))
+		{
+			++it;
+		}
+		else
+		{
+			return NextCodepointFromUTF8(it, ie) != INVALID_CODEPOINT;
+		}
+	}
+
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+/// Returns true if the first non-ASCII codepoint is valid UTF8
+template<typename NarrowString>
+KUTF8_CONSTEXPR_14
+bool HasUTF8(const NarrowString& sNarrow)
+//-----------------------------------------------------------------------------
+{
+	return HasUTF8(sNarrow.begin(), sNarrow.end());
+}
+
+//-----------------------------------------------------------------------------
 /// Convert range between it and ie from UTF8, calling functor func for every
 /// codepoint
 template<typename Iterator, class Functor,

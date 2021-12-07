@@ -247,6 +247,8 @@ public:
 	using base_type::ToLowerASCII;
 	using base_type::MatchRegex;
 	using base_type::MatchRegexGroups;
+	using base_type::AtUTF8;
+	using base_type::HasUTF8;
 	using base_type::Left;
 	using base_type::LeftUTF8;
 	using base_type::operator bool;

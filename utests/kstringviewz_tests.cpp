@@ -1369,5 +1369,34 @@ TEST_CASE("KStringViewZ") {
 		}
 	}
 
+	SECTION("HasUTF8")
+	{
+		CHECK ( KStringViewZ(""            ).HasUTF8() == false );
+		CHECK ( KStringViewZ("abcdefg12345").HasUTF8() == false );
+		CHECK ( KStringViewZ("àbcdefg12345").HasUTF8() == true  );
+		CHECK ( KStringViewZ("abcdefà12345").HasUTF8() == true  );
+		CHECK ( KStringViewZ("abcdef12345à").HasUTF8() == true  );
+		CHECK ( KStringViewZ("abc\23412345").HasUTF8() == false );
+		CHECK ( KStringViewZ("abc\210\1231").HasUTF8() == false );
+		CHECK ( KStringViewZ("âbc\210\1231").HasUTF8() == true  );
+		CHECK ( KStringViewZ("abc\210\123â").HasUTF8() == false );
+	}
+
+	SECTION("AtUTF8")
+	{
+		CHECK ( KStringViewZ(""     ).AtUTF8(9) == Unicode::INVALID_CODEPOINT );
+		CHECK ( KStringViewZ("abcæå").AtUTF8(0) ==   'a' );
+		CHECK ( KStringViewZ("abcæå").AtUTF8(1) ==   'b' );
+		CHECK ( KStringViewZ("abcæå").AtUTF8(2) ==   'c' );
+		CHECK ( KStringViewZ("abcæå").AtUTF8(3) ==   230 );
+		CHECK ( KStringViewZ("abcæå").AtUTF8(4) ==   229 );
+		CHECK ( KStringViewZ("aꜩꝙæå").AtUTF8(3) ==  230 );
+		CHECK ( KStringViewZ("aꜩꝙæå").AtUTF8(4) ==  229 );
+		CHECK ( KStringViewZ("åabcæ").AtUTF8(0) ==   229 );
+		CHECK ( KStringViewZ("åꜩbcꝙ").AtUTF8(3) ==  'c' );
+		CHECK ( KStringViewZ("åꜩbcꝙ").AtUTF8(4) == 42841 );
+		CHECK ( KStringViewZ("abcæå").AtUTF8(5) == Unicode::INVALID_CODEPOINT );
+	}
+
 }
 

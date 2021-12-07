@@ -568,6 +568,12 @@ public:
 	/// returns rightmost codepoints chars of string
 	KStringViewZ RightUTF8(size_type iCount) const;
 
+	/// returns KCcodePoint at UTF8 position iCount
+	KCodePoint AtUTF8(size_type iCount) const;
+
+	/// returns true if string contains UTF8 runs
+	bool HasUTF8() const;
+
 	/// pads string at the left up to iWidth size with chPad
 	self& PadLeft(size_t iWidth, value_type chPad = ' ') &;
 	/// pads string at the left up to iWidth size with chPad
@@ -1712,6 +1718,20 @@ inline KStringViewZ KString::RightUTF8(size_type iCount) const
 //-----------------------------------------------------------------------------
 {
 	return ToView().RightUTF8(iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline KCodePoint KString::AtUTF8(size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return ToView().AtUTF8(iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline bool KString::HasUTF8() const
+//-----------------------------------------------------------------------------
+{
+	return ToView().HasUTF8();
 }
 
 //-----------------------------------------------------------------------------

@@ -244,6 +244,8 @@ TEST_CASE("KTime") {
 		}
 	}
 
+#ifndef DEKAF2_IS_WINDOWS
+	// windows has differing month and day names in e.g. French than Unix
 	SECTION("kParseTimestamp localized")
 	{
 		static constexpr std::array<std::pair<KStringView, KStringView>, 19> Timestamps
@@ -284,6 +286,7 @@ TEST_CASE("KTime") {
 			}
 		}
 	}
+#endif
 
 	SECTION("kGetTimezoneOffset")
 	{
@@ -296,6 +299,8 @@ TEST_CASE("KTime") {
 		CHECK ( kGetTimezoneOffset("HST" ) == -10 * 60 * 60 );
 	}
 
+#ifndef DEKAF2_IS_WINDOWS
+	// windows has differing month and day names in e.g. French than Unix
 	SECTION("kGetLocalizedMonthName")
 	{
 		auto oldLocale = kGetGlobalLocale();
@@ -350,4 +355,5 @@ TEST_CASE("KTime") {
 		}
  */
 	}
+#endif
 }

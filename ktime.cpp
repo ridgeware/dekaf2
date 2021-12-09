@@ -48,8 +48,7 @@
 #include "koutstringstream.h"
 #include "kthreadsafe.h"
 
-// disabled, but we leave the code in
-#if defined(DEKAF2_IS_WINDOWS) && defined(DEKAF2_USE_WINDOWS_TIMEZONEAPI)
+#ifdef DEKAF2_IS_WINDOWS
 	#include <windows.h>
 	#include <timezoneapi.h>
 	#ifdef GetCurrentTime
@@ -177,16 +176,16 @@ std::tm kGetBrokenDownTime (time_t tTime, bool bAsLocalTime)
 KString kFormWebTimestamp (time_t tTime, KStringView sTimezoneDesignator)
 //-----------------------------------------------------------------------------
 {
-	auto time = kGetBrokenDownTime(tTime, false);
+	KUTCTime Time(tTime);
 
 	return kFormat("{}, {:02} {} {:04} {:02}:{:02}:{:02} {}",
-				   kGetDayName(time.tm_wday, true, false),
-				   time.tm_mday,
-				   kGetMonthName(time.tm_mon, true, false),
-				   time.tm_year + 1900,
-				   time.tm_hour,
-				   time.tm_min,
-				   time.tm_sec,
+				   Time.GetDayName(true, false),
+				   Time.GetDay(),
+				   Time.GetMonthName(true, false),
+				   Time.GetYear(),
+				   Time.GetHour(),
+				   Time.GetMinute(),
+				   Time.GetSecond(),
 				   sTimezoneDesignator);
 
 } // kFormWebTimestamp

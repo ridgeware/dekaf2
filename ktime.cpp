@@ -48,7 +48,9 @@
 #include "koutstringstream.h"
 #include "kthreadsafe.h"
 
-#ifdef DEKAF2_IS_WINDOWS
+#define DEKAF2_USE_WINDOWS_TIMEZONEAPI
+
+#if defined(DEKAF2_IS_WINDOWS) && defined(DEKAF2_USE_WINDOWS_TIMEZONEAPI)
 	#include <windows.h>
 	#include <timezoneapi.h>
 	#ifdef GetCurrentTime
@@ -976,11 +978,6 @@ int32_t KLocalTime::GetUTCOffset() const
 #else
 
 #ifdef DEKAF2_USE_WINDOWS_TIMEZONEAPI
-	/* The problem with GetDynamicTimeZoneInformation() is that it does not
-	 * return the correct timezone for the user, only for the system. Therefore
-	 * we use the costly approach to compute the diff through calling both
-	 * mktime() and timegm()..
-	 */
 
 	DYNAMIC_TIME_ZONE_INFORMATION TZID;
 	auto iTZID = GetDynamicTimeZoneInformation(&TZID);
@@ -1068,58 +1065,37 @@ KString kFormTimestamp (time_t tTime, const char* szFormat, bool bAsLocalTime)
 KString kFormCommonLogTimestamp(time_t tTime, bool bAsLocalTime)
 //-----------------------------------------------------------------------------
 {
-	auto time = kGetBrokenDownTime(tTime, bAsLocalTime);
-
 	if (!bAsLocalTime)
 	{
+		KUTCTime Time(tTime);
+
 		// [18/Sep/2011:19:18:28 +0000]
 		return kFormat("[{:02}/{}/{:04}:{:02}:{:02}:{:02} +0000]",
-					   time.tm_mday,
-					   kGetMonthName(time.tm_mon, true, true),
-					   time.tm_year + 1900,
-					   time.tm_hour,
-					   time.tm_min,
-					   time.tm_sec);
+					   Time.GetDay(),
+					   Time.GetMonthName(true, false),
+					   Time.GetYear(),
+					   Time.GetHour(),
+					   Time.GetMinute(),
+					   Time.GetSecond());
 	}
 	else
 	{
+		KLocalTime Time(tTime);
 
-#ifdef DEKAF2_IS_WINDOWS
-
-		int32_t iBias { 0 };
-		DYNAMIC_TIME_ZONE_INFORMATION TZID;
-		auto iTZID          = GetDynamicTimeZoneInformation(&TZID);
-		if (iTZID != TIME_ZONE_ID_INVALID)
-		{
-			iBias = TZID.Bias * 60;
-		}
-		else
-		{
-			kDebug(2, "cannot read time zone information");
-			iBias = static_cast<int32_t>(timegm(const_cast<std::tm*>(&time)) - mktime(const_cast<std::tm*>(&time)));
-		}
-		char chSign         = iBias < 0 ? '-' : '+';
-		auto iMinutes       = abs(iBias / 60);
-		auto iHoursOffset   = iMinutes / 60;
-		auto iMinutesOffset = iMinutes % 60;
-
-#else
-
-		char chSign         = time.tm_gmtoff < 0 ? '-' : '+';
-		auto iMinutesOffset = abs(time.tm_gmtoff / 60);
+		auto iUTCOffset     = Time.GetUTCOffset();
+		char chSign         = iUTCOffset < 0 ? '-' : '+';
+		auto iMinutesOffset = abs(iUTCOffset / 60);
 		auto iHoursOffset   = iMinutesOffset / 60;
 		iMinutesOffset      = iMinutesOffset % 60;
 
-#endif
-
 		// [18/Sep/2011:19:18:28 -0400]
 		return kFormat("[{:02}/{}/{:04}:{:02}:{:02}:{:02} {}{:02}{:02}]",
-					   time.tm_mday,
-					   kGetMonthName(time.tm_mon, true, false),
-					   time.tm_year + 1900,
-					   time.tm_hour,
-					   time.tm_min,
-					   time.tm_sec,
+					   Time.GetDay(),
+					   Time.GetMonthName(true, true),
+					   Time.GetYear(),
+					   Time.GetHour(),
+					   Time.GetMinute(),
+					   Time.GetSecond(),
 					   chSign,
 					   iHoursOffset,
 					   iMinutesOffset);

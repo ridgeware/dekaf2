@@ -983,7 +983,7 @@ int32_t KLocalTime::GetUTCOffset() const
 	auto iTZID = GetDynamicTimeZoneInformation(&TZID);
 	if (iTZD != TIME_ZONE_ID_INVALID)
 	{
-		return TZID.Bias * 60;
+		return iTZID.Bias * 60;
 	}
 
 	kDebug(2, "cannot read time zone information");

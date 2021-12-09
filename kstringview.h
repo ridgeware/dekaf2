@@ -986,6 +986,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns KCcodePoint at UTF8 position iCount
+	DEKAF2_CONSTEXPR_14
 	KCodePoint AtUTF8(size_type iCount) const
 	//-----------------------------------------------------------------------------
 	{
@@ -995,10 +996,21 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns true if string contains UTF8 runs
+	DEKAF2_CONSTEXPR_14
 	bool HasUTF8() const
 	//-----------------------------------------------------------------------------
 	{
 		return Unicode::HasUTF8(*this);
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns the count of unicode codepoints (or, UTF8 sequences)
+	DEKAF2_CONSTEXPR_14
+	size_type SizeUTF8() const
+	//-----------------------------------------------------------------------------
+	{
+		return Unicode::CountUTF8(*this);
 	}
 
 	//-----------------------------------------------------------------------------

@@ -574,6 +574,8 @@ public:
 	/// returns true if string contains UTF8 runs
 	bool HasUTF8() const;
 
+	size_type SizeUTF8() const;
+
 	/// pads string at the left up to iWidth size with chPad
 	self& PadLeft(size_t iWidth, value_type chPad = ' ') &;
 	/// pads string at the left up to iWidth size with chPad
@@ -1732,6 +1734,13 @@ inline bool KString::HasUTF8() const
 //-----------------------------------------------------------------------------
 {
 	return ToView().HasUTF8();
+}
+
+//-----------------------------------------------------------------------------
+inline KString::size_type KString::SizeUTF8() const
+//-----------------------------------------------------------------------------
+{
+	return ToView().SizeUTF8();
 }
 
 //-----------------------------------------------------------------------------

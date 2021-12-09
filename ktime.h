@@ -52,20 +52,46 @@
 namespace dekaf2
 {
 
+// There is a general problem with switching locale data between threads:
+// Currently (C++17/C++20), C++ does not offer a library function that
+// converts a time_t value into a local time std::tm representation
+// _without_ changing the process-global locale (which you should really
+// not do in multi-threaded environments).
+//
+// This library therefore assumes that a global locale is _once_ set at
+// process initialization (e.g. through Dekaf::SetUnicodeLocale() or
+// KInit().SetLocale()), and that all threads then will share the same
+// global locale.
+//
+// If you switch the global locale after you have first used kGetDayName()
+// or kGetMonthName() with blocal==true, the day and month names will not
+// change to the new locale but stay in the locale you first used them with.
+//
+// This affects
+//
+//   kGetDayName()
+//   kGetMonthName()
+//   kFormCommonLogTimeStamp()
+//   kParseTimestamp()
+//   KUTCTime/KLocalTime::GetDayName()
+//   KUTCTime/KLocalTime::GetMonthName()
+//
+// when being used in a local context
+
 //-----------------------------------------------------------------------------
-/// Get the English abbreviated weekday, input 0..6, 0 = Sun
+/// Get the English or local abbreviated or full weekday name, input 0..6, 0 == Sunday
 DEKAF2_PUBLIC
-KStringViewZ kGetAbbreviatedWeekday(uint16_t iDay);
+KStringViewZ kGetDayName(uint16_t iDay, bool bAbbreviated, bool bLocal);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Get the English abbreviated month, input 0..11, 0 = Jan
+/// Get the English or local abbreviated or full month name, input 0..11, 0 == January
 DEKAF2_PUBLIC
-KStringViewZ kGetAbbreviatedMonth(uint16_t iMonth);
+KStringViewZ kGetMonthName(uint16_t iMonth, bool bAbbreviated, bool bLocal);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Returns day of week for every gregorian date. Sunday = 0.
+/// Returns day of week for every gregorian date. Sunday == 0.
 DEKAF2_PUBLIC
 uint16_t kDayOfWeek(uint16_t iDay, uint16_t iMonth, uint16_t iYear);
 //-----------------------------------------------------------------------------
@@ -139,7 +165,7 @@ time_t kGetTimezoneOffset(KStringView sTimezone);
 /// S = milliseconds (ignored for output, but checked for 0..9)
 /// zzz = time zone like "EST"
 /// ZZZZZ = time zone like "-0630",
-/// NNN = abbreviated month name like "jan" (case insensitive),
+/// NNN = abbreviated month name like "Jan", both in English and the user's locale
 /// ? = any character matches
 /// example: "???, DD NNN YYYY hh:mm:ss zzz" for a web time stamp
 /// @return time_t of the time stamp or 0 for error
@@ -193,10 +219,10 @@ public:
 	uint16_t GetSecond () const { return m_time.tm_sec;         }
 	/// return weekday (Sunday == 0)
 	uint16_t GetWeekday() const;
-	/// return English abbreviated weekday
-	KStringViewZ GetDayName   () const;
-	/// return English abbreviated month
-	KStringViewZ GetMonthName () const;
+	/// return English or localized full or abbreviated weekday name
+	KStringViewZ GetDayName   (bool bAbbreviated, bool bLocalized = false) const;
+	/// return English or localized full or abbreviated month name
+	KStringViewZ GetMonthName (bool bAbbreviated, bool bLocalized = false) const;
 
 	/// set day of month (1-based)
 	self& SetDay    (uint16_t iVal) { m_time.tm_mday = iVal;        return *this; }

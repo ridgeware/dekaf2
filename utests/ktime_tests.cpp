@@ -84,8 +84,8 @@ TEST_CASE("KTime") {
 		CHECK ( UTC2.GetMinute()    == 14    );
 		CHECK ( UTC2.GetSecond()    == 16    );
 		CHECK ( UTC2.GetHour12()    == 10    );
-		CHECK ( UTC2.GetDayName()   == "Fri" );
-		CHECK ( UTC2.GetMonthName() == "Nov" );
+		CHECK ( UTC2.GetDayName(true)   == "Fri" );
+		CHECK ( UTC2.GetMonthName(true) == "Nov" );
 		CHECK ( UTC2.IsPM()         == true  );
 		CHECK ( UTC2.Format()       == "1973-11-30 22:14:16" );
 		CHECK ( UTC2.ToTimeT()      == 123545656 );
@@ -99,33 +99,40 @@ TEST_CASE("KTime") {
 		CHECK ( UTC1.Format()       == "1973-12-31 23:59:59" );
 		CHECK ( UTC1.ToTimeT()      == 126230399 );
 		UTC2 = UTC1.ToTimeT();
-		CHECK ( UTC2.GetMonthName() == "Dec" );
-		CHECK ( UTC2.GetDayName()   == "Mon" );
+		CHECK ( UTC2.GetMonthName(true) == "Dec" );
+		CHECK ( UTC2.GetDayName(true)   == "Mon" );
 		CHECK ( UTC2.IsPM()         == true  );
-/*
+
 		auto oldLocale = kGetGlobalLocale();
-		if (kSetGlobalLocale("de_DE.UTF-8"))
+		if (kSetGlobalLocale("fr_FR.UTF-8"))
 		{
-			KScopeGuard TZGuard = [&oldLocale] { std::locale::global(oldLocale); };
+			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
 
 			KLocalTime Local1;
 			Local1 = UTC1;
-			CHECK ( Local1.Format()       == "1974-01-01 00:59:59" );
-			CHECK ( Local1.ToTimeT()      == 126230399 );
-			CHECK ( Local1.GetDay()       == 1     );
-			CHECK ( Local1.GetMonth()     == 1     );
-			CHECK ( Local1.GetYear()      == 1974  );
-			CHECK ( Local1.GetHour()      == 0     );
-			CHECK ( Local1.GetMinute()    == 59    );
-			CHECK ( Local1.GetSecond()    == 59    );
-			CHECK ( Local1.GetHour12()    == 0     );
-			CHECK ( Local1.IsPM()         == false );
-			CHECK ( Local1.GetMonthName() == "Jan" );
-			CHECK ( Local1.GetDayName()   == "Tue" );
-			CHECK ( Local1.GetUTCOffset() == 3600  );
-			CHECK ( kFormTimestamp(UTC1.ToTimeT(), "%A %c", true) == "Dienstag Di  1 Jan 00:59:59 1974" );
+
+			if (Local1.GetUTCOffset() == 60 * 60)
+			{
+				// these checks only work correctly with timezone set to CET
+				CHECK ( Local1.Format()       == "1974-01-01 00:59:59" );
+				CHECK ( Local1.ToTimeT()      == 126230399 );
+				CHECK ( Local1.GetDay()       == 1     );
+				CHECK ( Local1.GetMonth()     == 1     );
+				CHECK ( Local1.GetYear()      == 1974  );
+				CHECK ( Local1.GetHour()      == 0     );
+				CHECK ( Local1.GetMinute()    == 59    );
+				CHECK ( Local1.GetSecond()    == 59    );
+				CHECK ( Local1.GetHour12()    == 0     );
+				CHECK ( Local1.IsPM()         == false );
+				CHECK ( Local1.GetMonthName( true, true) == "jan" );
+				CHECK ( Local1.GetMonthName(false, true) == "janvier" );
+				CHECK ( Local1.GetDayName  ( true, true) == "Mar" );
+				CHECK ( Local1.GetDayName  (false, true) == "Mardi" );
+				CHECK ( Local1.GetUTCOffset() == 3600  );
+				CHECK ( kFormTimestamp(UTC1.ToTimeT(), "%A %c", true) == "Mardi Mar  1 jan 00:59:59 1974" );
+			}
 		}
- */
+
 	}
 
 	SECTION("kParseTimestamp")
@@ -237,6 +244,47 @@ TEST_CASE("KTime") {
 		}
 	}
 
+	SECTION("kParseTimestamp localized")
+	{
+		static constexpr std::array<std::pair<KStringView, KStringView>, 19> Timestamps
+		{{
+			{ "Mer, 03 fév 2021 11:23:42 +0100", "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "Mer, 03 fév 2021 12:23:42 CEST" , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "Mer, 03 fév 2021 11:23:42 CET"  , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "2021 fév 03 12:23:42.211 CEST"  , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "2021 fév 03 11:23:42.211 CET"   , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "03/fév/2021:02:53:42 -0730"     , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "03/fév/2021 02:53:42 -0730"     , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "fév 03 02:53:42 -0730 2021"     , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "fév 03, 2021 10:23:42 AM"       , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "fév 03, 2021 10:23:42 PM"       , "Wed, 03 Feb 2021 22:23:42 GMT" },
+			{ "2021 fév 03 10:23:42.321"       , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "03-fév-2021 10:23:42.321"       , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "2021 fév 03 11:23:42 CET"       , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "fév 03 2021 10:23:42"           , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "10:23:42 fév 03 2021"           , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "03 fév 2021 10:23:42"           , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "03-fév-2021 10:23:42"           , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "03/fév/2021 10:23:42"           , "Wed, 03 Feb 2021 10:23:42 GMT" },
+			{ "03/fév/2021:10:23:42"           , "Wed, 03 Feb 2021 10:23:42 GMT" },
+		}};
+
+		auto oldLocale = kGetGlobalLocale();
+
+		if (kSetGlobalLocale("fr_FR.UTF-8"))
+		{
+			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
+
+			for (auto& Timestamp : Timestamps)
+			{
+				auto tTime = kParseTimestamp(Timestamp.first);
+				auto sTime = kFormHTTPTimestamp(tTime);
+				INFO  ( Timestamp.first );
+				CHECK ( sTime == Timestamp.second );
+			}
+		}
+	}
+
 	SECTION("kGetTimezoneOffset")
 	{
 		CHECK ( kGetTimezoneOffset("XYZ" ) == -1  );
@@ -248,4 +296,58 @@ TEST_CASE("KTime") {
 		CHECK ( kGetTimezoneOffset("HST" ) == -10 * 60 * 60 );
 	}
 
+	SECTION("kGetLocalizedMonthName")
+	{
+		auto oldLocale = kGetGlobalLocale();
+
+		if (kSetGlobalLocale("fr_FR.UTF-8"))
+		{
+			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
+
+			CHECK ( kGetMonthName( 1,  true, true) == "fév"      );
+			CHECK ( kGetMonthName( 7,  true, true) == "aoû"      );
+			CHECK ( kGetMonthName( 0, false, true) == "janvier"  );
+			CHECK ( kGetMonthName(11, false, true) == "décembre" );
+
+			CHECK ( kGetDayName( 1,  true, true) == "Lun"       );
+			CHECK ( kGetDayName( 3,  true, true) == "Mer"       );
+			CHECK ( kGetDayName( 1, false, true) == "Lundi"    );
+			CHECK ( kGetDayName( 3, false, true) == "Mercredi" );
+		}
+/*
+
+ With the current implementation, month and day names will stick
+ to the first locale they were used with - see comment in ktime.h
+
+		if (kSetGlobalLocale("de_DE.UTF-8"))
+		{
+			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
+
+			CHECK ( kGetMonthName( 0,  true, true) == "Jan"      );
+			CHECK ( kGetMonthName( 2,  true, true) == "Mär"      );
+			CHECK ( kGetMonthName( 0, false, true) == "Januar"   );
+			CHECK ( kGetMonthName(11, false, true) == "Dezember" );
+
+			CHECK ( kGetDayName( 1,  true, true) == "Mo"       );
+			CHECK ( kGetDayName( 3,  true, true) == "Mi"       );
+			CHECK ( kGetDayName( 1, false, true) == "Montag"   );
+			CHECK ( kGetDayName( 3, false, true) == "Mittwoch" );
+		}
+
+		if (kSetGlobalLocale("en_US.UTF-8"))
+		{
+			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
+
+			CHECK ( kGetMonthName( 0,  true, true) == "Jan"      );
+			CHECK ( kGetMonthName( 2,  true, true) == "Mar"      );
+			CHECK ( kGetMonthName( 0, false, true) == "January"   );
+			CHECK ( kGetMonthName(11, false, true) == "December" );
+
+			CHECK ( kGetDayName( 1,  true, true) == "Mon"       );
+			CHECK ( kGetDayName( 3,  true, true) == "Wed"       );
+			CHECK ( kGetDayName( 1, false, true) == "Monday"   );
+			CHECK ( kGetDayName( 3, false, true) == "Wednesday" );
+		}
+ */
+	}
 }

@@ -44,8 +44,12 @@
 #include "kfrozen.h"
 #include "dekaf2.h"
 #include "bits/kcppcompat.h"
+#include "kutf8.h"
+#include "koutstringstream.h"
+#include "kthreadsafe.h"
 
-#ifdef DEKAF2_IS_WINDOWS
+// disabled, but we leave the code in
+#if defined(DEKAF2_IS_WINDOWS) && defined(DEKAF2_USE_WINDOWS_TIMEZONEAPI)
 	#include <windows.h>
 	#include <timezoneapi.h>
 	#ifdef GetCurrentTime
@@ -70,6 +74,19 @@ constexpr std::array<KStringViewZ, 7> AbbreviatedWeekdays
 	}
 };
 
+constexpr std::array<KStringViewZ, 7> Weekdays
+{
+	{
+		"Sunday",
+		"Monday",
+		"Tuesday",
+		"Wednesday",
+		"Thursday",
+		"Friday",
+		"Saturday"
+	}
+};
+
 constexpr std::array<KStringViewZ, 12> AbbreviatedMonths
 {
 	{
@@ -85,6 +102,24 @@ constexpr std::array<KStringViewZ, 12> AbbreviatedMonths
 		"Oct",
 		"Nov",
 		"Dec"
+	}
+};
+
+constexpr std::array<KStringViewZ, 12> Months
+{
+	{
+		"January",
+		"February",
+		"March",
+		"April",
+		"May",
+		"June",
+		"July",
+		"August",
+		"September",
+		"October",
+		"November",
+		"December"
 	}
 };
 
@@ -145,9 +180,9 @@ KString kFormWebTimestamp (time_t tTime, KStringView sTimezoneDesignator)
 	auto time = kGetBrokenDownTime(tTime, false);
 
 	return kFormat("{}, {:02} {} {:04} {:02}:{:02}:{:02} {}",
-				   kGetAbbreviatedWeekday(time.tm_wday),
+				   kGetDayName(time.tm_wday, true, false),
 				   time.tm_mday,
-				   kGetAbbreviatedMonth(time.tm_mon),
+				   kGetMonthName(time.tm_mon, true, false),
 				   time.tm_year + 1900,
 				   time.tm_hour,
 				   time.tm_min,
@@ -231,7 +266,121 @@ time_t kParseWebTimestamp (KStringView sTime, bool bOnlyGMT)
 
 } // kParseWebTimestamp
 
+//-----------------------------------------------------------------------------
+std::array<KString, 12> OSGetLocalMonthNames(bool bAbbreviated, const std::locale& locale = std::locale())
+//-----------------------------------------------------------------------------
+{
+	auto&   TimePut = std::use_facet<std::time_put<char>>(locale);
+	std::tm tm{};
+
+	std::array<KString, 12> Names;
+
+	for (uint16_t iMon = 0; iMon < 12; ++iMon)
+	{
+		KOutStringStream oss(Names[iMon]);
+		tm.tm_mon = iMon;
+		TimePut.put(std::ostreambuf_iterator<char>(oss), oss, ' ', &tm, bAbbreviated ? 'b' : 'B', 0);
+	}
+
+	return Names;
+}
+
+//-----------------------------------------------------------------------------
+std::array<KString, 7> OSGetLocalDayNames(bool bAbbreviated, const std::locale& locale = std::locale())
+//-----------------------------------------------------------------------------
+{
+	auto&   TimePut = std::use_facet<std::time_put<char>>(locale);
+	std::tm tm{};
+
+	std::array<KString, 7> Names;
+
+	for (uint16_t iDay = 0; iDay < 7; ++iDay)
+	{
+		KOutStringStream oss(Names[iDay]);
+		tm.tm_wday = iDay;
+		TimePut.put(std::ostreambuf_iterator<char>(oss), oss, ' ', &tm, bAbbreviated ? 'a' : 'A', 0);
+	}
+
+	return Names;
+}
+
+//-----------------------------------------------------------------------------
+const std::array<KString, 12>& GetLocalMonthNames(bool bAbbreviated)
+//-----------------------------------------------------------------------------
+{
+	static std::array<KString, 12> s_LocalizedMonthNames            = OSGetLocalMonthNames(false);
+	static std::array<KString, 12> s_LocalizedAbbreviatedMonthNames = OSGetLocalMonthNames( true);
+
+	return (bAbbreviated) ? s_LocalizedAbbreviatedMonthNames : s_LocalizedMonthNames;
+
+} // kGetLocalMonthNames
+
+//-----------------------------------------------------------------------------
+const std::array<KString, 7>& GetLocalDayNames(bool bAbbreviated)
+//-----------------------------------------------------------------------------
+{
+	static std::array<KString, 7> s_LocalizedDayNames            = OSGetLocalDayNames(false);
+	static std::array<KString, 7> s_LocalizedAbbreviatedDayNames = OSGetLocalDayNames( true);
+
+	return (bAbbreviated) ? s_LocalizedAbbreviatedDayNames : s_LocalizedDayNames;
+
+} // kGetLocalDayNames
+
 } // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+KStringViewZ kGetDayName(uint16_t iDay, bool bAbbreviated, bool bLocal)
+//-----------------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(iDay > 6))
+	{
+		return {};
+	}
+
+	if (bLocal)
+	{
+		return GetLocalDayNames(bAbbreviated)[iDay];
+	}
+	else
+	{
+		if (bAbbreviated)
+		{
+			return AbbreviatedWeekdays[iDay];
+		}
+		else
+		{
+			return Weekdays[iDay];
+		}
+	}
+
+} // kGetDayName
+
+//-----------------------------------------------------------------------------
+KStringViewZ kGetMonthName(uint16_t iMonth, bool bAbbreviated, bool bLocal)
+//-----------------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(iMonth > 11))
+	{
+		return {};
+	}
+
+	if (bLocal)
+	{
+		return GetLocalMonthNames(bAbbreviated)[iMonth];
+	}
+	else
+	{
+		if (bAbbreviated)
+		{
+			return AbbreviatedMonths[iMonth];
+		}
+		else
+		{
+			return Months[iMonth];
+		}
+	}
+
+} // kGetMonthName
 
 //-----------------------------------------------------------------------------
 time_t kGetTimezoneOffset(KStringView sTimezone)
@@ -428,12 +577,15 @@ time_t kParseTimestamp(KStringView sFormat, KStringView sTimestamp)
 		return iValue <= iMax;
 	};
 
-	auto iSize = sFormat.size();
-
-	if (iSize != sTimestamp.size() || iSize == 0)
+	//-----------------------------------------------------------------------------
+	auto AddUnicodeChar = [](KStringView::const_iterator& it,
+							 KStringView::const_iterator ie,
+							 KString& sValue)
+	//-----------------------------------------------------------------------------
 	{
-		return 0;
-	}
+		auto cp = Unicode::NextCodepointFromUTF8(it, ie);
+		Unicode::ToUTF8(cp, sValue);
+	};
 
 	KString  sMonthName;
 	KString  sTimezoneName;
@@ -446,9 +598,15 @@ time_t kParseTimestamp(KStringView sFormat, KStringView sTimestamp)
 	int16_t  iTimezoneIsNeg   { 0 };
 
 	auto iTs = sTimestamp.begin();
+	auto eTs = sTimestamp.end();
 
 	for (auto chFormat : sFormat)
 	{
+		if (iTs == eTs)
+		{
+			return 0;
+		}
+
 		auto ch = *iTs++;
 
 		// compare timestamp with format
@@ -516,16 +674,8 @@ time_t kParseTimestamp(KStringView sFormat, KStringView sTimestamp)
 				break;
 
 			case 'N':
-				// english month name (abbreviated)
-				if (!KASCII::kIsAlpha(ch)) return 0;
-				if (sMonthName.empty())
-				{
-					sMonthName += KASCII::kToUpper(ch);
-				}
-				else
-				{
-					sMonthName += KASCII::kToLower(ch);
-				}
+				// month name (abbreviated)
+				AddUnicodeChar(--iTs, eTs, sMonthName);
 				break;
 
 			case 'z': // PST, GMT, ..
@@ -577,6 +727,12 @@ time_t kParseTimestamp(KStringView sFormat, KStringView sTimestamp)
 		}
 	}
 
+	if (iTs != eTs)
+	{
+		// we must have consumed all sTimestamp characters - else fail
+		return 0;
+	}
+
 	if (tm.tm_mday == 0)
 	{
 		return 0;
@@ -602,19 +758,34 @@ time_t kParseTimestamp(KStringView sFormat, KStringView sTimestamp)
 
 	if (tm.tm_mon == 0)
 	{
-		if (sMonthName.size() != 3)
+		if (sMonthName.empty())
 		{
 			return 0;
 		}
 
-		auto it = std::find(AbbreviatedMonths.begin(), AbbreviatedMonths.end(), sMonthName);
+		// search the english month names first, if the name size is 3
+		auto it = sMonthName.size() == 3 ? std::find(AbbreviatedMonths.begin(), AbbreviatedMonths.end(), sMonthName) : AbbreviatedMonths.end();
 
-		if (it == AbbreviatedMonths.end())
+		if (it != AbbreviatedMonths.end())
 		{
-			return 0;
+			tm.tm_mon = static_cast<int>(it - AbbreviatedMonths.begin());
 		}
+		else
+		{
+			auto& Months = GetLocalMonthNames(true);
 
-		tm.tm_mon = static_cast<int>(it - AbbreviatedMonths.begin());
+			// now search the local month names
+			auto it2 = std::find(Months.begin(), Months.end(), sMonthName);
+
+			if (it2 == Months.end())
+			{
+				return 0;
+			}
+			else
+			{
+				tm.tm_mon = static_cast<int>(it2 - Months.begin());
+			}
+		}
 	}
 	else
 	{
@@ -646,17 +817,20 @@ time_t kParseTimestamp(KStringView sTimestamp)
 	}; // TimeFormat
 
 	// order formats by size
-	static constexpr std::array<TimeFormat, 54> Formats
+	static constexpr std::array<TimeFormat, 57> Formats
 	{{
 		{ "???, DD NNN YYYY hh:mm:ss ZZZZZ", 25 }, // WWW timestamp with timezone
-		{ "???, DD NNN YYYY hh:mm:ss zzzz" , 25 }, // WWW timestamp with abbreviated timezone
-		{ "???, DD NNN YYYY hh:mm:ss zzz"  , 25 }, // WWW timestamp with abbreviated timezone
+		{ "???, DD NNN YYYY hh:mm:ss zzzz" , 25 }, // WWW timestamp with abbreviated timezone name
+		{ "??, DD NNN YYYY hh:mm:ss ZZZZZ" , 24 }, // WWW timestamp with timezone and two letter day name
+		{ "???, DD NNN YYYY hh:mm:ss zzz"  , 25 }, // WWW timestamp with abbreviated timezone name
 		{ "YYYY-MM-DD hh:mm:ss.SSS ZZZZZ"  , 19 }, // 2018-04-13 22:08:13.211 -0700
 		{ "YYYY-MM-DD hh:mm:ss,SSS ZZZZZ"  , 19 }, // 2018-04-13 22:08:13,211 -0700
+		{ "??, DD NNN YYYY hh:mm:ss zzzz"  , 24 }, // WWW timestamp with abbreviated timezone name and two letter day name
 		{ "YYYY NNN DD hh:mm:ss.SSS zzzz"  , 24 }, // 2017 Mar 03 05:12:41.211 CEST
 		{ "YYYY NNN DD hh:mm:ss.SSS zzz"   , 24 }, // 2017 Mar 03 05:12:41.211 PDT
 		{ "YYYY-MM-DD hh:mm:ss.SSSZZZZZ"   , 19 }, // 2018-04-13 22:08:13.211-0700
 		{ "YYYY-MM-DD hh:mm:ss,SSSZZZZZ"   , 19 }, // 2018-04-13 22:08:13,211-0700
+		{ "??, DD NNN YYYY hh:mm:ss zzz"   , 24 }, // WWW timestamp with abbreviated timezone name and two letter day name
 		{ "DD/NNN/YYYY:hh:mm:ss ZZZZZ"     , 11 }, // 19/Apr/2017:06:36:15 -0700
 		{ "DD/NNN/YYYY hh:mm:ss ZZZZZ"     , 11 }, // 19/Apr/2017 06:36:15 -0700
 		{ "NNN DD hh:mm:ss ZZZZZ YYYY"     , 15 }, // Jan 21 18:20:11 +0000 2017
@@ -707,7 +881,7 @@ time_t kParseTimestamp(KStringView sTimestamp)
 		{ "YYYYMMDDhhmmss"                 ,  0 }, // 20021230171234
 	}};
 
-	auto iSize = sTimestamp.size();
+	auto iSize = sTimestamp.SizeUTF8();
 
 	for (auto Format : Formats)
 	{
@@ -717,7 +891,11 @@ time_t kParseTimestamp(KStringView sTimestamp)
 		{
 			auto iCheckPos = Format.iPos;
 
-			if (iCheckPos == 0 || Format.sFormat[iCheckPos] == sTimestamp[iCheckPos])
+			bool bHasUTF8Runs = iSize != sTimestamp.size();
+
+			if (iCheckPos == 0 ||
+				(!bHasUTF8Runs && Format.sFormat[iCheckPos] == sTimestamp[iCheckPos]) ||
+				( bHasUTF8Runs && Unicode::CodepointCast(Format.sFormat[iCheckPos]) == sTimestamp.AtUTF8(iCheckPos)))
 			{
 				auto tTime = kParseTimestamp(Format.sFormat, sTimestamp);
 
@@ -758,20 +936,18 @@ uint16_t KBrokenDownTime::GetWeekday() const
 } // GetWeekday
 
 //-----------------------------------------------------------------------------
-KStringViewZ KBrokenDownTime::GetDayName() const
+KStringViewZ KBrokenDownTime::GetDayName(bool bAbbreviated, bool bLocal) const
 //-----------------------------------------------------------------------------
 {
-	return kGetAbbreviatedWeekday(GetWeekday());
-
-} // GetDayName
+	return kGetDayName(GetWeekday(), bAbbreviated, bLocal);
+}
 
 //-----------------------------------------------------------------------------
-KStringViewZ KBrokenDownTime::GetMonthName() const
+KStringViewZ KBrokenDownTime::GetMonthName(bool bAbbreviated, bool bLocal) const
 //-----------------------------------------------------------------------------
 {
-	return kGetAbbreviatedMonth(m_time.tm_mon);
-
-} // GetMonthName
+	return kGetMonthName(static_cast<uint16_t>(m_time.tm_mon), bAbbreviated, bLocal);
+}
 
 } // end of namespace detail
 
@@ -800,10 +976,12 @@ int32_t KLocalTime::GetUTCOffset() const
 
 #else
 
+#ifdef DEKAF2_USE_WINDOWS_TIMEZONEAPI
 	/* The problem with GetDynamicTimeZoneInformation() is that it does not
 	 * return the correct timezone for the user, only for the system. Therefore
 	 * we use the costly approach to compute the diff through calling both
 	 * mktime() and timegm()..
+	 */
 
 	DYNAMIC_TIME_ZONE_INFORMATION TZID;
 	auto iTZID = GetDynamicTimeZoneInformation(&TZID);
@@ -814,10 +992,11 @@ int32_t KLocalTime::GetUTCOffset() const
 
 	kDebug(2, "cannot read time zone information");
 
-	 *
-	 */
+#else
 
 	return static_cast<int32_t>(timegm(const_cast<std::tm*>(&m_time)) - ToTimeT());
+
+#endif
 
 #endif
 
@@ -839,39 +1018,13 @@ time_t KUTCTime::ToTimeT() const
 } // ToTimeT
 
 //-----------------------------------------------------------------------------
-KStringViewZ kGetAbbreviatedWeekday(uint16_t iDay)
-//-----------------------------------------------------------------------------
-{
-	if (iDay < AbbreviatedWeekdays.size())
-	{
-		return AbbreviatedWeekdays[iDay];
-	}
-
-	return {};
-
-} // kGetAbbreviatedWeekday
-
-//-----------------------------------------------------------------------------
-KStringViewZ kGetAbbreviatedMonth(uint16_t iMonth)
-//-----------------------------------------------------------------------------
-{
-	if (iMonth < AbbreviatedMonths.size())
-	{
-		return AbbreviatedMonths[iMonth];
-	}
-
-	return {};
-
-} // kGetAbbreviatedMonth
-
-//-----------------------------------------------------------------------------
 /// Returns day of week for every gregorian date. Sunday = 0.
 uint16_t kDayOfWeek(uint16_t iDay, uint16_t iMonth, uint16_t iYear)
 //-----------------------------------------------------------------------------
 {
 	static constexpr std::array<uint16_t, 12> MonthOffsets { 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
 
-	if (iMonth < 1 || iMonth > 12)
+	if (DEKAF2_UNLIKELY(iMonth < 1 || iMonth > 12))
 	{
 		// prevent us from crashing
 		kDebug(1, "invalid month: {}", iMonth);
@@ -895,7 +1048,7 @@ KString kFormTimestamp (const std::tm& time, const char* szFormat)
 
 	auto iLength = strftime (sBuffer.data(), sBuffer.size(), szFormat, &time);
 
-	if (iLength == sBuffer.size())
+	if (DEKAF2_UNLIKELY(iLength == sBuffer.size()))
 	{
 		kWarning("format string too long: {}", szFormat);
 	}
@@ -923,7 +1076,7 @@ KString kFormCommonLogTimestamp(time_t tTime, bool bAsLocalTime)
 		// [18/Sep/2011:19:18:28 +0000]
 		return kFormat("[{:02}/{}/{:04}:{:02}:{:02}:{:02} +0000]",
 					   time.tm_mday,
-					   kGetAbbreviatedMonth(time.tm_mon),
+					   kGetMonthName(time.tm_mon, true, true),
 					   time.tm_year + 1900,
 					   time.tm_hour,
 					   time.tm_min,
@@ -963,7 +1116,7 @@ KString kFormCommonLogTimestamp(time_t tTime, bool bAsLocalTime)
 		// [18/Sep/2011:19:18:28 -0400]
 		return kFormat("[{:02}/{}/{:04}:{:02}:{:02}:{:02} {}{:02}{:02}]",
 					   time.tm_mday,
-					   kGetAbbreviatedMonth(time.tm_mon),
+					   kGetMonthName(time.tm_mon, true, false),
 					   time.tm_year + 1900,
 					   time.tm_hour,
 					   time.tm_min,

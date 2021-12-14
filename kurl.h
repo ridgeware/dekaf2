@@ -1167,8 +1167,19 @@ public:
 	bool IsHttpURL () const
 	//-------------------------------------------------------------------------
 	{
-		return (Protocol == url::KProtocol::HTTP || Protocol == url::KProtocol::HTTPS || Protocol == url::KProtocol::AUTO)
-		        && (!Domain.empty());
+		return (Protocol == url::KProtocol::HTTPS ||
+				Protocol == url::KProtocol::HTTP  ||
+				Protocol == url::KProtocol::AUTO)
+		        && !Domain.empty();
+	}
+
+	//-------------------------------------------------------------------------
+	/// is this a valid HTTPS URL?
+	bool IsHttpsURL () const
+	//-------------------------------------------------------------------------
+	{
+		return Protocol == url::KProtocol::HTTPS
+		       && !Domain.empty();
 	}
 
 	//-------------------------------------------------------------------------

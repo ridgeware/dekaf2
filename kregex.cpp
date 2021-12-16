@@ -127,6 +127,10 @@ bool Replace(KString& str,
 {
 	re2::StringPiece vec[kVecSize];
 	int nvec = 1 + re2::RE2::MaxSubmatch(rewrite);
+	if (nvec > 1 + re.NumberOfCapturingGroups())
+	{
+		return false;
+	}
 	if (nvec > kVecSize)
 	{
 		return false;
@@ -144,8 +148,8 @@ bool Replace(KString& str,
 		return false;
 	}
 
-	assert(vec[0].begin() >= str.data());
-	assert(vec[0].end() <= str.data()+str.size());
+	assert(vec[0].data() >= str.data());
+	assert(vec[0].data() + vec[0].size() <= str.data() + str.size());
 
 	str.replace(vec[0].data() - str.data(), vec[0].size(), s);
 
@@ -161,6 +165,10 @@ int GlobalReplace(KString& str,
 {
 	re2::StringPiece vec[kVecSize];
 	int nvec = 1 + re2::RE2::MaxSubmatch(rewrite);
+	if (nvec > 1 + re.NumberOfCapturingGroups())
+	{
+		return false;
+	}
 	if (nvec > kVecSize)
 	{
 		return false;
@@ -181,19 +189,18 @@ int GlobalReplace(KString& str,
 		{
 			break;
 		}
-		if (p < vec[0].begin())
+		if (p < vec[0].data())
 		{
-			out.append(p, vec[0].begin() - p);
+			out.append(p, vec[0].data() - p);
 		}
-		if (vec[0].begin() == lastend && vec[0].empty())
+		if (vec[0].data() == lastend && vec[0].empty())
 		{
 			// Disallow empty match at end of last match: skip ahead.
 			//
-			// fullrune() takes int, not size_t. However, it just looks
+			// fullrune() takes int, not ptrdiff_t. However, it just looks
 			// at the leading byte and treats any length >= 4 the same.
 			if (re.options().encoding() == RE2::Options::EncodingUTF8 &&
-			    re2::fullrune(p, static_cast<int>(std::min(static_cast<ptrdiff_t>(4),
-			                                          ep - p))))
+				re2::fullrune(p, static_cast<int>(std::min(ptrdiff_t{4}, ep - p))))
 			{
 				// re is in UTF-8 mode and there is enough left of str
 				// to allow us to advance by up to UTFmax bytes.
@@ -223,7 +230,7 @@ int GlobalReplace(KString& str,
 			continue;
 		}
 		Rewrite(out, rewrite, vec, nvec);
-		p = vec[0].end();
+		p = vec[0].data() + vec[0].size();
 		lastend = p;
 		count++;
 	}

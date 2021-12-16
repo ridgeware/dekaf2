@@ -92,41 +92,6 @@ KString kFormat(KStringView sFormat, fmt::format_args args)
 
 } // kFormat
 
-//-----------------------------------------------------------------------------
-/// formats a std::ostream using POSIX printf syntax
-std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, fmt::printf_args args)
-//-----------------------------------------------------------------------------
-{
-	DEKAF2_TRY
-	{
-		fmt::vfprintf(os, sFormat.operator fmt::string_view(), args);
-	}
-	DEKAF2_CATCH (std::exception& e)
-	{
-		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h",
-						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));
-	}
-	return os;
-
-} // kfFormat
-
-//-----------------------------------------------------------------------------
-/// formats a KString using POSIX printf syntax
-KString kPrintf(KStringView sFormat, fmt::printf_args args)
-//-----------------------------------------------------------------------------
-{
-	KString sOut;
-	
-	{
-		KOutStringStream oss(sOut);
-		kfPrintf(oss, sFormat, args);
-	}
-
-	return sOut;
-
-} // kFormat
-
-
 } // end of namespace detail
 
 } // end of namespace dekaf2

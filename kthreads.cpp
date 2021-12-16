@@ -41,6 +41,24 @@
 
 #include "kthreads.h"
 #include "klog.h"
+#include "koutstringstream.h"
+
+namespace fmt {
+
+template <>
+struct formatter<std::thread::id> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const std::thread::id& id, FormatContext& ctx) const
+	{
+		dekaf2::KString sID;
+		dekaf2::KOutStringStream oss(sID);
+		oss << id;
+		return formatter<string_view>::format(sID, ctx);
+	}
+};
+
+} // end of namespace fmt
 
 namespace dekaf2 {
 

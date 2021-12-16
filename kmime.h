@@ -464,3 +464,18 @@ public:
 }; // KMIMEDirectory
 
 } // end of namespace dekaf2
+
+namespace fmt
+{
+
+template <>
+struct formatter<dekaf2::KMIME> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KMIME& MIME, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(MIME.Serialize(), ctx);
+	}
+};
+
+} // end of namespace fmt

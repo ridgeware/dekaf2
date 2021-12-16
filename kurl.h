@@ -1390,7 +1390,7 @@ template <>
 struct formatter<dekaf2::url::KUser> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KUser& URICompoment, FormatContext& ctx)
+	auto format(const dekaf2::url::KUser& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
@@ -1400,7 +1400,7 @@ template <>
 struct formatter<dekaf2::url::KPassword> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KPassword& URICompoment, FormatContext& ctx)
+	auto format(const dekaf2::url::KPassword& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
@@ -1410,7 +1410,7 @@ template <>
 struct formatter<dekaf2::url::KDomain> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KDomain& URICompoment, FormatContext& ctx)
+	auto format(const dekaf2::url::KDomain& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
@@ -1420,7 +1420,7 @@ template <>
 struct formatter<dekaf2::url::KPort> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KPort& URICompoment, FormatContext& ctx)
+	auto format(const dekaf2::url::KPort& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
@@ -1430,7 +1430,7 @@ template <>
 struct formatter<dekaf2::url::KPath> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KPath& URICompoment, FormatContext& ctx)
+	auto format(const dekaf2::url::KPath& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
@@ -1440,7 +1440,7 @@ template <>
 struct formatter<dekaf2::url::KQuery> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KQuery& URICompoment, FormatContext& ctx)
+	auto format(const dekaf2::url::KQuery& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
@@ -1450,7 +1450,7 @@ template <>
 struct formatter<dekaf2::url::KFragment> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KFragment& URICompoment, FormatContext& ctx)
+	auto format(const dekaf2::url::KFragment& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
@@ -1460,7 +1460,7 @@ template <>
 struct formatter<dekaf2::url::KProtocol> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KProtocol& URICompoment, FormatContext& ctx)
+	auto format(const dekaf2::url::KProtocol& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
@@ -1470,7 +1470,7 @@ template <>
 struct formatter<dekaf2::KResource> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KResource& Resource, FormatContext& ctx)
+	auto format(const dekaf2::KResource& Resource, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(Resource.Serialize(), ctx);
 	}
@@ -1480,7 +1480,7 @@ template <>
 struct formatter<dekaf2::KURL> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KURL& URL, FormatContext& ctx)
+	auto format(const dekaf2::KURL& URL, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URL.Serialize(), ctx);
 	}
@@ -1490,7 +1490,7 @@ template <>
 struct formatter<dekaf2::KTCPEndPoint> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KTCPEndPoint& EndPoint, FormatContext& ctx)
+	auto format(const dekaf2::KTCPEndPoint& EndPoint, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(EndPoint.Serialize(), ctx);
 	}

@@ -664,7 +664,7 @@ template <>
 struct formatter<dekaf2::KHTTPHeader> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KHTTPHeader& Header, FormatContext& ctx)
+	auto format(const dekaf2::KHTTPHeader& Header, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(Header.Serialize(), ctx);
 	}

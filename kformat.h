@@ -57,10 +57,6 @@ DEKAF2_PUBLIC
 std::ostream& kfFormat(std::ostream& os, KStringView sFormat, fmt::format_args args);
 DEKAF2_PUBLIC
 KString kFormat(KStringView sFormat, fmt::format_args args);
-DEKAF2_PUBLIC
-std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, fmt::printf_args args);
-DEKAF2_PUBLIC
-KString kPrintf(KStringView sFormat, fmt::printf_args args);
 
 } // end of namespace detail
 
@@ -101,47 +97,6 @@ KString kFormat(KStringView sFormat, Args&&... args)
 //-----------------------------------------------------------------------------
 {
 	return detail::kFormat(sFormat, fmt::make_format_args(args...));
-}
-
-//-----------------------------------------------------------------------------
-/// format-noop for a file
-inline DEKAF2_PUBLIC
-DEKAF2_DEPRECATED("only for compatibility with old code")
-std::ostream& kfPrintf(std::ostream& os, KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-	os.write(sFormat.data(), sFormat.size());
-	return os;
-}
-
-//-----------------------------------------------------------------------------
-/// formats a file using POSIX printf syntax
-template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
-DEKAF2_DEPRECATED("only for compatibility with old code")
-std::ostream& kfPrintf(std::ostream& os, KStringView sFormat, Args&&... args)
-//-----------------------------------------------------------------------------
-{
-	return detail::kfPrintf(os, sFormat, fmt::make_printf_args(args...));
-}
-
-//-----------------------------------------------------------------------------
-/// format no-op
-inline DEKAF2_PUBLIC
-DEKAF2_DEPRECATED("only for compatibility with old code")
-KString kPrintf(KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-	return sFormat;
-}
-
-//-----------------------------------------------------------------------------
-/// formats a KString using POSIX printf syntax
-template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
-DEKAF2_DEPRECATED("only for compatibility with old code")
-KString kPrintf(KStringView sFormat, Args&&... args)
-//-----------------------------------------------------------------------------
-{
-	return detail::kPrintf(sFormat, fmt::make_printf_args(args...));
 }
 
 } // end of namespace dekaf2

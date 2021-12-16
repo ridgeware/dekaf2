@@ -146,7 +146,7 @@ detail::KSharedMemoryBase::KSharedMemoryBase(KStringView sPathname,
 {
 	if (m_sPathname.front() != '/')
 	{
-		m_sPathname.insert(0UL, 1UL, '/');
+		m_sPathname.insert(KString::size_type(0), KString::size_type(1), '/');
 	}
 
 	// first try open mode (if bForceCreation is not set)

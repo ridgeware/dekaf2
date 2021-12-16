@@ -8,11 +8,6 @@ include(ExternalProject)
 add_subdirectory(fmt-7.1.3)
 
 # add fast regular expressions
-if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
-	# re2 has a number of missing field initializers and unused parameters.
-	# we assume this is on purpose and disable the warning / error.
-	add_compile_options(-Wno-implicit-fallthrough -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unreachable-code)
-endif()
 add_subdirectory(re2)
 
 # add the frozen lib (constexpr set and map)

@@ -19,7 +19,7 @@ option(USEPCRE "use PCRE in tests and benchmarks" OFF)
 
 # CMake seems to have no way to enable/disable testing per subproject,
 # so we provide an option similar to BUILD_TESTING, but just for RE2.
-option(RE2_BUILD_TESTING "enable testing for RE2" ON)
+option(RE2_BUILD_TESTING "enable testing for RE2" OFF)
 
 # ABI version
 # http://tldp.org/HOWTO/Program-Library-HOWTO/shared-libraries.html
@@ -81,8 +81,26 @@ set(RE2_SOURCES
     util/strutil.cc
     )
 
+set(RE2_HEADERS
+    re2/filtered_re2.h
+    re2/prefilter.h
+    re2/prefilter_tree.h
+    re2/prog.h
+    re2/pod_array.h
+    re2/re2.h
+    re2/regexp.h
+    re2/set.h
+	re2/sparse_array.h
+	re2/sparse_set.h
+    re2/stringpiece.h
+    re2/unicode_casefold.h
+    re2/unicode_groups.h
+    re2/walker-inl.h
+    util/strutil.h
+    )
+
 add_library(re2 ${RE2_SOURCES} ${RE2_HEADERS})
-target_include_directories(re2 PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+target_include_directories(re2 PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> $<INSTALL_INTERFACE:${dekaf2_include_dest}>)
 set_target_properties(re2 PROPERTIES SOVERSION ${SONAME} VERSION ${SONAME}.0.0)
 add_library(re2::re2 ALIAS re2)
 

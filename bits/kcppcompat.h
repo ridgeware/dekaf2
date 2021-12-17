@@ -610,7 +610,19 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 #endif
 
 #ifdef __arm__
+	// this is a 32 bit arm, never 64 bit
 	#define DEKAF2_ARM 1
+	#define DEKAF2_ARM32 1
+#endif
+
+#ifdef __aarch64__
+	// this is a 64 bit arm, never 32 bit
+	#define DEKAF2_AARCH64 1
+	#define DEKAF2_ARM64 1
+#endif
+
+#ifdef __powerpc64__
+	#define DEKAF2_PPC64 1
 #endif
 
 #ifdef DEKAF2_X86_64

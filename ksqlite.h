@@ -482,8 +482,8 @@ public:
 		iterator& operator++();
 		Row& operator*() { return *m_pRow; }
 		Row* operator->() { return m_pRow; }
-		bool operator==(const iterator& other) { return m_pRow == other.m_pRow; }
-		bool operator!=(const iterator& other) { return !operator==(other);     }
+		friend bool operator==(const iterator& left, const iterator& right) { return left.m_pRow == right.m_pRow;  }
+		friend bool operator!=(const iterator& left, const iterator& right) { return !operator==(left, right);     }
 
 	//----------
 	private:

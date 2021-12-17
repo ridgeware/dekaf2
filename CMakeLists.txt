@@ -40,7 +40,7 @@ cmake_minimum_required(VERSION 3.13)
 cmake_policy(SET CMP0048 NEW)
 
 # declare the project
-project(dekaf2 VERSION 2.0.0 DESCRIPTION "C++14/17 rapid application development framework")
+project(dekaf2 VERSION 2.0.0 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -70,7 +70,8 @@ OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 # =================================== C++ STANDARD =================================
 
 set(CMAKE_CXX_STANDARD 20)
-# we do not force C++17 if not available, cmake will pick the highest available
+# we do not force C++20 if not available, cmake will pick the highest available
+# dekaf2 supports 14/17/20, and also 11 for mostly all code
 # set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ==================================== BUILD TYPE ==================================

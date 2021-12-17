@@ -1065,7 +1065,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileTypes Types, bool bRecursi
 
 		if (Types.contains(FT))
 		{
-			m_DirEntries.emplace_back(sDirectory, Entry.path().filename().u8string(), FT);
+			m_DirEntries.emplace_back(sDirectory, Entry.path().filename().string(), FT);
 		}
 
 		if (bRecursive && Entry.symlink_status().type() == fs::file_type::directory)
@@ -1074,7 +1074,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileTypes Types, bool bRecursi
 			KStringView sDir = sDirectory;
 			sDir.TrimRight(detail::kAllowedDirSep);
 			// recurse through the subdirectories
-			Open(kFormat("{}{}{}", sDir, kDirSep, Entry.path().filename().u8string()), Types, true, false);
+			Open(kFormat("{}{}{}", sDir, kDirSep, Entry.path().filename().string()), Types, true, false);
 		}
 	}
 
@@ -1470,7 +1470,7 @@ KString kNormalizePath(KStringView sPath)
 
 	std::error_code ec;
 
-	return fs::weakly_canonical(kToFilesystemPath(sPath), ec).u8string();
+	return fs::weakly_canonical(kToFilesystemPath(sPath), ec).string();
 
 #else
 

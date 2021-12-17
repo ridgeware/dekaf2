@@ -159,7 +159,7 @@ KString kGetCWD ()
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
 	std::error_code ec;
-	KString sPath = fs::current_path(ec).u8string();
+	KString sPath = fs::current_path(ec).string();
 	if (ec)
 	{
 		kWarning("cannot get current working directory: {}", ec.message());
@@ -229,7 +229,7 @@ KString kGetTemp()
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
-	KString sTemp = fs::temp_directory_path().u8string();
+	KString sTemp = fs::temp_directory_path().string();
 #else
 	KString sTemp = kGetEnv("TMPDIR");
 

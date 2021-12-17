@@ -69,7 +69,7 @@ OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 
 # =================================== C++ STANDARD =================================
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 # we do not force C++17 if not available, cmake will pick the highest available
 # set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

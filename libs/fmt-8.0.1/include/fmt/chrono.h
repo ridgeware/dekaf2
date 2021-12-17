@@ -308,7 +308,16 @@ inline auto do_write(const std::tm& time, const std::locale& loc, char format,
 #else
   using code_unit = char32_t;
 #endif
-  auto& f = std::use_facet<std::codecvt<code_unit, char, std::mbstate_t>>(loc);
+#if FMT_CLANG_VERSION
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+  using codecvt = std::codecvt<code_unit, char, std::mbstate_t>;
+  auto& f = std::use_facet<codecvt>(loc);
+#if FMT_CLANG_VERSION
+#  pragma clang diagnostic pop
+#endif
+
   auto mb = std::mbstate_t();
   const char* from_next = nullptr;
   code_unit* to_next = nullptr;

@@ -48,6 +48,7 @@
 #include "kprops.h"
 #include "kstream.h"
 #include "kformat.h"
+#include "bits/ktemplate.h"
 #include <cinttypes>
 
 
@@ -99,7 +100,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	template<typename T, typename U = typename Storage::value_type,
-	         typename std::enable_if<std::is_pod<U>::value == true &&
+	         typename std::enable_if<dekaf2::detail::is_pod<U>::value &&
 	                                 std::is_convertible<T, U>::value == true, int>::type = 0>
 	URIComponent (const T& t)
 	//-------------------------------------------------------------------------
@@ -470,7 +471,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return begin iterator
-	template<typename T = typename Storage::value_type, typename std::enable_if<std::is_pod<T>::value == false, int>::type = 0 >
+	template<typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
 	auto begin()
 	//-------------------------------------------------------------------------
 	{
@@ -479,7 +480,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return begin iterator
-	template<typename T = typename Storage::value_type, typename std::enable_if<std::is_pod<T>::value == false, int>::type = 0 >
+	template<typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
 	auto begin() const
 	//-------------------------------------------------------------------------
 	{
@@ -488,7 +489,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return end iterator
-	template<typename T = typename Storage::value_type, typename std::enable_if<std::is_pod<T>::value == false, int>::type = 0 >
+	template<typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
 	auto end()
 	//-------------------------------------------------------------------------
 	{
@@ -497,7 +498,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return end iterator
-	template<typename T = typename Storage::value_type, typename std::enable_if<std::is_pod<T>::value == false, int>::type = 0 >
+	template<typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
 	auto end() const
 	//-------------------------------------------------------------------------
 	{

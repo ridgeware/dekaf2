@@ -152,6 +152,15 @@ struct is_chrono_duration : std::false_type {};
 template <typename R, typename P>
 struct is_chrono_duration<std::chrono::duration<R, P>> : std::true_type {};
 
+template<class T>
+struct is_pod
+  : std::integral_constant<
+	  bool,
+	  std::is_standard_layout<T>::value &&
+	  std::is_trivial<T>::value
+> {};
+
+
 } // of namespace detail
 
 class KString;

@@ -507,7 +507,7 @@ FOLLY_PACK_PUSH
 template <class T>
 struct Unaligned<
     T,
-    typename std::enable_if<std::is_pod<T>::value>::type> {
+    typename std::enable_if<std::is_standard_layout<T>::value && std::is_trivial<T>::value>::type> {
   Unaligned() = default;  // uninitialized
   /* implicit */ Unaligned(T v) : value(v) { }
   T value;

@@ -54,7 +54,7 @@ namespace dekaf2 {
 bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode)
 //-----------------------------------------------------------------------------
 {
-	close();
+	reset();
 
 	// find the content length
 	KStringView sRemainingContentSize = headers.Headers.Get(KHTTPHeader::CONTENT_LENGTH);
@@ -95,6 +95,11 @@ bool KInHTTPFilter::SetupInputFilter()
 	// the user the chance to switch off compression AFTER reading
 	// the headers
 
+	if (!m_Filter)
+	{
+		return false;
+	}
+
 	if (m_bAllowUncompression)
 	{
 		if (m_Compression == GZIP)
@@ -133,7 +138,7 @@ bool KInHTTPFilter::SetupInputFilter()
 KInStream& KInHTTPFilter::FilteredStream()
 //-----------------------------------------------------------------------------
 {
-	if (m_Filter->empty())
+	if (m_Filter && m_Filter->empty())
 	{
 		SetupInputFilter();
 	}
@@ -145,7 +150,7 @@ KInStream& KInHTTPFilter::FilteredStream()
 std::streamsize KInHTTPFilter::Count() const
 //-----------------------------------------------------------------------------
 {
-	if (!m_Filter->empty())
+	if (m_Filter && !m_Filter->empty())
 	{
 		auto chunker = m_Filter->component<KChunkedSource>(static_cast<int>(m_Filter->size()-1));
 
@@ -172,7 +177,7 @@ std::streamsize KInHTTPFilter::Count() const
 bool KInHTTPFilter::ResetCount()
 //-----------------------------------------------------------------------------
 {
-	if (!m_Filter->empty())
+	if (m_Filter && !m_Filter->empty())
 	{
 		auto chunker = m_Filter->component<KChunkedSource>(static_cast<int>(m_Filter->size()-1));
 
@@ -245,19 +250,28 @@ bool KInHTTPFilter::ReadLine(KString& sBuffer)
 } // ReadLine
 
 //-----------------------------------------------------------------------------
+void KInHTTPFilter::reset()
+//-----------------------------------------------------------------------------
+{
+	if (m_Filter && !m_Filter->empty())
+	{
+		m_Filter->reset();
+	}
+	m_Compression         = NONE;
+	m_bChunked            = false;
+	m_bAllowUncompression = true;
+	m_iContentSize        = -1;
+
+} // reset
+
+//-----------------------------------------------------------------------------
 void KInHTTPFilter::close()
 //-----------------------------------------------------------------------------
 {
-	if (!m_Filter->empty())
-	{
-		m_Filter->reset();
-		m_Compression         = NONE;
-		m_bChunked            = false;
-		m_bAllowUncompression = true;
-		m_iContentSize        = -1;
-	}
+	reset();
+	ResetInputStream();
 
-} // reset
+} // close
 
 KInStringStream KInHTTPFilter::s_Empty;
 

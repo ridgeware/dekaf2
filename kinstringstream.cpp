@@ -56,8 +56,12 @@ std::streamsize detail::KStringReader(void* sBuffer, std::streamsize iCount, voi
 		auto pOutBuf = reinterpret_cast<char*>(sBuffer);
 		auto pInBuf = reinterpret_cast<KStringView*>(sSourceBuf);
 		iRead = std::min(static_cast<size_t>(iCount), pInBuf->size());
-		pInBuf->copy(pOutBuf, iRead, 0);
-		pInBuf->remove_prefix(iRead);
+
+		if (iRead > 0)
+		{
+			pInBuf->copy(pOutBuf, iRead, 0);
+			pInBuf->remove_prefix(iRead);
+		}
 	}
 	
 	return iRead;

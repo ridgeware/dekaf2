@@ -264,15 +264,24 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 {
 	SetError(KStringView{});
 
+	// clear the response object, otherwise a previous
+	// status would prevail if not overwritten by a new connection
+	Response.clear();
+
 	m_Connection = std::move(Connection);
 
-	if (!m_Connection)
+	if (!m_Connection || !m_Connection->Good())
 	{
 		// Reset the streams in the filters, as they may now
 		// point into a deleted connection object from a
 		// previous connection!
 		Response.ResetInputStream();
 		Request.ResetOutputStream();
+
+		if (m_Connection && !m_Connection->Good())
+		{
+			return SetError(m_Connection->Error());
+		}
 
 		return SetError("KConnection is invalid");
 	}
@@ -294,11 +303,6 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 
 	// this is a new connection, so initially assume no proxying
 	m_bUseHTTPProxyProtocol	= false;
-
-	if (!m_Connection->Good())
-	{
-		return SetError(m_Connection->Error());
-	}
 
 	return true;
 
@@ -352,11 +356,16 @@ bool KHTTPClient::Connect(const KURL& url)
 			                (url::KProtocol::UNDEFINED && url.Port.get() == 443);
 
 			// try to read proxy setup from environment
-			KURL Proxy(kGetEnv(bIsHTTPS ? "HTTPS_PROXY" : "HTTP_PROXY"));
+			auto sProxy = kGetEnv(bIsHTTPS ? "HTTPS_PROXY" : "HTTP_PROXY");
 
-			if (!Proxy.empty())
+			if (!sProxy.empty())
 			{
-				return Connect(url, Proxy);
+				KURL Proxy(sProxy);
+
+				if (!Proxy.empty())
+				{
+					return Connect(url, Proxy);
+				}
 			}
 		}
 	}
@@ -784,7 +793,7 @@ bool KHTTPClient::StatusIsRedirect() const
 bool KHTTPClient::Parse()
 //-----------------------------------------------------------------------------
 {
-	Request.close();
+	Request.reset();
 
 	m_bKeepAlive = true;
 

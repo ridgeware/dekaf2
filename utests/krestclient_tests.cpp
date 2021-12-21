@@ -72,6 +72,7 @@ TEST_CASE("KRESTCLIENT")
 		KREST::Options Options;
 		Options.Type = KREST::HTTP;
 		Options.iPort = 6780;
+		Options.iTimeout = 1;
 		Options.bBlocking = false;
 		// we set the option although we have no SSO route to check the server code
 		Options.AuthLevel = KRESTServer::Options::ALLOW_ALL_WITH_AUTH_HEADER;
@@ -222,6 +223,28 @@ TEST_CASE("KRESTCLIENT")
 		CHECK ( oResponse.empty()   == false );
 		CHECK ( kjson::GetStringRef(oResponse, "city") == "Berlin" );
 		CHECK ( kjson::GetStringRef(oResponse, "zip" ) == "10641"  );
+
+		// force a timeout
+		kMilliSleep(1300);
+
+		oResponse = Host.Post("user/Tom")
+						.AddHeader(KHTTPHeader::AUTHORIZATION, "1234567890")
+						.SetError(ec)
+						.Request(
+		{
+			{ "city"     , "Berlin"     },
+			{ "street"   , "Tauentzien" },
+			{ "number"   , "73a"        },
+			{ "zip"      , "10241"      }
+		});
+
+		CHECK ( ec.value() == 404 );
+		CHECK ( ec == true );
+		CHECK ( ec.message() == "POST user/Tom: HTTP-404 NOT FOUND, unknown user from http://localhost:6780/" );
+		CHECK ( Host.HttpSuccess() == false );
+		CHECK ( Host.HttpFailure() == true  );
+		CHECK ( oResponse.empty()  == false );
+		CHECK ( kjson::GetStringRef(oResponse, "message") == "unknown user" );
 
 	}
 }

@@ -1117,7 +1117,7 @@ void KRESTServer::Output(const Options& Options)
 
 			// we have to force the output pipeline to close to reliably
 			// flush all content
-			Response.close();
+			Response.reset();
 
 			m_iTXBytes += Response.Count();
 			kDebug(2, "sent bytes: {}", m_iTXBytes);
@@ -1413,7 +1413,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 			// we have to force the output pipeline to close to reliably
 			// flush all content
-			Response.close();
+			Response.reset();
 
 			m_iTXBytes += Response.Count();
 			kDebug(2, "sent bytes: {}", m_iTXBytes);

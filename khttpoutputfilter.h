@@ -140,6 +140,10 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	void reset();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	void close();
 	//-----------------------------------------------------------------------------
 
@@ -148,7 +152,7 @@ public:
 	bool Fail()
 	//-----------------------------------------------------------------------------
 	{
-		return m_OutStream && m_OutStream->OutStream().fail();
+		return !m_OutStream || m_OutStream->OutStream().fail();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -185,7 +189,7 @@ private:
 
 	KOutStream*     m_OutStream         { &s_Empty  };
 	// We made the filter a unique_ptr because we want to be able to move
-	// construct this class. We never reset it so it will never be null.
+	// construct this class. We never reset it so it will never be null otherwise..
 	std::unique_ptr<boost::iostreams::filtering_ostream>
 	                m_Filter            { std::make_unique<boost::iostreams::filtering_ostream>() };
 	KOutStream      m_FilteredOutStream { *m_Filter };

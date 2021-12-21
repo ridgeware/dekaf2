@@ -147,6 +147,10 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	void reset();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	void close();
 	//-----------------------------------------------------------------------------
 
@@ -190,7 +194,7 @@ private:
 
 	KInStream*      m_InStream            { &s_Empty  };
 	// We made the filter a unique_ptr because we want to be able to move
-	// construct this class. We never reset it so it will never be null.
+	// construct this class. We never reset it so it will never be null otherwise.
 	std::unique_ptr<boost::iostreams::filtering_istream>
 					m_Filter              { std::make_unique<boost::iostreams::filtering_istream>() };
 	KInStream       m_FilteredInStream    { *m_Filter };

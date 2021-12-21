@@ -219,6 +219,38 @@ TEST_CASE("KHTTPClient") {
 		}
 	}
 
+	SECTION("null connection object")
+	{
+		KHTTPClient HTTP;
+		std::unique_ptr<KConnection> Connection;
+		HTTP.Connect(std::move(Connection));
+	}
+
+	SECTION("null connection stream")
+	{
+		KHTTPClient HTTP;
+		auto Connection = std::make_unique<KConnection>();
+		HTTP.Connect(std::move(Connection));
+	}
+
+	SECTION("moved KOutHTTPFilter")
+	{
+		KOutHTTPFilter OutFilter;
+		KOutHTTPFilter Filter2 = std::move(OutFilter);
+		CHECK ( OutFilter.Fail() == false );
+		OutFilter.FilteredStream();
+		CHECK ( OutFilter.Count() == 0 );
+	}
+
+	SECTION("moved KInHTTPFilter")
+	{
+		KInHTTPFilter InFilter;
+		KInHTTPFilter Filter2 = std::move(InFilter);
+		CHECK ( InFilter.Fail() == false );
+		InFilter.FilteredStream();
+		CHECK ( InFilter.Count() == 0 );
+	}
+
 }
 
 #endif // !Windows

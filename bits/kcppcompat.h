@@ -676,5 +676,7 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	#endif
 #endif
 
+static constexpr std::size_t KDefaultCopyBufSize = 4096;
+
 #undef DEKAF2_LE_BE_CONSTEXPR
 

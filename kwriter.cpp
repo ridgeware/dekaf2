@@ -209,9 +209,7 @@ KOutStream::self_type& KOutStream::Write(const void* pAddress, size_t iCount)
 KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	enum { COPY_BUFSIZE = 4096 };
-
-	std::array<char, COPY_BUFSIZE> Buffer;
+	std::array<char, KDefaultCopyBufSize> Buffer;
 
 	for (;iCount;)
 	{

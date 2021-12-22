@@ -289,8 +289,7 @@ KString KChunkedSource::read()
 {
 	KString sBuffer;
 
-	enum { BUFSIZE = 4096 };
-	std::array<char, BUFSIZE> buffer;
+	std::array<char, KDefaultCopyBufSize> buffer;
 
 	for (;;)
 	{
@@ -300,7 +299,8 @@ KString KChunkedSource::read()
 		{
 			sBuffer.append(buffer.data(), iRead);
 		}
-		if (iRead < BUFSIZE)
+
+		if (iRead < static_cast<std::streamsize>(buffer.size()))
 		{
 			break;
 		}

@@ -49,14 +49,15 @@ namespace dekaf2 {
 bool KCRC32::Update(KInStream& InputStream)
 //---------------------------------------------------------------------------
 {
-	enum { BLOCKSIZE = 4096 };
-	std::array<char, BLOCKSIZE> Buffer;
+	std::array<char, KDefaultCopyBufSize> Buffer;
 
 	for (;;)
 	{
 		auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
+
 		m_crc.process_bytes(Buffer.data(), iReadChunk);
-		if (iReadChunk < BLOCKSIZE)
+
+		if (iReadChunk < Buffer.size())
 		{
 			return true;
 		}

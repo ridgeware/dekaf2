@@ -156,8 +156,7 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent, std::size_t i
 	// We will simply try to read blocks until we fail or reach a
 	// max size.
 
-	constexpr std::size_t BUFSIZE { 4096 };
-	std::array<char, BUFSIZE> buf;
+	std::array<char, KDefaultCopyBufSize> buf;
 
 	// This approach can be really dangerous on endless input streams,
 	// therefore we do wrap it into a try-catch block and limit the
@@ -791,8 +790,7 @@ size_t KInStream::Read(KString& sBuffer, size_t iCount)
 size_t KInStream::Read(KOutStream& Stream, size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	constexpr std::size_t COPY_BUFSIZE { 4096 };
-	std::array<char, COPY_BUFSIZE> Buffer;
+	std::array<char, KDefaultCopyBufSize> Buffer;
 	size_t iRead = 0;
 
 	for (;iCount && Good();)

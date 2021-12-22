@@ -519,8 +519,7 @@ bool KUnTar::Skip(size_t iSize)
 		return true;
 	}
 
-	enum { SKIP_BUFSIZE = 4096 };
-	std::array<char, SKIP_BUFSIZE> sBuffer;
+	std::array<char, KDefaultCopyBufSize> sBuffer;
 	size_t iRead = 0;
 
 	for (auto iRemain = iSize; iRemain;)

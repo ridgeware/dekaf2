@@ -71,14 +71,15 @@ bool KHash::Update(KStringView sInput)
 bool KHash::Update(KInStream& InputStream)
 //---------------------------------------------------------------------------
 {
-    enum { BLOCKSIZE = 4096 };
-    std::array<char, BLOCKSIZE> Buffer;
+    std::array<char, KDefaultCopyBufSize> Buffer;
 
     for (;;)
     {
         auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
-        Update(KStringView(Buffer.data(), iReadChunk));
-        if (iReadChunk < BLOCKSIZE)
+
+		Update(KStringView(Buffer.data(), iReadChunk));
+
+		if (iReadChunk < Buffer.size())
         {
             return true;
         }
@@ -114,14 +115,15 @@ bool KCaseHash::Update(KStringView sInput)
 bool KCaseHash::Update(KInStream& InputStream)
 //---------------------------------------------------------------------------
 {
-    enum { BLOCKSIZE = 4096 };
-    std::array<char, BLOCKSIZE> Buffer;
+    std::array<char, KDefaultCopyBufSize> Buffer;
 
     for (;;)
     {
         auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
+
         Update(KStringView(Buffer.data(), iReadChunk));
-        if (iReadChunk < BLOCKSIZE)
+
+        if (iReadChunk < Buffer.size())
         {
             return true;
         }

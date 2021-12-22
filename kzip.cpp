@@ -438,7 +438,7 @@ bool KZip::Read(KOutStream& OutStream, const DirEntry& DirEntry)
 		return SetError(kFormat("KZip: file is directory: {}", DirEntry.sName));
 	}
 
-	std::array<char, 4096> Buffer;
+	std::array<char, KDefaultCopyBufSize> Buffer;
 
 	struct zip_file* file;
 

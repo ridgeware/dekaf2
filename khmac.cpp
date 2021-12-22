@@ -42,6 +42,7 @@
 
 #include <openssl/hmac.h>
 #include "khmac.h"
+#include "kencode.h"
 #include "klog.h"
 
 namespace dekaf2 {
@@ -187,18 +188,19 @@ bool KHMAC::Update(KInStream& InputStream)
 		return false;
 	}
 
-	enum { BLOCKSIZE = 4096 };
-	unsigned char sBuffer[BLOCKSIZE];
+	std::array<unsigned char, KDefaultCopyBufSize> Buffer;
 
 	for (;;)
 	{
-		auto iReadChunk = InputStream.Read(sBuffer, BLOCKSIZE);
-		if (1 != HMAC_Update(hmacctx, sBuffer, iReadChunk))
+		auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
+
+		if (1 != HMAC_Update(hmacctx, Buffer.data(), iReadChunk))
 		{
 			kDebug(1, "failed");
 			return false;
 		}
-		if (iReadChunk < BLOCKSIZE)
+
+		if (iReadChunk < Buffer.size())
 		{
 			return true;
 		}
@@ -218,24 +220,22 @@ bool KHMAC::Update(KInStream&& InputStream)
 const KString& KHMAC::HMAC() const
 //---------------------------------------------------------------------------
 {
-	static constexpr char s_xDigit[] = "0123456789abcdef";
-
 	if (m_sHMAC.empty())
 	{
+		std::array<unsigned char, EVP_MAX_MD_SIZE> Buffer;
 		unsigned int iDigestLen;
-		unsigned char sBuffer[EVP_MAX_MD_SIZE];
-		if (1 != HMAC_Final(hmacctx, sBuffer, &iDigestLen))
+
+		if (1 != HMAC_Final(hmacctx, Buffer.data(), &iDigestLen))
 		{
 			kDebug(1, "cannot read HMAC");
 		}
 		else
 		{
 			m_sHMAC.reserve(iDigestLen * 2);
+
 			for (unsigned int iDigit = 0; iDigit < iDigestLen; ++iDigit)
 			{
-				int ch = sBuffer[iDigit];
-				m_sHMAC += static_cast<char> (s_xDigit[(ch>>4)&0xf]);
-				m_sHMAC += static_cast<char> (s_xDigit[(ch   )&0xf]);
+				KEnc::HexAppend(m_sHMAC, Buffer[iDigit]);
 			}
 		}
 	}

@@ -72,7 +72,7 @@ namespace detail {
 namespace no_sse {
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstOf(KStringView haystack, KStringView needles, bool bNot)
+std::size_t kFindFirstOf(KStringView haystack, KStringView needles, bool bNot)
 //-----------------------------------------------------------------------------
 {
 	std::array<bool, 256> table {};
@@ -89,12 +89,12 @@ size_t kFindFirstOf(KStringView haystack, KStringView needles, bool bNot)
 		return table[static_cast<unsigned char>(c)] != bNot;
 	});
 
-	return (it == haystack.end()) ? KStringView::npos : static_cast<size_t>(it - haystack.begin());
+	return (it == haystack.end()) ? KStringView::npos : static_cast<std::size_t>(it - haystack.begin());
 
 } // kFindFirstOf
 
 //-----------------------------------------------------------------------------
-size_t kFindLastOf(KStringView haystack, KStringView needles, bool bNot)
+std::size_t kFindLastOf(KStringView haystack, KStringView needles, bool bNot)
 //-----------------------------------------------------------------------------
 {
 	std::array<bool, 256> table {};
@@ -111,7 +111,7 @@ size_t kFindLastOf(KStringView haystack, KStringView needles, bool bNot)
 		return table[static_cast<unsigned char>(c)] != bNot;
 	});
 
-	return (it == haystack.rend()) ? KStringView::npos : static_cast<size_t>((it.base() - 1) - haystack.begin());
+	return (it == haystack.rend()) ? KStringView::npos : static_cast<std::size_t>((it.base() - 1) - haystack.begin());
 
 } // kFindLastOf
 
@@ -126,7 +126,7 @@ size_t kFindLastOf(KStringView haystack, KStringView needles, bool bNot)
 // GCC 6 and 7 have serious problems with inlining and intrinsics and
 // ASAN attributes, and there is no solution except upgrading the compiler:
 //
-// /opt/rh/devtoolset-7/root/usr/lib/gcc/x86_64-redhat-linux/7/include/pmmintrin.h: In function 'size_t dekaf2::detail::sse::kFindFirstOfNeedles16(dekaf2::KStringView, dekaf2::KStringView) [with bool bNot = false; int iOperation = 0]':
+// /opt/rh/devtoolset-7/root/usr/lib/gcc/x86_64-redhat-linux/7/include/pmmintrin.h: In function 'std::size_t dekaf2::detail::sse::kFindFirstOfNeedles16(dekaf2::KStringView, dekaf2::KStringView) [with bool bNot = false; int iOperation = 0]':
 // /opt/rh/devtoolset-7/root/usr/lib/gcc/x86_64-redhat-linux/7/include/pmmintrin.h:110:1: error: inlining failed in call to always_inline '__m128i _mm_lddqu_si128(const __m128i*)': function attribute mismatch
 //  _mm_lddqu_si128 (__m128i const *__P)
 //  ^~~~~~~~~~~~~~~
@@ -147,28 +147,28 @@ namespace detail {
 namespace sse    {
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstOf(KStringView haystack, KStringView needles)
+std::size_t kFindFirstOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, false);
 }
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstNotOf(KStringView haystack, KStringView needles)
+std::size_t kFindFirstNotOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, true);
 }
 
 //-----------------------------------------------------------------------------
-size_t kFindLastOf(KStringView haystack, KStringView needles)
+std::size_t kFindLastOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, false);
 }
 
 //-----------------------------------------------------------------------------
-size_t kFindLastNotOf(KStringView haystack, KStringView needles)
+std::size_t kFindLastNotOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
@@ -198,7 +198,7 @@ namespace sse    {
 
 //-----------------------------------------------------------------------------
 DEKAF2_ALWAYS_INLINE
-size_t portableCLZ(uint32_t value)
+std::size_t portableCLZ(uint32_t value)
 //-----------------------------------------------------------------------------
 {
 	if (!value)
@@ -206,11 +206,11 @@ size_t portableCLZ(uint32_t value)
 		return 8 * sizeof(value);
 	}
 #ifdef __GNUC__
-	return static_cast<size_t>(__builtin_clz(value));
+	return static_cast<std::size_t>(__builtin_clz(value));
 #elif _MSC_VER
 	unsigned long clz;
 	_BitScanReverse(&clz, value);
-	return (8 * sizeof(value) - 1) - static_cast<size_t>(clz);
+	return (8 * sizeof(value) - 1) - static_cast<std::size_t>(clz);
 #else
 	static_assert(false, "portableCLZ: compiler not supported")
 #endif
@@ -218,7 +218,7 @@ size_t portableCLZ(uint32_t value)
 
 //-----------------------------------------------------------------------------
 DEKAF2_ALWAYS_INLINE
-size_t portableCTZ(uint32_t value)
+std::size_t portableCTZ(uint32_t value)
 //-----------------------------------------------------------------------------
 {
 	if (!value)
@@ -226,11 +226,11 @@ size_t portableCTZ(uint32_t value)
 		return 8 * sizeof(value);
 	}
 #ifdef __GNUC__
-	return static_cast<size_t>(__builtin_ctz(value));
+	return static_cast<std::size_t>(__builtin_ctz(value));
 #elif _MSC_VER
 	unsigned long ctz;
 	_BitScanForward(&ctz, value);
-	return static_cast<size_t>(ctz);
+	return static_cast<std::size_t>(ctz);
 #else
 	static_assert(false, "portableCTZ: compiler not supported")
 #endif
@@ -249,7 +249,7 @@ void OperatorOrEqual(__m128i& a, __m128i b)
 #endif
 }
 
-static constexpr size_t kMinPageSize = 4096;
+static constexpr std::size_t kMinPageSize = 4096;
 
 //-----------------------------------------------------------------------------
 template <typename T>
@@ -279,7 +279,7 @@ T* align16(T* addr)
 
 //-----------------------------------------------------------------------------
 DEKAF2_ALWAYS_INLINE
-size_t nextAlignedIndex(const char* buffer)
+std::size_t nextAlignedIndex(const char* buffer)
 //-----------------------------------------------------------------------------
 {
 	auto firstPossible = reinterpret_cast<uintptr_t>(buffer) + 1;
@@ -338,8 +338,8 @@ DEKAF2_ALWAYS_INLINE
 #else
 DEKAF2_NO_ASAN
 #endif
-size_t kFindFirstOfNeedles16(KStringView haystack,
-							 KStringView needles)
+std::size_t kFindFirstOfNeedles16(KStringView haystack,
+								  KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	// load needles
@@ -364,7 +364,7 @@ size_t kFindFirstOfNeedles16(KStringView haystack,
 	if (haystack.size() > 16)
 	{
 		// prepare for aligned loads
-		size_t i = nextAlignedIndex(haystack.data());
+		std::size_t i = nextAlignedIndex(haystack.data());
 
 		// and loop through the blocks
 
@@ -399,8 +399,8 @@ DEKAF2_ALWAYS_INLINE
 #else
 DEKAF2_NO_ASAN
 #endif
-size_t kFindLastOfNeedles16(KStringView haystack,
-							KStringView needles)
+std::size_t kFindLastOfNeedles16(KStringView haystack,
+								 KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	// load needles
@@ -414,7 +414,7 @@ size_t kFindLastOfNeedles16(KStringView haystack,
 	{
 		// this time we need to take care that index does not point into something BELOW
 		// our string
-		size_t inv = 16 - index;
+		std::size_t inv = 16 - index;
 
 		if (inv <= haystack.size())
 		{
@@ -437,8 +437,8 @@ size_t kFindLastOfNeedles16(KStringView haystack,
 
 			if (index < 16)
 			{
-				size_t inv  = 16 - index;
-				size_t size = p + 16 - haystack.data();
+				std::size_t inv  = 16 - index;
+				std::size_t size = p + 16 - haystack.data();
 
 				// need to check for underflow in last round..
 				if (inv <= size)
@@ -475,9 +475,9 @@ DEKAF2_ALWAYS_INLINE
 #else
 DEKAF2_NO_ASAN
 #endif
-size_t scanHaystackBlock(KStringView haystack,
-						 KStringView needles,
-						 std::ptrdiff_t blockStartIdx)
+std::size_t scanHaystackBlock(KStringView haystack,
+							  KStringView needles,
+							  std::ptrdiff_t blockStartIdx)
 //-----------------------------------------------------------------------------
 {
 	__m128i arr1;
@@ -497,7 +497,7 @@ size_t scanHaystackBlock(KStringView haystack,
 	auto arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needles.data()));
 	auto b    = _mm_cmpestri(arr2, 16, arr1, useSize, 0);
 
-	size_t j = nextAlignedIndex(needles.data());
+	std::size_t j = nextAlignedIndex(needles.data());
 
 	for (; j < needles.size(); j += 16)
 	{
@@ -526,9 +526,9 @@ DEKAF2_ALWAYS_INLINE
 #else
 DEKAF2_NO_ASAN
 #endif
-size_t scanHaystackBlockNot(KStringView haystack,
-							KStringView needles,
-							std::ptrdiff_t blockStartIdx)
+std::size_t scanHaystackBlockNot(KStringView haystack,
+								 KStringView needles,
+								 std::ptrdiff_t blockStartIdx)
 //-----------------------------------------------------------------------------
 {
 	__m128i arr1;
@@ -542,7 +542,7 @@ size_t scanHaystackBlockNot(KStringView haystack,
 		arr1 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx));
 	}
 
-	size_t useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
+	std::size_t useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
 
 	// This load is safe because needles.size() >= 16
 	__m128i arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needles.data()));
@@ -550,7 +550,7 @@ size_t scanHaystackBlockNot(KStringView haystack,
 	// Must initialize mask before looping with |=
 	__m128i mask = _mm_cmpestrm(arr2, 16, arr1, useSize, 0b00000000);
 
-	size_t j = nextAlignedIndex(needles.data());
+	std::size_t j = nextAlignedIndex(needles.data());
 
 	for (; j < needles.size(); j += 16)
 	{
@@ -590,9 +590,9 @@ DEKAF2_ALWAYS_INLINE
 #else
 DEKAF2_NO_ASAN
 #endif
-size_t reverseScanHaystackBlock(KStringView haystack,
-								KStringView needles,
-								std::ptrdiff_t blockStartIdx)
+std::size_t reverseScanHaystackBlock(KStringView haystack,
+									 KStringView needles,
+									 std::ptrdiff_t blockStartIdx)
 //-----------------------------------------------------------------------------
 {
 	__m128i arr1;
@@ -612,7 +612,7 @@ size_t reverseScanHaystackBlock(KStringView haystack,
 	auto arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needles.data()));
 	auto b = _mm_cmpestri(arr2, 16, arr1, useSize, 0b01000000);
 
-	size_t j = nextAlignedIndex(needles.data());
+	std::size_t j = nextAlignedIndex(needles.data());
 
 	for (; j < needles.size(); j += 16)
 	{
@@ -652,9 +652,9 @@ DEKAF2_ALWAYS_INLINE
 #else
 DEKAF2_NO_ASAN
 #endif
-size_t reverseScanHaystackBlockNot(KStringView haystack,
-								   KStringView needles,
-								   std::ptrdiff_t blockStartIdx)
+std::size_t reverseScanHaystackBlockNot(KStringView haystack,
+										KStringView needles,
+										std::ptrdiff_t blockStartIdx)
 //-----------------------------------------------------------------------------
 {
 	__m128i arr1;
@@ -673,7 +673,7 @@ size_t reverseScanHaystackBlockNot(KStringView haystack,
 	__m128i arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needles.data()));
 	__m128i mask = _mm_cmpestrm(arr2, 16, arr1, useSize, 0);
 
-	size_t j = nextAlignedIndex(needles.data());
+	std::size_t j = nextAlignedIndex(needles.data());
 
 	for (; j < needles.size(); j += 16)
 	{
@@ -704,7 +704,7 @@ size_t reverseScanHaystackBlockNot(KStringView haystack,
 
 	if (b < useSize) // b can only be valid if the index is within the haystack
 	{
-		return blockStartIdx + static_cast<size_t>(b);
+		return blockStartIdx + static_cast<std::size_t>(b);
 	}
 
 	return KStringView::npos;
@@ -712,7 +712,7 @@ size_t reverseScanHaystackBlockNot(KStringView haystack,
 } // reverseScanHaystackBlockNot
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstOf(KStringView haystack, KStringView needles)
+std::size_t kFindFirstOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
@@ -740,7 +740,7 @@ size_t kFindFirstOf(KStringView haystack, KStringView needles)
 		return ret;
 	}
 
-	size_t i = nextAlignedIndex(haystack.data());
+	std::size_t i = nextAlignedIndex(haystack.data());
 
 	for (; i < haystack.size(); i += 16)
 	{
@@ -757,7 +757,7 @@ size_t kFindFirstOf(KStringView haystack, KStringView needles)
 } // kFindFirstOf
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstNotOf(KStringView haystack, KStringView needles)
+std::size_t kFindFirstNotOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
@@ -785,7 +785,7 @@ size_t kFindFirstNotOf(KStringView haystack, KStringView needles)
 		return ret;
 	}
 
-	size_t i = nextAlignedIndex(haystack.data());
+	std::size_t i = nextAlignedIndex(haystack.data());
 
 	for (; i < haystack.size(); i += 16)
 	{
@@ -802,7 +802,7 @@ size_t kFindFirstNotOf(KStringView haystack, KStringView needles)
 } // kFindFirstNotOf
 
 //-----------------------------------------------------------------------------
-size_t kFindLastOf(KStringView haystack, KStringView needles)
+std::size_t kFindLastOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(UnalignedPageUnderflow(haystack)))
@@ -829,7 +829,7 @@ size_t kFindLastOf(KStringView haystack, KStringView needles)
 	}
 
 	// Account for haystack < 16
-	size_t useSize = std::min(16, static_cast<int>(haystack.size()));
+	std::size_t useSize = std::min(16, static_cast<int>(haystack.size()));
 
 	auto ret = reverseScanHaystackBlock<false>(haystack, needles, haystack.size() - useSize);
 
@@ -870,7 +870,7 @@ size_t kFindLastOf(KStringView haystack, KStringView needles)
 } // kFindLastOf
 
 //-----------------------------------------------------------------------------
-size_t kFindLastNotOf(KStringView haystack, KStringView needles)
+std::size_t kFindLastNotOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
 	// test for underflow on haystack
@@ -898,7 +898,7 @@ size_t kFindLastNotOf(KStringView haystack, KStringView needles)
 	}
 
 	// Account for haystack < 16
-	size_t useSize = std::min(16, static_cast<int>(haystack.size()));
+	std::size_t useSize = std::min(16, static_cast<int>(haystack.size()));
 
 	auto ret = reverseScanHaystackBlockNot<false>(haystack, needles, haystack.size() - useSize);
 

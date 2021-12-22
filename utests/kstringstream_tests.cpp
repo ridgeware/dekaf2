@@ -114,9 +114,7 @@ TEST_CASE("KStringStream") {
 		KString o;
 		KStringStream stream(s);
 
-		KString empty;
-		KStringStream stream2(empty);
-		stream2 = std::move(stream);
+		KStringStream stream2(std::move(stream));
 
 		bool ok = std::getline(stream2, o).good();
 		// readline skips the LF, therefore we append it for the comparison

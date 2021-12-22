@@ -80,7 +80,7 @@ public:
 	KOutHTTPFilter(const KOutHTTPFilter&) = delete;
 	KOutHTTPFilter(KOutHTTPFilter&&) = default;
 	KOutHTTPFilter& operator=(const KOutHTTPFilter&) = delete;
-	KOutHTTPFilter& operator=(KOutHTTPFilter&&) = default;
+	KOutHTTPFilter& operator=(KOutHTTPFilter&&) = delete;
 
 	//-----------------------------------------------------------------------------
 	/// Set a new output stream for the filter

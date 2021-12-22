@@ -80,7 +80,7 @@ public:
 	KInHTTPFilter(const KInHTTPFilter&) = delete;
 	KInHTTPFilter(KInHTTPFilter&&) = default;
 	KInHTTPFilter& operator=(const KInHTTPFilter&) = delete;
-	KInHTTPFilter& operator=(KInHTTPFilter&&) = default;
+	KInHTTPFilter& operator=(KInHTTPFilter&&) = delete;
 
 	//-----------------------------------------------------------------------------
 	/// Set a new input stream for the filter

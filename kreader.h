@@ -290,7 +290,7 @@ public:
 	/// value constructor
 	KInStream(std::istream& InStream)
 	//-----------------------------------------------------------------------------
-	    : m_InStream(&InStream)
+	    : m_InStream(InStream)
 	{
 	}
 
@@ -310,8 +310,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// move assign a KInStream
-	self_type& operator=(self_type&& other) = default;
+	/// move assignment is deleted, as with std::istream (use the move constructor instead)
+	self_type& operator=(self_type&& other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -577,7 +577,7 @@ public:
 	const std::istream& InStream() const
 	//-----------------------------------------------------------------------------
 	{
-		return *m_InStream;
+		return m_InStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -585,7 +585,7 @@ public:
 	std::istream& InStream()
 	//-----------------------------------------------------------------------------
 	{
-		return *m_InStream;
+		return m_InStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -616,9 +616,7 @@ public:
 protected:
 //-------
 
-	// m_sRef always has to be valid after construction
-	// - do not assign a nullptr per default
-	std::istream* m_InStream;
+	std::istream& m_InStream;
 	KString m_sTrimRight { detail::kLineRightTrims };
 	KString m_sTrimLeft;
 	KString::value_type m_chDelimiter { '\n' };

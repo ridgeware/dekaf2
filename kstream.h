@@ -100,8 +100,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// move operator
-	self_type& operator=(self_type&& other) = default;
+	/// move operator is deleted, as with std::iostream (use the move constructor instead)
+	self_type& operator=(self_type&& other) = delete;
 	//-----------------------------------------------------------------------------
 
 };

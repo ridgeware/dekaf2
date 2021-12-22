@@ -81,7 +81,7 @@ public:
 	/// value constructor
 	KOutStream(std::ostream& OutStream)
 	//-----------------------------------------------------------------------------
-	    : m_OutStream(&OutStream)
+	    : m_OutStream(OutStream)
 	{
 	}
 
@@ -101,8 +101,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// move assign a KOutStream
-	self_type& operator=(self_type&& other) = default;
+	/// move assignment is deleted, as with std::ostream
+	self_type& operator=(self_type&& other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -225,7 +225,7 @@ public:
 	const std::ostream& OutStream() const
 	//-----------------------------------------------------------------------------
 	{
-		return *m_OutStream;
+		return m_OutStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -233,7 +233,7 @@ public:
 	std::ostream& OutStream()
 	//-----------------------------------------------------------------------------
 	{
-		return *m_OutStream;
+		return m_OutStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -281,9 +281,7 @@ public:
 protected:
 //-------
 
-	// m_OutStream always has to be valid after construction
-	// - do not assign a nullptr per default
-	std::ostream* m_OutStream;
+	std::ostream& m_OutStream;
 	KString m_sDelimiter{"\n"};
 
 }; // KOutStream

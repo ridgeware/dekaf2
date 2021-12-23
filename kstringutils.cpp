@@ -316,7 +316,7 @@ void kEscapeForLogging(KString& sLog, KStringView sInput)
 			// escape non-printable characters..
 			sLog += '\\';
 			sLog += 'x';
-			KEnc::HexAppend(sLog, ch);
+			KEncode::HexAppend(sLog, ch);
 		}
 		else if (DEKAF2_UNLIKELY(ch == '\\' || ch == '"'))
 		{

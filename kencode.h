@@ -55,7 +55,7 @@ namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Collection of string encoders
-class DEKAF2_PUBLIC KEnc
+class DEKAF2_PUBLIC KEncode
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -65,7 +65,14 @@ public:
 
 
 	/// Append a char in hexadecimal to sOut
-	static void HexAppend(KString& sOut, char chIn);
+	static void HexAppend(KString& sOut, char chIn)
+	{
+		static constexpr KStringView hexify { "0123456789abcdef" };
+
+		sOut += hexify[(chIn >> 4) & 0x0f];
+		sOut += hexify[(chIn     ) & 0x0f];
+
+	} // KEnc::HexAppend
 
 	/// Convert an input string to hexadecimal
 	static KString Hex(KStringView sIn);
@@ -157,11 +164,11 @@ public:
 		sBuffer.swap(sRet);
 	}
 
-}; // KEnc
+}; // KEncode
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Collection of string decoders
-class DEKAF2_PUBLIC KDec
+class DEKAF2_PUBLIC KDecode
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -256,7 +263,12 @@ public:
 		sBuffer.swap(sRet);
 	}
 
-}; // KDec
+}; // KDecode
+
+// alias for the old class name
+using KEnc = KEncode;
+// alias for the old class name
+using KDec = KDecode;
 
 } // of namespace dekaf2
 

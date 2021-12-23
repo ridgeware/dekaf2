@@ -271,9 +271,10 @@ const KString& KMessageDigest::Digest() const
 		else
 		{
 			m_sDigest.reserve(iDigestLen * 2);
+			
 			for (unsigned int iDigit = 0; iDigit < iDigestLen; ++iDigit)
 			{
-				KEnc::HexAppend(m_sDigest, Buffer[iDigit]);
+				KEncode::HexAppend(m_sDigest, Buffer[iDigit]);
 			}
 		}
 	}

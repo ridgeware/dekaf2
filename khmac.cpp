@@ -235,7 +235,7 @@ const KString& KHMAC::HMAC() const
 
 			for (unsigned int iDigit = 0; iDigit < iDigestLen; ++iDigit)
 			{
-				KEnc::HexAppend(m_sHMAC, Buffer[iDigit]);
+				KEncode::HexAppend(m_sHMAC, Buffer[iDigit]);
 			}
 		}
 	}

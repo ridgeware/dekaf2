@@ -45,22 +45,11 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-void KEnc::HexAppend(KString& sOut, char ch)
-//-----------------------------------------------------------------------------
-{
-	static constexpr KStringView hexify { "0123456789abcdef" };
-
-	sOut += hexify[(ch >> 4) & 0x0f];
-	sOut += hexify[(ch     ) & 0x0f];
-
-} // KEnc::HexAppend
-
-//-----------------------------------------------------------------------------
-KString KEnc::Hex(KStringView sIn)
+KString KEncode::Hex(KStringView sIn)
 //-----------------------------------------------------------------------------
 {
 	KString sRet;
-	
+
 	sRet.reserve(sIn.size() * 2);
 
 	for (auto ch : sIn)
@@ -73,7 +62,7 @@ KString KEnc::Hex(KStringView sIn)
 } // KEnc::Hex
 
 //-----------------------------------------------------------------------------
-KString KDec::Hex(KStringView sIn)
+KString KDecode::Hex(KStringView sIn)
 //-----------------------------------------------------------------------------
 {
 	KString sRet;
@@ -91,7 +80,7 @@ KString KDec::Hex(KStringView sIn)
 	{
 		auto iVal1 = kFromBase36(sIn[iCt++]);
 
-		if (iVal1 > 15)
+		if (DEKAF2_UNLIKELY(iVal1 > 15))
 		{
 			kWarning("invalid hex char");
 			break;
@@ -99,7 +88,7 @@ KString KDec::Hex(KStringView sIn)
 
 		auto iVal2 = kFromBase36(sIn[iCt++]);
 
-		if (iVal2 > 15)
+		if (DEKAF2_UNLIKELY(iVal2 > 15))
 		{
 			kWarning("invalid hex char");
 			break;

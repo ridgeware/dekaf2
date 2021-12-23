@@ -8,7 +8,7 @@ using namespace dekaf2;
 
 TEST_CASE("KEncoding") {
 
-	SECTION("KEnc / KDec")
+	SECTION("KEncode / KDecode")
 	{
 		SECTION("AllHex")
 		{
@@ -16,9 +16,9 @@ TEST_CASE("KEncoding") {
 			{
 				char ch = static_cast<char>(i);
 				KStringView s(&ch, 1);
-				KString sEncoded = KEnc::Hex(s);
+				KString sEncoded = KEncode::Hex(s);
 				CHECK ( sEncoded == KString::to_hexstring(i, true, false) );
-				KString sDecoded = KDec::Hex(sEncoded);
+				KString sDecoded = KDecode::Hex(sEncoded);
 				CHECK ( sDecoded == s );
 			}
 		}
@@ -26,18 +26,18 @@ TEST_CASE("KEncoding") {
 		SECTION("Hex")
 		{
 			KString s = "café garçon dîner";
-			KString sEncoded = KEnc::Hex(s);
+			KString sEncoded = KEncode::Hex(s);
 			CHECK ( sEncoded == "636166c3a920676172c3a76f6e2064c3ae6e6572" );
-			KString sDecoded = KDec::Hex(sEncoded);
+			KString sDecoded = KDecode::Hex(sEncoded);
 			CHECK ( sDecoded == s );
 		}
 
 		SECTION("Hex high")
 		{
 			KString s = "随着确诊人数持续激增";
-			KString sEncoded = KEnc::Hex(s);
+			KString sEncoded = KEncode::Hex(s);
 			CHECK ( sEncoded == "e99a8fe79d80e7a1aee8af8ae4babae695b0e68c81e7bbade6bf80e5a29e" );
-			KString sDecoded = KDec::Hex(sEncoded);
+			KString sDecoded = KDecode::Hex(sEncoded);
 			CHECK ( sDecoded == s );
 		}
 
@@ -63,18 +63,18 @@ TEST_CASE("KEncoding") {
 
 			for (const auto& it : tests)
 			{
-				KString sEncoded = KEnc::Base64(it[0]);
+				KString sEncoded = KEncode::Base64(it[0]);
 				CHECK ( sEncoded == it[1] );
-				KString sDecoded = KDec::Base64(it[1]);
+				KString sDecoded = KDecode::Base64(it[1]);
 				CHECK ( sDecoded == it[0] );
 			}
 
 			for (const auto& it : tests)
 			{
 				KString sEncoded = it[0];
-				KEnc::Base64InPlace(sEncoded);
+				KEncode::Base64InPlace(sEncoded);
 				CHECK ( sEncoded == it[1] );
-				KDec::Base64InPlace(sEncoded);
+				KDecode::Base64InPlace(sEncoded);
 				CHECK ( sEncoded == it[0] );
 			}
 		}
@@ -101,18 +101,18 @@ TEST_CASE("KEncoding") {
 
 			for (const auto& it : tests)
 			{
-				KString sEncoded = KEnc::Base64Url(it[0]);
+				KString sEncoded = KEncode::Base64Url(it[0]);
 				CHECK ( sEncoded == it[1] );
-				KString sDecoded = KDec::Base64Url(it[1]);
+				KString sDecoded = KDecode::Base64Url(it[1]);
 				CHECK ( sDecoded == it[0] );
 			}
 
 			for (const auto& it : tests)
 			{
 				KString sEncoded = it[0];
-				KEnc::Base64UrlInPlace(sEncoded);
+				KEncode::Base64UrlInPlace(sEncoded);
 				CHECK ( sEncoded == it[1] );
-				KDec::Base64UrlInPlace(sEncoded);
+				KDecode::Base64UrlInPlace(sEncoded);
 				CHECK ( sEncoded == it[0] );
 			}
 		}
@@ -128,18 +128,18 @@ TEST_CASE("KEncoding") {
 
 			for (const auto& it : tests)
 			{
-				KString sEncoded = KEnc::QuotedPrintable(it[0], false);
+				KString sEncoded = KEncode::QuotedPrintable(it[0], false);
 				CHECK ( sEncoded == it[1] );
-				KString sDecoded = KDec::QuotedPrintable(it[1]);
+				KString sDecoded = KDecode::QuotedPrintable(it[1]);
 				CHECK ( sDecoded == it[0] );
 			}
 
 			for (const auto& it : tests)
 			{
 				KString sEncoded = it[0];
-				KEnc::QuotedPrintableInPlace(sEncoded, false);
+				KEncode::QuotedPrintableInPlace(sEncoded, false);
 				CHECK ( sEncoded == it[1] );
-				KDec::QuotedPrintableInPlace(sEncoded);
+				KDecode::QuotedPrintableInPlace(sEncoded);
 				CHECK ( sEncoded == it[0] );
 			}
 
@@ -153,7 +153,7 @@ TEST_CASE("KEncoding") {
 
 			for (const auto& it : mtests)
 			{
-				KString sEncoded = KEnc::QuotedPrintable(it[0], true);
+				KString sEncoded = KEncode::QuotedPrintable(it[0], true);
 				CHECK ( sEncoded == it[1] );
 				// we do not support round trip on mail header encoding
 			}
@@ -161,7 +161,7 @@ TEST_CASE("KEncoding") {
 			for (const auto& it : mtests)
 			{
 				KString sEncoded = it[0];
-				KEnc::QuotedPrintableInPlace(sEncoded, true);
+				KEncode::QuotedPrintableInPlace(sEncoded, true);
 				CHECK ( sEncoded == it[1] );
 				// we do not support round trip on mail header encoding
 			}
@@ -169,42 +169,42 @@ TEST_CASE("KEncoding") {
 
 		SECTION("URL")
 		{
-			KString sEncoded = KEnc::URL("café garçon dîner");
+			KString sEncoded = KEncode::URL("café garçon dîner");
 			CHECK ( sEncoded == "caf%C3%A9+gar%C3%A7on+d%C3%AEner");
-			CHECK ( KDec::URL(sEncoded) == "café garçon dîner");
+			CHECK ( KDecode::URL(sEncoded) == "café garçon dîner");
 
-			sEncoded = KEnc::URL("随着确诊人数持续激增");
+			sEncoded = KEncode::URL("随着确诊人数持续激增");
 			CHECK ( sEncoded == "%E9%9A%8F%E7%9D%80%E7%A1%AE%E8%AF%8A%E4%BA%BA%E6%95%B0%E6%8C%81%E7%BB%AD%E6%BF%80%E5%A2%9E");
-			CHECK ( KDec::URL(sEncoded) == "随着确诊人数持续激增");
+			CHECK ( KDecode::URL(sEncoded) == "随着确诊人数持续激增");
 
-			sEncoded = KEnc::URL("test here");
+			sEncoded = KEncode::URL("test here");
 			CHECK ( sEncoded == "test+here");
-			CHECK ( KDec::URL(sEncoded) == "test here");
+			CHECK ( KDecode::URL(sEncoded) == "test here");
 
 			sEncoded = "test here";
-			KEnc::URLInPlace(sEncoded);
+			KEncode::URLInPlace(sEncoded);
 			CHECK ( sEncoded == "test+here");
-			KDec::URLInPlace(sEncoded);
+			KDecode::URLInPlace(sEncoded);
 			CHECK ( sEncoded == "test here");
 
-			sEncoded = KEnc::URL("test here", URIPart::Path);
+			sEncoded = KEncode::URL("test here", URIPart::Path);
 			CHECK ( sEncoded == "test%20here");
-			CHECK ( KDec::URL(sEncoded) == "test here");
+			CHECK ( KDecode::URL(sEncoded) == "test here");
 
 			sEncoded = "test here";
-			KEnc::URLInPlace(sEncoded, URIPart::Path);
+			KEncode::URLInPlace(sEncoded, URIPart::Path);
 			CHECK ( sEncoded == "test%20here");
-			KDec::URLInPlace(sEncoded);
+			KDecode::URLInPlace(sEncoded);
 			CHECK ( sEncoded == "test here");
 
-			sEncoded = KEnc::URL("test here", URIPart::Path);
+			sEncoded = KEncode::URL("test here", URIPart::Path);
 			CHECK ( sEncoded == "test%20here");
-			CHECK ( KDec::URL(sEncoded, URIPart::Path) == "test here");
+			CHECK ( KDecode::URL(sEncoded, URIPart::Path) == "test here");
 
 			sEncoded = "test here";
-			KEnc::URLInPlace(sEncoded, URIPart::Path);
+			KEncode::URLInPlace(sEncoded, URIPart::Path);
 			CHECK ( sEncoded == "test%20here");
-			KDec::URLInPlace(sEncoded, URIPart::Path);
+			KDecode::URLInPlace(sEncoded, URIPart::Path);
 			CHECK ( sEncoded == "test here");
 		}
 
@@ -218,18 +218,18 @@ TEST_CASE("KEncoding") {
 
 			for (const auto& it : tests)
 			{
-				KString sEncoded = KEnc::HTML(it[0]);
+				KString sEncoded = KEncode::HTML(it[0]);
 				CHECK ( sEncoded == it[1] );
-				KString sDecoded = KDec::HTML(it[1]);
+				KString sDecoded = KDecode::HTML(it[1]);
 				CHECK ( sDecoded == it[0] );
 			}
 
 			for (const auto& it : tests)
 			{
 				KString sEncoded = it[0];
-				KEnc::HTMLInPlace(sEncoded);
+				KEncode::HTMLInPlace(sEncoded);
 				CHECK ( sEncoded == it[1] );
-				KDec::HTMLInPlace(sEncoded);
+				KDecode::HTMLInPlace(sEncoded);
 				CHECK ( sEncoded == it[0] );
 			}
 		}
@@ -244,18 +244,18 @@ TEST_CASE("KEncoding") {
 
 			for (const auto& it : tests)
 			{
-				KString sEncoded = KEnc::XML(it[0]);
+				KString sEncoded = KEncode::XML(it[0]);
 				CHECK ( sEncoded == it[1] );
-				KString sDecoded = KDec::XML(it[1]);
+				KString sDecoded = KDecode::XML(it[1]);
 				CHECK ( sDecoded == it[0] );
 			}
 
 			for (const auto& it : tests)
 			{
 				KString sEncoded = it[0];
-				KEnc::XMLInPlace(sEncoded);
+				KEncode::XMLInPlace(sEncoded);
 				CHECK ( sEncoded == it[1] );
-				KDec::XMLInPlace(sEncoded);
+				KDecode::XMLInPlace(sEncoded);
 				CHECK ( sEncoded == it[0] );
 			}
 		}

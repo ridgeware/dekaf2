@@ -1627,6 +1627,26 @@ bool KSQL::IsKill (KStringView sSQL)
 }
 
 //-----------------------------------------------------------------------------
+bool KSQL::IsSet (KStringView sSQL)
+//-----------------------------------------------------------------------------
+{
+	return sSQL.TrimLeft().substr(0,3).ToLowerASCII().starts_with("set");
+}
+
+//-----------------------------------------------------------------------------
+bool KSQL::IsReadOnlyViolation (KStringView sSQL)
+//-----------------------------------------------------------------------------
+{
+	if (IsFlag(F_ReadOnlyMode) && ! IsSelect(sSQL) && ! IsKill(sSQL) && ! IsSet(sSQL))
+	{
+		return SetError(kFormat ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", sSQL));
+	}
+
+	return false; // read-only mode off, or query
+
+} // IsReadOnlyViolation
+
+//-----------------------------------------------------------------------------
 bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQL"*/)
 //-----------------------------------------------------------------------------
 {
@@ -1635,9 +1655,9 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, m_sLastSQL.Left(4096));
 	}
 
-	if (IsFlag(F_ReadOnlyMode) && ! IsSelect(m_sLastSQL) && ! IsKill(m_sLastSQL))
+	if (IsReadOnlyViolation (m_sLastSQL))
 	{
-		return SetError(kFormat ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL));
+		return false;
 	}
 
 	m_iNumRowsAffected  = 0;
@@ -2084,9 +2104,8 @@ bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI
 		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (sSQL.contains("\n")) ? "\n" : "", sSQL);
 	}
 
-	if (IsFlag(F_ReadOnlyMode) && ! IsSelect(m_sLastSQL))
+	if (IsReadOnlyViolation (m_sLastSQL))
 	{
-		m_sLastError.Format ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL);
 		return false;
 	}
 

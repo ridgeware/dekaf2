@@ -528,6 +528,12 @@ public:
 	/// helper to see if something is a KILL statement:
 	static bool IsKill (KStringView sSQL);
 
+	/// helper to see if something is a Set statement:
+	static bool IsSet (KStringView sSQL);
+
+	/// helper to see if we are about to attempt a transaction on a read-only connection:
+	bool IsReadOnlyViolation (KStringView sSQL);
+
 	/// produce a summary of all [matching] tables with row counts (to KOut)
 	bool ShowCounts (KStringView sRegex="");
 

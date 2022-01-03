@@ -168,6 +168,15 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Allow connection retry for closed keepalive connections?
+	self& AllowConnectionRetry(bool bAllowOneRetry = true)
+	//-----------------------------------------------------------------------------
+	{
+		m_bAllowOneRetry = bAllowOneRetry;
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Allow or forbid automatic conversion of query parms into a form body when there is no
 	/// other body - allowed per default
 	self& AllowQueryToWWWFormConversion(bool bYesNo = true)
@@ -214,6 +223,7 @@ protected:
 	int64_t          m_iWarnIfOverMilliseconds { 0 };
 	KJSON*           m_pServiceSummary { nullptr };   // running details about external service calls
 	uint16_t         m_iMaxRedirects { 3 };
+	bool             m_bAllowOneRetry { true };
 	bool             m_bAcceptCookies { true };
 	bool             m_bQueryToWWWFormConversion { true };
 

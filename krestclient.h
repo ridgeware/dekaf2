@@ -151,6 +151,7 @@ public:
 	using base::SetProxy;
 	using base::AutoConfigureProxy;
 	using base::AllowRedirects;
+	using base::AllowConnectionRetry;
 	using base::RequestCompression;
 	using base::AllowCompression;
 	using base::VerifyCerts;

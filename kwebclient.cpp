@@ -171,11 +171,15 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 							!iRetries++ &&
 							bReuseConnection)
 						{
-							kDebug(2, "retrying connection");
-							// allow one connection retry - we might have run into
-							// a keepalive connection and the other end shut it down
-							// just before we sent data
-							continue;
+							if (m_bAllowOneRetry)
+							{
+								kDebug(2, "retrying connection");
+								// allow one connection retry - we might have run into
+								// a keepalive connection and the other end shut it down
+								// just before we sent data
+								continue;
+							}
+							kDebug(2, "connection retry disabled");
 						}
 					}
 				}

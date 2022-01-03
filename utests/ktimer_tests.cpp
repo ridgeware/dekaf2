@@ -25,7 +25,7 @@ TEST_CASE("KTimer")
 	kMilliSleep(500);
 
 	CHECK ( Timer.Cancel(ID) );
-	CHECK ( iCalled >= 8 );
+	CHECK ( iCalled >= 5 );
 	CHECK ( iCalled <= 11 );
 
 }

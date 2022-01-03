@@ -537,7 +537,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 		for (;;)
 		{
-			kDebug (3, "keepalive round {}", m_iRound + 1);
+			kDebug (2, "keepalive round {}", m_iRound + 1);
 			kSetCrashContext("KRestServer");
 
 			clear();
@@ -769,7 +769,6 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			kAppendCrashContext("completed route handler");
 
-			Request.close();
 			m_iRequestBodyLength = Request.Count();
 
 			if (m_Timers)

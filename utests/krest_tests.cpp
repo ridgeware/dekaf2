@@ -2,6 +2,7 @@
 
 #include <dekaf2/krest.h>
 #include <dekaf2/khttperror.h>
+#include <dekaf2/krestclient.h>
 
 using namespace dekaf2;
 
@@ -427,6 +428,75 @@ TEST_CASE("KREST")
 			sOut.erase(0, iPos2+4);
 		}
 		CHECK ( sOut == "<html><head>HTTP Error 404</head><body><h2>404 file not found</h2></body></html>" );
+	}
+
+	SECTION("HTTP keepalive")
+	{
+		KRESTRoutes Routes;
+
+		uint16_t iCalledTest { 0 };
+
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+		{
+			++iCalledTest;
+			http.json.tx["response"] = "hello world";
+		}});
+
+		KREST::Options Options;
+		Options.Type      = KREST::HTTP;
+		Options.iPort     = 30303;
+		Options.bBlocking = false;
+//		Options.iTimeout  = 300;
+
+		KREST REST;
+
+		if (!REST.Execute(Options, Routes))
+		{
+			CHECK ( REST.Error() == "" );
+		}
+		else
+		{
+			{
+				iCalledTest = 0;
+				KHTTPError ec;
+				KJsonRestClient Client("http://localhost:30303");
+				Client.RequestCompression(false);
+//				Client.SetTimeout(300);
+				Client.AllowConnectionRetry(false);
+
+				auto jResult = Client.Get("test").SetError(ec).Request();
+
+				CHECK (ec.value()   == 0  );
+				CHECK (ec.message() == "" );
+				CHECK (iCalledTest  == 1  );
+
+				jResult = Client.Get("test").SetError(ec).Request();
+
+				CHECK (ec.value()   == 0  );
+				CHECK (ec.message() == "" );
+				CHECK (iCalledTest  == 2  );
+			}
+			{
+				iCalledTest = 0;
+				KHTTPError ec;
+				KJsonRestClient Client("http://localhost:30303");
+				Client.RequestCompression(true);
+//				Client.SetTimeout(300);
+				Client.AllowConnectionRetry(false);
+
+				auto jResult = Client.Get("test").SetError(ec).Request();
+
+				CHECK (ec.value()   == 0  );
+				CHECK (ec.message() == "" );
+				CHECK (iCalledTest  == 1  );
+
+				jResult = Client.Get("test").SetError(ec).Request();
+
+				CHECK (ec.value()   == 0  );
+				CHECK (ec.message() == "" );
+				CHECK (iCalledTest  == 2  );
+			}
+		}
 	}
 
 }

@@ -197,7 +197,8 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 		g_pCrashCallback (sWarning);
 	}
 
-	exit (-1);
+	// generate a core dump if enabled by the system
+	abort ();
 
 } // kCrashExitExt
 

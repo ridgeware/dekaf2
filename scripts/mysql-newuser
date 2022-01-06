@@ -97,7 +97,8 @@ fi
 
 case "$UserType" in
 	dbo)
-		Privileges=(ALL)
+		#Privileges=(ALL)
+ 		Privileges=(SELECT INSERT UPDATE DELETE CREATE DROP)  # <-- note: some versions of MySQL supports "ALL" but AWS RDS does not
 		GrantOption="with grant option"
 		;;
 	user)

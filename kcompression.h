@@ -51,8 +51,8 @@
 
 #include <boost/iostreams/filtering_stream.hpp>
 
-#if !defined(DEKAF2_IS_OSX)
-// brew's boost build has the lzma/zstd headers, but was compiled w/o support..
+#if 0
+// need to still find out how to properly link for lzma/zstd against boost..
 
 #if defined(DEKAF2_HAS_LIBLZMA) && DEKAF2_HAS_INCLUDE(<boost/iostreams/filter/lzma.hpp>)
 	#define DEKAF2_HAS_LZMA_COMPRESSION

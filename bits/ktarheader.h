@@ -70,6 +70,7 @@
 
 #include "kcppcompat.h"
 #include <cinttypes>
+#include <cstring>
 
 namespace dekaf2 {
 

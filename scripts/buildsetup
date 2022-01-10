@@ -29,7 +29,7 @@ BuildSetup ()
 {
 	# we do not care too much if the flagfile is removed
 	flagfile="/tmp/installflag-dekaf2-build-setup"
-	flagversion="1"
+	flagversion="2"
 
 	if [ ! -f "${flagfile}" ] || [ "$(cat ${flagfile})" != "${flagversion}" ]
 	then
@@ -50,7 +50,7 @@ BuildSetup ()
 		case "${DISTRIB}" in
 			darwin)
 				InstallSystemPackages cmake boost${DEVPKG} openssl${DEVPKG} mariadb${DEVPKG} \
-					sqlite${DEVPKG} wget doxygen graphviz libzip
+					sqlite${DEVPKG} wget doxygen graphviz libzip xz zstd
 				;;
 			debian)
 				# make sure the repo content lists are current
@@ -58,12 +58,12 @@ BuildSetup ()
 
 				InstallSystemPackages cmake libboost-all${DEVPKG} openssl libssl-dev libmariadb${DEVPKG} \
 					sqlite3 libsqlite3${DEVPKG} wget doxygen graphviz git sed tar gcc \
-					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g-dev libzip${DEVPKG}
+					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g-dev libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG}
 				;;
 			*)
 				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} mariadb${DEVPKG} \
 					sqlite${DEVPKG} wget doxygen graphviz git sed tar gcc \
-					zlib${DEVPKG} bzip2${DEVPKG} libzip${DEVPKG}
+					zlib${DEVPKG} bzip2${DEVPKG} libzip${DEVPKG} xz${DEVPKG} libzstd${DEVPKG}
 				;;
 		esac
 

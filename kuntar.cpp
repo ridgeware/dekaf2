@@ -773,19 +773,19 @@ bool KUnTar::SetError(KString sError)
 } // SetError
 
 //-----------------------------------------------------------------------------
-KUnTarCompressed::KUnTarCompressed(COMPRESSION Compression,
+KUnTarCompressed::KUnTarCompressed(KUnCompressIStream::COMPRESSION Compression,
 				 KInStream& InStream,
 				 int AcceptedTypes,
 				 bool bSkipAppleResourceForks)
 //-----------------------------------------------------------------------------
 	: KUnTar(m_FilteredInStream, AcceptedTypes, bSkipAppleResourceForks)
 {
-	SetupFilter(Compression, InStream);
+	m_Filter.open(InStream, Compression);
 
 } // ctor
 
 //-----------------------------------------------------------------------------
-KUnTarCompressed::KUnTarCompressed(COMPRESSION Compression,
+KUnTarCompressed::KUnTarCompressed(KUnCompressIStream::COMPRESSION Compression,
 				 KStringView sArchiveFilename,
 				 int AcceptedTypes,
 				 bool bSkipAppleResourceForks)
@@ -794,54 +794,14 @@ KUnTarCompressed::KUnTarCompressed(COMPRESSION Compression,
 {
 	m_File = std::make_unique<KInFile>(sArchiveFilename);
 
-	if (Compression == AUTODETECT)
+	if (Compression == KUnCompressIStream::AUTO)
 	{
-		KString sSuffix = kExtension(sArchiveFilename).ToLower();
-
-		if (sSuffix == "tar")
-		{
-			Compression = NONE;
-		}
-		else if (sSuffix == "tgz" || sSuffix == "gz" || sSuffix == "gzip")
-		{
-			Compression = GZIP;
-		}
-		else if (sSuffix == "tbz" || sSuffix == "tbz2" || sSuffix == "bz2" || sSuffix == "bzip2")
-		{
-			Compression = BZIP2;
-		}
-		else
-		{
-			Compression = NONE;
-		}
+		Compression = KUnCompressIStream::GetCompressionMethodFromFilename(sArchiveFilename);
 	}
 
-	SetupFilter(Compression, *m_File);
+	m_Filter.open(*m_File, Compression);
 
 } // ctor
-
-//-----------------------------------------------------------------------------
-void KUnTarCompressed::SetupFilter(COMPRESSION Compression, KInStream& InStream)
-//-----------------------------------------------------------------------------
-{
-	switch (Compression)
-	{
-		case AUTODETECT:
-		case NONE:
-			break;
-
-		case GZIP:
-			m_Filter.push(boost::iostreams::gzip_decompressor());
-			break;
-
-		case BZIP2:
-			m_Filter.push(boost::iostreams::bzip2_decompressor());
-			break;
-	}
-
-	m_Filter.push(InStream.InStream());
-
-} // SetupFilter
 
 } // end of namespace dekaf2
 

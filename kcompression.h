@@ -51,6 +51,18 @@
 
 #include <boost/iostreams/filtering_stream.hpp>
 
+#if !defined(DEKAF2_IS_OSX)
+// brew's boost build has the lzma/zstd headers, but was compiled w/o support..
+
+#if defined(DEKAF2_HAS_LIBLZMA) && DEKAF2_HAS_INCLUDE(<boost/iostreams/filter/lzma.hpp>)
+	#define DEKAF2_HAS_LZMA_COMPRESSION
+#endif
+
+#if defined(DEKAF2_HAS_LIBZSTD) && DEKAF2_HAS_INCLUDE(<boost/iostreams/filter/zstd.hpp>)
+	#define DEKAF2_HAS_ZSTD_COMPRESSION
+#endif
+
+#endif
 
 namespace dekaf2 {
 
@@ -73,6 +85,12 @@ public:
 		GZIP,
 		BZIP2,
 		ZLIB,
+#ifdef DEKAF2_HAS_LZMA_COMPRESSION
+		LZMA,
+#endif
+#ifdef DEKAF2_HAS_ZSTD_COMPRESSION
+		ZSTD,
+#endif
 		AUTO
 	};
 
@@ -335,6 +353,101 @@ public:
 
 }; // KUnZlib
 
+#ifdef DEKAF2_HAS_LZMA_COMPRESSION
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// LZMA compressor
+class DEKAF2_PUBLIC KLZMA : public KCompress
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//------
+public:
+//------
+
+	template<class... Args>
+	KLZMA(Args&&... args)
+	: KCompress(std::forward<Args>(args)..., LZMA)
+	{
+	}
+
+	template<class... Args>
+	bool open(Args&&... args)
+	{
+		return KCompress::open(std::forward<Args>(args)..., LZMA);
+	}
+
+}; // KLZMA
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// LZMA uncompressor
+class DEKAF2_PUBLIC KUnLZMA : public KUnCompress
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//------
+public:
+//------
+
+	template<class... Args>
+	KUnLZMA(Args&&... args)
+	: KUnCompress(std::forward<Args>(args)..., LZMA)
+	{
+	}
+
+	template<class... Args>
+	bool open(Args&&... args)
+	{
+		return KUnCompress::open(std::forward<Args>(args)..., LZMA);
+	}
+
+}; // KUnLZMA
+#endif
+
+#ifdef DEKAF2_HAS_ZSTD_COMPRESSION
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// ZSTD compressor
+class DEKAF2_PUBLIC KZstd : public KCompress
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//------
+public:
+//------
+
+	template<class... Args>
+	KZstd(Args&&... args)
+	: KCompress(std::forward<Args>(args)..., ZSTD)
+	{
+	}
+
+	template<class... Args>
+	bool open(Args&&... args)
+	{
+		return KCompress::open(std::forward<Args>(args)..., ZSTD);
+	}
+
+}; // KZstd
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// ZSTD uncompressor
+class DEKAF2_PUBLIC KUnZstd : public KUnCompress
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//------
+public:
+//------
+
+	template<class... Args>
+	KUnZstd(Args&&... args)
+	: KUnCompress(std::forward<Args>(args)..., ZSTD)
+	{
+	}
+
+	template<class... Args>
+	bool open(Args&&... args)
+	{
+		return KUnCompress::open(std::forward<Args>(args)..., ZSTD);
+	}
+
+}; // KUnZstd
+#endif
 
 } // end of namespace dekaf2
 

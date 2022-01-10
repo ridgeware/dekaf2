@@ -68,6 +68,7 @@
 
 #pragma once
 
+#include "kcppcompat.h"
 #include <cinttypes>
 
 namespace dekaf2 {

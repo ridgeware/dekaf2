@@ -241,6 +241,20 @@ else()
 
 endif()
 
+# ============================== LZMA / ZSTD =================================
+
+find_package(LibLZMA QUIET)
+
+if (LIBLZMA_FOUND)
+	set(DEKAF2_HAS_LIBLZMA 1)
+endif()
+
+find_package(ZSTD QUIET)
+
+if (ZSTD_FOUND)
+	set(DEKAF2_HAS_LIBZSTD 1)
+endif()
+
 # ================================= LIBZIP =====================================
 
 # libzip
@@ -810,6 +824,8 @@ else()
 	set (COMPRESSORS
 		${ZLIB_LIBRARIES}
 		${BZIP2_LIBRARIES}
+		${LIBLZMA_LIBRARIES}
+		${ZSTD_LIBRARIES}
 #		ZLIB::ZLIB
 #		BZip2::BZip2
 	)

@@ -80,6 +80,8 @@
 #cmakedefine DEKAF2_HAS_FREETDS
 #cmakedefine DEKAF2_HAS_CTLIB
 #cmakedefine DEKAF2_HAS_LIBZIP
+#cmakedefine DEKAF2_HAS_LIBZSTD
+#cmakedefine DEKAF2_HAS_LIBLZMA
 #cmakedefine DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
 #cmakedefine DEKAF2_WITH_FCGI
 #cmakedefine DEKAF2_KLOG_WITH_TCP

@@ -48,6 +48,12 @@
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
 #include <boost/iostreams/filter/bzip2.hpp>
+#ifdef DEKAF2_HAS_LZMA_COMPRESSION
+#include <boost/iostreams/filter/lzma.hpp>
+#endif
+#ifdef DEKAF2_HAS_ZSTD_COMPRESSION
+#include <boost/iostreams/filter/zstd.hpp>
+#endif
 
 namespace dekaf2 {
 
@@ -57,16 +63,28 @@ namespace bio = boost::iostreams;
 detail::KCompressionBase::COMPRESSION detail::KCompressionBase::GetCompressionMethodFromFilename(KStringView sFilename)
 //-----------------------------------------------------------------------------
 {
-	auto sExt = kExtension(sFilename);
+	KString sExt = kExtension(sFilename).ToLowerASCII();
 
 	if (sExt == "gz" || sExt == "gzip" || sExt == "tgz")
 	{
 		return KCompressionBase::GZIP;
 	}
-	else if (sExt == "bz2" || sExt == "bzip2" || sExt == "tbz2")
+	else if (sExt == "bz2" || sExt == "bzip2" || sExt == "tbz2" || sExt == "tbz")
 	{
 		return KCompressionBase::BZIP2;
 	}
+#ifdef DEKAF2_HAS_LZMA_COMPRESSION
+	else if (sExt == "xz")
+	{
+		return KCompressionBase::LZMA;
+	}
+#endif
+#ifdef DEKAF2_HAS_ZSTD_COMPRESSION
+	else if (sExt == "zstd" || sExt == "zst")
+	{
+		return KCompressionBase::ZSTD;
+	}
+#endif
 	else
 	{
 		return KCompressionBase::NONE;
@@ -122,6 +140,17 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression)
 			compressor::push(bio::zlib_compressor(bio::zlib_params(bio::zlib::default_compression)));
 			break;
 
+#ifdef DEKAF2_HAS_LZMA_COMPRESSION
+		case LZMA:
+			compressor::push(bio::lzma_compressor(bio::lzma_params(bio::lzma::default_compression)));
+			break;
+#endif
+
+#ifdef DEKAF2_HAS_ZSTD_COMPRESSION
+		case ZSTD:
+			compressor::push(bio::zstd_compressor(bio::zstd_params(bio::zstd::default_compression)));
+			break;
+#endif
 	}
 
 	compressor::push(m_TargetStream->OutStream());
@@ -186,6 +215,17 @@ bool KUnCompressIStream::CreateFilter(COMPRESSION compression)
 			uncompressor::push(bio::zlib_decompressor());
 			break;
 
+#ifdef DEKAF2_HAS_LZMA_COMPRESSION
+		case LZMA:
+			uncompressor::push(bio::lzma_decompressor());
+			break;
+#endif
+
+#ifdef DEKAF2_HAS_ZSTD_COMPRESSION
+		case ZSTD:
+			uncompressor::push(bio::zstd_decompressor());
+			break;
+#endif
 	}
 
 	uncompressor::push(m_SourceStream->InStream());

@@ -7,9 +7,6 @@
 
 include(LibFindMacros)
 
-# Dependencies
-#libfind_package(Magick++ Magick)
-
 # Use pkg-config to get hints about paths
 libfind_pkg_check_modules(libproc_PKGCONF libproc)
 
@@ -23,7 +20,7 @@ if(!${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
 	# Finally find the library itself - but not on OSX, as it is part of the
 	# system SDK
 	find_library(libproc_LIBRARY
-		NAMES libproc
+		NAMES proc
 		PATHS ${libproc_PKGCONF_LIBRARY_DIRS}
 	)
 endif()

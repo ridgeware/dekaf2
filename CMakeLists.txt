@@ -66,6 +66,7 @@ OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE "debug build with sanitizers 
 OPTION(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS "use frozen constexpr hash for large maps (needs a lot of memory on comp)" ON)
 OPTION(DEKAF2_WITH_FCGI "build with FCGI" OFF)
 OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
+OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" OFF)
 
 # =================================== C++ STANDARD =================================
 
@@ -193,6 +194,18 @@ if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	endif ()
 endif ()
 
+# ============================== Prefer static libs? ==============================
+
+if (DEKAF2_PREFER_STATIC_LIBS)
+	set(LIBSFX_BACKUP ${CMAKE_FIND_LIBRARY_SUFFIXES})
+	list(FIND CMAKE_FIND_LIBRARY_SUFFIXES ".a" LIBSFX_FOUND)
+	if (LIBSFX_FOUND GREATER 0)
+		list(REMOVE_AT CMAKE_FIND_LIBRARY_SUFFIXES ${LIBSFX_FOUND})
+		list(INSERT CMAKE_FIND_LIBRARY_SUFFIXES 0 ".a")
+		message(STATUS "prefering static libraries: ${CMAKE_FIND_LIBRARY_SUFFIXES}")
+	endif()
+endif()
+
 # ============================== ZLIB / BZIP2 =================================
 
 if (IS_WINDOWS)
@@ -315,18 +328,6 @@ if(SQLITE3_FOUND)
 	set(DEKAF2_HAS_SQLITE3 1)
 endif()
 
-# ================================ FreeTDS ====================================
-
-# FreeTDS (for KSQL) - if not available it's simply skipped
-find_package(FreeTDS QUIET)
-if(FREETDS_FOUND)
-	message(STATUS "configuring with FreeTDS/CTLIB")
-	set(DEKAF2_HAS_FREETDS 1)
-	set(DEKAF2_HAS_CTLIB 1)
-else()
-	message(STATUS "No MS SQL support. Install FreeTDS package if needed")
-endif()
-
 # ================================ OPENSSL ===================================
 
 # openssl (needed for boost asio)
@@ -411,6 +412,27 @@ if (IS_WINDOWS)
 			SET(DEKAF2_HAS_UNIX_SOCKETS ON)
 		endif()
 	endif()
+endif()
+
+# ============================== Prefer static libs? ==============================
+
+if (DEKAF2_PREFER_STATIC_LIBS)
+	set(CMAKE_FIND_LIBRARY_SUFFIXES ${LIBSFX_BACKUP})
+endif()
+
+# we have to switch back to dynamic linking before searching for libct, which does
+# not play well with iconv and gssapi when linked statically
+
+# ================================ FreeTDS ====================================
+
+# FreeTDS (for KSQL) - if not available it's simply skipped
+find_package(FreeTDS QUIET)
+if(FREETDS_FOUND)
+	message(STATUS "configuring with FreeTDS/CTLIB")
+	set(DEKAF2_HAS_FREETDS 1)
+	set(DEKAF2_HAS_CTLIB 1)
+else()
+	message(STATUS "No MS SQL support. Install FreeTDS package if needed")
 endif()
 
 # ================================= DOXYGEN ==================================
@@ -852,13 +874,13 @@ target_link_libraries(dekaf2
 		${OPENSSL_LIBRARIES}
 		frozen
 		${MINIFOLLY}
-		${COMPRESSORS}
 		Threads::Threads
 	PRIVATE
 		${FCGILIBS}
 		${FSLIB}
 		${libproc_LIBRARIES}
-		${LIBZIP_LIBRARY}
+		${COMPRESSORS}
+		${LIBZIP_LIBRARIES}
 		${RT}
 		${CORE_FOUNDATION}
 		re2
@@ -875,7 +897,7 @@ target_include_directories(dekaf2
 	PRIVATE
 	$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
-	$<BUILD_INTERFACE:${LIBZIP_INCLUDE_DIR}>
+	$<BUILD_INTERFACE:${LIBZIP_INCLUDE_DIRS}>
 	# for centos libzip:
 	/include
 )

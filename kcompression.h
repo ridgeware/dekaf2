@@ -51,17 +51,12 @@
 
 #include <boost/iostreams/filtering_stream.hpp>
 
-#if 0
-// need to still find out how to properly link for lzma/zstd against boost..
-
-#if defined(DEKAF2_HAS_LIBLZMA) && DEKAF2_HAS_INCLUDE(<boost/iostreams/filter/lzma.hpp>)
+#if defined(DEKAF2_HAS_LIBLZMA)
 	#define DEKAF2_HAS_LZMA_COMPRESSION
 #endif
 
-#if defined(DEKAF2_HAS_LIBZSTD) && DEKAF2_HAS_INCLUDE(<boost/iostreams/filter/zstd.hpp>)
+#if defined(DEKAF2_HAS_LIBZSTD)
 	#define DEKAF2_HAS_ZSTD_COMPRESSION
-#endif
-
 #endif
 
 namespace dekaf2 {

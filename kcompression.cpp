@@ -49,10 +49,22 @@
 #include <boost/iostreams/filter/zlib.hpp>
 #include <boost/iostreams/filter/bzip2.hpp>
 #ifdef DEKAF2_HAS_LZMA_COMPRESSION
-#include <boost/iostreams/filter/lzma.hpp>
+	#if defined(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD)
+		// we pick our own lzma.hpp instead one that might have come with boost,
+		// as we link to our object anyway
+		#include "bits/from_boost/iostreams/lzma.hpp"
+	#else
+		#include <boost/iostreams/filter/lzma.hpp>
+	#endif
 #endif
 #ifdef DEKAF2_HAS_ZSTD_COMPRESSION
-#include <boost/iostreams/filter/zstd.hpp>
+	#if defined(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_ZSTD_BUILD)
+		// we pick our own zstd.hpp instead one that might have come with boost,
+		// as we link to our object anyway
+		#include "bits/from_boost/iostreams/zstd.hpp"
+	#else
+		#include <boost/iostreams/filter/zstd.hpp>
+	#endif
 #endif
 
 namespace dekaf2 {
@@ -65,30 +77,37 @@ detail::KCompressionBase::COMPRESSION detail::KCompressionBase::GetCompressionMe
 {
 	KString sExt = kExtension(sFilename).ToLowerASCII();
 
-	if (sExt == "gz" || sExt == "gzip" || sExt == "tgz")
+	switch (sExt.Hash())
 	{
-		return KCompressionBase::GZIP;
-	}
-	else if (sExt == "bz2" || sExt == "bzip2" || sExt == "tbz2" || sExt == "tbz")
-	{
-		return KCompressionBase::BZIP2;
-	}
+		case "gz"_hash:
+		case "gzip"_hash:
+		case "tgz"_hash:
+			return KCompressionBase::GZIP;
+
+		case "bz2"_hash:
+		case "bzip2"_hash:
+		case "tbz2"_hash:
+		case "tbz"_hash:
+			return KCompressionBase::BZIP2;
+
+		case "z"_hash:
+		case "tz"_hash:
+			return KCompressionBase::ZLIB;
+
 #ifdef DEKAF2_HAS_LZMA_COMPRESSION
-	else if (sExt == "xz")
-	{
-		return KCompressionBase::LZMA;
-	}
+		case "xz"_hash:
+			return KCompressionBase::LZMA;
 #endif
+
 #ifdef DEKAF2_HAS_ZSTD_COMPRESSION
-	else if (sExt == "zstd" || sExt == "zst")
-	{
-		return KCompressionBase::ZSTD;
-	}
+		case "zstd"_hash:
+		case "zst"_hash:
+		case "lz4"_hash: // zstd can uncompress lz4 inputs
+			return KCompressionBase::ZSTD;
 #endif
-	else
-	{
-		return KCompressionBase::NONE;
 	}
+
+	return KCompressionBase::NONE;
 
 } // GetCompressionMethodFromFilename
 

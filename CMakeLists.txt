@@ -414,6 +414,35 @@ if (IS_WINDOWS)
 	endif()
 endif()
 
+# ================== build own iostreams lzma/zstd objects? =======================
+
+# check if boost iostreams was compiled with support for zstd and lzma, or if the
+# build is incomplete (currently, only debian seems to have boost iostreams object
+# files for zstd and lzma, others only have the header files)
+
+if (NOT DEKAF2_IS_WINDOWS)
+	if (DEKAF2_HAS_LIBLZMA)
+		execute_process(COMMAND "nm \"${Boost_IOSTREAMS_LIBRARY}\" | grep -i lzma | wc -l" OUTPUT_VARIABLE SYM_COUNT OUTPUT_STRIP_TRAILING_WHITESPACE)
+		if (SYM_COUNT STREQUAL "")
+			set(SYM_COUNT 0)
+		endif()
+		if (SYM_COUNT LESS 5)
+			# no iostream lzma filter object found, we have to build it ourselves
+			set(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD 1)
+		endif()
+	endif()
+	if (DEKAF2_HAS_LIBZSTD)
+		execute_process(COMMAND "nm \"${Boost_IOSTREAMS_LIBRARY}\" | grep -i zstd | wc -l" OUTPUT_VARIABLE SYM_COUNT OUTPUT_STRIP_TRAILING_WHITESPACE)
+		if (SYM_COUNT STREQUAL "")
+			set(SYM_COUNT 0)
+		endif()
+		if (SYM_COUNT LESS 5)
+			# no iostream zstd filter object found, we have to build it ourselves
+			set(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_ZSTD_BUILD 1)
+		endif()
+	endif()
+endif()
+
 # ============================== Prefer static libs? ==============================
 
 if (DEKAF2_PREFER_STATIC_LIBS)
@@ -523,6 +552,7 @@ set (BITS_HEADERS
 set(BITS_SIMD_HEADERS
 	bits/simd/kfindfirstof.h
 )
+
 set(PUBLIC_HEADERS
 	# KEEP ALPHABETIZED
 	dekaf2.h
@@ -656,7 +686,7 @@ set(PUBLIC_HEADERS
 )
 
 if (DEKAF2_HAS_LIBZIP)
-	set(PUBLIC_HEADERS ${PUBLIC_HEADERS}
+	list(APPEND PUBLIC_HEADERS}
 		kzip.h
 	)
 endif()
@@ -796,9 +826,17 @@ set (SOURCES
 )
 
 if (DEKAF2_HAS_LIBZIP)
-	set(SOURCES ${SOURCES}
+	list(APPEND SOURCES
 		kzip.cpp
 	)
+endif()
+
+if (DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD)
+	list(APPEND SOURCES bits/from_boost/iostreams/lzma.cpp)
+endif()
+
+if (DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_ZSTD_BUILD)
+	list(APPEND SOURCES bits/from_boost/iostreams/zstd.cpp)
 endif()
 
 # ============================= CONDITIONAL LIBS ==================================

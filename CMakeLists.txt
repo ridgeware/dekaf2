@@ -534,6 +534,7 @@ set (BITS_HEADERS
 	bits/kcppcompat.h
 	bits/kfilesystem.h
 	bits/khash.h
+	bits/kiostreams_filters.h
 	bits/klogwriter.h
 	bits/klogserializer.h
 	bits/kmake_unique.h

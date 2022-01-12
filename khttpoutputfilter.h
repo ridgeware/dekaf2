@@ -182,7 +182,13 @@ private:
 		NONE,
 		GZIP,
 		ZLIB,
-		BZIP2
+		BZIP2,
+#ifdef DEKAF2_HAS_LIBLZMA
+		XZ,
+#endif
+#ifdef DEKAF2_HAS_LIBZSTD
+		ZSTD,
+#endif
 	};
 
 	static KOutStringStream s_Empty;

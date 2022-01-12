@@ -50,6 +50,7 @@
 #include "kjson.h"
 #include "kmime.h"
 #include "kurl.h"
+#include "kconfiguration.h"
 
 /// @file khttpclient.h
 /// HTTP client implementation - low level
@@ -412,6 +413,15 @@ public:
 	self& ClearAuthentication();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// Returns CSV string with supported HTTP compressors (to be used for ACCEPT_ENCODING)
+	constexpr
+	static KStringViewZ SupportedCompressors()
+	//-----------------------------------------------------------------------------
+	{
+		return s_sSupportedCompressors;
+	}
+
 //------
 protected:
 //------
@@ -475,6 +485,15 @@ private:
 	bool             m_bAutoProxy { false };
 	bool             m_bUseHTTPProxyProtocol { false };
 	bool             m_bKeepAlive { true };
+
+	static constexpr KStringViewZ s_sSupportedCompressors =
+#ifdef DEKAF2_HAS_LIBZSTD
+															"zstd, "
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+															"xz, lzma, "
+#endif
+															"gzip, bzip2, deflate";
 
 //------
 public:

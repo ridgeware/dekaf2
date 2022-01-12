@@ -159,7 +159,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Returns either gzip, deflate or bzip2 if either compression is supported by
+	/// Returns either zstd, xz, lzma, gzip, deflate or bzip2 if either compression is supported by
 	/// the client and the HTTP protocol is at least 1.1
 	KStringView SupportedCompression() const;
 	//-----------------------------------------------------------------------------

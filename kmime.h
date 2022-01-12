@@ -176,6 +176,7 @@ public:
 	static constexpr KStringViewZ XLS                    = "application/vnd.ms-excel";
 	static constexpr KStringViewZ XLSX                   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 	static constexpr KStringViewZ ZIP                    = "application/zip";
+	static constexpr KStringViewZ ZSTD                   = "application/zstd";
 	static constexpr KStringViewZ SEVENZIP               = "application/x-7z-compressed";
 
 	static constexpr KStringViewZ EOT                    = "font/vnd.ms-fontobject";

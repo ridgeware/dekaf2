@@ -5,7 +5,6 @@
 #include <iostream>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/copy.hpp>
 #include <dekaf2/kstringstream.h>
 
 using namespace dekaf2;

@@ -479,7 +479,7 @@ public:
 
 }; // KUnTarBZip2
 
-#ifdef DEKAF2_HAS_ZSTD_COMPRESSION
+#ifdef DEKAF2_HAS_LIBZSTD
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Tar unarchiver that can read ZSTD compressed archives
 class KUnTarZstd : public KUnTarCompressed

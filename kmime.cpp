@@ -98,6 +98,8 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		{ "xls"_ksv  , XLS        },
 		{ "xlsx"_ksv , XLSX       },
 		{ "zip"_ksv  , ZIP        },
+		{ "zst"_ksv  , ZSTD       },
+		{ "zstd"_ksv , ZSTD       },
 		{ "7z"_ksv   , SEVENZIP   },
 
 		{ "eot"_ksv  , EOT        },

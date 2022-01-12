@@ -39,14 +39,11 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/filter/zlib.hpp>
-#include <boost/iostreams/filter/bzip2.hpp>
-
 #include "khttpinputfilter.h"
 #include "kchunkedtransfer.h"
 #include "kstringstream.h"
 #include "kcountingstreambuf.h"
+#include "bits/kiostreams_filters.h"
 
 namespace dekaf2 {
 
@@ -70,6 +67,7 @@ bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode)
 	m_bChunked = headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
 
 	KStringView sCompression = headers.Headers.Get(KHTTPHeader::CONTENT_ENCODING);
+
 	if (sCompression == "gzip" || sCompression == "x-gzip")
 	{
 		m_Compression = GZIP;
@@ -82,6 +80,22 @@ bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode)
 	{
 		m_Compression = BZIP2;
 	}
+#ifdef DEKAF2_HAS_LIBZSTD
+	else if (sCompression == "zstd")
+	{
+		m_Compression = ZSTD;
+	}
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+	else if (sCompression == "xz")
+	{
+		m_Compression = XZ;
+	}
+	else if (sCompression == "lzma")
+	{
+		m_Compression = LZMA;
+	}
+#endif
 
 	return true;
 
@@ -102,17 +116,38 @@ bool KInHTTPFilter::SetupInputFilter()
 
 	if (m_bAllowUncompression)
 	{
-		if (m_Compression == GZIP)
+		switch (m_Compression)
 		{
-			m_Filter->push(boost::iostreams::gzip_decompressor());
-		}
-		else if (m_Compression == ZLIB)
-		{
-			m_Filter->push(boost::iostreams::zlib_decompressor());
-		}
-		else if (m_Compression == BZIP2)
-		{
-			m_Filter->push(boost::iostreams::bzip2_decompressor());
+			case NONE:
+				break;
+
+			case GZIP:
+				m_Filter->push(boost::iostreams::gzip_decompressor());
+				break;
+
+			case ZLIB:
+				m_Filter->push(boost::iostreams::zlib_decompressor());
+				break;
+
+			case BZIP2:
+				m_Filter->push(boost::iostreams::bzip2_decompressor());
+				break;
+
+#ifdef DEKAF2_HAS_LIBZSTD
+			case ZSTD:
+				m_Filter->push(boost::iostreams::zstd_decompressor());
+				break;
+
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+			case XZ: // lzma v2
+				m_Filter->push(boost::iostreams::lzma_decompressor());
+				break;
+
+			case LZMA: // LZMA means v1, it should be supported by the lzma decompressor
+				m_Filter->push(boost::iostreams::lzma_decompressor());
+				break;
+#endif
 		}
 	}
 

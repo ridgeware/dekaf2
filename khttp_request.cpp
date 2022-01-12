@@ -41,6 +41,7 @@
 
 #include "khttp_request.h"
 #include "kstring.h"
+#include "kconfiguration.h"
 
 namespace dekaf2 {
 
@@ -607,6 +608,24 @@ KStringView KHTTPRequestHeaders::SupportedCompression() const
 		// check the client's request headers for accepted compression encodings
 		auto& sCompression = Headers.Get(KHTTPHeader::ACCEPT_ENCODING);
 
+#ifdef DEKAF2_HAS_LIBZSTD
+		if (sCompression.find("zstd") != KString::npos)
+		{
+			return "zstd"_ksv;
+		}
+		else
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+		if (sCompression.find("xz") != KString::npos)
+		{
+			return "xz"_ksv;
+		}
+		else if (sCompression.find("lzma") != KString::npos)
+		{
+			return "lzma"_ksv;
+		}
+		else
+#endif
 		if (sCompression.find("deflate") != KString::npos)
 		{
 			return "deflate"_ksv;

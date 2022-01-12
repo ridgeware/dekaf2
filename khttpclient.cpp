@@ -708,7 +708,7 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 
 	if (m_bRequestCompression && Request.Method != KHTTPMethod::CONNECT)
 	{
-		AddHeader(KHTTPHeader::ACCEPT_ENCODING, "gzip, bzip2, deflate");
+		AddHeader(KHTTPHeader::ACCEPT_ENCODING, SupportedCompressors());
 	}
 
 	// send the request headers to the remote server

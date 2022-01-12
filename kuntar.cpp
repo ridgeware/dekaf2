@@ -88,8 +88,6 @@
 
 #include <cstring>
 #include <array>
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/filter/bzip2.hpp>
 
 namespace dekaf2 {
 

@@ -45,19 +45,12 @@
 /// @file kcompression.h
 /// Compression framework
 
+#include "kconfiguration.h"
 #include "kstream.h"
 #include "kinstringstream.h"
 #include "koutstringstream.h"
 
 #include <boost/iostreams/filtering_stream.hpp>
-
-#if defined(DEKAF2_HAS_LIBLZMA)
-	#define DEKAF2_HAS_LZMA_COMPRESSION
-#endif
-
-#if defined(DEKAF2_HAS_LIBZSTD)
-	#define DEKAF2_HAS_ZSTD_COMPRESSION
-#endif
 
 namespace dekaf2 {
 
@@ -80,10 +73,10 @@ public:
 		GZIP,
 		BZIP2,
 		ZLIB,
-#ifdef DEKAF2_HAS_LZMA_COMPRESSION
+#ifdef DEKAF2_HAS_LIBLZMA
 		LZMA,
 #endif
-#ifdef DEKAF2_HAS_ZSTD_COMPRESSION
+#ifdef DEKAF2_HAS_LIBZSTD
 		ZSTD,
 #endif
 		AUTO
@@ -348,7 +341,7 @@ public:
 
 }; // KUnZlib
 
-#ifdef DEKAF2_HAS_LZMA_COMPRESSION
+#ifdef DEKAF2_HAS_LIBLZMA
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// LZMA compressor
 class DEKAF2_PUBLIC KLZMA : public KCompress
@@ -396,7 +389,7 @@ public:
 }; // KUnLZMA
 #endif
 
-#ifdef DEKAF2_HAS_ZSTD_COMPRESSION
+#ifdef DEKAF2_HAS_LIBZSTD
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// ZSTD compressor
 class DEKAF2_PUBLIC KZstd : public KCompress

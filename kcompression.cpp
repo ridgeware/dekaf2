@@ -43,29 +43,7 @@
 #include "kcompression.h"
 #include "klog.h"
 #include "kfilesystem.h"
-
-#include <boost/iostreams/copy.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/filter/zlib.hpp>
-#include <boost/iostreams/filter/bzip2.hpp>
-#ifdef DEKAF2_HAS_LZMA_COMPRESSION
-	#if defined(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD)
-		// we pick our own lzma.hpp instead one that might have come with boost,
-		// as we link to our object anyway
-		#include "bits/from_boost/iostreams/lzma.hpp"
-	#else
-		#include <boost/iostreams/filter/lzma.hpp>
-	#endif
-#endif
-#ifdef DEKAF2_HAS_ZSTD_COMPRESSION
-	#if defined(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_ZSTD_BUILD)
-		// we pick our own zstd.hpp instead one that might have come with boost,
-		// as we link to our object anyway
-		#include "bits/from_boost/iostreams/zstd.hpp"
-	#else
-		#include <boost/iostreams/filter/zstd.hpp>
-	#endif
-#endif
+#include "bits/kiostreams_filters.h"
 
 namespace dekaf2 {
 
@@ -94,12 +72,13 @@ detail::KCompressionBase::COMPRESSION detail::KCompressionBase::GetCompressionMe
 		case "tz"_hash:
 			return KCompressionBase::ZLIB;
 
-#ifdef DEKAF2_HAS_LZMA_COMPRESSION
-		case "xz"_hash:
+#ifdef DEKAF2_HAS_LIBLZMA
+		case "xz"_hash:   // this is lzma v2, the native format of our LZMA implementation
+		case "lzma"_hash: // lzma v1 should be uncompressed by LZMA v2, TBC
 			return KCompressionBase::LZMA;
 #endif
 
-#ifdef DEKAF2_HAS_ZSTD_COMPRESSION
+#ifdef DEKAF2_HAS_LIBZSTD
 		case "zstd"_hash:
 		case "zst"_hash:
 		case "lz4"_hash: // zstd can uncompress lz4 inputs
@@ -159,13 +138,13 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression)
 			compressor::push(bio::zlib_compressor(bio::zlib_params(bio::zlib::default_compression)));
 			break;
 
-#ifdef DEKAF2_HAS_LZMA_COMPRESSION
+#ifdef DEKAF2_HAS_LIBLZMA
 		case LZMA:
 			compressor::push(bio::lzma_compressor(bio::lzma_params(bio::lzma::default_compression)));
 			break;
 #endif
 
-#ifdef DEKAF2_HAS_ZSTD_COMPRESSION
+#ifdef DEKAF2_HAS_LIBZSTD
 		case ZSTD:
 			compressor::push(bio::zstd_compressor(bio::zstd_params(bio::zstd::default_compression)));
 			break;
@@ -234,13 +213,13 @@ bool KUnCompressIStream::CreateFilter(COMPRESSION compression)
 			uncompressor::push(bio::zlib_decompressor());
 			break;
 
-#ifdef DEKAF2_HAS_LZMA_COMPRESSION
+#ifdef DEKAF2_HAS_LIBLZMA
 		case LZMA:
 			uncompressor::push(bio::lzma_decompressor());
 			break;
 #endif
 
-#ifdef DEKAF2_HAS_ZSTD_COMPRESSION
+#ifdef DEKAF2_HAS_LIBZSTD
 		case ZSTD:
 			uncompressor::push(bio::zstd_decompressor());
 			break;

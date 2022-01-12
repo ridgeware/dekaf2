@@ -39,9 +39,7 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/filter/zlib.hpp>
-#include <boost/iostreams/filter/bzip2.hpp>
+#include "bits/kiostreams_filters.h"
 
 #include "khttpoutputfilter.h"
 #include "kchunkedtransfer.h"
@@ -73,6 +71,25 @@ bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 	{
 		m_Compression = BZIP2;
 	}
+#ifdef DEKAF2_HAS_LIBZSTD
+	else if (sCompression == "zstd")
+	{
+		m_Compression = ZSTD;
+	}
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+	else if (sCompression == "xz")
+	{
+		m_Compression = XZ;
+	}
+/*
+ * we do not support the LZMA v1 compression, only the uncompression..
+	else if (sCompression == "lzma")
+	{
+		m_Compression = LZMA;
+	}
+*/
+#endif
 
 	return true;
 
@@ -93,20 +110,39 @@ bool KOutHTTPFilter::SetupOutputFilter()
 
 	if (m_bAllowCompression)
 	{
-		if (m_Compression == GZIP)
+		switch (m_Compression)
 		{
-			kDebug(2, "using gzip compression")
-			m_Filter->push(boost::iostreams::gzip_compressor());
-		}
-		else if (m_Compression == ZLIB)
-		{
-			kDebug(2, "using zlib compression")
-			m_Filter->push(boost::iostreams::zlib_compressor());
-		}
-		else if (m_Compression == BZIP2)
-		{
-			kDebug(2, "using bzip2 compression")
-			m_Filter->push(boost::iostreams::bzip2_compressor());
+			case NONE:
+				break;
+				
+			case GZIP:
+				kDebug(2, "using gzip compression")
+				m_Filter->push(boost::iostreams::gzip_compressor());
+				break;
+
+			case ZLIB:
+				kDebug(2, "using zlib compression")
+				m_Filter->push(boost::iostreams::zlib_compressor());
+				break;
+
+			case BZIP2:
+				kDebug(2, "using bzip2 compression")
+				m_Filter->push(boost::iostreams::bzip2_compressor());
+				break;
+
+#ifdef DEKAF2_HAS_LIBZSTD
+			case ZSTD:
+				kDebug(2, "using zstd compression")
+				m_Filter->push(boost::iostreams::zstd_compressor());
+				break;
+
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+			case XZ:
+				kDebug(2, "using xz compression")
+				m_Filter->push(boost::iostreams::lzma_compressor());
+				break;
+#endif
 		}
 	}
 	else

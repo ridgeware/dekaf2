@@ -47,6 +47,7 @@
 #include "kstringview.h"
 #include "khttp_header.h"
 #include "kinstringstream.h"
+#include "kconfiguration.h" // for DEKAF2_HAS_LIBLZMA/LIBZSTD ..
 
 
 /// @file khttpinputfilter.h
@@ -187,7 +188,14 @@ private:
 		NONE,
 		GZIP,
 		ZLIB,
-		BZIP2
+		BZIP2,
+#ifdef DEKAF2_HAS_LIBLZMA
+		LZMA,
+		XZ,
+#endif
+#ifdef DEKAF2_HAS_LIBZSTD
+		ZSTD,
+#endif
 	};
 
 	static KInStringStream s_Empty;

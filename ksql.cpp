@@ -8787,7 +8787,24 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 			const auto& sValue   = it.begin().value().get_ref<const KString&>();
 			bool        bIsIndex = sValue.StartsWith("(");
 
-			if (bIsIndex)
+			if (sName == "PRIMARY KEY")
+			{
+				switch (sVerb.Hash())
+				{
+				case "drop"_hash:
+					sResult += kFormat ("alter table {} drop primary key", sTableName);
+					break;
+				case "add"_hash:
+					sResult += kFormat ("alter table {} add primary key {}", sTableName, sValue);
+					break;
+				case "modify"_hash:
+				default:
+					sResult += kFormat ("alter table {} drop primary key; ", sTableName);
+					sResult += kFormat ("alter table {} add primary key {}", sTableName, sValue);
+					break;
+				}
+			}
+			else if (bIsIndex)
 			{
 				switch (sVerb.Hash())
 				{

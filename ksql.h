@@ -735,8 +735,7 @@ public:
 	/// Diff two data dictionaries, returned by prior calls to LoadSchema().
 	/// Produces two summaries of the diffs: one structured (JSON) and the other serialized (ASCII "diff" output).
 	/// Returns the number of diffs (or 0 if no diffs).
-	size_t DiffSchemas (const KJSON& Schema1, const KJSON& Schema2,
-						KJSON& Diffs, KString& sSummary,
+	size_t DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema, KJSON& Diffs, KString& sSummary,
 						const KJSON& options={
 							{DIFF::left_schema,"left schema"},
 							{DIFF::left_prefix,"<"},

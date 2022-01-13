@@ -8625,6 +8625,8 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 		Tables.push_back(row.GetValue(0).ToUpper());
 	}
 
+	const auto bIgnoreCollate = kjson::GetBool(options, DIFF::ignore_collate);
+
 	for (const auto& sTable : Tables)
 	{
 		if (!ExecQuery("show create table {}", sTable))
@@ -8640,7 +8642,7 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 
 		KString/*copy*/ sCreateTable = Get(2);
 
-		if (kjson::GetBool(options,DIFF::ignore_collate))
+		if (bIgnoreCollate)
 		{
 			// remove collate from each column def, e.g. COLLATE utf8mb4_unicode_ci
 			sCreateTable.ReplaceRegex ("COLLATE [a-zA-Z0-9_]* ", "", /*all=*/true);
@@ -8701,6 +8703,12 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 	sSummary.clear();        // <-- return result (verbosity)
 	Diffs = KJSON::array();  // <-- return result (SQL commands)
 
+	const auto& sDiffPrefix  = kjson::GetStringRef(options, DIFF::diff_prefix );
+	const auto& sLeftSchema  = kjson::GetStringRef(options, DIFF::left_schema );
+	const auto& sRightSchema = kjson::GetStringRef(options, DIFF::right_schema);
+	const auto& sLeftPrefix  = kjson::GetStringRef(options, DIFF::left_prefix );
+	const auto& sRightPrefix = kjson::GetStringRef(options, DIFF::right_prefix);
+
 	//-----------------------------------------------------------------------------
 	auto FindTable = [](const KJSON& Array, const KString& sProperty, const KString& sName) -> const KJSON&
 	//-----------------------------------------------------------------------------
@@ -8714,9 +8722,10 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 				return jElement;
 			}
 		}
+
 		return s_jEmpty;
 
-	}; //  // lambda: FindTable
+	}; // lambda: FindTable
 
 	//-----------------------------------------------------------------------------
 	auto FindField = [](const KJSON& Array, const KString& sName) -> const KJSON&
@@ -8731,18 +8740,20 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 				return jElement;
 			}
 		}
+		
 		return s_jEmpty;
 
 	}; // lambda: FindField
 
 	//-----------------------------------------------------------------------------
-	auto PrintColumn = [&] (KStringView sPrefix, const KJSON& jColumn, KString& sResult)
+	auto PrintColumn = [&sDiffPrefix] (KStringView sPrefix, const KJSON& jColumn, KString& sResult)
 	//-----------------------------------------------------------------------------
 	{
 		if (jColumn.is_object() && !jColumn.empty())
 		{
 			auto it = jColumn.items();
-			sResult += kFormat("{}{} {}\n",
+			sResult += kFormat("{}{} {} {}\n",
+				sDiffPrefix,
 				sPrefix,
 				it.begin().key(),
 				it.begin().value().get_ref<const KString&>());
@@ -8751,7 +8762,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 	}; // lambda: PrintColumn
 
 	//-----------------------------------------------------------------------------
-	auto FormCreateAction = [&] (KStringView sTableName, const KJSON& jColumn, KString& sResult)
+	auto FormCreateAction = [] (KStringView sTableName, const KJSON& jColumn, KString& sResult)
 	//-----------------------------------------------------------------------------
 	{
 		if (jColumn.is_object() && !jColumn.empty())
@@ -8775,7 +8786,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 	}; // lambda: FormCreateAction
 
 	//-----------------------------------------------------------------------------
-	auto FormAlterAction  = [&] (KStringView sTableName, const KJSON& jColumn, KStringView sVerb)
+	auto FormAlterAction  = [] (KStringView sTableName, const KJSON& jColumn, KStringView sVerb) -> KString
 	//-----------------------------------------------------------------------------
 	{
 		KString sResult;
@@ -8840,12 +8851,12 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 	}; // lambda: FormAlterAction
 
 	//-----------------------------------------------------------------------------
-	auto DiffOneTable = [&](const KString& sTableName, const KJSON& left, const KJSON& right)
+	auto DiffOneTable = [&](const KString& sTableName, const KJSON& left, const KJSON& right) -> size_t
 	//-----------------------------------------------------------------------------
 	{
 		size_t iTableDiffs{0};
 
-		sSummary += kFormat ("{}{}", kjson::GetString(options,DIFF::diff_prefix), sTableName); // <-- no newline on purpose
+		sSummary += kFormat ("{}{}", sDiffPrefix, sTableName); // <-- no newline on purpose
 
 		int     iCreateTable{0};
 		KString sLeftCreate;
@@ -8853,14 +8864,14 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 
 		if (left.is_null())
 		{
-			sSummary += kFormat (" <-- table is only in {}\n", kjson::GetString(options,DIFF::right_schema));
+			sSummary += kFormat (" <-- table is only in {}\n", sRightSchema);
 			sRightCreate.Format ("drop table {}", sTableName);
 			iCreateTable = 'L'; // left
 			++iTableDiffs;
 		}
 		else if (right.is_null())
 		{
-			sSummary += kFormat (" <-- table is only in {}\n", kjson::GetString(options,DIFF::left_schema));
+			sSummary += kFormat (" <-- table is only in {}\n", sLeftSchema);
 			sLeftCreate.Format ("drop table {}", sTableName);
 			iCreateTable = 'R'; // right
 			++iTableDiffs;
@@ -8932,8 +8943,8 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 				if (!iCreateTable || bShowMissingTablesWithColumns)
 				{
 					// columns differ
-					PrintColumn (kFormat ("{} {}", kjson::GetString(options,DIFF::diff_prefix), kjson::GetString(options,DIFF::left_prefix)),  oLeftColumn, sSummary);
-					PrintColumn (kFormat ("{} {}", kjson::GetString(options,DIFF::diff_prefix), kjson::GetString(options,DIFF::right_prefix)), oRightColumn, sSummary);
+					PrintColumn (sLeftPrefix , oLeftColumn , sSummary);
+					PrintColumn (sRightPrefix, oRightColumn, sSummary);
 				}
 			}
 		}
@@ -8968,7 +8979,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 				// verbosity:
 				if (!iCreateTable || bShowMissingTablesWithColumns)
 				{
-					PrintColumn (kFormat ("{} {}", kjson::GetString(options,DIFF::diff_prefix), kjson::GetString(options,DIFF::right_prefix)), oRightColumn, sSummary);
+					PrintColumn (sRightPrefix, oRightColumn, sSummary);
 				}
 			}
 		}

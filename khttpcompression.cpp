@@ -80,6 +80,8 @@ KHTTPCompression::COMP KHTTPCompression::FromString(KStringView sCompression)
 			return NONE;
 	}
 
+	return NONE;
+
 } // FromString
 
 //-----------------------------------------------------------------------------
@@ -163,6 +165,8 @@ KStringView KHTTPCompression::ToString(COMP comp)
 			return "lzma"_ksv;
 #endif
 	}
+
+	return ""_ksv;
 
 } // ToString
 

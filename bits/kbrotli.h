@@ -344,8 +344,7 @@ bool brotli_decompressor_impl<Alloc>::filter
     before(src_begin, src_end, dest_begin, dest_end);
     int result = inflate(flush ? brotli::finish : brotli::run);
     after(src_begin, dest_begin, false);
-    return result != brotli::stream_end;
-	return !(eof_ = result == brotli::stream_end);
+    return !(eof_ = result == brotli::stream_end);
 }
 
 template<typename Alloc>

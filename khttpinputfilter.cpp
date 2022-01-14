@@ -66,36 +66,7 @@ bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode)
 
 	m_bChunked = headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
 
-	KStringView sCompression = headers.Headers.Get(KHTTPHeader::CONTENT_ENCODING);
-
-	if (sCompression == "gzip" || sCompression == "x-gzip")
-	{
-		m_Compression = GZIP;
-	}
-	else if (sCompression == "deflate")
-	{
-		m_Compression = ZLIB;
-	}
-	else if (sCompression == "bzip2")
-	{
-		m_Compression = BZIP2;
-	}
-#ifdef DEKAF2_HAS_LIBZSTD
-	else if (sCompression == "zstd")
-	{
-		m_Compression = ZSTD;
-	}
-#endif
-#ifdef DEKAF2_HAS_LIBLZMA
-	else if (sCompression == "xz")
-	{
-		m_Compression = XZ;
-	}
-	else if (sCompression == "lzma")
-	{
-		m_Compression = LZMA;
-	}
-#endif
+	KHTTPCompression::Parse(headers);
 
 	return true;
 
@@ -119,36 +90,57 @@ bool KInHTTPFilter::SetupInputFilter()
 		switch (m_Compression)
 		{
 			case NONE:
+				kDebug(2, "no {}compression", "un");
 				break;
 
 			case GZIP:
+				kDebug(2, "using {} {}compression", "gzip", "un");
 				m_Filter->push(boost::iostreams::gzip_decompressor());
 				break;
 
 			case ZLIB:
+				kDebug(2, "using {} {}compression", "zlib", "un");
 				m_Filter->push(boost::iostreams::zlib_decompressor());
 				break;
 
 			case BZIP2:
+				kDebug(2, "using {} {}compression", "bzip2", "un");
 				m_Filter->push(boost::iostreams::bzip2_decompressor());
 				break;
 
 #ifdef DEKAF2_HAS_LIBZSTD
 			case ZSTD:
+				kDebug(2, "using {} {}compression", "zstd", "un");
 				m_Filter->push(boost::iostreams::zstd_decompressor());
 				break;
-
 #endif
 #ifdef DEKAF2_HAS_LIBLZMA
 			case XZ: // lzma v2
+				kDebug(2, "using {} {}compression", "xz", "un");
 				m_Filter->push(boost::iostreams::lzma_decompressor());
 				break;
 
 			case LZMA: // LZMA means v1, it should be supported by the lzma decompressor
+				kDebug(2, "using {} {}compression", "lzma", "un");
 				m_Filter->push(boost::iostreams::lzma_decompressor());
 				break;
 #endif
+#ifdef DEKAF2_HAS_LIBBROTLI
+			case BROTLI:
+				kDebug(2, "using {} {}compression", "brotli", "un");
+				m_Filter->push(boost::iostreams::brotli_decompressor());
+				break;
+#endif
 		}
+	}
+	else
+	{
+		kDebug(2, "no {}compression", "un");
+	}
+
+	if (m_bChunked)
+	{
+		kDebug(2, "chunked {}", "RX");
 	}
 
 	m_iCount = 0;

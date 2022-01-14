@@ -64,7 +64,7 @@ class DEKAF2_PUBLIC KCompressionBase
 public:
 //------
 
-	using compressor = boost::iostreams::filtering_ostream;
+	using compressor   = boost::iostreams::filtering_ostream;
 	using uncompressor = boost::iostreams::filtering_istream;
 
 	enum COMPRESSION
@@ -78,6 +78,9 @@ public:
 #endif
 #ifdef DEKAF2_HAS_LIBZSTD
 		ZSTD,
+#endif
+#ifdef DEKAF2_HAS_LIBBROTLI
+		BROTLI,
 #endif
 		AUTO
 	};
@@ -435,6 +438,54 @@ public:
 	}
 
 }; // KUnZstd
+#endif
+
+#ifdef DEKAF2_HAS_LIBBROTLI
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Brotli compressor
+class DEKAF2_PUBLIC KBrotli : public KCompress
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//------
+public:
+//------
+
+	template<class... Args>
+	KBrotli(Args&&... args)
+	: KCompress(std::forward<Args>(args)..., BROTLI)
+	{
+	}
+
+	template<class... Args>
+	bool open(Args&&... args)
+	{
+		return KCompress::open(std::forward<Args>(args)..., BROTLI);
+	}
+
+}; // KBrotli
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Brotli uncompressor
+class DEKAF2_PUBLIC KUnBrotli : public KUnCompress
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+//------
+public:
+//------
+
+	template<class... Args>
+	KUnBrotli(Args&&... args)
+	: KUnCompress(std::forward<Args>(args)..., BROTLI)
+	{
+	}
+
+	template<class... Args>
+	bool open(Args&&... args)
+	{
+		return KUnCompress::open(std::forward<Args>(args)..., BROTLI);
+	}
+
+}; // KUnBrotli
 #endif
 
 } // end of namespace dekaf2

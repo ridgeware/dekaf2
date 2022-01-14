@@ -41,30 +41,78 @@
 
 #pragma once
 
-#include "kconfiguration.h"
+#include "kconfiguration.h" // for DEKAF2_HAS_LIBLZMA/LIBZSTD ..
+#include "kstringview.h"
+#include "khttp_header.h"
 
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/filter/zlib.hpp>
-#include <boost/iostreams/filter/bzip2.hpp>
+namespace dekaf2 {
 
-#ifdef DEKAF2_HAS_LIBLZMA
-	#if defined(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD)
-		// we pick our own lzma.hpp instead one that might have come with boost,
-		// as we link to our object anyway
-		#include "from_boost/iostreams/lzma.hpp"
-	#else
-		#include <boost/iostreams/filter/lzma.hpp>
-	#endif
-#endif
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC KHTTPCompression
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	enum COMP
+	{
 #ifdef DEKAF2_HAS_LIBZSTD
-	#if defined(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_ZSTD_BUILD)
-		// we pick our own zstd.hpp instead one that might have come with boost,
-		// as we link to our object anyway
-		#include "from_boost/iostreams/zstd.hpp"
-	#else
-		#include <boost/iostreams/filter/zstd.hpp>
-	#endif
+		ZSTD   = 1,
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+		XZ     = 2,
+		LZMA   = 8,
+#endif
+		ZLIB   = 3,
+		GZIP   = 4,
+#ifdef DEKAF2_HAS_LIBBROTLI
+		BROTLI = 5,
+#endif
+		BZIP2  = 6,
+		NONE   = 7
+	};
+
+	KHTTPCompression() = default;
+	KHTTPCompression(KStringView sCompression)    { Parse(sCompression);            }
+	KHTTPCompression(const KHTTPHeaders& Headers) { Parse(Headers);                 }
+	KHTTPCompression(COMP comp) : m_Compression(comp) {}
+
+	KHTTPCompression& operator=(KStringView sCompression) { Parse(sCompression); return *this; }
+
+	void Parse(KStringView sCompression);
+	void Parse(const KHTTPHeaders& Headers);
+	COMP GetCompression() const                   { return m_Compression;           }
+	void SetCompression(COMP comp)                { m_Compression = comp;           }
+	KStringView Serialize() const                 { return ToString(m_Compression); }
+
+	/// Returns CSV string with supported HTTP compressors (to be used for ACCEPT_ENCODING)
+	constexpr
+	static KStringViewZ GetSupportedCompressors() { return s_sSupportedCompressors; }
+	static COMP         GetBestSupportedCompression(KStringView sCompressors);
+	static COMP         GetBestSupportedCompression(const KHTTPHeaders& Headers);
+	static COMP         FromString(KStringView);
+	static KStringView  ToString(COMP comp);
+
+//------
+protected:
+//------
+
+	static constexpr KStringViewZ s_sSupportedCompressors =
+#ifdef DEKAF2_HAS_LIBZSTD
+															"zstd, "
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI
-	#include "kbrotli.h"
+// need more tests before enabling it						"br, "
 #endif
+#ifdef DEKAF2_HAS_LIBLZMA
+															"xz, lzma, "
+#endif
+															"gzip, bzip2, deflate";
+
+	COMP m_Compression { NONE };
+
+}; // KHTTPCompression
+
+} // of namespace dekaf2

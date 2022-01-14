@@ -57,39 +57,7 @@ bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 
 	m_bChunked = headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
 
-	KStringView sCompression = headers.Headers.Get(KHTTPHeader::CONTENT_ENCODING);
-
-	if (sCompression == "gzip" || sCompression == "x-gzip")
-	{
-		m_Compression = GZIP;
-	}
-	else if (sCompression == "deflate")
-	{
-		m_Compression = ZLIB;
-	}
-	else if (sCompression == "bzip2")
-	{
-		m_Compression = BZIP2;
-	}
-#ifdef DEKAF2_HAS_LIBZSTD
-	else if (sCompression == "zstd")
-	{
-		m_Compression = ZSTD;
-	}
-#endif
-#ifdef DEKAF2_HAS_LIBLZMA
-	else if (sCompression == "xz")
-	{
-		m_Compression = XZ;
-	}
-/*
- * we do not support the LZMA v1 compression, only the uncompression..
-	else if (sCompression == "lzma")
-	{
-		m_Compression = LZMA;
-	}
-*/
-#endif
+	KHTTPCompression::Parse(headers);
 
 	return true;
 
@@ -113,46 +81,57 @@ bool KOutHTTPFilter::SetupOutputFilter()
 		switch (m_Compression)
 		{
 			case NONE:
+				kDebug(2, "no {}compression", "");
 				break;
 				
 			case GZIP:
-				kDebug(2, "using gzip compression")
+				kDebug(2, "using {} {}compression", "gzip", "");
 				m_Filter->push(boost::iostreams::gzip_compressor());
 				break;
 
 			case ZLIB:
-				kDebug(2, "using zlib compression")
+				kDebug(2, "using {} {}compression", "zlib", "");
 				m_Filter->push(boost::iostreams::zlib_compressor());
 				break;
 
 			case BZIP2:
-				kDebug(2, "using bzip2 compression")
+				kDebug(2, "using {} {}compression", "bzip2", "");
 				m_Filter->push(boost::iostreams::bzip2_compressor());
 				break;
 
 #ifdef DEKAF2_HAS_LIBZSTD
 			case ZSTD:
-				kDebug(2, "using zstd compression")
+				kDebug(2, "using {} {}compression", "zstd", "");
 				m_Filter->push(boost::iostreams::zstd_compressor());
 				break;
 
 #endif
 #ifdef DEKAF2_HAS_LIBLZMA
 			case XZ:
-				kDebug(2, "using xz compression")
+				kDebug(2, "using {} {}compression", "xz", "");
 				m_Filter->push(boost::iostreams::lzma_compressor());
+				break;
+
+			case LZMA:
+				kDebug(1, "lzma tx compression not supported!");
+				break;
+#endif
+#ifdef DEKAF2_HAS_LIBBROTLI
+			case BROTLI:
+				kDebug(2, "using {} {}compression", "brotli", "");
+				m_Filter->push(boost::iostreams::brotli_compressor());
 				break;
 #endif
 		}
 	}
 	else
 	{
-		kDebug(2, "no compression");
+		kDebug(2, "no {}compression", "");
 	}
 
 	if (m_bChunked)
 	{
-		kDebug(2, "chunked TX");
+		kDebug(2, "chunked {}", "TX");
 	}
 
 	m_iCount = 0;
@@ -161,7 +140,7 @@ bool KOutHTTPFilter::SetupOutputFilter()
 	// without writing chunks
 	KChunkedSink Sink(UnfilteredStream(), m_bChunked, &m_iCount);
 
-	// and finally add our source stream to the filtering_istream
+	// and finally add our source stream to the filtering_ostream
 	m_Filter->push(std::move(Sink));
 
 	return true;

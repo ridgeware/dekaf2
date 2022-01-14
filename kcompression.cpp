@@ -84,6 +84,11 @@ detail::KCompressionBase::COMPRESSION detail::KCompressionBase::GetCompressionMe
 		case "lz4"_hash: // zstd can uncompress lz4 inputs
 			return KCompressionBase::ZSTD;
 #endif
+
+#ifdef DEKAF2_HAS_LIBBROTLI
+		case "br"_hash:
+			return KCompressionBase::BROTLI;
+#endif
 	}
 
 	return KCompressionBase::NONE;
@@ -147,6 +152,12 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression)
 #ifdef DEKAF2_HAS_LIBZSTD
 		case ZSTD:
 			compressor::push(bio::zstd_compressor(bio::zstd_params(bio::zstd::default_compression)));
+			break;
+#endif
+
+#ifdef DEKAF2_HAS_LIBBROTLI
+		case BROTLI:
+			compressor::push(bio::brotli_compressor(bio::brotli_params(bio::brotli::default_compression)));
 			break;
 #endif
 	}
@@ -222,6 +233,12 @@ bool KUnCompressIStream::CreateFilter(COMPRESSION compression)
 #ifdef DEKAF2_HAS_LIBZSTD
 		case ZSTD:
 			uncompressor::push(bio::zstd_decompressor());
+			break;
+#endif
+
+#ifdef DEKAF2_HAS_LIBBROTLI
+		case BROTLI:
+			uncompressor::push(bio::brotli_decompressor());
 			break;
 #endif
 	}

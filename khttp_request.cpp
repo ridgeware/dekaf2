@@ -41,6 +41,7 @@
 
 #include "khttp_request.h"
 #include "kstring.h"
+#include "kstringutils.h"
 #include "kconfiguration.h"
 
 namespace dekaf2 {
@@ -600,49 +601,20 @@ url::KProtocol KHTTPRequestHeaders::GetRemoteProto() const
 KStringView KHTTPRequestHeaders::SupportedCompression() const
 //-----------------------------------------------------------------------------
 {
+	KHTTPCompression Compression;
+
 	// for compression we need to switch to chunked transfer, as we do not know
 	// the size of the compressed content - however, chunking is only supported
 	// since HTTP/1.1
 	if (HasChunking())
 	{
 		// check the client's request headers for accepted compression encodings
-		auto& sCompression = Headers.Get(KHTTPHeader::ACCEPT_ENCODING);
-
-#ifdef DEKAF2_HAS_LIBZSTD
-		if (sCompression.find("zstd") != KString::npos)
-		{
-			return "zstd"_ksv;
-		}
-		else
-#endif
-#ifdef DEKAF2_HAS_LIBLZMA
-		if (sCompression.find("xz") != KString::npos)
-		{
-			return "xz"_ksv;
-		}
-		else if (sCompression.find("lzma") != KString::npos)
-		{
-			return "lzma"_ksv;
-		}
-		else
-#endif
-		if (sCompression.find("deflate") != KString::npos)
-		{
-			return "deflate"_ksv;
-		}
-		else if (sCompression.find("gzip") != KString::npos)
-		{
-			return "gzip"_ksv;
-		}
-		else if (sCompression.find("bzip2") != KString::npos)
-		{
-			return "bzip2"_ksv;
-		}
+		Compression = Headers.Get(KHTTPHeader::ACCEPT_ENCODING);
 	}
 
-	return ""_ksv;
+	return Compression.Serialize();
 
-} // SupportsCompression
+} // SupportedCompression
 
 //-----------------------------------------------------------------------------
 void KHTTPRequestHeaders::clear()

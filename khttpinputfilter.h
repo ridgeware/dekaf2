@@ -47,8 +47,7 @@
 #include "kstringview.h"
 #include "khttp_header.h"
 #include "kinstringstream.h"
-#include "kconfiguration.h" // for DEKAF2_HAS_LIBLZMA/LIBZSTD ..
-
+#include "khttpcompression.h"
 
 /// @file khttpinputfilter.h
 /// HTTP streaming input filter implementation
@@ -57,7 +56,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KInHTTPFilter
+class DEKAF2_PUBLIC KInHTTPFilter : public KHTTPCompression
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -183,21 +182,6 @@ private:
 	bool SetupInputFilter();
 	//-----------------------------------------------------------------------------
 
-	enum COMP
-	{
-		NONE,
-		GZIP,
-		ZLIB,
-		BZIP2,
-#ifdef DEKAF2_HAS_LIBLZMA
-		LZMA,
-		XZ,
-#endif
-#ifdef DEKAF2_HAS_LIBZSTD
-		ZSTD,
-#endif
-	};
-
 	static KInStringStream s_Empty;
 
 	KInStream*      m_InStream            { &s_Empty  };
@@ -208,7 +192,6 @@ private:
 	KInStream       m_FilteredInStream    { *m_Filter };
 	std::streamsize m_iContentSize        { -1        };
 	std::streamsize m_iCount              { 0         };
-	COMP            m_Compression         { NONE      };
 	bool            m_bChunked            { false     };
 	bool            m_bAllowUncompression { true      };
 

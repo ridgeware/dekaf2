@@ -70,7 +70,9 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		{ "wav"_ksv  , WAV        },
 		{ "weba"_ksv , WEBA       },
 
+		{ "7z"_ksv   , SEVENZIP   },
 		{ "bin"_ksv  , BINARY     },
+		{ "br"_ksv   , BR         },
 		{ "js"_ksv   , JAVASCRIPT },
 		{ "json"_ksv , JSON       },
 		{ "xml"_ksv  , XML        },
@@ -100,7 +102,6 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		{ "zip"_ksv  , ZIP        },
 		{ "zst"_ksv  , ZSTD       },
 		{ "zstd"_ksv , ZSTD       },
-		{ "7z"_ksv   , SEVENZIP   },
 
 		{ "eot"_ksv  , EOT        },
 		{ "otf"_ksv  , OTF        },

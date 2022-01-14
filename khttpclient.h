@@ -339,12 +339,11 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Request response compression. Default is true.
-	self& RequestCompression(bool bYesNo)
+	/// @param bYesNo if true, request response compression
+	/// @param sCompressors comma separated list of compression algorithms, or empty for all supported
+	/// algorithms (zstd, br, xz, lzma, gzip, bzip2, deflate)
+	self& RequestCompression(bool bYesNo, KStringView sCompressors = KStringView{});
 	//-----------------------------------------------------------------------------
-	{
-		m_bRequestCompression = bYesNo;
-		return *this;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Uncompress incoming response if compressed? Default is true
@@ -413,15 +412,6 @@ public:
 	self& ClearAuthentication();
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	/// Returns CSV string with supported HTTP compressors (to be used for ACCEPT_ENCODING)
-	constexpr
-	static KStringViewZ SupportedCompressors()
-	//-----------------------------------------------------------------------------
-	{
-		return s_sSupportedCompressors;
-	}
-
 //------
 protected:
 //------
@@ -478,6 +468,7 @@ private:
 	std::unique_ptr<Authenticator> m_Authenticator;
 	mutable KString  m_sError;
 	KString          m_sForcedHost;
+	KString          m_sCompressors;
 	KURL             m_Proxy;
 	int              m_Timeout { 30 };
 	bool             m_bVerifyCerts { false };
@@ -485,15 +476,6 @@ private:
 	bool             m_bAutoProxy { false };
 	bool             m_bUseHTTPProxyProtocol { false };
 	bool             m_bKeepAlive { true };
-
-	static constexpr KStringViewZ s_sSupportedCompressors =
-#ifdef DEKAF2_HAS_LIBZSTD
-															"zstd, "
-#endif
-#ifdef DEKAF2_HAS_LIBLZMA
-															"xz, lzma, "
-#endif
-															"gzip, bzip2, deflate";
 
 //------
 public:

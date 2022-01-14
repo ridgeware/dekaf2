@@ -642,6 +642,36 @@ KHTTPClient& KHTTPClient::ClearAuthentication()
 } // ClearAuthentication
 
 //-----------------------------------------------------------------------------
+/// Request response compression. Default is true.
+KHTTPClient& KHTTPClient::RequestCompression(bool bYesNo, KStringView sCompressors)
+//-----------------------------------------------------------------------------
+{
+	m_bRequestCompression = bYesNo;
+	m_sCompressors.clear();
+
+	for (const auto sCompressor : sCompressors.Split(",;"))
+	{
+		// check validity of compressor name
+		if (KHTTPCompression::FromString(sCompressor) != KHTTPCompression::NONE)
+		{
+			if (!m_sCompressors.empty())
+			{
+				m_sCompressors += ", ";
+			}
+			m_sCompressors += sCompressor;
+		}
+	}
+
+	if (m_bRequestCompression && !m_sCompressors.empty())
+	{
+		kDebug(2, "selecting new compressors: {}", m_sCompressors);
+	}
+
+	return *this;
+
+} // RequestCompression
+
+//-----------------------------------------------------------------------------
 bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream, size_t len, const KMIME& Mime)
 //-----------------------------------------------------------------------------
 {
@@ -708,7 +738,8 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 
 	if (m_bRequestCompression && Request.Method != KHTTPMethod::CONNECT)
 	{
-		AddHeader(KHTTPHeader::ACCEPT_ENCODING, SupportedCompressors());
+		AddHeader(KHTTPHeader::ACCEPT_ENCODING,
+				  m_sCompressors.empty() ? KHTTPCompression::GetSupportedCompressors() : m_sCompressors.ToView());
 	}
 
 	// send the request headers to the remote server

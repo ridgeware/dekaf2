@@ -268,6 +268,14 @@ if (ZSTD_FOUND)
 	set(DEKAF2_HAS_LIBZSTD 1)
 endif()
 
+# ================================= Brotli ===================================
+
+find_package(Brotli QUIET)
+
+if (BROTLI_FOUND)
+	set(DEKAF2_HAS_LIBBROTLI 1)
+endif()
+
 # ================================= LIBZIP =====================================
 
 # libzip
@@ -550,9 +558,14 @@ set (BITS_HEADERS
 	bits/kunique_deleter.h
 	bits/kurldualencode.h
 )
+
 set(BITS_SIMD_HEADERS
 	bits/simd/kfindfirstof.h
 )
+
+if (DEKAF2_HAS_LIBBROTLI)
+	list(APPEND BITS_HEADERS bits/kbrotli.h)
+endif()
 
 set(PUBLIC_HEADERS
 	# KEEP ALPHABETIZED
@@ -592,6 +605,7 @@ set(PUBLIC_HEADERS
 	khtmldom.h
 	khtmlparser.h
 	khttpclient.h
+	khttpcompression.h
 	khttperror.h
 	khttpinputfilter.h
 	khttplog.h
@@ -708,6 +722,8 @@ set(HEADERS
 	${PUBLIC_HEADERS}
 )
 
+list(SORT HEADERS)
+
 # =============================== SOURCE FILES ====================================
 
 set (SOURCES
@@ -747,6 +763,7 @@ set (SOURCES
 	khtmlentities.cpp
 	khtmlparser.cpp
 	khttpclient.cpp
+	khttpcompression.cpp
 	khttperror.cpp
 	khttpinputfilter.cpp
 	khttplog.cpp
@@ -822,8 +839,6 @@ set (SOURCES
 	kwords.cpp
 	kwriter.cpp
 	kxml.cpp
-	# keep this one at the end
-	khtmlentities5.cpp
 )
 
 if (DEKAF2_HAS_LIBZIP)
@@ -839,6 +854,15 @@ endif()
 if (DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_ZSTD_BUILD)
 	list(APPEND SOURCES bits/from_boost/iostreams/zstd.cpp)
 endif()
+
+if (DEKAF2_HAS_LIBBROTLI)
+	list(APPEND SOURCES bits/kbrotli.cpp)
+endif()
+
+list(SORT SOURCES)
+
+# keep this one at the end
+list(APPEND SOURCES khtmlentities5.cpp)
 
 # ============================= CONDITIONAL LIBS ==================================
 
@@ -887,8 +911,7 @@ else()
 		${BZIP2_LIBRARIES}
 		${LIBLZMA_LIBRARIES}
 		${ZSTD_LIBRARIES}
-#		ZLIB::ZLIB
-#		BZip2::BZip2
+		${BROTLI_LIBRARIES}
 	)
 endif()
 
@@ -937,6 +960,7 @@ target_include_directories(dekaf2
 	$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${LIBZIP_INCLUDE_DIRS}>
+	$<BUILD_INTERFACE:${BROTLI_INCLUDE_DIRS}>
 	# for centos libzip:
 	/include
 )

@@ -146,6 +146,7 @@ public:
 	static constexpr KStringViewZ WEBA                   = "audio/webm";
 
 	static constexpr KStringViewZ BINARY                 = "application/octet-stream";
+	static constexpr KStringViewZ BR                     = "application/brotli";
 	static constexpr KStringViewZ JAVASCRIPT             = "application/javascript";
 	static constexpr KStringViewZ JSON                   = "application/json";
 	static constexpr KStringViewZ JSON_PATCH             = "application/json-patch+json";
@@ -168,6 +169,7 @@ public:
 	static constexpr KStringViewZ PPTX                   = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 	static constexpr KStringViewZ RAR                    = "application/x-rar-compressed";
 	static constexpr KStringViewZ RTF                    = "application/rtf";
+	static constexpr KStringViewZ SEVENZIP               = "application/x-7z-compressed";
 	static constexpr KStringViewZ SH                     = "application/x-sh";
 	static constexpr KStringViewZ TAR                    = "application/x-tar";
 	static constexpr KStringViewZ TS                     = "application/typescript";
@@ -177,7 +179,6 @@ public:
 	static constexpr KStringViewZ XLSX                   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 	static constexpr KStringViewZ ZIP                    = "application/zip";
 	static constexpr KStringViewZ ZSTD                   = "application/zstd";
-	static constexpr KStringViewZ SEVENZIP               = "application/x-7z-compressed";
 
 	static constexpr KStringViewZ EOT                    = "font/vnd.ms-fontobject";
 	static constexpr KStringViewZ OTF                    = "font/otf";

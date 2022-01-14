@@ -46,6 +46,7 @@
 
 #include "kstringview.h"
 #include "khttp_header.h"
+#include "khttpcompression.h"
 #include "kstringstream.h"
 
 
@@ -56,7 +57,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KOutHTTPFilter
+class DEKAF2_PUBLIC KOutHTTPFilter : public KHTTPCompression
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -177,20 +178,6 @@ private:
 	bool SetupOutputFilter();
 	//-----------------------------------------------------------------------------
 
-	enum COMP
-	{
-		NONE,
-		GZIP,
-		ZLIB,
-		BZIP2,
-#ifdef DEKAF2_HAS_LIBLZMA
-		XZ,
-#endif
-#ifdef DEKAF2_HAS_LIBZSTD
-		ZSTD,
-#endif
-	};
-
 	static KOutStringStream s_Empty;
 
 	KOutStream*     m_OutStream         { &s_Empty  };
@@ -200,7 +187,6 @@ private:
 	                m_Filter            { std::make_unique<boost::iostreams::filtering_ostream>() };
 	KOutStream      m_FilteredOutStream { *m_Filter };
 	std::streamsize m_iCount            { 0         };
-	COMP            m_Compression       { NONE      };
 	bool            m_bChunked          { false     };
 	bool            m_bAllowCompression { true      };
 

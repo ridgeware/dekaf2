@@ -50,71 +50,174 @@ namespace dekaf2 {
 namespace bio = boost::iostreams;
 
 //-----------------------------------------------------------------------------
-detail::KCompressionBase::COMPRESSION detail::KCompressionBase::GetCompressionMethodFromFilename(KStringView sFilename)
+detail::KCompressionBase::COMPRESSION detail::KCompressionBase::FromString(KStringView sCompression)
 //-----------------------------------------------------------------------------
 {
-	KString sExt = kExtension(sFilename).ToLowerASCII();
-
-	switch (sExt.Hash())
+	switch (sCompression.Hash())
 	{
 		case "gz"_hash:
 		case "gzip"_hash:
 		case "tgz"_hash:
-			return KCompressionBase::GZIP;
+			return GZIP;
 
 		case "bz2"_hash:
 		case "bzip2"_hash:
 		case "tbz2"_hash:
 		case "tbz"_hash:
-			return KCompressionBase::BZIP2;
+			return BZIP2;
 
+		case "zlib"_hash:
 		case "z"_hash:
 		case "tz"_hash:
-			return KCompressionBase::ZLIB;
+			return ZLIB;
 
 #ifdef DEKAF2_HAS_LIBLZMA
 		case "xz"_hash:   // this is lzma v2, the native format of our LZMA implementation
 		case "lzma"_hash: // lzma v1 should be uncompressed by LZMA v2, TBC
-			return KCompressionBase::LZMA;
+			return LZMA;
 #endif
 
 #ifdef DEKAF2_HAS_LIBZSTD
 		case "zstd"_hash:
 		case "zst"_hash:
 		case "lz4"_hash: // zstd can uncompress lz4 inputs
-			return KCompressionBase::ZSTD;
+			return ZSTD;
 #endif
 
 #ifdef DEKAF2_HAS_LIBBROTLI
 		case "br"_hash:
-			return KCompressionBase::BROTLI;
+		case "brotli"_hash:
+			return BROTLI;
 #endif
 	}
 
-	return KCompressionBase::NONE;
+	return NONE;
+
+} // FromString
+
+//-----------------------------------------------------------------------------
+KStringView detail::KCompressionBase::ToString(COMPRESSION comp)
+//-----------------------------------------------------------------------------
+{
+	switch (comp)
+	{
+		case AUTO:
+		case NONE:
+			return ""_ksv;
+
+		case ZLIB:
+			return "zlib"_ksv;
+
+		case GZIP:
+			return "gzip"_ksv;
+
+		case BZIP2:
+			return "bzip2"_ksv;
+
+#ifdef DEKAF2_HAS_LIBZSTD
+		case ZSTD:
+			return "zstd"_ksv;
+#endif
+#ifdef DEKAF2_HAS_LIBBROTLI
+		case BROTLI:
+			return "br"_ksv;
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+		case LZMA:
+			return "lzma"_ksv;
+#endif
+	}
+
+	return ""_ksv;
+
+} // ToString
+
+//-----------------------------------------------------------------------------
+KStringView detail::KCompressionBase::DefaultExtension(COMPRESSION comp)
+//-----------------------------------------------------------------------------
+{
+	switch (comp)
+	{
+		case AUTO:
+		case NONE:
+			return ""_ksv;
+
+		case ZLIB:
+			return "z"_ksv;
+
+		case GZIP:
+			return "gz"_ksv;
+
+		case BZIP2:
+			return "bz2"_ksv;
+
+#ifdef DEKAF2_HAS_LIBZSTD
+		case ZSTD:
+			return "zst"_ksv;
+#endif
+#ifdef DEKAF2_HAS_LIBBROTLI
+		case BROTLI:
+			return "br"_ksv;
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+		case LZMA:
+			return "xz"_ksv;
+#endif
+	}
+
+	return ""_ksv;
+
+} // DefaultExtension
+
+//-----------------------------------------------------------------------------
+detail::KCompressionBase::COMPRESSION detail::KCompressionBase::GetCompressionMethodFromFilename(KStringView sFilename)
+//-----------------------------------------------------------------------------
+{
+	return FromString(kExtension(sFilename).ToLowerASCII());
 
 } // GetCompressionMethodFromFilename
 
 //-----------------------------------------------------------------------------
-bool KCompressOStream::open(KOutStream& TargetStream, COMPRESSION compression)
+uint16_t detail::KCompressionBase::ScaleLevel(uint16_t iLevel, uint16_t iMax)
+//-----------------------------------------------------------------------------
+{
+	iLevel = (iLevel > 100) ? 100 : iLevel;
+	uint16_t iScaled = iMax * iLevel / 100;
+	iScaled += (iScaled) ? 0 : 1;
+	return iScaled;
+
+} // ScaleLevel
+
+//-----------------------------------------------------------------------------
+bool KCompressOStream::open(KOutStream& TargetStream, COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading)
 //-----------------------------------------------------------------------------
 {
 	m_TargetStream = &TargetStream;
-	return CreateFilter(compression);
+	return CreateFilter(compression, iLevel, iMultiThreading);
 
 } // Open
 
 //-----------------------------------------------------------------------------
-bool KCompressOStream::open(KString& sTarget, COMPRESSION compression)
+bool KCompressOStream::open(KString& sTarget, COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading)
 //-----------------------------------------------------------------------------
 {
-	m_KOutStringStream = std::make_unique<KOutStringStream>(sTarget);
-	return open(*m_KOutStringStream, compression);
+	m_KOutStream = std::make_unique<KOutStringStream>(sTarget);
+	return open(*m_KOutStream, compression, iLevel, iMultiThreading);
 
-} // Open
+} // open
 
 //-----------------------------------------------------------------------------
-bool KCompressOStream::CreateFilter(COMPRESSION compression)
+bool KCompressOStream::open_file(KStringViewZ sOutFile, COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading)
+//-----------------------------------------------------------------------------
+{
+	m_KOutStream = std::make_unique<KOutFile>(sOutFile, std::ios::trunc);
+	compression  = (compression == AUTO) ? GetCompressionMethodFromFilename(sOutFile) : compression;
+	return open(*m_KOutStream, compression, iLevel, iMultiThreading);
+
+} // open
+
+//-----------------------------------------------------------------------------
+bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading)
 //-----------------------------------------------------------------------------
 {
 	compressor::reset();
@@ -132,33 +235,51 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression)
 			break;
 
 		case GZIP:
-			compressor::push(bio::gzip_compressor(bio::gzip_params(bio::gzip::default_compression)));
-			break;
+		{
+			auto iScaled = iLevel ? ScaleLevel(iLevel, bio::gzip::best_compression) : bio::gzip::default_compression;
+			compressor::push(bio::gzip_compressor(bio::gzip_params(iScaled)));
+		}
+		break;
 
 		case BZIP2:
-			compressor::push(bio::bzip2_compressor());
-			break;
+		{
+			auto iScaled = iLevel ? ScaleLevel(iLevel, 9) : bio::bzip2::default_block_size;
+			compressor::push(bio::bzip2_compressor(iScaled));
+		}
+		break;
 
 		case ZLIB:
-			compressor::push(bio::zlib_compressor(bio::zlib_params(bio::zlib::default_compression)));
-			break;
+		{
+			auto iScaled = iLevel ? ScaleLevel(iLevel, bio::zlib::best_compression) : bio::zlib::default_compression;
+			compressor::push(bio::zlib_compressor(bio::zlib_params(iScaled)));
+		}
+		break;
 
 #ifdef DEKAF2_HAS_LIBLZMA
 		case LZMA:
-			compressor::push(bio::lzma_compressor(bio::lzma_params(bio::lzma::default_compression)));
-			break;
+		{
+			auto iScaled = iLevel ? ScaleLevel(iLevel, bio::lzma::best_compression) : bio::lzma::default_compression;
+			compressor::push(bio::lzma_compressor(bio::lzma_params(iScaled)));
+		}
+		break;
 #endif
 
 #ifdef DEKAF2_HAS_LIBZSTD
 		case ZSTD:
-			compressor::push(bio::zstd_compressor(bio::zstd_params(bio::zstd::default_compression)));
-			break;
+		{
+			auto iScaled = iLevel ? ScaleLevel(iLevel, bio::zstd::best_compression) : bio::zstd::default_compression;
+			compressor::push(bio::zstd_compressor(bio::zstd_params(iScaled)));
+		}
+		break;
 #endif
 
 #ifdef DEKAF2_HAS_LIBBROTLI
 		case BROTLI:
-			compressor::push(bio::brotli_compressor(bio::brotli_params(bio::brotli::default_compression)));
-			break;
+		{
+			auto iScaled = iLevel ? ScaleLevel(iLevel, bio::brotli::best_compression) : bio::brotli::default_compression;
+			compressor::push(bio::brotli_compressor(bio::brotli_params(iScaled)));
+		}
+		break;
 #endif
 	}
 
@@ -173,8 +294,9 @@ void KCompressOStream::close()
 //-----------------------------------------------------------------------------
 {
 	compressor::reset();
+	m_KOutStream.reset();
 
-} // Close
+} // close
 
 //-----------------------------------------------------------------------------
 bool KUnCompressIStream::open(KInStream& SourceStream, COMPRESSION compression)
@@ -183,16 +305,26 @@ bool KUnCompressIStream::open(KInStream& SourceStream, COMPRESSION compression)
 	m_SourceStream = &SourceStream;
 	return CreateFilter(compression);
 
-} // Open
+} // open
 
 //-----------------------------------------------------------------------------
 bool KUnCompressIStream::open(KStringView sSource, COMPRESSION compression)
 //-----------------------------------------------------------------------------
 {
-	m_KInStringStream = std::make_unique<KInStringStream>(sSource);
-	return open(*m_KInStringStream, compression);
+	m_KInStream = std::make_unique<KInStringStream>(sSource);
+	return open(*m_KInStream, compression);
 
-} // Open
+} // open
+
+//-----------------------------------------------------------------------------
+bool KUnCompressIStream::open_file(KStringViewZ sInFile, COMPRESSION compression)
+//-----------------------------------------------------------------------------
+{
+	m_KInStream = std::make_unique<KInFile>(sInFile);
+	compression = (compression == AUTO) ? GetCompressionMethodFromFilename(sInFile) : compression;
+	return open(*m_KInStream, compression);
+
+} // open_file
 
 //-----------------------------------------------------------------------------
 bool KUnCompressIStream::CreateFilter(COMPRESSION compression)
@@ -254,8 +386,9 @@ void KUnCompressIStream::close()
 //-----------------------------------------------------------------------------
 {
 	uncompressor::reset();
+	m_KInStream.reset();
 
-} // Close
+} // close
 
 } // end of namespace dekaf2
 

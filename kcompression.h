@@ -85,7 +85,16 @@ public:
 		AUTO
 	};
 
+	/// return the COMPRESSION enum for a given compression name or suffix
+	static COMPRESSION FromString(KStringView sCompression);
+	/// return the compression name for a COMPRESSION enum
+	static KStringView ToString(COMPRESSION comp);
+	/// return the COMPRESSION enum from a filename suffix (isolates suffix)
 	static COMPRESSION GetCompressionMethodFromFilename(KStringView sFilename);
+	/// return the default extension for a COMPRESSION enum
+	static KStringView DefaultExtension(COMPRESSION comp);
+	/// translate a percent compression level into a step level with iMax as the maximum for 100%
+	static uint16_t ScaleLevel(uint16_t iLevel, uint16_t iMax);
 
 };
 
@@ -106,14 +115,28 @@ public:
 	/// before attempting to write to it
 	KCompressOStream() = default;
 	/// constructs a compressor with a KString as the target
-	KCompressOStream(KString& sTarget, COMPRESSION compression)
+	/// @param sTarget string to write the compressed data into
+	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
+	/// @param iLevel sets the compression level from 1..100%, 0 = default
+	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), 1 = off, n = n parallel threads
+	KCompressOStream(KString& sTarget, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0)
 	{
-		open(sTarget, compression);
+		open(sTarget, compression, iLevel, iMultiThreading);
 	}
 	/// constructs a compressor with a KOutStream as the target
-	KCompressOStream(KOutStream& TargetStream, COMPRESSION compression)
+	/// @param TargetStream stream to write the compressed data into
+	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
+	/// @param iLevel sets the compression level from 1..100%, 0 = default
+	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), 1 = off, n = n parallel threads
+	KCompressOStream(KOutStream& TargetStream, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0)
 	{
-		open(TargetStream, compression);
+		open(TargetStream, compression, iLevel, iMultiThreading);
+	}
+	/// constructs a compressor with a file as the target, compression is deduced by the file's suffix, multithreading is #CPU
+	/// @param sTarget name of a file to write the compressed data into
+	KCompressOStream(KString& sTarget)
+	{
+		open_file(sTarget, AUTO);
 	}
 	/// copy construction is deleted
 	KCompressOStream(const KCompressOStream&) = delete;
@@ -125,9 +148,23 @@ public:
 	}
 
 	/// sets a KString as the target
-	bool open(KString& sTarget, COMPRESSION compression);
+	/// @param sTarget string to write the compressed data into
+	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
+	/// @param iLevel sets the compression level from 1..100%, 0 = default
+	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), 1 = off, n = n parallel threads
+	bool open(KString& sTarget, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0);
 	/// sets a KOutStream as the target
-	bool open(KOutStream& TargetStream, COMPRESSION compression);
+	/// @param TargetStream stream to write the compressed data into
+	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
+	/// @param iLevel sets the compression level from 1..100%, 0 = default
+	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), 1 = off, n = n parallel threads
+	bool open(KOutStream& TargetStream, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0);
+	/// creates a file and sets it as the target
+	/// @param sTarget name of a file to write the compressed data into
+	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
+	/// @param iLevel sets the compression level from 1..100%, 0 = default
+	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), 1 = off, n = n parallel threads
+	bool open_file(KStringViewZ sOutFile, COMPRESSION compression = AUTO, uint16_t iLevel = 0, uint16_t iMultiThreading = 0);
 
 	/// closes the output stream, calls finalizers of
 	/// encoders (also done by destructor)
@@ -137,10 +174,14 @@ public:
 private:
 //------
 
-	bool CreateFilter(COMPRESSION compression);
+	/// Create the compression filter
+	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
+	/// @param iLevel sets the compression level from 1..100%, 0 = default
+	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), 1 = off, n = n parallel threads
+	bool CreateFilter(COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0);
 
 	KOutStream* m_TargetStream { nullptr };
-	std::unique_ptr<KOutStringStream> m_KOutStringStream;
+	std::unique_ptr<KOutStream> m_KOutStream;
 
 }; // KCompressOStream
 
@@ -160,14 +201,24 @@ public:
 	/// before attempting to read from it
 	KUnCompressIStream() = default;
 	/// constructs an uncompressor with a KStringView as the source
+	/// @param sSource string to read the compressed data from
+	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
 	KUnCompressIStream(KStringView sSource, COMPRESSION compression)
 	{
 		open(sSource, compression);
 	}
 	/// constructs an uncompressor with a KInStream as the source
+	/// @param SourceStream stream to read the compressed data from
+	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
 	KUnCompressIStream(KInStream& SourceStream, COMPRESSION compression)
 	{
 		open(SourceStream, compression);
+	}
+	/// constructs an uncompressor with a file as the source, compression type is deduced by the file's suffix
+	/// @param sInFile name of a file to read the compressed data from
+	KUnCompressIStream(KStringViewZ sInFile)
+	{
+		open_file(sInFile, AUTO);
 	}
 	/// copy construction is deleted
 	KUnCompressIStream(const KUnCompressIStream&) = delete;
@@ -182,6 +233,8 @@ public:
 	bool open(KStringView sSource, COMPRESSION compression);
 	/// sets a KInStream as the source
 	bool open(KInStream& SourceStream, COMPRESSION compression);
+	/// opens a file
+	bool open_file(KStringViewZ sInFile, COMPRESSION compression = AUTO);
 
 	/// closes the input stream, calls finalizers of
 	/// decoders (also done by destructor)
@@ -191,10 +244,12 @@ public:
 private:
 //------
 
+	/// Create the uncompression filter
+	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
 	bool CreateFilter(COMPRESSION compression);
 
 	KInStream* m_SourceStream { nullptr };
-	std::unique_ptr<KInStringStream> m_KInStringStream;
+	std::unique_ptr<KInStream> m_KInStream;
 
 }; // KUnCompressIStream
 
@@ -204,288 +259,73 @@ private:
 using KCompress = KWriter<KCompressOStream>;
 using KUnCompress = KReader<KUnCompressIStream>;
 
+namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// GZIP compressor
-class DEKAF2_PUBLIC KGZip : public KCompress
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//------
-public:
-//------
-
-	template<class... Args>
-	KGZip(Args&&... args)
-	: KCompress(std::forward<Args>(args)..., GZIP)
-	{
-	}
-
-	template<class... Args>
-	bool open(Args&&... args)
-	{
-		return KCompress::open(std::forward<Args>(args)..., GZIP);
-	}
-
-}; // KGZip
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// GZIP uncompressor
-class DEKAF2_PUBLIC KUnGZip : public KUnCompress
+template<KCompressionBase::COMPRESSION compression>
+class DEKAF2_PUBLIC KOneComp : public KCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
 public:
 //------
 
-	template<class... Args>
-	KUnGZip(Args&&... args)
-	: KUnCompress(std::forward<Args>(args)..., GZIP)
+	template<typename Target>
+	KOneComp(Target&& target, uint16_t iLevel = 0)
+	: KCompress(std::forward<Target>(target), compression, iLevel)
 	{
 	}
 
-	template<class... Args>
-	bool open(Args&&... args)
+	template<typename Target>
+	bool open(Target&& target, uint16_t iLevel = 0)
 	{
-		return KUnCompress::open(std::forward<Args>(args)..., GZIP);
+		return KCompress::open(std::forward<Target>(target), compression, iLevel);
 	}
 
-}; // KUnGZip
+}; // KOneComp
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// BZIP2 compressor
-class DEKAF2_PUBLIC KBZip2 : public KCompress
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//------
-public:
-//------
-
-	template<class... Args>
-	KBZip2(Args&&... args)
-	: KCompress(std::forward<Args>(args)..., BZIP2)
-	{
-	}
-
-	template<class... Args>
-	bool open(Args&&... args)
-	{
-		return KCompress::open(std::forward<Args>(args)..., BZIP2);
-	}
-
-
-}; // KBZip2
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// BZIP2 uncompressor
-class DEKAF2_PUBLIC KUnBZip2 : public KUnCompress
+template<KCompressionBase::COMPRESSION compression>
+class DEKAF2_PUBLIC KOneUnComp : public KUnCompress
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //------
 public:
 //------
 
-	template<class... Args>
-	KUnBZip2(Args&&... args)
-	: KUnCompress(std::forward<Args>(args)..., BZIP2)
+	template<typename Target>
+	KOneUnComp(Target&& target)
+	: KUnCompress(std::forward<Target>(target), compression)
 	{
 	}
 
-	template<class... Args>
-	bool open(Args&&... args)
+	template<typename Target>
+	bool open(Target&& target)
 	{
-		return KUnCompress::open(std::forward<Args>(args)..., BZIP2);
+		return KUnCompress::open(std::forward<Target>(target), compression);
 	}
 
-}; // KUnBZip2
+}; // KOneUnComp
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// ZLIB compressor
-class DEKAF2_PUBLIC KZlib : public KCompress
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//------
-public:
-//------
+} // of namespace detail
 
-	template<class... Args>
-	KZlib(Args&&... args)
-	: KCompress(std::forward<Args>(args)..., ZLIB)
-	{
-	}
-
-	template<class... Args>
-	bool open(Args&&... args)
-	{
-		return KCompress::open(std::forward<Args>(args)..., ZLIB);
-	}
-
-}; // KZlib
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// ZLIB uncompressor
-class DEKAF2_PUBLIC KUnZlib : public KUnCompress
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//------
-public:
-//------
-
-	template<class... Args>
-	KUnZlib(Args&&... args)
-	: KUnCompress(std::forward<Args>(args)..., ZLIB)
-	{
-	}
-
-	template<class... Args>
-	bool open(Args&&... args)
-	{
-		return KUnCompress::open(std::forward<Args>(args)..., ZLIB);
-	}
-
-}; // KUnZlib
-
+using KGZip     = detail::KOneComp<detail::KCompressionBase::GZIP>;
+using KUnGZip   = detail::KOneUnComp<detail::KCompressionBase::GZIP>;
+using KBZip2    = detail::KOneComp<detail::KCompressionBase::BZIP2>;
+using KUnBZip2  = detail::KOneUnComp<detail::KCompressionBase::BZIP2>;
+using KZlib     = detail::KOneComp<detail::KCompressionBase::ZLIB>;
+using KUnZlib   = detail::KOneUnComp<detail::KCompressionBase::ZLIB>;
 #ifdef DEKAF2_HAS_LIBLZMA
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// LZMA compressor
-class DEKAF2_PUBLIC KLZMA : public KCompress
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//------
-public:
-//------
-
-	template<class... Args>
-	KLZMA(Args&&... args)
-	: KCompress(std::forward<Args>(args)..., LZMA)
-	{
-	}
-
-	template<class... Args>
-	bool open(Args&&... args)
-	{
-		return KCompress::open(std::forward<Args>(args)..., LZMA);
-	}
-
-}; // KLZMA
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// LZMA uncompressor
-class DEKAF2_PUBLIC KUnLZMA : public KUnCompress
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//------
-public:
-//------
-
-	template<class... Args>
-	KUnLZMA(Args&&... args)
-	: KUnCompress(std::forward<Args>(args)..., LZMA)
-	{
-	}
-
-	template<class... Args>
-	bool open(Args&&... args)
-	{
-		return KUnCompress::open(std::forward<Args>(args)..., LZMA);
-	}
-
-}; // KUnLZMA
+using KLZMA     = detail::KOneComp<detail::KCompressionBase::LZMA>;
+using KUnLZMA   = detail::KOneUnComp<detail::KCompressionBase::LZMA>;
 #endif
-
 #ifdef DEKAF2_HAS_LIBZSTD
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// ZSTD compressor
-class DEKAF2_PUBLIC KZstd : public KCompress
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//------
-public:
-//------
-
-	template<class... Args>
-	KZstd(Args&&... args)
-	: KCompress(std::forward<Args>(args)..., ZSTD)
-	{
-	}
-
-	template<class... Args>
-	bool open(Args&&... args)
-	{
-		return KCompress::open(std::forward<Args>(args)..., ZSTD);
-	}
-
-}; // KZstd
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// ZSTD uncompressor
-class DEKAF2_PUBLIC KUnZstd : public KUnCompress
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//------
-public:
-//------
-
-	template<class... Args>
-	KUnZstd(Args&&... args)
-	: KUnCompress(std::forward<Args>(args)..., ZSTD)
-	{
-	}
-
-	template<class... Args>
-	bool open(Args&&... args)
-	{
-		return KUnCompress::open(std::forward<Args>(args)..., ZSTD);
-	}
-
-}; // KUnZstd
+using KZSTD     = detail::KOneComp<detail::KCompressionBase::ZSTD>;
+using KUnZSTD   = detail::KOneUnComp<detail::KCompressionBase::ZSTD>;
 #endif
-
 #ifdef DEKAF2_HAS_LIBBROTLI
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Brotli compressor
-class DEKAF2_PUBLIC KBrotli : public KCompress
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//------
-public:
-//------
-
-	template<class... Args>
-	KBrotli(Args&&... args)
-	: KCompress(std::forward<Args>(args)..., BROTLI)
-	{
-	}
-
-	template<class... Args>
-	bool open(Args&&... args)
-	{
-		return KCompress::open(std::forward<Args>(args)..., BROTLI);
-	}
-
-}; // KBrotli
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Brotli uncompressor
-class DEKAF2_PUBLIC KUnBrotli : public KUnCompress
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-//------
-public:
-//------
-
-	template<class... Args>
-	KUnBrotli(Args&&... args)
-	: KUnCompress(std::forward<Args>(args)..., BROTLI)
-	{
-	}
-
-	template<class... Args>
-	bool open(Args&&... args)
-	{
-		return KUnCompress::open(std::forward<Args>(args)..., BROTLI);
-	}
-
-}; // KUnBrotli
+using KBrotli   = detail::KOneComp<detail::KCompressionBase::BROTLI>;
+using KUnBrotli = detail::KOneUnComp<detail::KCompressionBase::BROTLI>;
 #endif
 
 } // end of namespace dekaf2

@@ -61,14 +61,14 @@ public:
 #ifdef DEKAF2_HAS_LIBZSTD
 		ZSTD   = 1,
 #endif
-#ifdef DEKAF2_HAS_LIBLZMA
-		XZ     = 2,
-		LZMA   = 8,
+#ifdef DEKAF2_HAS_LIBBROTLI
+		BROTLI = 9, // set to 2 once validated
 #endif
 		ZLIB   = 3,
 		GZIP   = 4,
-#ifdef DEKAF2_HAS_LIBBROTLI
-		BROTLI = 5,
+#ifdef DEKAF2_HAS_LIBLZMA
+		XZ     = 5,
+		LZMA   = 8, // do not pick from accept-encoding list
 #endif
 		BZIP2  = 6,
 		NONE   = 7
@@ -106,10 +106,11 @@ protected:
 #ifdef DEKAF2_HAS_LIBBROTLI
 // need more tests before enabling it						"br, "
 #endif
+															"gzip, deflate, "
 #ifdef DEKAF2_HAS_LIBLZMA
 															"xz, lzma, "
 #endif
-															"gzip, bzip2, deflate";
+															"bzip2";
 
 	COMP m_Compression { NONE };
 

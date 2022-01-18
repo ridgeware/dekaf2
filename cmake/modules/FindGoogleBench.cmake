@@ -1,0 +1,15 @@
+
+find_path(GOOGLEBENCH_INCLUDE_DIR NAMES benchmark/benchmark.h)
+find_library(GOOGLEBENCH_LIBRARY NAMES benchmark)
+find_library(GOOGLEBENCH_MAIN_LIBRARY NAMES benchmark_main)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(GoogleBench DEFAULT_MSG GOOGLEBENCH_LIBRARY GOOGLEBENCH_MAIN_LIBRARY GOOGLEBENCH_INCLUDE_DIR)
+
+if(NOT GoogleBench_FOUND)
+        set(GOOGLEBENCH_LIBRARY)
+        set(GOOGLEBENCH_MAIN_LIBRARY)
+        set(GOOGLEBENCH_INCLUDE_DIR)
+else()
+        set(GOOGLEBENCH_LIBRARIES ${GOOGLEBENCH_LIBRARY} ${GOOGLEBENCH_MAIN_LIBRARY})
+        set(GOOGLEBENCH_INCLUDE_DIRS ${GOOGLEBENCH_INCLUDE_DIR})
+endif()

@@ -56,6 +56,9 @@
 	#ifdef GetCurrentTime
 		#undef GetCurrentTime
 	#endif
+	#ifdef DELETE
+		#undef DELETE
+	#endif
 #endif
 
 namespace dekaf2 {

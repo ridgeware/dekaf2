@@ -45,7 +45,7 @@
 #include "kformat.h"
 
 #ifdef DEKAF2_IS_WINDOWS
-	// Windows has a DELETE macro somewhere which interferes with
+	// Windows has a DELETE macro in winnt.h which interferes with
 	// dekaf2::KHTTPMethod::DELETE (macros are evil!)
 	#ifdef DELETE
 		#undef DELETE

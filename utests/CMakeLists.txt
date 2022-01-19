@@ -121,8 +121,6 @@ endif()
 
 find_package(GoogleBench QUIET)
 if (GoogleBench_FOUND)
-#message(STATUS ${GOOGLEBENCH_LIBRARIES})
-#message(STATUS ${GOOGLEBENCH_INCLUDE_DIRS})
 	add_executable(dekaf2-benchmark EXCLUDE_FROM_ALL benchmarks.cpp)
 	target_link_libraries(dekaf2-benchmark dekaf2 ${GOOGLEBENCH_LIBRARIES})
 	target_include_directories(dekaf2-benchmark PRIVATE ${GOOGLEBENCH_INCLUDE_DIRS})

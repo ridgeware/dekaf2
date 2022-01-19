@@ -40,7 +40,6 @@
  */
 
 #include "khttpcompression.h"
-#include "kassociative.h"
 
 namespace dekaf2 {
 
@@ -109,17 +108,22 @@ void KHTTPCompression::Parse(const KHTTPHeaders& Headers)
 KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompression(KStringView sCompressors)
 //-----------------------------------------------------------------------------
 {
-	KSet<COMP> Compressions { NONE };
+	COMP Compression = NONE;
 
 	// check the client's request headers for accepted compression encodings
 	const auto Compressors = sCompressors.Split(",;");
 
 	for (const auto sCompressor : Compressors)
 	{
-		Compressions.insert(FromString(sCompressor));
+		auto NewComp = FromString(sCompressor);
+
+		if (NewComp < Compression)
+		{
+			Compression = NewComp;
+		}
 	}
 
-	return *Compressions.begin();
+	return Compression;
 
 } // GetBestSupportedCompression
 

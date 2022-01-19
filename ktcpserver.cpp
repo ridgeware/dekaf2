@@ -614,7 +614,7 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 		if (!m_sSocketFile.empty())
 		{
-			m_Servers.push_back(std::make_unique<std::thread>([this](std::promise<int> promise)
+			m_Servers.push_back(std::make_unique<std::thread>([this](std::promise<int>&& promise)
 			{
 				promise.set_value_at_thread_exit(0);
 				UnixServer();
@@ -624,7 +624,7 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 		else
 #endif
 		{
-			m_Servers.push_back(std::make_unique<std::thread>([this](std::promise<int> promise)
+			m_Servers.push_back(std::make_unique<std::thread>([this](std::promise<int>&& promise)
 			{
 				promise.set_value_at_thread_exit(0);
 				TCPServer(m_bStartIPv6);

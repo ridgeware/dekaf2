@@ -42,6 +42,7 @@ set (USOURCES
 	khttp_header_tests.cpp
 	khttp_request_tests.cpp
 	khttpclient_tests.cpp
+	khttpcompression_tests.cpp
 	khttplog_tests.cpp
 	khttpserver_tests.cpp
 	kinpipe_tests.cpp

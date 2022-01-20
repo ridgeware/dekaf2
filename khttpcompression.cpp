@@ -54,9 +54,8 @@ KHTTPCompression::COMP KHTTPCompression::FromString(KStringView sCompression)
 			return ZSTD;
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI
-// need more tests before enabling it
-//		case "br"_hash:
-//			return BROTLI;
+		case "br"_hash:
+			return BROTLI;
 #endif
 #ifdef DEKAF2_HAS_LIBLZMA
 		case "xz"_hash:

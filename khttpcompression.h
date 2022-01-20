@@ -62,7 +62,7 @@ public:
 		ZSTD   = 1,
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI
-		BROTLI = 9, // set to 2 once validated
+		BROTLI = 2,
 #endif
 		ZLIB   = 3,
 		GZIP   = 4,
@@ -87,6 +87,8 @@ public:
 	void SetCompression(COMP comp)                { m_Compression = comp;           }
 	KStringView Serialize() const                 { return ToString(m_Compression); }
 
+	operator COMP() const                         { return m_Compression;           }
+
 	/// Returns CSV string with supported HTTP compressors (to be used for ACCEPT_ENCODING)
 	constexpr
 	static KStringViewZ GetSupportedCompressors() { return s_sSupportedCompressors; }
@@ -104,7 +106,7 @@ protected:
 															"zstd, "
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI
-// need more tests before enabling it						"br, "
+															"br, "
 #endif
 															"gzip, deflate, "
 #ifdef DEKAF2_HAS_LIBLZMA

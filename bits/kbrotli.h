@@ -1,4 +1,4 @@
-// adapted for brotli by Ridgeware
+// adapted for brotli by Ridgeware 2022.
 // Based on zstd.h and zlib.h by:
 // (C) Copyright Reimar Döffinger 2018.
 // (C) Copyright Milan Svoboda 2008.
@@ -37,7 +37,7 @@
 #endif
 #include <boost/config/abi_prefix.hpp>
 
-namespace boost { namespace iostreams {
+namespace dekaf2 { namespace iostreams {
 
 namespace brotli {
 
@@ -92,6 +92,7 @@ struct brotli_params {
 //
 class BOOST_IOSTREAMS_DECL brotli_error : public BOOST_IOSTREAMS_FAILURE {
 public:
+	brotli_error();
 	explicit brotli_error(int error);
     int error() const { return error_; }
     static void check BOOST_PREVENT_MACRO_SUBSTITUTION(int error);
@@ -126,7 +127,7 @@ private:
 #endif
 public:
     BOOST_STATIC_CONSTANT(bool, custom =
-        (!is_same<std::allocator<char>, Base>::value));
+        (!std::is_same<std::allocator<char>, Base>::value));
     typedef typename brotli_allocator_traits<Alloc>::type allocator_type;
     static void* allocate(void* self, size_t items, size_t size);
     static void deallocate(void* self, void* address);
@@ -224,16 +225,16 @@ private:
 //
 template<typename Alloc = std::allocator<char> >
 struct basic_brotli_compressor
-    : symmetric_filter<detail::brotli_compressor_impl<Alloc>, Alloc>
+    : boost::iostreams::symmetric_filter<detail::brotli_compressor_impl<Alloc>, Alloc>
 {
 private:
     typedef detail::brotli_compressor_impl<Alloc> impl_type;
-    typedef symmetric_filter<impl_type, Alloc>  base_type;
+    typedef boost::iostreams::symmetric_filter<impl_type, Alloc>  base_type;
 public:
     typedef typename base_type::char_type               char_type;
     typedef typename base_type::category                category;
     basic_brotli_compressor( const brotli_params& = brotli::default_compression,
-                           std::streamsize buffer_size = default_device_buffer_size );
+							std::streamsize buffer_size = boost::iostreams::default_device_buffer_size );
 };
 BOOST_IOSTREAMS_PIPABLE(basic_brotli_compressor, 1)
 
@@ -246,17 +247,17 @@ typedef basic_brotli_compressor<> brotli_compressor;
 //
 template<typename Alloc = std::allocator<char> >
 struct basic_brotli_decompressor
-    : symmetric_filter<detail::brotli_decompressor_impl<Alloc>, Alloc>
+    : boost::iostreams::symmetric_filter<detail::brotli_decompressor_impl<Alloc>, Alloc>
 {
 private:
     typedef detail::brotli_decompressor_impl<Alloc> impl_type;
-    typedef symmetric_filter<impl_type, Alloc>    base_type;
+    typedef boost::iostreams::symmetric_filter<impl_type, Alloc>    base_type;
 public:
     typedef typename base_type::char_type               char_type;
     typedef typename base_type::category                category;
-    basic_brotli_decompressor( std::streamsize buffer_size = default_device_buffer_size );
+	basic_brotli_decompressor( std::streamsize buffer_size = boost::iostreams::default_device_buffer_size );
     basic_brotli_decompressor( const brotli_params& p,
-                             std::streamsize buffer_size = default_device_buffer_size );
+                             std::streamsize buffer_size = boost::iostreams::default_device_buffer_size );
 	size_t total_out() const { return this->filter().total_out(); }
 };
 BOOST_IOSTREAMS_PIPABLE(basic_brotli_decompressor, 1)
@@ -376,7 +377,7 @@ basic_brotli_decompressor<Alloc>::basic_brotli_decompressor
 
 //----------------------------------------------------------------------------//
 
-} } // End namespaces iostreams, boost.
+} } // End namespaces iostreams, dekaf2.
 
 #include <boost/config/abi_suffix.hpp> // Pops abi_suffix.hpp pragmas.
 #ifdef BOOST_MSVC

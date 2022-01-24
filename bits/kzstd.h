@@ -1,3 +1,4 @@
+// adapted for multithreading by Ridgeware 2022.
 // (C) Copyright Reimar Döffinger 2018.
 // Based on zstd.hpp by:
 // (C) Copyright Milan Svoboda 2008.
@@ -6,8 +7,8 @@
 
 // See http://www.boost.org/libs/iostreams for documentation.
 
-#ifndef BOOST_IOSTREAMS_ZSTD_HPP_INCLUDED
-#define BOOST_IOSTREAMS_ZSTD_HPP_INCLUDED
+#ifndef KZSTD_H_SDHSDFIUGHISDOPTRSHIGUHVXJNDISOHVUGS
+#define KZSTD_H_SDHSDFIUGHISDOPTRSHIGUHVXJNDISOHVUGS
 
 #if defined(_MSC_VER)
 # pragma once
@@ -35,7 +36,7 @@
 #endif
 #include <boost/config/abi_prefix.hpp>
 
-namespace boost { namespace iostreams {
+namespace dekaf2 { namespace iostreams {
 
 namespace zstd {
 
@@ -44,9 +45,9 @@ typedef void (*free_func)(void*, void*);
 
                     // Compression levels
 
-BOOST_IOSTREAMS_DECL extern const uint32_t best_speed;
-BOOST_IOSTREAMS_DECL extern const uint32_t best_compression;
-BOOST_IOSTREAMS_DECL extern const uint32_t default_compression;
+BOOST_IOSTREAMS_DECL extern const uint16_t best_speed;
+BOOST_IOSTREAMS_DECL extern const uint16_t best_compression;
+BOOST_IOSTREAMS_DECL extern const uint16_t default_compression;
 
                     // Status codes
 
@@ -77,10 +78,12 @@ const int null                               = 0;
 struct zstd_params {
 
     // Non-explicit constructor.
-    zstd_params( uint32_t level = zstd::default_compression )
+    zstd_params( uint16_t level = zstd::default_compression, uint16_t iMultiThreading = 0 )
         : level(level)
+		, iMultiThreading(iMultiThreading)
         { }
-    uint32_t level;
+    uint16_t level;
+	uint16_t iMultiThreading;
 };
 
 //
@@ -124,7 +127,7 @@ private:
 #endif
 public:
     BOOST_STATIC_CONSTANT(bool, custom =
-        (!is_same<std::allocator<char>, Base>::value));
+        (!std::is_same<std::allocator<char>, Base>::value));
     typedef typename zstd_allocator_traits<Alloc>::type allocator_type;
     static void* allocate(void* self, size_t items, size_t size);
     static void deallocate(void* self, void* address);
@@ -164,7 +167,8 @@ private:
     void*         in_;              // Actual type: ZSTD_inBuffer *
     void*         out_;             // Actual type: ZSTD_outBuffer *
     int eof_;
-    uint32_t level;
+	uint16_t level;
+	uint16_t iMultiThreading;
 };
 
 //
@@ -207,16 +211,16 @@ public:
 //
 template<typename Alloc = std::allocator<char> >
 struct basic_zstd_compressor
-    : symmetric_filter<detail::zstd_compressor_impl<Alloc>, Alloc>
+    : boost::iostreams::symmetric_filter<detail::zstd_compressor_impl<Alloc>, Alloc>
 {
 private:
     typedef detail::zstd_compressor_impl<Alloc> impl_type;
-    typedef symmetric_filter<impl_type, Alloc>  base_type;
+    typedef boost::iostreams::symmetric_filter<impl_type, Alloc>  base_type;
 public:
     typedef typename base_type::char_type               char_type;
     typedef typename base_type::category                category;
     basic_zstd_compressor( const zstd_params& = zstd::default_compression,
-                           std::streamsize buffer_size = default_device_buffer_size );
+                           std::streamsize buffer_size = boost::iostreams::default_device_buffer_size );
 };
 BOOST_IOSTREAMS_PIPABLE(basic_zstd_compressor, 1)
 
@@ -229,17 +233,17 @@ typedef basic_zstd_compressor<> zstd_compressor;
 //
 template<typename Alloc = std::allocator<char> >
 struct basic_zstd_decompressor
-    : symmetric_filter<detail::zstd_decompressor_impl<Alloc>, Alloc>
+    : boost::iostreams::symmetric_filter<detail::zstd_decompressor_impl<Alloc>, Alloc>
 {
 private:
     typedef detail::zstd_decompressor_impl<Alloc> impl_type;
-    typedef symmetric_filter<impl_type, Alloc>    base_type;
+    typedef boost::iostreams::symmetric_filter<impl_type, Alloc>    base_type;
 public:
     typedef typename base_type::char_type               char_type;
     typedef typename base_type::category                category;
-    basic_zstd_decompressor( std::streamsize buffer_size = default_device_buffer_size );
+    basic_zstd_decompressor( std::streamsize buffer_size = boost::iostreams::default_device_buffer_size );
     basic_zstd_decompressor( const zstd_params& p,
-                             std::streamsize buffer_size = default_device_buffer_size );
+                             std::streamsize buffer_size = boost::iostreams::default_device_buffer_size );
 };
 BOOST_IOSTREAMS_PIPABLE(basic_zstd_decompressor, 1)
 
@@ -353,12 +357,12 @@ basic_zstd_decompressor<Alloc>::basic_zstd_decompressor
 
 //----------------------------------------------------------------------------//
 
-} } // End namespaces iostreams, boost.
+} } // End namespaces iostreams, dekaf2.
 
 #include <boost/config/abi_suffix.hpp> // Pops abi_suffix.hpp pragmas.
 #ifdef BOOST_MSVC
 # pragma warning(pop)
 #endif
 
-#endif // #ifndef BOOST_IOSTREAMS_ZSTD_HPP_INCLUDED
+#endif // #ifndef KZSTD_H
 

@@ -48,6 +48,7 @@
 namespace dekaf2 {
 
 namespace bio = boost::iostreams;
+namespace dio = dekaf2::iostreams;
 
 //-----------------------------------------------------------------------------
 detail::KCompressionBase::COMPRESSION detail::KCompressionBase::FromString(KStringView sCompression)
@@ -267,8 +268,8 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 #ifdef DEKAF2_HAS_LIBZSTD
 		case ZSTD:
 		{
-			auto iScaled = iLevel ? ScaleLevel(iLevel, bio::zstd::best_compression) : bio::zstd::default_compression;
-			compressor::push(bio::zstd_compressor(bio::zstd_params(iScaled)));
+			auto iScaled = iLevel ? ScaleLevel(iLevel, dio::zstd::best_compression) : dio::zstd::default_compression;
+			compressor::push(dio::zstd_compressor(dio::zstd_params(iScaled, iMultiThreading)));
 		}
 		break;
 #endif
@@ -276,8 +277,8 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 #ifdef DEKAF2_HAS_LIBBROTLI
 		case BROTLI:
 		{
-			auto iScaled = iLevel ? ScaleLevel(iLevel, bio::brotli::best_compression) : bio::brotli::default_compression;
-			compressor::push(bio::brotli_compressor(bio::brotli_params(iScaled)));
+			auto iScaled = iLevel ? ScaleLevel(iLevel, dio::brotli::best_compression) : dio::brotli::default_compression;
+			compressor::push(dio::brotli_compressor(dio::brotli_params(iScaled)));
 		}
 		break;
 #endif
@@ -364,13 +365,13 @@ bool KUnCompressIStream::CreateFilter(COMPRESSION compression)
 
 #ifdef DEKAF2_HAS_LIBZSTD
 		case ZSTD:
-			uncompressor::push(bio::zstd_decompressor());
+			uncompressor::push(dio::zstd_decompressor());
 			break;
 #endif
 
 #ifdef DEKAF2_HAS_LIBBROTLI
 		case BROTLI:
-			uncompressor::push(bio::brotli_decompressor());
+			uncompressor::push(dio::brotli_decompressor());
 			break;
 #endif
 	}

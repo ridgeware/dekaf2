@@ -424,9 +424,10 @@ endif()
 
 # ================== build own iostreams lzma/zstd objects? =======================
 
-# check if boost iostreams was compiled with support for zstd and lzma, or if the
+# check if boost iostreams was compiled with support for (zstd and) lzma, or if the
 # build is incomplete (currently, only debian seems to have boost iostreams object
 # files for zstd and lzma, others only have the header files)
+# We now always build our own zstd object files, as we want to support multithreading
 
 if (NOT DEKAF2_IS_WINDOWS)
 	if (DEKAF2_HAS_LIBLZMA)
@@ -437,16 +438,6 @@ if (NOT DEKAF2_IS_WINDOWS)
 		if (SYM_COUNT LESS 5)
 			# no iostream lzma filter object found, we have to build it ourselves
 			set(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD 1)
-		endif()
-	endif()
-	if (DEKAF2_HAS_LIBZSTD)
-		execute_process(COMMAND /bin/sh -c "nm \"${Boost_IOSTREAMS_LIBRARY}\" | grep -i zstd | wc -l" OUTPUT_VARIABLE SYM_COUNT OUTPUT_STRIP_TRAILING_WHITESPACE)
-		if (SYM_COUNT STREQUAL "")
-			set(SYM_COUNT 0)
-		endif()
-		if (SYM_COUNT LESS 5)
-			# no iostream zstd filter object found, we have to build it ourselves
-			set(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_ZSTD_BUILD 1)
 		endif()
 	endif()
 endif()
@@ -565,6 +556,10 @@ set(BITS_SIMD_HEADERS
 
 if (DEKAF2_HAS_LIBBROTLI)
 	list(APPEND BITS_HEADERS bits/kbrotli.h)
+endif()
+
+if (DEKAF2_HAS_LIBZSTD)
+	list(APPEND BITS_HEADERS bits/kzstd.h)
 endif()
 
 set(PUBLIC_HEADERS
@@ -722,6 +717,10 @@ set(HEADERS
 	${PUBLIC_HEADERS}
 )
 
+if (DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD)
+	list(APPEND HEADERS bits/from_boost/iostreams/lzma.hpp)
+endif()
+
 list(SORT HEADERS)
 
 # =============================== SOURCE FILES ====================================
@@ -851,12 +850,12 @@ if (DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD)
 	list(APPEND SOURCES bits/from_boost/iostreams/lzma.cpp)
 endif()
 
-if (DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_ZSTD_BUILD)
-	list(APPEND SOURCES bits/from_boost/iostreams/zstd.cpp)
-endif()
-
 if (DEKAF2_HAS_LIBBROTLI)
 	list(APPEND SOURCES bits/kbrotli.cpp)
+endif()
+
+if (DEKAF2_HAS_LIBZSTD)
+	list(APPEND SOURCES bits/kzstd.cpp)
 endif()
 
 list(SORT SOURCES)

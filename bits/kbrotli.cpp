@@ -1,4 +1,4 @@
-// adapted for brotli by Ridgeware
+// adapted for brotli by Ridgeware 2022.
 // Based on zstd.cpp and zlib.cpp by:
 // (C) Copyright Reimar Döffinger 2018.
 // (C) Copyright Milan Svoboda 2008.
@@ -13,15 +13,16 @@
 // than using it (possibly importing code).
 #define BOOST_IOSTREAMS_SOURCE
 
+#include "kbrotli.h"
+
 #include <brotli/types.h>
 #include <brotli/decode.h>
 #include <brotli/encode.h>
 
 #include <boost/throw_exception.hpp>
 #include <boost/iostreams/detail/config/dyn_link.hpp>
-#include "kbrotli.h"
 
-namespace boost { namespace iostreams {
+namespace dekaf2 { namespace iostreams {
 
 namespace brotli {
                     // Compression levels
@@ -46,8 +47,14 @@ const int run                  = 2;
 
 //------------------Implementation of brotli_error------------------------------//
 
+brotli_error::brotli_error()
+: BOOST_IOSTREAMS_FAILURE("encoding error")
+, error_(-2)
+	{ }
+
 brotli_error::brotli_error(int error)
-: BOOST_IOSTREAMS_FAILURE(BrotliDecoderErrorString(static_cast<BrotliDecoderErrorCode>(error))), error_(error)
+: BOOST_IOSTREAMS_FAILURE(BrotliDecoderErrorString(static_cast<BrotliDecoderErrorCode>(error)))
+, error_(error)
     { }
 
 void brotli_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(int error)
@@ -114,7 +121,8 @@ int brotli_base::deflate(int action)
 													 &total_out_);
 	if (result == BROTLI_FALSE)
 	{
-		// there was an error.. do something
+		// there was an error.. throw
+		boost::throw_exception(brotli_error());
 	}
 
 	// check if we are at end

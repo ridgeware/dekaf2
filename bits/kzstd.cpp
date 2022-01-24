@@ -1,3 +1,4 @@
+// adapted for multithreading by Ridgeware 2022.
 // (C) Copyright Reimar Döffinger 2018.
 // Based on zstd.cpp by:
 // (C) Copyright Milan Svoboda 2008.
@@ -12,20 +13,21 @@
 // than using it (possibly importing code).
 #define BOOST_IOSTREAMS_SOURCE
 
+#include "kzstd.h"
+
 #include <zstd.h>
 
 #include <boost/throw_exception.hpp>
 #include <boost/iostreams/detail/config/dyn_link.hpp>
-#include <boost/iostreams/filter/zstd.hpp>
 
-namespace boost { namespace iostreams {
+namespace dekaf2 { namespace iostreams {
 
 namespace zstd {
                     // Compression levels
 
-const uint32_t best_speed           = 1;
-const uint32_t best_compression     = 19;
-const uint32_t default_compression  = 3;
+const uint16_t best_speed           = 1;
+const uint16_t best_compression     = 19;
+const uint16_t default_compression  = 3;
 
                     // Status codes
 
@@ -34,9 +36,9 @@ const int stream_end           = 1;
 
                     // Flush codes
 
-const int finish               = 0;
-const int flush                = 1;
-const int run                  = 2;
+const int finish               = ZSTD_e_end;
+const int flush                = ZSTD_e_flush;
+const int run                  = ZSTD_e_continue;
 } // End namespace zstd.
 
 //------------------Implementation of zstd_error------------------------------//
@@ -56,7 +58,11 @@ void zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(size_t error)
 namespace detail {
 
 zstd_base::zstd_base()
-    : cstream_(ZSTD_createCStream()), dstream_(ZSTD_createDStream()), in_(new ZSTD_inBuffer), out_(new ZSTD_outBuffer), eof_(0)
+    : cstream_(nullptr)
+	, dstream_(nullptr)
+	, in_(new ZSTD_inBuffer)
+	, out_(new ZSTD_outBuffer)
+	, eof_(0)
     { }
 
 zstd_base::~zstd_base()
@@ -96,12 +102,10 @@ int zstd_base::deflate(int action)
     // Ignore spurious extra calls.
     // Note size > 0 will trigger an error in this case.
     if (eof_ && in->size == 0) return zstd::stream_end;
-    size_t result = ZSTD_compressStream(s, out, in);
+	size_t result = ZSTD_compressStream2(s, out, in, static_cast<ZSTD_EndDirective>(action));
     zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(result);
     if (action != zstd::run)
     {
-        result = action == zstd::finish ? ZSTD_endStream(s, out) : ZSTD_flushStream(s, out);
-        zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(result);
         eof_ = action == zstd::finish && result == 0;
         return result == 0 ? zstd::stream_end : zstd::okay;
     }
@@ -131,11 +135,22 @@ void zstd_base::reset(bool compress, bool realloc)
         memset(out, 0, sizeof(*out));
         eof_ = 0;
 
-        zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
-            compress ?
-                ZSTD_initCStream(static_cast<ZSTD_CStream *>(cstream_), level) :
-                ZSTD_initDStream(static_cast<ZSTD_DStream *>(dstream_))
-        );
+		if (compress)
+		{
+			zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
+				ZSTD_initCStream(static_cast<ZSTD_CStream *>(cstream_), level)
+			);
+
+			zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
+				ZSTD_CCtx_setParameter(static_cast<ZSTD_CStream *>(cstream_), ZSTD_c_nbWorkers, iMultiThreading)
+			);
+		}
+		else
+		{
+			zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
+				ZSTD_initDStream(static_cast<ZSTD_DStream *>(dstream_))
+			);
+		}
     }
 }
 
@@ -151,12 +166,35 @@ void zstd_base::do_init
     memset(out, 0, sizeof(*out));
     eof_ = 0;
 
-    level = p.level;
-    zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
-        compress ?
-            ZSTD_initCStream(static_cast<ZSTD_CStream *>(cstream_), level) :
-            ZSTD_initDStream(static_cast<ZSTD_DStream *>(dstream_))
-    );
+	if (compress)
+	{
+		level = p.level;
+		iMultiThreading = p.iMultiThreading;
+
+		if (!cstream_)
+		{
+			cstream_ = ZSTD_createCStream();
+		}
+
+		zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
+			ZSTD_initCStream(static_cast<ZSTD_CStream *>(cstream_), level)
+		);
+		
+		zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
+			ZSTD_CCtx_setParameter(static_cast<ZSTD_CStream *>(cstream_), ZSTD_c_nbWorkers, iMultiThreading)
+		);
+	}
+	else
+	{
+		if (!dstream_)
+		{
+			dstream_ = ZSTD_createDStream();
+		}
+
+		zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
+			ZSTD_initDStream(static_cast<ZSTD_DStream *>(dstream_))
+		);
+	}
 }
 
 } // End namespace detail.

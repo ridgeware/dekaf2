@@ -111,7 +111,7 @@ bool KInHTTPFilter::SetupInputFilter()
 #ifdef DEKAF2_HAS_LIBZSTD
 			case ZSTD:
 				kDebug(2, "using {} {}compression", "zstd", "un");
-				m_Filter->push(boost::iostreams::zstd_decompressor());
+				m_Filter->push(dekaf2::iostreams::zstd_decompressor());
 				break;
 #endif
 #ifdef DEKAF2_HAS_LIBLZMA
@@ -128,7 +128,7 @@ bool KInHTTPFilter::SetupInputFilter()
 #ifdef DEKAF2_HAS_LIBBROTLI
 			case BROTLI:
 				kDebug(2, "using {} {}compression", "brotli", "un");
-				m_Filter->push(boost::iostreams::brotli_decompressor());
+				m_Filter->push(dekaf2::iostreams::brotli_decompressor());
 				break;
 #endif
 		}

@@ -57,13 +57,9 @@
 	#endif
 #endif
 #ifdef DEKAF2_HAS_LIBZSTD
-	#if defined(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_ZSTD_BUILD)
-		// we pick our own zstd.hpp instead one that might have come with boost,
-		// as we link to our object anyway
-		#include "from_boost/iostreams/zstd.hpp"
-	#else
-		#include <boost/iostreams/filter/zstd.hpp>
-	#endif
+	// we pick our own zstd.hpp instead one that might have come with boost,
+	// as we link to our object anyway
+	#include "kzstd.h"
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI
 	#include "kbrotli.h"

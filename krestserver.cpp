@@ -1340,7 +1340,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 				{
 					// write the error message as a HTML page if there is no
 					// JSON error output and the content type is HTML
-					sContent = kFormat(R"(<html><head>HTTP Error {}</head><body><h2>{} {}</h2></body></html>)",
+					sContent = kFormat("<html><head>HTTP Error {}</head><body><h2>{} {}</h2></body></html>\n",
 									   Response.GetStatusCode(),
 									   Response.GetStatusCode(),
 									   sError.empty() ? Response.GetStatusString().ToView() : sError);

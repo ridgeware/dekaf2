@@ -1290,7 +1290,7 @@ TEST_CASE("KSQL")
 			"    astring   char(100)     not null primary key,\n"
 			"    adate     {{DATETIME}}  not null default {{NOW}},\n"
 			"    key idx01 (anum) \n"
-			")"))
+			") ENGINE=InnoDB"))
 		{
 			INFO (db.GetLastSQL());
 			FAIL_CHECK (db.GetLastError());
@@ -1322,12 +1322,19 @@ TEST_CASE("KSQL")
 			FAIL_CHECK (db.GetLastError());
 		}
 
-		auto jSchema1 = db.LoadSchema("", "TESTSCHEMA1_KSQL");
-		auto jSchema3 = db.LoadSchema("", "TESTSCHEMA");
+		auto jSchema1 = db.LoadSchema("", "TESTSCHEMA1_KSQL", KJSON{{ KSQL::DIFF::show_meta_info, true }});
+		auto jSchema3 = db.LoadSchema("", "TESTSCHEMA", KJSON{{ KSQL::DIFF::show_meta_info, true }});
 
 		KJSON jDiff;
 		KString sDiff;
-		auto iChanges = db.DiffSchemas(jSchema1, jSchema3, jDiff, sDiff);
+		auto iChanges = db.DiffSchemas(jSchema1, jSchema3, jDiff, sDiff,
+		{
+			{ KSQL::DIFF::left_schema   , "left schema"  },
+			{ KSQL::DIFF::left_prefix   , "<"            },
+			{ KSQL::DIFF::right_schema  , "right schema" },
+			{ KSQL::DIFF::right_prefix  , ">"            },
+			{ KSQL::DIFF::show_meta_info, true           }
+		});
 		CHECK ( iChanges == 14 );
 		CHECK ( sDiff == R"(TESTSCHEMA22_KSQL <-- table is only in right schema
 
@@ -1345,21 +1352,34 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 			"    adate     {{DATETIME}}  not null default {{NOW}},\n"
 			"    newstring char(200)     null,"
 			"    key idx01 (anum) \n"
-			")"))
+			") ENGINE=myisam"))
 		{
 			INFO (db.GetLastSQL());
 			FAIL_CHECK (db.GetLastError());
 		}
 
-		auto jSchema2 = db.LoadSchema("", "TESTSCHEMA1_KSQL");
+		auto jSchema2 = db.LoadSchema("", "TESTSCHEMA1_KSQL", KJSON{{ KSQL::DIFF::show_meta_info, true }});
 
-		iChanges = db.DiffSchemas(jSchema1, jSchema2, jDiff, sDiff);
-		CHECK ( iChanges == 2 );
+		iChanges = db.DiffSchemas(jSchema1, jSchema2, jDiff, sDiff,
+		{
+			{ KSQL::DIFF::left_schema   , "left schema"  },
+			{ KSQL::DIFF::left_prefix   , "<"            },
+			{ KSQL::DIFF::right_schema  , "right schema" },
+			{ KSQL::DIFF::right_prefix  , ">"            },
+			{ KSQL::DIFF::show_meta_info, true           }
+		});
+		CHECK ( iChanges == 5 );
 		CHECK ( sDiff == R"(TESTSCHEMA1_KSQL
 < astring char(100) COLLATE utf8mb4_unicode_ci NOT NULL
 > astring char(10) COLLATE utf8mb4_unicode_ci NOT NULL
 > newstring char(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL
 
+< TESTSCHEMA1_KSQL: engine = InnoDB
+> TESTSCHEMA1_KSQL: engine = MyISAM
+< TESTSCHEMA1_KSQL: max_index_length = 0
+> TESTSCHEMA1_KSQL: max_index_length = 1125899906841600
+< TESTSCHEMA1_KSQL: row_format = Dynamic
+> TESTSCHEMA1_KSQL: row_format = Fixed
 )" );
 //		KOut.WriteLine(sDiff);
 

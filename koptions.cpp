@@ -296,6 +296,7 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 		throw NoError {};
 	});
 
+#ifdef DEKAF2_WITH_KLOG
 	Option("d0,d,dd,ddd")
 	.Help("increasing optional stdout debug levels")
 	([this,sCliDebugTo]()
@@ -325,6 +326,7 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 		KLog::getInstance().LogWithGrepExpression(true, bIsInverted, sGrep);
 		KLog::getInstance().KeepCLIMode (true);
 	});
+#endif
 
 	Option("ini <filename>", "ini file name")
 	.Help("load options from ini file")

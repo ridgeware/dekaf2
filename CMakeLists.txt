@@ -65,6 +65,7 @@ OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS "debug build with sanitizers and addit
 OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE "debug build with sanitizers and additional runtime checks in Xcode" OFF)
 OPTION(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS "use frozen constexpr hash for large maps (needs a lot of memory on comp)" ON)
 OPTION(DEKAF2_WITH_FCGI "build with FCGI" OFF)
+OPTION(DEKAF2_WITH_KLOG "build with KLOG" ON)
 OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" OFF)
 
@@ -172,6 +173,14 @@ if (DEKAF2_USE_FBSTRING_AS_KSTRING)
 	set(DEKAF2_HAS_MINIFOLLY ON)
 else()
 	set(DEKAF2_HAS_MINIFOLLY OFF)
+endif()
+
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+	set (DEKAF2_WITH_KLOG ON)
+endif()
+
+if (NOT DEKAF2_WITH_KLOG)
+	set(DEKAF2_KLOG_WITH_TCP OFF)
 endif()
 
 # ================================ CMAKE INTERNALS =================================

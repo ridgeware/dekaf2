@@ -127,7 +127,7 @@ bool KBAR::Move (int64_t iDelta)
 
 	if (m_bSliding)
 	{
-		if (KLog::getInstance().GetLevel())
+		if (kWouldLog(1))
 		{
 			kDebugLog (1, "kbar: {:3}%, {} of {}", ((m_iSoFar+iDelta))*100/m_iExpected, m_iSoFar+iDelta, m_iExpected);
 		}
@@ -222,7 +222,7 @@ void KBAR::Break (KStringView sMsg/*="!!!"*/)
 void KBAR::_SliderAction (int iAction, uint64_t iSoFarLast, uint64_t iSoFarNow)
 //-----------------------------------------------------------------------------
 {
-	if (KLog::getInstance().GetLevel()) // progress bar only makes sense when NOT klogging
+	if (kWouldLog(1)) // progress bar only makes sense when NOT klogging
 	{
 		return;
 	}

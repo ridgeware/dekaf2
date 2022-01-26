@@ -45,13 +45,16 @@
 /// @file klog.h
 /// Logging framework
 
+#include "kconfiguration.h"
+#include "bits/kcppcompat.h"
+#include "kstring.h"
+#include "kstringview.h"
+#include "kformat.h"
+
 #include <memory>
 #include <exception>
 #include <mutex>
 #include <vector>
-#include "kstring.h"
-#include "kformat.h"
-#include "bits/kcppcompat.h"
 
 #ifndef DEKAF2_IS_WINDOWS
 	#define DEKAF2_HAS_SYSLOG
@@ -96,6 +99,13 @@ class DEKAF2_PUBLIC KLog
 {
 
 //----------
+private:
+//----------
+
+	// private ctor
+	KLog();
+
+//----------
 public:
 //----------
 
@@ -133,7 +143,9 @@ public:
 	self& KeepCLIMode(bool bYesNo)
 	//---------------------------------------------------------------------------
 	{
+#ifdef DEKAF2_WITH_KLOG
 		m_bKeepCLIMode = bYesNo;
+#endif
 		return *this;
 	}
 
@@ -141,15 +153,24 @@ public:
 	/// Sets the operation mode of the KLOG to either CLI or SERVER mode. Default
 	/// is CLI, but e.g. the REST server switches this to SERVER. This affects
 	/// log location and error output.
-	self& SetMode(LOGMODE logmode);
+	self& SetMode(LOGMODE logmode)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Returns the current KLOG operation mode
 	LOGMODE GetMode() const
 	//---------------------------------------------------------------------------
 	{
+#ifdef DEKAF2_WITH_KLOG
 		return m_Logmode;
+#else
+		return CLI;
+#endif
 	}
 
 	//---------------------------------------------------------------------------
@@ -158,26 +179,44 @@ public:
 	static inline int GetLevel()
 	//---------------------------------------------------------------------------
 	{
+#ifdef DEKAF2_WITH_KLOG
 		return s_iLogLevel;
+#else
+		return -1;
+#endif
 	}
 
 	//---------------------------------------------------------------------------
 	/// Sets a new log level.
-	self& SetLevel(int iLevel);
+	self& SetLevel(int iLevel)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// For long running threads, sync the per-thread log level to the global
 	/// log level (it may have changed through the Dekaf() timing thread)
-	void SyncLevel();
+	void SyncLevel()
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Get level at which back traces are automatically generated.
 	inline int GetBackTraceLevel() const
 	//---------------------------------------------------------------------------
 	{
+#ifdef DEKAF2_WITH_KLOG
 		return m_iBackTrace;
+#else
+		return -2;
+#endif
 	}
 
 	//---------------------------------------------------------------------------
@@ -185,8 +224,10 @@ public:
 	inline int SetBackTraceLevel(int iLevel)
 	//---------------------------------------------------------------------------
 	{
+#ifdef DEKAF2_WITH_KLOG
 		m_iBackTrace = iLevel;
-		return m_iBackTrace;
+#endif
+		return GetBackTraceLevel();
 	}
 
 	//---------------------------------------------------------------------------
@@ -194,13 +235,23 @@ public:
 	/// "OFF,off,FALSE,false,NO,no,0" :: switches off
 	/// "CALLER,caller,SHORT,short"   :: switches to caller frame only
 	///                               :: all else switches full trace on
-	self& SetJSONTrace(KStringView sJSONTrace);
+	self& SetJSONTrace(KStringView sJSONTrace)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Returns JSON trace mode, one of off,short,full
-	KStringView GetJSONTrace() const;
+	KStringView GetJSONTrace() const
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return "off"; }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Set application name for logging.
@@ -217,8 +268,13 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Set the output file (or tcp stream) for the log.
-	bool SetDebugLog(KStringView sLogfile);
+	bool SetDebugLog(KStringView sLogfile)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return true; }
+#endif
 
 	enum class Writer
 	{
@@ -258,58 +314,100 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Set the log writer directly instead of opening one implicitly with SetDebugLog()
-	self& SetWriter(std::unique_ptr<KLogWriter> logger);
+	self& SetWriter(std::unique_ptr<KLogWriter> logger)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Set the log writer directly instead of opening one implicitly with SetDebugLog()
-	self& SetWriter(Writer writer, KStringView sLogname = KStringView{});
+	self& SetWriter(Writer writer, KStringView sLogname = KStringView{})
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Set the log serializer directly instead of opening one implicitly with SetDebugLog()
-	self& SetSerializer(std::unique_ptr<KLogSerializer> serializer);
+	self& SetSerializer(std::unique_ptr<KLogSerializer> serializer)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Set the log serializer directly instead of opening one implicitly with SetDebugLog()
-	self& SetSerializer(Serializer serializer);
+	self& SetSerializer(Serializer serializer)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Gets the file name of the output file for the log.
 	inline const KString& GetDebugLog() const
 	//---------------------------------------------------------------------------
 	{
+#ifdef DEKAF2_WITH_KLOG
 		return m_sLogName;
+#else
+		return s_sEmpty;
+#endif
 	}
 
 	//---------------------------------------------------------------------------
 	/// Sets the file name of the flag file. The flag file is monitored in
 	/// regular intervals, and if changed its content is read and interpreted
 	/// as the new log level.
-	bool SetDebugFlag(KStringView sFlagfile);
+	bool SetDebugFlag(KStringView sFlagfile)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return true; }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Gets the file name of the flag file.
 	inline const KString& GetDebugFlag() const
 	//---------------------------------------------------------------------------
 	{
+#ifdef DEKAF2_WITH_KLOG
 		return m_sFlagfile;
+#else
+		return s_sEmpty;
+#endif
 	}
 
 	//---------------------------------------------------------------------------
 	/// Reset configuration to default values
-	self& SetDefaults();
+	self& SetDefaults()
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Returns true while KLog is available - indication that the executable is neiter in init or exit state
 	bool Available() const
 	//---------------------------------------------------------------------------
 	{
+#ifdef DEKAF2_WITH_KLOG
 		return (m_Logger && m_Serializer);
+#else
+		return true;
+#endif
 	}
 
 	//---------------------------------------------------------------------------
@@ -348,6 +446,7 @@ public:
 		return IntDebug(iLevel, sFunction, std::forward<Args>(args)...);
 	}
 
+#ifdef DEKAF2_WITH_KLOG
 	//---------------------------------------------------------------------------
 	/// print first frame from a file not in sSkipFiles (comma separated basenames)
 	void TraceDownCaller(int iSkipStackLines, KStringView sSkipFiles, KStringView sMessage);
@@ -374,6 +473,7 @@ public:
 	{
 		return IntDebug(-1, KStringView(), std::forward<Args>(args)...);
 	}
+#endif
 
 	//---------------------------------------------------------------------------
 	/// report a known exception - better use kException().
@@ -395,8 +495,13 @@ public:
 	/// Registered with Dekaf::AddToOneSecTimer() at construction, gets
 	/// called every second and reconfigures debug level, output, and format
 	/// if changed
-	void CheckDebugFlag (bool bForce=false);
+	void CheckDebugFlag (bool bForce=false)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// set whether or not to show stack as klog warnings when JSON parse fails
@@ -404,9 +509,13 @@ public:
 	bool ShowStackOnJsonError (bool bNewValue)
 	//---------------------------------------------------------------------------
 	{
+#ifdef DEKAF2_WITH_KLOG
 		bool bOldValue = s_bShouldShowStackOnJsonError;
 		s_bShouldShowStackOnJsonError = bNewValue;
 		return bOldValue;
+#else
+		return false;
+#endif
 	}
 
 	//---------------------------------------------------------------------------
@@ -415,56 +524,104 @@ public:
 	bool OnlyShowCallerOnJsonError (bool bNewValue)
 	//---------------------------------------------------------------------------
 	{
+#ifdef DEKAF2_WITH_KLOG
 		bool bOldValue = m_bGlobalShouldOnlyShowCallerOnJsonError;
 		m_bGlobalShouldOnlyShowCallerOnJsonError = bNewValue;
 		return bOldValue;
+#else
+		return false;
+#endif
 	}
 
 	//---------------------------------------------------------------------------
 	/// Log either full trace or call place for JSON
-	void JSONTrace(KStringView sFunction);
+	void JSONTrace(KStringView sFunction)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Log messages of this thread of execution with level <= iLevel into the
 	/// current klog. This can be used to force more logging for a particular thread
 	/// than for other threads. If iLevel is <= 0, the global log level is applied
 	/// and this method resets all thread specific logging.
-	self& LogThisThreadToKLog(int iLevel);
+	self& LogThisThreadToKLog(int iLevel)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 	//---------------------------------------------------------------------------
 	/// Log messages of this thread of execution with level <= iLevel into a
 	/// HTTP Response header.
-	self& LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, KStringView sHeader = "x-klog");
+	self& LogThisThreadToResponseHeaders(int iLevel, KHTTPHeaders& Response, KStringView sHeader = "x-klog")
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Log messages of this thread of execution with level <= iLevel into a
 	/// JSON array
-	self& LogThisThreadToJSON(int iLevel, void* pjson);
+	self& LogThisThreadToJSON(int iLevel, void* pjson)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
+
 #endif
 
 	//---------------------------------------------------------------------------
 	/// When per-thread logging is active, only log messages that contain the sGrepExpression,
 	/// either in egrep (regular expression) modus or plain string search
-	self& LogThisThreadWithGrepExpression(bool bEGrep, KString sGrepExpression);
+	self& LogThisThreadWithGrepExpression(bool bEGrep, KString sGrepExpression)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Only log messages that contain or do not contain (bInverted) the sGrepExpression
 	/// either in egrep (regular expression) modus or plain string search
-	self& LogWithGrepExpression(bool bEGrep, bool bInverted, KString sGrepExpression);
+	self& LogWithGrepExpression(bool bEGrep, bool bInverted, KString sGrepExpression)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
 
+#ifdef DEKAF2_WITH_KLOG
 	static KStringView s_sJSONSkipFiles;
 	static thread_local int s_iThreadLogLevel;
+#endif
 
 //----------
 private:
 //----------
+
+	bool IntDebug (int iLevel, KStringView sFunction, KStringView sMessage);
+	void IntException (KStringView sWhat, KStringView sFunction, KStringView sClass);
+
+#ifndef DEKAF2_WITH_KLOG
+
+	static KString s_sEmpty;
+	KString m_sPathName;
+	KString m_sShortName;
+
+#else
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class DEKAF2_PRIVATE PreventRecursion
@@ -490,11 +647,6 @@ private:
 
 	}; // PreventRecursion
 
-	// private ctor
-	KLog();
-
-	bool IntDebug (int iLevel, KStringView sFunction, KStringView sMessage);
-	void IntException (KStringView sWhat, KStringView sFunction, KStringView sClass);
 	bool IntOpenLog ();
 
 	static thread_local std::unique_ptr<KLogSerializer> s_PerThreadSerializer;
@@ -544,7 +696,11 @@ private:
 
 	LOGMODE m_Logmode { CLI };
 
+#endif // of ifdef DEKAF2_WITH_KLOG
+
 }; // KLog
+
+} // end of namespace dekaf2
 
 // there is no way to convince gcc to inline a variadic template function
 // (and as "inline" is not imperative it may happen on other compilers as well)
@@ -564,6 +720,7 @@ private:
 #ifdef kDebug
 #undef kDebug
 #endif
+#ifdef DEKAF2_WITH_KLOG
 //---------------------------------------------------------------------------
 /// log a debug message, automatically provide function name.
 #define kDebug(iLevel, ...) \
@@ -574,10 +731,14 @@ private:
 	} \
 }
 //---------------------------------------------------------------------------
+#else
+#define kDebug(iLevel, ...)
+#endif
 
 #ifdef kDebugLog
 #undef kDebugLog
 #endif
+#ifdef DEKAF2_WITH_KLOG
 //---------------------------------------------------------------------------
 /// log a debug message, do NOT automatically provide function name.
 #define kDebugLog(iLevel, ...) \
@@ -588,6 +749,9 @@ private:
 	} \
 }
 //---------------------------------------------------------------------------
+#else
+#define kDebugLog(iLevel, ...)
+#endif
 
 #ifdef kWarning
 #undef kWarning
@@ -637,6 +801,7 @@ private:
 #ifdef kDebugTrace
 #undef kDebugTrace
 #endif
+#ifdef DEKAF2_WITH_KLOG
 //---------------------------------------------------------------------------
 /// force a stack trace, automatically provide function name.
 #define kDebugTrace(...) \
@@ -644,10 +809,14 @@ private:
 	dekaf2::KLog::getInstance().debug_fun(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
+#else
+#define kDebugTrace(...)
+#endif
 
 #ifdef kJSONTrace
 #undef kJSONTrace
 #endif
+#ifdef DEKAF2_WITH_KLOG
 //---------------------------------------------------------------------------
 /// special stack dump handling just for KJSON (nlohmann)
 #define kJSONTrace() \
@@ -655,10 +824,14 @@ private:
 	dekaf2::KLog::getInstance().JSONTrace(DEKAF2_FUNCTION_NAME); \
 }
 //---------------------------------------------------------------------------
+#else
+#define kJSONTrace()
+#endif
 
 #ifdef kTraceDownCaller
 #undef kTraceDownCaller
 #endif
+#ifdef DEKAF2_WITH_KLOG
 //---------------------------------------------------------------------------
 /// print first frame from a file not in sSkipFiles (comma separated basenames)
 #define kTraceDownCaller(iSkipStackLines, sSkipFiles, sMessage) \
@@ -666,14 +839,18 @@ private:
 	dekaf2::KLog::getInstance().TraceDownCaller(iSkipStackLines, sSkipFiles, sMessage); \
 }
 //---------------------------------------------------------------------------
+#else
+#define kTraceDownCaller(iSkipStackLines, sSkipFiles, sMessage)
+#endif
 
 #ifdef kWouldLog
 #undef kWouldLog
 #endif
+#ifdef DEKAF2_WITH_KLOG
 //---------------------------------------------------------------------------
 /// test if a given log level would create output
 #define kWouldLog(iLevel) (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_iThreadLogLevel))
 //---------------------------------------------------------------------------
-
-
-} // end of namespace dekaf2
+#else
+#define kWouldLog(iLevel) (false)
+#endif

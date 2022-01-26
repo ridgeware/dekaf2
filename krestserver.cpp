@@ -201,6 +201,10 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 //-----------------------------------------------------------------------------
 {
+	int  iKLogLevel { 0 };
+
+#ifdef DEKAF2_WITH_KLOG
+
 #ifdef DEKAF2_KLOG_WITH_TCP
 	static constexpr KStringView s_sHeaderLoggingHelp {
 		"supported header logging commands:\n"
@@ -210,8 +214,6 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 		" -out <headers|log|json>  :: output target for this thread, default = headers\n"
 	};
 #endif
-
-	int  iKLogLevel { 0 };
 
 	auto it = Request.Headers.find(Options.KLogHeader);
 
@@ -244,7 +246,9 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 		bool bToKLog    { false };
 		bool bToJSON    { false };
 		bool bEGrep     { false };
+#ifdef DEKAF2_KLOG_WITH_TCP
 		bool bHelp      { false };
+#endif
 		KString sGrep;
 
 		auto sParts = it->second.Split(", ");
@@ -279,6 +283,7 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 						}
 
 					}
+#ifdef DEKAF2_KLOG_WITH_TCP
 					else if (itArg->second == HELP)
 					{
 						bHelp = true;
@@ -287,6 +292,7 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 							iKLogLevel = 1;
 						}
 					}
+#endif
 					else
 					{
 						iPType = itArg->second;
@@ -414,6 +420,8 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 			KLog::getInstance().LogThisThreadWithGrepExpression(bEGrep, sGrep);
 		}
 	}
+
+#endif // of DEKAF2_WITH_KLOG
 
 	return iKLogLevel;
 
@@ -712,6 +720,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				Options.PostRouteCallback(*this);
 			}
 
+#ifdef DEKAF2_WITH_KLOG
 			// switch header logging only after authorization (but not for OPTIONS, as it is
 			// not authenticated..)
 			if (!Options.KLogHeader.empty() && Request.Method != KHTTPMethod::OPTIONS)
@@ -726,6 +735,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 					}
 				}
 			}
+#endif
 
 			if (m_Timers)
 			{

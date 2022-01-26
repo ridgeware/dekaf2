@@ -130,10 +130,11 @@ void KSystemStats::AddIntStatIfFileExists(KStringViewZ sStatName, KStringViewZ s
 	{
 		KString sContents;
 		KInFile oStatFile(sStatFilePath);
+#ifdef DEKAF2_WITH_KLOG
 		size_t iRead = oStatFile.Read(sContents, 256);
-		sContents.CollapseAndTrim();
-
 		kDebug (3, "Read {} bytes from stat file '{}' : '{}'", iRead, sStatFilePath, sContents);
+#endif
+		sContents.CollapseAndTrim();
 		Add(sStatName, sContents, StatType::AUTO);
 	}
 	else
@@ -1341,12 +1342,14 @@ void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t 
 	for (const auto& proc : m_Procs)
 	{
 		uint64_t    iPID   = proc.first.UInt64();
-		KStringView sCmd = proc.second.sValue;
 		uint64_t    iPPID  = proc.second.sExtra1.UInt64();
 
 		if (iPPID == iFromPID)
 		{
+#ifdef DEKAF2_WITH_KLOG
+			KStringView sCmd = proc.second.sValue;
 			kDebug (2, "child: ppid={}, pid={}, cmd={}", iPPID, iPID, sCmd);
+#endif
 			DumpPidTree (stream, iPID, iLevel+1);
 		}
 	}

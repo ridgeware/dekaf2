@@ -45,6 +45,9 @@
 #include "kgetruntimestack.h"
 #include "ksignals.h"
 #include "kcrashexit.h"
+#ifndef DEKAF2_WITH_KLOG
+#include "kwriter.h"
+#endif
 #include <mutex>
 
 #ifdef UNIX
@@ -63,12 +66,11 @@ static std::mutex           g_CrashMutex;
 void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 //-----------------------------------------------------------------------------
 {
-	auto& klog = KLog::getInstance();
 	KString sVerb {"CRASHED"};
 	KString sWarning;
 
 	// switch automatic backtracing off
-	klog.SetBackTraceLevel(-100);
+	KLog::getInstance().SetBackTraceLevel(-100);
 
 	switch (iSignalNum)
 	{
@@ -187,7 +189,7 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	#endif
 
 	sWarning += kFormat ("exiting program.");
-	klog.warning (sWarning);
+	kWarning (sWarning);
 
 	// make sure all access on the global vars is protected from races
 	std::lock_guard<std::mutex> Lock(g_CrashMutex);
@@ -240,7 +242,7 @@ namespace detail {
 void kFailedAssert (KStringView sCrashMessage)
 //-----------------------------------------------------------------------------
 {
-	KLog::getInstance().warning ("ASSERT FAILURE: {}", sCrashMessage);
+	kWarning ("ASSERT FAILURE: {}", sCrashMessage);
 	kCrashExit (0);
 
 } // kFailedAssert

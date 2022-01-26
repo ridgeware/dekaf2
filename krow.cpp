@@ -101,6 +101,7 @@ KString KROW::FlagsToString (uint64_t iFlags)
 void KROW::LogRowLayout(int iLogLevel) const
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_WITH_KLOG
 	if (kWouldLog(iLogLevel))
 	{
 		int16_t iii = 0;
@@ -109,6 +110,7 @@ void KROW::LogRowLayout(int iLogLevel) const
 			kDebugLog (iLogLevel, ColumnInfoForLogOutput(it, iii++));
 		}
 	}
+#endif
 
 } // LogRowLayout
 

@@ -502,7 +502,9 @@ private:
 	static thread_local KString s_sPerThreadGrepExpression;
 	static int s_iLogLevel;
 	static thread_local bool s_bShouldShowStackOnJsonError;
+#ifdef DEKAF2_KLOG_WITH_TCP
 	static thread_local bool s_bPrintTimeStampOnClose;
+#endif
 	static thread_local bool s_bPerThreadEGrep;
 
 	KString m_sPathName;

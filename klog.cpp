@@ -78,7 +78,9 @@ thread_local std::unique_ptr<KLogSerializer> KLog::s_PerThreadSerializer;
 thread_local std::unique_ptr<KLogWriter> KLog::s_PerThreadWriter;
 thread_local KString KLog::s_sPerThreadGrepExpression;
 thread_local bool KLog::s_bShouldShowStackOnJsonError { true };
+#ifdef DEKAF2_KLOG_WITH_TCP
 thread_local bool KLog::s_bPrintTimeStampOnClose { false };
+#endif
 thread_local bool KLog::s_bPerThreadEGrep { false };
 thread_local bool KLog::PreventRecursion::s_bCalledFromInsideKlog { false };
 
@@ -223,6 +225,7 @@ KLog& KLog::LogThisThreadToKLog(int iLevel)
 		s_iThreadLogLevel = s_iLogLevel;
 	}
 
+#ifdef DEKAF2_KLOG_WITH_TCP
 	if (s_bPrintTimeStampOnClose)
 	{
 		if (s_PerThreadSerializer && s_PerThreadWriter)
@@ -232,6 +235,7 @@ KLog& KLog::LogThisThreadToKLog(int iLevel)
 			s_PerThreadWriter->Write(0, true,  KLogHTTPHeaderSerializer::GetFooter());
 		}
 	}
+#endif
 
 	s_PerThreadWriter.reset();
 	s_PerThreadSerializer.reset();

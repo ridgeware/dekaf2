@@ -10,6 +10,7 @@ using namespace dekaf2;
 
 TEST_CASE("KRESTServer") {
 
+#ifdef DEKAF2_KLOG_WITH_TCP
 	SECTION("json logging")
 	{
 		KStringView sRequest =
@@ -44,7 +45,9 @@ x-klog: -out json -level 1
 		CHECK ( object1.is_object() );
 		CHECK( kjson::GetStringRef(object1, "message") == "HTTP-200: OK" );
 	}
+#endif
 
+#ifdef DEKAF2_KLOG_WITH_TCP
 	SECTION("header logging")
 	{
 		KStringView sRequest =
@@ -75,6 +78,7 @@ x-klog: -level 1
 		CHECK ( json.is_object() );
 		CHECK ( json["response"] == "hello world" );
 	}
+#endif
 
 }
 

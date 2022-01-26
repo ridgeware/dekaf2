@@ -201,6 +201,7 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_KLOG_WITH_TCP
 	static constexpr KStringView s_sHeaderLoggingHelp {
 		"supported header logging commands:\n"
 		" -level <n> (or only <n>) :: set logging level (1..3)\n"
@@ -208,6 +209,7 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 		" -grep <substring>        :: match substring to log\n"
 		" -out <headers|log|json>  :: output target for this thread, default = headers\n"
 	};
+#endif
 
 	int  iKLogLevel { 0 };
 
@@ -403,7 +405,7 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 			}
 #else
 			kDebug(2, "request to switch {} logging on, but compiled without support", "response header");
-			return;
+			return 0;
 #endif
 		}
 

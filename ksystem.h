@@ -192,6 +192,10 @@ std::size_t kGetPageSize();
 DEKAF2_PUBLIC
 std::size_t kGetPhysicalMemory();
 
+/// Returns count of physical, available CPUs
+DEKAF2_PUBLIC
+std::size_t kGetCPUCount();
+
 /// Set the global locale for all threads, set to environment preset if sLocale == empty
 /// @par sLocale the locale string to construct the std::locale from. Use a unicode aware locale.
 /// @return true if locale could be set, false otherwise

@@ -842,6 +842,34 @@ std::size_t kGetPhysicalMemory()
 } // kGetPhysicalMemory
 
 //-----------------------------------------------------------------------------
+std::size_t kGetCPUCount()
+//-----------------------------------------------------------------------------
+{
+
+#ifndef DEKAF2_IS_WINDOWS
+
+	static std::size_t iCPUCount = []() -> std::size_t
+	{
+		std::size_t iCount = sysconf(_SC_NPROCESSORS_ONLN);
+		return iCount ? iCount : 1;
+	}();
+
+#else
+
+	static std::size_t iCPUCount = []() -> std::size_t
+	{
+		SYSTEM_INFO sysInfo;
+		GetSystemInfo(&sysInfo);
+		return sysInfo.dwNumberOfProcessors ? sysInfo.dwNumberOfProcessors : 1;
+	}();
+
+#endif
+
+	return iCPUCount;
+
+} // kGetCPUCount
+
+//-----------------------------------------------------------------------------
 bool kSetGlobalLocale(KStringViewZ sLocale)
 //-----------------------------------------------------------------------------
 {

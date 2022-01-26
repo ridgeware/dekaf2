@@ -43,6 +43,9 @@
 #include "kcompression.h"
 #include "klog.h"
 #include "kfilesystem.h"
+#ifdef DEKAF2_HAS_LIBZSTD
+#include "ksystem.h" // for kGetCPUCount()
+#endif
 #include "bits/kiostreams_filters.h"
 
 namespace dekaf2 {
@@ -190,35 +193,35 @@ uint16_t detail::KCompressionBase::ScaleLevel(uint16_t iLevel, uint16_t iMax)
 } // ScaleLevel
 
 //-----------------------------------------------------------------------------
-bool KCompressOStream::open(KOutStream& TargetStream, COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading)
+bool KCompressOStream::open(KOutStream& TargetStream, COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading, std::size_t iDataSize)
 //-----------------------------------------------------------------------------
 {
 	m_TargetStream = &TargetStream;
-	return CreateFilter(compression, iLevel, iMultiThreading);
+	return CreateFilter(compression, iLevel, iMultiThreading, iDataSize);
 
 } // Open
 
 //-----------------------------------------------------------------------------
-bool KCompressOStream::open(KString& sTarget, COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading)
+bool KCompressOStream::open(KString& sTarget, COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading, std::size_t iDataSize)
 //-----------------------------------------------------------------------------
 {
 	m_KOutStream = std::make_unique<KOutStringStream>(sTarget);
-	return open(*m_KOutStream, compression, iLevel, iMultiThreading);
+	return open(*m_KOutStream, compression, iLevel, iMultiThreading, iDataSize);
 
 } // open
 
 //-----------------------------------------------------------------------------
-bool KCompressOStream::open_file(KStringViewZ sOutFile, COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading)
+bool KCompressOStream::open_file(KStringViewZ sOutFile, COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading, std::size_t iDataSize)
 //-----------------------------------------------------------------------------
 {
 	m_KOutStream = std::make_unique<KOutFile>(sOutFile, std::ios::trunc);
 	compression  = (compression == AUTO) ? GetCompressionMethodFromFilename(sOutFile) : compression;
-	return open(*m_KOutStream, compression, iLevel, iMultiThreading);
+	return open(*m_KOutStream, compression, iLevel, iMultiThreading, iDataSize);
 
 } // open
 
 //-----------------------------------------------------------------------------
-bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading)
+bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading, std::size_t iDataSize)
 //-----------------------------------------------------------------------------
 {
 	compressor::reset();
@@ -238,6 +241,7 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 		case GZIP:
 		{
 			auto iScaled = iLevel ? ScaleLevel(iLevel, bio::gzip::best_compression) : bio::gzip::default_compression;
+			kDebug(2, "setting {} compression to level {}", "gzip", iScaled);
 			compressor::push(bio::gzip_compressor(bio::gzip_params(iScaled)));
 		}
 		break;
@@ -245,6 +249,7 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 		case BZIP2:
 		{
 			auto iScaled = iLevel ? ScaleLevel(iLevel, 9) : bio::bzip2::default_block_size;
+			kDebug(2, "setting {} compression to level {}", "bzip2", iScaled);
 			compressor::push(bio::bzip2_compressor(iScaled));
 		}
 		break;
@@ -252,6 +257,7 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 		case ZLIB:
 		{
 			auto iScaled = iLevel ? ScaleLevel(iLevel, bio::zlib::best_compression) : bio::zlib::default_compression;
+			kDebug(2, "setting {} compression to level {}", "zlib", iScaled);
 			compressor::push(bio::zlib_compressor(bio::zlib_params(iScaled)));
 		}
 		break;
@@ -260,6 +266,7 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 		case LZMA:
 		{
 			auto iScaled = iLevel ? ScaleLevel(iLevel, bio::lzma::best_compression) : bio::lzma::default_compression;
+			kDebug(2, "setting {} compression to level {}", "lzma", iScaled);
 			compressor::push(bio::lzma_compressor(bio::lzma_params(iScaled)));
 		}
 		break;
@@ -269,6 +276,27 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 		case ZSTD:
 		{
 			auto iScaled = iLevel ? ScaleLevel(iLevel, dio::zstd::best_compression) : dio::zstd::default_compression;
+			kDebug(2, "setting {} compression to level {}", "zstd", iScaled);
+			auto iCPUCount = kGetCPUCount();
+
+			if (iMultiThreading == 0 || iMultiThreading > iCPUCount)
+			{
+				iMultiThreading = iCPUCount;
+			}
+
+			if (iDataSize != npos)
+			{
+				// each thread works on at least 512k, therefore do not spawn more than
+				// iDataSize / 512k threads..
+				// for sizes < 512k run in the main thread (=0)
+				auto iMaxThreads = iDataSize / (512 * 1024);
+
+				if (iMaxThreads < iMultiThreading)
+				{
+					iMultiThreading = iMaxThreads;
+				}
+			}
+			kDebug(2, "setting zstd compression to {} parallel threads", iMultiThreading);
 			compressor::push(dio::zstd_compressor(dio::zstd_params(iScaled, iMultiThreading)));
 		}
 		break;
@@ -278,6 +306,7 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 		case BROTLI:
 		{
 			auto iScaled = iLevel ? ScaleLevel(iLevel, dio::brotli::best_compression) : dio::brotli::default_compression;
+			kDebug(2, "setting {} to level {}", "brotli", iScaled);
 			compressor::push(dio::brotli_compressor(dio::brotli_params(iScaled)));
 		}
 		break;

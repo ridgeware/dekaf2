@@ -118,25 +118,30 @@ public:
 	/// @param sTarget string to write the compressed data into
 	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
 	/// @param iLevel sets the compression level from 1..100%, 0 = default
-	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), 1 = off, n = n parallel threads
-	KCompressOStream(KString& sTarget, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0)
+	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), n = n parallel threads
+	/// @param iDataSize hint for file size, may be defaulted at npos
+	KCompressOStream(KString& sTarget, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos)
 	{
-		open(sTarget, compression, iLevel, iMultiThreading);
+		open(sTarget, compression, iLevel, iMultiThreading, iDataSize);
 	}
 	/// constructs a compressor with a KOutStream as the target
 	/// @param TargetStream stream to write the compressed data into
 	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
 	/// @param iLevel sets the compression level from 1..100%, 0 = default
-	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), 1 = off, n = n parallel threads
-	KCompressOStream(KOutStream& TargetStream, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0)
+	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), n = n parallel threads
+	/// @param iDataSize hint for file size, may be defaulted at npos
+	KCompressOStream(KOutStream& TargetStream, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos)
 	{
-		open(TargetStream, compression, iLevel, iMultiThreading);
+		open(TargetStream, compression, iLevel, iMultiThreading, iDataSize);
 	}
 	/// constructs a compressor with a file as the target, compression is deduced by the file's suffix, multithreading is #CPU
 	/// @param sTarget name of a file to write the compressed data into
-	KCompressOStream(KString& sTarget)
+	/// @param iLevel sets the compression level from 1..100%, 0 = default
+	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), n = n parallel threads
+	/// @param iDataSize hint for file size, may be defaulted at npos
+	KCompressOStream(KString& sTarget, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos)
 	{
-		open_file(sTarget, AUTO);
+		open_file(sTarget, AUTO, iLevel, iMultiThreading, iDataSize);
 	}
 	/// copy construction is deleted
 	KCompressOStream(const KCompressOStream&) = delete;
@@ -151,20 +156,22 @@ public:
 	/// @param sTarget string to write the compressed data into
 	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
 	/// @param iLevel sets the compression level from 1..100%, 0 = default
-	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), 1 = off, n = n parallel threads
-	bool open(KString& sTarget, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0);
+	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), n = n parallel threads
+	bool open(KString& sTarget, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos);
 	/// sets a KOutStream as the target
 	/// @param TargetStream stream to write the compressed data into
 	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
 	/// @param iLevel sets the compression level from 1..100%, 0 = default
-	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), 1 = off, n = n parallel threads
-	bool open(KOutStream& TargetStream, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0);
+	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), n = n parallel threads
+	/// @param iDataSize hint for file size, may be defaulted at npos
+	bool open(KOutStream& TargetStream, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos);
 	/// creates a file and sets it as the target
 	/// @param sTarget name of a file to write the compressed data into
 	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
 	/// @param iLevel sets the compression level from 1..100%, 0 = default
-	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), 1 = off, n = n parallel threads
-	bool open_file(KStringViewZ sOutFile, COMPRESSION compression = AUTO, uint16_t iLevel = 0, uint16_t iMultiThreading = 0);
+	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), n = n parallel threads
+	/// @param iDataSize hint for file size - if default the file size will be checked by open_file if important for the compression algorithm
+	bool open_file(KStringViewZ sOutFile, COMPRESSION compression = AUTO, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos);
 
 	/// closes the output stream, calls finalizers of
 	/// encoders (also done by destructor)
@@ -178,7 +185,7 @@ private:
 	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
 	/// @param iLevel sets the compression level from 1..100%, 0 = default
 	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), 1 = off, n = n parallel threads
-	bool CreateFilter(COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0);
+	bool CreateFilter(COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos);
 
 	KOutStream* m_TargetStream { nullptr };
 	std::unique_ptr<KOutStream> m_KOutStream;
@@ -271,15 +278,20 @@ public:
 //------
 
 	template<typename Target>
-	KOneComp(Target&& target, uint16_t iLevel = 0)
-	: KCompress(std::forward<Target>(target), compression, iLevel)
+	KOneComp(Target&& target, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos)
+	: KCompress(std::forward<Target>(target), compression, iLevel, iMultiThreading, iDataSize)
 	{
 	}
 
 	template<typename Target>
-	bool open(Target&& target, uint16_t iLevel = 0)
+	bool open(Target&& target, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos)
 	{
-		return KCompress::open(std::forward<Target>(target), compression, iLevel);
+		return KCompress::open(std::forward<Target>(target), compression, iLevel, iMultiThreading, iDataSize);
+	}
+
+	bool open_file(KStringViewZ sOutFile, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos)
+	{
+		return KCompress::open_file(sOutFile, compression, iLevel, iMultiThreading, iDataSize);
 	}
 
 }; // KOneComp
@@ -303,6 +315,11 @@ public:
 	bool open(Target&& target)
 	{
 		return KUnCompress::open(std::forward<Target>(target), compression);
+	}
+
+	bool open_file(KStringViewZ sInFile)
+	{
+		return KUnCompress::open_file(sInFile, compression);
 	}
 
 }; // KOneUnComp

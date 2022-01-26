@@ -8583,7 +8583,18 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 	// 					"idx01": "(`anum`)"
 	// 				}
 	// 			],
-	// 			"tablename": "TESTSCHEMA1_KSQL"
+	// 			"tablename": "TESTSCHEMA1_KSQL",
+	// 			"meta_info": {
+	// 			    "engine": "...",
+	//              "version": "...",
+	//              "row_format": "...",
+	//              "version": "...",
+	//              "row_format": "...",
+	//              "table_collation": "...",
+	//              "create_options": "...",
+	//              "max_index_length": "...",
+	//              "temporary": "...",
+	// 			}
 	// 		}
 	// 	]
 	// }
@@ -8626,6 +8637,7 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 	}
 
 	const auto bIgnoreCollate = kjson::GetBool(options, DIFF::ignore_collate);
+	const auto bShowMetaInfo  = kjson::GetBool(options, DIFF::show_meta_info);
 
 	for (const auto& sTable : Tables)
 	{
@@ -8684,6 +8696,38 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 			}
 		}
 
+		if (bShowMetaInfo)
+		{
+			if (!ExecQuery(
+				"select engine\n"
+				"     , version\n"
+				"     , row_format\n"
+				"     , version\n"
+				"     , row_format\n"
+				"     , table_collation\n"
+				"     , create_options\n"
+				"     , max_index_length\n"
+				"     , temporary\n"
+				"  from information_schema.TABLES\n"
+				" where table_schema='{}'\n"
+				"   and table_name='{}'",
+					GetDBName(), sTable))
+			{
+				return KJSON{};
+			}
+
+			KROW row;
+			if (!NextRow(row))
+			{
+				SetError (kFormat ("did not get a row back from: {}", GetLastSQL()));
+				return KJSON{};
+			}
+
+			jTable["meta_info"] = row;
+		}
+
+		kDebug (2, jTable.dump(1,'\t'));
+
 		jSchema["tables"].push_back(jTable);
 	}
 
@@ -8698,7 +8742,8 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 //-----------------------------------------------------------------------------
 {
 	size_t  iTotalDiffs { 0 };
-	bool    bShowMissingTablesWithColumns = kjson::GetBool(options,DIFF::include_columns_on_missing_tables);
+	bool    bShowMissingTablesWithColumns = kjson::GetBool(options, DIFF::include_columns_on_missing_tables);
+	bool    bShowMetaInfo                 = kjson::GetBool(options, DIFF::show_meta_info);
 
 	sSummary.clear();        // <-- return result (verbosity)
 	Diffs = KJSON::array();  // <-- return result (SQL commands)
@@ -8946,8 +8991,10 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 					PrintColumn (sLeftPrefix , oLeftColumn , sSummary);
 					PrintColumn (sRightPrefix, oRightColumn, sSummary);
 				}
-			}
-		}
+
+			} // for each column in the left table
+
+		} // if left table is not null
 
 		if (right.is_array()) // i.e. table exists on right
 		{
@@ -9014,12 +9061,38 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 
 	}; // lambda: DiffOneTable
 
+	//-----------------------------------------------------------------------------
+	auto DiffOneTableMetaInfo = [&](const KString& sTableName, const KJSON& left, const KJSON& right) -> size_t
+	//-----------------------------------------------------------------------------
+	{
+		size_t iTableDiffs{0};
+
+		for (auto& it : left.items())
+		{
+			KString sLeftKey    = it.key();
+			KString sLeftValue  = it.value();
+			KString sRightValue = kjson::GetString(right,sLeftKey);
+
+			kDebug (2, "meta info key={}, left={}, right={}", sLeftKey, sLeftValue, sRightValue);
+
+			if (sLeftValue != sRightValue)
+			{
+				sSummary += kFormat ("{}{} {}: {} = {}\n", sDiffPrefix, sLeftPrefix,  sTableName, sLeftKey, sLeftValue);
+				sSummary += kFormat ("{}{} {}: {} = {}\n", sDiffPrefix, sRightPrefix, sTableName, sLeftKey, sRightValue);
+				++iTableDiffs;
+			}
+		}
+
+		return iTableDiffs;
+
+	}; // lambda: DiffOneTableMetaInfo
+
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// logic starts here
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	try
 	{
-		KJSON LohmannDiffs = KJSON::diff (LeftSchema, RightSchema); // raw diff, not very useful
+		KJSON      LohmannDiffs  = KJSON::diff (LeftSchema, RightSchema); // raw diff, not very useful
 
 		sSummary.clear();
 
@@ -9046,6 +9119,11 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 
 				// tables differ
 				iTotalDiffs += DiffOneTable (sTableName, kjson::GetArray(oLeftTable, "columns"), kjson::GetArray(oRightTable, "columns"));
+
+				if (bShowMetaInfo && ! kjson::GetObject(oRightTable, "meta_info").is_null())
+				{
+					iTotalDiffs += DiffOneTableMetaInfo (sTableName, kjson::GetObject(oLeftTable, "meta_info"), kjson::GetObject(oRightTable, "meta_info"));
+				}
 			}
 
 			for (const auto& oRightTable : RightTableList)

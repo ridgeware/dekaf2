@@ -725,6 +725,7 @@ public:
 		static constexpr KStringViewZ right_prefix{"right_prefix"};
 		static constexpr KStringViewZ include_columns_on_missing_tables{"include_columns_on_missing_tables"};
 		static constexpr KStringViewZ ignore_collate{"ignore_collate"};
+		static constexpr KStringViewZ show_meta_info{"show_meta_info"};
 
 	}; // DIFF
 

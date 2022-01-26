@@ -260,6 +260,12 @@ find_package(LibLZMA QUIET)
 
 if (LIBLZMA_FOUND)
 	set(DEKAF2_HAS_LIBLZMA 1)
+else()
+	# FindLibLZMA.cmake is causing troubles if not found and
+	# if the advanced state is not cleared..
+	mark_as_advanced(CLEAR LIBLZMA_INCLUDE_DIR LIBLZMA_LIBRARY )
+	set(LIBLZMA_LIBRARY "")
+	set(LIBLZMA_INCLUDE_DIR "")
 endif()
 
 find_package(ZSTD QUIET)

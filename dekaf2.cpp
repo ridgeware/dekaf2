@@ -350,6 +350,15 @@ KStringView Dekaf::GetVersionInformation() const
 #if (DEKAF1_INCLUDE_PATH)
 		" with-dekaf1-compatibility"
 #endif
+#ifdef DEKAF2_HAS_LIBZSTD
+		" zstd"
+#endif
+#ifdef DEKAF2_HAS_LIBBROTLI
+		" br"
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+		" xz"
+#endif
 	;
 
 	return sVersionInformation;

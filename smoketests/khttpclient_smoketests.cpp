@@ -65,4 +65,33 @@ TEST_CASE("KHTTPClient")
 		CHECK ( sResult.empty() == true );
 		kDebug(1, json.dump(1, '\t'));
 	}
+
+	SECTION("compressors")
+	{
+		KURL URL("https://www.facebook.com");
+		KWebClient HTTP;
+		// do not take cookies
+		HTTP.AcceptCookies(false);
+		// set a user agent that is accepted by facebook
+		HTTP.AddHeader(KHTTPHeader::USER_AGENT, "curl/7.54");
+		// request the reference
+		HTTP.RequestCompression(true, "gzip, deflate");
+		auto sReference = HTTP.Get(URL);
+		CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "gzip" );
+		CHECK ( sReference.starts_with("<!DOCTYPE html>") );
+		CHECK ( sReference.Right(7) == "</html>" );
+		CHECK ( sReference.ends_with("</html>") );
+		// request the zstd version
+		HTTP.RequestCompression(true, "zstd");
+		auto sZSTD = HTTP.Get(URL);
+		CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "zstd" );
+		CHECK ( sZSTD.starts_with("<!DOCTYPE html>") );
+		CHECK ( sZSTD.ends_with("</html>") );
+		// request the brotli version
+		HTTP.RequestCompression(true, "br");
+		auto sBrotli = HTTP.Get(URL);
+		CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "br" );
+		CHECK ( sBrotli.starts_with("<!DOCTYPE html>") );
+		CHECK ( sBrotli.ends_with("</html>") );
+	}
 }

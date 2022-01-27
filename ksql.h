@@ -942,7 +942,7 @@ private:
 
 		KThreadSafe<std::set<uint64_t>> m_Connections;
 
-	}; // Connections
+	}; // ConnectionIDs
 
 	static ConnectionIDs s_CanceledConnections;
 

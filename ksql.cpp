@@ -1153,6 +1153,10 @@ bool KSQL::OpenConnection ()
 			return SetError (sError, iErrorNum);
 		}
 
+		// set the connection ID right at connection time - with mysql there is
+		// no need to execute an extra query (select CONNECTION_ID())
+		m_iConnectionID = m_dMYSQL->thread_id;
+
 		mysql_set_character_set (m_dMYSQL, "utf8"); // by default
 		break;
 	#endif
@@ -1700,8 +1704,8 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 						}
 					}
 
-					kDebug (3, "mysql_query(): m_dMYSQL is {}, SQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", m_sLastSQL.size());
-					if (mysql_query (m_dMYSQL, m_sLastSQL.c_str()))
+					kDebug (3, "mysql_real_query(): m_dMYSQL is {}, SQL is {} bytes long", m_dMYSQL ? "not null" : "nullptr", m_sLastSQL.size());
+					if (mysql_real_query (m_dMYSQL, m_sLastSQL.data(), m_sLastSQL.size()))
 					{
 						iErrorNum = mysql_errno (m_dMYSQL);
 						sError    = kFormat ("KSQL: MSQL-{}: {}", iErrorNum, mysql_error(m_dMYSQL));
@@ -8320,7 +8324,6 @@ bool KSQL::KillConnection(uint64_t iConnectionID)
 	if (ExecSQL("kill {}", iConnectionID))
 	{
 		kDebug(2, "canceled connection ID {}", iConnectionID);
-		s_CanceledConnections.Add(iConnectionID);
 		return true;
 	}
 	else

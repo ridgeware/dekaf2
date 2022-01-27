@@ -81,17 +81,21 @@ TEST_CASE("KHTTPClient")
 		CHECK ( sReference.starts_with("<!DOCTYPE html>") );
 		CHECK ( sReference.Right(7) == "</html>" );
 		CHECK ( sReference.ends_with("</html>") );
+#ifdef DEKAF2_HAS_LIBZSTD
 		// request the zstd version
 		HTTP.RequestCompression(true, "zstd");
 		auto sZSTD = HTTP.Get(URL);
 		CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "zstd" );
 		CHECK ( sZSTD.starts_with("<!DOCTYPE html>") );
 		CHECK ( sZSTD.ends_with("</html>") );
+#endif
+#ifdef DEKAF2_HAS_LIBBROTLI
 		// request the brotli version
 		HTTP.RequestCompression(true, "br");
 		auto sBrotli = HTTP.Get(URL);
 		CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "br" );
 		CHECK ( sBrotli.starts_with("<!DOCTYPE html>") );
 		CHECK ( sBrotli.ends_with("</html>") );
+#endif
 	}
 }

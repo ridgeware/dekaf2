@@ -51,7 +51,9 @@
 namespace dekaf2 {
 
 namespace bio = boost::iostreams;
+#if defined(DEKAF2_HAS_LIBZSTD) || defined(DEKAF2_HAS_LIBBROTLI)
 namespace dio = dekaf2::iostreams;
+#endif
 
 //-----------------------------------------------------------------------------
 detail::KCompressionBase::COMPRESSION detail::KCompressionBase::FromString(KStringView sCompression)

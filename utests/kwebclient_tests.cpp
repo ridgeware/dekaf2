@@ -15,6 +15,8 @@ namespace {
 
 std::atomic_bool g_bDone { false };
 
+KTempDir MySocketDir;
+
 void rest_test_no_timeout(KRESTServer& REST)
 {
 	REST.SetRawOutput(REST.GetRequestBody());
@@ -109,7 +111,7 @@ TEST_CASE("KWebClient") {
 		CHECK( sRet == "0123456789" );
 	}
 
-	SECTION("timeout 1")
+	SECTION("timeout TCP")
 	{
 		constexpr KRESTRoutes::FunctionTable RTable[]
 		{
@@ -152,19 +154,112 @@ TEST_CASE("KWebClient") {
 		CHECK( sRet == "some body" );
 		CHECK( HTTP.GetStatusCode() == 200 );
 		CHECK( HTTP.Error() == "" );
+		// leave connection open!
+		sRet = HTTP.Post("http://localhost:7653/test0", "some other body", KMIME::HTML_UTF8);
+		CHECK( sRet == "some other body" );
+		CHECK( HTTP.GetStatusCode() == 200 );
+		CHECK( HTTP.Error() == "" );
 		HTTP.Disconnect();
 
+		g_bDone = false;
 		sRet = HTTP.Post("http://localhost:7653/test1", "some body", KMIME::HTML_UTF8);
 		CHECK( sRet.empty() );
 		CHECK( HTTP.GetStatusCode() == 598 );
 		CHECK( HTTP.Error() == "Operation canceled" );
-		HTTP.Disconnect();
-
+//		HTTP.Disconnect();
+		// leave connection untouched to test reconnect feature
 		// it is difficult to know when the TCP server is done
 		while (!g_bDone)
 		{
 			kMilliSleep(10);
 		}
+		kDebug(2, "========= after timeout 1 ==========");
+
+		sRet = HTTP.Post("http://localhost:7653/test0", "some other body", KMIME::HTML_UTF8);
+		CHECK( sRet == "some other body" );
+		CHECK( HTTP.GetStatusCode() == 200 );
+		CHECK( HTTP.Error() == "" );
+		HTTP.Disconnect();
+	}
+
+	SECTION("timeout Unix")
+	{
+		constexpr KRESTRoutes::FunctionTable RTable[]
+		{
+			{ "GET",  false, "/test0",      rest_test_no_timeout, KRESTRoute::PLAIN },
+			{ "POST", false, "/test0",      rest_test_no_timeout, KRESTRoute::PLAIN },
+			{ "POST", false, "/test1",      rest_test_timeout_1,  KRESTRoute::PLAIN },
+		};
+
+		KRESTRoutes Routes;
+
+		Routes.AddFunctionTable(RTable);
+
+		KREST::Options Options;
+		Options.Type        = KREST::UNIX;
+		Options.sSocketFile = kFormat("{}/socket", MySocketDir.Name());
+		Options.bPollForDisconnect = false;
+		Options.bBlocking   = false;
+
+		KREST REST;
+		REST.Execute(Options, Routes);
+
+		KString sRet;
+
+		KWebClient HTTP;
+		HTTP.SetTimeout(1);
+
+		KOutStringStream oss(sRet);
+
+		KURL ConnectURL = kFormat("unix://{}", Options.sSocketFile);
+
+		HTTP.HttpRequest(oss, ConnectURL, "localhost/test0", KHTTPMethod::GET);
+		CHECK( sRet == "" );
+		CHECK( HTTP.GetStatusCode() == 200 );
+		CHECK( HTTP.Error() == "" );
+		HTTP.Disconnect();
+		sRet.clear();
+
+		HTTP.HttpRequest(oss, ConnectURL, "localhost/test0", KHTTPMethod::GET, "some body", KMIME::HTML_UTF8);
+		CHECK( sRet == "some body" );
+		CHECK( HTTP.GetStatusCode() == 200 );
+		CHECK( HTTP.Error() == "" );
+		HTTP.Disconnect();
+		sRet.clear();
+
+		HTTP.HttpRequest(oss, ConnectURL, "localhost/test0", KHTTPMethod::POST, "some body", KMIME::HTML_UTF8);
+		CHECK( sRet == "some body" );
+		CHECK( HTTP.GetStatusCode() == 200 );
+		CHECK( HTTP.Error() == "" );
+		sRet.clear();
+		// leave connection open!
+		HTTP.HttpRequest(oss, ConnectURL, "localhost/test0", KHTTPMethod::POST, "some other body", KMIME::HTML_UTF8);
+		CHECK( sRet == "some other body" );
+		CHECK( HTTP.GetStatusCode() == 200 );
+		CHECK( HTTP.Error() == "" );
+		HTTP.Disconnect();
+		sRet.clear();
+
+		g_bDone = false;
+		HTTP.HttpRequest(oss, ConnectURL, "localhost/test1", KHTTPMethod::POST, "some body", KMIME::HTML_UTF8);
+		CHECK( sRet.empty() );
+		CHECK( HTTP.GetStatusCode() == 598 );
+		CHECK( HTTP.Error() == "Operation canceled" );
+		sRet.clear();
+		// leave connection untouched to test reconnect feature
+		// it is difficult to know when the TCP server is done
+		while (!g_bDone)
+		{
+			kMilliSleep(10);
+		}
+		kDebug(2, "========= after timeout 2 ==========");
+
+		HTTP.HttpRequest(oss, ConnectURL, "localhost/test0", KHTTPMethod::POST, "some other body", KMIME::HTML_UTF8);
+		CHECK( sRet == "some other body" );
+		CHECK( HTTP.GetStatusCode() == 200 );
+		CHECK( HTTP.Error() == "" );
+		HTTP.Disconnect();
+		sRet.clear();
 	}
 
 }

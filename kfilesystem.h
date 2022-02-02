@@ -319,10 +319,11 @@ public:
 	/// returns a string serialization of the file type
 	KStringViewZ Serialize() const;
 
+	constexpr
 	operator FileType() const { return m_FType; }
 
-	friend KFileTypes operator|(const KFileType first, const KFileType second);
-	friend KFileTypes operator|(const FileType  first, const FileType  second);
+	friend constexpr KFileTypes operator|(const KFileType first, const KFileType second);
+	friend constexpr KFileTypes operator|(const FileType  first, const FileType  second);
 
 //------
 private:
@@ -357,21 +358,25 @@ public:
 	{
 	}
 
+	constexpr
 	void push_back(KFileType ftype)
 	{
 		m_Types = KFileType(static_cast<KFileType::FileType>(static_cast<uint8_t>(m_Types) | static_cast<uint8_t>(ftype)));
 	}
 
+	constexpr
 	void operator+=(KFileType ftype)
 	{
 		push_back(ftype);
 	}
 
+	constexpr
 	void operator|=(KFileType ftype)
 	{
 		push_back(ftype);
 	}
 
+	constexpr
 	bool contains(KFileType ftype) const
 	{
 		return (m_Types & ftype);
@@ -382,7 +387,7 @@ public:
 
 	static const KFileTypes ALL;
 
-	friend KFileTypes operator|(KFileTypes first, const KFileTypes second);
+	friend constexpr KFileTypes operator|(KFileTypes first, const KFileTypes second);
 
 //------
 private:
@@ -392,57 +397,57 @@ private:
 
 }; // KFileTypes
 
-inline DEKAF2_PUBLIC
+constexpr DEKAF2_PUBLIC
 KFileTypes operator|(const KFileType::FileType first, const KFileType::FileType second)
 {
 	return KFileType(static_cast<KFileType::FileType>(static_cast<uint8_t>(first) + static_cast<uint8_t>(second)));
 }
 
-inline DEKAF2_PUBLIC
+constexpr DEKAF2_PUBLIC
 KFileTypes operator+(const KFileType::FileType first, const KFileType::FileType second)
 {
 	return first | second;
 }
 
-inline DEKAF2_PUBLIC
+constexpr DEKAF2_PUBLIC
 KFileTypes operator|(const KFileType first, const KFileType second)
 {
 	return first.m_FType | second.m_FType;
 }
 
-inline DEKAF2_PUBLIC
+constexpr DEKAF2_PUBLIC
 KFileTypes operator+(const KFileType first, const KFileType second)
 {
 	return first | second;
 }
 
-inline DEKAF2_PUBLIC
+constexpr DEKAF2_PUBLIC
 KFileTypes operator|(KFileTypes first, const KFileType second)
 {
 	first.push_back(second);
 	return first;
 }
 
-inline DEKAF2_PUBLIC
+constexpr DEKAF2_PUBLIC
 KFileTypes operator|(KFileTypes first, const KFileType::FileType second)
 {
 	first.push_back(second);
 	return first;
 }
 
-inline DEKAF2_PUBLIC
+constexpr DEKAF2_PUBLIC
 KFileTypes operator+(const KFileTypes first, const KFileType second)
 {
 	return first | second;
 }
 
-inline DEKAF2_PUBLIC
+constexpr DEKAF2_PUBLIC
 KFileTypes operator+(const KFileTypes first, const KFileType::FileType second)
 {
 	return first | second;
 }
 
-inline DEKAF2_PUBLIC
+constexpr DEKAF2_PUBLIC
 KFileTypes operator|(KFileTypes first, const KFileTypes second)
 {
 	first.push_back(second.m_Types);

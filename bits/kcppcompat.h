@@ -680,3 +680,43 @@ static constexpr std::size_t KDefaultCopyBufSize = 4096;
 
 #undef DEKAF2_LE_BE_CONSTEXPR
 
+// Helper macros to make an enum type a "flag" type, that is, bit operations with enum values are permitted
+// in a type-safe fashion.
+//
+// There is no way except macros to selectively enable bit operators in C++ - the alternative would be to
+// enable them for all enums, which is not desireable.
+//
+// Use preferrably with bitset enums like:
+//
+// enum Flags { RED = 1 << 0, BLUE = 1 << 1, GREEN = 1 << 2 };
+// DEKAF2_ENUM_IS_FLAG(Flags);
+// Flags MyFlags = Flags::RED | FLAGS::BLUE;
+
+#define DEKAF2_DETAIL_ENUM_INNER_BIN_OP(T, OP) \
+constexpr T operator OP (T left, T right) \
+{ \
+	return static_cast<T>(static_cast<typename std::underlying_type<T>::type>(left) OP static_cast<typename std::underlying_type<T>::type>(right)); \
+}
+
+#define DEKAF2_DETAIL_ENUM_INNER_UNA_OP(T, OP) \
+constexpr T operator OP (T other) \
+{ \
+	return static_cast<T>(OP static_cast<typename std::underlying_type<T>::type>(other)); \
+}
+
+#define DEKAF2_DETAIL_ENUM_INNER_REF_OP(T, OP) \
+inline T& operator OP (T& left, T right) \
+{ \
+	return reinterpret_cast<T&>(reinterpret_cast<typename std::underlying_type<T>::type&>(left) OP static_cast<typename std::underlying_type<T>::type>(right)); \
+}
+
+#define DEKAF2_ENUM_IS_FLAG(T) \
+ DEKAF2_DETAIL_ENUM_INNER_BIN_OP(T,  |) \
+ DEKAF2_DETAIL_ENUM_INNER_BIN_OP(T,  &) \
+ DEKAF2_DETAIL_ENUM_INNER_BIN_OP(T,  ^) \
+ DEKAF2_DETAIL_ENUM_INNER_UNA_OP(T,  ~) \
+ DEKAF2_DETAIL_ENUM_INNER_REF_OP(T, |=) \
+ DEKAF2_DETAIL_ENUM_INNER_REF_OP(T, &=) \
+ DEKAF2_DETAIL_ENUM_INNER_REF_OP(T, ^=)
+
+// helpers for enums end here

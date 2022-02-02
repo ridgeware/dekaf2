@@ -2100,7 +2100,7 @@ bool KSQL::ParseSQL (KStringView sFormat, ...)
 } // ParseSQL
 
 //-----------------------------------------------------------------------------
-bool KSQL::ParseRawSQL (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI/*="ParseRawSQL"*/)
+bool KSQL::ParseRawSQL (KStringView sSQL, Flags iFlags/*=Flags::F_None*/, KStringView sAPI/*="ParseRawSQL"*/)
 //-----------------------------------------------------------------------------
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
@@ -2477,7 +2477,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 			DoTranslations (m_sLastSQL);
 		}
 	
-		if (!ExecLastRawQuery (0, "ExecSQLFile") && !Parms.fDropStatement)
+		if (!ExecLastRawQuery (Flags::F_None, "ExecSQLFile") && !Parms.fDropStatement)
 		{
 			Parms.fOK   = false;
 			Parms.fDone = true;
@@ -2536,7 +2536,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 			DoTranslations (m_sLastSQL);
 		}
 
-		if (!ExecLastRawSQL (0, "ExecSQLFile") && !Parms.fDropStatement)
+		if (!ExecLastRawSQL (Flags::F_None, "ExecSQLFile") && !Parms.fDropStatement)
 		{
 			Parms.fOK   = false;
 			Parms.fDone = true;
@@ -2549,7 +2549,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 
 	if (Parms.fDropStatement)
 	{
-		SetFlags (0);
+		SetFlags (Flags::F_None);
 	}
 
 	m_sLastSQL.clear();           // reset buffer
@@ -3109,7 +3109,7 @@ bool KSQL::ParseQuery (KStringView sFormat, ...)
 
 #ifdef DEKAF2_HAS_ORACLE
 //-----------------------------------------------------------------------------
-bool KSQL::ParseRawQuery (KStringView sSQL, int64_t iFlags/*=0*/, KStringView sAPI/*="ParseRawQuery"*/)
+bool KSQL::ParseRawQuery (KStringView sSQL, Flags iFlags/*=Flags::F_None*/, KStringView sAPI/*="ParseRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
@@ -3873,14 +3873,14 @@ bool KSQL::LoadColumnLayout(KROW& Row, KStringView sColumns)
 	if (GetDBType() == DBT::SQLSERVER ||
 		GetDBType() == DBT::SQLSERVER15)
 	{
-		if (!ExecRawQuery(FormatSQL("select top 0 {} from {}", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
+		if (!ExecRawQuery(FormatSQL("select top 0 {} from {}", sExpandedColumns, Row.GetTablename()), Flags::F_None, "LoadColumnLayout"))
 		{
 			return false;
 		}
 	}
 	else
 	{
-		if (!ExecRawQuery(FormatSQL("select {} from {} limit 0", sExpandedColumns, Row.GetTablename()), 0, "LoadColumnLayout"))
+		if (!ExecRawQuery(FormatSQL("select {} from {} limit 0", sExpandedColumns, Row.GetTablename()), Flags::F_None, "LoadColumnLayout"))
 		{
 			return false;
 		}
@@ -3944,7 +3944,7 @@ KROW KSQL::SingleRawQuery (KString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 	SetFlag(F_IgnoreSQLErrors);
 	SetFlag(iFlags);
 
-	bool bOK = ExecRawQuery (std::move(sSQL), 0, sAPI);
+	bool bOK = ExecRawQuery (std::move(sSQL), Flags::F_None, sAPI);
 
 	SetFlags(iHold);
 
@@ -4565,6 +4565,14 @@ KSQL::Flags KSQL::SetFlags (Flags iFlags)
 	return (iSaved);
 
 } // KSQL::SetFlags
+
+//-----------------------------------------------------------------------------
+KSQL::Flags KSQL::SetFlag (Flags iFlag)
+//-----------------------------------------------------------------------------
+{
+	return SetFlags (GetFlags() | iFlag);
+
+} // KSQL::SetFlag
 
 //-----------------------------------------------------------------------------
 KString KSQL::GetLastInfo()
@@ -5883,7 +5891,7 @@ bool KSQL::Load (KROW& Row, bool bSelectAllColumns)
 		return SetError(Row.GetLastError());
 	}
 
-	if (!ExecLastRawQuery (0, "Load"))
+	if (!ExecLastRawQuery (Flags::F_None, "Load"))
 	{
 		// ExecLastRawQuery sets the errors itself
 		return false;
@@ -5903,14 +5911,14 @@ bool KSQL::ExecLastRawInsert(bool bIgnoreDupes)
 		DoTranslations (m_sLastSQL);
 	}
 
-	auto iSavedFlags = 0;
+	Flags iSavedFlags = Flags::F_None;
 
 	if (bIgnoreDupes)
 	{
 		iSavedFlags = SetFlags (KSQL::F_IgnoreSQLErrors);
 	}
 
-	bool bOK = ExecLastRawSQL (0, "Insert");
+	bool bOK = ExecLastRawSQL (Flags::F_None, "Insert");
 
 	if (!bOK && bIgnoreDupes && WasDuplicateError())
 	{
@@ -6068,7 +6076,7 @@ bool KSQL::Update (const KROW& Row)
 		DoTranslations (m_sLastSQL);
 	}
 
-	bool bOK = ExecLastRawSQL (0, "Update");
+	bool bOK = ExecLastRawSQL (Flags::F_None, "Update");
 
 	kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 
@@ -6090,7 +6098,7 @@ bool KSQL::Delete (const KROW& Row)
 		DoTranslations (m_sLastSQL);
 	}
 
-	bool bOK = ExecLastRawSQL (0, "Delete");
+	bool bOK = ExecLastRawSQL (Flags::F_None, "Delete");
 
 	if (!bOK)
 	{
@@ -7500,7 +7508,7 @@ bool KSQL::RollbackTransaction (KStringView sOptions/*=""*/)
 } // RollbackTransaction
 
 //-----------------------------------------------------------------------------
-KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags/*=FAC+NORMAL*/, KStringView sSplitBy/*=","*/)
+KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFlags/*=FAC::FAC_NORMAL*/, KStringView sSplitBy/*=","*/)
 //-----------------------------------------------------------------------------
 {
 	KString sClause;

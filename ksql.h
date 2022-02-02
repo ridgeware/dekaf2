@@ -175,8 +175,6 @@ public:
 		using KException::KException;
 	};
 
-	/// KSQL processing flags
-	using Flags  = uint16_t;
 	/// value translations
 	using TXList = KProps <KString, KString, /*order-matters=*/true, /*unique-keys*/true>;
 
@@ -200,7 +198,12 @@ public:
 //		MAXLEN_CURSORNAME     =    50,
 		NUM_RETRIES           =     5,       ///< when db connection is lost
 		MAX_CHARS_CTLIB       =  8000,       ///< varchar columns hold at most 8000 characters.
+	};
 
+	/// KSQL processing flags
+	enum Flags // should better be an enum class Flags, with removed prefix on the values
+	{
+		F_None                = 0,           ///< no flags
 		F_IgnoreSQLErrors     = 1 << 0,      ///< only effects the WarningLog
 		F_BufferResults       = 1 << 1,      ///< for use with ResetBuffer()
 		F_NoAutoCommit        = 1 << 2,      ///< only used by Oracle
@@ -208,8 +211,12 @@ public:
 		F_IgnoreSelectKeyword = 1 << 4,      ///< override check in ExecQuery() for "select..."
 		F_NoKlogDebug         = 1 << 5,      ///< quietly: do not output the customary klog debug statements
 		F_AutoReset           = 1 << 6,      ///< For ctlib: refresh the connection to the server for each query
-		F_ReadOnlyMode        = 1 << 7,      ///< If connection should disallow INSERT, UPDATE, DELETE and only allow SELECT
+		F_ReadOnlyMode        = 1 << 7       ///< If connection should disallow INSERT, UPDATE, DELETE and only allow SELECT
+	};
 
+	enum FAC // should better be an enum class FAC, with removed prefix on the values
+	{
+		FAC_NONE              = 0,           ///< FAC_NONE: no flags
 		FAC_NORMAL            = 1 << 0,      ///< FAC_NORMAL: handles empty string, single string and comma-delimed strings
 		FAC_NUMERIC           = 1 << 1,      ///< FAC_NUMERIC: handles empty string, single number and comma-delimed numbers
 		FAC_SUBSELECT         = 1 << 2,      ///< FAC_SUBSELECT: se code examples
@@ -379,19 +386,21 @@ public:
 			m_TimingCallback = TimingCallback;
 	}
 
+//	void   SetQueryTimeout(std::chrono::milliseconds Timeout, Qu);
+
 	/// After establishing a database connection, this is how you sent DDL (create table, etc.) statements to the RDBMS.
 	template<class... Args>
 	bool ExecSQL (KStringView sFormat, Args&&... args)
 	{
 		m_sLastSQL = FormatSQL (sFormat, std::forward<Args>(args)...);
-		bool bOK   = ExecLastRawSQL (0, "ExecSQL");
+		bool bOK   = ExecLastRawSQL (Flags::F_None, "ExecSQL");
 		kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 		return (bOK);
 
 	} // KSQL::ExecSQL
 
 	inline
-	bool ExecRawSQL  (KString sSQL, Flags iFlags = 0, KStringView sAPI="ExecRawSQL")
+	bool ExecRawSQL  (KString sSQL, Flags iFlags = Flags::F_None, KStringView sAPI="ExecRawSQL")
 	{
 		m_sLastSQL = std::move(sSQL);
 		return ExecLastRawSQL(iFlags, sAPI);
@@ -404,7 +413,7 @@ public:
 	bool ExecQuery (KStringView sFormat, Args&&... args)
 	{
 		m_sLastSQL = FormatSQL (sFormat, std::forward<Args>(args)...);
-		return (ExecLastRawQuery (0, "ExecQuery"));
+		return (ExecLastRawQuery (Flags::F_None, "ExecQuery"));
 
 	} // ExecQuery
 
@@ -412,25 +421,25 @@ public:
 	/// @param sSQL  a SQL statement that returns one integer column
 	/// @param Flags additional processing flags, default none
 	/// @param sAPI  the method name used for logging, default "SingleIntRawQuery"
-	int64_t        SingleIntRawQuery (KString sSQL, Flags iFlags=0, KStringView sAPI = "SingleIntRawQuery");
+	int64_t        SingleIntRawQuery (KString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "SingleIntRawQuery");
 
 	/// Executes a verbatim SQL statement that returns one single string value or "" on failure
 	/// @param sSQL  a SQL statement that returns one string column
 	/// @param Flags additional processing flags, default none
 	/// @param sAPI  the method name used for logging, default "SingleStringRawQuery"
-	KString        SingleStringRawQuery (KString sSQL, Flags iFlags=0, KStringView sAPI = "SingleStringRawQuery");
+	KString        SingleStringRawQuery (KString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "SingleStringRawQuery");
 
 	/// Executes a verbatim SQL statement that returns one single KROW
 	/// @param sSQL  a SQL statement
 	/// @param Flags additional processing flags, default none
 	/// @param sAPI  the method name used for logging, default "SingleRawQuery"
-	KROW           SingleRawQuery (KString sSQL, Flags iFlags=0, KStringView sAPI = "SingleRawQuery");
+	KROW           SingleRawQuery (KString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "SingleRawQuery");
 
 	/// Executes an SQL statement with format arguments that returns one KROW
 	template<class... Args>
 	KROW SingleQuery (KStringView sFormat, Args&&... args)
 	{
-		return (SingleRawQuery (FormatSQL (sFormat, std::forward<Args>(args)...), 0, "SingleQuery"));
+		return (SingleRawQuery (FormatSQL (sFormat, std::forward<Args>(args)...), Flags::F_None, "SingleQuery"));
 
 	} // KSQL::SingleQuery
 
@@ -438,7 +447,7 @@ public:
 	template<class... Args>
 	int64_t SingleIntQuery (KStringView sFormat, Args&&... args)
 	{
-		return (SingleIntRawQuery (FormatSQL (sFormat, std::forward<Args>(args)...), 0, "SingleIntQuery"));
+		return (SingleIntRawQuery (FormatSQL (sFormat, std::forward<Args>(args)...), Flags::F_None, "SingleIntQuery"));
 
 	} // KSQL::SingleIntQuery
 
@@ -446,12 +455,12 @@ public:
 	template<class... Args>
 	KString SingleStringQuery (KStringView sFormat, Args&&... args)
 	{
-		return (SingleStringRawQuery (FormatSQL (sFormat, std::forward<Args>(args)...), 0, "SingleStringQuery"));
+		return (SingleStringRawQuery (FormatSQL (sFormat, std::forward<Args>(args)...), Flags::F_None, "SingleStringQuery"));
 
 	} // KSQL::SingleStringQuery
 
 	inline
-	bool           ExecRawQuery   (KString sSQL, Flags iFlags=0, KStringView sAPI = "ExecRawQuery")
+	bool           ExecRawQuery   (KString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "ExecRawQuery")
 	{
 		m_sLastSQL = std::move(sSQL);
 		return ExecLastRawQuery(iFlags, sAPI);
@@ -471,9 +480,9 @@ public:
     #ifdef DEKAF2_HAS_ORACLE
 	// Oracle/OCI variable binding support:
 	bool   ParseSQL        (KStringView sFormat, ...);
-	bool   ParseRawSQL     (KStringView sSQL, uint64_t iFlags=0, KStringView sAPI = "ParseRawSQL");
+	bool   ParseRawSQL     (KStringView sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "ParseRawSQL");
 	bool   ParseQuery      (KStringView sFormat, ...);
-	bool   ParseRawQuery   (KStringView sSQL, uint64_t iFlags=0, KStringView sAPI = "ParseRawQuery");
+	bool   ParseRawQuery   (KStringView sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "ParseRawQuery");
 
 	bool   BindByName      (KStringView sPlaceholder, KStringView sValue) { return (BindByName (pszPlaceholder, (char*)pszValue)); };
 	bool   BindByName      (KStringView sPlaceholder, char*   pszValue);
@@ -593,7 +602,7 @@ public:
 	/// set configuration/processing flags, returns old flags
 	Flags       SetFlags (Flags iFlags);
 	/// add new flag(s) to existing configuration/processing flags (logical OR)
-	Flags       SetFlag (Flags iFlag) { return SetFlags (GetFlags() | iFlag); }
+	Flags       SetFlag (Flags iFlag);
 	/// return configuration/processing flags
 	Flags       GetFlags ()         const { return (m_iFlags);          }
 	/// returns true if given configuration/processing flag(s) are set
@@ -654,7 +663,7 @@ public:
 	bool   RollbackTransaction (KStringView sOptions="");
 
 	/// helper method to form AND clauses for dynamic SQL.
-	KString FormAndClause (KStringView sDbCol, KStringView sQueryParm, uint64_t iFlags=FAC_NORMAL, KStringView sSplitBy=",");
+	KString FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFlags=FAC::FAC_NORMAL, KStringView sSplitBy=",");
 
 	/// general purpose helper to create "group by 1,2,3,4..."
 	static KString FormGroupBy (uint8_t iNumCols);
@@ -1021,8 +1030,8 @@ protected:
 	}
 	/// Reset error string and error status
 	void ClearError();
-	bool ExecLastRawSQL (Flags iFlags=0, KStringView sAPI = "ExecLastRawSQL");
-	bool ExecLastRawQuery (Flags iFlags=0, KStringView sAPI = "ExecLastRawQuery");
+	bool ExecLastRawSQL (Flags iFlags=Flags::F_None, KStringView sAPI = "ExecLastRawSQL");
+	bool ExecLastRawQuery (Flags iFlags=Flags::F_None, KStringView sAPI = "ExecLastRawQuery");
 	bool ExecLastRawInsert(bool bIgnoreDupes=false);
 	/// Reset last sql command string - only needed in multi-tenant environments for client isolation
 	void ClearLastSQL() { m_sLastSQL.clear(); }
@@ -1114,7 +1123,7 @@ private:
 	KString    m_sLastSQL;
 	KString    m_sLastErrorSetOnlyWithSetError;   // error string. Never set directly, only via SetError()
 	uint32_t   m_iErrorSetOnlyWithSetError { 0 }; // db error number (e.g. ORA code). Never set directly, only via SetError()
-	Flags      m_iFlags { 0 };                    // set by calling SetFlags()
+	Flags      m_iFlags { Flags::F_None };        // set by calling SetFlags()
 #if defined(DEKAF2_HAS_MYSQL)
 	DBT        m_iDBType { DBT::MYSQL };
 	API        m_iAPISet { API::MYSQL };
@@ -1240,6 +1249,10 @@ private:
 	bool DecodeDBCData(KStringView sBuffer, KStringView sDBCFile);
 
 }; // KSQL
+
+// declare the operators for KSQL's flag enums
+DEKAF2_ENUM_IS_FLAG(KSQL::Flags);
+DEKAF2_ENUM_IS_FLAG(KSQL::FAC);
 
 //----------------------------------------------------------------------
 /// format an SQL query with python syntax and automatically escape all string parameters

@@ -1768,7 +1768,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		GuardQueryTimeout.dismiss();
 	}
 
-	m_SQLStmtStats.Collect(m_sLastSQL);
+	m_SQLStmtStats.Collect(m_sLastSQL, QueryType);
 
 	m_iNumRowsAffected  = 0;
 	EndQuery();

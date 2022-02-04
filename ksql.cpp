@@ -434,70 +434,76 @@ KString KSQL::KSQLStatementStats::Print() const
 }
 
 //-----------------------------------------------------------------------------
-void KSQL::KSQLStatementStats::Increment(KStringView sLastSQL)
+void KSQL::KSQLStatementStats::Increment(KStringView sLastSQL, QueryType QueryType)
 //-----------------------------------------------------------------------------
 {
-	auto sSQLStmt = sLastSQL.substr(0,20).TrimLeft().ToLowerASCII();
+	if (QueryType == QueryType::None)
+	{
+		QueryType = KSQL::GetQueryType(sLastSQL);
+	}
 
-	if (sSQLStmt.StartsWith("select") || sSQLStmt.StartsWith("table") || sSQLStmt.StartsWith("values"))
+	switch (QueryType)
 	{
-		++iSelect;
+		case QueryType::Select:
+			++iSelect;
+			break;
+
+		case QueryType::Insert:
+			++iInsert;
+			break;
+
+		case QueryType::Update:
+			++iUpdate;
+			break;
+
+		case QueryType::Delete:
+			++iDelete;
+			break;
+
+		case QueryType::Create:
+			++iCreate;
+			break;
+
+		case QueryType::Alter:
+			++iAlter;
+			break;
+
+		case QueryType::Drop:
+			++iDrop;
+			break;
+
+		case QueryType::Transaction:
+			++iTransact;
+			break;
+
+		case QueryType::Execute:
+			++iExec;
+			break;
+
+		case QueryType::Action:
+			++iAction;
+			break;
+
+		case QueryType::Maintenance:
+			++iTblMaint;
+			break;
+
+		case QueryType::Info:
+			++iInfo;
+			break;
+
+		case QueryType::Other:
+			kDebug (1, "Other SQL={}", sLastSQL);
+			++iOther;
+			break;
+
+		case QueryType::Any:
+		case QueryType::None:
+			kDebug (1, "Any/None SQL={}", sLastSQL);
+			break;
 	}
-	else if (sSQLStmt.StartsWith("insert") || sSQLStmt.StartsWith("import") || sSQLStmt.StartsWith("load"))
-	{
-		++iInsert;
-	}
-	else if (sSQLStmt.StartsWith("update"))
-	{
-		++iUpdate;
-	}
-	else if (sSQLStmt.StartsWith("delete") || sSQLStmt.StartsWith("truncate"))
-	{
-		++iDelete;
-	}
-	else if (sSQLStmt.StartsWith("create"))
-	{
-		++iCreate;
-	}
-	else if (sSQLStmt.StartsWith("alter") || sSQLStmt.StartsWith("rename"))
-	{
-		++iAlter;
-	}
-	else if (sSQLStmt.StartsWith("drop"))
-	{
-		++iDrop;
-	}
-	else if (sSQLStmt.StartsWith("start")  || sSQLStmt.StartsWith("begin") ||  // start transaction or begin transaction
-			 sSQLStmt.StartsWith("commit") || sSQLStmt.StartsWith("rollback")) // commit or rollback transaction
-	{
-		++iTransact;
-	}
-	else if (sSQLStmt.StartsWith("exec") || sSQLStmt.StartsWith("call") || // stored procedure execution statements
-			 sSQLStmt.StartsWith("do"))
-	{
-		++iExec;
-	}
-	else if (sSQLStmt.StartsWith("use")  || sSQLStmt.StartsWith("set") || sSQLStmt.StartsWith("grant") ||
-			 sSQLStmt.StartsWith("lock") || sSQLStmt.StartsWith("unlock"))
-	{
-		++iAction;
-	}
-	else if (sSQLStmt.StartsWith("analyze") || sSQLStmt.StartsWith("optimize") ||
-			 sSQLStmt.StartsWith("check")   || sSQLStmt.StartsWith("repair")) // table maintenance statements
-	{
-		++iTblMaint;
-	}
-	else if (sSQLStmt.StartsWith("desc") || sSQLStmt.StartsWith("explain") ||
-			 sSQLStmt.StartsWith("show"))
-	{
-		++iInfo;
-	}
-	else
-	{
-		kDebug (1, "Other SQL={}", sLastSQL);
-		++iOther;
-	}
-}
+
+} // Increment
 
 //-----------------------------------------------------------------------------
 KSQL::KSQL (DBT iDBType/*=DBT::MYSQL*/, KStringView sUsername/*=nullptr*/, KStringView sPassword/*=nullptr*/, KStringView sDatabase/*=nullptr*/, KStringView sHostname/*=nullptr*/, uint16_t iDBPortNum/*=0*/)
@@ -520,6 +526,9 @@ KSQL::KSQL (DBT iDBType/*=DBT::MYSQL*/, KStringView sUsername/*=nullptr*/, KStri
 KSQL::KSQL (const KSQL& other)
 //-----------------------------------------------------------------------------
 : m_iFlags(other.m_iFlags)
+, m_bEnableQueryTimeout(other.m_bEnableQueryTimeout)
+, m_QueryTimeout(other.m_QueryTimeout)
+, m_QueryTypeForTimeout(other.m_QueryTypeForTimeout)
 , m_iWarnIfOverMilliseconds(other.m_iWarnIfOverMilliseconds)
 , m_TimingCallback(other.m_TimingCallback)
 {
@@ -1624,31 +1633,88 @@ bool KSQL::IsSelect (KStringView sSQL)
 }
 
 //-----------------------------------------------------------------------------
-bool KSQL::IsKill (KStringView sSQL)
+bool KSQL::IsReadOnlyViolation (QueryType QueryType)
 //-----------------------------------------------------------------------------
 {
-	return sSQL.TrimLeft().substr(0,4).ToLowerASCII().starts_with("kill");
-}
-
-//-----------------------------------------------------------------------------
-bool KSQL::IsSet (KStringView sSQL)
-//-----------------------------------------------------------------------------
-{
-	return sSQL.TrimLeft().substr(0,3).ToLowerASCII().starts_with("set");
-}
-
-//-----------------------------------------------------------------------------
-bool KSQL::IsReadOnlyViolation (KStringView sSQL)
-//-----------------------------------------------------------------------------
-{
-	if (IsFlag(F_ReadOnlyMode) && ! IsSelect(sSQL) && ! IsKill(sSQL) && ! IsSet(sSQL))
-	{
-		return SetError(kFormat ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", sSQL));
-	}
-
-	return false; // read-only mode off, or query
+	return (IsFlag(F_ReadOnlyMode) &&
+			(QueryType & ~(QueryType::Select | QueryType::Action | QueryType::Info)) != QueryType::None);
 
 } // IsReadOnlyViolation
+
+//-----------------------------------------------------------------------------
+KSQL::QueryType KSQL::GetQueryType(KStringView sQuery)
+//-----------------------------------------------------------------------------
+{
+	sQuery.TrimLeft();
+	sQuery.erase(sQuery.find(' '));
+
+	switch (sQuery.CaseHash())
+	{
+		case "select"_hash:
+		case "table"_hash:
+		case "values"_hash:
+			return QueryType::Select;
+
+		case "insert"_hash:
+		case "import"_hash:
+		case "load"_hash:
+			return QueryType::Insert;
+
+		case "update"_hash:
+			return QueryType::Update;
+
+		case "delete"_hash:
+		case "truncate"_hash:
+			return QueryType::Delete;
+
+		case "create"_hash:
+			return QueryType::Create;
+
+		case "alter"_hash:
+		case "rename"_hash:
+			return QueryType::Alter;
+
+		case "drop"_hash:
+			return QueryType::Drop;
+
+		case "start"_hash:
+		case "begin"_hash:
+		case "commit"_hash:
+		case "rollback"_hash:
+			return QueryType::Transaction;
+
+		case "exec"_hash:
+		case "call"_hash:
+		case "do"_hash:
+			return QueryType::Execute;
+
+		case "kill"_hash:
+		case "use"_hash:
+		case "set"_hash:
+		case "grant"_hash:
+		case "lock"_hash:
+		case "unlock"_hash:
+			return QueryType::Action;
+
+		case "analyze"_hash:
+		case "optimize"_hash:
+		case "check"_hash:
+		case "repair"_hash:
+			return QueryType::Maintenance;
+
+		case "desc"_hash:
+		case "explain"_hash:
+		case "show"_hash:
+			return QueryType::Info;
+
+		default:
+			return QueryType::Other;
+	}
+
+	// gcc..
+	return QueryType::Other;
+
+} // GetQueryType
 
 //-----------------------------------------------------------------------------
 bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQL"*/)
@@ -1659,10 +1725,50 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, m_sLastSQL.Left(4096));
 	}
 
-	if (IsReadOnlyViolation (m_sLastSQL))
+	auto QueryType = GetQueryType(m_sLastSQL);
+
+	if (IsReadOnlyViolation (QueryType))
 	{
-		return false;
+		return SetError(kFormat ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL));
 	}
+
+	bool bQueryTypeMatch { false };
+
+	if (m_bEnableQueryTimeout && m_QueryTimeout > std::chrono::milliseconds(0) && (m_QueryTypeForTimeout & QueryType) == QueryType)
+	{
+		// we shall cancel long running queries
+		bQueryTypeMatch = true;
+
+		// recursion protection..
+		m_bEnableQueryTimeout = false;
+
+		// make sure we have a connection ID (this may lead to a recursion, and we want it
+		// right at this place, not any later!)
+		// Due to this recursion, make sure that all code above this point is recursion
+		// safe!
+		GetConnectionID();
+
+		// yes, add this query to the list of timed connections..
+		kDebug(2, "query will timeout after {}ms", m_QueryTimeout.count());
+		s_TimedConnections.Add(*this);
+
+		// recursion protection (see above)
+		m_bEnableQueryTimeout = true;
+	}
+
+	// revoke our connection from the connection timeout watchlist at end of block
+	KScopeGuard GuardQueryTimeout = [this]
+	{
+		s_TimedConnections.Remove(*this);
+	};
+
+	// and disable right away in case we are not required to watch this query
+	if (!bQueryTypeMatch)
+	{
+		GuardQueryTimeout.dismiss();
+	}
+
+	m_SQLStmtStats.Collect(m_sLastSQL);
 
 	m_iNumRowsAffected  = 0;
 	EndQuery();
@@ -1676,8 +1782,6 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 	KString sError;
 
 	KStopTime Timer;
-
-	m_SQLStmtStats.Collect(m_sLastSQL);
 
 	while (!bOK && iRetriesLeft)
 	{
@@ -1720,7 +1824,9 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 						m_iNumRowsAffected = (uint64_t) iNumRows;
 					}
 
-					if (!IsSelect (m_sLastSQL))
+					// TBC maybe it's time to change the selection from !Select
+					// to Insert | Update ?
+					if (QueryType != QueryType::Select)
 					{
 						// only refresh the last insert ID if this was NOT a
 						// select statement - otherwise we get the last insert ID
@@ -1951,8 +2057,9 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum)
 	if (m_iConnectionID > 0 && s_CanceledConnections.HasAndRemove(m_iConnectionID))
 	{
 		// this was a canceled connection or query - do not retry
-		kDebug(2, "connection was canceled, retry aborted");
-		m_iConnectionID = 0;
+		kDebug(2, "connection {} was canceled on demand, retry aborted", m_iConnectionID);
+		// make sure all state is correctly reset
+		CloseConnection();
 		return false;
 	}
 
@@ -4717,6 +4824,17 @@ KStringView KSQL::TxAPISet (API iAPISet) const
 	}
 
 } // TxAPISet
+
+//-----------------------------------------------------------------------------
+uint64_t KSQL::GetHash () const
+//-----------------------------------------------------------------------------
+{
+	if (!m_iConnectHash)
+	{
+		m_iConnectHash = kFormat("{}:{}:{}:{}:{}:{}", TxAPISet(m_iAPISet), m_sUsername, m_sPassword, m_sHostname, m_sDatabase, m_iDBPortNum).Hash();
+	}
+	return m_iConnectHash;
+}
 
 //-----------------------------------------------------------------------------
 void KSQL::FormatConnectSummary () const
@@ -8239,7 +8357,7 @@ bool KSQL::EnsureConnected ()
 } // KSQL::EnsureConnected - 2
 
 //-----------------------------------------------------------------------------
-void KSQL::ConnectionIDs::Add(uint64_t iConnectionID)
+void KSQL::ConnectionIDs::Add(ConnectionID iConnectionID)
 //-----------------------------------------------------------------------------
 {
 	m_Connections.unique()->insert(iConnectionID);
@@ -8247,7 +8365,7 @@ void KSQL::ConnectionIDs::Add(uint64_t iConnectionID)
 } // ConnectionIDs::Add
 
 //-----------------------------------------------------------------------------
-bool KSQL::ConnectionIDs::Has(uint64_t iConnectionID) const
+bool KSQL::ConnectionIDs::Has(ConnectionID iConnectionID) const
 //-----------------------------------------------------------------------------
 {
 	auto Connections = m_Connections.shared();
@@ -8257,7 +8375,7 @@ bool KSQL::ConnectionIDs::Has(uint64_t iConnectionID) const
 } // ConnectionIDs::Has
 
 //-----------------------------------------------------------------------------
-bool KSQL::ConnectionIDs::HasAndRemove(uint64_t iConnectionID)
+bool KSQL::ConnectionIDs::HasAndRemove(ConnectionID iConnectionID)
 //-----------------------------------------------------------------------------
 {
 	auto Connections = m_Connections.unique();
@@ -8279,7 +8397,149 @@ bool KSQL::ConnectionIDs::HasAndRemove(uint64_t iConnectionID)
 KSQL::ConnectionIDs KSQL::s_CanceledConnections;
 
 //-----------------------------------------------------------------------------
-uint64_t KSQL::GetConnectionID(bool bQueryIfUnknown)
+KSQL::TimedConnectionIDs::TimedConnectionIDs()
+//-----------------------------------------------------------------------------
+: m_bQuit(false)
+, m_Watcher(&TimedConnectionIDs::Watcher, this)
+{
+} // TimedConnectionIDs::ctor
+
+//-----------------------------------------------------------------------------
+KSQL::TimedConnectionIDs::~TimedConnectionIDs()
+//-----------------------------------------------------------------------------
+{
+	m_bQuit = true;
+	m_Watcher.join();
+
+} // TimedConnectionIDs::dtor
+
+//-----------------------------------------------------------------------------
+void KSQL::TimedConnectionIDs::Add(KSQL& Instance)
+//-----------------------------------------------------------------------------
+{
+	Add(Instance.GetConnectionID(false), Instance.m_QueryTimeout, Instance);
+
+} // TimedConnectionIDs::Add
+
+//-----------------------------------------------------------------------------
+void KSQL::TimedConnectionIDs::Add(ConnectionID iConnectionID, std::chrono::milliseconds Timeout, const KSQL& Instance)
+//-----------------------------------------------------------------------------
+{
+	Clock::time_point Expires = Clock::now() + Timeout;
+	auto iServerHash = Instance.GetHash();
+
+	// make sure we have a connector to this instance for timed kills
+	if (!m_DBs.shared()->contains(iServerHash))
+	{
+		auto pdb = std::make_unique<KSQL>(Instance);
+		kDebug(2, "adding KSQL instance for timed kills for instance {}", iServerHash);
+		m_DBs.unique()->insert( { iServerHash, std::move(pdb) } );
+	}
+
+	// now insert this query and its expiration time
+	kDebug(2, "adding connection {} of server {} to watch list", iConnectionID, iServerHash);
+	m_Connections.unique()->insert( { iConnectionID, iServerHash, Expires } );
+
+} // TimedConnectionIDs::Add
+
+//-----------------------------------------------------------------------------
+bool KSQL::TimedConnectionIDs::Remove(ConnectionID iConnectionID, uint64_t iServerHash)
+//-----------------------------------------------------------------------------
+{
+	kDebug(2, "removing connection {} of server {} from watch list", iConnectionID, iServerHash);
+
+	auto Connections = m_Connections.unique();
+
+	auto it = Connections->find(std::make_tuple(iConnectionID, iServerHash));
+
+	if (it == Connections->end())
+	{
+		return false;
+	}
+
+	Connections->erase(it);
+
+	return true;
+
+} // TimedConnectionIDs::Remove
+
+//-----------------------------------------------------------------------------
+bool KSQL::TimedConnectionIDs::Remove(KSQL& Instance)
+//-----------------------------------------------------------------------------
+{
+	// GetConnectionID() must not query for the ID if invalid,
+	// that simply means the connection was just canceled (and
+	// the connection already removed from the watchlist)
+	return Remove(Instance.GetConnectionID(false), Instance.GetHash());
+
+} // TimedConnectionIDs::Remove
+
+//-----------------------------------------------------------------------------
+void KSQL::TimedConnectionIDs::Watcher()
+//-----------------------------------------------------------------------------
+{
+	for (;m_bQuit == false;)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+		if (m_bQuit)
+		{
+			return;
+		}
+
+		std::vector<Row> Queries;
+
+		{
+			auto iUpper = Clock::now();
+
+			auto Connections = m_Connections.shared();
+
+			auto range = Connections->get<IndexByTime>().range(boost::multi_index::unbounded,
+															   [&iUpper](const Clock::time_point& compare)
+			{
+				return (iUpper > compare);
+			});
+
+			for (; range.first != range.second; ++range.first)
+			{
+				Queries.push_back(std::move(*range.first));
+			}
+		}
+
+		if (!Queries.empty())
+		{
+			// now kill all found connections
+			for (auto Query : Queries)
+			{
+				kDebug(1, "killing timed out connection {} of server {}", Query.ID, Query.iServerHash);
+				auto Servers = m_DBs.unique();
+				auto pdb = Servers->find(Query.iServerHash);
+
+				if (pdb != Servers->end() && pdb->second != nullptr)
+				{
+					// we have a connector - make sure it does not generate
+					// new timeout queries ..
+					pdb->second->SetQueryTimeout(std::chrono::milliseconds(0));
+					// and finally kill the connection ..
+					pdb->second->KillConnection(Query.ID);
+				}
+				else
+				{
+					kDebug(2, "could not find server with hash {}", Query.iServerHash);
+				}
+
+				// and remove from watchlist if not done by the client itself
+				Remove(Query.ID, Query.iServerHash);
+			}
+		}
+	}
+
+} // TimedConnectionIDs::Watcher
+
+KSQL::TimedConnectionIDs KSQL::s_TimedConnections;
+
+//-----------------------------------------------------------------------------
+KSQL::ConnectionID KSQL::GetConnectionID(bool bQueryIfUnknown)
 //-----------------------------------------------------------------------------
 {
 	if (!m_iConnectionID && bQueryIfUnknown)
@@ -8302,8 +8562,8 @@ uint64_t KSQL::GetConnectionID(bool bQueryIfUnknown)
 				return 0;
 		}
 
-		kDebug(2, "queried connection ID: {}", m_iConnectionID);
 		m_iConnectionID = static_cast<uint64_t>(iID);
+		kDebug(2, "queried connection ID: {}", m_iConnectionID);
 	}
 	else
 	{
@@ -8315,7 +8575,7 @@ uint64_t KSQL::GetConnectionID(bool bQueryIfUnknown)
 } // GetConnectionID
 
 //-----------------------------------------------------------------------------
-bool KSQL::KillConnection(uint64_t iConnectionID)
+bool KSQL::KillConnection(ConnectionID iConnectionID)
 //-----------------------------------------------------------------------------
 {
 	if (iConnectionID == 0)
@@ -8345,7 +8605,7 @@ bool KSQL::KillConnection(uint64_t iConnectionID)
 } // KillConnection
 
 //-----------------------------------------------------------------------------
-bool KSQL::KillQuery(uint64_t iConnectionID)
+bool KSQL::KillQuery(ConnectionID iConnectionID)
 //-----------------------------------------------------------------------------
 {
 	if (iConnectionID == 0)
@@ -9159,6 +9419,27 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 	return iTotalDiffs;
 
 } // DiffSchemas
+
+//-----------------------------------------------------------------------------
+void KSQL::SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType QueryType)
+//-----------------------------------------------------------------------------
+{
+	if (Timeout.count() == 0 || QueryType == QueryType::None)
+	{
+		// clear timeout settings
+		m_bEnableQueryTimeout = false;
+		m_QueryTimeout        = Timeout;
+		m_QueryTypeForTimeout = QueryType::None;
+	}
+	else
+	{
+		m_bEnableQueryTimeout = true;
+		m_QueryTimeout        = Timeout;
+		m_QueryTypeForTimeout = QueryType;
+	}
+
+} // SetQueryTimeout
+
 
 KSQL::DBCCache KSQL::s_DBCCache;
 

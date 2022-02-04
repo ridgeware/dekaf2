@@ -294,7 +294,7 @@ TEST_CASE("KSQL")
 		db.ExecSQL ("drop table BOGUS_TABLE");
 		db.ExecSQL ("drop table BOGUS_TABLE");
 		db.ExecSQL ("drop table BOGUS_TABLE");
-		db.SetFlags (0);
+		db.SetFlags (KSQL::F_None);
 	
 		kDebugLog (1, " ");
 		kDebugLog (1, "ExecSQL() test (should be no errors):");
@@ -345,7 +345,7 @@ TEST_CASE("KSQL")
 			FAIL_CHECK ("ExecQuery should have returned FALSE");
 		}
 
-		db.SetFlags (0);
+		db.SetFlags (KSQL::F_None);
 
 		// simple table tests
 
@@ -579,7 +579,7 @@ TEST_CASE("KSQL")
 			INFO (db.GetLastError());
 			FAIL_CHECK (db.GetLastError());
 		}
-		db.SetFlags (0);
+		db.SetFlags (KSQL::F_None);
 
 		kDebugLog (1, "query results test (should be 9 rows)");
 
@@ -965,7 +965,7 @@ TEST_CASE("KSQL")
 
 		db.SetFlags (KSQL::F_IgnoreSQLErrors);
 		db.ExecSQL ("drop table TEST_ASIAN");
-		db.SetFlags (0);
+		db.SetFlags (KSQL::F_None);
 
 		if (db.GetDBType() == KSQL::DBT::SQLSERVER)
 		{
@@ -1386,6 +1386,18 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 		db.ExecSQL("drop table if exists TESTSCHEMA1_KSQL");
 		db.ExecSQL("drop table if exists TESTSCHEMA2_KSQL");
 		db.ExecSQL("drop table if exists TESTSCHEMA22_KSQL");
+
+		// test timeouts
+		{
+			KStopTime Timer;
+			db.SetQueryTimeout(std::chrono::milliseconds(100), KSQL::QueryType::Select);
+			auto bTOld = db.SetThrow(false);
+			db.ExecQuery("select sleep(100)");
+			db.ExecQuery("select sleep(100)");
+			db.SetQueryTimeout(std::chrono::seconds(0));
+			db.SetThrow(bTOld);
+			CHECK ( Timer.seconds() < 5 );
+		}
 
 		// varchar vs int index
 		if (false)

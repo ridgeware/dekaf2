@@ -45,8 +45,6 @@
 /// @file ksql.h
 /// dekaf2's main SQL abstraction KSQL
 
-#include <cinttypes>
-#include <vector>
 #include "kconfiguration.h"
 #include "kstring.h"
 #include "kstringview.h"
@@ -56,9 +54,18 @@
 #include "kexception.h"
 #include "ksystem.h"
 #include "kthreadsafe.h"
+#include "kassociative.h"
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/composite_key.hpp>
+#include <cinttypes>
+#include <vector>
 #include <tuple>
 #include <type_traits>
 #include <set>
+#include <thread>
 
 //
 // Note:
@@ -168,6 +175,10 @@ class KSQL : public detail::KCommonSQLBase
 //----------
 public:
 //----------
+
+	// for mysql the ConnectionID is actually only an unsigned long, but we
+	// do not know about other DBTypes
+	using ConnectionID = std::size_t;
 
 	/// KSQL exception class
 	struct Exception : public KException
@@ -386,7 +397,30 @@ public:
 			m_TimingCallback = TimingCallback;
 	}
 
-//	void   SetQueryTimeout(std::chrono::milliseconds Timeout, Qu);
+	enum class QueryType
+	{
+		None        = 0,
+		Select      = 1 <<  0,   // select, table, values
+		Insert      = 1 <<  1,   // insert, import, load
+		Update      = 1 <<  2,   // update
+		Delete      = 1 <<  3,   // delete, truncate
+		Create      = 1 <<  4,   // create
+		Alter       = 1 <<  5,   // alter, rename
+		Drop        = 1 <<  6,   // drop
+		Transaction = 1 <<  7,   // start, begin, commit, rollback
+		Execute     = 1 <<  8,   // exec, call, do
+		Action      = 1 <<  9,   // kill, use, set, grant, lock, unlock
+		Maintenance = 1 << 10,   // analyze, optimize, check, repair
+		Info        = 1 << 11,   // desc, explain, show
+		Other       = 1 << 12,
+		Any         = ~None
+	};
+
+	/// returns QueryType of a query string
+	static QueryType GetQueryType(KStringView sQuery);
+
+	/// set a timeout and type of query to abort after the timeout expired
+	void   SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType Queries = QueryType::Any);
 
 	/// After establishing a database connection, this is how you sent DDL (create table, etc.) statements to the RDBMS.
 	template<class... Args>
@@ -534,14 +568,14 @@ public:
 	/// helper to see if something is a SELECT statement:
 	static bool IsSelect (KStringView sSQL);
 
-	/// helper to see if something is a KILL statement:
-	static bool IsKill (KStringView sSQL);
-
-	/// helper to see if something is a Set statement:
-	static bool IsSet (KStringView sSQL);
+	/// helper to see if we are about to attempt a transaction on a read-only connection:
+	bool IsReadOnlyViolation (QueryType QueryType);
 
 	/// helper to see if we are about to attempt a transaction on a read-only connection:
-	bool IsReadOnlyViolation (KStringView sSQL);
+	bool IsReadOnlyViolation (KStringView sSQL)
+	{
+		return IsReadOnlyViolation(GetQueryType(sSQL));
+	}
 
 	/// produce a summary of all [matching] tables with row counts (to KOut)
 	bool ShowCounts (KStringView sRegex="");
@@ -585,7 +619,7 @@ public:
 	/// returns configured connect to port number
 	uint16_t       GetDBPort ()    const { return (m_iDBPortNum);      }
 	/// returns hash value over connection details
-	uint64_t       GetHash ()      const { return kFormat("{}:{}:{}:{}:{}:{}", TxAPISet(m_iAPISet), m_sUsername, m_sPassword, m_sHostname, m_sDatabase, m_iDBPortNum).Hash(); }
+	uint64_t       GetHash ()      const;
 	/// returns connection details as string
 	const KString& ConnectSummary () const;
 	const KString& GetTempDir()    const { return (m_sTempDir);        }
@@ -852,13 +886,13 @@ public:
 	const KString& GetDBC () const { return m_sDBCFile;  }
 
 	/// returns the connection ID for the current connection, or 0
-	uint64_t GetConnectionID(bool bQueryIfUnknown = true);
+	ConnectionID GetConnectionID(bool bQueryIfUnknown = true);
 
 	/// kills connection with ID iConnectionID
-	bool KillConnection(uint64_t iConnectionID);
+	bool KillConnection(ConnectionID iConnectionID);
 
 	/// kills running query of connection with ID iConnectionID
-	bool KillQuery(uint64_t iConnectionID);
+	bool KillQuery(ConnectionID iConnectionID);
 
 	TXList  m_TxList;
 
@@ -876,11 +910,11 @@ public:
 		uint64_t  Total() const;
 		KString   Print() const;
 
-		void      Collect(KStringView sLastSQL)
+		void      Collect(KStringView sLastSQL, QueryType QueryType = QueryType::None)
 		{
 			if DEKAF2_UNLIKELY(bEnabled)
 			{
-				Increment(sLastSQL);
+				Increment(sLastSQL, QueryType);
 			}
 		}
 
@@ -903,7 +937,7 @@ public:
 	private:
 	//----------
 
-		void      Increment(KStringView sLastSQL);
+		void      Increment(KStringView sLastSQL, QueryType QueryType);
 
 	}; // SQLStmtStats
 
@@ -941,19 +975,87 @@ private:
 	public:
 	//----------
 
-		void Add(uint64_t iConnectionID);
-		bool Has(uint64_t iConnectionID) const;
-		bool HasAndRemove(uint64_t iConnectionID);
+		void Add(ConnectionID iConnectionID);
+		bool Has(ConnectionID iConnectionID) const;
+		bool HasAndRemove(ConnectionID iConnectionID);
 
 	//----------
 	private:
 	//----------
 
-		KThreadSafe<std::set<uint64_t>> m_Connections;
+		KThreadSafe<std::set<ConnectionID>> m_Connections;
 
 	}; // ConnectionIDs
 
 	static ConnectionIDs s_CanceledConnections;
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// keep a list of timed queries and their connection IDs, thread safe
+	class TimedConnectionIDs
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		TimedConnectionIDs();
+		~TimedConnectionIDs();
+
+		/// add a connection ID of a query with its timeout to the list of timed queries
+		void Add(KSQL& Instance);
+		/// add a connection ID of a query with its timeout to the list of timed queries
+		void Add(ConnectionID iConnectionID, std::chrono::milliseconds Timeout, const KSQL& Instance);
+		/// remove a timed query from the watchlist
+		bool Remove(ConnectionID iConnectionID, uint64_t iServerHash);
+		/// remove a timed query from the watchlist
+		bool Remove(KSQL& Instance);
+
+	//----------
+	private:
+	//----------
+
+		using Clock = std::chrono::steady_clock;
+
+		void Watcher();
+
+		struct IndexByID{};
+		struct IndexByTime{};
+
+		struct Row
+		{
+			ConnectionID      ID;
+			uint64_t          iServerHash;
+			Clock::time_point Expires;
+		};
+
+		using TimedConnectionsMap =
+			boost::multi_index::multi_index_container<
+				Row,
+				boost::multi_index::indexed_by<
+					boost::multi_index::hashed_unique<
+						boost::multi_index::tag<IndexByID>,
+						boost::multi_index::composite_key<
+							Row,
+							boost::multi_index::member<Row, ConnectionID, &Row::ID         >,
+							boost::multi_index::member<Row, uint64_t,     &Row::iServerHash>
+						>
+					>,
+					boost::multi_index::ordered_non_unique<
+						boost::multi_index::tag<IndexByTime>,
+						boost::multi_index::member<Row, Clock::time_point, &Row::Expires>
+					>
+				>
+			>;
+
+		KThreadSafe<TimedConnectionsMap>                   m_Connections;
+		KThreadSafe<KMap<uint64_t, std::unique_ptr<KSQL>>> m_DBs;
+		bool                                               m_bQuit;
+		std::thread                                        m_Watcher;
+
+	}; // TimedConnectionIDs
+
+	static TimedConnectionIDs s_TimedConnections;
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// keeps column information
@@ -1205,10 +1307,14 @@ private:
 	uint64_t   m_iNumRowsBuffered { 0 };
 	uint64_t   m_iNumRowsAffected { 0 };
 	uint64_t   m_iLastInsertID { 0 };
-	uint64_t   m_iConnectionID { 0 };
+	mutable uint64_t m_iConnectHash { 0 };
+	ConnectionID m_iConnectionID { 0 };
 	char**     m_dBufferedColArray { nullptr };
 	KString    m_sErrorPrefix;
 	bool       m_bDisableRetries { false };
+	bool       m_bEnableQueryTimeout { false };
+	std::chrono::milliseconds m_QueryTimeout { 0 };
+	QueryType  m_QueryTypeForTimeout { QueryType::None };
 	uint64_t   m_iWarnIfOverMilliseconds { 0 };
 	FILE*      m_fpPerformanceLog { nullptr };
 	KString    m_sTempDir { "/tmp" };
@@ -1218,8 +1324,9 @@ private:
 	bool  BufferResults ();
 	void  FreeAll (bool bDestructor=false);
 	void  FreeBufferedColArray (bool fValuesOnly=false);
+	void  InvalidateConnectHash () const { m_iConnectHash = 0; }
 	void  FormatConnectSummary () const;
-	void  InvalidateConnectSummary () const { m_sConnectSummary.clear(); }
+	void  InvalidateConnectSummary () const { m_sConnectSummary.clear(); InvalidateConnectHash(); }
 	bool  PreparedToRetry (uint32_t iErrorNum);
 
     #ifdef DEKAF2_HAS_ORACLE
@@ -1253,6 +1360,7 @@ private:
 // declare the operators for KSQL's flag enums
 DEKAF2_ENUM_IS_FLAG(KSQL::Flags);
 DEKAF2_ENUM_IS_FLAG(KSQL::FAC);
+DEKAF2_ENUM_IS_FLAG(KSQL::QueryType);
 
 //----------------------------------------------------------------------
 /// format an SQL query with python syntax and automatically escape all string parameters

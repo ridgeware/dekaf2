@@ -420,7 +420,10 @@ public:
 	static QueryType GetQueryType(KStringView sQuery);
 
 	/// set a timeout and type of query to abort after the timeout expired
-	void   SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType Queries = QueryType::Any);
+	void SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType Queries = QueryType::Any);
+
+	/// set a default timeout and type of query to abort after the timeout expired, will be used by all new instances of KSQL as the initial setting
+	static void SetDefaultQueryTimeout(std::chrono::milliseconds Timeout, QueryType Queries = QueryType::Any);
 
 	/// After establishing a database connection, this is how you sent DDL (create table, etc.) statements to the RDBMS.
 	template<class... Args>
@@ -1313,6 +1316,8 @@ private:
 	KString    m_sErrorPrefix;
 	bool       m_bDisableRetries { false };
 	bool       m_bEnableQueryTimeout { false };
+	static std::atomic<std::chrono::milliseconds> s_QueryTimeout;
+	static std::atomic<QueryType> s_QueryTypeForTimeout;
 	std::chrono::milliseconds m_QueryTimeout { 0 };
 	QueryType  m_QueryTypeForTimeout { QueryType::None };
 	uint64_t   m_iWarnIfOverMilliseconds { 0 };

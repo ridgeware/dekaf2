@@ -508,8 +508,13 @@ void KSQL::KSQLStatementStats::Increment(KStringView sLastSQL, QueryType QueryTy
 //-----------------------------------------------------------------------------
 KSQL::KSQL (DBT iDBType/*=DBT::MYSQL*/, KStringView sUsername/*=nullptr*/, KStringView sPassword/*=nullptr*/, KStringView sDatabase/*=nullptr*/, KStringView sHostname/*=nullptr*/, uint16_t iDBPortNum/*=0*/)
 //-----------------------------------------------------------------------------
+: m_QueryTimeout(s_QueryTimeout)
+, m_QueryTypeForTimeout(s_QueryTypeForTimeout)
 {
 	kDebug (3, "...");
+
+	// enable the query timeout if the preset static values were good
+	m_bEnableQueryTimeout = m_QueryTimeout > std::chrono::milliseconds(0) && m_QueryTypeForTimeout != QueryType::None;
 
 	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
 	m_sTmpResultsFile.Format ("{}/ksql-{}-{}.res", GetTempDir(), kGetPid(), kGetTid());
@@ -1639,9 +1644,10 @@ bool KSQL::IsReadOnlyViolation (QueryType QueryType)
 	if (IsFlag(F_ReadOnlyMode) &&
 			(QueryType & ~(QueryType::Select | QueryType::Action | QueryType::Info)) != QueryType::None)
 	{
-		return SetError(kFormat ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL));
+		SetError(kFormat ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL));
+		return true;
 	}
-	return true;
+	return false;
 
 } // IsReadOnlyViolation
 
@@ -1743,21 +1749,23 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		// we shall cancel long running queries
 		bQueryTypeMatch = true;
 
-		// recursion protection..
-		m_bEnableQueryTimeout = false;
-
 		// make sure we have a connection ID (this may lead to a recursion, and we want it
 		// right at this place, not any later!)
 		// Due to this recursion, make sure that all code above this point is recursion
 		// safe!
-		GetConnectionID();
+		if (GetConnectionID(false) == 0)
+		{
+			// recursion protection..
+			m_bEnableQueryTimeout = false;
+			auto sBackupSQL = m_sLastSQL;
+			GetConnectionID();
+			m_sLastSQL = sBackupSQL;
+			m_bEnableQueryTimeout = true;
+		}
 
 		// add this query to the list of timed connections..
 		kDebug(2, "query will timeout after {}ms", m_QueryTimeout.count());
 		s_TimedConnections.Add(*this);
-
-		// recursion protection (see above)
-		m_bEnableQueryTimeout = true;
 	}
 
 	// revoke our connection from the connection timeout watchlist at end of block
@@ -2061,9 +2069,10 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum)
 	if (m_iConnectionID > 0 && s_CanceledConnections.HasAndRemove(m_iConnectionID))
 	{
 		// this was a canceled connection or query - do not retry
-		kDebug(2, "connection {} was canceled on demand, retry aborted", m_iConnectionID);
+		kDebug(2, "connection {} was canceled on demand, query retry aborted", m_iConnectionID);
 		// make sure all state is correctly reset
 		CloseConnection();
+		OpenConnection();
 		return false;
 	}
 
@@ -9444,6 +9453,26 @@ void KSQL::SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType QueryTyp
 
 } // SetQueryTimeout
 
+//-----------------------------------------------------------------------------
+void KSQL::SetDefaultQueryTimeout(std::chrono::milliseconds Timeout, QueryType QueryType)
+//-----------------------------------------------------------------------------
+{
+	if (Timeout.count() == 0 || QueryType == QueryType::None)
+	{
+		// clear timeout settings
+		s_QueryTimeout        = Timeout;
+		s_QueryTypeForTimeout = QueryType::None;
+	}
+	else
+	{
+		s_QueryTimeout        = Timeout;
+		s_QueryTypeForTimeout = QueryType;
+	}
+
+} // SetQueryTimeout
+
+std::atomic<std::chrono::milliseconds> KSQL::s_QueryTimeout        { std::chrono::milliseconds(0) };
+std::atomic<KSQL::QueryType>           KSQL::s_QueryTypeForTimeout { QueryType::None              };
 
 KSQL::DBCCache KSQL::s_DBCCache;
 

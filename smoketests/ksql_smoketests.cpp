@@ -252,7 +252,12 @@ TEST_CASE("KSQL")
 
 	SECTION("KSQL: full suite")
 	{
+		// set a default timeout to check that it is shared with all new connectors
+		KSQL::SetDefaultQueryTimeout(std::chrono::milliseconds(100), KSQL::QueryType::Select);
+
 		KSQL db; // <-- shared across the remaining tests
+
+		KSQL::SetDefaultQueryTimeout(std::chrono::milliseconds(0), KSQL::QueryType::None);
 
 		// we run the tests now in throwing mode
 		db.SetThrow(true);
@@ -280,6 +285,20 @@ TEST_CASE("KSQL")
 			INFO ("FAILED TO CONNECT TO: " << db.ConnectSummary());
 			FAIL (db.GetLastError());  // <-- all other tests will be useless so ABORT
 		}
+
+		// test timeouts with default values
+		if (false) {
+			KStopTime Timer;
+			auto bTOld = db.SetThrow(false);
+			db.ExecQuery("select sleep(100)");
+			db.ExecQuery("select 'hello'");
+			db.ExecQuery("select sleep(100)");
+			db.SetThrow(bTOld);
+			CHECK ( Timer.seconds() < 5 );
+		}
+
+		// set timeout to something reasonable
+		db.SetQueryTimeout(std::chrono::seconds(30), KSQL::QueryType::Any);
 
 		// check CTLIB desync case
 		Check_CtSend(db);

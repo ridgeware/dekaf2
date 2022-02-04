@@ -130,8 +130,8 @@ public:
 #ifdef DEKAF2_HAS_SYSLOG
 	static constexpr KStringViewZ SYSLOG = "syslog";
 #endif
-	static constexpr KStringViewZ BAR    = "--------------------------------------------------------------------------------";
-	static constexpr KStringViewZ DASH   = "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ";
+	static constexpr KStringViewZ BAR    = "----------------------------------------------------------------------------------------------------------------------------------------------------------------";
+	static constexpr KStringViewZ DASH   = " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -";
 
 	enum LOGMODE { CLI, SERVER };
 

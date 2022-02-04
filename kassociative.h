@@ -56,6 +56,8 @@
 /// The map implementations all have a operator[](Key) const that will not add
 /// a new element when the key is not found, but instead return a reference to
 /// a static, default constructed value.
+/// All types have a contains() member that returns true if the searched element
+/// is found.
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
@@ -75,7 +77,7 @@ template<
 	class Compare = std::less<Key>,
 	class Allocator = std::allocator<Key>
 >
-using KSet = boost::multi_index::multi_index_container<
+class KSet : public boost::multi_index::multi_index_container<
 	Key,
 	boost::multi_index::indexed_by<
 		boost::multi_index::ordered_unique<
@@ -86,14 +88,24 @@ using KSet = boost::multi_index::multi_index_container<
 			Allocator
 		>
 	>
->;
+>
+{
+public:
+
+	template<typename K>
+	bool contains(K&& key) const
+	{
+		return this->find(std::forward<K>(key)) != this->end();
+	}
+
+};
 
 template<
 	class Key,
 	class Compare = std::less<Key>,
 	class Allocator = std::allocator<Key>
 >
-using KMultiSet = boost::multi_index::multi_index_container<
+class KMultiSet : public boost::multi_index::multi_index_container<
 	Key,
 	boost::multi_index::indexed_by<
 		boost::multi_index::ordered_non_unique<
@@ -104,7 +116,16 @@ using KMultiSet = boost::multi_index::multi_index_container<
 			Allocator
 		>
 	>
->;
+>
+{
+public:
+
+	template<typename K>
+	bool contains(K&& key) const
+	{
+		return this->find(std::forward<K>(key)) != this->end();
+	}
+};
 
 template<
 	class Key,
@@ -156,6 +177,12 @@ public:
 		{
 			return this->insert({std::forward<K>(key), Value{}}).first->second;
 		}
+	}
+
+	template<typename K>
+	bool contains(K&& key) const
+	{
+		return this->find(std::forward<K>(key)) != this->end();
 	}
 
 private:
@@ -218,6 +245,12 @@ public:
 		}
 	}
 
+	template<typename K>
+	bool contains(K&& key) const
+	{
+		return this->find(std::forward<K>(key)) != this->end();
+	}
+
 private:
 	static const Value s_Empty;
 };
@@ -235,7 +268,7 @@ template<
 	class KeyEqual = std::equal_to<Key>,
 	class Allocator = std::allocator<Key>
 >
-using KUnorderedSet = boost::multi_index::multi_index_container<
+class KUnorderedSet : public boost::multi_index::multi_index_container<
 	Key,
 	boost::multi_index::indexed_by<
 		boost::multi_index::hashed_unique<
@@ -247,7 +280,16 @@ using KUnorderedSet = boost::multi_index::multi_index_container<
 			Allocator
 		>
 	>
->;
+>
+{
+public:
+
+	template<typename K>
+	bool contains(K&& key) const
+	{
+		return this->find(std::forward<K>(key)) != this->end();
+	}
+};
 
 template<
 	class Key,
@@ -255,7 +297,7 @@ template<
 	class KeyEqual = std::equal_to<Key>,
 	class Allocator = std::allocator<Key>
 >
-using KUnorderedMultiSet = boost::multi_index::multi_index_container<
+class KUnorderedMultiSet : public boost::multi_index::multi_index_container<
 	Key,
 	boost::multi_index::indexed_by<
 		boost::multi_index::hashed_non_unique<
@@ -267,7 +309,16 @@ using KUnorderedMultiSet = boost::multi_index::multi_index_container<
 			Allocator
 		>
 	>
->;
+>
+{
+public:
+
+	template<typename K>
+	bool contains(K&& key) const
+	{
+		return this->find(std::forward<K>(key)) != this->end();
+	}
+};
 
 template<
 	class Key,
@@ -321,6 +372,12 @@ public:
 		{
 			return this->insert({std::forward<K>(key), Value{}}).first->second;
 		}
+	}
+
+	template<typename K>
+	bool contains(K&& key) const
+	{
+		return this->find(std::forward<K>(key)) != this->end();
 	}
 
 private:
@@ -382,6 +439,12 @@ public:
 		{
 			return this->insert({std::forward<K>(key), Value{}}).first->second;
 		}
+	}
+
+	template<typename K>
+	bool contains(K&& key) const
+	{
+		return this->find(std::forward<K>(key)) != this->end();
 	}
 
 private:

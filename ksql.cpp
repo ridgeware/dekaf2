@@ -1636,8 +1636,12 @@ bool KSQL::IsSelect (KStringView sSQL)
 bool KSQL::IsReadOnlyViolation (QueryType QueryType)
 //-----------------------------------------------------------------------------
 {
-	return (IsFlag(F_ReadOnlyMode) &&
-			(QueryType & ~(QueryType::Select | QueryType::Action | QueryType::Info)) != QueryType::None);
+	if (IsFlag(F_ReadOnlyMode) &&
+			(QueryType & ~(QueryType::Select | QueryType::Action | QueryType::Info)) != QueryType::None)
+	{
+		return SetError(kFormat ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL));
+	}
+	return true;
 
 } // IsReadOnlyViolation
 
@@ -1729,7 +1733,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 	if (IsReadOnlyViolation (QueryType))
 	{
-		return SetError(kFormat ("KSQL: attempt to perform a non-query on a READ ONLY db connection:\n{}", m_sLastSQL));
+		return false;
 	}
 
 	bool bQueryTypeMatch { false };
@@ -1748,7 +1752,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		// safe!
 		GetConnectionID();
 
-		// yes, add this query to the list of timed connections..
+		// add this query to the list of timed connections..
 		kDebug(2, "query will timeout after {}ms", m_QueryTimeout.count());
 		s_TimedConnections.Add(*this);
 

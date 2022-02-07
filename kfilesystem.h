@@ -48,6 +48,7 @@
 #include "bits/kcppcompat.h"
 #include "kstringview.h"
 #include "kstring.h"
+#include "kwriter.h"
 #include <cinttypes>
 #include <vector>
 
@@ -86,7 +87,12 @@ constexpr KStringViewZ kCurrentDirWithSep { "./" };
 #endif
 
 namespace detail {
+constexpr KStringView kUnsafeFileExtensionChars { "#%&{}<>*? $!'\":@+`|=\\/.-_" };
+#ifdef DEKAF2_HAS_CPP_14
+constexpr KStringView kUnsafeFilenameChars = kUnsafeFileExtensionChars.ToView(0, kUnsafeFileExtensionChars.size() - 3);
+#else
 constexpr KStringView kUnsafeFilenameChars { "#%&{}<>*? $!'\":@+`|=\\/" };
+#endif
 #ifdef DEKAF2_HAS_CPP_14
 constexpr KStringView kUnsafePathnameChars = kUnsafeFilenameChars.ToView(0, kUnsafeFilenameChars.size() - 2);
 #else
@@ -365,12 +371,6 @@ public:
 	}
 
 	constexpr
-	void operator+=(KFileType ftype)
-	{
-		push_back(ftype);
-	}
-
-	constexpr
 	void operator|=(KFileType ftype)
 	{
 		push_back(ftype);
@@ -400,25 +400,13 @@ private:
 constexpr DEKAF2_PUBLIC
 KFileTypes operator|(const KFileType::FileType first, const KFileType::FileType second)
 {
-	return KFileType(static_cast<KFileType::FileType>(static_cast<uint8_t>(first) + static_cast<uint8_t>(second)));
-}
-
-constexpr DEKAF2_PUBLIC
-KFileTypes operator+(const KFileType::FileType first, const KFileType::FileType second)
-{
-	return first | second;
+	return KFileType(static_cast<KFileType::FileType>(static_cast<uint8_t>(first) | static_cast<uint8_t>(second)));
 }
 
 constexpr DEKAF2_PUBLIC
 KFileTypes operator|(const KFileType first, const KFileType second)
 {
 	return first.m_FType | second.m_FType;
-}
-
-constexpr DEKAF2_PUBLIC
-KFileTypes operator+(const KFileType first, const KFileType second)
-{
-	return first | second;
 }
 
 constexpr DEKAF2_PUBLIC
@@ -433,18 +421,6 @@ KFileTypes operator|(KFileTypes first, const KFileType::FileType second)
 {
 	first.push_back(second);
 	return first;
-}
-
-constexpr DEKAF2_PUBLIC
-KFileTypes operator+(const KFileTypes first, const KFileType second)
-{
-	return first | second;
-}
-
-constexpr DEKAF2_PUBLIC
-KFileTypes operator+(const KFileTypes first, const KFileType::FileType second)
-{
-	return first | second;
 }
 
 constexpr DEKAF2_PUBLIC
@@ -614,6 +590,13 @@ inline bool kRemoveSocket (KStringViewZ sPath)
 	return kRemove (sPath, KFileType::SOCKET);
 }
 
+//-----------------------------------------------------------------------------
+/// open a file with the name sOrigName + . + sBackupExtension, so that all existing files with the same name are
+/// renamed with an additional sBackupExtension. The open file will have the same flags as the original.
+/// @return unique pointer with open file, or nullptr in case of error
+extern DEKAF2_PUBLIC
+std::unique_ptr<KOutFile> kCreateFileWithBackup(KStringView sOrigname, KStringView sBackupExtension = "old");
+//-----------------------------------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve and filter directory listings

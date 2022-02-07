@@ -136,10 +136,6 @@ TEST_CASE("KFilesystem")
 
 	SECTION("KFileTypes")
 	{
-		auto ft1(KFileType::PIPE + KFileType::BLOCK);
-		CHECK ( kJoined(ft1.Serialize(), "|") == "pipe|block" );
-		auto ft2 = KFileType::DIRECTORY + KFileType::FILE;
-		CHECK ( kJoined(ft2.Serialize(), "|") == "file|directory" );
 		auto ft3(KFileType::PIPE | KFileType::BLOCK);
 		CHECK ( kJoined(ft3.Serialize(), "|") == "pipe|block" );
 		auto ft4 = KFileType::DIRECTORY | KFileType::FILE;
@@ -148,9 +144,7 @@ TEST_CASE("KFilesystem")
 		CHECK ( kJoined(ft5.Serialize(), "|") == "pipe|block|character" );
 		auto ft6(KFileTypes::ALL);
 		CHECK ( kJoined(ft6.Serialize(), "|") == "all" );
-		auto ft7(KFileType::PIPE + KFileType::BLOCK | KFileType::CHARACTER + KFileType::FILE);
-		CHECK ( kJoined(ft7.Serialize(), "|") == "file|pipe|block|character" );
-		auto ft8(KFileType::PIPE | KFileType::BLOCK + KFileType::CHARACTER | KFileType::FILE);
+		auto ft8(KFileType::PIPE | KFileType::BLOCK | KFileType::CHARACTER | KFileType::FILE);
 		CHECK ( kJoined(ft8.Serialize(), "|") == "file|pipe|block|character" );
 	}
 
@@ -421,4 +415,82 @@ TEST_CASE("KFilesystem")
 		CHECK ( kMakeSafePathname("WÖRLD.txt..", false)    == "WÖRLD.txt"            );
 	}
 
+	SECTION("kCreateBackupFile")
+	{
+		KString sDirectory = TempDir.Name();
+		sDirectory += kDirSep;
+		sDirectory += "backups";
+		sDirectory += kDirSep;
+
+		KString sFilename = sDirectory;
+		sFilename += "test.txt";
+		kTouchFile(sFilename);
+		sFilename += ".old";
+		kTouchFile(sFilename);
+		sFilename += ".old";
+		kTouchFile(sFilename);
+
+		sFilename = sDirectory;
+		sFilename += "test.txt";
+
+		auto File = kCreateFileWithBackup(sFilename);
+		CHECK ( File != nullptr );
+
+		if (File != nullptr)
+		{
+			CHECK ( File->is_open() );
+			File->Write("new content");
+			File->close();
+			KString sNewFile = kReadAll(sFilename);
+			CHECK (sNewFile == "new content");
+		}
+
+		KDirectory Dir(sDirectory);
+
+		CHECK ( Dir.size() == 4 );
+		CHECK ( Dir.Find("test.txt") != Dir.end() );
+		CHECK ( Dir.Find("test.txt.old") != Dir.end() );
+		CHECK ( Dir.Find("test.txt.old.old") != Dir.end() );
+		CHECK ( Dir.Find("test.txt.old.old.old") != Dir.end() );
+
+		File = kCreateFileWithBackup(sFilename, "s.df");
+		CHECK ( File == nullptr );
+		File = kCreateFileWithBackup(sFilename, "s\\df");
+		CHECK ( File == nullptr );
+		File = kCreateFileWithBackup(sFilename, "s/df");
+		CHECK ( File == nullptr );
+		File = kCreateFileWithBackup(sFilename, "");
+		CHECK ( File == nullptr );
+
+		sFilename = sDirectory;
+		sFilename += "new.txt";
+
+		File = kCreateFileWithBackup(sFilename);
+		CHECK ( File != nullptr );
+		if (File != nullptr)
+		{
+			File->close();
+		}
+
+		Dir.Open(sDirectory);
+		CHECK ( Dir.size() == 5 );
+		CHECK ( Dir.Find("new.txt") != Dir.end() );
+
+		CHECK ( kRemoveFile(sFilename) );
+		CHECK ( kCreateDir(sFilename) );
+
+		File = kCreateFileWithBackup(sFilename);
+		CHECK ( File == nullptr );
+		Dir.Open(sDirectory);
+		CHECK ( Dir.size() == 5 );
+
+		CHECK ( kRemoveDir(sFilename) );
+		CHECK ( kTouchFile(sFilename) );
+		CHECK ( kCreateDir(sFilename + ".old") );
+
+		File = kCreateFileWithBackup(sFilename);
+		CHECK ( File == nullptr );
+		Dir.Open(sDirectory);
+		CHECK ( Dir.size() == 6 );
+	}
 }

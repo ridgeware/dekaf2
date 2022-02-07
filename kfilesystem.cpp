@@ -333,8 +333,13 @@ bool kRemove (KStringViewZ sPath, KFileTypes Types)
 
 		if (unlink (sPath.c_str()) != 0)
 		{
-			if (Stat.Type() == KFileType::DIRECTORY && (rmdir (sPath.c_str()) != 0))
+			if (Stat.Type() == KFileType::DIRECTORY)
 			{
+				if (rmdir (sPath.c_str()) == 0)
+				{
+					return true;
+				}
+
 				KString sCmd;
 				sCmd.Format ("rm -rf \"{}\"", sPath);
 				if (system (sCmd.c_str()) == 0)
@@ -342,7 +347,6 @@ bool kRemove (KStringViewZ sPath, KFileTypes Types)
 					return (true);
 				}
 			}
-
 			kDebug (1, "failed: {}: {}", sPath, strerror (errno));
 			return false;
 		}
@@ -598,6 +602,67 @@ size_t kFileSize(KStringViewZ sFilePath)
 	return Stat.Size();
 
 } // kFileSize
+
+//-----------------------------------------------------------------------------
+std::unique_ptr<KOutFile> kCreateFileWithBackup(KStringView sOrigname, KStringView sBackupExtension)
+//-----------------------------------------------------------------------------
+{
+	std::unique_ptr<KOutFile> OutFile;
+
+	if (sBackupExtension.empty())
+	{
+		kDebug(1, "backup extension is empty")
+	}
+	else if(sBackupExtension.find_first_of(detail::kUnsafeFileExtensionChars) != npos)
+	{
+		kDebug(1, "backup extension '{}' contains one of {}", sBackupExtension, detail::kUnsafeFileExtensionChars);
+	}
+	else
+	{
+		KString sFilename = sOrigname;
+
+		// only rename files, not directories..
+		if (kFileExists(sFilename))
+		{
+			KString sBakExt(1, '.');
+			sBakExt += sBackupExtension;
+			sFilename += sBakExt;
+
+			while (kFileExists(sFilename))
+			{
+				sFilename += sBakExt;
+			}
+
+			while (sFilename.size() > sOrigname.size())
+			{
+				KString sLastname = sFilename.Left(sFilename.size() - sBakExt.size());
+				kDebug(2, "renaming '{}' to '{}'", sLastname, sFilename);
+
+				if (!kRename(sLastname, sFilename))
+				{
+					// rename failed, bail out
+					return OutFile;
+				}
+
+				sFilename.erase(sFilename.end() - sBakExt.size(), sFilename.end());
+			}
+		}
+
+		if (!kExists(sFilename))
+		{
+			OutFile = std::make_unique<KOutFile>(sFilename, std::ios::trunc);
+		}
+
+		if (OutFile && !OutFile->is_open())
+		{
+			kDebug(1, "cannot create file '{}'", sFilename);
+			OutFile.reset();
+		}
+	}
+
+	return OutFile;
+
+} // kCreateFileWithBackup
 
 namespace {
 

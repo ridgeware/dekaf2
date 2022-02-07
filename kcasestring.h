@@ -72,6 +72,18 @@ bool kCaseEndsWith(KStringView left, KStringView right);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// finds case insensitively
+DEKAF2_PUBLIC
+KStringView::size_type kCaseFind(KStringView sHaystack, KStringView sNeedle, KStringView::size_type iPos = 0);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// finds case insensitively, assuming right string in lowercase
+DEKAF2_PUBLIC
+KStringView::size_type kCaseFindLeft(KStringView sHaystack, KStringView sNeedle, KStringView::size_type iPos = 0);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// compares case insensitive, trims strings before compare
 DEKAF2_PUBLIC
 int kCaseCompareTrim(KStringView left, KStringView right, KStringView svTrim = detail::kASCIISpaces);

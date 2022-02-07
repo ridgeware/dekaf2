@@ -47,6 +47,7 @@
 #include "dekaf2.h"
 #include "bits/simd/kfindfirstof.h"
 #include "kctype.h"
+#include "kcasestring.h"
 
 namespace dekaf2 {
 
@@ -887,6 +888,13 @@ bool KStringView::ClipAtReverse(const KStringView sClipAtReverse)
 	return true;
 
 } // ClipAtReverse
+
+//-----------------------------------------------------------------------------
+KStringView::size_type KStringView::FindCaselessASCII(const self_type str, size_type pos) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kCaseFind(*this, str, pos);
+}
 
 static_assert(std::is_nothrow_move_constructible<KStringView>::value,
 			  "KStringView is intended to be nothrow move constructible, but is not!");

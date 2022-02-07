@@ -230,6 +230,54 @@ bool kCaseEndsWith(KStringView left, KStringView right)
 	}, true);
 }
 
+//----------------------------------------------------------------------
+KStringView::size_type kCaseFind(KStringView sHaystack, KStringView sNeedle, KStringView::size_type iPos)
+//----------------------------------------------------------------------
+{
+	if (iPos > sHaystack.size())
+	{
+		iPos = sHaystack.size();
+	}
+
+	auto it = std::search(sHaystack.begin() + iPos, sHaystack.end(), sNeedle.begin(), sNeedle.end(), [](const char c1, const char c2)
+	{
+		return toLowcase[static_cast<unsigned char>(c1)]
+				== toLowcase[static_cast<unsigned char>(c2)];
+	});
+
+	if (it == sHaystack.end())
+	{
+		return KStringView::npos;
+	}
+
+	return it - sHaystack.begin();
+
+} // kCaseFind
+
+//----------------------------------------------------------------------
+KStringView::size_type kCaseFindLeft(KStringView sHaystack, KStringView sNeedle, KStringView::size_type iPos)
+//----------------------------------------------------------------------
+{
+	if (iPos > sHaystack.size())
+	{
+		iPos = sHaystack.size();
+	}
+
+	auto it = std::search(sHaystack.begin() + iPos, sHaystack.end(), sNeedle.begin(), sNeedle.end(), [](const char c1, const char c2)
+	{
+		return toLowcase[static_cast<unsigned char>(c1)]
+				== static_cast<unsigned char>(c2);
+	});
+
+	if (it == sHaystack.end())
+	{
+		return KStringView::npos;
+	}
+
+	return it - sHaystack.begin();
+
+} // kCaseFind
+
 //-----------------------------------------------------------------------------
 bool kCaseBeginsWithLeft(KStringView left, KStringView right)
 //-----------------------------------------------------------------------------

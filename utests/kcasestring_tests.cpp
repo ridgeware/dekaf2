@@ -144,6 +144,23 @@ TEST_CASE("KCaseString") {
 		CHECK ( sv != csv );
 	}
 
+	SECTION("kCaseFind")
+	{
+		CHECK ( kCaseFind("this is My HaYsTACK", "HAYStack"      ) == 11);
+		CHECK ( kCaseFind("this is My HaYsTACK", "HAYStack",   11) == 11);
+		CHECK ( kCaseFind("this is My HaYsTACK", "HAYStack", npos) == npos);
+		CHECK ( kCaseFind("this is My HaYsTACK", "NonSense"      ) == npos);
+	}
+
+	SECTION("kCaseFindLeft")
+	{
+		CHECK ( kCaseFindLeft("this is My HaYsTACK", "haystack"      ) == 11);
+		CHECK ( kCaseFindLeft("this is My HaYsTACK", "haystack",   11) == 11);
+		CHECK ( kCaseFindLeft("this is My HaYsTACK", "HaYsTACK"      ) == npos);
+		CHECK ( kCaseFindLeft("this is My HaYsTACK", "haystack", npos) == npos);
+		CHECK ( kCaseFindLeft("this is My HaYsTACK", "nonsense"      ) == npos);
+	}
+
 }
 
 TEST_CASE("KCaseTrimString") {

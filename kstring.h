@@ -442,6 +442,12 @@ public:
 	/// replace one char of the string with another char, modifies string and returns number of replacements made
 	size_type Replace(value_type chSearch, value_type chReplace, size_type pos = 0, bool bReplaceAll = true);
 
+	/// find string with caseless ASCII compare
+	size_type FindCaselessASCII(const KStringView sSearch, size_type pos = 0) const noexcept;
+
+	/// does the string contain sSubString (caseless ASCII compare)
+	bool ContainsCaselessASCII(const KStringView sSubString) const noexcept;
+
 	// std::C++20
 	/// does the string start with sSubString?
 	bool starts_with(KStringView sSubString) const noexcept;
@@ -1391,6 +1397,20 @@ inline bool KString::remove_prefix(KStringView prefix)
 		return true;
 	}
 	return false;
+}
+
+//-----------------------------------------------------------------------------
+inline KString::size_type KString::FindCaselessASCII(const KStringView sSearch, size_type pos) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return KStringView(*this).FindCaselessASCII(sSearch, pos);
+}
+
+//-----------------------------------------------------------------------------
+inline bool KString::ContainsCaselessASCII(const KStringView sSubString) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return KStringView(*this).ContainsCaselessASCII(sSubString);
 }
 
 //-----------------------------------------------------------------------------

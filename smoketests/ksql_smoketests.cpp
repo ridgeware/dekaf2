@@ -424,7 +424,7 @@ TEST_CASE("KSQL")
 		CHECK ( AnotherRow["astring"] == "row-1" );
 
 		KROW AnotherRow2("TEST1_KSQL");
-		AnotherRow2.AddCol("astring", "row-1", KROW::PKEY);
+		AnotherRow2.AddCol("astring", "row-1", KCOL::PKEY);
 		CHECK ( db.Load(AnotherRow2) );
 		CHECK ( AnotherRow2["anum"] == "2" );
 		CHECK ( AnotherRow2["astring"] == "row-1" );
@@ -844,7 +844,7 @@ TEST_CASE("KSQL")
 		kRemoveFile (sTmp);
 
 		KROW Row ("TEST_KSQL");
-		Row.AddCol ("anum",      UINT64_C(102),            KROW::PKEY);
+		Row.AddCol ("anum",      UINT64_C(102),            KCOL::PKEY);
 		Row.AddCol ("astring",   "krow insert");
 
 		kDebugLog (1, "KROW insert");
@@ -869,32 +869,32 @@ TEST_CASE("KSQL")
 
 		{
 			KROW Row1 ("TEST_KSQL");
-			Row1.AddCol ("anum",      UINT64_C(100),            KROW::PKEY);
+			Row1.AddCol ("anum",      UINT64_C(100),            KCOL::PKEY);
 			Row1.AddCol ("astring",   "krow insert");
 
 			Rows.push_back(std::move(Row1));
 
 			// test missing table name - should now be kept over from last
 			KROW Row2;
-			Row2.AddCol ("anum",      UINT64_C(101),            KROW::PKEY);
+			Row2.AddCol ("anum",      UINT64_C(101),            KCOL::PKEY);
 			Row2.AddCol ("astring",   sZero);
 
 			Rows.push_back(std::move(Row2));
 
 			KROW Row3 ("TEST_KSQL");
-			Row3.AddCol ("anum",      UINT64_C(102),            KROW::PKEY);
+			Row3.AddCol ("anum",      UINT64_C(102),            KCOL::PKEY);
 			Row3.AddCol ("astring",   ""); // test an empty value
 
 			Rows.push_back(std::move(Row3));
 
 			KROW Row4 ("TEST2_KSQL");
-			Row4.AddCol ("anum",      UINT64_C(100),            KROW::PKEY);
+			Row4.AddCol ("anum",      UINT64_C(100),            KCOL::PKEY);
 			Row4.AddCol ("astring",   "value 1");
 
 			Rows.push_back(std::move(Row4));
 
 			KROW Row5 ("TEST2_KSQL");
-			Row5.AddCol ("anum",      UINT64_C(101),            KROW::PKEY);
+			Row5.AddCol ("anum",      UINT64_C(101),            KCOL::PKEY);
 			Row5.AddCol ("astring",   "value 2");
 
 			Rows.push_back(std::move(Row5));
@@ -909,7 +909,7 @@ TEST_CASE("KSQL")
 
 		{
 			KROW Row6 ("TEST2_KSQL");
-			Row6.AddCol ("anum",      UINT64_C(102),            KROW::PKEY);
+			Row6.AddCol ("anum",      UINT64_C(102),            KCOL::PKEY);
 			Row6.AddCol ("asring",   "krow insert 103");
 
 			Rows.push_back(std::move(Row6));
@@ -1012,7 +1012,7 @@ TEST_CASE("KSQL")
 		}
 
 		KROW URow ("TEST_ASIAN");
-		URow.AddCol ("anum", UINT64_C(100), KROW::PKEY|KROW::NUMERIC);
+		URow.AddCol ("anum", UINT64_C(100), KCOL::PKEY|KCOL::NUMERIC);
 		URow.AddCol ("astring", ASIAN1);
 		if (!db.Insert(URow))
 		{
@@ -1063,7 +1063,7 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "KROW clipping");
 
-		Row.AddCol ("astring",   "clip me here -- all this should be GONE", 0, static_cast<KCOL::Len>(strlen("clip me here")));
+		Row.AddCol ("astring",   "clip me here -- all this should be GONE", KCOL::NOFLAG, static_cast<KCOL::Len>(strlen("clip me here")));
 		db.Insert (Row);
 		db.ExecQuery ("select astring from TEST_KSQL where anum=102");
 		db.NextRow ();
@@ -1076,7 +1076,7 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "KROW smart clipping on quote");
 
-		Row.AddCol ("astring",   "clip me here' -- all this should be GONE", 0, static_cast<KCOL::Len>(strlen("clip me here'")));
+		Row.AddCol ("astring",   "clip me here' -- all this should be GONE", KCOL::NOFLAG, static_cast<KCOL::Len>(strlen("clip me here'")));
 		db.Update (Row);
 		db.ExecQuery ("select astring from TEST_KSQL where anum=102");
 		db.NextRow ();
@@ -1126,11 +1126,11 @@ TEST_CASE("KSQL")
 			FAIL_CHECK (db.GetLastError());
 		}
 
-		Row.AddCol ("anum",    db.GetLastInsertID(), KROW::PKEY);
+		Row.AddCol ("anum",    db.GetLastInsertID(), KCOL::PKEY);
 
 		kDebugLog (1, "KROW single quote update");
 
-		Row.AddCol ("astring", QUOTES2, 0, 0);
+		Row.AddCol ("astring", QUOTES2, KCOL::NOFLAG, 0);
 
 		if (!db.Update (Row))
 		{
@@ -1162,7 +1162,7 @@ TEST_CASE("KSQL")
 		kDebugLog (1, "KROW single quote delete");
 
 		Row.clear();
-		Row.AddCol ("astring", QUOTES2, KROW::PKEY);
+		Row.AddCol ("astring", QUOTES2, KCOL::PKEY);
 
 		if (!db.Delete (Row))
 		{
@@ -1182,7 +1182,7 @@ TEST_CASE("KSQL")
 		kDebugLog (1, "KROW slash test insert");
 
 		Row.clear();
-		Row.AddCol ("anum",    UINT64_C(98), KROW::PKEY);
+		Row.AddCol ("anum",    UINT64_C(98), KCOL::PKEY);
 		Row.AddCol ("astring", SLASHES1);
 
 		SqlServerIdentityInsert (db, "TEST_KSQL", "ON");
@@ -1226,7 +1226,7 @@ TEST_CASE("KSQL")
 		kDebugLog (1, "KROW slash test delete");
 
 		Row.clear();
-		Row.AddCol ("astring", SLASHES2, KROW::PKEY);
+		Row.AddCol ("astring", SLASHES2, KCOL::PKEY);
 
 		if (!db.Delete (Row))
 		{

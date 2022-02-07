@@ -1093,7 +1093,7 @@ private:
 		std::unique_ptr<char[]> dszValue;
 #endif
 		KString     sColName;
-		KCOL::Flags iKSQLDataType   { 0 };
+		KCOL::Flags iKSQLDataType   { KCOL::Flags::NOFLAG };
 		KCOL::Len   iMaxDataLen     { 0 };
 #if defined(DEKAF2_HAS_ORACLE) || defined(DEKAF2_HAS_CTLIB)
 		int16_t     indp            { 0 };   // oratypes.h:typedef   signed short    sb2;

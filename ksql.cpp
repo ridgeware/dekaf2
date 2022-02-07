@@ -253,18 +253,18 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 				case MYSQL_TYPE_DOUBLE:
 				case MYSQL_TYPE_YEAR:
 				case MYSQL_TYPE_BIT:
-					iKSQLDataType = KROW::NUMERIC;
+					iKSQLDataType = KCOL::NUMERIC;
 					break;
 
 				case MYSQL_TYPE_DECIMAL:
 				case 246: // MYSQL_TYPE_NEWDECIMAL:
 				case 247: // MYSQL_TYPE_ENUM:
 				case 255: // MYSQL_TYPE_GEOMETRY:
-					iKSQLDataType = KROW::NUMERIC;
+					iKSQLDataType = KCOL::NUMERIC;
 					if (iMaxDataLen >= 19)
 					{
 						// this is a large integer as well (see below)..
-						iKSQLDataType |= KROW::INT64NUMERIC;
+						iKSQLDataType |= KCOL::INT64NUMERIC;
 					}
 					break;
 
@@ -273,12 +273,12 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 					// make sure we flag large integers - this is important when we want to
 					// convert them into JSON integers, which have a limit of 53 bits
 					// - values larger than that need to be represented as strings..
-					iKSQLDataType = KROW::NUMERIC | KROW::INT64NUMERIC;
+					iKSQLDataType = KCOL::NUMERIC | KCOL::INT64NUMERIC;
 					break;
 
 					// always the problem child:
 				case MYSQL_TYPE_NULL:
-					iKSQLDataType = KROW::NOFLAG;
+					iKSQLDataType = KCOL::NOFLAG;
 					break;
 
 				// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -303,7 +303,7 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 				case 254: // MYSQL_TYPE_STRING:
 #endif // DEKAF2_HAS_MYSQL
 				default:
-					iKSQLDataType = KROW::NOFLAG;
+					iKSQLDataType = KCOL::NOFLAG;
 					break;
 			}
 			break;
@@ -323,28 +323,28 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 				case CS_BIT_TYPE:
 				case CS_FLOAT_TYPE:
 				case CS_REAL_TYPE:
-					iKSQLDataType = KROW::NUMERIC;
+					iKSQLDataType = KCOL::NUMERIC;
 					break;
 
 				case CS_DECIMAL_TYPE:
 				case CS_NUMERIC_TYPE:
 				case CS_LONG_TYPE:
-					iKSQLDataType = KROW::NUMERIC;
+					iKSQLDataType = KCOL::NUMERIC;
 					if (iMaxDataLen >= 19)
 					{
 						// this is a large integer as well..
-						iKSQLDataType |= KROW::INT64NUMERIC;
+						iKSQLDataType |= KCOL::INT64NUMERIC;
 					}
 					break;
 
 				case CS_BIGINT_TYPE:
 				case CS_UBIGINT_TYPE:
-					iKSQLDataType = KROW::NUMERIC | KROW::INT64NUMERIC;
+					iKSQLDataType = KCOL::NUMERIC | KCOL::INT64NUMERIC;
 					break;
 
 #endif
 				default:
-					iKSQLDataType = KROW::NOFLAG;
+					iKSQLDataType = KCOL::NOFLAG;
 					break;
 			}
 			break;
@@ -355,7 +355,7 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 		case DBT::ORACLE:
 		case DBT::INFORMIX:
 		default:
-			iKSQLDataType = KROW::NOFLAG;
+			iKSQLDataType = KCOL::NOFLAG;
 			// TODO: get column meta data from query respose for other dbtypes
 			break;
 	}
@@ -2758,7 +2758,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 				ColInfo.sColName = pField->name;
 				ColInfo.SetColumnType (DBT::MYSQL, pField->type, pField->length);
 				kDebug (3, "col {:35} mysql_datatype: {:4} => ksql_flags: 0x{:08x} = {}",
-					ColInfo.sColName, pField->type, ColInfo.iKSQLDataType, KROW::FlagsToString(ColInfo.iKSQLDataType));
+					ColInfo.sColName, pField->type, ColInfo.iKSQLDataType, KCOL::FlagsToString(ColInfo.iKSQLDataType));
 
 				m_dColInfo.push_back(std::move(ColInfo));
 			}
@@ -6249,7 +6249,7 @@ bool KSQL::PurgeKey (KStringView sSchemaName, KROW& OtherKeys, KStringView sPKEY
 	KROW row = OtherKeys;
 	for (auto col : OtherKeys)
 	{
-		row.AddCol (col.first, col.second.sValue, col.second.GetFlags() | KROW::PKEY);
+		row.AddCol (col.first, col.second.sValue, col.second.GetFlags() | KCOL::PKEY);
 	}
 
 	if (!ChangesMade.is_array())
@@ -6281,7 +6281,7 @@ bool KSQL::PurgeKey (KStringView sSchemaName, KROW& OtherKeys, KStringView sPKEY
 		{
 			// do not escape the table name - KROW takes care of that
 			row.SetTablename (kFormat ("{}.{} /*KSQL::PurgeKey*/", sTableSchema, sTableName));
-			row.AddCol (sPKEY_colname, sValue, KROW::PKEY);
+			row.AddCol (sPKEY_colname, sValue, KCOL::PKEY);
 			if (!Delete (row))
 			{
 				return (false);

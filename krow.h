@@ -82,9 +82,9 @@ public:
 		// never change the absolute values, they are persisted in config files
 		NONE     = 0,     // must stay zero
 		MYSQL    = 10000, // connect to MYSQL using their custom APIs
-		SQLITE3  = 30000, // connect to SQLite3 using their custom APIs
 		OCI6     = 26000, // connect to Oracle using the v6 OCI (older set)
 		OCI8     = 28000, // connect to Oracle using the v8 OCI (the default)
+		SQLITE3  = 30000, // connect to SQLite3 using their custom APIs
 		DBLIB    = 40000, // connect to SQLServer or Sybase using DBLIB
 		CTLIB    = 50000, // connect to SQLServer or Sybase using CTLIB
 		INFORMIX = 80000, // connect to Informix using their API
@@ -110,27 +110,38 @@ class DEKAF2_PUBLIC KCOL
 {
 
 //----------
-protected:
-//----------
-
-
-//----------
 public:
 //----------
 
-	/// KSQL generic column type flags
-	using Flags = uint16_t;
+	/// column type flags
+	enum Flags
+	{
+		NOFLAG           = 0,        ///< Reset flags, column will be seen as string value
+		PKEY             = 1 << 0,   ///< Indicates given column is part of the primary key.  At least one column must have the PKEY flag to use KROW to do UPDATE and DELETE.
+		NONCOLUMN        = 1 << 1,   ///< Indicates given column is not a column and should be included in DDL statements.
+		EXPRESSION       = 1 << 2,   ///< Indicates given column is not a column and should be included in DDL statements.
+		INSERTONLY       = 1 << 3,   ///< Indicates given column is only to be used in INSERT statements (not UPDATE or DELETE).
+		NUMERIC          = 1 << 4,   ///< Indicates given column should not be quoted when forming DDL statements.
+		NULL_IS_NOT_NIL  = 1 << 5,   ///< Indicates given column is ???
+		BOOLEAN          = 1 << 6,   ///< Indicates given column is a boolean (true/false)
+		JSON             = 1 << 7,   ///< Indicates given column is a JSON object
+		INT64NUMERIC     = 1 << 8,   ///< Indicates given column is a NUMERIC, but would overflow in JSON - NUMERIC is also always set when this flag is true
+
+		TYPE_FLAGS       = NUMERIC | BOOLEAN | JSON | INT64NUMERIC,
+		MODE_FLAGS       = PKEY | NONCOLUMN | EXPRESSION | INSERTONLY | NULL_IS_NOT_NIL
+	};
+
 	/// Column size, max size type
-	using Len   = uint32_t;
+	using Len = uint32_t;
 
 	KCOL () = default;
 
 	template<typename T,
 			 typename std::enable_if<std::is_convertible<const T&, KString>::value == true, int>::type = 0>
-	KCOL (T&& _sValue, Flags iFlags=0, Len iMaxLen=0)
+	KCOL (T&& _sValue, Flags iFlags = Flags::NOFLAG, Len iMaxLen = 0)
 		: sValue(std::forward<T>(_sValue))
 		, m_iMaxLen(iMaxLen)
-		, m_iFlags(iFlags)
+		, m_Flags(iFlags)
 	{
 	}
 
@@ -139,63 +150,81 @@ public:
 		return sValue;
 	}
 
-	void clear()
-	{
-		sValue.clear();
-		m_iMaxLen = 0;
-		m_iFlags  = 0;
-	}
+	/// clear the column
+	void clear();
 
+	/// returns columm flags
 	Flags GetFlags() const
 	{
-		return m_iFlags;
+		return m_Flags;
 	}
 
-	void SetFlags(Flags iFlags)
+	/// set column flags
+	void SetFlags(Flags Flags)
 	{
-		m_iFlags = iFlags;
+		m_Flags = Flags;
 	}
 
-	void AddFlags(Flags iFlags)
-	{
-		m_iFlags |= iFlags;
-	}
+	/// add a column flag
+	void AddFlags(Flags Flags);
 
-	bool IsFlag(Flags iFlags) const
-	{
-		return (m_iFlags & iFlags) == iFlags;
-	}
+	/// has exactly this flag, and no other
+	bool IsFlag(Flags Flags) const;
 
-	bool HasFlag(Flags iFlags) const
-	{
-		return (m_iFlags & iFlags) != 0;
-	}
+	/// has this flag, and maybe others
+	bool HasFlag(Flags Flags) const;
 
+	/// clear all column flags
 	void ClearFlags()
 	{
-		SetFlags(0);
+		SetFlags(Flags::NOFLAG);
 	}
 
+	/// return max column length
 	Len GetMaxLen() const
 	{
 		return m_iMaxLen;
 	}
 
+	/// set max column length
 	void SetMaxLen(Len iMaxLen)
 	{
 		m_iMaxLen = iMaxLen;
 	}
 
-	KString  sValue;  // aka "second"
+	/// print column flags as string, static function
+	static KString FlagsToString (Flags iFlags);
+
+	/// print column flags as string, member function
+	KString FlagsToString () const { return FlagsToString(m_Flags); }
+
+	KString  sValue;
 
 //----------
 private:
 //----------
 
 	Len   m_iMaxLen { 0 };
-	Flags m_iFlags  { 0 };
+	Flags m_Flags   { Flags::NOFLAG };
 
 }; // KCOL
+
+DEKAF2_ENUM_IS_FLAG(KCOL::Flags);
+
+inline void KCOL::AddFlags(Flags Flags)
+{
+	m_Flags |= Flags;
+}
+
+inline bool KCOL::IsFlag(Flags Flags) const
+{
+	return (m_Flags & Flags) == Flags;
+}
+
+inline bool KCOL::HasFlag(Flags Flags) const
+{
+	return (m_Flags & Flags) != 0;
+}
 
 DEKAF2_PUBLIC
 bool operator==(const KCOL& left, const KCOL& right);
@@ -208,6 +237,7 @@ bool operator!=(const KCOL& left, const KCOL& right)
 using KCOLS = KProps <KString, KCOL, /*order-matters=*/true, /*unique-keys*/true>;
 
 //-----------------------------------------------------------------------------
+/// KSQL's row type
 class DEKAF2_PUBLIC KROW : public KCOLS, public detail::KCommonSQLBase
 //-----------------------------------------------------------------------------
 {
@@ -218,6 +248,13 @@ public:
 
 	/// Column index type
 	using Index = std::size_t;
+
+	enum CONVERSION
+	{
+		NO_CONVERSION,  ///< no conversion in to_json()
+		KEYS_TO_LOWER,  ///< Used in to_json() to map json keys to lowercase in the event that columns are mixed
+		KEYS_TO_UPPER   ///< Used in to_json() to map json keys to uppercase in the event that columns are mixed
+	};
 
 	KROW () = default;
 
@@ -244,9 +281,9 @@ public:
 	/// @param sKeyColName name of the column for the primary key
 	/// @param Value a value for the primary key, or the default value for the type
 	template<typename COLTYPE = KStringView>
-	bool SetKey(KStringView sKeyColName, COLTYPE Value = COLTYPE{})
+	bool SetKey(KStringView sKeyColName, COLTYPE&& Value = COLTYPE{})
 	{
-		return AddCol(sKeyColName, Value, PKEY);
+		return AddCol(sKeyColName, std::forward<COLTYPE>(Value), KCOL::Flags::PKEY);
 	}
 
 	/// Create or set a column from a JSON value
@@ -255,7 +292,7 @@ public:
 	/// @param iFlags special column or name flags, default none
 	/// @param iLen limit size of column string (after string escape), default 0 = unlimited
 	/// @return bool success of operation
-	bool AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags=NOFLAG, KCOL::Len iMaxLen=0);
+	bool AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags Flags = KCOL::Flags::NOFLAG, KCOL::Len iMaxLen = 0);
 
 	/// Create or set a column from a boolean value
 	/// @param sColName Name of the column
@@ -263,9 +300,9 @@ public:
 	/// @param iFlags special column or name flags, default BOOLEAN
 	/// @param iLen limit size of column string (after string escape), default 0 = unlimited
 	/// @return bool success of operation
-	bool AddCol (KStringView sColName, bool Value, KCOL::Flags iFlags=BOOLEAN, KCOL::Len iMaxLen=0)
+	bool AddCol (KStringView sColName, bool Value, KCOL::Flags Flags = KCOL::Flags::BOOLEAN, KCOL::Len iMaxLen = 0)
 	{
-		return (KCOLS::Add (sColName, KCOL(Value ? "true" : "false", (iFlags | BOOLEAN), iMaxLen)) != KCOLS::end());
+		return (KCOLS::Add (sColName, KCOL(Value ? "true" : "false", (Flags | KCOL::Flags::BOOLEAN), iMaxLen)) != KCOLS::end());
 	}
 
 	/// Create or set a column from a const char* value
@@ -274,9 +311,9 @@ public:
 	/// @param iFlags special column or name flags, default none
 	/// @param iLen limit size of column string (after string escape), default 0 = unlimited
 	/// @return bool success of operation
-	bool AddCol (KStringView sColName, const char* Value, KCOL::Flags iFlags=NOFLAG, KCOL::Len iMaxLen=0)
+	bool AddCol (KStringView sColName, const char* Value, KCOL::Flags Flags = KCOL::Flags::NOFLAG, KCOL::Len iMaxLen = 0)
 	{
-		return (KCOLS::Add (sColName, KCOL(Value, iFlags, iMaxLen)) != KCOLS::end());
+		return (KCOLS::Add (sColName, KCOL(Value, Flags, iMaxLen)) != KCOLS::end());
 	}
 
 	/// Create or set a column from a string value
@@ -286,9 +323,9 @@ public:
 	/// @param iLen limit size of column string (after string escape), default 0 = unlimited
 	/// @return bool success of operation
 	template<typename COLTYPE, typename std::enable_if<detail::is_narrow_cpp_str<COLTYPE>::value, int>::type = 0>
-	bool AddCol (KStringView sColName, COLTYPE Value, KCOL::Flags iFlags=NOFLAG, KCOL::Len iMaxLen=0)
+	bool AddCol (KStringView sColName, COLTYPE&& Value, KCOL::Flags Flags = KCOL::Flags::NOFLAG, KCOL::Len iMaxLen = 0)
 	{
-		return (KCOLS::Add (sColName, KCOL(Value, iFlags, iMaxLen)) != KCOLS::end());
+		return (KCOLS::Add (sColName, KCOL(std::forward<COLTYPE>(Value), Flags, iMaxLen)) != KCOLS::end());
 	}
 
 	/// Create or set a column from any value that can be printed through kFormat (e.g. numbers)
@@ -298,23 +335,23 @@ public:
 	/// @param iLen limit size of column string (after string escape), default 0 = unlimited
 	/// @return bool success of operation
 	template<typename COLTYPE, typename std::enable_if<!detail::is_narrow_cpp_str<COLTYPE>::value, int>::type = 0>
-	bool AddCol (KStringView sColName, COLTYPE Value, KCOL::Flags iFlags=NUMERIC, KCOL::Len iMaxLen=0)
+	bool AddCol (KStringView sColName, const COLTYPE& Value, KCOL::Flags Flags = KCOL::Flags::NUMERIC, KCOL::Len iMaxLen = 0)
 	{
 		/*
 		 * JS 2020/05/20: we do not do this check for the moment, because due
 		 * to a bug this was inactive in all previous versions of dekaf2
 		 * - we have to verify the consequences first
 		 *
-		if (sizeof(COLTYPE) > 6 && (iFlags & NUMERIC))
+		if (sizeof(COLTYPE) > 6 && (Flags & NUMERIC))
 		{
 			// make sure we flag large integers - this is important when we want to
 			// convert them back into JSON integers, which have a limit of 53 bits
 			// - values larger than that need to be represented as strings..
-			iFlags |= INT64NUMERIC;
+			Flags |= INT64NUMERIC;
 		}
 		 *
 		 */
-		return (KCOLS::Add (sColName, KCOL(kFormat("{}", Value), iFlags |= NUMERIC, iMaxLen)) != KCOLS::end());
+		return (KCOLS::Add (sColName, KCOL(kFormat("{}", Value), Flags |= KCOL::Flags::NUMERIC, iMaxLen)) != KCOLS::end());
 	}
 
 	/// Just set the value of a column from a string, do not touch flags or max len if already set.
@@ -324,7 +361,7 @@ public:
 	/// @return bool success of operation
 	bool SetValue (KStringView sColName, KStringView sValue);
 
-	/// Just set the value of a column from a string, do not touch flags or max len if already set.
+	/// Just set the value of a column from an integer, do not touch flags or max len if already set.
 	/// Will create a new column with type NUMERIC if not existing.
 	/// @param sColName Name of the column
 	/// @param iValue new signed 64 bit value for the column
@@ -335,7 +372,7 @@ public:
 	/// @param sColName Name of the column
 	/// @param iFlags special column or name flags
 	/// @return bool success of operation, fails if column does not exist
-	bool SetFlags (KStringView sColName, KCOL::Flags iFlags);
+	bool SetFlags (KStringView sColName, KCOL::Flags Flags);
 
 	/// association arrays, e.g. row["column_name"] --> the value for that columm
 	KString& operator[] (KStringView sColName)              { return KCOLS::operator[](sColName).sValue; }
@@ -383,33 +420,6 @@ public:
 	/// Returns true if column is part of the row object.
 	bool Exists (KStringView sColName) const;
 
-	enum
-	{
-		NOFLAG           = 0,        ///< Reset flags, column will be seen as string value
-		PKEY             = 1 << 0,   ///< Indicates given column is part of the primary key.  At least one column must have the PKEY flag to use KROW to do UPDATE and DELETE.
-		NONCOLUMN        = 1 << 1,   ///< Indicates given column is not a column and should be included in DDL statements.
-		EXPRESSION       = 1 << 2,   ///< Indicates given column is not a column and should be included in DDL statements.
-		INSERTONLY       = 1 << 3,   ///< Indicates given column is only to be used in INSERT statements (not UPDATE or DELETE).
-		NUMERIC          = 1 << 4,   ///< Indicates given column should not be quoted when forming DDL statements.
-		NULL_IS_NOT_NIL  = 1 << 5,   ///< Indicates given column is ???
-		BOOLEAN          = 1 << 6,   ///< Indicates given column is a boolean (true/false)
-		JSON             = 1 << 7,   ///< Indicates given column is a JSON object
-		INT64NUMERIC     = 1 << 8,   ///< Indicates given column is a NUMERIC, but would overflow in JSON - NUMERIC is also always set when this flag is true
-
-		KEYS_TO_LOWER    = 1 << 9,   ///< Used in to_json to map json keys to lowercase in the event that columns are mixed
-		KEYS_TO_UPPER    = 1 << 10,  ///< Used in to_json to map json keys to uppercase in the event that columns are mixed
-
-		TYPE_FLAGS       = NUMERIC | BOOLEAN | JSON | INT64NUMERIC,
-		MODE_FLAGS       = PKEY | NONCOLUMN | EXPRESSION | INSERTONLY | NULL_IS_NOT_NIL,
-
-		// keep list of flags in synch with KROW::FlagsToString() helper function
-	};
-
-	// - - - - - - - - - - - - - - - -
-	// helper functions:
-	// - - - - - - - - - - - - - - - -
-	static KString FlagsToString (uint64_t iFlags);
-
 	/// returns the list of chars that are escaped for a given DBType, or per default for MySQL, as that
 	/// provides the superset of escaped characters
 	static KStringView EscapedCharacters (DBT iDBType = DBT::MYSQL);
@@ -428,14 +438,13 @@ public:
 								KString::value_type iEscapeChar = 0);
 	static KString EscapeChars (const KROW::value_type& Col, DBT iDBType);
 
-	KString ColumnInfoForLogOutput (const KCOLS::value_type& it, Index iCol) const;
 	void LogRowLayout(int iLogLevel = 3) const;
 
 	/// Return row as a KJSON object
-	KJSON to_json (uint64_t iFlags=0) const;
+	KJSON to_json (CONVERSION Flags = CONVERSION::NO_CONVERSION) const;
 
 	/// convert one row to CSV format (or just column headers):
-	KString to_csv (bool bheaders=false, uint64_t iFlags=0);
+	KString to_csv (bool bheaders=false, CONVERSION Flags = CONVERSION::NO_CONVERSION) const;
 
 	/// append columns from another krow object
 	KROW& operator+=(const KROW& another);
@@ -467,5 +476,16 @@ private:
 	mutable KString m_sLastError;
 
 }; // KROW
+
+#if 0
+// ugly, but we have a lot of existing code using these..
+#define KROW::NOFLAG       KCOL::NOFLAG
+#define KROW::PKEY         KCOL::PKEY
+#define KROW::EXPRESSION   KCOL::EXPRESSION
+#define KROW::NUMERIC      KCOL::NUMERIC
+#define KROW::BOOLEAN      KCOL::BOOLEAN
+#define KROW::JSON         KCOL::JSON
+#define KROW::INT64NUMERIC KCOL::INT64NUMERIC
+#endif
 
 } // namespace dekaf2

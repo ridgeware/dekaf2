@@ -67,18 +67,16 @@ bool operator==(const KCOL& left, const KCOL& right)
 }
 
 //-----------------------------------------------------------------------------
-KString KROW::ColumnInfoForLogOutput (const KCOLS::value_type& it, Index iCol) const
+void KCOL::clear()
 //-----------------------------------------------------------------------------
 {
-	return kFormat("  col[{:>02}]: {:<25} {}",
-		    iCol,
-		    it.first,
-			FlagsToString(it.second.GetFlags()));
-
-} // ColumnInfoForLogOutput
+	sValue.clear();
+	m_iMaxLen = 0;
+	m_Flags   = KCOL::Flags::NOFLAG;
+}
 
 //-----------------------------------------------------------------------------
-KString KROW::FlagsToString (uint64_t iFlags)
+KString KCOL::FlagsToString (Flags iFlags)
 //-----------------------------------------------------------------------------
 {
 	KString sPretty;
@@ -104,10 +102,17 @@ void KROW::LogRowLayout(int iLogLevel) const
 #ifdef DEKAF2_WITH_KLOG
 	if (kWouldLog(iLogLevel))
 	{
-		int16_t iii = 0;
+		std::size_t iCol { 0 };
+
 		for (const auto& it : *this)
 		{
-			kDebugLog (iLogLevel, ColumnInfoForLogOutput(it, iii++));
+			kDebugLog (iLogLevel,
+					   kFormat("  col[{:>02}]: {:<25} {}",
+							   ++iCol,
+							   it.first,
+							   it.second.FlagsToString()
+							)
+					   );
 		}
 	}
 #endif
@@ -281,7 +286,9 @@ std::size_t KROW::CreateColumns(KStringView sColumns)
 bool KROW::SetValue (KStringView sColName, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
+	// do not replace this with a simple KCOLS::Add() !
 	auto it = KCOLS::find (sColName);
+
 	if (it == KCOLS::end())
 	{
 		return (KCOLS::Add (sColName, KCOL(sValue)) != KCOLS::end());
@@ -297,10 +304,12 @@ bool KROW::SetValue (KStringView sColName, KStringView sValue)
 bool KROW::SetValue (KStringView sColName, int64_t iValue)
 //-----------------------------------------------------------------------------
 {
+	// do not replace this with a simple KCOLS::Add() !
 	auto it = KCOLS::find (sColName);
+
 	if (it == KCOLS::end())
 	{
-		return (KCOLS::Add (sColName, KCOL(KString::to_string(iValue), NUMERIC)) != KCOLS::end());
+		return (KCOLS::Add (sColName, KCOL(KString::to_string(iValue), KCOL::NUMERIC)) != KCOLS::end());
 	}
 	else
 	{
@@ -310,17 +319,18 @@ bool KROW::SetValue (KStringView sColName, int64_t iValue)
 }
 
 //-----------------------------------------------------------------------------
-bool KROW::SetFlags (KStringView sColName, KCOL::Flags iFlags)
+bool KROW::SetFlags (KStringView sColName, KCOL::Flags Flags)
 //-----------------------------------------------------------------------------
 {
 	auto it = KCOLS::find (sColName);
+	
 	if (it == KCOLS::end())
 	{
 		return (false);
 	}
 	else
 	{
-		it->second.SetFlags(iFlags);
+		it->second.SetFlags(Flags);
 		return (true);
 	}
 }
@@ -337,7 +347,7 @@ void KROW::PrintValuesForInsert(KString& sSQL, DBT iDBType) const
 
 	for (const auto& it : *this)
 	{
-		if (it.second.IsFlag (NONCOLUMN))
+		if (it.second.IsFlag (KCOL::NONCOLUMN))
 		{
 			continue;
 		}
@@ -347,12 +357,12 @@ void KROW::PrintValuesForInsert(KString& sSQL, DBT iDBType) const
 		sHack.Replace(" ","");
 		bool    bHack = ((sHack == "now()") || (sHack == "now(6)") || (sHack == "{{now}}"));
 
-		if (it.second.sValue.empty() && !it.second.IsFlag (NULL_IS_NOT_NIL))
+		if (it.second.sValue.empty() && !it.second.IsFlag (KCOL::NULL_IS_NOT_NIL))
 		{
 			// Note: this is the default handling for NIL values: to place them in SQL as SQL null
 			sSQL += kFormat ("{}\n\tnull", (bComma) ? "," : "");
 		}
-		else if (bHack || it.second.HasFlag (NUMERIC | BOOLEAN | EXPRESSION))
+		else if (bHack || it.second.HasFlag (KCOL::NUMERIC | KCOL::BOOLEAN | KCOL::EXPRESSION))
 		{
 			sSQL += kFormat ("{}\n\t{}", (bComma) ? "," : "", it.second.sValue); // raw value, no quotes and no processing
 		}
@@ -408,7 +418,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*
 
 	for (const auto& it : *this)
 	{
-		if (it.second.IsFlag (NONCOLUMN))
+		if (it.second.IsFlag (KCOL::NONCOLUMN))
 		{
 			continue;
 		}
@@ -511,15 +521,15 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 	bool  bComma = false;
 	for (const auto& it : *this)
 	{
-		if (it.second.IsFlag (NONCOLUMN))
+		if (it.second.IsFlag (KCOL::NONCOLUMN))
 		{
 			continue;
 		}
-		else if (it.second.IsFlag (PKEY))
+		else if (it.second.IsFlag (KCOL::PKEY))
 		{
 			Keys.Add (it.first, it.second);
 		}
-		else if (it.second.HasFlag (EXPRESSION | BOOLEAN))
+		else if (it.second.HasFlag (KCOL::EXPRESSION | KCOL::BOOLEAN))
 		{
 			sSQL += kFormat ("\t{}{}={}\n", (bComma) ? "," : "", it.first, it.second.sValue);
 			bComma = true;
@@ -532,7 +542,7 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 			}
 			else
 			{
-				if (it.second.HasFlag (NUMERIC | EXPRESSION | BOOLEAN))
+				if (it.second.HasFlag (KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
 				{
 					sSQL += kFormat ("\t{}{}={}\n", (bComma) ? "," : "", it.first, EscapeChars (it, iDBType));
 				}
@@ -572,7 +582,7 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 			sPrefix = "   and ";
 		}
 		
-		if (it.second.HasFlag(NUMERIC | EXPRESSION | BOOLEAN))
+		if (it.second.HasFlag(KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
 		{
 			sSQL += kFormat("{}{}={}\n", sPrefix, it.first, EscapeChars (it, iDBType));
 		}
@@ -623,7 +633,7 @@ bool KROW::FormSelect (KString& sSQL, DBT iDBType, bool bSelectAllColumns) const
 
 		for (const auto& it : *this)
 		{
-			if (!it.second.HasFlag (NONCOLUMN | PKEY))
+			if (!it.second.HasFlag (KCOL::NONCOLUMN | KCOL::PKEY))
 			{
 				sSQL += kFormat("\t{} {}\n", (iColumns++) ? "," : "", it.first);
 			}
@@ -647,11 +657,11 @@ bool KROW::FormSelect (KString& sSQL, DBT iDBType, bool bSelectAllColumns) const
 
 	for (const auto& it : *this)
 	{
-		if (it.second.IsFlag (PKEY) && !it.second.sValue.empty())
+		if (it.second.IsFlag (KCOL::PKEY) && !it.second.sValue.empty())
 		{
 			KStringView sPrefix = !iKeys++ ? " where " : "   and ";
 
-			if (it.second.HasFlag(NUMERIC | EXPRESSION | BOOLEAN))
+			if (it.second.HasFlag(KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
 			{
 				sSQL += kFormat("{}{}={}\n", sPrefix, it.first, EscapeChars (it, iDBType));
 			}
@@ -707,7 +717,7 @@ bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 
 	for (const auto& it : *this)
 	{
-		if (!it.second.IsFlag (PKEY))
+		if (!it.second.IsFlag (KCOL::PKEY))
 		{
 			continue;
 		}
@@ -716,7 +726,7 @@ bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 		{
 			sSQL += kFormat(" {} {} is null\n",(!kk) ? "where" : "  and", it.first);
 		}
-		else if (it.second.HasFlag(NUMERIC | EXPRESSION | BOOLEAN))
+		else if (it.second.HasFlag(KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
 		{
 			sSQL += kFormat(" {} {}={}\n",     (!kk) ? "where" : "  and", it.first, EscapeChars (it, iDBType));
 		}
@@ -746,44 +756,44 @@ bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
 } // FormDelete
 
 //-----------------------------------------------------------------------------
-bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags, KCOL::Len iMaxLen)
+bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags Flags, KCOL::Len iMaxLen)
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
 
 	// make sure all type flags are removed
-	iFlags &= MODE_FLAGS;
+	Flags &= KCOL::MODE_FLAGS;
 
 	switch (Value.type())
 	{
 		case KJSON::value_t::object:
 		case KJSON::value_t::array:
-			return AddCol(sColName, Value.dump(-1), iFlags | JSON, iMaxLen);
+			return AddCol(sColName, Value.dump(-1), Flags | KCOL::JSON, iMaxLen);
 
 		case KJSON::value_t::string:
 		case KJSON::value_t::binary:
-			return AddCol(sColName, Value.get<KJSON::string_t>(), iFlags | NOFLAG, iMaxLen);
+			return AddCol(sColName, Value.get<KJSON::string_t>(), Flags | KCOL::NOFLAG, iMaxLen);
 
 		case KJSON::value_t::number_integer:
-			return AddCol(sColName, Value.get<KJSON::number_integer_t>(), iFlags | NUMERIC, iMaxLen);
+			return AddCol(sColName, Value.get<KJSON::number_integer_t>(), Flags | KCOL::NUMERIC, iMaxLen);
 
 		case KJSON::value_t::number_unsigned:
-			return AddCol(sColName, Value.get<KJSON::number_unsigned_t>(), iFlags | NUMERIC, iMaxLen);
+			return AddCol(sColName, Value.get<KJSON::number_unsigned_t>(), Flags | KCOL::NUMERIC, iMaxLen);
 
 		case KJSON::value_t::number_float:
-			return AddCol(sColName, Value.get<KJSON::number_float_t>(), iFlags | NUMERIC, iMaxLen);
+			return AddCol(sColName, Value.get<KJSON::number_float_t>(), Flags | KCOL::NUMERIC, iMaxLen);
 
 		case KJSON::value_t::boolean:
-			return AddCol(sColName, Value.get<KJSON::boolean_t>(), iFlags | BOOLEAN, iMaxLen);
+			return AddCol(sColName, Value.get<KJSON::boolean_t>(), Flags | KCOL::BOOLEAN, iMaxLen);
 
 		case KJSON::value_t::null:
-			if (iFlags & KROW::NULL_IS_NOT_NIL)
+			if (Flags & KCOL::NULL_IS_NOT_NIL)
 			{
-				return AddCol(sColName, "null", KROW::EXPRESSION);
+				return AddCol(sColName, "null", KCOL::EXPRESSION);
 			}
 			else
 			{
-				return AddCol(sColName, "", iFlags | JSON, iMaxLen);
+				return AddCol(sColName, "", Flags | KCOL::JSON, iMaxLen);
 			}
 
 		case KJSON::value_t::discarded:
@@ -796,7 +806,7 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags iFlags,
 } // AddCol
 
 //-----------------------------------------------------------------------------
-KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
+KJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
@@ -805,23 +815,24 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 
 	for (auto& col : *this)
 	{
-		kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
+		kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), col.second.FlagsToString());
 
 		KString sKey = col.first;
-		if (iFlags & KEYS_TO_LOWER)
+
+		if (Flags & CONVERSION::KEYS_TO_LOWER)
 		{
 			sKey.MakeLower();
 		}
-		else if (iFlags & KEYS_TO_UPPER)
+		else if (Flags & CONVERSION::KEYS_TO_UPPER)
 		{
 			sKey.MakeUpper();
 		}
 
-		if (col.second.IsFlag(NONCOLUMN))
+		if (col.second.IsFlag(KCOL::NONCOLUMN))
 		{
 			continue;
 		}
-		else if (col.second.IsFlag(INT64NUMERIC))
+		else if (col.second.IsFlag(KCOL::INT64NUMERIC))
 		{
 			// large integers > 53 bits have no representation in JavaScript and need to
 			// be stored as string values..
@@ -848,11 +859,11 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 			//
 			// This is why we have to convert 64 bit integers into strings.
 		}
-		else if (col.second.IsFlag(BOOLEAN) || sKey.StartsWith("is_"))
+		else if (col.second.IsFlag(KCOL::BOOLEAN) || sKey.StartsWith("is_"))
 		{
 			json[sKey] = col.second.sValue.Bool();
 		}
-		else if (col.second.IsFlag(NUMERIC))
+		else if (col.second.IsFlag(KCOL::NUMERIC))
 		{
 			// TODO get a strategy as to how to and if to adapt to locales with other chars than . as the
 			// decimal separator
@@ -873,12 +884,12 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 			}
 		}
 #if 0
-		else if (/*(col.second.iFlags & KROW::NULL_IS_NOT_NIL) &&*/ col.second.sValue.empty())
+		else if (/*(col.second.iFlags & KCOL::NULL_IS_NOT_NIL) &&*/ col.second.sValue.empty())
 		{
 			json[sKey] = NULL;
 		}
 #endif
-		else if (col.second.IsFlag(JSON))
+		else if (col.second.IsFlag(KCOL::JSON))
 		{
 			// this is a json serialization
 			DEKAF2_TRY
@@ -935,13 +946,13 @@ KJSON KROW::to_json (uint64_t iFlags/*=0*/) const
 } // to_json
 
 //-----------------------------------------------------------------------------
-KString KROW::to_csv (bool bHeaders/*=false*/, uint64_t iFlags/*=0*/)
+KString KROW::to_csv (bool bHeaders/*=false*/, CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
 
 	// shall we print modified header columns?
-	if (DEKAF2_UNLIKELY(bHeaders && (iFlags & (KEYS_TO_LOWER | KEYS_TO_UPPER))))
+	if (DEKAF2_UNLIKELY(bHeaders && (Flags & (KEYS_TO_LOWER | KEYS_TO_UPPER))))
 	{
 		// yes -> use a vector of KStrings
 		std::vector<KString> Columns;
@@ -949,20 +960,20 @@ KString KROW::to_csv (bool bHeaders/*=false*/, uint64_t iFlags/*=0*/)
 
 		for (const auto& col : *this)
 		{
-			kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
+			kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), col.second.FlagsToString());
 
-			if (col.second.IsFlag(NONCOLUMN))
+			if (col.second.IsFlag(KCOL::NONCOLUMN))
 			{
 				continue;
 			}
 
 			Columns.push_back(col.first);
 
-			if (iFlags & KEYS_TO_LOWER)
+			if (Flags & CONVERSION::KEYS_TO_LOWER)
 			{
 				Columns.back().MakeLower();
 			}
-			else if (iFlags & KEYS_TO_UPPER)
+			else if (Flags & CONVERSION::KEYS_TO_UPPER)
 			{
 				Columns.back().MakeUpper();
 			}
@@ -978,9 +989,9 @@ KString KROW::to_csv (bool bHeaders/*=false*/, uint64_t iFlags/*=0*/)
 
 		for (const auto& col : *this)
 		{
-			kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), KROW::FlagsToString(col.second.GetFlags()));
+			kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), col.second.FlagsToString());
 
-			if (col.second.IsFlag(NONCOLUMN))
+			if (col.second.IsFlag(KCOL::NONCOLUMN))
 			{
 				continue;
 			}
@@ -991,7 +1002,7 @@ KString KROW::to_csv (bool bHeaders/*=false*/, uint64_t iFlags/*=0*/)
 			}
 			else
 			{
-				if (DEKAF2_UNLIKELY(col.second.IsFlag(BOOLEAN)))
+				if (DEKAF2_UNLIKELY(col.second.IsFlag(KCOL::BOOLEAN)))
 				{
 					Columns.push_back(col.second.sValue.Bool() ? "1" : "0");
 				}

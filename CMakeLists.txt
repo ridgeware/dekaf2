@@ -73,7 +73,8 @@ OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" 
 
 set(CMAKE_CXX_STANDARD 20)
 # we do not force C++20 if not available, cmake will pick the highest available
-# dekaf2 supports 14/17/20, and also 11 for mostly all code
+# dekaf2 supports 14/17/20, and also 11 for mostly all code, but uses smarter options
+# with newer C++ standards
 # set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ==================================== BUILD TYPE ==================================
@@ -1032,6 +1033,7 @@ add_dependencies(genunicodetables dekaf2)
 add_subdirectory(utests)
 add_subdirectory(smoketests)
 add_subdirectory(benchmarks)
+add_subdirectory(samples)
 
 # ================================= INSTALLATION =====================================
 

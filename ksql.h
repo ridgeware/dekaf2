@@ -425,6 +425,12 @@ public:
 	/// set a default timeout and type of query to abort after the timeout expired, will be used by all new instances of KSQL as the initial setting
 	static void SetDefaultQueryTimeout(std::chrono::milliseconds Timeout, QueryType Queries = QueryType::Any);
 
+	/// disable an existing query timeout
+	void DisableQueryTimeout() { m_bEnableQueryTimeout = false; }
+
+	/// enable an existing query timeout (needs timeout value > 0 and query type != None to be effective)
+	void EnableQueryTimeout()  { m_bEnableQueryTimeout = true;  }
+
 	/// After establishing a database connection, this is how you sent DDL (create table, etc.) statements to the RDBMS.
 	template<class... Args>
 	bool ExecSQL (KStringView sFormat, Args&&... args)

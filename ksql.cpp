@@ -1756,11 +1756,11 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		if (GetConnectionID(false) == 0)
 		{
 			// recursion protection..
-			m_bEnableQueryTimeout = false;
+			DisableQueryTimeout();
 			auto sBackupSQL = m_sLastSQL;
 			GetConnectionID();
 			m_sLastSQL = sBackupSQL;
-			m_bEnableQueryTimeout = true;
+			EnableQueryTimeout();
 		}
 
 		// add this query to the list of timed connections..
@@ -9441,7 +9441,7 @@ void KSQL::SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType QueryTyp
 	{
 		// clear timeout settings
 		m_bEnableQueryTimeout = false;
-		m_QueryTimeout        = Timeout;
+		m_QueryTimeout        = std::chrono::milliseconds(0);
 		m_QueryTypeForTimeout = QueryType::None;
 	}
 	else
@@ -9460,7 +9460,7 @@ void KSQL::SetDefaultQueryTimeout(std::chrono::milliseconds Timeout, QueryType Q
 	if (Timeout.count() == 0 || QueryType == QueryType::None)
 	{
 		// clear timeout settings
-		s_QueryTimeout        = Timeout;
+		s_QueryTimeout        = std::chrono::milliseconds(0);
 		s_QueryTypeForTimeout = QueryType::None;
 	}
 	else

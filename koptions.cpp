@@ -102,10 +102,11 @@ KOptions::OptionalParm::~OptionalParm()
 }
 
 //---------------------------------------------------------------------------
-KOptions::OptionalParm& KOptions::OptionalParm::Help(KStringView sHelp)
+KOptions::OptionalParm& KOptions::OptionalParm::Help(KStringView sHelp, uint16_t iHelpRank)
 //---------------------------------------------------------------------------
 {
-	m_sHelp = sHelp.Trim();
+	m_sHelp     = sHelp.Trim();
+	m_iHelpRank = iHelpRank;
 	return *this;
 
 } // Help
@@ -275,7 +276,7 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 	SetWrappedHelpIndent(0);
 
 	Option("help")
-	.Help("this text")
+	.Help("this help", -1 -1) // show this help before the other automatic helps, but after the user defined helps
 	([this]()
 	{
 		auto& out = GetCurrentOutputStream();
@@ -289,6 +290,12 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 		}
 		else
 		{
+			// make sure help is (stable) sorted by help rank
+			std::stable_sort(m_Callbacks.begin(), m_Callbacks.end(), [](const CallbackParam& left, const CallbackParam& right)
+			{
+				return (left.m_iHelpRank < right.m_iHelpRank);
+			});
+
 			BuildHelp(out);
 		}
 
@@ -298,7 +305,7 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 
 #ifdef DEKAF2_WITH_KLOG
 	Option("d0,d,dd,ddd")
-	.Help("increasing optional stdout debug levels")
+	.Help("increasing optional stdout debug levels", -1)
 	([this,sCliDebugTo]()
 	{
 		auto sArg = GetCurrentArg();
@@ -310,7 +317,7 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 	});
 
 	Option("dgrep,dgrepv <regex>", "grep expression")
-	.Help("search (not) for grep expression in debug output")
+	.Help("search (not) for grep expression in debug output", -1)
 	([this,sCliDebugTo](KStringViewZ sGrep)
 	{
 		bool bIsInverted = GetCurrentArg() == "dgrepv";
@@ -329,7 +336,7 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 #endif
 
 	Option("ini <filename>", "ini file name")
-	.Help("load options from ini file")
+	.Help("load options from ini file", -1)
 	([this](KStringViewZ sIni)
 	{
 		if (ParseFile(sIni, KOut))
@@ -510,7 +517,7 @@ void KOptions::Help(KOutStream& out)
 {
 	KOutStreamRAII KO(&m_CurrentOutputStream, out);
 
-	// we have a help option registered through the constructor
+	// do we have a help option registered?
 	auto Callback = FindParam("help", true);
 
 	if (!Callback)

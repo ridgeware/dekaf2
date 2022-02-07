@@ -207,6 +207,7 @@ private:
 		uint16_t     m_iMinArgs     { 0 };
 		uint16_t     m_iMaxArgs     { 65535  };
 		uint16_t     m_iFlags       { fNone  };
+		uint16_t     m_iHelpRank    { 0 };
 		ArgTypes     m_ArgType      { String };
 		mutable bool m_bUsed        { false  };
 
@@ -253,8 +254,8 @@ public:
 		OptionalParm& operator()(CallbackN Func)  { return Callback(std::move(Func)); }
 		OptionalParm& operator()(Callback1 Func)  { return Callback(std::move(Func)); }
 		OptionalParm& operator()(Callback0 Func)  { return Callback(std::move(Func)); }
-		/// set the text shown in the help for this parameter
-		OptionalParm& Help(KStringView sHelp);
+		/// set the text shown in the help for this parameter, iHelpRank controls the order of help output shown, 0 = highest
+		OptionalParm& Help(KStringView sHelp, uint16_t iHelpRank = 0);
 
 	private:
 		KOptions*    m_base;

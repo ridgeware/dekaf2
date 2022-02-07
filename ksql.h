@@ -1369,9 +1369,9 @@ private:
 }; // KSQL
 
 // declare the operators for KSQL's flag enums
-DEKAF2_ENUM_IS_FLAG(KSQL::Flags);
-DEKAF2_ENUM_IS_FLAG(KSQL::FAC);
-DEKAF2_ENUM_IS_FLAG(KSQL::QueryType);
+DEKAF2_ENUM_IS_FLAG(KSQL::Flags)
+DEKAF2_ENUM_IS_FLAG(KSQL::FAC)
+DEKAF2_ENUM_IS_FLAG(KSQL::QueryType)
 
 //----------------------------------------------------------------------
 /// format an SQL query with python syntax and automatically escape all string parameters

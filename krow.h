@@ -209,7 +209,7 @@ private:
 
 }; // KCOL
 
-DEKAF2_ENUM_IS_FLAG(KCOL::Flags);
+DEKAF2_ENUM_IS_FLAG(KCOL::Flags)
 
 inline void KCOL::AddFlags(Flags Flags)
 {
@@ -476,16 +476,5 @@ private:
 	mutable KString m_sLastError;
 
 }; // KROW
-
-#if 0
-// ugly, but we have a lot of existing code using these..
-#define KROW::NOFLAG       KCOL::NOFLAG
-#define KROW::PKEY         KCOL::PKEY
-#define KROW::EXPRESSION   KCOL::EXPRESSION
-#define KROW::NUMERIC      KCOL::NUMERIC
-#define KROW::BOOLEAN      KCOL::BOOLEAN
-#define KROW::JSON         KCOL::JSON
-#define KROW::INT64NUMERIC KCOL::INT64NUMERIC
-#endif
 
 } // namespace dekaf2

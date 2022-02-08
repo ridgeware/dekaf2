@@ -1781,6 +1781,9 @@ KStringViewZ KSQL::SerializeOneQueryType(QueryType OneQuery)
 			return "other";
 	}
 
+	// gcc ..
+	return "other";
+
 } // SerializeQueryType
 
 //-----------------------------------------------------------------------------

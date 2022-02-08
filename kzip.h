@@ -64,6 +64,17 @@ class DEKAF2_PUBLIC KZip
 public:
 //------
 
+	/// compression methods
+	enum CompMethod
+	{
+		NONE,
+		DEFLATE,
+		BZIP2,
+		XZ,
+		ZSTD,
+		OTHER
+	};
+
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// class that holds all information about one ZIP archive entry
 	struct DirEntry
@@ -79,6 +90,7 @@ public:
 		uint64_t     iSize;              ///< size of file (uncompressed)
 		uint64_t     iCompSize;          ///< size of file (compressed)
 		time_t       mtime;              ///< modification time
+		CompMethod   Compression;        ///< compression method
 
 		/// clear the DirEntry struct
 		void         clear();
@@ -216,6 +228,16 @@ public:
 		m_sPassword = std::move(sPassword);
 		return *this;
 	}
+
+	/// check if compression method is available on this platform
+	bool HaveCompression(CompMethod Compression);
+
+	/// set compression method for all following files, returns false if not available on this
+	/// platform, in which case the fallback is DEFLATE, which is universally available.
+	/// @param Compression the requested compression method
+	/// @param iCompresionLevel is the compression level in percent, 0 = default, 1 = fastest,
+	/// 100 = slowest (and best compression)
+	bool SetCompression(CompMethod Compression, uint16_t iCompressionLevelInPercent = 0);
 
 	/// open a zip archive, either for reading or for reading and writing
 	bool Open(KStringViewZ sFilename, bool bWrite = false);
@@ -367,16 +389,24 @@ public:
 private:
 //------
 
+	/// converts compression method to zip internal integer
+	static DEKAF2_PRIVATE uint16_t CompMethodToZipInt(CompMethod Compression);
+	static DEKAF2_PRIVATE uint16_t ScaleCompressionLevel(uint16_t iLevel, uint16_t iMax);
+
 	DEKAF2_PRIVATE bool SetError(KString sError) const;
 	DEKAF2_PRIVATE bool SetError(int iError) const;
 	DEKAF2_PRIVATE bool SetError() const;
 	DEKAF2_PRIVATE bool SetEncryptionForFile(uint64_t iIndex);
+	DEKAF2_PRIVATE bool SetCompressionForFile(uint64_t iIndex);
 
 	using Buffer = std::unique_ptr<char[]>;
+
 	std::vector<Buffer> m_WriteBuffers;
-	KString m_sPassword;
-	mutable KString m_sError;
-	bool m_bThrow { false };
+	KString             m_sPassword;
+	mutable KString     m_sError;
+	CompMethod          m_Compression       { CompMethod::DEFLATE };
+	uint16_t            m_iCompressionLevel { 0 };
+	bool                m_bThrow            { false };
 
 	KUniqueVoidPtr D;
 

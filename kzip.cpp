@@ -48,6 +48,10 @@
 
 namespace dekaf2 {
 
+#if (LIBZIP_VERSION_MAJOR > 1) || (LIBZIP_VERSION_MAJOR == 1 && LIBZIP_VERSION_MINOR >= 7)
+	#define DEKAF2_HAVE_LIBZIP_COMPRESSION_METHOD_SUPPORTED 1
+#endif
+
 //-----------------------------------------------------------------------------
 inline zip* pZip(void* p)
 //-----------------------------------------------------------------------------
@@ -138,11 +142,40 @@ bool KZip::DirEntry::from_zip_stat(const struct zip_stat* stat)
 		return false;
 	}
 
-	sName     = stat->name;
-	iIndex    = stat->index;
-	iSize     = stat->size;
-	iCompSize = stat->comp_size;
-	mtime     = stat->mtime;
+	sName      = stat->name;
+	iIndex     = stat->index;
+	iSize      = stat->size;
+	iCompSize  = stat->comp_size;
+	mtime      = stat->mtime;
+
+	switch (stat->comp_method)
+	{
+		case ZIP_CM_STORE:
+			Compression = CompMethod::NONE;
+			break;
+
+		case ZIP_CM_DEFLATE:
+		case ZIP_CM_DEFLATE64:
+			Compression = CompMethod::DEFLATE;
+			break;
+
+#ifdef DEKAF2_HAVE_LIBZIP_COMPRESSION_METHOD_SUPPORTED
+		case 12: //ZIP_CM_BZIP2
+			Compression = CompMethod::BZIP2;
+			break;
+
+		case 95: // ZIP_CM_XZ
+			Compression = CompMethod::XZ;
+			break;
+
+		case 93: // ZIP_CM_ZSTD
+			Compression = CompMethod::ZSTD;
+			break;
+#endif
+		default:
+			Compression = CompMethod::OTHER;
+			break;
+	}
 
 	return true;
 
@@ -601,6 +634,80 @@ bool KZip::ReadAll(KStringViewZ sTargetDirectory, bool bWithSubdirectories)
 } // ReadAll
 
 //-----------------------------------------------------------------------------
+uint16_t KZip::CompMethodToZipInt(CompMethod Compression)
+//-----------------------------------------------------------------------------
+{
+	switch (Compression)
+	{
+		case NONE:    return ZIP_CM_STORE;
+		case DEFLATE: return ZIP_CM_DEFAULT;
+#ifdef ZIP_CM_BZIP2
+		case BZIP2:   return ZIP_CM_BZIP2;
+#endif
+#ifdef ZIP_CM_XZ
+		case XZ:      return ZIP_CM_XZ;
+#endif
+#ifdef ZIP_CM_ZSTD
+		case ZSTD:    return ZIP_CM_ZSTD;
+#endif
+		case OTHER:   return ZIP_CM_DEFAULT;
+	}
+
+	// gcc ..
+	return ZIP_CM_DEFAULT;
+
+} // CompMethodToZipInt
+
+//-----------------------------------------------------------------------------
+bool KZip::HaveCompression(CompMethod Compression)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAVE_LIBZIP_COMPRESSION_METHOD_SUPPORTED
+	return zip_compression_method_supported(CompMethodToZipInt(Compression), 0) == 0;
+#else
+	return false;
+#endif
+
+} // HaveCompression
+
+//-----------------------------------------------------------------------------
+uint16_t KZip::ScaleCompressionLevel(uint16_t iLevel, uint16_t iMax)
+//-----------------------------------------------------------------------------
+{
+	iLevel = (iLevel > 100) ? 100 : iLevel;
+	uint16_t iScaled = iMax * iLevel / 100;
+	iScaled += (iScaled) ? 0 : 1;
+	return iScaled;
+
+} // ScaleLevel
+
+//-----------------------------------------------------------------------------
+bool KZip::SetCompression(CompMethod Compression, uint16_t iCompressionLevelInPercent)
+//-----------------------------------------------------------------------------
+{
+	m_iCompressionLevel = 0;
+
+	if (!HaveCompression(Compression))
+	{
+		kDebug(1, "compression method {} is not supported", Compression);
+		m_Compression = CompMethod::DEFLATE;
+		return false;
+	}
+	else
+	{
+		m_Compression = Compression;
+
+		if (iCompressionLevelInPercent > 0)
+		{
+			// calc compression level between min and max for the algorithm
+			m_iCompressionLevel = ScaleCompressionLevel(iCompressionLevelInPercent, (Compression == ZSTD) ? 19 : 9);
+		}
+		return true;
+	}
+	
+} // SetCompression
+
+//-----------------------------------------------------------------------------
 bool KZip::HaveStrongEncryption() const
 //-----------------------------------------------------------------------------
 {
@@ -616,7 +723,7 @@ bool KZip::SetEncryptionForFile(uint64_t iIndex)
 //-----------------------------------------------------------------------------
 {
 #ifdef ZIP_EM_AES_256
-#if (LIBZIP_VERSION_MAJOR > 1) || (LIBZIP_VERSION_MINOR >= 7)
+#if (LIBZIP_VERSION_MAJOR > 1) || (LIBZIP_VERSION_MAJOR == 1 && LIBZIP_VERSION_MINOR >= 7)
 	if (zip_encryption_method_supported(ZIP_EM_AES_256, 0))
 #else
 	if (true)
@@ -636,6 +743,22 @@ bool KZip::SetEncryptionForFile(uint64_t iIndex)
 	return true;
 
 } // SetEncryptionForFile
+
+//-----------------------------------------------------------------------------
+bool KZip::SetCompressionForFile(uint64_t iIndex)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAVE_LIBZIP_COMPRESSION_METHOD_SUPPORTED
+	if (zip_set_file_compression(pZip(D), iIndex, CompMethodToZipInt(m_Compression), m_iCompressionLevel) == 0)
+	{
+		return true;
+	}
+	return SetError();
+#else
+	return false;
+#endif
+
+} // SetCompressionForFile
 
 //-----------------------------------------------------------------------------
 bool KZip::WriteBuffer(KStringView sBuffer, KStringViewZ sDispname)
@@ -664,6 +787,13 @@ bool KZip::WriteBuffer(KStringView sBuffer, KStringViewZ sDispname)
 		zip_source_free(Source);
 		return SetError();
 	}
+
+#ifdef DEKAF2_HAVE_LIBZIP_COMPRESSION_METHOD_SUPPORTED
+	if (m_Compression != CompMethod::DEFLATE || m_iCompressionLevel > 0)
+	{
+		SetCompressionForFile(iIndex);
+	}
+#endif
 
 	if (!m_sPassword.empty())
 	{

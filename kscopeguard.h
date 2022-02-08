@@ -67,19 +67,16 @@ public:
 	KScopeGuard() = default;
 	KScopeGuard(const KScopeGuard&) = delete;
 
-	KScopeGuard(KScopeGuard&& other) noexcept
-	: m_Callable(std::move(other.m_Callable))
-	{
-		other.dismiss();
-	}
+	/// move construction
+	KScopeGuard(KScopeGuard&& other) noexcept;
 
 	/// Construct a scope guard from any type of callable with function signature void(void), e.g. a lambda
 	/// At end of life of Guard the callable will be called, if not either been trigger() ed or dismiss() ed before.
 	/// Sample:
 	/// @code KScopeGuard Guard = [fd]{ close(fd); };
 	template<class Func>
-	KScopeGuard(const Func& callable)
-	: m_Callable(callable)
+	KScopeGuard(Func callable)
+	: m_Callable(std::move(callable))
 	{}
 
 	/// Calls the callable if still valid
@@ -88,15 +85,17 @@ public:
 		call();
 	}
 
+	/// move assignment
+	KScopeGuard& operator=(KScopeGuard&& other) noexcept;
+
 	/// Call the callable immediately if still valid, invalidates it after execution
 	void trigger() noexcept
 	{
 		call();
-		m_Callable = nullptr;
 	}
 
-	/// Dismiss (delete) the callable so that it will not be executed at end of scope
-	void dismiss() noexcept
+	/// Reset (delete) the callable so that it will not be executed at end of scope
+	void reset() noexcept
 	{
 		m_Callable = nullptr;
 	}

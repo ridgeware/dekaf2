@@ -43,6 +43,28 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
+KScopeGuard::KScopeGuard(KScopeGuard&& other) noexcept
+//-----------------------------------------------------------------------------
+: m_Callable(std::move(other.m_Callable))
+{
+	// for std::function it is not defined which state other has after
+	// a move, therefore reset it explicitly
+	other.reset();
+
+} // move ctor
+
+//-----------------------------------------------------------------------------
+KScopeGuard& KScopeGuard::operator=(KScopeGuard&& other) noexcept
+//-----------------------------------------------------------------------------
+{
+	call();
+	m_Callable = std::move(other.m_Callable);
+	other.reset();
+	return *this;
+
+} // move assignment
+
+//-----------------------------------------------------------------------------
 void KScopeGuard::call() noexcept
 //-----------------------------------------------------------------------------
 {
@@ -55,6 +77,7 @@ void KScopeGuard::call() noexcept
 		catch (...)
 		{
 		}
+		m_Callable = nullptr;
 	}
 
 } // call

@@ -650,7 +650,8 @@ uint16_t KZip::CompMethodToZipInt(CompMethod Compression)
 #ifdef ZIP_CM_ZSTD
 		case ZSTD:    return ZIP_CM_ZSTD;
 #endif
-		case OTHER:   return ZIP_CM_DEFAULT;
+		case OTHER:
+		default:      return ZIP_CM_DEFAULT;
 	}
 
 	// gcc ..

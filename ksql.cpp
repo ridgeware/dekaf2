@@ -1652,7 +1652,7 @@ bool KSQL::IsReadOnlyViolation (QueryType QueryType)
 } // IsReadOnlyViolation
 
 //-----------------------------------------------------------------------------
-KSQL::QueryType KSQL::GetQueryType(KStringView sQuery)
+KSQL::QueryType KSQL::GetQueryType(KStringView sQuery, bool bAllowAny)
 //-----------------------------------------------------------------------------
 {
 	sQuery.TrimLeft();
@@ -1660,62 +1660,65 @@ KSQL::QueryType KSQL::GetQueryType(KStringView sQuery)
 
 	switch (sQuery.CaseHash())
 	{
-		case "select"_hash:
-		case "table"_hash:
-		case "values"_hash:
+		case "select"_casehash:
+		case "table"_casehash:
+		case "values"_casehash:
 			return QueryType::Select;
 
-		case "insert"_hash:
-		case "import"_hash:
-		case "load"_hash:
+		case "insert"_casehash:
+		case "import"_casehash:
+		case "load"_casehash:
 			return QueryType::Insert;
 
-		case "update"_hash:
+		case "update"_casehash:
 			return QueryType::Update;
 
-		case "delete"_hash:
-		case "truncate"_hash:
+		case "delete"_casehash:
+		case "truncate"_casehash:
 			return QueryType::Delete;
 
-		case "create"_hash:
+		case "create"_casehash:
 			return QueryType::Create;
 
-		case "alter"_hash:
-		case "rename"_hash:
+		case "alter"_casehash:
+		case "rename"_casehash:
 			return QueryType::Alter;
 
-		case "drop"_hash:
+		case "drop"_casehash:
 			return QueryType::Drop;
 
-		case "start"_hash:
-		case "begin"_hash:
-		case "commit"_hash:
-		case "rollback"_hash:
+		case "start"_casehash:
+		case "begin"_casehash:
+		case "commit"_casehash:
+		case "rollback"_casehash:
 			return QueryType::Transaction;
 
-		case "exec"_hash:
-		case "call"_hash:
-		case "do"_hash:
+		case "exec"_casehash:
+		case "call"_casehash:
+		case "do"_casehash:
 			return QueryType::Execute;
 
-		case "kill"_hash:
-		case "use"_hash:
-		case "set"_hash:
-		case "grant"_hash:
-		case "lock"_hash:
-		case "unlock"_hash:
+		case "kill"_casehash:
+		case "use"_casehash:
+		case "set"_casehash:
+		case "grant"_casehash:
+		case "lock"_casehash:
+		case "unlock"_casehash:
 			return QueryType::Action;
 
-		case "analyze"_hash:
-		case "optimize"_hash:
-		case "check"_hash:
-		case "repair"_hash:
+		case "analyze"_casehash:
+		case "optimize"_casehash:
+		case "check"_casehash:
+		case "repair"_casehash:
 			return QueryType::Maintenance;
 
-		case "desc"_hash:
-		case "explain"_hash:
-		case "show"_hash:
+		case "desc"_casehash:
+		case "explain"_casehash:
+		case "show"_casehash:
 			return QueryType::Info;
+
+		case "any"_casehash:
+			return bAllowAny ? QueryType::Any : QueryType::Other;
 
 		default:
 			return QueryType::Other;
@@ -1725,6 +1728,98 @@ KSQL::QueryType KSQL::GetQueryType(KStringView sQuery)
 	return QueryType::Other;
 
 } // GetQueryType
+
+//-----------------------------------------------------------------------------
+KStringViewZ KSQL::SerializeOneQueryType(QueryType OneQuery)
+//-----------------------------------------------------------------------------
+{
+	switch (OneQuery)
+	{
+		case QueryType::Any:
+			return "any";
+
+		case QueryType::None:
+			return "none";
+
+		case QueryType::Select:
+			return "select";
+
+		case QueryType::Insert:
+			return "insert";
+
+		case QueryType::Update:
+			return "update";
+
+		case QueryType::Delete:
+			return "delete";
+
+		case QueryType::Create:
+			return "create";
+
+		case QueryType::Alter:
+			return "alter";
+
+		case QueryType::Drop:
+			return "drop";
+
+		case QueryType::Transaction:
+			return "transaction";
+
+		case QueryType::Execute:
+			return "execute";
+
+		case QueryType::Action:
+			return "action";
+
+		case QueryType::Maintenance:
+			return "maintenance";
+
+		case QueryType::Info:
+			return "info";
+
+		case QueryType::Other:
+			return "other";
+	}
+
+} // SerializeQueryType
+
+//-----------------------------------------------------------------------------
+std::vector<KStringViewZ> KSQL::SerializeQueryTypes(QueryType Query)
+//-----------------------------------------------------------------------------
+{
+	std::vector<KStringViewZ> Result;
+
+	if (Query >= QueryType::Any)
+	{
+		Result.push_back("any");
+	}
+	else
+	{
+		using eType = std::underlying_type<QueryType>::type;
+
+		eType mask = 1;
+
+		for (;;)
+		{
+			auto Masked = Query & static_cast<QueryType>(mask);
+
+			if (Masked != QueryType::None)
+			{
+				Result.push_back(SerializeOneQueryType(Masked));
+			}
+
+			if (mask >= static_cast<eType>(QueryType::Any))
+			{
+				break;
+			}
+
+			mask <<= 1;
+		}
+	}
+
+	return Result;
+
+} // SerializeQueryType
 
 //-----------------------------------------------------------------------------
 bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQL"*/)
@@ -1764,20 +1859,17 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		}
 
 		// add this query to the list of timed connections..
-		kDebug(2, "query will timeout after {}ms", m_QueryTimeout.count());
+		kDebug(2, "'{}' query will timeout after {}ms", SerializeOneQueryType(QueryType), m_QueryTimeout.count());
 		s_TimedConnections.Add(*this);
 	}
 
-	// revoke our connection from the connection timeout watchlist at end of block
-	KScopeGuard GuardQueryTimeout = [this]
-	{
-		s_TimedConnections.Remove(*this);
-	};
+	// setup an empty scope guard
+	KScopeGuard GuardQueryTimeout;
 
-	// and disable right away in case we are not required to watch this query
-	if (!bQueryTypeMatch)
+	if (bQueryTypeMatch)
 	{
-		GuardQueryTimeout.dismiss();
+		// revoke our connection from the connection timeout watchlist at end of block
+		GuardQueryTimeout = [this]{ s_TimedConnections.Remove(*this); };
 	}
 
 	m_SQLStmtStats.Collect(m_sLastSQL, QueryType);
@@ -9439,6 +9531,7 @@ void KSQL::SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType QueryTyp
 {
 	if (Timeout.count() == 0 || QueryType == QueryType::None)
 	{
+		kDebug(1, "clearing per-instance query timeout settings");
 		// clear timeout settings
 		m_bEnableQueryTimeout = false;
 		m_QueryTimeout        = std::chrono::milliseconds(0);
@@ -9446,6 +9539,7 @@ void KSQL::SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType QueryTyp
 	}
 	else
 	{
+		kDebug(1, "setting per-instance query timeout to {}ms for query types '{}'", Timeout.count(), kJoined(SerializeQueryTypes(QueryType)));
 		m_bEnableQueryTimeout = true;
 		m_QueryTimeout        = Timeout;
 		m_QueryTypeForTimeout = QueryType;
@@ -9459,12 +9553,14 @@ void KSQL::SetDefaultQueryTimeout(std::chrono::milliseconds Timeout, QueryType Q
 {
 	if (Timeout.count() == 0 || QueryType == QueryType::None)
 	{
+		kDebug(1, "clearing default query timeout settings");
 		// clear timeout settings
 		s_QueryTimeout        = std::chrono::milliseconds(0);
 		s_QueryTypeForTimeout = QueryType::None;
 	}
 	else
 	{
+		kDebug(1, "setting default query timeout to {}ms for query types '{}'", Timeout.count(), kJoined(SerializeQueryTypes(QueryType)));
 		s_QueryTimeout        = Timeout;
 		s_QueryTypeForTimeout = QueryType;
 	}

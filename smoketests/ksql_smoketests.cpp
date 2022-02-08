@@ -253,7 +253,7 @@ TEST_CASE("KSQL")
 	SECTION("KSQL: full suite")
 	{
 		// set a default timeout to check that it is shared with all new connectors
-		KSQL::SetDefaultQueryTimeout(std::chrono::milliseconds(100), KSQL::QueryType::Select);
+		KSQL::SetDefaultQueryTimeout(std::chrono::milliseconds(100), KSQL::QueryType::Select | KSQL::QueryType::Update);
 
 		KSQL db; // <-- shared across the remaining tests
 

@@ -413,11 +413,17 @@ public:
 		Maintenance = 1 << 10,   // analyze, optimize, check, repair
 		Info        = 1 << 11,   // desc, explain, show
 		Other       = 1 << 12,
-		Any         = ~None
+		Any         = Select|Insert|Update|Delete|Create|Alter|Drop|Transaction|Execute|Action|Maintenance|Info|Other
 	};
 
-	/// returns QueryType of a query string
-	static QueryType GetQueryType(KStringView sQuery);
+	/// returns QueryType of a query string - if bAllowAny == true, the string "any" will select all query types
+	static QueryType GetQueryType(KStringView sQuery, bool bAllowAny = false);
+
+	/// returns a string with the name of the single selected query type
+	static KStringViewZ SerializeOneQueryType(QueryType OneQueryType);
+
+	/// returns a string with the names of the selected query types
+	static std::vector<KStringViewZ> SerializeQueryTypes(QueryType QueryType);
 
 	/// set a timeout and type of query to abort after the timeout expired
 	void SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType Queries = QueryType::Any);

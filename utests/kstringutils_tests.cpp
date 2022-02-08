@@ -973,4 +973,50 @@ TEST_CASE("KStringUtils") {
 		CHECK ( sRet == "hello" );
 	}
 
+	SECTION("kIsAtStartofWordASCII")
+	{
+		KStringView sHaystack = "that (is) a string";
+		auto iPos = sHaystack.find("is");
+		CHECK ( kIsAtStartofWordASCII(sHaystack.begin(), sHaystack.begin()+iPos) == true  );
+		iPos = sHaystack.find("that");
+		CHECK ( kIsAtStartofWordASCII(sHaystack.begin(), sHaystack.begin()+iPos) == true  );
+		iPos = sHaystack.find("hat");
+		CHECK ( kIsAtStartofWordASCII(sHaystack.begin(), sHaystack.begin()+iPos) == false );
+		iPos = sHaystack.find("is");
+		CHECK ( kIsAtStartofWordASCII(sHaystack, iPos) == true  );
+		iPos = sHaystack.find("that");
+		CHECK ( kIsAtStartofWordASCII(sHaystack, iPos) == true  );
+		iPos = sHaystack.find("hat");
+		CHECK ( kIsAtStartofWordASCII(sHaystack, iPos) == false );
+	}
+
+	SECTION("kIsAtEndofWordASCII")
+	{
+		KStringView sHaystack = "that (is) a string";
+		auto iPos = sHaystack.find("is");
+		std::size_t iSize = 2;
+		CHECK ( kIsAtEndofWordASCII(sHaystack.end(), sHaystack.begin()+iPos+iSize) == true  );
+		iPos = sHaystack.find("that");
+		iSize = 4;
+		CHECK ( kIsAtEndofWordASCII(sHaystack.end(), sHaystack.begin()+iPos+iSize) == true  );
+		iPos = sHaystack.find("ring");
+		iSize = 4;
+		CHECK ( kIsAtEndofWordASCII(sHaystack.end(), sHaystack.begin()+iPos+iSize) == true  );
+		iPos = sHaystack.find("str");
+		iSize = 3;
+		CHECK ( kIsAtEndofWordASCII(sHaystack.end(), sHaystack.begin()+iPos+iSize) == false );
+		iPos = sHaystack.find("is");
+		iSize = 2;
+		CHECK ( kIsAtEndofWordASCII(sHaystack, iPos+iSize) == true  );
+		iPos = sHaystack.find("that");
+		iSize = 4;
+		CHECK ( kIsAtEndofWordASCII(sHaystack, iPos+iSize) == true  );
+		iPos = sHaystack.find("ring");
+		iSize = 4;
+		CHECK ( kIsAtEndofWordASCII(sHaystack, iPos+iSize) == true  );
+		iPos = sHaystack.find("str");
+		iSize = 3;
+		CHECK ( kIsAtEndofWordASCII(sHaystack, iPos+iSize) == false );
+	}
+
 }

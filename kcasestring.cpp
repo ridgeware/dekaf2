@@ -42,12 +42,14 @@
 #include "kcasestring.h"
 #include "kstringutils.h"
 #include <cctype>
+#include <algorithm>
+#include <array>
 
 namespace dekaf2 {
 
 namespace {
 
-static constexpr unsigned char toLowcase[] =
+static constexpr std::array<unsigned char, 256> toLowcase =
 {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
@@ -84,8 +86,9 @@ static constexpr unsigned char toLowcase[] =
 };
 
 //-----------------------------------------------------------------------------
+template<class Predicate>
 bool kCaseEqualInt(KStringView left, KStringView right,
-				   std::function<bool(const char, const char)> func,
+				   Predicate comp,
 				   bool bAllowShortCircuit)
 //-----------------------------------------------------------------------------
 {
@@ -104,7 +107,7 @@ bool kCaseEqualInt(KStringView left, KStringView right,
 	return std::equal(left.begin(),
 					  left.end(),
 					  right.begin(),
-					  func);
+					  comp);
 
 };
 
@@ -231,7 +234,11 @@ bool kCaseEndsWith(KStringView left, KStringView right)
 }
 
 //----------------------------------------------------------------------
-KStringView::size_type kCaseFind(KStringView sHaystack, KStringView sNeedle, KStringView::size_type iPos)
+template<class Predicate>
+KStringView::size_type kCaseFind(KStringView sHaystack,
+								 KStringView sNeedle,
+								 KStringView::size_type iPos,
+								 Predicate comp)
 //----------------------------------------------------------------------
 {
 	if (iPos > sHaystack.size())
@@ -239,11 +246,7 @@ KStringView::size_type kCaseFind(KStringView sHaystack, KStringView sNeedle, KSt
 		iPos = sHaystack.size();
 	}
 
-	auto it = std::search(sHaystack.begin() + iPos, sHaystack.end(), sNeedle.begin(), sNeedle.end(), [](const char c1, const char c2)
-	{
-		return toLowcase[static_cast<unsigned char>(c1)]
-				== toLowcase[static_cast<unsigned char>(c2)];
-	});
+	auto it = std::search(sHaystack.begin() + iPos, sHaystack.end(), sNeedle.begin(), sNeedle.end(), comp);
 
 	if (it == sHaystack.end())
 	{
@@ -255,28 +258,32 @@ KStringView::size_type kCaseFind(KStringView sHaystack, KStringView sNeedle, KSt
 } // kCaseFind
 
 //----------------------------------------------------------------------
-KStringView::size_type kCaseFindLeft(KStringView sHaystack, KStringView sNeedle, KStringView::size_type iPos)
+KStringView::size_type kCaseFind(KStringView sHaystack,
+								 KStringView sNeedle,
+								 KStringView::size_type iPos)
 //----------------------------------------------------------------------
 {
-	if (iPos > sHaystack.size())
+	return kCaseFind(sHaystack, sNeedle, iPos, [](const char c1, const char c2)
 	{
-		iPos = sHaystack.size();
-	}
-
-	auto it = std::search(sHaystack.begin() + iPos, sHaystack.end(), sNeedle.begin(), sNeedle.end(), [](const char c1, const char c2)
-	{
-		return toLowcase[static_cast<unsigned char>(c1)]
-				== static_cast<unsigned char>(c2);
+			 return toLowcase[static_cast<unsigned char>(c1)]
+					 == toLowcase[static_cast<unsigned char>(c2)];
 	});
 
-	if (it == sHaystack.end())
-	{
-		return KStringView::npos;
-	}
-
-	return it - sHaystack.begin();
-
 } // kCaseFind
+
+//----------------------------------------------------------------------
+KStringView::size_type kCaseFindLeft(KStringView sHaystack,
+									 KStringView sNeedle,
+									 KStringView::size_type iPos)
+//----------------------------------------------------------------------
+{
+	return kCaseFind(sHaystack, sNeedle, iPos, [](const char c1, const char c2)
+	{
+			 return toLowcase[static_cast<unsigned char>(c1)]
+					 == static_cast<unsigned char>(c2);
+	});
+
+} // kCaseFindLeft
 
 //-----------------------------------------------------------------------------
 bool kCaseBeginsWithLeft(KStringView left, KStringView right)

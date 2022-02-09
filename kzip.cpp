@@ -663,6 +663,26 @@ uint16_t KZip::CompMethodToZipInt(CompMethod Compression)
 bool KZip::HaveCompression(CompMethod Compression)
 //-----------------------------------------------------------------------------
 {
+	switch (Compression)
+	{
+		case CompMethod::NONE:
+		case CompMethod::DEFLATE:
+			return true;
+#ifndef ZIP_CM_BZIP2
+		case CompMethod::BZIP2:
+			return false;
+#endif
+#ifndef ZIP_CM_XZ
+		case CompMethod::XZ:
+			return false;
+#endif
+#ifndef ZIP_CM_ZSTD
+		case CompMethod::ZSTD:
+			return false;
+#endif
+		default:
+			break;
+	}
 #ifdef DEKAF2_HAVE_LIBZIP_COMPRESSION_METHOD_SUPPORTED
 	return zip_compression_method_supported(CompMethodToZipInt(Compression), 0) == 0;
 #else

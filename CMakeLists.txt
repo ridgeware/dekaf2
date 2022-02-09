@@ -712,7 +712,7 @@ set(PUBLIC_HEADERS
 )
 
 if (DEKAF2_HAS_LIBZIP)
-	list(APPEND PUBLIC_HEADERS}
+	list(APPEND PUBLIC_HEADERS
 		kzip.h
 	)
 endif()

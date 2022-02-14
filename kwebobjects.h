@@ -1849,6 +1849,12 @@ protected:
 		DispValue();
 	}
 
+	void FromString(KStringView sValue)
+	{
+		m_iValue = std::min(std::max(kFromString<Arithmetic>(sValue), m_iMin), m_iMax);
+		DispValue();
+	}
+
 	virtual void Reset(KWebObjectBase* Element) override
 	{
 		// no need to do anything as Sync is always called for number inputs
@@ -1856,8 +1862,26 @@ protected:
 
 	virtual void Sync(KWebObjectBase* Element, KStringView sValue) override
 	{
-		m_iValue = std::min(std::max(kFromString<Arithmetic>(sValue), m_iMin), m_iMax);
-		DispValue();
+		if DEKAF2_CONSTEXPR_IF(std::is_floating_point<Arithmetic>::value)
+		{
+			// make sure we recognize a decimal point as well if the browser
+			// encodes it in a different user locale..
+			auto iPos = sValue.find_first_of(".,");
+
+			if (iPos != KStringView::npos)
+			{
+				auto dp = kGetDecimalPoint();
+
+				if (sValue[iPos] != dp)
+				{
+					KString sTmp(sValue);
+					sTmp[iPos] = dp;
+					FromString(sTmp);
+					return;
+				}
+			}
+		}
+		FromString(sValue);
 	}
 
 	virtual void* AddressOfInputStorage() override

@@ -206,5 +206,13 @@ bool kSetGlobalLocale(KStringViewZ sLocale = KStringViewZ{});
 DEKAF2_PUBLIC
 std::locale kGetGlobalLocale();
 
+/// @return the decimal point in the currently set global locale
+DEKAF2_PUBLIC
+char kGetDecimalPoint();
+
+/// @return the thousands separator in the currently set global locale
+DEKAF2_PUBLIC
+char kGetThousandsSeparator();
+
 } // end of namespace dekaf2
 

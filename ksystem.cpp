@@ -906,5 +906,39 @@ std::locale kGetGlobalLocale()
 
 } // kGetGlobalLocale
 
+//-----------------------------------------------------------------------------
+char kGetDecimalPoint()
+//-----------------------------------------------------------------------------
+{
+	auto locale = kGetGlobalLocale();
+
+	if (std::has_facet<std::numpunct<char>>(locale))
+	{
+		return std::use_facet<std::numpunct<char>>(locale).decimal_point();
+	}
+	else
+	{
+		return '.';
+	}
+
+} // kGetDecimalPoint
+
+//-----------------------------------------------------------------------------
+char kGetThousandsSeparator()
+//-----------------------------------------------------------------------------
+{
+	auto locale = kGetGlobalLocale();
+
+	if (std::has_facet<std::numpunct<char>>(locale))
+	{
+		return std::use_facet<std::numpunct<char>>(locale).thousands_sep();
+	}
+	else
+	{
+		return ',';
+	}
+
+} // kGetThousandsSeparator
+
 } // end of namespace dekaf2
 

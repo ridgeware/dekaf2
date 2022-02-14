@@ -96,6 +96,11 @@ text-decoration: none
 					</label>
 					<br/>
 					<label>
+						<input max="0.99" min="0.01" name="maxconfidence" step="0.025" type="number" value="0.99"/>
+						max confidence value, from 0.0 .. 1.0
+					</label>
+					<br/>
+					<label>
 						<input name="nodetect" type="checkbox"/>
 						no object detection
 					</label>
@@ -218,6 +223,7 @@ text-decoration: none
 			COLOR   Color    { GREEN };
 			std::chrono::high_resolution_clock::duration dInterval { 0 };
 			double m_fMinConfidence { 0.0 };
+			double m_fMaxConfidence { 0.0 };
 			bool bNoDetect   { false };
 			bool bNoDisplay  { false };
 			bool bNoOverlay  { false };
@@ -232,7 +238,8 @@ text-decoration: none
 		Parms.Add("nodisplay" , "on"    );
 		Parms.Add("interval"  , "60"    );
 		Parms.Add("confidence", "0.55"  );
-		Parms.Add("_fobj3"    , "1001"  ); // this value is too large for the object (max = 1000)
+		Parms.Add("maxconfidence", "0,99"); // try different decimal point
+		Parms.Add("_fobj3"    , "1001"  );  // this value is too large for the object (max = 1000)
 		Parms.Add("selection" , "_fobj7");
 		Parms.Add("_fobj9"    , "3"     );
 
@@ -303,6 +310,8 @@ text-decoration: none
 				auto& group = form.Add(html::FieldSet("Display"));
 				group += html::NumericInput(m_Config.m_fMinConfidence, "confidence").SetLabelAfter("confidence value, from 0.0 .. 1.0").SetRange(0.01, 0.99).SetStep(0.0250);
 				group += html::Break();
+				group += html::NumericInput(m_Config.m_fMaxConfidence, "maxconfidence").SetLabelAfter("max confidence value, from 0.0 .. 1.0").SetRange(0.01, 0.99).SetStep(0.0250);
+				group += html::Break();
 				group += html::CheckBox(m_Config.bNoDetect   , "nodetect"  ).SetLabelAfter("no object detection"       );
 				group += html::Break();
 				group += html::CheckBox(m_Config.bNoDisplay  , "nodisplay" ).SetLabelAfter("do not open camera windows");
@@ -355,6 +364,11 @@ text-decoration: none
 		sCRLF.Replace("\n", "\r\n");
 
 		CHECK( page.Print() == sCRLF );
+		CHECK( m_Config.m_fMinConfidence == 0.55 );
+		CHECK( m_Config.m_fMaxConfidence == 0.99 );
+		CHECK( m_Config.bNoDisplay       == true );
+		CHECK( m_Config.sMailTo          == "xyz");
+		CHECK( m_Config.iMotionArea      == 1000 );
 
 		auto sDiff = print_diff(page.Print(), sCRLF);
 		if (!sDiff.empty())

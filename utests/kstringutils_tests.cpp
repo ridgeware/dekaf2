@@ -973,6 +973,54 @@ TEST_CASE("KStringUtils") {
 		CHECK ( sRet == "hello" );
 	}
 
+	SECTION("kFromString")
+	{
+		{
+			auto iVal = kFromString<int>("12345");
+			CHECK ( iVal == 12345 );
+		}
+		{
+			auto iVal = kFromString<uint16_t>("12345");
+			CHECK ( iVal == 12345 );
+		}
+		{
+			auto iVal = kFromString<int16_t>("-12345");
+			CHECK ( iVal == -12345 );
+		}
+		{
+			auto iVal = kFromString<double>("12345.123");
+			CHECK ( iVal == 12345.123 );
+		}
+		{
+			auto iVal = kFromString<double>("12345,123");
+			CHECK ( iVal == 12345.0 );
+		}
+		{
+			auto iVal = kFromString<float>("12345.123");
+			CHECK ( iVal == 12345.12305f );
+		}
+		{
+			auto iVal = kFromString<float>("12345,123");
+			CHECK ( iVal == 12345.0 );
+		}
+		{
+			auto iVal = kFromString<double>("-12345.123");
+			CHECK ( iVal == -12345.123 );
+		}
+		{
+			auto iVal = kFromString<double>("-12345,123");
+			CHECK ( iVal == -12345.0 );
+		}
+		{
+			auto iVal = kFromString<float>("-12345.123");
+			CHECK ( iVal == -12345.12305f );
+		}
+		{
+			auto iVal = kFromString<float>("-12345,123");
+			CHECK ( iVal == -12345.0 );
+		}
+	}
+
 	SECTION("kIsAtStartofWordASCII")
 	{
 		KStringView sHaystack = "that (is) a string";

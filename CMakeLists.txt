@@ -118,13 +118,13 @@ set(dekaf2_share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}-${lib_versi
 # =================================== ENVIRONMENT ==================================
 
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
-	set (CPU_x86 1)
+	set (CPU_x86 32)
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
-	set (CPU_x86 1)
+	set (CPU_x86 64)
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
-	set (CPU_ARM 1)
+	set (CPU_ARM 32)
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch")
-	set (CPU_ARM 1)
+	set (CPU_ARM 64)
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -905,6 +905,10 @@ endif ()
 
 # =============================== TARGETS ====================================
 
+if (CPU_ARM)
+	set(ARM_NEEDS_ATOMIC_LIB atomic)
+endif()
+
 # we add the HEADERS as well, as otherwise cmake based IDEs would not see them
 # as belonging to the project. CMake would not need them here.
 add_library(dekaf2 ${HEADERS} ${SOURCES})
@@ -989,6 +993,7 @@ target_link_libraries(ksql2
 	PRIVATE
 		${MYSQL_LIBRARIES}
 		${FREETDS_LIBRARIES}
+		${ARM_NEEDS_ATOMIC_LIB}
 	)
 target_include_directories(ksql2
 	PRIVATE

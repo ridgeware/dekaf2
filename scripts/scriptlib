@@ -68,6 +68,21 @@ Die ()
 
 } # Die
 
+setx=InstallOptionalSystemPackages
+#==============================
+InstallOptionalSystemPackages ()
+#==============================
+{
+	while [[ $# -gt 0 ]]; do
+		if ! IsSystemPackageInstalled "${1}"; then
+			Info "installing missing ${BINDIR} package '${1}' ..."
+			${INSTALL} "${1}" || Info "could not install package '${1}'"
+		fi
+		shift
+	done
+
+} # InstallOptionalSystemPackages
+
 setx=InstallSystemPackages
 #==============================
 InstallSystemPackages ()

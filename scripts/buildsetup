@@ -49,22 +49,26 @@ BuildSetup ()
 
 		case "${DISTRIB}" in
 			darwin)
-				InstallSystemPackages cmake boost openssl mariadb sqlite wget doxygen graphviz libzip xz \
-					zstd brotli
+				InstallSystemPackages cmake boost openssl wget
+				
+				InstallOptionalSystemPackages doxygen graphviz libzip xz zstd brotli mariadb sqlite
 				;;
 			debian)
 				# make sure the repo content lists are current
 				sudo apt-get update -y
 
-				InstallSystemPackages cmake libboost-all${DEVPKG} openssl libssl-dev libmariadb${DEVPKG} \
-					sqlite3 libsqlite3${DEVPKG} wget doxygen graphviz git sed tar gcc \
-					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g-dev libzip${DEVPKG} liblzma${DEVPKG} \
-					libzstd${DEVPKG} libbrotli${DEVPKG}
+				InstallSystemPackages cmake libboost-all${DEVPKG} openssl libssl-dev wget git sed tar gcc \
+					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g-dev
+
+				InstallOptionalSystemPackages libmariadb${DEVPKG} sqlite3 libsqlite3${DEVPKG} doxygen graphviz \
+					libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG} libbrotli${DEVPKG}
 				;;
 			*)
-				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} mariadb${DEVPKG} \
-					sqlite${DEVPKG} wget doxygen graphviz git sed tar gcc \
-					zlib${DEVPKG} bzip2${DEVPKG} libzip${DEVPKG} xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG}
+				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} wget git sed tar gcc \
+					zlib${DEVPKG} bzip2${DEVPKG}
+
+				InstallOptionalSystemPackages mariadb${DEVPKG} sqlite${DEVPKG} doxygen graphviz libzip${DEVPKG} \
+					xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG}
 				;;
 		esac
 

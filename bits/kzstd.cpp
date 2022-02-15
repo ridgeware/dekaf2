@@ -17,6 +17,11 @@
 
 #include <zstd.h>
 
+// check zstd lib version
+#if (ZSTD_VERSION_MAJOR > 1) || (ZSTD_VERSION_MAJOR == 1 && ZSTD_VERSION_MINOR >= 4)
+	#define DEKAF2_HAS_ZSTD_STREAM_2 1
+#endif
+
 #include <boost/throw_exception.hpp>
 #include <boost/iostreams/detail/config/dyn_link.hpp>
 
@@ -36,9 +41,16 @@ const int stream_end           = 1;
 
                     // Flush codes
 
+#ifdef DEKAF2_HAS_ZSTD_STREAM_2
 const int finish               = ZSTD_e_end;
 const int flush                = ZSTD_e_flush;
 const int run                  = ZSTD_e_continue;
+#else
+const int finish               = 2;
+const int flush                = 1;
+const int run                  = 0;
+#endif
+
 } // End namespace zstd.
 
 //------------------Implementation of zstd_error------------------------------//
@@ -102,10 +114,18 @@ int zstd_base::deflate(int action)
     // Ignore spurious extra calls.
     // Note size > 0 will trigger an error in this case.
     if (eof_ && in->size == 0) return zstd::stream_end;
+#ifndef DEKAF2_HAS_ZSTD_STREAM_2
+	size_t result = ZSTD_compressStream(s, out, in);
+#else
 	size_t result = ZSTD_compressStream2(s, out, in, static_cast<ZSTD_EndDirective>(action));
+#endif
     zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(result);
     if (action != zstd::run)
     {
+#ifndef DEKAF2_HAS_ZSTD_STREAM_2
+		result = action == zstd::finish ? ZSTD_endStream(s, out) : ZSTD_flushStream(s, out);
+		zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(result);
+#endif
         eof_ = action == zstd::finish && result == 0;
         return result == 0 ? zstd::stream_end : zstd::okay;
     }
@@ -141,9 +161,11 @@ void zstd_base::reset(bool compress, bool realloc)
 				ZSTD_initCStream(static_cast<ZSTD_CStream *>(cstream_), level)
 			);
 
+#ifdef DEKAF2_HAS_ZSTD_STREAM_2
 			zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
 				ZSTD_CCtx_setParameter(static_cast<ZSTD_CStream *>(cstream_), ZSTD_c_nbWorkers, iMultiThreading)
 			);
+#endif
 		}
 		else
 		{
@@ -180,9 +202,11 @@ void zstd_base::do_init
 			ZSTD_initCStream(static_cast<ZSTD_CStream *>(cstream_), level)
 		);
 		
+#ifdef DEKAF2_HAS_ZSTD_STREAM_2
 		zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
 			ZSTD_CCtx_setParameter(static_cast<ZSTD_CStream *>(cstream_), ZSTD_c_nbWorkers, iMultiThreading)
 		);
+#endif
 	}
 	else
 	{

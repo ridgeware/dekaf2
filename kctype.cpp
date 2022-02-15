@@ -84,10 +84,10 @@ KCodePoint::Property KCodePoint::GetHighUnicodeProperty() const
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
-constexpr Unicode::codepoint_t MAX_ASCII;
-constexpr Unicode::codepoint_t MAX_CASEFOLDS;
-constexpr Unicode::codepoint_t MAX_TABLE;
-constexpr std::array<uint8_t, MAX_ASCII + 1> KCodePoint::ASCIITable;
+constexpr Unicode::codepoint_t KCodePoint::MAX_ASCII;
+constexpr Unicode::codepoint_t KCodePoint::MAX_CASEFOLDS;
+constexpr Unicode::codepoint_t KCodePoint::MAX_TABLE;
+constexpr std::array<KCodePoint::CTYPE, KCodePoint::MAX_ASCII + 1> KCodePoint::ASCIITable;
 
 #endif
 

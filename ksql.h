@@ -841,14 +841,14 @@ public:
 	/// or
 	/// auto sql = ksql.Throw();
 	/// sql->ExecSQL("...");
-	auto Throw()   { return ThrowingSQL(*this, true ); }
+	auto Throw()   { return ThrowingSQL<KSQL>(*this, true ); }
 	/// returns helper object to access to KSQL in non-throwing mode, and reset mode after use
 	/// @code use like:
 	/// ksql.NoThrow()->ExecSQL("...");
 	/// or
 	/// auto sql = ksql.NoThrow();
 	/// sql->ExecSQL("...");
-	auto NoThrow() { return ThrowingSQL(*this, false); }
+	auto NoThrow() { return ThrowingSQL<KSQL>(*this, false); }
 
 	bool GetLock (KStringView sName, int16_t iTimeoutSeconds = -1);
 	bool ReleaseLock (KStringView sName);

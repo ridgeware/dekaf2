@@ -373,7 +373,8 @@ using void_t = void;
 // Make sure we have std::apply from C++17 available in namespace std::
 // It does not matter if they had been declared by other code already. The compiler
 // simply picks the first one that matches.
-#ifndef DEKAF2_HAS_CPP_17
+// Old gcc versions < 7 do not have std::apply even in C++17 mode
+#if !defined(DEKAF2_HAS_CPP_17) || (defined(DEKAF2_IS_GCC) && DEKAF2_GCC_VERSION < 70000)
 namespace std
 {
 	#ifdef DEKAF2_HAS_CPP_14

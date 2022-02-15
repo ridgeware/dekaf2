@@ -902,9 +902,6 @@ static_assert(std::is_nothrow_move_constructible<KStringView>::value,
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
-namespace detail {
-constexpr KStringView kASCIISpaces;
-}
 constexpr KStringView::size_type KStringView::npos;
 constexpr KStringView::value_type KStringView::s_0ch;
 

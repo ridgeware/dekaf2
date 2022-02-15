@@ -217,7 +217,23 @@ class KWebObject : public KWebObjectBase
 public:
 //----------
 
+#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 70000
 	using KWebObjectBase::KWebObjectBase;
+#else
+	KWebObject<Derived>()
+	{
+	}
+	KWebObject<Derived>(KString sElement, KStringView sID = KStringView{})
+	: KWebObjectBase(std::move(sElement), sID)
+	{
+	}
+	KWebObject<Derived>(KString sElement, KStringView sID, const html::Classes& Classes)
+	: KWebObjectBase(std::move(sElement), sID, Classes)
+	{
+	}
+	KWebObject<Derived>(KString sElement, KStringView sID, KStringView sClass) = delete;
+#endif
+
 	using self = Derived;
 
 	/// Append an element to the list of children, return parent lvalue reference. Use Add() instead to return child reference
@@ -360,10 +376,12 @@ public:
 protected:
 //----------
 
+#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 70000
 	// do not allow an instance of this class without child
 	KWebObject() = default;
 	KWebObject(const KWebObject&) = default;
 	KWebObject(KWebObject&&) = default;
+#endif
 
 	self& SetSource(KStringView sSource) &
 	{

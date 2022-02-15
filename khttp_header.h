@@ -54,6 +54,8 @@
 	&& !defined(_MSC_VER) \
 	&& defined(DEKAF2_HAS_CPP_14)
 		#define DEKAF2_KHTTP_HEADER_CONSTEXPR_14 constexpr
+#else
+		#define DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 #endif
 namespace dekaf2 {
 

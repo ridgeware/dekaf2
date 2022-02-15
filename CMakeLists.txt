@@ -1038,7 +1038,6 @@ add_dependencies(genunicodetables dekaf2)
 add_subdirectory(utests)
 add_subdirectory(smoketests)
 add_subdirectory(benchmarks)
-add_subdirectory(samples)
 
 # ================================= INSTALLATION =====================================
 

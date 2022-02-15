@@ -69,9 +69,9 @@ namespace dekaf2
 
 // POSIX compliant systems check the following extensions on locales when en_US.UTF-8 is used:
 // en_US.UTF-8, en_US.utf8, en_US, en.UTF-8, en.utf8, and en
-constexpr KStringViewZ DefaultLocale = "en_US.UTF-8";
-std::atomic_bool Dekaf::s_bStarted  = false;
-std::atomic_bool Dekaf::s_bShutdown = false;
+constexpr KStringViewZ DefaultLocale { "en_US.UTF-8" };
+std::atomic_bool Dekaf::s_bStarted   { false };
+std::atomic_bool Dekaf::s_bShutdown  { false };
 
 #if defined(DEKAF2_HAS_LIBPROC) || defined(DEKAF2_IS_UNIX)
 //---------------------------------------------------------------------------

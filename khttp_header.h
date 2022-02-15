@@ -50,6 +50,11 @@
 #include "kformat.h"
 #include <memory>
 
+#if (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 90000) \
+	&& !defined(_MSC_VER) \
+	&& defined(DEKAF2_HAS_CPP_14)
+		#define DEKAF2_KHTTP_HEADER_CONSTEXPR_14 constexpr
+#endif
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -145,14 +150,12 @@ public:
 	static_assert(static_cast<uint16_t>(OTHER) < 256, "more than 256 Header enum values, modify Hash() calculations");
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	KHTTPHeader() = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-#ifndef DEKAF2_IS_WINDOWS
-	DEKAF2_CONSTEXPR_14
-#endif
+	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	KHTTPHeader(const KHTTPHeader& other)
 	//-----------------------------------------------------------------------------
 	: m_header(other.m_header)
@@ -187,7 +190,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	KHTTPHeader(Header header) noexcept
 	//-----------------------------------------------------------------------------
 	: m_header(header)
@@ -196,7 +199,7 @@ public:
 	//-----------------------------------------------------------------------------
 	template<typename T,
 			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	KHTTPHeader(T&& sHeader)
 	//-----------------------------------------------------------------------------
 	: m_header(Parse(sHeader))
@@ -210,7 +213,7 @@ public:
 	//-------------------------------------------------------------------------
 	template<typename T,
 			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	KHTTPHeader& operator=(T&& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -219,7 +222,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	KStringViewZ Serialize() const
 	//-----------------------------------------------------------------------------
 	{
@@ -383,15 +386,13 @@ public:
 		}
 
 		// not found..
-#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 90000
-		// gcc 8.3.1 complains that kDebug is not constexpr..
 		kDebug(0, "missing switch case: {}", m_header);
-#endif
+
 		return "";
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	operator KStringView() const
 	//-----------------------------------------------------------------------------
 	{
@@ -399,7 +400,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	bool empty() const
 	//-----------------------------------------------------------------------------
 	{
@@ -415,7 +416,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	static Header Parse(KStringView sHeader)
 	//-----------------------------------------------------------------------------
 	{
@@ -591,7 +592,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	std::size_t Hash() const
 	//-----------------------------------------------------------------------------
 	{
@@ -607,13 +608,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 90000
-	DEKAF2_CONSTEXPR_14
-#else
-	// gcc 8.3.1 insists that all paths through a constexpr function
-	// have to be constexpr..
-	DEKAF2_CONSTEXPR_20
-#endif
+	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	friend bool operator==(const KHTTPHeader& left, const KHTTPHeader& right)
 	//-----------------------------------------------------------------------------
 	{
@@ -641,13 +636,7 @@ private:
 }; // KHTTPHeader
 
 //-----------------------------------------------------------------------------
-#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 90000
-DEKAF2_CONSTEXPR_14
-#else
-// gcc 8.3.1 insists that all paths through a constexpr function
-// have to be constexpr..
-DEKAF2_CONSTEXPR_20
-#endif
+DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 DEKAF2_PUBLIC
 bool operator!=(const KHTTPHeader& left, const KHTTPHeader& right)
 //-----------------------------------------------------------------------------
@@ -677,7 +666,7 @@ namespace std
 	/// provide a std::hash for KHTTPHeader
 	template<> struct hash<dekaf2::KHTTPHeader>
 	{
-		DEKAF2_CONSTEXPR_14
+		DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 		std::size_t operator()(const dekaf2::KHTTPHeader& header) const noexcept
 		{
 			return header.Hash();
@@ -697,7 +686,7 @@ namespace boost
 	template<> struct hash<dekaf2::KHTTPHeader>
 #endif
 	{
-		DEKAF2_CONSTEXPR_14
+		DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 		std::size_t operator()(const dekaf2::KHTTPHeader& header) const noexcept
 		{
 			return header.Hash();
@@ -717,7 +706,7 @@ class DEKAF2_PUBLIC KHTTPHeaders
 public:
 //------
 
-	static std::size_t constexpr MAX_LINELENGTH = 8 * 1024;
+	static std::size_t constexpr MAX_LINELENGTH { 8 * 1024 };
 
 	using KHeaderMap = KProps<KHTTPHeader, KString, /*Sequential =*/ true, /*Unique =*/ false>; // case insensitive map for header info
 

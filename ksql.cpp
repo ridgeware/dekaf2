@@ -9575,7 +9575,7 @@ std::atomic<KSQL::QueryType>           KSQL::s_QueryTypeForTimeout { QueryType::
 
 KSQL::DBCCache KSQL::s_DBCCache;
 
-#ifndef DEKAF2_HAS_CPP_17
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 constexpr KStringViewZ KSQL::KSQL_CONNECTION_TEST_ONLY;
 #endif
 

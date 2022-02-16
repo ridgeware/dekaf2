@@ -889,7 +889,7 @@ KString& KString::TrimLeft() &
 KString& KString::TrimLeft(value_type chTrim) &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(m_rep, [chTrim](value_type ch){ return ch == chTrim; } );
+	dekaf2::kTrimLeft(*this, [chTrim](value_type ch){ return ch == chTrim; } );
 	return *this;
 }
 
@@ -913,7 +913,7 @@ KString& KString::TrimRight() &
 KString& KString::TrimRight(value_type chTrim) &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimRight(m_rep, [chTrim](value_type ch){ return ch == chTrim; } );
+	dekaf2::kTrimRight(*this, [chTrim](value_type ch){ return ch == chTrim; } );
 	return *this;
 }
 
@@ -937,7 +937,7 @@ KString& KString::Trim() &
 KString& KString::Trim(value_type chTrim) &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrim(m_rep, [chTrim](value_type ch){ return ch == chTrim; } );
+	dekaf2::kTrim(*this, [chTrim](value_type ch){ return ch == chTrim; } );
 	return *this;
 }
 

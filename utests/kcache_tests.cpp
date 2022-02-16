@@ -148,7 +148,7 @@ TEST_CASE("KSharedCache")
 		MyCache.clear();
 		MyCache.SetMaxSize(10);
 
-		std::atomic_uint32_t iErrors { 0 };
+		std::atomic<uint32_t> iErrors { 0 };
 
 		if (*MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
 		if (*MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }
@@ -180,7 +180,7 @@ TEST_CASE("KSharedCache")
 		MyCache.clear();
 		MyCache.SetMaxSize(2);
 
-		std::atomic_uint32_t iErrors { 0 };
+		std::atomic<uint32_t> iErrors { 0 };
 
 		if (*MyCache.Get("abcdefg") != "gfedcba") { ++iErrors; }
 		if (*MyCache.Get("abccefg") != "gfeccba") { ++iErrors; }

@@ -102,8 +102,16 @@ public:
 	// CLI is a test console output
 	enum OutputType	{ HTTP, LAMBDA, CLI };
 
+#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 70000
 	// forward constructors
 	using KHTTPServer::KHTTPServer;
+#else
+	KRESTServer() = default;
+	KRESTServer(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort)
+	: KHTTPServer(Stream, sRemoteEndpoint, Proto, iPort)
+	{
+	}
+#endif
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// Options for the KRESTServer class

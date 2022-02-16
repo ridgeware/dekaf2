@@ -81,7 +81,7 @@ TEST_CASE("KRegex")
 		KRegex::ClearCache();
 		KRegex::SetMaxCacheSize(10);
 
-		std::atomic_uint32_t iErrors { 0 };
+		std::atomic<uint32_t> iErrors { 0 };
 
 		if (KRegex::Matches(sString, "^[0-9A-Fa-f]*$") == false) { ++iErrors; }
 		if (KRegex::Matches(sString, "^[0-6A-Fa-f]*$") == true ) { ++iErrors; }
@@ -109,7 +109,7 @@ TEST_CASE("KRegex")
 		KRegex::ClearCache();
 		KRegex::SetMaxCacheSize(2);
 
-		std::atomic_uint32_t iErrors { 0 };
+		std::atomic<uint32_t> iErrors { 0 };
 
 		if (KRegex::Matches(sString, "^[0-9A-Fa-f]*$") == false) { ++iErrors; }
 		if (KRegex::Matches(sString, "^[0-6A-Fa-f]*$") == true ) { ++iErrors; }

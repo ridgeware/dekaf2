@@ -60,7 +60,7 @@ TEST_CASE("KSharedRef")
 	{
 		auto ptr1 = KSharedRef<KString, true>("you say yes, I say no, you say stop, I say go go go");
 
-		std::atomic_uint32_t iErrors { 0 };
+		std::atomic<uint32_t> iErrors { 0 };
 
 		KRunThreads().Create([&ptr1,&iErrors]()
 		{

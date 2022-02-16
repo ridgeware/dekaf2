@@ -44,10 +44,10 @@
 /// @file ktemplate.h
 /// helper templates for template meta programming
 
+#include "kcppcompat.h"
 #include <functional>
 #include <cwctype>
 #include <type_traits>
-#include "kcppcompat.h"
 
 // we do general algorithms before including kstring.h / kstringview.h below
 
@@ -198,14 +198,18 @@ template<class T>
 struct is_narrow_cpp_str
   : std::integral_constant<
       bool,
-      std::is_same<const KStringViewZ, typename std::decay<T>::type>::value ||
-      std::is_same<KStringViewZ,       typename std::decay<T>::type>::value ||
-      std::is_same<const KStringView,  typename std::decay<T>::type>::value ||
-      std::is_same<KStringView,        typename std::decay<T>::type>::value ||
-      std::is_same<const KString,      typename std::decay<T>::type>::value ||
-      std::is_same<KString,            typename std::decay<T>::type>::value ||
-      std::is_same<const std::string,  typename std::decay<T>::type>::value ||
-      std::is_same<std::string,        typename std::decay<T>::type>::value
+      std::is_same<const KStringViewZ,     typename std::decay<T>::type>::value ||
+      std::is_same<KStringViewZ,           typename std::decay<T>::type>::value ||
+      std::is_same<const KStringView,      typename std::decay<T>::type>::value ||
+      std::is_same<KStringView,            typename std::decay<T>::type>::value ||
+      std::is_same<const KString,          typename std::decay<T>::type>::value ||
+      std::is_same<KString,                typename std::decay<T>::type>::value ||
+#ifdef DEKAF2_HAS_CPP_17
+      std::is_same<const std::string_view, typename std::decay<T>::type>::value ||
+      std::is_same<std::string_view,       typename std::decay<T>::type>::value ||
+#endif
+      std::is_same<const std::string,      typename std::decay<T>::type>::value ||
+      std::is_same<std::string,            typename std::decay<T>::type>::value
 > {};
 
 template<class T>

@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -39,9 +38,6 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 //
-// For documentation, try: http://www.ridgeware.com/home/dekaf/
-//
-//-----------------------------------------------------------------------------//
 */
 
 #pragma once
@@ -49,13 +45,10 @@
 /// @file ksignals.h
 /// Provides a threaded signal handler framework. Other threads will not receive signals.
 
-#include <mutex>
-#include <vector>
-#include <condition_variable>
-#include <map>
-#include <csignal>
-#include "kparallel.h"
 #include "kthreadsafe.h"
+#include <map>
+#include <array>
+#include <csignal>
 
 namespace dekaf2
 {
@@ -189,7 +182,6 @@ private:
 #endif
 
 	static KThreadSafe<std::map<int, sigmap_t> > s_SigFuncs;
-	static KRunThreads m_Threads;
 
 };
 

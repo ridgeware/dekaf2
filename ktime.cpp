@@ -47,6 +47,7 @@
 #include "kutf8.h"
 #include "koutstringstream.h"
 #include "kthreadsafe.h"
+#include "klog.h"
 
 #define DEKAF2_USE_WINDOWS_TIMEZONEAPI
 

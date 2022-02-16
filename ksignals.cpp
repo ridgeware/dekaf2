@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -39,9 +38,6 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 //
-// For documentation, try: http://www.ridgeware.com/home/dekaf/
-//
-//-----------------------------------------------------------------------------//
 */
 
 #include "ksignals.h"
@@ -119,6 +115,7 @@ void KSignals::WaitForSignals()
 {
 	// this is the thread that waits for signals
 	// first set up the default handler
+	kDebug(2, "new signal handler thread started");
 
 	int sig;
 #ifndef DEKAF2_IS_OSX
@@ -178,11 +175,12 @@ void KSignals::LookupFunc(int iSignal)
 
 	if (callable.bAsThread)
 	{
-		m_Threads.CreateOne([&]()
+		std::thread([&]()
 		{
 			kDebug(2, "calling handler for {} as separate thread", kTranslateSignal(iSignal));
 			callable.func(iSignal);
-		});
+
+		}).detach();
 	}
 	else
 	{
@@ -270,8 +268,6 @@ void KSignals::SetDefaultHandler(int iSignal)
 KSignals::KSignals(bool bStartHandlerThread)
 //-----------------------------------------------------------------------------
 {
-	m_Threads.StartDetached();
-
 	if (bStartHandlerThread)
 	{
 		BlockAllSignals();
@@ -289,14 +285,13 @@ KSignals::KSignals(bool bStartHandlerThread)
 		}
 #else
 		// On Unix systems start handler thread
-		m_Threads.CreateOne(&KSignals::WaitForSignals, this);
+		std::thread(&KSignals::WaitForSignals, this).detach();
 #endif
 	}
 
 } // ctor
 
 KThreadSafe<std::map<int, KSignals::sigmap_t> > KSignals::s_SigFuncs;
-KRunThreads KSignals::m_Threads;
 
 constexpr std::array<int,
 #ifdef DEKAF2_IS_WINDOWS

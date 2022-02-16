@@ -442,11 +442,13 @@ KTimer::~KTimer()
 		{
 			// detach the thread, we do not want to wait until it has joined
 			m_tTiming->detach();
+			kDebug(2, "detached timer thread");
 		}
 		else
 		{
 			// wait until thread has finished
 			m_tTiming->join();
+			kDebug(2, "joined timer thread");
 		}
 	}
 
@@ -607,6 +609,8 @@ void KTimer::TimingLoop(Interval Granularity)
 	// create a copy of the class variable, as this is a shared_ptr,
 	// both instances will point to the same bool
 	auto bShutdown(m_bShutdown);
+
+	kDebug(2, "new timer thread started");
 
 	for (;;)
 	{

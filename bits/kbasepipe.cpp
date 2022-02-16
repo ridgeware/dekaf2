@@ -50,6 +50,7 @@
 #include "../klog.h"
 #include "../kstring.h"
 #include <csignal>
+#include <thread>
 
 namespace dekaf2
 {

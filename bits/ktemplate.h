@@ -204,7 +204,7 @@ struct is_narrow_cpp_str
       std::is_same<KStringView,            typename std::decay<T>::type>::value ||
       std::is_same<const KString,          typename std::decay<T>::type>::value ||
       std::is_same<KString,                typename std::decay<T>::type>::value ||
-#ifdef DEKAF2_HAS_CPP_17
+#if defined(DEKAF2_HAS_CPP_17) && (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 70000)
       std::is_same<const std::string_view, typename std::decay<T>::type>::value ||
       std::is_same<std::string_view,       typename std::decay<T>::type>::value ||
 #endif

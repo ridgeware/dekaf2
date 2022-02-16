@@ -2,6 +2,7 @@
 
 #include <dekaf2/kcache.h>
 #include <dekaf2/kwriter.h>
+#include <dekaf2/kparallel.h>
 #include <vector>
 
 using namespace dekaf2;

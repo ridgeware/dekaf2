@@ -809,17 +809,19 @@ inline KString kEscapeForLogging(KStringView sInput)
 
 //-----------------------------------------------------------------------------
 /// returns true if iterator at_iter points to start of word in iterator start_iter (start_iter is either lower or equal with at_iter)
-template<class Iterator>
+template<class Iterator,
+		 typename std::enable_if<detail::is_cpp_str<Iterator>::value == false, int>::type = 0>
 bool kIsAtStartofWordASCII(Iterator start_iter, Iterator at_iter)
 //-----------------------------------------------------------------------------
 {
-	return (start_iter == at_iter || (start_iter < at_iter && KASCII::kIsAlNum(*--at_iter) == false));
+	return (start_iter == at_iter || (start_iter < at_iter && KASCII::kIsAlNum(*(at_iter-1)) == false));
 
 } // kIsAtStartofWordASCII
 
 //-----------------------------------------------------------------------------
 /// returns true if iterator at_iter points to end of word in iterator end_iter (end_iter is either bigger or equal with at_iter)
-template<class Iterator>
+template<class Iterator,
+		 typename std::enable_if<detail::is_cpp_str<Iterator>::value == false, int>::type = 0>
 bool kIsAtEndofWordASCII(Iterator end_iter, Iterator at_iter)
 //-----------------------------------------------------------------------------
 {
@@ -829,21 +831,23 @@ bool kIsAtEndofWordASCII(Iterator end_iter, Iterator at_iter)
 
 //-----------------------------------------------------------------------------
 /// returns true if pos iPos points to start of word in string sHaystack
-template<class String>
+template<class String,
+		 typename std::enable_if<detail::is_cpp_str<String>::value == true, int>::type = 0>
 bool kIsAtStartofWordASCII(const String& sHaystack, typename String::size_type iPos)
 //-----------------------------------------------------------------------------
 {
-	return kIsAtStartofWordASCII(sHaystack.begin(), sHaystack.begin() + iPos);
+	return iPos != String::npos && kIsAtStartofWordASCII(sHaystack.begin(), sHaystack.begin() + iPos);
 
 } // kIsAtStartofWordASCII
 
 //-----------------------------------------------------------------------------
 /// returns true if pos iPos points to end of word in string sHaystack
-template<class String>
+template<class String,
+		 typename std::enable_if<detail::is_cpp_str<String>::value == true, int>::type = 0>
 bool kIsAtEndofWordASCII(const String& sHaystack, typename String::size_type iPos)
 //-----------------------------------------------------------------------------
 {
-	return kIsAtEndofWordASCII(sHaystack.end(), sHaystack.begin() + iPos);
+	return iPos != String::npos && kIsAtEndofWordASCII(sHaystack.end(), sHaystack.begin() + iPos);
 
 } // kIsAtEndofWordASCII
 

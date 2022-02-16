@@ -56,6 +56,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <dirent.h>
+#include <cstdlib>
 
 namespace dekaf2
 {
@@ -275,11 +276,15 @@ bool KChildProcess::Fork(int(*func)(int, char**), int argc, char* argv[])
 
 	// child
 
+	kDebug(2, "child process started");
+
 	// call entry function
 	auto iError = func(argc, argv);
 
+	kDebug(2, "exiting child");
+
 	// and exit on return
-	exit (iError);
+	_exit (iError);
 
 } // Fork
 

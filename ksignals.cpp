@@ -50,6 +50,7 @@
 #ifndef DEKAF2_IS_WINDOWS
 	#include <pthread.h>
 #endif
+#include <cstdlib>
 
 namespace dekaf2
 {
@@ -244,8 +245,8 @@ void KSignals::SetDefaultHandler(int iSignal)
 {
 	auto DefaultHandler = [](int iSignal)
 	{
-		kDebug(2, "dekaf2 default handler for {}, now calling exit(0)", kTranslateSignal(iSignal));
-		std::exit(0);
+		kDebug(2, "dekaf2 default handler for {}, now calling exit({})", kTranslateSignal(iSignal), EXIT_SUCCESS);
+		std::exit(EXIT_SUCCESS);
 	};
 
 	switch (iSignal)

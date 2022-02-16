@@ -1424,7 +1424,6 @@ void KHTMLParser::Finished()
 } // Finished
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-
 constexpr KStringView KHTMLComment::LEAD_IN;
 constexpr KStringView KHTMLComment::LEAD_OUT;
 constexpr KStringView KHTMLDocumentType::LEAD_IN;
@@ -1433,7 +1432,12 @@ constexpr KStringView KHTMLProcessingInstruction::LEAD_IN;
 constexpr KStringView KHTMLProcessingInstruction::LEAD_OUT;
 constexpr KStringView KHTMLCData::LEAD_IN;
 constexpr KStringView KHTMLCData::LEAD_OUT;
-
+constexpr KStringView KHTMLText::s_sObjectName;
+constexpr KStringView KHTMLTag::s_sObjectName;
+constexpr KStringView KHTMLComment::s_sObjectName;
+constexpr KStringView KHTMLDocumentType::s_sObjectName;
+constexpr KStringView KHTMLProcessingInstruction::s_sObjectName;
+constexpr KStringView KHTMLCData::s_sObjectName;
 #endif
 
 } // end of namespace dekaf2

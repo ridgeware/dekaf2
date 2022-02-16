@@ -1722,6 +1722,11 @@ private:
 
 }; // LabeledInput
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+template<typename Derived, typename Base>
+constexpr KStringView LabeledInput<Derived, Base>::s_sObjectName;
+#endif
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<typename String>
 class TextInput : public LabeledInput<TextInput<String>>
@@ -1783,6 +1788,11 @@ protected:
 	String& m_sValue;
 
 }; // TextInput
+
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+template<typename String>
+constexpr KStringView TextInput<String>::s_sObjectName;
+#endif
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<typename Arithmetic>
@@ -1914,6 +1924,11 @@ protected:
 
 }; // NumericInput
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+template<typename Arithmetic>
+constexpr KStringView NumericInput<Arithmetic>::s_sObjectName;
+#endif
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<typename Unit = std::chrono::seconds, typename Duration = std::chrono::steady_clock::duration>
 class DurationInput : public LabeledInput<DurationInput<Unit, Duration>>
@@ -2020,6 +2035,11 @@ protected:
 
 }; // DurationInput
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+template<typename Unit, typename Duration>
+constexpr KStringView DurationInput<Unit, Duration>::s_sObjectName;
+#endif
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<typename ValueType>
 class RadioButton : public LabeledInput<RadioButton<ValueType>>
@@ -2101,6 +2121,11 @@ protected:
 
 }; // RadioButton
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+template<typename ValueType>
+constexpr KStringView RadioButton<ValueType>::s_sObjectName;
+#endif
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<typename Boolean>
 class CheckBox : public LabeledInput<CheckBox<Boolean>>
@@ -2157,6 +2182,11 @@ protected:
 	Boolean& m_bValue;
 
 }; // CheckBox
+
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+template<typename Boolean>
+constexpr KStringView CheckBox<Boolean>::s_sObjectName;
+#endif
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Option : public KWebObject<Option>
@@ -2357,6 +2387,11 @@ protected:
 	ValueType& m_Result;
 
 }; // Selection
+
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+template<typename ValueType>
+constexpr KStringView Selection<ValueType>::s_sObjectName;
+#endif
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Text : public KHTMLText

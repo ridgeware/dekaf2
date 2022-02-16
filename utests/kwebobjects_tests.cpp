@@ -284,10 +284,11 @@ text-decoration: none
 
 			kDebug(2, "start");
 			{
+				// we need to name the template types for C++ < 17
 				auto& group = form.Add(html::FieldSet("System Setup"));
-				group += html::TextInput(m_Config.sDataDir   , "datadir"  ).SetLabelAfter("shared data directory").SetSize(60);
+				group += html::TextInput<KString>(m_Config.sDataDir   , "datadir"  ).SetLabelAfter("shared data directory").SetSize(60);
 				group += html::Break();
-				html::TextInput ti(m_Config.sOutputDir   , "outputdir"  );
+				html::TextInput<KString> ti(m_Config.sOutputDir   , "outputdir"  );
 				ti.SetLabelAfter("shared data directory");
 				group += ti.SetSize(60);
 				CHECK ( ti.Serialize().size() == 93 );
@@ -299,46 +300,46 @@ text-decoration: none
 
 			{
 				auto& group = form.Add(html::FieldSet("Email"));
-				group += html::TextInput(m_Config.sMailTo    ).SetLabelAfter("target email").SetSize(30);
+				group += html::TextInput<KString>(m_Config.sMailTo    ).SetLabelAfter("target email").SetSize(30);
 				group += html::Break();
-				group += html::TextInput(m_Config.sMailFrom  , "mailfrom"  ).SetLabelAfter("sender email").SetSize(30);
+				group += html::TextInput<KString>(m_Config.sMailFrom  , "mailfrom"  ).SetLabelAfter("sender email").SetSize(30);
 				group += html::Break();
-				group += html::TextInput(m_Config.sSMTPServer).SetLabelAfter("smtp relay").SetSize(30);
+				group += html::TextInput<KString>(m_Config.sSMTPServer).SetLabelAfter("smtp relay").SetSize(30);
 			}
 
 			{
 				auto& group = form.Add(html::FieldSet("Display"));
-				group += html::NumericInput(m_Config.m_fMinConfidence, "confidence").SetLabelAfter("confidence value, from 0.0 .. 1.0").SetRange(0.01, 0.99).SetStep(0.0250);
+				group += html::NumericInput<double>(m_Config.m_fMinConfidence, "confidence").SetLabelAfter("confidence value, from 0.0 .. 1.0").SetRange(0.01, 0.99).SetStep(0.0250);
 				group += html::Break();
-				group += html::NumericInput(m_Config.m_fMaxConfidence, "maxconfidence").SetLabelAfter("max confidence value, from 0.0 .. 1.0").SetRange(0.01, 0.99).SetStep(0.0250);
+				group += html::NumericInput<double>(m_Config.m_fMaxConfidence, "maxconfidence").SetLabelAfter("max confidence value, from 0.0 .. 1.0").SetRange(0.01, 0.99).SetStep(0.0250);
 				group += html::Break();
-				group += html::CheckBox(m_Config.bNoDetect   , "nodetect"  ).SetLabelAfter("no object detection"       );
+				group += html::CheckBox<bool>(m_Config.bNoDetect   , "nodetect"  ).SetLabelAfter("no object detection"       );
 				group += html::Break();
-				group += html::CheckBox(m_Config.bNoDisplay  , "nodisplay" ).SetLabelAfter("do not open camera windows");
+				group += html::CheckBox<bool>(m_Config.bNoDisplay  , "nodisplay" ).SetLabelAfter("do not open camera windows");
 				group += html::Break();
-				group += html::CheckBox(m_Config.bNoOverlay  , "nooverlay" ).SetLabelAfter("no detection overlay"      );
+				group += html::CheckBox<bool>(m_Config.bNoOverlay  , "nooverlay" ).SetLabelAfter("no detection overlay"      );
 				group += html::Break();
-				group += html::CheckBox(m_Config.bShowMotion , "motion"    ).SetLabelAfter("show motion"               );
-				group += html::NumericInput(m_Config.iMotionArea).SetLabelAfter("motion area").SetMin(-1).SetMax(1000).SetStep(1);
+				group += html::CheckBox<bool>(m_Config.bShowMotion , "motion"    ).SetLabelAfter("show motion"               );
+				group += html::NumericInput<int>(m_Config.iMotionArea).SetLabelAfter("motion area").SetMin(-1).SetMax(1000).SetStep(1);
 				group += html::Break();
 				group += html::DurationInput<std::chrono::seconds>(m_Config.dInterval, "interval").SetLabelAfter("seconds between alarms").SetRange(1, 86400);
-				group += html::Selection(m_Config.sSelection).SetName("selection").SetOptions("Sel1,Sel2,Sel3,Sel4").SetLabelAfter("please choose a value");
+				group += html::Selection<KString>(m_Config.sSelection).SetName("selection").SetOptions("Sel1,Sel2,Sel3,Sel4").SetLabelAfter("please choose a value");
 			}
 
 			{
 				auto& group = form.Add(html::FieldSet("Radios"));
-				group += html::RadioButton(m_Config.sRadio).SetValue("red"   ).SetLabelAfter("red"   );
-				group += html::RadioButton(m_Config.sRadio).SetValue("green" ).SetLabelAfter("green" );
-				group += html::RadioButton(m_Config.sRadio).SetValue("blue"  ).SetLabelAfter("blue"  );
-				group += html::RadioButton(m_Config.sRadio).SetValue("yellow").SetLabelAfter("yellow");
+				group += html::RadioButton<KString>(m_Config.sRadio).SetValue("red"   ).SetLabelAfter("red"   );
+				group += html::RadioButton<KString>(m_Config.sRadio).SetValue("green" ).SetLabelAfter("green" );
+				group += html::RadioButton<KString>(m_Config.sRadio).SetValue("blue"  ).SetLabelAfter("blue"  );
+				group += html::RadioButton<KString>(m_Config.sRadio).SetValue("yellow").SetLabelAfter("yellow");
 			}
 
 			{
 				auto& group = form.Add(html::FieldSet("Radios with enums"));
-				group += html::RadioButton(m_Config.Color).SetValue(RED   ).SetLabelAfter("red"   );
-				group += html::RadioButton(m_Config.Color).SetValue(GREEN ).SetLabelAfter("green" );
-				group += html::RadioButton(m_Config.Color).SetValue(BLUE  ).SetLabelAfter("blue"  );
-				group += html::RadioButton(m_Config.Color).SetValue(YELLOW).SetLabelAfter("yellow");
+				group += html::RadioButton<COLOR>(m_Config.Color).SetValue(RED   ).SetLabelAfter("red"   );
+				group += html::RadioButton<COLOR>(m_Config.Color).SetValue(GREEN ).SetLabelAfter("green" );
+				group += html::RadioButton<COLOR>(m_Config.Color).SetValue(BLUE  ).SetLabelAfter("blue"  );
+				group += html::RadioButton<COLOR>(m_Config.Color).SetValue(YELLOW).SetLabelAfter("yellow");
 			}
 
 			form.Generate();
@@ -356,7 +357,7 @@ text-decoration: none
 			(row1 += html::TableData()).Add(html::Text("d2"));
 			(row1 += html::TableData()).Add(html::Text("d3"));
 
-			html::TextInput ti(m_Config.sMailTo, "mailto");
+			html::TextInput<KString> ti(m_Config.sMailTo, "mailto");
 			ti.Synchronize(Parms);
 		}
 

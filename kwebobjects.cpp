@@ -813,5 +813,41 @@ LineBreak::LineBreak()
 {
 }
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KStringView HTML::s_sObjectName;
+constexpr KStringView Page::s_sObjectName;
+constexpr KStringView Div::s_sObjectName;
+constexpr KStringView Script::s_sObjectName;
+constexpr KStringView Span::s_sObjectName;
+constexpr KStringView Paragraph::s_sObjectName;
+constexpr KStringView Table::s_sObjectName;
+constexpr KStringView TableRow::s_sObjectName;
+constexpr KStringView TableData::s_sObjectName;
+constexpr KStringView TableHeader::s_sObjectName;
+constexpr KStringView Link::s_sObjectName;
+constexpr KStringView StyleSheet::s_sObjectName;
+constexpr KStringView FavIcon::s_sObjectName;
+constexpr KStringView Break::s_sObjectName;
+constexpr KStringView HorizontalRuler::s_sObjectName;
+constexpr KStringView Header::s_sObjectName;
+constexpr KStringView Heading::s_sObjectName;
+constexpr KStringView Image::s_sObjectName;
+constexpr KStringView Form::s_sObjectName;
+constexpr KStringView Legend::s_sObjectName;
+constexpr KStringView FieldSet::s_sObjectName;
+constexpr KStringView Button::s_sObjectName;
+constexpr KStringView Input::s_sObjectName;
+constexpr KStringView Option::s_sObjectName;
+constexpr KStringView Select::s_sObjectName;
+constexpr KStringView Text::s_sObjectName;
+constexpr KStringView RawText::s_sObjectName;
+constexpr KStringView LineBreak::s_sObjectName;
+#endif
+
 } // end of namespace html
+
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KStringView KWebObjectBase::s_sObjectName;
+#endif
+
 } // end of namespace dekaf2

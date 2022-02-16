@@ -90,8 +90,10 @@ TEST_CASE("StringBalance") {
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 		std::string_view sv { "abcdefghijk" };
 		std::string_view sv2 = sv;
-#endif
 		std::string s(sv);
+#else
+		std::string s { "abcdefghijk" };
+#endif
 		std::string s2 = s;
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 		s = sv;
@@ -122,21 +124,26 @@ TEST_CASE("StringBalance") {
 		OKSZ oksz;
 
 		static_assert(!std::is_convertible<const OS&,    KStringView>::value, "convertible");
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
 		static_assert(!std::is_convertible<const OSV&,   KStringView>::value, "convertible");
+#endif
 		static_assert(!std::is_convertible<const OKS&,   KStringView>::value, "convertible");
 		static_assert( std::is_convertible<const OKSV&,  KStringView>::value, "not convertible");
 		static_assert( std::is_convertible<const OKSZ&,  KStringView>::value, "not convertible");
 		static_assert( std::is_convertible<const KJSON&, KStringView>::value, "not convertible");
 		static_assert( std::is_convertible<const KJSON&, KString    >::value, "not convertible");
 
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
 		static_assert( std::is_convertible<const std::string&,      std::string_view>::value, "not convertible");
 		static_assert(!std::is_convertible<const std::string_view&, std::string     >::value, "convertible");
 
 		static_assert( std::is_constructible<std::string_view,      const std::string&>::value     , "not constructible");
 		static_assert( std::is_constructible<std::string,           const std::string_view&>::value, "constructible");
-
+#endif
 		static_assert( std::is_convertible<const std::string&,      KStringView>::value, "not convertible");
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
 		static_assert( std::is_convertible<const std::string_view&, KStringView>::value, "not convertible");
+#endif
 		static_assert( std::is_convertible<const KString&,          KStringView>::value, "not convertible");
 		static_assert( std::is_convertible<const KStringView&,      KStringView>::value, "not convertible");
 		static_assert( std::is_convertible<const KStringViewZ&,     KStringView>::value, "not convertible");

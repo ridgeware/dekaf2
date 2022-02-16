@@ -559,5 +559,9 @@ void KHTML::Invalid(char ch)
 
 } // Invalid
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KStringView KHTMLElement::s_sObjectName;
+#endif
+
 } // end of namespace dekaf2
 

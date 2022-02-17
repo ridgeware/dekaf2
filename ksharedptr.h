@@ -280,7 +280,7 @@ private:
 	struct Control
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		using RefCount_t = typename std::conditional<bMultiThreaded, std::atomic_size_t, size_t>::type;
+		using RefCount_t = typename std::conditional<bMultiThreaded, std::atomic<size_t>, size_t>::type;
 
 		Control() = default;
 

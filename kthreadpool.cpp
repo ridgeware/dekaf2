@@ -174,11 +174,11 @@ void KThreadPool::run_thread( size_t i )
 //-----------------------------------------------------------------------------
 {
 	// a copy of the shared ptr to the abort
-	std::shared_ptr<std::atomic_bool> abort_ptr(m_abort[i]);
+	std::shared_ptr<std::atomic<bool>> abort_ptr(m_abort[i]);
 
 	auto f = [this, abort_ptr]()
 	{
-		std::atomic_bool & abort = *abort_ptr;
+		std::atomic<bool>& abort = *abort_ptr;
 		std::packaged_task<void()> _f;
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
 

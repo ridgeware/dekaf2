@@ -94,9 +94,9 @@ using endpoint_type = boost::asio::ip::tcp::acceptor::endpoint_type;
 struct AtomicStarted
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	AtomicStarted(std::atomic_int& iStarted) : m_iStarted(iStarted) { ++m_iStarted; }
+	AtomicStarted(std::atomic<int>& iStarted) : m_iStarted(iStarted) { ++m_iStarted; }
 	~AtomicStarted() { --m_iStarted; }
-	std::atomic_int& m_iStarted;
+	std::atomic<int>& m_iStarted;
 
 }; // AtomicStarted
 

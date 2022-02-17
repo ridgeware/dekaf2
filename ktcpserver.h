@@ -385,27 +385,27 @@ private:
 	std::mutex                                m_StartupMutex;
 	std::condition_variable                   m_StartedUp;
 
-	std::vector<int> m_RegisteredSignals;
-	KThreadPool      m_ThreadPool;
+	std::vector<int>  m_RegisteredSignals;
+	KThreadPool       m_ThreadPool;
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
-	KString          m_sSocketFile;
+	KString           m_sSocketFile;
 #endif
-	KString          m_sCert;
-	KString          m_sKey;
-	KString          m_sPassword;
-	KString          m_sDHPrimes;
-	KString          m_sAllowedCipherSuites;
-	KString          m_sError;
-	std::future<int> m_ResultAsFuture;
-	std::atomic_int  m_iStarted             {     0 };
-	uint16_t         m_iPort                {     0 };
-	uint16_t         m_iTimeout             {    15 };
-	std::atomic_bool m_bQuit                { false };
-	bool             m_bBlock               {  true };
-	bool             m_bStartIPv4           {  true };
-	bool             m_bStartIPv6           {  true };
-	bool             m_bHaveSeparatev4Thread{ false };
-	bool             m_bIsSSL               { false };
+	KString           m_sCert;
+	KString           m_sKey;
+	KString           m_sPassword;
+	KString           m_sDHPrimes;
+	KString           m_sAllowedCipherSuites;
+	KString           m_sError;
+	std::future<int>  m_ResultAsFuture;
+	std::atomic<int>  m_iStarted              {     0 };
+	uint16_t          m_iPort                 {     0 };
+	uint16_t          m_iTimeout              {    15 };
+	std::atomic<bool> m_bQuit                 { false };
+	bool              m_bBlock                {  true };
+	bool              m_bStartIPv4            {  true };
+	bool              m_bStartIPv6            {  true };
+	bool              m_bHaveSeparatev4Thread { false };
+	bool              m_bIsSSL                { false };
 
 }; // KTCPServer
 

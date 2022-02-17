@@ -13,7 +13,7 @@ using namespace dekaf2;
 
 namespace {
 
-std::atomic_bool g_bDone { false };
+std::atomic<bool> g_bDone { false };
 
 KTempDir MySocketDir;
 
@@ -84,7 +84,7 @@ protected:
 	int m_iTimeout { 0 };
 };
 
-}
+} // end of anonymous namespace
 
 TEST_CASE("KWebClient") {
 

@@ -424,7 +424,7 @@ void KStopDurations::StoreInterval(size_type iInterval)
 KTimer::KTimer(Interval Granularity)
 //---------------------------------------------------------------------------
 {
-	m_bShutdown = std::make_shared<std::atomic_bool>(false);
+	m_bShutdown = std::make_shared<std::atomic<bool>>(false);
 	m_tTiming   = std::make_shared<std::thread>(&KTimer::TimingLoop, this, Granularity);
 
 } // ctor

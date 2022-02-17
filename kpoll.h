@@ -109,9 +109,9 @@ protected:
 
 	KThreadSafe<std::unordered_map<int, Parameters>> m_FileDescriptors;
 
-	uint32_t         m_iTimeout   {   100 };
-	std::atomic_bool m_bModified  { false };
-	std::atomic_bool m_bStop      { false };
+	uint32_t          m_iTimeout   {   100 };
+	std::atomic<bool> m_bModified  { false };
+	std::atomic<bool> m_bStop      { false };
 
 //----------
 private:

@@ -15,7 +15,7 @@ TEST_CASE("KThreadPool")
 		int Add(int i) const { return m_i + i; }
 		void Inc(int i) { m_i += i; }
 		void Dec() { --m_i; }
-		std::atomic_int m_i;
+		std::atomic<int> m_i;
 	};
 
 	int i1 = 0;

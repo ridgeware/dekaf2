@@ -261,7 +261,7 @@ private:
 	void StopDefaultTimer();
 	//---------------------------------------------------------------------------
 
-	std::atomic_bool m_bIsMultiThreading { false };
+	std::atomic<bool> m_bIsMultiThreading { false };
 	KString m_sProgPath;
 	KString m_sProgName;
 #ifdef DEKAF2_HAS_MINIFOLLY
@@ -276,8 +276,8 @@ private:
 	KTimer::Timepoint m_iCurrentTimepoint;
 	KThreadSafe<std::default_random_engine> m_Random;
 	bool m_bInConstruction { true };
-	static std::atomic_bool s_bStarted;
-	static std::atomic_bool s_bShutdown;
+	static std::atomic<bool> s_bStarted;
+	static std::atomic<bool> s_bShutdown;
 
 }; // Dekaf
 

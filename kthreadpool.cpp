@@ -119,6 +119,9 @@ void KThreadPool::resize(size_t nThreads)
 		ma_iAlreadyStopped = 0;
 	}
 
+	// will be reset to current value with next push of a task
+	ma_iMaxWaitingTasks = 0;
+
 } // resize
 
 //-----------------------------------------------------------------------------
@@ -266,7 +269,12 @@ void KThreadPool::push_packaged_task(std::packaged_task<void()> task)
 {
 	std::unique_lock<std::mutex> lock(m_cond_mutex);
 
-	m_queue.push(std::move(task));
+	auto iWaiting = m_queue.push(std::move(task)) - 1;
+
+	if (iWaiting > ma_iMaxWaitingTasks)
+	{
+		ma_iMaxWaitingTasks = iWaiting;
+	}
 
 	lock.unlock();
 
@@ -281,12 +289,13 @@ KThreadPool::Diagnostics KThreadPool::get_diagnostics(bool bWasIdle) const
 {
 	Diagnostics Diag;
 
-	Diag.iTotalThreads  = size() - ma_iAlreadyStopped;
-	Diag.iIdleThreads   = n_idle();
-	Diag.iUsedThreads   = Diag.iTotalThreads - Diag.iIdleThreads;
-	Diag.iTotalTasks    = ma_iTotalTasks;
-	Diag.iWaitingTasks  = n_queued();
-	Diag.bWasIdle       = bWasIdle;
+	Diag.iTotalThreads    = size() - ma_iAlreadyStopped;
+	Diag.iIdleThreads     = n_idle();
+	Diag.iUsedThreads     = Diag.iTotalThreads - Diag.iIdleThreads;
+	Diag.iTotalTasks      = ma_iTotalTasks;
+	Diag.iMaxWaitingTasks = ma_iMaxWaitingTasks;
+	Diag.iWaitingTasks    = n_queued();
+	Diag.bWasIdle         = bWasIdle;
 
 	return Diag;
 

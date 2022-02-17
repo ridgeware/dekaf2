@@ -74,10 +74,11 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
-	void push(T&& value)
+	size_t push(T&& value)
 	//-----------------------------------------------------------------------------
 	{
 		m_queue.push(std::move(value));
+		return size();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -120,12 +121,19 @@ public:
 	{
 		std::unique_lock<std::mutex> lock(mutex);
 
-		return m_queue.size();
+		return size();
 	}
 
 //------
 private:
 //------
+
+	//-----------------------------------------------------------------------------
+	size_t size() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_queue.size();
+	}
 
 	std::queue<T> m_queue;
 
@@ -169,12 +177,13 @@ public:
 
 	struct Diagnostics
 	{
-		std::size_t iTotalThreads  { 0 };
-		std::size_t iIdleThreads   { 0 };
-		std::size_t iUsedThreads   { 0 };
-		std::size_t iTotalTasks    { 0 };
-		std::size_t iWaitingTasks  { 0 };
-		bool        bWasIdle       { false };
+		std::size_t iTotalThreads    { 0 }; ///< total number of threads
+		std::size_t iIdleThreads     { 0 }; ///< number of idle threads
+		std::size_t iUsedThreads     { 0 }; ///< number of used threads
+		std::size_t iTotalTasks      { 0 }; ///< total number of serviced tasks
+		std::size_t iMaxWaitingTasks { 0 }; ///< max size of wait queue since last resize
+		std::size_t iWaitingTasks    { 0 }; ///< current number of tasks in wait queue
+		bool        bWasIdle         { false };
 
 	}; // Diagnostics
 
@@ -350,6 +359,7 @@ private:
 	detail::threadpool::Queue<std::packaged_task<void()>> m_queue;
 
 	std::atomic<size_t>      ma_iTotalTasks     { 0 };
+	std::atomic<size_t>      ma_iMaxWaitingTasks{ 0 };
 	std::atomic<size_t>      ma_n_idle          { 0 };
 	std::atomic<size_t>      ma_iAlreadyStopped { 0 };
 	std::atomic<bool>        ma_interrupt       { false };

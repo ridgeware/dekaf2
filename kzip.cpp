@@ -867,6 +867,13 @@ bool KZip::WriteFile(KStringViewZ sFilename, KStringViewZ sDispname)
 		return SetError();
 	}
 
+#ifdef DEKAF2_HAVE_LIBZIP_COMPRESSION_METHOD_SUPPORTED
+	if (m_Compression != CompMethod::DEFLATE || m_iCompressionLevel > 0)
+	{
+		SetCompressionForFile(iIndex);
+	}
+#endif
+
 	if (!m_sPassword.empty())
 	{
 		SetEncryptionForFile(iIndex);

@@ -371,7 +371,7 @@ KThreadPool::Diagnostics KThreadPool::get_diagnostics(bool bWasIdle) const
 {
 	Diagnostics Diag;
 
-	Diag.iTotalThreads    = size() - ma_iAlreadyStopped;
+	Diag.iTotalThreads    = size() + ma_iDetachedThreadsToFinish - ma_iAlreadyStopped;
 	Diag.iIdleThreads     = n_idle();
 	Diag.iUsedThreads     = Diag.iTotalThreads - Diag.iIdleThreads;
 	Diag.iTotalTasks      = ma_iTotalTasks;

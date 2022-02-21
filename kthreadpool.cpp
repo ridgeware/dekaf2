@@ -38,24 +38,30 @@
  *   - allowing arbitrary return types (futures) for any task (function)
  *    pushed to the task queue
  *
+ *  February 2021, Joachim Schurig
+ *   - adding diagnostics/statistics output
+ *
+ *  February 2022, Joachim Schurig
+ *   - protection against exceptions, both in generating a thread and in
+ *     executing a task
+ *   - adding counter for max queue size
+ *   - making sure detached threads (from resizes) are properly finished
+ *     when stopping all threads
+ *
  *********************************************************/
 
 
 #include "kthreadpool.h"
 #include "bits/kmake_unique.h"
+#include "klog.h"
 
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KThreadPool::KThreadPool(size_t nThreads)
+KThreadPool::KThreadPool(std::size_t nThreads)
 //-----------------------------------------------------------------------------
 {
-	if (nThreads == 0)
-	{
-		nThreads = std::thread::hardware_concurrency();
-	}
-	
-	resize(nThreads);
+	resize(nThreads ? nThreads : std::thread::hardware_concurrency());
 
 } // ctor
 
@@ -68,42 +74,77 @@ KThreadPool::~KThreadPool()
 } // dtor
 
 //-----------------------------------------------------------------------------
-void KThreadPool::restart()
+std::size_t KThreadPool::size() const
+//-----------------------------------------------------------------------------
+{
+	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
+	return m_threads.size();
+
+} // size
+
+//-----------------------------------------------------------------------------
+std::size_t KThreadPool::n_queued() const
+//-----------------------------------------------------------------------------
+{
+	return m_queue.size(m_cond_mutex);
+
+} // n_queued
+
+//-----------------------------------------------------------------------------
+bool KThreadPool::restart()
 //-----------------------------------------------------------------------------
 {
 	auto nsize = size();
 	stop(false);
-	resize(nsize);
+	return resize(nsize);
 
 } // restart
 
 //-----------------------------------------------------------------------------
-void KThreadPool::resize(size_t nThreads)
+bool KThreadPool::resize(std::size_t nThreads)
 //-----------------------------------------------------------------------------
 {
 	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
 
-	size_t oldNThreads = m_threads.size();
+	// will be reset to current value with next push of a task
+	ma_iMaxWaitingTasks = 0;
 
-	if (oldNThreads <= nThreads)
+	auto oldNThreads = m_threads.size();
+
+	if (oldNThreads < nThreads)
 	{
 		// the number of threads is increased
 		m_threads .resize(nThreads);
 		m_abort   .resize(nThreads);
 
-		for (size_t i = oldNThreads; i < nThreads; ++i)
+		for (std::size_t i = oldNThreads; i < nThreads; ++i)
 		{
-			m_abort[i] = std::make_shared<std::atomic<bool>>(false);
-			run_thread(i);
+			m_abort[i] = std::make_shared<std::atomic<eABORT>>(eABORT::NONE);
+
+			if (!run_thread(i))
+			{
+				// could not start thread - stop increasing thread count
+				m_threads.resize(i);
+				m_abort  .resize(i);
+				return false;
+			}
 		}
 	}
-	else
+	else if (oldNThreads > nThreads)
 	{
 		// the number of threads is decreased
 		for (size_t i = oldNThreads - 1; i >= nThreads; --i)
 		{
-			*m_abort[i] = true;  // this thread will finish
+			// increase counter for threads that have to finish
+			// - they are now detached and cannot be joined anymore
+			++ma_iDetachedThreadsToFinish;
+			*m_abort[i] = eABORT::RESIZE; // this thread will finish
 			m_threads[i]->detach();
+
+			if (i == 0)
+			{
+				break;
+			}
 		}
 
 		// stop the detached threads that were waiting
@@ -119,22 +160,33 @@ void KThreadPool::resize(size_t nThreads)
 		ma_iAlreadyStopped = 0;
 	}
 
-	// will be reset to current value with next push of a task
-	ma_iMaxWaitingTasks = 0;
+	return true;
 
 } // resize
 
 //-----------------------------------------------------------------------------
-void KThreadPool::stop( bool kill )
+void KThreadPool::clear()
+//-----------------------------------------------------------------------------
+{
+	// empty the task queue
+	m_queue.clear(m_cond_mutex);
+
+} // clear
+
+//-----------------------------------------------------------------------------
+void KThreadPool::stop(bool bKill)
 //-----------------------------------------------------------------------------
 {
 	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
 
-	if (kill)
+	if (bKill)
 	{
 		for (size_t i = 0, n = size(); i < n; ++i)
 		{
-			*m_abort[i] = true;  // command the threads to stop
+			// do not increase the counter for detached threads, as we
+			// want to finish these with join() - therefore set a differnt
+			// abort flag than for the resize case
+			*m_abort[i] = eABORT::STOP; // command the threads to stop
 		}
 	}
 
@@ -156,10 +208,17 @@ void KThreadPool::stop( bool kill )
 		}
 	}
 
+	// check if previously removed threads are still running
+	while (ma_iDetachedThreadsToFinish > 0)
+	{
+		// yes, sleep a wink
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
+
 	// and lock again to do the final resize
 	lock.lock();
 
-	m_queue   .clear(m_cond_mutex);
+	// we do not clear the task queue..
 	m_threads .clear();
 	m_abort   .clear();
 	ma_n_idle = 0;
@@ -169,27 +228,34 @@ void KThreadPool::stop( bool kill )
 } // stop
 
 //-----------------------------------------------------------------------------
+bool KThreadPool::is_stopped()
+//-----------------------------------------------------------------------------
+{
+	return size() == 0 && ma_iDetachedThreadsToFinish == 0;
+
+} // is_stopped
+
+//-----------------------------------------------------------------------------
 // each thread pops jobs from the queue until:
 //  - the queue is empty, then it waits (idle)
-//  - its abort flag is set (terminate without emptying the queue)
-//  - a global interrupt is set, then only idle threads terminate
-void KThreadPool::run_thread( size_t i )
+//  - the queue is empty and its abort flag is set, then it terminates
+bool KThreadPool::run_thread(std::size_t i)
 //-----------------------------------------------------------------------------
 {
 	// a copy of the shared ptr to the abort
-	std::shared_ptr<std::atomic<bool>> abort_ptr(m_abort[i]);
+	std::shared_ptr<std::atomic<eABORT>> abort_ptr(m_abort[i]);
 
 	auto f = [this, abort_ptr]()
 	{
-		std::atomic<bool>& abort = *abort_ptr;
+		std::atomic<eABORT>& abort = *abort_ptr;
 		std::packaged_task<void()> _f;
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
 
-		bool more_tasks = m_queue.pop(_f);
+		bool bMoreTasks = m_queue.pop(_f);
 
 		for (;;)
 		{
-			while (more_tasks) // if there is anything in the queue
+			while (bMoreTasks) // if there is anything in the queue
 			{
 				lock.unlock();
 
@@ -197,18 +263,29 @@ void KThreadPool::run_thread( size_t i )
 				++ma_iTotalTasks;
 
 				// and run the task
-				(_f)();
-
-				if (abort)
+				try
 				{
-					notify_thread_shutdown(false);
+					(_f)();
+				}
+				catch (const std::exception& ex)
+				{
+					kException(ex);
+				}
+				catch (...)
+				{
+					kUnknownException();
+				}
+
+				if (abort != eABORT::NONE)
+				{
+					notify_thread_shutdown(false, abort);
 
 					return; // return even if the queue is not empty yet
 				}
 
 				lock.lock();
 
-				more_tasks = m_queue.pop(_f);
+				bMoreTasks = m_queue.pop(_f);
 			}
 
 			if (ma_interrupt)
@@ -216,7 +293,7 @@ void KThreadPool::run_thread( size_t i )
 				// unlock the cond mutex, the diagnostic output needs it, too
 				lock.unlock();
 
-				notify_thread_shutdown(false);
+				notify_thread_shutdown(false, abort);
 
 				return;
 			}
@@ -227,39 +304,44 @@ void KThreadPool::run_thread( size_t i )
 
 			++ma_n_idle;
 
-			m_cond_var.wait(lock, [this, &_f, &more_tasks, &abort]()
+			m_cond_var.wait(lock, [this, &_f, &bMoreTasks, &abort]()
 			{
-				if (abort || ma_interrupt)
+				if (abort != eABORT::NONE || ma_interrupt)
 				{
 					return true;
 				}
 
-				more_tasks = m_queue.pop(_f);
+				bMoreTasks = m_queue.pop(_f);
 
-				return more_tasks;
+				return bMoreTasks;
 			});
 
 			--ma_n_idle;
 
-			if (!more_tasks)
+			if (!bMoreTasks)
 			{
-				// we stopped waiting either because of interruption or abort
-				// (it suffices to test for !more_tasks because otherwise the
-				// wakeup from the cond_wait would only have happened if there
-				// were more tasks..), and entering in ma_interrupt state would
-				// only happen with !more_tasks either
-
+				// we stopped waiting because of a thread abort
 				// unlock the cond mutex, the diagnostic output needs it, too
 				lock.unlock();
 
-				notify_thread_shutdown(true);
+				notify_thread_shutdown(true, abort);
 
 				return;
 			}
 		}
 	};
 
-	m_threads[i] = std::make_unique<std::thread>(f);
+	try
+	{
+		m_threads[i] = std::make_unique<std::thread>(f);
+		return true;
+	}
+	catch (const std::exception& ex)
+	{
+		kException(ex);
+	}
+
+	return false;
 
 } // setup_thread
 
@@ -302,14 +384,25 @@ KThreadPool::Diagnostics KThreadPool::get_diagnostics(bool bWasIdle) const
 } // get_diagnostics
 
 //-----------------------------------------------------------------------------
-void KThreadPool::notify_thread_shutdown(bool bWasIdle)
+void KThreadPool::notify_thread_shutdown(bool bWasIdle, eABORT abort)
 //-----------------------------------------------------------------------------
 {
-	++ma_iAlreadyStopped;
+	if (abort == eABORT::STOP)
+	{
+		++ma_iAlreadyStopped;
+	}
 
 	if (m_shutdown_callback)
 	{
 		m_shutdown_callback(get_diagnostics(bWasIdle));
+	}
+
+	// don't run this as an else of above - it has to happen past
+	// the shutdown callback, and the former before..
+	if (abort == eABORT::RESIZE)
+	{
+		// decrease the count of detached threads to wait for in the join()
+		--ma_iDetachedThreadsToFinish;
 	}
 
 } // notify_thread_shutdown

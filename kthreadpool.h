@@ -38,6 +38,16 @@
  *   - allowing arbitrary return types (futures) for any task (function)
  *    pushed to the task queue
  *
+ *  February 2021, Joachim Schurig
+ *   - adding diagnostics/statistics output
+ *
+ *  February 2022, Joachim Schurig
+ *   - protection against exceptions, both in generating a thread and in
+ *     executing a task
+ *   - adding counter for max queue size
+ *   - making sure detached threads (from resizes) are properly finished
+ *     when stopping all threads
+ *
  *********************************************************/
 
 
@@ -116,7 +126,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	size_t size(std::mutex& mutex) const
+	std::size_t size(std::mutex& mutex) const
 	//-----------------------------------------------------------------------------
 	{
 		std::unique_lock<std::mutex> lock(mutex);
@@ -129,7 +139,7 @@ private:
 //------
 
 	//-----------------------------------------------------------------------------
-	size_t size() const
+	std::size_t size() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_queue.size();
@@ -166,8 +176,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Construct a thread pool with nThreads size - if nThreads == 0 starts as many
-	/// threads as CPU cores are available
-	KThreadPool(size_t nThreads);
+	/// threads as CPU threads are available
+	KThreadPool(std::size_t nThreads);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -205,16 +215,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get the total number of threads in the pool
-	size_t size() const
+	std::size_t size() const;
 	//-----------------------------------------------------------------------------
-	{
-		std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
-		return m_threads.size();
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Get the number of idle threads
-	size_t n_idle() const
+	std::size_t n_idle() const
 	//-----------------------------------------------------------------------------
 	{
 		return ma_n_idle;
@@ -222,27 +228,37 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get the number of tasks waiting in the queue
-	size_t n_queued() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_queue.size(m_cond_mutex);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Restart the pool
-	void restart();
+	std::size_t n_queued() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Change the number of threads in the pool
-	void resize(size_t nThreads);
+	/// Restart the pool - this method blocks until all existing tasks have been serviced
+	/// @return false if some threads could not be restarted - check new size with size() then
+	bool restart();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Wait for all computing threads to finish and stop all threads.
-	/// May be called asynchronously to not pause the calling thread while waiting.
-	/// If kill == false, all the functions in the queue are run, otherwise the queue is cleared without running the functions
-	void stop( bool kill = false );
+	/// Change the number of threads in the pool - this method does not block
+	/// @param nThreads number of total threads
+	/// @return false if some threads could not be started - check new size with size() then
+	bool resize(std::size_t nThreads);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Clear all pending tasks in the task queue - does not stop running tasks
+	void clear();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Stops all threads. Returns only after all threads are stopped.
+	/// @param bKill if false, all the tasks in the queue are run, otherwise the threads are stopped without
+	/// running the outstanding tasks (but the tasks stay in the queue for an eventual later restart)
+	void stop(bool bKill = false);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// @return true if all threads are stopped, else false
+	bool is_stopped();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -345,24 +361,34 @@ public:
 private:
 //------
 
+	enum eABORT
+	{
+		NONE,
+		RESIZE,
+		STOP
+	};
+
 	DEKAF2_PRIVATE
 	void push_packaged_task(std::packaged_task<void()> task);
 
+	/// start one thread
+	/// @return false if thread could not be started
 	DEKAF2_PRIVATE
-	void run_thread( size_t i );
+	bool run_thread( size_t i );
 
 	DEKAF2_PRIVATE
-	void notify_thread_shutdown(bool bWasIdle);
+	void notify_thread_shutdown(bool bWasIdle, eABORT abort);
 
 	std::vector<std::unique_ptr<std::thread>>             m_threads;
-	std::vector<std::shared_ptr<std::atomic<bool>>>       m_abort;
+	std::vector<std::shared_ptr<std::atomic<eABORT>>>     m_abort;
 	detail::threadpool::Queue<std::packaged_task<void()>> m_queue;
 
-	std::atomic<size_t>      ma_iTotalTasks     { 0 };
-	std::atomic<size_t>      ma_iMaxWaitingTasks{ 0 };
-	std::atomic<size_t>      ma_n_idle          { 0 };
-	std::atomic<size_t>      ma_iAlreadyStopped { 0 };
-	std::atomic<bool>        ma_interrupt       { false };
+	std::atomic<std::size_t> ma_iTotalTasks              { 0 };
+	std::atomic<std::size_t> ma_iMaxWaitingTasks         { 0 };
+	std::atomic<std::size_t> ma_n_idle                   { 0 };
+	std::atomic<std::size_t> ma_iAlreadyStopped          { 0 };
+	std::atomic<std::size_t> ma_iDetachedThreadsToFinish { 0 };
+	std::atomic<bool>        ma_interrupt                { false };
 
 	mutable std::recursive_mutex m_resize_mutex;
 	mutable std::mutex       m_cond_mutex;

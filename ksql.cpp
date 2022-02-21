@@ -8614,31 +8614,28 @@ void KSQL::TimedConnectionIDs::Watcher()
 			}
 		}
 
-		if (!Queries.empty())
+		// now kill all found connections
+		for (const auto& Query : Queries)
 		{
-			// now kill all found connections
-			for (auto Query : Queries)
+			kDebug(1, "killing timed out connection {} of server {}", Query.ID, Query.iServerHash);
+			auto Servers = m_DBs.unique();
+			auto pdb = Servers->find(Query.iServerHash);
+
+			if (pdb != Servers->end() && pdb->second != nullptr)
 			{
-				kDebug(1, "killing timed out connection {} of server {}", Query.ID, Query.iServerHash);
-				auto Servers = m_DBs.unique();
-				auto pdb = Servers->find(Query.iServerHash);
-
-				if (pdb != Servers->end() && pdb->second != nullptr)
-				{
-					// we have a connector - make sure it does not generate
-					// new timeout queries ..
-					pdb->second->SetQueryTimeout(std::chrono::milliseconds(0));
-					// and finally kill the connection ..
-					pdb->second->KillConnection(Query.ID);
-				}
-				else
-				{
-					kDebug(2, "could not find server with hash {}", Query.iServerHash);
-				}
-
-				// and remove from watchlist if not done by the client itself
-				Remove(Query.ID, Query.iServerHash);
+				// we have a connector - make sure it does not generate
+				// new timeout queries ..
+				pdb->second->SetQueryTimeout(std::chrono::milliseconds(0));
+				// and finally kill the connection ..
+				pdb->second->KillConnection(Query.ID);
 			}
+			else
+			{
+				kDebug(2, "could not find server with hash {}", Query.iServerHash);
+			}
+
+			// and remove from watchlist if not done by the client itself
+			Remove(Query.ID, Query.iServerHash);
 		}
 	}
 

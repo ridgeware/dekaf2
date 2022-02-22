@@ -800,12 +800,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			Output(Options);
 
-			Options.Logger.Log(*this);
-
-			if (Options.bRecordRequest)
-			{
-				RecordRequestForReplay(Options);
-			}
+			RunPostResponse(Options);
 
 			if (m_Timers)
 			{
@@ -844,6 +839,22 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 		ErrorHandler(ex, Options);
 	}
 
+	RunPostResponse(Options);
+
+	return false;
+
+} // Execute
+
+//-----------------------------------------------------------------------------
+void KRESTServer::RunPostResponse(const Options& Options)
+//-----------------------------------------------------------------------------
+{
+	if (m_PostResponseCallback)
+	{
+		m_PostResponseCallback(*this);
+		m_PostResponseCallback = nullptr;
+	}
+
 	Options.Logger.Log(*this);
 
 	if (Options.bRecordRequest)
@@ -851,9 +862,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 		RecordRequestForReplay(Options);
 	}
 
-	return false;
-
-} // Execute
+} // RunPostResponseCallback
 
 //-----------------------------------------------------------------------------
 bool KRESTServer::SetStreamToOutput(std::unique_ptr<KInStream> Stream, std::size_t iContentLength)

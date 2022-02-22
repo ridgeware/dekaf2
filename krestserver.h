@@ -428,6 +428,16 @@ public:
 	void Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders = true);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// sets a callback that is called (once) after generating the response for the current request, directly before the
+	/// general logging.
+	/// @param PostResponseCallback called after generating the response for the current request, also in error cases
+	void SetPostResponseCallback(std::function<void(const KRESTServer&)> PostResponseCallback)
+	//-----------------------------------------------------------------------------
+	{
+		m_PostResponseCallback = PostResponseCallback;
+	}
+
 //------
 protected:
 //------
@@ -474,6 +484,11 @@ protected:
 	void clear();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// run the post response callback if existing, and the logger and reporting facilities
+	void RunPostResponse(const Options& Options);
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------
@@ -497,6 +512,7 @@ private:
 	KTempDir    m_TempDir;               // create a KTempDir object
 	std::unique_ptr<KJSON> m_JsonLogger;
 	std::unique_ptr<KStopDurations> m_Timers;
+	std::function<void(const KRESTServer&)> m_PostResponseCallback; // if set, gets called after response generation
 	uint16_t    m_iRound;                // keepalive rounds
 	bool        m_bKeepAlive;            // whether connection will be kept alive
 	bool        m_bLostConnection;       // whether we lost our peer during flight

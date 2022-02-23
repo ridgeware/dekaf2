@@ -180,6 +180,9 @@ public:
 	// do not know about other DBTypes
 	using ConnectionID = std::size_t;
 
+	/// property sheet containing configuration parameters
+	using IniParms = KProps<KString, KString, false, true>;
+
 	/// KSQL exception class
 	struct Exception : public KException
 	{
@@ -239,14 +242,30 @@ public:
 		FAC_SIGNED            = 1 << 8       ///< FAC_SIGNED: like FAC_NUMERIC but retains +/- sign
 	};
 
-	/// default constructor, can also be used to configure connection details
+	/// default constructor
+	KSQL ();
+	/// constructor to configure connection details
 	/// @param iDBType the DBType
 	/// @param sUsername the user name
 	/// @param sPassword the password
 	/// @param sDatabase the database to use
 	/// @param sHostname the database server hostname
 	/// @param iDBPortNum the database server port number
-	KSQL (DBT iDBType = DBT::MYSQL, KStringView sUsername = {}, KStringView sPassword = {}, KStringView sDatabase = {}, KStringView sHostname = {}, uint16_t iDBPortNum = 0);
+	KSQL (DBT iDBType, KStringView sUsername = {}, KStringView sPassword = {}, KStringView sDatabase = {}, KStringView sHostname = {}, uint16_t iDBPortNum = 0);
+	/// construct using DBC file.
+	/// This connector immediately also opens the connection.
+	/// @param sDBCFile dbc file to be used
+	KSQL (KStringView sDBCFile);
+	/// construct using DBC file, env variables, INI parms with connection details.
+	/// This connector is the only one that immediately also opens the connection.
+	/// @param sIdentifierList name used as prefix for env vars to
+	/// load the configuration from.
+	/// @param sDBCFile dbc file to be used. Can be empty.
+	/// @param INI a property sheet with ini parameters which
+	/// will be searched as last resort to find connection parameters
+	KSQL (KStringView sIdentifierList,
+		  KStringView sDBCFile,
+		  const IniParms& INI = IniParms{});
 	/// copy constructor, only copies connection details from other instance, not internal state!
 	KSQL (const KSQL& other);
 	/// move constructor, moves all internal state
@@ -639,6 +658,12 @@ public:
 	const KString& ConnectSummary () const;
 	const KString& GetTempDir()    const { return (m_sTempDir);        }
 
+	/// this tmp file is used to hold buffered results (if flag F_BufferResults is set). Always only
+	/// access its name through these functions!
+	const KString& GetTempResultsFile();
+	void ClearTempResultsFile() { m_sNeverReadMeDirectlyTmpResultsFile.clear(); }
+	void RemoveTempResultsFile();
+
 	/// returns last error string
 	const KString& GetLastError () const { return (m_sLastErrorSetOnlyWithSetError);      }
 	/// returns last error number
@@ -856,8 +881,6 @@ public:
 
 	using SchemaCallback = std::function<bool(uint16_t iFrom, uint16_t iTo)>;
 
-	using IniParms = KProps<KString, KString, false, true>;
-
 	/// check for updates of the DB schema, try to setup params automatically
 	bool EnsureSchema (KStringView sSchemaVersionTable,
 	                   KStringView sSchemaFolder,
@@ -885,7 +908,7 @@ public:
 	/// All separate connection parameters are selected by the above logic in descending
 	/// precedence.
 	///
-	/// @param sProgramName name used as prefix for env vars to
+	/// @param sIdentifierList name used as prefix for env vars to
 	/// load the configuration from.
 	/// @param sDBCFile dbc file to be used. Can be empty.
 	/// @param INI a property sheet with ini parameters which
@@ -1316,7 +1339,7 @@ private:
 	bool       m_bQueryStarted { false };
 	bool       m_bMayThrow { false };
 	KString    m_sDBCFile;
-	KString    m_sTmpResultsFile;
+	KString    m_sNeverReadMeDirectlyTmpResultsFile;
 	uint64_t   m_iRowNum { 0 };
 	KROW::Index m_iNumColumns { 0 };
 	uint64_t   m_iNumRowsBuffered { 0 };

@@ -506,18 +506,25 @@ void KSQL::KSQLStatementStats::Increment(KStringView sLastSQL, QueryType QueryTy
 } // Increment
 
 //-----------------------------------------------------------------------------
-KSQL::KSQL (DBT iDBType/*=DBT::MYSQL*/, KStringView sUsername/*=nullptr*/, KStringView sPassword/*=nullptr*/, KStringView sDatabase/*=nullptr*/, KStringView sHostname/*=nullptr*/, uint16_t iDBPortNum/*=0*/)
+KSQL::KSQL ()
 //-----------------------------------------------------------------------------
-: m_QueryTimeout(s_QueryTimeout)
-, m_QueryTypeForTimeout(s_QueryTypeForTimeout)
+: m_iDBType             (DBT::MYSQL)
+, m_QueryTimeout        (s_QueryTimeout)
+, m_QueryTypeForTimeout (s_QueryTypeForTimeout)
 {
 	kDebug (3, "...");
 
 	// enable the query timeout if the preset static values were good
 	m_bEnableQueryTimeout = m_QueryTimeout > std::chrono::milliseconds(0) && m_QueryTypeForTimeout != QueryType::None;
 
-	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
-	m_sTmpResultsFile.Format ("{}/ksql-{}-{}.res", GetTempDir(), kGetPid(), kGetTid());
+} // KSQL - default constructor - do not connect
+
+//-----------------------------------------------------------------------------
+KSQL::KSQL (DBT iDBType, KStringView sUsername, KStringView sPassword, KStringView sDatabase, KStringView sHostname, uint16_t iDBPortNum)
+//-----------------------------------------------------------------------------
+: KSQL () // delegate to default constructor first
+{
+	kDebug (2, "DBType: {}, username: {}", TxDBType(iDBType), sUsername);
 
 	if (!sUsername.empty())
 	{
@@ -525,7 +532,31 @@ KSQL::KSQL (DBT iDBType/*=DBT::MYSQL*/, KStringView sUsername/*=nullptr*/, KStri
 		// already calls SetAPISet() and InvalidateConnectSummary()
 	}
 
-} // KSQL - default constructor
+} // KSQL - construct with connection details, but do not connect yet
+
+//-----------------------------------------------------------------------------
+KSQL::KSQL (KStringView sDBCFile)
+//-----------------------------------------------------------------------------
+: KSQL () // delegate to default constructor first
+{
+	kDebug(2, "DBC file: {}", sDBCFile);
+
+	EnsureConnected ("", sDBCFile);
+
+} // KSQL - construct and connect from a DBC file
+
+//-----------------------------------------------------------------------------
+KSQL::KSQL (KStringView sIdentifierList,
+			KStringView sDBCFile,
+			const IniParms& INI)
+//-----------------------------------------------------------------------------
+: KSQL () // delegate to default constructor first
+{
+	kDebug(2, "Identifiers: {}, DBC file: {}", sIdentifierList, sDBCFile);
+
+	EnsureConnected (sIdentifierList, sDBCFile, INI);
+
+} // KSQL - construct and connect from a DBC file or env or INI parms
 
 //-----------------------------------------------------------------------------
 KSQL::KSQL (const KSQL& other)
@@ -537,10 +568,9 @@ KSQL::KSQL (const KSQL& other)
 , m_iWarnIfOverMilliseconds(other.m_iWarnIfOverMilliseconds)
 , m_TimingCallback(other.m_TimingCallback)
 {
-	kDebug (3, "...");
+	kDebug (2, "...");
 
-	// this tmp file is used to hold buffered results (if flag F_BufferResults is set):
-	m_sTmpResultsFile.Format ("{}/ksql-{}-{}.res", GetTempDir(), kGetPid(), kGetTid());
+	ClearTempResultsFile();
 
 	if (!other.GetDBUser().empty())
 	{
@@ -548,7 +578,7 @@ KSQL::KSQL (const KSQL& other)
 		SetConnect (other.GetDBType(), other.GetDBUser(), other.GetDBPass(), other.GetDBName(), other.GetDBHost(), other.GetDBPort());
 	}
 
-} // KSQL - copy constructor
+} // KSQL - copy constructor, but do not connect yet
 
 //-----------------------------------------------------------------------------
 KSQL::~KSQL ()
@@ -558,6 +588,29 @@ KSQL::~KSQL ()
 	CloseConnection (/*bDestructor=*/true);  // <-- this calls FreeAll()
 
 } // destructor
+
+//-----------------------------------------------------------------------------
+const KString& KSQL::GetTempResultsFile()
+//-----------------------------------------------------------------------------
+{
+	if (m_sNeverReadMeDirectlyTmpResultsFile.empty())
+	{
+		m_sNeverReadMeDirectlyTmpResultsFile.Format ("{}/ksql-{}-{}-{}.res", GetTempDir(), kGetPid(), kGetTid(), kRandom());
+	}
+	return m_sNeverReadMeDirectlyTmpResultsFile;
+
+} // GetTempResultsFile
+
+//-----------------------------------------------------------------------------
+void KSQL::RemoveTempResultsFile()
+//-----------------------------------------------------------------------------
+{
+	if (!m_sNeverReadMeDirectlyTmpResultsFile.empty())
+	{
+		kRemoveFile(m_sNeverReadMeDirectlyTmpResultsFile);
+	}
+
+} // RemoveTempResultsFile
 
 //-----------------------------------------------------------------------------
 void KSQL::ClearError()
@@ -1087,7 +1140,6 @@ bool KSQL::OpenConnection ()
 	if (kWouldLog(GetDebugLevel() + 1))
 	{
 		kDebug (GetDebugLevel() + 1, "connect info:");
-		kDebug (GetDebugLevel() + 1, "  Summary  = {}", ConnectSummary());
 		kDebug (GetDebugLevel() + 1, "  DBType   = {}", TxDBType(m_iDBType));
 		kDebug (GetDebugLevel() + 1, "  APISet   = {}", TxAPISet(m_iAPISet));
 		kDebug (GetDebugLevel() + 1, "  DBUser   = {}", m_sUsername);
@@ -1457,6 +1509,8 @@ bool KSQL::OpenConnection ()
 	#endif
 
 	m_bConnectionIsOpen = true;
+
+	kDebug (1, "connected to: {}", ConnectSummary());
 
 	return true;
 
@@ -3568,16 +3622,13 @@ bool KSQL::BufferResults ()
 		return SetError("BufferResults(): called when query was not started.");
 	}
 
-	if (kFileExists (m_sTmpResultsFile))
-	{
-		kRemoveFile (m_sTmpResultsFile);
-	}
+	RemoveTempResultsFile();
 
-	KOutFile file(m_sTmpResultsFile);
+	KOutFile file(GetTempResultsFile());
 	if (!file.Good())
 	{
 		return SetError(kFormat ("BufferResults(): could not buffer results b/c {} could not write to '{}'",
-								 kwhoami(), m_sTmpResultsFile));
+								 kwhoami(), GetTempResultsFile()));
 	}
 
 	m_iNumRowsBuffered = 0;
@@ -3755,14 +3806,14 @@ bool KSQL::BufferResults ()
 	}
 
 #ifdef DEKAF2_IS_UNIX
-	m_bpBufferedResults = fopen (m_sTmpResultsFile.c_str(), "re");
+	m_bpBufferedResults = fopen (GetTempResultsFile().c_str(), "re");
 #else
-	m_bpBufferedResults = fopen (m_sTmpResultsFile.c_str(), "r");
+	m_bpBufferedResults = fopen (GetTempResultsFile().c_str(), "r");
 #endif
 	if (!m_bpBufferedResults)
 	{
 		return SetError(kFormat ("BufferResults(): bizarre: {} could not read from '{}', right after creating it.",
-								 kwhoami(), m_sTmpResultsFile));
+								 kwhoami(), GetTempResultsFile()));
 	}
 
 	m_bFileIsOpen = true;
@@ -4254,14 +4305,14 @@ bool KSQL::ResetBuffer ()
 	}
 
 #ifdef DEKAF2_IS_UNIX
-	m_bpBufferedResults = fopen (m_sTmpResultsFile.c_str(), "re");
+	m_bpBufferedResults = fopen (GetTempResultsFile().c_str(), "re");
 #else
-	m_bpBufferedResults = fopen (m_sTmpResultsFile.c_str(), "r");
+	m_bpBufferedResults = fopen (GetTempResultsFile().c_str(), "r");
 #endif
 	if (!m_bpBufferedResults)
 	{
 		return SetError(kFormat ("ResetBuffer(): bizarre: {} could not read from '{}'.",
-								 kwhoami(), m_sTmpResultsFile));
+								 kwhoami(), GetTempResultsFile()));
 	}
 
 	m_bFileIsOpen = true;
@@ -4335,10 +4386,7 @@ void KSQL::EndQuery (bool bDestructor/*=false*/)
 		m_bFileIsOpen = false;
 	}
 
-	if (kFileExists (m_sTmpResultsFile))
-	{
-		kRemoveFile (m_sTmpResultsFile);
-	}
+	RemoveTempResultsFile();
 
 	m_iRowNum           = 0;
 	m_iNumRowsBuffered  = 0;
@@ -8431,8 +8479,6 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 		return false;
 	}
 
-	kDebug (1, "connected to: {}", ConnectSummary());
-
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// we have an open database connection
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -8456,8 +8502,6 @@ bool KSQL::EnsureConnected ()
 	{
 		return false;
 	}
-
-	kDebug (1, "connected to: {}", ConnectSummary());
 
 	// we have an open database connection
 	return true;

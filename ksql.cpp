@@ -1083,7 +1083,7 @@ bool KSQL::LoadConnect (const KString& sDBCFile)
 
 	kDebug (GetDebugLevel(), "opening '{}'...", sDBCFile);
 
-	auto sBuffer = kReadAll(sDBCFile);
+	auto sBuffer = s_DBCCache.Get(sDBCFile);
 
 	return SetConnect (sDBCFile, sBuffer);
 

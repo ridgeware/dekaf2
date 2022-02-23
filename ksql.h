@@ -999,7 +999,7 @@ private:
 		}
 	};
 
-	using DBCCache = KCache<KString, KString, DBCLoader>;
+	using DBCCache = KSharedCache<KString, KString, DBCLoader>;
 
 	static DBCCache s_DBCCache;
 

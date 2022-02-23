@@ -49,8 +49,10 @@
 /// required atomic synchronization for the multi threading safe implementation
 /// costs around 50% of performance for construction / destruction. Also, this
 /// shared pointer can be configured to use sequential-consistent memory access
-/// for the use counter, which is slower, but 100% reliable in multi threding.
-/// The std::shared_ptr uses relaxed memory access, which is unreliable.
+/// for the use counter, which is slower, but 100% reliable in multi threading.
+/// The std::shared_ptr uses relaxed memory access, which is unreliable at
+/// any given point in time across threads, and therefore a call to use_count() is
+/// declared as "approximate" by the standard.
 
 #include <atomic>
 
@@ -68,8 +70,9 @@ namespace dekaf2
 /// costs around 50% of performance for construction / destruction. Also, this
 /// shared pointer can be configured to use acquire-release memory access
 /// for the use counter, which is slower, but 100% reliable in multi threading.
-/// The std::shared_ptr uses relaxed memory access for the readout of the use
-/// counter, which is unreliable.
+/// The std::shared_ptr uses relaxed memory access, which is unreliable at
+/// any given point in time across threads, and therefore a call to use_count() is
+/// declared as "approximate" by the standard.
 template<class T, bool bMultiThreaded = true, bool bAcquireRelease = true>
 class KSharedPtr
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

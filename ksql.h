@@ -588,7 +588,7 @@ public:
 
 	static constexpr KStringViewZ KSQL_CONNECTION_TEST_ONLY { "KSQL_CONNECTION_TEST_ONLY" };
 
-	static bool IsConnectionTestOnly () { return kGetEnv(KSQL_CONNECTION_TEST_ONLY).Bool(); }
+	static bool IsConnectionTestOnly ();
 
 	/// After starting a query, this is the canonical method for fetching results based on column number in the SQL query.
 	KStringView  Get         (KROW::Index iOneBasedColNum, bool fTrimRight=true);

@@ -9611,6 +9611,16 @@ void KSQL::SetDefaultQueryTimeout(std::chrono::milliseconds Timeout, QueryType Q
 
 } // SetQueryTimeout
 
+//-----------------------------------------------------------------------------
+bool KSQL::IsConnectionTestOnly ()
+//-----------------------------------------------------------------------------
+{
+	static bool s_sEnvIsConnectionTest = kGetEnv(KSQL_CONNECTION_TEST_ONLY).Bool();
+
+	return s_sEnvIsConnectionTest;
+
+} // IsConnectionTestOnly
+
 std::atomic<std::chrono::milliseconds> KSQL::s_QueryTimeout        { std::chrono::milliseconds(0) };
 std::atomic<KSQL::QueryType>           KSQL::s_QueryTypeForTimeout { QueryType::None              };
 

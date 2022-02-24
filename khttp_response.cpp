@@ -94,7 +94,7 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPResponseHeaders::Serialize(KOutStream& Stream) const
+bool KHTTPResponseHeaders::Serialize(KOutStream& Stream, KStringView sLinePrefix) const
 //-----------------------------------------------------------------------------
 {
 	if (sHTTPVersion.empty())
@@ -102,9 +102,12 @@ bool KHTTPResponseHeaders::Serialize(KOutStream& Stream) const
 		return SetError("missing http version");
 	}
 	
-	Stream.FormatLine("{} {} {}", sHTTPVersion, iStatusCode, sStatusString);
+	if (!Stream.FormatLine("{}{} {} {}", sLinePrefix, sHTTPVersion, iStatusCode, sStatusString))
+	{
+		return SetError("Cannot write headers");
+	}
 
-	return KHTTPHeaders::Serialize(Stream);
+	return KHTTPHeaders::Serialize(Stream, sLinePrefix);
 
 } // Serialize
 

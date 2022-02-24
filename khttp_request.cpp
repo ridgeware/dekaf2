@@ -328,7 +328,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
+bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream, KStringView sLinePrefix) const
 //-----------------------------------------------------------------------------
 {
 	if (!Resource.empty())
@@ -340,11 +340,15 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 					Endpoint.Serialize(),
 					Resource.Serialize(),
 					sHTTPVersion);
-			Stream.FormatLine("{} http://{}{} {}",
-							  Method.Serialize(),
-							  Endpoint.Serialize(),
-							  Resource.Serialize(),
-							  sHTTPVersion);
+			if (!Stream.FormatLine("{}{} http://{}{} {}",
+								   sLinePrefix,
+								   Method.Serialize(),
+								   Endpoint.Serialize(),
+								   Resource.Serialize(),
+								   sHTTPVersion))
+			{
+				return SetError("Cannot write request line");
+			}
 		}
 		else
 		{
@@ -352,10 +356,14 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 					Method.Serialize(),
 					Resource.Serialize(),
 					sHTTPVersion);
-			Stream.FormatLine("{} {} {}",
-							  Method.Serialize(),
-							  Resource.Serialize(),
-							  sHTTPVersion);
+			if (!Stream.FormatLine("{}{} {} {}",
+								   sLinePrefix,
+								   Method.Serialize(),
+								   Resource.Serialize(),
+								   sHTTPVersion))
+			{
+				return SetError("Cannot write request line");
+			}
 		}
 	}
 	else
@@ -367,10 +375,14 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 					Endpoint.Serialize(),
 					sHTTPVersion);
 			// this is a CONNECT request
-			Stream.FormatLine("{} {} {}",
-							  Method.Serialize(),
-							  Endpoint.Serialize(),
-							  sHTTPVersion);
+			if (!Stream.FormatLine("{}{} {} {}",
+								   sLinePrefix,
+								   Method.Serialize(),
+								   Endpoint.Serialize(),
+								   sHTTPVersion))
+			{
+				return SetError("Cannot write request line");
+			}
 		}
 		else
 		{
@@ -380,13 +392,26 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 			kDebug(1, "{} / {}",
 						Method.Serialize(),
 						sHTTPVersion);
-			Stream.FormatLine("{} / {}",
-							  Method.Serialize(),
-							  sHTTPVersion);
+			if (!Stream.FormatLine("{}{} / {}",
+								   sLinePrefix,
+								   Method.Serialize(),
+								   sHTTPVersion))
+			{
+				return SetError("Cannot write request line");
+			}
 		}
 	}
 
-	return KHTTPHeaders::Serialize(Stream);
+	return true;
+
+} // SerializeRequestLine
+
+//-----------------------------------------------------------------------------
+bool KHTTPRequestHeaders::Serialize(KOutStream& Stream, KStringView sLinePrefix) const
+//-----------------------------------------------------------------------------
+{
+	return SerializeRequestLine(Stream, sLinePrefix) &&
+		KHTTPHeaders::Serialize(Stream, sLinePrefix);
 
 } // Serialize
 

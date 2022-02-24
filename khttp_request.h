@@ -130,7 +130,17 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Serialize(KOutStream& Stream) const;
+	/// serialize request line and headers into Stream
+	/// @param Stream output stream to write to
+	/// @param sLinePrefix prefix for each printed line, default empty, useful for logging
+	bool Serialize(KOutStream& Stream, KStringView sLinePrefix = KStringView{}) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// serialize sent or received request line into Stream (included by Serialize())
+	/// @param Stream output stream to write to
+	/// @param sLinePrefix prefix for each printed line, default empty, useful for logging
+	bool SerializeRequestLine(KOutStream& Stream, KStringView sLinePrefix = KStringView{}) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -170,11 +180,11 @@ public:
 
 	KHTTPMethod        Method;
 	KResource          Resource;
-	// for logging purposes on incoming requests we store a copy of the original
-	// request line
+	/// for logging purposes on incoming requests we store a copy of the original
+	/// request line
 	KInHTTPRequestLine RequestLine;
-	// for HTTPS CONNECT and proxied HTTP requests we need the domain and port
-	// of the target server
+	/// for HTTPS CONNECT and proxied HTTP requests we need the domain and port
+	/// of the target server
 	KTCPEndPoint       Endpoint;
 
 }; // KHTTPRequestHeaders

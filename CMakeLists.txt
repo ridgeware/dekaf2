@@ -1025,6 +1025,10 @@ add_executable(dekaf2project dekaf2project.cpp)
 target_link_libraries(dekaf2project dekaf2)
 add_dependencies(dekaf2project dekaf2)
 
+add_executable(kurl samples/kurl.cpp samples/kurl.h)
+target_link_libraries(kurl dekaf2)
+add_dependencies(kurl dekaf2)
+
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_link_libraries(getentities dekaf2)
 add_dependencies(getentities dekaf2)
@@ -1060,11 +1064,8 @@ install(TARGETS dekaf2 ksql2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake DESTINATION ${dekaf2_lib_dest})
-install(TARGETS klog DESTINATION ${dekaf2_bin_dest})
-install(TARGETS createdbc DESTINATION ${dekaf2_bin_dest})
-install(TARGETS dekaf2project DESTINATION ${dekaf2_bin_dest})
-#install(TARGETS getentities DESTINATION ${dekaf2_bin_dest})
-#install(TARGETS genunicodetables DESTINATION ${dekaf2_bin_dest})
+install(TARGETS klog createdbc dekaf2project kurl DESTINATION ${dekaf2_bin_dest})
+#install(TARGETS getentities genunicodetables DESTINATION ${dekaf2_bin_dest})
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2)
 install(FILES ksql.h DESTINATION ${dekaf2_include_dest}/dekaf2)
@@ -1109,6 +1110,7 @@ add_custom_target(uninstall
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}"
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}/${dekaf2_share_dest}"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/klog"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/kurl"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/createdbc"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/dekaf2project"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/mysql-newuser"

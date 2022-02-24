@@ -95,7 +95,7 @@ protected:
 		KString     sRequestMIME;
 		KString     sRequestCompression;
 		HeaderMap   Headers;
-		Flags       Flags      { Flags::NONE };
+		enum Flags  Flags      { Flags::NONE };
 		bool        bTerminate { false };
 	};
 

@@ -300,7 +300,7 @@ uint32_t Dekaf::GetRandomValue(uint32_t iMin, uint32_t iMax)
 } // kRandom
 
 //---------------------------------------------------------------------------
-KStringView Dekaf::GetVersionInformation() const
+KStringView Dekaf::GetVersionInformation()
 //---------------------------------------------------------------------------
 {
 	constexpr KStringView sVersionInformation =
@@ -365,7 +365,7 @@ KStringView Dekaf::GetVersionInformation() const
 }
 
 //---------------------------------------------------------------------------
-KStringView Dekaf::GetVersion() const
+KStringView Dekaf::GetVersion()
 //---------------------------------------------------------------------------
 {
 	constexpr KStringView sVersion = "dekaf-" DEKAF_VERSION "-" DEKAF2_BUILD_TYPE ;

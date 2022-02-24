@@ -86,6 +86,9 @@
 #if !defined(DEKAF2_IS_OSX) && defined(__APPLE__) && defined(__MACH__)
 	#define DEKAF2_IS_OSX 1
 #endif
+#if !defined(DEKAF2_IS_MACOS) && defined(__APPLE__) && defined(__MACH__)
+	#define DEKAF2_IS_MACOS 1
+#endif
 
 #if !defined(DEKAF2_IS_UNIX) && (defined(unix) || defined(__unix__) || defined(DEKAF2_IS_OSX))
 	#define DEKAF2_IS_UNIX 1
@@ -525,6 +528,8 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	}
 }
 
+#undef DEKAF2_LE_BE_CONSTEXPR
+
 #ifndef npos
 	// npos is used in dekaf2 as error return for unsigned return types
 	static constexpr std::size_t npos = static_cast<std::size_t>(-1);
@@ -678,8 +683,6 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 #endif
 
 static constexpr std::size_t KDefaultCopyBufSize = 4096;
-
-#undef DEKAF2_LE_BE_CONSTEXPR
 
 // Helper macros to make an enum type a "flag" type, that is, bit operations with enum values are permitted
 // in a type-safe fashion.

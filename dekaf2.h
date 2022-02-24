@@ -164,12 +164,12 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Get verbose dekaf2 version information (build settings)
-	KStringView GetVersionInformation() const;
+	static KStringView GetVersionInformation();
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
 	/// Get terse dekaf2 version string
-	KStringView GetVersion() const;
+	static KStringView GetVersion();
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------

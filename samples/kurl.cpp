@@ -59,6 +59,8 @@ kurl::kurl ()
 
 	m_CLI.Throw();
 
+	m_CLI.SetBriefDescription("dekaf2 based HTTP query tool").SetAdditionalArgDescription("<URL>");
+
 	m_CLI.Option("i,include").Help("show http response headers in output")
 	([&]()
 	{

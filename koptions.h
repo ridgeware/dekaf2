@@ -110,6 +110,9 @@ public:
 	/// set a brief description of the program, will appear in first line of generated help
 	KOptions& SetBriefDescription(KString sBrief) { m_sBriefDescription = std::move(sBrief); return *this; }
 
+	/// set an additional description at the end of the automatic "usage:" string
+	KOptions& SetAdditionalArgDescription(KString sAdditionalArgDesc) { m_sAdditionalArgDesc = std::move(sAdditionalArgDesc); return *this; }
+
 	/// set the separator style for the generated help - default is ::
 	KOptions& SetHelpSeparator(KStringView sSeparator) { m_sSeparator = sSeparator; return *this; }
 
@@ -446,6 +449,7 @@ private:
 
 	KString            m_sProgramPathName;
 	KString            m_sBriefDescription;
+	KString            m_sAdditionalArgDesc;
 	KStringView        m_sSeparator { "::" };
 	CommandLookup      m_Commands;
 	CommandLookup      m_Options;

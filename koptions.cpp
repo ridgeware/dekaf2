@@ -430,10 +430,12 @@ void KOptions::BuildHelp(KOutStream& out) const
 	}
 
 	out.WriteLine();
-	out.FormatLine("usage: {}{}{}",
+	out.FormatLine("usage: {}{}{}{}{}",
 				   GetProgramName(),
-				   m_bHaveOptions ? " [<options>]" : "",
-				   m_bHaveCommands ? " [<actions>]" : "");
+				   m_bHaveOptions  ? " [<options>]" : "",
+				   m_bHaveCommands ? " [<actions>]" : "",
+				   m_sAdditionalArgDesc.empty() ? "" : " ",
+				   m_sAdditionalArgDesc);
 	out.WriteLine();
 
 	auto iMaxHelp  = m_iMaxHelpRowWidth - (iMaxLen + m_sSeparator.size() + 5);

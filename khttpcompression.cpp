@@ -116,7 +116,7 @@ KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompression(KStringView
 	{
 		auto NewComp = FromString(sCompressor);
 
-		if (NewComp < Compression)
+		if (NewComp < Compression && (NewComp & s_PermittedCompressors) > 0)
 		{
 			Compression = NewComp;
 		}
@@ -141,6 +141,7 @@ KStringView KHTTPCompression::ToString(COMP comp)
 	switch (comp)
 	{
 		case NONE:
+		case ALL:
 			return ""_ksv;
 
 		case ZLIB:
@@ -172,5 +173,22 @@ KStringView KHTTPCompression::ToString(COMP comp)
 	return ""_ksv;
 
 } // ToString
+
+//-----------------------------------------------------------------------------
+void KHTTPCompression::SetPermittedCompressors(KStringView sCompressors)
+//-----------------------------------------------------------------------------
+{
+	COMP Compressors { COMP::NONE };
+
+	for (auto& sCompressor : sCompressors.Split(",;"))
+	{
+		Compressors |= FromString(sCompressor);
+	}
+
+	SetPermittedCompressors(Compressors);
+
+} // SetPermittedCompressors
+
+KHTTPCompression::COMP KHTTPCompression::s_PermittedCompressors { COMP::ALL };
 
 } // of namespace dekaf2

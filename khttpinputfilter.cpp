@@ -90,6 +90,7 @@ bool KInHTTPFilter::SetupInputFilter()
 		switch (m_Compression)
 		{
 			case NONE:
+			case ALL:
 				kDebug(2, "no {}compression", "un");
 				break;
 

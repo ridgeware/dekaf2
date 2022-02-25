@@ -59,43 +59,74 @@ public:
 	enum COMP
 	{
 #ifdef DEKAF2_HAS_LIBZSTD
-		ZSTD   = 1,
+		ZSTD   = 1 << 0,
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI
-		BROTLI = 2,
+		BROTLI = 1 << 1,
 #endif
-		ZLIB   = 3,
-		GZIP   = 4,
+		ZLIB   = 1 << 2,
+		GZIP   = 1 << 3,
 #ifdef DEKAF2_HAS_LIBLZMA
-		XZ     = 5,
-		LZMA   = 8, // do not pick from accept-encoding list
+		XZ     = 1 << 4,
+		LZMA   = 1 << 7, // do not pick from accept-encoding list
 #endif
-		BZIP2  = 6,
-		NONE   = 7
+		BZIP2  = 1 << 5,
+		NONE   = 1 << 6,
+
+		ALL    = NONE | BZIP2 | GZIP | ZLIB
+#ifdef DEKAF2_HAS_LIBZSTD
+		         | ZSTD
+#endif
+#ifdef DEKAF2_HAS_LIBBROTLI
+		         | BROTLI
+#endif
+#ifdef DEKAF2_HAS_LIBLZMA
+		         | XZ    // do not add LZMA to the mask, we do not want to accept it
+#endif
 	};
 
 	KHTTPCompression() = default;
+	/// construct from a comma separated list of compressor names, and pick the best one
 	KHTTPCompression(KStringView sCompression)    { Parse(sCompression);            }
+	/// construct from KHTTPHeaders, and pick the best compression from the requested ones
 	KHTTPCompression(const KHTTPHeaders& Headers) { Parse(Headers);                 }
+	/// construct from an explicit compression algorithm
 	KHTTPCompression(COMP comp) : m_Compression(comp) {}
 
+	/// assign from a comma separated list of compressor names, and pick the best one
 	KHTTPCompression& operator=(KStringView sCompression) { Parse(sCompression); return *this; }
 
+	/// parse comma separated list of compressor names, and pick the best one
 	void Parse(KStringView sCompression);
+	/// parse from KHTTPHeaders, and pick the best compression from the requested ones
 	void Parse(const KHTTPHeaders& Headers);
+	/// return selected compression algorithm
 	COMP GetCompression() const                   { return m_Compression;           }
+	/// set compression algorithm
 	void SetCompression(COMP comp)                { m_Compression = comp;           }
+	/// return selected compression algorithm as string
 	KStringView Serialize() const                 { return ToString(m_Compression); }
 
 	operator COMP() const                         { return m_Compression;           }
 
-	/// Returns CSV string with supported HTTP compressors (to be used for ACCEPT_ENCODING)
+	/// returns CSV string with supported HTTP compressors (to be used for ACCEPT_ENCODING)
 	constexpr
 	static KStringViewZ GetSupportedCompressors() { return s_sSupportedCompressors; }
+	/// return best supported HTTP compression from a comma separated list of compressor names
 	static COMP         GetBestSupportedCompression(KStringView sCompressors);
+	/// return best supported HTTP compression from KHTTPHeaders
 	static COMP         GetBestSupportedCompression(const KHTTPHeaders& Headers);
+	/// return compression algorithm from name
 	static COMP         FromString(KStringView);
+	/// return compression name from algorithm
 	static KStringView  ToString(COMP comp);
+
+	/// set set of permitted compression algorithms
+	static void SetPermittedCompressors(COMP Compressors) { s_PermittedCompressors = Compressors; }
+	/// set list of permitted compression algorithms from comma separated list of compression names
+	static void SetPermittedCompressors(KStringView sCompressors);
+	/// return set of permitted compression algorithms
+	static COMP GetPermittedCompressors()         { return s_PermittedCompressors;  }
 
 //------
 protected:
@@ -116,6 +147,13 @@ protected:
 
 	COMP m_Compression { NONE };
 
+	// in theory this should be an atomic type, but the risk of reading the value
+	// during an update is very low, and the consequences would only be that a
+	// momentarily non-accepted compression is for one time permitted or vice verse
+	static COMP s_PermittedCompressors;
+
 }; // KHTTPCompression
+
+DEKAF2_ENUM_IS_FLAG(KHTTPCompression::COMP)
 
 } // of namespace dekaf2

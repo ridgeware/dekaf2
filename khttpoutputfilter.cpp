@@ -81,6 +81,7 @@ bool KOutHTTPFilter::SetupOutputFilter()
 		switch (m_Compression)
 		{
 			case NONE:
+			case ALL:
 				kDebug(2, "no {}compression", "");
 				break;
 				

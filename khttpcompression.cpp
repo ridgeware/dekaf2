@@ -175,6 +175,66 @@ KStringView KHTTPCompression::ToString(COMP comp)
 } // ToString
 
 //-----------------------------------------------------------------------------
+std::vector<KStringView> KHTTPCompression::ToStrings(COMP comp)
+//-----------------------------------------------------------------------------
+{
+	std::vector<KStringView> Result;
+
+	using inttype = std::underlying_type<COMP>::type;
+
+	inttype mask = 1;
+
+	for (;;)
+	{
+		auto iMasked = comp & mask;
+
+		if (iMasked != 0 && iMasked != COMP::NONE)
+		{
+			Result.push_back(ToString(static_cast<COMP>(iMasked)));
+		}
+
+		if (mask >= COMP::ALL)
+		{
+			break;
+		}
+
+		mask <<= 1;
+	}
+
+	return Result;
+
+} // ToStrings
+
+//-----------------------------------------------------------------------------
+KStringViewZ KHTTPCompression::GetSupportedCompressors()
+//-----------------------------------------------------------------------------
+{
+	return (s_PermittedCompressors == COMP::ALL) ? s_sSupportedCompressors : s_sPermittedCompressors.getRef().ToView();
+
+}
+
+//-----------------------------------------------------------------------------
+void KHTTPCompression::SetPermittedCompressors(COMP Compressors)
+//-----------------------------------------------------------------------------
+{
+	if ((Compressors & COMP::ALL) == COMP::ALL)
+	{
+		// make sure to really only set COMP::ALL flags, not more - that makes
+		// it easier to test for the ALL case
+		Compressors = COMP::ALL;
+		// no need to reset the compressors string - it is not used for ALL
+	}
+	else
+	{
+		// build and set the new compressors string
+		s_sPermittedCompressors.reset(kJoined(ToStrings(Compressors)));
+	}
+
+	s_PermittedCompressors = Compressors;
+
+}
+
+//-----------------------------------------------------------------------------
 void KHTTPCompression::SetPermittedCompressors(KStringView sCompressors)
 //-----------------------------------------------------------------------------
 {
@@ -190,5 +250,6 @@ void KHTTPCompression::SetPermittedCompressors(KStringView sCompressors)
 } // SetPermittedCompressors
 
 KHTTPCompression::COMP KHTTPCompression::s_PermittedCompressors { COMP::ALL };
+KAtomicObject<KString> KHTTPCompression::s_sPermittedCompressors { KHTTPCompression::s_sSupportedCompressors };
 
 } // of namespace dekaf2

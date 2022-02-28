@@ -41,9 +41,12 @@
 
 #pragma once
 
+#include "bits/kcppcompat.h"
 #include "kconfiguration.h" // for DEKAF2_HAS_LIBLZMA/LIBZSTD ..
 #include "kstringview.h"
 #include "khttp_header.h"
+#include "katomic_object.h"
+#include <vector>
 
 namespace dekaf2 {
 
@@ -110,8 +113,7 @@ public:
 	operator COMP() const                         { return m_Compression;           }
 
 	/// returns CSV string with supported HTTP compressors (to be used for ACCEPT_ENCODING)
-	constexpr
-	static KStringViewZ GetSupportedCompressors() { return s_sSupportedCompressors; }
+	static KStringViewZ GetSupportedCompressors();
 	/// return best supported HTTP compression from a comma separated list of compressor names
 	static COMP         GetBestSupportedCompression(KStringView sCompressors);
 	/// return best supported HTTP compression from KHTTPHeaders
@@ -120,16 +122,18 @@ public:
 	static COMP         FromString(KStringView);
 	/// return compression name from algorithm
 	static KStringView  ToString(COMP comp);
+	/// return compression names from algorithms
+	static std::vector<KStringView> ToStrings(COMP comp);
 
 	/// set set of permitted compression algorithms
-	static void SetPermittedCompressors(COMP Compressors) { s_PermittedCompressors = Compressors; }
+	static void SetPermittedCompressors(COMP Compressors);
 	/// set list of permitted compression algorithms from comma separated list of compression names
 	static void SetPermittedCompressors(KStringView sCompressors);
 	/// return set of permitted compression algorithms
 	static COMP GetPermittedCompressors()         { return s_PermittedCompressors;  }
 
 //------
-protected:
+private:
 //------
 
 	static constexpr KStringViewZ s_sSupportedCompressors =
@@ -145,12 +149,13 @@ protected:
 #endif
 															"bzip2";
 
-	COMP m_Compression { NONE };
-
 	// in theory this should be an atomic type, but the risk of reading the value
 	// during an update is very low, and the consequences would only be that a
 	// momentarily non-accepted compression is for one time permitted or vice verse
-	static COMP s_PermittedCompressors;
+	static COMP                   s_PermittedCompressors;
+	static KAtomicObject<KString> s_sPermittedCompressors;
+
+	COMP m_Compression { NONE };
 
 }; // KHTTPCompression
 

@@ -87,7 +87,7 @@ bool KInHTTPFilter::SetupInputFilter()
 
 	if (m_bAllowUncompression)
 	{
-		switch (m_Compression)
+		switch (KHTTPCompression::GetCompression())
 		{
 			case NONE:
 			case ALL:
@@ -285,7 +285,7 @@ void KInHTTPFilter::reset()
 	{
 		m_Filter->reset();
 	}
-	m_Compression         = NONE;
+	KHTTPCompression::SetCompression(NONE);
 	m_bChunked            = false;
 	m_bAllowUncompression = true;
 	m_iContentSize        = -1;

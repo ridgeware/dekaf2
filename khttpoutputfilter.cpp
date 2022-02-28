@@ -78,7 +78,7 @@ bool KOutHTTPFilter::SetupOutputFilter()
 
 	if (m_bAllowCompression)
 	{
-		switch (m_Compression)
+		switch (KHTTPCompression::GetCompression())
 		{
 			case NONE:
 			case ALL:
@@ -167,7 +167,7 @@ std::streamsize KOutHTTPFilter::Count() const
 	if (m_Filter && !m_Filter->empty())
 	{
 		// we cannot reliably read the count when we compress - no way to flush
-		if (m_bAllowCompression && m_Compression == NONE)
+		if (m_bAllowCompression && KHTTPCompression::GetCompression() == NONE)
 		{
 			auto chunker = m_Filter->component<KChunkedSink>(static_cast<int>(m_Filter->size()-1));
 
@@ -203,7 +203,7 @@ bool KOutHTTPFilter::ResetCount()
 	if (m_Filter && !m_Filter->empty())
 	{
 		// we cannot reliably reset the count when we compress - no way to flush
-		if (m_bAllowCompression && m_Compression == NONE)
+		if (m_bAllowCompression && KHTTPCompression::GetCompression() == NONE)
 		{
 			auto chunker = m_Filter->component<KChunkedSink>(static_cast<int>(m_Filter->size()-1));
 
@@ -309,7 +309,7 @@ void KOutHTTPFilter::reset()
 		}
 	}
 
-	m_Compression       = NONE;
+	KHTTPCompression::SetCompression(NONE);
 	m_bChunked          = false;
 	m_bAllowCompression = true;
 

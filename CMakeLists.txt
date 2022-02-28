@@ -585,6 +585,7 @@ set(PUBLIC_HEADERS
 	kaddrplus.h
 	kallocator.h
 	kassociative.h
+	katomic_object.h
 	kbar.h
 	kbase64.h
 	kbitfields.h

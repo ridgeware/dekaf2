@@ -419,6 +419,41 @@ public:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
+	std::size_t Hash() const
+	//-----------------------------------------------------------------------------
+	{
+		if (m_header == OTHER && m_sHeader)
+		{
+			return kCalcCaseHash((*m_sHeader));
+		}
+		else
+		{
+			// make sure we spread across buckets..
+			return kHash(static_cast<char>(m_header));
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
+	friend bool operator==(const KHTTPHeader& left, const KHTTPHeader& right)
+	//-----------------------------------------------------------------------------
+	{
+		if (left.m_header != right.m_header)
+		{
+			return false;
+		}
+
+		if (left.m_header != KHTTPHeader::OTHER)
+		{
+			return true;
+		}
+
+		return (left.m_sHeader && right.m_sHeader &&
+				kCaseEqual(*left.m_sHeader, *right.m_sHeader));
+	}
+
+	//-----------------------------------------------------------------------------
+	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	static Header Parse(KStringView sHeader)
 	//-----------------------------------------------------------------------------
 	{
@@ -594,38 +629,95 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
-	std::size_t Hash() const
+	/// return the quality value for a parameter, in percent
+	/// @param sContent the input string, including the ";q=" start of a quality value (it will be searched for)
+	/// @param bRemoveQuality if true, the quality value and all spaces around it are removed
+	/// from the input string. Defaults to false.
+	/// @return Quality in percent. Default is 100.
+	template<class String = KStringView>
+	static uint16_t GetQualityValue(String& sContent, bool bRemoveQuality = false)
 	//-----------------------------------------------------------------------------
 	{
-		if (m_header == OTHER && m_sHeader)
+		auto iQualPos = sContent.find(";q=");
+
+		uint16_t iPercent { 100 };
+
+		if (iQualPos != npos)
 		{
-			return kCalcCaseHash((*m_sHeader));
+			iPercent = CalcQualityValue(sContent, iQualPos+3);
+
+			if (bRemoveQuality)
+			{
+				while (iQualPos > 0 && sContent[iQualPos-1] == ' ')
+				{
+					--iQualPos;
+				}
+
+				sContent.erase(iQualPos, String::npos);
+			}
 		}
-		else
-		{
-			// make sure we spread across buckets..
-			return kHash(static_cast<char>(m_header));
-		}
+
+		return iPercent;
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
-	friend bool operator==(const KHTTPHeader& left, const KHTTPHeader& right)
+	/// return the quality value for a string, iStartPos points to first character of a fixed number, like "0.81"
+	/// @param sContent the input string, with or without the ";q=" start of a quality value
+	/// @param iStartPos the first position of a fixed number like "0.81" that is returned as the quality percent
+	static uint16_t CalcQualityValue(KStringView sContent, KStringView::size_type iStartPos = 0);
+	//-----------------------------------------------------------------------------
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// value type for a container of string/quality pairs
+	template<class String = KStringView>
+	struct QualVal
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		QualVal() = default;
+		QualVal(String sValue, KStringView sQuality)
+		: sValue(std::move(sValue))
+		, iQuality(CalcQualityValue(sQuality))
+		{
+		}
+		// the adaptor for kSplit
+		QualVal(KStringViewPair Pair)
+		: QualVal(Pair.first, Pair.second)
+		{
+		}
+
+		operator String&()             { return sValue;   }
+		operator const String&() const { return sValue;   }
+		operator uint16_t()      const { return iQuality; }
+
+		String   sValue;
+		uint16_t iQuality;
+
+	}; // QualVal
+
+	//-----------------------------------------------------------------------------
+	/// split a string in a (stable) sorted vector of string/quality pairs - better quality comes first
+	/// @param sContent the input string, may contain multiple comma separated values and their quality,
+	/// like "deflate, gzip;q=1.0, *;q=0.5"
+	/// @param bSort if true container is stable sorted by quality descending. Default is false = no sorting
+	/// @return a (sorted) container of string/quality pairs
+	template<class String = KStringView, typename T = std::vector<QualVal<String>>>
+	static T Split(KStringView sContent, bool bSort = true)
 	//-----------------------------------------------------------------------------
 	{
-		if (left.m_header != right.m_header)
+		T Container;
+
+		kSplit(Container, sContent, ",", ";q=");
+
+		if (bSort)
 		{
-			return false;
+			std::stable_sort(Container.begin(), Container.end(),
+							 [](const typename T::value_type& left, const typename T::value_type& right)
+			{
+				return left.iQuality > right.iQuality;
+			});
 		}
 
-		if (left.m_header != KHTTPHeader::OTHER)
-		{
-			return true;
-		}
-
-		return (left.m_sHeader && right.m_sHeader &&
-				kCaseEqual(*left.m_sHeader, *right.m_sHeader));
+		return Container;
 	}
 
 //------

@@ -69,4 +69,58 @@ TEST_CASE("KHTTPHeader")
 		Client.AddHeader("key"_ksv, "value"_ksv);
 		Client.AddHeader("key"_ksz, "value"_ksz);
 	}
+
+	SECTION("QualityValue")
+	{
+		KStringView sContent = "text/css,  text/html  ;q=0.9  ,text/*;q=0.81s,x-none/*;q=0.8 , zzz/xx ;q=8, zzz/yy ;q=0*12";
+		auto ContentTypes    = sContent.Split();
+
+		CHECK ( ContentTypes.size() == 6);
+
+		if (ContentTypes.size() == 6)
+		{
+			auto iQuality = KHTTPHeader::GetQualityValue(ContentTypes[0], true);
+			CHECK ( iQuality == 100 );
+			CHECK ( ContentTypes[0] == "text/css" );
+			iQuality = KHTTPHeader::GetQualityValue(ContentTypes[1], true);
+			CHECK ( iQuality == 90 );
+			CHECK ( ContentTypes[1] == "text/html" );
+			iQuality = KHTTPHeader::GetQualityValue(ContentTypes[2], true);
+			CHECK ( iQuality == 81 );
+			CHECK ( ContentTypes[2] == "text/*" );
+			iQuality = KHTTPHeader::GetQualityValue(ContentTypes[3], true);
+			CHECK ( iQuality == 80 );
+			CHECK ( ContentTypes[3] == "x-none/*" );
+			iQuality = KHTTPHeader::GetQualityValue(ContentTypes[4], true);
+			CHECK ( iQuality == 100 );
+			CHECK ( ContentTypes[4] == "zzz/xx" );
+			iQuality = KHTTPHeader::GetQualityValue(ContentTypes[5], true);
+			CHECK ( iQuality == 100 );
+			CHECK ( ContentTypes[5] == "zzz/yy" );
+		}
+	}
+
+	SECTION("SortedQualityValue")
+	{
+		KStringView sContent = "text/css,  text/html  ;q=0.5  ,text/*;q=0.81s,x-none/*;q=0.84 , zzz/xx ;q=8, zzz/yy ;q=0*12";
+		auto ContentTypes    = KHTTPHeader::Split(sContent);
+
+		CHECK ( ContentTypes.size() == 6);
+
+		if (ContentTypes.size() == 6)
+		{
+			CHECK ( ContentTypes[0].iQuality == 100 );
+			CHECK ( ContentTypes[0].sValue == "text/css" );
+			CHECK ( ContentTypes[1].iQuality == 100 );
+			CHECK ( ContentTypes[1].sValue == "zzz/xx" );
+			CHECK ( ContentTypes[2].iQuality == 100 );
+			CHECK ( ContentTypes[2].sValue == "zzz/yy" );
+			CHECK ( ContentTypes[3].iQuality == 84 );
+			CHECK ( ContentTypes[3].sValue == "x-none/*" );
+			CHECK ( ContentTypes[4].iQuality == 81 );
+			CHECK ( ContentTypes[4].sValue == "text/*" );
+			CHECK ( ContentTypes[5].iQuality == 50 );
+			CHECK ( ContentTypes[5].sValue == "text/html" );
+		}
+	}
 }

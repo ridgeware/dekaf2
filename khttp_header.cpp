@@ -64,6 +64,77 @@ time_t KHTTPHeader::StringToDate(KStringView sTime)
 	
 } // StringToDate
 
+//-----------------------------------------------------------------------------
+uint16_t KHTTPHeader::CalcQualityValue(KStringView sContent, KStringView::size_type iStartPos)
+//-----------------------------------------------------------------------------
+{
+	if (iStartPos >= sContent.size())
+	{
+		return 100;
+	}
+	
+	uint16_t iPercent { 0 };
+
+	bool bInvalid { false };
+
+	auto AddDigit = [&iPercent,&sContent,&bInvalid](KStringView::size_type iPos)
+	{
+		if (!bInvalid)
+		{
+			if (iPos < sContent.size())
+			{
+				auto ch = sContent[iPos];
+
+				if (DEKAF2_UNLIKELY(!KASCII::kIsDigit(ch)))
+				{
+					bInvalid = true;
+					iPercent = 100;
+				}
+				else
+				{
+					iPercent *= 10;
+					iPercent += (ch - '0');
+				}
+			}
+			else
+			{
+				iPercent *= 10;
+			}
+		}
+	};
+
+	auto CheckDot = [&iPercent,&sContent,&bInvalid](KStringView::size_type iPos)
+	{
+		if (!bInvalid)
+		{
+			if (iPos < sContent.size())
+			{
+				auto ch = sContent[iPos];
+
+				if (DEKAF2_UNLIKELY(!(ch == '.' || ch == ',')))
+				{
+					bInvalid = true;
+					iPercent = 100;
+				}
+			}
+		}
+	};
+
+	AddDigit(iStartPos++);
+	CheckDot(iStartPos++);
+	AddDigit(iStartPos++);
+	AddDigit(iStartPos);
+
+	if (DEKAF2_UNLIKELY(iPercent > 100))
+	{
+		iPercent = 100;
+	}
+
+	return iPercent;
+
+} // CalcQualityValue
+
+
 static_assert(std::is_nothrow_move_constructible<KHTTPHeader>::value,
 			  "KHTTPHeader is intended to be nothrow move constructible, but is not!");
 

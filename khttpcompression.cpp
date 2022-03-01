@@ -83,14 +83,14 @@ KHTTPCompression::COMP KHTTPCompression::FromString(KStringView sCompression)
 } // FromString
 
 //-----------------------------------------------------------------------------
-void KHTTPCompression::Parse(KStringView sCompression)
+void KHTTPCompression::Parse(KStringView sCompression, bool bSingleValue)
 //-----------------------------------------------------------------------------
 {
 	m_Compression = FromString(sCompression);
 
-	if (m_Compression == NONE && sCompression.contains(','))
+	if (m_Compression == NONE && !bSingleValue && sCompression.contains(','))
 	{
-		m_Compression = GetBestSupportedCompression(sCompression);
+		m_Compression = GetBestSupportedCompressor(sCompression);
 	}
 
 } // Parse
@@ -99,24 +99,32 @@ void KHTTPCompression::Parse(KStringView sCompression)
 void KHTTPCompression::Parse(const KHTTPHeaders& Headers)
 //-----------------------------------------------------------------------------
 {
-	Parse(Headers.Headers.Get(KHTTPHeader::CONTENT_ENCODING));
+	// parse the content-encoding header, and accept only a single value, not a list..
+	KStringView sHeader = Headers.Headers.Get(KHTTPHeader::CONTENT_ENCODING);
+	// we remove some white space if existing
+	sHeader.Trim(" \t");
+	Parse(sHeader, true);
 
 } // Parse
 
 //-----------------------------------------------------------------------------
-KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompression(KStringView sCompressors)
+KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompressor(KStringView sCompressors)
 //-----------------------------------------------------------------------------
 {
 	COMP Compression = NONE;
 
 	// check the client's request headers for accepted compression encodings
-	const auto Compressors = sCompressors.Split(",;");
+	const auto Compressors = sCompressors.Split(",");
 
-	for (const auto sCompressor : Compressors)
+	for (auto sCompressor : Compressors)
 	{
+		// we want to remove the quality value, but are not interested in
+		// the actual quality .. we have our own ranking
+		KHTTPHeader::GetQualityValue(sCompressor, true);
+
 		auto NewComp = FromString(sCompressor);
 
-		if (NewComp < Compression && (NewComp & s_PermittedCompressors) > 0)
+		if (NewComp < Compression && (NewComp & s_PermittedCompressors) == NewComp)
 		{
 			Compression = NewComp;
 		}
@@ -124,15 +132,15 @@ KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompression(KStringView
 
 	return Compression;
 
-} // GetBestSupportedCompression
+} // GetBestSupportedCompressor
 
 //-----------------------------------------------------------------------------
-KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompression(const KHTTPHeaders& Headers)
+KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompressor(const KHTTPHeaders& Headers)
 //-----------------------------------------------------------------------------
 {
-	return GetBestSupportedCompression(Headers.Headers.Get(KHTTPHeader::ACCEPT_ENCODING));
+	return GetBestSupportedCompressor(Headers.Headers.Get(KHTTPHeader::ACCEPT_ENCODING));
 
-} // GetBestSupportedCompression
+} // GetBestSupportedCompressor
 
 //-----------------------------------------------------------------------------
 KStringView KHTTPCompression::ToString(COMP comp)
@@ -206,12 +214,12 @@ std::vector<KStringView> KHTTPCompression::ToStrings(COMP comp)
 } // ToStrings
 
 //-----------------------------------------------------------------------------
-KStringViewZ KHTTPCompression::GetSupportedCompressors()
+KStringViewZ KHTTPCompression::GetCompressors()
 //-----------------------------------------------------------------------------
 {
-	return (s_PermittedCompressors == COMP::ALL) ? s_sSupportedCompressors : s_sPermittedCompressors.getRef().ToView();
+	return (s_PermittedCompressors == COMP::ALL) ? GetImplementedCompressors() : s_sPermittedCompressors.getRef().ToView();
 
-}
+} // GetCompressors
 
 //-----------------------------------------------------------------------------
 void KHTTPCompression::SetPermittedCompressors(COMP Compressors)
@@ -223,16 +231,18 @@ void KHTTPCompression::SetPermittedCompressors(COMP Compressors)
 		// it easier to test for the ALL case
 		Compressors = COMP::ALL;
 		// no need to reset the compressors string - it is not used for ALL
+		kDebug(2, "compression reset to ALL: {}", GetImplementedCompressors());
 	}
 	else
 	{
 		// build and set the new compressors string
-		s_sPermittedCompressors.reset(kJoined(ToStrings(Compressors)));
+		s_sPermittedCompressors.reset(kJoined(ToStrings(Compressors), ", "));
+		kDebug(2, "compression set to subset: {}", s_sPermittedCompressors.getRef());
 	}
 
 	s_PermittedCompressors = Compressors;
 
-}
+} // SetPermittedCompressors
 
 //-----------------------------------------------------------------------------
 void KHTTPCompression::SetPermittedCompressors(KStringView sCompressors)
@@ -240,7 +250,7 @@ void KHTTPCompression::SetPermittedCompressors(KStringView sCompressors)
 {
 	COMP Compressors { COMP::NONE };
 
-	for (auto& sCompressor : sCompressors.Split(",;"))
+	for (auto& sCompressor : sCompressors.Split(",;|"))
 	{
 		Compressors |= FromString(sCompressor);
 	}

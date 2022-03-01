@@ -61,15 +61,15 @@ TEST_CASE("KHTTPCompression")
 
 	SECTION("GetBestSupportedCompression")
 	{
-		CHECK ( KHTTPCompression::GetBestSupportedCompression("bzip2,superflat,gzip, deflate") == KHTTPCompression::ZLIB );
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("bzip2,superflat,gzip, deflate") == KHTTPCompression::ZLIB );
 #ifdef DEKAF2_HAS_LIBZSTD
-		CHECK ( KHTTPCompression::GetBestSupportedCompression("xyz,myzip, bzip2, lzma, zstd, gzip, deflate, br") == KHTTPCompression::ZSTD );
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("xyz,myzip, bzip2, lzma, zstd, gzip, deflate, br") == KHTTPCompression::ZSTD );
 #endif
 #ifdef DEKAF2_HAS_LIBLZMA
-		CHECK ( KHTTPCompression::GetBestSupportedCompression("bzip2, xz") == KHTTPCompression::XZ );
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("bzip2, xz") == KHTTPCompression::XZ );
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI
-		CHECK ( KHTTPCompression::GetBestSupportedCompression("bzip2, gzip, deflate, br") == KHTTPCompression::BROTLI );
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("bzip2, gzip, deflate, br") == KHTTPCompression::BROTLI );
 #endif
 	}
 
@@ -78,19 +78,19 @@ TEST_CASE("KHTTPCompression")
 		auto comp = KHTTPCompression::GetPermittedCompressors();
 		KHTTPCompression::SetPermittedCompressors("deflate, gzip,bzip2, br ");
 #ifdef DEKAF2_HAS_LIBBROTLI
-		CHECK ( KHTTPCompression::GetSupportedCompressors() == "br,deflate,gzip,bzip2" );
+		CHECK ( KHTTPCompression::GetCompressors() == "br, deflate, gzip, bzip2" );
 #else
-		CHECK ( KHTTPCompression::GetSupportedCompressors() == "deflate,gzip,bzip2" );
+		CHECK ( KHTTPCompression::GetCompressors() == "deflate, gzip, bzip2" );
 #endif
-		CHECK ( KHTTPCompression::GetBestSupportedCompression("bzip2,superflat,gzip, deflate") == KHTTPCompression::ZLIB );
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("bzip2,superflat,gzip, deflate") == KHTTPCompression::ZLIB );
 #ifdef DEKAF2_HAS_LIBZSTD
-		CHECK ( KHTTPCompression::GetBestSupportedCompression("xyz,myzip, bzip2, lzma, zstd, gzip, deflate, br") == KHTTPCompression::BROTLI );
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("xyz,myzip, bzip2, lzma, zstd, gzip, deflate, br") == KHTTPCompression::BROTLI );
 #endif
 #ifdef DEKAF2_HAS_LIBLZMA
-		CHECK ( KHTTPCompression::GetBestSupportedCompression("bzip2, xz") == KHTTPCompression::BZIP2 );
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("bzip2, xz") == KHTTPCompression::BZIP2 );
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI
-		CHECK ( KHTTPCompression::GetBestSupportedCompression("bzip2, gzip, deflate, br") == KHTTPCompression::BROTLI );
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("bzip2, gzip, deflate, br") == KHTTPCompression::BROTLI );
 #endif
 		KHTTPCompression::SetPermittedCompressors(comp);
 	}

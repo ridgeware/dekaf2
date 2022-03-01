@@ -85,7 +85,7 @@ TEST_CASE("KHTTPClient") {
 		{
 			CHECK( server.m_rx[0] == "GET /path?query=val&another=here HTTP/1.1" );
 			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
-			CHECK( server.m_rx[2] == kFormat("Accept-Encoding: {}", KHTTPCompression::GetSupportedCompressors()) );
+			CHECK( server.m_rx[2] == kFormat("Accept-Encoding: {}", KHTTPCompression::GetCompressors()) );
 			CHECK( server.m_rx[3] == "");
 		}
 		server.Stop();
@@ -201,7 +201,7 @@ TEST_CASE("KHTTPClient") {
 			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
 			CHECK( server.m_rx[2] == "Transfer-Encoding: chunked");
 			CHECK( server.m_rx[3] == "Content-Type: text/plain");
-			CHECK( server.m_rx[4] == kFormat("Accept-Encoding: {}", KHTTPCompression::GetSupportedCompressors()) );
+			CHECK( server.m_rx[4] == kFormat("Accept-Encoding: {}", KHTTPCompression::GetCompressors()) );
 			CHECK( server.m_rx[5] == "");
 			sContent.remove_suffix(1);
 			// follows the response wrapped in the chunking protocol

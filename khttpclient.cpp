@@ -739,7 +739,7 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 	if (m_bRequestCompression && Request.Method != KHTTPMethod::CONNECT)
 	{
 		AddHeader(KHTTPHeader::ACCEPT_ENCODING,
-				  m_sCompressors.empty() ? KHTTPCompression::GetSupportedCompressors() : m_sCompressors.ToView());
+				  m_sCompressors.empty() ? KHTTPCompression::GetCompressors() : m_sCompressors.ToView());
 	}
 
 	// send the request headers to the remote server

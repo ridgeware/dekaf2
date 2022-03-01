@@ -90,18 +90,27 @@ public:
 
 	KHTTPCompression() = default;
 	/// construct from a comma separated list of compressor names, and pick the best one
-	KHTTPCompression(KStringView sCompression)    { Parse(sCompression);            }
-	/// construct from KHTTPHeaders, and pick the best compression from the requested ones
+	/// @param sCompression the list of compressor names
+	/// @param bSingleValue if true, the sCompression value is not split, and only a single compressor name is accepted.
+	/// Default is false
+	KHTTPCompression(KStringView sCompression, bool bSingleValue = false)
+	{
+		Parse(sCompression, bSingleValue);
+	}
+	/// construct from KHTTPHeaders (CONTENT-ENCODING) - single value only
 	KHTTPCompression(const KHTTPHeaders& Headers) { Parse(Headers);                 }
 	/// construct from an explicit compression algorithm
 	KHTTPCompression(COMP comp) : m_Compression(comp) {}
 
 	/// assign from a comma separated list of compressor names, and pick the best one
-	KHTTPCompression& operator=(KStringView sCompression) { Parse(sCompression); return *this; }
+	KHTTPCompression& operator=(KStringView sCompression)
+	{
+		Parse(sCompression, false); return *this;
+	}
 
 	/// parse comma separated list of compressor names, and pick the best one
-	void Parse(KStringView sCompression);
-	/// parse from KHTTPHeaders, and pick the best compression from the requested ones
+	void Parse(KStringView sCompression, bool bSingleValue = false);
+	/// parse compressor from KHTTPHeaders (CONTENT-ENCODING) - single value only
 	void Parse(const KHTTPHeaders& Headers);
 	/// return selected compression algorithm
 	COMP GetCompression() const                   { return m_Compression;           }
@@ -112,12 +121,17 @@ public:
 
 	operator COMP() const                         { return m_Compression;           }
 
-	/// returns CSV string with supported HTTP compressors (to be used for ACCEPT_ENCODING)
-	static KStringViewZ GetSupportedCompressors();
+	/// returns CSV string with HTTP compressors (to be used for ACCEPT_ENCODING)
+	static KStringViewZ GetCompressors();
+	/// returns CSV string with all implemented HTTP compressors (see GetCompressors() for those currently enabled)
+	constexpr
+	static KStringViewZ GetImplementedCompressors() { return s_sSupportedCompressors; }
 	/// return best supported HTTP compression from a comma separated list of compressor names
-	static COMP         GetBestSupportedCompression(KStringView sCompressors);
+	/// @param sCompressors comma separated list of compressor names
+	static COMP         GetBestSupportedCompressor(KStringView sCompressors);
 	/// return best supported HTTP compression from KHTTPHeaders
-	static COMP         GetBestSupportedCompression(const KHTTPHeaders& Headers);
+	/// @param Headers HTTP headers. ACCEPT-ENCODING header will be read for a comma separated list of compressor names
+	static COMP         GetBestSupportedCompressor(const KHTTPHeaders& Headers);
 	/// return compression algorithm from name
 	static COMP         FromString(KStringView);
 	/// return compression name from algorithm

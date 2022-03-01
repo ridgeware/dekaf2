@@ -104,7 +104,7 @@ TEST_CASE("KWebClient") {
 			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7653");
 			CHECK( server.m_rx[2] == "Content-Length: 11");
 			CHECK( server.m_rx[3] == "Content-Type: text/html; charset=UTF-8" );
-			CHECK( server.m_rx[4] == kFormat("Accept-Encoding: {}", KHTTPCompression::GetSupportedCompressors()) );
+			CHECK( server.m_rx[4] == kFormat("Accept-Encoding: {}", KHTTPCompression::GetCompressors()) );
 			CHECK( server.m_rx[5] == "");
 			CHECK( server.m_rx[6] == "some body");
 		}

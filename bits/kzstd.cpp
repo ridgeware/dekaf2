@@ -74,7 +74,7 @@ zstd_base::zstd_base()
 	, dstream_(nullptr)
 	, in_(new ZSTD_inBuffer)
 	, out_(new ZSTD_outBuffer)
-	, eof_(0)
+	, eof_(false)
     { }
 
 zstd_base::~zstd_base()
@@ -153,18 +153,21 @@ void zstd_base::reset(bool compress, bool realloc)
     {
         memset(in, 0, sizeof(*in));
         memset(out, 0, sizeof(*out));
-        eof_ = 0;
+        eof_ = false;
 
 		if (compress)
 		{
 			zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
-				ZSTD_initCStream(static_cast<ZSTD_CStream *>(cstream_), level)
+				ZSTD_initCStream(static_cast<ZSTD_CStream *>(cstream_), level_)
 			);
 
 #ifdef DEKAF2_HAS_ZSTD_STREAM_2
-			zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
-				ZSTD_CCtx_setParameter(static_cast<ZSTD_CStream *>(cstream_), ZSTD_c_nbWorkers, iMultiThreading)
-			);
+			if (bHasMultiThreading)
+			{
+				zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
+					ZSTD_CCtx_setParameter(static_cast<ZSTD_CStream *>(cstream_), ZSTD_c_nbWorkers, iMultiThreading_)
+				);
+			}
 #endif
 		}
 		else
@@ -186,12 +189,12 @@ void zstd_base::do_init
 
     memset(in, 0, sizeof(*in));
     memset(out, 0, sizeof(*out));
-    eof_ = 0;
+    eof_ = false;
 
 	if (compress)
 	{
-		level = p.level;
-		iMultiThreading = p.iMultiThreading;
+		level_ = p.level;
+		iMultiThreading_ = p.iMultiThreading;
 
 		if (!cstream_)
 		{
@@ -199,13 +202,20 @@ void zstd_base::do_init
 		}
 
 		zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
-			ZSTD_initCStream(static_cast<ZSTD_CStream *>(cstream_), level)
+			ZSTD_initCStream(static_cast<ZSTD_CStream *>(cstream_), level_)
 		);
-		
+
 #ifdef DEKAF2_HAS_ZSTD_STREAM_2
-		zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
-			ZSTD_CCtx_setParameter(static_cast<ZSTD_CStream *>(cstream_), ZSTD_c_nbWorkers, iMultiThreading)
-		);
+		if (bHasMultiThreading)
+		{
+			if (ZSTD_isError(ZSTD_CCtx_setParameter(static_cast<ZSTD_CStream *>(cstream_), ZSTD_c_nbWorkers, iMultiThreading_)))
+			{
+				bHasMultiThreading = false;
+				zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
+					ZSTD_CCtx_setParameter(static_cast<ZSTD_CStream *>(cstream_), ZSTD_c_nbWorkers, 0)
+				);
+			}
+		}
 #endif
 	}
 	else
@@ -220,6 +230,8 @@ void zstd_base::do_init
 		);
 	}
 }
+
+bool zstd_base::bHasMultiThreading = true;
 
 } // End namespace detail.
 

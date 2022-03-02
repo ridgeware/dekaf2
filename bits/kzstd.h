@@ -79,7 +79,7 @@ struct zstd_params {
 
 	// we choose 1 as the default thread count, this results in one compression worker thread
 	// plus the calling thread fetching input data while compressing and can thus be faster
-	// than a single thread of execution with iMultitThreading set to 0. For maximum speed
+	// than a single thread of execution with iMultiThreading set to 0. For maximum speed
 	// it makes sense to set iMultiThreading to the count of physical cores, not to the
 	// count of logical CPUs, which is actually up to 30% slower than the physical count.
     zstd_params( uint16_t level = zstd::default_compression, uint16_t iMultiThreading = 1 )
@@ -170,9 +170,11 @@ private:
     void*         dstream_;         // Actual type: ZSTD_DStream *
     void*         in_;              // Actual type: ZSTD_inBuffer *
     void*         out_;             // Actual type: ZSTD_outBuffer *
-    int eof_;
-	uint16_t level;
-	uint16_t iMultiThreading;
+
+	static bool   bHasMultiThreading;
+    bool          eof_;
+	uint16_t      level_;
+	uint16_t      iMultiThreading_;
 };
 
 //

@@ -343,7 +343,7 @@ class diff_match_patch {
    * @param Linked List of Diff objects.
    */
  private:
-  static void diff_compute(string_t text1, string_t text2, bool checklines, clock_t deadline, Diffs& diffs) {
+  static void diff_compute(const string_t &text1, const string_t &text2, bool checklines, clock_t deadline, Diffs& diffs) {
     if (text1.empty()) {
       // Just add some text (speedup).
       diffs.push_back(Diff(INSERT, text2));

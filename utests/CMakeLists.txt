@@ -27,8 +27,7 @@ set (USOURCES
 	kcountingstreambuf_tests.cpp
 	kcrc_tests.cpp
 	kcsv_tests.cpp
-	khash_tests.cpp
-	khtmlcontentblocks_tests.cpp
+	kdiffer_tests.cpp
 	kencode_tests.cpp
 	kfilesystem_tests.cpp
 	kformat_tests.cpp

@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2022, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -42,18 +42,11 @@
 
 #pragma once
 
-#if defined(JOACHIM_IS_A_ROCK_STAR)
-#include <google/diff_match_patch.h>
-#endif
-
 #include "kstring.h"
 #include "kstringview.h"
 
 namespace dekaf2 {
 
-#if defined(JOACHIM_IS_A_ROCK_STAR)
-using KDiffer = diff_match_patch<KString>;
-#endif
 
 KString KDiffToHTML (KStringView sText1, KStringView sText2, KStringView sInsertTag="ins", KStringView sDeleteTag="del");
 

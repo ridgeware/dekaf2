@@ -983,6 +983,7 @@ target_include_directories(dekaf2
 	$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${LIBZIP_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${BROTLI_INCLUDE_DIRS}>
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/google>
 	# for centos libzip:
 	/include
 )
@@ -1090,7 +1091,6 @@ endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/templates                       DESTINATION ${dekaf2_share_dest})
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/ DESTINATION ${dekaf2_include_dest}/nlohmann FILES_MATCHING PATTERN "*.hpp")
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/google/                    DESTINATION ${dekaf2_include_dest}/google   FILES_MATCHING PATTERN "*.h")
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/     DESTINATION ${dekaf2_include_dest}/frozen   FILES_MATCHING PATTERN "*.h")
 
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/fmt/posix.h)") # remove mid 2022

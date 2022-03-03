@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2022, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -41,45 +41,47 @@
 */
 
 #include "kdiffer.h"
+#include "diff_match_patch.h"
+#include "klog.h"
 
 namespace dekaf2 {
+
+using KDiffer = diff_match_patch<KString>;
 
 //-----------------------------------------------------------------------------
 KString KDiffToHTML (KStringView sText1, KStringView sText2, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
 //-----------------------------------------------------------------------------
 {
 	KString sResult;
-#if defined(JOACHIM_IS_A_ROCK_STAR)
 	KDiffer differ;
 	auto    diffs = differ.diff_main (sText1, sText2, /*check-lines*/false);
 
 	differ.diff_cleanupSemantic (diffs);
 
-	kDebug (1, "text1: {}", sText1);
-	kDebug (1, "text2: {}", sText2);
+	kDebug (2, "text1: {}", sText1);
+	kDebug (2, "text2: {}", sText2);
 
 	// iterate over diffs:
-	for (typename KDiffer::Diffs::const_iterator cur_diff = diffs.begin(); cur_diff != diffs.end(); ++cur_diff)
+	for (const auto& diff : diffs)
 	{
-		auto sText = cur_diff->text;
+		const auto& sText = diff.text;
 	
-		switch (cur_diff->operation)
+		switch (diff.operation)
 		{
 		case KDiffer::INSERT:
-			sResult += kFormat ("<{}>{}</{}>", sInsertTag, sText.c_str(), sInsertTag);
+			sResult += kFormat ("<{}>{}</{}>", sInsertTag, sText, sInsertTag);
 			break;
 		case KDiffer::DELETE:
-			sResult += kFormat ("<{}>{}</{}>", sDeleteTag, sText.c_str(), sDeleteTag);
+			sResult += kFormat ("<{}>{}</{}>", sDeleteTag, sText, sDeleteTag);
 			break;
 		case KDiffer::EQUAL:
 		default:
-			sResult += kFormat ("{}", sText.c_str());
+			sResult += sText;
 			break;
 		}
 	}
 
-	kDebug (1, "diffs: {}", sResult);
-#endif
+	kDebug (2, "diffs: {}", sResult);
 
 	return sResult;
 
@@ -90,37 +92,35 @@ KString KDiffToASCII (KStringView sText1, KStringView sText2)
 //-----------------------------------------------------------------------------
 {
 	KString sResult;
-#if defined(JOACHIM_IS_A_ROCK_STAR)
 	KDiffer differ;
 	auto    diffs = differ.diff_main (sText1, sText2, /*check-lines*/false);
 
 	differ.diff_cleanupSemantic (diffs);
 
-	kDebug (1, "text1: {}", sText1);
-	kDebug (1, "text2: {}", sText2);
+	kDebug (2, "text1: {}", sText1);
+	kDebug (2, "text2: {}", sText2);
 
 	// iterate over diffs:
-	for (typename KDiffer::Diffs::const_iterator cur_diff = diffs.begin(); cur_diff != diffs.end(); ++cur_diff)
+	for (const auto& diff : diffs)
 	{
-		auto sText = cur_diff->text;
+		const auto& sText = diff.text;
 	
-		switch (cur_diff->operation)
+		switch (diff.operation)
 		{
 		case KDiffer::INSERT:
-			sResult += kFormat ("[+{}]", sText.c_str());
+			sResult += kFormat ("[+{}]", sText);
 			break;
 		case KDiffer::DELETE:
-			sResult += kFormat ("[-{}]", sText.c_str());
+			sResult += kFormat ("[-{}]", sText);
 			break;
 		case KDiffer::EQUAL:
 		default:
-			sResult += kFormat ("{}", sText.c_str());
+			sResult += kFormat ("{}", sText);
 			break;
 		}
 	}
 
-	kDebug (1, "diffs: {}", sResult);
-#endif
+	kDebug (2, "diffs: {}", sResult);
 	return sResult;
 
 } // KDiffToASCII

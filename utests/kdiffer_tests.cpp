@@ -45,4 +45,27 @@ TEST_CASE("KDiffer")
 		auto sDiff = KDiffToASCII(sText1, sText2);
 		CHECK ( sDiff == sExpected );
 	}
+
+	SECTION("GetTextDiff")
+	{
+		KStringView sText1    { "This is a fat cat"   };
+		KStringView sText2    { "That is a black hat" };
+		KStringView sExpected = R"(@@ -1,17 +1,19 @@
+ Th
+-is
++at
+  is a
+-fat c
++black h
+ at
+)";
+
+		KDiffer Differ(sText1, sText2);
+
+		auto sDiff = Differ.GetUnifiedDiff();
+		// the editor deletes all trailing spaces in sExpected.., remove them in the diff as well
+		sDiff.Replace(" \n", "\n");
+		CHECK ( sDiff == sExpected );
+		CHECK ( Differ.GetLevenshteinDistance() == 9 );
+	}
 }

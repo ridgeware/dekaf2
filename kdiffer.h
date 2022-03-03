@@ -44,13 +44,93 @@
 
 #include "kstring.h"
 #include "kstringview.h"
+#include "bits/kunique_deleter.h"
 
 namespace dekaf2 {
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Generate diffs in various formats from two input strings
+class KDiffer
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
 
-KString KDiffToHTML (KStringView sText1, KStringView sText2, KStringView sInsertTag="ins", KStringView sDeleteTag="del");
+//----------
+public:
+//----------
 
-KString KDiffToASCII (KStringView sText1, KStringView sText2);
+	enum DiffMode
+	{
+		Character,  ///< diff characters
+		Word,       ///< diff words (not yet implemented)
+		Line        ///< diff lines
+	};
+
+	enum Sanitation
+	{
+		Semantic,	///< best for human eyes
+		Lossless,   ///< more fragmented, but still good for human eyes
+		Efficiency  ///< for efficient patches, not well readable
+	};
+
+	/// default ctor
+	KDiffer() = default;
+
+	/// construct with source and target strings, and mode settings
+	/// @param sSource the original string
+	/// @param sTarget the modified string
+	/// @param Mode the diff compare mode: Character, Word, or Line
+	/// @param San the sanitation mode: Semantic, Lossless, or Efficiency
+	KDiffer(KStringView sSource,
+			KStringView sTarget,
+			DiffMode Mode = DiffMode::Character,
+			Sanitation San = Sanitation::Semantic)
+	{
+		Diff(sSource, sTarget);
+	}
+
+	/// create the difference between two strings
+	/// @param sSource the original string
+	/// @param sTarget the modified string
+	/// @param Mode the diff compare mode: Character, Word, or Line
+	/// @param San the sanitation mode: Semantic, Lossless, or Efficiency
+	void Diff(KStringView sSource,
+			  KStringView sTarget,
+			  DiffMode Mode = DiffMode::Character,
+			  Sanitation San = Sanitation::Semantic);
+
+	/// return difference in unified diff format (only good for line mode)
+	KString GetUnifiedDiff();
+
+	/// return difference in text format
+	KString GetTextDiff();
+
+	/// return difference in HTML markup style
+	/// @param sInsertTag tag used for inserted text fragments (default = "ins")
+	/// @param sDeleteTag tag used for deleted text fragments (default = "del")
+	KString GetHTMLDiff(KStringView sInsertTag = "ins", KStringView sDeleteTag = "del");
+
+	/// return Levenshtein distance for the diff (number of inserted, deleted or substituted characters)
+	uint32_t GetLevenshteinDistance();
+
+//----------
+private:
+//----------
+
+	KUniqueVoidPtr m_Diffs;
+
+}; // KDiffer
+
+/// shortcut to create a diff with HTML markups
+/// @param sSource the original string
+/// @param sTarget the modified string
+/// @param sInsertTag tag used for inserted text fragments (default = "ins")
+/// @param sDeleteTag tag used for deleted text fragments (default = "del")
+KString KDiffToHTML (KStringView sSource, KStringView sTarget, KStringView sInsertTag="ins", KStringView sDeleteTag="del");
+
+/// shortcut to create a diff in text format
+/// @param sSource the original string
+/// @param sTarget the modified string
+KString KDiffToASCII (KStringView sSource, KStringView sTarget);
 
 } // end of namespace dekaf2
 

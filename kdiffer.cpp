@@ -49,79 +49,171 @@ namespace dekaf2 {
 using KDiff = diff_match_patch<KString, KStringView>;
 
 //-----------------------------------------------------------------------------
-KString KDiffToHTML (KStringView sText1, KStringView sText2, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
+auto DiffDeleter = [](void* data)
 //-----------------------------------------------------------------------------
 {
-	KString sResult;
+	delete static_cast<KDiff::Diffs*>(data);
+};
+
+//-----------------------------------------------------------------------------
+inline const KDiff::Diffs* dget(const KUniqueVoidPtr& p)
+//-----------------------------------------------------------------------------
+{
+	return static_cast<KDiff::Diffs*>(p.get());
+}
+
+//-----------------------------------------------------------------------------
+void KDiffer::Diff(KStringView sSource,
+				   KStringView sTarget,
+				   DiffMode Mode,
+				   Sanitation San)
+//-----------------------------------------------------------------------------
+{
 	KDiff differ;
-	auto    diffs = differ.diff_main (sText1, sText2, /*check-lines*/false);
 
-	differ.diff_cleanupSemantic (diffs);
+	auto Diffs = differ.diff_main(sSource, sTarget, (Mode == DiffMode::Line));
 
-	kDebug (2, "text1: {}", sText1);
-	kDebug (2, "text2: {}", sText2);
-
-	// iterate over diffs:
-	for (const auto& diff : diffs)
+	switch (San)
 	{
-		const auto& sText = diff.text;
-	
-		switch (diff.operation)
+		case Sanitation::Semantic:
+			differ.diff_cleanupSemantic(Diffs);
+			break;
+
+		case Sanitation::Lossless:
+			differ.diff_cleanupSemanticLossless(Diffs);
+			break;
+
+		case Sanitation::Efficiency:
+			differ.diff_cleanupEfficiency(Diffs);
+			break;
+	}
+
+	m_Diffs = KUniqueVoidPtr(new KDiff::Diffs(std::move(Diffs)), DiffDeleter);
+
+} // Diff
+
+//-----------------------------------------------------------------------------
+KString KDiffer::GetUnifiedDiff()
+//-----------------------------------------------------------------------------
+{
+	KString sDiff;
+
+	if (m_Diffs)
+	{
+		auto Patches = KDiff().patch_make(*dget(m_Diffs));
+		sDiff = KDiff::patch_toText(Patches);
+	}
+
+	return sDiff;
+
+} // GetUnifiedDiff
+
+//-----------------------------------------------------------------------------
+KString KDiffer::GetTextDiff()
+//-----------------------------------------------------------------------------
+{
+	KString sDiff;
+
+	if (m_Diffs)
+	{
+		// iterate over diffs:
+		for (const auto& diff : *dget(m_Diffs))
 		{
-		case KDiff::INSERT:
-			sResult += kFormat ("<{}>{}</{}>", sInsertTag, sText, sInsertTag);
-			break;
-		case KDiff::DELETE:
-			sResult += kFormat ("<{}>{}</{}>", sDeleteTag, sText, sDeleteTag);
-			break;
-		case KDiff::EQUAL:
-		default:
-			sResult += sText;
-			break;
+			const auto& sText = diff.text;
+
+			switch (diff.operation)
+			{
+			case KDiff::INSERT:
+				sDiff += kFormat ("[+{}]", sText);
+				break;
+			case KDiff::DELETE:
+				sDiff += kFormat ("[-{}]", sText);
+				break;
+			case KDiff::EQUAL:
+			default:
+				sDiff += sText;
+				break;
+			}
 		}
 	}
 
-	kDebug (2, "diffs: {}", sResult);
+	return sDiff;
 
-	return sResult;
+} // GetTextDiff
+
+//-----------------------------------------------------------------------------
+KString KDiffer::GetHTMLDiff(KStringView sInsertTag, KStringView sDeleteTag)
+//-----------------------------------------------------------------------------
+{
+	KString sDiff;
+
+	if (m_Diffs)
+	{
+		// iterate over diffs:
+		for (const auto& diff : *dget(m_Diffs))
+		{
+			const auto& sText = diff.text;
+
+			switch (diff.operation)
+			{
+			case KDiff::INSERT:
+				sDiff += kFormat ("<{}>{}</{}>", sInsertTag, sText, sInsertTag);
+				break;
+			case KDiff::DELETE:
+				sDiff += kFormat ("<{}>{}</{}>", sDeleteTag, sText, sDeleteTag);
+				break;
+			case KDiff::EQUAL:
+			default:
+				sDiff += sText;
+				break;
+			}
+		}
+	}
+
+	return sDiff;
+
+} // GetHTMLDiff
+
+//-----------------------------------------------------------------------------
+uint32_t KDiffer::GetLevenshteinDistance()
+//-----------------------------------------------------------------------------
+{
+	if (m_Diffs)
+	{
+		return KDiff::diff_levenshtein(*dget(m_Diffs));
+	}
+
+	return 0;
+
+} // GetLevenshteinDistance
+
+//-----------------------------------------------------------------------------
+KString KDiffToHTML (KStringView sSource, KStringView sTarget, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
+//-----------------------------------------------------------------------------
+{
+	kDebug (2, "source: {}", sSource);
+	kDebug (2, "target: {}", sTarget);
+
+	KDiffer Differ(sSource, sTarget);
+	auto sDiff = Differ.GetHTMLDiff(sInsertTag, sDeleteTag);
+
+	kDebug (2, "diffs: {}", sDiff);
+	return sDiff;
 
 } // KDiffToHTML
 
 //-----------------------------------------------------------------------------
-KString KDiffToASCII (KStringView sText1, KStringView sText2)
+KString KDiffToASCII (KStringView sSource, KStringView sTarget)
 //-----------------------------------------------------------------------------
 {
-	KString sResult;
-	KDiff differ;
-	auto    diffs = differ.diff_main (sText1, sText2, /*check-lines*/false);
+	kDebug (2, "source: {}", sSource);
+	kDebug (2, "target: {}", sTarget);
 
-	differ.diff_cleanupSemantic (diffs);
+	KDiffer Differ(sSource, sTarget);
+	auto sDiff = Differ.GetTextDiff();
 
-	kDebug (2, "text1: {}", sText1);
-	kDebug (2, "text2: {}", sText2);
-
-	// iterate over diffs:
-	for (const auto& diff : diffs)
-	{
-		const auto& sText = diff.text;
-	
-		switch (diff.operation)
-		{
-		case KDiff::INSERT:
-			sResult += kFormat ("[+{}]", sText);
-			break;
-		case KDiff::DELETE:
-			sResult += kFormat ("[-{}]", sText);
-			break;
-		case KDiff::EQUAL:
-		default:
-			sResult += kFormat ("{}", sText);
-			break;
-		}
-	}
-
-	kDebug (2, "diffs: {}", sResult);
-	return sResult;
+	kDebug (2, "diffs: {}", sDiff);
+	return sDiff;
 
 } // KDiffToASCII
 

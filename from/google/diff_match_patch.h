@@ -45,14 +45,18 @@
  * STL-only port by snhere@gmail.com (Sergey Nozhenko)
  * and some tweaks for std::string by leutloff@sundancer.oche.de (Christian Leutloff)
  *
+ * Adding option to configure with a string view class in addition to a string class,
+ * increasing speed by about 25%, by jschurig@translations.com (Joachim Schurig)
+ *
  * Here is a trivial sample program:
  *
 
  #include "diff_match_patch.h"
  #include <string>
+ #include <string_view>
  using namespace std;
  int main(int argc, char **argv) {
-   diff_match_patch<wstring> dmp;
+   diff_match_patch<wstring, wstring_view> dmp;
    wstring str1 = L"First string in diff";
    wstring str2 = L"Second string in diff";
 

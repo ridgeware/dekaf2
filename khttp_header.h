@@ -698,7 +698,7 @@ public:
 	/// split a string in a (stable) sorted vector of string/quality pairs - better quality comes first
 	/// @param sContent the input string, may contain multiple comma separated values and their quality,
 	/// like "deflate, gzip;q=1.0, *;q=0.5"
-	/// @param bSort if true container is stable sorted by quality descending. Default is false = no sorting
+	/// @param bSort if true container is stable sorted by quality descending. Default is true
 	/// @return a (sorted) container of string/quality pairs
 	template<class String = KStringView, typename T = std::vector<QualVal<String>>>
 	static T Split(KStringView sContent, bool bSort = true)

@@ -2420,7 +2420,7 @@ class diff_match_patch {
 
     int n = 0;
     typename traits::utf32_t u;
-    typename string_t::const_pointer c = s2.c_str(), end = c + s2.length();
+    typename string_t::const_pointer c = s2.data(), end = c + s2.length();
     while (c != end) {
       c = traits::to_utf32(c, end, u);
       n += u >= 0x10000? 12 : u >= 0x800? 9 : u >= 0x80? 6 : safe[static_cast<unsigned char>(u)]? 1 : 3;
@@ -2431,7 +2431,7 @@ class diff_match_patch {
       s1.reserve(s1.size() + n);
       // Encode as UTF-8, then escape unsafe characters
       unsigned char utf8[4];
-      for (c = s2.c_str(); c != end;) {
+      for (c = s2.data(); c != end;) {
         c = traits::to_utf32(c, end, u);
         unsigned char* pt = utf8;
         if (u < 0x80)

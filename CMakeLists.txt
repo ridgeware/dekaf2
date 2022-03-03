@@ -1041,6 +1041,10 @@ add_executable(genunicodetables EXCLUDE_FROM_ALL genunicodetables.cpp)
 target_link_libraries(genunicodetables dekaf2)
 add_dependencies(genunicodetables dekaf2)
 
+add_executable(diff-speedtest EXCLUDE_FROM_ALL from/google/diff-speedtest.cpp)
+target_link_libraries(diff-speedtest dekaf2)
+add_dependencies(diff-speedtest dekaf2)
+
 # ============================ UNIT AND SMOKE TESTS ==================================
 
 add_subdirectory(utests)

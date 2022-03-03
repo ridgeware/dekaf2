@@ -46,14 +46,14 @@
 
 namespace dekaf2 {
 
-using KDiffer = diff_match_patch<KString>;
+using KDiff = diff_match_patch<KString, KStringView>;
 
 //-----------------------------------------------------------------------------
 KString KDiffToHTML (KStringView sText1, KStringView sText2, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
 //-----------------------------------------------------------------------------
 {
 	KString sResult;
-	KDiffer differ;
+	KDiff differ;
 	auto    diffs = differ.diff_main (sText1, sText2, /*check-lines*/false);
 
 	differ.diff_cleanupSemantic (diffs);
@@ -68,13 +68,13 @@ KString KDiffToHTML (KStringView sText1, KStringView sText2, KStringView sInsert
 	
 		switch (diff.operation)
 		{
-		case KDiffer::INSERT:
+		case KDiff::INSERT:
 			sResult += kFormat ("<{}>{}</{}>", sInsertTag, sText, sInsertTag);
 			break;
-		case KDiffer::DELETE:
+		case KDiff::DELETE:
 			sResult += kFormat ("<{}>{}</{}>", sDeleteTag, sText, sDeleteTag);
 			break;
-		case KDiffer::EQUAL:
+		case KDiff::EQUAL:
 		default:
 			sResult += sText;
 			break;
@@ -92,7 +92,7 @@ KString KDiffToASCII (KStringView sText1, KStringView sText2)
 //-----------------------------------------------------------------------------
 {
 	KString sResult;
-	KDiffer differ;
+	KDiff differ;
 	auto    diffs = differ.diff_main (sText1, sText2, /*check-lines*/false);
 
 	differ.diff_cleanupSemantic (diffs);
@@ -107,13 +107,13 @@ KString KDiffToASCII (KStringView sText1, KStringView sText2)
 	
 		switch (diff.operation)
 		{
-		case KDiffer::INSERT:
+		case KDiff::INSERT:
 			sResult += kFormat ("[+{}]", sText);
 			break;
-		case KDiffer::DELETE:
+		case KDiff::DELETE:
 			sResult += kFormat ("[-{}]", sText);
 			break;
-		case KDiffer::EQUAL:
+		case KDiff::EQUAL:
 		default:
 			sResult += kFormat ("{}", sText);
 			break;

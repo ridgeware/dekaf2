@@ -1280,13 +1280,6 @@ inline KString::size_type KString::find_first_not_of(KStringView sv, size_type p
 #else
 
 //-----------------------------------------------------------------------------
-inline KString::size_type KString::find_first_not_of(value_type c, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return m_rep.find_first_not_of(c, pos);
-}
-
-//-----------------------------------------------------------------------------
 inline KString::size_type KString::find_first_not_of(const value_type* s, size_type pos, size_type n) const
 //-----------------------------------------------------------------------------
 {
@@ -1319,13 +1312,6 @@ inline KString::size_type KString::find_last_not_of(const value_type* s, size_ty
 }
 
 #else
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_last_not_of(value_type c, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return m_rep.find_last_not_of(c, pos);
-}
 
 //-----------------------------------------------------------------------------
 inline KString::size_type KString::find_last_not_of(const value_type* s, size_type pos, size_type n) const

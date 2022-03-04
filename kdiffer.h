@@ -42,11 +42,6 @@
 
 #pragma once
 
-namespace dekaf2
-{
-class KString;
-}
-
 #include "kstringview.h"
 #include "bits/kunique_deleter.h"
 

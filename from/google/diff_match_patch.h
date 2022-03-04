@@ -32,6 +32,7 @@
 #include <cstdlib>
 #include <cwchar>
 #include <time.h>
+#include <cinttypes>
 
 /*
  * Functions for diff, match and patch.
@@ -84,9 +85,15 @@ class diff_match_patch {
   /**
   * String and character types
   */
-  typedef stringT string_t;
+  typedef stringT     string_t;
   typedef stringviewT stringview_t;
   typedef typename string_t::value_type char_t;
+  typedef typename string_t::size_type strlen_t;
+  typedef int32_t     step_t;
+  typedef uint16_t    score_t; // scores range from 0..6
+  typedef uint16_t    padding_t;
+
+  static constexpr strlen_t npos { static_cast<strlen_t>(-1) };
 
   /**-
   * The data structure representing a diff is a Linked list of Diff objects:
@@ -169,10 +176,10 @@ class diff_match_patch {
   class Patch {
    public:
     Diffs diffs;
-    int start1;
-    int start2;
-    int length1;
-    int length2;
+    strlen_t start1;
+    strlen_t start2;
+    strlen_t length1;
+    strlen_t length2;
 
     /**
      * Constructor.  Initializes with an empty list of diffs.
@@ -217,8 +224,9 @@ class diff_match_patch {
         text += coords2;
         text += traits::cs(L" @@\n");
       // Escape the body of the patch with %xx notation.
-      for (typename Diffs::const_iterator cur_diff = diffs.begin(); cur_diff != diffs.end(); ++cur_diff) {
-        switch ((*cur_diff).operation) {
+      for (const auto& cur_diff : diffs)
+	  {
+        switch (cur_diff.operation) {
           case INSERT:
             text += traits::from_wchar(L'+');
             break;
@@ -229,7 +237,7 @@ class diff_match_patch {
             text += traits::from_wchar(L' ');
             break;
         }
-        append_percent_encoded(text, (*cur_diff).text);
+        append_percent_encoded(text, cur_diff.text);
         text += traits::from_wchar(L'\n');
       }
 
@@ -248,23 +256,23 @@ class diff_match_patch {
   // Number of seconds to map a diff before giving up (0 for infinity).
   float Diff_Timeout;
   // Cost of an empty edit operation in terms of edit characters.
-  short Diff_EditCost;
+  uint16_t Diff_EditCost;
   // At what point is no match declared (0.0 = perfection, 1.0 = very loose).
   float Match_Threshold;
   // How far to search for a match (0 = exact location, 1000+ = broad match).
   // A match this many characters away from the expected location will add
   // 1.0 to the score (0.0 is a perfect match).
-  int Match_Distance;
+  strlen_t Match_Distance;
   // When deleting a large block of text (over ~64 characters), how close does
   // the contents have to match the expected contents. (0.0 = perfection,
   // 1.0 = very loose).  Note that Match_Threshold controls how closely the
   // end points of a delete need to match.
   float Patch_DeleteThreshold;
   // Chunk size for context length.
-  short Patch_Margin;
+  uint16_t Patch_Margin;
 
   // The number of bits in an int.
-  short Match_MaxBits;
+  uint16_t Match_MaxBits;
 
 
  public:
@@ -276,7 +284,7 @@ class diff_match_patch {
     Match_Distance(1000),
     Patch_DeleteThreshold(0.5f),
     Patch_Margin(4),
-    Match_MaxBits(32) {
+    Match_MaxBits(sizeof(strlen_t)*8) {
   }
 
   //  DIFF FUNCTIONS
@@ -291,7 +299,8 @@ class diff_match_patch {
    *     Most of the time checklines is wanted, so default to true.
    * @return Linked List of Diff objects.
    */
-  Diffs diff_main(const stringview_t &text1, const stringview_t &text2, bool checklines = true) const {
+  Diffs diff_main(const stringview_t &text1, const stringview_t &text2, bool checklines = true) const
+  {
     // Set a deadline by which time the diff must be complete.
     clock_t deadline;
     if (Diff_Timeout <= 0) {
@@ -317,7 +326,8 @@ class diff_match_patch {
    * @param Linked List of Diff objects.
    */
  private:
-  static void diff_main(const stringview_t &text1, const stringview_t &text2, bool checklines, clock_t deadline, Diffs& diffs) {
+  static void diff_main(const stringview_t &text1, const stringview_t &text2, bool checklines, clock_t deadline, Diffs& diffs)
+  {
     diffs.clear();
 
     // Check for equality (speedup).
@@ -328,7 +338,7 @@ class diff_match_patch {
     }
     else {
       // Trim off common prefix (speedup).
-      int commonlength = diff_commonPrefix(text1, text2);
+      strlen_t commonlength = diff_commonPrefix(text1, text2);
       const stringview_t commonprefix = text1.substr(0, commonlength);
       stringview_t textChopped1 = text1.substr(commonlength);
       stringview_t textChopped2 = text2.substr(commonlength);
@@ -366,7 +376,8 @@ class diff_match_patch {
    * @param Linked List of Diff objects.
    */
  private:
-  static void diff_compute(const stringview_t &text1, const stringview_t &text2, bool checklines, clock_t deadline, Diffs& diffs) {
+  static void diff_compute(const stringview_t &text1, const stringview_t &text2, bool checklines, clock_t deadline, Diffs& diffs)
+  {
     if (text1.empty()) {
       // Just add some text (speedup).
       diffs.push_back(Diff(INSERT, text2));
@@ -380,10 +391,10 @@ class diff_match_patch {
     }
 
     {
-      const stringview_t& longtext = text1.length() > text2.length() ? text1 : text2;
+      const stringview_t& longtext  = text1.length() > text2.length() ? text1 : text2;
       const stringview_t& shorttext = text1.length() > text2.length() ? text2 : text1;
-      const size_t i = longtext.find(shorttext);
-      if (i != string_t::npos) {
+      const typename stringview_t::size_type i = longtext.find(shorttext);
+      if (i != stringview_t::npos) {
         // Shorter text is inside the longer text (speedup).
         const Operation op = (text1.length() > text2.length()) ? DELETE : INSERT;
         diffs.push_back(Diff(op, longtext.substr(0, i)));
@@ -437,7 +448,8 @@ class diff_match_patch {
    * @param Linked List of Diff objects.
    */
  private:
-  static void diff_lineMode(string_t text1, string_t text2, clock_t deadline, Diffs& diffs) {
+  static void diff_lineMode(string_t text1, string_t text2, clock_t deadline, Diffs& diffs)
+  {
     // Scan the text on a line-by-line basis first.
     Lines linearray;
     diff_linesToChars(text1, text2, linearray);
@@ -499,49 +511,61 @@ class diff_match_patch {
    * @return Linked List of Diff objects.
    */
  protected:
-  static Diffs diff_bisect(const stringview_t &text1, const stringview_t &text2, clock_t deadline) {
+  static Diffs diff_bisect(const stringview_t &text1, const stringview_t &text2, clock_t deadline)
+  {
     Diffs diffs;
     diff_bisect(text1, text2, deadline, diffs);
     return diffs;
   }
  private:
-  static void diff_bisect(const stringview_t &text1, const stringview_t &text2, clock_t deadline, Diffs& diffs) {
+  static void diff_bisect(const stringview_t &text1, const stringview_t &text2, clock_t deadline, Diffs& diffs)
+  {
+    if (text1.length() + text2.length() > std::numeric_limits<step_t>::max())
+    {
+      throw string_t(traits::cs(L"input strings too large."));
+    }
+
     // Cache the text lengths to prevent multiple calls.
-    const int text1_length = text1.length();
-    const int text2_length = text2.length();
-    const int max_d = (text1_length + text2_length + 1) / 2;
-    const int v_offset = max_d;
-    const int v_length = 2 * max_d;
-    std::vector<int> v1(v_length, -1), 
-                     v2(v_length, -1);
+    const step_t text1_length = text1.length();
+    const step_t text2_length = text2.length();
+    const step_t max_d        = (text1_length + text2_length + 1) / 2;
+    const step_t v_offset     = max_d;
+    const step_t v_length     = 2 * max_d;
+
+    std::vector<step_t> v1(v_length, -1), v2(v_length, -1);
     v1[v_offset + 1] = 0;
     v2[v_offset + 1] = 0;
-    const int delta = text1_length - text2_length;
+
+    const step_t delta = text1_length - text2_length;
+
     // If the total number of characters is odd, then the front path will
     // collide with the reverse path.
     const bool front = (delta % 2 != 0);
+
     // Offsets for start and end of k loop.
     // Prevents mapping of space beyond the grid.
-    int k1start = 0;
-    int k1end = 0;
-    int k2start = 0;
-    int k2end = 0;
-    for (int d = 0; d < max_d; d++) {
+    step_t k1start   = 0;
+    step_t k1end     = 0;
+    step_t k2start   = 0;
+    step_t k2end     = 0;
+
+    for (step_t d = 0; d < max_d; ++d) {
+
       // Bail out if deadline is reached.
       if (clock() > deadline) {
         break;
       }
 
       // Walk the front path one step.
-      for (int k1 = -d + k1start; k1 <= d - k1end; k1 += 2) {
-        const int k1_offset = v_offset + k1;
-        int x1;
+      for (step_t k1 = -d + k1start; k1 <= d - k1end; k1 += 2) {
+        const step_t k1_offset = v_offset + k1;
+        step_t x1;
         if (k1 == -d || (k1 != d && v1[k1_offset - 1] < v1[k1_offset + 1])) {
           x1 = v1[k1_offset + 1];
         } else {
           x1 = v1[k1_offset - 1] + 1;
         }
-        int y1 = x1 - k1;
+        step_t y1 = x1 - k1;
         while (x1 < text1_length && y1 < text2_length
             && text1[x1] == text2[y1]) {
           x1++;
@@ -555,10 +579,10 @@ class diff_match_patch {
           // Ran off the bottom of the graph.
           k1start += 2;
         } else if (front) {
-          int k2_offset = v_offset + delta - k1;
+          step_t k2_offset = v_offset + delta - k1;
           if (k2_offset >= 0 && k2_offset < v_length && v2[k2_offset] != -1) {
             // Mirror x2 onto top-left coordinate system.
-            int x2 = text1_length - v2[k2_offset];
+            step_t x2 = text1_length - v2[k2_offset];
             if (x1 >= x2) {
               // Overlap detected.
               diff_bisectSplit(text1, text2, x1, y1, deadline, diffs);
@@ -569,15 +593,15 @@ class diff_match_patch {
       }
 
       // Walk the reverse path one step.
-      for (int k2 = -d + k2start; k2 <= d - k2end; k2 += 2) {
-        const int k2_offset = v_offset + k2;
-        int x2;
+      for (step_t k2 = -d + k2start; k2 <= d - k2end; k2 += 2) {
+        const step_t k2_offset = v_offset + k2;
+        step_t x2;
         if (k2 == -d || (k2 != d && v2[k2_offset - 1] < v2[k2_offset + 1])) {
           x2 = v2[k2_offset + 1];
         } else {
           x2 = v2[k2_offset - 1] + 1;
         }
-        int y2 = x2 - k2;
+        step_t y2 = x2 - k2;
         while (x2 < text1_length && y2 < text2_length
             && text1[text1_length - x2 - 1] == text2[text2_length - y2 - 1]) {
           x2++;
@@ -591,10 +615,10 @@ class diff_match_patch {
           // Ran off the top of the graph.
           k2start += 2;
         } else if (!front) {
-          int k1_offset = v_offset + delta - k2;
+          step_t k1_offset = v_offset + delta - k2;
           if (k1_offset >= 0 && k1_offset < v_length && v1[k1_offset] != -1) {
-            int x1 = v1[k1_offset];
-            int y1 = v_offset + x1 - k1_offset;
+            step_t x1 = v1[k1_offset];
+            step_t y1 = v_offset + x1 - k1_offset;
             // Mirror x2 onto top-left coordinate system.
             x2 = text1_length - x2;
             if (x1 >= x2) {
@@ -606,6 +630,7 @@ class diff_match_patch {
         }
       }
     }
+
     // Diff took too long and hit the deadline or
     // number of diffs equals number of characters, no commonality at all.
     diffs.clear();
@@ -624,7 +649,8 @@ class diff_match_patch {
    * @return LinkedList of Diff objects.
    */
  private:
-  static void diff_bisectSplit(const stringview_t &text1, const stringview_t &text2, int x, int y, clock_t deadline, Diffs& diffs) {
+  static void diff_bisectSplit(const stringview_t &text1, const stringview_t &text2, step_t x, step_t y, clock_t deadline, Diffs& diffs)
+  {
     stringview_t text1a = text1.substr(0, x);
     stringview_t text2a = text2.substr(0, y);
     stringview_t text1b = safeMid(text1, x);
@@ -647,16 +673,23 @@ class diff_match_patch {
    *     of the List of unique strings is intentionally blank.
    */
  protected:
-  struct LinePtr : std::pair<typename string_t::const_pointer, size_t> {
+
+  struct LinePtr : std::pair<typename string_t::const_pointer, std::size_t>
+  {
     LinePtr() {}
-    LinePtr(typename string_t::const_pointer p, size_t n) : std::pair<typename string_t::const_pointer, size_t>(p, n) {}
+    LinePtr(typename string_t::const_pointer p, std::size_t n) : std::pair<typename string_t::const_pointer, std::size_t>(p, n) {}
     bool operator<(const LinePtr& p) const
       { return this->second < p.second? true : this->second > p.second? false : string_t::traits_type::compare(this->first, p.first, this->second) < 0; }
   };
-  struct Lines : std::vector<LinePtr> { string_t text1, text2; };
 
-  static void diff_linesToChars(string_t &text1, string_t &text2, Lines& lineArray) {
-    std::map<LinePtr, size_t> lineHash;
+  struct Lines : std::vector<LinePtr>
+  {
+	string_t text1, text2;
+  };
+
+  static void diff_linesToChars(string_t &text1, string_t &text2, Lines& lineArray)
+  {
+    std::map<LinePtr, std::size_t> lineHash;
     lineArray.text1 = std::move(text1);
     lineArray.text2 = std::move(text2);
     // e.g. linearray[4] == "Hello\n"
@@ -669,8 +702,11 @@ class diff_match_patch {
     text2 = diff_linesToCharsMunge(lineArray.text2, lineHash);
 
     lineArray.resize(lineHash.size() + 1);
-    for (typename std::map<LinePtr, size_t>::const_iterator i = lineHash.begin(); i != lineHash.end(); ++i)
-      lineArray[(*i).second] = (*i).first;
+
+    for (const auto& i : lineHash)
+	{
+      lineArray[i.second] = i.first;
+	}
   }
 
   /**
@@ -681,13 +717,15 @@ class diff_match_patch {
    * @return Encoded string.
    */
  private:
-  static string_t diff_linesToCharsMunge(const string_t &text, std::map<LinePtr, size_t> &lineHash) {
+
+  static string_t diff_linesToCharsMunge(const string_t &text, std::map<LinePtr, std::size_t> &lineHash)
+  {
     string_t chars;
     // Walk the text, pulling out a substring for each line.
     // text.split('\n') would would temporarily double our memory footprint.
     // Modifying text would create many large strings to garbage collect.
     typename string_t::size_type lineLen;
-    for (typename string_t::const_pointer lineStart = text.c_str(), textEnd = lineStart + text.size(); lineStart < textEnd; lineStart += lineLen + 1) {
+    for (typename string_t::const_pointer lineStart = text.data(), textEnd = lineStart + text.size(); lineStart < textEnd; lineStart += lineLen + 1) {
       lineLen = next_token(text, traits::from_wchar(L'\n'), lineStart);
       if (lineStart + lineLen == textEnd) --lineLen;
       chars += (char_t)(*lineHash.insert(std::make_pair(LinePtr(lineStart, lineLen + 1), lineHash.size() + 1)).first).second;
@@ -702,14 +740,16 @@ class diff_match_patch {
    * @param lineArray List of pointers to unique strings.
    */
  private:
-  static void diff_charsToLines(Diffs &diffs, const Lines& lineArray) {
-    for (typename Diffs::iterator cur_diff = diffs.begin(); cur_diff != diffs.end(); ++cur_diff) {
+  static void diff_charsToLines(Diffs &diffs, const Lines& lineArray)
+  {
+    for (auto& cur_diff : diffs)
+	{
       string_t text;
-      for (int y = 0; y < (int)(*cur_diff).text.length(); y++) {
-        const LinePtr& lp = lineArray[static_cast<size_t>((*cur_diff).text[y])];
+      for (step_t y = 0; y < static_cast<step_t>(cur_diff.text.length()); y++) {
+        const LinePtr& lp = lineArray[static_cast<std::size_t>(cur_diff.text[y])];
         text.append(lp.first, lp.second);
       }
-      (*cur_diff).text.swap(text);
+      cur_diff.text = std::move(text);
     }
   }
 
@@ -720,15 +760,10 @@ class diff_match_patch {
    * @return The number of characters common to the start of each string.
    */
  public:
-  static int diff_commonPrefix(const stringview_t &text1, const stringview_t &text2) {
+  static strlen_t diff_commonPrefix(const stringview_t &text1, const stringview_t &text2) {
     // Performance analysis: http://neil.fraser.name/news/2007/10/09/
-    const int n = std::min(text1.length(), text2.length());
-    for (int i = 0; i < n; i++) {
-      if (text1[i] != text2[i]) {
-        return i;
-      }
-    }
-    return n;
+	return (text1.length() <= text2.length()) ? std::mismatch(text1.begin(), text1.end(), text2.begin()).first - text1.begin()
+	                                          : std::mismatch(text2.begin(), text2.end(), text1.begin()).first - text2.begin();
   }
 
   /**
@@ -738,17 +773,10 @@ class diff_match_patch {
    * @return The number of characters common to the end of each string.
    */
  public:
-  static int diff_commonSuffix(const stringview_t &text1, const stringview_t &text2) {
+  static strlen_t diff_commonSuffix(const stringview_t &text1, const stringview_t &text2) {
     // Performance analysis: http://neil.fraser.name/news/2007/10/09/
-    const int text1_length = text1.length();
-    const int text2_length = text2.length();
-    const int n = std::min(text1_length, text2_length);
-    for (int i = 1; i <= n; i++) {
-      if (text1[text1_length - i] != text2[text2_length - i]) {
-        return i - 1;
-      }
-    }
-    return n;
+	return (text1.length() <= text2.length()) ? std::mismatch(text1.rbegin(), text1.rend(), text2.rbegin()).first - text1.rbegin()
+	                                          : std::mismatch(text2.rbegin(), text2.rend(), text1.rbegin()).first - text2.rbegin();
   }
 
   /**
@@ -759,10 +787,10 @@ class diff_match_patch {
    *     string and the start of the second string.
    */
  protected:
-  static int diff_commonOverlap(const stringview_t &text1, const stringview_t &text2) {
+  static strlen_t diff_commonOverlap(const stringview_t &text1, const stringview_t &text2) {
     // Cache the text lengths to prevent multiple calls.
-    const int text1_length = text1.length();
-    const int text2_length = text2.length();
+    const strlen_t text1_length = text1.length();
+    const strlen_t text2_length = text2.length();
     // Eliminate the null case.
     if (text1_length == 0 || text2_length == 0) {
       return 0;
@@ -780,7 +808,7 @@ class diff_match_patch {
       text1_trunc = text1;
       text2_trunc = text2;
 	}
-    const int text_length = std::min(text1_length, text2_length);
+    const strlen_t text_length = std::min(text1_length, text2_length);
     // Quick check for the worst case.
     if (text1_trunc == text2_trunc) {
       return text_length;
@@ -789,12 +817,12 @@ class diff_match_patch {
     // Start by looking for a single character match
     // and increase length until no match is found.
     // Performance analysis: http://neil.fraser.name/news/2010/11/04/
-    int best = 0;
-    int length = 1;
+    strlen_t best = 0;
+    strlen_t length = 1;
     while (true) {
       stringview_t pattern = right(text1_trunc, length);
-      size_t found = text2_trunc.find(pattern);
-      if (found == string_t::npos) {
+      strlen_t found = text2_trunc.find(pattern);
+      if (found == npos) {
         return best;
       }
       length += found;
@@ -819,12 +847,10 @@ class diff_match_patch {
  protected:
   struct HalfMatchResult {
     stringview_t text1_a, text1_b, text2_a, text2_b, mid_common;
-    void swap(HalfMatchResult& hm) {
-      text1_a.swap(hm.text1_a), text1_b.swap(hm.text1_b), text2_a.swap(hm.text2_a), text2_b.swap(hm.text2_b), mid_common.swap(hm.mid_common);
-    }
   };
 
-  static bool diff_halfMatch(const stringview_t &text1, const stringview_t &text2, HalfMatchResult& hm) {
+  static bool diff_halfMatch(const stringview_t &text1, const stringview_t &text2, HalfMatchResult& hm)
+  {
     const stringview_t& longtext  = text1.length() > text2.length() ? text1 : text2;
     const stringview_t& shorttext = text1.length() > text2.length() ? text2 : text1;
     if (longtext.length() < 4 || shorttext.length() * 2 < longtext.length()) {
@@ -839,12 +865,12 @@ class diff_match_patch {
     if (!hm1 && !hm2) {
       return false;
     } else if (!hm2) {
-      hm.swap(res1);
+      hm = std::move(res1);
     } else if (!hm1) {
-      hm.swap(res2);
+      hm = std::move(res2);
     } else {
       // Both matched.  Select the longest.
-      hm.swap(res1.mid_common.length() > res2.mid_common.length() ? res1 : res2);
+      hm = (res1.mid_common.length() > res2.mid_common.length() ? std::move(res1) : std::move(res2));
     }
 
     // A half-match was found, sort out the return data.
@@ -867,14 +893,15 @@ class diff_match_patch {
    * @return Boolean true if there was a match, false otherwise.
    */
  private:
-  static bool diff_halfMatchI(const stringview_t &longtext, const stringview_t &shorttext, int i, HalfMatchResult& best) {
+  static bool diff_halfMatchI(const stringview_t &longtext, const stringview_t &shorttext, strlen_t i, HalfMatchResult& best)
+  {
     // Start with a 1/4 length substring at position i as a seed.
     const stringview_t seed = safeMid(longtext, i, longtext.length() / 4);
-    size_t j = string_t::npos;
-    while ((j = shorttext.find(seed, j + 1)) != string_t::npos) {
-      const int prefixLength = diff_commonPrefix(safeMid(longtext, i), safeMid(shorttext, j));
-      const int suffixLength = diff_commonSuffix(longtext.substr(0, i), shorttext.substr(0, j));
-      if ((int)best.mid_common.length() < suffixLength + prefixLength) {
+    typename stringview_t::size_type j = stringview_t::npos;
+    while ((j = shorttext.find(seed, j + 1)) != stringview_t::npos) {
+      const strlen_t prefixLength = diff_commonPrefix(safeMid(longtext, i), safeMid(shorttext, j));
+      const strlen_t suffixLength = diff_commonSuffix(longtext.substr(0, i), shorttext.substr(0, j));
+      if (best.mid_common.length() < static_cast<typename stringview_t::size_type>(suffixLength + prefixLength)) {
         best.mid_common = safeMid(shorttext, j - suffixLength, suffixLength + prefixLength);
         best.text1_a = longtext.substr(0, i - suffixLength);
         best.text1_b = safeMid(longtext, i + prefixLength);
@@ -899,11 +926,12 @@ class diff_match_patch {
     stringview_t lastequality;  // Always equal to equalities.lastElement().text
     typename Diffs::iterator cur_diff;
     // Number of characters that changed prior to the equality.
-    int length_insertions1 = 0;
-    int length_deletions1 = 0;
+    strlen_t length_insertions1 = 0;
+    strlen_t length_deletions1 = 0;
     // Number of characters that changed after the equality.
-    int length_insertions2 = 0;
-    int length_deletions2 = 0;
+    strlen_t length_insertions2 = 0;
+    strlen_t length_deletions2 = 0;
+
     for (cur_diff = diffs.begin(); cur_diff != diffs.end();) {
       if ((*cur_diff).operation == EQUAL) {
         // Equality found.
@@ -923,10 +951,8 @@ class diff_match_patch {
         // Eliminate an equality that is smaller or equal to the edits on both
         // sides of it.
         if (!lastequality.empty()
-            && ((int)lastequality.length()
-                <= std::max(length_insertions1, length_deletions1))
-            && ((int)lastequality.length()
-                <= std::max(length_insertions2, length_deletions2))) {
+            && (lastequality.length() <= static_cast<typename stringview_t::size_type>(std::max(length_insertions1, length_deletions1)))
+            && (lastequality.length() <= static_cast<typename stringview_t::size_type>(std::max(length_insertions2, length_deletions2)))) {
           // printf("Splitting: '%s'\n", qPrintable(lastequality));
           // Walk back to offending equality.
           // Change second copy to insert.
@@ -976,8 +1002,8 @@ class diff_match_patch {
             (*cur_diff).operation == INSERT) {
           stringview_t deletion = (*prev_diff).text;
           stringview_t insertion = (*cur_diff).text;
-          int overlap_length1 = diff_commonOverlap(deletion, insertion);
-          int overlap_length2 = diff_commonOverlap(insertion, deletion);
+          strlen_t overlap_length1 = diff_commonOverlap(deletion, insertion);
+          strlen_t overlap_length2 = diff_commonOverlap(insertion, deletion);
           if (overlap_length1 >= overlap_length2) {
             if (overlap_length1 >= deletion.size() / 2.0 ||
                 overlap_length1 >= insertion.size() / 2.0) {
@@ -996,8 +1022,7 @@ class diff_match_patch {
               // Insert an equality and swap and trim the surrounding edits.
               diffs.insert(cur_diff, Diff(EQUAL, deletion.substr(0, overlap_length2)));
               prev_diff->operation = INSERT;
-              prev_diff->text =
-                  insertion.substr(0, insertion.length() - overlap_length2);
+              prev_diff->text = insertion.substr(0, insertion.length() - overlap_length2);
               cur_diff->operation = DELETE;
               cur_diff->text = safeMid(deletion, overlap_length2);
               // diffs.insert inserts the element before the cursor, so there is
@@ -1017,11 +1042,12 @@ class diff_match_patch {
    * @param diffs LinkedList of Diff objects.
    */
  public:
-  static void diff_cleanupSemanticLossless(Diffs &diffs) {
-    string_t equality1, edit, equality2;
+  static void diff_cleanupSemanticLossless(Diffs &diffs)
+  {
+    string_t     equality1, edit, equality2;
     stringview_t commonString;
-    int commonOffset;
-    int score, bestScore;
+    strlen_t     commonOffset;
+    score_t      score, bestScore;
     stringview_t bestEquality1, bestEdit, bestEquality2;
     // Create a new iterator at the start.
     typename Diffs::iterator prev_diff = diffs.begin(), cur_diff = prev_diff;
@@ -1098,7 +1124,8 @@ class diff_match_patch {
    * @return The score.
    */
  private:
-  static int diff_cleanupSemanticScore(const stringview_t &one, const stringview_t &two) {
+  static score_t diff_cleanupSemanticScore(const stringview_t &one, const stringview_t &two)
+  {
     if (one.empty() || two.empty()) {
       // Edges are the best.
       return 6;
@@ -1181,7 +1208,7 @@ class diff_match_patch {
     for (typename Diffs::iterator cur_diff = diffs.begin(); cur_diff != diffs.end();) {
       if ((*cur_diff).operation == EQUAL) {
         // Equality found.
-        if ((int)(*cur_diff).text.length() < Diff_EditCost && (post_ins || post_del)) {
+        if ((*cur_diff).text.length() < static_cast<typename string_t::size_type>(Diff_EditCost) && (post_ins || post_del)) {
           // Candidate found.
           equalities.push_back(cur_diff);
           pre_ins = post_ins;
@@ -1210,7 +1237,7 @@ class diff_match_patch {
         */
         if (!lastequality.empty()
             && ((pre_ins && pre_del && post_ins && post_del)
-            || (((int)lastequality.length() < Diff_EditCost / 2)
+            || ((lastequality.length() < static_cast<typename string_t::size_type>(Diff_EditCost / 2))
             && ((pre_ins ? 1 : 0) + (pre_del ? 1 : 0)
             + (post_ins ? 1 : 0) + (post_del ? 1 : 0)) == 3))) {
           // printf("Splitting: '%s'\n", qPrintable(lastequality));
@@ -1258,15 +1285,16 @@ class diff_match_patch {
    * @param diffs LinkedList of Diff objects.
    */
  public:
-  static void diff_cleanupMerge(Diffs &diffs) {
+  static void diff_cleanupMerge(Diffs &diffs)
+  {
     diffs.push_back(Diff(EQUAL, string_t()));  // Add a dummy entry at the end.
     typename Diffs::iterator prev_diff, cur_diff;
-    int count_delete = 0;
-    int count_insert = 0;
+    int      count_delete = 0;
+    int      count_insert = 0;
     string_t text_delete;
     string_t text_insert;
-    Diff *prevEqual = NULL;
-    int commonlength;
+    Diff     *prevEqual = NULL;
+    strlen_t commonlength;
     for (cur_diff = diffs.begin(); cur_diff != diffs.end(); ++cur_diff) {
       switch ((*cur_diff).operation) {
         case INSERT:
@@ -1389,11 +1417,12 @@ class diff_match_patch {
    * @return Location within text2.
    */
  public:
-  static int diff_xIndex(const Diffs &diffs, int loc) {
-    int chars1 = 0;
-    int chars2 = 0;
-    int last_chars1 = 0;
-    int last_chars2 = 0;
+  static strlen_t diff_xIndex(const Diffs &diffs, strlen_t loc)
+  {
+    strlen_t chars1 = 0;
+    strlen_t chars2 = 0;
+    strlen_t last_chars1 = 0;
+    strlen_t last_chars2 = 0;
     typename Diffs::const_iterator last_diff = diffs.end(), cur_diff;
     for (cur_diff = diffs.begin(); cur_diff != diffs.end(); ++cur_diff) {
       if ((*cur_diff).operation != INSERT) {
@@ -1426,34 +1455,36 @@ class diff_match_patch {
    * @return HTML representation.
    */
  public:
-  static string_t diff_prettyHtml(const Diffs &diffs) {
+  static string_t diff_prettyHtml(const Diffs &diffs)
+  {
     string_t html;
     string_t text;
-    for (typename Diffs::const_iterator cur_diff = diffs.begin(); cur_diff != diffs.end(); ++cur_diff) {
-      typename string_t::size_type n = (*cur_diff).text.size();
+    for (const auto& cur_diff : diffs)
+	{
+      typename string_t::size_type n = cur_diff.text.size();
       typename string_t::const_pointer p, end;
-      for (p = (*cur_diff).text.c_str(), end = p + n; p != end; ++p)
+      for (p = cur_diff.text.data(), end = p + n; p != end; ++p)
         switch (traits::to_wchar(*p)) {
-          case L'&': n += 4; break;
+          case L'&':  n += 4; break;
           case L'<':
-          case L'>': n += 3; break;
+          case L'>':  n += 3; break;
           case L'\n': n += 9; break;
         }
-      if (n == (*cur_diff).text.size())
-        text = (*cur_diff).text;
+      if (n == cur_diff.text.size())
+        text = cur_diff.text;
       else {
         text.clear();
         text.reserve(n);
-        for (p = (*cur_diff).text.c_str(); p != end; ++p)
+        for (p = cur_diff.text.data(); p != end; ++p)
           switch (traits::to_wchar(*p)) {
-            case L'&': text += traits::cs(L"&amp;"); break;
-            case L'<': text += traits::cs(L"&lt;"); break;
-            case L'>': text += traits::cs(L"&gt;"); break;
+            case L'&':  text += traits::cs(L"&amp;");      break;
+            case L'<':  text += traits::cs(L"&lt;");       break;
+            case L'>':  text += traits::cs(L"&gt;");       break;
             case L'\n': text += traits::cs(L"&para;<br>"); break;
-            default: text += *p;
+            default:    text += *p;                        break;
           }
       }
-      switch ((*cur_diff).operation) {
+      switch (cur_diff.operation) {
         case INSERT:
           html += traits::cs(L"<ins style=\"background:#e6ffe6;\">");
           html += text;
@@ -1480,11 +1511,13 @@ class diff_match_patch {
    * @return Source text.
    */
  public:
-  static string_t diff_text1(const Diffs &diffs) {
+  static string_t diff_text1(const Diffs &diffs)
+  {
     string_t text;
-    for (typename Diffs::const_iterator cur_diff = diffs.begin(); cur_diff != diffs.end(); ++cur_diff) {
-      if ((*cur_diff).operation != INSERT) {
-        text += (*cur_diff).text;
+    for (const auto& cur_diff : diffs)
+	{
+      if (cur_diff.operation != INSERT) {
+        text += cur_diff.text;
       }
     }
     return text;
@@ -1496,11 +1529,13 @@ class diff_match_patch {
    * @return Destination text.
    */
  public:
-  static string_t diff_text2(const Diffs &diffs) {
+  static string_t diff_text2(const Diffs &diffs)
+  {
     string_t text;
-    for (typename Diffs::const_iterator cur_diff = diffs.begin(); cur_diff != diffs.end(); ++cur_diff) {
-      if ((*cur_diff).operation != DELETE) {
-        text += (*cur_diff).text;
+    for (const auto& cur_diff : diffs)
+	{
+      if (cur_diff.operation != DELETE) {
+        text += cur_diff.text;
       }
     }
     return text;
@@ -1513,17 +1548,19 @@ class diff_match_patch {
    * @return Number of changes.
    */
  public:
-  static int diff_levenshtein(const Diffs &diffs) {
-    int levenshtein = 0;
-    int insertions = 0;
-    int deletions = 0;
-    for (typename Diffs::const_iterator cur_diff = diffs.begin(); cur_diff != diffs.end(); ++cur_diff) {
-      switch ((*cur_diff).operation) {
+  static strlen_t diff_levenshtein(const Diffs &diffs)
+  {
+    strlen_t levenshtein = 0;
+    strlen_t insertions = 0;
+    strlen_t deletions = 0;
+    for (const auto& cur_diff : diffs)
+	{
+      switch (cur_diff.operation) {
         case INSERT:
-          insertions += (*cur_diff).text.length();
+          insertions += cur_diff.text.length();
           break;
         case DELETE:
-          deletions += (*cur_diff).text.length();
+          deletions += cur_diff.text.length();
           break;
         case EQUAL:
           // A deletion and an insertion is one substitution.
@@ -1546,24 +1583,26 @@ class diff_match_patch {
    * @return Delta text.
    */
  public:
-  static string_t diff_toDelta(const Diffs &diffs) {
+  static string_t diff_toDelta(const Diffs &diffs)
+  {
     string_t text;
-    for (typename Diffs::const_iterator cur_diff = diffs.begin(); cur_diff != diffs.end(); ++cur_diff) {
-      switch ((*cur_diff).operation) {
+    for (const auto& cur_diff : diffs)
+	{
+      switch (cur_diff.operation) {
         case INSERT: {
           text += traits::from_wchar(L'+');
-          append_percent_encoded(text, (*cur_diff).text);
+          append_percent_encoded(text, cur_diff.text);
           text += traits::from_wchar(L'\t');
           break;
         }
         case DELETE:
           text += traits::from_wchar(L'-');
-          text += to_string((*cur_diff).text.length());
+          text += to_string(cur_diff.text.length());
           text += traits::from_wchar(L'\t');
           break;
         case EQUAL:
           text += traits::from_wchar(L'=');
-          text += to_string((*cur_diff).text.length());
+          text += to_string(cur_diff.text.length());
           text += traits::from_wchar(L'\t');
           break;
       }
@@ -1584,11 +1623,12 @@ class diff_match_patch {
    * @throws string_t If invalid input.
    */
  public:
-  static Diffs diff_fromDelta(const stringview_t &text1, const stringview_t &delta) {
+  static Diffs diff_fromDelta(const stringview_t &text1, const stringview_t &delta)
+  {
     Diffs diffs;
-    int pointer = 0;  // Cursor in text1
+    strlen_t pointer = 0;  // Cursor in text1
     typename stringview_t::size_type token_len;
-    for (typename stringview_t::const_pointer token = delta.data(); token - delta.data() < (int)delta.length(); token += token_len + 1) {
+    for (typename stringview_t::const_pointer token = delta.data(); token - delta.data() < delta.length(); token += token_len + 1) {
       token_len = next_token(delta, traits::from_wchar(L'\t'), token);
       if (token_len == 0) {
         // Blank tokens are ok (from a trailing \t).
@@ -1605,13 +1645,11 @@ class diff_match_patch {
         case L'-':
           // Fall through.
         case L'=': {
-          int n;
-          n = to_int(param);
+          auto n = to_int(param);
           if (n < 0) {
             throw string_t(traits::cs(L"Negative number in diff_fromDelta: ") + param);
           }
-          string_t text;
-          text = safeMid(text1, pointer, n);
+          stringview_t text = safeMid(text1, pointer, n);
           pointer += n;
           if (traits::to_wchar(*token) == L'=') {
             diffs.push_back(Diff(EQUAL, text));
@@ -1638,21 +1676,22 @@ class diff_match_patch {
 
   /**
    * Locate the best instance of 'pattern' in 'text' near 'loc'.
-   * Returns -1 if no match found.
+   * Returns npos if no match found.
    * @param text The text to search.
    * @param pattern The pattern to search for.
    * @param loc The location to search around.
-   * @return Best match index or -1.
+   * @return Best match index or npos.
    */
  public:
-  int match_main(const stringview_t &text, const stringview_t &pattern, int loc) const {
-    loc = std::max(0, std::min(loc, (int)text.length()));
+  strlen_t match_main(const stringview_t &text, const stringview_t &pattern, strlen_t loc) const
+  {
+    loc = std::min(loc, text.length());
     if (text == pattern) {
       // Shortcut (potentially not guaranteed by the algorithm)
       return 0;
     } else if (text.empty()) {
       // Nothing to match.
-      return -1;
+      return npos;
     } else if (loc + pattern.length() <= text.length()
         && safeMid(text, loc, pattern.length()) == pattern) {
       // Perfect match at the perfect spot!  (Includes case of null pattern)
@@ -1665,54 +1704,52 @@ class diff_match_patch {
 
   /**
    * Locate the best instance of 'pattern' in 'text' near 'loc' using the
-   * Bitap algorithm.  Returns -1 if no match found.
+   * Bitap algorithm.  Returns npos if no match found.
    * @param text The text to search.
    * @param pattern The pattern to search for.
    * @param loc The location to search around.
-   * @return Best match index or -1.
+   * @return Best match index or npos.
    */
  protected:
-  int match_bitap(const stringview_t &text, const stringview_t &pattern, int loc) const {
-    if (!(Match_MaxBits == 0 || (int)pattern.length() <= Match_MaxBits)) {
+  strlen_t match_bitap(const stringview_t &text, const stringview_t &pattern, strlen_t loc) const
+  {
+    if (!(Match_MaxBits == 0 || pattern.length() <= Match_MaxBits)) {
       throw string_t(traits::cs(L"Pattern too long for this application."));
     }
 
     // Initialise the alphabet.
-    std::map<char_t, int> s; 
+    std::map<char_t, step_t> s;
     match_alphabet(pattern, s);
 
     // Highest score beyond which we give up.
     double score_threshold = Match_Threshold;
     // Is there a nearby exact match? (speedup)
-    size_t best_loc = text.find(pattern, loc);
+    typename stringview_t::size_type best_loc = text.find(pattern, loc);
     if (best_loc != stringview_t::npos) {
-      score_threshold = std::min(match_bitapScore(0, best_loc, loc, pattern),
-          score_threshold);
+      score_threshold = std::min(match_bitapScore(0, best_loc, loc, pattern), score_threshold);
       // What about in the other direction? (speedup)
       best_loc = text.rfind(pattern, loc + pattern.length());
       if (best_loc != stringview_t::npos) {
-        score_threshold = std::min(match_bitapScore(0, best_loc, loc, pattern),
-            score_threshold);
+        score_threshold = std::min(match_bitapScore(0, best_loc, loc, pattern), score_threshold);
       }
     }
 
     // Initialise the bit arrays.
-    int matchmask = 1 << (pattern.length() - 1);
-    best_loc = -1;
+    step_t matchmask = 1 << (pattern.length() - 1);
+    best_loc = stringview_t::npos;
 
-    int bin_min, bin_mid;
-    int bin_max = pattern.length() + text.length();
-    int *rd;
-    int *last_rd = NULL;
-    for (int d = 0; d < (int)pattern.length(); d++) {
+    strlen_t bin_min, bin_mid;
+    strlen_t bin_max = pattern.length() + text.length();
+    step_t *rd;
+    step_t *last_rd = nullptr;
+    for (step_t d = 0; d < pattern.length(); d++) {
       // Scan for the best match; each iteration allows for one more error.
       // Run a binary search to determine how far from 'loc' we can stray at
       // this error level.
       bin_min = 0;
       bin_mid = bin_max;
       while (bin_min < bin_mid) {
-        if (match_bitapScore(d, loc + bin_mid, loc, pattern)
-            <= score_threshold) {
+        if (match_bitapScore(d, loc + bin_mid, loc, pattern) <= score_threshold) {
           bin_min = bin_mid;
         } else {
           bin_max = bin_mid;
@@ -1721,14 +1758,14 @@ class diff_match_patch {
       }
       // Use the result from this iteration as the maximum for the next.
       bin_max = bin_mid;
-      int start = std::max(1, loc - bin_mid + 1);
-      int finish = std::min(loc + bin_mid, (int)text.length()) + pattern.length();
+      strlen_t start  = (bin_mid > loc) ? 1 : loc - bin_mid + 1;
+      strlen_t finish = std::min(loc + bin_mid, text.length()) + pattern.length();
 
-      rd = new int[finish + 2];
+      rd = new step_t[finish + 2];
       rd[finish + 1] = (1 << d) - 1;
-      for (int j = finish; j >= start; j--) {
-        int charMatch;
-        if ((int)text.length() <= j - 1) {
+      for (strlen_t j = finish; j >= start; j--) {
+        step_t charMatch;
+        if (text.length() <= j - 1) {
           // Out of range.
           charMatch = 0;
         } else {
@@ -1753,7 +1790,7 @@ class diff_match_patch {
             best_loc = j - 1;
             if (best_loc > loc) {
               // When passing loc, don't exceed our current distance from loc.
-              start = std::max(1, 2 * loc - (int)best_loc);
+              start = (best_loc >= 2 * loc) ? 1 : 2 * loc - best_loc;
             } else {
               // Already passed loc, downhill from here on in.
               break;
@@ -1782,9 +1819,10 @@ class diff_match_patch {
    * @return Overall score for match (0.0 = good, 1.0 = bad).
    */
  private:
-  double match_bitapScore(int e, int x, int loc, const stringview_t &pattern) const {
+  double match_bitapScore(step_t e, strlen_t x, strlen_t loc, const stringview_t &pattern) const
+  {
     const float accuracy = static_cast<float> (e) / pattern.length();
-    const int proximity = (loc - x < 0)? (x - loc) : (loc - x);
+    const strlen_t proximity = (loc - x < 0)? (x - loc) : (loc - x);
     if (Match_Distance == 0) {
       // Dodge divide by zero error.
       return proximity == 0 ? accuracy : 1.0;
@@ -1798,9 +1836,10 @@ class diff_match_patch {
    * @return Hash of character locations.
    */
  protected:
-  static void match_alphabet(const stringview_t &pattern, std::map<char_t, int>& s) {
+  static void match_alphabet(const stringview_t &pattern, std::map<char_t, step_t>& s)
+  {
     // There is no need to initialize map values, since they are zero-initialized by default
-    for (size_t i = 0; i < pattern.length(); i++)
+    for (typename stringview_t::size_type i = 0; i < pattern.length(); i++)
       s[pattern[i]] |= (1 << (pattern.length() - i - 1));
   }
 
@@ -1815,34 +1854,36 @@ class diff_match_patch {
    * @param text Source text.
    */
  protected:
-  void patch_addContext(Patch &patch, const stringview_t &text) const {
+  void patch_addContext(Patch &patch, const stringview_t &text) const
+  {
     if (text.empty()) {
       return;
     }
     stringview_t pattern = safeMid(text, patch.start2, patch.length1);
-    int padding = 0;
+    padding_t padding = 0;
 
     // Look for the first and last matches of pattern in text.  If two different
     // matches are found, increase the pattern length.
     while (text.find(pattern) != text.rfind(pattern)
-        && (int)pattern.length() < Match_MaxBits - Patch_Margin - Patch_Margin) {
+        && pattern.length() < Match_MaxBits - Patch_Margin - Patch_Margin) {
       padding += Patch_Margin;
-      pattern = safeMid(text, std::max(0, patch.start2 - padding),
-          std::min((int)text.length(), patch.start2 + patch.length1 + padding)
-          - std::max(0, patch.start2 - padding));
+      strlen_t iOffset = (padding > patch.start2) ? 0 : patch.start2 - padding;
+      pattern = safeMid(text, iOffset,
+          std::min(text.length(), static_cast<typename stringview_t::size_type>(patch.start2 + patch.length1 + padding))
+          - iOffset);
     }
     // Add one chunk for good luck.
     padding += Patch_Margin;
 
     // Add the prefix.
-    stringview_t prefix = safeMid(text, std::max(0, patch.start2 - padding),
-        patch.start2 - std::max(0, patch.start2 - padding));
+    strlen_t iOffset = (padding > patch.start2) ? 0 : patch.start2 - padding;
+    stringview_t prefix = safeMid(text, iOffset, patch.start2 - iOffset);
     if (!prefix.empty()) {
       patch.diffs.push_front(Diff(EQUAL, prefix));
     }
     // Add the suffix.
     stringview_t suffix = safeMid(text, patch.start2 + patch.length1,
-        std::min((int)text.length(), patch.start2 + patch.length1 + padding)
+        std::min(text.length(), static_cast<typename stringview_t::size_type>(patch.start2 + patch.length1 + padding))
         - (patch.start2 + patch.length1));
     if (!suffix.empty()) {
       patch.diffs.push_back(Diff(EQUAL, suffix));
@@ -1864,7 +1905,8 @@ class diff_match_patch {
    * @return LinkedList of Patch objects.
    */
  public:
-  Patches patch_make(const stringview_t &text1, const stringview_t &text2) const {
+  Patches patch_make(const stringview_t &text1, const stringview_t &text2) const
+  {
     // No diffs provided, compute our own.
     Diffs diffs = diff_main(text1, text2, true);
     if (diffs.size() > 2) {
@@ -1882,7 +1924,8 @@ class diff_match_patch {
    * @return LinkedList of Patch objects.
    */
  public:
-  Patches patch_make(const Diffs &diffs) const {
+  Patches patch_make(const Diffs &diffs) const
+  {
     // No origin string provided, compute our own.
     return patch_make(diff_text1(diffs), diffs);
   }
@@ -1897,7 +1940,8 @@ class diff_match_patch {
    * @deprecated Prefer patch_make(const string_t &text1, const Diffs &diffs).
    */
  public:
-  Patches patch_make(const stringview_t &text1, const stringview_t &/*text2*/, const Diffs &diffs) const {
+  Patches patch_make(const stringview_t &text1, const stringview_t &/*text2*/, const Diffs &diffs) const
+  {
     return patch_make(text1, diffs); // text2 is entirely unused.
   }
 
@@ -1909,47 +1953,49 @@ class diff_match_patch {
    * @return LinkedList of Patch objects.
    */
  public:
-  Patches patch_make(const stringview_t &text1, const Diffs &diffs) const {
+  Patches patch_make(const stringview_t &text1, const Diffs &diffs) const
+  {
     Patches patches;
     if (!diffs.empty()) { // Get rid of the null case.
       Patch patch;
-      int char_count1 = 0;  // Number of characters into the text1 string.
-      int char_count2 = 0;  // Number of characters into the text2 string.
+      strlen_t char_count1 = 0;  // Number of characters into the text1 string.
+      strlen_t char_count2 = 0;  // Number of characters into the text2 string.
       // Start with text1 (prepatch_text) and apply the diffs until we arrive at
       // text2 (postpatch_text).  We recreate the patches one by one to determine
       // context info.
       string_t prepatch_text = text1;
       string_t postpatch_text = text1;
-      for (typename Diffs::const_iterator cur_diff = diffs.begin(); cur_diff != diffs.end(); ++cur_diff) {
-        if (patch.diffs.empty() && (*cur_diff).operation != EQUAL) {
+      for (const auto& cur_diff : diffs)
+	  {
+        if (patch.diffs.empty() && cur_diff.operation != EQUAL) {
           // A new patch starts here.
           patch.start1 = char_count1;
           patch.start2 = char_count2;
         }
 
-        switch ((*cur_diff).operation) {
+        switch (cur_diff.operation) {
           case INSERT:
-            patch.diffs.push_back(*cur_diff);
-            patch.length2 += (*cur_diff).text.length();
+            patch.diffs.push_back(cur_diff);
+            patch.length2 += cur_diff.text.length();
             postpatch_text = postpatch_text.substr(0, char_count2)
-                + (*cur_diff).text + safeMid(postpatch_text, char_count2);
+                + cur_diff.text + safeMid(postpatch_text, char_count2);
             break;
           case DELETE:
-            patch.length1 += (*cur_diff).text.length();
-            patch.diffs.push_back(*cur_diff);
+            patch.length1 += cur_diff.text.length();
+            patch.diffs.push_back(cur_diff);
             postpatch_text = postpatch_text.substr(0, char_count2)
-                + safeMid(postpatch_text, char_count2 + (*cur_diff).text.length());
+                + safeMid(postpatch_text, char_count2 + cur_diff.text.length());
             break;
           case EQUAL:
-            if ((int)(*cur_diff).text.length() <= 2 * Patch_Margin
-                && !patch.diffs.empty() && !(*cur_diff == diffs.back())) {
+            if (cur_diff.text.length() <= 2 * Patch_Margin
+                && !patch.diffs.empty() && !(cur_diff == diffs.back())) {
               // Small equality inside a patch.
-              patch.diffs.push_back(*cur_diff);
-              patch.length1 += (*cur_diff).text.length();
-              patch.length2 += (*cur_diff).text.length();
+              patch.diffs.push_back(cur_diff);
+              patch.length1 += cur_diff.text.length();
+              patch.length2 += cur_diff.text.length();
             }
 
-            if ((int)(*cur_diff).text.length() >= 2 * Patch_Margin) {
+            if (cur_diff.text.length() >= 2 * Patch_Margin) {
               // Time for a new patch.
               if (!patch.diffs.empty()) {
                 patch_addContext(patch, prepatch_text);
@@ -1967,11 +2013,11 @@ class diff_match_patch {
         }
 
         // Update the current character count.
-        if ((*cur_diff).operation != INSERT) {
-          char_count1 += (*cur_diff).text.length();
+        if (cur_diff.operation != INSERT) {
+          char_count1 += cur_diff.text.length();
         }
-        if ((*cur_diff).operation != DELETE) {
-          char_count2 += (*cur_diff).text.length();
+        if (cur_diff.operation != DELETE) {
+          char_count2 += cur_diff.text.length();
         }
       }
       // Pick up the leftover patch if not empty.
@@ -1983,14 +2029,7 @@ class diff_match_patch {
     return patches;
   }
 
-  /**
-   * Given an array of patches, return another array that is identical.
-   * @param patches Array of patch objects.
-   * @return Array of patch objects.
-   */
- public:
-  Patches patch_deepCopy(const Patches &patches) const { return patches; }
-
+public:
   /**
    * Merge a set of patches onto the text.  Return a patched text, as well
    * as an array of true/false values indicating which patches were applied.
@@ -1999,10 +2038,15 @@ class diff_match_patch {
    * @return Two element Object array, containing the new text and an array of
    *      boolean values.
    */
- public:
   std::pair<string_t, std::vector<bool> > patch_apply(const Patches &patches, const string_t &text) const
-    { std::pair<string_t, std::vector<bool> > res; patch_apply(patches, text, res); return res; }
-  void patch_apply(const Patches &patches, const stringview_t &sourceText, std::pair<string_t, std::vector<bool> >& res) const {
+  {
+	  std::pair<string_t, std::vector<bool> > res;
+	  patch_apply(patches, text, res);
+	  return res;
+  }
+
+  void patch_apply(const Patches &patches, const stringview_t &sourceText, std::pair<string_t, std::vector<bool> >& res) const
+  {
     if (patches.empty()) {
       res.first = sourceText;
       res.second.clear();
@@ -2011,87 +2055,85 @@ class diff_match_patch {
     string_t text = sourceText;  // Copy to preserve original.
 
     // Deep copy the patches so that no changes are made to originals.
-  //  Patches patchesCopy = patch_deepCopy(patches);
     Patches patchesCopy(patches); // Default copy constructor will do it just fine
 
     string_t nullPadding = patch_addPadding(patchesCopy);
     text = nullPadding + text + nullPadding;
     patch_splitMax(patchesCopy);
 
-    int x = 0;
     // delta keeps track of the offset between the expected and actual location
     // of the previous patch.  If there are patches expected at positions 10 and
     // 20, but the first patch was found at 12, delta is 2 and the second patch
     // has an effective expected position of 22.
-    int delta = 0;
-    std::vector<bool>& results = res.second;
+    step_t delta = 0;
+    std::size_t x = 0;
+    auto& results = res.second;
     results.resize(patchesCopy.size());
     string_t text1, text2;
-    for (typename Patches::const_iterator cur_patch = patchesCopy.begin(); cur_patch != patchesCopy.end(); ++cur_patch) {
-      int expected_loc = (*cur_patch).start2 + delta;
-      text1 = diff_text1((*cur_patch).diffs);
-      int start_loc;
-      int end_loc = -1;
-      if ((int)text1.length() > Match_MaxBits) {
+    for (const auto& cur_patch : patchesCopy)
+	{
+      strlen_t expected_loc = cur_patch.start2 + delta;
+      text1 = diff_text1(cur_patch.diffs);
+      strlen_t start_loc;
+      strlen_t end_loc = npos;
+      if (text1.length() > Match_MaxBits) {
         // patch_splitMax will only provide an oversized pattern in the case of
         // a monster delete.
         start_loc = match_main(text, text1.substr(0, Match_MaxBits), expected_loc);
-        if (start_loc != -1) {
+        if (start_loc != npos) {
           end_loc = match_main(text, right(text1, Match_MaxBits),
               expected_loc + text1.length() - Match_MaxBits);
-          if (end_loc == -1 || start_loc >= end_loc) {
+          if (end_loc == npos || start_loc >= end_loc) {
             // Can't find valid trailing context.  Drop this patch.
-            start_loc = -1;
+            start_loc = npos;
           }
         }
       } else {
         start_loc = match_main(text, text1, expected_loc);
       }
-      if (start_loc == -1) {
+      if (start_loc == npos) {
         // No match found.  :(
         results[x] = false;
         // Subtract the delta for this failed patch from subsequent patches.
-        delta -= (*cur_patch).length2 - (*cur_patch).length1;
+        delta -= cur_patch.length2 - cur_patch.length1;
       } else {
         // Found a match.  :)
         results[x] = true;
         delta = start_loc - expected_loc;
-        if (end_loc == -1) {
+        if (end_loc == npos) {
           text2 = safeMid(text, start_loc, text1.length());
         } else {
           text2 = safeMid(text, start_loc, end_loc + Match_MaxBits - start_loc);
         }
         if (text1 == text2) {
           // Perfect match, just shove the replacement text in.
-          text = text.substr(0, start_loc) + diff_text2((*cur_patch).diffs) + safeMid(text, start_loc + text1.length());
+          text = text.substr(0, start_loc) + diff_text2(cur_patch.diffs) + safeMid(text, start_loc + text1.length());
         } else {
           // Imperfect match.  Run a diff to get a framework of equivalent
           // indices.
           Diffs diffs = diff_main(text1, text2, false);
-          if ((int)text1.length() > Match_MaxBits
+          if (text1.length() > Match_MaxBits
               && diff_levenshtein(diffs) / static_cast<float> (text1.length())
               > Patch_DeleteThreshold) {
             // The end points match, but the content is unacceptably bad.
             results[x] = false;
           } else {
             diff_cleanupSemanticLossless(diffs);
-            int index1 = 0;
-            for (typename Diffs::const_iterator cur_diff = (*cur_patch).diffs.begin(); cur_diff != (*cur_patch).diffs.end(); ++cur_diff) {
-              if ((*cur_diff).operation != EQUAL) {
-                int index2 = diff_xIndex(diffs, index1);
-                if ((*cur_diff).operation == INSERT) {
+            strlen_t index1 = 0;
+            for (const auto& cur_diff : cur_patch.diffs)
+			{
+              if (cur_diff.operation != EQUAL) {
+                strlen_t index2 = diff_xIndex(diffs, index1);
+                if (cur_diff.operation == INSERT) {
                   // Insertion
-                  text = text.substr(0, start_loc + index2) + (*cur_diff).text
-                      + safeMid(text, start_loc + index2);
-                } else if ((*cur_diff).operation == DELETE) {
+                  text = text.substr(0, start_loc + index2) + (*cur_diff).text + safeMid(text, start_loc + index2);
+                } else if (cur_diff.operation == DELETE) {
                   // Deletion
-                  text = text.substr(0, start_loc + index2)
-                      + safeMid(text, start_loc + diff_xIndex(diffs,
-                      index1 + (*cur_diff).text.length()));
+                  text = text.substr(0, start_loc + index2) + safeMid(text, start_loc + diff_xIndex(diffs, index1 + (*cur_diff).text.length()));
                 }
               }
-              if ((*cur_diff).operation != DELETE) {
-                index1 += (*cur_diff).text.length();
+              if (cur_diff.operation != DELETE) {
+                index1 += cur_diff.text.length();
               }
             }
           }
@@ -2110,17 +2152,19 @@ class diff_match_patch {
    * @return The padding string added to each side.
    */
  public:
-  string_t patch_addPadding(Patches &patches) const {
-    short paddingLength = Patch_Margin;
+  string_t patch_addPadding(Patches &patches) const
+  {
+    padding_t paddingLength = Patch_Margin;
     string_t nullPadding;
-    for (short x = 1; x <= paddingLength; x++) {
+    for (padding_t x = 1; x <= paddingLength; x++) {
       nullPadding += (char_t)x;
     }
 
     // Bump all the patches forward.
-    for (typename Patches::iterator cur_patch = patches.begin(); cur_patch != patches.end(); ++cur_patch) {
-      (*cur_patch).start1 += paddingLength;
-      (*cur_patch).start2 += paddingLength;
+    for (auto& cur_patch : patches)
+	{
+      cur_patch.start1 += paddingLength;
+      cur_patch.start2 += paddingLength;
     }
 
     // Add some padding on start of first diff.
@@ -2133,10 +2177,10 @@ class diff_match_patch {
       firstPatch.start2 -= paddingLength;  // Should be 0.
       firstPatch.length1 += paddingLength;
       firstPatch.length2 += paddingLength;
-    } else if (paddingLength > (int)firstPatchDiffs.front().text.length()) {
+    } else if (paddingLength > firstPatchDiffs.front().text.length()) {
       // Grow first equality.
       Diff &firstDiff = firstPatchDiffs.front();
-      int extraLength = paddingLength - firstDiff.text.length();
+      strlen_t extraLength = paddingLength - firstDiff.text.length();
       firstDiff.text = safeMid(nullPadding, firstDiff.text.length(),
           paddingLength - firstDiff.text.length()) + firstDiff.text;
       firstPatch.start1 -= extraLength;
@@ -2153,10 +2197,10 @@ class diff_match_patch {
       lastPatchDiffs.push_back(Diff(EQUAL, nullPadding));
       lastPatch.length1 += paddingLength;
       lastPatch.length2 += paddingLength;
-    } else if (paddingLength > (int)lastPatchDiffs.back().text.length()) {
+    } else if (paddingLength > lastPatchDiffs.back().text.length()) {
       // Grow last equality.
       Diff &lastDiff = lastPatchDiffs.back();
-      int extraLength = paddingLength - lastDiff.text.length();
+      strlen_t extraLength = paddingLength - lastDiff.text.length();
       lastDiff.text += nullPadding.substr(0, extraLength);
       lastPatch.length1 += extraLength;
       lastPatch.length2 += extraLength;
@@ -2172,18 +2216,18 @@ class diff_match_patch {
    * @param patches LinkedList of Patch objects.
    */
  public:
-  void patch_splitMax(Patches &patches) const {
-    short patch_size = Match_MaxBits;
+  void patch_splitMax(Patches &patches) const
+  {
     string_t precontext, postcontext;
     Patch patch;
-    int start1, start2;
+    strlen_t start1, start2;
     bool empty;
     Operation diff_type;
     string_t diff_text;
     Patch bigpatch;
 
     for (typename Patches::iterator cur_patch = patches.begin(); cur_patch != patches.end();) {
-      if ((*cur_patch).length1 <= patch_size) { ++cur_patch; continue; }
+      if ((*cur_patch).length1 <= Match_MaxBits) { ++cur_patch; continue; }
       bigpatch = *cur_patch;
       // Remove the big old patch.
       cur_patch = patches.erase(cur_patch);
@@ -2201,7 +2245,7 @@ class diff_match_patch {
           patch.diffs.push_back(Diff(EQUAL, precontext));
         }
         while (!bigpatch.diffs.empty()
-            && patch.length1 < patch_size - Patch_Margin) {
+            && patch.length1 < Match_MaxBits - Patch_Margin) {
           diff_type = bigpatch.diffs.front().operation;
           diff_text = bigpatch.diffs.front().text;
           if (diff_type == INSERT) {
@@ -2213,7 +2257,7 @@ class diff_match_patch {
             empty = false;
           } else if (diff_type == DELETE && patch.diffs.size() == 1
               && patch.diffs.front().operation == EQUAL
-              && (int)diff_text.length() > 2 * patch_size) {
+              && diff_text.length() > 2 * Match_MaxBits) {
             // This is a large deletion.  Let it pass in one chunk.
             patch.length1 += diff_text.length();
             start1 += diff_text.length();
@@ -2222,8 +2266,7 @@ class diff_match_patch {
             bigpatch.diffs.pop_front();
           } else {
             // Deletion or equality.  Only take as much as we can stomach.
-            diff_text = diff_text.substr(0, std::min((int)diff_text.length(),
-                patch_size - patch.length1 - Patch_Margin));
+            diff_text = diff_text.substr(0, std::min(diff_text.length(), Match_MaxBits - patch.length1 - Patch_Margin));
             patch.length1 += diff_text.length();
             start1 += diff_text.length();
             if (diff_type == EQUAL) {
@@ -2241,10 +2284,10 @@ class diff_match_patch {
           }
         }
         // Compute the head context for the next patch.
-        precontext = safeMid(diff_text2(patch.diffs), std::max(0, (int)precontext.length() - Patch_Margin));
+        precontext = safeMid(diff_text2(patch.diffs), (Patch_Margin > precontext.length()) ? 0 : precontext.length - Patch_Margin);
         // Append the end context for this patch.
         postcontext = diff_text1(bigpatch.diffs);
-        if ((int)postcontext.length() > Patch_Margin) {
+        if (postcontext.length() > Patch_Margin) {
           postcontext = postcontext.substr(0, Patch_Margin);
         }
         if (!postcontext.empty()) {
@@ -2272,8 +2315,9 @@ class diff_match_patch {
  public:
   static string_t patch_toText(const Patches &patches) {
     string_t text;
-    for (typename Patches::const_iterator cur_patch = patches.begin(); cur_patch != patches.end(); ++cur_patch) {
-      text += (*cur_patch).toString();
+    for (const auto& cur_patch : patches)
+	{
+      text += cur_patch.toString();
     }
     return text;
   }
@@ -2291,9 +2335,9 @@ class diff_match_patch {
     if (!textline.empty()) {
       char_t sign;
       string_t line;
-      typename string_t::const_pointer text = textline.c_str();
+      typename string_t::const_pointer text = textline.data();
       typename string_t::size_type text_len, l;
-      while (text - textline.c_str() < (int)textline.length()) {
+      while (text - textline.data() < textline.length()) {
         if ((text_len = next_token(textline, traits::from_wchar(L'\n'), text)) == 0) { ++text; continue; }
 
         // A replacement for the regexp "^@@ -(\\d+),?(\\d*) \\+(\\d+),?(\\d*) @@$" exact match
@@ -2339,7 +2383,7 @@ class diff_match_patch {
           patch.length2 = to_int(length2);
         }
 
-        for (text += text_len + 1; text - textline.c_str() < (int)textline.length(); text += text_len + 1) {
+        for (text += text_len + 1; text - textline.data() < textline.length(); text += text_len + 1) {
           if ((text_len = next_token(textline, traits::from_wchar(L'\n'), text)) == 0) continue;
 
           sign = *text;
@@ -2384,14 +2428,23 @@ class diff_match_patch {
 	 * @param len Length of substring.
 	 * @return Substring.
 	 */
-	static inline stringview_t safeMid(const stringview_t &str, size_t pos, size_t len = stringview_t::npos) {
-	  return (pos == str.length()) ? stringview_t() : str.substr(pos, len);
-	}
+  static inline stringview_t safeMid(const stringview_t &str,
+                                   typename stringview_t::size_type pos,
+                                   typename stringview_t::size_type len = stringview_t::npos)
+  {
+    return (pos >= str.length()) ? stringview_t() : str.substr(pos, len);
+  }
 
-  static string_t to_string(int n) {
+  static stringview_t right(const stringview_t& str, typename stringview_t::size_type n)
+  {
+    return n > str.size() ? stringview_t() : str.substr(str.size() - n);
+  }
+
+  static string_t to_string(int n)
+  {
     string_t str;
     bool negative = false;
-    size_t l = 0;
+    std::size_t l = 0;
     if (n < 0) n = -n, ++l, negative = true;
     int n_ = n; do { ++l; } while ((n_ /= 10) > 0);
     str.resize(l);
@@ -2407,7 +2460,7 @@ class diff_match_patch {
   static bool is_control(char_t c) { switch (traits::to_wchar(c)) { case L'\n': case L'\r': return true; } return false; }
 
   static typename string_t::size_type next_token(const string_t& str, char_t delim, typename string_t::const_pointer off) {
-    typename string_t::const_pointer p = off, end = str.c_str() + str.length();
+    typename string_t::const_pointer p = off, end = str.data() + str.length();
     for (; p != end; ++p) if (*p == delim) break;
     return p - off;
   }
@@ -2415,7 +2468,7 @@ class diff_match_patch {
   static void append_percent_encoded(string_t& s1, const stringview_t& s2) {
     const wchar_t safe_chars[] = L"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_.~ !*'();/?:@&=+$,#";
 
-    size_t safe[0x100], i;
+    std::size_t safe[0x100], i;
     for (i = 0; i < 0x100; ++i) safe[i] = 0;
     for (i = 0; i < sizeof(safe_chars) / sizeof(wchar_t); ++i) safe[safe_chars[i]] = i + 1;
 
@@ -2490,7 +2543,7 @@ class diff_match_patch {
 
   static void percent_decode(string_t& str) {
     typename string_t::iterator s2 = str.begin(), s3 = s2, s4 = s2;
-    for (typename string_t::const_pointer s1 = str.c_str(), end = s1 + str.size(); s1 != end; ++s1, ++s2)
+    for (typename string_t::const_pointer s1 = str.data(), end = s1 + str.size(); s1 != end; ++s1, ++s2)
       if (traits::to_wchar(*s1) != L'%')
         *s2 = *s1;
       else {
@@ -2529,8 +2582,6 @@ class diff_match_patch {
     }
     if (s4 != str.end()) str.resize(s4 - str.begin());
   }
-
-  static stringview_t right(const stringview_t& str, typename stringview_t::size_type n) { return str.substr(str.size() - n); }
 };
 
 

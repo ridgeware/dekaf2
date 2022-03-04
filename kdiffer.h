@@ -103,10 +103,18 @@ public:
 	/// return difference in text format
 	KString GetTextDiff();
 
+	/// return difference in text format, old and new
+	void GetTextDiff2 (KString sOld, KString sNew);
+
 	/// return difference in HTML markup style
 	/// @param sInsertTag tag used for inserted text fragments (default = "ins")
 	/// @param sDeleteTag tag used for deleted text fragments (default = "del")
 	KString GetHTMLDiff(KStringView sInsertTag = "ins", KStringView sDeleteTag = "del");
+
+	/// return difference in HTML markup style, old and new
+	/// @param sInsertTag tag used for inserted text fragments (default = "ins")
+	/// @param sDeleteTag tag used for deleted text fragments (default = "del")
+	void GetHTMLDiff2 (KString& sOld, KString& sNew, KStringView sInsertTag = "ins", KStringView sDeleteTag = "del");
 
 	/// return Levenshtein distance for the diff (number of inserted, deleted or substituted characters)
 	uint32_t GetLevenshteinDistance();
@@ -120,16 +128,28 @@ private:
 }; // KDiffer
 
 /// shortcut to create a diff with HTML markups
-/// @param sSource the original string
-/// @param sTarget the modified string
+/// @param sOldText the original string
+/// @param sNewText the modified string
 /// @param sInsertTag tag used for inserted text fragments (default = "ins")
 /// @param sDeleteTag tag used for deleted text fragments (default = "del")
-KString KDiffToHTML (KStringView sSource, KStringView sTarget, KStringView sInsertTag="ins", KStringView sDeleteTag="del");
+KString KDiffToHTML (KStringView sOldText, KStringView sNewText, KStringView sInsertTag="ins", KStringView sDeleteTag="del");
+
+/// shortcut to create a diff with HTML markups by modifying both strings in place
+/// @param sOldText the original string
+/// @param sNewText the modified string
+/// @param sInsertTag tag used for inserted text fragments (default = "ins")
+/// @param sDeleteTag tag used for deleted text fragments (default = "del")
+void KDiffToHTML2 (KString& sOldText, KString& sNewText, KStringView sInsertTag="ins", KStringView sDeleteTag="del");
 
 /// shortcut to create a diff in text format
-/// @param sSource the original string
-/// @param sTarget the modified string
-KString KDiffToASCII (KStringView sSource, KStringView sTarget);
+/// @param sOldText the original string
+/// @param sNewText the modified string
+KString KDiffToASCII (KStringView sOldText, KStringView sNewText);
+
+/// shortcut to create a diff in text format by modifying both strings in place
+/// @param sOldText the original string
+/// @param sNewText the modified string
+void KDiffToASCII2 (KString& sOldText, KString& sNewText);
 
 } // end of namespace dekaf2
 

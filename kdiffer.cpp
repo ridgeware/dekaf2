@@ -63,15 +63,15 @@ inline const KDiff::Diffs* dget(const KUniqueVoidPtr& p)
 }
 
 //-----------------------------------------------------------------------------
-void KDiffer::Diff(KStringView sSource,
-				   KStringView sTarget,
+void KDiffer::Diff(KStringView sOldText,
+				   KStringView sNewText,
 				   DiffMode Mode,
 				   Sanitation San)
 //-----------------------------------------------------------------------------
 {
 	KDiff differ;
 
-	auto Diffs = differ.diff_main(sSource, sTarget, (Mode == DiffMode::Line));
+	auto Diffs = differ.diff_main(sOldText, sNewText, (Mode == DiffMode::Line));
 
 	switch (San)
 	{
@@ -142,6 +142,41 @@ KString KDiffer::GetTextDiff()
 } // GetTextDiff
 
 //-----------------------------------------------------------------------------
+void KDiffer::GetTextDiff2 (KString sOld, KString sNew)
+//-----------------------------------------------------------------------------
+{
+	sOld.clear();
+	sNew.clear();
+
+	if (m_Diffs)
+	{
+		// iterate over diffs:
+		for (const auto& diff : *dget(m_Diffs))
+		{
+			const auto& sText = diff.text;
+
+			switch (diff.operation)
+			{
+			case KDiff::INSERT:
+				sNew += kFormat ("[+{}]", sText);
+				break;
+			case KDiff::DELETE:
+				sOld += kFormat ("[-{}]", sText);
+				break;
+			case KDiff::EQUAL:
+			default:
+				sOld += sText;
+				sNew += sText;
+				break;
+			}
+		}
+	}
+
+	// sOld and sNew now contain markup
+
+} // GetTextDiff2
+
+//-----------------------------------------------------------------------------
 KString KDiffer::GetHTMLDiff(KStringView sInsertTag, KStringView sDeleteTag)
 //-----------------------------------------------------------------------------
 {
@@ -175,6 +210,41 @@ KString KDiffer::GetHTMLDiff(KStringView sInsertTag, KStringView sDeleteTag)
 } // GetHTMLDiff
 
 //-----------------------------------------------------------------------------
+void KDiffer::GetHTMLDiff2 (KString& sOld, KString& sNew, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
+//-----------------------------------------------------------------------------
+{
+	sOld.clear();
+	sNew.clear();
+
+	if (m_Diffs)
+	{
+		// iterate over diffs:
+		for (const auto& diff : *dget(m_Diffs))
+		{
+			const auto& sText = diff.text;
+
+			switch (diff.operation)
+			{
+			case KDiff::INSERT:
+				sNew += kFormat ("<{}>{}</{}>", sInsertTag, sText, sInsertTag);
+				break;
+			case KDiff::DELETE:
+				sOld += kFormat ("<{}>{}</{}>", sDeleteTag, sText, sDeleteTag);
+				break;
+			case KDiff::EQUAL:
+			default:
+				sOld += sText;
+				sNew += sText;
+				break;
+			}
+		}
+	}
+
+	// sOld and sNew now contain markup
+
+} // GetHTMLDiff2
+
+//-----------------------------------------------------------------------------
 uint32_t KDiffer::GetLevenshteinDistance()
 //-----------------------------------------------------------------------------
 {
@@ -188,13 +258,13 @@ uint32_t KDiffer::GetLevenshteinDistance()
 } // GetLevenshteinDistance
 
 //-----------------------------------------------------------------------------
-KString KDiffToHTML (KStringView sSource, KStringView sTarget, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
+KString KDiffToHTML (KStringView sOldText, KStringView sNewText, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="kDebug"*/)
 //-----------------------------------------------------------------------------
 {
-	kDebug (2, "source: {}", sSource);
-	kDebug (2, "target: {}", sTarget);
+	kDebug (2, "old text: {}", sOldText);
+	kDebug (2, "new text: {}", sNewText);
 
-	KDiffer Differ(sSource, sTarget);
+	KDiffer Differ(sOldText, sNewText);
 	auto sDiff = Differ.GetHTMLDiff(sInsertTag, sDeleteTag);
 
 	kDebug (2, "diffs: {}", sDiff);
@@ -203,18 +273,48 @@ KString KDiffToHTML (KStringView sSource, KStringView sTarget, KStringView sInse
 } // KDiffToHTML
 
 //-----------------------------------------------------------------------------
-KString KDiffToASCII (KStringView sSource, KStringView sTarget)
+void KDiffToHTML2 (KString& sOldText, KString& sNewText, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
 //-----------------------------------------------------------------------------
 {
-	kDebug (2, "source: {}", sSource);
-	kDebug (2, "target: {}", sTarget);
+	kDebug (2, "old text: {}", sOldText);
+	kDebug (2, "new text: {}", sNewText);
 
-	KDiffer Differ(sSource, sTarget);
+	KDiffer Differ (sOldText, sNewText);
+	Differ.GetHTMLDiff2 (sOldText, sNewText, sInsertTag, sDeleteTag);
+
+	kDebug (2, "old diffs: {}", sOldText);
+	kDebug (2, "new diffs: {}", sNewText);
+
+} // KDiffToHTML2
+
+//-----------------------------------------------------------------------------
+KString KDiffToASCII (KStringView sOldText, KStringView sNewText)
+//-----------------------------------------------------------------------------
+{
+	kDebug (2, "old text: {}", sOldText);
+	kDebug (2, "new text: {}", sNewText);
+
+	KDiffer Differ(sOldText, sNewText);
 	auto sDiff = Differ.GetTextDiff();
 
 	kDebug (2, "diffs: {}", sDiff);
 	return sDiff;
 
 } // KDiffToASCII
+
+//-----------------------------------------------------------------------------
+void KDiffToASCII2 (KString& sOldText, KString& sNewText)
+//-----------------------------------------------------------------------------
+{
+	kDebug (2, "old text: {}", sOldText);
+	kDebug (2, "new text: {}", sNewText);
+
+	KDiffer Differ (sOldText, sNewText);
+	Differ.GetTextDiff2 (sOldText, sNewText);
+
+	kDebug (2, "old diffs: {}", sOldText);
+	kDebug (2, "new diffs: {}", sNewText);
+
+} // KDiffToASCII2
 
 } // end of namespace dekaf2

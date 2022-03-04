@@ -1864,8 +1864,8 @@ class diff_match_patch {
 
     // Look for the first and last matches of pattern in text.  If two different
     // matches are found, increase the pattern length.
-    while (text.find(pattern) != text.rfind(pattern)
-        && pattern.length() < Match_MaxBits - Patch_Margin - Patch_Margin) {
+    while ((text.find(pattern) != text.rfind(pattern))
+        && (long unsigned int)(pattern.length()) < (long unsigned int)(Match_MaxBits - Patch_Margin - Patch_Margin)) {
       padding += Patch_Margin;
       strlen_t iOffset = (padding > patch.start2) ? 0 : patch.start2 - padding;
       pattern = safeMid(text, iOffset,

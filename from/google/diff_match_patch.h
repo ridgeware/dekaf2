@@ -657,7 +657,8 @@ class diff_match_patch {
 
   static void diff_linesToChars(string_t &text1, string_t &text2, Lines& lineArray) {
     std::map<LinePtr, size_t> lineHash;
-    lineArray.text1.swap(text1), lineArray.text2.swap(text2);
+    lineArray.text1 = std::move(text1);
+    lineArray.text2 = std::move(text2);
     // e.g. linearray[4] == "Hello\n"
     // e.g. linehash.get("Hello\n") == 4
 

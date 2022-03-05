@@ -60,7 +60,7 @@ TEST_CASE("KDiffer")
  at
 )";
 
-		KDiffer Differ(sText1, sText2);
+		KDiff Differ(sText1, sText2);
 
 		auto sDiff = Differ.GetUnifiedDiff();
 		// the editor deletes all trailing spaces in sExpected.., remove them in the diff as well

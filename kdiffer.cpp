@@ -43,65 +43,97 @@
 #include "kdiffer.h"
 #include "diff_match_patch.h"
 #include "klog.h"
+#include "kctype.h"
 
 namespace dekaf2 {
 
-using KDiff = diff_match_patch<KString, KStringView>;
+namespace detail {
+
+struct KString_traits : diff_match_patch_utf32_direct<char, uint32_t>
+{
+	static bool        is_alnum(char c)            { return KASCII::kIsAlNum(c);           }
+	static bool        is_digit(char c)            { return KASCII::kIsDigit(c);           }
+	static bool        is_space(char c)            { return KASCII::kIsSpace(c);           }
+	static int         to_int(const char* s)       { return std::atoi(s);                  }
+	static char        from_wchar(wchar_t c)       { return static_cast<char>(c);          }
+	static wchar_t     to_wchar(char c)            { return static_cast<wchar_t>(c);       }
+	static std::string cs(const wchar_t* s)        { return std::string(s, s + wcslen(s)); }
+	static const char  eol = '\n';
+	static const char  tab = '\t';
+};
+
+} // of namespace detail
+
+using KDiffMatchPatch = diff_match_patch<KString, KStringView, detail::KString_traits>;
 
 //-----------------------------------------------------------------------------
 auto DiffDeleter = [](void* data)
 //-----------------------------------------------------------------------------
 {
-	delete static_cast<KDiff::Diffs*>(data);
+	delete static_cast<KDiffMatchPatch::Diffs*>(data);
 };
 
 //-----------------------------------------------------------------------------
-inline const KDiff::Diffs* dget(const KUniqueVoidPtr& p)
+inline const KDiffMatchPatch::Diffs* dget(const KUniqueVoidPtr& p)
 //-----------------------------------------------------------------------------
 {
-	return static_cast<KDiff::Diffs*>(p.get());
+	return static_cast<KDiffMatchPatch::Diffs*>(p.get());
 }
 
 //-----------------------------------------------------------------------------
-void KDiffer::Diff(KStringView sOldText,
+void KDiff::Diff(KStringView sOldText,
 				   KStringView sNewText,
 				   DiffMode Mode,
 				   Sanitation San)
 //-----------------------------------------------------------------------------
 {
-	KDiff differ;
+	m_Diffs.reset();
 
-	auto Diffs = differ.diff_main(sOldText, sNewText, (Mode == DiffMode::Line));
-
-	switch (San)
+	try
 	{
-		case Sanitation::Semantic:
-			differ.diff_cleanupSemantic(Diffs);
-			break;
+		auto Diffs = KDiffMatchPatch::diff_main(sOldText, sNewText, (Mode == DiffMode::Line), 2.0f);
 
-		case Sanitation::Lossless:
-			differ.diff_cleanupSemanticLossless(Diffs);
-			break;
+		switch (San)
+		{
+			case Sanitation::Semantic:
+				KDiffMatchPatch::diff_cleanupSemantic(Diffs);
+				break;
 
-		case Sanitation::Efficiency:
-			differ.diff_cleanupEfficiency(Diffs);
-			break;
+			case Sanitation::Lossless:
+				KDiffMatchPatch::diff_cleanupSemanticLossless(Diffs);
+				break;
+
+			case Sanitation::Efficiency:
+				KDiffMatchPatch::diff_cleanupEfficiency(Diffs);
+				break;
+		}
+
+		m_Diffs = KUniqueVoidPtr(new KDiffMatchPatch::Diffs(std::move(Diffs)), DiffDeleter);
 	}
-
-	m_Diffs = KUniqueVoidPtr(new KDiff::Diffs(std::move(Diffs)), DiffDeleter);
+	catch (const KDiffMatchPatch::string_t& sEx)
+	{
+		kException(sEx);
+	}
 
 } // Diff
 
 //-----------------------------------------------------------------------------
-KString KDiffer::GetUnifiedDiff()
+KString KDiff::GetUnifiedDiff()
 //-----------------------------------------------------------------------------
 {
 	KString sDiff;
 
 	if (m_Diffs)
 	{
-		auto Patches = KDiff().patch_make(*dget(m_Diffs));
-		sDiff = KDiff::patch_toText(Patches);
+		try
+		{
+			auto Patches = KDiffMatchPatch().patch_make(*dget(m_Diffs));
+			sDiff = KDiffMatchPatch::patch_toText(Patches);
+		}
+		catch (const KDiffMatchPatch::string_t& sEx)
+		{
+			kException(sEx);
+		}
 	}
 
 	return sDiff;
@@ -109,7 +141,7 @@ KString KDiffer::GetUnifiedDiff()
 } // GetUnifiedDiff
 
 //-----------------------------------------------------------------------------
-KString KDiffer::GetTextDiff()
+KString KDiff::GetTextDiff()
 //-----------------------------------------------------------------------------
 {
 	KString sDiff;
@@ -123,13 +155,13 @@ KString KDiffer::GetTextDiff()
 
 			switch (diff.operation)
 			{
-			case KDiff::INSERT:
+			case KDiffMatchPatch::INSERT:
 				sDiff += kFormat ("[+{}]", sText);
 				break;
-			case KDiff::DELETE:
+			case KDiffMatchPatch::DELETE:
 				sDiff += kFormat ("[-{}]", sText);
 				break;
-			case KDiff::EQUAL:
+			case KDiffMatchPatch::EQUAL:
 			default:
 				sDiff += sText;
 				break;
@@ -142,11 +174,12 @@ KString KDiffer::GetTextDiff()
 } // GetTextDiff
 
 //-----------------------------------------------------------------------------
-void KDiffer::GetTextDiff2 (KString sOld, KString sNew)
+std::size_t KDiff::GetTextDiff2 (KString& sOld, KString& sNew)
 //-----------------------------------------------------------------------------
 {
 	sOld.clear();
 	sNew.clear();
+	std::size_t iDiffs { 0 };
 
 	if (m_Diffs)
 	{
@@ -157,13 +190,15 @@ void KDiffer::GetTextDiff2 (KString sOld, KString sNew)
 
 			switch (diff.operation)
 			{
-			case KDiff::INSERT:
+			case KDiffMatchPatch::INSERT:
 				sNew += kFormat ("[+{}]", sText);
+				++iDiffs;
 				break;
-			case KDiff::DELETE:
+			case KDiffMatchPatch::DELETE:
 				sOld += kFormat ("[-{}]", sText);
+				++iDiffs;
 				break;
-			case KDiff::EQUAL:
+			case KDiffMatchPatch::EQUAL:
 			default:
 				sOld += sText;
 				sNew += sText;
@@ -173,11 +208,12 @@ void KDiffer::GetTextDiff2 (KString sOld, KString sNew)
 	}
 
 	// sOld and sNew now contain markup
+	return iDiffs;
 
 } // GetTextDiff2
 
 //-----------------------------------------------------------------------------
-KString KDiffer::GetHTMLDiff(KStringView sInsertTag, KStringView sDeleteTag)
+KString KDiff::GetHTMLDiff(KStringView sInsertTag, KStringView sDeleteTag)
 //-----------------------------------------------------------------------------
 {
 	KString sDiff;
@@ -191,13 +227,13 @@ KString KDiffer::GetHTMLDiff(KStringView sInsertTag, KStringView sDeleteTag)
 
 			switch (diff.operation)
 			{
-			case KDiff::INSERT:
+			case KDiffMatchPatch::INSERT:
 				sDiff += kFormat ("<{}>{}</{}>", sInsertTag, sText, sInsertTag);
 				break;
-			case KDiff::DELETE:
+			case KDiffMatchPatch::DELETE:
 				sDiff += kFormat ("<{}>{}</{}>", sDeleteTag, sText, sDeleteTag);
 				break;
-			case KDiff::EQUAL:
+			case KDiffMatchPatch::EQUAL:
 			default:
 				sDiff += sText;
 				break;
@@ -210,11 +246,12 @@ KString KDiffer::GetHTMLDiff(KStringView sInsertTag, KStringView sDeleteTag)
 } // GetHTMLDiff
 
 //-----------------------------------------------------------------------------
-void KDiffer::GetHTMLDiff2 (KString& sOld, KString& sNew, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
+std::size_t KDiff::GetHTMLDiff2 (KString& sOld, KString& sNew, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
 //-----------------------------------------------------------------------------
 {
 	sOld.clear();
 	sNew.clear();
+	std::size_t iDiffs { 0 };
 
 	if (m_Diffs)
 	{
@@ -225,13 +262,15 @@ void KDiffer::GetHTMLDiff2 (KString& sOld, KString& sNew, KStringView sInsertTag
 
 			switch (diff.operation)
 			{
-			case KDiff::INSERT:
+			case KDiffMatchPatch::INSERT:
 				sNew += kFormat ("<{}>{}</{}>", sInsertTag, sText, sInsertTag);
+				++iDiffs;
 				break;
-			case KDiff::DELETE:
+			case KDiffMatchPatch::DELETE:
 				sOld += kFormat ("<{}>{}</{}>", sDeleteTag, sText, sDeleteTag);
+				++iDiffs;
 				break;
-			case KDiff::EQUAL:
+			case KDiffMatchPatch::EQUAL:
 			default:
 				sOld += sText;
 				sNew += sText;
@@ -241,16 +280,24 @@ void KDiffer::GetHTMLDiff2 (KString& sOld, KString& sNew, KStringView sInsertTag
 	}
 
 	// sOld and sNew now contain markup
+	return iDiffs;
 
 } // GetHTMLDiff2
 
 //-----------------------------------------------------------------------------
-uint32_t KDiffer::GetLevenshteinDistance()
+uint32_t KDiff::GetLevenshteinDistance()
 //-----------------------------------------------------------------------------
 {
 	if (m_Diffs)
 	{
-		return KDiff::diff_levenshtein(*dget(m_Diffs));
+		try
+		{
+			return KDiffMatchPatch::diff_levenshtein(*dget(m_Diffs));
+		}
+		catch (const KDiffMatchPatch::string_t& sEx)
+		{
+			kException(sEx);
+		}
 	}
 
 	return 0;
@@ -264,7 +311,7 @@ KString KDiffToHTML (KStringView sOldText, KStringView sNewText, KStringView sIn
 	kDebug (2, "old text: {}", sOldText);
 	kDebug (2, "new text: {}", sNewText);
 
-	KDiffer Differ(sOldText, sNewText);
+	KDiff Differ(sOldText, sNewText);
 	auto sDiff = Differ.GetHTMLDiff(sInsertTag, sDeleteTag);
 
 	kDebug (2, "diffs: {}", sDiff);
@@ -273,17 +320,19 @@ KString KDiffToHTML (KStringView sOldText, KStringView sNewText, KStringView sIn
 } // KDiffToHTML
 
 //-----------------------------------------------------------------------------
-void KDiffToHTML2 (KString& sOldText, KString& sNewText, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
+std::size_t KDiffToHTML2 (KString& sOldText, KString& sNewText, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "old text: {}", sOldText);
 	kDebug (2, "new text: {}", sNewText);
 
-	KDiffer Differ (sOldText, sNewText);
-	Differ.GetHTMLDiff2 (sOldText, sNewText, sInsertTag, sDeleteTag);
+	KDiff Differ (sOldText, sNewText);
+	auto iDiffs = Differ.GetHTMLDiff2 (sOldText, sNewText, sInsertTag, sDeleteTag);
 
 	kDebug (2, "old diffs: {}", sOldText);
 	kDebug (2, "new diffs: {}", sNewText);
+
+	return iDiffs;
 
 } // KDiffToHTML2
 
@@ -294,7 +343,7 @@ KString KDiffToASCII (KStringView sOldText, KStringView sNewText)
 	kDebug (2, "old text: {}", sOldText);
 	kDebug (2, "new text: {}", sNewText);
 
-	KDiffer Differ(sOldText, sNewText);
+	KDiff Differ(sOldText, sNewText);
 	auto sDiff = Differ.GetTextDiff();
 
 	kDebug (2, "diffs: {}", sDiff);
@@ -303,17 +352,19 @@ KString KDiffToASCII (KStringView sOldText, KStringView sNewText)
 } // KDiffToASCII
 
 //-----------------------------------------------------------------------------
-void KDiffToASCII2 (KString& sOldText, KString& sNewText)
+std::size_t KDiffToASCII2 (KString& sOldText, KString& sNewText)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "old text: {}", sOldText);
 	kDebug (2, "new text: {}", sNewText);
 
-	KDiffer Differ (sOldText, sNewText);
-	Differ.GetTextDiff2 (sOldText, sNewText);
+	KDiff Differ (sOldText, sNewText);
+	auto iDiffs = Differ.GetTextDiff2 (sOldText, sNewText);
 
 	kDebug (2, "old diffs: {}", sOldText);
 	kDebug (2, "new diffs: {}", sNewText);
+
+	return iDiffs;
 
 } // KDiffToASCII2
 

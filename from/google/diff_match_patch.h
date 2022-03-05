@@ -176,18 +176,13 @@ class diff_match_patch {
   class Patch {
    public:
     Diffs diffs;
-    strlen_t start1;
-    strlen_t start2;
-    strlen_t length1;
-    strlen_t length2;
-
-    /**
-     * Constructor.  Initializes with an empty list of diffs.
-     */
-    Patch() : start1(0), start2(0), length1(0), length2(0) {}
+    strlen_t start1  { 0 };
+    strlen_t start2  { 0 };
+    strlen_t length1 { 0 };
+    strlen_t length2 { 0 };
 
     bool isNull() const {
-      return start1 == 0 && start2 == 0 && length1 == 0 && length2 == 0 && diffs.size() == 0;
+      return start1 == 0 && start2 == 0 && length1 == 0 && length2 == 0 && diffs.empty();
     }
 
     /**
@@ -250,42 +245,37 @@ class diff_match_patch {
   friend class diff_match_patch_test;
 
  public:
+
+  // The number of bits in an int - this one is constexpr and only depends
+  // on the type chosen for the diff stepping
+  static constexpr uint16_t Match_MaxBits { sizeof(step_t) * 8 };
+
   // Defaults.
+
   // Set these on your diff_match_patch instance to override the defaults.
 
-  // Number of seconds to map a diff before giving up (0 for infinity).
-  float Diff_Timeout;
-  // Cost of an empty edit operation in terms of edit characters.
-  uint16_t Diff_EditCost;
   // At what point is no match declared (0.0 = perfection, 1.0 = very loose).
-  float Match_Threshold;
+  float Match_Threshold       { 0.5f };
   // How far to search for a match (0 = exact location, 1000+ = broad match).
   // A match this many characters away from the expected location will add
   // 1.0 to the score (0.0 is a perfect match).
-  strlen_t Match_Distance;
+  strlen_t Match_Distance     { 1000 };
   // When deleting a large block of text (over ~64 characters), how close does
   // the contents have to match the expected contents. (0.0 = perfection,
   // 1.0 = very loose).  Note that Match_Threshold controls how closely the
   // end points of a delete need to match.
-  float Patch_DeleteThreshold;
+  float Patch_DeleteThreshold { 0.5f };
   // Chunk size for context length.
-  uint16_t Patch_Margin;
+  uint16_t Patch_Margin       { 4 };
 
-  // The number of bits in an int.
-  uint16_t Match_MaxBits;
+private:
 
+  // used in patch generation, not settable
+  uint16_t MaxMatchPattern    { static_cast<uint16_t>((2 * Patch_Margin > Match_MaxBits)
+                                                      ? 0
+                                                      : Match_MaxBits - 2 * Patch_Margin) };
 
- public:
-
-  diff_match_patch() :
-    Diff_Timeout(1.0f),
-    Diff_EditCost(4),
-    Match_Threshold(0.5f),
-    Match_Distance(1000),
-    Patch_DeleteThreshold(0.5f),
-    Patch_Margin(4),
-    Match_MaxBits(sizeof(strlen_t)*8) {
-  }
+public:
 
   //  DIFF FUNCTIONS
 
@@ -299,14 +289,14 @@ class diff_match_patch {
    *     Most of the time checklines is wanted, so default to true.
    * @return Linked List of Diff objects.
    */
-  Diffs diff_main(const stringview_t &text1, const stringview_t &text2, bool checklines = true) const
+  static Diffs diff_main(const stringview_t &text1, const stringview_t &text2, bool checklines = true, float fTimeout = 1.0f)
   {
     // Set a deadline by which time the diff must be complete.
     clock_t deadline;
-    if (Diff_Timeout <= 0) {
+    if (fTimeout <= 0) {
       deadline = std::numeric_limits<clock_t>::max();
     } else {
-      deadline = clock() + (clock_t)(Diff_Timeout * CLOCKS_PER_SEC);
+      deadline = clock() + static_cast<clock_t>(fTimeout * CLOCKS_PER_SEC);
     }
     Diffs diffs;
     diff_main(text1, text2, checklines, deadline, diffs);
@@ -1187,9 +1177,11 @@ class diff_match_patch {
   /**
    * Reduce the number of edits by eliminating operationally trivial equalities.
    * @param diffs LinkedList of Diff objects.
+   * @param EditCost Cost of an empty edit operation in terms of edit characters, default = 4.
    */
  public:
-  void diff_cleanupEfficiency(Diffs &diffs) const {
+  static void diff_cleanupEfficiency(Diffs &diffs, uint16_t EditCost = 4)
+  {
     if (diffs.empty()) {
       return;
     }
@@ -1208,7 +1200,7 @@ class diff_match_patch {
     for (typename Diffs::iterator cur_diff = diffs.begin(); cur_diff != diffs.end();) {
       if ((*cur_diff).operation == EQUAL) {
         // Equality found.
-        if ((*cur_diff).text.length() < static_cast<typename string_t::size_type>(Diff_EditCost) && (post_ins || post_del)) {
+        if ((*cur_diff).text.length() < static_cast<typename string_t::size_type>(EditCost) && (post_ins || post_del)) {
           // Candidate found.
           equalities.push_back(cur_diff);
           pre_ins = post_ins;
@@ -1237,7 +1229,7 @@ class diff_match_patch {
         */
         if (!lastequality.empty()
             && ((pre_ins && pre_del && post_ins && post_del)
-            || ((lastequality.length() < static_cast<typename string_t::size_type>(Diff_EditCost / 2))
+            || ((lastequality.length() < static_cast<typename string_t::size_type>(EditCost / 2))
             && ((pre_ins ? 1 : 0) + (pre_del ? 1 : 0)
             + (post_ins ? 1 : 0) + (post_del ? 1 : 0)) == 3))) {
           // printf("Splitting: '%s'\n", qPrintable(lastequality));
@@ -1864,8 +1856,7 @@ class diff_match_patch {
 
     // Look for the first and last matches of pattern in text.  If two different
     // matches are found, increase the pattern length.
-    while ((text.find(pattern) != text.rfind(pattern))
-        && (long unsigned int)(pattern.length()) < (long unsigned int)(Match_MaxBits - Patch_Margin - Patch_Margin)) {
+    while (text.find(pattern) != text.rfind(pattern) && pattern.length() < MaxMatchPattern) {
       padding += Patch_Margin;
       strlen_t iOffset = (padding > patch.start2) ? 0 : patch.start2 - padding;
       pattern = safeMid(text, iOffset,

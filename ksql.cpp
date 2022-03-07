@@ -493,7 +493,14 @@ void KSQL::KSQLStatementStats::Increment(KStringView sLastSQL, QueryType QueryTy
 			break;
 
 		case QueryType::Other:
-			kDebug (1, "Other SQL={}", sLastSQL);
+			// TODO: SMALL BUG HERE...
+			// If you are running a statement that starts with a K&R style comment like this:
+			//   /* hello world */
+			//   drop table FUBAR;
+			//
+			// The statistics will be messed up.  We see the comment as SQL, fail to skip over it, and
+			// the DROP gets classified as OTHER.
+			kDebug (2, "Unrecognized SQL={}", sLastSQL);
 			++iOther;
 			break;
 

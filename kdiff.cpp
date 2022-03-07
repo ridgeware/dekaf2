@@ -40,31 +40,107 @@
 //
 */
 
-#include "kdiffer.h"
+#include "kdiff.h"
 #include "diff_match_patch.h"
 #include "klog.h"
 #include "kctype.h"
+#include "kutf8.h"
+#include "kstringutils.h"
+#include <string>
 
 namespace dekaf2 {
 
 namespace detail {
 
-struct KString_traits : diff_match_patch_utf32_direct<char, uint32_t>
+template<class string_t, class stringview_t>
+struct DMP_String_helpers
 {
-	static bool        is_alnum(char c)            { return KASCII::kIsAlNum(c);           }
-	static bool        is_digit(char c)            { return KASCII::kIsDigit(c);           }
-	static bool        is_space(char c)            { return KASCII::kIsSpace(c);           }
-	static int         to_int(const char* s)       { return std::atoi(s);                  }
-	static char        from_wchar(wchar_t c)       { return static_cast<char>(c);          }
-	static wchar_t     to_wchar(char c)            { return static_cast<wchar_t>(c);       }
-	static std::string cs(const wchar_t* s)        { return std::string(s, s + wcslen(s)); }
-	static const char  eol = '\n';
-	static const char  tab = '\t';
+	static inline string_t to_string(int n)
+	{
+		return kSignedToString<string_t>(n);
+	}
+
+	static inline stringview_t mid(const stringview_t &str,
+								   typename stringview_t::size_type pos,
+								   typename stringview_t::size_type len = stringview_t::npos)
+	{
+		return (pos >= str.length()) ? stringview_t() : str.substr(pos, len);
+	}
+
+	static inline stringview_t right(const stringview_t& str, typename stringview_t::size_type n)
+	{
+		return n > str.size() ? stringview_t() : str.substr(str.size() - n);
+	}
+};
+
+template<>
+struct DMP_String_helpers<KString, KStringView>
+{
+	static inline KString to_string(int n)
+	{
+		return kSignedToString<KString>(n);
+	}
+
+	static inline KStringView mid(const KStringView &str,
+								  KStringView::size_type pos,
+								  KStringView::size_type len = KStringView::npos)
+	{
+		return str.Mid(pos, len);
+	}
+
+	static inline KStringView right(const KStringView& str, KStringView::size_type n)
+	{
+		return str.Right(n);
+	}
+};
+
+template <typename string_t, typename stringview_t>
+struct DMP_narrow_traits
+: diff_match_patch_utf32_direct<char, uint32_t>
+, DMP_String_helpers<string_t, stringview_t>
+{
+	static bool        is_alnum  (char c)             { return KASCII::kIsAlNum(c);             }
+	static bool        is_digit  (char c)             { return KASCII::kIsDigit(c);             }
+	static bool        is_space  (char c)             { return KASCII::kIsSpace(c);             }
+	static bool        is_control(char c)             { return (c == '\n' || c == '\r');        }
+	static uint32_t    to_uint32(const string_t& str) { return kToInt<uint32_t>(str);           }
+	static char        from_wchar(wchar_t c)          { return static_cast<char>(c);            }
+	static wchar_t     to_wchar(char c)               { return static_cast<wchar_t>(c);         }
+	static string_t    cs(const wchar_t* s)           { return string_t(s, s + std::wcslen(s)); }
+	static const char  eol     = '\n';
+	static const char  tab     = '\t';
+	constexpr static const char* pilcrow = "\xC2\xB6";
+};
+
+template <typename string_t, typename stringview_t>
+struct DMP_wide_traits
+: diff_match_patch_utf32_from_utf16<wchar_t>
+, DMP_String_helpers<string_t, stringview_t>
+{
+	static bool        is_alnum  (wchar_t c)          { return kIsAlNum(c);                   }
+	static bool        is_digit  (wchar_t c)          { return kIsDigit(c);                   }
+	static bool        is_space  (wchar_t c)          { return kIsSpace(c);                   }
+	static bool        is_control(wchar_t c)          { return (c == L'\n' || c == L'\r');    }
+	static uint32_t    to_uint32(const string_t& str) { return kToInt<uint32_t>(str);         }
+	static wchar_t     from_wchar(wchar_t c)          { return c;                             }
+	static wchar_t     to_wchar(wchar_t c)            { return c;                             }
+	static const wchar_t* cs(const wchar_t* s)        { return s;                             }
+	static const wchar_t eol = L'\n';
+	static const wchar_t tab = L'\t';
+	static const wchar_t pilcrow = L'\u00b6';
 };
 
 } // of namespace detail
 
-using KDiffMatchPatch = diff_match_patch<KString, KStringView, detail::KString_traits>;
+#if defined(DEKAF2_KDIFF_USE_WSTRING)
+using KDiffMatchPatch = diff_match_patch<KDiff::string_t, KDiff::stringview_t, detail::DMP_wide_traits<KDiff::string_t, KDiff::stringview_t>>;
+#elif defined(DEKAF2_KDIFF_USE_KSTRING)
+using KDiffMatchPatch = diff_match_patch<KDiff::string_t, KDiff::stringview_t, detail::DMP_narrow_traits<KDiff::string_t, KDiff::stringview_t>>;
+#else
+using KDiffMatchPatch = diff_match_patch<KDiff::string_t, KDiff::stringview_t, detail::DMP_narrow_traits<KDiff::string_t, KDiff::stringview_t>>;
+#endif
+
+namespace {
 
 //-----------------------------------------------------------------------------
 auto DiffDeleter = [](void* data)
@@ -81,17 +157,52 @@ inline const KDiffMatchPatch::Diffs* dget(const KUniqueVoidPtr& p)
 }
 
 //-----------------------------------------------------------------------------
-void KDiff::Diff(KStringView sOldText,
-				   KStringView sNewText,
-				   DiffMode Mode,
-				   Sanitation San)
+void PrintException(const KDiffMatchPatch::string_t& sEx)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_KDIFF_USE_WSTRING
+	kException(Unicode::ToUTF8<KString>(sEx));
+#else
+	kException(sEx);
+#endif
+}
+
+} // end of anonymous namespace
+
+#if defined(DEKAF2_KDIFF_USE_WSTRING)
+//-----------------------------------------------------------------------------
+KString KDiff::Diff::GetText() const
+//-----------------------------------------------------------------------------
+{
+	return Unicode::ToUTF8<KString>(m_sText);
+
+} // Diff::GetText
+
+//-----------------------------------------------------------------------------
+void KDiff::Diff::SetText(const KString& sText)
+//-----------------------------------------------------------------------------
+{
+	Unicode::FromUTF8(sText, m_sText);
+
+} // Diff::SetText
+#endif
+
+//-----------------------------------------------------------------------------
+void KDiff::CreateDiff(KStringView sOldText,
+					   KStringView sNewText,
+					   DiffMode Mode,
+					   Sanitation San)
 //-----------------------------------------------------------------------------
 {
 	m_Diffs.reset();
 
 	try
 	{
-		auto Diffs = KDiffMatchPatch::diff_main(sOldText, sNewText, (Mode == DiffMode::Line), 2.0f);
+#ifdef DEKAF2_KDIFF_USE_WSTRING
+		auto Diffs = KDiffMatchPatch::diff_main(Unicode::FromUTF8<KDiffMatchPatch::string_t>(sOldText), Unicode::FromUTF8<std::wstring>(sNewText), static_cast<KDiffMatchPatch::Mode>(Mode), 2.0f);
+#else
+		auto Diffs = KDiffMatchPatch::diff_main(sOldText, sNewText, static_cast<KDiffMatchPatch::Mode>(Mode), 2.0f);
+#endif
 
 		switch (San)
 		{
@@ -112,31 +223,48 @@ void KDiff::Diff(KStringView sOldText,
 	}
 	catch (const KDiffMatchPatch::string_t& sEx)
 	{
-		kException(sEx);
+		PrintException(sEx);
 	}
 
-} // Diff
+} // CreateDiff
+
+//-----------------------------------------------------------------------------
+KDiff::Diffs& KDiff::GetDiffs()
+//-----------------------------------------------------------------------------
+{
+	static Diffs s_EmptyDiffs;
+
+	if (!m_Diffs)
+	{
+		return s_EmptyDiffs;
+	}
+
+	return *static_cast<KDiff::Diffs*>(m_Diffs.get());
+
+} // GetDiffs
 
 //-----------------------------------------------------------------------------
 KString KDiff::GetUnifiedDiff()
 //-----------------------------------------------------------------------------
 {
-	KString sDiff;
-
 	if (m_Diffs)
 	{
 		try
 		{
 			auto Patches = KDiffMatchPatch().patch_make(*dget(m_Diffs));
-			sDiff = KDiffMatchPatch::patch_toText(Patches);
+#ifdef DEKAF2_KDIFF_USE_WSTRING
+			return Unicode::ToUTF8<KString>(KDiffMatchPatch::patch_toText(Patches));
+#else
+			return KDiffMatchPatch::patch_toText(Patches);
+#endif
 		}
 		catch (const KDiffMatchPatch::string_t& sEx)
 		{
-			kException(sEx);
+			PrintException(sEx);
 		}
 	}
 
-	return sDiff;
+	return KString{};
 
 } // GetUnifiedDiff
 
@@ -146,26 +274,27 @@ KString KDiff::GetTextDiff()
 {
 	KString sDiff;
 
-	if (m_Diffs)
+	// iterate over diffs:
+	for (const auto& diff : GetDiffs())
 	{
-		// iterate over diffs:
-		for (const auto& diff : *dget(m_Diffs))
+		switch (diff.GetOperation())
 		{
-			const auto& sText = diff.text;
+			case Operation::Insert:
+				sDiff += "[+";
+				sDiff += diff.GetText();
+				sDiff += ']';
+				break;
+				
+			case Operation::Delete:
+				sDiff += "[-";
+				sDiff += diff.GetText();
+				sDiff += ']';
+				break;
 
-			switch (diff.operation)
-			{
-			case KDiffMatchPatch::INSERT:
-				sDiff += kFormat ("[+{}]", sText);
-				break;
-			case KDiffMatchPatch::DELETE:
-				sDiff += kFormat ("[-{}]", sText);
-				break;
-			case KDiffMatchPatch::EQUAL:
+			case Operation::Equal:
 			default:
-				sDiff += sText;
+				sDiff += diff.GetText();
 				break;
-			}
 		}
 	}
 
@@ -181,30 +310,36 @@ std::size_t KDiff::GetTextDiff2 (KString& sOld, KString& sNew)
 	sNew.clear();
 	std::size_t iDiffs { 0 };
 
-	if (m_Diffs)
+	// iterate over diffs:
+	for (const auto& diff : GetDiffs())
 	{
-		// iterate over diffs:
-		for (const auto& diff : *dget(m_Diffs))
+		switch (diff.GetOperation())
 		{
-			const auto& sText = diff.text;
+			case Operation::Insert:
+				sNew += "[+";
+				sNew += diff.GetText();
+				sNew += ']';
+				++iDiffs;
+				break;
 
-			switch (diff.operation)
-			{
-			case KDiffMatchPatch::INSERT:
-				sNew += kFormat ("[+{}]", sText);
+			case Operation::Delete:
+				sOld += "[-";
+				sOld += diff.GetText();
+				sOld += ']';
 				++iDiffs;
 				break;
-			case KDiffMatchPatch::DELETE:
-				sOld += kFormat ("[-{}]", sText);
-				++iDiffs;
-				break;
-			case KDiffMatchPatch::EQUAL:
+
+			case Operation::Equal:
 			default:
+#if defined(DEKAF2_KDIFF_USE_WSTRING)
+				auto sText = diff.GetText();
+#else
+				auto& sText = diff.GetText();
+#endif
 				sOld += sText;
 				sNew += sText;
 				break;
 			}
-		}
 	}
 
 	// sOld and sNew now contain markup
@@ -218,26 +353,35 @@ KString KDiff::GetHTMLDiff(KStringView sInsertTag, KStringView sDeleteTag)
 {
 	KString sDiff;
 
-	if (m_Diffs)
+	// iterate over diffs:
+	for (const auto& diff : GetDiffs())
 	{
-		// iterate over diffs:
-		for (const auto& diff : *dget(m_Diffs))
+		switch (diff.GetOperation())
 		{
-			const auto& sText = diff.text;
+			case Operation::Insert:
+				sDiff += '<';
+				sDiff += sInsertTag;
+				sDiff += '>';
+				sDiff += diff.GetText();
+				sDiff += "</";
+				sDiff += sInsertTag;
+				sDiff += '>';
+				break;
 
-			switch (diff.operation)
-			{
-			case KDiffMatchPatch::INSERT:
-				sDiff += kFormat ("<{}>{}</{}>", sInsertTag, sText, sInsertTag);
+			case Operation::Delete:
+				sDiff += '<';
+				sDiff += sDeleteTag;
+				sDiff += '>';
+				sDiff += diff.GetText();
+				sDiff += "</";
+				sDiff += sDeleteTag;
+				sDiff += '>';
 				break;
-			case KDiffMatchPatch::DELETE:
-				sDiff += kFormat ("<{}>{}</{}>", sDeleteTag, sText, sDeleteTag);
-				break;
-			case KDiffMatchPatch::EQUAL:
+
+			case Operation::Equal:
 			default:
-				sDiff += sText;
+				sDiff += diff.GetText();
 				break;
-			}
 		}
 	}
 
@@ -253,29 +397,43 @@ std::size_t KDiff::GetHTMLDiff2 (KString& sOld, KString& sNew, KStringView sInse
 	sNew.clear();
 	std::size_t iDiffs { 0 };
 
-	if (m_Diffs)
+	// iterate over diffs:
+	for (const auto& diff : GetDiffs())
 	{
-		// iterate over diffs:
-		for (const auto& diff : *dget(m_Diffs))
+		switch (diff.GetOperation())
 		{
-			const auto& sText = diff.text;
+			case Operation::Insert:
+				sNew += '<';
+				sNew += sInsertTag;
+				sNew += '>';
+				sNew += diff.GetText();
+				sNew += "</";
+				sNew += sInsertTag;
+				sNew += '>';
+				++iDiffs;
+				break;
 
-			switch (diff.operation)
-			{
-			case KDiffMatchPatch::INSERT:
-				sNew += kFormat ("<{}>{}</{}>", sInsertTag, sText, sInsertTag);
+			case Operation::Delete:
+				sOld += '<';
+				sOld += sInsertTag;
+				sOld += '>';
+				sOld += diff.GetText();
+				sOld += "</";
+				sOld += sInsertTag;
+				sOld += '>';
 				++iDiffs;
 				break;
-			case KDiffMatchPatch::DELETE:
-				sOld += kFormat ("<{}>{}</{}>", sDeleteTag, sText, sDeleteTag);
-				++iDiffs;
-				break;
-			case KDiffMatchPatch::EQUAL:
+
+			case Operation::Equal:
 			default:
+#if defined(DEKAF2_KDIFF_USE_WSTRING)
+				auto sText = diff.GetText();
+#else
+				auto& sText = diff.GetText();
+#endif
 				sOld += sText;
 				sNew += sText;
 				break;
-			}
 		}
 	}
 
@@ -296,7 +454,7 @@ uint32_t KDiff::GetLevenshteinDistance()
 		}
 		catch (const KDiffMatchPatch::string_t& sEx)
 		{
-			kException(sEx);
+			PrintException(sEx);
 		}
 	}
 

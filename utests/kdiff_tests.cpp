@@ -1,10 +1,11 @@
 #include "catch.hpp"
 
-#include <dekaf2/kdiffer.h>
+#include <dekaf2/kdiff.h>
+#include <dekaf2/kencode.h>
 
 using namespace dekaf2;
 
-TEST_CASE("KDiffer")
+TEST_CASE("KDiff")
 {
 	SECTION("KDiffToASCII")
 	{
@@ -46,7 +47,7 @@ TEST_CASE("KDiffer")
 		CHECK ( sDiff == sExpected );
 	}
 
-	SECTION("GetTextDiff")
+	SECTION("GetUnifiedDiff")
 	{
 		KStringView sText1    { "This is a fat cat"   };
 		KStringView sText2    { "That is a black hat" };
@@ -61,6 +62,52 @@ TEST_CASE("KDiffer")
 )";
 
 		KDiff Differ(sText1, sText2);
+
+		auto sDiff = Differ.GetUnifiedDiff();
+		// the editor deletes all trailing spaces in sExpected.., remove them in the diff as well
+		sDiff.Replace(" \n", "\n");
+		CHECK ( sDiff == sExpected );
+		CHECK ( Differ.GetLevenshteinDistance() == 9 );
+	}
+
+	SECTION("GetUnifiedDiff line/character mode")
+	{
+		KStringView sText1    { "First line\nThis is a fat cat\nAnother line"   };
+		KStringView sText2    { "First line\nThat is a black hat\nAnother line" };
+		KStringView sExpected = R"(@@ -10,21 +10,23 @@
+ e%0ATh
+-is
++at
+  is a
+-fat c
++black h
+ at%0AA
+)";
+
+		KDiff Differ(sText1, sText2, KDiff::DiffMode::LineThenCharacter);
+
+		auto sDiff = Differ.GetUnifiedDiff();
+		// the editor deletes all trailing spaces in sExpected.., remove them in the diff as well
+		sDiff.Replace(" \n", "\n");
+		CHECK ( sDiff == sExpected );
+		CHECK ( Differ.GetLevenshteinDistance() == 9 );
+	}
+
+	SECTION("GetUnifiedDiff line mode")
+	{
+		KStringView sText1    { "First line\nThis is a fat cat\nAnother line"   };
+		KStringView sText2    { "First line\nThat is a black hat\nAnother line" };
+		KStringView sExpected = R"(@@ -10,21 +10,23 @@
+ e%0ATh
+-is
++at
+  is a
+-fat c
++black h
+ at%0AA
+)";
+
+		KDiff Differ(sText1, sText2, KDiff::DiffMode::Line);
 
 		auto sDiff = Differ.GetUnifiedDiff();
 		// the editor deletes all trailing spaces in sExpected.., remove them in the diff as well

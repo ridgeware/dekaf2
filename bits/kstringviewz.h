@@ -280,8 +280,13 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns rightmost iCount chars of string
-	self_type Right(size_type iCount) const noexcept;
+	self_type Right(size_type iCount) const noexcept
 	//-----------------------------------------------------------------------------
+	{
+		return DEKAF2_UNLIKELY(iCount > size())
+		  ? *this
+		  : self_type(data() + size() - iCount, iCount);
+	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
@@ -386,29 +391,11 @@ public:
 	/// returns a sub-view of the current view from pos of view with size n,
 	/// return type is a KStringView as the trailing zero got lost
 	DEKAF2_CONSTEXPR_14
-	base_type ToView(size_type pos, size_type n) const noexcept
+	base_type ToView(size_type pos, size_type count) const noexcept
 	//----------------------------------------------------------------------
 	{
-		const auto iSize = size();
-
-		if (pos > iSize)
-		{
-			// do not warn
-			pos = iSize;
-		}
-
-		if (n > iSize)
-		{
-			n = iSize - pos;
-		}
-		else if (pos + n > iSize)
-		{
-			n = iSize - pos;
-		}
-
-		return KStringView(data() + pos, n);
-
-	} // ToView
+		return base_type::ToView(pos, count);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// returns a C style char array with trailing zero - the reason this class
@@ -439,14 +426,9 @@ public:
 	self_type substr(size_type pos) const
 	//-----------------------------------------------------------------------------
 	{
-		const auto iSize = size();
-
-		if (DEKAF2_LIKELY(pos < iSize))
-		{
-			return { data() + pos, iSize - pos };
-		}
-
-		return {};
+		return DEKAF2_UNLIKELY(pos > size())
+		  ? self_type()
+		  : self_type(data() + pos, size() - pos);
 	}
 
 	// not using base_type::erase;

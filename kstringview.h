@@ -635,14 +635,9 @@ public:
 	self_type substr(size_type pos = 0, size_type count = npos) const
 	//-----------------------------------------------------------------------------
 	{
-		if (DEKAF2_UNLIKELY(pos > size()))
-		{
-#ifndef NDEBUG
-			Warn(DEKAF2_FUNCTION_NAME, "pos > size()");
-#endif
-			return {};
-		}
-		return self_type(data() + pos, std::min(count, size() - pos));
+		return DEKAF2_UNLIKELY(pos > size())
+		  ? self_type()
+		  : self_type(data() + pos, std::min(count, size() - pos));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -720,6 +715,17 @@ public:
 	bool append(const self_type other)
 	//-----------------------------------------------------------------------------
 	{
+		if (other.empty())
+		{
+			return true;
+		}
+
+		if (empty())
+		{
+			assign(other.data(), other.size());
+			return true;
+		}
+
 		if (data() > other.data())
 		{
 #ifndef NDEBUG
@@ -756,6 +762,17 @@ public:
 	bool Merge(self_type other)
 	//--------------------------------------------------------------------------------
 	{
+		if (other.empty())
+		{
+			return true;
+		}
+
+		if (empty())
+		{
+			assign(other.data(), other.size());
+			return true;
+		}
+
 		if (data() > other.data())
 		{
 			if (other.data() + other.size() < data())
@@ -934,7 +951,7 @@ public:
 	KStringView Left(size_type iCount) const
 	//-----------------------------------------------------------------------------
 	{
-		return substr(0, iCount);
+		return self_type(data(), std::min(iCount, size()));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -950,8 +967,13 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns rightmost iCount chars of string
-	KStringView Right(size_type iCount) const;
+	KStringView Right(size_type iCount) const
 	//-----------------------------------------------------------------------------
+	{
+		return DEKAF2_UNLIKELY(iCount > size())
+		  ? *this
+		  : self_type(data() + size() - iCount, iCount);
+	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard

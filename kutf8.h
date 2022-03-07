@@ -363,6 +363,19 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 }
 
 //-----------------------------------------------------------------------------
+/// Convert a wide string (UTF16 or UTF32) into a UTF8 string
+template<typename NarrowString, typename WideString,
+		 typename std::enable_if<!std::is_integral<WideString>::value, int>::type = 0>
+KUTF8_CONSTEXPR_14
+NarrowString ToUTF8(const WideString& sWide)
+//-----------------------------------------------------------------------------
+{
+	NarrowString sNarrow;
+	ToUTF8(sWide, sNarrow);
+	return sNarrow;
+}
+
+//-----------------------------------------------------------------------------
 /// Return iterator at position where a UTF8 string uses invalid sequences
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
@@ -965,6 +978,20 @@ bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 		}
 		return true;
 	});
+}
+
+//-----------------------------------------------------------------------------
+/// Convert string from UTF8 to wide string (either UTF16 or UTF32)
+template<typename WideString = std::wstring, typename NarrowString = std::string,
+		 typename std::enable_if<!std::is_function<WideString>::value
+								&& (!std::is_class<WideString>::value || detail::HasSize<WideString>::value), int>::type = 0>
+KUTF8_CONSTEXPR_20
+WideString FromUTF8(const NarrowString& sNarrow)
+//-----------------------------------------------------------------------------
+{
+	WideString sWide;
+	FromUTF8(sNarrow, sWide);
+	return sWide;
 }
 
 //-----------------------------------------------------------------------------

@@ -532,9 +532,9 @@ uint8_t kFromHexChar(char ch) noexcept
 }
 
 //-----------------------------------------------------------------------------
-template<class Integer,
-         typename std::enable_if<std::is_arithmetic<Integer>::value, int>::type = 0>
-Integer kToInt(KStringView sNumber, uint16_t iBase = 10) noexcept
+template<class Integer, class Iterator,
+		 typename std::enable_if<std::is_arithmetic<Integer>::value, int>::type = 0>
+Integer kToInt(Iterator it, Iterator end, uint16_t iBase = 10) noexcept
 //-----------------------------------------------------------------------------
 {
 	Integer iVal { 0 };
@@ -544,24 +544,26 @@ Integer kToInt(KStringView sNumber, uint16_t iBase = 10) noexcept
 		// work on numbers expressed by ASCII alnum - accept negative values
 		// by a '-' prefix, or positive values by a '+' prefix or none
 
-		sNumber.TrimLeft();
+		for (;it != end && kIsSpace(*it); ++it) {}
 
-		if (!sNumber.empty())
+		if (it != end)
 		{
 			bool bNeg { false };
 
-			switch (sNumber.front())
+			switch (*it)
 			{
 				case '-':
 					bNeg = true;
 					DEKAF2_FALLTHROUGH;
 				case '+':
-					sNumber.remove_prefix(1);
+					++it;
 					break;
 			}
 
-			for (const auto ch : sNumber)
+			for (;it != end;)
 			{
+				auto ch = static_cast<char>(*it++);
+
 				auto iBase36 = kFromBase36(ch);
 
 				if (iBase36 >= iBase)
@@ -593,10 +595,10 @@ Integer kToInt(KStringView sNumber, uint16_t iBase = 10) noexcept
 		// this is a pure binary encoding, do not trim anything, do not assume
 		// signed values from prefixes
 
-		for (const auto ch : sNumber)
+		for (;it != end;)
 		{
 			iVal *= 256;
-			iVal += static_cast<unsigned char>(ch);
+			iVal += static_cast<unsigned char>(*it++);
 		}
 	}
 	else
@@ -607,6 +609,36 @@ Integer kToInt(KStringView sNumber, uint16_t iBase = 10) noexcept
 	return iVal;
 
 } // kToInt
+
+//-----------------------------------------------------------------------------
+template<class Integer, class String,
+         typename std::enable_if<std::is_arithmetic<Integer>::value &&
+                                 detail::is_cpp_str<String>::value, int>::type = 0>
+Integer kToInt(const String& sNumber, uint16_t iBase = 10) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kToInt<Integer>(sNumber.begin(), sNumber.end(), iBase);
+}
+
+//-----------------------------------------------------------------------------
+template<class Integer, class String,
+		 typename std::enable_if<std::is_arithmetic<Integer>::value &&
+								 detail::is_narrow_c_str<String>::value, int>::type = 0>
+Integer kToInt(const String sNumber, uint16_t iBase = 10) noexcept
+//-----------------------------------------------------------------------------
+{
+	return DEKAF2_LIKELY(sNumber != nullptr) ? kToInt<Integer>(sNumber, sNumber + std::strlen(sNumber), iBase) : 0;
+}
+
+//-----------------------------------------------------------------------------
+template<class Integer, class String,
+		 typename std::enable_if<std::is_arithmetic<Integer>::value &&
+								 detail::is_wide_c_str<String>::value, int>::type = 0>
+Integer kToInt(const String sNumber, uint16_t iBase = 10) noexcept
+//-----------------------------------------------------------------------------
+{
+	return DEKAF2_LIKELY(sNumber != nullptr) ? kToInt<Integer>(sNumber, sNumber + std::wcslen(sNumber), iBase) : 0;
+}
 
 //-----------------------------------------------------------------------------
 template<class First>

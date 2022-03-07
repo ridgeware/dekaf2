@@ -188,21 +188,6 @@ KStringViewZ::size_type KStringViewZ::find_first_not_of(KStringView sv, size_typ
 #endif
 
 //----------------------------------------------------------------------
-KStringViewZ KStringViewZ::Right(size_type iCount) const noexcept
-//----------------------------------------------------------------------
-{
-	const auto iSize = size();
-
-	if (iCount > iSize)
-	{
-		// do not warn
-		iCount = iSize;
-	}
-	return KStringViewZ(data() + iSize - iCount, iCount);
-
-} // Right
-
-//----------------------------------------------------------------------
 KStringViewZ& KStringViewZ::TrimLeft()
 //----------------------------------------------------------------------
 {

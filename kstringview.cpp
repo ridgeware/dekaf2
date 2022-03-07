@@ -771,19 +771,6 @@ std::vector<KStringView> KStringView::MatchRegexGroups(const KStringView sRegEx,
 }
 
 //----------------------------------------------------------------------
-KStringView KStringView::Right(size_type iCount) const
-//----------------------------------------------------------------------
-{
-	if (iCount > size())
-	{
-		// do not warn
-		iCount = size();
-	}
-	return KStringView(data() + size() - iCount, iCount);
-
-} // Right
-
-//----------------------------------------------------------------------
 KStringView& KStringView::TrimLeft()
 //----------------------------------------------------------------------
 {

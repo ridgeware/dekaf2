@@ -124,7 +124,7 @@ public:
 
 #if defined(DEKAF2_KDIFF_USE_WSTRING)
 		operator KString()           const { return GetText();              }
-#elif defined(DEKAF2_KDIFF_USE_KSTRING)
+#else
 		operator const string_t&()   const { return GetText();              }
 #endif
 		operator Operation()         const { return GetOperation();         }

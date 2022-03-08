@@ -117,16 +117,6 @@ void KString::log_exception(const std::exception& e, const char* sWhere)
 }
 
 //------------------------------------------------------------------------------
-KString& KString::append(const KString& str, size_type pos, size_type n)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	m_rep.append(str.m_rep, pos, n);
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-
-//------------------------------------------------------------------------------
 void KString::resize_uninitialized(size_type n)
 //------------------------------------------------------------------------------
 {
@@ -174,80 +164,26 @@ void KString::resize_uninitialized(size_type n)
 }
 
 //------------------------------------------------------------------------------
-KString& KString::assign(const KString& str, size_type pos, size_type n)
+// the method to which (nearly) all replaces reduce
+KString& KString::replace(size_type pos, size_type n, KStringView sv)
 //------------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	m_rep.assign(str.m_rep, pos, n);
+	m_rep.replace(pos, n, sv.data(), sv.size());
 	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
 
 //------------------------------------------------------------------------------
-KString& KString::replace(size_type pos, size_type n, const KString& str)
+KString& KString::replace(iterator i1, iterator i2, KStringView sv)
 //------------------------------------------------------------------------------
 {
-	DEKAF2_TRY_EXCEPTION
-	m_rep.replace(pos, n, str.m_rep);
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-
-//------------------------------------------------------------------------------
-KString& KString::replace(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	m_rep.replace(pos1, n1, str.m_rep, pos2, n2);
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-//------------------------------------------------------------------------------
-KString& KString::replace(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	const auto iSize2 = str.size();
-
-	// avoid segfaults
-	if (DEKAF2_UNLIKELY(pos2 > iSize2))
-	{
-		kDebug (1, "pos2 ({}) exceeds size ({})", pos2, iSize2);
-		pos2 = iSize2;
-	}
-	if (DEKAF2_UNLIKELY(pos2 + n2 > iSize2))
-	{
-		kDebug (1, "pos2 ({}) + n ({}) exceeds size ({})", pos2, n2, iSize2);
-		n2 = iSize2 - pos2;
-	}
-
-	m_rep.replace(pos1, n1, str.data()+pos2, n2);
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-
-#endif
-
-//------------------------------------------------------------------------------
-KString& KString::replace(size_type pos, size_type n1, const value_type* s, size_type n2)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	m_rep.replace(pos, n1, s ? s : "", n2);
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-
-//------------------------------------------------------------------------------
-KString& KString::replace(size_type pos, size_type n1, const value_type* s)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	m_rep.replace(pos, n1, s ? s : "");
-	DEKAF2_LOG_EXCEPTION
-	return *this;
+	// we turn this into an indexed replace because
+	// the std::string iterator replace does not test for
+	// iterator out of range and segfaults if out of range..
+	auto pos = static_cast<size_type>(i1 - begin());
+	auto n = static_cast<size_type>(i2 - i1);
+	return replace (pos, n, sv);
 }
 
 //------------------------------------------------------------------------------
@@ -256,36 +192,6 @@ KString& KString::replace(size_type pos, size_type n1, size_type n2, value_type 
 {
 	DEKAF2_TRY_EXCEPTION
 	m_rep.replace(pos, n1, n2, c);
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-
-//------------------------------------------------------------------------------
-KString& KString::replace(iterator i1, iterator i2, const KString& str)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	// we turn this into an indexed replace because
-	// the std::string iterator replace does not test for
-	// iterator out of range and segfaults if out of range..
-	auto pos = static_cast<size_type>(i1 - begin());
-	auto n = static_cast<size_type>(i2 - i1);
-	m_rep.replace(pos, n, str.m_rep);
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-
-//------------------------------------------------------------------------------
-KString& KString::replace(iterator i1, iterator i2, const value_type* s, size_type n)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	// we turn this into an indexed replace because
-	// the std::string iterator replace does not test for
-	// iterator out of range and segfaults if out of range..
-	auto pos = static_cast<size_type>(i1 - begin());
-	auto n = static_cast<size_type>(i2 - i1);
-	m_rep.replace(pos, n, s ? s : "", n);
 	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
@@ -306,49 +212,6 @@ KString& KString::replace(iterator i1, iterator i2, std::initializer_list<value_
 }
 
 //------------------------------------------------------------------------------
-KString& KString::replace(size_type pos, size_type n, KStringView sv)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	m_rep.replace(pos, n, sv.data(), sv.size());
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-
-//------------------------------------------------------------------------------
-KString& KString::replace(iterator i1, iterator i2, KStringView sv)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	// we turn this into an indexed replace because
-	// the std::string iterator replace does not test for
-	// iterator out of range and segfaults if out of range..
-	auto pos = static_cast<size_type>(i1 - begin());
-	auto n = static_cast<size_type>(i2 - i1);
-	m_rep.replace(pos, n, sv.data(), sv.size());
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-
-//------------------------------------------------------------------------------
-KString KString::substr(size_type pos, size_type n/*=npos*/) const &
-//------------------------------------------------------------------------------
-{
-	const auto iSize = size();
-
-	if (DEKAF2_UNLIKELY(pos >= iSize))
-	{
-		return KString{};
-	}
-
-	if (n > iSize || pos + n > iSize)
-	{
-		n = iSize - pos;
-	}
-	return KString(data() + pos, n);
-}
-
-//------------------------------------------------------------------------------
 KString KString::substr(size_type pos, size_type n/*=npos*/) &&
 //------------------------------------------------------------------------------
 {
@@ -361,11 +224,13 @@ KString KString::substr(size_type pos, size_type n/*=npos*/) &&
 	else
 	{
 		erase(0, pos);
+
 		if (n < iSize - pos)
 		{
 			resize(n);
 		}
 	}
+
 	return std::move(*this);
 }
 
@@ -380,67 +245,11 @@ KString::size_type KString::copy(value_type* s, size_type n, size_type pos) cons
 }
 
 //------------------------------------------------------------------------------
-KString& KString::insert(size_type pos, const KString& str)
+KString& KString::insert(size_type pos, KStringView sv)
 //------------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	m_rep.insert(pos, str.m_rep);
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-
-//------------------------------------------------------------------------------
-KString& KString::insert(size_type pos1, const KString& str, size_type pos2, size_type n)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	m_rep.insert(pos1, str.m_rep, pos2, n);
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-//------------------------------------------------------------------------------
-KString& KString::insert(size_type pos1, const std::string& str, size_type pos2, size_type n)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	const auto iSize2 = str.size();
-
-	// avoid segfaults
-	if (DEKAF2_UNLIKELY(pos2 > iSize2))
-	{
-		kDebug (1, "pos2 ({}) exceeds size ({})", pos2, iSize2);
-		pos2 = iSize2;
-	}
-	if (DEKAF2_UNLIKELY(pos2 + n > iSize2))
-	{
-		kDebug (1, "pos2 ({}) + n ({}) exceeds size ({})", pos2, n, iSize2);
-		n = iSize2 - pos2;
-	}
-
-	m_rep.insert(pos1, str.data()+pos2, n);
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-#endif
-
-//------------------------------------------------------------------------------
-KString& KString::insert(size_type pos, const value_type* s, size_type n)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	m_rep.insert(pos, s ? s : "", n);
-	DEKAF2_LOG_EXCEPTION
-	return *this;
-}
-
-//------------------------------------------------------------------------------
-KString& KString::insert(size_type pos, const value_type* s)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	m_rep.insert(pos, s ? s : "");
+	m_rep.insert(pos, sv.data(), sv.size());
 	DEKAF2_LOG_EXCEPTION
 	return *this;
 }
@@ -488,16 +297,6 @@ KString::iterator KString::insert(iterator it, std::initializer_list<value_type>
 		return end();
 	}
 	return m_rep.insert(it, il);
-}
-
-//------------------------------------------------------------------------------
-KString& KString::insert(size_type pos, KStringView sv)
-//------------------------------------------------------------------------------
-{
-	DEKAF2_TRY_EXCEPTION
-	m_rep.insert(pos, sv.data(), sv.size());
-	DEKAF2_LOG_EXCEPTION
-	return *this;
 }
 
 //------------------------------------------------------------------------------

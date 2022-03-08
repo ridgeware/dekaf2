@@ -3,6 +3,7 @@
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/kjson.h>
+#include <dekaf2/kmime.h>
 #include <string>
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 #include <string_view>
@@ -141,16 +142,95 @@ TEST_CASE("StringBalance") {
 		static_assert( std::is_constructible<std::string,           const std::string_view&>::value, "constructible");
 #endif
 		static_assert( std::is_convertible<const std::string&,      KStringView>::value, "not convertible");
+		static_assert( std::is_convertible<const KStringView&,      std::string>::value, "not convertible");
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
-		static_assert( std::is_convertible<const std::string_view&, KStringView>::value, "not convertible");
+		static_assert( std::is_convertible<const std::string_view&, KStringView     >::value, "not convertible");
+		static_assert( std::is_convertible<const KStringView&,      std::string_view>::value, "not convertible");
+		static_assert( std::is_convertible<const KString&,          std::string_view>::value, "not convertible");
+		static_assert( std::is_convertible<const std::string_view&, KString         >::value, "not convertible");
+#endif
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+//		static_assert( std::is_convertible<const folly::fbstring&,  KStringView     >::value, "not convertible");
+//		static_assert( std::is_convertible<const KStringView&,      folly::fbstring >::value, "not convertible");
+		static_assert( std::is_convertible<const KString&,          folly::fbstring >::value, "not convertible");
+		static_assert( std::is_convertible<const folly::fbstring&,  KString         >::value, "not convertible");
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+//		static_assert( std::is_convertible<const std::string_view&, folly::fbstring >::value, "not convertible");
+#endif
 #endif
 		static_assert( std::is_convertible<const KString&,          KStringView>::value, "not convertible");
 		static_assert( std::is_convertible<const KStringView&,      KStringView>::value, "not convertible");
 		static_assert( std::is_convertible<const KStringViewZ&,     KStringView>::value, "not convertible");
 
-//		ks = os;  // we cannot provide this implicit conversion
+		static_assert( detail::is_kstringview_assignable<const char*,  true>::value, "not assignable");
+		static_assert( detail::is_kstringview_assignable<const char*,  true>::value, "not assignable");
+		static_assert( detail::is_kstringview_assignable<KStringViewZ, true>::value, "not assignable");
+		static_assert( detail::is_kstringview_assignable<KStringViewZ, true>::value, "not assignable");
+		static_assert( detail::is_kstringview_assignable<OS,           true>::value, "not assignable");
+		{
+			KString str = "1234567890";
+			std::string s = "123";
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
-//		ks = osv; // we cannot provide this implicit conversion
+			std::string_view sv = "123";
+			str.starts_with(sv);
+			str.ends_with(sv);
+			str.contains(sv);
+			str.replace(0, 2, sv);
+			str.replace(0, 2, OSV());
+			str.find_first_not_of(OSV());
+#endif
+			str.starts_with(s);
+			str.ends_with(s);
+			str.contains(s);
+			str.replace(0, 2, s);
+
+			str.starts_with("abc");
+			str.ends_with("abc");
+			str.contains("abc");
+			str.replace(0, 2, "abc");
+			
+			str.starts_with(fsv());
+			str.replace(0, 2, OKS());
+			str.find_first_not_of(OKS());
+		}
+
+		{
+			KMIME mime = KMIME::NONE;
+			KMIME mime2 = KMIME::NONE;
+			KStringView sv = "abcdef";
+			KStringViewZ svz = "abcdef";
+			KString str = "abcdef";
+			
+			if (mime == mime2)
+			{
+				if (mime == sv)
+				{
+					if (sv == mime)
+					{
+					}
+				}
+				if (mime == str)
+				{
+					if (str == mime)
+					{
+					}
+				}
+				if (mime == svz)
+				{
+					if (svz == mime)
+					{
+					}
+				}
+				if (mime == "abcd")
+				{
+				}
+			}
+			sv = mime;
+		}
+
+		ks = os;
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+		ks = osv;
 #endif
 		ks = oks;
 		ks = oksv;
@@ -166,6 +246,16 @@ TEST_CASE("StringBalance") {
 			KString ks5(oksz);
 		}
 
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+		{
+			KStringView ks1(os);
+			KStringView ks2(osv);
+			KStringView ks3(oks);
+			KStringView ks4(oksv);
+			KStringView ks5(oksz);
+		}
+#endif
+
 		ks += fstr();
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 		ks += fsv();
@@ -174,9 +264,9 @@ TEST_CASE("StringBalance") {
 		ks += fksv();
 		ks += fksz();
 
-//		ks += os;  // we cannot provide this implicit conversion
+		ks += os;
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
-//		ks += osv; // we cannot provide this implicit conversion
+		ks += osv;
 #endif
 		ks += oks;
 		ks += oksv;
@@ -232,7 +322,7 @@ TEST_CASE("StringBalance") {
 		CHECK ( ksv == "abcdefghijk" );
 		CHECK ( ksv == ksz );
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
-//		CHECK ( ksv == sv  ); // we cannot provide this implicit comparison
+		CHECK ( ksv == sv  );
 #endif
 		CHECK ( ksv == s   );
 
@@ -245,7 +335,7 @@ TEST_CASE("StringBalance") {
 
 		CHECK ( ksz == s   );
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
-//		CHECK ( ksz == sv  ); // we cannot provide this implicit comparison
+		CHECK ( ksz == sv  );
 #endif
 		CHECK ( ksz == ks  );
 		CHECK ( ksz == ksv );

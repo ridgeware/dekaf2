@@ -109,7 +109,7 @@ struct is_json_type : std::false_type { };
 // specialization recognizes types that do have a json_pointer member type and
 // therefore most likely are our JSON type:
 template< class T >
-struct is_json_type<T, std::void_t<typename T::json_pointer>> : std::true_type { };
+struct is_json_type<T, std::void_t<typename std::decay<T>::type::json_pointer>> : std::true_type { };
 
 template <typename Container>
 struct is_std_array : std::false_type { };
@@ -250,6 +250,15 @@ struct is_str
       bool,
       is_cpp_str<T>::value ||
       is_c_str<T>::value
+> {};
+
+template<class T, bool bAllowCharPointer = false>
+struct is_kstringview_assignable
+: std::integral_constant<
+	bool,
+	!std::is_same<char, typename std::decay<T>::type>::value &&
+	(bAllowCharPointer || !is_narrow_c_str<T>::value) &&
+	std::is_assignable<KStringView, T>::value
 > {};
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

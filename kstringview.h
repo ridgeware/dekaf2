@@ -44,16 +44,17 @@
 /// @file kstringview.h
 /// string view implementation
 
+#include "bits/kcppcompat.h"
+#include "bits/ktemplate.h"
+#include "bits/kstring_view.h"
+#include "bits/khash.h"
+#include "kutf8.h"
+#include <fmt/format.h>
 #include <cinttypes>
 #include <functional>
 #include <boost/functional/hash.hpp>
 #include <string>
 #include <vector>
-#include "bits/kcppcompat.h"
-#include "bits/kstring_view.h"
-#include "bits/khash.h"
-#include "kutf8.h"
-#include <fmt/format.h>
 
 #if !defined(DEKAF2_HAS_STD_STRING_VIEW) \
 	&& !defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
@@ -359,6 +360,13 @@ public:
 		return ToStdView();
 	}
 #endif
+
+	//-----------------------------------------------------------------------------
+	operator std::string() const
+	//-----------------------------------------------------------------------------
+	{
+		return std::string(data(), size());
+	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
@@ -1389,7 +1397,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// returns true if sOther is same
 	DEKAF2_CONSTEXPR_14
-	bool Equal(KStringView sOther)
+	bool Equal(KStringView sOther) const noexcept
 	//-----------------------------------------------------------------------------
 	{
 		return size() == sOther.size() && !compare(sOther);
@@ -1450,20 +1458,40 @@ static constexpr KStringView kASCIISpaces { " \f\n\r\t\v\b" };
 // ======================= comparisons ========================
 
 //-----------------------------------------------------------------------------
-template<typename T, typename U,
-		 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-                                 std::is_convertible<const U&, KStringView>::value == true, int>::type = 0>
+template<typename T,
+		 typename std::enable_if<std::is_same<T, KStringView>::value == true, int>::type = 0>
 DEKAF2_CONSTEXPR_14
-bool operator==(const T& left, const U& right)
+bool operator==(const T& left, const T& right)
 //-----------------------------------------------------------------------------
 {
-	return KStringView(left).Equal(right);
+	return left.Equal(right);
+}
+
+//-----------------------------------------------------------------------------
+template<typename T,
+		 typename std::enable_if<std::is_same<T, KStringView>::value == true, int>::type = 0>
+DEKAF2_CONSTEXPR_14
+bool operator!=(const T& left, const T& right)
+//-----------------------------------------------------------------------------
+{
+	return !operator==(left, right);
 }
 
 //-----------------------------------------------------------------------------
 template<typename T, typename U,
-		 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true &&
-                                 std::is_convertible<const U&, KStringView>::value == true, int>::type = 0>
+		 typename std::enable_if<detail::is_kstringview_assignable<const T&, true>::value == true &&
+                                 detail::is_kstringview_assignable<const U&, true>::value == true, int>::type = 0>
+DEKAF2_CONSTEXPR_14
+bool operator==(const T& left, const U& right)
+//-----------------------------------------------------------------------------
+{
+	return KStringView(left).Equal(KStringView(right));
+}
+
+//-----------------------------------------------------------------------------
+template<typename T, typename U,
+		 typename std::enable_if<detail::is_kstringview_assignable<const T&, true>::value == true &&
+                                 detail::is_kstringview_assignable<const U&, true>::value == true, int>::type = 0>
 DEKAF2_CONSTEXPR_14
 bool operator!=(const T& left, const U& right)
 //-----------------------------------------------------------------------------

@@ -567,7 +567,6 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	friend bool operator==(const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
@@ -575,7 +574,6 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	friend bool operator!=(const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{

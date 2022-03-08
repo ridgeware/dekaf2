@@ -69,18 +69,6 @@ class KString;
 class KStringView;
 class KStringViewZ;
 
-namespace detail {
-	template<class T>
-	struct is_kstringview_convertible
-	: std::integral_constant<
-		bool,
-		std::is_convertible<const T&, KStringView>::value &&
-		!std::is_convertible<const T&, const char*>::value &&
-		!detail::is_json_type<T>::value
-	  > {};
-}
-
-
 //----------------------------------------------------------------------
 /// returns a copy of the string in uppercase (UTF8)
 DEKAF2_PUBLIC
@@ -172,20 +160,23 @@ public:
 #ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 	KString (std::string&& s)                                 : m_rep(std::move(s)) {}
 #endif
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+	KString (const folly::fbstring& s)                        : m_rep(s) {}
+	KString (folly::fbstring&& s)                             : m_rep(std::move(s)) {}
+#endif
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	KString (const std::string_view& s)                       : m_rep(s.data(), s.size()) {}
 #endif
 	KString (const KStringView& sv);
 	KString (const KStringViewZ& svz);
 	template<typename T,
-	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
 	explicit KString (const T& sv);
 
 	// other constructors
 	KString (const KString& str, size_type pos, size_type n = npos) : m_rep(str.m_rep, (pos > str.size()) ? str.size() : pos, n) {}
 	KString (size_type n, value_type ch)                      : m_rep(n, ch) {}
 	KString (const value_type* s, size_type n)                : m_rep(s ? s : "", s ? n : 0) {}
-	KString (const value_type* s, size_type pos, size_type n) : m_rep(s ? s : "", s ? pos : 0, s ? n : 0) {}
 	template<class _InputIterator>
 	KString (_InputIterator first, _InputIterator last)       : m_rep(first, last) {}
 	KString (std::initializer_list<value_type> il)            : m_rep(il) {}
@@ -197,7 +188,7 @@ public:
 	KString (value_type *s, size_type n, size_type c, AcquireMallocatedString a) : KString (s, n) { if (s) delete(s); }
 #endif
 	template<typename T,
-	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
 	KString (const T& sv, size_type pos, size_type n);
 
 	// assignment operators
@@ -206,7 +197,7 @@ public:
 	self& operator= (value_type ch);
 	self& operator= (const value_type *s);
 	template<typename T,
-	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
 	self& operator= (const T& sv);
 
 	self& operator+= (const KString& s);
@@ -214,7 +205,7 @@ public:
 	self& operator+= (const value_type *s);
 	self& operator+= (std::initializer_list<value_type> il);
 	template<typename T,
-	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
 	self& operator+= (const T& sv);
 
 	iterator                begin()            noexcept       { return m_rep.begin();        }
@@ -258,8 +249,6 @@ public:
 	const_reference         front()            const          { if DEKAF2_UNLIKELY(empty())       {                 return s_0ch;   } return m_rep.front(); }
 	reference               front()                           { if DEKAF2_UNLIKELY(empty())       { s_0ch_v = '\0'; return s_0ch_v; } return m_rep.front(); }
 
-	self& append(const KString& str)                          { m_rep.append(str.m_rep);            return *this; }
-	self& append(const KString& str, size_type pos, size_type n = npos);
 	self& append(const value_type* str)                       { m_rep.append(str ? str : "");       return *this; }
 	self& append(const value_type* str, size_type n)          { m_rep.append(str ? str : "", n);    return *this; }
 	self& append(size_type n, value_type ch)                  { m_rep.append(n, ch);                return *this; }
@@ -267,17 +256,17 @@ public:
 	self& append(_InputIterator first, _InputIterator last)   { m_rep.append(first, last);          return *this; }
 	self& append(std::initializer_list<value_type> il)        { m_rep.append(il);                   return *this; }
 	template<typename T,
-	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
 	self& append(const T& sv);
 	template<typename T,
-	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
 	self& append(const T& sv, size_type pos, size_type n = npos);
 
 	self& push_back(const value_type chPushBack)              { m_rep.push_back(chPushBack);        return *this; }
 	void pop_back()                                           { m_rep.pop_back();                                 }
 
 	self& assign(const KString& str)                          { m_rep.assign(str.m_rep);            return *this; }
-	self& assign(const KString& str, size_type pos, size_type n = npos);
+	self& assign(const KString&& str)                         { m_rep.assign(std::move(str.m_rep)); return *this; }
 	self& assign(const value_type* s, size_type n)            { m_rep.assign(s ? s : "", n);        return *this; }
 	self& assign(const value_type* s)                         { m_rep.assign(s ? s : "");           return *this; }
 	self& assign(size_type n, value_type ch)                  { m_rep.assign(n, ch);                return *this; }
@@ -286,83 +275,84 @@ public:
 	self& assign(std::initializer_list<value_type> il)        { m_rep.assign(il);                   return *this; }
 	self& assign(KString&& str) noexcept                      { m_rep.assign(std::move(str.m_rep)); return *this; }
 	template<typename T,
-	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
 	self& assign(const T& sv);
 	template<typename T,
-	         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type = 0>
+	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
 	self& assign(const T& sv, size_type pos, size_type n = npos);
 
-	int compare(const KString& str)                                                const;
-	int compare(size_type pos, size_type n, const KString& str)                    const;
-	int compare(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2 = npos)     const;
-	int compare(const value_type* s)                                               const;
-	int compare(size_type pos, size_type n1, const value_type* s)                  const;
 	int compare(size_type pos, size_type n1, const value_type* s, size_type n2)    const;
-	int compare(KStringView sv)                                                    const;
-	int compare(size_type pos, size_type n1, KStringView sv)                       const;
-	int compare(const std::string& str)                                            const;
-	int compare(size_type pos, size_type n, const std::string& str)                const;
-	int compare(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2 = npos) const;
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	int compare(const T& sv)                                                       const;
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	int compare(size_type pos, size_type n1, const T& sv)                          const;
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
+	int compare(size_type pos, size_type n1, const T& sv, size_type pos2, size_type n2 = npos) const;
 
 	size_type copy(value_type* s, size_type n, size_type pos = 0)                  const;
 
 	size_type find(value_type c, size_type pos = 0)                                const;
 	size_type find(KStringView sv, size_type pos = 0)                              const;
 	size_type find(const value_type* s, size_type pos, size_type n)                const;
-	size_type find(const KString& str, size_type pos = 0)                          const { return find(str.data(), pos, str.size());              }
-	size_type find(const value_type* s, size_type pos = 0)                         const { return find(s, pos, strlen(s));                        }
-	size_type find(const std::string& str, size_type pos = 0)                      const { return find(str.data(), pos, str.size());              }
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	size_type find(const T& sv, size_type pos = 0)                                 const;
 
 	size_type rfind(value_type c, size_type pos = npos)                            const;
 	size_type rfind(KStringView sv, size_type pos = npos)                          const;
 	size_type rfind(const value_type* s, size_type pos, size_type n)               const;
-	size_type rfind(const KString& str, size_type pos = npos)                      const { return rfind(str.data(), pos, str.size());             }
-	size_type rfind(const value_type* s, size_type pos = npos)                     const { return rfind(s, pos, strlen(s));                       }
-	size_type rfind(const std::string& str, size_type pos = npos)                  const { return rfind(str.data(), pos, str.size());             }
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	size_type rfind(const T& sv, size_type pos = npos)                             const;
 
 	size_type find_first_of(value_type c, size_type pos = 0)                       const;
 	size_type find_first_of(KStringView sv, size_type pos = 0)                     const;
 	size_type find_first_of(const value_type* s, size_type pos, size_type n)       const;
-	size_type find_first_of(const KString& str, size_type pos = 0)                 const { return find_first_of(str.data(), pos, str.size());     }
-	size_type find_first_of(const value_type* s, size_type pos = 0)                const { return find_first_of(s, pos, strlen(s));               }
-	size_type find_first_of(const std::string& str, size_type pos = 0)             const { return find_first_of(str.data(), pos, str.size());     }
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	size_type find_first_of(const T& sv, size_type pos = 0)                        const;
 
 	size_type find_last_of(value_type c, size_type pos = npos)                     const;
 	size_type find_last_of(KStringView sv, size_type pos = npos)                   const;
 	size_type find_last_of(const value_type* s, size_type pos, size_type n)        const;
-	size_type find_last_of(const KString& str, size_type pos = npos)               const { return find_last_of(str.data(), pos, str.size());      }
-	size_type find_last_of(const value_type* s, size_type pos = npos)              const { return find_last_of(s, pos, strlen(s));                }
-	size_type find_last_of(const std::string& str, size_type pos = npos)           const { return find_last_of(str.data(), pos, str.size());      }
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	size_type find_last_of(const T& sv, size_type pos = npos)                      const;
 
 	size_type find_first_not_of(value_type c, size_type pos = 0)                   const { return find_first_not_of(&c, pos, 1);                  }
 	size_type find_first_not_of(KStringView sv, size_type pos = 0)                 const;
 	size_type find_first_not_of(const value_type* s, size_type pos, size_type n)   const;
-	size_type find_first_not_of(const KString& str, size_type pos = 0)             const { return find_first_not_of(str.data(), pos, str.size()); }
-	size_type find_first_not_of(const value_type* s, size_type pos = 0)            const { return find_first_not_of(s, pos, strlen(s));           }
-	size_type find_first_not_of(const std::string& str, size_type pos = 0)         const { return find_first_not_of(str.data(), pos, str.size()); }
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	size_type find_first_not_of(const T& sv, size_type pos = 0)                    const;
 
 	size_type find_last_not_of(value_type c, size_type pos = npos)                 const { return find_last_not_of(&c, pos, 1);                   }
 	size_type find_last_not_of(KStringView sv, size_type pos = npos)               const;
 	size_type find_last_not_of(const value_type* s, size_type pos, size_type n)    const;
-	size_type find_last_not_of(const KString& str, size_type pos = npos)           const { return find_last_not_of(str.data(), pos, str.size());  }
-	size_type find_last_not_of(const value_type* s, size_type pos = npos)          const { return find_last_not_of(s, pos, strlen(s));            }
-	size_type find_last_not_of(const std::string& str, size_type pos = npos)       const { return find_last_not_of(str.data(), pos, str.size());  }
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	size_type find_last_not_of(const T& sv, size_type pos = npos)                  const;
 
-	void  insert(iterator p, size_type n, value_type c)                                   { m_rep.insert(p, n, c);                                 }
-	self& insert(size_type pos, const KString& str);
-	self& insert(size_type pos1, const KString& str, size_type pos2, size_type n = npos);
+	void  insert(iterator p, size_type n, value_type c)                                  { m_rep.insert(p, n, c);                                 }
+	self& insert(size_type pos, KStringView sv);
+	self& insert(size_type pos1, KStringView sv, size_type pos2, size_type n = npos);
 	self& insert(size_type pos, const value_type* s, size_type n);
-	self& insert(size_type pos, const value_type* s);
 	self& insert(size_type pos, size_type n, value_type c);
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
 	iterator insert(iterator it, value_type c);
 	template<class _InputIterator>
-	void insert(const_iterator it, _InputIterator beg, _InputIterator end)              { m_rep.insert(it, beg, end);                 }
+	void insert(const_iterator it, _InputIterator beg, _InputIterator end)              { m_rep.insert(it, beg, end);                             }
 	// should be const_iterator with C++11, but is not supported by libstdc++
 	iterator insert (iterator it, std::initializer_list<value_type> il);
-	self& insert(size_type pos, KStringView sv);
-	self& insert(size_type pos, const std::string& str);
-	self& insert(size_type pos1, const std::string& str, size_type pos2, size_type n = npos);
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	self& insert(size_type pos, const T& sv);
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
+	self& insert(size_type pos1, const T& sv, size_type pos2, size_type n = npos);
 
 	self& erase(size_type pos = 0, size_type n = npos);
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
@@ -379,15 +369,11 @@ public:
 	// extension from string_view
 	bool remove_prefix(KStringView prefix);
 
-	self& replace(size_type pos, size_type n, const KString& str);
-	self& replace(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2 = npos);
+	self& replace(size_type pos, size_type n, KStringView sv);
+	self& replace(size_type pos1, size_type n1, KStringView sv, size_type pos2, size_type n2);
+	self& replace(iterator i1, iterator i2, KStringView sv);
 	self& replace(size_type pos, size_type n1, const value_type* s, size_type n2);
-	self& replace(size_type pos, size_type n1, const value_type* s);
 	self& replace(size_type pos, size_type n1, size_type n2, value_type c);
-	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
-	self& replace(iterator i1, iterator i2, const KString& str);
-	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
-	self& replace(iterator i1, iterator i2, const value_type* s, size_type n);
 	template<class _InputIterator>
 	self& replace(const_iterator i1, iterator i2, _InputIterator first, _InputIterator last)
 	{
@@ -404,18 +390,32 @@ public:
 	}
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
 	self& replace(iterator i1, iterator i2, std::initializer_list<value_type> il);
-	self& replace(size_type pos, size_type n, KStringView sv);
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	self& replace(size_type pos, size_type n, T sv);
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
-	self& replace(iterator i1, iterator i2, KStringView sv);
-	self& replace(size_type pos, size_type n, const std::string& str);
-	self& replace(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2 = npos);
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	self& replace(iterator i1, iterator i2, T sv);
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	self& replace(size_type pos1, size_type n1, T sv, size_type pos2, size_type n2);
 
 	/// substring starting at zero-based position "pos" for "n" chars.  if "n" is not specified return the rest of the string starting at "pos"
-	KString substr(size_type pos = 0, size_type n = npos) const &;
+	KString substr(size_type pos = 0, size_type n = npos) const &
+	{
+		return DEKAF2_UNLIKELY(pos > size())
+		  ? self()
+		  : self(data() + pos, std::min(n, size() - pos));
+	}
+
 	/// substring starting at zero-based position "pos" for "n" chars.  if "n" is not specified return the rest of the string starting at "pos"
 	KString substr(size_type pos = 0, size_type n = npos) &&;
 
 	void swap(KString& s) { m_rep.swap(s.m_rep); }
+#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
+	void swap(std::string& s) { m_rep.swap(s.m_rep); }
+#endif
 
 	allocator_type get_allocator() const noexcept { return m_rep.get_allocator(); }
 
@@ -720,11 +720,20 @@ public:
 	KStringView ToView(size_type pos, size_type n) const;
 
 	/// test if the string is non-empty
-	explicit operator bool() const { return !empty(); }
+	explicit operator bool()      const { return !empty();            }
+
+	/// return the representation type
+	operator const string_type&() const { return m_rep;               }
+
+	operator string_type&()             { return m_rep;               }
 
 	/// helper operator to allow KString as formatting arg of fmt::format
 	operator fmt::string_view() const;
 
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+	/// allowing conversion into std::string_view
+	operator std::string_view()   const { return std::string_view(m_rep.data(), m_rep.size()); }
+#endif
 	/// is string one of the values in sHaystack, delimited by iDelim?
 	bool In (KStringView sHaystack, value_type iDelim=',') const;
 
@@ -878,8 +887,8 @@ inline KString::KString(const KStringViewZ& svz)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
-inline KString::KString(const T& sv)
+         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+KString::KString(const T& sv)
 //-----------------------------------------------------------------------------
 : KString(KStringView(sv))
 {
@@ -887,7 +896,7 @@ inline KString::KString(const T& sv)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
+         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
 KString::KString(const T& sv, size_type pos, size_type n)
 //-----------------------------------------------------------------------------
 : KString(KStringView(sv).substr(pos, n))
@@ -896,8 +905,8 @@ KString::KString(const T& sv, size_type pos, size_type n)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
-inline KString& KString::assign(const T& sv)
+         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+KString& KString::assign(const T& sv)
 //-----------------------------------------------------------------------------
 {
 	KStringView ksv(sv);
@@ -907,7 +916,7 @@ inline KString& KString::assign(const T& sv)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
+         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
 KString& KString::assign(const T& sv, size_type pos, size_type n)
 //-----------------------------------------------------------------------------
 {
@@ -930,8 +939,8 @@ inline KString& KString::operator= (const value_type *s)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
-inline KString& KString::operator= (const T& sv)
+         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+KString& KString::operator= (const T& sv)
 //-----------------------------------------------------------------------------
 {
 	return assign(KStringView(sv));
@@ -939,8 +948,49 @@ inline KString& KString::operator= (const T& sv)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
-inline KString& KString::append(const T& sv)
+		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+KString& KString::replace(size_type pos, size_type n, T sv)
+//-----------------------------------------------------------------------------
+{
+	return replace(pos, n, KStringView(sv));
+}
+
+//------------------------------------------------------------------------------
+inline KString& KString::replace(size_type pos1, size_type n1, KStringView sv, size_type pos2, size_type n2)
+//------------------------------------------------------------------------------
+{
+	return replace(pos1, n1, sv.substr(pos2, n2));
+}
+
+//-----------------------------------------------------------------------------
+template<typename T,
+		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+KString& KString::replace(iterator i1, iterator i2, T sv)
+//-----------------------------------------------------------------------------
+{
+	return replace(i1, i2, KStringView(sv));
+}
+
+//-----------------------------------------------------------------------------
+template<typename T,
+		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+KString& KString::replace(size_type pos1, size_type n1, T sv, size_type pos2, size_type n2)
+//-----------------------------------------------------------------------------
+{
+	return replace(pos1, n1, KStringView(sv).substr(pos2, n2));
+}
+
+//------------------------------------------------------------------------------
+inline KString& KString::replace(size_type pos, size_type n1, const value_type* s, size_type n2)
+//------------------------------------------------------------------------------
+{
+	return replace(pos, n1, KStringView(s, n2));
+}
+
+//-----------------------------------------------------------------------------
+template<typename T,
+         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+KString& KString::append(const T& sv)
 //-----------------------------------------------------------------------------
 {
 	KStringView ksv(sv);
@@ -950,7 +1000,7 @@ inline KString& KString::append(const T& sv)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
+         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
 KString& KString::append(const T& sv, size_type pos, size_type n)
 //-----------------------------------------------------------------------------
 {
@@ -980,46 +1030,38 @@ inline KString& KString::operator+= (std::initializer_list<value_type> il)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_convertible<T>::value, int>::type>
-inline KString& KString::operator+= (const T& sv)
+         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+KString& KString::operator+= (const T& sv)
 //-----------------------------------------------------------------------------
 {
 	return append(KStringView(sv));
 }
 
 //-----------------------------------------------------------------------------
-inline int KString::compare(const KString& str) const
+template<typename T,
+		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+int KString::compare(const T& sv) const
 //-----------------------------------------------------------------------------
 {
-	return ToView().compare(KStringView(str));
+	return ToView().compare(KStringView(sv));
 }
 
 //-----------------------------------------------------------------------------
-inline int KString::compare(size_type pos, size_type n, const KString& str) const
+template<typename T,
+		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+int KString::compare(size_type pos, size_type n1, const T& sv) const
 //-----------------------------------------------------------------------------
 {
-	return ToView().compare(pos, n, str.ToView());
+	return ToView().compare(pos, n1, KStringView(sv));
 }
 
 //-----------------------------------------------------------------------------
-inline int KString::compare(size_type pos1, size_type n1, const KString& str, size_type pos2, size_type n2) const
+template<typename T,
+		 typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+int KString::compare(size_type pos, size_type n1, const T& sv, size_type pos2, size_type n2) const
 //-----------------------------------------------------------------------------
 {
-	return ToView().compare(pos1, n1, str.ToView(), pos2, n2);
-}
-
-//-----------------------------------------------------------------------------
-inline int KString::compare(const value_type* s) const
-//-----------------------------------------------------------------------------
-{
-	return ToView().compare(s);
-}
-
-//-----------------------------------------------------------------------------
-inline int KString::compare(size_type pos, size_type n1, const value_type* s) const
-//-----------------------------------------------------------------------------
-{
-	return ToView().compare(pos, n1, s);
+	return ToView().compare(pos, n1, KStringView(sv), pos2, n2);
 }
 
 //-----------------------------------------------------------------------------
@@ -1028,45 +1070,6 @@ inline int KString::compare(size_type pos, size_type n1, const value_type* s, si
 {
 	return ToView().compare(pos, n1, s, n2);
 }
-
-//-----------------------------------------------------------------------------
-inline int KString::compare(KStringView sv) const
-//-----------------------------------------------------------------------------
-{
-	return ToView().compare(sv);
-}
-
-//-----------------------------------------------------------------------------
-inline int KString::compare(size_type pos, size_type n1, KStringView sv) const
-//-----------------------------------------------------------------------------
-{
-	return ToView().compare(pos, n1, sv);
-}
-
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-
-//-----------------------------------------------------------------------------
-inline int KString::compare(const std::string& str) const
-//-----------------------------------------------------------------------------
-{
-	return ToView().compare(str);
-}
-
-//-----------------------------------------------------------------------------
-inline int KString::compare(size_type pos, size_type n, const std::string& str) const
-//-----------------------------------------------------------------------------
-{
-	return ToView().compare(pos, n, str);
-}
-
-//-----------------------------------------------------------------------------
-inline int KString::compare(size_type pos1, size_type n1, const std::string& str, size_type pos2, size_type n2) const
-//-----------------------------------------------------------------------------
-{
-	return ToView().compare(pos1, n1, str, pos2, n2);
-}
-
-#endif
 
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 
@@ -1115,6 +1118,15 @@ inline KString::size_type KString::find(const value_type* s, size_type pos, size
 }
 
 #endif
+
+//-----------------------------------------------------------------------------
+template<typename T,
+		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+KString::size_type KString::find(const T& sv, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return find(KStringView(sv), pos);
+}
 
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 
@@ -1165,6 +1177,15 @@ inline KString::size_type KString::rfind(const value_type* s, size_type pos, siz
 #endif
 
 //-----------------------------------------------------------------------------
+template<typename T,
+		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+KString::size_type KString::rfind(const T& sv, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return rfind(KStringView(sv), pos);
+}
+
+//-----------------------------------------------------------------------------
 inline KString::size_type KString::find_first_of(value_type c, size_type pos) const
 //-----------------------------------------------------------------------------
 {
@@ -1211,6 +1232,16 @@ inline KString::size_type KString::find_first_of(const value_type* s, size_type 
 }
 
 #endif
+
+//-----------------------------------------------------------------------------
+template<typename T,
+		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+KString::size_type KString::find_first_of(const T& sv, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return find_first_of(KStringView(sv), pos);
+}
+
 
 //-----------------------------------------------------------------------------
 inline KString::size_type KString::find_last_of(value_type c, size_type pos) const
@@ -1261,6 +1292,15 @@ inline KString::size_type KString::find_last_of(const value_type* s, size_type p
 
 #endif
 
+//-----------------------------------------------------------------------------
+template<typename T,
+		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+KString::size_type KString::find_last_of(const T& sv, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return find_last_of(KStringView(sv), pos);
+}
+
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 
 //-----------------------------------------------------------------------------
@@ -1294,6 +1334,15 @@ inline KString::size_type KString::find_first_not_of(KStringView sv, size_type p
 }
 
 #endif
+
+//-----------------------------------------------------------------------------
+template<typename T,
+		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+KString::size_type KString::find_first_not_of(const T& sv, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return find_first_not_of(KStringView(sv), pos);
+}
 
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 
@@ -1330,17 +1379,44 @@ inline KString::size_type KString::find_last_not_of(KStringView sv, size_type po
 #endif
 
 //-----------------------------------------------------------------------------
-inline KString& KString::insert(size_type pos, const std::string& str)
+template<typename T,
+		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+KString::size_type KString::find_last_not_of(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
-	return insert(pos, str.data(), str.size());
+	return find_last_not_of(KStringView(sv), pos);
+}
+
+//------------------------------------------------------------------------------
+inline KString& KString::insert(size_type pos1, KStringView sv, size_type pos2, size_type n)
+//------------------------------------------------------------------------------
+{
+	return insert(pos1, sv.substr(pos2, n));
 }
 
 //-----------------------------------------------------------------------------
-inline KString& KString::replace(size_type pos, size_type n, const std::string& str)
+template<typename T,
+		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+KString& KString::insert(size_type pos, const T& sv)
 //-----------------------------------------------------------------------------
 {
-	return replace(pos, n, str.data(), str.size());
+	return insert(pos, KStringView(sv));
+}
+
+//-----------------------------------------------------------------------------
+template<typename T,
+		 typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+KString& KString::insert(size_type pos1, const T& sv, size_type pos2, size_type n)
+//-----------------------------------------------------------------------------
+{
+	return insert(pos1, KStringView(sv).substr(pos2, n));
+}
+
+//------------------------------------------------------------------------------
+inline KString& KString::insert(size_type pos, const value_type* s, size_type n)
+//------------------------------------------------------------------------------
+{
+	return insert(pos, KStringView(s, n));
 }
 
 //-----------------------------------------------------------------------------

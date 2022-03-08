@@ -47,6 +47,7 @@
 #include "kutf8.h"
 #include "kstringutils.h"
 #include <string>
+#include <type_traits>
 
 namespace dekaf2 {
 
@@ -232,6 +233,14 @@ void KDiff::CreateDiff(KStringView sOldText,
 KDiff::Diffs& KDiff::GetDiffs()
 //-----------------------------------------------------------------------------
 {
+#if defined(DEKAF2_HAS_CPP_20) && defined(__cpp_lib_is_layout_compatible)
+	static_assert(std::is_layout_compatible<KDiff::Diff, KDiffMatchPatch::Diff>::value, "different layout for Diff types");
+#else
+	static_assert(sizeof(KDiff::Diff) == sizeof(KDiffMatchPatch::Diff), "different size for Diff types");
+	static_assert(std::is_same<std::underlying_type<KDiff::Operation>::type, std::underlying_type<KDiffMatchPatch::Operation>::type>::value, "different type for Operation types");
+	static_assert(std::is_same<KDiff::string_t, decltype(KDiffMatchPatch::Diff::text)>::value, "different type for string types");
+#endif
+
 	static Diffs s_EmptyDiffs;
 
 	if (!m_Diffs)

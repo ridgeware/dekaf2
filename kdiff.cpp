@@ -424,11 +424,11 @@ std::size_t KDiff::GetHTMLDiff2 (KString& sOld, KString& sNew, KStringView sInse
 
 			case Operation::Delete:
 				sOld += '<';
-				sOld += sInsertTag;
+				sOld += sDeleteTag;
 				sOld += '>';
 				sOld += diff.GetText();
 				sOld += "</";
-				sOld += sInsertTag;
+				sOld += sDeleteTag;
 				sOld += '>';
 				++iDiffs;
 				break;

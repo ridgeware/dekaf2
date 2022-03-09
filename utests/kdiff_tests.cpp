@@ -47,6 +47,32 @@ TEST_CASE("KDiff")
 		CHECK ( sDiff == sExpected );
 	}
 
+	SECTION("KDiffToASCII2")
+	{
+		KString sText1    { "This is a fat cat"   };
+		KString sText2    { "That is a black hat" };
+		KStringView sExpected1 { "Th[-is] is a [-fat c]at" };
+		KStringView sExpected2 { "Th[+at] is a [+black h]at" };
+
+		auto iCount = KDiffToASCII2(sText1, sText2);
+		CHECK ( iCount == 4  );
+		CHECK ( sText1 == sExpected1 );
+		CHECK ( sText2 == sExpected2 );
+	}
+
+	SECTION("KDiffToHTML2")
+	{
+		KString sText1    { "This is a fat cat"   };
+		KString sText2    { "That is a black hat" };
+		KStringView sExpected1 { "Th<del>is</del> is a <del>fat c</del>at" };
+		KStringView sExpected2 { "Th<ins>at</ins> is a <ins>black h</ins>at" };
+
+		auto iCount = KDiffToHTML2(sText1, sText2);
+		CHECK ( iCount == 4  );
+		CHECK ( sText1 == sExpected1 );
+		CHECK ( sText2 == sExpected2 );
+	}
+
 	SECTION("GetUnifiedDiff")
 	{
 		KStringView sText1    { "This is a fat cat"   };

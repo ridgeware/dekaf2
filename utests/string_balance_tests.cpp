@@ -189,7 +189,7 @@ TEST_CASE("StringBalance") {
 			str.contains("abc");
 			str.replace(0, 2, "abc");
 			
-			str.starts_with(fsv());
+//			str.starts_with(OKS());
 			str.replace(0, 2, OKS());
 			str.find_first_not_of(OKS());
 		}

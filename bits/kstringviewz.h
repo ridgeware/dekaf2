@@ -138,11 +138,9 @@ public:
 	: base_type { str }
 	{}
 
-#ifdef DEKAF2_HAS_STD_STRING_VIEW
 	//-----------------------------------------------------------------------------
 	KStringViewZ(const sv::string_view& str) = delete;
 	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	KStringViewZ(const KString& str) noexcept
@@ -187,11 +185,9 @@ public:
 		return *this;
 	}
 
-#ifdef DEKAF2_HAS_STD_STRING_VIEW
 	//-----------------------------------------------------------------------------
 	self& operator=(sv::string_view other) = delete;
 	//-----------------------------------------------------------------------------
-#endif
 
 	using base_type::begin;
 	using base_type::cbegin;

@@ -51,7 +51,7 @@
 
 namespace dekaf2 {
 
-#ifndef __linux__
+#ifndef __GLIBC__
 //-----------------------------------------------------------------------------
 void* memrchr(const void* s, int c, size_t n)
 //-----------------------------------------------------------------------------
@@ -82,17 +82,13 @@ void* memrchr(const void* s, int c, size_t n)
 		}
 	}
 	return nullptr;
-}
-#endif
 
-#ifndef __GLIBC__
+} // memrchr
+
 //-----------------------------------------------------------------------------
 void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, size_t iNeedleSize)
 //-----------------------------------------------------------------------------
 {
-	// libc has a very slow memmem implementation (about 100 times slower than glibc),
-	// so we write our own, which is only about 2 times slower
-
 	if (!iNeedleSize || !needle || !haystack)
 	{
 		// an empty needle matches the start of any haystack
@@ -125,7 +121,8 @@ void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, siz
 
 	// no match
 	return nullptr;
-}
+
+} // memmem
 #endif
 
 //-----------------------------------------------------------------------------
@@ -145,23 +142,15 @@ size_t kFind(
 		return kFind(haystack, needle[0], pos);
 	}
 
-#ifdef __GLIBC__
-
-	// glibc has an excellent memmem implementation, so we use it
-
-	auto found = static_cast<const char*>(::memmem(haystack.data() + pos,
-												   haystack.size() - pos,
-	                                               needle.data(),
-	                                               iNeedleSize));
-#else
+	// glibc has an excellent memmem implementation, so we use it if available.
 	// libc has a very slow memmem implementation (about 100 times slower than glibc),
-	// so we use our own, which is only about 2 times slower
+	// so we use our own, which is only about 2 times slower, by overloading the
+	// function signature in the dekaf2 namespace above
 
-	auto found = static_cast<const char*>(dekaf2::memmem(haystack.data() + pos,
-														 haystack.size() - pos,
-														 needle.data(),
-														 iNeedleSize));
-#endif
+	auto found = static_cast<const char*>(memmem(haystack.data() + pos,
+												 haystack.size() - pos,
+												 needle.data(),
+												 iNeedleSize));
 
 	if (DEKAF2_UNLIKELY(!found))
 	{
@@ -178,7 +167,7 @@ size_t kFind(
 
 #endif
 
-}
+} // kFind
 
 #if (__GNUC__ > 6)
 #pragma GCC diagnostic push
@@ -243,7 +232,7 @@ size_t kRFind(
 
 #endif
 
-}
+} // kRFind
 #if (__GNUC__ > 6)
 #pragma GCC diagnostic pop
 #endif

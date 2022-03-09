@@ -49,6 +49,9 @@
 #include "kcppcompat.h"
 #include <cstring>
 
+#undef DEKAF2_HAS_STD_STRING_VIEW
+#undef DEKAF2_SV_NAMESPACE
+
 #if defined(DEKAF2_HAS_CPP_17) \
   && (defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION_MAJOR > 6))
 	#if DEKAF2_HAS_INCLUDE(<string_view>)
@@ -62,16 +65,13 @@
 	#endif
 #endif
 
-#ifdef DEKAF2_SV_NAMESPACE
-namespace sv = DEKAF2_SV_NAMESPACE;
-#endif
-
 #if defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW) \
 	|| !defined(DEKAF2_HAS_STD_STRING_VIEW)
 
-	/// tiny but nearly complete string_view implementation - it only does not have rfind() nor find_first/last_(not)_of() (but those are supplied through KStringView)
+	/// tiny but nearly complete string_view implementation - it only does not have find_first/last_(not)_of() (but those are supplied through KStringView)
 
 	#define DEKAF2_HAS_OWN_STRING_VIEW 1
+	#define DEKAF2_SV_NAMESPACE dekaf2::detail::stringview
 
 	namespace dekaf2 {
 	namespace detail {
@@ -109,7 +109,7 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 		constexpr
 		basic_string_view(const basic_string_view& other) noexcept = default;
 
-		basic_string_view(const std::string& strStr) noexcept
+		basic_string_view(const std::basic_string<CharT>& strStr) noexcept
 		: m_pszString(strStr.data())
 		, m_iSize(strStr.size())
 		{}
@@ -128,6 +128,11 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 
 		DEKAF2_CONSTEXPR_14
 		basic_string_view& operator=(const basic_string_view& other) noexcept = default;
+
+		operator std::basic_string<CharT>() const
+		{
+			return std::basic_string<CharT>(data(), size());
+		}
 
 		DEKAF2_CONSTEXPR_14
 		void clear() noexcept
@@ -321,10 +326,10 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 			{
 				return npos;
 			}
-			auto iNeedleBytes = needle.size() * CharSize;
-			auto pNeedleBytes = static_cast<const char*>(needle.data());
-			auto pHaystackBytes = static_cast<const char*>(data());
-#ifdef __GNUC__
+			auto iNeedleBytes   = needle.size() * CharSize;
+			auto pNeedleBytes   = reinterpret_cast<const char*>(needle.data());
+			auto pHaystackBytes = reinterpret_cast<const char*>(data());
+#ifdef __GLIBC__
 			auto pFound = static_cast<const char*>(::memmem(pHaystackBytes + pos * CharSize,
 														   (size() - pos) * CharSize,
 														   pNeedleBytes,
@@ -377,6 +382,53 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 		size_type find(const CharT* s, size_type pos) const noexcept
 		{
 			return find(basic_string_view(s), pos);
+		}
+
+		DEKAF2_CONSTEXPR_17
+		size_type rfind(CharT c, size_type pos) const noexcept
+		{
+			size_type iSize = size();
+			if (iSize)
+			{
+				if (--iSize > pos)
+				{
+					iSize = pos;
+				}
+				for (++iSize; iSize-- > 0; )
+				{
+					if (traits_type::eq(data()[iSize], c))
+					{
+						return iSize;
+					}
+				}
+			}
+			return npos;
+		}
+
+		size_type rfind(const CharT* s, size_type pos, size_type n) const noexcept
+		{
+			const auto iSize = size();
+			if (n <= iSize)
+			{
+				pos = std::min(size_type(iSize - n), pos);
+				const CharT* pData = data();
+				do
+				{
+					if (traits_type::compare(pData + pos, s, n) == 0)
+					{
+						return pos;
+					}
+				}
+				while (pos-- > 0);
+			}
+			return npos;
+		}
+
+		size_type rfind(basic_string_view needle, size_type pos = npos) const noexcept
+		{
+			return DEKAF2_UNLIKELY(needle.size() == 1)
+			                       ? rfind(needle.front(), pos)
+			                       : rfind(needle.data(), pos, needle.size());
 		}
 
 		DEKAF2_CONSTEXPR_14
@@ -495,7 +547,35 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 
 	template<typename CharT, typename Traits>
 	DEKAF2_CONSTEXPR_17
+	bool operator==(basic_string_view<CharT, Traits> left, std::basic_string<CharT> right) noexcept
+	{
+		return left.size() == right.size() && left.compare(basic_string_view<CharT, Traits>(right)) == 0;
+	}
+
+	template<typename CharT, typename Traits>
+	DEKAF2_CONSTEXPR_17
+	bool operator==(std::basic_string<CharT> left, basic_string_view<CharT, Traits> right) noexcept
+	{
+		return left.size() == right.size() && right.compare(basic_string_view<CharT, Traits>(left)) == 0;
+	}
+
+	template<typename CharT, typename Traits>
+	DEKAF2_CONSTEXPR_17
 	bool operator!=(basic_string_view<CharT, Traits> left, basic_string_view<CharT, Traits> right) noexcept
+	{
+		return !(left == right);
+	}
+
+	template<typename CharT, typename Traits>
+	DEKAF2_CONSTEXPR_17
+	bool operator!=(basic_string_view<CharT, Traits> left, std::basic_string<CharT> right) noexcept
+	{
+		return !(left == right);
+	}
+
+	template<typename CharT, typename Traits>
+	DEKAF2_CONSTEXPR_17
+	bool operator!=(std::basic_string<CharT> left, basic_string_view<CharT, Traits> right) noexcept
 	{
 		return !(left == right);
 	}
@@ -542,6 +622,27 @@ namespace sv = DEKAF2_SV_NAMESPACE;
 	} // end of namespace detail
 	} // end of namespace dekaf2
 
+	#include "khash.h"
+	namespace std
+	{
+		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		/// provide a std::hash for our string_view
+		template<typename CharT>
+		struct hash<dekaf2::detail::stringview::basic_string_view<CharT>>
+		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		{
+			std::size_t operator()(typename dekaf2::detail::stringview::basic_string_view<CharT> s) const noexcept
+			{
+				return dekaf2::kHash(reinterpret_cast<const char*>(s.data()), s.size() * sizeof(typename dekaf2::detail::stringview::basic_string_view<CharT>::value_type));
+			}
+		};
+
+	} // namespace std
 #endif
 
-
+#ifdef DEKAF2_SV_NAMESPACE
+namespace dekaf2 {
+// define the sv namespace symbol inside the dekaf2 namespace
+namespace sv = DEKAF2_SV_NAMESPACE;
+}
+#endif

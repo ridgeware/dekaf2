@@ -74,8 +74,18 @@
 
 namespace dekaf2 {
 
-#ifndef __linux__
-	extern void* memrchr(const void* s, int c, size_t n);
+#ifndef __GLIBC__
+//-----------------------------------------------------------------------------
+/// add a memrchr() to the dekaf2 namespace if not provided - will use SSE4 if available
+extern void* memrchr(const void* s, int c, size_t n);
+//-----------------------------------------------------------------------------
+
+/// libc has a very slow memmem implementation (about 100 times slower than glibc),
+/// so we write our own, which is only about 2 times slower, by overloading the
+/// function signature in the dekaf2 namespace
+//-----------------------------------------------------------------------------
+extern void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, size_t iNeedleSize);
+//-----------------------------------------------------------------------------
 #endif
 
 class KStringView;
@@ -217,11 +227,7 @@ class DEKAF2_PUBLIC KStringView
 public:
 //----------
 
-#if defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
-	using rep_type               = dekaf2::detail::stringview::string_view;
-#else
 	using rep_type               = DEKAF2_SV_NAMESPACE::string_view;
-#endif
 	using self_type              = KStringView;
 	using self                   = KStringView;
 	using size_type              = std::size_t;
@@ -256,7 +262,6 @@ public:
 	{
 	}
 
-#ifdef DEKAF2_HAS_STD_STRING_VIEW
 	//-----------------------------------------------------------------------------
 	constexpr
 	KStringView(sv::string_view str) noexcept
@@ -264,7 +269,6 @@ public:
 		: m_rep(str.data(), str.size())
 	{
 	}
-#endif
 
 	//-----------------------------------------------------------------------------
 	constexpr
@@ -334,7 +338,6 @@ public:
 		return *this;
 	}
 
-#ifdef DEKAF2_HAS_STD_STRING_VIEW
 	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
 	self& operator=(sv::string_view other)
@@ -359,7 +362,6 @@ public:
 	{
 		return ToStdView();
 	}
-#endif
 
 	//-----------------------------------------------------------------------------
 	operator std::string() const

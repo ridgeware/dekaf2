@@ -69,13 +69,13 @@ public:
 
 #if defined(DEKAF2_KDIFF_USE_WSTRING)
 	using string_t     = std::wstring;
-	using stringview_t = std::wstring_view;
+	using stringview_t = sv::wstring_view;
 #elif defined(DEKAF2_KDIFF_USE_KSTRING)
 	using string_t     = KString;
 	using stringview_t = KStringView;
 #else
 	using string_t     = std::string;
-	using stringview_t = std::string_view;
+	using stringview_t = sv::string_view;
 #endif
 
 	enum DiffMode

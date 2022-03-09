@@ -147,7 +147,7 @@ class diff_match_patch
 	template<class StringView,
              typename std::enable_if<!std::is_same<string_t, StringView>::value, int>::type = 0>
     Diff(Operation _operation, StringView _text)
-	: operation(_operation), text(_text)
+	: operation(_operation), text(_text.data(), _text.size())
     {}
 
     /**

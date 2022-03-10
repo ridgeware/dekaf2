@@ -8806,6 +8806,37 @@ bool KSQL::KillQuery(ConnectionID iConnectionID)
 } // KillQuery
 
 //-----------------------------------------------------------------------------
+KSQL::ConnectionInfo KSQL::GetConnectionInfo(ConnectionID iConnectionID)
+//-----------------------------------------------------------------------------
+{
+	ConnectionInfo Info;
+	Info.ID = iConnectionID;
+
+	auto iOldFlags = SetFlag(F_IgnoreSelectKeyword);
+
+	if (ExecQuery("select host /* KSQL::GetConnectionInfo() */\n"
+				  ", db \n"
+				  ", state \n"
+				  ", info_binary \n"
+				  ", time \n"
+				  "from INFORMATION_SCHEMA.PROCESSLIST \n"
+				  "where ID = {}",
+				  iConnectionID) && NextRow())
+	{
+		Info.sHost    = Get(1);
+		Info.sDB      = Get(2);
+		Info.sState   = Get(3);
+		Info.sQuery   = Get(4);
+		Info.iSeconds = Get(5).UInt64();
+	}
+
+	SetFlags(iOldFlags);
+
+	return Info;
+
+} // GetConnectionInfo
+
+//-----------------------------------------------------------------------------
 KString KSQL::ConvertTimestamp (KStringView sTimestamp)
 //-----------------------------------------------------------------------------
 {

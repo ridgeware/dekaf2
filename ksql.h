@@ -932,6 +932,24 @@ public:
 	/// kills running query of connection with ID iConnectionID
 	bool KillQuery(ConnectionID iConnectionID);
 
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// keeping current query state of a connection
+	struct ConnectionInfo
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		ConnectionID ID       { 0 }; ///< the connection ID
+		KString      sHost;          ///< the database host
+		KString      sDB;            ///< the current database
+		KString      sState;         ///< the current state
+		KString      sQuery;         ///< the running query
+		std::size_t  iSeconds { 0 }; ///< the time in seconds the query is running
+
+	}; // ConnectionID
+
+	/// returns a ConnectionInfo struct for the requested connection ID
+	/// @param iConnectionID the connection ID to query for
+	ConnectionInfo GetConnectionInfo(ConnectionID iConnectionID);
+
 	TXList  m_TxList;
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

@@ -41,15 +41,15 @@
 
 #pragma once
 
+/// @file kwebclient.h
+/// HTTP client implementation - high level
+
 #include "kstringview.h"
 #include "kmime.h"
 #include "kurl.h"
 #include "khttpclient.h"
 #include "kjson.h"
 #include "kcookie.h"
-
-/// @file kwebclient.h
-/// HTTP client implementation - high level
 
 namespace dekaf2 {
 
@@ -59,6 +59,7 @@ namespace dekaf2 {
 bool KWget (KStringView sURL, const KString& sOutfile, const KJSON& Options=KJSON{});
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// high level HTTP client implementation with redirects etc.
 class DEKAF2_PUBLIC KWebClient : public KHTTPClient
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -71,6 +72,7 @@ public:
 	using TimingCallback_t = std::function<void(const KWebClient&, uint64_t, const KString&)>;
 
 	//-----------------------------------------------------------------------------
+	/// default ctor
 	KWebClient(bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 

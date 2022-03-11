@@ -41,6 +41,9 @@
 
 #pragma once
 
+/// @file krestclient.h
+/// REST client implementations for strings and JSON
+
 #include "kstring.h"
 #include "kstringview.h"
 #include "kwebclient.h"

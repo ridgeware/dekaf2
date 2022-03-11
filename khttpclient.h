@@ -41,6 +41,9 @@
 
 #pragma once
 
+/// @file khttpclient.h
+/// HTTP client implementation - low level
+
 #include "kstring.h"
 #include "kstringview.h"
 #include "kconnection.h"
@@ -51,9 +54,6 @@
 #include "kmime.h"
 #include "kurl.h"
 #include "kconfiguration.h"
-
-/// @file khttpclient.h
-/// HTTP client implementation - low level
 
 #ifdef DEKAF2_IS_WINDOWS
 	// Windows has a DELETE macro in winnt.h which interferes with
@@ -66,6 +66,7 @@
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// low level implementation of a HTTP client
 class DEKAF2_PUBLIC KHTTPClient
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -87,7 +88,10 @@ public:
 	//------
 
 		virtual ~Authenticator() = default;
+		/// return the completed auth header as a string
 		virtual const KString& GetAuthHeader(const KOutHTTPRequest& Request, KStringView sBody) = 0;
+		/// check if this authenticator needs the content data to compute
+		/// @return true if it needs content data, false otherwise
 		virtual bool NeedsContentData() const { return false; }
 
 	}; // Authenticator
@@ -102,11 +106,17 @@ public:
 	public:
 	//------
 
+		/// default ctor
 		BasicAuthenticator() = default;
+		/// construct basic authenticator from username and password
+		/// @param _sUsername the username for basic auth
+		/// @param _sPassword the password for basic auth
 		BasicAuthenticator(KString _sUsername, KString _sPassword);
 		virtual const KString& GetAuthHeader(const KOutHTTPRequest& Request, KStringView sBody) override;
 
+		/// the username
 		KString sUsername;
+		/// the password
 		KString sPassword;
 
 	//------
@@ -127,7 +137,9 @@ public:
 	public:
 	//------
 
+		/// default ctor
 		DigestAuthenticator() = default;
+		/// construct from parameters
 		DigestAuthenticator(KString _sUsername,
 							KString _sPassword,
 							KString _sRealm,
@@ -151,6 +163,7 @@ public:
 	}; // DigestAuthenticator
 
 	//-----------------------------------------------------------------------------
+	/// default ctor
 	KHTTPClient(bool bVerifyCerts = false);
 	//-----------------------------------------------------------------------------
 
@@ -174,6 +187,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// move ctor
 	KHTTPClient(KHTTPClient&&) = default;
 	//-----------------------------------------------------------------------------
 
@@ -182,40 +196,46 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// move assignment
 	KHTTPClient& operator=(KHTTPClient&&) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Connect with a KConnection object
 	bool Connect(std::unique_ptr<KConnection> Connection);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Connect with a KURL object (or a string)
 	bool Connect(const KURL& url);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(const KURL& url, const KURL& Proxy);
+	/// Connect with a KURL object (or a string) through a KURL proxy (or a string)
+ 	bool Connect(const KURL& url, const KURL& Proxy);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Disconnect connection
 	bool Disconnect();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Set the resource to be requested
+	/// Set the resource to be requested - for proxied connections, this also sets the proxied endpoint!
 	bool Resource(const KURL& url, KHTTPMethod method = KHTTPMethod::GET);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Adds a request header for the next request
-	KHTTPClient& AddHeader(KHTTPHeader Header, KStringView svValue)
+	KHTTPClient& AddHeader(KHTTPHeader Header, KStringView svValue);
 	//-----------------------------------------------------------------------------
-	{
-		Request.Headers.Set(std::move(Header), svValue);
-		return *this;
-	}
 
 	//-----------------------------------------------------------------------------
+	/// Send the HTTP request, read request body from a stream
+	/// @param PostDataStream a stream with the POST/PUT data
+	/// @param len the length to send, or npos (default) for all available
+	/// @param Mime the KMIME type for the request body, defaults to KMIME::TEXT_PLAIN
+	/// @return true on success
 	bool SendRequest(KInStream& PostDataStream, size_t len = npos, const KMIME& Mime = KMIME::TEXT_PLAIN)
 	//-----------------------------------------------------------------------------
 	{
@@ -223,6 +243,10 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Send the HTTP request, read request body from a string view
+	/// @param svPostData a string view with the POST/PUT data
+	/// @param Mime the KMIME type for the request body, defaults to KMIME::TEXT_PLAIN
+	/// @return true on success
 	bool SendRequest(KStringView svPostData = KStringView{}, const KMIME& Mime = KMIME::TEXT_PLAIN)
 	//-----------------------------------------------------------------------------
 	{
@@ -272,6 +296,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Is the HTTP connection still good?
 	bool Good() const
 	//-----------------------------------------------------------------------------
 	{
@@ -295,6 +320,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns HTTP error string if any
 	const KString& Error() const
 	//-----------------------------------------------------------------------------
 	{
@@ -383,10 +409,10 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Allows to manually configure a host header that is not derived from the
 	/// connected URL
-	self& ForceHostHeader(KStringView sHost)
+	self& ForceHostHeader(KString sHost)
 	//-----------------------------------------------------------------------------
 	{
-		m_sForcedHost = sHost;
+		m_sForcedHost = std::move(sHost);
 		return *this;
 	}
 
@@ -484,6 +510,7 @@ private:
 	bool             m_bAutoProxy { false };
 	bool             m_bUseHTTPProxyProtocol { false };
 	bool             m_bKeepAlive { true };
+	bool             m_bHaveHostSet { false };
 
 //------
 public:

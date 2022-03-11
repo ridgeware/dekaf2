@@ -209,6 +209,7 @@ void KHTTPClient::clear()
 	Response.clear();
 	m_sError.clear();
 	m_Authenticator.reset();
+	m_bHaveHostSet = false;
 
 	// do not reset m_bUseHTTPProxyProtocol here - it stays valid until
 	// the setup of a new connection, and
@@ -540,6 +541,12 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 		// for HTTPS proxying the CONNECT query has the server
 		// domain and port
 		Request.Endpoint = url;
+
+		if (Request.Endpoint.empty())
+		{
+			return SetError("Endpoint is empty with CONNECT method");
+		}
+
 		bIsConnect = true;
 		AddHeader(KHTTPHeader::PROXY_CONNECTION, "keep-alive");
 	}
@@ -549,6 +556,14 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 		// the server domain and port
 		Request.Endpoint = url;
 		Request.Resource = url;
+
+		if (Request.Endpoint.empty())
+		{
+			return SetError("Endpoint is empty in HTTP proxy mode");
+		}
+
+		// resource may be empty..
+
 		AddHeader(KHTTPHeader::PROXY_CONNECTION, "keep-alive");
 	}
 	else
@@ -571,7 +586,11 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 //-----------------------------------------------------------------------------
 {
-	if (!m_sForcedHost.empty())
+	if (m_bHaveHostSet)
+	{
+		kDebug(2, "host already set by user to: Host: {}", Request.Headers.Get(KHTTPHeader::HOST));
+	}
+	else if (!m_sForcedHost.empty())
 	{
 		AddHeader(KHTTPHeader::HOST, m_sForcedHost);
 	}
@@ -600,6 +619,21 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 	return true;
 
 } // SetHostHeader
+
+//-----------------------------------------------------------------------------
+/// Adds a request header for the next request
+KHTTPClient& KHTTPClient::AddHeader(KHTTPHeader Header, KStringView svValue)
+//-----------------------------------------------------------------------------
+{
+	if (DEKAF2_UNLIKELY(Header == KHTTPHeader::HOST))
+	{
+		m_bHaveHostSet = true;
+	}
+
+	Request.Headers.Set(std::move(Header), svValue);
+	return *this;
+
+} // AddHeader
 
 //-----------------------------------------------------------------------------
 KHTTPClient& KHTTPClient::BasicAuthentication(KString sUsername,
@@ -880,6 +914,16 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod, bool b
 
 				if (!Redirect.empty())
 				{
+					// any user set host headers are invalid if the redirection included
+					// domain, port, or protocol
+					if ((!Redirect.Domain.empty()   && Redirect.Domain   != URL.Domain) ||
+						(!Redirect.Port.empty()     && Redirect.Port     != URL.Port) ||
+					    (!Redirect.Protocol.empty() && Redirect.Protocol != URL.Protocol))
+					{
+						m_bHaveHostSet = false;
+						m_sForcedHost.clear();
+					}
+
 					if (Redirect.Protocol.empty())
 					{
 						Redirect.Protocol = URL.Protocol;

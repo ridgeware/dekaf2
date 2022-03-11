@@ -278,7 +278,7 @@ public:
 
 	/// is this part empty?
 	bool empty() const { return m_Parts.empty(); }
-	/// how many (multi) parts does this struct contains
+	/// how many (multi) parts does this struct contain
 	Storage::size_type size() const { return m_Parts.size(); }
 	/// return iterator to the begin of the struct of parts
 	iterator begin() { return m_Parts.begin(); }

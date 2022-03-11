@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kurlencode.h
+/// percent-encoding methods
+
 #include "kstringutils.h"
 #include "kstringview.h"
 #include "kstring.h"
@@ -55,6 +58,7 @@
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// the different URL components
 enum class URIPart : uint8_t
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -71,6 +75,7 @@ enum class URIPart : uint8_t
 namespace detail {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// the encoding tables used for the different URL components
 class DEKAF2_PUBLIC KUrlEncodingTables
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -130,7 +135,7 @@ inline Ch kx2c (Ch* pszGoop)
 } // detail until here
 
 //-----------------------------------------------------------------------------
-/// decodes string in place
+/// percent-decodes string in place
 template<class String>
 void kUrlDecode (String& sDecode, bool bPlusAsSpace = false)
 //-----------------------------------------------------------------------------
@@ -178,7 +183,7 @@ void kUrlDecode (String& sDecode, bool bPlusAsSpace = false)
 } // kUrlDecode
 
 //-----------------------------------------------------------------------------
-/// decodes string on a copy
+/// percent-decodes string on a copy
 template<class String>
 void kUrlDecode (KStringView sSource, String& sTarget, bool bPlusAsSpace = false)
 //-----------------------------------------------------------------------------
@@ -220,6 +225,10 @@ void kUrlDecode (KStringView sSource, String& sTarget, bool bPlusAsSpace = false
 } // kUrlDecode copy
 
 //-----------------------------------------------------------------------------
+/// percent-decodes string
+/// @param sSource the encoded string
+/// @param bPlusAsSpace if true, a + sign will be translated as space, default is false
+/// @return the decoded string
 template<class String>
 String kUrlDecode (KStringView sSource, bool bPlusAsSpace = false)
 //-----------------------------------------------------------------------------
@@ -230,6 +239,11 @@ String kUrlDecode (KStringView sSource, bool bPlusAsSpace = false)
 }
 
 //-----------------------------------------------------------------------------
+/// percent-encodes string
+/// @param sSource the unencoded input string
+/// @param sTarget the encoded output string
+/// @param excludeTable pointer on a table with ASCII chars that are not to be percent encoded
+/// @param bSpaceAsPlus if true, a space will be translated as + sign, default is false
 template<class String>
 void kUrlEncode (KStringView sSource, String& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false)
 //-----------------------------------------------------------------------------
@@ -264,6 +278,11 @@ void kUrlEncode (KStringView sSource, String& sTarget, const bool excludeTable[2
 }
 
 //-----------------------------------------------------------------------------
+/// percent-encodes string
+/// @param sSource the unencoded input string
+/// @param sTarget the encoded output string
+/// @param svExclude string view with ASCII chars that are not to be percent encoded
+/// @param bSpaceAsPlus if true, a space will be translated as + sign, default is false
 template<class String>
 void kUrlEncode (KStringView sSource, String& sTarget, KStringView svExclude=KStringView{}, bool bSpaceAsPlus = false)
 //-----------------------------------------------------------------------------
@@ -280,6 +299,9 @@ void kUrlEncode (KStringView sSource, String& sTarget, KStringView svExclude=KSt
 }
 
 //-----------------------------------------------------------------------------
+/// percent-decode in place
+/// @param sTarget the input/output string
+/// @param encoding the URIPart component, used to determine the applicable exclusion table for the conversion
 template<class String>
 void kUrlDecode (String& sTarget, URIPart encoding)
 //-----------------------------------------------------------------------------
@@ -288,6 +310,10 @@ void kUrlDecode (String& sTarget, URIPart encoding)
 }
 
 //-----------------------------------------------------------------------------
+/// percent-decode
+/// @param sSource the input string
+/// @param sTarget the output string
+/// @param encoding the URIPart component, used to determine the applicable exclusion table for the conversion
 template<class String>
 void kUrlDecode (KStringView sSource, String& sTarget, URIPart encoding)
 //-----------------------------------------------------------------------------
@@ -296,6 +322,10 @@ void kUrlDecode (KStringView sSource, String& sTarget, URIPart encoding)
 }
 
 //-----------------------------------------------------------------------------
+/// percent-encode
+/// @param sSource the input string
+/// @param sTarget the output string
+/// @param encoding the URIPart component, used to determine the applicable exclusion table for the conversion
 template<class String>
 void kUrlEncode (KStringView sSource, String& sTarget, URIPart encoding)
 //-----------------------------------------------------------------------------
@@ -304,6 +334,7 @@ void kUrlEncode (KStringView sSource, String& sTarget, URIPart encoding)
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// wrapper for types that have a percent-decoded and percent-encoded form
 template<
 	typename Decoded,
 	const char chPairSep = '\0',
@@ -322,10 +353,12 @@ public:
 	using value_type     = Decoded;
 
 	//-------------------------------------------------------------------------
+	/// default ctor
 	KURLEncoded() = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// construct from a string
 	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	void get(KString& sTarget) const
 	//-------------------------------------------------------------------------
@@ -334,6 +367,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// return the decoded value
 	value_type& get()
 	//-------------------------------------------------------------------------
 	{
@@ -341,6 +375,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// return the (const) decoded value
 	const value_type& get() const
 	//-------------------------------------------------------------------------
 	{
@@ -348,6 +383,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// serialize into a string
 	// the non-Key-Value POD encoding
 	template<const char X = chPairSep, bool P = bIsPod, typename std::enable_if<X == '\0' && P == true, int>::type = 0>
 	void Serialize(KString& sEncoded, URIPart Component) const
@@ -357,6 +393,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// serialize into a string
 	// the non-Key-Value non-POD encoding
 	template<const char X = chPairSep, bool P = bIsPod, typename std::enable_if<X == '\0' && P == false, int>::type = 0>
 	void Serialize(KString& sEncoded, URIPart Component) const
@@ -366,6 +403,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// serialize into a string
 	// the Key-Value encoding
 	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
 	void Serialize(KString& sEncoded, URIPart Component) const
@@ -392,6 +430,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// serialize into a string
 	KString Serialize(URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
@@ -401,6 +440,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// serialize into a stream
 	void Serialize(KOutStream& sTarget, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
@@ -408,6 +448,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// parse from a string
 	template<const char X = chPairSep, bool P = bIsPod, typename std::enable_if<X == '\0' && P == true, int>::type = 0>
 	void Parse(KStringView sv, URIPart Component)
 	//-------------------------------------------------------------------------
@@ -416,6 +457,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// parse from a string
 	template<const char X = chPairSep, bool P = bIsPod, typename std::enable_if<X == '\0' && P == false, int>::type = 0>
 	void Parse(KStringView sv, URIPart Component)
 	//-------------------------------------------------------------------------
@@ -425,6 +467,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	// the Key-Value decoding
+	/// parse from a string
 	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
 	void Parse(KStringView sv, URIPart Component)
 	//-------------------------------------------------------------------------
@@ -469,14 +512,16 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	 template<bool X = bIsPod, typename std::enable_if<!X, int>::type = 0 >
-	 auto begin()
+	/// return the begin iterator
+	template<bool X = bIsPod, typename std::enable_if<!X, int>::type = 0 >
+	auto begin()
 	//-------------------------------------------------------------------------
 	{
 		return m_sDecoded.begin();
 	}
 
 	//-------------------------------------------------------------------------
+	/// return the end iterator
 	template<bool X = bIsPod, typename std::enable_if<!X, int>::type = 0 >
 	auto end()
 	//-------------------------------------------------------------------------
@@ -485,6 +530,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// return the begin iterator
 	template<bool X = bIsPod, typename std::enable_if<!X, int>::type = 0 >
 	auto begin() const
 	//-------------------------------------------------------------------------
@@ -493,6 +539,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// return the const iterator
 	template<bool X = bIsPod, typename std::enable_if<!X, int>::type = 0 >
 	auto end() const
 	//-------------------------------------------------------------------------
@@ -501,6 +548,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// set the value from a string
 	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
 	void set(KStringView sv)
 	//-------------------------------------------------------------------------
@@ -509,6 +557,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// is this object empty?
 	template<bool X = bIsPod, typename std::enable_if<X == false, int>::type = 0>
 	bool empty() const
 	//-------------------------------------------------------------------------
@@ -517,6 +566,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// is this object empty?
 	template<bool X = bIsPod, typename std::enable_if<X == true, int>::type = 0>
 	bool empty() const
 	//-------------------------------------------------------------------------
@@ -525,6 +575,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// clear this object
 	template<bool X = bIsPod, typename std::enable_if<X == false, int>::type = 0>
 	void clear()
 	//-------------------------------------------------------------------------
@@ -533,6 +584,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// clear this object
 	template<bool X = bIsPod, typename std::enable_if<X == true, int>::type = 0>
 	void clear()
 	//-------------------------------------------------------------------------

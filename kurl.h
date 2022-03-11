@@ -42,6 +42,9 @@
 
 #pragma once
 
+/// @file kurl.h
+/// URL and URL component handling
+
 #include "kurlencode.h"
 #include "kstringview.h"
 #include "kstring.h"
@@ -51,10 +54,25 @@
 #include "bits/ktemplate.h"
 #include <cinttypes>
 
-
 namespace dekaf2 {
 
 //-------------------------------------------------------------------------
+/// Convert into a special "Base" domain
+/// @param sHostName hostname to be converted into the base domain
+///
+/// The return value of kGetBaseDomain is special-cased:
+///
+///         google.com       1Back but no 2Back     GOOGLE
+///
+///        www.ibm.com       2Back but no ".co."    IBM
+///
+/// foo.bar.baz.co.jp        3Back and is ".co."    BAZ
+///    ^   ^   ^  ^
+///    |   |   |  |
+///    4   3   2  1 Back
+/// If ".co." between 2Back & 1Back : base domain is between 3Back & 2Back
+/// If not, and 2Back exists: base domain is between 2Back & 1Back
+/// If not even 2Back then base domain is between beginning and 1Back
 DEKAF2_PUBLIC
 KString kGetBaseDomain (KStringView sHostName);
 //-------------------------------------------------------------------------
@@ -63,17 +81,18 @@ namespace url {
 namespace detail {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-// we have two different storage types for the KURI components:
-// URLEncodedString
-// KProps
-// For some of the class methods we need specializations
+/// A generalized template class to hold all components of a URI except the protocol component.
+/// We have three different storage types for the KURI components:
+/// URLEncodedString
+/// URLEncodedQuery
+/// URLEncodedUInt
 template<
-	class Storage,
-	URIPart Component,
-	const char StartToken,
-	bool RemoveStartSeparator,
-	bool RemoveEndSeparator,
-	bool IsString
+	class Storage,              ///< the storage class, URLEncodedString, URLEncodedQuery (KProps), or URLEncodedUInt
+	URIPart Component,          ///< the URL component type
+	const char StartToken,      ///< the start token, one of @:/;?#
+	bool RemoveStartSeparator,  ///< whether to remove the start token when parsing
+	bool RemoveEndSeparator,    ///< whether to remove the end token when parsing
+	bool IsString               ///< true if this is a string
 >
 class URIComponent
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -83,7 +102,7 @@ class URIComponent
 public:
 //------
 
-	using self_type      = URIComponent<Storage, Component, StartToken, RemoveStartSeparator, RemoveEndSeparator, IsString>;
+	using self_type = URIComponent<Storage, Component, StartToken, RemoveStartSeparator, RemoveEndSeparator, IsString>;
 
 	//-------------------------------------------------------------------------
 	/// constructs empty instance.
@@ -99,6 +118,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// constructs from integer types
 	template<typename T, typename U = typename Storage::value_type,
 	         typename std::enable_if<dekaf2::detail::is_pod<U>::value &&
 	                                 std::is_convertible<T, U>::value == true, int>::type = 0>
@@ -269,7 +289,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// generate content into string from members (not user or password)
+	/// serialize content into string from members (not user or password)
 	template<URIPart C = Component, typename std::enable_if<C != URIPart::User && C != URIPart::Password, int>::type = 0 >
 	bool Serialize (KString& sTarget) const
 	//-------------------------------------------------------------------------
@@ -288,7 +308,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// generate content into string from user or password
+	/// serialize content into string from user or password
 	template<URIPart C = Component, typename std::enable_if<C == URIPart::User || C == URIPart::Password, int>::type = 0 >
 	bool Serialize (KString& sTarget, char chSuffix = '@') const
 	//-------------------------------------------------------------------------
@@ -319,7 +339,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// generate content into stream from members (not user or password)
+	/// serialize content into stream from members (not user or password)
 	template<URIPart C = Component, typename std::enable_if<C != URIPart::User && C != URIPart::Password, int>::type = 0 >
 	bool Serialize (KOutStream& sTarget) const
 	//-------------------------------------------------------------------------
@@ -338,7 +358,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// generate content into stream from user or password
+	/// serialize content into stream from user or password
 	template<URIPart C = Component, typename std::enable_if<C == URIPart::User || C == URIPart::Password, int>::type = 0 >
 	bool Serialize (KOutStream& sTarget, char chSuffix = '@') const
 	//-------------------------------------------------------------------------
@@ -406,7 +426,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// return the key-value value
+	/// return the key-value const value
 	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
 	const KString& operator[] (KStringView sv) const
 	//-------------------------------------------------------------------------
@@ -634,8 +654,8 @@ using KFragment = detail::URIComponent<URLEncodedString, URIPart::Fragment, '#',
 using KQueryParms = URLEncodedQuery::value_type;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-// The URL Schema is a bit different from the other URI components, therefore
-// we handle it manually
+/// The URL Schema is a bit different from the other URI components, therefore
+/// we handle it manually
 class DEKAF2_PUBLIC KProtocol
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -683,26 +703,12 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// constructs instance and parses source into members
-	KProtocol (KStringView svSource)
+	template<typename T,
+	        typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	KProtocol (const T& svSource)
 	//-------------------------------------------------------------------------
 	{
 		Parse (svSource, true);
-	}
-
-	//-------------------------------------------------------------------------
-	/// constructs instance and parses source into members
-	KProtocol (const KString& sSource)
-	//-------------------------------------------------------------------------
-	{
-		Parse (sSource, true);
-	}
-
-	//-------------------------------------------------------------------------
-	/// constructs instance and parses source into members
-	KProtocol (const char* sSource)
-	//-------------------------------------------------------------------------
-	{
-		Parse (sSource, true);
 	}
 
 	//-------------------------------------------------------------------------
@@ -874,6 +880,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// returns the default port for the protocol, or 0 if unknown
 	uint16_t DefaultPort() const;
 	//-------------------------------------------------------------------------
 
@@ -904,6 +911,7 @@ bool kIsSubDomainOf(const url::KDomain& Domain, const url::KDomain& SubDomain);
 class KURL;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Keeps the Path and Query components of a URL
 class DEKAF2_PUBLIC KResource
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -913,12 +921,14 @@ public:
 //------
 
 	//-------------------------------------------------------------------------
+	/// default ctor
 	KResource() = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// construct from any type that can be assigned to a KStringView
 	template<typename T,
-			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+			 typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	KResource(const T& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -926,12 +936,14 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// construct from a KURL
 	KResource(const KURL& url);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// assign from any type that can be assigned to a KStringView
 	template<typename T,
-			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+			 typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	KResource& operator=(const T& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -940,18 +952,24 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// parse from a string view
 	KStringView Parse(KStringView svSource);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// clear object
 	void clear();
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// serialize into a string
+	/// @return always true
 	bool Serialize(KString& sTarget) const;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// serialize into a stream
+	/// @return always true
 	bool Serialize(KOutStream& sTarget) const;
 	//-------------------------------------------------------------------------
 
@@ -965,7 +983,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// return encoded content
+	/// return percent-encoded content
 	KString Serialize() const
 	//-------------------------------------------------------------------------
 	{
@@ -992,6 +1010,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// is this resource object empty?
 	bool empty() const
 	//-------------------------------------------------------------------------
 	{
@@ -1050,6 +1069,7 @@ protected:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// keeps all parts of a URL
 class DEKAF2_PUBLIC KURL : public KResource
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1059,12 +1079,14 @@ public:
 //------
 
 	//-------------------------------------------------------------------------
+	/// default ctor
 	KURL() = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// construct from any type that can be assigned to a KStringView
 	template<typename T,
-			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+	         typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	KURL(const T& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -1072,6 +1094,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// construct from a KResource object
 	KURL(KResource Resource)
 	//-------------------------------------------------------------------------
 		: KResource(std::move(Resource))
@@ -1079,8 +1102,9 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// assign from any type that can be assigned to a KStringView
 	template<typename T,
-			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+	         typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	KURL& operator=(const T& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -1089,25 +1113,29 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// parse from a string view
 	KStringView Parse(KStringView svSource);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// clear the object
 	void clear();
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
 	/// generate content into encoded string from members
+	/// @return always true
 	bool Serialize(KString& sTarget) const;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
 	/// generate content into encoded stream from members
+	/// @return always true
 	bool Serialize (KOutStream& sTarget) const;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	/// return encoded content
+	/// return percent-encoded content
 	KString Serialize() const
 	//-------------------------------------------------------------------------
 	{
@@ -1182,6 +1210,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// is this object empty?
 	bool empty() const
 	//-------------------------------------------------------------------------
 	{
@@ -1225,6 +1254,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// returns the "base" domain as from kGetBaseDomain() for this URL
 	KString GetBaseDomain() const
 	//-------------------------------------------------------------------------
 	{
@@ -1243,6 +1273,7 @@ public:
 }; // KURL
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// keeps a domain and port number
 class DEKAF2_PUBLIC KTCPEndPoint
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1252,12 +1283,14 @@ public:
 //------
 
 	//-------------------------------------------------------------------------
+	/// default ctor
 	KTCPEndPoint() = default;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// construct from any type that can be assigned to a KStringView
 	template<typename T,
-			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+	         typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	KTCPEndPoint(const T& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -1265,10 +1298,12 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// construct from a KURL object
 	KTCPEndPoint(const KURL& URL);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// construct from a domain and port
 	KTCPEndPoint(url::KDomain domain, url::KPort port)
 	//-------------------------------------------------------------------------
 	    : Domain(std::move(domain))
@@ -1276,6 +1311,7 @@ public:
 	{}
 
 	//-------------------------------------------------------------------------
+	/// construct from a domain and port
 	KTCPEndPoint(KStringView sDomain, uint16_t iPort)
 	//-------------------------------------------------------------------------
 	    : Domain(sDomain)
@@ -1283,8 +1319,9 @@ public:
 	{}
 
 	//-------------------------------------------------------------------------
+	/// assign from any type that can be assigned to a KStringView
 	template<typename T,
-			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+	         typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	KTCPEndPoint& operator=(const T& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -1293,14 +1330,17 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// parse from a string view
 	KStringView Parse(KStringView svSource);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// clear the object
 	void clear();
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
+	/// is this object empty?
 	bool empty() const
 	//-------------------------------------------------------------------------
 	{
@@ -1308,11 +1348,14 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// serialize into a string
+	/// @return always true
 	bool Serialize(KString& sTarget) const;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	/// generate content into string from members
+	/// serialize into a stream
+	/// @return always true
 	bool Serialize (KOutStream& sTarget) const;
 	//-------------------------------------------------------------------------
 

@@ -86,13 +86,19 @@ namespace detail {
 /// URLEncodedString
 /// URLEncodedQuery
 /// URLEncodedUInt
+/// @tparam Storage the storage class, URLEncodedString, URLEncodedQuery (KProps), or URLEncodedUInt
+/// @tparam Component  the URL component type
+/// @tparam StartToken the start token, one of @:/;?#
+/// @tparam RemoveStartSeparator whether to remove the start token when parsing
+/// @tparam RemoveEndSeparator whether to remove the end token when parsing
+/// @tparam IsString true if this is a string
 template<
-	class Storage,              ///< the storage class, URLEncodedString, URLEncodedQuery (KProps), or URLEncodedUInt
-	URIPart Component,          ///< the URL component type
-	const char StartToken,      ///< the start token, one of @:/;?#
-	bool RemoveStartSeparator,  ///< whether to remove the start token when parsing
-	bool RemoveEndSeparator,    ///< whether to remove the end token when parsing
-	bool IsString               ///< true if this is a string
+	class Storage,
+	URIPart Component,
+	const char StartToken,
+	bool RemoveStartSeparator,
+	bool RemoveEndSeparator,
+	bool IsString
 >
 class URIComponent
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

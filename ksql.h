@@ -487,19 +487,19 @@ public:
 
 	/// Executes a verbatim SQL statement that returns one single integer value or -1 on failure
 	/// @param sSQL  a SQL statement that returns one integer column
-	/// @param Flags additional processing flags, default none
+	/// @param iFlags additional processing flags, default none
 	/// @param sAPI  the method name used for logging, default "SingleIntRawQuery"
 	int64_t        SingleIntRawQuery (KString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "SingleIntRawQuery");
 
 	/// Executes a verbatim SQL statement that returns one single string value or "" on failure
 	/// @param sSQL  a SQL statement that returns one string column
-	/// @param Flags additional processing flags, default none
+	/// @param iFlags additional processing flags, default none
 	/// @param sAPI  the method name used for logging, default "SingleStringRawQuery"
 	KString        SingleStringRawQuery (KString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "SingleStringRawQuery");
 
 	/// Executes a verbatim SQL statement that returns one single KROW
 	/// @param sSQL  a SQL statement
-	/// @param Flags additional processing flags, default none
+	/// @param iFlags additional processing flags, default none
 	/// @param sAPI  the method name used for logging, default "SingleRawQuery"
 	KROW           SingleRawQuery (KString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "SingleRawQuery");
 
@@ -866,6 +866,7 @@ public:
 	/// or
 	/// auto sql = ksql.Throw();
 	/// sql->ExecSQL("...");
+	/// @endcode
 	auto Throw()   { return ThrowingSQL<KSQL>(*this, true ); }
 	/// returns helper object to access to KSQL in non-throwing mode, and reset mode after use
 	/// @code use like:
@@ -873,6 +874,7 @@ public:
 	/// or
 	/// auto sql = ksql.NoThrow();
 	/// sql->ExecSQL("...");
+	/// @endcode
 	auto NoThrow() { return ThrowingSQL<KSQL>(*this, false); }
 
 	bool GetLock (KStringView sName, int16_t iTimeoutSeconds = -1);

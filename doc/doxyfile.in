@@ -4,42 +4,54 @@ STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
                          @PROJECT_BINARY_DIR@
 # STRIP_FROM_INC_PATH    = @@
 INPUT                  = @PROJECT_SOURCE_DIR@
-FILE_PATTERNS          = *.h \
+FILE_PATTERNS          = *.h   \
+                         *.hpp \
                          *.cpp
-EXCLUDE_PATTERNS       = @PROJECT_SOURCE_DIR@/libs/* \
-                         @PROJECT_SOURCE_DIR@/benchmarks/* \
-                         @PROJECT_SOURCE_DIR@/smoketests/* \
-                         @PROJECT_SOURCE_DIR@/utests/* \
-                         @PROJECT_SOURCE_DIR@/doc/* \
-                         @PROJECT_SOURCE_DIR@/from/*
+EXCLUDE_PATTERNS       = @PROJECT_SOURCE_DIR@/benchmarks/*  \
+                         @PROJECT_SOURCE_DIR@/cmake/*       \
+                         @PROJECT_SOURCE_DIR@/compat/*      \
+                         @PROJECT_SOURCE_DIR@/debug/*       \
+                         @PROJECT_SOURCE_DIR@/doc/*         \
+                         @PROJECT_SOURCE_DIR@/from/*        \
+                         @PROJECT_SOURCE_DIR@/libs/*        \
+                         @PROJECT_SOURCE_DIR@/samples/*     \
+                         @PROJECT_SOURCE_DIR@/scripts/*     \
+                         @PROJECT_SOURCE_DIR@/smoketests/*  \
+                         @PROJECT_SOURCE_DIR@/templates/*   \
+                         @PROJECT_SOURCE_DIR@/utests/*
 RECURSIVE              = YES
 HAVE_DOT               = @DOXYGEN_DOT_FOUND@
 # USE_MDFILE_AS_MAINPAGE = @doxy_main_page@
 OUTPUT_LANGUAGE        = English
 BUILTIN_STL_SUPPORT    = YES
-BRIEF_MEMBER_DESC      = NO
+BRIEF_MEMBER_DESC      = YES
 # repeat brief in detail section
 REPEAT_BRIEF           = YES
 # create details if only brief?
-ALWAYS_DETAILED_SEC    = YES
+ALWAYS_DETAILED_SEC    = NO
 # show inherited members in child class?
 INLINE_INHERITED_MEMB  = YES
 # is multiline /// allowed for brief?
 MULTILINE_CPP_IS_BRIEF = NO
 JAVADOC_AUTOBRIEF      = YES
+OPTIMIZE_OUTPUT_FOR_C  = YES
+EXTENSION_MAPPING      = h=C++
 INLINE_SIMPLE_STRUCTS  = YES
+NUM_PROC_THREADS       = 0
+DOT_NUM_THREADS        = 0
 # the inline keyword is useless nowadays, do not highlight it
 INLINE_INFO            = NO
 EXTRACT_ALL            = YES
 EXTRACT_PRIVATE        = NO
-EXTRACT_STATIC         = NO
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = NO
+HIDE_FRIEND_COMPOUNDS  = YES
 SORT_MEMBER_DOCS       = YES
 SORT_BRIEF_DOCS        = YES
 SORT_MEMBERS_CTORS_1ST = YES
 SORT_GROUP_NAMES       = YES
 COLS_IN_ALPHA_INDEX    = 3
 IGNORE_PREFIX          = K
-SOURCE_BROWSER         = NO
 STRIP_CODE_COMMENTS    = NO
 REFERENCED_BY_RELATION = NO
 REFERENCES_RELATION    = NO
@@ -48,6 +60,18 @@ CLASS_GRAPH            = YES
 COLLABORATION_GRAPH    = NO
 HTML_TIMESTAMP         = YES
 HTML_DYNAMIC_SECTIONS  = NO
+GENERATE_TREEVIEW      = YES
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = DEKAF2_GSL_OWNER()= DEKAF2_GSL_POINTER()= DEKAF2_PUBLIC= DEKAF2_PRIVATE= \
+ __clang__=10 __unix__=1 __cplusplus=202003L __cpp_lib_chrono=202003L \
+ DEKAF=2 DEKAF_VERSION=2 DEKAF2_USE_BOOST_MULTI_INDEX= DEKAF2_USE_KPROPS_MULTI_INDEX= \
+ DEKAF2_USE_KMRU_MULTI_INDEX= DEKAF2_USE_FBSTRING_AS_KSTRING= DEKAF2_USE_OPTIMIZED_STRING_FIND= \
+ DEKAF2_HAS_MINIFOLLY= DEKAF2_HAS_MYSQL= DEKAF2_HAS_SQLITE3= DEKAF2_HAS_FREETDS= DEKAF2_HAS_CTLIB= \
+ DEKAF2_HAS_LIBZIP= DEKAF2_HAS_LIBBROTLI= DEKAF2_HAS_LIBZSTD= DEKAF2_HAS_LIBLZMA= \
+ DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD= DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS= \
+ DEKAF2_WITH_KLOG= DEKAF2_KLOG_WITH_TCP= DEKAF2_HAS_UNIX_SOCKETS= DEKAF2_HAS_PIPES=
 # the below customization does not work anymore with doxygen 1.8.14
 # these locations point to the source, but doxygen takes care that they are copied into
 # the generated html/ directory (or included into the main html files)

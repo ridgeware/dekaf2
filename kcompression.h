@@ -157,20 +157,21 @@ public:
 	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
 	/// @param iLevel sets the compression level from 1..100%, 0 = default
 	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), n = n parallel threads
+	/// @param iDataSize hint for file size (for maximum parallelism computation), default is npos
 	bool open(KString& sTarget, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos);
 	/// sets a KOutStream as the target
 	/// @param TargetStream stream to write the compressed data into
 	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
 	/// @param iLevel sets the compression level from 1..100%, 0 = default
 	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), n = n parallel threads
-	/// @param iDataSize hint for file size, may be defaulted at npos
+	/// @param iDataSize hint for file size (for maximum parallelism computation), default is npos
 	bool open(KOutStream& TargetStream, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos);
 	/// creates a file and sets it as the target
 	/// @param sTarget name of a file to write the compressed data into
 	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
 	/// @param iLevel sets the compression level from 1..100%, 0 = default
 	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), n = n parallel threads
-	/// @param iDataSize hint for file size - if default the file size will be checked by open_file if important for the compression algorithm
+	/// @param iDataSize hint for file size (for maximum parallelism computation) - if default the file size will be checked by open_file if important for the compression algorithm
 	bool open_file(KStringViewZ sOutFile, COMPRESSION compression = AUTO, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos);
 
 	/// closes the output stream, calls finalizers of
@@ -185,6 +186,7 @@ private:
 	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI
 	/// @param iLevel sets the compression level from 1..100%, 0 = default
 	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), 1 = off, n = n parallel threads
+	/// @param iDataSize hint for file size (for maximum parallelism computation), default is npos
 	bool CreateFilter(COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos);
 
 	KOutStream* m_TargetStream { nullptr };

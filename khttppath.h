@@ -48,7 +48,7 @@
 #include "kthreadsafe.h"
 #include "kregex.h"
 
-/// @file khttpath.h
+/// @file khttppath.h
 /// Primitives for HTTP routing
 
 namespace dekaf2 {

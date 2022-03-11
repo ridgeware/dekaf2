@@ -273,7 +273,7 @@ inline bool operator==(KCaseStringViewBase<TrimmingLeft> left, KCaseStringViewBa
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft, typename T,
-		 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 inline bool operator==(KCaseStringViewBase<TrimmingLeft> left, const T& right)
 //-----------------------------------------------------------------------------
 {
@@ -282,7 +282,7 @@ inline bool operator==(KCaseStringViewBase<TrimmingLeft> left, const T& right)
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingRight, typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 inline bool operator==(const T& left, const KCaseStringViewBase<TrimmingRight> right)
 //-----------------------------------------------------------------------------
 {
@@ -299,7 +299,7 @@ inline bool operator!=(KCaseStringViewBase<TrimmingLeft> left, KCaseStringViewBa
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft, typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 inline bool operator!=(KCaseStringViewBase<TrimmingLeft> left, const T& right)
 //-----------------------------------------------------------------------------
 {
@@ -308,7 +308,7 @@ inline bool operator!=(KCaseStringViewBase<TrimmingLeft> left, const T& right)
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingRight, typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 inline bool operator!=(const T& left, const KCaseStringViewBase<TrimmingRight> right)
 //-----------------------------------------------------------------------------
 {
@@ -369,7 +369,7 @@ inline bool operator==(const KCaseStringBase<TrimmingLeft>& left, const KCaseStr
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft, typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 inline bool operator==(const KCaseStringBase<TrimmingLeft>& left, const T& right)
 //-----------------------------------------------------------------------------
 {
@@ -378,7 +378,7 @@ inline bool operator==(const KCaseStringBase<TrimmingLeft>& left, const T& right
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingRight, typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 inline bool operator==(const T& left, const KCaseStringBase<TrimmingRight>& right)
 //-----------------------------------------------------------------------------
 {
@@ -395,7 +395,7 @@ inline bool operator!=(const KCaseStringBase<TrimmingLeft>& left, const KCaseStr
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingLeft, typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 inline bool operator!=(const KCaseStringBase<TrimmingLeft>& left, const T& right)
 //-----------------------------------------------------------------------------
 {
@@ -404,7 +404,7 @@ inline bool operator!=(const KCaseStringBase<TrimmingLeft>& left, const T& right
 
 //-----------------------------------------------------------------------------
 template<typename TrimmingRight, typename T,
-         typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 inline bool operator!=(const T& left, const KCaseStringBase<TrimmingRight>& right)
 //-----------------------------------------------------------------------------
 {

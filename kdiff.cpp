@@ -312,11 +312,11 @@ KString KDiff::GetTextDiff()
 } // GetTextDiff
 
 //-----------------------------------------------------------------------------
-std::size_t KDiff::GetTextDiff2 (KString& sOld, KString& sNew)
+std::size_t KDiff::GetTextDiff2 (KString& sOldText, KString& sNewText)
 //-----------------------------------------------------------------------------
 {
-	sOld.clear();
-	sNew.clear();
+	sOldText.clear();
+	sNewText.clear();
 	std::size_t iDiffs { 0 };
 
 	// iterate over diffs:
@@ -325,16 +325,16 @@ std::size_t KDiff::GetTextDiff2 (KString& sOld, KString& sNew)
 		switch (diff.GetOperation())
 		{
 			case Operation::Insert:
-				sNew += "[+";
-				sNew += diff.GetText();
-				sNew += ']';
+				sNewText += "[+";
+				sNewText += diff.GetText();
+				sNewText += ']';
 				++iDiffs;
 				break;
 
 			case Operation::Delete:
-				sOld += "[-";
-				sOld += diff.GetText();
-				sOld += ']';
+				sOldText += "[-";
+				sOldText += diff.GetText();
+				sOldText += ']';
 				++iDiffs;
 				break;
 
@@ -345,8 +345,8 @@ std::size_t KDiff::GetTextDiff2 (KString& sOld, KString& sNew)
 #else
 				auto& sText = diff.GetText();
 #endif
-				sOld += sText;
-				sNew += sText;
+				sOldText += sText;
+				sNewText += sText;
 				break;
 			}
 	}
@@ -399,11 +399,11 @@ KString KDiff::GetHTMLDiff(KStringView sInsertTag, KStringView sDeleteTag)
 } // GetHTMLDiff
 
 //-----------------------------------------------------------------------------
-std::size_t KDiff::GetHTMLDiff2 (KString& sOld, KString& sNew, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
+std::size_t KDiff::GetHTMLDiff2 (KString& sOldText, KString& sNewText, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
 //-----------------------------------------------------------------------------
 {
-	sOld.clear();
-	sNew.clear();
+	sOldText.clear();
+	sNewText.clear();
 	std::size_t iDiffs { 0 };
 
 	// iterate over diffs:
@@ -412,24 +412,24 @@ std::size_t KDiff::GetHTMLDiff2 (KString& sOld, KString& sNew, KStringView sInse
 		switch (diff.GetOperation())
 		{
 			case Operation::Insert:
-				sNew += '<';
-				sNew += sInsertTag;
-				sNew += '>';
-				sNew += diff.GetText();
-				sNew += "</";
-				sNew += sInsertTag;
-				sNew += '>';
+				sNewText += '<';
+				sNewText += sInsertTag;
+				sNewText += '>';
+				sNewText += diff.GetText();
+				sNewText += "</";
+				sNewText += sInsertTag;
+				sNewText += '>';
 				++iDiffs;
 				break;
 
 			case Operation::Delete:
-				sOld += '<';
-				sOld += sDeleteTag;
-				sOld += '>';
-				sOld += diff.GetText();
-				sOld += "</";
-				sOld += sDeleteTag;
-				sOld += '>';
+				sOldText += '<';
+				sOldText += sDeleteTag;
+				sOldText += '>';
+				sOldText += diff.GetText();
+				sOldText += "</";
+				sOldText += sDeleteTag;
+				sOldText += '>';
 				++iDiffs;
 				break;
 
@@ -440,8 +440,8 @@ std::size_t KDiff::GetHTMLDiff2 (KString& sOld, KString& sNew, KStringView sInse
 #else
 				auto& sText = diff.GetText();
 #endif
-				sOld += sText;
-				sNew += sText;
+				sOldText += sText;
+				sNewText += sText;
 				break;
 		}
 	}

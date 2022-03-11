@@ -78,7 +78,6 @@ bool kReadLine(std::istream& Stream,
 /// Reads directly in the underlying streambuf
 /// @param Stream the input stream
 /// @param sContent the string to fill with the content of the file
-/// @param bFromStart if true will seek to start before reading
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
 DEKAF2_PUBLIC
 bool kAppendAllUnseekable(std::istream& Stream, KString& sContent, std::size_t iMaxRead = npos);

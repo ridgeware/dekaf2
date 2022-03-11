@@ -144,25 +144,25 @@ public:
 	KDiff() = default;
 
 	/// construct with source and target strings, and mode settings
-	/// @param sSource the original string
-	/// @param sTarget the modified string
+	/// @param sOldText the original string
+	/// @param sNewText the modified string
 	/// @param Mode the diff compare mode: Character, Word, or Line
 	/// @param San the sanitation mode: Semantic, Lossless, or Efficiency
-	KDiff(KStringView sSource,
-		  KStringView sTarget,
+	KDiff(KStringView sOldText,
+		  KStringView sNewText,
 		  DiffMode Mode = DiffMode::Character,
 		  Sanitation San = Sanitation::Semantic)
 	{
-		CreateDiff(sSource, sTarget, Mode, San);
+		CreateDiff(sOldText, sNewText, Mode, San);
 	}
 
 	/// create the difference between two strings
-	/// @param sSource the original string
-	/// @param sTarget the modified string
+	/// @param sOldText the original string
+	/// @param sNewText the modified string
 	/// @param Mode the diff compare mode: Character, Word, or Line
 	/// @param San the sanitation mode: Semantic, Lossless, or Efficiency
-	void CreateDiff(KStringView sSource,
-					KStringView sTarget,
+	void CreateDiff(KStringView sOldText,
+					KStringView sNewText,
 					DiffMode Mode = DiffMode::Character,
 					Sanitation San = Sanitation::Semantic);
 
@@ -176,8 +176,10 @@ public:
 	KString GetTextDiff();
 
 	/// return difference in text format, old and new
+	/// @param sOldText the original string
+	/// @param sNewText the modified string
 	/// @return count of diffs, 0 if equal
-	std::size_t GetTextDiff2 (KString& sOld, KString& sNew);
+	std::size_t GetTextDiff2 (KString& sOldText, KString& sNewText);
 
 	/// return difference in HTML markup style
 	/// @param sInsertTag tag used for inserted text fragments (default = "ins")
@@ -185,10 +187,12 @@ public:
 	KString GetHTMLDiff(KStringView sInsertTag = "ins", KStringView sDeleteTag = "del");
 
 	/// return difference in HTML markup style, old and new
+	/// @param sOldText the original string
+	/// @param sNewText the modified string
 	/// @param sInsertTag tag used for inserted text fragments (default = "ins")
 	/// @param sDeleteTag tag used for deleted text fragments (default = "del")
 	/// @return count of diffs, 0 if equal
-	std::size_t GetHTMLDiff2 (KString& sOld, KString& sNew, KStringView sInsertTag = "ins", KStringView sDeleteTag = "del");
+	std::size_t GetHTMLDiff2 (KString& sOldText, KString& sNewText, KStringView sInsertTag = "ins", KStringView sDeleteTag = "del");
 
 	/// return Levenshtein distance for the diff (number of inserted, deleted or substituted characters)
 	uint32_t GetLevenshteinDistance();

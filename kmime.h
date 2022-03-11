@@ -73,7 +73,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Construct a MIME type with an arbitrary type
 	template<typename T,
-			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+			 typename std::enable_if<detail::is_kstringview_assignable<const T&, true>::value == true, int>::type = 0>
 	DEKAF2_CONSTEXPR_20
 	KMIME(T&& sMIME)
 	//-----------------------------------------------------------------------------
@@ -82,7 +82,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	template<typename T,
-			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+			 typename std::enable_if<detail::is_kstringview_assignable<const T&, true>::value == true, int>::type = 0>
 	KMIME& operator=(T&& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -252,8 +252,8 @@ public:
 	KMIMEPart& operator+=(KStringView sv) { m_Data += sv; return *this; }
 	/// Load file into MIME part. If MIME type is not already set it will be determined by the file extension.
 	/// @param sControlName 'control' name for this MIME part. Can be used to distinguish multiple input file parts
-	/// @param sFileName file to load
-	/// @param sDispName name used for the attachment. If empty, basename of the filename will be used
+	/// @param sFilename file to load
+	/// @param sDispname name used for the attachment. If empty, basename of the filename will be used
 	bool File(KStringView sControlName, KStringView sFilename, KStringView sDispname = KStringView{});
 	/// Add content of Stream to MIME part
 	/// @param sControlName 'control' name for this MIME part. Can be used to distinguish multiple input stream parts

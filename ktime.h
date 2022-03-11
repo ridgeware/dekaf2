@@ -100,6 +100,7 @@ uint16_t kDayOfWeek(uint16_t iDay, uint16_t iMonth, uint16_t iYear);
 /// Create a time stamp following strftime patterns.
 /// @param time time struct
 /// @param pszFormat format string
+/// @return the timestamp string
 DEKAF2_PUBLIC
 KString kFormTimestamp (const std::tm& time, const char* pszFormat = "%Y-%m-%d %H:%M:%S");
 //-----------------------------------------------------------------------------
@@ -109,7 +110,8 @@ KString kFormTimestamp (const std::tm& time, const char* pszFormat = "%Y-%m-%d %
 /// used.
 /// @param tTime Seconds since epoch. If 0, query current time from the system
 /// @param pszFormat format string
-/// @param bLocalTime use tTime as local time instead of utc
+/// @param bAsLocalTime use tTime as local time instead of utc
+/// @return the timestamp string
 DEKAF2_PUBLIC
 KString kFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%M:%S", bool bAsLocalTime = false);
 //-----------------------------------------------------------------------------
@@ -117,6 +119,7 @@ KString kFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%
 //-----------------------------------------------------------------------------
 /// Create a HTTP time stamp
 /// @param tTime Seconds since epoch. If 0, query current time from the system
+/// @return the timestamp string
 DEKAF2_PUBLIC
 KString kFormHTTPTimestamp (time_t tTime = 0);
 //-----------------------------------------------------------------------------
@@ -124,6 +127,7 @@ KString kFormHTTPTimestamp (time_t tTime = 0);
 //-----------------------------------------------------------------------------
 /// Create a SMTP time stamp
 /// @param tTime Seconds since epoch. If 0, query current time from the system
+/// @return the timestamp string
 DEKAF2_PUBLIC
 KString kFormSMTPTimestamp (time_t tTime = 0);
 //-----------------------------------------------------------------------------
@@ -131,6 +135,8 @@ KString kFormSMTPTimestamp (time_t tTime = 0);
 //-----------------------------------------------------------------------------
 /// Create a common log format  time stamp
 /// @param tTime Seconds since epoch. If 0, query current time from the system
+/// @param bAsLocalTime interpret tTime as local time, defaults to false
+/// @return the timestamp string
 DEKAF2_PUBLIC
 KString kFormCommonLogTimestamp(time_t tTime = 0, bool bAsLocalTime = false);
 //-----------------------------------------------------------------------------

@@ -200,7 +200,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	template<typename T,
-			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	KHTTPHeader(T&& sHeader)
 	//-----------------------------------------------------------------------------
@@ -214,7 +214,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	template<typename T,
-			 typename std::enable_if<std::is_convertible<const T&, KStringView>::value == true, int>::type = 0>
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	KHTTPHeader& operator=(T&& sv)
 	//-------------------------------------------------------------------------

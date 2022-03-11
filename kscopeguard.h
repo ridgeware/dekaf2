@@ -73,7 +73,9 @@ public:
 	/// Construct a scope guard from any type of callable with function signature void(void), e.g. a lambda
 	/// At end of life of Guard the callable will be called, if not either been trigger() ed or dismiss() ed before.
 	/// Sample:
-	/// @code KScopeGuard Guard = [fd]{ close(fd); };
+	/// @code
+	/// KScopeGuard Guard = [fd]{ close(fd); };
+	/// @endcode
 	template<class Func>
 	KScopeGuard(Func callable)
 	: m_Callable(std::move(callable))

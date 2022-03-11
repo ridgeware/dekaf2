@@ -40,7 +40,7 @@
 
 #pragma once
 
-/// @file kexceptions.h
+/// @file kexception.h
 /// provides basic dekaf2 exception / error class
 
 #include <exception>

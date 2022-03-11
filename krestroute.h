@@ -239,9 +239,9 @@ public:
 	/// @param _Callback the object method that will be called when the route matches the request, may not be empty
 	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing
 	template<class Object>
-	KRESTRoute(KHTTPMethod _Method, Options _Options, KString _sRoute, Object& object, MemberFunction<Object> _Callback, ParserType _Parser = JSON)
+	KRESTRoute(KHTTPMethod _Method, Options _Options, KString _sRoute, Object& _Object, MemberFunction<Object> _Callback, ParserType _Parser = JSON)
 	//-----------------------------------------------------------------------------
-	: KRESTRoute(std::move(_Method), _Options, std::move(_sRoute), KString{}, std::bind(_Callback, &object, std::placeholders::_1), _Parser)
+	: KRESTRoute(std::move(_Method), _Options, std::move(_sRoute), KString{}, std::bind(_Callback, &_Object, std::placeholders::_1), _Parser)
 	{
 	}
 

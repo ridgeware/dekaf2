@@ -787,7 +787,7 @@ public:
 	/// @param Types the FileTypes to search for, default = ALL
 	/// @param bRecursive traverse subdirectories recursively, default = false
 	/// @param bClear remove existing (previously found) directory entries, default = true
-	size_type Open(KStringViewZ sDirectory, KFileTypes Type = KFileTypes::ALL, bool bRecursive = false, bool bClear = true);
+	size_type Open(KStringViewZ sDirectory, KFileTypes Types = KFileTypes::ALL, bool bRecursive = false, bool bClear = true);
 
 	/// open a directory and store all entries that are of FileType Type
 	/// @param sDirectory the direcory path to open

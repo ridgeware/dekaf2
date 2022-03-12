@@ -563,7 +563,7 @@ public:
  private:
   static void diff_bisect(const stringview_t &text1, const stringview_t &text2, clock_t deadline, Diffs& diffs)
   {
-    if (text1.length() + text2.length() > std::numeric_limits<step_t>::max())
+    if (text1.length() + text2.length() > static_cast<typename stringview_t::size_type>(std::numeric_limits<step_t>::max()))
     {
       throw string_t(traits::cs(L"input strings too large."));
     }

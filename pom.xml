@@ -1,0 +1,6 @@
+<project>
+  <modelVersion>2.0.3</modelVersion> 
+  <groupId>com.ridgeware</groupId>
+  <artifactId>dekaf2</artifactId>
+  <version>2</version>
+</project>

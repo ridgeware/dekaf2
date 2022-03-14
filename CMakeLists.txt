@@ -161,7 +161,7 @@ else ()
 	SET(DEKAF2_HAS_PIPES ON)
 endif()
 
-math(EXPR NEEDED_FROZEN_MEMORY "7 * 1024")
+math(EXPR NEEDED_FROZEN_MEMORY "6 * 1024 + 512")
 if (TOTAL_PHYSICAL_MEMORY LESS NEEDED_FROZEN_MEMORY)
 	message(STATUS "switching FROZEN off for large maps - not enough RAM (${TOTAL_PHYSICAL_MEMORY} MB)")
 	# this is not enough RAM for compile time computation of large frozen maps
@@ -616,6 +616,7 @@ set(PUBLIC_HEADERS
 	khmac.h
 	khtmlcontentblocks.h
 	khtmldom.h
+	khtmlentities.h
 	khtmlparser.h
 	khttpclient.h
 	khttpcompression.h
@@ -709,8 +710,6 @@ set(PUBLIC_HEADERS
 	kwords.h
 	kwriter.h
 	kxml.h
-	# keep this one at the end
-	khtmlentities.h
 )
 
 if (DEKAF2_HAS_LIBZIP)

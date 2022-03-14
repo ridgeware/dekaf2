@@ -73,7 +73,7 @@ public:
 	virtual void Serialize(KOutStream& OutStream) const;
 
 	virtual bool Parse(KStringView sInput);
-	virtual void Serialize(KString& sOut) const;
+	virtual void Serialize(KStringRef& sOut) const;
 	KString Serialize() const;
 
 	KHTMLObject& operator=(KStringView sInput)
@@ -162,7 +162,7 @@ public:
 
 	virtual bool Parse(KStringView sInput) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
-	virtual void Serialize(KString& sOut) const override;
+	virtual void Serialize(KStringRef& sOut) const override;
 
 	virtual void clear() override;
 	virtual bool empty() const override;
@@ -242,7 +242,7 @@ public:
 
 	bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{});
 	void Serialize(KOutStream& OutStream) const;
-	void Serialize(KString& sOut) const;
+	void Serialize(KStringRef& sOut) const;
 
 	void clear();
 	bool empty() const;
@@ -344,7 +344,7 @@ public:
 
 	bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{});
 	void Serialize(KOutStream& OutStream) const;
-	void Serialize(KString& sOut) const;
+	void Serialize(KStringRef& sOut) const;
 
 	void clear();
 	bool empty() const;
@@ -382,7 +382,7 @@ public:
 
 	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
-	virtual void Serialize(KString& sOut) const override;
+	virtual void Serialize(KStringRef& sOut) const override;
 
 	virtual void clear() override;
 	virtual bool empty() const override;

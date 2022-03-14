@@ -45,12 +45,14 @@
 /// @file kregex.h
 /// The Regular Expression encapsulation
 
-#define DEKAF2_ADD_REGEX_FOR_KSTRING 1
-
 #include <vector>
 #include "kstring.h"
 #include "kstringview.h"
 #include "bits/kunique_deleter.h"
+
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+  #define DEKAF2_ADD_REGEX_FOR_KSTRING 1
+#endif
 
 namespace dekaf2
 {

@@ -25,7 +25,7 @@ public:
 protected:
 
 	// a simple echo
-	KString Request(KString& sLine, Parameters& parameters) override
+	KString Request(KStringRef& sLine, Parameters& parameters) override
 	{
 		sLine += "\n";
 		return sLine;

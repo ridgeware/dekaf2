@@ -450,7 +450,7 @@ uint32_t kGetGid()
 #define DEKAF2_USE_KSHELL_FOR_SYSTEM
 
 //-----------------------------------------------------------------------------
-int kSystem (KStringView sCommand, KString& sOutput)
+int kSystem (KStringView sCommand, KStringRef& sOutput)
 //-----------------------------------------------------------------------------
 {
 	sOutput.clear();
@@ -474,7 +474,7 @@ int kSystem (KStringView sCommand, KString& sOutput)
 	// read until EOF
 	Shell.ReadRemaining(sOutput);
 
-	sOutput.Replace("\r\n", "\n"); // DOS -> UNIX
+	kReplace(sOutput, "\r\n", "\n"); // DOS -> UNIX
 
 	// close the shell and report the return value to the caller
 	return Shell.Close();

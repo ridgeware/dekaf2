@@ -400,7 +400,7 @@ void KResource::clear()
 }
 
 //-------------------------------------------------------------------------
-bool KResource::Serialize(KString& sTarget) const
+bool KResource::Serialize(KStringRef& sTarget) const
 //-------------------------------------------------------------------------
 {
 	Query.WantStartSeparator();
@@ -465,7 +465,7 @@ void KURL::clear()
 }
 
 //-------------------------------------------------------------------------
-bool KURL::Serialize(KString& sTarget) const
+bool KURL::Serialize(KStringRef& sTarget) const
 //-------------------------------------------------------------------------
 {
 	Port.WantStartSeparator();
@@ -584,7 +584,7 @@ void KTCPEndPoint::clear()
 }
 
 //-------------------------------------------------------------------------
-bool KTCPEndPoint::Serialize(KString& sTarget) const
+bool KTCPEndPoint::Serialize(KStringRef& sTarget) const
 //-------------------------------------------------------------------------
 {
 	Port.WantStartSeparator();

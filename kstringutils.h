@@ -338,11 +338,12 @@ std::size_t kReplaceVariables (String& sString, StringView sOpen, StringView sCl
 
 	for (typename String::size_type iPos, iStart = 0; (iPos = sString.find(sOpen, iStart)) != String::npos;)
 	{
-		StringView sHaystack ( sString.ToView(iPos + iOpen) );
+		StringView sHaystack(sString);
+		sHaystack.remove_prefix(iPos + iOpen);
 		auto iEnd = sHaystack.find(sClose);
 		if (iEnd != StringView::npos)
 		{
-			StringView sValue = sHaystack.ToView(0, iEnd);
+			StringView sValue = sHaystack.substr(0, iEnd);
 			StringView sReplace;
 			auto it = Variables.find(sValue);
 			if (it != Variables.end())
@@ -352,7 +353,7 @@ std::size_t kReplaceVariables (String& sString, StringView sOpen, StringView sCl
 			else if (bQueryEnvironment)
 			{
 				// need to convert into string, as kGetEnv wants a zero terminated string
-				KString strValue(sValue);
+				String strValue(sValue);
 				sReplace = kGetEnv(strValue);
 			}
 			if (!sReplace.empty())
@@ -824,7 +825,7 @@ T kFromString(KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 /// Escape or hex encode problematic characters, append to sLog
 DEKAF2_PUBLIC
-void kEscapeForLogging(KString& sLog, KStringView sInput);
+void kEscapeForLogging(KStringRef& sLog, KStringView sInput);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

@@ -65,7 +65,7 @@ bool DBCFileBase::IntSetBuffer(KStringView sBuffer, void* pBuffer, std::size_t i
 } // DBCFileBase::IntSetBuffer
 
 //-----------------------------------------------------------------------------
-bool DBCFileBase::IntSave(KStringView sFilename, const void* pBuffer, std::size_t iSize)
+bool DBCFileBase::IntSave(KStringViewZ sFilename, const void* pBuffer, std::size_t iSize)
 //-----------------------------------------------------------------------------
 {
 	KOutFile File(sFilename);
@@ -79,7 +79,7 @@ bool DBCFileBase::IntSave(KStringView sFilename, const void* pBuffer, std::size_
 } // DBCFileBase::IntSave
 
 //-----------------------------------------------------------------------------
-void DBCFileBase::decrypt (KString& sString)
+void DBCFileBase::decrypt (KStringRef& sString)
 //-----------------------------------------------------------------------------
 {
 	unsigned char* string = reinterpret_cast<unsigned char*>(sString.data());

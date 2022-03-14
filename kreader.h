@@ -67,7 +67,7 @@ namespace dekaf2
 /// @param iMaxRead the maximum count of characters to be read
 DEKAF2_PUBLIC
 bool kReadLine(std::istream& Stream,
-               KString& sLine,
+               KStringRef& sLine,
                KStringView sTrimRight = "\n",
                KStringView sTrimLeft = "",
                KString::value_type delimiter = '\n',
@@ -80,7 +80,7 @@ bool kReadLine(std::istream& Stream,
 /// @param sContent the string to fill with the content of the file
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
 DEKAF2_PUBLIC
-bool kAppendAllUnseekable(std::istream& Stream, KString& sContent, std::size_t iMaxRead = npos);
+bool kAppendAllUnseekable(std::istream& Stream, KStringRef& sContent, std::size_t iMaxRead = npos);
 
 /// Appends all content of a std::istream device to a string. Fails on non-seekable
 /// istreams if bFromStart is true, otherwise reads until end of stream.
@@ -90,7 +90,7 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent, std::size_t i
 /// @param bFromStart if true will seek to start before reading
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
 DEKAF2_PUBLIC
-bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart = true, std::size_t iMaxRead = npos);
+bool kAppendAll(std::istream& Stream, KStringRef& sContent, bool bFromStart = true, std::size_t iMaxRead = npos);
 
 /// Read all content of a std::istream device into a string. Fails on non-seekable
 /// istreams if bFromStart is true, otherwise reads until end of stream.
@@ -100,7 +100,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart = true,
 /// @param bFromStart if true will seek to start before reading
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
 DEKAF2_PUBLIC
-bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart = true, std::size_t iMaxRead = npos);
+bool kReadAll(std::istream& Stream, KStringRef& sContent, bool bFromStart = true, std::size_t iMaxRead = npos);
 
 /// Read all content of a std::istream device into a string. Fails on non-seekable
 /// istreams if bFromStart is true, otherwise reads until end of stream.
@@ -116,14 +116,14 @@ KString kReadAll(std::istream& Stream, bool bFromStart = true, std::size_t iMaxR
 /// @param sContent the string to fill with the content of the file
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
 DEKAF2_PUBLIC
-bool kAppendAll(KStringViewZ sFileName, KString& sContent, std::size_t iMaxRead = npos);
+bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead = npos);
 
 /// Read all content of a file with name sFileName into a string
 /// @param sFileName the input file's name
 /// @param sContent the string to fill with the content of the file
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
 DEKAF2_PUBLIC
-bool kReadAll(KStringViewZ sFileName, KString& sContent, std::size_t iMaxRead = npos);
+bool kReadAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead = npos);
 
 /// Returns all content of a file with name sFileName as a string
 /// @param sFileName the input file's name
@@ -343,7 +343,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Read a range of characters and append to sBuffer. Returns count of successfully read charcters.
-	size_t Read(KString& sBuffer, size_t iCount = npos);
+	size_t Read(KStringRef& sBuffer, size_t iCount = npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -360,7 +360,7 @@ public:
 	/// Please note that this method does _not_ return the stream reference,
 	/// but a boolean. std::istreams would not read a file with a missing newline
 	/// at the end successfully, but report an error. This function succeeds.
-	bool ReadLine(KString& sLine, size_t iMaxRead = npos)
+	bool ReadLine(KStringRef& sLine, size_t iMaxRead = npos)
 	//-----------------------------------------------------------------------------
 	{
 		return kReadLine(InStream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter, iMaxRead);
@@ -382,7 +382,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns the complete content of a file in a string. Returns false if no input
 	/// available. Fails on non-seekable inputs, e.g. streams.
-	bool ReadAll(KString& sBuffer)
+	bool ReadAll(KStringRef& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
 		return kReadAll(InStream(), sBuffer, true);
@@ -399,7 +399,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns the remaining content of a file in a string. Returns false if no input
 	/// available. Does not fail on non-seekable inputs, but tries to read the utmost.
-	bool ReadRemaining(KString& sBuffer)
+	bool ReadRemaining(KStringRef& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
 		return kReadAll(InStream(), sBuffer, false);
@@ -416,7 +416,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Alias for ReadAll
-	bool GetContent(KString& sBuffer)
+	bool GetContent(KStringRef& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
 		return ReadAll(sBuffer);
@@ -745,6 +745,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	void open(const KString& str, ios_base::openmode mode = ios_base::in)
+	//-----------------------------------------------------------------------------
+	{
+		base_type::open(kToFilesystemPath(str), mode | ios_base::binary);
+	}
+
+	//-----------------------------------------------------------------------------
+	void open(const std::string& str, ios_base::openmode mode = ios_base::in)
 	//-----------------------------------------------------------------------------
 	{
 		base_type::open(kToFilesystemPath(str), mode | ios_base::binary);

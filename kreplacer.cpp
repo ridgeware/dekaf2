@@ -267,11 +267,10 @@ KString KReplacer::Replace(KStringView sIn) const
 } // clear
 
 //-----------------------------------------------------------------------------
-void KReplacer::ReplaceInPlace(KString& sIn) const
+void KReplacer::ReplaceInPlace(KStringRef& sIn) const
 //-----------------------------------------------------------------------------
 {
-	KString sOut = Replace(sIn);
-	sIn.swap(sOut);
+	sIn = Replace(sIn);
 
 } // clear
 

@@ -150,7 +150,7 @@ public:
 	/// @param sBuffer the string to read into
 	/// @param len the number of bytes to read, or npos to read until EOF
 	/// @return the count of read bytes
-	size_t Read(KString& sBuffer, size_t len = npos)
+	size_t Read(KStringRef& sBuffer, size_t len = npos)
 	//-----------------------------------------------------------------------------
 	{
 		return Request.Read(sBuffer, len);
@@ -166,7 +166,7 @@ public:
 	/// Read POST/PUT content line by line into string
 	/// @param sBuffer the string to read into
 	/// @return true if a line was available, false otherwise
-	bool ReadLine(KString& sBuffer)
+	bool ReadLine(KStringRef& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
 		return Request.ReadLine(sBuffer);

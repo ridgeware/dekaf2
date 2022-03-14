@@ -54,7 +54,7 @@ std::streamsize detail::KIOStringReader(void* sBuffer, std::streamsize iCount, v
 	{
 		auto pOutBuf = reinterpret_cast<char*>(sBuffer);
 		auto pBuf = reinterpret_cast<KIOStringStream::Buffer*>(sSourceBuf);
-		if (*pBuf->sBuffer && pBuf->iReadPos < pBuf->sBuffer->size())
+		if (pBuf->sBuffer && pBuf->iReadPos < pBuf->sBuffer->size())
 		{
 			KStringView sBuffer(*pBuf->sBuffer);
 			sBuffer.remove_prefix(pBuf->iReadPos);
@@ -77,10 +77,10 @@ KIOStringStream::KIOStringStream(KIOStringStream&& other) noexcept
 }
 
 //-----------------------------------------------------------------------------
-const KString& KIOStringStream::str() const
+const KStringRef& KIOStringStream::str() const
 //-----------------------------------------------------------------------------
 {
-	static const KString s_sEmpty{};
+	static const KStringRef s_sEmpty{};
 
 	return (m_Buffer.sBuffer) ? *m_Buffer.sBuffer : s_sEmpty;
 }

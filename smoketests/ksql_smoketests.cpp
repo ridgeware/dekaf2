@@ -347,6 +347,7 @@ TEST_CASE("KSQL")
 
 			KString sSQL(sBefore);
 			db.DoTranslations (sSQL);
+			CHECK ( sSQL == sExpected );
 		}
 
 		kDebugLog (1, "NEGATIVE TEST: exception handling for bad ojbect");

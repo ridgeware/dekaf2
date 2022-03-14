@@ -176,10 +176,10 @@ public:
 	KString GetTextDiff();
 
 	/// return difference in text format, old and new
-	/// @param sOldText the original string
-	/// @param sNewText the modified string
+	/// @param sOldText returns the original string including text markup for all deleted fragments
+	/// @param sNewText returns the modified string including text markup for all inserted fragments
 	/// @return count of diffs, 0 if equal
-	std::size_t GetTextDiff2 (KString& sOldText, KString& sNewText);
+	std::size_t GetTextDiff (KStringRef& sOldText, KStringRef& sNewText);
 
 	/// return difference in HTML markup style
 	/// @param sInsertTag tag used for inserted text fragments (default = "ins")
@@ -187,12 +187,12 @@ public:
 	KString GetHTMLDiff(KStringView sInsertTag = "ins", KStringView sDeleteTag = "del");
 
 	/// return difference in HTML markup style, old and new
-	/// @param sOldText the original string
-	/// @param sNewText the modified string
+	/// @param sOldText returns the original string including markup for all deleted fragments
+	/// @param sNewText returns the modified string including markup for all inserted fragments
 	/// @param sInsertTag tag used for inserted text fragments (default = "ins")
 	/// @param sDeleteTag tag used for deleted text fragments (default = "del")
 	/// @return count of diffs, 0 if equal
-	std::size_t GetHTMLDiff2 (KString& sOldText, KString& sNewText, KStringView sInsertTag = "ins", KStringView sDeleteTag = "del");
+	std::size_t GetHTMLDiff (KStringRef& sOldText, KStringRef& sNewText, KStringView sInsertTag = "ins", KStringView sDeleteTag = "del");
 
 	/// return Levenshtein distance for the diff (number of inserted, deleted or substituted characters)
 	uint32_t GetLevenshteinDistance();
@@ -218,7 +218,7 @@ KString KDiffToHTML (KStringView sOldText, KStringView sNewText, KStringView sIn
 /// @param sInsertTag tag used for inserted text fragments (default = "ins")
 /// @param sDeleteTag tag used for deleted text fragments (default = "del")
 /// @return count of diffs, 0 if equal
-std::size_t KDiffToHTML2 (KString& sOldText, KString& sNewText, KStringView sInsertTag="ins", KStringView sDeleteTag="del");
+std::size_t KDiffToHTML2 (KStringRef& sOldText, KStringRef& sNewText, KStringView sInsertTag="ins", KStringView sDeleteTag="del");
 
 /// shortcut to create a diff in text format
 /// @param sOldText the original string
@@ -229,7 +229,7 @@ KString KDiffToASCII (KStringView sOldText, KStringView sNewText);
 /// @param sOldText the original string
 /// @param sNewText the modified string
 /// @return count of diffs, 0 if equal
-std::size_t KDiffToASCII2 (KString& sOldText, KString& sNewText);
+std::size_t KDiffToASCII2 (KStringRef& sOldText, KStringRef& sNewText);
 
 } // end of namespace dekaf2
 

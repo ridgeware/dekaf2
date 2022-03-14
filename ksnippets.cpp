@@ -115,7 +115,7 @@ void KSnippets::SetOutput(KOutStream& OutStream)
 } // SetOutput
 
 //-----------------------------------------------------------------------------
-void KSnippets::SetOutput(KString& sOutput)
+void KSnippets::SetOutput(KStringRef& sOutput)
 //-----------------------------------------------------------------------------
 {
 	m_OSS = std::make_unique<KOutStringStream>(sOutput);

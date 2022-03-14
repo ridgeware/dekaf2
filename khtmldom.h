@@ -86,7 +86,7 @@ public:
 	/// Serializes element and all children. Allows to chose indent character (0 for no indent, default = tab).
 	KString Print(char chIndent = '\t', uint16_t iIndent = 0) const;
 	/// Serializes element and all children. Allows to chose indent character (0 for no indent, default = tab).
-	void Print(KString& sOut, char chIndent = '\t', uint16_t iIndent = 0) const;
+	void Print(KStringRef& sOut, char chIndent = '\t', uint16_t iIndent = 0) const;
 	/// Serializes element and all children. Allows to chose indent character (0 for no indent, default = tab).
 	bool Print(KOutStream& OutStream, char chIndent = '\t', uint16_t iIndent = 0, bool bIsFirstAfterLinefeed = true) const;
 
@@ -302,7 +302,7 @@ public:
 	// parsing is in base class
 
 	void Serialize(KOutStream& Stream, char chIndent = '\t') const;
-	void Serialize(KString& sOut, char chIndent = '\t') const;
+	void Serialize(KStringRef& sOut, char chIndent = '\t') const;
 	KString Serialize(char chIndent = '\t') const;
 
 	/// Clear all content

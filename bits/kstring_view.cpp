@@ -1,7 +1,8 @@
 /*
+//
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2021, Ridgeware, Inc.
+// Copyright (c) 2022, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -36,76 +37,94 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
+//
 */
 
-#pragma once
-
-/// @file ksnippets.h
-/// adds a class that outputs and replaces text sections
-
-#include "kstringview.h"
-#include "kstring.h"
-#include "koutstringstream.h"
-#include "kstream.h"
-#include "kreplacer.h"
-#include "klog.h"
-#include <unordered_map>
-#include <forward_list>
+#include "kcppcompat.h"
+#include "kstring_view.h"
+#include "simd/kfindfirstof.h"
+#ifdef DEKAF2_X86_64
+#ifdef DEKAF2_HAS_MINIFOLLY
+#include "../dekaf2.h"
+#endif
+#endif
 
 namespace dekaf2 {
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Replace variables with values
-class DEKAF2_PUBLIC KSnippets
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#ifndef __GLIBC__
+
+//-----------------------------------------------------------------------------
+void* memrchr(const void* s, int c, size_t n)
+//-----------------------------------------------------------------------------
 {
-
-//----------
-public:
-//----------
-
-	KSnippets() = default;
-	KSnippets(const KSnippets&) = delete;
-	KSnippets(KSnippets&&) = default;
-	KSnippets& operator=(const KSnippets&) = delete;
-	KSnippets& operator=(KSnippets&&) = default;
-
-	KSnippets(KInStream& InStream, KStringView sLeadIn = {"{{"}, KStringView sLeadOut = {"}}"});
-	KSnippets(KString sInput, KStringView sLeadIn = {"{{"}, KStringView sLeadOut = {"}}"});
-
-	bool Add(KSnippets&& other);
-	bool Add(KInStream& InStream,         KStringView sLeadIn = {"{{"}, KStringView sLeadOut = {"}}"});
-	bool Add(KString sInput,              KStringView sLeadIn = {"{{"}, KStringView sLeadOut = {"}}"});
-	bool AddFile(KStringViewZ sInputFile, KStringView sLeadIn = {"{{"}, KStringView sLeadOut = {"}}"});
-
-	void clear();
-
-	void SetOutput(KOutStream& OutStream);
-	void SetOutput(KStringRef& sOutput);
-
-	KSnippets& operator+=(KSnippets&& other)   { Add(std::move(other));  return *this; }
-	KSnippets& operator+=(KString sInput)      { Add(std::move(sInput)); return *this; }
-	KSnippets& operator+=(KInStream& InStream) { Add(InStream);          return *this; }
-
-	bool Compose(KStringView sSnippet, const KReplacer& Replacer = KReplacer{});
-	bool operator()(KStringView sSnippet, const KReplacer& Replacer = KReplacer{})
+#ifdef DEKAF2_X86_64
+#ifdef DEKAF2_HAS_MINIFOLLY
+	static bool has_sse42 = dekaf2::Dekaf::getInstance().GetCpuId().sse42();
+	if (DEKAF2_LIKELY(has_sse42))
+#endif
 	{
-		return Compose(sSnippet, Replacer);
+		const char* p = static_cast<const char*>(s);
+		char ch = static_cast<char>(c);
+		size_t pos = dekaf2::detail::sse::kFindLastOf(dekaf2::KStringView(p, n), dekaf2::KStringView(&ch, 1));
+		if (pos != dekaf2::KStringView::npos)
+		{
+			return const_cast<char*>(p + pos);
+		}
+		return nullptr;
+	}
+#endif
+
+	auto p = static_cast<const unsigned char*>(s);
+	for (p += n; n > 0; --n)
+	{
+		if (*--p == c)
+		{
+			return const_cast<unsigned char*>(p);
+		}
+	}
+	return nullptr;
+
+} // memrchr
+
+//-----------------------------------------------------------------------------
+void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, size_t iNeedleSize)
+//-----------------------------------------------------------------------------
+{
+	if (!iNeedleSize || !needle || !haystack)
+	{
+		// an empty needle matches the start of any haystack
+		return const_cast<void*>(haystack);
 	}
 
-//----------
-private:
-//----------
+	auto pHaystack = static_cast<const char*>(haystack);
+	auto pNeedle   = static_cast<const char*>(needle);
 
-	DEKAF2_PRIVATE
-	void IsolateSnippets(KStringView sBuffer, KStringView sLeadIn, KStringView sLeadOut);
+	for(;iNeedleSize <= iHaystackSize;)
+	{
+		auto pFound = static_cast<const char*>(std::memchr(pHaystack, pNeedle[0], (iHaystackSize - iNeedleSize) + 1));
 
-	std::forward_list<KString> m_Buffer;
-	std::unordered_map<KStringView, KStringView> m_Snippets;
-	std::unique_ptr<KOutStringStream> m_OSS;
-	KOutStream* m_OutStream { nullptr };
+		if (DEKAF2_UNLIKELY(!pFound))
+		{
+			return nullptr;
+		}
 
-}; // KSnippets
+		// due to aligned loads it is faster to compare the full needle again
+		if (std::memcmp(pFound, pNeedle, iNeedleSize) == 0)
+		{
+			return const_cast<char*>(pFound);
+		}
 
-} // of namespace dekaf2
+		auto iAdvance = static_cast<size_t>(pFound - pHaystack) + 1;
 
+		pHaystack     += iAdvance;
+		iHaystackSize -= iAdvance;
+	}
+
+	// no match
+	return nullptr;
+
+} // memmem
+
+#endif // of __GLIBC__
+
+} // end of namespace dekaf2

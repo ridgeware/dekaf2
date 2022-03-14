@@ -46,7 +46,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KWget (KStringView sURL, const KString& sOutfile, const KJSON& Options/*=KJSON{}*/)
+bool KWget (KStringView sURL, KStringViewZ sOutfile, const KJSON& Options/*=KJSON{}*/)
 //-----------------------------------------------------------------------------
 {
 	// TODO: someday support wget's cli interface in Options:

@@ -144,7 +144,7 @@ public:
 	Stats&    GetStats     () { return m_Stats; }
 
 	/// push stats as KMIME::WWW_URL_ENCODED or KMIME::JSON
-	uint16_t  PushStats    (KString/*copy*/ sURL, const KMIME& iMime, KStringView sMyUniqueIP, KString& sResponse);
+	uint16_t  PushStats    (KString/*copy*/ sURL, const KMIME& iMime, KStringView sMyUniqueIP, KStringRef& sResponse);
 
 	size_t    GatherProcs  (KStringView sCommandRegex="", bool bDoNoShowMyself=true);
 	void      DumpProcs    (KOutStream& stream, DumpFormat DumpFormat=DumpFormat::TEXT);

@@ -269,7 +269,7 @@ bool kIsURL(KStringView str) noexcept
 }
 
 //-----------------------------------------------------------------------------
-void kEscapeForLogging(KString& sLog, KStringView sInput)
+void kEscapeForLogging(KStringRef& sLog, KStringView sInput)
 //-----------------------------------------------------------------------------
 {
 	sLog.reserve(sLog.size() + sInput.size());

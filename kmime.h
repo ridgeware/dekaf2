@@ -134,7 +134,7 @@ public:
 	operator KStringViewZ() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_mime;
+		return Serialize();
 	}
 
 	static constexpr KStringViewZ NONE                   = "";
@@ -272,7 +272,7 @@ public:
 	/// Attach another part to this multipart structure - fails if this->MIME type is not multipart
 	KMIMEPart& operator+=(KMIMEPart part) { Attach(std::move(part)); return *this; }
 
-	bool Serialize(KString& sOut, bool bForHTTP = false, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0, KMIME ParentMIME = KMIME::NONE) const;
+	bool Serialize(KStringRef& sOut, bool bForHTTP = false, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0, KMIME ParentMIME = KMIME::NONE) const;
 	bool Serialize(KOutStream& Stream, bool bForHTTP = false, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
 	KString Serialize(bool bForHTTP = false, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
 

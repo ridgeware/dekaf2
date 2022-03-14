@@ -264,7 +264,7 @@ void KRESTRoutes::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-std::size_t KRESTRoutes::RegexMatchPath(KString& sPath, const Rewrites& Rewrites)
+std::size_t KRESTRoutes::RegexMatchPath(KStringRef& sPath, const Rewrites& Rewrites)
 //-----------------------------------------------------------------------------
 {
 	std::size_t iRewrites { 0 };

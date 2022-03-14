@@ -576,7 +576,7 @@ bool KUnTar::Read(KOutStream& OutStream)
 } // Read
 
 //-----------------------------------------------------------------------------
-bool KUnTar::Read(KString& sBuffer)
+bool KUnTar::Read(KStringRef& sBuffer)
 //-----------------------------------------------------------------------------
 {
 	sBuffer.clear();
@@ -585,9 +585,14 @@ bool KUnTar::Read(KString& sBuffer)
 	{
 		return SetError("cannot read - current tar entry is not a file");
 	}
+
 	
 	// resize the buffer to be able to read the file size
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	sBuffer.resize_uninitialized(Filesize());
+#else
+	sBuffer.resize(Filesize());
+#endif
 
 	// read the file into the buffer
 	if (!Read(&sBuffer[0], Filesize()))
@@ -734,7 +739,7 @@ bool KUnTar::ReadAll(KStringViewZ sTargetDirectory, bool bWithSubdirectories)
 } // ReadAll
 
 //-----------------------------------------------------------------------------
-bool KUnTar::File(KString& sName, KString& sBuffer)
+bool KUnTar::File(KStringRef& sName, KStringRef& sBuffer)
 //-----------------------------------------------------------------------------
 {
 	sName.clear();

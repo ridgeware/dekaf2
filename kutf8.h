@@ -995,10 +995,14 @@ WideString FromUTF8(const NarrowString& sNarrow)
 }
 
 //-----------------------------------------------------------------------------
-/// Transform a UTF8 string into another UTF8 string, calling a transformation
+/// Transform a UTF8 string into another string, narrow or wide, calling a transformation
 /// functor for each codepoint.
-template<typename NarrowString, typename NarrowReturnString, class Functor>
-bool TransformUTF8(const NarrowString& sInput, NarrowReturnString& sOutput, Functor func)
+/// @par sInput the UTF8 input string
+/// @par sOutput the output string, passed on to the functor
+/// @par func the transformation functor, called with signature bool(codepoint_t, ReturnString&)
+/// @return true for success, false for failure (invalid UTF8, or any failure in the functor)
+template<typename NarrowString, typename ReturnString, class Functor>
+bool TransformUTF8(const NarrowString& sInput, ReturnString& sOutput, Functor func)
 //-----------------------------------------------------------------------------
 {
 	return FromUTF8(sInput, [&sOutput, &func](codepoint_t uch)
@@ -1009,6 +1013,9 @@ bool TransformUTF8(const NarrowString& sInput, NarrowReturnString& sOutput, Func
 
 //-----------------------------------------------------------------------------
 /// Transform a UTF8 string into a lowercase UTF8 string.
+/// @par sInput the UTF8 input string
+/// @par sOutput the output UTF8 string
+/// @return true for success, false for invalid UTF8
 template<typename NarrowString, typename NarrowReturnString>
 bool ToLowerUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 //-----------------------------------------------------------------------------
@@ -1027,6 +1034,9 @@ bool ToLowerUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 
 //-----------------------------------------------------------------------------
 /// Transform a UTF8 string into a uppercase UTF8 string.
+/// @par sInput the UTF8 input string
+/// @par sOutput the output UTF8 string
+/// @return true for success, false for invalid UTF8
 template<typename NarrowString, typename NarrowReturnString>
 bool ToUpperUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 //-----------------------------------------------------------------------------

@@ -147,7 +147,7 @@ bool kRename (KStringViewZ sOldPath, KStringViewZ sNewPath);
 /// bToUnixLineFeeds is true. The base function (that is also called by this
 /// variant) is kReadAll().
 DEKAF2_PUBLIC
-bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds, std::size_t iMaxRead = npos);
+bool kReadFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineFeeds, std::size_t iMaxRead = npos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

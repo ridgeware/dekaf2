@@ -85,7 +85,7 @@ void KHTMLContentBlocks::BlockContent::clear()
 }
 
 //-----------------------------------------------------------------------------
-void KHTMLContentBlocks::BlockContent::Serialize(KString& sOut) const
+void KHTMLContentBlocks::BlockContent::Serialize(KStringRef& sOut) const
 //-----------------------------------------------------------------------------
 {
 	for (const auto& it : m_Content)

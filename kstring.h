@@ -69,6 +69,15 @@ class KString;
 class KStringView;
 class KStringViewZ;
 
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+/// a string type used for string& pars in parameter lists (output string parameters)
+using KStringRef = KString;
+#else
+/// a string type used for string& pars in parameter lists (output string parameters)
+/// - converts to and from KString without effort
+using KStringRef = std::string;
+#endif
+
 //----------------------------------------------------------------------
 /// returns a copy of the string in uppercase (UTF8)
 DEKAF2_PUBLIC
@@ -200,13 +209,11 @@ public:
 	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
 	self& operator= (const T& sv);
 
-	self& operator+= (const KString& s);
-	self& operator+= (const value_type ch)                    { push_back(ch); return *this; }
-	self& operator+= (const value_type *s);
-	self& operator+= (std::initializer_list<value_type> il);
 	template<typename T,
-	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
 	self& operator+= (const T& sv);
+	self& operator+= (const value_type ch)                    { push_back(ch); return *this; }
+	self& operator+= (std::initializer_list<value_type> il);
 
 	iterator                begin()            noexcept       { return m_rep.begin();        }
 	const_iterator          begin()            const noexcept { return m_rep.begin();        }
@@ -262,32 +269,30 @@ public:
 	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
 	self& append(const T& sv, size_type pos, size_type n = npos);
 
-	self& push_back(const value_type chPushBack)              { m_rep.push_back(chPushBack);        return *this; }
-	void pop_back()                                           { m_rep.pop_back();                                 }
+	void  push_back(const value_type chPushBack)              { m_rep.push_back(chPushBack);                      }
+	void  pop_back()                                          { if DEKAF2_LIKELY(!empty()) { m_rep.pop_back(); }  }
 
-	self& assign(const KString& str)                          { m_rep.assign(str.m_rep);            return *this; }
+	template<typename T,
+			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	self& assign(const T& sv);
 	self& assign(const KString&& str)                         { m_rep.assign(std::move(str.m_rep)); return *this; }
-	self& assign(const value_type* s, size_type n)            { m_rep.assign(s ? s : "", n);        return *this; }
-	self& assign(const value_type* s)                         { m_rep.assign(s ? s : "");           return *this; }
 	self& assign(size_type n, value_type ch)                  { m_rep.assign(n, ch);                return *this; }
 	template<class _InputIterator>
 	self& assign(_InputIterator first, _InputIterator last)   { m_rep.assign(first, last);          return *this; }
 	self& assign(std::initializer_list<value_type> il)        { m_rep.assign(il);                   return *this; }
 	self& assign(KString&& str) noexcept                      { m_rep.assign(std::move(str.m_rep)); return *this; }
-	template<typename T,
-	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
-	self& assign(const T& sv);
+	self& assign(const value_type* s, size_type n)            { m_rep.assign(s ? s : "", n);        return *this; }
 	template<typename T,
 	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
 	self& assign(const T& sv, size_type pos, size_type n = npos);
 
-	int compare(size_type pos, size_type n1, const value_type* s, size_type n2)    const;
 	template<typename T,
 			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
 	int compare(const T& sv)                                                       const;
 	template<typename T,
 			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
 	int compare(size_type pos, size_type n1, const T& sv)                          const;
+	int compare(size_type pos, size_type n1, const value_type* s, size_type n2)    const;
 	template<typename T,
 			 typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
 	int compare(size_type pos, size_type n1, const T& sv, size_type pos2, size_type n2 = npos) const;
@@ -414,7 +419,7 @@ public:
 
 	void swap(KString& s) { m_rep.swap(s.m_rep); }
 #ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
-	void swap(std::string& s) { m_rep.swap(s.m_rep); }
+	void swap(std::string& s) { m_rep.swap(s); }
 #endif
 
 	allocator_type get_allocator() const noexcept { return m_rep.get_allocator(); }
@@ -702,13 +707,19 @@ public:
 	std::string ToStdString()        const { return m_rep.toStdString(); }
 #else
 	/// convert to std::string
-	const std::string& ToStdString() const { return m_rep;               }
+	const std::string& ToStdString() const & { return m_rep;             }
+	/// convert to std::string
+	std::string& ToStdString() &           { return m_rep;               }
+	/// convert to std::string
+	std::string&& ToStdString() &&         { return std::move(m_rep);    }
 #endif
 
-	/// return the representation type
-	const string_type& str()         const { return m_rep;               }
-
-	string_type& str()                     { return m_rep;               }
+	/// return the string type
+	const string_type& str()       const & { return m_rep;               }
+	/// return the string type non-const
+	string_type& str() &                   { return m_rep;               }
+	/// return the string type as an rvalue
+	string_type&& str() &&                 { return std::move(m_rep);    }
 
 	/// return a KStringViewZ
 	KStringViewZ ToView() const;
@@ -722,10 +733,12 @@ public:
 	/// test if the string is non-empty
 	explicit operator bool()      const { return !empty();            }
 
-	/// return the representation type
+	/// return the string type
 	operator const string_type&() const { return m_rep;               }
-
+	/// return the string type non-const
 	operator string_type&()             { return m_rep;               }
+	/// return the string type as an rvalue
+	operator string_type&&() &&         { return std::move(m_rep);    }
 
 	/// helper operator to allow KString as formatting arg of fmt::format
 	operator fmt::string_view() const;
@@ -905,7 +918,7 @@ KString::KString(const T& sv, size_type pos, size_type n)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
 KString& KString::assign(const T& sv)
 //-----------------------------------------------------------------------------
 {
@@ -1008,20 +1021,6 @@ KString& KString::append(const T& sv, size_type pos, size_type n)
 }
 
 //-----------------------------------------------------------------------------
-inline KString& KString::operator+= (const KString& s)
-//-----------------------------------------------------------------------------
-{
-	return append(s);
-}
-
-//-----------------------------------------------------------------------------
-inline KString& KString::operator+= (const value_type *s)
-//-----------------------------------------------------------------------------
-{
-	return append(s);
-}
-
-//-----------------------------------------------------------------------------
 inline KString& KString::operator+= (std::initializer_list<value_type> il)
 //-----------------------------------------------------------------------------
 {
@@ -1030,7 +1029,7 @@ inline KString& KString::operator+= (std::initializer_list<value_type> il)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
 KString& KString::operator+= (const T& sv)
 //-----------------------------------------------------------------------------
 {
@@ -1835,6 +1834,31 @@ inline KString::size_type KString::RemoveIllegalChars(KStringView sIllegalChars)
 // KString inline methods until here
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+//------------------------------------------------------------------------------
+DEKAF2_PUBLIC
+KStringRef::size_type kReplace(KStringRef& string,
+							   const KStringView sSearch,
+							   const KStringView sReplaceWith,
+							   KStringRef::size_type pos = 0,
+							   bool bReplaceAll = true);
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+DEKAF2_PUBLIC
+KStringRef::size_type kReplace(KStringRef& string,
+							   const KStringRef::value_type chSearch,
+							   const KStringRef::value_type chReplaceWith,
+							   KStringRef::size_type pos = 0,
+							   bool bReplaceAll = true);
+//------------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// this inline method has to be defined after kReplace() ..
+inline KString::size_type KString::Replace(const KStringView sSearch, const KStringView sReplace, size_type pos, bool bReplaceAll)
+//-----------------------------------------------------------------------------
+{
+	return kReplace(*this, sSearch, sReplace, pos, bReplaceAll);
+}
 
 //-----------------------------------------------------------------------------
 inline std::istream& operator >>(std::istream& stream, KString& str)
@@ -1901,17 +1925,6 @@ inline KString operator+(KString&& left, KString::value_type right)
 	KString temp(std::move(left));
 	temp += right;
 	return temp;
-}
-
-//------------------------------------------------------------------------------
-inline std::size_t kReplace(KString& string,
-                            const KStringView sSearch,
-                            const KStringView sReplaceWith,
-                            KString::size_type pos = 0,
-                            bool bReplaceAll = true)
-//------------------------------------------------------------------------------
-{
-	return string.Replace(sSearch, sReplaceWith, pos, bReplaceAll);
 }
 
 inline namespace literals {

@@ -56,7 +56,7 @@ namespace dekaf2 {
 /// Simplified helper method that uses KWebClient to "wget" a file from a remote server
 /// to a local filesystem.  Eventually we will support all wget's cli options but currently
 /// the Options argument is ignored.
-bool KWget (KStringView sURL, const KString& sOutfile, const KJSON& Options=KJSON{});
+bool KWget (KStringView sURL, KStringViewZ sOutfile, const KJSON& Options=KJSON{});
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// high level HTTP client implementation with redirects etc.

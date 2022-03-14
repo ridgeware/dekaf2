@@ -94,7 +94,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KIOStringStream(KString& sBuffer)
+	KIOStringStream(KStringRef& sBuffer)
 	//-----------------------------------------------------------------------------
 	: base_type(&m_KStreamBuf)
 	{
@@ -111,7 +111,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// open a string for reading
-	void open(KString& sBuffer)
+	void open(KStringRef& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
 		m_Buffer.sBuffer = &sBuffer;
@@ -127,7 +127,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// get a const ref of the string
-	const KString& str() const;
+	const KStringRef& str() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -138,7 +138,7 @@ public:
 	// keep this struct public - it is used in KIOStringReader
 	struct Buffer
 	{
-		KString* sBuffer { nullptr };
+		KStringRef* sBuffer { nullptr };
 		size_t iReadPos { 0 };
 	};
 

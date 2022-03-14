@@ -331,7 +331,7 @@ KMIME KMIMEPart::ContentType() const
 } // GetContentType
 
 //-----------------------------------------------------------------------------
-bool KMIMEPart::Serialize(KString& sOut, bool bForHTTP, const KReplacer& Replacer, uint16_t recursion, KMIME ParentMIME) const
+bool KMIMEPart::Serialize(KStringRef& sOut, bool bForHTTP, const KReplacer& Replacer, uint16_t recursion, KMIME ParentMIME) const
 //-----------------------------------------------------------------------------
 {
 	if (!IsMultiPart())
@@ -341,7 +341,7 @@ bool KMIMEPart::Serialize(KString& sOut, bool bForHTTP, const KReplacer& Replace
 			if (!(bForHTTP && recursion == 0))
 			{
 				sOut += "Content-Type: ";
-				sOut += m_MIME;
+				sOut += m_MIME.Serialize();
 				sOut += "\r\n";
 
 				if (ParentMIME == KMIME::MULTIPART_RELATED && !m_sControlName.empty())
@@ -470,7 +470,7 @@ bool KMIMEPart::Serialize(KString& sOut, bool bForHTTP, const KReplacer& Replace
 		if (!(bForHTTP && recursion == 1))
 		{
 			sOut += "Content-Type: ";
-			sOut += m_MIME;
+			sOut += m_MIME.Serialize();
 			sOut += ";\r\n boundary=\"";
 			sOut += sBoundary;
 			sOut += "\"\r\n\r\n"; // End of headers

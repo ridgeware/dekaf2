@@ -237,6 +237,13 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	void open(const std::string& str, ios_base::openmode mode = ios_base::in | ios_base::out)
+	//-----------------------------------------------------------------------------
+	{
+		base_type::open(kToFilesystemPath(str), mode | ios_base::binary);
+	}
+
+	//-----------------------------------------------------------------------------
 	void open(const KStringViewZ sz, ios_base::openmode mode = ios_base::in | ios_base::out)
 	//-----------------------------------------------------------------------------
 	{

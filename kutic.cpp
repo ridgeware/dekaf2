@@ -175,14 +175,13 @@ bool KUTIC::AppendFromJSON(std::shared_ptr<std::vector<KUTIC>>& UTICs, bool bInc
 	{
 		for (auto& it : json)
 		{
-			UTICs->push_back(
-			{
+			UTICs->push_back(KUTIC(
 				bInclude,
-				kjson::GetStringRef(it, "U"),
-				kjson::GetStringRef(it, "T"),
-				kjson::GetStringRef(it, "I"),
-				kjson::GetStringRef(it, "C"),
-			});
+				KStringView(kjson::GetStringRef(it, "U")),
+				KStringView(kjson::GetStringRef(it, "T")),
+				KStringView(kjson::GetStringRef(it, "I")),
+				KStringView(kjson::GetStringRef(it, "C"))
+			));
 		}
 	}
 	else

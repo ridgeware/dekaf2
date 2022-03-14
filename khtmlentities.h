@@ -56,17 +56,17 @@ class DEKAF2_PUBLIC KHTMLEntity
 public:
 
 	/// Returns the numerical entity for the input character
-	static void ToHex(uint32_t ch, KString& sOut);
+	static void ToHex(uint32_t ch, KStringRef& sOut);
 
 	/// Returns the codepoints for the named entity in cp1, cp2, false if not found
 	static bool FromNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& cp2);
 
 	/// Adds only mandatory entities for the input character (<>&"'),
 	/// otherwise appends input char to output (and converts into UTF8)
-	static void ToMandatoryEntity(uint32_t ch, KString& sOut);
+	static void ToMandatoryEntity(uint32_t ch, KStringRef& sOut);
 
 	/// Escapes utf8 input with mandatory HTML entities (<>'"&) and appends to sAppendTo
-	static void AppendMandatory(KString& sAppendTo, KStringView sIn);
+	static void AppendMandatory(KStringRef& sAppendTo, KStringView sIn);
 
 	/// Escapes utf8 input with mandatory HTML entities (<>'"&)
 	static KString EncodeMandatory(KStringView sIn);

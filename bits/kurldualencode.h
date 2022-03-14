@@ -189,14 +189,14 @@ public:
 
 	//-------------------------------------------------------------------------
 	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	void get(KString& sTarget) const
+	void get(KStringRef& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		sTarget += get();
 	}
 
 	//-------------------------------------------------------------------------
-	void Serialize(KString& sTarget, URIPart Component) const
+	void Serialize(KStringRef& sTarget, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
 		sTarget += Serialize(Component);

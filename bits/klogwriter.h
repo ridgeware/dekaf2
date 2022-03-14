@@ -137,7 +137,7 @@ class DEKAF2_PUBLIC KLogFileWriter : public KLogWriter
 public:
 //----------
 
-	KLogFileWriter(KStringView sFileName);
+	KLogFileWriter(KStringViewZ sFileName);
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override { return m_OutFile.good(); }
 
@@ -161,7 +161,7 @@ public:
 
 	/// The sConcat will be written between individual log messages.
 	/// It will not be written after the last message
-	KLogStringWriter(KString& sOutString, KString sConcat = "\n");
+	KLogStringWriter(KStringRef& sOutString, KString sConcat = "\n");
 	virtual bool Write(int iLevel, bool bIsMultiline, KStringViewZ sOut) override;
 	virtual bool Good() const override { return true; }
 
@@ -169,7 +169,7 @@ public:
 private:
 //----------
 
-	KString& m_OutString;
+	KStringRef& m_OutString;
 	KString m_sConcat;
 
 }; // KLogStringWriter

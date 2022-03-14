@@ -353,14 +353,42 @@ KString::iterator KString::erase(iterator first, iterator last)
 }
 
 //----------------------------------------------------------------------
-KString::size_type KString::Replace(
-		const KStringView sSearch,
-		const KStringView sReplace,
-		size_type pos,
+KString::size_type kReplace(
+		KStringRef& sString,
+		KStringRef::value_type chSearch,
+		KStringRef::value_type chReplace,
+		KStringRef::size_type pos,
 		bool bReplaceAll)
 //----------------------------------------------------------------------
 {
-	const auto iSize = size();
+	KStringRef::size_type iReplaced{0};
+
+	while ((pos = sString.find(chSearch, pos)) != npos)
+	{
+		sString[pos] = chReplace;
+		++pos;
+		++iReplaced;
+
+		if (!bReplaceAll)
+		{
+			break;
+		}
+	}
+
+	return iReplaced;
+
+} // kReplace
+
+//----------------------------------------------------------------------
+KString::size_type kReplace(
+		KStringRef& sString,
+		const KStringView sSearch,
+		const KStringView sReplace,
+		KStringRef::size_type pos,
+		bool bReplaceAll)
+//----------------------------------------------------------------------
+{
+	const auto iSize = sString.size();
 
 	if (DEKAF2_UNLIKELY(pos >= iSize))
 	{
@@ -378,15 +406,15 @@ KString::size_type KString::Replace(
 
 	if (DEKAF2_UNLIKELY(iSearchSize == 1 && iReplaceSize == 1))
 	{
-		return Replace(sSearch.front(), sReplace.front(), pos, bReplaceAll);
+		return kReplace(sString, sSearch.front(), sReplace.front(), pos, bReplaceAll);
 	}
 
-	size_type iNumReplacement = 0;
+	KStringRef::size_type iNumReplacement = 0;
 	// use a non-const ref to the first element, as .data() is const with C++ < 17
-	value_type* haystack = &m_rep[pos];
-	size_type haystackSize = iSize - pos;
+	KStringRef::value_type* haystack = &sString[pos];
+	KStringRef::size_type haystackSize = iSize - pos;
 
-	auto pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), iSearchSize));
+	auto pszFound = static_cast<KStringRef::value_type*>(memmem(haystack, haystackSize, sSearch.data(), iSearchSize));
 
 	if (DEKAF2_LIKELY(pszFound != nullptr))
 	{
@@ -399,7 +427,7 @@ KString::size_type KString::Replace(
 
 			while (pszFound)
 			{
-				auto untouchedSize = static_cast<size_type>(pszFound - haystack);
+				auto untouchedSize = static_cast<KStringRef::size_type>(pszFound - haystack);
 
 				if (pszTarget < haystack)
 				{
@@ -417,7 +445,7 @@ KString::size_type KString::Replace(
 				haystack = pszFound + iSearchSize;
 				haystackSize -= (iSearchSize + untouchedSize);
 
-				pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), iSearchSize));
+				pszFound = static_cast<KStringRef::value_type*>(memmem(haystack, haystackSize, sSearch.data(), iSearchSize));
 
 				++iNumReplacement;
 
@@ -433,8 +461,8 @@ KString::size_type KString::Replace(
 				pszTarget += haystackSize;
 			}
 
-			auto iResultSize = static_cast<size_type>(pszTarget - data());
-			resize(iResultSize);
+			auto iResultSize = static_cast<KStringRef::size_type>(pszTarget - sString.data());
+			sString.resize(iResultSize);
 
 		}
 		else
@@ -448,19 +476,19 @@ KString::size_type KString::Replace(
 			if (DEKAF2_UNLIKELY(pos))
 			{
 				// copy the skipped part of the source string
-				sResult.append(*this, 0, pos);
+				sResult.append(sString, 0, pos);
 			}
 
 			while (pszFound)
 			{
-				auto untouchedSize = static_cast<size_type>(pszFound - haystack);
+				auto untouchedSize = static_cast<KStringRef::size_type>(pszFound - haystack);
 				sResult.append(haystack, untouchedSize);
 				sResult.append(sReplace.data(), iReplaceSize);
 
 				haystack = pszFound + iSearchSize;
 				haystackSize -= (iSearchSize + untouchedSize);
 
-				pszFound = static_cast<value_type*>(memmem(haystack, haystackSize, sSearch.data(), iSearchSize));
+				pszFound = static_cast<KStringRef::value_type*>(memmem(haystack, haystackSize, sSearch.data(), iSearchSize));
 
 				++iNumReplacement;
 
@@ -471,16 +499,17 @@ KString::size_type KString::Replace(
 			}
 
 			sResult.append(haystack, haystackSize);
-			swap(sResult);
+			sString.swap(sResult);
 
 		}
 	}
 
 	return iNumReplacement;
 
-} // Replace
+} // kReplace
 
 //----------------------------------------------------------------------
+// we keep a KString version of kReplace, because it uses an unchecked subscript access
 KString::size_type KString::Replace(
 		value_type chSearch,
 		value_type chReplace,

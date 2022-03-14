@@ -51,80 +51,6 @@
 
 namespace dekaf2 {
 
-#ifndef __GLIBC__
-//-----------------------------------------------------------------------------
-void* memrchr(const void* s, int c, size_t n)
-//-----------------------------------------------------------------------------
-{
-#ifdef DEKAF2_X86_64
-#ifdef DEKAF2_HAS_MINIFOLLY
-	static bool has_sse42 = dekaf2::Dekaf::getInstance().GetCpuId().sse42();
-	if (DEKAF2_LIKELY(has_sse42))
-#endif
-	{
-		const char* p = static_cast<const char*>(s);
-		char ch = static_cast<char>(c);
-		size_t pos = dekaf2::detail::sse::kFindLastOf(dekaf2::KStringView(p, n), dekaf2::KStringView(&ch, 1));
-		if (pos != dekaf2::KStringView::npos)
-		{
-			return const_cast<char*>(p + pos);
-		}
-		return nullptr;
-	}
-#endif
-
-	auto p = static_cast<const unsigned char*>(s);
-	for (p += n; n > 0; --n)
-	{
-		if (*--p == c)
-		{
-			return const_cast<unsigned char*>(p);
-		}
-	}
-	return nullptr;
-
-} // memrchr
-
-//-----------------------------------------------------------------------------
-void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, size_t iNeedleSize)
-//-----------------------------------------------------------------------------
-{
-	if (!iNeedleSize || !needle || !haystack)
-	{
-		// an empty needle matches the start of any haystack
-		return const_cast<void*>(haystack);
-	}
-
-	auto pHaystack = static_cast<const char*>(haystack);
-	auto pNeedle   = static_cast<const char*>(needle);
-
-	for(;iNeedleSize <= iHaystackSize;)
-	{
-		auto pFound = static_cast<const char*>(std::memchr(pHaystack, pNeedle[0], (iHaystackSize - iNeedleSize) + 1));
-
-		if (DEKAF2_UNLIKELY(!pFound))
-		{
-			return nullptr;
-		}
-
-		// due to aligned loads it is faster to compare the full needle again
-		if (std::memcmp(pFound, pNeedle, iNeedleSize) == 0)
-		{
-			return const_cast<char*>(pFound);
-		}
-
-		auto iAdvance = static_cast<size_t>(pFound - pHaystack) + 1;
-
-		pHaystack     += iAdvance;
-		iHaystackSize -= iAdvance;
-	}
-
-	// no match
-	return nullptr;
-
-} // memmem
-#endif
-
 //-----------------------------------------------------------------------------
 size_t kFind(
         const KStringView haystack,
@@ -203,9 +129,8 @@ size_t kRFind(
 
 		for(;;)
 		{
-			auto found = static_cast<const char*>(memrchr(haystack.data(),
-			                                                needle[0],
-			                                                pos+1));
+			auto found = static_cast<const char*>(memrchr(haystack.data(), needle[0], pos+1));
+
 			if (!found)
 			{
 				break;
@@ -741,7 +666,7 @@ void KStringView::Warn(KStringView sWhere, KStringView sWhat) const
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_WITH_KLOG
-	dekaf2::KLog::getInstance().debug_fun(1, sWhere, sWhat);
+	KLog::getInstance().debug_fun(1, sWhere, sWhat);
 #endif
 }
 
@@ -749,14 +674,14 @@ void KStringView::Warn(KStringView sWhere, KStringView sWhat) const
 KStringView KStringView::MatchRegex(const KStringView sRegEx, size_type pos) const
 //----------------------------------------------------------------------
 {
-	return dekaf2::KRegex::Match(*this, sRegEx, pos);
+	return KRegex::Match(*this, sRegEx, pos);
 }
 
 //----------------------------------------------------------------------
 std::vector<KStringView> KStringView::MatchRegexGroups(const KStringView sRegEx, size_type pos) const
 //----------------------------------------------------------------------
 {
-	return dekaf2::KRegex::MatchGroups(*this, sRegEx, pos);
+	return KRegex::MatchGroups(*this, sRegEx, pos);
 }
 
 //----------------------------------------------------------------------
@@ -770,7 +695,7 @@ KStringView& KStringView::TrimLeft()
 KStringView& KStringView::TrimLeft(value_type chTrim)
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(*this, [chTrim](value_type ch){ return ch == chTrim; } );
+	kTrimLeft(*this, [chTrim](value_type ch){ return ch == chTrim; } );
 	return *this;
 }
 
@@ -778,7 +703,7 @@ KStringView& KStringView::TrimLeft(value_type chTrim)
 KStringView& KStringView::TrimLeft(const KStringView sTrim)
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(*this, sTrim);
+	kTrimLeft(*this, sTrim);
 	return *this;
 }
 
@@ -793,7 +718,7 @@ KStringView& KStringView::TrimRight()
 KStringView& KStringView::TrimRight(value_type chTrim)
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimRight(*this, [chTrim](value_type ch){ return ch == chTrim; } );
+	kTrimRight(*this, [chTrim](value_type ch){ return ch == chTrim; } );
 	return *this;
 }
 
@@ -801,20 +726,7 @@ KStringView& KStringView::TrimRight(value_type chTrim)
 KStringView& KStringView::TrimRight(const KStringView sTrim)
 //----------------------------------------------------------------------
 {
-	// for some reason the template generalization of kTrimRight(KStringView, KStringView)
-	// does not work on entirely trimmable strings (with apple clang 12) - so we code the
-	// same algorithm here again
-	auto iDelete = find_last_not_of(sTrim);
-
-	if (iDelete == npos)
-	{
-		clear();
-	}
-	else
-	{
-		erase(iDelete + 1);
-	}
-
+	kTrimRight(*this, sTrim);
 	return *this;
 }
 
@@ -884,4 +796,3 @@ constexpr KStringView::value_type KStringView::s_0ch;
 #endif
 
 } // end of namespace dekaf2
-

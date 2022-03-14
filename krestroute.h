@@ -446,7 +446,7 @@ public:
 	/// Rewrite a request path by matching with the rewrite rules - all are applied consecutively in the
 	/// order of their definition
 	/// @return count of matching rewrite rules that changed the path
-	std::size_t RewritePath(KString& sPath) const
+	std::size_t RewritePath(KStringRef& sPath) const
 	//-----------------------------------------------------------------------------
 	{
 		return RegexMatchPath(sPath, m_Rewrites);
@@ -455,7 +455,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Redirect a request path by matching with the redirect rules - all are applied consecutively in the
 	/// order of their definition. Throws a permanent redirect if matching
-	std::size_t RedirectPath(KString& sPath) const
+	std::size_t RedirectPath(KStringRef& sPath) const
 	//-----------------------------------------------------------------------------
 	{
 		return RegexMatchPath(sPath, m_Redirects);
@@ -507,7 +507,7 @@ private:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	static std::size_t RegexMatchPath(KString& sPath, const Rewrites& Rewrites);
+	static std::size_t RegexMatchPath(KStringRef& sPath, const Rewrites& Rewrites);
 	//-----------------------------------------------------------------------------
 
 	Routes     m_Routes;

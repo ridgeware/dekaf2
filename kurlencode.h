@@ -360,7 +360,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// construct from a string
 	template<const char X = chPairSep, typename std::enable_if<X == '\0', int>::type = 0>
-	void get(KString& sTarget) const
+	void get(KStringRef& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		sTarget += m_sDecoded;
@@ -386,7 +386,7 @@ public:
 	/// serialize into a string
 	// the non-Key-Value POD encoding
 	template<const char X = chPairSep, bool P = bIsPod, typename std::enable_if<X == '\0' && P == true, int>::type = 0>
-	void Serialize(KString& sEncoded, URIPart Component) const
+	void Serialize(KStringRef& sEncoded, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
 		sEncoded += kIntToString(m_sDecoded);
@@ -396,7 +396,7 @@ public:
 	/// serialize into a string
 	// the non-Key-Value non-POD encoding
 	template<const char X = chPairSep, bool P = bIsPod, typename std::enable_if<X == '\0' && P == false, int>::type = 0>
-	void Serialize(KString& sEncoded, URIPart Component) const
+	void Serialize(KStringRef& sEncoded, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
 		kUrlEncode (m_sDecoded, sEncoded, Component);
@@ -406,7 +406,7 @@ public:
 	/// serialize into a string
 	// the Key-Value encoding
 	template<const char X = chPairSep, typename std::enable_if<X != '\0', int>::type = 0>
-	void Serialize(KString& sEncoded, URIPart Component) const
+	void Serialize(KStringRef& sEncoded, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
 		bool bSeparator = false;
@@ -638,10 +638,10 @@ protected:
 }; // KURLEncoded
 
 #ifndef _MSC_VER
-extern template void kUrlDecode(KString& sDecode, bool pPlusAsSpace = false);
-extern template void kUrlDecode(KStringView sSource, KString& sTarget, bool bPlusAsSpace = false);
+extern template void kUrlDecode(KStringRef& sDecode, bool pPlusAsSpace = false);
+extern template void kUrlDecode(KStringView sSource, KStringRef& sTarget, bool bPlusAsSpace = false);
 extern template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);
-extern template void kUrlEncode (KStringView sSource, KString& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
+extern template void kUrlEncode (KStringView sSource, KStringRef& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
 
 extern template class KURLEncoded<uint16_t>;
 extern template class KURLEncoded<KString>;

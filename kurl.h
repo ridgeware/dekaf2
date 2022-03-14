@@ -267,7 +267,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// Serialize stream style
-	const URIComponent& operator>> (KString& sTarget) const
+	const URIComponent& operator>> (KStringRef& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		Serialize (sTarget);
@@ -297,7 +297,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// serialize content into string from members (not user or password)
 	template<URIPart C = Component, typename std::enable_if<C != URIPart::User && C != URIPart::Password, int>::type = 0 >
-	bool Serialize (KString& sTarget) const
+	bool Serialize (KStringRef& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		if (!m_sStorage.empty())
@@ -316,7 +316,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// serialize content into string from user or password
 	template<URIPart C = Component, typename std::enable_if<C == URIPart::User || C == URIPart::Password, int>::type = 0 >
-	bool Serialize (KString& sTarget, char chSuffix = '@') const
+	bool Serialize (KStringRef& sTarget, char chSuffix = '@') const
 	//-------------------------------------------------------------------------
 	{
 		if (!m_sStorage.empty())
@@ -726,7 +726,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// Serialize internal rep into arg KString
-	const KProtocol& operator>> (KString& sTarget) const
+	const KProtocol& operator>> (KStringRef& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		Serialize (sTarget);
@@ -744,7 +744,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// generate content into string from members
-	bool Serialize (KString& sTarget) const
+	bool Serialize (KStringRef& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		sTarget += Serialize();
@@ -970,7 +970,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// serialize into a string
 	/// @return always true
-	bool Serialize(KString& sTarget) const;
+	bool Serialize(KStringRef& sTarget) const;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
@@ -981,7 +981,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// Serialize stream style
-	const KResource& operator>> (KString& sTarget) const
+	const KResource& operator>> (KStringRef& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		Serialize (sTarget);
@@ -1131,7 +1131,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// generate content into encoded string from members
 	/// @return always true
-	bool Serialize(KString& sTarget) const;
+	bool Serialize(KStringRef& sTarget) const;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
@@ -1168,7 +1168,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// Serialize stream style
-	const KURL& operator>> (KString& sTarget) const
+	const KURL& operator>> (KStringRef& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		Serialize (sTarget);
@@ -1356,7 +1356,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// serialize into a string
 	/// @return always true
-	bool Serialize(KString& sTarget) const;
+	bool Serialize(KStringRef& sTarget) const;
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
@@ -1377,7 +1377,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// Serialize stream style
-	const KTCPEndPoint& operator>> (KString& sTarget) const
+	const KTCPEndPoint& operator>> (KStringRef& sTarget) const
 	//-------------------------------------------------------------------------
 	{
 		Serialize (sTarget);

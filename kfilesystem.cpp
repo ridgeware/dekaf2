@@ -1498,7 +1498,7 @@ bool kAppendFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKA
 } // kAppendFile
 
 //-----------------------------------------------------------------------------
-bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds, std::size_t iMaxRead)
+bool kReadFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineFeeds, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, sPath);
@@ -1510,7 +1510,7 @@ bool kReadFile (KStringViewZ sPath, KString& sContents, bool bToUnixLineFeeds, s
 
 	if (bToUnixLineFeeds)
 	{
-		sContents.Replace("\r\n","\n"); // DOS -> UNIX
+		kReplace(sContents, "\r\n","\n"); // DOS -> UNIX
 	}
 	
 	return true;

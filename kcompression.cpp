@@ -204,7 +204,7 @@ bool KCompressOStream::open(KOutStream& TargetStream, COMPRESSION compression, u
 } // Open
 
 //-----------------------------------------------------------------------------
-bool KCompressOStream::open(KString& sTarget, COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading, std::size_t iDataSize)
+bool KCompressOStream::open(KStringRef& sTarget, COMPRESSION compression, uint16_t iLevel, uint16_t iMultiThreading, std::size_t iDataSize)
 //-----------------------------------------------------------------------------
 {
 	m_KOutStream = std::make_unique<KOutStringStream>(sTarget);

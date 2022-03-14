@@ -65,7 +65,7 @@ public:
 
 
 	/// Append a char in hexadecimal to sOut
-	static void HexAppend(KString& sOut, char chIn)
+	static void HexAppend(KStringRef& sOut, char chIn)
 	{
 		static constexpr KStringView hexify { "0123456789abcdef" };
 
@@ -78,10 +78,9 @@ public:
 	static KString Hex(KStringView sIn);
 
 	/// Convert an input string to hexadecimal
-	static void HexInPlace(KString& sBuffer)
+	static void HexInPlace(KStringRef& sBuffer)
 	{
-		KString sRet = Hex(sBuffer);
-		sBuffer.swap(sRet);
+		sBuffer = Hex(sBuffer);
 	}
 
 	/// Wrapper around KBase64::Encode. Does the same.
@@ -91,10 +90,9 @@ public:
 	}
 
 	/// Wrapper around KBase64::Encode. Does the same with a different interface.
-	static void Base64InPlace(KString& sBuffer)
+	static void Base64InPlace(KStringRef& sBuffer)
 	{
-		KString sRet = Base64(sBuffer);
-		sBuffer.swap(sRet);
+		sBuffer = Base64(sBuffer);
 	}
 
 	/// Wrapper around KBase64Url::Encode. Does the same.
@@ -104,10 +102,9 @@ public:
 	}
 
 	/// Wrapper around KBase64Url::Encode. Does the same with a different interface.
-	static void Base64UrlInPlace(KString& sBuffer)
+	static void Base64UrlInPlace(KStringRef& sBuffer)
 	{
-		KString sRet = Base64Url(sBuffer);
-		sBuffer.swap(sRet);
+		sBuffer = Base64Url(sBuffer);
 	}
 
 	/// Wrapper around KQuotedPrintable::Encode. Does the same.
@@ -117,10 +114,9 @@ public:
 	}
 
 	/// Wrapper around KQuotedPrintable::Encode. Does the same with a different interface.
-	static void QuotedPrintableInPlace(KString& sBuffer, bool bForMailHeaders = false)
+	static void QuotedPrintableInPlace(KStringRef& sBuffer, bool bForMailHeaders = false)
 	{
-		KString sRet = QuotedPrintable(sBuffer, bForMailHeaders);
-		sBuffer.swap(sRet);
+		sBuffer = QuotedPrintable(sBuffer, bForMailHeaders);
 	}
 
 	/// Wrapper around kURLEncode. Does the same with a different interface.
@@ -132,10 +128,9 @@ public:
 	}
 
 	/// Wrapper around kURLEncode. Does the same with a different interface.
-	static void URLInPlace(KString& sBuffer, URIPart URIpart = URIPart::Query)
+	static void URLInPlace(KStringRef& sBuffer, URIPart URIpart = URIPart::Query)
 	{
-		KString sRet = URL(sBuffer, URIpart);
-		sBuffer.swap(sRet);
+		sBuffer = URL(sBuffer, URIpart);
 	}
 
 	/// Wrapper around kHTMLEntityEncode. Does the same.
@@ -145,10 +140,9 @@ public:
 	}
 
 	/// Wrapper around kHTMLEntityEncode. Does the same with a different interface.
-	static void HTMLInPlace(KString& sBuffer)
+	static void HTMLInPlace(KStringRef& sBuffer)
 	{
-		KString sRet = HTML(sBuffer);
-		sBuffer.swap(sRet);
+		sBuffer = HTML(sBuffer);
 	}
 
 	/// Wrapper around kHTMLEntityEncode. Does the same.
@@ -158,10 +152,9 @@ public:
 	}
 
 	/// Wrapper around kHTMLEntityEncode. Does the same with a different interface.
-	static void XMLInPlace(KString& sBuffer)
+	static void XMLInPlace(KStringRef& sBuffer)
 	{
-		KString sRet = HTML(sBuffer);
-		sBuffer.swap(sRet);
+		sBuffer = HTML(sBuffer);
 	}
 
 }; // KEncode
@@ -180,10 +173,9 @@ public:
 	static KString Hex(KStringView sIn);
 
 	/// Decode a hexadecimal input string
-	static void HexInPlace(KString& sBuffer)
+	static void HexInPlace(KStringRef& sBuffer)
 	{
-		KString sRet = Hex(sBuffer);
-		sBuffer.swap(sRet);
+		sBuffer = Hex(sBuffer);
 	}
 
 	/// Wrapper around KBase64::Decode. Does the same.
@@ -193,10 +185,9 @@ public:
 	}
 
 	/// Wrapper around KBase64::Decode. Does the same with a different interface.
-	static void Base64InPlace(KString& sBuffer)
+	static void Base64InPlace(KStringRef& sBuffer)
 	{
-		KString sRet = Base64(sBuffer);
-		sBuffer.swap(sRet);
+		sBuffer = Base64(sBuffer);
 	}
 
 	/// Wrapper around KBase64Url::Decode. Does the same.
@@ -206,10 +197,9 @@ public:
 	}
 
 	/// Wrapper around KBase64Url::Decode. Does the same with a different interface.
-	static void Base64UrlInPlace(KString& sBuffer)
+	static void Base64UrlInPlace(KStringRef& sBuffer)
 	{
-		KString sRet = Base64Url(sBuffer);
-		sBuffer.swap(sRet);
+		sBuffer = Base64Url(sBuffer);
 	}
 
 	/// Wrapper around KQuotedPrintable::Decode. Does the same.
@@ -219,10 +209,9 @@ public:
 	}
 
 	/// Wrapper around KQuotedPrintable::Decode. Does the same with a different interface.
-	static void QuotedPrintableInPlace(KString& sBuffer, bool bDotStuffing = true)
+	static void QuotedPrintableInPlace(KStringRef& sBuffer, bool bDotStuffing = true)
 	{
-		KString sRet = QuotedPrintable(sBuffer, bDotStuffing);
-		sBuffer.swap(sRet);
+		sBuffer = QuotedPrintable(sBuffer, bDotStuffing);
 	}
 
 	/// Wrapper around kUrlDecode. Does the same.
@@ -232,7 +221,7 @@ public:
 	}
 
 	/// Wrapper around kUrlDecode. Does the same.
-	static void URLInPlace(KString& sBuffer, URIPart URIpart = URIPart::Query)
+	static void URLInPlace(KStringRef& sBuffer, URIPart URIpart = URIPart::Query)
 	{
 		kUrlDecode(sBuffer, URIpart == URIPart::Query);
 	}
@@ -244,10 +233,9 @@ public:
 	}
 
 	/// Wrapper around KHTMLEntity::Decode. Does the same with a different interface.
-	static void HTMLInPlace(KString& sBuffer)
+	static void HTMLInPlace(KStringRef& sBuffer)
 	{
-		KString sRet = HTML(sBuffer);
-		sBuffer.swap(sRet);
+		sBuffer = HTML(sBuffer);
 	}
 
 	/// Wrapper around KHTMLEntity::Decode. Does the same.
@@ -257,10 +245,9 @@ public:
 	}
 
 	/// Wrapper around KHTMLEntity::Decode. Does the same with a different interface.
-	static void XMLInPlace(KString& sBuffer)
+	static void XMLInPlace(KStringRef& sBuffer)
 	{
-		KString sRet = HTML(sBuffer);
-		sBuffer.swap(sRet);
+		sBuffer = HTML(sBuffer);
 	}
 
 }; // KDecode

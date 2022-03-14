@@ -124,7 +124,7 @@ KString KTCPServer::Init(Parameters& parameters)
 }
 
 //-----------------------------------------------------------------------------
-KString KTCPServer::Request(KString& qstr, Parameters& parameters)
+KString KTCPServer::Request(KStringRef& qstr, Parameters& parameters)
 //-----------------------------------------------------------------------------
 {
 	return KString();

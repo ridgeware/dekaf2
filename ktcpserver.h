@@ -289,7 +289,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// Virtual hook to process one line of client requests
-	virtual KString Request(KString& qstr, Parameters& parameters);
+	virtual KString Request(KStringRef& qstr, Parameters& parameters);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

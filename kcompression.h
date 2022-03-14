@@ -120,7 +120,7 @@ public:
 	/// @param iLevel sets the compression level from 1..100%, 0 = default
 	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), n = n parallel threads
 	/// @param iDataSize hint for file size, may be defaulted at npos
-	KCompressOStream(KString& sTarget, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos)
+	KCompressOStream(KStringRef& sTarget, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos)
 	{
 		open(sTarget, compression, iLevel, iMultiThreading, iDataSize);
 	}
@@ -139,7 +139,7 @@ public:
 	/// @param iLevel sets the compression level from 1..100%, 0 = default
 	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), n = n parallel threads
 	/// @param iDataSize hint for file size, may be defaulted at npos
-	KCompressOStream(KString& sTarget, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos)
+	KCompressOStream(KStringRef& sTarget, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos)
 	{
 		open_file(sTarget, AUTO, iLevel, iMultiThreading, iDataSize);
 	}
@@ -158,7 +158,7 @@ public:
 	/// @param iLevel sets the compression level from 1..100%, 0 = default
 	/// @param iMultiThreading (only for ZSTD compression): 0 = #CPU (default), n = n parallel threads
 	/// @param iDataSize hint for file size (for maximum parallelism computation), default is npos
-	bool open(KString& sTarget, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos);
+	bool open(KStringRef& sTarget, COMPRESSION compression, uint16_t iLevel = 0, uint16_t iMultiThreading = 0, std::size_t iDataSize = npos);
 	/// sets a KOutStream as the target
 	/// @param TargetStream stream to write the compressed data into
 	/// @param compression one of the compression methods: GZIP, ZLIB, BZIP2, ZSTD, LZMA, BROTLI

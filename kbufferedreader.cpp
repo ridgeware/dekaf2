@@ -42,6 +42,7 @@
 
 #include "kbufferedreader.h"
 #include "kstring.h"
+#include "kstringutils.h"
 #include "klog.h"
 #include <algorithm>
 
@@ -100,7 +101,7 @@ bool KBufferedReader::ReadLine(KStringView& sLine, KStringView::value_type delim
 } // ReadLine
 
 //-----------------------------------------------------------------------------
-bool KBufferedReader::ReadLine(KString& sBuffer, KStringView::value_type delimiter, KStringView sRightTrim)
+bool KBufferedReader::ReadLine(KStringRef& sBuffer, KStringView::value_type delimiter, KStringView sRightTrim)
 //-----------------------------------------------------------------------------
 {
 	sBuffer.clear();
@@ -127,7 +128,7 @@ bool KBufferedReader::ReadLine(KString& sBuffer, KStringView::value_type delimit
 	// executed the right trim if not "complete"
 	if (bComplete && !sRightTrim.empty())
 	{
-		sBuffer.TrimRight(sRightTrim);
+		kTrimRight(sBuffer, sRightTrim);
 	}
 
 	return true;

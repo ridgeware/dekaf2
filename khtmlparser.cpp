@@ -104,7 +104,7 @@ void KHTMLObject::Serialize(KOutStream& OutStream) const
 } // Serialize
 
 //-----------------------------------------------------------------------------
-void KHTMLObject::Serialize(KString& sOut) const
+void KHTMLObject::Serialize(KStringRef& sOut) const
 //-----------------------------------------------------------------------------
 {
 	// call the stream serializer - make sure always at least one of those
@@ -300,7 +300,7 @@ void KHTMLText::Serialize(KOutStream& OutStream) const
 }
 
 //-----------------------------------------------------------------------------
-void KHTMLText::Serialize(KString& sOut) const
+void KHTMLText::Serialize(KStringRef& sOut) const
 //-----------------------------------------------------------------------------
 {
 	sOut += sText;
@@ -538,7 +538,7 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening)
 } // Parse
 
 //-----------------------------------------------------------------------------
-void KHTMLAttribute::Serialize(KString& sOut) const
+void KHTMLAttribute::Serialize(KStringRef& sOut) const
 //-----------------------------------------------------------------------------
 {
 	if (!empty())
@@ -724,7 +724,7 @@ bool KHTMLAttributes::Parse(KBufferedReader& InStream, KStringView sOpening)
 } // Parse
 
 //-----------------------------------------------------------------------------
-void KHTMLAttributes::Serialize(KString& sOut) const
+void KHTMLAttributes::Serialize(KStringRef& sOut) const
 //-----------------------------------------------------------------------------
 {
 	for (auto& attribute : m_Attributes)
@@ -874,7 +874,7 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening)
 } // Parse
 
 //-----------------------------------------------------------------------------
-void KHTMLTag::Serialize(KString& sOut) const
+void KHTMLTag::Serialize(KStringRef& sOut) const
 //-----------------------------------------------------------------------------
 {
 	if (!empty())

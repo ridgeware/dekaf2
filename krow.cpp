@@ -336,7 +336,7 @@ bool KROW::SetFlags (KStringView sColName, KCOL::Flags Flags)
 }
 
 //-----------------------------------------------------------------------------
-void KROW::PrintValuesForInsert(KString& sSQL, DBT iDBType) const
+void KROW::PrintValuesForInsert(KStringRef& sSQL, DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
@@ -384,7 +384,7 @@ void KROW::PrintValuesForInsert(KString& sSQL, DBT iDBType) const
 } // PrintValuesForInsert
 
 //-----------------------------------------------------------------------------
-bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=false*/) const
+bool KROW::FormInsert (KStringRef& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=false*/) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
@@ -446,7 +446,7 @@ bool KROW::FormInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*
 } // FormInsert
 
 //-----------------------------------------------------------------------------
-bool KROW::AppendInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=true*/) const
+bool KROW::AppendInsert (KStringRef& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=true*/) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
@@ -488,7 +488,7 @@ bool KROW::AppendInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert/*=fals
 } // AppendInsert
 
 //-----------------------------------------------------------------------------
-bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
+bool KROW::FormUpdate (KStringRef& sSQL, DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
@@ -601,7 +601,7 @@ bool KROW::FormUpdate (KString& sSQL, DBT iDBType) const
 } // FormUpdate
 
 //-----------------------------------------------------------------------------
-bool KROW::FormSelect (KString& sSQL, DBT iDBType, bool bSelectAllColumns) const
+bool KROW::FormSelect (KStringRef& sSQL, DBT iDBType, bool bSelectAllColumns) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
@@ -683,7 +683,7 @@ bool KROW::FormSelect (KString& sSQL, DBT iDBType, bool bSelectAllColumns) const
 } // FormSelect
 
 //-----------------------------------------------------------------------------
-bool KROW::FormDelete (KString& sSQL, DBT iDBType) const
+bool KROW::FormDelete (KStringRef& sSQL, DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");

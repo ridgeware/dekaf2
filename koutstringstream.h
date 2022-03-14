@@ -95,7 +95,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KOStringStream(KString& str)
+	KOStringStream(KStringRef& str)
 	//-----------------------------------------------------------------------------
 	: base_type(&m_KOStreamBuf)
 	{
@@ -112,7 +112,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// set output string
-	void open(KString& str)
+	void open(KStringRef& str)
 	//-----------------------------------------------------------------------------
 	{
 		m_sBuffer = &str;
@@ -128,7 +128,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// gets a const ref of the string
-	const KString& str() const;
+	const KStringRef& str() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -140,7 +140,7 @@ public:
 protected:
 //----------
 
-	KString* m_sBuffer { nullptr };
+	KStringRef* m_sBuffer { nullptr };
 
 	KOutStreamBuf m_KOStreamBuf { &detail::KStringWriter, &m_sBuffer };
 

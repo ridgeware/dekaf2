@@ -251,7 +251,9 @@ public:
 	using base_type::FindCaselessASCII;
 	using base_type::ContainsCaselessASCII;
 	using base_type::operator bool;
+	using base_type::operator sv::string_view;
 	using base_type::operator fmt::string_view;
+	using base_type::operator std::string;
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
@@ -364,6 +366,7 @@ public:
 	using base_type::Float;
 	using base_type::Double;
 	using base_type::In;
+	using base_type::ToStdView;
 
 	//-----------------------------------------------------------------------------
 	/// returns a sub-view of the current view from pos to end of view

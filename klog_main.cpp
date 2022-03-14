@@ -118,7 +118,7 @@ public:
 protected:
 //-------
 
-	virtual KString Request(KString& sLine, Parameters& parameters) override final
+	virtual KString Request(KStringRef& sLine, Parameters& parameters) override final
 	{
 		KOut.WriteLine (sLine).Flush();
 		return KString();

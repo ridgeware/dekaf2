@@ -50,7 +50,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-void KHTMLEntity::ToHex(uint32_t ch, KString& sOut)
+void KHTMLEntity::ToHex(uint32_t ch, KStringRef& sOut)
 //-----------------------------------------------------------------------------
 {
 	sOut += "&#x";
@@ -59,7 +59,7 @@ void KHTMLEntity::ToHex(uint32_t ch, KString& sOut)
 }
 
 //-----------------------------------------------------------------------------
-void KHTMLEntity::ToMandatoryEntity(uint32_t ch, KString& sOut)
+void KHTMLEntity::ToMandatoryEntity(uint32_t ch, KStringRef& sOut)
 //-----------------------------------------------------------------------------
 {
 	switch (ch)
@@ -87,7 +87,7 @@ void KHTMLEntity::ToMandatoryEntity(uint32_t ch, KString& sOut)
 } // kMandatoryEntity
 
 //-----------------------------------------------------------------------------
-void KHTMLEntity::AppendMandatory(KString& sAppendTo, KStringView sIn)
+void KHTMLEntity::AppendMandatory(KStringRef& sAppendTo, KStringView sIn)
 //-----------------------------------------------------------------------------
 {
 	sAppendTo.reserve(sAppendTo.size() + (sIn.size() * 5 / 4));

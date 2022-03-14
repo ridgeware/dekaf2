@@ -321,7 +321,7 @@ public:
 	/// Print DOM into OutStream
 	void Serialize(KOutStream&& OutStream, int iPrintFlags = PrintFlags::Default, KStringView sDropRoot = KStringView{}) const;
 	/// Print DOM into string
-	void Serialize(KString& string, int iPrintFlags = PrintFlags::Default, KStringView sDropRoot = KStringView{}) const;
+	void Serialize(KStringRef& string, int iPrintFlags = PrintFlags::Default, KStringView sDropRoot = KStringView{}) const;
 	/// Print DOM into string
 	KString Serialize(int iPrintFlags = PrintFlags::Default, KStringView sDropRoot = KStringView{}) const;
 

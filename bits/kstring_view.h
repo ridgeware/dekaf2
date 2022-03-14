@@ -65,6 +65,24 @@
 	#endif
 #endif
 
+namespace dekaf2 {
+
+#ifndef __GLIBC__
+//-----------------------------------------------------------------------------
+/// add a memrchr() to the dekaf2 namespace if not provided - will use SSE4 if available
+extern void* memrchr(const void* s, int c, size_t n);
+//-----------------------------------------------------------------------------
+
+/// libc has a very slow memmem implementation (about 100 times slower than glibc),
+/// so we write our own, which is only about 2 times slower, by overloading the
+/// function signature in the dekaf2 namespace
+//-----------------------------------------------------------------------------
+extern void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, size_t iNeedleSize);
+//-----------------------------------------------------------------------------
+#endif
+
+} // end of namespace dekaf2
+
 #if defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW) \
 	|| !defined(DEKAF2_HAS_STD_STRING_VIEW)
 
@@ -329,36 +347,11 @@
 			auto iNeedleBytes   = needle.size() * CharSize;
 			auto pNeedleBytes   = reinterpret_cast<const char*>(needle.data());
 			auto pHaystackBytes = reinterpret_cast<const char*>(data());
-#ifdef __GLIBC__
-			auto pFound = static_cast<const char*>(::memmem(pHaystackBytes + pos * CharSize,
-														   (size() - pos) * CharSize,
-														   pNeedleBytes,
-														   iNeedleBytes));
+			auto pFound         = static_cast<const char*>(memmem(pHaystackBytes + pos * CharSize,
+																  (size() - pos) * CharSize,
+																  pNeedleBytes,
+																  iNeedleBytes));
 			return (pFound) ? static_cast<size_t>(pFound - pHaystackBytes) / CharSize : npos;
-#else
-			for(;;)
-			{
-				auto pFound = static_cast<const char*>(::memchr(pHaystackBytes + pos * CharSize,
-															    pNeedleBytes[0],
-															    ((size() - pos - needle.size()) + 1) * CharSize));
-				if (DEKAF2_UNLIKELY(!pFound))
-				{
-					return npos;
-				}
-
-				pos = static_cast<size_t>(pFound - pHaystackBytes) / CharSize;
-
-				// due to aligned loads it is faster to compare the full needle again
-				if (std::memcmp(pHaystackBytes + pos * CharSize,
-								pNeedleBytes,
-								iNeedleBytes) == 0)
-				{
-					return pos;
-				}
-
-				++pos;
-			}
-#endif
 		}
 
 		DEKAF2_CONSTEXPR_17

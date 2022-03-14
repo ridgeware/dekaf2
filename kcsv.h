@@ -169,7 +169,7 @@ protected:
 	enum class STATE { EndOfRecord, EndOfColumn, EndOfFile };
 
 	bool WriteColumn(KOutStream& Out, KStringView sColumn, bool bIsFirst);
-	STATE ReadColumn(KInStream& In, KString& sColumn);
+	STATE ReadColumn(KInStream& In, KStringRef& sColumn);
 
 //------
 private:

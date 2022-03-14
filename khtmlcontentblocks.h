@@ -71,7 +71,7 @@ public:
 
 		// data access
 
-		void Serialize(KString& sOut) const;
+		void Serialize(KStringRef& sOut) const;
 		KString Serialize() const;
 		bool HadTextContent() const { return m_bHadTextContent; }
 		const_iterator begin() const { return m_Content.begin(); }

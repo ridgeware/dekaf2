@@ -74,20 +74,6 @@
 
 namespace dekaf2 {
 
-#ifndef __GLIBC__
-//-----------------------------------------------------------------------------
-/// add a memrchr() to the dekaf2 namespace if not provided - will use SSE4 if available
-extern void* memrchr(const void* s, int c, size_t n);
-//-----------------------------------------------------------------------------
-
-/// libc has a very slow memmem implementation (about 100 times slower than glibc),
-/// so we write our own, which is only about 2 times slower, by overloading the
-/// function signature in the dekaf2 namespace
-//-----------------------------------------------------------------------------
-extern void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, size_t iNeedleSize);
-//-----------------------------------------------------------------------------
-#endif
-
 class KStringView;
 
 //-----------------------------------------------------------------------------
@@ -352,7 +338,7 @@ public:
 	sv::string_view ToStdView() const
 	//-----------------------------------------------------------------------------
 	{
-		return sv::string_view(data(), size());
+		return m_rep;
 	}
 
 	//-----------------------------------------------------------------------------

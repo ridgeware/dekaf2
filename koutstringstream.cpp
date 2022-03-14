@@ -70,10 +70,10 @@ std::streamsize detail::KStringWriter(const void* sBuffer, std::streamsize iCoun
 }
 
 //-----------------------------------------------------------------------------
-const KString& KOStringStream::str() const
+const KStringRef& KOStringStream::str() const
 //-----------------------------------------------------------------------------
 {
-	static const KString s_sEmpty{};
+	static const KStringRef s_sEmpty{};
 
 	return (m_sBuffer) ? *m_sBuffer : s_sEmpty;
 }

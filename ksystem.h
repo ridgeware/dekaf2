@@ -117,7 +117,7 @@ uint32_t kGetGid();
 
 /// Execute the given command, redirect stdout and stderr into a temp file and then return in the given sOutput string.  Return code matches the exit code command that was run: 0 is normally an indication of success.
 DEKAF2_PUBLIC
-int kSystem (KStringView sCommand, KString& sOutput);
+int kSystem (KStringView sCommand, KStringRef& sOutput);
 
 /// Execute the given command, redirect stdout and stderr into /dev/null.  Return code matches the exit code command that was run: 0 is normally an indication of success.
 DEKAF2_PUBLIC

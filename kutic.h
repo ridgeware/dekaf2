@@ -110,18 +110,15 @@ class DEKAF2_PUBLIC KUTICElement
 public:
 //------
 
-	/// Construct and set the search element
+	/// Construct and set the search element from a KStringView
 	KUTICElement(KStringView sSearch = KStringView{})
 	: m_Regex(sSearch)
 	{
 	}
-
-	KUTICElement(const char* sSearch)
-	: KUTICElement(KStringView(sSearch))
-	{
-	}
-
-	KUTICElement(const KString& sSearch)
+	/// Construct and set the search element from any string view like type
+	template<typename T,
+	         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	KUTICElement(T sSearch)
 	: KUTICElement(KStringView(sSearch))
 	{
 	}

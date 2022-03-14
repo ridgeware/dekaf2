@@ -391,25 +391,25 @@ public:
 	}
 
 	/// Formats the proper RDBMS DDL statement for inserting one row into the database for the given table and column structure.
-	bool FormInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert=false, bool bIgnore=false) const;
+	bool FormInsert (KStringRef& sSQL, DBT iDBType, bool bIdentityInsert=false, bool bIgnore=false) const;
 
 	/// Appends the DDL statement by one more row
-	bool AppendInsert (KString& sSQL, DBT iDBType, bool bIdentityInsert=false, bool bIgnore=true) const;
+	bool AppendInsert (KStringRef& sSQL, DBT iDBType, bool bIdentityInsert=false, bool bIgnore=true) const;
 
 	/// Formats the proper RDBMS DDL statement for updating one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	bool FormUpdate (KString& sSQL, DBT iDBType) const;
+	bool FormUpdate (KStringRef& sSQL, DBT iDBType) const;
 
 	/// Appends the DDL statement by one more row
-	bool AppendUpdate (KString& sSQL, DBT iDBType) const;
+	bool AppendUpdate (KStringRef& sSQL, DBT iDBType) const;
 
 	/// Formats the proper RDBMS DDL statement for selecting one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	bool FormSelect (KString& sSQL, DBT iDBType, bool bSelectAllColumns = false) const;
+	bool FormSelect (KStringRef& sSQL, DBT iDBType, bool bSelectAllColumns = false) const;
 
 	/// Formats the proper RDBMS DDL statement for deleting one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	bool FormDelete (KString& sSQL, DBT iDBType) const;
+	bool FormDelete (KStringRef& sSQL, DBT iDBType) const;
 
 	/// Returns the last RDBMS error message.
 	KStringView GetLastError() const { return (m_sLastError); }
@@ -470,7 +470,7 @@ private:
 //----------
 
 	DEKAF2_PRIVATE
-	void PrintValuesForInsert(KString& sSQL, DBT iDBType) const;
+	void PrintValuesForInsert(KStringRef& sSQL, DBT iDBType) const;
 
 	mutable KString m_sTablename;
 	mutable KString m_sLastError;

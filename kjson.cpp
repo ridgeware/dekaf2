@@ -88,7 +88,7 @@ void SetStringFromUTF8orLatin1(KJSON& json, KStringView sInput)
 } // SetStringFromUTF8orLatin1
 
 //-----------------------------------------------------------------------------
-bool Parse (KJSON& json, KStringView sJSON, KString& sError) noexcept
+bool Parse (KJSON& json, KStringView sJSON, KStringRef& sError) noexcept
 //-----------------------------------------------------------------------------
 {
 	json = KJSON{};
@@ -113,7 +113,7 @@ bool Parse (KJSON& json, KStringView sJSON, KString& sError) noexcept
 
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
-		sError.Format ("JSON[{:03d}]: {}", exc.id, exc.what());
+		sError = kFormat ("JSON[{:03d}]: {}", exc.id, exc.what());
 		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
 		return false;
 	}
@@ -192,7 +192,7 @@ bool SkipLeadingSpace(KInStream& InStream)
 }
 
 //-----------------------------------------------------------------------------
-bool Parse (KJSON& json, KInStream& InStream, KString& sError) noexcept
+bool Parse (KJSON& json, KInStream& InStream, KStringRef& sError) noexcept
 //-----------------------------------------------------------------------------
 {
 	json = KJSON{};
@@ -211,7 +211,7 @@ bool Parse (KJSON& json, KInStream& InStream, KString& sError) noexcept
 
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
-		sError.Format ("JSON[{:03d}]: {}", exc.id, exc.what());
+		sError = kFormat ("JSON[{:03d}]: {}", exc.id, exc.what());
 		return false;
 	}
 
@@ -488,7 +488,7 @@ void Decrement(KJSON& json, KStringView sKey, uint64_t iSubstractMe) noexcept
 }
 
 //-----------------------------------------------------------------------------
-void Escape (KStringView sInput, KString& sOutput)
+void Escape (KStringView sInput, KStringRef& sOutput)
 //-----------------------------------------------------------------------------
 {
 	static constexpr KStringView::value_type BACKSPACE         = 0x08;

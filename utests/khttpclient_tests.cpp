@@ -44,7 +44,7 @@ protected:
 		return true;
 	}
 
-	virtual KString Request(KString& qstr, Parameters& parameters) override
+	virtual KString Request(KStringRef& qstr, Parameters& parameters) override
 	{
 		m_rx.push_back(qstr);
 		KString tmp;

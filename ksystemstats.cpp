@@ -1357,7 +1357,7 @@ void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t 
 } // DumpPidTree
 
 //-----------------------------------------------------------------------------
-uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStringView sMyUniqueIP, KString& sResponse)
+uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStringView sMyUniqueIP, KStringRef& sResponse)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
@@ -1379,7 +1379,7 @@ uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStr
 	}
 	else
 	{
-		sResponse.Format ("BUG: KSystem::PushStats only accepts iMime = KMIME::JSON or KMIME::WWW_FORM_URLENCODED");
+		sResponse = kFormat ("BUG: KSystem::PushStats only accepts iMime = KMIME::JSON or KMIME::WWW_FORM_URLENCODED");
 		return 0;
 	}
 
@@ -1436,7 +1436,8 @@ uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStr
 
 	if (!sResponse.empty())
 	{
-		kDebug (2, "HTTP-{}: {}", HTTP.GetStatusCode(), sResponse.TrimRight());
+		kTrimRight(sResponse);
+		kDebug (2, "HTTP-{}: {}", HTTP.GetStatusCode(), sResponse);
 		return HTTP.GetStatusCode();
 	}
 	else

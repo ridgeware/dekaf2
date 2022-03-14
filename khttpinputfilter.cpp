@@ -252,7 +252,7 @@ size_t KInHTTPFilter::Read(KOutStream& OutStream, size_t len)
 } // Read
 
 //-----------------------------------------------------------------------------
-size_t KInHTTPFilter::Read(KString& sBuffer, size_t len)
+size_t KInHTTPFilter::Read(KStringRef& sBuffer, size_t len)
 //-----------------------------------------------------------------------------
 {
 	KOutStringStream stream(sBuffer);
@@ -261,7 +261,7 @@ size_t KInHTTPFilter::Read(KString& sBuffer, size_t len)
 } // Read
 
 //-----------------------------------------------------------------------------
-bool KInHTTPFilter::ReadLine(KString& sBuffer)
+bool KInHTTPFilter::ReadLine(KStringRef& sBuffer)
 //-----------------------------------------------------------------------------
 {
 	sBuffer.clear();

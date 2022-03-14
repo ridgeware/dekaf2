@@ -78,7 +78,7 @@ public:
 	virtual uint16_t GetDBPort() const = 0;
 	virtual uint16_t GetVersion() const = 0;
 
-	virtual bool Save(KStringView sFilename) const = 0;
+	virtual bool Save(KStringViewZ sFilename) const = 0;
 	virtual void SetDBT(DBT dbt) = 0;
 	virtual void SetAPI(API api) = 0;
 	virtual bool SetUsername(KStringView sName) = 0;
@@ -92,8 +92,8 @@ protected:
 //----------
 
 	static bool IntSetBuffer(KStringView sBuffer, void* pBuffer, std::size_t iExpectedSize);
-	static bool IntSave(KStringView sFilename, const void* pBuffer, std::size_t iSize);
-	static void decrypt (KString& sString);
+	static bool IntSave(KStringViewZ sFilename, const void* pBuffer, std::size_t iSize);
+	static void decrypt (KStringRef& sString);
 	static void encrypt (char* string);
 	static int32_t DecodeInt(const uint8_t (&iSourceArray)[4]);
 	static DBT DecodeDBT(const uint8_t (&iSourceArray)[4])
@@ -146,7 +146,7 @@ public:
 		return IntSetBuffer(sBuffer, &data, sizeof(Data));
 	}
 
-	virtual bool Save(KStringView sFilename) const override final
+	virtual bool Save(KStringViewZ sFilename) const override final
 	{
 		return IntSave(sFilename, &data, sizeof(Data));
 	}
@@ -220,7 +220,7 @@ public:
 		return IntSetBuffer(sBuffer, &data, sizeof(Data));
 	}
 
-	virtual bool Save(KStringView sFilename) const override final
+	virtual bool Save(KStringViewZ sFilename) const override final
 	{
 		return IntSave(sFilename, &data, sizeof(Data));
 	}
@@ -291,7 +291,7 @@ public:
 		return IntSetBuffer(sBuffer, &data, sizeof(Data));
 	}
 
-	virtual bool Save(KStringView sFilename) const override final
+	virtual bool Save(KStringViewZ sFilename) const override final
 	{
 		return IntSave(sFilename, &data, sizeof(Data));
 	}

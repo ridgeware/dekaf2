@@ -525,7 +525,7 @@ KLog& KLog::SetWriter(std::unique_ptr<KLogWriter> logger)
 } // SetWriter
 
 //---------------------------------------------------------------------------
-KLog& KLog::SetWriter(Writer writer, KStringView sLogname)
+KLog& KLog::SetWriter(Writer writer, KStringViewZ sLogname)
 //---------------------------------------------------------------------------
 {
 	return SetWriter(CreateWriter(writer, sLogname));
@@ -550,7 +550,7 @@ KLog& KLog::SetSerializer(Serializer serializer)
 } // SetSerializer
 
 //---------------------------------------------------------------------------
-std::unique_ptr<KLogWriter> KLog::CreateWriter(Writer writer, KStringView sLogname)
+std::unique_ptr<KLogWriter> KLog::CreateWriter(Writer writer, KStringViewZ sLogname)
 //---------------------------------------------------------------------------
 {
 	switch (writer)

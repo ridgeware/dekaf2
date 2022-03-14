@@ -115,7 +115,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Read a string with the next line. Trim as requested. Returns false on eof
-	bool ReadLine(KString& sBuffer, KStringView::value_type delimiter = '\n', KStringView sRightTrim = detail::kLineRightTrims);
+	bool ReadLine(KStringRef& sBuffer, KStringView::value_type delimiter = '\n', KStringView sRightTrim = detail::kLineRightTrims);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

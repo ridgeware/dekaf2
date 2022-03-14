@@ -304,7 +304,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Create a Writer of specific type
-	static std::unique_ptr<KLogWriter> CreateWriter(Writer writer, KStringView sLogname = KStringView{});
+	static std::unique_ptr<KLogWriter> CreateWriter(Writer writer, KStringViewZ sLogname = KStringViewZ{});
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -324,7 +324,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Set the log writer directly instead of opening one implicitly with SetDebugLog()
-	self& SetWriter(Writer writer, KStringView sLogname = KStringView{})
+	self& SetWriter(Writer writer, KStringViewZ sLogname = KStringViewZ{})
 	//---------------------------------------------------------------------------
 #ifdef DEKAF2_WITH_KLOG
 	;

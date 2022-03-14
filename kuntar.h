@@ -158,7 +158,7 @@ public:
     /// Simple interface: call for subsequent files, with sBuffer getting filled
 	/// with the file's data. Returns false if end of archive. Additional properties
 	/// can be requested by the other property methods.
-    bool File(KString& sName, KString& sBuffer);
+    bool File(KStringRef& sName, KStringRef& sBuffer);
 
     /// Advance to next entry in an archive, returns false at error or end of archive
 	bool Next();
@@ -275,7 +275,7 @@ public:
 	bool Read(KOutStream& OutStream);
 
 	/// Read content of the current file into a KString (when the type is File)
-	bool Read(KString& sBuffer);
+	bool Read(KStringRef& sBuffer);
 
 	/// Read content of the current file into a file sFilename
 	bool ReadFile(KStringViewZ sFilename);

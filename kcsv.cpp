@@ -93,7 +93,7 @@ bool KCSV::WriteColumn(KOutStream& Out, KStringView sColumn, bool bIsFirst)
 } // WriteColumn
 
 //-----------------------------------------------------------------------------
-KCSV::STATE KCSV::ReadColumn(KInStream& In, KString& sColumn)
+KCSV::STATE KCSV::ReadColumn(KInStream& In, KStringRef& sColumn)
 //-----------------------------------------------------------------------------
 {
 	bool bIsStartofColumn     { true  };

@@ -281,7 +281,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Append to sBuffer, returns read character count
-	size_t Read(KString& sBuffer, size_t len = npos)
+	size_t Read(KStringRef& sBuffer, size_t len = npos)
 	//-----------------------------------------------------------------------------
 	{
 		return Response.Read(sBuffer, len);
@@ -289,7 +289,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Read one line into sBuffer, including EOL
-	bool ReadLine(KString& sBuffer)
+	bool ReadLine(KStringRef& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
 		return Response.ReadLine(sBuffer);

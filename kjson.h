@@ -76,7 +76,7 @@ namespace kjson
 	/// @param sJSON the input string to parse
 	/// @param sError the error string
 	DEKAF2_PUBLIC
-	bool Parse (KJSON& json, KStringView sJSON, KString& sError) noexcept;
+	bool Parse (KJSON& json, KStringView sJSON, KStringRef& sError) noexcept;
 
 	/// Parse a stream, throws with KJSON::exception in case of error
 	/// @param json the json output
@@ -89,7 +89,7 @@ namespace kjson
 	/// @param InStream the input stream to parse
 	/// @param sError the error string
 	DEKAF2_PUBLIC
-	bool Parse (KJSON& json, KInStream& InStream, KString& sError) noexcept;
+	bool Parse (KJSON& json, KInStream& InStream, KStringRef& sError) noexcept;
 
 	/// Returned parsed string as a JSON object
 	/// if invalid, just return a null object on failure
@@ -233,7 +233,7 @@ namespace kjson
 	/// @param sInput the unescaped input string
 	/// @param sOutput the escaped output string
 	DEKAF2_PUBLIC
-	void Escape (KStringView sInput, KString& sOutput);
+	void Escape (KStringView sInput, KStringRef& sOutput);
 
 	/// proper json string escaping
 	/// @param sInput the unescaped input string

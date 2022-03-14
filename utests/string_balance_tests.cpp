@@ -45,10 +45,25 @@ KStringViewZ fksz()
 	return s;
 }
 
+struct OST
+{
+	operator const std::string&() const { return m_s; }
+	operator std::string&() { return m_s; }
+	operator std::string&&() && { return std::move(m_s); }
+
+	std::string m_s { "abcde" };
+};
+
 struct OS
 {
 	OS() = default;
-	operator const std::string&() const { return m_s; }
+	void fccp(const std::string& s)     { m_s = s; }
+	void fcp (std::string& s)           { m_s = s; }
+	void fvcp(std::string s)            { m_s = std::move(s); }
+	void fref(std::string& s)           { s = m_s; }
+	void fmv (std::string&& s)          { m_s = std::move(s); }
+	const std::string& str() const      { return m_s;   }
+	operator const std::string&() const { return str(); }
 	std::string m_s { "pqrst" };
 };
 
@@ -56,14 +71,26 @@ struct OS
 struct OSV
 {
 	OSV() = default;
-	operator std::string_view() const { return m_s; }
-	static constexpr std::string_view m_s { "pqrst" };
+	void fccp(const std::string_view& s) { m_s = s; }
+	void fcp (std::string_view& s)       { m_s = s; }
+	void fref(std::string_view& s)       { s = m_s; }
+	void fmv (std::string_view&& s)      { m_s = std::move(s); }
+	operator std::string_view() const    { return m_s; }
+	std::string_view m_s { "pqrst" };
 };
 #endif
 
 struct OKS
 {
 	OKS() = default;
+	void fccp(const KString& s)     { m_s = s; }
+	void fcp (KString& s)           { m_s = s; }
+	void fvcp(KString s)            { m_s = std::move(s); }
+	void fref(KString& s)           { s = m_s; }
+	void fmv (KString&& s)          { m_s = std::move(s); }
+	const KString& strc() const     { return m_s; }
+	KString& strr()                 { return m_s; }
+	KString  str()                  { return m_s; }
 	operator const KString&() const { return m_s; }
 	KString m_s { "pqrst" };
 };
@@ -255,6 +282,39 @@ TEST_CASE("StringBalance") {
 			KStringView ks5(oksz);
 		}
 #endif
+		{
+			OST ost;
+			os.fccp(ost);
+			os.fcp(ost);
+			os.fvcp(ost);
+			os.fmv(std::move(ost));
+			os.fref(ost);
+
+#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
+			KString str = "123";
+			os.fcp(str);
+			CHECK ( os.str() == "123" );
+			str = "333";
+			CHECK ( str == "333" );
+			os.fref(str);
+			CHECK ( str == "123" );
+			os.fccp(str);
+			os.fvcp(str);
+			os.fmv(std::move(str));
+#endif
+		}
+		{
+			std::string str;
+			str = oks.str();
+			str = oks.strc();
+			str = oks.strr();
+
+			oks.fmv(std::move(str));
+//			oks.fref(str);
+			oks.fccp(str);
+//			oks.fcp(str);
+			oks.fvcp(str);
+		}
 
 		ks += fstr();
 #ifdef DEKAF2_HAS_STD_STRING_VIEW

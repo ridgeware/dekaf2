@@ -190,7 +190,7 @@ public:
 	};
 
 	/// value translations
-	using TXList = KProps <KString, KString, /*order-matters=*/true, /*unique-keys*/true>;
+	using TXList = KProps <KString, KString, /*order-matters=*/false, /*unique-keys*/true>;
 
 	enum OutputFormat
 	{
@@ -335,10 +335,10 @@ public:
 	bool   SetDBPort (int iDBPortNum);
 
 	/// load connection parameters from a DBC file
-	bool   LoadConnect      (const KString& sDBCFile);
+	bool   LoadConnect      (KStringViewZ sDBCFile);
 	/// save connection parameters into a DBC file
-	bool   SaveConnect      (const KString& sDBCFile);
-	bool   SetConnect       (const KString& sDBCFile, const KString& sDBCFileContent);
+	bool   SaveConnect      (KStringViewZ sDBCFile);
+	bool   SetConnect       (KStringViewZ sDBCFile, KStringView sDBCFileContent);
 	API    GetAPISet        ()      { return (m_iAPISet); }
 	bool   SetAPISet        (API iAPISet);
 	/// Open a server connection with the configured connection parameters
@@ -389,13 +389,13 @@ public:
 	/// after successful operation, GetNumRowsAffected() will be adjusted to the cumulative total
 	bool   BulkCopy        (KSQL& OtherDB, KStringView sTablename, KStringView sWhereClause="", uint16_t iFlushRows=1024, int32_t iPbarThreshold=500);
 
-	bool   FormInsert     (KROW& Row, KString& sSQL, bool fIdentityInsert=false)
+	bool   FormInsert     (KROW& Row, KStringRef& sSQL, bool fIdentityInsert=false)
 			{ return Row.FormInsert (sSQL, m_iDBType, fIdentityInsert); }
-	bool   FormUpdate     (KROW& Row, KString& sSQL)
+	bool   FormUpdate     (KROW& Row, KStringRef& sSQL)
 			{ return Row.FormUpdate (sSQL, m_iDBType); }
-	bool   FormDelete     (KROW& Row, KString& sSQL)
+	bool   FormDelete     (KROW& Row, KStringRef& sSQL)
 			{ return Row.FormDelete (sSQL, m_iDBType); }
-	bool   FormSelect     (KROW& Row, KString& sSQL, bool bSelectAllColumns = false)
+	bool   FormSelect     (KROW& Row, KStringRef& sSQL, bool bSelectAllColumns = false)
 			{ return Row.FormSelect (sSQL, m_iDBType, bSelectAllColumns); }
 
 	void   SetErrorPrefix   (KStringView sPrefix, uint32_t iLineNum = 0);
@@ -692,7 +692,7 @@ public:
 	void        SetTempDir (KString sTempDir) { m_sTempDir = std::move(sTempDir); }
 
 	void        BuildTranslationList (TXList& pList, DBT iDBType = DBT::NONE);
-	void        DoTranslations (KString& sSQL);
+	void        DoTranslations (KStringRef& sSQL);
 	/// returns iDBType as string @param iDBType a DBType
 	KStringView TxDBType (DBT iDBType) const;
 	/// returns iAPISet as string @param iAPISet an APISet
@@ -771,7 +771,7 @@ public:
 	/// Note: all query parms are case-insentive, so "Status" and "status" are the same.
 	/// In the event of an error, the method returns false and KSQL's GetLastError() will explain it.
 	/// The most common error would be an attempt to sort by a column that is not in your Config spec.
-	bool FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const KJSON& Config);
+	bool FormOrderBy (KStringView sCommaDelimedSort, KStringRef& sOrderBy, const KJSON& Config);
 
 	/// shortcut to KROW::EscapeChars that automatically adds the DBType
 	KString EscapeString (KStringView sCol)
@@ -819,7 +819,7 @@ public:
 	/// Diff two data dictionaries, returned by prior calls to LoadSchema().
 	/// Produces two summaries of the diffs: one structured (JSON) and the other serialized (ASCII "diff" output).
 	/// Returns the number of diffs (or 0 if no diffs).
-	size_t DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema, KJSON& Diffs, KString& sSummary,
+	size_t DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema, KJSON& Diffs, KStringRef& sSummary,
 						const KJSON& options={
 							{DIFF::left_schema,"left schema"},
 							{DIFF::left_prefix,"<"},
@@ -1013,7 +1013,7 @@ private:
 	struct DBCLoader
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		KString operator()(const KString& s)
+		KString operator()(KStringViewZ s)
 		{
 			return kReadAll(s);
 		}
@@ -1390,7 +1390,7 @@ private:
 	bool  PreparedToRetry (uint32_t iErrorNum);
 
     #ifdef DEKAF2_HAS_ORACLE
-	bool  WasOCICallOK    (KStringView sContext, uint32_t iErrorNum, KString& sError);
+	bool  WasOCICallOK    (KStringView sContext, uint32_t iErrorNum, KStringRef& sError);
 	bool _BindByName      (KStringView sPlaceholder, dvoid* pValue, sb4 iValueSize, ub2 iDataType);
 	bool _BindByPos       (uint32_t iPosition, dvoid* pValue, sb4 iValueSize, ub2 iDataType);
 	//OL _ArrayBindByName (KStringView sPlaceholder, dvoid* pValue, sb4 iValueSize, ub2 iDataType); - TODO
@@ -1413,7 +1413,7 @@ private:
 	uint32_t m_iCtLibErrorNum { 0 };
 	#endif
 
-	bool DecodeDBCData(KStringView sBuffer, KStringView sDBCFile);
+	bool DecodeDBCData(KStringView sBuffer, KStringViewZ sDBCFile);
 
 }; // KSQL
 

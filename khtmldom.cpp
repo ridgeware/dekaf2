@@ -255,7 +255,7 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 } // Print
 
 //-----------------------------------------------------------------------------
-void KHTMLElement::Print(KString& sOut, char chIndent, uint16_t iIndent) const
+void KHTMLElement::Print(KStringRef& sOut, char chIndent, uint16_t iIndent) const
 //-----------------------------------------------------------------------------
 {
 	KOutStringStream oss(sOut);
@@ -375,7 +375,7 @@ void KHTML::Serialize(KOutStream& Stream, char chIndent) const
 }
 
 //-----------------------------------------------------------------------------
-void KHTML::Serialize(KString& sOut, char chIndent) const
+void KHTML::Serialize(KStringRef& sOut, char chIndent) const
 //-----------------------------------------------------------------------------
 {
 	m_Root.Print(sOut, chIndent);

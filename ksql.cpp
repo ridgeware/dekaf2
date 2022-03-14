@@ -931,7 +931,7 @@ bool KSQL::SetDBPort (int iDBPortNum)
 } // SetDBPort
 
 //-----------------------------------------------------------------------------
-bool KSQL::SaveConnect (const KString& sDBCFile)
+bool KSQL::SaveConnect (KStringViewZ sDBCFile)
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
@@ -980,7 +980,7 @@ bool KSQL::SaveConnect (const KString& sDBCFile)
 } // SaveConnect
 
 //-----------------------------------------------------------------------------
-bool KSQL::DecodeDBCData (KStringView sBuffer, KStringView sDBCFile)
+bool KSQL::DecodeDBCData (KStringView sBuffer, KStringViewZ sDBCFile)
 //-----------------------------------------------------------------------------
 {
 	std::unique_ptr<DBCFileBase> dbc;
@@ -1035,7 +1035,7 @@ bool KSQL::DecodeDBCData (KStringView sBuffer, KStringView sDBCFile)
 } // DecodeDBCData
 
 //-----------------------------------------------------------------------------
-bool KSQL::SetConnect (const KString& sDBCFile, const KString& sDBCFileContent)
+bool KSQL::SetConnect (KStringViewZ sDBCFile, KStringView sDBCFileContent)
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, sDBCFile);
@@ -1078,7 +1078,7 @@ bool KSQL::SetConnect (const KString& sDBCFile, const KString& sDBCFileContent)
 } // SetConnect
 
 //-----------------------------------------------------------------------------
-bool KSQL::LoadConnect (const KString& sDBCFile)
+bool KSQL::LoadConnect (KStringViewZ sDBCFile)
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, sDBCFile);
@@ -1092,7 +1092,7 @@ bool KSQL::LoadConnect (const KString& sDBCFile)
 
 	auto sBuffer = s_DBCCache.Get(sDBCFile);
 
-	return SetConnect (sDBCFile, sBuffer);
+	return SetConnect (sDBCFile, sBuffer.get());
 
 } // LoadConnect
 
@@ -1674,7 +1674,7 @@ ViewInString kSameBuffer(const KString& sStr, KStringView svView)
 
 //-----------------------------------------------------------------------------
 inline
-bool kSameBufferStart(const KString& sStr, KStringView svView)
+bool kSameBufferStart(const KStringRef& sStr, KStringView svView)
 //-----------------------------------------------------------------------------
 {
 	return (sStr.data() == svView.data());
@@ -1682,7 +1682,7 @@ bool kSameBufferStart(const KString& sStr, KStringView svView)
 
 //-----------------------------------------------------------------------------
 inline
-void CopyIfNotSame(KString& sTarget, KStringView svView)
+void CopyIfNotSame(KStringRef& sTarget, KStringView svView)
 //-----------------------------------------------------------------------------
 {
 	if (!kSameBufferStart(sTarget, svView))
@@ -4603,28 +4603,28 @@ time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 
 #ifdef DEKAF2_HAS_ORACLE
 //-----------------------------------------------------------------------------
-bool KSQL::WasOCICallOK (KStringView sContext, uint32_t iErrorNum, KString& sError)
+bool KSQL::WasOCICallOK (KStringView sContext, uint32_t iErrorNum, KStringRef& sError)
 //-----------------------------------------------------------------------------
 {
 	sError.clear();
 	switch (iErrorNum)
 	{
 	case OCI_SUCCESS: // 0
-		sError.Format ("{}() returned {} ({})", sContext, m_iErrorNum, "OCI_SUCCESS");
+		sError = kFormat ("{}() returned {} ({})", sContext, m_iErrorNum, "OCI_SUCCESS");
 		kDebugLog (3, "  {} -- returned OCI_SUCCESS", sContext);
 		return (true);
 
 	case OCI_SUCCESS_WITH_INFO:
-		sError.Format ("{}() returned {} ({})", sContext, m_iErrorNum, "OCI_SUCCESS_WITH_INFO");
+		sError = kFormat ("{}() returned {} ({})", sContext, m_iErrorNum, "OCI_SUCCESS_WITH_INFO");
 		kDebugLog (3, "  {} -- returned OCI_SUCCESS_WITH_INFO", sContext);
 		return (true);
 
 	case OCI_NEED_DATA:
-		sError.Format ("OCI-{:05}: OCI_NEED_DATA [{}]", m_iErrorNum, sContext);
+		sError = kFormat ("OCI-{:05}: OCI_NEED_DATA [{}]", m_iErrorNum, sContext);
 		break; // error
 
 	case OCI_INVALID_HANDLE:
-		sError.Format ("OCI-{:05}: OCI_INVALID_HANDLE [{}]", m_iErrorNum, sContext);
+		sError = kFormat ("OCI-{:05}: OCI_INVALID_HANDLE [{}]", m_iErrorNum, sContext);
 		break; // error
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -4636,18 +4636,18 @@ bool KSQL::WasOCICallOK (KStringView sContext, uint32_t iErrorNum, KString& sErr
 		//            again for completion. 
 
 	case OCI_STILL_EXECUTING:  // ORA-03123
-		sError.Format ("OCI-{:05}: OCI_STILL_EXECUTE [{}]", m_iErrorNum, sContext);
+		sError = kFormat ("OCI-{:05}: OCI_STILL_EXECUTE [{}]", m_iErrorNum, sContext);
 		break; // error
 
 	case OCI_CONTINUE:
-		sError.Format ("OCI-{:05}: OCI_CONTINUE [{}]", m_iErrorNum, sContext);
+		sError = kFormat ("OCI-{:05}: OCI_CONTINUE [{}]", m_iErrorNum, sContext);
 		break; // error
 
 	case NO_DATA_FOUND:  // <-- old
 	case -1403:          // <-- OERR_NODATA
 	case OCI_NO_DATA:    // <-- current
 //		m_iErrorNum = OCI_NO_DATA;
-//		sError.Format ("OCI-{:05}: OCI_NO_DATA [{}]", m_iErrorNum, sContext);
+//		sError = kFormat ("OCI-{:05}: OCI_NO_DATA [{}]", m_iErrorNum, sContext);
 //		break; // error
 	case OCI_ERROR:
 		if (GetAPISet() == API::OCI6)
@@ -4739,7 +4739,7 @@ bool KSQL::WasOCICallOK (KStringView sContext, uint32_t iErrorNum, KString& sErr
 			case -6550: sError = "OERR_PLSERR: PL/SQL problem";                  break;
 
 			default:
-				sError.Format("{}() returned {} ({})", sContext, m_iErrorNum, "UNKNOWN OCI RTN");
+				sError = kFormat("{}() returned {} ({})", sContext, m_iErrorNum, "UNKNOWN OCI RTN");
 		}
 
 	}
@@ -4922,7 +4922,7 @@ void KSQL::BuildTranslationList (TXList& pList, DBT iDBType)
 } // BuildTranslationList
 
 //-----------------------------------------------------------------------------
-void KSQL::DoTranslations (KString& sSQL)
+void KSQL::DoTranslations (KStringRef& sSQL)
 //-----------------------------------------------------------------------------
 {
 	kDebug (3,
@@ -8019,7 +8019,7 @@ KString KSQL::FormGroupBy (uint8_t iNumCols)
 } // FormGroupBy
 
 //-----------------------------------------------------------------------------
-bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const KJSON& Config)
+bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KStringRef& sOrderBy, const KJSON& Config)
 //-----------------------------------------------------------------------------
 {
 	if (Config.is_null())
@@ -8067,7 +8067,7 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KString& sOrderBy, const 
 					// do not escape the configured column name
 					const KString& sDbCol = it.value();
 					kDebug (2, "matched sort parm: {} to: {}", sParm, sDbCol);
-					sOrderBy += kFormat ("{} {}{}\n", sOrderBy ? "     ," : " order by", sDbCol, bDesc ? " desc" : "");
+					sOrderBy += kFormat ("{} {}{}\n", !sOrderBy.empty() ? "     ," : " order by", sDbCol, bDesc ? " desc" : "");
 					bFound = true;
 					break; // inner for
 				}
@@ -8295,12 +8295,12 @@ uint16_t KSQL::GetSchemaVersion (KStringView sTablename)
 } // GetSchema
 
 //-----------------------------------------------------------------------------
-static void ApplIniAndEnvironment (const KString& sName, KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/true>& INI, KString& sVariable)
+static void ApplIniAndEnvironment (const KString& sName, KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/true>& INI, KStringRef& sVariable)
 //-----------------------------------------------------------------------------
 {
 	{
-		auto sValue = INI.Get(sName);
-		if (sValue)
+		const auto& sValue = INI.Get(sName);
+		if (!sValue.empty())
 		{
 			kDebugLog (3, "KSQL::EnsureConnected: applying ini parm: {}={}", sName, sValue);
 			sVariable = sValue;
@@ -8308,8 +8308,8 @@ static void ApplIniAndEnvironment (const KString& sName, KProps<KString, KString
 	}
 
 	{
-		auto sValue = kGetEnv(sName);
-		if (sValue)
+		const auto& sValue = kGetEnv(sName);
+		if (!sValue.empty())
 		{
 			kDebugLog (3, "KSQL::EnsureConnected: applying env var: {}={}", sName, sValue);
 			sVariable = sValue;
@@ -9193,7 +9193,7 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 
 //-----------------------------------------------------------------------------
 size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
-						   KJSON& Diffs, KString& sSummary,
+						   KJSON& Diffs, KStringRef& sSummary,
 						   const KJSON& options/*={}*/)
 //-----------------------------------------------------------------------------
 {
@@ -9247,7 +9247,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 	}; // lambda: FindField
 
 	//-----------------------------------------------------------------------------
-	auto PrintColumn = [&sDiffPrefix] (KStringView sPrefix, const KJSON& jColumn, KString& sResult)
+	auto PrintColumn = [&sDiffPrefix] (KStringView sPrefix, const KJSON& jColumn, KStringRef& sResult)
 	//-----------------------------------------------------------------------------
 	{
 		if (jColumn.is_object() && !jColumn.empty())
@@ -9263,7 +9263,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 	}; // lambda: PrintColumn
 
 	//-----------------------------------------------------------------------------
-	auto FormCreateAction = [] (KStringView sTableName, const KJSON& jColumn, KString& sResult)
+	auto FormCreateAction = [] (KStringView sTableName, const KJSON& jColumn, KStringRef& sResult)
 	//-----------------------------------------------------------------------------
 	{
 		if (jColumn.is_object() && !jColumn.empty())

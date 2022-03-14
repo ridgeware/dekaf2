@@ -49,6 +49,7 @@
 #include "klog.h"
 #include "kfilesystem.h"
 #include "ksystem.h"
+#include "kstringutils.h"
 
 #ifdef DEKAF2_IS_WINDOWS
 	#include <io.h>
@@ -137,7 +138,7 @@ ssize_t kGetSize(KStringViewZ sFileName)
 } // kGetSize
 
 //-----------------------------------------------------------------------------
-bool kAppendAllUnseekable(std::istream& Stream, KString& sContent, std::size_t iMaxRead)
+bool kAppendAllUnseekable(std::istream& Stream, KStringRef& sContent, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(!Stream.good()))
@@ -199,7 +200,7 @@ bool kAppendAllUnseekable(std::istream& Stream, KString& sContent, std::size_t i
 } // kAppendAllUnseekable
 
 //-----------------------------------------------------------------------------
-bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart, std::size_t iMaxRead)
+bool kAppendAll(std::istream& Stream, KStringRef& sContent, bool bFromStart, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	// get size of the file.
@@ -248,8 +249,12 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart, std::s
 
 	// create the read buffer
 
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	// This saves one run of unnecessary construction.
 	sContent.resize_uninitialized(uiContentSize + uiSize);
+#else
+	sContent.resize(uiContentSize + uiSize);
+#endif
 
 	auto iRead = static_cast<size_t>(streambuf->sgetn(&sContent[uiContentSize], iSize));
 
@@ -283,7 +288,7 @@ bool kAppendAll(std::istream& Stream, KString& sContent, bool bFromStart, std::s
 } // kAppendAll
 
 //-----------------------------------------------------------------------------
-bool kReadAll(std::istream& Stream, KString& sContent, bool bFromStart, std::size_t iMaxRead)
+bool kReadAll(std::istream& Stream, KStringRef& sContent, bool bFromStart, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	sContent.clear();
@@ -306,7 +311,7 @@ KString kReadAll(std::istream& Stream, bool bFromStart, std::size_t iMaxRead)
 #endif
 
 //-----------------------------------------------------------------------------
-bool kAppendAll(KStringViewZ sFileName, KString& sContent, std::size_t iMaxRead)
+bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	auto iSize(kGetSize(sFileName));
@@ -380,7 +385,11 @@ bool kAppendAll(KStringViewZ sFileName, KString& sContent, std::size_t iMaxRead)
 		if (fd >= 0)
 		{
 			auto iContent = sContent.size();
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 			sContent.resize_uninitialized(iContent + iSize);
+#else
+			sContent.resize(iContent + iSize);
+#endif
 			auto iRead = kReadFromFileDesc(fd, &sContent[iContent], iSize);
 
 			close(fd);
@@ -404,7 +413,7 @@ bool kAppendAll(KStringViewZ sFileName, KString& sContent, std::size_t iMaxRead)
 } // kAppendAll
 
 //-----------------------------------------------------------------------------
-bool kReadAll(KStringViewZ sFileName, KString& sContent, std::size_t iMaxRead)
+bool kReadAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	sContent.clear();
@@ -425,7 +434,7 @@ KString kReadAll(KStringViewZ sFileName, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 // own implementation, reads iMaxRead characters, returns true if delimiter was found
 bool myLocalGetline(std::istream&       Stream,
-					KString&            sLine,
+					KStringRef&         sLine,
 					KString::value_type delimiter,
 					std::size_t         iMaxRead = npos)
 //-----------------------------------------------------------------------------
@@ -477,7 +486,7 @@ bool myLocalGetline(std::istream&       Stream,
 
 //-----------------------------------------------------------------------------
 bool kReadLine(std::istream& Stream,
-               KString& sLine,
+               KStringRef& sLine,
                KStringView sTrimRight,
                KStringView sTrimLeft,
                KString::value_type delimiter,
@@ -542,18 +551,18 @@ bool kReadLine(std::istream& Stream,
 				// std::getline does not store the EOL character, but we want to
 				sLine += delimiter;
 			}
-			sLine.TrimRight(sTrimRight);
+			kTrimRight(sLine, sTrimRight);
 		}
 		else if (sTrimRight.size() > 1)
 		{
 			// only trim if sTrimRight is > 1, as otherwise it only contains the delimiter
-			sLine.TrimRight(sTrimRight);
+			kTrimRight(sLine, sTrimRight);
 		}
 	}
 
 	if (!sTrimLeft.empty())
 	{
-		sLine.TrimLeft(sTrimLeft);
+		kTrimLeft(sLine, sTrimLeft);
 	}
 
 	return true;
@@ -761,7 +770,7 @@ size_t KInStream::Read(void* pAddress, size_t iCount)
 
 //-----------------------------------------------------------------------------
 /// Read a range of characters and append to sBuffer. Returns count of successfully read characters.
-size_t KInStream::Read(KString& sBuffer, size_t iCount)
+size_t KInStream::Read(KStringRef& sBuffer, size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	auto iOldLen = sBuffer.size();
@@ -772,7 +781,11 @@ size_t KInStream::Read(KString& sBuffer, size_t iCount)
 		return sBuffer.size() - iOldLen;
 	}
 
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	sBuffer.resize_uninitialized(iOldLen + iCount);
+#else
+	sBuffer.resize(iOldLen + iCount);
+#endif
 
 	auto iAddedLen = Read(&sBuffer[iOldLen], iCount);
 

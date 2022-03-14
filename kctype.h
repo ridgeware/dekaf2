@@ -58,20 +58,6 @@ using codepoint_t = uint32_t;
 
 } // end of namespace Unicode
 
-//-----------------------------------------------------------------------------
-/// Cast any integral type into a codepoint_t, without signed bit expansion.
-template<typename Ch>
-constexpr
-Unicode::codepoint_t CodepointCast(Ch sch)
-//-----------------------------------------------------------------------------
-{
-	static_assert(std::is_integral<Ch>::value, "can only convert integral types");
-
-	return (sizeof(Ch) == 1) ? static_cast<uint8_t>(sch)
-		:  (sizeof(Ch) == 2) ? static_cast<uint16_t>(sch)
-		:  static_cast<uint32_t>(sch);
-}
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KCodePoint
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -80,6 +66,20 @@ class DEKAF2_PUBLIC KCodePoint
 //------
 public:
 //------
+
+	//-----------------------------------------------------------------------------
+	/// Cast any integral type into a codepoint_t, without signed bit expansion.
+	template<typename Ch>
+	constexpr
+	Unicode::codepoint_t CodepointCast(Ch sch)
+	//-----------------------------------------------------------------------------
+	{
+		static_assert(std::is_integral<Ch>::value, "can only convert integral types");
+
+		return (sizeof(Ch) == 1) ? static_cast<uint8_t>(sch)
+			:  (sizeof(Ch) == 2) ? static_cast<uint16_t>(sch)
+			:  static_cast<uint32_t>(sch);
+	}
 
 	constexpr
 	KCodePoint() = default;

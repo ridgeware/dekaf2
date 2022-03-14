@@ -45,6 +45,7 @@
 #include <dekaf2/ksplit.h>
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/kencode.h>
+#include <dekaf2/kstringutils.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 	#define DEKAF2_HAS_SYSLOG
@@ -87,13 +88,12 @@ bool KLogStdWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
 } // Write
 
 //---------------------------------------------------------------------------
-KLogFileWriter::KLogFileWriter(KStringView sFileName)
+KLogFileWriter::KLogFileWriter(KStringViewZ sFileName)
 //---------------------------------------------------------------------------
     : m_OutFile(sFileName, std::ios_base::app)
 {
-	KString sBuffer(sFileName);
 	// force mode 666 for the log file ...
-	kChangeMode(sBuffer, DEKAF2_MODE_CREATE_FILE);
+	kChangeMode(sFileName, DEKAF2_MODE_CREATE_FILE);
 
 } // ctor
 
@@ -106,7 +106,7 @@ bool KLogFileWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
 } // Write
 
 //---------------------------------------------------------------------------
-KLogStringWriter::KLogStringWriter(KString& sOutString, KString sConcat)
+KLogStringWriter::KLogStringWriter(KStringRef& sOutString, KString sConcat)
 //---------------------------------------------------------------------------
     : m_OutString(sOutString)
 	, m_sConcat(std::move(sConcat))

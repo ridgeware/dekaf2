@@ -194,4 +194,13 @@ TEST_CASE("KSQL")
 		CHECK ( KSQL::IsSelect("      "_ksv ) == false );
 		CHECK ( KSQL::IsSelect(",    "_ksv  ) == false );
 	}
+
+	SECTION("DoTranslations")
+	{
+		KSQL DB;
+		KString sSQL { "update xx set date={{NOW}}, {{DATETIME}} {{MAXCHAR}} {{unknown}}{{CHAR2000}} date{{PCT}} {{AUTO_INCREMENT}}, {{UTC}} {{$$}}.{{PID}}.{{DC}}{{hostname}}}}" };
+		DB.BuildTranslationList(DB.m_TxList, KSQL::DBT::MYSQL);
+		DB.DoTranslations(sSQL);
+		CHECK ( sSQL == kFormat("update xx set date=now(), timestamp text {{{{unknown}}}}text date% auto_increment, utc_timestamp() {}.{}.{{{{{}}}}}", kGetPid(), kGetPid(), kGetHostname()) );
+	}
 }

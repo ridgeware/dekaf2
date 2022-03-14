@@ -135,7 +135,7 @@ public:
 	KString Replace(KStringView sIn) const;
 
 	/// Replaces all variables in sIn with their values
-	void ReplaceInPlace(KString& sIn) const;
+	void ReplaceInPlace(KStringRef& sIn) const;
 
 //----------
 private:

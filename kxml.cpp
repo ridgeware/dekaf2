@@ -203,7 +203,7 @@ void KXML::Serialize(KOutStream&& OutStream, int iPrintFlags, KStringView sDropR
 }
 
 //-----------------------------------------------------------------------------
-void KXML::Serialize(KString& string, int iPrintFlags, KStringView sDropRoot) const
+void KXML::Serialize(KStringRef& string, int iPrintFlags, KStringView sDropRoot) const
 //-----------------------------------------------------------------------------
 {
 	auto TempRoot = sDropRoot.empty() ? KXMLNode() : KXMLNode(*this).Child(sDropRoot);

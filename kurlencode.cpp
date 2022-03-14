@@ -98,10 +98,10 @@ KUrlEncodingTables::KUrlEncodingTables() noexcept
 } // end of namespace detail
 
 #ifndef _MSC_VER
-template void kUrlDecode(KString& sDecode, bool pPlusAsSpace = false);
-template void kUrlDecode(KStringView sSource, KString& sTarget, bool bPlusAsSpace = false);
+template void kUrlDecode(KStringRef& sDecode, bool pPlusAsSpace = false);
+template void kUrlDecode(KStringView sSource, KStringRef& sTarget, bool bPlusAsSpace = false);
 template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);
-template void kUrlEncode (KStringView sSource, KString& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
+template void kUrlEncode (KStringView sSource, KStringRef& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
 
 template class KURLEncoded<uint16_t>;
 template class KURLEncoded<KString>;

@@ -312,7 +312,7 @@ KString KDiff::GetTextDiff()
 } // GetTextDiff
 
 //-----------------------------------------------------------------------------
-std::size_t KDiff::GetTextDiff2 (KString& sOldText, KString& sNewText)
+std::size_t KDiff::GetTextDiff (KStringRef& sOldText, KStringRef& sNewText)
 //-----------------------------------------------------------------------------
 {
 	sOldText.clear();
@@ -399,7 +399,7 @@ KString KDiff::GetHTMLDiff(KStringView sInsertTag, KStringView sDeleteTag)
 } // GetHTMLDiff
 
 //-----------------------------------------------------------------------------
-std::size_t KDiff::GetHTMLDiff2 (KString& sOldText, KString& sNewText, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
+std::size_t KDiff::GetHTMLDiff (KStringRef& sOldText, KStringRef& sNewText, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
 //-----------------------------------------------------------------------------
 {
 	sOldText.clear();
@@ -487,14 +487,14 @@ KString KDiffToHTML (KStringView sOldText, KStringView sNewText, KStringView sIn
 } // KDiffToHTML
 
 //-----------------------------------------------------------------------------
-std::size_t KDiffToHTML2 (KString& sOldText, KString& sNewText, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
+std::size_t KDiffToHTML2 (KStringRef& sOldText, KStringRef& sNewText, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "old text: {}", sOldText);
 	kDebug (2, "new text: {}", sNewText);
 
 	KDiff Differ (sOldText, sNewText);
-	auto iDiffs = Differ.GetHTMLDiff2 (sOldText, sNewText, sInsertTag, sDeleteTag);
+	auto iDiffs = Differ.GetHTMLDiff (sOldText, sNewText, sInsertTag, sDeleteTag);
 
 	kDebug (2, "old diffs: {}", sOldText);
 	kDebug (2, "new diffs: {}", sNewText);
@@ -519,14 +519,14 @@ KString KDiffToASCII (KStringView sOldText, KStringView sNewText)
 } // KDiffToASCII
 
 //-----------------------------------------------------------------------------
-std::size_t KDiffToASCII2 (KString& sOldText, KString& sNewText)
+std::size_t KDiffToASCII2 (KStringRef& sOldText, KStringRef& sNewText)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "old text: {}", sOldText);
 	kDebug (2, "new text: {}", sNewText);
 
 	KDiff Differ (sOldText, sNewText);
-	auto iDiffs = Differ.GetTextDiff2 (sOldText, sNewText);
+	auto iDiffs = Differ.GetTextDiff (sOldText, sNewText);
 
 	kDebug (2, "old diffs: {}", sOldText);
 	kDebug (2, "new diffs: {}", sNewText);

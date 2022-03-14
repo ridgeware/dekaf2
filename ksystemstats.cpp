@@ -691,7 +691,7 @@ bool KSystemStats::GatherCpuInfo ()
 */
 	kDebug (2, "reading {} ...", PROC_CPUINFO);
 
-	int_t m_iNumCores { 0 };
+	int_t iNumCores { 0 };
 
 	KInFile file(PROC_CPUINFO);
 	file.SetReaderRightTrim("\r\n\t ");
@@ -733,9 +733,9 @@ bool KSystemStats::GatherCpuInfo ()
 
 		if (sName == "processor")
 		{
-			m_iNumCores++;
+			iNumCores++;
 		}
-		else if (1 == m_iNumCores) // we only need to store CPU info for one core since every process is identical
+		else if (1 == iNumCores) // we only need to store CPU info for one core since every process is identical
 		{
 			sName.insert(0, "cpuinfo_");
 			kDebug (2, "{}:  ok: {}={}", PROC_CPUINFO, sName, sValue);
@@ -743,7 +743,7 @@ bool KSystemStats::GatherCpuInfo ()
 		}
 	}
 
-	Add (CPUINFO_NUM_CORES, m_iNumCores, StatType::INTEGER);
+	Add (CPUINFO_NUM_CORES, iNumCores, StatType::INTEGER);
 	file.close();
 
 	kDebug (2, "reading {} ...", PROC_STAT);

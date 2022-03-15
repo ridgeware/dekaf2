@@ -17,6 +17,18 @@ static const char* str250 = "12345678901234567890123456789012345678901234567890"
 
 using namespace dekaf2;
 
+void SetEvery(std::string& sStr, char ch, std::string::size_type iEvery = 50)
+{
+	std::string::size_type iPos = iEvery;
+
+	while (iPos < sStr.size())
+	{
+		sStr[iPos] = ch;
+		iPos += iEvery;
+	}
+}
+
+
 void std_string()
 {
 	dekaf2::KProf ps("-std::string");
@@ -75,6 +87,7 @@ void std_string()
 	}
 	{
 		std::string s(200, '-');
+		SetEvery(s, 'a');
 		s.append("abcdefg");
 		dekaf2::KProf prof("std find (200)");
 		prof.SetMultiplier(1000000);
@@ -86,6 +99,7 @@ void std_string()
 	}
 	{
 		std::string s(200, '-');
+		SetEvery(s, 'a');
 		dekaf2::KProf prof("std notfound (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
@@ -96,6 +110,7 @@ void std_string()
 	}
 	{
 		std::string s(5000, '-');
+		SetEvery(s, 'a');
 		s.append("abcdefg");
 		dekaf2::KProf prof("std find (5000)");
 		prof.SetMultiplier(100000);
@@ -107,6 +122,7 @@ void std_string()
 	}
 	{
 		std::string s(5000, '-');
+		SetEvery(s, 'a');
 		dekaf2::KProf prof("std notfound (5000)");
 		prof.SetMultiplier(100000);
 		for (int ct = 0; ct < 100000; ++ct)
@@ -117,6 +133,7 @@ void std_string()
 	}
 	{
 		std::string s(5000000, '-');
+		SetEvery(s, 'a');
 		s.append("abcdefg");
 		dekaf2::KProf prof("std find (5M)");
 		prof.SetMultiplier(1000);
@@ -315,6 +332,7 @@ void std_string()
 	}
 	{
 		std::string s(200, '-');
+		SetEvery(s, 'a');
 		s.insert(0, "abcdefg");
 		dekaf2::KProf prof("std rfind (200)");
 		prof.SetMultiplier(1000000);
@@ -326,6 +344,7 @@ void std_string()
 	}
 	{
 		std::string s(5000, '-');
+		SetEvery(s, 'a');
 		s.insert(0, "abcdefg");
 		dekaf2::KProf prof("std rfind (5000)");
 		prof.SetMultiplier(1000000);
@@ -337,6 +356,7 @@ void std_string()
 	}
 	{
 		std::string s(5000000, '-');
+		SetEvery(s, 'a');
 		s.insert(0, "abcdefg");
 		dekaf2::KProf prof("std rfind (5M)");
 		prof.SetMultiplier(1000);

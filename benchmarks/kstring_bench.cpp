@@ -18,6 +18,17 @@ static const char* str250 = "12345678901234567890123456789012345678901234567890"
 
 using namespace dekaf2;
 
+void SetEvery(KString& sStr, char ch, KString::size_type iEvery = 50)
+{
+	KString::size_type iPos = iEvery;
+
+	while (iPos < sStr.size())
+	{
+		sStr[iPos] = ch;
+		iPos += iEvery;
+	}
+}
+
 void kstring()
 {
 	dekaf2::KProf ps("-KString");
@@ -77,6 +88,7 @@ void kstring()
 	}
 	{
 		dekaf2::KString s(200, '-');
+		SetEvery(s, 'a');
 		s.append("abcdefg");
 		dekaf2::KProf prof("find (200)");
 		prof.SetMultiplier(1000000);
@@ -88,6 +100,7 @@ void kstring()
 	}
 	{
 		dekaf2::KString s(200, '-');
+		SetEvery(s, 'a');
 		dekaf2::KProf prof("notfound (200)");
 		prof.SetMultiplier(1000000);
 		for (int ct = 0; ct < 1000000; ++ct)
@@ -98,6 +111,7 @@ void kstring()
 	}
 	{
 		dekaf2::KString s(5000, '-');
+		SetEvery(s, 'a');
 		s.append("abcdefg");
 		dekaf2::KProf prof("find (5000)");
 		prof.SetMultiplier(100000);
@@ -109,6 +123,7 @@ void kstring()
 	}
 	{
 		dekaf2::KString s(5000, '-');
+		SetEvery(s, 'a');
 		dekaf2::KProf prof("notfound (5000)");
 		prof.SetMultiplier(100000);
 		for (int ct = 0; ct < 100000; ++ct)
@@ -119,6 +134,7 @@ void kstring()
 	}
 	{
 		dekaf2::KString s(5000000, '-');
+		SetEvery(s, 'a');
 		s.append("abcdefg");
 		dekaf2::KProf prof("find (5M)");
 		prof.SetMultiplier(1000);
@@ -317,6 +333,7 @@ void kstring()
 	}
 	{
 		dekaf2::KString s(200, '-');
+		SetEvery(s, 'a');
 		s.insert(0, "abcdefg");
 		dekaf2::KProf prof("rfind (200)");
 		prof.SetMultiplier(1000000);
@@ -328,6 +345,7 @@ void kstring()
 	}
 	{
 		dekaf2::KString s(5000, '-');
+		SetEvery(s, 'a');
 		s.insert(0, "abcdefg");
 		dekaf2::KProf prof("rfind (5000)");
 		prof.SetMultiplier(1000000);
@@ -339,6 +357,7 @@ void kstring()
 	}
 	{
 		dekaf2::KString s(5000000, '-');
+		SetEvery(s, 'a');
 		s.insert(0, "abcdefg");
 		dekaf2::KProf prof("rfind (5M)");
 		prof.SetMultiplier(1000);
@@ -350,6 +369,7 @@ void kstring()
 	}
 	{
 		dekaf2::KString s(200, '-');
+		SetEvery(s, 'a');
 		s.insert(0, "abcdefg");
 		dekaf2::KProf prof("rfind char (200)");
 		prof.SetMultiplier(1000000);
@@ -361,6 +381,7 @@ void kstring()
 	}
 	{
 		dekaf2::KString s(5000, '-');
+		SetEvery(s, 'a');
 		s.insert(0, "abcdefg");
 		dekaf2::KProf prof("rfind char (5000)");
 		prof.SetMultiplier(1000000);
@@ -372,6 +393,7 @@ void kstring()
 	}
 	{
 		dekaf2::KString s(5000000, '-');
+		SetEvery(s, 'a');
 		s.insert(0, "abcdefg");
 		dekaf2::KProf prof("rfind char (5M)");
 		prof.SetMultiplier(1000);

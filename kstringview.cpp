@@ -71,7 +71,7 @@ size_t kFind(
 	// glibc has an excellent memmem implementation, so we use it if available.
 	// libc has a very slow memmem implementation (about 100 times slower than glibc),
 	// so we use our own, which is only about 2 times slower, by overloading the
-	// function signature in the dekaf2 namespace above
+	// function signature in the dekaf2 namespace
 
 	auto found = static_cast<const char*>(memmem(haystack.data() + pos,
 												 haystack.size() - pos,
@@ -127,6 +127,8 @@ size_t kRFind(
 	{
 		pos = std::min(iHaystackSize - iNeedleSize, pos);
 
+		KStringView::size_type iJump = 0;
+
 		for(;;)
 		{
 			auto found = static_cast<const char*>(memrchr(haystack.data(), needle[0], pos+1));
@@ -145,7 +147,19 @@ size_t kRFind(
 				return pos;
 			}
 
-			--pos;
+			if (DEKAF2_UNLIKELY(!iJump))
+			{
+				// compute the minimum repeat interval of the first char
+				// we know that the needle size is > 1 as we tested that above
+				iJump = needle.find(needle[0], 1);
+
+				if (iJump == KStringView::npos)
+				{
+					iJump = iNeedleSize;
+				}
+			}
+
+			pos -= iJump;
 		}
 	}
 

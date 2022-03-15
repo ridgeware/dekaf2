@@ -365,7 +365,11 @@ bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRe
 		if (File.is_open())
 		{
 			auto iContent = sContent.size();
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 			sContent.resize_uninitialized(iContent + iSize);
+#else
+			sContent.resize(iContent + iSize);
+#endif
 			auto iRead = File.Read(&sContent[iContent], iSize);
 
 			if (iRead < static_cast<std::size_t>(iSize))

@@ -592,7 +592,8 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 	}
 	else if (!m_sForcedHost.empty())
 	{
-		AddHeader(KHTTPHeader::HOST, m_sForcedHost);
+		kDebug(2, "host forcd by user to: Host: {}", m_sForcedHost);
+		Request.Headers.Set(KHTTPHeader::HOST, m_sForcedHost);
 	}
 	else if (url.Domain.empty())
 	{
@@ -604,7 +605,7 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 		|| (url.Protocol == url::KProtocol::HTTPS && url.Port.get() == 443)))
 	{
 		// domain alone is sufficient for standard ports
-		AddHeader(KHTTPHeader::HOST, url.Domain.Serialize());
+		Request.Headers.Set(KHTTPHeader::HOST, url.Domain.Serialize());
 	}
 	else
 	{
@@ -613,7 +614,7 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 		url.Domain.Serialize(sHost);
 		url.Port.Serialize(sHost);
 
-		AddHeader(KHTTPHeader::HOST, sHost);
+		Request.Headers.Set(KHTTPHeader::HOST, sHost);
 	}
 
 	return true;

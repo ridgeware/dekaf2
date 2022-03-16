@@ -41,14 +41,15 @@
 */
 
 #include "ksystem.h"
-#include <thread>
-#include <cstdlib>
 #include "bits/kcppcompat.h"
 #include "bits/kfilesystem.h"
 #include "kfilesystem.h"
 #include "klog.h"
 #include "dekaf2.h"
 #include "kinshell.h"
+#include <thread>
+#include <cstdlib>
+#include <ctime>
 
 #include "bits/kasio.h"
 #ifdef DEKAF2_IS_WINDOWS
@@ -868,6 +869,114 @@ std::size_t kGetCPUCount()
 	return iCPUCount;
 
 } // kGetCPUCount
+
+#ifdef DEKAF2_IS_WINDOWS
+
+struct rusage
+{
+	struct timeval ru_utime;
+	struct timeval ru_stime;
+};
+
+namespace detail {
+
+//-----------------------------------------------------------------------------
+DEKAF2_PRIVATE
+FiletimeToTimeval(struct timeval& tv, const FILETIME& ft)
+//-----------------------------------------------------------------------------
+{
+	ULARGE_INTEGER time;
+	time.LowPart   = ft->dwLowDateTime;
+	time.HighPart  = ft->dwHighDateTime;
+	time.QuadPart /= 10L;
+	tv.tv_sec      = time.QuadPart / 1000000L;
+	tv.tv_usec     = time.QuadPart % 1000000L;
+
+} // FiletimeToTimeval
+
+} // namespace detail
+
+//-----------------------------------------------------------------------------
+int getrusage(int who, struct rusage *rusage)
+//-----------------------------------------------------------------------------
+{
+	if (!rusage)
+	{
+		errno = EFAULT;
+		return -1;
+	}
+
+	switch (who)
+	{
+		case RUSAGE_SELF:
+		{
+			FILETIME starttime, exittime, kerneltime, usertime;
+
+			if (!GetProcessTimes(GetCurrentProcess(), &starttime, &exittime, &kerneltime, &usertime))
+			{
+				return -1;
+			}
+
+			detail::FiletimeToTimeval(rusage->ru_stime, kerneltime);
+			detail::FiletimeToTimeval(rusage->ru_utime, usertime  );
+
+			return 0;
+		}
+
+		case RUSAGE_THREAD:
+		{
+			FILETIME starttime, exittime, kerneltime, usertime;
+
+			if (!GetThreadTimes(GetCurrentThread(), &starttime, &exittime, &kerneltime, &usertime))
+			{
+				return -1;
+			}
+
+			detail::FiletimeToTimeval(rusage->ru_stime, kerneltime);
+			detail::FiletimeToTimeval(rusage->ru_utime, usertime  );
+
+			return 0;
+		}
+
+		default:
+			break;
+	}
+
+	errno = EINVAL;
+	return -1;
+
+} // getrusage for Windows
+
+#endif // DEKAF2_IS_WINDOWS
+
+namespace detail {
+
+//-----------------------------------------------------------------------------
+DEKAF2_PRIVATE
+std::size_t TimeValToMicroTicks(const struct timeval& tv)
+//-----------------------------------------------------------------------------
+{
+	return tv.tv_sec * 1000000 + tv.tv_usec;
+
+} // TimeValToMicroTicks
+
+//-----------------------------------------------------------------------------
+std::size_t TicksFromRusage(int who)
+//-----------------------------------------------------------------------------
+{
+	struct rusage ru;
+
+	if (getrusage(who, &ru))
+	{
+		return 0;
+	}
+
+	return TimeValToMicroTicks(ru.ru_stime)
+		 + TimeValToMicroTicks(ru.ru_utime);
+
+} // TimeValToMicroTicks
+
+} // namespace detail
 
 //-----------------------------------------------------------------------------
 bool kSetGlobalLocale(KStringViewZ sLocale)

@@ -196,6 +196,48 @@ std::size_t kGetPhysicalMemory();
 DEKAF2_PUBLIC
 std::size_t kGetCPUCount();
 
+namespace detail {
+DEKAF2_PRIVATE
+std::size_t TicksFromRusage(int who);
+}
+
+#ifdef DEKAF2_IS_WINDOWS
+#ifndef RUSAGE_SELF
+  #define RUSAGE_SELF     1
+#endif
+#ifndef RUSAGE_CHILDREN
+  #define RUSAGE_CHILDREN 2
+#endif
+#ifndef RUSAGE_THREAD
+  #define RUSAGE_THREAD   3
+#endif
+#endif
+
+/// Returns process time for the calling thread in microseconds. May fall back to process time for the calling process, e.g. on MacOS
+DEKAF2_PUBLIC
+inline std::size_t kGetMicroTicksPerThread()
+{
+#ifndef RUSAGE_THREAD
+	return detail::TicksFromRusage(RUSAGE_SELF);
+#else
+	return detail::TicksFromRusage(RUSAGE_THREAD);
+#endif
+}
+
+/// Returns process time for the calling process in microseconds.
+DEKAF2_PUBLIC
+inline std::size_t kGetMicroTicksPerProcess()
+{
+	return detail::TicksFromRusage(RUSAGE_SELF);
+}
+
+/// Returns process time for the children of the calling process in microseconds. Does not work on Windows
+DEKAF2_PUBLIC
+inline std::size_t kGetMicroTicksPerChildProcesses()
+{
+	return detail::TicksFromRusage(RUSAGE_CHILDREN);
+}
+
 /// Set the global locale for all threads, set to environment preset if sLocale == empty
 /// @par sLocale the locale string to construct the std::locale from. Use a unicode aware locale.
 /// @return true if locale could be set, false otherwise

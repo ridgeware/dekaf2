@@ -137,4 +137,15 @@ TEST_CASE("KSystem")
 		CHECK ( iRet == DEKAF2_POPEN_COMMAND_NOT_FOUND);
 	}
 
+	SECTION("rusage")
+	{
+		auto iStart1 = kGetMicroTicksPerProcess();
+		auto iStart2 = kGetMicroTicksPerThread();
+		auto iStart3 = kGetMicroTicksPerChildProcesses();
+		auto iTicks1 = kGetMicroTicksPerProcess()        - iStart1;
+		auto iTicks2 = kGetMicroTicksPerThread()         - iStart2;
+		auto iTicks3 = kGetMicroTicksPerChildProcesses() - iStart3;
+		CHECK ( iTicks1 > 0 );
+		CHECK ( iTicks2 > 0 );
+	}
 }

@@ -236,25 +236,28 @@ public:
 		base_type::open(kToFilesystemPath(str), mode | ios_base::binary);
 	}
 
+#ifndef DEKAF2_IS_WINDOWS
 	//-----------------------------------------------------------------------------
 	void open(const std::string& str, ios_base::openmode mode = ios_base::in | ios_base::out)
 	//-----------------------------------------------------------------------------
 	{
 		base_type::open(kToFilesystemPath(str), mode | ios_base::binary);
 	}
+#endif
 
 	//-----------------------------------------------------------------------------
-	void open(const KStringViewZ sz, ios_base::openmode mode = ios_base::in | ios_base::out)
+	void open(KStringViewZ sz, ios_base::openmode mode = ios_base::in | ios_base::out)
 	//-----------------------------------------------------------------------------
 	{
 		base_type::open(kToFilesystemPath(sz), mode | ios_base::binary);
 	}
 
 	//-----------------------------------------------------------------------------
-	void open(const KStringView sv, ios_base::openmode mode = ios_base::in | ios_base::out)
+	void open(KStringView sv, ios_base::openmode mode = ios_base::in | ios_base::out)
 	//-----------------------------------------------------------------------------
 	{
-		open(KString(sv), mode | ios_base::binary);
+		KString s(sv);
+		base_type::open(kToFilesystemPath(s), mode | ios_base::binary);
 	}
 
 	using base_type::open;

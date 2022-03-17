@@ -73,6 +73,19 @@ TEST_CASE("KDiff")
 		CHECK ( sText2 == sExpected2 );
 	}
 
+	SECTION("KDiffToHTML2 2")
+	{
+		KString sText1    { "Nous vous faisons plaisir à travers nos vélos."   };
+		KString sText2    { "Nous vous faisons plaisir à travers nos route vélos." };
+		KStringView sExpected1 { "Nous vous faisons plaisir à travers nos vélos." };
+		KStringView sExpected2 { "Nous vous faisons plaisir à travers nos <ins>route </ins>vélos." };
+
+		auto iCount = KDiffToHTML2(sText1, sText2);
+		CHECK ( iCount == 1  );
+		CHECK ( sText1 == sExpected1 );
+		CHECK ( sText2 == sExpected2 );
+	}
+
 	SECTION("GetUnifiedDiff")
 	{
 		KStringView sText1    { "This is a fat cat"   };

@@ -200,7 +200,7 @@ void KDiff::CreateDiff(KStringView sOldText,
 	try
 	{
 #ifdef DEKAF2_KDIFF_USE_WSTRING
-		auto Diffs = KDiffMatchPatch::diff_main(Unicode::FromUTF8<KDiffMatchPatch::string_t>(sOldText), Unicode::FromUTF8<std::wstring>(sNewText), static_cast<KDiffMatchPatch::Mode>(Mode), 2.0f);
+		auto Diffs = KDiffMatchPatch::diff_main(Unicode::FromUTF8<KDiffMatchPatch::string_t>(sOldText), Unicode::FromUTF8<KDiffMatchPatch::string_t>(sNewText), static_cast<KDiffMatchPatch::Mode>(Mode), 2.0f);
 #else
 		auto Diffs = KDiffMatchPatch::diff_main(sOldText, sNewText, static_cast<KDiffMatchPatch::Mode>(Mode), 2.0f);
 #endif
@@ -472,13 +472,16 @@ uint32_t KDiff::GetLevenshteinDistance()
 } // GetLevenshteinDistance
 
 //-----------------------------------------------------------------------------
-KString KDiffToHTML (KStringView sOldText, KStringView sNewText, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="kDebug"*/)
+KString KDiffToHTML (KStringView sOldText, KStringView sNewText,
+					 KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="kDebug"*/,
+					 KDiff::DiffMode Mode  /*= KDiff::DiffMode::Character*/,
+					 KDiff::Sanitation San /*= KDiff::Sanitation::Semantic*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "old text: {}", sOldText);
 	kDebug (2, "new text: {}", sNewText);
 
-	KDiff Differ(sOldText, sNewText);
+	KDiff Differ(sOldText, sNewText, Mode, San);
 	auto sDiff = Differ.GetHTMLDiff(sInsertTag, sDeleteTag);
 
 	kDebug (2, "diffs: {}", sDiff);
@@ -487,13 +490,16 @@ KString KDiffToHTML (KStringView sOldText, KStringView sNewText, KStringView sIn
 } // KDiffToHTML
 
 //-----------------------------------------------------------------------------
-std::size_t KDiffToHTML2 (KStringRef& sOldText, KStringRef& sNewText, KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/)
+std::size_t KDiffToHTML2 (KStringRef& sOldText, KStringRef& sNewText,
+						  KStringView sInsertTag/*="ins"*/, KStringView sDeleteTag/*="del"*/,
+						  KDiff::DiffMode Mode  /*= KDiff::DiffMode::Character*/,
+						  KDiff::Sanitation San /*= KDiff::Sanitation::Semantic*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "old text: {}", sOldText);
 	kDebug (2, "new text: {}", sNewText);
 
-	KDiff Differ (sOldText, sNewText);
+	KDiff Differ (sOldText, sNewText, Mode, San);
 	auto iDiffs = Differ.GetHTMLDiff (sOldText, sNewText, sInsertTag, sDeleteTag);
 
 	kDebug (2, "old diffs: {}", sOldText);
@@ -504,13 +510,15 @@ std::size_t KDiffToHTML2 (KStringRef& sOldText, KStringRef& sNewText, KStringVie
 } // KDiffToHTML2
 
 //-----------------------------------------------------------------------------
-KString KDiffToASCII (KStringView sOldText, KStringView sNewText)
+KString KDiffToASCII (KStringView sOldText, KStringView sNewText,
+					  KDiff::DiffMode Mode  /*= KDiff::DiffMode::Character*/,
+					  KDiff::Sanitation San /*= KDiff::Sanitation::Semantic*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "old text: {}", sOldText);
 	kDebug (2, "new text: {}", sNewText);
 
-	KDiff Differ(sOldText, sNewText);
+	KDiff Differ(sOldText, sNewText, Mode, San);
 	auto sDiff = Differ.GetTextDiff();
 
 	kDebug (2, "diffs: {}", sDiff);
@@ -519,13 +527,15 @@ KString KDiffToASCII (KStringView sOldText, KStringView sNewText)
 } // KDiffToASCII
 
 //-----------------------------------------------------------------------------
-std::size_t KDiffToASCII2 (KStringRef& sOldText, KStringRef& sNewText)
+std::size_t KDiffToASCII2 (KStringRef& sOldText, KStringRef& sNewText,
+						   KDiff::DiffMode Mode  /*= KDiff::DiffMode::Character*/,
+						   KDiff::Sanitation San /*= KDiff::Sanitation::Semantic*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "old text: {}", sOldText);
 	kDebug (2, "new text: {}", sNewText);
 
-	KDiff Differ (sOldText, sNewText);
+	KDiff Differ (sOldText, sNewText, Mode, San);
 	auto iDiffs = Differ.GetTextDiff (sOldText, sNewText);
 
 	kDebug (2, "old diffs: {}", sOldText);

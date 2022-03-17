@@ -882,12 +882,12 @@ namespace detail {
 
 //-----------------------------------------------------------------------------
 DEKAF2_PRIVATE
-FiletimeToTimeval(struct timeval& tv, const FILETIME& ft)
+void FiletimeToTimeval(struct timeval& tv, const FILETIME& ft)
 //-----------------------------------------------------------------------------
 {
 	ULARGE_INTEGER time;
-	time.LowPart   = ft->dwLowDateTime;
-	time.HighPart  = ft->dwHighDateTime;
+	time.LowPart   = ft.dwLowDateTime;
+	time.HighPart  = ft.dwHighDateTime;
 	time.QuadPart /= 10L;
 	tv.tv_sec      = time.QuadPart / 1000000L;
 	tv.tv_usec     = time.QuadPart % 1000000L;

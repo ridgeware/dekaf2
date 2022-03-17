@@ -49,6 +49,7 @@
 #include "kthreadsafe.h"
 #include <memory>
 #include <mutex>
+#include <atomic>
 
 namespace dekaf2 {
 

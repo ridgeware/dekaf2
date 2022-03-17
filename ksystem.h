@@ -49,6 +49,9 @@
 #include "kstringview.h"
 #include "bits/kstringviewz.h"
 #include <locale>
+#ifndef DEKAF2_IS_WINDOWS
+#include <sys/resource.h>
+#endif
 
 namespace dekaf2
 {

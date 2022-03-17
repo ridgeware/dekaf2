@@ -9630,6 +9630,18 @@ void KSQL::SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType QueryTyp
 } // SetQueryTimeout
 
 //-----------------------------------------------------------------------------
+void KSQL::ResetQueryTimeout()
+//-----------------------------------------------------------------------------
+{
+	kDebug(1, "resetting per-instance query timeout settings to defaults");
+	m_QueryTimeout        = s_QueryTimeout;
+	m_QueryTypeForTimeout = s_QueryTypeForTimeout;
+	// enable the query timeout if the preset static values were good
+	m_bEnableQueryTimeout = m_QueryTimeout > std::chrono::milliseconds(0) && m_QueryTypeForTimeout != QueryType::None;
+
+} // ResetQueryTimeout
+
+//-----------------------------------------------------------------------------
 void KSQL::SetDefaultQueryTimeout(std::chrono::milliseconds Timeout, QueryType QueryType)
 //-----------------------------------------------------------------------------
 {

@@ -447,6 +447,9 @@ public:
 	/// set a timeout and type of query to abort after the timeout expired
 	void SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType Queries = QueryType::Any);
 
+	/// set the timeout and type of query to abort after the timeout expired to the default values set with SetDefaultQueryTimeout()
+	void ResetQueryTimeout();
+
 	/// set a default timeout and type of query to abort after the timeout expired, will be used by all new instances of KSQL as the initial setting
 	static void SetDefaultQueryTimeout(std::chrono::milliseconds Timeout, QueryType Queries = QueryType::Any);
 

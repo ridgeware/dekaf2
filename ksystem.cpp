@@ -889,8 +889,8 @@ void FiletimeToTimeval(struct timeval& tv, const FILETIME& ft)
 	time.LowPart   = ft.dwLowDateTime;
 	time.HighPart  = ft.dwHighDateTime;
 	time.QuadPart /= 10L;
-	tv.tv_sec      = time.QuadPart / 1000000L;
-	tv.tv_usec     = time.QuadPart % 1000000L;
+	tv.tv_sec      = static_cast<decltype(tv.tv_sec )>(time.QuadPart / 1000000L);
+	tv.tv_usec     = static_cast<decltype(tv.tv_usec)>(time.QuadPart % 1000000L);
 
 } // FiletimeToTimeval
 
@@ -997,7 +997,7 @@ bool kSetGlobalLocale(KStringViewZ sLocale)
 		// take care, we may call this function from inside dekaf2's constructor
 		if (Dekaf::IsStarted())
 		{
-			kDebug(1, "failed to change global locale to {}", sLocale);
+			kDebug(1, "failed to change global locale to {}: {}", sLocale, ex.what());
 		}
 
 		return false;

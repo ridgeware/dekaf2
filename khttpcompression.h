@@ -152,14 +152,14 @@ private:
 
 	static constexpr KStringViewZ s_sSupportedCompressors =
 #ifdef DEKAF2_HAS_LIBZSTD
-															"zstd, "
+															"zstd,"
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI
-															"br, "
+															"br,"
 #endif
-															"gzip, deflate, "
+															"gzip,deflate,"
 #ifdef DEKAF2_HAS_LIBLZMA
-															"xz, lzma, "
+															"xz,lzma,"
 #endif
 															"bzip2";
 

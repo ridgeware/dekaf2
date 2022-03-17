@@ -236,7 +236,7 @@ void KHTTPCompression::SetPermittedCompressors(COMP Compressors)
 	else
 	{
 		// build and set the new compressors string
-		s_sPermittedCompressors.reset(kJoined(ToStrings(Compressors), ", "));
+		s_sPermittedCompressors.reset(kJoined(ToStrings(Compressors), ","));
 		kDebug(2, "compression set to subset: {}", s_sPermittedCompressors.getRef());
 	}
 

@@ -78,9 +78,9 @@ TEST_CASE("KHTTPCompression")
 		auto comp = KHTTPCompression::GetPermittedCompressors();
 		KHTTPCompression::SetPermittedCompressors("deflate, gzip,bzip2, br ");
 #ifdef DEKAF2_HAS_LIBBROTLI
-		CHECK ( KHTTPCompression::GetCompressors() == "br, deflate, gzip, bzip2" );
+		CHECK ( KHTTPCompression::GetCompressors() == "br,deflate,gzip,bzip2" );
 #else
-		CHECK ( KHTTPCompression::GetCompressors() == "deflate, gzip, bzip2" );
+		CHECK ( KHTTPCompression::GetCompressors() == "gzip,deflate,bzip2" );
 #endif
 		CHECK ( KHTTPCompression::GetBestSupportedCompressor("bzip2,superflat,gzip, deflate") == KHTTPCompression::ZLIB );
 #ifdef DEKAF2_HAS_LIBBROTLI

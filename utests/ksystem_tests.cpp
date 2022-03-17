@@ -2,6 +2,7 @@
 
 #include <dekaf2/kstring.h>
 #include <dekaf2/ksystem.h>
+#include <dekaf2/klog.h>
 
 using namespace dekaf2;
 
@@ -142,6 +143,15 @@ TEST_CASE("KSystem")
 		auto iStart1 = kGetMicroTicksPerProcess();
 		auto iStart2 = kGetMicroTicksPerThread();
 		auto iStart3 = kGetMicroTicksPerChildProcesses();
+		KString s;
+		for (auto i = 0; i < 100000; ++i)
+		{
+			s += 'a';
+		}
+		if (s[10000] != 'a')
+		{
+			kDebug(1, "false");
+		}
 		auto iTicks1 = kGetMicroTicksPerProcess()        - iStart1;
 		auto iTicks2 = kGetMicroTicksPerThread()         - iStart2;
 		auto iTicks3 = kGetMicroTicksPerChildProcesses() - iStart3;

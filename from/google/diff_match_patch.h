@@ -1086,26 +1086,23 @@ public:
  public:
   static void diff_cleanupSemanticLossless(Diffs &diffs)
   {
-    string_t     equality1, edit, equality2;
-    stringview_t commonString;
-    strlen_t     commonOffset;
-    score_t      score, bestScore;
-    stringview_t bestEquality1, bestEdit, bestEquality2;
     // Create a new iterator at the start.
     typename Diffs::iterator prev_diff = diffs.begin(), cur_diff = prev_diff;
     if (prev_diff == diffs.end() || ++cur_diff == diffs.end()) return;
 
+    // construct the strings outside the loop to keep the memory allocations
+    string_t equality1, equality2, edit, commonString;
     // Intentionally ignore the first and last element (don't need checking).
     for (typename Diffs::iterator next_diff = cur_diff; ++next_diff != diffs.end(); prev_diff = cur_diff, cur_diff = next_diff) {
       if ((*prev_diff).operation == EQUAL &&
         (*next_diff).operation == EQUAL) {
           // This is a single edit surrounded by equalities.
           equality1 = (*prev_diff).text;
-          edit = (*cur_diff).text;
+          edit      = (*cur_diff).text;
           equality2 = (*next_diff).text;
 
           // First, shift the edit as far left as possible.
-          commonOffset = diff_commonSuffix(equality1, edit);
+          strlen_t commonOffset = diff_commonSuffix(equality1, edit);
           if (commonOffset != 0) {
             commonString = traits::mid(edit, edit.length() - commonOffset);
             equality1.erase(equality1.length() - commonOffset);
@@ -1115,18 +1112,18 @@ public:
           }
 
           // Second, step character by character right, looking for the best fit.
-          bestEquality1 = equality1;
-          bestEdit = edit;
-          bestEquality2 = equality2;
-          bestScore = diff_cleanupSemanticScore(equality1, edit)
-              + diff_cleanupSemanticScore(edit, equality2);
+		  stringview_t bestEquality1 = equality1;
+		  stringview_t bestEdit      = edit;
+		  stringview_t bestEquality2 = equality2;
+          score_t      bestScore = diff_cleanupSemanticScore(equality1, edit)
+                                 + diff_cleanupSemanticScore(edit, equality2);
           while (!edit.empty() && !equality2.empty()
               && edit[0] == equality2[0]) {
             equality1 += edit[0];
             edit.erase(0, 1);
             edit += equality2[0];
             equality2 = traits::mid(equality2, 1);
-            score = diff_cleanupSemanticScore(equality1, edit)
+            score_t score = diff_cleanupSemanticScore(equality1, edit)
                 + diff_cleanupSemanticScore(edit, equality2);
             // The >= encourages trailing rather than leading whitespace on edits.
             if (score >= bestScore) {

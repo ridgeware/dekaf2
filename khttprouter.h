@@ -163,8 +163,16 @@ public:
 
 	virtual ~KHTTPRouter();
 
+#if defined(DEKAF2_HAS_FULL_CPP_17)
 	// forward constructors
 	using KHTTPServer::KHTTPServer;
+#else
+	KHTTPRouter() = default;
+	KHTTPRouter(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort)
+	: KHTTPServer(Stream, sRemoteEndpoint, Proto, iPort)
+	{
+	}
+#endif
 
 	/// handler for one request
 	bool Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute);

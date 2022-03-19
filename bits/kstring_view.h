@@ -481,8 +481,7 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 		static constexpr DEKAF2_ALWAYS_INLINE
 		size_type constexpr_strlen(const CharT* s) noexcept
 		{
-#if defined(DEKAF2_HAS_CPP_17) \
-	&& (DEKAF2_NO_GCC || (DEKAF2_GCC_VERSION_MAJOR > 6))
+#if defined(DEKAF2_HAS_FULL_CPP_17)
 			return s ? traits_type::length(s) : 0;
 #else
 	#if defined(__clang__)

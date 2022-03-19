@@ -45,8 +45,8 @@
 /// string view implementation
 
 #include "bits/kcppcompat.h"
-#include "bits/ktemplate.h"
 #include "bits/kstring_view.h"
+#include "bits/ktemplate.h"
 #include "bits/khash.h"
 #include "kutf8.h"
 #include <fmt/format.h>
@@ -64,12 +64,10 @@
 
 // older gcc versions have the cpp17 flag, but their libstdc++ does not
 // support the constexpr reverse iterators
-#define DEKAF2_CONSTEXPR_REVERSE_ITERATORS
-#if defined(DEKAF2_HAS_CPP_17)
-	#if (DEKAF2_NO_GCC || DEKAF2_GCC_VERSION >= 80000)
-		#undef DEKAF2_CONSTEXPR_REVERSE_ITERATORS
-		#define DEKAF2_CONSTEXPR_REVERSE_ITERATORS constexpr
-	#endif
+#if defined(DEKAF2_HAS_FULL_CPP_17)
+	#define DEKAF2_CONSTEXPR_REVERSE_ITERATORS constexpr
+#else
+	#define DEKAF2_CONSTEXPR_REVERSE_ITERATORS
 #endif
 
 namespace dekaf2 {

@@ -198,17 +198,12 @@ template<class T>
 struct is_narrow_cpp_str
   : std::integral_constant<
       bool,
-      std::is_same<const KStringViewZ,     typename std::decay<T>::type>::value ||
       std::is_same<KStringViewZ,           typename std::decay<T>::type>::value ||
-      std::is_same<const KStringView,      typename std::decay<T>::type>::value ||
       std::is_same<KStringView,            typename std::decay<T>::type>::value ||
-      std::is_same<const KString,          typename std::decay<T>::type>::value ||
       std::is_same<KString,                typename std::decay<T>::type>::value ||
-#if defined(DEKAF2_HAS_CPP_17) && (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 70000)
-      std::is_same<const std::string_view, typename std::decay<T>::type>::value ||
+#if defined(DEKAF2_HAS_FULL_CPP_17)
       std::is_same<std::string_view,       typename std::decay<T>::type>::value ||
 #endif
-      std::is_same<const std::string,      typename std::decay<T>::type>::value ||
       std::is_same<std::string,            typename std::decay<T>::type>::value
 > {};
 
@@ -216,7 +211,6 @@ template<class T>
 struct is_wide_cpp_str
   : std::integral_constant<
       bool,
-      std::is_same<const std::wstring, typename std::decay<T>::type>::value ||
       std::is_same<std::wstring,       typename std::decay<T>::type>::value
 > {};
 

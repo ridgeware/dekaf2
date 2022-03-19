@@ -305,10 +305,11 @@ TEST_CASE("StringBalance") {
 		}
 		{
 			std::string str;
+#ifdef DEKAF2_HAS_FULL_CPP_17
 			str = oks.str();
 			str = oks.strc();
 			str = oks.strr();
-
+#endif
 			oks.fmv(std::move(str));
 //			oks.fref(str);
 			oks.fccp(str);

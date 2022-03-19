@@ -103,7 +103,7 @@ class KlogServer : public KTCPServer
 public:
 //-------
 	
-#if defined(DEKAF2_IS_GCC) && DEKAF2_GCC_VERSION < 80000
+#ifndef DEKAF2_HAS_FULL_CPP_17
 	// gcc versions below 8.0 do not properly honour the constructor forwarding,
 	// therefore we use argument forwarding
 	template<typename... Args>

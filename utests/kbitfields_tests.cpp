@@ -124,7 +124,7 @@ TEST_CASE("KBitfields")
 		CHECK ( bf.get<1>() == 0x9a );
 		CHECK ( bf == 0x9affffffffffffff );
 
-#if defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION_MAJOR > 6)
+#ifdef DEKAF2_HAS_FULL_CPP_17
 		KBitfields<64> bf1;
 		CHECK ( sizeof(bf1) == 8 );
 		bf1.set<0>(0xffffffffffffffff);

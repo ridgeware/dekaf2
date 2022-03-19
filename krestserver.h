@@ -102,7 +102,7 @@ public:
 	// CLI is a test console output
 	enum OutputType	{ HTTP, LAMBDA, CLI };
 
-#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 70000
+#if defined(DEKAF2_HAS_FULL_CPP_17)
 	// forward constructors
 	using KHTTPServer::KHTTPServer;
 #else

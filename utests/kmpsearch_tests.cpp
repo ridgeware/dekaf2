@@ -9,7 +9,7 @@ TEST_CASE("KMPSearch") {
 
 // frozen::KMPSearch does not work in older gcc and below C++17 because it thinks that
 // std::array is not constexpr
-#if (defined(DEKAF2_NO_GCC) || DEKAF2_GCC_VERSION >= 70000) && defined(DEKAF2_HAS_CPP_17)
+#ifdef DEKAF2_HAS_FULL_CPP_17
 
 	SECTION("kfrozen::KMPSearch char* found search")
 	{

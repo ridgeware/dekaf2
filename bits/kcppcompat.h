@@ -105,15 +105,13 @@
 	#pragma warning(disable:4307)
 #endif
 
-#if (__cplusplus < 201103L && !DEKAF2_HAS_CPP_11)
+#if (__cplusplus < 201103L)
 	#error "this version of dekaf needs at least a C++11 compiler"
 #endif
 
-#ifndef DEKAF2_HAS_CPP_11
-	#define DEKAF2_HAS_CPP_11 1
-#endif
+#define DEKAF2_HAS_CPP_11 1
 
-#if (__cplusplus >= 201402L && !defined(DEKAF2_HAS_CPP_14))
+#if (__cplusplus >= 201402L)
 	#define DEKAF2_HAS_CPP_14 1
 #endif
 
@@ -125,12 +123,24 @@
 	#define DEKAF2_HAS_CPP_17 1
 #endif
 
+#if defined(DEKAF2_HAS_CPP_17)
+	#if (__cplusplus < 201703L)
+		#define DEKAF2_HAS_INCOMPLETE_CPP_17 1
+	#else
+		#define DEKAF2_HAS_FULL_CPP_17 1
+	#endif
+#endif
+
 // this test is a bit bogus (by just testing if the cpp date
 // is younger than that of C++17), but it should probably even
 // be kept after C++20 defines an official date, as older
 // compilers would not know it (but support C++20)
-#if (__cplusplus > 201703L && !defined(DEKAF2_HAS_CPP_20))
+#if (__cplusplus > 201703L)
 	#define DEKAF2_HAS_CPP_20 1
+#endif
+
+#if (__cplusplus > 202002L)
+	#define DEKAF2_HAS_CPP_23 1
 #endif
 
 #ifdef DEKAF2_HAS_CPP_14
@@ -155,7 +165,7 @@
 
 // unfortunately GCC < 7 require the repetition of a constexpr variable
 // in the .cpp even if in c++17 mode
-#if !defined(DEKAF2_HAS_CPP_17) || (defined(DEKAF2_IS_GCC) && DEKAF2_GCC_VERSION < 70000)
+#if !defined(DEKAF2_HAS_FULL_CPP_17)
 	#define DEKAF2_REPEAT_CONSTEXPR_VARIABLE 1
 #endif
 
@@ -377,7 +387,7 @@ using void_t = void;
 // It does not matter if they had been declared by other code already. The compiler
 // simply picks the first one that matches.
 // Old gcc versions < 7 do not have std::apply even in C++17 mode
-#if !defined(DEKAF2_HAS_CPP_17) || (defined(DEKAF2_IS_GCC) && DEKAF2_GCC_VERSION < 70000)
+#if !defined(DEKAF2_HAS_FULL_CPP_17)
 namespace std
 {
 	#ifdef DEKAF2_HAS_CPP_14
@@ -528,12 +538,8 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	}
 }
 
-#undef DEKAF2_LE_BE_CONSTEXPR
-
-#ifndef npos
-	// npos is used in dekaf2 as error return for unsigned return types
-	static constexpr std::size_t npos = static_cast<std::size_t>(-1);
-#endif
+// npos is used in dekaf2 as error return for unsigned return types
+static constexpr std::size_t npos = static_cast<std::size_t>(-1);
 
 } // end of namespace dekaf2
 

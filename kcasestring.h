@@ -449,7 +449,7 @@ namespace std
 	{
 		using is_transparent = void;
 
-#if defined(DEKAF2_NO_GCC) || DEKAF2_GCC_VERSION_MAJOR > 6 
+#ifdef DEKAF2_HAS_FULL_CPP_17
 		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, dekaf2::KStringView s2) const
 		{
 			return s1 == s2;
@@ -470,7 +470,7 @@ namespace std
 	{
 		using is_transparent = void;
 
-#if defined(DEKAF2_NO_GCC) || DEKAF2_GCC_VERSION_MAJOR > 6 
+#ifdef DEKAF2_HAS_FULL_CPP_17
 		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, dekaf2::KStringView s2) const
 		{
 			return s1.ToView().template compare<Trimming, dekaf2::detail::casestring::NoTrim>(s2) < 0;

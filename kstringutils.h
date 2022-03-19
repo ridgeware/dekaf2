@@ -401,7 +401,7 @@ String kFormNumber(Arithmetic i, typename String::value_type separator = ',', ty
 
 	DEKAF2_TRY
 	{
-#if defined(DEKAF2_HAS_CPP_17) && (DEKAF2_NO_GCC || DEKAF2_GCC_VERSION >= 80000)
+#if defined(DEKAF2_HAS_FULL_CPP_17)
 		if constexpr (std::is_same<String, KString>::value)
 		{
 			result = KString::to_string(i);

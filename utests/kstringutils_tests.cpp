@@ -101,7 +101,7 @@ TEST_CASE("KStringUtils") {
 	}
 	*/
 
-#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 80000
+#ifdef DEKAF2_HAS_FULL_CPP_17
 	SECTION("Freestanding Trimming on std::string")
 	{
 		std::vector<std::string> stest

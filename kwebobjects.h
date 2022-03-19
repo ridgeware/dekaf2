@@ -217,7 +217,7 @@ class KWebObject : public KWebObjectBase
 public:
 //----------
 
-#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 70000
+#ifdef DEKAF2_HAS_FULL_CPP_17
 	using KWebObjectBase::KWebObjectBase;
 #else
 	KWebObject<Derived>()
@@ -376,7 +376,7 @@ public:
 protected:
 //----------
 
-#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 70000
+#ifdef DEKAF2_HAS_FULL_CPP_17
 	// do not allow an instance of this class without child
 	KWebObject() = default;
 	KWebObject(const KWebObject&) = default;

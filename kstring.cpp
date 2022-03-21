@@ -296,7 +296,21 @@ KString::iterator KString::insert(iterator it, std::initializer_list<value_type>
 		kWarning("iterator out of range");
 		return end();
 	}
+
+#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION < 90000
+	// older versions of libstdc++ do not return an iterator, but void
+	// see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83328
+	//
+	// workaround:
+	// find index, insert, and calculate an iterator to that index (might point
+	// to somewhere else because of reallocs)
+	//
+	auto pos = static_cast<size_type>(it - begin());
+	m_rep.insert(it, il);
+	return begin() + pos;
+#else
 	return m_rep.insert(it, il);
+#endif
 }
 
 //------------------------------------------------------------------------------

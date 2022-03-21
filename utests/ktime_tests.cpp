@@ -102,6 +102,18 @@ TEST_CASE("KTime") {
 		CHECK ( UTC2.GetMonthName(true) == "Dec" );
 		CHECK ( UTC2.GetDayName(true)   == "Mon" );
 		CHECK ( UTC2.IsPM()         == true  );
+		UTC1.AddSeconds(2);
+		CHECK ( UTC1.Format()       == "1974-01-01 00:00:01" );
+		CHECK ( UTC1.ToTimeT()      == 126230401 );
+		CHECK ( UTC1.GetMonthName(true) == "Jan" );
+		CHECK ( UTC1.GetDayName(true)   == "Tue" );
+		CHECK ( UTC1.IsPM()         == false  );
+		UTC1.AddSeconds(-2);
+		CHECK ( UTC1.Format()       == "1973-12-31 23:59:59" );
+		CHECK ( UTC1.ToTimeT()      == 126230399 );
+		CHECK ( UTC1.GetMonthName(true) == "Dec" );
+		CHECK ( UTC1.GetDayName(true)   == "Mon" );
+		CHECK ( UTC1.IsPM()         == true  );
 
 		auto oldLocale = kGetGlobalLocale();
 		if (kSetGlobalLocale("fr_FR.UTF-8"))

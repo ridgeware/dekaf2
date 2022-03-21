@@ -208,51 +208,66 @@ public:
 	KBrokenDownTime() = default;
 
 	/// return day of month (1-based)
-	uint16_t GetDay    () const { return m_time.tm_mday;        }
+	uint16_t GetDay    () const { return Get(m_time.tm_mday);        }
 	/// return month (1-based)
-	uint16_t GetMonth  () const { return m_time.tm_mon  + 1;    }
+	uint16_t GetMonth  () const { return Get(m_time.tm_mon)  + 1;    }
 	/// return year (0-based)
-	uint16_t GetYear   () const { return m_time.tm_year + 1900; }
+	uint16_t GetYear   () const { return Get(m_time.tm_year) + 1900; }
 	/// return hour in 24 hour format
-	uint16_t GetHour24 () const { return m_time.tm_hour;        }
+	uint16_t GetHour24 () const { return Get(m_time.tm_hour);        }
 	/// return hour in 12 hour format
-	uint16_t GetHour12 () const { return m_time.tm_hour % 12;   }
+	uint16_t GetHour12 () const { return GetHour24() % 12;           }
 	/// return hour in 24 hour format
-	uint16_t GetHour   () const { return GetHour24();           }
+	uint16_t GetHour   () const { return GetHour24();                }
 	/// return minute
-	uint16_t GetMinute () const { return m_time.tm_min;         }
+	uint16_t GetMinute () const { return Get(m_time.tm_min);         }
 	/// return second
-	uint16_t GetSecond () const { return m_time.tm_sec;         }
+	uint16_t GetSecond () const { return Get(m_time.tm_sec);         }
 	/// return weekday (Sunday == 0)
-	uint16_t GetWeekday() const;
+	uint16_t GetWeekday() const { return Get(m_time.tm_wday);        }
 	/// return English or localized full or abbreviated weekday name
 	KStringViewZ GetDayName   (bool bAbbreviated, bool bLocalized = false) const;
 	/// return English or localized full or abbreviated month name
 	KStringViewZ GetMonthName (bool bAbbreviated, bool bLocalized = false) const;
 
 	/// set day of month (1-based)
-	self& SetDay    (uint16_t iVal) { m_time.tm_mday = iVal;        return *this; }
+	self& SetDay    (uint16_t iVal) { Set(m_time.tm_mday, iVal); return *this; }
 	/// set month (1-based)
-	self& SetMonth  (uint16_t iVal) { m_time.tm_mon  = iVal - 1;    return *this; }
+	self& SetMonth  (uint16_t iVal) { Set(m_time.tm_mon,  iVal - 1);    return *this; }
 	/// set year (0-based)
-	self& SetYear   (uint16_t iVal) { m_time.tm_year = iVal - 1900; return *this; }
+	self& SetYear   (uint16_t iVal) { Set(m_time.tm_year, iVal - 1900); return *this; }
 	/// set hour in 24 hour format
-	self& SetHour   (uint16_t iVal) { m_time.tm_hour = iVal;        return *this; }
+	self& SetHour   (uint16_t iVal) { Set(m_time.tm_hour, iVal); return *this; }
 	/// set minute
-	self& SetMinute (uint16_t iVal) { m_time.tm_min  = iVal;        return *this; }
+	self& SetMinute (uint16_t iVal) { Set(m_time.tm_min,  iVal); return *this; }
 	/// set second
-	self& SetSecond (uint16_t iVal) { m_time.tm_sec  = iVal;        return *this; }
+	self& SetSecond (uint16_t iVal) { Set(m_time.tm_sec,  iVal); return *this; }
+
+	/// add days, value may be negative to substract
+	self& AddDays   (int32_t iVal)  { Add(m_time.tm_mday, iVal); return *this; }
+	/// add months, value may be negative to substract
+	self& AddMonths (int32_t iVal)  { Add(m_time.tm_mon,  iVal); return *this; }
+	/// add years, value may be negative to substract
+	self& AddYears  (int32_t iVal)  { Add(m_time.tm_year, iVal); return *this; }
+	/// add hours, value may be negative to substract
+	self& AddHours  (int32_t iVal)  { Add(m_time.tm_hour, iVal); return *this; }
+	/// add minutes, value may be negative to substract
+	self& AddMinutes(int32_t iVal)  { Add(m_time.tm_min,  iVal); return *this; }
+	/// add seconds, value may be negative to substract
+	self& AddSeconds(int32_t iVal)  { Add(m_time.tm_sec,  iVal); return *this; }
 
 	/// return struct tm
-	const std::tm& ToTM ()     const { return m_time;           }
+	const std::tm& ToTM ()     const;
+	/// return time_t
+	time_t ToTimeT () const;
 
 	/// return a string following strftime patterns - default = %Y-%m-%d %H:%M:%S
-	KString Format (const char* szFormat = "%Y-%m-%d %H:%M:%S") const
-	{
-		return kFormTimestamp (m_time, szFormat);
-	}
+	KString Format (const char* szFormat = "%Y-%m-%d %H:%M:%S") const;
+	/// return a string with the strftime pattern %Y-%m-%d %H:%M:%S
+	KString ToString ()        const { return Format();         }
 
 	operator const std::tm& () const { return ToTM ();          }
+	operator time_t ()         const { return ToTimeT ();       }
 	operator KString ()        const { return Format ();        }
 
 	/// returns true if hour > 11
@@ -269,10 +284,47 @@ protected:
 	/// construct from a time_t epoch time, either as local or as GMT / UTC time
 	KBrokenDownTime (time_t tGMTime, bool bAsLocalTime);
 	/// construct from a struct tm time
-	KBrokenDownTime (const std::tm& tm_time) : m_time(tm_time) {}
+	KBrokenDownTime (const std::tm& tm_time);
 
-	// the only data member
-	std::tm m_time {};
+	/// return the value of a struct tm field, enforce normalization if needed
+	uint16_t Get (const int& field) const
+	{
+		CheckNormalization();
+		return field;
+	}
+
+	/// set the value of a struct tm field, request normalization
+	void Set (int& field, uint16_t iValue)
+	{
+		field = iValue;
+		ForceNormalization();
+	}
+
+	/// add the value of a struct tm field, request normalization
+	void Add (int& field, int32_t iValue)
+	{
+		field += iValue;
+		ForceNormalization();
+	}
+
+	/// virtual method to normalize the date struct
+	virtual void Normalize() const = 0;
+
+	/// set the day of week to an invalid value to indicate normalization required
+	void ForceNormalization() { m_time.tm_wday = -1; }
+
+	/// check if normalization is required, and do it
+	void CheckNormalization() const
+	{
+		if (m_time.tm_wday == -1)
+		{
+			// the tm_wday will be set by the normalization to a non-negative value ..
+			Normalize();
+		}
+	}
+
+	mutable std::time_t m_time_t { 0 };
+	mutable std::tm     m_time   {   };
 
 }; // KBrokenDownTime
 
@@ -299,20 +351,38 @@ public:
 	KLocalTime (const std::tm& tm_time) : base(tm_time) {}
 	/// construct from a KUTCTime
 	KLocalTime (const KUTCTime& gmtime);
-	/// construct from a string representation
+	/// construct from a string representation, which is interpreted as local time (if there is no time zone indicator telling other)
 	KLocalTime (KStringView sTimestamp) : KLocalTime(kParseTimestamp(sTimestamp)) {}
 	/// construct from a string representation with format description
 	KLocalTime (KStringView sFormat, KStringView sTimestamp) : KLocalTime(kParseTimestamp(sFormat, sTimestamp)) {}
 
-	/// return time_t
-	time_t ToTimeT () const;
-
-	operator time_t () const { return ToTimeT (); }
-
 	/// return the offset in seconds between this time and UTC
 	int32_t GetUTCOffset () const;
 
+//--------
+protected:
+//--------
+
+	virtual void Normalize() const override final
+	{
+		m_time_t = mktime(const_cast<std::tm*>(&m_time));
+	}
+
 }; // KLocalTime
+
+inline
+bool operator==(const KLocalTime& left, const KLocalTime& right)
+{
+	return left.ToTimeT() == right.ToTimeT();
+}
+
+inline
+bool operator<(const KLocalTime& left, const KLocalTime& right)
+{
+	return left.ToTimeT() < right.ToTimeT();
+}
+
+DEKAF2_COMPARISON_OPERATORS(KLocalTime)
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A wrapper around datetime functions that works cross platform - time is UTC / GMT
@@ -333,19 +403,37 @@ public:
 	KUTCTime (const std::tm& tm_time) : base(tm_time) {}
 	/// construct from a KLocalTime
 	KUTCTime (const KLocalTime& localtime);
-	/// construct from a string representation
+	/// construct from a string representation, which is interpreted as UTC time (if there is no time zone indicator telling other)
 	KUTCTime (KStringView sTimestamp) : KUTCTime(kParseTimestamp(sTimestamp)) {}
 	/// construct from a string representation with format description
 	KUTCTime (KStringView sFormat, KStringView sTimestamp) : KUTCTime(kParseTimestamp(sFormat, sTimestamp)) {}
 
-	/// return time_t
-	time_t ToTimeT () const;
-
-	operator time_t () const { return ToTimeT (); }
-
 	/// return the offset in seconds between this time and UTC (always 0)
 	int32_t GetUTCOffset () const { return 0; };
 
+//--------
+protected:
+//--------
+
+	virtual void Normalize() const override final
+	{
+		m_time_t = timegm(const_cast<std::tm*>(&m_time));
+	}
+
 }; // KUTCTime
+
+inline
+bool operator==(const KUTCTime& left, const KUTCTime& right)
+{
+	return left.ToTimeT() == right.ToTimeT();
+}
+
+inline
+bool operator<(const KUTCTime& left, const KUTCTime& right)
+{
+	return left.ToTimeT() < right.ToTimeT();
+}
+
+DEKAF2_COMPARISON_OPERATORS(KUTCTime)
 
 } // end of namespace dekaf2

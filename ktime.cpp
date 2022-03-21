@@ -925,20 +925,29 @@ namespace detail {
 //-----------------------------------------------------------------------------
 KBrokenDownTime::KBrokenDownTime(time_t tGMTime, bool bAsLocalTime)
 //-----------------------------------------------------------------------------
-: m_time(kGetBrokenDownTime(tGMTime, bAsLocalTime))
+: m_time_t(tGMTime)
+, m_time(kGetBrokenDownTime(tGMTime, bAsLocalTime))
 {
 } // ctor
 
 //-----------------------------------------------------------------------------
-uint16_t KBrokenDownTime::GetWeekday() const
+KBrokenDownTime::KBrokenDownTime (const std::tm& tm_time)
+//-----------------------------------------------------------------------------
+: m_time(tm_time)
+{
+	// we do not know if the struct tm was normalized
+	ForceNormalization();
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+time_t KBrokenDownTime::ToTimeT() const
 //-----------------------------------------------------------------------------
 {
-	// we do not use the tm_wday value as it is not updated
-	// when the date is modified by the setters - instead we
-	// compute the weekday on the fly from the date
-	return kDayOfWeek(GetDay(), GetMonth(), GetYear());
+	CheckNormalization();
+	return m_time_t;
 
-} // GetWeekday
+} // ToTimeT
 
 //-----------------------------------------------------------------------------
 KStringViewZ KBrokenDownTime::GetDayName(bool bAbbreviated, bool bLocal) const
@@ -951,7 +960,24 @@ KStringViewZ KBrokenDownTime::GetDayName(bool bAbbreviated, bool bLocal) const
 KStringViewZ KBrokenDownTime::GetMonthName(bool bAbbreviated, bool bLocal) const
 //-----------------------------------------------------------------------------
 {
+	CheckNormalization();
 	return kGetMonthName(static_cast<uint16_t>(m_time.tm_mon), bAbbreviated, bLocal);
+}
+
+//-----------------------------------------------------------------------------
+const std::tm& KBrokenDownTime::ToTM ()     const
+//-----------------------------------------------------------------------------
+{
+	CheckNormalization();
+	return m_time;
+}
+
+//-----------------------------------------------------------------------------
+KString KBrokenDownTime::Format (const char* szFormat) const
+//-----------------------------------------------------------------------------
+{
+	CheckNormalization();
+	return kFormTimestamp (m_time, szFormat);
 }
 
 } // end of namespace detail
@@ -962,14 +988,6 @@ KLocalTime::KLocalTime(const KUTCTime& gmtime)
 : KLocalTime(gmtime.ToTimeT())
 {
 }
-
-//-----------------------------------------------------------------------------
-time_t KLocalTime::ToTimeT() const
-//-----------------------------------------------------------------------------
-{
-	return mktime(const_cast<std::tm*>(&m_time));
-
-} // ToTimeT
 
 //-----------------------------------------------------------------------------
 int32_t KLocalTime::GetUTCOffset() const
@@ -1008,14 +1026,6 @@ KUTCTime::KUTCTime(const KLocalTime& localtime)
 : KUTCTime(localtime.ToTimeT())
 {
 }
-
-//-----------------------------------------------------------------------------
-time_t KUTCTime::ToTimeT() const
-//-----------------------------------------------------------------------------
-{
-	return timegm(const_cast<std::tm*>(&m_time));
-
-} // ToTimeT
 
 //-----------------------------------------------------------------------------
 /// Returns day of week for every gregorian date. Sunday = 0.

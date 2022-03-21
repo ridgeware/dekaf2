@@ -2,11 +2,11 @@
 #include "croncpp.h"
 
 #define ARE_EQUAL(x, y)          REQUIRE(x == y)
-#define CRON_ORCL_EQUAL(x, y)    ARE_EQUAL(make_cron<cron::cron_oracle_traits>(x), make_cron<cron::cron_oracle_traits>(y))
-#define CRON_EXPECT_EXCEPT(x)    REQUIRE_THROWS_AS(make_cron<cron::cron_oracle_traits>(x), bad_cronexpr)
-#define CRON_EXPECT_MSG(x, msg)  REQUIRE_THROWS_WITH(make_cron<cron::cron_oracle_traits>(x), msg)
+#define CRON_ORCL_EQUAL(x, y)    ARE_EQUAL(ocron::make_cron(x), ocron::make_cron(y))
+#define CRON_EXPECT_EXCEPT(x)    REQUIRE_THROWS_AS(ocron::make_cron(x), ocron::bad_cronexpr)
+#define CRON_EXPECT_MSG(x, msg)  REQUIRE_THROWS_WITH(ocron::make_cron(x), msg)
 
-using namespace cron;
+using ocron = cron_base<cron_oracle_traits<>>;
 
 TEST_CASE("oracle: check seconds", "[oracle]")
 {

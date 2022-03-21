@@ -2,12 +2,10 @@
 #include "croncpp.h"
 
 #define ARE_EQUAL(x, y)          REQUIRE(x == y)
-#define CRON_EXPR(x)             make_cron(x)
-#define CRON_STD_EQUAL(x, y)     ARE_EQUAL(make_cron(x), make_cron(y))
-#define CRON_EXPECT_EXCEPT(x)    REQUIRE_THROWS_AS(make_cron(x), bad_cronexpr)
-#define CRON_EXPECT_MSG(x, msg)  REQUIRE_THROWS_WITH(make_cron(x), msg)
-
-using namespace cron;
+#define CRON_EXPR(x)             cron::make_cron(x)
+#define CRON_STD_EQUAL(x, y)     ARE_EQUAL(cron::make_cron(x), cron::make_cron(y))
+#define CRON_EXPECT_EXCEPT(x)    REQUIRE_THROWS_AS(cron::make_cron(x), cron::bad_cronexpr)
+#define CRON_EXPECT_MSG(x, msg)  REQUIRE_THROWS_WITH(cron::make_cron(x), msg)
 
 constexpr bool operator==(std::tm const & tm1, std::tm const & tm2) noexcept
 {
@@ -39,36 +37,36 @@ void check_next(std::string_view expr, std::string_view time, std::string_view e
    REQUIRE(value == expected);
 }
 */
-void check_next(STRING_VIEW expr, STRING_VIEW time, STRING_VIEW expected)
+void check_next(CRONCPP_STRING_VIEW expr, CRONCPP_STRING_VIEW time, CRONCPP_STRING_VIEW expected)
 {
-   auto cex = make_cron(expr);
+   auto cex = cron::make_cron(expr);
 
-   auto initial_time = utils::to_tm(time);
+   auto initial_time = cron::utils::to_tm(time);
 
-   auto result1 = cron_next(cex, utils::tm_to_time(initial_time));
-   auto result2 = cron_next(cex, initial_time);
+   auto result1 = cron::cron_next(cex, cron::utils::tm_to_time(initial_time));
+   auto result2 = cron::cron_next(cex, initial_time);
 
    std::tm result1_tm;
-   utils::time_to_tm(&result1, &result1_tm);
+   cron::utils::time_to_tm(&result1, &result1_tm);
 
    REQUIRE(result1_tm == result2);
 
-   auto value = utils::to_string(result1_tm);
+   auto value = cron::utils::to_string(result1_tm);
 
    REQUIRE(value == expected);
 }
 
-void check_cron_conv(STRING_VIEW expr)
+void check_cron_conv(CRONCPP_STRING_VIEW expr)
 {
-   auto cex = make_cron(expr);
+   auto cex = cron::make_cron(expr);
 
-   REQUIRE(to_cronstr(cex).compare(expr) == 0);
+   REQUIRE(cex.to_cronstr().compare(expr) == 0);
 }
 
 TEST_CASE("Test simple", "")
 {
-   auto cex = make_cron("* * * * * *");
-   REQUIRE(to_string(cex) == "111111111111111111111111111111111111111111111111111111111111 111111111111111111111111111111111111111111111111111111111111 111111111111111111111111 1111111111111111111111111111111 111111111111 1111111");
+   auto cex = cron::make_cron("* * * * * *");
+   REQUIRE(cex.to_string() == "111111111111111111111111111111111111111111111111111111111111 111111111111111111111111111111111111111111111111111111111111 111111111111111111111111 1111111111111111111111111111111 111111111111 1111111");
 }
 
 TEST_CASE("standard: check seconds", "[std]")

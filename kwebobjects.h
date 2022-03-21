@@ -68,6 +68,7 @@ public:
 
 	bool empty() const { return m_sClassName.empty() || m_sClassDefinition.empty(); }
 
+//----------
 protected:
 //----------
 

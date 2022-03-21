@@ -48,11 +48,13 @@
 #include "kstring.h"
 #include "kstringview.h"
 #include "bits/kunique_deleter.h"
-#include <string>
 
 #define DEKAF2_KDIFF_USE_WSTRING
 #ifndef DEKAF2_KDIFF_USE_WSTRING
 // #define DEKAF2_KDIFF_USE_KSTRING
+#endif
+#ifndef DEKAF2_KDIFF_USE_KSTRING
+  #include <string>
 #endif
 
 namespace dekaf2 {

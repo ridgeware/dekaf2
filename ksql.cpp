@@ -9678,6 +9678,14 @@ KSQL::DBCCache KSQL::s_DBCCache;
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 constexpr KStringViewZ KSQL::KSQL_CONNECTION_TEST_ONLY;
+constexpr KStringViewZ KSQL::DIFF::diff_prefix;
+constexpr KStringViewZ KSQL::DIFF::left_schema;
+constexpr KStringViewZ KSQL::DIFF::left_prefix;
+constexpr KStringViewZ KSQL::DIFF::right_schema;
+constexpr KStringViewZ KSQL::DIFF::right_prefix;
+constexpr KStringViewZ KSQL::DIFF::include_columns_on_missing_tables;
+constexpr KStringViewZ KSQL::DIFF::ignore_collate;
+constexpr KStringViewZ KSQL::DIFF::show_meta_info;
 #endif
 
 } // namespace dekaf2

@@ -664,6 +664,7 @@ set(PUBLIC_HEADERS
 	krestclient.h
 	krestroute.h
 	krestserver.h
+	kron.h
 	krow.h
 	krsakey.h
 	krsasign.h
@@ -822,6 +823,7 @@ set (SOURCES
 	krestclient.cpp
 	krestroute.cpp
 	krestserver.cpp
+	kron.cpp
 	krow.cpp
 	krsakey.cpp
 	krsasign.cpp
@@ -984,6 +986,7 @@ target_include_directories(dekaf2
 	$<BUILD_INTERFACE:${LIBZIP_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${BROTLI_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/google>
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/croncpp/include>
 	# for centos libzip:
 	/include
 )

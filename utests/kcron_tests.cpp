@@ -11,7 +11,7 @@ using kron = cron_base<cron_standard_traits<KString, KStringView>, Kron_utils>;
 #define ARE_EQUAL(x, y)          CHECK(x == y)
 #define CRON_EXPR(x)             kron::make_cron(x)
 #define CRON_STD_EQUAL(x, y)     ARE_EQUAL(kron::make_cron(x), kron::make_cron(y))
-#define CRON_EXPECT_EXCEPT(x)    CHECK_THROWS_AS(kron::make_cron(x), kron::bad_cronexpr)
+#define CRON_EXPECT_EXCEPT(x)    CHECK_THROWS_AS(kron::make_cron(x), const kron::bad_cronexpr&)
 #define CRON_EXPECT_MSG(x, msg)  CHECK_THROWS_WITH(kron::make_cron(x), msg)
 
 constexpr bool operator==(std::tm const & tm1, std::tm const & tm2) noexcept

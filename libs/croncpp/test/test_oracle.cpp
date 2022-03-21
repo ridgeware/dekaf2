@@ -3,7 +3,7 @@
 
 #define ARE_EQUAL(x, y)          REQUIRE(x == y)
 #define CRON_ORCL_EQUAL(x, y)    ARE_EQUAL(ocron::make_cron(x), ocron::make_cron(y))
-#define CRON_EXPECT_EXCEPT(x)    REQUIRE_THROWS_AS(ocron::make_cron(x), ocron::bad_cronexpr)
+#define CRON_EXPECT_EXCEPT(x)    REQUIRE_THROWS_AS(ocron::make_cron(x), const ocron::bad_cronexpr&)
 #define CRON_EXPECT_MSG(x, msg)  REQUIRE_THROWS_WITH(ocron::make_cron(x), msg)
 
 using ocron = cron_base<cron_oracle_traits<>>;

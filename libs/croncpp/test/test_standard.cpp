@@ -4,7 +4,7 @@
 #define ARE_EQUAL(x, y)          REQUIRE(x == y)
 #define CRON_EXPR(x)             cron::make_cron(x)
 #define CRON_STD_EQUAL(x, y)     ARE_EQUAL(cron::make_cron(x), cron::make_cron(y))
-#define CRON_EXPECT_EXCEPT(x)    REQUIRE_THROWS_AS(cron::make_cron(x), cron::bad_cronexpr)
+#define CRON_EXPECT_EXCEPT(x)    REQUIRE_THROWS_AS(cron::make_cron(x), const cron::bad_cronexpr&)
 #define CRON_EXPECT_MSG(x, msg)  REQUIRE_THROWS_WITH(cron::make_cron(x), msg)
 
 constexpr bool operator==(std::tm const & tm1, std::tm const & tm2) noexcept

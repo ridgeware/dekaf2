@@ -730,3 +730,11 @@ inline T& operator OP (T& left, T right) \
  DEKAF2_DETAIL_ENUM_INNER_REF_OP(T, ^=)
 
 // helpers for enums end here
+
+// helper macro to generate the remaining comparison operators for a type from existing
+// equality and less operators
+#define DEKAF2_COMPARISON_OPERATORS(T) \
+ inline bool operator!=(const T& left, const T& right) { return !(left == right); } \
+ inline bool operator> (const T& left, const T& right) { return   right < left;   } \
+ inline bool operator<=(const T& left, const T& right) { return !(left  > right); } \
+ inline bool operator>=(const T& left, const T& right) { return !(right < left);  }

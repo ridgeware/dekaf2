@@ -908,7 +908,7 @@ endif ()
 
 # =============================== TARGETS ====================================
 
-if (CPU_ARM)
+if (CPU_ARM EQUAL 32)
 	set(ARM_NEEDS_ATOMIC_LIB atomic)
 endif()
 

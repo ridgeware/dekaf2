@@ -82,7 +82,7 @@ bool DBCFileBase::IntSave(KStringViewZ sFilename, const void* pBuffer, std::size
 void DBCFileBase::decrypt (KStringRef& sString)
 //-----------------------------------------------------------------------------
 {
-	unsigned char* string = reinterpret_cast<unsigned char*>(sString.data());
+	unsigned char* string = reinterpret_cast<unsigned char*>(&sString[0]);
 	size_t iLen = sString.size();
 	for (size_t ii=0; ii < iLen; ++ii)
 	{

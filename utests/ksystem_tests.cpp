@@ -155,6 +155,7 @@ TEST_CASE("KSystem")
 		auto iTicks1 = kGetMicroTicksPerProcess()        - iStart1;
 		auto iTicks2 = kGetMicroTicksPerThread()         - iStart2;
 		auto iTicks3 = kGetMicroTicksPerChildProcesses() - iStart3;
+		// we have to fix these tests for windows later. for now let them fail.
 		CHECK ( iTicks1 > 0 );
 		CHECK ( iTicks2 > 0 );
 	}

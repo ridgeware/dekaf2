@@ -262,4 +262,8 @@ void KHTTPCompression::SetPermittedCompressors(KStringView sCompressors)
 KHTTPCompression::COMP KHTTPCompression::s_PermittedCompressors { COMP::ALL };
 KAtomicObject<KString> KHTTPCompression::s_sPermittedCompressors { KHTTPCompression::s_sSupportedCompressors };
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KStringViewZ KHTTPCompression::s_sSupportedCompressors;
+#endif
+
 } // of namespace dekaf2

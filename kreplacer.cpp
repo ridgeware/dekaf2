@@ -270,7 +270,7 @@ KString KReplacer::Replace(KStringView sIn) const
 void KReplacer::ReplaceInPlace(KStringRef& sIn) const
 //-----------------------------------------------------------------------------
 {
-	sIn = Replace(sIn);
+	sIn = Replace(sIn).str();
 
 } // clear
 

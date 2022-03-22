@@ -91,7 +91,7 @@ void KIOStringStream::str(KString sString)
 {
 	if (m_Buffer.sBuffer)
 	{
-		*m_Buffer.sBuffer = std::move(sString);
+		*m_Buffer.sBuffer = std::move(sString).str();
 	}
 	else
 	{

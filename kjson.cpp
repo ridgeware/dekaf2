@@ -113,7 +113,7 @@ bool Parse (KJSON& json, KStringView sJSON, KStringRef& sError) noexcept
 
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
-		sError = kFormat ("JSON[{:03d}]: {}", exc.id, exc.what());
+		sError = kFormat ("JSON[{:03d}]: {}", exc.id, exc.what()).str();
 		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
 		return false;
 	}
@@ -211,7 +211,7 @@ bool Parse (KJSON& json, KInStream& InStream, KStringRef& sError) noexcept
 
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{
-		sError = kFormat ("JSON[{:03d}]: {}", exc.id, exc.what());
+		sError = kFormat ("JSON[{:03d}]: {}", exc.id, exc.what()).str();
 		return false;
 	}
 

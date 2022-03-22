@@ -93,7 +93,7 @@ void KOStringStream::str(KString sString)
 {
 	if (m_sBuffer)
 	{
-		*m_sBuffer = std::move(sString);
+		*m_sBuffer = std::move(sString).str();
 	}
 	else
 	{

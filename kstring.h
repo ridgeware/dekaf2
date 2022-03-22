@@ -114,6 +114,24 @@ DEKAF2_PUBLIC
 KString kToLowerASCII(KStringView sInput);
 //----------------------------------------------------------------------
 
+namespace detail {
+
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+	using KStringStringType = folly::fbstring;
+#else
+	using KStringStringType = std::string;
+#endif
+
+template<class T>
+struct is_kstring_move_assignable
+: std::integral_constant<
+	bool,
+	std::is_same<KString, T>::value ||
+	std::is_same<KStringStringType, T>::value
+> {};
+
+} // end of namespace detail
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// dekaf2's own string class - a wrapper around std::string or folly::fbstring
 /// that offers most string functions from languages like Python or Javascript,
@@ -131,13 +149,12 @@ class DEKAF2_PUBLIC KString
 public:
 //----------
 
+	using string_type = detail::KStringStringType;
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	using string_type               = folly::fbstring;
 	/// tag to construct a string on an existing malloced buffer
 	using AcquireMallocatedString   = folly::AcquireMallocatedString;
 	#define DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
 #else
-	using string_type               = std::string;
 	// dummy to allow user code without #ifdefs
 	struct AcquireMallocatedString {};
 #endif
@@ -168,8 +185,7 @@ public:
 	KString (const std::string& s)                            : m_rep(s.data(), s.size()) {}
 #ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 	KString (std::string&& s)                                 : m_rep(std::move(s)) {}
-#endif
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+#else
 	KString (const folly::fbstring& s)                        : m_rep(s) {}
 	KString (folly::fbstring&& s)                             : m_rep(std::move(s)) {}
 #endif
@@ -203,6 +219,9 @@ public:
 	// assignment operators
 	self& operator= (const KString& str)                      = default;
 	self& operator= (KString&& str) noexcept                  = default;
+	template<typename T,
+	         typename std::enable_if<detail::is_kstring_move_assignable<T>::value, int>::type = 0>
+	self& operator= (T&& str) noexcept               { m_rep = std::move(str); return *this; }
 	self& operator= (value_type ch);
 	self& operator= (const value_type *s);
 	template<typename T,
@@ -731,14 +750,14 @@ public:
 	KStringView ToView(size_type pos, size_type n) const;
 
 	/// test if the string is non-empty
-	explicit operator bool()      const { return !empty();            }
+	explicit operator bool()      const    { return !empty();            }
 
 	/// return the string type
-	operator const string_type&() const { return m_rep;               }
+	operator const string_type&() const &  { return m_rep;               }
 	/// return the string type non-const
-	operator string_type&()             { return m_rep;               }
+	operator string_type&() &              { return m_rep;               }
 	/// return the string type as an rvalue
-	operator string_type&&() &&         { return std::move(m_rep);    }
+	operator string_type&&() &&            { return std::move(m_rep);    }
 
 	/// helper operator to allow KString as formatting arg of fmt::format
 	operator fmt::string_view() const;

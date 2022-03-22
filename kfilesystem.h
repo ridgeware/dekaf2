@@ -648,7 +648,7 @@ public:
 		/// returns filename only, no path component
 		KStringViewZ Filename() const
 		{
-			return m_Filename;
+			return m_Path.ToView(m_iFilenameStartsAt);
 		}
 
 		/// returns directory entry type
@@ -730,9 +730,9 @@ public:
 		static const KFileStat s_EmptyStat;
 
 		mutable std::unique_ptr<KFileStat> m_Stat;
-		KString      m_Path;
-		KStringViewZ m_Filename;
-		KFileType    m_Type { KFileType::UNEXISTING };
+		KString            m_Path;
+		KString::size_type m_iFilenameStartsAt { 0 };
+		KFileType          m_Type { KFileType::UNEXISTING };
 
 	}; // DirEntry
 

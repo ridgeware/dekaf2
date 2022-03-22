@@ -1051,9 +1051,8 @@ KDirectory::DirEntry::DirEntry(KStringView BasePath, KStringView Name, KFileType
 		m_Path = BasePath;
 		m_Path += kDirSep;
 	}
-	auto iPath = m_Path.size();
+	m_iFilenameStartsAt = m_Path.size();
 	m_Path += Name;
-	m_Filename = m_Path.ToView(iPath);
 
 } // DirEntry ctor
 

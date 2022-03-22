@@ -11,6 +11,9 @@
 #include <algorithm>
 
 #if __cplusplus > 201402L
+	#if __cplusplus >= 201703L
+		#define CRONCPP_HAS_REAL_CPP_17
+	#endif
 	#ifndef __has_include
 		#define CRONCPP_HAS_INCLUDE(x) 0
 	#else
@@ -59,7 +62,7 @@ struct cron_standard_traits
 
    static const cron_int CRON_MAX_YEARS_DIFF = 4;
 
-#ifdef CRONCPP_HAS_STRING_VIEW
+#ifdef CRONCPP_HAS_REAL_CPP_17
    static constexpr std::array<stringview_t,  7> DAYS   = { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
    static constexpr std::array<stringview_t, 13> MONTHS = { "NIL", "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
 #else
@@ -438,7 +441,7 @@ private:
 		{
 			if (!utils::contains(field, '/'))
 			{
-#ifdef CRONCPP_HAS_STRING_VIEW
+#ifdef CRONCPP_HAS_REAL_CPP_17
 				auto[first, last] = make_range(field, minval, maxval);
 #else
 				auto range = detail::make_range(field, minval, maxval);
@@ -456,7 +459,7 @@ private:
 				if (parts.size() != 2)
 					throw bad_cronexpr("Incrementer must have two fields");
 
-#ifdef CRONCPP_HAS_STRING_VIEW
+#ifdef CRONCPP_HAS_REAL_CPP_17
 				auto[first, last] = make_range(parts[0], minval, maxval);
 #else
 				auto range = detail::make_range(parts[0], minval, maxval);

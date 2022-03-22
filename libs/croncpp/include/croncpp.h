@@ -20,13 +20,12 @@
 			#define CRONCPP_STRING_VIEW       std::string_view
 			#define CRONCPP_STRING_VIEW_NPOS  std::string_view::npos
 			#define CRONCPP_HAS_STRING_VIEW
-			#define CRONCPP_STRING_VIEW_CONSTEXPR constexpr
+			#define CRONCPP_STRING_VIEW_CONSTEXPR
 		#elif __has_include(<experimental/string_view>)
 			#include <experimental/string_view>
 			#define CRONCPP_STRING_VIEW       std::experimental::string_view
 			#define CRONCPP_STRING_VIEW_NPOS  std::experimental::string_view::npos
 			#define CRONCPP_HAS_STRING_VIEW
-			#define CRONCPP_STRING_VIEW_CONSTEXPR
 		#endif
 	#endif
 	#define CRONCPP_CONSTEXPR constexpr
@@ -64,16 +63,16 @@ struct cron_standard_traits
 
    static const cron_int CRON_MAX_YEARS_DIFF = 4;
 
-#ifdef CRONCPP_HAS_STRING_VIEW
-   static CRONCPP_STRING_VIEW_CONSTEXPR std::array<stringview_t,  7> DAYS   = { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
-   static CRONCPP_STRING_VIEW_CONSTEXPR std::array<stringview_t, 13> MONTHS = { "NIL", "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
+#ifdef CRONCPP_STRING_VIEW_CONSTEXPR
+   static constexpr std::array<stringview_t,  7> DAYS   = { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
+   static constexpr std::array<stringview_t, 13> MONTHS = { "NIL", "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
 #else
    static const std::array<string_t,  7> DAYS;
    static const std::array<string_t, 13> MONTHS;
 #endif
 };
 
-#ifndef CRONCPP_HAS_STRING_VIEW
+#ifndef CRONCPP_STRING_VIEW_CONSTEXPR
 template<typename string_t, typename stringview_t>
 const std::array<string_t,  7> cron_standard_traits<string_t, stringview_t>::DAYS   = { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
 template<typename string_t, typename stringview_t>
@@ -103,16 +102,16 @@ struct cron_oracle_traits
 
    static const cron_int CRON_MAX_YEARS_DIFF = 4;
 
-#ifdef CRONCPP_HAS_STRING_VIEW
-   static CRONCPP_STRING_VIEW_CONSTEXPR std::array<stringview_t,  8> DAYS   = { "NIL", "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
-   static CRONCPP_STRING_VIEW_CONSTEXPR std::array<stringview_t, 12> MONTHS = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
+#ifdef CRONCPP_STRING_VIEW_CONSTEXPR
+   static constexpr std::array<stringview_t,  8> DAYS   = { "NIL", "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
+   static constexpr std::array<stringview_t, 12> MONTHS = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
 #else
    static const std::array<string_t,  8> DAYS;
    static const std::array<string_t, 12> MONTHS;
 #endif
 };
 
-#ifndef CRONCPP_HAS_STRING_VIEW
+#ifndef CRONCPP_STRING_VIEW_CONSTEXPR
 template<typename string_t, typename stringview_t>
 const std::array<string_t,  8> cron_oracle_traits<string_t, stringview_t>::DAYS   = { "NIL", "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
 template<typename string_t, typename stringview_t>
@@ -142,16 +141,16 @@ struct cron_quartz_traits
 
    static const cron_int CRON_MAX_YEARS_DIFF = 4;
 
-#ifdef CRONCPP_HAS_STRING_VIEW
-   static CRONCPP_STRING_VIEW_CONSTEXPR std::array<stringview_t,  8> DAYS   = { "NIL", "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
-   static CRONCPP_STRING_VIEW_CONSTEXPR std::array<stringview_t, 13> MONTHS = { "NIL", "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
+#ifdef CRONCPP_STRING_VIEW_CONSTEXPR
+   static constexpr std::array<stringview_t,  8> DAYS   = { "NIL", "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
+   static constexpr std::array<stringview_t, 13> MONTHS = { "NIL", "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
 #else
    static const std::array<string_t,  8> DAYS;
    static const std::array<string_t, 13> MONTHS;
 #endif
 };
 
-#ifndef CRONCPP_HAS_STRING_VIEW
+#ifndef CRONCPP_STRING_VIEW_CONSTEXPR
 template<typename string_t, typename stringview_t>
 const std::array<string_t,  8> cron_quartz_traits<string_t, stringview_t>::DAYS   = { "NIL", "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
 template<typename string_t, typename stringview_t>

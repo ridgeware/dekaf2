@@ -11,19 +11,27 @@
 #include <algorithm>
 
 #if __cplusplus > 201402L
-#include <string_view>
-#define CRONCPP_IS_CPP17
-#endif
+	#ifndef __has_include
+		#define CRONCPP_HAS_INCLUDE(x) 0
+	#else
+		#define CRONCPP_HAS_INCLUDE(x) __has_include(x)
+	#endif
 
-#ifdef CRONCPP_IS_CPP17
-   #define  HAS_STRING_VIEW
-   #define  CRONCPP_STRING_VIEW       std::string_view
-   #define  CRONCPP_STRING_VIEW_NPOS  std::string_view::npos
-   #define  CRONCPP_CONSTEXPR         constexpr
+	#if CRONCPP_HAS_INCLUDE(<string_view>)
+		#include <string_view>
+		#define CRONCPP_STRING_VIEW       std::string_view
+		#define CRONCPP_STRING_VIEW_NPOS  std::string_view::npos
+		#define CRONCPP_HAS_STRING_VIEW
+	#elif CRONCPP_HAS_INCLUDE(<experimental/string_view>)
+		#include <experimental/string_view>
+		#define CRONCPP_STRING_VIEW       std::experimental::string_view
+		#define CRONCPP_STRING_VIEW_NPOS  std::experimental::string_view::npos
+		#define CRONCPP_HAS_STRING_VIEW
+	#endif
+
+	#define CRONCPP_CONSTEXPR constexpr
 #else
-   #define  CRONCPP_STRING_VIEW       std::string const &
-   #define  CRONCPP_STRING_VIEW_NPOS  std::string::npos
-   #define  CRONCPP_CONSTEXPR         inline
+	#define CRONCPP_CONSTEXPR inline
 #endif
 
 using cron_int  = uint8_t;
@@ -51,7 +59,7 @@ struct cron_standard_traits
 
    static const cron_int CRON_MAX_YEARS_DIFF = 4;
 
-#ifdef CRONCPP_IS_CPP17
+#ifdef CRONCPP_HAS_STRING_VIEW
    static constexpr std::array<stringview_t,  7> DAYS   = { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
    static constexpr std::array<stringview_t, 13> MONTHS = { "NIL", "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
 #else
@@ -92,7 +100,7 @@ struct cron_oracle_traits
 
    static const cron_int CRON_MAX_YEARS_DIFF = 4;
 
-#ifdef CRONCPP_IS_CPP17
+#ifdef CRONCPP_HAS_STRING_VIEW
    static constexpr std::array<stringview_t,  8> DAYS   = { "NIL", "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
    static constexpr std::array<stringview_t, 12> MONTHS = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
 #else
@@ -133,7 +141,7 @@ struct cron_quartz_traits
 
    static const cron_int CRON_MAX_YEARS_DIFF = 4;
 
-#ifdef CRONCPP_IS_CPP17
+#ifdef CRONCPP_HAS_STRING_VIEW
    static constexpr std::array<stringview_t,  8> DAYS   = { "NIL", "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
    static constexpr std::array<stringview_t, 13> MONTHS = { "NIL", "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
 #else
@@ -430,7 +438,7 @@ private:
 		{
 			if (!utils::contains(field, '/'))
 			{
-#ifdef CRONCPP_IS_CPP17
+#ifdef CRONCPP_HAS_STRING_VIEW
 				auto[first, last] = make_range(field, minval, maxval);
 #else
 				auto range = detail::make_range(field, minval, maxval);
@@ -448,7 +456,7 @@ private:
 				if (parts.size() != 2)
 					throw bad_cronexpr("Incrementer must have two fields");
 
-#ifdef CRONCPP_IS_CPP17
+#ifdef CRONCPP_HAS_STRING_VIEW
 				auto[first, last] = make_range(parts[0], minval, maxval);
 #else
 				auto range = detail::make_range(parts[0], minval, maxval);
@@ -480,7 +488,7 @@ private:
 		auto days = utils::to_upper(value);
 		auto days_replaced = replace_ordinals(
 											  days,
-#ifdef CRONCPP_IS_CPP17
+#ifdef CRONCPP_HAS_STRING_VIEW
 											  Traits::DAYS
 #else
 											  Traits::DAYS()
@@ -518,7 +526,7 @@ private:
 		auto month = utils::to_upper(value);
 		auto month_replaced = replace_ordinals(
 											   month,
-#ifdef CRONCPP_IS_CPP17
+#ifdef CRONCPP_HAS_STRING_VIEW
 											   Traits::MONTHS
 #else
 											   Traits::MONTHS()

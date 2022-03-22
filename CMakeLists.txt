@@ -117,10 +117,12 @@ set(dekaf2_share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}-${lib_versi
 
 # =================================== ENVIRONMENT ==================================
 
-if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
-	set (CPU_x86 32)
-elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
 	set (CPU_x86 64)
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
+	set (CPU_x86 32)
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+	set (CPU_ARM 64)
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
 	set (CPU_ARM 32)
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch")

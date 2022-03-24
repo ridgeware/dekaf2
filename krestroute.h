@@ -143,10 +143,10 @@ public:
 
 		enum OPT
 		{
-			NONE         = 0,
-			SSO_AUTH     = 1 << 0,
-			GENERIC_AUTH = 1 << 1,
-			NO_SSO_SCOPE = 1 << 2
+			NONE         = 0,       ///< no options
+			SSO_AUTH     = 1 << 0,  ///< requires SSO authentication
+			GENERIC_AUTH = 1 << 1,  ///< requires generic authentication (through KRESTServer::Options::AuthCallback)
+			NO_SSO_SCOPE = 1 << 2   ///< do NOT check for SSO scope (from KRESTServer::Options::sAuthScope)
 		};
 
 		constexpr
@@ -260,6 +260,8 @@ public:
 	Options      Option;
 
 }; // KRESTRoute
+
+DEKAF2_ENUM_IS_FLAG(KRESTRoute::Options::OPT)
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Storage object for all routes of a REST server

@@ -1,6 +1,9 @@
 #include "catch.hpp"
 #include <dekaf2/kron.h>
 #include <dekaf2/ktime.h>
+#include <dekaf2/dekaf2.h>
+#include <dekaf2/kreader.h>
+#include <dekaf2/kfilesystem.h>
 #include <dekaf2/bits/kron_utils.h>
 #include <dekaf2/libs/croncpp/include/croncpp.h>
 
@@ -57,6 +60,8 @@ void check_cron_conv(kron::stringview_t expr)
 
 	CHECK(cex.to_cronstr().compare(expr) == 0);
 }
+
+KTempDir TempDir;
 
 } // end of anonymous namespace
 
@@ -462,7 +467,7 @@ TEST_CASE("KRON")
 		CHECK ( kFormTimestamp(nexttm) == kFormTimestamp(next) );
 	}
 
-	SECTION("KRON")
+	SECTION("KRON::JOB")
 	{
 		Kron::Job Job("* 0/5 * * * ? \t fstrim -a >/dev/null 2>&1  ");
 		CHECK ( Job.Command() == "fstrim -a >/dev/null 2>&1" );
@@ -472,6 +477,26 @@ TEST_CASE("KRON")
 		KUTCTime Now("2022-03-18 16:24:45");
 		auto Next = Job.Next(Now);
 		CHECK ( Next.Format() == kFormTimestamp(next) );
+	}
+
+	SECTION("KRON")
+	{
+		Kron Scheduler(4);
+		time_t tNow = Dekaf::getInstance().GetCurrentTime();
+		KString sFilename = kFormat("{}{}test.txt", TempDir.Name(), kDirSep);
+		Scheduler.Embed(tNow-1, kFormat("echo hello world > {}", sFilename));
+		KString sContent;
+		for (int i = 0; i < 20; ++i)
+		{
+			kMilliSleep(100);
+			sContent = kReadAll(sFilename);
+			if (!sContent.empty())
+			{
+				sContent.Replace("\r\n", "\n");
+				break;
+			}
+		}
+		CHECK ( sContent == "hello world\n" );
 	}
 }
 

@@ -75,7 +75,20 @@ TEST_CASE("KTime") {
 	SECTION("KBrokenDownTime")
 	{
 		KUTCTime UTC1;
+		CHECK ( UTC1.empty()                 );
+		CHECK ( UTC1.ToTimeT()      == 0     );
+		UTC1.AddSeconds(1);
+		CHECK ( UTC1.empty()                 );
+		CHECK ( UTC1.Format()       == ""    );
+		UTC1.AddSeconds(86399);
+		CHECK ( UTC1.empty()        == false );
+		CHECK ( UTC1.Format()       == "1900-01-01 00:00:00" );
+		KLocalTime Local1;
+		CHECK ( Local1.empty()               );
+		CHECK ( Local1.ToTimeT()    == 0     );
 		KUTCTime UTC2(123545656);
+		CHECK ( UTC2.empty()        == false );
+		CHECK ( UTC2.ToTimeT()      == 123545656 );
 
 		CHECK ( UTC2.GetDay()       == 30    );
 		CHECK ( UTC2.GetMonth()     == 11    );

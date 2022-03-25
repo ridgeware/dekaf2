@@ -271,11 +271,15 @@ public:
 	operator KString ()        const { return Format ();        }
 
 	/// returns true if hour > 11
-	bool IsPM () const { return m_time.tm_hour > 11; }
+	bool IsPM () const { return Get(m_time.tm_hour) > 11; }
 	/// returns true if hour < 12
 	bool IsAM () const { return !IsPM();             }
 	/// return true if daylight saving time is in effect
-	bool IsDST() const { return m_time.tm_isdst > 0; }
+	bool IsDST() const { return Get(m_time.tm_isdst) > 0; }
+	/// returns true if this is not a valid date
+	bool empty() const { return Get(m_time.tm_mday) == 0; }
+
+	operator bool() const { return !empty();              }
 
 //--------
 protected:

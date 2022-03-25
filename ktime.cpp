@@ -976,7 +976,10 @@ const std::tm& KBrokenDownTime::ToTM ()     const
 KString KBrokenDownTime::Format (const char* szFormat) const
 //-----------------------------------------------------------------------------
 {
-	CheckNormalization();
+	if (empty())
+	{
+		return KString();
+	}
 	return kFormTimestamp (m_time, szFormat);
 }
 

@@ -56,7 +56,7 @@
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Kron
+class DEKAF2_PUBLIC Kron
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -67,7 +67,7 @@ public:
 	static constexpr time_t INVALID_TIME = -1;
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	class Job
+	class DEKAF2_PUBLIC Job
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 
@@ -181,11 +181,11 @@ protected:
 
 	KThreadSafe<
 		std::multimap<time_t, std::shared_ptr<Job>>
-	>                             m_Jobs; // the Job list, sorted by next execution time
-	KThreadPool                   m_Tasks;   // the task queue
-	std::unique_ptr<std::thread>  m_Chronos; // the time keeper
+	>                             m_Jobs;            // the Job list, sorted by next execution time
+	KThreadPool                   m_Tasks;           // the task queue
+	std::unique_ptr<std::thread>  m_Chronos;         // the time keeper
 	std::mutex                    m_ResizeMutex;
-	bool                          m_bStop { true }; // syncronization with time keeper thread
+	bool                          m_bStop { true };  // syncronization with time keeper thread
 
 }; // Kron
 

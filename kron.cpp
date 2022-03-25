@@ -153,15 +153,21 @@ Kron::Job::Job(std::time_t tOnce, KStringView sCommand)
 std::time_t Kron::Job::Next(std::time_t tAfter) const
 //-----------------------------------------------------------------------------
 {
-	if (!m_ParsedCron)
-	{
-		// either INVALID_TIME or time_t value
-		return m_tOnce;
-	}
-
 	if (tAfter == 0)
 	{
 		tAfter = Dekaf::getInstance().GetCurrentTime();
+	}
+
+	if (!m_ParsedCron)
+	{
+		if (m_tOnce < tAfter)
+		{
+			return INVALID_TIME;
+		}
+		else
+		{
+			return m_tOnce;
+		}
 	}
 
 	return KCronParser::cron_next(*cxget(m_ParsedCron), tAfter);
@@ -174,13 +180,13 @@ KUTCTime Kron::Job::Next(const KUTCTime& tAfter) const
 {
 	if (!m_ParsedCron)
 	{
-		if (m_tOnce != INVALID_TIME)
+		if (m_tOnce < tAfter.ToTimeT())
 		{
-			return KUTCTime(m_tOnce);
+			return KUTCTime();
 		}
 		else
 		{
-			return KUTCTime();
+			return KUTCTime(m_tOnce);
 		}
 	}
 

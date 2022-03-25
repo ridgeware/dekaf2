@@ -452,7 +452,7 @@ std::size_t KDiff::GetHTMLDiff (KStringRef& sOldText, KStringRef& sNewText, KStr
 } // GetHTMLDiff2
 
 //-----------------------------------------------------------------------------
-uint32_t KDiff::GetLevenshteinDistance()
+std::size_t KDiff::GetLevenshteinDistance()
 //-----------------------------------------------------------------------------
 {
 	if (m_Diffs)

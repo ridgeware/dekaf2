@@ -198,7 +198,7 @@ public:
 							 KStringView sInsertTag = "ins", KStringView sDeleteTag = "del");
 
 	/// return Levenshtein distance for the diff (number of inserted, deleted or substituted characters)
-	uint32_t GetLevenshteinDistance();
+	std::size_t GetLevenshteinDistance();
 
 //----------
 private:

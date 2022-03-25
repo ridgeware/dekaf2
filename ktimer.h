@@ -314,6 +314,231 @@ private:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Keeps multiple durations
+class DEKAF2_PUBLIC KDuration
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	using self           = KDuration;
+	using Duration       = typename KStopTime::Duration;
+	using Storage        = Duration;
+	using size_type      = std::size_t;
+
+	KDuration() = default;
+	KDuration(Duration duration)
+	: m_Duration(duration)
+	, m_iRounds(1)
+	{}
+
+	static KDuration zero() { return KDuration(); }
+
+	//-----------------------------------------------------------------------------
+	/// reset
+	void clear();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// push back another interval
+	void push_back(Duration duration);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// get duration of an interval, rounded from internal duration type,
+	/// per default nanoseconds
+	/// @param iInterval 0 based index on intervals, returns zero duration if out
+	/// of bounds
+	template<typename DurationType = std::chrono::nanoseconds>
+	DurationType GetDuration() const
+	//-----------------------------------------------------------------------------
+	{
+	#ifdef DEKAF2_HAS_CONSTEXPR_IF
+		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, Duration>::value)
+		{
+			return GetDuration<Duration>();
+		}
+		else
+	#endif
+		{
+			return std::chrono::duration_cast<DurationType>(GetDuration<Duration>());
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed nanoseconds
+	std::chrono::nanoseconds::rep nanoseconds() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed microseconds
+	std::chrono::microseconds::rep microseconds() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed milliseconds
+	std::chrono::milliseconds::rep milliseconds() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed seconds
+	std::chrono::seconds::rep seconds() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed minutes
+	std::chrono::minutes::rep minutes() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns elapsed hours
+	std::chrono::hours::rep hours() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns average elapsed nanoseconds
+	std::chrono::nanoseconds::rep nanosecondsAverage() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns average elapsed microseconds
+	std::chrono::microseconds::rep microsecondsAverage() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns average elapsed milliseconds
+	std::chrono::milliseconds::rep millisecondsAverage() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns average elapsed seconds
+	std::chrono::seconds::rep secondsAverage() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns average elapsed minutes
+	std::chrono::minutes::rep minutesAverage() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns average elapsed hours
+	std::chrono::hours::rep hoursAverage() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	size_type Rounds() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_iRounds;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// do we have any interval?
+	bool empty() const
+	//-----------------------------------------------------------------------------
+	{
+		return Rounds() == 0;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// add another duration to this
+	KDuration operator+(const KDuration& other) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// add another duration to this
+	self& operator+=(const KDuration& other);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// subtract another duration from this
+	KDuration operator-(const KDuration& other) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// subtract another duration from this
+	self& operator-=(const KDuration& other);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// multiply interval by an integer
+	KDuration operator*(size_type iMultiplier) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// multiply interval by an integer
+	self& operator*=(size_type iMultiplier);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// divide interval by an integer
+	KDuration operator/(size_type iDivisor) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// divide interval by an integer
+	self& operator/=(size_type iDivisor);
+	//-----------------------------------------------------------------------------
+
+//------
+private:
+//------
+
+	Storage   m_Duration { Storage::zero() };
+	size_type m_iRounds  { 0 };
+
+}; // KDuration
+
+// gcc does not like this specialization in the class itself..
+
+//-----------------------------------------------------------------------------
+/// get duration of an interval in internal duration type
+template<>
+KDuration::Duration KDuration::GetDuration<KDuration::Duration>() const;
+//-----------------------------------------------------------------------------
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Measures multiple consecutive time intervals
+class DEKAF2_PUBLIC KStopDuration : public KDuration
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	using base = KDuration;
+
+	//-----------------------------------------------------------------------------
+	/// reset
+	void clear();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// start a new interval
+	void Start()
+	//-----------------------------------------------------------------------------
+	{
+		m_Timer.clear();
+	}
+
+	//-----------------------------------------------------------------------------
+	///stop and store the interval
+	void Stop();
+	//-----------------------------------------------------------------------------
+
+//----------
+private:
+//----------
+
+	KStopTime m_Timer;
+
+}; // KStopDuration
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Keeps multiple consecutive time intervals
 class DEKAF2_PUBLIC KDurations
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -324,7 +549,8 @@ public:
 //------
 
 	using self           = KDurations;
-	using Duration       = typename KStopTime::Duration;
+	using Duration       = KDuration;
+	using DurationBase   = KDuration::Duration;
 	using Storage        = std::vector<Duration>;
 	using size_type      = typename Storage::size_type;
 	using const_iterator = typename Storage::const_iterator;
@@ -376,14 +602,14 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 	#ifdef DEKAF2_HAS_CONSTEXPR_IF
-		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, Duration>::value)
+		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, DurationBase>::value)
 		{
-			return GetDuration<Duration>(iInterval);
+			return GetDuration<DurationBase>(iInterval);
 		}
 		else
 	#endif
 		{
-			return std::chrono::duration_cast<DurationType>(GetDuration<Duration>(iInterval));
+			return std::chrono::duration_cast<DurationType>(GetDuration<DurationBase>(iInterval));
 		}
 	}
 
@@ -418,13 +644,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// subscription access
-	template<typename DurationType = std::chrono::nanoseconds>
-	Duration operator[](size_type iInterval) const
+	size_type TotalRounds() const;
 	//-----------------------------------------------------------------------------
-	{
-		return GetDuration<DurationType>(iInterval);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// returns total duration of all durations, rounded from internal duration
@@ -434,14 +655,14 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 	#ifdef DEKAF2_HAS_CONSTEXPR_IF
-		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, Duration>::value)
+		if DEKAF2_CONSTEXPR_IF(std::is_same<DurationType, DurationBase>::value)
 		{
-			return TotalDuration<Duration>();
+			return TotalDuration<DurationBase>();
 		}
 		else
 	#endif
 		{
-			return std::chrono::duration_cast<DurationType>(TotalDuration<Duration>());
+			return std::chrono::duration_cast<DurationType>(TotalDuration<DurationBase>());
 		}
 	}
 
@@ -508,24 +729,18 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	const Duration& operator[](size_type i) const
+	const Duration& operator[](size_type iInterval) const;
 	//-----------------------------------------------------------------------------
-	{
-		return m_Durations[i];
-	}
 
 	//-----------------------------------------------------------------------------
-	Duration& operator[](size_type i)
+	Duration& operator[](size_type iInterval);
 	//-----------------------------------------------------------------------------
-	{
-		return m_Durations[i];
-	}
 
 	//-----------------------------------------------------------------------------
-	size_type Rounds() const
+	size_type Rounds(size_type i) const
 	//-----------------------------------------------------------------------------
 	{
-		return m_iRounds;
+		return operator[](i).Rounds();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -573,7 +788,6 @@ private:
 //------
 
 	Storage   m_Durations;
-	size_type m_iRounds { 1 };
 
 }; // KDurations
 
@@ -582,13 +796,13 @@ private:
 //-----------------------------------------------------------------------------
 /// get duration of an interval in internal duration type
 template<>
-KDurations::Duration KDurations::GetDuration<KDurations::Duration>(size_type iInterval) const;
+KDurations::DurationBase KDurations::GetDuration<KDurations::DurationBase>(size_type iInterval) const;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// returns total duration in internal duration type
 template<>
-KDurations::Duration KDurations::TotalDuration<KDurations::Duration>() const;
+KDurations::DurationBase KDurations::TotalDuration<KDurations::DurationBase>() const;
 //-----------------------------------------------------------------------------
 
 

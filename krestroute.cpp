@@ -451,13 +451,14 @@ KJSON KRESTRoutes::GetRouterStats() const
 	{
 		auto Statistics = Route.Statistics.shared().get();
 
-		auto iRounds = Statistics.Durations.Rounds();
-
-		if (iRounds)
+		if (Statistics.Durations.empty())
 		{
-			// due to the nature of Duration counts, we have to substract 1
-			--iRounds;
+			// no data for this route
+			continue;
 		}
+
+		// the first timer should have the max rounds
+		auto iRounds = Statistics.Durations.Rounds(0);
 
 		if (iRounds)
 		{
@@ -467,7 +468,7 @@ KJSON KRESTRoutes::GetRouterStats() const
 
 			for (const auto& it : KRESTServer::Timers)
 			{
-				jUSecs.push_back({ it.sLabel, Statistics.Durations.microseconds(it.Value) / iRounds });
+				jUSecs.push_back({ it.sLabel, Statistics.Durations[it.Value].microsecondsAverage() });
 			}
 
 			KJSON jRoute {

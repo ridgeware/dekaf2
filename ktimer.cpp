@@ -148,6 +148,211 @@ std::chrono::hours::rep KStopWatch::hours() const
 }
 
 //-----------------------------------------------------------------------------
+void KDuration::clear()
+//-----------------------------------------------------------------------------
+{
+	m_Duration = Duration::zero();
+
+} // clear
+
+void KDuration::push_back(Duration duration)
+//-----------------------------------------------------------------------------
+{
+	m_Duration += duration;
+	++m_iRounds;
+}
+
+//---------------------------------------------------------------------------
+template<>
+KDuration::Duration KDuration::GetDuration<KDuration::Duration>() const
+//---------------------------------------------------------------------------
+{
+	return m_Duration;
+
+} // GetDuration
+
+//-----------------------------------------------------------------------------
+std::chrono::nanoseconds::rep KDuration::nanoseconds() const
+//-----------------------------------------------------------------------------
+{
+	return GetDuration<std::chrono::nanoseconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::microseconds::rep KDuration::microseconds() const
+//-----------------------------------------------------------------------------
+{
+	return GetDuration<std::chrono::microseconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::milliseconds::rep KDuration::milliseconds() const
+//-----------------------------------------------------------------------------
+{
+	return GetDuration<std::chrono::milliseconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::seconds::rep KDuration::seconds() const
+//-----------------------------------------------------------------------------
+{
+	return GetDuration<std::chrono::seconds>().count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::minutes::rep KDuration::minutes() const
+//-----------------------------------------------------------------------------
+{
+	return GetDuration<std::chrono::minutes>().count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::hours::rep KDuration::hours() const
+//-----------------------------------------------------------------------------
+{
+	return GetDuration<std::chrono::hours>().count();
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::nanoseconds::rep KDuration::nanosecondsAverage() const
+//-----------------------------------------------------------------------------
+{
+	return m_iRounds ? nanoseconds() / m_iRounds : 0;
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::microseconds::rep KDuration::microsecondsAverage() const
+//-----------------------------------------------------------------------------
+{
+	return m_iRounds ? microseconds() / m_iRounds : 0;
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::milliseconds::rep KDuration::millisecondsAverage() const
+//-----------------------------------------------------------------------------
+{
+	return m_iRounds ? milliseconds() / m_iRounds : 0;
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::seconds::rep KDuration::secondsAverage() const
+//-----------------------------------------------------------------------------
+{
+	return m_iRounds ? seconds() / m_iRounds : 0;
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::minutes::rep KDuration::minutesAverage() const
+//-----------------------------------------------------------------------------
+{
+	return m_iRounds ? minutes() / m_iRounds : 0;
+}
+
+//-----------------------------------------------------------------------------
+std::chrono::hours::rep KDuration::hoursAverage() const
+//-----------------------------------------------------------------------------
+{
+	return m_iRounds ? hours() / m_iRounds : 0;
+}
+
+//-----------------------------------------------------------------------------
+KDuration KDuration::operator+(const KDuration& other) const
+//-----------------------------------------------------------------------------
+{
+	KDuration temp(*this);
+	return temp += other;
+}
+
+//-----------------------------------------------------------------------------
+KDuration::self& KDuration::operator+=(const KDuration& other)
+//-----------------------------------------------------------------------------
+{
+	m_Duration += other.m_Duration;
+	m_iRounds  += other.m_iRounds;
+
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+KDuration KDuration::operator-(const KDuration& other) const
+//-----------------------------------------------------------------------------
+{
+	KDuration temp(*this);
+	return temp -= other;
+}
+
+//-----------------------------------------------------------------------------
+KDuration::self& KDuration::operator-=(const KDuration& other)
+//-----------------------------------------------------------------------------
+{
+	m_Duration -= other.m_Duration;
+	m_iRounds  -= other.m_iRounds;
+
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+KDuration KDuration::operator*(size_type iMultiplier) const
+//-----------------------------------------------------------------------------
+{
+	KDuration temp(*this);
+	return temp *= iMultiplier;
+}
+
+//-----------------------------------------------------------------------------
+KDuration::self& KDuration::operator*=(size_type iMultiplier)
+//-----------------------------------------------------------------------------
+{
+	m_Duration *= iMultiplier;
+	m_iRounds  *= iMultiplier;
+
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+KDuration KDuration::operator/(size_type iDivisor) const
+//-----------------------------------------------------------------------------
+{
+	KDuration temp(*this);
+	return temp /= iDivisor;
+}
+
+//-----------------------------------------------------------------------------
+KDuration::self& KDuration::operator/=(size_type iDivisor)
+//-----------------------------------------------------------------------------
+{
+	if (iDivisor)
+	{
+		m_Duration /= iDivisor;
+		m_iRounds  /= iDivisor;
+	}
+	else
+	{
+		kWarning("cannot divide by 0");
+	}
+
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+void KStopDuration::clear()
+//-----------------------------------------------------------------------------
+{
+	base::clear();
+	m_Timer.clear();
+
+} // clear
+
+//---------------------------------------------------------------------------
+void KStopDuration::Stop()
+//---------------------------------------------------------------------------
+{
+	push_back(m_Timer.elapsedAndClear<Duration>());
+
+} // StoreInterval
+
+
+//-----------------------------------------------------------------------------
 void KDurations::clear()
 //-----------------------------------------------------------------------------
 {
@@ -155,18 +360,50 @@ void KDurations::clear()
 
 } // clear
 
-//---------------------------------------------------------------------------
-template<>
-KDurations::Duration KDurations::GetDuration<KDurations::Duration>(size_type iInterval) const
-//---------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+const KDurations::Duration& KDurations::operator[](size_type iInterval) const
+//-----------------------------------------------------------------------------
 {
-	if (iInterval < m_Durations.size())
+	if (iInterval < size())
 	{
 		return m_Durations[iInterval];
 	}
 	else
 	{
-		return Duration::zero();
+		static Duration s_EmptyDuration;
+		kDebug(1, "subscript access out of range: {} in {}..{}", iInterval, 0, size());
+		return s_EmptyDuration;
+	}
+}
+
+//-----------------------------------------------------------------------------
+KDurations::Duration& KDurations::operator[](size_type iInterval)
+//-----------------------------------------------------------------------------
+{
+	if (iInterval < size())
+	{
+		return m_Durations[iInterval];
+	}
+	else
+	{
+		static Duration s_EmptyDuration;
+		kDebug(1, "subscript access out of range: {} in {}..{}", iInterval, 0, size());
+		return s_EmptyDuration;
+	}
+}
+
+//---------------------------------------------------------------------------
+template<>
+KDurations::DurationBase KDurations::GetDuration<KDurations::DurationBase>(size_type iInterval) const
+//---------------------------------------------------------------------------
+{
+	if (iInterval < size())
+	{
+		return m_Durations[iInterval].GetDuration();
+	}
+	else
+	{
+		return DurationBase::zero();
 	}
 
 } // GetDuration
@@ -214,8 +451,23 @@ std::chrono::hours::rep KDurations::hours(size_type iInterval) const
 }
 
 //---------------------------------------------------------------------------
+KDurations::size_type KDurations::TotalRounds() const
+//---------------------------------------------------------------------------
+{
+	size_type Total { 0 };
+
+	for (const auto& Duration : m_Durations)
+	{
+		Total += Duration.Rounds();
+	}
+
+	return Total;
+
+} // TotalRounds
+
+//---------------------------------------------------------------------------
 template<>
-KDurations::Duration KDurations::TotalDuration<KDurations::Duration>() const
+KDurations::DurationBase KDurations::TotalDuration<KDurations::DurationBase>() const
 //---------------------------------------------------------------------------
 {
 	Duration Total = Duration::zero();
@@ -225,7 +477,7 @@ KDurations::Duration KDurations::TotalDuration<KDurations::Duration>() const
 		Total += Duration;
 	}
 
-	return Total;
+	return Total.GetDuration<DurationBase>();
 
 } // TotalDuration
 
@@ -300,8 +552,6 @@ KDurations::self& KDurations::operator+=(const KDurations& other)
 		m_Durations[i] += other.m_Durations[i];
 	}
 
-	m_iRounds += other.m_iRounds;
-
 	return *this;
 }
 
@@ -334,8 +584,6 @@ KDurations::self& KDurations::operator-=(const KDurations& other)
 		m_Durations[i] -= other.m_Durations[i];
 	}
 
-	m_iRounds -= other.m_iRounds;
-
 	return *this;
 }
 
@@ -355,8 +603,6 @@ KDurations::self& KDurations::operator*=(size_type iMultiplier)
 	{
 		it *= iMultiplier;
 	}
-
-	m_iRounds *= iMultiplier;
 
 	return *this;
 }
@@ -379,8 +625,6 @@ KDurations::self& KDurations::operator/=(size_type iDivisor)
 		{
 			it /= iDivisor;
 		}
-
-		m_iRounds /= iDivisor;
 	}
 	else
 	{

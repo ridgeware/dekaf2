@@ -94,6 +94,8 @@ public:
 		Job(std::time_t tOnce,
 			KStringView sCommand);
 
+		void SetEnvironment(std::vector<std::pair<KString, KString>> Environment) { m_Environment = std::move(Environment); }
+
 		/// return next execution time after tAfter, in unix time_t
 		std::time_t Next(std::time_t tAfter = 0) const;
 		/// return next execution time after tAfter, in KUTCTime
@@ -145,6 +147,7 @@ public:
 		KUniqueVoidPtr m_ParsedCron;
 		std::time_t    m_tOnce      { INVALID_TIME };
 		struct Control m_Control;
+		std::vector<std::pair<KString, KString>> m_Environment;
 
 	}; // Kron::Job
 
@@ -163,6 +166,13 @@ public:
 
 	/// add a Job to list of jobs
 	bool Add(std::shared_ptr<Job>& job);
+
+	/// parse a buffer as if it were a unix crontab, and generate jobs, and add them to the list of jobs
+	/// @param sCrontab the buffer with a unix crontab
+	/// @param bHasSeconds set to true if the crontab format includes also seconds as the first field.
+	/// Defaults to false
+	/// @return count of added jobs
+	std::size_t AddCrontab(KStringView sCrontab, bool bHasSeconds = false);
 
 	/// construct a new Job in place and add it to the list of jobs
 	template<typename... Args>

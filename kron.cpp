@@ -198,7 +198,7 @@ KUTCTime Kron::Job::Next(const KUTCTime& tAfter) const
 bool Kron::Job::IncQueued()
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_ExecMutex);
+	std::lock_guard<std::mutex> Lock(m_ExecMutex);
 
 	++m_iIsQueued;
 	{
@@ -221,7 +221,7 @@ bool Kron::Job::IncQueued()
 void Kron::Job::DecQueued()
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_ExecMutex);
+	std::lock_guard<std::mutex> Lock(m_ExecMutex);
 
 	--m_iIsQueued;
 
@@ -231,7 +231,7 @@ void Kron::Job::DecQueued()
 int Kron::Job::Execute()
 //-----------------------------------------------------------------------------
 {
-	std::unique_lock Lock(m_ExecMutex);
+	std::unique_lock<std::mutex> Lock(m_ExecMutex);
 
 	++m_iIsRunning;
 
@@ -250,7 +250,8 @@ int Kron::Job::Execute()
 	// unlock during execution
 	Lock.unlock();
 
-	KInShell Shell(Command());
+	// and execute including the environment
+	KInShell Shell(Command(), "/bin/sh", m_Environment);
 
 	KString sOutput;
 
@@ -277,7 +278,7 @@ int Kron::Job::Execute()
 struct Kron::Job::Control Kron::Job::Control() const
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_ExecMutex);
+	std::lock_guard<std::mutex> Lock(m_ExecMutex);
 
 	return m_Control;
 }
@@ -286,7 +287,7 @@ struct Kron::Job::Control Kron::Job::Control() const
 Kron::~Kron()
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_ResizeMutex);
+	std::lock_guard<std::mutex> Lock(m_ResizeMutex);
 
 	m_Tasks.stop(false);
 
@@ -307,7 +308,7 @@ Kron::~Kron()
 bool Kron::Resize(std::size_t iThreads)
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_ResizeMutex);
+	std::lock_guard<std::mutex> Lock(m_ResizeMutex);
 
 	if (iThreads == m_Tasks.size())
 	{
@@ -406,6 +407,7 @@ bool Kron::Add(std::shared_ptr<Job>& job)
 	}
 
 	Jobs->insert( { tNext, job } );
+	kDebug(1, "added: {}\nnext execution: {}", job->Command(), kFormTimestamp(tNext));
 
 	return true;
 
@@ -436,5 +438,55 @@ bool Kron::Delete(Job::ID JobID)
 	return false;
 
 } // Delete
+
+//-----------------------------------------------------------------------------
+std::size_t Kron::AddCrontab(KStringView sCrontab, bool bHasSeconds)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iCount { 0 };
+	std::vector<std::pair<KString, KString>> Environment;
+
+	for (auto sLine : sCrontab.Split("\n"))
+	{
+		sLine.erase(sLine.find('#'));
+		sLine.Trim();
+
+		if (sLine.empty())
+		{
+			continue;
+		}
+
+		try
+		{
+			auto job = std::make_shared<Job>(sLine, bHasSeconds);
+			// copy the environment into the job
+			job->SetEnvironment(Environment);
+			// and try to add the job to the scheduler
+			if (Add(job))
+			{
+				++iCount;
+			}
+		}
+		catch (const std::exception& ex)
+		{
+			// this was not a crontab line. Maybe it's an env variable?
+			auto Pair = kSplitToPair(sLine, "=");
+
+			if (!Pair.first.empty() && !Pair.second.empty())
+			{
+				// looks like..
+				kDebug(2, "adding env var: {}={}", Pair.first, Pair.second);
+				Environment.push_back( { Pair.first, Pair.second } );
+			}
+			else
+			{
+				kDebug(1, "junk line: {}", sLine);
+			}
+		}
+	}
+
+	return iCount;
+
+} // AddCrontab
 
 } // end of namespace dekaf2

@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -64,7 +63,8 @@ KBaseShell::~KBaseShell()
 }
 
 //-----------------------------------------------------------------------------
-bool KBaseShell::IntOpen (KString sCommand, bool bWrite)
+bool KBaseShell::IntOpen (KString sCommand, bool bWrite,
+						  const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
 {
 	Close(); // ensure a previous pipe is closed
@@ -77,6 +77,11 @@ bool KBaseShell::IntOpen (KString sCommand, bool bWrite)
 	{
 		m_iExitCode = EINVAL;
 		return false;
+	}
+
+	if (!Environment.empty())
+	{
+		kDebug(1, "cannot set given environment values in child process when executing command with popen");
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -

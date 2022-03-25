@@ -56,19 +56,35 @@
 namespace dekaf2
 {
 
-/// Get environment variable. Return @p szDefault if not found.
+/// Get environment variable.
+/// @param szEnvVar the environment variable's name
+/// @param szDefault the default value to use if the environment variable is not found (default is the empty string)
+/// @return the value of the environment variable, or @p szDefault if not found.
 DEKAF2_PUBLIC
 KStringViewZ kGetEnv (KStringViewZ szEnvVar, KStringViewZ szDefault = "");
 
-/// Set environment variable.
+/// Set single environment variable. If value is empty, the variable will be removed.
+/// @param szEnvVar the environment variable's name
+/// @param szValue the environment variable's value
+/// @return true on success
 DEKAF2_PUBLIC
-bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ sValue);
+bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ szValue);
+
+/// Set multiple environment variables. If value is empty, the variable will be removed.
+/// @param Environment a vector of a pair of KString name and values
+/// @return true on success
+DEKAF2_PUBLIC
+bool kSetEnv (const std::vector<std::pair<KString, KString>>& Environment);
 
 /// Unset environment variable.
+/// @param szEnvVar the environment variable's name
+/// @return true on success
 DEKAF2_PUBLIC
 bool kUnsetEnv (KStringViewZ szEnvVar);
 
 /// Set operating system current working directory.
+/// @param sPath the directory to be set
+/// @return true on success
 DEKAF2_PUBLIC
 bool kSetCWD (KStringViewZ sPath);
 
@@ -97,6 +113,8 @@ DEKAF2_PUBLIC
 inline KString kwhoami () { return kGetWhoAmI(); }
 
 /// Return operating system hostname (or /etc/khostname if it exists) as a string.
+/// @param bAllowKHostname check for /etc/khostname? default is true.
+/// @return the hostname
 KStringViewZ kGetHostname (bool bAllowKHostname=true);
 
 /// return process ID
@@ -118,26 +136,39 @@ uint32_t kGetUid();
 DEKAF2_PUBLIC
 uint32_t kGetGid();
 
-/// Execute the given command, redirect stdout and stderr into a temp file and then return in the given sOutput string.  Return code matches the exit code command that was run: 0 is normally an indication of success.
+/// Execute the given command, redirect stdout and stderr into the given @p sOutput string.
+/// @param sCommand the command to execute
+/// @param sOutput gets filled with the output of the command
+/// @return exit code of the command that was run: 0 is normally an indication of success.
 DEKAF2_PUBLIC
 int kSystem (KStringView sCommand, KStringRef& sOutput);
 
-/// Execute the given command, redirect stdout and stderr into /dev/null.  Return code matches the exit code command that was run: 0 is normally an indication of success.
+/// Execute the given command, redirect stdout and stderr into /dev/null.
+/// @param sCommand the command to execute
+/// @return exit code of the command that was run: 0 is normally an indication of success.
 DEKAF2_PUBLIC
 int kSystem (KStringView sCommand);
 
-/// Resolve the given hostname into either an IPv4 IP address or an IPv6 address.  If hostname fails to resolve, return empty string.
+/// Resolve the given hostname into either an IPv4 IP address or an IPv6 address. If both versions are checked, IPv4 takes precedence if both are found.
+/// @param sHostname the hostname to resolve
+/// @param bIPv4 try IPv4 resolver
+/// @param bIPv6 try IPv6 resolver
+/// @return resolved IP address (as a string), or if hostname fails to resolve, an empty string.
 DEKAF2_PUBLIC
 KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6);
 
-/// Resolve the given hostname into an IPv4 IP address, e.g. "50.1.2.3".  If hostname fails to resolve, return empty string.
+/// Resolve the given hostname into an IPv4 IP address, e.g. "50.1.2.3".
+/// @param sHostname the hostname to resolve
+/// @return resolved IP address (as a string), or if hostname fails to resolve, an empty string.
 DEKAF2_PUBLIC
 inline KString kResolveHostIPV4 (KStringViewZ sHostname)
 {
 	return kResolveHost (sHostname, true, false);
 }
 
-/// Resolve the given hostname into an IPv6 IP address, e.g. "fe80::be27:ebff:fad4:49e7".  If hostname fails to resolve, return empty string.
+/// Resolve the given hostname into an IPv6 IP address, e.g. "fe80::be27:ebff:fad4:49e7".
+/// @param sHostname the hostname to resolve
+/// @return resolved IP address (as a string), or if hostname fails to resolve, an empty string.
 DEKAF2_PUBLIC
 inline KString kResolveHostIPV6 (KStringViewZ sHostname)
 {

@@ -81,15 +81,24 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Constructor which takes and executes command immediately
-	KInShell(KString sCommand, KStringViewZ sShell = "/bin/sh")
+	/// @param sCommand the command to execute
+	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh"). If empty will execute child directly
+	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
+	KInShell(KString sCommand, KStringViewZ sShell = "/bin/sh",
+			 const std::vector<std::pair<KString, KString>>& Environment = {})
 	//-----------------------------------------------------------------------------
 	{
-		Open(std::move(sCommand), sShell);
+		Open(std::move(sCommand), sShell, Environment);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Executes given command via a shell pipe from which output can be read
-	bool Open(KString sCommand, KStringViewZ sShell = "/bin/sh");
+	/// @param sCommand the command to execute
+	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh"). If empty will execute child directly
+	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
+	/// @return true on success
+	bool Open(KString sCommand, KStringViewZ sShell = "/bin/sh",
+			  const std::vector<std::pair<KString, KString>>& Environment = {});
 	//-----------------------------------------------------------------------------
 
 }; // END KInShell

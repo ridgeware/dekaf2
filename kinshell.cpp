@@ -49,17 +49,19 @@ namespace dekaf2
 #ifdef DEKAF2_IS_UNIX
 
 //-----------------------------------------------------------------------------
-bool KInShell::Open(KString sCommand, KStringViewZ sShell)
+bool KInShell::Open(KString sCommand, KStringViewZ sShell,
+					const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
 {
-	return KInPipe::Open(std::move(sCommand), sShell);
+	return KInPipe::Open(std::move(sCommand), sShell, Environment);
 
 } // Open
 
 #else
 
 //-----------------------------------------------------------------------------
-bool KInShell::Open(KString sCommand, KStringViewZ sShell)
+bool KInShell::Open(KString sCommand, KStringViewZ sShell,
+					const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
 {
 	if (!sShell.empty() && sShell != "/bin/sh")

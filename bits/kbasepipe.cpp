@@ -56,7 +56,7 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, int mode)
+bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, int mode, const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
 {
 	Close(mode); // ensure a previous pipe is closed
@@ -110,6 +110,7 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, int mode)
 	}
 	else
 	{
+		argV.reserve(4);
 		argV.push_back(sShell.c_str());
 		argV.push_back("-c");
 		argV.push_back(sCommand.c_str());
@@ -170,6 +171,12 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, int mode)
 					CloseAndResetFileDescriptor(m_readPdes[1]);
 				}
 			}
+
+			// set additional environment variables. execvpe() is a GNU extension
+			// and cannot be used on MacOS or Windows.
+			// also note that we do not replace the parent's environment, instead
+			// we inherit it
+			kSetEnv(Environment);
 
 			// execute the command
 			execvp(argV[0], const_cast<char* const*>(argV.data()));

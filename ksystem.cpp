@@ -87,28 +87,43 @@ KStringViewZ kGetEnv (KStringViewZ szEnvVar, KStringViewZ szDefault)
 
 //-----------------------------------------------------------------------------
 /// Set environment variable.
-bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ sValue)
+bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ szValue)
 //-----------------------------------------------------------------------------
 {
 #ifdef WIN32
-	errno_t err = _putenv_s(szEnvVar.c_str(), sValue.c_str());
+	errno_t err = _putenv_s(szEnvVar.c_str(), szValue.c_str());
 	if (err)
 	{
-		kWarning("cannot set {} = {}", szEnvVar, sValue);
+		kWarning("cannot set {} = {}", szEnvVar, szValue);
 	}
 	bool bOK = !err;
 #else
-	if (sValue.empty())
+	if (szValue.empty())
 	{
 		return kUnsetEnv(szEnvVar);
 	}
-	bool bOK = (::setenv(szEnvVar.c_str(), sValue.c_str(), true) == 0);
+	bool bOK = (::setenv(szEnvVar.c_str(), szValue.c_str(), true) == 0);
 	if (!bOK)
 	{
-		kWarning("cannot set {} = {}, {}", szEnvVar, sValue, strerror(errno));
+		kWarning("cannot set {} = {}, {}", szEnvVar, szValue, strerror(errno));
 	}
 #endif  // WIN32
 	return (bOK);
+
+} // kSetEnv
+
+//-----------------------------------------------------------------------------
+bool kSetEnv (const std::vector<std::pair<KString, KString>>& Environment)
+//-----------------------------------------------------------------------------
+{
+	for (const auto& env : Environment)
+	{
+		if (!kSetEnv(env.first, env.second))
+		{
+			return false;
+		}
+	}
+	return true;
 
 } // kSetEnv
 

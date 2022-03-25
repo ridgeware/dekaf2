@@ -1,5 +1,4 @@
 /*
-//-----------------------------------------------------------------------------//
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
@@ -89,7 +88,8 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// Executes given command via a shell pipe saving FILE* pipe in class member
-	bool IntOpen(KString sCommand, bool bWrite);
+	bool IntOpen(KString sCommand, bool bWrite,
+				 const std::vector<std::pair<KString, KString>>& Environment = {});
 	//-----------------------------------------------------------------------------
 
 	FILE* m_pipe { nullptr };

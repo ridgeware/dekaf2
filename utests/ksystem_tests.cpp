@@ -15,6 +15,16 @@ TEST_CASE("KSystem")
 		CHECK ( kGetEnv("DEKAF2_UTEST_VAR1") == "ThisIsATest" );
 		CHECK ( kUnsetEnv("DEKAF2_UTEST_VAR1") == true );
 		CHECK ( kGetEnv("DEKAF2_UTEST_VAR1") == "" );
+		{
+			// tests if setenv does a copy (it does on unix)
+			KString sVar("Copied");
+			KString sName("Var1");
+			kSetEnv(sName, sVar);
+			sVar  = "xxxxxx";
+			sName = "2222";
+		}
+		CHECK ( kGetEnv("Var1") == "Copied" );
+
 	}
 
 	SECTION("CWD")

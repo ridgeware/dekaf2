@@ -47,10 +47,11 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-bool KOutPipe::Open(KString sCommand, KStringViewZ sShell)
+bool KOutPipe::Open(KString sCommand, KStringViewZ sShell,
+					const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
 {
-	if (!KBasePipe::Open(std::move(sCommand), sShell, PipeWrite))
+	if (!KBasePipe::Open(std::move(sCommand), sShell, PipeWrite, Environment))
 	{
 		return false;
 	}

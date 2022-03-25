@@ -69,20 +69,24 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Opens a pipe. If sShell is not empty will execute command in a sub shell.
 	/// @param sCommand the command to execute
-	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh")
-	KOutPipe(KString sCommand, KStringViewZ sShell = "")
+	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh"). If empty will execute child directly
+	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
+	KOutPipe(KString sCommand, KStringViewZ sShell = "",
+			 const std::vector<std::pair<KString, KString>>& Environment = {})
 	//-----------------------------------------------------------------------------
 	{
-		Open(std::move(sCommand), sShell);
+		Open(std::move(sCommand), sShell, Environment);
 	}
 
 	//-----------------------------------------------------------------------------
-	/// legacy, deprecated!
-	/// Opens a pipe. If bAsShellCommand is true will execute command in a sub shell.
-	KOutPipe(KString sCommand, bool bAsShellCommand)
+	/// Opens a pipe.
+	/// @param bAsShellCommand if true will execute command in a sub shell
+	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
+	KOutPipe(KString sCommand, bool bAsShellCommand,
+			 const std::vector<std::pair<KString, KString>>& Environment = {})
 	//-----------------------------------------------------------------------------
 	{
-		Open(std::move(sCommand), bAsShellCommand);
+		Open(std::move(sCommand), bAsShellCommand, Environment);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -96,22 +100,30 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Opens a pipe. If sShell is not empty will execute command in a sub shell.
 	/// @param sCommand the command to execute
-	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh")
-	bool Open(KString sCommand, KStringViewZ sShell = "");
+	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh"). If empty will execute child directly
+	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
+	/// @return true on success, false if pipe to child could not be opened
+	bool Open(KString sCommand, KStringViewZ sShell = "",
+			  const std::vector<std::pair<KString, KString>>& Environment = {});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// legacy, deprecated!
-	/// Opens a pipe. If bAsShellCommand is true will execute command in a sub shell.
-	bool Open(KString sCommand, bool bAsShellCommand)
+	/// Opens a pipe.
+	/// @param bAsShellCommand if true will execute command in a sub shell
+	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
+	/// @return true on success, false if pipe to child could not be opened
+	bool Open(KString sCommand, bool bAsShellCommand,
+			  const std::vector<std::pair<KString, KString>>& Environment = {})
 	//-----------------------------------------------------------------------------
 	{
-		return Open(std::move(sCommand), KStringViewZ(bAsShellCommand ? "/bin/sh" : ""));
+		return Open(std::move(sCommand), KStringViewZ(bAsShellCommand ? "/bin/sh" : ""), Environment);
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Closes a pipe, waits for iWaitMilliseconds then kills child process, if -1
-	/// waits until child terminates.
+	/// Closes a pipe
+	/// @param iWaitMilliseconds waits for amount of milliseconds, then kills child process. Default is -1,
+	/// which will wait until child terminates.
+	/// @return the exit code received from the child
 	int Close(int iWaitMilliseconds = -1);
 	//-----------------------------------------------------------------------------
 

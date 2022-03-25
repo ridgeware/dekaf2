@@ -49,10 +49,11 @@ namespace dekaf2
 #ifdef DEKAF2_IS_UNIX
 
 //-----------------------------------------------------------------------------
-bool KOutShell::Open(KString sCommand, KStringViewZ sShell)
+bool KOutShell::Open(KString sCommand, KStringViewZ sShell,
+					 const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
 {
-	return KOutPipe::Open(std::move(sCommand), sShell);
+	return KOutPipe::Open(std::move(sCommand), sShell, Environment);
 
 } // Open
 
@@ -60,7 +61,8 @@ bool KOutShell::Open(KString sCommand, KStringViewZ sShell)
 
 //-----------------------------------------------------------------------------
 /// Executes given command via a shell pipe which input can be written to
-bool KOutShell::Open(KString sCommand, KStringViewZ sShell)
+bool KOutShell::Open(KString sCommand, KStringViewZ sShell,
+					 const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
 {
 	if (!sShell.empty() && sShell != "/bin/sh")

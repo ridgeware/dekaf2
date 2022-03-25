@@ -762,7 +762,6 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			kDebug (1, KLog::DASH);
 			kDebug (1, "{}: {}", GetRequestMethod(), GetRequestPath());
-			kDebug (1, KLog::DASH);
 
 			kSetCrashContext (kFormat ("{}: {}\nHost: {} Remote IP: {}",
 									   Request.Method.Serialize(),

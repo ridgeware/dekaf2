@@ -923,9 +923,9 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 	// protect multiple entry points that eventually call this function.
 	std::lock_guard<std::recursive_mutex> Lock(m_LogMutex);
 
-	if (DEKAF2_LIKELY(iLevel <= s_iLogLevel) || iLevel <= s_iThreadLogLevel)
+	if (DEKAF2_LIKELY(iLevel <= s_iLogLevel))
 	{
-		// this is the regular logging, with a per-thread adaptable iLevel
+		// this is the regular logging
 
 		m_Serializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
 
@@ -977,17 +977,13 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 						s_PerThreadSerializer &&
 						s_PerThreadWriter))
 	{
-		do
-		{
-			// this is the individual per-thread-logging
-			s_PerThreadSerializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
+		// this is the individual per-thread-logging
+		s_PerThreadSerializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
 
-			if (s_PerThreadSerializer->Matches(s_bPerThreadEGrep, false, s_sPerThreadGrepExpression))
-			{
-				s_PerThreadWriter->Write(iLevel, s_PerThreadSerializer->IsMultiline(), s_PerThreadSerializer->Get());
-			}
+		if (s_PerThreadSerializer->Matches(s_bPerThreadEGrep, false, s_sPerThreadGrepExpression))
+		{
+			s_PerThreadWriter->Write(iLevel, s_PerThreadSerializer->IsMultiline(), s_PerThreadSerializer->Get());
 		}
-		while (false);
 	}
 
 	return true;

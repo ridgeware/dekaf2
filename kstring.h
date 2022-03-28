@@ -69,7 +69,8 @@ class KString;
 class KStringView;
 class KStringViewZ;
 
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+#if defined(DEKAF2_USE_FBSTRING_AS_KSTRING) || \
+	(defined(DEKAF2_IS_APPLE_CLANG) && DEKAF2_CLANG_VERSION < 120000)
 /// a string type used for string& pars in parameter lists (output string parameters)
 using KStringRef = KString;
 #else
@@ -218,10 +219,18 @@ public:
 
 	// assignment operators
 	self& operator= (const KString& str)                      = default;
+#if defined(DEKAF2_HAS_FULL_CPP_17) && (!defined(DEKAF2_IS_CLANG) || DEKAF2_CLANG_VERSION >= 90000)
 	self& operator= (KString&& str) noexcept                  = default;
+#else
+	self& operator= (KString&& str)                           = default;
+#endif
 	template<typename T,
 	         typename std::enable_if<detail::is_kstring_move_assignable<T>::value, int>::type = 0>
+#if defined(DEKAF2_HAS_FULL_CPP_17) && (!defined(DEKAF2_IS_CLANG) || DEKAF2_CLANG_VERSION >= 90000)
 	self& operator= (T&& str) noexcept               { m_rep = std::move(str); return *this; }
+#else
+	self& operator= (T&& str)                        { m_rep = std::move(str); return *this; }
+#endif
 	self& operator= (value_type ch);
 	self& operator= (const value_type *s);
 	template<typename T,

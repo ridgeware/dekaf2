@@ -92,6 +92,8 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		# ============================= COMPILER FLAGS =================================
 
+		include(CheckCXXCompilerFlag)
+
 		if (CMAKE_COMPILER_IS_GNUCXX)
 
 			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-result -Werror)
@@ -128,8 +130,14 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
-			# adding -Wno-deprecated-copy for boost-1.78 on Apple clang 13.1.6 (ARM64)
-			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-result -Wno-deprecated-copy -Werror)
+			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-result -Werror)
+
+			check_cxx_compiler_flag(-Wno-deprecated-copy DEKAF2_HAS_NO_DEPRECATED_COPY)
+
+			if (DEKAF2_HAS_NO_DEPRECATED_COPY)
+				# adding -Wno-deprecated-copy for boost-1.78 on Apple clang 13.1.6 (ARM64)
+				add_compile_options(-Wno-deprecated-copy)
+			endif()
 
 			# configure cpu architecture dependant optimization
 			if (CPU_x86)

@@ -139,6 +139,10 @@ else ()
 	set (IS_LINUX ON)
 endif()
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+	set (DEKAF2_IS_APPLE_CLANG ON)
+endif()
+
 # these are supported by cmake 3.8 as well (but take care for other keys, they are
 # typically only supported starting with 3.10 and cause an error with lower versions)
 cmake_host_system_information(RESULT TOTAL_PHYSICAL_MEMORY QUERY TOTAL_PHYSICAL_MEMORY)

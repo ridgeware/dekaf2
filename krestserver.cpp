@@ -68,6 +68,29 @@ void KRESTServer::Options::AddHeader(KHTTPHeader Header, KString sValue)
 } // AddHeader
 
 //-----------------------------------------------------------------------------
+KRESTServer::KRESTServer(const KRESTRoutes& Routes,
+						 const Options&     options)
+//-----------------------------------------------------------------------------
+: m_Routes(Routes)
+, m_Options(options)
+{
+}
+
+//-----------------------------------------------------------------------------
+KRESTServer::KRESTServer(KStream&           Stream,
+						 KStringView        sRemoteEndpoint,
+						 url::KProtocol     Proto,
+						 uint16_t           iPort,
+						 const KRESTRoutes& Routes,
+						 const Options&     Options)
+//-----------------------------------------------------------------------------
+: KHTTPServer(Stream, sRemoteEndpoint, Proto, iPort)
+, m_Routes(Routes)
+, m_Options(Options)
+{
+}
+
+//-----------------------------------------------------------------------------
 void KRESTServer::SetDisconnected()
 //-----------------------------------------------------------------------------
 {
@@ -131,10 +154,10 @@ const KString& KRESTServer::GetRequestBody() const
 }
 
 //-----------------------------------------------------------------------------
-void KRESTServer::VerifyAuthentication(const Options& Options)
+void KRESTServer::VerifyAuthentication()
 //-----------------------------------------------------------------------------
 {
-	switch (Options.AuthLevel)
+	switch (m_Options.AuthLevel)
 	{
 		case Options::ALLOW_ALL:
 			kDebug(2, "ALLOW_ALL");
@@ -157,7 +180,7 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 
 				if (!Authorization.empty())
 				{
-					if (Options.Authenticators.empty())
+					if (m_Options.Authenticators.empty())
 					{
 						kWarning("authenticator list is empty");
 					}
@@ -168,10 +191,10 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 						if (!this->Route->Option.Has(KRESTRoute::Options::NO_SSO_SCOPE))
 						{
 							// set the general SSO scope when NO_SSO_SCOPE is unset
-							sScope = Options.sAuthScope;
+							sScope = m_Options.sAuthScope;
 						}
 
-						if (m_AuthToken.Check(Authorization, Options.Authenticators, sScope))
+						if (m_AuthToken.Check(Authorization, m_Options.Authenticators, sScope))
 						{
 							// success
 							SetAuthenticatedUser(kjson::GetString(GetAuthToken(), "sub"));
@@ -187,9 +210,9 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 			break;
 	}
 
-	if (Options.FailedAuthCallback)
+	if (m_Options.FailedAuthCallback)
 	{
-		Options.FailedAuthCallback(*this);
+		m_Options.FailedAuthCallback(*this);
 	}
 
 	throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization" };
@@ -198,7 +221,7 @@ void KRESTServer::VerifyAuthentication(const Options& Options)
 
 
 //-----------------------------------------------------------------------------
-int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
+int KRESTServer::VerifyPerThreadKLogToHeader()
 //-----------------------------------------------------------------------------
 {
 	int  iKLogLevel { 0 };
@@ -215,7 +238,7 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 	};
 #endif
 
-	auto it = Request.Headers.find(Options.KLogHeader);
+	auto it = Request.Headers.find(m_Options.KLogHeader);
 
 	if (it != Request.Headers.end())
 	{
@@ -403,7 +426,7 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 		else
 		{
 #ifdef DEKAF2_KLOG_WITH_TCP
-			KLog::getInstance().LogThisThreadToResponseHeaders(iKLogLevel, Response, Options.KLogHeader.Serialize());
+			KLog::getInstance().LogThisThreadToResponseHeaders(iKLogLevel, Response, m_Options.KLogHeader.Serialize());
 			kDebug(3, "per-thread {} logging, level {}", "response header", iKLogLevel);
 			if (bHelp)
 			{
@@ -428,7 +451,7 @@ int KRESTServer::VerifyPerThreadKLogToHeader(const Options& Options)
 } // VerifyPerThreadKLogToHeader
 
 //-----------------------------------------------------------------------------
-void KRESTServer::Parse(const Options& Options)
+void KRESTServer::Parse()
 //-----------------------------------------------------------------------------
 {
 	kAppendCrashContext("content parsing", ": ");
@@ -455,7 +478,7 @@ void KRESTServer::Parse(const Options& Options)
 			{
 				kDebug (2, "request body is not JSON: {}", sError);
 				json.rx.clear();
-				if (Options.bThrowIfInvalidJson)
+				if (m_Options.bThrowIfInvalidJson)
 				{
 					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat ("invalid JSON: {}", sError) };
 				}
@@ -464,7 +487,7 @@ void KRESTServer::Parse(const Options& Options)
 			{
 				kDebug (2, "request body successfully parsed as JSON");
 
-				if (Options.bRecordRequest)
+				if (m_Options.bRecordRequest)
 				{
 					// dump the json to record it
 					m_sRequestBody = json.rx.dump(-1);
@@ -485,7 +508,7 @@ void KRESTServer::Parse(const Options& Options)
 			{
 				kDebug (2, "request body is not XML");
 				xml.rx.clear();
-				if (Options.bThrowIfInvalidJson)
+				if (m_Options.bThrowIfInvalidJson)
 				{
 					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid XML" };
 				}
@@ -494,7 +517,7 @@ void KRESTServer::Parse(const Options& Options)
 			{
 				kDebug (2, "request body successfully parsed as XML");
 
-				if (Options.bRecordRequest)
+				if (m_Options.bRecordRequest)
 				{
 					// dump the XML to record it
 					m_sRequestBody = xml.rx.Serialize(KXML::PrintFlags::Terse);
@@ -533,14 +556,9 @@ void KRESTServer::Parse(const Options& Options)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
+bool KRESTServer::Execute()
 //-----------------------------------------------------------------------------
 {
-	// provide a pointer to the current set of routes
-	this->Routes = &Routes;
-	// and options
-	this->pOptions = &Options;
-
 	try
 	{
 		m_iRound = 0;
@@ -556,7 +574,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			Response.Headers.Add(KHTTPHeader::CONTENT_TYPE, KMIME::JSON);
 
 			// add additional response headers
-			for (auto& it : Options.ResponseHeaders)
+			for (auto& it : m_Options.ResponseHeaders)
 			{
 				Response.Headers.Add(it.first, it.second);
 			}
@@ -575,7 +593,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			if (m_iRound == 0)
 			{
 				// check if we have to start the timers
-				if (!Options.TimerHeader.empty() || Options.TimingCallback)
+				if (!m_Options.TimerHeader.empty() || m_Options.TimingCallback)
 				{
 					m_Timers = std::make_unique<KStopDurations>();
 					m_Timers->reserve(Timer::SEND + 1);
@@ -614,7 +632,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("invalid request method: {}", Request.RequestLine.GetMethod()) };
 			}
 
-			if (!Options.bServiceIsReady)
+			if (!m_Options.bServiceIsReady)
 			{
 				throw KHTTPError { KHTTPError::H5xx_UNAVAILABLE, "service unavailable" };
 			}
@@ -629,21 +647,21 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			kDebug (2, "incoming: {} {}", Request.Method.Serialize(), Request.Resource.Path);
 
-			if (Options.PreRouteCallback)
+			if (m_Options.PreRouteCallback)
 			{
-				Options.PreRouteCallback(*this);
+				m_Options.PreRouteCallback(*this);
 			}
 
 			KString sURLPath = Request.Resource.Path.get();
 
 			// try to remove_prefix, do not complain if not existing
-			sURLPath.remove_prefix(Options.sBaseRoute);
+			sURLPath.remove_prefix(m_Options.sBaseRoute);
 
 			// check if we have rewrite rules for the request path
-			Routes.RewritePath(sURLPath);
+			m_Routes.RewritePath(sURLPath);
 
 			// check if we have redirect rules for the request path
-			if (Routes.RedirectPath(sURLPath) > 0)
+			if (m_Routes.RedirectPath(sURLPath) > 0)
 			{
 				Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
 				Response.Headers.Set(KHTTPHeader::LOCATION, sURLPath);
@@ -667,7 +685,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			RequestPath = KRESTPath(Request.Method, sURLPath);
 
 			// find the right route
-			Route = &Routes.FindRoute(RequestPath, Request.Resource.Query, Options.bCheckForWrongMethod);
+			Route = &m_Routes.FindRoute(RequestPath, Request.Resource.Query, m_Options.bCheckForWrongMethod);
 
 			if (!Route->Callback)
 			{
@@ -680,9 +698,9 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			{
 				if (Route->Option(KRESTRoute::Options::GENERIC_AUTH))
 				{
-					if (Options.AuthCallback)
+					if (m_Options.AuthCallback)
 					{
-						SetAuthenticatedUser(Options.AuthCallback(*this));
+						SetAuthenticatedUser(m_Options.AuthCallback(*this));
 					}
 					else
 					{
@@ -697,7 +715,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 					if (!Route->Option(KRESTRoute::Options::GENERIC_AUTH) || GetAuthenticatedUser().empty())
 					{
 						// no - use the loaded authenticators
-						VerifyAuthentication(Options);
+						VerifyAuthentication();
 					}
 				}
 
@@ -706,26 +724,26 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 				{
 					// generic auth was requested, but neither SSO nor any other authentication method
 					// resulted in a user name
-					if (Options.FailedAuthCallback)
+					if (m_Options.FailedAuthCallback)
 					{
-						Options.FailedAuthCallback(*this);
+						m_Options.FailedAuthCallback(*this);
 					}
 
 					throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "no authorization" };
 				}
 			}
 
-			if (Options.PostRouteCallback)
+			if (m_Options.PostRouteCallback)
 			{
-				Options.PostRouteCallback(*this);
+				m_Options.PostRouteCallback(*this);
 			}
 
 #ifdef DEKAF2_WITH_KLOG
 			// switch header logging only after authorization (but not for OPTIONS, as it is
 			// not authenticated..)
-			if (!Options.KLogHeader.empty() && Request.Method != KHTTPMethod::OPTIONS)
+			if (!m_Options.KLogHeader.empty() && Request.Method != KHTTPMethod::OPTIONS)
 			{
-				if (VerifyPerThreadKLogToHeader(Options) > 1)
+				if (VerifyPerThreadKLogToHeader() > 1)
 				{
 					kDebug (2, "Request: {} {} {}", Request.Method.Serialize(), Request.Resource.Path, Request.sHTTPVersion);
 					// output headers for this thread
@@ -744,7 +762,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			if (Request.HasContent(Request.Method == KHTTPMethod::GET))
 			{
-				Parse(Options);
+				Parse();
 			}
 
 			if (m_Timers)
@@ -766,7 +784,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			kSetCrashContext (kFormat ("{}: {}\nHost: {} Remote IP: {}",
 									   Request.Method.Serialize(),
 									   Request.Resource.Serialize(),
-									   Options.sServername,
+									   m_Options.sServername,
 									   Request.GetRemoteIP())
 							  );
 
@@ -793,13 +811,13 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 			// execution and could lead to a DoS if an attacker would
 			// hold as many connections as we have simultaneous threads.
 			m_bKeepAlive = !m_bIsStreaming
-						&& (Options.Out == HTTP)
-						&& (m_iRound+1 < Options.iMaxKeepaliveRounds)
+						&& (m_Options.Out == HTTP)
+						&& (m_iRound+1 < m_Options.iMaxKeepaliveRounds)
 						&& Request.HasKeepAlive();
 
-			Output(Options);
+			Output();
 
-			RunPostResponse(Options);
+			RunPostResponse();
 
 			if (m_Timers)
 			{
@@ -812,7 +830,7 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 			if (!m_bKeepAlive)
 			{
-				if (Options.Out == HTTP)
+				if (m_Options.Out == HTTP)
 				{
 					if (!Request.HasKeepAlive())
 					{
@@ -835,17 +853,17 @@ bool KRESTServer::Execute(const Options& Options, const KRESTRoutes& Routes)
 
 	catch (const std::exception& ex)
 	{
-		ErrorHandler(ex, Options);
+		ErrorHandler(ex);
 	}
 
-	RunPostResponse(Options);
+	RunPostResponse();
 
 	return false;
 
 } // Execute
 
 //-----------------------------------------------------------------------------
-void KRESTServer::RunPostResponse(const Options& Options)
+void KRESTServer::RunPostResponse()
 //-----------------------------------------------------------------------------
 {
 	if (m_PostResponseCallback)
@@ -854,11 +872,11 @@ void KRESTServer::RunPostResponse(const Options& Options)
 		m_PostResponseCallback = nullptr;
 	}
 
-	Options.Logger.Log(*this);
+	m_Options.Logger.Log(*this);
 
-	if (Options.bRecordRequest)
+	if (m_Options.bRecordRequest)
 	{
-		RecordRequestForReplay(Options);
+		RecordRequestForReplay();
 	}
 
 } // RunPostResponseCallback
@@ -898,10 +916,10 @@ bool KRESTServer::SetFileToOutput(KStringViewZ sFile)
 } // SetFileToOutput
 
 //-----------------------------------------------------------------------------
-void KRESTServer::WriteHeaders(const Options& Options)
+void KRESTServer::WriteHeaders()
 //-----------------------------------------------------------------------------
 {
-	if (!Options.KLogHeader.empty())
+	if (!m_Options.KLogHeader.empty())
 	{
 		// finally switch logging off if enabled
 		KLog::getInstance().LogThisThreadToKLog(-1);
@@ -916,11 +934,11 @@ void KRESTServer::WriteHeaders(const Options& Options)
 	{
 		m_Timers->StoreInterval(Timer::SERIALIZE);
 
-		if (!Options.TimerHeader.empty())
+		if (!m_Options.TimerHeader.empty())
 		{
 			// add a custom header that marks execution time for this request
-			Response.Headers.Set (Options.TimerHeader,
-								  KString::to_string(Options.bMicrosecondTimerHeader
+			Response.Headers.Set (m_Options.TimerHeader,
+								  KString::to_string(m_Options.bMicrosecondTimerHeader
 													 ? m_Timers->microseconds()
 													 : m_Timers->milliseconds()));
 		}
@@ -958,12 +976,7 @@ void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders)
 
 	ThrowIfDisconnected();
 
-	if (!this->pOptions)
-	{
-		throw KHTTPError { KHTTPError::H5xx_ERROR, "config error" };
-	}
-
-	if (this->pOptions->Out != HTTP)
+	if (m_Options.Out != HTTP)
 	{
 		throw KHTTPError { KHTTPError::H5xx_NOTIMPL, "streaming mode only allowed in HTTP output mode" };
 	}
@@ -979,16 +992,16 @@ void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders)
 	// Compression can be a problem in streaming mode because we cannot reliably flush
 	// the output then. Also, we may not know the media type in advance, and hence
 	// switch compression on for already compressed media..
-	ConfigureCompression(this->pOptions->bAllowCompression && bAllowCompressionIfPossible);
+	ConfigureCompression(m_Options.bAllowCompression && bAllowCompressionIfPossible);
 
-	WriteHeaders(*this->pOptions);
+	WriteHeaders();
 
 	m_bIsStreaming = true;
 
 } // Stream
 
 //-----------------------------------------------------------------------------
-void KRESTServer::Output(const Options& Options)
+void KRESTServer::Output()
 //-----------------------------------------------------------------------------
 {
 	if (m_bIsStreaming)
@@ -1011,11 +1024,11 @@ void KRESTServer::Output(const Options& Options)
 	}
 
 	// only allow output compression if this is HTTP mode and if we allow compression and have content
-	ConfigureCompression(Options.Out == HTTP && Options.bAllowCompression && bOutputContent);
+	ConfigureCompression(m_Options.Out == HTTP && m_Options.bAllowCompression && bOutputContent);
 
 	kDebug (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
 
-	switch (Options.Out)
+	switch (m_Options.Out)
 	{
 		case HTTP:
 		{
@@ -1044,12 +1057,12 @@ void KRESTServer::Output(const Options& Options)
 					}
 				}
 
-				if (m_JsonLogger && !m_JsonLogger->empty() && !Options.KLogHeader.empty())
+				if (m_JsonLogger && !m_JsonLogger->empty() && !m_Options.KLogHeader.empty())
 				{
 					if ((!json.tx.empty() || Route->Parser == KRESTRoute::JSON)
 						&& json.tx.is_object())
 					{
-						json.tx[Options.KLogHeader.Serialize()] = std::move(*m_JsonLogger);
+						json.tx[m_Options.KLogHeader.Serialize()] = std::move(*m_JsonLogger);
 					}
 					else
 					{
@@ -1094,7 +1107,7 @@ void KRESTServer::Output(const Options& Options)
 				m_iContentLength = sContent.length();
 			}
 
-			WriteHeaders(Options);
+			WriteHeaders();
 
 			if (bOutputContent)
 			{
@@ -1128,9 +1141,9 @@ void KRESTServer::Output(const Options& Options)
 			{
 				m_Timers->StoreInterval(SEND);
 
-				if (Options.TimingCallback)
+				if (m_Options.TimingCallback)
 				{
-					Options.TimingCallback(*this, *m_Timers.get());
+					m_Options.TimingCallback(*this, *m_Timers.get());
 				}
 			}
 
@@ -1187,7 +1200,7 @@ void KRESTServer::Output(const Options& Options)
 				}
 			}
 
-			if (!Options.KLogHeader.empty())
+			if (!m_Options.KLogHeader.empty())
 			{
 				// finally switch logging off if enabled
 				KLog::getInstance().LogThisThreadToKLog(-1);
@@ -1250,7 +1263,7 @@ void KRESTServer::Output(const Options& Options)
 
 			m_iContentLength = Counter.Count();
 
-			if (!Options.KLogHeader.empty())
+			if (!m_Options.KLogHeader.empty())
 			{
 				// finally switch logging off if enabled
 				KLog::getInstance().LogThisThreadToKLog(-1);
@@ -1288,7 +1301,7 @@ void KRESTServer::xml_t::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
+void KRESTServer::ErrorHandler(const std::exception& ex)
 //-----------------------------------------------------------------------------
 {
 	if (IsDisconnected())
@@ -1328,7 +1341,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 	KJSON EmptyJSON;
 
-	if (!Options.KLogHeader.empty())
+	if (!m_Options.KLogHeader.empty())
 	{
 		// finally switch logging off if enabled
 		KLog::getInstance().LogThisThreadToKLog(-1);
@@ -1344,7 +1357,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 
 	json.tx = std::move(EmptyJSON);
 
-	switch (Options.Out)
+	switch (m_Options.Out)
 	{
 		case HTTP:
 		{
@@ -1398,10 +1411,10 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 			{
 				m_Timers->StoreInterval(Timer::SERIALIZE);
 
-				if (!Options.TimerHeader.empty())
+				if (!m_Options.TimerHeader.empty())
 				{
 					// add a custom header that marks execution time for this request
-					Response.Headers.Add (Options.TimerHeader, KString::to_string(m_Timers->milliseconds()));
+					Response.Headers.Add (m_Options.TimerHeader, KString::to_string(m_Timers->milliseconds()));
 				}
 			}
 
@@ -1424,9 +1437,9 @@ void KRESTServer::ErrorHandler(const std::exception& ex, const Options& Options)
 			{
 				m_Timers->StoreInterval(Timer::SEND);
 
-				if (Options.TimingCallback)
+				if (m_Options.TimingCallback)
 				{
-					Options.TimingCallback(*this, *m_Timers.get());
+					m_Options.TimingCallback(*this, *m_Timers.get());
 				}
 			}
 
@@ -1500,15 +1513,15 @@ void KRESTServer::SetStatus (int iCode)
 } // SetStatus
 
 //-----------------------------------------------------------------------------
-void KRESTServer::RecordRequestForReplay (const Options& Options)
+void KRESTServer::RecordRequestForReplay ()
 //-----------------------------------------------------------------------------
 {
-	if (!Options.sRecordFile.empty())
+	if (!m_Options.sRecordFile.empty())
 	{
 		KString sRecord;
 		KOutStringStream oss(sRecord);
 
-		if (!kFileExists(Options.sRecordFile))
+		if (!kFileExists(m_Options.sRecordFile))
 		{
 			// there is a chance that this test races at initial creation of the
 			// record file, but it wouldn't matter as the bang header then simply
@@ -1568,7 +1581,7 @@ void KRESTServer::RecordRequestForReplay (const Options& Options)
 		// used in parallel in real usage, we currently leave the code as is. A remedy
 		// would be to move the stream construction into the Options struct, as is done
 		// for the JSONAccessLog.
-		static auto RecordStream = kOpenOutStream(Options.sRecordFile, std::ios::app);
+		static auto RecordStream = kOpenOutStream(m_Options.sRecordFile, std::ios::app);
 
 		kLogger(*RecordStream, sRecord);
 	}
@@ -1609,13 +1622,13 @@ void KRESTServer::clear()
 
 	m_iJSONPrint =
 #ifdef NDEBUG
-		iJSONTerse;
+		m_Options.bPrettyPrint ? iJSONPretty : iJSONTerse;
 #else
 		iJSONPretty;
 #endif
 	m_iXMLPrint =
 #ifdef NDEBUG
-		iXMLTerse;
+		m_Options.bPrettyPrint ? iXMLPretty : iXMLTerse;
 #else
 		iXMLPretty;
 #endif

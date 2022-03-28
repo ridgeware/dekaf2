@@ -96,22 +96,12 @@ public:
 		{ SEND      , "tx"        }
 	}};
 
-	// supported output types:
-	// HTTP is standard,
-	// LAMBDA is AWS specific,
-	// CLI is a test console output
-	enum OutputType	{ HTTP, LAMBDA, CLI };
-
-#if defined(DEKAF2_HAS_FULL_CPP_17)
-	// forward constructors
-	using KHTTPServer::KHTTPServer;
-#else
-	KRESTServer() = default;
-	KRESTServer(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort)
-	: KHTTPServer(Stream, sRemoteEndpoint, Proto, iPort)
+	enum OutputType
 	{
-	}
-#endif
+		HTTP,     ///< speak HTTP
+		LAMBDA,   ///< AWS specific
+		CLI       ///< console type output for testing
+	};
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// Options for the KRESTServer class
@@ -183,15 +173,38 @@ public:
 		bool bAllowCompression { true };
 		/// Show timer header in microseconds (default false = milliseconds)
 		bool bMicrosecondTimerHeader { false };
+		/// Force pretty printing in release builds, too?
+		bool bPrettyPrint { false };
 
 	}; // Options
 
+	/// the KRESTRoutes object used for routing
+	const KRESTRoutes& m_Routes;
+	/// the current set of Options
+	const Options&     m_Options;
+
 	//-----------------------------------------------------------------------------
-	/// handler for one request
 	/// @param Options the options for the KRESTServer
 	/// @param Routes the KRESTRoutes object with all routing callbacks
+	KRESTServer(const KRESTRoutes& Routes,
+				const Options&     Options);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// @param Options the options for the KRESTServer
+	/// @param Routes the KRESTRoutes object with all routing callbacks
+	KRESTServer(KStream&           Stream,
+				KStringView        sRemoteEndpoint,
+				url::KProtocol     Proto,
+				uint16_t           iPort,
+				const KRESTRoutes& Routes,
+				const Options&     Options);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// handler for one request
 	/// @return true on success, false in case of error
-	bool Execute(const Options& Options, const KRESTRoutes& Routes);
+	bool Execute();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -306,10 +319,6 @@ public:
 	xml_t  xml;
 	/// the selected KRESTRoute
 	const KRESTRoute*  Route       { &s_EmptyRoute        };
-	/// the KRESTRoutes object used for routing
-	const KRESTRoutes* Routes      { nullptr              };
-	/// the current set of Options
-	const Options*     pOptions    { nullptr              };
 	/// the incoming request with method and path
  	KRESTPath          RequestPath { KHTTPMethod::GET, "" };
 
@@ -324,8 +333,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// check user's identity and access - throws if not permitted
 	/// (normally called automatically for routes flagged with SSO)
-	/// @param Options the options for the KRESTServer
-	void VerifyAuthentication(const Options& Options);
+	void VerifyAuthentication();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -353,7 +361,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Serialize output with indents or condensed
+	/// Serialize output with indents or condensed - to be called inside route handlers to set their output format
 	/// @param bYesNo if true, output json/xml with indents, if false output condensed (default in non-debug code)
 	void PrettyPrint(bool bYesNo);
 	//-----------------------------------------------------------------------------
@@ -444,39 +452,34 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// parse input (if requested by method and route)
-	/// @param Options the options for the KRESTServer
-	void Parse(const Options& Options);
+	void Parse();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// write headers, called by Stream() and Output()
-	void WriteHeaders(const Options& Options);
+	void WriteHeaders();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// generate success output
-	/// @param Options the options for the KRESTServer
-	void Output(const Options& Options);
+	void Output();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// generate error output
 	/// @param ex the exception with the error status
-	/// @param Options the options for the KRESTServer
-	void ErrorHandler(const std::exception& ex, const Options& Options);
+	void ErrorHandler(const std::exception& ex);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// check if request shall be recorded, and doing it
-	/// @param Options the options for the KRESTServer
-	void RecordRequestForReplay(const Options& Options);
+	void RecordRequestForReplay();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// check if we shall log this thread's logging output into the response headers
-	/// @param Options the options for the KRESTServer
 	/// @return the per-thread logging level from 0 (off) to 3
-	int VerifyPerThreadKLogToHeader(const Options& Options);
+	int VerifyPerThreadKLogToHeader();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -486,7 +489,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// run the post response callback if existing, and the logger and reporting facilities
-	void RunPostResponse(const Options& Options);
+	void RunPostResponse();
 	//-----------------------------------------------------------------------------
 
 //------

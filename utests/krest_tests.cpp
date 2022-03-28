@@ -99,6 +99,7 @@ TEST_CASE("KREST")
 		KOutStringStream oss(sOut);
 
 		KREST::Options Options;
+		Options.bPrettyPrint = true;
 		Options.Type = KREST::SIMULATE_HTTP;
 		Options.AuthLevel = KRESTServer::Options::ALLOW_ALL_WITH_AUTH_HEADER;
 		Options.AuthCallback = [&](KRESTServer& HTTP) -> KString
@@ -113,11 +114,7 @@ TEST_CASE("KREST")
 		CHECK ( bCalledNoSlashPath == false );
 
 		sOut.clear();
-#ifdef NDEBUG
-		KString sCompare = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 27\r\nConnection: close\r\n\r\n{\"response\":\"hello world\"}\n";
-#else
 		KString sCompare = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 31\r\nConnection: close\r\n\r\n{\n\t\"response\": \"hello world\"\n}\n";
-#endif
 		CHECK ( REST.Simulate(Options, Routes, "/test", oss) == true );
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
@@ -191,11 +188,7 @@ TEST_CASE("KREST")
 		CHECK ( REST.Simulate(Options, Routes, "/user/\"; DROP DATABASE CLIENTS/address", oss) == false );
 
 		sOut.clear();
-#ifdef NDEBUG
-		sCompare = "HTTP/1.1 400 BAD REQUEST\r\nContent-Type: application/json\r\nContent-Length: 33\r\nConnection: close\r\n\r\n{\"message\":\"missing parameters\"}\n";
-#else
 		sCompare = "HTTP/1.1 400 BAD REQUEST\r\nContent-Type: application/json\r\nContent-Length: 37\r\nConnection: close\r\n\r\n{\n\t\"message\": \"missing parameters\"\n}\n";
-#endif
 		CHECK ( REST.Simulate(Options, Routes, "/throw", oss) == false );
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
@@ -205,11 +198,7 @@ TEST_CASE("KREST")
 		CHECK ( sName == "Peter" );
 
 		sOut.clear();
-#ifdef NDEBUG
-		sCompare = "HTTP/1.1 404 NOT FOUND\r\nContent-Type: application/json\r\nContent-Length: 41\r\nConnection: close\r\n\r\n{\"message\":\"invalid path: GET /unknown\"}\n";
-#else
 		sCompare = "HTTP/1.1 404 NOT FOUND\r\nContent-Type: application/json\r\nContent-Length: 45\r\nConnection: close\r\n\r\n{\n\t\"message\": \"invalid path: GET /unknown\"\n}\n";
-#endif
 		CHECK ( REST.Simulate(Options, Routes, "/unknown", oss) == false );
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
@@ -337,6 +326,7 @@ TEST_CASE("KREST")
 		KOutStringStream oss(sOut);
 
 		KREST::Options Options;
+		Options.bPrettyPrint = true;
 		Options.Type = KREST::SIMULATE_HTTP;
 
 		KREST REST;
@@ -360,11 +350,8 @@ TEST_CASE("KREST")
 		CHECK ( REST.Simulate(Options, Routes, "/user/Peter/address", oss) == true );
 
 		sOut.clear();
-#ifdef NDEBUG
-		KString sCompare = "HTTP/1.1 404 NOT FOUND\r\nContent-Type: application/json\r\nContent-Length: 41\r\nConnection: close\r\n\r\n{\"message\":\"invalid path: GET /unknown\"}\n";
-#else
 		KString sCompare = "HTTP/1.1 404 NOT FOUND\r\nContent-Type: application/json\r\nContent-Length: 45\r\nConnection: close\r\n\r\n{\n\t\"message\": \"invalid path: GET /unknown\"\n}\n";
-#endif
+
 		CHECK ( REST.Simulate(Options, Routes, "/unknown", oss) == false );
 		CHECK ( sOut == sCompare );
 
@@ -443,6 +430,7 @@ TEST_CASE("KREST")
 		}});
 
 		KREST::Options Options;
+		Options.bPrettyPrint = true;
 		Options.Type      = KREST::HTTP;
 		Options.iPort     = 30303;
 		Options.bBlocking = false;

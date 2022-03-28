@@ -23,15 +23,16 @@ x-klog: -out json -level 1
 		KInStringStream iss(sRequest);
 		KOutStringStream oss(sResponse);
 		KStream stream(iss, oss);
-		KRESTServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		KRESTServer::Options Options;
+		Options.bPrettyPrint = true;
 		Options.KLogHeader = "x-klog";
 		KRESTRoutes Routes;
 		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
 		{
 			http.json.tx["response"] = "hello world";
 		}});
-		Browser.Execute(Options, Routes);
+		KRESTServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80, Routes, Options);
+		Browser.Execute();
 
 		sResponse.ClipAtReverse("\r\n\r\n");
 		sResponse.remove_prefix("\r\n\r\n");
@@ -60,15 +61,16 @@ x-klog: -level 1
 		KInStringStream iss(sRequest);
 		KOutStringStream oss(sResponse);
 		KStream stream(iss, oss);
-		KRESTServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80);
 		KRESTServer::Options Options;
+		Options.bPrettyPrint = true;
 		Options.KLogHeader = "x-klog";
 		KRESTRoutes Routes;
 		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
 		{
 			http.json.tx["response"] = "hello world";
 		}});
-		Browser.Execute(Options, Routes);
+		KRESTServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80, Routes, Options);
+		Browser.Execute();
 
 		sResponse.contains("KRESTServer::Output(): HTTP-200: OK\r\nx-klog");
 		sResponse.ClipAtReverse("\r\n\r\n");

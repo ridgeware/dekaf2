@@ -51,7 +51,7 @@ namespace dekaf2 {
 void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, int iSocketFd)
 //-----------------------------------------------------------------------------
 {
-	KRESTServer Request;
+	KRESTServer Request(m_Routes, m_Options);
 
 #ifndef DEKAF2_IS_WINDOWS
 
@@ -79,7 +79,7 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 				   sRemoteEndpoint,
 				   IsSSL() ? url::KProtocol::HTTPS : url::KProtocol::HTTP,
 				   GetPort());
-	Request.Execute(m_Options, m_Routes);
+	Request.Execute();
 
 	// get out of here if the tcp server is shutting down - otherwise
 	// UBSAN complains about accessing the derived class, which is no
@@ -123,10 +123,10 @@ bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStre
 {
 	kDebug (2, "...");
 
-	KRESTServer Request;
+	KRESTServer Request(Routes, Options);
 	
 	Request.Accept(Stream, sRemoteIP, Proto, iPort);
-	bool bRet = Request.Execute(Options, Routes);
+	bool bRet = Request.Execute();
 	Request.Disconnect();
 
 	return bRet;

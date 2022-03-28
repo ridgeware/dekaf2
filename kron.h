@@ -47,8 +47,11 @@
 
 #include "kstringview.h"
 #include "ktime.h"
+#include "ktimer.h"
 #include "kthreadpool.h"
 #include "kthreadsafe.h"
+#include "kjson.h"
+#include "kassociative.h"
 #include "bits/kunique_deleter.h"
 #include <mutex>
 #include <map>
@@ -66,7 +69,11 @@ public:
 
 	static constexpr time_t INVALID_TIME = -1;
 
+	class Job;
+	using SharedJob = std::shared_ptr<Job>;
+
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// A Kron::Job - extensible Job control
 	class DEKAF2_PUBLIC Job
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -81,18 +88,28 @@ public:
 		{
 			std::time_t    tLastStarted   { INVALID_TIME };
 			std::time_t    tLastStopped   { INVALID_TIME };
-			std::size_t    iStartCount    { 0 };
+			std::size_t    iStartCount    {  0 };
+			int            iLastResult    {  0 };
+			pid_t          ProcessID      { -1 };
+			KStopDuration  Duration;
+			KString        sLastResult;
 
 		}; // Control
 
 		Job() = default;
 
-		Job(KStringView sCronDef,
-			bool        bHasSeconds = true,
-			uint16_t    iMaxQueued = 1);
+		Job(KString      sName,
+			KStringView  sCronDef,
+			bool         bHasSeconds = true,
+			uint16_t     iMaxQueued = 1);
 
-		Job(std::time_t tOnce,
-			KStringView sCommand);
+		Job(KString      sName,
+			std::time_t  tOnce,
+			KStringView  sCommand);
+
+		Job(const KJSON& jConfig);
+
+		virtual ~Job();
 
 		void SetEnvironment(std::vector<std::pair<KString, KString>> Environment) { m_Environment = std::move(Environment); }
 
@@ -101,6 +118,7 @@ public:
 		/// return next execution time after tAfter, in KUTCTime
 		KUTCTime Next(const KUTCTime& tAfter) const;
 
+		/// return a copy of the timers and results
 		struct Control Control() const;
 
 		/// return the command argument
@@ -113,12 +131,30 @@ public:
 		bool IsQueued() const { return m_iIsQueued > 0; }
 
 		/// returns the Job ID
-		ID GetJobID() const { return m_iJobID; }
+		ID JobID() const { return m_iJobID; }
 
+		/// runs the Job - virtual, to allow extensions
+		virtual int Execute();
 		/// runs the Job
-		int Execute();
-		/// runs the Job
-		int operator()() { return Execute(); }
+		virtual int operator()() { return Execute(); }
+
+		/// print a json description of the job
+		/// @param iMaxResultSize the output of the executed command will be cut off after this count
+		/// @return a KJSON structure with information about the job and its last execution
+		KJSON Print(std::size_t iMaxResultSize = 4096) const;
+
+		/// return the job name, may be empty
+		const KString& Name() const { return m_sName; }
+
+		/// kill the job, will return false on Windows (and hence not work there)
+		bool Kill();
+
+		/// static, create a SharedJob
+		template<typename... Args>
+		static SharedJob Create(Args&&... args)
+		{
+			return std::make_shared<Job>(std::forward<Args>(args)...);
+		}
 
 	//----------
 	protected:
@@ -135,10 +171,10 @@ public:
 	private:
 	//----------
 
+		KString        m_sName;
 		KString        m_sCommand;
 		ID             m_iJobID     { 0 };
 		uint16_t       m_iMaxQueued { 1 };
-
 		uint16_t       m_iIsRunning { 0 };
 		uint16_t       m_iIsQueued  { 0 };
 
@@ -147,51 +183,103 @@ public:
 		KUniqueVoidPtr m_ParsedCron;
 		std::time_t    m_tOnce      { INVALID_TIME };
 		struct Control m_Control;
-		std::vector<std::pair<KString, KString>> m_Environment;
+		std::vector<
+			std::pair<KString, KString>
+		>              m_Environment;
 
 	}; // Kron::Job
 
-	/// default ctor, does not start any threads and hence no Jobs
-	Kron() = default;
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Scheduler ABC
+	class DEKAF2_PUBLIC Scheduler
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		virtual ~Scheduler();
+
+		/// add a Job to list of jobs
+		virtual bool AddJob(const SharedJob& Job);
+		/// delete a Job from list of jobs (by its job ID)
+		virtual bool DeleteJob(Job::ID JobID);
+		/// list all jobs
+		virtual KJSON ListJobs() const;
+		/// modify or add a Job
+		virtual bool UpdateJob(KStringView sCronKey, const KJSON& jJob);
+
+		/// get next Job to execute, can return with nullptr
+		virtual SharedJob GetJob(std::time_t tNow) = 0;
+		/// a Job has been run and is returned to the scheduler
+		virtual void JobFinished(const SharedJob& Job);
+
+	}; // Kron::Scheduler
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Local, in-memory scheduler implementation
+	class DEKAF2_PUBLIC LocalScheduler : public Scheduler
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		/// add a Job to list of jobs
+		virtual bool AddJob(const SharedJob& Job) override final;
+		/// delete a Job from list of jobs (by its job ID)
+		virtual bool DeleteJob(Job::ID JobID) override final;
+		/// list all jobs
+		virtual KJSON ListJobs() const override final;
+
+		/// get next Job to execute, can return with nullptr
+		virtual SharedJob GetJob(std::time_t tNow) override final;
+
+	//----------
+	private:
+	//----------
+
+		KThreadSafe<
+			KMultiMap<time_t, SharedJob>
+		> m_Jobs;  // the Job list, sorted by next execution time
+
+	}; // Kron::LocalScheduler
+
+	using SharedScheduler = std::shared_ptr<Scheduler>;
+
+	/// ctor, takes the number of threads that will run the Jobs (default none), and a Scheduler (defaults to a LocalScheduler)
+	Kron(std::size_t iThreads = 0,
+		 SharedScheduler Scheduler = std::make_shared<LocalScheduler>());
 	~Kron();
 
-	/// ctor, takes the number of threads that will run the Jobs
-	Kron(std::size_t iThreads)
-	{
-		Resize(iThreads);
-	}
-
-	/// set number of threads that will run the Jobs
+	/// set number of threads that will run the Jobs. If > 0 starts the Scheduler
 	bool Resize(std::size_t iThreads);
 
 	/// add a Job to list of jobs
-	bool Add(std::shared_ptr<Job>& job);
+	bool AddJob(const SharedJob& job);
 
 	/// parse a buffer as if it were a unix crontab, and generate jobs, and add them to the list of jobs
 	/// @param sCrontab the buffer with a unix crontab
 	/// @param bHasSeconds set to true if the crontab format includes also seconds as the first field.
 	/// Defaults to false
 	/// @return count of added jobs
-	std::size_t AddCrontab(KStringView sCrontab, bool bHasSeconds = false);
-
-	/// construct a new Job in place and add it to the list of jobs
-	template<typename... Args>
-	bool Embed(Args&&... args)
-	{
-		auto job = std::make_shared<Job>(std::forward<Args>(args)...);
-		return Add(job);
-	}
+	std::size_t AddJobsFromCrontab(KStringView sCrontab, bool bHasSeconds = false);
 
 	/// delete a Job from list of jobs (by its job ID)
-	bool Delete(Job::ID JobID);
+	bool DeleteJob(Job::ID JobID);
+
+	/// list all jobs
+	KJSON ListJobs() const;
 
 //----------
 protected:
 //----------
 
-	KThreadSafe<
-		std::multimap<time_t, std::shared_ptr<Job>>
-	>                             m_Jobs;            // the Job list, sorted by next execution time
+	void Launcher();
+
+	SharedScheduler               m_Scheduler;
 	KThreadPool                   m_Tasks;           // the task queue
 	std::unique_ptr<std::thread>  m_Chronos;         // the time keeper
 	std::mutex                    m_ResizeMutex;

@@ -121,6 +121,7 @@ KStringView Kron::Job::CutOffCommand(KStringView& sCronDef, uint16_t iElements)
 	{
 		sCommand = sCronDef.substr(iConsumedChars - 1);
 		sCronDef.erase(iConsumedChars - 2);
+		sCronDef.TrimRight();
 	}
 
 	return sCommand;
@@ -128,49 +129,117 @@ KStringView Kron::Job::CutOffCommand(KStringView& sCronDef, uint16_t iElements)
 } // CutOffCommand
 
 //-----------------------------------------------------------------------------
-Kron::Job::Job(KStringView sCronDef, bool bHasSeconds, uint16_t iMaxQueued)
+Kron::Job::Job(KString sName, KStringView sCronDef, bool bHasSeconds, uint16_t iMaxQueued)
 //-----------------------------------------------------------------------------
-: m_sCommand   (CutOffCommand(sCronDef, bHasSeconds ? 6 : 5)) // we need to split in cron expression and command right here
-, m_iJobID     (m_sCommand.Hash())
+: m_sName      (std::move(sName))
+, m_sCommand   (CutOffCommand(sCronDef, bHasSeconds ? 6 : 5)) // we need to split in cron expression and command right here
+, m_iJobID     (m_sName.Hash())
 , m_iMaxQueued (iMaxQueued)
 {
-	m_ParsedCron = KUniqueVoidPtr(new KCronParser::cronexpr(KCronParser::make_cron(sCronDef)),
-															CronParserDeleter);
+	kDebug(2, "constructing new crontab job: {}", Name());
+
+	m_ParsedCron = KUniqueVoidPtr(
+		new KCronParser::cronexpr(KCronParser::make_cron(sCronDef)),
+		CronParserDeleter
+	);
 
 } // ctor
 
 //-----------------------------------------------------------------------------
-Kron::Job::Job(std::time_t tOnce, KStringView sCommand)
+Kron::Job::Job(KString sName, std::time_t tOnce, KStringView sCommand)
 //-----------------------------------------------------------------------------
-: m_sCommand   (sCommand)
-, m_iJobID     (sCommand.Hash())
+: m_sName      (std::move(sName))
+, m_sCommand   (sCommand)
+, m_iJobID     (m_sName.Hash())
 , m_iMaxQueued (1)
 , m_tOnce      (tOnce)
 {
+	kDebug(2, "constructing new single execution job: {}", Name());
+
 } // ctor
+
+//-----------------------------------------------------------------------------
+Kron::Job::Job(const KJSON& jConfig)
+//-----------------------------------------------------------------------------
+{
+	m_sName        = kjson::GetStringRef (jConfig, "Name"        );
+	m_sCommand     = kjson::GetStringRef (jConfig, "Command"     );
+	m_iMaxQueued   = kjson::GetUInt      (jConfig, "MaxInQueue"  );
+	m_tOnce        = kjson::GetInt       (jConfig, "tOnce"       );
+	KString sDef   = kjson::GetStringRef (jConfig, "Definition"  );
+	auto jEnviron  = kjson::GetArray     (jConfig, "Environment" );
+
+	kDebug(2, "constructing new job from json: {}", Name());
+
+	for (const auto& env : jEnviron)
+	{
+		const auto& sName  = kjson::GetStringRef(env, "name" );
+		const auto& sValue = kjson::GetStringRef(env, "value");
+
+		if (!sName.empty() && !sValue.empty())
+		{
+			m_Environment.push_back( { sName, sValue } );
+		}
+	}
+
+	if (m_iMaxQueued == 0)
+	{
+		m_iMaxQueued = 1;
+	}
+
+	if (m_tOnce == 0)
+	{
+		m_tOnce = INVALID_TIME;
+	}
+
+	sDef.Trim();
+
+	if (!sDef.empty())
+	{
+		m_ParsedCron = KUniqueVoidPtr(
+			new KCronParser::cronexpr(KCronParser::make_cron(sDef)),
+			CronParserDeleter
+		);
+	}
+
+	m_iJobID = m_sName.Hash();
+
+	auto iJobID = kjson::GetStringRef(jConfig, "ID").UInt64();
+
+	if (iJobID && iJobID != m_iJobID)
+	{
+		kDebug(1, "job '{}': using ID from json ({}) instead of calculated one ({})",
+			   m_sName, iJobID, m_iJobID);
+
+		m_iJobID = iJobID;
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+// virtual dtor, we want to be able to extend the data in inheriting classes
+Kron::Job::~Job() {}
+//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 std::time_t Kron::Job::Next(std::time_t tAfter) const
 //-----------------------------------------------------------------------------
 {
+	if (!m_ParsedCron)
+	{
+		kDebug(2, "single execution time for job '{}': {}", Name(), kFormTimestamp(m_tOnce));
+		return m_tOnce;
+	}
+
 	if (tAfter == 0)
 	{
 		tAfter = Dekaf::getInstance().GetCurrentTime();
 	}
 
-	if (!m_ParsedCron)
-	{
-		if (m_tOnce < tAfter)
-		{
-			return INVALID_TIME;
-		}
-		else
-		{
-			return m_tOnce;
-		}
-	}
+	std::time_t tNext = KCronParser::cron_next(*cxget(m_ParsedCron), tAfter);
+	kDebug(2, "next execution time for job '{}': {}", Name(), kFormTimestamp(tNext));
 
-	return KCronParser::cron_next(*cxget(m_ParsedCron), tAfter);
+	return tNext;
 
 } // Next
 
@@ -180,17 +249,14 @@ KUTCTime Kron::Job::Next(const KUTCTime& tAfter) const
 {
 	if (!m_ParsedCron)
 	{
-		if (m_tOnce < tAfter.ToTimeT())
-		{
-			return KUTCTime();
-		}
-		else
-		{
-			return KUTCTime(m_tOnce);
-		}
+		kDebug(2, "single execution time for job '{}': {}", Name(), kFormTimestamp(m_tOnce));
+		return KUTCTime(m_tOnce);
 	}
 
-	return KCronParser::cron_next(*cxget(m_ParsedCron), tAfter.ToTM());
+	KUTCTime UTC = KCronParser::cron_next(*cxget(m_ParsedCron), tAfter.ToTM());
+	kDebug(2, "next execution time for job '{}': {}", Name(), UTC.Format());
+
+	return UTC;
 
 } // Next
 
@@ -206,8 +272,8 @@ bool Kron::Job::IncQueued()
 		{
 			--m_iIsQueued;
 
-			kDebug(1, "{} job(s) still waiting in queue or running, skipped: {}",
-				   m_iMaxQueued, Command());
+			kDebug(1, "{} job(s) still waiting in queue or running, skipped '{}'",
+				   m_iMaxQueued, Name());
 
 			return false;
 		}
@@ -238,27 +304,32 @@ int Kron::Job::Execute()
 	if (m_iIsRunning > m_iMaxQueued)
 	{
 		--m_iIsRunning;
-		kDebug(1, "new execution skipped, still running: {}", Command());
+		kDebug(1, "new execution skipped, still running {} instance(s) of '{}'", m_iIsRunning, Name());
 		return -1;
 	}
 
+	kDebug(1, "now starting job '{}'", Name());
 	auto tNow = Dekaf::getInstance().GetCurrentTime();
 
 	m_Control.tLastStarted = tNow;
 	++m_Control.iStartCount;
-
-	// unlock during execution
-	Lock.unlock();
+	m_Control.Duration.Start();
 
 	// and execute including the environment
 	KInShell Shell(Command(), "/bin/sh", m_Environment);
+
+#ifdef DEKAF2_IS_UNIX
+	// record the process ID, but not on Windows, as there we use popen and not fork ..
+	m_Control.ProcessID = Shell.GetProcessID();
+#endif
+
+	// unlock during execution
+	Lock.unlock();
 
 	KString sOutput;
 
 	// read until EOF
 	Shell.ReadRemaining(sOutput);
-
-	// do something with the output..
 
 	// close the shell and report the return value to the caller
 	int iResult = Shell.Close();
@@ -266,7 +337,14 @@ int Kron::Job::Execute()
 	// protect again
 	Lock.lock();
 
+	m_Control.Duration.Stop();
+	m_Control.ProcessID    = 0;
+	m_Control.sLastResult  = std::move(sOutput);
+	m_Control.iLastResult  = iResult;
 	m_Control.tLastStopped = Dekaf::getInstance().GetCurrentTime();
+
+	kDebug(1, "job '{}' finished with status {}, took {}",
+		   Name(), iResult, kTranslateSeconds(m_Control.Duration.seconds()));
 
 	--m_iIsRunning;
 
@@ -275,12 +353,201 @@ int Kron::Job::Execute()
 } // Execute
 
 //-----------------------------------------------------------------------------
+bool Kron::Job::Kill()
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_UNIX
+	std::unique_lock<std::mutex> Lock(m_ExecMutex);
+
+	if (m_Control.ProcessID > 0)
+	{
+		auto iFailed = kill(m_Control.ProcessID, SIGKILL);
+
+		// ESRCH == no process found, that means the process was killed in between
+		if (iFailed && iFailed != ESRCH)
+		{
+			kDebug(1, "cannot kill job '{}': {}", Name(), strerror(errno));
+			return false;
+		}
+	}
+	return true;
+#else
+	return false;
+#endif
+
+} // Kill
+
+//-----------------------------------------------------------------------------
 struct Kron::Job::Control Kron::Job::Control() const
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_ExecMutex);
 
 	return m_Control;
+}
+
+//-----------------------------------------------------------------------------
+KJSON Kron::Job::Print(std::size_t iMaxResultSize) const
+//-----------------------------------------------------------------------------
+{
+	KJSON jEnv;
+	jEnv = KJSON::array();
+
+	for (const auto& env : m_Environment)
+	{
+		jEnv.push_back(
+		{
+			{ "name"  , env.first  },
+			{ "value" , env.second }
+		});
+	}
+
+	std::lock_guard<std::mutex> Lock(m_ExecMutex);
+
+	return KJSON
+	{
+		{ "Name"        , m_sName                                               },
+		{ "Command"     , m_sCommand                                            },
+		{ "ID"          , KString::to_string(m_iJobID)                          },
+		{ "MaxInQueue"  , m_iMaxQueued                                          },
+		{ "IsRunning"   , IsRunning()                                           },
+		{ "IsQueued"    , IsQueued()                                            },
+		{ "tOnce"       , m_tOnce                                               },
+		{ "LastStarted" , m_Control.tLastStarted                                },
+		{ "LastStopped" , m_Control.tLastStopped                                },
+		{ "Starts"      , m_Control.iStartCount                                 },
+		{ "Definition"  , m_ParsedCron ? cxget(m_ParsedCron)->to_cronstr() : "" },
+		{ "Environment" , std::move(jEnv)                                       },
+		{ "Duration"    , m_Control.Duration.milliseconds()                     },
+		{ "Result"      , m_Control.sLastResult.Left(iMaxResultSize)            },
+		{ "ResultCode"  , m_Control.iLastResult                                 }
+	};
+
+} // Print
+
+// the empty base class methods for the Scheduler
+      Kron::Scheduler::~Scheduler  () /* need a virtual dtor */              {                 }
+bool  Kron::Scheduler::AddJob      (const SharedJob& Job)                    { return false;   }
+bool  Kron::Scheduler::DeleteJob   (Job::ID JobID)                           { return false;   }
+KJSON Kron::Scheduler::ListJobs    () const                                  { return KJSON{}; }
+bool  Kron::Scheduler::UpdateJob   (KStringView sCronKey, const KJSON& jJob) { return false;   }
+void  Kron::Scheduler::JobFinished (const SharedJob& Job)                    {                 }
+
+//-----------------------------------------------------------------------------
+bool Kron::LocalScheduler::AddJob(const std::shared_ptr<Job>& job)
+//-----------------------------------------------------------------------------
+{
+	auto tNow   = Dekaf::getInstance().GetCurrentTime();
+	auto tNext  = job->Next(tNow);
+	auto JobID  = job->JobID();
+
+	// get a unique lock
+	auto Jobs = m_Jobs.unique();
+
+	// check for job ID
+	for (const auto& it : *Jobs)
+	{
+		if (JobID == it.second.get()->JobID())
+		{
+			kDebug(1, "job '()' is already part of the job list", job->Name());
+			return false;
+		}
+	}
+
+	Jobs->insert( { tNext, job } );
+	kDebug(1, "added '{}': '{}'\nnext execution: {}",
+		   job->Name(), job->Command(), kFormTimestamp(tNext));
+
+	return true;
+
+} // LocalScheduler::AddJob
+
+//-----------------------------------------------------------------------------
+bool Kron::LocalScheduler::DeleteJob(Job::ID JobID)
+//-----------------------------------------------------------------------------
+{
+	// get a unique lock
+	auto Jobs = m_Jobs.unique();
+
+	// check for job ID
+	for (auto it = Jobs->begin(); it != Jobs->end(); ++it)
+	{
+		if (JobID == it->second.get()->JobID())
+		{
+			kDebug(2, "deleting job '{}' with ID {}", it->second->Name(), JobID);
+
+			Jobs->erase(it);
+
+			return true;
+		}
+	}
+
+	kDebug(2, "JobID not found: {}", JobID);
+
+	return false;
+
+} // LocalScheduler::DeleteJob
+
+//-----------------------------------------------------------------------------
+Kron::SharedJob Kron::LocalScheduler::GetJob(std::time_t tNow)
+//-----------------------------------------------------------------------------
+{
+	auto Jobs = m_Jobs.unique();
+
+	if (Jobs->empty())
+	{
+		return nullptr;
+	}
+
+	// the job map is sorted by next execution time
+	if (Jobs->begin()->first > tNow)
+	{
+		// a job in the future - abort pulling jobs here
+		return nullptr;
+	}
+
+	auto job = Jobs->begin()->second;
+
+	// we will remove the job, and insert it with the next execution time again
+	Jobs->erase(Jobs->begin());
+
+	auto tNext = job->Next(tNow);
+
+	if (tNext != INVALID_TIME && tNext > tNow)
+	{
+		Jobs->insert( { tNext, job } );
+	}
+
+	return job;
+
+} // LocalScheduler::GetJob
+
+//-----------------------------------------------------------------------------
+KJSON Kron::LocalScheduler::ListJobs() const
+//-----------------------------------------------------------------------------
+{
+	KJSON jobs;
+	jobs = KJSON::array();
+
+	auto Jobs = m_Jobs.shared();
+
+	for (const auto& job : *Jobs)
+	{
+		jobs.push_back(job.second->Print());
+		jobs.back()["tNext"] = job.first;
+	}
+
+	return jobs;
+
+} // ListJobs
+
+//-----------------------------------------------------------------------------
+Kron::Kron(std::size_t iThreads,
+		   SharedScheduler Scheduler)
+//-----------------------------------------------------------------------------
+: m_Scheduler(Scheduler)
+{
+	Resize(iThreads);
 }
 
 //-----------------------------------------------------------------------------
@@ -305,9 +572,61 @@ Kron::~Kron()
 } // dtor
 
 //-----------------------------------------------------------------------------
+void Kron::Launcher()
+//-----------------------------------------------------------------------------
+{
+	if (!m_Scheduler)
+	{
+		kDebug(1, "no scheduler");
+		return;
+	}
+
+	auto tSleepUntil = Dekaf::getInstance().GetCurrentTimepoint();
+
+	for(;m_bStop == false;)
+	{
+		tSleepUntil += std::chrono::seconds(1);
+		std::this_thread::sleep_until(tSleepUntil);
+
+		auto tNow = Dekaf::getInstance().GetCurrentTime();
+
+		for (;;)
+		{
+			auto job = m_Scheduler->GetJob(tNow);
+
+			if (!job)
+			{
+				// no more jobs right now
+				break;
+			}
+
+			// make sure we have not more than the max allowed count of Jobs
+			// like this in the queue
+			if (job->IncQueued())
+			{
+				// queue task (use value copy of the shared ptr)
+				m_Tasks.push([this, job]() mutable
+				{
+					job->Execute();
+					job->DecQueued();
+					m_Scheduler->JobFinished(job);
+				});
+			}
+		}
+	}
+
+} // Launcher
+
+//-----------------------------------------------------------------------------
 bool Kron::Resize(std::size_t iThreads)
 //-----------------------------------------------------------------------------
 {
+	if (!m_Scheduler)
+	{
+		kDebug(1, "no scheduler");
+		return false;
+	}
+
 	std::lock_guard<std::mutex> Lock(m_ResizeMutex);
 
 	if (iThreads == m_Tasks.size())
@@ -318,6 +637,16 @@ bool Kron::Resize(std::size_t iThreads)
 
 	kDebug(2, "resizing threads in task pool to: {}", iThreads);
 
+	if (iThreads == 0 && m_Chronos)
+	{
+		// tell the thread to stop
+		m_bStop = true;
+
+		// and block until it is home (could take a second)
+		m_Chronos->join();
+		m_Chronos.reset();
+	}
+
 	auto bResult = m_Tasks.resize(iThreads);
 
 	if (iThreads > 0 && !m_Chronos)
@@ -325,60 +654,7 @@ bool Kron::Resize(std::size_t iThreads)
 		m_bStop = false;
 
 		// start the time keeper
-		m_Chronos = std::make_unique<std::thread>([this]()
-		{
-			// this is the main timer loop
-			for(;m_bStop == false;)
-			{
-				kSleep(1); // one second
-
-				time_t tNow = Dekaf::getInstance().GetCurrentTime();
-
-				auto Jobs = m_Jobs.unique();
-
-				while (!Jobs->empty())
-				{
-					// the job map is sorted by next execution time
-					if (Jobs->begin()->first > tNow)
-					{
-						// a job in the future - abort pulling jobs here
-						break;
-					}
-
-					auto job = Jobs->begin()->second;
-
-					// we will remove the job, and insert it with the next execution time again
-					Jobs->erase(Jobs->begin());
-
-					auto tNext = job->Next(tNow);
-
-					if (tNext != INVALID_TIME && tNext > tNow)
-					{
-						Jobs->insert( { tNext, job } );
-					}
-
-					// make sure we have not more than the max allowed count of Jobs
-					// like this in the queue
-					if (job->IncQueued())
-					{
-						// start task (use value copy of the shared ptr)
-						m_Tasks.push([job]()
-						{
-							job->Execute();
-							job->DecQueued();
-						});
-					}
-				}
-			}
-		});
-	}
-	else if (iThreads == 0 && m_Chronos)
-	{
-		// tell the thread to stop
-		m_bStop = true;
-		// and block until it is home (could take a second)
-		m_Chronos->join();
-		m_Chronos.reset();
+		m_Chronos = std::make_unique<std::thread>(&Kron::Launcher, this);
 	}
 
 	return bResult;
@@ -386,61 +662,49 @@ bool Kron::Resize(std::size_t iThreads)
 } // Resize
 
 //-----------------------------------------------------------------------------
-bool Kron::Add(std::shared_ptr<Job>& job)
+bool Kron::AddJob(const std::shared_ptr<Job>& job)
 //-----------------------------------------------------------------------------
 {
-	auto tNow   = Dekaf::getInstance().GetCurrentTime();
-	auto tNext  = job->Next(tNow);
-	auto JobID  = job->GetJobID();
-
-	// get a unique lock
-	auto Jobs = m_Jobs.unique();
-
-	// check for job ID, and for good insertion point
-	for (auto it = Jobs->begin(); it != Jobs->end(); ++it)
+	if (!m_Scheduler)
 	{
-		if (JobID == it->second.get()->GetJobID())
-		{
-			kDebug(1, "job is already part of the job list: {}", job->Command());
-			return false;
-		}
+		kDebug(1, "no scheduler");
+		return false;
 	}
 
-	Jobs->insert( { tNext, job } );
-	kDebug(1, "added: {}\nnext execution: {}", job->Command(), kFormTimestamp(tNext));
-
-	return true;
+	return m_Scheduler->AddJob(job);
 
 } // Add
 
 //-----------------------------------------------------------------------------
-bool Kron::Delete(Job::ID JobID)
+bool Kron::DeleteJob(Job::ID JobID)
 //-----------------------------------------------------------------------------
 {
-	// get a unique lock
-	auto Jobs = m_Jobs.unique();
-
-	// check for job ID
-	for (auto it = Jobs->begin(); it != Jobs->end(); ++it)
+	if (!m_Scheduler)
 	{
-		if (JobID == it->second.get()->GetJobID())
-		{
-			kDebug(2, "deleting JobID: {}", JobID);
-
-			Jobs->erase(it);
-
-			return true;
-		}
+		kDebug(1, "no scheduler");
+		return false;
 	}
 
-	kDebug(2, "JobID not found: {}", JobID);
-
-	return false;
+	return m_Scheduler->DeleteJob(JobID);
 
 } // Delete
 
 //-----------------------------------------------------------------------------
-std::size_t Kron::AddCrontab(KStringView sCrontab, bool bHasSeconds)
+KJSON Kron::ListJobs() const
+//-----------------------------------------------------------------------------
+{
+	if (!m_Scheduler)
+	{
+		kDebug(1, "no scheduler");
+		return KJSON{};
+	}
+
+	return m_Scheduler->ListJobs();
+
+} // ListJobs
+
+//-----------------------------------------------------------------------------
+std::size_t Kron::AddJobsFromCrontab(KStringView sCrontab, bool bHasSeconds)
 //-----------------------------------------------------------------------------
 {
 	std::size_t iCount { 0 };
@@ -458,11 +722,11 @@ std::size_t Kron::AddCrontab(KStringView sCrontab, bool bHasSeconds)
 
 		try
 		{
-			auto job = std::make_shared<Job>(sLine, bHasSeconds);
+			auto job = Kron::Job::Create(kFormat("crontab-{}", iCount + 1), sLine, bHasSeconds, 1);
 			// copy the environment into the job
 			job->SetEnvironment(Environment);
 			// and try to add the job to the scheduler
-			if (Add(job))
+			if (AddJob(job))
 			{
 				++iCount;
 			}
@@ -487,6 +751,6 @@ std::size_t Kron::AddCrontab(KStringView sCrontab, bool bHasSeconds)
 
 	return iCount;
 
-} // AddCrontab
+} // AddJobsFromCrontab
 
 } // end of namespace dekaf2

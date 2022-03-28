@@ -26,7 +26,6 @@ set (USOURCES
 	kcookie_tests.cpp
 	kcountingstreambuf_tests.cpp
 	kcrc_tests.cpp
-	kcron_tests.cpp
 	kcsv_tests.cpp
 	kdiff_tests.cpp
 	kencode_tests.cpp
@@ -68,6 +67,7 @@ set (USOURCES
 	krest_tests.cpp
 	krestclient_tests.cpp
 	krestserver_tests.cpp
+	kron_tests.cpp
 	krow_tests.cpp
 	ksharedptr_tests.cpp
 	ksharedref_tests.cpp

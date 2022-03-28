@@ -469,13 +469,14 @@ TEST_CASE("KRON")
 
 	SECTION("KRON::JOB")
 	{
-		Kron::Job Job("* 0/5 * * * ? \t fstrim -a >/dev/null 2>&1  ");
-		CHECK ( Job.Command() == "fstrim -a >/dev/null 2>&1" );
-		auto next = Job.Next(1647620612);
+		auto Job = Kron::Job::Create("testjob", "* 0/5 * * * ? \t fstrim -a >/dev/null 2>&1  ", true, 1);
+		CHECK ( Job->Name()    == "testjob"                    );
+		CHECK ( Job->Command() == "fstrim -a >/dev/null 2>&1"  );
+		auto next = Job->Next(1647620612);
 		CHECK ( kFormTimestamp(next) == "2022-03-18 16:25:00" );
 
 		KUTCTime Now("2022-03-18 16:24:45");
-		auto Next = Job.Next(Now);
+		auto Next = Job->Next(Now);
 		CHECK ( Next.Format() == kFormTimestamp(next) );
 	}
 
@@ -484,7 +485,7 @@ TEST_CASE("KRON")
 		Kron Scheduler(4);
 		time_t tNow = Dekaf::getInstance().GetCurrentTime();
 		KString sFilename = kFormat("{}{}test.txt", TempDir.Name(), kDirSep);
-		Scheduler.Embed(tNow-1, kFormat("echo hello world > {}", sFilename));
+		Scheduler.AddJob(Kron::Job::Create("JobName", tNow-1, kFormat("echo hello world > {}", sFilename)));
 		KString sContent;
 		for (int i = 0; i < 20; ++i)
 		{
@@ -540,10 +541,108 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 12 4 * * 2 /root/prepare/prepare_image.sh --update >/dev/null 2>&1
 
 )"};
+
+		static constexpr KStringView sExpected =
+R"([
+	{
+		"Command": "fstrim -a >/dev/null 2>&1",
+		"Definition": "2  4 * * 2",
+		"Duration": 0,
+		"Environment": [
+			{
+				"name": "SHELL",
+				"value": "/bin/bash"
+			},
+			{
+				"name": "PATH",
+				"value": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+			}
+		],
+		"ID": "10371372858990154658",
+		"IsQueued": false,
+		"IsRunning": false,
+		"LastStarted": -1,
+		"LastStopped": -1,
+		"MaxInQueue": 1,
+		"Name": "crontab-1",
+		"Result": "",
+		"ResultCode": 0,
+		"Starts": 0,
+		"tNext": 9999,
+		"tOnce": -1
+	},
+	{
+		"Command": "/root/prepare/prepare_image.sh --update >/dev/null 2>&1",
+		"Definition": "12 4 * * 2",
+		"Duration": 0,
+		"Environment": [
+			{
+				"name": "SHELL",
+				"value": "/bin/bash"
+			},
+			{
+				"name": "PATH",
+				"value": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+			}
+		],
+		"ID": "10371371759478526447",
+		"IsQueued": false,
+		"IsRunning": false,
+		"LastStarted": -1,
+		"LastStopped": -1,
+		"MaxInQueue": 1,
+		"Name": "crontab-2",
+		"Result": "",
+		"ResultCode": 0,
+		"Starts": 0,
+		"tNext": 9999,
+		"tOnce": -1
+	}
+])";
 		Kron Scheduler;
-		auto iSize = Scheduler.AddCrontab(sCrontab);
+		auto iSize = Scheduler.AddJobsFromCrontab(sCrontab);
 		CHECK ( iSize == 2);
+		auto Jobs = Scheduler.ListJobs();
+		for (auto& it : Jobs)
+		{
+			it["tNext"] = 9999;
+		}
+		CHECK ( Jobs.dump(1, '\t') == sExpected );
+	}
+
+	SECTION("KRON 3")
+	{
+		static constexpr KStringView sJSON =
+R"({
+	"Command": "fstrim -a >/dev/null 2>&1",
+	"Definition": "2 4 * * 2",
+	"Duration": 0,
+	"Environment": [
+		{
+			"name": "SHELL",
+			"value": "/bin/bash"
+		},
+		{
+			"name": "PATH",
+			"value": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+		}
+	],
+	"ID": "13660389840222351214",
+	"IsQueued": false,
+	"IsRunning": false,
+	"LastStarted": -1,
+	"LastStopped": -1,
+	"MaxInQueue": 1,
+	"Name": "crontab",
+	"Result": "",
+	"ResultCode": 0,
+	"Starts": 0,
+	"tOnce": -1
+})";
+
+		auto jDef = kjson::Parse(sJSON);
+		auto job  = Kron::Job::Create(jDef);
+		auto jPrinted = job->Print();
+		CHECK ( jPrinted.dump(1, '\t') == sJSON );
 	}
 }
-
-

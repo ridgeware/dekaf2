@@ -211,7 +211,11 @@ public:
 
 		//-----------------------------------------------------------------------------
 		/// move assignment
+#if defined(DEKAF2_HAS_FULL_CPP_17) && (!defined(DEKAF2_IS_CLANG) || DEKAF2_CLANG_VERSION >= 90000)
 		self_type& operator=(self_type&& other) noexcept = default;
+#else
+		self_type& operator=(self_type&& other) = default;
+#endif
 		//-----------------------------------------------------------------------------
 
 		//-----------------------------------------------------------------------------

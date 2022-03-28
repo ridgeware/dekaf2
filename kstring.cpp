@@ -297,7 +297,9 @@ KString::iterator KString::insert(iterator it, std::initializer_list<value_type>
 		return end();
 	}
 
-#if !defined(DEKAF2_USE_FBSTRING_AS_KSTRING) && DEKAF2_IS_GCC && DEKAF2_GCC_VERSION < 90000
+#if !defined(DEKAF2_USE_FBSTRING_AS_KSTRING) && \
+	((DEKAF2_IS_GCC && DEKAF2_GCC_VERSION < 90000) || \
+	(DEKAF2_IS_CLANG && DEKAF2_CLANG_VERSION < 90000))
 	// older versions of libstdc++ do not return an iterator, but void
 	// see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83328
 	//

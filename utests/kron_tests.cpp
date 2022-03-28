@@ -482,10 +482,10 @@ TEST_CASE("KRON")
 
 	SECTION("KRON 1")
 	{
-		Kron Scheduler(4);
+		Kron Cron(4);
 		time_t tNow = Dekaf::getInstance().GetCurrentTime();
 		KString sFilename = kFormat("{}{}test.txt", TempDir.Name(), kDirSep);
-		Scheduler.AddJob(Kron::Job::Create("JobName", tNow-1, kFormat("echo hello world > {}", sFilename)));
+		Cron.Scheduler().AddJob(Kron::Job::Create("JobName", tNow-1, kFormat("echo hello world > {}", sFilename)));
 		KString sContent;
 		for (int i = 0; i < 20; ++i)
 		{
@@ -599,10 +599,10 @@ R"([
 		"tOnce": -1
 	}
 ])";
-		Kron Scheduler;
-		auto iSize = Scheduler.AddJobsFromCrontab(sCrontab);
+		Kron Cron;
+		auto iSize = Cron.Scheduler().AddJobsFromCrontab(sCrontab);
 		CHECK ( iSize == 2);
-		auto Jobs = Scheduler.ListJobs();
+		auto Jobs = Cron.Scheduler().ListJobs();
 		for (auto& it : Jobs)
 		{
 			it["tNext"] = 9999;

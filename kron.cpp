@@ -47,6 +47,7 @@
 #include "kinshell.h"
 #include "klog.h"
 #include "dekaf2.h"
+#include "kexception.h"
 #include "bits/kron_utils.h"
 #include "croncpp.h"
 
@@ -171,14 +172,17 @@ Kron::Job::Job(const KJSON& jConfig)
 
 	kDebug(2, "constructing new job from json: {}", Name());
 
-	for (const auto& env : jEnviron)
+	if (jEnviron.is_array() && !jEnviron.empty())
 	{
-		const auto& sName  = kjson::GetStringRef(env, "name" );
-		const auto& sValue = kjson::GetStringRef(env, "value");
-
-		if (!sName.empty() && !sValue.empty())
+		for (const auto& env : jEnviron)
 		{
-			m_Environment.push_back( { sName, sValue } );
+			const auto& sName  = kjson::GetStringRef(env, "name" );
+			const auto& sValue = kjson::GetStringRef(env, "value");
+
+			if (!sName.empty() && !sValue.empty())
+			{
+				m_Environment.push_back( { sName, sValue } );
+			}
 		}
 	}
 
@@ -426,12 +430,71 @@ KJSON Kron::Job::Print(std::size_t iMaxResultSize) const
 } // Print
 
 // the empty base class methods for the Scheduler
-      Kron::Scheduler::~Scheduler  () /* need a virtual dtor */              {                 }
-bool  Kron::Scheduler::AddJob      (const SharedJob& Job)                    { return false;   }
-bool  Kron::Scheduler::DeleteJob   (Job::ID JobID)                           { return false;   }
-KJSON Kron::Scheduler::ListJobs    () const                                  { return KJSON{}; }
-bool  Kron::Scheduler::UpdateJob   (KStringView sCronKey, const KJSON& jJob) { return false;   }
-void  Kron::Scheduler::JobFinished (const SharedJob& Job)                    {                 }
+                Kron::Scheduler::~Scheduler  () /* need a virtual dtor */              {                 }
+bool            Kron::Scheduler::AddJob      (const SharedJob& Job)                    { return false;   }
+bool            Kron::Scheduler::DeleteJob   (Job::ID JobID)                           { return false;   }
+KJSON           Kron::Scheduler::ListJobs    ()                                  const { return KJSON{}; }
+std::size_t     Kron::Scheduler::size        ()                                  const { return 0;       }
+bool            Kron::Scheduler::empty       ()                                  const { return !size(); }
+Kron::SharedJob Kron::Scheduler::GetJob      (std::time_t tNow)                        { return nullptr; }
+void            Kron::Scheduler::JobFinished (const SharedJob& Job)                    {                 }
+
+//-----------------------------------------------------------------------------
+bool  Kron::Scheduler::ModifyJob   (const SharedJob& Job)
+//-----------------------------------------------------------------------------
+{
+	return DeleteJob(Job->JobID()) && AddJob(Job);
+}
+
+//-----------------------------------------------------------------------------
+std::size_t Kron::Scheduler::AddJobsFromCrontab(KStringView sCrontab, bool bHasSeconds)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iCount { 0 };
+	std::vector<std::pair<KString, KString>> Environment;
+
+	for (auto sLine : sCrontab.Split("\n"))
+	{
+		sLine.erase(sLine.find('#'));
+		sLine.Trim();
+
+		if (sLine.empty())
+		{
+			continue;
+		}
+
+		try
+		{
+			auto job = Kron::Job::Create(kFormat("crontab-{}", iCount + 1), sLine, bHasSeconds, 1);
+			// copy the environment into the job
+			job->SetEnvironment(Environment);
+			// and try to add the job to the scheduler
+			if (AddJob(job))
+			{
+				++iCount;
+			}
+		}
+		catch (const std::exception& ex)
+		{
+			// this was not a crontab line. Maybe it's an env variable?
+			auto Pair = kSplitToPair(sLine, "=");
+
+			if (!Pair.first.empty() && !Pair.second.empty())
+			{
+				// looks like..
+				kDebug(2, "adding env var: {}={}", Pair.first, Pair.second);
+				Environment.push_back( { Pair.first, Pair.second } );
+			}
+			else
+			{
+				kDebug(1, "junk line: {}", sLine);
+			}
+		}
+	}
+
+	return iCount;
+
+} // AddJobsFromCrontab
 
 //-----------------------------------------------------------------------------
 bool Kron::LocalScheduler::AddJob(const std::shared_ptr<Job>& job)
@@ -542,11 +605,30 @@ KJSON Kron::LocalScheduler::ListJobs() const
 } // ListJobs
 
 //-----------------------------------------------------------------------------
+std::size_t Kron::LocalScheduler::size() const
+//-----------------------------------------------------------------------------
+{
+	return m_Jobs.shared()->size();
+
+}
+
+//-----------------------------------------------------------------------------
+bool Kron::LocalScheduler::empty() const
+//-----------------------------------------------------------------------------
+{
+	return m_Jobs.shared()->empty();
+}
+
+//-----------------------------------------------------------------------------
 Kron::Kron(std::size_t iThreads,
 		   SharedScheduler Scheduler)
 //-----------------------------------------------------------------------------
 : m_Scheduler(Scheduler)
 {
+	if (!m_Scheduler)
+	{
+		throw KException("cannot construct a Kron without scheduler");
+	}
 	Resize(iThreads);
 }
 
@@ -575,12 +657,6 @@ Kron::~Kron()
 void Kron::Launcher()
 //-----------------------------------------------------------------------------
 {
-	if (!m_Scheduler)
-	{
-		kDebug(1, "no scheduler");
-		return;
-	}
-
 	auto tSleepUntil = Dekaf::getInstance().GetCurrentTimepoint();
 
 	for(;m_bStop == false;)
@@ -621,12 +697,6 @@ void Kron::Launcher()
 bool Kron::Resize(std::size_t iThreads)
 //-----------------------------------------------------------------------------
 {
-	if (!m_Scheduler)
-	{
-		kDebug(1, "no scheduler");
-		return false;
-	}
-
 	std::lock_guard<std::mutex> Lock(m_ResizeMutex);
 
 	if (iThreads == m_Tasks.size())
@@ -660,97 +730,5 @@ bool Kron::Resize(std::size_t iThreads)
 	return bResult;
 
 } // Resize
-
-//-----------------------------------------------------------------------------
-bool Kron::AddJob(const std::shared_ptr<Job>& job)
-//-----------------------------------------------------------------------------
-{
-	if (!m_Scheduler)
-	{
-		kDebug(1, "no scheduler");
-		return false;
-	}
-
-	return m_Scheduler->AddJob(job);
-
-} // Add
-
-//-----------------------------------------------------------------------------
-bool Kron::DeleteJob(Job::ID JobID)
-//-----------------------------------------------------------------------------
-{
-	if (!m_Scheduler)
-	{
-		kDebug(1, "no scheduler");
-		return false;
-	}
-
-	return m_Scheduler->DeleteJob(JobID);
-
-} // Delete
-
-//-----------------------------------------------------------------------------
-KJSON Kron::ListJobs() const
-//-----------------------------------------------------------------------------
-{
-	if (!m_Scheduler)
-	{
-		kDebug(1, "no scheduler");
-		return KJSON{};
-	}
-
-	return m_Scheduler->ListJobs();
-
-} // ListJobs
-
-//-----------------------------------------------------------------------------
-std::size_t Kron::AddJobsFromCrontab(KStringView sCrontab, bool bHasSeconds)
-//-----------------------------------------------------------------------------
-{
-	std::size_t iCount { 0 };
-	std::vector<std::pair<KString, KString>> Environment;
-
-	for (auto sLine : sCrontab.Split("\n"))
-	{
-		sLine.erase(sLine.find('#'));
-		sLine.Trim();
-
-		if (sLine.empty())
-		{
-			continue;
-		}
-
-		try
-		{
-			auto job = Kron::Job::Create(kFormat("crontab-{}", iCount + 1), sLine, bHasSeconds, 1);
-			// copy the environment into the job
-			job->SetEnvironment(Environment);
-			// and try to add the job to the scheduler
-			if (AddJob(job))
-			{
-				++iCount;
-			}
-		}
-		catch (const std::exception& ex)
-		{
-			// this was not a crontab line. Maybe it's an env variable?
-			auto Pair = kSplitToPair(sLine, "=");
-
-			if (!Pair.first.empty() && !Pair.second.empty())
-			{
-				// looks like..
-				kDebug(2, "adding env var: {}={}", Pair.first, Pair.second);
-				Environment.push_back( { Pair.first, Pair.second } );
-			}
-			else
-			{
-				kDebug(1, "junk line: {}", sLine);
-			}
-		}
-	}
-
-	return iCount;
-
-} // AddJobsFromCrontab
 
 } // end of namespace dekaf2

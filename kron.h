@@ -190,7 +190,7 @@ public:
 	}; // Kron::Job
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// Scheduler ABC
+	/// Scheduler base class
 	class DEKAF2_PUBLIC Scheduler
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -201,19 +201,36 @@ public:
 
 		virtual ~Scheduler();
 
-		/// add a Job to list of jobs
+		/// add a Job to list of jobs - will fail if job (identified by its name) already exists
 		virtual bool AddJob(const SharedJob& Job);
 		/// delete a Job from list of jobs (by its job ID)
 		virtual bool DeleteJob(Job::ID JobID);
+		/// modify a Job - in the base class implemented as delete + add
+		virtual bool ModifyJob(const SharedJob& Job);
 		/// list all jobs
 		virtual KJSON ListJobs() const;
-		/// modify or add a Job
-		virtual bool UpdateJob(KStringView sCronKey, const KJSON& jJob);
+		/// return number of jobs
+		virtual std::size_t size() const;
+		/// any jobs?
+		virtual bool empty() const;
+		/// parse a buffer as if it were a unix crontab, and generate jobs, and add them to the list of jobs
+		/// @param sCrontab the buffer with a unix crontab
+		/// @param bHasSeconds set to true if the crontab format includes also seconds as the first field.
+		/// Defaults to false
+		/// @return count of added jobs
+		virtual std::size_t AddJobsFromCrontab(KStringView sCrontab, bool bHasSeconds = false);
+
+	//----------
+	protected:
+	//----------
+
+		friend class Kron;
 
 		/// get next Job to execute, can return with nullptr
-		virtual SharedJob GetJob(std::time_t tNow) = 0;
+		virtual SharedJob GetJob(std::time_t tNow);
 		/// a Job has been run and is returned to the scheduler
 		virtual void JobFinished(const SharedJob& Job);
+
 
 	}; // Kron::Scheduler
 
@@ -233,6 +250,14 @@ public:
 		virtual bool DeleteJob(Job::ID JobID) override final;
 		/// list all jobs
 		virtual KJSON ListJobs() const override final;
+		/// return number of jobs
+		virtual std::size_t size() const override final;
+		/// any jobs?
+		virtual bool empty() const override final;
+
+	//----------
+	protected:
+	//----------
 
 		/// get next Job to execute, can return with nullptr
 		virtual SharedJob GetJob(std::time_t tNow) override final;
@@ -257,21 +282,8 @@ public:
 	/// set number of threads that will run the Jobs. If > 0 starts the Scheduler
 	bool Resize(std::size_t iThreads);
 
-	/// add a Job to list of jobs
-	bool AddJob(const SharedJob& job);
-
-	/// parse a buffer as if it were a unix crontab, and generate jobs, and add them to the list of jobs
-	/// @param sCrontab the buffer with a unix crontab
-	/// @param bHasSeconds set to true if the crontab format includes also seconds as the first field.
-	/// Defaults to false
-	/// @return count of added jobs
-	std::size_t AddJobsFromCrontab(KStringView sCrontab, bool bHasSeconds = false);
-
-	/// delete a Job from list of jobs (by its job ID)
-	bool DeleteJob(Job::ID JobID);
-
-	/// list all jobs
-	KJSON ListJobs() const;
+	/// return the Scheduler object
+	Scheduler& Scheduler() { return *m_Scheduler; }
 
 //----------
 protected:

@@ -61,6 +61,13 @@ class DEKAF2_PUBLIC KBasePipe
 public:
 //------
 
+	enum OpenMode
+	{
+		None      = 0,
+		PipeRead  = 1 << 0,
+		PipeWrite = 1 << 1
+	};
+
 	//-----------------------------------------------------------------------------
 	/// Checks if child on other side of pipe is still running
 	bool IsRunning();
@@ -80,34 +87,42 @@ public:
 		return m_iExitCode;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Get process ID of the running process, > 0 if running, else not running
+	pid_t GetProcessID()
+	//-----------------------------------------------------------------------------
+	{
+		return m_pid;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Terminate the running process. Initially with signal SIGINT, after msecs waiting time with SIGKILL
+	bool Kill(int msecs);
+	//-----------------------------------------------------------------------------
+
 //--------
 protected:
 //--------
 
-	enum OpenMode
-	{
-		PipeRead =  1 << 0,
-		PipeWrite = 1 << 1
-	};
-
-	pid_t m_pid { 0 };
-	int m_iExitCode { 0 };
+	OpenMode m_Mode        { OpenMode::None };
+	pid_t    m_pid         { 0 };
+	int      m_iExitCode   { 0 };
 
 	// we use this nested arrangement to ensure we have all descriptors in one single array
-	int m_readPdes[4] { -1,-1,-1,-1 };
-	int* m_writePdes { &m_readPdes[2] };
+	int      m_readPdes[4] { -1, -1, -1, -1 };
+	int*     m_writePdes   { &m_readPdes[2] };
 
 	//-----------------------------------------------------------------------------
 	void wait(bool bNoHang = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Open(KString sCommand, KStringViewZ sShell, int mode,
+	bool Open(KString sCommand, KStringViewZ sShell, OpenMode Mode,
 			  const std::vector<std::pair<KString, KString>>& Environment);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	int Close(int mode, int iWaitMilliseconds = -1);
+	int Close(int iWaitMilliseconds = -1);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -115,6 +130,8 @@ protected:
 	//-----------------------------------------------------------------------------
 
 }; // KBasePipe
+
+DEKAF2_ENUM_IS_FLAG(KBasePipe::OpenMode)
 
 }
 

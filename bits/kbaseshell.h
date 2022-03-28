@@ -92,8 +92,8 @@ protected:
 				 const std::vector<std::pair<KString, KString>>& Environment = {});
 	//-----------------------------------------------------------------------------
 
-	FILE* m_pipe { nullptr };
-	int m_iExitCode { 0 };
+	FILE* m_pipe      { nullptr };
+	int   m_iExitCode { 0 };
 
 
 }; // class KPIPE

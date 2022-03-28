@@ -69,7 +69,7 @@ int KOutPipe::Close(int iWaitMilliseconds)
 	// invalidate Stream - we close it in KBasePipe::Close
 	KFDWriter::Cancel();
 
-	return KBasePipe::Close(PipeWrite, iWaitMilliseconds);
+	return KBasePipe::Close(iWaitMilliseconds);
 
 } // Close
 

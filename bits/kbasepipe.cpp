@@ -56,16 +56,18 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
-bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, int mode, const std::vector<std::pair<KString, KString>>& Environment)
+bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
 {
-	Close(mode); // ensure a previous pipe is closed
+	Close(); // ensure a previous pipe is closed
 
 	if (m_pid)
 	{
 		kWarning("cannot open pipe '{}': {}", sCommand, "old one still running");
 		return false;
 	}
+
+	m_Mode = Mode;
 
 	m_iExitCode = 0;
 
@@ -77,7 +79,7 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, int mode, const std:
 		return false;
 	}
 
-	if (mode & PipeRead)
+	if (m_Mode & PipeRead)
 	{
 		if (pipe(m_readPdes) < 0)
 		{
@@ -86,7 +88,7 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, int mode, const std:
 		}
 	}
 
-	if (mode & PipeWrite)
+	if (m_Mode & PipeWrite)
 	{
 		if (pipe(m_writePdes) < 0)
 		{
@@ -127,13 +129,13 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, int mode, const std:
 			kWarning("cannot fork '{}': {}", sCommand.c_str(), strerror(errno));
 
 			// could not create the child
-			if (mode & PipeRead)
+			if (m_Mode & PipeRead)
 			{
 				CloseAndResetFileDescriptor(m_readPdes[0]);
 				// the other side gets closed anyway in the regular parent code
 			}
 
-			if (mode & PipeWrite)
+			if (m_Mode & PipeWrite)
 			{
 				CloseAndResetFileDescriptor(m_writePdes[1]);
 				// the other side gets closed anyway in the regular parent code
@@ -150,7 +152,7 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, int mode, const std:
 			// enable SIGPIPE!
 			signal(SIGPIPE, SIG_DFL);
 
-			if (mode & PipeWrite)
+			if (m_Mode & PipeWrite)
 			{
 				// Bind to Child's stdin
 				CloseAndResetFileDescriptor(m_writePdes[1]);
@@ -161,7 +163,7 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, int mode, const std:
 				}
 			}
 
-			if (mode & PipeRead)
+			if (m_Mode & PipeRead)
 			{
 				// Bind Child's stdout
 				CloseAndResetFileDescriptor(m_readPdes[0]);
@@ -188,13 +190,13 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, int mode, const std:
 
 	// only parent gets here
 
-	if (mode & PipeRead)
+	if (m_Mode & PipeRead)
 	{
 		// close write end of read pipe (for child use)
 		CloseAndResetFileDescriptor(m_readPdes[1]);
 	}
 
-	if (mode & PipeWrite)
+	if (m_Mode & PipeWrite)
 	{
 		// close read end of write pipe (for child use)
 		CloseAndResetFileDescriptor(m_writePdes[0]);
@@ -205,18 +207,18 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, int mode, const std:
 } // Open
 
 //-----------------------------------------------------------------------------
-int KBasePipe::Close(int mode, int iWaitMilliseconds)
+int KBasePipe::Close(int iWaitMilliseconds)
 //-----------------------------------------------------------------------------
 {
 	if (m_pid > 0)
 	{
-		if (mode & PipeRead)
+		if (m_Mode & PipeRead)
 		{
 			// Close read on stdout pipe
 			CloseAndResetFileDescriptor(m_readPdes[0]);
 		}
 
-		if (mode & PipeWrite)
+		if (m_Mode & PipeWrite)
 		{
 			// send EOF by closing write end of pipe
 			CloseAndResetFileDescriptor(m_writePdes[1]);
@@ -343,6 +345,25 @@ bool KBasePipe::Wait(int msecs)
 	return true;
 
 } // Wait
+
+//-----------------------------------------------------------------------------
+bool KBasePipe::Kill(int msecs)
+//-----------------------------------------------------------------------------
+{
+	if (m_pid <= 0)
+	{
+		return true;
+	}
+
+	// send a SIGINT
+	kill(m_pid, SIGINT);
+
+	// call Close() which will send a SIGKILL after waiting
+	Close(msecs);
+
+	return true;
+
+} // Kill
 
 //-----------------------------------------------------------------------------
 void KBasePipe::CloseAndResetFileDescriptor(int& iFileDescriptor)

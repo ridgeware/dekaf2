@@ -7,6 +7,7 @@
 #include <dekaf2/kprof.h>
 #include <re2/re2.h>
 #include <vector>
+#include <atomic>
 
 using namespace dekaf2;
 

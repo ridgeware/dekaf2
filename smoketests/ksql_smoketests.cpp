@@ -45,6 +45,7 @@
 #include <dekaf2/ksystem.h>
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/kstringutils.h>
+#include <dekaf2/kduration.h>
 
 using namespace dekaf2;
 
@@ -1536,8 +1537,8 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 			{
 				KOut.FormatLine("{} : {:>6} ms total ({:3} us per query)",
 								Labels[i],
-								kFormNumber(Durations.milliseconds(i)),
-								Durations.nanoseconds(i) / (MAXTRIALS * 1000)
+								kFormNumber(Durations.duration(i).milliseconds()),
+								Durations.duration(i).nanoseconds() / (MAXTRIALS * 1000)
 								);
 			}
 

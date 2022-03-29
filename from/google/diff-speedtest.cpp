@@ -3,7 +3,7 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/kdiff.h>
 #include <dekaf2/kreader.h>
-#include <dekaf2/ktimer.h>
+#include <dekaf2/kduration.h>
 #include <dekaf2/kfilesystem.h>
 
 using namespace dekaf2;

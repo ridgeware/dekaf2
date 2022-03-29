@@ -3,7 +3,6 @@
 #include <dekaf2/kwebclient.h>
 #include <dekaf2/ktcpserver.h>
 #include <dekaf2/kstring.h>
-#include <dekaf2/ktimer.h>
 #include <dekaf2/ksystem.h>
 #include <dekaf2/krest.h>
 

@@ -71,16 +71,15 @@
 /// @file ktcpserver.h
 /// TCP server implementation with SSL/TLS
 
+#include "bits/kasio.h"
+#include "kstream.h"
+#include "kstring.h"
+#include "kthreadpool.h"
 #include <cinttypes>
 #include <thread>
 #include <future>
 #include <mutex>
 #include <condition_variable>
-#include "bits/kasio.h"
-#include "kstream.h"
-#include "kstring.h"
-#include "kthreadpool.h"
-#include "ktimer.h"
 
 #if (BOOST_VERSION < 107000) || !defined(DEKAF2_IS_MACOS)
 	#define DEKAF2_TCPSERVER_CONNECT_TO_STOP

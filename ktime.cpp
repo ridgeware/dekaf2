@@ -1153,13 +1153,15 @@ time_t kParseSMTPTimestamp (KStringView sTime)
 } // kParseSMTPTimestamp
 
 //-----------------------------------------------------------------------------
-KString kTranslateSeconds(uint64_t iNumSeconds, bool bLongForm)
+KString kTranslateDuration(const KDuration& Duration, bool bLongForm)
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
 
+	using int_t = KDuration::Duration::rep;
+
 	//-----------------------------------------------------------------------------
-	auto PrintInt = [&sOut](const char* sLabel, uint64_t iValue)
+	auto PrintInt = [&sOut](const char* sLabel, int_t iValue)
 	//-----------------------------------------------------------------------------
 	{
 		if (iValue)
@@ -1169,7 +1171,7 @@ KString kTranslateSeconds(uint64_t iNumSeconds, bool bLongForm)
 				sOut += ", ";
 			}
 
-			sOut += kIntToString(iValue);
+			sOut += KString::to_string(iValue);
 			sOut += ' ';
 			sOut += sLabel;
 
@@ -1182,96 +1184,173 @@ KString kTranslateSeconds(uint64_t iNumSeconds, bool bLongForm)
 	}; // PrintInt
 
 	//-----------------------------------------------------------------------------
-	auto PrintFloat = [&sOut](const char* sLabel, uint64_t iValue, uint64_t iDivider)
+	auto PrintFloat = [&sOut,&PrintInt](const char* sLabel, int_t iValue, int_t iDivider, bool bHighPrecision = false)
 	//-----------------------------------------------------------------------------
 	{
-		if (iValue == iDivider)
+		if (iValue % iDivider == 0)
 		{
-			sOut = "1";
-			sOut += ' ';
-			sOut += sLabel;
+			PrintInt(sLabel, iValue / iDivider);
 		}
 		else
 		{
-			sOut = kFormat("{:.1f} {}s", (double)iValue / (double)iDivider, sLabel);
+			if (bHighPrecision)
+			{
+				sOut = kFormat("{:.3f} {}s", (double)iValue / (double)iDivider, sLabel);
+			}
+			else
+			{
+				sOut = kFormat("{:.1f} {}s", (double)iValue / (double)iDivider, sLabel);
+			}
 		}
 
 	}; // PrintFloat
 
-	enum
-	{
-		SECS_PER_YEAR  = (60*60*24*365),
-		SECS_PER_WEEK  = (60*60*24*7),
-		SECS_PER_DAY   = (60*60*24),
-		SECS_PER_HOUR  = (60*60),
-		SECS_PER_MIN   = (60)
-	};
+	static constexpr int_t NANOSECS_PER_MICROSEC = (1000);
+	static constexpr int_t NANOSECS_PER_MILLISEC = (1000*1000);
+	static constexpr int_t NANOSECS_PER_SEC      = (1000*1000*1000);
+	static constexpr int_t NANOSECS_PER_MIN      = (60*NANOSECS_PER_SEC);
+	static constexpr int_t NANOSECS_PER_HOUR     = (60*60*NANOSECS_PER_SEC);
+	static constexpr int_t NANOSECS_PER_DAY      = (60*60*24*NANOSECS_PER_SEC);
+	static constexpr int_t NANOSECS_PER_WEEK     = (60*60*24*7*NANOSECS_PER_SEC);
+	static constexpr int_t NANOSECS_PER_YEAR     = (60*60*24*365*NANOSECS_PER_SEC);
 
-	if (!iNumSeconds)
+	int_t iNanoSecs   = Duration.nanoseconds();
+	bool  bIsNegative = Duration < KDuration::zero();
+
+	if (bIsNegative)
+	{
+		bLongForm = false;
+	}
+
+	if (Duration == KDuration::zero())
 	{
 		sOut = "less than a second";
 	}
 	else if (bLongForm) // e.g. "1 yr, 2 wks, 3 days, 6 hrs, 23 min, 10 sec"
 	{
-		auto iYears  = iNumSeconds / SECS_PER_YEAR;
-		iNumSeconds -= (iYears * SECS_PER_YEAR);
+		auto iYears = iNanoSecs / NANOSECS_PER_YEAR;
+		iNanoSecs  -= (iYears * NANOSECS_PER_YEAR);
 
-		auto iWeeks  = iNumSeconds / SECS_PER_WEEK;
-		iNumSeconds -= (iWeeks * SECS_PER_WEEK);
+		auto iWeeks = iNanoSecs / NANOSECS_PER_WEEK;
+		iNanoSecs  -= (iWeeks * NANOSECS_PER_WEEK);
 
-		auto iDays   = iNumSeconds / SECS_PER_DAY;
-		iNumSeconds -= (iDays * SECS_PER_DAY);
+		auto iDays  = iNanoSecs / NANOSECS_PER_DAY;
+		iNanoSecs  -= (iDays * NANOSECS_PER_DAY);
 
-		auto iHours  = iNumSeconds / SECS_PER_HOUR;
-		iNumSeconds -= (iHours * SECS_PER_HOUR);
+		auto iHours = iNanoSecs / NANOSECS_PER_HOUR;
+		iNanoSecs  -= (iHours * NANOSECS_PER_HOUR);
 
-		auto iMins   = iNumSeconds / SECS_PER_MIN;
-		iNumSeconds -= (iMins * SECS_PER_MIN);
+		auto iMins  = iNanoSecs / NANOSECS_PER_MIN;
+		iNanoSecs  -= (iMins * NANOSECS_PER_MIN);
 
-		PrintInt ("yr"  , iYears     );
-		PrintInt ("wk"  , iWeeks     );
-		PrintInt ("day" , iDays      );
-		PrintInt ("hr"  , iHours     );
-		PrintInt ("min" , iMins      );
-		PrintInt ("sec" , iNumSeconds);
+		auto iSecs  = iNanoSecs / NANOSECS_PER_SEC;
+		iNanoSecs  -= (iSecs * NANOSECS_PER_SEC);
+
+		PrintInt ("yr"  , iYears );
+		PrintInt ("wk"  , iWeeks );
+		PrintInt ("day" , iDays  );
+		PrintInt ("hr"  , iHours );
+		PrintInt ("min" , iMins  );
+		PrintInt ("sec" , iSecs  );
+
+		if (iNanoSecs)
+		{
+			auto iMilliSecs = iNanoSecs / NANOSECS_PER_MILLISEC;
+			iNanoSecs   -= (iMilliSecs * NANOSECS_PER_MILLISEC);
+
+			auto iMicroSecs = iNanoSecs / NANOSECS_PER_MICROSEC;
+			iNanoSecs   -= (iMicroSecs * NANOSECS_PER_MICROSEC);
+
+			PrintInt ("msec"  , iMilliSecs);
+			PrintInt ("usec"  , iMicroSecs);
+			PrintInt ("nsec"  , iNanoSecs);
+		}
 	}
 	else // smarter, generally more useful logic: display something that makes sense
 	{
-		if (iNumSeconds >= SECS_PER_YEAR)
-		{
-			PrintFloat ("yr" , iNumSeconds, SECS_PER_YEAR);
-		}
-		else if (iNumSeconds >= SECS_PER_WEEK)
-		{
-			PrintFloat ("wk" , iNumSeconds, SECS_PER_WEEK);
-		}
-		else if (iNumSeconds >= SECS_PER_DAY)
-		{
-			PrintFloat ("day", iNumSeconds, SECS_PER_DAY);
-		}
-		else if (iNumSeconds >= SECS_PER_HOUR)
-		{
-			// show hours and minutes, but not seconds:
-			auto iHours  = iNumSeconds / SECS_PER_HOUR;
-			iNumSeconds -= (iHours * SECS_PER_HOUR);
-			auto iMins   = iNumSeconds / SECS_PER_MIN;
+		auto iAbsNanoSecs = std::abs(iNanoSecs);
 
-			PrintInt ("hr" , iHours);
-			PrintInt ("min", iMins);
+		if (iAbsNanoSecs >= NANOSECS_PER_YEAR)
+		{
+			PrintFloat ("yr" , iNanoSecs, NANOSECS_PER_YEAR);
+		}
+		else if (iAbsNanoSecs >= NANOSECS_PER_WEEK)
+		{
+			PrintFloat ("wk" , iNanoSecs, NANOSECS_PER_WEEK);
+		}
+		else if (iAbsNanoSecs >= NANOSECS_PER_DAY)
+		{
+			PrintFloat ("day", iNanoSecs, NANOSECS_PER_DAY);
+		}
+		else if (iAbsNanoSecs >= NANOSECS_PER_HOUR)
+		{
+			if (bIsNegative)
+			{
+				PrintFloat ("hour", iNanoSecs, NANOSECS_PER_HOUR);
+			}
+			else
+			{
+				// show hours and minutes, but not seconds:
+				auto iHours  = iNanoSecs / NANOSECS_PER_HOUR;
+				iNanoSecs   -= iHours    * NANOSECS_PER_HOUR;
+				auto iMins   = iNanoSecs / NANOSECS_PER_MIN;
+
+				PrintInt ("hr" , iHours);
+				PrintInt ("min", iMins);
+			}
+		}
+		else if (iAbsNanoSecs >= NANOSECS_PER_MIN)
+		{
+			if (bIsNegative)
+			{
+				PrintFloat ("min", iNanoSecs, NANOSECS_PER_MIN);
+			}
+			else
+			{
+				// show minutes and seconds:
+				auto iMins = iNanoSecs / NANOSECS_PER_MIN;
+				iNanoSecs -= iMins     * NANOSECS_PER_MIN;
+				auto iSecs = iNanoSecs / NANOSECS_PER_SEC;
+
+				PrintInt ("min", iMins);
+				PrintInt ("sec", iSecs);
+			}
+		}
+		else if (iAbsNanoSecs >= NANOSECS_PER_SEC)
+		{
+			PrintFloat ("sec", iNanoSecs, NANOSECS_PER_SEC, true);
+		}
+		else if (iAbsNanoSecs >= NANOSECS_PER_MILLISEC)
+		{
+			PrintFloat ("millisec", iNanoSecs, NANOSECS_PER_MILLISEC, true);
+		}
+		else if (iAbsNanoSecs >= NANOSECS_PER_MICROSEC)
+		{
+			PrintFloat ("microsec", iNanoSecs, NANOSECS_PER_MICROSEC, true);
 		}
 		else
 		{
-			// show minutes and seconds, or only seconds:
-			auto iMins   = iNumSeconds / SECS_PER_MIN;
-			iNumSeconds -= (iMins * SECS_PER_MIN);
-
-			PrintInt ("min", iMins);
-			PrintInt ("sec", iNumSeconds);
+			PrintFloat ("nanosec", iNanoSecs, 1, true);
 		}
 	}
 
 	return sOut;
 
-} // kTranslateSeconds
+} // kTranslateDuration
+
+//-----------------------------------------------------------------------------
+KString kTranslateSeconds(time_t iNumSeconds, bool bLongForm)
+//-----------------------------------------------------------------------------
+{
+	if (iNumSeconds > KDuration::max().seconds())
+	{
+		return "a very long time";  // > 292.5 years
+	}
+	else if (iNumSeconds < KDuration::min().seconds())
+	{
+		return "a very short time"; // < 292.5 years
+	}
+	return kTranslateDuration(std::chrono::seconds(iNumSeconds), bLongForm);
+}
 
 } // end of namespace dekaf2

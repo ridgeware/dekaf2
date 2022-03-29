@@ -46,6 +46,7 @@
 
 #include "kstring.h"
 #include "kstringview.h"
+#include "kduration.h"
 #include <cinttypes>
 #include <ctime>
 
@@ -188,7 +189,13 @@ time_t kParseTimestamp(KStringView sTimestamp);
 //-----------------------------------------------------------------------------
 /// Form a string that expresses a duration
 DEKAF2_PUBLIC
-KString kTranslateSeconds(uint64_t iNumSeconds, bool bLongForm = false);
+KString kTranslateSeconds(time_t iNumSeconds, bool bLongForm = false);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Form a string that expresses a duration
+DEKAF2_PUBLIC
+KString kTranslateDuration(const KDuration& Duration, bool bLongForm = false);
 //-----------------------------------------------------------------------------
 
 namespace detail {

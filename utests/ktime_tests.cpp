@@ -54,22 +54,54 @@ TEST_CASE("KTime") {
 
 	SECTION("kTranslateSeconds")
 	{
+		CHECK ( KDuration::max().seconds() == 9223372036 );
+		CHECK ( kTranslateSeconds(KDuration::max().seconds()
+								               , true ) == "292 yrs, 24 wks, 3 days, 23 hrs, 47 mins, 16 secs" );
 		CHECK ( kTranslateSeconds(0            , false) == "less than a second" );
 		CHECK ( kTranslateSeconds(1            , false) == "1 sec" );
 		CHECK ( kTranslateSeconds(2            , false) == "2 secs" );
 		CHECK ( kTranslateSeconds(1326257      , false) == "2.2 wks" );
-		CHECK ( kTranslateSeconds(239874723651 , false) == "7606.4 yrs" );
+		CHECK ( kTranslateSeconds(6348747235   , false) == "201.3 yrs" );
 		CHECK ( kTranslateSeconds(2376         , false) == "39 mins, 36 secs" );
 		CHECK ( kTranslateSeconds(23872        , false) == "6 hrs, 37 mins" );
 		CHECK ( kTranslateSeconds(23           , false) == "23 secs" );
 		CHECK ( kTranslateSeconds(123          , false) == "2 mins, 3 secs" );
+		CHECK ( kTranslateSeconds(-1           , false) == "-1 sec" );
+		CHECK ( kTranslateSeconds(-80          , false) == "-1.3 mins" );
+		CHECK ( kTranslateSeconds(-3*60*60-15  , false) == "-3.0 hours" );
+		CHECK ( kTranslateSeconds(9223372036+1 , false) == "a very long time" );
+		CHECK ( kTranslateSeconds(KDuration::min().seconds()-1, false) == "a very short time" );
 		CHECK ( kTranslateSeconds(120          , true ) == "2 mins" );
 		CHECK ( kTranslateSeconds(0            , true ) == "less than a second" );
 		CHECK ( kTranslateSeconds(1            , true ) == "1 sec" );
 		CHECK ( kTranslateSeconds(2            , true ) == "2 secs" );
 		CHECK ( kTranslateSeconds(1326257      , true ) == "2 wks, 1 day, 8 hrs, 24 mins, 17 secs" );
-		CHECK ( kTranslateSeconds(239874723651 , true ) == "7606 yrs, 19 wks, 4 days, 19 hrs, 40 mins, 51 secs" );
+		CHECK ( kTranslateSeconds(-1326257     , true ) == "-2.2 wks" );
+		CHECK ( kTranslateSeconds(6348747235   , true ) == "201 yrs, 16 wks, 3 days, 20 hrs, 53 mins, 55 secs" );
 		CHECK ( kTranslateSeconds(23872        , true ) == "6 hrs, 37 mins, 52 secs" );
+	}
+
+	SECTION("kTranslateDuration")
+	{
+		using namespace std::chrono;
+
+		CHECK ( kTranslateDuration(milliseconds(-1)    , false) == "-1 millisec" );
+		CHECK ( kTranslateDuration(milliseconds(1001)  , false) == "1.001 secs" );
+		CHECK ( kTranslateDuration(milliseconds(2002)  , false) == "2.002 secs" );
+		CHECK ( kTranslateDuration(milliseconds(1000)  , false) == "1 sec" );
+		CHECK ( kTranslateDuration(milliseconds(980)   , false) == "980 millisecs" );
+		CHECK ( kTranslateDuration(microseconds(12345) , false) == "12.345 millisecs" );
+		CHECK ( kTranslateDuration(microseconds(-12345), false) == "-12.345 millisecs" );
+		CHECK ( kTranslateDuration(microseconds(345)   , false) == "345 microsecs" );
+		CHECK ( kTranslateDuration(microseconds(1)     , false) == "1 microsec" );
+		CHECK ( kTranslateDuration(nanoseconds(34567)  , false) == "34.567 microsecs" );
+		CHECK ( kTranslateDuration(nanoseconds(54)     , false) == "54 nanosecs" );
+		CHECK ( kTranslateDuration(nanoseconds(1)      , false) == "1 nanosec" );
+		CHECK ( kTranslateDuration(nanoseconds::max()  , false) == "292.5 yrs" );
+		CHECK ( kTranslateDuration(nanoseconds::max()  , true) == "292 yrs, 24 wks, 3 days, 23 hrs, 47 mins, 16 secs, 854 msecs, 775 usecs, 807 nsecs" );
+		CHECK ( kTranslateDuration(nanoseconds::min()  , true) == "-9223372036854775808 nanosec" );
+		CHECK ( kTranslateDuration(nanoseconds::min()
+								   +nanoseconds(1)     , true) == "-292.5 yrs" );
 	}
 
 	SECTION("KBrokenDownTime")

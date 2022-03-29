@@ -42,9 +42,10 @@
 
 #pragma once
 
+#include "bits/kcppcompat.h"
 #include <chrono>
 #include <vector>
-#include "bits/kcppcompat.h"
+#include <type_traits>
 
 /// @file kduration.h
 /// keep and measure durations
@@ -65,10 +66,14 @@ public:
 	using size_type = std::size_t;
 	using self      = KDuration;
 
-	static KDuration zero() { return KDuration(); }
+	static KDuration zero() { return KDuration(Duration::zero()); }
+	static KDuration min()  { return KDuration(Duration::min() ); }
+	static KDuration max()  { return KDuration(Duration::max() ); }
 
 	KDuration() = default;
-	KDuration(Duration D) : m_duration(D) {}
+	template<typename T,
+	         typename std::enable_if<std::is_assignable<Duration, T>::value, int>::type = 0>
+	KDuration(T D) : m_duration(D) {}
 
 	//-----------------------------------------------------------------------------
 	void clear()
@@ -621,6 +626,14 @@ public:
 	void Stop();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// returns the KStopTime object for the current round (read access only)
+	const KStopTime& CurrentRound() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Timer;
+	}
+
 //----------
 private:
 //----------
@@ -822,6 +835,14 @@ public:
 	/// @param iInterval index position to store the current interval at
 	void StoreInterval(size_type iInterval);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns the KStopTime object for the current round (read access only)
+	const KStopTime& CurrentRound() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Timer;
+	}
 
 //----------
 private:

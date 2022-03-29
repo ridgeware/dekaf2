@@ -28,6 +28,7 @@ set (USOURCES
 	kcrc_tests.cpp
 	kcsv_tests.cpp
 	kdiff_tests.cpp
+	kduration_tests.cpp
 	kencode_tests.cpp
 	kfilesystem_tests.cpp
 	kformat_tests.cpp

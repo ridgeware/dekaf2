@@ -49,7 +49,7 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kjson.h>
-#include <dekaf2/ktimer.h>
+#include <dekaf2/kduration.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 	#define DEKAF2_HAS_SYSLOG

@@ -45,6 +45,7 @@
 #include "kfileserver.h"
 #include "kjson.h"
 #include "ktime.h"
+#include "kduration.h"
 
 namespace dekaf2 {
 
@@ -463,12 +464,12 @@ KJSON KRESTRoutes::GetRouterStats() const
 		if (iRounds)
 		{
 			KJSON jUSecs {
-				{ "total" , Statistics.Durations.microseconds() / iRounds  }
+				{ "total" , Statistics.Durations.duration().microseconds() / iRounds  }
 			};
 
 			for (const auto& it : KRESTServer::Timers)
 			{
-				jUSecs.push_back({ it.sLabel, Statistics.Durations[it.Value].microsecondsAverage() });
+				jUSecs.push_back({ it.sLabel, Statistics.Durations[it.Value].average().microseconds() });
 			}
 
 			KJSON jRoute {

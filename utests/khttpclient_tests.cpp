@@ -3,7 +3,7 @@
 #include <dekaf2/khttpclient.h>
 #include <dekaf2/ktcpserver.h>
 #include <dekaf2/kstring.h>
-#include <dekaf2/ktimer.h>
+#include <dekaf2/kduration.h>
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/koutstringstream.h>
 

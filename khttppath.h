@@ -44,7 +44,7 @@
 #include <vector>
 #include "kstring.h"
 #include "kstringview.h"
-#include "ktimer.h"
+#include "kduration.h"
 #include "kthreadsafe.h"
 #include "kregex.h"
 

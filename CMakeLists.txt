@@ -610,6 +610,7 @@ set(PUBLIC_HEADERS
 	kcsv.h
 	kctype.h
 	kdiff.h
+	kduration.h
 	kencode.h
 	kexception.h
 	kfdstream.h
@@ -775,6 +776,7 @@ set (SOURCES
 	kcsv.cpp
 	kctype.cpp
 	kdiff.cpp
+	kduration.cpp
 	kencode.cpp
 	kfdstream.cpp
 	kfileserver.cpp

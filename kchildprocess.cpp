@@ -48,7 +48,7 @@
 #include "kstring.h"
 #include "klog.h"
 #include "ksplit.h"
-#include "ktimer.h"
+#include "kduration.h"
 #include "ksignals.h"
 #include <thread>
 #include <sys/wait.h>
@@ -492,7 +492,7 @@ bool KChildProcess::Join(std::chrono::nanoseconds Timeout)
 			}
 
 		} while (!success
-				 && Timeout < Timer.elapsed<std::chrono::nanoseconds>());
+				 && Timeout < Timer.elapsed().duration<std::chrono::nanoseconds>());
 	}
 
 	if (success)

@@ -47,7 +47,7 @@
 #include "kstringview.h"
 #include "kjson.h"
 #include "kxml.h"
-#include "ktimer.h"
+#include "kduration.h"
 #include "kopenid.h"
 #include "kfilesystem.h"
 #include "kpoll.h"
@@ -419,7 +419,7 @@ public:
 	std::chrono::microseconds::rep GetTimeToLastByte() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_Timers ? m_Timers->microseconds() : 0;
+		return m_Timers ? m_Timers->duration().microseconds() : 0;
 	}
 
 	//-----------------------------------------------------------------------------

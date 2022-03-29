@@ -50,7 +50,6 @@
 #include "kfrozen.h"
 #include "kregex.h"
 #include "kwebclient.h"
-#include "ktimer.h"
 #include "kcrashexit.h"
 #include "kwriter.h"
 #include "kcountingstreambuf.h"
@@ -939,8 +938,8 @@ void KRESTServer::WriteHeaders()
 			// add a custom header that marks execution time for this request
 			Response.Headers.Set (m_Options.TimerHeader,
 								  KString::to_string(m_Options.bMicrosecondTimerHeader
-													 ? m_Timers->microseconds()
-													 : m_Timers->milliseconds()));
+													 ? m_Timers->duration().microseconds()
+													 : m_Timers->duration().milliseconds()));
 		}
 	}
 
@@ -1414,7 +1413,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 				if (!m_Options.TimerHeader.empty())
 				{
 					// add a custom header that marks execution time for this request
-					Response.Headers.Add (m_Options.TimerHeader, KString::to_string(m_Timers->milliseconds()));
+					Response.Headers.Add (m_Options.TimerHeader, KString::to_string(m_Timers->duration().milliseconds()));
 				}
 			}
 

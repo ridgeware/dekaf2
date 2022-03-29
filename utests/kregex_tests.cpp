@@ -2,7 +2,7 @@
 
 #include <dekaf2/kregex.h>
 #include <dekaf2/kparallel.h>
-#include <dekaf2/ktimer.h>
+#include <dekaf2/kduration.h>
 #include <dekaf2/kwriter.h>
 #include <dekaf2/kprof.h>
 #include <re2/re2.h>

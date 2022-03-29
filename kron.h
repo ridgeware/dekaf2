@@ -47,7 +47,7 @@
 
 #include "kstringview.h"
 #include "ktime.h"
-#include "ktimer.h"
+#include "kduration.h"
 #include "kthreadpool.h"
 #include "kthreadsafe.h"
 #include "kjson.h"

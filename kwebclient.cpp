@@ -41,7 +41,7 @@
 
 #include "kwebclient.h"
 #include "khttperror.h"
-#include "ktimer.h"
+#include "kduration.h"
 
 namespace dekaf2 {
 

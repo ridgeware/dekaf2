@@ -283,7 +283,7 @@ KString KLogTTYSerializer::PrintStatus(KStringView sLevel)
 void KLogHTTPHeaderSerializer::Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-	m_iElapsedMicroSeconds = m_Clock.elapsed<std::chrono::microseconds>();
+	m_iElapsedMicroSeconds = m_Clock.elapsed().duration<std::chrono::microseconds>();
 	KLogSerializer::Set(iLevel, sShortName, sPathName, sFunction, sMessage);
 
 } // Set

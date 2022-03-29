@@ -62,6 +62,7 @@
 #include "kbar.h"
 #include "kscopeguard.h"
 #include "ktime.h"
+#include "kduration.h"
 #include <cstdint>
 
 #ifndef _WIN32

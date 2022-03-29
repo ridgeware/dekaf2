@@ -189,7 +189,7 @@ time_t kParseTimestamp(KStringView sTimestamp);
 //-----------------------------------------------------------------------------
 /// Form a string that expresses a duration
 DEKAF2_PUBLIC
-KString kTranslateSeconds(time_t iNumSeconds, bool bLongForm = false);
+KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

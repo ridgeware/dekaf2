@@ -1268,69 +1268,78 @@ KString kTranslateDuration(const KDuration& Duration, bool bLongForm)
 	}
 	else // smarter, generally more useful logic: display something that makes sense
 	{
-		auto iAbsNanoSecs = std::abs(iNanoSecs);
+		std::make_unsigned<int_t>::type iAbsNanoSecs;
 
-		if (iAbsNanoSecs >= NANOSECS_PER_YEAR)
+		if (iNanoSecs <= std::numeric_limits<int_t>::min())
 		{
-			PrintFloat ("yr" , iNanoSecs, NANOSECS_PER_YEAR);
-		}
-		else if (iAbsNanoSecs >= NANOSECS_PER_WEEK)
-		{
-			PrintFloat ("wk" , iNanoSecs, NANOSECS_PER_WEEK);
-		}
-		else if (iAbsNanoSecs >= NANOSECS_PER_DAY)
-		{
-			PrintFloat ("day", iNanoSecs, NANOSECS_PER_DAY);
-		}
-		else if (iAbsNanoSecs >= NANOSECS_PER_HOUR)
-		{
-			if (bIsNegative)
-			{
-				PrintFloat ("hour", iNanoSecs, NANOSECS_PER_HOUR);
-			}
-			else
-			{
-				// show hours and minutes, but not seconds:
-				auto iHours  = iNanoSecs / NANOSECS_PER_HOUR;
-				iNanoSecs   -= iHours    * NANOSECS_PER_HOUR;
-				auto iMins   = iNanoSecs / NANOSECS_PER_MIN;
-
-				PrintInt ("hr" , iHours);
-				PrintInt ("min", iMins);
-			}
-		}
-		else if (iAbsNanoSecs >= NANOSECS_PER_MIN)
-		{
-			if (bIsNegative)
-			{
-				PrintFloat ("min", iNanoSecs, NANOSECS_PER_MIN);
-			}
-			else
-			{
-				// show minutes and seconds:
-				auto iMins = iNanoSecs / NANOSECS_PER_MIN;
-				iNanoSecs -= iMins     * NANOSECS_PER_MIN;
-				auto iSecs = iNanoSecs / NANOSECS_PER_SEC;
-
-				PrintInt ("min", iMins);
-				PrintInt ("sec", iSecs);
-			}
-		}
-		else if (iAbsNanoSecs >= NANOSECS_PER_SEC)
-		{
-			PrintFloat ("sec", iNanoSecs, NANOSECS_PER_SEC, true);
-		}
-		else if (iAbsNanoSecs >= NANOSECS_PER_MILLISEC)
-		{
-			PrintFloat ("millisec", iNanoSecs, NANOSECS_PER_MILLISEC, true);
-		}
-		else if (iAbsNanoSecs >= NANOSECS_PER_MICROSEC)
-		{
-			PrintFloat ("microsec", iNanoSecs, NANOSECS_PER_MICROSEC, true);
+			sOut = "a very short time"; // < -292.5 years
 		}
 		else
 		{
-			PrintFloat ("nanosec", iNanoSecs, 1, true);
+			iAbsNanoSecs = std::abs(iNanoSecs);
+
+			if (iAbsNanoSecs >= NANOSECS_PER_YEAR)
+			{
+				PrintFloat ("yr" , iNanoSecs, NANOSECS_PER_YEAR);
+			}
+			else if (iAbsNanoSecs >= NANOSECS_PER_WEEK)
+			{
+				PrintFloat ("wk" , iNanoSecs, NANOSECS_PER_WEEK);
+			}
+			else if (iAbsNanoSecs >= NANOSECS_PER_DAY)
+			{
+				PrintFloat ("day", iNanoSecs, NANOSECS_PER_DAY);
+			}
+			else if (iAbsNanoSecs >= NANOSECS_PER_HOUR)
+			{
+				if (bIsNegative)
+				{
+					PrintFloat ("hour", iNanoSecs, NANOSECS_PER_HOUR);
+				}
+				else
+				{
+					// show hours and minutes, but not seconds:
+					auto iHours  = iNanoSecs / NANOSECS_PER_HOUR;
+					iNanoSecs   -= iHours    * NANOSECS_PER_HOUR;
+					auto iMins   = iNanoSecs / NANOSECS_PER_MIN;
+
+					PrintInt ("hr" , iHours);
+					PrintInt ("min", iMins);
+				}
+			}
+			else if (iAbsNanoSecs >= NANOSECS_PER_MIN)
+			{
+				if (bIsNegative)
+				{
+					PrintFloat ("min", iNanoSecs, NANOSECS_PER_MIN);
+				}
+				else
+				{
+					// show minutes and seconds:
+					auto iMins = iNanoSecs / NANOSECS_PER_MIN;
+					iNanoSecs -= iMins     * NANOSECS_PER_MIN;
+					auto iSecs = iNanoSecs / NANOSECS_PER_SEC;
+
+					PrintInt ("min", iMins);
+					PrintInt ("sec", iSecs);
+				}
+			}
+			else if (iAbsNanoSecs >= NANOSECS_PER_SEC)
+			{
+				PrintFloat ("sec", iNanoSecs, NANOSECS_PER_SEC, true);
+			}
+			else if (iAbsNanoSecs >= NANOSECS_PER_MILLISEC)
+			{
+				PrintFloat ("millisec", iNanoSecs, NANOSECS_PER_MILLISEC, true);
+			}
+			else if (iAbsNanoSecs >= NANOSECS_PER_MICROSEC)
+			{
+				PrintFloat ("microsec", iNanoSecs, NANOSECS_PER_MICROSEC, true);
+			}
+			else
+			{
+				PrintFloat ("nanosec", iNanoSecs, 1, true);
+			}
 		}
 	}
 
@@ -1339,7 +1348,7 @@ KString kTranslateDuration(const KDuration& Duration, bool bLongForm)
 } // kTranslateDuration
 
 //-----------------------------------------------------------------------------
-KString kTranslateSeconds(time_t iNumSeconds, bool bLongForm)
+KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
 //-----------------------------------------------------------------------------
 {
 	if (iNumSeconds > KDuration::max().seconds())
@@ -1348,7 +1357,7 @@ KString kTranslateSeconds(time_t iNumSeconds, bool bLongForm)
 	}
 	else if (iNumSeconds < KDuration::min().seconds())
 	{
-		return "a very short time"; // < 292.5 years
+		return "a very short time"; // < -292.5 years
 	}
 	return kTranslateDuration(std::chrono::seconds(iNumSeconds), bLongForm);
 }

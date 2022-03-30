@@ -199,10 +199,14 @@ void KStopDuration::clear()
 } // clear
 
 //---------------------------------------------------------------------------
-void KStopDuration::Stop()
+KStopDuration::base::Duration KStopDuration::Stop()
 //---------------------------------------------------------------------------
 {
-	push_back(m_Timer.elapsedAndClear());
+	auto D = m_Timer.elapsedAndClear();
+
+	push_back(D);
+
+	return D;
 
 } // StoreInterval
 
@@ -420,7 +424,7 @@ void KStopDurations::StartNextInterval()
 } // StartNextInterval
 
 //---------------------------------------------------------------------------
-void KStopDurations::StoreInterval(size_type iInterval)
+KStopDurations::base::DurationBase KStopDurations::StoreInterval(size_type iInterval)
 //---------------------------------------------------------------------------
 {
 	if (size() < iInterval + 1)
@@ -428,7 +432,11 @@ void KStopDurations::StoreInterval(size_type iInterval)
 		resize(iInterval + 1);
 	}
 
-	operator[](iInterval) += m_Timer.elapsedAndClear();
+	auto D = m_Timer.elapsedAndClear();
+
+	operator[](iInterval) += D;
+
+	return D;
 
 } // StoreInterval
 

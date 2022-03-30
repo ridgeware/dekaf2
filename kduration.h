@@ -622,8 +622,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	///stop and store the interval
-	void Stop();
+	///stop and store the interval, and return last interval
+	base::Duration Stop();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -833,7 +833,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// start a new interval, store the current one
 	/// @param iInterval index position to store the current interval at
-	void StoreInterval(size_type iInterval);
+	base::DurationBase StoreInterval(size_type iInterval);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

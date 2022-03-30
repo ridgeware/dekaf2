@@ -342,17 +342,17 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Read a range of characters. Returns count of successfully read charcters.
-	size_t Read(void* pAddress, size_t iCount);
+	std::size_t Read(void* pAddress, std::size_t iCount);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Read a range of characters and append to sBuffer. Returns count of successfully read charcters.
-	size_t Read(KStringRef& sBuffer, size_t iCount = npos);
+	std::size_t Read(KStringRef& sBuffer, std::size_t iCount = npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Read a range of characters and append to Stream. Returns count of successfully read charcters.
-	size_t Read(KOutStream& Stream, size_t iCount = npos);
+	std::size_t Read(KOutStream& Stream, std::size_t iCount = npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -364,7 +364,7 @@ public:
 	/// Please note that this method does _not_ return the stream reference,
 	/// but a boolean. std::istreams would not read a file with a missing newline
 	/// at the end successfully, but report an error. This function succeeds.
-	bool ReadLine(KStringRef& sLine, size_t iMaxRead = npos)
+	bool ReadLine(KStringRef& sLine, std::size_t iMaxRead = npos)
 	//-----------------------------------------------------------------------------
 	{
 		return kReadLine(InStream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter, iMaxRead);
@@ -437,7 +437,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns the size of a file. Returns 0 if no input available. Fails on
 	/// non-seekable inputs, e.g. streams.
-	size_t GetSize()
+	std::size_t GetSize()
 	//-----------------------------------------------------------------------------
 	{
 		auto iSize = kGetSize(InStream(), true);
@@ -448,14 +448,14 @@ public:
 		}
 		else
 		{
-			return static_cast<size_t>(iSize);
+			return static_cast<std::size_t>(iSize);
 		}
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Returns the remaining size of a file. Returns 0 if no input available.
 	/// Fails on non-seekable inputs, e.g. streams.
-	size_t GetRemainingSize()
+	std::size_t GetRemainingSize()
 	//-----------------------------------------------------------------------------
 	{
 		auto iSize = kGetSize(InStream(), false);
@@ -466,7 +466,7 @@ public:
 		}
 		else
 		{
-			return static_cast<size_t>(iSize);
+			return static_cast<std::size_t>(iSize);
 		}
 	}
 

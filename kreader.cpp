@@ -243,7 +243,7 @@ bool kAppendAll(std::istream& Stream, KStringRef& sContent, bool bFromStart, std
 		return false;
 	}
 
-	auto uiSize = static_cast<size_t>(iSize);
+	auto uiSize = static_cast<std::size_t>(iSize);
 
 	auto uiContentSize = sContent.size();
 
@@ -256,7 +256,7 @@ bool kAppendAll(std::istream& Stream, KStringRef& sContent, bool bFromStart, std
 	sContent.resize(uiContentSize + uiSize);
 #endif
 
-	auto iRead = static_cast<size_t>(streambuf->sgetn(&sContent[uiContentSize], iSize));
+	auto iRead = static_cast<std::size_t>(streambuf->sgetn(&sContent[uiContentSize], iSize));
 
 	if (iRead < uiSize)
 	{
@@ -744,7 +744,7 @@ std::istream::int_type KInStream::Read()
 
 //-----------------------------------------------------------------------------
 /// Read a range of characters. Returns count of successfully read characters.
-size_t KInStream::Read(void* pAddress, size_t iCount)
+std::size_t KInStream::Read(void* pAddress, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	auto streambuf = InStream().rdbuf();
@@ -763,18 +763,18 @@ size_t KInStream::Read(void* pAddress, size_t iCount)
 		InStream().setstate(std::ios::badbit);
 		iRead = 0;
 	}
-	else if (DEKAF2_UNLIKELY(static_cast<size_t>(iRead) < iCount))
+	else if (DEKAF2_UNLIKELY(static_cast<std::size_t>(iRead) < iCount))
 	{
 		InStream().setstate(std::ios::eofbit);
 	}
 
-	return static_cast<size_t>(iRead);
+	return static_cast<std::size_t>(iRead);
 
 } // Read
 
 //-----------------------------------------------------------------------------
 /// Read a range of characters and append to sBuffer. Returns count of successfully read characters.
-size_t KInStream::Read(KStringRef& sBuffer, size_t iCount)
+std::size_t KInStream::Read(KStringRef& sBuffer, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	auto iOldLen = sBuffer.size();
@@ -804,11 +804,11 @@ size_t KInStream::Read(KStringRef& sBuffer, size_t iCount)
 
 //-----------------------------------------------------------------------------
 /// Read a range of characters and append to Stream. Returns count of successfully read characters.
-size_t KInStream::Read(KOutStream& Stream, size_t iCount)
+std::size_t KInStream::Read(KOutStream& Stream, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	std::array<char, KDefaultCopyBufSize> Buffer;
-	size_t iRead = 0;
+	std::size_t iRead = 0;
 
 	for (;iCount && Good();)
 	{

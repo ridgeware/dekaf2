@@ -50,7 +50,7 @@ namespace dekaf2 {
 bool KHash::Update(KStringView::value_type chInput)
 //---------------------------------------------------------------------------
 {
-    m_iHash = kHash(chInput, m_iHash);
+    m_iHash = kHash<hash::size>(chInput, m_iHash);
     m_bUpdated = true;
     return true;
 }
@@ -61,7 +61,7 @@ bool KHash::Update(KStringView sInput)
 {
     if (!sInput.empty())
     {
-        m_iHash = kHash(sInput.data(), sInput.size(), m_iHash);
+        m_iHash = kHash<hash::size>(sInput.data(), sInput.size(), m_iHash);
         m_bUpdated = true;
     }
     return true;
@@ -91,7 +91,7 @@ bool KHash::Update(KInStream& InputStream)
 bool KCaseHash::Update(KStringView::value_type chInput)
 //---------------------------------------------------------------------------
 {
-    m_iHash = kCaseHash(chInput, m_iHash);
+    m_iHash = kCaseHash<hash::size>(chInput, m_iHash);
     m_bUpdated = true;
     return true;
 }
@@ -104,7 +104,7 @@ bool KCaseHash::Update(KStringView sInput)
     {
         for (auto ch : sInput)
         {
-            m_iHash = kCaseHash(ch, m_iHash);
+            m_iHash = kCaseHash<hash::size>(ch, m_iHash);
         }
         m_bUpdated = true;
     }
@@ -132,6 +132,3 @@ bool KCaseHash::Update(KInStream& InputStream)
 } // Update
 
 } // end of namespace dekaf2
-
-
-

@@ -113,13 +113,13 @@ public:
 	}
 
 	/// returns the hash as integer (we want the hash value to be 0 if no input was added)
-	std::size_t Hash() const
+	hash::Hash<hash::size> Hash() const
 	{
 		return m_bUpdated ? m_iHash : 0;
 	}
 
 	/// returns the hash as integer (we want the hash value to be 0 if no input was added)
-	operator std::size_t() const
+	operator hash::Hash<hash::size>() const
 	{
 		return Hash();
 	}
@@ -143,7 +143,7 @@ public:
 	}
 
 	/// returns the hash as integer
-	std::size_t operator()() const
+	hash::Hash<hash::size> operator()() const
 	{
 		return Hash();
 	}
@@ -158,7 +158,7 @@ public:
 protected:
 //------
 
-	std::size_t m_iHash { kHashBasis };
+	hash::Hash<hash::size> m_iHash { hash::kHashBasis<hash::size> };
 	bool m_bUpdated { false };
 
 }; // KHash
@@ -225,13 +225,13 @@ public:
 	}
 
 	/// returns the hash as integer (we want the hash value to be 0 if no input was added)
-	std::size_t Hash() const
+	hash::Hash<hash::size> Hash() const
 	{
 		return m_bUpdated ? m_iHash : 0;
 	}
 
 	/// returns the hash as integer (we want the hash value to be 0 if no input was added)
-	operator std::size_t() const
+	operator hash::Hash<hash::size>() const
 	{
 		return Hash();
 	}
@@ -255,7 +255,7 @@ public:
 	}
 
 	/// returns the hash as integer
-	std::size_t operator()() const
+	hash::Hash<hash::size> operator()() const
 	{
 		return Hash();
 	}
@@ -270,7 +270,7 @@ public:
 protected:
 //------
 
-	std::size_t m_iHash { kHashBasis };
+	hash::Hash<hash::size> m_iHash { hash::kHashBasis<hash::size> };
 	bool m_bUpdated { false };
 
 }; // KCaseHash

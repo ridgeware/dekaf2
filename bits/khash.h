@@ -56,40 +56,35 @@ namespace hash {
 
 static constexpr int size = kIs64Bits() ? 64 : 32;
 
+template<int tSize>
+struct fnv_traits
+{
+	static_assert(tSize == 32 || tSize == 64, "This FNV hash implementation is only valid for 32 and 64 bit hash sizes");
+};
+
+template<>
+struct fnv_traits<64>
+{
+	using hash_t = uint64_t;
+	static constexpr hash_t basis    = UINT64_C(14695981039346656037);
+	static constexpr hash_t prime    = UINT64_C(1099511628211);
+};
+
+template<>
+struct fnv_traits<32>
+{
+	using hash_t = uint32_t;
+	static constexpr hash_t basis    = UINT32_C(2166136261);
+	static constexpr hash_t prime    = UINT32_C(16777619);
+};
+
 template<int iSize>
 struct fnv1a
 {
+	using Hash   = typename fnv_traits<iSize>::hash_t;
 
-private:
-
-	template<int tSize>
-	struct traits
-	{
-		static_assert(tSize == 32 || tSize == 64, "This FNV hash implementation is only valid for 32 and 64 bit hash sizes");
-	};
-
-	template<>
-	struct traits<64>
-	{
-		using hash_t = uint64_t;
-		static constexpr hash_t basis    = UINT64_C(14695981039346656037);
-		static constexpr hash_t prime    = UINT64_C(1099511628211);
-	};
-
-	template<>
-	struct traits<32>
-	{
-		using hash_t = uint32_t;
-		static constexpr hash_t basis    = UINT32_C(2166136261);
-		static constexpr hash_t prime    = UINT32_C(16777619);
-	};
-
-public:
-
-	using Hash   = typename traits<iSize>::hash_t;
-
-	static constexpr Hash Basis  = traits<iSize>::basis;
-	static constexpr Hash Prime  = traits<iSize>::prime;
+	static constexpr Hash Basis  = fnv_traits<iSize>::basis;
+	static constexpr Hash Prime  = fnv_traits<iSize>::prime;
 
 static constexpr
 Hash hash(const char data, Hash hash) noexcept

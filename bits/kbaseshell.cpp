@@ -63,6 +63,13 @@ KBaseShell::~KBaseShell()
 }
 
 //-----------------------------------------------------------------------------
+bool KBaseShell::IsRunning()
+//-----------------------------------------------------------------------------
+{
+	return m_pipe != nullptr;
+}
+
+//-----------------------------------------------------------------------------
 bool KBaseShell::IntOpen (KString sCommand, bool bWrite,
 						  const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
@@ -106,7 +113,7 @@ bool KBaseShell::IntOpen (KString sCommand, bool bWrite,
 } // IntOpen
 
 //-----------------------------------------------------------------------------
-int KBaseShell::Close()
+int KBaseShell::Close(int milliseconds /* unused */)
 //-----------------------------------------------------------------------------
 {
 	if (m_pipe)

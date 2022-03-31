@@ -130,32 +130,35 @@ KStringView Kron::Job::CutOffCommand(KStringView& sCronDef, uint16_t iElements)
 } // CutOffCommand
 
 //-----------------------------------------------------------------------------
-Kron::Job::Job(KString sName, KStringView sCronDef, bool bHasSeconds, uint16_t iMaxQueued)
+Kron::Job::Job(KString sName, KStringView sCronDef, bool bHasSeconds, KDuration MaxExecutionTime)
 //-----------------------------------------------------------------------------
-: m_sName      (std::move(sName))
-, m_sCommand   (CutOffCommand(sCronDef, bHasSeconds ? 6 : 5)) // we need to split in cron expression and command right here
-, m_iJobID     (m_sName.Hash())
-, m_iMaxQueued (iMaxQueued)
+: m_sName            (std::move(sName))
+, m_sCommand         (CutOffCommand(sCronDef, bHasSeconds ? 6 : 5)) // we need to split in cron expression and command right here
+, m_MaxExecutionTime (MaxExecutionTime)
+, m_iJobID           (m_sName.Hash())
 {
-	kDebug(2, "constructing new crontab job: {}", Name());
+	kDebug(1, "building Job '{}' from cron expression", Name());
 
 	m_ParsedCron = KUniqueVoidPtr(
 		new KCronParser::cronexpr(KCronParser::make_cron(sCronDef)),
 		CronParserDeleter
 	);
 
+	kDebug(2, Print().dump(1, '\t'));
+
 } // ctor
 
 //-----------------------------------------------------------------------------
-Kron::Job::Job(KString sName, std::time_t tOnce, KStringView sCommand)
+Kron::Job::Job(KString sName, std::time_t tOnce, KStringView sCommand, KDuration MaxExecutionTime)
 //-----------------------------------------------------------------------------
-: m_sName      (std::move(sName))
-, m_sCommand   (sCommand)
-, m_iJobID     (m_sName.Hash())
-, m_iMaxQueued (1)
-, m_tOnce      (tOnce)
+: m_sName            (std::move(sName))
+, m_sCommand         (sCommand)
+, m_MaxExecutionTime (MaxExecutionTime)
+, m_iJobID           (m_sName.Hash())
+, m_tOnce            (tOnce)
 {
-	kDebug(2, "constructing new single execution job: {}", Name());
+	kDebug(1, "building Job '{}' with once time", Name());
+	kDebug(2, Print().dump(1, '\t'));
 
 } // ctor
 
@@ -163,14 +166,13 @@ Kron::Job::Job(KString sName, std::time_t tOnce, KStringView sCommand)
 Kron::Job::Job(const KJSON& jConfig)
 //-----------------------------------------------------------------------------
 {
-	m_sName        = kjson::GetStringRef (jConfig, "Name"        );
-	m_sCommand     = kjson::GetStringRef (jConfig, "Command"     );
-	m_iMaxQueued   = kjson::GetUInt      (jConfig, "MaxInQueue"  );
-	m_tOnce        = kjson::GetInt       (jConfig, "tOnce"       );
-	KString sDef   = kjson::GetStringRef (jConfig, "Definition"  );
-	auto jEnviron  = kjson::GetArray     (jConfig, "Environment" );
-
-	kDebug(2, "constructing new job from json: {}", Name());
+	m_sName            = kjson::GetStringRef (jConfig, "Name"        );
+	kDebug(1, "building Job '{}' from json", Name());
+	m_sCommand         = kjson::GetStringRef (jConfig, "Command"     );
+	m_MaxExecutionTime = std::chrono::seconds(kjson::GetUInt(jConfig, "MaxExecutionTime"));
+	m_tOnce            = kjson::GetInt       (jConfig, "tOnce"       );
+	KString sDef       = kjson::GetStringRef (jConfig, "Definition"  );
+	auto jEnviron      = kjson::GetArray     (jConfig, "Environment" );
 
 	if (jEnviron.is_array() && !jEnviron.empty())
 	{
@@ -186,9 +188,9 @@ Kron::Job::Job(const KJSON& jConfig)
 		}
 	}
 
-	if (m_iMaxQueued == 0)
+	if (m_MaxExecutionTime <= KDuration::zero())
 	{
-		m_iMaxQueued = 1;
+		m_MaxExecutionTime = KDuration::max();
 	}
 
 	if (m_tOnce == 0)
@@ -217,6 +219,8 @@ Kron::Job::Job(const KJSON& jConfig)
 
 		m_iJobID = iJobID;
 	}
+
+	kDebug(2, Print().dump(1, '\t'));
 
 } // ctor
 
@@ -265,50 +269,14 @@ KUTCTime Kron::Job::Next(const KUTCTime& tAfter) const
 } // Next
 
 //-----------------------------------------------------------------------------
-bool Kron::Job::IncQueued()
+bool Kron::Job::Start()
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard<std::mutex> Lock(m_ExecMutex);
+	std::unique_lock<std::shared_mutex> Lock(m_ExecMutex);
 
-	++m_iIsQueued;
+	if (m_Shell != nullptr)
 	{
-		if (m_iIsQueued > m_iMaxQueued)
-		{
-			--m_iIsQueued;
-
-			kDebug(1, "{} job(s) still waiting in queue or running, skipped '{}'",
-				   m_iMaxQueued, Name());
-
-			return false;
-		}
-	}
-
-	return true;
-
-} // IncQueued
-
-//-----------------------------------------------------------------------------
-void Kron::Job::DecQueued()
-//-----------------------------------------------------------------------------
-{
-	std::lock_guard<std::mutex> Lock(m_ExecMutex);
-
-	--m_iIsQueued;
-
-} // DecQueued
-
-//-----------------------------------------------------------------------------
-int Kron::Job::Execute()
-//-----------------------------------------------------------------------------
-{
-	std::unique_lock<std::mutex> Lock(m_ExecMutex);
-
-	++m_iIsRunning;
-
-	if (m_iIsRunning > m_iMaxQueued)
-	{
-		--m_iIsRunning;
-		kDebug(1, "new execution skipped, still running {} instance(s) of '{}'", m_iIsRunning, Name());
+		kDebug(1, "new execution skipped, still running '{}'", Name());
 		return -1;
 	}
 
@@ -317,51 +285,74 @@ int Kron::Job::Execute()
 
 	m_Control.tLastStarted = tNow;
 	++m_Control.iStartCount;
-	m_Control.Duration.Start();
+	m_Control.ExecutionTime.Start();
 
 	// and execute including the environment
-	KInShell Shell(Command(), "/bin/sh", m_Environment);
+	m_Shell = std::make_unique<KInShell>(Command(), "/bin/sh", m_Environment);
 
 #ifdef DEKAF2_IS_UNIX
 	// record the process ID, but not on Windows, as there we use popen and not fork ..
-	m_Control.ProcessID = Shell.GetProcessID();
+	m_Control.ProcessID = m_Shell->GetProcessID();
 #endif
 
 	// unlock during execution
 	Lock.unlock();
 
+	return m_Shell->IsRunning();
+
+} // Start
+
+//-----------------------------------------------------------------------------
+bool Kron::Job::IsWaiting()
+//-----------------------------------------------------------------------------
+{
+	std::shared_lock<std::shared_mutex> Lock(m_ExecMutex);
+
+	return m_Shell != nullptr && !m_Shell->IsRunning();
+
+} // IsWaiting
+
+//-----------------------------------------------------------------------------
+int Kron::Job::Wait(int msecs)
+//-----------------------------------------------------------------------------
+{
+	std::unique_lock<std::shared_mutex> Lock(m_ExecMutex);
+
+	if (m_Shell == nullptr)
+	{
+		kDebug(1, "job '{}' no more running?", Name());
+		return -1;
+	}
+
 	KString sOutput;
 
 	// read until EOF
-	Shell.ReadRemaining(sOutput);
+	m_Shell->ReadRemaining(sOutput);
 
 	// close the shell and report the return value to the caller
-	int iResult = Shell.Close();
+	int iResult = m_Shell->Close(msecs);
 
-	// protect again
-	Lock.lock();
-
-	m_Control.Duration.Stop();
+	auto lastDuration      = m_Control.ExecutionTime.Stop();
 	m_Control.ProcessID    = 0;
-	m_Control.sLastResult  = std::move(sOutput);
-	m_Control.iLastResult  = iResult;
+	m_Control.sLastOutput  = std::move(sOutput);
+	m_Control.iLastStatus  = iResult;
 	m_Control.tLastStopped = Dekaf::getInstance().GetCurrentTime();
 
 	kDebug(1, "job '{}' finished with status {}, took {}",
-		   Name(), iResult, kTranslateSeconds(m_Control.Duration.seconds()));
+		   Name(), iResult, kTranslateDuration(lastDuration));
 
-	--m_iIsRunning;
+	m_Shell.reset();
 
 	return iResult;
 
-} // Execute
+} // Wait
 
 //-----------------------------------------------------------------------------
 bool Kron::Job::Kill()
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_IS_UNIX
-	std::unique_lock<std::mutex> Lock(m_ExecMutex);
+	std::shared_lock<std::shared_mutex> Lock(m_ExecMutex);
 
 	if (m_Control.ProcessID > 0)
 	{
@@ -382,10 +373,38 @@ bool Kron::Job::Kill()
 } // Kill
 
 //-----------------------------------------------------------------------------
+bool Kron::Job::KillIfOverdue()
+//-----------------------------------------------------------------------------
+{
+	KDuration Runtime;
+
+	std::shared_lock<std::shared_mutex> Lock(m_ExecMutex);
+
+	if (!m_Shell)
+	{
+		return false;
+	}
+
+	Runtime = m_Control.ExecutionTime.CurrentRound().elapsed();
+
+	if (Runtime <= m_MaxExecutionTime)
+	{
+		return false;
+	}
+
+	Lock.unlock();
+
+	kDebug(1, "killing Job '{}' after runtime of {}", kTranslateDuration(Runtime));
+
+	return Kill();
+
+} // KillIfOverdue
+
+//-----------------------------------------------------------------------------
 struct Kron::Job::Control Kron::Job::Control() const
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard<std::mutex> Lock(m_ExecMutex);
+	std::shared_lock<std::shared_mutex> Lock(m_ExecMutex);
 
 	return m_Control;
 }
@@ -406,25 +425,24 @@ KJSON Kron::Job::Print(std::size_t iMaxResultSize) const
 		});
 	}
 
-	std::lock_guard<std::mutex> Lock(m_ExecMutex);
+	std::shared_lock<std::shared_mutex> Lock(m_ExecMutex);
 
 	return KJSON
 	{
 		{ "Name"        , m_sName                                               },
 		{ "Command"     , m_sCommand                                            },
 		{ "ID"          , KString::to_string(m_iJobID)                          },
-		{ "MaxInQueue"  , m_iMaxQueued                                          },
 		{ "IsRunning"   , IsRunning()                                           },
-		{ "IsQueued"    , IsQueued()                                            },
 		{ "tOnce"       , m_tOnce                                               },
 		{ "LastStarted" , m_Control.tLastStarted                                },
 		{ "LastStopped" , m_Control.tLastStopped                                },
 		{ "Starts"      , m_Control.iStartCount                                 },
 		{ "Definition"  , m_ParsedCron ? cxget(m_ParsedCron)->to_cronstr() : "" },
 		{ "Environment" , std::move(jEnv)                                       },
-		{ "Duration"    , m_Control.Duration.milliseconds()                     },
-		{ "Result"      , m_Control.sLastResult.Left(iMaxResultSize)            },
-		{ "ResultCode"  , m_Control.iLastResult                                 }
+		{ "Executed"    , m_Control.ExecutionTime.milliseconds()                },
+		{ "Output"      , m_Control.sLastOutput.Left(iMaxResultSize)            },
+		{ "MaxExecutionTime", m_MaxExecutionTime.seconds()                      },
+		{ "Status"      , m_Control.iLastStatus                                 }
 	};
 
 } // Print
@@ -465,7 +483,7 @@ std::size_t Kron::Scheduler::AddJobsFromCrontab(KStringView sCrontab, bool bHasS
 
 		try
 		{
-			auto job = Kron::Job::Create(kFormat("crontab-{}", iCount + 1), sLine, bHasSeconds, 1);
+			auto job = Kron::Job::Create(kFormat("crontab-{}", iCount + 1), sLine, bHasSeconds);
 			// copy the environment into the job
 			job->SetEnvironment(Environment);
 			// and try to add the job to the scheduler
@@ -620,8 +638,7 @@ bool Kron::LocalScheduler::empty() const
 }
 
 //-----------------------------------------------------------------------------
-Kron::Kron(std::size_t iThreads,
-		   SharedScheduler Scheduler)
+Kron::Kron(bool bAllowLaunches, KDuration CheckEvery, SharedScheduler Scheduler)
 //-----------------------------------------------------------------------------
 : m_Scheduler(Scheduler)
 {
@@ -629,17 +646,21 @@ Kron::Kron(std::size_t iThreads,
 	{
 		throw KException("cannot construct a Kron without scheduler");
 	}
-	Resize(iThreads);
-}
+
+	if (bAllowLaunches)
+	{
+		kDebug(1, "starting");
+
+		// start the time keeper
+		m_Chronos = std::make_unique<std::thread>(&Kron::Launcher, this, CheckEvery);
+	}
+
+} // ctor
 
 //-----------------------------------------------------------------------------
 Kron::~Kron()
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard<std::mutex> Lock(m_ResizeMutex);
-
-	m_Tasks.stop(false);
-
 	if (m_Chronos)
 	{
 		kDebug(1, "stopping Chronos");
@@ -649,86 +670,184 @@ Kron::~Kron()
 		m_Chronos->join();
 	}
 
-	kDebug(1, "stopped");
+	kDebug(1, "finished");
 
 } // dtor
 
 //-----------------------------------------------------------------------------
-void Kron::Launcher()
+// returns number of newly started jobs
+std::size_t Kron::StartNewJobs()
 //-----------------------------------------------------------------------------
 {
-	auto tSleepUntil = Dekaf::getInstance().GetCurrentTimepoint();
+	std::size_t iStarted { 0 };
 
-	for(;m_bStop == false;)
+	auto tNow = Dekaf::getInstance().GetCurrentTime();
+
+	for (;m_bStop == false;)
 	{
-		tSleepUntil += std::chrono::seconds(1);
-		std::this_thread::sleep_until(tSleepUntil);
+		auto job = m_Scheduler->GetJob(tNow);
 
-		auto tNow = Dekaf::getInstance().GetCurrentTime();
-
-		for (;;)
+		if (!job)
 		{
-			auto job = m_Scheduler->GetJob(tNow);
+			// no more jobs right now
+			break;
+		}
 
-			if (!job)
-			{
-				// no more jobs right now
-				break;
-			}
+		if (job->Start())
+		{
+			m_RunningJobs.unique()->push_back(job);
+			++iStarted;
+		}
+	}
 
-			// make sure we have not more than the max allowed count of Jobs
-			// like this in the queue
-			if (job->IncQueued())
+	return iStarted;
+
+} // StartNewJobs
+
+//-----------------------------------------------------------------------------
+// returns number of running jobs
+std::size_t Kron::FinishWaitingJobs()
+//-----------------------------------------------------------------------------
+{
+	auto Jobs = m_RunningJobs.unique();
+
+	for (auto job = Jobs->begin(); job != Jobs->end();)
+	{
+		(*job)->KillIfOverdue();
+
+		if ((*job)->IsWaiting())
+		{
+			// read result
+			(*job)->Wait(100);
+
+			m_Scheduler->JobFinished(*job);
+
+			// remove from list
+			Jobs->erase(job);
+		}
+		else
+		{
+			++job;
+		}
+	}
+
+	return Jobs->size();
+
+} // FinishWaitingJobs
+
+//-----------------------------------------------------------------------------
+void Kron::Launcher(KDuration CheckEvery)
+//-----------------------------------------------------------------------------
+{
+	if (CheckEvery == KDuration::zero())
+	{
+		CheckEvery = std::chrono::seconds(1);
+	}
+
+	kDebug(1, "will check with interval of {} for jobs to start", kTranslateDuration(CheckEvery));
+
+	std::size_t iFactor  { 1 };
+	std::size_t iRunning { 0 };
+
+	if (CheckEvery.milliseconds() > 100)
+	{
+		// while jobs are running, we want to check for termination at
+		// least every 100 millisecods
+		iFactor = CheckEvery.milliseconds() / 100;
+
+		if (iFactor > 1)
+		{
+			kDebug(2, "will check {} times faster for terminated jobs", iFactor);
+		}
+	}
+
+	std::size_t iCountDown { iFactor };
+
+	for(;;)
+	{
+		try
+		{
+			std::this_thread::sleep_for((iRunning && iFactor > 1) ? std::chrono::milliseconds(100) : CheckEvery);
+
+			if (iRunning)
 			{
-				// queue task (use value copy of the shared ptr)
-				m_Tasks.push([this, job]() mutable
+				if (--iCountDown == 0)
 				{
-					job->Execute();
-					job->DecQueued();
-					m_Scheduler->JobFinished(job);
-				});
+					iCountDown = iFactor;
+				}
 			}
+
+			if (!iRunning || iCountDown == iFactor)
+			{
+				// check for all new jobs to start
+				iRunning += StartNewJobs();
+			}
+
+			if (iRunning)
+			{
+				// check for returns
+				iRunning = FinishWaitingJobs();
+			}
+
+			if (m_bStop && iRunning == 0)
+			{
+				// all jobs finished, stop requested
+				return;
+			}
+		}
+
+		catch (const std::exception& ex)
+		{
+			kException(ex);
+		}
+		catch (...)
+		{
+			kUnknownException();
 		}
 	}
 
 } // Launcher
 
 //-----------------------------------------------------------------------------
-bool Kron::Resize(std::size_t iThreads)
+KJSON Kron::ListRunningJobs(Job::ID filterForID) const
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard<std::mutex> Lock(m_ResizeMutex);
+	KJSON jJobs;
+	jJobs = KJSON::array();
 
-	if (iThreads == m_Tasks.size())
+	auto Jobs = m_RunningJobs.shared();
+
+	for (auto& job : *Jobs)
 	{
-		kDebug(2, "size already at: {}", iThreads);
+		if (filterForID == 0 || job->JobID() == filterForID)
+		{
+			jJobs.push_back(job->Print());
+		}
+	}
+
+	return jJobs;
+
+} // ListRunningJobs
+
+//-----------------------------------------------------------------------------
+bool Kron::KillJob(Job::ID ID)
+//-----------------------------------------------------------------------------
+{
+	auto Jobs = m_RunningJobs.unique();
+
+	auto it = std::find_if(Jobs->begin(), Jobs->end(), [&ID](SharedJob& job)
+	{
+		return job->JobID() == ID;
+	});
+
+	if (it != Jobs->end())
+	{
+		(*it)->Kill();
 		return true;
 	}
 
-	kDebug(2, "resizing threads in task pool to: {}", iThreads);
+	return false;
 
-	if (iThreads == 0 && m_Chronos)
-	{
-		// tell the thread to stop
-		m_bStop = true;
-
-		// and block until it is home (could take a second)
-		m_Chronos->join();
-		m_Chronos.reset();
-	}
-
-	auto bResult = m_Tasks.resize(iThreads);
-
-	if (iThreads > 0 && !m_Chronos)
-	{
-		m_bStop = false;
-
-		// start the time keeper
-		m_Chronos = std::make_unique<std::thread>(&Kron::Launcher, this);
-	}
-
-	return bResult;
-
-} // Resize
+} // KillJob
 
 } // end of namespace dekaf2

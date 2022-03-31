@@ -31,6 +31,8 @@ constexpr bool operator==(std::tm const & tm1, std::tm const & tm2) noexcept
 		tm1.tm_isdst == tm2.tm_isdst;
 }
 
+extern KString print_diff(KStringView s1, KStringView s2);
+
 namespace {
 
 void check_next(kron::stringview_t expr, kron::stringview_t time, kron::stringview_t expected)
@@ -469,7 +471,7 @@ TEST_CASE("KRON")
 
 	SECTION("KRON::JOB")
 	{
-		auto Job = Kron::Job::Create("testjob", "* 0/5 * * * ? \t fstrim -a >/dev/null 2>&1  ", true, 1);
+		auto Job = Kron::Job::Create("testjob", "* 0/5 * * * ? \t fstrim -a >/dev/null 2>&1  ", true);
 		CHECK ( Job->Name()    == "testjob"                    );
 		CHECK ( Job->Command() == "fstrim -a >/dev/null 2>&1"  );
 		auto next = Job->Next(1647620612);
@@ -482,7 +484,7 @@ TEST_CASE("KRON")
 
 	SECTION("KRON 1")
 	{
-		Kron Cron(4);
+		Kron Cron(true, std::chrono::milliseconds(10));
 		time_t tNow = Dekaf::getInstance().GetCurrentTime();
 		KString sFilename = kFormat("{}{}test.txt", TempDir.Name(), kDirSep);
 		Cron.Scheduler().AddJob(Kron::Job::Create("JobName", tNow-1, kFormat("echo hello world > {}", sFilename)));
@@ -547,7 +549,6 @@ R"([
 	{
 		"Command": "fstrim -a >/dev/null 2>&1",
 		"Definition": "2  4 * * 2",
-		"Duration": 0,
 		"Environment": [
 			{
 				"name": "SHELL",
@@ -558,23 +559,22 @@ R"([
 				"value": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 			}
 		],
+		"Executed": 0,
 		"ID": "10371372858990154658",
-		"IsQueued": false,
 		"IsRunning": false,
 		"LastStarted": -1,
 		"LastStopped": -1,
-		"MaxInQueue": 1,
+		"MaxExecutionTime": 9223372036,
 		"Name": "crontab-1",
-		"Result": "",
-		"ResultCode": 0,
+		"Output": "",
 		"Starts": 0,
+		"Status": 0,
 		"tNext": 9999,
 		"tOnce": -1
 	},
 	{
 		"Command": "/root/prepare/prepare_image.sh --update >/dev/null 2>&1",
 		"Definition": "12 4 * * 2",
-		"Duration": 0,
 		"Environment": [
 			{
 				"name": "SHELL",
@@ -585,29 +585,47 @@ R"([
 				"value": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 			}
 		],
+		"Executed": 0,
 		"ID": "10371371759478526447",
-		"IsQueued": false,
 		"IsRunning": false,
 		"LastStarted": -1,
 		"LastStopped": -1,
-		"MaxInQueue": 1,
+		"MaxExecutionTime": 9223372036,
 		"Name": "crontab-2",
-		"Result": "",
-		"ResultCode": 0,
+		"Output": "",
 		"Starts": 0,
+		"Status": 0,
 		"tNext": 9999,
 		"tOnce": -1
 	}
 ])";
-		Kron Cron;
+		Kron Cron(false);
 		auto iSize = Cron.Scheduler().AddJobsFromCrontab(sCrontab);
 		CHECK ( iSize == 2);
 		auto Jobs = Cron.Scheduler().ListJobs();
 		for (auto& it : Jobs)
 		{
+			// equalize execution time
 			it["tNext"] = 9999;
+			if (kIs32Bits())
+			{
+				if (it["ID"] == "3939816450")
+				{
+					it["ID"] = "10371372858990154658";
+				}
+				else if (it["ID"] == "3923038831")
+				{
+					it["ID"] = "10371371759478526447";
+				}
+			}
 		}
 		CHECK ( Jobs.dump(1, '\t') == sExpected );
+
+		auto sDiff = print_diff(Jobs.dump(1, '\t'), sExpected);
+		if (!sDiff.empty())
+		{
+			FAIL_CHECK ( sDiff );
+		}
 	}
 
 	SECTION("KRON 3")
@@ -616,7 +634,6 @@ R"([
 R"({
 	"Command": "fstrim -a >/dev/null 2>&1",
 	"Definition": "2 4 * * 2",
-	"Duration": 0,
 	"Environment": [
 		{
 			"name": "SHELL",
@@ -627,22 +644,35 @@ R"({
 			"value": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 		}
 	],
+	"Executed": 0,
 	"ID": "13660389840222351214",
-	"IsQueued": false,
 	"IsRunning": false,
 	"LastStarted": -1,
 	"LastStopped": -1,
-	"MaxInQueue": 1,
+	"MaxExecutionTime": 9223372036,
 	"Name": "crontab",
-	"Result": "",
-	"ResultCode": 0,
+	"Output": "",
 	"Starts": 0,
+	"Status": 0,
 	"tOnce": -1
 })";
 
 		auto jDef = kjson::Parse(sJSON);
 		auto job  = Kron::Job::Create(jDef);
 		auto jPrinted = job->Print();
+		if (kIs32Bits())
+		{
+			if (jPrinted["ID"] == "265219950")
+			{
+				jPrinted["ID"] = "13660389840222351214";
+			}
+		}
 		CHECK ( jPrinted.dump(1, '\t') == sJSON );
+
+		auto sDiff = print_diff(jPrinted.dump(1, '\t'), sJSON);
+		if (!sDiff.empty())
+		{
+			FAIL_CHECK ( sDiff );
+		}
 	}
 }

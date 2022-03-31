@@ -52,9 +52,11 @@
 #include "kthreadsafe.h"
 #include "kjson.h"
 #include "kassociative.h"
+#include "kinshell.h"
 #include "bits/kunique_deleter.h"
 #include <mutex>
 #include <map>
+#include <vector>
 
 namespace dekaf2 {
 
@@ -86,13 +88,13 @@ public:
 
 		struct Control
 		{
-			std::time_t    tLastStarted   { INVALID_TIME };
-			std::time_t    tLastStopped   { INVALID_TIME };
-			std::size_t    iStartCount    {  0 };
-			int            iLastResult    {  0 };
-			pid_t          ProcessID      { -1 };
-			KStopDuration  Duration;
-			KString        sLastResult;
+			std::time_t    tLastStarted   { INVALID_TIME }; ///< last start time
+			std::time_t    tLastStopped   { INVALID_TIME }; ///< last stop time
+			std::size_t    iStartCount    {  0 };           ///< total count of executions
+			int            iLastStatus    {  0 };           ///< last status return code
+			pid_t          ProcessID      { -1 };           ///< process ID of the running job
+			KStopDuration  ExecutionTime;                   ///< total execution time
+			KString        sLastOutput;                     ///< last output of command (if any)
 
 		}; // Control
 
@@ -101,11 +103,12 @@ public:
 		Job(KString      sName,
 			KStringView  sCronDef,
 			bool         bHasSeconds = true,
-			uint16_t     iMaxQueued = 1);
+			KDuration    MaxExecutionTime = KDuration::max());
 
 		Job(KString      sName,
 			std::time_t  tOnce,
-			KStringView  sCommand);
+			KStringView  sCommand,
+			KDuration    MaxExecutionTime = KDuration::max());
 
 		Job(const KJSON& jConfig);
 
@@ -115,6 +118,7 @@ public:
 
 		/// return next execution time after tAfter, in unix time_t
 		std::time_t Next(std::time_t tAfter = 0) const;
+
 		/// return next execution time after tAfter, in KUTCTime
 		KUTCTime Next(const KUTCTime& tAfter) const;
 
@@ -125,18 +129,21 @@ public:
 		const KString& Command() const { return m_sCommand; }
 
 		/// returns true when the Job is currently executed
-		bool IsRunning() const { return m_iIsRunning > 0; }
+		bool IsRunning() const { return m_Shell != nullptr; }
 
-		/// returns true when the Job is currently queued for execution
-		bool IsQueued() const { return m_iIsQueued > 0; }
+		/// returns true when the executing shell/pipe has finished and is waiting to be closed
+		bool IsWaiting();
 
 		/// returns the Job ID
 		ID JobID() const { return m_iJobID; }
 
 		/// runs the Job - virtual, to allow extensions
-		virtual int Execute();
+		virtual bool Start();
 		/// runs the Job
-		virtual int operator()() { return Execute(); }
+		virtual bool operator()() { return Start(); }
+
+		/// Waits up to the number of given milliseconds for the Job to terminate, returns status code
+		virtual int Wait(int msecs);
 
 		/// print a json description of the job
 		/// @param iMaxResultSize the output of the executed command will be cut off after this count
@@ -148,6 +155,9 @@ public:
 
 		/// kill the job, will return false on Windows (and hence not work there)
 		bool Kill();
+
+		/// returns true if the job is running longer than permitted, and will terminate it in that case
+		bool KillIfOverdue();
 
 		/// static, create a SharedJob
 		template<typename... Args>
@@ -162,30 +172,24 @@ public:
 
 		friend class Kron;
 
-		bool IncQueued();
-		void DecQueued();
-
 		static KStringView CutOffCommand(KStringView& sCronDef, uint16_t iElements = 6);
 
 	//----------
 	private:
 	//----------
 
-		KString        m_sName;
-		KString        m_sCommand;
-		ID             m_iJobID     { 0 };
-		uint16_t       m_iMaxQueued { 1 };
-		uint16_t       m_iIsRunning { 0 };
-		uint16_t       m_iIsQueued  { 0 };
-
-		mutable std::mutex m_ExecMutex;
-
-		KUniqueVoidPtr m_ParsedCron;
-		std::time_t    m_tOnce      { INVALID_TIME };
-		struct Control m_Control;
+		KString                   m_sName;
+		KString                   m_sCommand;
+		KDuration                 m_MaxExecutionTime { KDuration::max() };
+		ID                        m_iJobID           { 0 };
+		std::time_t               m_tOnce            { INVALID_TIME };
+		KUniqueVoidPtr            m_ParsedCron;
+		struct Control            m_Control;
 		std::vector<
 			std::pair<KString, KString>
-		>              m_Environment;
+		>                         m_Environment;
+		std::unique_ptr<KInShell> m_Shell;
+		mutable std::shared_mutex m_ExecMutex;
 
 	}; // Kron::Job
 
@@ -274,28 +278,33 @@ public:
 
 	using SharedScheduler = std::shared_ptr<Scheduler>;
 
-	/// ctor, takes the number of threads that will run the Jobs (default none), and a Scheduler (defaults to a LocalScheduler)
-	Kron(std::size_t iThreads = 0,
+	/// ctor, takes a Scheduler (defaults to a LocalScheduler)
+	Kron(bool bAllowLaunches       = true,
+		 KDuration CheckEvery      = std::chrono::seconds(1),
 		 SharedScheduler Scheduler = std::make_shared<LocalScheduler>());
 	~Kron();
 
-	/// set number of threads that will run the Jobs. If > 0 starts the Scheduler
-	bool Resize(std::size_t iThreads);
-
 	/// return the Scheduler object
 	Scheduler& Scheduler() { return *m_Scheduler; }
+
+	KJSON ListRunningJobs(Job::ID filterForID = 0) const;
+
+	bool KillJob(Job::ID ID);
 
 //----------
 protected:
 //----------
 
-	void Launcher();
+	std::size_t StartNewJobs      ();
+	std::size_t FinishWaitingJobs ();
+	void        Launcher          (KDuration CheckEvery);
 
 	SharedScheduler               m_Scheduler;
-	KThreadPool                   m_Tasks;           // the task queue
+	KThreadSafe<
+		std::vector<SharedJob>
+	>                             m_RunningJobs;     // the currently running jobs
 	std::unique_ptr<std::thread>  m_Chronos;         // the time keeper
-	std::mutex                    m_ResizeMutex;
-	bool                          m_bStop { true };  // syncronization with time keeper thread
+	bool                          m_bStop { false }; // syncronization with time keeper thread
 
 }; // Kron
 

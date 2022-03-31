@@ -767,7 +767,9 @@ void Kron::Launcher(KDuration CheckEvery)
 	{
 		try
 		{
-			std::this_thread::sleep_for((iRunning && iFactor > 1) ? std::chrono::milliseconds(100) : CheckEvery);
+			std::this_thread::sleep_for((iRunning && iFactor > 1)
+										? std::chrono::milliseconds(100)
+										: CheckEvery.duration());
 
 			if (iRunning)
 			{

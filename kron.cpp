@@ -288,7 +288,13 @@ bool Kron::Job::Start()
 	m_Control.ExecutionTime.Start();
 
 	// and execute including the environment
-	m_Shell = std::make_unique<KInShell>(Command(), "/bin/sh", m_Environment);
+	m_Shell = std::make_unique<KInShell>();
+
+	if (!m_Shell->Open(Command(), "/bin/sh", m_Environment))
+	{
+		// cannot open input pipe 'echo my first cronjob': Too many open files
+		return false;
+	}
 
 #ifdef DEKAF2_IS_UNIX
 	// record the process ID, but not on Windows, as there we use popen and not fork ..
@@ -333,7 +339,7 @@ int Kron::Job::Wait(int msecs)
 	int iResult = m_Shell->Close(msecs);
 
 	auto lastDuration      = m_Control.ExecutionTime.Stop();
-	m_Control.ProcessID    = 0;
+	m_Control.ProcessID    = -1;
 	m_Control.sLastOutput  = std::move(sOutput);
 	m_Control.iLastStatus  = iResult;
 	m_Control.tLastStopped = Dekaf::getInstance().GetCurrentTime();
@@ -442,20 +448,22 @@ KJSON Kron::Job::Print(std::size_t iMaxResultSize) const
 		{ "Executed"    , m_Control.ExecutionTime.milliseconds()                },
 		{ "Output"      , m_Control.sLastOutput.Left(iMaxResultSize)            },
 		{ "MaxExecutionTime", m_MaxExecutionTime.seconds()                      },
-		{ "Status"      , m_Control.iLastStatus                                 }
+		{ "Status"      , m_Control.iLastStatus                                 },
+		{ "ProcessID"   , m_Control.ProcessID                                   }
 	};
 
 } // Print
 
 // the empty base class methods for the Scheduler
-                Kron::Scheduler::~Scheduler  () /* need a virtual dtor */              {                 }
-bool            Kron::Scheduler::AddJob      (const SharedJob& Job)                    { return false;   }
-bool            Kron::Scheduler::DeleteJob   (Job::ID JobID)                           { return false;   }
-KJSON           Kron::Scheduler::ListJobs    ()                                  const { return KJSON{}; }
-std::size_t     Kron::Scheduler::size        ()                                  const { return 0;       }
-bool            Kron::Scheduler::empty       ()                                  const { return !size(); }
-Kron::SharedJob Kron::Scheduler::GetJob      (std::time_t tNow)                        { return nullptr; }
-void            Kron::Scheduler::JobFinished (const SharedJob& Job)                    {                 }
+                Kron::Scheduler::~Scheduler  () /* need a virtual dtor */               {                 }
+bool            Kron::Scheduler::AddJob      (const SharedJob& Job)                     { return false;   }
+bool            Kron::Scheduler::DeleteJob   (Job::ID JobID)                            { return false;   }
+KJSON           Kron::Scheduler::ListJobs    ()                                   const { return KJSON{}; }
+std::size_t     Kron::Scheduler::size        ()                                   const { return 0;       }
+bool            Kron::Scheduler::empty       ()                                   const { return !size(); }
+Kron::SharedJob Kron::Scheduler::GetJob      (std::time_t tNow)                         { return nullptr; }
+void            Kron::Scheduler::JobFinished (const SharedJob& Job)                     {                 }
+void            Kron::Scheduler::JobFailed   (const SharedJob& Job, KStringView sError) {                 }
 
 //-----------------------------------------------------------------------------
 bool  Kron::Scheduler::ModifyJob   (const SharedJob& Job)
@@ -698,6 +706,10 @@ std::size_t Kron::StartNewJobs()
 			m_RunningJobs.unique()->push_back(job);
 			++iStarted;
 		}
+		else
+		{
+			m_Scheduler->JobFailed(job, strerror(errno));
+		}
 	}
 
 	return iStarted;
@@ -767,10 +779,6 @@ void Kron::Launcher(KDuration CheckEvery)
 	{
 		try
 		{
-			std::this_thread::sleep_for((iRunning && iFactor > 1)
-										? std::chrono::milliseconds(100)
-										: CheckEvery.duration());
-
 			if (iRunning)
 			{
 				if (--iCountDown == 0)
@@ -806,6 +814,10 @@ void Kron::Launcher(KDuration CheckEvery)
 		{
 			kUnknownException();
 		}
+
+		std::this_thread::sleep_for((iRunning && iFactor > 1)
+									? std::chrono::milliseconds(100)
+									: CheckEvery.duration());
 	}
 
 } // Launcher

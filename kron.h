@@ -234,6 +234,8 @@ public:
 		virtual SharedJob GetJob(std::time_t tNow);
 		/// a Job has been run and is returned to the scheduler
 		virtual void JobFinished(const SharedJob& Job);
+		/// a Job failed to run and is returned to the scheduler
+		virtual void JobFailed(const SharedJob& Job, KStringView sError);
 
 
 	}; // Kron::Scheduler

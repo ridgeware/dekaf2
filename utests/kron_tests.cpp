@@ -567,6 +567,7 @@ R"([
 		"MaxExecutionTime": 9223372036,
 		"Name": "crontab-1",
 		"Output": "",
+		"ProcessID": -1,
 		"Starts": 0,
 		"Status": 0,
 		"tNext": 9999,
@@ -593,6 +594,7 @@ R"([
 		"MaxExecutionTime": 9223372036,
 		"Name": "crontab-2",
 		"Output": "",
+		"ProcessID": -1,
 		"Starts": 0,
 		"Status": 0,
 		"tNext": 9999,
@@ -652,6 +654,7 @@ R"({
 	"MaxExecutionTime": 9223372036,
 	"Name": "crontab",
 	"Output": "",
+	"ProcessID": -1,
 	"Starts": 0,
 	"Status": 0,
 	"tOnce": -1

@@ -613,6 +613,7 @@ public:
 	/// returns true if string contains UTF8 runs
 	bool HasUTF8() const;
 
+	/// returns the count of unicode codepoints (or, UTF8 sequences)
 	size_type SizeUTF8() const;
 
 	/// pads string at the left up to iWidth size with chPad

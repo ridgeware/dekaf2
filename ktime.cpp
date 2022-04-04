@@ -48,6 +48,7 @@
 #include "koutstringstream.h"
 #include "kthreadsafe.h"
 #include "klog.h"
+#include <type_traits>
 
 #define DEKAF2_USE_WINDOWS_TIMEZONEAPI
 
@@ -1021,11 +1022,10 @@ int32_t KLocalTime::GetUTCOffset() const
 
 	kDebug(2, "cannot read time zone information");
 
-#else
+	// fall back to the brute force approach
+#endif
 
 	return static_cast<int32_t>(timegm(const_cast<std::tm*>(&m_time)) - ToTimeT());
-
-#endif
 
 #endif
 
@@ -1276,7 +1276,9 @@ KString kTranslateDuration(const KDuration& Duration, bool bLongForm)
 	}
 	else // smarter, generally more useful logic: display something that makes sense
 	{
-		if (iNanoSecs <= std::numeric_limits<int_t>::min())
+		// the parens are important to avoid a clash with defined min and max macros,
+		// particularly on windows
+		if (iNanoSecs <= (std::numeric_limits<int_t>::min)())
 		{
 			sOut = "a very short time"; // < -292.5 years
 		}
@@ -1357,11 +1359,13 @@ KString kTranslateDuration(const KDuration& Duration, bool bLongForm)
 KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
 //-----------------------------------------------------------------------------
 {
-	if (iNumSeconds > KDuration::max().seconds())
+	// the parens are important to avoid a clash with defined min and max macros,
+	// particularly on windows
+	if (iNumSeconds > (KDuration::max)().seconds())
 	{
 		return "a very long time";  // > 292.5 years
 	}
-	else if (iNumSeconds < KDuration::min().seconds())
+	else if (iNumSeconds < (KDuration::min)().seconds())
 	{
 		return "a very short time"; // < -292.5 years
 	}

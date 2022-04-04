@@ -1089,4 +1089,79 @@ TEST_CASE("KStringUtils") {
 		CHECK ( kIsAtEndofWordASCII(sHaystack, iPos+iSize) == false );
 	}
 
+	SECTION("kLimitSize")
+	{
+		KString sStr = "123456789-1234567890";
+		kLimitSize(sStr, 20);
+		CHECK ( sStr ==  "123456789-1234567890" );
+		kLimitSize(sStr, 10);
+		CHECK ( sStr == "1234...890");
+		kLimitSize(sStr, 10);
+		CHECK ( sStr == "1234...890");
+		sStr = "12345";
+		kLimitSize(sStr, 10);
+		CHECK ( sStr == "12345" );
+		kLimitSize(sStr, 5);
+		CHECK ( sStr == "12345" );
+		kLimitSize(sStr, 4);
+		CHECK ( sStr == "1245" );
+		kLimitSize(sStr, 1);
+		CHECK ( sStr == "1" );
+		kLimitSize(sStr, 0);
+		CHECK ( sStr == "" );
+
+		std::string stdStr = "123456789-1234567890";
+		kLimitSize(stdStr, 10);
+		CHECK ( stdStr == "1234...890");
+	}
+
+	SECTION("kLimitSizeUTF8")
+	{
+		KString sStr = "œꜿęϧϯꜻꜿⱥⱡ";
+		CHECK (sStr.size() == 23 );
+		CHECK ( Unicode::ValidUTF8(sStr) );
+
+		kLimitSizeUTF8(sStr, 23);
+		CHECK ( sStr ==  "œꜿęϧϯꜻꜿⱥⱡ" );
+		CHECK ( Unicode::ValidUTF8(sStr) );
+		CHECK ( sStr.size() == 23 );
+
+		kLimitSizeUTF8(sStr, 11);
+		CHECK ( sStr == "œ…ⱥⱡ");
+		CHECK ( Unicode::ValidUTF8(sStr) );
+		CHECK ( sStr.size() == 11 );
+
+		kLimitSizeUTF8(sStr, 11);
+		CHECK ( sStr == "œ…ⱥⱡ");
+		CHECK ( Unicode::ValidUTF8(sStr) );
+
+		sStr = "œꜿęϧϯꜻꜿⱥⱡ";
+
+		kLimitSizeUTF8(sStr, 5);
+		CHECK ( sStr == "œⱡ" );
+		CHECK ( Unicode::ValidUTF8(sStr) );
+		CHECK ( sStr.size() == 5 );
+
+		sStr = "œꜿęϧϯꜻꜿⱥⱡ";
+
+		kLimitSizeUTF8(sStr, 4);
+		CHECK ( sStr == "œ" );
+		CHECK ( Unicode::ValidUTF8(sStr) );
+		CHECK ( sStr.size() == 2 );
+
+		kLimitSizeUTF8(sStr, 1);
+		CHECK ( sStr == "" );
+		CHECK ( Unicode::ValidUTF8(sStr) );
+		CHECK ( sStr.size() == 0 );
+
+		kLimitSizeUTF8(sStr, 0);
+		CHECK ( sStr == "" );
+		CHECK ( Unicode::ValidUTF8(sStr) );
+
+		std::string stdStr = "œpęϧϯꜻꜿⱥⱡ";
+		kLimitSizeUTF8(stdStr, 11);
+		CHECK ( stdStr == "œp…ⱡ");
+		CHECK ( Unicode::ValidUTF8(stdStr) );
+	}
+
 }

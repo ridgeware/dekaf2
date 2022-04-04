@@ -308,7 +308,7 @@ KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMe
 		{
 			if (!kIsBinary(sResponse))
 			{
-				kDebug(2, sResponse.LeftUTF8(1000));
+				kDebug(2, kLimitSizeUTF8(sResponse, 2048));
 			}
 		}
 		kDebug(2, "received {} bytes", sResponse.size());

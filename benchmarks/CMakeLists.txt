@@ -18,6 +18,7 @@ set (SOURCES
 	kreader_bench.cpp
 	kstring_bench.cpp
 	kstringview_bench.cpp
+	kutf8_bench.cpp
 	kwriter_bench.cpp
 	main.cpp
 	other_bench.cpp

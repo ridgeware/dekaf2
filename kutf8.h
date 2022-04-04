@@ -42,6 +42,18 @@
 
 /// @file kutf8.h
 /// provides support for UTF8, UTF16 and UTF32 encoding
+///
+/// The discrete UTF8 decoder in this implementation, when compiled with clang for X86_64,
+/// is nearly twice as fast than a DFA approach.
+/// This indicates that optimization in the compiler and branch prediction on modern CPUs work great.
+/// For UTF8 codepoint counting this implementation is even 4-5 times faster than a DFA approach. That
+/// is due to the reason that it does not check validity of the UTF8 while counting. It does during decode though.
+/// The UTF8 decoder and encoder both permit single surrogate values as codepoints, as well as 0xFFFE and 0xFFFF.
+/// Otherwise invalid UTF8 runs are not decoded (inefficient encoding, values > 0x0110000, too long continuation
+/// sequences, aborted continuation sequences both by end of input or start of a new codepoint) and signaled by
+/// INVALID_CODEPOINT as the decoded value. It is left to the caller if this will be translated into the
+/// REPLACEMENT_CHARACTER or lead to an abort of the operation. Input iterators will always point to the
+/// next start of a sequence after a decode, and skip invalid input.
 
 #include <cstdint>
 #include <cstddef>
@@ -61,13 +73,13 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 #if __cplusplus >= 201402L
 	#define KUTF8_CONSTEXPR_14 constexpr
 #else
-	#define KUTF8_CONSTEXPR_14
+	#define KUTF8_CONSTEXPR_14 inline
 #endif
 
 #if __cplusplus >= 201703L
 	#define KUTF8_CONSTEXPR_20 constexpr
 #else
-	#define KUTF8_CONSTEXPR_20
+	#define KUTF8_CONSTEXPR_20 inline
 #endif
 
 #if __cplusplus > 201402L
@@ -91,14 +103,32 @@ using codepoint_t = uint32_t;
 using utf16_t     = uint16_t;
 using utf8_t      = uint8_t;
 
-static constexpr codepoint_t INVALID_CODEPOINT = UINT32_MAX;
-static constexpr codepoint_t REPLACEMENT_CHARACTER = 0x0fffd;
-
+static constexpr codepoint_t INVALID_CODEPOINT     = UINT32_MAX; ///< our flag for invalid codepoints
+static constexpr codepoint_t REPLACEMENT_CHARACTER = 0x0fffd;    ///< the replacement character to signal invalid codepoints in strings
+static constexpr codepoint_t CODEPOINT_MAX         = 0x010ffff;  ///< the largest legal unicode codepoint
 struct SurrogatePair
 {
 	utf16_t	first  { 0 };
 	utf16_t second { 0 };
 };
+
+//-----------------------------------------------------------------------------
+/// Returns true if the given character is a UTF8 continuation byte (which follow the start byte of a UTF8 sequence)
+inline constexpr
+bool IsContinuationByte(utf8_t ch)
+//-----------------------------------------------------------------------------
+{
+	return (ch & 0x0c0) == 0x080;
+}
+
+//-----------------------------------------------------------------------------
+/// Returns true if the given character is a UTF8 start byte (which starts a UTF8 sequence and is followed by one to three continuation bytes)
+inline constexpr
+bool IsStartByte(utf8_t ch)
+//-----------------------------------------------------------------------------
+{
+	return (ch & 0x0c0) == 0x0c0;
+}
 
 //-----------------------------------------------------------------------------
 /// Returns true if the given UTF16 character is a lead surrogate
@@ -140,7 +170,7 @@ bool NeedsSurrogates(codepoint_t ch)
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a surrogate pair. Check before calling that the
 /// input needs surrogate separation.
-inline KUTF8_CONSTEXPR_14
+KUTF8_CONSTEXPR_14
 SurrogatePair CodepointToSurrogates(codepoint_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -273,16 +303,47 @@ bool ToUTF8(Ch sch, Iterator& it)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a codepoint into a UTF8 sequence appended to string sNarrow.
-template<typename NarrowString, typename Ch,
-         typename std::enable_if<std::is_integral<Ch>::value
-	                            && detail::HasSize<NarrowString>::value, int>::type = 0>
+// for strings, this version is up to twice as fast than the use of back inserters
+/// Convert a codepoint into a UTF8 sequence appended to sNarrow
+template<typename Ch, typename NarrowString,
+		 typename std::enable_if<std::is_integral<Ch>::value
+							&& detail::HasSize<NarrowString>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
 bool ToUTF8(Ch sch, NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 {
-	auto it = std::back_inserter(sNarrow);
-	return ToUTF8(sch, it);
+	codepoint_t ch = CodepointCast(sch);
+
+	if (ch < 0x0080)
+	{
+		sNarrow += ch;
+	}
+	else if (ch < 0x0800)
+	{
+		sNarrow += (0xc0 | ((ch >> 6) & 0x1f));
+		sNarrow += (0x80 | (ch & 0x3f));
+	}
+	else if (ch < 0x010000)
+	{
+		sNarrow += (0xe0 | ((ch >> 12) & 0x0f));
+		sNarrow += (0x80 | ((ch >>  6) & 0x3f));
+		sNarrow += (0x80 | (ch & 0x3f));
+	}
+	else if (ch < 0x0110000)
+	{
+		sNarrow += (0xf0 | ((ch >> 18) & 0x07));
+		sNarrow += (0x80 | ((ch >> 12) & 0x3f));
+		sNarrow += (0x80 | ((ch >>  6) & 0x3f));
+		sNarrow += (0x80 | (ch & 0x3f));
+	}
+	else
+	{
+		// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
+		// for invalid Unicode codepoints
+		ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
+		return false;
+	}
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -293,9 +354,9 @@ KUTF8_CONSTEXPR_14
 NarrowString ToUTF8(Ch sch)
 //-----------------------------------------------------------------------------
 {
-	NarrowString sRet;
-	ToUTF8(sch, sRet);
-	return sRet;
+	NarrowString sNarrow;
+	ToUTF8(sch, sNarrow);
+	return sNarrow;
 }
 
 //-----------------------------------------------------------------------------
@@ -309,19 +370,17 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 	typename WideString::const_iterator it = sWide.cbegin();
 	typename WideString::const_iterator ie = sWide.cend();
 
-	auto OutIter = std::back_inserter(sNarrow);
-
-	for (; it != ie; ++it)
+	for (; KUTF8_LIKELY(it != ie); ++it)
 	{
 		// make sure all surrogate logic is only compiled in for 16 bit strings
-		if (sizeof(typename WideString::value_type) == 2 && IsLeadSurrogate(*it))
+		if (sizeof(typename WideString::value_type) == 2 && KUTF8_UNLIKELY(IsLeadSurrogate(*it)))
 		{
 			SurrogatePair sp;
 			sp.first = CodepointCast(*it++);
-			if (it == ie)
+			if (KUTF8_UNLIKELY(it == ie))
 			{
 				// we treat incomplete surrogates as simple ucs2
-				if (!ToUTF8(sp.first, OutIter))
+				if (KUTF8_UNLIKELY(!ToUTF8(sp.first, sNarrow)))
 				{
 					return false;
 				}
@@ -329,21 +388,21 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 			else
 			{
 				sp.second = CodepointCast(*it++);
-				if (!IsTrailSurrogate(sp.second))
+				if (KUTF8_LIKELY(!IsTrailSurrogate(sp.second)))
 				{
 					// the second surrogate is not valid - simply treat them both as ucs2
-					if (!ToUTF8(sp.first, OutIter))
+					if (!ToUTF8(sp.first, sNarrow))
 					{
 						return false;
 					}
-					if (!ToUTF8(sp.second, OutIter))
+					if (!ToUTF8(sp.second, sNarrow))
 					{
 						return false;
 					}
 				}
 				else
 				{
-					if (!ToUTF8(SurrogatesToCodepoint(sp), OutIter))
+					if (KUTF8_UNLIKELY(!ToUTF8(SurrogatesToCodepoint(sp), sNarrow)))
 					{
 						return false;
 					}
@@ -353,7 +412,7 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 		else
 		{
 			// default case
-			if (!ToUTF8(*it, OutIter))
+			if (KUTF8_UNLIKELY(!ToUTF8(*it, sNarrow)))
 			{
 				return false;
 			}
@@ -375,6 +434,123 @@ NarrowString ToUTF8(const WideString& sWide)
 	return sNarrow;
 }
 
+namespace {
+
+//-----------------------------------------------------------------------------
+/// try to advance the input iterator after the end of the invalid UTF8 run
+template<typename Iterator>
+KUTF8_CONSTEXPR_14
+void AdvanceIteratorOnError(Iterator& it, Iterator ie)
+//-----------------------------------------------------------------------------
+{
+	for (; KUTF8_LIKELY(it != ie); ++it)
+	{
+		auto ch = CodepointCast(*it);
+
+		if (!IsContinuationByte(ch))
+		{
+			break;
+		}
+	}
+}
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+/// Return next codepoint at position it in range it-ie, increment it to point
+/// to the begin of the following codepoint
+template<typename Iterator>
+KUTF8_CONSTEXPR_14
+codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
+//-----------------------------------------------------------------------------
+{
+	using N = typename std::remove_reference<decltype(*it)>::type;
+
+	if (KUTF8_UNLIKELY(it == ie))
+	{
+		return INVALID_CODEPOINT;
+	}
+
+	codepoint_t ch = CodepointCast(*it++);
+
+	if (KUTF8_LIKELY(ch < 128))
+	{
+		return ch;
+	}
+
+	if (KUTF8_UNLIKELY(sizeof(N) > 1 && ch > 0x0ff))
+	{
+		// error, even with char sizes > one byte UTF8 single
+		// values cannot exceed 255
+		return INVALID_CODEPOINT;
+	}
+
+	// need to initialize the vars for constexpr, so let's take
+	// the most probable value (for 2 byte sequences)
+	codepoint_t lower_limit = 0x080;
+	codepoint_t codepoint   = ch & 0x01f;
+	uint16_t    remaining   = 1;
+
+	if ((ch & 0x0e0) == 0x0c0)
+	{
+	}
+	else if ((ch & 0x0f0) == 0x0e0)
+	{
+		remaining   = 2;
+		lower_limit = 0x0800;
+		codepoint   = ch & 0x0f;
+	}
+	else if ((ch & 0x0f8) == 0x0f0)
+	{
+		// do not check at this place for too large lead byte values
+		// (ch >= 0x0f5) as apparently that deranges the pipeline.
+		// Testing the final codepoint value below is about 10% faster.
+		remaining   = 3;
+		lower_limit = 0x010000;
+		codepoint   = ch & 0x07;
+	}
+	else
+	{
+		AdvanceIteratorOnError(it, ie);
+		return INVALID_CODEPOINT;
+	}
+
+	for (; KUTF8_LIKELY(it != ie); )
+	{
+		ch = CodepointCast(*it++);
+
+		if (KUTF8_UNLIKELY((sizeof(N) > 1 && ch > 0x0ff)))
+		{
+			// error, even with char sizes > one byte UTF8 single
+			// values cannot exceed 255
+			break;
+		}
+
+		if (KUTF8_UNLIKELY((ch & 0x0c0) != 0x080))
+		{
+			// error, not a continuation byte
+			break;
+		}
+
+		codepoint <<= 6;
+		codepoint |= (ch & 0x03f);
+
+		if (!--remaining)
+		{
+			if (KUTF8_UNLIKELY(codepoint < lower_limit || codepoint > 0x010ffff))
+			{
+				// error, ambiguous encoding or too big
+				break;
+			}
+
+			return codepoint; // valid
+		}
+	}
+
+	AdvanceIteratorOnError(it, ie);
+	return INVALID_CODEPOINT;
+}
+
 //-----------------------------------------------------------------------------
 /// Return iterator at position where a UTF8 string uses invalid sequences
 template<typename Iterator>
@@ -382,96 +558,19 @@ KUTF8_CONSTEXPR_14
 Iterator InvalidUTF8(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-	codepoint_t codepoint   { 0 };
-	codepoint_t lower_limit { 0 };
-	uint16_t    remaining   { 0 };
-
-	for (; it != ie; ++it)
+	for (;KUTF8_LIKELY(it != ie);)
 	{
-		codepoint_t ch = CodepointCast(*it);
+		auto ti = it;
 
-		if (sizeof(*it) > 1 && ch > 0x0ff)
+		if (KUTF8_UNLIKELY(NextCodepointFromUTF8(ti, ie) == INVALID_CODEPOINT))
 		{
-			// error, even with char sizes > one byte UTF8 single
-			// values cannot exceed 255
-			return it;
+			break;
 		}
 
-		switch (remaining)
-		{
-			case 0:
-				{
-					codepoint = 0;
-
-					if (ch < 128)
-					{
-						// ok, single 7 bit codepoint
-						break;
-					}
-					else if ((ch & 0x0e0) == 0x0c0)
-					{
-						remaining   = 1;
-						lower_limit = 0x080;
-						codepoint   = ch & 0x01f;
-					}
-					else if ((ch & 0x0f0) == 0x0e0)
-					{
-						remaining   = 2;
-						lower_limit = 0x0800;
-						codepoint   = ch & 0x0f;
-					}
-					else if ((ch & 0x0f8) == 0x0f0)
-					{
-						remaining   = 3;
-						lower_limit = 0x010000;
-						codepoint   = ch & 0x07;
-					}
-					else
-					{
-						// error, we only support 1..4 byte UTF8 sequences
-						return it;
-					}
-					break;
-				}
-
-			case 3:
-			case 2:
-			case 1:
-				{
-					if ((ch & 0x0c0) != 0x080)
-					{
-						// error, MSB not set
-						return it;
-					}
-
-					codepoint <<= 6;
-					codepoint |= (ch & 0x03f);
-
-					if (!--remaining)
-					{
-						if (codepoint < lower_limit)
-						{
-							// error, ambiguous encoding
-							return it;
-						}
-					}
-					break;
-				}
-
-			default:
-				// error, we only support 1..4 byte UTF8 sequences
-				return it;
-
-		}
-
+		it = ti;
 	}
 
-	// If we have remaining > 0 we expect more input but are already at the end.
-	// This case can only happen if we have read at least one byte of input,
-	// so we return --it as the error location and can be sure it does not point
-	// before the start of input. We do not return the real position of it, which
-	// is ie, as returning ie is the success indication..
-	return (remaining) ? --it : ie;
+	return it;
 }
 
 //-----------------------------------------------------------------------------
@@ -575,20 +674,20 @@ KUTF8_CONSTEXPR_14
 Iterator RightUTF8(Iterator it, Iterator ie, size_t n)
 //-----------------------------------------------------------------------------
 {
-	while (KUTF8_LIKELY(ie != it && n > 0))
+	if (n)
 	{
-		// check if this char starts a UTF8 sequence
-		codepoint_t ch = CodepointCast(*--ie);
+		for (; KUTF8_LIKELY(it != ie) ;)
+		{
+			// check if this char starts a UTF8 sequence
+			codepoint_t ch = CodepointCast(*--ie);
 
-		if (KUTF8_LIKELY(ch < 128))
-		{
-			--n;
-		}
-		else if (   (ch & 0x0e0) == 0x0c0
-				 || (ch & 0x0f0) == 0x0e0
-				 || (ch & 0x0f8) == 0x0f0 )
-		{
-			--n;
+			if (!IsContinuationByte(ch))
+			{
+				if (!--n)
+				{
+					break;
+				}
+			}
 		}
 	}
 
@@ -657,7 +756,7 @@ size_t CountUTF8(Iterator it, Iterator ie)
 
 	if (it > ie && iCount)
 	{
-		// the last codepoint was not complete - substract one
+		// the last codepoint was not complete - subtract one
 		--iCount;
 	}
 
@@ -708,7 +807,7 @@ size_t CountUTF8(Iterator it, Iterator ie, std::size_t iMaxCount)
 
 	if (it > ie && iCount)
 	{
-		// the last codepoint was not complete - substract one
+		// the last codepoint was not complete - subtract one
 		--iCount;
 	}
 
@@ -736,96 +835,6 @@ size_t CountUTF8(const NarrowString& sNarrow, std::size_t iMaxCount)
 }
 
 //-----------------------------------------------------------------------------
-/// Return next codepoint at position it in range it-ie, increment it to point
-/// to the begin of the following codepoint
-template<typename Iterator>
-KUTF8_CONSTEXPR_14
-codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
-//-----------------------------------------------------------------------------
-{
-	using N = typename std::remove_reference<decltype(*it)>::type;
-
-	if (KUTF8_UNLIKELY(it == ie))
-	{
-		return INVALID_CODEPOINT;
-	}
-
-	codepoint_t ch = CodepointCast(*it++);
-
-	if (KUTF8_LIKELY(ch < 128))
-	{
-		return ch;
-	}
-
-	if (KUTF8_UNLIKELY(sizeof(N) > 1 && ch > 0x0ff))
-	{
-		// error, even with char sizes > one byte UTF8 single
-		// values cannot exceed 255
-		return INVALID_CODEPOINT;
-	}
-
-	// need to initialize the vars for constexpr, so let's take
-	// the most probable value (for 2 byte sequences)
-	codepoint_t lower_limit = 0x080;
-	codepoint_t codepoint   = ch & 0x01f;
-	uint16_t    remaining   = 1;
-
-	if ((ch & 0x0e0) == 0x0c0)
-	{
-	}
-	else if ((ch & 0x0f0) == 0x0e0)
-	{
-		remaining   = 2;
-		lower_limit = 0x0800;
-		codepoint   = ch & 0x0f;
-	}
-	else if ((ch & 0x0f8) == 0x0f0)
-	{
-		remaining   = 3;
-		lower_limit = 0x010000;
-		codepoint   = ch & 0x07;
-	}
-	else
-	{
-		return INVALID_CODEPOINT;
-	}
-
-	for (; KUTF8_LIKELY(it != ie); )
-	{
-		ch = CodepointCast(*it++);
-
-		if (KUTF8_UNLIKELY((sizeof(N) > 1 && ch > 0x0ff)))
-		{
-			// error, even with char sizes > one byte UTF8 single
-			// values cannot exceed 255
-			break;
-		}
-
-		if (KUTF8_UNLIKELY((ch & 0x0c0) != 0x080))
-		{
-			// error, MSB not set
-			break;
-		}
-
-		codepoint <<= 6;
-		codepoint |= (ch & 0x03f);
-
-		if (!--remaining)
-		{
-			if (KUTF8_UNLIKELY(codepoint < lower_limit))
-			{
-				// error, ambiguous encoding
-				break;
-			}
-
-			return codepoint; // valid
-		}
-	}
-
-	return INVALID_CODEPOINT;
-}
-
-//-----------------------------------------------------------------------------
 /// Return codepoint before position it in range ibegin-it, decrement it to point
 /// to the begin of the new (previous) codepoint
 template<typename Iterator>
@@ -844,9 +853,7 @@ codepoint_t PrevCodepointFromUTF8(Iterator& it, Iterator ibegin)
 		{
 			return ch;
 		}
-		else if (   (ch & 0x0e0) == 0x0c0
-				 || (ch & 0x0f0) == 0x0e0
-				 || (ch & 0x0f8) == 0x0f0 )
+		else if (!IsContinuationByte(ch))
 		{
 			Iterator nit = it;
 			return NextCodepointFromUTF8(nit, iend);
@@ -884,7 +891,7 @@ KUTF8_CONSTEXPR_14
 bool HasUTF8(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-	for (; KUTF8_LIKELY(it < ie) ;)
+	for (; KUTF8_LIKELY(it != ie) ;)
 	{
 		codepoint_t ch = CodepointCast(*it);
 
@@ -913,7 +920,7 @@ bool HasUTF8(const NarrowString& sNarrow)
 
 //-----------------------------------------------------------------------------
 /// Convert range between it and ie from UTF8, calling functor func for every
-/// codepoint
+/// codepoint (which may be INVALID_CODEPOINT for input parsing errors)
 template<typename Iterator, class Functor,
          typename std::enable_if<(std::is_class<Functor>::value && !detail::HasSize<Functor>::value)
 		                        || std::is_function<Functor>::value, int>::type = 0>
@@ -924,11 +931,6 @@ bool FromUTF8(Iterator it, Iterator ie, Functor func)
 	for (; KUTF8_LIKELY(it != ie);)
 	{
 		codepoint_t codepoint = NextCodepointFromUTF8(it, ie);
-
-		if (KUTF8_UNLIKELY(codepoint == INVALID_CODEPOINT))
-		{
-			return false;
-		}
 
 		if (!func(codepoint))
 		{
@@ -1064,7 +1066,7 @@ NarrowString UTF16BytesToUTF8(Iterator it, Iterator ie)
 	NarrowString sNarrow;
 	auto OutIter = std::back_inserter(sNarrow);
 
-	for (; it != ie; )
+	for (; KUTF8_LIKELY(it != ie); )
 	{
 		SurrogatePair sp;
 		sp.first = CodepointCast(*it++) << 8;

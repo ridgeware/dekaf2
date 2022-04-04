@@ -339,7 +339,15 @@ KStringViewZ kGetDayName(uint16_t iDay, bool bAbbreviated, bool bLocal)
 {
 	if (DEKAF2_UNLIKELY(iDay > 6))
 	{
-		return {};
+		// mimic the GNU extension: 7 == Sunday == 0
+		if (iDay == 7)
+		{
+			iDay = 0;
+		}
+		else
+		{
+			return {};
+		}
 	}
 
 	if (bLocal)
@@ -1268,15 +1276,13 @@ KString kTranslateDuration(const KDuration& Duration, bool bLongForm)
 	}
 	else // smarter, generally more useful logic: display something that makes sense
 	{
-		std::make_unsigned<int_t>::type iAbsNanoSecs;
-
 		if (iNanoSecs <= std::numeric_limits<int_t>::min())
 		{
 			sOut = "a very short time"; // < -292.5 years
 		}
 		else
 		{
-			iAbsNanoSecs = std::abs(iNanoSecs);
+			std::make_unsigned<int_t>::type iAbsNanoSecs = std::abs(iNanoSecs);
 
 			if (iAbsNanoSecs >= NANOSECS_PER_YEAR)
 			{

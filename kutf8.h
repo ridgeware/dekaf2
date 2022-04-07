@@ -58,6 +58,7 @@
 #include <cstddef>
 #include <type_traits>
 #include <iterator>
+#include <cassert>
 
 static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 compiler");
 

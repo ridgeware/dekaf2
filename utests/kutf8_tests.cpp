@@ -230,7 +230,7 @@ TEST_CASE("UTF8") {
 		{
 			INFO(ch);
 
-			if (ch >= 0x0c0 && ch <= 0x0ff)
+			if (ch >= 0x0c0 /* && ch <= 0x0ff */ )
 			{
 				// lead bytes
 				CHECK ( Unicode::IsStartByte(ch)        == true  );

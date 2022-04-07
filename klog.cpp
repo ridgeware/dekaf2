@@ -901,6 +901,13 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 		return false;
 	}
 
+	// another guard against init / deinit races, particularly for destructors
+	// that want to log in destruction of Dekaf (e.g. KTimer)
+	if (!Dekaf::IsStarted() || Dekaf::IsShutDown())
+	{
+		return false;
+	}
+
 	if (DEKAF2_UNLIKELY(iLevel > s_iLogLevel && iLevel > s_iThreadLogLevel))
 	{
 		// bail out early if this method was called without checking the

@@ -597,7 +597,7 @@ time_t kParseTimestamp(KStringView sFormat, KStringView sTimestamp)
 							 KString& sValue)
 	//-----------------------------------------------------------------------------
 	{
-		auto cp = Unicode::NextCodepointFromUTF8(it, ie);
+		auto cp = Unicode::CodepointFromUTF8(it, ie);
 		Unicode::ToUTF8(cp, sValue);
 	};
 

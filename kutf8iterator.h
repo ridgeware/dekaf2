@@ -97,7 +97,7 @@ public:
 	self_type& operator++()
 	//-----------------------------------------------------------------------------
 	{
-		m_Value = NextCodepointFromUTF8(m_next, m_end);
+		m_Value = m_next != m_end ? CodepointFromUTF8(m_next, m_end) : INVALID_CODEPOINT;
 		return *this;
 	}
 
@@ -122,7 +122,7 @@ public:
 			m_next -= UTF8Bytes(m_Value);
 		}
 		typename NarrowString::const_iterator hit = m_next;
-		m_Value = PrevCodepointFromUTF8(m_next, m_begin);
+		m_Value = PrevCodepointFromUTF8(m_begin, m_next);
 		m_next = hit;
 		return *this;
 	}
@@ -270,7 +270,7 @@ public:
 				else
 				{
 					typename NarrowString::iterator it = m_String->begin() + m_next;
-					m_Value = m_OrigValue = NextCodepointFromUTF8(it, m_String->end());
+					m_Value = m_OrigValue = CodepointFromUTF8(it, m_String->end());
 					m_next = it - m_String->begin();
 				}
 			}
@@ -311,7 +311,7 @@ public:
 				}
 
 				typename NarrowString::iterator it = m_String->begin() + m_next;
-				m_Value = m_OrigValue = PrevCodepointFromUTF8(it, m_String->begin());
+				m_Value = m_OrigValue = PrevCodepointFromUTF8(m_String->begin(), it);
 			}
 		}
 		return *this;

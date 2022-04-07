@@ -431,12 +431,20 @@ namespace std
 
 // force the compiler to respect the inline - better do not use it, the
 // compiler is smarter than us in almost all cases
-#if DEKAF2_HAS_ATTRIBUTE(__always_inline__)
+#if DEKAF2_HAS_ATTRIBUTE(always_inline)
 	#define DEKAF2_ALWAYS_INLINE inline __attribute__((__always_inline__))
 #elif defined(_MSC_VER)
 	#define DEKAF2_ALWAYS_INLINE __forceinline
 #else
 	#define DEKAF2_ALWAYS_INLINE inline
+#endif
+
+#if DEKAF2_HAS_ATTRIBUTE(noinline)
+	#define DEKAF2_NEVER_INLINE inline __attribute__((__noinline__))
+#elif defined(_MSC_VER)
+	#define DEKAF2_NEVER_INLINE __declspec(noinline)
+#else
+	#define DEKAF2_NEVER_INLINE
 #endif
 
 #if defined(__BYTE_ORDER__)

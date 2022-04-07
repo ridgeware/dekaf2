@@ -48,8 +48,7 @@
 /// This indicates that optimization in the compiler and branch prediction on modern CPUs work great.
 /// For UTF8 codepoint counting this implementation is even 4-5 times faster than a DFA approach. That
 /// is due to the reason that it does not check validity of the UTF8 while counting. It does during decode though.
-/// The UTF8 decoder and encoder both permit single surrogate values as codepoints, as well as 0xFFFE and 0xFFFF.
-/// Otherwise invalid UTF8 runs are not decoded (inefficient encoding, values > 0x0110000, too long continuation
+/// Invalid UTF8 runs are not decoded (inefficient encoding, values >= 0x0110000, too long continuation
 /// sequences, aborted continuation sequences both by end of input or start of a new codepoint) and signaled by
 /// INVALID_CODEPOINT as the decoded value. It is left to the caller if this will be translated into the
 /// REPLACEMENT_CHARACTER or lead to an abort of the operation. Input iterators will always point to the
@@ -106,20 +105,59 @@ using utf8_t      = uint8_t;
 static constexpr codepoint_t INVALID_CODEPOINT     = UINT32_MAX; ///< our flag for invalid codepoints
 static constexpr codepoint_t REPLACEMENT_CHARACTER = 0x0fffd;    ///< the replacement character to signal invalid codepoints in strings
 static constexpr codepoint_t CODEPOINT_MAX         = 0x010ffff;  ///< the largest legal unicode codepoint
-struct SurrogatePair
-{
-	utf16_t	first  { 0 };
-	utf16_t second { 0 };
-};
+static constexpr codepoint_t SURROGATE_LOW_START   = 0x0d800;    ///< the lower bound of the low surrogate range in UTF16 encoding
+static constexpr codepoint_t SURROGATE_LOW_END     = 0x0dbff;    ///< the upper bound of the low surrogate range in UTF16 encoding
+static constexpr codepoint_t SURROGATE_HIGH_START  = 0x0dc00;    ///< the lower bound of the high surrogate range in UTF16 encoding
+static constexpr codepoint_t SURROGATE_HIGH_END    = 0x0dfff;    ///< the upper bound of the high surrogate range in UTF16 encoding
+static constexpr codepoint_t NEEDS_SURROGATE_START = 0x010000;   ///< the lower bound of codepoints that need surrogate substitution in UTF16 encoding
+static constexpr codepoint_t NEEDS_SURROGATE_END   = 0x010ffff;  ///< the upper bound of codepoints that need (or fit for) surrogate substitution in UTF16 encoding
 
-//-----------------------------------------------------------------------------
-/// Returns true if the given character is a UTF8 continuation byte (which follow the start byte of a UTF8 sequence)
-inline constexpr
-bool IsContinuationByte(utf8_t ch)
-//-----------------------------------------------------------------------------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// helper type to convert between UTF16 and other encodings
+struct SurrogatePair
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	return (ch & 0x0c0) == 0x080;
-}
+	//-----------------------------------------------------------------------------
+	// default ctor, empty surrogate pair
+	constexpr
+	SurrogatePair() = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// construct from low and high surrogate
+	constexpr
+	SurrogatePair(utf16_t low, utf16_t high)
+	//-----------------------------------------------------------------------------
+	: high(high)
+	, low (low)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// construct from codepoint. Before calling, check if the codepoint needs a surrogate pair!
+	constexpr
+	SurrogatePair(codepoint_t codepoint)
+	//-----------------------------------------------------------------------------
+	: high (SURROGATE_HIGH_START + ((codepoint -= NEEDS_SURROGATE_START) & 0x03ff))
+	, low  (SURROGATE_LOW_START  + ((codepoint >> 10) & 0x03ff))
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// return a codepoint from a surrogate pair
+	constexpr
+	codepoint_t ToCodepoint() const
+	//-----------------------------------------------------------------------------
+	{
+		return (low << 10) + high
+			- ((SURROGATE_LOW_START << 10) + SURROGATE_HIGH_START)
+			+ NEEDS_SURROGATE_START;
+	}
+
+	utf16_t high { 0 };
+	utf16_t	low  { 0 };
+
+}; // SurrogatePair
 
 //-----------------------------------------------------------------------------
 /// Returns true if the given character is a UTF8 start byte (which starts a UTF8 sequence and is followed by one to three continuation bytes)
@@ -131,64 +169,63 @@ bool IsStartByte(utf8_t ch)
 }
 
 //-----------------------------------------------------------------------------
-/// Returns true if the given UTF16 character is a lead surrogate
+/// Returns true if the given character is a UTF8 continuation byte (which follow the start byte of a UTF8 sequence)
 inline constexpr
-bool IsLeadSurrogate(utf16_t ch)
+bool IsContinuationByte(utf8_t ch)
 //-----------------------------------------------------------------------------
 {
-	return (ch & 0xfc00) == 0xd800;
+	return (ch & 0x0c0) == 0x080;
+}
+
+//-----------------------------------------------------------------------------
+/// Returns true if the given UTF16 character is a lead surrogate
+inline constexpr
+bool IsLeadSurrogate(codepoint_t ch)
+//-----------------------------------------------------------------------------
+{
+	return (ch & 0x1ffc00) == 0x0d800;
 }
 
 //-----------------------------------------------------------------------------
 /// Returns true if the given UTF16 character is a trail surrogate
 inline constexpr
-bool IsTrailSurrogate(utf16_t ch)
+bool IsTrailSurrogate(codepoint_t ch)
 //-----------------------------------------------------------------------------
 {
-	return (ch & 0xfc00) == 0xdc00;
+	return (ch & 0x1ffc00) == 0x0dc00;
 }
 
 //-----------------------------------------------------------------------------
 /// Returns true if the given UTF16 character is a lead or trail surrogate
 inline constexpr
-bool IsSurrogate(utf16_t ch)
+bool IsSurrogate(codepoint_t ch)
 //-----------------------------------------------------------------------------
 {
-	return (ch & 0xf800) == 0xd800;
+	return (ch & 0x1ff800) == 0x0d800;
 }
 
 //-----------------------------------------------------------------------------
-/// Returns true if the given codepoint needs to be represented with a UTF16
-/// surrogate pair
+/// Returns true if the given Unicode codepoint is valid (= < 0x0110000, not 0x0fffe, 0x0ffff, and not in 0x0d800 .. 0x0dfff)
+inline constexpr
+bool IsValid(codepoint_t ch)
+//-----------------------------------------------------------------------------
+{
+	return ch <= CODEPOINT_MAX
+		&& !IsSurrogate(ch)
+		&& ch != 0x0fffe
+		&& ch != 0x0ffff;
+}
+
+//-----------------------------------------------------------------------------
+/// Returns true if the given codepoint needs to be represented with a UTF16 surrogate pair
 inline constexpr
 bool NeedsSurrogates(codepoint_t ch)
 //-----------------------------------------------------------------------------
 {
-	return (ch >= 0x010000 && ch <= 0x010ffff);
-}
-
-//-----------------------------------------------------------------------------
-/// Convert a codepoint into a surrogate pair. Check before calling that the
-/// input needs surrogate separation.
-KUTF8_CONSTEXPR_14
-SurrogatePair CodepointToSurrogates(codepoint_t ch)
-//-----------------------------------------------------------------------------
-{
-	SurrogatePair sp;
-	ch -= 0x10000;
-	sp.second = 0xdc00 + (ch & 0x03ff);
-	sp.first  = 0xd800 + ((ch >> 10) & 0x03ff);
-	return sp;
-}
-
-//-----------------------------------------------------------------------------
-/// Convert a surrogate pair into a codepoint. Check before calling that the
-/// surrogates are valid for composition.
-inline constexpr
-codepoint_t SurrogatesToCodepoint(SurrogatePair sp)
-//-----------------------------------------------------------------------------
-{
-	return (sp.first << 10) + sp.second - ((0xd800 << 10) + 0xdc00 - 0x10000);
+	// the reason to test for NEEDS_SURROGATE_END is that this prevents from
+	// creating overflow surrogates from invalid codepoints, which would be
+	// difficult to detect
+	return (ch >= NEEDS_SURROGATE_START && ch <= NEEDS_SURROGATE_END);
 }
 
 //-----------------------------------------------------------------------------
@@ -224,6 +261,9 @@ size_t UTF8Bytes(Ch sch)
 	}
 	else if (ch < 0x010000)
 	{
+		// we return a squared question mark 0xfffd (REPLACEMENT CHARACTER)
+		// for invalid Unicode codepoints, so the bytecount is 3 as well if
+		// this is a surrogate character
 		return 3;
 	}
 	else if (ch < 0x0110000)
@@ -238,7 +278,7 @@ size_t UTF8Bytes(Ch sch)
 	}
 }
 
-namespace detail {
+namespace KUTF8_detail {
 
 // SFINAE helper to distinguish between string classes and iterators
 template <typename T>
@@ -257,15 +297,15 @@ public:
 	static constexpr bool const value = sizeof(Test<T>(0)) == sizeof(Yes);
 };
 
-} // end of namespace detail
+} // end of namespace KUTF8_detail
 
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a UTF8 sequence written at iterator it
 template<typename Ch, typename Iterator,
          typename std::enable_if<std::is_integral<Ch>::value
-							&& !detail::HasSize<Iterator>::value, int>::type = 0>
+							&& !KUTF8_detail::HasSize<Iterator>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
-bool ToUTF8(Ch sch, Iterator& it)
+void ToUTF8(Ch sch, Iterator& it)
 //-----------------------------------------------------------------------------
 {
 	codepoint_t ch = CodepointCast(sch);
@@ -281,6 +321,10 @@ bool ToUTF8(Ch sch, Iterator& it)
 	}
 	else if (ch < 0x010000)
 	{
+		if (KUTF8_UNLIKELY(IsSurrogate(ch) || ch == 0x0fffe || ch == 0x0ffff ))
+		{
+			ch = REPLACEMENT_CHARACTER;
+		}
 		*it++ = (0xe0 | ((ch >> 12) & 0x0f));
 		*it++ = (0x80 | ((ch >>  6) & 0x3f));
 		*it++ = (0x80 | (ch & 0x3f));
@@ -297,9 +341,7 @@ bool ToUTF8(Ch sch, Iterator& it)
 		// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
 		// for invalid Unicode codepoints
 		ToUTF8(REPLACEMENT_CHARACTER, it);
-		return false;
 	}
-	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -307,9 +349,9 @@ bool ToUTF8(Ch sch, Iterator& it)
 /// Convert a codepoint into a UTF8 sequence appended to sNarrow
 template<typename Ch, typename NarrowString,
 		 typename std::enable_if<std::is_integral<Ch>::value
-							&& detail::HasSize<NarrowString>::value, int>::type = 0>
+							&& KUTF8_detail::HasSize<NarrowString>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
-bool ToUTF8(Ch sch, NarrowString& sNarrow)
+void ToUTF8(Ch sch, NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 {
 	codepoint_t ch = CodepointCast(sch);
@@ -325,6 +367,10 @@ bool ToUTF8(Ch sch, NarrowString& sNarrow)
 	}
 	else if (ch < 0x010000)
 	{
+		if (KUTF8_UNLIKELY(IsSurrogate(ch) || ch == 0x0fffe || ch == 0x0ffff ))
+		{
+			ch = REPLACEMENT_CHARACTER;
+		}
 		sNarrow += (0xe0 | ((ch >> 12) & 0x0f));
 		sNarrow += (0x80 | ((ch >>  6) & 0x3f));
 		sNarrow += (0x80 | (ch & 0x3f));
@@ -341,9 +387,7 @@ bool ToUTF8(Ch sch, NarrowString& sNarrow)
 		// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
 		// for invalid Unicode codepoints
 		ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
-		return false;
 	}
-	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -372,50 +416,44 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 
 	for (; KUTF8_LIKELY(it != ie); ++it)
 	{
-		// make sure all surrogate logic is only compiled in for 16 bit strings
+		// Make sure all surrogate combine logic is only compiled in for 16 bit strings.
+		// If we would have surrogate pairs in 32 bit strings it is an error in their
+		// construction in the first place. We will not try to reassemble them.
+		// The UTF8 encoder will convert those to replacement characters.
 		if (sizeof(typename WideString::value_type) == 2 && KUTF8_UNLIKELY(IsLeadSurrogate(*it)))
 		{
 			SurrogatePair sp;
-			sp.first = CodepointCast(*it++);
+
+			sp.low = CodepointCast(*it++);
+
 			if (KUTF8_UNLIKELY(it == ie))
 			{
-				// we treat incomplete surrogates as simple ucs2
-				if (KUTF8_UNLIKELY(!ToUTF8(sp.first, sNarrow)))
-				{
-					return false;
-				}
+				// we replace incomplete surrogates with the replacement character
+				ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
 			}
 			else
 			{
-				sp.second = CodepointCast(*it++);
-				if (KUTF8_LIKELY(!IsTrailSurrogate(sp.second)))
+				sp.high = CodepointCast(*it);
+
+				if (KUTF8_UNLIKELY(!IsTrailSurrogate(sp.high)))
 				{
-					// the second surrogate is not valid - simply treat them both as ucs2
-					if (!ToUTF8(sp.first, sNarrow))
-					{
-						return false;
-					}
-					if (!ToUTF8(sp.second, sNarrow))
-					{
-						return false;
-					}
+					// the second surrogate is not valid - simply replace them
+					// with the replacement character if not
+					ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
 				}
 				else
 				{
-					if (KUTF8_UNLIKELY(!ToUTF8(SurrogatesToCodepoint(sp), sNarrow)))
-					{
-						return false;
-					}
+					// advance the input iterator
+					++it;
+					// and output the completed codepoint
+					ToUTF8(sp.ToCodepoint(), sNarrow);
 				}
 			}
 		}
 		else
 		{
 			// default case
-			if (KUTF8_UNLIKELY(!ToUTF8(*it, sNarrow)))
-			{
-				return false;
-			}
+			ToUTF8(*it, sNarrow);
 		}
 	}
 	return true;
@@ -434,13 +472,11 @@ NarrowString ToUTF8(const WideString& sWide)
 	return sNarrow;
 }
 
-namespace {
-
 //-----------------------------------------------------------------------------
-/// try to advance the input iterator after the end of the invalid UTF8 run
+/// if not at the start of a UTF8 sequence then advance the input iterator until the end of the current UTF8 sequence
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-void AdvanceIteratorOnError(Iterator& it, Iterator ie)
+void SyncUTF8(Iterator& it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
 	for (; KUTF8_LIKELY(it != ie); ++it)
@@ -454,22 +490,17 @@ void AdvanceIteratorOnError(Iterator& it, Iterator ie)
 	}
 }
 
-} // end of anonymous namespace
-
 //-----------------------------------------------------------------------------
 /// Return next codepoint at position it in range it-ie, increment it to point
-/// to the begin of the following codepoint
+/// to the begin of the following codepoint. If it == ie -> undefined behavior
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
+codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
 	using N = typename std::remove_reference<decltype(*it)>::type;
 
-	if (KUTF8_UNLIKELY(it == ie))
-	{
-		return INVALID_CODEPOINT;
-	}
+	assert(it != ie);
 
 	codepoint_t ch = CodepointCast(*it++);
 
@@ -478,7 +509,7 @@ codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
 		return ch;
 	}
 
-	if (KUTF8_UNLIKELY(sizeof(N) > 1 && ch > 0x0ff))
+	if (sizeof(N) > 1 && KUTF8_UNLIKELY(ch > 0x0ff))
 	{
 		// error, even with char sizes > one byte UTF8 single
 		// values cannot exceed 255
@@ -487,22 +518,24 @@ codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
 
 	// need to initialize the vars for constexpr, so let's take
 	// the most probable value (for 2 byte sequences)
-	codepoint_t lower_limit = 0x080;
-	codepoint_t codepoint   = ch & 0x01f;
-	uint16_t    remaining   = 1;
+	codepoint_t lower_limit         = 0x080;
+	codepoint_t codepoint           = ch & 0x01f;
+	uint16_t    remaining           = 1;
+	bool        bCheckForSurrogates = false;
 
 	if ((ch & 0x0e0) == 0x0c0)
 	{
 	}
 	else if ((ch & 0x0f0) == 0x0e0)
 	{
-		remaining   = 2;
-		lower_limit = 0x0800;
-		codepoint   = ch & 0x0f;
+		remaining           = 2;
+		lower_limit         = 0x0800;
+		codepoint           = ch & 0x0f;
+		bCheckForSurrogates = ch == 0xbd;
 	}
 	else if ((ch & 0x0f8) == 0x0f0)
 	{
-		// do not check at this place for too large lead byte values
+		// do not check for too large lead byte values at this place
 		// (ch >= 0x0f5) as apparently that deranges the pipeline.
 		// Testing the final codepoint value below is about 10% faster.
 		remaining   = 3;
@@ -511,7 +544,8 @@ codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
 	}
 	else
 	{
-		AdvanceIteratorOnError(it, ie);
+		SyncUTF8(it, ie);
+
 		return INVALID_CODEPOINT;
 	}
 
@@ -519,10 +553,9 @@ codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
 	{
 		ch = CodepointCast(*it++);
 
-		if (KUTF8_UNLIKELY((sizeof(N) > 1 && ch > 0x0ff)))
+		if (KUTF8_UNLIKELY(ch > 0x0f4))
 		{
-			// error, even with char sizes > one byte UTF8 single
-			// values cannot exceed 255
+			// a UTF8 sequence cannot contain characters > 0xf4
 			break;
 		}
 
@@ -537,9 +570,20 @@ codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
 
 		if (!--remaining)
 		{
-			if (KUTF8_UNLIKELY(codepoint < lower_limit || codepoint > 0x010ffff))
+			if (KUTF8_UNLIKELY(codepoint < lower_limit))
 			{
-				// error, ambiguous encoding or too big
+				// error, ambiguous encoding
+				break;
+			}
+
+			if (KUTF8_UNLIKELY(codepoint > CODEPOINT_MAX))
+			{
+				// error, too large for Unicode codepoint
+				break;
+			}
+
+			if (KUTF8_UNLIKELY(bCheckForSurrogates && IsSurrogate(codepoint)))
+			{
 				break;
 			}
 
@@ -547,7 +591,8 @@ codepoint_t NextCodepointFromUTF8(Iterator& it, Iterator ie)
 		}
 	}
 
-	AdvanceIteratorOnError(it, ie);
+	SyncUTF8(it, ie);
+
 	return INVALID_CODEPOINT;
 }
 
@@ -562,7 +607,7 @@ Iterator InvalidUTF8(Iterator it, Iterator ie)
 	{
 		auto ti = it;
 
-		if (KUTF8_UNLIKELY(NextCodepointFromUTF8(ti, ie) == INVALID_CODEPOINT))
+		if (KUTF8_UNLIKELY(CodepointFromUTF8(ti, ie) == INVALID_CODEPOINT))
 		{
 			break;
 		}
@@ -839,7 +884,7 @@ size_t CountUTF8(const NarrowString& sNarrow, std::size_t iMaxCount)
 /// to the begin of the new (previous) codepoint
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-codepoint_t PrevCodepointFromUTF8(Iterator& it, Iterator ibegin)
+codepoint_t PrevCodepointFromUTF8(Iterator ibegin, Iterator& it)
 //-----------------------------------------------------------------------------
 {
 	auto iend = it;
@@ -856,7 +901,7 @@ codepoint_t PrevCodepointFromUTF8(Iterator& it, Iterator ibegin)
 		else if (!IsContinuationByte(ch))
 		{
 			Iterator nit = it;
-			return NextCodepointFromUTF8(nit, iend);
+			return CodepointFromUTF8(nit, iend);
 		}
 	}
 
@@ -871,7 +916,15 @@ codepoint_t AtUTF8(Iterator it, Iterator ie, size_t pos)
 //-----------------------------------------------------------------------------
 {
 	auto it2 = LeftUTF8(it, ie, pos);
-	return NextCodepointFromUTF8(it2, ie);
+
+	if (KUTF8_LIKELY(it2 < ie))
+	{
+		return CodepointFromUTF8(it2, ie);
+	}
+	else
+	{
+		return INVALID_CODEPOINT;
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -901,7 +954,7 @@ bool HasUTF8(Iterator it, Iterator ie)
 		}
 		else
 		{
-			return NextCodepointFromUTF8(it, ie) != INVALID_CODEPOINT;
+			return CodepointFromUTF8(it, ie) != INVALID_CODEPOINT;
 		}
 	}
 
@@ -922,7 +975,7 @@ bool HasUTF8(const NarrowString& sNarrow)
 /// Convert range between it and ie from UTF8, calling functor func for every
 /// codepoint (which may be INVALID_CODEPOINT for input parsing errors)
 template<typename Iterator, class Functor,
-         typename std::enable_if<(std::is_class<Functor>::value && !detail::HasSize<Functor>::value)
+         typename std::enable_if<(std::is_class<Functor>::value && !KUTF8_detail::HasSize<Functor>::value)
 		                        || std::is_function<Functor>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
 bool FromUTF8(Iterator it, Iterator ie, Functor func)
@@ -930,7 +983,7 @@ bool FromUTF8(Iterator it, Iterator ie, Functor func)
 {
 	for (; KUTF8_LIKELY(it != ie);)
 	{
-		codepoint_t codepoint = NextCodepointFromUTF8(it, ie);
+		codepoint_t codepoint = CodepointFromUTF8(it, ie);
 
 		if (!func(codepoint))
 		{
@@ -944,7 +997,7 @@ bool FromUTF8(Iterator it, Iterator ie, Functor func)
 //-----------------------------------------------------------------------------
 /// Convert string from UTF8, calling functor func for every codepoint
 template<typename NarrowString, class Functor,
-		 typename std::enable_if<(std::is_class<Functor>::value && !detail::HasSize<Functor>::value)
+		 typename std::enable_if<(std::is_class<Functor>::value && !KUTF8_detail::HasSize<Functor>::value)
 								|| std::is_function<Functor>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
 bool FromUTF8(const NarrowString& sNarrow, Functor func)
@@ -957,7 +1010,7 @@ bool FromUTF8(const NarrowString& sNarrow, Functor func)
 /// Convert string from UTF8 to wide string (either UTF16 or UTF32)
 template<typename NarrowString, typename WideString,
          typename std::enable_if<!std::is_function<WideString>::value
-		                        && (!std::is_class<WideString>::value || detail::HasSize<WideString>::value), int>::type = 0>
+		                        && (!std::is_class<WideString>::value || KUTF8_detail::HasSize<WideString>::value), int>::type = 0>
 KUTF8_CONSTEXPR_20
 bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 //-----------------------------------------------------------------------------
@@ -970,9 +1023,9 @@ bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 	{
 		if (sizeof(W) == 2 && NeedsSurrogates(uch))
 		{
-			SurrogatePair sp = CodepointToSurrogates(uch);
-			sWide += static_cast<W>(sp.first);
-			sWide += static_cast<W>(sp.second);
+			SurrogatePair sp(uch);
+			sWide += static_cast<W>(sp.low);
+			sWide += static_cast<W>(sp.high);
 		}
 		else
 		{
@@ -983,10 +1036,10 @@ bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert string from UTF8 to wide string (either UTF16 or UTF32)
+/// Convert string from UTF8 to wide string (either UTF16 or UTF32, depending on the value_type of the string)
 template<typename WideString = std::wstring, typename NarrowString = std::string,
 		 typename std::enable_if<!std::is_function<WideString>::value
-								&& (!std::is_class<WideString>::value || detail::HasSize<WideString>::value), int>::type = 0>
+								&& (!std::is_class<WideString>::value || KUTF8_detail::HasSize<WideString>::value), int>::type = 0>
 KUTF8_CONSTEXPR_20
 WideString FromUTF8(const NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
@@ -999,10 +1052,10 @@ WideString FromUTF8(const NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 /// Transform a UTF8 string into another string, narrow or wide, calling a transformation
 /// functor for each codepoint.
-/// @par sInput the UTF8 input string
-/// @par sOutput the output string, passed on to the functor
-/// @par func the transformation functor, called with signature bool(codepoint_t, ReturnString&)
-/// @return true for success, false for failure (invalid UTF8, or any failure in the functor)
+/// @param sInput the UTF8 input string
+/// @param sOutput the output string, passed on to the functor
+/// @param func the transformation functor, called with signature bool(codepoint_t, ReturnString&)
+/// @return true for success, false for failure (any failure in the functor)
 template<typename NarrowString, typename ReturnString, class Functor>
 bool TransformUTF8(const NarrowString& sInput, ReturnString& sOutput, Functor func)
 //-----------------------------------------------------------------------------
@@ -1015,106 +1068,106 @@ bool TransformUTF8(const NarrowString& sInput, ReturnString& sOutput, Functor fu
 
 //-----------------------------------------------------------------------------
 /// Transform a UTF8 string into a lowercase UTF8 string.
-/// @par sInput the UTF8 input string
-/// @par sOutput the output UTF8 string
-/// @return true for success, false for invalid UTF8
+/// @param sInput the UTF8 input string
+/// @param sOutput the output UTF8 string
 template<typename NarrowString, typename NarrowReturnString>
-bool ToLowerUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
+void ToLowerUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 //-----------------------------------------------------------------------------
 {
 	sOutput.reserve(sOutput.size() + sInput.size());
 
-	return TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowReturnString& sOut)
+	TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowReturnString& sOut)
 	{
 #ifdef DEKAF2
-		return ToUTF8(kToLower(uch), sOut);
+		ToUTF8(kToLower(uch), sOut);
 #else
-		return ToUTF8(std::towlower(uch), sOut);
+		ToUTF8(std::towlower(uch), sOut);
 #endif
+		return true;
 	});
 }
 
 //-----------------------------------------------------------------------------
 /// Transform a UTF8 string into a uppercase UTF8 string.
-/// @par sInput the UTF8 input string
-/// @par sOutput the output UTF8 string
-/// @return true for success, false for invalid UTF8
+/// @param sInput the UTF8 input string
+/// @param sOutput the output UTF8 string
 template<typename NarrowString, typename NarrowReturnString>
-bool ToUpperUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
+void ToUpperUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 //-----------------------------------------------------------------------------
 {
 	sOutput.reserve(sOutput.size() + sInput.size());
 
-	return TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowReturnString& sOut)
+	TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowReturnString& sOut)
 	{
 #ifdef DEKAF2
-		return ToUTF8(kToUpper(uch), sOut);
+		ToUTF8(kToUpper(uch), sOut);
 #else
-		return ToUTF8(std::towupper(uch), sOut);
+		ToUTF8(std::towupper(uch), sOut);
 #endif
+		return true;
 	});
 }
 
+namespace special {
+
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 LE) that was encoded in a byte stream
-/// into a UTF8 string
+/// Convert a wide string (UTF16 LE) that was encoded in a byte stream into a UTF8 string (for recovery purposes only)
 template<typename NarrowString, typename Iterator>
 KUTF8_CONSTEXPR_14
 NarrowString UTF16BytesToUTF8(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
 	NarrowString sNarrow;
-	auto OutIter = std::back_inserter(sNarrow);
 
 	for (; KUTF8_LIKELY(it != ie); )
 	{
 		SurrogatePair sp;
-		sp.first = CodepointCast(*it++) << 8;
+		sp.low = CodepointCast(*it++) << 8;
 
 		if (KUTF8_UNLIKELY(it == ie))
 		{
-			ToUTF8(REPLACEMENT_CHARACTER, OutIter);
+			ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
 		}
 		else
 		{
-			sp.first += CodepointCast(*it++);
+			sp.low += CodepointCast(*it++);
 
-			if (KUTF8_UNLIKELY(IsLeadSurrogate(sp.first)))
+			if (KUTF8_UNLIKELY(IsLeadSurrogate(sp.low)))
 			{
 				// collect another 2 bytes for surrogate replacement
 				if (KUTF8_LIKELY(it != ie))
 				{
-					sp.second = CodepointCast(*it++) << 8;
+					sp.high = CodepointCast(*it++) << 8;
 
 					if (KUTF8_LIKELY(it != ie))
 					{
-						sp.second += CodepointCast(*it++);
+						sp.high += CodepointCast(*it);
 
-						if (IsTrailSurrogate(sp.second))
+						if (IsTrailSurrogate(sp.high))
 						{
-							ToUTF8(SurrogatesToCodepoint(sp), OutIter);
+							++it;
+							ToUTF8(sp.ToCodepoint(), sNarrow);
 						}
 						else
 						{
-							// the second surrogate is not valid - simply treat them both as ucs2
-							ToUTF8(sp.first, OutIter);
-							ToUTF8(sp.second, OutIter);
+							// the second surrogate is not valid
+							ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
 						}
 					}
 					else
 					{
-						ToUTF8(REPLACEMENT_CHARACTER, OutIter);
+						ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
 					}
 				}
 				else
 				{
 					// we treat incomplete surrogates as simple ucs2
-					ToUTF8(sp.first, OutIter);
+					ToUTF8(sp.low, sNarrow);
 				}
 			}
 			else
 			{
-				ToUTF8(sp.first, OutIter);
+				ToUTF8(sp.low, sNarrow);
 			}
 		}
 	}
@@ -1123,8 +1176,7 @@ NarrowString UTF16BytesToUTF8(Iterator it, Iterator ie)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 LE) that was encoded in a byte stream
-/// into a UTF8 string
+/// Convert a wide string (UTF16 LE) that was encoded in a byte stream into a UTF8 string (for recovery purposes only)
 template<typename ByteString, typename NarrowString = ByteString>
 KUTF8_CONSTEXPR_14
 NarrowString UTF16BytesToUTF8(const ByteString& sUTF16Bytes)
@@ -1134,7 +1186,7 @@ NarrowString UTF16BytesToUTF8(const ByteString& sUTF16Bytes)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a UTF8 string into a byte stream with UTF16 LE encoding
+/// Convert a UTF8 string into a byte stream with UTF16 LE encoding (for recovery purposes only)
 template<typename NarrowString, typename ByteString = NarrowString>
 KUTF8_CONSTEXPR_14
 ByteString UTF8ToUTF16Bytes(const NarrowString& sUTF8String)
@@ -1149,11 +1201,11 @@ ByteString UTF8ToUTF16Bytes(const NarrowString& sUTF8String)
 	{
 		if (NeedsSurrogates(uch))
 		{
-			SurrogatePair sp = CodepointToSurrogates(uch);
-			sOut += static_cast<W>(sp.first  >> 8 & 0x0ff);
-			sOut += static_cast<W>(sp.first       & 0x0ff);
-			sOut += static_cast<W>(sp.second >> 8 & 0x0ff);
-			sOut += static_cast<W>(sp.second      & 0x0ff);
+			SurrogatePair sp(uch);
+			sOut += static_cast<W>(sp.low  >> 8 & 0x0ff);
+			sOut += static_cast<W>(sp.low       & 0x0ff);
+			sOut += static_cast<W>(sp.high >> 8 & 0x0ff);
+			sOut += static_cast<W>(sp.high      & 0x0ff);
 		}
 		else
 		{
@@ -1166,6 +1218,8 @@ ByteString UTF8ToUTF16Bytes(const NarrowString& sUTF8String)
 
 	return sUTF16ByteString;
 }
+
+} // namespace special
 
 } // namespace Unicode
 

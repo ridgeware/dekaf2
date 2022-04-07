@@ -23,7 +23,7 @@ int main()
 	KLog::getInstance().SetName("bench");
 	Dekaf::getInstance().SetMultiThreading();
 	Dekaf::getInstance().SetUnicodeLocale();
-
+/*
 	kxml_bench();
 	khtmlparser_bench();
 	kbitfields_bench();
@@ -35,7 +35,7 @@ int main()
 	kstring_bench();
 	kstringview_bench();
 	kcasestring_bench();
- 	other_bench();
+ 	other_bench(); */
 	kutf8_bench();
 
 	kProfFinalize();

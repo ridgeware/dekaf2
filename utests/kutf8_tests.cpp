@@ -100,10 +100,10 @@ TEST_CASE("UTF8") {
 	{
 		KString sUTF8("testäöü test日本語abc中文Русский");
 		CHECK(                 sUTF8.size() == 47     );
-		auto sBytes = Unicode::UTF8ToUTF16Bytes(sUTF8);
+		auto sBytes = Unicode::special::UTF8ToUTF16Bytes(sUTF8);
 		CHECK(                 sBytes.size() == 54    );
 //		CHECK( sBytes == "" );
-		auto sUTF8New = Unicode::UTF16BytesToUTF8(sBytes);
+		auto sUTF8New = Unicode::special::UTF16BytesToUTF8(sBytes);
 		CHECK(                 sUTF8New.size() == 47  );
 		CHECK(                 sUTF8New == sUTF8      );
 	}
@@ -111,14 +111,13 @@ TEST_CASE("UTF8") {
 	SECTION("ToUTF8")
 	{
 		KString sUTF;
-		bool bValid = Unicode::ToUTF8(128, sUTF);
+		Unicode::ToUTF8(128, sUTF);
 		CHECK ( sUTF.size() == 2 );
 		CHECK ( static_cast<uint8_t>(sUTF[0]) == 0xc2 );
 		CHECK ( static_cast<uint8_t>(sUTF[1]) == 0x80 );
-		CHECK ( bValid );
 	}
 
-	SECTION("Invalid 1")
+	SECTION("Invalid")
 	{
 		std::vector<KStringView> Test {
 			"\xF5\x80\x80\x80",
@@ -169,8 +168,88 @@ TEST_CASE("UTF8") {
 			auto index = Unicode::InvalidUTF8(sInvalid);
 			CHECK ( index != sInvalid.size() );
 		}
-
 	}
 
+	SECTION("IsSurrogate")
+	{
+		for (std::size_t ch = 0; ch <= Unicode::CODEPOINT_MAX; ++ch)
+		{
+			if (ch < Unicode::SURROGATE_LOW_START || ch > Unicode::SURROGATE_HIGH_END)
+			{
+				if (Unicode::IsSurrogate(ch))
+				{
+					INFO(ch);
+					CHECK ( Unicode::IsSurrogate(ch) == false );
+				}
+			}
+			else
+			{
+				if (!Unicode::IsSurrogate(ch))
+				{
+					INFO(ch);
+					CHECK ( Unicode::IsSurrogate(ch) == true );
+				}
+			}
+		}
+	}
+
+	SECTION("SurrogatePair")
+	{
+		for (std::size_t ch = Unicode::NEEDS_SURROGATE_START; ch <= Unicode::NEEDS_SURROGATE_END; ++ch)
+		{
+			INFO(ch);
+
+			if (!Unicode::NeedsSurrogates(ch))
+			{
+				CHECK(Unicode::NeedsSurrogates(ch));
+			}
+			Unicode::SurrogatePair sp(ch);
+			if (sp.ToCodepoint() != ch)
+			{
+				CHECK(sp.ToCodepoint() == ch);
+			}
+			if (!Unicode::IsLeadSurrogate(sp.low))
+			{
+				CHECK(Unicode::IsLeadSurrogate(sp.low));
+			}
+			if (!Unicode::IsTrailSurrogate(sp.high))
+			{
+				CHECK(Unicode::IsTrailSurrogate(sp.high));
+			}
+			Unicode::SurrogatePair sp2(sp.low, sp.high);
+			if (sp2.ToCodepoint() != ch)
+			{
+				CHECK(sp2.ToCodepoint() == ch);
+			}
+		}
+	}
+
+	SECTION("IsStartByte")
+	{
+		for (uint8_t ch = 0;; ++ch)
+		{
+			INFO(ch);
+
+			if (ch >= 0x0c0 && ch <= 0x0ff)
+			{
+				// lead bytes
+				CHECK ( Unicode::IsStartByte(ch)        == true  );
+				CHECK ( Unicode::IsContinuationByte(ch) == false );
+			}
+			else if (ch >= 0x080 && ch <= 0x0bf)
+			{
+				// continuation
+				CHECK ( Unicode::IsStartByte(ch)        == false );
+				CHECK ( Unicode::IsContinuationByte(ch) == true  );
+			}
+			else
+			{
+				CHECK ( Unicode::IsStartByte(ch)        == false );
+				CHECK ( Unicode::IsContinuationByte(ch) == false );
+			}
+
+			if (ch == 255) break;
+		}
+	}
 }
 

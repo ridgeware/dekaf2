@@ -1714,12 +1714,14 @@ KString kMakeSafeFilename(KStringView sName, bool bToLowercase, KStringView sEmp
 
 			if (bToLowercase)
 			{
-				return Unicode::ToUTF8(Cp.ToLower().value(), sOut);
+				Unicode::ToUTF8(Cp.ToLower().value(), sOut);
 			}
 			else
 			{
-				return Unicode::ToUTF8(Cp.value(), sOut);
+				Unicode::ToUTF8(Cp.value(), sOut);
 			}
+			
+			return true;
 		});
 
 		// make sure there is no trailing dash

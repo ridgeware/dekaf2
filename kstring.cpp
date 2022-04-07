@@ -952,7 +952,8 @@ KString kToUpper(KStringView sInput)
 
 	Unicode::FromUTF8(sInput, [&](Unicode::codepoint_t ch)
 	{
-		return Unicode::ToUTF8(kToUpper(ch), sTransformed);
+		Unicode::ToUTF8(kToUpper(ch), sTransformed);
+		return true;
 	});
 
 	return sTransformed;
@@ -967,7 +968,8 @@ KString kToLower(KStringView sInput)
 
 	Unicode::FromUTF8(sInput, [&](Unicode::codepoint_t ch)
 	{
-		return Unicode::ToUTF8(kToLower(ch), sTransformed);
+		Unicode::ToUTF8(kToLower(ch), sTransformed);
+		return true;
 	});
 
 	return sTransformed;

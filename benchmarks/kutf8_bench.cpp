@@ -8,6 +8,7 @@
 #include <dekaf2/kprof.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/ksystem.h>
+#include <dekaf2/ktime.h>
 #include <dekaf2/kwriter.h>
 #include <dekaf2/kutf8.h>
 
@@ -28,9 +29,15 @@ void kutf8_bench()
 		} while (Unicode::IsSurrogate(ch));
 		Unicode::ToUTF8(ch, sData);
 	}
+	KOut.FormatLine("Time: {}", kFormTimestamp(0, "%Y-%m-%d %H:%M:%S", true));
 	KOut.FormatLine("string size: {} bytes, {} codepoints, valid={}", sData.size(), Unicode::CountUTF8(sData), Unicode::ValidUTF8(sData));
 
 	auto sWide     = Unicode::FromUTF8(sData);
+
+	// surrogate
+//	sData.insert(0, "\xed\xad\xbf"_ksv);
+//	sWide.insert(0, 1, 0x0DB7FUL);
+
 	auto sWide1000 = sWide.substr(0, 1000);
 
 	dekaf2::KProf ps("-KUTF8");
@@ -102,6 +109,54 @@ void kutf8_bench()
 	}
 
 	{
+		dekaf2::KProf prof("LeftUTF8 copy long (2048)");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			KString sString = Unicode::LeftUTF8(sData, 2048);
+			KProf::Force(&sString);
+			KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("Left string copy long (3048)");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			KString sString = sData.Left(3048);
+			KProf::Force(&sString);
+			KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("RightUTF8 copy long (2048)");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			KString sString = Unicode::RightUTF8(sData, 2048);
+			KProf::Force(&sString);
+			KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("Right string copy long (2048)");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			KString sString = sData.Right(3048);
+			KProf::Force(&sString);
+			KProf::Force();
+		}
+	}
+
+	{
 		dekaf2::KProf prof("NextCodepointFromUTF8 (1000)");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
@@ -112,7 +167,7 @@ void kutf8_bench()
 			Unicode::codepoint_t cp;
 			for (int ict = 0; ict < 1000; ++ict)
 			{
-				cp = Unicode::NextCodepointFromUTF8(it, ie);
+				cp = Unicode::CodepointFromUTF8(it, ie);
 			}
 			if (cp) KProf::Force();
 		}
@@ -129,7 +184,7 @@ void kutf8_bench()
 			Unicode::codepoint_t cp;
 			for (int ict = 0; ict < 2 * 1000 * 1000; ++ict)
 			{
-				cp = Unicode::NextCodepointFromUTF8(it, ie);
+				cp = Unicode::CodepointFromUTF8(it, ie);
 			}
 			if (cp) KProf::Force();
 		}

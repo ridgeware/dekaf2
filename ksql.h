@@ -145,9 +145,14 @@ struct _cs_blk_row;          typedef struct _cs_blk_row CS_BLK_ROW;
 
 #ifdef DEKAF2_HAS_MYSQL
 // forward declare MYSQL types
+#ifdef DEKAF2_MYSQL_IS_MARIADB
 typedef struct st_mysql MYSQL;
-typedef char** MYSQL_ROW;
 typedef struct st_mysql_res MYSQL_RES;
+#else
+typedef struct MYSQL MYSQL;
+typedef struct MYSQL_RES MYSQL_RES;
+#endif
+typedef char** MYSQL_ROW;
 typedef unsigned long* MYSQL_ROW_LENS; // this one is not a MYSQL type, but it is returned from mysql_fetch_lengths()
 #endif
 

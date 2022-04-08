@@ -76,6 +76,7 @@
 
 #cmakedefine DEKAF2_HAS_LIBPROC
 #cmakedefine DEKAF2_HAS_MYSQL
+#cmakedefine DEKAF2_MYSQL_IS_MARIADB
 #cmakedefine DEKAF2_HAS_SQLITE3
 #cmakedefine DEKAF2_HAS_FREETDS
 #cmakedefine DEKAF2_HAS_CTLIB

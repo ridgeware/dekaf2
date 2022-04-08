@@ -4,6 +4,7 @@
 # MYSQL_INCLUDE_DIRS	- Where to find mysql.h, etc.
 # MYSQL_LIBRARIES		- The libraries to link against.
 # MYSQL_VERSION_STRING	- Version in a string of MySQL.
+# MYSQL_IS_MARIADB      - true if we found mariadb, false otherwise
 #
 # Created by RenatoUtsch based on eAthena implementation.
 #
@@ -57,13 +58,22 @@ else()
 			  "/usr/local/lib")
 endif()
 
-if( MYSQL_INCLUDE_DIR AND EXISTS "${MYSQL_INCLUDE_DIR}/mysql_version.h" )
+if( MYSQL_INCLUDE_DIR AND EXISTS "${MYSQL_INCLUDE_DIR}/mariadb_version.h" )
+	set(MYSQL_IS_MARIADB ON)
+	file( STRINGS "${MYSQL_INCLUDE_DIR}/mariadb_version.h"
+		MYSQL_VERSION_H REGEX "^#define[ \t]+MYSQL_SERVER_VERSION[ \t]+\"[^\"]+\".*$" )
+	string( REGEX REPLACE
+		"^.*MYSQL_SERVER_VERSION[ \t]+\"([^\"]+)\".*$" "\\1" MYSQL_VERSION_STRING
+		"${MYSQL_VERSION_H}" )
+elseif( MYSQL_INCLUDE_DIR AND EXISTS "${MYSQL_INCLUDE_DIR}/mysql_version.h" )
+	set(MYSQL_IS_MARIADB OFF)
 	file( STRINGS "${MYSQL_INCLUDE_DIR}/mysql_version.h"
 		MYSQL_VERSION_H REGEX "^#define[ \t]+MYSQL_SERVER_VERSION[ \t]+\"[^\"]+\".*$" )
 	string( REGEX REPLACE
 		"^.*MYSQL_SERVER_VERSION[ \t]+\"([^\"]+)\".*$" "\\1" MYSQL_VERSION_STRING
 		"${MYSQL_VERSION_H}" )
 endif()
+
 
 # handle the QUIETLY and REQUIRED arguments and set MYSQL_FOUND to TRUE if
 # all listed variables are TRUE

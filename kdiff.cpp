@@ -95,9 +95,56 @@ struct DMP_String_helpers<KString, KStringView>
 	}
 };
 
+template <class char_t, class utf32_type = unsigned>
+struct DMP_utf32_helpers
+{
+	typedef utf32_type utf32_t;
+
+	template <class iterator>
+	static iterator to_utf32(iterator i, iterator end, utf32_t& u)
+	{
+		// to_utf32 is not called for UTF8 strings in diff_match_patch,
+		// therefore do not decode those here
+		if (sizeof(char_t) == 1)
+		{
+			u = Unicode::CodepointCast(*i++);
+		}
+		else
+		{
+			u = Unicode::Codepoint(i, end);
+		}
+
+		return i;
+	}
+
+	template <class iterator>
+	static iterator from_utf32(utf32_t u, iterator o)
+	{
+		if (sizeof(char_t) == 2)
+		{
+			if (Unicode::NeedsSurrogates(u))
+			{
+				Unicode::SurrogatePair sp(u);
+				*o++ = static_cast<char_t>(sp.low);
+				*o++ = static_cast<char_t>(sp.high);
+			}
+			else
+			{
+				*o++ = static_cast<char_t>(u);
+			}
+		}
+		else
+		{
+			*o++ = static_cast<char_t>(u);
+		}
+
+		return o;
+	}
+};
+
 template <typename string_t, typename stringview_t>
 struct DMP_narrow_traits
-: diff_match_patch_utf32_direct<char, uint32_t>
+: DMP_utf32_helpers<char, uint32_t>
 , DMP_String_helpers<string_t, stringview_t>
 {
 	static bool        is_alnum  (char c)             { return KASCII::kIsAlNum(c);             }
@@ -115,7 +162,7 @@ struct DMP_narrow_traits
 
 template <typename string_t, typename stringview_t>
 struct DMP_wide_traits
-: diff_match_patch_utf32_from_utf16<wchar_t>
+: DMP_utf32_helpers<wchar_t, uint32_t>
 , DMP_String_helpers<string_t, stringview_t>
 {
 	static bool        is_alnum  (wchar_t c)          { return kIsAlNum(c);                   }

@@ -1001,19 +1001,11 @@ bool kSetGlobalLocale(KStringViewZ sLocale)
 	{
 		std::locale::global(std::locale(sLocale.c_str()));
 
-		// take care, we may call this function from inside dekaf2's constructor
-		if (Dekaf::IsStarted())
-		{
-			kDebug(1, "changed global locale to {}", sLocale);
-		}
+		kDebug(1, "changed global locale to {}", sLocale);
 	}
 	DEKAF2_CATCH (const std::exception& ex)
 	{
-		// take care, we may call this function from inside dekaf2's constructor
-		if (Dekaf::IsStarted())
-		{
-			kDebug(1, "failed to change global locale to {}: {}", sLocale, ex.what());
-		}
+		kDebug(1, "failed to change global locale to {}: {}", sLocale, ex.what());
 
 		return false;
 	}

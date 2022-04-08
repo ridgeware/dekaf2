@@ -409,7 +409,7 @@ NarrowString ToUTF8(Ch sch)
 template<typename NarrowString, typename WideString,
          typename std::enable_if<!std::is_integral<WideString>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
-bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
+void ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 {
 	typename WideString::const_iterator it = sWide.cbegin();
@@ -421,34 +421,40 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 		// If we would have surrogate pairs in 32 bit strings it is an error in their
 		// construction in the first place. We will not try to reassemble them.
 		// The UTF8 encoder will convert those to replacement characters.
-		if (sizeof(typename WideString::value_type) == 2 && KUTF8_UNLIKELY(IsLeadSurrogate(*it)))
+		if (sizeof(typename WideString::value_type) == 2 && KUTF8_UNLIKELY(IsSurrogate(*it)))
 		{
-			SurrogatePair sp;
-
-			sp.low = CodepointCast(*it++);
-
-			if (KUTF8_UNLIKELY(it == ie))
+			if (KUTF8_LIKELY(IsLeadSurrogate(*it)))
 			{
-				// we replace incomplete surrogates with the replacement character
-				ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
-			}
-			else
-			{
-				sp.high = CodepointCast(*it);
+				SurrogatePair sp;
 
-				if (KUTF8_UNLIKELY(!IsTrailSurrogate(sp.high)))
+				sp.low = CodepointCast(*it++);
+
+				if (KUTF8_UNLIKELY(it == ie))
 				{
-					// the second surrogate is not valid - simply replace them
-					// with the replacement character if not
+					// we replace incomplete surrogates with the replacement character
 					ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
 				}
 				else
 				{
-					// advance the input iterator
-					++it;
-					// and output the completed codepoint
-					ToUTF8(sp.ToCodepoint(), sNarrow);
+					sp.high = CodepointCast(*it);
+
+					if (KUTF8_UNLIKELY(!IsTrailSurrogate(sp.high)))
+					{
+						// the second surrogate is not valid - simply replace them
+						// with the replacement character if not
+						ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
+					}
+					else
+					{
+						// and output the completed codepoint
+						ToUTF8(sp.ToCodepoint(), sNarrow);
+					}
 				}
+			}
+			else
+			{
+				// this was a trail surrogate withoud lead..
+				ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
 			}
 		}
 		else
@@ -457,7 +463,6 @@ bool ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 			ToUTF8(*it, sNarrow);
 		}
 	}
-	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -595,6 +600,128 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 	SyncUTF8(it, ie);
 
 	return INVALID_CODEPOINT;
+}
+
+//-----------------------------------------------------------------------------
+/// Returns a 32 bit codepoint from either UTF8, UTF16, or UTF32. If at call (it == ie) -> undefined behaviour
+template<typename Iterator>
+KUTF8_CONSTEXPR_14
+codepoint_t Codepoint(Iterator& it, Iterator ie)
+//-----------------------------------------------------------------------------
+{
+	using N = typename std::remove_reference<decltype(*it)>::type;
+
+	assert(it != ie);
+
+	if (sizeof(N) == 1)
+	{
+		return CodepointFromUTF8(it, ie);
+	}
+	else if (sizeof(N) == 2)
+	{
+		codepoint_t ch = CodepointCast(*it++);
+
+		if (KUTF8_UNLIKELY(IsSurrogate(ch)))
+		{
+			if (KUTF8_LIKELY(IsLeadSurrogate(ch)))
+			{
+				SurrogatePair sp;
+
+				sp.low = ch;
+
+				if (KUTF8_UNLIKELY(it == ie))
+				{
+					// we replace incomplete surrogates with the replacement character
+					return REPLACEMENT_CHARACTER;
+				}
+				else
+				{
+					sp.high = CodepointCast(*it);
+
+					if (KUTF8_UNLIKELY(!IsTrailSurrogate(sp.high)))
+					{
+						// the second surrogate is not valid - do not advance input a second time
+						return REPLACEMENT_CHARACTER;
+					}
+					else
+					{
+						// advance the input iterator
+						++it;
+						// and output the completed codepoint
+						return sp.ToCodepoint();
+					}
+				}
+			}
+			else
+			{
+				// this was a trail surrogate withoud lead..
+				return REPLACEMENT_CHARACTER;
+			}
+		}
+		else
+		{
+			return ch;
+		}
+	}
+	else
+	{
+		return CodepointCast(*it++);
+	}
+}
+
+//-----------------------------------------------------------------------------
+/// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
+template<typename OutType, typename InpType>
+KUTF8_CONSTEXPR_14
+void Convert(const InpType& sInp, OutType& sOut)
+//-----------------------------------------------------------------------------
+{
+	constexpr uint16_t out_width = sizeof(typename OutType::value_type);
+
+	typename InpType::const_iterator it = sInp.cbegin();
+	typename InpType::const_iterator ie = sInp.cend();
+
+	for (; KUTF8_LIKELY(it != ie);)
+	{
+		// we only get valid unicode codepoints from Codepoint()
+		// (including the replacement character)
+		codepoint_t ch = Codepoint(it, ie);
+
+		if (out_width == 1)
+		{
+			ToUTF8(ch, sOut);
+		}
+		else if (out_width == 2)
+		{
+			if (NeedsSurrogates(ch))
+			{
+				SurrogatePair sp(ch);
+				sOut += sp.low;
+				sOut += sp.high;
+			}
+			else
+			{
+				sOut += ch;
+			}
+
+		}
+		else
+		{
+			sOut += ch;
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+/// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
+template<typename OutType, typename InpType>
+KUTF8_CONSTEXPR_14
+OutType Convert(const InpType& sInp)
+//-----------------------------------------------------------------------------
+{
+	OutType sOut;
+	Convert(sInp, sOut);
+	return sOut;
 }
 
 //-----------------------------------------------------------------------------

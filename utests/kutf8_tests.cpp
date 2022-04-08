@@ -251,5 +251,54 @@ TEST_CASE("UTF8") {
 			if (ch == 255) break;
 		}
 	}
+
+	SECTION("UTF16")
+	{
+		std::basic_string<uint16_t> sUTF16_in;
+		std::string sUTF8;
+		std::basic_string<uint16_t> sUTF16_out;
+
+//		for (Unicode::codepoint_t ch = 0x010020; ch <= 0x010020; ++ch)
+		for (Unicode::codepoint_t ch = 0; ch <= Unicode::CODEPOINT_MAX; ++ch)
+		{
+			if (Unicode::NeedsSurrogates(ch))
+			{
+				Unicode::SurrogatePair sp(ch);
+				sUTF16_in += sp.low;
+				sUTF16_in += sp.high;
+			}
+			else
+			{
+				if (Unicode::IsValid(ch))
+				{
+					sUTF16_in += ch;
+				}
+				else
+				{
+					sUTF16_in += Unicode::REPLACEMENT_CHARACTER;
+				}
+			}
+		}
+
+		Unicode::Convert(sUTF16_in, sUTF8);
+		Unicode::Convert(sUTF8, sUTF16_out);
+
+		CHECK ( sUTF16_in.size() == sUTF16_out.size() );
+
+		auto it = std::mismatch(sUTF16_in.begin(), sUTF16_in.end(), sUTF16_out.begin(), sUTF16_out.end());
+
+		if (it.first != sUTF16_in.end())
+		{
+			INFO(kFormat("in:  mismatch at pos {}", it.first - sUTF16_in.begin()));
+			CHECK ( false );
+		}
+		if (it.second != sUTF16_out.end())
+		{
+			INFO(kFormat("out: mismatch at pos {}", it.second - sUTF16_out.begin()));
+			CHECK ( false );
+		}
+
+
+	}
 }
 

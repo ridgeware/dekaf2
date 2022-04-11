@@ -306,7 +306,7 @@ protected:
 		std::vector<SharedJob>
 	>                             m_RunningJobs;     // the currently running jobs
 	std::unique_ptr<std::thread>  m_Chronos;         // the time keeper
-	bool                          m_bStop { false }; // syncronization with time keeper thread
+	std::atomic<bool>             m_bStop { false }; // syncronization with time keeper thread
 
 }; // Kron
 

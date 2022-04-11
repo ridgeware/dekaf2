@@ -526,9 +526,10 @@ std::size_t Kron::Scheduler::AddJobsFromCrontab(KStringView sCrontab, bool bHasS
 bool Kron::LocalScheduler::AddJob(const std::shared_ptr<Job>& job)
 //-----------------------------------------------------------------------------
 {
-	auto tNow   = Dekaf::getInstance().GetCurrentTime();
-	auto tNext  = job->Next(tNow);
-	auto JobID  = job->JobID();
+	const auto tNow     = Dekaf::getInstance().GetCurrentTime();
+	const auto tNext    = job->Next(tNow);
+	const auto JobID    = job->JobID();
+	const auto& JobName = job->Name();
 
 	// get a unique lock
 	auto Jobs = m_Jobs.unique();
@@ -536,9 +537,13 @@ bool Kron::LocalScheduler::AddJob(const std::shared_ptr<Job>& job)
 	// check for job ID
 	for (const auto& it : *Jobs)
 	{
-		if (JobID == it.second.get()->JobID())
+		const auto jj = it.second.get();
+
+		if (JobID   == jj->JobID() ||
+			JobName == jj->Name())
 		{
-			kDebug(1, "job '()' is already part of the job list", job->Name());
+			kDebug(1, "job '()' is already part of the job list (with ID {} and name '{}')",
+				   JobName, jj->JobID(), jj->Name());
 			return false;
 		}
 	}

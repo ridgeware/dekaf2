@@ -107,8 +107,6 @@ protected:
 	void Triggered(int fd, uint16_t events);
 	virtual void Watch();
 
-	KThreadSafe<std::unordered_map<int, Parameters>> m_FileDescriptors;
-
 	uint32_t          m_iTimeout   {   100 };
 	std::atomic<bool> m_bModified  { false };
 	std::atomic<bool> m_bStop      { false };
@@ -117,9 +115,13 @@ protected:
 private:
 //----------
 
-	std::unique_ptr<std::thread> m_Thread;
+	void StartLocked();
 
-	bool             m_bAutoStart {  true };
+	std::shared_mutex m_Mutex;
+	std::unique_ptr<std::thread> m_Thread;
+	std::unordered_map<int, Parameters> m_FileDescriptors;
+
+	bool              m_bAutoStart {  true };
 
 }; // KPoll
 

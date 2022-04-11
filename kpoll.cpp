@@ -54,23 +54,16 @@ namespace dekaf2 {
 KPoll::~KPoll()
 //-----------------------------------------------------------------------------
 {
-	if (m_Thread)
-	{
-		Stop();
-	}
+	Stop();
 
 } // dtor
 
 //-----------------------------------------------------------------------------
-void KPoll::Start()
+void KPoll::StartLocked()
 //-----------------------------------------------------------------------------
 {
 	// check if the watcher thread is already running
-	if (m_Thread)
-	{
-		kDebug(1, "watcher is already running");
-	}
-	else
+	if (!m_Thread)
 	{
 		kDebug(1, "starting watcher");
 		m_bStop  = false;
@@ -80,14 +73,21 @@ void KPoll::Start()
 } // Start
 
 //-----------------------------------------------------------------------------
+void KPoll::Start()
+//-----------------------------------------------------------------------------
+{
+	std::unique_lock Lock(m_Mutex);
+	StartLocked();
+
+} // Start
+
+//-----------------------------------------------------------------------------
 void KPoll::Stop()
 //-----------------------------------------------------------------------------
 {
-	if (!m_Thread)
-	{
-		kDebug(1, "no watcher running");
-	}
-	else
+	std::unique_lock Lock(m_Mutex);
+
+	if (m_Thread)
 	{
 		kDebug(1, "stopping watcher");
 		m_bStop = true;
@@ -102,12 +102,12 @@ void KPoll::Stop()
 void KPoll::Add(int fd, Parameters Parms)
 //-----------------------------------------------------------------------------
 {
-	auto Map = m_FileDescriptors.unique();
+	std::unique_lock Lock(m_Mutex);
 
 #ifdef DEKAF2_HAS_CPP_17
-	Map->insert_or_assign(fd, std::move(Parms));
+	m_FileDescriptors.insert_or_assign(fd, std::move(Parms));
 #else
-	auto pair = Map->insert({fd, Parms});
+	auto pair = m_FileDescriptors.insert({fd, Parms});
 
 	if (!pair.second)
 	{
@@ -121,7 +121,7 @@ void KPoll::Add(int fd, Parameters Parms)
 
 	if (!m_Thread && m_bAutoStart)
 	{
-		Start();
+		StartLocked();
 	}
 
 } // Add
@@ -130,7 +130,9 @@ void KPoll::Add(int fd, Parameters Parms)
 void KPoll::Remove(int fd)
 //-----------------------------------------------------------------------------
 {
-	if (m_FileDescriptors.unique()->erase(fd) != 1)
+	std::unique_lock Lock(m_Mutex);
+
+	if (m_FileDescriptors.erase(fd) != 1)
 	{
 		kDebug(2, "cannot remove file descriptor {}: not found", fd);
 	}
@@ -148,14 +150,14 @@ void KPoll::BuildPollVec(std::vector<pollfd>& fds)
 {
 	fds.clear();
 
-	// collect all file descriptors we should watch
-	auto FileDescriptors = m_FileDescriptors.shared();
+	std::shared_lock Lock(m_Mutex);
 
+	// collect all file descriptors we should watch
 	m_bModified = false;
 
-	fds.reserve(FileDescriptors->size());
+	fds.reserve(m_FileDescriptors.size());
 
-	for (const auto& FileDescriptor : *FileDescriptors)
+	for (const auto& FileDescriptor : m_FileDescriptors)
 	{
 		pollfd pfd;
 		pfd.fd     = FileDescriptor.first;
@@ -177,12 +179,12 @@ void KPoll::Triggered(int fd, uint16_t events)
 
 	{
 		// lock the map
-		auto FileDescriptors = m_FileDescriptors.unique();
+		std::unique_lock Lock(m_Mutex);
 
 		// find the associated map entry
-		auto it = FileDescriptors->find(fd);
+		auto it = m_FileDescriptors.find(fd);
 
-		if (it == FileDescriptors->end())
+		if (it == m_FileDescriptors.end())
 		{
 			// this fd is no more existing in the map
 			kDebug(2, "could not find fd {}", fd);
@@ -196,7 +198,7 @@ void KPoll::Triggered(int fd, uint16_t events)
 			// get callback and parm
 			CBP = std::move(it->second);
 			// and remove the file descriptor from the map
-			FileDescriptors->erase(it);
+			m_FileDescriptors.erase(it);
 			// and set a flag to rebuild the vector
 			m_bModified = true;
 		}

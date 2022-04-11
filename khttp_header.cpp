@@ -60,7 +60,7 @@ KString KHTTPHeader::DateToString(time_t tTime)
 time_t KHTTPHeader::StringToDate(KStringView sTime)
 //-----------------------------------------------------------------------------
 {
-	return 0; // TBD
+	return kParseHTTPTimestamp(sTime);
 	
 } // StringToDate
 

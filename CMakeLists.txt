@@ -891,7 +891,7 @@ endif()
 list(SORT SOURCES)
 
 # keep this one at the end
-list(APPEND SOURCES khtmlentities5.cpp)
+list(APPEND SOURCES khtmlentities4.cpp)
 
 # ============================= CONDITIONAL LIBS ==================================
 

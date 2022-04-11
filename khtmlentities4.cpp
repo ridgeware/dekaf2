@@ -2207,10 +2207,10 @@ struct codes_t
 
 #if defined(DEKAF2_HAS_FROZEN) && !defined(_MSC_VER)
 	#ifdef DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
-	static constexpr auto s_NamedEntitiesHTML5 = frozen::make_unordered_map(s_Entities);
+	static constexpr auto s_NamedEntitiesHTML4 = frozen::make_unordered_map(s_Entities);
 	#else
 		#ifdef DEKAF2_X86
-			static constexpr auto s_NamedEntitiesHTML5 = frozen::make_map(s_Entities);
+			static constexpr auto s_NamedEntitiesHTML4 = frozen::make_map(s_Entities);
 		#endif
 	#endif
 #endif
@@ -2222,33 +2222,19 @@ bool KHTMLEntity::FromNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& 
 	cp1 = 0;
 	cp2 = 0;
 
-	if (DEKAF2_UNLIKELY(sEntity.empty()))
-	{
-		return false;
-	}
-
-	if (DEKAF2_LIKELY(sEntity.front() == '&'))
+	if (DEKAF2_UNLIKELY(sEntity.front() == '&'))
 	{
 		sEntity.remove_prefix(1);
-		
-		if (sEntity.empty())
-		{
-			return false;
-		}
 	}
 
-	if (DEKAF2_LIKELY(sEntity.back() == ';'))
+	if (DEKAF2_UNLIKELY(sEntity.back() == ';'))
 	{
 		sEntity.remove_suffix(1);
-
-		if (sEntity.empty())
-		{
-			return false;
-		}
 	}
 
-	auto it = s_NamedEntitiesHTML5.find(sEntity);
-	if (DEKAF2_LIKELY(it != s_NamedEntitiesHTML5.end()))
+	auto it = s_NamedEntitiesHTML4.find(sEntity);
+
+	if (DEKAF2_LIKELY(it != s_NamedEntitiesHTML4.end()))
 	{
 		cp1 = it->second.iCodepoint1;
 		cp2 = it->second.iCodepoint2;
@@ -2505,9 +2491,9 @@ KString KHTMLEntity::DecodeOne(KStringView sIn)
 		else
 		{
 			// convert entity name
-			auto it = s_NamedEntitiesHTML5.find(sEntity);
+			auto it = s_NamedEntitiesHTML4.find(sEntity);
 
-			if (DEKAF2_LIKELY(it != s_NamedEntitiesHTML5.end()))
+			if (DEKAF2_LIKELY(it != s_NamedEntitiesHTML4.end()))
 			{
 				Unicode::ToUTF8(it->second.iCodepoint1, sRet);
 

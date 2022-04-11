@@ -565,8 +565,9 @@ bool KRESTServer::Execute()
 		for (;;)
 		{
 			kDebug (2, "keepalive round {}", m_iRound + 1);
-			kSetCrashContext("KRestServer");
-
+			kSetCrashContext(kFormat("KRestServer, Host: {} Remote IP: {}",
+									 m_Options.sServername,
+									 Request.GetRemoteIP()));
 			clear();
 
 			// per default we output JSON

@@ -38,7 +38,6 @@
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
 //
-// For documentation, try: http://www.ridgeware.com/home/dekaf/
 //
 */
 
@@ -51,6 +50,13 @@
 #include <climits>
 #include <cinttypes>
 #include <type_traits>
+
+#if (__cplusplus >= 202002L)
+	#include <version>
+#else
+	// see https://stackoverflow.com/a/31658120
+	#include <ciso646>
+#endif
 
 #define DEKAF2_xstringify(x) #x
 #define DEKAF2_stringify(x) DEKAF2_xstringify(x)
@@ -73,6 +79,21 @@
 	#ifndef DEKAF2_NO_GCC
 		#define DEKAF2_NO_GCC 1
 	#endif
+#endif
+
+#if defined _GLIBCXX_RELEASE
+	// e.g.: 11
+	#define DEKAF2_GLIBCXX_VERSION_MAJOR _GLIBCXX_RELEASE
+#elif defined DEKAF2_IS_GCC
+	// check if this is actually (an old) GCC, then the libstdc++ release is the same as __GNUC__
+	#define DEKAF2_GLIBCXX_VERSION_MAJOR __GNUC__
+#endif
+
+#if defined _LIBCPP_VERSION
+	// e.g.: 13000
+	#define DEKAF2_LIBCXX_VERSION _LIBCPP_VERSION
+	// e.g.: 13
+	#define DEKAF2_LIBCXX_VERSION_MAJOR (_LIBCPP_VERSION / 1000)
 #endif
 
 #if defined __GNUC__

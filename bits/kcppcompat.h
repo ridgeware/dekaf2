@@ -461,7 +461,7 @@ namespace std
 #endif
 
 #if DEKAF2_HAS_ATTRIBUTE(noinline)
-	#define DEKAF2_NEVER_INLINE inline __attribute__((__noinline__))
+	#define DEKAF2_NEVER_INLINE __attribute__((__noinline__))
 #elif defined(_MSC_VER)
 	#define DEKAF2_NEVER_INLINE __declspec(noinline)
 #else

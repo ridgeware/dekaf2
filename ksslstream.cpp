@@ -299,10 +299,10 @@ bool KSSLContext::SetAllowedCipherSuites(KStringView sCipherSuites)
 		}
 	}
 
-#ifdef DEKAF2_HAS_TLSv13
 	if (!CipherV13.empty())
 	{
 		auto sCiphers = kJoined(CipherV13, ":");
+#ifdef DEKAF2_HAS_TLSv13
 		kDebug(2, "set TLSv1.3 cipher suites {}", sCiphers);
 		if (SSL_CTX_set_ciphersuites(m_Context.native_handle(), sCiphers.c_str()))
 		{
@@ -312,8 +312,10 @@ bool KSSLContext::SetAllowedCipherSuites(KStringView sCipherSuites)
 		{
 			SetError(kFormat("setting TLSv1.3 cipher suites failed: {}", sCiphers));
 		}
-	}
+#else
+		kDebug(1, "TLSv1.3 is not supported by the linked SSL library\ncannot set TLSv1.3 cipher suites {}", sCiphers);
 #endif
+	}
 
 	return bSuccess;
 

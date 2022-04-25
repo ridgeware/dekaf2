@@ -75,7 +75,7 @@ struct codes_t
 #if defined(DEKAF2_HAS_FROZEN) && !defined(_MSC_VER) && (defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86))
 	static constexpr std::pair<KStringView, codes_t> s_Entities[]
 #else
-	const std::unordered_map<KStringView, codes_t> s_NamedEntitiesHTML5
+	const std::unordered_map<KStringView, codes_t> s_NamedEntitiesHTML4
 #endif
 {
     { "AElig"                            , {     0xC6 }},
@@ -2219,9 +2219,6 @@ struct codes_t
 bool KHTMLEntity::FromNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& cp2)
 //-----------------------------------------------------------------------------
 {
-	cp1 = 0;
-	cp2 = 0;
-
 	if (DEKAF2_UNLIKELY(sEntity.front() == '&'))
 	{
 		sEntity.remove_prefix(1);
@@ -2241,8 +2238,13 @@ bool KHTMLEntity::FromNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& 
 
 		return true;
 	}
+	else
+	{
+		cp1 = 0;
+		cp2 = 0;
 
-	return false;
+		return false;
+	}
 
 } // kNamedEntity
 

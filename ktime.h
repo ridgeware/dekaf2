@@ -46,7 +46,6 @@
 
 #include "kstring.h"
 #include "kstringview.h"
-#include "kduration.h"
 #include <cinttypes>
 #include <ctime>
 
@@ -191,6 +190,8 @@ time_t kParseTimestamp(KStringView sTimestamp);
 DEKAF2_PUBLIC
 KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm = false);
 //-----------------------------------------------------------------------------
+
+class KDuration;
 
 //-----------------------------------------------------------------------------
 /// Form a string that expresses a duration

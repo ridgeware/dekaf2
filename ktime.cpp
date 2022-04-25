@@ -40,6 +40,7 @@
  */
 
 #include "ktime.h"
+#include "kduration.h"
 #include "kstringutils.h"
 #include "kfrozen.h"
 #include "dekaf2.h"

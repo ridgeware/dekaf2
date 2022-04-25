@@ -853,3 +853,23 @@ private:
 }; // KStopDurations
 
 } // of namespace dekaf2
+
+// kFormat formatters
+
+#include "kformat.h"
+#include "ktime.h"
+
+namespace fmt
+{
+
+template <>
+struct formatter<dekaf2::KDuration> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KDuration& Duration, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(dekaf2::kTranslateDuration(Duration), ctx);
+	}
+};
+
+} // end of namespace fmt

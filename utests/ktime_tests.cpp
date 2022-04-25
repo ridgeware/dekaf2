@@ -1,6 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/ktime.h>
+#include <dekaf2/kduration.h>
 #include <dekaf2/ksystem.h>
 #include <dekaf2/kscopeguard.h>
 #include <array>
@@ -354,6 +355,17 @@ TEST_CASE("KTime") {
 		CHECK ( kGetTimezoneOffset("NZST") == 12 * 60 * 60 );
 		CHECK ( kGetTimezoneOffset("COST") == -4 * 60 * 60 );
 		CHECK ( kGetTimezoneOffset("HST" ) == -10 * 60 * 60 );
+	}
+
+	SECTION("comparison")
+	{
+		KUTCTime a = 123456;
+		KUTCTime b = 12345;
+		CHECK ( (a >  b) );
+		CHECK ( (a >= b) );
+		CHECK ( (a != b) );
+		CHECK ( (b <  a) );
+		CHECK ( (b <= a) );
 	}
 
 #ifndef DEKAF2_IS_WINDOWS

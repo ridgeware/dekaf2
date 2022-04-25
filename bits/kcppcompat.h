@@ -765,5 +765,5 @@ inline T& operator OP (T& left, T right) \
 #define DEKAF2_COMPARISON_OPERATORS(T) \
  inline bool operator!=(const T& left, const T& right) { return !(left == right); } \
  inline bool operator> (const T& left, const T& right) { return   right < left;   } \
- inline bool operator<=(const T& left, const T& right) { return !(left  > right); } \
- inline bool operator>=(const T& left, const T& right) { return !(right < left);  }
+ inline bool operator<=(const T& left, const T& right) { return !(right < left);  } \
+ inline bool operator>=(const T& left, const T& right) { return !(left  < right); }

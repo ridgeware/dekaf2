@@ -64,4 +64,15 @@ TEST_CASE("KDuration")
 		CHECK ( ms >= 270 * 2 );
 		CHECK ( ms <= 270 * 3 );
 	}
+
+	SECTION("comparison")
+	{
+		KDuration a = std::chrono::milliseconds(700);
+		KDuration b = std::chrono::milliseconds(500);
+		CHECK ( a >  b );
+		CHECK ( a >= b );
+		CHECK ( a != b );
+		CHECK ( b <  a );
+		CHECK ( b <= a );
+	}
 }

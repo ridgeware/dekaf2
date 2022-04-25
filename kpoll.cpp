@@ -76,7 +76,7 @@ void KPoll::StartLocked()
 void KPoll::Start()
 //-----------------------------------------------------------------------------
 {
-	std::unique_lock Lock(m_Mutex);
+	std::unique_lock<std::shared_mutex> Lock(m_Mutex);
 	StartLocked();
 
 } // Start
@@ -85,7 +85,7 @@ void KPoll::Start()
 void KPoll::Stop()
 //-----------------------------------------------------------------------------
 {
-	std::unique_lock Lock(m_Mutex);
+	std::unique_lock<std::shared_mutex> Lock(m_Mutex);
 
 	if (m_Thread)
 	{
@@ -102,7 +102,7 @@ void KPoll::Stop()
 void KPoll::Add(int fd, Parameters Parms)
 //-----------------------------------------------------------------------------
 {
-	std::unique_lock Lock(m_Mutex);
+	std::unique_lock<std::shared_mutex> Lock(m_Mutex);
 
 #ifdef DEKAF2_HAS_CPP_17
 	m_FileDescriptors.insert_or_assign(fd, std::move(Parms));
@@ -130,7 +130,7 @@ void KPoll::Add(int fd, Parameters Parms)
 void KPoll::Remove(int fd)
 //-----------------------------------------------------------------------------
 {
-	std::unique_lock Lock(m_Mutex);
+	std::unique_lock<std::shared_mutex> Lock(m_Mutex);
 
 	if (m_FileDescriptors.erase(fd) != 1)
 	{
@@ -150,7 +150,7 @@ void KPoll::BuildPollVec(std::vector<pollfd>& fds)
 {
 	fds.clear();
 
-	std::shared_lock Lock(m_Mutex);
+	std::shared_lock<std::shared_mutex> Lock(m_Mutex);
 
 	// collect all file descriptors we should watch
 	m_bModified = false;
@@ -179,7 +179,7 @@ void KPoll::Triggered(int fd, uint16_t events)
 
 	{
 		// lock the map
-		std::unique_lock Lock(m_Mutex);
+		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
 
 		// find the associated map entry
 		auto it = m_FileDescriptors.find(fd);

@@ -51,7 +51,31 @@
 #include <cinttypes>
 #include <type_traits>
 
-#if (__cplusplus >= 202002L)
+#ifndef __has_include
+	#define DEKAF2_HAS_INCLUDE(x) 0
+#else
+	#define DEKAF2_HAS_INCLUDE(x) __has_include(x)
+#endif
+
+#ifndef __has_attribute
+	#define DEKAF2_HAS_ATTRIBUTE(x) 0
+#else
+	#define DEKAF2_HAS_ATTRIBUTE(x) __has_attribute(x)
+#endif
+
+#ifndef __has_cpp_attribute
+	#define DEKAF2_HAS_CPP_ATTRIBUTE(x) 0
+#else
+	#define DEKAF2_HAS_CPP_ATTRIBUTE(x) __has_cpp_attribute(x)
+#endif
+
+#ifndef __has_extension
+	#define DEKAF2_HAS_EXTENSION(x) 0
+#else
+	#define DEKAF2_HAS_EXTENSION(x) __has_extension(x)
+#endif
+
+#if (__cplusplus >= 202002L) && DEKAF2_HAS_INCLUDE(<version>)
 	#include <version>
 #else
 	// see https://stackoverflow.com/a/31658120
@@ -188,30 +212,6 @@
 // in the .cpp even if in c++17 mode
 #if !defined(DEKAF2_HAS_FULL_CPP_17)
 	#define DEKAF2_REPEAT_CONSTEXPR_VARIABLE 1
-#endif
-
-#ifndef __has_include
-	#define DEKAF2_HAS_INCLUDE(x) 0
-#else
-	#define DEKAF2_HAS_INCLUDE(x) __has_include(x)
-#endif
-
-#ifndef __has_attribute
-	#define DEKAF2_HAS_ATTRIBUTE(x) 0
-#else
-	#define DEKAF2_HAS_ATTRIBUTE(x) __has_attribute(x)
-#endif
-
-#ifndef __has_cpp_attribute
-	#define DEKAF2_HAS_CPP_ATTRIBUTE(x) 0
-#else
-	#define DEKAF2_HAS_CPP_ATTRIBUTE(x) __has_cpp_attribute(x)
-#endif
-
-#ifndef __has_extension
-	#define DEKAF2_HAS_EXTENSION(x) 0
-#else
-	#define DEKAF2_HAS_EXTENSION(x) __has_extension(x)
 #endif
 
 #if (__cpp_if_constexpr)

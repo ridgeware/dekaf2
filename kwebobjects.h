@@ -42,6 +42,7 @@
 #include "kstringview.h"
 #include "kmime.h"
 #include "khtmldom.h"
+#include "kduration.h"
 #include "kurl.h"
 #include <vector>
 #include <limits>
@@ -1947,7 +1948,8 @@ public:
 	using self   = DurationInput<Unit, Duration>;
 	using parent = LabeledInput<self>;
 
-	static_assert(detail::is_chrono_duration<Duration>::value,
+	static_assert(detail::is_chrono_duration<Duration>::value ||
+				  std::is_same<Duration, KDuration>::value,
 				  "DurationInput needs std::chrono::duration Duration template type");
 	static_assert(detail::is_chrono_duration<Unit>::value,
 				  "DurationInput needs std::chrono::duration Unit template type");
@@ -2003,6 +2005,15 @@ public:
 protected:
 //----------
 
+	template<typename D = Duration,
+	         typename std::enable_if<std::is_same<D, KDuration>::value, int>::type = 0>
+	void DispValue()
+	{
+		parent::SetValue(KString::to_string(m_iValue.template duration<Unit>().count()));
+	}
+
+	template<typename D = Duration,
+	         typename std::enable_if<!std::is_same<D, KDuration>::value, int>::type = 0>
 	void DispValue()
 	{
 		parent::SetValue(KString::to_string(std::chrono::duration_cast<Unit>(m_iValue).count()));

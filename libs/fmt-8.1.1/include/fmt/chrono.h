@@ -324,11 +324,11 @@ void write_codecvt(codecvt_result<CodeUnit>& out, string_view in_buf,
 #if FMT_CLANG_VERSION
 #  pragma clang diagnostic push
 #  pragma clang diagnostic ignored "-Wdeprecated"
+#endif
   using codecvt = std::codecvt<CodeUnit, char, std::mbstate_t>;
   auto& f = std::use_facet<codecvt>(loc);
+#if FMT_CLANG_VERSION
 #  pragma clang diagnostic pop
-#else
-  auto& f = std::use_facet<codecvt>(loc);
 #endif
   auto mb = std::mbstate_t();
   const char* from_next = nullptr;

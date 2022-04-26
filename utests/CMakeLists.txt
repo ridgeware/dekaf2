@@ -40,6 +40,7 @@ set (USOURCES
 	khtmldom_tests.cpp
 	khtmlentities_tests.cpp
 	khttp_header_tests.cpp
+	khttp_method_tests.cpp
 	khttp_request_tests.cpp
 	khttpclient_tests.cpp
 	khttpcompression_tests.cpp

@@ -123,4 +123,11 @@ TEST_CASE("KHTTPHeader")
 			CHECK ( ContentTypes[5].sValue == "text/html" );
 		}
 	}
+
+	SECTION("Format")
+	{
+		KHTTPHeader H = KHTTPHeader::CONTENT_TYPE;
+		auto sHeader = kFormat("{}: none", H);
+		CHECK ( sHeader == "Content-Type: none");
+	}
 }

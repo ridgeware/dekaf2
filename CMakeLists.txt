@@ -1113,7 +1113,7 @@ install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/fmt/time.h)")       # remove mid 2022
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kdiffer.h)") # remove end 2022
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-8.0.1/include/fmt/     DESTINATION ${dekaf2_include_dest}/fmt      FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-8.1.1/include/fmt/     DESTINATION ${dekaf2_include_dest}/fmt      FILES_MATCHING PATTERN "*.h")
 if (DEKAF2_HAS_MINIFOLLY)
 	install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/           DESTINATION ${dekaf2_include_dest}/folly    FILES_MATCHING PATTERN "*.h")
 	install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/folly/glog/            DESTINATION ${dekaf2_include_dest}/glog     FILES_MATCHING PATTERN "*.h")

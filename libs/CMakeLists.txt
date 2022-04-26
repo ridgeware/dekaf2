@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.8)
 include(ExternalProject)
 
 # add the format lib
-add_subdirectory(fmt-8.0.1)
+add_subdirectory(fmt-8.1.1)
 
 # add fast regular expressions
 add_subdirectory(re2)

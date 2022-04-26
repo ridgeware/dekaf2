@@ -50,6 +50,7 @@
 #include "klog.h"
 #include <memory>
 #include <mutex>
+#include <condition_variable>
 
 
 namespace dekaf2 {

@@ -1087,12 +1087,12 @@ inline auto equal2(const char* lhs, const char* rhs) -> bool {
 template <typename Char>
 FMT_CONSTEXPR20 FMT_INLINE void copy2(Char* dst, const char* src) {
   if (!is_constant_evaluated() && sizeof(Char) == sizeof(char)) {
-#if FMT_GCC_VERSION
+#if FMT_GCC_VERSION >= 700 && FMT_GCC_VERSION < 1200
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wstringop-overflow"
 #endif
     memcpy(dst, src, 2);
-#if FMT_GCC_VERSION
+#if FMT_GCC_VERSION >= 700 && FMT_GCC_VERSION < 1200
 #  pragma GCC diagnostic pop
 #endif
     return;

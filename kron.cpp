@@ -277,7 +277,7 @@ bool Kron::Job::Start()
 	if (m_Shell != nullptr)
 	{
 		kDebug(1, "new execution skipped, still running '{}'", Name());
-		return -1;
+		return false;
 	}
 
 	kDebug(1, "now starting job '{}'", Name());

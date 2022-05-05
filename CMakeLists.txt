@@ -370,7 +370,7 @@ endif()
 if (NOT OPENSSL_ROOT_DIR)
 	if (IS_MACOS)
 		# this is still needed to override an insufficient std OpenSSL on OSX
-		set(OPENSSL_ROOT_DIR /usr/local/opt/openssl)
+		set(OPENSSL_ROOT_DIR /usr/local/opt/openssl@1.1 /usr/local/opt/openssl /opt/homebrew/opt/openssl@1.1 /opt/homebrew/opt/openssl)
 	elseif (IS_WINDOWS)
 		set(OPENSSL_ROOT_DIR "C:\\Program Files\\OpenSSL\\lib")
 	endif ()

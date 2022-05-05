@@ -49,7 +49,7 @@ BuildSetup ()
 
 		case "${DISTRIB}" in
 			darwin)
-				InstallSystemPackages cmake boost openssl wget
+				InstallSystemPackages cmake boost openssl@1.1 wget
 				
 				InstallOptionalSystemPackages doxygen graphviz libzip xz zstd brotli mariadb sqlite
 				;;

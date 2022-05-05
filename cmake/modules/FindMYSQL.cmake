@@ -43,7 +43,9 @@ else()
 		NAMES "mysql.h"
 		PATHS "/usr/include/mysql"
 		      "/usr/local/include/mysql"
-			  "/usr/mysql/include/mysql" )
+			  "/usr/mysql/include/mysql"
+			  "/opt/homebrew/include/mysql"
+	)
 
 	find_library( MYSQL_LIBRARY
 		NAMES "mysqlclient" "mysqlclient_r"
@@ -55,7 +57,9 @@ else()
 			  "/usr/local/lib64/mysql"
 			  "/usr/mysql/lib/mysql"
 			  "/usr/mysql/lib64/mysql"
-			  "/usr/local/lib")
+			  "/usr/local/lib"
+			  "/opt/homebrew/lib"
+	)
 endif()
 
 if( MYSQL_INCLUDE_DIR AND EXISTS "${MYSQL_INCLUDE_DIR}/mariadb_version.h" )

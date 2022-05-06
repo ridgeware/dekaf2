@@ -151,7 +151,7 @@ cmake_host_system_information(RESULT HOSTNAME QUERY HOSTNAME)
 
 # ========================= SWITCHING CONFIG ON ENVIRONMENT =========================
 
-if (CPU_ARM)
+if (CPU_ARM AND NOT IS_MACOS)
 	message(STATUS "no ASAN/UBSAN support for ARM")
 	set (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 endif()

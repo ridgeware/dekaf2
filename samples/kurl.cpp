@@ -98,8 +98,8 @@ kurl::kurl ()
 		m_Config.bTerminate = true;
 	});
 
-	m_CLI.Option("X,request", "request_method")
-		.Help("set request method of simulated request (default = GET)")
+	m_CLI.Option("X,request <method>", "request_method")
+		.Help(kFormat("set request method ({}) of simulated request (default = GET)", KHTTPMethod::REQUEST_METHODS))
 	([&](KStringViewZ sMethod)
 	{
 		m_Config.Method = sMethod.ToUpperASCII();
@@ -110,7 +110,7 @@ kurl::kurl ()
 		}
 	});
 
-	m_CLI.Option("D,data", "request_body")
+	m_CLI.Option("D,data <content>", "request_body")
 		.Help("add literal request body, or with @ take contents of file")
 	([&](KStringViewZ sArg)
 	{
@@ -129,7 +129,7 @@ kurl::kurl ()
 		}
 	});
 
-	m_CLI.Option("H,header", "request header with key:value")
+	m_CLI.Option("H,header <key:value>", "request header with key:value")
 		.Help("add HTTP header to the request (can be used multiple times)")
 	([&](KStringViewZ sHeader)
 	{
@@ -137,14 +137,14 @@ kurl::kurl ()
 		m_Config.Headers.insert ({Pair.first, Pair.second});
 	});
 
-	m_CLI.Option("m,mime", "request MIME type")
+	m_CLI.Option("m,mime <MIME>", "request MIME type")
 		.Help("set MIME type for the request")
 	([&](KStringViewZ sMIME)
 	{
 		m_Config.sRequestMIME = sMIME;
 	});
 
-	m_CLI.Option("compression", "request compression")
+	m_CLI.Option("compression <method>", "request compression")
 		.Help("set accepted compressions/encodings")
 	([&](KStringViewZ sCompression)
 	{

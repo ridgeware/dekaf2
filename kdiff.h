@@ -90,7 +90,7 @@ public:
 
 	enum Sanitation
 	{
-		Semantic,	///< best for human eyes
+		Semantic,   ///< best for human eyes
 		Lossless,   ///< more fragmented, but still good for human eyes
 		Efficiency  ///< for efficient patches, not well readable
 	};

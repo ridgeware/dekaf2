@@ -83,10 +83,13 @@ private:
 } // end of anonymous namespace
 
 //---------------------------------------------------------------------------
-KOptions::OptionalParm::OptionalParm(KOptions& base, KStringView sOption, KStringViewZ sArgDescription, bool bIsCommand)
+KOptions::CallbackParam::CallbackParam(KStringView sNames, KStringViewZ sMissingArgs, uint16_t fFlags, uint16_t iMinArgs, CallbackN Func)
 //---------------------------------------------------------------------------
-: CallbackParam(sOption, sArgDescription, bIsCommand ? fIsCommand : fNone)
-, m_base(&base)
+: m_Callback     ( std::move(Func) )
+, m_sNames       ( sNames          )
+, m_sMissingArgs ( sMissingArgs    )
+, m_iMinArgs     ( iMinArgs        )
+, m_iFlags       ( fFlags          )
 {
 	if (m_iMinArgs == 0 && !m_sMissingArgs.empty())
 	{
@@ -102,14 +105,14 @@ KOptions::OptionalParm::~OptionalParm()
 }
 
 //---------------------------------------------------------------------------
-KOptions::OptionalParm& KOptions::OptionalParm::Help(KStringView sHelp, uint16_t iHelpRank)
+KOptions::OptionalParm& KOptions::OptionalParm::IntHelp(KStringView sHelp, uint16_t iHelpRank)
 //---------------------------------------------------------------------------
 {
 	m_sHelp     = sHelp.Trim();
 	m_iHelpRank = iHelpRank;
 	return *this;
 
-} // Help
+} // IntHelp
 
 //---------------------------------------------------------------------------
 KOptions::OptionalParm& KOptions::OptionalParm::Range(int64_t iLowerBound, int64_t iUpperBound)
@@ -396,6 +399,10 @@ KStringView WrapOutput(KStringView& sInput, std::size_t iMaxSize)
 void KOptions::BuildHelp(KOutStream& out) const
 //---------------------------------------------------------------------------
 {
+	auto iColumns = GetCurrentOutputStreamWidth();
+	kDebug(2, "building help for terminal width {}", iColumns);
+	if (iColumns) --iColumns;
+
 	std::size_t iMaxLen { 0 };
 
 	for (const auto& Callback : m_Callbacks)
@@ -409,9 +416,15 @@ void KOptions::BuildHelp(KOutStream& out) const
 
 	{
 		auto iIndent = GetProgramName().size() + 4;
+
+		if (iColumns < iIndent + 10)
+		{
+			iIndent = 0;
+		}
+
 		auto sDescription = GetBriefDescription();
 
-		auto sLimited = WrapOutput(sDescription, m_iMaxHelpRowWidth - iIndent);
+		auto sLimited = WrapOutput(sDescription, iColumns - iIndent);
 		out.WriteLine(sLimited);
 
 		iIndent += m_iWrappedHelpIndent;
@@ -424,7 +437,7 @@ void KOptions::BuildHelp(KOutStream& out) const
 				out.Write(' ');
 			}
 
-			auto sLimited = WrapOutput(sDescription, m_iMaxHelpRowWidth - iIndent);
+			auto sLimited = WrapOutput(sDescription, iColumns - iIndent);
 			out.WriteLine(sLimited);
 		}
 	}
@@ -438,7 +451,7 @@ void KOptions::BuildHelp(KOutStream& out) const
 				   m_sAdditionalArgDesc);
 	out.WriteLine();
 
-	auto iMaxHelp  = m_iMaxHelpRowWidth - (iMaxLen + m_sSeparator.size() + 5);
+	auto iMaxHelp  = iColumns - (iMaxLen + m_sSeparator.size() + 5);
 	// format wrapped help texts so that they start earlier at the left if
 	// argument size is bigger than help size
 	bool bOverlapping = iMaxHelp < iMaxLen;
@@ -481,7 +494,7 @@ void KOptions::BuildHelp(KOutStream& out) const
 
 						if (bOverlapping)
 						{
-							iHelp = m_iMaxHelpRowWidth - (1 + m_iWrappedHelpIndent);
+							iHelp = iColumns - (1 + m_iWrappedHelpIndent);
 						}
 						else
 						{
@@ -545,17 +558,10 @@ void KOptions::Help(KOutStream& out)
 } // Help
 
 //---------------------------------------------------------------------------
-KOptions::OptionalParm KOptions::Option(KStringView sOption, KStringViewZ sArgDescription)
+KOptions::OptionalParm KOptions::IntOptionOrCommand(KStringView sOption, KStringViewZ sArgDescription, bool bIsCommand)
 //---------------------------------------------------------------------------
 {
-	return OptionalParm(*this, sOption, sArgDescription, false);
-}
-
-//---------------------------------------------------------------------------
-KOptions::OptionalParm KOptions::Command(KStringView sCommand, KStringViewZ sArgDescription)
-//---------------------------------------------------------------------------
-{
-	return OptionalParm(*this, sCommand, sArgDescription, true);
+	return OptionalParm(*this, sOption, sArgDescription, bIsCommand);
 }
 
 //---------------------------------------------------------------------------
@@ -636,28 +642,28 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 void KOptions::RegisterUnknownOption(CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	Register(CallbackParam("!", CallbackParam::fNone, 0, "", Function));
+	Register(CallbackParam("!", "", CallbackParam::fNone, 0, Function));
 }
 
 //---------------------------------------------------------------------------
 void KOptions::RegisterUnknownCommand(CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	Register(CallbackParam("!", CallbackParam::fIsCommand, 0, "", Function));
+	Register(CallbackParam("!", "", CallbackParam::fIsCommand, 0, Function));
 }
 
 //---------------------------------------------------------------------------
 void KOptions::RegisterOption(KStringView sOptions, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	Register(CallbackParam(sOptions, CallbackParam::fNone, iMinArgs, sMissingParms, Function));
+	Register(CallbackParam(sOptions, sMissingParms, CallbackParam::fNone, iMinArgs, Function));
 }
 
 //---------------------------------------------------------------------------
 void KOptions::RegisterCommand(KStringView sCommands, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	Register(CallbackParam(sCommands, CallbackParam::fIsCommand, iMinArgs, sMissingParms, Function));
+	Register(CallbackParam(sCommands, sMissingParms, CallbackParam::fIsCommand, iMinArgs, Function));
 }
 
 //---------------------------------------------------------------------------
@@ -818,6 +824,27 @@ KOutStream& KOptions::GetCurrentOutputStream()
 	}
 
 } // GetCurrentOutputStream
+
+//---------------------------------------------------------------------------
+uint16_t KOptions::GetCurrentOutputStreamWidth() const
+//---------------------------------------------------------------------------
+{
+	bool bIsStdOut = !m_CurrentOutputStream ||
+	                  m_CurrentOutputStream == &KOut;
+
+	if (bIsStdOut)
+	{
+		auto TTY = kGetTerminalSize();
+
+		if (TTY.cols > 9)
+		{
+			return TTY.cols;
+		}
+	}
+
+	return m_iMaxHelpRowWidth;
+
+} // GetCurrentOutputStreamWidth
 
 //---------------------------------------------------------------------------
 int KOptions::SetError(KStringViewZ sError, KOutStream& out)
@@ -1052,6 +1079,7 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 						// we pass the current Arg as the first arg of Args,
 						// but we need to take care to not take it into account
 						// when we readjust the remaining args after calling the
+						// callback
 						Args.push_front(it->sArg);
 						bIsUnknown = true;
 					}
@@ -1094,8 +1122,23 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 					// keep record of the initial args count
 					auto iOldSize = Args.size();
 
-					// finally call the callback
-					Callback->m_Callback(Args);
+					if (Callback->m_Callback)
+					{
+						// finally call the callback (if existing)
+						Callback->m_Callback(Args);
+					}
+					else
+					{
+						// this is an edge case - there was no callback, so treat this
+						// option as pure syntax check, consuming its minimum params
+						auto iRemoveArgs = Callback->m_iMinArgs;
+
+						while (!Args.empty() && iRemoveArgs--)
+						{
+							// this will trigger the arg to be marked as consumed below
+							Args.pop();
+						}
+					}
 
 					if (iOldSize < Args.size())
 					{

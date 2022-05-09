@@ -116,7 +116,7 @@ public:
 	/// set the separator style for the generated help - default is ::
 	KOptions& SetHelpSeparator(KStringView sSeparator) { m_sSeparator = sSeparator; return *this; }
 
-	/// set max generated help width in characters, default = 100
+	/// set max generated help width in characters if terminal size is unknown, default = 100
 	KOptions& SetMaxHelpWidth(std::size_t iMaxWidth) { m_iMaxHelpRowWidth = iMaxWidth; return *this; }
 
 	/// set indent for wrapped help lines, default 1
@@ -149,18 +149,19 @@ public:
 	using Callback1 = std::function<void(KStringViewZ)>;
 	using CallbackN = std::function<void(ArgList&)>;
 
+	/// Selects the type of an argument, used in value checking
 	enum ArgTypes
 	{
-		Integer,
-		Unsigned,
-		Float,
-		Boolean,
-		String,
-		File,      // file must exist
-		Directory, // directory must exist
-		Path,      // path component of pathname must exist
-		Email,
-		URL,
+		Integer,   ///< signed integer
+		Unsigned,  ///< unsigned integer
+		Float,     ///< float
+		Boolean,   ///< boolean
+		String,    ///< string (the default)
+		File,      ///< file must exist
+		Directory, ///< directory must exist, with or without trailing slash
+		Path,      ///< path component of pathname must exist
+		Email,     ///< email address
+		URL,       ///< URL
 	};
 
 //----------
@@ -184,26 +185,11 @@ private:
 		};
 
 		CallbackParam() = default;
-
-		CallbackParam(KStringView sNames, KStringViewZ sMissingArgs, uint16_t fFlags)
-		: m_sNames       ( sNames          )
-		, m_sMissingArgs ( sMissingArgs    )
-		, m_iFlags       ( fFlags          )
-		{
-		}
-
-		CallbackParam(KStringView sNames, uint16_t fFlags, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Func)
-		: m_Callback     ( std::move(Func) )
-		, m_sNames       ( sNames          )
-		, m_sMissingArgs ( sMissingParms   )
-		, m_iMinArgs     ( iMinArgs        )
-		, m_iFlags       ( fFlags          )
-		{
-		}
+		CallbackParam(KStringView sNames, KStringViewZ sMissingArgs, uint16_t fFlags, uint16_t iMinArgs = 0, CallbackN Func = CallbackN{});
 
 		CallbackN    m_Callback;
 		KStringView  m_sNames;
-		KStringViewZ m_sMissingArgs;
+		KStringViewZ m_sMissingArgs; // has to be a KStringViewZ as we feed it into std::runtime_error, which expects a C string
 		KStringView  m_sHelp;
 		int64_t      m_iLowerBound  { 0 };
 		int64_t      m_iUpperBound  { 0 };
@@ -222,6 +208,27 @@ private:
 
 	}; // CallbackParam
 
+	// helper to store temporary strings in persistent storage - that is, all types
+	// except literal strings
+	template<class String,
+	         typename std::enable_if<detail::is_narrow_c_str<String>::value, int>::type = 0>
+	String PersistString(String sString)
+	{
+		return sString;
+	}
+
+	// helper to store temporary strings in persistent storage - that is, all types
+	// except literal strings
+	template<class String,
+	         typename std::enable_if<!detail::is_narrow_c_str<String>::value, int>::type = 0>
+	auto& PersistString(String&& sString)
+	{
+		m_ParmBuffer.push_front(std::forward<String>(sString));
+		return m_ParmBuffer.front();
+	}
+
+	friend class OptionalParm;
+
 //----------
 public:
 //----------
@@ -231,7 +238,15 @@ public:
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 	public:
-		OptionalParm(KOptions& base, KStringView sOption, KStringViewZ sArgDescription, bool bIsCommand);
+		template<class String1, class String2>
+		OptionalParm(KOptions& base, String1&& sOption, String2&& sArgDescription, bool bIsCommand)
+		: CallbackParam(base.PersistString(std::forward<String1>(sOption)),
+						base.PersistString(std::forward<String2>(sArgDescription)),
+						bIsCommand ? fIsCommand : fNone)
+		, m_base(&base)
+		{
+		}
+
 		~OptionalParm();
 
 		/// set the minimum count of expected arguments (default 0)
@@ -258,17 +273,31 @@ public:
 		OptionalParm& operator()(Callback1 Func)  { return Callback(std::move(Func)); }
 		OptionalParm& operator()(Callback0 Func)  { return Callback(std::move(Func)); }
 		/// set the text shown in the help for this parameter, iHelpRank controls the order of help output shown, 0 = highest
-		OptionalParm& Help(KStringView sHelp, uint16_t iHelpRank = 0);
+		template<class String>
+		OptionalParm& Help(String&& sHelp, uint16_t iHelpRank = 0)
+		{
+			return IntHelp(m_base->PersistString(std::forward<String>(sHelp)), iHelpRank);
+		}
 
 	private:
+		OptionalParm& IntHelp(KStringView sHelp, uint16_t iHelpRank);
+
 		KOptions*    m_base;
 
 	}; // OptionalParm
 
 	/// Start definition of a new option. Have it follow by any chained count of methods of OptionalParms, like Option("clear").Help("clear all data").Callback([&](){ RunClear() });
-	OptionalParm Option(KStringView sOption, KStringViewZ sArgDescription = KStringViewZ{});
+	template<class String1, class String2 = KStringViewZ>
+	OptionalParm Option(String1&& sOption, String2&& sArgDescription = KStringViewZ{})
+	{
+		return IntOptionOrCommand(PersistString(std::forward<String1>(sOption)), PersistString(std::forward<String2>(sArgDescription)), false);
+	}
 	/// Start definition of a new command. Have it follow by any chained count of methods of OptionalParms, like Command("clear").Help("clear all data").Callback([&](){ RunClear() });
-	OptionalParm Command(KStringView sCommand, KStringViewZ sArgDescription = KStringViewZ{});
+	template<class String1, class String2 = KStringViewZ>
+	OptionalParm Command(String1&& sCommand, String2&& sArgDescription = KStringViewZ{})
+	{
+		return IntOptionOrCommand(PersistString(std::forward<String1>(sCommand)), PersistString(std::forward<String2>(sArgDescription)), true);
+	}
 
 	/// Register a CallbackParam (typically done by the destructor of CallbackParam..)
 	void Register(CallbackParam OptionOrCommand);
@@ -325,6 +354,9 @@ public:
 
 	/// Get the current output stream while parsing commands/args
 	KOutStream& GetCurrentOutputStream();
+
+	/// Get the current output stream width while parsing commands/args
+	uint16_t GetCurrentOutputStreamWidth() const;
 
 	/// Returns true if we are executed inside a CGI server
 	static bool IsCGIEnvironment();
@@ -422,6 +454,8 @@ private:
 	using CommandLookup = KUnorderedMap<KStringView, std::size_t>;
 
 	DEKAF2_PRIVATE
+	OptionalParm IntOptionOrCommand(KStringView sOption, KStringViewZ sArgDescription, bool bIsCommand);
+	DEKAF2_PRIVATE
 	KStringViewZ ModifyArgument(KStringViewZ sArg, const CallbackParam* Callback);
 	DEKAF2_PRIVATE
 	KString BadBoundsReason(ArgTypes Type, KStringView sParm, int64_t iMinBound, int64_t iMaxBound) const;
@@ -444,7 +478,8 @@ private:
 	// adding more elements, which makes it perfect for the general strategy
 	// of KOptions to use string views for parameters (which are unbuffered
 	// when coming directly from the CLI, this buffer is only for CGI and
-	// ini file parms)
+	// ini file parms, and for strings passed in for string views in option
+	// creation)
 	std::forward_list<KString> m_ParmBuffer;
 
 	KString            m_sProgramPathName;

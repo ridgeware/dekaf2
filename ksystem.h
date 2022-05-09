@@ -295,8 +295,8 @@ struct DEKAF2_PUBLIC KTTYSize
 {
 	uint16_t lines;
 	uint16_t cols;
-	uint16_t xxx;
-	uint16_t yyy;
+	uint16_t xpixels;
+	uint16_t ypixels;
 };
 
 /// @param fd the file descriptor of a terminal window, default = stdout

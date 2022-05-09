@@ -1061,10 +1061,10 @@ char kGetThousandsSeparator()
 KTTYSize kGetTerminalSize(int fd)
 //-----------------------------------------------------------------------------
 {
-	struct ttysize ts;
+	struct winsize ts;
 
 #ifndef DEKAF2_IS_WINDOWS
-	if (ioctl(fd, TIOCGSIZE, &ts) == -1)
+	if (ioctl(fd, TIOCGWINSZ, &ts) == -1)
 #endif
 	{
 		kDebug(1, "cannot read terminal size: {}", strerror(errno));
@@ -1072,10 +1072,10 @@ KTTYSize kGetTerminalSize(int fd)
 	}
 
 	KTTYSize kts;
-	kts.cols  = ts.ts_cols;
-	kts.lines = ts.ts_lines;
-	kts.xxx   = ts.ts_xxx;
-	kts.yyy   = ts.ts_yyy;
+	kts.cols    = ts.ws_col;
+	kts.lines   = ts.ws_row;
+	kts.xpixels = ts.ws_xpixel;
+	kts.ypixels = ts.ws_ypixel;
 
 	return kts;
 

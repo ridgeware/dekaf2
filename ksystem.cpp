@@ -60,6 +60,7 @@
 	#include <sys/types.h>    // for getpwuid()
 	#include <pwd.h>          // for getpwuid()
 	#include <arpa/inet.h>
+	#include <sys/ioctl.h>    // for ioctl(), TIOCGWINSZ
 	#ifndef DEKAF2_IS_OSX
 		#include <sys/syscall.h>
 	#endif
@@ -1055,6 +1056,30 @@ char kGetThousandsSeparator()
 	}
 
 } // kGetThousandsSeparator
+
+//-----------------------------------------------------------------------------
+KTTYSize kGetTerminalSize(int fd)
+//-----------------------------------------------------------------------------
+{
+	struct ttysize ts;
+
+#ifndef DEKAF2_IS_WINDOWS
+	if (ioctl(fd, TIOCGSIZE, &ts) == -1)
+#endif
+	{
+		kDebug(1, "cannot read terminal size: {}", strerror(errno));
+		memset(&ts, 0, sizeof(ts));
+	}
+
+	KTTYSize kts;
+	kts.cols  = ts.ts_cols;
+	kts.lines = ts.ts_lines;
+	kts.xxx   = ts.ts_xxx;
+	kts.yyy   = ts.ts_yyy;
+
+	return kts;
+
+} // kGetTerminalSize
 
 } // end of namespace dekaf2
 

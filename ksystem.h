@@ -290,5 +290,19 @@ char kGetDecimalPoint();
 DEKAF2_PUBLIC
 char kGetThousandsSeparator();
 
+/// holds size of a terminal window
+struct DEKAF2_PUBLIC KTTYSize
+{
+	uint16_t lines;
+	uint16_t cols;
+	uint16_t xxx;
+	uint16_t yyy;
+};
+
+/// @param fd the file descriptor of a terminal window, default = stdout
+/// @return the size of the terminal with file descriptor  @p fd in a struct KTTYSize
+DEKAF2_PUBLIC
+KTTYSize kGetTerminalSize(int fd = 0);
+
 } // end of namespace dekaf2
 

@@ -1160,18 +1160,22 @@ KString kGetFileNameFromFileHandle(HANDLE handle)
 	std::wstring sBuffer;
 	sBuffer.resize(MAX_PATH + 1);
 
-	auto dwRet = GetFinalPathNameByHandleW(handle, sBuffer.data(), sBuffer.size(), VOLUME_NAME_DOS);
+	auto dwRet = GetFinalPathNameByHandleW(handle, sBuffer.data(), static_cast<DWORD>(sBuffer.size()), VOLUME_NAME_DOS);
 
 	if (dwRet >= sBuffer.size())
 	{
 		sBuffer.resize(dwRet + 1);
 
-		dwRet = GetFinalPathNameByHandleW(handle, sBuffer.data(), sBuffer.size(), VOLUME_NAME_DOS);
+		dwRet = GetFinalPathNameByHandleW(handle, sBuffer.data(), static_cast<DWORD>(sBuffer.size()), VOLUME_NAME_DOS);
 	}
 
 	sBuffer.resize(dwRet);
 
 	KString sFileName = Unicode::ToUTF8<KString>(sBuffer);
+
+	// the API returns the filename with prefixed \\?\ (which signals to windows
+	// file APIs that a path name may have up to 2^15 chars)
+	sFileName.remove_prefix("\\\\?\\");
 
 	if (sFileName.empty())
 	{

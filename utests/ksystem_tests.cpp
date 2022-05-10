@@ -4,6 +4,10 @@
 #include <dekaf2/ksystem.h>
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/klog.h>
+#include <fcntl.h> // for open()
+#ifdef DEKAF2_IS_WINDOWS
+	#include <io.h>
+#endif
 
 using namespace dekaf2;
 

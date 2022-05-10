@@ -2,9 +2,14 @@
 
 #include <dekaf2/kstring.h>
 #include <dekaf2/ksystem.h>
+#include <dekaf2/kfilesystem.h>
 #include <dekaf2/klog.h>
 
 using namespace dekaf2;
+
+namespace {
+KTempDir TempDir;
+}
 
 TEST_CASE("KSystem")
 {
@@ -168,5 +173,70 @@ TEST_CASE("KSystem")
 		// we have to fix these tests for windows later. for now let them fail.
 		CHECK ( iTicks1 > 0 );
 		CHECK ( iTicks2 > 0 );
+	}
+
+	SECTION("GetFileNameFromFileDescriptor")
+	{
+		auto sFilename = kFormat("{}{}{}", TempDir.Name(), kDirSep, "test日本語abc中文Русский.file");
+#ifdef DEKAF2_IS_WINDOWS
+		auto sUTF16Filename = Unicode::FromUTF8<std::wstring>(sFilename);
+		int fd = _wopen(sUTF16Filename.c_str(), _O_CREAT | _O_RDWR | _O_BINARY);
+#else
+		int fd = open(sFilename.c_str(), O_CREAT | O_RDWR);
+#endif
+		if (fd < 0)
+		{
+			FAIL_CHECK( strerror(errno) );
+		}
+
+		auto sName = kGetFileNameFromFileDescriptor(fd);
+
+#ifdef DEKAF2_IS_OSX
+		if (sName != sFilename)
+		{
+			// MacOS creates the temp folder under /private, but does normally
+			// not tell so, except when being asked with fcntl()
+			sName.remove_prefix("/private");
+		}
+#endif
+
+		CHECK ( sName == sFilename );
+
+		auto handle = kGetHandleFromFileDescriptor(fd);
+		auto fd2    = kGetFileDescriptorFromHandle(handle);
+		auto sName2 = kGetFileNameFromFileDescriptor(fd2);
+		auto sName3 = kGetFileNameFromFileHandle(handle);
+
+#ifdef DEKAF2_IS_OSX
+		if (sName != sName2)
+		{
+			sName2.remove_prefix("/private");
+		}
+		if (sName != sName3)
+		{
+			sName3.remove_prefix("/private");
+		}
+#endif
+
+		CHECK ( sName == sName2 );
+		CHECK ( sName == sName3 );
+
+#ifndef DEKAF2_IS_WINDOWS
+		CHECK ( fd2 == fd );
+#endif
+
+#ifdef DEKAF2_IS_WINDOWS
+		_close(fd2);
+		_close(fd);
+#else
+		close(fd);
+#endif
+	}
+
+	SECTION("GetTerminalSize")
+	{
+		auto TTY = kGetTerminalSize();
+		CHECK ( TTY.lines   > 0 );
+		CHECK ( TTY.columns > 0 );
 	}
 }

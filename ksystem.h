@@ -51,6 +51,8 @@
 #include <locale>
 #ifndef DEKAF2_IS_WINDOWS
 #include <sys/resource.h>
+#else
+using HANDLE = void*;
 #endif
 
 namespace dekaf2
@@ -290,19 +292,43 @@ char kGetDecimalPoint();
 DEKAF2_PUBLIC
 char kGetThousandsSeparator();
 
+#ifndef DEKAF2_IS_WINDOWS
+// pretty useless on non-Windows, but declare for compatibility
+using HANDLE = intptr_t;
+#endif
+
+/// @return a windows file handle for a file descriptor
+HANDLE kGetHandleFromFileDescriptor(int fd);
+
+/// @return a file descriptor for a windows file handle (must be closed after use!)
+int kGetFileDescriptorFromHandle(HANDLE handle);
+
+/// return the file name for a given file descriptor
+/// @param fd file descriptor (int value)
+/// @return file name for a given file descriptor, or empty string in case of error
+DEKAF2_PUBLIC
+KString kGetFileNameFromFileDescriptor(int fd);
+
+/// return the file name for a given file handle (although it works for non-Windows, use it in Windows environments only)
+/// @param handle file handle
+/// @return file name for a given file handle, or empty string in case of error
+DEKAF2_PUBLIC
+KString kGetFileNameFromFileHandle(HANDLE handle);
+
 /// holds size of a terminal window
 struct DEKAF2_PUBLIC KTTYSize
 {
-	uint16_t lines;
-	uint16_t cols;
-	uint16_t xpixels;
-	uint16_t ypixels;
+	uint16_t lines   { 0 };
+	uint16_t columns { 0 };
 };
 
+/// return column and line counts of the terminal with file descriptor @p fd
 /// @param fd the file descriptor of a terminal window, default = stdout
+/// @param iDefaultColumns default column count if not available, default = 80
+/// @param iDefaultLines default line count if not available, default = 25
 /// @return the size of the terminal with file descriptor  @p fd in a struct KTTYSize
 DEKAF2_PUBLIC
-KTTYSize kGetTerminalSize(int fd = 0);
+KTTYSize kGetTerminalSize(int fd = 0, uint16_t iDefaultColumns = 80, uint16_t iDefaultLines = 25);
 
 } // end of namespace dekaf2
 

@@ -834,11 +834,11 @@ uint16_t KOptions::GetCurrentOutputStreamWidth() const
 
 	if (bIsStdOut)
 	{
-		auto TTY = kGetTerminalSize();
+		auto TTY = kGetTerminalSize(0, m_iMaxHelpRowWidth);
 
-		if (TTY.cols > 9)
+		if (TTY.columns > 9)
 		{
-			return TTY.cols;
+			return TTY.columns;
 		}
 	}
 

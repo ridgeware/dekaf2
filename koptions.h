@@ -117,7 +117,7 @@ public:
 	KOptions& SetHelpSeparator(KStringView sSeparator) { m_sSeparator = sSeparator; return *this; }
 
 	/// set max generated help width in characters if terminal size is unknown, default = 100
-	KOptions& SetMaxHelpWidth(std::size_t iMaxWidth) { m_iMaxHelpRowWidth = iMaxWidth; return *this; }
+	KOptions& SetMaxHelpWidth(uint16_t iMaxWidth) { m_iMaxHelpRowWidth = iMaxWidth; return *this; }
 
 	/// set indent for wrapped help lines, default 1
 	KOptions& SetWrappedHelpIndent(std::size_t iIndent) { m_iWrappedHelpIndent = iIndent; return *this; }
@@ -492,8 +492,8 @@ private:
 	KOutStream*        m_CurrentOutputStream { nullptr };
 	const KStringView* m_sHelp { nullptr };
 	size_t             m_iHelpSize { 0 };
-	std::size_t        m_iMaxHelpRowWidth { 100 };
 	std::size_t        m_iWrappedHelpIndent { 1 };
+	uint16_t           m_iMaxHelpRowWidth { 100 };
 	bool               m_bEmptyParmsIsError { true };
 	bool               m_bHaveOptions  { false };
 	bool               m_bHaveCommands { false };

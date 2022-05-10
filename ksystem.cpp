@@ -47,6 +47,7 @@
 #include "klog.h"
 #include "dekaf2.h"
 #include "kinshell.h"
+#include "kutf8.h"             // for Windows API conversions
 #include <thread>
 #include <cstdlib>
 #include <ctime>
@@ -54,15 +55,22 @@
 #include "bits/kasio.h"
 #ifdef DEKAF2_IS_WINDOWS
 	#include <ws2tcpip.h>
-	#include <sysinfoapi.h>   // for getTotalSystemMemory()
+	#include <sysinfoapi.h>    // for getTotalSystemMemory()
+	#include <consoleapi2.h>   // for GetConsoleScreenBufferInfo()
+	#include <fileapi.h>       // for GetFinalPathNameByHandle()
+	#include <io.h>            // for _get_osfhandle()
 #else
-	#include <unistd.h>       // for sysconf()
-	#include <sys/types.h>    // for getpwuid()
-	#include <pwd.h>          // for getpwuid()
+	#include <unistd.h>        // for sysconf()
+	#include <sys/types.h>     // for getpwuid()
+	#include <pwd.h>           // for getpwuid()
 	#include <arpa/inet.h>
-	#include <sys/ioctl.h>    // for ioctl(), TIOCGWINSZ
+	#include <sys/ioctl.h>     // for ioctl(), TIOCGWINSZ
 	#ifndef DEKAF2_IS_OSX
 		#include <sys/syscall.h>
+		#include <limits.h>    // for MAX_PATH
+	#else
+		#include <sys/syslimits.h> // for MAX_PATH
+		#include <fcntl.h>         // for fcntl()
 	#endif
 #endif
 
@@ -1058,26 +1066,193 @@ char kGetThousandsSeparator()
 } // kGetThousandsSeparator
 
 //-----------------------------------------------------------------------------
-KTTYSize kGetTerminalSize(int fd)
+HANDLE kGetHandleFromFileDescriptor(int fd)
 //-----------------------------------------------------------------------------
 {
-	struct winsize ts;
-
-#ifndef DEKAF2_IS_WINDOWS
-	if (ioctl(fd, TIOCGWINSZ, &ts) == -1)
+#ifdef DEKAF2_IS_WINDOWS
+	return reinterpret_cast<HANDLE>(_get_osfhandle(fd));
+#else
+	return static_cast<HANDLE>(fd);
 #endif
+
+} // kGetHandleFromFileDescriptor
+
+//-----------------------------------------------------------------------------
+int kGetFileDescriptorFromHandle(HANDLE handle)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_WINDOWS
+	return _open_osfhandle(reinterpret_cast<intptr_t>(handle), 0);
+#else
+	return static_cast<int>(handle);
+#endif
+
+} // kGetFileDescriptorFromHandle
+
+//-----------------------------------------------------------------------------
+KString kGetFileNameFromFileDescriptor(int fd)
+//-----------------------------------------------------------------------------
+{
+
+#ifdef DEKAF2_IS_WINDOWS
+
+	return kGetFileNameFromFileHandle(kGetHandleFromFileDescriptor(fd));
+
+#else
+
+#ifdef DEKAF2_IS_OSX
+
+	KString sFileName;
+
+	std::array<char, PATH_MAX + 1> buffer;
+
+	if (fcntl(fd, F_GETPATH, buffer.data()) != -1)
 	{
-		kDebug(1, "cannot read terminal size: {}", strerror(errno));
-		memset(&ts, 0, sizeof(ts));
+		sFileName = buffer.data();
 	}
 
-	KTTYSize kts;
-	kts.cols    = ts.ws_col;
-	kts.lines   = ts.ws_row;
-	kts.xpixels = ts.ws_xpixel;
-	kts.ypixels = ts.ws_ypixel;
+#elif DEKAF2_IS_UNIX
 
-	return kts;
+	KString sFileName;
+
+	std::array<char, PATH_MAX + 1> buffer;
+
+	auto iSize = readlink(kFormat("/proc/self/fd/{}", fd).c_str(), buffer.data(), buffer.size());
+
+	if (iSize >= 0)
+	{
+		buffer[iSize] = '\0';
+	}
+	else
+	{
+		buffer[0] = '\0';
+	}
+
+	sFileName = buffer.data();
+
+#endif
+
+	if (sFileName.empty())
+	{
+		kDebug(1, "cannot find filename for fd {}: {}", fd, strerror(errno));
+	}
+	else
+	{
+		kDebug(2, "fd {} == {}", fd, sFileName);
+	}
+
+	return sFileName;
+
+#endif
+
+} // kGetFileNameFromFileDescriptor
+
+//-----------------------------------------------------------------------------
+KString kGetFileNameFromFileHandle(HANDLE handle)
+//-----------------------------------------------------------------------------
+{
+#ifndef DEKAF2_IS_WINDOWS
+
+	return kGetFileNameFromFileDescriptor(kGetFileDescriptorFromHandle(handle));
+
+#else
+
+	std::wstring sBuffer;
+	sBuffer.resize(MAX_PATH + 1);
+
+	auto dwRet = GetFinalPathNameByHandleW(handle, sBuffer.data(), sBuffer.size(), VOLUME_NAME_DOS);
+
+	if (dwRet >= sBuffer.size())
+	{
+		sBuffer.resize(dwRet + 1);
+
+		dwRet = GetFinalPathNameByHandleW(handle, sBuffer.data(), sBuffer.size(), VOLUME_NAME_DOS);
+	}
+
+	sBuffer.resize(dwRet);
+
+	KString sFileName = Unicode::ToUTF8<KString>(sBuffer);
+
+	if (sFileName.empty())
+	{
+		kDebug(1, "cannot find filename for handle {}", handle);
+	}
+	else
+	{
+		kDebug(2, "handle {} == {}", handle, sFileName);
+	}
+
+	return sFileName;
+
+#endif
+
+} // kGetFileNameFromFileHandle
+
+//-----------------------------------------------------------------------------
+KTTYSize kGetTerminalSize(int fd, uint16_t iDefaultColumns, uint16_t iDefaultLines)
+//-----------------------------------------------------------------------------
+{
+	KTTYSize TTY;
+
+#ifndef DEKAF2_IS_WINDOWS
+
+	struct winsize ts;
+
+	if (ioctl(fd, TIOCGWINSZ, &ts) != -1 && ts.ws_col && ts.ws_row)
+	{
+		TTY.columns = ts.ws_col;
+		TTY.lines   = ts.ws_row;
+	}
+	else
+	{
+		KString sOutput;
+
+		if (fd == 0)
+		{
+			kSystem("stty size", sOutput);
+		}
+		else
+		{
+			auto sName = kGetFileNameFromFileDescriptor(fd);
+
+			if (!sName.empty())
+			{
+				kSystem(kFormat("stty -f {} size", sName), sOutput);
+			}
+		}
+
+		auto sCols = sOutput.Split(" ");
+
+		if (sCols.size() == 2)
+		{
+			TTY.lines   = sCols[0].UInt16();
+			TTY.columns = sCols[1].UInt16();
+		}
+	}
+
+#else // is windows
+
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+
+	if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi))
+	{
+		TTY.columns = csbi.srWindow.Right  - csbi.srWindow.Left + 1;
+		TTY.lines   = csbi.srWindow.Bottom - csbi.srWindow.Top  + 1;
+	}
+
+#endif
+
+	if (!TTY.columns || !TTY.lines)
+	{
+		kDebug(1, "cannot read terminal size, using defaults");
+
+		TTY.columns = iDefaultColumns;
+		TTY.lines   = iDefaultLines;
+	}
+
+	kDebug(2, "terminal size: {}x{}", TTY.columns, TTY.lines);
+
+	return TTY;
 
 } // kGetTerminalSize
 

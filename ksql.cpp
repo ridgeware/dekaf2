@@ -9389,7 +9389,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 		{
 			for (const auto& oLeftColumn : left)
 			{
-				auto& sField       = oLeftColumn.items().begin().key();
+				auto  sField       = oLeftColumn.items().begin().key();
 				auto& oRightColumn = FindField(right, sField);
 				VisitedColumns.insert(sField);
 
@@ -9457,7 +9457,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 		{
 			for (const auto& oRightColumn : right)
 			{
-				auto& sField = oRightColumn.items().begin().key();
+				auto sField = oRightColumn.items().begin().key();
 
 				// check if already visited
 				if (VisitedColumns.find(sField) != VisitedColumns.end())

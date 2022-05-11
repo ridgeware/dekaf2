@@ -40,13 +40,25 @@
  //
  */
 
-#include <openssl/hmac.h>
 #include "khmac.h"
 #include "kencode.h"
 #include "klog.h"
+#include <openssl/hmac.h>
+
+// OpenSSL 3.0 introduces a new HMAC interface and makes the
+// old one deprecated. For now simply ignore the deprecation.
+#if OPENSSL_VERSION_NUMBER >= 0x030000000
+#ifdef DEKAF2_IS_CLANG
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+#ifdef DEKAF2_IS_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+#endif
 
 namespace dekaf2 {
-
 
 //---------------------------------------------------------------------------
 KHMAC::KHMAC(ALGORITHM Algorithm, KStringView sKey, KStringView sMessage)
@@ -246,4 +258,11 @@ const KString& KHMAC::HMAC() const
 
 } // end of namespace dekaf2
 
-
+#if OPENSSL_VERSION_NUMBER >= 0x030000000
+#ifdef DEKAF2_IS_GCC
+#pragma GCC diagnostic pop
+#endif
+#ifdef DEKAF2_IS_CLANG
+#pragma clang diagnostic pop
+#endif
+#endif

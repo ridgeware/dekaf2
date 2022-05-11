@@ -51,6 +51,9 @@
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
+// asio misses to include <utility> (std::exchange) in asio/awaitable.hpp, so we
+// load it here explicitly
+#include <utility>
 #include <boost/asio.hpp>
 #include <boost/asio/basic_socket_iostream.hpp>
 #include <boost/asio/io_service.hpp>

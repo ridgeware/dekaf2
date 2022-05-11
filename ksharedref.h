@@ -311,6 +311,12 @@ protected:
 			return m_iRefCount.fetch_sub(1, std::memory_order_acq_rel) - 1;
 		}
 
+// gcc 12.1 (tested on aarch64) thinks that this dec() is also called (in single threading)
+// when the m_ref ptr is already freed - which is not possible
+#if (__GNUC__ >= 12)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuse-after-free"
+#endif
 		//-----------------------------------------------------------------------------
 		/// decrease reference count for the single threaded case
 		template<bool bMT = bMultiThreaded, typename std::enable_if<bMT == false, int>::type = 0>
@@ -319,6 +325,9 @@ protected:
 		{
 			return --m_iRefCount;
 		}
+#if (__GNUC__ >= 12)
+#pragma GCC diagnostic pop
+#endif
 
 		//-----------------------------------------------------------------------------
 		/// get reference count for the multi threaded case

@@ -2,10 +2,8 @@ cmake_minimum_required(VERSION 3.2)
 
 project(dekaf2-smoketests)
 
-if(${CMAKE_VERSION} VERSION_GREATER "3.7.99")
-	set(CMAKE_CXX_STANDARD 20)
-	#set(CMAKE_CXX_STANDARD_REQUIRED ON)
-endif()
+set(CMAKE_CXX_STANDARD 20)
+#set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set (UHEADERS
 	catch.hpp

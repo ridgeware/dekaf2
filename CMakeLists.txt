@@ -175,6 +175,13 @@ else ()
 	SET(DEKAF2_HAS_PIPES ON)
 endif()
 
+if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
+	if (DEKAF2_USE_JEMALLOC)
+		set(DEKAF2_USE_JEMALLOC OFF)
+		message(STATUS "jemalloc cannot be used in an ASAN enabled build - switching jemalloc off")
+	endif()
+endif()
+
 math(EXPR NEEDED_FROZEN_MEMORY "6 * 1024 + 512")
 if (TOTAL_PHYSICAL_MEMORY LESS NEEDED_FROZEN_MEMORY)
 	message(STATUS "switching FROZEN off for large maps - not enough RAM (${TOTAL_PHYSICAL_MEMORY} MB)")

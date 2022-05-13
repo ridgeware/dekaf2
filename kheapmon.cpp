@@ -250,7 +250,7 @@ bool IsStarted()
 namespace dekaf2    {
 namespace Heap      {
 
-KString GetStats    (bool)           { return false;     }
+KString GetStats    (bool)           { return KString{}; }
 
 namespace Profiling {
 
@@ -262,6 +262,7 @@ KString Dump        ()               { return KString{}; }
 bool    Reset       ()               { return false;     }
 bool    Started     ()               { return false;     }
 
+} // Profiling
 } // Heap
 } // dekaf2
 

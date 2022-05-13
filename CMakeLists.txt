@@ -53,6 +53,7 @@ include(ExternalProject)
 
 # these are all configurable project options
 OPTION(DEKAF2_USE_EXCEPTIONS "Use exceptions for error handling" OFF)
+OPTION(DEKAF2_USE_JEMALLOC "Use jemalloc" ON)
 OPTION(DEKAF2_USE_FBSTRING_AS_KSTRING "Use Folly::FBString for KString" OFF)
 OPTION(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW "Use dekaf2::detail::stringview::string_view for KStringView" OFF)
 OPTION(DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS "Use std::string for debug builds" OFF)
@@ -472,6 +473,15 @@ if (NOT DEKAF2_IS_WINDOWS)
 	endif()
 endif()
 
+# =================================== JEMalloc ====================================
+
+if (DEKAF2_USE_JEMALLOC)
+	find_package(JEMalloc)
+	if (JEMalloc_FOUND)
+		set(DEKAF2_HAS_JEMALLOC 1)
+	endif()
+endif()
+
 # ============================== Prefer static libs? ==============================
 
 if (DEKAF2_PREFER_STATIC_LIBS)
@@ -628,6 +638,7 @@ set(PUBLIC_HEADERS
 	kfrozen.h
 	kgetruntimestack.h
 	khash.h
+	kheapmon.h
 	khmac.h
 	khtmlcontentblocks.h
 	khtmldom.h
@@ -792,6 +803,7 @@ set (SOURCES
 	kformat.cpp
 	kgetruntimestack.cpp
 	khash.cpp
+	kheapmon.cpp
 	khmac.cpp
 	khtmlcontentblocks.cpp
 	khtmldom.cpp
@@ -986,6 +998,7 @@ target_link_libraries(dekaf2
 		${RT}
 		${CORE_FOUNDATION}
 		re2
+		${JEMalloc_LIBRARIES}
 	)
 
 target_include_directories(dekaf2
@@ -1003,6 +1016,7 @@ target_include_directories(dekaf2
 	$<BUILD_INTERFACE:${BROTLI_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/google>
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/croncpp/include>
+	$<BUILD_INTERFACE:${JEMalloc_INCLUDE_DIRS}>
 	# for centos libzip:
 	/include
 )

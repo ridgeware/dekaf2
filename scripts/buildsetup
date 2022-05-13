@@ -29,7 +29,7 @@ BuildSetup ()
 {
 	# we do not care too much if the flagfile is removed
 	flagfile="/tmp/installflag-dekaf2-build-setup"
-	flagversion="3" 
+	flagversion="4"
 
 	if [ ! -f "${flagfile}" ] || [ "$(cat ${flagfile})" != "${flagversion}" ]
 	then
@@ -49,9 +49,9 @@ BuildSetup ()
 
 		case "${DISTRIB}" in
 			darwin)
-				InstallSystemPackages cmake boost openssl@1.1 wget
-				
-				InstallOptionalSystemPackages doxygen graphviz libzip xz zstd brotli mariadb sqlite
+				InstallSystemPackages cmake boost openssl wget
+
+				InstallOptionalSystemPackages doxygen graphviz libzip xz zstd brotli mariadb sqlite jemalloc
 				;;
 			debian)
 				# make sure the repo content lists are current
@@ -61,14 +61,14 @@ BuildSetup ()
 					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g-dev
 
 				InstallOptionalSystemPackages libmariadb${DEVPKG} sqlite3 libsqlite3${DEVPKG} doxygen graphviz \
-					libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG} libbrotli${DEVPKG}
+					libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG} libbrotli${DEVPKG} jemalloc${DEVPKG}
 				;;
 			*)
 				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} wget git sed tar gcc \
 					zlib${DEVPKG} bzip2${DEVPKG}
 
 				InstallOptionalSystemPackages mariadb${DEVPKG} sqlite${DEVPKG} doxygen graphviz libzip${DEVPKG} \
-					xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG}
+					xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG} jemalloc${DEVPKG}
 				;;
 		esac
 

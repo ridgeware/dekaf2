@@ -314,6 +314,9 @@ KStringView Dekaf::GetVersionInformation()
 #elif defined(DEKAF_HAS_CPP_11)
 		" c++11"
 #endif
+#ifdef DEKAF2_HAS_JEMALLOC
+		" jemalloc"
+#endif
 #ifdef DEKAF2_USE_EXCEPTIONS
 		" exceptions"
 #endif

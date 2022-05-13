@@ -1,8 +1,7 @@
 /*
-//
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2022, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -41,55 +40,35 @@
 
 #pragma once
 
-/// @file kconfiguration.h
-/// library configuration at compile time of dekaf2
+/// @file kheapmon.h
+/// monitoring and profiling memory usage
 
-#define DEKAF_VERSION "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@"
-#define DEKAF_MAJOR_VERSION @PROJECT_VERSION_MAJOR@
-#define DEKAF_MINOR_VERSION @PROJECT_VERSION_MINOR@
-#define DEKAF_PATCH_VERSION @PROJECT_VERSION_PATCH@
+#include <cstddef>
+#include "kstringview.h"
 
-#define DEKAF2_BUILD_TYPE "@CMAKE_BUILD_TYPE@"
+namespace dekaf2 {
+namespace Heap {
 
-#cmakedefine DEKAF2_USE_BOOST_MULTI_INDEX
+/// print allocation stats, either as text or as JSON
+KString GetStats(bool bAsJSON = false);
 
-#ifdef DEKAF2_USE_BOOST_MULTI_INDEX
-	#define DEKAF2_USE_KPROPS_MULTI_INDEX
-	#define DEKAF2_USE_KMRU_MULTI_INDEX
-#endif
+namespace Profiling {
 
-#cmakedefine DEKAF2_USE_EXCEPTIONS
-#cmakedefine DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW
-#cmakedefine DEKAF2_USE_FOLLY_STRINGPIECE_AS_KSTRINGVIEW
-#cmakedefine DEKAF2_USE_FBSTRING_AS_KSTRING
-#cmakedefine DEKAF2_USE_OPTIMIZED_STRING_FIND
-#cmakedefine DEKAF2_HAS_MINIFOLLY
+/// check if monitoring can be switched on
+bool    IsAvailable();
+/// start monitoring
+bool    Start();
+/// stop monitoring
+bool    Stop();
+/// dump profile result to file
+bool    Dump(KStringViewZ sDumpFile);
+/// dump profile result to string
+KString Dump();
+/// clear/reset collected data
+bool    Reset();
+/// returns true if monitoring was started
+bool    IsStarted();
 
-#cmakedefine DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS
-
-#if defined(DEKAF2_USE_FBSTRING_AS_KSTRING) || !defined(NDEBUG)
-	#define DEKAF2_DO_NOT_WARN_ABOUT_COW_STRING
-#endif
-
-#define DEKAF2_SHARED_DIRECTORY "@dekaf2_share_dest@"
-#cmakedefine DEKAF1_INCLUDE_PATH @DEKAF1_INCLUDE_PATH@
-
-#cmakedefine DEKAF2_HAS_JEMALLOC
-#cmakedefine DEKAF2_HAS_LIBPROC
-#cmakedefine DEKAF2_HAS_MYSQL
-#cmakedefine DEKAF2_MYSQL_IS_MARIADB
-#cmakedefine DEKAF2_HAS_SQLITE3
-#cmakedefine DEKAF2_HAS_FREETDS
-#cmakedefine DEKAF2_HAS_CTLIB
-#cmakedefine DEKAF2_HAS_LIBZIP
-#cmakedefine DEKAF2_HAS_LIBBROTLI
-#cmakedefine DEKAF2_HAS_LIBZSTD
-#cmakedefine DEKAF2_HAS_LIBLZMA
-#cmakedefine DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD
-#cmakedefine DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
-#cmakedefine DEKAF2_WITH_FCGI
-#cmakedefine DEKAF2_WITH_KLOG
-#cmakedefine DEKAF2_KLOG_WITH_TCP
-#cmakedefine DEKAF2_HAS_UNIX_SOCKETS
-#cmakedefine DEKAF2_HAS_PIPES
-#cmakedefine DEKAF2_IS_APPLE_CLANG
+}
+}
+} // of namespace dekaf2

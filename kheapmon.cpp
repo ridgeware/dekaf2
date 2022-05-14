@@ -53,15 +53,12 @@ namespace Heap {
 
 namespace jemalloc {
 
+namespace detail {
+
 //---------------------------------------------------------------------------
-template<typename Out>
-bool Control(const char* sName, Out& out)
+bool CheckError(int iError)
 //---------------------------------------------------------------------------
 {
-	size_t iLen = sizeof(Out);
-
-	int iError = mallctl(sName, &out, &iLen, 0, 0);
-
 	if (!iError)
 	{
 		return true;
@@ -74,6 +71,30 @@ bool Control(const char* sName, Out& out)
 }
 
 //---------------------------------------------------------------------------
+/// callback for malloc_stats_print
+void PrintFromJEMalloc(void* theString, const char* sMessage)
+//---------------------------------------------------------------------------
+{
+	if (theString && sMessage)
+	{
+		auto sString = static_cast<KString*>(theString);
+		*sString += sMessage;
+	}
+}
+
+} // namespace detail
+
+//---------------------------------------------------------------------------
+template<typename Out>
+bool Control(const char* sName, Out& out)
+//---------------------------------------------------------------------------
+{
+	size_t iLen = sizeof(Out);
+
+	return detail::CheckError(mallctl(sName, &out, &iLen, 0, 0));
+}
+
+//---------------------------------------------------------------------------
 template<typename Out, typename In>
 bool Control(const char* sName, Out& out, In in)
 //---------------------------------------------------------------------------
@@ -81,44 +102,13 @@ bool Control(const char* sName, Out& out, In in)
 	size_t iLenOut = sizeof(Out);
 	size_t iLenIn  = sizeof(In);
 
-	int iError = mallctl(sName, &out, &iLenOut, &in, iLenIn);
-
-	if (!iError)
-	{
-		return true;
-		if (iError == EAGAIN) {}
-	}
-	else
-	{
-		kDebug(1, "{}", strerror(iError));
-		return false;
-	}
+	return detail::CheckError(mallctl(sName, &out, &iLenOut, &in, iLenIn));
 }
-
-namespace detail {
-
-//---------------------------------------------------------------------------
-/// callback for malloc_stats_print
-void PrintFromJEMalloc(void* theString, const char* sMessage)
-//---------------------------------------------------------------------------
-{
-	if (theString && sMessage)
-	{
-		auto sStats = static_cast<KString*>(theString);
-		*sStats += sMessage;
-	}
-}
-
-} // namespace detail
 
 //---------------------------------------------------------------------------
 KString GetStats(bool bAsJSON)
 //---------------------------------------------------------------------------
 {
-	//	void malloc_stats_print(	void (*write_cb) (void *, const char *) ,
-	//							void *cbopaque,
-	//							const char *opts);
-
 	KString sStats;
 
 	malloc_stats_print(&detail::PrintFromJEMalloc, &sStats, bAsJSON ? "J" : "");
@@ -260,7 +250,7 @@ bool    Stop        ()               { return false;     }
 bool    Dump        (KStringViewZ)   { return false;     }
 KString Dump        ()               { return KString{}; }
 bool    Reset       ()               { return false;     }
-bool    Started     ()               { return false;     }
+bool    IsStarted   ()               { return false;     }
 
 } // Profiling
 } // Heap

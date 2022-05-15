@@ -67,6 +67,6 @@ cd "${JEDIR}" || Die "cannot enter ${JEDIR}"
 [[ -e configure ]] || Die "cannot configure jemalloc"
 
 make -j4 build_lib_static
-sudo make install_lib_static install_bin
+sudo make install_lib_static install_bin install_include
 
 Info "Done"

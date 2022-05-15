@@ -1,0 +1,72 @@
+#! /bin/bash
+#%
+#% jemalloc-with-profiler - build jemalloc with heap profiling code
+#%
+#% usage: jemalloc-with-profiler -source <dir> -install <dir>
+#%
+#%   where -source sets the source and build directory, and
+#%   -install is the install prefix, like /usr/local
+#%
+
+#==================
+setx=Main_Body
+#==================
+
+ME=$(basename "${BASH_SOURCE}")
+ME_ONLYPATH="$(cd $(dirname ${BASH_SOURCE}) && pwd)"
+ME_FULLPATH="$ME_ONLYPATH/$ME"
+ScriptLib="${ME_ONLYPATH}/scriptlib"
+
+[[ ! -f "${ScriptLib}" ]] && Die "Cannot check OS version, script '${ScriptLib}' not found"
+
+source ${ScriptLib}
+
+[[ "$1" == "" ]] && Synopsis
+
+while [[ $# -gt 0 ]]
+do
+	case "$1" in
+	-source)
+		shift
+		JEDIR="$1"
+		;;
+	-install)
+		shift
+		PREFIX=$1
+		;;
+	-quiet)
+		bQuiet=1
+		;;
+	*)
+		Error "unknown option: $1"
+		Synopsis
+		;;
+	esac
+	shift
+done
+
+[[ "${PREFIX}" == "" ]] && Die "no prefix"
+[[ "${JEDIR}"  == "" ]] && Die "no source"
+
+GetOS
+
+if [[ "${OS}" == "Darwin" ]]; then
+    InstallSystemPackages jemalloc
+    [[ bQuiet -eq 1 ]] && exit 0
+    Info "On MacOS we cannot build jemalloc with profiling support,"
+    Info "therefore we link against the stock homebrew lib"
+    exit 0
+fi
+
+[[ -d "${JEDIR}" ]] || git clone --depth 1 https://github.com/jemalloc/jemalloc.git "${JEDIR}"
+[[ -d "${JEDIR}" ]] || Die "${JEDIR} not found"
+
+cd "${JEDIR}" || Die "cannot enter ${JEDIR}"
+
+[[ -e configure ]] || ./autogen.sh --quiet --enable-prof --prefix="${PREFIX}" #--enable-prof-libunwind --disable-cxx
+[[ -e configure ]] || Die "cannot configure jemalloc"
+
+make -j4 build_lib_static
+sudo make install_lib_static install_bin
+
+Info "Done"

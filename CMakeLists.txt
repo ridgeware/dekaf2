@@ -483,6 +483,13 @@ endif()
 # =================================== JEMalloc ====================================
 
 if (DEKAF2_USE_JEMALLOC)
+
+	if (NOT WIN32 AND NOT CYGWIN AND NOT DEKAF2_NO_BUILDSETUP AND NOT EXISTS /opt/jemalloc-prof)
+		EXECUTE_PROCESS(
+			COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/jemalloc-with-profiler -quiet -source ${CMAKE_CURRENT_BINARY_DIR}/jemalloc-prof -install /opt/jemalloc-prof
+		)
+	endif()
+
 	find_package(JEMalloc)
 	if (JEMalloc_FOUND)
 		set(DEKAF2_HAS_JEMALLOC 1)

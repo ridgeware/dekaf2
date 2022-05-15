@@ -3,6 +3,17 @@
 # scriptlib - common functions for other scripts
 # source from other scripts
 
+setx=Synopsis
+#==================
+Synopsis ()
+#==================
+{
+	awk '/^#%/ {print substr($0,3)}' "$1"
+
+	exit 1
+
+} # Synopsis
+
 setx=SetupColors
 #==============================
 SetupColors ()

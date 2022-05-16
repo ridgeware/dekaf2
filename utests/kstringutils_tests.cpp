@@ -1092,26 +1092,52 @@ TEST_CASE("KStringUtils") {
 	SECTION("kLimitSize")
 	{
 		KString sStr = "123456789-1234567890";
-		kLimitSize(sStr, 20);
+		sStr = kLimitSize(sStr, 20);
 		CHECK ( sStr ==  "123456789-1234567890" );
-		kLimitSize(sStr, 10);
+		sStr = kLimitSize(sStr, 10);
 		CHECK ( sStr == "1234...890");
-		kLimitSize(sStr, 10);
+		sStr = kLimitSize(sStr, 10);
 		CHECK ( sStr == "1234...890");
 		sStr = "12345";
-		kLimitSize(sStr, 10);
+		sStr = kLimitSize(sStr, 10);
 		CHECK ( sStr == "12345" );
-		kLimitSize(sStr, 5);
+		sStr = kLimitSize(sStr, 5);
 		CHECK ( sStr == "12345" );
-		kLimitSize(sStr, 4);
+		sStr = kLimitSize(sStr, 4);
 		CHECK ( sStr == "1245" );
-		kLimitSize(sStr, 1);
+		sStr = kLimitSize(sStr, 1);
 		CHECK ( sStr == "1" );
-		kLimitSize(sStr, 0);
+		sStr = kLimitSize(sStr, 0);
 		CHECK ( sStr == "" );
 
 		std::string stdStr = "123456789-1234567890";
-		kLimitSize(stdStr, 10);
+		stdStr = kLimitSize(stdStr, 10);
+		CHECK ( stdStr == "1234...890");
+	}
+
+	SECTION("kLimitSizeInPlace")
+	{
+		KString sStr = "123456789-1234567890";
+		kLimitSizeInPlace(sStr, 20);
+		CHECK ( sStr ==  "123456789-1234567890" );
+		kLimitSizeInPlace(sStr, 10);
+		CHECK ( sStr == "1234...890");
+		kLimitSizeInPlace(sStr, 10);
+		CHECK ( sStr == "1234...890");
+		sStr = "12345";
+		kLimitSizeInPlace(sStr, 10);
+		CHECK ( sStr == "12345" );
+		kLimitSizeInPlace(sStr, 5);
+		CHECK ( sStr == "12345" );
+		kLimitSizeInPlace(sStr, 4);
+		CHECK ( sStr == "1245" );
+		kLimitSizeInPlace(sStr, 1);
+		CHECK ( sStr == "1" );
+		kLimitSizeInPlace(sStr, 0);
+		CHECK ( sStr == "" );
+
+		std::string stdStr = "123456789-1234567890";
+		kLimitSizeInPlace(stdStr, 10);
 		CHECK ( stdStr == "1234...890");
 	}
 
@@ -1121,45 +1147,94 @@ TEST_CASE("KStringUtils") {
 		CHECK (sStr.size() == 23 );
 		CHECK ( Unicode::ValidUTF8(sStr) );
 
-		kLimitSizeUTF8(sStr, 23);
+		sStr = kLimitSizeUTF8(sStr, 23);
 		CHECK ( sStr ==  "œꜿęϧϯꜻꜿⱥⱡ" );
 		CHECK ( Unicode::ValidUTF8(sStr) );
 		CHECK ( sStr.size() == 23 );
 
-		kLimitSizeUTF8(sStr, 11);
+		sStr = kLimitSizeUTF8(sStr, 11);
 		CHECK ( sStr == "œ…ⱥⱡ");
 		CHECK ( Unicode::ValidUTF8(sStr) );
 		CHECK ( sStr.size() == 11 );
 
-		kLimitSizeUTF8(sStr, 11);
+		sStr = kLimitSizeUTF8(sStr, 11);
 		CHECK ( sStr == "œ…ⱥⱡ");
 		CHECK ( Unicode::ValidUTF8(sStr) );
 
 		sStr = "œꜿęϧϯꜻꜿⱥⱡ";
 
-		kLimitSizeUTF8(sStr, 5);
+		sStr = kLimitSizeUTF8(sStr, 5);
 		CHECK ( sStr == "œⱡ" );
 		CHECK ( Unicode::ValidUTF8(sStr) );
 		CHECK ( sStr.size() == 5 );
 
 		sStr = "œꜿęϧϯꜻꜿⱥⱡ";
 
-		kLimitSizeUTF8(sStr, 4);
+		sStr = kLimitSizeUTF8(sStr, 4);
 		CHECK ( sStr == "œ" );
 		CHECK ( Unicode::ValidUTF8(sStr) );
 		CHECK ( sStr.size() == 2 );
 
-		kLimitSizeUTF8(sStr, 1);
+		sStr = kLimitSizeUTF8(sStr, 1);
 		CHECK ( sStr == "" );
 		CHECK ( Unicode::ValidUTF8(sStr) );
 		CHECK ( sStr.size() == 0 );
 
-		kLimitSizeUTF8(sStr, 0);
+		sStr = kLimitSizeUTF8(sStr, 0);
 		CHECK ( sStr == "" );
 		CHECK ( Unicode::ValidUTF8(sStr) );
 
 		std::string stdStr = "œpęϧϯꜻꜿⱥⱡ";
-		kLimitSizeUTF8(stdStr, 11);
+		stdStr = kLimitSizeUTF8(stdStr, 11);
+		CHECK ( stdStr == "œp…ⱡ");
+		CHECK ( Unicode::ValidUTF8(stdStr) );
+	}
+
+	SECTION("kLimitSizeUTF8InPlace")
+	{
+		KString sStr = "œꜿęϧϯꜻꜿⱥⱡ";
+		CHECK (sStr.size() == 23 );
+		CHECK ( Unicode::ValidUTF8(sStr) );
+
+		kLimitSizeUTF8InPlace(sStr, 23);
+		CHECK ( sStr ==  "œꜿęϧϯꜻꜿⱥⱡ" );
+		CHECK ( Unicode::ValidUTF8(sStr) );
+		CHECK ( sStr.size() == 23 );
+
+		kLimitSizeUTF8InPlace(sStr, 11);
+		CHECK ( sStr == "œ…ⱥⱡ");
+		CHECK ( Unicode::ValidUTF8(sStr) );
+		CHECK ( sStr.size() == 11 );
+
+		kLimitSizeUTF8InPlace(sStr, 11);
+		CHECK ( sStr == "œ…ⱥⱡ");
+		CHECK ( Unicode::ValidUTF8(sStr) );
+
+		sStr = "œꜿęϧϯꜻꜿⱥⱡ";
+
+		kLimitSizeUTF8InPlace(sStr, 5);
+		CHECK ( sStr == "œⱡ" );
+		CHECK ( Unicode::ValidUTF8(sStr) );
+		CHECK ( sStr.size() == 5 );
+
+		sStr = "œꜿęϧϯꜻꜿⱥⱡ";
+
+		kLimitSizeUTF8InPlace(sStr, 4);
+		CHECK ( sStr == "œ" );
+		CHECK ( Unicode::ValidUTF8(sStr) );
+		CHECK ( sStr.size() == 2 );
+
+		kLimitSizeUTF8InPlace(sStr, 1);
+		CHECK ( sStr == "" );
+		CHECK ( Unicode::ValidUTF8(sStr) );
+		CHECK ( sStr.size() == 0 );
+
+		kLimitSizeUTF8InPlace(sStr, 0);
+		CHECK ( sStr == "" );
+		CHECK ( Unicode::ValidUTF8(sStr) );
+
+		std::string stdStr = "œpęϧϯꜻꜿⱥⱡ";
+		kLimitSizeUTF8InPlace(stdStr, 11);
 		CHECK ( stdStr == "œp…ⱡ");
 		CHECK ( Unicode::ValidUTF8(stdStr) );
 	}

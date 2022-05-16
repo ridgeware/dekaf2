@@ -9383,7 +9383,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 			sSummary += "\n";
 		}
 
-		std::set<KStringView> VisitedColumns;
+		std::set<KString> VisitedColumns;
 
 		if (left.is_array()) // i.e. table exists on left
 		{

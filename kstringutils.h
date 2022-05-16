@@ -885,6 +885,95 @@ bool kIsAtEndofWordASCII(const String& sHaystack, typename String::size_type iPo
 
 } // kIsAtEndofWordASCII
 
+namespace detail {
+
+//-----------------------------------------------------------------------------
+template<class String = KString, class StringView = KStringView>
+std::pair<typename String::size_type, typename String::size_type>
+	CalcSizeLimit(const String& sLimitMe,
+				  typename String::size_type iMaxSize,
+				  StringView& sEllipsis)
+//-----------------------------------------------------------------------------
+{
+	if (iMaxSize <= sEllipsis.size() + 2)
+	{
+		// cannot insert ellipsis
+		sEllipsis = StringView();
+	}
+	// remove the excess data in the _middle_ of the string
+	auto iSize   = sLimitMe.size();
+	auto iRemove = iSize - iMaxSize + sEllipsis.size();
+	auto iStart  = iSize / 2 - iRemove / 2;
+
+	return std::make_pair(iStart, iRemove);
+
+} // CalcSizeLimit
+
+//-----------------------------------------------------------------------------
+template<class String = KString, class StringView = KStringView>
+std::pair<typename String::size_type, typename String::size_type>
+	CalcSizeLimitUTF8(const String& sLimitMe,
+					  typename String::size_type iMaxSize,
+					  StringView& sEllipsis)
+//-----------------------------------------------------------------------------
+{
+	if (iMaxSize <= sEllipsis.size() + 2)
+	{
+		// cannot insert ellipsis
+		sEllipsis = StringView();
+	}
+	// remove the excess data in the _middle_ of the string
+	auto iSize   = sLimitMe.size();
+	auto iRemove = iSize - iMaxSize + sEllipsis.size();
+	auto iStart  = iSize / 2 - iRemove / 2;
+
+	if (sizeof(typename String::value_type) == 1)
+	{
+		// make sure we use an unsigned char type!
+		using uchar_t = typename std::make_unsigned<typename String::value_type>::type;
+
+		// find start and end such that no UTF8 code run will be interrupted
+		auto ch = static_cast<uchar_t>(sLimitMe[iStart]);
+
+		while (iStart && Unicode::IsContinuationByte(ch))
+		{
+			ch = static_cast<uchar_t>(sLimitMe[--iStart]);
+		}
+
+		ch = static_cast<uchar_t>(sLimitMe[iStart + iRemove]);
+
+		while (iStart + iRemove < iSize && Unicode::IsContinuationByte(ch))
+		{
+			ch = static_cast<uchar_t>(sLimitMe[iStart + ++iRemove]);
+		}
+	}
+	else if (sizeof(typename String::value_type) == 2)
+	{
+		// make sure we use an unsigned char type!
+		using uchar_t = typename std::make_unsigned<typename String::value_type>::type;
+
+		// do not cut surrogate pairs..
+		auto ch = static_cast<uchar_t>(sLimitMe[iStart]);
+
+		if (iStart && Unicode::IsTrailSurrogate(ch))
+		{
+			--iStart;
+		}
+
+		ch = static_cast<uchar_t>(sLimitMe[iStart + iRemove]);
+
+		if (iStart + iRemove < iSize && Unicode::IsLeadSurrogate(ch))
+		{
+			++iRemove;
+		}
+	}
+
+	return std::make_pair(iStart, iRemove);
+
+} // CalcSizeLimitUTF8
+
+} // namespace detail
+
 //-----------------------------------------------------------------------------
 /// Limit the size of a string by removing data in the middle of it, and inserting an ellipsis. This function is
 /// not UTF8 aware and should only be used when the content of the string has only ASCII or one-byte
@@ -894,31 +983,59 @@ bool kIsAtEndofWordASCII(const String& sHaystack, typename String::size_type iPo
 /// @param sEllipsis the string to insert in place of the removed mid section, default = "..."
 /// @return a reference on the input string
 template<class String = KString, class StringView = KStringView>
-String& kLimitSize(String& sLimitMe,
-				   typename String::size_type iMaxSize,
-				   StringView sEllipsis = StringView{"..."})
+String& kLimitSizeInPlace(String& sLimitMe,
+						  typename String::size_type iMaxSize,
+						  StringView sEllipsis = StringView{"..."})
 //-----------------------------------------------------------------------------
 {
 	auto iSize = sLimitMe.size();
 
 	if (iSize > iMaxSize)
 	{
-		if (iMaxSize <= sEllipsis.size() + 2)
-		{
-			// cannot insert ellipsis
-			sEllipsis = StringView();
-		}
-		// remove the excess data in the _middle_ of the string
-		auto iRemove = iSize - iMaxSize + sEllipsis.size();
-		auto iStart  = iSize / 2 - iRemove / 2;
+		auto size = detail::CalcSizeLimit(sLimitMe, iMaxSize, sEllipsis);
+
 #if defined(DEKAF2_HAS_FULL_CPP_17)
-		sLimitMe.replace(iStart, iRemove, sEllipsis);
+		sLimitMe.replace(size.first, size.second, sEllipsis);
 #else
-		sLimitMe.replace(iStart, iRemove, sEllipsis.data(), sEllipsis.size());
+		sLimitMe.replace(size.first, size.second, sEllipsis.data(), sEllipsis.size());
 #endif
 	}
 
 	return sLimitMe;
+
+} // kLimitSizeInPlace
+
+//-----------------------------------------------------------------------------
+/// Limit the size of a string by removing data in the middle of it, and inserting an ellipsis. This function is
+/// not UTF8 aware and should only be used when the content of the string has only ASCII or one-byte
+/// codepage data. For UTF8 strings, use kLimitSizeUTF8()
+/// @param sLimitMe the string to limit in size, as a string view (input)
+/// @param iMaxSize the maximum size for the string
+/// @param sEllipsis the string to insert in place of the removed mid section, default = "..."
+/// @return the resized output string
+template<class String = KString, class StringView = KStringView>
+String kLimitSize(const StringView& sLimitMe,
+				  typename String::size_type iMaxSize,
+				  StringView sEllipsis = StringView{"..."})
+//-----------------------------------------------------------------------------
+{
+	auto iSize = sLimitMe.size();
+
+	if (iSize > iMaxSize)
+	{
+		auto size = detail::CalcSizeLimit(sLimitMe, iMaxSize, sEllipsis);
+
+		KString sLimited(sLimitMe, 0, size.first);
+
+		sLimited += sEllipsis;
+		sLimited += sLimitMe.substr(size.first + size.second);
+
+		return sLimited;
+	}
+	else
+	{
+		return sLimitMe;
+	}
 
 } // kLimitSize
 
@@ -930,7 +1047,7 @@ String& kLimitSize(String& sLimitMe,
 /// @param sEllipsis the string to insert in place of the removed mid section, default = "…" (the Unicode ellipsis character)
 /// @return a reference on the input string
 template<class String = KString, class StringView = KStringView>
-String& kLimitSizeUTF8(String& sLimitMe,
+String& kLimitSizeUTF8InPlace(String& sLimitMe,
 					   typename String::size_type iMaxSize,
 					   StringView sEllipsis = StringView{"…"})
 //-----------------------------------------------------------------------------
@@ -939,64 +1056,49 @@ String& kLimitSizeUTF8(String& sLimitMe,
 
 	if (iSize > iMaxSize)
 	{
-		if (iMaxSize <= sEllipsis.size() + 2)
-		{
-			// cannot insert ellipsis
-			sEllipsis = StringView();
-		}
-		// remove the excess data in the _middle_ of the string
-		auto iRemove = iSize - iMaxSize + sEllipsis.size();
-		auto iStart  = iSize / 2 - iRemove / 2;
-
-		if (sizeof(typename String::value_type) == 1)
-		{
-			// make sure we use an unsigned char type!
-			using uchar_t = typename std::make_unsigned<typename String::value_type>::type;
-
-			// find start and end such that no UTF8 code run will be interrupted
-			auto ch = static_cast<uchar_t>(sLimitMe[iStart]);
-
-			while (iStart && Unicode::IsContinuationByte(ch))
-			{
-				ch = static_cast<uchar_t>(sLimitMe[--iStart]);
-			}
-
-			ch = static_cast<uchar_t>(sLimitMe[iStart + iRemove]);
-
-			while (iStart + iRemove < iSize && Unicode::IsContinuationByte(ch))
-			{
-				ch = static_cast<uchar_t>(sLimitMe[iStart + ++iRemove]);
-			}
-		}
-		else if (sizeof(typename String::value_type) == 2)
-		{
-			// make sure we use an unsigned char type!
-			using uchar_t = typename std::make_unsigned<typename String::value_type>::type;
-
-			// do not cut surrogate pairs..
-			auto ch = static_cast<uchar_t>(sLimitMe[iStart]);
-
-			if (iStart && Unicode::IsTrailSurrogate(ch))
-			{
-				--iStart;
-			}
-
-			ch = static_cast<uchar_t>(sLimitMe[iStart + iRemove]);
-
-			if (iStart + iRemove < iSize && Unicode::IsLeadSurrogate(ch))
-			{
-				++iRemove;
-			}
-		}
+		auto size = detail::CalcSizeLimitUTF8(sLimitMe, iMaxSize, sEllipsis);
 
 #if defined(DEKAF2_HAS_FULL_CPP_17)
-		sLimitMe.replace(iStart, iRemove, sEllipsis);
+		sLimitMe.replace(size.first, size.second, sEllipsis);
 #else
-		sLimitMe.replace(iStart, iRemove, sEllipsis.data(), sEllipsis.size());
+		sLimitMe.replace(size.fist, size.second, sEllipsis.data(), sEllipsis.size());
 #endif
 	}
 
 	return sLimitMe;
+
+} // kLimitSizeUTF8InPlace
+
+//-----------------------------------------------------------------------------
+/// Limit the size of a string by removing data in the middle of it, and inserting an ellipsis. This function is
+/// UTF8 and UTF16 aware and will not damage multi-byte UTF8 or UTF16 codepoints.
+/// @param sLimitMe the string to limit in size, as a string view (input)
+/// @param iMaxSize the maximum size for the string (as returned by size(), not in UTF8 codepoint units)
+/// @param sEllipsis the string to insert in place of the removed mid section, default = "…" (the Unicode ellipsis character)
+/// @return the input string
+template<class String = KString, class StringView = KStringView>
+String kLimitSizeUTF8(const StringView& sLimitMe,
+					  typename String::size_type iMaxSize,
+					  StringView sEllipsis = StringView{"…"})
+//-----------------------------------------------------------------------------
+{
+	auto iSize = sLimitMe.size();
+
+	if (iSize > iMaxSize)
+	{
+		auto size = detail::CalcSizeLimitUTF8(sLimitMe, iMaxSize, sEllipsis);
+
+		KString sLimited(sLimitMe, 0, size.first);
+
+		sLimited += sEllipsis;
+		sLimited += sLimitMe.substr(size.first + size.second);
+
+		return sLimited;
+	}
+	else
+	{
+		return sLimitMe;
+	}
 
 } // kLimitSizeUTF8
 

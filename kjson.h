@@ -44,6 +44,8 @@
 
 #include "klog.h"
 #define JSON_THROW_USER(exception) { kJSONTrace(); throw exception; }
+#include "kcrashexit.h"
+#define JSON_ASSERT(bMustBeTrue) { dekaf2::kAssert(bMustBeTrue,"crash in KJSON"); }
 #include <nlohmann/json.hpp>
 #include <fmt/format.h>
 #include "kstring.h"

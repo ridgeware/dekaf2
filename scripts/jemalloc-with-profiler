@@ -21,7 +21,7 @@ ScriptLib="${ME_ONLYPATH}/scriptlib"
 
 source ${ScriptLib}
 
-[[ "$1" == "" ]] && Synopsis
+[[ "$1" == "" ]] && Synopsis "${ME_FULLPATH}"
 
 while [[ $# -gt 0 ]]
 do
@@ -39,7 +39,7 @@ do
 		;;
 	*)
 		Error "unknown option: $1"
-		Synopsis
+		Synopsis "${ME_FULLPATH}"
 		;;
 	esac
 	shift
@@ -58,7 +58,7 @@ if [[ "${OS}" == "Darwin" ]]; then
     exit 0
 fi
 
-[[ -d "${JEDIR}" ]] || git clone --depth 1 https://github.com/jemalloc/jemalloc.git "${JEDIR}"
+[[ -d "${JEDIR}" ]] || git clone --depth 1 --branch "5.3.0" https://github.com/jemalloc/jemalloc.git "${JEDIR}"
 [[ -d "${JEDIR}" ]] || Die "${JEDIR} not found"
 
 cd "${JEDIR}" || Die "cannot enter ${JEDIR}"

@@ -1167,6 +1167,7 @@ add_custom_target(uninstall
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}"
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}"
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}/${dekaf2_share_dest}"
+	COMMAND "${CMAKE_COMMAND}" -E remove_directory "/opt/jemalloc-prof"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/klog"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/kurl"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/createdbc"

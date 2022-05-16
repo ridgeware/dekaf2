@@ -48,17 +48,19 @@
 #include "kreader.h"
 #include <jemalloc/jemalloc.h>
 
-namespace dekaf2 {
-namespace Heap {
-
+namespace dekaf2   {
+namespace Heap     {
 namespace jemalloc {
+namespace detail   {
 
-namespace detail {
+thread_local int iLastError { 0 };
 
 //---------------------------------------------------------------------------
 bool CheckError(int iError)
 //---------------------------------------------------------------------------
 {
+	iLastError = iError;
+
 	if (!iError)
 	{
 		return true;
@@ -86,17 +88,27 @@ void PrintFromJEMalloc(void* theString, const char* sMessage)
 
 //---------------------------------------------------------------------------
 template<typename Out>
-bool Control(const char* sName, Out& out)
+bool ctlRead(const char* sName, Out& out)
 //---------------------------------------------------------------------------
 {
 	size_t iLen = sizeof(Out);
 
-	return detail::CheckError(mallctl(sName, &out, &iLen, 0, 0));
+	return detail::CheckError(mallctl(sName, &out, &iLen, nullptr, 0));
+}
+
+//---------------------------------------------------------------------------
+template<typename In>
+bool ctlWrite(const char* sName, In in)
+//---------------------------------------------------------------------------
+{
+	size_t iLen = sizeof(In);
+
+	return detail::CheckError(mallctl(sName, nullptr, nullptr, &in, iLen));
 }
 
 //---------------------------------------------------------------------------
 template<typename Out, typename In>
-bool Control(const char* sName, Out& out, In in)
+bool ctlWriteRead(const char* sName, Out& out, In in)
 //---------------------------------------------------------------------------
 {
 	size_t iLenOut = sizeof(Out);
@@ -119,6 +131,13 @@ KString GetStats(bool bAsJSON)
 } // namespace jemalloc
 
 //---------------------------------------------------------------------------
+int LastError()
+//---------------------------------------------------------------------------
+{
+	return jemalloc::detail::iLastError;
+}
+
+//---------------------------------------------------------------------------
 KString GetStats(bool bAsJSON)
 //---------------------------------------------------------------------------
 {
@@ -135,11 +154,11 @@ bool IsAvailable()
 	{
 		bool bAllowed;
 
-		if (jemalloc::Control("config.prof", bAllowed))
+		if (jemalloc::ctlRead("config.prof", bAllowed))
 		{
 			if (bAllowed)
 			{
-				if (jemalloc::Control("opt.prof_active", bAllowed))
+				if (jemalloc::ctlRead("opt.prof_active", bAllowed))
 				{
 					return bAllowed;
 				}
@@ -158,7 +177,7 @@ bool Start()
 {
 	bool bWasActive;
 
-	bool bReturn = IsAvailable() && jemalloc::Control("prof.active", bWasActive, true);
+	bool bReturn = IsAvailable() && jemalloc::ctlWriteRead("prof.active", bWasActive, true);
 
 	if (bReturn && !bWasActive)
 	{
@@ -174,16 +193,14 @@ bool Stop()
 {
 	bool bWasActive;
 
-	return IsAvailable() && jemalloc::Control("prof.active", bWasActive, false);
+	return IsAvailable() && jemalloc::ctlWriteRead("prof.active", bWasActive, false);
 }
 
 //---------------------------------------------------------------------------
 bool Dump(KStringViewZ sDumpFile)
 //---------------------------------------------------------------------------
 {
-	const char* sFile = sDumpFile.c_str();
-
-	return IsAvailable() && jemalloc::Control("prof.dump", sFile);
+	return IsAvailable() && jemalloc::ctlWrite("prof.dump", sDumpFile.c_str());
 }
 
 //---------------------------------------------------------------------------
@@ -211,8 +228,7 @@ KString Dump()
 bool Reset()
 //---------------------------------------------------------------------------
 {
-	int v;
-	return IsAvailable() && jemalloc::Control("prof.reset", v);
+	return IsAvailable() && jemalloc::ctlWrite("prof.reset", std::size_t(0));
 }
 
 //---------------------------------------------------------------------------
@@ -221,7 +237,7 @@ bool IsStarted()
 {
 	bool bStarted;
 
-	if (IsAvailable() && jemalloc::Control("prof.active", bStarted))
+	if (IsAvailable() && jemalloc::ctlRead("prof.active", bStarted))
 	{
 		return bStarted;
 	}
@@ -240,6 +256,7 @@ bool IsStarted()
 namespace dekaf2    {
 namespace Heap      {
 
+int     LastError   ()               { return EPERM;     }
 KString GetStats    (bool)           { return KString{}; }
 
 namespace Profiling {

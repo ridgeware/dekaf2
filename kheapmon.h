@@ -49,6 +49,8 @@
 namespace dekaf2 {
 namespace Heap {
 
+/// return last error code - translate with strerror() .. (thread local implementation)
+int LastError();
 /// print allocation stats, either as text or as JSON
 KString GetStats(bool bAsJSON = false);
 

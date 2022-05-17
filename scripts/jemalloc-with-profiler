@@ -63,7 +63,7 @@ fi
 
 cd "${JEDIR}" || Die "cannot enter ${JEDIR}"
 
-[[ -e configure ]] || ./autogen.sh --quiet --enable-prof --prefix="${PREFIX}" #--enable-prof-libunwind --disable-cxx
+[[ -e configure ]] || ./autogen.sh --quiet --enable-prof --prefix="${PREFIX}" --enable-static --disable-shared --disable-libdl #--enable-prof-libunwind --disable-cxx
 [[ -e configure ]] || Die "cannot configure jemalloc"
 
 make -j4 build_lib_static

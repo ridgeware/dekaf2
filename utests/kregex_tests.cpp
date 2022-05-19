@@ -164,16 +164,16 @@ TEST_CASE("KRegex")
 		}
 		Watch4.halt();
 
-		INFO ("check that cached KRegex is at least 10 times faster than uncached regex use");
-		CHECK ( Watch1.elapsed() > 10 * Watch3.elapsed() );
+		INFO ("check that cached KRegex is at least 5 times faster than uncached regex use");
+		CHECK ( Watch1.nanoseconds() > 5 * Watch3.nanoseconds() );
 
 		INFO ("check that KRegex is faster than cached KRegex use");
-		CHECK ( Watch3.elapsed() > Watch4.elapsed() );
+		CHECK ( Watch3.nanoseconds() > Watch4.nanoseconds() );
 
-//		KOut.FormatLine("elapsed 1: {} ns", Watch1.elapsed().count());
-//		KOut.FormatLine("elapsed 2: {} ns", Watch2.elapsed().count());
-//		KOut.FormatLine("elapsed 3: {} ns", Watch3.elapsed().count());
-//		KOut.FormatLine("elapsed 4: {} ns", Watch4.elapsed().count());
+//		KOut.FormatLine("elapsed 1: {} ns", Watch1.nanoseconds());
+//		KOut.FormatLine("elapsed 2: {} ns", Watch2.nanoseconds());
+//		KOut.FormatLine("elapsed 3: {} ns", Watch3.nanoseconds());
+//		KOut.FormatLine("elapsed 4: {} ns", Watch4.nanoseconds());
 	}
 /*
 	SECTION("Performance2")
@@ -211,10 +211,10 @@ TEST_CASE("KRegex")
 		Watch4.halt();
 
 		KOut.FormatLine("string length: {}", sString.size());
-		KOut.FormatLine("elapsed 1: {} ns", Watch1.elapsed().count() / 10000);
-		KOut.FormatLine("elapsed 2: {} ns", Watch2.elapsed().count() / 10000);
-		KOut.FormatLine("elapsed 3: {} ns", Watch3.elapsed().count() / 10000);
-		KOut.FormatLine("elapsed 4: {} ns", Watch4.elapsed().count() / 10000);
+		KOut.FormatLine("elapsed 1: {} ns", Watch1.nanoseconds() / 10000);
+		KOut.FormatLine("elapsed 2: {} ns", Watch2.nanoseconds() / 10000);
+		KOut.FormatLine("elapsed 3: {} ns", Watch3.nanoseconds() / 10000);
+		KOut.FormatLine("elapsed 4: {} ns", Watch4.nanoseconds() / 10000);
 	}
 */
 }

@@ -182,12 +182,16 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.GetSecond()    == 59    );
 				CHECK ( Local1.GetHour12()    == 0     );
 				CHECK ( Local1.IsPM()         == false );
+#ifdef DEKAF2_IS_OSX
 				CHECK ( Local1.GetMonthName( true, true) == "jan" );
 				CHECK ( Local1.GetMonthName(false, true) == "janvier" );
 				CHECK ( Local1.GetDayName  ( true, true) == "Mar" );
 				CHECK ( Local1.GetDayName  (false, true) == "Mardi" );
+#endif
 				CHECK ( Local1.GetUTCOffset() == 3600  );
+#ifdef DEKAF2_IS_OSX
 				CHECK ( kFormTimestamp(UTC1.ToTimeT(), "%A %c", true) == "Mardi Mar  1 jan 00:59:59 1974" );
+#endif
 			}
 		}
 
@@ -302,8 +306,9 @@ TEST_CASE("KTime") {
 		}
 	}
 
-#ifndef DEKAF2_IS_WINDOWS
-	// windows has differing month and day names in e.g. French than Unix
+#ifdef DEKAF2_IS_OSX
+	// windows and linux have differing month and day names in e.g. French than MacOS,
+	// and linux distributions use different ones over the years, too
 	SECTION("kParseTimestamp localized")
 	{
 		static constexpr std::array<std::pair<KStringView, KStringView>, 19> Timestamps
@@ -368,8 +373,9 @@ TEST_CASE("KTime") {
 		CHECK ( (b <= a) );
 	}
 
-#ifndef DEKAF2_IS_WINDOWS
-	// windows has differing month and day names in e.g. French than Unix
+#ifdef DEKAF2_IS_OSX
+	// windows has differing month and day names in e.g. French than MacOS,
+	// and linux distributions use different ones over the years, too
 	SECTION("kGetLocalizedMonthName")
 	{
 		auto oldLocale = kGetGlobalLocale();

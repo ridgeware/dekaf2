@@ -56,6 +56,15 @@ KString GetStats(bool bAsJSON = false);
 
 namespace Profiling {
 
+/// output format for profile dumps
+enum ReportFormat
+{
+	RAW,  ///< the raw profile dump for further processing
+	TEXT, ///< analysed dump in text format
+	SVG,  ///< analysed dump in vector graphics, good for display in a web browser
+	PDF   ///< analysed dump in PDF format
+};
+
 /// check if monitoring can be switched on
 bool    IsAvailable();
 /// start monitoring
@@ -63,9 +72,14 @@ bool    Start();
 /// stop monitoring
 bool    Stop();
 /// dump profile result to file
-bool    Dump(KStringViewZ sDumpFile);
+/// @param sDumpFile the  path name for the output file
+/// @param Format the output format, raw or one of the analyzed formats
+/// @return true on success
+bool    Dump(KStringViewZ sDumpFile, ReportFormat Format);
 /// dump profile result to string
-KString Dump();
+/// @param Format the output format, raw or one of the analyzed formats
+/// @return a string with the dump output
+KString Dump(ReportFormat Format);
 /// clear/reset collected data
 bool    Reset();
 /// returns true if monitoring was started

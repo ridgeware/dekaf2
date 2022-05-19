@@ -46,6 +46,7 @@
 #include "klog.h"
 #include "kfilesystem.h"
 #include "kreader.h"
+#include "ksystem.h"
 #include <jemalloc/jemalloc.h>
 
 namespace dekaf2   {
@@ -108,7 +109,7 @@ bool ctlWrite(const char* sName, In in)
 
 //---------------------------------------------------------------------------
 template<typename Out, typename In>
-bool ctlWriteRead(const char* sName, Out& out, In in)
+bool ctlReadWrite(const char* sName, Out& out, In in)
 //---------------------------------------------------------------------------
 {
 	size_t iLenOut = sizeof(Out);
@@ -177,7 +178,7 @@ bool Start()
 {
 	bool bWasActive;
 
-	bool bReturn = IsAvailable() && jemalloc::ctlWriteRead("prof.active", bWasActive, true);
+	bool bReturn = IsAvailable() && jemalloc::ctlReadWrite("prof.active", bWasActive, true);
 
 	if (bReturn && !bWasActive)
 	{
@@ -193,18 +194,69 @@ bool Stop()
 {
 	bool bWasActive;
 
-	return IsAvailable() && jemalloc::ctlWriteRead("prof.active", bWasActive, false);
+	return IsAvailable() && jemalloc::ctlReadWrite("prof.active", bWasActive, false);
 }
 
 //---------------------------------------------------------------------------
-bool Dump(KStringViewZ sDumpFile)
+bool Dump(KStringViewZ sDumpFile, ReportFormat Format)
 //---------------------------------------------------------------------------
 {
-	return IsAvailable() && jemalloc::ctlWrite("prof.dump", sDumpFile.c_str());
+	if (!IsAvailable())
+	{
+		return false;
+	}
+
+	if (!jemalloc::ctlWrite("prof.dump", sDumpFile.c_str()))
+	{
+		return false;
+	}
+
+	KStringView sFormat;
+
+	switch (Format)
+	{
+		case ReportFormat::RAW:
+			// we're done
+			return true;
+
+		case ReportFormat::TEXT:
+			sFormat = "text";
+			break;
+
+		case ReportFormat::SVG:
+			sFormat = "svg";
+			break;
+
+		case ReportFormat::PDF:
+			sFormat = "pdf";
+			break;
+	}
+
+	KString sOutName { sDumpFile };
+	sOutName += ".tmp";
+
+	int iError = kSystem(kFormat("\"{}\" \"--{}\" {} \"{}\" > \"{}\"", "jeprof", sFormat, kGetOwnPathname(), sDumpFile, sOutName));
+
+	if (iError)
+	{
+		kRemoveFile(sOutName);
+		jemalloc::detail::iLastError = iError;
+		return false;
+	}
+
+	kRemoveFile(sDumpFile);
+
+	if (!kRename(sOutName, sDumpFile))
+	{
+		jemalloc::detail::iLastError = errno;
+		return false;
+	}
+
+	return true;
 }
 
 //---------------------------------------------------------------------------
-KString Dump()
+KString Dump(ReportFormat Format)
 //---------------------------------------------------------------------------
 {
 	KString sDumped;
@@ -215,7 +267,7 @@ KString Dump()
 
 		auto sFile = kFormat("{}{}{}", TempDir.Name(), kDirSep, "dump.out");
 
-		if (Dump(sFile))
+		if (Dump(sFile, Format))
 		{
 			sDumped = kReadAll(sFile);
 		}
@@ -256,18 +308,18 @@ bool IsStarted()
 namespace dekaf2    {
 namespace Heap      {
 
-int     LastError   ()               { return EPERM;     }
-KString GetStats    (bool)           { return KString{}; }
+int     LastError   ()                                   { return EPERM;     }
+KString GetStats    (bool)                               { return KString{}; }
 
 namespace Profiling {
 
-bool    IsAvailable ()               { return false;     }
-bool    Start       ()               { return false;     }
-bool    Stop        ()               { return false;     }
-bool    Dump        (KStringViewZ)   { return false;     }
-KString Dump        ()               { return KString{}; }
-bool    Reset       ()               { return false;     }
-bool    IsStarted   ()               { return false;     }
+bool    IsAvailable ()                                   { return false;     }
+bool    Start       ()                                   { return false;     }
+bool    Stop        ()                                   { return false;     }
+bool    Dump        (KStringViewZ, ReportFormat Format)  { return false;     }
+KString Dump        (ReportFormat Format)                { return KString{}; }
+bool    Reset       ()                                   { return false;     }
+bool    IsStarted   ()                                   { return false;     }
 
 } // Profiling
 } // Heap

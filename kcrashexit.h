@@ -46,7 +46,7 @@
 /// show reason for a program crash
 
 #include <csignal>
-#include "kstring.h"
+#include "kstringview.h"
 
 namespace dekaf2
 {
@@ -99,10 +99,12 @@ void kSetCrashCallback (KCrashCallback pFunction);
 
 namespace detail {
 
+#ifndef NDEBUG
 DEKAF2_PRIVATE
 void kFailedAssert(KStringView sCrashMessage);
+#endif
 
-}
+} // end of namespace detail
 
 inline
 DEKAF2_PUBLIC

@@ -89,11 +89,29 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 	/// tiny but nearly complete string_view implementation - it only does not have find_first/last_(not)_of() (but those are supplied through KStringView)
 
 	#define DEKAF2_HAS_OWN_STRING_VIEW 1
+	#undef DEKAF2_SV_NAMESPACE // could have been set above already
 	#define DEKAF2_SV_NAMESPACE dekaf2::detail::stringview
 
 	namespace dekaf2 {
 	namespace detail {
 	namespace stringview {
+
+#ifndef NDEBUG
+	DEKAF2_PUBLIC
+	void svFailedAssert(const char* sCrashMessage);
+#endif
+
+	inline
+	DEKAF2_PUBLIC
+	void svAssert (bool bMustBeTrue, const char* sCrashMessage)
+	{
+#ifndef NDEBUG
+		if (!bMustBeTrue)
+		{
+			svFailedAssert(sCrashMessage);
+		}
+#endif
+	}
 
 	template<typename CharT, typename Traits = std::char_traits<CharT>>
 	class basic_string_view {
@@ -234,12 +252,14 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 		constexpr
 		const_reference front() const noexcept
 		{
+			svAssert(!empty(), "is empty");
 			return *begin();
 		}
 
 		constexpr
 		const_reference back() const noexcept
 		{
+			svAssert(!empty(), "is empty");
 			return *(end() - 1);
 		}
 
@@ -265,39 +285,19 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 			return operator[](pos);
 		}
 
-		// non-standard
-		DEKAF2_CONSTEXPR_14
-		void unchecked_remove_prefix(size_type n) noexcept
-		{
-			m_pszString += n;
-			m_iSize -= n;
-		}
-
-		// non-standard
-		DEKAF2_CONSTEXPR_14
-		void unchecked_remove_suffix(size_type n) noexcept
-		{
-			m_iSize -= n;
-		}
-
 		DEKAF2_CONSTEXPR_14
 		void remove_prefix(size_type n) noexcept
 		{
-			if (n > m_iSize)
-			{
-				n = m_iSize;
-			}
-			unchecked_remove_prefix(n);
+			svAssert(n <= m_iSize, "overrun");
+			m_pszString += n;
+			m_iSize -= n;
 		}
 
 		DEKAF2_CONSTEXPR_14
 		void remove_suffix(size_type n) noexcept
 		{
-			if (n > m_iSize)
-			{
-				n = m_iSize;
-			}
-			unchecked_remove_suffix(n);
+			svAssert(n <= m_iSize, "overrun");
+			m_iSize -= n;
 		}
 
 		DEKAF2_CONSTEXPR_14
@@ -336,10 +336,6 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 		DEKAF2_CONSTEXPR_17
 		size_type find(basic_string_view needle, size_type pos = 0) const noexcept
 		{
-			if (needle.size() == 1)
-			{
-				return find(needle.front(), pos);
-			}
 			if (pos >= size() || needle.empty() || needle.size() > (size() - pos))
 			{
 				return npos;
@@ -419,9 +415,7 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 
 		size_type rfind(basic_string_view needle, size_type pos = npos) const noexcept
 		{
-			return DEKAF2_UNLIKELY(needle.size() == 1)
-			                       ? rfind(needle.front(), pos)
-			                       : rfind(needle.data(), pos, needle.size());
+			return rfind(needle.data(), pos, needle.size());
 		}
 
 		DEKAF2_CONSTEXPR_14
@@ -478,21 +472,6 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 			return find(s) != npos;
 		}
 
-		static constexpr DEKAF2_ALWAYS_INLINE
-		size_type constexpr_strlen(const CharT* s) noexcept
-		{
-#if defined(DEKAF2_HAS_FULL_CPP_17)
-			return s ? traits_type::length(s) : 0;
-#else
-	#if defined(__clang__)
-			return s ? __builtin_strlen(s) : 0;
-	#else
-		#define DEKAF2_NEED_LOCAL_CONSTEXPR_STRLEN 1
-			return s ? local_constexpr_strlen(s) : 0;
-	#endif
-#endif
-		}
-
 	private:
 
 #ifdef DEKAF2_NEED_LOCAL_CONSTEXPR_STRLEN
@@ -518,6 +497,21 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 		}
 	#endif
 #endif
+		static constexpr DEKAF2_ALWAYS_INLINE
+		size_type constexpr_strlen(const CharT* s) noexcept
+		{
+#if defined(DEKAF2_HAS_FULL_CPP_17)
+			return s ? traits_type::length(s) : 0;
+#else
+	#if defined(__clang__)
+			return s ? __builtin_strlen(s) : 0;
+	#else
+		#define DEKAF2_NEED_LOCAL_CONSTEXPR_STRLEN 1
+			return s ? local_constexpr_strlen(s) : 0;
+	#endif
+#endif
+		}
+
 		static constexpr CharT s_chEmpty { 0 };
 		const CharT* m_pszString;
 		std::size_t m_iSize;

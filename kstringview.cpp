@@ -221,11 +221,15 @@ size_t kFindFirstOfInt(
 #endif
 
 	auto result = detail::no_sse::kFindFirstOf(haystack, needle, false);
-	if (result == KStringView::npos)
+	
+	if (DEKAF2_LIKELY(pos == 0 || result == KStringView::npos))
 	{
 		return result;
 	}
-	return result + pos;
+	else
+	{
+		return result + pos;
+	}
 
 } // kFindFirstOfInt
 
@@ -267,11 +271,14 @@ size_t kFindFirstNotOfInt(
 #endif
 
 	auto result = detail::no_sse::kFindFirstOf(haystack, needle, true);
-	if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
+	if (DEKAF2_LIKELY(pos == 0 || result == KStringView::npos))
 	{
 		return result;
 	}
-	return result + pos;
+	else
+	{
+		return result + pos;
+	}
 
 } // kFindFirstNotOfInt
 

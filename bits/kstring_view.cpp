@@ -48,6 +48,9 @@
 #include "../dekaf2.h"
 #endif
 #endif
+#ifdef DEKAF2_HAS_OWN_STRING_VIEW
+#include "../kcrashexit.h"
+#endif
 
 namespace dekaf2 {
 
@@ -126,5 +129,25 @@ void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, siz
 } // memmem
 
 #endif // of __GLIBC__
+
+#ifdef DEKAF2_HAS_OWN_STRING_VIEW
+
+namespace detail {
+namespace stringview {
+
+#ifndef NDEBUG
+//-----------------------------------------------------------------------------
+void svFailedAssert (const char* sCrashMessage)
+//-----------------------------------------------------------------------------
+{
+	detail::kFailedAssert (sCrashMessage);
+
+} // svFailedAssert
+#endif
+
+} // end of namespace stringview
+} // end of namespace detail
+
+#endif
 
 } // end of namespace dekaf2

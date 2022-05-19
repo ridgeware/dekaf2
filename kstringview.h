@@ -1401,11 +1401,7 @@ protected:
 	void unchecked_remove_prefix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
-#if defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
-		m_rep.unchecked_remove_prefix(n);
-#else
 		m_rep.remove_prefix(n);
-#endif
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1416,11 +1412,7 @@ protected:
 	void unchecked_remove_suffix(size_type n)
 	//-----------------------------------------------------------------------------
 	{
-#if defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
-		m_rep.unchecked_remove_suffix(n);
-#else
 		m_rep.remove_suffix(n);
-#endif
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1927,5 +1919,3 @@ T KStringView::Split(Parms&&... parms) const
 }
 
 } // end of namespace dekaf2
-
-

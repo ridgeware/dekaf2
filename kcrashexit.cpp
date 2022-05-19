@@ -40,11 +40,11 @@
 //
 */
 
+#include "kcrashexit.h"
 #include "bits/kcppcompat.h"
 #include "klog.h"
 #include "kgetruntimestack.h"
 #include "ksignals.h"
-#include "kcrashexit.h"
 #ifndef DEKAF2_WITH_KLOG
 #include "kwriter.h"
 #endif
@@ -238,6 +238,7 @@ void kSetCrashCallback (KCrashCallback pFunction)
 
 namespace detail {
 
+#ifndef NDEBUG
 //-----------------------------------------------------------------------------
 void kFailedAssert (KStringView sCrashMessage)
 //-----------------------------------------------------------------------------
@@ -246,6 +247,7 @@ void kFailedAssert (KStringView sCrashMessage)
 	kCrashExit (0);
 
 } // kFailedAssert
+#endif
 
 } // of namespace detail
 

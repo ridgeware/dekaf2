@@ -233,12 +233,7 @@ TEST_CASE("KSystem")
 		CHECK ( fd2 == fd );
 #endif
 
-#ifdef DEKAF2_IS_WINDOWS
-		_close(fd2);
-		_close(fd);
-#else
 		close(fd);
-#endif
 	}
 
 	SECTION("GetTerminalSize")

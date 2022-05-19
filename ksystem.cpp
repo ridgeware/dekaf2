@@ -43,6 +43,7 @@
 #include "ksystem.h"
 #include "bits/kcppcompat.h"
 #include "bits/kfilesystem.h"
+#include "bits/kasio.h"
 #include "kfilesystem.h"
 #include "klog.h"
 #include "dekaf2.h"
@@ -51,14 +52,19 @@
 #include <thread>
 #include <cstdlib>
 #include <ctime>
+#include <array>
 
-#include "bits/kasio.h"
+#ifdef DEKAF2_HAS_LIBPROC
+	#include <libproc.h>                       // for proc_pidpath()
+#endif
 #ifdef DEKAF2_IS_WINDOWS
+	#include <cwchar>
 	#include <ws2tcpip.h>
 	#include <sysinfoapi.h>    // for getTotalSystemMemory()
 	#include <consoleapi2.h>   // for GetConsoleScreenBufferInfo()
 	#include <fileapi.h>       // for GetFinalPathNameByHandle()
 	#include <io.h>            // for _get_osfhandle()
+	#include <libloaderapi.h>  // for GetModuleFileName()
 #else
 	#include <unistd.h>        // for sysconf()
 	#include <sys/types.h>     // for getpwuid()
@@ -1066,6 +1072,77 @@ char kGetThousandsSeparator()
 } // kGetThousandsSeparator
 
 //-----------------------------------------------------------------------------
+const KString& kGetOwnPathname()
+//-----------------------------------------------------------------------------
+{
+	static KString sPathname = []() -> KString
+	{
+		KString sPath;
+
+#ifdef DEKAF2_HAS_LIBPROC
+
+		// get the own executable's path and name through the libproc abstraction
+		// which has the advantage that it also works on systems without /proc file system
+		std::array<char, PROC_PIDPATHINFO_MAXSIZE> aPath;
+
+		if (proc_pidpath(kGetPid(), aPath.data(), aPath.size()) >= 0)
+		{
+			sPath.assign(aPath.data(), strnlen(aPath.data(), aPath.size()));
+		}
+		else
+		{
+			sPath.clear();
+		}
+
+#elif DEKAF2_IS_UNIX
+
+		// get the own executable's path and name through the /proc file system
+		std::array<char, PATH_MAX+1> aPath;
+		ssize_t len;
+
+		if ((len = readlink("/proc/self/exe", aPath.data(), aPath.size())) > 0)
+		{
+			sPath.assign(aPath.data(), len);
+		}
+		else
+		{
+			sPath.clear();
+		}
+
+#elif DEKAF2_IS_WINDOWS
+
+		// get the own executable's path and name through GetModuleFileName()
+
+		HMODULE hModule = GetModuleHandle(nullptr);
+
+		if (hModule != nullptr)
+		{
+			std::wstring wsPath;
+			wsPath.resize(MAX_PATH);
+
+			GetModuleFileNameW(hModule, wsPath.data(), wsPath.size());
+			wsPath.resize(std::wcsnlen(wsPath.data(), wsPath.size()));
+
+			sPath = Unicode::ToUTF8<KString>(wsPath);
+			// the API returns the filename with prefixed "\\?\"
+			sPath.remove_prefix("\\\\?\\");
+		}
+		else
+		{
+			sPath.clear();
+		}
+
+#endif
+
+		return sPath;
+
+	}();
+
+	return sPathname;
+
+} // kGetOwnPathname
+
+//-----------------------------------------------------------------------------
 HANDLE kGetHandleFromFileDescriptor(int fd)
 //-----------------------------------------------------------------------------
 {
@@ -1173,7 +1250,7 @@ KString kGetFileNameFromFileHandle(HANDLE handle)
 
 	KString sFileName = Unicode::ToUTF8<KString>(sBuffer);
 
-	// the API returns the filename with prefixed \\?\ (which signals to windows
+	// the API returns the filename with prefixed "\\?\" (which signals to windows
 	// file APIs that a path name may have up to 2^15 chars instead of 2^8)
 	sFileName.remove_prefix("\\\\?\\");
 

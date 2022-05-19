@@ -54,6 +54,7 @@
 #include "kstring.h"
 #include "ktimer.h"
 #include "ksignals.h"
+#include "ksystem.h"
 #include <vector>
 #include <thread>
 #include <random>
@@ -138,7 +139,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Get the true directory in which the current process binary is located
-	const KString& GetProgPath() const
+	KStringView GetProgPath() const
 	//---------------------------------------------------------------------------
 	{
 		return m_sProgPath;
@@ -146,10 +147,18 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Get the name of the current process binary without path component
-	const KString& GetProgName() const
+	KStringViewZ GetProgName() const
 	//---------------------------------------------------------------------------
 	{
 		return m_sProgName;
+	}
+
+	//---------------------------------------------------------------------------
+	/// Get the full path name of the current process binary
+	const KString& GetProgPathName() const
+	//---------------------------------------------------------------------------
+	{
+		return kGetOwnPathname();
 	}
 
 	//---------------------------------------------------------------------------
@@ -262,8 +271,8 @@ private:
 	//---------------------------------------------------------------------------
 
 	std::atomic<bool> m_bIsMultiThreading { false };
-	KString m_sProgPath;
-	KString m_sProgName;
+	KStringView m_sProgPath;
+	KStringViewZ m_sProgName;
 #ifdef DEKAF2_HAS_MINIFOLLY
 	folly::CpuId m_CPUID;
 #endif

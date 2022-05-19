@@ -254,13 +254,14 @@ public:
 #endif
 
 	//---------------------------------------------------------------------------
-	/// Set application name for logging.
+	/// Set application name for logging (will be limited to 5 characters)
 	self& SetName(KStringView sName);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	/// Get application name as provided by user.
-	const KString& GetName() const
+	/// Get the full application path name as determined by the OS (not related to SetName() )
+	/// deprecated, use kGetOwnPathname() in ksystem.h
+	KStringViewZ GetName() const
 	//---------------------------------------------------------------------------
 	{
 		return m_sPathName;
@@ -659,7 +660,7 @@ private:
 #endif
 	static thread_local bool s_bPerThreadEGrep;
 
-	KString m_sPathName;
+	KStringViewZ m_sPathName;
 	KString m_sShortName;
 	KString m_sLogName;
 	KString m_sFlagfile;

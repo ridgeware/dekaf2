@@ -237,9 +237,7 @@ KLog::KLog()
 	m_sDefaultFlag += kDirSep;
 	m_sDefaultFlag += s_sFlagName;
 
-	m_sPathName =  Dekaf::getInstance().GetProgPath();
-	m_sPathName += kDirSep;
-	m_sPathName += Dekaf::getInstance().GetProgName();
+	m_sPathName =  kGetOwnPathname();
 
 	SetName(Dekaf::getInstance().GetProgName());
 

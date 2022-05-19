@@ -41,20 +41,14 @@
 */
 
 #include "dekaf2.h"
+#include "bits/kcppcompat.h"
+#include "kconfiguration.h"
 #include "klog.h"
 #include "kfilesystem.h"
 #include "kcrashexit.h"
 #include "ksystem.h"
 #include "kchildprocess.h"
-#include "bits/kcppcompat.h"
-#include "kconfiguration.h"
 #include "kctype.h"
-#ifdef DEKAF2_HAS_LIBPROC
-#include <libproc.h>
-#endif
-#ifdef DEKAF2_IS_OSX
-#include <CoreFoundation/CoreFoundation.h> // for locale retrieval
-#endif
 
 #include <cstdlib>
 #include <cwctype>
@@ -63,6 +57,9 @@
 #include <fstream>
 #include <random>
 #include <locale>
+#ifdef DEKAF2_IS_OSX
+#include <CoreFoundation/CoreFoundation.h> // for locale retrieval
+#endif
 
 namespace dekaf2
 {
@@ -73,37 +70,35 @@ constexpr KStringViewZ DefaultLocale { "en_US.UTF-8" };
 std::atomic<bool> Dekaf::s_bStarted  { false };
 std::atomic<bool> Dekaf::s_bShutdown { false };
 
-#if defined(DEKAF2_HAS_LIBPROC) || defined(DEKAF2_IS_UNIX)
 //---------------------------------------------------------------------------
 DEKAF2_ALWAYS_INLINE DEKAF2_PRIVATE
-void local_split_in_path_and_name(const char* sFullPath, KString& sPath, KString& sName)
+void local_split_in_path_and_name(const KString& sFullPath, KStringView& sPath, KStringViewZ& sName)
 //---------------------------------------------------------------------------
 {
 	// we have to do the separation of path and name manually here as kDirname() and kBasename()
 	// would invoke kRFind(), which on non-Linux platforms would call into Dekaf().GetCpuId() and hence
 	// into a not yet constructed instance
-	size_t pos = strlen(sFullPath);
+	auto pos = sFullPath.size();
 
 	while (pos)
 	{
 		--pos;
-		if (sFullPath[pos] == '/')
+		if (sFullPath[pos] == kDirSep)
 		{
 			++pos;
 			break;
 		}
 	}
 
-	sName = &sFullPath[pos];
+	sName = KStringViewZ(sFullPath.data() + pos);
 
-	while (pos > 0 && sFullPath[pos-1] == '/')
+	while (pos > 0 && sFullPath[pos-1] == kDirSep)
 	{
 		--pos;
 	}
 
-	sPath.assign(sFullPath, pos);
+	sPath = KStringView(sFullPath.data(), pos);
 }
-#endif
 
 //---------------------------------------------------------------------------
 Dekaf::Dekaf()
@@ -115,30 +110,7 @@ Dekaf::Dekaf()
 	SetUnicodeLocale();
 	SetRandomSeed();
 
-#ifdef DEKAF2_HAS_LIBPROC
-
-	// get the own executable's path and name through the libproc abstraction
-	// which has the advantage that it also works on systems without /proc file system
-	char path[PROC_PIDPATHINFO_MAXSIZE+1];
-
-	if (proc_pidpath(getpid(), path, PROC_PIDPATHINFO_MAXSIZE) > 0)
-	{
-		local_split_in_path_and_name(path, m_sProgPath, m_sProgName);
-	}
-
-#elif DEKAF2_IS_UNIX
-
-	// get the own executable's path and name through the /proc file system
-	char path[PATH_MAX+1];
-	ssize_t len;
-
-	if ((len = readlink("/proc/self/exe", path, PATH_MAX)) > 0)
-	{
-		path[len] = 0;
-		local_split_in_path_and_name(path, m_sProgPath, m_sProgName);
-	}
-
-#endif
+	local_split_in_path_and_name(kGetOwnPathname(), m_sProgPath, m_sProgName);
 
 	StartDefaultTimer();
 
@@ -305,7 +277,9 @@ KStringView Dekaf::GetVersionInformation()
 {
 	constexpr KStringView sVersionInformation =
 		"dekaf-" DEKAF_VERSION "-" DEKAF2_BUILD_TYPE
-#ifdef DEKAF2_HAS_CPP_20
+#ifdef DEKAF2_HAS_CPP_23
+		" c++23"
+#elif DEKAF2_HAS_CPP_20
 		" c++20"
 #elif DEKAF2_HAS_CPP_17
 		" c++17"

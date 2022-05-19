@@ -292,6 +292,10 @@ char kGetDecimalPoint();
 DEKAF2_PUBLIC
 char kGetThousandsSeparator();
 
+/// @return the full path name of the running exe
+DEKAF2_PUBLIC
+const KString& kGetOwnPathname();
+
 #ifndef DEKAF2_IS_WINDOWS
 // pretty useless on non-Windows, but declare for compatibility
 using HANDLE = intptr_t;

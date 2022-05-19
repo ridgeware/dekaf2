@@ -33,6 +33,10 @@ add_executable(benchmarks EXCLUDE_FROM_ALL ${HEADERS} ${SOURCES})
 target_link_libraries(benchmarks dekaf2)
 target_compile_definitions(benchmarks PRIVATE DEKAF2_ENABLE_PROFILING)
 
+add_executable(faststrings EXCLUDE_FROM_ALL fast_kstring_bench.cpp)
+target_link_libraries(faststrings dekaf2)
+target_compile_definitions(faststrings PRIVATE DEKAF2_ENABLE_PROFILING)
+
 add_executable(restserver EXCLUDE_FROM_ALL restserver.cpp)
 target_link_libraries(restserver dekaf2)
 

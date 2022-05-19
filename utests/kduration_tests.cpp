@@ -32,7 +32,7 @@ TEST_CASE("KDuration")
 		CHECK ( StopD.Rounds() == 9 * 3 );
 		auto ms = StopD.milliseconds();
 		CHECK ( ms >= 270 );
-		CHECK ( ms <= 270 + 100 );
+		CHECK ( ms <= 270 * 2 );
 
 		ms = StopD.average().milliseconds();
 		CHECK ( ms >= 10 );
@@ -62,7 +62,7 @@ TEST_CASE("KDuration")
 		CHECK ( Stats.size()    ==  3 );
 		CHECK ( Stats.Rounds(0) == 18 );
 		CHECK ( ms >= 270 * 2 );
-		CHECK ( ms <= 270 * 3 );
+		CHECK ( ms <= 270 * 4 );
 	}
 
 	SECTION("comparison")

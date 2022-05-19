@@ -482,6 +482,8 @@ TEST_CASE("KRON")
 		CHECK ( Next.Format() == kFormTimestamp(next) );
 	}
 
+#ifndef DEKAF2_IS_WINDOWS
+
 	SECTION("KRON 1")
 	{
 		Kron Cron(true, std::chrono::milliseconds(10));
@@ -678,4 +680,7 @@ R"({
 			FAIL_CHECK ( sDiff );
 		}
 	}
+
+#endif
+
 }

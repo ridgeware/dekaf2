@@ -1121,7 +1121,7 @@ const KString& kGetOwnPathname()
 			wsPath.resize(MAX_PATH);
 
 			GetModuleFileNameW(hModule, wsPath.data(), wsPath.size());
-			wsPath.resize(std::wcsnlen(wsPath.data(), wsPath.size()));
+			wsPath.resize(wcsnlen(wsPath.data(), wsPath.size()));
 
 			sPath = Unicode::ToUTF8<KString>(wsPath);
 			// the API returns the filename with prefixed "\\?\"

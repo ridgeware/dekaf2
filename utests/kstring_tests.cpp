@@ -641,6 +641,19 @@ TEST_CASE("KString") {
 		CHECK( str.find_first_not_of("0123456789abcdefgh ") == KString::npos );
 	}
 
+	SECTION("find_last_not_of")
+	{
+		KString str("0123456 9abcdef h");
+		CHECK( str.find_last_not_of(' ') == 16 );
+		CHECK( str.find_last_not_of(" ") == 16 );
+		CHECK( str.find_last_not_of("fh d") == 13 );
+		CHECK( str.find_last_not_of('h') == 15 );
+		CHECK( str.find_last_not_of("h") == 15 );
+		CHECK( str.find_last_not_of(" h", 13) == 13 );
+		CHECK( str.find_last_not_of("123456789abcdefh ") == 0 );
+		CHECK( str.find_last_not_of("0123456789abcdefgh ") == KString::npos );
+	}
+
 	SECTION("find_first_not_of with 0")
 	{
 		KString str("0123456  9abcdef h");

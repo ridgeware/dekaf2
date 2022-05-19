@@ -211,7 +211,7 @@ public:
 	KString (value_type *s, size_type n, size_type c, AcquireMallocatedString a) : m_rep(s, n, c, a) {}
 #else
 	// no buffer move possible, simply copy and release the input buffer
-	KString (value_type *s, size_type n, size_type c, AcquireMallocatedString a) : KString (s, n) { if (s) delete(s); }
+	KString (value_type *s, size_type n, size_type c, AcquireMallocatedString a) : KString (s, n) { if (s) free(s); }
 #endif
 	template<typename T,
 	         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
@@ -329,44 +329,50 @@ public:
 
 	size_type find(value_type c, size_type pos = 0)                                const;
 	size_type find(KStringView sv, size_type pos = 0)                              const;
+	size_type find(const value_type* s, size_type pos = 0)                         const;
 	size_type find(const value_type* s, size_type pos, size_type n)                const;
 	template<typename T,
-			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+			 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type = 0>
 	size_type find(const T& sv, size_type pos = 0)                                 const;
 
 	size_type rfind(value_type c, size_type pos = npos)                            const;
 	size_type rfind(KStringView sv, size_type pos = npos)                          const;
+	size_type rfind(const value_type* s, size_type pos = npos)                     const;
 	size_type rfind(const value_type* s, size_type pos, size_type n)               const;
 	template<typename T,
-			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+			 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type = 0>
 	size_type rfind(const T& sv, size_type pos = npos)                             const;
 
 	size_type find_first_of(value_type c, size_type pos = 0)                       const;
 	size_type find_first_of(KStringView sv, size_type pos = 0)                     const;
+	size_type find_first_of(const value_type* s, size_type pos = 0)                const;
 	size_type find_first_of(const value_type* s, size_type pos, size_type n)       const;
 	template<typename T,
-			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+			 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type = 0>
 	size_type find_first_of(const T& sv, size_type pos = 0)                        const;
 
 	size_type find_last_of(value_type c, size_type pos = npos)                     const;
 	size_type find_last_of(KStringView sv, size_type pos = npos)                   const;
+	size_type find_last_of(const value_type* s, size_type pos = npos)              const;
 	size_type find_last_of(const value_type* s, size_type pos, size_type n)        const;
 	template<typename T,
-			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+			 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type = 0>
 	size_type find_last_of(const T& sv, size_type pos = npos)                      const;
 
 	size_type find_first_not_of(value_type c, size_type pos = 0)                   const { return find_first_not_of(&c, pos, 1);                  }
 	size_type find_first_not_of(KStringView sv, size_type pos = 0)                 const;
+	size_type find_first_not_of(const value_type* s, size_type pos = 0)           const;
 	size_type find_first_not_of(const value_type* s, size_type pos, size_type n)   const;
 	template<typename T,
-			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+			 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type = 0>
 	size_type find_first_not_of(const T& sv, size_type pos = 0)                    const;
 
 	size_type find_last_not_of(value_type c, size_type pos = npos)                 const { return find_last_not_of(&c, pos, 1);                   }
 	size_type find_last_not_of(KStringView sv, size_type pos = npos)               const;
+	size_type find_last_not_of(const value_type* s, size_type pos = npos)          const;
 	size_type find_last_not_of(const value_type* s, size_type pos, size_type n)    const;
 	template<typename T,
-			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+			 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type = 0>
 	size_type find_last_not_of(const T& sv, size_type pos = npos)                  const;
 
 	void  insert(iterator p, size_type n, value_type c)                                  { m_rep.insert(p, n, c);                                 }
@@ -1116,6 +1122,13 @@ inline KString::size_type KString::find(KStringView sv, size_type pos) const
 }
 
 //-----------------------------------------------------------------------------
+inline KString::size_type KString::find(const value_type* s, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return find(KStringView(s), pos);
+}
+
+//-----------------------------------------------------------------------------
 inline KString::size_type KString::find(const value_type* s, size_type pos, size_type n) const
 //-----------------------------------------------------------------------------
 {
@@ -1139,6 +1152,13 @@ inline KString::size_type KString::find(KStringView sv, size_type pos) const
 }
 
 //-----------------------------------------------------------------------------
+inline KString::size_type KString::find(const value_type* s, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return m_rep.find(s, pos);
+}
+
+//-----------------------------------------------------------------------------
 inline KString::size_type KString::find(const value_type* s, size_type pos, size_type n) const
 //-----------------------------------------------------------------------------
 {
@@ -1149,7 +1169,7 @@ inline KString::size_type KString::find(const value_type* s, size_type pos, size
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+		 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type>
 KString::size_type KString::find(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
@@ -1170,6 +1190,13 @@ inline KString::size_type KString::rfind(KStringView sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
 	return kRFind(KStringView(*this), sv, pos);
+}
+
+//-----------------------------------------------------------------------------
+inline KString::size_type KString::rfind(const value_type* s, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return rfind(KStringView(s), pos);
 }
 
 //-----------------------------------------------------------------------------
@@ -1196,6 +1223,13 @@ inline KString::size_type KString::rfind(KStringView sv, size_type pos) const
 }
 
 //-----------------------------------------------------------------------------
+inline KString::size_type KString::rfind(const value_type* s, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return m_rep.rfind(s, pos);
+}
+
+//-----------------------------------------------------------------------------
 inline KString::size_type KString::rfind(const value_type* s, size_type pos, size_type n) const
 //-----------------------------------------------------------------------------
 {
@@ -1206,7 +1240,7 @@ inline KString::size_type KString::rfind(const value_type* s, size_type pos, siz
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+		 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type>
 KString::size_type KString::rfind(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
@@ -1230,6 +1264,13 @@ inline KString::size_type KString::find_first_of(KStringView sv, size_type pos) 
 }
 
 //-----------------------------------------------------------------------------
+inline KString::size_type KString::find_first_of(const value_type* s, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return find_first_of(KStringView(s), pos);
+}
+
+//-----------------------------------------------------------------------------
 inline KString::size_type KString::find_first_of(const value_type* s, size_type pos, size_type n) const
 //-----------------------------------------------------------------------------
 {
@@ -1243,6 +1284,13 @@ inline KString::size_type KString::find_first_of(KStringView sv, size_type pos) 
 //-----------------------------------------------------------------------------
 {
 	return find_first_of(sv.data(), pos, sv.size());
+}
+
+//-----------------------------------------------------------------------------
+inline KString::size_type KString::find_first_of(const value_type* s, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return m_rep.find_first_of(s, pos);
 }
 
 //-----------------------------------------------------------------------------
@@ -1263,7 +1311,7 @@ inline KString::size_type KString::find_first_of(const value_type* s, size_type 
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+		 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type>
 KString::size_type KString::find_first_of(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
@@ -1288,6 +1336,13 @@ inline KString::size_type KString::find_last_of(KStringView sv, size_type pos) c
 }
 
 //-----------------------------------------------------------------------------
+inline KString::size_type KString::find_last_of(const value_type* s, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return find_last_of(KStringView(s), pos);
+}
+
+//-----------------------------------------------------------------------------
 inline KString::size_type KString::find_last_of(const value_type* s, size_type pos, size_type n) const
 //-----------------------------------------------------------------------------
 {
@@ -1302,6 +1357,13 @@ inline KString::size_type KString::find_last_of(KStringView sv, size_type pos) c
 {
 	return find_last_of(sv.data(), pos, sv.size());
 
+}
+
+//-----------------------------------------------------------------------------
+inline KString::size_type KString::find_last_of(const value_type* s, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return m_rep.find_last_of(s, pos);
 }
 
 //-----------------------------------------------------------------------------
@@ -1322,7 +1384,7 @@ inline KString::size_type KString::find_last_of(const value_type* s, size_type p
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+		 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type>
 KString::size_type KString::find_last_of(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
@@ -1330,6 +1392,13 @@ KString::size_type KString::find_last_of(const T& sv, size_type pos) const
 }
 
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
+
+//-----------------------------------------------------------------------------
+inline KString::size_type KString::find_first_not_of(const value_type* s, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return find_first_not_of(KStringView(s), pos);
+}
 
 //-----------------------------------------------------------------------------
 inline KString::size_type KString::find_first_not_of(const value_type* s, size_type pos, size_type n) const
@@ -1346,6 +1415,13 @@ inline KString::size_type KString::find_first_not_of(KStringView sv, size_type p
 }
 
 #else
+
+//-----------------------------------------------------------------------------
+inline KString::size_type KString::find_first_not_of(const value_type* s, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return m_rep.find_first_not_of(s, pos);
+}
 
 //-----------------------------------------------------------------------------
 inline KString::size_type KString::find_first_not_of(const value_type* s, size_type pos, size_type n) const
@@ -1365,7 +1441,7 @@ inline KString::size_type KString::find_first_not_of(KStringView sv, size_type p
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+		 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type>
 KString::size_type KString::find_first_not_of(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
@@ -1382,6 +1458,13 @@ inline KString::size_type KString::find_last_not_of(KStringView sv, size_type po
 }
 
 //-----------------------------------------------------------------------------
+inline KString::size_type KString::find_last_not_of(const value_type* s, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return find_last_not_of(KStringView(s), pos);
+}
+
+//-----------------------------------------------------------------------------
 inline KString::size_type KString::find_last_not_of(const value_type* s, size_type pos, size_type n) const
 //-----------------------------------------------------------------------------
 {
@@ -1389,6 +1472,13 @@ inline KString::size_type KString::find_last_not_of(const value_type* s, size_ty
 }
 
 #else
+
+//-----------------------------------------------------------------------------
+inline KString::size_type KString::find_last_not_of(const value_type* s, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	return m_rep.find_last_not_of(s, pos);
+}
 
 //-----------------------------------------------------------------------------
 inline KString::size_type KString::find_last_not_of(const value_type* s, size_type pos, size_type n) const
@@ -1408,7 +1498,7 @@ inline KString::size_type KString::find_last_not_of(KStringView sv, size_type po
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+		 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type>
 KString::size_type KString::find_last_not_of(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {

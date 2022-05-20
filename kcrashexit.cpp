@@ -238,7 +238,6 @@ void kSetCrashCallback (KCrashCallback pFunction)
 
 namespace detail {
 
-#ifndef NDEBUG
 //-----------------------------------------------------------------------------
 void kFailedAssert (KStringView sCrashMessage)
 //-----------------------------------------------------------------------------
@@ -247,7 +246,6 @@ void kFailedAssert (KStringView sCrashMessage)
 	kCrashExit (0);
 
 } // kFailedAssert
-#endif
 
 } // of namespace detail
 

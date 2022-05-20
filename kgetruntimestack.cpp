@@ -40,13 +40,16 @@
 //
 */
 
-#include <vector>
+#include "kgetruntimestack.h"
 #include "bits/kcppcompat.h"
 #include "kstring.h"
 #include "kstack.h"
 #include "ksplit.h"
 #include "kinshell.h"
-#include "kgetruntimestack.h"
+#include "ksystem.h"
+#include "kformat.h"
+
+#include <vector>
 
 #ifdef DEKAF2_IS_UNIX
 #include <execinfo.h>          // for backtrace
@@ -59,8 +62,6 @@
 
 namespace dekaf2
 {
-
-#define NUM_ELEMENTS(X) (sizeof(X)/sizeof((X)[0]))
 
 using StringVec = std::vector<KString>;
 using FrameVec  = std::vector<KStackFrame>;
@@ -85,8 +86,8 @@ StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 
 #ifdef DEKAF2_IS_OSX
 
-			KString sCmdLine = "atos -p ";
-			sCmdLine += std::to_string(getpid());
+			KString sCmdLine = dekaf2::kFormat("atos -p {}", getpid());
+
 			for (const auto& it : vsAddress)
 			{
 				sCmdLine += ' ';
@@ -120,15 +121,12 @@ StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 
 #elif DEKAF2_IS_UNIX
 
-			char sMyExeName[512];
-			ssize_t n;
-			if ( (n = readlink ("/proc/self/exe", sMyExeName, NUM_ELEMENTS (sMyExeName)-1)) > 0)
-			{
-				sMyExeName[n] = '\0';
+			KString sMyExeName = kGetOwnPathname();
 
-				KString sCmdLine = "addr2line -f -C -e \"";
-				sCmdLine += sMyExeName;
-				sCmdLine += '"';
+			if (!sMyExeName.empty())
+			{
+				KString sCmdLine = kFormat("addr2line -f -C -e \"{}\"", sMyExeName);
+
 				for (const auto& it : vsAddress)
 				{
 					sCmdLine += ' ';
@@ -288,19 +286,14 @@ StringVec GetGDBCallstack (int iSkipStackLines)
 
 	DEKAF2_TRY
 	{
-		char name_buf[512];
-		ssize_t iRead = readlink("/proc/self/exe", name_buf, NUM_ELEMENTS(name_buf)-1);
-		if (iRead < 0)
+		KString sMyExeName = kGetOwnPathname();
+
+		if (sMyExeName.empty())
 		{
 			return Stack;
 		}
-		name_buf[iRead] = 0;
 
-		KString sCmdLine = "gdb --batch -n -ex thread -ex bt \"";
-		sCmdLine += name_buf;
-		sCmdLine += "\" ";
-		sCmdLine += KString::to_string(getpid());
-		sCmdLine += " 2>&1";
+		KString sCmdLine = kFormat("gdb --batch -n -ex thread -ex bt \"{}\" {} 2>&1", sMyExeName, getpid());
 
 		KInShell Shell;
 		Shell.SetReaderRightTrim("\n\r\t ");
@@ -895,6 +888,4 @@ KString KStackFrame::Serialize(bool bNormalize) const
 
 } // KStackFrame::Serialize
 
-
 } // of namespace dekaf2
-

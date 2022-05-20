@@ -1097,7 +1097,7 @@ const KString& kGetOwnPathname()
 #elif DEKAF2_IS_UNIX
 
 		// get the own executable's path and name through the /proc file system
-		std::array<char, PATH_MAX+1> aPath;
+		std::array<char, PATH_MAX> aPath;
 		ssize_t len;
 
 		if ((len = readlink("/proc/self/exe", aPath.data(), aPath.size())) > 0)
@@ -1177,9 +1177,9 @@ KString kGetFileNameFromFileDescriptor(int fd)
 
 #else
 
-#ifdef DEKAF2_IS_OSX
-
 	KString sFileName;
+
+#ifdef DEKAF2_IS_OSX
 
 	std::array<char, PATH_MAX + 1> buffer;
 
@@ -1190,22 +1190,18 @@ KString kGetFileNameFromFileDescriptor(int fd)
 
 #elif DEKAF2_IS_UNIX
 
-	KString sFileName;
-
-	std::array<char, PATH_MAX + 1> buffer;
+	std::array<char, PATH_MAX> buffer;
 
 	auto iSize = readlink(kFormat("/proc/self/fd/{}", fd).c_str(), buffer.data(), buffer.size());
 
-	if (iSize >= 0)
+	if (iSize < 0)
 	{
-		buffer[iSize] = '\0';
+		kDebug(1, strerror(errno));
 	}
 	else
 	{
-		buffer[0] = '\0';
+		sFileName.assign(buffer.data(), iSize);
 	}
-
-	sFileName = buffer.data();
 
 #endif
 

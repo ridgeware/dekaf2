@@ -99,10 +99,8 @@ void kSetCrashCallback (KCrashCallback pFunction);
 
 namespace detail {
 
-#ifndef NDEBUG
 DEKAF2_PRIVATE
 void kFailedAssert(KStringView sCrashMessage);
-#endif
 
 } // end of namespace detail
 

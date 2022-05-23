@@ -159,7 +159,7 @@ uint16_t KReplacer::AddTokens (const KJSON& object, bool bFormNumbers/*=true*/)
 				insert (sKey, sValue);
 				++iTokens;
 			}
-			catch (std::exception e)
+			catch (std::exception& e)
 			{
 				// ignore anything that is not a simple key/value pair
 			}

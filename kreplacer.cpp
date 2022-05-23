@@ -39,6 +39,7 @@
 */
 
 #include "kreplacer.h"
+#include "kstringutils.h" // for kFormNumber()
 #include "klog.h"
 
 namespace dekaf2 {
@@ -73,9 +74,9 @@ bool KReplacer::insert(KStringView sSearch, KStringView sReplace)
 {
 	if (!sSearch.empty())
 	{
-		KString sKey = m_sLeadIn;
+		KString sKey = m_sTokenPrefix;
 		sKey += sSearch;
-		sKey += m_sLeadOut;
+		sKey += m_sTokenSuffix;
 
 		auto p = m_RepMap.emplace(std::move(sKey), sReplace);
 
@@ -95,7 +96,7 @@ bool KReplacer::insert(KStringView sSearch, KStringView sReplace)
 void KReplacer::insert(const KReplacer& other)
 //-----------------------------------------------------------------------------
 {
-	if (m_sLeadIn == other.m_sLeadIn && m_sLeadOut == other.m_sLeadOut)
+	if (m_sTokenPrefix == other.m_sTokenPrefix && m_sTokenSuffix == other.m_sTokenSuffix)
 	{
 		for (const auto& it : other.m_RepMap)
 		{
@@ -110,14 +111,74 @@ void KReplacer::insert(const KReplacer& other)
 } // insert
 
 //-----------------------------------------------------------------------------
+uint16_t KReplacer::AddTokens (const KJSON& object, bool bFormNumbers/*=true*/)
+//-----------------------------------------------------------------------------
+{
+	uint16_t iTokens{0};
+
+	if (!object.is_object())
+	{
+		kDebug (1, "called with non-simple object: {:.20}...", object.dump());
+	}
+	else
+	{
+		for (auto& it : object.items())
+		{
+			try
+			{
+				auto    sKey   = it.key();
+				auto    oValue = it.value();
+				KString sValue;
+
+				if (oValue.is_string())
+				{
+					sValue = oValue;
+				}
+				else if (oValue.is_number())
+				{
+					kDebug (2, "attempting string conversion of {} = {}", sKey, oValue.dump());
+					sValue = oValue.dump();
+					if (bFormNumbers)
+					{
+						sValue = kFormNumber (sValue.Int64());
+					}
+				}
+				else if (oValue.is_boolean())
+				{
+					kDebug (2, "attempting string conversion of {} = {}", sKey, oValue.dump());
+					sValue = oValue.dump();
+				}
+				else
+				{
+					kDebug (2, "not a simple key/value pair: {}", sKey);
+					continue; // for
+				}
+
+				kDebug (2, "token {}{}{} = {}", m_sTokenPrefix, sKey, m_sTokenSuffix, sValue);
+
+				insert (sKey, sValue);
+				++iTokens;
+			}
+			catch (std::exception e)
+			{
+				// ignore anything that is not a simple key/value pair
+			}
+		}
+	}
+
+	return iTokens;
+
+} // AddTokens
+
+//-----------------------------------------------------------------------------
 bool KReplacer::erase(KStringView sSearch)
 //-----------------------------------------------------------------------------
 {
 	if (!sSearch.empty())
 	{
-		KString sKey = m_sLeadIn;
+		KString sKey = m_sTokenPrefix;
 		sKey += sSearch;
-		sKey += m_sLeadOut;
+		sKey += m_sTokenSuffix;
 
 		return m_RepMap.erase(sKey) > 0;
 	}
@@ -135,9 +196,9 @@ KString KReplacer::Replace(KStringView sIn) const
 
 	// TODO consider using Aho-Corasick here
 
-	if (m_sLeadIn.empty())
+	if (m_sTokenPrefix.empty())
 	{
-		if (m_sLeadOut.empty())
+		if (m_sTokenSuffix.empty())
 		{
 			// neither lead in nor lead out -
 			// brute force, try to replace all variables across the whole content
@@ -156,7 +217,7 @@ KString KReplacer::Replace(KStringView sIn) const
 			// search backwards from a found lead out
 			for (;;)
 			{
-				auto pos = sIn.find(m_sLeadOut);
+				auto pos = sIn.find(m_sTokenSuffix);
 				if (pos == KStringView::npos)
 				{
 					// no more lead out found
@@ -164,7 +225,7 @@ KString KReplacer::Replace(KStringView sIn) const
 					break;
 				}
 
-				KStringView sTemp = sIn.substr(0, pos + m_sLeadOut.size());
+				KStringView sTemp = sIn.substr(0, pos + m_sTokenSuffix.size());
 
 				// we search the full map and keep a record of
 				// the longest match - alternatively we could sort
@@ -193,12 +254,12 @@ KString KReplacer::Replace(KStringView sIn) const
 					sOut += sTemp;
 					// replace with this value
 					sOut += lit->second;
-					sIn.remove_prefix(pos + m_sLeadOut.size());
+					sIn.remove_prefix(pos + m_sTokenSuffix.size());
 				}
 				else
 				{
 					sOut += sTemp;
-					sIn.remove_prefix(pos + m_sLeadOut.size());
+					sIn.remove_prefix(pos + m_sTokenSuffix.size());
 				}
 			}
 		}
@@ -210,7 +271,7 @@ KString KReplacer::Replace(KStringView sIn) const
 		// check for all variables
 		for (;;)
 		{
-			auto pos = sIn.find(m_sLeadIn);
+			auto pos = sIn.find(m_sTokenPrefix);
 			if (pos == KStringView::npos)
 			{
 				// no more lead in found
@@ -240,12 +301,12 @@ KString KReplacer::Replace(KStringView sIn) const
 
 			if (!bFound)
 			{
-				if (m_bRemoveAllVariables)
+				if (m_bRemoveUnusedTokens)
 				{
-					pos = sIn.find(m_sLeadOut);
+					pos = sIn.find(m_sTokenSuffix);
 					if (pos != KStringView::npos)
 					{
-						sIn.remove_prefix(pos + m_sLeadOut.size());
+						sIn.remove_prefix(pos + m_sTokenSuffix.size());
 						continue;
 					}
 					else

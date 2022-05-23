@@ -246,7 +246,7 @@ bool KSnippets::Compose(KStringView sSnippet, const KReplacer& Replacer)
 
 	auto sRange = it->second;
 
-	if (Replacer.empty() && !Replacer.GetRemoveAllVariables())
+	if (Replacer.empty() && !Replacer.GetRemoveUnusedTokens())
 	{
 		m_OutStream->Write(sRange);
 	}

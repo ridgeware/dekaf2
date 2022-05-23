@@ -402,7 +402,7 @@ bool KMIMEPart::Serialize(KStringRef& sOut, bool bForHTTP, const KReplacer& Repl
 
 			if (bForHTTP)
 			{
-				if (IsBinary() || (Replacer.empty() && !Replacer.GetRemoveAllVariables()))
+				if (IsBinary() || (Replacer.empty() && !Replacer.GetRemoveUnusedTokens()))
 				{
 					sOut += m_Data;
 				}
@@ -417,7 +417,7 @@ bool KMIMEPart::Serialize(KStringRef& sOut, bool bForHTTP, const KReplacer& Repl
 			}
 			else
 			{
-				if (Replacer.empty() && !Replacer.GetRemoveAllVariables())
+				if (Replacer.empty() && !Replacer.GetRemoveUnusedTokens())
 				{
 					sOut += KQuotedPrintable::Encode(m_Data, false);
 				}

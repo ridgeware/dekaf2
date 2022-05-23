@@ -108,7 +108,7 @@ bool KOutputTemplate::Write(KOutStream& OutStream,
 		}
 	}
 
-	if (Replacer.empty() && !Replacer.GetRemoveAllVariables())
+	if (Replacer.empty() && !Replacer.GetRemoveUnusedTokens())
 	{
 		OutStream.Write(sRange);
 	}

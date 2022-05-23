@@ -47,11 +47,12 @@
 #include "kstringview.h"
 #include "kstring.h"
 #include "kassociative.h"
+#include "kjson.h"
 
 namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Replace variables with values, with configurable lead-in and lead-out
+/// Replace variables (aka tokens) with values, with configurable token-prefix and token-suffix
 /// sequences like "{{" "}}"
 class DEKAF2_PUBLIC KReplacer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -67,13 +68,13 @@ public:
 	/// make sure we have all 5 special class methods
 	KReplacer() = default;
 
-	/// ctor: sLeadIn and sLeadOut form the frame for a replaceable variable like "{{"
-	/// "}}", bRemoveAllVariables if true removes variables which had not been found
+	/// ctor: sTokenPrefix and sTokenSuffix form the frame for a replaceable token like "{{"
+	/// "}}", bRemoveUnusedTokens if true removes variables which had not been found
 	/// in the replace list
-	KReplacer(KStringView sLeadIn, KStringView sLeadOut, bool bRemoveAllVariables = false)
-	: m_sLeadIn(sLeadIn)
-	, m_sLeadOut(sLeadOut)
-	, m_bRemoveAllVariables((sLeadIn.empty() || sLeadOut.empty()) ? false : bRemoveAllVariables)
+	KReplacer(KStringView sTokenPrefix, KStringView sTokenSuffix, bool bRemoveUnusedTokens = false)
+	: m_sTokenPrefix(sTokenPrefix)
+	, m_sTokenSuffix(sTokenSuffix)
+	, m_bRemoveUnusedTokens((sTokenPrefix.empty() || sTokenSuffix.empty()) ? false : bRemoveUnusedTokens)
 	{}
 
 	/// do we have a replace list?
@@ -93,7 +94,7 @@ public:
 	/// find variable in the replace list
 	const_iterator find(KStringView sKey) const { return m_RepMap.find(sKey); }
 
-	/// add a search and replace value to the replace list (without lead-in/lead-out),
+	/// add a search and replace value to the replace list (without token-prefix/token-suffix),
 	/// replaces existing value
 	bool insert(KStringView sSearch, KStringView sReplace);
 
@@ -101,7 +102,7 @@ public:
 	bool erase(KStringView sSearch);
 
 	/// returns true if all unfound variables should be removed from the input text
-	bool GetRemoveAllVariables() const { return m_bRemoveAllVariables; }
+	bool GetRemoveUnusedTokens() const { return m_bRemoveUnusedTokens; }
 
 	/// inserts all key/value pairs from a map type into the replace list
 	template<class MapType>
@@ -124,6 +125,11 @@ public:
 	/// inserts (copies) another replace list into this
 	void insert(const KReplacer& other);
 
+	/// makes {{tokens}} from all json keys and assigns their values to the replacements.
+	/// returns the number of tokens created.
+	/// ignores any json objects that are not simple key/value pairs.
+	uint16_t AddTokens (const KJSON& object, bool bFormNumbers=true);
+
 	/// inserts (copies) another replace list into this
 	KReplacer& operator+=(const KReplacer& other)
 	{
@@ -131,25 +137,25 @@ public:
 		return *this;
 	}
 
-	/// Replaces all variables in sIn with their values, returns new string
+	/// Replaces all variables (tokens) in sIn with their values, returns new string
 	KString Replace(KStringView sIn) const;
 
-	/// Replaces all variables in sIn with their values
+	/// Replaces all variables in sIn with their values, modifying the string in place
 	void ReplaceInPlace(KStringRef& sIn) const;
 
 //----------
 private:
 //----------
 
-	KString m_sLeadIn;
-	KString m_sLeadOut;
-	RepMap m_RepMap;
-	bool m_bRemoveAllVariables;
+	KString m_sTokenPrefix;
+	KString m_sTokenSuffix;
+	RepMap  m_RepMap;
+	bool    m_bRemoveUnusedTokens;
 
 }; // KReplacer
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Replace variables with values, using "{{" and "}}" as the lead-in/out
+/// Replace variables with values, using "{{" and "}}" as the token-prefix/out
 class DEKAF2_PUBLIC KVariables : public KReplacer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -158,10 +164,10 @@ class DEKAF2_PUBLIC KVariables : public KReplacer
 public:
 //----------
 
-	/// ctor, bRemoveAllVariables if true removes variables which had not been found
+	/// ctor, bRemoveUnusedTokens if true removes variables which had not been found
 	/// in the replace list
-	KVariables(bool bRemoveAllVariables = false)
-	: KReplacer("{{", "}}", bRemoveAllVariables)
+	KVariables(bool bRemoveUnusedTokens = false)
+	: KReplacer("{{", "}}", bRemoveUnusedTokens)
 	{}
 
 }; // KVariables

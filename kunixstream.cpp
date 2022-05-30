@@ -61,7 +61,7 @@ std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize i
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioStream<unixstream>*>(stream_);
+		auto stream = static_cast<KAsioStream<asiostream>*>(stream_);
 
 		stream->Socket.async_read_some(boost::asio::buffer(sBuffer, iCount),
 		[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
@@ -104,7 +104,7 @@ std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::stream
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioStream<unixstream>*>(stream_);
+		auto stream = static_cast<KAsioStream<asiostream>*>(stream_);
 
 		for (;iWrote < iCount;)
 		{

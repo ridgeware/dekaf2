@@ -70,6 +70,8 @@ class DEKAF2_PUBLIC KUnixIOStream : public std::iostream
 public:
 //----------
 
+	using asiostream = boost::asio::local::stream_protocol::socket;
+
 	enum { DEFAULT_TIMEOUT = 1 * 15 };
 
 	//-----------------------------------------------------------------------------
@@ -161,6 +163,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Gets the ASIO socket of the stream, e.g. to move it to another place ..
+	asiostream& GetAsioSocket()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.Socket;
+	}
+
+	//-----------------------------------------------------------------------------
 	bool Good() const
 	//-----------------------------------------------------------------------------
 	{
@@ -185,9 +195,7 @@ public:
 private:
 //----------
 
-	using unixstream = boost::asio::local::stream_protocol::socket;
-
-	KAsioStream<unixstream> m_Stream;
+	KAsioStream<asiostream> m_Stream;
 
 	KStreamBuf m_TCPStreamBuf{&UnixStreamReader, &UnixStreamWriter, &m_Stream, &m_Stream};
 

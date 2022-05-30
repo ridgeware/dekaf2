@@ -348,7 +348,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 			{
 				std::unique_ptr<KSSLStream> moved_stream { Stream };
 #else
-				m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]()
+			m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 			{
 #endif
 				RunSession(*moved_stream, to_string(remote_endpoint), moved_stream->GetTCPSocket().native_handle());
@@ -391,7 +391,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 			{
 				std::unique_ptr<KTCPStream> moved_stream { Stream };
 #else
-				m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]()
+			m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 			{
 #endif
 				RunSession(*moved_stream, to_string(remote_endpoint), moved_stream->GetTCPSocket().native_handle());
@@ -425,7 +425,10 @@ bool KTCPServer::UnixServer()
 	kDebug(2, "opening listener on unix socket at {}", m_sSocketFile);
 
 	// remove an existing socket
-	kRemoveSocket(m_sSocketFile);
+	if (!kRemoveSocket(m_sSocketFile))
+	{
+		return SetError(kFormat("cannot remove existing socket file: {}", m_sSocketFile));
+	}
 
 	if (m_sSocketFile.size() > 108)
 	{

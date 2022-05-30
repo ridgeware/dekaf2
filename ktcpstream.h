@@ -66,6 +66,8 @@ class DEKAF2_PUBLIC KTCPIOStream : public std::iostream
 public:
 //----------
 
+	using asiostream = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
+
 	enum { DEFAULT_TIMEOUT = 15 };
 
 	//-----------------------------------------------------------------------------
@@ -160,6 +162,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Gets the ASIO socket of the stream, e.g. to move it to another place ..
+	asiostream& GetAsioSocket()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.Socket;
+	}
+
+	//-----------------------------------------------------------------------------
 	bool Good() const
 	//-----------------------------------------------------------------------------
 	{
@@ -184,9 +194,7 @@ public:
 private:
 //----------
 
-	using tcpstream = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
-
-	KAsioStream<tcpstream> m_Stream;
+	KAsioStream<asiostream> m_Stream;
 
 	KBufferedStreamBuf m_TCPStreamBuf{&TCPStreamReader, &TCPStreamWriter, &m_Stream, &m_Stream};
 

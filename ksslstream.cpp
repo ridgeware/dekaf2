@@ -336,7 +336,7 @@ static KSSLContext s_KSSLContextWithVerification { false, true  };
 
 
 //-----------------------------------------------------------------------------
-bool KSSLIOStream::handshake(KAsioSSLStream<tcpstream>* stream)
+bool KSSLIOStream::handshake(KAsioSSLStream<asiostream>* stream)
 //-----------------------------------------------------------------------------
 {
 	if (!stream->bNeedHandshake)
@@ -407,7 +407,7 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioSSLStream<tcpstream>*>(stream_);
+		auto stream = static_cast<KAsioSSLStream<asiostream>*>(stream_);
 
 		if (!stream->bManualHandshake)
 		{
@@ -469,7 +469,7 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioSSLStream<tcpstream>*>(stream_);
+		auto stream = static_cast<KAsioSSLStream<asiostream>*>(stream_);
 
 		if (!stream->bManualHandshake)
 		{

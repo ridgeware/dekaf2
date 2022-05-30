@@ -57,7 +57,7 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioStream<tcpstream>*>(stream_);
+		auto stream = static_cast<KAsioStream<asiostream>*>(stream_);
 
 		stream->Socket.async_read_some(boost::asio::buffer(sBuffer, iCount),
 		[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
@@ -99,7 +99,7 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioStream<tcpstream>*>(stream_);
+		auto stream = static_cast<KAsioStream<asiostream>*>(stream_);
 
 		for (;iWrote < iCount;)
 		{

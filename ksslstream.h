@@ -155,7 +155,7 @@ struct KAsioSSLStream
 	KAsioSSLStream(KSSLContext& Context, int _iSecondsTimeout = 15, bool _bManualHandshake = false)
 	//-----------------------------------------------------------------------------
 	: SSLContext       { Context }
-	, IOService        {}
+	, IOService        { 1 }
 	, Socket           { IOService, Context.GetContext() }
 	, Timer            { IOService }
 	, iSecondsTimeout  { _iSecondsTimeout }
@@ -307,6 +307,8 @@ class DEKAF2_PUBLIC KSSLIOStream : public std::iostream
 public:
 //----------
 
+	using asiostream = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
+
 	enum { DEFAULT_TIMEOUT = 1 * 15 };
 
 	//-----------------------------------------------------------------------------
@@ -437,6 +439,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Gets the ASIO socket of the stream, e.g. to move it to another place ..
+	asiostream& GetAsioSocket()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.Socket;
+	}
+
+	//-----------------------------------------------------------------------------
 	bool Good() const
 	//-----------------------------------------------------------------------------
 	{
@@ -461,9 +471,7 @@ public:
 private:
 //----------
 
-	using tcpstream = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
-
-	KAsioSSLStream<tcpstream> m_Stream;
+	KAsioSSLStream<asiostream> m_Stream;
 
 	KBufferedStreamBuf m_SSLStreamBuf{&SSLStreamReader, &SSLStreamWriter, &m_Stream, &m_Stream};
 
@@ -481,7 +489,7 @@ private:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	static bool handshake(KAsioSSLStream<tcpstream>* stream);
+	static bool handshake(KAsioSSLStream<asiostream>* stream);
 	//-----------------------------------------------------------------------------
 
 };

@@ -56,7 +56,7 @@ struct KAsioStream
 	//-----------------------------------------------------------------------------
 	KAsioStream(int _iSecondsTimeout = 15)
 	//-----------------------------------------------------------------------------
-	: IOService       {}
+	: IOService       { 1 }
 	, Socket          { IOService }
 	, Timer           { IOService }
 	, iSecondsTimeout { _iSecondsTimeout }

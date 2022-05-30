@@ -29,6 +29,7 @@ set (USOURCES
 	kcompression_tests.cpp
 	kcookie_tests.cpp
 	kcountingstreambuf_tests.cpp
+	kcppcompat_tests.cpp
 	kcrc_tests.cpp
 	kcsv_tests.cpp
 	kdiff_tests.cpp

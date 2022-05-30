@@ -474,7 +474,7 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 
 	private:
 
-#ifdef DEKAF2_NEED_LOCAL_CONSTEXPR_STRLEN
+#if !defined(DEKAF2_HAS_FULL_CPP_17) && !defined(__clang__)
 	#if (DEKAF2_HAS_CPP_14)
 		static constexpr DEKAF2_ALWAYS_INLINE
 		size_type local_constexpr_strlen(const CharT* s) noexcept
@@ -506,7 +506,6 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 	#if defined(__clang__)
 			return s ? __builtin_strlen(s) : 0;
 	#else
-		#define DEKAF2_NEED_LOCAL_CONSTEXPR_STRLEN 1
 			return s ? local_constexpr_strlen(s) : 0;
 	#endif
 #endif

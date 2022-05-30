@@ -129,13 +129,14 @@
 #endif
 
 #if !defined(DEKAF2_IS_OSX) && defined(__APPLE__) && defined(__MACH__)
+	// keep the old define, but change new code to DEKAF2_IS_MACOS
 	#define DEKAF2_IS_OSX 1
 #endif
 #if !defined(DEKAF2_IS_MACOS) && defined(__APPLE__) && defined(__MACH__)
 	#define DEKAF2_IS_MACOS 1
 #endif
 
-#if !defined(DEKAF2_IS_UNIX) && (defined(unix) || defined(__unix__) || defined(DEKAF2_IS_OSX))
+#if !defined(DEKAF2_IS_UNIX) && (defined(unix) || defined(__unix__) || defined(DEKAF2_IS_MACOS))
 	#define DEKAF2_IS_UNIX 1
 #endif
 
@@ -533,7 +534,7 @@ DEKAF2_LE_BE_CONSTEXPR void kToBigEndian(VALUE& value)
 	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
 	if (!kIsBigEndian())
 	{
-		swap_bytes(value);
+		kSwapBytes(value);
 	}
 }
 
@@ -543,7 +544,7 @@ DEKAF2_LE_BE_CONSTEXPR void kToLittleEndian(VALUE& value)
 	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
 	if (kIsBigEndian())
 	{
-		swap_bytes(value);
+		kSwapBytes(value);
 	}
 }
 
@@ -553,7 +554,7 @@ DEKAF2_LE_BE_CONSTEXPR void kFromBigEndian(VALUE& value)
 	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
 	if (!kIsBigEndian())
 	{
-		swap_bytes(value);
+		kSwapBytes(value);
 	}
 }
 
@@ -563,7 +564,7 @@ DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
 	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
 	if (kIsBigEndian())
 	{
-		swap_bytes(value);
+		kSwapBytes(value);
 	}
 }
 

@@ -99,9 +99,21 @@ public:
 	      NonCopyable& get()       { return m_Value; }
 
 	/// implicitly get the value type
-	operator const NonCopyable&() const { return get(); }
+	operator const NonCopyable&() const   { return get(); }
 	/// implicitly get the value type
-	operator       NonCopyable&()       { return get(); }
+	operator       NonCopyable&()         { return get(); }
+
+	/// get pointer on object
+	NonCopyable* operator->()             { return &get(); }
+
+	/// get reference on object
+	NonCopyable& operator*()              { return get();  }
+
+	/// get const pointer on object
+	const NonCopyable* operator->() const { return &get(); }
+
+	/// get const reference on object
+	const NonCopyable& operator*() const  { return get();  }
 
 //----------
 private:

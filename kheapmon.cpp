@@ -198,7 +198,7 @@ bool Stop()
 }
 
 //---------------------------------------------------------------------------
-bool Dump(KStringViewZ sDumpFile, ReportFormat Format)
+bool Dump(KStringViewZ sDumpFile, ReportFormat Format, KStringView sAdditionalOptions)
 //---------------------------------------------------------------------------
 {
 	if (!IsAvailable())
@@ -235,7 +235,13 @@ bool Dump(KStringViewZ sDumpFile, ReportFormat Format)
 	KString sOutName { sDumpFile };
 	sOutName += ".tmp";
 
-	int iError = kSystem(kFormat("\"{}\" \"--{}\" {} \"{}\" > \"{}\"", "jeprof", sFormat, kGetOwnPathname(), sDumpFile, sOutName));
+	int iError = kSystem(kFormat("\"{}\" \"--{}\" {} {} \"{}\" > \"{}\"",
+								 "jeprof",
+								 sFormat,
+								 sAdditionalOptions,
+								 kGetOwnPathname(),
+								 sDumpFile,
+								 sOutName));
 
 	if (iError)
 	{
@@ -256,7 +262,7 @@ bool Dump(KStringViewZ sDumpFile, ReportFormat Format)
 }
 
 //---------------------------------------------------------------------------
-KString Dump(ReportFormat Format)
+KString Dump(ReportFormat Format, KStringView sAdditionalOptions)
 //---------------------------------------------------------------------------
 {
 	KString sDumped;
@@ -267,7 +273,7 @@ KString Dump(ReportFormat Format)
 
 		auto sFile = kFormat("{}{}{}", TempDir.Name(), kDirSep, "dump.out");
 
-		if (Dump(sFile, Format))
+		if (Dump(sFile, Format, sAdditionalOptions))
 		{
 			sDumped = kReadAll(sFile);
 		}
@@ -308,18 +314,20 @@ bool IsStarted()
 namespace dekaf2    {
 namespace Heap      {
 
-int     LastError   ()                                   { return EPERM;     }
-KString GetStats    (bool)                               { return KString{}; }
+int     LastError   ()        { return EPERM;     }
+KString GetStats    (bool)    { return KString{}; }
 
 namespace Profiling {
 
-bool    IsAvailable ()                                   { return false;     }
-bool    Start       ()                                   { return false;     }
-bool    Stop        ()                                   { return false;     }
-bool    Dump        (KStringViewZ, ReportFormat Format)  { return false;     }
-KString Dump        (ReportFormat Format)                { return KString{}; }
-bool    Reset       ()                                   { return false;     }
-bool    IsStarted   ()                                   { return false;     }
+bool    IsAvailable ()        { return false;     }
+bool    Start       ()        { return false;     }
+bool    Stop        ()        { return false;     }
+bool    Dump        (KStringViewZ, ReportFormat, KStringView)
+                              { return false;     }
+KString Dump        (ReportFormat, KStringView)
+                              { return KString{}; }
+bool    Reset       ()        { return false;     }
+bool    IsStarted   ()        { return false;     }
 
 } // Profiling
 } // Heap

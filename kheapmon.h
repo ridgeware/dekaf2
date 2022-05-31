@@ -74,12 +74,14 @@ bool    Stop();
 /// dump profile result to file
 /// @param sDumpFile the  path name for the output file
 /// @param Format the output format, raw or one of the analyzed formats
+/// @param sAdditionalOptions further analysis options to pass on to the profiler, like --alloc_space, default none
 /// @return true on success
-bool    Dump(KStringViewZ sDumpFile, ReportFormat Format);
+bool    Dump(KStringViewZ sDumpFile, ReportFormat Format, KStringView sAdditionalOptions = KStringView{});
 /// dump profile result to string
 /// @param Format the output format, raw or one of the analyzed formats
+/// @param sAdditionalOptions further analysis options to pass on to the profiler, like --alloc_space, default none
 /// @return a string with the dump output
-KString Dump(ReportFormat Format);
+KString Dump(ReportFormat Format, KStringView sAdditionalOptions = KStringView{});
 /// clear/reset collected data
 bool    Reset();
 /// returns true if monitoring was started

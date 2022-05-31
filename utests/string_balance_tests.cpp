@@ -319,11 +319,15 @@ TEST_CASE("StringBalance") {
 #endif
 			str = "123456789012345678901234567890";
 			oks.fmv(std::move(str));
+#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 			CHECK ( str == "" );
+#endif
 			CHECK ( oks.str() == "123456789012345678901234567890" );
 			str = "123456789012345678901234567890";
 			oks.fvcp(std::move(str));
+#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 			CHECK ( str == "" );
+#endif
 			CHECK ( oks.str() == "123456789012345678901234567890" );
 //			oks.fref(str);
 			oks.fccp(str);
@@ -364,10 +368,12 @@ TEST_CASE("StringBalance") {
 			s   = "123456789012345678901234567890";
 			ks  = std::move(s);
 			CHECK ( ks == "123456789012345678901234567890" );
+#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 			CHECK ( s  == "" );
 			s   = std::move(ks).str();
 			CHECK ( s  == "123456789012345678901234567890" );
 			CHECK ( ks == "" );
+#endif
 			s   = "12321";
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 			ks  = sv;
@@ -376,16 +382,20 @@ TEST_CASE("StringBalance") {
 			ks  = ksz;
 		}
 
+#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 		{
 			KString ks("123456789012345678901234567890");
 			std::string s(std::move(ks).str());
 			CHECK ( ks == "" );
 			CHECK ( s  == "123456789012345678901234567890");
 		}
+#endif
 		{
 			std::string s("123456789012345678901234567890");
 			KString ks(std::move(s));
+#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 			CHECK ( s  == "" );
+#endif
 			CHECK ( ks == "123456789012345678901234567890");
 		}
 

@@ -1061,7 +1061,7 @@ String& kLimitSizeUTF8InPlace(String& sLimitMe,
 #if defined(DEKAF2_HAS_FULL_CPP_17)
 		sLimitMe.replace(size.first, size.second, sEllipsis);
 #else
-		sLimitMe.replace(size.fist, size.second, sEllipsis.data(), sEllipsis.size());
+		sLimitMe.replace(size.first, size.second, sEllipsis.data(), sEllipsis.size());
 #endif
 	}
 

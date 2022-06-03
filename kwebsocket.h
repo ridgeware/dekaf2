@@ -69,10 +69,10 @@ enum StreamType
 	NONE, TCP, TLS, UNIX
 };
 
-StreamType                GetStreamType    (KStream& Stream);
-KTCPIOStream::asiostream  GetAsioTCPStream (KStream& Stream);
-KSSLIOStream::asiostream  GetAsioTLSStream (KStream& Stream);
-KUnixIOStream::asiostream GetAsioUnixStream(KStream& Stream);
+StreamType                  GetStreamType    (KStream& Stream);
+KTCPIOStream::asiostream&&  GetAsioTCPStream (KStream& Stream);
+KSSLIOStream::asiostream&&  GetAsioTLSStream (KStream& Stream);
+KUnixIOStream::asiostream&& GetAsioUnixStream(KStream& Stream);
 
 /// a websocket frame type
 enum FrameType : uint8_t

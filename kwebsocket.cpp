@@ -93,7 +93,7 @@ StreamType GetStreamType(KStream& Stream)
 } // GetStreamType
 
 //-----------------------------------------------------------------------------
-KTCPIOStream::asiostream GetAsioTCPStream (KStream& Stream)
+KTCPIOStream::asiostream&& GetAsioTCPStream (KStream& Stream)
 //-----------------------------------------------------------------------------
 {
 	auto S = dynamic_cast<KTCPIOStream*>(&Stream);
@@ -108,7 +108,8 @@ KTCPIOStream::asiostream GetAsioTCPStream (KStream& Stream)
 } // GetAsioTCPStream
 
 //-----------------------------------------------------------------------------
-KSSLIOStream::asiostream GetAsioTLSStream (KStream& Stream)
+// this one _has_ to be an explicit RVALUE because of older GCCs (< 11)
+KSSLIOStream::asiostream&& GetAsioTLSStream (KStream& Stream)
 //-----------------------------------------------------------------------------
 {
 	auto S = dynamic_cast<KSSLIOStream*>(&Stream);
@@ -123,7 +124,7 @@ KSSLIOStream::asiostream GetAsioTLSStream (KStream& Stream)
 } // GetAsioTLSStream
 
 //-----------------------------------------------------------------------------
-KUnixIOStream::asiostream GetAsioUnixStream(KStream& Stream)
+KUnixIOStream::asiostream&& GetAsioUnixStream(KStream& Stream)
 //-----------------------------------------------------------------------------
 {
 	auto S = dynamic_cast<KUnixIOStream*>(&Stream);

@@ -34,8 +34,10 @@ TEST_CASE("KWebSocket")
 			CHECK ( kwebsocket::GetStreamType(RefStream) == kwebsocket::StreamType::TLS );
 			CHECK_THROWS( kwebsocket::GetAsioTCPStream (RefStream) );
 			CHECK_THROWS( kwebsocket::GetAsioUnixStream(RefStream) );
+#if BOOST_VERSION >= 107400
 			auto AsioStream = kwebsocket::GetAsioTLSStream(RefStream);
 			CHECK_THROWS( AsioStream.shutdown() );
+#endif
 		}
 		{
 			auto Stream = CreateKTCPStream();

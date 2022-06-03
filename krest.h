@@ -44,6 +44,7 @@
 #include "krestserver.h"
 #include "ktcpserver.h"
 #include "kpoll.h"
+#include "kwebsocket.h"
 #include <csignal>
 
 /// @file krest.h
@@ -176,12 +177,17 @@ private:
 
 		//-----------------------------------------------------------------------------
 		template<typename... Args>
-		RESTServer(const KREST::Options& Options, const KRESTRoutes& Routes, KSocketWatch& SocketWatch, Args&&... args)
+		RESTServer(const KREST::Options& Options,
+				   const KRESTRoutes& Routes,
+				   KSocketWatch& SocketWatch,
+				   KWebSocketServer& WebSocketServer,
+				   Args&&... args)
 		//-----------------------------------------------------------------------------
-			: KTCPServer(std::forward<Args>(args)...)
-			, m_Options(Options)
-			, m_Routes(Routes)
-			, m_SocketWatch(SocketWatch)
+			: KTCPServer        (std::forward<Args>(args)...)
+			, m_Options         (Options)
+			, m_Routes          (Routes)
+			, m_SocketWatch     (SocketWatch)
+			, m_WebSocketServer (WebSocketServer)
 		{
 		}
 
@@ -196,6 +202,7 @@ private:
 		const KREST::Options& m_Options;
 		const KRESTRoutes&    m_Routes;
 		KSocketWatch&         m_SocketWatch;
+		KWebSocketServer&     m_WebSocketServer;
 
 	}; // RESTServer
 
@@ -203,6 +210,7 @@ private:
 	std::unique_ptr<RESTServer>   m_Server;
 	KThreadPool::ShutdownCallback m_ShutdownCallback;
 	std::unique_ptr<KSocketWatch> m_SocketWatch;
+	std::unique_ptr<KWebSocketServer> m_WebSocketServer;
 
 }; // KREST
 

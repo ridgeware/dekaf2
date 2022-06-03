@@ -105,10 +105,12 @@ KRESTRoute::KRESTRoute(KHTTPMethod _Method, class Options _Options, KString _sRo
 } // KRESTRoute
 
 //-----------------------------------------------------------------------------
-bool KRESTRoute::Matches(const KRESTPath& Path, Parameters* Params, bool bCompareMethods, bool bCheckWebservers) const
+bool KRESTRoute::Matches(const KRESTPath& Path, Parameters* Params, bool bCompareMethods, bool bCheckWebservers, bool bIsWebSocket) const
 //-----------------------------------------------------------------------------
 {
-	if ((!bCompareMethods || Method.empty() || Method == Path.Method) && (bCheckWebservers || sDocumentRoot.empty()))
+	if ((!bCompareMethods || bIsWebSocket == Option.Has(Options::WEBSOCKET)) &&
+		(!bCompareMethods || Method.empty() || Method == Path.Method)        &&
+		(bCheckWebservers || sDocumentRoot.empty()))
 	{
 		if (!bHasParameters && !bHasWildCardFragment)
 		{
@@ -308,7 +310,7 @@ bool KRESTRoutes::CheckForWrongMethod(const KRESTPath& Path) const
 } // CheckForWrongMethod
 
 //-----------------------------------------------------------------------------
-const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Params, bool bCheckForWrongMethod) const
+const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Params, bool bIsWebSocket, bool bCheckForWrongMethod) const
 //-----------------------------------------------------------------------------
 {
 	if (bCheckForWrongMethod && Path.Method == KHTTPMethod::INVALID)
@@ -322,10 +324,10 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 	// check for a matching route
 	for (const auto& it : m_Routes)
 	{
-		kDebug (3, "evaluating: {} {}" , it.Method.Serialize(), it.sRoute);
-		if (it.Matches(Path, &Params, true, true))
+		kDebug (3, "evaluating: {} {}{}" , it.Method.Serialize(), it.sRoute, bIsWebSocket ? " (websocket)" : "");
+		if (it.Matches(Path, &Params, true, true, bIsWebSocket))
 		{
-			kDebug (2, "     found: {} {}", it.Method.Serialize(), it.sRoute);
+			kDebug (2, "     found: {} {}{}", it.Method.Serialize(), it.sRoute, bIsWebSocket ? " (websocket)" : "");
 			return it;
 		}
 	}
@@ -353,12 +355,12 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 } // FindRoute
 
 //-----------------------------------------------------------------------------
-const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Params, bool bCheckForWrongMethod) const
+const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Params, bool bIsWebSocket, bool bCheckForWrongMethod) const
 //-----------------------------------------------------------------------------
 {
 	Parameters parms;
 
-	auto& ret = FindRoute(Path, parms, bCheckForWrongMethod);
+	auto& ret = FindRoute(Path, parms, bIsWebSocket, bCheckForWrongMethod);
 
 	// add all variables from the path into the request query
 	for (const auto& qp : parms)

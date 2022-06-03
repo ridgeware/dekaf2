@@ -146,7 +146,8 @@ public:
 			NONE         = 0,       ///< no options
 			SSO_AUTH     = 1 << 0,  ///< requires SSO authentication
 			GENERIC_AUTH = 1 << 1,  ///< requires generic authentication (through KRESTServer::Options::AuthCallback)
-			NO_SSO_SCOPE = 1 << 2   ///< do NOT check for SSO scope (from KRESTServer::Options::sAuthScope)
+			NO_SSO_SCOPE = 1 << 2,  ///< do NOT check for SSO scope (from KRESTServer::Options::sAuthScope)
+			WEBSOCKET    = 1 << 3   ///< promote into web socket, else fail
 		};
 
 		constexpr
@@ -251,7 +252,7 @@ public:
 	/// @param Path the REST path from a request to match with this route
 	/// @param Params pointer on a vector of parameters object, if not null will be filled with the found rest path parameters (components starting with : or = )
 	/// @return true if the Path matches this route, false otherwise
-	bool Matches(const KRESTPath& Path, Parameters* Params = nullptr, bool bCompareMethods = true, bool bCheckWebservers = true) const;
+	bool Matches(const KRESTPath& Path, Parameters* Params = nullptr, bool bCompareMethods = true, bool bCheckWebservers = true, bool bIsWebSocket = false) const;
 	//-----------------------------------------------------------------------------
 
 	RESTCallback Callback;
@@ -423,6 +424,10 @@ public:
 				{
 					AddRedirect(KHTTPRewrite(Routes[i].sRoute, Routes[i].sDocumentRoot));
 				}
+				else if (Routes[i].sMethod == "WEBSOCKET")
+				{
+					AddRoute(KRESTRoute("GET", Routes[i].Options, Routes[i].sRoute, Routes[i].sDocumentRoot, *this, &KRESTRoutes::WebServer, Routes[i].Parser));
+				}
 				else
 				{
 					AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].Options, Routes[i].sRoute, Routes[i].sDocumentRoot, *this, &KRESTRoutes::WebServer, Routes[i].Parser));
@@ -467,18 +472,20 @@ public:
 	/// Throws KHTTPError if no matching route found - fills additonal params in Path into Params
 	/// @param Path the REST path from a request to match with the routes
 	/// @param Params ref on a vector of parameters object, will be filled with the found rest path parameters (components starting with : or = )
+	/// @param bIsWebSocket requested route is a websocket
 	/// @param bCheckForWrongMethod if true, throw a different error message if a route was not matched only because of the request method. Slightly less performant.
 	/// @return the found route, if any
-	const KRESTRoute& FindRoute(const KRESTPath& Path, Parameters& Params, bool bCheckForWrongMethod) const;
+	const KRESTRoute& FindRoute(const KRESTPath& Path, Parameters& Params, bool bIsWebSocket, bool bCheckForWrongMethod) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Throws KHTTPError if no matching route found - fills additional params in Path into Params
 	/// @param Path the REST path from a request to match with the routes
 	/// @param Params ref on a url::KQuery object, will be filled with the found rest path parameters (components starting with : or = )
+	/// @param bIsWebSocket requested route is a websocket
 	/// @param bCheckForWrongMethod if true, throw a different error message if a route was not matched only because of the request method. Slightly less performant.
 	/// @return the found route, if any
-	const KRESTRoute& FindRoute(const KRESTPath& Path, url::KQuery& Params, bool bCheckForWrongMethod) const;
+	const KRESTRoute& FindRoute(const KRESTPath& Path, url::KQuery& Params, bool bIsWebSocket, bool bCheckForWrongMethod) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

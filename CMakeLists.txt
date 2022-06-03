@@ -748,6 +748,7 @@ set(PUBLIC_HEADERS
 	kversion.h
 	kwebclient.h
 	kwebobjects.h
+	kwebsocket.h
 	kwords.h
 	kwriter.h
 	kxml.h
@@ -898,6 +899,7 @@ set (SOURCES
 	kversion.cpp
 	kwebclient.cpp
 	kwebobjects.cpp
+	kwebsocket.cpp
 	kwords.cpp
 	kwriter.cpp
 	kxml.cpp

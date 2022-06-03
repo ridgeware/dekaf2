@@ -51,7 +51,7 @@ namespace dekaf2 {
 void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, int iSocketFd)
 //-----------------------------------------------------------------------------
 {
-	KRESTServer Request(m_Routes, m_Options);
+	KRESTServer RESTServer(m_Routes, m_Options);
 
 #ifndef DEKAF2_IS_WINDOWS
 
@@ -61,9 +61,9 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 		KPoll::Parameters Params;
 		Params.iParameter = kGetTid();
 		Params.bOnce      = true; // trigger only once - when the connection is gone it is gone
-		Params.Callback   = [this, &Request](int fd, uint16_t events, std::size_t iParam)
+		Params.Callback   = [this, &RESTServer](int fd, uint16_t events, std::size_t iParam)
 		{
-			Request.SetDisconnected();
+			RESTServer.SetDisconnected();
 
 			if (m_Options.DisconnectCallback)
 			{
@@ -75,11 +75,34 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 
 #endif
 
-	Request.Accept(Stream,
+	RESTServer.Accept(Stream,
 				   sRemoteEndpoint,
 				   IsSSL() ? url::KProtocol::HTTPS : url::KProtocol::HTTP,
 				   GetPort());
-	Request.Execute();
+	RESTServer.Execute();
+
+#if 0
+	if (RESTServer.SwitchToWebSocket())
+	{
+		// the client requests a switch to the websocket protocol
+		// now move the connection to the websocket event handler, and return this
+		// thread into the pool
+		auto handle = m_WebSocketServer.AddConnection(Stream);
+
+		if (handle > 0)
+		{
+			kwebsocket::Frame Frame(Stream);
+			auto sContent = Frame.Payload();
+			std::reverse(sContent.begin(), sContent.end());
+			Frame.Text(sContent);
+			Frame.Write(Stream, false);
+			Stream.Flush();
+
+			// call the API handler once
+			RESTServer.Route->Callback(RESTServer);
+		}
+	}
+#endif
 
 	// get out of here if the tcp server is shutting down - otherwise
 	// UBSAN complains about accessing the derived class, which is no
@@ -89,7 +112,9 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 #ifndef DEKAF2_IS_WINDOWS
 		if (m_Options.bPollForDisconnect)
 		{
-			if (!Request.IsDisconnected())
+			// if the connection is already marked as disconnected
+			// it has already been removed from the watch
+			if (!RESTServer.IsDisconnected())
 			{
 				m_SocketWatch.Remove(iSocketFd);
 			}
@@ -97,7 +122,7 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 #endif
 	}
 
-	Request.Disconnect();
+	RESTServer.Disconnect();
 
 } // Session
 
@@ -123,11 +148,17 @@ bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStre
 {
 	kDebug (2, "...");
 
-	KRESTServer Request(Routes, Options);
+	KRESTServer RESTServer(Routes, Options);
 	
-	Request.Accept(Stream, sRemoteIP, Proto, iPort);
-	bool bRet = Request.Execute();
-	Request.Disconnect();
+	RESTServer.Accept(Stream, sRemoteIP, Proto, iPort);
+	bool bRet = RESTServer.Execute();
+
+	if (RESTServer.SwitchToWebSocket())
+	{
+		kDebug(1, "cannot upgrade to websocket protocol on stdio");
+	}
+
+	RESTServer.Disconnect();
 
 	return bRet;
 
@@ -194,8 +225,15 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				kDebug(1, "starting standalone {} server on port {}...", bUseTLS ? "HTTPS" : "HTTP", Options.iPort);
 				Options.Out = KRESTServer::HTTP;
 
-				m_SocketWatch = std::make_unique<KSocketWatch>(250);
-				m_Server = std::make_unique<RESTServer>(Options, Routes, *m_SocketWatch, Options.iPort, bUseTLS, Options.iMaxConnections);
+				m_SocketWatch     = std::make_unique<KSocketWatch>(250);
+				m_WebSocketServer = std::make_unique<KWebSocketServer>();
+				m_Server          = std::make_unique<RESTServer>(Options,
+																 Routes,
+																 *m_SocketWatch,
+																 *m_WebSocketServer,
+																 Options.iPort,
+																 bUseTLS,
+																 Options.iMaxConnections);
 
 				if (bUseTLS)
 				{
@@ -248,9 +286,15 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 			{
 				KLog::getInstance().SetMode(KLog::SERVER);
 				kDebug(1, "starting standalone HTTP server on socket file {}...", Options.sSocketFile);
-				Options.Out = KRESTServer::HTTP;
-				m_SocketWatch = std::make_unique<KSocketWatch>(250);
-				m_Server = std::make_unique<RESTServer>(Options, Routes, *m_SocketWatch, Options.sSocketFile, Options.iMaxConnections);
+				Options.Out       = KRESTServer::HTTP;
+				m_SocketWatch     = std::make_unique<KSocketWatch>(250);
+				m_WebSocketServer = std::make_unique<KWebSocketServer>();
+				m_Server          = std::make_unique<RESTServer>(Options,
+																 Routes,
+																 *m_SocketWatch,
+																 *m_WebSocketServer,
+																 Options.sSocketFile,
+																 Options.iMaxConnections);
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 				if (!m_Server->Start(Options.iTimeout, Options.bBlocking))

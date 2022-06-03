@@ -339,6 +339,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Get a temporary directory that is guaranteed to exist until this REST request is answered.
 	/// All content and the directory will be removed after the REST connection got closed.
+	/// @return a string with the path name of the temporary directory
 	const KString& GetTempDir()
 	//-----------------------------------------------------------------------------
 	{
@@ -351,7 +352,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Returns true if the connection is disconnected
+	/// @return true if the connection is disconnected
 	bool IsDisconnected();
 	//-----------------------------------------------------------------------------
 
@@ -367,6 +368,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// @return the length in bytes of the request body
 	std::size_t GetRequestBodyLength() const
 	//-----------------------------------------------------------------------------
 	{
@@ -374,6 +376,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// @return the length in bytes of the request headers
 	std::size_t GetRequestHeaderLength() const
 	//-----------------------------------------------------------------------------
 	{
@@ -381,6 +384,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// @return the length in bytes of the response content (body)
 	std::size_t GetContentLength() const
 	//-----------------------------------------------------------------------------
 	{
@@ -388,6 +392,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// @return the length in bytes of the request header and request body
 	std::size_t GetReceivedBytes() const
 	//-----------------------------------------------------------------------------
 	{
@@ -395,6 +400,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// @return the length in bytes of the sent bytes
 	std::size_t GetSentBytes() const
 	//-----------------------------------------------------------------------------
 	{
@@ -402,6 +408,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// @return the count of previous requests on this connection
 	uint16_t GetKeepaliveRound() const
 	//-----------------------------------------------------------------------------
 	{
@@ -409,6 +416,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// @return true if consecutive requests are permitted on this connection
 	bool GetKeepalive() const
 	//-----------------------------------------------------------------------------
 	{
@@ -416,6 +424,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// @return the count in microsecond ticks for a request until the last byte was sent
 	std::chrono::microseconds::rep GetTimeToLastByte() const
 	//-----------------------------------------------------------------------------
 	{
@@ -423,6 +432,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// @return true if the connection was lost
 	bool GetLostConnection() const
 	//-----------------------------------------------------------------------------
 	{
@@ -444,6 +454,14 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		m_PostResponseCallback = PostResponseCallback;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// @return true if this connection shall be switched to the websocket protocol
+	bool SwitchToWebSocket()
+	//-----------------------------------------------------------------------------
+	{
+		return m_bSwitchToWebSocket;
 	}
 
 //------
@@ -520,6 +538,7 @@ private:
 	bool        m_bKeepAlive;            // whether connection will be kept alive
 	bool        m_bLostConnection;       // whether we lost our peer during flight
 	bool        m_bIsStreaming;          // true if we switched to streaming output
+	bool        m_bSwitchToWebSocket;    // true if we will switch to the websocket protocol
 
 	int m_iJSONPrint {
 #ifdef NDEBUG

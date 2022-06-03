@@ -55,6 +55,7 @@
 #include "kcountingstreambuf.h"
 #include "krow.h"
 #include "ktime.h"
+#include "kwebsocket.h"
 
 namespace dekaf2 {
 
@@ -684,8 +685,10 @@ bool KRESTServer::Execute()
 
 			RequestPath = KRESTPath(Request.Method, sURLPath);
 
+			m_bSwitchToWebSocket = kwebsocket::CheckForWebSocketUpgrade(Request, true);
+
 			// find the right route
-			Route = &m_Routes.FindRoute(RequestPath, Request.Resource.Query, m_Options.bCheckForWrongMethod);
+			Route = &m_Routes.FindRoute(RequestPath, Request.Resource.Query, m_bSwitchToWebSocket, m_Options.bCheckForWrongMethod);
 
 			if (!Route->Callback)
 			{
@@ -759,10 +762,31 @@ bool KRESTServer::Execute()
 			{
 				m_Timers->StoreInterval(Timer::ROUTE);
 			}
-
-			if (Request.HasContent(Request.Method == KHTTPMethod::GET))
+/*
+			if (Request.Headers.Get(KHTTPHeader::EXPECT) == "100-continue")
 			{
-				Parse();
+			}
+*/
+			if (!m_bSwitchToWebSocket)
+			{
+				if (Request.HasContent(Request.Method == KHTTPMethod::GET))
+				{
+					Parse();
+				}
+			}
+			else
+			{
+				if (m_Options.Out != HTTP)
+				{
+					throw KWebSocketError { "bad mode: websockets are only allowed in HTTP standalone mode" };
+				}
+
+				// upgrade to a websocket connection
+				const auto& sClientSecKey = Request.Headers.Get(KHTTPHeader::SEC_WEBSOCKET_KEY);
+				Response.Headers.Add(KHTTPHeader::SEC_WEBSOCKET_ACCEPT, kwebsocket::GenerateServerSecKeyResponse(sClientSecKey, true));
+				Response.Headers.Add(KHTTPHeader::CONNECTION, "Upgrade");
+				Response.Headers.Add(KHTTPHeader::UPGRADE, "websocket");
+				Response.SetStatus(101);
 			}
 
 			if (m_Timers)
@@ -775,30 +799,33 @@ bool KRESTServer::Execute()
 			// an exception be thrown
 			m_iRequestBodyLength = Request.Count();
 
-			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
-			// debug info
-			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
-			kDebug (1, KLog::DASH);
-			kDebug (1, "{}: {}", GetRequestMethod(), GetRequestPath());
+			if (!m_bSwitchToWebSocket)
+			{
+				// - - - - - - - - - - - - - - - - - - - - - - - - - - -
+				// debug info
+				// - - - - - - - - - - - - - - - - - - - - - - - - - - -
+				kDebug (1, KLog::DASH);
+				kDebug (1, "{}: {}", GetRequestMethod(), GetRequestPath());
 
-			kSetCrashContext (kFormat ("{}: {}\nHost: {} Remote IP: {}",
-									   Request.Method.Serialize(),
-									   Request.Resource.Serialize(),
-									   m_Options.sServername,
-									   Request.GetRemoteIP())
-							  );
+				kSetCrashContext (kFormat ("{}: {}\nHost: {} Remote IP: {}",
+										   Request.Method.Serialize(),
+										   Request.Resource.Serialize(),
+										   m_Options.sServername,
+										   Request.GetRemoteIP())
+								  );
 
-			// check that we are still connected to the remote end
-			ThrowIfDisconnected();
+				// check that we are still connected to the remote end
+				ThrowIfDisconnected();
 
-			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
-			// call the application method to handle this request:
-			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
-			Route->Callback(*this);
+				// - - - - - - - - - - - - - - - - - - - - - - - - - - -
+				// call the application method to handle this request:
+				// - - - - - - - - - - - - - - - - - - - - - - - - - - -
+				Route->Callback(*this);
 
-			kAppendCrashContext("completed route handler");
+				kAppendCrashContext("completed route handler");
 
-			m_iRequestBodyLength = Request.Count();
+				m_iRequestBodyLength = Request.Count();
+			}
 
 			if (m_Timers)
 			{
@@ -811,6 +838,7 @@ bool KRESTServer::Execute()
 			// execution and could lead to a DoS if an attacker would
 			// hold as many connections as we have simultaneous threads.
 			m_bKeepAlive = !m_bIsStreaming
+						&& !m_bSwitchToWebSocket
 						&& (m_Options.Out == HTTP)
 						&& (m_iRound+1 < m_Options.iMaxKeepaliveRounds)
 						&& Request.HasKeepAlive();
@@ -944,7 +972,7 @@ void KRESTServer::WriteHeaders()
 		}
 	}
 
-	Response.Headers.Set (KHTTPHeader::CONNECTION, m_bKeepAlive ? "keep-alive" : "close");
+	Response.Headers.Set (KHTTPHeader::CONNECTION, m_bKeepAlive || m_bSwitchToWebSocket ? "keep-alive" : "close");
 
 	{
 		// the headers get written directly to the unfiltered stream,
@@ -1304,6 +1332,9 @@ void KRESTServer::xml_t::clear()
 void KRESTServer::ErrorHandler(const std::exception& ex)
 //-----------------------------------------------------------------------------
 {
+	// avoid switching to the websocket protocol on a failed connection
+	m_bSwitchToWebSocket = false;
+
 	if (IsDisconnected())
 	{
 		kDebug(1, "remote end disconnected");
@@ -1618,6 +1649,7 @@ void KRESTServer::clear()
 	m_JsonLogger.reset();
 	m_TempDir.clear();
 	m_bIsStreaming         = false;
+	m_bSwitchToWebSocket   = false;
 	// do not clear m_Timer, the main Execute loop takes care of it
 
 	m_iJSONPrint =

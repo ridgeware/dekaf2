@@ -63,6 +63,9 @@ public:
 
 	enum
 	{
+		H1xx_CONTINUE           = 100,
+		H1xx_SWITCHING_PROTOCOL = 101,
+		
 		H2xx_OK                 = 200,  // each new code needs logic in GetStatusString()
 		H2xx_CREATED            = 201,
 		H2xx_ACCEPTED           = 202,

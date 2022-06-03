@@ -80,6 +80,12 @@ KStringView KHTTPError::GetStatusString(uint16_t iStatusCode)
 		case 0:                       return KStringView{};
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		// HTTP 100s: special
+		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		case H1xx_CONTINUE:           return "CONTINUE";
+		case H1xx_SWITCHING_PROTOCOL: return "SWITCHING PROTOCOL";
+
+		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// HTTP 200s: ok
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		case H2xx_OK:                 return "OK";

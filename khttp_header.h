@@ -129,6 +129,11 @@ public:
 		RANGE,
 		REFERER,
 		RETRY_AFTER,
+		SEC_WEBSOCKET_ACCEPT,
+		SEC_WEBSOCKET_KEY,
+		SEC_WEBSOCKET_EXTENSIONS,
+		SEC_WEBSOCKET_VERSION,
+		SEC_WEBSOCKET_PROTOCOL,
 		SERVER,
 		SET_COOKIE,
 		STRICT_TRANSPORT_SECURITY,
@@ -350,6 +355,16 @@ public:
 				return "Referer";
 			case RETRY_AFTER:
 				return "Retry-After";
+			case SEC_WEBSOCKET_ACCEPT:
+				return "Sec-WebSocket-Accept";
+			case SEC_WEBSOCKET_KEY:
+				return "Sec-WebSocket-Key";
+			case SEC_WEBSOCKET_EXTENSIONS:
+				return "Sec-WebSocket-Extensions";
+			case SEC_WEBSOCKET_VERSION:
+				return "Sec-WebSocket-Version";
+			case SEC_WEBSOCKET_PROTOCOL:
+				return "Sec-WebSocket-Protocol";
 			case SERVER:
 				return "Server";
 			case SET_COOKIE:
@@ -576,6 +591,16 @@ public:
 				return REFERER;
 			case "Retry-After"_casehash:
 				return RETRY_AFTER;
+			case "Sec-WebSocket-Accept"_casehash:
+				return SEC_WEBSOCKET_ACCEPT;
+			case "Sec-WebSocket-Key"_casehash:
+				return SEC_WEBSOCKET_KEY;
+			case "Sec-WebSocket-Extensions"_casehash:
+				return SEC_WEBSOCKET_EXTENSIONS;
+			case "Sec-WebSocket-Version"_casehash:
+				return SEC_WEBSOCKET_VERSION;
+			case "Sec-WebSocket-Protocol"_casehash:
+				return SEC_WEBSOCKET_PROTOCOL;
 			case "Server"_casehash:
 				return SERVER;
 			case "Set-Cookie"_casehash:

@@ -666,14 +666,14 @@ KWebSocketServer::Handle KWebSocketServer::AddWebSocket(KWebSocket WebSocket)
 //-----------------------------------------------------------------------------
 {
 	Handle handle { ++m_iLastID };
-
-	auto p = m_Connections.unique()->insert(std::pair(handle, std::move(WebSocket)));
+/*
+	auto p = m_Connections.unique()->insert({handle, std::move(WebSocket)});
 
 	if (!p.second)
 	{
 		throw KWebSocketError("cannot add websocket");
 	}
-
+*/
 	return handle;
 
 } // AddConnection

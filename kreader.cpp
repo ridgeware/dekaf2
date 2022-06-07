@@ -39,17 +39,15 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include <iostream>
-#include <fcntl.h>
-
 #include "bits/kcppcompat.h"
-
 #include "kreader.h"
 #include "kwriter.h" // we need KOutStream
 #include "klog.h"
 #include "kfilesystem.h"
 #include "ksystem.h"
 #include "kstringutils.h"
+#include <iostream>
+#include <fcntl.h>
 
 #ifdef DEKAF2_IS_WINDOWS
 	#include <io.h>
@@ -253,7 +251,11 @@ bool kAppendAll(std::istream& Stream, KStringRef& sContent, bool bFromStart, std
 	// This saves one run of unnecessary construction.
 	sContent.resize_uninitialized(uiContentSize + uiSize);
 #else
+	#ifdef __cpp_lib_string_resize_and_overwrite
+	sContent.resize_and_overwrite(uiContentSize + uiSize, [](KStringRef::pointer buf, KStringRef::size_type buf_size) noexcept { return buf_size; });
+	#else
 	sContent.resize(uiContentSize + uiSize);
+	#endif
 #endif
 
 	auto iRead = static_cast<std::size_t>(streambuf->sgetn(&sContent[uiContentSize], iSize));
@@ -368,7 +370,11 @@ bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRe
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 			sContent.resize_uninitialized(iContent + iSize);
 #else
+	#ifdef __cpp_lib_string_resize_and_overwrite
+			sContent.resize_and_overwrite(iContent + iSize, [](KStringRef::pointer buf, KStringRef::size_type buf_size) noexcept { return buf_size; });
+	#else
 			sContent.resize(iContent + iSize);
+	#endif
 #endif
 			auto iRead = File.Read(&sContent[iContent], iSize);
 
@@ -392,7 +398,11 @@ bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRe
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 			sContent.resize_uninitialized(iContent + iSize);
 #else
+	#ifdef __cpp_lib_string_resize_and_overwrite
+			sContent.resize_and_overwrite(iContent + iSize, [](KStringRef::pointer buf, KStringRef::size_type buf_size) noexcept { return buf_size; });
+	#else
 			sContent.resize(iContent + iSize);
+	#endif
 #endif
 			auto iRead = kReadFromFileDesc(fd, &sContent[iContent], iSize);
 
@@ -788,7 +798,11 @@ std::size_t KInStream::Read(KStringRef& sBuffer, std::size_t iCount)
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 	sBuffer.resize_uninitialized(iOldLen + iCount);
 #else
+	#ifdef __cpp_lib_string_resize_and_overwrite
+	sBuffer.resize_and_overwrite(iOldLen + iCount, [](KStringRef::pointer buf, KStringRef::size_type buf_size) noexcept { return buf_size; });
+	#else
 	sBuffer.resize(iOldLen + iCount);
+	#endif
 #endif
 
 	auto iAddedLen = Read(&sBuffer[iOldLen], iCount);

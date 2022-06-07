@@ -120,7 +120,13 @@ void KString::log_exception(const std::exception& e, const char* sWhere)
 void KString::resize_uninitialized(size_type n)
 //------------------------------------------------------------------------------
 {
-#ifdef DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
+#if defined(__cpp_lib_string_resize_and_overwrite) && !defined(DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED)
+	// with C++23 we will get the equivalence of what we used to do with FBString:
+	// resizing the string buffer uninitialized, with a handler to set its content
+	// (which we won't do)
+	resize_and_overwrite(n, [](pointer buf, size_type buf_size) noexcept { return buf_size; });
+#else
+	#ifdef DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
 	static constexpr size_type LARGEST_SSO = 23;
 
 	// never do this optimization for SSO strings
@@ -157,10 +163,11 @@ void KString::resize_uninitialized(size_type n)
 			}
 		}
 	}
-#endif
+	#endif
 
 	// fallback to an initialized resize
 	resize(n);
+#endif
 }
 
 //------------------------------------------------------------------------------

@@ -44,15 +44,10 @@
 /// @file kreader.h
 /// holds the basic reader abstraction
 
-#include <streambuf>
-#include <istream>
-#include <fstream>
-#include <sstream>
-#include <iterator>
-#include <type_traits>
 #include "bits/kfilesystem.h"
 #include "kfilesystem.h"
 #include "kstring.h"
+#include <istream>
 
 namespace dekaf2
 {
@@ -293,7 +288,7 @@ public:
 	/// value constructor
 	KInStream(std::istream& InStream)
 	//-----------------------------------------------------------------------------
-	    : m_InStream(InStream)
+	    : m_InStream(&InStream)
 	{
 	}
 
@@ -313,7 +308,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// move assignment is deleted, as with std::istream (use the move constructor instead)
+	/// move assignment is deleted, as with std::istream
 	self_type& operator=(self_type&& other) = delete;
 	//-----------------------------------------------------------------------------
 
@@ -580,7 +575,7 @@ public:
 	const std::istream& InStream() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_InStream;
+		return *m_InStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -588,7 +583,7 @@ public:
 	std::istream& InStream()
 	//-----------------------------------------------------------------------------
 	{
-		return m_InStream;
+		return *m_InStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -616,10 +611,10 @@ public:
 	}
 
 //-------
-protected:
+private:
 //-------
 
-	std::istream& m_InStream;
+	std::istream* m_InStream;
 	KString m_sTrimRight { detail::kLineRightTrims };
 	KString m_sTrimLeft;
 	KString::value_type m_chDelimiter { '\n' };
@@ -629,7 +624,7 @@ protected:
 extern KInStream KIn;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// The templatized reader abstraction for dekaf2. Can be constructed around any
+/// The general reader abstraction for dekaf2. Can be constructed around any
 /// std::istream.
 template<class IStream>
 class KReader
@@ -648,8 +643,13 @@ public:
 //-------
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
-	template<class... Args>
+	// make sure this does not cover the copy or move constructor by requesting an
+	// args count of != 1
+	template<class... Args,
+		typename std::enable_if<
+			sizeof...(Args) != 1, int
+		>::type = 0
+	>
 	KReader(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
 	    , KInStream(static_cast<base_type&>(*this))
@@ -658,29 +658,51 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// move construct a KReader
-	KReader(self_type&& other) = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// copy constructor is deleted, as with std::istream
-	KReader(self_type& other) = delete;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	virtual ~KReader()
+	// make sure this does not cover the copy or move constructor by requesting the
+	// single arg being of a different type than self_type
+	template<class Arg,
+		typename std::enable_if<
+			!std::is_same<
+				typename std::decay<Arg>::type, self_type
+			>::value, int
+		>::type = 0
+	>
+	KReader(Arg&& arg)
+	    : base_type(std::forward<Arg>(arg))
+	    , KInStream(static_cast<base_type&>(*this))
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
-	/// copy assignment is deleted, as with std::istream
-	self_type& operator=(const self_type& other) = delete;
+	// copy construction is not allowed
+	KReader(const KReader&) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// move assignment
-	self_type& operator=(self_type&& other) = default;
+	// depending on the istream type, move construction is allowed
+	template<typename T = IStream, typename std::enable_if<std::is_move_constructible<T>::value == true, int>::type = 0>
+	KReader(KReader&& other)
+	    : base_type(std::move(other))
+	    , KInStream(std::move(other))
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// depending on the istream type, move construction is not allowed
+	template<typename T = IStream, typename std::enable_if<std::is_move_constructible<T>::value == false, int>::type = 0>
+	KReader(KReader&& other) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// copy assignment is not allowed
+	KReader& operator=(const KReader&) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// move assignment is not allowed
+	KReader& operator=(KReader&& other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -707,24 +729,39 @@ public:
 
 	//-----------------------------------------------------------------------------
 	KInFile(KString str, ios_base::openmode mode = ios_base::in)
-	: base_type(kToFilesystemPath(str), mode | ios_base::binary)
+	    : base_type(kToFilesystemPath(str), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
 	KInFile(KStringViewZ sv, ios_base::openmode mode = ios_base::in)
-	: base_type(kToFilesystemPath(sv), mode | ios_base::binary)
+	    : base_type(kToFilesystemPath(sv), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
 	KInFile(KStringView sv, ios_base::openmode mode = ios_base::in)
-	: KInFile(KString(sv), mode | ios_base::binary)
+	    : KInFile(KString(sv), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
+
+	//-----------------------------------------------------------------------------
+	// depending on the iostream type, move construction is allowed
+	template<typename T = base_type, typename std::enable_if<std::is_move_constructible<T>::value == true, int>::type = 0>
+	KInFile(KInFile&& other)
+	    : base_type(std::move(other))
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// depending on the iostream type, move construction is not allowed
+	template<typename T = base_type, typename std::enable_if<std::is_move_constructible<T>::value == false, int>::type = 0>
+	KInFile(KInFile&& other) = delete;
+	//-----------------------------------------------------------------------------
 
 #ifndef _MSC_VER
 	using base_type::base_type;
@@ -733,7 +770,6 @@ public:
 	// KStringView ctor above if we forward all base class constructors
 	// therefore we need to declare a few more constructors here
 	KInFile() = default;
-	KInFile(KInFile&&) = default;
 	KInFile(const std::string& s, ios_base::openmode mode = ios_base::in)
 	: base_type(kToFilesystemPath(s), mode | ios_base::binary) {}
 	KInFile(const char* sz, ios_base::openmode mode = ios_base::in)

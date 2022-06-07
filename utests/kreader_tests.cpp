@@ -506,4 +506,22 @@ TEST_CASE("KReader") {
 		CHECK ( sLine.size() == 41 );
 	}
 
+	SECTION("move")
+	{
+		static_assert(std::is_move_constructible<std::ifstream>::value);
+
+		std::ifstream F1;
+		auto F2 = std::move(F1);
+
+		KInStream instream(F2);
+		KInStream instream2 = std::move(instream);
+		KInStream& instream3 = instream2;
+		
+		KReader<std::ifstream> File;
+		auto File2 = std::move(File);
+
+		KInFile InFile;
+		auto InFile2 = std::move(InFile);
+	}
+
 }

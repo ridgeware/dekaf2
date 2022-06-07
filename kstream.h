@@ -129,8 +129,13 @@ public:
 //-------
 
 	//-----------------------------------------------------------------------------
-	/// perfect forwarding ctor (forwards all arguments to the iostream)
-	template<class... Args>
+	// make sure this does not cover the copy or move constructor by requesting an
+	// args count of != 1
+	template<class... Args,
+		typename std::enable_if<
+			sizeof...(Args) != 1, int
+		>::type = 0
+	>
 	KReaderWriter(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
 	    , k_rw_type(static_cast<base_type&>(*this))
@@ -139,13 +144,41 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// move construct a KReaderWriter
-	KReaderWriter(self_type&& other) = default;
+	// make sure this does not cover the copy or move constructor by requesting the
+	// single arg being of a different type than self_type
+	template<class Arg,
+		typename std::enable_if<
+			!std::is_same<
+				typename std::decay<Arg>::type, self_type
+			>::value, int
+		>::type = 0
+	>
+	KReaderWriter(Arg&& arg)
+	    : base_type(std::forward<Arg>(arg))
+	    , k_rw_type(static_cast<base_type&>(*this))
 	//-----------------------------------------------------------------------------
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// copy constructor is deleted - std::iostream's is, too
 	KReaderWriter(const self_type& other) = delete;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// depending on the iostream type, move construction is allowed
+	template<typename T = IOStream, typename std::enable_if<std::is_move_constructible<T>::value == true, int>::type = 0>
+	KReaderWriter(KReaderWriter&& other)
+	    : base_type(std::move(other))
+	    , k_rw_type(std::move(other))
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// depending on the iostream type, move construction is not allowed
+	template<typename T = IOStream, typename std::enable_if<std::is_move_constructible<T>::value == false, int>::type = 0>
+	KReaderWriter(KReaderWriter&& other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -161,8 +194,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// move assignment
-	self_type& operator=(self_type&& other) = default;
+	/// move assignment is not allowed
+	self_type& operator=(self_type&& other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -189,24 +222,39 @@ public:
 
 	//-----------------------------------------------------------------------------
 	KFile(KString str, ios_base::openmode mode = ios_base::in | ios_base::out)
-	: base_type(kToFilesystemPath(str), mode | ios_base::binary)
+	    : base_type(kToFilesystemPath(str), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
 	KFile(KStringViewZ sz, ios_base::openmode mode = ios_base::in | ios_base::out)
-	: base_type(kToFilesystemPath(sz), mode | ios_base::binary)
+	    : base_type(kToFilesystemPath(sz), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
 	KFile(KStringView sv, ios_base::openmode mode = ios_base::in | ios_base::out)
-	: KFile(KString(sv), mode | ios_base::binary)
+	    : KFile(KString(sv), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
+
+	//-----------------------------------------------------------------------------
+	// depending on the iostream type, move construction is allowed
+	template<typename T = base_type, typename std::enable_if<std::is_move_constructible<T>::value == true, int>::type = 0>
+	KFile(KFile&& other)
+	    : base_type(std::move(other))
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// depending on the iostream type, move construction is not allowed
+	template<typename T = base_type, typename std::enable_if<std::is_move_constructible<T>::value == false, int>::type = 0>
+	KFile(KFile&& other) = delete;
+	//-----------------------------------------------------------------------------
 
 #ifndef _MSC_VER
 	using base_type::base_type;

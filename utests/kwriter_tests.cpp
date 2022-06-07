@@ -331,4 +331,27 @@ TEST_CASE("KWriter") {
 	}
 #endif
 
+	struct mystreambuf : public std::streambuf
+	{
+		mystreambuf() = default;
+	};
+
+	SECTION("move")
+	{
+		static_assert(std::is_move_constructible<std::ofstream>::value);
+
+		std::ofstream F1;
+		auto F2 = std::move(F1);
+
+		KOutStream outstream(F2);
+		KOutStream outstream2 = std::move(outstream);
+		KOutStream& outstream3 = outstream2;
+
+		KWriter<std::ofstream> File;
+		auto File2 = std::move(File);
+
+		KOutFile OutFile;
+		auto OutFile2 = std::move(OutFile);
+	}
+
 }

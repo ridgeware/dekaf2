@@ -39,13 +39,13 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include <iostream>
-#include <fstream>
 #include "kwriter.h"
 #include "kreader.h"
 #include "klog.h"
 #include "kthreadpool.h"
 #include "kurl.h"
+#include <iostream>
+#include <fstream>
 
 #ifdef DEKAF2_IS_WINDOWS
 	#include <io.h>

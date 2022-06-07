@@ -44,15 +44,12 @@
 /// @file kwriter.h
 /// holds the basic writer abstraction
 
-#include <cinttypes>
-#include <ostream>
-#include <fstream>
-#include <sstream>
-#include <algorithm>
-#include <type_traits>
 #include "bits/kfilesystem.h"
 #include "kstring.h"
 #include "kformat.h"
+#include <cinttypes>
+#include <ostream>
+#include <fstream>
 
 namespace dekaf2
 {
@@ -81,7 +78,7 @@ public:
 	/// value constructor
 	KOutStream(std::ostream& OutStream)
 	//-----------------------------------------------------------------------------
-	    : m_OutStream(OutStream)
+	    : m_OutStream(&OutStream)
 	{
 	}
 
@@ -192,18 +189,6 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Write a fmt::printf() formatted argument list. Returns stream reference that
-	/// resolves to false on failure. Now DEPRECATED, please use Format()!
-	template<class... Args>
-	DEKAF2_DEPRECATED("only for compatibility with old code")
-	self_type& Printf(Args&&... args)
-	//-----------------------------------------------------------------------------
-	{
-		kfPrintf(*this, std::forward<Args>(args)...);
-		return *this;
-	}
-
-	//-----------------------------------------------------------------------------
 	/// Set the end-of-line sequence (defaults to "LF", may differ depending on platform)
 	self_type& SetWriterEndOfLine(KStringView sDelimiter = "\n")
 	//-----------------------------------------------------------------------------
@@ -225,7 +210,7 @@ public:
 	const std::ostream& OutStream() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_OutStream;
+		return *m_OutStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -233,7 +218,7 @@ public:
 	std::ostream& OutStream()
 	//-----------------------------------------------------------------------------
 	{
-		return m_OutStream;
+		return *m_OutStream;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -278,10 +263,10 @@ public:
 	}
 
 //-------
-protected:
+private:
 //-------
 
-	std::ostream& m_OutStream;
+	std::ostream* m_OutStream;
 	KString m_sDelimiter{"\n"};
 
 }; // KOutStream
@@ -309,8 +294,13 @@ public:
 //-------
 
 	//-----------------------------------------------------------------------------
-	// perfect forwarding
-	template<class... Args>
+	// make sure this does not cover the copy or move constructor by requesting an
+	// args count of != 1
+	template<class... Args,
+		typename std::enable_if<
+			sizeof...(Args) != 1, int
+		>::type = 0
+	>
 	KWriter(Args&&... args)
 	    : base_type(std::forward<Args>(args)...)
 	    , KOutStream(static_cast<base_type&>(*this))
@@ -319,27 +309,51 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// move construct a KWriter
-	KWriter(self_type&& other) = default;
+	// make sure this does not cover the copy or move constructor by requesting the
+	// single arg being of a different type than self_type
+	template<class Arg,
+		typename std::enable_if<
+			!std::is_same<
+				typename std::decay<Arg>::type, self_type
+			>::value, int
+		>::type = 0
+	>
+	KWriter(Arg&& arg)
+	    : base_type(std::forward<Arg>(arg))
+	    , KOutStream(static_cast<base_type&>(*this))
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// copy construction is not allowed
+	KWriter(const KWriter&) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// copy constructor is deleted, as with std::ostream
-	KWriter(self_type& other) = delete;
+	// depending on the ostream type, move construction is allowed
+	template<typename T = OStream, typename std::enable_if<std::is_move_constructible<T>::value == true, int>::type = 0>
+	KWriter(KWriter&& other)
+	    : base_type(std::move(other))
+	    , KOutStream(std::move(other))
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// depending on the ostream type, move construction is not allowed
+	template<typename T = OStream, typename std::enable_if<std::is_move_constructible<T>::value == false, int>::type = 0>
+	KWriter(KWriter&& other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	virtual ~KWriter() = default;
+	// copy assignment is not allowed
+	KWriter& operator=(const KWriter&) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// copy assignment is deleted, as with std::ostream
-	self_type& operator=(const self_type& other) = delete;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// move assignment
-	self_type& operator=(self_type&& other) = default;
+	// move assignment is not allowed
+	KWriter& operator=(KWriter&& other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -369,24 +383,39 @@ public:
 
 	//-----------------------------------------------------------------------------
 	KOutFile(KString str, ios_base::openmode mode = ios_base::out)
-	: base_type(kToFilesystemPath(str), mode | ios_base::binary)
+		: base_type(kToFilesystemPath(str), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
 	KOutFile(KStringViewZ sz, ios_base::openmode mode = ios_base::out)
-	: base_type(kToFilesystemPath(sz), mode | ios_base::binary)
+	    : base_type(kToFilesystemPath(sz), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
 
 	//-----------------------------------------------------------------------------
 	KOutFile(KStringView sv, ios_base::openmode mode = ios_base::out)
-	: KOutFile(KString(sv), mode | ios_base::binary)
+	    : KOutFile(KString(sv), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
+
+	//-----------------------------------------------------------------------------
+	// depending on the iostream type, move construction is allowed
+	template<typename T = base_type, typename std::enable_if<std::is_move_constructible<T>::value == true, int>::type = 0>
+	KOutFile(KOutFile&& other)
+	    : base_type(std::move(other))
+	//-----------------------------------------------------------------------------
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	// depending on the iostream type, move construction is not allowed
+	template<typename T = base_type, typename std::enable_if<std::is_move_constructible<T>::value == false, int>::type = 0>
+	KOutFile(KOutFile&& other) = delete;
+	//-----------------------------------------------------------------------------
 
 #ifndef _MSC_VER
 	using base_type::base_type;
@@ -395,7 +424,6 @@ public:
 	// KStringView ctor above if we forward all base class constructors
 	// therefore we need to declare a few more constructors here
 	KOutFile() = default;
-	KOutFile(KOutFile&&) = default;
 	KOutFile(const std::string& s, ios_base::openmode mode = ios_base::out)
 	: base_type(kToFilesystemPath(s), mode | ios_base::binary) {}
 	KOutFile(const char* sz, ios_base::openmode mode = ios_base::out)

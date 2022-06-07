@@ -58,55 +58,6 @@ constexpr KString::value_type KString::s_0ch;
 
 #endif
 
-#ifdef DEKAF2_IS_WINDOWS
-
-void* memmem(void* _haystack, size_t haystack_len, const void* _needle, size_t needle_len)
-{
-	if (DEKAF2_UNLIKELY(needle_len == 0))
-	{
-		return nullptr;
-	}
-
-	char* haystack = static_cast<char*>(_haystack);
-	const char* needle = static_cast<const char*>(_needle);
-	size_t pos = 0;
-
-	for(;;)
-	{
-		if (DEKAF2_UNLIKELY(pos >= haystack_len))
-		{
-			return nullptr;
-		}
-
-		if (DEKAF2_UNLIKELY(needle_len > haystack_len - pos))
-		{
-			return nullptr;
-		}
-
-		auto found = static_cast<const char*>(::memchr(haystack + pos,
-													   needle[0],
-													   (haystack_len - pos - needle_len) + 1));
-		if (DEKAF2_UNLIKELY(!found))
-		{
-			return nullptr;
-		}
-
-		pos = static_cast<size_t>(found - haystack);
-
-		// compare the full needle again, as it is most probably aligned
-		if (std::memcmp(haystack + pos,
-						needle,
-						needle_len) == 0)
-		{
-			return haystack + pos;
-		}
-
-		++pos;
-	}
-}
-
-#endif
-
 KString::value_type KString::s_0ch_v { '\0' };
 
 //------------------------------------------------------------------------------

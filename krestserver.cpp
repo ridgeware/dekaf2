@@ -172,6 +172,10 @@ void KRESTServer::VerifyAuthentication()
 				SetAuthenticatedUser("pseudo-auth");
 				return;
 			}
+			else
+			{
+				SetError(kFormat("empty {} header", KHTTPHeader::AUTHORIZATION));
+			}
 			break;
 
 		case Options::VERIFY_AUTH_HEADER:
@@ -183,7 +187,7 @@ void KRESTServer::VerifyAuthentication()
 				{
 					if (m_Options.Authenticators.empty())
 					{
-						kWarning("authenticator list is empty");
+						SetError("SSO: authenticator list is empty");
 					}
 					else
 					{
@@ -201,11 +205,15 @@ void KRESTServer::VerifyAuthentication()
 							SetAuthenticatedUser(kjson::GetString(GetAuthToken(), "sub"));
 							return;
 						}
+						else
+						{
+							SetError(kFormat("SSO: {}", m_AuthToken.Error()));
+						}
 					}
 				}
 				else
 				{
-					kDebug(2, "auth header is empty..");
+					SetError(kFormat("SSO: empty {} header", KHTTPHeader::AUTHORIZATION));
 				}
 			}
 			break;

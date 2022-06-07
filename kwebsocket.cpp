@@ -667,7 +667,7 @@ KWebSocketServer::Handle KWebSocketServer::AddWebSocket(KWebSocket WebSocket)
 {
 	Handle handle { ++m_iLastID };
 
-	auto p = m_Connections.unique()->insert(std::make_pair(handle, std::move(WebSocket)));
+	auto p = m_Connections.unique()->insert(std::pair(handle, std::move(WebSocket)));
 
 	if (!p.second)
 	{

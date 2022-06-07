@@ -385,17 +385,33 @@ public:
 
 		for (size_t i = 0; i < COUNT; ++i)
 		{
-			if (Routes[i].sMethod == "REWRITE")
+			if (Routes[i].Handler != nullptr)
 			{
-				AddRewrite(KHTTPRewrite(Routes[i].sRoute, Routes[i].sDocumentRoot));
-			}
-			else if (Routes[i].sMethod == "REDIRECT")
-			{
-				AddRedirect(KHTTPRewrite(Routes[i].sRoute, Routes[i].sDocumentRoot));
+				if (Routes[i].sMethod == "WEBSOCKET")
+				{
+					KRESTRoute::Options Options = Routes[i].Options;
+					Options.Set(KRESTRoute::Options::WEBSOCKET);
+					AddRoute(KRESTRoute("GET", Options, Routes[i].sRoute, Routes[i].sDocumentRoot, Routes[i].Handler, Routes[i].Parser));
+				}
+				else
+				{
+					AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].Options, Routes[i].sRoute, Routes[i].sDocumentRoot, Routes[i].Handler, Routes[i].Parser));
+				}
 			}
 			else
 			{
-				AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].Options, Routes[i].sRoute, Routes[i].sDocumentRoot, Routes[i].Handler, Routes[i].Parser));
+				if (Routes[i].sMethod == "REWRITE")
+				{
+					AddRewrite(KHTTPRewrite(Routes[i].sRoute, Routes[i].sDocumentRoot));
+				}
+				else if (Routes[i].sMethod == "REDIRECT")
+				{
+					AddRedirect(KHTTPRewrite(Routes[i].sRoute, Routes[i].sDocumentRoot));
+				}
+				else
+				{
+					AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].Options, Routes[i].sRoute, Routes[i].sDocumentRoot, *this, &KRESTRoutes::WebServer, Routes[i].Parser));
+				}
 			}
 		}
 	}
@@ -412,7 +428,16 @@ public:
 		{
 			if (Routes[i].Handler != nullptr)
 			{
-				AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].Options, Routes[i].sRoute, Routes[i].sDocumentRoot, object, Routes[i].Handler, Routes[i].Parser));
+				if (Routes[i].sMethod == "WEBSOCKET")
+				{
+					KRESTRoute::Options Options = Routes[i].Options;
+					Options.Set(KRESTRoute::Options::WEBSOCKET);
+					AddRoute(KRESTRoute("GET", Options, Routes[i].sRoute, Routes[i].sDocumentRoot, object, Routes[i].Handler, Routes[i].Parser));
+				}
+				else
+				{
+					AddRoute(KRESTRoute(Routes[i].sMethod, Routes[i].Options, Routes[i].sRoute, Routes[i].sDocumentRoot, object, Routes[i].Handler, Routes[i].Parser));
+				}
 			}
 			else
 			{
@@ -423,10 +448,6 @@ public:
 				else if (Routes[i].sMethod == "REDIRECT")
 				{
 					AddRedirect(KHTTPRewrite(Routes[i].sRoute, Routes[i].sDocumentRoot));
-				}
-				else if (Routes[i].sMethod == "WEBSOCKET")
-				{
-					AddRoute(KRESTRoute("GET", Routes[i].Options, Routes[i].sRoute, Routes[i].sDocumentRoot, *this, &KRESTRoutes::WebServer, Routes[i].Parser));
 				}
 				else
 				{

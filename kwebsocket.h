@@ -57,7 +57,7 @@
 
 namespace dekaf2 {
 
-class KWebSocketError : public KException
+class DEKAF2_PUBLIC KWebSocketError : public KException
 {
 	using KException::KException;
 };
@@ -87,7 +87,7 @@ enum FrameType : uint8_t
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a websocket (RFC6455) frame header
-class FrameHeader
+class DEKAF2_PUBLIC FrameHeader
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -128,7 +128,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a websocket (RFC6455) frame, header and payload
-class Frame : public FrameHeader
+class DEKAF2_PUBLIC Frame : public FrameHeader
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -142,20 +142,20 @@ public:
 	{
 		SetPayload(std::move(sPayload), bIsBinary);
 	}
-	/// construct from input stream, decodes one full frame with payload
-	Frame(KInStream& InStream)
+	/// construct from stream, decodes one or multiple frames with payload, may send pong frames
+	Frame(KStream& Stream)
 	{
-		Read(InStream);
+		Read(Stream, false);
 	}
 
-	/// decodes one full frame with payload from input stream
-	bool           Read(KInStream& InStream);
+	/// decodes one or multiple frames with payload from input stream, may send pong frames
+	bool           Read       (KStream& Stream, bool bMaskTx);
 	/// writes one full frame with payload to output stream
-	bool           Write(KOutStream& OutStream, bool bMask);
+	bool           Write      (KOutStream& OutStream, bool bMaskTx);
 	/// creates mask key and masks payload - call only as a websocket client
-	void           Mask();
+	void           Mask       ();
 	/// if the frame was announced as masked, unmasks it and clears the mask flag
-	void           UnMask();
+	void           UnMask     ();
 	/// set binary or text payload
 	void           SetPayload (KString sPayload, bool bIsBinary);
 	/// set text payload
@@ -177,26 +177,50 @@ public:
 private:
 //----------
 
-	void XOR();
+	void           XOR        (KStringRef& sBuffer);
+	void           UnMask     (KStringRef& sBuffer);
 
 	KString m_sPayload;
 
 }; // Frame
 
 /// generate a client's sec key
-KString GenerateClientSecKey();
+KString DEKAF2_PUBLIC GenerateClientSecKey();
 /// returns true if sec key looks valid (note, we only check for size and suffix '==', we do not decode the full base64)
-bool ClientSecKeyLooksValid(KStringView sSecKey, bool bThrowIfInvalid);
+bool DEKAF2_PUBLIC ClientSecKeyLooksValid(KStringView sSecKey, bool bThrowIfInvalid);
 /// generate the server response on a client's sec key
-KString GenerateServerSecKeyResponse(KString sSecKey, bool bThrowIfInvalid);
+KString DEKAF2_PUBLIC GenerateServerSecKeyResponse(KString sSecKey, bool bThrowIfInvalid);
 /// check if a client requests a websocket upgrade of the HTTP/1.1 connection
-bool CheckForWebSocketUpgrade(const KInHTTPRequest& Request, bool bThrowIfInvalid);
+bool DEKAF2_PUBLIC CheckForWebSocketUpgrade(const KInHTTPRequest& Request, bool bThrowIfInvalid);
 
 } // end of namespace kwebsocket
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// represents one single websocket connection
+class DEKAF2_PUBLIC KWebSocket
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	KWebSocket(KStream& Stream, std::function<void(KWebSocket&)> WebSocketHandler);
+
+	void CallHandler(kwebsocket::Frame Frame);
+
+//----------
+private:
+//----------
+
+	KStream m_Stream;
+	std::function<void(KWebSocket&)> m_Handler;
+
+}; // KWebSocket
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Maintain multiple websocket connections and their event handlers
-class KWebSocketServer
+class DEKAF2_PUBLIC KWebSocketServer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -206,16 +230,21 @@ public:
 
 	using Handle = std::size_t;
 
-	Handle AddConnection(KStream& Connection);
+	KWebSocketServer();
+	~KWebSocketServer();
+
+	Handle AddWebSocket(KWebSocket WebSocket);
 
 //----------
 private:
 //----------
 
 	KThreadSafe<
-	    KUnorderedMap<std::size_t, KStream*>
-	>                                        m_Connections;
-	std::atomic<std::size_t>                 m_iLastID      { 0 };
+	    KUnorderedMap<std::size_t, KWebSocket>
+	>                             m_Connections;
+	std::unique_ptr<std::thread>  m_Executor;
+	std::atomic<std::size_t>      m_iLastID      { 0 };
+	std::atomic<bool>             m_bStop    { false };
 
 }; // KWebSocketServer
 

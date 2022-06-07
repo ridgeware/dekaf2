@@ -56,6 +56,7 @@
 #include "krow.h"
 #include "ktime.h"
 #include "kwebsocket.h"
+#include "kscopeguard.h"
 
 namespace dekaf2 {
 
@@ -559,6 +560,15 @@ void KRESTServer::Parse()
 bool KRESTServer::Execute()
 //-----------------------------------------------------------------------------
 {
+	if (m_iRound != std::numeric_limits<uint16_t>::max())
+	{
+		kDebug(1, "recursive calling is not permitted");
+		return false;
+	}
+
+	// reset m_iRound at end of scope
+	KScopeGuard Guard = [this](){ m_iRound = std::numeric_limits<uint16_t>::max(); };
+
 	try
 	{
 		m_iRound = 0;
@@ -767,26 +777,9 @@ bool KRESTServer::Execute()
 			{
 			}
 */
-			if (!m_bSwitchToWebSocket)
+			if (Request.HasContent(Request.Method == KHTTPMethod::GET))
 			{
-				if (Request.HasContent(Request.Method == KHTTPMethod::GET))
-				{
-					Parse();
-				}
-			}
-			else
-			{
-				if (m_Options.Out != HTTP)
-				{
-					throw KWebSocketError { "bad mode: websockets are only allowed in HTTP standalone mode" };
-				}
-
-				// upgrade to a websocket connection
-				const auto& sClientSecKey = Request.Headers.Get(KHTTPHeader::SEC_WEBSOCKET_KEY);
-				Response.Headers.Add(KHTTPHeader::SEC_WEBSOCKET_ACCEPT, kwebsocket::GenerateServerSecKeyResponse(sClientSecKey, true));
-				Response.Headers.Add(KHTTPHeader::CONNECTION, "Upgrade");
-				Response.Headers.Add(KHTTPHeader::UPGRADE, "websocket");
-				Response.SetStatus(101);
+				Parse();
 			}
 
 			if (m_Timers)
@@ -799,33 +792,47 @@ bool KRESTServer::Execute()
 			// an exception be thrown
 			m_iRequestBodyLength = Request.Count();
 
-			if (!m_bSwitchToWebSocket)
+			if (m_bSwitchToWebSocket)
 			{
-				// - - - - - - - - - - - - - - - - - - - - - - - - - - -
-				// debug info
-				// - - - - - - - - - - - - - - - - - - - - - - - - - - -
-				kDebug (1, KLog::DASH);
-				kDebug (1, "{}: {}", GetRequestMethod(), GetRequestPath());
+				if (m_Options.Out != HTTP)
+				{
+					throw KWebSocketError { "bad mode: websockets are only allowed in HTTP standalone mode" };
+				}
 
-				kSetCrashContext (kFormat ("{}: {}\nHost: {} Remote IP: {}",
-										   Request.Method.Serialize(),
-										   Request.Resource.Serialize(),
-										   m_Options.sServername,
-										   Request.GetRemoteIP())
-								  );
-
-				// check that we are still connected to the remote end
-				ThrowIfDisconnected();
-
-				// - - - - - - - - - - - - - - - - - - - - - - - - - - -
-				// call the application method to handle this request:
-				// - - - - - - - - - - - - - - - - - - - - - - - - - - -
-				Route->Callback(*this);
-
-				kAppendCrashContext("completed route handler");
-
-				m_iRequestBodyLength = Request.Count();
+				// upgrade to a websocket connection - compute and set the needed response headers
+				// we will still call the route handler, but in general it should only setup
+				// the websocket callback, and not add additional output
+				const auto& sClientSecKey = Request.Headers.Get(KHTTPHeader::SEC_WEBSOCKET_KEY);
+				Response.Headers.Add(KHTTPHeader::SEC_WEBSOCKET_ACCEPT, kwebsocket::GenerateServerSecKeyResponse(sClientSecKey, true));
+				Response.Headers.Add(KHTTPHeader::CONNECTION, "Upgrade");
+				Response.Headers.Add(KHTTPHeader::UPGRADE, "websocket");
+				Response.SetStatus(101);
 			}
+
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			// debug info
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			kDebug (1, KLog::DASH);
+			kDebug (1, "{}: {}", GetRequestMethod(), GetRequestPath());
+
+			kSetCrashContext (kFormat ("{}: {}\nHost: {} Remote IP: {}",
+									   Request.Method.Serialize(),
+									   Request.Resource.Serialize(),
+									   m_Options.sServername,
+									   Request.GetRemoteIP())
+							  );
+
+			// check that we are still connected to the remote end
+			ThrowIfDisconnected();
+
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			// call the application method to handle this request:
+			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			Route->Callback(*this);
+
+			kAppendCrashContext("completed route handler");
+
+			m_iRequestBodyLength = Request.Count();
 
 			if (m_Timers)
 			{

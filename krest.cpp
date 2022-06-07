@@ -79,30 +79,37 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 				   sRemoteEndpoint,
 				   IsSSL() ? url::KProtocol::HTTPS : url::KProtocol::HTTP,
 				   GetPort());
+
 	RESTServer.Execute();
 
-#if 0
 	if (RESTServer.SwitchToWebSocket())
 	{
 		// the client requests a switch to the websocket protocol
-		// now move the connection to the websocket event handler, and return this
-		// thread into the pool
-		auto handle = m_WebSocketServer.AddConnection(Stream);
-
-		if (handle > 0)
+		if (RESTServer.GetWebSocketHandler())
 		{
-			kwebsocket::Frame Frame(Stream);
-			auto sContent = Frame.Payload();
-			std::reverse(sContent.begin(), sContent.end());
-			Frame.Text(sContent);
-			Frame.Write(Stream, false);
-			Stream.Flush();
+			// now move the connection to the websocket event handler, and return this
+			// thread into the pool
+			auto handle = m_WebSocketServer.AddWebSocket(KWebSocket(Stream, RESTServer.GetWebSocketHandler()));
 
-			// call the API handler once
-			RESTServer.Route->Callback(RESTServer);
+			if (handle > 0)
+			{
+				kDebug(2, "successfully upgraded to websocket protocol for '{}'", RESTServer.Route->sRoute);
+#if 0
+				kwebsocket::Frame Frame(Stream);
+				auto sContent = Frame.Payload();
+				std::reverse(sContent.begin(), sContent.end());
+				Frame.Text(sContent);
+				Frame.Write(Stream, false);
+				Stream.Flush();
+#endif
+			}
+		}
+		else
+		{
+			kDebug(1, "route handler for '{}' did not set a websocket handler - connection upgrade aborted",
+				   RESTServer.Route->sRoute);
 		}
 	}
-#endif
 
 	// get out of here if the tcp server is shutting down - otherwise
 	// UBSAN complains about accessing the derived class, which is no

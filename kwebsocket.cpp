@@ -361,7 +361,7 @@ void Frame::Close()
 } // Close
 
 //-----------------------------------------------------------------------------
-void Frame::XOR()
+void Frame::XOR(KStringRef& sBuffer)
 //-----------------------------------------------------------------------------
 {
 	std::array<char, 4> m
@@ -372,11 +372,11 @@ void Frame::XOR()
 		static_cast<char>(m_iMaskingKey >>  0)
 	};
 
-	auto iLen = m_sPayload.size();
+	auto iLen = sBuffer.size();
 
 	for (std::size_t iPos = 0; iPos < iLen; ++iPos)
 	{
-		m_sPayload[iPos] ^= m[iPos % 4];
+		sBuffer[iPos] ^= m[iPos % 4];
 	}
 
 } // UnMask
@@ -388,7 +388,7 @@ void Frame::Mask()
 	m_bMask       = true;
 	m_iMaskingKey = kRandom();
 
-	XOR();
+	XOR(m_sPayload);
 
 } // Mask
 
@@ -398,7 +398,19 @@ void Frame::UnMask()
 {
 	if (m_bMask)
 	{
-		XOR();
+		XOR(m_sPayload);
+		m_bMask = false;
+	}
+
+} // UnMask
+
+//-----------------------------------------------------------------------------
+void Frame::UnMask(KStringRef& sBuffer)
+//-----------------------------------------------------------------------------
+{
+	if (m_bMask)
+	{
+		XOR(sBuffer);
 		m_bMask = false;
 	}
 
@@ -419,17 +431,61 @@ void Frame::SetPayload(KString sPayload, bool bIsBinary)
 } // SetPayload
 
 //-----------------------------------------------------------------------------
-bool Frame::Read(KInStream& InStream)
+bool Frame::Read(KStream& Stream, bool bMaskTx)
 //-----------------------------------------------------------------------------
 {
-	// read the header
-	for (;!Decode(InStream.Read());) {}
-	// read the payload
-	auto iRead = InStream.Read(m_sPayload, AnnouncedSize());
-	// decode the incoming data
-	UnMask();
-	// return success if all data was read
-	return iRead == AnnouncedSize();
+	// buffer for the payload
+	KString sBuffer;
+
+	for(;;)
+	{
+		// read the header
+		for (;!Decode(Stream.Read());) {}
+		// read the payload
+		auto iRead = Stream.Read(sBuffer, AnnouncedSize());
+		// decode the incoming data
+		UnMask(sBuffer);
+
+		// check the type
+		switch (Type())
+		{
+			case FrameType::Ping:
+			{
+				Frame Pong;
+				Pong.Pong(sBuffer);
+				Pong.Write(Stream, bMaskTx);
+			}
+			break;
+
+			case FrameType::Pong:
+			{
+			}
+			break;
+
+			case FrameType::Continuation:
+				m_sPayload += sBuffer;
+				break;
+
+			default:
+				m_sPayload = std::move(sBuffer);
+				break;
+		}
+
+		if (iRead != AnnouncedSize())
+		{
+			return false;
+		}
+
+		if (Finished())
+		{
+			return true;
+		}
+
+		// Stream.Read() appends to sBuffer, therefore let us clear it here
+		sBuffer.clear();
+	}
+
+	return false;
 
 } // Read
 
@@ -456,13 +512,13 @@ KString GenerateClientSecKey()
 	for (uint16_t i = 0; i < 16 / 4; ++i)
 	{
 		auto iRand = kRandom();
-		sKey += KString::value_type(iRand & 0xff);
+		sKey += iRand;
 		iRand >>= 8;
-		sKey += KString::value_type(iRand & 0xff);
+		sKey += iRand;
 		iRand >>= 8;
-		sKey += KString::value_type(iRand & 0xff);
+		sKey += iRand;
 		iRand >>= 8;
-		sKey += KString::value_type(iRand & 0xff);
+		sKey += iRand;
 	}
 
 	return KEncode::Base64(sKey);
@@ -572,16 +628,50 @@ bool CheckForWebSocketUpgrade(const KInHTTPRequest& Request, bool bThrowIfInvali
 } // end of namespace kwebsocket
 
 //-----------------------------------------------------------------------------
-KWebSocketServer::Handle KWebSocketServer::AddConnection(KStream& Connection)
+KWebSocket::KWebSocket(KStream& Stream, std::function<void(KWebSocket&)> WebSocketHandler)
+//-----------------------------------------------------------------------------
+: m_Stream(std::move(Stream))
+, m_Handler(std::move(WebSocketHandler))
+{
+} // ctor
+
+//-----------------------------------------------------------------------------
+KWebSocketServer::KWebSocketServer()
+//-----------------------------------------------------------------------------
+{
+	// start the executor thread
+	m_Executor = std::make_unique<std::thread>([]()
+	{
+
+	});
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KWebSocketServer::~KWebSocketServer()
+//-----------------------------------------------------------------------------
+{
+	if (m_Executor)
+	{
+		// tell the thread to stop
+		m_bStop = true;
+		// and block until it is home
+		m_Executor->join();
+	}
+
+} // dtor
+
+//-----------------------------------------------------------------------------
+KWebSocketServer::Handle KWebSocketServer::AddWebSocket(KWebSocket WebSocket)
 //-----------------------------------------------------------------------------
 {
 	Handle handle { ++m_iLastID };
 
-	auto p = m_Connections.unique()->insert(std::make_pair(handle, &Connection));
+	auto p = m_Connections.unique()->insert(std::make_pair(handle, std::move(WebSocket)));
 
 	if (!p.second)
 	{
-		throw KWebSocketError("cannot add connection");
+		throw KWebSocketError("cannot add websocket");
 	}
 
 	return handle;

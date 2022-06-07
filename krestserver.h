@@ -52,8 +52,10 @@
 #include "kfilesystem.h"
 #include "kpoll.h"
 #include "khttplog.h"
+#include "kwebsocket.h"
 #include <vector>
 #include <memory>
+#include <limits>
 
 /// @file krestserver.h
 /// HTTP REST server implementation
@@ -464,6 +466,22 @@ public:
 		return m_bSwitchToWebSocket;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// sets a callback that will be called every time a websocket frame is received, or the connection is lost
+	void SetWebSocketHandler(std::function<void(KWebSocket&)> WebSocketHandler)
+	//-----------------------------------------------------------------------------
+	{
+		m_WebSocketHandlerCallback = WebSocketHandler;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// gets the websocket callback
+	const std::function<void(KWebSocket&)>& GetWebSocketHandler()
+	//-----------------------------------------------------------------------------
+	{
+		return m_WebSocketHandlerCallback;
+	}
+
 //------
 protected:
 //------
@@ -534,7 +552,8 @@ private:
 	std::unique_ptr<KJSON> m_JsonLogger;
 	std::unique_ptr<KStopDurations> m_Timers;
 	std::function<void(const KRESTServer&)> m_PostResponseCallback; // if set, gets called after response generation
-	uint16_t    m_iRound;                // keepalive rounds
+	std::function<void(KWebSocket&)> m_WebSocketHandlerCallback; // filled by route handler during upgrade to websocket protocol, will be called every time a frame is received, or the connection is lost
+	uint16_t    m_iRound = std::numeric_limits<uint16_t>::max(); // keepalive rounds
 	bool        m_bKeepAlive;            // whether connection will be kept alive
 	bool        m_bLostConnection;       // whether we lost our peer during flight
 	bool        m_bIsStreaming;          // true if we switched to streaming output

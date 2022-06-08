@@ -33,7 +33,9 @@ TEST_CASE("KWebSocket")
 			KStream& RefStream = *Stream;
 			CHECK ( kwebsocket::GetStreamType(RefStream) == kwebsocket::StreamType::TLS );
 			CHECK_THROWS( kwebsocket::GetAsioTCPStream (RefStream) );
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 			CHECK_THROWS( kwebsocket::GetAsioUnixStream(RefStream) );
+#endif
 #if BOOST_VERSION >= 107400
 			auto AsioStream = kwebsocket::GetAsioTLSStream(RefStream);
 			CHECK_THROWS( AsioStream.shutdown() );
@@ -44,10 +46,14 @@ TEST_CASE("KWebSocket")
 			KStream& RefStream = *Stream;
 			CHECK ( kwebsocket::GetStreamType(RefStream) == kwebsocket::StreamType::TCP );
 			CHECK_THROWS( kwebsocket::GetAsioTLSStream (RefStream) );
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 			CHECK_THROWS( kwebsocket::GetAsioUnixStream(RefStream) );
+#endif
 			auto AsioStream = kwebsocket::GetAsioTCPStream(RefStream);
 			CHECK_THROWS( AsioStream.available() );
 		}
+
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 		{
 			auto Stream = CreateKUnixStream();
 			KStream& RefStream = *Stream;
@@ -57,5 +63,6 @@ TEST_CASE("KWebSocket")
 			auto AsioStream = kwebsocket::GetAsioUnixStream(RefStream);
 			CHECK_THROWS ( AsioStream.available() );
 		}
+#endif
 	}
 }

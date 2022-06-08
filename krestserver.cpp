@@ -251,7 +251,7 @@ int KRESTServer::VerifyPerThreadKLogToHeader()
 
 	if (it != Request.Headers.end())
 	{
-		enum PARTYPE { NONE, START, LEVEL, OUT, GREP, EGREP, HELP };
+		enum PARTYPE { NONE, START, LEVEL, OUTPUT, GREP, EGREP, HELP };
 
 #ifdef DEKAF2_HAS_FROZEN
 		static constexpr auto s_Option = frozen::make_unordered_map<KStringView, PARTYPE>(
@@ -259,14 +259,14 @@ int KRESTServer::VerifyPerThreadKLogToHeader()
 		static const std::unordered_map<KStringView, PARTYPE> s_Option
 #endif
 		{
-			{ "-level", LEVEL },
-			{ "-out"  , OUT   },
-			{ "-E"    , EGREP },
-			{ "-egrep", EGREP },
-			{ "-grep" , GREP  },
-			{ "-h"    , HELP  },
-			{ "-help" , HELP  },
-			{ "--help", HELP  }
+			{ "-level", LEVEL  },
+			{ "-out"  , OUTPUT },
+			{ "-E"    , EGREP  },
+			{ "-egrep", EGREP  },
+			{ "-grep" , GREP   },
+			{ "-h"    , HELP   },
+			{ "-help" , HELP   },
+			{ "--help", HELP   }
 		}
 #ifdef DEKAF2_HAS_FROZEN
 		)
@@ -342,7 +342,7 @@ int KRESTServer::VerifyPerThreadKLogToHeader()
 					iPType = NONE;
 					break;
 
-				case OUT:
+				case OUTPUT:
 				{
 					auto sOpt = sArg.ToLower();
 

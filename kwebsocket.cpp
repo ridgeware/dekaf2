@@ -79,6 +79,7 @@ StreamType GetStreamType(KStream& Stream)
 		}
 	}
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 	{
 		auto S = dynamic_cast<KUnixIOStream*>(&Stream);
 
@@ -87,6 +88,7 @@ StreamType GetStreamType(KStream& Stream)
 			return StreamType::UNIX;
 		}
 	}
+#endif
 
 	return StreamType::NONE;
 
@@ -123,6 +125,7 @@ KSSLIOStream::asiostream&& GetAsioTLSStream (KStream& Stream)
 
 } // GetAsioTLSStream
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 //-----------------------------------------------------------------------------
 KUnixIOStream::asiostream&& GetAsioUnixStream(KStream& Stream)
 //-----------------------------------------------------------------------------
@@ -137,6 +140,7 @@ KUnixIOStream::asiostream&& GetAsioUnixStream(KStream& Stream)
 	return std::move(S->GetAsioSocket());
 
 } // GetAsioUnixStream
+#endif
 
 //-----------------------------------------------------------------------------
 bool FrameHeader::Decode(uint8_t byte)

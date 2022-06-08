@@ -66,13 +66,20 @@ namespace kwebsocket {
 
 enum StreamType
 {
-	NONE, TCP, TLS, UNIX
+	NONE,
+	TCP,
+	TLS
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+	, UNIX
+#endif
 };
 
 StreamType                  GetStreamType    (KStream& Stream);
 KTCPIOStream::asiostream&&  GetAsioTCPStream (KStream& Stream);
 KSSLIOStream::asiostream&&  GetAsioTLSStream (KStream& Stream);
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 KUnixIOStream::asiostream&& GetAsioUnixStream(KStream& Stream);
+#endif
 
 /// a websocket frame type
 enum FrameType : uint8_t

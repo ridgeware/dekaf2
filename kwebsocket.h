@@ -54,6 +54,7 @@
 #include "kthreadsafe.h"
 #include <vector>
 #include <atomic>
+#include <thread>
 
 namespace dekaf2 {
 

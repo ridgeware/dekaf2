@@ -322,9 +322,10 @@ void KJWT::ClearJSON()
 bool KJWT::SetError(KString sError)
 //-----------------------------------------------------------------------------
 {
-	m_sError = std::move(sError);
-	if (!m_sError.empty())
+	if (!sError.empty())
 	{
+		m_sError = kFormat("{}sub {}: {}", m_bSignatureIsValid ? "" : "bad sig for ", GetUser(), sError);
+
 		ClearJSON();
 		kDebug(1, m_sError);
 		return false;
@@ -384,14 +385,18 @@ bool KJWT::Validate(KStringView sIssuer, KStringView sScope, time_t tClockLeeway
 
 	time_t now = Dekaf::getInstance().GetCurrentTime();
 
-	if (Payload["nbf"] > (now + tClockLeeway))
+	auto tNBF = kjson::GetInt(Payload, "nbf");
+
+	if (tNBF > (now + tClockLeeway))
 	{
-		return SetError("token not yet valid");
+		return SetError(kFormat("token will be valid in {} seconds", tNBF - now));
 	}
 
-	if (Payload["exp"] < (now - tClockLeeway))
+	auto tExp = kjson::GetInt(Payload, "exp");
+
+	if (tExp < (now - tClockLeeway))
 	{
-		return SetError("token has expired");
+		return SetError(kFormat("token has expired {} seconds ago", now - tExp));
 	}
 
 	return true;
@@ -402,6 +407,8 @@ bool KJWT::Validate(KStringView sIssuer, KStringView sScope, time_t tClockLeeway
 bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope, time_t tClockLeeway)
 //-----------------------------------------------------------------------------
 {
+	m_bSignatureIsValid = false;
+
 	sBase64Token.TrimLeft();
 	sBase64Token.remove_prefix("Bearer ") || sBase64Token.remove_prefix("bearer ");
 
@@ -481,6 +488,10 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 				return SetError("bad signature");
 			}
 
+			// mark that the token itself is from the right issuer (so that we could
+			// e.g. read the sub field or any other)
+			m_bSignatureIsValid = true;
+
 			// clear error
 			SetError("");
 
@@ -501,7 +512,28 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 const KString& KJWT::GetUser() const
 //-----------------------------------------------------------------------------
 {
-	return kjson::GetStringRef(Payload, "sub");
+	const auto& sMaybe = kjson::GetStringRef(Payload, "sub");
+
+	if (!m_bSignatureIsValid)
+	{
+		static KString s_sEmpty;
+
+		if (sMaybe.size() < 40)
+		{
+			for (auto ch : sMaybe)
+			{
+				if (!KASCII::kIsAlNum(ch))
+				{
+					if (ch != '@' && ch != '.' && ch != '_' && ch != '-')
+					{
+						return s_sEmpty;
+					}
+				}
+			}
+		}
+	}
+
+	return sMaybe;
 
 } // GetUser
 

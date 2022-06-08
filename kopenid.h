@@ -212,6 +212,7 @@ private:
 	void ClearJSON();
 
 	mutable KString m_sError;
+	bool            m_bSignatureIsValid { false };
 
 }; // KJWT
 

@@ -71,7 +71,7 @@ BuildSetup ()
 		esac
 
 		if [[ "$BINDIR" == "aarmv2" ]]; then
-#			InstallSystemPackages gcc10 gcc10-c++ gcc-c++
+#			InstallSystemPackages gcc10 gcc10-c++ libstdc++10-devel gcc-c++
 			InstallSystemPackages clang
 		fi
 

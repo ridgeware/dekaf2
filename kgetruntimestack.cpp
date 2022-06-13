@@ -461,6 +461,8 @@ OSX clang debug:
 FrameVec GetBacktraceCallstack (int iSkipStackLines)
 //-----------------------------------------------------------------------------
 {
+	FrameVec Frames;
+
 	enum   { MAXSTACK = 500 };
 	void*  Stack[MAXSTACK+1];
 	int    iStackSize { 0 };
@@ -478,8 +480,6 @@ FrameVec GetBacktraceCallstack (int iSkipStackLines)
 	auto vStack = Addr2Line(Addresses);
 
 	free (Names);
-
-	FrameVec Frames;
 
 	bool bHadkGetBacktrace { false };
 

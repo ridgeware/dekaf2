@@ -62,7 +62,6 @@ OPTION(DEKAF2_USE_OPTIMIZED_STRING_FIND "Use optimized string::find" ON)
 OPTION(DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS "With deprecated KString member functions" OFF)
 OPTION(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1 "Provide compatibility layer to dekaf1" OFF)
 OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS "debug build with sanitizers and additional runtime checks" ON)
-# in xcode 10, debug stepping crashes regularly when ASAN is active, so beware
 OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE "debug build with sanitizers and additional runtime checks in Xcode" OFF)
 OPTION(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS "use frozen constexpr hash for large maps (needs a lot of memory on comp)" ON)
 OPTION(DEKAF2_WITH_FCGI "build with FCGI" OFF)
@@ -153,8 +152,8 @@ cmake_host_system_information(RESULT HOSTNAME QUERY HOSTNAME)
 
 # ========================= SWITCHING CONFIG ON ENVIRONMENT =========================
 
-if (CPU_ARM AND NOT IS_MACOS)
-	message(STATUS "no ASAN/UBSAN support for ARM")
+if (CPU_ARM AND NOT CPU_ARM EQUAL 64)
+	message(STATUS "no ASAN/UBSAN support for ARM32")
 	set (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 endif()
 

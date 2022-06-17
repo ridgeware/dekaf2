@@ -320,6 +320,21 @@
 	#endif
 #endif
 
+#if DEKAF2_HAS_INCLUDE(<features.h>)
+	#ifndef _GNU_SOURCE
+		#define _GNU_SOURCE
+		#define DEKAF2_GNU_SOURCE
+	#endif
+	#include <features.h>
+	#ifndef __USE_GNU
+		#define DEKAF2_HAS_MUSL
+	#endif
+	#ifdef DEKAF2_GNU_SOURCE
+		#undef _GNU_SOURCE
+		#undef DEKAF2_GNU_SOURCE
+	#endif
+#endif
+
 namespace dekaf2 {
 #if (UINTPTR_MAX == 0xffff)
 	#define DEKAF2_IS_16_BITS = 1

@@ -425,7 +425,7 @@ else()
 endif()
 
 if (NOT Boost_FOUND)
-	if (IS_WINDOWS)
+	if (DEKAF2_NO_BUILDSETUP OR IS_WINDOWS)
 		message(FATAL_ERROR "please set BOOST_ROOT to the root directory of your boost install")
 	else()
 		EXECUTE_PROCESS(

@@ -272,7 +272,9 @@ KStringView GetStackAddress (KStringView sBacktraceLine)
 		#endif
 	#endif
 	#ifndef SUPPORT_BACKTRACE_PRINTCALLSTACK
-		#define SUPPORT_BACKTRACE_PRINTCALLSTACK 1
+		#ifndef DEKAF2_HAS_MUSL
+			#define SUPPORT_BACKTRACE_PRINTCALLSTACK 1
+		#endif
 	#endif
 #endif
 

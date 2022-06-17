@@ -159,6 +159,11 @@ size_t kRFind(
 				}
 			}
 
+			if (pos < iJump)
+			{
+				break;
+			}
+			
 			pos -= iJump;
 		}
 	}

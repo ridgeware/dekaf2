@@ -63,6 +63,10 @@ TEST_CASE("KStringViewZ") {
 		CHECK( sv.rfind('f', 15) == 15 );
 		CHECK( sv.rfind("f", 15) == 15 );
 		CHECK( sv.rfind("ef", 15) == 14 );
+		sv = "abcdefgabcdefiuhsgw";
+		CHECK( sv.rfind("abcdefg") == 0 );
+		CHECK( sv.rfind("abcdef") == 7 );
+		CHECK( sv.rfind("abcabcde") == KStringViewZ::npos );
 	}
 
 	SECTION("find_first_of")

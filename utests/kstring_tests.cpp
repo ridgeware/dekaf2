@@ -555,6 +555,10 @@ TEST_CASE("KString") {
 		CHECK( str.rfind('f', 15) == 15 );
 		CHECK( str.rfind("f", 15) == 15 );
 		CHECK( str.rfind("ef", 15) == 14 );
+		str = "abcdefgabcdefiuhsgw";
+		CHECK( str.rfind("abcdefg") == 0 );
+		CHECK( str.rfind("abcdef") == 7 );
+		CHECK( str.rfind("abcabcde") == KString::npos );
 	}
 
 	SECTION("find_first_of")

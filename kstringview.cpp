@@ -95,10 +95,6 @@ size_t kFind(
 
 } // kFind
 
-#if (__GNUC__ > 6)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
-#endif
 //-----------------------------------------------------------------------------
 size_t kRFind(
         const KStringView haystack,
@@ -163,7 +159,7 @@ size_t kRFind(
 			{
 				break;
 			}
-			
+
 			pos -= iJump;
 		}
 	}
@@ -177,9 +173,6 @@ size_t kRFind(
 #endif
 
 } // kRFind
-#if (__GNUC__ > 6)
-#pragma GCC diagnostic pop
-#endif
 
 namespace detail { namespace stringview {
 

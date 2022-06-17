@@ -52,6 +52,13 @@ TEST_CASE("KROW")
 			KJSON jNewRow = NewRow;
 			CHECK ( jNewRow.dump(-1) == R"({"\"col2":"string2\"",",col3":"string3,","col1":"string1","col4":true,"col5":123,"col6":123.456,"col7":18446744073709551615})" );
 		}
+		{
+			// Latin1 instead of UTF8
+			KROW row2;
+			row2.AddCol("col1", "plain latin: \xE4\xC4");
+			KJSON jrow = row2.to_json();
+			CHECK ( jrow.dump(-1) == R"({"col1":"plain latin: äÄ"})" );
+		}
 	}
 #endif
 

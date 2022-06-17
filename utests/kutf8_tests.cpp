@@ -297,8 +297,33 @@ TEST_CASE("UTF8") {
 			INFO(kFormat("out: mismatch at pos {}", it.second - sUTF16_out.begin()));
 			CHECK ( false );
 		}
+	}
 
-
+	SECTION("UTF16-2")
+	{
+		Unicode::codepoint_t ch = 0xed;
+		CHECK ( Unicode::IsValid(ch) );
+		auto sUTF8 = Unicode::ToUTF8<KString>(ch);
+		CHECK ( sUTF8.size() == 2 );
+		if (sUTF8.size() == 2)
+		{
+			CHECK ( sUTF8[0] == char(0xc3) );
+			CHECK ( sUTF8[1] == char(0xad) );
+		}
+		// sUTFw is UTF16 on Windows, and UCS4 on Unix
+		auto sUTFw = Unicode::FromUTF8(sUTF8);
+		CHECK ( sUTFw.size() == 1 );
+		if (sUTFw.size() == 1)
+		{
+			CHECK ( sUTFw[0] == wchar_t(0xed) );
+		}
+		sUTF8.MakeUpper();
+		CHECK ( sUTF8.size() == 2 );
+		if (sUTF8.size() == 2)
+		{
+			CHECK ( sUTF8[0] == char(0xc3) );
+			CHECK ( sUTF8[1] == char(0x8d) );
+		}
 	}
 }
 

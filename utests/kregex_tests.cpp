@@ -132,6 +132,7 @@ TEST_CASE("KRegex")
 		KRegex::ClearCache();
 	}
 
+#ifndef NDEBUG
 	SECTION("Performance")
 	{
 		KStopWatch Watch1;
@@ -175,6 +176,7 @@ TEST_CASE("KRegex")
 //		KOut.FormatLine("elapsed 3: {} ns", Watch3.nanoseconds());
 //		KOut.FormatLine("elapsed 4: {} ns", Watch4.nanoseconds());
 	}
+#endif
 /*
 	SECTION("Performance2")
 	{

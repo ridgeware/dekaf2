@@ -315,7 +315,7 @@ TEST_CASE("UTF8") {
 		CHECK ( sUTFw.size() == 1 );
 		if (sUTFw.size() == 1)
 		{
-			CHECK ( sUTFw[0] == wchar_t(0xed) );
+			CHECK ( int(sUTFw[0]) == int(0xed) );
 		}
 		sUTF8.MakeUpper();
 		CHECK ( sUTF8.size() == 2 );

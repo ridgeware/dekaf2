@@ -25,10 +25,11 @@ WORKDIR /home/dekaf2/build/${buildtype}
 RUN cmake -DCMAKE_BUILD_TYPE="${buildtype}" -DDEKAF2_NO_BUILDSETUP=ON -DDEKAF2_USE_JEMALLOC=ON ../../
 
 # build
-RUN make -j4 all
+RUN export CPUCORES=$(expr $(egrep '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
+    cmake --build . --parallel ${CPUCORES} --target all
 
 # install
-RUN make install
+RUN cmake --install .
 
 #FROM ${from} as final
 #COPY --from=build-stage /usr/local/bin/klog           /usr/local/bin/klog

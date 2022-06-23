@@ -3,7 +3,7 @@
 #%
 #% cmakeinstall - Install a version of cmake that is compatible with dekaf.
 #%
-#% usage: cmakeinstall -go|ask
+#% usage: cmakeinstall -go|ask|nosudo
 #%
 
 
@@ -29,7 +29,7 @@ CMakeSetupAbort ()
 {
 	cd /
 	# clean up in /tmp
-	sudo rm -rf /tmp/cmake-install
+	${SUDO} rm -rf /tmp/cmake-install
 	# and leave
 	Die $*
 
@@ -84,7 +84,7 @@ CMakeSetup ()
 		fi
 
 		(
-			sudo rm -rf /tmp/cmake-install \
+			${SUDO} rm -rf /tmp/cmake-install \
 				&& mkdir -p /tmp/cmake-install \
 				&& cd /tmp/cmake-install \
 					|| CMakeSetupAbort "Cannot setup build dir /tmp/cmake-install"
@@ -168,7 +168,7 @@ CMakeSetup ()
 
 			cd /
 
-			sudo rm -rf /tmp/cmake-install \
+			${SUDO} rm -rf /tmp/cmake-install \
 				|| CMakeSetupAbort "cannot remove build directory"
 
 			# check again version of installed cmake
@@ -201,18 +201,22 @@ ScriptLib="${ME_ONLYPATH}/scriptlib"
 [[ ! -f "${ScriptLib}" ]] && Die "Cannot check OS version, script '${ScriptLib}' not found"
 
 source ${ScriptLib}
+SUDO="sudo"
 
-if [ "$1" == "-ask" ]; then
+if [[ "$1" == "-ask" ]]; then
 	ask="1"
+elif [[ "$1" == "-nosudo" ]]; then
+	SUDO=""
+	NOSUDO="nosudo"
 else
-	if [ "$1" != "-go" ]; then
+	if [[ "$1" != "-go" ]]; then
 		Synopsis
 		exit 1
 	fi
 fi
 
 SetupColors
-GetOS
+GetOS ${NOSUDO}
 CMakeSetup $ask
 
 exit 0

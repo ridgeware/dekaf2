@@ -191,7 +191,10 @@ GetOS ()
 	# SETMODERNCC    : either empty, or for some environments a env setup for newer compilers
 	#                  (like "env CC=gcc10-gcc CXX=gcc10-g++" )
 
-	SUDO=sudo; [[ ! -z ${CODEBUILD_BUILD_IMAGE} ]] && local SUDO=""
+	NOSUDO="$1"
+	if [[ "${NOSUDO}" != "nosudo" ]]; then
+		local SUDO=sudo; [[ ! -z ${CODEBUILD_BUILD_IMAGE} ]] && SUDO=""
+	fi
 	INSTALLER="yum"
 	INSTALL="${SUDO} yum install -y"
 	UNINSTALL="${SUDO} yum remove -y"

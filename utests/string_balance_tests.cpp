@@ -492,5 +492,9 @@ TEST_CASE("StringBalance") {
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 		CHECK_FALSE ( sv  < ks  );
 #endif
+		// unrelated, but relied upon
+		char ch = '/';
+		KString strFromChar{ch};
+		CHECK ( strFromChar == "/" );
 	}
 }

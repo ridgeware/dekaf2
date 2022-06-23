@@ -48,11 +48,11 @@
 
 namespace dekaf2 {
 
-class DEKAF2_PUBLIC KUTICElement;
+class DEKAF2_PUBLIC KTICElement;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Class that holds a single UTIC element
-class KParsedUTICElement
+/// Holds one T, I, or C element with the current stack of a DOM traversal
+class KParsedTICElement
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -60,49 +60,55 @@ class KParsedUTICElement
 public:
 //------
 
-	KParsedUTICElement() = default;
+	/// default constructor that uses '/' as the stack delimiter character
+	KParsedTICElement() = default;
+	/// constructor with a selectable stack delimiter character
+	KParsedTICElement(char chStackDelimiter)
+	: m_chStackDelimiter(chStackDelimiter)
+	{
+	}
+	/// constructor to allow to explicitly set the stack
+	KParsedTICElement(KString sStack,
+					  char    chStackDelimiter = '/');
 
 	/// Add stack value for each traversed HTML node
-	void Add(KStringView sElement);
+	void Add(KStringView sStackElement);
 	/// Reduces stack by one level when traversing down a tree
 	bool Reduce();
 	/// Clears the stack
-	void clear() { m_sList = '/'; }
+	void clear();
 	/// Returns the stack as flat string
-	KStringView Element() const { return m_sList; }
+	const KString& Stack() const { return m_sStack; }
 	/// Returns true if the search matches the stack.
 	/// Empty search always matches.
-	bool Matches(const KUTICElement& Element) const;
+	bool Matches(const KTICElement& Element) const;
+	/// Returns stack depth
+	std::size_t CountDepth() const;
 
 //------
 protected:
 //------
 
-	/// protected constructor to allow a child class to explicitly set the stack
-	KParsedUTICElement(KStringView sList)
-	: m_sList(sList)
-	{
-	}
+	char      m_chStackDelimiter { '/' };
+	KString   m_sStack           { m_chStackDelimiter };
 
-	KString m_sList { "/" };
-
-}; // KParsedUTICElement
+}; // KParsedTICElement
 
 inline
-bool operator==(const KParsedUTICElement& left, const KParsedUTICElement& right)
+bool operator==(const KParsedTICElement& left, const KParsedTICElement& right)
 {
-	return left.Element() == right.Element();
+	return left.Stack() == right.Stack();
 }
 
 inline
-bool operator!=(const KParsedUTICElement& left, const KParsedUTICElement& right)
+bool operator!=(const KParsedTICElement& left, const KParsedTICElement& right)
 {
 	return !operator==(left, right);
 }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// single search element
-class DEKAF2_PUBLIC KUTICElement
+/// Holds one T, I, or C search element
+class DEKAF2_PUBLIC KTICElement
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -110,54 +116,60 @@ class DEKAF2_PUBLIC KUTICElement
 public:
 //------
 
-	/// Construct and set the search element from a KStringView
-	KUTICElement(KStringView sSearch = KStringView{})
-	: m_Regex(sSearch)
-	{
-	}
-	/// Construct and set the search element from any string view like type
+	KTICElement() = default;
+
+	/// Construct and set the search element from any string view like type (as a regular expression pattern)
 	template<typename T,
 	         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
-	KUTICElement(T sSearch)
-	: KUTICElement(KStringView(sSearch))
+	KTICElement(T sRegex)
+	: m_Regex(sRegex)
 	{
 	}
 
 	/// Returns true if the search matches the stack.
 	/// Empty search always matches.
-	bool Matches(const KParsedUTICElement& Element) const
+	bool Matches(const KParsedTICElement& Element) const
 	{
-		return m_Regex.Matches(Element.Element());
+		return m_Regex.Matches(Element.Stack());
+	}
+
+	/// Returns the regular expression pattern of this element
+	KStringView Regex() const
+	{
+		return m_Regex.Pattern();
+	}
+
+	/// Returns true if the regular expression is empty
+	bool empty() const
+	{
+		return m_Regex.empty();
 	}
 
 //------
 private:
 //------
 
-	KRegex m_Regex;
+	KRegex m_Regex{""};
 
-}; // KUTICElement
+}; // KTICElement
 
 inline
-bool operator==(const KUTICElement& left, const KParsedUTICElement& right)
+bool operator==(const KTICElement& left, const KParsedTICElement& right)
 {
 	return left.Matches(right);
 }
-
 inline
-bool operator==(const KParsedUTICElement& left, const KUTICElement& right)
+bool operator==(const KParsedTICElement& left, const KTICElement& right)
 {
 	return operator==(right, left);
 }
-
 inline
-bool operator!=(const KParsedUTICElement& left, const KUTICElement& right)
+bool operator!=(const KParsedTICElement& left, const KTICElement& right)
 {
 	return !operator==(left, right);
 }
-
 inline
-bool operator!=(const KUTICElement& left, const KParsedUTICElement& right)
+bool operator!=(const KTICElement& left, const KParsedTICElement& right)
 {
 	return !operator==(left, right);
 }
@@ -175,44 +187,76 @@ public:
 	KUTIC() = default;
 
 	/// Construct a KUTIC object that can be matched against any KParsedUTIC
-	KUTIC(bool bPositiveMatch,
-		  KStringView sURL,
-		  KUTICElement Tags,
-		  KUTICElement IDs,
-		  KUTICElement Classes)
-	: m_sURL(sURL)
-	, m_Tags(std::move(Tags))
-	, m_IDs(std::move(IDs))
-	, m_Classes(std::move(Classes))
-	, m_bPositiveMatch(bPositiveMatch)
+	KUTIC(KString     sURL,
+		  KTICElement Tags,
+		  KTICElement IDs,
+		  KTICElement Classes,
+		  KString     sCSSSelector,
+		  bool bPositiveMatch = true)
+	: m_Tags           (std::move(Tags)        )
+	, m_IDs            (std::move(IDs)         )
+	, m_Classes        (std::move(Classes)     )
+	, m_sURL           (std::move(sURL)        )
+	, m_sCSSSelector   (std::move(sCSSSelector))
+	, m_bPositiveMatch (bPositiveMatch         )
 	{
 	}
 
-	KStringView         URL()           const { return m_sURL;           }
-	const KUTICElement& Tags()          const { return m_Tags;           }
-	const KUTICElement& IDs()           const { return m_IDs;            }
-	const KUTICElement& Classes()       const { return m_Classes;        }
-	bool                PositiveMatch() const { return m_bPositiveMatch; }
+	KUTIC(KTICElement Tags,
+		  KTICElement IDs,
+		  KTICElement Classes,
+		  KString     sCSSSelector = KString{},
+		  bool        bPositiveMatch = true)
+	: m_Tags           (std::move(Tags)        )
+	, m_IDs            (std::move(IDs)         )
+	, m_Classes        (std::move(Classes)     )
+	, m_sCSSSelector   (std::move(sCSSSelector))
+	, m_bPositiveMatch (bPositiveMatch         )
+	{
+	}
 
-	/// load UTICs from a file, comma separated U, T, I, C line by line, append to existing list
-	static bool AppendFromFile(std::shared_ptr<std::vector<KUTIC>>& UTICs, KStringViewZ sFileName);
-	/// give a json array with objects containing U T I C properties, append to existing list
-	static bool AppendFromJSON(std::shared_ptr<std::vector<KUTIC>>& UTICs, bool bInclude, const KJSON& json);
+	/// construct from a json object with U T I C X properties
+	KUTIC(const KJSON& jUTIC, bool bPositiveMatch = true);
 
-	/// load UTICs from a file, comma separated U, T, I, C line by line
-	static std::shared_ptr<std::vector<KUTIC>> LoadFromFile(KStringViewZ sFileName);
-	/// give a json array with objects containing U T I C properties
-	static std::shared_ptr<std::vector<KUTIC>> LoadFromJSON(bool bInclude, const KJSON& json);
+	/// returns the URL substring pattern to match
+	const KString&     URL()           const { return m_sURL;           }
+	/// returns the Tag regex pattern to match
+	const KTICElement& Tags()          const { return m_Tags;           }
+	/// returns the ID regex pattern to match
+	const KTICElement& IDs()           const { return m_IDs;            }
+	/// returns the Class regex pattern to match
+	const KTICElement& Classes()       const { return m_Classes;        }
+	/// returns the CSS selector to match
+	const KString&     CSSSelector()   const { return m_sCSSSelector;   }
+	/// is this a positive or negative match rule
+	bool               PositiveMatch() const { return m_bPositiveMatch; }
+	/// returns true if all rules are empty
+	bool               empty()         const;
+
+	/// load UTICs from a stream, comma separated U, T, I, C [, X] line by line, append to existing list
+	static bool Append(std::vector<KUTIC>& UTICs, KInStream& InStream);
+	/// load UTICs from a file, comma separated U, T, I, C [, X] line by line, append to existing list
+	static bool Append(std::vector<KUTIC>& UTICs, KStringViewZ sFileName);
+	/// give a json array with objects containing U T I C [X] properties, append to existing list
+	static bool Append(std::vector<KUTIC>& UTICs, const KJSON& json, bool bPositiveMatch = true);
+
+	/// load UTICs from a stream, comma separated U, T, I, C [, X] line by line
+	static std::vector<KUTIC> Load(KInStream& InStream);
+	/// load UTICs from a file, comma separated U, T, I, C [, X] line by line
+	static std::vector<KUTIC> Load(KStringViewZ sFileName);
+	/// give a json array with objects containing U T I C [X] properties
+	static std::vector<KUTIC> Load(const KJSON& json, bool bPositiveMatch = true);
 
 //------
 private:
 //------
 
-	KString      m_sURL;
-	KUTICElement m_Tags;
-	KUTICElement m_IDs;
-	KUTICElement m_Classes;
-	bool         m_bPositiveMatch;
+	KTICElement m_Tags;
+	KTICElement m_IDs;
+	KTICElement m_Classes;
+	KString     m_sURL;
+	KString     m_sCSSSelector;
+	bool        m_bPositiveMatch { true };
 
 }; // KUTIC
 
@@ -227,59 +271,101 @@ class DEKAF2_PUBLIC KParsedUTIC
 public:
 //------
 
-	enum Index
-	{
-		Tag   = 0,
-		ID    = 1,
-		Class = 2
-	};
+	using DepthType = uint16_t;
+	static constexpr auto MAX_DEPTH = std::numeric_limits<DepthType>::max();
 
 	KParsedUTIC() = default;
 	KParsedUTIC(KStringView sURL)
 	: m_sURL(sURL)
 	{
 	}
+	/// constructor to allow to explicitly set the stacks (normally done through Add() / Reduce())
+	KParsedUTIC(KString           sURL,
+				KParsedTICElement Tags,
+				KParsedTICElement IDs,
+				KParsedTICElement Classes,
+				DepthType         iDepth = 0);
 
 	/// Add tag, id and class values for each traversed HTML node
 	void Add(KStringView sTag, KStringView sID, KStringView sClass);
 	/// Reduces stacks by one level when traversing down a tree
 	bool Reduce();
 	/// Returns current stack depth
-	std::size_t Depth() const { return m_iDepth; }
+	std::size_t Depth()                 const { return m_iDepth;  }
 	/// Clears the UTIC stacks
 	void clear();
 
 	///  Returns the URL as flat string
-	KStringView URL()   const { return m_sURL;   }
+	const KString&            URL()     const { return m_sURL;    }
 	/// Returns the tag stack as flat string
-	const KParsedUTICElement& Tags()    const { return m_TIC[Tag];   }
+	const KParsedTICElement& Tags()     const { return m_Tags;    }
 	/// Returns the ID stack as flat string
-	const KParsedUTICElement& IDs()     const { return m_TIC[ID];    }
+	const KParsedTICElement& IDs()      const { return m_IDs;     }
 	/// Returns the Class stack as flat string
-	const KParsedUTICElement& Classes() const { return m_TIC[Class]; }
+	const KParsedTICElement& Classes()  const { return m_Classes; }
 
-	/// Returns true if all three search strings match the HTML node.
-	/// Empty search always matches.
+	/// Returns true if all three regex patterns and the URL match the HTML node.
+	/// Empty search always matches. This implementation does not match the
+	/// CSS selector of the searcher. For that functionality, subclass KParsedUTIC
+	/// and implement a different Matches()
 	bool Matches(const KUTIC& Searcher) const;
 
 //------
 private:
 //------
 
-	std::array<KParsedUTICElement, 3> m_TIC;
-	std::size_t m_iDepth { 0 };
-	KString m_sURL;
+	KParsedTICElement m_Tags;
+	KParsedTICElement m_IDs;
+	KParsedTICElement m_Classes;
+	KString           m_sURL;
+	DepthType         m_iDepth { 0 };
 
 }; // KParsedUTIC
 
-DEKAF2_PUBLIC
-bool operator==(const KParsedUTIC& left, const KUTIC& right);
-DEKAF2_PUBLIC
-bool operator==(const KUTIC& left, const KParsedUTIC& right);
-DEKAF2_PUBLIC
-bool operator!=(const KParsedUTIC& left, const KUTIC& right);
-DEKAF2_PUBLIC
-bool operator!=(const KUTIC& left, const KParsedUTIC& right);
+bool operator==(const KParsedUTIC& left, const KParsedUTIC& right);
+inline
+bool operator!=(const KParsedUTIC& left, const KParsedUTIC& right)
+{
+	return !operator==(left, right);
+}
+
+inline
+bool operator==(const KParsedUTIC& left, const KUTIC& right)
+{
+	return left.Matches(right);
+}
+inline
+bool operator==(const KUTIC& left, const KParsedUTIC& right)
+{
+	return operator==(right, left);
+}
+inline
+bool operator!=(const KParsedUTIC& left, const KUTIC& right)
+{
+	return !operator==(left, right);
+}
+inline
+bool operator!=(const KUTIC& left, const KParsedUTIC& right)
+{
+	return !operator==(left, right);
+}
+
+bool operator==(const KParsedUTIC& left, const std::vector<KUTIC>& right);
+inline
+bool operator==(const std::vector<KUTIC>& left, const KParsedUTIC& right)
+{
+	return operator==(right, left);
+}
+inline
+bool operator!=(const KParsedUTIC& left, const std::vector<KUTIC>& right)
+{
+	return !operator==(left, right);
+}
+inline
+bool operator!=(const std::vector<KUTIC>& left, const KParsedUTIC& right)
+{
+	return !operator==(left, right);
+}
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A parser that builds the UTIC schema while parsing HTML for content blocks
@@ -326,7 +412,6 @@ private:
 	KParsedUTIC m_UTIC;
 
 }; // KHTMLUTICParser
-
 
 } // end of namespace dekaf2
 

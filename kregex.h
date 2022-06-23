@@ -79,6 +79,14 @@ public:
 	KRegex(KStringView expression);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// returns true if expression is empty
+	bool empty() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_bIsEmpty;
+	}
+
 	using Group     = KStringView;
 	using Groups    = std::vector<Group>;
 	using size_type = KStringView::size_type;

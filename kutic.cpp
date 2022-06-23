@@ -45,42 +45,102 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-void KParsedUTICElement::Add(KStringView sElement)
+KParsedTICElement::KParsedTICElement(KString sStack,
+									 char    chStackDelimiter)
+//-----------------------------------------------------------------------------
+: m_chStackDelimiter (chStackDelimiter )
+, m_sStack           (std::move(sStack))
+{
+	kAssert(!m_sStack.empty(), "stack must hold at least one stack delimiter character");
+	kAssert(m_sStack.front() == m_chStackDelimiter, "stack must start with delimiter character");
+
+} // KParsedTICElement ctor
+
+//-----------------------------------------------------------------------------
+std::size_t KParsedTICElement::CountDepth() const
 //-----------------------------------------------------------------------------
 {
-	m_sList += sElement;
-	m_sList += '/';
+	kAssert(!m_sStack.empty(), "stack must hold at least one stack delimiter character");
+	kAssert(m_sStack.front() == m_chStackDelimiter, "stack must start with delimiter character");
+
+	return std::count(m_sStack.begin() + 1, m_sStack.end(), m_chStackDelimiter);
+
+} // CountDepth
+
+//-----------------------------------------------------------------------------
+void KParsedTICElement::clear()
+//-----------------------------------------------------------------------------
+{
+	m_sStack = m_chStackDelimiter;
+
+} // clear
+
+//-----------------------------------------------------------------------------
+void KParsedTICElement::Add(KStringView sStackElement)
+//-----------------------------------------------------------------------------
+{
+	kAssert(!sStackElement.contains(m_chStackDelimiter), kFormat("stack element may not contain a '/': {}", sStackElement));
+
+	m_sStack += sStackElement;
+	m_sStack += m_chStackDelimiter;
 
 } // Add
 
 //-----------------------------------------------------------------------------
-bool KParsedUTICElement::Reduce()
+bool KParsedTICElement::Reduce()
 //-----------------------------------------------------------------------------
 {
+	kAssert(!m_sStack.empty(), "stack is empty, but may never be");
+
 	// we always have at least one char in the list
-	KString::size_type iPos = m_sList.size() - 1;
+	KString::size_type iPos = m_sStack.size() - 1;
 
 	if (DEKAF2_UNLIKELY(iPos == 0))
 	{
+		// prevent a crash nonetheless..
 		return false;
 	}
 
-	iPos = m_sList.rfind('/', --iPos);
+	iPos = m_sStack.rfind(m_chStackDelimiter, --iPos);
 	// the result will never be npos as we always have a starting slash
 
-	m_sList.erase(iPos + 1);
+	m_sStack.erase(iPos + 1);
 
 	return true;
 
 } // Reduce
 
 //-----------------------------------------------------------------------------
+KParsedUTIC::KParsedUTIC(KString           sURL,
+						 KParsedTICElement Tags,
+						 KParsedTICElement IDs,
+						 KParsedTICElement Classes,
+						 DepthType         iDepth)
+//-----------------------------------------------------------------------------
+: m_Tags(std::move(Tags))
+, m_IDs(std::move(IDs))
+, m_Classes(std::move(Classes))
+, m_sURL(sURL)
+, m_iDepth(iDepth)
+{
+	if (m_iDepth == 0)
+	{
+		m_iDepth = m_Tags.CountDepth();
+	}
+
+	kAssert(m_iDepth == m_Tags   .CountDepth(), kFormat("{} real depth differs from set depth", "Tags"   ));
+	kAssert(m_iDepth == m_IDs    .CountDepth(), kFormat("{} real depth differs from set depth", "IDs"    ));
+	kAssert(m_iDepth == m_Classes.CountDepth(), kFormat("{} real depth differs from set depth", "Classes"));
+
+} // KParsedUTIC ctor
+
+//-----------------------------------------------------------------------------
 void KParsedUTIC::Add(KStringView sTag, KStringView sID, KStringView sClass)
 //-----------------------------------------------------------------------------
 {
-	m_TIC[Tag].Add(sTag);
-	m_TIC[ID].Add(sID);
-	m_TIC[Class].Add(sClass);
+	m_Tags   .Add(sTag);
+	m_IDs    .Add(sID);
+	m_Classes.Add(sClass);
 
 	++m_iDepth;
 
@@ -97,9 +157,9 @@ bool KParsedUTIC::Reduce()
 
 	--m_iDepth;
 
-	return m_TIC[Tag].Reduce() &&
-	       m_TIC[ID].Reduce()  &&
-	       m_TIC[Class].Reduce();
+	return m_Tags   .Reduce()  &&
+	       m_IDs    .Reduce()  &&
+	       m_Classes.Reduce();
 
 } // Reduce
 
@@ -107,9 +167,9 @@ bool KParsedUTIC::Reduce()
 void KParsedUTIC::clear()
 //-----------------------------------------------------------------------------
 {
-	m_TIC[Tag].clear();
-	m_TIC[ID].clear();
-	m_TIC[Class].clear();
+	m_Tags   .clear();
+	m_IDs    .clear();
+	m_Classes.clear();
 
 } // clear
 
@@ -117,71 +177,97 @@ void KParsedUTIC::clear()
 bool KParsedUTIC::Matches(const KUTIC& Searcher) const
 //-----------------------------------------------------------------------------
 {
-	return *this == Searcher;
+	return URL().contains(Searcher.URL())   &&
+	       Tags()      == Searcher.Tags()   &&
+	       IDs()       == Searcher.IDs()    &&
+	       Classes()   == Searcher.Classes();
 
 } // Matches
 
 //-----------------------------------------------------------------------------
-bool KUTIC::AppendFromFile(std::shared_ptr<std::vector<KUTIC>>& UTICs, KStringViewZ sFileName)
+bool operator==(const KParsedUTIC& left, const KParsedUTIC& right)
 //-----------------------------------------------------------------------------
 {
-	if (!UTICs)
-	{
-		auto UTICs = std::make_shared<std::vector<KUTIC>>();
-	}
+	return left.Depth()   == right.Depth()   &&
+	       left.Tags()    == right.Tags()    &&
+	       left.IDs()     == right.IDs()     &&
+	       left.Classes() == right.Classes() &&
+	       left.URL()     == right.URL();
 
-	KInFile File(sFileName);
+} // operator==
 
-	if (File.is_open())
+//-----------------------------------------------------------------------------
+KUTIC::KUTIC(const KJSON& jUTIC, bool bPositiveMatch)
+//-----------------------------------------------------------------------------
+: m_Tags           (kjson::GetStringRef(jUTIC, "T"))
+, m_IDs            (kjson::GetStringRef(jUTIC, "I"))
+, m_Classes        (kjson::GetStringRef(jUTIC, "C"))
+, m_sURL           (kjson::GetStringRef(jUTIC, "U"))
+, m_sCSSSelector   (kjson::GetStringRef(jUTIC, "X"))
+, m_bPositiveMatch (bPositiveMatch)
+{
+} // KUTIC ctor
+
+//-----------------------------------------------------------------------------
+bool KUTIC::Append(std::vector<KUTIC>& UTICs, KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	for (KStringView sLine : InStream)
 	{
-		for (KStringView sLine : File)
+		sLine.TrimLeft();
+
+		if (!sLine.empty())
 		{
-			sLine.TrimLeft();
-
-			if (!sLine.empty())
+			if (sLine.front() != '#')
 			{
-				if (sLine.front() != '#')
-				{
-					auto UTIC = sLine.Split();
+				auto UTIC = sLine.Split();
 
-					if (UTIC.size() == 4)
-					{
-						UTICs->push_back({ true, UTIC[0], UTIC[1], UTIC[2], UTIC[3] });
-					}
+				if (UTIC.size() == 4)
+				{
+					UTICs.push_back(KUTIC(UTIC[0], UTIC[1], UTIC[2], UTIC[3]));
+				}
+				else if (UTIC.size() == 5)
+				{
+					UTICs.push_back(KUTIC(UTIC[0], UTIC[1], UTIC[2], UTIC[3], UTIC[4]));
 				}
 			}
 		}
 	}
-	else
+
+	return true;
+
+} // Append
+
+//-----------------------------------------------------------------------------
+bool KUTIC::Append(std::vector<KUTIC>& UTICs, KStringViewZ sFileName)
+//-----------------------------------------------------------------------------
+{
+	KInFile File(sFileName);
+
+	if (!File.is_open())
 	{
 		kDebug(1, "cannot open: {}", sFileName);
 		return false;
 	}
 
-	return true;
+	return Append(UTICs, File);
 
-} // LoadFromFile
+} // Append
 
 //-----------------------------------------------------------------------------
-bool KUTIC::AppendFromJSON(std::shared_ptr<std::vector<KUTIC>>& UTICs, bool bInclude, const KJSON& json)
+bool KUTIC::Append(std::vector<KUTIC>& UTICs, const KJSON& json, bool bPositiveMatch)
 //-----------------------------------------------------------------------------
 {
-	if (!UTICs)
-	{
-		auto UTICs = std::make_shared<std::vector<KUTIC>>();
-	}
-
 	if (json.is_array())
 	{
 		for (auto& it : json)
 		{
-			UTICs->push_back(KUTIC(
-				bInclude,
-				KStringView(kjson::GetStringRef(it, "U")),
-				KStringView(kjson::GetStringRef(it, "T")),
-				KStringView(kjson::GetStringRef(it, "I")),
-				KStringView(kjson::GetStringRef(it, "C"))
-			));
+			KUTIC UTIC(it, bPositiveMatch);
+
+			if (!UTIC.empty())
+			{
+				UTICs.push_back(std::move(UTIC));
+			}
 		}
 	}
 	else
@@ -192,28 +278,64 @@ bool KUTIC::AppendFromJSON(std::shared_ptr<std::vector<KUTIC>>& UTICs, bool bInc
 
 	return true;
 
-} // LoadFromJSON
+} // Append
 
 //-----------------------------------------------------------------------------
-std::shared_ptr<std::vector<KUTIC>> KUTIC::LoadFromFile(KStringViewZ sFileName)
-//-----------------------------------------------------------------------------
-{
-	auto UTICs = std::make_shared<std::vector<KUTIC>>();
-	AppendFromFile(UTICs, sFileName);
-	return UTICs;
-
-} // LoadFromFile
-
-//-----------------------------------------------------------------------------
-std::shared_ptr<std::vector<KUTIC>> KUTIC::LoadFromJSON(bool bInclude, const KJSON& json)
+std::vector<KUTIC> KUTIC::Load(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
-	auto UTICs = std::make_shared<std::vector<KUTIC>>();
-	AppendFromJSON(UTICs, true, json);
+	std::vector<KUTIC> UTICs;
+	Append(UTICs, InStream);
 	return UTICs;
 
-} // LoadFromJSON
+} // Load
 
+//-----------------------------------------------------------------------------
+std::vector<KUTIC> KUTIC::Load(KStringViewZ sFileName)
+//-----------------------------------------------------------------------------
+{
+	std::vector<KUTIC> UTICs;
+	Append(UTICs, sFileName);
+	return UTICs;
+
+} // Load
+
+//-----------------------------------------------------------------------------
+std::vector<KUTIC> KUTIC::Load(const KJSON& json, bool bPositiveMatch)
+//-----------------------------------------------------------------------------
+{
+	std::vector<KUTIC> UTICs;
+	Append(UTICs, json, bPositiveMatch);
+	return UTICs;
+
+} // Load
+
+//-----------------------------------------------------------------------------
+bool KUTIC::empty() const
+//-----------------------------------------------------------------------------
+{
+	return m_Tags.empty()    &&
+	       m_IDs.empty()     &&
+	       m_Classes.empty() &&
+	       m_sURL.empty();
+
+} // empty
+
+//-----------------------------------------------------------------------------
+bool operator==(const KParsedUTIC& left, const std::vector<KUTIC>& right)
+//-----------------------------------------------------------------------------
+{
+	for (const auto& SearchedUTIC : right)
+	{
+		if (left.Matches(SearchedUTIC))
+		{
+			return SearchedUTIC.PositiveMatch();
+		}
+	}
+
+	return false;
+	
+} // operator==
 
 //-----------------------------------------------------------------------------
 void KHTMLUTICParser::Object(KHTMLObject& Object)
@@ -289,30 +411,6 @@ void KHTMLUTICParser::AddUTIC(KUTIC Searcher)
 	m_SharedUTICs->push_back(std::move(Searcher));
 
 } // AddUTIC
-
-bool operator==(const KParsedUTIC& left, const KUTIC& right)
-{
-	return left.URL().contains(right.URL())   &&
-	       left.Tags()      == right.Tags()   &&
-	       left.IDs()       == right.IDs()    &&
-	       left.Classes()   == right.Classes();
-}
-
-bool operator==(const KUTIC& left, const KParsedUTIC& right)
-{
-	return operator==(right, left);
-}
-
-bool operator!=(const KParsedUTIC& left, const KUTIC& right)
-{
-	return !operator==(left, right);
-}
-
-bool operator!=(const KUTIC& left, const KParsedUTIC& right)
-{
-	return !operator==(left, right);
-}
-
 
 } // end of namespace dekaf2
 

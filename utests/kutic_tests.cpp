@@ -2,6 +2,7 @@
 
 #include <dekaf2/kutic.h>
 #include <dekaf2/kstringstream.h>
+#include <dekaf2/kjson.h>
 #include <vector>
 
 using namespace dekaf2;
@@ -78,7 +79,7 @@ TEST_CASE("KUTIC")
 		KString sOutput;
 		KOutStringStream oss(sOutput);
 		KHTMLSerializer HTMLSerializer(oss);
-		HTMLSerializer.AddUTIC({ false, "", "/body/p/", "/self/", "/fancy/" });
+		HTMLSerializer.AddUTIC({ "", "[ /]body[/ ][p|br]/", "/s[e|u|o]lf/", "/fancy/", "", false });
 		HTMLSerializer.Parse(sHTML);
 
 		CHECK ( sHTML == sOutput );
@@ -87,6 +88,96 @@ TEST_CASE("KUTIC")
 		{
 			CHECK ( HTMLSerializer.m_Blocks[0] == "A study of population dynamics" );
 		}
+	}
+
+	SECTION("json")
+	{
+		auto jUTICArray = kjson::Parse(R"(
+		[
+			{
+				"U" : "www.test.org",
+				"T" : "p",
+				"I" : "id",
+				"C" : "base",
+				"X" : "div.header"
+			},
+			{
+				"U" : "",
+				"T" : "",
+				"I" : "",
+				"C" : "",
+				"X" : ""
+			},
+			{
+			}
+		]
+		)");
+
+		auto Rules = KUTIC::Load(jUTICArray);
+
+		CHECK ( Rules.size() == 1 );
+
+		if (Rules.size() == 1)
+		{
+			KUTIC& Rule = Rules[0];
+			CHECK ( Rule.URL()             == "www.test.org" );
+			CHECK ( Rule.CSSSelector()     == "div.header"   );
+			CHECK ( Rule.Tags()   .Regex() == "p"    );
+			CHECK ( Rule.IDs()    .Regex() == "id"   );
+			CHECK ( Rule.Classes().Regex() == "base" );
+			CHECK ( Rule.PositiveMatch()   == true   );
+			CHECK ( Rule.empty()           == false  );
+		}
+
+		auto jOneUTIC = kjson::Parse(R"(
+		{
+			"U" : "www.test.org",
+			"T" : "p",
+			"I" : "id",
+			"C" : "base",
+			"X" : "div.header"
+		}
+		)");
+
+		Rules = KUTIC::Load(jOneUTIC);
+		CHECK ( Rules.empty() );
+
+		KUTIC Wrong(jUTICArray);
+		CHECK ( Wrong.empty()          == true );
+		
+		KUTIC Rule(jOneUTIC);
+
+		CHECK ( Rule.URL()             == "www.test.org" );
+		CHECK ( Rule.CSSSelector()     == "div.header"   );
+		CHECK ( Rule.Tags()   .Regex() == "p"    );
+		CHECK ( Rule.IDs()    .Regex() == "id"   );
+		CHECK ( Rule.Classes().Regex() == "base" );
+		CHECK ( Rule.PositiveMatch()   == true   );
+		CHECK ( Rule.empty() == false );
+
+		KParsedUTIC Stack1("www.test.org/page",
+						   KParsedTICElement("/div/p/a/"),
+						   KParsedTICElement("/id///"),
+						   KParsedTICElement("/base///"),
+						   3);
+
+		CHECK ( Stack1 == Rule  );
+
+		Rules = KUTIC::Load(jUTICArray);
+
+		CHECK ( Stack1 == Rules );
+
+		KParsedUTIC Stack2("www.test.org/page");
+		Stack2.Add("div", "id", "base");
+		Stack2.Add("t", "none", "all");
+		Stack2.Reduce();
+		Stack2.Add("p", "", "");
+		Stack2.Add("a", "", "");
+
+
+		CHECK ( Stack2 == Stack1 );
+		CHECK ( Stack2 == Rule   );
+		CHECK ( Stack2 == Rules  );
 	}
 
 }

@@ -26,7 +26,7 @@ endif()
 if(CMAKE_VERSION VERSION_LESS "3.13.0")
 	message(STATUS "Current CMake version is ${CMAKE_VERSION}")
 	if (DEKAF2_NO_BUILDSETUP)
-		message(FATAL_ERROR "Please make sure CMake 3.13 or newer is available"
+		message(FATAL_ERROR "Please make sure CMake 3.13 or newer is available")
 	endif()
 	message(STATUS "Please switch to CMake 3.13.0 or newer")
 	EXECUTE_PROCESS(

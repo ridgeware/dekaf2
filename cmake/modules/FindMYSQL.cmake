@@ -13,7 +13,7 @@
 #
 
 #=============================================================================
-# Copyright 2012 RenatoUtsch
+# Copyright 2012 RenatoUtsch, changes 2019-2022 Ridgeware
 #
 # Distributed under the OSI-approved BSD License (the "License");
 # see accompanying file Copyright.txt for details.
@@ -62,20 +62,48 @@ else()
 	)
 endif()
 
-if( MYSQL_INCLUDE_DIR AND EXISTS "${MYSQL_INCLUDE_DIR}/mariadb_version.h" )
-	set(MYSQL_IS_MARIADB ON)
-	file( STRINGS "${MYSQL_INCLUDE_DIR}/mariadb_version.h"
-		MYSQL_VERSION_H REGEX "^#define[ \t]+MYSQL_SERVER_VERSION[ \t]+\"[^\"]+\".*$" )
-	string( REGEX REPLACE
-		"^.*MYSQL_SERVER_VERSION[ \t]+\"([^\"]+)\".*$" "\\1" MYSQL_VERSION_STRING
-		"${MYSQL_VERSION_H}" )
-elseif( MYSQL_INCLUDE_DIR AND EXISTS "${MYSQL_INCLUDE_DIR}/mysql_version.h" )
-	set(MYSQL_IS_MARIADB OFF)
-	file( STRINGS "${MYSQL_INCLUDE_DIR}/mysql_version.h"
-		MYSQL_VERSION_H REGEX "^#define[ \t]+MYSQL_SERVER_VERSION[ \t]+\"[^\"]+\".*$" )
-	string( REGEX REPLACE
-		"^.*MYSQL_SERVER_VERSION[ \t]+\"([^\"]+)\".*$" "\\1" MYSQL_VERSION_STRING
-		"${MYSQL_VERSION_H}" )
+if( MYSQL_INCLUDE_DIR )
+
+	if ( EXISTS "${MYSQL_INCLUDE_DIR}/mariadb_version.h" )
+
+		set(MYSQL_IS_MARIADB ON)
+		file( STRINGS "${MYSQL_INCLUDE_DIR}/mariadb_version.h"
+			MYSQL_VERSION_H REGEX "^#define[ \t]+MYSQL_SERVER_VERSION[ \t]+\"[^\"]+\".*$" )
+		string( REGEX REPLACE
+			"^.*MYSQL_SERVER_VERSION[ \t]+\"([^\"]+)\".*$" "\\1" MYSQL_VERSION_STRING
+			"${MYSQL_VERSION_H}" )
+
+	elseif( EXISTS "${MYSQL_INCLUDE_DIR}/mysql_version.h" )
+
+		# look in mysql_version.h
+		file( STRINGS "${MYSQL_INCLUDE_DIR}/mysql_version.h"
+			MYSQL_VERSION_H REGEX "^#define[ \t]+MYSQL_SERVER_VERSION[ \t]+\"[^\"]+\".*$" )
+		string( REGEX REPLACE
+			"^.*MYSQL_SERVER_VERSION[ \t]+\"([^\"]+)\".*$" "\\1" MYSQL_VERSION_STRING
+			"${MYSQL_VERSION_H}" )
+
+	else()
+
+		# look in mysql.h
+		file( STRINGS "${MYSQL_INCLUDE_DIR}/mysql.h"
+			MYSQL_H REGEX "^#define[ \t]+MYSQL_SERVER_VERSION[ \t]+\"[^\"]+\".*$" )
+		string( REGEX REPLACE
+			"^.*MYSQL_SERVER_VERSION[ \t]+\"([^\"]+)\".*$" "\\1" MYSQL_VERSION_STRING
+			"${MYSQL_H}" )
+
+	endif()
+
+	if (NOT MYSQL_IS_MARIADB)
+		# old versions of mariadb do not have a mariadb_version.h file,
+		# therefore we need to search in the mysql.h for signs of mariadb ..
+		file(STRINGS "${MYSQL_INCLUDE_DIR}/mysql.h" TEST_FOR_MARIADB REGEX "typedef *struct *st_mysql")
+		if (TEST_FOR_MARIADB STREQUAL "")
+			set(MYSQL_IS_MARIADB OFF)
+		else()
+			set(MYSQL_IS_MARIADB ON)
+		endif()
+	endif()
+
 endif()
 
 

@@ -99,7 +99,15 @@ TEST_CASE("KUTIC")
 				"T" : "p",
 				"I" : "id",
 				"C" : "base",
-				"X" : "div.header"
+				"X" : "div.header",
+				"key" : "any data",
+				"array" : [
+					"one", "two", "three"
+				],
+				"object" : {
+					"key1" : "value1",
+					"key2" : "value2"
+				}
 			},
 			{
 				"U" : "",
@@ -107,6 +115,23 @@ TEST_CASE("KUTIC")
 				"I" : "",
 				"C" : "",
 				"X" : ""
+			},
+			{
+				"U" : "U",
+				"T" : "T",
+				"I" : "I",
+				"C" : "C",
+				"X" : "X"
+			},
+			{
+				"U" : "U",
+				"T" : "T",
+				"I" : "I",
+				"C" : "C",
+				"X" : "some selector"
+			},
+			{
+				"some" : "thing"
 			},
 			{
 			}
@@ -120,13 +145,14 @@ TEST_CASE("KUTIC")
 		if (Rules.size() == 1)
 		{
 			KUTIC& Rule = Rules[0];
-			CHECK ( Rule.URL()             == "www.test.org" );
-			CHECK ( Rule.CSSSelector()     == "div.header"   );
-			CHECK ( Rule.Tags()   .Regex() == "p"    );
-			CHECK ( Rule.IDs()    .Regex() == "id"   );
-			CHECK ( Rule.Classes().Regex() == "base" );
-			CHECK ( Rule.PositiveMatch()   == true   );
-			CHECK ( Rule.empty()           == false  );
+			CHECK ( Rule.URL()              == "www.test.org" );
+			CHECK ( Rule.CSSSelector()      == "div.header"   );
+			CHECK ( Rule.Tags()   .Regex()  == "p"    );
+			CHECK ( Rule.IDs()    .Regex()  == "id"   );
+			CHECK ( Rule.Classes().Regex()  == "base" );
+			CHECK ( Rule.Payload().dump(-1) == R"({"array":["one","two","three"],"key":"any data","object":{"key1":"value1","key2":"value2"}})" );
+			CHECK ( Rule.PositiveMatch()    == true   );
+			CHECK ( Rule.empty()            == false  );
 		}
 
 		auto jOneUTIC = kjson::Parse(R"(
@@ -135,7 +161,15 @@ TEST_CASE("KUTIC")
 			"T" : "p",
 			"I" : "id",
 			"C" : "base",
-			"X" : "div.header"
+			"X" : "div.header",
+			"key" : "any data",
+			"array" : [
+				"one", "two", "three"
+			],
+			"object" : {
+				"key1" : "value1",
+				"key2" : "value2"
+			}
 		}
 		)");
 
@@ -152,6 +186,7 @@ TEST_CASE("KUTIC")
 		CHECK ( Rule.Tags()   .Regex() == "p"    );
 		CHECK ( Rule.IDs()    .Regex() == "id"   );
 		CHECK ( Rule.Classes().Regex() == "base" );
+		CHECK ( Rule.Payload().dump(-1) == R"({"array":["one","two","three"],"key":"any data","object":{"key1":"value1","key2":"value2"}})" );
 		CHECK ( Rule.PositiveMatch()   == true   );
 		CHECK ( Rule.empty() == false );
 

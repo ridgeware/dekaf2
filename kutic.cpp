@@ -199,17 +199,30 @@ bool operator==(const KParsedUTIC& left, const KParsedUTIC& right)
 //-----------------------------------------------------------------------------
 KUTIC::KUTIC(const KJSON& jUTIC, bool bPositiveMatch)
 //-----------------------------------------------------------------------------
-: m_Tags           (kjson::GetStringRef(jUTIC, "T"))
-, m_IDs            (kjson::GetStringRef(jUTIC, "I"))
-, m_Classes        (kjson::GetStringRef(jUTIC, "C"))
-, m_sURL           (kjson::GetStringRef(jUTIC, "U"))
-, m_sCSSSelector   (kjson::GetStringRef(jUTIC, "X"))
+: m_Tags           (GetUTICValue(jUTIC, "T"))
+, m_IDs            (GetUTICValue(jUTIC, "I"))
+, m_Classes        (GetUTICValue(jUTIC, "C"))
+, m_sURL           (GetUTICValue(jUTIC, "U"))
+, m_sCSSSelector   (GetUTICValue(jUTIC, "X"))
 , m_bPositiveMatch (bPositiveMatch)
 {
+	if (jUTIC.is_object())
+	{
+		m_jPayload = KJSON::object();
+		// now collect all properties that are not any of UTICX
+		for (const auto& it : jUTIC.items())
+		{
+			if (!it.key().In("U,T,I,C,X"))
+			{
+				m_jPayload.push_back({it.key(), it.value()});
+			}
+		}
+	}
+
 } // KUTIC ctor
 
 //-----------------------------------------------------------------------------
-bool KUTIC::Append(std::vector<KUTIC>& UTICs, KInStream& InStream)
+bool KUTIC::Append(std::vector<KUTIC>& UTICs, KInStream& InStream, bool bPositiveMatch)
 //-----------------------------------------------------------------------------
 {
 	for (KStringView sLine : InStream)
@@ -220,15 +233,26 @@ bool KUTIC::Append(std::vector<KUTIC>& UTICs, KInStream& InStream)
 		{
 			if (sLine.front() != '#')
 			{
-				auto UTIC = sLine.Split();
+				auto vUTIC = sLine.Split();
 
-				if (UTIC.size() == 4)
+				KUTIC UTIC;
+
+				if (vUTIC.size() == 3)
 				{
-					UTICs.push_back(KUTIC(UTIC[0], UTIC[1], UTIC[2], UTIC[3]));
+					UTIC = KUTIC(vUTIC[0], vUTIC[1], vUTIC[2], "", bPositiveMatch);
 				}
-				else if (UTIC.size() == 5)
+				else if (vUTIC.size() == 4)
 				{
-					UTICs.push_back(KUTIC(UTIC[0], UTIC[1], UTIC[2], UTIC[3], UTIC[4]));
+					UTIC = KUTIC(vUTIC[0], vUTIC[1], vUTIC[2], vUTIC[3], bPositiveMatch);
+				}
+				else if (vUTIC.size() == 5)
+				{
+					UTIC = KUTIC(vUTIC[0], vUTIC[1], vUTIC[2], vUTIC[3], vUTIC[4], bPositiveMatch);
+				}
+
+				if (!UTIC.empty())
+				{
+					UTICs.push_back(std::move(UTIC));
 				}
 			}
 		}
@@ -239,7 +263,7 @@ bool KUTIC::Append(std::vector<KUTIC>& UTICs, KInStream& InStream)
 } // Append
 
 //-----------------------------------------------------------------------------
-bool KUTIC::Append(std::vector<KUTIC>& UTICs, KStringViewZ sFileName)
+bool KUTIC::Append(std::vector<KUTIC>& UTICs, KStringViewZ sFileName, bool bPositiveMatch)
 //-----------------------------------------------------------------------------
 {
 	KInFile File(sFileName);
@@ -250,7 +274,7 @@ bool KUTIC::Append(std::vector<KUTIC>& UTICs, KStringViewZ sFileName)
 		return false;
 	}
 
-	return Append(UTICs, File);
+	return Append(UTICs, File, bPositiveMatch);
 
 } // Append
 
@@ -281,7 +305,7 @@ bool KUTIC::Append(std::vector<KUTIC>& UTICs, const KJSON& json, bool bPositiveM
 } // Append
 
 //-----------------------------------------------------------------------------
-std::vector<KUTIC> KUTIC::Load(KInStream& InStream)
+std::vector<KUTIC> KUTIC::Load(KInStream& InStream, bool bPositiveMatch)
 //-----------------------------------------------------------------------------
 {
 	std::vector<KUTIC> UTICs;
@@ -291,7 +315,7 @@ std::vector<KUTIC> KUTIC::Load(KInStream& InStream)
 } // Load
 
 //-----------------------------------------------------------------------------
-std::vector<KUTIC> KUTIC::Load(KStringViewZ sFileName)
+std::vector<KUTIC> KUTIC::Load(KStringViewZ sFileName, bool bPositiveMatch)
 //-----------------------------------------------------------------------------
 {
 	std::vector<KUTIC> UTICs;
@@ -311,9 +335,20 @@ std::vector<KUTIC> KUTIC::Load(const KJSON& json, bool bPositiveMatch)
 } // Load
 
 //-----------------------------------------------------------------------------
+const KStringView KUTIC::GetUTICValue(const KJSON& json, KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	KStringView sValue = kjson::GetStringRef(json, sName);
+	return (sValue == sName) ? KStringView{} : sValue;
+
+} // GetUTICValue
+
+//-----------------------------------------------------------------------------
 bool KUTIC::empty() const
 //-----------------------------------------------------------------------------
 {
+	// do not test for m_sCSSSelector here - as we do not evaluate it, it _is_
+	// empty. If that changes in a derived class, overwrite empty() as well
 	return m_Tags.empty()    &&
 	       m_IDs.empty()     &&
 	       m_Classes.empty() &&

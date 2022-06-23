@@ -228,24 +228,29 @@ public:
 	const KTICElement& Classes()       const { return m_Classes;        }
 	/// returns the CSS selector to match
 	const KString&     CSSSelector()   const { return m_sCSSSelector;   }
+	/// returns payload json data for this KUTIC matcher
+	const KJSON&       Payload()       const { return m_jPayload;       }
 	/// is this a positive or negative match rule
 	bool               PositiveMatch() const { return m_bPositiveMatch; }
 	/// returns true if all rules are empty
 	bool               empty()         const;
 
 	/// load UTICs from a stream, comma separated U, T, I, C [, X] line by line, append to existing list
-	static bool Append(std::vector<KUTIC>& UTICs, KInStream& InStream);
+	static bool Append(std::vector<KUTIC>& UTICs, KInStream& InStream, bool bPositiveMatch = true);
 	/// load UTICs from a file, comma separated U, T, I, C [, X] line by line, append to existing list
-	static bool Append(std::vector<KUTIC>& UTICs, KStringViewZ sFileName);
+	static bool Append(std::vector<KUTIC>& UTICs, KStringViewZ sFileName, bool bPositiveMatch = true);
 	/// give a json array with objects containing U T I C [X] properties, append to existing list
 	static bool Append(std::vector<KUTIC>& UTICs, const KJSON& json, bool bPositiveMatch = true);
 
 	/// load UTICs from a stream, comma separated U, T, I, C [, X] line by line
-	static std::vector<KUTIC> Load(KInStream& InStream);
+	static std::vector<KUTIC> Load(KInStream& InStream, bool bPositiveMatch = true);
 	/// load UTICs from a file, comma separated U, T, I, C [, X] line by line
-	static std::vector<KUTIC> Load(KStringViewZ sFileName);
+	static std::vector<KUTIC> Load(KStringViewZ sFileName, bool bPositiveMatch = true);
 	/// give a json array with objects containing U T I C [X] properties
 	static std::vector<KUTIC> Load(const KJSON& json, bool bPositiveMatch = true);
+
+	/// returns a regex string for UTICs and replaces the occurence of the name alone with the empty regex
+	static const KStringView GetUTICValue(const KJSON& json, KStringView sName);
 
 //------
 private:
@@ -256,6 +261,7 @@ private:
 	KTICElement m_Classes;
 	KString     m_sURL;
 	KString     m_sCSSSelector;
+	KJSON       m_jPayload;
 	bool        m_bPositiveMatch { true };
 
 }; // KUTIC

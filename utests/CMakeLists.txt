@@ -102,7 +102,6 @@ set (USOURCES
 	kurl_tests.cpp
 	kutf8_tests.cpp
 	kutf8iterator_tests.cpp
-	kutic_tests.cpp
 	kversion_tests.cpp
 	kwebclient_tests.cpp
 	kwebobjects_tests.cpp

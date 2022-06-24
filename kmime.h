@@ -137,6 +137,31 @@ public:
 		return Serialize();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// returns the type part of a MIME type: type "/" [tree "."] subtype ["+" suffix]* [";" parameter]
+	KStringView Type()      const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns the tree part of a MIME type: type "/" [tree "."] subtype ["+" suffix]* [";" parameter]
+	KStringView Tree()      const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns the subtype part of a MIME type: type "/" [tree "."] subtype ["+" suffix]* [";" parameter]
+	KStringView SubType()   const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns the suffix part of a MIME type: type "/" [tree "."] subtype ["+" suffix]* [";" parameter]
+	KStringView Suffix()    const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns the parameter part of a MIME type: type "/" [tree "."] subtype ["+" suffix]* [";" parameter]
+	KStringView Parameter() const;
+	//-----------------------------------------------------------------------------
+
 	static constexpr KStringViewZ NONE                   = "";
 
 	static constexpr KStringViewZ AAC                    = "audio/aac";
@@ -219,6 +244,9 @@ public:
 //------
 private:
 //------
+
+	KStringView PastType() const;
+	KStringView PastTree() const;
 
 	KString m_mime { NONE };
 

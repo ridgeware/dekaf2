@@ -256,6 +256,164 @@ bool KMIME::IsCompressible()
 
 } // IsCompressible
 
+// type "/" [tree "."][tree "."][tree "."] subtype ["+" suffix]* [";" parameter]
+
+namespace {
+constexpr char TypeSeparator      = '/';
+constexpr char TreeSeparator      = '.';
+constexpr char SuffixSeparator    = '+';
+constexpr char ParameterSeparator = ';';
+constexpr KStringView Separators  = "/.+;";
+}
+
+//-----------------------------------------------------------------------------
+KStringView KMIME::PastType() const
+//-----------------------------------------------------------------------------
+{
+	auto iPos = m_mime.find(TypeSeparator);
+
+	if (DEKAF2_UNLIKELY(iPos == KString::npos))
+	{
+		return KStringView{};
+	}
+
+	return m_mime.ToView(iPos+1, npos);
+
+} // PastType
+
+//-----------------------------------------------------------------------------
+KStringView KMIME::PastTree() const
+//-----------------------------------------------------------------------------
+{
+	auto iStart = m_mime.find(TypeSeparator);
+
+	if (DEKAF2_UNLIKELY(iStart == KString::npos))
+	{
+		return KStringView{};
+	}
+
+	++iStart;
+
+	for (;;)
+	{
+		auto iDot = m_mime.find(TreeSeparator, iStart);
+
+		if (iDot == KString::npos)
+		{
+			return m_mime.ToView(iStart);
+		}
+
+		iStart = iDot + 1;
+	}
+
+} // PastTree
+
+//-----------------------------------------------------------------------------
+KStringView KMIME::Type() const
+//-----------------------------------------------------------------------------
+{
+	return m_mime.ToView(0, m_mime.find(TypeSeparator));
+
+} // Type
+
+//-----------------------------------------------------------------------------
+KStringView KMIME::Tree() const
+//-----------------------------------------------------------------------------
+{
+	auto sRest = PastType();
+
+	KStringView::size_type iEnd = 0;
+
+	for (;;)
+	{
+		auto iDot  = sRest.find(TreeSeparator, iEnd);
+
+		if (iDot == KStringView::npos)
+		{
+			break;
+		}
+
+		iEnd = iDot + 1;
+	}
+
+	if (iEnd > 0)
+	{
+		return sRest.Left(iEnd - 1);
+	}
+
+	return KStringView{};
+
+} // Tree
+
+//-----------------------------------------------------------------------------
+KStringView KMIME::SubType() const
+//-----------------------------------------------------------------------------
+{
+	auto sRest = PastTree();
+
+	for (;;)
+	{
+		auto iPos  = sRest.find_first_of(Separators);
+
+		if (iPos == KStringView::npos)
+		{
+			return sRest;
+		}
+		else if (sRest[iPos] == TreeSeparator)
+		{
+			sRest.remove_prefix(iPos+1);
+		}
+		else
+		{
+			return sRest.Left(iPos);
+		}
+	}
+
+} // SubType
+
+//-----------------------------------------------------------------------------
+KStringView KMIME::Suffix() const
+//-----------------------------------------------------------------------------
+{
+	auto iStart = m_mime.find(SuffixSeparator);
+
+	if (iStart == KStringView::npos)
+	{
+		return KStringView{};
+	}
+
+	++iStart;
+
+	auto iEnd = m_mime.find(ParameterSeparator, iStart);
+
+	return m_mime.ToView(iStart, iEnd - iStart);
+
+} // Suffix
+
+//-----------------------------------------------------------------------------
+KStringView KMIME::Parameter() const
+//-----------------------------------------------------------------------------
+{
+	auto iStart = m_mime.find(ParameterSeparator);
+
+	if (iStart == KStringView::npos)
+	{
+		return KStringView{};
+	}
+
+	++iStart;
+
+	auto iSize = m_mime.size();
+
+	while (iStart < iSize && KASCII::kIsSpace(m_mime[iStart]))
+	{
+		++iStart;
+	}
+
+	return m_mime.ToView(iStart);
+
+} // Parameter
+
 //-----------------------------------------------------------------------------
 KMIMEPart::KMIMEPart(KMIME MIME)
 //-----------------------------------------------------------------------------

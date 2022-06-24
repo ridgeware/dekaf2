@@ -68,6 +68,57 @@ TEST_CASE("KMIME")
 
 	}
 
+	SECTION("parts")
+	{
+		KMIME mime="application/vnd.api+json";
+
+		CHECK ( mime.Type()      == "application" );
+		CHECK ( mime.SubType()   == "api"         );
+		CHECK ( mime.Tree()      == "vnd"         );
+		CHECK ( mime.Suffix()    == "json"        );
+		CHECK ( mime.Parameter() == ""            );
+
+		mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+		CHECK ( mime.Type()      == "application" );
+		CHECK ( mime.SubType()   == "document"    );
+		CHECK ( mime.Tree()      == "vnd.openxmlformats-officedocument.wordprocessingml" );
+		CHECK ( mime.Suffix()    == ""            );
+		CHECK ( mime.Parameter() == ""            );
+
+		mime = "image/svg+xml";
+
+		CHECK ( mime.Type()      == "image"       );
+		CHECK ( mime.SubType()   == "svg"         );
+		CHECK ( mime.Tree()      == ""            );
+		CHECK ( mime.Suffix()    == "xml"         );
+		CHECK ( mime.Parameter() == ""            );
+
+		mime = "text/html; charset=UTF-8";
+
+		CHECK ( mime.Type()      == "text"        );
+		CHECK ( mime.SubType()   == "html"        );
+		CHECK ( mime.Tree()      == ""            );
+		CHECK ( mime.Suffix()    == ""            );
+		CHECK ( mime.Parameter() == "charset=UTF-8" );
+
+		mime = "application/x-www-form-urlencoded";
+
+		CHECK ( mime.Type()      == "application" );
+		CHECK ( mime.SubType()   == "x-www-form-urlencoded");
+		CHECK ( mime.Tree()      == ""            );
+		CHECK ( mime.Suffix()    == ""            );
+		CHECK ( mime.Parameter() == ""            );
+
+		mime = "text/sgml.html+xml; charset=UTF-8";
+
+		CHECK ( mime.Type()      == "text"        );
+		CHECK ( mime.SubType()   == "html"        );
+		CHECK ( mime.Tree()      == "sgml"        );
+		CHECK ( mime.Suffix()    == "xml"         );
+		CHECK ( mime.Parameter() == "charset=UTF-8" );
+	}
+
 // C++11 has problems destroying the KMIMEMultiPartFormData ..
 #ifndef DEKAF2_HAS_CPP_14
 	SECTION("KMIMEMultiPart")

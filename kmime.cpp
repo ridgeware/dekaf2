@@ -256,7 +256,7 @@ bool KMIME::IsCompressible()
 
 } // IsCompressible
 
-// type "/" [tree "."][tree "."][tree "."] subtype ["+" suffix]* [";" parameter]
+// type "/" [tree "."]* subtype ["+" suffix]* [";" parameter]
 
 namespace {
 constexpr char TypeSeparator      = '/';
@@ -351,23 +351,14 @@ KStringView KMIME::SubType() const
 {
 	auto sRest = PastTree();
 
-	for (;;)
-	{
-		auto iPos  = sRest.find_first_of(Separators);
+	auto iPos = sRest.find_first_of(Separators);
 
-		if (iPos == KStringView::npos)
-		{
-			return sRest;
-		}
-		else if (sRest[iPos] == TreeSeparator)
-		{
-			sRest.remove_prefix(iPos+1);
-		}
-		else
-		{
-			return sRest.Left(iPos);
-		}
+	if (iPos == KStringView::npos)
+	{
+		return sRest;
 	}
+
+	return sRest.Left(iPos);
 
 } // SubType
 

@@ -78,6 +78,38 @@ TEST_CASE("KMIME")
 		CHECK ( mime.Suffix()    == "json"        );
 		CHECK ( mime.Parameter() == ""            );
 
+		mime="application/vnd.api+json+xml";
+
+		CHECK ( mime.Type()      == "application" );
+		CHECK ( mime.SubType()   == "api"         );
+		CHECK ( mime.Tree()      == "vnd"         );
+		CHECK ( mime.Suffix()    == "json+xml"    );
+		CHECK ( mime.Parameter() == ""            );
+
+		mime="application/vnd.api+json+xml;  type=any";
+
+		CHECK ( mime.Type()      == "application" );
+		CHECK ( mime.SubType()   == "api"         );
+		CHECK ( mime.Tree()      == "vnd"         );
+		CHECK ( mime.Suffix()    == "json+xml"    );
+		CHECK ( mime.Parameter() == "type=any"    );
+
+		mime="application/vnd.second.api+json+xml;  type=any";
+
+		CHECK ( mime.Type()      == "application" );
+		CHECK ( mime.SubType()   == "api"         );
+		CHECK ( mime.Tree()      == "vnd.second"  );
+		CHECK ( mime.Suffix()    == "json+xml"    );
+		CHECK ( mime.Parameter() == "type=any"    );
+
+		mime="application/vnd.api+json+xml;type=any";
+
+		CHECK ( mime.Type()      == "application" );
+		CHECK ( mime.SubType()   == "api"         );
+		CHECK ( mime.Tree()      == "vnd"         );
+		CHECK ( mime.Suffix()    == "json+xml"    );
+		CHECK ( mime.Parameter() == "type=any"    );
+
 		mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 		CHECK ( mime.Type()      == "application" );

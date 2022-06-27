@@ -29,17 +29,19 @@ RUN export CPUCORES=$(expr $(egrep '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
     cmake --build . --parallel ${CPUCORES} --target all
 
 # install
-RUN cmake --install .
+#RUN cmake --install .
+RUN make install
 
-#FROM ${from} as final
-#COPY --from=build-stage /usr/local/bin/klog           /usr/local/bin/klog
-#COPY --from=build-stage /usr/local/bin/createdbc      /usr/local/bin/createdbc
-#COPY --from=build-stage /usr/local/bin/dekaf2project  /usr/local/bin/dekaf2project
-#COPY --from=build-stage /usr/local/bin/kurl           /usr/local/bin/kurl
-#COPY --from=build-stage /usr/local/bin/mysql-newuser  /usr/local/bin/mysql-newuser
-#COPY --from=build-stage /usr/local/bin/findcol        /usr/local/bin/findcol
-#COPY --from=build-stage /usr/local/bin/kport          /usr/local/bin/kport
-#COPY --from=build-stage /usr/local/bin/my-ip-addr     /usr/local/bin/my-ip-addr
-#COPY --from=build-stage /usr/local/include/dekaf2-2.0 /usr/local/include/dekaf2-2.0
-#COPY --from=build-stage /usr/local/lib/dekaf2-2.0     /usr/local/lib/dekaf2-2.0
-#COPY --from=build-stage /usr/local/share/dekaf2-2.0   /usr/local/share/dekaf2-2.0
+FROM ${from} as final
+
+COPY --from=build-stage /usr/local/bin/klog           /usr/local/bin/klog
+COPY --from=build-stage /usr/local/bin/createdbc      /usr/local/bin/createdbc
+COPY --from=build-stage /usr/local/bin/dekaf2project  /usr/local/bin/dekaf2project
+COPY --from=build-stage /usr/local/bin/kurl           /usr/local/bin/kurl
+COPY --from=build-stage /usr/local/bin/mysql-newuser  /usr/local/bin/mysql-newuser
+COPY --from=build-stage /usr/local/bin/findcol        /usr/local/bin/findcol
+COPY --from=build-stage /usr/local/bin/kport          /usr/local/bin/kport
+COPY --from=build-stage /usr/local/bin/my-ip-addr     /usr/local/bin/my-ip-addr
+COPY --from=build-stage /usr/local/include/dekaf2-2.0 /usr/local/include/dekaf2-2.0
+COPY --from=build-stage /usr/local/lib/dekaf2-2.0     /usr/local/lib/dekaf2-2.0
+COPY --from=build-stage /usr/local/share/dekaf2-2.0   /usr/local/share/dekaf2-2.0

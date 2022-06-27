@@ -242,8 +242,6 @@ bool kIsFloat(KStringView str, KStringView::value_type chDecimalSeparator) noexc
 
 } // kIsFloat
 
-
-
 //-----------------------------------------------------------------------------
 bool kIsEmail(KStringView str) noexcept
 //-----------------------------------------------------------------------------

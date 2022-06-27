@@ -211,7 +211,10 @@ template<class T>
 struct is_wide_cpp_str
   : std::integral_constant<
       bool,
-      std::is_same<std::wstring,       typename std::decay<T>::type>::value
+#if defined(DEKAF2_HAS_FULL_CPP_17)
+	  std::is_same<std::wstring_view,      typename std::decay<T>::type>::value ||
+#endif
+      std::is_same<std::wstring,           typename std::decay<T>::type>::value
 > {};
 
 template<class T>

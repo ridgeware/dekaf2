@@ -755,7 +755,7 @@ KString& KString::Trim(KStringView sTrim) &
 KString& KString::Collapse() &
 //----------------------------------------------------------------------
 {
-	return kCollapse(*this, detail::kASCIISpaces, ' ');
+	return kCollapse(*this);
 	return *this;
 }
 
@@ -771,7 +771,7 @@ KString& KString::Collapse(KStringView svCollapse, value_type chTo) &
 KString& KString::CollapseAndTrim() &
 //----------------------------------------------------------------------
 {
-	return kCollapseAndTrim(*this, detail::kASCIISpaces, ' ');
+	return kCollapseAndTrim(*this);
 	return *this;
 }
 

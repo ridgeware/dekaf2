@@ -86,7 +86,7 @@ void regex1()
 		{
 			dekaf2::KString sFirstPart{ sInit };
 			dekaf2::KProf::Force(&sFirstPart[0]);
-			if (dekaf2::kIsSpace(sFirstPart[0]) || ('-' == sFirstPart[0])) {
+			if (dekaf2::kIsSpace(sFirstPart[0]) || ('-' == sFirstPart[0])) { // < ====== here
 				sFirstPart.ReplaceRegex("^[ \f\n\r\t\v\b-]+", ""); // remove leading whitespace and dashes
 			}
 			dekaf2::KProf::Force(&sFirstPart);
@@ -103,7 +103,7 @@ void regex1()
 		{
 			dekaf2::KString sFirstPart{ sInit };
 			dekaf2::KProf::Force(&sFirstPart[0]);
-			if (dekaf2::kIsSpace(sFirstPart[0]) || ('-' == sFirstPart[0])) {
+			if (dekaf2::kIsSpace(sFirstPart[0]) || ('-' == sFirstPart[0])) { // < ====== here
 				dekaf2::KProf::Force();
 				sFirstPart.ReplaceRegex("^[ \f\n\r\t\v\b-]+", ""); // remove leading whitespace and dashes
 			}
@@ -130,7 +130,7 @@ void regex2()
 		for (size_t count = 0; count < 1024*1024; ++count)
 		{
 			dekaf2::KString sFirstPart{ sInit };
-			dekaf2::KProf::Force(&sFirstPart[0]);
+			dekaf2::KProf::Force(&sFirstPart[0]); // < ====== not here
 			sFirstPart.ReplaceRegex("^[ \f\n\r\t\v\b-]+", ""); // remove leading whitespace and dashes
 			dekaf2::KProf::Force(&sFirstPart);
 		}
@@ -145,7 +145,7 @@ void regex2()
 		for (size_t count = 0; count < 1024*1024; ++count)
 		{
 			dekaf2::KString sFirstPart{ sInit };
-			dekaf2::KProf::Force(&sFirstPart[0]);
+			dekaf2::KProf::Force(&sFirstPart[0]); // < ====== not here
 			sFirstPart.ReplaceRegex("^[ \f\n\r\t\v\b-]+", ""); // remove leading whitespace and dashes
 			dekaf2::KProf::Force(&sFirstPart);
 		}
@@ -203,7 +203,7 @@ void regex4()
 		{
 			dekaf2::KString sFirstPart{ sInit };
 			dekaf2::KProf::Force(&sFirstPart[0]);
-			sFirstPart.CollapseAndTrim(" \f\n\r\t\v\b-", ' ');
+			sFirstPart.TrimLeft();
 			dekaf2::KProf::Force(&sFirstPart);
 		}
 	}
@@ -212,13 +212,81 @@ void regex4()
 		dekaf2::KProf prof("remove (4)");
 		prof.SetMultiplier(1024*1024);
 
-		dekaf2::KString sInit { "- sdif" };
+		dekaf2::KString sInit { "\t sdif" };
 
 		for (size_t count = 0; count < 1024*1024; ++count)
 		{
 			dekaf2::KString sFirstPart{ sInit };
 			dekaf2::KProf::Force(&sFirstPart[0]);
-			sFirstPart.CollapseAndTrim(" \f\n\r\t\v\b-", ' ');
+			sFirstPart.TrimLeft();
+			dekaf2::KProf::Force(&sFirstPart);
+		}
+	}
+}
+
+void regex5()
+{
+	dekaf2::KProf ps("-Regex5");
+	{
+		dekaf2::KProf prof("no remove (5)");
+		prof.SetMultiplier(1024*1024);
+
+		dekaf2::KString sInit { "sdif" };
+
+		for (size_t count = 0; count < 1024*1024; ++count)
+		{
+			dekaf2::KString sFirstPart{ sInit };
+			dekaf2::KProf::Force(&sFirstPart[0]);
+			sFirstPart.CollapseAndTrim(" \f\n\r\t\v\b", ' ');
+			dekaf2::KProf::Force(&sFirstPart);
+		}
+	}
+
+	{
+		dekaf2::KProf prof("remove (5)");
+		prof.SetMultiplier(1024*1024);
+
+		dekaf2::KString sInit { "\t sdif" };
+
+		for (size_t count = 0; count < 1024*1024; ++count)
+		{
+			dekaf2::KString sFirstPart{ sInit };
+			dekaf2::KProf::Force(&sFirstPart[0]);
+			sFirstPart.CollapseAndTrim(" \f\n\r\t\v\b", ' ');
+			dekaf2::KProf::Force(&sFirstPart);
+		}
+	}
+}
+
+void regex6()
+{
+	dekaf2::KProf ps("-Regex6");
+	{
+		dekaf2::KProf prof("no remove (6)");
+		prof.SetMultiplier(1024*1024);
+
+		dekaf2::KString sInit { "sdif" };
+
+		for (size_t count = 0; count < 1024*1024; ++count)
+		{
+			dekaf2::KString sFirstPart{ sInit };
+			dekaf2::KProf::Force(&sFirstPart[0]);
+			sFirstPart.CollapseAndTrim();
+			dekaf2::KProf::Force(&sFirstPart);
+		}
+	}
+
+	{
+		dekaf2::KProf prof("remove (6)");
+		prof.SetMultiplier(1024*1024);
+
+		dekaf2::KString sInit { "\t sdif" };
+
+		for (size_t count = 0; count < 1024*1024; ++count)
+		{
+			dekaf2::KString sFirstPart{ sInit };
+			dekaf2::KProf::Force(&sFirstPart[0]);
+			sFirstPart.CollapseAndTrim();
 			dekaf2::KProf::Force(&sFirstPart);
 		}
 	}
@@ -252,7 +320,122 @@ void collapse()
 		{
 			dekaf2::KString sFirstPart{ sInit };
 			dekaf2::KProf::Force(&sFirstPart[0]);
-			sFirstPart.Collapse(" \f\n\r\t\v\b-", ' ');
+			sFirstPart.Collapse(" \f\n\r\t\v\b", ' ');
+			dekaf2::KProf::Force(&sFirstPart);
+		}
+	}
+
+	{
+		dekaf2::KProf prof("collapse (3)");
+		prof.SetMultiplier(1024*1024);
+
+		dekaf2::KString sInit { "  sdifsdflkjlas eljdfkhiuk \t jb" };
+
+		for (size_t count = 0; count < 1024*1024; ++count)
+		{
+			dekaf2::KString sFirstPart{ sInit };
+			dekaf2::KProf::Force(&sFirstPart[0]);
+			sFirstPart.Collapse();
+			dekaf2::KProf::Force(&sFirstPart);
+		}
+	}
+}
+
+void trim()
+{
+	dekaf2::KProf ps("-Trim");
+	{
+		dekaf2::KProf prof("trimLeft (1)");
+		prof.SetMultiplier(1024*1024);
+
+		dekaf2::KString sInit { "      \t\n sdifsdflkjlas" };
+
+		for (size_t count = 0; count < 1024*1024; ++count)
+		{
+			dekaf2::KString sFirstPart{ sInit };
+			dekaf2::KProf::Force(&sFirstPart[0]);
+			kTrimLeft(sFirstPart);
+			dekaf2::KProf::Force(&sFirstPart);
+		}
+	}
+
+	{
+		dekaf2::KProf prof("trimLeft (2)");
+		prof.SetMultiplier(1024*1024);
+
+		dekaf2::KString sInit { "      \t\n sdifsdflkjlas" };
+
+		for (size_t count = 0; count < 1024*1024; ++count)
+		{
+			dekaf2::KString sFirstPart{ sInit };
+			dekaf2::KProf::Force(&sFirstPart[0]);
+			kTrimLeft(sFirstPart, " \f\n\r\t\v\b");
+			dekaf2::KProf::Force(&sFirstPart);
+		}
+	}
+
+	{
+		dekaf2::KProf prof("trimLeft (3)");
+		prof.SetMultiplier(1024*1024);
+
+		dekaf2::KString sInit { "      \t\n sdifsdflkjlas" };
+
+		for (size_t count = 0; count < 1024*1024; ++count)
+		{
+			dekaf2::KString sFirstPart{ sInit };
+			dekaf2::KProf::Force(&sFirstPart[0]);
+			kTrimLeft(sFirstPart, [](char ch)
+			{
+				return std::isspace(ch);
+			});
+			dekaf2::KProf::Force(&sFirstPart);
+		}
+	}
+
+	{
+		dekaf2::KProf prof("trimRight (1)");
+		prof.SetMultiplier(1024*1024);
+
+		dekaf2::KString sInit { "sdifsdflkjlas      \t\n " };
+
+		for (size_t count = 0; count < 1024*1024; ++count)
+		{
+			dekaf2::KString sFirstPart{ sInit };
+			dekaf2::KProf::Force(&sFirstPart[0]);
+			kTrimRight(sFirstPart);
+			dekaf2::KProf::Force(&sFirstPart);
+		}
+	}
+
+	{
+		dekaf2::KProf prof("trimRight (2)");
+		prof.SetMultiplier(1024*1024);
+
+		dekaf2::KString sInit { "sdifsdflkjlas      \t\n " };
+
+		for (size_t count = 0; count < 1024*1024; ++count)
+		{
+			dekaf2::KString sFirstPart{ sInit };
+			dekaf2::KProf::Force(&sFirstPart[0]);
+			kTrimRight(sFirstPart, " \f\n\r\t\v\b");
+			dekaf2::KProf::Force(&sFirstPart);
+		}
+	}
+
+	{
+		dekaf2::KProf prof("trimRight (3)");
+		prof.SetMultiplier(1024*1024);
+
+		dekaf2::KString sInit { "sdifsdflkjlas      \t\n " };
+
+		for (size_t count = 0; count < 1024*1024; ++count)
+		{
+			dekaf2::KString sFirstPart{ sInit };
+			dekaf2::KProf::Force(&sFirstPart[0]);
+			kTrimRight(sFirstPart, [](char ch)
+			{
+				return std::isspace(ch);
+			});
 			dekaf2::KProf::Force(&sFirstPart);
 		}
 	}
@@ -460,7 +643,10 @@ void other_bench()
 	regex2();
 	regex3();
 	regex4();
+	regex5();
+	regex6();
 	collapse();
+	trim();
 	dtime();
 	atomic();
 	threads();

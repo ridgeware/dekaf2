@@ -131,9 +131,9 @@ String& kPadRight(String& string, size_t iWidth, typename String::value_type chP
 
 //-----------------------------------------------------------------------------
 /// removes any character in svTrim from the left of the string
-template<class String,
-         typename std::enable_if<detail::is_narrow_cpp_str<String>::value, int>::type = 0>
-String& kTrimLeft(String& string, KStringView svTrim = detail::kASCIISpaces)
+template<class String, class StringView,
+         typename std::enable_if<detail::is_str<StringView>::value, int>::type = 0>
+String& kTrimLeft(String& string, const StringView& svTrim)
 //-----------------------------------------------------------------------------
 {
 	auto iDelete = string.find_first_not_of(svTrim);
@@ -146,7 +146,8 @@ String& kTrimLeft(String& string, KStringView svTrim = detail::kASCIISpaces)
 
 //-----------------------------------------------------------------------------
 /// removes any character for which cmp returns true from the left of the string
-template<class String, class Compare>
+template<class String, class Compare,
+         typename std::enable_if<!detail::is_str<Compare>::value, int>::type = 0>
 String& kTrimLeft(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
 {
@@ -160,20 +161,22 @@ String& kTrimLeft(String& string, Compare cmp)
 }
 
 //-----------------------------------------------------------------------------
-/// removes white space from the left of the string
-template<class String,
-         typename std::enable_if<detail::is_narrow_cpp_str<String>::value == false, int>::type = 0>
+/// removes any white space character from the left of the string
+template<class String>
 String& kTrimLeft(String& string)
 //-----------------------------------------------------------------------------
 {
-	return kTrimLeft(string, [](typename String::value_type ch){ return KASCII::kIsSpace(ch); });
+	return kTrimLeft(string, [](typename String::value_type ch)
+	{
+		return KASCII::kIsSpace(ch);
+	});
 }
 
 //-----------------------------------------------------------------------------
 /// removes any character in svTrim from the right of the string
-template<class String,
-         typename std::enable_if<detail::is_narrow_cpp_str<String>::value, int>::type = 0>
-String& kTrimRight(String& string, KStringView svTrim = detail::kASCIISpaces)
+template<class String, class StringView,
+         typename std::enable_if<detail::is_str<StringView>::value, int>::type = 0>
+String& kTrimRight(String& string, const StringView& svTrim)
 //-----------------------------------------------------------------------------
 {
 	auto iDelete = string.find_last_not_of(svTrim);
@@ -190,7 +193,8 @@ String& kTrimRight(String& string, KStringView svTrim = detail::kASCIISpaces)
 
 //-----------------------------------------------------------------------------
 /// removes any character for which cmp returns true from the right of the string
-template<class String, class Compare>
+template<class String, class Compare,
+         typename std::enable_if<!detail::is_str<Compare>::value, int>::type = 0>
 String& kTrimRight(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
 {
@@ -204,20 +208,32 @@ String& kTrimRight(String& string, Compare cmp)
 }
 
 //-----------------------------------------------------------------------------
-/// removes white space from the right of the string
-template<class String,
-         typename std::enable_if<detail::is_narrow_cpp_str<String>::value == false, int>::type = 0>
+/// removes any white space character from the right of the string
+template<class String>
 String& kTrimRight(String& string)
 //-----------------------------------------------------------------------------
 {
-	return kTrimRight(string, [](typename String::value_type ch){ return KASCII::kIsSpace(ch); });
+	return kTrimRight(string, [](typename String::value_type ch)
+	{
+		return KASCII::kIsSpace(ch);
+	});
+}
+
+//-----------------------------------------------------------------------------
+/// removes any white space character from the left and right of the string
+template<class String>
+String& kTrim(String& string)
+//-----------------------------------------------------------------------------
+{
+	kTrimRight(string);
+	return kTrimLeft(string);
 }
 
 //-----------------------------------------------------------------------------
 /// removes any character in svTrim from the left and right of the string
-template<class String,
-         typename std::enable_if<detail::is_narrow_cpp_str<String>::value, int>::type = 0>
-String& kTrim(String& string, KStringView svTrim = detail::kASCIISpaces)
+template<class String, class StringView,
+         typename std::enable_if<detail::is_str<StringView>::value, int>::type = 0>
+String& kTrim(String& string, const StringView& svTrim)
 //-----------------------------------------------------------------------------
 {
 	kTrimRight(string, svTrim);
@@ -226,7 +242,8 @@ String& kTrim(String& string, KStringView svTrim = detail::kASCIISpaces)
 
 //-----------------------------------------------------------------------------
 /// removes any character for which cmp returns true from the left and right of the string
-template<class String, class Compare>
+template<class String, class Compare,
+         typename std::enable_if<!detail::is_str<Compare>::value, int>::type = 0>
 String& kTrim(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
 {
@@ -235,19 +252,9 @@ String& kTrim(String& string, Compare cmp)
 }
 
 //-----------------------------------------------------------------------------
-/// removes white space from the left and right of the string
-template<class String,
-         typename std::enable_if<detail::is_narrow_cpp_str<String>::value == false, int>::type = 0>
-String& kTrim(String& string)
-//-----------------------------------------------------------------------------
-{
-	return kTrim(string, [](typename String::value_type ch){ return KASCII::kIsSpace(ch); });
-}
-
-//-----------------------------------------------------------------------------
-/// Collapses consecutive chars in svCollapse to one instance of chTo
-template<class String>
-String& kCollapse(String& string, KStringView svCollapse, typename String::value_type chTo)
+/// Collapses consecutive characters for which cmp returns true to one instance of chTo
+template<class String, class Compare>
+String& kCollapse(String& string, typename String::value_type chTo, Compare cmp)
 //-----------------------------------------------------------------------------
 {
 	auto it = string.begin();
@@ -257,13 +264,13 @@ String& kCollapse(String& string, KStringView svCollapse, typename String::value
 
 	for (;it != ie; ++it)
 	{
-		if (DEKAF2_UNLIKELY(svCollapse.contains(*it)))
+		if (cmp(*it))
 		{
 			bLastWasFound = true;
 		}
 		else
 		{
-			if (DEKAF2_UNLIKELY(bLastWasFound))
+			if (bLastWasFound)
 			{
 				*ins++ = chTo;
 				bLastWasFound = false;
@@ -284,9 +291,33 @@ String& kCollapse(String& string, KStringView svCollapse, typename String::value
 }
 
 //-----------------------------------------------------------------------------
-/// Collapses consecutive chars in svCollapse to one instance of chTo and trims the same chars left and right
+/// Collapses consecutive white space chars to one space char
 template<class String>
-String& kCollapseAndTrim(String& string, KStringView svCollapse, typename String::value_type chTo)
+String& kCollapse(String& string)
+//-----------------------------------------------------------------------------
+{
+	return kCollapse(string, ' ', [](typename String::value_type ch)
+	{
+		return KASCII::kIsSpace(ch);
+	});
+}
+
+//-----------------------------------------------------------------------------
+/// Collapses consecutive chars in svCollapse to one instance of chTo
+template<class String, class StringView>
+String& kCollapse(String& string, const StringView& svCollapse, typename String::value_type chTo)
+//-----------------------------------------------------------------------------
+{
+	return kCollapse(string, chTo, [&svCollapse](typename String::value_type ch)
+	{
+		return svCollapse.find(ch) != StringView::npos;
+	});
+}
+
+//-----------------------------------------------------------------------------
+/// Collapses consecutive characters for which cmp returns true to one instance of chTo and trims those characters left and right
+template<class String, class Compare>
+String& kCollapseAndTrim(String& string, typename String::value_type chTo, Compare cmp)
 //-----------------------------------------------------------------------------
 {
 	auto it = string.begin();
@@ -296,7 +327,7 @@ String& kCollapseAndTrim(String& string, KStringView svCollapse, typename String
 
 	for (;it != ie; ++it)
 	{
-		if (DEKAF2_UNLIKELY(svCollapse.contains(*it)))
+		if (cmp(*it))
 		{
 			if (ins != string.begin())
 			{
@@ -306,7 +337,7 @@ String& kCollapseAndTrim(String& string, KStringView svCollapse, typename String
 		}
 		else
 		{
-			if (DEKAF2_UNLIKELY(bLastWasFound))
+			if (bLastWasFound)
 			{
 				*ins++ = chTo;
 				bLastWasFound = false;
@@ -319,6 +350,29 @@ String& kCollapseAndTrim(String& string, KStringView svCollapse, typename String
 	string.erase(ins, ie);
 
 	return string;
+}
+
+//-----------------------------------------------------------------------------
+template<class String>
+String& kCollapseAndTrim(String& string)
+//-----------------------------------------------------------------------------
+{
+	return kCollapseAndTrim(string, ' ', [](typename String::value_type ch)
+	{
+		return KASCII::kIsSpace(ch);
+	});
+}
+
+//-----------------------------------------------------------------------------
+/// Collapses consecutive chars in svCollapse to one instance of chTo and trims the same chars left and right
+template<class String, class StringView>
+String& kCollapseAndTrim(String& string, const StringView& svCollapse, typename String::value_type chTo)
+//-----------------------------------------------------------------------------
+{
+	return kCollapseAndTrim(string, chTo, [&svCollapse](typename String::value_type ch)
+	{
+		return svCollapse.find(ch) != StringView::npos;
+	});
 }
 
 //-----------------------------------------------------------------------------
@@ -517,20 +571,13 @@ uint8_t kFromBase36(char ch) noexcept
 }
 
 //-----------------------------------------------------------------------------
-/// Converts a hex digit into the corresponding integer value. Returns 0xFF if not
+/// Converts a hex digit into the corresponding integer value. Returns > 15 if not
 /// a valid digit
 inline DEKAF2_PUBLIC
 uint8_t kFromHexChar(char ch) noexcept
 //-----------------------------------------------------------------------------
 {
-	auto iVal = kFromBase36(ch);
-
-	if (iVal > 15)
-	{
-		iVal = 0xFF;
-	}
-
-	return iVal;
+	return kFromBase36(ch);
 }
 
 //-----------------------------------------------------------------------------
@@ -546,7 +593,7 @@ Integer kToInt(Iterator it, Iterator end, uint16_t iBase = 10) noexcept
 		// work on numbers expressed by ASCII alnum - accept negative values
 		// by a '-' prefix, or positive values by a '+' prefix or none
 
-		for (;it != end && kIsSpace(*it); ++it) {}
+		for (;it != end && KASCII::kIsSpace(*it); ++it) {}
 
 		if (it != end)
 		{

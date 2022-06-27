@@ -430,6 +430,45 @@ TEST_CASE("KStringUtils") {
 		}
 	}
 
+	SECTION("Freestanding Collapse with whitespace on std::string")
+	{
+		std::vector<std::vector<std::string>> stest
+		{
+			{ "", " \f\n\r\t\v\b", " ", "" },
+			{ " ", " \f\n\r\t\v\b", " ", " " },
+			{ "\t \r\n", " \f\n\r\t\v\b", " ", " " },
+			{ "abcde", " \f\n\r\t\v\b", " ", "abcde" },
+			{ " abcde", " \f\n\r\t\v\b", " ", " abcde" },
+			{ "  abcde", " \f\n\r\t\v\b", " ", " abcde" },
+			{ "\t abcde", " \f\n\r\t\v\b", " ", " abcde" },
+			{ "\n\r\t abcde", " \f\n\r\t\v\b", " ", " abcde" },
+			{ "a abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ "a  abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ " a  abcde", " \f\n\r\t\v\b", " ", " a abcde" },
+			{ "  a  abcde", " \f\n\r\t\v\b", " ", " a abcde" },
+			{ "a\t abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ "\na\r\t abcde", " \f\n\r\t\v\b", " ", " a abcde" },
+			{ " abcde ", " \f\n\r\t\v\b", " ", " abcde " },
+			{ "  abcde  ", " \f\n\r\t\v\b", " ", " abcde " },
+			{ "\t abcde \t", " \f\n\r\t\v\b", " ", " abcde " },
+			{ "\n\r\t abcde \t\r\n", " \f\n\r\t\v\b", " ", " abcde " },
+			{ "a abcde a", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ "a  abcde  a", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ " a abcde a ", " \f\n\r\t\v\b", " ", " a abcde a " },
+			{ "  a  abcde  a  ", " \f\n\r\t\v\b", " ", " a abcde a " },
+			{ "a\t abcde \t a", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ "\na\r\t abcde \t\ra\n", " \f\n\r\t\v\b", " ", " a abcde a " }
+		};
+
+		for (size_t iCount = 0; iCount < stest.size(); ++iCount)
+		{
+			std::string sCollapse{ stest[iCount][0] };
+			dekaf2::kCollapse(sCollapse);
+			INFO ( std::to_string(iCount) );
+			CHECK( stest[iCount][3] == sCollapse );
+		}
+	}
+
 	SECTION("Freestanding CollapseAndTrim on std::string")
 	{
 		std::vector<std::vector<std::string>> stest
@@ -466,6 +505,45 @@ TEST_CASE("KStringUtils") {
 		{
 			std::string sCollapse{ stest[iCount][0] };
 			dekaf2::kCollapseAndTrim(sCollapse, stest[iCount][1], stest[iCount][2][0]);
+			INFO ( std::to_string(iCount) );
+			CHECK( stest[iCount][3] == sCollapse );
+		}
+	}
+
+	SECTION("Freestanding CollapseAndTrim with whitespace on std::string")
+	{
+		std::vector<std::vector<std::string>> stest
+		{
+			{ "", " \f\n\r\t\v\b", " ", "" },
+			{ " ", " \f\n\r\t\v\b", " ", "" },
+			{ "\t \r\n", " \f\n\r\t\v\b", " ", "" },
+			{ "abcde", " \f\n\r\t\v\b", " ", "abcde" },
+			{ " abcde", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "  abcde", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "\t abcde", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "\n\r\t abcde", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "a abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ "a  abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ " a  abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ "  a  abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ "a\t abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ "\na\r\t abcde", " \f\n\r\t\v\b", " ", "a abcde" },
+			{ " abcde ", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "  abcde  ", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "\t abcde \t", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "\n\r\t abcde \t\r\n", " \f\n\r\t\v\b", " ", "abcde" },
+			{ "a abcde a", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ "a  abcde  a", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ " a abcde a ", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ "  a  abcde  a  ", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ "a\t abcde \t a", " \f\n\r\t\v\b", " ", "a abcde a" },
+			{ "\na\r\t abcde \t\ra\n", " \f\n\r\t\v\b", " ", "a abcde a" }
+		};
+
+		for (size_t iCount = 0; iCount < stest.size(); ++iCount)
+		{
+			std::string sCollapse{ stest[iCount][0] };
+			dekaf2::kCollapseAndTrim(sCollapse);
 			INFO ( std::to_string(iCount) );
 			CHECK( stest[iCount][3] == sCollapse );
 		}

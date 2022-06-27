@@ -45,7 +45,6 @@
 /// @file kurlencode.h
 /// percent-encoding methods
 
-#include "kstringutils.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include "kprops.h"
@@ -117,20 +116,11 @@ protected:
 } // end of namespace detail
 
 
-namespace detail // hide kx2c in an anonymous namespace
-{
+namespace detail {
 
 //-----------------------------------------------------------------------------
-template<class Ch>
-inline Ch kx2c (Ch* pszGoop)
+int kx2c (int c1, int c2);
 //-----------------------------------------------------------------------------
-{
-	auto iValue = kFromHexChar(pszGoop[0]) << 4;
-	iValue += kFromHexChar(pszGoop[1]);
-
-	return static_cast<Ch>(iValue);
-
-} // kx2c
 
 } // detail until here
 
@@ -142,40 +132,35 @@ void kUrlDecode (String& sDecode, bool bPlusAsSpace = false)
 {
 	if (!sDecode.empty())
 	{
-		auto insert  = &sDecode[0];
+		auto insert  = sDecode.begin();
 		auto current = insert;
-		auto end     = current + sDecode.size();
+		auto end     = sDecode.end();
+
 		while (current < end)
 		{
 			if (*current == '+')
 			{
-				if (bPlusAsSpace)
-				{
-					*insert++ = ' ';
-					++current;
-				}
-				else
-				{
-					*insert++ = *current++;
-				}
+				*insert++   = bPlusAsSpace ? ' ' : *current;
+				++current;
 			}
 			else if (*current == '%'
 				&& end - current > 2
 				&& KASCII::kIsXDigit(*(current + 1))
 				&& KASCII::kIsXDigit(*(current + 2)))
 			{
-				*insert++ = detail::kx2c(current + 1);
-				current += 3;
+				auto iValue = detail::kx2c(*(current + 1), *(current + 2));
+				*insert++   = static_cast<typename String::value_type>(iValue);
+				current    += 3;
 			}
 			else
 			{
-				*insert++ = *current++;
+				*insert++   = *current++;
 			}
 		}
 
 		if (insert < end)
 		{
-			size_t nsz = insert - &sDecode[0];
+			size_t nsz = insert - sDecode.begin();
 			sDecode.erase(nsz);
 		}
 	}
@@ -183,41 +168,36 @@ void kUrlDecode (String& sDecode, bool bPlusAsSpace = false)
 } // kUrlDecode
 
 //-----------------------------------------------------------------------------
-/// percent-decodes string on a copy
-template<class String>
-void kUrlDecode (KStringView sSource, String& sTarget, bool bPlusAsSpace = false)
+/// percent-decodes string to a copy
+template<class String, class StringView>
+void kUrlDecode (const StringView& sSource, String& sTarget, bool bPlusAsSpace = false)
 //-----------------------------------------------------------------------------
 {
 	if (!sSource.empty())
 	{
-		sTarget.reserve (sTarget.size ()+sSource.size ());
-		auto current = &sSource[0];
-		auto end     = current + sSource.size();
+		sTarget.reserve (sTarget.size() + sSource.size());
+		auto current = sSource.begin();
+		auto end     = sSource.end();
+
 		while (current < end)
 		{
 			if (*current == '+')
 			{
-				if (bPlusAsSpace)
-				{
-					sTarget += ' ';
-					++current;
-				}
-				else
-				{
-					sTarget += *current++;
-				}
+				sTarget    += bPlusAsSpace ? ' ' : *current;
+				++current;
 			}
 			else if (*current == '%'
 				&& end - current > 2
 				&& KASCII::kIsXDigit(*(current + 1))
 				&& KASCII::kIsXDigit(*(current + 2)))
 			{
-				sTarget += detail::kx2c(current + 1);
-				current += 3;
+				auto iValue = detail::kx2c(*(current + 1), *(current + 2));
+				sTarget    += static_cast<typename String::value_type>(iValue);
+				current    += 3;
 			}
 			else
 			{
-				sTarget += *current++;
+				sTarget    += *current++;
 			}
 		}
 	}
@@ -229,8 +209,8 @@ void kUrlDecode (KStringView sSource, String& sTarget, bool bPlusAsSpace = false
 /// @param sSource the encoded string
 /// @param bPlusAsSpace if true, a + sign will be translated as space, default is false
 /// @return the decoded string
-template<class String>
-String kUrlDecode (KStringView sSource, bool bPlusAsSpace = false)
+template<class String = KString, class StringView = KStringView>
+String kUrlDecode (const StringView& sSource, bool bPlusAsSpace = false)
 //-----------------------------------------------------------------------------
 {
 	String sRet;
@@ -244,8 +224,8 @@ String kUrlDecode (KStringView sSource, bool bPlusAsSpace = false)
 /// @param sTarget the encoded output string
 /// @param excludeTable pointer on a table with ASCII chars that are not to be percent encoded
 /// @param bSpaceAsPlus if true, a space will be translated as + sign, default is false
-template<class String>
-void kUrlEncode (KStringView sSource, String& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false)
+template<class String, class StringView>
+void kUrlEncode (const StringView& sSource, String& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false)
 //-----------------------------------------------------------------------------
 {
 	static constexpr char sxDigit[] = "0123456789ABCDEF";
@@ -283,8 +263,8 @@ void kUrlEncode (KStringView sSource, String& sTarget, const bool excludeTable[2
 /// @param sTarget the encoded output string
 /// @param svExclude string view with ASCII chars that are not to be percent encoded
 /// @param bSpaceAsPlus if true, a space will be translated as + sign, default is false
-template<class String>
-void kUrlEncode (KStringView sSource, String& sTarget, KStringView svExclude=KStringView{}, bool bSpaceAsPlus = false)
+template<class String, class StringView>
+void kUrlEncode (const StringView& sSource, String& sTarget, KStringView svExclude=KStringView{}, bool bSpaceAsPlus = false)
 //-----------------------------------------------------------------------------
 {
 	// to exclude encoding of special characters, make a table of exclusions.
@@ -389,7 +369,7 @@ public:
 	void Serialize(KStringRef& sEncoded, URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
-		sEncoded += kIntToString(m_sDecoded);
+		sEncoded += KString::to_string(m_sDecoded);
 	}
 
 	//-------------------------------------------------------------------------
@@ -453,7 +433,7 @@ public:
 	void Parse(KStringView sv, URIPart Component)
 	//-------------------------------------------------------------------------
 	{
-		m_sDecoded = kToInt<Decoded>(sv, 10);
+		m_sDecoded = static_cast<Decoded>(sv.UInt64());
 	}
 
 	//-------------------------------------------------------------------------
@@ -639,9 +619,9 @@ protected:
 
 #ifndef _MSC_VER
 extern template void kUrlDecode(KStringRef& sDecode, bool pPlusAsSpace = false);
-extern template void kUrlDecode(KStringView sSource, KStringRef& sTarget, bool bPlusAsSpace = false);
-extern template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);
-extern template void kUrlEncode (KStringView sSource, KStringRef& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
+extern template void kUrlDecode(const KStringView& sSource, KStringRef& sTarget, bool bPlusAsSpace = false);
+extern template KString kUrlDecode(const KStringView& sSource, bool bPlusAsSpace = false);
+extern template void kUrlEncode (const KStringView& sSource, KStringRef& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
 
 extern template class KURLEncoded<uint16_t>;
 extern template class KURLEncoded<KString>;

@@ -41,6 +41,7 @@
 */
 
 #include "kurlencode.h"
+#include "kstringutils.h"
 
 namespace dekaf2 {
 
@@ -97,11 +98,26 @@ KUrlEncodingTables::KUrlEncodingTables() noexcept
 
 } // end of namespace detail
 
+namespace detail {
+
+//-----------------------------------------------------------------------------
+int kx2c (int c1, int c2)
+//-----------------------------------------------------------------------------
+{
+	int iValue = kFromHexChar(c1) << 4;
+	iValue    += kFromHexChar(c2);
+
+	return iValue;
+
+} // kx2c
+
+} // detail until here
+
 #ifndef _MSC_VER
 template void kUrlDecode(KStringRef& sDecode, bool pPlusAsSpace = false);
-template void kUrlDecode(KStringView sSource, KStringRef& sTarget, bool bPlusAsSpace = false);
-template KString kUrlDecode(KStringView sSource, bool bPlusAsSpace = false);
-template void kUrlEncode (KStringView sSource, KStringRef& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
+template void kUrlDecode(const KStringView& sSource, KStringRef& sTarget, bool bPlusAsSpace = false);
+template KString kUrlDecode(const KStringView& sSource, bool bPlusAsSpace = false);
+template void kUrlEncode (const KStringView& sSource, KStringRef& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
 
 template class KURLEncoded<uint16_t>;
 template class KURLEncoded<KString>;

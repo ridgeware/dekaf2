@@ -41,7 +41,6 @@
  */
 
 #include "khash.h"
-#include "kcasestring.h"
 #include <array>
 
 namespace dekaf2 {

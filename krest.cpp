@@ -44,6 +44,7 @@
 #include "kcgistream.h"
 #include "klambdastream.h"
 #include "kfilesystem.h"
+#include "kstringutils.h"
 
 namespace dekaf2 {
 

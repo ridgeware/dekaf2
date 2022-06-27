@@ -1,7 +1,6 @@
 #include "catch.hpp"
 #include <dekaf2/kcookie.h>
 #include <dekaf2/kstringview.h>
-#include <dekaf2/kcasestring.h>
 
 
 

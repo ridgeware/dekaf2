@@ -8063,7 +8063,7 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KStringRef& sOrderBy, con
 			{
 				const auto& sMatchParm = it.key();
 
-				if (kCaseEqual(sMatchParm, sParm))
+				if (kCaselessEqual(sMatchParm, sParm))
 				{
 					// do not escape the configured column name
 					const KString& sDbCol = it.value();

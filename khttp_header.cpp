@@ -44,6 +44,7 @@
 #include "kctype.h"
 #include "kbase64.h"
 #include "ktime.h"
+#include "kstringutils.h"
 
 namespace dekaf2 {
 

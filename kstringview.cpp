@@ -47,7 +47,7 @@
 #include "dekaf2.h"
 #include "bits/simd/kfindfirstof.h"
 #include "kctype.h"
-#include "kcasestring.h"
+#include "kcaseless.h"
 
 namespace dekaf2 {
 
@@ -800,7 +800,7 @@ bool KStringView::ClipAtReverse(const KStringView sClipAtReverse)
 KStringView::size_type KStringView::FindCaselessASCII(const self_type str, size_type pos) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kCaseFind(*this, str, pos);
+	return kCaselessFind(*this, str, pos);
 }
 
 static_assert(std::is_nothrow_move_constructible<KStringView>::value,

@@ -44,7 +44,7 @@
 #include "bits/kcppcompat.h"
 #include "kstringview.h"
 #include "kstring.h"
-#include "kcasestring.h"
+#include "kcaseless.h"
 #include "kprops.h"
 #include "kcrashexit.h"
 #include "kformat.h"
@@ -438,7 +438,7 @@ public:
 	{
 		if (m_header == OTHER && m_sHeader)
 		{
-			return kCalcCaseHash((*m_sHeader));
+			return kCalcCaselessHash((*m_sHeader));
 		}
 		else
 		{
@@ -463,7 +463,7 @@ public:
 		}
 
 		return (left.m_sHeader && right.m_sHeader &&
-				kCaseEqual(*left.m_sHeader, *right.m_sHeader));
+				kCaselessEqual(*left.m_sHeader, *right.m_sHeader));
 	}
 
 	//-----------------------------------------------------------------------------

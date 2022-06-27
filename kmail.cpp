@@ -45,6 +45,7 @@
 #include "kreader.h"
 #include "kfilesystem.h"
 #include "klog.h"
+#include "kstringutils.h"
 
 namespace dekaf2 {
 

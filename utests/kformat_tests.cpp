@@ -2,8 +2,8 @@
 #include <dekaf2/kformat.h>
 #include <dekaf2/khttp_method.h>
 #include <dekaf2/khttp_header.h>
-#include <dekaf2/kcasestring.h>
 #include <dekaf2/kurl.h>
+#include <dekaf2/kcasestring.h>
 
 using namespace dekaf2;
 

@@ -627,6 +627,7 @@ set(PUBLIC_HEADERS
 	kbitfields.h
 	kbufferedreader.h
 	kcache.h
+	kcaseless.h
 	kcasestring.h
 	kcgistream.h
 	kchildprocess.h
@@ -794,6 +795,7 @@ set (SOURCES
 	kbar.cpp
 	kbase64.cpp
 	kbufferedreader.cpp
+	kcaseless.cpp
 	kcasestring.cpp
 	kcgistream.cpp
 	kchildprocess.cpp
@@ -921,8 +923,8 @@ endif()
 
 list(SORT SOURCES)
 
-# keep this one at the end
-list(APPEND SOURCES khtmlentities4.cpp)
+# keep this one at the top (it takes the most time to compile)
+list(INSERT SOURCES 0 khtmlentities4.cpp)
 
 # ============================= CONDITIONAL LIBS ==================================
 

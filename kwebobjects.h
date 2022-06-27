@@ -44,6 +44,8 @@
 #include "khtmldom.h"
 #include "kduration.h"
 #include "kurl.h"
+#include "ksystem.h"
+#include "kstringutils.h"
 #include <vector>
 #include <limits>
 #include <chrono>

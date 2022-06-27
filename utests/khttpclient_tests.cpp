@@ -5,6 +5,7 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/kduration.h>
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/ksystem.h>
 #include <dekaf2/koutstringstream.h>
 
 #ifndef DEKAF2_IS_WINDOWS

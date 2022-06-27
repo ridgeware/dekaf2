@@ -44,6 +44,7 @@
 #include "kbase64.h"
 #include "kmessagedigest.h"
 #include "kstring.h"
+#include "ksystem.h"
 
 namespace dekaf2 {
 

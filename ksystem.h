@@ -50,10 +50,16 @@
 #include "bits/kstringviewz.h"
 #include <locale>
 #ifndef DEKAF2_IS_WINDOWS
-#include <sys/resource.h>
+	#include <sys/resource.h>
 #else
-using HANDLE = void*;
+	using HANDLE = void*;
 #endif
+#if DEKAF2_HAS_INCLUDE(<pthread.h>)
+	#include <pthread.h>
+#else
+	using pthread_t = void*;
+#endif
+#include <thread>
 
 namespace dekaf2
 {
@@ -230,7 +236,55 @@ std::size_t kGetPhysicalMemory();
 
 /// Returns count of physical, available CPUs
 DEKAF2_PUBLIC
-std::size_t kGetCPUCount();
+uint16_t kGetCPUCount();
+
+/// return the ID of the CPU currently used in a multi core system
+DEKAF2_PUBLIC
+uint16_t kGetCPU();
+
+/// set the CPU IDs on which the PROCESS shall run
+/// @param CPUs a vector of CPU IDs to run on
+/// @param forPid the process ID that should be attached, or 0 for the current process
+/// @return true on success, false on failure
+DEKAF2_PUBLIC
+bool kSetProcessCPU(const std::vector<uint16_t>& CPUs, pid_t forPid = 0);
+
+/// get the CPU IDs on which the THREAD shall run
+/// @param forThread the pthread_t that is requested
+/// @return a vector of CPU IDs to run on
+DEKAF2_PUBLIC
+std::vector<uint16_t> kGetThreadCPU(const pthread_t& forThread);
+
+/// get the CPU IDs on which the THREAD shall run
+/// @param forThread the std::thread that is requested
+/// @return a vector of CPU IDs to run on
+DEKAF2_PUBLIC
+std::vector<uint16_t> kGetThreadCPU(std::thread& forThread);
+
+/// get the CPU IDs on which this THREAD shall run
+/// @return a vector of CPU IDs to run on
+DEKAF2_PUBLIC
+std::vector<uint16_t> kGetThreadCPU();
+
+/// set the CPU IDs on which the THREAD shall run
+/// @param CPUs a vector of CPU IDs to run on
+/// @param forTid the thread ID that should be attached
+/// @return true on success, false on failure
+DEKAF2_PUBLIC
+bool kSetThreadCPU(const std::vector<uint16_t>& CPUs, const pthread_t& forThread);
+
+/// set the CPU IDs on which the THREAD shall run
+/// @param CPUs a vector of CPU IDs to run on
+/// @param forTid the thread ID that should be attached
+/// @return true on success, false on failure
+DEKAF2_PUBLIC
+bool kSetThreadCPU(const std::vector<uint16_t>& CPUs, std::thread& forThread);
+
+/// set the CPU IDs on which this THREAD shall run
+/// @param CPUs a vector of CPU IDs to run on
+/// @return true on success, false on failure
+DEKAF2_PUBLIC
+bool kSetThreadCPU(const std::vector<uint16_t>& CPUs);
 
 namespace detail {
 DEKAF2_PRIVATE

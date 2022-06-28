@@ -242,4 +242,43 @@ TEST_CASE("KSystem")
 		CHECK ( TTY.lines   > 0 );
 		CHECK ( TTY.columns > 0 );
 	}
+
+	SECTION("GetCPU")
+	{
+		auto iCount = kGetCPUCount();
+
+		if (iCount > 0)
+		{
+			auto iCPU = kGetCPU();
+			uint16_t iNewCPU = iCPU == 0 ? 1 : 0;
+
+			if (kSetProcessCPU({iNewCPU}))
+			{
+//				CHECK ( kGetCPU() == iNewCPU );
+			}
+		}
+	}
+
+	SECTION("GetThreadCPU")
+	{
+		auto iCount = kGetCPUCount();
+
+		if (iCount > 0)
+		{
+			auto CPUs = kGetThreadCPU();
+
+			CHECK ( CPUs.size() < 2 );
+
+			if (kSetThreadCPU({0,1}))
+			{
+				CPUs = kGetThreadCPU();
+				CHECK ( CPUs.size() == 2 );
+				if (CPUs.size() == 2)
+				{
+					CHECK ( CPUs[0] == 0 );
+					CHECK ( CPUs[1] == 1 );
+				}
+			}
+		}
+	}
 }

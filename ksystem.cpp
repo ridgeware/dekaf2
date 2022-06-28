@@ -65,18 +65,37 @@
 	#include <fileapi.h>       // for GetFinalPathNameByHandle()
 	#include <io.h>            // for _get_osfhandle()
 	#include <libloaderapi.h>  // for GetModuleFileName()
+	#include <processthreadsapi.h> // for GetCurrentProcessorNumber()
 #else
 	#include <unistd.h>        // for sysconf()
 	#include <sys/types.h>     // for getpwuid()
 	#include <pwd.h>           // for getpwuid()
 	#include <arpa/inet.h>
 	#include <sys/ioctl.h>     // for ioctl(), TIOCGWINSZ
-	#ifndef DEKAF2_IS_OSX
-		#include <sys/syscall.h>
-		#include <limits.h>    // for MAX_PATH
-	#else
+	#ifdef DEKAF2_IS_MACOS
+		// MacOS
 		#include <sys/syslimits.h> // for MAX_PATH
 		#include <fcntl.h>         // for fcntl()
+		#ifdef DEKAF2_X86
+			#include <cpuid.h>     // for cpuid()
+		#endif
+	#else
+		// Unix
+		#include <sys/syscall.h>
+		#include <limits.h>    // for MAX_PATH
+		#ifdef DEKAF2_GLIBC_VERSION
+			#ifndef _GNU_SOURCE
+				#define _GNU_SOURCE
+			#endif
+			#if DEKAF2_HAS_INCLUDE(<sched.h>)
+				#include <sched.h>  // for sched_getcpu()
+				#define DEKAF2_HAVE_SCHED_H 1
+			#endif
+			#if DEKAF2_HAS_INCLUDE(<pthread.h>)
+				#include <pthread.h>  // for pthread_setaffinity_np()
+				#define DEKAF2_HAVE_PTHREAD_H 1
+			#endif
+		#endif
 	#endif
 #endif
 
@@ -873,21 +892,21 @@ std::size_t kGetPhysicalMemory()
 } // kGetPhysicalMemory
 
 //-----------------------------------------------------------------------------
-std::size_t kGetCPUCount()
+uint16_t kGetCPUCount()
 //-----------------------------------------------------------------------------
 {
 
 #ifndef DEKAF2_IS_WINDOWS
 
-	static std::size_t iCPUCount = []() -> std::size_t
+	static uint16_t iCPUCount = []() -> uint16_t
 	{
-		std::size_t iCount = sysconf(_SC_NPROCESSORS_ONLN);
+		uint16_t iCount = sysconf(_SC_NPROCESSORS_ONLN);
 		return iCount ? iCount : 1;
 	}();
 
 #else
 
-	static std::size_t iCPUCount = []() -> std::size_t
+	static uint16_t iCPUCount = []() -> uint16_t
 	{
 		SYSTEM_INFO sysInfo;
 		GetSystemInfo(&sysInfo);
@@ -899,6 +918,235 @@ std::size_t kGetCPUCount()
 	return iCPUCount;
 
 } // kGetCPUCount
+
+//-----------------------------------------------------------------------------
+uint16_t kGetCPU()
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_OSX
+
+	#ifdef DEKAF2_X86
+	uint32_t iInfo[4];
+
+	// this is expensive, as it calls the cpuid instruction which
+	// takes around 1000 cycles to complete
+	__cpuid_count(1, 0, iInfo[0], iInfo[1], iInfo[2], iInfo[3]);
+
+	if ((iInfo[3] & (1 << 9)) != 0)
+	{
+		return (iInfo[1] >> 24);
+	}
+	#elif DEKAF2_ARM64
+	// we currently lack a method to detect the CPU on apple arm
+	#endif
+
+#elif DEKAF2_HAVE_SCHED_H
+
+	int iCPU = sched_getcpu();
+
+	if (iCPU >= 0)
+	{
+		kDebug(2, "sched_getcpu: {}", strerror(errno));
+		iCPU = 0;
+	}
+
+	return iCPU;
+
+#elif DEKAF2_IS_WINDOWS
+
+	// this is only supported from Windows Vista onward
+	return GetCurrentProcessorNumber();
+
+#endif
+
+	kDebug(2, "unsupported operating system");
+
+	return 0;
+
+} // kGetCPU
+
+//-----------------------------------------------------------------------------
+std::vector<uint16_t> kGetThreadCPU(const pthread_t& forThread)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAVE_PTHREAD_H
+
+	cpu_set_t cpuset;
+
+	auto err = pthread_getaffinity_np(forThread, sizeof(cpuset), &cpuset);
+
+	if (err != 0)
+	{
+		kDebug(2, "pthread_getaffinity_np: {}", strerror(err));
+	}
+
+	std::vector<uint16_t> CPUs;
+
+	for (uint16_t j = 0; j < CPU_SETSIZE; ++j)
+	{
+		if (CPU_ISSET(j, &cpuset))
+		{
+			CPUs.push_back(j);
+		}
+	}
+
+	return CPUs;
+
+#else
+
+	kDebug(2, "unsupported operating system");
+
+	return std::vector<uint16_t>();
+
+#endif
+
+} // kGetThreadCPU
+
+//-----------------------------------------------------------------------------
+std::vector<uint16_t> kGetThreadCPU(std::thread& forThread)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAVE_PTHREAD_H
+
+	return kGetThreadCPU(forThread.native_handle());
+
+#else
+
+	kDebug(2, "unsupported operating system");
+
+	return std::vector<uint16_t>();
+
+#endif
+
+} // kGetThreadCPU
+
+//-----------------------------------------------------------------------------
+std::vector<uint16_t> kGetThreadCPU()
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAVE_PTHREAD_H
+
+	return kGetThreadCPU(pthread_self());
+
+#else
+
+	kDebug(2, "unsupported operating system");
+
+	return std::vector<uint16_t>();
+
+#endif
+
+} // kGetThreadCPU
+
+//-----------------------------------------------------------------------------
+bool kSetProcessCPU(const std::vector<uint16_t>& CPUs, pid_t forPid)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAVE_SCHED_H
+
+	const auto iCPUCount = kGetCPUCount();
+	cpu_set_t set;
+	CPU_ZERO(&set);
+
+	for (auto ID : CPUs)
+	{
+		if (ID < iCPUCount)
+		{
+			CPU_SET(ID, &set);
+		}
+		else
+		{
+			kDebug(2, "ID {} exceeds max CPU ID {}", ID, iCPUCount);
+		}
+	}
+
+	if (sched_setaffinity(forPid, sizeof(set), &set) == -1)
+	{
+		kDebug(2, "sched_setaffinity: {}", strerror(errno));
+		return false;
+	}
+
+	return true;
+
+#endif
+
+	kDebug(2, "unsupported operating system");
+
+	return false;
+
+} // kSetProcessCPU
+
+//-----------------------------------------------------------------------------
+bool kSetThreadCPU(const std::vector<uint16_t>& CPUs, const pthread_t& forThread)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAVE_PTHREAD_H
+
+	const auto iCPUCount = kGetCPUCount();
+	cpu_set_t set;
+	CPU_ZERO(&set);
+
+	for (auto ID : CPUs)
+	{
+		if (ID < iCPUCount)
+		{
+			CPU_SET(ID, &set);
+		}
+		else
+		{
+			kDebug(2, "ID {} exceeds max CPU ID {}", ID, iCPUCount);
+		}
+	}
+
+	int err = pthread_setaffinity_np(forThread, sizeof(set), &set);
+
+	if (err != 0)
+	{
+		kDebug(2, "pthread_setaffinity_np: {}", strerror(err));
+		return false;
+	}
+
+	return true;
+
+#endif
+
+	kDebug(2, "unsupported operating system");
+
+	return false;
+
+} // kSetThreadCPU
+
+//-----------------------------------------------------------------------------
+bool kSetThreadCPU(const std::vector<uint16_t>& CPUs, std::thread& forThread)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAVE_PTHREAD_H
+
+	return kSetThreadCPU(CPUs, forThread.native_handle());
+
+#endif
+
+	kDebug(2, "unsupported operating system");
+
+	return false;
+
+} // kSetThreadCPU
+
+//-----------------------------------------------------------------------------
+bool kSetThreadCPU(const std::vector<uint16_t>& CPUs)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAVE_PTHREAD_H
+
+	return kSetThreadCPU(CPUs, pthread_self());
+
+#endif
+
+	kDebug(2, "unsupported operating system");
+
+	return false;
+
+} // kSetThreadCPU
 
 #ifdef DEKAF2_IS_WINDOWS
 

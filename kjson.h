@@ -46,6 +46,12 @@
 #define JSON_THROW_USER(exception) { kJSONTrace(); throw exception; }
 #include "kcrashexit.h"
 #define JSON_ASSERT(bMustBeTrue) { dekaf2::kAssert(bMustBeTrue,"crash in KJSON"); }
+#ifndef NDEBUG
+	// add exact location to json exceptions in debug mode - we switch them off
+	// in release mode because they come with a modest cost
+	// This works starting with nlohmann::json v3.10.0
+	#define JSON_DIAGNOSTICS 1
+#endif
 #include <nlohmann/json.hpp>
 #include <fmt/format.h>
 #include "kstring.h"

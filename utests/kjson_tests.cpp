@@ -351,5 +351,15 @@ TEST_CASE("KJSON")
 		CHECK ( json.is_null() );
 		CHECK ( json.dump(-1) == "null" );
 	}
+
+	SECTION("KStringView")
+	{
+		std::vector<KStringView> View { "one", "two", "three", "four", "five" };
+		KJSON json
+		{
+			{ "view", View   }
+		};
+		CHECK ( json.dump(-1) == R"({"view":["one","two","three","four","five"]})" );
+	}
 }
 #endif

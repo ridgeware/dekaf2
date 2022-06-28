@@ -550,7 +550,7 @@ KStringView::self_type& KStringView::erase(size_type pos, size_type n)
 } // erase
 
 //-----------------------------------------------------------------------------
-bool KStringView::In (const KStringView sHaystack, value_type iDelim/*=','*/) const
+bool KStringView::In (const KStringView sHaystack, value_type iDelim) const
 //-----------------------------------------------------------------------------
 {
 	// gcc 4.8.5 needs the non-brace initialization here..

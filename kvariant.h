@@ -57,6 +57,10 @@
 // for variant::get, so it fails.
 //
 // Therefore for the time being, if clang then simply use the boost implementation
+//
+// Unfortunately, clang 14.0 on glibstdc++ 12 does not build anymore if a variant
+// type is a forward declaration. There is currently no other solution than using
+// glibstdc++ 11.
 
 #if DEKAF2_HAS_INCLUDE(<variant>) && !DEKAF2_IS_CLANG
 	#include <variant>

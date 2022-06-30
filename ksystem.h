@@ -51,6 +51,7 @@
 #include <locale>
 #ifndef DEKAF2_IS_WINDOWS
 	#include <sys/resource.h>
+	#include <unistd.h>
 #else
 	using HANDLE = void*;
 #endif

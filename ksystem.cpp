@@ -929,7 +929,7 @@ uint16_t kGetCPU()
 	uint32_t iInfo[4];
 
 	// this is expensive, as it calls the cpuid instruction which
-	// takes around 1000 cycles to complete
+	// may take from 150 - 800 cycles to complete
 	__cpuid_count(1, 0, iInfo[0], iInfo[1], iInfo[2], iInfo[3]);
 
 	if ((iInfo[3] & (1 << 9)) != 0)

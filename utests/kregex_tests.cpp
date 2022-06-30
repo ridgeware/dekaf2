@@ -5,7 +5,6 @@
 #include <dekaf2/kduration.h>
 #include <dekaf2/kwriter.h>
 #include <dekaf2/kprof.h>
-#include <re2/re2.h>
 #include <vector>
 #include <atomic>
 
@@ -132,7 +131,7 @@ TEST_CASE("KRegex")
 		KRegex::ClearCache();
 	}
 
-#ifndef NDEBUG
+#if 0
 	SECTION("Performance")
 	{
 		KStopWatch Watch1;

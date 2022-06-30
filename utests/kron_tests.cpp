@@ -4,6 +4,7 @@
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/kreader.h>
 #include <dekaf2/kfilesystem.h>
+#if DEKAF2_HAS_INCLUDE(<dekaf2/bits/kron_utils.h>)
 #include <dekaf2/bits/kron_utils.h>
 #include <dekaf2/libs/croncpp/include/croncpp.h>
 
@@ -684,3 +685,5 @@ R"({
 #endif
 
 }
+
+#endif

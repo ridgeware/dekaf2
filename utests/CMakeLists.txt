@@ -2,14 +2,14 @@ cmake_minimum_required(VERSION 3.2)
 
 project(dekaf2-utests)
 
-# gcc 12 has some toothing issues with __builtin_memcopy() when in C++20 mode (tested only on aarch64),
-# therefore fall back to C++17 there
-if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12.0)
-	set(CMAKE_CXX_STANDARD 17)
-else()
-	set(CMAKE_CXX_STANDARD 20)
-endif()
+set(CMAKE_CXX_STANDARD 20)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if (dekaf2-utests_IS_TOP_LEVEL)
+	set(DEKAF2_INHERIT_BUILD_FLAGS ON)
+	find_package(dekaf2 2.0 REQUIRED)
+	find_package(SQLite3 QUIET)
+endif()
 
 set (UHEADERS
 	catch.hpp
@@ -103,6 +103,7 @@ set (USOURCES
 	kurl_tests.cpp
 	kutf8_tests.cpp
 	kutf8iterator_tests.cpp
+	kvariant_tests.cpp
 	kversion_tests.cpp
 	kwebclient_tests.cpp
 	kwebobjects_tests.cpp

@@ -44,7 +44,7 @@ cmake_minimum_required(VERSION 3.13)
 cmake_policy(SET CMP0048 NEW)
 
 # declare the project
-project(dekaf2 VERSION 2.0.13 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.14 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -923,8 +923,13 @@ endif()
 
 list(SORT SOURCES)
 
-# keep this one at the top (it takes the most time to compile)
-list(INSERT SOURCES 0 khtmlentities4.cpp)
+if (NOT CMAKE_COMPILER_IS_GNUCC OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 10.0)
+	# keep this one at the top (it takes the most time to compile)
+	list(INSERT SOURCES 0 khtmlentities4.cpp)
+else()
+	# move it to the end, as it needs a lot of RAM with older gccs
+	list(APPEND SOURCES khtmlentities4.cpp)
+endif()
 
 # ============================= CONDITIONAL LIBS ==================================
 

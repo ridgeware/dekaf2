@@ -282,26 +282,7 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 	.Help("this help", -1 -1) // show this help before the other automatic helps, but after the user defined helps
 	([this]()
 	{
-		auto& out = GetCurrentOutputStream();
-
-		if (m_sHelp)
-		{
-			for (size_t iCount = 0; iCount < m_iHelpSize; ++iCount)
-			{
-				out.WriteLine(m_sHelp[iCount]);
-			}
-		}
-		else
-		{
-			// make sure help is (stable) sorted by help rank
-			std::stable_sort(m_Callbacks.begin(), m_Callbacks.end(), [](const CallbackParam& left, const CallbackParam& right)
-			{
-				return (left.m_iHelpRank < right.m_iHelpRank);
-			});
-
-			BuildHelp(out);
-		}
-
+		AutomaticHelp();
 		// and abort further parsing
 		throw NoError {};
 	});
@@ -354,10 +335,39 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 namespace {
 
 //---------------------------------------------------------------------------
+KStringView SplitAtLinefeed(KStringView& sInput)
+//---------------------------------------------------------------------------
+{
+	KStringView sHead;
+	auto iBreak = sInput.find('\n');
+
+	if (iBreak == KStringView::npos)
+	{
+		sHead = sInput;
+		sInput.clear();
+	}
+	else
+	{
+		sHead = sInput.ToView(0, iBreak);
+		sInput.remove_prefix(iBreak + 1);
+	}
+
+	return sHead;
+
+} // SplitAtLinefeed
+
+//---------------------------------------------------------------------------
 KStringView WrapOutput(KStringView& sInput, std::size_t iMaxSize)
 //---------------------------------------------------------------------------
 {
 	auto sWrapped = sInput;
+
+	auto iBreak = sWrapped.find('\n');
+
+	if (iBreak != KStringView::npos)
+	{
+		sWrapped.erase(iBreak);
+	}
 
 	if (sWrapped.size() > iMaxSize)
 	{
@@ -399,6 +409,12 @@ KStringView WrapOutput(KStringView& sInput, std::size_t iMaxSize)
 void KOptions::BuildHelp(KOutStream& out) const
 //---------------------------------------------------------------------------
 {
+	// make sure help is (stable) sorted by help rank
+	std::stable_sort(m_Callbacks.begin(), m_Callbacks.end(), [](const CallbackParam& left, const CallbackParam& right)
+	{
+		return (left.m_iHelpRank < right.m_iHelpRank);
+	});
+
 	auto iColumns = GetCurrentOutputStreamWidth();
 	kDebug(2, "building help for terminal width {}", iColumns);
 	if (iColumns) --iColumns;
@@ -407,8 +423,11 @@ void KOptions::BuildHelp(KOutStream& out) const
 
 	for (const auto& Callback : m_Callbacks)
 	{
-		auto iSize = (Callback.m_sNames.front() == '-') ? Callback.m_sNames.size() - 1 : Callback.m_sNames.size();
-		iMaxLen = std::max(iMaxLen, iSize);
+		for (const auto sFragment : Callback.m_sNames.Split("\n"))
+		{
+			auto iSize = (Callback.m_sNames.front() == '-') ? sFragment.size() - 1 : sFragment.size();
+			iMaxLen = std::max(iMaxLen, iSize);
+		}
 	}
 
 	out.WriteLine();
@@ -473,22 +492,24 @@ void KOptions::BuildHelp(KOutStream& out) const
 				bool bFirst   = true;
 				auto iHelp    = iMaxHelp;
 				auto sHelp    = Callback.m_sHelp;
+				auto sNames   = Callback.m_sNames;
 
 				if (sHelp.empty())
 				{
 					sHelp     = Callback.m_sMissingArgs;
 				}
 
-				while (bFirst || sHelp.size())
+				while (bFirst || !sHelp.empty() || !sNames.empty())
 				{
-					auto sLimited = WrapOutput(sHelp, iHelp);
+					auto sLimited      = WrapOutput(sHelp, iHelp);
+					auto sLimitedNames = SplitAtLinefeed(sNames);
 
 					if (bFirst)
 					{
 						bFirst = false;
 						out.FormatLine(sFormat,
 									   (!Callback.IsCommand() && Callback.m_sNames.front() != '-') ? "-" : "",
-									   Callback.m_sNames,
+									   sLimitedNames,
 									   bCommands ? " " : "",
 									   sLimited);
 
@@ -503,7 +524,7 @@ void KOptions::BuildHelp(KOutStream& out) const
 					}
 					else
 					{
-						out.FormatLine(sOverflow, "", sLimited);
+						out.FormatLine(sOverflow, sLimitedNames, sLimited);
 					}
 				}
 			}
@@ -527,10 +548,39 @@ void KOptions::BuildHelp(KOutStream& out) const
 } // BuildHelp
 
 //---------------------------------------------------------------------------
+void KOptions::AutomaticHelp() const
+//---------------------------------------------------------------------------
+{
+	auto& out = GetCurrentOutputStream();
+
+	if (m_sHelp)
+	{
+		for (size_t iCount = 0; iCount < m_iHelpSize; ++iCount)
+		{
+			out.WriteLine(m_sHelp[iCount]);
+		}
+	}
+	else
+	{
+		BuildHelp(out);
+	}
+
+} // AutomaticHelp
+
+//---------------------------------------------------------------------------
 void KOptions::Help(KOutStream& out)
 //---------------------------------------------------------------------------
 {
 	KOutStreamRAII KO(&m_CurrentOutputStream, out);
+
+	if (m_iRecursedHelp)
+	{
+		// we're calling ourself in a loop, because the user has setup an own
+		// help callback which calls KOptions::Help()..
+		// Stop here, and output the automatic help
+		AutomaticHelp();
+		return;
+	}
 
 	// do we have a help option registered?
 	auto Callback = FindParam("help", true);
@@ -544,8 +594,10 @@ void KOptions::Help(KOutStream& out)
 		try
 		{
 			// yes - call the function with empty args
+			++m_iRecursedHelp;
 			ArgList Args;
 			Callback->m_Callback(Args);
+			--m_iRecursedHelp;
 		}
 		DEKAF2_CATCH (const NoError& error)
 		{
@@ -811,7 +863,7 @@ bool KOptions::IsCGIEnvironment()
 }
 
 //---------------------------------------------------------------------------
-KOutStream& KOptions::GetCurrentOutputStream()
+KOutStream& KOptions::GetCurrentOutputStream() const
 //---------------------------------------------------------------------------
 {
 	if (m_CurrentOutputStream)

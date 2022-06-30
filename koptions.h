@@ -353,7 +353,7 @@ public:
 	}
 
 	/// Get the current output stream while parsing commands/args
-	KOutStream& GetCurrentOutputStream();
+	KOutStream& GetCurrentOutputStream() const;
 
 	/// Get the current output stream width while parsing commands/args
 	uint16_t GetCurrentOutputStreamWidth() const;
@@ -449,7 +449,7 @@ private:
 
 	}; // CLIParms
 
-	std::vector<CallbackParam> m_Callbacks;
+	mutable std::vector<CallbackParam> m_Callbacks;
 
 	using CommandLookup = KUnorderedMap<KStringView, std::size_t>;
 
@@ -473,6 +473,8 @@ private:
 	int Evaluate(const CLIParms& Parms, KOutStream& out);
 	DEKAF2_PRIVATE
 	void BuildHelp(KOutStream& out) const;
+	DEKAF2_PRIVATE
+	void AutomaticHelp() const;
 
 	// a forward_list, other than a vector, keeps all elements in place when
 	// adding more elements, which makes it perfect for the general strategy
@@ -494,6 +496,7 @@ private:
 	size_t             m_iHelpSize { 0 };
 	std::size_t        m_iWrappedHelpIndent { 1 };
 	uint16_t           m_iMaxHelpRowWidth { 100 };
+	uint16_t           m_iRecursedHelp { 0 };
 	bool               m_bEmptyParmsIsError { true };
 	bool               m_bHaveOptions  { false };
 	bool               m_bHaveCommands { false };

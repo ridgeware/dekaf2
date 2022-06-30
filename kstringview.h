@@ -52,9 +52,15 @@
 #include <fmt/format.h>
 #include <cinttypes>
 #include <functional>
+#ifndef BOOST_NO_CXX98_FUNCTION_BASE
+	#define BOOST_NO_CXX98_FUNCTION_BASE
+#endif
+// do not use the new path boost/container_hash/hash.cpp - it will not work on
+// systems with old boost versions. New boost versions will forward the include.
 #include <boost/functional/hash.hpp>
 #include <string>
 #include <vector>
+#include <ostream>
 
 #if !defined(DEKAF2_HAS_STD_STRING_VIEW) \
 	&& !defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
@@ -1775,31 +1781,18 @@ namespace std
 
 } // namespace std
 
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 namespace boost
-{
-	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// provide a boost::hash for KStringView
-#if (BOOST_VERSION < 106400)
-	template<>
-	struct hash<dekaf2::KStringView> : public std::unary_function<dekaf2::KStringView, std::size_t>
 #else
-	template<>
-	struct hash<dekaf2::KStringView>
+namespace dekaf2
 #endif
-	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	inline
+	std::size_t hash_value(const dekaf2::KStringView& s)
 	{
-		DEKAF2_CONSTEXPR_14 std::size_t operator()(dekaf2::KStringView s) const noexcept
-		{
-			return dekaf2::kHash(s.data(), s.size());
-		}
-
-		DEKAF2_CONSTEXPR_14 std::size_t operator()(const char* s) const noexcept
-		{
-			return dekaf2::kHash(s);
-		}
-	};
-
-} // namespace boost
+		return s.Hash();
+	}
+}
 
 //----------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC std::size_t dekaf2::KStringView::Hash() const

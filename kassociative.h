@@ -59,6 +59,9 @@
 /// All types have a contains() member that returns true if the searched element
 /// is found.
 
+#ifndef BOOST_NO_CXX98_FUNCTION_BASE
+	#define BOOST_NO_CXX98_FUNCTION_BASE
+#endif
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/hashed_index.hpp>

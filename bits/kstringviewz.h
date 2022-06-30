@@ -495,30 +495,15 @@ namespace std
 
 } // namespace std
 
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 namespace boost
-{
-	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// provide a boost::hash for KStringViewZ
-#if (BOOST_VERSION < 106400)
-	template<>
-	struct hash<dekaf2::KStringViewZ> : public std::unary_function<dekaf2::KStringViewZ, std::size_t>
 #else
-	template<>
-	struct hash<dekaf2::KStringViewZ>
+namespace dekaf2
 #endif
-	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	inline
+	std::size_t hash_value(const dekaf2::KStringViewZ& s)
 	{
-		DEKAF2_CONSTEXPR_14 std::size_t operator()(dekaf2::KStringView s) const noexcept
-		{
-			return dekaf2::kHash(s.data(), s.size());
-		}
-
-		DEKAF2_CONSTEXPR_14 std::size_t operator()(const char* s) const noexcept
-		{
-			return dekaf2::kHash(s);
-		}
-	};
-
-} // namespace boost
-
-
+		return s.Hash();
+	}
+}

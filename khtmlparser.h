@@ -632,16 +632,15 @@ namespace std
 
 } // end of namespace std
 
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 namespace boost
+#else
+namespace dekaf2
+#endif
 {
-	template<>
-	struct hash<dekaf2::KHTMLObject>
+	inline
+	std::size_t hash_value(const dekaf2::KHTMLObject& o)
 	{
-		DEKAF2_CONSTEXPR_20
-		std::size_t operator()(const dekaf2::KHTMLObject& o) const noexcept
-		{
-			return o.Type();
-		}
-	};
-
-} // end of namespace boost
+		return o.Type();
+	}
+}

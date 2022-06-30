@@ -793,25 +793,18 @@ namespace std
 
 } // end of namespace std
 
-#include <boost/functional/hash.hpp>
-
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 namespace boost
-{
-	/// provide a boost::hash for KHTTPHeader
-#if (BOOST_VERSION < 106400)
-	template<> struct hash<dekaf2::KHTTPHeader> : public std::unary_function<dekaf2::KHTTPHeader, std::size_t>
 #else
-	template<> struct hash<dekaf2::KHTTPHeader>
+namespace dekaf2
 #endif
+{
+	inline
+	std::size_t hash_value(const dekaf2::KHTTPHeader& header)
 	{
-		DEKAF2_KHTTP_HEADER_CONSTEXPR_14
-		std::size_t operator()(const dekaf2::KHTTPHeader& header) const noexcept
-		{
-			return header.Hash();
-		}
-};
-
-} // end of namespace boost
+		return header.Hash();
+	}
+}
 
 namespace dekaf2 {
 

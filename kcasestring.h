@@ -379,39 +379,34 @@ namespace std
 			return s1.compare(s2) < 0;
 		}
 	};
+
 } // end of namespace std
 
-#include <boost/functional/hash.hpp>
-
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 namespace boost
+#else
+namespace dekaf2
+#endif
 {
-	/// provide a boost::hash for KCaseStringViewBase
-#if (BOOST_VERSION < 106400)
-	template<typename Trimming> struct hash<dekaf2::KCaseStringViewBase<Trimming>> : public std::unary_function<dekaf2::KCaseStringBase<Trimming>, std::size_t>
-#else
-	template<typename Trimming> struct hash<dekaf2::KCaseStringViewBase<Trimming>>
-#endif
+	template<typename Trimming>
+	std::size_t hash_value(const dekaf2::KCaseStringViewBase<Trimming>& s)
 	{
-		std::size_t operator()(dekaf2::KStringView sv) const noexcept
-		{
-			return dekaf2::kCalcCaseHashTrim<Trimming>(sv);
-		}
-	};
+		return dekaf2::kCalcCaseHashTrim<Trimming>(s);
+	}
+}
 
-	/// provide a boost::hash for KCaseStringBase
-#if (BOOST_VERSION < 106400)
-	template<typename Trimming> struct hash<dekaf2::KCaseStringBase<Trimming>> : public std::unary_function<dekaf2::KCaseStringBase<Trimming>, std::size_t>
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
+namespace boost
 #else
-	template<typename Trimming> struct hash<dekaf2::KCaseStringBase<Trimming>>
+namespace dekaf2
 #endif
+{
+	template<typename Trimming>
+	std::size_t hash_value(const dekaf2::KCaseStringBase<Trimming>& s)
 	{
-		std::size_t operator()(dekaf2::KStringView sv) const noexcept
-		{
-			return dekaf2::kCalcCaseHashTrim<Trimming>(sv);
-		}
-	};
-
-} // end of namespace boost
+		return dekaf2::kCalcCaseHashTrim<Trimming>(s);
+	}
+}
 
 //----------------------------------------------------------------------
 template<typename Trimming>
@@ -428,5 +423,3 @@ inline std::size_t dekaf2::KCaseStringBase<Trimming>::Hash() const
 {
 	return std::hash<dekaf2::KCaseStringBase<Trimming>>()(*this);
 }
-
-

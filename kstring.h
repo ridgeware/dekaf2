@@ -2142,35 +2142,18 @@ namespace std
 
 } // end of namespace std
 
-#include <boost/functional/hash.hpp>
-
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 namespace boost
-{
-	/// provide a boost::hash for KString
-#if (BOOST_VERSION < 106400)
-	template<> struct hash<dekaf2::KString> : public std::unary_function<dekaf2::KString, std::size_t>
 #else
-	template<> struct hash<dekaf2::KString>
+namespace dekaf2
 #endif
+{
+	inline
+	std::size_t hash_value(const dekaf2::KString& s)
 	{
-		// we actually use a KStringView as the parameter, as this avoids
-		// accidentially constructing a KString if coming from a KStringView
-		// or char* in a template that uses KString as elements
-		DEKAF2_CONSTEXPR_14 std::size_t operator()(dekaf2::KStringView s) const noexcept
-		{
-			return dekaf2::kHash(s.data(), s.size());
-		}
-
-		// and provide an explicit hash function for const char*, as this avoids
-		// counting twice over the char array (KStringView's constructor counts
-		// the size of the array)
-		DEKAF2_CONSTEXPR_14 std::size_t operator()(const char* s) const noexcept
-		{
-			return dekaf2::kHash(s);
-		}
-	};
-
-} // end of namespace boost
+		return s.Hash();
+	}
+}
 
 //----------------------------------------------------------------------
 inline std::size_t dekaf2::KString::Hash() const

@@ -7,30 +7,40 @@ FROM ${from}
 ARG buildtype="release"
 
 # copy the source
-COPY . /home/dekaf2/
+COPY /utests     /home/dekaf2/utests
 
 # create source and build directories
-RUN mkdir -p /home/dekaf2/build/${buildtype}
+RUN mkdir -p /home/dekaf2/utests/build/${buildtype}
 
 # change into build dir
-WORKDIR /home/dekaf2/build/${buildtype}
+WORKDIR /home/dekaf2/utests/build/${buildtype}
 
 # create cmake setup
-RUN cmake -DCMAKE_BUILD_TYPE="${buildtype}" -DDEKAF2_NO_BUILDSETUP=ON -DDEKAF2_USE_JEMALLOC=ON ../../
-
-# build
-RUN export CPUCORES=$(expr $(egrep '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
-    cmake --build . --parallel ${CPUCORES} --target all
+RUN cmake -DCMAKE_BUILD_TYPE="${buildtype}" ../../
 
 # build test
 RUN export CPUCORES=$(expr $(egrep '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
     cmake --build . --parallel ${CPUCORES} --target dekaf2-utests
 
+COPY /smoketests /home/dekaf2/smoketests
+
+# create source and build directories
+RUN mkdir -p /home/dekaf2/smoketests/build/${buildtype}
+
+# change into build dir
+WORKDIR /home/dekaf2/smoketests/build/${buildtype}
+
+# create cmake setup
+RUN cmake -DCMAKE_BUILD_TYPE="${buildtype}" ../../
+
 RUN export CPUCORES=$(expr $(egrep '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
     cmake --build . --parallel ${CPUCORES} --target dekaf2-smoketests
 
+# change back into utests build dir
+WORKDIR /home/dekaf2/utests/build/${buildtype}
+
 # run tests on build
-#RUN utests/dekaf2-utests
+#RUN dekaf2-utests
 
 # run tests on exec
-CMD utests/dekaf2-utests
+CMD ./dekaf2-utests

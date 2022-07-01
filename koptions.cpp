@@ -560,7 +560,7 @@ void KOptions::BuildHelp(KOutStream& out) const
 		// the actual parms, therefore we prepare the format strings before inserting
 		// the parms
 		auto sFormat   = kFormat("   {{}}{{:<{}}} {{}}{} {{}}", iMaxLen, m_sSeparator);
-		auto sOverflow = kFormat("  {{:<{}}}  {{}}",
+		auto sOverflow = kFormat("   {{:<{}}} {{}}",
 								 bOverlapping
 								 ? 1 + m_iWrappedHelpIndent // we need the + 1 to avoid a total of 0 which would crash kFormat
 								 : 2 + iMaxLen + m_sSeparator.size() + m_iWrappedHelpIndent);
@@ -583,7 +583,7 @@ void KOptions::BuildHelp(KOutStream& out) const
 
 				if (Callback.IsSection())
 				{
-					out.Write('\n');
+					out.Write("\n ");
 					out.Write(Callback.m_sNames);
 
 					if (!Callback.m_sHelp.empty())
@@ -605,7 +605,7 @@ void KOptions::BuildHelp(KOutStream& out) const
 						{
 							bFirst = false;
 							out.FormatLine(sFormat,
-										   (!Callback.IsCommand() && Callback.m_sNames.front() != '-') ? "-" : "",
+										   (!bCommands && Callback.m_sNames.front() != '-') ? "-" : "",
 										   sLimitedNames,
 										   bCommands ? " " : "",
 										   sLimited);
@@ -762,7 +762,7 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 			}
 
 			// strip name at first special character or space
-			auto pos = sOption.find_first_of(" <>[]|,.;=\t\r\n\b");
+			auto pos = sOption.find_first_of(" <>[]|.;=\t\r\n\b");
 
 			if (pos != KStringView::npos)
 			{

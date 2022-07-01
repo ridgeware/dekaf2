@@ -50,8 +50,11 @@
 #include "kurl.h"
 #include "khttp_header.h"
 #include "dekaf2.h"
+#include <array>
 
 namespace dekaf2 {
+
+const KString KOptions::s_sEmpty;
 
 namespace {
 
@@ -103,6 +106,30 @@ KOptions::OptionalParm::~OptionalParm()
 {
 	m_base->Register(std::move(*this));
 }
+
+//---------------------------------------------------------------------------
+KOptions::OptionalParm& KOptions::OptionalParm::IntSection(KStringView sSection, KStringView sDescription)
+//---------------------------------------------------------------------------
+{
+	// generate a sub-section
+	CallbackParam Section;
+
+	Section.m_iFlags    = CallbackParam::fIsSection;
+
+	if (IsCommand())
+	{
+		Section.m_iFlags |= fIsCommand;
+	}
+
+	Section.m_sNames    = sSection;
+	Section.m_sHelp     = sDescription;
+	Section.m_iHelpRank = m_iHelpRank;
+
+	m_base->Register(std::move(Section));
+
+	return *this;
+
+} // IntSection
 
 //---------------------------------------------------------------------------
 KOptions::OptionalParm& KOptions::OptionalParm::IntHelp(KStringView sHelp, uint16_t iHelpRank)
@@ -278,8 +305,9 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 	SetMaxHelpWidth(120);
 	SetWrappedHelpIndent(0);
 
-	Option("help")
-	.Help("this help", -1 -1) // show this help before the other automatic helps, but after the user defined helps
+	Option("h,help")
+	.Help("this help", -1 -1) // show this help before the other automatic options, but after the user defined options
+	.Section("further <options>:")
 	([this]()
 	{
 		AutomaticHelp();
@@ -357,6 +385,22 @@ KStringView SplitAtLinefeed(KStringView& sInput)
 } // SplitAtLinefeed
 
 //---------------------------------------------------------------------------
+KStringView::size_type AdjustPos(KStringView::size_type iPos, int iAdjust)
+//---------------------------------------------------------------------------
+{
+	if (iPos == KStringView::npos)
+	{
+		iPos = 0;
+	}
+	else
+	{
+		iPos = static_cast<KStringView::size_type>(static_cast<ssize_t>(iPos) + iAdjust);
+	}
+	return iPos;
+
+} // AdjustPos
+
+//---------------------------------------------------------------------------
 KStringView WrapOutput(KStringView& sInput, std::size_t iMaxSize)
 //---------------------------------------------------------------------------
 {
@@ -375,7 +419,22 @@ KStringView WrapOutput(KStringView& sInput, std::size_t iMaxSize)
 
 		if (!(sInput.size() > iMaxSize && KASCII::kIsSpace(sInput[sWrapped.size()])))
 		{
-			sWrapped.erase(sWrapped.find_last_of(detail::kASCIISpaces));
+			auto iLastSpace = AdjustPos(sWrapped.find_last_of(detail::kASCIISpaces), 0);
+			auto iLastPunct = AdjustPos(sWrapped.find_last_of("-.,;:|?!/"), 1);
+
+			if (sInput.size() - iLastSpace < iMaxSize)
+			{
+				// we prefer wrapping at spaces, and particularly so when the
+				// remainder would then fit into the next line without further
+				// wrapping (as we will have two lines anyways)
+				sWrapped.erase(iLastSpace);
+			}
+			else
+			{
+				// wrap at spaces, or at punctuation if that results in at least
+				// twice as many characters
+				sWrapped.erase((iLastPunct > iLastSpace + iLastSpace / 2) ? iLastPunct : iLastSpace);
+			}
 		}
 		else
 		{
@@ -419,14 +478,20 @@ void KOptions::BuildHelp(KOutStream& out) const
 	kDebug(2, "building help for terminal width {}", iColumns);
 	if (iColumns) --iColumns;
 
-	std::size_t iMaxLen { 0 };
+	// we may store max len separately for options and commands
+	std::array<std::size_t, 2> MaxLens { 0, 0 };
 
 	for (const auto& Callback : m_Callbacks)
 	{
-		for (const auto sFragment : Callback.m_sNames.Split("\n"))
+		if (!Callback.IsHidden() && !Callback.IsSection())
 		{
-			auto iSize = (Callback.m_sNames.front() == '-') ? sFragment.size() - 1 : sFragment.size();
-			iMaxLen = std::max(iMaxLen, iSize);
+			auto& iMaxLen = MaxLens[(m_bSpacingPerSection && Callback.IsCommand()) ? 1 : 0];
+
+			for (const auto sFragment : Callback.m_sNames.Split("\n"))
+			{
+				auto iSize = (Callback.m_sNames.front() == '-') ? sFragment.size() - 1 : sFragment.size();
+				iMaxLen = std::max(iMaxLen, iSize);
+			}
 		}
 	}
 
@@ -470,24 +535,41 @@ void KOptions::BuildHelp(KOutStream& out) const
 				   m_sAdditionalArgDesc);
 	out.WriteLine();
 
-	auto iMaxHelp  = iColumns - (iMaxLen + m_sSeparator.size() + 5);
-	// format wrapped help texts so that they start earlier at the left if
-	// argument size is bigger than help size
-	bool bOverlapping = iMaxHelp < iMaxLen;
-	// kFormat crashes when we insert the spacing parm at the same time with
-	// the actual parms, therefore we prepare the format strings before inserting
-	// the parms
-	auto sFormat   = kFormat("   {{}}{{:<{}}} {{}}{} {{}}", iMaxLen, m_sSeparator);
-	auto sOverflow = kFormat("  {{:<{}}}  {{}}",
-							 bOverlapping
-							 ? 1 + m_iWrappedHelpIndent // we need the + 1 to avoid a total of 0 which would crash kFormat
-							 : 2 + iMaxLen + m_sSeparator.size() + m_iWrappedHelpIndent);
-
 	auto Show = [&](bool bCommands)
 	{
+		if (bCommands)
+		{
+			out.WriteLine("with <actions>:");
+		}
+		else
+		{
+			out.WriteLine("with <options>:");
+		}
+
+		if (m_bLinefeedBetweenOptions)
+		{
+			out.WriteLine();
+		}
+
+		auto& iMaxLen  = MaxLens[(m_bSpacingPerSection && bCommands) ? 1 : 0];
+		auto iMaxHelp  = iColumns - (iMaxLen + m_sSeparator.size() + 5);
+		// format wrapped help texts so that they start earlier at the left if
+		// argument size is bigger than help size
+		bool bOverlapping = iMaxHelp < iMaxLen;
+		// kFormat crashes when we insert the spacing parm at the same time with
+		// the actual parms, therefore we prepare the format strings before inserting
+		// the parms
+		auto sFormat   = kFormat("   {{}}{{:<{}}} {{}}{} {{}}", iMaxLen, m_sSeparator);
+		auto sOverflow = kFormat("  {{:<{}}}  {{}}",
+								 bOverlapping
+								 ? 1 + m_iWrappedHelpIndent // we need the + 1 to avoid a total of 0 which would crash kFormat
+								 : 2 + iMaxLen + m_sSeparator.size() + m_iWrappedHelpIndent);
+
 		for (const auto& Callback : m_Callbacks)
 		{
-			if (Callback.IsCommand() == bCommands && Callback.m_sNames != "!")
+			if (!Callback.IsHidden()
+				&& Callback.IsCommand() == bCommands
+				&& Callback.m_sNames != "!")
 			{
 				bool bFirst   = true;
 				auto iHelp    = iMaxHelp;
@@ -499,50 +581,70 @@ void KOptions::BuildHelp(KOutStream& out) const
 					sHelp     = Callback.m_sMissingArgs;
 				}
 
-				while (bFirst || !sHelp.empty() || !sNames.empty())
+				if (Callback.IsSection())
 				{
-					auto sLimited      = WrapOutput(sHelp, iHelp);
-					auto sLimitedNames = SplitAtLinefeed(sNames);
+					out.Write('\n');
+					out.Write(Callback.m_sNames);
 
-					if (bFirst)
+					if (!Callback.m_sHelp.empty())
 					{
-						bFirst = false;
-						out.FormatLine(sFormat,
-									   (!Callback.IsCommand() && Callback.m_sNames.front() != '-') ? "-" : "",
-									   sLimitedNames,
-									   bCommands ? " " : "",
-									   sLimited);
+						out.Write(' ');
+						out.Write(Callback.m_sHelp);
+					}
 
-						if (bOverlapping)
+					out.Write('\n');
+				}
+				else
+				{
+					while (bFirst || !sHelp.empty() || !sNames.empty())
+					{
+						auto sLimited      = WrapOutput(sHelp, iHelp);
+						auto sLimitedNames = SplitAtLinefeed(sNames);
+
+						if (bFirst)
 						{
-							iHelp = iColumns - (1 + m_iWrappedHelpIndent);
+							bFirst = false;
+							out.FormatLine(sFormat,
+										   (!Callback.IsCommand() && Callback.m_sNames.front() != '-') ? "-" : "",
+										   sLimitedNames,
+										   bCommands ? " " : "",
+										   sLimited);
+
+							if (bOverlapping)
+							{
+								iHelp = iColumns - (1 + m_iWrappedHelpIndent);
+							}
+							else
+							{
+								iHelp -= m_iWrappedHelpIndent;
+							}
 						}
 						else
 						{
-							iHelp -= m_iWrappedHelpIndent;
+							out.FormatLine(sOverflow, sLimitedNames, sLimited);
 						}
 					}
-					else
-					{
-						out.FormatLine(sOverflow, sLimitedNames, sLimited);
-					}
+				}
+
+				if (m_bLinefeedBetweenOptions)
+				{
+					out.WriteLine();
 				}
 			}
 		}
+
+		out.WriteLine();
+
 	};
 
 	if (m_bHaveOptions)
 	{
-		out.WriteLine("where <options> are:");
 		Show(false);
-		out.WriteLine();
 	}
 
 	if (m_bHaveCommands)
 	{
-		out.FormatLine("{} <actions> are:", m_bHaveOptions ? "and" : "where");
 		Show(true);
-		out.WriteLine();
 	}
 
 } // BuildHelp
@@ -637,6 +739,13 @@ const KOptions::CallbackParam* KOptions::FindParam(KStringView sName, bool bIsOp
 void KOptions::Register(CallbackParam OptionOrCommand)
 //---------------------------------------------------------------------------
 {
+	if (OptionOrCommand.IsSection())
+	{
+		// a section separator does not have any callable
+		m_Callbacks.push_back(std::move(OptionOrCommand));
+		return;
+	}
+
 	auto& Lookup = OptionOrCommand.IsCommand() ? m_Commands : m_Options;
 	auto  iIndex = m_Callbacks.size();
 
@@ -653,7 +762,7 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 			}
 
 			// strip name at first special character or space
-			auto pos = sOption.find_first_of(" <>[]|=\t\r\n\b");
+			auto pos = sOption.find_first_of(" <>[]|,.;=\t\r\n\b");
 
 			if (pos != KStringView::npos)
 			{
@@ -678,6 +787,18 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 		{
 			kDebug(1, "overriding existing {}: {}", OptionOrCommand.IsCommand() ? "command" : "option", sOption);
 			Pair.first->second = iIndex;
+			// disable the display of the existing option in the automatic help
+			std::find_if(m_Callbacks.begin(), m_Callbacks.end(), [&](CallbackParam& cbp)
+			{
+				if (cbp.IsCommand() == OptionOrCommand.IsCommand()
+					&& cbp.m_sNames == OptionOrCommand.m_sNames
+					&& !cbp.IsHidden())
+				{
+					cbp.m_iFlags |= CallbackParam::fIsHidden;
+					return true;
+				}
+				return false;
+			});
 		}
 	}
 

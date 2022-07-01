@@ -122,6 +122,12 @@ public:
 	/// set indent for wrapped help lines, default 1
 	KOptions& SetWrappedHelpIndent(std::size_t iIndent) { m_iWrappedHelpIndent = iIndent; return *this; }
 
+	/// calculate column width for names per section, or same for all (default = false)
+	KOptions& SetSpacingPerSection(bool bSpacingPerSection) { m_bSpacingPerSection = bSpacingPerSection; return *this; }
+
+	/// write an empty line between all options? (default = false)
+	KOptions& SetLinefeedBetweenOptions(bool bLinefeedBetweenOptions) { m_bLinefeedBetweenOptions = bLinefeedBetweenOptions; return *this; }
+
 	/// throw on errors or not?
 	void Throw(bool bYesNo = true)
 	{
@@ -181,7 +187,9 @@ private:
 			fIsCommand   = 1 << 1,
 			fCheckBounds = 1 << 2,
 			fToLower     = 1 << 3,
-			fToUpper     = 1 << 4
+			fToUpper     = 1 << 4,
+			fIsHidden    = 1 << 5,
+			fIsSection   = 1 << 6
 		};
 
 		CallbackParam() = default;
@@ -200,10 +208,19 @@ private:
 		ArgTypes     m_ArgType      { String };
 		mutable bool m_bUsed        { false  };
 
+		/// returns true if this parameter is required
 		bool         IsRequired()  const { return m_iFlags & fIsRequired;   }
+		/// returns true if this parameter is a command, not an option
 		bool         IsCommand()   const { return m_iFlags & fIsCommand;    }
+		/// returns true if this parameter shall be hidden from auto-documentation
+		bool         IsHidden()    const { return m_iFlags & fIsHidden;     }
+		/// returns true if this parameter is a section break for the auto-documentation
+		bool         IsSection()   const { return m_iFlags & fIsSection;    }
+		/// returns true if the boundaries of this parameter shall be checked
 		bool         CheckBounds() const { return m_iFlags & fCheckBounds;  }
+		/// returns true if the string shall be converted to lowercase
 		bool         ToLower()     const { return m_iFlags & fToLower;      }
+		/// returns true if the string shall be converted to uppercase
 		bool         ToUpper()     const { return m_iFlags & fToUpper;      }
 
 	}; // CallbackParam
@@ -221,8 +238,12 @@ private:
 	// except literal strings
 	template<class String,
 	         typename std::enable_if<!detail::is_narrow_c_str<String>::value, int>::type = 0>
-	auto& PersistString(String&& sString)
+	const KString& PersistString(String&& sString)
 	{
+		if (sString.empty())
+		{
+			return s_sEmpty;
+		}
 		m_ParmBuffer.push_front(std::forward<String>(sString));
 		return m_ParmBuffer.front();
 	}
@@ -263,6 +284,8 @@ public:
 		OptionalParm& ToLower()                   { m_iFlags |= fToLower;   return *this; }
 		/// convert argument to upper case
 		OptionalParm& ToUpper()                   { m_iFlags |= fToUpper;   return *this; }
+		/// hide this parameter from automatic help text generation
+		OptionalParm& Hidden()                    { m_iFlags |= fIsHidden;  return *this; }
 		/// set the callback for the parameter as a function void(KOptions::ArgList&)
 		OptionalParm& Callback(CallbackN Func);
 		/// set the callback for the parameter as a function void(KStringViewZ)
@@ -278,9 +301,16 @@ public:
 		{
 			return IntHelp(m_base->PersistString(std::forward<String>(sHelp)), iHelpRank);
 		}
+		template<class String1, class String2 = KStringViewZ>
+		OptionalParm& Section(String1&& sSection, String2&& sDescription = KStringViewZ{})
+		{
+			return IntSection(m_base->PersistString(std::forward<String1>(sSection)),
+							  m_base->PersistString(std::forward<String2>(sDescription)));
+		}
 
 	private:
 		OptionalParm& IntHelp(KStringView sHelp, uint16_t iHelpRank);
+		OptionalParm& IntSection(KStringView sSection, KStringView sDescription);
 
 		KOptions*    m_base;
 
@@ -483,6 +513,8 @@ private:
 	// ini file parms, and for strings passed in for string views in option
 	// creation)
 	std::forward_list<KString> m_ParmBuffer;
+	// a static instance of an empty string, used for all empty buffered strings
+	static const KString s_sEmpty;
 
 	KString            m_sProgramPathName;
 	KString            m_sBriefDescription;
@@ -491,15 +523,17 @@ private:
 	CommandLookup      m_Commands;
 	CommandLookup      m_Options;
 	KStringViewZ       m_sCurrentArg;
-	KOutStream*        m_CurrentOutputStream { nullptr };
-	const KStringView* m_sHelp { nullptr };
-	size_t             m_iHelpSize { 0 };
-	std::size_t        m_iWrappedHelpIndent { 1 };
-	uint16_t           m_iMaxHelpRowWidth { 100 };
-	uint16_t           m_iRecursedHelp { 0 };
-	bool               m_bEmptyParmsIsError { true };
-	bool               m_bHaveOptions  { false };
-	bool               m_bHaveCommands { false };
+	KOutStream*        m_CurrentOutputStream     { nullptr };
+	const KStringView* m_sHelp                   { nullptr };
+	size_t             m_iHelpSize               {       0 };
+	std::size_t        m_iWrappedHelpIndent      {       1 };
+	uint16_t           m_iMaxHelpRowWidth        {     100 };
+	uint16_t           m_iRecursedHelp           {       0 };
+	bool               m_bEmptyParmsIsError      {    true };
+	bool               m_bHaveOptions            {   false };
+	bool               m_bHaveCommands           {   false };
+	bool               m_bSpacingPerSection      {   false };
+	bool               m_bLinefeedBetweenOptions {   false };
 
 }; // KOptions
 

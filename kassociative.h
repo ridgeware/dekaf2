@@ -178,7 +178,7 @@ public:
 		}
 		else
 		{
-			return this->insert({std::forward<K>(key), Value{}}).first->second;
+			return this->insert({std::forward<K>(key), Value()}).first->second;
 		}
 	}
 
@@ -244,7 +244,7 @@ public:
 		}
 		else
 		{
-			return this->insert({std::forward<K>(key), Value{}}).first->second;
+			return this->insert({std::forward<K>(key), Value()}).first->second;
 		}
 	}
 
@@ -373,7 +373,7 @@ public:
 		}
 		else
 		{
-			return this->insert({std::forward<K>(key), Value{}}).first->second;
+			return this->insert({std::forward<K>(key), Value()}).first->second;
 		}
 	}
 
@@ -440,7 +440,7 @@ public:
 		}
 		else
 		{
-			return this->insert({std::forward<K>(key), Value{}}).first->second;
+			return this->insert({std::forward<K>(key), Value()}).first->second;
 		}
 	}
 

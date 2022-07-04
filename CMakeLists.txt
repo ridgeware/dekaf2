@@ -690,6 +690,7 @@ set(PUBLIC_HEADERS
 	koutshell.h
 	koutstringstream.h
 	kparallel.h
+	kpersist.h
 	kpipe.h
 	kpool.h
 	kpoll.h

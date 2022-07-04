@@ -1260,7 +1260,7 @@ inline KString::size_type KString::find_first_of(value_type c, size_type pos) co
 inline KString::size_type KString::find_first_of(KStringView sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
-	return ToView().find_first_of(sv, pos);
+	return kFindFirstOf(KStringView(*this), sv, pos);
 }
 
 //-----------------------------------------------------------------------------
@@ -1411,7 +1411,7 @@ inline KString::size_type KString::find_first_not_of(const value_type* s, size_t
 inline KString::size_type KString::find_first_not_of(KStringView sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
-	return ToView().find_first_not_of(sv, pos);
+	return kFindFirstNotOf(KStringView(*this), sv, pos);
 }
 
 #else

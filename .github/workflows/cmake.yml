@@ -23,7 +23,9 @@ jobs:
       run: cmake -B ${{github.workspace}}/release-build -DCMAKE_BUILD_TYPE=Release
 
     - name: Release build
-      run: cmake --build ${{github.workspace}}/release-build --config Release -j 3 --target all
+      run: |
+        cpus=`nproc`
+        cmake --build ${{github.workspace}}/release-build --config Release --parallel $cpus --target all
 
     - name: Install
       working-directory: ${{github.workspace}}/release-build
@@ -34,7 +36,9 @@ jobs:
       run: cmake -B ${{github.workspace}}/debug-build -DCMAKE_BUILD_TYPE=Debug
 
     - name: Build unit tests in debug mode
-      run: cmake --build ${{github.workspace}}/debug-build --config Debug -j 3 --target dekaf2-utests dekaf2-smoketests
+      run: |
+        cpus=`nproc`
+        cmake --build ${{github.workspace}}/debug-build --config Debug --parallel $cpus --target dekaf2-utests dekaf2-smoketests
 
     - name: Unit tests
       working-directory: ${{github.workspace}}/debug-build

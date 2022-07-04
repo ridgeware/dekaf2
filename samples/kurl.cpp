@@ -59,46 +59,61 @@ kurl::kurl ()
 
 	m_CLI.Throw();
 
-	m_CLI.SetBriefDescription("dekaf2 based HTTP query tool").SetAdditionalArgDescription("<URL>");
+	m_CLI
+		.SetBriefDescription("dekaf2 based HTTP query tool")
+		.SetAdditionalArgDescription("<URL>");
 
-	m_CLI.Option("i,include").Help("show http response headers in output")
+	m_CLI
+		.Option("i,include")
+		.Help("show http response headers in output")
 	([&]()
 	{
 		m_Config.Flags |= Flags::RESPONSE_HEADERS;
 	});
 
-	m_CLI.Option("k,insecure").Help("do not verify SSL/TLS certificates")
+	m_CLI
+		.Option("k,insecure")
+		.Help("do not verify SSL/TLS certificates")
 	([&]()
 	{
 		m_Config.Flags |= Flags::INSECURE_CERTS;
 	});
 
-	m_CLI.Option("p,pretty").Help("pretty print XML or JSON data")
+	m_CLI
+		.Option("p,pretty")
+		.Help("pretty print XML or JSON data")
 	([&]()
 	{
 		m_Config.Flags |= Flags::PRETTY;
 	});
 
-	m_CLI.Option("v,verbose").Help("verbose status output")
+	m_CLI
+		.Option("v,verbose")
+		.Help("verbose status output")
 	([&]()
 	{
 		m_Config.Flags |= (Flags::VERBOSE | Flags::REQUEST_HEADERS | Flags::RESPONSE_HEADERS);
 	});
 
-	m_CLI.Option("q,quiet").Help("quiet operation")
+	m_CLI
+		.Option("q,quiet")
+		.Help("quiet operation")
 	([&]()
 	{
 		m_Config.Flags |= Flags::QUIET;
 	});
 
-	m_CLI.Option("V,version").Help("show version information")
+	m_CLI
+		.Option("V,version")
+		.Help("show version information")
 	([&]()
 	{
 		ShowVersion();
 		m_Config.bTerminate = true;
 	});
 
-	m_CLI.Option("X,request <method>", "request_method")
+	m_CLI
+		.Option("X,request <method>", "request method")
 		.Help(kFormat("set request method ({}) of simulated request (default = GET)", KHTTPMethod::REQUEST_METHODS))
 	([&](KStringViewZ sMethod)
 	{
@@ -110,7 +125,8 @@ kurl::kurl ()
 		}
 	});
 
-	m_CLI.Option("D,data <content>", "request_body")
+	m_CLI
+		.Option("D,data <content>", "request body")
 		.Help("add literal request body, or with @ take contents of file")
 	([&](KStringViewZ sArg)
 	{
@@ -129,7 +145,8 @@ kurl::kurl ()
 		}
 	});
 
-	m_CLI.Option("H,header <key:value>", "request header with key:value")
+	m_CLI
+		.Option("H,header <key:value>", "request header with key:value")
 		.Help("add HTTP header to the request (can be used multiple times)")
 	([&](KStringViewZ sHeader)
 	{
@@ -137,27 +154,36 @@ kurl::kurl ()
 		m_Config.Headers.insert ({Pair.first, Pair.second});
 	});
 
-	m_CLI.Option("m,mime <MIME>", "request MIME type")
+	m_CLI
+		.Option("m,mime <MIME>", "request MIME type")
 		.Help("set MIME type for the request")
 	([&](KStringViewZ sMIME)
 	{
 		m_Config.sRequestMIME = sMIME;
 	});
 
-	m_CLI.Option("compression <method>", "request compression")
+	m_CLI
+		.Option("compression <method>", "request compression")
 		.Help("set accepted compressions/encodings")
 	([&](KStringViewZ sCompression)
 	{
 		m_Config.sRequestCompression = sCompression;
 	});
 
-	m_CLI.RegisterUnknownCommand([&](KOptions::ArgList& Commands)
+	m_CLI
+		.UnknownCommand([&](KOptions::ArgList& Commands)
 	{
 		if (!m_Config.URL.empty() || Commands.size() > 1)
 		{
 			throw KOptions::Error("multiple URLs");
 		}
 		m_Config.URL = Commands.pop();
+
+		if (m_Config.URL.Protocol == url::KProtocol::UNDEFINED)
+		{
+			kDebug(2, "no protocol specified - assuming HTTP");
+			m_Config.URL.Protocol = url::KProtocol::HTTP;
+		}
 	});
 
 } // ctor

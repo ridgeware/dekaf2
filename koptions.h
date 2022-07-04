@@ -51,6 +51,7 @@
 #include "kpersist.h"
 #include <functional>
 #include <vector>
+#include <array>
 
 
 /// @file koptions.h
@@ -288,6 +289,7 @@ public:
 		{
 			return IntHelp(m_base->m_Strings.Persist(std::forward<String>(sHelp)), iHelpRank);
 		}
+		/// insert a section break in front of this parameter, with sSection as the section break title
 		template<class String>
 		OptionalParm& Section(String&& sSection)
 		{
@@ -360,13 +362,16 @@ public:
 	/// The sMissingParms string is output if there are less than iMinArgs args.
 	void RegisterOption(KStringView sOption, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function);
 
+	/// Deprecated, use the Command() method -
 	/// Register a callback function for occurences of "sCommand" with an arbitrary, but defined minimal amount of additional args
 	/// The sMissingParms string is output if there are less than iMinArgs args.
 	void RegisterCommand(KStringView sCommand, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function);
 
+	/// Deprecated, use the UnknownOption() method -
 	/// Register a callback function for unhandled options
 	void RegisterUnknownOption(CallbackN Function) { UnknownOption(std::move(Function)); }
 
+	/// Deprecated, use the UnknownCommand() method -
 	/// Register a callback function for unhandled commands
 	void RegisterUnknownCommand(CallbackN Function) { UnknownCommand(std::move(Function)); }
 

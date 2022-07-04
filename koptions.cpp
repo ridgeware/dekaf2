@@ -51,7 +51,6 @@
 #include "khttp_header.h"
 #include "dekaf2.h"
 #include "koutstringstream.h"
-#include <array>
 
 namespace dekaf2 {
 

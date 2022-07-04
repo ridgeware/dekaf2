@@ -48,7 +48,7 @@
 #include "kstack.h"
 #include "kexception.h"
 #include "kassociative.h"
-#include <forward_list>
+#include "kpersist.h"
 #include <functional>
 #include <vector>
 
@@ -108,25 +108,25 @@ public:
 	explicit KOptions (bool bEmptyParmsIsError, KStringView sCliDebugTo = KLog::STDOUT, bool bThrow = false);
 
 	/// set a brief description of the program, will appear in first line of generated help
-	KOptions& SetBriefDescription(KString sBrief) { m_sBriefDescription = std::move(sBrief); return *this; }
+	KOptions& SetBriefDescription(KString sBrief) { m_HelpParams.sBriefDescription = std::move(sBrief); return *this; }
 
 	/// set an additional description at the end of the automatic "usage:" string
-	KOptions& SetAdditionalArgDescription(KString sAdditionalArgDesc) { m_sAdditionalArgDesc = std::move(sAdditionalArgDesc); return *this; }
+	KOptions& SetAdditionalArgDescription(KString sAdditionalArgDesc) { m_HelpParams.sAdditionalArgDesc = std::move(sAdditionalArgDesc); return *this; }
 
 	/// set the separator style for the generated help - default is ::
-	KOptions& SetHelpSeparator(KStringView sSeparator) { m_sSeparator = sSeparator; return *this; }
+	KOptions& SetHelpSeparator(KString sSeparator) { m_HelpParams.sSeparator = std::move(sSeparator); return *this; }
 
 	/// set max generated help width in characters if terminal size is unknown, default = 100
-	KOptions& SetMaxHelpWidth(uint16_t iMaxWidth) { m_iMaxHelpRowWidth = iMaxWidth; return *this; }
+	KOptions& SetMaxHelpWidth(uint16_t iMaxWidth) { m_HelpParams.iMaxHelpRowWidth = iMaxWidth; return *this; }
 
 	/// set indent for wrapped help lines, default 1
-	KOptions& SetWrappedHelpIndent(std::size_t iIndent) { m_iWrappedHelpIndent = iIndent; return *this; }
+	KOptions& SetWrappedHelpIndent(uint16_t iIndent) { m_HelpParams.iWrappedHelpIndent = iIndent; return *this; }
 
 	/// calculate column width for names per section, or same for all (default = false)
-	KOptions& SetSpacingPerSection(bool bSpacingPerSection) { m_bSpacingPerSection = bSpacingPerSection; return *this; }
+	KOptions& SetSpacingPerSection(bool bSpacingPerSection) { m_HelpParams.bSpacingPerSection = bSpacingPerSection; return *this; }
 
 	/// write an empty line between all options? (default = false)
-	KOptions& SetLinefeedBetweenOptions(bool bLinefeedBetweenOptions) { m_bLinefeedBetweenOptions = bLinefeedBetweenOptions; return *this; }
+	KOptions& SetLinefeedBetweenOptions(bool bLinefeedBetweenOptions) { m_HelpParams.bLinefeedBetweenOptions = bLinefeedBetweenOptions; return *this; }
 
 	/// throw on errors or not?
 	void Throw(bool bYesNo = true)
@@ -175,7 +175,7 @@ private:
 //----------
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	class CallbackParam
+	class DEKAF2_PUBLIC CallbackParam
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 	public:
@@ -189,15 +189,16 @@ private:
 			fToLower     = 1 << 3,
 			fToUpper     = 1 << 4,
 			fIsHidden    = 1 << 5,
-			fIsSection   = 1 << 6
+			fIsSection   = 1 << 6,
+			fIsUnknown   = 1 << 7
 		};
 
 		CallbackParam() = default;
-		CallbackParam(KStringView sNames, KStringViewZ sMissingArgs, uint16_t fFlags, uint16_t iMinArgs = 0, CallbackN Func = CallbackN{});
+		CallbackParam(KStringView sNames, KStringView sMissingArgs, uint16_t fFlags, uint16_t iMinArgs = 0, CallbackN Func = CallbackN{});
 
 		CallbackN    m_Callback;
 		KStringView  m_sNames;
-		KStringViewZ m_sMissingArgs; // has to be a KStringViewZ as we feed it into std::runtime_error, which expects a C string
+		KStringView  m_sMissingArgs;
 		KStringView  m_sHelp;
 		int64_t      m_iLowerBound  { 0 };
 		int64_t      m_iUpperBound  { 0 };
@@ -210,12 +211,16 @@ private:
 
 		/// returns true if this parameter is required
 		bool         IsRequired()  const { return m_iFlags & fIsRequired;   }
+		/// returns true if this parameter is an option, not a command
+		bool         IsOption()    const { return IsCommand() == false;     }
 		/// returns true if this parameter is a command, not an option
 		bool         IsCommand()   const { return m_iFlags & fIsCommand;    }
 		/// returns true if this parameter shall be hidden from auto-documentation
 		bool         IsHidden()    const { return m_iFlags & fIsHidden;     }
 		/// returns true if this parameter is a section break for the auto-documentation
 		bool         IsSection()   const { return m_iFlags & fIsSection;    }
+		/// returns true if this parameter is an "unknown" catchall, either for options or commands
+		bool         IsUnknown()   const { return m_iFlags & fIsUnknown;    }
 		/// returns true if the boundaries of this parameter shall be checked
 		bool         CheckBounds() const { return m_iFlags & fCheckBounds;  }
 		/// returns true if the string shall be converted to lowercase
@@ -225,29 +230,6 @@ private:
 
 	}; // CallbackParam
 
-	// helper to store temporary strings in persistent storage - that is, all types
-	// except literal strings
-	template<class String,
-	         typename std::enable_if<detail::is_narrow_c_str<String>::value, int>::type = 0>
-	String PersistString(String sString)
-	{
-		return sString;
-	}
-
-	// helper to store temporary strings in persistent storage - that is, all types
-	// except literal strings
-	template<class String,
-	         typename std::enable_if<!detail::is_narrow_c_str<String>::value, int>::type = 0>
-	const KString& PersistString(String&& sString)
-	{
-		if (sString.empty())
-		{
-			return s_sEmpty;
-		}
-		m_ParmBuffer.push_front(std::forward<String>(sString));
-		return m_ParmBuffer.front();
-	}
-
 	friend class OptionalParm;
 
 //----------
@@ -255,18 +237,23 @@ public:
 //----------
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	class OptionalParm : private CallbackParam
+	class DEKAF2_PUBLIC OptionalParm : private CallbackParam
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-	public:
-		template<class String1, class String2>
-		OptionalParm(KOptions& base, String1&& sOption, String2&& sArgDescription, bool bIsCommand)
-		: CallbackParam(base.PersistString(std::forward<String1>(sOption)),
-						base.PersistString(std::forward<String2>(sArgDescription)),
+		friend class KOptions;
+
+	protected:
+
+		// we make the ctor protected to ensure that all passed strings are already persisted
+		OptionalParm(KOptions& base, KStringView sOption, KStringView sArgDescription, bool bIsCommand)
+		: CallbackParam(sOption,
+						sArgDescription,
 						bIsCommand ? fIsCommand : fNone)
 		, m_base(&base)
 		{
 		}
+
+	public:
 
 		~OptionalParm();
 
@@ -299,38 +286,56 @@ public:
 		template<class String>
 		OptionalParm& Help(String&& sHelp, uint16_t iHelpRank = 0)
 		{
-			return IntHelp(m_base->PersistString(std::forward<String>(sHelp)), iHelpRank);
+			return IntHelp(m_base->m_Strings.Persist(std::forward<String>(sHelp)), iHelpRank);
 		}
-		template<class String1, class String2 = KStringViewZ>
-		OptionalParm& Section(String1&& sSection, String2&& sDescription = KStringViewZ{})
+		template<class String>
+		OptionalParm& Section(String&& sSection)
 		{
-			return IntSection(m_base->PersistString(std::forward<String1>(sSection)),
-							  m_base->PersistString(std::forward<String2>(sDescription)));
+			return IntSection(m_base->m_Strings.Persist(std::forward<String>(sSection)));
 		}
 
 	private:
+
 		OptionalParm& IntHelp(KStringView sHelp, uint16_t iHelpRank);
-		OptionalParm& IntSection(KStringView sSection, KStringView sDescription);
+		OptionalParm& IntSection(KStringView sSection);
 
 		KOptions*    m_base;
 
 	}; // OptionalParm
 
 	/// Start definition of a new option. Have it follow by any chained count of methods of OptionalParms, like Option("clear").Help("clear all data").Callback([&](){ RunClear() });
-	template<class String1, class String2 = KStringViewZ>
-	OptionalParm Option(String1&& sOption, String2&& sArgDescription = KStringViewZ{})
+	template<class String1>
+	OptionalParm Option(String1&& sOption)
 	{
-		return IntOptionOrCommand(PersistString(std::forward<String1>(sOption)), PersistString(std::forward<String2>(sArgDescription)), false);
+		return IntOptionOrCommand(m_Strings.Persist(std::forward<String1>(sOption)), "", false);
 	}
 	/// Start definition of a new command. Have it follow by any chained count of methods of OptionalParms, like Command("clear").Help("clear all data").Callback([&](){ RunClear() });
-	template<class String1, class String2 = KStringViewZ>
-	OptionalParm Command(String1&& sCommand, String2&& sArgDescription = KStringViewZ{})
+	template<class String1>
+	OptionalParm Command(String1&& sCommand)
 	{
-		return IntOptionOrCommand(PersistString(std::forward<String1>(sCommand)), PersistString(std::forward<String2>(sArgDescription)), true);
+		return IntOptionOrCommand(m_Strings.Persist(std::forward<String1>(sCommand)), "", true);
 	}
 
-	/// Register a CallbackParam (typically done by the destructor of CallbackParam..)
-	void Register(CallbackParam OptionOrCommand);
+	/// Start definition of a new option. Have it follow by any chained count of methods of OptionalParms, like Option("clear").Help("clear all data").Callback([&](){ RunClear() });
+	template<class String1, class String2>
+	OptionalParm Option(String1&& sOption, String2&& sArgDescription)
+	{
+		return IntOptionOrCommand(m_Strings.Persist(std::forward<String1>(sOption)), m_Strings.Persist(std::forward<String2>(sArgDescription)), false);
+	}
+	/// Start definition of a new command. Have it follow by any chained count of methods of OptionalParms, like Command("clear").Help("clear all data").Callback([&](){ RunClear() });
+	template<class String1, class String2>
+	OptionalParm Command(String1&& sCommand, String2&& sArgDescription)
+	{
+		return IntOptionOrCommand(m_Strings.Persist(std::forward<String1>(sCommand)), m_Strings.Persist(std::forward<String2>(sArgDescription)), true);
+	}
+
+	/// Register a callback function for unhandled options
+	void UnknownOption(CallbackN Function);
+
+	/// Register a callback function for unhandled commands
+	void UnknownCommand(CallbackN Function);
+
+	// ========================== deprecated/legacy interface ============================
 
 	/// Deprecated, use the Option() method -
 	/// Register a callback function for occurences of "-sOption" with no additional args
@@ -360,10 +365,12 @@ public:
 	void RegisterCommand(KStringView sCommand, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function);
 
 	/// Register a callback function for unhandled options
-	void RegisterUnknownOption(CallbackN Function);
+	void RegisterUnknownOption(CallbackN Function) { UnknownOption(std::move(Function)); }
 
 	/// Register a callback function for unhandled commands
-	void RegisterUnknownCommand(CallbackN Function);
+	void RegisterUnknownCommand(CallbackN Function) { UnknownCommand(std::move(Function)); }
+
+	// ===================== deprecated/legacy interface until here =======================
 
 	/// Register an array of KStringViews as help output, if you do not want to use the automatically generated help
 	template<std::size_t COUNT>
@@ -392,13 +399,13 @@ public:
 	static bool IsCGIEnvironment();
 
 	/// Returns arg[0] / the path and name of the called executable
-	KStringViewZ GetProgramPath() const;
+	const KString& GetProgramPath() const { return m_HelpParams.GetProgramPath(); }
 
 	/// Returns basename of arg[0] / the name of the called executable
-	KStringView GetProgramName() const;
+	KStringView GetProgramName() const { return m_HelpParams.GetProgramName(); }
 
 	/// Returns brief description of the called executable
-	KStringView GetBriefDescription() const { return m_sBriefDescription; }
+	const KString& GetBriefDescription() const { return m_HelpParams.GetBriefDescription(); }
 
 //----------
 protected:
@@ -429,11 +436,11 @@ private:
 			Arg_t() = default;
 			Arg_t(KStringViewZ sArg_);
 
-			bool IsOption() const { return iDashes; }
-			KStringViewZ Dashes() const;
+			bool         IsOption() const { return iDashes; }
+			KStringViewZ Dashes()   const;
 
 			KStringViewZ sArg;
-			bool bConsumed { false };
+			bool         bConsumed { false };
 
 		//----------
 		private:
@@ -441,7 +448,7 @@ private:
 
 			static constexpr KStringViewZ s_sDoubleDash = "--";
 
-			uint8_t iDashes { 0 };
+			uint8_t      iDashes { 0 };
 
 		}; // Arg_t
 
@@ -459,32 +466,110 @@ private:
 			Create(parms);
 		}
 
+		void           Create(int argc, char const* const* argv);
+		void           Create(const std::vector<KStringViewZ>& parms);
 
-		void Create(int argc, char const* const* argv);
-		void Create(const std::vector<KStringViewZ>& parms);
-
-		size_t size() const  { return m_ArgVec.size();  }
-		size_t empty() const { return m_ArgVec.empty(); }
-		iterator begin()     { return m_ArgVec.begin(); }
-		iterator end()       { return m_ArgVec.end();   }
+		size_t         size()  const { return m_ArgVec.size();  }
+		size_t         empty() const { return m_ArgVec.empty(); }
+		iterator       begin()       { return m_ArgVec.begin(); }
+		iterator       end()         { return m_ArgVec.end();   }
 		const_iterator begin() const { return m_ArgVec.begin(); }
 		const_iterator end()   const { return m_ArgVec.end();   }
-		void clear()         { m_ArgVec.clear();        }
+		void           clear()       { m_ArgVec.clear();        }
 
-		KStringViewZ GetProgramPath() const;
-		KStringView GetProgramName() const;
+		KStringViewZ   GetProgramPath() const;
+		KStringView    GetProgramName() const;
 
-		ArgVec m_ArgVec;
-		KStringViewZ m_sProgramPathName;
+		ArgVec         m_ArgVec;
+		KStringViewZ   m_sProgramPathName;
 
 	}; // CLIParms
 
-	mutable std::vector<CallbackParam> m_Callbacks;
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class DEKAF2_PRIVATE HelpFormatter
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
 
-	using CommandLookup = KUnorderedMap<KStringView, std::size_t>;
+	//----------
+	public:
+	//----------
+
+		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		struct DEKAF2_PRIVATE HelpParams
+		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		{
+			KStringView    GetProgramName()      const;
+			const KString& GetProgramPath()      const { return sProgramPathName;  }
+			const KString& GetBriefDescription() const { return sBriefDescription; }
+
+			KString        sProgramPathName;
+			KString        sBriefDescription;
+			KString        sAdditionalArgDesc;
+			KString        sSeparator              {    "::" };
+			uint16_t       iWrappedHelpIndent      {       1 };
+			uint16_t       iMaxHelpRowWidth        {     100 };
+			bool           bSpacingPerSection      {   false };
+			bool           bLinefeedBetweenOptions {   false };
+		};
+
+		HelpFormatter(KOutStream&                       out,
+					  const std::vector<CallbackParam>& Callbacks,
+					  const HelpParams&                 HelpParams,
+					  uint16_t                          iTerminalWidth);
+
+		HelpFormatter(KOutStream&          out,
+					  const CallbackParam& Callback,
+					  const HelpParams&    HelpParams,
+					  uint16_t             iTerminalWidth);
+
+	//----------
+	private:
+	//----------
+
+		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		struct DEKAF2_PRIVATE Mask
+		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		{
+			Mask(const HelpFormatter& Formatter, bool bForCommands);
+
+			KString        sFormat;
+			KString        sOverflow;
+			uint16_t       iMaxHelp     {    80 };
+			bool           bOverlapping { false };
+
+		}; // Mask
+
+		static KStringView SplitAtLinefeed(KStringView& sInput);
+		static KStringView WrapOutput(KStringView& sInput, std::size_t iMaxSize);
+		static KStringView::size_type AdjustPos(KStringView::size_type iPos, int iAdjust);
+
+		void           GetEnvironment();
+		void           CalcExtends(const std::vector<CallbackParam>& Callbacks);
+		void           CalcExtends(const CallbackParam& Callback);
+		void           FormatOne(KOutStream& out, const CallbackParam& Callback, const Mask& mask);
+
+		const HelpParams&
+		               m_Params;
+
+		std::array<std::size_t, 2>
+		               m_MaxLens                 { 0, 0                             };
+		KStringView    m_sSeparator              { m_Params.sSeparator              };
+		uint16_t       m_iColumns                { m_Params.iMaxHelpRowWidth        };
+		uint16_t       m_iWrappedHelpIndent      { m_Params.iWrappedHelpIndent      };
+		bool           m_bLinefeedBetweenOptions { m_Params.bLinefeedBetweenOptions };
+		bool           m_bSpacingPerSection      { m_Params.bSpacingPerSection      };
+		bool           m_bHaveOptions            { false                            };
+		bool           m_bHaveCommands           { false                            };
+
+	}; // HelpFormatter
 
 	DEKAF2_PRIVATE
-	OptionalParm IntOptionOrCommand(KStringView sOption, KStringViewZ sArgDescription, bool bIsCommand);
+	void Register(CallbackParam OptionOrCommand);
+	DEKAF2_PRIVATE
+	OptionalParm IntOptionOrCommand(KStringView sOption, KStringView sArgDescription, bool bIsCommand)
+	{
+		return OptionalParm(*this, sOption, sArgDescription, bIsCommand);
+	}
 	DEKAF2_PRIVATE
 	KStringViewZ ModifyArgument(KStringViewZ sArg, const CallbackParam* Callback);
 	DEKAF2_PRIVATE
@@ -502,38 +587,23 @@ private:
 	DEKAF2_PRIVATE
 	int Evaluate(const CLIParms& Parms, KOutStream& out);
 	DEKAF2_PRIVATE
-	void BuildHelp(KOutStream& out) const;
+	void AutomaticHelp();
 	DEKAF2_PRIVATE
-	void AutomaticHelp() const;
+	KString BuildParameterError(const CallbackParam& Callback, KString sMessage);
 
-	// a forward_list, other than a vector, keeps all elements in place when
-	// adding more elements, which makes it perfect for the general strategy
-	// of KOptions to use string views for parameters (which are unbuffered
-	// when coming directly from the CLI, this buffer is only for CGI and
-	// ini file parms, and for strings passed in for string views in option
-	// creation)
-	std::forward_list<KString> m_ParmBuffer;
-	// a static instance of an empty string, used for all empty buffered strings
-	static const KString s_sEmpty;
+	using CommandLookup = KUnorderedMap<KStringView, std::size_t>;
 
-	KString            m_sProgramPathName;
-	KString            m_sBriefDescription;
-	KString            m_sAdditionalArgDesc;
-	KStringView        m_sSeparator { "::" };
-	CommandLookup      m_Commands;
-	CommandLookup      m_Options;
-	KStringViewZ       m_sCurrentArg;
-	KOutStream*        m_CurrentOutputStream     { nullptr };
-	const KStringView* m_sHelp                   { nullptr };
-	size_t             m_iHelpSize               {       0 };
-	std::size_t        m_iWrappedHelpIndent      {       1 };
-	uint16_t           m_iMaxHelpRowWidth        {     100 };
-	uint16_t           m_iRecursedHelp           {       0 };
-	bool               m_bEmptyParmsIsError      {    true };
-	bool               m_bHaveOptions            {   false };
-	bool               m_bHaveCommands           {   false };
-	bool               m_bSpacingPerSection      {   false };
-	bool               m_bLinefeedBetweenOptions {   false };
+	HelpFormatter::HelpParams  m_HelpParams;
+	std::vector<CallbackParam> m_Callbacks;
+	KPersistStrings<false>     m_Strings;
+	CommandLookup              m_Commands;
+	CommandLookup              m_Options;
+	KStringViewZ               m_sCurrentArg;
+	KOutStream*                m_CurrentOutputStream     { nullptr };
+	const KStringView*         m_sHelp                   { nullptr };
+	std::size_t                m_iHelpSize               {       0 };
+	uint16_t                   m_iRecursedHelp           {       0 };
+	bool                       m_bEmptyParmsIsError      {    true };
 
 }; // KOptions
 

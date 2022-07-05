@@ -1000,6 +1000,11 @@ if (IS_MACOS)
 	set (CORE_FOUNDATION "-framework Foundation")
 endif()
 
+if (IS_WINDOWS)
+	# we need the dbghelp library for the data segment detection on Windows..
+	set (DEBUG_HELP "dbghelp")
+endif()
+
 target_link_libraries(dekaf2
 	PUBLIC
 		fmt
@@ -1017,6 +1022,7 @@ target_link_libraries(dekaf2
 		${LIBZIP_LIBRARIES}
 		${RT}
 		${CORE_FOUNDATION}
+		${DEBUG_HELP}
 		re2
 		${JEMalloc_LIBRARIES}
 	)

@@ -66,6 +66,7 @@
 	#include <io.h>            // for _get_osfhandle()
 	#include <libloaderapi.h>  // for GetModuleFileName()
 	#include <processthreadsapi.h> // for GetCurrentProcessorNumber()
+	#include <dbghelp.h>       // for kIsInsideDataSegment()
 #else
 	#include <unistd.h>        // for sysconf()
 	#include <sys/types.h>     // for getpwuid()
@@ -911,7 +912,7 @@ uint16_t kGetCPUCount()
 	{
 		SYSTEM_INFO sysInfo;
 		GetSystemInfo(&sysInfo);
-		return sysInfo.dwNumberOfProcessors ? sysInfo.dwNumberOfProcessors : 1;
+		return static_cast<uint16_t>(sysInfo.dwNumberOfProcessors ? sysInfo.dwNumberOfProcessors : 1);
 	}();
 
 #endif
@@ -956,7 +957,7 @@ uint16_t kGetCPU()
 #elif DEKAF2_IS_WINDOWS
 
 	// this is only supported from Windows Vista onward
-	return GetCurrentProcessorNumber();
+	return static_cast<uint16_t>(GetCurrentProcessorNumber());
 
 #endif
 
@@ -1369,7 +1370,7 @@ const KString& kGetOwnPathname()
 			std::wstring wsPath;
 			wsPath.resize(MAX_PATH);
 
-			GetModuleFileNameW(hModule, wsPath.data(), wsPath.size());
+			GetModuleFileNameW(hModule, wsPath.data(), static_cast<DWORD>(wsPath.size()));
 			wsPath.resize(wcsnlen(wsPath.data(), wsPath.size()));
 
 			sPath = Unicode::ToUTF8<KString>(wsPath);
@@ -1600,51 +1601,62 @@ bool kIsInsideDataSegment(const void* addr)
 
 	struct Segment
 	{
-		void* etext { nullptr };
-		void* edata { nullptr };
+		const void* etext { nullptr };
+		const void* edata { nullptr };
 	};
 
-	static const Segment DataSegment = []() -> Segment
+	auto FindSegment = [](KStringViewZ sSegment) -> Segment
 	{
 		// setup pointers
 		HANDLE Self                         = GetModuleHandle(nullptr);
 		IMAGE_NT_HEADERS* NtHeader          = ImageNtHeader(Self);
-		IMAGE_SECTION_HEADER* SectionHeader = static_cast<IMAGE_SECTION_HEADER*>(NtHeader + 1);
+		IMAGE_SECTION_HEADER* SectionHeader = reinterpret_cast<IMAGE_SECTION_HEADER*>(NtHeader + 1);
 		const char* SelfImage               = static_cast<const char*>(Self);
 
 		Segment Data;
 
-		// iterate through image segments and find the .data segment
-		for (int iSection = 0; iSection < NtHeader->FileHeader.NumberOfSections; ++iSection, ++SectionHeader)
+		// iterate through image segments and find the requested segment
+		for (int iSection = 0;
+			 iSection < NtHeader->FileHeader.NumberOfSections;
+			 ++iSection, ++SectionHeader)
 		{
-			if (!strncmp(".data", SectionHeader->Name, sizeof(SectionHeader->Name)))
+			if (!strncmp(sSegment.c_str(),
+						 reinterpret_cast<const char*>(SectionHeader->Name),
+						 sizeof(SectionHeader->Name)))
 			{
 				Data.etext = SelfImage  + SectionHeader->VirtualAddress;
 				Data.edata = SelfImage  + SectionHeader->VirtualAddress
 				                        + SectionHeader->Misc.VirtualSize;
+				kDebug(2, "found {} section: starts at {} with size {}",
+					   sSegment,
+					   static_cast<const void*>(&Data.etext),
+					   SectionHeader->Misc.VirtualSize);
 				break;
 			}
-			++SectionHeader;
 		}
 
 		return Data;
-	}();
+	};
 
-	return ((DataSegment.edata > addr) && (DataSegment.etext <= addr));
+	// the .rdata segment contains const data and contains the .data
+	// section on contemporary windows
+	static const Segment RDataSegment = FindSegment(".rdata");
+
+	return ((RDataSegment.edata > addr) && (RDataSegment.etext <= addr));
 
 #elif DEKAF2_IS_MACOS
 
 	struct Segment
 	{
-		void* etext { nullptr };
-		void* edata { nullptr };
+		const void* etext { nullptr };
+		const void* edata { nullptr };
 	};
 
 	static const Segment DataSegment = []() -> Segment
 	{
 		Segment Data;
-		Data.etext = (void *)get_etext();
-		Data.edata = (void *)get_edata();
+		Data.etext = reinterpret_cast<const void *>(get_etext());
+		Data.edata = reinterpret_cast<const void *>(get_edata());
 
 		return Data;
 	}();
@@ -1655,10 +1667,12 @@ bool kIsInsideDataSegment(const void* addr)
 
 	return ((&_edata > addr) && (&_etext <= addr));
 
-#endif
+#else
 
 	kDebug(1, "operating system not supported")
 	return false;
+
+#endif
 
 } // kIsInsideDataSegment
 

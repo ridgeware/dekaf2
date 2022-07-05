@@ -743,7 +743,7 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 } // KOptions ctor
 
 //---------------------------------------------------------------------------
-void KOptions::AutomaticHelp()
+void KOptions::AutomaticHelp() const
 //---------------------------------------------------------------------------
 {
 	auto& out = GetCurrentOutputStream();
@@ -757,13 +757,15 @@ void KOptions::AutomaticHelp()
 	}
 	else
 	{
+		// create a copy
+		auto Callbacks = m_Callbacks;
 		// make sure help is (stable) sorted by help rank
-		std::stable_sort(m_Callbacks.begin(), m_Callbacks.end(), [](const CallbackParam& left, const CallbackParam& right)
+		std::stable_sort(Callbacks.begin(), Callbacks.end(), [](const CallbackParam& left, const CallbackParam& right)
 		{
 			return (left.m_iHelpRank < right.m_iHelpRank);
 		});
 
-		HelpFormatter(out, m_Callbacks, m_HelpParams, GetCurrentOutputStreamWidth());
+		HelpFormatter(out, Callbacks, m_HelpParams, GetCurrentOutputStreamWidth());
 	}
 
 } // AutomaticHelp
@@ -811,7 +813,7 @@ void KOptions::Help(KOutStream& out)
 } // Help
 
 //---------------------------------------------------------------------------
-const KOptions::CallbackParam* KOptions::FindParam(KStringView sName, bool bIsOption) const
+const KOptions::CallbackParam* KOptions::FindParam(KStringView sName, bool bIsOption)
 //---------------------------------------------------------------------------
 {
 	auto& Lookup = bIsOption ? m_Options : m_Commands;
@@ -843,7 +845,7 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 
 	for (auto sOption : OptionOrCommand.m_sNames.Split())
 	{
-		if (sOption != "!")
+		if (sOption != UNKNOWN_ARG)
 		{
 			sOption.TrimLeft(OptionOrCommand.IsCommand() ? " \f\v\t\r\n\b" : " -\f\v\t\r\n\b");
 
@@ -898,7 +900,8 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 void KOptions::UnknownOption(CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	Register(CallbackParam("!", "",
+	Register(CallbackParam(UNKNOWN_ARG,
+						   "",
 						   CallbackParam::fIsUnknown |
 						   CallbackParam::fIsHidden,
 						   0,
@@ -909,7 +912,8 @@ void KOptions::UnknownOption(CallbackN Function)
 void KOptions::UnknownCommand(CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	Register(CallbackParam("!", "",
+	Register(CallbackParam(UNKNOWN_ARG,
+						   "",
 						   CallbackParam::fIsCommand |
 						   CallbackParam::fIsUnknown |
 						   CallbackParam::fIsHidden,
@@ -1305,7 +1309,7 @@ KStringViewZ KOptions::ModifyArgument(KStringViewZ sArg, const CallbackParam* Ca
 } // ModifyArgument
 
 //---------------------------------------------------------------------------
-KString KOptions::BuildParameterError(const CallbackParam& Callback, KString sMessage)
+KString KOptions::BuildParameterError(const CallbackParam& Callback, KString sMessage) const
 //---------------------------------------------------------------------------
 {
 	if (!Callback.m_sHelp.empty())
@@ -1323,9 +1327,29 @@ KString KOptions::BuildParameterError(const CallbackParam& Callback, KString sMe
 } // BuildParameterError
 
 //---------------------------------------------------------------------------
+void KOptions::ResetBeforeParsing()
+//---------------------------------------------------------------------------
+{
+	m_bStopAppAfterParsing = false;
+
+	for (auto& Callback : m_Callbacks)
+	{
+		// reset flag
+		Callback.m_bUsed = false;
+	}
+
+} // ResetBeforeParsing
+
+//---------------------------------------------------------------------------
 int KOptions::Execute(CLIParms Parms, KOutStream& out)
 //---------------------------------------------------------------------------
 {
+	if (m_iExecutions++)
+	{
+		// we ran Execute before - reset variables
+		ResetBeforeParsing();
+	}
+
 	KOutStreamRAII KO(&m_CurrentOutputStream, out);
 
 	if (m_HelpParams.sProgramPathName.empty())
@@ -1353,7 +1377,7 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 				if (DEKAF2_UNLIKELY(Callback == nullptr))
 				{
 					// check if we have a handler for an unknown arg
-					Callback = FindParam("!", it->IsOption());
+					Callback = FindParam(UNKNOWN_ARG, it->IsOption());
 
 					if (Callback)
 					{
@@ -1446,6 +1470,20 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 					{
 						(++it)->bConsumed = true;
 					}
+
+					if (Callback->IsFinal())
+					{
+						// we're done
+						// set flag to stop program after all args are parsed
+						m_bStopAppAfterParsing = true;
+						return Evaluate(Parms, out);
+					}
+
+					if (Callback->IsStop())
+					{
+						// set flag to stop program after all args are parsed
+						m_bStopAppAfterParsing = true;
+					}
 				}
 			}
 		}
@@ -1533,11 +1571,6 @@ int KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
 			bError = true;
 			out.FormatLine("missing required argument: {}{}", Callback.IsCommand() ? "" : "-", Callback.m_sNames);
 		}
-		else
-		{
-			// reset flag
-			Callback.m_bUsed = false;
-		}
 	}
 
 	return bError; // 0 or 1
@@ -1546,6 +1579,7 @@ int KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 	constexpr KStringViewZ KOptions::CLIParms::Arg_t::s_sDoubleDash;
+	constexpr KStringView  KOptions::UNKNOWN_ARG;
 #endif
 
 } // end of namespace dekaf2

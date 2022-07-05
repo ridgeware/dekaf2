@@ -175,6 +175,8 @@ public:
 private:
 //----------
 
+	static constexpr KStringView UNKNOWN_ARG { "!" };
+
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class DEKAF2_PUBLIC CallbackParam
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -191,7 +193,9 @@ private:
 			fToUpper     = 1 << 4,
 			fIsHidden    = 1 << 5,
 			fIsSection   = 1 << 6,
-			fIsUnknown   = 1 << 7
+			fIsUnknown   = 1 << 7,
+			fIsFinal     = 1 << 8,
+			fIsStop      = 1 << 9
 		};
 
 		CallbackParam() = default;
@@ -201,14 +205,14 @@ private:
 		KStringView  m_sNames;
 		KStringView  m_sMissingArgs;
 		KStringView  m_sHelp;
-		int64_t      m_iLowerBound  { 0 };
-		int64_t      m_iUpperBound  { 0 };
-		uint16_t     m_iMinArgs     { 0 };
-		uint16_t     m_iMaxArgs     { 65535  };
-		uint16_t     m_iFlags       { fNone  };
-		uint16_t     m_iHelpRank    { 0 };
+		int64_t      m_iLowerBound  {      0 };
+		int64_t      m_iUpperBound  {      0 };
+		uint16_t     m_iMinArgs     {      0 };
+		uint16_t     m_iMaxArgs     {  65535 };
+		uint16_t     m_iFlags       {  fNone };
+		uint16_t     m_iHelpRank    {      0 };
 		ArgTypes     m_ArgType      { String };
-		mutable bool m_bUsed        { false  };
+		bool         m_bUsed        {  false };
 
 		/// returns true if this parameter is required
 		bool         IsRequired()  const { return m_iFlags & fIsRequired;   }
@@ -222,6 +226,10 @@ private:
 		bool         IsSection()   const { return m_iFlags & fIsSection;    }
 		/// returns true if this parameter is an "unknown" catchall, either for options or commands
 		bool         IsUnknown()   const { return m_iFlags & fIsUnknown;    }
+		/// returns true if this parameter ends the execution of a program immediately
+		bool         IsFinal()     const { return m_iFlags & fIsFinal;      }
+		/// returns true if this parameter ends the execution of a program after all args are parsed
+		bool         IsStop()      const { return m_iFlags & fIsStop;       }
 		/// returns true if the boundaries of this parameter shall be checked
 		bool         CheckBounds() const { return m_iFlags & fCheckBounds;  }
 		/// returns true if the string shall be converted to lowercase
@@ -274,6 +282,10 @@ public:
 		OptionalParm& ToUpper()                   { m_iFlags |= fToUpper;   return *this; }
 		/// hide this parameter from automatic help text generation
 		OptionalParm& Hidden()                    { m_iFlags |= fIsHidden;  return *this; }
+		/// when at least one parsed argument has Stop() set, after parsing the args the program is terminated (with success)
+		OptionalParm& Stop()                      { m_iFlags |= fIsStop;    return *this; }
+		/// after parsing _this_ arg the program is terminated (with success if this _is_ the final arg)
+		OptionalParm& Final()                     { m_iFlags |= fIsFinal;   return *this; }
 		/// set the callback for the parameter as a function void(KOptions::ArgList&)
 		OptionalParm& Callback(CallbackN Func);
 		/// set the callback for the parameter as a function void(KStringViewZ)
@@ -412,6 +424,9 @@ public:
 	/// Returns brief description of the called executable
 	const KString& GetBriefDescription() const { return m_HelpParams.GetBriefDescription(); }
 
+	/// Terminate app immediately? (check after parsing)
+	bool Terminate() const { return m_bStopAppAfterParsing; }
+
 //----------
 protected:
 //----------
@@ -457,8 +472,8 @@ private:
 
 		}; // Arg_t
 
-		using ArgVec   = std::vector<Arg_t>;
-		using iterator = ArgVec::iterator;
+		using ArgVec         = std::vector<Arg_t>;
+		using iterator       = ArgVec::iterator;
 		using const_iterator = ArgVec::const_iterator;
 
 		CLIParms() = default;
@@ -586,15 +601,17 @@ private:
 	DEKAF2_PRIVATE
 	bool ValidArgType(ArgTypes Type, KStringViewZ sParm) const;
 	DEKAF2_PRIVATE
-	const CallbackParam* FindParam(KStringView sName, bool bIsOption) const;
+	const CallbackParam* FindParam(KStringView sName, bool bIsOption);
+	DEKAF2_PRIVATE
+	void ResetBeforeParsing();
 	DEKAF2_PRIVATE
 	int Execute(CLIParms Parms, KOutStream& out);
 	DEKAF2_PRIVATE
 	int Evaluate(const CLIParms& Parms, KOutStream& out);
 	DEKAF2_PRIVATE
-	void AutomaticHelp();
+	void AutomaticHelp() const;
 	DEKAF2_PRIVATE
-	KString BuildParameterError(const CallbackParam& Callback, KString sMessage);
+	KString BuildParameterError(const CallbackParam& Callback, KString sMessage) const;
 
 	using CommandLookup = KUnorderedMap<KStringView, std::size_t>;
 
@@ -608,7 +625,9 @@ private:
 	const KStringView*         m_sHelp                   { nullptr };
 	std::size_t                m_iHelpSize               {       0 };
 	uint16_t                   m_iRecursedHelp           {       0 };
+	uint16_t                   m_iExecutions             {       0 };
 	bool                       m_bEmptyParmsIsError      {    true };
+	bool                       m_bStopAppAfterParsing    {   false };
 
 }; // KOptions
 

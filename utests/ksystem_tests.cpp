@@ -281,4 +281,15 @@ TEST_CASE("KSystem")
 			}
 		}
 	}
+
+	SECTION("IsInsideDataSegment")
+	{
+		CHECK ( kIsInsideDataSegment("I am a static string literal stored in the data segment") == true );
+		KString sTest("I am a dynamic string whose class is stored on the stack and whose content is stored on the heap");
+		CHECK ( kIsInsideDataSegment(&sTest) == false );
+		CHECK ( kIsInsideDataSegment(sTest.c_str()) == false );
+		auto sDynamic = std::make_unique<char[]>(41);
+		strncpy(sDynamic.get(), "I am a dynamic string stored on the heap", 41);
+		CHECK ( kIsInsideDataSegment(sDynamic.get()) == false );
+	}
 }

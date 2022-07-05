@@ -79,6 +79,7 @@
 		#ifdef DEKAF2_X86
 			#include <cpuid.h>     // for cpuid()
 		#endif
+		#include <mach-o/getsect.h> // for kIsInsideDataSegment()
 	#else
 		// Unix
 		#include <sys/syscall.h>
@@ -1580,6 +1581,87 @@ KTTYSize kGetTerminalSize(int fd, uint16_t iDefaultColumns, uint16_t iDefaultLin
 	return TTY;
 
 } // kGetTerminalSize
+
+} // end of namespace dekaf2
+
+#if !defined(DEKAF2_IS_MACOS) && defined(DEKAF2_IS_UNIX)
+extern char _etext;
+extern char _edata;
+//extern char _end;
+#endif
+
+namespace dekaf2 {
+
+//-----------------------------------------------------------------------------
+bool kIsInsideDataSegment(const void* addr)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_WINDOWS
+
+	struct Segment
+	{
+		void* etext { nullptr };
+		void* edata { nullptr };
+	};
+
+	static const Segment DataSegment = []() -> Segment
+	{
+		// setup pointers
+		HANDLE Self                         = GetModuleHandle(nullptr);
+		IMAGE_NT_HEADERS* NtHeader          = ImageNtHeader(Self);
+		IMAGE_SECTION_HEADER* SectionHeader = static_cast<IMAGE_SECTION_HEADER*>(NtHeader + 1);
+		const char* SelfImage               = static_cast<const char*>(Self);
+
+		Segment Data;
+
+		// iterate through image segments and find the .data segment
+		for (int iSection = 0; iSection < NtHeader->FileHeader.NumberOfSections; ++iSection, ++SectionHeader)
+		{
+			if (!strncmp(".data", SectionHeader->Name, sizeof(SectionHeader->Name)))
+			{
+				Data.etext = SelfImage  + SectionHeader->VirtualAddress;
+				Data.edata = SelfImage  + SectionHeader->VirtualAddress
+				                        + SectionHeader->Misc.VirtualSize;
+				break;
+			}
+			++SectionHeader;
+		}
+
+		return Data;
+	}();
+
+	return ((DataSegment.edata > addr) && (DataSegment.etext <= addr));
+
+#elif DEKAF2_IS_MACOS
+
+	struct Segment
+	{
+		void* etext { nullptr };
+		void* edata { nullptr };
+	};
+
+	static const Segment DataSegment = []() -> Segment
+	{
+		Segment Data;
+		Data.etext = (void *)get_etext();
+		Data.edata = (void *)get_edata();
+
+		return Data;
+	}();
+
+	return ((DataSegment.edata > addr) && (DataSegment.etext <= addr));
+
+#elif DEKAF2_IS_UNIX
+
+	return ((&_edata > addr) && (&_etext <= addr));
+
+#endif
+
+	kDebug(1, "operating system not supported")
+	return false;
+
+} // kIsInsideDataSegment
+
 
 } // end of namespace dekaf2
 

@@ -389,5 +389,11 @@ struct DEKAF2_PUBLIC KTTYSize
 DEKAF2_PUBLIC
 KTTYSize kGetTerminalSize(int fd = 0, uint16_t iDefaultColumns = 80, uint16_t iDefaultLines = 25);
 
+/// returns true if the argument points inside the preinitialized data segment of the program
+/// (this is important to make a difference e.g. between objects that persist, and those that
+/// can go away)
+DEKAF2_PUBLIC
+bool kIsInsideDataSegment(const void* addr);
+
 } // end of namespace dekaf2
 

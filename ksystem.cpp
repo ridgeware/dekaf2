@@ -1563,8 +1563,8 @@ KTTYSize kGetTerminalSize(int fd, uint16_t iDefaultColumns, uint16_t iDefaultLin
 
 	if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi))
 	{
-		TTY.columns = csbi.srWindow.Right  - csbi.srWindow.Left + 1;
-		TTY.lines   = csbi.srWindow.Bottom - csbi.srWindow.Top  + 1;
+		TTY.columns = csbi.srWindow.Right  - csbi.srWindow.Left;
+		TTY.lines   = csbi.srWindow.Bottom - csbi.srWindow.Top;
 	}
 
 #endif

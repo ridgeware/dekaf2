@@ -55,7 +55,10 @@ using namespace dekaf2;
 kurl::kurl ()
 //-----------------------------------------------------------------------------
 {
-	KInit().SetName(s_sProjectName).SetMultiThreading().SetOnlyShowCallerOnJsonError();
+	KInit()
+		.SetName(s_sProjectName)
+		.SetMultiThreading(false)
+		.SetOnlyShowCallerOnJsonError();
 
 	m_CLI.Throw();
 
@@ -106,10 +109,10 @@ kurl::kurl ()
 	m_CLI
 		.Option("V,version")
 		.Help("show version information")
+		.Final()
 	([&]()
 	{
 		ShowVersion();
-		m_Config.bTerminate = true;
 	});
 
 	m_CLI
@@ -270,7 +273,7 @@ int kurl::Main (int argc, char** argv)
 	{
 		auto iRetVal = m_CLI.Parse(argc, argv, KOut);
 
-		if (iRetVal	|| m_Config.bTerminate)
+		if (iRetVal	|| m_CLI.Terminate())
 		{
 			// either error or completed
 			return iRetVal;

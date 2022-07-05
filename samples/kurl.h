@@ -96,7 +96,6 @@ protected:
 		KString     sRequestCompression;
 		HeaderMap   Headers;
 		enum Flags  Flags      { Flags::NONE };
-		bool        bTerminate { false };
 	};
 
 	Config m_Config;

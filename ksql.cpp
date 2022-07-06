@@ -1162,7 +1162,7 @@ bool KSQL::OpenConnection ()
 			IsFlag(F_NoTranslations)   ? "NoTranslations "   : "");
 	}
 
-	kDebug (GetDebugLevel(), "connecting to: {}...", ConnectSummary());
+	kDebug (2, "connecting to: {}...", ConnectSummary());
 
     #ifdef DEKAF2_HAS_ORACLE
 	char*  sOraHome = kGetEnv("ORACLE_HOME","");
@@ -1518,7 +1518,7 @@ bool KSQL::OpenConnection ()
 
 	m_bConnectionIsOpen = true;
 
-	kDebug (1, "connected to: {}", ConnectSummary());
+	kDebug (3, "connected to: {}", ConnectSummary());
 
 	return true;
 
@@ -1696,7 +1696,7 @@ void CopyIfNotSame(KStringRef& sTarget, KStringView svView)
 bool KSQL::IsSelect (KStringView sSQL)
 //-----------------------------------------------------------------------------
 {
-	return sSQL.TrimLeft().substr(0,6).ToLowerASCII().starts_with("select");
+	return (GetQueryType(sSQL) == QueryType::Select);
 }
 
 //-----------------------------------------------------------------------------
@@ -2172,7 +2172,8 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 void KSQL::LogPerformance (uint64_t iMilliseconds, bool bIsQuery)
 //-----------------------------------------------------------------------------
 {
-	if (! bIsQuery && (m_sLastSQL.Left(6).ToLower() != "select"))
+	auto iQueryType = GetQueryType(m_sLastSQL);
+	if ((iQueryType == QueryType::Insert) || (iQueryType == QueryType::Update) || (iQueryType == QueryType::Delete))
 	{
 		kDebug (GetDebugLevel(), "KSQL: {} rows affected.\n", kFormNumber(m_iNumRowsAffected));
 	}

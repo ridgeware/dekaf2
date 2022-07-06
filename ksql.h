@@ -470,7 +470,6 @@ public:
 	{
 		m_sLastSQL = FormatSQL (sFormat, std::forward<Args>(args)...);
 		bool bOK   = ExecLastRawSQL (Flags::F_None, "ExecSQL");
-		kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
 		return (bOK);
 
 	} // KSQL::ExecSQL

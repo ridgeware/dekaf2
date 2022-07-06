@@ -44,14 +44,15 @@
 /// @file kpersist.h
 /// persist temporary values
 
+#include "ksystem.h"
 #include <forward_list>
 
 namespace dekaf2
 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template <class Storage, bool bDeduplicate = true>
 /// template to store Values that can always be dereferenced from the same address
+template <class Storage, bool bDeduplicate = true>
 class DEKAF2_PUBLIC KPersist
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -75,19 +76,20 @@ public:
 		{
 			return s_Default;
 		}
-		else
+
+		if (bDeduplicate)
 		{
-			if (bDeduplicate)
+			auto it = std::find(m_Persisted.begin(), m_Persisted.end(), value);
+
+			if (it != m_Persisted.end())
 			{
-				auto it = std::find(m_Persisted.begin(), m_Persisted.end(), value);
-				if (it != m_Persisted.end())
-				{
-					return *it;
-				}
+				return *it;
 			}
-			m_Persisted.push_front(std::forward<Value>(value));
-			return m_Persisted.front();
 		}
+
+		m_Persisted.push_front(Storage(std::forward<Value>(value)));
+
+		return m_Persisted.front();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -95,7 +97,8 @@ public:
 	Storage& MutablePersist(Value&& value)
 	//-----------------------------------------------------------------------------
 	{
-		m_Persisted.push_front(std::forward<Value>(value));
+		m_Persisted.push_front(Storage(std::forward<Value>(value)));
+
 		return m_Persisted.front();
 	}
 
@@ -111,7 +114,7 @@ public:
 	const_iterator begin() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_Persisted.end();
+		return m_Persisted.begin();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -122,10 +125,10 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	size_type size() const
+	bool empty() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_Persisted.size();
+		return m_Persisted.empty();
 	}
 
 //----------
@@ -141,58 +144,78 @@ template<typename Storage, bool bDeduplicate>
 const Storage KPersist<Storage, bDeduplicate>::s_Default{};
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// template to store Values that can always be dereferenced from the same address, except for an
-/// exception type that will not be stored
-template<class Storage, class Except, bool bDeduplicate = true>
-class KPersistExcept : public KPersist<Storage, bDeduplicate>
+/// template to store string values that can always be dereferenced from the same address, making sure
+/// that the source either comes from a literal string or string_view in the data section (without persisting it)
+/// or from any other string (which will be persisted to make it constantly available)
+template<class String = KString, bool bDeduplicate = true,
+         typename std::enable_if<detail::is_cpp_str<String>::value, int>::type = 0>
+class KPersistStrings : public KPersist<String, bDeduplicate>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
-	using base = KPersist<Storage, bDeduplicate>;
+	using base = KPersist<String, bDeduplicate>;
 
 //----------
 public:
 //----------
 
-	KPersistExcept() = default;
+	KPersistStrings() = default;
 
 	//-----------------------------------------------------------------------------
 	template<class Value,
 	          typename std::enable_if<
 	              std::is_same<
-	                  Except,
+	                  typename String::const_pointer,
 	                  typename std::decay<Value>::type
 	              >::value, int>::type = 0>
-	Value Persist(Value value)
+	typename String::const_pointer Persist(Value&& value)
 	//-----------------------------------------------------------------------------
 	{
-		return value;
+		if (kIsInsideDataSegment(&value))
+		{
+			return std::forward<Value>(value);
+		}
+		else
+		{
+			return base::Persist(std::forward<Value>(value)).c_str();
+		}
 	}
 
 	//-----------------------------------------------------------------------------
-	template <class Value,
+	template<class Value,
 	          typename std::enable_if<
+                  detail::is_string_view<Value>::value &&
+	              std::is_same< // check for same char type ..
+	                  typename String::value_type,
+	                  typename std::decay<Value>::type::value_type
+	              >::value, int>::type = 0>
+	typename std::decay<Value>::type Persist(Value&& value)
+	//-----------------------------------------------------------------------------
+	{
+		if (kIsInsideDataSegment(value.data()))
+		{
+			return std::forward<Value>(value);
+		}
+		else
+		{
+			return base::Persist(std::forward<Value>(value));
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	template<class Value,
+	          typename std::enable_if<
+                  !detail::is_string_view<Value>::value &&
 	              !std::is_same<
-	                  Except,
+	                  typename String::const_pointer,
 	                  typename std::decay<Value>::type
 	              >::value, int>::type = 0>
-	const Storage& Persist(Value&& value)
+	const String& Persist(Value&& value)
 	//-----------------------------------------------------------------------------
 	{
 		return base::Persist(std::forward<Value>(value));
 	}
 
-	//-----------------------------------------------------------------------------
-	template <class Value>
-	Storage& MutablePersist(Value&& value)
-	//-----------------------------------------------------------------------------
-	{
-		return base::MutablePersist(std::forward<Value>(value));
-	}
-
-};
-
-template <bool bDeduplicate = true>
-using KPersistStrings = KPersistExcept<KString, const char*, bDeduplicate>;
+}; // KPersistStrings
 
 } // end of namespace dekaf2

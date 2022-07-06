@@ -532,7 +532,7 @@ KSQL::KSQL (DBT iDBType, KStringView sUsername, KStringView sPassword, KStringVi
 //-----------------------------------------------------------------------------
 : KSQL () // delegate to default constructor first
 {
-	kDebug (2, "DBType: {}, username: {}", TxDBType(iDBType), sUsername);
+	kDebug (3, "DBType: {}, username: {}", TxDBType(iDBType), sUsername);
 
 	if (!sUsername.empty())
 	{
@@ -576,7 +576,7 @@ KSQL::KSQL (const KSQL& other)
 , m_iWarnIfOverMilliseconds(other.m_iWarnIfOverMilliseconds)
 , m_TimingCallback(other.m_TimingCallback)
 {
-	kDebug (2, "...");
+	kDebug (3, "...");
 
 	ClearTempResultsFile();
 
@@ -1107,12 +1107,12 @@ bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = 
 
 		if (OpenConnection())
 		{
-			kDebug (2, "host {} is up", sDBHost);
+			kDebug (3, "host {} is up", sDBHost);
 			return true;
 		}
 		else
 		{
-			kDebug (2, "host {} is down", sDBHost);
+			kDebug (3, "host {} is down", sDBHost);
 		}
 	}
 
@@ -1201,11 +1201,11 @@ bool KSQL::OpenConnection ()
 		static std::once_flag s_once;
 		std::call_once(s_once, []
 		{
-			kDebug (2, "mysql_library_init()...");
+			kDebug (3, "mysql_library_init()...");
 			mysql_library_init(0, nullptr, nullptr);
 		});
 
-		kDebug (2, "mysql_init()...");
+		kDebug (3, "mysql_init()...");
 		m_dMYSQL = mysql_init (nullptr);
 
 		if (!m_dMYSQL)
@@ -1213,7 +1213,7 @@ bool KSQL::OpenConnection ()
 			return SetError("could not init mysql connector");
 		}
 
-		kDebug (2, "mysql_real_connect()...");
+		kDebug (3, "mysql_real_connect()...");
 
 		if (!mysql_real_connect (m_dMYSQL, m_sHostname.c_str(), m_sUsername.c_str(), m_sPassword.c_str(), m_sDatabase.c_str(), /*port*/ iPortNum, /*sock*/nullptr,
 			/*flag*/CLIENT_FOUND_ROWS)) // <-- this flag corrects the behavior of GetNumRowsAffected()
@@ -1297,7 +1297,7 @@ bool KSQL::OpenConnection ()
 	// - - - - - - - - - - - - - - - - -
 	case API::OCI8:
 	// - - - - - - - - - - - - - - - - -
-		kDebug (2, "ORACLE_HOME='{}'", sOraHome);
+		kDebug (3, "ORACLE_HOME='{}'", sOraHome);
 		if (!*sOraHome)
 		{
 			kDebug (2, "$ORACLE_HOME not set");
@@ -1553,7 +1553,7 @@ void KSQL::CloseConnection (bool bDestructor/*=false*/)
 			{
 				if (!bDestructor)
 				{
-					kDebug (2, "mysql_close()...");
+					kDebug (3, "mysql_close()...");
 				}
 				mysql_close (m_dMYSQL);
 				m_dMYSQL = nullptr;
@@ -2172,7 +2172,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 void KSQL::LogPerformance (uint64_t iMilliseconds, bool bIsQuery)
 //-----------------------------------------------------------------------------
 {
-	if (!bIsQuery)
+	if (! bIsQuery && (m_sLastSQL.Left(6).ToLower() != "select"))
 	{
 		kDebug (GetDebugLevel(), "KSQL: {} rows affected.\n", kFormNumber(m_iNumRowsAffected));
 	}
@@ -2790,7 +2790,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 
 				if ((sMsgType == "status") && (sMsgText == "OK"))
 				{
-					kDebug (2, "{} table {} {}={}", sOp, sTable, sMsgType, sMsgText);
+					kDebug (3, "{} table {} {}={}", sOp, sTable, sMsgType, sMsgText);
 				}
 				else
 				{
@@ -7802,7 +7802,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFl
 
 	// We assume the db column name to be from safe input, it may contain expressions
 	// and escapable characters. The query parms however need escaping.
-	kDebug (2, "dbcol={}, queryparm={}, splitby={}", sDbCol, sQueryParm, sSplitBy);
+	kDebug (3, "dbcol={}, queryparm={}, splitby={}", sDbCol, sQueryParm, sSplitBy);
 
 	KString sLowerParm (sQueryParm);
 	sLowerParm.MakeLower();
@@ -7992,7 +7992,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFl
 		sClause += '\n';
 	}
 
-	kDebug (2, "clause={}", sClause);
+	kDebug (3, "clause={}", sClause);
 
 	return sClause;
 
@@ -8013,7 +8013,7 @@ KString KSQL::FormGroupBy (uint8_t iNumCols)
 		sGroupBy += "\n";
 	}
 
-	kDebug (2, "groupby={}", sGroupBy);
+	kDebug (3, "groupby={}", sGroupBy);
 
 	return sGroupBy;
 
@@ -8025,7 +8025,7 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KStringRef& sOrderBy, con
 {
 	if (Config.is_null())
 	{
-		kDebug (2, "empty config");
+		kDebug (3, "empty config");
 		return true;
 	}
 	else if (! Config.is_object())
@@ -8034,7 +8034,7 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KStringRef& sOrderBy, con
 	}
 
 	auto ParmList = sCommaDelimedSort.Split (",");
-	kDebug (2, "sort='{}' has {} parms ...", sCommaDelimedSort, ParmList.size());
+	kDebug (3, "sort='{}' has {} parms ...", sCommaDelimedSort, ParmList.size());
 
 	bool bResetFlag   = KLog::getInstance().ShowStackOnJsonError(false);
 	// make sure the setting is automatically reset, even when throwing
@@ -8067,7 +8067,7 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KStringRef& sOrderBy, con
 				{
 					// do not escape the configured column name
 					const KString& sDbCol = it.value();
-					kDebug (2, "matched sort parm: {} to: {}", sParm, sDbCol);
+					kDebug (3, "matched sort parm: {} to: {}", sParm, sDbCol);
 					sOrderBy += kFormat ("{} {}{}\n", !sOrderBy.empty() ? "     ," : " order by", sDbCol, bDesc ? " desc" : "");
 					bFound = true;
 					break; // inner for
@@ -8160,8 +8160,8 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 	uint16_t iSchemaRev = (iSigned < 0) ? 0 : static_cast<uint16_t>(iSigned);
 	KString  sError;
 
-	kDebug (2, "current rev in db determined to be: {}", iSchemaRev);
-	kDebug (2, "current rev that code expected is:  {}", iCurrentSchema);
+	kDebug (3, "current rev in db determined to be: {}", iSchemaRev);
+	kDebug (3, "current rev that code expected is:  {}", iCurrentSchema);
 
 	if (iSchemaRev >= iCurrentSchema)
 	{
@@ -8272,7 +8272,7 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 
 	ReleaseLock (sSchemaVersionTable);
 
-	kDebug (2, "schema should be all set at version {} now", iCurrentSchema);
+	kDebug (3, "schema should be all set at version {} now", iCurrentSchema);
 
 	return true;
 
@@ -8327,7 +8327,7 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 
 	if (IsConnectionOpen())
 	{
-		kDebug (2, "already connected to: {}", ConnectSummary());
+		kDebug (3, "already connected to: {}", ConnectSummary());
 		return true; // already connected
 	}
 
@@ -8500,7 +8500,7 @@ bool KSQL::EnsureConnected ()
 {
 	if (IsConnectionOpen())
 	{
-		kDebug (2, "already connected to: {}", ConnectSummary());
+		kDebug (3, "already connected to: {}", ConnectSummary());
 		return true; // already connected
 	}
 
@@ -8669,7 +8669,7 @@ void KSQL::TimedConnectionIDs::Watcher()
 		// now kill all found connections
 		for (const auto& Query : Queries)
 		{
-			kDebug(1, "killing timed out connection {} of server {}", Query.ID, Query.iServerHash);
+			kDebug(2, "killing timed out connection {} of server {}", Query.ID, Query.iServerHash);
 			auto Servers = m_DBs.unique();
 			auto pdb = Servers->find(Query.iServerHash);
 
@@ -8851,11 +8851,11 @@ KString KSQL::ConvertTimestamp (KStringView sTimestamp)
 			sTimestamp.Left(4), sTimestamp.Mid(4,2), sTimestamp.Mid(6,2),
 			sTimestamp.Mid(9,2), sTimestamp.Mid(11,2), sTimestamp.Mid(13,2));
 
-		kDebug (2, "{} --> {}", sTimestamp, sNew);
+		kDebug (3, "{} --> {}", sTimestamp, sNew);
 	}
 	else
 	{
-		kDebug (2, "unchanged: {}", sTimestamp);
+		kDebug (3, "unchanged: {}", sTimestamp);
 	}
 
 	return sNew;
@@ -9183,7 +9183,7 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 			jTable["meta_info"] = row;
 		}
 
-		kDebug (2, jTable.dump(1,'\t'));
+		kDebug (3, jTable.dump(1,'\t'));
 
 		jSchema["tables"].push_back(jTable);
 	}
@@ -9530,7 +9530,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 			KString sLeftValue  = it.value();
 			KString sRightValue = kjson::GetString(right,sLeftKey);
 
-			kDebug (2, "meta info key={}, left={}, right={}", sLeftKey, sLeftValue, sRightValue);
+			kDebug (3, "meta info key={}, left={}, right={}", sLeftKey, sLeftValue, sRightValue);
 
 			if (sLeftValue != sRightValue)
 			{
@@ -9614,7 +9614,7 @@ void KSQL::SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType QueryTyp
 {
 	if (Timeout.count() == 0 || QueryType == QueryType::None)
 	{
-		kDebug(1, "clearing per-instance query timeout settings");
+		kDebug (3, "clearing per-instance query timeout settings");
 		// clear timeout settings
 		m_bEnableQueryTimeout = false;
 		m_QueryTimeout        = std::chrono::milliseconds(0);
@@ -9622,7 +9622,7 @@ void KSQL::SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType QueryTyp
 	}
 	else
 	{
-		kDebug(1, "setting per-instance query timeout to {}ms for query types '{}'", Timeout.count(), kJoined(SerializeQueryTypes(QueryType)));
+		kDebug (3, "setting per-instance query timeout to {}ms for query types '{}'", Timeout.count(), kJoined(SerializeQueryTypes(QueryType)));
 		m_bEnableQueryTimeout = true;
 		m_QueryTimeout        = Timeout;
 		m_QueryTypeForTimeout = QueryType;
@@ -9634,7 +9634,7 @@ void KSQL::SetQueryTimeout(std::chrono::milliseconds Timeout, QueryType QueryTyp
 void KSQL::ResetQueryTimeout()
 //-----------------------------------------------------------------------------
 {
-	kDebug(1, "resetting per-instance query timeout settings to defaults");
+	kDebug (3, "resetting per-instance query timeout settings to defaults");
 	m_QueryTimeout        = s_QueryTimeout;
 	m_QueryTypeForTimeout = s_QueryTypeForTimeout;
 	// enable the query timeout if the preset static values were good
@@ -9648,14 +9648,14 @@ void KSQL::SetDefaultQueryTimeout(std::chrono::milliseconds Timeout, QueryType Q
 {
 	if (Timeout.count() == 0 || QueryType == QueryType::None)
 	{
-		kDebug(1, "clearing default query timeout settings");
+		kDebug (3, "clearing default query timeout settings");
 		// clear timeout settings
 		s_QueryTimeout        = std::chrono::milliseconds(0);
 		s_QueryTypeForTimeout = QueryType::None;
 	}
 	else
 	{
-		kDebug(1, "setting default query timeout to {}ms for query types '{}'", Timeout.count(), kJoined(SerializeQueryTypes(QueryType)));
+		kDebug (3, "setting default query timeout to {}ms for query types '{}'", Timeout.count(), kJoined(SerializeQueryTypes(QueryType)));
 		s_QueryTimeout        = Timeout;
 		s_QueryTypeForTimeout = QueryType;
 	}

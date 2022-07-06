@@ -617,7 +617,8 @@ private:
 
 	HelpFormatter::HelpParams  m_HelpParams;
 	std::vector<CallbackParam> m_Callbacks;
-	KPersistStrings<false>     m_Strings;
+	KPersistStrings<KString, false>
+	                           m_Strings;
 	CommandLookup              m_Commands;
 	CommandLookup              m_Options;
 	KStringViewZ               m_sCurrentArg;

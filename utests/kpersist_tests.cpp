@@ -2,8 +2,6 @@
 #include <dekaf2/kpersist.h>
 #include <dekaf2/kstring.h>
 
-#ifndef DEKAF2_IS_WINDOWS
-
 using namespace dekaf2;
 
 TEST_CASE("KPersist")
@@ -55,7 +53,11 @@ TEST_CASE("KPersist")
 
 		KString sEmpty;
 		sv = Strings.Persist(sEmpty);
-		CHECK ( kIsInsideDataSegment(sv.data()) == true );
+		// this case is not constructed from the data segment on all
+		// operating systems, let us excempt it from checking (however,
+		// the default construction is caught, and no element is added
+		// to the forward list)
+//		CHECK ( kIsInsideDataSegment(sv.data()) == true );
 		CHECK ( Strings.empty() == true );
 		CHECK ( sv == sEmpty );
 
@@ -101,4 +103,3 @@ TEST_CASE("KPersist")
 		CHECK ( std::distance(Strings.begin(), Strings.end()) == 3 );
 	}
 }
-#endif

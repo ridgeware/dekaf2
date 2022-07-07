@@ -81,6 +81,8 @@
 			#include <cpuid.h>     // for cpuid()
 		#endif
 		#include <mach-o/getsect.h> // for kIsInsideDataSegment()
+		#include <mach-o/dyld.h>
+		#include <dlfcn.h>
 	#else
 		// Unix
 		#include <sys/syscall.h>
@@ -1601,8 +1603,8 @@ bool kIsInsideDataSegment(const void* addr)
 
 	struct Segment
 	{
-		const void* etext { nullptr };
-		const void* edata { nullptr };
+		const void* start { nullptr };
+		const void* end   { nullptr };
 	};
 
 	auto FindSegment = [](KStringViewZ sSegment) -> Segment
@@ -1624,12 +1626,12 @@ bool kIsInsideDataSegment(const void* addr)
 						 reinterpret_cast<const char*>(SectionHeader->Name),
 						 sizeof(SectionHeader->Name)))
 			{
-				Data.etext = SelfImage  + SectionHeader->VirtualAddress;
-				Data.edata = SelfImage  + SectionHeader->VirtualAddress
+				Data.start = SelfImage  + SectionHeader->VirtualAddress;
+				Data.end   = SelfImage  + SectionHeader->VirtualAddress
 				                        + SectionHeader->Misc.VirtualSize;
 				kDebug(2, "found {} section: starts at {} with size {}",
 					   sSegment,
-					   static_cast<const void*>(&Data.etext),
+					   Data.start,
 					   SectionHeader->Misc.VirtualSize);
 				break;
 			}
@@ -1642,26 +1644,148 @@ bool kIsInsideDataSegment(const void* addr)
 	// section on contemporary windows
 	static const Segment RDataSegment = FindSegment(".rdata");
 
-	return ((RDataSegment.edata > addr) && (RDataSegment.etext <= addr));
+	return ((RDataSegment.end > addr) && (RDataSegment.start <= addr));
 
-#elif DEKAF2_IS_MACOS
+#elif DEKAF2_IS_MACOS_TOO_SIMPLE
 
 	struct Segment
 	{
-		const void* etext { nullptr };
-		const void* edata { nullptr };
+		const char* start { nullptr };
+		const char* end   { nullptr };
 	};
 
 	static const Segment DataSegment = []() -> Segment
 	{
 		Segment Data;
-		Data.etext = reinterpret_cast<const void *>(get_etext());
-		Data.edata = reinterpret_cast<const void *>(get_edata());
+		Data.start = reinterpret_cast<const char *>(get_etext());
+		Data.end   = reinterpret_cast<const char *>(get_edata());
+
+		kDebug(2, "found {} section: starts at {} with size {}"
+			   " (on MacOS there exist multiple data sections, therefore this test is not reliable)",
+			   "data",
+			   static_cast<const void*>(Data.start),
+			   Data.end - Data.start);
 
 		return Data;
 	}();
 
-	return ((DataSegment.edata > addr) && (DataSegment.etext <= addr));
+	return ((DataSegment.end > addr) && (DataSegment.start <= addr));
+
+#elif DEKAF2_IS_MACOS && (defined(DEKAF2_IS_64_BITS) || defined(DEKAF2_IS_32_BITS))
+
+	struct Segment
+	{
+		const char* start { nullptr };
+		const char* end   { nullptr };
+	};
+
+	using Segments = std::vector<Segment>;
+
+	static Segments DataSegments = []() -> Segments
+	{
+		Segments Data;
+
+#ifdef DEKAF2_IS_64_BITS
+		using mach_header_bits      = mach_header_64;
+		using segment_command_bits  = segment_command_64;
+		using section_bits          = section_64;
+		uint32_t iSegmentID         = LC_SEGMENT_64;
+		uint32_t iMagic             = MH_MAGIC_64;
+#elif DEKAF2_IS_32_BITS
+		using mach_header_bits      = mach_header;
+		using segment_command_bits  = segment_command;
+		using section_bits          = section;
+		uint32_t iSegmentID         = LC_SEGMENT;
+		uint32_t iMagic             = MH_MAGIC;
+#endif
+		const char* sTest = "test";
+		// get the image name where the above symbol is located
+		Dl_info info;
+		dladdr(sTest, &info);
+
+		// find the right image (it is not always 0!)
+		uint32_t iImage { 0 };
+
+		for (uint32_t i = 0; i < _dyld_image_count(); ++i)
+		{
+			if (!strcmp(info.dli_fname, _dyld_get_image_name(i)))
+			{
+				iImage = i;
+				kDebug(2, "we are image {} ({})", iImage, info.dli_fname);
+				break;
+			}
+		}
+
+		// we do not need the slide offset as we use the mach header itself
+		// as our base (and that one already has the slide included)
+//		uintptr_t iSlide = _dyld_get_image_vmaddr_slide(iImage);
+
+		const auto* MachHeader = reinterpret_cast<const mach_header_bits*>(_dyld_get_image_header(iImage));
+
+		if (MachHeader->magic != iMagic)
+		{
+			kDebug(1, "bad magic in mach header");
+			return Data;
+		}
+
+		const auto* LoadCommand = reinterpret_cast<const load_command*>(MachHeader + 1);
+
+		for (auto iCommands = MachHeader->ncmds; iCommands--;)
+		{
+			if (LoadCommand->cmd == iSegmentID)
+			{
+				const segment_command_bits* SegmentCommand = reinterpret_cast<const segment_command_bits*>(LoadCommand);
+				const section_bits* Section                = reinterpret_cast<const section_bits*>(SegmentCommand + 1);
+				for (uint32_t iSection = 0; iSection < SegmentCommand->nsects; ++iSection, ++Section)
+				{
+					KStringView sSegName (Section->segname,  strnlen(Section->segname,  sizeof(Section->segname )));
+					KStringView sSectName(Section->sectname, strnlen(Section->sectname, sizeof(Section->sectname)));
+					uintptr_t   iSectionStart = reinterpret_cast<uintptr_t>(MachHeader) + Section->offset;
+					std::size_t iSectionSize  = Section->size;
+
+					if ((sSegName == "__DATA_CONST"                                 ) ||
+						(sSegName == "__TEXT"       && sSectName == "__const"       ) ||
+						(sSegName == "__TEXT"       && sSectName == "__cstring"     ) ||
+						(sSegName == "__TEXT"       && sSectName == "__asan_cstring"))
+					{
+						Segment segment;
+						segment.start = reinterpret_cast<const char*>(iSectionStart);
+						segment.end   = reinterpret_cast<const char*>(iSectionStart + iSectionSize);
+						kDebug(2, "{}: {}:{} start: {}, size {}",
+							   Data.size() + 1,
+							   sSegName, sSectName,
+							   static_cast<const void*>(segment.start),
+							   segment.end - segment.start);
+
+						// try to merge with last segment
+						if (!Data.empty() && Data.back().end == segment.start)
+						{
+							Data.back().end = segment.end;
+						}
+						else
+						{
+							Data.push_back(std::move(segment));
+						}
+					}
+				}
+			}
+			LoadCommand = reinterpret_cast<const load_command*>(reinterpret_cast<const char*>(LoadCommand) + LoadCommand->cmdsize);
+		}
+
+		kDebug(2, "found {} separate data sections", Data.size());
+
+		return Data;
+	}();
+
+	for (const auto& Segment : DataSegments)
+	{
+		if ((Segment.end > addr) && (Segment.start <= addr))
+		{
+			return true;
+		}
+	}
+
+	return false;
 
 #elif DEKAF2_IS_UNIX
 
@@ -1675,7 +1799,6 @@ bool kIsInsideDataSegment(const void* addr)
 #endif
 
 } // kIsInsideDataSegment
-
 
 } // end of namespace dekaf2
 

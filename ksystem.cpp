@@ -1599,6 +1599,12 @@ namespace dekaf2 {
 bool kIsInsideDataSegment(const void* addr)
 //-----------------------------------------------------------------------------
 {
+// enable this define to see more debugging output - it is normally undefined
+// as the output is hard to make visible on demand (option parsing triggers
+// the segment detection, and thus makes debug output visible only after
+// this code has run..)
+// #define DEKAF2_DEBUG_SEGMENT_DETECTION
+
 #ifdef DEKAF2_IS_WINDOWS
 
 	struct Segment
@@ -1629,10 +1635,12 @@ bool kIsInsideDataSegment(const void* addr)
 				Data.start = SelfImage  + SectionHeader->VirtualAddress;
 				Data.end   = SelfImage  + SectionHeader->VirtualAddress
 				                        + SectionHeader->Misc.VirtualSize;
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
 				kDebug(2, "found {} section: starts at {} with size {}",
 					   sSegment,
 					   Data.start,
 					   SectionHeader->Misc.VirtualSize);
+	#endif
 				break;
 			}
 		}
@@ -1682,7 +1690,9 @@ bool kIsInsideDataSegment(const void* addr)
 
 		// find the right image (it is not always 0!)
 		uint32_t iImage      { 0 };
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
 		bool     bFoundImage { false };
+	#endif
 
 		// search for the right image index
 		{
@@ -1710,16 +1720,20 @@ bool kIsInsideDataSegment(const void* addr)
 						// stop searching if null pointer or nul returned
 						if (!sName || !*sName)
 						{
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
 							// and make use of the test symbol..
 							kDebug(1, sErrorMsg);
+	#endif
 							break;
 						}
 
 						if (!strcmp(dli.dli_fname, sName))
 						{
 							iImage = i;
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
 							bFoundImage = true;
 							kDebug(2, "we are image {} ({})", iImage, dli.dli_fname);
+	#endif
 							break;
 						}
 					}
@@ -1727,10 +1741,12 @@ bool kIsInsideDataSegment(const void* addr)
 			}
 		}
 
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
 		if (!bFoundImage)
 		{
 			kDebug(2, "using default image 0");
 		}
+	#endif
 
 		// we do not need the slide offset as we use the mach header itself
 		// as our base (and that one already has the slide included)
@@ -1742,7 +1758,9 @@ bool kIsInsideDataSegment(const void* addr)
 		// check if it is valid
 		if (!MachHeader || MachHeader->magic != iMagic)
 		{
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
 			kDebug(1, "bad magic in mach header");
+	#endif
 			return Data;
 		}
 
@@ -1829,11 +1847,13 @@ bool kIsInsideDataSegment(const void* addr)
 							}
 						}
 
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
 						kDebug(2, "{}: {:<12} {:<16} from: {:>10} to: {:>10}",
 							   Data.size(),
 							   sSegName, sSectName,
 							   static_cast<const void*>(segment.start),
 							   static_cast<const void*>(segment.end));
+	#endif
 					}
 				}
 			}
@@ -1842,6 +1862,7 @@ bool kIsInsideDataSegment(const void* addr)
 			LoadCommand = reinterpret_cast<const load_command*>(reinterpret_cast<const char*>(LoadCommand) + LoadCommand->cmdsize);
 		}
 
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
 		if (kWouldLog(2))
 		{
 			kDebug(2, "found {} separate data sections", Data.size());
@@ -1857,6 +1878,7 @@ bool kIsInsideDataSegment(const void* addr)
 
 			}
 		}
+	#endif
 
 		return Data;
 	}();
@@ -1879,7 +1901,9 @@ bool kIsInsideDataSegment(const void* addr)
 
 #else
 
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
 	kDebug(1, "operating system not supported")
+	#endif
 	return false;
 
 #endif

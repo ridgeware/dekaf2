@@ -1,10 +1,12 @@
 #include "catch.hpp"
 
+#include <dekaf2/bits/kcppcompat.h>
+
+#ifdef DEKAF2_HAS_SQLITE3
+
 #include <dekaf2/ksqlite.h>
 #include <dekaf2/kfilesystem.h>
 #include <vector>
-
-#ifdef DEKAF2_HAS_SQLITE3
 
 using namespace dekaf2;
 

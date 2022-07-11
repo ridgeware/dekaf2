@@ -81,6 +81,8 @@
 			#include <cpuid.h>     // for cpuid()
 		#endif
 		#include <mach-o/getsect.h> // for kIsInsideDataSegment()
+		#include <mach-o/dyld.h>
+		#include <dlfcn.h>
 	#else
 		// Unix
 		#include <sys/syscall.h>
@@ -1597,12 +1599,18 @@ namespace dekaf2 {
 bool kIsInsideDataSegment(const void* addr)
 //-----------------------------------------------------------------------------
 {
+// enable this define to see more debugging output - it is normally undefined
+// as the output is hard to make visible on demand (option parsing triggers
+// the segment detection, and thus makes debug output visible only after
+// this code has run..)
+// #define DEKAF2_DEBUG_SEGMENT_DETECTION
+
 #ifdef DEKAF2_IS_WINDOWS
 
 	struct Segment
 	{
-		const void* etext { nullptr };
-		const void* edata { nullptr };
+		const void* start { nullptr };
+		const void* end   { nullptr };
 	};
 
 	auto FindSegment = [](KStringViewZ sSegment) -> Segment
@@ -1624,13 +1632,15 @@ bool kIsInsideDataSegment(const void* addr)
 						 reinterpret_cast<const char*>(SectionHeader->Name),
 						 sizeof(SectionHeader->Name)))
 			{
-				Data.etext = SelfImage  + SectionHeader->VirtualAddress;
-				Data.edata = SelfImage  + SectionHeader->VirtualAddress
+				Data.start = SelfImage  + SectionHeader->VirtualAddress;
+				Data.end   = SelfImage  + SectionHeader->VirtualAddress
 				                        + SectionHeader->Misc.VirtualSize;
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
 				kDebug(2, "found {} section: starts at {} with size {}",
 					   sSegment,
-					   static_cast<const void*>(&Data.etext),
+					   Data.start,
 					   SectionHeader->Misc.VirtualSize);
+	#endif
 				break;
 			}
 		}
@@ -1638,30 +1648,252 @@ bool kIsInsideDataSegment(const void* addr)
 		return Data;
 	};
 
-	// the .rdata segment contains const data and contains the .data
+	// the .rdata segment contains const data and also seems to contain the .data
 	// section on contemporary windows
 	static const Segment RDataSegment = FindSegment(".rdata");
 
-	return ((RDataSegment.edata > addr) && (RDataSegment.etext <= addr));
+	return ((RDataSegment.end > addr) && (RDataSegment.start <= addr));
 
-#elif DEKAF2_IS_MACOS
+#elif DEKAF2_IS_MACOS && (defined(DEKAF2_IS_64_BITS) || defined(DEKAF2_IS_32_BITS))
 
 	struct Segment
 	{
-		const void* etext { nullptr };
-		const void* edata { nullptr };
+		const char* start { nullptr };
+		const char* end   { nullptr };
 	};
 
-	static const Segment DataSegment = []() -> Segment
+	using Segments = std::vector<Segment>;
+
+	static const Segments DataSegments = []() -> Segments
 	{
-		Segment Data;
-		Data.etext = reinterpret_cast<const void *>(get_etext());
-		Data.edata = reinterpret_cast<const void *>(get_edata());
+		Segments Data;
+
+	#ifdef DEKAF2_IS_64_BITS
+
+		using mach_header_bits      = mach_header_64;
+		using segment_command_bits  = segment_command_64;
+		using section_bits          = section_64;
+
+		static constexpr uint32_t iSegmentID = LC_SEGMENT_64;
+		static constexpr uint32_t iMagic     = MH_MAGIC_64;
+
+	#elif DEKAF2_IS_32_BITS
+
+		using mach_header_bits      = mach_header;
+		using segment_command_bits  = segment_command;
+		using section_bits          = section;
+
+		static constexpr uint32_t iSegmentID = LC_SEGMENT;
+		static constexpr uint32_t iMagic     = MH_MAGIC;
+
+	#endif
+
+		// find the right image (it is not always 0!)
+		uint32_t iImage      { 0 };
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
+		bool     bFoundImage { false };
+	#endif
+
+		// search for the right image index
+		{
+			// get the image name where the below symbol is located
+			// (this only works if this code block is linked statically
+			// to the final executable - if it is linked dynamically,
+			// TODO code it to using 0 as the image index - it is most often
+			// correct, particularly when this code is not run inside
+			// the Xcode debugger!)
+
+			// create a symbol to look up
+			static const char* sErrorMsg = "did not get image name";
+			// dynamic link info
+			Dl_info dli;
+
+			if (dladdr(sErrorMsg, &dli))
+			{
+				if (dli.dli_fname && *dli.dli_fname)
+				{
+					// if we got the image name, search for it in the existing images
+					for (uint32_t i = 0; i < _dyld_image_count(); ++i)
+					{
+						auto* sName = _dyld_get_image_name(i);
+
+						// stop searching if null pointer or nul returned
+						if (!sName || !*sName)
+						{
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
+							// and make use of the test symbol..
+							kDebug(1, sErrorMsg);
+	#endif
+							break;
+						}
+
+						if (!strcmp(dli.dli_fname, sName))
+						{
+							iImage = i;
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
+							bFoundImage = true;
+							kDebug(2, "we are image {} ({})", iImage, dli.dli_fname);
+	#endif
+							break;
+						}
+					}
+				}
+			}
+		}
+
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
+		if (!bFoundImage)
+		{
+			kDebug(2, "using default image 0");
+		}
+	#endif
+
+		// we do not need the slide offset as we use the mach header itself
+		// as our base (and that one already has the slide included)
+//		uintptr_t iSlide = _dyld_get_image_vmaddr_slide(iImage);
+
+		// get the mach header for this executable
+		const auto* MachHeader = reinterpret_cast<const mach_header_bits*>(_dyld_get_image_header(iImage));
+
+		// check if it is valid
+		if (!MachHeader || MachHeader->magic != iMagic)
+		{
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
+			kDebug(1, "bad magic in mach header");
+	#endif
+			return Data;
+		}
+
+		// get the first in a series of load commands
+		const auto* LoadCommand = reinterpret_cast<const load_command*>(MachHeader + 1);
+
+		// and iterate across it
+		for (auto iCommands = MachHeader->ncmds; iCommands--;)
+		{
+			// check if this is a segment load command
+			if (LoadCommand->cmd == iSegmentID)
+			{
+				// and if yes, cast to the details
+				const segment_command_bits* SegmentCommand = reinterpret_cast<const segment_command_bits*>(LoadCommand);
+				const section_bits* Section                = reinterpret_cast<const section_bits*>(SegmentCommand + 1);
+
+				// iterate across all sections inside this segment
+				for (uint32_t iSection = 0; iSection < SegmentCommand->nsects; ++iSection, ++Section)
+				{
+					// create easy access to names for segment and section
+					KStringView sSegName (Section->segname,  strnlen(Section->segname,  sizeof(Section->segname )));
+					KStringView sSectName(Section->sectname, strnlen(Section->sectname, sizeof(Section->sectname)));
+
+					// create shorthands to start and size of the section
+					uintptr_t   iSectionStart = reinterpret_cast<uintptr_t>(MachHeader) + Section->offset;
+					std::size_t iSectionSize  = Section->size;
+
+					// select only the right sections for later comparison
+					if ((sSegName == "__DATA" && !sSectName.ends_with("_bss")) ||
+						(sSegName == "__DATA_CONST") ||
+						(sSegName == "__TEXT"        &&
+						   // MacOS puts a few things into the text segment that normally
+						   // go into data - include it here as part of data
+						   (sSectName.ends_with("_const") ||
+							sSectName.ends_with("_cstring"))
+						 )
+						)
+					{
+						Segment segment;
+						segment.start = reinterpret_cast<const char*>(iSectionStart);
+						segment.end   = reinterpret_cast<const char*>(iSectionStart + iSectionSize);
+
+						bool bIsMerged { false };
+
+						// try to merge with any of the existing sections
+						for (auto& Seg : Data)
+						{
+							// at end
+							if (Seg.end == segment.start)
+							{
+								Seg.end   = segment.end;
+								bIsMerged = true;
+								break;
+							}
+							// at start
+							else if (Seg.start == segment.end)
+							{
+								Seg.start = segment.start;
+								bIsMerged = true;
+								break;
+							}
+						}
+
+						if (!bIsMerged)
+						{
+							// not merged, add as new section, but check at what position
+							auto it = Data.begin();
+							auto ie = Data.end();
+
+							for (; it != ie; ++it)
+							{
+								if (it->start > segment.start)
+								{
+									// add a new segment in the middle
+									Data.insert(it, segment);
+									break;
+								}
+							}
+
+							if (it == ie)
+							{
+								// add a new segment at back
+								Data.push_back(segment);
+							}
+						}
+
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
+						kDebug(2, "{}: {:<12} {:<16} from: {:>10} to: {:>10}",
+							   Data.size(),
+							   sSegName, sSectName,
+							   static_cast<const void*>(segment.start),
+							   static_cast<const void*>(segment.end));
+	#endif
+					}
+				}
+			}
+
+			// iterate to next load command
+			LoadCommand = reinterpret_cast<const load_command*>(reinterpret_cast<const char*>(LoadCommand) + LoadCommand->cmdsize);
+		}
+
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
+		if (kWouldLog(2))
+		{
+			kDebug(2, "found {} separate data sections", Data.size());
+			uint32_t iCount = 0;
+
+			for (const auto& data : Data)
+			{
+				kDebug(2, "{}: from: {:>10} to: {:>10} size: {:>8}",
+					   ++iCount,
+					   static_cast<const void*>(data.start),
+					   static_cast<const void*>(data.end),
+					   data.end - data.start);
+
+			}
+		}
+	#endif
 
 		return Data;
 	}();
 
-	return ((DataSegment.edata > addr) && (DataSegment.etext <= addr));
+	// iterate through the found data segments
+	for (const auto& Segment : DataSegments)
+	{
+		// and compare with requested address
+		if ((Segment.end > addr) && (Segment.start <= addr))
+		{
+			return true;
+		}
+	}
+
+	return false;
 
 #elif DEKAF2_IS_UNIX
 
@@ -1669,13 +1901,13 @@ bool kIsInsideDataSegment(const void* addr)
 
 #else
 
+	#ifdef DEKAF2_DEBUG_SEGMENT_DETECTION
 	kDebug(1, "operating system not supported")
+	#endif
 	return false;
 
 #endif
 
 } // kIsInsideDataSegment
 
-
 } // end of namespace dekaf2
-

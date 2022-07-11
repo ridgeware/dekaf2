@@ -5,7 +5,8 @@ project(dekaf2-utests)
 set(CMAKE_CXX_STANDARD 20)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if (dekaf2-utests_IS_TOP_LEVEL)
+# older cmake versions do not support the test for IS_TOP_LEVEL
+if (dekaf2-utests_IS_TOP_LEVEL OR NOT GENERATED_FILES_DIR)
 	set(DEKAF2_INHERIT_BUILD_FLAGS ON)
 	find_package(dekaf2 2.0 REQUIRED)
 	find_package(SQLite3 QUIET)

@@ -96,7 +96,8 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		if (CMAKE_COMPILER_IS_GNUCXX)
 
-			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-result -Werror)
+			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-result)
+			add_compile_options("$<$<CONFIG:DEBUG>:-Werror>")
 
 			if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12.0)
 				# gcc 12.1 in -O2/3 at least on AARCH64 warns all over the place for overlapping memcpy.. so for
@@ -136,7 +137,8 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
-			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-result -Werror)
+			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-result)
+			add_compile_options("$<$<CONFIG:DEBUG>:-Werror>")
 
 			check_cxx_compiler_flag(-Wno-deprecated-copy DEKAF2_HAS_NO_DEPRECATED_COPY)
 
@@ -241,6 +243,9 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 	get_property(MY_COPTS DIRECTORY PROPERTY COMPILE_OPTIONS)
 	string(REPLACE "$<$<COMPILE_LANGUAGE:CXX>:" "" MY_COPTS "${MY_COPTS}")
+	if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT CMAKE_BUILD_TYPE STREQUAL "debug")
+		string(REPLACE "$<$<CONFIG:DEBUG>:-Werror>" "" MY_COPTS "${MY_COPTS}")
+	endif()
 	string(REPLACE "$<$<CONFIG:DEBUG>:" "" MY_COPTS "${MY_COPTS}")
 	string(REPLACE ";" " " MY_COPTS "${MY_COPTS}")
 	string(REPLACE ">" "" MY_COPTS "${MY_COPTS}")

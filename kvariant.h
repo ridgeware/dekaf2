@@ -127,7 +127,7 @@ namespace dekaf2 {
 	struct KVisitorBase {};
 #endif
 
-#ifdef DEKAF2_HAS_CPP_17
+#if defined(DEKAF2_HAS_CPP_17) && (!DEKAF2_IS_GCC || DEKAF2_GCC_VERSION_MAJOR > 6)
 	/// generic overload class - we need C++17 for the variadic using directive
 	// we drop the RETURNTYPE and only allow for void returns as otherwise the template
 	// would not resolve on lambdas..

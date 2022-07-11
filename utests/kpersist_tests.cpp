@@ -36,12 +36,14 @@ TEST_CASE("KPersist")
 		CHECK ( Strings.empty() );
 		CHECK ( sv == sv3 );
 
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
 		sv.clear();
 		std::string_view sv4 = "std::string_view also in data section";
 		sv = Strings.Persist(sv4);
 		CHECK ( kIsInsideDataSegment(sv.data()) == true );
 		CHECK ( Strings.empty() );
 		CHECK ( sv == sv4 );
+#endif
 
 		sv.clear();
 		static constexpr KStringViewZ csv = "constexpr also in data section";

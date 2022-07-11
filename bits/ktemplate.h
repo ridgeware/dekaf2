@@ -45,11 +45,10 @@
 /// helper templates for template meta programming
 
 #include "kcppcompat.h"
+#include "kstring_view.h"
 #include <functional>
 #include <cwctype>
 #include <type_traits>
-
-// we do general algorithms before including kstring.h / kstringview.h below
 
 namespace dekaf2
 {
@@ -200,9 +199,7 @@ struct is_narrow_string_view
       bool,
       std::is_same<KStringViewZ,           typename std::decay<T>::type>::value
    || std::is_same<KStringView,            typename std::decay<T>::type>::value
-#if defined(DEKAF2_HAS_FULL_CPP_17)
-   || std::is_same<std::string_view,       typename std::decay<T>::type>::value
-#endif
+   || std::is_same<sv::string_view,        typename std::decay<T>::type>::value
 > {};
 
 template<class T>

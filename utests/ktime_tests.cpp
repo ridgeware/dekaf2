@@ -114,7 +114,7 @@ TEST_CASE("KTime") {
 //		CHECK ( UTC1.empty()                 );
 //		CHECK ( UTC1.Format()       == ""    );
 		UTC1.AddSeconds(86399);
-#ifndef DEKAF2_IS_WINDOWS
+#ifdef DEKAF2_IS_MACOS
 		// this is admittedly an edge case ..
 		CHECK ( UTC1.empty()        == false );
 		CHECK ( UTC1.Format()       == "1900-01-01 00:00:00" );

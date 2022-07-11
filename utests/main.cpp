@@ -66,6 +66,8 @@ int main( int argc, char* const argv[] )
 		KErr.FormatLine("cannot set en_US.UTF-8 locale, locale is {}", kGetGlobalLocale().name());
 		return -1;
 	}
+	// glibc needs the environment set for error messages
+	kSetEnv("LANGUAGE", "en_US.UTF-8");
 
 	bool bSynopsis{false};
 	int  iLast{0};

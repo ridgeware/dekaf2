@@ -9,7 +9,6 @@ set(CMAKE_CXX_STANDARD 20)
 if (dekaf2-utests_IS_TOP_LEVEL OR NOT GENERATED_FILES_DIR)
 	set(DEKAF2_INHERIT_BUILD_FLAGS ON)
 	find_package(dekaf2 2.0 REQUIRED)
-	find_package(SQLite3 QUIET)
 endif()
 
 set (UHEADERS
@@ -113,19 +112,14 @@ set (USOURCES
 	kwords_tests.cpp
 	kwriter_tests.cpp
 	kxml_tests.cpp
+	kzip_tests.cpp
 	simd_tests.cpp
 	string_balance_tests.cpp
 )
 
-if (DEKAF2_HAS_LIBZIP)
-	set(USOURCES ${USOURCES}
-		kzip_tests.cpp
-	)
-endif()
-
 add_executable(dekaf2-utests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
 
-if(SQLITE3_FOUND)
+if (DEKAF2_HAS_SQLITE3)
 	target_link_libraries(dekaf2-utests dekaf2 ksqlite ksql2 re2)
 else()
 	target_link_libraries(dekaf2-utests dekaf2 ksql2 re2)

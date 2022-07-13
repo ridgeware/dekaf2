@@ -22,6 +22,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 		set (IS_MACOS "@IS_MACOS@")
 		set (IS_WINDOWS "@IS_WINDOWS@")
 		set (IS_LINUX "@IS_LINUX@")
+		set (DEKAF2_HAS_SQLITE3 "@DEKAF2_HAS_SQLITE3@")
 
 		# ================================ CMAKE INTERNALS =================================
 

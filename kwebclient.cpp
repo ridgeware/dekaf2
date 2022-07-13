@@ -104,7 +104,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 		// now point post data into the form
 		svRequestBody = sWWWForm;
 		MIME = KMIME::WWW_FORM_URLENCODED;
-		kDebug(2, "created urlencoded form body from query parms");
+		kDebug(3, "created urlencoded form body from query parms");
 	}
 
 	KStopWatch ConnectTime  (KStopWatch::Halted);
@@ -174,13 +174,13 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 						{
 							if (m_bAllowOneRetry)
 							{
-								kDebug(2, "retrying connection");
+								kDebug(3, "retrying connection");
 								// allow one connection retry - we might have run into
 								// a keepalive connection and the other end shut it down
 								// just before we sent data
 								continue;
 							}
-							kDebug(2, "connection retry disabled");
+							kDebug(3, "connection retry disabled");
 						}
 					}
 				}
@@ -211,7 +211,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 	auto iReceiveTime  = ReceiveTime.milliseconds();
 	auto iTotalTime    = iConnectTime + iTransmitTime + iReceiveTime;
 
-	kDebug(2, "connect {} ms, transmit {} ms, receive {} ms, total {} ms", iConnectTime, iTransmitTime, iReceiveTime, iTotalTime);
+	kDebug(3, "connect {} ms, transmit {} ms, receive {} ms, total {} ms", iConnectTime, iTransmitTime, iReceiveTime, iTotalTime);
 
 	if (m_pServiceSummary)
 	{
@@ -279,15 +279,15 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 			{
 				if (!kIsBinary(svRequestBody))
 				{
-					kDebug(2, "{} {}\n{}", RequestMethod.Serialize(), RequestURL.KResource::Serialize(), svRequestBody.LeftUTF8(1000));
+					kDebug(3, "{} {}\n{}", RequestMethod.Serialize(), RequestURL.KResource::Serialize(), svRequestBody.LeftUTF8(1000));
 				}
 			}
 			else
 			{
-				kDebug(2, "{} {}", RequestMethod.Serialize(), RequestURL.KResource::Serialize());
+				kDebug(3, "{} {}", RequestMethod.Serialize(), RequestURL.KResource::Serialize());
 			}
 
-			kDebug(2, "{} {} from URL {}", Response.iStatusCode, Response.sStatusString, RequestURL.Serialize());
+			kDebug(3, "{} {} from URL {}", Response.iStatusCode, Response.sStatusString, RequestURL.Serialize());
 		}
 
 		return false; // return with failure
@@ -309,10 +309,10 @@ KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMe
 		{
 			if (!kIsBinary(sResponse))
 			{
-				kDebug(2, kLimitSizeUTF8(sResponse, 2048));
+				kDebug(3, kLimitSizeUTF8(sResponse, 2048));
 			}
 		}
-		kDebug(2, "received {} bytes", sResponse.size());
+		kDebug(3, "received {} bytes", sResponse.size());
 	}
 
 	return sResponse;

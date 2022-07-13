@@ -136,7 +136,7 @@ uint16_t KReplacer::AddTokens (const KJSON& object, bool bFormNumbers/*=true*/)
 				}
 				else if (oValue.is_number())
 				{
-					kDebug (2, "attempting string conversion of {} = {}", sKey, oValue.dump());
+					kDebug (3, "looks like a number: {} = {}", sKey, oValue.dump());
 					sValue = oValue.dump();
 					if (bFormNumbers)
 					{
@@ -145,12 +145,12 @@ uint16_t KReplacer::AddTokens (const KJSON& object, bool bFormNumbers/*=true*/)
 				}
 				else if (oValue.is_boolean())
 				{
-					kDebug (2, "attempting string conversion of {} = {}", sKey, oValue.dump());
+					kDebug (3, "looks like a bool: {} = {}", sKey, oValue.dump());
 					sValue = oValue.dump();
 				}
 				else
 				{
-					kDebug (2, "not a simple key/value pair: {}", sKey);
+					kDebug (3, "ignoring this key b/c not a simple key/value pair: {}", sKey);
 					continue; // for
 				}
 

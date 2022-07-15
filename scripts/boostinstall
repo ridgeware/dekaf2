@@ -78,12 +78,15 @@ BoostSetup ()
 
 	cd boost_${NAME} || BoostSetupAbort "cannot cd into source directory ${BUILDDIR}/boost_${NAME}"
 
-	if [[ "$BINDIR" == "aarmv2" ]]; then
-		# we need clang on aws arm linux 2 (and we need g++ as well for bootstrap)
-		InstallSystemPackages clang gcc-c++
-		echo "using clang : 11.1 : /usr/bin/clang++ ; " >> tools/build/src/user-config.jam
-		local SETCC_B2="--toolset=clang-11.1"
-	fi
+# we do not need to build with clang anymore - but keep the
+# code as illustration how to switch compilers for boost
+#
+#	if [[ "$BINDIR" == "aarmv2" ]]; then
+#		# we need clang on aws arm linux 2 (and we need g++ as well for bootstrap)
+#		InstallSystemPackages clang gcc-c++
+#		echo "using clang : 11.1 : /usr/bin/clang++ ; " >> tools/build/src/user-config.jam
+#		local SETCC_B2="--toolset=clang-11.1"
+#	fi
 
 	./bootstrap.sh --prefix=${PREFIX} || BoostSetupAbort "cannot execute ${SETCC_BOOTSTRAP} ./bootstrap.sh --prefix=${PREFIX}"
 

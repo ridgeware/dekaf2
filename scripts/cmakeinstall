@@ -107,12 +107,6 @@ CMakeSetup ()
 					;;
 			esac
 
-			if [[ "$BINDIR" == "aarmv2" ]]; then
-				# we need clang on aws arm linux 2
-				InstallSystemPackages clang
-				local SETCC="env CC=clang CXX=clang++"
-			fi
-
 			local CMakeURL="https://cmake.org/files/${sCmakeFolder}/cmake-${sCMakeNewVersion}.tar.gz"
 			Info "downloading CMake ${sCMakeNewVersion} from ${CMakeURL}"
 			if [ "${BINDIR}" == "redhat64v6" ] || [ "${BINDIR}" == "redhat64" ] || [ "${BINDIR}" == "centos64v6" ]; then

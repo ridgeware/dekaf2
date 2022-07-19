@@ -344,6 +344,7 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, const KMIM
 	{
 		if (HttpSuccess())
 		{
+			kDebug(1, kFormat("Error while parsing response. Received sResponse: {}", sResponse));
 			// only throw on bad JSON if this is a 200 response, else return the
 			// primary error
 			return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad rx json: {}", sError) });

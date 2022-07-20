@@ -292,10 +292,6 @@ protected:
 
 	KJSON RequestAndParseResponse(KStringView sRequest, const KMIME& Mime);
 
-//----------
-private:
-//----------
-
 	ErrorCallback m_ErrorCallback;
 
 }; // KJsonRestClient

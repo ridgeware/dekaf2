@@ -42,6 +42,7 @@
 #include "krestclient.h"
 #include "khttperror.h"
 #include "kjson.h"
+#include "kstringutils.h"
 
 namespace dekaf2 {
 
@@ -346,6 +347,7 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, const KMIM
 		{
 			// only throw on bad JSON if this is a 200 response, else return the
 			// primary error
+			kDebug(1, "error parsing json: {}", kLimitSizeUTF8(sResponse, 2048));
 			return ThrowOrReturn (KHTTPError { KHTTPError::H5xx_ERROR, kFormat("bad rx json: {}", sError) });
 		}
 

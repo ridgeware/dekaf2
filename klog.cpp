@@ -382,11 +382,11 @@ KLog& KLog::LogThisThreadToJSON(int iLevel, void* pjson)
 
 
 //---------------------------------------------------------------------------
-KLog& KLog::LogThisThreadWithGrepExpression(bool bEGrep, KString sGrepExpression)
+KLog& KLog::LogThisThreadWithGrepExpression(bool bEGrep, KStringView sGrepExpression)
 //---------------------------------------------------------------------------
 {
 	kDebug(2, "using {}grep expression '{}'", bEGrep ? "e" : "", sGrepExpression);
-	s_sPerThreadGrepExpression = std::move(sGrepExpression);
+	s_sPerThreadGrepExpression = sGrepExpression.ToLower();
 	s_bPerThreadEGrep = bEGrep;
 
 	return *this;
@@ -871,14 +871,14 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 } // CheckDebugFlag
 
 //---------------------------------------------------------------------------
-KLog& KLog::LogWithGrepExpression(bool bEGrep, bool bInverted, KString sGrepExpression)
+KLog& KLog::LogWithGrepExpression(bool bEGrep, bool bInverted, KStringView sGrepExpression)
 //---------------------------------------------------------------------------
 {
 	// change string values in multithreading only with a mutex
 	std::lock_guard<std::recursive_mutex> Lock(m_LogMutex);
-	m_bEGrep = bEGrep;
-	m_bInvertedGrep = bInverted;
-	m_sGrepExpression = sGrepExpression;
+	m_bEGrep          = bEGrep;
+	m_bInvertedGrep   = bInverted;
+	m_sGrepExpression = sGrepExpression.ToLower();
 
 	return *this;
 

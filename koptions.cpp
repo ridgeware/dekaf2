@@ -722,8 +722,9 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 			kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
 		}
 		KLog::getInstance().SetDebugLog (sCliDebugTo);
-		kDebug (1, "debug {} set to: '{}'", bIsInverted	? "egrep -v" : "egrep", sGrep);
-		KLog::getInstance().LogWithGrepExpression(true, bIsInverted, sGrep);
+		KString sLowerGrep = sGrep.ToLower();
+		kDebug (1, "debug {} set to: '{}'", bIsInverted	? "egrep -v" : "egrep", sLowerGrep);
+		KLog::getInstance().LogWithGrepExpression(true, bIsInverted, sLowerGrep);
 		KLog::getInstance().KeepCLIMode (true);
 	});
 #endif

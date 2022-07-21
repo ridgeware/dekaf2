@@ -584,8 +584,9 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// When per-thread logging is active, only log messages that contain the sGrepExpression,
-	/// either in egrep (regular expression) modus or plain string search
-	self& LogThisThreadWithGrepExpression(bool bEGrep, KString sGrepExpression)
+	/// either in egrep (regular expression) modus or plain string search. The comparison is
+	/// case insensitive.
+	self& LogThisThreadWithGrepExpression(bool bEGrep, KStringView sGrepExpression)
 	//---------------------------------------------------------------------------
 #ifdef DEKAF2_WITH_KLOG
 	;
@@ -595,8 +596,9 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Only log messages that contain or do not contain (bInverted) the sGrepExpression
-	/// either in egrep (regular expression) modus or plain string search
-	self& LogWithGrepExpression(bool bEGrep, bool bInverted, KString sGrepExpression)
+	/// either in egrep (regular expression) modus or plain string search. The comparison is
+	/// case insensitive.
+	self& LogWithGrepExpression(bool bEGrep, bool bInverted, KStringView sGrepExpression)
 	//---------------------------------------------------------------------------
 #ifdef DEKAF2_WITH_KLOG
 	;

@@ -574,6 +574,21 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 
 	if (Good())
 	{
+		if (kWouldLog(2))
+		{
+#if (BOOST_VERSION < 106600)
+			auto it = hosts;
+			decltype(it) ie;
+#else
+			auto it = hosts.begin();
+			auto ie = hosts.end();
+#endif
+			for (; it != ie; ++it)
+			{
+				kDebug(2, "resolved to: {}", it->endpoint().address().to_string());
+			}
+		}
+
 		if (m_Stream.SSLContext.GetVerify())
 		{
 			m_Stream.Socket.set_verify_mode(boost::asio::ssl::verify_peer

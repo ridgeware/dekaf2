@@ -174,6 +174,21 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 
 	if (Good())
 	{
+		if (kWouldLog(2))
+		{
+#if (BOOST_VERSION < 106600)
+			auto it = hosts;
+			decltype(it) ie;
+#else
+			auto it = hosts.begin();
+			auto ie = hosts.end();
+#endif
+			for (; it != ie; ++it)
+			{
+				kDebug(2, "resolved to: {}", it->endpoint().address().to_string());
+			}
+		}
+
 		boost::asio::async_connect(m_Stream.Socket.lowest_layer(),
 								   hosts,
 		                           [&](const boost::system::error_code& ec,

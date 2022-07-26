@@ -128,7 +128,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 
 //-----------------------------------------------------------------------------
 // we cannot use KStringView as we need to access a C API
-ssize_t kGetSize(KStringViewZ sFileName)
+ssize_t kGetSize(KStringView sFileName)
 //-----------------------------------------------------------------------------
 {
 	return kFileSize(sFileName);
@@ -313,7 +313,7 @@ KString kReadAll(std::istream& Stream, bool bFromStart, std::size_t iMaxRead)
 #endif
 
 //-----------------------------------------------------------------------------
-bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead)
+bool kAppendAll(KStringView sFileName, KStringRef& sContent, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	auto iSize(kGetSize(sFileName));
@@ -390,7 +390,7 @@ bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRe
 
 #else
 
-		auto fd = open(sFileName.c_str(), O_RDONLY | DEKAF2_CLOSE_ON_EXEC_FLAG);
+		auto fd = open(KString{sFileName}.c_str(), O_RDONLY | DEKAF2_CLOSE_ON_EXEC_FLAG);
 
 		if (fd >= 0)
 		{
@@ -427,7 +427,7 @@ bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRe
 } // kAppendAll
 
 //-----------------------------------------------------------------------------
-bool kReadAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead)
+bool kReadAll(KStringView sFileName, KStringRef& sContent, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	sContent.clear();
@@ -436,7 +436,7 @@ bool kReadAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead
 } // kReadAll
 
 //-----------------------------------------------------------------------------
-KString kReadAll(KStringViewZ sFileName, std::size_t iMaxRead)
+KString kReadAll(KStringView sFileName, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	KString sContent;

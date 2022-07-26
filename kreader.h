@@ -111,20 +111,20 @@ KString kReadAll(std::istream& Stream, bool bFromStart = true, std::size_t iMaxR
 /// @param sContent the string to fill with the content of the file
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
 DEKAF2_PUBLIC
-bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead = npos);
+bool kAppendAll(KStringView sFileName, KStringRef& sContent, std::size_t iMaxRead = npos);
 
 /// Read all content of a file with name sFileName into a string
 /// @param sFileName the input file's name
 /// @param sContent the string to fill with the content of the file
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
 DEKAF2_PUBLIC
-bool kReadAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead = npos);
+bool kReadAll(KStringView sFileName, KStringRef& sContent, std::size_t iMaxRead = npos);
 
 /// Returns all content of a file with name sFileName as a string
 /// @param sFileName the input file's name
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
 DEKAF2_PUBLIC
-KString kReadAll(KStringViewZ sFileName, std::size_t iMaxRead = npos);
+KString kReadAll(KStringView sFileName, std::size_t iMaxRead = npos);
 
 /// Get the total size of a std::istream device. Returns -1 on Failure. Fails on non-seekable istreams.
 DEKAF2_PUBLIC
@@ -132,7 +132,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart = true);
 
 /// Get the total size of a file with name sFileName. Returns -1 on Failure.
 DEKAF2_PUBLIC
-ssize_t kGetSize(KStringViewZ sFileName);
+ssize_t kGetSize(KStringView sFileName);
 
 /// Reposition the device of a std::istream to the beginning. Fails on non-seekable istreams.
 DEKAF2_PUBLIC

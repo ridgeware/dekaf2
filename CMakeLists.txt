@@ -1084,6 +1084,10 @@ add_executable(createdbc createdbc.cpp)
 target_link_libraries(createdbc dekaf2 ksql2)
 add_dependencies(createdbc dekaf2 ksql2)
 
+add_executable(unixmenu unixmenu.cpp)
+target_link_libraries(unixmenu dekaf2 curses)
+add_dependencies(unixmenu dekaf2)
+
 add_executable(dekaf2project dekaf2project.cpp)
 target_link_libraries(dekaf2project dekaf2)
 add_dependencies(dekaf2project dekaf2)
@@ -1131,7 +1135,7 @@ install(TARGETS dekaf2 ksql2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake DESTINATION ${dekaf2_lib_dest})
-install(TARGETS klog createdbc dekaf2project kurl DESTINATION ${dekaf2_bin_dest})
+install(TARGETS klog unixmenu createdbc dekaf2project kurl DESTINATION ${dekaf2_bin_dest})
 #install(TARGETS getentities genunicodetables DESTINATION ${dekaf2_bin_dest})
 
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2)
@@ -1183,6 +1187,7 @@ add_custom_target(uninstall
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/klog"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/kurl"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/createdbc"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/unixmenu"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/dekaf2project"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/mysql-newuser"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/kport"

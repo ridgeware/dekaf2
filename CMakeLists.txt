@@ -372,6 +372,15 @@ if(SQLITE3_FOUND)
 	set(DEKAF2_HAS_SQLITE3 1)
 endif()
 
+# ================================ CURSES ====================================
+
+set(CURSES_NEED_NCURSES TRUE)
+find_package(Curses REQUIRED)
+if(CURSES_FOUND)
+	message(STATUS "configuring with NCurses")
+	set(DEKAF2_HAS_NCURSES 1)
+endif()
+
 # ================================ OPENSSL ===================================
 
 # openssl (needed for boost asio)
@@ -1085,7 +1094,8 @@ target_link_libraries(createdbc dekaf2 ksql2)
 add_dependencies(createdbc dekaf2 ksql2)
 
 add_executable(unixmenu unixmenu.cpp)
-target_link_libraries(unixmenu dekaf2 curses)
+target_include_directories(unixmenu PUBLIC CURSES_INCLUDE_DIRS)
+target_link_libraries(unixmenu dekaf2 ncurses)
 add_dependencies(unixmenu dekaf2)
 
 add_executable(dekaf2project dekaf2project.cpp)
@@ -1195,3 +1205,10 @@ add_custom_target(uninstall
 )
 
 # =================================== THE END ========================================
+
+
+
+
+
+
+

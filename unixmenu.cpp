@@ -121,8 +121,12 @@ static const char* g_Synopsis[] = {
 /*
 MACROS:
 */
-inline void raw_io()	{ raw(); crmode(); noecho(); }
+inline void raw_io()	{ raw(); crmode(); /*noecho();*/ }
 inline void cooked_io()	{ noraw(); nocrmode(); echo(); }
+
+#undef addstr
+#define addstr(s)       { waddnstr(stdscr,s.c_str(),s.size()); }
+
 
 /*
 CONSTANTS:
@@ -136,11 +140,11 @@ GLOBALS:
 */
 typedef struct
 {
-	uint8_t iNRows;
-	uint8_t iSleep;
-	uint8_t iMargin;
-	uint8_t iTopRow;
-	uint8_t iMaxRows;
+	int8_t iNRows;
+	int8_t iSleep;
+	int8_t iMargin;
+	int8_t iTopRow;
+	int8_t iMaxRows;
 	KString sMenuTitle;
 	KString labels[MAXOPTIONS];
 	KString commands[MAXOPTIONS];
@@ -150,21 +154,21 @@ typedef struct
 KString g_sBuffer;
 KString g_sWaitString{ "Hit return to continue: "};
 KString g_sShell{   "/bin/sh"};
-uint8_t	g_iSleep{1};   // secs
-uint8_t g_iHeight{24}; //chars
-uint8_t g_iWidth{80};  //chars
+int8_t	g_iSleep{1};   // secs
+int8_t g_iHeight{24}; //chars
+int8_t g_iWidth{80};  //chars
 
-uint8_t  interpreter_loop (KStringView sMenuFile, uint8_t iCPick);
+int8_t  interpreter_loop (KStringView sMenuFile, int8_t iCPick);
 void     run_command (KStringView sCommand);
 void     parse_menufile (KStringView sContents, menuT* menu);
-uint8_t  select_item (menuT* menu, uint8_t iCPick);
+int8_t  select_item (menuT* menu, int8_t iCPick);
 void     warning (KStringView string, KStringView sarg);
-uint8_t  error_and_exit (KStringView string, KStringView sarg);
+int8_t  error_and_exit (KStringView string, KStringView sarg);
 void     synopsis_abort ();
-uint8_t  menu_loop (menuT* menu, uint8_t iCPick);
+int8_t  menu_loop (menuT* menu, int8_t iCPick);
 void     keef_box (int x1, int y1, int x2, int y2);
 
-inline void Pause() { char foo[50+1]; gets(foo); }
+inline void Pause() { char foo[50+1]; fgets(foo, 50, stdin); }
 
 //-----------------------------------------------------------------------------
 int main (int argc, char* argv[])
@@ -172,7 +176,7 @@ int main (int argc, char* argv[])
 {
 	kDebug (1, "...");
 
-	uint8_t iCPick{0};
+	int8_t iCPick{0};
 	KString sMenuFile;
 
 	/*
@@ -236,7 +240,7 @@ int main (int argc, char* argv[])
 } /* main- unixmenu */
 
 //-----------------------------------------------------------------------------
-uint8_t interpreter_loop (KStringView sMenuFile, uint8_t iCPick)
+int8_t interpreter_loop (KStringView sMenuFile, int8_t iCPick)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
@@ -278,7 +282,7 @@ void run_command (KStringView sCommand)
 	kDebug (1, "...");
 
 	bool    bRunNwait{false};
-	uint8_t iSysErr{0};
+	int8_t iSysErr{0};
 
 	if (g_sShell.Contains("csh") || g_sShell.Contains("zsh"))
 	{
@@ -316,8 +320,8 @@ void parse_menufile (KStringView sMenuFile, menuT* menu)
 	bool    bReadCommand{false};
 	size_t  iMaxWidth{0};
 	KString sContents;
-	uint8_t iLineNo{0};
-	uint8_t iErrors{0};
+	int8_t iLineNo{0};
+	int8_t iErrors{0};
 	bool    bAtLeastOne{false};
 
 	if (!kReadFile (sMenuFile, sContents, /*convert newlines=*/true))
@@ -404,13 +408,13 @@ void parse_menufile (KStringView sMenuFile, menuT* menu)
 } /* parse_menufile */
 
 //-----------------------------------------------------------------------------
-uint8_t select_item (menuT* menu, uint8_t iCurrent)
+int8_t select_item (menuT* menu, int8_t iCurrent)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
 
-	uint8_t ii;
-	uint8_t iCPick{iCurrent};
+	int8_t ii;
+	int8_t iCPick{iCurrent};
 
 	savetty ();
 	raw_io ();
@@ -426,27 +430,31 @@ uint8_t select_item (menuT* menu, uint8_t iCurrent)
 	{
 		move (menu->iTopRow-2, menu->iMargin+3);
 		standout ();
-		addstr (menu->sMenuTitle.c_str());
+		addstr (menu->sMenuTitle);
 		standend ();
 	}
 	else
 	{
 		move (menu->iTopRow-3, menu->iMargin+3);
-		addstr (menu->sMenuTitle.c_str());
+		addstr (menu->sMenuTitle);
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	kDebug (1, "draw initial menu options...");
+	kDebug (1, "draw initial menu {} options...", menu->iNRows);
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	for (ii = (menu->iNRows)-1; ii >= 0; --ii)
 	{
+		kDebug (1, "drawing row {}: {}", ii, menu->labels[ii]);
 		move (menu->iTopRow+ii, menu->iMargin+3);
 		if (ii==iCPick) standout();
-		addstr (menu->labels[ii].c_str());
+		addstr (menu->labels[ii]);
 		standend();
 	}
 
-	while (!(menu->labels[iCPick])) ++iCPick;
+	while (!(menu->labels[iCPick]))
+	{
+		++iCPick;
+	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	kDebug (1, "loop through menu...");
@@ -461,9 +469,9 @@ uint8_t select_item (menuT* menu, uint8_t iCurrent)
 		erase ();
 		standend ();
 		move (menu->iTopRow+iCPick, menu->iMargin+3);
-		addstr (menu->labels[iCPick].c_str());
+		addstr (menu->labels[iCPick]);
 		move (menu->iTopRow+iCPick-4, menu->iMargin);
-		addstr (menu->sSelectMSG.c_str());
+		addstr (menu->sSelectMSG);
 		keef_box (menu->iMargin, menu->iTopRow+iCPick-2, g_iWidth - menu->iMargin - 2, menu->iTopRow+iCPick+2);
 
 		refresh ();
@@ -481,7 +489,7 @@ uint8_t select_item (menuT* menu, uint8_t iCurrent)
 } /* select_item */
 
 //-----------------------------------------------------------------------------
-uint8_t menu_loop (menuT* menu, uint8_t iCPick)
+int8_t menu_loop (menuT* menu, int8_t iCPick)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
@@ -498,12 +506,12 @@ uint8_t menu_loop (menuT* menu, uint8_t iCPick)
 		    {
 				move (menu->iTopRow+iOPick, menu->iMargin+3);
 				standend ();
-				addstr (menu->labels[iOPick].c_str());
+				addstr (menu->labels[iOPick]);
 			}
 
 			move (menu->iTopRow+iCPick, menu->iMargin+3);
 			standout ();
-			addstr (menu->labels[iCPick].c_str());
+			addstr (menu->labels[iCPick]);
 
 			iOPick = iCPick;
 		}
@@ -626,7 +634,7 @@ void warning (char* string, char* sarg)
 } /* warning */
 
 //-----------------------------------------------------------------------------
-uint8_t error_and_exit (char* string, char* sarg)
+int8_t error_and_exit (char* string, char* sarg)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");

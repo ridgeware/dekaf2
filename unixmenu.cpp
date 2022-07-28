@@ -286,11 +286,11 @@ void run_command (KStringView sCommand)
 
 	if (g_sShell.Contains("csh") || g_sShell.Contains("zsh"))
 	{
-		g_sBuffer.Format ("%s -fc \"", g_sShell); // csh syntax
+		g_sBuffer.Format ("{} -fc \"", g_sShell); // csh syntax
 	}
 	else
 	{
-		g_sBuffer.Format ("%s -c \"", g_sShell);  // bash syntax
+		g_sBuffer.Format ("{} -c \"", g_sShell);  // bash syntax
 	}
 
 	if (sCommand.StartsWith (RUN_N_WAIT))
@@ -299,7 +299,7 @@ void run_command (KStringView sCommand)
 		g_sBuffer += sCommand.Mid (strlen("runNwait "));
 	}
 
-	g_sBuffer += kFormat ("%s\"", sCommand);
+	g_sBuffer += kFormat ("{}\"", sCommand);
 
 	iSysErr = kSystem (g_sBuffer);
 

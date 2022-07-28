@@ -29,7 +29,7 @@ BuildSetup ()
 		case "${DISTRIB}" in
 			centos)
 				InstallSystemPackages centos-release-scl
-				InstallSystemPackages devtoolset-7 devtoolset-7-libasan-devel devtoolset-7-libubsan-devel
+				InstallSystemPackages devtoolset-7 devtoolset-7-libasan-devel devtoolset-7-libubsan-devel ncurses${DEVPKG}
 				;;
 			rhel)
 				InstallSystemPackages yum-config-manager
@@ -39,7 +39,7 @@ BuildSetup ()
 
 		case "${DISTRIB}" in
 			darwin)
-				InstallSystemPackages cmake boost openssl wget
+				InstallSystemPackages cmake boost openssl wget ncurses
 
 				InstallOptionalSystemPackages doxygen graphviz libzip xz zstd brotli mariadb sqlite jemalloc
 				;;
@@ -48,14 +48,14 @@ BuildSetup ()
 				sudo apt-get update -y
 
 				InstallSystemPackages cmake libboost-all${DEVPKG} openssl libssl-dev wget git sed tar gcc \
-					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g-dev
+					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g${DEVPKG} ncurses${DEVPKG}
 
 				InstallOptionalSystemPackages libmariadb${DEVPKG} sqlite3 libsqlite3${DEVPKG} doxygen graphviz \
 					libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG} libbrotli${DEVPKG} jemalloc${DEVPKG}
 				;;
 			*)
 				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} wget git sed tar gcc \
-					zlib${DEVPKG} bzip2${DEVPKG}
+					zlib${DEVPKG} bzip2${DEVPKG} ncurses${DEVPKG}
 
 				InstallOptionalSystemPackages mariadb${DEVPKG} sqlite${DEVPKG} doxygen graphviz libzip${DEVPKG} \
 					xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG} jemalloc${DEVPKG}
@@ -66,7 +66,7 @@ BuildSetup ()
 			fedora|centos)
 				# fedora-29 is just crazy to split C++ from gcc - and it appears to be the
 				# only system on which you have to install ubsan and asan independently, too
-				InstallSystemPackages gcc-c++ libubsan libasan
+				InstallSystemPackages gcc-c++ libubsan libasan ncurses${DEVPKG}
 				;;
 		esac
 

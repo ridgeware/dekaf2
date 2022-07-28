@@ -1498,7 +1498,7 @@ bool KSQL::OpenConnection ()
 	case API::INFORMIX:
 	default:
 	// - - - - - - - - - - - - - - - - -
-		return SetError(kFormat ("API Set not coded yet ({})", TxAPISet(GetAPISet())));
+		return SetError(kFormat ("API Set not coded yet, or connector not linked in ({})", TxAPISet(GetAPISet())));
 	}
 
 	kDebug (3, "connection is now open...");

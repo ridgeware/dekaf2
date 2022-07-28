@@ -158,9 +158,9 @@ int8_t	g_iSleep{1};   // secs
 int8_t g_iHeight{24}; //chars
 int8_t g_iWidth{80};  //chars
 
-int8_t  interpreter_loop (KStringView sMenuFile, int8_t iCPick);
+int8_t  interpreter_loop (KStringViewZ sMenuFile, int8_t iCPick);
 void     run_command (KStringView sCommand);
-void     parse_menufile (KStringView sContents, menuT* menu);
+void     parse_menufile (KStringViewZ sContents, menuT* menu);
 int8_t  select_item (menuT* menu, int8_t iCPick);
 void     warning (KStringView string, KStringView sarg);
 int8_t  error_and_exit (KStringView string, KStringView sarg);
@@ -240,7 +240,7 @@ int main (int argc, char* argv[])
 } /* main- unixmenu */
 
 //-----------------------------------------------------------------------------
-int8_t interpreter_loop (KStringView sMenuFile, int8_t iCPick)
+int8_t interpreter_loop (KStringViewZ sMenuFile, int8_t iCPick)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
@@ -312,7 +312,7 @@ void run_command (KStringView sCommand)
 } /* run_command */
 
 //-----------------------------------------------------------------------------
-void parse_menufile (KStringView sMenuFile, menuT* menu)
+void parse_menufile (KStringViewZ sMenuFile, menuT* menu)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");

@@ -589,10 +589,10 @@ time_t kGetLastMod(KStringViewZ sFilePath)
 } // kGetLastMod
 
 //-----------------------------------------------------------------------------
-size_t kFileSize(KStringView sFilePath)
+size_t kFileSize(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
-	KFileStat Stat(KString{sFilePath});
+	KFileStat Stat(sFilePath);
 
 	if (!Stat.IsFile())
 	{
@@ -1497,7 +1497,7 @@ bool kAppendFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKA
 } // kAppendFile
 
 //-----------------------------------------------------------------------------
-bool kReadFile (KStringView sPath, KStringRef& sContents, bool bToUnixLineFeeds, std::size_t iMaxRead)
+bool kReadFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineFeeds, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, sPath);

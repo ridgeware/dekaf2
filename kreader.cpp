@@ -128,7 +128,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 
 //-----------------------------------------------------------------------------
 // we cannot use KStringView as we need to access a C API
-ssize_t kGetSize(KStringView sFileName)
+ssize_t kGetSize(KStringViewZ sFileName)
 //-----------------------------------------------------------------------------
 {
 	return kFileSize(sFileName);
@@ -313,7 +313,7 @@ KString kReadAll(std::istream& Stream, bool bFromStart, std::size_t iMaxRead)
 #endif
 
 //-----------------------------------------------------------------------------
-bool kAppendAll(KStringView sFileName, KStringRef& sContent, std::size_t iMaxRead)
+bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	auto iSize(kGetSize(sFileName));
@@ -427,7 +427,7 @@ bool kAppendAll(KStringView sFileName, KStringRef& sContent, std::size_t iMaxRea
 } // kAppendAll
 
 //-----------------------------------------------------------------------------
-bool kReadAll(KStringView sFileName, KStringRef& sContent, std::size_t iMaxRead)
+bool kReadAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	sContent.clear();
@@ -436,7 +436,7 @@ bool kReadAll(KStringView sFileName, KStringRef& sContent, std::size_t iMaxRead)
 } // kReadAll
 
 //-----------------------------------------------------------------------------
-KString kReadAll(KStringView sFileName, std::size_t iMaxRead)
+KString kReadAll(KStringViewZ sFileName, std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	KString sContent;

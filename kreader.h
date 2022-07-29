@@ -753,26 +753,6 @@ public:
 	KInFile(KInFile&& other) = delete;
 	//-----------------------------------------------------------------------------
 
-#ifndef _MSC_VER
-//	using base_type::base_type;
-#else
-	// MSC has issues with perfect forwarding of KReader and does not catch the
-	// KStringView ctor above if we forward all base class constructors
-	// therefore we need to declare a few more constructors here
-	KInFile() = default;
-	KInFile(const std::string& s, ios_base::openmode mode = ios_base::in)
-	: base_type(kToFilesystemPath(s), mode | ios_base::binary) {}
-	KInFile(const char* sz, ios_base::openmode mode = ios_base::in)
-	: base_type(kToFilesystemPath(KStringViewZ(sz)), mode | ios_base::binary) {}
-	void open(const std::string& s, ios_base::openmode mode = ios_base::in)
-	{ base_type::open(kToFilesystemPath(s), mode | ios_base::binary); }
-	// that open is the most bizarre.. MS added an open with an additional int parm,
-	// but did not document what it does - we just drop it, but have to support it
-	// for Windows compatibility
-	void open(const char* sz, ios_base::openmode mode = ios_base::in, int = 0)
-	{ base_type::open(kToFilesystemPath(KStringViewZ(sz)), mode | ios_base::binary); }
-#endif
-
 	//-----------------------------------------------------------------------------
 	void open(KStringViewZ sFilename, ios_base::openmode mode = ios_base::in)
 	//-----------------------------------------------------------------------------

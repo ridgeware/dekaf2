@@ -278,6 +278,13 @@ struct is_kstringview_assignable
 	std::is_assignable<KStringView, T>::value
 > {};
 
+template<class T>
+struct is_kstringviewz_assignable
+: std::integral_constant<
+	bool,
+	std::is_assignable<KStringViewZ, T>::value
+> {};
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// helper class to wrap one object reference and access it through a proxy object
 template<class T>

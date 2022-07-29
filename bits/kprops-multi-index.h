@@ -475,10 +475,10 @@ public:
 	} // Load
 
 	//-----------------------------------------------------------------------------
-	size_t Load(KStringView sInput, KStringView svDelim = "\n", KStringView svPairDelim = "=")
+	size_t Load(KStringViewZ sInputFile, KStringView svDelim = "\n", KStringView svPairDelim = "=")
 	//-----------------------------------------------------------------------------
 	{
-		KInFile fin(sInput);
+		KInFile fin(sInputFile);
 		return Load(fin, svDelim, svPairDelim);
 
 	} // Load
@@ -511,10 +511,10 @@ public:
 	} // Store
 
 	//-----------------------------------------------------------------------------
-	size_t Store(KStringView sOutput, KStringView svDelim = "\n", KStringView svPairDelim = "=")
+	size_t Store(KStringViewZ sOutputFile, KStringView svDelim = "\n", KStringView svPairDelim = "=")
 	//-----------------------------------------------------------------------------
 	{
-		KOutFile fout(sOutput);
+		KOutFile fout(sOutputFile);
 		return Store(fout, svDelim, svPairDelim);
 
 	} // Store

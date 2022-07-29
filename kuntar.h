@@ -144,7 +144,7 @@ public:
 		   bool bSkipAppleResourceForks = false);
 
 	/// Construct from an archive file name
-	KUnTar(KStringView sArchiveFilename,
+	KUnTar(KStringViewZ sArchiveFilename,
 		   int AcceptedTypes = tar::All,
 		   bool bSkipAppleResourceForks = false);
 
@@ -404,12 +404,12 @@ public:
 	/// Construct from an archive file name. Compression type options are NONE, GZIP, BZIP2,
 	/// AUTODETECT. If AUTODETECT, compression will be set from the file name suffix.
 	KUnTarCompressed(KUnCompressIStream::COMPRESSION Compression,
-					 KStringView sArchiveFilename,
+					 KStringViewZ sArchiveFilename,
 					 int AcceptedTypes = tar::All,
 					 bool bSkipAppleResourceForks = false);
 
 	/// Construct from an archive file name. Compression will be set from the file name suffix.
-	KUnTarCompressed(KStringView sArchiveFilename,
+	KUnTarCompressed(KStringViewZ sArchiveFilename,
 					 int AcceptedTypes = tar::All,
 					 bool bSkipAppleResourceForks = false)
 	: KUnTarCompressed(KUnCompressIStream::AUTO, sArchiveFilename, AcceptedTypes, bSkipAppleResourceForks)
@@ -444,7 +444,7 @@ public:
 	{}
 
 	/// Construct from an archive file name
-	KUnTarGZip(KStringView sArchiveFilename,
+	KUnTarGZip(KStringViewZ sArchiveFilename,
 			   int AcceptedTypes = tar::All,
 			   bool bSkipAppleResourceForks = false)
 	: KUnTarCompressed(KUnCompressIStream::GZIP, sArchiveFilename, AcceptedTypes, bSkipAppleResourceForks)
@@ -471,7 +471,7 @@ public:
 	{}
 
 	/// Construct from an archive file name
-	KUnTarBZip2(KStringView sArchiveFilename,
+	KUnTarBZip2(KStringViewZ sArchiveFilename,
 			   int AcceptedTypes = tar::All,
 			   bool bSkipAppleResourceForks = false)
 	: KUnTarCompressed(KUnCompressIStream::BZIP2, sArchiveFilename, AcceptedTypes, bSkipAppleResourceForks)
@@ -498,7 +498,7 @@ public:
 	{}
 
 	/// Construct from an archive file name
-	KUnTarZstd(KStringView sArchiveFilename,
+	KUnTarZstd(KStringViewZ sArchiveFilename,
 			   int AcceptedTypes = tar::All,
 			   bool bSkipAppleResourceForks = false)
 	: KUnTarCompressed(KUnCompressIStream::ZSTD, sArchiveFilename, AcceptedTypes, bSkipAppleResourceForks)

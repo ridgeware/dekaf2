@@ -284,7 +284,7 @@ KMail& KMail::AddReplaceVar(KStringView sKey, KStringView sValue)
 } // AddReplaceVar
 
 //-----------------------------------------------------------------------------
-bool KMail::Attach(KStringView sFilename, const KMIME& MIME)
+bool KMail::Attach(KStringViewZ sFilename, const KMIME& MIME)
 //-----------------------------------------------------------------------------
 {
 	KMIMEPart File(MIME);

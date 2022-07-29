@@ -53,7 +53,7 @@ bool KOutputTemplate::AddStream(KInStream& InStream)
 } // AddStream
 
 //-----------------------------------------------------------------------------
-bool KOutputTemplate::AddFile(KStringView sInFilename)
+bool KOutputTemplate::AddFile(KStringViewZ sInFilename)
 //-----------------------------------------------------------------------------
 {
 	KInFile InFile(sInFilename);
@@ -122,7 +122,7 @@ bool KOutputTemplate::Write(KOutStream& OutStream,
 } // Write
 
 //-----------------------------------------------------------------------------
-bool KOutputTemplate::Write(KStringView sOutFilename,
+bool KOutputTemplate::Write(KStringViewZ sOutFilename,
 		   KStringView sFrom,
 		   KStringView sTo,
 		   const KReplacer& Replacer)

@@ -66,13 +66,13 @@ public:
 	{
 		AddStream(InStream);
 	}
-	KOutputTemplate(KStringView sInFilename)
+	KOutputTemplate(KStringViewZ sInFilename)
 	{
 		AddFile(sInFilename);
 	}
 
 	bool AddStream(KInStream& InStream);
-	bool AddFile(KStringView sInFilename);
+	bool AddFile(KStringViewZ sInFilename);
 	bool AddString(KStringView sContent)
 	{
 		m_sBuffer += sContent;
@@ -95,7 +95,7 @@ public:
 			   KStringView sTo,
 			   const KReplacer& Replacer = KReplacer{});
 
-	bool Write(KStringView sOutFilename,
+	bool Write(KStringViewZ sOutFilename,
 			   KStringView sFrom,
 			   KStringView sTo,
 			   const KReplacer& Replacer = KReplacer{});

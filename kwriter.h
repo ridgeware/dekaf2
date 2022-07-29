@@ -382,22 +382,12 @@ public:
 	using base_type = KWriter<std::ofstream>;
 
 	//-----------------------------------------------------------------------------
-	KOutFile(KString str, ios_base::openmode mode = ios_base::out)
-		: base_type(kToFilesystemPath(str), mode | ios_base::binary)
+	KOutFile() = default;
 	//-----------------------------------------------------------------------------
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	KOutFile(KStringViewZ sz, ios_base::openmode mode = ios_base::out)
 	    : base_type(kToFilesystemPath(sz), mode | ios_base::binary)
-	//-----------------------------------------------------------------------------
-	{
-	}
-
-	//-----------------------------------------------------------------------------
-	KOutFile(KStringView sv, ios_base::openmode mode = ios_base::out)
-	    : KOutFile(KString(sv), mode | ios_base::binary)
 	//-----------------------------------------------------------------------------
 	{
 	}
@@ -418,7 +408,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 #ifndef _MSC_VER
-	using base_type::base_type;
+//	using base_type::base_type;
 #else
 	// MSC has issues with perfect forwarding of KWriter and does not catch the
 	// KStringView ctor above if we forward all base class constructors
@@ -438,37 +428,11 @@ public:
 #endif
 
 	//-----------------------------------------------------------------------------
-	void open(const KString& str, ios_base::openmode mode = ios_base::out)
+	void open(KStringViewZ sFilename, ios_base::openmode mode = ios_base::out)
 	//-----------------------------------------------------------------------------
 	{
-		base_type::open(kToFilesystemPath(str), mode | ios_base::binary);
+		base_type::open(kToFilesystemPath(sFilename), mode | ios_base::binary);
 	}
-
-#ifndef DEKAF2_IS_WINDOWS
-	//-----------------------------------------------------------------------------
-	void open(const std::string& str, ios_base::openmode mode = ios_base::out)
-	//-----------------------------------------------------------------------------
-	{
-		base_type::open(kToFilesystemPath(str), mode | ios_base::binary);
-	}
-#endif
-
-	//-----------------------------------------------------------------------------
-	void open(KStringViewZ sz, ios_base::openmode mode = ios_base::out)
-	//-----------------------------------------------------------------------------
-	{
-		base_type::open(kToFilesystemPath(sz), mode | ios_base::binary);
-	}
-
-	//-----------------------------------------------------------------------------
-	void open(KStringView sv, ios_base::openmode mode = ios_base::out)
-	//-----------------------------------------------------------------------------
-	{
-		KString s(sv);
-		base_type::open(kToFilesystemPath(s), mode | ios_base::binary);
-	}
-
-	using base_type::open;
 
 };
 

@@ -168,7 +168,7 @@ public:
 
 	/// Attach a file, automatically creating a multipart structure if not yet
 	/// set
-	bool Attach(KStringView sFilename, const KMIME& MIME = KMIME::BINARY);
+	bool Attach(KStringViewZ sFilename, const KMIME& MIME = KMIME::BINARY);
 
 	/// Attach KMIMEParts, automatically creating a multipart structure if not yet
 	/// set

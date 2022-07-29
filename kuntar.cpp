@@ -401,7 +401,7 @@ KUnTar::KUnTar(KInStream& Stream, int AcceptedTypes, bool bSkipAppleResourceFork
 }
 
 //-----------------------------------------------------------------------------
-KUnTar::KUnTar(KStringView sArchiveFilename, int AcceptedTypes, bool bSkipAppleResourceForks)
+KUnTar::KUnTar(KStringViewZ sArchiveFilename, int AcceptedTypes, bool bSkipAppleResourceForks)
 //-----------------------------------------------------------------------------
 	: m_File(std::make_unique<KInFile>(sArchiveFilename))
 	, m_Stream(*m_File)
@@ -793,7 +793,7 @@ KUnTarCompressed::KUnTarCompressed(KUnCompressIStream::COMPRESSION Compression,
 
 //-----------------------------------------------------------------------------
 KUnTarCompressed::KUnTarCompressed(KUnCompressIStream::COMPRESSION Compression,
-				 KStringView sArchiveFilename,
+				 KStringViewZ sArchiveFilename,
 				 int AcceptedTypes,
 				 bool bSkipAppleResourceForks)
 //-----------------------------------------------------------------------------

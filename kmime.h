@@ -282,7 +282,7 @@ public:
 	/// @param sControlName 'control' name for this MIME part. Can be used to distinguish multiple input file parts
 	/// @param sFilename file to load
 	/// @param sDispname name used for the attachment. If empty, basename of the filename will be used
-	bool File(KStringView sControlName, KStringView sFilename, KStringView sDispname = KStringView{});
+	bool File(KStringView sControlName, KStringViewZ sFilename, KStringView sDispname = KStringView{});
 	/// Add content of Stream to MIME part
 	/// @param sControlName 'control' name for this MIME part. Can be used to distinguish multiple input stream parts
 	/// @param Stream stream to read from
@@ -448,7 +448,7 @@ public:
 
 	/// sFilename is loaded as data for this part. MIME type is automatically detected,
 	/// or can be set explicitly through the MIME parameter
-	KMIMEFile(KStringView sControlName, KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(std::move(MIME)) { File(sControlName, sFilename); }
+	KMIMEFile(KStringView sControlName, KStringViewZ sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(std::move(MIME)) { File(sControlName, sFilename); }
 	/// set a KMIMEFile from sData, with sDispname and MIME MIME type
 	KMIMEFile(KStringView sControlName, KStringView sData, KStringView sDispname, KMIME MIME = KMIME::NONE);
 
@@ -466,7 +466,7 @@ public:
 
 	/// sFilename is loaded as data for this part. MIME type is automatically detected,
 	/// or can be set explicitly through the MIME parameter
-	KMIMEFileInline(KStringView sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(std::move(MIME)) { File("", sFilename); m_sFileName.clear(); }
+	KMIMEFileInline(KStringViewZ sFilename, KMIME MIME = KMIME::NONE) : KMIMEPart(std::move(MIME)) { File("", sFilename); m_sFileName.clear(); }
 	/// the open stream is loaded as data for this part. MIME type has to be set manually.
 	KMIMEFileInline(KInStream& stream, KMIME MIME) : KMIMEPart(std::move(MIME)) { Stream("", stream, KStringView{}); }
 

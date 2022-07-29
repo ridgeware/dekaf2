@@ -707,7 +707,7 @@ bool KMIMEPart::Stream(KStringView sControlName, KInStream& Stream, KStringView 
 } // Stream
 
 //-----------------------------------------------------------------------------
-bool KMIMEPart::File(KStringView sControlName, KStringView sFilename, KStringView sDispname)
+bool KMIMEPart::File(KStringView sControlName, KStringViewZ sFilename, KStringView sDispname)
 //-----------------------------------------------------------------------------
 {
 	KInFile File(sFilename);

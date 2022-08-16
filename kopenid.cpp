@@ -50,7 +50,7 @@
 namespace dekaf2 {
 
 static constexpr KStringViewZ OpenID_Configuration = "/.well-known/openid-configuration";
-static constexpr int DEFAULT_OPENID_TCP_TIMEOUT = 5;
+static constexpr int DEFAULT_OPENID_TCP_TIMEOUT = 30;
 
 const KRSAKey KOpenIDKeys::s_EmptyKey;
 
@@ -259,12 +259,30 @@ void KOpenIDProvider::Refresh(KTimer::Timepoint Now)
 		}
 		DEKAF2_CATCH (const KHTTPError& exc)
 		{
+			if (m_CurrentKeys && IsValid())
+			{
+				// there was an issue with the http connection to the SSO provider,
+				// but as we have valid keys from a former connection just keep these
+				kDebug(1, "cannot refresh SSO keys for {}, will continue to use old keys: {}", m_URL.Serialize(), exc.message());
+				return;
+			}
+
 			SetError(kFormat("{}: {}", m_URL.Serialize(), exc.message()));
+			// continue to create invalid empty keys
 		}
 		DEKAF2_CATCH (const KJSON::exception& exc)
 		{
 			// we protect Validate() with this catch
+			if (m_CurrentKeys && IsValid())
+			{
+				// there was an issue with the json response from the SSO provider,
+				// but as we have valid keys from a former connection just keep these
+				kDebug(1, "cannot refresh SSO keys for {}, will continue to use old keys: {}", m_URL.Serialize(), exc.what());
+				return;
+			}
+
 			SetError(kFormat("OpenID provider '{}' returned invalid JSON: {}", m_URL.Serialize(), exc.what()));
+			// continue to create invalid empty keys
 		}
 	}
 

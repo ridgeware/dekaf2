@@ -316,6 +316,25 @@ public:
 	KXML& operator=(const KXML&) = delete;
 	KXML& operator=(KXML&&) = default;
 
+	/// returns false if exceptions are disabled GetLastError() and return codes are in use
+	bool GetThrowOnParseError ()
+	{
+		return m_bThrowOnParseError;
+	}
+
+	/// set false if you want to disable exceptions and use GetLastError() and return codes, returns old value (in case you want to restore it)
+	bool SetThrowOnParseError (bool bTrueFalse)
+	{
+		auto bOldValue = m_bThrowOnParseError;
+		m_bThrowOnParseError = bTrueFalse;
+		return bOldValue;
+	}
+
+	KStringView GetLastError ()
+	{
+		return m_sLastError;
+	}
+
 	/// Print DOM into OutStream
 	void Serialize(KOutStream& OutStream, int iPrintFlags = PrintFlags::Default, KStringView sDropRoot = KStringView{}) const;
 	/// Print DOM into OutStream
@@ -374,7 +393,9 @@ protected:
 	bool Parse(bool bPreserveWhiteSpace = false);
 
 	KUniqueVoidPtr D;
-	KString XMLData;
+	KString        XMLData;
+	KString        m_sLastError;
+	bool           m_bThrowOnParseError{true}; // <-- defaults to true (we will throw)
 
 }; // KXML
 

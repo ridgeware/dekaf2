@@ -346,11 +346,16 @@ bool KXML::Parse(bool bPreserveWhiteSpace)
 			}
 		}
 
-		KException kEx( kFormat("{} at pos {}, next input: \"{}\"",
-								ex.what(),
-								iPos,
-								sWhere.substr(0, 20)));
-		kException(kEx);
+		m_sLastError.Format ("{} at pos {}, next input: \"{}\"",
+			ex.what(),
+			iPos,
+			sWhere.substr(0, 20));
+
+		if (m_bThrowOnParseError)
+		{
+			KException kEx(m_sLastError);
+			kException (kEx);
+		}
 
 		clear();
 	}

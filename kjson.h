@@ -257,6 +257,9 @@ namespace kjson
 	DEKAF2_PUBLIC
 	bool RecursiveMatchValue (const KJSON& json, KStringView sSearch);
 
+	/// merges keys from object2 to object1
+	void Merge (KJSON& object1, const KJSON& object2);
+
 }; // end of namespace kjson
 
 // lift a few of the static methods into dekaf2's namespace

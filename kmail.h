@@ -205,6 +205,9 @@ public:
 	/// Returns last error
 	const KString& Error() const;
 
+	/// Returns last error
+	const KString& GetLastError() const { return Error(); }
+
 //----------
 private:
 //----------

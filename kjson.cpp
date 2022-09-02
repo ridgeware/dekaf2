@@ -721,6 +721,23 @@ bool RecursiveMatchValue (const KJSON& json, KStringView sSearch)
 
 } // RecursiveMatchValue
 
+//-----------------------------------------------------------------------------
+void Merge (KJSON& object1, const KJSON& object2)
+//-----------------------------------------------------------------------------
+{
+	if (! object1.is_object() || ! object2.is_object() )
+	{
+		kDebug (1, "attempt to merge two json entities that are not objects");
+		return;
+	}
+
+	for (auto it : object2.items())
+	{
+		object1[it.key()] = it.value();
+	}
+
+} // Merge
+
 } // end of namespace kjson
 
 } // end of namespace dekaf2

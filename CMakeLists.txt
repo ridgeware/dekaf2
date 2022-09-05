@@ -44,7 +44,7 @@ cmake_minimum_required(VERSION 3.13)
 cmake_policy(SET CMP0048 NEW)
 
 # declare the project
-project(dekaf2 VERSION 2.0.14 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.15 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -474,15 +474,22 @@ endif()
 # files for zstd and lzma, others only have the header files)
 # We now always build our own zstd object files, as we want to support multithreading
 
-if (NOT DEKAF2_IS_WINDOWS)
-	if (DEKAF2_HAS_LIBLZMA)
+if (DEKAF2_HAS_LIBLZMA)
+	if (IS_MACOS OR IS_WINDOWS)
+		# On the mac we now always fall back to our own LZMA implementation, as boost 1.79
+		# comes with an lzma object file with multi threading, but fails to link against the
+		# single threading lzma libs that we have installed.
+		# We will check over time if we will set this flag for Linux, too
+		set(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD ON)
+	endif()
+	if (NOT DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD)
 		execute_process(COMMAND /bin/sh -c "nm \"${Boost_IOSTREAMS_LIBRARY}\" | grep -i lzma | wc -l" OUTPUT_VARIABLE SYM_COUNT OUTPUT_STRIP_TRAILING_WHITESPACE)
 		if (SYM_COUNT STREQUAL "")
 			set(SYM_COUNT 0)
 		endif()
 		if (SYM_COUNT LESS 5)
 			# no iostream lzma filter object found, we have to build it ourselves
-			set(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD 1)
+			set(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD ON)
 		endif()
 	endif()
 endif()

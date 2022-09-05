@@ -64,3 +64,13 @@
 #ifdef DEKAF2_HAS_LIBBROTLI
 	#include "kbrotli.h"
 #endif
+
+namespace dekaf2 {
+
+#ifdef DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD
+namespace lzmaiostreams = dekaf2::iostreams;
+#else
+namespace lzmaiostreams = boost::iostreams;
+#endif
+
+} // of namespace dekaf2

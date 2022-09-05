@@ -37,7 +37,7 @@
 #endif
 #include <boost/config/abi_prefix.hpp>
 
-namespace boost { namespace iostreams {
+namespace dekaf2 { namespace iostreams {
 
 namespace lzma {
 
@@ -136,7 +136,7 @@ private:
 #endif
 public:
     BOOST_STATIC_CONSTANT(bool, custom =
-        (!is_same<std::allocator<char>, Base>::value));
+        (!std::is_same<std::allocator<char>, Base>::value));
     typedef typename lzma_allocator_traits<Alloc>::type allocator_type;
     static void* allocate(void* self, size_t items, size_t size);
     static void deallocate(void* self, void* address);
@@ -218,16 +218,16 @@ public:
 //
 template<typename Alloc = std::allocator<char> >
 struct basic_lzma_compressor
-    : symmetric_filter<detail::lzma_compressor_impl<Alloc>, Alloc>
+: boost::iostreams::symmetric_filter<detail::lzma_compressor_impl<Alloc>, Alloc>
 {
 private:
     typedef detail::lzma_compressor_impl<Alloc> impl_type;
-    typedef symmetric_filter<impl_type, Alloc>  base_type;
+	typedef boost::iostreams::symmetric_filter<impl_type, Alloc>  base_type;
 public:
     typedef typename base_type::char_type               char_type;
     typedef typename base_type::category                category;
     basic_lzma_compressor( const lzma_params& = lzma_params(),
-                           std::streamsize buffer_size = default_device_buffer_size );
+						  std::streamsize buffer_size = boost::iostreams::default_device_buffer_size );
 };
 BOOST_IOSTREAMS_PIPABLE(basic_lzma_compressor, 1)
 
@@ -240,17 +240,17 @@ typedef basic_lzma_compressor<> lzma_compressor;
 //
 template<typename Alloc = std::allocator<char> >
 struct basic_lzma_decompressor
-    : symmetric_filter<detail::lzma_decompressor_impl<Alloc>, Alloc>
+: boost::iostreams::symmetric_filter<detail::lzma_decompressor_impl<Alloc>, Alloc>
 {
 private:
     typedef detail::lzma_decompressor_impl<Alloc> impl_type;
-    typedef symmetric_filter<impl_type, Alloc>    base_type;
+	typedef boost::iostreams::symmetric_filter<impl_type, Alloc>    base_type;
 public:
     typedef typename base_type::char_type               char_type;
     typedef typename base_type::category                category;
-    basic_lzma_decompressor( std::streamsize buffer_size = default_device_buffer_size );
+	basic_lzma_decompressor( std::streamsize buffer_size = boost::iostreams::default_device_buffer_size );
     basic_lzma_decompressor( const lzma_params& p,
-                             std::streamsize buffer_size = default_device_buffer_size );
+							std::streamsize buffer_size = boost::iostreams::default_device_buffer_size );
 };
 BOOST_IOSTREAMS_PIPABLE(basic_lzma_decompressor, 1)
 

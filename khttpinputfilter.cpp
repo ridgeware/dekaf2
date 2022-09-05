@@ -118,12 +118,12 @@ bool KInHTTPFilter::SetupInputFilter()
 #ifdef DEKAF2_HAS_LIBLZMA
 			case XZ: // lzma v2
 				kDebug(2, "using {} {}compression", "xz", "un");
-				m_Filter->push(boost::iostreams::lzma_decompressor());
+				m_Filter->push(lzmaiostreams::lzma_decompressor());
 				break;
 
 			case LZMA: // LZMA means v1, it should be supported by the lzma decompressor
 				kDebug(2, "using {} {}compression", "lzma", "un");
-				m_Filter->push(boost::iostreams::lzma_decompressor());
+				m_Filter->push(lzmaiostreams::lzma_decompressor());
 				break;
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI

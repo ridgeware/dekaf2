@@ -50,11 +50,6 @@
 
 namespace dekaf2 {
 
-namespace bio = boost::iostreams;
-#if defined(DEKAF2_HAS_LIBZSTD) || defined(DEKAF2_HAS_LIBBROTLI)
-namespace dio = dekaf2::iostreams;
-#endif
-
 //-----------------------------------------------------------------------------
 detail::KCompressionBase::COMPRESSION detail::KCompressionBase::FromString(KStringView sCompression)
 //-----------------------------------------------------------------------------
@@ -242,34 +237,34 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 
 		case GZIP:
 		{
-			auto iScaled = iLevel ? ScaleLevel(iLevel, bio::gzip::best_compression) : bio::gzip::default_compression;
+			auto iScaled = iLevel ? ScaleLevel(iLevel, boost::iostreams::gzip::best_compression) : boost::iostreams::gzip::default_compression;
 			kDebug(2, "setting {} compression to level {}", "gzip", iScaled);
-			compressor::push(bio::gzip_compressor(bio::gzip_params(iScaled)));
+			compressor::push(boost::iostreams::gzip_compressor(boost::iostreams::gzip_params(iScaled)));
 		}
 		break;
 
 		case BZIP2:
 		{
-			auto iScaled = iLevel ? ScaleLevel(iLevel, 9) : bio::bzip2::default_block_size;
+			auto iScaled = iLevel ? ScaleLevel(iLevel, 9) : boost::iostreams::bzip2::default_block_size;
 			kDebug(2, "setting {} compression to level {}", "bzip2", iScaled);
-			compressor::push(bio::bzip2_compressor(iScaled));
+			compressor::push(boost::iostreams::bzip2_compressor(iScaled));
 		}
 		break;
 
 		case ZLIB:
 		{
-			auto iScaled = iLevel ? ScaleLevel(iLevel, bio::zlib::best_compression) : bio::zlib::default_compression;
+			auto iScaled = iLevel ? ScaleLevel(iLevel, boost::iostreams::zlib::best_compression) : boost::iostreams::zlib::default_compression;
 			kDebug(2, "setting {} compression to level {}", "zlib", iScaled);
-			compressor::push(bio::zlib_compressor(bio::zlib_params(iScaled)));
+			compressor::push(boost::iostreams::zlib_compressor(boost::iostreams::zlib_params(iScaled)));
 		}
 		break;
 
 #ifdef DEKAF2_HAS_LIBLZMA
 		case LZMA:
 		{
-			auto iScaled = iLevel ? ScaleLevel(iLevel, bio::lzma::best_compression) : bio::lzma::default_compression;
+			auto iScaled = iLevel ? ScaleLevel(iLevel, lzmaiostreams::lzma::best_compression) : dekaf2::iostreams::lzma::default_compression;
 			kDebug(2, "setting {} compression to level {}", "lzma", iScaled);
-			compressor::push(bio::lzma_compressor(bio::lzma_params(iScaled)));
+			compressor::push(lzmaiostreams::lzma_compressor(dekaf2::iostreams::lzma_params(iScaled)));
 		}
 		break;
 #endif
@@ -277,7 +272,7 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 #ifdef DEKAF2_HAS_LIBZSTD
 		case ZSTD:
 		{
-			auto iScaled = iLevel ? ScaleLevel(iLevel, dio::zstd::best_compression) : dio::zstd::default_compression;
+			auto iScaled = iLevel ? ScaleLevel(iLevel, dekaf2::iostreams::zstd::best_compression) : dekaf2::iostreams::zstd::default_compression;
 			kDebug(2, "setting {} compression to level {}", "zstd", iScaled);
 			auto iCPUCount = kGetCPUCount();
 
@@ -299,7 +294,7 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 				}
 			}
 			kDebug(2, "setting zstd compression to {} parallel threads", iMultiThreading);
-			compressor::push(dio::zstd_compressor(dio::zstd_params(iScaled, iMultiThreading)));
+			compressor::push(dekaf2::iostreams::zstd_compressor(dekaf2::iostreams::zstd_params(iScaled, iMultiThreading)));
 		}
 		break;
 #endif
@@ -307,9 +302,9 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 #ifdef DEKAF2_HAS_LIBBROTLI
 		case BROTLI:
 		{
-			auto iScaled = iLevel ? ScaleLevel(iLevel, dio::brotli::best_compression) : dio::brotli::default_compression;
+			auto iScaled = iLevel ? ScaleLevel(iLevel, dekaf2::iostreams::brotli::best_compression) : dekaf2::iostreams::brotli::default_compression;
 			kDebug(2, "setting {} to level {}", "brotli", iScaled);
-			compressor::push(dio::brotli_compressor(dio::brotli_params(iScaled)));
+			compressor::push(dekaf2::iostreams::brotli_compressor(dekaf2::iostreams::brotli_params(iScaled)));
 		}
 		break;
 #endif
@@ -377,32 +372,32 @@ bool KUnCompressIStream::CreateFilter(COMPRESSION compression)
 			break;
 
 		case GZIP:
-			uncompressor::push(bio::gzip_decompressor());
+			uncompressor::push(boost::iostreams::gzip_decompressor());
 			break;
 
 		case BZIP2:
-			uncompressor::push(bio::bzip2_decompressor());
+			uncompressor::push(boost::iostreams::bzip2_decompressor());
 			break;
 
 		case ZLIB:
-			uncompressor::push(bio::zlib_decompressor());
+			uncompressor::push(boost::iostreams::zlib_decompressor());
 			break;
 
 #ifdef DEKAF2_HAS_LIBLZMA
 		case LZMA:
-			uncompressor::push(bio::lzma_decompressor());
+			uncompressor::push(lzmaiostreams::lzma_decompressor());
 			break;
 #endif
 
 #ifdef DEKAF2_HAS_LIBZSTD
 		case ZSTD:
-			uncompressor::push(dio::zstd_decompressor());
+			uncompressor::push(dekaf2::iostreams::zstd_decompressor());
 			break;
 #endif
 
 #ifdef DEKAF2_HAS_LIBBROTLI
 		case BROTLI:
-			uncompressor::push(dio::brotli_decompressor());
+			uncompressor::push(dekaf2::iostreams::brotli_decompressor());
 			break;
 #endif
 	}

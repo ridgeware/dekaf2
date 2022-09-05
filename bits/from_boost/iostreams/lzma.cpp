@@ -24,7 +24,9 @@
 //    #endif
 #endif
 
-namespace boost { namespace iostreams {
+// we change the base namespace from boost to dekaf2 to avoid any confusion when boost
+// comes with a lzma object file itself
+namespace dekaf2 { namespace iostreams {
 
 namespace lzma {
 

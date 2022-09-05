@@ -110,7 +110,7 @@ bool KOutHTTPFilter::SetupOutputFilter()
 #ifdef DEKAF2_HAS_LIBLZMA
 			case XZ:
 				kDebug(2, "using {} {}compression", "xz", "");
-				m_Filter->push(boost::iostreams::lzma_compressor());
+				m_Filter->push(lzmaiostreams::lzma_compressor());
 				break;
 
 			case LZMA:

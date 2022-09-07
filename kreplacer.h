@@ -143,6 +143,12 @@ public:
 	/// Replaces all variables in sIn with their values, modifying the string in place
 	void ReplaceInPlace(KStringRef& sIn) const;
 
+	/// convert tokens to json keys
+	KJSON to_json ();
+
+	/// dump all tokens (for debugging)
+	KString dump (const int iIndent=1, const char indent_char='\t');
+
 //----------
 private:
 //----------

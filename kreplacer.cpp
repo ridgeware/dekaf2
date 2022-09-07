@@ -335,6 +335,30 @@ void KReplacer::ReplaceInPlace(KStringRef& sIn) const
 
 } // clear
 
+//-----------------------------------------------------------------------------
+KJSON KReplacer::to_json ()
+//-----------------------------------------------------------------------------
+{
+	KJSON json;
+
+	for (const auto& it : m_RepMap)
+	{
+		json[it.first] = it.second;
+	}
+
+	return json;
+
+} // to_json
+
+//-----------------------------------------------------------------------------
+KString KReplacer::dump (const int iIndent/*=1*/, const char indent_char/*='\t'*/)
+//-----------------------------------------------------------------------------
+{
+	auto json = to_json();
+	return json.dump (iIndent,indent_char);
+
+} // KReplacer
+
 // if std::map is not yet supported by this lib to be nothrow, don't test dependant class
 static_assert(!std::is_nothrow_move_constructible<std::map<int, int>>::value || std::is_nothrow_move_constructible<KReplacer>::value,
 			  "KReplacer is intended to be nothrow move constructible, but is not!");

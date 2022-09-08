@@ -204,6 +204,15 @@ public:
 	static size_t GetCacheSize();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// helper function for SVGs and HTMLs that have messed up DEKAF {{tokens}}
+	/// where pieces of the token get extra formatting.  so it cleans up this:
+	///    {{to<span>k</span><span>e</span>n}}
+	/// to this:
+	///    {{token}}
+	static KString& CleanupTokens (KString& sIn);
+	//-----------------------------------------------------------------------------
+
 //----------
 protected:
 //----------

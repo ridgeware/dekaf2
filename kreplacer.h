@@ -149,6 +149,13 @@ public:
 	/// dump all tokens (for debugging)
 	KString dump (const int iIndent=1, const char indent_char='\t');
 
+	/// helper function for SVGs and HTMLs that have messed up DEKAF {{tokens}}
+	/// where pieces of the token get extra formatting.  so it cleans up this:
+	///    {{to<span>k</span><span>e</span>n}}
+	/// to this:
+	///    {{token}}
+	static KString& CleanupTokens (KString& sIn);
+
 //----------
 private:
 //----------

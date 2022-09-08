@@ -39,6 +39,7 @@
 */
 
 #include "kreplacer.h"
+#include "kregex.h"
 #include "kstringutils.h" // for kFormNumber()
 #include "klog.h"
 
@@ -358,6 +359,80 @@ KString KReplacer::dump (const int iIndent/*=1*/, const char indent_char/*='\t'*
 	return json.dump (iIndent,indent_char);
 
 } // KReplacer
+
+//-----------------------------------------------------------------------------
+KString& KReplacer::CleanupTokens (KString& sIn)
+//-----------------------------------------------------------------------------
+{
+	static KRegex s_TokenRegex("{{[^}]*}}");
+	static KRegex s_StrandedRegex{">[^<]{1,}<"};
+	KString       sEnvelopedChars{""};
+	KStringView   sToken = s_TokenRegex.Match(sIn);
+
+	while (!sToken.empty())
+	{
+		kDebug (3, "Processing token: {}", sToken);
+		size_t iTokenPos = sToken.data() - sIn.data();
+
+		if (sToken.Contains('<'))
+		{
+			kDebug (3, "Token contains <: {}", sToken);
+			size_t iStartPos = sIn.find('<', iTokenPos);
+			size_t iEndPos = sIn.rfind('>', iTokenPos + sToken.length());
+
+			// Verify this makes sense or log issue
+			if (iStartPos == KString::npos || iEndPos == KString::npos)
+			{
+				kDebug (3, "1. Unsure what to do with region.");
+				// issue - what region can be removed - abort
+			}
+			else if (iEndPos < iTokenPos)
+			{
+				// issue - what region can be removed
+				kDebug (3, "2. Unsure what to do with region.");
+			}
+			else if (iStartPos > iTokenPos + sToken.length())
+			{
+				// impossible - we already found it
+				kDebug (3, "3. Unsure what to do with region.");
+			}
+			else if (iEndPos < iStartPos)
+			{
+				// well can we work with >interloper_text< ? do we want to remove that
+				kDebug (3, "4. Unsure what to do with region.");
+			}
+			else
+			{
+				// Similar, but opposite logic to extract text like >r< if r can be more than one chars...
+				KStringView sStrandedChars = s_StrandedRegex.Match(sToken);
+
+				while (!sStrandedChars.empty())
+				{
+					// Error checking shouldn't be needed, regex should ensure this is valid - even if size 0 (empty string)
+					sEnvelopedChars += sStrandedChars.substr(1, sStrandedChars.size() - 2);
+					// find next set of stranded chars
+					size_t iStrandedCharsPos = sStrandedChars.data() - sToken.data();
+					sStrandedChars = s_TokenRegex.Match(sToken, iStrandedCharsPos + 1);
+				}
+
+				// Remove Cruft tags
+				sIn.erase(iStartPos, iEndPos - iStartPos + 1);
+				kDebug (3, "Erased part of input, it's now: {}", sIn);
+				// Add back in missing chars
+				if (!sEnvelopedChars.empty())
+				{
+					sIn.insert(iStartPos, sEnvelopedChars);
+				}
+			}
+		}
+
+		// find next token
+		sToken = s_TokenRegex.Match(sIn, iTokenPos + 1);
+	}
+
+	return sIn;
+
+} // CleanupTokens
 
 // if std::map is not yet supported by this lib to be nothrow, don't test dependant class
 static_assert(!std::is_nothrow_move_constructible<std::map<int, int>>::value || std::is_nothrow_move_constructible<KReplacer>::value,

@@ -262,9 +262,9 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 #ifdef DEKAF2_HAS_LIBLZMA
 		case LZMA:
 		{
-			auto iScaled = iLevel ? ScaleLevel(iLevel, lzmaiostreams::lzma::best_compression) : dekaf2::iostreams::lzma::default_compression;
+			auto iScaled = iLevel ? ScaleLevel(iLevel, lzmaiostreams::lzma::best_compression) : lzmaiostreams::lzma::default_compression;
 			kDebug(2, "setting {} compression to level {}", "lzma", iScaled);
-			compressor::push(lzmaiostreams::lzma_compressor(dekaf2::iostreams::lzma_params(iScaled)));
+			compressor::push(lzmaiostreams::lzma_compressor(lzmaiostreams::lzma_params(iScaled)));
 		}
 		break;
 #endif

@@ -412,7 +412,7 @@ KString& KReplacer::CleanupTokens (KString& sIn)
 					sEnvelopedChars += sStrandedChars.substr(1, sStrandedChars.size() - 2);
 					// find next set of stranded chars
 					size_t iStrandedCharsPos = sStrandedChars.data() - sToken.data();
-					sStrandedChars = s_TokenRegex.Match(sToken, iStrandedCharsPos + 1);
+					sStrandedChars = s_StrandedRegex.Match(sToken, iStrandedCharsPos + 1);
 				}
 
 				// Remove Cruft tags

@@ -1247,10 +1247,22 @@ private:
 	}
 
 	//-----------------------------------------------------------------------------
+	// this one is needed to appease gcc, which otherwise would claim that iDBType is
+	// unused (in the methods with std::apply)
+	template<class FormatString>
+	static KSQLInjectionSafeString FormatEscaped(DBT iDBType, FormatString&& sFormat)
+	//-----------------------------------------------------------------------------
+	{
+		return std::forward<FormatString>(sFormat);
+
+	} // FormatEscaped
+
+	//-----------------------------------------------------------------------------
 	/// static - escapes all string arguments and leaves the rest alone
 	template<class FormatString,
 	         class... Args,
-	         typename std::enable_if<std::is_same<KSQLInjectionSafeString, typename std::decay<FormatString>::type>::value, int>::type = 0>
+	         typename std::enable_if<std::is_same<KSQLInjectionSafeString, typename std::decay<FormatString>::type>::value &&
+	                                 sizeof...(Args) != 0, int>::type = 0>
 	static KSQLInjectionSafeString FormatEscaped(DBT iDBType, FormatString&& sFormat, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
@@ -1270,7 +1282,8 @@ private:
 	/// static - escapes all string arguments and leaves the rest alone
 	template<class FormatString,
 	         class... Args,
-	         typename std::enable_if<!std::is_same<KSQLInjectionSafeString, typename std::decay<FormatString>::type>::value, int>::type = 0>
+	         typename std::enable_if<!std::is_same<KSQLInjectionSafeString, typename std::decay<FormatString>::type>::value &&
+	                                 sizeof...(Args) != 0, int>::type = 0>
 	static KSQLInjectionSafeString FormatEscaped(DBT iDBType, FormatString&& sFormat, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{

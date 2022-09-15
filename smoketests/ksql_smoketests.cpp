@@ -220,13 +220,13 @@ void KillConnectionTest(KSQL& db)
 	CHECK ( db.KillConnection(iConnectionID) );
 
 	// the connection is canceled, and will not be restarted at the first trial
-	auto iNewConnectionID = db2.SingleIntRawQuery("SELECT CONNECTION_ID()");
+	auto iNewConnectionID = db2.SingleIntQuery("SELECT CONNECTION_ID()");
 
 	CHECK ( iNewConnectionID == -1 );
 
 	// now the connection will be reestablished, as the ID had been removed from
 	// the list of voluntarily canceled connections
-	iNewConnectionID = db2.SingleIntRawQuery("SELECT CONNECTION_ID()");
+	iNewConnectionID = db2.SingleIntQuery("SELECT CONNECTION_ID()");
 
 	CHECK ( iNewConnectionID > 0 );
 	CHECK ( iConnectionID != iNewConnectionID );
@@ -990,11 +990,12 @@ TEST_CASE("KSQL")
 
 		if (db.GetDBType() == KSQL::DBT::SQLSERVER)
 		{
-			if (!db.ExecRawSQL (HereDoc (R"(
-				|create table TEST_ASIAN (
-				|    anum      int            not null primary key,
-				|    astring   nvarchar(500)  null
-				|))")))
+			if (!db.ExecSQL (
+				"create table TEST_ASIAN ( "
+				"    anum      int            not null primary key, "
+				"    astring   nvarchar(500)  null "
+				") "
+				))
 			{
 				INFO (db.GetLastSQL());
 				FAIL_CHECK (db.GetLastError());
@@ -1002,11 +1003,12 @@ TEST_CASE("KSQL")
 		}
 		else
 		{
-			if (!db.ExecRawSQL (HereDoc (R"(
-				|create table TEST_ASIAN (
-				|    anum      int            not null primary key,
-				|    astring   varchar(500)   null
-				|))")))
+			if (!db.ExecSQL (
+				"create table TEST_ASIAN ( "
+				"    anum      int            not null primary key, "
+				"    astring   varchar(500)   null "
+			    ") "
+				))
 			{
 				INFO (db.GetLastSQL());
 				FAIL_CHECK (db.GetLastError());
@@ -1435,24 +1437,24 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 				FAIL_CHECK (db.GetLastError());
 			}
 
-			if (!db.ExecRawSQL (HereDoc (R"(
-				|create table TEST_VARCHAR_INDEX (
-				|    astring   longblob        not null,
-				|    anum      bigint unsigned not null,
-				|    a2num     int unsigned    not null,
-				|    PRIMARY KEY idx_astring (astring(255))
-				|))")))
+			if (!db.ExecSQL (
+				"create table TEST_VARCHAR_INDEX ( "
+				"    astring   longblob        not null, "
+				"    anum      bigint unsigned not null, "
+				"    a2num     int unsigned    not null, "
+				"    PRIMARY KEY idx_astring (astring(255)) "
+				))
 			{
 				INFO (db.GetLastSQL());
 				FAIL_CHECK (db.GetLastError());
 			}
 
-			if (!db.ExecRawSQL (HereDoc (R"(
-				|create table TEST_INT_INDEX (
-				|    astring   longblob        not null,
-				|    anum      bigint unsigned not null primary key,
-				|    a2num     int unsigned    not null
-				|))")))
+			if (!db.ExecSQL (
+				"create table TEST_INT_INDEX "
+				"    astring   longblob        not null, "
+				"    anum      bigint unsigned not null primary key, "
+				"    a2num     int unsigned    not null "
+				))
 			{
 				INFO (db.GetLastSQL());
 				FAIL_CHECK (db.GetLastError());
@@ -1475,54 +1477,50 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 			uint64_t iCounter { 0 };
 			for (const auto& sRandom : Strings)
 			{
-				db.ExecRawSQL(kFormat(
-								   "insert into TEST_VARCHAR_INDEX \n"
-								   "   set astring = '{}', \n"
-								   "       anum    = {}, \n"
-								   "       a2num   = {}",
-								   sRandom,
-								   ++iCounter,
-								   sRandom.size()
-								));
+				db.ExecSQL("insert into TEST_VARCHAR_INDEX \n"
+						   "   set astring = '{}', \n"
+						   "       anum    = {}, \n"
+						   "       a2num   = {}",
+						   sRandom,
+						   ++iCounter,
+						   sRandom.size()
+						);
 			}
 
 			Durations.StartNextInterval();
 
 			for (const auto& sRandom : Strings)
 			{
-				db.SingleIntRawQuery(kFormat(
-											 "SELECT a2num \n"
-											 "   from TEST_VARCHAR_INDEX \n"
-											 "  where astring = '{}'",
-											 sRandom
-										));
+				db.SingleIntQuery("SELECT a2num \n"
+								  "   from TEST_VARCHAR_INDEX \n"
+								  "  where astring = '{}'",
+								  sRandom
+								);
 			}
 
 			Durations.StartNextInterval();
 
 			for (const auto& sRandom : Strings)
 			{
-				db.ExecRawSQL(kFormat(
-								   "insert into TEST_INT_INDEX \n"
-								   "   set astring = '{}', \n"
-								   "       anum    = {}, \n"
-								   "       a2num   = {}",
-								   sRandom,
-								   sRandom.Hash(),
-								   sRandom.size()
-								));
+				db.ExecSQL("insert into TEST_INT_INDEX \n"
+						   "   set astring = '{}', \n"
+						   "       anum    = {}, \n"
+						   "       a2num   = {}",
+						   sRandom,
+						   sRandom.Hash(),
+						   sRandom.size()
+						);
 			}
 
 			Durations.StartNextInterval();
 
 			for (const auto& sRandom : Strings)
 			{
-				db.SingleIntRawQuery(kFormat(
-											 "SELECT a2num \n"
-											 "   from TEST_INT_INDEX \n"
-											 "  where anum = {}",
-											 sRandom.Hash()
-										));
+				db.SingleIntQuery("SELECT a2num \n"
+								  "   from TEST_INT_INDEX \n"
+								  "  where anum = {}",
+								  sRandom.Hash()
+								);
 			}
 
 			Durations.StartNextInterval();

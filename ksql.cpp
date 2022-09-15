@@ -647,7 +647,7 @@ bool KSQL::SetError(KString sError, uint32_t iErrorNum/*=-1*/, bool bNoThrow/*=f
 
 	if (!bIgnore && !m_sLastSQL.empty())
 	{
-		kDebug (GetDebugLevel(), kLimitSize(m_sLastSQL, 4096));
+		kDebug (GetDebugLevel(), kLimitSize(m_sLastSQL.str(), 4096));
 	}
 
 	if (m_TimingCallback)
@@ -1892,10 +1892,10 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, kLimitSize(m_sLastSQL, 4096));
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}\n", sAPI, kLimitSize(m_sLastSQL.str(), 4096));
 	}
 
-	auto QueryType = GetQueryType(m_sLastSQL);
+	auto QueryType = GetQueryType(m_sLastSQL.str());
 
 	if (IsReadOnlyViolation (QueryType))
 	{
@@ -1937,7 +1937,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		GuardQueryTimeout = [this]{ s_TimedConnections.Remove(*this); };
 	}
 
-	m_SQLStmtStats.Collect(m_sLastSQL, QueryType);
+	m_SQLStmtStats.Collect(m_sLastSQL.str(), QueryType);
 
 	m_iNumRowsAffected  = 0;
 	EndQuery();
@@ -1972,7 +1972,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 						if (!m_dMYSQL)
 						{
-							kDebug (1, "failed.  aborting query or SQL:\n{}", kLimitSize(m_sLastSQL, 4096));
+							kDebug (1, "failed.  aborting query or SQL:\n{}", kLimitSize(m_sLastSQL.str(), 4096));
 							break;
 						}
 					}
@@ -2103,12 +2103,12 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 					if (!ctlib_is_initialized())
 					{
-						kDebug (1, "failed.  aborting query or SQL:\n{}", kLimitSize(m_sLastSQL, 4096));
+						kDebug (1, "failed.  aborting query or SQL:\n{}", kLimitSize(m_sLastSQL.str(), 4096));
 						break; // once
 					}
 				}
 
-				bOK = ctlib_execsql (m_sLastSQL);
+				bOK = ctlib_execsql (m_sLastSQL.str());
 
 				if (!bOK)
 				{
@@ -2172,7 +2172,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 void KSQL::LogPerformance (uint64_t iMilliseconds, bool bIsQuery)
 //-----------------------------------------------------------------------------
 {
-	auto iQueryType = GetQueryType(m_sLastSQL);
+	auto iQueryType = GetQueryType(m_sLastSQL.str());
 	if ((iQueryType == QueryType::Insert) || (iQueryType == QueryType::Update) || (iQueryType == QueryType::Delete))
 	{
 		kDebug (GetDebugLevel(), "KSQL: {} rows affected.\n", kFormNumber(m_iNumRowsAffected));
@@ -2689,11 +2689,11 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 
 		if (fFoundSpecialLeader)
 		{
-			m_sLastSQL += sStart;  // <-- add the line to the SQL statement buffer
+			m_sLastSQL.ref() += sStart;  // <-- add the line to the SQL statement buffer
 		}
 		else
 		{
-			m_sLastSQL += sLine;    // <-- add the line to the SQL statement buffer [with leading whitespace]
+			m_sLastSQL.ref() += sLine;    // <-- add the line to the SQL statement buffer [with leading whitespace]
 		}
 
 		m_sLastSQL += "\n";  // <-- maintain readability by replacing the newline
@@ -2735,7 +2735,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 
 	SetErrorPrefix (sFilename, Parms.iLineNumStart);
 
-	kDebug (GetDebugLevel()+1, "{}: statement # {}:\n{}\n", sFilename, Parms.iStatement, kLimitSize(m_sLastSQL, 4096));
+	kDebug (GetDebugLevel()+1, "{}: statement # {}:\n{}\n", sFilename, Parms.iStatement, kLimitSize(m_sLastSQL.str(), 4096));
 
 	if (m_sLastSQL.empty())
 	{
@@ -2743,10 +2743,10 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 	}
 	else if (m_sLastSQL == "exit\n"   || m_sLastSQL == "quit\n")
 	{
-		kDebug (GetDebugLevel()+1, "{}: statement # {} is '{}' (stopping).", sFilename, Parms.iStatement, kLimitSize(m_sLastSQL, 4096));
+		kDebug (GetDebugLevel()+1, "{}: statement # {} is '{}' (stopping).", sFilename, Parms.iStatement, kLimitSize(m_sLastSQL.str(), 4096));
 		Parms.fOK = Parms.fDone = true;
 	}
-	else if (IsSelect(m_sLastSQL))
+	else if (IsSelect(m_sLastSQL.str()))
 	{
 		kDebug (3, "{}: statement # {} is a QUERY...", sFilename, Parms.iStatement);
 
@@ -2761,7 +2761,7 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 			Parms.fDone = true;
 		}
 	}
-	else if (m_sLastSQL.starts_with("analyze") || m_sLastSQL.starts_with("ANALYZE"))
+	else if (m_sLastSQL.str().starts_with("analyze") || m_sLastSQL.str().starts_with("ANALYZE"))
 	{
 		// "analyze table" is the MYSQL command for updating statistics on a table.
 		kDebug (3, "{}: statement # {} is ANALYZE...", sFilename, Parms.iStatement);
@@ -2842,7 +2842,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 {
 	if (!(iFlags & F_NoKlogDebug) && !(m_iFlags & F_NoKlogDebug))
 	{
-		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (m_sLastSQL.contains('\n')) ? "\n" : "", kLimitSize(m_sLastSQL, 4096));
+		kDebugLog (GetDebugLevel(), "KSQL::{}(): {}{}\n", sAPI, (m_sLastSQL.str().find('\n') != KString::npos) ? "\n" : "", kLimitSize(m_sLastSQL.str(), 4096));
 	}
 
 	EndQuery();
@@ -2852,7 +2852,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 		return (false);
 	}
 
-	if (!(iFlags & F_IgnoreSelectKeyword) && !IsFlag(F_IgnoreSelectKeyword) && ! IsSelect (m_sLastSQL))
+	if (!(iFlags & F_IgnoreSelectKeyword) && !IsFlag(F_IgnoreSelectKeyword) && ! IsSelect (m_sLastSQL.str()))
 	{
 		return SetError ("ExecQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]");
 	}
@@ -4148,14 +4148,14 @@ bool KSQL::LoadColumnLayout(KROW& Row, KStringView sColumns)
 	if (GetDBType() == DBT::SQLSERVER ||
 		GetDBType() == DBT::SQLSERVER15)
 	{
-		if (!ExecRawQuery(FormatSQL("select top 0 {} from {}", sExpandedColumns, Row.GetTablename()), Flags::F_None, "LoadColumnLayout"))
+		if (!ExecQuery(FormatSQL("select top 0 {} from {}", sExpandedColumns, Row.GetTablename()), Flags::F_None, "LoadColumnLayout"))
 		{
 			return false;
 		}
 	}
 	else
 	{
-		if (!ExecRawQuery(FormatSQL("select {} from {} limit 0", sExpandedColumns, Row.GetTablename()), Flags::F_None, "LoadColumnLayout"))
+		if (!ExecQuery(FormatSQL("select {} from {} limit 0", sExpandedColumns, Row.GetTablename()), Flags::F_None, "LoadColumnLayout"))
 		{
 			return false;
 		}
@@ -4210,7 +4210,7 @@ void KSQL::FreeBufferedColArray (bool fValuesOnly/*=false*/)
 } // FreeBufferedColArray
 
 //-----------------------------------------------------------------------------
-KROW KSQL::SingleRawQuery (KString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleRawQuery"*/)
+KROW KSQL::SingleRawQuery (KSQLInjectionSafeString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	KROW ROW;
@@ -4243,7 +4243,7 @@ KROW KSQL::SingleRawQuery (KString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*=
 } // SingleRawQuery
 
 //-----------------------------------------------------------------------------
-KString KSQL::SingleStringRawQuery (KString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleStringRawQuery"*/)
+KString KSQL::SingleStringRawQuery (KSQLInjectionSafeString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleStringRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	auto ROW = SingleRawQuery(std::move(sSQL), iFlags, sAPI);
@@ -4265,7 +4265,7 @@ KString KSQL::SingleStringRawQuery (KString sSQL, Flags iFlags/*=0*/, KStringVie
 } // SingleStringRawQuery
 
 //-----------------------------------------------------------------------------
-int64_t KSQL::SingleIntRawQuery (KString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)
+int64_t KSQL::SingleIntRawQuery (KSQLInjectionSafeString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	auto sValue = SingleStringRawQuery(std::move(sSQL), iFlags, sAPI);
@@ -4924,7 +4924,7 @@ void KSQL::BuildTranslationList (TXList& pList, DBT iDBType)
 } // BuildTranslationList
 
 //-----------------------------------------------------------------------------
-void KSQL::DoTranslations (KStringRef& sSQL)
+void KSQL::DoTranslations (KSQLInjectionSafeString& sSQL)
 //-----------------------------------------------------------------------------
 {
 	kDebug (3,
@@ -4938,7 +4938,7 @@ void KSQL::DoTranslations (KStringRef& sSQL)
 	static constexpr KStringView s_sOpen  = "{{";
 	static constexpr KStringView s_sClose = "}}";
 
-	if (!kReplaceVariables(sSQL, s_sOpen, s_sClose, /*bQueryEnvironment=*/false, m_TxList))
+	if (!kReplaceVariables(sSQL.ref(), s_sOpen, s_sClose, /*bQueryEnvironment=*/false, m_TxList))
 	{
 		kDebug (3, " --> no SQL translations.");
 	}
@@ -6169,7 +6169,9 @@ bool KSQL::BindByPos (uint32_t iPosition, uint64_t* piValue)
 bool KSQL::Load (KROW& Row, bool bSelectAllColumns)
 //-----------------------------------------------------------------------------
 {
-	if (!Row.FormSelect (m_sLastSQL, m_iDBType, bSelectAllColumns))
+	m_sLastSQL = Row.FormSelect (m_iDBType, bSelectAllColumns);
+
+	if (m_sLastSQL.empty())
 	{
 		return SetError(Row.GetLastError());
 	}
@@ -6223,7 +6225,9 @@ bool KSQL::ExecLastRawInsert(bool bIgnoreDupes)
 bool KSQL::Insert (const KROW& Row, bool bIgnoreDupes/*=false*/)
 //-----------------------------------------------------------------------------
 {
-	if (!Row.FormInsert (m_sLastSQL, m_iDBType))
+	m_sLastSQL = Row.FormInsert(m_iDBType);
+
+	if (m_sLastSQL.empty())
 	{
 		return SetError(Row.GetLastError());
 	}
@@ -6349,7 +6353,9 @@ bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 bool KSQL::Update (const KROW& Row)
 //-----------------------------------------------------------------------------
 {
-	if (!Row.FormUpdate (m_sLastSQL, m_iDBType))
+	m_sLastSQL = Row.FormUpdate (m_iDBType);
+
+	if (m_sLastSQL.empty())
 	{
 		return SetError(Row.GetLastError());
 	}
@@ -6371,7 +6377,9 @@ bool KSQL::Update (const KROW& Row)
 bool KSQL::Delete (const KROW& Row)
 //-----------------------------------------------------------------------------
 {
-	if (!Row.FormDelete (m_sLastSQL, m_iDBType))
+	m_sLastSQL = Row.FormDelete (m_iDBType);
+
+	if (m_sLastSQL.empty())
 	{
 		return SetError(Row.GetLastError());
 	}
@@ -6504,7 +6512,7 @@ bool KSQL::PurgeKey (KStringView sSchemaName, KStringView sPKEY_colname, KString
 } // PurgeKey
 
 //-----------------------------------------------------------------------------
-bool KSQL::PurgeKeyList (KStringView sSchemaName, KStringView sPKEY_colname, KStringView sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/, bool bDryRun/*=false*/, int64_t* piNumAffected/*=NULL*/)
+bool KSQL::PurgeKeyList (KStringView sSchemaName, KStringView sPKEY_colname, const KSQLInjectionSafeString& sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/, bool bDryRun/*=false*/, int64_t* piNumAffected/*=NULL*/)
 //-----------------------------------------------------------------------------
 {
 	ChangesMade = KJSON::array();
@@ -6531,14 +6539,14 @@ bool KSQL::PurgeKeyList (KStringView sSchemaName, KStringView sPKEY_colname, KSt
 		}
 		else if (bDryRun)
 		{
-			iChanged = SingleIntRawQuery (kFormat ("select count(*) from {}.{} /*KSQL::PurgeKey*/ where {} in ({})", sTableSchema, sTableName, sPKEY_colname, sInClause));
+			iChanged = SingleIntQuery ("select count(*) from {}.{} /*KSQL::PurgeKey*/ where {} in ({})", sTableSchema, sTableName, sPKEY_colname, sInClause);
 			if (iChanged < 0)
 			{
 				return (false);
 			}
 			obj["rows_selected"] = iChanged;
 		}
-		else if (!ExecRawSQL (kFormat("delete from {}.{} /*KSQL::PurgeKey*/ where {} in ({})", sTableSchema, sTableName, sPKEY_colname, sInClause)))
+		else if (!ExecSQL ("delete from {}.{} /*KSQL::PurgeKey*/ where {} in ({})", sTableSchema, sTableName, sPKEY_colname, sInClause))
 		{
 			return (false);
 		}
@@ -6565,7 +6573,7 @@ bool KSQL::PurgeKeyList (KStringView sSchemaName, KStringView sPKEY_colname, KSt
 } // PurgeKeyList
 
 //-----------------------------------------------------------------------------
-bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, KStringView sWhereClause/*=""*/, uint16_t iFlushRows/*=1024*/, int32_t iPbarThreshold/*=500*/)
+bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLInjectionSafeString& sWhereClause/*=""*/, uint16_t iFlushRows/*=1024*/, int32_t iPbarThreshold/*=500*/)
 //-----------------------------------------------------------------------------
 {
 	KBAR    bar;
@@ -6580,7 +6588,7 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, KStringView sWhereCl
 	
 	if (bPBAR)
 	{
-		iExpected = OtherDB.SingleIntRawQuery (kFormat ("select count(*) from {} {}", sTablename, sWhereClause));
+		iExpected = OtherDB.SingleIntQuery ("select count(*) from {} {}", sTablename, sWhereClause);
 		if (iExpected < 0)
 		{
 			KOut.FormatLine (OtherDB.GetLastError());
@@ -6597,7 +6605,7 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, KStringView sWhereCl
 		else
 		{
 			KOut.FormatLine ("{} rows... ", kFormNumber(iExpected));
-			auto iTarget = SingleIntRawQuery (kFormat ("select count(*) from {} {}", sTablename, sWhereClause));
+			auto iTarget = SingleIntQuery ("select count(*) from {} {}", sTablename, sWhereClause);
 			if (iTarget < 0)
 			{
 				KOut.FormatLine (":: table does not exist in target, skipping copy.");
@@ -6609,7 +6617,7 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, KStringView sWhereCl
 			else if (iTarget)
 			{
 				KOut.FormatLine (":: target has {} rows, issuing a delete before the copy...", kFormNumber(iExpected));
-				ExecRawSQL (kFormat ("delete from {} {}", sTablename, sWhereClause));
+				ExecSQL ("delete from {} {}", sTablename, sWhereClause);
 				KOut.FormatLine (":: purged {} rows from: {} {}", GetNumRowsAffected(), ConnectSummary(), sTablename);
 			}
 			else // target table is empty
@@ -6619,7 +6627,7 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, KStringView sWhereCl
 		}
 	}
 
-	if (!OtherDB.ExecRawQuery (kFormat ("select * from {} {}", sTablename, sWhereClause)))
+	if (!OtherDB.ExecQuery ("select * from {} {}", sTablename, sWhereClause))
 	{
 		return SetError(kFormat ("{}: {}: {}", OtherDB.ConnectSummary(), OtherDB.GetLastError(), OtherDB.GetLastSQL()));
 	}
@@ -7560,7 +7568,7 @@ void KSQL::ctlib_flush_results ()
 #endif
 
 //-----------------------------------------------------------------------------
-size_t KSQL::OutputQuery (KString sSQL, KStringView sFormat, FILE* fpout/*=stdout*/)
+size_t KSQL::OutputQuery (KStringView sSQL, KStringView sFormat, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
 {
 	OutputFormat iFormat = FORM_ASCII;
@@ -7578,15 +7586,18 @@ size_t KSQL::OutputQuery (KString sSQL, KStringView sFormat, FILE* fpout/*=stdou
 		iFormat = FORM_HTML;
 	}
 
-	return (OutputQuery (std::move(sSQL), iFormat, fpout));
+	return (OutputQuery (sSQL, iFormat, fpout));
 
 } // OutputQuery
 
 //-----------------------------------------------------------------------------
-size_t KSQL::OutputQuery (KString sSQL, OutputFormat iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
+size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
 {
-	if (!ExecRawQuery (std::move(sSQL), GetFlags(), "OutputQuery"))
+	KSQLInjectionSafeString sSafeSQL;
+	sSafeSQL.ref() = sSQL;
+
+	if (!ExecQuery (sSafeSQL, GetFlags(), "OutputQuery"))
 	{
 		return (-1);
 	}
@@ -7791,18 +7802,16 @@ bool KSQL::RollbackTransaction (KStringView sOptions/*=""*/)
 } // RollbackTransaction
 
 //-----------------------------------------------------------------------------
-KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFlags/*=FAC::FAC_NORMAL*/, KStringView sSplitBy/*=","*/)
+KSQLInjectionSafeString KSQL::FormAndClause (const KSQLInjectionSafeString& sDbCol, KStringView sQueryParm, FAC iFlags/*=FAC::FAC_NORMAL*/, KStringView sSplitBy/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	KString sClause;
+	KSQLInjectionSafeString sClause;
 
 	if (sQueryParm.empty())
 	{
 		return sClause; // empty
 	}
 
-	// We assume the db column name to be from safe input, it may contain expressions
-	// and escapable characters. The query parms however need escaping.
 	kDebug (3, "dbcol={}, queryparm={}, splitby={}", sDbCol, sQueryParm, sSplitBy);
 
 	KString sLowerParm (sQueryParm);
@@ -7820,38 +7829,38 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFl
 			case 1: // single value
 				if (iFlags & FAC_DECIMAL)
 				{
-					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].Double());
+					sClause = FormatSQL ("   and {} = {}", sDbCol, Parts[0].Double());
 				}
 				else if (iFlags & FAC_SIGNED)
 				{
-					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].Int64());
+					sClause = FormatSQL ("   and {} = {}", sDbCol, Parts[0].Int64());
 				}
 				else if (iFlags & FAC_NUMERIC)
 				{
-					sClause = kFormat ("   and {} = {}", sDbCol, Parts[0].UInt64());
+					sClause = FormatSQL ("   and {} = {}", sDbCol, Parts[0].UInt64());
 				}
 				else
 				{
-					sClause = kFormat ("   and {} = '{}'", sDbCol, EscapeString(Parts[0]));
+					sClause = FormatSQL ("   and {} = '{}'", sDbCol, Parts[0]);
 				}
 				break;
 
 			case 2: // two values
 				if (iFlags & FAC_DECIMAL)
 				{
-					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].Double(), Parts[1].Double());
+					sClause = FormatSQL ("   and {} between {} and {}", sDbCol, Parts[0].Double(), Parts[1].Double());
 				}
 				else if (iFlags & FAC_SIGNED)
 				{
-					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].Int64(), Parts[1].Int64());
+					sClause = FormatSQL ("   and {} between {} and {}", sDbCol, Parts[0].Int64(), Parts[1].Int64());
 				}
 				else if (iFlags & FAC_NUMERIC)
 				{
-					sClause = kFormat ("   and {} between {} and {}", sDbCol, Parts[0].UInt64(), Parts[1].UInt64());
+					sClause = FormatSQL ("   and {} between {} and {}", sDbCol, Parts[0].UInt64(), Parts[1].UInt64());
 				}
 				else
 				{
-					sClause = kFormat ("   and {} between '{}' and '{}'", sDbCol, EscapeString(Parts[0]), EscapeString(Parts[1]));
+					sClause = FormatSQL ("   and {} between '{}' and '{}'", sDbCol, Parts[0], Parts[1]);
 				}
 				break;
 
@@ -7878,19 +7887,19 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFl
 			{
 				if (iFlags & FAC_SUBSELECT)
 				{
-					sClause += ')'; // needs an extra close paren
+					sClause += ")"; // needs an extra close paren
 				}
-				sClause += '\n';
-				sClause += kFormat ("    or {} like '{}'", sDbCol, EscapeString(sOne)); // OR and no parens
+				sClause += "\n";
+				sClause += FormatSQL ("    or {} like '{}'", sDbCol, sOne); // OR and no parens
 			}
 			else
 			{
-				sClause += kFormat ("   and ({} like '{}'", sDbCol, EscapeString(sOne)); // open paren
+				sClause += FormatSQL ("   and ({} like '{}'", sDbCol, sOne); // open paren
 			}
 		}
 		if (sClause)
 		{
-			sClause += ')'; // close paren for AND
+			sClause += ")"; // close paren for AND
 		}
 	}
 
@@ -7899,7 +7908,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFl
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	else if (iFlags & FAC_TEXT_CONTAINS)
 	{
-		sClause = kFormat ("   and lower({}) like '%{}%'", sDbCol, EscapeString(sLowerParm));
+		sClause = FormatSQL ("   and lower({}) like '%{}%'", sDbCol, sLowerParm);
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -7913,7 +7922,7 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFl
 			return sClause; // empty
 		}
 
-		sClause = kFormat ("   and {} >= date_sub(now(), interval 1 {})", sDbCol, EscapeString(sLowerParm));
+		sClause = FormatSQL ("   and {} >= date_sub(now(), interval 1 {})", sDbCol, sLowerParm);
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -7923,15 +7932,15 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFl
 	{
 		if (iFlags & FAC_DECIMAL)
 		{
-			sClause = kFormat ("   and {} = {}", sDbCol, sQueryParm.Double());
+			sClause = FormatSQL ("   and {} = {}", sDbCol, sQueryParm.Double());
 		}
 		else if (iFlags & FAC_SIGNED)
 		{
-			sClause = kFormat ("   and {} = {}", sDbCol, sQueryParm.Int64());
+			sClause = FormatSQL ("   and {} = {}", sDbCol, sQueryParm.Int64());
 		}
 		else if (iFlags & FAC_NUMERIC)
 		{
-			sClause = kFormat ("   and {} = {}", sDbCol, sQueryParm.UInt64());
+			sClause = FormatSQL ("   and {} = {}", sDbCol, sQueryParm.UInt64());
 		}
 		else if (iFlags & FAC_LIKE)
 		{
@@ -7943,11 +7952,11 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFl
 				sOne = kFormat ("%{}%", sOne);
 			}
 
-			sClause = kFormat ("   and {} like '{}'", sDbCol, EscapeString(sOne));
+			sClause = FormatSQL ("   and {} like '{}'", sDbCol, sOne);
 		}
 		else
 		{
-			sClause = kFormat ("   and {} = '{}'", sDbCol, EscapeString(sQueryParm));
+			sClause = FormatSQL ("   and {} = '{}'", sDbCol, sQueryParm);
 		}
 	}
 
@@ -7956,29 +7965,29 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFl
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	else
 	{
-		KString sList;
+		KSQLInjectionSafeString sList;
 
 		for (const auto& sOne : sQueryParm.Split(sSplitBy))
 		{
 			if (iFlags & FAC_DECIMAL)
 			{
-				sList += kFormat ("{}{}", sList ? "," : "", sOne.Double());
+				sList += FormatSQL ("{}{}", sList ? "," : "", sOne.Double());
 			}
 			else if (iFlags & FAC_SIGNED)
 			{
-				sList += kFormat ("{}{}", sList ? "," : "", sOne.Int64());
+				sList += FormatSQL ("{}{}", sList ? "," : "", sOne.Int64());
 			}
 			else if (iFlags & FAC_NUMERIC)
 			{
-				sList += kFormat ("{}{}", sList ? "," : "", sOne.UInt64());
+				sList += FormatSQL ("{}{}", sList ? "," : "", sOne.UInt64());
 			}
 			else
 			{
-				sList += kFormat ("{}'{}'", sList ? "," : "", EscapeString(sOne));
+				sList += FormatSQL ("{}'{}'", sList ? "," : "", sOne);
 			}
 		}
 
-		sClause = kFormat ("   and {} in ({})", sDbCol, sList);
+		sClause = FormatSQL ("   and {} in ({})", sDbCol, sList);
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -7988,9 +7997,9 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFl
 	{
 		if (iFlags & FAC_SUBSELECT)
 		{
-			sClause += ')'; // needs an extra close paren
+			sClause += ")"; // needs an extra close paren
 		}
-		sClause += '\n';
+		sClause += "\n";
 	}
 
 	kDebug (3, "clause={}", sClause);
@@ -8000,18 +8009,19 @@ KString KSQL::FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFl
 } // FormAndClause
 
 //-----------------------------------------------------------------------------
-KString KSQL::FormGroupBy (uint8_t iNumCols)
+KSQLInjectionSafeString KSQL::FormGroupBy (uint8_t iNumCols)
 //-----------------------------------------------------------------------------
 {
-	KString sGroupBy;
+	KSQLInjectionSafeString sGroupBy;
+
 	for (uint8_t ii{1}; ii <= iNumCols; ++ii)
 	{
-		sGroupBy += kFormat ("{}{}", sGroupBy ? "," : " group by ", ii);
+		sGroupBy.ref() += kFormat ("{}{}", sGroupBy ? "," : " group by ", ii);
 	}
 
 	if (sGroupBy)
 	{
-		sGroupBy += "\n";
+		sGroupBy.ref() += "\n";
 	}
 
 	kDebug (3, "groupby={}", sGroupBy);
@@ -8021,7 +8031,7 @@ KString KSQL::FormGroupBy (uint8_t iNumCols)
 } // FormGroupBy
 
 //-----------------------------------------------------------------------------
-bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KStringRef& sOrderBy, const KJSON& Config)
+bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KSQLInjectionSafeString& sOrderBy, const KJSON& Config)
 //-----------------------------------------------------------------------------
 {
 	if (Config.is_null())
@@ -8044,11 +8054,10 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KStringRef& sOrderBy, con
 		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
 	};
 
-	for (auto parm : ParmList)
+	for (KString sParm : ParmList)
 	{
-		KString sParm (parm);
 		bool    bDesc = sParm.contains(" desc");
-		bool    bFound{false};
+		bool    bFound { false };
 
 		sParm.Replace (" descending","");
 		sParm.Replace (" descend",   "");
@@ -8066,10 +8075,9 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KStringRef& sOrderBy, con
 
 				if (kCaselessEqual(sMatchParm, sParm))
 				{
-					// do not escape the configured column name
 					const KString& sDbCol = it.value();
 					kDebug (3, "matched sort parm: {} to: {}", sParm, sDbCol);
-					sOrderBy += kFormat ("{} {}{}\n", !sOrderBy.empty() ? "     ," : " order by", sDbCol, bDesc ? " desc" : "");
+					sOrderBy += FormatSQL ("{} {}{}\n", !sOrderBy.empty() ? "     ," : " order by", sDbCol, bDesc ? " desc" : "");
 					bFound = true;
 					break; // inner for
 				}
@@ -8087,7 +8095,6 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KStringRef& sOrderBy, con
 		}
 	}
 
-	KLog::getInstance().ShowStackOnJsonError(bResetFlag);
 	return true;
 
 } // FormOrderBy
@@ -8707,12 +8714,12 @@ KSQL::ConnectionID KSQL::GetConnectionID(bool bQueryIfUnknown)
 		switch (GetDBType())
 		{
 			case DBT::MYSQL:
-				iID = SingleIntRawQuery("select CONNECTION_ID()");
+				iID = SingleIntRawQuery(FormatSQL("select CONNECTION_ID()"));
 				break;
 
 			case DBT::SQLSERVER:
 			case DBT::SQLSERVER15:
-				iID = SingleIntRawQuery("select @@spid");
+				iID = SingleIntRawQuery(FormatSQL("select @@spid"));
 				break;
 
 			default:
@@ -9672,6 +9679,77 @@ bool KSQL::IsConnectionTestOnly ()
 	return s_sEnvIsConnectionTest;
 
 } // IsConnectionTestOnly
+
+//-----------------------------------------------------------------------------
+KSQLInjectionSafeString KSQL::EscapeType(DBT iDBType, const char* value)
+//-----------------------------------------------------------------------------
+{
+	// const char* is special: we do not escape it if it is from the data segment
+	// - however, if from dynamic memory we _do_ escape it
+	if (kIsInsideDataSegment(value))
+	{
+		return value;
+	}
+	else
+	{
+		return KROW::EscapeChars(value, iDBType);
+	}
+
+} // EscapeType
+
+//-----------------------------------------------------------------------------
+bool KSQL::IsDynamicString(KStringView sStr, bool bThrowIfDynamic)
+//-----------------------------------------------------------------------------
+{
+	if (!kIsInsideDataSegment(sStr.data()))
+	{
+		if (bThrowIfDynamic)
+		{
+			KException ex(kFormat("dynamic strings are not allowed: {}", sStr.LeftUTF8(50)));
+			kException(ex);
+			throw ex;
+		}
+		return true;
+	}
+
+	return false;
+
+} // IsDynamicString
+
+//-----------------------------------------------------------------------------
+bool KSQL::IsDynamicString(const char* sAddr, bool bThrowIfDynamic)
+//-----------------------------------------------------------------------------
+{
+	if (!kIsInsideDataSegment(sAddr))
+	{
+		if (bThrowIfDynamic)
+		{
+			KStringView sStr(sAddr);
+			KException ex(kFormat("dynamic strings are not allowed: {}", sStr.LeftUTF8(50)));
+			kException(ex);
+			throw ex;
+		}
+		return true;
+	}
+
+	return false;
+
+} // IsDynamicString
+
+//-----------------------------------------------------------------------------
+KSQLInjectionSafeString KSQL::EscapeFromQuotedList(KStringView sList)
+//-----------------------------------------------------------------------------
+{
+	KSQLInjectionSafeString sResult;
+
+	for (auto sItem : sList.Split(",", "'"))
+	{
+		sResult += FormatSQL("{}'{}'", (sResult.empty() ? "" : ","), sItem);
+	}
+
+	return sResult;
+
+} // EscapeFromQuotedList
 
 std::atomic<std::chrono::milliseconds> KSQL::s_QueryTimeout        { std::chrono::milliseconds(0) };
 std::atomic<KSQL::QueryType>           KSQL::s_QueryTypeForTimeout { QueryType::None              };

@@ -304,7 +304,8 @@ public:
 
 		KSQL* m_pdb { nullptr };
 		KROW  m_row;
-	};
+
+	}; // iterator
 
 	/// return begin of result rows
 	iterator begin() { return ++iterator(this); }
@@ -381,7 +382,7 @@ public:
 	bool   PurgeKey        (KStringView sSchemaName, KROW& OtherKeys, KStringView sPKEY_colname, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/);
 
 	/// cascading delete of a given key from the entire database (uses data dictionary tables). returns true/false and populates all changes made in given json array. expects IN clause (without the parens)
-	bool   PurgeKeyList    (KStringView sSchemaName, KStringView sPKEY_colname, KStringView sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex="", bool bDryRun=false, int64_t* piNumAffected=NULL);
+	bool   PurgeKeyList    (KStringView sSchemaName, KStringView sPKEY_colname, const KSQLInjectionSafeString& sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex="", bool bDryRun=false, int64_t* piNumAffected=NULL);
 
 	/// bulk copy a table (or portion) from another database to this one
 	/// notes:
@@ -392,16 +393,16 @@ public:
 	/// @param iPbarThreshold if the count(*) is less than this, no pbar will be shown;
 	/// use iPbarThreshold=-1 to turn off progress bar entirely and to eliminate the initial count(*) query
 	/// after successful operation, GetNumRowsAffected() will be adjusted to the cumulative total
-	bool   BulkCopy        (KSQL& OtherDB, KStringView sTablename, KStringView sWhereClause="", uint16_t iFlushRows=1024, int32_t iPbarThreshold=500);
+	bool   BulkCopy        (KSQL& OtherDB, KStringView sTablename, const KSQLInjectionSafeString& sWhereClause="", uint16_t iFlushRows=1024, int32_t iPbarThreshold=500);
 
-	bool   FormInsert     (KROW& Row, KStringRef& sSQL, bool fIdentityInsert=false)
-			{ return Row.FormInsert (sSQL, m_iDBType, fIdentityInsert); }
-	bool   FormUpdate     (KROW& Row, KStringRef& sSQL)
-			{ return Row.FormUpdate (sSQL, m_iDBType); }
-	bool   FormDelete     (KROW& Row, KStringRef& sSQL)
-			{ return Row.FormDelete (sSQL, m_iDBType); }
-	bool   FormSelect     (KROW& Row, KStringRef& sSQL, bool bSelectAllColumns = false)
-			{ return Row.FormSelect (sSQL, m_iDBType, bSelectAllColumns); }
+	KSQLInjectionSafeString FormInsert (KROW& Row, bool fIdentityInsert=false)
+			{ return Row.FormInsert (m_iDBType, fIdentityInsert); }
+	KSQLInjectionSafeString FormUpdate (KROW& Row)
+			{ return Row.FormUpdate (m_iDBType); }
+	KSQLInjectionSafeString FormDelete (KROW& Row)
+			{ return Row.FormDelete (m_iDBType); }
+	KSQLInjectionSafeString FormSelect (KROW& Row, bool bSelectAllColumns = false)
+			{ return Row.FormSelect (m_iDBType, bSelectAllColumns); }
 
 	void   SetErrorPrefix   (KStringView sPrefix, uint32_t iLineNum = 0);
 	void   ClearErrorPrefix ()        { m_sErrorPrefix.clear(); }
@@ -464,82 +465,94 @@ public:
 	/// enable an existing query timeout (needs timeout value > 0 and query type != None to be effective)
 	void EnableQueryTimeout()  { m_bEnableQueryTimeout = true;  }
 
-	/// After establishing a database connection, this is how you sent DDL (create table, etc.) statements to the RDBMS.
-	template<class... Args>
-	bool ExecSQL (KStringView sFormat, Args&&... args)
-	{
-		m_sLastSQL = FormatSQL (sFormat, std::forward<Args>(args)...);
-		bool bOK   = ExecLastRawSQL (Flags::F_None, "ExecSQL");
-		return (bOK);
+//----------
+private:
+//----------
 
-	} // KSQL::ExecSQL
+	bool ExecLastRawSQL (Flags iFlags=Flags::F_None, KStringView sAPI = "ExecLastRawSQL");
+	bool ExecLastRawQuery (Flags iFlags=Flags::F_None, KStringView sAPI = "ExecLastRawQuery");
+	bool ExecLastRawInsert(bool bIgnoreDupes=false);
 
 	inline
-	bool ExecRawSQL  (KString sSQL, Flags iFlags = Flags::F_None, KStringView sAPI="ExecRawSQL")
+	bool ExecRawSQL  (KSQLInjectionSafeString sSQL, Flags iFlags = Flags::F_None, KStringView sAPI="ExecRawSQL")
 	{
 		m_sLastSQL = std::move(sSQL);
 		return ExecLastRawSQL(iFlags, sAPI);
 	}
 
-	bool ExecSQLFile (KStringViewZ sFilename);
-
-	/// After establishing a database connection, this is how you issue a SQL query and get results.
-	template<class... Args>
-	bool ExecQuery (KStringView sFormat, Args&&... args)
+	inline
+	bool ExecRawQuery   (KSQLInjectionSafeString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "ExecRawQuery")
 	{
-		m_sLastSQL = FormatSQL (sFormat, std::forward<Args>(args)...);
-		return (ExecLastRawQuery (Flags::F_None, "ExecQuery"));
-
-	} // ExecQuery
+		m_sLastSQL = std::move(sSQL);
+		return ExecLastRawQuery(iFlags, sAPI);
+	}
 
 	/// Executes a verbatim SQL statement that returns one single integer value or -1 on failure
 	/// @param sSQL  a SQL statement that returns one integer column
 	/// @param iFlags additional processing flags, default none
 	/// @param sAPI  the method name used for logging, default "SingleIntRawQuery"
-	int64_t        SingleIntRawQuery (KString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "SingleIntRawQuery");
+	int64_t        SingleIntRawQuery (KSQLInjectionSafeString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "SingleIntRawQuery");
 
 	/// Executes a verbatim SQL statement that returns one single string value or "" on failure
 	/// @param sSQL  a SQL statement that returns one string column
 	/// @param iFlags additional processing flags, default none
 	/// @param sAPI  the method name used for logging, default "SingleStringRawQuery"
-	KString        SingleStringRawQuery (KString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "SingleStringRawQuery");
+	KString        SingleStringRawQuery (KSQLInjectionSafeString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "SingleStringRawQuery");
 
 	/// Executes a verbatim SQL statement that returns one single KROW
 	/// @param sSQL  a SQL statement
 	/// @param iFlags additional processing flags, default none
 	/// @param sAPI  the method name used for logging, default "SingleRawQuery"
-	KROW           SingleRawQuery (KString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "SingleRawQuery");
+	KROW           SingleRawQuery (KSQLInjectionSafeString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "SingleRawQuery");
+
+//----------
+public:
+//----------
+
+	/// After establishing a database connection, this is how you send DDL (create table, etc.) statements to the RDBMS.
+	template<class... Args>
+	bool ExecSQL (Args&&... args)
+	{
+		m_sLastSQL = FormatSQL (std::forward<Args>(args)...);
+		bool bOK   = ExecLastRawSQL (Flags::F_None, "ExecSQL");
+		return (bOK);
+
+	} // KSQL::ExecSQL
+
+	bool ExecSQLFile (KStringViewZ sFilename);
+
+	/// After establishing a database connection, this is how you issue a SQL query and get results.
+	template<class... Args>
+	bool ExecQuery (Args&&... args)
+	{
+		m_sLastSQL = FormatSQL (std::forward<Args>(args)...);
+		return (ExecLastRawQuery (Flags::F_None, "ExecQuery"));
+
+	} // ExecQuery
 
 	/// Executes an SQL statement with format arguments that returns one KROW
 	template<class... Args>
-	KROW SingleQuery (KStringView sFormat, Args&&... args)
+	KROW SingleQuery (Args&&... args)
 	{
-		return (SingleRawQuery (FormatSQL (sFormat, std::forward<Args>(args)...), Flags::F_None, "SingleQuery"));
+		return (SingleRawQuery (FormatSQL (std::forward<Args>(args)...), Flags::F_None, "SingleQuery"));
 
 	} // KSQL::SingleQuery
 
 	/// Executes an SQL statement with format arguments that returns one single integer value or -1 on failure
 	template<class... Args>
-	int64_t SingleIntQuery (KStringView sFormat, Args&&... args)
+	int64_t SingleIntQuery (Args&&... args)
 	{
-		return (SingleIntRawQuery (FormatSQL (sFormat, std::forward<Args>(args)...), Flags::F_None, "SingleIntQuery"));
+		return (SingleIntRawQuery (FormatSQL (std::forward<Args>(args)...), Flags::F_None, "SingleIntQuery"));
 
 	} // KSQL::SingleIntQuery
 
 	/// Executes an SQL statement with format arguments that returns one single string value or "" on failure
 	template<class... Args>
-	KString SingleStringQuery (KStringView sFormat, Args&&... args)
+	KString SingleStringQuery (Args&&... args)
 	{
-		return (SingleStringRawQuery (FormatSQL (sFormat, std::forward<Args>(args)...), Flags::F_None, "SingleStringQuery"));
+		return (SingleStringRawQuery (FormatSQL (std::forward<Args>(args)...), Flags::F_None, "SingleStringQuery"));
 
 	} // KSQL::SingleStringQuery
-
-	inline
-	bool           ExecRawQuery   (KString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "ExecRawQuery")
-	{
-		m_sLastSQL = std::move(sSQL);
-		return ExecLastRawQuery(iFlags, sAPI);
-	}
 
 	KROW::Index    GetNumCols     ();
 	KROW::Index    GetNumColumns  ()         { return (GetNumCols());       }
@@ -679,7 +692,7 @@ public:
 	bool        WasDuplicateError() const { return (GetLastErrorNum() == 1062); /*TODO:MySQL only*/ }
 	int         GetLastOCIError () const { return (GetLastErrorNum()); }
 	/// returns last issued SQL statement
-	const KString& GetLastSQL ()   const { return (m_sLastSQL);        }
+	const KString& GetLastSQL ()   const { return (m_sLastSQL.str());        }
 	/// set configuration/processing flags, returns old flags
 	Flags       SetFlags (Flags iFlags);
 	/// add new flag(s) to existing configuration/processing flags (logical OR)
@@ -699,7 +712,7 @@ public:
 	void        SetTempDir (KString sTempDir) { m_sTempDir = std::move(sTempDir); }
 
 	void        BuildTranslationList (TXList& pList, DBT iDBType = DBT::NONE);
-	void        DoTranslations (KStringRef& sSQL);
+	void        DoTranslations (KSQLInjectionSafeString& sSQL);
 	/// returns iDBType as string @param iDBType a DBType
 	KStringView TxDBType (DBT iDBType) const;
 	/// returns iAPISet as string @param iAPISet an APISet
@@ -733,8 +746,8 @@ public:
 	bool   QueryStarted ()         { return (m_bQueryStarted); }
 	void   EndQuery (bool bDestructor=false);
 
-	size_t  OutputQuery     (KString sSQL, KStringView sFormat, FILE* fpout = stdout);
-	size_t  OutputQuery     (KString sSQL, OutputFormat iFormat = FORM_ASCII, FILE* fpout = stdout);
+	size_t  OutputQuery     (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout);
+	size_t  OutputQuery     (KStringView sSQL, OutputFormat iFormat = FORM_ASCII, FILE* fpout = stdout);
 
 	void   DisableRetries() { m_bDisableRetries = true;  }
 	void   EnableRetries()  { m_bDisableRetries = false; }
@@ -744,10 +757,9 @@ public:
 	bool   RollbackTransaction (KStringView sOptions="");
 
 	/// helper method to form AND clauses for dynamic SQL.
-	KString FormAndClause (KStringView sDbCol, KStringView sQueryParm, FAC iFlags=FAC::FAC_NORMAL, KStringView sSplitBy=",");
-
+	KSQLInjectionSafeString FormAndClause (const KSQLInjectionSafeString& sDbCol, KStringView sQueryParm, FAC iFlags=FAC::FAC_NORMAL, KStringView sSplitBy=",");
 	/// general purpose helper to create "group by 1,2,3,4..."
-	static KString FormGroupBy (uint8_t iNumCols);
+	static KSQLInjectionSafeString FormGroupBy (uint8_t iNumCols);
 
 	/// General purpose helper method to create "order by X.column1 desc, Y.column2, ..."
 	/// Designed to support (among other things) ANT table sorting.
@@ -778,10 +790,10 @@ public:
 	/// Note: all query parms are case-insentive, so "Status" and "status" are the same.
 	/// In the event of an error, the method returns false and KSQL's GetLastError() will explain it.
 	/// The most common error would be an attempt to sort by a column that is not in your Config spec.
-	bool FormOrderBy (KStringView sCommaDelimedSort, KStringRef& sOrderBy, const KJSON& Config);
+	bool FormOrderBy (KStringView sCommaDelimedSort, KSQLInjectionSafeString& sOrderBy, const KJSON& Config);
 
 	/// shortcut to KROW::EscapeChars that automatically adds the DBType
-	KString EscapeString (KStringView sCol)
+	KSQLInjectionSafeString EscapeString (KStringView sCol)
 	{
 		return KROW::EscapeChars(sCol, m_iDBType);
 	}
@@ -797,6 +809,9 @@ public:
 	{
 		return KROW::EscapedCharacters(m_iDBType);
 	}
+
+	/// converts a list of (single) quoted and comma separated values into an injection safe string with the same format
+	KSQLInjectionSafeString EscapeFromQuotedList(KStringView sList);
 
 	/// Allow KSQL to throw in case of SQL errors. Returns previous throw status
 	bool SetThrow(bool bYesNo) { std::swap(m_bMayThrow, bYesNo); return bYesNo; }
@@ -1197,9 +1212,6 @@ protected:
 	}
 	/// Reset error string and error status
 	void ClearError();
-	bool ExecLastRawSQL (Flags iFlags=Flags::F_None, KStringView sAPI = "ExecLastRawSQL");
-	bool ExecLastRawQuery (Flags iFlags=Flags::F_None, KStringView sAPI = "ExecLastRawQuery");
-	bool ExecLastRawInsert(bool bIgnoreDupes=false);
 	/// Reset last sql command string - only needed in multi-tenant environments for client isolation
 	void ClearLastSQL() { m_sLastSQL.clear(); }
 
@@ -1208,7 +1220,14 @@ private:
 //----------
 
 	//-----------------------------------------------------------------------------
-	template<typename T, typename std::enable_if<std::is_constructible<KStringView, T>::value == false, int>::type = 0>
+	static KSQLInjectionSafeString EscapeType(DBT iDBType, const char* value);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	template<typename T,
+	         typename std::enable_if<!std::is_constructible<KStringView, T>::value
+								   || std::is_same<KSQLInjectionSafeString, typename std::decay<T>::type>::value, int>::type = 0
+	>
 	static auto EscapeType(DBT iDBType, T&& value)
 	//-----------------------------------------------------------------------------
 	{
@@ -1216,8 +1235,11 @@ private:
 	}
 
 	//-----------------------------------------------------------------------------
-	template<typename T, typename std::enable_if<std::is_constructible<KStringView, T>::value == true, int>::type = 0>
-	static auto EscapeType(DBT iDBType, T&& value)
+	template<typename T,
+	         typename std::enable_if<std::is_constructible<KStringView, T>::value
+								 && !std::is_same<KSQLInjectionSafeString, typename std::decay<T>::type>::value, int>::type = 0
+	>
+	static KSQLInjectionSafeString EscapeType(DBT iDBType, T&& value)
 	//-----------------------------------------------------------------------------
 	{
 		// this is a string parameter - escape it
@@ -1225,24 +1247,42 @@ private:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// format no-op
-	static KString FormatEscaped(DBT iDBType, KStringView sFormat)
+	/// static - escapes all string arguments and leaves the rest alone
+	template<class FormatString,
+	         class... Args,
+	         typename std::enable_if<std::is_same<KSQLInjectionSafeString, typename std::decay<FormatString>::type>::value, int>::type = 0>
+	static KSQLInjectionSafeString FormatEscaped(DBT iDBType, FormatString&& sFormat, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
-		return sFormat;
-	}
+		KSQLInjectionSafeString sRet;
+
+		sRet.ref() = std::apply([sFormat](auto&&... args)
+		{
+			return kFormat(sFormat.str(), std::forward<decltype(args)>(args)...);
+		},
+		std::make_tuple(EscapeType(iDBType, args)...));
+
+		return sRet;
+
+	} // FormatEscaped
 
 	//-----------------------------------------------------------------------------
 	/// static - escapes all string arguments and leaves the rest alone
-	template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
-	static KString FormatEscaped(DBT iDBType, KStringView sFormat, Args&&... args)
+	template<class FormatString,
+	         class... Args,
+	         typename std::enable_if<!std::is_same<KSQLInjectionSafeString, typename std::decay<FormatString>::type>::value, int>::type = 0>
+	static KSQLInjectionSafeString FormatEscaped(DBT iDBType, FormatString&& sFormat, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
-		return std::apply([sFormat](auto&&... args)
+		KSQLInjectionSafeString sRet;
+
+		sRet.ref() = std::apply([sFormat](auto&&... args)
 		{
 			return kFormat(sFormat, std::forward<decltype(args)>(args)...);
 		},
 		std::make_tuple(EscapeType(iDBType, args)...));
+
+		return sRet;
 
 	} // FormatEscaped
 
@@ -1250,33 +1290,98 @@ private:
 public:
 //----------
 
+	//----------------------------------------------------------------------
+	/// helper function to detect dynamic (format) strings which could be the source of SQL injections
+	static bool IsDynamicString(KStringView sStr,  bool bThrowIfDynamic = false);
+	static bool IsDynamicString(const char* sAddr, bool bThrowIfDynamic = false);
+	//----------------------------------------------------------------------
+
 	// hide this FormatSQL from general use, as we want users to prefer the one
 	// with automatic DBT deduction
 	struct format_detail
 	{
+		//----------------------------------------------------------------------
+		/// static - format an SQL query with python syntax and automatically escape all string parameters
+		// version for KSQLInjectionSafeString as the format string, in which case we
+		// do not test for const data
+		template<class FormatString,
+		         class... Args,
+		         typename std::enable_if<std::is_same<KSQLInjectionSafeString, typename std::decay<FormatString>::type>::value, int>::type = 0>
+		KSQLInjectionSafeString FormatSQL (DBT iDBType, const FormatString& sFormat, Args&&... args)
+		//----------------------------------------------------------------------
+		{
+			return FormatEscaped(iDBType, std::forward<FormatString>(sFormat), std::forward<Args>(args)...);
+
+		} // FormatSQL
+
 		//-----------------------------------------------------------------------------
-		/// static - escapes all string arguments and leaves the rest alone, assumes maximum set of escape chars (MySQL)
-		template<class... Args>
-		static KString FormatSQL(DBT iDBType, KStringView sFormat, Args&&... args)
+		/// static - escapes all string arguments and leaves the rest alone
+		// prevent FormatString from being KString, as that could mean that it is the
+		// output of a non-escaping kFormat() call, or any other manually assembled, non-escaped string
+		template<class FormatString,
+		         class... Args
+		       , typename Decayed = typename std::decay<FormatString>::type
+		       , typename std::enable_if<!std::is_same<KString,                 Decayed>::value &&
+										 !std::is_same<std::string,             Decayed>::value &&
+	                                     !std::is_same<KSQLInjectionSafeString, Decayed>::value, int>::type = 0
+		>
+		static KSQLInjectionSafeString FormatSQL(DBT iDBType, FormatString&& sFormat, Args&&... args)
 		//-----------------------------------------------------------------------------
 		{
-			return FormatEscaped(iDBType, sFormat, std::forward<Args>(args)...);
+			// although we already forbide strings in this template, we also check if
+			// the string comes from constant storage, to avoid uses like from KString::c_str()
+			IsDynamicString(sFormat, true); // throws if is dynamic
+			return FormatEscaped(iDBType, std::forward<FormatString>(sFormat), std::forward<Args>(args)...);
 		}
 	};
 
 	//----------------------------------------------------------------------
 	/// format an SQL query with python syntax and automatically escape all string parameters
-	template<class... Args>
-	KString FormatSQL (KStringView sFormat, Args&&... args)
+	// version for KSQLInjectionSafeString as the format string, in which case we
+	// do not test for const data
+	template<class FormatString,
+	         class... Args,
+	         typename std::enable_if<std::is_same<KSQLInjectionSafeString, typename std::decay<FormatString>::type>::value, int>::type = 0>
+	KSQLInjectionSafeString FormatSQL (const FormatString& sFormat, Args&&... args)
 	//----------------------------------------------------------------------
 	{
-		if (IsFlag(F_NoTranslations) || sFormat.find("{{") == KStringView::npos)
+		if (IsFlag(F_NoTranslations) || kFind(sFormat.str(), "{{") == KStringView::npos)
 		{
 			return FormatEscaped(m_iDBType, sFormat, std::forward<Args>(args)...);
 		}
 		else
 		{
-			KString sSQL = sFormat;
+			KSQLInjectionSafeString sSQL = sFormat;
+			DoTranslations (sSQL);
+			return FormatEscaped(m_iDBType, sSQL, std::forward<Args>(args)...);
+		}
+
+	} // FormatSQL
+
+	//----------------------------------------------------------------------
+	/// format an SQL query with python syntax and automatically escape all string parameters
+	// prevent FormatString from being KString, as that could mean that it is the
+	// output of a non-escaping kFormat() call, or any other manually assembled, non-escaped string
+	template<class FormatString,
+	         class... Args
+	       , typename Decayed = typename std::decay<FormatString>::type
+	       , typename std::enable_if<!std::is_same<KString,                 Decayed>::value &&
+	                                 !std::is_same<std::string,             Decayed>::value &&
+	                                 !std::is_same<KSQLInjectionSafeString, Decayed>::value, int>::type = 0
+	>
+	KSQLInjectionSafeString FormatSQL (FormatString&& sFormat, Args&&... args)
+	//----------------------------------------------------------------------
+	{
+		// although we already forbide strings in this template, we also check if
+		// the string comes from constant storage, to avoid uses like from KString::c_str()
+		if (IsFlag(F_NoTranslations) || kFind(sFormat, "{{") == KStringView::npos)
+		{
+			IsDynamicString(sFormat, true); // throws if non-const data
+			return FormatEscaped(m_iDBType, sFormat, std::forward<Args>(args)...);
+		}
+		else
+		{
+			KSQLInjectionSafeString sSQL(std::forward<FormatString>(sFormat)); // throws if non-const data
 			DoTranslations (sSQL);
 			return FormatEscaped(m_iDBType, sSQL, std::forward<Args>(args)...);
 		}
@@ -1287,7 +1392,7 @@ public:
 private:
 //----------
 
-	KString    m_sLastSQL;
+	KSQLInjectionSafeString m_sLastSQL;
 	KString    m_sLastErrorSetOnlyWithSetError;   // error string. Never set directly, only via SetError()
 	uint32_t   m_iErrorSetOnlyWithSetError { 0 }; // db error number (e.g. ORA code). Never set directly, only via SetError()
 	Flags      m_iFlags { Flags::F_None };        // set by calling SetFlags()
@@ -1433,22 +1538,26 @@ DEKAF2_ENUM_IS_FLAG(KSQL::QueryType)
 /// format an SQL query with python syntax and automatically escape all string parameters
 /// @param sFormat the format string
 /// @param iDBType the SQL database type to select the escape characters for
-template<class... Args>
-KString kFormatSQL (KSQL::DBT iDBType, KStringView sFormat, Args&&... args)
+template<class FormatString, class... Args>
+KSQLInjectionSafeString kFormatSQL (KSQL::DBT iDBType, FormatString&& sFormat, Args&&... args)
 //----------------------------------------------------------------------
 {
-	return KSQL::format_detail::FormatSQL(iDBType, sFormat, std::forward<Args>(args)...);
+	return KSQL::format_detail::FormatSQL(iDBType,
+										  std::forward<FormatString>(sFormat),
+										  std::forward<Args>(args)...);
 }
 
 //----------------------------------------------------------------------
 /// format an SQL query with python syntax and automatically escape all string parameters with the
 /// maximum of escape characters (=MySQL)
 /// @param sFormat the format string
-template<class... Args>
-KString kFormatSQL (KStringView sFormat, Args&&... args)
+template<class FormatString, class... Args>
+KSQLInjectionSafeString kFormatSQL (FormatString&& sFormat, Args&&... args)
 //----------------------------------------------------------------------
 {
-	return KSQL::format_detail::FormatSQL(KSQL::DBT::MYSQL, sFormat, std::forward<Args>(args)...);
+	return KSQL::format_detail::FormatSQL(KSQL::DBT::MYSQL,
+										  std::forward<FormatString>(sFormat),
+										  std::forward<Args>(args)...);
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

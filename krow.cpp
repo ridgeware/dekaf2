@@ -43,9 +43,47 @@
 #include "krow.h"
 #include "klog.h"
 #include "kcsv.h"
+#include "ksystem.h"
+#include "kexception.h"
 
 namespace dekaf2 {
 
+//-----------------------------------------------------------------------------
+void KSQLInjectionSafeString::ThrowWarning(KStringView sContent)
+//-----------------------------------------------------------------------------
+{
+	KException ex( kFormat("KSQLInjectionSafeString: dynamic string buffers are not accepted: {}", sContent.LeftUTF8(50)) );
+	kException(ex);
+	throw ex;
+}
+
+//-----------------------------------------------------------------------------
+void KSQLInjectionSafeString::AssignFromView(KStringView sContent)
+//-----------------------------------------------------------------------------
+{
+	if (!kIsInsideDataSegment(sContent.data()))
+	{
+		ThrowWarning(sContent);
+	}
+
+	m_sContent = sContent;
+
+} // AssignFromView
+
+//-----------------------------------------------------------------------------
+KSQLInjectionSafeString& KSQLInjectionSafeString::operator+=(const string_type::value_type* sOther)
+//-----------------------------------------------------------------------------
+{
+	if (!kIsInsideDataSegment(sOther))
+	{
+		ThrowWarning(sOther);
+	}
+
+	m_sContent += sOther;
+
+	return *this;
+
+} // ctor
 
 // MySQL requires NUL, the quotes and backslash to be escaped. Do not escape
 // by doubling the value, as the result then depends on the context (if inside
@@ -128,25 +166,26 @@ bool KROW::NeedsEscape (KStringView sCol, KStringView sCharsToEscape)
 } // NeedsEscape
 
 //-----------------------------------------------------------------------------
-KString KROW::EscapeChars (KStringView sCol, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
+KSQLInjectionSafeString KROW::EscapeChars (KStringView sCol, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
-	KString sEscaped;
-	sEscaped.reserve(sCol.size());
+	KSQLInjectionSafeString sEscaped;
+	auto& sRef = sEscaped.ref();
+	sRef.reserve(sCol.size());
 
 	for (KStringView::size_type iStart; (iStart = sCol.find_first_of(sCharsToEscape)) != KStringView::npos; )
 	{
-		sEscaped += sCol.substr(0, iStart);
+		sRef += sCol.substr(0, iStart);
 		auto ch = sCol[iStart];
 		if (!ch) ch = '0'; // NUL needs special treatment
-		sEscaped += (iEscapeChar) ? iEscapeChar : ch;
-		sEscaped += ch;
+		sRef += (iEscapeChar) ? iEscapeChar : ch;
+		sRef += ch;
 		// prepare for next round
 		sCol.remove_prefix(++iStart);
 	}
 	// add the remainder of the input string
-	sEscaped += sCol;
+	sRef += sCol;
 
 	return sEscaped;
 
@@ -170,7 +209,7 @@ KStringView KROW::EscapedCharacters (DBT iDBType)
 } // EscapedCharacters
 
 //-----------------------------------------------------------------------------
-KString KROW::EscapeChars (KStringView sCol, DBT iDBType)
+KSQLInjectionSafeString KROW::EscapeChars (KStringView sCol, DBT iDBType)
 //-----------------------------------------------------------------------------
 {
 	switch (iDBType)
@@ -187,12 +226,12 @@ KString KROW::EscapeChars (KStringView sCol, DBT iDBType)
 } // EscapeChars
 
 //-----------------------------------------------------------------------------
-KString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
+KSQLInjectionSafeString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
 
-	KString sEscaped;
+	KSQLInjectionSafeString sEscaped;
 
 	// check if we shall clip the string
 	auto iMaxLen = Col.second.GetMaxLen();
@@ -211,7 +250,7 @@ KString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEsca
 			if (iEscapeChar)
 			{
 				// now walk back to the begin of a sequence of backslashes
-				while (iClipAt > 0 && sEscaped[iClipAt-1] == iEscapeChar)
+				while (iClipAt > 0 && sEscaped.str()[iClipAt-1] == iEscapeChar)
 				{
 					--iClipAt;
 				}
@@ -225,7 +264,7 @@ KString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEsca
 			{
 				// as long as we are not completely sure about the MS escapes we just drop all of
 				// them trailing a cutoff string
-				while (iClipAt > 0 && sCharsToEscape.find(sEscaped[iClipAt-1]) != KStringView::npos)
+				while (iClipAt > 0 && sCharsToEscape.find(sEscaped.str()[iClipAt-1]) != KStringView::npos)
 				{
 					--iClipAt;
 				}
@@ -244,7 +283,7 @@ KString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEsca
 } // EscapeChars
 
 //-----------------------------------------------------------------------------
-KString KROW::EscapeChars (const KROW::value_type& Col, DBT iDBType)
+KSQLInjectionSafeString KROW::EscapeChars (const KROW::value_type& Col, DBT iDBType)
 //-----------------------------------------------------------------------------
 {
 	switch (iDBType)
@@ -336,12 +375,12 @@ bool KROW::SetFlags (KStringView sColName, KCOL::Flags Flags)
 }
 
 //-----------------------------------------------------------------------------
-void KROW::PrintValuesForInsert(KStringRef& sSQL, DBT iDBType) const
+void KROW::PrintValuesForInsert(KSQLInjectionSafeString& sSQL, DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
 
-	sSQL += '(';
+	sSQL.ref() += "(";
 
 	bool bComma = false;
 
@@ -360,18 +399,18 @@ void KROW::PrintValuesForInsert(KStringRef& sSQL, DBT iDBType) const
 		if (it.second.sValue.empty() && !it.second.IsFlag (KCOL::NULL_IS_NOT_NIL))
 		{
 			// Note: this is the default handling for NIL values: to place them in SQL as SQL null
-			sSQL += kFormat ("{}\n\tnull", (bComma) ? "," : "");
+			sSQL.ref() += kFormat ("{}\n\tnull", (bComma) ? "," : "");
 		}
 		else if (bHack || it.second.HasFlag (KCOL::NUMERIC | KCOL::BOOLEAN | KCOL::EXPRESSION))
 		{
-			sSQL += kFormat ("{}\n\t{}", (bComma) ? "," : "", it.second.sValue); // raw value, no quotes and no processing
+			sSQL.ref() += kFormat ("{}\n\t{}", (bComma) ? "," : "", it.second.sValue); // raw value, no quotes and no processing
 		}
 		else
 		{
 			// catch-all logic for all string values
 			// Note: if the value is actually NIL ('') and NULL_IS_NOT_NIL is set, then the value will
 			// be placed into SQL as '' instead of SQL null.
-			sSQL += kFormat ("{}\n\t{}'{}'",
+			sSQL.ref() += kFormat ("{}\n\t{}'{}'",
 							 (bComma) ? "," : "",
 							 iDBType == DBT::SQLSERVER ? "N" : "",
 							 EscapeChars (it, iDBType));
@@ -379,18 +418,18 @@ void KROW::PrintValuesForInsert(KStringRef& sSQL, DBT iDBType) const
 		bComma = true;
 	}
 
-	sSQL += "\n)";
+	sSQL.ref() += "\n)";
 
 } // PrintValuesForInsert
 
 //-----------------------------------------------------------------------------
-bool KROW::FormInsert (KStringRef& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=false*/) const
+KSQLInjectionSafeString KROW::FormInsert (DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=false*/) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
 
 	m_sLastError.clear(); // reset
-	sSQL.clear();
+	KSQLInjectionSafeString sSQL;
 
 	kDebug (3, "before: {}", sSQL);
 	
@@ -398,17 +437,17 @@ bool KROW::FormInsert (KStringRef& sSQL, DBT iDBType, bool bIdentityInsert/*=fal
 	{
 		m_sLastError = "KROW::FormInsert(): no columns defined.";
 		kDebugLog (1, m_sLastError);
-		return (false);
+		return sSQL;
 	}
 
 	if (m_sTablename.empty())
 	{
 		m_sLastError = "KROW::FormInsert(): no tablename defined.";
 		kDebugLog (1, m_sLastError);
-		return (false);
+		return sSQL;
 	}
 
-	sSQL += kFormat("insert{} into {} (", bIgnore ? " ignore" : "", GetTablename());
+	sSQL.ref() += kFormat("insert{} into {} (", bIgnore ? " ignore" : "", GetTablename());
 
 	kDebug (3, GetTablename());
 
@@ -423,7 +462,7 @@ bool KROW::FormInsert (KStringRef& sSQL, DBT iDBType, bool bIdentityInsert/*=fal
 			continue;
 		}
 		
-		sSQL += kFormat ("{}\n\t{}", (bComma) ? "," : "", it.first);
+		sSQL.ref() += kFormat ("{}\n\t{}", (bComma) ? "," : "", it.first);
 		bComma = true;
 	}
 
@@ -433,7 +472,7 @@ bool KROW::FormInsert (KStringRef& sSQL, DBT iDBType, bool bIdentityInsert/*=fal
 
 	if (bIdentityInsert && (iDBType == DBT::SQLSERVER || iDBType == DBT::SQLSERVER15))
 	{
-		sSQL = kFormat("SET IDENTITY_INSERT {} ON \n"
+		sSQL.ref() = kFormat("SET IDENTITY_INSERT {} ON \n"
 					"{} \n"
 					"SET IDENTITY_INSERT {} OFF"
 					, GetTablename(), sSQL, GetTablename());
@@ -441,12 +480,12 @@ bool KROW::FormInsert (KStringRef& sSQL, DBT iDBType, bool bIdentityInsert/*=fal
 	
 	kDebug (3, "after: {}", sSQL);
 	
-	return (true);
+	return sSQL;
 
 } // FormInsert
 
 //-----------------------------------------------------------------------------
-bool KROW::AppendInsert (KStringRef& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=true*/) const
+bool KROW::AppendInsert (KSQLInjectionSafeString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=true*/) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
@@ -454,7 +493,8 @@ bool KROW::AppendInsert (KStringRef& sSQL, DBT iDBType, bool bIdentityInsert/*=f
 	if (sSQL.empty())
 	{
 		// this is the first record, create the value syntax insert..
-		return FormInsert (sSQL, iDBType, bIdentityInsert, bIgnore);
+		sSQL = FormInsert (iDBType, bIdentityInsert, bIgnore);
+		return !sSQL.empty();
 	}
 
 	m_sLastError.clear(); // reset
@@ -488,31 +528,31 @@ bool KROW::AppendInsert (KStringRef& sSQL, DBT iDBType, bool bIdentityInsert/*=f
 } // AppendInsert
 
 //-----------------------------------------------------------------------------
-bool KROW::FormUpdate (KStringRef& sSQL, DBT iDBType) const
+KSQLInjectionSafeString KROW::FormUpdate (DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
 
 	m_sLastError.clear(); // reset
-	sSQL.clear();
+	KSQLInjectionSafeString sSQL;
 	
 	if (!size())
 	{
 		m_sLastError = "KROW::FormUpdate(): no columns defined.";
 		kDebugLog (1, m_sLastError);
-		return (false);
+		return sSQL;
 	}
 
 	if (m_sTablename.empty())
 	{
 		m_sLastError = "KROW::FormUpdate(): no tablename defined.";
 		kDebugLog (1, m_sLastError);
-		return (false);
+		return sSQL;
 	}
 
 	KROW Keys;
 
-	sSQL += kFormat ("update {} set\n", GetTablename());
+	sSQL.ref() += kFormat ("update {} set\n", GetTablename());
 
 	kDebug (3, m_sTablename);
 
@@ -531,24 +571,24 @@ bool KROW::FormUpdate (KStringRef& sSQL, DBT iDBType) const
 		}
 		else if (it.second.HasFlag (KCOL::EXPRESSION | KCOL::BOOLEAN))
 		{
-			sSQL += kFormat ("\t{}{}={}\n", (bComma) ? "," : "", it.first, it.second.sValue);
+			sSQL.ref() += kFormat ("\t{}{}={}\n", (bComma) ? "," : "", it.first, it.second.sValue);
 			bComma = true;
 		}
 		else
 		{
 			if (it.second.sValue.empty())
 			{
-				sSQL += kFormat ("\t{}{}=null\n", (bComma) ? "," : "", it.first);
+				sSQL.ref() += kFormat ("\t{}{}=null\n", (bComma) ? "," : "", it.first);
 			}
 			else
 			{
 				if (it.second.HasFlag (KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
 				{
-					sSQL += kFormat ("\t{}{}={}\n", (bComma) ? "," : "", it.first, EscapeChars (it, iDBType));
+					sSQL.ref() += kFormat ("\t{}{}={}\n", (bComma) ? "," : "", it.first, EscapeChars (it, iDBType));
 				}
 				else
 				{
-					sSQL += kFormat ("\t{}{}={}'{}'\n",
+					sSQL.ref() += kFormat ("\t{}{}={}'{}'\n",
 									 (bComma) ? "," : "",
 									 it.first,
 									 iDBType == DBT::SQLSERVER ? "N" : "",
@@ -565,7 +605,8 @@ bool KROW::FormUpdate (KStringRef& sSQL, DBT iDBType) const
 	{
 		m_sLastError.Format("KROW::FormUpdate({}): no primary key[s] defined in column list", GetTablename());
 		kDebugLog (1, m_sLastError);
-		return (false);
+		sSQL.clear();
+		return sSQL;
 	}
 
 	bool bFirstKey { true };
@@ -584,11 +625,11 @@ bool KROW::FormUpdate (KStringRef& sSQL, DBT iDBType) const
 		
 		if (it.second.HasFlag(KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
 		{
-			sSQL += kFormat("{}{}={}\n", sPrefix, it.first, EscapeChars (it, iDBType));
+			sSQL.ref() += kFormat("{}{}={}\n", sPrefix, it.first, EscapeChars (it, iDBType));
 		}
 		else
 		{
-			sSQL += kFormat("{}{}={}'{}'\n",
+			sSQL.ref() += kFormat("{}{}={}'{}'\n",
 							sPrefix,
 							it.first,
 							iDBType == DBT::SQLSERVER ? "N" : "",
@@ -596,18 +637,18 @@ bool KROW::FormUpdate (KStringRef& sSQL, DBT iDBType) const
 		}
 	}
 
-	return (true);
+	return sSQL;
 
 } // FormUpdate
 
 //-----------------------------------------------------------------------------
-bool KROW::FormSelect (KStringRef& sSQL, DBT iDBType, bool bSelectAllColumns) const
+KSQLInjectionSafeString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
 
 	m_sLastError.clear(); // reset
-	sSQL.clear();
+	KSQLInjectionSafeString sSQL;
 
 	if (!size())
 	{
@@ -618,7 +659,7 @@ bool KROW::FormSelect (KStringRef& sSQL, DBT iDBType, bool bSelectAllColumns) co
 	{
 		m_sLastError = "KROW::FormSelect(): no tablename defined.";
 		kDebugLog (1, m_sLastError);
-		return (false);
+		return sSQL;
 	}
 
 	kDebug (3, GetTablename());
@@ -635,7 +676,7 @@ bool KROW::FormSelect (KStringRef& sSQL, DBT iDBType, bool bSelectAllColumns) co
 		{
 			if (!it.second.HasFlag (KCOL::NONCOLUMN | KCOL::PKEY))
 			{
-				sSQL += kFormat("\t{} {}\n", (iColumns++) ? "," : "", it.first);
+				sSQL.ref() += kFormat("\t{} {}\n", (iColumns++) ? "," : "", it.first);
 			}
 		}
 
@@ -645,13 +686,14 @@ bool KROW::FormSelect (KStringRef& sSQL, DBT iDBType, bool bSelectAllColumns) co
 		}
 	}
 
+	// do not replace this with an else - bSelectAllColumns can change in the previous branch
 	if (bSelectAllColumns)
 	{
 		sSQL = "select * \n";
 	}
 
 
-	sSQL += kFormat("  from {}\n", GetTablename());
+	sSQL.ref() += kFormat("  from {}\n", GetTablename());
 
 	std::size_t iKeys { 0 };
 
@@ -663,11 +705,11 @@ bool KROW::FormSelect (KStringRef& sSQL, DBT iDBType, bool bSelectAllColumns) co
 
 			if (it.second.HasFlag(KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
 			{
-				sSQL += kFormat("{}{}={}\n", sPrefix, it.first, EscapeChars (it, iDBType));
+				sSQL.ref() += kFormat("{}{}={}\n", sPrefix, it.first, EscapeChars (it, iDBType));
 			}
 			else
 			{
-				sSQL += kFormat("{}{}={}'{}'\n",
+				sSQL.ref() += kFormat("{}{}={}'{}'\n",
 								sPrefix,
 								it.first,
 								iDBType == DBT::SQLSERVER ? "N" : "",
@@ -678,18 +720,18 @@ bool KROW::FormSelect (KStringRef& sSQL, DBT iDBType, bool bSelectAllColumns) co
 
 	kDebug (GetDebugLevel()+1, "KROW::FormSelect: select will rely on {} keys", iKeys);
 
-	return (true);
+	return sSQL;
 
 } // FormSelect
 
 //-----------------------------------------------------------------------------
-bool KROW::FormDelete (KStringRef& sSQL, DBT iDBType) const
+KSQLInjectionSafeString KROW::FormDelete (DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
 
 	m_sLastError.clear(); // reset
-	sSQL.clear();
+	KSQLInjectionSafeString sSQL;
 
 	kDebug (3, "before: {}", sSQL);
 
@@ -697,21 +739,21 @@ bool KROW::FormDelete (KStringRef& sSQL, DBT iDBType) const
 	{
 		m_sLastError = "KROW::FormDelete(): no columns defined.";
 		kDebugLog (1, m_sLastError);
-		return (false);
+		return sSQL;
 	}
 
 	if (m_sTablename.empty())
 	{
 		m_sLastError = "KROW::FormDelete(): no tablename defined.";
 		kDebugLog (1, m_sLastError);
-		return (false);
+		return sSQL;
 	}
 
 	LogRowLayout();
 
 	Index kk = 0;
 
-	sSQL += kFormat("delete from {}\n", GetTablename());
+	sSQL.ref() += kFormat("delete from {}\n", GetTablename());
 
 	kDebug (3, GetTablename());
 
@@ -724,15 +766,15 @@ bool KROW::FormDelete (KStringRef& sSQL, DBT iDBType) const
 
 		if (it.second.sValue.empty())
 		{
-			sSQL += kFormat(" {} {} is null\n",(!kk) ? "where" : "  and", it.first);
+			sSQL.ref() += kFormat(" {} {} is null\n",(!kk) ? "where" : "  and", it.first);
 		}
 		else if (it.second.HasFlag(KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
 		{
-			sSQL += kFormat(" {} {}={}\n",     (!kk) ? "where" : "  and", it.first, EscapeChars (it, iDBType));
+			sSQL.ref() += kFormat(" {} {}={}\n",     (!kk) ? "where" : "  and", it.first, EscapeChars (it, iDBType));
 		}
 		else
 		{
-			sSQL += kFormat(" {} {}={}'{}'\n",
+			sSQL.ref() += kFormat(" {} {}={}'{}'\n",
 							(!kk) ? "where" : "  and",
 							it.first,
 							iDBType == DBT::SQLSERVER ? "N" : "",
@@ -746,12 +788,13 @@ bool KROW::FormDelete (KStringRef& sSQL, DBT iDBType) const
 	{
 		m_sLastError.Format("KROW::FormDelete({}): no primary key[s] defined in column list", GetTablename());
 		kDebugLog (1, m_sLastError);
-		return (false);
+		sSQL.clear();
+		return sSQL;
 	}
 	
 	kDebug (3, "after: {}", sSQL);
 
-	return (true);
+	return sSQL;
 
 } // FormDelete
 

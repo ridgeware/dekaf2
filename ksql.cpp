@@ -8714,12 +8714,12 @@ KSQL::ConnectionID KSQL::GetConnectionID(bool bQueryIfUnknown)
 		switch (GetDBType())
 		{
 			case DBT::MYSQL:
-				iID = SingleIntRawQuery(FormatSQL("select CONNECTION_ID()"));
+				iID = SingleIntQuery("select CONNECTION_ID()");
 				break;
 
 			case DBT::SQLSERVER:
 			case DBT::SQLSERVER15:
-				iID = SingleIntRawQuery(FormatSQL("select @@spid"));
+				iID = SingleIntQuery("select @@spid");
 				break;
 
 			default:

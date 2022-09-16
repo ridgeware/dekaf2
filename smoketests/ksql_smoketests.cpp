@@ -346,7 +346,7 @@ TEST_CASE("KSQL")
 					break;
 			}
 
-			KString sSQL(sBefore);
+			KSQLInjectionSafeString sSQL(sBefore);
 			db.DoTranslations (sSQL);
 			CHECK ( sSQL == sExpected );
 		}

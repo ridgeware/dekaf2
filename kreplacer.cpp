@@ -193,11 +193,11 @@ void KReplacer::AddDebugToken (KStringView sTokenName/*="DEBUG"*/)
 //-----------------------------------------------------------------------------
 {
 	std::size_t iLongest { 0 };
-	for (auto it = m_RepMap.cbegin(), ie = m_RepMap.cend(); it != ie; ++it)
+	for (const auto& it : m_RepMap)
 	{
-		if (it->first.size() > iLongest)
+		if (it.first.size() > iLongest)
 		{
-			iLongest = it->first.size();
+			iLongest = it.first.size();
 		}
 	}
 
@@ -208,9 +208,9 @@ void KReplacer::AddDebugToken (KStringView sTokenName/*="DEBUG"*/)
 	sFormat += "} = '{}'\n";
 
 	KString sBlock;
-	for (auto it = m_RepMap.cbegin(), ie = m_RepMap.cend(); it != ie; ++it)
+	for (const auto& it : m_RepMap)
 	{
-		sBlock += kFormat (sFormat, it->first, it->second);
+		sBlock += kFormat (sFormat, it.first, it.second);
 	}
 
 	insert (sTokenName, sBlock);

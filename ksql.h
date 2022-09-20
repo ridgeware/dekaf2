@@ -1236,13 +1236,37 @@ private:
 
 	//-----------------------------------------------------------------------------
 	template<typename T,
+	         typename Decayed = typename std::decay<T>::type,
 	         typename std::enable_if<std::is_constructible<KStringView, T>::value
-								 && !std::is_same<KSQLInjectionSafeString, typename std::decay<T>::type>::value, int>::type = 0
+								 && !std::is_same<KSQLInjectionSafeString, Decayed>::value
+	                             && !std::is_same<KString,                 Decayed>::value
+	                             && !std::is_same<std::string,             Decayed>::value, int>::type = 0
 	>
 	static KSQLInjectionSafeString EscapeType(DBT iDBType, T&& value)
 	//-----------------------------------------------------------------------------
 	{
-		// this is a string parameter - escape it
+		// this is a string_view like parameter - escape it if it does not come from
+		// constant storage
+		if (!kIsInsideDataSegment(value.data()))
+		{
+			return KROW::EscapeChars (std::forward<T>(value), iDBType);
+		}
+		else
+		{
+			return std::forward<T>(value);
+		}
+	}
+
+	//-----------------------------------------------------------------------------
+	template<typename T,
+	         typename Decayed = typename std::decay<T>::type,
+	         typename std::enable_if<std::is_same<KString,                 Decayed>::value
+	                             ||  std::is_same<std::string,             Decayed>::value, int>::type = 0
+	>
+	static KSQLInjectionSafeString EscapeType(DBT iDBType, T&& value)
+	//-----------------------------------------------------------------------------
+	{
+		// this is a string like parameter - escape it
 		return KROW::EscapeChars (std::forward<T>(value), iDBType);
 	}
 
@@ -1332,9 +1356,9 @@ public:
 		// prevent FormatString from being KString, as that could mean that it is the
 		// output of a non-escaping kFormat() call, or any other manually assembled, non-escaped string
 		template<class FormatString,
-		         class... Args
-		       , typename Decayed = typename std::decay<FormatString>::type
-		       , typename std::enable_if<!std::is_same<KString,                 Decayed>::value &&
+		         class... Args,
+		         typename Decayed = typename std::decay<FormatString>::type,
+		         typename std::enable_if<!std::is_same<KString,                 Decayed>::value &&
 										 !std::is_same<std::string,             Decayed>::value &&
 	                                     !std::is_same<KSQLInjectionSafeString, Decayed>::value, int>::type = 0
 		>

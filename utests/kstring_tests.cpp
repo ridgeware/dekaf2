@@ -493,6 +493,14 @@ TEST_CASE("KString") {
 		s.ReplaceRegex("([0-9]+)([A-Z]+)", "Num \\1 and Letters \\2", true);
 		CHECK( s == "I like Num 456 and Letters ABC and Num 496 and Letters EFK.");
 
+		s = "I like 456ABC.";
+		s.ReplaceRegex("([0-9]+)([A-Z]+)", "the \\0", true);
+		CHECK( s == "I like the 456ABC.");
+
+		s = "I like 456ABC.";
+		s.ReplaceRegex("([0-9]+)([A-Z]+)", "the \\2", true);
+		CHECK( s == "I like the ABC.");
+
 		s = "abcdefghi";
 		s.ReplaceRegex("c.*f", "--", true);
 		CHECK( s == "ab--ghi" );

@@ -51,18 +51,18 @@ using namespace dekaf2;
 TEST_CASE("KSQL")
 //-----------------------------------------------------------------------------
 {
-	KStringView BENIGN    = "Something benign.";
-	KStringView BENIGNx   = "Something benign.";
-	KStringView QUOTES1   = "Fred's Fishing Pole";
-	KStringView QUOTES1x  = "Fred\\'s Fishing Pole";
-	KStringView QUOTES2   = "Fred's `fishing` pole's \"longer\" than mine.";
-	KStringView QUOTES2x  = "Fred\\'s \\`fishing\\` pole\\'s \\\"longer\\\" than mine.";
-	KStringView SLASHES1  = "This is a \\l\\i\\t\\t\\l\\e /s/l/a/s/h test.";
-	KStringView SLASHES1x = "This is a \\\\l\\\\i\\\\t\\\\t\\\\l\\\\e /s/l/a/s/h test.";
-	KStringView SLASHES2  = "This <b>is</b>\\n a string\\r with s/l/a/s/h/e/s, \\g\\e\\t\\ i\\t\\???";
-	KStringView SLASHES2x = "This <b>is</b>\\\\n a string\\\\r with s/l/a/s/h/e/s, \\\\g\\\\e\\\\t\\\\ i\\\\t\\\\???";
-	KStringView ASIAN1    = "Chinese characters ñäöüß 一二三四五六七八九十";
-	KStringView ASIAN2    = "Chinese characters ñäöüß 十九八七六五四三二一";
+	KString BENIGN    = "Something benign.";
+	KString BENIGNx   = "Something benign.";
+	KString QUOTES1   = "Fred's Fishing Pole";
+	KString QUOTES1x  = "Fred\\'s Fishing Pole";
+	KString QUOTES2   = "Fred's `fishing` pole's \"longer\" than mine.";
+	KString QUOTES2x  = "Fred\\'s \\`fishing\\` pole\\'s \\\"longer\\\" than mine.";
+	KString SLASHES1  = "This is a \\l\\i\\t\\t\\l\\e /s/l/a/s/h test.";
+	KString SLASHES1x = "This is a \\\\l\\\\i\\\\t\\\\t\\\\l\\\\e /s/l/a/s/h test.";
+	KString SLASHES2  = "This <b>is</b>\\n a string\\r with s/l/a/s/h/e/s, \\g\\e\\t\\ i\\t\\???";
+	KString SLASHES2x = "This <b>is</b>\\\\n a string\\\\r with s/l/a/s/h/e/s, \\\\g\\\\e\\\\t\\\\ i\\\\t\\\\???";
+	KString ASIAN1    = "Chinese characters ñäöüß 一二三四五六七八九十";
+	KString ASIAN2    = "Chinese characters ñäöüß 十九八七六五四三二一";
 
 	SECTION("KROW::EscapeChars(BENIGN)")
 	{
@@ -220,15 +220,15 @@ TEST_CASE("KSQL")
 
 		auto sResult = DB.FormAndClause("mycol", "a'a|bb|cc|dd|ee|ff|gg", KSQL::FAC_NORMAL, "|").str();
 		sResult.CollapseAndTrim();
-		CHECK (sResult == "and mycol in ('a\\'a','bb','cc','dd','ee','ff','gg')" );
+		CHECK (sResult == "and mycol in ('a'a','bb','cc','dd','ee','ff','gg')" );
 
 		sResult = DB.FormAndClause("mycol", "a'a|bb|cc|dd|ee|ff|gg", KSQL::FAC_LIKE, "|").str();
 		sResult.CollapseAndTrim();
 		CHECK (sResult == "and (mycol like '%a\\'a%' or mycol like '%bb%' or mycol like '%cc%' or mycol like '%dd%' or mycol like '%ee%' or mycol like '%ff%' or mycol like '%gg%')" );
 
-		sResult = DB.FormAndClause("if(ifnull(I.test,0) in (100,101),'value1','value2')", "val'ue1", KSQL::FAC_NORMAL, ",").str();
+		sResult = DB.FormAndClause("if(ifnull(I.test,0) in (100,101),'val'ue1','value2')", "val'ue1", KSQL::FAC_NORMAL, ",").str();
 		sResult.CollapseAndTrim();
-		CHECK (sResult == "and if(ifnull(I.test,0) in (100,101),'value1','value2') = 'val\\'ue1'" );
+		CHECK (sResult == "and if(ifnull(I.test,0) in (100,101),'val'ue1','value2') = 'val'ue1'" );
 	}
 
 	SECTION("FormOrderBy")
@@ -280,6 +280,6 @@ TEST_CASE("KSQL")
 
 		sList = "'ite\"m1','item2','item3'";
 		sEscaped = DB.EscapeFromQuotedList(sList);
-		CHECK ( sEscaped.str() == "'ite\\\"m1','item2','item3'" );
+		CHECK ( sEscaped.str() == "'ite\"m1','item2','item3'" );
 	}
 }

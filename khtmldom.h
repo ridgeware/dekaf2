@@ -206,6 +206,12 @@ public:
 		return m_Attributes.Get(sName);
 	}
 
+	/// Get all attributes on this element
+	KHTMLAttributes& GetAttributes()
+	{
+		return m_Attributes;
+	}
+
 	/// Check for existance of an attribute
 	/// @param sName the attribute name
 	/// @return true it exists, otherwise false

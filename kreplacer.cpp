@@ -189,6 +189,35 @@ bool KReplacer::erase(KStringView sSearch)
 } // erase
 
 //-----------------------------------------------------------------------------
+void KReplacer::AddDebugToken (KStringView sTokenName/*="DEBUG"*/)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iLongest { 0 };
+	for (auto it = m_RepMap.cbegin(), ie = m_RepMap.cend(); it != ie; ++it)
+	{
+		if (it->first.size() > iLongest)
+		{
+			iLongest = it->first.size();
+		}
+	}
+
+	KString sFormat = "{:";
+	sFormat += kFormat ("{}", iLongest);
+	sFormat += ".";
+	sFormat += kFormat ("{}", iLongest);
+	sFormat += "} = '{}'\n";
+
+	KString sBlock;
+	for (auto it = m_RepMap.cbegin(), ie = m_RepMap.cend(); it != ie; ++it)
+	{
+		sBlock += kFormat (sFormat, it->first, it->second);
+	}
+
+	insert (sTokenName, sBlock);
+
+} // AddDebugToken
+
+//-----------------------------------------------------------------------------
 KString KReplacer::Replace(KStringView sIn) const
 //-----------------------------------------------------------------------------
 {

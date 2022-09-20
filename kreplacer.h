@@ -137,6 +137,10 @@ public:
 		return *this;
 	}
 
+	/// Note: add a token like {{DEBUG}} to replacement map which will be
+	/// built and replaced to have all the current tokens in list form.
+	void AddDebugToken (KStringView sTokenName="DEBUG");
+
 	/// Replaces all variables (tokens) in sIn with their values, returns new string
 	KString Replace(KStringView sIn) const;
 

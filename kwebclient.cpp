@@ -191,7 +191,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 			}
 		}
 
-		if (!CheckForRedirect(RequestURL, RequestMethod, bHaveSeparateConnectURL))
+		if (!CheckForRedirect(RequestURL, RequestMethod, /*bNoHostChange=*/bHaveSeparateConnectURL))
 		{
 			break;
 		}

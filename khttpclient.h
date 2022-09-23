@@ -341,6 +341,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Return HTTP status string from last request
+	KStringView GetStatusString() const
+	//-----------------------------------------------------------------------------
+	{
+		return Response.GetStatusString();
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Set proxy server for all subsequent connects
 	self& SetProxy(KURL Proxy)
 	//-----------------------------------------------------------------------------

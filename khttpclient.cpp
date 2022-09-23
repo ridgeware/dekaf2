@@ -956,7 +956,7 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod, bool b
 					}
 					// we deliberately drop username and password in a redirection
 
-					kDebug(1, "{} redirect from {} to {}",
+					kDebug(1, "HTTP-{} redirect from {} to {}",
 						   Response.GetStatusCode(),
 						   URL.Serialize(),
 						   Redirect.Serialize());

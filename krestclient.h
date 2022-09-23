@@ -163,6 +163,7 @@ public:
 	using base::AcceptCookies;
 	using base::SetTimingCallback;
 	using base::SetServiceSummary;
+	using base::GetConnectedEndpoint;
 
 //----------
 protected:

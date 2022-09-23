@@ -59,6 +59,8 @@ TEST_CASE("KHTTPClient")
 		// this tests a redirect to https://www.google.fr
 		auto sResult = HTTP.Get("https://google.fr");
 		CHECK ( HTTP.HttpSuccess() == true );
+		CHECK ( HTTP.GetConnectedEndpoint().Domain == "www.google.fr" );
+		CHECK ( HTTP.GetConnectedEndpoint().Serialize() == "www.google.fr:443" );
 		CHECK ( sResult.empty() == false );
 		sResult = HTTP.Get("https://wxy.judgvbdfasjh.skjhgds.org");
 		CHECK ( HTTP.HttpSuccess() == false );

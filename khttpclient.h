@@ -304,6 +304,16 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Returns the real connection endpoint (may have changed through redirections etc)
+	const KTCPEndPoint& GetConnectedEndpoint() const
+	//-----------------------------------------------------------------------------
+	{
+		static KTCPEndPoint s_EmptyEndpoint;
+
+		return Good() ? m_Connection->EndPoint() : s_EmptyEndpoint;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// evaluates the http status code after a request and returns true 200 >= code <= 299
 	bool HttpSuccess() const
 	//-----------------------------------------------------------------------------

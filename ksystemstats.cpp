@@ -86,7 +86,7 @@ int64_t NeverNegative (int64_t iN)
 bool KSystemStats::GatherAll ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 	bool bOK = true;
 	if (!GatherProcInfo())          bOK = false;
@@ -237,7 +237,7 @@ KStringView KSystemStats::StatTypeToString(StatType iStatType)
 bool KSystemStats::GatherProcInfo ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 	KString sVersion;
 	KString sLoadAvg;
@@ -246,18 +246,18 @@ bool KSystemStats::GatherProcInfo ()
 	if (kDirExists ("/proc"))
 	{
 		{
-			kDebug (2, "reading {} ...", PROC_VERSION);
+			kDebug (3, "reading {} ...", PROC_VERSION);
 			KInFile oProcFile(PROC_VERSION);
 			oProcFile.ReadAll(sVersion);
 			kDebug(3, "contents of {}: {}", PROC_VERSION, sVersion);
 		}
 		{
-			kDebug (2, "reading {} ...", PROC_LOADAVG);
+			kDebug (3, "reading {} ...", PROC_LOADAVG);
 			KInFile oLoadFile(PROC_LOADAVG);
 			oLoadFile.ReadAll(sLoadAvg);
 		}
 		{
-			kDebug (2, "reading {} ...", PROC_UPTIME);
+			kDebug (3, "reading {} ...", PROC_UPTIME);
 			KInFile oUptimeFile(PROC_UPTIME);
 			oUptimeFile.ReadAll(sUptime);
 		}
@@ -265,7 +265,7 @@ bool KSystemStats::GatherProcInfo ()
 		if (!sLoadAvg.empty())
 		{
 			sVersion.TrimRight();
-			kDebug (2, "LOADAVG: {}", sLoadAvg);
+			kDebug (3, "LOADAVG: {}", sLoadAvg);
 			sLoadAvg.Replace('/', ' ',true);
 			auto Parts = sLoadAvg.Split(" ");
 	
@@ -283,7 +283,7 @@ bool KSystemStats::GatherProcInfo ()
 		if (!sUptime.empty())
 		{
 			sUptime.TrimRight();
-			kDebug (2, "UPTIME: {}", sUptime);
+			kDebug (3, "UPTIME: {}", sUptime);
 			auto Parts = sUptime.Split(" ");
 			if (Parts.size() == 2)
 			{
@@ -314,7 +314,7 @@ bool KSystemStats::GatherProcInfo ()
 	}
 	else
 	{
-		kDebug (2, "no /proc tables, so running uptime...");
+		kDebug (3, "no /proc tables, so running uptime...");
 
 		KString sScratch;
 		kSystem ("uptime", sScratch);
@@ -331,9 +331,9 @@ bool KSystemStats::GatherProcInfo ()
 		Add ("load_average_15min", Parts.at(Parts.size()-1), StatType::FLOAT);
 	}
 	
-	kDebug (2, "sizing {} ...", KLog::getInstance().GetDebugLog());
+	kDebug (3, "sizing {} ...", KLog::getInstance().GetDebugLog());
 	Add ("bytes_klog",             NeverNegative (kFileSize (KLog::getInstance().GetDebugLog())),StatType::INTEGER);
-	kDebug (2, "sizing a bunch of files in /var/log ...");
+	kDebug (3, "sizing a bunch of files in /var/log ...");
 	Add ("bytes_var_log_cron",     NeverNegative (kFileSize ("/var/log/cron")),     StatType::INTEGER);
 	Add ("bytes_var_log_dmesg",    NeverNegative (kFileSize ("/var/log/dmesg")),    StatType::INTEGER);
 	Add ("bytes_var_log_faillog",  NeverNegative (kFileSize ("/var/log/faillog")),  StatType::INTEGER);
@@ -352,7 +352,7 @@ bool KSystemStats::GatherProcInfo ()
 bool KSystemStats::GatherMiscInfo ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 /*
 // PROC_MISC file contents look like this
@@ -369,7 +369,7 @@ bool KSystemStats::GatherMiscInfo ()
 	227 mcelog
 */
 
-	kDebug (2, "reading {} ...", PROC_MISC);
+	kDebug (3, "reading {} ...", PROC_MISC);
 
 	KInFile file(PROC_MISC);
 	file.SetReaderRightTrim("\r\n\t ");
@@ -410,7 +410,7 @@ bool KSystemStats::GatherMiscInfo ()
 bool KSystemStats::GatherVmStatInfo ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 /*
 // PROC_VMSTAT contents look like this
@@ -467,7 +467,7 @@ bool KSystemStats::GatherVmStatInfo ()
 	pgrotated 1374
 */
 
-	kDebug (2, "reading {} ...", PROC_VMSTAT);
+	kDebug (3, "reading {} ...", PROC_VMSTAT);
 
 	KInFile file(PROC_VMSTAT);
 	file.SetReaderRightTrim("\r\n\t ");
@@ -480,20 +480,20 @@ bool KSystemStats::GatherVmStatInfo ()
 			continue;
 		}
 
-		kDebug (2, "{}: raw: {}", PROC_VMSTAT, sLine);
+		kDebug (3, "{}: raw: {}", PROC_VMSTAT, sLine);
 
 		auto Parts = sLine.Split(" ");
 
 		if (Parts.size() != 2)
 		{
-			kDebug (2, "Got unexpected line from {}", PROC_VMSTAT);
+			kDebug (3, "Got unexpected line from {}", PROC_VMSTAT);
 			continue;
 		}
 
 		KString sName = "vmstat_";
 		sName += Parts.at(0);
 
-		kDebug (2, "{}:  ok: {}={}", PROC_VMSTAT, sName, Parts.at(1));
+		kDebug (3, "{}:  ok: {}={}", PROC_VMSTAT, sName, Parts.at(1));
 		Add (sName, Parts.at(1), StatType::INTEGER);
 	}
 
@@ -516,7 +516,7 @@ void KSystemStats::AddDiskStat (KStringView sValue, KStringView sDevice, KString
 bool KSystemStats::GatherDiskStats ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 /*
  * PROC_DISKSTATS file contents look like this
@@ -549,7 +549,7 @@ bool KSystemStats::GatherDiskStats ()
 	8   17 sdb1 3256514 1808694 408475704 100689752 23356709 71293985 564331150 534532579 0 78904588 635223494
 */
 
-	kDebug (2, "reading {} ...", PROC_DISKSTATS);
+	kDebug (3, "reading {} ...", PROC_DISKSTATS);
 
 	KInFile file(PROC_DISKSTATS);
 	file.SetReaderRightTrim("\r\n\t ");
@@ -602,7 +602,7 @@ bool KSystemStats::GatherDiskStats ()
 bool KSystemStats::GatherCpuInfo ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 /*
 // RHEL5 PROC_CPUINFO file looks like this
@@ -689,7 +689,7 @@ bool KSystemStats::GatherCpuInfo ()
 	power management:
 #endif
 */
-	kDebug (2, "reading {} ...", PROC_CPUINFO);
+	kDebug (3, "reading {} ...", PROC_CPUINFO);
 
 	int_t iNumCores { 0 };
 
@@ -704,7 +704,7 @@ bool KSystemStats::GatherCpuInfo ()
 			continue;
 		}
 
-		kDebug (2, "{}: raw: {}", PROC_CPUINFO, sLine);
+		kDebug (3, "{}: raw: {}", PROC_CPUINFO, sLine);
 
 		auto Parts = sLine.Split(":");
 		if (Parts.size() != 2)
@@ -727,7 +727,7 @@ bool KSystemStats::GatherCpuInfo ()
 		// restrict what we capture for cpuinfo to match the schema:
 		if (!kStrIn (sName, "address_sizes,bogomips,cache_alignment,cache_size_kb,clflush_size,cpu_family,cpu_mhz,cpuid_level,flags,fpu,fpu_exception,model,model_name,power_management,processor,stepping,vendor_id,wp,microcache"))
 		{
-			kDebug (2, "ignoring newer cpuinfo field: {}", sName);
+			kDebug (3, "ignoring newer cpuinfo field: {}", sName);
 			continue;
 		}
 
@@ -738,7 +738,7 @@ bool KSystemStats::GatherCpuInfo ()
 		else if (1 == iNumCores) // we only need to store CPU info for one core since every process is identical
 		{
 			sName.insert(0, "cpuinfo_");
-			kDebug (2, "{}:  ok: {}={}", PROC_CPUINFO, sName, sValue);
+			kDebug (3, "{}:  ok: {}={}", PROC_CPUINFO, sName, sValue);
 			Add (sName, sValue);
 		}
 	}
@@ -746,7 +746,7 @@ bool KSystemStats::GatherCpuInfo ()
 	Add (CPUINFO_NUM_CORES, iNumCores, StatType::INTEGER);
 	file.close();
 
-	kDebug (2, "reading {} ...", PROC_STAT);
+	kDebug (3, "reading {} ...", PROC_STAT);
 	file.open (PROC_STAT);
 
 	while (file.ReadLine(sLine))
@@ -777,7 +777,7 @@ bool KSystemStats::GatherCpuInfo ()
 
 		if (Parts.at(0) == "cpu")
 		{
-			kDebug (2, "{}: {} parts: {}", PROC_STAT, Parts.size(), sLine);
+			kDebug (3, "{}: {} parts: {}", PROC_STAT, Parts.size(), sLine);
 
 			uint64_t idx = 0;
 			Add ("procs_user_mode",           (++idx < Parts.size()) ? Parts.at(idx) : "0", StatType::INTEGER);
@@ -821,7 +821,7 @@ bool KSystemStats::GatherCpuInfo ()
 bool KSystemStats::GatherMemInfo ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 /*
 // PROC_MEMINFO file contents look like this
@@ -861,7 +861,7 @@ bool KSystemStats::GatherMemInfo ()
 	Hugepagesize:     2048 kB
 */
 
-	kDebug (2, "reading {} ...", PROC_MEMINFO);
+	kDebug (3, "reading {} ...", PROC_MEMINFO);
 
 	KInFile file(PROC_MEMINFO);
 	file.SetReaderRightTrim("\r\n\t ");
@@ -910,9 +910,9 @@ bool KSystemStats::GatherMemInfo ()
 bool KSystemStats::GatherNetstat ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
-	kDebug (2, "running netstat ...");
+	kDebug (3, "running netstat ...");
 
 	KInShell pipe;
 	pipe.SetReaderRightTrim("\r\n\t ");
@@ -1015,11 +1015,11 @@ bool KSystemStats::GatherNetstat ()
 bool KSystemStats::AddCalculations ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 	// add a few hand-picked calculations (if we have the stats that compose them):
 
-	kDebug (2, "computing a few parms ...");
+	kDebug (3, "computing a few parms ...");
 	if (m_Stats.contains ("cpuinfo_num_cores"))
 	{
 		auto   nLoad    = m_Stats["load_average_1min"].sValue.Double();
@@ -1086,7 +1086,7 @@ bool KSystemStats::AddCalculations ()
 size_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNoShowMyself/*=true*/)
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 	m_Procs.clear();
 
@@ -1100,7 +1100,7 @@ size_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNoSh
 	KStringView sFullCmd;
 	KString sLine;
 
-	kDebug (2, "running ps ...");
+	kDebug (3, "running ps ...");
 
 	if (pipe.Open ("ps -e -o pid,ppid,comm,command 2>&1"))
 	{
@@ -1177,7 +1177,7 @@ size_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNoSh
 				sWhat = "does not match";
 			}
 
-			kDebug (2, "{:<15} | {:<6} | {:<6} | {:<15} | {}", sWhat, sPID, sPPID, sShortCmd, sFullCmd);
+			kDebug (3, "{:<15} | {:<6} | {:<6} | {:<15} | {}", sWhat, sPID, sPPID, sShortCmd, sFullCmd);
 		}
 	}
 
@@ -1189,7 +1189,7 @@ size_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNoSh
 void KSystemStats::DumpStats (KOutStream& stream, DumpFormat iFormat/*=DumpFormat::TEXT*/, KStringView sGrepString/*=""*/)
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 	KRegex kregex(sGrepString);
 
@@ -1245,7 +1245,7 @@ void KSystemStats::DumpStats (KOutStream& stream, DumpFormat iFormat/*=DumpForma
 void KSystemStats::DumpProcs (KOutStream& stream, DumpFormat iFormat/*=DumpFormat::TEXT*/)
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 	switch (iFormat)
 	{
@@ -1293,7 +1293,7 @@ void KSystemStats::DumpProcs (KOutStream& stream, DumpFormat iFormat/*=DumpForma
 void KSystemStats::DumpProcTree (KOutStream& stream, uint64_t iStartWithPID/*=0*/)
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 	DumpPidTree (stream, iStartWithPID, 0);
 
@@ -1303,9 +1303,9 @@ void KSystemStats::DumpProcTree (KOutStream& stream, uint64_t iStartWithPID/*=0*
 void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t iLevel)
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
-	kDebug (2, "ppid={}, level={}", iFromPID, iLevel);
+	kDebug (3, "ppid={}, level={}", iFromPID, iLevel);
 
 	// indentation:
 	if (iLevel > 0)
@@ -1348,7 +1348,7 @@ void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t 
 		{
 #ifdef DEKAF2_WITH_KLOG
 			KStringView sCmd = proc.second.sValue;
-			kDebug (2, "child: ppid={}, pid={}, cmd={}", iPPID, iPID, sCmd);
+			kDebug (3, "child: ppid={}, pid={}, cmd={}", iPPID, iPID, sCmd);
 #endif
 			DumpPidTree (stream, iPID, iLevel+1);
 		}
@@ -1360,7 +1360,7 @@ void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t 
 uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStringView sMyUniqueIP, KStringRef& sResponse)
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 	KJSON   oBody;
 	KString sBody;
@@ -1430,20 +1430,20 @@ uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStr
 		sBody = oBody.dump();
 	}
 
-	kDebug (2, "sending POST to: {}", sURL);
+	kDebug (3, "sending POST to: {}", sURL);
 	KWebClient HTTP;
 	sResponse = HTTP.Post(sURL, sBody, iMime);
 
 	if (!sResponse.empty())
 	{
 		kTrimRight(sResponse);
-		kDebug (2, "HTTP-{}: {}", HTTP.GetStatusCode(), sResponse);
+		kDebug (3, "HTTP-{}: {}", HTTP.GetStatusCode(), sResponse);
 		return HTTP.GetStatusCode();
 	}
 	else
 	{
 		sResponse = "(got timeout)";
-		kDebug (2, "got timeout");
+		kDebug (3, "got timeout");
 		return 0;
 	}
 } // PushStats
@@ -1452,7 +1452,7 @@ uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStr
 KString KSystemStats::Backtrace (pid_t iPID)
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
+	kDebug (3, "...");
 
 	KString sChain;
 

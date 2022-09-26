@@ -356,10 +356,67 @@ bool KSSLIOStream::handshake(KAsioSSLStream<asiostream>* stream)
 
 	if (stream->ec.value() != 0 || !stream->Socket.lowest_layer().is_open())
 	{
-		kDebug(1, "ssl handshake failed with {}: {}",
+		kDebug(1, "TLS handshake failed with {}: {}",
 			   stream->sEndpoint,
 			   stream->ec.message());
 		return false;
+	}
+
+	auto ssl = stream->Socket.native_handle();
+
+#if OPENSSL_VERSION_NUMBER <= 0x10002000L
+	// OpenSSL <= 1.0.2 did not do hostname validation - let's do it manually
+
+	if (stream->SSLContext.GetVerify())
+	{
+		// look for server certificate
+		auto* cert = SSL_get_peer_certificate(ssl);
+
+		if (cert)
+		{
+			// have one, free it immediately
+			X509_free(cert);
+		}
+		else
+		{
+			kDebug(1, "server did not present a certificate");
+			return false;
+		}
+
+		// check chain verification
+		if (SSL_get_verify_result(ssl) != X509_V_OK)
+		{
+			kDebug(1, "certificate chain verification failed");
+			return false;
+		}
+	}
+#endif
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	// in OpenSSL < 1.1.0 we need to manually check that the host name is
+	// one of the certificate host names ..
+#endif
+
+	if (kWouldLog(2))
+	{
+		kDebug(2, "TLS handshake successful, rx/tx {}/{} bytes",
+			   BIO_number_read(SSL_get_rbio(ssl)),
+			   BIO_number_written(SSL_get_wbio(ssl)));
+
+		auto cipher = SSL_get_current_cipher(ssl);
+		kDebug(2, "TLS version: {}, cipher: {}",
+			   SSL_CIPHER_get_version(cipher),
+			   SSL_CIPHER_get_name(cipher));
+
+		auto compress  = SSL_get_current_compression(ssl);
+		auto expansion = SSL_get_current_expansion(ssl);
+
+		if (compress || expansion)
+		{
+			kDebug(2, "TLS compression: {}, expansion: {}",
+				   compress  ? SSL_COMP_get_name(compress ) : "NONE",
+				   expansion ? SSL_COMP_get_name(expansion) : "NONE");
+		}
 	}
 
 	return true;
@@ -446,7 +503,7 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 			}
 			else
 			{
-				kDebug(1, "cannot read from tls stream with endpoint {}: {}",
+				kDebug(1, "cannot read from TLS stream with endpoint {}: {}",
 					   stream->sEndpoint,
 					   stream->ec.message());
 			}
@@ -514,7 +571,7 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 				}
 				else
 				{
-					kDebug(1, "cannot write to tls stream with endpoint {}: {}",
+					kDebug(1, "cannot write to TLS stream with endpoint {}: {}",
 						   stream->sEndpoint,
 						   stream->ec.message());
 				}
@@ -599,6 +656,9 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 			m_Stream.Socket.set_verify_mode(boost::asio::ssl::verify_none);
 		}
 
+		// make sure client side SNI works..
+		SSL_set_tlsext_host_name(m_Stream.Socket.native_handle(), Endpoint.Domain.get().c_str());
+
 		boost::asio::async_connect(m_Stream.Socket.lowest_layer(),
 								   hosts,
 								   [&](const boost::system::error_code& ec,
@@ -629,9 +689,6 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 		kDebug(1, "{}: {}", Endpoint.Serialize(), Error());
 		return false;
 	}
-
-	// make sure client side SNI works..
-	SSL_set_tlsext_host_name(m_Stream.Socket.native_handle(), Endpoint.Domain.get().c_str());
 
 	kDebug(2, "connected to endpoint {}", Endpoint.Serialize());
 

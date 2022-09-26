@@ -191,7 +191,7 @@ struct KAsioSSLStream
 				// already been disconnected
 				if (ec.value() != boost::asio::error::not_connected)
 				{
-					kDebug(2, "error shutting down socket: {} {}", ec.message());
+					kDebug(2, "error shutting down socket: {}", ec.message());
 				}
 				return false;
 			}
@@ -203,6 +203,8 @@ struct KAsioSSLStream
 				kDebug(2, "error closing socket: {}", ec.message());
 				return false;
 			}
+
+			kDebug(2, "disconnected from: {}", sEndpoint);
 		}
 
 		return true;

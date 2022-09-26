@@ -98,7 +98,10 @@ struct KAsioStream
 				kDebug(2, "error closing socket: {}", ec.message());
 				return false;
 			}
+
+			kDebug(2, "disconnected from: {}", sEndpoint);
 		}
+
 		return true;
 
 	} // Disconnect

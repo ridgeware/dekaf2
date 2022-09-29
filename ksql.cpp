@@ -9176,7 +9176,7 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 				"  from information_schema.TABLES\n"
 				" where table_schema='{}'\n"
 				"   and table_name='{}'",
-					GetDBName(), sTable))
+					sDBName, sTable))
 			{
 				return KJSON{};
 			}

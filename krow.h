@@ -156,6 +156,11 @@ public:
 		return m_sContent.Replace(sOrig.str(), sReplace.str(), pos, bReplaceAll);
 	}
 
+	/// this is a very special version of Split, it will only split at non-quote encompassed delimiters,
+	/// and the delimiter char may not be one of the quotable chars - throws otherwise. Use it to
+	/// split chained commands into multiple single commands.
+	std::vector<self> Split(const char chDelimit = ';', bool bTrimWhiteSpace = true) const;
+
 //----------
 private:
 //----------

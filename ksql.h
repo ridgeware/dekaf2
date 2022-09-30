@@ -832,6 +832,25 @@ public:
 		static constexpr KStringViewZ ignore_collate{"ignore_collate"};
 		static constexpr KStringViewZ show_meta_info{"show_meta_info"};
 
+		struct OneDiff
+		{
+			OneDiff() = default;
+			OneDiff(KString sComment,
+					KSQLInjectionSafeString sActionLeft,
+					KSQLInjectionSafeString sActionRight)
+			: sComment(std::move(sComment))
+			, sActionLeft(std::move(sActionLeft))
+			, sActionRight(std::move(sActionRight))
+			{}
+
+			KString                 sComment;
+			KSQLInjectionSafeString sActionLeft;
+			KSQLInjectionSafeString sActionRight;
+
+		}; // One
+
+		using Diffs = std::vector<OneDiff>;
+
 	}; // DIFF
 
 	/// Load entire data dictionary into a JSON structure for the given schema (or current connection).
@@ -839,15 +858,18 @@ public:
 	KJSON LoadSchema (KStringView sDBName="", KStringView sStartsWith="", const KJSON& options={});
 
 	/// Diff two data dictionaries, returned by prior calls to LoadSchema().
-	/// Produces two summaries of the diffs: one structured (JSON) and the other serialized (ASCII "diff" output).
-	/// Returns the number of diffs (or 0 if no diffs).
-	size_t DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema, KJSON& Diffs, KStringRef& sSummary,
-						const KJSON& options={
-							{DIFF::left_schema,"left schema"},
-							{DIFF::left_prefix,"<"},
-							{DIFF::right_schema,"right schema"},
-							{DIFF::right_prefix,">"}
-						});
+	/// Produces two summaries of the diffs: one structured (DIFF::Diffs) and the other serialized (ASCII "diff" output).
+	/// Returns the number of diffs (or 0 if no diffs)
+	std::size_t DiffSchemas (const KJSON& LeftSchema,
+							 const KJSON& RightSchema,
+							 DIFF::Diffs& Diffs,
+							 KStringRef&  sSummary,
+							 const KJSON& options={
+								{DIFF::left_schema,"left schema"},
+								{DIFF::left_prefix,"<"},
+								{DIFF::right_schema,"right schema"},
+								{DIFF::right_prefix,">"}
+							 });
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper object to proxy access to KSQL and reset the Throw/NoThrow state after use

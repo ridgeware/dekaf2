@@ -9201,9 +9201,11 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 } // LoadSchema
 
 //-----------------------------------------------------------------------------
-size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
-						   KJSON& Diffs, KStringRef& sSummary,
-						   const KJSON& options/*={}*/)
+size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
+						  const KJSON& RightSchema,
+						  DIFF::Diffs& Diffs,
+						  KStringRef& sSummary,
+						  const KJSON& options/*={}*/)
 //-----------------------------------------------------------------------------
 {
 	size_t  iTotalDiffs { 0 };
@@ -9211,7 +9213,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 	bool    bShowMetaInfo                 = kjson::GetBool(options, DIFF::show_meta_info);
 
 	sSummary.clear();        // <-- return result (verbosity)
-	Diffs = KJSON::array();  // <-- return result (SQL commands)
+	Diffs.clear();           // <-- return result (SQL commands)
 
 	const auto& sDiffPrefix  = kjson::GetStringRef(options, DIFF::diff_prefix );
 	const auto& sLeftSchema  = kjson::GetStringRef(options, DIFF::left_schema );
@@ -9272,7 +9274,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 	}; // lambda: PrintColumn
 
 	//-----------------------------------------------------------------------------
-	auto FormCreateAction = [] (KStringView sTableName, const KJSON& jColumn, KStringRef& sResult)
+	auto FormCreateAction = [this] (KStringView sTableName, const KJSON& jColumn, KSQLInjectionSafeString& sResult)
 	//-----------------------------------------------------------------------------
 	{
 		if (jColumn.is_object() && !jColumn.empty())
@@ -9283,23 +9285,21 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 
 			if (sResult.empty())
 			{
-				sResult =  kFormat ("create table {}\n", sTableName);
-				sResult += kFormat ("(\n");
-				sResult += kFormat ("    {:<25} {}\n", sName, sValue);
+				sResult =  FormatSQL ("create table {}\n(\n    {:<25} {}\n", sTableName, sName, sValue);
 			}
 			else
 			{
-				sResult += kFormat ("  , {:<25} {}\n", sName, sValue);
+				sResult += FormatSQL ("  , {:<25} {}\n", sName, sValue);
 			}
 		}
 
 	}; // lambda: FormCreateAction
 
 	//-----------------------------------------------------------------------------
-	auto FormAlterAction  = [] (KStringView sTableName, const KJSON& jColumn, KStringView sVerb) -> KString
+	auto FormAlterAction  = [this] (KStringView sTableName, const KJSON& jColumn, KStringView sVerb) -> KSQLInjectionSafeString
 	//-----------------------------------------------------------------------------
 	{
-		KString sResult;
+		KSQLInjectionSafeString sResult;
 
 		if (jColumn.is_object() && !jColumn.empty())
 		{
@@ -9313,15 +9313,15 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 				switch (sVerb.Hash())
 				{
 				case "drop"_hash:
-					sResult += kFormat ("alter table {} drop primary key", sTableName);
+					sResult += FormatSQL ("alter table {} drop primary key", sTableName);
 					break;
 				case "add"_hash:
-					sResult += kFormat ("alter table {} add primary key {}", sTableName, sValue);
+					sResult += FormatSQL ("alter table {} add primary key {}", sTableName, sValue);
 					break;
 				case "modify"_hash:
 				default:
-					sResult += kFormat ("alter table {} drop primary key; ", sTableName);
-					sResult += kFormat ("alter table {} add primary key {}", sTableName, sValue);
+					sResult += FormatSQL ("alter table {} drop primary key; ", sTableName);
+					sResult += FormatSQL ("alter table {} add primary key {}", sTableName, sValue);
 					break;
 				}
 			}
@@ -9330,13 +9330,13 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 				switch (sVerb.Hash())
 				{
 				case "drop"_hash:
-					sResult += kFormat ("drop index {} on {}", sName, sTableName);
+					sResult += FormatSQL ("drop index {} on {}", sName, sTableName);
 					break;
 				case "add"_hash:
 				case "modify"_hash:
 				default:
-					sResult += kFormat ("drop index if exists {} on {}; ", sName, sTableName);
-					sResult += kFormat ("create index {} on {} {}", sName, sTableName, sValue); // <-- TODO: how do I know if its UNIQUE ??
+					sResult += FormatSQL ("drop index if exists {} on {}; ", sName, sTableName);
+					sResult += FormatSQL ("create index {} on {} {}", sName, sTableName, sValue); // <-- TODO: how do I know if its UNIQUE ??
 					break;
 				}
 			}
@@ -9345,12 +9345,12 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 				switch (sVerb.Hash())
 				{
 				case "drop"_hash:
-					sResult.Format ("alter table {} {} column {}", sTableName, sVerb, sName);
+					sResult = FormatSQL ("alter table {} {} column {}", sTableName, sVerb, sName);
 					break;
 				case "add"_hash:
 				case "modify"_hash:
 				default:
-					sResult.Format ("alter table {} {} column {} {}", sTableName, sVerb, sName, sValue);
+					sResult = FormatSQL ("alter table {} {} column {} {}", sTableName, sVerb, sName, sValue);
 					break;
 				}
 			}
@@ -9368,21 +9368,21 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 
 		sSummary += kFormat ("{}{}", sDiffPrefix, sTableName); // <-- no newline on purpose
 
-		int     iCreateTable{0};
-		KString sLeftCreate;
-		KString sRightCreate;
+		int iCreateTable { 0 };
+		KSQLInjectionSafeString sLeftCreate;
+		KSQLInjectionSafeString sRightCreate;
 
 		if (left.is_null())
 		{
 			sSummary += kFormat (" <-- table is only in {}\n", sRightSchema);
-			sRightCreate.Format ("drop table {}", sTableName);
+			sRightCreate = FormatSQL ("drop table {}", sTableName);
 			iCreateTable = 'L'; // left
 			++iTableDiffs;
 		}
 		else if (right.is_null())
 		{
 			sSummary += kFormat (" <-- table is only in {}\n", sLeftSchema);
-			sLeftCreate.Format ("drop table {}", sTableName);
+			sLeftCreate = FormatSQL ("drop table {}", sTableName);
 			iCreateTable = 'R'; // right
 			++iTableDiffs;
 		}
@@ -9423,28 +9423,28 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 					if (oLeftColumn.is_null())
 					{
 						// columns/indexes on the LEFT table but not on the RIGHT table
-						Diffs += {
-							{ "_comment",     kFormat ("{}.{}: column/index on the RIGHT table but not on the LEFT table: we can either drop it from the RIGHT or add it to the LEFT", sTableName, sField) },
-							{ "action_left",  FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"add")   },
-							{ "action_right", FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"drop")  }
-						};
+						Diffs.push_back({
+							kFormat ("{}.{}: column/index on the RIGHT table but not on the LEFT table: we can either drop it from the RIGHT or add it to the LEFT", sTableName, sField),
+							FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"add"),
+							FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"drop")
+						});
 					}
 					else if (oRightColumn.is_null())
 					{
 						// columns/indexes on the LEFT table but not on the RIGHT table
-						Diffs += {
-							{ "_comment",     kFormat ("{}.{}: column/index on the LEFT table but not on the RIGHT table: we can either drop it from the LEFT or add it to the RIGHT", sTableName, sField) },
-							{ "action_left",  FormAlterAction (sTableName, oLeftColumn, /*sVerb=*/"drop")   },
-							{ "action_right", FormAlterAction (sTableName, oLeftColumn, /*sVerb=*/"add")    }
-						};
+						Diffs.push_back ({
+							kFormat ("{}.{}: column/index on the LEFT table but not on the RIGHT table: we can either drop it from the LEFT or add it to the RIGHT", sTableName, sField),
+							FormAlterAction (sTableName, oLeftColumn, /*sVerb=*/"drop"),
+							FormAlterAction (sTableName, oLeftColumn, /*sVerb=*/"add")
+						});
 					}
 					else
 					{
-						Diffs += {
-							{ "_comment",     kFormat ("{}.{}: column/index definition differs: we can either synch LEFT to RIGHT or synch RIGHT to LEFT", sTableName, sField) },
-							{ "action_left",  FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"modify")  },
-							{ "action_right", FormAlterAction (sTableName, oLeftColumn,  /*sVerb=*/"modify")  }
-						};
+						Diffs.push_back ({
+							kFormat ("{}.{}: column/index definition differs: we can either synch LEFT to RIGHT or synch RIGHT to LEFT", sTableName, sField),
+							FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"modify"),
+							FormAlterAction (sTableName, oLeftColumn,  /*sVerb=*/"modify")
+						});
 					}
 					++iTableDiffs;
 				}
@@ -9481,11 +9481,11 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 					FormCreateAction (sTableName, oRightColumn, sLeftCreate);
 					break;
 				case 0:
-					Diffs += {
-						{ "_comment",     kFormat ("{}.{}: columns/indexes on the RIGHT table but not on the LEFT table", sTableName, sField) },
-						{ "action_left",  FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"add")    },
-						{ "action_right", FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"drop")   }
-					};
+					Diffs.push_back ({
+						kFormat ("{}.{}: columns/indexes on the RIGHT table but not on the LEFT table", sTableName, sField),
+						FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"add"),
+						FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"drop")
+					});
 				}
 
 				// verbosity:
@@ -9501,19 +9501,19 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema, const KJSON& RightSchema,
 		{
 		case 'L':
 			sLeftCreate += ")";
-			Diffs += {
-				{ "_comment",     kFormat ("{}: table is only in the RIGHT schema: we can either drop it from the RIGHT or add it to the LEFT", sTableName) },
-				{ "action_left",  sLeftCreate  },
-				{ "action_right", sRightCreate }
-			};
+			Diffs.push_back ({
+				kFormat ("{}: table is only in the RIGHT schema: we can either drop it from the RIGHT or add it to the LEFT", sTableName),
+				sLeftCreate,
+				sRightCreate
+			});
 			break;
 		case 'R':
 			sRightCreate += ")";
-			Diffs += {
-				{ "_comment",     kFormat ("{}: table is only in the LEFT schema: we can either drop it from the LEFT or add it to the RIGHT", sTableName) },
-				{ "action_left",  sLeftCreate  },
-				{ "action_right", sRightCreate }
-			};
+			Diffs.push_back ({
+				kFormat ("{}: table is only in the LEFT schema: we can either drop it from the LEFT or add it to the RIGHT", sTableName),
+				sLeftCreate,
+				sRightCreate
+			});
 			break;
 		}
 

@@ -209,6 +209,34 @@ TEST_CASE("KSQL")
 		{
 			CHECK_NOTHROW( DB.FormatSQL(KStringView("select good")) );
 		}
+		{
+			KSQLInjectionSafeString sSQL = "drop table test; select * from test;drop table toast";
+			auto Statements = sSQL.Split(';');
+			CHECK ( Statements.size() == 3 );
+			if (Statements.size() == 3)
+			{
+				CHECK ( Statements[0] == "drop table test"     );
+				CHECK ( Statements[1] == "select * from test" );
+				CHECK ( Statements[2] == "drop table toast"    );
+			}
+		}
+		{
+			KSQLInjectionSafeString sSQL = "drop table test\\;; select * from '\"test;drop'; table toast";
+			auto Statements = sSQL.Split(';');
+			CHECK ( Statements.size() == 3 );
+			if (Statements.size() == 3)
+			{
+				CHECK ( Statements[0] == "drop table test\\;"  );
+				CHECK ( Statements[1] == "select * from '\"test;drop'" );
+				CHECK ( Statements[2] == "table toast"    );
+			}
+		}
+		{
+			KSQLInjectionSafeString sSQL = "drop table test\\;; select * from '\"test;drop'; table toast";
+			CHECK_THROWS( sSQL.Split('"') );
+			CHECK_THROWS( sSQL.Split('\'') );
+			CHECK_THROWS( sSQL.Split('\\') );
+		}
 
 //		auto sNo = DB.FormatSQL(kFormat("select {}", "key1"));
 	}

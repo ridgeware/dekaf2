@@ -48,6 +48,16 @@
 
 namespace dekaf2 {
 
+// MySQL requires NUL, the quotes and backslash to be escaped. Do not escape
+// by doubling the value, as the result then depends on the context (if inside
+// single quotes, double double quotes will be seen as two, and vice verse)
+constexpr KStringView ESCAPE_MYSQL { "'\"\\`\0"_ksv };
+// TODO check the rules for MSSQL, particularly for \0 and \Z
+constexpr KStringView ESCAPE_MSSQL { "\'"_ksv   };
+
+int16_t detail::KCommonSQLBase::m_iDebugLevel { 2 };
+
+
 //-----------------------------------------------------------------------------
 void KSQLInjectionSafeString::ThrowWarning(KStringView sContent)
 //-----------------------------------------------------------------------------
@@ -85,14 +95,81 @@ KSQLInjectionSafeString& KSQLInjectionSafeString::operator+=(const string_type::
 
 } // ctor
 
-// MySQL requires NUL, the quotes and backslash to be escaped. Do not escape
-// by doubling the value, as the result then depends on the context (if inside
-// single quotes, double double quotes will be seen as two, and vice verse)
-constexpr KStringView ESCAPE_MYSQL { "'\"\\`\0"_ksv };
-// TODO check the rules for MSSQL, particularly for \0 and \Z
-constexpr KStringView ESCAPE_MSSQL { "\'"_ksv   };
+//-----------------------------------------------------------------------------
+std::vector<KSQLInjectionSafeString> KSQLInjectionSafeString::Split(const char chDelimit, bool bTrimWhiteSpace) const
+//-----------------------------------------------------------------------------
+{
+	if (ESCAPE_MYSQL.contains(chDelimit))
+	{
+		KException ex( kFormat("KSQLInjectionSafeString: invalid split character {}", chDelimit) );
+		kException(ex);
+		throw ex;
+	}
 
-int16_t detail::KCommonSQLBase::m_iDebugLevel { 2 };
+	std::vector<KSQLInjectionSafeString> Strings;
+
+	char chQuote             { 0     };
+	bool bEscaped            { false };
+	KString::size_type iPos  { 0     };
+	KString::size_type iLast { 0     };
+	KString::size_type iSize { m_sContent.size() };
+
+	auto SplitAndPush = [&]()
+	{
+		KSQLInjectionSafeString sStr;
+		sStr.m_sContent = m_sContent.substr(iLast, iPos - iLast);
+
+		if (bTrimWhiteSpace)
+		{
+			sStr.m_sContent.Trim();
+		}
+
+		Strings.push_back(std::move(sStr));
+		iLast = iPos + 1;
+	};
+
+	for (; iPos < iSize; ++iPos)
+	{
+		if (bEscaped)
+		{
+			bEscaped = false;
+			continue;
+		}
+
+		auto ch = m_sContent[iPos];
+
+		if (ch == '\\')
+		{
+			bEscaped = true;
+			continue;
+		}
+
+		if (chQuote != 0)
+		{
+			if (ch == chQuote)
+			{
+				chQuote = 0;
+			}
+		}
+		else if (ch == '\'' || ch == '"')
+		{
+			chQuote = ch;
+		}
+		else if (ch == chDelimit)
+		{
+			// split here
+			SplitAndPush();
+		}
+	}
+
+	if (iLast < iPos)
+	{
+		SplitAndPush();
+	}
+
+	return Strings;
+
+} // Split
 
 
 //-----------------------------------------------------------------------------

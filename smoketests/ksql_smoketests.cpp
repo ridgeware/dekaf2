@@ -1348,9 +1348,9 @@ TEST_CASE("KSQL")
 		auto jSchema1 = db.LoadSchema("", "TESTSCHEMA1_KSQL", KJSON{{ KSQL::DIFF::show_meta_info, true }});
 		auto jSchema3 = db.LoadSchema("", "TESTSCHEMA", KJSON{{ KSQL::DIFF::show_meta_info, true }});
 
-		KJSON jDiff;
+		KSQL::DIFF::Diffs Diffs;
 		KString sDiff;
-		auto iChanges = db.DiffSchemas(jSchema1, jSchema3, jDiff, sDiff,
+		auto iChanges = db.DiffSchemas(jSchema1, jSchema3, Diffs, sDiff,
 		{
 			{ KSQL::DIFF::left_schema   , "left schema"  },
 			{ KSQL::DIFF::left_prefix   , "<"            },
@@ -1383,7 +1383,7 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 
 		auto jSchema2 = db.LoadSchema("", "TESTSCHEMA1_KSQL", KJSON{{ KSQL::DIFF::show_meta_info, true }});
 
-		iChanges = db.DiffSchemas(jSchema1, jSchema2, jDiff, sDiff,
+		iChanges = db.DiffSchemas(jSchema1, jSchema2, Diffs, sDiff,
 		{
 			{ KSQL::DIFF::left_schema   , "left schema"  },
 			{ KSQL::DIFF::left_prefix   , "<"            },

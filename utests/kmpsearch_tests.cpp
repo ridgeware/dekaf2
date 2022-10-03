@@ -58,6 +58,20 @@ TEST_CASE("KMPSearch") {
 
 		CHECK ( bFound == false );
 	}
+
+	SECTION("kfrozen::CreateKMPSearch found search")
+	{
+		constexpr KStringView sHaystack { "abcderfghrsijklmnopqrstuvwxyz" };
+		constexpr KStringView sNeedle   { "rst" };
+
+		constexpr auto KMP = kfrozen::CreateKMPSearch<sNeedle.size()>(sNeedle);
+		constexpr auto iFound = KMP.Match(sHaystack);
+
+		CHECK ( iFound != KStringView::npos );
+		CHECK ( sHaystack[iFound] == 'r' );
+		CHECK ( sHaystack[iFound + 3] == 'u' );
+	}
+
 #endif
 
 	SECTION("KMPSearch char* found search")

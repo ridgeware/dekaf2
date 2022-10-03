@@ -3,10 +3,14 @@
 #include <dekaf2/kregex.h>
 #include <dekaf2/kparallel.h>
 #include <dekaf2/kduration.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kprof.h>
+#include <dekaf2/kstring.h>
 #include <vector>
 #include <atomic>
+
+#if DEKAF2_HAS_INCLUDE(<dekaf2/libs/re2/re2/re2.h>)
+#include <dekaf2/libs/re2/re2/re2.h>
+#define DEKAF2_HAVE_RE2_INTERNAL
+#endif
 
 using namespace dekaf2;
 
@@ -130,6 +134,47 @@ TEST_CASE("KRegex")
 		KRegex::SetMaxCacheSize(iOrigSize);
 		KRegex::ClearCache();
 	}
+
+	SECTION("KString")
+	{
+		KString sTest("SomeTextHere");
+
+		auto MatchGroup = sTest.MatchRegex("SomeText.*");
+
+		CHECK ( MatchGroup == "SomeTextHere");
+	}
+
+#ifdef DEKAF2_HAVE_RE2_INTERNAL
+	SECTION("RE2")
+	{
+		KString sTest("Some Other Text");
+		re2::RE2 Regex("SomeText.*");
+		re2::StringPiece MatchGroup;
+
+		bool bMatched = Regex.Match(re2::StringPiece(sTest.data()),
+									0,
+									sTest.size(),
+									re2::RE2::UNANCHORED,
+									&MatchGroup,
+									1
+								);
+		CHECK ( bMatched == false );
+
+		sTest = "SomeTextHere";
+
+		bMatched = Regex.Match(re2::StringPiece(sTest.data()),
+								0,
+								sTest.size(),
+								re2::RE2::UNANCHORED,
+								&MatchGroup,
+								1
+							);
+
+		CHECK ( bMatched == true );
+		CHECK ( MatchGroup == "SomeTextHere" );
+
+	}
+#endif
 
 #if 0
 	SECTION("Performance")

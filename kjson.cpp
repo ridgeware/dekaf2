@@ -398,6 +398,107 @@ const KJSON& GetObject (const KJSON& json, KStringView sKey) noexcept
 } // GetObject
 
 //-----------------------------------------------------------------------------
+bool IsJsonPointer(KStringView sSelector)
+//-----------------------------------------------------------------------------
+{
+	return sSelector.empty() || sSelector.front() == '/';
+
+} // IsJsonPointer
+
+//-----------------------------------------------------------------------------
+bool IsJsonPath(KStringView sSelector)
+//-----------------------------------------------------------------------------
+{
+	return !sSelector.empty() && sSelector.front() != '/';
+
+} // IsJsonPath
+
+//-----------------------------------------------------------------------------
+KString ToJsonPointer(KStringView sSelector)
+//-----------------------------------------------------------------------------
+{
+	// assumes we have a json path in sSelector
+	KString sPointer;
+	sPointer.reserve(sSelector.size() + 1);
+
+	for (const auto& sElement : sSelector.Split(".[", " \f\n\r\t\v\b]"))
+	{
+		sPointer += '/';
+		sPointer += sElement;
+	}
+
+	return sPointer;
+
+} // ToJsonPointer
+
+//-----------------------------------------------------------------------------
+const KJSON& Select (const KJSON& json, KStringView sSelector)
+//-----------------------------------------------------------------------------
+{
+	KString sTemp;
+
+	if (IsJsonPath(sSelector))
+	{
+		sTemp     = ToJsonPointer(sSelector);
+		sSelector = sTemp;
+	}
+
+	DEKAF2_TRY
+	{
+		KJSON::json_pointer jp(sSelector);
+
+		return json.at(jp);
+	}
+
+	DEKAF2_CATCH (const KJSON::exception& exc)
+	{
+		kDebug(1, "JSON[{:03d}]: {}", exc.id, exc.what());
+	}
+
+	return s_oEmpty;
+
+} // Select
+
+
+//-----------------------------------------------------------------------------
+const KString& SelectString (const KJSON& json, KStringView sSelector)
+//-----------------------------------------------------------------------------
+{
+	auto& element = Select(json, sSelector);
+
+	if (element.is_string())
+	{
+		return element.get_ref<const KString&>();
+	}
+	else
+	{
+		kDebug(2, "not a string: {}", sSelector);
+	}
+
+	return s_sEmpty;
+
+} // SelectString
+
+//-----------------------------------------------------------------------------
+const KJSON& SelectObject (const KJSON& json, KStringView sSelector)
+//-----------------------------------------------------------------------------
+{
+	auto& element = Select(json, sSelector);
+
+	if (element.is_object())
+	{
+		return element;
+	}
+	else
+	{
+		kDebug(2, "not an object: {}", sSelector);
+	}
+
+	return s_oEmpty;
+
+} // SelectObject
+
+//-----------------------------------------------------------------------------
 bool Exists (const KJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {

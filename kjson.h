@@ -260,6 +260,28 @@ namespace kjson
 	/// merges keys from object2 to object1
 	void Merge (KJSON& object1, const KJSON& object2);
 
+	/// returns true if a selector seems to be a json pointer
+	bool IsJsonPointer(KStringView sSelector);
+
+	/// returns true if a selector seems to be a json path
+	bool IsJsonPath(KStringView sSelector);
+
+	/// converts a json path into a json pointer
+	KString ToJsonPointer(KStringView sSelector);
+
+	/// use a path-style selector to isolate any type of value inside a JSON structure
+	const KJSON& Select (const KJSON& json, KStringView sSelector);
+
+	/// use a path-style selector to isolate a string inside a JSON structure
+	/// e.g. data.object.payment.sources[0].creditCard.lastFourDigits
+	/// or /data/object/payment/sources/0/creditCard/lastFourDigits
+	const KString& SelectString (const KJSON& json, KStringView sSelector);
+
+	/// use a path-style selector to isolate an object reference inside a JSON structure
+	/// e.g. data.object.payment.sources[0].creditCard
+	/// or /data/object/payment/sources/0/creditCard
+	const KJSON& SelectObject (const KJSON& json, KStringView sSelector);
+
 }; // end of namespace kjson
 
 // lift a few of the static methods into dekaf2's namespace

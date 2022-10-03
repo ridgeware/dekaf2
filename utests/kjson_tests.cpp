@@ -361,5 +361,102 @@ TEST_CASE("KJSON")
 		};
 		CHECK ( json.dump(-1) == R"({"view":["one","two","three","four","five"]})" );
 	}
+
+	SECTION("Select")
+	{
+		KJSON j1 = {
+			{"pi", 3.141},
+			{"happy", true},
+			{"key1", "val1"},
+			{"key2", "val2"},
+			{"nothing", nullptr},
+			{"answer", {
+				{"everything", 42},
+				{"nothing", "naught"},
+				{"few", { "one", "two", "three"}}
+			}},
+			{"ilist", {1, 0, 2}},
+			{"slist", {"one", "two", "three"}},
+			{"object", {
+				{"currency", "USD"},
+				{"value", 42.99}
+			}}
+		};
+
+		CHECK ( kjson::Select(j1, "/key2") == "val2" );
+		CHECK ( kjson::Select(j1, "key2" ) == "val2" );
+		CHECK ( kjson::Select(j1, "/answer/nothing") == "naught" );
+		CHECK ( kjson::Select(j1, "answer.nothing" ) == "naught" );
+		CHECK ( kjson::Select(j1, "/answer/few/1"  ) == "two" );
+		CHECK ( kjson::Select(j1, "answer.few[0]"  ) == "one" );
+		CHECK ( kjson::Select(j1, "/slist/0") == "one" );
+		CHECK ( kjson::Select(j1, "/slist/1") == "two" );
+		CHECK ( kjson::Select(j1, "slist[0]") == "one" );
+		CHECK ( kjson::Select(j1, "slist[1]") == "two" );
+		CHECK ( kjson::Select(j1, "slist[4]") == KJSON() );
+		CHECK ( kjson::Select(j1, "/answer/unknown") == KJSON() );
+		CHECK ( kjson::Select(j1, "/answer/unknown") != "something" );
+	}
+
+	SECTION("SelectString")
+	{
+		KJSON j1 = {
+			{"pi", 3.141},
+			{"happy", true},
+			{"key1", "val1"},
+			{"key2", "val2"},
+			{"nothing", nullptr},
+			{"answer", {
+				{"everything", 42},
+				{"nothing", "naught"},
+				{"few", { "one", "two", "three"}}
+			}},
+			{"ilist", {1, 0, 2}},
+			{"slist", {"one", "two", "three"}},
+			{"object", {
+				{"currency", "USD"},
+				{"value", 42.99}
+			}}
+		};
+
+		CHECK ( kjson::SelectString(j1, "/key2") == "val2" );
+		CHECK ( kjson::SelectString(j1, "key2" ) == "val2" );
+		CHECK ( kjson::SelectString(j1, "/answer/nothing") == "naught" );
+		CHECK ( kjson::SelectString(j1, "answer.nothing" ) == "naught" );
+		CHECK ( kjson::SelectString(j1, "/answer/few/1"  ) == "two" );
+		CHECK ( kjson::SelectString(j1, "answer.few[0]"  ) == "one" );
+		CHECK ( kjson::SelectString(j1, "/slist/0") == "one" );
+		CHECK ( kjson::SelectString(j1, "/slist/1") == "two" );
+		CHECK ( kjson::SelectString(j1, "slist[0]") == "one" );
+		CHECK ( kjson::SelectString(j1, "slist[1]") == "two" );
+		CHECK ( kjson::SelectString(j1, "slist[4]") == "" );
+		CHECK ( kjson::SelectString(j1, "/answer/unknown") == "" );
+	}
+
+	SECTION("SelectObject")
+	{
+		KJSON j1 = {
+			{"pi", 3.141},
+			{"happy", true},
+			{"key1", "val1"},
+			{"key2", "val2"},
+			{"nothing", nullptr},
+			{"answer", {
+				{"everything", 42},
+				{"nothing", "naught"},
+				{"few", { "one", "two", "three"}}
+			}},
+			{"ilist", {1, 0, 2}},
+			{"slist", {"one", "two", "three"}},
+			{"object", {
+				{"currency", "USD"},
+				{"value", 42.99}
+			}}
+		};
+
+		CHECK ( kjson::SelectObject(j1, "/answer").dump() == R"({"everything":42,"few":["one","two","three"],"nothing":"naught"})" );
+		CHECK ( kjson::SelectObject(j1, "/answer/nothing") == KJSON() );
+		CHECK ( kjson::SelectObject(j1, "/pi") == KJSON() );
+	}
 }
 #endif

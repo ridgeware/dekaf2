@@ -67,7 +67,7 @@ KStringViewPair CountText::NextPair()
 	{
 		if (!kIsAlNum(ch))
 		{
-			if (iSizeConsumed)
+			if (!bIsEmpty)
 			{
 				// abort scanning here, this is the trailing skeleton
 				return false;

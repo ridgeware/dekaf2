@@ -96,16 +96,17 @@ TEST_CASE("KWebClient") {
 		KWebClient HTTP;
 		auto sRet = HTTP.Post("http://127.0.0.1:7653/path", "some body\r\n", KMIME::HTML_UTF8);
 
-		CHECK( server.m_rx.size() == 7 );
-		if (server.m_rx.size() == 7)
+		CHECK( server.m_rx.size() == 8 );
+		if (server.m_rx.size() == 8)
 		{
 			CHECK( server.m_rx[0] == "POST /path HTTP/1.1" );
 			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7653");
 			CHECK( server.m_rx[2] == "Content-Length: 11");
 			CHECK( server.m_rx[3] == "Content-Type: text/html; charset=UTF-8" );
 			CHECK( server.m_rx[4] == kFormat("Accept-Encoding: {}", KHTTPCompression::GetCompressors()) );
-			CHECK( server.m_rx[5] == "");
-			CHECK( server.m_rx[6] == "some body");
+			CHECK( server.m_rx[5] == "User-Agent: dekaf/" DEKAF_VERSION );
+			CHECK( server.m_rx[6] == "");
+			CHECK( server.m_rx[7] == "some body");
 		}
 		CHECK( sRet == "0123456789" );
 	}

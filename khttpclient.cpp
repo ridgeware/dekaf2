@@ -778,6 +778,12 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 				  m_sCompressors.empty() ? KHTTPCompression::GetCompressors() : m_sCompressors.ToView());
 	}
 
+	// and make sure we always have a user agent set
+	if (Request.Headers.Get(KHTTPHeader::USER_AGENT).empty())
+	{
+		Request.Headers.Set(KHTTPHeader::USER_AGENT, "dekaf/" DEKAF_VERSION );
+	}
+
 	// send the request headers to the remote server
 	if (!Serialize())
 	{

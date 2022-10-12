@@ -81,13 +81,14 @@ TEST_CASE("KHTTPClient") {
 		KString shtml;
 		cHTTP.Read(shtml);
 		CHECK( shtml == "0123456789");
-		CHECK( server.m_rx.size() == 4 );
-		if (server.m_rx.size() == 4)
+		CHECK( server.m_rx.size() == 5 );
+		if (server.m_rx.size() == 5)
 		{
 			CHECK( server.m_rx[0] == "GET /path?query=val&another=here HTTP/1.1" );
 			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
 			CHECK( server.m_rx[2] == kFormat("Accept-Encoding: {}", KHTTPCompression::GetCompressors()) );
-			CHECK( server.m_rx[3] == "");
+			CHECK( server.m_rx[3] == "User-Agent: dekaf/" DEKAF_VERSION );
+			CHECK( server.m_rx[4] == "");
 		}
 		server.Stop();
 	}
@@ -216,7 +217,7 @@ TEST_CASE("KHTTPClient") {
 		{
 			KString sJoined = kJoined(server.m_rx);
 			INFO (sJoined);
-			CHECK( server.m_rx.size() == 11 );
+			CHECK( server.m_rx.size() == 12 );
 		}
 	}
 

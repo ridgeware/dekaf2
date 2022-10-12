@@ -2248,12 +2248,14 @@ bool KHTMLEntity::FromNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& 
 
 } // kNamedEntity
 
+namespace {
+
 //-----------------------------------------------------------------------------
-KString KHTMLEntity::Decode(KStringView sIn)
+std::size_t DecodeInt(KString& sRet, KStringView sIn, bool bAlsoNumeric)
 //-----------------------------------------------------------------------------
 {
-	KString sRet;
-	sRet.reserve(sIn.size());
+	std::size_t iReplaced { 0 };
+	sRet.reserve(sRet.size() + sIn.size());
 
 	for (auto it = sIn.cbegin(), ie = sIn.cend(); it != ie; )
 	{
@@ -2270,63 +2272,73 @@ KString KHTMLEntity::Decode(KStringView sIn)
 				{
 					if (++it != ie)
 					{
-						uint32_t iChar{0};
-						auto start_it = it;
-						bool bValid { false };
-
-						if (*it == 'x' || *it == 'X')
+						if (bAlsoNumeric)
 						{
-							// hex
-							++it;
+							uint32_t iChar{0};
+							auto start_it = it;
+							bool bValid { false };
 
-							for (;it != ie; ++it)
+							if (*it == 'x' || *it == 'X')
 							{
-								auto iCh = kFromBase36(*it);
-
-								if (iCh > 15)
-								{
-									break;
-								}
-
-								bValid = true;
-								iChar *= 16;
-								iChar += iCh;
-							}
-						}
-						else
-						{
-							// decimal
-							for (;it != ie; ++it)
-							{
-								if (!KASCII::kIsDigit(*it))
-								{
-									break;
-								}
-
-								bValid = true;
-								iChar *= 10;
-								iChar += *it - '0';
-							}
-						}
-
-						if (DEKAF2_LIKELY(bValid))
-						{
-							Unicode::ToUTF8(iChar, sRet);
-
-							if (it != ie && *it  == ';')
-							{
+								// hex
 								++it;
+
+								for (;it != ie; ++it)
+								{
+									auto iCh = kFromBase36(*it);
+
+									if (iCh > 15)
+									{
+										break;
+									}
+
+									bValid = true;
+									iChar *= 16;
+									iChar += iCh;
+								}
+							}
+							else
+							{
+								// decimal
+								for (;it != ie; ++it)
+								{
+									if (!KASCII::kIsDigit(*it))
+									{
+										break;
+									}
+
+									bValid = true;
+									iChar *= 10;
+									iChar += *it - '0';
+								}
+							}
+
+							if (DEKAF2_LIKELY(bValid))
+							{
+								Unicode::ToUTF8(iChar, sRet);
+
+								if (it != ie && *it  == ';')
+								{
+									++it;
+								}
+
+								++iReplaced;
+							}
+							else
+							{
+								// this &# sequence was invalid
+								sRet += "&#";
+
+								for (; start_it != it; ++start_it)
+								{
+									sRet += *start_it;
+								}
 							}
 						}
 						else
 						{
-							// this &# sequence was invalid
+							// !bAlsoNumeric
 							sRet += "&#";
-
-							for (; start_it != it; ++start_it)
-							{
-								sRet += *start_it;
-							}
 						}
 					}
 				}
@@ -2357,7 +2369,7 @@ KString KHTMLEntity::Decode(KStringView sIn)
 
 						uint32_t cp1, cp2;
 
-						if (FromNamedEntity(sEntity, cp1, cp2))
+						if (KHTMLEntity::FromNamedEntity(sEntity, cp1, cp2))
 						{
 							Unicode::ToUTF8(cp1, sRet);
 
@@ -2365,6 +2377,8 @@ KString KHTMLEntity::Decode(KStringView sIn)
 							{
 								Unicode::ToUTF8(cp2, sRet);
 							}
+
+							++iReplaced;
 						}
 						else
 						{
@@ -2391,9 +2405,32 @@ KString KHTMLEntity::Decode(KStringView sIn)
 		}
 	}
 
+	return iReplaced;
+
+} // anonymous DecodeInt
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+KString KHTMLEntity::Decode(KStringView sIn, bool bAlsoNumeric)
+//-----------------------------------------------------------------------------
+{
+	KString sRet;
+	DecodeInt(sRet, sIn, bAlsoNumeric);
 	return sRet;
 
-} // kHTMLEntityDecode
+} // KHTMLEntity::Decode
+
+//-----------------------------------------------------------------------------
+std::size_t KHTMLEntity::DecodeInPlace(KString& sContent, bool bAlsoNumeric)
+//-----------------------------------------------------------------------------
+{
+	KString sRet;
+	auto iReplaced = DecodeInt(sRet, sContent, bAlsoNumeric);
+	sContent = std::move(sRet);
+	return iReplaced;
+
+} // KHTMLEntity::DecodeInPlace
 
 //-----------------------------------------------------------------------------
 KString ConvertNumerical(KStringView sIn)

@@ -201,11 +201,15 @@ public:
 	/// return Levenshtein distance for the diff (number of inserted, deleted or substituted characters)
 	std::size_t GetLevenshteinDistance();
 
+	/// return Levenshtein distance expressed as percentage
+	uint16_t GetPercentDistance();
+
 //----------
 private:
 //----------
 
 	KUniqueVoidPtr m_Diffs;
+	string_t::size_type m_iMaxSize { 0 };
 
 }; // KDiff
 

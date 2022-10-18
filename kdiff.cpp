@@ -247,8 +247,12 @@ void KDiff::CreateDiff(KStringView sOldText,
 	try
 	{
 #ifdef DEKAF2_KDIFF_USE_WSTRING
-		auto Diffs = KDiffMatchPatch::diff_main(Unicode::FromUTF8<KDiffMatchPatch::string_t>(sOldText), Unicode::FromUTF8<KDiffMatchPatch::string_t>(sNewText), static_cast<KDiffMatchPatch::Mode>(Mode), 2.0f);
+		auto sFrom = Unicode::FromUTF8<KDiffMatchPatch::string_t>(sOldText);
+		auto sTo   = Unicode::FromUTF8<KDiffMatchPatch::string_t>(sNewText);
+		m_iMaxSize = std::max(sFrom.size(), sTo.size());
+		auto Diffs = KDiffMatchPatch::diff_main(sFrom, sTo, static_cast<KDiffMatchPatch::Mode>(Mode), 2.0f);
 #else
+		m_iMaxSize = std::max(sOldText.size(), sNewText.size());
 		auto Diffs = KDiffMatchPatch::diff_main(sOldText, sNewText, static_cast<KDiffMatchPatch::Mode>(Mode), 2.0f);
 #endif
 
@@ -517,6 +521,14 @@ std::size_t KDiff::GetLevenshteinDistance()
 	return 0;
 
 } // GetLevenshteinDistance
+
+//-----------------------------------------------------------------------------
+uint16_t KDiff::GetPercentDistance()
+//-----------------------------------------------------------------------------
+{
+	return m_iMaxSize ? GetLevenshteinDistance() * 100 / m_iMaxSize : 0;
+
+} // GetPercentDistance
 
 //-----------------------------------------------------------------------------
 KString KDiffToHTML (KStringView sOldText, KStringView sNewText,

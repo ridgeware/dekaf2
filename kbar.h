@@ -46,11 +46,13 @@
 #include "kstring.h"
 #include "kstringview.h"
 #include "kwriter.h"
+#include <mutex>
 
 namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
+/// a single thread implementation of a progress bar
 class DEKAF2_PUBLIC KBAR
 //-----------------------------------------------------------------------------
 {
@@ -88,7 +90,8 @@ public:
 //----------
 private:
 //----------
-
+	
+	DEKAF2_PRIVATE
 	void  _SliderAction(int iAction, uint64_t iSoFarLast, uint64_t iSoFarNow);
 
 	uint64_t    m_iFlags;
@@ -100,5 +103,34 @@ private:
 	bool        m_bSliding;
 
 }; // KBAR
+
+//-----------------------------------------------------------------------------
+/// multi-thread wrapper for the progress bar
+class DEKAF2_PUBLIC KSharedBar : private KBAR
+//-----------------------------------------------------------------------------
+{
+
+//----------
+public:
+//----------
+
+	using KBAR::KBAR;
+
+	bool      Start  (uint64_t iExpected);
+	bool      Adjust (uint64_t iExpected);
+	bool      Move   (int64_t iDelta=1);
+	void      Break  (KStringView sMsg="!!!");
+	void      Finish ();
+	KString   GetBar (int chBlank=' ');
+	uint64_t  GetSoFar() const;
+	void      RepaintSlider ();
+
+//----------
+private:
+//----------
+
+	mutable std::mutex m_Mutex;
+
+};
 
 } // namespace dekaf2

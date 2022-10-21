@@ -41,6 +41,7 @@
 #include "kstring.h"
 #include "kbar.h"
 #include "kwriter.h"
+#include "ksystem.h"
 #include "klog.h"
 
 namespace dekaf2 {
@@ -56,6 +57,20 @@ KBAR::KBAR (uint64_t iExpected/*=0*/, uint32_t iWidth/*=DEFAULT_WIDTH*/, uint64_
 , m_Out(Out)
 , m_bSliding(false)
 {
+	if (!m_iWidth)
+	{
+		m_iWidth = kGetTerminalSize().columns;
+
+		if (m_iWidth > 2)
+		{
+			m_iWidth -= 2;
+		}
+		else
+		{
+			kDebug(2, "terminal width too small for bar output");
+		}
+	}
+
 	if (m_iExpected && (m_iFlags & SLIDER))
 	{
 		_SliderAction (KPS_START, 0, 0);
@@ -131,7 +146,8 @@ bool KBAR::Move (int64_t iDelta)
 		{
 			kDebugLog (1, "kbar: {:3}%, {} of {}", ((m_iSoFar+iDelta))*100/m_iExpected, m_iSoFar+iDelta, m_iExpected);
 		}
-		else {
+		else
+		{
 			_SliderAction (KPS_ADD, m_iSoFar, m_iSoFar+iDelta);
 		}
 	}
@@ -342,4 +358,3 @@ void KSharedBar::RepaintSlider ()
 }
 
 } // of namespace dekaf2
-

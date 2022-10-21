@@ -66,7 +66,7 @@ public:
 		SLIDER = 0x000001,
 		STATIC = 0x000010,
 
-		DEFAULT_WIDTH     = 70,
+		DEFAULT_WIDTH     = 0,   // 0 = use current terminal width
 		DEFAULT_DONE_CHAR = '%',
 
 		KPS_START = 'S',

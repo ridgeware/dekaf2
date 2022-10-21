@@ -3,6 +3,7 @@
 #include <dekaf2/kparallel.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/ksystem.h>
+#include <dekaf2/kbar.h>
 
 using namespace dekaf2;
 
@@ -23,28 +24,44 @@ struct Foo
 
 TEST_CASE("KParallel")
 {
-	KRunThreads Threads;
-
-	Threads.Create([]()
+	SECTION("KRunThreads")
 	{
-		kMilliSleep(50);
-	});
+		KRunThreads Threads;
 
-	KString sTest = "Hello";
-	Foo F;
+		Threads.Create([]()
+		{
+			kMilliSleep(50);
+		});
 
-	Threads.Create(&Foo::Bar, &F, sTest);
+		KString sTest = "Hello";
+		Foo F;
 
-	CHECK ( Threads.empty() == false );
-	CHECK ( Threads.size() == std::thread::hardware_concurrency() );
+		Threads.Create(&Foo::Bar, &F, sTest);
 
-	Threads.Join();
+		CHECK ( Threads.empty() == false );
+		CHECK ( Threads.size() == std::thread::hardware_concurrency() );
 
-	CHECK ( Threads.empty() == true );
-	CHECK ( Threads.size() == 0 );
+		Threads.Join();
 
-	Threads.Create(&ThreadedFunction, sTest);
+		CHECK ( Threads.empty() == true );
+		CHECK ( Threads.size() == 0 );
 
-	Threads.Join();
+		Threads.Create(&ThreadedFunction, sTest);
+
+		Threads.Join();
+	}
+
+	SECTION("kParallelForEach")
+	{
+		std::vector<int> vec;
+		vec.resize(1000);
+
+		kParallelForEach(vec, [](int value)
+		{
+			kMilliSleep(2);
+
+		}, 0, KBAR());
+	}
+
 }
 

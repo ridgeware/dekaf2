@@ -46,7 +46,7 @@ namespace dekaf2 {
 //-----------------------------------------------------------------------------
 /// sets number of threads to #cpu if numThreads == 0, but
 /// not higher than maxThreads if maxThreads > 0.
-size_t KRunThreads::SetSize(size_t iNumThreads, size_t iMaxThreads) noexcept
+std::size_t KRunThreads::SetSize(std::size_t iNumThreads, std::size_t iMaxThreads) noexcept
 //-----------------------------------------------------------------------------
 {
 	m_numThreads = iNumThreads;
@@ -83,7 +83,7 @@ std::thread::id KRunThreads::Store(std::thread thread)
 } // Store
 
 //-----------------------------------------------------------------------------
-void KBlockOnID::Data::Lock(size_t ID)
+void KBlockOnID::Data::Lock(std::size_t ID)
 //-----------------------------------------------------------------------------
 {
 	lockmap_t::iterator it;
@@ -104,7 +104,7 @@ void KBlockOnID::Data::Lock(size_t ID)
 } // Data::Lock
 
 //-----------------------------------------------------------------------------
-bool KBlockOnID::Data::Unlock(size_t ID)
+bool KBlockOnID::Data::Unlock(std::size_t ID)
 //-----------------------------------------------------------------------------
 {
 	lockmap_t::const_iterator it;
@@ -128,31 +128,6 @@ bool KBlockOnID::Data::Unlock(size_t ID)
 	return bFoundLock;
 
 } // Data::Unlock
-
-//-----------------------------------------------------------------------------
-void kParallelForEachPrintProgress(size_t iMax, size_t iDone, size_t iRunning)
-//-----------------------------------------------------------------------------
-{
-	if (!iMax)
-	{
-		return;
-	}
-
-	if ((iDone * 100 % iMax) != 0)
-	{
-		return;
-	}
-
-//	size_t iPercent    = iDone    * 100 / iMax;
-//	size_t iInProgress = iRunning * 100 / iMax;
-
-	// TODO add output
-//	cVerboseOut(2, "%s parallel_for_each: completed %lu%%, in progress %lu%% \n",
-//				OK(),
-//				iPercent,
-//				iInProgress);
-
-} // kParallelForEachPrintProgress
 
 } // end of namespace dekaf2
 

@@ -74,7 +74,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Constructor. Sets number of threads to #cpu if numThreads == 0, but
 	/// not higher than maxThreads if maxThreads > 0.
-	KRunThreads(size_t iNumThreads = 0, size_t iMaxThreads = 0) noexcept
+	KRunThreads(std::size_t iNumThreads = 0, std::size_t iMaxThreads = 0) noexcept
 	//-----------------------------------------------------------------------------
 	{
 		SetSize(iNumThreads, iMaxThreads);
@@ -83,12 +83,12 @@ public:
 	//-----------------------------------------------------------------------------
 	/// sets number of threads to #cpu if numThreads == 0, but
 	/// not higher than maxThreads if maxThreads > 0.
-	size_t SetSize(size_t iNumThreads, size_t iMaxThreads = 0) noexcept;
+	std::size_t SetSize(std::size_t iNumThreads, std::size_t iMaxThreads = 0) noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// request max number of threads to be started
-	size_t MaxSize() const
+	std::size_t MaxSize() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_numThreads;
@@ -116,12 +116,12 @@ public:
 	/// create N threads (as determined by the constructor)
 	/// calling function f with arguments args
 	template<class Function, class... Args>
-	size_t Create(Function&& f, Args&&... args)
+	std::size_t Create(Function&& f, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
-		size_t iCount { 0 };
+		std::size_t iCount { 0 };
 
-		for (size_t ct=size(); ct < m_numThreads; ++ct)
+		for (std::size_t ct=size(); ct < m_numThreads; ++ct)
 		{
 			CreateOne(std::forward<Function>(f), std::forward<Args>(args)...);
 			++iCount;
@@ -145,87 +145,109 @@ protected:
 private:
 //----------
 
-	size_t m_numThreads     { 0 };
-	bool   m_start_detached { false };
+	std::size_t m_numThreads     { 0 };
+	bool        m_start_detached { false };
 
 }; // KRunThreads
 
-//-----------------------------------------------------------------------------
-/// Default implementation of the progress printer for kParallelForEach()
-DEKAF2_PUBLIC
-void kParallelForEachPrintProgress(size_t iMax, size_t iDone, size_t iRunning);
-//-----------------------------------------------------------------------------
+namespace detail {
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// minimum prototype for a progress printer (this one does not output anything - use e.g. KBAR for
+/// terminal output)
+class KParallelForEachNoProgressPrinter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+public:
+
+	void Start  (std::size_t iMax)       {}
+	void Move   (std::size_t iDelta = 1) {}
+	void Finish ()                  {}
+
+}; // KParallelForEachNoProgressPrinter
+
+} // namespace detail
 
 //-----------------------------------------------------------------------------
 /// Iterate with parallel threads over all elements of a range. Expects the size
 /// of the range as the first element.
+/// @param iSize size of the iterable range
+/// @param first iterator on the first element
+/// @param last iterator past the last element
+/// @param f functor to call with reference on one element of the range
+/// @param iMaxThreads number of threads to start at most, 0/default = count of CPU cores
+/// @param p progress output class, defaults to dummy printer. Use e.g. KBAR for real output to a terminal
 template<typename InputIterator,
          typename Func,
-         typename Progress = decltype(kParallelForEachPrintProgress)>
-void kParallelForEach(size_t size,
+         typename Progress = detail::KParallelForEachNoProgressPrinter>
+void kParallelForEach(std::size_t iSize,
                       InputIterator first, InputIterator last,
                       Func&& f,
-                      size_t max_threads = std::thread::hardware_concurrency(),
-                      const Progress& fProgress = kParallelForEachPrintProgress)
+                      std::size_t iMaxThreads = std::thread::hardware_concurrency(),
+                      Progress&& p = detail::KParallelForEachNoProgressPrinter())
 //-----------------------------------------------------------------------------
 {
-	switch (size)
+	if (iSize)
 	{
-		case 0:
-			break;
+		p.Start(iSize);
 
-		case 1:
-			f(*first);
-			break;
+		if (!iMaxThreads)
+		{
+			iMaxThreads = std::thread::hardware_concurrency();
+		}
 
-		default:
+		if (iMaxThreads <= 1 || iSize == 1)
+		{
+			// just run single threaded ..
+			for (auto it = first; it != last; ++it)
+			{
+				p.Move();
+				f(*it);
+			}
+		}
+		else
+		{
 			std::mutex m_IterMutex;
-			size_t m_iDone { 0 };
-			size_t m_iRunning { 0 };
 
 			auto loop = [&]()
 			{
-				bool m_bFirstLoop { true };
 				for (;;)
 				{
 					InputIterator it;
+
 					{
 						std::lock_guard<std::mutex> lock(m_IterMutex);
-						if (DEKAF2_LIKELY(!m_bFirstLoop))
-						{
-							++m_iDone;
-							--m_iRunning;
-						}
-						else
-						{
-							m_bFirstLoop = false;
-						}
+
 						if (DEKAF2_UNLIKELY(first == last))
 						{
 							return;
 						}
-						it = first;
-						++first;
-						++m_iRunning;
-					}
 
-					fProgress(size, m_iDone, m_iRunning);
+						it = first;
+
+						++first;
+
+						p.Move();
+					}
 
 					f(*it);
 				}
 			};
 
-			KRunThreads threads((max_threads == 0) ? 0 : max_threads-1, size-1);
+			KRunThreads threads(iMaxThreads - 1, iSize - 1);
 
 			// create the additional threads
 			threads.Create(std::ref(loop));
 
 			// and finally run the loop in the initial thread as well
 			loop();
+		}
 
-			break;
+		p.Finish();
 	}
-}
+
+} // kParallelForEach
 
 //-----------------------------------------------------------------------------
 /// Iterate with parallel threads over all elements of a range. If the iterator
@@ -234,32 +256,39 @@ void kParallelForEach(size_t size,
 /// linear operation you should avoid it for larger ranges by calling the sister
 /// template kParallelForEach() that accepts the size of the range as the first
 /// parameter.
+/// @param first iterator on the first element
+/// @param last iterator past the last element
+/// @param f functor to call with reference on one element of the range
+/// @param iMaxThreads number of threads to start at most, 0/default = count of CPU cores
+/// @param p progress output class, defaults to dummy printer. Use e.g. KBAR for real output to a terminal
 template<typename InputIterator,
          typename Func,
-         typename Progress = decltype(kParallelForEachPrintProgress)>
+         typename Progress = detail::KParallelForEachNoProgressPrinter>
 void kParallelForEach(InputIterator first, InputIterator last,
                       Func&& f,
-                      size_t max_threads = std::thread::hardware_concurrency(),
-                      const Progress& fProgress = kParallelForEachPrintProgress)
+                      std::size_t iMaxThreads = std::thread::hardware_concurrency(),
+					  Progress&& p = detail::KParallelForEachNoProgressPrinter())
 //-----------------------------------------------------------------------------
 {
-	kParallelForEach(std::distance(first, last), first, last, f, max_threads, fProgress);
+	kParallelForEach(std::distance(first, last), first, last, f, iMaxThreads, p);
 }
 
 //-----------------------------------------------------------------------------
-/// Iterate over all elements of a container c and call function f with an iterator
-/// on the element. Only works with iterable types that have a .size() member
-/// implemented.
+/// Iterate over all elements of a container c and call function f with a ref on the element
+/// @param c any container that has a begin(), end(), and size() member function
+/// @param f functor to call with reference on one element of the range
+/// @param iMaxThreads number of threads to start at most, 0/default = count of CPU cores
+/// @param p progress output class, defaults to dummy printer. Use e.g. KBAR for real output to a terminal
 template<typename Container,
          typename Func,
-         typename Progress = decltype(kParallelForEachPrintProgress)>
+         typename Progress = detail::KParallelForEachNoProgressPrinter>
 void kParallelForEach(Container& c,
                       Func&& f,
-                      size_t max_threads = std::thread::hardware_concurrency(),
-                      const Progress& fProgress = kParallelForEachPrintProgress)
+                      std::size_t iMaxThreads = std::thread::hardware_concurrency(),
+					  Progress&& p = detail::KParallelForEachNoProgressPrinter())
 //-----------------------------------------------------------------------------
 {
-	kParallelForEach(c.size(), c.begin(), c.end(), f, max_threads, fProgress);
+	kParallelForEach(c.size(), c.begin(), c.end(), f, iMaxThreads, p);
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -288,7 +317,7 @@ public:
 
 		//-----------------------------------------------------------------------------
 		/// Tests if an actual ID would block right now.
-		bool WouldBlock(size_t ID);
+		bool WouldBlock(std::size_t ID);
 		//-----------------------------------------------------------------------------
 
 	//----------
@@ -297,19 +326,19 @@ public:
 
 		//-----------------------------------------------------------------------------
 		/// Lock an ID.
-		void Lock(size_t ID);
+		void Lock(std::size_t ID);
 		//-----------------------------------------------------------------------------
 
 		//-----------------------------------------------------------------------------
 		/// Unlock an ID.
-		bool Unlock(size_t ID);
+		bool Unlock(std::size_t ID);
 		//-----------------------------------------------------------------------------
 
 	//----------
 	private:
 	//----------
 
-		using lockmap_t = std::unordered_map<size_t, std::unique_ptr<std::mutex>>;
+		using lockmap_t = std::unordered_map<std::size_t, std::unique_ptr<std::mutex>>;
 		KThreadSafe<lockmap_t> m_id_mutexes;
 
 	}; // Data
@@ -318,7 +347,7 @@ public:
 	/// Constructor.
 	/// @param data The lock instance, typically a static var at the call site.
 	/// @param ID The ID to lock for.
-	KBlockOnID(Data& data, size_t ID)
+	KBlockOnID(Data& data, std::size_t ID)
 	//-----------------------------------------------------------------------------
 	    : m_data(data)
 	    , m_MyID(ID)
@@ -339,10 +368,8 @@ private:
 //----------
 
 	Data&  m_data;
-	size_t m_MyID;
+	std::size_t m_MyID;
 
 }; // KBlockOnID
 
-
 } // of namespace dekaf2
-

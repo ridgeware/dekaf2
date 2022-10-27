@@ -176,18 +176,18 @@ TEST_CASE("UTF8") {
 		{
 			if (ch < Unicode::SURROGATE_LOW_START || ch > Unicode::SURROGATE_HIGH_END)
 			{
-				if (Unicode::IsSurrogate(ch))
+				if (Unicode::IsSurrogate(static_cast<Unicode::codepoint_t>(ch)))
 				{
 					INFO(ch);
-					CHECK ( Unicode::IsSurrogate(ch) == false );
+					CHECK ( Unicode::IsSurrogate(static_cast<Unicode::codepoint_t>(ch)) == false );
 				}
 			}
 			else
 			{
-				if (!Unicode::IsSurrogate(ch))
+				if (!Unicode::IsSurrogate(static_cast<Unicode::codepoint_t>(ch)))
 				{
 					INFO(ch);
-					CHECK ( Unicode::IsSurrogate(ch) == true );
+					CHECK ( Unicode::IsSurrogate(static_cast<Unicode::codepoint_t>(ch)) == true );
 				}
 			}
 		}
@@ -199,11 +199,11 @@ TEST_CASE("UTF8") {
 		{
 			INFO(ch);
 
-			if (!Unicode::NeedsSurrogates(ch))
+			if (!Unicode::NeedsSurrogates(static_cast<Unicode::codepoint_t>(ch)))
 			{
-				CHECK(Unicode::NeedsSurrogates(ch));
+				CHECK(Unicode::NeedsSurrogates(static_cast<Unicode::codepoint_t>(ch)));
 			}
-			Unicode::SurrogatePair sp(ch);
+			Unicode::SurrogatePair sp(static_cast<Unicode::codepoint_t>(ch));
 			if (sp.ToCodepoint() != ch)
 			{
 				CHECK(sp.ToCodepoint() == ch);

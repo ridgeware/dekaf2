@@ -125,7 +125,7 @@ inline void raw_io()	{ raw(); crmode(); /*noecho();*/ }
 inline void cooked_io()	{ noraw(); nocrmode(); echo(); }
 
 #undef addstr
-#define addstr(s)       { waddnstr(stdscr,s.c_str(),s.size()); }
+#define addstr(s)       { waddnstr(stdscr,s.c_str(),static_cast<int>(s.size())); }
 
 
 /*
@@ -188,7 +188,7 @@ int main (int argc, char* argv[])
 		if (kStrIn (sArg, "-d,-dd,-ddd"))
 		{
 			KLog::getInstance().SetDebugLog (KLog::STDOUT);
-			KLog::getInstance().SetLevel (sArg.size() - 1);
+			KLog::getInstance().SetLevel (static_cast<int>(sArg.size()) - 1);
 			kDebug (1, "debug set to: {}", KLog::getInstance().GetLevel());
 		}
 		else if (kStrIn (sArg, "-h,--h,-help,--help"))

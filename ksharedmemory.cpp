@@ -94,7 +94,7 @@ KSemaphoreMutex::KSemaphoreMutex(key_t iIPCKey) noexcept
 //-----------------------------------------------------------------------------
 KSemaphoreMutex::KSemaphoreMutex(KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
-: KSemaphoreMutex(sKey.Hash())
+: KSemaphoreMutex(static_cast<key_t>(sKey.Hash()))
 {
 } // ctor
 

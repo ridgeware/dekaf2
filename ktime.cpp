@@ -1008,7 +1008,7 @@ int32_t KLocalTime::GetUTCOffset() const
 {
 #ifdef DEKAF2_IS_UNIX
 
-	return m_time.tm_gmtoff;
+	return static_cast<int32_t>(m_time.tm_gmtoff);
 
 #else
 

@@ -2914,7 +2914,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 				KColInfo ColInfo;
 
 				ColInfo.sColName = pField->name;
-				ColInfo.SetColumnType (DBT::MYSQL, pField->type, pField->length);
+				ColInfo.SetColumnType (DBT::MYSQL, pField->type, static_cast<KCOL::Len>(pField->length));
 				kDebug (3, "col {:35} mysql_datatype: {:4} => ksql_flags: 0x{:08x} = {}",
 					ColInfo.sColName, pField->type, ColInfo.iKSQLDataType, KCOL::FlagsToString(ColInfo.iKSQLDataType));
 
@@ -3261,7 +3261,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 			kDebug (KSQL2_CTDEBUG, "calling ct_command()...");
 
-			if (ct_command (m_pCtCommand, CS_LANG_CMD, m_sLastSQL.data(), m_sLastSQL.size(), CS_UNUSED) != CS_SUCCEED)
+			if (ct_command (m_pCtCommand, CS_LANG_CMD, m_sLastSQL.data(), static_cast<CS_INT>(m_sLastSQL.size()), CS_UNUSED) != CS_SUCCEED)
 			{
 				ctlib_api_error ("KSQL>ExecQuery>ct_command");
 				if (--iRetriesLeft && PreparedToRetry(m_iCtLibErrorNum))
@@ -6869,7 +6869,7 @@ bool KSQL::ctlib_login ()
 
 	kDebug (KSQL2_CTDEBUG, "ct_con_props() set username");
 	auto sUser = GetDBUser();
-	if (ct_con_props (m_pCtConnection, CS_SET, CS_USERNAME, sUser.data(), sUser.size(), nullptr) != CS_SUCCEED)
+	if (ct_con_props (m_pCtConnection, CS_SET, CS_USERNAME, sUser.data(), static_cast<CS_INT>(sUser.size()), nullptr) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>set username");
 		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
@@ -6877,7 +6877,7 @@ bool KSQL::ctlib_login ()
 
 	kDebug (KSQL2_CTDEBUG, "ct_con_props() set password");
 	auto sPass = GetDBPass();
-	if (ct_con_props (m_pCtConnection, CS_SET, CS_PASSWORD, sPass.data(), sPass.size(), nullptr) != CS_SUCCEED)
+	if (ct_con_props (m_pCtConnection, CS_SET, CS_PASSWORD, sPass.data(), static_cast<CS_INT>(sPass.size()), nullptr) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_login>set password");
 		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
@@ -6888,7 +6888,7 @@ bool KSQL::ctlib_login ()
 	while(true)
 	{
 		auto sHost = GetDBHost();
-		if (ct_connect (m_pCtConnection, sHost.data(), sHost.size()) == CS_SUCCEED)
+		if (ct_connect (m_pCtConnection, sHost.data(), static_cast<CS_INT>(sHost.size())) == CS_SUCCEED)
 		{
 			break;
 		}
@@ -7014,7 +7014,7 @@ bool KSQL::ctlib_execsql (KStringView sSQL)
 	ctlib_clear_errors ();
 
 	kDebug (KSQL2_CTDEBUG, "calling ct_command()...");
-	if (ct_command (m_pCtCommand, CS_LANG_CMD, sSQL.data(), sSQL.size(), CS_UNUSED) != CS_SUCCEED)
+	if (ct_command (m_pCtCommand, CS_LANG_CMD, sSQL.data(), static_cast<CS_INT>(sSQL.size()), CS_UNUSED) != CS_SUCCEED)
 	{
 		ctlib_api_error ("ctlib_execsql>ct_command");
 		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);

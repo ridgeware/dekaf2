@@ -94,7 +94,7 @@ class BOOST_IOSTREAMS_DECL brotli_error : public BOOST_IOSTREAMS_FAILURE {
 public:
 	brotli_error();
 	explicit brotli_error(int error);
-    int error() const { return error_; }
+    size_t error() const { return error_; }
     static void check BOOST_PREVENT_MACRO_SUBSTITUTION(int error);
 private:
     size_t error_;

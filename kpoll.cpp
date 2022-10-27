@@ -239,7 +239,7 @@ void KPoll::Watch()
 			}
 		}
 
-		auto iEvents = ::poll(fds.data(), fds.size(), m_iTimeout);
+		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), m_iTimeout);
 
 		if (iEvents < 0)
 		{
@@ -312,10 +312,10 @@ void KSocketWatch::Watch()
 
 #ifdef DEKAF2_ADD_POLLIN
 		// on Linux, return immediately from poll
-		auto iEvents = ::poll(fds.data(), fds.size(), 0);
+		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), 0);
 #else
 		// on MacOS, poll with timeout
-		auto iEvents = ::poll(fds.data(), fds.size(), m_iTimeout);
+		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), m_iTimeout);
 #endif
 
 		if (iEvents < 0)

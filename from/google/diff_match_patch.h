@@ -234,24 +234,24 @@ class diff_match_patch
     {
       string_t coords1, coords2;
       if (length1 == 0) {
-        coords1 = traits::to_string(start1);
+        coords1 = traits::to_string(static_cast<int>(start1));
         coords1 += traits::cs(L",0");
       } else if (length1 == 1) {
-        coords1 = traits::to_string(start1 + 1);
+        coords1 = traits::to_string(static_cast<int>(start1 + 1));
       } else {
-        coords1 = traits::to_string(start1 + 1);
+        coords1 = traits::to_string(static_cast<int>(start1 + 1));
         coords1 += traits::from_wchar(L',');
-        coords1 += traits::to_string(length1);
+        coords1 += traits::to_string(static_cast<int>(length1));
       }
       if (length2 == 0) {
-		  coords2 = traits::to_string(start2);
+		  coords2 = traits::to_string(static_cast<int>(start2));
 		  coords2 += traits::cs(L",0");
       } else if (length2 == 1) {
-        coords2 = traits::to_string(start2 + 1);
+        coords2 = traits::to_string(static_cast<int>(start2 + 1));
       } else {
-        coords2 = traits::to_string(start2 + 1);
+        coords2 = traits::to_string(static_cast<int>(start2 + 1));
         coords2 += traits::from_wchar(L',');
-        coords2 += traits::to_string(length2);
+        coords2 += traits::to_string(static_cast<int>(length2));
       }
 		string_t text(traits::cs(L"@@ -"));
         text += coords1;
@@ -569,8 +569,8 @@ public:
     }
 
     // Cache the text lengths to prevent multiple calls.
-    const step_t text1_length = text1.length();
-    const step_t text2_length = text2.length();
+    const step_t text1_length = static_cast<step_t>(text1.length());
+    const step_t text2_length = static_cast<step_t>(text2.length());
     const step_t max_d        = (text1_length + text2_length + 1) / 2;
     const step_t v_offset     = max_d;
     const step_t v_length     = 2 * max_d;

@@ -1043,10 +1043,11 @@ target_link_libraries(dekaf2
 		${JEMalloc_LIBRARIES}
 	)
 
+# include all external headers (and own installed headers) as
+# SYSTEM headers to suppress warnings on their contents
 target_include_directories(dekaf2
+	SYSTEM
 	PUBLIC
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
-	$<BUILD_INTERFACE:${GENERATED_FILES_DIR}>
 	$<INSTALL_INTERFACE:${dekaf2_include_dest}>
 	$<INSTALL_INTERFACE:${dekaf2_lib_dest}>
 	${Boost_INCLUDE_DIR}
@@ -1061,6 +1062,14 @@ target_include_directories(dekaf2
 	$<BUILD_INTERFACE:${JEMalloc_INCLUDE_DIRS}>
 	# for centos libzip:
 	/include
+)
+
+# for internal build, include the headers without SYSTEM property so that
+# we get all warnings
+target_include_directories(dekaf2
+	PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
+	$<BUILD_INTERFACE:${GENERATED_FILES_DIR}>
 )
 
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2)

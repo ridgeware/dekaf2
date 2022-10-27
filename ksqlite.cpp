@@ -326,7 +326,7 @@ Row::RowBase::RowBase(Database& database, StringView sQuery)
 //--------------------------------------------------------------------------------
 	: m_Connector(database)
 {
-	auto ec = sqlite3_prepare_v2(*m_Connector, sQuery.data(), sQuery.size(), &m_Statement, nullptr);
+	auto ec = sqlite3_prepare_v2(*m_Connector, sQuery.data(), static_cast<int>(sQuery.size()), &m_Statement, nullptr);
 
 	if (!Success(ec))
 	{
@@ -522,14 +522,14 @@ bool Statement::Bind(ParIndex iOneBasedIndex, double iValue)
 bool Statement::Bind(ParIndex iOneBasedIndex, StringView sValue, bool bCopy)
 //--------------------------------------------------------------------------------
 {
-	return Success(sqlite3_bind_text(m_Row, iOneBasedIndex, sValue.data(), sValue.size(), bCopy ? SQLITE_TRANSIENT : SQLITE_STATIC));
+	return Success(sqlite3_bind_text(m_Row, iOneBasedIndex, sValue.data(), static_cast<int>(sValue.size()), bCopy ? SQLITE_TRANSIENT : SQLITE_STATIC));
 }
 
 //--------------------------------------------------------------------------------
 bool Statement::Bind(ParIndex iOneBasedIndex, void* pValue, size_type iSize, bool bCopy)
 //--------------------------------------------------------------------------------
 {
-	return Success(sqlite3_bind_blob(m_Row, iOneBasedIndex, pValue, iSize, bCopy ? SQLITE_TRANSIENT : SQLITE_STATIC));
+	return Success(sqlite3_bind_blob(m_Row, iOneBasedIndex, pValue, static_cast<int>(iSize), bCopy ? SQLITE_TRANSIENT : SQLITE_STATIC));
 }
 
 //--------------------------------------------------------------------------------

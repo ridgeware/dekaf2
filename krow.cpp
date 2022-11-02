@@ -205,6 +205,7 @@ KString KCOL::FlagsToString (Flags iFlags)
 	if (iFlags & BOOLEAN)         {  sPretty += "[BOOLEAN]";         }
 	if (iFlags & JSON)            {  sPretty += "[JSON]";            }
 	if (iFlags & INT64NUMERIC)    {  sPretty += "[INT64NUMERIC]";    }
+	if (iFlags & INCREMENT)       {  sPretty += "[INCREMENT]";       }
 
 	return (sPretty);
 
@@ -655,21 +656,31 @@ KSQLInjectionSafeString KROW::FormUpdate (DBT iDBType) const
 		{
 			if (it.second.sValue.empty())
 			{
-				sSQL.ref() += kFormat ("\t{}{}=null\n", (bComma) ? "," : "", it.first);
-			}
-			else
-			{
-				if (it.second.HasFlag (KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
+				if (it.second.HasFlag (KCOL::INCREMENT))
 				{
-					sSQL.ref() += kFormat ("\t{}{}={}\n", (bComma) ? "," : "", it.first, EscapeChars (it, iDBType));
+					continue; // omit column from update
 				}
 				else
 				{
-					sSQL.ref() += kFormat ("\t{}{}={}'{}'\n",
-									 (bComma) ? "," : "",
-									 it.first,
-									 iDBType == DBT::SQLSERVER ? "N" : "",
-									 EscapeChars (it, iDBType));
+					sSQL.ref() += kFormat ("\t{}{}=null\n", (bComma) ? "," : "", it.first);
+				}
+			}
+			else
+			{
+				sSQL.ref() += kFormat ("\t{}{}=", (bComma) ? "," : "", it.first);
+
+				if (it.second.HasFlag (KCOL::INCREMENT))
+				{
+					sSQL.ref() += kFormat ("{}+", it.first);
+				}
+
+				if (it.second.HasFlag (KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
+				{
+					sSQL.ref() += kFormat ("{}\n", EscapeChars (it, iDBType));
+				}
+				else
+				{
+					sSQL.ref() += kFormat ("'{}'\n", EscapeChars (it, iDBType));
 				}
 			}
 			bComma = true;
@@ -700,17 +711,15 @@ KSQLInjectionSafeString KROW::FormUpdate (DBT iDBType) const
 			sPrefix = "   and ";
 		}
 		
+		sSQL.ref() += kFormat("{}{}=", sPrefix, it.first);
+
 		if (it.second.HasFlag(KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
 		{
-			sSQL.ref() += kFormat("{}{}={}\n", sPrefix, it.first, EscapeChars (it, iDBType));
+			sSQL.ref() += kFormat("{}\n", EscapeChars (it, iDBType));
 		}
 		else
 		{
-			sSQL.ref() += kFormat("{}{}={}'{}'\n",
-							sPrefix,
-							it.first,
-							iDBType == DBT::SQLSERVER ? "N" : "",
-							EscapeChars (it, iDBType));
+			sSQL.ref() += kFormat("'{}'\n", EscapeChars (it, iDBType));
 		}
 	}
 

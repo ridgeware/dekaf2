@@ -288,9 +288,10 @@ public:
 		BOOLEAN          = 1 << 6,   ///< Indicates given column is a boolean (true/false)
 		JSON             = 1 << 7,   ///< Indicates given column is a JSON object
 		INT64NUMERIC     = 1 << 8,   ///< Indicates given column is a NUMERIC, but would overflow in JSON - NUMERIC is also always set when this flag is true
+		INCREMENT        = 1 << 9,   ///< Indicated that during UPDATES the value in the existing row should be INCREMENTED by the value passed in
 
 		TYPE_FLAGS       = NUMERIC | BOOLEAN | JSON | INT64NUMERIC,
-		MODE_FLAGS       = PKEY | NONCOLUMN | EXPRESSION | INSERTONLY | NULL_IS_NOT_NIL
+		MODE_FLAGS       = PKEY | NONCOLUMN | EXPRESSION | INSERTONLY | NULL_IS_NOT_NIL | INCREMENT
 	};
 
 	/// Column size, max size type

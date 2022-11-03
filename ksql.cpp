@@ -8103,14 +8103,39 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KSQLInjectionSafeString& 
 bool KSQL::GetLock (KStringView sName, int16_t iTimeoutSeconds)
 //-----------------------------------------------------------------------------
 {
-	if (m_iDBType == DBT::MYSQL)
+	// Note: MYSQL has GET_LOCK() and RELEASE_LOCK() capability, but in the event of
+	// a stale/orphaned lock, it is impossible to break a lock obtained from another
+	// thread (even if that thread is gone).  In general, the system works, but it's
+	// a disaster actually for that rare case when you have an orphaned lock.
+	//
+	// I'm writing this logic to purposely NOT make use of MYSQL's native methods
+	// and as a consequence, we have:
+	//   * a generic solution that works across all RDBMS's
+	//   * a simpler solution that can be hacked when desperate times occur
+
+	//if (m_iDBType == DBT::MYSQL)
+	//{
+	//	return SingleIntQuery ("select GET_LOCK('{}', {})", sName, iTimeoutSeconds) >= 1;
+	//}
+	//kDebug(1, "not supported for {}", TxDBType(m_iDBType));
+
+	auto sTableName = kFormat ("{}_LOCK", sName);
+	do
 	{
-		return SingleIntQuery ("select GET_LOCK('{}', {})", sName, iTimeoutSeconds) >= 1;
+		kDebug (2, "obtaining lock: {}", sName);
+		if (ExecSQL ("create table {} (a integer null)"))
+		{
+			kDebug (2, "obtained lock: {}", sName);
+			return true;  // the lock has been obtained
+		}
+		kDebug (2, "lock failed: {}, sleeping ...", sName);
+		kMilliSleep (1000);
+		--iTimeoutSeconds;
 	}
+	while (iTimeoutSeconds >= 0);
 
-	kDebug(1, "not supported for {}", TxDBType(m_iDBType));
-
-	return false;
+	kDebug (2, "lock failed: {}", sName);
+	return SetError (kFormat ("lock failed: {}", sName));
 
 } // GetLock
 
@@ -8118,14 +8143,32 @@ bool KSQL::GetLock (KStringView sName, int16_t iTimeoutSeconds)
 bool KSQL::ReleaseLock (KStringView sName)
 //-----------------------------------------------------------------------------
 {
-	if (m_iDBType == DBT::MYSQL)
+	// Note: MYSQL has GET_LOCK() and RELEASE_LOCK() capability, but in the event of
+	// a stale/orphaned lock, it is impossible to break a lock obtained from another
+	// thread (even if that thread is gone).  In general, the system works, but it's
+	// a disaster actually for that rare case when you have an orphaned lock.
+	//
+	// I'm writing this logic to purposely NOT make use of MYSQL's native methods
+	// and as a consequence, we have:
+	//   * a generic solution that works across all RDBMS's
+	//   * a simpler solution that can be hacked when desperate times occur
+
+	//if (m_iDBType == DBT::MYSQL)
+	//{
+	//	return SingleIntQuery ("select RELEASE_LOCK('{}')", sName) >= 1;
+	//}
+	//kDebug(1, "not supported for {}", TxDBType(m_iDBType));
+
+	auto sTableName = kFormat ("{}_LOCK", sName);
+	kDebug (2, "releasing lock: {}", sName);
+	if (ExecSQL ("drop table {}", sName))
 	{
-		return SingleIntQuery ("select RELEASE_LOCK('{}')", sName) >= 1;
+		kDebug (2, "released lock: {}", sName);
+		return true;  // the lock has been released
 	}
 
-	kDebug(1, "not supported for {}", TxDBType(m_iDBType));
-
-	return false;
+	kDebug (2, "release lock failed: {}", sName);
+	return SetError (kFormat ("release lock failed: {}", sName));
 
 } // ReleaseLock
 
@@ -8133,14 +8176,28 @@ bool KSQL::ReleaseLock (KStringView sName)
 bool KSQL::IsLocked (KStringView sName)
 //-----------------------------------------------------------------------------
 {
-	if (m_iDBType == DBT::MYSQL)
-	{
-		return SingleIntQuery ("select IS_USED_LOCK('{}')", sName) >= 1;
-	}
+	// Note: MYSQL has GET_LOCK() and RELEASE_LOCK() capability, but in the event of
+	// a stale/orphaned lock, it is impossible to break a lock obtained from another
+	// thread (even if that thread is gone).  In general, the system works, but it's
+	// a disaster actually for that rare case when you have an orphaned lock.
+	//
+	// I'm writing this logic to purposely NOT make use of MYSQL's native methods
+	// and as a consequence, we have:
+	//   * a generic solution that works across all RDBMS's
+	//   * a simpler solution that can be hacked when desperate times occur
 
-	kDebug(1, "not supported for {}", TxDBType(m_iDBType));
+	//if (m_iDBType == DBT::MYSQL)
+	//{
+	//	return SingleIntQuery ("select IS_USED_LOCK('{}')", sName) >= 1;
+	//}
+	//kDebug(1, "not supported for {}", TxDBType(m_iDBType));
 
-	return false;
+	auto sTableName = kFormat ("{}_LOCK", sName);
+	auto bExists    = DescribeTable (sName);
+
+	EndQuery();
+
+	return bExists;
 
 } // IsLocked
 

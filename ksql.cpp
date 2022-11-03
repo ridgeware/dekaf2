@@ -8123,7 +8123,7 @@ bool KSQL::GetLock (KStringView sName, int16_t iTimeoutSeconds)
 	do
 	{
 		kDebug (2, "obtaining lock: {}", sName);
-		if (ExecSQL ("create temporary table {} (a integer null)"))
+		if (ExecSQL ("create temporary table {} (a integer null)", sTableName))
 		{
 			kDebug (2, "obtained lock: {}", sName);
 			return true;  // the lock has been obtained
@@ -8161,7 +8161,7 @@ bool KSQL::ReleaseLock (KStringView sName)
 
 	auto sTableName = kFormat ("{}_LOCK", sName);
 	kDebug (2, "releasing lock: {}", sName);
-	if (ExecSQL ("drop temporary table {}", sName))
+	if (ExecSQL ("drop temporary table {}", sTableName))
 	{
 		kDebug (2, "released lock: {}", sName);
 		return true;  // the lock has been released
@@ -8193,7 +8193,7 @@ bool KSQL::IsLocked (KStringView sName)
 	//kDebug(1, "not supported for {}", TxDBType(m_iDBType));
 
 	auto sTableName = kFormat ("{}_LOCK", sName);
-	auto bExists    = DescribeTable (sName);
+	auto bExists    = DescribeTable (sTableName);
 
 	EndQuery();
 

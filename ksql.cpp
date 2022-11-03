@@ -8123,7 +8123,7 @@ bool KSQL::GetLock (KStringView sName, int16_t iTimeoutSeconds)
 	do
 	{
 		kDebug (2, "obtaining lock: {}", sName);
-		if (ExecSQL ("create table {} (a integer null)"))
+		if (ExecSQL ("create temporary table {} (a integer null)"))
 		{
 			kDebug (2, "obtained lock: {}", sName);
 			return true;  // the lock has been obtained
@@ -8161,7 +8161,7 @@ bool KSQL::ReleaseLock (KStringView sName)
 
 	auto sTableName = kFormat ("{}_LOCK", sName);
 	kDebug (2, "releasing lock: {}", sName);
-	if (ExecSQL ("drop table {}", sName))
+	if (ExecSQL ("drop temporary table {}", sName))
 	{
 		kDebug (2, "released lock: {}", sName);
 		return true;  // the lock has been released
@@ -8234,7 +8234,8 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 		return true; // all set
 	}
 
-	if (!GetLock (sSchemaVersionTable, WAIT_FOR_SECS))
+	auto sLock = kFormat ("{}_{}", sSchemaVersionTable, GetDBName()).ToUpper();
+	if (!GetLock (sLock, WAIT_FOR_SECS))
 	{
 		kWarning("Could not acquire schema update lock within {} seconds. Another process may be updating the schema. Abort.", WAIT_FOR_SECS);
 		return SetError(kFormat("schema updater for table {} is locked.  gave up after {} seconds", sSchemaVersionTable, WAIT_FOR_SECS));
@@ -8336,7 +8337,7 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 
 	} // if upgrade was needed
 
-	ReleaseLock (sSchemaVersionTable);
+	ReleaseLock (sLock);
 
 	kDebug (3, "schema should be all set at version {} now", iCurrentSchema);
 

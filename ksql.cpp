@@ -8164,6 +8164,7 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 		return true;
 	}
 
+	enum     {WAIT_FOR_SECS = 5};
 	auto     iSigned    = (bForce) ? 0 : GetSchemaVersion (sSchemaVersionTable);
 	uint16_t iSchemaRev = (iSigned < 0) ? 0 : static_cast<uint16_t>(iSigned);
 	KString  sError;
@@ -8176,10 +8177,10 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 		return true; // all set
 	}
 
-	if (!GetLock (sSchemaVersionTable, 120))
+	if (!GetLock (sSchemaVersionTable, WAIT_FOR_SECS))
 	{
-		kWarning("Could not acquire schema update lock within 120 seconds. Another process may be updating the schema. Abort.");
-		return SetError(kFormat("schema updater for table {} is locked", sSchemaVersionTable));
+		kWarning("Could not acquire schema update lock within {} seconds. Another process may be updating the schema. Abort.", WAIT_FOR_SECS);
+		return SetError(kFormat("schema updater for table {} is locked.  gave up after {} seconds", sSchemaVersionTable, WAIT_FOR_SECS));
 	}
 
 	// query rev again after acquiring the lock

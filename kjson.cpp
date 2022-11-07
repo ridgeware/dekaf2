@@ -435,19 +435,16 @@ KString ToJsonPointer(KStringView sSelector)
 const KJSON& Select (const KJSON& json, KStringView sSelector)
 //-----------------------------------------------------------------------------
 {
-	KString sTemp;
-
-	if (IsJsonPath(sSelector))
-	{
-		sTemp     = ToJsonPointer(sSelector);
-		sSelector = sTemp;
-	}
-
 	DEKAF2_TRY
 	{
-		KJSON::json_pointer jp(sSelector);
-
-		return json.at(jp);
+		if (IsJsonPath(sSelector))
+		{
+			return json.at(KJSON::json_pointer(ToJsonPointer(sSelector)));
+		}
+		else
+		{
+			return json.at(KJSON::json_pointer(sSelector));
+		}
 	}
 
 	DEKAF2_CATCH (const KJSON::exception& exc)
@@ -459,6 +456,20 @@ const KJSON& Select (const KJSON& json, KStringView sSelector)
 
 } // Select
 
+//-----------------------------------------------------------------------------
+KJSON& Select (KJSON& json, KStringView sSelector)
+//-----------------------------------------------------------------------------
+{
+	if (IsJsonPath(sSelector))
+	{
+		return json[KJSON::json_pointer(ToJsonPointer(sSelector))];
+	}
+	else
+	{
+		return json[KJSON::json_pointer(sSelector)];
+	}
+
+} // Select
 
 //-----------------------------------------------------------------------------
 const KString& SelectString (const KJSON& json, KStringView sSelector)

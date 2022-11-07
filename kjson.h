@@ -258,28 +258,39 @@ namespace kjson
 	bool RecursiveMatchValue (const KJSON& json, KStringView sSearch);
 
 	/// merges keys from object2 to object1
+	DEKAF2_PUBLIC
 	void Merge (KJSON& object1, const KJSON& object2);
 
 	/// returns true if a selector seems to be a json pointer
+	DEKAF2_PUBLIC
 	bool IsJsonPointer(KStringView sSelector);
 
 	/// returns true if a selector seems to be a json path
+	DEKAF2_PUBLIC
 	bool IsJsonPath(KStringView sSelector);
 
 	/// converts a json path into a json pointer
+	DEKAF2_PUBLIC
 	KString ToJsonPointer(KStringView sSelector);
 
 	/// use a path-style selector to isolate any type of value inside a JSON structure, never throws
+	DEKAF2_PUBLIC
 	const KJSON& Select (const KJSON& json, KStringView sSelector);
+
+	/// use a path-style selector to isolate any type of value inside a JSON structure, throws on error
+	DEKAF2_PUBLIC
+	KJSON& Select (KJSON& json, KStringView sSelector);
 
 	/// use a path-style selector to isolate a string inside a JSON structure, never throws
 	/// e.g. data.object.payment.sources[0].creditCard.lastFourDigits
 	/// or /data/object/payment/sources/0/creditCard/lastFourDigits
+	DEKAF2_PUBLIC
 	const KString& SelectString (const KJSON& json, KStringView sSelector);
 
 	/// use a path-style selector to isolate an object reference inside a JSON structure, never throws
 	/// e.g. data.object.payment.sources[0].creditCard
 	/// or /data/object/payment/sources/0/creditCard
+	DEKAF2_PUBLIC
 	const KJSON& SelectObject (const KJSON& json, KStringView sSelector);
 
 }; // end of namespace kjson

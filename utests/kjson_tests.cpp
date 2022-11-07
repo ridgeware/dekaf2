@@ -7,9 +7,11 @@
 
 using namespace dekaf2;
 
+namespace {
 KJSON jsonAsPar(const KJSON& json = KJSON{})
 {
 	return json;
+}
 }
 
 TEST_CASE("KJSON")

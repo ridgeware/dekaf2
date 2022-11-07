@@ -469,8 +469,7 @@ void KROW::PrintValuesForInsert(KSQLInjectionSafeString& sSQL, DBT iDBType) cons
 			continue;
 		}
 
-		KString sHack = (it.second.sValue.empty()) ? "" : it.second.sValue; // TODO:JOACHIM: REMOVE ME
-		sHack.MakeLower();
+		KString sHack = it.second.sValue.ToLowerASCII();
 		sHack.Replace(" ","");
 		bool    bHack = ((sHack == "now()") || (sHack == "now(6)") || (sHack == "{{now}}"));
 

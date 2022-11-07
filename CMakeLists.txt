@@ -71,6 +71,7 @@ OPTION(DEKAF2_WITH_FCGI "build with FCGI" OFF)
 OPTION(DEKAF2_WITH_KLOG "build with KLOG" ON)
 OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" OFF)
+OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" OFF)
 
 # =================================== C++ STANDARD =================================
 
@@ -199,6 +200,16 @@ endif()
 
 if (NOT DEKAF2_WITH_KLOG)
 	set(DEKAF2_KLOG_WITH_TCP OFF)
+endif()
+
+if (DEKAF2_USE_PRECOMPILED_HEADERS)
+	if (CMAKE_VERSION VERSION_LESS "3.16.0")
+		message(STATUS "need cmake version >= 3.16 for precompiled headers (have ${CMAKE_VERSION}) - disabled")
+		set(DEKAF2_USE_PRECOMPILED_HEADERS OFF)
+	else()
+		message(STATUS "build dekaf2 with precompiled headers")
+		set(CMAKE_PCH_INSTANTIATE_TEMPLATES ON)
+	endif()
 endif()
 
 # ================================ CMAKE INTERNALS =================================
@@ -1068,6 +1079,10 @@ target_include_directories(dekaf2
 )
 
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2)
+
+if (DEKAF2_USE_PRECOMPILED_HEADERS)
+	target_precompile_headers(dekaf2 PRIVATE ${HEADERS})
+endif()
 
 add_library(ksql2 ksql.cpp ksql.h bits/ksql_dbc.cpp bits/ksql_dbc.h)
 target_link_libraries(ksql2

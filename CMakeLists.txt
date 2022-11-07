@@ -61,7 +61,6 @@ OPTION(DEKAF2_USE_JEMALLOC "Use jemalloc" OFF)
 OPTION(DEKAF2_USE_FBSTRING_AS_KSTRING "Use Folly::FBString for KString" OFF)
 OPTION(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW "Use dekaf2::detail::stringview::string_view for KStringView" OFF)
 OPTION(DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS "Use std::string for debug builds" OFF)
-OPTION(DEKAF2_USE_BOOST_MULTI_INDEX "Use Boost::Multi_Index" ON)
 OPTION(DEKAF2_USE_OPTIMIZED_STRING_FIND "Use optimized string::find" ON)
 OPTION(DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS "With deprecated KString member functions" OFF)
 OPTION(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1 "Provide compatibility layer to dekaf1" OFF)
@@ -605,11 +604,7 @@ set (BITS_HEADERS
 	bits/klogwriter.h
 	bits/klogserializer.h
 	bits/kmake_unique.h
-	bits/kmru-std-vector.h
-	bits/kmru-multi-index.h
 	bits/kmutable_pair.h
-	bits/kprops-multi-index.h
-	bits/kprops-std-map.h
 	bits/kstring_view.h
 	bits/kstringviewz.h
 	bits/ktarheader.h
@@ -1184,7 +1179,9 @@ install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/findcol" DESTINATION ${dek
 install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/kport" DESTINATION ${dekaf2_bin_dest})
 install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/my-ip-addr" DESTINATION ${dekaf2_bin_dest})
 if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
-	install(FILES ${COMPAT_HEADERS} DESTINATION ${dekaf2_include_dest}/compat)
+	install(FILES ${COMPAT_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/compat)
+else()
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/compat)")
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/templates                       DESTINATION ${dekaf2_share_dest})
@@ -1194,7 +1191,15 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-8.1.1/include/fmt/     DE
 if (DEKAF2_HAS_MINIFOLLY)
 	install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/           DESTINATION ${dekaf2_include_dest}/folly    FILES_MATCHING PATTERN "*.h")
 	install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/folly/glog/            DESTINATION ${dekaf2_include_dest}/glog     FILES_MATCHING PATTERN "*.h")
+else()
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/folly)")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/glog)")
 endif()
+# remove old headers, until mid-2023
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kprops-multi-index.h)")
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kprops-std-map.h)")
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kmru-multi-index.h)")
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kmru-std-vector.h)")
 
 set(CPACK_SOURCE_GENERATOR ZIP)
 set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})

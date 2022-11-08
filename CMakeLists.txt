@@ -1195,28 +1195,16 @@ target_include_directories(klog PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(klog dekaf2)
 add_dependencies(klog dekaf2)
 
-if (DEKAF2_USE_PRECOMPILED_HEADERS)
-	target_precompile_headers(klog REUSE_FROM dekaf2)
-endif()
-
 add_executable(createdbc createdbc.cpp)
 target_include_directories(createdbc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(createdbc dekaf2 ksql2)
 add_dependencies(createdbc dekaf2 ksql2)
-
-if (DEKAF2_USE_PRECOMPILED_HEADERS)
-	target_precompile_headers(createdbc REUSE_FROM dekaf2)
-endif()
 
 if (DEKAF2_HAS_NCURSES)
 	add_executable(unixmenu unixmenu.cpp)
 	target_include_directories(unixmenu PUBLIC CURSES_INCLUDE_DIRS)
 	target_link_libraries(unixmenu dekaf2 ncurses)
 	add_dependencies(unixmenu dekaf2)
-
-	if (DEKAF2_USE_PRECOMPILED_HEADERS)
-		target_precompile_headers(unixmenu REUSE_FROM dekaf2)
-	endif()
 endif()
 
 add_executable(dekaf2project dekaf2project.cpp)
@@ -1224,19 +1212,11 @@ target_include_directories(dekaf2project PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..
 target_link_libraries(dekaf2project dekaf2)
 add_dependencies(dekaf2project dekaf2)
 
-if (DEKAF2_USE_PRECOMPILED_HEADERS)
-	target_precompile_headers(dekaf2project REUSE_FROM dekaf2)
-endif()
-
 
 add_executable(kurl samples/kurl.cpp samples/kurl.h)
 target_include_directories(kurl PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(kurl dekaf2)
 add_dependencies(kurl dekaf2)
-
-if (DEKAF2_USE_PRECOMPILED_HEADERS)
-	target_precompile_headers(kurl REUSE_FROM dekaf2)
-endif()
 
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_include_directories(getentities PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")

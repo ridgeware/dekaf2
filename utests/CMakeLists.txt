@@ -120,10 +120,6 @@ set (USOURCES
 add_executable(dekaf2-utests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
 target_include_directories(dekaf2-utests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 
-if (DEKAF2_USE_PRECOMPILED_HEADERS)
-	target_precompile_headers(dekaf2-utests REUSE_FROM dekaf2)
-endif()
-
 if (DEKAF2_HAS_SQLITE3)
 	target_link_libraries(dekaf2-utests dekaf2 ksqlite ksql2 re2)
 else()

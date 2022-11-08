@@ -1074,7 +1074,6 @@ target_include_directories(dekaf2
 # we get all warnings
 target_include_directories(dekaf2
 	PUBLIC
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
 	$<BUILD_INTERFACE:${GENERATED_FILES_DIR}>
 )
 
@@ -1112,10 +1111,12 @@ if(SQLITE3_FOUND)
 endif()
 
 add_executable(klog klog_main.cpp)
+target_include_directories(klog PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(klog dekaf2)
 add_dependencies(klog dekaf2)
 
 add_executable(createdbc createdbc.cpp)
+target_include_directories(createdbc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(createdbc dekaf2 ksql2)
 add_dependencies(createdbc dekaf2 ksql2)
 
@@ -1127,18 +1128,22 @@ if (DEKAF2_HAS_NCURSES)
 endif()
 
 add_executable(dekaf2project dekaf2project.cpp)
+target_include_directories(dekaf2project PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(dekaf2project dekaf2)
 add_dependencies(dekaf2project dekaf2)
 
 add_executable(kurl samples/kurl.cpp samples/kurl.h)
+target_include_directories(kurl PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(kurl dekaf2)
 add_dependencies(kurl dekaf2)
 
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
+target_include_directories(getentities PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(getentities dekaf2)
 add_dependencies(getentities dekaf2)
 
 add_executable(genunicodetables EXCLUDE_FROM_ALL genunicodetables.cpp)
+target_include_directories(genunicodetables PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(genunicodetables dekaf2)
 add_dependencies(genunicodetables dekaf2)
 

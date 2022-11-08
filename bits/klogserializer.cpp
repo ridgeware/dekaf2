@@ -41,15 +41,15 @@
 */
 
 #include "klogserializer.h"
-#include <dekaf2/ksystem.h>
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kgetruntimestack.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/klog.h> // for KLog::DASH ..
-#include <dekaf2/ktime.h>
+#include "../ksystem.h"
+#include "../dekaf2.h"
+#include "../kgetruntimestack.h"
+#include "../kstringutils.h"
+#include "../klog.h" // for KLog::DASH ..
+#include "../ktime.h"
 
 #ifdef DEKAF2_KLOG_WITH_TCP
-	#include <dekaf2/kjson.h>
+	#include "../kjson.h"
 #endif
 
 namespace dekaf2

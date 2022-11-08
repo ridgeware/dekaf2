@@ -46,9 +46,9 @@
 /// Collects information about system parameters in domains like network,
 /// memory, cpu
 
-#include <dekaf2/kstring.h>
-#include <dekaf2/kprops.h>
-#include <dekaf2/kmime.h>
+#include "kstring.h"
+#include "kprops.h"
+#include "kmime.h"
 
 namespace dekaf2 {
 

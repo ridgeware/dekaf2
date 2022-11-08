@@ -41,11 +41,11 @@
 */
 
 #include "klogwriter.h"
-#include <dekaf2/kstring.h>
-#include <dekaf2/ksplit.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kencode.h>
-#include <dekaf2/kstringutils.h>
+#include "../kstring.h"
+#include "../ksplit.h"
+#include "../kfilesystem.h"
+#include "../kencode.h"
+#include "../kstringutils.h"
 
 #ifndef DEKAF2_IS_WINDOWS
 	#define DEKAF2_HAS_SYSLOG
@@ -56,12 +56,12 @@
 #endif
 
 #ifdef DEKAF2_KLOG_WITH_TCP
-	#include <dekaf2/kurl.h>
-	#include <dekaf2/kwebclient.h>
-	#include <dekaf2/kconnection.h>
-	#include <dekaf2/kmime.h>
-	#include <dekaf2/kjson.h>
-	#include <dekaf2/khttp_header.h> // for LogToRESTResponse()
+	#include "../kurl.h"
+	#include "../kwebclient.h"
+	#include "../kconnection.h"
+	#include "../kmime.h"
+	#include "../kjson.h"
+	#include "../khttp_header.h" // for LogToRESTResponse()
 #endif
 
 namespace dekaf2

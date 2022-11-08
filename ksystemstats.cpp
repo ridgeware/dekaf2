@@ -40,17 +40,17 @@
 //
 */
 
-#include <dekaf2/ksystemstats.h>
-#include <dekaf2/kstack.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kinshell.h>
-#include <dekaf2/kregex.h>
-#include <dekaf2/kurlencode.h>
-#include <dekaf2/kwebclient.h>
-#include <dekaf2/kstream.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/ktime.h>
+#include "ksystemstats.h"
+#include "kstack.h"
+#include "kstringutils.h"
+#include "kinshell.h"
+#include "kregex.h"
+#include "kurlencode.h"
+#include "kwebclient.h"
+#include "kstream.h"
+#include "kjson.h"
+#include "kfilesystem.h"
+#include "ktime.h"
 
 namespace dekaf2 {
 

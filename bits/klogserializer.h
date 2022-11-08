@@ -46,10 +46,10 @@
 /// Data serializers for the logging framework
 
 #include <memory>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/kduration.h>
+#include "../kstring.h"
+#include "../kstringview.h"
+#include "../kjson.h"
+#include "../kduration.h"
 
 #ifndef DEKAF2_IS_WINDOWS
 	#define DEKAF2_HAS_SYSLOG

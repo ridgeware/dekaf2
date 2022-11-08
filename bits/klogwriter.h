@@ -46,16 +46,16 @@
 /// Output writers for the logging framework
 
 #include <memory>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kwriter.h>
+#include "../kstring.h"
+#include "../kstringview.h"
+#include "../kwriter.h"
 
 #ifndef DEKAF2_IS_WINDOWS
 	#define DEKAF2_HAS_SYSLOG
 #endif
 
 #ifdef DEKAF2_KLOG_WITH_TCP
-	#include <dekaf2/kjson.h>
+	#include "../kjson.h"
 #endif
 
 namespace dekaf2

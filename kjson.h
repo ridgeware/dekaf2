@@ -42,14 +42,17 @@
 
 #pragma once
 
+#include "kconfiguration.h"
 #include "klog.h"
 #define JSON_THROW_USER(exception) { kJSONTrace(); throw exception; }
 #include "kcrashexit.h"
 #define JSON_ASSERT(bMustBeTrue) { dekaf2::kAssert(bMustBeTrue,"crash in KJSON"); }
-#ifndef NDEBUG
+#if defined(DEKAF2_IS_DEBUG_BUILD) && !defined(DEKAF2_USE_PRECOMPILED_HEADERS)
 	// add exact location to json exceptions in debug mode - we switch them off
 	// in release mode because they come with a modest cost
 	// This works starting with nlohmann::json v3.10.0
+	// Unfortunately NDEBUG is set when precompiling headers - do not use
+	// this with PCH, the symbols will not match when linking from external code
 	#define JSON_DIAGNOSTICS 1
 #endif
 #include <nlohmann/json.hpp>

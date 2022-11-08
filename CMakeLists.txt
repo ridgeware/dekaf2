@@ -71,7 +71,7 @@ OPTION(DEKAF2_WITH_FCGI "build with FCGI" OFF)
 OPTION(DEKAF2_WITH_KLOG "build with KLOG" ON)
 OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" OFF)
-OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" OFF)
+OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" ON)
 
 # =================================== C++ STANDARD =================================
 
@@ -99,8 +99,10 @@ if (CMAKE_GENERATOR MATCHES "Makefile")
 		if (DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS)
 			SET(DEKAF2_USE_FBSTRING_AS_KSTRING OFF)
 		endif()
+		set(DEKAF2_IS_DEBUG_BUILD ON)
 	else()
 		SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
+		set(DEKAF2_IS_DEBUG_BUILD OFF)
 	endif()
 
 else()

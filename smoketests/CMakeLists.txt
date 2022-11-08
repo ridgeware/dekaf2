@@ -27,3 +27,6 @@ set (USOURCES
 add_executable(dekaf2-smoketests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
 target_link_libraries(dekaf2-smoketests dekaf2 ksql2)
 
+if (DEKAF2_USE_PRECOMPILED_HEADERS)
+	target_precompile_headers(dekaf2-smoketests REUSE_FROM dekaf2)
+endif()

@@ -44,7 +44,7 @@ cmake_minimum_required(VERSION 3.13)
 cmake_policy(SET CMP0048 NEW)
 
 # declare the project
-project(dekaf2 VERSION 2.0.17 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.18 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -1099,6 +1099,10 @@ target_include_directories(ksql2
 )
 add_dependencies(ksql2 dekaf2)
 
+if (DEKAF2_USE_PRECOMPILED_HEADERS)
+	target_precompile_headers(ksql2 REUSE_FROM dekaf2)
+endif()
+
 if(SQLITE3_FOUND)
 	add_library(ksqlite ksqlite.cpp ksqlite.h)
 	target_link_libraries(ksqlite
@@ -1108,6 +1112,10 @@ if(SQLITE3_FOUND)
 			${SQLITE3_LIBRARIES}
 		)
 	add_dependencies(ksqlite dekaf2)
+
+	if (DEKAF2_USE_PRECOMPILED_HEADERS)
+		target_precompile_headers(ksqlite REUSE_FROM dekaf2)
+	endif()
 endif()
 
 add_executable(klog klog_main.cpp)
@@ -1115,16 +1123,28 @@ target_include_directories(klog PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(klog dekaf2)
 add_dependencies(klog dekaf2)
 
+if (DEKAF2_USE_PRECOMPILED_HEADERS)
+	target_precompile_headers(klog REUSE_FROM dekaf2)
+endif()
+
 add_executable(createdbc createdbc.cpp)
 target_include_directories(createdbc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(createdbc dekaf2 ksql2)
 add_dependencies(createdbc dekaf2 ksql2)
+
+if (DEKAF2_USE_PRECOMPILED_HEADERS)
+	target_precompile_headers(createdbc REUSE_FROM dekaf2)
+endif()
 
 if (DEKAF2_HAS_NCURSES)
 	add_executable(unixmenu unixmenu.cpp)
 	target_include_directories(unixmenu PUBLIC CURSES_INCLUDE_DIRS)
 	target_link_libraries(unixmenu dekaf2 ncurses)
 	add_dependencies(unixmenu dekaf2)
+
+	if (DEKAF2_USE_PRECOMPILED_HEADERS)
+		target_precompile_headers(unixmenu REUSE_FROM dekaf2)
+	endif()
 endif()
 
 add_executable(dekaf2project dekaf2project.cpp)
@@ -1132,10 +1152,19 @@ target_include_directories(dekaf2project PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..
 target_link_libraries(dekaf2project dekaf2)
 add_dependencies(dekaf2project dekaf2)
 
+if (DEKAF2_USE_PRECOMPILED_HEADERS)
+	target_precompile_headers(dekaf2project REUSE_FROM dekaf2)
+endif()
+
+
 add_executable(kurl samples/kurl.cpp samples/kurl.h)
 target_include_directories(kurl PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(kurl dekaf2)
 add_dependencies(kurl dekaf2)
+
+if (DEKAF2_USE_PRECOMPILED_HEADERS)
+	target_precompile_headers(kurl REUSE_FROM dekaf2)
+endif()
 
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_include_directories(getentities PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")

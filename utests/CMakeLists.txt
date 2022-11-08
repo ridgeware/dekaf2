@@ -119,6 +119,10 @@ set (USOURCES
 
 add_executable(dekaf2-utests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
 
+if (DEKAF2_USE_PRECOMPILED_HEADERS)
+	target_precompile_headers(dekaf2-utests REUSE_FROM dekaf2)
+endif()
+
 if (DEKAF2_HAS_SQLITE3)
 	target_link_libraries(dekaf2-utests dekaf2 ksqlite ksql2 re2)
 else()
@@ -131,4 +135,3 @@ if (GoogleBench_FOUND)
 	target_link_libraries(dekaf2-benchmark dekaf2 ${GOOGLEBENCH_LIBRARIES})
 	target_include_directories(dekaf2-benchmark PRIVATE ${GOOGLEBENCH_INCLUDE_DIRS})
 endif()
-

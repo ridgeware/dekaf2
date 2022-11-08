@@ -71,7 +71,7 @@ OPTION(DEKAF2_WITH_FCGI "build with FCGI" OFF)
 OPTION(DEKAF2_WITH_KLOG "build with KLOG" ON)
 OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" OFF)
-OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" ON)
+OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" OFF)
 
 # =================================== C++ STANDARD =================================
 

@@ -71,7 +71,7 @@ OPTION(DEKAF2_WITH_FCGI "build with FCGI" OFF)
 OPTION(DEKAF2_WITH_KLOG "build with KLOG" ON)
 OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" OFF)
-OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" OFF)
+OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" ON)
 
 # =================================== C++ STANDARD =================================
 
@@ -803,6 +803,72 @@ endif()
 
 list(SORT HEADERS)
 
+set (PRECOMPILED_HEADERS
+	<unordered_map>
+	<unordered_set>
+	<map>
+	<memory>
+	<mutex>
+	<set>
+	<type_traits>
+	<string>
+	<string_view>
+	<fstream>
+	<iostream>
+	<ostream>
+	<istream>
+	<vector>
+	<array>
+	<algorithm>
+	<functional>
+	<thread>
+	<utility>
+	<chrono>
+	<nlohmann/json.hpp>
+	<fmt/format.h>
+	<boost/multi_index_container.hpp>
+	<boost/multi_index/hashed_index.hpp>
+	<boost/multi_index/ordered_index.hpp>
+	<boost/multi_index/identity.hpp>
+	<boost/multi_index/member.hpp>
+	<boost/multi_index/sequenced_index.hpp>
+	bits/kstring_view.h
+	bits/khash.h
+	bits/kcppcompat.h
+	bits/ktemplate.h
+	bits/kmutable_pair.h
+	bits/ktemplate.h
+	bits/kunique_deleter.h
+	dekaf2.h
+	kassociative.h
+	kctype.h
+	[["kconfiguration.h"]]
+	kduration.h
+	kfilesystem.h
+	kformat.h
+	khtmlentities.h
+	kjoin.h
+	kjson.h
+	klog.h
+	koutstringstream.h
+	kprops.h
+	kreader.h
+	krow.h
+	ksplit.h
+	kstack.h
+	kstream.h
+	kstreambuf.h
+	kstring.h
+	kstringstream.h
+	kstringutils.h
+	kstringview.h
+	ksystem.h
+	kurl.h
+	kurlencode.h
+	kutf8.h
+	kwriter.h
+)
+
 # =============================== SOURCE FILES ====================================
 
 set (SOURCES
@@ -1080,7 +1146,7 @@ target_include_directories(dekaf2
 target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2)
 
 if (DEKAF2_USE_PRECOMPILED_HEADERS)
-	target_precompile_headers(dekaf2 PRIVATE ${HEADERS})
+	target_precompile_headers(dekaf2 PRIVATE ${PRECOMPILED_HEADERS})
 endif()
 
 add_library(ksql2 ksql.cpp ksql.h bits/ksql_dbc.cpp bits/ksql_dbc.h)
@@ -1097,6 +1163,8 @@ target_include_directories(ksql2
 	$<BUILD_INTERFACE:${MYSQL_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${FREETDS_INCLUDE_DIRS}>
 )
+# DEKAF2_LIBRARY_BUILD is needed for dynamic libs
+target_compile_definitions(ksql2 PRIVATE DEKAF2_LIBRARY_BUILD)
 add_dependencies(ksql2 dekaf2)
 
 if (DEKAF2_USE_PRECOMPILED_HEADERS)
@@ -1111,6 +1179,8 @@ if(SQLITE3_FOUND)
 		PRIVATE
 			${SQLITE3_LIBRARIES}
 		)
+	# DEKAF2_LIBRARY_BUILD is needed for dynamic libs
+	target_compile_definitions(ksqlite PRIVATE DEKAF2_LIBRARY_BUILD)
 	add_dependencies(ksqlite dekaf2)
 
 	if (DEKAF2_USE_PRECOMPILED_HEADERS)

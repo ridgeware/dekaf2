@@ -8961,13 +8961,20 @@ bool DbSemaphore::CreateSemaphore (int16_t iTimeout)
 	{
 		m_sLastError.clear ();
 
+		if (m_bVerbose)
+		{
+			KOut.FormatLine (":: {}: {}: getting lock '{}' ...", kFormTimestamp(0,"%a %T"), m_db.ConnectSummary(), m_sAction);
+		}
+
 		if (!m_db.GetPersistentLock(m_sAction, iTimeout))
 		{
 			m_sLastError.Format ("could not create named lock '{}', already exists", m_sAction);
+
 			if (m_bVerbose)
 			{
 				KOut.FormatLine (":: {}: {}: {}.", kFormTimestamp(0,"%a %T"), m_db.ConnectSummary(), m_sLastError);
 			}
+
 			kDebug(1, m_sLastError);
 
 			if (m_bThrow)
@@ -8992,6 +8999,11 @@ bool DbSemaphore::ClearSemaphore ()
 	if (m_bIsSet)
 	{
 		m_sLastError.clear ();
+
+		if (m_bVerbose)
+		{
+			KOut.FormatLine (":: {}: {}: releasing lock '{}' ...", kFormTimestamp(0,"%a %T"), m_db.ConnectSummary(), m_sAction);
+		}
 
 		if (!m_db.ReleasePersistentLock(m_sAction))
 		{

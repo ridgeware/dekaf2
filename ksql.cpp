@@ -5380,11 +5380,10 @@ bool KSQL::DescribeTable (KStringView sTablename)
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		// desc: ColName, Datatype, Null, Key, Default, Extra
 		{
-			//uint32_t iFlags = GetFlags();
 			EndQuery ();
-			SetFlags (F_IgnoreSelectKeyword);
+			auto iFlags = SetFlag (F_IgnoreSelectKeyword);
 			bool bOK = ExecQuery ("desc {}", sTablename);
-			//SetFlags (iFlags);
+			SetFlags (iFlags);
 			return (bOK);
 		}
 		break;
@@ -8110,27 +8109,7 @@ bool KSQL::GetLock (KStringView sName, int16_t iTimeoutSeconds)
 
 	// else fall through to table based locking
 
-	auto sTableName = kFormat ("{}_LOCK", sName);
-	for (;;)
-	{
-		kDebug (2, "obtaining lock: {}", sName);
-		if (ExecSQL ("create temporary table {} (a integer null)", sTableName))
-		{
-			kDebug (2, "obtained lock: {}", sName);
-			return true;  // the lock has been obtained
-		}
-		if (iTimeoutSeconds > 0)
-		{
-			kDebug (2, "lock failed: {}, sleeping ...", sName);
-			kMilliSleep (1000);
-			--iTimeoutSeconds;
-		}
-		else
-		{
-			kDebug (2, "lock failed: {}", sName);
-			return SetError (kFormat ("lock failed: {}", sName));
-		}
-	}
+	return GetPersistentLock(sName, iTimeoutSeconds);
 
 } // GetLock
 
@@ -8145,16 +8124,7 @@ bool KSQL::ReleaseLock (KStringView sName)
 
 	// else fall through to table based locking
 
-	auto sTableName = kFormat ("{}_LOCK", sName);
-	kDebug (2, "releasing lock: {}", sName);
-	if (ExecSQL ("drop temporary table {}", sTableName))
-	{
-		kDebug (2, "released lock: {}", sName);
-		return true;  // the lock has been released
-	}
-
-	kDebug (2, "release lock failed: {}", sName);
-	return SetError (kFormat ("release lock failed: {}", sName));
+	return ReleasePersistentLock(sName);
 
 } // ReleaseLock
 
@@ -8169,14 +8139,75 @@ bool KSQL::IsLocked (KStringView sName)
 
 	// else fall through to table based locking
 
+	return IsPersistentlyLocked(sName);
+
+} // IsLocked
+
+//-----------------------------------------------------------------------------
+bool KSQL::GetPersistentLock (KStringView sName, int16_t iTimeoutSeconds)
+//-----------------------------------------------------------------------------
+{
 	auto sTableName = kFormat ("{}_LOCK", sName);
+	for (;;)
+	{
+		kDebug (2, "obtaining lock: {}", sName);
+		auto iSave = SetFlag (KSQL::F_IgnoreSQLErrors);
+		if (ExecSQL ("create temporary table {} (a integer null)", sTableName))
+		{
+			SetFlags (iSave);
+			kDebug (2, "obtained lock: {}", sName);
+			return true;  // the lock has been obtained
+		}
+		SetFlags (iSave);
+		if (iTimeoutSeconds > 0)
+		{
+			kDebug (2, "lock failed: {}, sleeping ...", sName);
+			kMilliSleep (1000);
+			--iTimeoutSeconds;
+		}
+		else
+		{
+			kDebug (2, "lock failed: {}", sName);
+			return false;
+		}
+	}
+
+} // GetPersistentLock
+
+//-----------------------------------------------------------------------------
+bool KSQL::ReleasePersistentLock (KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	auto sTableName = kFormat ("{}_LOCK", sName);
+	kDebug (2, "releasing lock: {}", sName);
+	auto iSave      = SetFlag (KSQL::F_IgnoreSQLErrors);
+	if (ExecSQL ("drop temporary table {}", sTableName))
+	{
+		SetFlags (iSave);
+		kDebug (2, "released lock: {}", sName);
+		return true;  // the lock has been released
+	}
+	SetFlags (iSave);
+
+	kDebug (2, "release lock failed: {}", sName);
+	return false;
+
+} // ReleasePersistentLock
+
+//-----------------------------------------------------------------------------
+bool KSQL::IsPersistentlyLocked (KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	auto sTableName = kFormat ("{}_LOCK", sName);
+	auto iSave      = SetFlag (KSQL::F_IgnoreSQLErrors);
 	auto bExists    = DescribeTable (sTableName);
+	SetFlags (iSave);
 
 	EndQuery();
 
 	return bExists;
 
-} // IsLocked
+} // IsPersistentlyLocked
 
 static constexpr KStringView SCHEMA_REV = "schema_rev";
 
@@ -8930,16 +8961,7 @@ bool DbSemaphore::CreateSemaphore (int16_t iTimeout)
 	{
 		m_sLastError.clear ();
 
-		auto iSave = m_db.GetFlags ();
-		m_db.SetFlags (KSQL::F_IgnoreSQLErrors);
-		if (m_bVerbose)
-		{
-			KOut.FormatLine (":: {}: {}: getting lock '{}' ...", kFormTimestamp(0,"%a %T"), m_db.ConnectSummary(), m_sAction);
-		}
-		auto bOK = m_db.GetLock(m_sAction, iTimeout);
-		m_db.SetFlags (iSave);
-
-		if (!bOK)
+		if (!m_db.GetPersistentLock(m_sAction, iTimeout))
 		{
 			m_sLastError.Format ("could not create named lock '{}', already exists", m_sAction);
 			if (m_bVerbose)
@@ -8971,23 +8993,22 @@ bool DbSemaphore::ClearSemaphore ()
 	{
 		m_sLastError.clear ();
 
-		auto iSave = m_db.GetFlags ();
-		m_db.SetFlags (KSQL::F_IgnoreSQLErrors);
-		if (m_bVerbose)
+		if (!m_db.ReleasePersistentLock(m_sAction))
 		{
-			KOut.FormatLine (":: {}: {}: releasing lock '{}' ...", kFormTimestamp(0,"%a %T"), m_db.ConnectSummary(), m_sAction);
-		}
-		auto bOK = m_db.ReleaseLock(m_sAction);
-		m_db.SetFlags (iSave);
-
-		if (!bOK)
-		{
-			m_sLastError.Format ("could not release named lock '{}'", m_sAction);
-			kDebug(1, m_sLastError);
-
-			if (m_bThrow)
+			if (m_db.IsPersistentlyLocked(m_sAction))
 			{
-				throw KException(m_sLastError);
+				m_sLastError.Format ("could not release persistent lock '{}'", m_sAction);
+				kDebug(1, m_sLastError);
+
+				if (m_bThrow)
+				{
+					throw KException(m_sLastError);
+				}
+			}
+			else
+			{
+				kDebug(2, "persistent lock was already released: '{}'", m_sAction);
+				m_bIsSet = false;
 			}
 		}
 		else

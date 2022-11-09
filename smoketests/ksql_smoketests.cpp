@@ -1252,7 +1252,6 @@ TEST_CASE("KSQL")
 			FAIL_CHECK (db.GetLastError());
 		}
 
-		if (db.GetDBType() == KSQL::DBT::MYSQL)
 		{
 			bool b;
 			{
@@ -1286,13 +1285,45 @@ TEST_CASE("KSQL")
 			}
 
 			{
+				b = db.GetPersistentLock("TestLock", 1);
+				INFO ( "GetPersistentLock()" );
+				CHECK ( b );
+			}
+
+			{
+				b = db.IsPersistentlyLocked("TestLock");
+				INFO ( "IsPersistentlyLocked()" );
+				CHECK ( b );
+			}
+
+			{
+				b = db.ReleasePersistentLock("TestLock");
+				INFO ( "ReleasePersistentLock()" );
+				CHECK ( b );
+			}
+
+			{
+				b = db.IsPersistentlyLocked("TestLock");
+				INFO ( "IsPersistentlyLocked()" );
+				CHECK ( b == false );
+			}
+
+			{
+				b = db.ReleasePersistentLock("TestLock");
+				INFO ( "ReleasePersistentLock()" );
+				CHECK ( b == false );
+			}
+
+			{
 				DbSemaphore Semaphore(db, "TestLock", false);
 				CHECK ( Semaphore.IsCreated() );
-				CHECK ( db.IsLocked("TestLock") );
+				CHECK ( db.IsLocked("TestLock") == false );
+				CHECK ( db.IsPersistentlyLocked("TestLock") == true );
 				CHECK ( Semaphore.CreateSemaphore() );
 				CHECK ( Semaphore.ClearSemaphore() );
 				CHECK ( Semaphore.IsCreated() == false );
 				CHECK ( db.IsLocked("TestLock") == false );
+				CHECK ( db.IsPersistentlyLocked("TestLock") == false );
 				CHECK ( Semaphore.CreateSemaphore() );
 				CHECK ( Semaphore.CreateSemaphore() );
 				auto db2 = db;
@@ -1300,6 +1331,7 @@ TEST_CASE("KSQL")
 				CHECK ( Semaphore2.IsCreated() == false );
 			}
 			CHECK ( db.IsLocked("TestLock") == false );
+			CHECK ( db.IsPersistentlyLocked("TestLock") == false );
 		}
 
 		db.ExecSQL("drop table if exists TESTSCHEMA_KSQL");

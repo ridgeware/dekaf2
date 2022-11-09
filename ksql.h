@@ -921,9 +921,20 @@ public:
 	/// @endcode
 	auto NoThrow() { return ThrowingSQL<KSQL>(*this, false); }
 
+	/// acquire a named lock, which is automatically released when the connection fails
+	/// (on mysql, on other platforms this defers to GetPersistentLock())
 	bool GetLock (KStringView sName, int16_t iTimeoutSeconds = -1);
+	/// release a named lock (on mysql, on other platforms this defers to ReleasePersistentLock())
 	bool ReleaseLock (KStringView sName);
+	/// check a named lock (on mysql, on other platforms this defers to IsPersistentlyLocked())
 	bool IsLocked (KStringView sName);
+
+	/// acquire a lock that is persistent through database connections
+	bool GetPersistentLock (KStringView sName, int16_t iTimeoutSeconds = -1);
+	/// release a lock that is persistent through database connections
+	bool ReleasePersistentLock (KStringView sName);
+	/// check a lock that is persistent through database connections
+	bool IsPersistentlyLocked (KStringView sName);
 
 	using SchemaCallback = std::function<bool(uint16_t iFrom, uint16_t iTo)>;
 

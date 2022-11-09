@@ -8908,11 +8908,12 @@ KString KSQL::ConvertTimestamp (KStringView sTimestamp)
 
 
 //-----------------------------------------------------------------------------
-DbSemaphore::DbSemaphore (KSQL& db, KString sAction, bool bThrow, bool bWait, int16_t iTimeout)
+DbSemaphore::DbSemaphore (KSQL& db, KString sAction, bool bThrow, bool bWait, int16_t iTimeout, bool bVerbose)
 //-----------------------------------------------------------------------------
-	: m_db      { db }
-	, m_sAction { sAction }
-	, m_bThrow  { bThrow }
+	: m_db       { db       }
+	, m_sAction  { sAction  }
+	, m_bThrow   { bThrow   }
+	, m_bVerbose { bVerbose }
 {
 	if (!bWait)
 	{
@@ -8931,12 +8932,20 @@ bool DbSemaphore::CreateSemaphore (int16_t iTimeout)
 
 		auto iSave = m_db.GetFlags ();
 		m_db.SetFlags (KSQL::F_IgnoreSQLErrors);
+		if (m_bVerbose)
+		{
+			KOut.FormatLine (":: {}: {}: getting lock '{}' ...", kFormTimestamp(0,"%a %T"), m_db.ConnectSummary(), m_sAction);
+		}
 		auto bOK = m_db.GetLock(m_sAction, iTimeout);
 		m_db.SetFlags (iSave);
 
 		if (!bOK)
 		{
 			m_sLastError.Format ("could not create named lock '{}', already exists", m_sAction);
+			if (m_bVerbose)
+			{
+				KOut.FormatLine (":: {}: {}: {}.", kFormTimestamp(0,"%a %T"), m_db.ConnectSummary(), m_sLastError);
+			}
 			kDebug(1, m_sLastError);
 
 			if (m_bThrow)
@@ -8964,6 +8973,10 @@ bool DbSemaphore::ClearSemaphore ()
 
 		auto iSave = m_db.GetFlags ();
 		m_db.SetFlags (KSQL::F_IgnoreSQLErrors);
+		if (m_bVerbose)
+		{
+			KOut.FormatLine (":: {}: {}: releasing lock '{}' ...", kFormTimestamp(0,"%a %T"), m_db.ConnectSummary(), m_sAction);
+		}
 		auto bOK = m_db.ReleaseLock(m_sAction);
 		m_db.SetFlags (iSave);
 

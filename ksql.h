@@ -1628,7 +1628,7 @@ class DbSemaphore
 public:
 //----------
 
-	DbSemaphore (KSQL& db, KString sAction, bool bThrow=true, bool bWait=false, int16_t iTimeout = 0);
+	DbSemaphore (KSQL& db, KString sAction, bool bThrow=true, bool bWait=false, int16_t iTimeout=0, bool bVerbose=false);
 	~DbSemaphore () { ClearSemaphore(); }
 
 	bool  CreateSemaphore (int16_t iTimeout = 0);
@@ -1645,6 +1645,7 @@ private:
 	KString  m_sLastError;
 	bool     m_bThrow { false };
 	bool     m_bIsSet { false };
+	bool     m_bVerbose { false };
 
 }; // DbSemaphore
 

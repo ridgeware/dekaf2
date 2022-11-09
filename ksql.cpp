@@ -8152,7 +8152,7 @@ bool KSQL::GetPersistentLock (KStringView sName, int16_t iTimeoutSeconds)
 	{
 		kDebug (2, "obtaining lock: {}", sName);
 		auto iSave = SetFlag (KSQL::F_IgnoreSQLErrors);
-		if (ExecSQL ("create temporary table {} (a integer null)", sTableName))
+		if (ExecSQL ("create table {} (a integer null)", sTableName))
 		{
 			SetFlags (iSave);
 			kDebug (2, "obtained lock: {}", sName);
@@ -8181,7 +8181,7 @@ bool KSQL::ReleasePersistentLock (KStringView sName)
 	auto sTableName = kFormat ("{}_LOCK", sName);
 	kDebug (2, "releasing lock: {}", sName);
 	auto iSave      = SetFlag (KSQL::F_IgnoreSQLErrors);
-	if (ExecSQL ("drop temporary table {}", sTableName))
+	if (ExecSQL ("drop table {}", sTableName))
 	{
 		SetFlags (iSave);
 		kDebug (2, "released lock: {}", sName);

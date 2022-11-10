@@ -2730,8 +2730,9 @@ void KSQL::ExecSQLFileGo (KStringView sFilename, SQLFileParms& Parms)
 	if (Parms.fDropStatement)
 	{
 		kDebug (GetDebugLevel(), "setting F_IgnoreSQLErrors");
-		SetFlags (F_IgnoreSQLErrors);
 	}
+
+	auto Guard = ScopedFlags (Parms.fDropStatement ? F_IgnoreSQLErrors : F_None);
 
 	SetErrorPrefix (sFilename, Parms.iLineNumStart);
 
@@ -4215,13 +4216,9 @@ KROW KSQL::SingleRawQuery (KSQLInjectionSafeString sSQL, Flags iFlags/*=0*/, KSt
 {
 	KROW ROW;
 
-	Flags iHold = GetFlags();
-	SetFlag(F_IgnoreSQLErrors);
-	SetFlag(iFlags);
+	auto Guard = ScopedFlags(F_IgnoreSQLErrors | iFlags);
 
 	bool bOK = ExecRawQuery (std::move(sSQL), Flags::F_None, sAPI);
-
-	SetFlags(iHold);
 
 	if (!bOK)
 	{
@@ -4847,6 +4844,15 @@ KSQL::Flags KSQL::SetFlag (Flags iFlag)
 } // KSQL::SetFlag
 
 //-----------------------------------------------------------------------------
+KScopeGuard KSQL::ScopedFlags(Flags iFlags, bool bAdditive)
+//-----------------------------------------------------------------------------
+{
+	auto iOrigFlags = bAdditive ? SetFlag(iFlags) : SetFlags(iFlags);
+	return KScopeGuard([iOrigFlags,this]{ SetFlag(iOrigFlags); });
+
+}; // KSQL::ScopedFlags
+
+//-----------------------------------------------------------------------------
 KString KSQL::GetLastInfo()
 //-----------------------------------------------------------------------------
 {
@@ -5231,12 +5237,9 @@ bool KSQL::ListTables (KStringView sLike/*="%"*/, bool fIncludeViews/*=false*/, 
 			kDebug (GetDebugLevel(), "warning: {}: MySQL 'show table status' does not support arguments", sLike);
 		}
 		{
-			//uint32_t iFlags = GetFlags();
 			EndQuery ();
-			SetFlags (F_IgnoreSelectKeyword);
-			bool bOK = ExecQuery ("show table status");
-			//SetFlags (iFlags);
-			return (bOK);
+			auto Guard = ScopedFlags (F_IgnoreSelectKeyword);
+			return ExecQuery ("show table status");
 		}
 		break;
 
@@ -5336,12 +5339,9 @@ bool KSQL::ListProcedures (KStringView sLike/*="%"*/, bool fRestrictToMine/*=tru
 			kDebug (GetDebugLevel(), "warning: {}: MySQL 'show procedure status' does not support arguments", sLike);
 		}
 		{
-			//uint32_t iFlags = GetFlags();
 			EndQuery ();
-			SetFlags (F_IgnoreSelectKeyword);
-			bool bOK = ExecQuery ("show procedure status");
-			//SetFlags (iFlags);
-			return (bOK);
+			auto Guard = ScopedFlags (F_IgnoreSelectKeyword);
+			return ExecQuery ("show procedure status");
 		}
 		break;
 
@@ -5381,10 +5381,8 @@ bool KSQL::DescribeTable (KStringView sTablename)
 		// desc: ColName, Datatype, Null, Key, Default, Extra
 		{
 			EndQuery ();
-			auto iFlags = SetFlag (F_IgnoreSelectKeyword);
-			bool bOK = ExecQuery ("desc {}", sTablename);
-			SetFlags (iFlags);
-			return (bOK);
+			auto Guard = ScopedFlags (F_IgnoreSelectKeyword);
+			return ExecQuery ("desc {}", sTablename);
 		}
 		break;
 
@@ -5412,10 +5410,8 @@ bool KSQL::DescribeTable (KStringView sTablename)
 		{
 			//uint32_t iFlags = GetFlags();
 			EndQuery ();
-			SetFlags (F_IgnoreSelectKeyword);
-			bool bOK = ExecQuery ("sp_help {}", sTablename);
-			//SetFlags (iFlags);
-			return (bOK);
+			auto Guard = ScopedFlags (F_IgnoreSelectKeyword);
+			return ExecQuery ("sp_help {}", sTablename);
 		}
 		break;
 
@@ -6195,23 +6191,13 @@ bool KSQL::ExecLastRawInsert(bool bIgnoreDupes)
 		DoTranslations (m_sLastSQL);
 	}
 
-	Flags iSavedFlags = Flags::F_None;
-
-	if (bIgnoreDupes)
-	{
-		iSavedFlags = SetFlags (KSQL::F_IgnoreSQLErrors);
-	}
+	auto Guard = ScopedFlags(bIgnoreDupes ? F_IgnoreSQLErrors : F_None, false);
 
 	bool bOK = ExecLastRawSQL (Flags::F_None, "Insert");
 
 	if (!bOK && bIgnoreDupes && WasDuplicateError())
 	{
 		bOK = true;
-	}
-
-	if (bIgnoreDupes)
-	{
-		SetFlags (iSavedFlags);
 	}
 
 	kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
@@ -8148,17 +8134,18 @@ bool KSQL::GetPersistentLock (KStringView sName, int16_t iTimeoutSeconds)
 //-----------------------------------------------------------------------------
 {
 	auto sTableName = kFormat ("{}_LOCK", sName);
+
 	for (;;)
 	{
+		auto Guard = ScopedFlags (KSQL::F_IgnoreSQLErrors);
+
 		kDebug (2, "obtaining lock: {}", sName);
-		auto iSave = SetFlag (KSQL::F_IgnoreSQLErrors);
 		if (ExecSQL ("create table {} (a integer null)", sTableName))
 		{
-			SetFlags (iSave);
 			kDebug (2, "obtained lock: {}", sName);
 			return true;  // the lock has been obtained
 		}
-		SetFlags (iSave);
+
 		if (iTimeoutSeconds > 0)
 		{
 			kDebug (2, "lock failed: {}, sleeping ...", sName);
@@ -8179,15 +8166,14 @@ bool KSQL::ReleasePersistentLock (KStringView sName)
 //-----------------------------------------------------------------------------
 {
 	auto sTableName = kFormat ("{}_LOCK", sName);
+	auto Guard      = ScopedFlags (KSQL::F_IgnoreSQLErrors);
+
 	kDebug (2, "releasing lock: {}", sName);
-	auto iSave      = SetFlag (KSQL::F_IgnoreSQLErrors);
 	if (ExecSQL ("drop table {}", sTableName))
 	{
-		SetFlags (iSave);
 		kDebug (2, "released lock: {}", sName);
 		return true;  // the lock has been released
 	}
-	SetFlags (iSave);
 
 	kDebug (2, "release lock failed: {}", sName);
 	return false;
@@ -8199,13 +8185,9 @@ bool KSQL::IsPersistentlyLocked (KStringView sName)
 //-----------------------------------------------------------------------------
 {
 	auto sTableName = kFormat ("{}_LOCK", sName);
-	auto iSave      = SetFlag (KSQL::F_IgnoreSQLErrors);
-	auto bExists    = DescribeTable (sTableName);
-	SetFlags (iSave);
+	auto Guard      = ScopedFlags (KSQL::F_IgnoreSQLErrors);
 
-	EndQuery();
-
-	return bExists;
+	return DescribeTable (sTableName);
 
 } // IsPersistentlyLocked
 
@@ -8546,9 +8528,8 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 		KOut.FormatLine (":: {} = {}", "DBHOST", GetDBHost());
 		KOut.FormatLine (":: {} = {}", "DBNAME", GetDBName());
 		KOut.FormatLine (":: {} = {}", "DBPORT", GetDBPort());
-		auto iFlags = SetFlag(F_IgnoreSQLErrors);
+		auto Guard = ScopedFlags(F_IgnoreSQLErrors);
 		SetError(kFormat ("{} set", KSQL_CONNECTION_TEST_ONLY));
-		SetFlags(iFlags);
 		return false;
 	}
 
@@ -8888,7 +8869,7 @@ KSQL::ConnectionInfo KSQL::GetConnectionInfo(ConnectionID iConnectionID)
 	ConnectionInfo Info;
 	Info.ID = iConnectionID;
 
-	auto iOldFlags = SetFlag(F_IgnoreSelectKeyword);
+	auto Guard = ScopedFlags(F_IgnoreSelectKeyword);
 
 	if (ExecQuery("select host /* KSQL::GetConnectionInfo() */\n"
 				  ", db \n"
@@ -8905,8 +8886,6 @@ KSQL::ConnectionInfo KSQL::GetConnectionInfo(ConnectionID iConnectionID)
 		Info.sQuery   = Get(4);
 		Info.iSeconds = Get(5).UInt64();
 	}
-
-	SetFlags(iOldFlags);
 
 	return Info;
 
@@ -9040,10 +9019,13 @@ bool KSQL::ShowCounts (KStringView sRegex/*=""*/)
 	std::vector<KString> Tables;
 	uint8_t iMax = 0;
 
-	auto iSave = SetFlags (F_IgnoreSelectKeyword);
-	if (!ExecQuery ("show tables"))
 	{
-		return false;
+		auto Guard = ScopedFlags (F_IgnoreSelectKeyword);
+
+		if (!ExecQuery ("show tables"))
+		{
+			return false;
+		}
 	}
 
 	while (NextRow())
@@ -9060,7 +9042,6 @@ bool KSQL::ShowCounts (KStringView sRegex/*=""*/)
 	}
 
 	EndQuery();
-	SetFlags (iSave);
 
 	KString sFormat;
 	sFormat.Format (":: {}:<{}{}  ...  ", "{", iMax, "}");
@@ -9166,12 +9147,7 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 		return KJSON{};
 	}
 
-	auto iOldFlags = SetFlag(F_IgnoreSelectKeyword);
-
-	KScopeGuard GuardFlags = [this,iOldFlags]
-	{
-		SetFlags(iOldFlags);
-	};
+	auto Guard = ScopedFlags(F_IgnoreSelectKeyword);
 
 	if (!ExecQuery("show tables like '{}%'", sStartsWith))
 	{

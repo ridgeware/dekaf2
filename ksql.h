@@ -55,6 +55,7 @@
 #include "ksystem.h"
 #include "kthreadsafe.h"
 #include "kassociative.h"
+#include "kscopeguard.h"
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
@@ -693,6 +694,9 @@ public:
 	int         GetLastOCIError () const { return (GetLastErrorNum()); }
 	/// returns last issued SQL statement
 	const KString& GetLastSQL ()   const { return (m_sLastSQL.str());        }
+
+	/// set configuration/processing flags, and reset original flags at end of scope
+	KScopeGuard ScopedFlags (Flags iFlags, bool bAdditive = true);
 	/// set configuration/processing flags, returns old flags
 	Flags       SetFlags (Flags iFlags);
 	/// add new flag(s) to existing configuration/processing flags (logical OR)

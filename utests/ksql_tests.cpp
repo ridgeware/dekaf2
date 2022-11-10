@@ -169,28 +169,28 @@ TEST_CASE("KSQL")
 		CHECK ( sQuery == "select * from ABC where key1='test1' and key2='test2'");
 
 		{
-			KSQLInjectionSafeString sSafe = "select * from test";
+			KSQLString sSafe = "select * from test";
 			auto sSafe2 = DB.FormatSQL(sSafe);
 			CHECK ( sSafe2 == "select * from test" );
 		}
 		{
-			KSQLInjectionSafeString sSafe = "select * from test where key = '{}'";
+			KSQLString sSafe = "select * from test where key = '{}'";
 			auto sSafe2 = DB.FormatSQL(sSafe, "something");
 			CHECK ( sSafe2 == "select * from test where key = 'something'" );
 		}
 		{
-			KSQLInjectionSafeString sSafe = "select * from test where key = {}";
+			KSQLString sSafe = "select * from test where key = {}";
 			auto sSafe2 = DB.FormatSQL(sSafe, "'something'"); // note: no escaping for const data!
 			CHECK ( sSafe2 == "select * from test where key = 'something'" );
 		}
 		{
-			KSQLInjectionSafeString sSafe = "select * from test where key = {}";
+			KSQLString sSafe = "select * from test where key = {}";
 			KString sWhat = "'something'";
 			auto sSafe2 = DB.FormatSQL(sSafe, sWhat); // note: escaping for non-const data!
 			CHECK ( sSafe2 == "select * from test where key = \\'something\\'" );
 		}
 		{
-			KSQLInjectionSafeString sSafe = "select * from test where key = {}";
+			KSQLString sSafe = "select * from test where key = {}";
 			KString sWhat = "'something'";
 			auto sSafe2 = DB.FormatSQL(sSafe, sWhat.c_str()); // note: escaping for non-const data!
 			CHECK ( sSafe2 == "select * from test where key = \\'something\\'" );
@@ -210,7 +210,7 @@ TEST_CASE("KSQL")
 			CHECK_NOTHROW( DB.FormatSQL(KStringView("select good")) );
 		}
 		{
-			KSQLInjectionSafeString sSQL = "drop table test; select * from test;drop table toast";
+			KSQLString sSQL = "drop table test; select * from test;drop table toast";
 			auto Statements = sSQL.Split(';');
 			CHECK ( Statements.size() == 3 );
 			if (Statements.size() == 3)
@@ -221,7 +221,7 @@ TEST_CASE("KSQL")
 			}
 		}
 		{
-			KSQLInjectionSafeString sSQL = "drop table test\\;; select * from '\"test;drop'; table toast";
+			KSQLString sSQL = "drop table test\\;; select * from '\"test;drop'; table toast";
 			auto Statements = sSQL.Split(';');
 			CHECK ( Statements.size() == 3 );
 			if (Statements.size() == 3)
@@ -232,7 +232,7 @@ TEST_CASE("KSQL")
 			}
 		}
 		{
-			KSQLInjectionSafeString sSQL = "drop table test\\;; select * from '\"test;drop'; table toast";
+			KSQLString sSQL = "drop table test\\;; select * from '\"test;drop'; table toast";
 			CHECK_THROWS( sSQL.Split('"') );
 			CHECK_THROWS( sSQL.Split('\'') );
 			CHECK_THROWS( sSQL.Split('\\') );
@@ -264,7 +264,7 @@ TEST_CASE("KSQL")
 		KSQL DB;
 		DB.SetDBType(KSQL::DBT::MYSQL);
 
-		KSQLInjectionSafeString sOrderBy;
+		KSQLString sOrderBy;
 		DB.FormOrderBy("Äa, BB descend , cc ascending, dd,Ee,ff desc,gg", sOrderBy, {
 			{ "Äa",       "x'x"        },
 			{ "bb",       "bb"         },
@@ -293,7 +293,7 @@ TEST_CASE("KSQL")
 	SECTION("DoTranslations")
 	{
 		KSQL DB;
-		KSQLInjectionSafeString sSQL { "update xx set date={{NOW}}, {{DATETIME}} {{MAXCHAR}} {{unknown}}{{CHAR2000}} date{{PCT}} {{AUTO_INCREMENT}}, {{UTC}} {{$$}}.{{PID}}.{{DC}}{{hostname}}}}" };
+		KSQLString sSQL { "update xx set date={{NOW}}, {{DATETIME}} {{MAXCHAR}} {{unknown}}{{CHAR2000}} date{{PCT}} {{AUTO_INCREMENT}}, {{UTC}} {{$$}}.{{PID}}.{{DC}}{{hostname}}}}" };
 		DB.BuildTranslationList(DB.m_TxList, KSQL::DBT::MYSQL);
 		DB.DoTranslations(sSQL);
 		CHECK ( sSQL == kFormat("update xx set date=now(), timestamp text {{{{unknown}}}}text date% auto_increment, utc_timestamp() {}.{}.{{{{{}}}}}", kGetPid(), kGetPid(), kGetHostname()) );

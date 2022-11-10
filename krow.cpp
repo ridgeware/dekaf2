@@ -59,7 +59,7 @@ int16_t detail::KCommonSQLBase::m_iDebugLevel { 2 };
 
 
 //-----------------------------------------------------------------------------
-void KSQLInjectionSafeString::ThrowWarning(KStringView sContent)
+void KSQLString::ThrowWarning(KStringView sContent)
 //-----------------------------------------------------------------------------
 {
 	KException ex( kFormat("KSQLInjectionSafeString: dynamic string buffers are not accepted: {}", sContent.LeftUTF8(50)) );
@@ -68,7 +68,7 @@ void KSQLInjectionSafeString::ThrowWarning(KStringView sContent)
 }
 
 //-----------------------------------------------------------------------------
-void KSQLInjectionSafeString::AssignFromView(KStringView sContent)
+void KSQLString::AssignFromView(KStringView sContent)
 //-----------------------------------------------------------------------------
 {
 	if (!kIsInsideDataSegment(sContent.data()))
@@ -81,7 +81,7 @@ void KSQLInjectionSafeString::AssignFromView(KStringView sContent)
 } // AssignFromView
 
 //-----------------------------------------------------------------------------
-KSQLInjectionSafeString& KSQLInjectionSafeString::operator+=(const string_type::value_type* sOther)
+KSQLString& KSQLString::operator+=(const string_type::value_type* sOther)
 //-----------------------------------------------------------------------------
 {
 	if (!kIsInsideDataSegment(sOther))
@@ -96,7 +96,7 @@ KSQLInjectionSafeString& KSQLInjectionSafeString::operator+=(const string_type::
 } // ctor
 
 //-----------------------------------------------------------------------------
-std::vector<KSQLInjectionSafeString> KSQLInjectionSafeString::Split(const char chDelimit, bool bTrimWhiteSpace) const
+std::vector<KSQLString> KSQLString::Split(const char chDelimit, bool bTrimWhiteSpace) const
 //-----------------------------------------------------------------------------
 {
 	if (ESCAPE_MYSQL.contains(chDelimit))
@@ -106,7 +106,7 @@ std::vector<KSQLInjectionSafeString> KSQLInjectionSafeString::Split(const char c
 		throw ex;
 	}
 
-	std::vector<KSQLInjectionSafeString> Strings;
+	std::vector<KSQLString> Strings;
 
 	char chQuote             { 0     };
 	bool bEscaped            { false };
@@ -116,7 +116,7 @@ std::vector<KSQLInjectionSafeString> KSQLInjectionSafeString::Split(const char c
 
 	auto SplitAndPush = [&]()
 	{
-		KSQLInjectionSafeString sStr;
+		KSQLString sStr;
 		sStr.m_sContent = m_sContent.substr(iLast, iPos - iLast);
 
 		if (bTrimWhiteSpace)
@@ -244,11 +244,11 @@ bool KROW::NeedsEscape (KStringView sCol, KStringView sCharsToEscape)
 } // NeedsEscape
 
 //-----------------------------------------------------------------------------
-KSQLInjectionSafeString KROW::EscapeChars (KStringView sCol, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
+KSQLString KROW::EscapeChars (KStringView sCol, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
-	KSQLInjectionSafeString sEscaped;
+	KSQLString sEscaped;
 	auto& sRef = sEscaped.ref();
 	sRef.reserve(sCol.size());
 
@@ -287,7 +287,7 @@ KStringView KROW::EscapedCharacters (DBT iDBType)
 } // EscapedCharacters
 
 //-----------------------------------------------------------------------------
-KSQLInjectionSafeString KROW::EscapeChars (KStringView sCol, DBT iDBType)
+KSQLString KROW::EscapeChars (KStringView sCol, DBT iDBType)
 //-----------------------------------------------------------------------------
 {
 	switch (iDBType)
@@ -304,12 +304,12 @@ KSQLInjectionSafeString KROW::EscapeChars (KStringView sCol, DBT iDBType)
 } // EscapeChars
 
 //-----------------------------------------------------------------------------
-KSQLInjectionSafeString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
+KSQLString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
 
-	KSQLInjectionSafeString sEscaped;
+	KSQLString sEscaped;
 
 	// check if we shall clip the string
 	auto iMaxLen = Col.second.GetMaxLen();
@@ -361,7 +361,7 @@ KSQLInjectionSafeString KROW::EscapeChars (const KROW::value_type& Col, KStringV
 } // EscapeChars
 
 //-----------------------------------------------------------------------------
-KSQLInjectionSafeString KROW::EscapeChars (const KROW::value_type& Col, DBT iDBType)
+KSQLString KROW::EscapeChars (const KROW::value_type& Col, DBT iDBType)
 //-----------------------------------------------------------------------------
 {
 	switch (iDBType)
@@ -453,7 +453,7 @@ bool KROW::SetFlags (KStringView sColName, KCOL::Flags Flags)
 }
 
 //-----------------------------------------------------------------------------
-void KROW::PrintValuesForInsert(KSQLInjectionSafeString& sSQL, DBT iDBType) const
+void KROW::PrintValuesForInsert(KSQLString& sSQL, DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
@@ -500,13 +500,13 @@ void KROW::PrintValuesForInsert(KSQLInjectionSafeString& sSQL, DBT iDBType) cons
 } // PrintValuesForInsert
 
 //-----------------------------------------------------------------------------
-KSQLInjectionSafeString KROW::FormInsert (DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=false*/) const
+KSQLString KROW::FormInsert (DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=false*/) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
 
 	m_sLastError.clear(); // reset
-	KSQLInjectionSafeString sSQL;
+	KSQLString sSQL;
 
 	kDebug (3, "before: {}", sSQL);
 	
@@ -562,7 +562,7 @@ KSQLInjectionSafeString KROW::FormInsert (DBT iDBType, bool bIdentityInsert/*=fa
 } // FormInsert
 
 //-----------------------------------------------------------------------------
-bool KROW::AppendInsert (KSQLInjectionSafeString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=true*/) const
+bool KROW::AppendInsert (KSQLString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=true*/) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
@@ -605,13 +605,13 @@ bool KROW::AppendInsert (KSQLInjectionSafeString& sSQL, DBT iDBType, bool bIdent
 } // AppendInsert
 
 //-----------------------------------------------------------------------------
-KSQLInjectionSafeString KROW::FormUpdate (DBT iDBType) const
+KSQLString KROW::FormUpdate (DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
 
 	m_sLastError.clear(); // reset
-	KSQLInjectionSafeString sSQL;
+	KSQLString sSQL;
 	
 	if (!size())
 	{
@@ -727,13 +727,13 @@ KSQLInjectionSafeString KROW::FormUpdate (DBT iDBType) const
 } // FormUpdate
 
 //-----------------------------------------------------------------------------
-KSQLInjectionSafeString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) const
+KSQLString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
 
 	m_sLastError.clear(); // reset
-	KSQLInjectionSafeString sSQL;
+	KSQLString sSQL;
 
 	if (!size())
 	{
@@ -810,13 +810,13 @@ KSQLInjectionSafeString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) c
 } // FormSelect
 
 //-----------------------------------------------------------------------------
-KSQLInjectionSafeString KROW::FormDelete (DBT iDBType) const
+KSQLString KROW::FormDelete (DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
 
 	m_sLastError.clear(); // reset
-	KSQLInjectionSafeString sSQL;
+	KSQLString sSQL;
 
 	kDebug (3, "before: {}", sSQL);
 

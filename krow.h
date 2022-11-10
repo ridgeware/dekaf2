@@ -50,7 +50,7 @@ namespace dekaf2 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ///  a string type that guarantees that all string values (from string var formatting) are SQL escaped
-class DEKAF2_PUBLIC KSQLInjectionSafeString
+class DEKAF2_PUBLIC KSQLString
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -62,13 +62,13 @@ public:
 //----------
 
 	using string_type = KString;
-	using self        = KSQLInjectionSafeString;
+	using self        = KSQLString;
 
-	KSQLInjectionSafeString() = default;
+	KSQLString() = default;
 
 	// at runtime this constructor will only accept const char* from the data segment,
 	// not dynamic string::c_str() - it will throw otherwise
-	KSQLInjectionSafeString(const string_type::value_type* sContent)
+	KSQLString(const string_type::value_type* sContent)
 	{
 		AssignFromView(sContent);
 	}
@@ -78,12 +78,12 @@ public:
 	template<class ConstantString,
 			 typename std::enable_if<std::is_same<KStringView,  typename std::decay<ConstantString>::type>::value ||
 	                                 std::is_same<KStringViewZ, typename std::decay<ConstantString>::type>::value, int>::type = 0>
-	KSQLInjectionSafeString(ConstantString sContent)
+	KSQLString(ConstantString sContent)
 	{
 		AssignFromView(sContent);
 	}
 
-	self& operator+=(const KSQLInjectionSafeString& sOther)
+	self& operator+=(const KSQLString& sOther)
 	{
 		m_sContent += sOther.str();
 		return *this;
@@ -93,9 +93,9 @@ public:
 	// not dynamic string::c_str() - it will throw otherwise
 	self& operator+=(const string_type::value_type* sOther);
 
-	self operator+(const KSQLInjectionSafeString& sOther)
+	self operator+(const KSQLString& sOther)
 	{
-		KSQLInjectionSafeString temp(*this);
+		KSQLString temp(*this);
 		return temp += sOther;
 	}
 
@@ -151,7 +151,7 @@ public:
 	}
 
 	// it is on purpose that there is no way to replace single characters.. use string literals instead ..
-	std::size_t Replace(const KSQLInjectionSafeString& sOrig, const KSQLInjectionSafeString& sReplace, std::size_t pos = 0, bool bReplaceAll = true)
+	std::size_t Replace(const KSQLString& sOrig, const KSQLString& sReplace, std::size_t pos = 0, bool bReplaceAll = true)
 	{
 		return m_sContent.Replace(sOrig.str(), sReplace.str(), pos, bReplaceAll);
 	}
@@ -176,12 +176,12 @@ private:
 
 	string_type m_sContent;
 
-}; // KSQLInjectionSafeString
+}; // KSQLString
 
 template<typename T,
 		 typename std::enable_if<detail::is_kstringview_assignable<const T&, true>::value == true, int>::type = 0>
 DEKAF2_CONSTEXPR_14
-bool operator==(const KSQLInjectionSafeString& left, const T& right)
+bool operator==(const KSQLString& left, const T& right)
 {
 	return KStringView(left.str()).Equal(KStringView(right));
 }
@@ -189,7 +189,7 @@ bool operator==(const KSQLInjectionSafeString& left, const T& right)
 template<typename T,
 		 typename std::enable_if<detail::is_kstringview_assignable<const T&, true>::value == true, int>::type = 0>
 DEKAF2_CONSTEXPR_14
-bool operator==(const T& left, const KSQLInjectionSafeString& right)
+bool operator==(const T& left, const KSQLString& right)
 {
 	return operator==(right, left);
 }
@@ -197,7 +197,7 @@ bool operator==(const T& left, const KSQLInjectionSafeString& right)
 template<typename T,
 		 typename std::enable_if<detail::is_kstringview_assignable<const T&, true>::value == true, int>::type = 0>
 DEKAF2_CONSTEXPR_14
-bool operator!=(const KSQLInjectionSafeString& left, const T& right)
+bool operator!=(const KSQLString& left, const T& right)
 {
 	return !operator==(left, right);
 }
@@ -205,10 +205,13 @@ bool operator!=(const KSQLInjectionSafeString& left, const T& right)
 template<typename T,
 		 typename std::enable_if<detail::is_kstringview_assignable<const T&, true>::value == true, int>::type = 0>
 DEKAF2_CONSTEXPR_14
-bool operator!=(const T& left, const KSQLInjectionSafeString& right)
+bool operator!=(const T& left, const KSQLString& right)
 {
 	return operator!=(right, left);
 }
+
+// leaving an alias to the previous name
+using KSQLInjectionSafeString = KSQLString;
 
 namespace detail {
 
@@ -554,25 +557,25 @@ public:
 	}
 
 	/// Formats the proper RDBMS DDL statement for inserting one row into the database for the given table and column structure.
-	KSQLInjectionSafeString FormInsert (DBT iDBType, bool bIdentityInsert=false, bool bIgnore=false) const;
+	KSQLString FormInsert (DBT iDBType, bool bIdentityInsert=false, bool bIgnore=false) const;
 
 	/// Appends the DDL statement by one more row
-	bool AppendInsert (KSQLInjectionSafeString& sSQL, DBT iDBType, bool bIdentityInsert=false, bool bIgnore=true) const;
+	bool AppendInsert (KSQLString& sSQL, DBT iDBType, bool bIdentityInsert=false, bool bIgnore=true) const;
 
 	/// Formats the proper RDBMS DDL statement for updating one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	KSQLInjectionSafeString FormUpdate (DBT iDBType) const;
+	KSQLString FormUpdate (DBT iDBType) const;
 
 	/// Appends the DDL statement by one more row
-	bool AppendUpdate (KSQLInjectionSafeString& sSQL, DBT iDBType) const;
+	bool AppendUpdate (KSQLString& sSQL, DBT iDBType) const;
 
 	/// Formats the proper RDBMS DDL statement for selecting one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	KSQLInjectionSafeString FormSelect (DBT iDBType, bool bSelectAllColumns = false) const;
+	KSQLString FormSelect (DBT iDBType, bool bSelectAllColumns = false) const;
 
 	/// Formats the proper RDBMS DDL statement for deleting one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
-	KSQLInjectionSafeString FormDelete (DBT iDBType) const;
+	KSQLString FormDelete (DBT iDBType) const;
 
 	/// Returns the last RDBMS error message.
 	KStringView GetLastError() const { return (m_sLastError); }
@@ -593,13 +596,13 @@ public:
 		return NeedsEscape(sCol, EscapedCharacters(iDBType));
 	}
 
-	static KSQLInjectionSafeString EscapeChars (KStringView sCol, KStringView sCharsToEscape,
+	static KSQLString EscapeChars (KStringView sCol, KStringView sCharsToEscape,
 								KString::value_type iEscapeChar = 0);
-	static KSQLInjectionSafeString EscapeChars (KStringView sCol, DBT iDBType);
+	static KSQLString EscapeChars (KStringView sCol, DBT iDBType);
 
-	static KSQLInjectionSafeString EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape,
+	static KSQLString EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape,
 								KString::value_type iEscapeChar = 0);
-	static KSQLInjectionSafeString EscapeChars (const KROW::value_type& Col, DBT iDBType);
+	static KSQLString EscapeChars (const KROW::value_type& Col, DBT iDBType);
 
 	void LogRowLayout(int iLogLevel = 3) const;
 
@@ -633,7 +636,7 @@ private:
 //----------
 
 	DEKAF2_PRIVATE
-	void PrintValuesForInsert(KSQLInjectionSafeString& sSQL, DBT iDBType) const;
+	void PrintValuesForInsert(KSQLString& sSQL, DBT iDBType) const;
 
 	mutable KString m_sTablename;
 	mutable KString m_sLastError;
@@ -645,7 +648,7 @@ private:
 namespace std
 {
 
-template<typename T, typename std::enable_if<std::is_same<typename std::decay<T>::type, dekaf2::KSQLInjectionSafeString>::value>::type = 0>
+template<typename T, typename std::enable_if<std::is_same<typename std::decay<T>::type, dekaf2::KSQLString>::value>::type = 0>
 std::ostream& operator <<(std::ostream& stream, const T& sString)
 {
 	stream.write(sString.data(), sString.size());
@@ -658,10 +661,10 @@ namespace fmt
 {
 
 template <>
-struct formatter<dekaf2::KSQLInjectionSafeString> : formatter<string_view>
+struct formatter<dekaf2::KSQLString> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KSQLInjectionSafeString& sString, FormatContext& ctx) const
+	auto format(const dekaf2::KSQLString& sString, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(sString.str(), ctx);
 	}

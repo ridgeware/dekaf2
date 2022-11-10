@@ -4211,7 +4211,7 @@ void KSQL::FreeBufferedColArray (bool fValuesOnly/*=false*/)
 } // FreeBufferedColArray
 
 //-----------------------------------------------------------------------------
-KROW KSQL::SingleRawQuery (KSQLInjectionSafeString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleRawQuery"*/)
+KROW KSQL::SingleRawQuery (KSQLString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	KROW ROW;
@@ -4240,7 +4240,7 @@ KROW KSQL::SingleRawQuery (KSQLInjectionSafeString sSQL, Flags iFlags/*=0*/, KSt
 } // SingleRawQuery
 
 //-----------------------------------------------------------------------------
-KString KSQL::SingleStringRawQuery (KSQLInjectionSafeString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleStringRawQuery"*/)
+KString KSQL::SingleStringRawQuery (KSQLString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleStringRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	auto ROW = SingleRawQuery(std::move(sSQL), iFlags, sAPI);
@@ -4262,7 +4262,7 @@ KString KSQL::SingleStringRawQuery (KSQLInjectionSafeString sSQL, Flags iFlags/*
 } // SingleStringRawQuery
 
 //-----------------------------------------------------------------------------
-int64_t KSQL::SingleIntRawQuery (KSQLInjectionSafeString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)
+int64_t KSQL::SingleIntRawQuery (KSQLString sSQL, Flags iFlags/*=0*/, KStringView sAPI/*="SingleIntRawQuery"*/)
 //-----------------------------------------------------------------------------
 {
 	auto sValue = SingleStringRawQuery(std::move(sSQL), iFlags, sAPI);
@@ -4930,7 +4930,7 @@ void KSQL::BuildTranslationList (TXList& pList, DBT iDBType)
 } // BuildTranslationList
 
 //-----------------------------------------------------------------------------
-void KSQL::DoTranslations (KSQLInjectionSafeString& sSQL)
+void KSQL::DoTranslations (KSQLString& sSQL)
 //-----------------------------------------------------------------------------
 {
 	kDebug (3,
@@ -6497,7 +6497,7 @@ bool KSQL::PurgeKey (KStringView sSchemaName, KStringView sPKEY_colname, KString
 } // PurgeKey
 
 //-----------------------------------------------------------------------------
-bool KSQL::PurgeKeyList (KStringView sSchemaName, KStringView sPKEY_colname, const KSQLInjectionSafeString& sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/, bool bDryRun/*=false*/, int64_t* piNumAffected/*=NULL*/)
+bool KSQL::PurgeKeyList (KStringView sSchemaName, KStringView sPKEY_colname, const KSQLString& sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/, bool bDryRun/*=false*/, int64_t* piNumAffected/*=NULL*/)
 //-----------------------------------------------------------------------------
 {
 	ChangesMade = KJSON::array();
@@ -6558,7 +6558,7 @@ bool KSQL::PurgeKeyList (KStringView sSchemaName, KStringView sPKEY_colname, con
 } // PurgeKeyList
 
 //-----------------------------------------------------------------------------
-bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLInjectionSafeString& sWhereClause/*=""*/, uint16_t iFlushRows/*=1024*/, int32_t iPbarThreshold/*=500*/)
+bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLString& sWhereClause/*=""*/, uint16_t iFlushRows/*=1024*/, int32_t iPbarThreshold/*=500*/)
 //-----------------------------------------------------------------------------
 {
 	KBAR    bar;
@@ -7579,7 +7579,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, KStringView sFormat, FILE* fpout/*=s
 size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
 {
-	KSQLInjectionSafeString sSafeSQL;
+	KSQLString sSafeSQL;
 	sSafeSQL.ref() = sSQL;
 
 	if (!ExecQuery (sSafeSQL, GetFlags(), "OutputQuery"))
@@ -7787,10 +7787,10 @@ bool KSQL::RollbackTransaction (KStringView sOptions/*=""*/)
 } // RollbackTransaction
 
 //-----------------------------------------------------------------------------
-KSQLInjectionSafeString KSQL::FormAndClause (const KSQLInjectionSafeString& sDbCol, KStringView sQueryParm, FAC iFlags/*=FAC::FAC_NORMAL*/, KStringView sSplitBy/*=","*/)
+KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm, FAC iFlags/*=FAC::FAC_NORMAL*/, KStringView sSplitBy/*=","*/)
 //-----------------------------------------------------------------------------
 {
-	KSQLInjectionSafeString sClause;
+	KSQLString sClause;
 
 	if (sQueryParm.empty())
 	{
@@ -7950,7 +7950,7 @@ KSQLInjectionSafeString KSQL::FormAndClause (const KSQLInjectionSafeString& sDbC
 	// - - - - - - - - - - - - - - - - - - - - - - - - -
 	else
 	{
-		KSQLInjectionSafeString sList;
+		KSQLString sList;
 
 		for (const auto& sOne : sQueryParm.Split(sSplitBy))
 		{
@@ -7994,10 +7994,10 @@ KSQLInjectionSafeString KSQL::FormAndClause (const KSQLInjectionSafeString& sDbC
 } // FormAndClause
 
 //-----------------------------------------------------------------------------
-KSQLInjectionSafeString KSQL::FormGroupBy (uint8_t iNumCols)
+KSQLString KSQL::FormGroupBy (uint8_t iNumCols)
 //-----------------------------------------------------------------------------
 {
-	KSQLInjectionSafeString sGroupBy;
+	KSQLString sGroupBy;
 
 	for (uint8_t ii{1}; ii <= iNumCols; ++ii)
 	{
@@ -8016,7 +8016,7 @@ KSQLInjectionSafeString KSQL::FormGroupBy (uint8_t iNumCols)
 } // FormGroupBy
 
 //-----------------------------------------------------------------------------
-bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KSQLInjectionSafeString& sOrderBy, const KJSON& Config)
+bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KSQLString& sOrderBy, const KJSON& Config)
 //-----------------------------------------------------------------------------
 {
 	if (Config.is_null())
@@ -9332,7 +9332,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 	}; // lambda: PrintColumn
 
 	//-----------------------------------------------------------------------------
-	auto FormCreateAction = [this] (KStringView sTableName, const KJSON& jColumn, KSQLInjectionSafeString& sResult)
+	auto FormCreateAction = [this] (KStringView sTableName, const KJSON& jColumn, KSQLString& sResult)
 	//-----------------------------------------------------------------------------
 	{
 		if (jColumn.is_object() && !jColumn.empty())
@@ -9354,10 +9354,10 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 	}; // lambda: FormCreateAction
 
 	//-----------------------------------------------------------------------------
-	auto FormAlterAction  = [this] (KStringView sTableName, const KJSON& jColumn, KStringView sVerb) -> KSQLInjectionSafeString
+	auto FormAlterAction  = [this] (KStringView sTableName, const KJSON& jColumn, KStringView sVerb) -> KSQLString
 	//-----------------------------------------------------------------------------
 	{
-		KSQLInjectionSafeString sResult;
+		KSQLString sResult;
 
 		if (jColumn.is_object() && !jColumn.empty())
 		{
@@ -9427,8 +9427,8 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 		sSummary += kFormat ("{}{}", sDiffPrefix, sTableName); // <-- no newline on purpose
 
 		int iCreateTable { 0 };
-		KSQLInjectionSafeString sLeftCreate;
-		KSQLInjectionSafeString sRightCreate;
+		KSQLString sLeftCreate;
+		KSQLString sRightCreate;
 
 		if (left.is_null())
 		{
@@ -9739,7 +9739,7 @@ bool KSQL::IsConnectionTestOnly ()
 } // IsConnectionTestOnly
 
 //-----------------------------------------------------------------------------
-KSQLInjectionSafeString KSQL::EscapeType(DBT iDBType, const char* value)
+KSQLString KSQL::EscapeType(DBT iDBType, const char* value)
 //-----------------------------------------------------------------------------
 {
 	// const char* is special: we do not escape it if it is from the data segment
@@ -9795,10 +9795,10 @@ bool KSQL::IsDynamicString(const char* sAddr, bool bThrowIfDynamic)
 } // IsDynamicString
 
 //-----------------------------------------------------------------------------
-KSQLInjectionSafeString KSQL::EscapeFromQuotedList(KStringView sList)
+KSQLString KSQL::EscapeFromQuotedList(KStringView sList)
 //-----------------------------------------------------------------------------
 {
-	KSQLInjectionSafeString sResult;
+	KSQLString sResult;
 
 	for (auto sItem : sList.Split(",", "'"))
 	{

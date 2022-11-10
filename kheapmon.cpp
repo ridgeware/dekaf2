@@ -41,7 +41,9 @@
 #include "kheapmon.h"
 #include "kconfiguration.h"
 
-#ifdef DEKAF2_HAS_JEMALLOC
+// on macos, jemalloc uses the prefix je_ in the symbols, but not in the headers..
+// so we disable diagnostics there for now
+#if defined(DEKAF2_HAS_JEMALLOC) && !defined(DEKAF2_IS_MACOS)
 
 #include "klog.h"
 #include "kfilesystem.h"

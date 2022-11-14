@@ -215,6 +215,12 @@ if (DEKAF2_USE_PRECOMPILED_HEADERS)
 	endif()
 endif()
 
+if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
+	if (!DEKAF2_WITH_PEDANTIC_WARNINGS) # __int128 is not an official type!
+		set(DEKAF2_MAY_HAVE_INT128 ON) # we still need to check for 32/64, but we don't do that inside cmake due to multi-arch builds
+	endif()
+endif()
+
 # ================================ CMAKE INTERNALS =================================
 
 # Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)

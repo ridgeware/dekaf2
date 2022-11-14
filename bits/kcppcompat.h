@@ -688,19 +688,15 @@ static constexpr std::size_t npos = static_cast<std::size_t>(-1);
 	#define DEKAF2_PPC64 1
 #endif
 
-#ifdef DEKAF2_X86_64
+#if defined(DEKAF2_MAY_HAVE_INT128) && defined(DEKAF2_IS_64_BITS)
+	#define DEKAF2_HAS_INT128 1
 
-	#if (!defined(__clang__) || DEKAF2_IS_OSX) && (!defined DEKAF2_IS_WINDOWS)
-		// clang has severe issues with int128 and adress sanitizer symbols on Linux
-		#define DEKAF2_HAS_INT128 1
+	#ifndef int128_t
+		using int128_t = __int128;
+	#endif
 
-		#ifndef int128_t
-			using int128_t = __int128;
-		#endif
-
-		#ifndef uint128_t
-			using uint128_t = unsigned __int128;
-		#endif
+	#ifndef uint128_t
+		using uint128_t = unsigned __int128;
 	#endif
 
 /*

@@ -178,7 +178,7 @@ std::tm kGetBrokenDownTime (time_t tTime, bool bAsLocalTime)
 
 	return time;
 
-}; // kGetBrokenDownTime
+} // kGetBrokenDownTime
 
 //-----------------------------------------------------------------------------
 KString kFormWebTimestamp (time_t tTime, KStringView sTimezoneDesignator)

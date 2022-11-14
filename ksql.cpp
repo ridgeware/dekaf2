@@ -4850,7 +4850,7 @@ KScopeGuard KSQL::ScopedFlags(Flags iFlags, bool bAdditive)
 	auto iOrigFlags = bAdditive ? SetFlag(iFlags) : SetFlags(iFlags);
 	return KScopeGuard([iOrigFlags,this]{ SetFlag(iOrigFlags); });
 
-}; // KSQL::ScopedFlags
+} // KSQL::ScopedFlags
 
 //-----------------------------------------------------------------------------
 KString KSQL::GetLastInfo()

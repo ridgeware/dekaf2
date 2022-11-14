@@ -109,7 +109,7 @@ bool kCaseEqualInt(KStringView left, KStringView right,
 					  right.begin(),
 					  comp);
 
-};
+}
 
 } // end of anonymous namespace
 

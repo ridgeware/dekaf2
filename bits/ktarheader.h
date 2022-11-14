@@ -151,7 +151,8 @@ union DEKAF2_PUBLIC TarHeader
 			} ustar;
 
 		} extension;
-	};
+
+	} header;
 
 	void clear()
 	{

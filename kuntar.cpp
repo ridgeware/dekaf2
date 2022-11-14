@@ -202,18 +202,18 @@ uint64_t KUnTar::Decoded::FromNumbers(const char* pStart, uint16_t iSize)
 #pragma GCC diagnostic ignored "-Wstringop-overread"
 #endif
 //-----------------------------------------------------------------------------
-bool KUnTar::Decoded::Decode(const tar::TarHeader& TarHeader)
+bool KUnTar::Decoded::Decode(const tar::TarHeader& Tar)
 //-----------------------------------------------------------------------------
 {
 	Reset();
 
 	// check for end header
-    if (TarHeader.raw[0] == 0)
+    if (Tar.raw[0] == 0)
 	{
         // check if full header is 0, then this is the end header of an archive
         m_bIsEnd = true;
 
-		for (auto ch : TarHeader.raw)
+		for (auto ch : Tar.raw)
 		{
             if (ch)
 			{
@@ -229,11 +229,11 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& TarHeader)
     }
 
 	// keep this on top before calling FromNumbers(), which has a dependency
-	m_bIsUstar = (std::memcmp("ustar", TarHeader.extension.ustar.indicator, 5) == 0);
+	m_bIsUstar = (std::memcmp("ustar", Tar.header.extension.ustar.indicator, 5) == 0);
 
     // validate checksum
     {
-        uint64_t header_checksum = FromNumbers(TarHeader.checksum, 8);
+        uint64_t header_checksum = FromNumbers(Tar.header.checksum, 8);
         uint64_t sum { 0 };
 
 		// we calculate with unsigned chars first, as that is what today's
@@ -241,7 +241,7 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& TarHeader)
 
 		for (uint16_t iPos = 0; iPos < 148; ++iPos)
 		{
-			sum += static_cast<uint8_t>(TarHeader.raw[iPos]);
+			sum += static_cast<uint8_t>(Tar.raw[iPos]);
 		}
 
 		for (uint16_t iPos = 0; iPos < 8; ++iPos)
@@ -251,7 +251,7 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& TarHeader)
 
 		for (uint16_t iPos = 148 + 8; iPos < tar::HeaderLen; ++iPos)
 		{
-			sum += static_cast<uint8_t>(TarHeader.raw[iPos]);
+			sum += static_cast<uint8_t>(Tar.raw[iPos]);
 		}
 
 		if (header_checksum != sum)
@@ -262,7 +262,7 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& TarHeader)
 
 			for (uint16_t iPos = 0; iPos < 148; ++iPos)
 			{
-				sum += TarHeader.raw[iPos];
+				sum += Tar.raw[iPos];
 			}
 
 			for (uint16_t iPos = 0; iPos < 8; ++iPos)
@@ -272,7 +272,7 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& TarHeader)
 
 			for (uint16_t iPos = 148 + 8; iPos < tar::HeaderLen; ++iPos)
 			{
-				sum += TarHeader.raw[iPos];
+				sum += Tar.raw[iPos];
 			}
 
 			if (header_checksum != sum)
@@ -284,33 +284,33 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& TarHeader)
 		}
     }
 
-	m_iMode     = static_cast<uint32_t>(FromNumbers(TarHeader.mode, 8));
-	m_iUserId   = static_cast<uint32_t>(FromNumbers(TarHeader.owner_ids.user,  8));
-	m_iGroupId  = static_cast<uint32_t>(FromNumbers(TarHeader.owner_ids.group, 8));
+	m_iMode     = static_cast<uint32_t>(FromNumbers(Tar.header.mode, 8));
+	m_iUserId   = static_cast<uint32_t>(FromNumbers(Tar.header.owner_ids.user,  8));
+	m_iGroupId  = static_cast<uint32_t>(FromNumbers(Tar.header.owner_ids.group, 8));
 
 	if (m_bIsUstar)
 	{
 		// copy user and group
-		m_sUser.assign(TarHeader.extension.ustar.owner_names.user,
-					  ::strnlen(TarHeader.extension.ustar.owner_names.user, 32));
-		m_sGroup.assign(TarHeader.extension.ustar.owner_names.group,
-					   ::strnlen(TarHeader.extension.ustar.owner_names.group, 32));
+		m_sUser.assign(Tar.header.extension.ustar.owner_names.user,
+					  ::strnlen(Tar.header.extension.ustar.owner_names.user, 32));
+		m_sGroup.assign(Tar.header.extension.ustar.owner_names.group,
+					   ::strnlen(Tar.header.extension.ustar.owner_names.group, 32));
 
 		// check if there is a filename prefix
-		auto plen = ::strnlen(TarHeader.extension.ustar.filename_prefix, 155);
+		auto plen = ::strnlen(Tar.header.extension.ustar.filename_prefix, 155);
 
 		// insert the prefix before the existing filename
 		if (plen)
 		{
-			m_sFilename.assign(TarHeader.extension.ustar.filename_prefix, plen);
+			m_sFilename.assign(Tar.header.extension.ustar.filename_prefix, plen);
 			m_sFilename += '/';
 		}
 	}
 
 	// append file name to a prefix (or none)
-	m_sFilename.append(TarHeader.file_name, ::strnlen(TarHeader.file_name, 100));
+	m_sFilename.append(Tar.header.file_name, ::strnlen(Tar.header.file_name, 100));
 
-	auto TypeFlag = TarHeader.extension.ustar.type_flag;
+	auto TypeFlag = Tar.header.extension.ustar.type_flag;
 
     if (!m_sFilename.empty() && m_sFilename.back() == '/')
 	{
@@ -335,37 +335,37 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& TarHeader)
                 // this is a subsequent read on GNU tar long names
                 // the current block contains only the filename and the next block contains metadata
                 // set the filename from the current header
-                m_sFilename.assign(TarHeader.file_name,
-								  ::strnlen(TarHeader.file_name, tar::HeaderLen));
+                m_sFilename.assign(Tar.header.file_name,
+								  ::strnlen(Tar.header.file_name, tar::HeaderLen));
                 // the next header contains the metadata, so replace the header before reading the metadata
                 m_EntryType        = tar::Longname2;
                 m_bKeepMembersOnce = true;
                 return true;
             }
             m_EntryType         = tar::File;
-			m_iFilesize         = FromNumbers(TarHeader.file_bytes, 12);
-			m_tModificationTime = FromNumbers(TarHeader.modification_time , 12);
+			m_iFilesize         = FromNumbers(Tar.header.file_bytes, 12);
+			m_tModificationTime = FromNumbers(Tar.header.modification_time , 12);
 			break;
 
         case '1':
             // link
             m_EntryType = tar::Hardlink;
-            m_sLinkname.assign(TarHeader.extension.ustar.linked_file_name,
-							  ::strnlen(TarHeader.file_name, 100));
+            m_sLinkname.assign(Tar.header.extension.ustar.linked_file_name,
+							  ::strnlen(Tar.header.file_name, 100));
             break;
 
         case '2':
             // symlink
             m_EntryType = tar::Symlink;
-            m_sLinkname.assign(TarHeader.extension.ustar.linked_file_name,
-							  ::strnlen(TarHeader.file_name, 100));
+            m_sLinkname.assign(Tar.header.extension.ustar.linked_file_name,
+							  ::strnlen(Tar.header.file_name, 100));
             break;
 
         case '5':
             // directory
             m_EntryType         = tar::Directory;
             m_iFilesize         = 0;
-			m_tModificationTime = FromNumbers(TarHeader.modification_time, 12);
+			m_tModificationTime = FromNumbers(Tar.header.modification_time, 12);
             break;
 
         case '6':

@@ -296,7 +296,7 @@ namespace kjson
 	DEKAF2_PUBLIC
 	const KJSON& SelectObject (const KJSON& json, KStringView sSelector);
 
-}; // end of namespace kjson
+} // end of namespace kjson
 
 // lift a few of the static methods into dekaf2's namespace
 

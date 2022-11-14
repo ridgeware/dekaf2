@@ -437,7 +437,7 @@ void KOptions::HelpFormatter::GetEnvironment()
 		}
 	}
 
-}; // HelpFormatter::GetEnvironment
+} // HelpFormatter::GetEnvironment
 
 //---------------------------------------------------------------------------
 void KOptions::HelpFormatter::CalcExtends(const CallbackParam& Callback)

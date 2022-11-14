@@ -347,7 +347,7 @@ private:
 		void     clear();
 		void     Reset();
 		uint64_t FromNumbers(const char* pStart, uint16_t iSize);
-		bool     Decode(const tar::TarHeader& TarHeader);
+		bool     Decode(const tar::TarHeader& Tar);
 		bool     IsEnd() const
 		{
 			return m_bIsEnd;

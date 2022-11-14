@@ -72,6 +72,7 @@ OPTION(DEKAF2_WITH_KLOG "build with KLOG" ON)
 OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" OFF)
 OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" ON)
+OPTION(DEKAF2_WITH_PEDANTIC_WARNINGS "enable pedantic warnings" ON)
 
 # =================================== C++ STANDARD =================================
 
@@ -1047,6 +1048,16 @@ else ()
 endif ()
 
 # =============================== TARGETS ====================================
+
+if (DEKAF2_WITH_PEDANTIC_WARNINGS)
+	if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+		add_compile_options($<$<CONFIG:DEBUG>:-Wpedantic>)
+		check_cxx_compiler_flag(-Wdtor-name DEKAF2_HAS_DTOR_NAME_FLAG)
+		if (DEKAF2_HAS_DTOR_NAME_FLAG)
+			add_compile_options($<$<CONFIG:DEBUG>:-Wno-dtor-name>)
+		endif()
+	endif()
+endif()
 
 if (CPU_ARM EQUAL 32)
 	set(ARM_NEEDS_ATOMIC_LIB atomic)

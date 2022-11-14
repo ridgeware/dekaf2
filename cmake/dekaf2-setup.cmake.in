@@ -101,7 +101,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			add_compile_options($<$<CONFIG:DEBUG>:-Werror>)
 
 			if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.1)
-				add_compile_options(-Wpessimizing-move)
+				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wpessimizing-move>)
 			endif()
 
 			if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12.0)
@@ -142,7 +142,8 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
-			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-result -Wpessimizing-move)
+			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-result)
+			add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wpessimizing-move>)
 			add_compile_options($<$<CONFIG:DEBUG>:-Werror>)
 
 			check_cxx_compiler_flag(-Wno-deprecated-copy DEKAF2_HAS_NO_DEPRECATED_COPY)

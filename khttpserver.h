@@ -329,8 +329,20 @@ public:
 	//-----------------------------------------------------------------------------
 	/// get query parms as a map
 	/// @return const ref on the map object with all query parms
-	const url::KQueryParms& GetQueryParms() const;
+	const url::KQueryParms& GetQueryParms() const
 	//-----------------------------------------------------------------------------
+	{
+		return GetQuery().get();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// get query
+	/// @return const ref on the url::KQuery object
+	const url::KQuery& GetQuery() const
+	//-----------------------------------------------------------------------------
+	{
+		return Request.Resource.Query;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// set one query key/value parm

@@ -254,7 +254,7 @@ const KString& KHTTPServer::GetRequestPath() const
 const KString& KHTTPServer::GetQueryParm(KStringView sKey) const
 //-----------------------------------------------------------------------------
 {
-	return Request.Resource.Query.get().Get(sKey);
+	return GetQueryParms().Get(sKey);
 }
 
 //-----------------------------------------------------------------------------
@@ -271,14 +271,6 @@ KString KHTTPServer::GetQueryParm(KStringView sKey, KStringView sDefault) const
 	return sValue;
 
 } // GetQueryParm
-
-//-----------------------------------------------------------------------------
-const url::KQueryParms& KHTTPServer::GetQueryParms() const
-//-----------------------------------------------------------------------------
-{
-	return Request.Resource.Query.get();
-
-} // GetQueryParms
 
 //-----------------------------------------------------------------------------
 void KHTTPServer::SetAuthenticatedUser(KString sAuthenticatedUser)

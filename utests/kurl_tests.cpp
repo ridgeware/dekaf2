@@ -1332,3 +1332,27 @@ TEST_CASE ("KURLPort")
 	URL.Port.get() = 54321;
 	CHECK ( URL.Serialize() == "http://test.com:54321/path/to" );
 }
+
+TEST_CASE("URIComponent")
+{
+	url::KQuery Query { "key1=val1&key2=val2&key3=val3" };
+	CHECK ( Query.size() == 3 );
+	CHECK ( Query.find("test") == Query.end() );
+	CHECK ( Query.find("key2") != Query.end() );
+	if (auto it = Query.find("key2"); it != Query.end())
+	{
+		CHECK ( it->first  == "key2" );
+		CHECK ( it->second == "val2" );
+		CHECK ( Query["key2"] == "val2" );
+ 	}
+	CHECK ( Query.contains("test") == false );
+	CHECK ( Query.contains("key2") == true  );
+
+	url::KPath Path { "/this/is/a/simple/path" };
+	CHECK ( Path.size() == 22 );
+	CHECK ( Path.find("/is/") == 5 );
+	CHECK ( Path.find('a') == 9 );
+	CHECK ( Path.find("something else") == npos );
+	CHECK ( Path.contains("test"  ) == false );
+	CHECK ( Path.contains("simple") == true  );
+}

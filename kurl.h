@@ -433,20 +433,20 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return the key-value const value
-	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
-	const KString& operator[] (KStringView sv) const
+	template<typename F, bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	auto& operator[] (F&& Search) const
 	//-------------------------------------------------------------------------
 	{
-		return get()[sv];
+		return get()[std::forward<F>(Search)];
 	}
 
 	//-------------------------------------------------------------------------
 	/// return the key-value value
-	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
-	KString& operator[] (KStringView sv)
+	template<typename F, bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	auto& operator[] (F&& Search)
 	//-------------------------------------------------------------------------
 	{
-		return get()[sv];
+		return get()[std::forward<F>(Search)];
 	}
 
 	//-------------------------------------------------------------------------
@@ -529,6 +529,51 @@ public:
 	//-------------------------------------------------------------------------
 	{
 		return get().end();
+	}
+
+	//-------------------------------------------------------------------------
+	/// search element
+	template<typename F, typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
+	auto find(F&& Search)
+	//-------------------------------------------------------------------------
+	{
+		return get().find(std::forward<F>(Search));
+	}
+
+	//-------------------------------------------------------------------------
+	/// search element, const
+	template<typename F, typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
+	auto find(F&& Search) const
+	//-------------------------------------------------------------------------
+	{
+		return get().find(std::forward<F>(Search));
+	}
+
+	//-------------------------------------------------------------------------
+	/// contains element, const
+	template<typename F, bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	auto contains(F&& Search) const
+	//-------------------------------------------------------------------------
+	{
+		return get().find(std::forward<F>(Search)) != end();
+	}
+
+	//-------------------------------------------------------------------------
+	/// contains element, const
+	template<typename F, bool X = IsString, typename std::enable_if<X, int>::type = 0 >
+	auto contains(F&& Search) const
+	//-------------------------------------------------------------------------
+	{
+		return get().find(std::forward<F>(Search)) != KString::npos;
+	}
+
+	//-------------------------------------------------------------------------
+	/// return size
+	template<typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
+	auto size() const
+	//-------------------------------------------------------------------------
+	{
+		return get().size();
 	}
 
 	//-------------------------------------------------------------------------

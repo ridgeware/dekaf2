@@ -351,7 +351,7 @@ public:
 	}
 
 	/// Return error string
-	const KString Error() const
+	const KString& Error() const
 	{
 		return m_sError;
 	}

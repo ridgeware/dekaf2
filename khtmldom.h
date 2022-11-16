@@ -88,7 +88,7 @@ public:
 	/// Serializes element and all children. Allows to chose indent character (0 for no indent, default = tab).
 	void Print(KStringRef& sOut, char chIndent = '\t', uint16_t iIndent = 0) const;
 	/// Serializes element and all children. Allows to chose indent character (0 for no indent, default = tab).
-	bool Print(KOutStream& OutStream, char chIndent = '\t', uint16_t iIndent = 0, bool bIsFirstAfterLinefeed = true) const;
+	bool Print(KOutStream& OutStream, char chIndent = '\t', uint16_t iIndent = 0, bool bIsFirstAfterLinefeed = false) const;
 
 	using value_type = std::unique_ptr<KHTMLObject>;
 	using ElementVector = std::vector<value_type>;

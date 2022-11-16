@@ -193,4 +193,35 @@ TEST_CASE("KHTML")
 			CHECK( sStream == sCRLF );
 		}
 	}
+
+	SECTION("only text")
+	{
+		static constexpr KStringView sSample { "This is free standing text" };
+		KHTML HTML;
+		HTML.Parse(sSample);
+		CHECK ( HTML.Serialize() == sSample );
+	}
+
+	SECTION("text with inlines")
+	{
+		static constexpr KStringView sSample { "This is <b>free <i>standing</i></b> text" };
+		KHTML HTML;
+		HTML.Parse(sSample);
+		CHECK ( HTML.Serialize() == sSample );
+	}
+
+	SECTION("block framed")
+	{
+		static constexpr KStringView sSample   { "<p>This is <b>block <i>framed</i></b> text</p>" };
+		static constexpr KStringView sExpected { "<p>\r\n\tThis is <b>block <i>framed</i></b> text\r\n</p>\r\n" };
+		KHTML HTML;
+		HTML.Parse(sSample);
+		auto sOut = HTML.Serialize();
+		auto sDiff = print_diff(sOut, sExpected);
+		if (!sDiff.empty())
+		{
+			FAIL_CHECK ( sDiff );
+		}
+		CHECK ( sOut == sExpected );
+	}
 }

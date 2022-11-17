@@ -317,7 +317,7 @@ public:
 	KXML& operator=(KXML&&) = default;
 
 	/// returns false if exceptions are disabled GetLastError() and return codes are in use
-	bool GetThrowOnParseError ()
+	bool GetThrowOnParseError () const
 	{
 		return m_bThrowOnParseError;
 	}
@@ -330,7 +330,7 @@ public:
 		return bOldValue;
 	}
 
-	KStringView GetLastError ()
+	const KString& GetLastError () const
 	{
 		return m_sLastError;
 	}

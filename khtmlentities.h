@@ -78,7 +78,7 @@ public:
 	static KString Decode(KStringView sIn, bool bAlsoNumeric = true);
 
 	/// Converts string containing HTML entities into pure utf8, returns count of converted entities
-	static std::size_t DecodeInPlace(KString& sContent, bool bAlsoNumeric = true);
+	static std::size_t DecodeInPlace(KStringRef& sContent, bool bAlsoNumeric = true);
 
 	/// Converts isolated HTML entity into utf8
 	static KString DecodeOne(KStringView sIn);

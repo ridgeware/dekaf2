@@ -2251,7 +2251,7 @@ bool KHTMLEntity::FromNamedEntity(KStringView sEntity, uint32_t& cp1, uint32_t& 
 namespace {
 
 //-----------------------------------------------------------------------------
-std::size_t DecodeInt(KString& sRet, KStringView sIn, bool bAlsoNumeric)
+std::size_t DecodeInt(KStringRef& sRet, KStringView sIn, bool bAlsoNumeric)
 //-----------------------------------------------------------------------------
 {
 	std::size_t iReplaced { 0 };
@@ -2422,10 +2422,10 @@ KString KHTMLEntity::Decode(KStringView sIn, bool bAlsoNumeric)
 } // KHTMLEntity::Decode
 
 //-----------------------------------------------------------------------------
-std::size_t KHTMLEntity::DecodeInPlace(KString& sContent, bool bAlsoNumeric)
+std::size_t KHTMLEntity::DecodeInPlace(KStringRef& sContent, bool bAlsoNumeric)
 //-----------------------------------------------------------------------------
 {
-	KString sRet;
+	KStringRef sRet;
 	auto iReplaced = DecodeInt(sRet, sContent, bAlsoNumeric);
 	sContent = std::move(sRet);
 	return iReplaced;

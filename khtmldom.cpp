@@ -467,7 +467,9 @@ void KHTML::Object(KHTMLObject& Object)
 			{
 				auto& Element = m_Hierarchy.back()->Add(KHTMLElement(Tag));
 
-				if (!Tag.IsStandalone())
+				// we check both the standalone flag from parsing, and the preset list
+				// of standalone tags - HTML often has missing standalone flags: <link/> vs <link>
+				if (!Tag.IsStandalone() && !KHTMLObject::IsStandaloneTag(Tag.Name))
 				{
 					// get one level deeper
 					m_Hierarchy.push_back(&Element);

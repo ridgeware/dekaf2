@@ -118,7 +118,8 @@ void KSharedProfiler::print()
 //-----------------------------------------------------------------------------
 {
 	// declare helpers for sorting
-	typedef map_t::value_type set_value_t;
+	using set_value_t = map_t::value_type;
+
 	struct compare_set
 	{
 		bool operator()(const set_value_t& a, const set_value_t& b) const
@@ -126,7 +127,8 @@ void KSharedProfiler::print()
 			return a.second.order < b.second.order;
 		}
 	};
-	typedef std::multiset<set_value_t, compare_set> set_t;
+
+	using set_t = std::multiset<set_value_t, compare_set>;
 
 	// sort result map into an ordered set
 	// and compute max length of labels:

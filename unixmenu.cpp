@@ -138,7 +138,7 @@ enum {MAXOPTIONS =     19};	/* max number of menu items */
 /*
 GLOBALS:
 */
-typedef struct
+struct menuT
 {
 	int8_t iNRows;
 	int8_t iSleep;
@@ -149,7 +149,7 @@ typedef struct
 	KString labels[MAXOPTIONS];
 	KString commands[MAXOPTIONS];
 	KString sSelectMSG;
-} menuT;
+};
 
 KString g_sBuffer;
 KString g_sWaitString{ "Hit return to continue: "};

@@ -69,10 +69,10 @@ public:
 //----------
 
 	/// the type of a handler callback function using std::function
-	typedef std::function<void(int)> std_func_t;
+	using std_func_t = std::function<void(int)>;
 
 	/// the type of a handler callback function using a function pointer
-	typedef void (*signal_func_t)(int);
+	using signal_func_t = void (*)(int);
 
 	//-----------------------------------------------------------------------------
 	/// Constructs the signal handler framework.

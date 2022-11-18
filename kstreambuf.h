@@ -105,7 +105,7 @@ public:
 	/// std::streamsize Reader(void* sBuffer, std::streamsize iCount, void* CustomPointer)
 	///  - returns read bytes. CustomPointer can be used for anything, to the discretion of the
 	/// Reader.
-	typedef std::streamsize (*Reader)(void*, std::streamsize, void*);
+	using Reader = std::streamsize (*)(void*, std::streamsize, void*);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -160,7 +160,7 @@ public:
 	/// std::streamsize Writer(const void* sBuffer, std::streamsize iCount, void* CustomPointer)
 	///  - returns written bytes. CustomPointer can be used for anything, to the discretion of the
 	/// Writer.
-	typedef std::streamsize (*Writer)(const void*, std::streamsize, void*);
+	using Writer = std::streamsize (*)(const void*, std::streamsize, void*);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -212,7 +212,7 @@ public:
 	/// std::streamsize Writer(const void* sBuffer, std::streamsize iCount, void* CustomPointer)
 	///  - returns written bytes. CustomPointer can be used for anything, to the discretion of the
 	/// Writer.
-	typedef std::streamsize (*Writer)(const void*, std::streamsize, void*);
+	using Writer = std::streamsize (*)(const void*, std::streamsize, void*);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -265,7 +265,7 @@ public:
 	/// std::streamsize Writer(const void* sBuffer, std::streamsize iCount, void* CustomPointer)
 	///  - returns written bytes. CustomPointer can be used for anything, to the discretion of the
 	/// Writer.
-	typedef std::streamsize (*Writer)(const void*, std::streamsize, void*);
+	using Writer = std::streamsize (*)(const void*, std::streamsize, void*);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -342,7 +342,7 @@ public:
 	/// std::streamsize Writer(const void* sBuffer, std::streamsize iCount, void* CustomPointer)
 	///  - returns written bytes. CustomPointer can be used for anything, to the discretion of the
 	/// Writer.
-	typedef std::streamsize (*Writer)(const void*, std::streamsize, void*);
+	using Writer = std::streamsize (*)(const void*, std::streamsize, void*);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

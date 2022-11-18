@@ -74,7 +74,7 @@ class KQDProf
 public:
 //----------
 
-	typedef std::chrono::steady_clock clock_t;
+	using clock_t = std::chrono::steady_clock;
 
 	//-----------------------------------------------------------------------------
 	explicit KQDProf(const char* label = g_empty_label)
@@ -133,7 +133,7 @@ class KSharedProfiler
 public:
 //----------
 
-	typedef std::chrono::steady_clock clock_t;
+	using clock_t = std::chrono::steady_clock;
 
 	//-----------------------------------------------------------------------------
 	KSharedProfiler();
@@ -171,7 +171,7 @@ public:
 private:
 //----------
 
-	typedef std::chrono::nanoseconds duration_t;
+	using duration_t = std::chrono::nanoseconds;
 
 	struct data_t
 	{
@@ -210,7 +210,7 @@ private:
 		}
 	};
 
-	typedef std::map<const char*, data_t, less_for_c_strings> map_t;
+	using map_t = std::map<const char*, data_t, less_for_c_strings>;
 
 	//-----------------------------------------------------------------------------
 	KSharedProfiler& operator+=(const KSharedProfiler& other);
@@ -521,9 +521,9 @@ extern DEKAF2_PUBLIC thread_local enabled::KSharedProfiler g_Prof;
 #endif
 
 #if defined(DEKAF2_ENABLE_PROFILING)
-typedef enabled::KQDProf KQDProf;
-typedef enabled::KSharedProfiler SharedProfiler;
-typedef enabled::KProf KProf;
+using KQDProf        = enabled::KQDProf;
+using SharedProfiler = enabled::KSharedProfiler;
+using KProf          = enabled::KProf;
 
 #ifndef DEKAF2_DISABLE_AUTOMATIC_PROFILER
 DEKAF2_PUBLIC inline void kProfSleep()
@@ -542,9 +542,9 @@ DEKAF2_PUBLIC inline void kProfFinalize()
 
 #else // DEKAF2_ENABLE_PROFILING
 
-typedef disabled::KQDProf KQDProf;
-typedef disabled::KSharedProfiler KSharedProfiler;
-typedef disabled::KProf KProf;
+using KQDProf         = disabled::KQDProf;
+using KSharedProfiler = disabled::KSharedProfiler;
+using KProf           = disabled::KProf;
 
 #ifndef DEKAF2_DISABLE_AUTOMATIC_PROFILER
 DEKAF2_PUBLIC inline void kProfSleep()

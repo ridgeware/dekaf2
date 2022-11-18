@@ -264,7 +264,7 @@ protected:
 		//-----------------------------------------------------------------------------
 	};
 
-	typedef std::unique_ptr<Parameters> param_t;
+	using param_t = std::unique_ptr<Parameters>;
 
 	//-----------------------------------------------------------------------------
 	/// Virtual hook to override with a completely new session management logic

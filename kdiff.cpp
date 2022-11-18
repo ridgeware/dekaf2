@@ -98,7 +98,7 @@ struct DMP_String_helpers<KString, KStringView>
 template <class char_t, class utf32_type = unsigned>
 struct DMP_utf32_helpers
 {
-	typedef utf32_type utf32_t;
+	using utf32_t = utf32_type;
 
 	template <class iterator>
 	static iterator to_utf32(iterator i, iterator end, utf32_t& u)

@@ -70,6 +70,7 @@ public:
 		H2xx_CREATED            = 201,
 		H2xx_ACCEPTED           = 202,
 		H2xx_NO_CONTENT         = 204,
+		H2xx_MULTI_STATUS       = 207,
 		H2xx_UPDATED            = 290,
 		H2xx_DELETED            = 291,
 		H2xx_ALREADY            = 292,

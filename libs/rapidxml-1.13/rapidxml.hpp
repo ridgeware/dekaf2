@@ -1434,6 +1434,7 @@ namespace rapidxml
             // Remove current contents
             this->remove_all_nodes();
             this->remove_all_attributes();
+			m_xml_declaration = nullptr;
             
             // Parse BOM, if any
             parse_bom<Flags>(text);
@@ -1467,7 +1468,19 @@ namespace rapidxml
             this->remove_all_attributes();
             memory_pool<Ch>::clear();
         }
+
+		//! Returns pointer on the xml declaration, or null if none
+		xml_node<Ch> *get_xml_declaration() const
+		{
+			return m_xml_declaration;
+		}
         
+		//! Returns true if the parsed document had a XML declaration
+		bool had_xml_declaration() const
+		{
+			return get_xml_declaration();
+		}
+
     private:
 
         ///////////////////////////////////////////////////////////////////////
@@ -1786,6 +1799,7 @@ namespace rapidxml
         template<int Flags>
         xml_node<Ch> *parse_xml_declaration(Ch *&text)
         {
+/*
             // If parsing of declaration is disabled
             if (!(Flags & parse_declaration_node))
             {
@@ -1797,11 +1811,14 @@ namespace rapidxml
                     ++text;
                 }
                 text += 2;    // Skip '?>'
+				m_had_xml_declaration = true;
                 return 0;
             }
-
+*/
             // Create declaration
             xml_node<Ch> *declaration = this->allocate_node(node_declaration);
+			// Save a ptr to the node
+			m_xml_declaration = declaration;
 
             // Skip whitespace before attributes or ?>
             skip<whitespace_pred, Flags>(text);
@@ -1814,7 +1831,13 @@ namespace rapidxml
                 RAPIDXML_PARSE_ERROR("expected ?>", text);
             text += 2;
             
-            return declaration;
+			// If parsing of declaration is disabled
+			if (!(Flags & parse_declaration_node))
+			{
+				return 0;
+			}
+
+			return declaration;
         }
 
         // Parse XML comment (<!--...)
@@ -2350,6 +2373,7 @@ namespace rapidxml
             }
         }
 
+		xml_node<Ch> *m_xml_declaration { nullptr };
     };
 
     //! \cond internal

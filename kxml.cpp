@@ -309,6 +309,24 @@ void KXML::clear()
 }
 
 //-----------------------------------------------------------------------------
+bool KXML::HadXMLDeclaration() const
+//-----------------------------------------------------------------------------
+{
+	return pDocument(D.get())->get_xml_declaration();
+}
+
+//-----------------------------------------------------------------------------
+const KXMLNode KXML::GetXMLDeclaration() const
+//-----------------------------------------------------------------------------
+{
+	KXMLNode XMLDeclaration;
+
+	XMLDeclaration.m_node = pDocument(D.get())->get_xml_declaration();
+
+	return XMLDeclaration;
+}
+
+//-----------------------------------------------------------------------------
 bool KXML::Parse(bool bPreserveWhiteSpace)
 //-----------------------------------------------------------------------------
 {
@@ -351,7 +369,7 @@ bool KXML::Parse(bool bPreserveWhiteSpace)
 			iPos,
 			sWhere.substr(0, 20));
 
-		if (m_bThrowOnParseError)
+		if (m_bStackTraceOnParseError)
 		{
 			KException kEx(m_sLastError);
 			kException (kEx);
@@ -372,6 +390,27 @@ void KXML::AddXMLDeclaration()
 	DocType->append_attribute(CreateAttribute(doc, "version", "1.0"));
 	DocType->append_attribute(CreateAttribute(doc, "encoding", "utf-8"));
 	DocType->append_attribute(CreateAttribute(doc, "standalone", "yes"));
+	doc->prepend_node(DocType);
+}
+
+//-----------------------------------------------------------------------------
+void KXML::AddXMLDeclaration(KStringView sVersion, KStringView sEncoding, KStringView sStandalone)
+//-----------------------------------------------------------------------------
+{
+	rapidXMLDoc* doc = pDocument(D.get());
+	rapidXMLNode* DocType = CreateNode(doc, "", "", rapidxml::node_declaration);
+	if (!sVersion.empty())
+	{
+		DocType->append_attribute(CreateAttribute(doc, "version", sVersion));
+	}
+	if (!sEncoding.empty())
+	{
+		DocType->append_attribute(CreateAttribute(doc, "encoding", sEncoding));
+	}
+	if (!sStandalone.empty())
+	{
+		DocType->append_attribute(CreateAttribute(doc, "standalone", sStandalone));
+	}
 	doc->prepend_node(DocType);
 }
 

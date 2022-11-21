@@ -308,28 +308,29 @@ public:
 	/// Construct a KXML DOM by parsing sDocument - content gets copied
 	KXML(KStringView sDocument, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = KStringView{});
 	/// Construct a KXML DOM by parsing InStream
-	KXML(KInStream& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = KStringView{});
-	KXML(KInStream&& InStream, bool bPreserveWhiteSpace = false, KStringView sCreateRoot = KStringView{});
+	KXML(KInStream& InStream,   bool bPreserveWhiteSpace = false, KStringView sCreateRoot = KStringView{});
+	KXML(KInStream&& InStream,  bool bPreserveWhiteSpace = false, KStringView sCreateRoot = KStringView{});
 
 	KXML(const KXML&) = delete;
 	KXML(KXML&&) = default;
 	KXML& operator=(const KXML&) = delete;
 	KXML& operator=(KXML&&) = default;
 
-	/// returns false if exceptions are disabled GetLastError() and return codes are in use
-	bool GetThrowOnParseError () const
+	/// Returns true if a stack trace is printed to the log in case of parse errors
+	bool GetTraceOnParseError () const
 	{
-		return m_bThrowOnParseError;
+		return m_bStackTraceOnParseError;
 	}
 
-	/// set false if you want to disable exceptions and use GetLastError() and return codes, returns old value (in case you want to restore it)
-	bool SetThrowOnParseError (bool bTrueFalse)
+	/// Set to false if you do not want a stack trace be printed in case of parse errors, returns old state
+	bool SetTraceOnParseError (bool bTrueFalse)
 	{
-		auto bOldValue = m_bThrowOnParseError;
-		m_bThrowOnParseError = bTrueFalse;
+		auto bOldValue = m_bStackTraceOnParseError;
+		m_bStackTraceOnParseError = bTrueFalse;
 		return bOldValue;
 	}
 
+	/// Returns last error string, if any
 	const KString& GetLastError () const
 	{
 		return m_sLastError;
@@ -365,8 +366,21 @@ public:
 	{
 		return !empty();
 	}
+
+	/// Returns true if the last parsed document contained an XML declaration
+	/// (which will nonetheless be stripped from the DOM, but you can add one
+	/// again with AddXMLDeclaration() .. )
+	bool HadXMLDeclaration() const;
+
+	/// Returns the parsed XML declaration (may be empty)
+	const KXMLNode GetXMLDeclaration() const;
+
 	/// Add a default XML declaration to the start of DOM
 	void AddXMLDeclaration();
+
+	/// Add an XML declaration to the start of DOM - make sure it has the required attributes. An empty string drops the
+	/// respective attribute.
+	void AddXMLDeclaration(KStringView sVersion, KStringView sEncoding, KStringView sStandalone);
 
 	/// Return first child node with sName
 	KXMLNode Child(KStringView sName) const
@@ -395,7 +409,7 @@ protected:
 	KUniqueVoidPtr D;
 	KString        XMLData;
 	KString        m_sLastError;
-	bool           m_bThrowOnParseError{true}; // <-- defaults to true (we will throw)
+	bool           m_bStackTraceOnParseError { true }; // <-- defaults to true (we will create a trace)
 
 }; // KXML
 

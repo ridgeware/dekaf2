@@ -36,7 +36,7 @@ TEST_CASE("KXML")
 
 		auto sOut = xmldoc.Serialize();
 
-static constexpr KStringView sExpected (
+static constexpr KStringView sParse (
 R"(<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <myroot>
 	<file id="f1" size="1234" mime="text/html">
@@ -53,8 +53,25 @@ R"(<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 </myroot>
 )");
 
+static constexpr KStringView sExpected (
+R"(<?xml version="1.0" encoding="UTF-8"?>
+<myroot>
+	<file id="f1" size="1234" mime="text/html">
+		<group id="g1">
+			<unit id="u1">
+				<segment id="s1">some contents</segment>
+				<segment id="s2">there is a lot of value in this node</segment>
+				<segment id="s3">another <ph>short</ph> segment</segment>
+			</unit>
+			<unit id="u2"/>
+			<unit id="u3" empty="true"/>
+		</group>
+	</file>
+</myroot>
+)");
+
 static constexpr KStringView sExpectedNoIndent (
-R"(<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+R"(<?xml version="1.0" encoding="UTF-8"?>
 <myroot>
 <file id="f1" size="1234" mime="text/html">
 <group id="g1">
@@ -69,9 +86,16 @@ R"(<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 </file>
 </myroot>
 )");
-		CHECK ( sOut == sExpected );
+		CHECK ( sOut == sParse );
 
-		KXML xml2(sExpected);
+		KXML xml2(sParse);
+
+		CHECK ( xml2.HadXMLDeclaration() == true );
+		auto Decl = xml2.GetXMLDeclaration();
+
+		CHECK ( Decl.Attribute("version").GetValue() == "1.0" );
+		CHECK ( Decl.Attribute("encoding").GetValue() == "utf-8" );
+		CHECK ( Decl.Attribute("standalone").GetValue() == "yes" );
 
 		root = xml2;
 		root = root.Child("myroot");
@@ -83,7 +107,7 @@ R"(<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 		auto ph = segment3.Child("ph");
 		auto sv2 = ph.GetValue();
 		CHECK ( sv2 == "short" );
-		xml2.AddXMLDeclaration();
+		xml2.AddXMLDeclaration("1.0", "UTF-8", "");
 		sOut = xml2.Serialize();
 		CHECK ( sOut == sExpected );
 		sOut = xml2.Serialize(KXML::NoIndents);

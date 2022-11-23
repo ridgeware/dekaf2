@@ -75,6 +75,9 @@ public:
 	virtual bool Parse(KStringView sInput);
 	virtual void Serialize(KStringRef& sOut) const;
 	KString Serialize() const;
+	/// the Serialize() with KString return is shadowed in derived classes, therefore we offer
+	/// a second method to make it visible..
+	KString ToString() const { return Serialize(); }
 
 	KHTMLObject& operator=(KStringView sInput)
 	{

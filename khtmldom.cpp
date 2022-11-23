@@ -44,6 +44,7 @@
 #include "klog.h"
 #include "koutstringstream.h"
 #include "khtmlentities.h"
+#include "kexception.h"
 
 namespace dekaf2 {
 
@@ -396,6 +397,7 @@ void KHTML::clear()
 	m_Hierarchy.clear();
 	m_sContent.clear();
 	m_sError.clear();
+	m_Issues.clear();
 	m_bLastWasSpace = false;
 	m_bDoNotEscape = false;
 
@@ -431,9 +433,29 @@ bool KHTML::SetError(KString sError)
 {
 	kDebug(1, sError);
 	m_sError = std::move(sError);
+
+	if (m_bThrowOnError)
+	{
+		throw KException(kFormat("KHTML: {}", m_sError));
+	}
+
 	return false;
 
 } // SetError
+
+//-----------------------------------------------------------------------------
+void KHTML::SetIssue(KString sIssue)
+//-----------------------------------------------------------------------------
+{
+	kDebug(1, sIssue);
+	m_Issues.push_back(std::move(sIssue));
+
+	if (m_bThrowOnIssue)
+	{
+		throw KException(kFormat("KHTML: {}", m_Issues.back()));
+	}
+
+} // SetIssue
 
 //-----------------------------------------------------------------------------
 void KHTML::Object(KHTMLObject& Object)
@@ -453,13 +475,41 @@ void KHTML::Object(KHTMLObject& Object)
 				{
 					if (m_Hierarchy.back()->GetName() != Tag.Name)
 					{
-						SetError(kFormat("invalid html - start and end tag differ: {} <> {}", m_Hierarchy.back()->GetName(), Tag.Name));
+						SetIssue(kFormat("invalid html - start and end tag differ: {} <> {}", m_Hierarchy.back()->GetName(), Tag.Name));
+
+						// now try to resync
+						auto iMaxAutoClose = m_iMaxAutoCloseLevels;
+						auto iCurrentLevel = m_Hierarchy.size() - 1;
+
+						for(;;)
+						{
+							if (!iMaxAutoClose--)
+							{
+								kDebug(2, "could not resync, max auto close levels = {}", m_iMaxAutoCloseLevels);
+								break;
+							}
+							if (iCurrentLevel-- < 2)
+							{
+								kDebug(2, "could not resync, reached root during descent");
+								break;
+							}
+							if (m_Hierarchy[iCurrentLevel]->GetName() == Tag.Name)
+							{
+								kDebug(2, "resync after {} descents", m_Hierarchy.size() - 1 - iCurrentLevel);
+								while (m_Hierarchy.size() - 1 > iCurrentLevel)
+								{
+									m_Hierarchy.pop_back();
+								}
+								break;
+							}
+						}
+
 					}
 					m_Hierarchy.pop_back();
 				}
 				else
 				{
-					SetError("invalid html - unbalanced");
+					SetError(kFormat("invalid html - unbalanced at: {}", Tag.ToString()));
 					return;
 				}
 			}

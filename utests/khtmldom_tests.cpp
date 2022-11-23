@@ -23,7 +23,7 @@ KString print_diff(KStringView s1, KStringView s2)
 	}
 	if (bFound)
 	{
-		sOut += kFormat("differs at pos {}: ", iPos);
+		sOut += kFormat("differs at pos {}:\n'", iPos);
 		if (iPos > 3 )
 		{
 			iPos -= 3;
@@ -33,8 +33,9 @@ KString print_diff(KStringView s1, KStringView s2)
 			iPos = 0;
 		}
 		sOut += s1.Mid(iPos, 20);
-		sOut += " != ";
+		sOut += "' != '";
 		sOut += s2.Mid(iPos, 20);
+		sOut += "'";
 	}
 	return sOut;
 }
@@ -214,6 +215,66 @@ TEST_CASE("KHTML")
 	{
 		static constexpr KStringView sSample   { "<p>This is <b>block <i>framed</i></b> text</p>" };
 		static constexpr KStringView sExpected { "<p>\r\n\tThis is <b>block <i>framed</i></b> text\r\n</p>\r\n" };
+		KHTML HTML;
+		HTML.Parse(sSample);
+		auto sOut = HTML.Serialize();
+		auto sDiff = print_diff(sOut, sExpected);
+		if (!sDiff.empty())
+		{
+			FAIL_CHECK ( sDiff );
+		}
+		CHECK ( sOut == sExpected );
+	}
+
+	SECTION("auto close 1")
+	{
+		static constexpr KStringView sSample   { "<p>This is <b>unbalanced <i>framed</b> text</p>" };
+		static constexpr KStringView sExpected { "<p>\r\n\tThis is <b>unbalanced <i>framed</i></b> text\r\n</p>\r\n" };
+		KHTML HTML;
+		HTML.Parse(sSample);
+		auto sOut = HTML.Serialize();
+		auto sDiff = print_diff(sOut, sExpected);
+		if (!sDiff.empty())
+		{
+			FAIL_CHECK ( sDiff );
+		}
+		CHECK ( sOut == sExpected );
+	}
+
+	SECTION("auto close 2")
+	{
+		static constexpr KStringView sSample   { "<p>This is <b>unbalanced <i>framed text</p>" };
+		static constexpr KStringView sExpected { "<p>\r\n\tThis is <b>unbalanced <i>framed text</i></b>\r\n</p>\r\n" };
+		KHTML HTML;
+		HTML.Parse(sSample);
+		auto sOut = HTML.Serialize();
+		auto sDiff = print_diff(sOut, sExpected);
+		if (!sDiff.empty())
+		{
+			FAIL_CHECK ( sDiff );
+		}
+		CHECK ( sOut == sExpected );
+	}
+
+	SECTION("auto close 3")
+	{
+		static constexpr KStringView sSample   { "<p>This is <b>unbalanced <i>framed</u> text</p>" };
+		static constexpr KStringView sExpected { "<p>\r\n\tThis is <b>unbalanced <i>framed</i> text</b>\r\n</p>\r\n" };
+		KHTML HTML;
+		HTML.Parse(sSample);
+		auto sOut = HTML.Serialize();
+		auto sDiff = print_diff(sOut, sExpected);
+		if (!sDiff.empty())
+		{
+			FAIL_CHECK ( sDiff );
+		}
+		CHECK ( sOut == sExpected );
+	}
+
+	SECTION("auto close 4")
+	{
+		static constexpr KStringView sSample   { "<p>This is <B>unbalanced <i>framed</b> text</B></p>" };
+		static constexpr KStringView sExpected { "<p>\r\n\tThis is <b>unbalanced <i>framed</i></b> text\r\n</p>\r\n" };
 		KHTML HTML;
 		HTML.Parse(sSample);
 		auto sOut = HTML.Serialize();

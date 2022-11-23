@@ -305,6 +305,13 @@ public:
 	using const_iterator = KHTMLElement::const_iterator;
 	using iterator       = KHTMLElement::iterator;
 
+	/// if the HTML is unbalanced (forgotten close tag), for how many levels down should the resynchronisation be tried (default = 2)
+	KHTML& SetMaxAutoCloseLevels(std::size_t iMaxLevels) { m_iMaxAutoCloseLevels = iMaxLevels; return *this; }
+	/// should we throw on parsing issues, or should they only be noted in Issues()
+	KHTML& SetThrowOnIssue(bool bYesNo) { m_bThrowOnIssue = bYesNo; return *this; }
+	/// should we throw on errors, or should they only be noted in Error()
+	KHTML& SetThrowOnError(bool bYesNo) { m_bThrowOnError = bYesNo; return *this; }
+
 	// parsing is in base class
 
 	void Serialize(KOutStream& Stream, char chIndent = '\t') const;
@@ -356,6 +363,11 @@ public:
 		return m_sError;
 	}
 
+	const std::vector<KString>& Issues() const
+	{
+		return m_Issues;
+	}
+
 	/// Return reference on root element
 	KHTMLElement& DOM()
 	{
@@ -394,6 +406,7 @@ protected:
 
 	void FlushText();
 	bool SetError(KString sError);
+	void SetIssue(KString sIssue);
 
 //------
 private:
@@ -403,8 +416,12 @@ private:
 	std::vector<KHTMLElement*> m_Hierarchy   { &m_Root };
 	KString                    m_sContent;
 	KString                    m_sError;
+	std::vector<KString>       m_Issues;
+	std::size_t                m_iMaxAutoCloseLevels { 2 };
 	bool                       m_bLastWasSpace { false };
 	bool                       m_bDoNotEscape  { false };
+	bool                       m_bThrowOnIssue { false };
+	bool                       m_bThrowOnError { false };
 
 }; // KHTML
 

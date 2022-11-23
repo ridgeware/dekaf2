@@ -335,7 +335,7 @@ bool KXML::Parse(bool bPreserveWhiteSpace)
 		if (bPreserveWhiteSpace)
 		{
 			pDocument(D.get())->parse<rapidxml::parse_no_string_terminators
-									| rapidxml::parse_preserve_whitespace>(&XMLData.front());
+			                        | rapidxml::parse_preserve_whitespace>(&XMLData.front());
 		}
 		else
 		{
@@ -385,12 +385,7 @@ bool KXML::Parse(bool bPreserveWhiteSpace)
 void KXML::AddXMLDeclaration()
 //-----------------------------------------------------------------------------
 {
-	rapidXMLDoc* doc = pDocument(D.get());
-	rapidXMLNode* DocType = CreateNode(doc, "", "", rapidxml::node_declaration);
-	DocType->append_attribute(CreateAttribute(doc, "version", "1.0"));
-	DocType->append_attribute(CreateAttribute(doc, "encoding", "utf-8"));
-	DocType->append_attribute(CreateAttribute(doc, "standalone", "yes"));
-	doc->prepend_node(DocType);
+	AddXMLDeclaration("1.0", "utf-8", "yes");
 }
 
 //-----------------------------------------------------------------------------

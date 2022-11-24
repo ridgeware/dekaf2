@@ -195,8 +195,11 @@ class KDuration;
 
 //-----------------------------------------------------------------------------
 /// Form a string that expresses a duration
+/// @param Duration a KDuration value
+/// @param bLongForm set to true for verbose output
+/// @param sMinInterval unit to display if duration is 0 ("less than a ...")
 DEKAF2_PUBLIC
-KString kTranslateDuration(const KDuration& Duration, bool bLongForm = false);
+KString kTranslateDuration(const KDuration& Duration, bool bLongForm = false, KStringView sMinInterval = "nanosecond");
 //-----------------------------------------------------------------------------
 
 namespace detail {

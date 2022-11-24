@@ -1162,7 +1162,7 @@ time_t kParseSMTPTimestamp (KStringView sTime)
 } // kParseSMTPTimestamp
 
 //-----------------------------------------------------------------------------
-KString kTranslateDuration(const KDuration& Duration, bool bLongForm)
+KString kTranslateDuration(const KDuration& Duration, bool bLongForm, KStringView sMinInterval)
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
@@ -1233,7 +1233,8 @@ KString kTranslateDuration(const KDuration& Duration, bool bLongForm)
 
 	if (Duration == KDuration::zero())
 	{
-		sOut = "less than a second";
+		sOut  = "less than a ";
+		sOut += sMinInterval;
 	}
 	else if (bLongForm) // e.g. "1 yr, 2 wks, 3 days, 6 hrs, 23 min, 10 sec"
 	{
@@ -1370,7 +1371,7 @@ KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
 	{
 		return "a very short time"; // < -292.5 years
 	}
-	return kTranslateDuration(std::chrono::seconds(iNumSeconds), bLongForm);
+	return kTranslateDuration(std::chrono::seconds(iNumSeconds), bLongForm, "second");
 }
 
 } // end of namespace dekaf2

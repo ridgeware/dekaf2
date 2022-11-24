@@ -125,21 +125,21 @@ R"(<?xml version="1.0" encoding="UTF-8"?>
 	SECTION("text")
 	{
 		static constexpr KStringView sParse (
-R"(<myroot attr1="value1">Text directly in root
- <element>nothing</element>
+R"(<myroot attr1="&amp;value1">Text directly in root
+ <element>&lt;nothing&gt;</element>
  Text after children
 </myroot>
 )");
 		KXML DOM(sParse);
 		auto Element = DOM.begin();
-		CHECK ( Element.Attribute("attr1").GetValue() == "value1" );
+		CHECK ( Element.Attribute("attr1").GetValue() == "&value1" );
 		CHECK ( Element.GetName() == "myroot" );
 		CHECK ( Element.GetValue() == "Text directly in root\n " );
 		Element = Element.Child();
 		CHECK ( Element.GetValue() == "Text directly in root\n " );
 		Element = Element.Next();
 		CHECK ( Element.GetName() == "element" );
-		CHECK ( Element.GetValue() == "nothing" );
+		CHECK ( Element.GetValue() == "<nothing>" );
 		Element = Element.Next();
 		CHECK ( Element.GetValue() == "\n Text after children\n" );
 	}

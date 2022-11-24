@@ -68,11 +68,11 @@ public:
 
 	virtual ~KHTMLObject();
 
-	virtual bool Parse(KInStream& InStream, KStringView sOpening = KStringView{});
-	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{});
+	virtual bool Parse(KInStream& InStream, KStringView sOpening = KStringView{}, bool bDecodeEntities = false);
+	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}, bool bDecodeEntities = false);
 	virtual void Serialize(KOutStream& OutStream) const;
 
-	virtual bool Parse(KStringView sInput);
+	virtual bool Parse(KStringView sInput, bool bDecodeEntities = false);
 	virtual void Serialize(KStringRef& sOut) const;
 	KString Serialize() const;
 	/// the Serialize() with KString return is shadowed in derived classes, therefore we offer
@@ -104,6 +104,8 @@ public:
 	static bool IsStandaloneTag(KStringView sTag);
 	/// returns true if sAttributeName is one of the predefined boolean attributes
 	static bool IsBooleanAttribute(KStringView sAttributeName);
+	/// returns a decoded entity read from InStream, which must point to the character after '&'
+	static KString DecodeEntity(KBufferedReader& InStream);
 
 }; // KHTMLObject
 
@@ -158,12 +160,13 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	KHTMLText() = default;
-	KHTMLText(KString _sText)
+	KHTMLText(KString _sText, bool _bIsEntityEncoded = false)
 	: sText(std::move(_sText))
+	, bIsEntityEncoded(_bIsEntityEncoded)
 	{
 	}
 
-	virtual bool Parse(KStringView sInput) override;
+	virtual bool Parse(KStringView sInput, bool bDecodeEntities = false) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
 	virtual void Serialize(KStringRef& sOut) const override;
 
@@ -174,6 +177,7 @@ public:
 	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLText>(*this); }
 
 	KString sText;
+	bool    bIsEntityEncoded { false };
 
 }; // KHTMLText
 
@@ -196,7 +200,7 @@ public:
 	// forward all base class constructors
 	using KHTMLObject::KHTMLObject;
 
-	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}) override;
+	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}, bool bDecodeEntities = false) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
 
 	virtual void clear() override;
@@ -234,16 +238,19 @@ class DEKAF2_PUBLIC KHTMLAttribute
 public:
 //------
 
+	using QuoteChar = std::iostream::int_type;
+
 	KHTMLAttribute() = default;
 
-	KHTMLAttribute(KString sName, KString sValue, char _Quote='"')
+	KHTMLAttribute(KString sName, KString sValue, char _Quote='"', bool _bIsEntityEncoded = false)
 	: Name(std::move(sName))
 	, Value(std::move(sValue))
 	, Quote(_Quote)
+	, bIsEntityEncoded(_bIsEntityEncoded)
 	{
 	}
 
-	bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{});
+	bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}, bool bDecodeEntities = false);
 	void Serialize(KOutStream& OutStream) const;
 	void Serialize(KStringRef& sOut) const;
 
@@ -252,7 +259,8 @@ public:
 
 	KString Name {};
 	KString Value {};
-	mutable std::iostream::int_type Quote { 0 };
+	mutable QuoteChar Quote { 0 };
+	bool    bIsEntityEncoded { false };
 
 }; // KHTMLAttribute
 
@@ -345,7 +353,7 @@ public:
 		return *this;
 	}
 
-	bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{});
+	bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}, bool bDecodeEntities = false);
 	void Serialize(KOutStream& OutStream) const;
 	void Serialize(KStringRef& sOut) const;
 
@@ -383,7 +391,7 @@ public:
 	using KHTMLObject::KHTMLObject;
 	using KHTMLObject::Parse;
 
-	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}) override;
+	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}, bool bDecodeEntities = false) override;
 	virtual void Serialize(KOutStream& OutStream) const override;
 	virtual void Serialize(KStringRef& sOut) const override;
 
@@ -597,7 +605,6 @@ private:
 	DEKAF2_PRIVATE void Invalid(const KHTMLTag& Tag);
 	DEKAF2_PRIVATE void SkipScript(KBufferedReader& InStream);
 	DEKAF2_PRIVATE void SkipInvalid(KBufferedReader& InStream);
-	DEKAF2_PRIVATE void EmitEntityAsUTF8(KBufferedReader& InStream);
 
 	bool m_bEmitEntitiesAsUTF8 { false };
 

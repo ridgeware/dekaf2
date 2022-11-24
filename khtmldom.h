@@ -70,6 +70,8 @@ public:
 	KHTMLElement() = default;
 	KHTMLElement(const KHTMLElement& other);
 	KHTMLElement(KHTMLElement&&) = default;
+	KHTMLElement& operator=(const KHTMLElement&) = default;
+	KHTMLElement& operator=(KHTMLElement&&) = default;
 
 	/// Construct an element with name, ID, and class
 	KHTMLElement(KString sName, KStringView sID = KStringView{}, KStringView sClass = KStringView{});
@@ -79,7 +81,7 @@ public:
 	KHTMLElement(KHTMLTag&& Tag);
 
 	/// Set element name from sInput
-	virtual bool Parse(KStringView sInput) override;
+	virtual bool Parse(KStringView sInput, bool bDummyParam = false) override;
 	/// Serializes element and all children. Same as Print() with default parameters.
 	virtual void Serialize(KOutStream& OutStream) const override;
 
@@ -90,11 +92,11 @@ public:
 	/// Serializes element and all children. Allows to chose indent character (0 for no indent, default = tab).
 	bool Print(KOutStream& OutStream, char chIndent = '\t', uint16_t iIndent = 0, bool bIsFirstAfterLinefeed = false) const;
 
-	using value_type = std::unique_ptr<KHTMLObject>;
-	using ElementVector = std::vector<value_type>;
-	using iterator = ElementVector::iterator;
+	using value_type     = std::unique_ptr<KHTMLObject>;
+	using ElementVector  = std::vector<value_type>;
+	using iterator       = ElementVector::iterator;
 	using const_iterator = ElementVector::const_iterator;
-	using size_type = ElementVector::size_type;
+	using size_type      = ElementVector::size_type;
 
 	// data access
 
@@ -167,7 +169,7 @@ public:
 	/// @param sContent the text content. If empty, no element is added
 	self& AddText(KStringView sContent);
 
-	/// Add a text element to the list of children. Adjacent text elements get merged. Text is not escaped.
+	/// Add a text element to the list of children. Adjacent text elements do not get merged. Text is not escaped.
 	/// @param sContent the text content. If empty, no element is added
 	self& AddRawText(KStringView sContent);
 
@@ -301,6 +303,13 @@ class DEKAF2_PUBLIC KHTML : public KHTMLParser
 //------
 public:
 //------
+
+	KHTML();
+	KHTML(const KHTML&) = default;
+	KHTML(KHTML&&) = default;
+	KHTML& operator=(const KHTML&) = default;
+	KHTML& operator=(KHTML&&) = default;
+	virtual ~KHTML();
 
 	using const_iterator = KHTMLElement::const_iterator;
 	using iterator       = KHTMLElement::iterator;

@@ -285,4 +285,20 @@ TEST_CASE("KHTML")
 		}
 		CHECK ( sOut == sExpected );
 	}
+
+	SECTION("encoding")
+	{
+		static constexpr KStringView sSample   { "<p>This is <b>bl&ouml;ck <i>framed</i></b> text</p>" };
+		static constexpr KStringView sExpected { "<p>\r\n\tThis is <b>blöck <i>framed</i></b> text\r\n</p>\r\n" };
+		KHTML HTML;
+		HTML.Parse(sSample);
+		auto sOut = HTML.Serialize();
+		auto sDiff = print_diff(sOut, sExpected);
+		if (!sDiff.empty())
+		{
+			FAIL_CHECK ( sDiff );
+		}
+		CHECK ( sOut == sExpected );
+	}
+
 }

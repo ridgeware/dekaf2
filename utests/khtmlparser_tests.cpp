@@ -21,7 +21,7 @@ TEST_CASE("KHTMLParser")
 			 <!----- another comment here until here ---> <!--really?>-->
 			 <script> this is <a <new <a href="www.w3c.org">scripting</a> language> </script>
 			 <img checked href="http://www.xyz.com/my/image.png" title=Ñicé />
-			 <p class='fancy' id=self style="curly">And finally <i class='shallow'>some</i> content</p>
+			 <p class='fancy' id=self style="curly">And finally <i class='shallow&amp;close'>some</i> content</p>
 	</body>
 	</html>
 	)");
@@ -210,7 +210,7 @@ TEST_CASE("KHTMLParser")
 				if (Object.Type() == KHTMLTag::TYPE)
 				{
 					KHTMLTag& tag = static_cast<KHTMLTag&>(Object);
-					if (tag.Attributes.Get("class") == "shallow")
+					if (tag.Attributes.Get("class") == "shallow&amp;close")
 					{
 						m_bFound = true;
 					}
@@ -224,6 +224,40 @@ TEST_CASE("KHTMLParser")
 		};
 
 		KHTMLScanner HTMLScanner;
+		HTMLScanner.Parse(sHTML);
+		CHECK ( HTMLScanner.Found() == true );
+	}
+
+	SECTION("attribute extraction decoded")
+	{
+		class KHTMLScanner : public KHTMLParser
+		{
+		public:
+
+			bool Found() const { return m_bFound; }
+
+		protected:
+
+			virtual void Object(KHTMLObject& Object) override
+			{
+				if (Object.Type() == KHTMLTag::TYPE)
+				{
+					KHTMLTag& tag = static_cast<KHTMLTag&>(Object);
+					if (tag.Attributes.Get("class") == "shallow&close")
+					{
+						m_bFound = true;
+					}
+				}
+			}
+
+		private:
+
+			bool m_bFound { false };
+
+		};
+
+		KHTMLScanner HTMLScanner;
+		HTMLScanner.EmitEntitiesAsUTF8();
 		HTMLScanner.Parse(sHTML);
 		CHECK ( HTMLScanner.Found() == true );
 	}

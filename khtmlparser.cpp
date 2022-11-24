@@ -48,6 +48,82 @@
 
 namespace dekaf2 {
 
+namespace {
+
+//-----------------------------------------------------------------------------
+template <typename Output>
+void EncodeMandatoryAttributeValue(Output& Out, KStringView sValue, KHTMLAttribute::QuoteChar ChQuote)
+//-----------------------------------------------------------------------------
+{
+	for (auto ch : sValue)
+	{
+		switch (ch)
+		{
+			case '"':
+				if (ChQuote == '\'')
+				{
+					Out += ch;
+				}
+				else
+				{
+					Out += "&quot;";
+				}
+				break;
+			case '&':
+				Out += "&amp;";
+				break;
+			case '\'':
+				if (ChQuote == '"')
+				{
+					Out += ch;
+				}
+				else
+				{
+					Out += "&apos;";
+				}
+				break;
+			case '<':
+				Out += "&lt;";
+				break;
+			case '>':
+				Out += "&gt;";
+				break;
+			default:
+				Out += ch;
+				break;
+		}
+	}
+
+} // EncodeMandatoryAttributeValue
+
+//-----------------------------------------------------------------------------
+template <typename Output>
+void EncodeMandatoryHTMLContent(Output& Out, KStringView sContent)
+//-----------------------------------------------------------------------------
+{
+	for (auto ch : sContent)
+	{
+		switch (ch)
+		{
+			case '&':
+				Out += "&amp;";
+				break;
+			case '<':
+				Out += "&lt;";
+				break;
+			case '>':
+				Out += "&gt;";
+				break;
+			default:
+				Out += ch;
+				break;
+		}
+	}
+
+} // EncodeMandatoryHTMLContent
+
+} // end of anonymous namespace
+
 //-----------------------------------------------------------------------------
 KHTMLObject::~KHTMLObject()
 //-----------------------------------------------------------------------------
@@ -61,16 +137,16 @@ void KHTMLObject::clear()
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLObject::Parse(KInStream& InStream, KStringView sOpening)
+bool KHTMLObject::Parse(KInStream& InStream, KStringView sOpening, bool bDecodeEntities)
 //-----------------------------------------------------------------------------
 {
 	KBufferedStreamReader kbr(InStream);
-	return Parse(kbr, sOpening);
+	return Parse(kbr, sOpening, bDecodeEntities);
 
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTMLObject::Parse(KBufferedReader& InStream, KStringView sOpening)
+bool KHTMLObject::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDecodeEntities)
 //-----------------------------------------------------------------------------
 {
 	// it would not make sense to call the string parser, as
@@ -81,12 +157,12 @@ bool KHTMLObject::Parse(KBufferedReader& InStream, KStringView sOpening)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTMLObject::Parse(KStringView sInput)
+bool KHTMLObject::Parse(KStringView sInput, bool bDecodeEntities)
 //-----------------------------------------------------------------------------
 {
 	// call the stream parser
 	KBufferedStringReader kbr(sInput);
-	return Parse(kbr);
+	return Parse(kbr, "", bDecodeEntities);
 
 } // Parse
 
@@ -284,10 +360,61 @@ bool KHTMLObject::IsBooleanAttribute(KStringView sAttributeName)
 } // IsInline
 
 //-----------------------------------------------------------------------------
-bool KHTMLText::Parse(KStringView sInput)
+KString KHTMLObject::DecodeEntity(KBufferedReader& InStream)
 //-----------------------------------------------------------------------------
 {
-	sText = sInput;
+	KString sEntity;
+
+	sEntity += '&';
+
+	for(;;)
+	{
+		auto ch = InStream.Read();
+
+		if (DEKAF2_UNLIKELY(ch == std::istream::traits_type::eof()))
+		{
+			break;
+		}
+		else
+		{
+			if (ch == ';')
+			{
+				// normal end of entity
+				sEntity = KHTMLEntity::DecodeOne(sEntity);
+				break;
+			}
+
+			if (!(ch == '#' && sEntity.size() == 2) && !KASCII::kIsAlNum(ch))
+			{
+				// this runs into the next tag or whatever, restore the last char
+				InStream.UnRead();
+				// try to decode the entity - will return the input string on failure
+				sEntity = KHTMLEntity::DecodeOne(sEntity);
+				break;
+			}
+
+			sEntity += ch;
+		}
+	}
+
+	return sEntity;
+
+} // DecodeEntity
+
+//-----------------------------------------------------------------------------
+bool KHTMLText::Parse(KStringView sInput, bool bDecodeEntities)
+//-----------------------------------------------------------------------------
+{
+	if (bDecodeEntities)
+	{
+		sText = KHTMLEntity::Decode(sInput);
+		bIsEntityEncoded = false;
+	}
+	else
+	{
+		sText = sInput;
+		bIsEntityEncoded = true;
+	}
 	return true;
 }
 
@@ -295,14 +422,28 @@ bool KHTMLText::Parse(KStringView sInput)
 void KHTMLText::Serialize(KOutStream& OutStream) const
 //-----------------------------------------------------------------------------
 {
-	OutStream.Write(sText);
+	if (bIsEntityEncoded)
+	{
+		OutStream.Write(sText);
+	}
+	else
+	{
+		EncodeMandatoryHTMLContent(OutStream, sText);
+	}
 }
 
 //-----------------------------------------------------------------------------
 void KHTMLText::Serialize(KStringRef& sOut) const
 //-----------------------------------------------------------------------------
 {
-	sOut += sText;
+	if (bIsEntityEncoded)
+	{
+		sOut += sText;
+	}
+	else
+	{
+		EncodeMandatoryHTMLContent(sOut, sText);
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -310,6 +451,7 @@ void KHTMLText::clear()
 //-----------------------------------------------------------------------------
 {
 	sText.clear();
+	bIsEntityEncoded = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -334,9 +476,11 @@ bool KHTMLStringObject::empty() const
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening)
+bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDecodeEnitities)
 //-----------------------------------------------------------------------------
 {
+	// for now we ignore bDecodeEnitities
+
 	// <!-- opens a comment until -->
 	// <!DOCTYPE opens a DTD until >
 	// <? opens a processing instruction until ?>
@@ -395,7 +539,6 @@ void KHTMLStringObject::Serialize(KOutStream& OutStream) const
 
 } // Serialize
 
-
 //-----------------------------------------------------------------------------
 void KHTMLAttribute::clear()
 //-----------------------------------------------------------------------------
@@ -403,6 +546,7 @@ void KHTMLAttribute::clear()
 	Name.clear();
 	Value.clear();
 	Quote = 0;
+	bIsEntityEncoded = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -413,10 +557,12 @@ bool KHTMLAttribute::empty() const
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening)
+bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDecodeEntities)
 //-----------------------------------------------------------------------------
 {
 	clear();
+
+	bIsEntityEncoded = !bDecodeEntities;
 
 	enum pstate { START, KEY, BEFORE_EQUAL, AFTER_EQUAL, VALUE };
 	pstate state { START };
@@ -491,14 +637,25 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening)
 					else
 					{
 						// no quotes around attribute
-						Value.assign(1, ch);
+						if (DEKAF2_UNLIKELY(bDecodeEntities && ch == '&'))
+						{
+							Value = KHTMLObject::DecodeEntity(InStream);
+						}
+						else
+						{
+							Value.assign(1, ch);
+						}
 					}
 					state = VALUE;
 				}
 				break;
 
 			case VALUE:
-				if (Quote)
+				if (DEKAF2_UNLIKELY(bDecodeEntities && ch == '&'))
+				{
+					Value += KHTMLObject::DecodeEntity(InStream);
+				}
+				else if (Quote)
 				{
 					if (ch != Quote)
 					{
@@ -562,7 +719,14 @@ void KHTMLAttribute::Serialize(KStringRef& sOut) const
 				sOut += Quote;
 			}
 
-			sOut += Value;
+			if (bIsEntityEncoded)
+			{
+				sOut += Value;
+			}
+			else
+			{
+				EncodeMandatoryAttributeValue(sOut, Value, Quote);
+			}
 
 			if (Quote)
 			{
@@ -599,7 +763,14 @@ void KHTMLAttribute::Serialize(KOutStream& OutStream) const
 				OutStream.Write(Quote);
 			}
 
-			OutStream.Write(Value);
+			if (bIsEntityEncoded)
+			{
+				OutStream.Write(Value);
+			}
+			else
+			{
+				EncodeMandatoryAttributeValue(OutStream, Value, Quote);
+			}
 
 			if (Quote)
 			{
@@ -687,7 +858,7 @@ void KHTMLAttributes::Remove(KStringView sAttributeName)
 } // Get
 
 //-----------------------------------------------------------------------------
-bool KHTMLAttributes::Parse(KBufferedReader& InStream, KStringView sOpening)
+bool KHTMLAttributes::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDecodeEntities)
 //-----------------------------------------------------------------------------
 {
 	clear();
@@ -709,7 +880,7 @@ bool KHTMLAttributes::Parse(KBufferedReader& InStream, KStringView sOpening)
 				InStream.UnRead();
 				// parse a new attribute
 				KHTMLAttribute attribute;
-				attribute.Parse(InStream);
+				attribute.Parse(InStream, KStringView{}, bDecodeEntities);
 				if (!attribute.empty())
 				{
 					Set(std::move(attribute));
@@ -765,7 +936,7 @@ bool KHTMLTag::empty() const
 } // empty
 
 //-----------------------------------------------------------------------------
-bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening)
+bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDecodeEntities)
 //-----------------------------------------------------------------------------
 {
 	clear();
@@ -834,7 +1005,7 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening)
 			case NAME:
 				if (KASCII::kIsSpace(ch))
 				{
-					Attributes.Parse(InStream);
+					Attributes.Parse(InStream, KStringView{}, bDecodeEntities);
 					state = CLOSE;
 				}
 				else if (ch == '>')
@@ -1180,51 +1351,6 @@ void KHTMLParser::SkipScript(KBufferedReader& InStream)
 } // SkipScript
 
 //-----------------------------------------------------------------------------
-void KHTMLParser::EmitEntityAsUTF8(KBufferedReader& InStream)
-//-----------------------------------------------------------------------------
-{
-	KString sEntity;
-
-	sEntity += '&';
-
-	for(;;)
-	{
-		auto ch = InStream.Read();
-
-		if (DEKAF2_UNLIKELY(ch == std::istream::traits_type::eof()))
-		{
-			break;
-		}
-		else
-		{
-			if (ch == ';')
-			{
-				// normal end of entity
-				sEntity = KHTMLEntity::DecodeOne(sEntity);
-				break;
-			}
-
-			if (!(ch == '#' && sEntity.size() == 2) && !KASCII::kIsAlNum(ch))
-			{
-				// this runs into the next tag or whatever, restore the last char
-				InStream.UnRead();
-				// try to decode the entity - will return the input string on failure
-				sEntity = KHTMLEntity::DecodeOne(sEntity);
-				break;
-			}
-
-			sEntity += ch;
-		}
-	}
-
-	for (auto ch : sEntity)
-	{
-		Content(ch);
-	}
-
-} // EmitEntityAsUTF8
-
-//-----------------------------------------------------------------------------
 bool KHTMLParser::Parse(KBufferedReader& InStream)
 //-----------------------------------------------------------------------------
 {
@@ -1316,7 +1442,7 @@ bool KHTMLParser::Parse(KBufferedReader& InStream)
 
 			// no, this is most probably a tag
 			KHTMLTag tag;
-			if (DEKAF2_LIKELY(tag.Parse(InStream, "<")))
+			if (DEKAF2_LIKELY(tag.Parse(InStream, "<", m_bEmitEntitiesAsUTF8)))
 			{
 				if (!tag.empty())
 				{
@@ -1336,7 +1462,12 @@ bool KHTMLParser::Parse(KBufferedReader& InStream)
 		}
 		else if (ch == '&' && m_bEmitEntitiesAsUTF8)
 		{
-			EmitEntityAsUTF8(InStream);
+			KString sEntity = KHTMLObject::DecodeEntity(InStream);
+
+			for (auto ch : sEntity)
+			{
+				Content(ch);
+			}
 		}
 		else
 		{

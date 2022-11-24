@@ -120,6 +120,37 @@ void KHTMLEntity::AppendMandatory(KStringRef& sAppendTo, KStringView sIn)
 } // AppendMandatory
 
 //-----------------------------------------------------------------------------
+void KHTMLEntity::EncodeMandatory(KOutStream& Out, KStringView sIn)
+//-----------------------------------------------------------------------------
+{
+	for (auto ch : sIn)
+	{
+		switch (ch)
+		{
+			case '"':
+				Out += "&quot;";
+				break;
+			case '&':
+				Out += "&amp;";
+				break;
+			case '\'':
+				Out += "&apos;";
+				break;
+			case '<':
+				Out += "&lt;";
+				break;
+			case '>':
+				Out += "&gt;";
+				break;
+			default:
+				Out += ch;
+				break;
+		}
+	}
+
+} // EncodeMandatory
+
+//-----------------------------------------------------------------------------
 KString KHTMLEntity::EncodeMandatory(KStringView sIn)
 //-----------------------------------------------------------------------------
 {

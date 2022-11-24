@@ -1,5 +1,4 @@
 /*
- //-----------------------------------------------------------------------------//
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
@@ -51,7 +50,7 @@ void KHTMLContentBlocks::BlockContent::FlushText()
 {
 	if (!m_sContent.empty())
 	{
-		m_Content.push_back(std::make_unique<KHTMLText>(m_sContent));
+		m_Content.push_back(std::make_unique<KHTMLText>(m_sContent, !m_bHadTextContent));
 		m_sContent.clear();
 	}
 }

@@ -42,6 +42,7 @@
 
 #include "kstring.h"
 #include "kstringview.h"
+#include "kwriter.h"
 
 
 /// @file khtmlentities.h
@@ -70,6 +71,9 @@ public:
 
 	/// Escapes utf8 input with mandatory HTML entities (<>'"&)
 	static KString EncodeMandatory(KStringView sIn);
+
+	/// Escapes utf8 input with mandatory HTML entities (<>'"&)
+	static void EncodeMandatory(KOutStream& Out, KStringView sIn);
 
 	/// Converts utf8 input into HTML entities for non-alnum/space/punct characters
 	static KString Encode(KStringView sIn);

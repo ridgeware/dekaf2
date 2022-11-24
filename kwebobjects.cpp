@@ -206,12 +206,13 @@ void KWebObjectBase::SetTextBefore(KStringView sLabel)
 		if (begin()->get()->Type() == KHTMLText::TYPE)
 		{
 			auto& element = static_cast<KHTMLText&>(*(begin()->get()));
-			element.sText = KHTMLEntity::EncodeMandatory(sLabel);
+			element.sText = sLabel;
+			element.bIsEntityEncoded = false;
 		}
 		else
 		{
 			// insert text node at start
-			Insert(begin(), KHTMLText(KHTMLEntity::EncodeMandatory(sLabel)));
+			Insert(begin(), KHTMLText(sLabel));
 		}
 	}
 
@@ -230,12 +231,13 @@ void KWebObjectBase::SetTextAfter(KStringView sLabel)
 		if (it->get()->Type() == KHTMLText::TYPE)
 		{
 			auto& element = static_cast<KHTMLText&>(*(it->get()));
-			element.sText = KHTMLEntity::EncodeMandatory(sLabel);
+			element.sText = sLabel;
+			element.bIsEntityEncoded = false;
 		}
 		else
 		{
 			// add text node
-			Add(KHTMLText(KHTMLEntity::EncodeMandatory(sLabel)));
+			Add(KHTMLText(sLabel));
 		}
 	}
 
@@ -779,7 +781,7 @@ Input::self& Input::SetStep(float step) &
 //-----------------------------------------------------------------------------
 Text::Text(KStringView sContent)
 //-----------------------------------------------------------------------------
-: KHTMLText(KHTMLEntity::EncodeMandatory(sContent))
+: KHTMLText(sContent)
 {
 }
 
@@ -787,7 +789,7 @@ Text::Text(KStringView sContent)
 Text::self& Text::AddText(KStringView sContent) &
 //-----------------------------------------------------------------------------
 {
-	sText += KHTMLEntity::EncodeMandatory(sContent);
+	sText += sContent;
 	return *this;
 }
 

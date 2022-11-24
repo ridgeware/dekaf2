@@ -68,6 +68,9 @@ KHTMLElement::KHTMLElement(const KHTMLTag& Tag)
 {
 	m_Name = Tag.Name;
 	m_Attributes = Tag.Attributes;
+	// we should check here if the attribute values are entity encoded, in
+	// which case we should decode them - but we use this constructor only
+	// during parsing of a DOM where the entities decode is active already
 }
 
 //-----------------------------------------------------------------------------
@@ -76,6 +79,9 @@ KHTMLElement::KHTMLElement(KHTMLTag&& Tag)
 {
 	m_Name = std::move(Tag.Name);
 	m_Attributes = std::move(Tag.Attributes);
+	// we should check here if the attribute values are entity encoded, in
+	// which case we should decode them - but we use this constructor only
+	// during parsing of a DOM where the entity decode is active already
 }
 
 //-----------------------------------------------------------------------------
@@ -96,9 +102,10 @@ KHTMLElement::KHTMLElement(KString sName, KStringView sID, KStringView sClass)
 } // ctor
 
 //-----------------------------------------------------------------------------
-bool KHTMLElement::Parse(KStringView sInput)
+bool KHTMLElement::Parse(KStringView sInput, bool bDummyParam)
 //-----------------------------------------------------------------------------
 {
+	// we always store unencoded content (no entities)
 	m_Name = sInput;
 	return true;
 }
@@ -304,12 +311,20 @@ KHTMLElement::self& KHTMLElement::AddText(KStringView sContent)
 		// merge with last text node if possible
 		if (m_Children.empty() || m_Children.back()->Type() != KHTMLText::TYPE)
 		{
-			Add(KHTMLText(KHTMLEntity::EncodeMandatory(sContent)));
+			Add(KHTMLText(sContent));
 		}
 		else
 		{
 			auto* Text = reinterpret_cast<KHTMLText*>(m_Children.back().get());
-			Text->sText += KHTMLEntity::EncodeMandatory(sContent);
+
+			if (Text->bIsEntityEncoded)
+			{
+				Text->sText += KHTMLEntity::EncodeMandatory(sContent);
+			}
+			else
+			{
+				Text->sText += sContent;
+			}
 		}
 	}
 	return *this;
@@ -323,7 +338,7 @@ KHTMLElement::self& KHTMLElement::AddRawText(KStringView sContent)
 	if (!sContent.empty())
 	{
 		// do not escape and do not merge with last text node - this is for scripts and bad code
-		Add(KHTMLText(sContent));
+		Add(KHTMLText(sContent, true));
 	}
 	return *this;
 	
@@ -367,6 +382,20 @@ KHTMLElement::self& KHTMLElement::SetAttribute(KString sName, KString sValue, bo
 	return *this;
 
 } // SetAttribute
+
+//-----------------------------------------------------------------------------
+KHTML::KHTML()
+//-----------------------------------------------------------------------------
+{
+	EmitEntitiesAsUTF8();
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KHTML::~KHTML()
+//-----------------------------------------------------------------------------
+{
+} // dtor
 
 //-----------------------------------------------------------------------------
 void KHTML::Serialize(KOutStream& Stream, char chIndent) const
@@ -509,7 +538,7 @@ void KHTML::Object(KHTMLObject& Object)
 				}
 				else
 				{
-					SetError(kFormat("invalid html - unbalanced at: {}", Tag.ToString()));
+					SetError(kFormat("invalid html - underflow at: {}", Tag.ToString()));
 					return;
 				}
 			}
@@ -563,9 +592,13 @@ void KHTML::Finished()
 
 	if (m_Hierarchy.size() != 1)
 	{
-		m_Hierarchy.clear();
-		m_Hierarchy.push_back(&m_Root);
-		SetError("invalid html - unbalanced");
+		SetIssue(kFormat("unbalanced HTML - still {} nodes open at end", m_Hierarchy.size() - 1));
+
+		// close all open nodes..
+		while (m_Hierarchy.size() > 1)
+		{
+			m_Hierarchy.pop_back();
+		}
 	}
 
 } // Finished
@@ -595,6 +628,12 @@ void KHTML::Content(char ch)
 void KHTML::Script(char ch)
 //-----------------------------------------------------------------------------
 {
+	if (!m_bDoNotEscape)
+	{
+		// if we had already valid text, flush it now
+		FlushText();
+	}
+
 	m_bDoNotEscape = true;
 	// do not collapse white space
 	m_sContent += ch;
@@ -605,6 +644,12 @@ void KHTML::Script(char ch)
 void KHTML::Invalid(char ch)
 //-----------------------------------------------------------------------------
 {
+	if (!m_bDoNotEscape)
+	{
+		// if we had already valid text, flush it now
+		FlushText();
+	}
+
 	m_bDoNotEscape = true;
 	// do not collapse white space
 	m_sContent += ch;

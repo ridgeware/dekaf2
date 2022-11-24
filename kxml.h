@@ -322,7 +322,7 @@ public:
 		return m_bStackTraceOnParseError;
 	}
 
-	/// Set to false if you do not want a stack trace be printed in case of parse errors, returns old state
+	/// Set to true if you want a stack trace be printed in case of parse errors, returns old state
 	bool SetTraceOnParseError (bool bTrueFalse)
 	{
 		auto bOldValue = m_bStackTraceOnParseError;
@@ -409,7 +409,7 @@ protected:
 	KUniqueVoidPtr D;
 	KString        XMLData;
 	KString        m_sLastError;
-	bool           m_bStackTraceOnParseError { true }; // <-- defaults to true (we will create a trace)
+	bool           m_bStackTraceOnParseError { false }; // <-- defaults to false (we will not create a trace)
 
 }; // KXML
 

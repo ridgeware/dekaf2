@@ -362,17 +362,25 @@ bool KXML::Parse(bool bPreserveWhiteSpace)
 			{
 				iPos = 0;
 			}
-		}
 
-		m_sLastError.Format ("{} at pos {}, next input: \"{}\"",
-			ex.what(),
-			iPos,
-			sWhere.substr(0, 20));
+			m_sLastError.Format ("{} at pos {}, next input: \"{}\"",
+								 ex.what(),
+								 iPos,
+								 sWhere.LeftUTF8(50));
+		}
+		else
+		{
+			m_sLastError = ex.what();
+		}
 
 		if (m_bStackTraceOnParseError)
 		{
 			KException kEx(m_sLastError);
 			kException (kEx);
+		}
+		else
+		{
+			kDebug(1, m_sLastError);
 		}
 
 		clear();

@@ -42,6 +42,7 @@
 #include "khtmlparser.h"
 #include "khtmlentities.h"
 #include "kstringstream.h"
+#include "kstringutils.h"
 #include "klog.h"
 #include "kfrozen.h"
 #include "kctype.h"
@@ -707,8 +708,9 @@ void KHTMLAttribute::Serialize(KStringRef& sOut) const
 
 			if (!Quote)
 			{
+				static KFindSetOfChars FindSet(" \f\v\t\r\n\b\"'=<>`");
 				// lazy check if we need a quote (maybe the value was changed)
-				if (Value.find_first_of(" \f\v\t\r\n\b\"'=<>`") != KString::npos)
+				if (FindSet.find_first_in(Value) != KString::npos)
 				{
 					Quote = '"';
 				}
@@ -751,8 +753,9 @@ void KHTMLAttribute::Serialize(KOutStream& OutStream) const
 
 			if (!Quote)
 			{
+				static KFindSetOfChars FindSet(" \f\v\t\r\n\b\"'=<>`");
 				// lazy check if we need a quote (maybe the value was changed)
-				if (Value.find_first_of(" \f\v\t\r\n\b\"'=<>`") != KString::npos)
+				if (FindSet.find_first_in(Value) != KString::npos)
 				{
 					Quote = '"';
 				}

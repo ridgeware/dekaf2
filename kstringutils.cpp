@@ -326,5 +326,46 @@ void kEscapeForLogging(KStringRef& sLog, KStringView sInput)
 
 } // kEscapeForLogging
 
+//-----------------------------------------------------------------------------
+KFindSetOfChars::KFindSetOfChars(KStringView sNeedles)
+//-----------------------------------------------------------------------------
+{
+	for (auto c : sNeedles)
+	{
+		m_table[static_cast<unsigned char>(c)] = true;
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_first_in_impl(KStringView sHaystack, bool bNot)
+//-----------------------------------------------------------------------------
+{
+	auto it = std::find_if(sHaystack.begin(),
+						   sHaystack.end(),
+						   [this, bNot](const char c)
+	{
+		return m_table[static_cast<unsigned char>(c)] != bNot;
+	});
+
+	return (it == sHaystack.end()) ? KStringView::npos : static_cast<std::size_t>(it - sHaystack.begin());
+
+} // find_first_in_impl
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_last_in_impl(KStringView sHaystack, bool bNot)
+//-----------------------------------------------------------------------------
+{
+	auto it = std::find_if(sHaystack.rbegin(),
+						   sHaystack.rend(),
+						   [this, bNot](const char c)
+	{
+		return m_table[static_cast<unsigned char>(c)] != bNot;
+	});
+
+	return (it == sHaystack.rend()) ? KStringView::npos : static_cast<std::size_t>((it.base() - 1) - sHaystack.begin());
+
+} // find_last_in_impl
+
 } // end of namespace dekaf2
 

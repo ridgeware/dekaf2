@@ -55,6 +55,7 @@
 #include <cstring>
 #include <cctype>
 #include <map>
+#include <array>
 
 namespace dekaf2
 {
@@ -1148,5 +1149,58 @@ String kLimitSizeUTF8(const StringView& sLimitMe,
 	}
 
 } // kLimitSizeUTF8
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// This is a replacement for the string find_first/last_of type of methods for non-SSE 4.2 architectures
+/// which operate repeatedly on the same set of characters. Why not simply using std::string's methods?
+/// They are orders of magnitude slower as they do not use a table based approach (which of course
+/// only works with 8 bit characters..).
+class KFindSetOfChars
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	using size_type = KStringView::size_type;
+
+	/// construct with set of characters to match / not to match
+	KFindSetOfChars(KStringView sNeedles);
+
+	/// find first occurence of needles in haystack
+	size_type find_first_in(KStringView sHaystack)
+	{
+		return find_first_in_impl(sHaystack, false);
+	}
+
+	/// find first occurence of character in haystack that is not in needles
+	size_type find_first_not_in(KStringView sHaystack)
+	{
+		return find_first_in_impl(sHaystack, true);
+	}
+
+	/// find last occurence of needles in haystack
+	size_type find_last_in(KStringView sHaystack)
+	{
+		return find_last_in_impl(sHaystack, false);
+	}
+
+	/// find last occurence of character in haystack that is not in needles
+	size_type find_last_not_in(KStringView sHaystack)
+	{
+		return find_last_in_impl(sHaystack, true);
+	}
+
+//------
+private:
+//------
+
+	size_type find_first_in_impl (KStringView sHaystack, bool bNot);
+	size_type find_last_in_impl  (KStringView sHaystack, bool bNot);
+
+	std::array<bool, 256> m_table {};
+
+}; // KFindSetOfChars
 
 } // end of namespace dekaf2

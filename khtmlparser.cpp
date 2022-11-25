@@ -842,9 +842,14 @@ void KHTMLAttributes::Set(KHTMLAttribute Attribute)
 		}
 	}
 
-	Remove(Attribute.Name);
+	auto pair = m_Attributes.insert(std::move(Attribute));
 
-	m_Attributes.insert(std::move(Attribute));
+	if (!pair.second)
+	{
+		// when the insert failed the attribute value was not moved,
+		// we still have access to it
+		pair.first->Value = std::move(Attribute.Value);
+	}
 
 } // Add
 

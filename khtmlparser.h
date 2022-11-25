@@ -258,7 +258,7 @@ public:
 	bool empty() const;
 
 	KString Name {};
-	KString Value {};
+	mutable KString Value {};
 	mutable QuoteChar Quote { 0 };
 	bool    bIsEntityEncoded { false };
 

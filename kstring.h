@@ -475,10 +475,10 @@ public:
 	/// replace with regular expression, sReplaceWith may address sub-groups with \\1 etc., modifies string and returns number of replacements made
 	size_type ReplaceRegex(const KStringView sRegEx, const KStringView sReplaceWith, bool bReplaceAll = true);
 
-	/// replace one part of the string with another string, modifies string
+	/// replace part of the string with another string, modifies string and returns number of replacements made
 	size_type Replace(const KStringView sSearch, const KStringView sReplace, size_type pos = 0, bool bReplaceAll = true);
 
-	/// replace one char of the string with another char, modifies string and returns number of replacements made
+	/// replace char of the string with another char, modifies string and returns number of replacements made
 	size_type Replace(value_type chSearch, value_type chReplace, size_type pos = 0, bool bReplaceAll = true);
 
 	/// find string with caseless ASCII compare

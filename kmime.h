@@ -233,6 +233,7 @@ public:
 	static constexpr KStringViewZ HTML_UTF8              = "text/html; charset=UTF-8";
 	static constexpr KStringViewZ CSS                    = "text/css; charset=UTF-8";
 	static constexpr KStringViewZ CSV                    = "text/csv";
+	static constexpr KStringViewZ TSV                    = "text/tab-separated-values";
 	static constexpr KStringViewZ CALENDAR               = "text/calendar";
 	static constexpr KStringViewZ PO                     = "text/x-gettext-translation";
 

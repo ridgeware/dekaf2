@@ -125,6 +125,7 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		{ "html"_ksv , HTML_UTF8  },
 		{ "css"_ksv  , CSS        },
 		{ "csv"_ksv  , CSV        },
+		{ "tsv"_ksv  , TSV        },
 		{ "ics"_ksv  , CALENDAR   },
 		{ "po"_ksv   , PO         },
 

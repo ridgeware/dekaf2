@@ -952,8 +952,10 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 	enum pstate { START, OPEN, NAME, CLOSE };
 	pstate state { START };
 	std::iostream::int_type ch;
+	std::size_t iCloseCount { 0 }; // helper to unread in case of invalid html
 
 	auto iOSize = sOpening.size();
+
 	if (iOSize)
 	{
 		if (iOSize > 1)
@@ -1021,6 +1023,12 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 					// we're done
 					return true;
 				}
+				else if (ch == '/')
+				{
+					// we should now not have attributes following!
+					TagType = TagType::STANDALONE;
+					state = CLOSE;
+				}
 				else
 				{
 					Name += KASCII::kToLower(ch);
@@ -1028,6 +1036,8 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 				break;
 
 			case CLOSE:
+				++iCloseCount;
+
 				if (!KASCII::kIsSpace(ch))
 				{
 					if (ch == '>')
@@ -1040,6 +1050,19 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 						// it would be good to check for !bClosing here as well,
 						// but - garbage in, garbage out
 						TagType = TagType::STANDALONE;
+					}
+					else
+					{
+						// this is invalid HTML, e.g. a tag like
+						// <br/ attr=value>
+						while (iCloseCount--)
+						{
+							// it is not guaranteed that all unreads work in case there
+							// were more than one - but as we are already in an error
+							// situation that does not really matter..
+							InStream.UnRead();
+						}
+						return false;
 					}
 				}
 				break;

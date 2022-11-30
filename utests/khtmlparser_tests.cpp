@@ -287,4 +287,31 @@ TEST_CASE("KHTMLParser")
 		HTMLScanner.Parse(sHTML);
 		CHECK ( HTMLScanner.GetScript() == sScript );
 	}
+
+	SECTION("bad tag")
+	{
+		class KHTMLScanner : public KHTMLParser
+		{
+		public:
+
+			const KString& GetInvalid() const { return m_sInvalid; }
+
+		protected:
+
+			virtual void Invalid(char ch) override
+			{
+				m_sInvalid += ch;
+			}
+
+		private:
+
+			KString m_sInvalid;
+
+		};
+
+		KHTMLScanner HTML;
+		bool bOK = HTML.Parse("<html><body>test<br/ name='value'></body></html>");
+		CHECK ( bOK == true );
+		CHECK ( HTML.GetInvalid() == "<br/ name='value'>" );
+	}
 }

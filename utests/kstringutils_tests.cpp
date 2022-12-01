@@ -744,7 +744,7 @@ TEST_CASE("KStringUtils") {
 		CHECK( s == "123-456-789");
 		s = kFormNumber(123456789, '-', 76);
 		CHECK( s == "123456789");
-		s = kFormNumber(123456789, '-', 0);
+		s = kFormNumber(123456789, '-', 0, 2);
 		CHECK( s == "123456789");
 		s = kFormNumber(0, '-', 0);
 		CHECK( s == "0");
@@ -756,6 +756,10 @@ TEST_CASE("KStringUtils") {
 		CHECK( s == "-12");
 		s = kFormNumber(-1, ',', 3);
 		CHECK( s == "-1");
+		s = kFormNumber(12345.3456, ',', 3, 2);
+		CHECK( s == "12,345.34" );
+		s = kFormNumber(12345.3456, ',', 3, 0);
+		CHECK( s == "12,345" );
 	}
 
 	SECTION("kToInt")

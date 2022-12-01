@@ -449,7 +449,7 @@ bool kIsBinary(KStringView sBuffer);
 //-----------------------------------------------------------------------------
 /// Convert value into string and insert separator every n digits
 template <class Arithmetic, class String = KString>
-String kFormNumber(Arithmetic i, typename String::value_type separator = ',', typename String::size_type every = 3)
+String kFormNumber(Arithmetic i, typename String::value_type separator = ',', typename String::size_type every = 3, uint16_t iPrecision = 0)
 //-----------------------------------------------------------------------------
 {
 	static_assert(std::is_arithmetic<Arithmetic>::value, "arithmetic type required");
@@ -476,23 +476,38 @@ String kFormNumber(Arithmetic i, typename String::value_type separator = ',', ty
 		result.clear();
 	}
 
+	auto iDecSep = result.rfind((separator == '.') ? ',' : '.');
+
+	if (iDecSep != String::npos)
+	{
+		auto iHave = result.size() - iDecSep;
+
+		if (iHave > iPrecision)
+		{
+			result.erase(iDecSep + iPrecision + ((iPrecision)  ? 1 : 0));
+		}
+	}
+
 	if (every > 0)
 	{
 		// now insert the separator every N digits
 		auto last = every;
+
 		if (i < 0)
 		{
 			// do not count the leading '-' as an insertion point
 			++last;
 		}
 
-		auto pos = result.length();
+		auto pos = iDecSep != String::npos ? iDecSep : result.length();
+
 		while (pos > last)
 		{
 			result.insert(pos-every, 1, separator);
 			pos -= every;
 		}
 	}
+
 	return result;
 }
 

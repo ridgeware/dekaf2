@@ -41,6 +41,7 @@
 #include "kreplacer.h"
 #include "kregex.h"
 #include "kstringutils.h" // for kFormNumber()
+#include "krow.h"
 #include "klog.h"
 
 namespace dekaf2 {
@@ -172,7 +173,7 @@ uint16_t KReplacer::AddTokens (const KJSON& object, bool bFormNumbers/*=true*/)
 } // AddTokens
 
 //-----------------------------------------------------------------------------
-uint16_t KReplacer::AddTokens (const KROW& row, bool bFormNumbers/*=true*/)
+uint16_t KReplacer::AddTokensFromRow (const KROW& row, bool bFormNumbers/*=true*/)
 //-----------------------------------------------------------------------------
 {
 	uint16_t iTokens{0};
@@ -187,8 +188,7 @@ uint16_t KReplacer::AddTokens (const KROW& row, bool bFormNumbers/*=true*/)
 
 		if (bFormNumbers && (iFlags & KCOL::MONEY))
 		{
-//			sValue = kFormNumber (sValue.Double(), /*separator=*/',', /*every=*/3, /*digits*/2);
-			sValue = kFormNumber (sValue.Double(), /*separator=*/',', /*every=*/3); // TODO:JOACHIM
+			sValue = kFormNumber (sValue.Double(), /*separator=*/',', /*every=*/3, /*digits*/2);
 		}
 		else if (bFormNumbers && ((iFlags & KCOL::NUMERIC) || (iFlags & KCOL::INT64NUMERIC)))
 		{
@@ -207,7 +207,7 @@ uint16_t KReplacer::AddTokens (const KROW& row, bool bFormNumbers/*=true*/)
 
 	return iTokens;
 
-} // AddTokens
+} // AddTokensFromRow
 
 //-----------------------------------------------------------------------------
 bool KReplacer::erase(KStringView sSearch)

@@ -130,6 +130,10 @@ public:
 	/// ignores any json objects that are not simple key/value pairs.
 	uint16_t AddTokens (const KJSON& object, bool bFormNumbers=true);
 
+	/// makes {{tokens}} from all database columns and assigns their values to the replacements.
+	/// returns the number of tokens created.
+	uint16_t AddTokens (const KROW& row, bool bFormNumbers=true);
+
 	/// inserts (copies) another replace list into this
 	KReplacer& operator+=(const KReplacer& other)
 	{

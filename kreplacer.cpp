@@ -172,6 +172,44 @@ uint16_t KReplacer::AddTokens (const KJSON& object, bool bFormNumbers/*=true*/)
 } // AddTokens
 
 //-----------------------------------------------------------------------------
+uint16_t KReplacer::AddTokens (const KROW& row, bool bFormNumbers/*=true*/)
+//-----------------------------------------------------------------------------
+{
+	uint16_t iTokens{0};
+
+	for (auto& col : row)
+	{
+		kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), col.second.FlagsToString());
+
+		auto  sKey   = col.first;
+		auto  iFlags = col.second.GetFlags();
+		auto  sValue = col.second.sValue;
+
+		if (bFormNumbers && (iFlags & KCOL::MONEY))
+		{
+//			sValue = kFormNumber (sValue.Double(), /*separator=*/',', /*every=*/3, /*digits*/2);
+			sValue = kFormNumber (sValue.Double(), /*separator=*/',', /*every=*/3); // TODO:JOACHIM
+		}
+		else if (bFormNumbers && ((iFlags & KCOL::NUMERIC) || (iFlags & KCOL::INT64NUMERIC)))
+		{
+			sValue = kFormNumber (sValue.Int64());
+		}
+		else if (bFormNumbers && (iFlags & KCOL::BOOLEAN))
+		{
+			sValue = sValue.Bool() ? "true" : "false";
+		}
+
+		kDebug (2, "token {}{}{} = {}", m_sTokenPrefix, sKey, m_sTokenSuffix, sValue);
+
+		insert (sKey, sValue);
+		++iTokens;
+	}
+
+	return iTokens;
+
+} // AddTokens
+
+//-----------------------------------------------------------------------------
 bool KReplacer::erase(KStringView sSearch)
 //-----------------------------------------------------------------------------
 {

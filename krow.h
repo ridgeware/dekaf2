@@ -282,16 +282,17 @@ public:
 	enum Flags
 	{
 		NOFLAG           = 0,        ///< Reset flags, column will be seen as string value
-		PKEY             = 1 << 0,   ///< Indicates given column is part of the primary key.  At least one column must have the PKEY flag to use KROW to do UPDATE and DELETE.
-		NONCOLUMN        = 1 << 1,   ///< Indicates given column is not a column and should be included in DDL statements.
-		EXPRESSION       = 1 << 2,   ///< Indicates given column is not a column and should be included in DDL statements.
-		INSERTONLY       = 1 << 3,   ///< Indicates given column is only to be used in INSERT statements (not UPDATE or DELETE).
-		NUMERIC          = 1 << 4,   ///< Indicates given column should not be quoted when forming DDL statements.
-		NULL_IS_NOT_NIL  = 1 << 5,   ///< Indicates given column is ???
-		BOOLEAN          = 1 << 6,   ///< Indicates given column is a boolean (true/false)
-		JSON             = 1 << 7,   ///< Indicates given column is a JSON object
-		INT64NUMERIC     = 1 << 8,   ///< Indicates given column is a NUMERIC, but would overflow in JSON - NUMERIC is also always set when this flag is true
-		INCREMENT        = 1 << 9,   ///< Indicated that during UPDATES the value in the existing row should be INCREMENTED by the value passed in
+		PKEY             = 1 << 0,   ///< part of the primary key.  At least one column must have the PKEY flag to use KROW to do UPDATE and DELETE.
+		NONCOLUMN        = 1 << 1,   ///< not a column and should be included in DDL statements.
+		EXPRESSION       = 1 << 2,   ///< not a column and should be included in DDL statements.
+		INSERTONLY       = 1 << 3,   ///< only to be used in INSERT statements (not UPDATE or DELETE).
+		NUMERIC          = 1 << 4,   ///< should not be quoted when forming DDL statements.
+		MONEY            = (1 << 5) | NUMERIC, ///< numeric variant: assume 2 decimal points when serializing
+		BOOLEAN          = 1 << 6,   ///< a boolean (true/false)
+		JSON             = 1 << 7,   ///< a JSON object
+		INT64NUMERIC     = 1 << 8,   ///< a NUMERIC, but would overflow in JSON - NUMERIC is also always set when this flag is true
+		INCREMENT        = 1 << 9,   ///< during UPDATES the value in the existing row should be INCREMENTED by the value passed in
+		NULL_IS_NOT_NIL  = 1 << 10,  ///< ???
 
 		TYPE_FLAGS       = NUMERIC | BOOLEAN | JSON | INT64NUMERIC,
 		MODE_FLAGS       = PKEY | NONCOLUMN | EXPRESSION | INSERTONLY | NULL_IS_NOT_NIL | INCREMENT

@@ -287,7 +287,7 @@ public:
 		EXPRESSION       = 1 << 2,   ///< not a column and should be included in DDL statements.
 		INSERTONLY       = 1 << 3,   ///< only to be used in INSERT statements (not UPDATE or DELETE).
 		NUMERIC          = 1 << 4,   ///< should not be quoted when forming DDL statements.
-		MONEY            = (1 << 5) | NUMERIC, ///< numeric variant: assume 2 decimal points when serializing
+		MONEY            = 1 << 5,   ///< numeric variant: assume 2 decimal points when serializing
 		BOOLEAN          = 1 << 6,   ///< a boolean (true/false)
 		JSON             = 1 << 7,   ///< a JSON object
 		INT64NUMERIC     = 1 << 8,   ///< a NUMERIC, but would overflow in JSON - NUMERIC is also always set when this flag is true
@@ -534,6 +534,13 @@ public:
 	/// @param iValue new signed 64 bit value for the column
 	/// @return bool success of operation
 	bool SetValue (KStringView sColName, int64_t iValue);
+
+	/// Just set the value of a column from a decimal (assume money), do not touch flags or max len if already set.
+	/// Will create a new column with type NUMERIC if not existing.
+	/// @param sColName Name of the column
+	/// @param iValue new signed 64 bit value for the column
+	/// @return bool success of operation
+	bool SetValue (KStringView sColName, double nValue);
 
 	/// Just set the flags of a column, do not touch value or max len if already set
 	/// @param sColName Name of the column

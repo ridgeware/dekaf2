@@ -201,6 +201,7 @@ KString KCOL::FlagsToString (Flags iFlags)
 	if (iFlags & EXPRESSION)      {  sPretty += "[EXPRESSION]";      }
 	if (iFlags & INSERTONLY)      {  sPretty += "[INSERTONLY]";      }
 	if (iFlags & NUMERIC)         {  sPretty += "[NUMERIC]";         }
+	if (iFlags & MONEY)           {  sPretty += "[MONEY]";           }
 	if (iFlags & NULL_IS_NOT_NIL) {  sPretty += "[NULL_IS_NOT_NIL]"; }
 	if (iFlags & BOOLEAN)         {  sPretty += "[BOOLEAN]";         }
 	if (iFlags & JSON)            {  sPretty += "[JSON]";            }
@@ -436,6 +437,24 @@ bool KROW::SetValue (KStringView sColName, int64_t iValue)
 }
 
 //-----------------------------------------------------------------------------
+bool KROW::SetValue (KStringView sColName, double nValue)
+//-----------------------------------------------------------------------------
+{
+	// do not replace this with a simple KCOLS::Add() !
+	auto it = KCOLS::find (sColName);
+
+	if (it == KCOLS::end())
+	{
+		return (KCOLS::Add (sColName, KCOL(KString::to_string(nValue), KCOL::MONEY)) != KCOLS::end());
+	}
+	else
+	{
+		it->second.sValue = KString::to_string(nValue);
+		return (true);
+	}
+}
+
+//-----------------------------------------------------------------------------
 bool KROW::SetFlags (KStringView sColName, KCOL::Flags Flags)
 //-----------------------------------------------------------------------------
 {
@@ -478,7 +497,7 @@ void KROW::PrintValuesForInsert(KSQLString& sSQL, DBT iDBType) const
 			// Note: this is the default handling for NIL values: to place them in SQL as SQL null
 			sSQL.ref() += kFormat ("{}\n\tnull", (bComma) ? "," : "");
 		}
-		else if (bHack || it.second.HasFlag (KCOL::NUMERIC | KCOL::BOOLEAN | KCOL::EXPRESSION))
+		else if (bHack || it.second.HasFlag (KCOL::NUMERIC | KCOL::MONEY | KCOL::BOOLEAN | KCOL::EXPRESSION))
 		{
 			sSQL.ref() += kFormat ("{}\n\t{}", (bComma) ? "," : "", it.second.sValue); // raw value, no quotes and no processing
 		}
@@ -673,7 +692,7 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 					sSQL.ref() += kFormat ("{}+", it.first);
 				}
 
-				if (it.second.HasFlag (KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
+				if (it.second.HasFlag (KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
 				{
 					sSQL.ref() += kFormat ("{}\n", EscapeChars (it, iDBType));
 				}
@@ -712,7 +731,7 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 		
 		sSQL.ref() += kFormat("{}{}=", sPrefix, it.first);
 
-		if (it.second.HasFlag(KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
+		if (it.second.HasFlag(KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
 		{
 			sSQL.ref() += kFormat("{}\n", EscapeChars (it, iDBType));
 		}
@@ -788,7 +807,7 @@ KSQLString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) const
 		{
 			KStringView sPrefix = !iKeys++ ? " where " : "   and ";
 
-			if (it.second.HasFlag(KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
+			if (it.second.HasFlag(KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
 			{
 				sSQL.ref() += kFormat("{}{}={}\n", sPrefix, it.first, EscapeChars (it, iDBType));
 			}
@@ -853,7 +872,7 @@ KSQLString KROW::FormDelete (DBT iDBType) const
 		{
 			sSQL.ref() += kFormat(" {} {} is null\n",(!kk) ? "where" : "  and", it.first);
 		}
-		else if (it.second.HasFlag(KCOL::NUMERIC | KCOL::EXPRESSION | KCOL::BOOLEAN))
+		else if (it.second.HasFlag(KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
 		{
 			sSQL.ref() += kFormat(" {} {}={}\n",     (!kk) ? "where" : "  and", it.first, EscapeChars (it, iDBType));
 		}
@@ -909,7 +928,7 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags Flags, 
 			return AddCol(sColName, Value.get<KJSON::number_unsigned_t>(), Flags | KCOL::NUMERIC, iMaxLen);
 
 		case KJSON::value_t::number_float:
-			return AddCol(sColName, Value.get<KJSON::number_float_t>(), Flags | KCOL::NUMERIC, iMaxLen);
+			return AddCol(sColName, Value.get<KJSON::number_float_t>(), Flags | KCOL::MONEY, iMaxLen);
 
 		case KJSON::value_t::boolean:
 			return AddCol(sColName, Value.get<KJSON::boolean_t>(), Flags | KCOL::BOOLEAN, iMaxLen);
@@ -991,7 +1010,7 @@ KJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 		{
 			json[sKey] = col.second.sValue.Bool();
 		}
-		else if (col.second.IsFlag(KCOL::NUMERIC))
+		else if (col.second.IsFlag(KCOL::NUMERIC) | col.second.IsFlag(KCOL::MONEY))
 		{
 			// TODO get a strategy as to how to and if to adapt to locales with other chars than . as the
 			// decimal separator

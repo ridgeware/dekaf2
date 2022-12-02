@@ -41,7 +41,6 @@
 #include "kreplacer.h"
 #include "kregex.h"
 #include "kstringutils.h" // for kFormNumber()
-#include "krow.h"
 #include "klog.h"
 
 namespace dekaf2 {

@@ -43,11 +43,11 @@
 /// @file kreplacer.h
 /// adds a class that replaces variables in a string
 
-#include <map>
 #include "kstringview.h"
 #include "kstring.h"
-#include "kassociative.h"
 #include "kjson.h"
+#include "krow.h"
+#include <map>
 
 namespace dekaf2 {
 

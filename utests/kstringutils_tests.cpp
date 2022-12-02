@@ -745,7 +745,7 @@ TEST_CASE("KStringUtils") {
 		s = kFormNumber(123456789, '-', 76);
 		CHECK( s == "123456789");
 		s = kFormNumber(123456789, '-', 0, 2);
-		CHECK( s == "123456789");
+		CHECK( s == "123456789.00");
 		s = kFormNumber(0, '-', 0);
 		CHECK( s == "0");
 		s = kFormNumber(-1234, ',', 3);
@@ -757,9 +757,25 @@ TEST_CASE("KStringUtils") {
 		s = kFormNumber(-1, ',', 3);
 		CHECK( s == "-1");
 		s = kFormNumber(12345.3456, ',', 3, 2);
-		CHECK( s == "12,345.34" );
+		CHECK( s == "12,345.34");
+		s = kFormNumber(-12345.3456, ',', 3, 2);
+		CHECK( s == "-12,345.34");
+		s = kFormNumber(12345.3456, '.', 3, 2);
+		CHECK( s == "12.345,34");
 		s = kFormNumber(12345.3456, ',', 3, 0);
-		CHECK( s == "12,345" );
+		CHECK( s == "12,345");
+		s = kFormNumber(12345.3456, '.', 3, 0);
+		CHECK( s == "12.345");
+		s = kFormNumber(12345.3456, ',', 3, 6);
+		CHECK( s == "12,345.345600");
+		s = kFormNumber(12345.3456, '.', 3, 6);
+		CHECK( s == "12.345,345600");
+		s = kFormNumber(12345.3456, '.', 3, 2);
+		CHECK( s == "12.345,34" );
+		s = kFormNumber(123456789, ',', 3, 2);
+		CHECK( s == "123,456,789.00");
+		s = kFormNumber(123456789, '.', 3, 2);
+		CHECK( s == "123.456.789,00");
 	}
 
 	SECTION("kToInt")

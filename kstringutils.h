@@ -449,67 +449,112 @@ bool kIsBinary(KStringView sBuffer);
 //-----------------------------------------------------------------------------
 /// Convert value into string and insert separator every n digits
 template <class Arithmetic, class String = KString>
-String kFormNumber(Arithmetic i, typename String::value_type separator = ',', typename String::size_type every = 3, uint16_t iPrecision = 0)
+String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', uint16_t iEvery = 3, uint16_t iPrecision = 0)
 //-----------------------------------------------------------------------------
 {
 	static_assert(std::is_arithmetic<Arithmetic>::value, "arithmetic type required");
-	String result;
+
+	String sResult;
 
 	DEKAF2_TRY
 	{
 #if defined(DEKAF2_HAS_FULL_CPP_17)
 		if constexpr (std::is_same<String, KString>::value)
 		{
-			result = KString::to_string(i);
+			sResult = KString::to_string(i);
 		}
 		else
-		{
-			result = std::to_string(i);
-		}
-#else
-		result = std::to_string(i);
 #endif
+		{
+			sResult = std::to_string(i);
+		}
 	}
 	DEKAF2_CATCH (...)
 	{
 		// that conversion failed..
-		result.clear();
+		sResult.clear();
 	}
 
-	auto iDecSep = result.rfind((separator == '.') ? ',' : '.');
+	typename String::size_type iDecSepPos;
 
-	if (iDecSep != String::npos)
+	if (std::is_floating_point<Arithmetic>::value)
 	{
-		auto iHave = result.size() - iDecSep;
+		iDecSepPos = sResult.rfind('.');
 
-		if (iHave > iPrecision)
+		if (iDecSepPos == String::npos)
 		{
-			result.erase(iDecSep + iPrecision + ((iPrecision)  ? 1 : 0));
+			iDecSepPos = sResult.rfind(',');
+
+			if (iDecSepPos != String::npos && chSeparator == ',')
+			{
+				sResult[iDecSepPos] = '.';
+			}
+		}
+		else if (chSeparator == '.')
+		{
+			sResult[iDecSepPos] = ',';
+		}
+
+		if (iDecSepPos != String::npos)
+		{
+			auto iHave = sResult.size() - iDecSepPos;
+
+			if (iHave > iPrecision)
+			{
+				sResult.erase(iDecSepPos + iPrecision + ((iPrecision > 0) ? 1 : 0));
+			}
+			else
+			{
+				while (iHave < iPrecision--)
+				{
+					sResult += '0';
+				}
+			}
+		}
+		else
+		{
+			iDecSepPos = sResult.size();
+		}
+	}
+	else
+	{
+		// not a float/double
+		iDecSepPos = sResult.size();
+
+		if (iPrecision > 0)
+		{
+			sResult += (chSeparator != '.') ? '.' : ',';
+
+			while (iPrecision--)
+			{
+				sResult += '0';
+			}
 		}
 	}
 
-	if (every > 0)
+	if (iEvery > 0)
 	{
 		// now insert the separator every N digits
-		auto last = every;
+		auto iLast = iEvery;
 
 		if (i < 0)
 		{
 			// do not count the leading '-' as an insertion point
-			++last;
+			++iLast;
 		}
 
-		auto pos = iDecSep != String::npos ? iDecSep : result.length();
+		auto iPos = iDecSepPos;
 
-		while (pos > last)
+		while (iPos > iLast)
 		{
-			result.insert(pos-every, 1, separator);
-			pos -= every;
+			sResult.insert(iPos - iEvery, 1, chSeparator);
+			iPos -= iEvery;
 		}
 	}
 
-	return result;
-}
+	return sResult;
+
+} // kFormNumber
 
 //-----------------------------------------------------------------------------
 /// Copy sInp and insert separator every n digits

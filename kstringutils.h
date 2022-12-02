@@ -505,7 +505,7 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 			}
 			else
 			{
-				while (iHave < iPrecision--)
+				while (iPrecision-- >= iHave)
 				{
 					sResult += '0';
 				}

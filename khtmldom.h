@@ -122,6 +122,9 @@ public:
 	/// Clone this element
 	/// @return a copy of the element
 	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLElement>(*this); }
+	/// Copy this element without children
+	/// @return a flat copy of the element without children
+	KHTMLElement CopyWithoutChildren() const;
 
 	/// Insert an element into the list of children, return child reference
 	template<typename T,

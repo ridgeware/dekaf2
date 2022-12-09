@@ -84,7 +84,7 @@ TEST_CASE("KHTML")
 		<!----- another comment here until here --->
 		<!--really?>-->
 		<p>
-			<script type="lang/nicely"> this is <a <new <a href="www.w3c.org">scripting</a> language> </script><img checked src="http://www.xyz.com/my/image.png" title=Ñicé/><br/>
+			<script type="lang/nicely"> this is <a <new <a href="www.w3c.org">scripting</a> language> </script><img checked src="http://www.xyz.com/my/image.png" title=Ñicé><br>
 		</p>
 		<p class='fancy' id=self style="curly">
 			And <i class='shallow'>some</i> content
@@ -98,18 +98,18 @@ TEST_CASE("KHTML")
 		<title>
 			This is the title
 		</title>
-		<meta viewport="width=device-width, initial-scale=1.0"/>
+		<meta viewport="width=device-width, initial-scale=1.0">
 	</head>
 	<body>
 		<p id="MyPar">
-			This &lt;is&gt; &amp;a <i>web</i>page<br/>
+			This &lt;is&gt; &amp;a <i>web</i>page<br>
 			More text
 		</p>
 		<p class="emptyClass" id="emptyPar"></p>
 		<h2>
 			This is the title
 		</h2>
-		<a href="/some/link"><img src="/another/link/img.png"/></a>that is all
+		<a href="/some/link"><img src="/another/link/img.png"></a>that is all
 	</body>
 </html>
 )");
@@ -259,7 +259,7 @@ TEST_CASE("KHTML")
 	SECTION("auto close 3")
 	{
 		static constexpr KStringView sSample   { "<p>This is <b>unbalanced <i>framed</u> text</p>" };
-		static constexpr KStringView sExpected { "<p>\r\n\tThis is <b>unbalanced <i>framed</i> text</b>\r\n</p>\r\n" };
+		static constexpr KStringView sExpected { "<p>\r\n\tThis is <b>unbalanced <i>framed text</i></b>\r\n</p>\r\n" };
 		KHTML HTML;
 		HTML.Parse(sSample);
 		auto sOut = HTML.Serialize();
@@ -299,6 +299,50 @@ TEST_CASE("KHTML")
 			FAIL_CHECK ( sDiff );
 		}
 		CHECK ( sOut == sExpected );
+	}
+
+	SECTION("ambiguous")
+	{
+		static constexpr KStringView sSample {
+R"(
+<html>
+	<head/>
+	<body>
+		</p>
+		<div attr="that"/><div/>
+		<img attr="this"></img attr="those">
+		<p>
+			<img attr=1><img attr=2/>
+		</p>
+		</img attr=3><img attr=4>
+)"
+		};
+		static constexpr KStringView sExpected {
+R"(<html>
+	<head></head>
+	<body>
+		<div attr="that"></div>
+		<div></div>
+		<img attr="this"><p>
+			<img attr=1><img attr=2>
+		</p>
+		<img attr=3><img attr=4>
+	</body>
+</html>
+)"
+		};
+
+		KHTML HTML;
+		HTML.Parse(sSample);
+		auto sOut = HTML.Serialize();
+		KString sCRLF = sExpected;
+		sCRLF.Replace("\n", "\r\n");
+		auto sDiff = print_diff(sOut, sCRLF);
+		if (!sDiff.empty())
+		{
+			FAIL_CHECK ( sDiff );
+		}
+		CHECK ( sOut == sCRLF );
 	}
 
 }

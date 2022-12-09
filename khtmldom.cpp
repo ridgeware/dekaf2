@@ -102,6 +102,17 @@ KHTMLElement::KHTMLElement(KString sName, KStringView sID, KStringView sClass)
 } // ctor
 
 //-----------------------------------------------------------------------------
+KHTMLElement KHTMLElement::CopyWithoutChildren() const
+//-----------------------------------------------------------------------------
+{
+	KHTMLElement Element(m_Name);
+	Element.m_Attributes = m_Attributes;
+
+	return Element;
+
+} // CopyWithoutChildren
+
+//-----------------------------------------------------------------------------
 bool KHTMLElement::Parse(KStringView sInput, bool bDummyParam)
 //-----------------------------------------------------------------------------
 {
@@ -157,9 +168,23 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 		if (bIsStandalone)
 		{
 			kDebug(3, "down: <{}/>", m_Name);
-			OutStream.Write("/>");
 
-			if (!bIsInline || m_Name.ToLowerASCII().In("br,hr"))
+			static constexpr bool bXHTML = false;
+
+			if (bXHTML)
+			{
+				// XHTML requests (but not requires) a space before the closing slash
+				// if used for standalone tags
+				OutStream.Write(" />");
+			}
+			else
+			{
+				// pure HTML does neither want nor require a closing slash for
+				// standalone tags
+				OutStream.Write('>');
+			}
+
+			if (!bIsInline || m_Name.In("br,hr"))
 			{
 				WriteLinefeed();
 				return true;
@@ -496,45 +521,81 @@ void KHTML::Object(KHTMLObject& Object)
 	{
 		case KHTMLTag::TYPE:
 		{
-			auto& Tag = static_cast<KHTMLTag&>(Object);
+			auto& Tag              = static_cast<KHTMLTag&>(Object);
+			bool  bIsStandalone    = KHTMLObject::IsStandaloneTag(Tag.Name);
+			auto  iHierarchyLevels = m_Hierarchy.size();
 
 			if (Tag.IsClosing())
 			{
-				if (m_Hierarchy.size() > 1)
+				if (!Tag.Attributes.empty())
 				{
-					if (m_Hierarchy.back()->GetName() != Tag.Name)
+					SetIssue(kFormat("invalid html - closing tag has attributes: {}", Tag.ToString()));
+				}
+				
+				if (iHierarchyLevels > 0 && bIsStandalone)
+				{
+					// A standalone tag with a closer mark (</img>)
+					// This is already invalid html, but because xhtml would allow an <img></img>
+					// sequence, we check if we had that tag opened before and silently ignore
+					// the closer. If the tag was not opened before, we treat it as a new standalone
+					// (the author most probably had mistaken <tag/> with </tag>).
+
+					const auto& Children = m_Hierarchy.back()->GetChildren();
+
+					if (   Children.empty()
+						|| Children.back()->Type() != KHTMLElement::TYPE
+						|| static_cast<KHTMLElement*>(Children.back().get())->GetName() != Tag.Name)
 					{
-						SetIssue(kFormat("invalid html - start and end tag differ: {} <> {}", m_Hierarchy.back()->GetName(), Tag.Name));
+						SetIssue(kFormat("invalid html - standalone tag closed without immediately opening it - treating it as a new standalone: {}", Tag.ToString()));
+						m_Hierarchy.back()->Add(KHTMLElement(Tag));
+					}
+					else
+					{
+						// this is a standalone that was closed in XHTML manners.. do not err out,
+						// instead maybe notify for sanity checks
+					}
+				}
+				else if (iHierarchyLevels > 1)
+				{
+					if (m_Hierarchy.back()->GetName() == Tag.Name)
+					{
+						m_Hierarchy.pop_back();
+					}
+					else
+					{
+						SetIssue(kFormat("invalid html - start and end tag differ: <{}> -> </{}>", m_Hierarchy.back()->GetName(), Tag.Name));
 
 						// now try to resync
 						auto iMaxAutoClose = m_iMaxAutoCloseLevels;
-						auto iCurrentLevel = m_Hierarchy.size() - 1;
+						auto iCurrentLevel = iHierarchyLevels - 1;
 
 						for(;;)
 						{
 							if (!iMaxAutoClose--)
 							{
-								kDebug(2, "could not resync, max auto close levels = {}", m_iMaxAutoCloseLevels);
+								kDebug(2, "could not resync, max auto close levels = {}, will drop </{}>", m_iMaxAutoCloseLevels, Tag.Name);
 								break;
 							}
+
 							if (iCurrentLevel-- < 2)
 							{
-								kDebug(2, "could not resync, reached root during descent");
+								kDebug(2, "could not resync, reached root during descent, will drop </{}>", Tag.Name);
 								break;
 							}
+
 							if (m_Hierarchy[iCurrentLevel]->GetName() == Tag.Name)
 							{
 								kDebug(2, "resync after {} descents", m_Hierarchy.size() - 1 - iCurrentLevel);
-								while (m_Hierarchy.size() - 1 > iCurrentLevel)
+								while (m_Hierarchy.size() > iCurrentLevel)
 								{
 									m_Hierarchy.pop_back();
 								}
+
 								break;
 							}
 						}
 
 					}
-					m_Hierarchy.pop_back();
 				}
 				else
 				{
@@ -590,15 +651,12 @@ void KHTML::Finished()
 {
 	FlushText();
 
-	if (m_Hierarchy.size() != 1)
+	if (m_Hierarchy.size() > 1)
 	{
 		SetIssue(kFormat("unbalanced HTML - still {} nodes open at end", m_Hierarchy.size() - 1));
 
 		// close all open nodes..
-		while (m_Hierarchy.size() > 1)
-		{
-			m_Hierarchy.pop_back();
-		}
+		m_Hierarchy.erase(m_Hierarchy.begin() + 1, m_Hierarchy.end());
 	}
 
 } // Finished
@@ -661,4 +719,3 @@ constexpr KStringView KHTMLElement::s_sObjectName;
 #endif
 
 } // end of namespace dekaf2
-

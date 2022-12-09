@@ -30,8 +30,8 @@ text-decoration: none
 	</head>
 	<body>
 		<p>
-			<img alt="this is a test image" class=".nodecoration" loading="lazy" src="http://some.image.url/at/a/path.png"/><br/>
-			<img alt="this is a test image" class=".nodecoration" loading="lazy" src="http://some.image.url/at/a/path.png"/>
+			<img alt="this is a test image" class=".nodecoration" loading="lazy" src="http://some.image.url/at/a/path.png"><br>
+			<img alt="this is a test image" class=".nodecoration" loading="lazy" src="http://some.image.url/at/a/path.png">
 		</p>
 		<div class=".nodecoration" id="FormDiv">
 			<p>
@@ -48,7 +48,7 @@ text-decoration: none
 				</form>
 			</p>
 			<p class=".nodecoration" id="TextPar">
-				hello world<a href="/images/test.png"><img alt="preview" id="IMGID" src="/Images/test_small.png"/></a>
+				hello world<a href="/images/test.png"><img alt="preview" id="IMGID" src="/Images/test_small.png"></a>
 			</p>
 			<form accept-charset="utf-8" action="/Setup/">
 				<fieldset>
@@ -56,12 +56,12 @@ text-decoration: none
 						System Setup
 					</legend>
 					<label>
-						<input name="datadir" size="60" type="text" value="abcdef"/>
+						<input name="datadir" size="60" type="text" value="abcdef">
 						shared data directory
 					</label>
-					<br/>
+					<br>
 					<label>
-						<input name="outputdir" size="60" type="text"/>
+						<input name="outputdir" size="60" type="text">
 						shared data directory
 					</label>
 					<div hidden></div>
@@ -72,17 +72,17 @@ text-decoration: none
 						Email
 					</legend>
 					<label>
-						<input name="_fobj1" size="30" type="text"/>
+						<input name="_fobj1" size="30" type="text">
 						target email
 					</label>
-					<br/>
+					<br>
 					<label>
-						<input name="mailfrom" size="30" type="text"/>
+						<input name="mailfrom" size="30" type="text">
 						sender email
 					</label>
-					<br/>
+					<br>
 					<label>
-						<input name="_fobj2" size="30" type="text"/>
+						<input name="_fobj2" size="30" type="text">
 						smtp relay
 					</label>
 				</fieldset>
@@ -91,41 +91,41 @@ text-decoration: none
 						Display
 					</legend>
 					<label>
-						<input max="0.99" min="0.01" name="confidence" step="0.025" type="number" value="0.55"/>
+						<input max="0.99" min="0.01" name="confidence" step="0.025" type="number" value="0.55">
 						confidence value, from 0.0 .. 1.0
 					</label>
-					<br/>
+					<br>
 					<label>
-						<input max="0.99" min="0.01" name="maxconfidence" step="0.025" type="number" value="0.99"/>
+						<input max="0.99" min="0.01" name="maxconfidence" step="0.025" type="number" value="0.99">
 						max confidence value, from 0.0 .. 1.0
 					</label>
-					<br/>
+					<br>
 					<label>
-						<input name="nodetect" type="checkbox"/>
+						<input name="nodetect" type="checkbox">
 						no object detection
 					</label>
-					<br/>
+					<br>
 					<label>
-						<input checked name="nodisplay" type="checkbox"/>
+						<input checked name="nodisplay" type="checkbox">
 						do not open camera windows
 					</label>
-					<br/>
+					<br>
 					<label>
-						<input name="nooverlay" type="checkbox"/>
+						<input name="nooverlay" type="checkbox">
 						no detection overlay
 					</label>
-					<br/>
+					<br>
 					<label>
-						<input name="motion" type="checkbox"/>
+						<input name="motion" type="checkbox">
 						show motion
 					</label>
 					<label>
-						<input max="1000" min="-1" name="_fobj3" step="1" type="number" value="1000"/>
+						<input max="1000" min="-1" name="_fobj3" step="1" type="number" value="1000">
 						motion area
 					</label>
-					<br/>
+					<br>
 					<label>
-						<input max="86400" min="1" name="interval" type="number" value="60"/>
+						<input max="86400" min="1" name="interval" type="number" value="60">
 						seconds between alarms
 					</label>
 					<label>
@@ -151,19 +151,19 @@ text-decoration: none
 						Radios
 					</legend>
 					<label>
-						<input name="_fobj8" type="radio" value="red"/>
+						<input name="_fobj8" type="radio" value="red">
 						red
 					</label>
 					<label>
-						<input name="_fobj8" type="radio" value="green"/>
+						<input name="_fobj8" type="radio" value="green">
 						green
 					</label>
 					<label>
-						<input name="_fobj8" type="radio" value="blue"/>
+						<input name="_fobj8" type="radio" value="blue">
 						blue
 					</label>
 					<label>
-						<input name="_fobj8" type="radio" value="yellow"/>
+						<input name="_fobj8" type="radio" value="yellow">
 						yellow
 					</label>
 				</fieldset>
@@ -172,26 +172,26 @@ text-decoration: none
 						Radios with enums
 					</legend>
 					<label>
-						<input name="_fobj9" type="radio" value="0"/>
+						<input name="_fobj9" type="radio" value="0">
 						red
 					</label>
 					<label>
-						<input name="_fobj9" type="radio" value="1"/>
+						<input name="_fobj9" type="radio" value="1">
 						green
 					</label>
 					<label>
-						<input name="_fobj9" type="radio" value="2"/>
+						<input name="_fobj9" type="radio" value="2">
 						blue
 					</label>
 					<label>
-						<input checked name="_fobj9" type="radio" value="3"/>
+						<input checked name="_fobj9" type="radio" value="3">
 						yellow
 					</label>
 				</fieldset>
 			</form>
 		</div>
-		<a href="link" title="title"><img alt="AltText" loading="lazy" src="another/link"/></a>
-		<a href="link" title="title"><img alt="AltText" loading="lazy" src="another/link"/></a>
+		<a href="link" title="title"><img alt="AltText" loading="lazy" src="another/link"></a>
+		<a href="link" title="title"><img alt="AltText" loading="lazy" src="another/link"></a>
 		<table>
 			<tr>
 				<td>
@@ -291,7 +291,7 @@ text-decoration: none
 				html::TextInput<KString> ti(m_Config.sOutputDir   , "outputdir"  );
 				ti.SetLabelAfter("shared data directory");
 				group += ti.SetSize(60);
-				CHECK ( ti.Serialize().size() == 93 );
+				CHECK ( ti.Serialize().size() == 92 );
 				group += html::Div().SetHidden(true);
 				html::Div div;
 				group += div.SetHidden(true);

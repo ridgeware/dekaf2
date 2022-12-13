@@ -54,6 +54,7 @@ KHTMLElement::KHTMLElement(const KHTMLElement& other)
 : KHTMLObject(other)
 , m_Name(other.m_Name)
 , m_Attributes(other.m_Attributes)
+, m_Property(other.m_Property)
 {
 	for (auto& Child : other.m_Children)
 	{
@@ -66,8 +67,9 @@ KHTMLElement::KHTMLElement(const KHTMLElement& other)
 KHTMLElement::KHTMLElement(const KHTMLTag& Tag)
 //-----------------------------------------------------------------------------
 {
-	m_Name = Tag.Name;
+	m_Name       = Tag.Name;
 	m_Attributes = Tag.Attributes;
+	m_Property   = GetTagProperty(m_Name);
 	// we should check here if the attribute values are entity encoded, in
 	// which case we should decode them - but we use this constructor only
 	// during parsing of a DOM where the entities decode is active already
@@ -77,8 +79,9 @@ KHTMLElement::KHTMLElement(const KHTMLTag& Tag)
 KHTMLElement::KHTMLElement(KHTMLTag&& Tag)
 //-----------------------------------------------------------------------------
 {
-	m_Name = std::move(Tag.Name);
+	m_Name       = std::move(Tag.Name);
 	m_Attributes = std::move(Tag.Attributes);
+	m_Property   = GetTagProperty(m_Name);
 	// we should check here if the attribute values are entity encoded, in
 	// which case we should decode them - but we use this constructor only
 	// during parsing of a DOM where the entity decode is active already
@@ -88,6 +91,7 @@ KHTMLElement::KHTMLElement(KHTMLTag&& Tag)
 KHTMLElement::KHTMLElement(KString sName, KStringView sID, KStringView sClass)
 //-----------------------------------------------------------------------------
 : m_Name(std::move(sName))
+, m_Property(GetTagProperty(m_Name))
 {
 	if (!sID.empty())
 	{
@@ -122,19 +126,21 @@ bool KHTMLElement::Parse(KStringView sInput, bool bDummyParam)
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent, bool bIsFirstAfterLinefeed) const
+bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent, bool bIsFirstAfterLinefeed, bool bIsInsideHead) const
 //-----------------------------------------------------------------------------
 {
 	// bIsFirstAfterLinefeed means: last output was a linefeed
 	// returns bIsFirstAfterLinefeed
 
-	auto bIsStandalone = IsStandalone();
-	auto bIsInline     = IsInline();
-	bool bIsRoot       = m_Name.empty();
+	auto bIsStandalone  = IsStandalone();
+	auto bIsInline      = IsInline();
+	auto bIsInlineBlock = IsInlineBlock();
+	bool bIsRoot        = m_Name.empty();
+	bool bLastWasSpace  = bIsFirstAfterLinefeed;
 
 	kDebug(3, "up: <{}>, Indent={}, IsStandalone={}, IsInline={}, IsRoot={}, IsFirst={}", m_Name, iIndent, bIsStandalone, bIsInline, bIsRoot, bIsFirstAfterLinefeed);
 
-	auto PrintIndent   = [&bIsFirstAfterLinefeed,chIndent,&OutStream](uint16_t iIndent)
+	auto PrintIndent   = [&bIsFirstAfterLinefeed,&bLastWasSpace,chIndent,&OutStream](uint16_t iIndent)
 	{
 		if (bIsFirstAfterLinefeed)
 		{
@@ -146,19 +152,26 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 				}
 			}
 			bIsFirstAfterLinefeed = false;
+			bLastWasSpace         = KASCII::kIsSpace(chIndent);
 		}
 	};
 
-	auto WriteLinefeed = [&bIsFirstAfterLinefeed,&OutStream]()
+	auto WriteLinefeed = [&bIsFirstAfterLinefeed,&bLastWasSpace,&OutStream]()
 	{
 		static constexpr KStringView sLineFeed { "\r\n" };
 
 		OutStream.Write(sLineFeed);
 		bIsFirstAfterLinefeed = true;
+		bLastWasSpace         = true;
 	};
 
 	if (!m_Name.empty())
 	{
+		if (!bIsInline && !bIsFirstAfterLinefeed)
+		{
+			WriteLinefeed();
+		}
+
 		PrintIndent(iIndent);
 		OutStream.Write('<');
 		OutStream.Write(m_Name);
@@ -184,7 +197,7 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 				OutStream.Write('>');
 			}
 
-			if (!bIsInline || m_Name.In("br,hr"))
+			if (!bIsInline || m_Name.In("br,hr") || (bIsInsideHead && IsNotInlineInHead()))
 			{
 				WriteLinefeed();
 				return true;
@@ -195,8 +208,15 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 
 		OutStream.Write('>');
 
-		if (!bIsInline)
+		bLastWasSpace = false;
+
+		if (!bIsInline || bIsInlineBlock)
 		{
+			if (m_Name == "head")
+			{
+				bIsInsideHead = true;
+			}
+
 			if (!m_Children.empty())
 			{
 				WriteLinefeed();
@@ -216,13 +236,15 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 			{
 				auto* Element = static_cast<KHTMLElement*>(it.get());
 				// print KHTMLElements here, instead of calling Serialize() below
-				bIsFirstAfterLinefeed = Element->Print(OutStream, chIndent, iIndent + (bIsRoot ? 0 : 1), bIsFirstAfterLinefeed);
+				bIsFirstAfterLinefeed = Element->Print(OutStream, chIndent, iIndent + (bIsRoot ? 0 : 1), bIsFirstAfterLinefeed, bIsInsideHead);
+				bLastWasSpace = bIsFirstAfterLinefeed;
 			}
 			continue;
 
 			case KHTMLComment::TYPE:
 			case KHTMLProcessingInstruction::TYPE:
 			case KHTMLDocumentType::TYPE:
+			case KHTMLText::TYPE:
 				PrintIndent(iIndent + (bIsRoot ? 0 : 1));
 				break;
 
@@ -230,9 +252,37 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 				break;
 		}
 
-		PrintIndent(iIndent+1);
+		// to visualize text elements in the output (->debug), set bFrameText to true
+		static constexpr bool bFrameText = false;
 
-		it->Serialize(OutStream);
+		if (iType == KHTMLText::TYPE)
+		{
+			if (bFrameText)
+			{
+				// with framed output always print the full text element
+				OutStream.Write('[');
+				it->Serialize(OutStream);
+			}
+			else if (bLastWasSpace)
+			{
+				// do not print a whitespace-only text element in normal output mode
+				// if preceded by whitespace
+				const auto* TextElement = static_cast<const KHTMLText*>(it.get());
+
+				if (TextElement->sText != " ")
+				{
+					it->Serialize(OutStream);
+				}
+			}
+			else
+			{
+				it->Serialize(OutStream);
+			}
+		}
+		else
+		{
+			it->Serialize(OutStream);
+		}
 
 		switch (iType)
 		{
@@ -244,6 +294,11 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 
 			case KHTMLText::TYPE:
 			{
+				if (bFrameText)
+				{
+					OutStream.Write(']');
+				}
+
 				auto* Element = static_cast<KHTMLText*>(it.get());
 				if (!Element->sText.empty() && Element->sText.back() == '\n')
 				{
@@ -258,13 +313,14 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 	{
 		if (!m_Children.empty())
 		{
-			if (!bIsInline)
+			if (!bIsInline || bIsInlineBlock)
 			{
 				if (!bIsFirstAfterLinefeed)
 				{
 					WriteLinefeed();
 				}
 			}
+
 			if (bIsFirstAfterLinefeed)
 			{
 				PrintIndent(iIndent);
@@ -276,7 +332,7 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 		OutStream.Write(m_Name);
 		OutStream.Write('>');
 
-		if (!bIsInline)
+		if (!bIsInline) // do not test for bIsInlineBlock here, outside of the InlineBlock it behaves like an Inline
 		{
 			WriteLinefeed();
 		}
@@ -449,11 +505,13 @@ void KHTML::clear()
 {
 	m_Root.clear();
 	m_Hierarchy.clear();
+	m_Hierarchy.push_back(&m_Root);
 	m_sContent.clear();
 	m_sError.clear();
 	m_Issues.clear();
-	m_bLastWasSpace = false;
-	m_bDoNotEscape = false;
+	m_bLastWasSpace = true;
+	m_bDoNotEscape  = false;
+	m_bInsideStyle  = false;
 
 } // clear
 
@@ -463,20 +521,18 @@ void KHTML::FlushText()
 {
 	if (!m_sContent.empty())
 	{
-		if (!(m_bLastWasSpace && m_sContent.size() == 1))
+		if (m_bDoNotEscape)
 		{
-			if (m_bDoNotEscape)
-			{
-				m_Hierarchy.back()->AddRawText(m_sContent);
-			}
-			else
-			{
-				m_Hierarchy.back()->AddText(m_sContent);
-			}
+			m_Hierarchy.back()->AddRawText(m_sContent);
 		}
+		else
+		{
+			m_Hierarchy.back()->AddText(m_sContent);
+		}
+
 		m_sContent.clear();
-		m_bLastWasSpace = false;
 		m_bDoNotEscape = false;
+		// do not reset m_bLastWasSpace - we only clear it when descending from a block element
 	}
 
 } // FlushText
@@ -512,6 +568,29 @@ void KHTML::SetIssue(KString sIssue)
 } // SetIssue
 
 //-----------------------------------------------------------------------------
+void KHTML::CheckTrailingWhitespace()
+//-----------------------------------------------------------------------------
+{
+	auto& Children = m_Hierarchy.back()->GetChildren();
+
+	if (!Children.empty())
+	{
+		if (Children.back()->Type() == KHTMLText::TYPE)
+		{
+			auto* Text = static_cast<KHTMLText*>(Children.back().get());
+
+			Text->sText.TrimRight();
+
+			if (Text->sText.empty())
+			{
+				Children.erase(Children.end() - 1);
+			}
+		}
+	}
+
+} // CheckTrailingWhitespace
+
+//-----------------------------------------------------------------------------
 void KHTML::Object(KHTMLObject& Object)
 //-----------------------------------------------------------------------------
 {
@@ -522,7 +601,10 @@ void KHTML::Object(KHTMLObject& Object)
 		case KHTMLTag::TYPE:
 		{
 			auto& Tag              = static_cast<KHTMLTag&>(Object);
-			bool  bIsStandalone    = KHTMLObject::IsStandaloneTag(Tag.Name);
+			auto  TagProps         = KHTMLObject::GetTagProperty (Tag.Name);
+			auto  bIsStandalone    = KHTMLObject::IsStandalone   (TagProps);
+			auto  bIsInline        = KHTMLObject::IsInline       (TagProps);
+			auto  bIsInlineBlock   = KHTMLObject::IsInlineBlock  (TagProps);
 			auto  iHierarchyLevels = m_Hierarchy.size();
 
 			if (Tag.IsClosing())
@@ -548,6 +630,16 @@ void KHTML::Object(KHTMLObject& Object)
 					{
 						SetIssue(kFormat("invalid html - standalone tag closed without immediately opening it - treating it as a new standalone: {}", Tag.ToString()));
 						m_Hierarchy.back()->Add(KHTMLElement(Tag));
+
+						// is this content ("phrasing context")?
+						if (bIsInline && Tag.Name != "br") // we treat <br> like a space
+						{
+							m_bLastWasSpace = false;
+						}
+						else
+						{
+							m_bLastWasSpace = true;
+						}
 					}
 					else
 					{
@@ -555,10 +647,31 @@ void KHTML::Object(KHTMLObject& Object)
 						// instead maybe notify for sanity checks
 					}
 				}
-				else if (iHierarchyLevels > 1)
+				else if (iHierarchyLevels > 1) // normal closing tag
 				{
 					if (m_Hierarchy.back()->GetName() == Tag.Name)
 					{
+						if (bIsInlineBlock)
+						{
+							// as in a block context, remove inner whitespaces
+							CheckTrailingWhitespace();
+							// otherwise behave like inline
+						}
+						else if (bIsInline)
+						{
+							// this is content ("phrasing context")
+						}
+						else
+						{
+							CheckTrailingWhitespace();
+							m_bLastWasSpace = true;
+
+							if (Tag.Name == "style")
+							{
+								m_bInsideStyle = false;
+							}
+						}
+
 						m_Hierarchy.pop_back();
 					}
 					else
@@ -588,6 +701,19 @@ void KHTML::Object(KHTMLObject& Object)
 								kDebug(2, "resync after {} descents", m_Hierarchy.size() - 1 - iCurrentLevel);
 								while (m_Hierarchy.size() > iCurrentLevel)
 								{
+
+									if (!m_Hierarchy.back()->IsInline())
+									{
+										// this is a block element
+										CheckTrailingWhitespace();
+										m_bLastWasSpace = true;
+
+										if (m_Hierarchy.back()->GetName() == "style")
+										{
+											m_bInsideStyle = false;
+										}
+									}
+
 									m_Hierarchy.pop_back();
 								}
 
@@ -603,16 +729,46 @@ void KHTML::Object(KHTMLObject& Object)
 					return;
 				}
 			}
-			else
+			else // opening tag or standalone
 			{
+				if (!bIsInline)
+				{
+					CheckTrailingWhitespace();
+				}
+
 				auto& Element = m_Hierarchy.back()->Add(KHTMLElement(Tag));
 
 				// we check both the standalone flag from parsing, and the preset list
-				// of standalone tags - HTML often has missing standalone flags: <link/> vs <link>
-				if (!Tag.IsStandalone() && !KHTMLObject::IsStandaloneTag(Tag.Name))
+				// of standalone tags - HTML when not XHTML has missing standalone flags: <link/> vs <link>
+				// and we also want to repair erroneous standalone tags like <video/> into <video></video>
+				if (!bIsStandalone && !Tag.IsStandalone())
 				{
 					// get one level deeper
 					m_Hierarchy.push_back(&Element);
+
+					if (!Element.IsInline())
+					{
+						m_bLastWasSpace = true;
+
+						if (Element.GetName() == "style")
+						{
+							// we format the contents of style elements differently
+							m_bInsideStyle = true;
+						}
+					}
+				}
+				else
+				{
+					if (Tag.Name == "br")
+					{
+						// we treat <br> like a space
+						m_bLastWasSpace = true;
+					}
+					else if (bIsStandalone && bIsInline)
+					{
+						// a standalone inline tag is normally treated like phrasing content
+						m_bLastWasSpace = false;
+					}
 				}
 			}
 		}
@@ -656,7 +812,20 @@ void KHTML::Finished()
 		SetIssue(kFormat("unbalanced HTML - still {} nodes open at end", m_Hierarchy.size() - 1));
 
 		// close all open nodes..
-		m_Hierarchy.erase(m_Hierarchy.begin() + 1, m_Hierarchy.end());
+		while (m_Hierarchy.size() > 1)
+		{
+			if (!m_Hierarchy.back()->IsInline())
+			{
+				// this is a block element
+				CheckTrailingWhitespace();
+			}
+			m_Hierarchy.erase(m_Hierarchy.end() - 1);
+		}
+	}
+
+	if (m_Hierarchy.size() == 1)
+	{
+		CheckTrailingWhitespace();
 	}
 
 } // Finished
@@ -665,19 +834,23 @@ void KHTML::Finished()
 void KHTML::Content(char ch)
 //-----------------------------------------------------------------------------
 {
-	if (KASCII::kIsSpace(ch))
+	if (!m_bInsideStyle)
 	{
-		if (m_bLastWasSpace)
+		if (KASCII::kIsSpace(ch))
 		{
-			return;
+			if (m_bLastWasSpace)
+			{
+				return;
+			}
+			m_bLastWasSpace = true;
+			ch = ' ';
 		}
-		m_bLastWasSpace = true;
-		ch = ' ';
+		else
+		{
+			m_bLastWasSpace = false;
+		}
 	}
-	else
-	{
-		m_bLastWasSpace = false;
-	}
+
 	m_sContent += ch;
 
 } // Content

@@ -201,129 +201,106 @@ KString KHTMLObject::Serialize() const
 } // Serialize
 
 //-----------------------------------------------------------------------------
-bool KHTMLObject::IsInlineTag(KStringView sName)
+KHTMLObject::TagProperty KHTMLObject::GetTagProperty(KStringView sTag)
 //-----------------------------------------------------------------------------
 {
-	// https://en.wikipedia.org/wiki/HTML_element#Inline_elements
-
 #ifdef DEKAF2_HAS_FROZEN
-	// this set is created at compile time
-	static constexpr auto s_InlineTags {frozen::make_unordered_set(	{
+	static constexpr std::pair<KStringView, TagProperty> s_TagProps[]
 #else
-	// this set is created at run time
-	static const std::unordered_set<KStringView> s_InlineTags {
+	static const std::unordered_map<KStringView, TagProperty> s_TagProp_Map
 #endif
-		"a"_ksv,
-		"abbr"_ksv,
-		"audio"_ksv,
-		"acronym"_ksv,
-		"b"_ksv,
-		"bdi"_ksv,
-		"bdo"_ksv,
-		"big"_ksv,
-		"br"_ksv,
-		"button"_ksv,
-		"canvas"_ksv,
-		"cite"_ksv,
-		"code"_ksv,
-		"data"_ksv,
-		"datalist"_ksv,
-		"del"_ksv,
-		"dfn"_ksv,
-		"em"_ksv,
-		"embed"_ksv,
-		"font"_ksv, // ?
-		"i"_ksv,
-		"iframe"_ksv,
-		"img"_ksv, // img is a de-facto inline tag
-		"input"_ksv,
-		"ins"_ksv,
-		"kbd"_ksv,
-		"keygen"_ksv,
-		"label"_ksv,
-		"mark"_ksv,
-		"math"_ksv,
-		"meter"_ksv,
-		"noscript"_ksv,
-		"object"_ksv,
-		"output"_ksv,
-		"picture"_ksv,
-		"progress"_ksv,
-		"q"_ksv,
-		"rb"_ksv,
-		"rp"_ksv,
-		"rt"_ksv,
-		"rtc"_ksv,
-		"ruby"_ksv,
-		"s"_ksv,
-		"samp"_ksv,
-		"script"_ksv,
-		"select"_ksv,
-		"small"_ksv,
-		"span"_ksv,
-		"strike"_ksv,
-		"strong"_ksv,
-		"sub"_ksv,
-		"sup"_ksv,
-		"svg"_ksv,
-		"template"_ksv,
-		"textarea"_ksv,
-		"time"_ksv,
-		"tt"_ksv,
-		"u"_ksv,
-		"var"_ksv,
-		"video"_ksv,
-		"wbr"_ksv
-#ifdef DEKAF2_HAS_FROZEN
-	})};
-#else
+	{
+		{ "a"_ksv        , TagProperty::Inline                             },
+		{ "abbr"_ksv     , TagProperty::Inline                             },
+		{ "area"_ksv     , TagProperty::Inline | TagProperty::Standalone   },
+		{ "audio"_ksv    , TagProperty::Inline | TagProperty::Embedded     },
+		{ "acronym"_ksv  , TagProperty::Inline                             },
+		{ "b"_ksv        , TagProperty::Inline                             },
+		{ "base"_ksv     , TagProperty::Standalone                         },
+		{ "basefont"_ksv , TagProperty::Standalone                         },
+		{ "bdi"_ksv      , TagProperty::Inline                             },
+		{ "bdo"_ksv      , TagProperty::Inline                             },
+		{ "big"_ksv      , TagProperty::Inline                             },
+		{ "br"_ksv       , TagProperty::Inline | TagProperty::Standalone   },
+		{ "button"_ksv   , TagProperty::Inline | TagProperty::InlineBlock  },
+		{ "canvas"_ksv   , TagProperty::Inline | TagProperty::Embedded     },
+		{ "cite"_ksv     , TagProperty::Inline                             },
+		{ "code"_ksv     , TagProperty::Inline                             },
+		{ "col"_ksv      , TagProperty::Standalone                         },
+		{ "command"_ksv  , TagProperty::Standalone                         },
+		{ "data"_ksv     , TagProperty::Inline                             },
+		{ "datalist"_ksv , TagProperty::Inline                             },
+		{ "del"_ksv      , TagProperty::Inline                             },
+		{ "dfn"_ksv      , TagProperty::Inline                             },
+		{ "em"_ksv       , TagProperty::Inline                             },
+		{ "embed"_ksv    , TagProperty::Inline | TagProperty::Standalone | TagProperty::Embedded },
+		{ "font"_ksv     , TagProperty::Inline | TagProperty::NotInlineInHead },
+		{ "hr"_ksv       , TagProperty::Standalone                         },
+		{ "i"_ksv        , TagProperty::Inline                             },
+		{ "iframe"_ksv   , TagProperty::Inline | TagProperty::Embedded     },
+		{ "img"_ksv      , TagProperty::Inline | TagProperty::Standalone | TagProperty::Embedded },
+		{ "input"_ksv    , TagProperty::Inline | TagProperty::Standalone | TagProperty::InlineBlock },
+		{ "ins"_ksv      , TagProperty::Inline                             },
+		{ "isindex"_ksv  , TagProperty::Standalone                         },
+		{ "kbd"_ksv      , TagProperty::Inline                             },
+		{ "keygen"_ksv   , TagProperty::Inline | TagProperty::Standalone   },
+		{ "label"_ksv    , TagProperty::Inline                             },
+		{ "link"_ksv     , TagProperty::Inline | TagProperty::Standalone | TagProperty::NotInlineInHead },
+		{ "map"_ksv      , TagProperty::Inline                             },
+		{ "mark"_ksv     , TagProperty::Inline                             },
+		{ "math"_ksv     , TagProperty::Inline | TagProperty::Embedded     },
+		{ "meta"_ksv     , TagProperty::Inline | TagProperty::Standalone | TagProperty::NotInlineInHead },
+		{ "meter"_ksv    , TagProperty::Inline                             },
+		{ "noscript"_ksv , TagProperty::Inline                             },
+		{ "object"_ksv   , TagProperty::Inline | TagProperty::Embedded     },
+		{ "output"_ksv   , TagProperty::Inline                             },
+		{ "param"_ksv    , TagProperty::Standalone                         },
+		{ "picture"_ksv  , TagProperty::Inline | TagProperty::Embedded     },
+		{ "progress"_ksv , TagProperty::Inline                             },
+		{ "q"_ksv        , TagProperty::Inline                             },
+		{ "rb"_ksv       , TagProperty::Inline                             },
+		{ "rp"_ksv       , TagProperty::Inline                             },
+		{ "rt"_ksv       , TagProperty::Inline                             },
+		{ "rtc"_ksv      , TagProperty::Inline                             },
+		{ "ruby"_ksv     , TagProperty::Inline                             },
+		{ "s"_ksv        , TagProperty::Inline                             },
+		{ "samp"_ksv     , TagProperty::Inline                             },
+		{ "script"_ksv   , TagProperty::Inline                             },
+		{ "select"_ksv   , TagProperty::Inline | TagProperty::InlineBlock  },
+		{ "slot"_ksv     , TagProperty::Inline                             },
+		{ "small"_ksv    , TagProperty::Inline                             },
+		{ "source"_ksv   , TagProperty::Standalone                         },
+		{ "span"_ksv     , TagProperty::Inline                             },
+		{ "strike"_ksv   , TagProperty::Inline                             },
+		{ "strong"_ksv   , TagProperty::Inline                             },
+		{ "sub"_ksv      , TagProperty::Inline                             },
+		{ "sup"_ksv      , TagProperty::Inline                             },
+		{ "svg"_ksv      , TagProperty::Inline | TagProperty::Embedded     },
+		{ "template"_ksv , TagProperty::Inline                             },
+		{ "textarea"_ksv , TagProperty::Inline | TagProperty::InlineBlock  },
+		{ "time"_ksv     , TagProperty::Inline                             },
+		{ "track"_ksv    , TagProperty::Standalone                         },
+		{ "tt"_ksv       , TagProperty::Inline                             },
+		{ "u"_ksv        , TagProperty::Inline                             },
+		{ "var"_ksv      , TagProperty::Inline                             },
+		{ "video"_ksv    , TagProperty::Inline | TagProperty::Embedded     },
+		{ "wbr"_ksv      , TagProperty::Inline | TagProperty::Standalone   },
 	};
-#endif
-
-	return s_InlineTags.find(sName) != s_InlineTags.end();
-
-} // IsInline
-
-//-----------------------------------------------------------------------------
-bool KHTMLObject::IsStandaloneTag(KStringView sName)
-//-----------------------------------------------------------------------------
-{
-	// https://en.wikipedia.org/wiki/HTML_element#Void_elements
 
 #ifdef DEKAF2_HAS_FROZEN
-	// this set is created at compile time
-	static constexpr auto s_StandaloneTags {frozen::make_unordered_set(	{
-#else
-	// this set is created at run time
-	static const std::unordered_set<KStringView> s_StandaloneTags {
-#endif
-		"area"_ksv,
-		"base"_ksv,
-		"basefont"_ksv,
-		"br"_ksv,
-		"col"_ksv,
-		"command"_ksv,
-		"embed"_ksv,
-		"hr"_ksv,
-		"img"_ksv,
-		"input"_ksv,
-		"isindex"_ksv,
-		"keygen"_ksv,
-		"link"_ksv,
-		"meta"_ksv,
-		"param"_ksv,
-		"source"_ksv,
-		"track"_ksv,
-		"wbr"_ksv
-#ifdef DEKAF2_HAS_FROZEN
-	})};
-#else
-	};
+	static constexpr auto s_TagProp_Map = frozen::make_unordered_map(s_TagProps);
 #endif
 
-	return s_StandaloneTags.find(sName) != s_StandaloneTags.end();
+	auto it = s_TagProp_Map.find(sTag);
 
-} // IsStandalone
+	if (it != s_TagProp_Map.end())
+	{
+		return it->second;
+	}
+
+	return TagProperty::Block;
+
+} // GetTagProperty
 
 //-----------------------------------------------------------------------------
 bool KHTMLObject::IsBooleanAttribute(KStringView sAttributeName)

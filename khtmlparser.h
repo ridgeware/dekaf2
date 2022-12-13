@@ -98,16 +98,47 @@ public:
 	// return a copy of yourself
 	virtual std::unique_ptr<KHTMLObject> Clone() const = 0;
 
+	enum TagProperty
+	{
+		None              = 0,
+		Inline            = 1 << 0,
+		InlineBlock       = 1 << 1,
+		Standalone        = 1 << 2,
+		Block             = 1 << 3,
+		Embedded          = 1 << 4,
+		NotInlineInHead = 1 << 5
+	};
+
+	/// returns the tag property, which can be a mix of Inline, InlineBlock, Standalone or Block
+	static TagProperty GetTagProperty(KStringView sTag);
 	/// returns true if sTag is one of the predefined inline tags
-	static bool IsInlineTag(KStringView sTag);
+	static bool IsInlineTag(KStringView sTag)      { return (GetTagProperty(sTag) & TagProperty::Inline     ) == TagProperty::Inline;      }
+	/// returns true if sTag is one of the predefined inline-block tags (they behave
+	/// like inline tags from the outside, but like block tags from the inside)
+	static bool IsInlineBlockTag(KStringView sTag) { return (GetTagProperty(sTag) & TagProperty::InlineBlock) == TagProperty::InlineBlock; }
 	/// returns true if sTag is one of the predefined standalone/empty/void tags
-	static bool IsStandaloneTag(KStringView sTag);
+	static bool IsStandaloneTag(KStringView sTag)  { return (GetTagProperty(sTag) & TagProperty::Standalone ) == TagProperty::Standalone;  }
+	/// returns true if sTag is one of the predefined inline tags
+	static bool IsInline(TagProperty Prop)         { return (Prop                 & TagProperty::Inline     ) == TagProperty::Inline;      }
+	/// returns true if sTag is one of the predefined inline-block tags (they behave
+	/// like inline tags from the outside, but like block tags from the inside)
+	static bool IsInlineBlock(TagProperty Prop)    { return (Prop                 & TagProperty::InlineBlock) == TagProperty::InlineBlock; }
+	/// returns true if sTag is one of the predefined standalone/empty/void tags
+	static bool IsStandalone(TagProperty Prop)     { return (Prop                 & TagProperty::Standalone ) == TagProperty::Standalone;  }
+	/// returns true if sTag is one of the predefined embedded tags (like video or img)
+	static bool IsBlock(TagProperty Prop)          { return (Prop                 & TagProperty::Block      ) == TagProperty::Block;       }
+	/// returns true if sTag is one of the predefined embedded tags (like video or img)
+	static bool IsEmbedded(TagProperty Prop)       { return (Prop                 & TagProperty::Embedded   ) == TagProperty::Embedded;    }
+	/// returns true if sTag is one of the predefined embedded tags (like video or img)
+	static bool IsNotInlineInHead(TagProperty Prop) { return (Prop            & TagProperty::NotInlineInHead) == TagProperty::NotInlineInHead; }
 	/// returns true if sAttributeName is one of the predefined boolean attributes
 	static bool IsBooleanAttribute(KStringView sAttributeName);
 	/// returns a decoded entity read from InStream, which must point to the character after '&'
 	static KString DecodeEntity(KBufferedReader& InStream);
 
 }; // KHTMLObject
+
+DEKAF2_ENUM_IS_FLAG(KHTMLObject::TagProperty)
 
 template<typename T,
 		 typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>

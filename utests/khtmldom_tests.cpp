@@ -314,6 +314,7 @@ R"(
 		<p>
 			<img attr=1><img attr=2/>
 		</p>
+		<p> <b> Bold</b> <i>italic</i></p>
 		</img attr=3><img attr=4>
 )"
 		};
@@ -323,8 +324,12 @@ R"(<html>
 	<body>
 		<div attr="that"></div>
 		<div></div>
-		<img attr="this"><p>
+		<img attr="this">
+		<p>
 			<img attr=1><img attr=2>
+		</p>
+		<p>
+			<b>Bold</b> <i>italic</i>
 		</p>
 		<img attr=3><img attr=4>
 	</body>

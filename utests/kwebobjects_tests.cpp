@@ -38,11 +38,9 @@ text-decoration: none
 				<form accept-charset="utf-8" action="MyForm">
 					<button name="q" type="submit" value="button1">
 						Schaltfläche 1
-					</button>
-					<button name="q" type="submit" value="button2">
+					</button><button name="q" type="submit" value="button2">
 						Schaltfläche 2
-					</button>
-					<button formenctype="multipart/form-data" formmethod="post" name="q" type="submit" value="button3">
+					</button><button formenctype="multipart/form-data" formmethod="post" name="q" type="submit" value="button3">
 						Schaltfläche 3
 					</button>
 				</form>
@@ -55,15 +53,8 @@ text-decoration: none
 					<legend>
 						System Setup
 					</legend>
-					<label>
-						<input name="datadir" size="60" type="text" value="abcdef">
-						shared data directory
-					</label>
-					<br>
-					<label>
-						<input name="outputdir" size="60" type="text">
-						shared data directory
-					</label>
+					<label><input name="datadir" size="60" type="text" value="abcdef">shared data directory</label><br>
+					<label><input name="outputdir" size="60" type="text">shared data directory</label>
 					<div hidden></div>
 					<div hidden></div>
 				</fieldset>
@@ -71,65 +62,21 @@ text-decoration: none
 					<legend>
 						Email
 					</legend>
-					<label>
-						<input name="_fobj1" size="30" type="text">
-						target email
-					</label>
-					<br>
-					<label>
-						<input name="mailfrom" size="30" type="text">
-						sender email
-					</label>
-					<br>
-					<label>
-						<input name="_fobj2" size="30" type="text">
-						smtp relay
-					</label>
+					<label><input name="_fobj1" size="30" type="text">target email</label><br>
+					<label><input name="mailfrom" size="30" type="text">sender email</label><br>
+					<label><input name="_fobj2" size="30" type="text">smtp relay</label>
 				</fieldset>
 				<fieldset>
 					<legend>
 						Display
 					</legend>
-					<label>
-						<input max="0.99" min="0.01" name="confidence" step="0.025" type="number" value="0.55">
-						confidence value, from 0.0 .. 1.0
-					</label>
-					<br>
-					<label>
-						<input max="0.99" min="0.01" name="maxconfidence" step="0.025" type="number" value="0.99">
-						max confidence value, from 0.0 .. 1.0
-					</label>
-					<br>
-					<label>
-						<input name="nodetect" type="checkbox">
-						no object detection
-					</label>
-					<br>
-					<label>
-						<input checked name="nodisplay" type="checkbox">
-						do not open camera windows
-					</label>
-					<br>
-					<label>
-						<input name="nooverlay" type="checkbox">
-						no detection overlay
-					</label>
-					<br>
-					<label>
-						<input name="motion" type="checkbox">
-						show motion
-					</label>
-					<label>
-						<input max="1000" min="-1" name="_fobj3" step="1" type="number" value="1000">
-						motion area
-					</label>
-					<br>
-					<label>
-						<input max="86400" min="1" name="interval" type="number" value="60">
-						seconds between alarms
-					</label>
-					<label>
-						<select name="selection" size="1">
+					<label><input max="0.99" min="0.01" name="confidence" step="0.025" type="number" value="0.55">confidence value, from 0.0 .. 1.0</label><br>
+					<label><input max="0.99" min="0.01" name="maxconfidence" step="0.025" type="number" value="0.99">max confidence value, from 0.0 .. 1.0</label><br>
+					<label><input name="nodetect" type="checkbox">no object detection</label><br>
+					<label><input checked name="nodisplay" type="checkbox">do not open camera windows</label><br>
+					<label><input name="nooverlay" type="checkbox">no detection overlay</label><br>
+					<label><input name="motion" type="checkbox">show motion</label><label><input max="1000" min="-1" name="_fobj3" step="1" type="number" value="1000">motion area</label><br>
+					<label><input max="86400" min="1" name="interval" type="number" value="60">seconds between alarms</label><label><select name="selection" size="1">
 							<option value="_fobj4">
 								Sel1
 							</option>
@@ -142,51 +89,19 @@ text-decoration: none
 							<option selected value="_fobj7">
 								Sel4
 							</option>
-						</select>
-						please choose a value
-					</label>
+						</select>please choose a value</label>
 				</fieldset>
 				<fieldset>
 					<legend>
 						Radios
 					</legend>
-					<label>
-						<input name="_fobj8" type="radio" value="red">
-						red
-					</label>
-					<label>
-						<input name="_fobj8" type="radio" value="green">
-						green
-					</label>
-					<label>
-						<input name="_fobj8" type="radio" value="blue">
-						blue
-					</label>
-					<label>
-						<input name="_fobj8" type="radio" value="yellow">
-						yellow
-					</label>
+					<label><input name="_fobj8" type="radio" value="red">red</label><label><input name="_fobj8" type="radio" value="green">green</label><label><input name="_fobj8" type="radio" value="blue">blue</label><label><input name="_fobj8" type="radio" value="yellow">yellow</label>
 				</fieldset>
 				<fieldset>
 					<legend>
 						Radios with enums
 					</legend>
-					<label>
-						<input name="_fobj9" type="radio" value="0">
-						red
-					</label>
-					<label>
-						<input name="_fobj9" type="radio" value="1">
-						green
-					</label>
-					<label>
-						<input name="_fobj9" type="radio" value="2">
-						blue
-					</label>
-					<label>
-						<input checked name="_fobj9" type="radio" value="3">
-						yellow
-					</label>
+					<label><input name="_fobj9" type="radio" value="0">red</label><label><input name="_fobj9" type="radio" value="1">green</label><label><input name="_fobj9" type="radio" value="2">blue</label><label><input checked name="_fobj9" type="radio" value="3">yellow</label>
 				</fieldset>
 			</form>
 		</div>
@@ -291,7 +206,7 @@ text-decoration: none
 				html::TextInput<KString> ti(m_Config.sOutputDir   , "outputdir"  );
 				ti.SetLabelAfter("shared data directory");
 				group += ti.SetSize(60);
-				CHECK ( ti.Serialize().size() == 92 );
+				CHECK ( ti.Serialize().size() == 82 );
 				group += html::Div().SetHidden(true);
 				html::Div div;
 				group += div.SetHidden(true);

@@ -90,7 +90,7 @@ public:
 	/// Serializes element and all children. Allows to chose indent character (0 for no indent, default = tab).
 	void Print(KStringRef& sOut, char chIndent = '\t', uint16_t iIndent = 0) const;
 	/// Serializes element and all children. Allows to chose indent character (0 for no indent, default = tab).
-	bool Print(KOutStream& OutStream, char chIndent = '\t', uint16_t iIndent = 0, bool bIsFirstAfterLinefeed = false) const;
+	bool Print(KOutStream& OutStream, char chIndent = '\t', uint16_t iIndent = 0, bool bIsFirstAfterLinefeed = true, bool bIsInsideHead = false) const;
 
 	using value_type     = std::unique_ptr<KHTMLObject>;
 	using ElementVector  = std::vector<value_type>;
@@ -280,10 +280,22 @@ public:
 
 	/// Is this element an inline element?
 	/// @return true if element is inline, false otherwise
-	bool IsInline()     const { return KHTMLObject::IsInlineTag(m_Name);     }
+	bool IsInline()       const { return KHTMLObject::IsInline(m_Property);     }
+	/// Is this element an inline-block element?
+	/// @return true if element is inline-block, false otherwise
+	bool IsInlineBlock() const { return KHTMLObject::IsInlineBlock(m_Property); }
 	/// Is this element a standalone/void element?
 	/// @return true if element is standalone, false otherwise
-	bool IsStandalone() const { return KHTMLObject::IsStandaloneTag(m_Name); }
+	bool IsStandalone()  const { return KHTMLObject::IsStandalone(m_Property);  }
+	/// Is this element a block element?
+	/// @return true if element is block, false otherwise
+	bool IsBlock()       const { return KHTMLObject::IsBlock(m_Property);       }
+	/// Is this element an embedded element?
+	/// @return true if element is embedded, false otherwise
+	bool IsEmbedded()    const { return KHTMLObject::IsEmbedded(m_Property);    }
+	/// Is this element not an inline element inside header?
+	/// @return true if element is not an inline element inside header, false otherwise
+	bool IsNotInlineInHead() const { return KHTMLObject::IsNotInlineInHead(m_Property); }
 
 //------
 private:
@@ -291,9 +303,10 @@ private:
 
 	self& SetBoolAttribute (KString sName, bool bYesNo);
 
-	KString         m_Name;
-	KHTMLAttributes m_Attributes;
-	ElementVector   m_Children;
+	KString                    m_Name;
+	KHTMLAttributes            m_Attributes;
+	ElementVector              m_Children;
+	KHTMLObject::TagProperty   m_Property      { KHTMLObject::TagProperty::None };
 
 }; // KHTMLElement
 
@@ -424,14 +437,17 @@ protected:
 private:
 //------
 
+	void CheckTrailingWhitespace();
+
 	KHTMLElement               m_Root;
-	std::vector<KHTMLElement*> m_Hierarchy   { &m_Root };
+	std::vector<KHTMLElement*> m_Hierarchy     { &m_Root };
 	KString                    m_sContent;
 	KString                    m_sError;
 	std::vector<KString>       m_Issues;
 	std::size_t                m_iMaxAutoCloseLevels { 2 };
-	bool                       m_bLastWasSpace { false };
+	bool                       m_bLastWasSpace { true  };
 	bool                       m_bDoNotEscape  { false };
+	bool                       m_bInsideStyle  { false };
 	bool                       m_bThrowOnIssue { false };
 	bool                       m_bThrowOnError { false };
 

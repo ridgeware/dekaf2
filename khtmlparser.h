@@ -106,7 +106,7 @@ public:
 		Standalone        = 1 << 2,
 		Block             = 1 << 3,
 		Embedded          = 1 << 4,
-		NotInlineInHead = 1 << 5
+		NotInlineInHead   = 1 << 5
 	};
 
 	/// returns the tag property, which can be a mix of Inline, InlineBlock, Standalone or Block
@@ -363,26 +363,27 @@ public:
 
 	bool Has(KStringView sAttributeName) const;
 
-	void Set(KString sAttributeName, KString sAttributeValue, char Quote='"')
+	KHTMLAttributes& Set(KString sAttributeName, KString sAttributeValue, char Quote='"')
 	{
 		Set(KHTMLAttribute(std::move(sAttributeName), std::move(sAttributeValue), Quote));
+		return *this;
 	}
 
-	void Set(KHTMLAttribute Attribute);
+	KHTMLAttributes& Set(KHTMLAttribute Attribute);
 
-	KHTMLAttributes& operator+=(const KHTMLAttribute& Attribute)
+	KHTMLAttributes& Set(KHTMLAttributes Attributes);
+
+	KHTMLAttributes& operator+=(KHTMLAttribute Attribute)
 	{
-		Set(Attribute);
-		return *this;
+		return Set(std::move(Attribute));
+	}
+
+	KHTMLAttributes& operator+=(KHTMLAttributes Attributes)
+	{
+		return Set(std::move(Attributes));
 	}
 
 	void Remove(KStringView sAttributeName);
-
-	KHTMLAttributes& operator+=(KHTMLAttribute&& Attribute)
-	{
-		Set(std::move(Attribute));
-		return *this;
-	}
 
 	bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}, bool bDecodeEntities = false);
 	void Serialize(KOutStream& OutStream) const;

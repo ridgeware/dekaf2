@@ -88,6 +88,15 @@ KHTMLElement::KHTMLElement(KHTMLTag&& Tag)
 }
 
 //-----------------------------------------------------------------------------
+KHTMLElement::KHTMLElement(KString sName, KHTMLAttributes Attributes)
+//-----------------------------------------------------------------------------
+: m_Name(std::move(sName))
+, m_Attributes(std::move(Attributes))
+, m_Property(GetTagProperty(m_Name))
+{
+} // ctor
+
+//-----------------------------------------------------------------------------
 KHTMLElement::KHTMLElement(KString sName, KStringView sID, KStringView sClass)
 //-----------------------------------------------------------------------------
 : m_Name(std::move(sName))
@@ -389,24 +398,7 @@ KHTMLElement::self& KHTMLElement::AddText(KStringView sContent)
 {
 	if (!sContent.empty())
 	{
-		// merge with last text node if possible
-		if (m_Children.empty() || m_Children.back()->Type() != KHTMLText::TYPE)
-		{
-			Add(KHTMLText(sContent));
-		}
-		else
-		{
-			auto* Text = reinterpret_cast<KHTMLText*>(m_Children.back().get());
-
-			if (Text->bIsEntityEncoded)
-			{
-				Text->sText += KHTMLEntity::EncodeMandatory(sContent);
-			}
-			else
-			{
-				Text->sText += sContent;
-			}
-		}
+		Add(KHTMLText(sContent, false));
 	}
 	return *this;
 
@@ -423,7 +415,79 @@ KHTMLElement::self& KHTMLElement::AddRawText(KStringView sContent)
 	}
 	return *this;
 	
-} // AddText
+} // AddRawText
+
+//-----------------------------------------------------------------------------
+KHTMLText& KHTMLElement::Insert(iterator it, KHTMLText Object)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Children.empty())
+	{
+		iterator nb;
+		bool bRight;
+
+		if (it == m_Children.begin())
+		{
+			// check for right-merge
+			nb = it;
+			bRight = true;
+		}
+		else
+		{
+			// check for left-merge
+			nb = it - 1;
+			bRight = false;
+		}
+
+		if (nb->get()->Type() == KHTMLText::TYPE)
+		{
+			auto* Text = static_cast<KHTMLText*>(nb->get());
+
+			// we only merge if entity encoding is same
+			if (Text->bIsEntityEncoded == Object.bIsEntityEncoded)
+			{
+				if (bRight)
+				{
+					Text->sText.insert(0, Object.sText);
+				}
+				else
+				{
+					Text->sText += Object.sText;
+				}
+				return *Text;
+			}
+		}
+
+		if (!bRight && ++nb != m_Children.end())
+		{
+			// check the right side as well, we are in the middle of the children
+			if (nb->get()->Type() == KHTMLText::TYPE)
+			{
+				auto* Text = static_cast<KHTMLText*>(nb->get());
+
+				// we only merge if entity encoding is same
+				if (Text->bIsEntityEncoded == Object.bIsEntityEncoded)
+				{
+					Text->sText.insert(0, Object.sText);
+					return *Text;
+				}
+			}
+		}
+	}
+
+	// if we end up here we could not merge the text, and will though create
+	// a new child
+	if (Object.sText.empty())
+	{
+		kDebug(1, "adding an empty KHTMLText object is considered harmful");
+	}
+
+	auto up = std::make_unique<KHTMLText>(std::move(Object));
+	auto* p = up.get();
+	m_Children.insert(it, std::move(up));
+	return *p;
+
+} // Insert (KHTMLText)
 
 //-----------------------------------------------------------------------------
 KHTMLElement::self& KHTMLElement::SetBoolAttribute(KString sName, bool bYesNo)

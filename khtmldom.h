@@ -73,6 +73,8 @@ public:
 	KHTMLElement& operator=(const KHTMLElement&) = default;
 	KHTMLElement& operator=(KHTMLElement&&) = default;
 
+	/// Construct an element with name and set of attributes
+	KHTMLElement(KString sName, KHTMLAttributes Attributes);
 	/// Construct an element with name, ID, and class
 	KHTMLElement(KString sName, KStringView sID = KStringView{}, KStringView sClass = KStringView{});
 	/// Copy construct an element from a KHTMLTag
@@ -126,6 +128,10 @@ public:
 	/// @return a flat copy of the element without children
 	KHTMLElement CopyWithoutChildren() const;
 
+	/// Insert a Text element into the list of children, return child reference. If the previous child element is also a text element,
+	/// both elements will be merged and a reference to the previous element returned
+	KHTMLText& Insert(iterator it, KHTMLText Object);
+
 	/// Insert an element into the list of children, return child reference
 	template<typename T,
 	         typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
@@ -142,10 +148,7 @@ public:
 		typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
 	T& Add(T Object)
 	{
-		auto up = std::make_unique<T>(std::move(Object));
-		auto* p = up.get();
-		m_Children.push_back(std::move(up));
-		return *p;
+		return Insert(m_Children.end(), std::move(Object));
 	}
 
 	/// Construct a new KHTMLElement and add it to the list of children, return child reference
@@ -176,6 +179,12 @@ public:
 	/// @param sContent the text content. If empty, no element is added
 	self& AddRawText(KStringView sContent);
 
+	/// Delete an element from the list of children, returns iterator to next element
+	iterator Delete(const_iterator it)
+	{
+		return m_Children.erase(it);
+	}
+
 	/// Set an attribute
 	/// @param sName the attribute name
 	/// @param sValue the attribute value
@@ -203,6 +212,22 @@ public:
 		return SetAttribute(std::move(sName), kFormat(sFormat, iValue));
 	}
 
+	/// Set all attributes - removes all previously existing attributes
+	/// @param Attributes the new set of attributes
+	self& SetAttributes(KHTMLAttributes Attributes)
+	{
+		m_Attributes = std::move(Attributes);
+		return *this;
+	}
+
+	/// Add multiple attributes to the existing set of attributes
+	/// @param Attributes the set of attributes to be added
+	self& AddAttributes(const KHTMLAttributes& Attributes)
+	{
+		m_Attributes += Attributes;
+		return *this;
+	}
+
 	/// Get the value of an attribute
 	/// @param sName the attribute name
 	/// @return the attribute value
@@ -212,7 +237,7 @@ public:
 	}
 
 	/// Get all attributes on this element
-	KHTMLAttributes& GetAttributes()
+	const KHTMLAttributes& GetAttributes() const
 	{
 		return m_Attributes;
 	}

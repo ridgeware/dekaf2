@@ -824,13 +824,13 @@ bool KHTMLAttributes::Has(KStringView sAttributeName) const
 } // Has
 
 //-----------------------------------------------------------------------------
-void KHTMLAttributes::Set(KHTMLAttribute Attribute)
+KHTMLAttributes& KHTMLAttributes::Set(KHTMLAttribute Attribute)
 //-----------------------------------------------------------------------------
 {
 	if (Attribute.Name.empty())
 	{
 		kDebug(1, "cannot add an attribute with an empty name");
-		return;
+		return *this;
 	}
 
 	if (Attribute.Value.empty())
@@ -838,7 +838,7 @@ void KHTMLAttributes::Set(KHTMLAttribute Attribute)
 		if (!KHTMLObject::IsBooleanAttribute(Attribute.Name))
 		{
 			kDebug(2, "cannot add an attribute '{}' with an empty value that is not a predefined boolean attribute", Attribute.Name);
-			return;
+			return *this;
 		}
 	}
 
@@ -851,7 +851,21 @@ void KHTMLAttributes::Set(KHTMLAttribute Attribute)
 		pair.first->Value = std::move(Attribute.Value);
 	}
 
-} // Add
+	return *this;
+
+} // Set
+
+//-----------------------------------------------------------------------------
+KHTMLAttributes& KHTMLAttributes::Set(KHTMLAttributes Attributes)
+//-----------------------------------------------------------------------------
+{
+	for (auto& Attribute : Attributes)
+	{
+		Set(std::move(Attribute));
+	}
+	return *this;
+
+} // Set
 
 //-----------------------------------------------------------------------------
 void KHTMLAttributes::Remove(KStringView sAttributeName)

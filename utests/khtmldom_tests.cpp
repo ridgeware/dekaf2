@@ -350,4 +350,25 @@ R"(<html>
 		CHECK ( sOut == sCRLF );
 	}
 
+	SECTION("TextMerge")
+	{
+		KHTMLElement Element("div");
+		Element.Add(KHTMLElement("img"));
+		Element.AddText("text1.");
+		Element.AddText("text2.");
+		Element.Insert(Element.begin() + 1, KHTMLText("before1."));
+		Element.Insert(Element.end(), KHTMLText("after1."));
+		CHECK (Element.size() == 2);
+		if (Element.size() == 2)
+		{
+			Element.Delete(Element.begin());
+			CHECK (Element.size() == 1);
+			CHECK (Element.begin()->get()->Type() == KHTMLText::TYPE);
+			if (Element.begin()->get()->Type() == KHTMLText::TYPE)
+			{
+				auto Text = static_cast<KHTMLText*>(Element.begin()->get());
+				CHECK (Text->sText == "before1.text1.text2.after1.");
+			}
+		}
+	}
 }

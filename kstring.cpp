@@ -227,7 +227,7 @@ KString::iterator KString::insert(iterator it, value_type c)
 //------------------------------------------------------------------------------
 {
 	// we turn this into an indexed insert because
-	// the std::string iterator replace does not test for
+	// the std::string iterator insert does not test for
 	// iterator out of range and segfaults if out of range..
 	auto pos = static_cast<size_type>(it - begin());
 	// std::string::insert(pos, ..) only throws when pos > size()

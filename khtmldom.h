@@ -126,11 +126,14 @@ public:
 	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLElement>(*this); }
 	/// Copy this element without children
 	/// @return a flat copy of the element without children
-	KHTMLElement CopyWithoutChildren() const;
+	KHTMLElement CopyWithoutChildren() const { return KHTMLElement(m_Name, m_Attributes); }
 
-	/// Insert a Text element into the list of children, return child reference. If the previous child element is also a text element,
-	/// both elements will be merged and a reference to the previous element returned
-	KHTMLText& Insert(iterator it, KHTMLText Object);
+	/// Controls Text element merges when inserting new children
+	enum Merge { Not = 0, Before = 1 << 0, After = 1 << 1 };
+
+	/// Insert a Text element into the list of children, return child reference. If the previous or following child element is also a
+	/// text element, both elements will be merged and a reference to the existing element returned.
+	KHTMLText& Insert(iterator it, KHTMLText Object, Merge merge = Merge(Merge::Before | Merge::After));
 
 	/// Insert an element into the list of children, return child reference
 	template<typename T,
@@ -143,12 +146,19 @@ public:
 		return *p;
 	}
 
+	/// Add a Text element to the list of children, return child reference. If the previous child element is also a
+	/// text element, both elements will be merged and a reference to the previous element returned.
+	KHTMLText& Add(KHTMLText Object, Merge merge = Merge::Before);
+
 	/// Add an element to the list of children, return child reference
 	template<typename T,
 		typename std::enable_if<std::is_base_of<KHTMLObject, T>::value == true, int>::type = 0>
 	T& Add(T Object)
 	{
-		return Insert(m_Children.end(), std::move(Object));
+		auto up = std::make_unique<T>(std::move(Object));
+		auto* p = up.get();
+		m_Children.push_back(std::move(up));
+		return *p;
 	}
 
 	/// Construct a new KHTMLElement and add it to the list of children, return child reference
@@ -322,11 +332,31 @@ public:
 	/// @return true if element is not an inline element inside header, false otherwise
 	bool IsNotInlineInHead() const { return KHTMLObject::IsNotInlineInHead(m_Property); }
 
+	/// Merge adjacent Text elements
+	/// @param bHierarchically If set to true will walk all children's children too. Defaults to true.
+	/// @return reference to self
+	self& MergeTextElements(bool bHierarchically = true);
+
+	/// Walks the DOM from the first child forward, and removes all leading whitespace
+	/// @param bStopAtBlockElement if true (the default) traversal will stop at the first block element, even
+	/// if no non-whitespace has been seen
+	/// @return true if traversal stopped before the end, either due to non-whitespace text or a block element
+	bool RemoveLeadingWhitespace(bool bStopAtBlockElement = true);
+	/// Walks the DOM from the last child backward, and removes all trailing whitespace
+	/// @param bStopAtBlockElement if true (the default) traversal will stop at the first block element, even
+	/// if no non-whitespace has been seen
+	/// @return true if traversal stopped before the (reverse) end, either due to non-whitespace text or a block element
+	bool RemoveTrailingWhitespace(bool bStopAtBlockElement = true);
+
 //------
 private:
 //------
 
 	self& SetBoolAttribute (KString sName, bool bYesNo);
+	/// Append right to left, and return reference to left
+	static KHTMLText& AppendTextObject(KHTMLText& left, KHTMLText& right);
+	/// Insert right at start of left, and return reference to left
+	static KHTMLText& PrependTextObject(KHTMLText& left, KHTMLText& right);
 
 	KString                    m_Name;
 	KHTMLAttributes            m_Attributes;
@@ -334,6 +364,8 @@ private:
 	KHTMLObject::TagProperty   m_Property      { KHTMLObject::TagProperty::None };
 
 }; // KHTMLElement
+
+DEKAF2_ENUM_IS_FLAG(KHTMLElement::Merge)
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Parses HTML into a DOM structure
@@ -461,8 +493,6 @@ protected:
 //------
 private:
 //------
-
-	void CheckTrailingWhitespace();
 
 	KHTMLElement               m_Root;
 	std::vector<KHTMLElement*> m_Hierarchy     { &m_Root };

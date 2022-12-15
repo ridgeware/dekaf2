@@ -115,17 +115,6 @@ KHTMLElement::KHTMLElement(KString sName, KStringView sID, KStringView sClass)
 } // ctor
 
 //-----------------------------------------------------------------------------
-KHTMLElement KHTMLElement::CopyWithoutChildren() const
-//-----------------------------------------------------------------------------
-{
-	KHTMLElement Element(m_Name);
-	Element.m_Attributes = m_Attributes;
-
-	return Element;
-
-} // CopyWithoutChildren
-
-//-----------------------------------------------------------------------------
 bool KHTMLElement::Parse(KStringView sInput, bool bDummyParam)
 //-----------------------------------------------------------------------------
 {
@@ -418,59 +407,75 @@ KHTMLElement::self& KHTMLElement::AddRawText(KStringView sContent)
 } // AddRawText
 
 //-----------------------------------------------------------------------------
-KHTMLText& KHTMLElement::Insert(iterator it, KHTMLText Object)
+KHTMLText& KHTMLElement::AppendTextObject(KHTMLText& left, KHTMLText& right)
 //-----------------------------------------------------------------------------
 {
-	if (!m_Children.empty())
+	// adapt entity encoding
+	if (left.bIsEntityEncoded == right.bIsEntityEncoded)
 	{
-		iterator nb;
-		bool bRight;
+		left.sText += right.sText;
+	}
+	else if (left.bIsEntityEncoded)
+	{
+		left.sText += KHTMLEntity::EncodeMandatory(right.sText);
+	}
+	else
+	{
+		left.sText += KHTMLEntity::Decode(right.sText);
+	}
 
-		if (it == m_Children.begin())
-		{
-			// check for right-merge
-			nb = it;
-			bRight = true;
-		}
-		else
+	return left;
+
+} // AppendTextObject
+
+//-----------------------------------------------------------------------------
+KHTMLText& KHTMLElement::PrependTextObject(KHTMLText& left, KHTMLText& right)
+//-----------------------------------------------------------------------------
+{
+	// adapt entity encoding
+	if (left.bIsEntityEncoded == right.bIsEntityEncoded)
+	{
+		left.sText.insert(0, right.sText);
+	}
+	else if (left.bIsEntityEncoded)
+	{
+		left.sText.append(" ");
+		left.sText.insert(0, KHTMLEntity::EncodeMandatory(right.sText));
+	}
+	else
+	{
+		left.sText.insert(0, KHTMLEntity::Decode(right.sText));
+	}
+
+	return left;
+
+} // PrependTextObject
+
+//-----------------------------------------------------------------------------
+KHTMLText& KHTMLElement::Insert(iterator it, KHTMLText Object, Merge merge)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Children.empty() && merge != Merge::Not)
+	{
+		if ((merge & Merge::Before) && it != m_Children.begin())
 		{
 			// check for left-merge
-			nb = it - 1;
-			bRight = false;
-		}
+			auto Prev = (it - 1)->get();
 
-		if (nb->get()->Type() == KHTMLText::TYPE)
-		{
-			auto* Text = static_cast<KHTMLText*>(nb->get());
-
-			// we only merge if entity encoding is same
-			if (Text->bIsEntityEncoded == Object.bIsEntityEncoded)
+			if (Prev->Type() == KHTMLText::TYPE)
 			{
-				if (bRight)
-				{
-					Text->sText.insert(0, Object.sText);
-				}
-				else
-				{
-					Text->sText += Object.sText;
-				}
-				return *Text;
+				return AppendTextObject(static_cast<KHTMLText&>(*Prev), Object);
 			}
 		}
 
-		if (!bRight && ++nb != m_Children.end())
+		if (merge & Merge::After && it != m_Children.end())
 		{
-			// check the right side as well, we are in the middle of the children
-			if (nb->get()->Type() == KHTMLText::TYPE)
-			{
-				auto* Text = static_cast<KHTMLText*>(nb->get());
+			// check the right side as well
+			auto Next = it->get();
 
-				// we only merge if entity encoding is same
-				if (Text->bIsEntityEncoded == Object.bIsEntityEncoded)
-				{
-					Text->sText.insert(0, Object.sText);
-					return *Text;
-				}
+			if (Next->Type() == KHTMLText::TYPE)
+			{
+				return PrependTextObject(static_cast<KHTMLText&>(*Next), Object);
 			}
 		}
 	}
@@ -488,6 +493,206 @@ KHTMLText& KHTMLElement::Insert(iterator it, KHTMLText Object)
 	return *p;
 
 } // Insert (KHTMLText)
+
+//-----------------------------------------------------------------------------
+KHTMLText& KHTMLElement::Add(KHTMLText Object, Merge merge)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Children.empty() && merge & Merge::Before)
+	{
+		// check for left-merge
+		auto Prev = m_Children.back().get();
+
+		if (Prev->Type() == KHTMLText::TYPE)
+		{
+			return AppendTextObject(static_cast<KHTMLText&>(*Prev), Object);
+		}
+	}
+
+	// if we end up here we could not merge the text, and will though create
+	// a new child
+	if (Object.sText.empty())
+	{
+		kDebug(1, "adding an empty KHTMLText object is considered harmful");
+	}
+
+	auto up = std::make_unique<KHTMLText>(std::move(Object));
+	auto* p = up.get();
+	m_Children.push_back(std::move(up));
+	return *p;
+
+} // Add (KHTMLText)
+
+//-----------------------------------------------------------------------------
+KHTMLElement& KHTMLElement::MergeTextElements(bool bHierarchically)
+//-----------------------------------------------------------------------------
+{
+	KHTMLText* LastTextElement { nullptr };
+
+	for (auto it = m_Children.begin(); it != m_Children.end();)
+	{
+		auto Child = it->get();
+
+		switch (Child->Type())
+		{
+			case KHTMLText::TYPE:
+				if (LastTextElement)
+				{
+					AppendTextObject(*LastTextElement, static_cast<KHTMLText&>(*Child));
+					// remove the merged element
+					it = m_Children.erase(it);
+				}
+				else
+				{
+					LastTextElement = static_cast<KHTMLText*>(Child);
+					++it;
+				}
+				break;
+
+			case KHTMLElement::TYPE:
+				if (bHierarchically)
+				{
+					static_cast<KHTMLElement*>(Child)->MergeTextElements(bHierarchically);
+				}
+				DEKAF2_FALLTHROUGH;
+			default:
+				LastTextElement = nullptr;
+				++it;
+				break;
+		}
+	}
+
+	return *this;
+
+} // MergeTextElements
+
+//-----------------------------------------------------------------------------
+bool KHTMLElement::RemoveLeadingWhitespace(bool bStopAtBlockElement)
+//-----------------------------------------------------------------------------
+{
+	for (auto it = m_Children.begin(); it != m_Children.end();)
+	{
+		auto Child = it->get();
+
+		switch (Child->Type())
+		{
+			case KHTMLText::TYPE:
+			{
+				auto* Text = static_cast<KHTMLText*>(Child);
+
+				Text->sText.TrimLeft();
+
+				if (Text->sText.empty())
+				{
+					it = m_Children.erase(it);
+				}
+				else
+				{
+					// hit non-whitespace text
+					return true;
+				}
+			}
+			break;
+
+			case KHTMLElement::TYPE:
+			{
+				auto* Element = static_cast<KHTMLElement*>(Child);
+
+				if (bStopAtBlockElement && Element->IsBlock())
+				{
+					return true;
+				}
+
+				if (Element->IsStandalone() && !Element->GetName().In("br,hr"))
+				{
+					// hit non-whitespace content (an img or input element e.g.)
+					return true;
+				}
+
+				if (!Element->IsStandalone() && Element->GetName() != "script")
+				{
+					if (Element->RemoveLeadingWhitespace(bStopAtBlockElement))
+					{
+						return true;
+					}
+				}
+				++it;
+			}
+			break;
+
+			default:
+				// skip comment nodes etc.
+				++it;
+				break;
+		}
+	}
+
+	return false;
+
+} // RemoveTrailingWhitespace
+
+//-----------------------------------------------------------------------------
+bool KHTMLElement::RemoveTrailingWhitespace(bool bStopAtBlockElement)
+//-----------------------------------------------------------------------------
+{
+	for (auto it = m_Children.end(); it != m_Children.begin();)
+	{
+		auto Child = (--it)->get();
+
+		switch (Child->Type())
+		{
+			case KHTMLText::TYPE:
+			{
+				auto* Text = static_cast<KHTMLText*>(Child);
+
+				Text->sText.TrimRight();
+
+				if (Text->sText.empty())
+				{
+					it = m_Children.erase(it);
+				}
+				else
+				{
+					// hit non-whitespace text
+					return true;
+				}
+			}
+				break;
+
+			case KHTMLElement::TYPE:
+			{
+				auto* Element = static_cast<KHTMLElement*>(Child);
+
+				if (bStopAtBlockElement && Element->IsBlock())
+				{
+					return true;
+				}
+
+				if (Element->IsStandalone() && !Element->GetName().In("br,hr"))
+				{
+					// hit non-whitespace content (an img or input element e.g.)
+					return true;
+				}
+
+				if (!Element->IsStandalone() && Element->GetName() != "script")
+				{
+					if (Element->RemoveTrailingWhitespace(bStopAtBlockElement))
+					{
+						return true;
+					}
+				}
+			}
+				break;
+
+			default:
+				// skip comment nodes etc.
+				break;
+		}
+	}
+
+	return false;
+
+} // RemoveTrailingWhitespace
 
 //-----------------------------------------------------------------------------
 KHTMLElement::self& KHTMLElement::SetBoolAttribute(KString sName, bool bYesNo)
@@ -632,29 +837,6 @@ void KHTML::SetIssue(KString sIssue)
 } // SetIssue
 
 //-----------------------------------------------------------------------------
-void KHTML::CheckTrailingWhitespace()
-//-----------------------------------------------------------------------------
-{
-	auto& Children = m_Hierarchy.back()->GetChildren();
-
-	if (!Children.empty())
-	{
-		if (Children.back()->Type() == KHTMLText::TYPE)
-		{
-			auto* Text = static_cast<KHTMLText*>(Children.back().get());
-
-			Text->sText.TrimRight();
-
-			if (Text->sText.empty())
-			{
-				Children.erase(Children.end() - 1);
-			}
-		}
-	}
-
-} // CheckTrailingWhitespace
-
-//-----------------------------------------------------------------------------
 void KHTML::Object(KHTMLObject& Object)
 //-----------------------------------------------------------------------------
 {
@@ -718,7 +900,7 @@ void KHTML::Object(KHTMLObject& Object)
 						if (bIsInlineBlock)
 						{
 							// as in a block context, remove inner whitespaces
-							CheckTrailingWhitespace();
+							m_Hierarchy.back()->RemoveTrailingWhitespace();
 							// otherwise behave like inline
 						}
 						else if (bIsInline)
@@ -727,7 +909,7 @@ void KHTML::Object(KHTMLObject& Object)
 						}
 						else
 						{
-							CheckTrailingWhitespace();
+							m_Hierarchy.back()->RemoveTrailingWhitespace();
 							m_bLastWasSpace = true;
 
 							if (Tag.Name == "style")
@@ -769,7 +951,7 @@ void KHTML::Object(KHTMLObject& Object)
 									if (!m_Hierarchy.back()->IsInline())
 									{
 										// this is a block element
-										CheckTrailingWhitespace();
+										m_Hierarchy.back()->RemoveTrailingWhitespace();
 										m_bLastWasSpace = true;
 
 										if (m_Hierarchy.back()->GetName() == "style")
@@ -797,7 +979,7 @@ void KHTML::Object(KHTMLObject& Object)
 			{
 				if (!bIsInline)
 				{
-					CheckTrailingWhitespace();
+					m_Hierarchy.back()->RemoveTrailingWhitespace();
 				}
 
 				auto& Element = m_Hierarchy.back()->Add(KHTMLElement(Tag));
@@ -881,7 +1063,7 @@ void KHTML::Finished()
 			if (!m_Hierarchy.back()->IsInline())
 			{
 				// this is a block element
-				CheckTrailingWhitespace();
+				m_Hierarchy.back()->RemoveTrailingWhitespace();
 			}
 			m_Hierarchy.erase(m_Hierarchy.end() - 1);
 		}
@@ -889,7 +1071,7 @@ void KHTML::Finished()
 
 	if (m_Hierarchy.size() == 1)
 	{
-		CheckTrailingWhitespace();
+		m_Hierarchy.back()->RemoveTrailingWhitespace();
 	}
 
 } // Finished

@@ -223,7 +223,7 @@ public:
 //------
 
 	KHTMLStringObject(KStringView sLeadIn, KStringView sLeadOut, KString sValue)
-	: Value(std::move(sValue))
+	: sValue(std::move(sValue))
 	, m_sLeadIn(sLeadIn)
 	, m_sLeadOut(sLeadOut)
 	{}
@@ -237,7 +237,7 @@ public:
 	virtual void clear() override;
 	virtual bool empty() const override;
 
-	KString Value {}; // {} = make sure Value is initialized, we may not have a constructor here!
+	KString sValue {}; // {} = make sure sValue is initialized, we may not have a constructor here!
 
 	KStringView LeadIn() const
 	{
@@ -260,24 +260,26 @@ protected:
 
 }; // KHTMLStringObject
 
+class KFindSetOfChars; // fwd decl to not having to include kstringutils.h here
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTMLAttribute
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+	friend class KHTMLAttributes;
+
 //------
 public:
 //------
 
-	using QuoteChar = std::iostream::int_type;
-
 	KHTMLAttribute() = default;
 
-	KHTMLAttribute(KString sName, KString sValue, char _Quote='"', bool _bIsEntityEncoded = false)
-	: Name(std::move(sName))
-	, Value(std::move(sValue))
-	, Quote(_Quote)
-	, bIsEntityEncoded(_bIsEntityEncoded)
+	KHTMLAttribute(KString sName, KString sValue, char chQuote='"', bool bIsEntityEncoded = false)
+	: m_sName(std::move(sName))
+	, m_sValue(std::move(sValue))
+	, m_chQuote(chQuote)
+	, m_bIsEntityEncoded(bIsEntityEncoded)
 	{
 	}
 
@@ -288,10 +290,19 @@ public:
 	void clear();
 	bool empty() const;
 
-	KString Name {};
-	mutable KString Value {};
-	mutable QuoteChar Quote { 0 };
-	bool    bIsEntityEncoded { false };
+	const KString& GetName()  const { return m_sName;  }
+	const KString& GetValue() const { return m_sValue; }
+
+//------
+protected:
+//------
+
+	static KFindSetOfChars s_NeedsQuotes;
+
+	KString         m_sName;
+	mutable KString m_sValue;
+	mutable char    m_chQuote          { 0     };
+	bool            m_bIsEntityEncoded { false };
 
 }; // KHTMLAttribute
 
@@ -313,7 +324,7 @@ private:
 		bool operator()(const KHTMLAttribute& a1, const KHTMLAttribute& a2) const
 		//-----------------------------------------------------------------------------
 		{
-			return a1.Name < a2.Name;
+			return a1.m_sName < a2.m_sName;
 		}
 
 		// add comparators for strings so that C++14 finds them with find()
@@ -321,14 +332,14 @@ private:
 		bool operator()(KStringView s1, const KHTMLAttribute& a2) const
 		//-----------------------------------------------------------------------------
 		{
-			return s1 < a2.Name;
+			return s1 < a2.m_sName;
 		}
 
 		//-----------------------------------------------------------------------------
 		bool operator()(const KHTMLAttribute& a1, KStringView s2) const
 		//-----------------------------------------------------------------------------
 		{
-			return a1.Name < s2;
+			return a1.m_sName < s2;
 		}
 
 	};

@@ -629,7 +629,7 @@ bool KHTMLElement::RemoveLeadingWhitespace(bool bStopAtBlockElement)
 
 	return false;
 
-} // RemoveTrailingWhitespace
+} // RemoveLeadingWhitespace
 
 //-----------------------------------------------------------------------------
 bool KHTMLElement::RemoveTrailingWhitespace(bool bStopAtBlockElement)

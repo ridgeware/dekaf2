@@ -68,6 +68,18 @@ size_t kFind(
 		return kFind(haystack, needle[0], pos);
 	}
 
+	if (DEKAF2_UNLIKELY(!iNeedleSize))
+	{
+		// the empty string is always existing at the start of haystack
+		return 0;
+	}
+
+	if (DEKAF2_UNLIKELY(haystack.empty()))
+	{
+		// glibc memmem fails if haystack is null
+		return KStringView::npos;
+	}
+
 	// glibc has an excellent memmem implementation, so we use it if available.
 	// libc has a very slow memmem implementation (about 100 times slower than glibc),
 	// so we use our own, which is only about 2 times slower, by overloading the
@@ -487,6 +499,40 @@ size_t kFindUnescaped(const KStringView haystack,
 	return iFound;
 
 } // kFindUnescaped
+
+//-----------------------------------------------------------------------------
+bool kContainsWord(const KStringView sInput, const KStringView sPattern) noexcept
+//-----------------------------------------------------------------------------
+{
+	KStringView::size_type iPos = 0;
+
+	for (;;)
+	{
+		iPos = sInput.find(sPattern, iPos);
+
+		if (iPos == KStringView::npos)
+		{
+			return false;
+		}
+
+		if (iPos > 0 && !KASCII::kIsSpace(sInput[iPos - 1]))
+		{
+			++iPos;
+			continue;
+		}
+
+		auto iEnd = iPos + sPattern.size();
+
+		if (iEnd < sInput.size() && !KASCII::kIsSpace(sInput[iEnd]))
+		{
+			++iPos;
+			continue;
+		}
+
+		return true;
+	}
+
+} // kContainsWord
 
 //-----------------------------------------------------------------------------
 KStringView::size_type KStringView::copy(value_type* dest, size_type count, size_type pos) const

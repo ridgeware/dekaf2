@@ -53,6 +53,10 @@ TEST_CASE("KStringView") {
 		CHECK( sv.find('1', 2) == KStringView::npos );
 		CHECK( sv.find("1", 2) == KStringView::npos );
 		CHECK( sv.find("12", 2) == KStringView::npos );
+
+		KStringView sv2;
+		CHECK( sv2.find("123") == KStringView::npos );
+		CHECK( sv2.find("") == 0 );
 	}
 
 	SECTION("rfind")
@@ -87,6 +91,10 @@ TEST_CASE("KStringView") {
 		CHECK( sv.rfind("abcdefg") == 0 );
 		CHECK( sv.rfind("abcdef") == 7 );
 		CHECK( sv.rfind("abcabcde") == KStringView::npos );
+
+		KStringView sv2;
+		CHECK( sv2.rfind("123") == KStringView::npos );
+		CHECK( sv2.rfind("") == 0 );
 	}
 
 	SECTION("find_first_of")

@@ -196,6 +196,11 @@ DEKAF2_PUBLIC
 bool kContains(const KStringView sInput, char ch) noexcept;
 //----------------------------------------------------------------------
 
+//----------------------------------------------------------------------
+DEKAF2_PUBLIC
+bool kContainsWord(const KStringView sInput, const KStringView sPattern) noexcept;
+//----------------------------------------------------------------------
+
 // forward declarations
 class KString;
 class KStringViewZ;

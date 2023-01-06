@@ -101,7 +101,7 @@ std::vector<KSQLString> KSQLString::Split(const char chDelimit, bool bTrimWhiteS
 {
 	if (ESCAPE_MYSQL.contains(chDelimit))
 	{
-		KException ex( kFormat("KSQLInjectionSafeString: invalid split character {}", chDelimit) );
+		KException ex( kFormat("KSQLString: invalid split character {}", chDelimit) );
 		kException(ex);
 		throw ex;
 	}

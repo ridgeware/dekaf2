@@ -160,7 +160,7 @@ TEST_CASE("KSQL")
 		CHECK (kFormatSQL("{}", KString(ASIAN2)  ) == ASIAN2    );
 	}
 
-	SECTION("KSQLInjectionSafeString")
+	SECTION("KSQLString")
 	{
 		KSQL DB;
 		DB.SetDBType(KSQL::DBT::MYSQL);
@@ -237,8 +237,6 @@ TEST_CASE("KSQL")
 			CHECK_THROWS( sSQL.Split('\'') );
 			CHECK_THROWS( sSQL.Split('\\') );
 		}
-
-//		auto sNo = DB.FormatSQL(kFormat("select {}", "key1"));
 	}
 
 	SECTION("FormAndClause")

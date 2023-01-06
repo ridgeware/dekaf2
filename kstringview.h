@@ -1569,6 +1569,11 @@ size_t kRFind(
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
 	const auto iHaystackSize = haystack.size();
 
+	if (DEKAF2_UNLIKELY(!iHaystackSize))
+	{
+		return KStringView::npos;
+	}
+
 	if (DEKAF2_UNLIKELY(pos >= iHaystackSize))
 	{
 		pos = iHaystackSize;

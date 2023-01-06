@@ -1549,4 +1549,21 @@ TEST_CASE("KStringView") {
 		CHECK ( KStringView("åꜩbcꝙ").AtUTF8(4) == 42841 );
 		CHECK ( KStringView("abcæå").AtUTF8(5) == Unicode::INVALID_CODEPOINT );
 	}
+
+	SECTION("kContainsWord")
+	{
+		KStringView sString { "These are a fewfew wwords inn aaa a stringstring" };
+		CHECK ( kContainsWord(sString, "these"       ) == false );
+		CHECK ( kContainsWord(sString, "These"       ) == true  );
+		CHECK ( kContainsWord(sString, "are"         ) == true  );
+		CHECK ( kContainsWord(sString, "a"           ) == true  );
+		CHECK ( kContainsWord(sString, "aa"          ) == false );
+		CHECK ( kContainsWord(sString, "aaa"         ) == true  );
+		CHECK ( kContainsWord(sString, "few"         ) == false );
+		CHECK ( kContainsWord(sString, "words"       ) == false );
+		CHECK ( kContainsWord(sString, "in"          ) == false );
+		CHECK ( kContainsWord(sString, "inn aaa"     ) == true  );
+		CHECK ( kContainsWord(sString, "string"      ) == false );
+		CHECK ( kContainsWord(sString, "stringstring") == true  );
+	}
 }

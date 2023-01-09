@@ -1098,14 +1098,14 @@ bool KSQL::LoadConnect (KStringViewZ sDBCFile)
 } // LoadConnect
 
 //-----------------------------------------------------------------------------
-bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = ","*/)
+bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = ","*/, uint16_t iConnectTimeoutSecs/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	for (auto sDBHost : sListOfHosts.Split(sDelimiter))
 	{
 		SetDBHost (sDBHost);
 
-		if (OpenConnection())
+		if (OpenConnection(iConnectTimeoutSecs))
 		{
 			kDebug (3, "host {} is up", sDBHost);
 			return true;
@@ -1121,7 +1121,7 @@ bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = 
 } // KSQL::OpenConnection
 
 //-----------------------------------------------------------------------------
-bool KSQL::OpenConnection ()
+bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
 //-----------------------------------------------------------------------------
 {
     #ifdef DEKAF2_HAS_ORACLE
@@ -1213,8 +1213,14 @@ bool KSQL::OpenConnection ()
 			return SetError("could not init mysql connector");
 		}
 
-		kDebug (3, "mysql_real_connect()...");
+		if (iConnectTimeoutSecs)
+		{
+			kDebug (3, "mysql_options(CONNECT_TIMEOUT={})...", iConnectTimeoutSecs);
+			unsigned int iTimeoutUINT{iConnectTimeoutSecs};
+			mysql_options (m_dMYSQL, MYSQL_OPT_CONNECT_TIMEOUT, &iTimeoutUINT);
+		}
 
+		kDebug (3, "mysql_real_connect()...");
 		if (!mysql_real_connect (m_dMYSQL, m_sHostname.c_str(), m_sUsername.c_str(), m_sPassword.c_str(), m_sDatabase.c_str(), /*port*/ iPortNum, /*sock*/nullptr,
 			/*flag*/CLIENT_FOUND_ROWS)) // <-- this flag corrects the behavior of GetNumRowsAffected()
 		{
@@ -8377,7 +8383,7 @@ static void ApplIniAndEnvironment (const KString& sName, KProps<KString, KString
 } // ApplIniAndEnvironment
 
 //-----------------------------------------------------------------------------
-bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const IniParms& INI)
+bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const IniParms& INI, uint16_t iConnectTimeoutSecs/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "sIdentifierList={}, sDBCArg={} ...", sIdentifierList, sDBCArg);
@@ -8538,7 +8544,7 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	kDebug (3, "attempting to connect ...");
 
-	if (!OpenConnection())
+	if (!OpenConnection(iConnectTimeoutSecs))
 	{
 		return false;
 	}
@@ -8551,7 +8557,7 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 } // KSQL::EnsureConnected - 1
 
 //-----------------------------------------------------------------------------b
-bool KSQL::EnsureConnected ()
+bool KSQL::EnsureConnected (uint16_t iConnectTimeoutSecs/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	if (IsConnectionOpen())
@@ -8562,7 +8568,7 @@ bool KSQL::EnsureConnected ()
 
 	kDebug (3, "attempting to connect ...");
 
-	if (!OpenConnection())
+	if (!OpenConnection(iConnectTimeoutSecs))
 	{
 		return false;
 	}

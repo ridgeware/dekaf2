@@ -349,11 +349,11 @@ public:
 	API    GetAPISet        ()      { return (m_iAPISet); }
 	bool   SetAPISet        (API iAPISet);
 	/// Open a server connection with the configured connection parameters
-	bool   OpenConnection   ();
+	bool   OpenConnection   (uint16_t iConnectTimeoutSecs = 0);
 	/// Open a server connection to the first responding host in a (comma separated) list.
 	/// Reuses all other configured connection parameters for each host.
 	/// @return true on success
-	bool   OpenConnection   (KStringView sListOfHosts, KStringView sDelimiter = ",");
+	bool   OpenConnection   (KStringView sListOfHosts, KStringView sDelimiter = ",", uint16_t iConnectTimeoutSecs = 0);
 	/// Close an open database server connection
 	void   CloseConnection  (bool bDestructor=false);
 	/// returns true on an open server connection
@@ -973,13 +973,13 @@ public:
 	/// load the configuration from.
 	/// @param sDBCFile dbc file to be used. Can be empty.
 	/// @param INI a property sheet with ini parameters which
+	/// @param iConnectTimeoutSecs can be used to override MySQL default (which is huge/long)
 	/// will be searched as last resort to find connection parameters
-	bool EnsureConnected(KStringView sIdentifierList,
-						 KString sDBCFile,
-						 const IniParms& INI = IniParms{});
+	bool EnsureConnected (KStringView sIdentifierList, KString sDBCFile, const IniParms& INI = IniParms{}, uint16_t iConnectTimeoutSecs = 0);
 
 	/// conditionally open the db connection, assuming all connection parms are already set
-	bool EnsureConnected();
+	/// @param iConnectTimeoutSecs can be used to override MySQL default (which is huge/long)
+	bool EnsureConnected (uint16_t iConnectTimeoutSecs = 0);
 
 	void SetDBC (KStringView sFile) { m_sDBCFile = sFile; }
 	const KString& GetDBC () const { return m_sDBCFile;  }

@@ -1481,6 +1481,7 @@ private:
 	API        m_iAPISet { API::NONE };
 #endif
 	uint16_t   m_iDBPortNum { 0 };
+	uint16_t   m_iConnectTimeoutSecs { 0 };
 	KString    m_sUsername;
 	KString    m_sPassword;
 	KString    m_sHostname;

@@ -1101,6 +1101,8 @@ bool KSQL::LoadConnect (KStringViewZ sDBCFile)
 bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = ","*/, uint16_t iConnectTimeoutSecs/*=0*/)
 //-----------------------------------------------------------------------------
 {
+	m_iConnectTimeoutSecs = iConnectTimeoutSecs; // <-- save timeout in case we have to reconnect
+
 	for (auto sDBHost : sListOfHosts.Split(sDelimiter))
 	{
 		SetDBHost (sDBHost);
@@ -1124,6 +1126,8 @@ bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = 
 bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
 //-----------------------------------------------------------------------------
 {
+	m_iConnectTimeoutSecs = iConnectTimeoutSecs; // <-- save timeout in case we have to reconnect
+
     #ifdef DEKAF2_HAS_ORACLE
 	static bool s_fOCI8Initialized = false;
 	#endif
@@ -1974,7 +1978,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 						kDebug (1, "lost m_dMYSQL pointer.  Reopening connection ...");
 
 						CloseConnection();
-						OpenConnection();
+						OpenConnection(m_iConnectTimeoutSecs);
 
 						if (!m_dMYSQL)
 						{
@@ -2105,7 +2109,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 					kDebug (1, "lost CTLIB connection.  Reopening connection ...");
 
 					CloseConnection();
-					OpenConnection();
+					OpenConnection(m_iConnectTimeoutSecs);
 
 					if (!ctlib_is_initialized())
 					{
@@ -2236,7 +2240,7 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum)
 		kDebug(2, "connection {} was canceled on demand, query retry aborted", m_iConnectionID);
 		// make sure all state is correctly reset
 		CloseConnection();
-		OpenConnection();
+		OpenConnection(m_iConnectTimeoutSecs);
 		return false;
 	}
 
@@ -2324,7 +2328,7 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum)
 		}
 
 		CloseConnection ();
-		OpenConnection ();
+		OpenConnection (m_iConnectTimeoutSecs);
 
 		if (IsConnectionOpen())
 		{
@@ -2362,7 +2366,7 @@ bool KSQL::ParseSQL (KStringView sFormat, ...)
 
 	m_iLastInsertID = 0;
 	EndQuery ();
-	if (!OpenConnection())
+	if (!OpenConnection(m_iConnectTimeoutSecs))
 	{
 		return (false);
 	}
@@ -2489,7 +2493,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 	};
 
 	EndQuery ();
-	if (!IsConnectionOpen() && !OpenConnection())
+	if (!IsConnectionOpen() && !OpenConnection(m_iConnectTimeoutSecs))
 	{
 		return (false);
 	}
@@ -2854,7 +2858,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 	EndQuery();
 
-	if (!IsConnectionOpen() && !OpenConnection())
+	if (!IsConnectionOpen() && !OpenConnection(m_iConnectTimeoutSecs))
 	{
 		return (false);
 	}
@@ -3367,7 +3371,7 @@ bool KSQL::ParseQuery (KStringView sFormat, ...)
 	kDebug (3, "...");
 
 	EndQuery ();
-	if (!OpenConnection())
+	if (!OpenConnection(m_iConnectTimeoutSecs))
 	{
 		return (false);
 	}
@@ -8388,6 +8392,8 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 {
 	kDebug (3, "sIdentifierList={}, sDBCArg={} ...", sIdentifierList, sDBCArg);
 
+	m_iConnectTimeoutSecs = iConnectTimeoutSecs; // <-- save timeout in case we have to reconnect
+
 	if (IsConnectionOpen())
 	{
 		kDebug (3, "already connected to: {}", ConnectSummary());
@@ -8560,6 +8566,8 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 bool KSQL::EnsureConnected (uint16_t iConnectTimeoutSecs/*=0*/)
 //-----------------------------------------------------------------------------
 {
+	m_iConnectTimeoutSecs = iConnectTimeoutSecs; // <-- save timeout in case we have to reconnect
+
 	if (IsConnectionOpen())
 	{
 		kDebug (3, "already connected to: {}", ConnectSummary());

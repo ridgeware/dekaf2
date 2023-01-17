@@ -4854,6 +4854,21 @@ KSQL::Flags KSQL::SetFlag (Flags iFlag)
 } // KSQL::SetFlag
 
 //-----------------------------------------------------------------------------
+KSQL::Flags KSQL::ClearFlag (Flags iFlag)
+//-----------------------------------------------------------------------------
+{
+	if (IsFlag (iFlag))
+	{
+		return SetFlags (GetFlags() ^ iFlag);
+	}
+	else
+	{
+		return GetFlags ();
+	}
+
+} // KSQL::ClearFlag
+
+//-----------------------------------------------------------------------------
 KScopeGuard KSQL::ScopedFlags(Flags iFlags, bool bAdditive)
 //-----------------------------------------------------------------------------
 {

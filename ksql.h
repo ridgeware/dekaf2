@@ -701,6 +701,10 @@ public:
 	Flags       SetFlags (Flags iFlags);
 	/// add new flag(s) to existing configuration/processing flags (logical OR)
 	Flags       SetFlag (Flags iFlag);
+	/// ensure that the given flag is not set (does not affect any other flags)
+	Flags       ClearFlag (Flags iFlag);
+	/// clear all flags (put KSQL back to base state)
+	Flags       ClearFlags ()  { return SetFlags (Flags::F_None); }
 	/// return configuration/processing flags
 	Flags       GetFlags ()         const { return (m_iFlags);          }
 	/// returns true if given configuration/processing flag(s) are set

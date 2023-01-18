@@ -62,7 +62,7 @@ int16_t detail::KCommonSQLBase::m_iDebugLevel { 2 };
 void KSQLString::ThrowWarning(KStringView sContent)
 //-----------------------------------------------------------------------------
 {
-	KException ex( kFormat("KSQLInjectionSafeString: dynamic string buffers are not accepted: {}", sContent.LeftUTF8(50)) );
+	KException ex( kFormat("KSQLString: dynamic string buffers are not accepted: {}", sContent.LeftUTF8(50)) );
 	kException(ex);
 	throw ex;
 }

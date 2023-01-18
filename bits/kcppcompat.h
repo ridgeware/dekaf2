@@ -311,11 +311,20 @@
 #endif
 
 #if defined(__clang__) || defined(__GNUC__)
-	// disables Address Sanitizer on request for functions which are not
+	// disables Address Sanitizer for functions which are not
 	// well understood by ASAN
 	#define DEKAF2_NO_ASAN __attribute__((no_sanitize_address))
+	// disables Undefined Behavior Sanitizer's named check for functions which are not
+	// well understood by UBSAN - e.g. use "undefined" for nearly all checks, or "enum"
+	// or "return" or any other check's name
+	#define DEKAF2_NO_UBSAN_CHECK(which) __attribute__((no_sanitize(which)))
+	// disables Undefined Behavior Sanitizer for functions which are not
+	// well understood by UBSAN
+	#define DEKAF2_NO_UBSAN DEKAF2_NO_UBSAN_CHECK("undefined")
 #else
 	#define DEKAF2_NO_ASAN
+	#define DEKAF2_NO_UBSAN_CHECK(which)
+	#define DEKAF2_NO_UBSAN
 #endif
 
 #if defined(__SANITIZE_ADDRESS__)

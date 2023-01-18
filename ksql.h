@@ -221,7 +221,7 @@ public:
 	};
 
 	/// KSQL processing flags
-	enum Flags // should better be an enum class Flags, with removed prefix on the values
+	enum Flags : uint8_t // should better be an enum class Flags, with removed prefix on the values
 	{
 		F_None                = 0,           ///< no flags
 		F_IgnoreSQLErrors     = 1 << 0,      ///< only effects the WarningLog
@@ -234,7 +234,7 @@ public:
 		F_ReadOnlyMode        = 1 << 7       ///< If connection should disallow INSERT, UPDATE, DELETE and only allow SELECT
 	};
 
-	enum FAC // should better be an enum class FAC, with removed prefix on the values
+	enum FAC : uint16_t // should better be an enum class FAC, with removed prefix on the values
 	{
 		FAC_NONE              = 0,           ///< FAC_NONE: no flags
 		FAC_NORMAL            = 1 << 0,      ///< FAC_NORMAL: handles empty string, single string and comma-delimed strings
@@ -423,7 +423,7 @@ public:
 			m_TimingCallback = TimingCallback;
 	}
 
-	enum class QueryType
+	enum class QueryType : uint16_t
 	{
 		None        = 0,
 		Select      = 1 <<  0,   // select, table, values

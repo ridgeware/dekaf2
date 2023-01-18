@@ -4857,14 +4857,7 @@ KSQL::Flags KSQL::SetFlag (Flags iFlag)
 KSQL::Flags KSQL::ClearFlag (Flags iFlag)
 //-----------------------------------------------------------------------------
 {
-	if (IsFlag (iFlag))
-	{
-		return SetFlags (GetFlags() ^ iFlag);
-	}
-	else
-	{
-		return GetFlags ();
-	}
+	return SetFlags (GetFlags() & ~iFlag);
 
 } // KSQL::ClearFlag
 

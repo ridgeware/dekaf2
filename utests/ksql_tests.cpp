@@ -308,4 +308,18 @@ TEST_CASE("KSQL")
 		sEscaped = DB.EscapeFromQuotedList(sList);
 		CHECK ( sEscaped.str() == "'ite\"m1','item2','item3'" );
 	}
+
+	SECTION("Flags")
+	{
+		KSQL DB;
+		CHECK ( DB.GetFlags() == KSQL::Flags::F_None );
+		CHECK ( DB.SetFlags(KSQL::Flags::F_IgnoreSQLErrors | KSQL::Flags::F_IgnoreSelectKeyword) == KSQL::Flags::F_None );
+		CHECK ( DB.SetFlag(KSQL::Flags::F_ReadOnlyMode) == (KSQL::Flags::F_IgnoreSQLErrors | KSQL::Flags::F_IgnoreSelectKeyword) );
+		CHECK ( DB.GetFlags() == (KSQL::Flags::F_IgnoreSQLErrors | KSQL::Flags::F_IgnoreSelectKeyword | KSQL::Flags::F_ReadOnlyMode) );
+		CHECK ( DB.IsFlag(KSQL::Flags::F_IgnoreSelectKeyword) == true );
+		CHECK ( DB.ClearFlag(KSQL::Flags::F_IgnoreSelectKeyword) == (KSQL::Flags::F_IgnoreSQLErrors | KSQL::Flags::F_IgnoreSelectKeyword | KSQL::Flags::F_ReadOnlyMode) );
+		CHECK ( DB.IsFlag(KSQL::Flags::F_IgnoreSelectKeyword) == false );
+		CHECK ( DB.ClearFlags() == (KSQL::Flags::F_IgnoreSQLErrors | KSQL::Flags::F_ReadOnlyMode) );
+		CHECK ( DB.GetFlags() == KSQL::Flags::F_None );
+	}
 }

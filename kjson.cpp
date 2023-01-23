@@ -746,7 +746,7 @@ KString Print (const KJSON& json) noexcept
 } // Print
 
 //-----------------------------------------------------------------------------
-bool Contains (const KJSON& json, KStringView sString) noexcept
+KJSON::const_iterator Find (const KJSON& json, KStringView sString) noexcept
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY
@@ -757,19 +757,12 @@ bool Contains (const KJSON& json, KStringView sString) noexcept
 			{
 				if (json.front().is_string())
 				{
-					for (auto& it : json)
-					{
-						// gcc 8 needs the explicit get()..
-						if (it.get_ref<const KString&>() == sString)
-						{
-							return true;
-						}
-					}
+					return std::find(json.begin(), json.end(), sString);
 				}
 			}
 			else if (json.is_object())
 			{
-				return json.find(sString) != json.end();
+				return json.find(sString);
 			}
 		}
 	}
@@ -779,7 +772,15 @@ bool Contains (const KJSON& json, KStringView sString) noexcept
 		kDebug(1, "JSON[{:03d}]: {}", exc.id, exc.what());
 	}
 
-	return false;
+	return json.end();
+
+} // Find
+
+//-----------------------------------------------------------------------------
+bool Contains (const KJSON& json, KStringView sString) noexcept
+//-----------------------------------------------------------------------------
+{
+	return Find(json, sString) != json.end();
 
 } // Contains
 

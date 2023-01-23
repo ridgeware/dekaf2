@@ -252,6 +252,10 @@ namespace kjson
 	DEKAF2_PUBLIC
 	KString Escape (KStringView sInput);
 
+	/// returns an iterator to the found element if object is a string array or an object and contains the given string, never throws
+	DEKAF2_PUBLIC
+	KJSON::const_iterator Find (const KJSON& json, KStringView sString) noexcept;
+
 	/// returns true if object is a string array or an object and contains the given string, never throws
 	DEKAF2_PUBLIC
 	bool Contains (const KJSON& json, KStringView sString) noexcept;

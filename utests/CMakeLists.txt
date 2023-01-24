@@ -100,6 +100,7 @@ set (USOURCES
 	kthreadsafe_tests.cpp
 	ktime_tests.cpp
 	ktimer_tests.cpp
+	ktimeseries_tests.cpp
 	kuntar_tests.cpp
 	kurl_tests.cpp
 	kutf8_tests.cpp

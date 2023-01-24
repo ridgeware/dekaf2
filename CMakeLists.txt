@@ -767,6 +767,7 @@ set(PUBLIC_HEADERS
 	kthreadsafe.h
 	ktime.h
 	ktimer.h
+	ktimeseries.h
 	kunixstream.h
 	kuntar.h
 	kurl.h

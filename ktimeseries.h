@@ -478,8 +478,10 @@ public:
 	self& ResizeToLast(std::size_t iLast)
 	//-------------------------------------------------------------------------
 	{
-		auto it = (size() > iLast && iLast) ? Dec(end(), iLast - 1) : begin();
-		m_Storage.erase(it, end());
+		if (size() > iLast)
+		{
+			m_Storage.erase(begin(), Dec(end(), iLast));
+		}
 		return *this;
 	}
 
@@ -488,8 +490,10 @@ public:
 	self& ResizeToFirst(std::size_t iFirst)
 	//-------------------------------------------------------------------------
 	{
-		auto ie = (size() > iFirst && iFirst) ? Inc(begin(), iFirst - 1) : end();
-		m_Storage.erase(begin(), ie);
+		if (size() > iFirst)
+		{
+			m_Storage.erase(Inc(begin(), iFirst), end());
+		}
 		return *this;
 	}
 

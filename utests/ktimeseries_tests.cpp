@@ -81,10 +81,16 @@ TEST_CASE("KTimeSeries")
 		TS2.ResizeToFirst(2);
 		CHECK ( TS2.size() == 2 );
 
+		TS2 = TS_BAK;
+		CHECK ( TS2.size() == 3 );
+		TS2.MaxSize(3);
+		CHECK ( TS2.size() == 3 );
+		TS2.Add(tp4 + std::chrono::minutes(3), 2343);
+		CHECK ( TS2.size() == 3 );
+
 		KTimeSeries<uint64_t, std::chrono::minutes> TS3;
 
 		auto tp = std::chrono::system_clock::now();
-		auto tpc = std::chrono::time_point_cast<decltype(TS3)::Duration>(tp);
 
 		TS3.Add(tp,  2874732);
 		TS3.Add(tp, 42623456);

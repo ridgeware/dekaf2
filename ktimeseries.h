@@ -520,9 +520,9 @@ public:
 	const_iterator end()   const { return m_Storage.end();   }
 
 	/// returns first stored element, empty if no intervals
-	const Stored&  front() const { return empty() ? s_EmptyStored : m_Storage.front(); }
+	const Stored&  front() const { return empty() ? s_EmptyStored : m_Storage.begin()->second;   }
 	/// returns last stored element, empty if no intervals
-	const Stored&  back()  const { return empty() ? s_EmptyStored : m_Storage.back();  }
+	const Stored&  back()  const { return empty() ? s_EmptyStored : Dec(m_Storage.end())->second; }
 
 	//-------------------------------------------------------------------------
 	/// returns interval resolution in nanoseconds

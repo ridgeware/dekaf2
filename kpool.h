@@ -136,38 +136,57 @@ struct KPoolMutex<true>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a real KTimeSeries
 template<uint16_t iAverageOverMinutes>
-struct KPoolTimeSeries
+class KPoolTimeSeries
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+//----------
+public:
+//----------
+
 	using KTimeSeriesMinutes = KTimeSeries<std::size_t, std::chrono::minutes>;
-	KTimeSeriesMinutes m_Intervals { iAverageOverMinutes };
-	std::chrono::system_clock::time_point m_LastAverage { std::chrono::system_clock::duration::zero() };
+	using Clock              = KTimeSeriesMinutes::Clock;
+	using Timepoint          = typename Clock::time_point;
 
-	std::chrono::system_clock::time_point GetLastAverage() const { return m_LastAverage; }
-	void SetLastAverage(std::chrono::system_clock::time_point tp) { m_LastAverage = tp; }
+	Timepoint GetLastAverage()                   const { return m_LastAverage;      }
+	void SetLastAverage(Timepoint tp)                  { m_LastAverage = tp;        }
+	void AddToIntervals(Timepoint tp, std::size_t i)   { m_Intervals.Add(tp, i);    }
+	KTimeSeriesMinutes::Stored GetIntervalsSum() const { return m_Intervals.Sum();  }
+	std::size_t GetAbsoluteMaxSize()             const { return m_iAbsoluteMaxSize; }
+	void SetAbsoluteMaxSize(std::size_t i)             { m_iAbsoluteMaxSize = i;    }
 
-}; // KPoolTimeSeries
+//----------
+private:
+//----------
+
+	KTimeSeriesMinutes                    m_Intervals        { iAverageOverMinutes                         };
+	std::chrono::system_clock::time_point m_LastAverage      { std::chrono::system_clock::duration::zero() };
+	std::size_t                           m_iAbsoluteMaxSize;
+
+}; // functional KPoolTimeSeries
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a no-op KTimeSeries clone
 template<>
-struct KPoolTimeSeries<0>
+class KPoolTimeSeries<0>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//----------
+public:
+//----------
+
 	using KTimeSeriesMinutes = KTimeSeries<std::size_t, std::chrono::minutes>;
+	using Clock              = KTimeSeriesMinutes::Clock;
+	using Timepoint          = typename Clock::time_point;
 
-	struct KTimeSeriesDummy
-	{
-		void Add(std::chrono::system_clock::time_point, std::size_t) {}
-		KTimeSeriesMinutes::Stored Sum() { return KTimeSeriesMinutes::Stored{}; }
-		void operator+=(std::size_t) {}
-	};
-
-	std::chrono::system_clock::time_point GetLastAverage() const { return std::chrono::system_clock::time_point(); }
-	void SetLastAverage(std::chrono::system_clock::time_point tp) {}
-
-	KTimeSeriesDummy m_Intervals;
+	// dummy operations to satisfy the compiler, they are never called..
+	Timepoint GetLastAverage()                   const { return Timepoint(); }
+	void SetLastAverage(Timepoint tp)                  {}
+	void AddToIntervals(Timepoint tp, std::size_t i)   {}
+	KTimeSeriesMinutes::Stored GetIntervalsSum() const { return KTimeSeriesMinutes::Stored(); }
+	std::size_t GetAbsoluteMaxSize()             const { return 0; }
+	void SetAbsoluteMaxSize(std::size_t i)             {}
 
 }; // KPoolTimeSeries<0>
 
@@ -181,10 +200,10 @@ class KPoolBase : private KPoolMutex<bShared>, private KPoolTimeSeries<iAverageO
 public:
 //----------
 
-	using base_type = KPoolMutex<bShared>;
-	using time_series_type = KPoolTimeSeries<iAverageOverMinutes>;
-	using pool_type = std::vector<std::unique_ptr<Value>>;
-	using size_type = typename pool_type::size_type;
+	using base_type   = KPoolMutex<bShared>;
+	using time_series = KPoolTimeSeries<iAverageOverMinutes>;
+	using pool_type   = std::vector<std::unique_ptr<Value>>;
+	using size_type   = typename pool_type::size_type;
 
 	enum { DEFAULT_MAX_POOL_SIZE = 10000 };
 
@@ -195,6 +214,7 @@ public:
     : m_iMaxSize(iMaxSize)
 	, m_Control(_Control)
 	{
+		time_series::SetAbsoluteMaxSize(iMaxSize);
 	}
 
 	KPoolBase(const KPoolBase&) = delete;
@@ -235,7 +255,15 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		typename base_type::MyLock Lock(base_type::m_Mutex);
-		return m_iMaxSize;
+
+		if (iAverageOverMinutes)
+		{
+			return time_series::GetAbsoluteMaxSize();
+		}
+		else
+		{
+			return m_iMaxSize;
+		}
 	}
 
 	//-----------------------------------------------------------------------------
@@ -244,6 +272,12 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		typename base_type::MyLock Lock(base_type::m_Mutex);
+
+		if (iAverageOverMinutes)
+		{
+			time_series::SetAbsoluteMaxSize(iMaxSize);
+		}
+
 		m_iMaxSize = iMaxSize;
 	}
 
@@ -369,22 +403,26 @@ private:
 			// get a lazy time_point, we have minute intervals
 			auto tNow = Dekaf::getInstance().GetCurrentTimepoint();
 			// add a new data point to the current interval
-			time_series_type::m_Intervals.Add(tNow, m_iPopped);
+			time_series::AddToIntervals(tNow, m_iPopped);
 
 			// check if we shall adjust the max pool size
-			if (time_series_type::GetLastAverage() >= tNow + std::chrono::minutes(1))
+			if (time_series::GetLastAverage() >= tNow + std::chrono::minutes(1))
 			{
 				// a minute has passed since the last averages calculation
-				time_series_type::SetLastAverage(tNow);
-				auto Values = time_series_type::m_Intervals.Sum();
+				time_series::SetLastAverage(tNow);
+				auto Values = time_series::GetIntervalsSum();
 				kDebug(2, "last {} minutes pool usage: min: {} avg: {} max: {}",
 					   iAverageOverMinutes, Values.Min(), Values.Avg(), Values.Max());
 				m_iMaxSize = Values.Max();
 			}
 			else if (m_iPopped > m_iMaxSize)
 			{
-				// make sure we can always grow the pool in automatic resize mode
-				m_iMaxSize = m_iPopped;
+				if (m_iPopped <= time_series::GetAbsoluteMaxSize())
+				{
+					// make sure we can always grow the pool in automatic resize mode
+					// as long as we did not hit the absolute ceiling..
+					m_iMaxSize = m_iPopped;
+				}
 			}
 		}
 	}

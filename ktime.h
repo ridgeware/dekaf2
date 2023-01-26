@@ -48,6 +48,7 @@
 #include "kstringview.h"
 #include <cinttypes>
 #include <ctime>
+#include <chrono>
 
 namespace dekaf2
 {
@@ -271,6 +272,8 @@ public:
 	const std::tm& ToTM ()     const;
 	/// return time_t
 	time_t ToTimeT () const;
+	/// return std::chrono::system_clock::time_point
+	std::chrono::system_clock::time_point ToTimePoint () const;
 
 	/// return a string following strftime patterns - default = %Y-%m-%d %H:%M:%S
 	KString Format (const char* szFormat = "%Y-%m-%d %H:%M:%S") const;
@@ -298,6 +301,8 @@ protected:
 
 	/// construct from a time_t epoch time, either as local or as GMT / UTC time
 	KBrokenDownTime (time_t tGMTime, bool bAsLocalTime);
+	/// construct from a std::chrono::system_clock::time_point time, either as local or as GMT / UTC time
+	KBrokenDownTime (std::chrono::system_clock::time_point tTime, bool bAsLocalTime);
 	/// construct from a struct tm time
 	KBrokenDownTime (const std::tm& tm_time);
 

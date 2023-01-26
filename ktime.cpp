@@ -941,6 +941,13 @@ KBrokenDownTime::KBrokenDownTime(time_t tGMTime, bool bAsLocalTime)
 } // ctor
 
 //-----------------------------------------------------------------------------
+KBrokenDownTime::KBrokenDownTime(std::chrono::system_clock::time_point tTime, bool bAsLocalTime)
+//-----------------------------------------------------------------------------
+: KBrokenDownTime(std::chrono::system_clock::to_time_t(tTime), bAsLocalTime)
+{
+} // ctor
+
+//-----------------------------------------------------------------------------
 KBrokenDownTime::KBrokenDownTime (const std::tm& tm_time)
 //-----------------------------------------------------------------------------
 : m_time(tm_time)
@@ -960,6 +967,14 @@ time_t KBrokenDownTime::ToTimeT() const
 } // ToTimeT
 
 //-----------------------------------------------------------------------------
+std::chrono::system_clock::time_point KBrokenDownTime::ToTimePoint() const
+//-----------------------------------------------------------------------------
+{
+	return std::chrono::system_clock::from_time_t(ToTimeT());
+
+} // ToTimePoint
+
+//-----------------------------------------------------------------------------
 KStringViewZ KBrokenDownTime::GetDayName(bool bAbbreviated, bool bLocal) const
 //-----------------------------------------------------------------------------
 {
@@ -975,7 +990,7 @@ KStringViewZ KBrokenDownTime::GetMonthName(bool bAbbreviated, bool bLocal) const
 }
 
 //-----------------------------------------------------------------------------
-const std::tm& KBrokenDownTime::ToTM ()     const
+const std::tm& KBrokenDownTime::ToTM () const
 //-----------------------------------------------------------------------------
 {
 	CheckNormalization();

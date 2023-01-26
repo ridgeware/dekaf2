@@ -98,17 +98,16 @@ public:
 
 	KHTTPError() = default;
 	
-	template<class S1>
-	KHTTPError(uint16_t _iStatusCode, S1&& _sError)
-	: KError(std::forward<S1>(_sError), _iStatusCode)
-	{
-		m_sStatusString = GetStatusString(_iStatusCode);
-	}
-
 	template<class S1, class S2>
 	KHTTPError(uint16_t _iStatusCode, S1&& _sStatusString, S2&& _sError)
 	: KError(std::forward<S2>(_sError), _iStatusCode)
 	, m_sStatusString(std::forward<S1>(_sStatusString))
+	{
+	}
+
+	template<class S1>
+	KHTTPError(uint16_t _iStatusCode, S1&& _sError)
+	: KHTTPError(_iStatusCode, GetStatusString(_iStatusCode), std::forward<S1>(_sError))
 	{
 	}
 

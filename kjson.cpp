@@ -357,7 +357,7 @@ const KJSON& GetObjectRef (const KJSON& json, KStringView sKey) noexcept
 
 	return s_oEmpty;
 
-} // GetObject
+} // GetObjectRef
 
 //-----------------------------------------------------------------------------
 const KJSON& GetArray (const KJSON& json, KStringView sKey) noexcept
@@ -372,7 +372,7 @@ const KJSON& GetArray (const KJSON& json, KStringView sKey) noexcept
 
 	return s_oEmpty;
 
-} // GetObject
+} // GetArray
 
 //-----------------------------------------------------------------------------
 const KJSON& GetObject (const KJSON& json, KStringView sKey) noexcept

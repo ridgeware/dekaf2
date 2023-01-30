@@ -164,6 +164,11 @@ TEST_CASE("KTime") {
 		CHECK ( UTC1.GetDayName(true)   == "Mon" );
 		CHECK ( UTC1.IsPM()         == true  );
 
+		auto SysTime = UTC1.ToTimePoint();
+		CHECK ( std::chrono::system_clock::to_time_t(SysTime) == UTC1.ToTimeT() );
+		std::chrono::system_clock::time_point SysTime2 = UTC1;
+		CHECK ( SysTime == SysTime2 );
+
 		auto oldLocale = kGetGlobalLocale();
 		if (kSetGlobalLocale("fr_FR.UTF-8"))
 		{
@@ -171,6 +176,11 @@ TEST_CASE("KTime") {
 
 			KLocalTime Local1;
 			Local1 = UTC1;
+
+			SysTime = Local1.ToTimePoint();
+			CHECK ( std::chrono::system_clock::to_time_t(SysTime) == Local1.ToTimeT() );
+			SysTime2 = Local1;
+			CHECK ( SysTime == SysTime2 );
 
 			if (Local1.GetUTCOffset() == 60 * 60)
 			{

@@ -282,6 +282,7 @@ public:
 
 	operator const std::tm& () const { return ToTM ();          }
 	operator time_t ()         const { return ToTimeT ();       }
+	operator std::chrono::system_clock::time_point() const { return ToTimePoint(); }
 	operator KString ()        const { return Format ();        }
 
 	/// returns true if hour > 11
@@ -367,6 +368,8 @@ public:
 	KLocalTime() = default;
 	/// construct from a time_t epoch time, as local time
 	KLocalTime (time_t tGMTime) : base(tGMTime, true) {}
+	/// construct from a std::chrono::system_clock::time_point time
+	KLocalTime (std::chrono::system_clock::time_point tTime) : base(tTime, true) {}
 	/// construct from a struct tm time
 	KLocalTime (const std::tm& tm_time) : base(tm_time) {}
 	/// construct from a KUTCTime
@@ -419,6 +422,8 @@ public:
 	KUTCTime() = default;
 	/// construct from a time_t epoch time,  as GMT / UTC time
 	KUTCTime (time_t tGMTime) : base(tGMTime, false) {}
+	/// construct from a std::chrono::system_clock::time_point time
+	KUTCTime (std::chrono::system_clock::time_point tTime) : base(tTime, false) {}
 	/// construct from a struct tm time
 	KUTCTime (const std::tm& tm_time) : base(tm_time) {}
 	/// construct from a KLocalTime

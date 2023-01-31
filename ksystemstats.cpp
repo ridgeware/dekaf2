@@ -102,7 +102,7 @@ bool KSystemStats::GatherAll ()
 } // GatherAll
 
 //-----------------------------------------------------------------------------
-KSystemStats::StatType KSystemStats::StatValueType::SenseType(KStringView sValue)
+KSystemStats::StatType KSystemStats::SenseType(KStringView sValue)
 //-----------------------------------------------------------------------------
 {
 	if (kIsInteger(sValue))

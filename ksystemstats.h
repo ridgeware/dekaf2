@@ -69,6 +69,8 @@ public:
 		FLOAT
 	};
 
+	static StatType SenseType(KStringView sValue);
+
 	using int_t = int64_t;
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -91,8 +93,6 @@ public:
 		{
 			CheckType();
 		}
-
-		static StatType SenseType(KStringView sValue);
 
 	//----------
 	private:
@@ -141,8 +141,6 @@ public:
 		{
 			CheckType();
 		}
-
-		static StatType SenseType(KStringView sValue);
 
 	//----------
 	private:

@@ -24,7 +24,7 @@ TEST_CASE("KTimeSeries")
 		CHECK ( TS.size() == 1 );
 		CHECK ( TS.Get(tp1).Count() ==   3 );
 		CHECK ( TS.Get(tp1).Min()   == 123 );
-		CHECK ( TS.Get(tp1).Avg()   == 293 );
+		CHECK ( TS.Get(tp1).Mean()  == 293 );
 		CHECK ( TS.Get(tp1).Max()   == 426 );
 
 		auto tp2 = tp1 + decltype(TS)::Duration(1);
@@ -40,19 +40,22 @@ TEST_CASE("KTimeSeries")
 
 		CHECK ( TS.Get(tp2).Count() == 0 );
 		CHECK ( TS.Get(tp2).Min()   == 0 );
-		CHECK ( TS.Get(tp2).Avg()   == 0 );
+		CHECK ( TS.Get(tp2).Mean()  == 0 );
 		CHECK ( TS.Get(tp2).Max()   == 0 );
 
 		CHECK ( TS.Get(tp3).Count() ==      4 );
 		CHECK ( TS.Get(tp3).Min()   ==   2938 );
-		CHECK ( TS.Get(tp3).Avg()   == 189087 );
+		CHECK ( TS.Get(tp3).Mean()  == 189087 );
 		CHECK ( TS.Get(tp3).Max()   == 489742 );
 
-		CHECK ( TS.Sum().Avg()         == 108175 );
-		CHECK ( TS.Sum(tp1, tp2).Avg() ==    293 );
-		CHECK ( TS.Sum(tp1, tp2).Max() ==    426 );
-		CHECK ( TS.Sum(tp1, tp4).Avg() == 108175 );
-		CHECK ( TS.Sum(tp1, tp4).Max() == 489742 );
+		CHECK ( TS.Sum().Mean()         == 108175 );
+		CHECK ( TS.Sum(TS.Range(tp1, tp2)).Mean() ==    293 );
+		CHECK ( TS.Sum(TS.Range(tp1, tp2)).Max()  ==    426 );
+		CHECK ( TS.Sum(TS.Range(tp1, tp4)).Mean() == 108175 );
+		CHECK ( TS.Sum(TS.Range(tp1, tp4)).Max()  == 489742 );
+
+		CHECK ( TS.Median() == (189087 + 293) / 2 );
+		CHECK ( TS.Median(TS.Range(TS.begin(), TS.end())) == (189087 + 293) / 2 );
 
 		auto TS2 = TS;
 
@@ -61,10 +64,14 @@ TEST_CASE("KTimeSeries")
 		CHECK ( TS.size() == 2 );
 		TS.EraseAfter(tp3);
 		CHECK ( TS.size() == 1 );
-		CHECK ( TS.Sum(tp1, tp4).Avg() ==    293 );
-		CHECK ( TS.Sum(tp1, tp4).Max() ==    426 );
+		CHECK ( TS.Sum(TS.Range(tp1, tp4)).Mean() ==    293 );
+		CHECK ( TS.Sum(TS.Range(tp1, tp4)).Max() ==    426 );
 
 		TS2.Add(tp4, 23484);
+
+		CHECK ( TS2.Median() == 23484 );
+		CHECK ( TS2.Median(TS.Range(TS2.begin(), TS2.end())) == 23484 );
+
 		auto TS_BAK = TS2;
 
 		CHECK ( TS2.size() == 3 );
@@ -100,7 +107,7 @@ TEST_CASE("KTimeSeries")
 
 		CHECK ( TS3.Get(tp).Count() == 3 );
 		CHECK ( TS3.Get(tp + std::chrono::milliseconds(100)).Min()   ==   332235 );
-		CHECK ( TS3.Get(tp + std::chrono::microseconds(124)).Avg()   == 15276807 );
+		CHECK ( TS3.Get(tp + std::chrono::microseconds(124)).Mean()   == 15276807 );
 		CHECK ( TS3.Get(tp + std::chrono::nanoseconds(177) ).Max()   == 42623456 );
 	}
 
@@ -118,9 +125,9 @@ TEST_CASE("KTimeSeries")
 		CHECK ( TM5.size() == 1 );
 		CHECK ( TM5.Get(tp1).Count() ==     3 );
 		CHECK ( TM5.Get(tp1).Min()   ==   234 );
-		CHECK ( TM5.Get(tp1).Avg()   == 33870 );
+		CHECK ( TM5.Get(tp1).Mean()  == 33870 );
 		CHECK ( TM5.Get(tp1).Max()   == 92342 );
-		CHECK ( TM5.Sum().Avg()      == 33870 );
+		CHECK ( TM5.Sum().Mean()     == 33870 );
 		CHECK ( TM5.Interval().count() == 5UL * 60 * 1000 * 1000 * 1000 );
 	}
 }

@@ -412,7 +412,7 @@ private:
 				time_series::SetLastAverage(tNow);
 				auto Values = time_series::GetIntervalsSum();
 				kDebug(2, "last {} minutes pool usage: min: {} avg: {} max: {}",
-					   iAverageOverMinutes, Values.Min(), Values.Avg(), Values.Max());
+					   iAverageOverMinutes, Values.Min(), Values.Mean(), Values.Max());
 				m_iMaxSize = Values.Max();
 			}
 			else if (m_iPopped > m_iMaxSize)

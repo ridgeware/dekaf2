@@ -44,6 +44,8 @@
 #include "dekaf2.h"
 #include <chrono>
 #include <map>
+#include <vector>
+#include <algorithm>
 
 /// @file ktimeseries.h
 /// collecting and analyzing data points over time
@@ -101,9 +103,9 @@ public:
 
 		Stored() = default;
 		Stored(Datum datum)
-		: m_min(datum)
-		, m_avg(datum)
-		, m_max(datum)
+		: m_min (datum)
+		, m_mean(datum)
+		, m_max (datum)
 		, m_iCount(1)
 		{
 		}
@@ -127,7 +129,7 @@ public:
 					m_max = stored.m_max;
 				}
 
-				m_avg = static_cast<Datum>((m_avg * m_iCount + stored.m_avg * stored.m_iCount) / (m_iCount + stored.m_iCount));
+				m_mean = static_cast<Datum>((m_mean * m_iCount + stored.m_mean * stored.m_iCount) / (m_iCount + stored.m_iCount));
 
 				m_iCount += stored.m_iCount;
 			}
@@ -143,7 +145,7 @@ public:
 		{
 			if (!m_iCount)
 			{
-				m_min = m_avg = m_max = datum;
+				m_min = m_mean = m_max = datum;
 			}
 			else
 			{
@@ -156,7 +158,7 @@ public:
 					m_max = datum;
 				}
 
-				m_avg = (m_avg * m_iCount + datum) / (m_iCount + 1);
+				m_mean = (m_mean * m_iCount + datum) / (m_iCount + 1);
 			}
 
 			++m_iCount;
@@ -169,11 +171,11 @@ public:
 		self& operator+=(Datum datum)          { return Add(datum);  }
 
 		/// returns minimum value in interval
-		const Datum& Min()   const { return m_min;    }
-		/// returns average value in interval
-		const Datum& Avg()   const { return m_avg;    }
+		const Datum& Min ()  const { return m_min;    }
+		/// returns mean value in interval
+		const Datum& Mean()  const { return m_mean;   }
 		/// returns maximum value in interval
-		const Datum& Max()   const { return m_max;    }
+		const Datum& Max ()  const { return m_max;    }
 		/// returns count of probes in interval
 		std::size_t  Count() const { return m_iCount; }
 
@@ -182,7 +184,7 @@ public:
 	//--------
 
 		Datum       m_min    {};
-		Datum       m_avg    {};
+		Datum       m_mean   {};
 		Datum       m_max    {};
 		std::size_t m_iCount { 0 };
 
@@ -319,6 +321,36 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	static std::pair<const_iterator, const_iterator> Range(const_iterator it, const_iterator ie)
+	//-------------------------------------------------------------------------
+	{
+		return std::make_pair(it, ie);
+	}
+
+	//-------------------------------------------------------------------------
+	// need this signature due to the template Range() below
+	static std::pair<const_iterator, const_iterator> Range(iterator it, iterator ie)
+	//-------------------------------------------------------------------------
+	{
+		return std::make_pair<const_iterator, const_iterator>(it, ie);
+	}
+
+	//-------------------------------------------------------------------------
+	std::pair<const_iterator, const_iterator> Range(Timepoint tStart, Timepoint tEnd) const
+	//-------------------------------------------------------------------------
+	{
+		return Range(lower_bound(tStart), upper_bound(tEnd));
+	}
+
+	//-------------------------------------------------------------------------
+	template<typename TP, typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
+	std::pair<const_iterator, const_iterator> Range(TP tStart, TP tEnd) const
+	//-------------------------------------------------------------------------
+	{
+		return Range(std::chrono::time_point_cast<Duration>(tStart), std::chrono::time_point_cast<Duration>(tEnd));
+	}
+
+	//-------------------------------------------------------------------------
 	/// find the interval at a given Timepoint (returns end() if no Datum was stored in the respective interval)
 	const_iterator find(Timepoint tp) const
 	//-------------------------------------------------------------------------
@@ -333,6 +365,40 @@ public:
 	//-------------------------------------------------------------------------
 	{
 		return find(std::chrono::time_point_cast<Duration>(tp));
+	}
+
+	//-------------------------------------------------------------------------
+	/// find the interval at a given Timepoint (returns end() if no Datum was stored in the respective interval)
+	const_iterator lower_bound(Timepoint tp) const
+	//-------------------------------------------------------------------------
+	{
+		return m_Storage.lower_bound(tp);
+	}
+
+	//-------------------------------------------------------------------------
+	/// find the interval at a given Timepoint (returns end() if no Datum was stored in the respective interval)
+	template<typename TP, typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
+	const_iterator lower_bound(TP tp) const
+	//-------------------------------------------------------------------------
+	{
+		return lower_bound(std::chrono::time_point_cast<Duration>(tp));
+	}
+
+	//-------------------------------------------------------------------------
+	/// find the interval at a given Timepoint (returns end() if no Datum was stored in the respective interval)
+	const_iterator upper_bound(Timepoint tp) const
+	//-------------------------------------------------------------------------
+	{
+		return m_Storage.upper_bound(tp);
+	}
+
+	//-------------------------------------------------------------------------
+	/// find the interval at a given Timepoint (returns end() if no Datum was stored in the respective interval)
+	template<typename TP, typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
+	const_iterator upper_bound(TP tp) const
+	//-------------------------------------------------------------------------
+	{
+		return upper_bound(std::chrono::time_point_cast<Duration>(tp));
 	}
 
 	//-------------------------------------------------------------------------
@@ -360,44 +426,66 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// return the median value for all intervals between [it, ie )
+	Datum Median(std::pair<const_iterator, const_iterator> range) const
+	//-------------------------------------------------------------------------
+	{
+		if (range.first == range.second)
+		{
+			return Datum();
+		}
+
+		std::vector<Datum> Data;
+
+		for (; range.first != range.second; ++range.first)
+		{
+			Data.push_back(range.first->second.Mean());
+		}
+
+		auto median = Data.begin() + Data.size() / 2;
+		std::nth_element(Data.begin(), median, Data.end());
+
+		if ((Data.size() & 1) == 1)
+		{
+			// lists with odd counts are done here
+			return *median;
+		}
+
+		// even counts require a bit more work
+		auto m2 = std::max_element(Data.begin(), median);
+
+		return (*median + *m2) / 2.0;
+	}
+
+	//-------------------------------------------------------------------------
+	/// return the median value for all intervals
+	Datum Median() const
+	//-------------------------------------------------------------------------
+	{
+		return Median(Range(begin(), end()));
+	}
+
+	//-------------------------------------------------------------------------
+	/// create the sum of all intervals between [it, ie )
+	Stored Sum(std::pair<const_iterator, const_iterator> range) const
+	//-------------------------------------------------------------------------
+	{
+		Stored Sum;
+
+		for (; range.first != range.second; ++range.first)
+		{
+			Sum += range.first->second;
+		}
+
+		return Sum;
+	}
+
+	//-------------------------------------------------------------------------
 	/// create the sum of all intervals
 	Stored Sum() const
 	//-------------------------------------------------------------------------
 	{
-		Stored Sum;
-
-		for (auto& Val : m_Storage)
-		{
-			Sum += Val.second;
-		}
-
-		return Sum;
-	}
-
-	//-------------------------------------------------------------------------
-	/// create the sum of all intervals between Timepoints [tStart, tEnd)
-	Stored Sum(Timepoint tStart, Timepoint tEnd) const
-	//-------------------------------------------------------------------------
-	{
-		// lazy but correct implementation; better search for start iterator and end iterator,
-		// then simply increment
-		Stored Sum;
-
-		for (; tStart < tEnd; tStart += Duration(1))
-		{
-			Sum += Get(tStart);
-		}
-
-		return Sum;
-	}
-
-	//-------------------------------------------------------------------------
-	/// create the sum of all intervals between Timepoints [tStart, tEnd)
-	template<typename TP, typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
-	Stored Sum(TP tStart, TP tEnd) const
-	//-------------------------------------------------------------------------
-	{
-		return Sum(std::chrono::time_point_cast<Duration>(tStart), std::chrono::time_point_cast<Duration>(tEnd));
+		return Sum(Range(begin(), end()));
 	}
 
 	//-------------------------------------------------------------------------

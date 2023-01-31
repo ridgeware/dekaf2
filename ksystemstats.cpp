@@ -1164,12 +1164,12 @@ size_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNoSh
 			}
 			else if (sCommandRegex.empty())
 			{
-				m_Procs.Add(sPID, StatValueType(sFullCmd, sPPID, sShortCmd, StatType::STRING));
+				m_Procs.Add(sPID, ProcValueType(sFullCmd, sPPID, sShortCmd, StatType::STRING));
 				sWhat = "show all procs";
 			}
 			else if (kregex.Matches (sShortCmd))
 			{
-				m_Procs.Add(sPID, StatValueType(sFullCmd, sPPID, sShortCmd, StatType::STRING));
+				m_Procs.Add(sPID, ProcValueType(sFullCmd, sPPID, sShortCmd, StatType::STRING));
 				sWhat = "MATCHES";
 			}
 			else

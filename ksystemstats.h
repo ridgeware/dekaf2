@@ -81,8 +81,6 @@ public:
 	//----------
 
 		KString sValue;
-		KString sExtra1;
-		KString sExtra2;
 		StatType type { StatType::AUTO };
 
 		StatValueType() = default;
@@ -94,7 +92,48 @@ public:
 			CheckType();
 		}
 
-		StatValueType(KString _sValue, KString _sExtra1, KString _sExtra2 = KString{}, StatType iStatType = StatType::AUTO)
+		static StatType SenseType(KStringView sValue);
+
+	//----------
+	private:
+	//----------
+
+		DEKAF2_PRIVATE void CheckType()
+		{
+			if (type == StatType::AUTO)
+			{
+				type = SenseType(sValue);
+			}
+		}
+
+	};
+
+	// proc values are special, so we add a different type for them
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class ProcValueType
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		KString sValue;
+		KString sExtra1;
+		KString sExtra2;
+		StatType type { StatType::AUTO };
+
+		ProcValueType() = default;
+
+		ProcValueType(KString _sValue, StatType iStatType = StatType::AUTO)
+		: sValue(std::move(_sValue))
+		, type(iStatType)
+		{
+			CheckType();
+		}
+
+		ProcValueType(KString _sValue, KString _sExtra1, KString _sExtra2 = KString{}, StatType iStatType = StatType::AUTO)
 		: sValue(std::move(_sValue))
 		, sExtra1(std::move(_sExtra1))
 		, sExtra2(std::move(_sExtra2))
@@ -120,6 +159,7 @@ public:
 	};
 
 	using Stats = KProps <KString, StatValueType, /*order-matters=*/true, /*unique-keys*/true>; // KProps type
+	using Procs = KProps <KString, ProcValueType, /*order-matters=*/true, /*unique-keys*/true>; // KProps type
 
 	enum class DumpFormat
 	{
@@ -149,11 +189,11 @@ public:
 	size_t    GatherProcs  (KStringView sCommandRegex="", bool bDoNoShowMyself=true);
 	void      DumpProcs    (KOutStream& stream, DumpFormat DumpFormat=DumpFormat::TEXT);
 	void      DumpProcTree (KOutStream& stream, uint64_t iStartWithPID=0);
-	Stats&    GetProcs     () { return m_Procs; }
+	Procs&    GetProcs     () { return m_Procs; }
 
 	static KString Backtrace (pid_t iPID);
 
-	KStringView GetLastError () { return (m_sLastError.c_str()); }
+	const KString& GetLastError () { return (m_sLastError); }
 
 //----------
 protected:
@@ -182,7 +222,7 @@ private:
 //----------
 
 	Stats     m_Stats;
-	Stats     m_Procs;
+	Procs     m_Procs;
 	KString   m_sLastError;
 
 	DEKAF2_PRIVATE

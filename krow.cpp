@@ -698,7 +698,9 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 				}
 				else
 				{
-					sSQL.ref() += kFormat ("'{}'\n", EscapeChars (it, iDBType));
+					sSQL.ref() += kFormat ("{}'{}'\n",
+										   iDBType == DBT::SQLSERVER ? "N" : "",
+										   EscapeChars (it, iDBType));
 				}
 			}
 			bComma = true;
@@ -737,7 +739,9 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 		}
 		else
 		{
-			sSQL.ref() += kFormat("'{}'\n", EscapeChars (it, iDBType));
+			sSQL.ref() += kFormat("{}'{}'\n",
+								  iDBType == DBT::SQLSERVER ? "N" : "",
+								  EscapeChars (it, iDBType));
 		}
 	}
 

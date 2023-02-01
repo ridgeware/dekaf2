@@ -133,9 +133,15 @@ struct KPoolMutex<true>
 
 }; // KPoolMutex<true>
 
+/// To create multiples of microseconds, seconds, minutes, etc. declare your own duration type with an odd duration, like
+/// ```
+/// using FiveMinDuration = std::chrono::duration<long, std::ratio<5 * 60>>;
+/// ```
+/// (basis of std::duration is one second)
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a real KTimeSeries
-template<uint16_t iAverageOverMinutes>
+template<uint16_t iIntervals = 0, typename Resolution = std::chrono::seconds>
 class KPoolTimeSeries
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -144,31 +150,32 @@ class KPoolTimeSeries
 public:
 //----------
 
-	using KTimeSeriesMinutes = KTimeSeries<std::size_t, std::chrono::minutes>;
-	using Clock              = KTimeSeriesMinutes::Clock;
-	using Timepoint          = typename Clock::time_point;
+	using TimeSeries = KTimeSeries<std::size_t, Resolution>;
+	using Clock      = typename TimeSeries::Clock;
+	using Timepoint  = typename Clock::time_point;
 
-	Timepoint GetLastAverage()                   const { return m_LastAverage;      }
-	void SetLastAverage(Timepoint tp)                  { m_LastAverage = tp;        }
-	void AddToIntervals(Timepoint tp, std::size_t i)   { m_Intervals.Add(tp, i);    }
-	KTimeSeriesMinutes::Stored GetIntervalsSum() const { return m_Intervals.Sum();  }
-	std::size_t GetAbsoluteMaxSize()             const { return m_iAbsoluteMaxSize; }
-	void SetAbsoluteMaxSize(std::size_t i)             { m_iAbsoluteMaxSize = i;    }
+	Timepoint GetLastAverage()                    const { return m_LastAverage;                }
+	void SetLastAverage(Timepoint tp)                   { m_LastAverage = tp;                  }
+	void AddToIntervals(Timepoint tp, std::size_t i)    { m_Intervals.Add(tp, i);              }
+	typename TimeSeries::Stored GetIntervalsSum() const { return m_Intervals.Sum();            }
+	std::size_t GetAbsoluteMaxSize()              const { return m_iAbsoluteMaxSize;           }
+	void SetAbsoluteMaxSize(std::size_t i)              { m_iAbsoluteMaxSize = i;              }
+	static Timepoint GetCurrentTime()                   { return TimeSeries::GetCurrentTime(); }
 
 //----------
 private:
 //----------
 
-	KTimeSeriesMinutes                    m_Intervals        { iAverageOverMinutes                         };
-	std::chrono::system_clock::time_point m_LastAverage      { std::chrono::system_clock::duration::zero() };
-	std::size_t                           m_iAbsoluteMaxSize;
+	TimeSeries  m_Intervals        { iIntervals         };
+	Timepoint   m_LastAverage      { Resolution::zero() };
+	std::size_t m_iAbsoluteMaxSize;
 
 }; // functional KPoolTimeSeries
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a no-op KTimeSeries clone
-template<>
-class KPoolTimeSeries<0>
+template<typename Resolution>
+class KPoolTimeSeries<0, Resolution>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -176,23 +183,24 @@ class KPoolTimeSeries<0>
 public:
 //----------
 
-	using KTimeSeriesMinutes = KTimeSeries<std::size_t, std::chrono::minutes>;
-	using Clock              = KTimeSeriesMinutes::Clock;
-	using Timepoint          = typename Clock::time_point;
+	using TimeSeries = KTimeSeries<std::size_t, Resolution>;
+	using Clock      = typename TimeSeries::Clock;
+	using Timepoint  = typename Clock::time_point;
 
 	// dummy operations to satisfy the compiler, they are never called..
-	Timepoint GetLastAverage()                   const { return Timepoint(); }
-	void SetLastAverage(Timepoint tp)                  {}
-	void AddToIntervals(Timepoint tp, std::size_t i)   {}
-	KTimeSeriesMinutes::Stored GetIntervalsSum() const { return KTimeSeriesMinutes::Stored(); }
-	std::size_t GetAbsoluteMaxSize()             const { return 0; }
-	void SetAbsoluteMaxSize(std::size_t i)             {}
+	Timepoint GetLastAverage()                    const { return Timepoint(); }
+	void SetLastAverage(Timepoint tp)                   {}
+	void AddToIntervals(Timepoint tp, std::size_t i)    {}
+	typename TimeSeries::Stored GetIntervalsSum() const { return typename TimeSeries::Stored(); }
+	std::size_t GetAbsoluteMaxSize()              const { return 0; }
+	void SetAbsoluteMaxSize(std::size_t i)              {}
+	static Timepoint GetCurrentTime()                   { return TimeSeries::GetCurrentTime(); }
 
 }; // KPoolTimeSeries<0>
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<class Value, bool bShared = false, uint16_t iAverageOverMinutes = 0>
-class KPoolBase : private KPoolMutex<bShared>, private KPoolTimeSeries<iAverageOverMinutes>
+template<class Value, uint16_t iIntervals = 0, typename Resolution = std::chrono::seconds, bool bShared = false>
+class KPoolBase : private KPoolMutex<bShared>, private KPoolTimeSeries<iIntervals, Resolution>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -201,7 +209,7 @@ public:
 //----------
 
 	using base_type   = KPoolMutex<bShared>;
-	using time_series = KPoolTimeSeries<iAverageOverMinutes>;
+	using time_series = KPoolTimeSeries<iIntervals, Resolution>;
 	using pool_type   = std::vector<std::unique_ptr<Value>>;
 	using size_type   = typename pool_type::size_type;
 
@@ -256,7 +264,7 @@ public:
 	{
 		typename base_type::MyLock Lock(base_type::m_Mutex);
 
-		if (iAverageOverMinutes)
+		if (iIntervals)
 		{
 			return time_series::GetAbsoluteMaxSize();
 		}
@@ -273,7 +281,7 @@ public:
 	{
 		typename base_type::MyLock Lock(base_type::m_Mutex);
 
-		if (iAverageOverMinutes)
+		if (iIntervals)
 		{
 			time_series::SetAbsoluteMaxSize(iMaxSize);
 		}
@@ -398,21 +406,22 @@ private:
 	void AdjustPoolSize()
 	//-----------------------------------------------------------------------------
 	{
-		if (iAverageOverMinutes)
+		if (iIntervals)
 		{
-			// get a lazy time_point, we have minute intervals
-			auto tNow = Dekaf::getInstance().GetCurrentTimepoint();
+			// get the current time in the time_series resolution
+			auto tNow = time_series::GetCurrentTime();
 			// add a new data point to the current interval
 			time_series::AddToIntervals(tNow, m_iPopped);
 
-			// check if we shall adjust the max pool size
-			if (time_series::GetLastAverage() >= tNow + std::chrono::minutes(1))
+			// check if we shall adjust the max pool size, doing that after
+			// one duration of the resolution has passed
+			if (time_series::GetLastAverage() > tNow)
 			{
-				// a minute has passed since the last averages calculation
+				// one interval has passed since the last averages calculation
 				time_series::SetLastAverage(tNow);
 				auto Values = time_series::GetIntervalsSum();
-				kDebug(2, "last {} minutes pool usage: min: {} avg: {} max: {}",
-					   iAverageOverMinutes, Values.Min(), Values.Mean(), Values.Max());
+				kDebug(2, "last {} intervals pool usage: min: {} mean: {} max: {}",
+					   iIntervals, Values.Min(), Values.Mean(), Values.Max());
 				m_iMaxSize = Values.Max();
 			}
 			else if (m_iPopped > m_iMaxSize)
@@ -437,8 +446,8 @@ private:
 }; // KPoolBase
 
 // defines the template's static const
-template<class Value, bool bShared, uint16_t iAverageOverMinutes>
-KPoolControl<Value> KPoolBase<Value, bShared, iAverageOverMinutes>::s_DefaultControl;
+template<class Value, uint16_t iIntervals, typename Resolution, bool bShared>
+KPoolControl<Value> KPoolBase<Value, iIntervals, Resolution, bShared>::s_DefaultControl;
 
 } // end of namespace detail
 
@@ -449,8 +458,8 @@ KPoolControl<Value> KPoolBase<Value, bShared, iAverageOverMinutes>::s_DefaultCon
 /// Control as child of KPoolControl, and override single or all methods from
 /// KPoolControl if you want to create complex objects or get notifications
 /// about object usage.
-template<class Value, uint16_t iAverageOverMinutes = 0>
-class KPool : public detail::KPoolBase<Value, false, iAverageOverMinutes>
+template<class Value, uint16_t iIntervals = 0, typename Resolution = std::chrono::seconds>
+class KPool : public detail::KPoolBase<Value, iIntervals, Resolution, false>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -458,7 +467,7 @@ class KPool : public detail::KPoolBase<Value, false, iAverageOverMinutes>
 public:
 //----------
 
-	using base_type  = detail::KPoolBase<Value, false, iAverageOverMinutes>;
+	using base_type  = detail::KPoolBase<Value, iIntervals, Resolution, false>;
 	using size_type  = typename base_type::size_type;
 	using unique_ptr = decltype(base_type().get());
 	using shared_ptr = std::shared_ptr<Value>;
@@ -474,8 +483,8 @@ public:
 /// Implement a class Control as child of KPoolControl, and override single
 /// or all methods from KPoolControl if you want to create complex objects
 /// or get notifications about object usage.
-template<class Value, uint16_t iAverageOverMinutes = 0>
-class KSharedPool : public detail::KPoolBase<Value, true, iAverageOverMinutes>
+template<class Value, uint16_t iIntervals = 0, typename Resolution = std::chrono::seconds>
+class KSharedPool : public detail::KPoolBase<Value, iIntervals, Resolution, true>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -483,7 +492,7 @@ class KSharedPool : public detail::KPoolBase<Value, true, iAverageOverMinutes>
 public:
 //----------
 
-	using base_type  = detail::KPoolBase<Value, true, iAverageOverMinutes>;
+	using base_type  = detail::KPoolBase<Value, iIntervals, Resolution, true>;
 	using size_type  = typename base_type::size_type;
 	using unique_ptr = decltype(base_type().get());
 	using shared_ptr = std::shared_ptr<Value>;
@@ -495,4 +504,3 @@ public:
 #endif
 
 } // of namespace dekaf2
-

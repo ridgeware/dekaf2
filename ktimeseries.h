@@ -628,13 +628,9 @@ public:
 		return std::chrono::time_point_cast<std::chrono::system_clock::duration>(tp);
 	}
 
-//--------
-protected:
-//--------
-
 	//-------------------------------------------------------------------------
 	/// returns current time in interval resolution
-	Timepoint GetCurrentTime() const
+	static Timepoint GetCurrentTime()
 	//-------------------------------------------------------------------------
 	{
 		if (Duration(1) >= std::chrono::seconds(1))
@@ -646,6 +642,10 @@ protected:
 			return std::chrono::time_point_cast<Duration>(Clock::now());
 		}
 	}
+
+//--------
+protected:
+//--------
 
 	//-------------------------------------------------------------------------
 	// increment the iterator by iCount values

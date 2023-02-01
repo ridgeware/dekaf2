@@ -506,6 +506,8 @@ void KROW::PrintValuesForInsert(KSQLString& sSQL, DBT iDBType) const
 			// catch-all logic for all string values
 			// Note: if the value is actually NIL ('') and NULL_IS_NOT_NIL is set, then the value will
 			// be placed into SQL as '' instead of SQL null.
+			// WARNING: SQLServer < v15 NEEDS the prefixed N in front of UTF8 string columns, or it
+			// will not properly decode them!
 			sSQL.ref() += kFormat ("{}\n\t{}'{}'",
 							 (bComma) ? "," : "",
 							 iDBType == DBT::SQLSERVER ? "N" : "",
@@ -698,6 +700,8 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 				}
 				else
 				{
+					// WARNING: SQLServer < v15 NEEDS the prefixed N in front of UTF8 string columns, or it
+					// will not properly decode them!
 					sSQL.ref() += kFormat ("{}'{}'\n",
 										   iDBType == DBT::SQLSERVER ? "N" : "",
 										   EscapeChars (it, iDBType));
@@ -739,6 +743,8 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 		}
 		else
 		{
+			// WARNING: SQLServer < v15 NEEDS the prefixed N in front of UTF8 string columns, or it
+			// will not properly decode them!
 			sSQL.ref() += kFormat("{}'{}'\n",
 								  iDBType == DBT::SQLSERVER ? "N" : "",
 								  EscapeChars (it, iDBType));
@@ -817,6 +823,8 @@ KSQLString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) const
 			}
 			else
 			{
+				// WARNING: SQLServer < v15 NEEDS the prefixed N in front of UTF8 string columns, or it
+				// will not properly decode them!
 				sSQL.ref() += kFormat("{}{}={}'{}'\n",
 								sPrefix,
 								it.first,
@@ -882,6 +890,8 @@ KSQLString KROW::FormDelete (DBT iDBType) const
 		}
 		else
 		{
+			// WARNING: SQLServer < v15 NEEDS the prefixed N in front of UTF8 string columns, or it
+			// will not properly decode them!
 			sSQL.ref() += kFormat(" {} {}={}'{}'\n",
 							(!kk) ? "where" : "  and",
 							it.first,

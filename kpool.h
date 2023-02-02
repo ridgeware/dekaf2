@@ -215,6 +215,18 @@ public:
 
 	enum { DEFAULT_MAX_POOL_SIZE = 10000 };
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// holds statistics for the pool
+	struct Stats
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		size_type iUsed;         ///< count of currently used pool objects
+		size_type iAvailable;    ///< count of still available pool objects
+		size_type iMaxPool;      ///< current dynamic maximum size for the pool
+		size_type iAbsoluteMax;  ///< absolute maximum size
+
+	}; // Stats
+
 	//-----------------------------------------------------------------------------
 	/// ctor, pass derived class of KPoolControl for better control
 	KPoolBase(KPoolControl<Value>& _Control = s_DefaultControl, size_type iMaxSize = DEFAULT_MAX_POOL_SIZE)
@@ -255,6 +267,22 @@ public:
 	{
 		typename base_type::MyLock Lock(base_type::m_Mutex);
 		return m_iPopped;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns Stats object
+	Stats GetStats()
+	//-----------------------------------------------------------------------------
+	{
+		typename base_type::MyLock Lock(base_type::m_Mutex);
+
+		Stats stats;
+		stats.iUsed        = m_iPopped;
+		stats.iAvailable   = m_Pool.size();
+		stats.iMaxPool     = m_iMaxSize;
+		stats.iAbsoluteMax = (iIntervals) ? time_series::GetAbsoluteMaxSize() : m_iMaxSize;
+
+		return stats;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -415,14 +443,31 @@ private:
 
 			// check if we shall adjust the max pool size, doing that after
 			// one duration of the resolution has passed
-			if (time_series::GetLastAverage() > tNow)
+			if (time_series::GetLastAverage() < tNow)
 			{
 				// one interval has passed since the last averages calculation
 				time_series::SetLastAverage(tNow);
 				auto Values = time_series::GetIntervalsSum();
-				kDebug(2, "last {} intervals pool usage: min: {} mean: {} max: {}",
-					   iIntervals, Values.Min(), Values.Mean(), Values.Max());
+				kDebug(2, "last {} intervals pool usage: min: {} mean: {} max: {}, oldmax: {}",
+					   iIntervals, Values.Min(), Values.Mean(), Values.Max(), m_iMaxSize);
 				m_iMaxSize = Values.Max();
+
+				// now compute new vector size
+				auto iPoolSize = m_Pool.size();
+
+				if (m_iMaxSize < iPoolSize + m_iPopped)
+				{
+					size_type iRemove = (m_iMaxSize < m_iPopped)
+					                     ? iPoolSize
+					                     : iPoolSize - (m_iMaxSize - m_iPopped);
+
+					if (iRemove)
+					{
+						kDebug(2, "shrinking pool by {} elements, new size {}", iRemove, iPoolSize - iRemove);
+						// and remove from the begin() (== oldest objects)
+						m_Pool.erase(m_Pool.begin(), m_Pool.begin() + iRemove);
+					}
+				}
 			}
 			else if (m_iPopped > m_iMaxSize)
 			{

@@ -72,9 +72,9 @@ template<typename Datum, typename Resolution = std::chrono::seconds>
 /// ```
 /// and values will be averaged in 5 min intervals, to access with
 /// ```
-/// auto iAverage = TS.front().second.Avg();
-/// auto iMax     = TS.front().second.Max();
-/// auto Time     = TS.front().first;
+/// auto iMean = TS.front().second.Mean();
+/// auto iMax  = TS.front().second.Max();
+/// auto Time  = TS.front().first;
 /// ```
 /// There is automatic conversion of timepoint values from any scale, so you can query the
 /// interval expressed by system_clock timepoints:

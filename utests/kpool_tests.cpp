@@ -154,4 +154,52 @@ TEST_CASE("KPool")
 		CHECK ( Pool.size() <= 20 );
 	}
 
+	SECTION("dynamic")
+	{
+		using PoolResolution = std::chrono::duration<long, std::ratio<1, 1000>>;
+		MyControl Control;
+		using PoolType = KPool<MyType, 3, PoolResolution>;
+		PoolType Pool(Control);
+
+		std::vector<PoolType::unique_ptr> Objects;
+
+		for (int i = 0; i < 100; ++i)
+		{
+			Objects.push_back(Pool.get());
+		}
+
+		auto Stats = Pool.GetStats();
+
+		CHECK ( Stats.iUsed      ==   100 );
+		CHECK ( Stats.iAvailable ==     0 );
+		CHECK ( Stats.iMaxPool   ==   100 );
+
+		Objects.clear();
+
+		Stats = Pool.GetStats();
+
+		CHECK ( Stats.iUsed      ==     0 );
+		CHECK ( Stats.iAvailable ==   100 );
+		CHECK ( Stats.iMaxPool   ==   100 );
+
+		for (int i = 0; i < 10; ++i)
+		{
+			kMilliSleep(1);
+			Objects.push_back(Pool.get());
+		}
+
+		Stats = Pool.GetStats();
+
+		CHECK ( Stats.iUsed      ==  10 );
+		CHECK ( Stats.iAvailable ==   0 );
+		CHECK ( Stats.iMaxPool   ==  10 );
+
+		Objects.clear();
+
+		Stats = Pool.GetStats();
+
+		CHECK ( Stats.iUsed      ==   0 );
+		CHECK ( Stats.iAvailable ==  10 );
+		CHECK ( Stats.iMaxPool   ==  10 );
+	}
 }

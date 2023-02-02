@@ -353,7 +353,7 @@ public:
 				}
 				else
 				{
-					return m_iPopped < m_iMaxSize;
+					return m_iPopped <= m_iMaxSize;
 				}
 			});
 		}

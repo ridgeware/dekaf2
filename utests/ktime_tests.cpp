@@ -148,6 +148,7 @@ TEST_CASE("KTime") {
 		CHECK ( UTC1.Format()       == "1973-12-31 23:59:59" );
 		CHECK ( UTC1.ToTimeT()      == 126230399 );
 		UTC2 = UTC1.ToTimeT();
+		CHECK ( (UTC2 == UTC1) );
 		CHECK ( UTC2.GetMonthName(true) == "Dec" );
 		CHECK ( UTC2.GetDayName(true)   == "Mon" );
 		CHECK ( UTC2.IsPM()         == true  );
@@ -168,6 +169,39 @@ TEST_CASE("KTime") {
 		CHECK ( std::chrono::system_clock::to_time_t(SysTime) == UTC1.ToTimeT() );
 		std::chrono::system_clock::time_point SysTime2 = UTC1;
 		CHECK ( SysTime == SysTime2 );
+
+		UTC2 += std::chrono::minutes(34);
+		CHECK ( UTC2.Format()       == "1974-01-01 00:33:59" );
+		UTC2 += std::chrono::seconds(1 * 60 * 60 * 24 * 365);
+		CHECK ( UTC2.Format()       == "1975-01-01 00:33:59" );
+#ifdef DEKAF2_HAS_CPP_20
+		UTC2 += std::chrono::days(365);
+#else
+		UTC2 += std::chrono::seconds(1 * 60 * 60 * 24 * 365);
+#endif
+		CHECK ( UTC2.Format()       == "1976-01-01 00:33:59" );
+#ifdef DEKAF2_HAS_CPP_20
+		UTC2 += std::chrono::days(70 * 365);
+#else
+		UTC2 += std::chrono::seconds(70 * 60 * 60 * 24 * 365);
+#endif
+		CHECK ( UTC2.Format()       == "2045-12-14 00:33:59" );
+#ifdef DEKAF2_HAS_CPP_20
+		UTC2 -= std::chrono::days(70 * 365);
+#else
+		UTC2 -= std::chrono::seconds(70 * 60 * 60 * 24 * 365);
+#endif
+		CHECK ( UTC2.Format()       == "1976-01-01 00:33:59" );
+		UTC2 += time_t(1 * 60 * 60 * 24 * 365);
+		CHECK ( UTC2.Format()       == "1976-12-31 00:33:59" );
+		UTC2 += KDuration(std::chrono::seconds(2));
+		CHECK ( UTC2.Format()       == "1976-12-31 00:34:01" );
+		UTC2 += KDuration(std::chrono::microseconds(2));
+		CHECK ( UTC2.Format()       == "1976-12-31 00:34:01" );
+		UTC2 += KDuration(std::chrono::microseconds(1000123));
+		CHECK ( UTC2.Format()       == "1976-12-31 00:34:02" );
+		UTC2 -= KDuration(std::chrono::microseconds(2000123));
+		CHECK ( UTC2.Format()       == "1976-12-31 00:34:00" );
 
 		auto oldLocale = kGetGlobalLocale();
 		if (kSetGlobalLocale("fr_FR.UTF-8"))

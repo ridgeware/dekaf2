@@ -53,6 +53,8 @@
 namespace dekaf2
 {
 
+class KDuration; // we need it for is_duration
+
 namespace detail
 {
 
@@ -150,6 +152,14 @@ struct is_chrono_duration : std::false_type {};
 
 template <typename R, typename P>
 struct is_chrono_duration<std::chrono::duration<R, P>> : std::true_type {};
+
+template <typename T>
+struct is_duration
+  : std::integral_constant<
+      bool,
+      is_chrono_duration<T>::value ||
+      std::is_same<T, KDuration>::value
+> {};
 
 template<class T>
 struct is_pod

@@ -46,6 +46,7 @@
 
 #include "kstring.h"
 #include "kstringview.h"
+#include "bits/ktemplate.h"
 #include <cinttypes>
 #include <ctime>
 #include <chrono>
@@ -266,7 +267,38 @@ public:
 	/// add minutes, value may be negative to substract
 	self& AddMinutes(int32_t iVal)  { Add(m_time.tm_min,  iVal); return *this; }
 	/// add seconds, value may be negative to substract
-	self& AddSeconds(int32_t iVal)  { Add(m_time.tm_sec,  iVal); return *this; }
+	template<typename I, typename std::enable_if<sizeof(I) <= sizeof(int32_t), int>::type = 0>
+	self& AddSeconds(I iVal)        { Add(m_time.tm_sec,  iVal); return *this; }
+	/// add seconds, value may be negative to substract
+	template<typename I, typename std::enable_if<sizeof(int32_t) < sizeof(I), int>::type = 0>
+	self& AddSeconds(I iVal)        { AddSeconds64(iVal); return *this;        }
+
+	/// add any std::chrono::duration type, value may be negative to substract
+	///
+	/// Keep in mind that std::chrono::year and std::chrono::month are not
+	/// calendar safe (they are defined as true astronomical periods, a
+	/// year as 146097 days divided by 400, and a month as 1/12 of that)
+	template<typename T, typename std::enable_if<detail::is_chrono_duration<T>::value, int>::type = 0>
+	self& Add(T Duration)
+	{
+		AddSeconds(std::chrono::duration_cast<std::chrono::seconds>(Duration).count());
+		return *this;
+	}
+
+	/// add a KDuration, value may be negative to substract
+	self& Add(KDuration Duration);
+
+	template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+	self& operator+=(T Duration) { return Add(Duration); }
+
+	template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+	self& operator-=(T Duration) { return Add(Duration * -1); }
+
+	template<typename T, typename std::enable_if<std::is_same<T, time_t>::value, int>::type = 0>
+	self& operator+=(T Duration) { return AddSeconds(Duration); }
+
+	template<typename T, typename std::enable_if<std::is_same<T, time_t>::value, int>::type = 0>
+	self& operator-=(T Duration) { return AddSeconds(Duration * -1); }
 
 	/// return struct tm
 	const std::tm& ToTM ()     const;
@@ -327,6 +359,9 @@ protected:
 		field += iValue;
 		ForceNormalization();
 	}
+
+	/// add (and properly cast) a long long seconds duration
+	void AddSeconds64(int64_t iSeconds);
 
 	/// virtual method to normalize the date struct
 	virtual void Normalize() const = 0;

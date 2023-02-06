@@ -1950,8 +1950,7 @@ public:
 	using self   = DurationInput<Unit, Duration>;
 	using parent = LabeledInput<self>;
 
-	static_assert(detail::is_chrono_duration<Duration>::value ||
-				  std::is_same<Duration, KDuration>::value,
+	static_assert(detail::is_duration<Duration>::value,
 				  "DurationInput needs std::chrono::duration Duration template type");
 	static_assert(detail::is_chrono_duration<Unit>::value,
 				  "DurationInput needs std::chrono::duration Unit template type");

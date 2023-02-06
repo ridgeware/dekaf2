@@ -39,12 +39,12 @@
  // +-------------------------------------------------------------------------+
  */
 
+#include "bits/kcppcompat.h"
 #include "ktime.h"
 #include "kduration.h"
 #include "kstringutils.h"
 #include "kfrozen.h"
 #include "dekaf2.h"
-#include "bits/kcppcompat.h"
 #include "kutf8.h"
 #include "koutstringstream.h"
 #include "kthreadsafe.h"
@@ -956,6 +956,42 @@ KBrokenDownTime::KBrokenDownTime (const std::tm& tm_time)
 	ForceNormalization();
 
 } // ctor
+
+//-----------------------------------------------------------------------------
+void KBrokenDownTime::AddSeconds64(int64_t iSeconds)
+//-----------------------------------------------------------------------------
+{
+	if (iSeconds >= 0)
+	{
+		for (;iSeconds;)
+		{
+			auto iLimit = std::numeric_limits<int32_t>::max() - GetSecond() - 1;
+			auto iSec1  = (iSeconds > iLimit) ? iLimit : iSeconds;
+			AddSeconds(static_cast<int32_t>(iSec1));
+			iSeconds   -= iSec1;
+		}
+	}
+	else
+	{
+		for (;iSeconds;)
+		{
+			auto iLimit = std::numeric_limits<int32_t>::min() + GetSecond() + 1;
+			auto iSec1  = (iSeconds < iLimit) ? iLimit : iSeconds;
+			AddSeconds(static_cast<int32_t>(iSec1));
+			iSeconds   -= iSec1;
+		}
+	}
+
+} // AddSeconds64
+
+//-----------------------------------------------------------------------------
+KBrokenDownTime& KBrokenDownTime::Add(KDuration Duration)
+//-----------------------------------------------------------------------------
+{
+	AddSeconds(Duration.seconds());
+	return *this;
+
+} // Add
 
 //-----------------------------------------------------------------------------
 time_t KBrokenDownTime::ToTimeT() const

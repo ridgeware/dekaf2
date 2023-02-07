@@ -203,6 +203,18 @@ TEST_CASE("KTime") {
 		UTC2 -= KDuration(std::chrono::microseconds(2000123));
 		CHECK ( UTC2.Format()       == "1976-12-31 00:34:00" );
 
+		auto UTC3 = UTC2 + std::chrono::seconds(61);
+		auto tDiff = UTC3 - UTC2;
+		CHECK ( tDiff == 61 );
+		tDiff = UTC3.ToTimeT() - UTC2;
+		CHECK ( tDiff == 61 );
+		tDiff = UTC3 - UTC2.ToTimeT();
+		CHECK ( tDiff == 61 );
+		auto dDiff = UTC3 - UTC2.ToTimePoint();
+		CHECK ( KDuration(dDiff).seconds() == 61 );
+		dDiff = UTC3.ToTimePoint() - UTC2;
+		CHECK ( KDuration(dDiff).seconds() == 61 );
+
 		auto oldLocale = kGetGlobalLocale();
 		if (kSetGlobalLocale("fr_FR.UTF-8"))
 		{

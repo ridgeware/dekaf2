@@ -445,6 +445,20 @@ bool operator<(const KLocalTime& left, const KLocalTime& right)
 
 DEKAF2_COMPARISON_OPERATORS(KLocalTime)
 
+inline time_t operator-(const KLocalTime& left, const KLocalTime& right) { return left.ToTimeT() - right.ToTimeT(); }
+inline time_t operator-(const KLocalTime& left, const time_t right)           { return left.ToTimeT() - right;           }
+inline time_t operator-(const time_t left, const KLocalTime& right)           { return left - right.ToTimeT();           }
+inline std::chrono::system_clock::duration operator-(const KLocalTime& left, const std::chrono::system_clock::time_point right) { return left.ToTimePoint() - right; }
+inline std::chrono::system_clock::duration operator-(const std::chrono::system_clock::time_point left, const KLocalTime& right) { return left - right.ToTimePoint(); }
+
+// time_t is a difficult animal: traditionally we use it both as time point and as duration.. which would create the same signatures here
+//inline KLocalTime operator+(const KLocalTime& left, const time_t right) { return KLocalTime(left.ToTimeT() + right); }
+//inline KLocalTime operator-(const KLocalTime& left, const time_t right) { return KLocalTime(left.ToTimeT() - right); }
+template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+inline KLocalTime operator+(const KLocalTime& left, const T Duration) { KLocalTime Ret(left); Ret.Add(Duration); return Ret;      }
+template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+inline KLocalTime operator-(const KLocalTime& left, const T Duration) { KLocalTime Ret(left); Ret.Add(Duration * -1); return Ret; }
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A wrapper around datetime functions that works cross platform - time is UTC / GMT
 class DEKAF2_PUBLIC KUTCTime : public detail::KBrokenDownTime
@@ -501,5 +515,19 @@ bool operator<(const KUTCTime& left, const KUTCTime& right)
 }
 
 DEKAF2_COMPARISON_OPERATORS(KUTCTime)
+
+inline time_t operator-(const KUTCTime& left, const KUTCTime& right) { return left.ToTimeT() - right.ToTimeT(); }
+inline time_t operator-(const KUTCTime& left, const time_t right)    { return left.ToTimeT() - right;           }
+inline time_t operator-(const time_t left, const KUTCTime& right)   { return left - right.ToTimeT();           }
+inline std::chrono::system_clock::duration operator-(const KUTCTime& left, const std::chrono::system_clock::time_point right) { return left.ToTimePoint() - right; }
+inline std::chrono::system_clock::duration operator-(const std::chrono::system_clock::time_point left, const KUTCTime& right) { return left - right.ToTimePoint(); }
+
+// time_t is a difficult animal: traditionally we use it both as time point and as duration.. which would create the same signatures here
+//inline KUTCTime operator+(const KUTCTime& left, const time_t right) { return KUTCTime(left.ToTimeT() + right); }
+//inline KUTCTime operator-(const KUTCTime& left, const time_t right) { return KUTCTime(left.ToTimeT() - right); }
+template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+inline KUTCTime operator+(const KUTCTime& left, const T Duration) { KUTCTime Ret(left); Ret.Add(Duration); return Ret;      }
+template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+inline KUTCTime operator-(const KUTCTime& left, const T Duration) { KUTCTime Ret(left); Ret.Add(Duration * -1); return Ret; }
 
 } // end of namespace dekaf2

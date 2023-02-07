@@ -106,7 +106,8 @@ protected:
 		return EncodingTable[which];
 	}
 
-	enum { INT_TABLECOUNT = 3, TABLECOUNT = 8 };
+	static constexpr int INT_TABLECOUNT = 3;
+	static constexpr int TABLECOUNT = 8;
 	static KUrlEncodingTables MyInstance;
 	static const char* s_sExcludes[];
 	static bool* EncodingTable[TABLECOUNT];

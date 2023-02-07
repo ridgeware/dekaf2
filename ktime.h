@@ -112,7 +112,7 @@ KString kFormTimestamp (const std::tm& time, const char* pszFormat = "%Y-%m-%d %
 /// used.
 /// @param tTime Seconds since epoch. If 0, query current time from the system
 /// @param pszFormat format string
-/// @param bAsLocalTime use tTime as local time instead of utc
+/// @param bAsLocalTime display as local time instead of UTC
 /// @return the timestamp string
 DEKAF2_PUBLIC
 KString kFormTimestamp (time_t tTime = 0, const char* pszFormat = "%Y-%m-%d %H:%M:%S", bool bAsLocalTime = false);
@@ -137,7 +137,7 @@ KString kFormSMTPTimestamp (time_t tTime = 0);
 //-----------------------------------------------------------------------------
 /// Create a common log format  time stamp
 /// @param tTime Seconds since epoch. If 0, query current time from the system
-/// @param bAsLocalTime interpret tTime as local time, defaults to false
+/// @param bAsLocalTime display as local time instead of UTC, defaults to false
 /// @return the timestamp string
 DEKAF2_PUBLIC
 KString kFormCommonLogTimestamp(time_t tTime = 0, bool bAsLocalTime = false);
@@ -417,6 +417,9 @@ public:
 	/// return the offset in seconds between this time and UTC
 	int32_t GetUTCOffset () const;
 
+	/// get the current time as local time
+	static KLocalTime Now() { return KLocalTime(time_t(0)); }
+
 //--------
 protected:
 //--------
@@ -470,6 +473,9 @@ public:
 
 	/// return the offset in seconds between this time and UTC (always 0)
 	int32_t GetUTCOffset () const { return 0; };
+
+	/// get the current time as GMT / UTC time
+	static KUTCTime Now() { return KUTCTime(time_t(0)); }
 
 //--------
 protected:

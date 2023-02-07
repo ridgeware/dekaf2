@@ -930,166 +930,6 @@ time_t kParseTimestamp(KStringView sTimestamp)
 
 } // kParseTimestamp
 
-namespace detail {
-
-//-----------------------------------------------------------------------------
-KBrokenDownTime::KBrokenDownTime(time_t tGMTime, bool bAsLocalTime)
-//-----------------------------------------------------------------------------
-: m_time_t(tGMTime)
-, m_time(kGetBrokenDownTime(tGMTime, bAsLocalTime))
-{
-} // ctor
-
-//-----------------------------------------------------------------------------
-KBrokenDownTime::KBrokenDownTime(std::chrono::system_clock::time_point tTime, bool bAsLocalTime)
-//-----------------------------------------------------------------------------
-: KBrokenDownTime(std::chrono::system_clock::to_time_t(tTime), bAsLocalTime)
-{
-} // ctor
-
-//-----------------------------------------------------------------------------
-KBrokenDownTime::KBrokenDownTime (const std::tm& tm_time)
-//-----------------------------------------------------------------------------
-: m_time(tm_time)
-{
-	// we do not know if the struct tm was normalized
-	ForceNormalization();
-
-} // ctor
-
-//-----------------------------------------------------------------------------
-void KBrokenDownTime::AddSeconds64(int64_t iSeconds)
-//-----------------------------------------------------------------------------
-{
-	if (iSeconds >= 0)
-	{
-		for (;iSeconds;)
-		{
-			auto iLimit = std::numeric_limits<int32_t>::max() - GetSecond() - 1;
-			auto iSec1  = (iSeconds > iLimit) ? iLimit : iSeconds;
-			AddSeconds(static_cast<int32_t>(iSec1));
-			iSeconds   -= iSec1;
-		}
-	}
-	else
-	{
-		for (;iSeconds;)
-		{
-			auto iLimit = std::numeric_limits<int32_t>::min() + GetSecond() + 1;
-			auto iSec1  = (iSeconds < iLimit) ? iLimit : iSeconds;
-			AddSeconds(static_cast<int32_t>(iSec1));
-			iSeconds   -= iSec1;
-		}
-	}
-
-} // AddSeconds64
-
-//-----------------------------------------------------------------------------
-KBrokenDownTime& KBrokenDownTime::Add(KDuration Duration)
-//-----------------------------------------------------------------------------
-{
-	AddSeconds(Duration.seconds());
-	return *this;
-
-} // Add
-
-//-----------------------------------------------------------------------------
-time_t KBrokenDownTime::ToTimeT() const
-//-----------------------------------------------------------------------------
-{
-	CheckNormalization();
-	return m_time_t;
-
-} // ToTimeT
-
-//-----------------------------------------------------------------------------
-std::chrono::system_clock::time_point KBrokenDownTime::ToTimePoint() const
-//-----------------------------------------------------------------------------
-{
-	return std::chrono::system_clock::from_time_t(ToTimeT());
-
-} // ToTimePoint
-
-//-----------------------------------------------------------------------------
-KStringViewZ KBrokenDownTime::GetDayName(bool bAbbreviated, bool bLocal) const
-//-----------------------------------------------------------------------------
-{
-	return kGetDayName(GetWeekday(), bAbbreviated, bLocal);
-}
-
-//-----------------------------------------------------------------------------
-KStringViewZ KBrokenDownTime::GetMonthName(bool bAbbreviated, bool bLocal) const
-//-----------------------------------------------------------------------------
-{
-	CheckNormalization();
-	return kGetMonthName(static_cast<uint16_t>(m_time.tm_mon), bAbbreviated, bLocal);
-}
-
-//-----------------------------------------------------------------------------
-const std::tm& KBrokenDownTime::ToTM () const
-//-----------------------------------------------------------------------------
-{
-	CheckNormalization();
-	return m_time;
-}
-
-//-----------------------------------------------------------------------------
-KString KBrokenDownTime::Format (const char* szFormat) const
-//-----------------------------------------------------------------------------
-{
-	if (empty())
-	{
-		return KString();
-	}
-	return kFormTimestamp (m_time, szFormat);
-}
-
-} // end of namespace detail
-
-//-----------------------------------------------------------------------------
-KLocalTime::KLocalTime(const KUTCTime& gmtime)
-//-----------------------------------------------------------------------------
-: KLocalTime(gmtime.ToTimeT())
-{
-}
-
-//-----------------------------------------------------------------------------
-int32_t KLocalTime::GetUTCOffset() const
-//-----------------------------------------------------------------------------
-{
-#ifdef DEKAF2_IS_UNIX
-
-	return static_cast<int32_t>(m_time.tm_gmtoff);
-
-#else
-
-#ifdef DEKAF2_USE_WINDOWS_TIMEZONEAPI
-
-	DYNAMIC_TIME_ZONE_INFORMATION TZID;
-	auto iTZID = GetDynamicTimeZoneInformation(&TZID);
-	if (iTZID != TIME_ZONE_ID_INVALID)
-	{
-		return TZID.Bias * 60;
-	}
-
-	kDebug(2, "cannot read time zone information");
-
-	// fall back to the brute force approach
-#endif
-
-	return static_cast<int32_t>(timegm(const_cast<std::tm*>(&m_time)) - ToTimeT());
-
-#endif
-
-} // GetUTCOffset
-
-//-----------------------------------------------------------------------------
-KUTCTime::KUTCTime(const KLocalTime& localtime)
-//-----------------------------------------------------------------------------
-: KUTCTime(localtime.ToTimeT())
-{
-}
-
 //-----------------------------------------------------------------------------
 /// Returns day of week for every gregorian date. Sunday = 0.
 uint16_t kDayOfWeek(uint16_t iDay, uint16_t iMonth, uint16_t iYear)
@@ -1423,6 +1263,166 @@ KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
 		return "a very short time"; // < -292.5 years
 	}
 	return kTranslateDuration(std::chrono::seconds(iNumSeconds), bLongForm, "second");
+}
+
+namespace detail {
+
+//-----------------------------------------------------------------------------
+KBrokenDownTime::KBrokenDownTime(time_t tGMTime, bool bAsLocalTime)
+//-----------------------------------------------------------------------------
+: m_time_t(tGMTime)
+, m_time(kGetBrokenDownTime(tGMTime, bAsLocalTime))
+{
+} // ctor
+
+//-----------------------------------------------------------------------------
+KBrokenDownTime::KBrokenDownTime(std::chrono::system_clock::time_point tTime, bool bAsLocalTime)
+//-----------------------------------------------------------------------------
+: KBrokenDownTime(std::chrono::system_clock::to_time_t(tTime), bAsLocalTime)
+{
+} // ctor
+
+//-----------------------------------------------------------------------------
+KBrokenDownTime::KBrokenDownTime (const std::tm& tm_time)
+//-----------------------------------------------------------------------------
+: m_time(tm_time)
+{
+	// we do not know if the struct tm was normalized
+	ForceNormalization();
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+void KBrokenDownTime::AddSeconds64(int64_t iSeconds)
+//-----------------------------------------------------------------------------
+{
+	if (iSeconds >= 0)
+	{
+		for (;iSeconds;)
+		{
+			auto iLimit = std::numeric_limits<int32_t>::max() - GetSecond() - 1;
+			auto iSec1  = (iSeconds > iLimit) ? iLimit : iSeconds;
+			AddSeconds(static_cast<int32_t>(iSec1));
+			iSeconds   -= iSec1;
+		}
+	}
+	else
+	{
+		for (;iSeconds;)
+		{
+			auto iLimit = std::numeric_limits<int32_t>::min() + GetSecond() + 1;
+			auto iSec1  = (iSeconds < iLimit) ? iLimit : iSeconds;
+			AddSeconds(static_cast<int32_t>(iSec1));
+			iSeconds   -= iSec1;
+		}
+	}
+
+} // AddSeconds64
+
+//-----------------------------------------------------------------------------
+KBrokenDownTime& KBrokenDownTime::Add(KDuration Duration)
+//-----------------------------------------------------------------------------
+{
+	AddSeconds(Duration.seconds());
+	return *this;
+
+} // Add
+
+//-----------------------------------------------------------------------------
+time_t KBrokenDownTime::ToTimeT() const
+//-----------------------------------------------------------------------------
+{
+	CheckNormalization();
+	return m_time_t;
+
+} // ToTimeT
+
+//-----------------------------------------------------------------------------
+std::chrono::system_clock::time_point KBrokenDownTime::ToTimePoint() const
+//-----------------------------------------------------------------------------
+{
+	return std::chrono::system_clock::from_time_t(ToTimeT());
+
+} // ToTimePoint
+
+//-----------------------------------------------------------------------------
+KStringViewZ KBrokenDownTime::GetDayName(bool bAbbreviated, bool bLocal) const
+//-----------------------------------------------------------------------------
+{
+	return kGetDayName(GetWeekday(), bAbbreviated, bLocal);
+}
+
+//-----------------------------------------------------------------------------
+KStringViewZ KBrokenDownTime::GetMonthName(bool bAbbreviated, bool bLocal) const
+//-----------------------------------------------------------------------------
+{
+	CheckNormalization();
+	return kGetMonthName(static_cast<uint16_t>(m_time.tm_mon), bAbbreviated, bLocal);
+}
+
+//-----------------------------------------------------------------------------
+const std::tm& KBrokenDownTime::ToTM () const
+//-----------------------------------------------------------------------------
+{
+	CheckNormalization();
+	return m_time;
+}
+
+//-----------------------------------------------------------------------------
+KString KBrokenDownTime::Format (const char* szFormat) const
+//-----------------------------------------------------------------------------
+{
+	if (empty())
+	{
+		return KString();
+	}
+	return kFormTimestamp (m_time, szFormat);
+}
+
+} // end of namespace detail
+
+//-----------------------------------------------------------------------------
+KLocalTime::KLocalTime(const KUTCTime& gmtime)
+//-----------------------------------------------------------------------------
+: KLocalTime(gmtime.ToTimeT())
+{
+}
+
+//-----------------------------------------------------------------------------
+int32_t KLocalTime::GetUTCOffset() const
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_UNIX
+
+	return static_cast<int32_t>(m_time.tm_gmtoff);
+
+#else
+
+#ifdef DEKAF2_USE_WINDOWS_TIMEZONEAPI
+
+	DYNAMIC_TIME_ZONE_INFORMATION TZID;
+	auto iTZID = GetDynamicTimeZoneInformation(&TZID);
+	if (iTZID != TIME_ZONE_ID_INVALID)
+	{
+		return TZID.Bias * 60;
+	}
+
+	kDebug(2, "cannot read time zone information");
+
+	// fall back to the brute force approach
+#endif
+
+	return static_cast<int32_t>(timegm(const_cast<std::tm*>(&m_time)) - ToTimeT());
+
+#endif
+
+} // GetUTCOffset
+
+//-----------------------------------------------------------------------------
+KUTCTime::KUTCTime(const KLocalTime& localtime)
+//-----------------------------------------------------------------------------
+: KUTCTime(localtime.ToTimeT())
+{
 }
 
 } // end of namespace dekaf2

@@ -1578,7 +1578,8 @@ private:
 	void  InvalidateConnectHash () const { m_iConnectHash = 0; }
 	void  FormatConnectSummary () const;
 	void  InvalidateConnectSummary () const { m_sConnectSummary.clear(); InvalidateConnectHash(); }
-	bool  PreparedToRetry (uint32_t iErrorNum);
+	/// modifies sError if connection was lost due to a connection kill request, else retains old message
+	bool  PreparedToRetry (uint32_t iErrorNum, KString* sError = nullptr);
 
     #ifdef DEKAF2_HAS_ORACLE
 	bool  WasOCICallOK    (KStringView sContext, uint32_t iErrorNum, KStringRef& sError);

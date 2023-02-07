@@ -2140,7 +2140,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 		if (!bOK)
 		{
-			if (!(iRetriesLeft--) || !PreparedToRetry(iErrorNum))
+			if (!(iRetriesLeft--) || !PreparedToRetry(iErrorNum, &sError))
 			{
 				iRetriesLeft = 0; // stop looping
 			}
@@ -2228,7 +2228,7 @@ void KSQL::LogPerformance (uint64_t iMilliseconds, bool bIsQuery)
 } // LogPerformance
 
 //-----------------------------------------------------------------------------
-bool KSQL::PreparedToRetry (uint32_t iErrorNum)
+bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError)
 //-----------------------------------------------------------------------------
 {
 	// Note: this is called every time m_sLastError and m_iLastErrorNum have
@@ -2241,6 +2241,13 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum)
 		// make sure all state is correctly reset
 		CloseConnection();
 		OpenConnection(m_iConnectTimeoutSecs);
+
+		if (sError)
+		{
+			// notify our caller that this connection was canceled on demand
+			*sError = "connection was canceled on demand";
+		}
+
 		return false;
 	}
 

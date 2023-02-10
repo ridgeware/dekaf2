@@ -43,48 +43,83 @@
 /// @file kformat.h
 /// provides basic string formatter functionality
 
-#include <ostream>
+#include "bits/kcppcompat.h"
+
+#undef DEKAF2_HAS_STD_FORMAT
+#undef DEKAF2_FORMAT_NAMESPACE
+
+#ifndef DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT
+	#if defined(DEKAF2_HAS_CPP_20)
+		#if DEKAF2_HAS_INCLUDE(<format>)
+			#include <format>
+			#if defined(__cpp_lib_format)
+				#define DEKAF2_HAS_STD_FORMAT 1
+			#endif
+		#endif
+	#endif
+#endif
+
 #include "kstringview.h"
-#include <fmt/core.h>
-#include <fmt/printf.h>
-#include <fmt/chrono.h>
+#ifdef DEKAF2_HAS_STD_FORMAT
+	#define DEKAF2_FORMAT_NAMESPACE std
+#else
+	#define DEKAF2_FORMAT_NAMESPACE fmt
+	#include <fmt/core.h>
+	#include <fmt/printf.h>
+	#include <fmt/chrono.h>
+#endif
+#include <ostream>
 
 namespace dekaf2 {
+
+namespace format = DEKAF2_FORMAT_NAMESPACE;
 
 namespace detail {
 
 DEKAF2_PUBLIC
-std::ostream& kfFormat(std::ostream& os, KStringView sFormat, fmt::format_args args);
-DEKAF2_PUBLIC
-KString kFormat(KStringView sFormat, fmt::format_args args);
+KString kFormat(KStringView sFormat, format::format_args args) noexcept;
 
 } // end of namespace detail
 
 
 
 //-----------------------------------------------------------------------------
-/// format no-op for std::ostream
-inline DEKAF2_PUBLIC
-std::ostream& kfFormat(std::ostream& os, KStringView sFormat)
+/// format no-op for std::FILE*
+DEKAF2_PUBLIC
+bool kPrint(std::FILE* fp, KStringView sFormat) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// formats a std::FILE* using Python syntax
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+bool kPrint(std::FILE* fp, KStringView sFormat, Args&&... args) noexcept
 //-----------------------------------------------------------------------------
 {
-	os.write(sFormat.data(), sFormat.size());
-	return os;
+	return kPrint(fp, kFormat(sFormat, std::forward<Args>(args)...));
+}
+
+//-----------------------------------------------------------------------------
+/// format no-op for std::ostream
+inline DEKAF2_PUBLIC
+std::ostream& kPrint(std::ostream& os, KStringView sFormat) noexcept
+//-----------------------------------------------------------------------------
+{
+	return os.write(sFormat.data(), sFormat.size());
 }
 
 //-----------------------------------------------------------------------------
 /// formats a std::ostream using Python syntax
 template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
-std::ostream& kfFormat(std::ostream& os, KStringView sFormat, Args&&... args)
+std::ostream& kPrint(std::ostream& os, KStringView sFormat, Args&&... args) noexcept
 //-----------------------------------------------------------------------------
 {
-	return detail::kfFormat(os, sFormat, fmt::make_format_args(args...));
+	return kPrint(os, kFormat(sFormat, std::forward<Args>(args)...));
 }
 
 //-----------------------------------------------------------------------------
 /// format no-op
 inline DEKAF2_PUBLIC
-KString kFormat(KStringView sFormat)
+KString kFormat(KStringView sFormat) noexcept
 //-----------------------------------------------------------------------------
 {
 	return sFormat;
@@ -93,10 +128,10 @@ KString kFormat(KStringView sFormat)
 //-----------------------------------------------------------------------------
 /// formats a KString using Python syntax
 template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
-KString kFormat(KStringView sFormat, Args&&... args)
+KString kFormat(KStringView sFormat, Args&&... args) noexcept
 //-----------------------------------------------------------------------------
 {
-	return detail::kFormat(sFormat, fmt::make_format_args(args...));
+	return detail::kFormat(sFormat, format::make_format_args(args...));
 }
 
 } // end of namespace dekaf2

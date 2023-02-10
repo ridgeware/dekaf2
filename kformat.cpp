@@ -39,55 +39,45 @@
 */
 
 #include "kformat.h"
+#include "kwriter.h"
 #include "kstring.h"
-#include "koutstringstream.h"
-#include "bits/kcppcompat.h"
-#include <fmt/ostream.h>
-#include <fmt/printf.h>
 #include "klog.h"
 
-namespace fmt {
-	template<>
-	struct is_contiguous<dekaf2::KString> : std::true_type {};
-}
+#ifndef DEKAF2_HAS_STD_FORMAT
+template<>
+struct dekaf2::format::is_contiguous<dekaf2::KString> : std::true_type {};
+#endif
 
 namespace dekaf2 {
+
+//-----------------------------------------------------------------------------
+/// format no-op for std::FILE*
+DEKAF2_PUBLIC
+bool kPrint(std::FILE* fp, KStringView sFormat) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kWriteToFilePtr(fp, sFormat.data(), sFormat.size()) == sFormat.size();
+}
 
 namespace detail {
 
 //-----------------------------------------------------------------------------
-/// formats a std::ostream using Python syntax
-std::ostream& kfFormat(std::ostream& os, KStringView sFormat, fmt::format_args args)
-//-----------------------------------------------------------------------------
-{
-	DEKAF2_TRY
-	{
-		fmt::vprint(os, sFormat.operator fmt::string_view(), args);
-	}
-	DEKAF2_CATCH (std::exception& e)
-	{
-		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h",
-						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));
-	}
-	return os;
-
-} // kfFormat
-
-//-----------------------------------------------------------------------------
 /// formats a KString using Python syntax
-KString kFormat(KStringView sFormat, fmt::format_args args)
+KString kFormat(KStringView sFormat, format::format_args args) noexcept
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
+
 	DEKAF2_TRY
 	{
-		fmt::vformat_to(std::back_inserter(sOut), sFormat.operator fmt::string_view(), args);
+		format::vformat_to(std::back_inserter(sOut), sFormat.operator format::string_view(), args);
 	}
 	DEKAF2_CATCH (std::exception& e)
 	{
 		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h",
 						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));
 	}
+
 	return sOut;
 
 } // kFormat

@@ -177,7 +177,7 @@ public:
 	self_type& Format(Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
-		kfFormat(*this, std::forward<Args>(args)...);
+		kPrint(*this, std::forward<Args>(args)...);
 		return *this;
 	}
 
@@ -188,7 +188,7 @@ public:
 	self_type& FormatLine(Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
-		kfFormat(*this, std::forward<Args>(args)...);
+		kPrint(*this, std::forward<Args>(args)...);
 		return WriteLine();
 	}
 

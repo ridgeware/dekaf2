@@ -58,6 +58,10 @@ namespace dekaf2
 DEKAF2_PUBLIC
 std::size_t kWriteToFileDesc(int fd, const void* sBuffer, std::size_t iCount);
 
+/// Writes iCount chars from sBuffer into FILE*, signal safe
+DEKAF2_PUBLIC
+std::size_t kWriteToFilePtr(FILE* fp, const void* sBuffer, std::size_t iCount);
+
 class KInStream; // fwd decl
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

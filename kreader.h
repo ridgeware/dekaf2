@@ -142,6 +142,10 @@ bool kRewind(std::istream& Stream);
 DEKAF2_PUBLIC
 std::size_t kReadFromFileDesc(int fd, void* sBuffer, std::size_t iCount);
 
+/// Reads iCount chars from FILE* into sBuffer, even on growing pipes or other unseekable inputs
+DEKAF2_PUBLIC
+std::size_t kReadFromFilePtr(FILE* fp, void* sBuffer, std::size_t iCount);
+
 // forward declaration for Read(KOutStream&)
 class KOutStream;
 

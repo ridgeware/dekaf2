@@ -644,7 +644,7 @@ std::size_t kReadFromFileDesc(int fd, void* sBuffer, std::size_t iCount)
 			if (errno != EINTR)
 			{
 				// else we got another error
-				kDebug(1, "cannot read from file desc: {}", strerror(errno));
+				kDebug(1, "cannot read from file: {}", strerror(errno));
 				// invalidate return, we did not fullfill our contract
 				iTotal = 0;
 				break;
@@ -655,6 +655,44 @@ std::size_t kReadFromFileDesc(int fd, void* sBuffer, std::size_t iCount)
 	return iTotal;
 
 } // kReadFromFileDesc
+
+//-----------------------------------------------------------------------------
+std::size_t kReadFromFilePtr(FILE* fp, void* sBuffer, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	if (!fp)
+	{
+		kDebug(1, "no file descriptor");
+		return 0;
+	}
+
+	std::size_t iRead;
+
+	do
+	{
+		iRead = std::fread(sBuffer, 1, iCount, fp);
+	}
+	while (iRead == 0 && errno == EINTR);
+
+	// we use these readers and writers in pipes and shells
+	// which may die and generate a SIGCHLD, which interrupts
+	// file reads and writes..
+	// see https://stackoverflow.com/a/53245808 for a discussion of
+	// possible behavior
+
+	if (iRead == 0)
+	{
+		kDebug(1, "cannot read from file: {}", strerror(errno));
+	}
+	else if (iRead < iCount)
+	{
+		// do some logging
+		kDebug(1, "could only read {} bytes instead of {} from file: {}", iRead, iCount, strerror(errno));
+	}
+
+	return iRead;
+
+} // kReadFromFilePtr
 
 //-----------------------------------------------------------------------------
 KInStream::const_kreader_line_iterator::const_kreader_line_iterator(base_iterator& it, bool bToEnd)

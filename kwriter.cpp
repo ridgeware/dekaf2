@@ -84,14 +84,14 @@ std::size_t kWriteToFileDesc(int fd, const void* sBuffer, std::size_t iCount)
 
 	if (iWrote < 0)
 	{
-		kDebug(1, "cannot write to file desc: {}", strerror(errno));
+		kDebug(1, "cannot write to file: {}", strerror(errno));
 
 		return 0;
 	}
 	else if (static_cast<std::size_t>(iWrote) != iCount)
 	{
 		// do some logging
-		kDebug(1, "could only write {} bytes instead of {} to file desc: {}", iWrote, iCount, strerror(errno));
+		kDebug(1, "could only write {} bytes instead of {} to file: {}", iWrote, iCount, strerror(errno));
 	}
 
 	return iWrote;
@@ -135,7 +135,7 @@ std::size_t kWriteToFileDesc(int fd, const void* sBuffer, std::size_t iCount)
 			if (errno != EINTR)
 			{
 				// else we got another error
-				kDebug(1, "cannot write to file desc: {}", strerror(errno));
+				kDebug(1, "cannot write to file: {}", strerror(errno));
 				// invalidate return, we did not fullfill our contract
 				return 0;
 			}
@@ -145,7 +145,7 @@ std::size_t kWriteToFileDesc(int fd, const void* sBuffer, std::size_t iCount)
 	if (static_cast<std::size_t>(iTotal) != iCount)
 	{
 		// do some logging
-		kDebug(1, "could only write {} bytes instead of {} to file desc: {}", iTotal, iCount, strerror(errno));
+		kDebug(1, "could only write {} bytes instead of {} to file: {}", iTotal, iCount, strerror(errno));
 	}
 
 	return iTotal;
@@ -153,6 +153,44 @@ std::size_t kWriteToFileDesc(int fd, const void* sBuffer, std::size_t iCount)
 #endif
 
 } // kWriteToFileDesc
+
+//-----------------------------------------------------------------------------
+std::size_t kWriteToFilePtr(FILE* fp, const void* sBuffer, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	if (!fp)
+	{
+		kDebug(1, "no file descriptor");
+		return 0;
+	}
+
+	std::size_t iWrote { 0 };
+
+	do
+	{
+		iWrote = std::fwrite(sBuffer, 1, iCount, fp);
+	}
+	while (iWrote == 0 && errno == EINTR);
+	
+	// we use these readers and writers in pipes and shells
+	// which may die and generate a SIGCHLD, which interrupts
+	// file reads and writes..
+	// see https://stackoverflow.com/a/53245808 for a discussion of
+	// possible behavior
+
+	if (iWrote == 0)
+	{
+		kDebug(1, "cannot write to file: {}", strerror(errno));
+	}
+	else if (iWrote < iCount)
+	{
+		// do some logging
+		kDebug(1, "could only write {} bytes instead of {} to file: {}", iWrote, iCount, strerror(errno));
+	}
+
+	return iWrote;
+
+} // kWriteToFilePtr
 
 //-----------------------------------------------------------------------------
 /// Write a character. Returns stream reference that resolves to false on failure

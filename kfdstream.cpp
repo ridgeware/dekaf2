@@ -41,9 +41,7 @@
 
 
 #include "kfdstream.h"
-#include "kreader.h"
 #include "klog.h"
-#include <sys/stat.h>
 
 #ifdef DEKAF2_IS_WINDOWS
 	#include <io.h>
@@ -66,7 +64,7 @@ std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* file
 
 	int fd = *static_cast<int*>(filedesc);
 
-	return kReadFromFileDesc(fd, sBuffer, iCount);
+	return static_cast<std::streamsize>(kReadFromFileDesc(fd, sBuffer, static_cast<size_t>(iCount)));
 
 } // FileDescReader
 
@@ -82,7 +80,7 @@ std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void
 
 	int fd = *static_cast<int*>(filedesc);
 
-	return kWriteToFileDesc(fd, sBuffer, iCount);
+	return static_cast<std::streamsize>(kWriteToFileDesc(fd, sBuffer, static_cast<size_t>(iCount)));
 
 } // FileDescWriter
 
@@ -90,31 +88,14 @@ std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void
 std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* fileptr)
 //-----------------------------------------------------------------------------
 {
-	std::streamsize iRead { 0 };
-
-	if (fileptr)
+	if (DEKAF2_UNLIKELY(fileptr == nullptr))
 	{
-		FILE** fp = static_cast<FILE**>(fileptr);
-		if (fp && *fp)
-		{
-			do
-			{
-				iRead = static_cast<std::streamsize>(std::fread(sBuffer, 1, static_cast<size_t>(iCount), *fp));
-			}
-			while (iRead == -1 && errno == EINTR);
-			// we use these readers and writers in pipes and shells
-			// which may die and generate a SIGCHLD, which interrupts
-			// file reads and writes..
-
-			if (iRead < 0)
-			{
-				// do some logging
-				kWarning("cannot read from file: {}", strerror(errno));
-			}
-		}
+		return 0;
 	}
 
-	return iRead;
+	FILE** fp = static_cast<FILE**>(fileptr);
+
+	return static_cast<std::streamsize>(kReadFromFilePtr(*fp, sBuffer, static_cast<size_t>(iCount)));
 
 } // FilePtrReader
 
@@ -122,31 +103,14 @@ std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* filep
 std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr)
 //-----------------------------------------------------------------------------
 {
-	std::streamsize iWrote { 0 };
-
-	if (fileptr)
+	if (DEKAF2_UNLIKELY(fileptr == nullptr))
 	{
-		FILE** fp = static_cast<FILE**>(fileptr);
-		if (fp && *fp)
-		{
-			do
-			{
-				iWrote = static_cast<std::streamsize>(std::fwrite(sBuffer, 1, static_cast<size_t>(iCount), *fp));
-			}
-			while (iWrote == -1 && errno == EINTR);
-			// we use these readers and writers in pipes and shells
-			// which may die and generate a SIGCHLD, which interrupts
-			// file reads and writes..
-
-			if (iWrote != iCount)
-			{
-				// do some logging
-				kWarning("cannot write to file: {}", strerror(errno));
-			}
-		}
+		return 0;
 	}
 
-	return iWrote;
+	FILE** fp = static_cast<FILE**>(fileptr);
+
+	return static_cast<std::streamsize>(kWriteToFilePtr(*fp, sBuffer, static_cast<size_t>(iCount)));
 
 } // FilePtrWriter
 
@@ -176,6 +140,7 @@ void KInputFDStream::close()
 		{
 			kWarning("Cannot close file: {}", strerror(errno));
 		}
+
 		m_FileDesc = -1;
 	}
 
@@ -204,6 +169,7 @@ void KInputFPStream::close()
 		{
 			kWarning("Cannot close file: {}", strerror(errno));
 		}
+
 		m_FilePtr = nullptr;
 	}
 
@@ -229,10 +195,12 @@ void KOutputFDStream::close()
 	if (m_FileDesc >= 0)
 	{
 		base_type::flush();
+
 		if (::close(m_FileDesc))
 		{
 			kWarning("Cannot close file: {}", strerror(errno));
 		}
+
 		m_FileDesc = -1;
 	}
 
@@ -258,10 +226,12 @@ void KOutputFPStream::close()
 	if (m_FilePtr != nullptr)
 	{
 		base_type::flush();
+
 		if (::fclose(m_FilePtr))
 		{
 			kWarning("Cannot close file: {}", strerror(errno));
 		}
+
 		m_FilePtr = nullptr;
 	}
 

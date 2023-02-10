@@ -41,12 +41,12 @@
 
 #pragma once
 
-#include <cstdio>
-#include <streambuf>
-#include <istream>
-#include <type_traits>
 #include "kstream.h"
 #include "kstreambuf.h"
+#include <cstdio>
+#include <streambuf>
+#include <iostream>
+#include <type_traits>
 
 
 namespace dekaf2 {

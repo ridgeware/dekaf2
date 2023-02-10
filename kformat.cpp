@@ -42,6 +42,7 @@
 #include "kwriter.h"
 #include "kstring.h"
 #include "klog.h"
+#include <cstdio>
 
 #ifndef DEKAF2_HAS_STD_FORMAT
 template<>
@@ -51,12 +52,49 @@ struct dekaf2::format::is_contiguous<dekaf2::KString> : std::true_type {};
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
+/// format no-op for filedesc
+bool kPrint(int fd, KStringView sFormat) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kWriteToFileDesc(fd, sFormat.data(), sFormat.size()) == sFormat.size();
+}
+
+//-----------------------------------------------------------------------------
+/// format no-op for filedesc
+bool kPrintLine(int fd, KStringView sFormat) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrint(fd, sFormat) && kPrint(fd, "\n");
+}
+
+//-----------------------------------------------------------------------------
 /// format no-op for std::FILE*
-DEKAF2_PUBLIC
 bool kPrint(std::FILE* fp, KStringView sFormat) noexcept
 //-----------------------------------------------------------------------------
 {
 	return kWriteToFilePtr(fp, sFormat.data(), sFormat.size()) == sFormat.size();
+}
+
+//-----------------------------------------------------------------------------
+/// format no-op for std::FILE*
+bool kPrintLine(std::FILE* fp, KStringView sFormat) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrint(fp, sFormat) && kPrint(fp, "\n");
+}
+
+//-----------------------------------------------------------------------------
+bool kPrint(KStringView sFormat) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrint(stdout, sFormat);
+}
+
+//-----------------------------------------------------------------------------
+bool kPrintLine(KStringView sFormat) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrintLine(stdout, sFormat);
 }
 
 namespace detail {

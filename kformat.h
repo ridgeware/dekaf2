@@ -81,42 +81,8 @@ KString kFormat(KStringView sFormat, format::format_args args) noexcept;
 
 } // end of namespace detail
 
-
-
 //-----------------------------------------------------------------------------
-/// format no-op for std::FILE*
-DEKAF2_PUBLIC
-bool kPrint(std::FILE* fp, KStringView sFormat) noexcept;
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// formats a std::FILE* using Python syntax
-template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
-bool kPrint(std::FILE* fp, KStringView sFormat, Args&&... args) noexcept
-//-----------------------------------------------------------------------------
-{
-	return kPrint(fp, kFormat(sFormat, std::forward<Args>(args)...));
-}
-
-//-----------------------------------------------------------------------------
-/// format no-op for std::ostream
-inline DEKAF2_PUBLIC
-std::ostream& kPrint(std::ostream& os, KStringView sFormat) noexcept
-//-----------------------------------------------------------------------------
-{
-	return os.write(sFormat.data(), sFormat.size());
-}
-
-//-----------------------------------------------------------------------------
-/// formats a std::ostream using Python syntax
-template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
-std::ostream& kPrint(std::ostream& os, KStringView sFormat, Args&&... args) noexcept
-//-----------------------------------------------------------------------------
-{
-	return kPrint(os, kFormat(sFormat, std::forward<Args>(args)...));
-}
-
-//-----------------------------------------------------------------------------
+// C++20
 /// format no-op
 inline DEKAF2_PUBLIC
 KString kFormat(KStringView sFormat) noexcept
@@ -126,12 +92,153 @@ KString kFormat(KStringView sFormat) noexcept
 }
 
 //-----------------------------------------------------------------------------
+// C++20
 /// formats a KString using Python syntax
 template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
 KString kFormat(KStringView sFormat, Args&&... args) noexcept
 //-----------------------------------------------------------------------------
 {
 	return detail::kFormat(sFormat, format::make_format_args(args...));
+}
+
+//-----------------------------------------------------------------------------
+// C++23
+/// format no-op to stdout
+bool kPrint(KStringView sFormat) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// C++23
+/// formats to stdout using Python syntax
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+bool kPrint(KStringView sFormat, Args&&... args) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrint(kFormat(sFormat, std::forward<Args>(args)...));
+}
+
+//-----------------------------------------------------------------------------
+// C++23
+/// format no-op to stdout, with newline
+bool kPrintLine(KStringView sFormat) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// C++23
+/// formats to stdout using Python syntax
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+bool kPrintLine(KStringView sFormat, Args&&... args) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrintLine(kFormat(sFormat, std::forward<Args>(args)...));
+}
+
+//-----------------------------------------------------------------------------
+// C++23
+/// format no-op for std::FILE*
+DEKAF2_PUBLIC
+bool kPrint(std::FILE* fp, KStringView sFormat) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// C++23
+/// formats a std::FILE* using Python syntax
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+bool kPrint(std::FILE* fp, KStringView sFormat, Args&&... args) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrint(fp, kFormat(sFormat, std::forward<Args>(args)...));
+}
+
+//-----------------------------------------------------------------------------
+// C++23
+/// format no-op for std::FILE*
+DEKAF2_PUBLIC
+bool kPrintLine(std::FILE* fp, KStringView sFormat) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// C++23
+/// formats a std::FILE* using Python syntax
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+bool kPrintLine(std::FILE* fp, KStringView sFormat, Args&&... args) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrintLine(fp, kFormat(sFormat, std::forward<Args>(args)...));
+}
+
+//-----------------------------------------------------------------------------
+// C++23
+/// format no-op for filedesc
+DEKAF2_PUBLIC
+bool kPrint(int fd, KStringView sFormat) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// C++23
+/// formats a filedesc using Python syntax
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+bool kPrint(int fd, KStringView sFormat, Args&&... args) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrint(fd, kFormat(sFormat, std::forward<Args>(args)...));
+}
+
+//-----------------------------------------------------------------------------
+// C++23
+/// format no-op for filedesc
+DEKAF2_PUBLIC
+bool kPrintLine(int fd, KStringView sFormat) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// C++23
+/// formats a filedesc using Python syntax
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+bool kPrintLine(int fd, KStringView sFormat, Args&&... args) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrintLine(fd, kFormat(sFormat, std::forward<Args>(args)...));
+}
+
+//-----------------------------------------------------------------------------
+// C++23
+/// format no-op for std::ostream
+inline DEKAF2_PUBLIC
+std::ostream& kPrint(std::ostream& os, KStringView sFormat) noexcept
+//-----------------------------------------------------------------------------
+{
+	return os.write(sFormat.data(), sFormat.size());
+}
+
+//-----------------------------------------------------------------------------
+// C++23
+/// formats a std::ostream using Python syntax
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+std::ostream& kPrint(std::ostream& os, KStringView sFormat, Args&&... args) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrint(os, kFormat(sFormat, std::forward<Args>(args)...));
+}
+
+//-----------------------------------------------------------------------------
+// C++23
+/// format no-op for std::ostream
+inline DEKAF2_PUBLIC
+std::ostream& kPrintLine(std::ostream& os, KStringView sFormat) noexcept
+//-----------------------------------------------------------------------------
+{
+	return os.write(sFormat.data(), sFormat.size()).write("\n", 1);
+}
+
+//-----------------------------------------------------------------------------
+// C++23
+/// formats a std::ostream using Python syntax
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+std::ostream& kPrintLine(std::ostream& os, KStringView sFormat, Args&&... args) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrintLine(os, kFormat(sFormat, std::forward<Args>(args)...));
 }
 
 } // end of namespace dekaf2

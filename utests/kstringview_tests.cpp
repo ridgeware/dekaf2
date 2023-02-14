@@ -5,6 +5,7 @@
 #include <dekaf2/kprops.h>
 #include <dekaf2/bits/kcppcompat.h>
 #include <vector>
+#include <list>
 
 using namespace dekaf2;
 

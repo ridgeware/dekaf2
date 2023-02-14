@@ -66,6 +66,7 @@
 #include <cstddef>
 #include "kfindfirstof.h"
 #include "../kcppcompat.h"
+#include "../../kbit.h"
 
 namespace dekaf2 {
 namespace detail {
@@ -195,46 +196,6 @@ std::size_t kFindLastNotOf(KStringView haystack, KStringView needles)
 namespace dekaf2 {
 namespace detail {
 namespace sse    {
-
-//-----------------------------------------------------------------------------
-DEKAF2_ALWAYS_INLINE
-std::size_t portableCLZ(uint32_t value)
-//-----------------------------------------------------------------------------
-{
-	if (!value)
-	{
-		return 8 * sizeof(value);
-	}
-#ifdef __GNUC__
-	return static_cast<std::size_t>(__builtin_clz(value));
-#elif _MSC_VER
-	unsigned long clz;
-	_BitScanReverse(&clz, value);
-	return (8 * sizeof(value) - 1) - static_cast<std::size_t>(clz);
-#else
-	static_assert(false, "portableCLZ: compiler not supported")
-#endif
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_ALWAYS_INLINE
-std::size_t portableCTZ(uint32_t value)
-//-----------------------------------------------------------------------------
-{
-	if (!value)
-	{
-		return 8 * sizeof(value);
-	}
-#ifdef __GNUC__
-	return static_cast<std::size_t>(__builtin_ctz(value));
-#elif _MSC_VER
-	unsigned long ctz;
-	_BitScanForward(&ctz, value);
-	return static_cast<std::size_t>(ctz);
-#else
-	static_assert(false, "portableCTZ: compiler not supported")
-#endif
-}
 
 //-----------------------------------------------------------------------------
 DEKAF2_ALWAYS_INLINE
@@ -566,11 +527,10 @@ std::size_t scanHaystackBlockNot(KStringView haystack,
 
 	// What this does is find the first 0, which means
 	// we need to count trailing 1's
-	// GCC only provides counting trailing (or leading) 0's
 
-	auto b = portableCTZ(~val);
+	auto b = kBitCountRightOne(val);
 
-	if (b < useSize)
+	if (static_cast<std::size_t>(b) < useSize)
 	{
 		return blockStartIdx + b;
 	}
@@ -689,20 +649,19 @@ std::size_t reverseScanHaystackBlockNot(KStringView haystack,
 
 	// What this does is find the last 0, which means
 	// we need to count leading 1's
-	// GCC only provides counting leading (or trailing) 0's
 
-	val = ~val; // Invert bits
+	val = ~val; // Invert bits, and do it before the shifts below
 
 	if (useSize != 16)
 	{
-		// If we are NOT looking at a full 16 chars, we have some erroneous leading 1's
+		// If we are NOT looking at a full 16 chars we have some erroneous leading 0's
 		val = val << (16 - useSize);
 		val = val >> (16 - useSize);
 	}
 
-	auto b = 32 - (portableCLZ(val) + 1); // CLZ + 1 will be the last thing that was a 0
+	auto b = 16 - (kBitCountLeftZero(val) + 1); // CLZ + 1 will be the last thing that was a 0
 
-	if (b < useSize) // b can only be valid if the index is within the haystack
+	if (static_cast<std::size_t>(b) < useSize) // b can only be valid if the index is within the haystack
 	{
 		return blockStartIdx + static_cast<std::size_t>(b);
 	}

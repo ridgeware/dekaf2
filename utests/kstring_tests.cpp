@@ -2,15 +2,16 @@
 
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringutils.h>
-#include <vector>
-#include <iostream>
-#include <cctype>
-#include <cwctype>
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/kctype.h>
 #include <dekaf2/kprops.h>
 #include <dekaf2/kstack.h>
 #include <dekaf2/ksystem.h>
+#include <vector>
+#include <list>
+#include <iostream>
+#include <cctype>
+#include <cwctype>
 
 using namespace dekaf2;
 
@@ -1913,4 +1914,3 @@ TEST_CASE("KString") {
 		CHECK ( KString("abcæå").AtUTF8(5) == Unicode::INVALID_CODEPOINT );
 	}
 }
-

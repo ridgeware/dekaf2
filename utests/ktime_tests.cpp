@@ -172,27 +172,27 @@ TEST_CASE("KTime") {
 
 		UTC2 += std::chrono::minutes(34);
 		CHECK ( UTC2.Format()       == "1974-01-01 00:33:59" );
-		UTC2 += std::chrono::seconds(1 * 60 * 60 * 24 * 365);
+		UTC2 += std::chrono::seconds(1 * 60 * 60 * 24 * 365UL);
 		CHECK ( UTC2.Format()       == "1975-01-01 00:33:59" );
-#ifdef DEKAF2_HAS_CPP_20
+#ifdef DEKAF2_HAS_CHRONO_WEEKDAY
 		UTC2 += std::chrono::days(365);
 #else
-		UTC2 += std::chrono::seconds(1 * 60 * 60 * 24 * 365);
+		UTC2 += std::chrono::seconds(1 * 60 * 60 * 24 * 365UL);
 #endif
 		CHECK ( UTC2.Format()       == "1976-01-01 00:33:59" );
-#ifdef DEKAF2_HAS_CPP_20
+#ifdef DEKAF2_HAS_CHRONO_WEEKDAY
 		UTC2 += std::chrono::days(70 * 365);
 #else
-		UTC2 += std::chrono::seconds(70 * 60 * 60 * 24 * 365);
+		UTC2 += std::chrono::seconds(70 * 60 * 60 * 24 * 365UL);
 #endif
 		CHECK ( UTC2.Format()       == "2045-12-14 00:33:59" );
-#ifdef DEKAF2_HAS_CPP_20
+#ifdef DEKAF2_HAS_CHRONO_WEEKDAY
 		UTC2 -= std::chrono::days(70 * 365);
 #else
-		UTC2 -= std::chrono::seconds(70 * 60 * 60 * 24 * 365);
+		UTC2 -= std::chrono::seconds(70 * 60 * 60 * 24 * 365UL);
 #endif
 		CHECK ( UTC2.Format()       == "1976-01-01 00:33:59" );
-		UTC2 += time_t(1 * 60 * 60 * 24 * 365);
+		UTC2 += time_t(1 * 60 * 60 * 24 * 365UL);
 		CHECK ( UTC2.Format()       == "1976-12-31 00:33:59" );
 		UTC2 += KDuration(std::chrono::seconds(2));
 		CHECK ( UTC2.Format()       == "1976-12-31 00:34:01" );

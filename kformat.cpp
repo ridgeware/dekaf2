@@ -45,8 +45,10 @@
 #include <cstdio>
 
 #ifndef DEKAF2_HAS_STD_FORMAT
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 template<>
 struct dekaf2::format::is_contiguous<dekaf2::KString> : std::true_type {};
+#endif
 #endif
 
 namespace dekaf2 {
@@ -108,7 +110,11 @@ KString kFormat(KStringView sFormat, format::format_args args) noexcept
 
 	DEKAF2_TRY
 	{
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 		format::vformat_to(std::back_inserter(sOut), sFormat.operator format::string_view(), args);
+#else
+		sOut = vformat(sFormat.operator format::string_view(), args);
+#endif
 	}
 	DEKAF2_CATCH (std::exception& e)
 	{

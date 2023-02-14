@@ -51,6 +51,7 @@
 /// generalized implementation of the C++20/23 bit functions
 
 #include "bits/kcppcompat.h"
+#include "kcrashexit.h"
 #include <type_traits>
 #if DEKAF2_HAS_INCLUDE(<bit>)
 	#include <bit>
@@ -581,7 +582,7 @@ kBitCeil(T iValue) noexcept
 	}
 
 	const uint16_t iBinaryDigits = std::numeric_limits<T>::digits - kBitCountLeftZero(static_cast<T>(iValue - 1u));
-	assert(iBinaryDigits != std::numeric_limits<T>::digits);
+	kAssert(iBinaryDigits != std::numeric_limits<T>::digits, "number too large for type");
 
 	if (sizeof(T) >= sizeof(unsigned))
 	{

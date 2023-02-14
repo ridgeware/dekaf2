@@ -366,9 +366,9 @@ namespace dekaf2 {
 #else
 	#error "unsupported maximum pointer type"
 #endif
-	static constexpr bool kIs16Bits() { return KiBits == 16; }
-	static constexpr bool kIs32Bits() { return KiBits == 32; }
-	static constexpr bool kIs64Bits() { return KiBits == 64; }
+	static constexpr bool kIs16Bits() noexcept { return KiBits == 16; }
+	static constexpr bool kIs32Bits() noexcept { return KiBits == 32; }
+	static constexpr bool kIs64Bits() noexcept { return KiBits == 64; }
 } // end of namespace dekaf2
 
 // prepare for the shared_mutex enabler below - this has to go into
@@ -499,108 +499,9 @@ namespace std
 	#define DEKAF2_NEVER_INLINE
 #endif
 
-#if defined(__BYTE_ORDER__)
-	// we can use the preprocessor defines, which is constant
-	#define DEKAF2_LE_BE_CONSTEXPR constexpr
-#elif DEKAF_HAS_CPP_20
-	// we can use the std::endian enum, which is constant
-	#define DEKAF2_LE_BE_CONSTEXPR constexpr
-	#include <bit>
-#elif !DEKAF_NO_GCC && DEKAF2_GCC_VERSION >= 50000 && DEKAF2_HAS_CPP_11
-	// this causes an error message in clang, gcc >= 5 takes it
-	#define DEKAF2_LE_BE_CONSTEXPR constexpr
-#else
-	// older gcc versions and newer clang do not compile the constexpr
-	#define DEKAF2_LE_BE_CONSTEXPR inline
-#endif
-
-namespace dekaf2
-{
-
-DEKAF2_LE_BE_CONSTEXPR bool kIsBigEndian()
-{
-#if defined(__BYTE_ORDER__)
-	return __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__;
-#elif DEKAF_HAS_CPP_20
-	return std::endian::native == std::endian::big;
-#else
-	union endian_t
-	{
-		const uint32_t i;
-		const unsigned char ch[4];
-	};
-	const endian_t endian{0x01020304};
-	return endian.ch[0] == 1;
-#endif
-}
-
-DEKAF2_LE_BE_CONSTEXPR bool kIsLittleEndian()
-{
-	// this is theoretically wrong, as there may be other
-	// byte orders than big or little, but we ignore that
-	// until DEC resurrects.. and as dekaf2's home is at
-	// the former DEC headquarter building we should notice!
-	return !kIsBigEndian();
-}
-
-template <class VALUE>
-DEKAF2_LE_BE_CONSTEXPR void kSwapBytes(VALUE& value)
-{
-	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
-	std::size_t len = sizeof(VALUE);
-	if (DEKAF2_LIKELY(len > 1))
-	{
-		uint8_t* cp = (uint8_t*)&value;
-		for (std::size_t i = 0, e = len-1, lc = len/2; i < lc; ++i, --e)
-		{
-			std::swap(cp[i], cp[e]);
-		}
-	}
-}
-
-template <class VALUE>
-DEKAF2_LE_BE_CONSTEXPR void kToBigEndian(VALUE& value)
-{
-	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
-	if (!kIsBigEndian())
-	{
-		kSwapBytes(value);
-	}
-}
-
-template <class VALUE>
-DEKAF2_LE_BE_CONSTEXPR void kToLittleEndian(VALUE& value)
-{
-	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
-	if (kIsBigEndian())
-	{
-		kSwapBytes(value);
-	}
-}
-
-template <class VALUE>
-DEKAF2_LE_BE_CONSTEXPR void kFromBigEndian(VALUE& value)
-{
-	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
-	if (!kIsBigEndian())
-	{
-		kSwapBytes(value);
-	}
-}
-
-template <class VALUE>
-DEKAF2_LE_BE_CONSTEXPR void kFromLittleEndian(VALUE& value)
-{
-	static_assert(std::is_scalar<VALUE>::value, "operation only supported for scalar type");
-	if (kIsBigEndian())
-	{
-		kSwapBytes(value);
-	}
-}
-
+namespace dekaf2 {
 // npos is used in dekaf2 as error return for unsigned return types
 static constexpr std::size_t npos = static_cast<std::size_t>(-1);
-
 } // end of namespace dekaf2
 
 #ifdef DEKAF2_IS_WINDOWS

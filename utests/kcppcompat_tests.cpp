@@ -51,44 +51,6 @@ static KString FormatEscaped(KStringView sFormat, Args&&... args)
 
 TEST_CASE("KCppCompat")
 {
-	SECTION("Endianess")
-	{
-		if (kIsLittleEndian())
-		{
-			CHECK ( kIsBigEndian() == false );
-			uint32_t iVal = 0x89abcdef;
-			uint32_t iBE  = iVal;
-			kToBigEndian(iBE);
-			CHECK ( iBE == 0xefcdab89 );
-			kToLittleEndian(iBE);
-			CHECK ( iBE == 0xefcdab89 );
-			kSwapBytes(iBE);
-			CHECK ( iBE == 0x89abcdef );
-		}
-		else
-		{
-			CHECK ( kIsBigEndian()    == true  );
-			CHECK ( kIsLittleEndian() == false );
-			uint32_t iVal = 0x89abcdef;
-			uint32_t iBE  = iVal;
-			kToLittleEndian(iBE);
-			CHECK ( iBE == 0xefcdab89 );
-			kToBigEndian(iBE);
-			CHECK ( iBE == 0xefcdab89 );
-			kSwapBytes(iBE);
-			CHECK ( iBE == 0x89abcdef );
-		}
-
-		{
-			uint8_t iVal = 0x89;
-			uint8_t iBE  = iVal;
-			kToBigEndian(iBE);
-			CHECK ( iBE == 0x89 );
-			kToLittleEndian(iBE);
-			CHECK ( iBE == 0x89 );
-		}
-	}
-
 #ifdef DEKAF2_HAS_CPP_14
 	SECTION("std::apply")
 	{

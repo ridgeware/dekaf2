@@ -656,6 +656,7 @@ set(PUBLIC_HEADERS
 	katomic_object.h
 	kbar.h
 	kbase64.h
+	kbit.h
 	kbitfields.h
 	kbufferedreader.h
 	kcache.h

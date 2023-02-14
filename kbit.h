@@ -116,12 +116,12 @@ kByteSwap(T iIntegral) noexcept
 #ifdef __cpp_lib_byteswap
 	return std::byteswap(iIntegral);
 #else
-	static_assert(std::is_integral<T>::value, "operation only supported for integral type");
 	auto len = sizeof(T);
 
 	if (DEKAF2_LIKELY(len > 1))
 	{
 		uint8_t* cp = (uint8_t*)&iIntegral;
+
 		for (std::size_t i = 0, e = len-1, lc = len/2; i < lc; ++i, --e)
 		{
 			std::swap(cp[i], cp[e]);
@@ -375,7 +375,6 @@ kRotateLeft(T iValue, unsigned int iCount) noexcept
 #ifdef DEKAF2_HAS_STD_BIT
 	return std::rotl(iValue, iCount);
 #else
-	static_assert(std::is_unsigned<T>::value, "kRotateLeft requires an unsigned integer type");
 	const unsigned int iDigits = std::numeric_limits<T>::digits;
 
 	if ((iCount % iDigits) == 0)
@@ -399,7 +398,6 @@ kRotateRight(T iValue, unsigned int iCount) noexcept
 #ifdef DEKAF2_HAS_STD_BIT
 	return std::rotr(iValue, iCount);
 #else
-	static_assert(std::is_unsigned<T>::value, "kRotateRight requires an unsigned integer type");
 	const unsigned int iDigits = std::numeric_limits<T>::digits;
 
 	if ((iCount % iDigits) == 0)
@@ -431,7 +429,8 @@ kHasSingleBit(T iValue) noexcept
 template<class T>
 // C++20
 /// Returns the number of consecutive 0 bits in the value of x, starting from the most significant bit ("left")
-constexpr int kBitCountLeftZero(T iValue) noexcept
+constexpr typename std::enable_if<std::is_unsigned<T>::value, int>::type
+kBitCountLeftZero(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_BIT
@@ -494,7 +493,8 @@ unsigned bit_log2(T iValue) noexcept
 template<class T>
 // C++20
 /// Returns the number of consecutive 0 bits in the value of x, starting from the least significant bit ("right")
-constexpr int kBitCountRightZero(T iValue) noexcept
+constexpr typename std::enable_if<std::is_unsigned<T>::value, int>::type
+kBitCountRightZero(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_BIT
@@ -537,7 +537,8 @@ constexpr int kBitCountRightZero(T iValue) noexcept
 template<class T>
 // C++20
 /// Returns the number of consecutive 1 bits in the value of x, starting from the most significant bit ("left")
-constexpr int kBitCountLeftOne(T iValue) noexcept
+constexpr typename std::enable_if<std::is_unsigned<T>::value, int>::type
+kBitCountLeftOne(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_BIT
@@ -553,7 +554,8 @@ constexpr int kBitCountLeftOne(T iValue) noexcept
 template<class T>
 // C++20
 /// Returns the number of consecutive 1 bits in the value of x, starting from the least significant bit ("right")
-constexpr int kBitCountRightOne(T iValue) noexcept
+constexpr typename std::enable_if<std::is_unsigned<T>::value, int>::type
+kBitCountRightOne(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_BIT
@@ -639,8 +641,6 @@ kBitCountOne(T iValue) noexcept
 #ifdef DEKAF2_HAS_STD_BIT
 	return std::popcount(iValue);
 #else
-	static_assert(std::is_unsigned<T>::value, "kBitCountOne requires an unsigned integer type");
-
 	if (sizeof(T) <= sizeof(unsigned int))
 	{
 		return detail::popcount(static_cast<unsigned int>(iValue));

@@ -2079,18 +2079,6 @@ KString& KString::Format(Args&&... args) &
 	return *this;
 }
 
-#ifdef DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS
-//----------------------------------------------------------------------
-/// print arguments with fmt::printf - now DEPRECATED, please use Format()!
-template<class... Args>
-KString& KString::Printf(Args&&... args)
-//----------------------------------------------------------------------
-{
-	*this = kPrintf(std::forward<Args>(args)...);
-	return *this;
-}
-#endif
-
 } // end of namespace dekaf2
 
 namespace std

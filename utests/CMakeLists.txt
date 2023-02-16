@@ -57,6 +57,7 @@ set (USOURCES
 	kinshell_tests.cpp
 	kjoin_tests.cpp
 	kjson_tests.cpp
+	kjson2_tests.cpp
 	klog_tests.cpp
 	kmessagedigest_tests.cpp
 	kmime_tests.cpp

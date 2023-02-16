@@ -44,7 +44,7 @@ cmake_minimum_required(VERSION 3.13)
 cmake_policy(SET CMP0048 NEW)
 
 # declare the project
-project(dekaf2 VERSION 2.0.20 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.21 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -885,6 +885,7 @@ set (PRECOMPILED_HEADERS
 
 set (SOURCES
 	# KEEP ALPHABETIZED
+	experimental/kjson2.cpp
 	bits/kbasepipe.cpp
 	bits/kbaseshell.cpp
 	bits/klogwriter.cpp
@@ -1288,6 +1289,7 @@ endif()
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2)
 install(FILES ksql.h DESTINATION ${dekaf2_include_dest}/dekaf2)
 install(FILES bits/ksql_dbc.h DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
+install(FILES experimental/kjson2.h DESTINATION ${dekaf2_include_dest}/dekaf2/experimental)
 if(SQLITE3_FOUND)
 	install(TARGETS ksqlite EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 	install(FILES ksqlite.h DESTINATION ${dekaf2_include_dest}/dekaf2)

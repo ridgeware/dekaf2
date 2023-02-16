@@ -439,7 +439,22 @@ const KJSON& Select (const KJSON& json, KStringView sSelector)
 	{
 		if (IsJsonPath(sSelector))
 		{
-			return json.at(KJSON::json_pointer(ToJsonPointer(sSelector)));
+			if (sSelector.find_first_of(".[") == KStringView::npos)
+			{
+				// this is a simple object key (or maybe integer), not a pointer or path
+				if (json.is_array())
+				{
+					return json.at(sSelector.UInt64());
+				}
+				else
+				{
+					return GetObjectRef(json, sSelector);
+				}
+			}
+			else
+			{
+				return json.at(KJSON::json_pointer(ToJsonPointer(sSelector)));
+			}
 		}
 		else
 		{
@@ -462,12 +477,57 @@ KJSON& Select (KJSON& json, KStringView sSelector)
 {
 	if (IsJsonPath(sSelector))
 	{
-		return json[KJSON::json_pointer(ToJsonPointer(sSelector))];
+		if (sSelector.find_first_of(".[") == KStringView::npos)
+		{
+			// this is a simple object key, not a pointer or path
+			if (json.is_array())
+			{
+				return json.at(sSelector.UInt64());
+			}
+			else
+			{
+				return json[sSelector];
+			}
+		}
+		else
+		{
+			return json[KJSON::json_pointer(ToJsonPointer(sSelector))];
+		}
 	}
 	else
 	{
 		return json[KJSON::json_pointer(sSelector)];
 	}
+
+} // Select
+
+//-----------------------------------------------------------------------------
+const KJSON& Select (const KJSON& json, std::size_t iSelector)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY
+	{
+		if (json.is_array())
+		{
+			return json.at(iSelector);
+		}
+		kDebug(1, "not an array");
+	}
+
+	DEKAF2_CATCH (const KJSON::exception& exc)
+	{
+		kDebug(1, "JSON[{:03d}]: {}", exc.id, exc.what());
+	}
+
+	return s_oEmpty;
+
+} // Select
+
+//-----------------------------------------------------------------------------
+KJSON& Select (KJSON& json, std::size_t iSelector)
+//-----------------------------------------------------------------------------
+{
+	return json.at(iSelector);
 
 } // Select
 

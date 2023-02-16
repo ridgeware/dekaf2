@@ -45,6 +45,7 @@
 #include "bits/ktemplate.h"
 #include "kprops.h"
 #include "kjson.h"
+#include "experimental/kjson2.h"
 
 namespace dekaf2 {
 
@@ -425,9 +426,20 @@ public:
 
 	KROW () = default;
 
-	KROW (KString sTablename)
+	template<typename T, typename std::enable_if<std::is_constructible<KStringView, T>::value && !std::is_same<KJSON, typename std::decay<T>::type>::value, int>::type = 0>
+	KROW (T sTablename)
 	    : m_sTablename(std::move(sTablename))
 	{
+	}
+
+	KROW (const KJSON& json)
+	{
+		operator+=(json);
+	}
+
+	KROW (const KJSON2& json)
+	{
+		operator+=(json);
 	}
 
 	using KCOLS::KCOLS;
@@ -620,14 +632,27 @@ public:
 	/// convert one row to CSV format (or just column headers):
 	KString to_csv (bool bheaders=false, CONVERSION Flags = CONVERSION::NO_CONVERSION) const;
 
-	/// append columns from another krow object
+	/// append columns from another KROW object
 	KROW& operator+=(const KROW& another);
 
-	/// append a json object with a krow
+	/// append a KJSON object to a krow
 	KROW& operator+=(const KJSON& json);
 
-	/// assign a json object from a krow
+	/// append a KJSON2 object to a krow
+	KROW& operator+=(const KJSON2& json)
+	{
+		return operator+=(json.ToKJSON());
+	}
+
+	/// assign a KJSON object to a krow
 	KROW& operator=(const KJSON& json)
+	{
+		clear();
+		return operator+=(json);
+	}
+
+	/// assign a KJSON2 object to a krow
+	KROW& operator=(const KJSON2& json)
 	{
 		clear();
 		return operator+=(json);
@@ -635,6 +660,12 @@ public:
 
 	/// Load row from a KJSON object
 	KROW& from_json(const KJSON& json)
+	{
+		return operator=(json);
+	}
+
+	/// Load row from a KJSON2 object
+	KROW& from_json(const KJSON2& json)
 	{
 		return operator=(json);
 	}

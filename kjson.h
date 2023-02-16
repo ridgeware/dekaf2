@@ -163,14 +163,14 @@ namespace kjson
 	DEKAF2_PUBLIC
 	bool GetBool(const KJSON& json, KStringView sKey) noexcept;
 
-	/// Returns an object ref for a key, never throws. Returns empty ref
+	/// Returns a const object ref for a key, never throws. Returns empty ref
 	/// for non-object values.
 	/// @param json the json input
 	/// @param sKey the key to search for
 	DEKAF2_PUBLIC
 	const KJSON& GetObjectRef (const KJSON& json, KStringView sKey) noexcept;
 
-	/// returns an object value for a key, never throws. Returns empty
+	/// returns a const object ref for a key, never throws. Returns empty
 	/// object for non-object values.
 	/// @param json the json input
 	/// @param sKey the key to search for
@@ -287,6 +287,14 @@ namespace kjson
 	/// use a path-style selector to isolate any type of value inside a JSON structure, throws on error
 	DEKAF2_PUBLIC
 	KJSON& Select (KJSON& json, KStringView sSelector);
+
+	/// use an integer selector to get an array value, never throws
+	DEKAF2_PUBLIC
+	const KJSON& Select (const KJSON& json, std::size_t iSelector);
+
+	/// use an integer selector to get an array value, throws on error
+	DEKAF2_PUBLIC
+	KJSON& Select (KJSON& json, std::size_t iSelector);
 
 	/// use a path-style selector to isolate a string inside a JSON structure, never throws
 	/// e.g. data.object.payment.sources[0].creditCard.lastFourDigits

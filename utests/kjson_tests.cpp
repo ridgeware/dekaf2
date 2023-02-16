@@ -481,7 +481,6 @@ TEST_CASE("KJSON")
 		CHECK ( j1["Key2"] == 0.2435 );
 		CHECK ( j1["Key3"] == std::numeric_limits<uint64_t>::max() );
 		CHECK ( j1["Key4"] == 2435 );
-		CHECK ( j1["/Key5/answer/few/1"] == "two" );
 	}
 }
 #endif

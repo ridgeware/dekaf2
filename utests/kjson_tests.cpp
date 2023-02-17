@@ -20,16 +20,16 @@ TEST_CASE("KJSON")
 	{
 		KJSON j1;
 		kjson::Parse(j1, R"(
-	   {
-		   "key1": "val1",
-		   "key2": "val2",
-				 "list": [1, 0, 2],
-		   "object": {
-					 "currency": "USD",
-					 "value": 42.99
-		   }
-	   }
-	   )");
+	{
+	 "key1": "val1",
+	 "key2": "val2",
+	 "list": [1, 0, 2],
+	 "object": {
+	  "currency": "USD",
+	  "value": 42.99
+	 }
+	}
+	)");
 
 		KString value;
 		value = j1["key1"];
@@ -475,12 +475,86 @@ TEST_CASE("KJSON")
 				{"everything", 42},
 				{"nothing", "naught"},
 				{"few", { "one", "two", "three"}}
-			}},
+			}}
 		};
 		CHECK ( j1["Key1"] == "Value1" );
 		CHECK ( j1["Key2"] == 0.2435 );
 		CHECK ( j1["Key3"] == std::numeric_limits<uint64_t>::max() );
 		CHECK ( j1["Key4"] == 2435 );
+	}
+
+	SECTION("Merge")
+	{
+		{
+			KJSON j1 = {
+				{"answer", {
+					{"everything", 42},
+					{"nothing", "naught"},
+					{"few", { "one", "two", "three"}}
+				}}
+			};
+			KJSON j2 = {{
+				"object", {
+					{"currency", "USD"},
+					{"value", 42.99}
+				}
+			}};
+			kjson::Merge(j1, j2);
+			CHECK (j1.dump() == R"({"answer":{"everything":42,"few":["one","two","three"],"nothing":"naught"},"object":{"currency":"USD","value":42.99}})" );
+		}
+		{
+			KJSON j1;
+			KJSON j2 = { 1, 2, 3, 4 };
+			kjson::Merge(j1, j2);
+			CHECK (j1.dump() == R"([1,2,3,4])" );
+		}
+		{
+			KJSON j1;
+			KJSON j2 = "hello world";
+			kjson::Merge(j1, j2);
+			CHECK (j1.dump() == R"("hello world")" );
+		}
+		{
+			KJSON j1;
+			KJSON j2 = 46;
+			kjson::Merge(j1, j2);
+			CHECK (j1.dump() == R"(46)" );
+		}
+		{
+			KJSON j1 = { 1, 2, 3, 4 };
+			KJSON j2 = { 5, 6, 7, 8 };
+			kjson::Merge(j1, j2);
+			CHECK (j1.dump() == R"([1,2,3,4,5,6,7,8])" );
+		}
+		{
+			KJSON j1 = { 1, 2, 3, 4 };
+			KJSON j2 = 55;
+			kjson::Merge(j1, j2);
+			CHECK (j1.dump() == R"([1,2,3,4,55])" );
+		}
+		{
+			KJSON j1 = { 1, 2, 3, 4 };
+			KJSON j2 = "hello";
+			kjson::Merge(j1, j2);
+			CHECK (j1.dump() == R"([1,2,3,4,"hello"])" );
+		}
+		{
+			KJSON j1 = { 1, 2, 3, 4 };
+			KJSON j2 = { "hello", 5, "world" };
+			kjson::Merge(j1, j2);
+			CHECK (j1.dump() == R"([1,2,3,4,"hello",5,"world"])" );
+		}
+		{
+			KJSON j1 = { 1, 2, 3, 4 };
+			KJSON j2 = {{
+				"object", {
+					{"currency", "USD"},
+					{"value", 42.99}
+				}
+			}};
+			kjson::Merge(j1, j2);
+			CHECK (j1.dump() == R"([1,2,3,4,{"object":{"currency":"USD","value":42.99}}])" );
+		}
 	}
 }
 #endif

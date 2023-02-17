@@ -898,13 +898,50 @@ bool RecursiveMatchValue (const KJSON& json, KStringView sSearch)
 void Merge (KJSON& object1, const KJSON& object2)
 //-----------------------------------------------------------------------------
 {
-	if (! object1.is_object() || ! object2.is_object() )
+	kDebug(2, "object1: {}, object2: {}", object1.type_name(), object2.type_name());
+
+	if (object2.empty()) // null is empty, too
 	{
-		kDebug (1, "attempt to merge two json entities that are not objects");
+		// nothing to merge..
 		return;
 	}
 
-	for (auto it : object2.items())
+	if (object1.empty()) // null is empty, too
+	{
+		// just copy the object - works also for strings, arrays, ints, etc.
+		object1 = object2;
+		return;
+	}
+
+	if (object1.is_array())
+	{
+		if (object2.is_array())
+		{
+			for (auto& item : object2)
+			{
+				object1 += item;
+			}
+		}
+		else
+		{
+			object1 += object2;
+		}
+		return;
+	}
+
+	if (!object2.is_object())
+	{
+		kDebug (1, "cannot merge from non-object type {}", object2.type_name());
+		return;
+	}
+
+	if (!object1.is_object())
+	{
+		kDebug (1, "cannot merge into non-object type {}", object1.type_name());
+		return;
+	}
+
+	for (auto& it : object2.items())
 	{
 		object1[it.key()] = it.value();
 	}

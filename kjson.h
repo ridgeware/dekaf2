@@ -266,7 +266,7 @@ namespace kjson
 
 	/// merges keys from object2 to object1
 	DEKAF2_PUBLIC
-	void Merge (KJSON& object1, const KJSON& object2);
+	void Merge (KJSON& object1, KJSON object2);
 
 	/// returns true if a selector seems to be a json pointer
 	DEKAF2_PUBLIC

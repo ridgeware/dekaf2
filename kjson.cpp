@@ -895,9 +895,11 @@ bool RecursiveMatchValue (const KJSON& json, KStringView sSearch)
 } // RecursiveMatchValue
 
 //-----------------------------------------------------------------------------
-void Merge (KJSON& object1, const KJSON& object2)
+void Merge (KJSON& object1, KJSON object2)
 //-----------------------------------------------------------------------------
 {
+	// this merge will always succeed!
+
 	kDebug(2, "object1: {}, object2: {}", object1.type_name(), object2.type_name());
 
 	if (object2.empty()) // null is empty, too
@@ -908,10 +910,31 @@ void Merge (KJSON& object1, const KJSON& object2)
 
 	if (object1.empty()) // null is empty, too
 	{
-		// just copy the object - works also for strings, arrays, ints, etc.
-		object1 = object2;
+		// check if this is an empty array - if yes, then keep the type!
+		if (object1.is_array())
+		{
+			object1.push_back(std::move(object2));
+		}
+		else
+		{
+			// just copy the object - also works for strings, arrays, ints, etc.
+			object1 = std::move(object2);
+		}
 		return;
 	}
+
+	// both objects are non-empty..
+
+	if (object1.is_primitive() || (object1.is_object() && !object2.is_object()))
+	{
+		// convert string/int/bool into an array first
+		// convert object1 into an array if object2 is not an object..
+		KJSON cp = KJSON::array();
+		cp.push_back(std::move(object1));
+		object1 = std::move(cp);
+	}
+
+	// object1 is now either an array or an object
 
 	if (object1.is_array())
 	{
@@ -919,31 +942,21 @@ void Merge (KJSON& object1, const KJSON& object2)
 		{
 			for (auto& item : object2)
 			{
-				object1 += item;
+				object1.push_back(std::move(item));
 			}
 		}
 		else
 		{
-			object1 += object2;
+			object1.push_back(std::move(object2));
 		}
 		return;
 	}
 
-	if (!object2.is_object())
-	{
-		kDebug (1, "cannot merge from non-object type {}", object2.type_name());
-		return;
-	}
-
-	if (!object1.is_object())
-	{
-		kDebug (1, "cannot merge into non-object type {}", object1.type_name());
-		return;
-	}
+	// object1 and object2 are objects here.. see the tests and conversions above
 
 	for (auto& it : object2.items())
 	{
-		object1[it.key()] = it.value();
+		object1[it.key()] = std::move(it.value());
 	}
 
 } // Merge

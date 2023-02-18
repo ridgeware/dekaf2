@@ -526,7 +526,7 @@ TEST_CASE("KJSON2")
 				{"everything", 42},
 				{"nothing", "naught"},
 				{"few", { "one", "two", "three"}}
-			}},
+			}}
 		};
 		j1["/Key6/New/Path"] = "Created";
 //		j1["/Key6/New/Path/String"] = "Created";
@@ -538,6 +538,9 @@ TEST_CASE("KJSON2")
 		CHECK ( j1["Key5"]["answer"]["few"][1] == "two" );
 		CHECK ( j1["Key5"]["answer"]["few"]["2"] == "three" );
 		CHECK ( j1["/Key6/New/Path"] == "Created" );
+
+		KJSON2 j2(j1.Select("Key5"));
+		CHECK ( j2.dump() == R"({"answer":{"everything":42,"few":["one","two","three"],"nothing":"naught"}})" );
 	}
 
 	SECTION("Reference")
@@ -563,6 +566,91 @@ TEST_CASE("KJSON2")
 
 		CHECK ( jsonAsConstRef<uint64_t>(j1.Select("/answer/everything")) == 42 );
 		CHECK ( jsonAsConstRef<KString>(j1.Select("key1")) == "val1" );
+	}
+
+	SECTION("Merge")
+	{
+		{
+			KJSON2 j1 = {
+				{"answer", {
+					{"everything", 42},
+					{"nothing", "naught"},
+					{"few", { "one", "two", "three"}}
+				}}
+			};
+			KJSON2 j2 = {{
+				"object", {
+					{"currency", "USD"},
+					{"value", 42.99}
+				}
+			}};
+			j1.Merge(j2);
+			CHECK (j1.dump() == R"({"answer":{"everything":42,"few":["one","two","three"],"nothing":"naught"},"object":{"currency":"USD","value":42.99}})" );
+		}
+		{
+			KJSON2 j1;
+			KJSON2 j2 = { 1, 2, 3, 4 };
+			j1.Merge(j2);
+			CHECK (j1.dump() == R"([1,2,3,4])" );
+		}
+		{
+			KJSON2 j1;
+			KJSON2 j2 = "hello world";
+			j1.Merge(j2);
+			CHECK (j1.dump() == R"("hello world")" );
+		}
+		{
+			KJSON2 j1;
+			KJSON2 j2 = true;
+			j1.Merge(j2);
+			CHECK (j1.dump() == R"(true)" );
+		}
+		{
+			KJSON2 j1;
+			KJSON2 j2 = 46;
+			j1.Merge(j2);
+			CHECK (j1.dump() == R"(46)" );
+		}
+		{
+			KJSON2 j1 = { 1, 2, 3, 4 };
+			KJSON2 j2 = { 5, 6, 7, 8 };
+			j1.Merge(j2);
+			CHECK (j1.dump() == R"([1,2,3,4,5,6,7,8])" );
+		}
+		{
+			KJSON2 j1 = { 1, 2, 3, 4 };
+			KJSON2 j2 = { 55 };
+			j1.Merge(j2);
+			CHECK (j1.dump() == R"([1,2,3,4,55])" );
+		}
+		{
+			KJSON2 j1 = { 1, 2, 3, 4 };
+			KJSON2 j2 = { "hello" };
+			j1.Merge(j2);
+			CHECK (j1.dump() == R"([1,2,3,4,"hello"])" );
+		}
+		{
+			KJSON2 j1 = { 1, 2, 3, 4 };
+			KJSON2 j2 = { "hello", 5, "world" };
+			j1.Merge(j2);
+			CHECK (j1.dump() == R"([1,2,3,4,"hello",5,"world"])" );
+		}
+		{
+			KJSON2 j1 = { 1, 2, 3, 4 };
+			KJSON2 j2 = {{
+				"object", {
+					{"currency", "USD"},
+					{"value", 42.99}
+				}
+			}};
+			j1.Merge(j2);
+			CHECK (j1.dump() == R"([1,2,3,4,{"object":{"currency":"USD","value":42.99}}])" );
+		}
+		{
+			KJSON2 j1 = "string";
+			j1 += "string2";
+			CHECK (j1.dump() == R"(["string","string2"])");
+		}
 	}
 }
 #endif

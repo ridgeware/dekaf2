@@ -63,15 +63,11 @@ public:
 		using self = Proxy;
 
 		               Proxy      ()              = delete;
-		               Proxy      (const Proxy&)  = default;
-		               Proxy      (Proxy&&)       = default;
 		               Proxy      (KJSON&  json ) : m_json(&json        ) {}
 		               Proxy      (KJSON2& json2) : m_json(&json2.m_json) {}
 
-		Proxy&         operator=  (const Proxy&)  = default;
-		Proxy&         operator=  (Proxy&&)       = default;
 		template<class Value>
-		Proxy&         operator=(Value&& value)
+		self&          operator=(Value&& value)
 		{
 			*m_json = std::forward<Value>(value);
 			return *this;
@@ -81,8 +77,8 @@ public:
 		KString        Dump       (bool bPretty = false) const;
 		KString        Serialize  (bool bPretty = false) const { return Dump(bPretty); }
 
-		Proxy          Object     () const noexcept;
-		Proxy          Array      () const noexcept;
+		self           Object     () const noexcept;
+		self           Array      () const noexcept;
 		const KString& String     () const noexcept;
 		KStringView    StringView () const noexcept { return String(); }
 		uint64_t       UInt64     () const noexcept;
@@ -96,30 +92,41 @@ public:
 		operator       bool       () const noexcept { return Bool();   }
 		operator       double     () const noexcept { return Float();  }
 
-		const Proxy    Select     (KStringView sSelector) const { return kjson::Select(GetConstJSONRef(), sSelector); }
-		Proxy          Select     (KStringView sSelector)       { return kjson::Select(GetJSONRef()     , sSelector); }
-		const Proxy    Select     (std::size_t iSelector) const { return kjson::Select(GetConstJSONRef(), iSelector); }
-		Proxy          Select     (std::size_t iSelector)       { return kjson::Select(GetJSONRef()     , iSelector); }
-		const Proxy    operator[] (KStringView sSelector) const { return Select(sSelector); }
-		Proxy          operator[] (KStringView sSelector)       { return Select(sSelector); }
-		const Proxy    operator[] (const char* sSelector) const { return Select(sSelector); }
-		Proxy          operator[] (const char* sSelector)       { return Select(sSelector); }
-		const Proxy    operator[] (std::size_t iSelector) const { return Select(iSelector); }
-		Proxy          operator[] (std::size_t iSelector)       { return Select(iSelector); }
+		const self     Select     (KStringView sSelector) const { return kjson::Select(GetConstJSONRef(), sSelector); }
+		self           Select     (KStringView sSelector)       { return kjson::Select(GetJSONRef()     , sSelector); }
+		const self     Select     (std::size_t iSelector) const { return kjson::Select(GetConstJSONRef(), iSelector); }
+		self           Select     (std::size_t iSelector)       { return kjson::Select(GetJSONRef()     , iSelector); }
+		const self     operator[] (KStringView sSelector) const { return Select(sSelector); }
+		self           operator[] (KStringView sSelector)       { return Select(sSelector); }
+		const self     operator[] (const char* sSelector) const { return Select(sSelector); }
+		self           operator[] (const char* sSelector)       { return Select(sSelector); }
+		const self     operator[] (std::size_t iSelector) const { return Select(iSelector); }
+		self           operator[] (std::size_t iSelector)       { return Select(iSelector); }
 
 		const KJSON&   ToKJSON    () const noexcept { return GetConstJSONRef(); }
 		KJSON&         ToKJSON    () noexcept       { return GetJSONRef();      }
 
-		KJSON::value_t type       () const noexcept { return m_json->type();                 }
-		bool           is_object  () const noexcept { return m_json->is_object();            }
-		bool           is_array   () const noexcept { return m_json->is_array();             }
-		bool           is_string  () const noexcept { return m_json->is_string();            }
-		bool           is_integer () const noexcept { return m_json->is_number_integer();    }
-		bool           is_unsigned() const noexcept { return m_json->is_number_unsigned();   }
-		bool           is_signed  () const noexcept { return is_integer() && !is_unsigned(); }
-		bool           is_float   () const noexcept { return m_json->is_number_float();      }
-		bool           is_null    () const noexcept { return m_json->is_null();              }
-		bool           is_boolean () const noexcept { return m_json->is_boolean();           }
+		bool           Exists     ()                   const noexcept { return GetConstJSONRef().is_null() == false;                   }
+		bool           Contains   (KStringView sSearch)         const { return kjson::Contains(GetConstJSONRef(), sSearch);            }
+		bool           RecursiveMatchValue(KStringView sSearch) const { return kjson::RecursiveMatchValue(GetConstJSONRef(), sSearch); }
+		self&          Merge      (KJSON other)                       { kjson::Merge(GetJSONRef(), std::move(other)); return *this;    }
+
+		template<typename T>
+		self&          operator+= (T&& value)         { return Merge(std::forward<T>(value));  }
+
+		KJSON::value_t type         () const noexcept { return m_json->type();                 }
+		bool           is_object    () const noexcept { return m_json->is_object();            }
+		bool           is_array     () const noexcept { return m_json->is_array();             }
+		bool           is_binary    () const noexcept { return m_json->is_binary();            }
+		bool           is_primitive ()const noexcept  { return m_json->is_primitive();         }
+		bool           is_structured()const noexcept  { return m_json->is_structured();        }
+		bool           is_string    () const noexcept { return m_json->is_string();            }
+		bool           is_integer   () const noexcept { return m_json->is_number_integer();    }
+		bool           is_unsigned  () const noexcept { return m_json->is_number_unsigned();   }
+		bool           is_signed    () const noexcept { return is_integer() && !is_unsigned(); }
+		bool           is_float     () const noexcept { return m_json->is_number_float();      }
+		bool           is_null      () const noexcept { return m_json->is_null();              }
+		bool           is_boolean   () const noexcept { return m_json->is_boolean();           }
 
 	private:
 		               // this private constructor enables const Proxy construction from
@@ -135,23 +142,23 @@ public:
 
 	using self = KJSON2;
 
-	KJSON2() = default;
+	               // make all defaults valid
+	               KJSON2() = default;
 
-	KJSON2(KJSON json) : m_json(std::move(json)) { }
-	KJSON2(KJSON::initializer_list_t il,
-		   bool type_deduction = true,
-		   KJSON::value_t manual_type = KJSON::value_t::array) : m_json(std::move(il), type_deduction, manual_type) {}
-	template<class String,
-	         typename std::enable_if<std::is_constructible<KStringView, String>::value>::type i = 0>
-	KJSON2(const String& sJson)     { Parse(sJson);  }
-	KJSON2(const Proxy& proxy);
-	KJSON2(const KROW& row);
+	               // converting constructors
+	               KJSON2(Proxy proxy)        : m_json(proxy.ToKJSON()) {}
+	               KJSON2(KJSON::initializer_list_t il,
+		                  bool type_deduction = true,
+		                  KJSON::value_t manual_type = KJSON::value_t::array)
+	               : m_json(std::move(il), type_deduction, manual_type) {}
+	               template <class T,
+	                         typename std::enable_if<std::is_constructible<KJSON, T>::value, int>::type = 0>
+	               KJSON2(T&& value) noexcept : m_json(std::forward<T>(value)) {}
 
-	bool           Parse      (KStringView sJson, bool bThrow = false) { return GetProxy().Parse(sJson, bThrow); }
-	KString        Dump       (bool bPretty = false) const             { return GetConstProxy().Dump(bPretty);        }
-	KString        Serialize  (bool bPretty = false) const             { return Dump(bPretty);                     }
-	KString        dump       ()                     const             { return Dump(false);                       }
-
+	bool           Parse      (KStringView sJson, bool bThrow = false) { return CreateProxy().Parse(sJson, bThrow); }
+	KString        Dump       (bool bPretty = false)             const { return CreateConstProxy().Dump(bPretty);   }
+	KString        Serialize  (bool bPretty = false)             const { return Dump(bPretty);                      }
+	KString        dump       ()                                 const { return Dump(false);                        }
 
 	const KJSON&   ToKJSON    () const { return m_json; }
 	KJSON&         ToKJSON    ()       { return m_json; }
@@ -159,36 +166,43 @@ public:
 	operator const KJSON&     () const { return m_json; }
 	operator       KJSON&     ()       { return m_json; }
 
-	const Proxy    Select     (KStringView sSelector = KStringView{}) const { return GetConstProxy().Select(sSelector); }
-	Proxy          Select     (KStringView sSelector = KStringView{})       { return GetProxy().Select(sSelector);      }
-	const Proxy    operator[] (KStringView sSelector) const                 { return Select(sSelector); }
+	const Proxy    Select     (KStringView sSelector = KStringView{}) const { return CreateConstProxy().Select(sSelector); }
+	Proxy          Select     (KStringView sSelector = KStringView{})       { return CreateProxy().Select(sSelector);      }
+	const Proxy    Select     (std::size_t iSelector)                 const { return CreateConstProxy().Select(iSelector); }
+	Proxy          Select     (std::size_t iSelector)                       { return CreateProxy().Select(iSelector);      }
+	const Proxy    operator[] (KStringView sSelector)                 const { return Select(sSelector); }
 	Proxy          operator[] (KStringView sSelector)                       { return Select(sSelector); }
-	const Proxy    operator[] (const char* sSelector) const                 { return Select(sSelector); }
+	const Proxy    operator[] (const char* sSelector)                 const { return Select(sSelector); }
 	Proxy          operator[] (const char* sSelector)                       { return Select(sSelector); }
+	const Proxy    operator[] (std::size_t iSelector)                 const { return Select(iSelector); }
+	Proxy          operator[] (std::size_t iSelector)                       { return Select(iSelector); }
 
-	bool           Exists     (KStringView sSelector) const;
-	bool           Contains   (KStringView sSelector) const;
-	bool           RecursiveMatchValue(KStringView sSearch) const { return kjson::RecursiveMatchValue(m_json, sSearch); }
-	void           Merge      (const KJSON2& other) { kjson::Merge(m_json, other); }
-	void           Merge      (const KJSON&  other) { kjson::Merge(m_json, other); }
-
-	bool           is_object  () const noexcept { return m_json.is_object();             }
-	bool           is_array   () const noexcept { return m_json.is_array();              }
-	bool           is_string  () const noexcept { return m_json.is_string();             }
-	bool           is_integer () const noexcept { return m_json.is_number_integer();     }
-	bool           is_unsigned() const noexcept { return m_json.is_number_unsigned();    }
-	bool           is_signed  () const noexcept { return is_integer() && !is_unsigned(); }
-	bool           is_float   () const noexcept { return m_json.is_number_float();       }
-	bool           is_null    () const noexcept { return m_json.is_null();               }
-	bool           is_boolean () const noexcept { return m_json.is_boolean();            }
+	bool           Exists     ()                            const { return CreateConstProxy().Exists();                     }
+	bool           Contains   (KStringView sSearch)         const { return CreateConstProxy().Contains(sSearch);            }
+	bool           RecursiveMatchValue(KStringView sSearch) const { return CreateConstProxy().RecursiveMatchValue(sSearch); }
+	self&          Merge      (KJSON other)                       { CreateProxy().Merge(std::move(other)); return *this;    }
 
 	template<typename T>
-	self&          operator+= (T&& value) { m_json.operator+=(std::forward<T>(value)); return *this; }
+	self&          operator+=   (T&& value)       { return Merge(std::forward<T>(value));      }
+
+	KJSON::value_t type         () const noexcept { return CreateConstProxy().type();          }
+	bool           is_object    () const noexcept { return CreateConstProxy().is_object();     }
+	bool           is_array     () const noexcept { return CreateConstProxy().is_array();      }
+	bool           is_binary    () const noexcept { return CreateConstProxy().is_binary();     }
+	bool           is_primitive () const noexcept { return CreateConstProxy().is_primitive();  }
+	bool           is_structured() const noexcept { return CreateConstProxy().is_structured(); }
+	bool           is_string    () const noexcept { return CreateConstProxy().is_string();     }
+	bool           is_integer   () const noexcept { return CreateConstProxy().is_integer();    }
+	bool           is_unsigned  () const noexcept { return CreateConstProxy().is_unsigned();   }
+	bool           is_signed    () const noexcept { return CreateConstProxy().is_signed();     }
+	bool           is_float     () const noexcept { return CreateConstProxy().is_float();      }
+	bool           is_null      () const noexcept { return CreateConstProxy().is_null();       }
+	bool           is_boolean   () const noexcept { return CreateConstProxy().is_boolean();    }
 
 private:
 
-	const Proxy    GetConstProxy() const { return m_json; }
-	Proxy          GetProxy()            { return m_json; }
+	const Proxy    CreateConstProxy() const noexcept { return m_json; }
+	Proxy          CreateProxy()            noexcept { return m_json; }
 
 	KJSON          m_json;
 

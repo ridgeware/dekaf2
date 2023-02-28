@@ -270,6 +270,36 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// disable pooling, clear existing pool, and call Control.Create() for every get() request
+	/// @returns previous disabled state
+	bool disable(bool bDisablePooling)
+	//-----------------------------------------------------------------------------
+	{
+		if (m_bDisabled == bDisablePooling)
+		{
+			// short circuit without lock
+			return bDisablePooling;
+		}
+		else
+		{
+			typename base_type::MyLock Lock(base_type::m_Mutex);
+			bool bWasDisabled = m_bDisabled;
+
+			if (bWasDisabled != bDisablePooling)
+			{
+				m_bDisabled = bDisablePooling;
+
+				if (bDisablePooling)
+				{
+					m_Pool.clear();
+				}
+			}
+
+			return bWasDisabled;
+		}
+	}
+
+	//-----------------------------------------------------------------------------
 	/// returns Stats object
 	Stats GetStats()
 	//-----------------------------------------------------------------------------
@@ -334,6 +364,7 @@ public:
 		Value* value { nullptr };
 		bool bNew { false };
 
+		if (!m_bDisabled)
 		{
 			typename base_type::MyLock Lock(base_type::m_Mutex);
 
@@ -413,10 +444,13 @@ private:
 				}
 			}
 
-			if (value && m_Pool.size() + m_iPopped < m_iMaxSize)
+			if (m_bDisabled == false)
 			{
-				m_Pool.push_back(std::move(ptr));
-				base_type::m_CondVar.notify_one();
+				if (value && m_Pool.size() + m_iPopped < m_iMaxSize)
+				{
+					m_Pool.push_back(std::move(ptr));
+					base_type::m_CondVar.notify_one();
+				}
 			}
 		}
 
@@ -434,7 +468,7 @@ private:
 	void AdjustPoolSize()
 	//-----------------------------------------------------------------------------
 	{
-		if (iIntervals)
+		if (iIntervals && m_bDisabled == false)
 		{
 			// get the current time in the time_series resolution
 			auto tNow = time_series::GetCurrentTime();
@@ -487,6 +521,7 @@ private:
 	size_type m_iMaxSize { 0 };
 	size_type m_iPopped  { 0 };
 	KPoolControl<Value>& m_Control;
+	bool      m_bDisabled { false };
 
 }; // KPoolBase
 

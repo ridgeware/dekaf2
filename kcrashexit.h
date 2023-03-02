@@ -116,5 +116,17 @@ void kAssert (bool bMustBeTrue, KStringView sCrashMessage)
 #endif
 }
 
+inline
+DEKAF2_PUBLIC
+void kAssert (bool bMustBeTrue, const char* sCrashMessage)
+{
+#ifndef NDEBUG
+	if (!bMustBeTrue)
+	{
+		detail::kFailedAssert(sCrashMessage);
+	}
+#endif
+}
+
 } // end of namespace dekaf2
 

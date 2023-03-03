@@ -4,21 +4,22 @@
 #include <vector>
 
 #ifndef DEKAF2_IS_WINDOWS
+#ifndef DEKAF2_WRAPPED_KJSON
 
 using namespace dekaf2;
 
 namespace {
-KJSON jsonAsPar(const KJSON& json = KJSON{})
+LJSON jsonAsPar(const LJSON& json = LJSON{})
 {
 	return json;
 }
 }
 
-TEST_CASE("KJSON")
+TEST_CASE("LJSON")
 {
 	SECTION("Basic construction")
 	{
-		KJSON j1;
+		LJSON j1;
 		kjson::Parse(j1, R"(
 	{
 	 "key1": "val1",
@@ -33,6 +34,8 @@ TEST_CASE("KJSON")
 
 		KString value;
 		value = j1["key1"];
+		const KString& sref = j1["key1"];
+		CHECK ( sref == "val1" );
 		CHECK ( value == "val1" );
 		value = j1["key2"_ksz];
 		CHECK ( value == "val2" );
@@ -41,7 +44,7 @@ TEST_CASE("KJSON")
 		CHECK ( value == "USD" );
 		double d = j1["object"]["value"];
 		CHECK ( d == 42.99 );
-		KJSON j2 = j1["object"_ksv];
+		LJSON j2 = j1["object"_ksv];
 		value = j2["currency"];
 		CHECK ( value == "USD" );
 		d = j2["value"];
@@ -68,7 +71,7 @@ TEST_CASE("KJSON")
 		}
 		if (j1.is_object())
 		{
-			KJSON obj = j1["object"];
+			LJSON obj = j1["object"];
 			if (!obj.is_object())
 			{
 				CHECK ( false );
@@ -90,7 +93,7 @@ TEST_CASE("KJSON")
 
 	SECTION("Initializer list construction")
 	{
-		KJSON j1 = {
+		LJSON j1 = {
 			{"pi", 3.141},
 			{"happy", true},
 			{"key1", "val1"},
@@ -115,7 +118,7 @@ TEST_CASE("KJSON")
 		CHECK ( value == "USD" );
 		double d = j1["object"]["value"];
 		CHECK ( d == 42.99 );
-		KJSON j2 = j1["object"];
+		LJSON j2 = j1["object"];
 		value = j2["currency"];
 		CHECK ( value == "USD" );
 		d = j2["value"];
@@ -124,22 +127,21 @@ TEST_CASE("KJSON")
 
 	SECTION("LJSON basic ops")
 	{
-		KJSON obj;
+		LJSON obj;
 		obj["one"] = 1;
 		obj["two"] = 2;
-		KJSON child;
+		LJSON child;
 		child["duck"] = "donald";
 		child["pig"]  = "porky";
-		KJSON arr1 = KJSON::array();
-		KJSON arr2 = KJSON::array();
+		LJSON arr1 = LJSON::array();
+		LJSON arr2 = LJSON::array();
 		arr1 += child;
 		arr1 += child;
-		kDebug(0, arr1.dump(1, '\t'));
 		obj["three"] = arr1;
 		obj["four"] = arr2;
 	}
 
-	SECTION("KJSON - KROW interoperability")
+	SECTION("LJSON - KROW interoperability")
 	{
 		KROW row;
 		row.AddCol("first", "value1");
@@ -150,15 +152,15 @@ TEST_CASE("KJSON")
 		CHECK( row["second"] == "value2" );
 		CHECK( row["third"].Int64() == 12345 );
 
-		KJSON obj = row;
+		LJSON obj = row;
 		CHECK( obj["first"] == "value1" );
 		CHECK( obj["second"] == "value2" );
 		CHECK( obj["third"] == 12345 );
 	}
 
-	SECTION("KROW - KJSON interoperability")
+	SECTION("KROW - LJSON interoperability")
 	{
-		KJSON json;
+		LJSON json;
 		json["first"] = "value1";
 		json["second"] = "value2";
 		json["third"] = 12345;
@@ -168,7 +170,7 @@ TEST_CASE("KJSON")
 		CHECK( row["second"] == "value2" );
 		CHECK( row["third"].Int64() == 12345 );
 
-		KJSON json2 = row;
+		LJSON json2 = row;
 
 		CHECK ( json == json2 );
 
@@ -182,9 +184,39 @@ TEST_CASE("KJSON")
 		CHECK( row2["fourth"] == "value4" );
 	}
 
+	SECTION("Implicit merge")
+	{
+		LJSON obj1, obj2;
+		obj1["key1"] = 14;
+		obj2["key2"] += obj1;
+		CHECK ( obj2.dump() == R"({"key2":[{"key1":14}]})" );
+
+		LJSON  tjson;
+		LJSON& jheaders = tjson["headers"] = LJSON::object();
+		jheaders += { "one", "oneval" };
+		jheaders += { "two", "twoval" };
+		CHECK ( tjson.dump() == R"({"headers":{"one":"oneval","two":"twoval"}})" );
+
+		LJSON a1, a2;
+		a2 = LJSON::array();
+		a2 += "1";
+		a2 += "2";
+		a2 += "3";
+		a1["e"] += a2;
+		CHECK ( a1.dump() == R"({"e":[["1","2","3"]]})" );
+
+		a1 = LJSON();
+		a2 = LJSON::array();
+		a2.push_back("1");
+		a2.push_back("2");
+		a2.push_back("3");
+		a1["e"] += a2;
+		CHECK ( a1.dump() == R"({"e":[["1","2","3"]]})" );
+	}
+
 	SECTION("Print")
 	{
-		KJSON json = {
+		LJSON json = {
 			{"pi", 3.141529},
 			{"happy", true},
 			{"key1", "val1"},
@@ -237,8 +269,8 @@ TEST_CASE("KJSON")
 
 	SECTION("Contains (array)")
 	{
-		KJSON json;
-		json = KJSON::array();
+		LJSON json;
+		json = LJSON::array();
 		json += "value1";
 		json += "value2";
 		json += "value3";
@@ -252,8 +284,8 @@ TEST_CASE("KJSON")
 
 	SECTION("Contains (object)")
 	{
-		KJSON json;
-		json = KJSON::object();
+		LJSON json;
+		json = LJSON::object();
 		json += { "key1", "value1" };
 		json += { "key2", "value2" };
 		json += { "key3", "value3" };
@@ -268,7 +300,7 @@ TEST_CASE("KJSON")
 
 	SECTION("GetObjectRef")
 	{
-		KJSON json = {
+		LJSON json = {
 			{"pi", 3.141529},
 			{"happy", true},
 			{"key1", "val1"},
@@ -285,7 +317,7 @@ TEST_CASE("KJSON")
 			}}
 		};
 
-		const KJSON& object = kjson::GetObjectRef(json, "object");
+		const LJSON& object = kjson::GetObjectRef(json, "object");
 
 		CHECK ( object["currency"] == "USD" );
 		CHECK ( object["value"]    == 42.99 );
@@ -326,7 +358,7 @@ TEST_CASE("KJSON")
 
 	SECTION("Increment")
 	{
-		KJSON json;
+		LJSON json;
 		json["val1"] = "string";
 		Increment(json, "val1",  5);
 		Increment(json, "val1", 10);
@@ -336,7 +368,7 @@ TEST_CASE("KJSON")
 
 	SECTION("Decrement")
 	{
-		KJSON json;
+		LJSON json;
 		Increment(json, "val1", 10);
 		Decrement(json, "val1",  2);
 		Decrement(json, "val1");
@@ -345,13 +377,13 @@ TEST_CASE("KJSON")
 
 	SECTION("null")
 	{
-		KJSON json;
+		LJSON json;
 		CHECK ( json.is_null() );
 		CHECK ( json.dump(-1) == "null" );
-		json = KJSON::object();
+		json = LJSON::object();
 		CHECK ( json.is_object() );
 		CHECK ( json.dump(-1) == "{}" );
-		json = KJSON::parse("null");
+		json = LJSON::parse("null");
 		CHECK ( json.is_null() );
 		CHECK ( json.dump(-1) == "null" );
 	}
@@ -359,7 +391,7 @@ TEST_CASE("KJSON")
 	SECTION("KStringView")
 	{
 		std::vector<KStringView> View { "one", "two", "three", "four", "five" };
-		KJSON json
+		LJSON json
 		{
 			{ "view", View   }
 		};
@@ -368,7 +400,7 @@ TEST_CASE("KJSON")
 
 	SECTION("Select")
 	{
-		KJSON j1 = {
+		LJSON j1 = {
 			{"pi", 3.141},
 			{"happy", true},
 			{"key1", "val1"},
@@ -390,21 +422,21 @@ TEST_CASE("KJSON")
 		CHECK ( kjson::Select(j1, "/key2") == "val2" );
 		CHECK ( kjson::Select(j1, "key2" ) == "val2" );
 		CHECK ( kjson::Select(j1, "/answer/nothing") == "naught" );
-		CHECK ( kjson::Select(j1, "answer.nothing" ) == "naught" );
+		CHECK ( kjson::Select(j1, ".answer.nothing" ) == "naught" );
 		CHECK ( kjson::Select(j1, "/answer/few/1"  ) == "two" );
-		CHECK ( kjson::Select(j1, "answer.few[0]"  ) == "one" );
+		CHECK ( kjson::Select(j1, ".answer.few[0]"  ) == "one" );
 		CHECK ( kjson::Select(j1, "/slist/0") == "one" );
 		CHECK ( kjson::Select(j1, "/slist/1") == "two" );
-		CHECK ( kjson::Select(j1, "slist[0]") == "one" );
-		CHECK ( kjson::Select(j1, "slist[1]") == "two" );
-		CHECK ( kjson::Select(j1, "slist[4]") == KJSON() );
-		CHECK ( kjson::Select(j1, "/answer/unknown") == KJSON() );
+		CHECK ( kjson::Select(j1, ".slist[0]") == "one" );
+		CHECK ( kjson::Select(j1, ".slist[1]") == "two" );
+		CHECK ( kjson::Select(j1, ".slist[4]") == LJSON() );
+		CHECK ( kjson::Select(j1, "/answer/unknown") == LJSON() );
 		CHECK ( kjson::Select(j1, "/answer/unknown") != "something" );
 	}
 
 	SECTION("SelectString")
 	{
-		KJSON j1 = {
+		LJSON j1 = {
 			{"pi", 3.141},
 			{"happy", true},
 			{"key1", "val1"},
@@ -426,20 +458,20 @@ TEST_CASE("KJSON")
 		CHECK ( kjson::SelectString(j1, "/key2") == "val2" );
 		CHECK ( kjson::SelectString(j1, "key2" ) == "val2" );
 		CHECK ( kjson::SelectString(j1, "/answer/nothing") == "naught" );
-		CHECK ( kjson::SelectString(j1, "answer.nothing" ) == "naught" );
+		CHECK ( kjson::SelectString(j1, ".answer.nothing" ) == "naught" );
 		CHECK ( kjson::SelectString(j1, "/answer/few/1"  ) == "two" );
-		CHECK ( kjson::SelectString(j1, "answer.few[0]"  ) == "one" );
+		CHECK ( kjson::SelectString(j1, ".answer.few[0]"  ) == "one" );
 		CHECK ( kjson::SelectString(j1, "/slist/0") == "one" );
 		CHECK ( kjson::SelectString(j1, "/slist/1") == "two" );
-		CHECK ( kjson::SelectString(j1, "slist[0]") == "one" );
-		CHECK ( kjson::SelectString(j1, "slist[1]") == "two" );
-		CHECK ( kjson::SelectString(j1, "slist[4]") == "" );
+		CHECK ( kjson::SelectString(j1, ".slist[0]") == "one" );
+		CHECK ( kjson::SelectString(j1, ".slist[1]") == "two" );
+		CHECK ( kjson::SelectString(j1, ".slist[4]") == "" );
 		CHECK ( kjson::SelectString(j1, "/answer/unknown") == "" );
 	}
 
 	SECTION("SelectObject")
 	{
-		KJSON j1 = {
+		LJSON j1 = {
 			{"pi", 3.141},
 			{"happy", true},
 			{"key1", "val1"},
@@ -459,13 +491,52 @@ TEST_CASE("KJSON")
 		};
 
 		CHECK ( kjson::SelectObject(j1, "/answer").dump() == R"({"everything":42,"few":["one","two","three"],"nothing":"naught"})" );
-		CHECK ( kjson::SelectObject(j1, "/answer/nothing") == KJSON() );
-		CHECK ( kjson::SelectObject(j1, "/pi") == KJSON() );
+		CHECK ( kjson::SelectObject(j1, "/answer/nothing") == LJSON() );
+		CHECK ( kjson::SelectObject(j1, "/pi") == LJSON() );
+	}
+
+	SECTION("Implicit conversion")
+	{
+		LJSON j1 = {
+			{"pi", 3.141},
+			{"happy", true},
+			{"key1", "val1"},
+			{"key2", "val2"},
+			{"nothing", nullptr},
+			{"answer", {
+				{"everything", 42},
+				{"nothing", "naught"},
+				{"few", { "one", "two", "three"}}
+			}},
+			{"ilist", {1, 0, 2}},
+			{"slist", {"one", "two", "three"}},
+			{"object", {
+				{"currency", "USD"},
+				{"value", 42.99}
+			}}
+		};
+
+		uint64_t                 iAnswer = j1["answer"]["everything"];
+		double                        pi = j1["pi"];
+		bool                      bHappy = j1["happy"];
+		KString                     sVal = j1["key1"];
+#ifndef DEKAF2_WRAPPED_KJSON
+		std::vector<int>             Vec = j1["ilist"];
+		std::map<std::string, LJSON> Map = j1;
+#endif
+
+		CHECK ( iAnswer == 42 );
+		CHECK ( pi == 3.141 );
+		CHECK ( bHappy == true );
+		CHECK ( sVal == "val1" );
+#ifndef DEKAF2_WRAPPED_KJSON
+		CHECK ( Vec == (std::vector<int>{ 1, 0, 2 }) );
+#endif
 	}
 
 	SECTION("Assignment")
 	{
-		KJSON j1;
+		LJSON j1;
 		j1["Key1"] = "Value1";
 		j1["Key2"] = 0.2435;
 		j1["Key3"] = std::numeric_limits<uint64_t>::max();
@@ -483,17 +554,41 @@ TEST_CASE("KJSON")
 		CHECK ( j1["Key4"] == 2435 );
 	}
 
+	SECTION("Primitives")
+	{
+		{
+			LJSON j = 123;
+			uint64_t i = j;
+			CHECK ( i == 123 );
+		}
+		{
+			LJSON j = 1.23;
+			double d = j;
+			CHECK ( d == 1.23 );
+		}
+		{
+			LJSON j = true;
+			bool b = j;
+			CHECK ( b == true );
+		}
+		{
+			LJSON j = "string";
+			KString s = j;
+			CHECK ( s == "string" );
+		}
+	}
+
 	SECTION("Merge")
 	{
 		{
-			KJSON j1 = {
+			LJSON j1 = {
 				{"answer", {
 					{"everything", 42},
 					{"nothing", "naught"},
 					{"few", { "one", "two", "three"}}
 				}}
 			};
-			KJSON j2 = {{
+			LJSON j2 = {{
 				"object", {
 					{"currency", "USD"},
 					{"value", 42.99}
@@ -503,50 +598,50 @@ TEST_CASE("KJSON")
 			CHECK (j1.dump() == R"({"answer":{"everything":42,"few":["one","two","three"],"nothing":"naught"},"object":{"currency":"USD","value":42.99}})" );
 		}
 		{
-			KJSON j1;
-			KJSON j2 = { 1, 2, 3, 4 };
+			LJSON j1;
+			LJSON j2 = { 1, 2, 3, 4 };
 			kjson::Merge(j1, j2);
 			CHECK (j1.dump() == R"([1,2,3,4])" );
 		}
 		{
-			KJSON j1;
-			KJSON j2 = "hello world";
+			LJSON j1;
+			LJSON j2 = "hello world";
 			kjson::Merge(j1, j2);
 			CHECK (j1.dump() == R"("hello world")" );
 		}
 		{
-			KJSON j1;
-			KJSON j2 = 46;
+			LJSON j1;
+			LJSON j2 = 46;
 			kjson::Merge(j1, j2);
 			CHECK (j1.dump() == R"(46)" );
 		}
 		{
-			KJSON j1 = { 1, 2, 3, 4 };
-			KJSON j2 = { 5, 6, 7, 8 };
+			LJSON j1 = { 1, 2, 3, 4 };
+			LJSON j2 = { 5, 6, 7, 8 };
 			kjson::Merge(j1, j2);
 			CHECK (j1.dump() == R"([1,2,3,4,5,6,7,8])" );
 		}
 		{
-			KJSON j1 = { 1, 2, 3, 4 };
-			KJSON j2 = 55;
+			LJSON j1 = { 1, 2, 3, 4 };
+			LJSON j2 = 55;
 			kjson::Merge(j1, j2);
 			CHECK (j1.dump() == R"([1,2,3,4,55])" );
 		}
 		{
-			KJSON j1 = { 1, 2, 3, 4 };
-			KJSON j2 = "hello";
+			LJSON j1 = { 1, 2, 3, 4 };
+			LJSON j2 = "hello";
 			kjson::Merge(j1, j2);
 			CHECK (j1.dump() == R"([1,2,3,4,"hello"])" );
 		}
 		{
-			KJSON j1 = { 1, 2, 3, 4 };
-			KJSON j2 = { "hello", 5, "world" };
+			LJSON j1 = { 1, 2, 3, 4 };
+			LJSON j2 = { "hello", 5, "world" };
 			kjson::Merge(j1, j2);
 			CHECK (j1.dump() == R"([1,2,3,4,"hello",5,"world"])" );
 		}
 		{
-			KJSON j1 = { 1, 2, 3, 4 };
-			KJSON j2 = {{
+			LJSON j1 = { 1, 2, 3, 4 };
+			LJSON j2 = {{
 				"object", {
 					{"currency", "USD"},
 					{"value", 42.99}
@@ -557,4 +652,5 @@ TEST_CASE("KJSON")
 		}
 	}
 }
+#endif
 #endif

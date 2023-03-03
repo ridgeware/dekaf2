@@ -45,29 +45,51 @@
 #include "krow.h"
 #include "kutf8.h"
 #include "kctype.h"
+#include "kstringutils.h"
+#include "kreader.h"
+#ifndef DEKAF2_WRAPPED_KJSON
+	#include "kscopeguard.h"
+#endif
 
 namespace dekaf2 {
-
-//-----------------------------------------------------------------------------
-/// ADL converter for KROW to KJSON
-void to_json(KJSON& j, const KROW& row)
-//-----------------------------------------------------------------------------
-{
-	j = row.to_json();
-}
-
-//-----------------------------------------------------------------------------
-/// ADL converter for KROW to KJSON
-void from_json(const KJSON& j, KROW& row)
-//-----------------------------------------------------------------------------
-{
-	row.from_json(j);
-}
 
 namespace kjson {
 
 //-----------------------------------------------------------------------------
-void SetStringFromUTF8orLatin1(KJSON& json, KStringView sInput)
+/// remove leading "[json.exception.out_of_range.401] " etc from sMessage
+const char* kStripJSONExceptionMessage(const char* sMessage) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto sOrigMessage = sMessage;
+
+	if (sMessage && *sMessage == '[')
+	{
+		for (;;)
+		{
+			auto ch = *sMessage;
+
+			if (ch == ']')
+			{
+				while (KASCII::kIsSpace(*++sMessage)) {}
+				return sMessage;
+			}
+			else if (ch == '\0')
+			{
+				break;
+			}
+			else
+			{
+				++sMessage;
+			}
+		}
+	}
+
+	return sOrigMessage;
+
+} // kStripJSONExceptionMessage
+
+//-----------------------------------------------------------------------------
+void SetStringFromUTF8orLatin1(LJSON& json, KStringView sInput)
 //-----------------------------------------------------------------------------
 {
 	if (Unicode::ValidUTF8(sInput))
@@ -77,7 +99,7 @@ void SetStringFromUTF8orLatin1(KJSON& json, KStringView sInput)
 	else
 	{
 		// make sure we have a json string type
-		json = KJSON::string_t();
+		json = LJSON::string_t();
 		auto& sUTF8 = json.get_ref<KString&>();
 		sUTF8.reserve(sInput.size());
 
@@ -90,43 +112,48 @@ void SetStringFromUTF8orLatin1(KJSON& json, KStringView sInput)
 } // SetStringFromUTF8orLatin1
 
 //-----------------------------------------------------------------------------
-bool Parse (KJSON& json, KStringView sJSON, KStringRef& sError) noexcept
+bool Parse (LJSON& json, KStringView sJSON, KStringRef& sError) noexcept
 //-----------------------------------------------------------------------------
 {
-	json = KJSON{};
+	bool bReturn = true;
+
+	// reset the json object
+	json = LJSON{};
 
 	sJSON.TrimLeft();
 
-	if (sJSON.empty())
-	{
-		// avoid throwing an exception for empty input - JSON will simply
-		// be empty too, so no error.
-		return true;
-	}
+	// avoid throwing an exception for empty input - JSON will simply
+	// be empty too, so no error.
 
-	bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
-
-	DEKAF2_TRY
+	if (!sJSON.empty())
 	{
-		json = KJSON::parse(sJSON.cbegin(), sJSON.cend());
+#ifndef DEKAF2_WRAPPED_KJSON
+		bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
+#endif
+		DEKAF2_TRY
+		{
+			json = LJSON::parse(sJSON.cbegin(), sJSON.cend());
+		}
+
+		DEKAF2_CATCH (const LJSON::exception& exc)
+		{
+			sError = kFormat ("JSON[{:03d}]: {}", exc.id, exc.what()).str();
+			bReturn = false;
+		}
+#ifndef DEKAF2_WRAPPED_KJSON
 		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
-		return true;
+#endif
 	}
 
-	DEKAF2_CATCH (const KJSON::exception& exc)
-	{
-		sError = kFormat ("JSON[{:03d}]: {}", exc.id, exc.what()).str();
-		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
-		return false;
-	}
+	return bReturn;
 
 } // Parse
 
 //-----------------------------------------------------------------------------
-void Parse (KJSON& json, KStringView sJSON)
+void Parse (LJSON& json, KStringView sJSON)
 //-----------------------------------------------------------------------------
 {
-	json = KJSON{};
+	json = LJSON{};
 
 	sJSON.TrimLeft();
 
@@ -134,7 +161,7 @@ void Parse (KJSON& json, KStringView sJSON)
 	{
 		// avoid throwing an exception for empty input - JSON will simply
 		// be empty too, so no error.
-		json = KJSON::parse(sJSON.cbegin(), sJSON.cend());
+		json = LJSON::parse(sJSON.cbegin(), sJSON.cend());
 	}
 
 } // Parse
@@ -143,7 +170,7 @@ void Parse (KJSON& json, KStringView sJSON)
 KJSON Parse (KStringView sJSON) noexcept
 //-----------------------------------------------------------------------------
 {
-	KJSON   json;
+	LJSON   json;
 	KString sError;
 
 	if (!Parse (json, sJSON, sError))
@@ -159,13 +186,43 @@ KJSON Parse (KStringView sJSON) noexcept
 KJSON ParseOrThrow (KStringView sJSON)
 //-----------------------------------------------------------------------------
 {
-	KJSON json;
+	LJSON json;
 
 	Parse (json, sJSON); // will throw if invalid
 
 	return json;
 
 } // Parse
+
+//-----------------------------------------------------------------------------
+KJSON Parse (KInStream& istream) noexcept
+//-----------------------------------------------------------------------------
+{
+	LJSON   json;
+	KString sError;
+
+	if (!Parse (json, istream, sError))
+	{
+		kDebug (1, sError);
+	}
+
+	return json;
+
+} // Parse
+
+//-----------------------------------------------------------------------------
+KJSON ParseOrThrow (KInStream& istream)
+//-----------------------------------------------------------------------------
+{
+	LJSON json;
+
+	Parse (json, istream); // will throw if invalid
+
+	return json;
+
+} // Parse
+
+namespace {
 
 //-----------------------------------------------------------------------------
 bool SkipLeadingSpace(KInStream& InStream)
@@ -193,11 +250,13 @@ bool SkipLeadingSpace(KInStream& InStream)
 	}
 }
 
+} // end of anonymous namespace
+
 //-----------------------------------------------------------------------------
-bool Parse (KJSON& json, KInStream& InStream, KStringRef& sError) noexcept
+bool Parse (LJSON& json, KInStream& InStream, KStringRef& sError) noexcept
 //-----------------------------------------------------------------------------
 {
-	json = KJSON{};
+	json = LJSON{};
 
 	if (!SkipLeadingSpace(InStream))
 	{
@@ -211,7 +270,7 @@ bool Parse (KJSON& json, KInStream& InStream, KStringRef& sError) noexcept
 		return true;
 	}
 
-	DEKAF2_CATCH (const KJSON::exception& exc)
+	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
 		sError = kFormat ("JSON[{:03d}]: {}", exc.id, exc.what()).str();
 		return false;
@@ -220,10 +279,10 @@ bool Parse (KJSON& json, KInStream& InStream, KStringRef& sError) noexcept
 } // kParse
 
 //-----------------------------------------------------------------------------
-void Parse (KJSON& json, KInStream& InStream)
+void Parse (LJSON& json, KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
-	json = KJSON{};
+	json = LJSON{};
 
 	if (SkipLeadingSpace(InStream))
 	{
@@ -232,11 +291,13 @@ void Parse (KJSON& json, KInStream& InStream)
 
 } // Parse
 
-const KString s_sEmpty {};
-const KJSON s_oEmpty {};
+namespace {
+const KString s_sEmpty;
+const LJSON   s_oEmpty;
+}
 
 //-----------------------------------------------------------------------------
-const KString& GetStringRef(const KJSON& json, KStringView sKey) noexcept
+const KString& GetStringRef(const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
@@ -251,7 +312,7 @@ const KString& GetStringRef(const KJSON& json, KStringView sKey) noexcept
 } // GetStringRef
 
 //-----------------------------------------------------------------------------
-KString GetString(const KJSON& json, KStringView sKey) noexcept
+KString GetString(const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	KString sReturn;
@@ -269,7 +330,7 @@ KString GetString(const KJSON& json, KStringView sKey) noexcept
 } // GetString
 
 //-----------------------------------------------------------------------------
-uint64_t GetUInt(const KJSON& json, KStringView sKey) noexcept
+uint64_t GetUInt(const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	uint64_t iReturn { 0 };
@@ -293,7 +354,7 @@ uint64_t GetUInt(const KJSON& json, KStringView sKey) noexcept
 } // GetUInt
 
 //-----------------------------------------------------------------------------
-int64_t GetInt(const KJSON& json, KStringView sKey) noexcept
+int64_t GetInt(const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	int64_t iReturn { 0 };
@@ -317,7 +378,7 @@ int64_t GetInt(const KJSON& json, KStringView sKey) noexcept
 } // GetInt
 
 //-----------------------------------------------------------------------------
-bool GetBool(const KJSON& json, KStringView sKey) noexcept
+bool GetBool(const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	bool bReturn { 0 };
@@ -345,7 +406,7 @@ bool GetBool(const KJSON& json, KStringView sKey) noexcept
 } // GetBool
 
 //-----------------------------------------------------------------------------
-const KJSON& GetObjectRef (const KJSON& json, KStringView sKey) noexcept
+const LJSON& GetObjectRef (const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
@@ -360,7 +421,7 @@ const KJSON& GetObjectRef (const KJSON& json, KStringView sKey) noexcept
 } // GetObjectRef
 
 //-----------------------------------------------------------------------------
-const KJSON& GetArray (const KJSON& json, KStringView sKey) noexcept
+const LJSON& GetArray (const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
@@ -375,7 +436,7 @@ const KJSON& GetArray (const KJSON& json, KStringView sKey) noexcept
 } // GetArray
 
 //-----------------------------------------------------------------------------
-const KJSON& GetObject (const KJSON& json, KStringView sKey) noexcept
+const LJSON& GetObject (const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY
@@ -388,7 +449,7 @@ const KJSON& GetObject (const KJSON& json, KStringView sKey) noexcept
 		}
 	}
 
-	DEKAF2_CATCH (const KJSON::exception& exc)
+	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
 		kDebug(1, "JSON[{:03d}]: {}", exc.id, exc.what());
 	}
@@ -398,18 +459,20 @@ const KJSON& GetObject (const KJSON& json, KStringView sKey) noexcept
 } // GetObject
 
 //-----------------------------------------------------------------------------
+DEKAF2_ALWAYS_INLINE
 bool IsJsonPointer(KStringView sSelector)
 //-----------------------------------------------------------------------------
 {
-	return sSelector.empty() || sSelector.front() == '/';
+	return sSelector.front() == '/';
 
 } // IsJsonPointer
 
 //-----------------------------------------------------------------------------
+DEKAF2_ALWAYS_INLINE
 bool IsJsonPath(KStringView sSelector)
 //-----------------------------------------------------------------------------
 {
-	return !sSelector.empty() && sSelector.front() != '/';
+	return sSelector.front() == '.';
 
 } // IsJsonPath
 
@@ -417,14 +480,18 @@ bool IsJsonPath(KStringView sSelector)
 KString ToJsonPointer(KStringView sSelector)
 //-----------------------------------------------------------------------------
 {
+	// TODO make this a char loop
 	// assumes we have a json path in sSelector
 	KString sPointer;
-	sPointer.reserve(sSelector.size() + 1);
+	sPointer.reserve(sSelector.size());
 
 	for (const auto& sElement : sSelector.Split(".[", " \f\n\r\t\v\b]"))
 	{
-		sPointer += '/';
-		sPointer += sElement;
+		if (!sElement.empty())
+		{
+			sPointer += '/';
+			sPointer += sElement;
+		}
 	}
 
 	return sPointer;
@@ -432,79 +499,217 @@ KString ToJsonPointer(KStringView sSelector)
 } // ToJsonPointer
 
 //-----------------------------------------------------------------------------
-const KJSON& Select (const KJSON& json, KStringView sSelector)
+const LJSON& Select (const LJSON& json, KStringView sSelector) noexcept
 //-----------------------------------------------------------------------------
 {
+#ifndef DEKAF2_WRAPPED_KJSON
+	bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
+	
+	KScopeGuard Guard = [bResetFlag]()
+	{
+		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
+	};
+#endif
+
 	DEKAF2_TRY
 	{
-		if (IsJsonPath(sSelector))
+		if (sSelector.empty())
 		{
-			if (sSelector.find_first_of(".[") == KStringView::npos)
+			return json;
+		}
+
+		auto chFirst = sSelector.front();
+
+		if (chFirst == '/')
+		{
+			// a json pointer
+			return json.at(LJSON::json_pointer(sSelector));
+		}
+		else if (chFirst == '.')
+		{
+			// a dotted notation
+			return json.at(LJSON::json_pointer(ToJsonPointer(sSelector)));
+		}
+		else
+		{
+			// this is a simple object key (or maybe integer index)
+			if (json.is_array())
 			{
-				// this is a simple object key (or maybe integer), not a pointer or path
-				if (json.is_array())
+				if (KASCII::kIsDigit(chFirst))
 				{
 					return json.at(sSelector.UInt64());
 				}
 				else
 				{
-					return GetObjectRef(json, sSelector);
+					return s_oEmpty;
 				}
 			}
 			else
 			{
-				return json.at(KJSON::json_pointer(ToJsonPointer(sSelector)));
+				return json.at(sSelector);
 			}
-		}
-		else
-		{
-			return json.at(KJSON::json_pointer(sSelector));
 		}
 	}
 
-	DEKAF2_CATCH (const KJSON::exception& exc)
+	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
-		kDebug(1, "JSON[{:03d}]: {}", exc.id, exc.what());
+		kDebug(1, kStripJSONExceptionMessage(exc.what()));
 	}
 
 	return s_oEmpty;
 
 } // Select
 
+namespace { // hide the path traversal in an anonymous namespace
+
 //-----------------------------------------------------------------------------
-KJSON& Select (KJSON& json, KStringView sSelector)
+LJSON& FindWrongObjectAndReplace (LJSON& json, KStringView sSelector)
 //-----------------------------------------------------------------------------
 {
-	if (IsJsonPath(sSelector))
+	auto* cur = &json;
+
+	if (!cur->is_object())
 	{
-		if (sSelector.find_first_of(".[") == KStringView::npos)
-		{
-			// this is a simple object key, not a pointer or path
-			if (json.is_array())
-			{
-				return json.at(sSelector.UInt64());
-			}
-			else
-			{
-				return json[sSelector];
-			}
-		}
-		else
-		{
-			return json[KJSON::json_pointer(ToJsonPointer(sSelector))];
-		}
+		kDebug(2, "switching '{}' to object in pointer hierarchy: {}", "begin()", sSelector);
+
+		(*cur) = LJSON::object();
+		// and try again to resolve the pointer
+		return Select(json, sSelector);
+	}
+
+	std::vector<KStringView> Splitted;
+
+	auto chFirst = sSelector.front();
+
+	if (chFirst == '/')
+	{
+		// a json pointer
+		Splitted = sSelector.Split("/");
+	}
+	else if (chFirst == '.')
+	{
+		// a dotted notation
+		Splitted = sSelector.Split(".[", "]");
 	}
 	else
 	{
-		return json[KJSON::json_pointer(sSelector)];
+		// plain string
+		Splitted.push_back(sSelector);
 	}
+
+	for (const auto sFragment : Splitted)
+	{
+		if (sFragment.empty())
+		{
+			continue;
+		}
+
+		auto it = cur->find(sFragment);
+
+		if (it != cur->end())
+		{
+			cur = &it.value();
+
+			if (cur->is_object() == false)
+			{
+				kDebug(2, "switching '{}' to object in pointer hierarchy: {}", sFragment, sSelector);
+
+				(*cur) = LJSON::object();
+				// and try again to resolve the pointer
+				return Select(json, sSelector);
+			}
+
+			continue;
+		}
+	}
+
+	kDebug(2, "called with a valid json pointer hierarchy");
+
+	// this is an error case - stop any recursion
+	return json;
+
+} // FindWrongObjectAndReplace
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+LJSON& Select (LJSON& json, KStringView sSelector) noexcept
+//-----------------------------------------------------------------------------
+{
+#ifndef DEKAF2_WRAPPED_KJSON
+	bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
+
+	KScopeGuard Guard = [bResetFlag]()
+	{
+		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
+	};
+#endif
+
+	DEKAF2_TRY
+	{
+		if (sSelector.empty())
+		{
+			return json;
+		}
+
+		auto chFirst = sSelector.front();
+
+		if (chFirst == '/')
+		{
+			// a json pointer
+			return json[LJSON::json_pointer(sSelector)];
+		}
+		else if (chFirst == '.')
+		{
+			// a dotted notation
+			return json[LJSON::json_pointer(ToJsonPointer(sSelector))];
+		}
+		else
+		{
+			// this is a simple object key (or maybe integer index)
+			if (json.is_array())
+			{
+				if (KASCII::kIsDigit(chFirst))
+				{
+					return json.at(sSelector.UInt64());
+				}
+				else
+				{
+					// this makes the array an object..
+					return FindWrongObjectAndReplace(json, sSelector);
+				}
+			}
+			else
+			{
+				// we need subscript access here, as we WANT the element
+				// be created if json is null or the element not existing
+				return json[sSelector];
+			}
+		}
+	}
+
+	DEKAF2_CATCH (const LJSON::exception& exc)
+	{
+		kDebug(1, kStripJSONExceptionMessage(exc.what()));
+	}
+
+	return FindWrongObjectAndReplace(json, sSelector);
 
 } // Select
 
 //-----------------------------------------------------------------------------
-const KJSON& Select (const KJSON& json, std::size_t iSelector)
+const LJSON& Select (const LJSON& json, std::size_t iSelector) noexcept
 //-----------------------------------------------------------------------------
 {
+#ifndef DEKAF2_WRAPPED_KJSON
+	bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
+
+	KScopeGuard Guard = [bResetFlag]()
+	{
+		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
+	};
+#endif
+
 	DEKAF2_TRY
 	{
 		if (json.is_array())
@@ -514,9 +719,9 @@ const KJSON& Select (const KJSON& json, std::size_t iSelector)
 		kDebug(1, "not an array");
 	}
 
-	DEKAF2_CATCH (const KJSON::exception& exc)
+	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
-		kDebug(1, "JSON[{:03d}]: {}", exc.id, exc.what());
+		kDebug(1, kStripJSONExceptionMessage(exc.what()));
 	}
 
 	return s_oEmpty;
@@ -524,15 +729,34 @@ const KJSON& Select (const KJSON& json, std::size_t iSelector)
 } // Select
 
 //-----------------------------------------------------------------------------
-KJSON& Select (KJSON& json, std::size_t iSelector)
+LJSON& Select (LJSON& json, std::size_t iSelector) noexcept 
 //-----------------------------------------------------------------------------
 {
-	return json.at(iSelector);
+#ifndef DEKAF2_WRAPPED_KJSON
+	bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
+
+	KScopeGuard Guard = [bResetFlag]()
+	{
+		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
+	};
+#endif
+
+	DEKAF2_TRY
+	{
+		return json.at(iSelector);
+	}
+
+	DEKAF2_CATCH (const LJSON::exception& exc)
+	{
+		kDebug(1, kStripJSONExceptionMessage(exc.what()));
+	}
+
+	return json;
 
 } // Select
 
 //-----------------------------------------------------------------------------
-const KString& SelectString (const KJSON& json, KStringView sSelector)
+const KString& SelectString (const LJSON& json, KStringView sSelector)
 //-----------------------------------------------------------------------------
 {
 	auto& element = Select(json, sSelector);
@@ -551,7 +775,7 @@ const KString& SelectString (const KJSON& json, KStringView sSelector)
 } // SelectString
 
 //-----------------------------------------------------------------------------
-const KJSON& SelectObject (const KJSON& json, KStringView sSelector)
+const LJSON& SelectObject (const LJSON& json, KStringView sSelector)
 //-----------------------------------------------------------------------------
 {
 	auto& element = Select(json, sSelector);
@@ -570,7 +794,7 @@ const KJSON& SelectObject (const KJSON& json, KStringView sSelector)
 } // SelectObject
 
 //-----------------------------------------------------------------------------
-bool Exists (const KJSON& json, KStringView sKey) noexcept
+bool Exists (const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
@@ -578,7 +802,7 @@ bool Exists (const KJSON& json, KStringView sKey) noexcept
 }
 
 //-----------------------------------------------------------------------------
-bool IsObject(const KJSON& json, KStringView sKey) noexcept
+bool IsObject(const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
@@ -586,7 +810,7 @@ bool IsObject(const KJSON& json, KStringView sKey) noexcept
 }
 
 //-----------------------------------------------------------------------------
-bool IsArray(const KJSON& json, KStringView sKey) noexcept
+bool IsArray(const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
@@ -594,7 +818,7 @@ bool IsArray(const KJSON& json, KStringView sKey) noexcept
 }
 
 //-----------------------------------------------------------------------------
-bool IsString(const KJSON& json, KStringView sKey) noexcept
+bool IsString(const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
@@ -602,7 +826,7 @@ bool IsString(const KJSON& json, KStringView sKey) noexcept
 }
 
 //-----------------------------------------------------------------------------
-bool IsInteger(const KJSON& json, KStringView sKey) noexcept
+bool IsInteger(const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
@@ -610,7 +834,7 @@ bool IsInteger(const KJSON& json, KStringView sKey) noexcept
 }
 
 //-----------------------------------------------------------------------------
-bool IsFloat(const KJSON& json, KStringView sKey) noexcept
+bool IsFloat(const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
@@ -618,7 +842,7 @@ bool IsFloat(const KJSON& json, KStringView sKey) noexcept
 }
 
 //-----------------------------------------------------------------------------
-bool IsNull(const KJSON& json, KStringView sKey) noexcept
+bool IsNull(const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
@@ -626,7 +850,7 @@ bool IsNull(const KJSON& json, KStringView sKey) noexcept
 }
 
 //-----------------------------------------------------------------------------
-bool IsBoolean(const KJSON& json, KStringView sKey) noexcept
+bool IsBoolean(const LJSON& json, KStringView sKey) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
@@ -634,7 +858,7 @@ bool IsBoolean(const KJSON& json, KStringView sKey) noexcept
 }
 
 //-----------------------------------------------------------------------------
-void Increment(KJSON& json, KStringView sKey, uint64_t iAddMe) noexcept
+void Increment(LJSON& json, KStringView sKey, uint64_t iAddMe) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
@@ -648,7 +872,7 @@ void Increment(KJSON& json, KStringView sKey, uint64_t iAddMe) noexcept
 }
 
 //-----------------------------------------------------------------------------
-void Decrement(KJSON& json, KStringView sKey, uint64_t iSubstractMe) noexcept
+void Decrement(LJSON& json, KStringView sKey, uint64_t iSubstractMe) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto it = json.find(sKey);
@@ -760,44 +984,44 @@ KString Escape (KStringView sInput)
 } // Escape
 
 //-----------------------------------------------------------------------------
-KString Print (const KJSON& json) noexcept
+KString Print (const LJSON& json) noexcept
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY
 	{
 		switch (json.type())
 		{
-			case KJSON::value_t::object:
-			case KJSON::value_t::array:
+			case LJSON::value_t::object:
+			case LJSON::value_t::array:
 				return json.dump(-1);
 
-			case KJSON::value_t::string:
-				return json.get<dekaf2::KJSON::string_t>();
+			case LJSON::value_t::string:
+				return json.get<dekaf2::LJSON::string_t>();
 
-			case KJSON::value_t::number_integer:
-				return KString::to_string(json.get<KJSON::number_integer_t>());
+			case LJSON::value_t::number_integer:
+				return KString::to_string(json.get<LJSON::number_integer_t>());
 
-			case KJSON::value_t::number_unsigned:
-				return KString::to_string(json.get<KJSON::number_unsigned_t>());
+			case LJSON::value_t::number_unsigned:
+				return KString::to_string(json.get<LJSON::number_unsigned_t>());
 
-			case KJSON::value_t::number_float:
-				return KString::to_string(json.get<KJSON::number_float_t>());
+			case LJSON::value_t::number_float:
+				return KString::to_string(json.get<LJSON::number_float_t>());
 
-			case KJSON::value_t::boolean:
-				return json.get<dekaf2::KJSON::boolean_t>() ? "true" : "false";
+			case LJSON::value_t::boolean:
+				return json.get<dekaf2::LJSON::boolean_t>() ? "true" : "false";
 
-			case KJSON::value_t::null:
+			case LJSON::value_t::null:
 				return "NULL";
 
 			default:
-			case KJSON::value_t::discarded:
+			case LJSON::value_t::discarded:
 				return "(UNKNOWN)";
 		}
 	}
 	
-	DEKAF2_CATCH (const KJSON::exception& exc)
+	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
-		kDebug(1, "JSON[{:03d}]: {}", exc.id, exc.what());
+		kDebug(1, kStripJSONExceptionMessage(exc.what()));
 		return "(ERROR)";
 	}
 
@@ -806,7 +1030,7 @@ KString Print (const KJSON& json) noexcept
 } // Print
 
 //-----------------------------------------------------------------------------
-KJSON::const_iterator Find (const KJSON& json, KStringView sString) noexcept
+LJSON::const_iterator Find (const LJSON& json, KStringView sString) noexcept
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY
@@ -827,9 +1051,9 @@ KJSON::const_iterator Find (const KJSON& json, KStringView sString) noexcept
 		}
 	}
 
-	DEKAF2_CATCH (const KJSON::exception& exc)
+	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
-		kDebug(1, "JSON[{:03d}]: {}", exc.id, exc.what());
+		kDebug(1, kStripJSONExceptionMessage(exc.what()));
 	}
 
 	return json.end();
@@ -837,7 +1061,7 @@ KJSON::const_iterator Find (const KJSON& json, KStringView sString) noexcept
 } // Find
 
 //-----------------------------------------------------------------------------
-bool Contains (const KJSON& json, KStringView sString) noexcept
+bool Contains (const LJSON& json, KStringView sString) noexcept
 //-----------------------------------------------------------------------------
 {
 	return Find(json, sString) != json.end();
@@ -845,7 +1069,7 @@ bool Contains (const KJSON& json, KStringView sString) noexcept
 } // Contains
 
 //-----------------------------------------------------------------------------
-bool RecursiveMatchValue (const KJSON& json, KStringView sSearch)
+bool RecursiveMatchValue (const LJSON& json, KStringView sSearch)
 //-----------------------------------------------------------------------------
 {
 	if (json.empty())
@@ -895,68 +1119,115 @@ bool RecursiveMatchValue (const KJSON& json, KStringView sSearch)
 } // RecursiveMatchValue
 
 //-----------------------------------------------------------------------------
-void Merge (KJSON& object1, KJSON object2)
+void Merge (LJSON& left, LJSON right)
 //-----------------------------------------------------------------------------
 {
-	// this merge will always succeed!
+	// this merge will always succeed
 
-	kDebug(2, "object1: {}, object2: {}", object1.type_name(), object2.type_name());
-
-	if (object2.empty()) // null is empty, too
+	DEKAF2_TRY
 	{
-		// nothing to merge..
-		return;
-	}
+#ifndef NDEBUG
+		kDebug(2, "left: {}, right: {}", left.type_name(), right.type_name());
+#endif
 
-	if (object1.empty()) // null is empty, too
-	{
-		// check if this is an empty array - if yes, then keep the type!
-		if (object1.is_array())
+		// null is empty, too - but take care for arrays as (left) - the caller may just want
+		// to add an empty object at the end of an array (perhaps to manipulate it later)
+		if (right.is_null() && left.is_array() == false)
 		{
-			object1.push_back(std::move(object2));
+			// nothing to merge..
+			return;
 		}
-		else
+
+		if (left.is_null())
 		{
-			// just copy the object - also works for strings, arrays, ints, etc.
-			object1 = std::move(object2);
+			// just copy the right json value - also works for strings, arrays, ints, etc.
+			left = std::move(right);
+			return;
 		}
-		return;
-	}
 
-	// both objects are non-empty..
+		// both json values are non-null..
 
-	if (object1.is_primitive() || (object1.is_object() && !object2.is_object()))
-	{
-		// convert string/int/bool into an array first
-		// convert object1 into an array if object2 is not an object..
-		KJSON cp = KJSON::array();
-		cp.push_back(std::move(object1));
-		object1 = std::move(cp);
-	}
-
-	// object1 is now either an array or an object
-
-	if (object1.is_array())
-	{
-		if (object2.is_array())
+		if (left.is_primitive() || (left.is_object() && !right.is_object()))
 		{
-			for (auto& item : object2)
+			// convert string/int/bool into an array first
+			// convert left into an array if right is not an object..
+			LJSON copy = LJSON::array();
+			copy.push_back(std::move(left));
+			left = std::move(copy);
+		}
+
+		// (left) is now either an array or an object
+
+		if (left.is_array())
+		{
+			if (right.is_array())
 			{
-				object1.push_back(std::move(item));
+				for (auto& item : right)
+				{
+					left.push_back(std::move(item));
+				}
 			}
+			else
+			{
+				left.push_back(std::move(right));
+			}
+			return;
 		}
-		else
+
+		// left and right are objects here.. see the tests and conversions above
+
+		for (auto& it : right.items())
 		{
-			object1.push_back(std::move(object2));
+			left[it.key()] = std::move(it.value());
 		}
-		return;
 	}
 
-	// object1 and object2 are objects here.. see the tests and conversions above
-
-	for (auto& it : object2.items())
+	DEKAF2_CATCH (const LJSON::exception& exc)
 	{
-		object1[it.key()] = std::move(it.value());
+		kDebug(1, kStripJSONExceptionMessage(exc.what()));
+	}
+
+} // Merge
+
+//-----------------------------------------------------------------------------
+void Append (LJSON& left, LJSON right)
+//-----------------------------------------------------------------------------
+{
+	// this operation will always succeed
+
+	DEKAF2_TRY
+	{
+#ifndef NDEBUG
+		kDebug(2, "left: {}, right: {}", left.type_name(), right.type_name());
+#endif
+
+		if (left.is_null())
+		{
+			// make it an array
+			left = LJSON::array();
+		}
+		else if (!left.is_array())
+		{
+			if (left.is_object() && right.is_object())
+			{
+				// merge both objects
+				left.push_back(right);
+				return;
+			}
+
+			// we have to make left an array to be able to append and
+			// move the existing value into the first element of the (new) array
+			LJSON copy = LJSON::array();
+			copy.push_back(std::move(left));
+			left = std::move(copy);
+		}
+
+		left.push_back(std::move(right));
+	}
+
+	DEKAF2_CATCH (const LJSON::exception& exc)
+	{
+		kDebug(1, kStripJSONExceptionMessage(exc.what()));
 	}
 
 } // Merge

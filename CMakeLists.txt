@@ -74,6 +74,7 @@ OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" 
 OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" ON)
 OPTION(DEKAF2_WITH_PEDANTIC_WARNINGS "enable pedantic warnings" ON)
 OPTION(DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT "force the use of fmtlib even if std::format is available" ON)
+OPTION(DEKAF2_WRAPPED_KJSON "create the KJSON class as a non-throwing wrapper type around the native type" OFF)
 
 # =================================== C++ STANDARD =================================
 
@@ -708,6 +709,7 @@ set(PUBLIC_HEADERS
 	kinstringstream.h
 	kjoin.h
 	kjson.h
+	kjson2.h
 	klambdastream.h
 	klog.h
 	kmail.h
@@ -885,7 +887,6 @@ set (PRECOMPILED_HEADERS
 
 set (SOURCES
 	# KEEP ALPHABETIZED
-	experimental/kjson2.cpp
 	bits/kbasepipe.cpp
 	bits/kbaseshell.cpp
 	bits/klogwriter.cpp
@@ -942,6 +943,7 @@ set (SOURCES
 	kinshell.cpp
 	kinstringstream.cpp
 	kjson.cpp
+	kjson2.cpp
 	klambdastream.cpp
 	klog.cpp
 	kmail.cpp
@@ -1289,7 +1291,6 @@ endif()
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2)
 install(FILES ksql.h DESTINATION ${dekaf2_include_dest}/dekaf2)
 install(FILES bits/ksql_dbc.h DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
-install(FILES experimental/kjson2.h DESTINATION ${dekaf2_include_dest}/dekaf2/experimental)
 if(SQLITE3_FOUND)
 	install(TARGETS ksqlite EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 	install(FILES ksqlite.h DESTINATION ${dekaf2_include_dest}/dekaf2)
@@ -1323,6 +1324,7 @@ install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kprops-std-map.h)")
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kmru-multi-index.h)")
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kmru-std-vector.h)")
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/experimental/kjson2.h)")
 
 set(CPACK_SOURCE_GENERATOR ZIP)
 set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})

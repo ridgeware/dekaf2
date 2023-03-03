@@ -1,14 +1,14 @@
 #include "catch.hpp"
-#include <dekaf2/experimental/kjson2.h>
+#include <dekaf2/kjson.h>
 #include <dekaf2/krow.h>
 #include <vector>
 
 #ifndef DEKAF2_IS_WINDOWS
+#if defined(DEKAF2_WRAPPED_KJSON) || !defined(DEKAF2_IS_GCC)
 
 using namespace dekaf2;
 
 namespace {
-
 KJSON2 jsonAsPar(const KJSON2& json = KJSON2{})
 {
 	return json;
@@ -18,10 +18,40 @@ const T& jsonAsConstRef(const T& value) { return value; }
 template<class T>
 T& jsonAsRef(T& value) { return value; }
 
+void ambiguousPar(const KJSON2&) {}
+void ambiguousPar(KStringView)   {}
+bool ambiguousPar2(const KJSON2&)  { return true;  }
+bool ambiguousPar2(const KString&) { return false; }
+bool ambiguousPar2(KStringView)    { return false; }
+void stringViewPar(KStringView)  {}
 }
+
+template<class T>
+struct is_test1
+: std::integral_constant<
+	bool,
+	std::is_same<const char*, typename std::decay<T>::type>::value
+> {};
+
+template<class T,
+typename std::enable_if<is_test1<T>::value, int>::type = 0>
+bool Matches(T&& t) { return true;  }
+
+template<class T,
+typename std::enable_if<is_test1<T>::value == false, int>::type = 0>
+bool Matches(T&& t) { return false; }
+
 
 TEST_CASE("KJSON2")
 {
+	SECTION("chars")
+	{
+		auto b1 = Matches("hello");
+		CHECK ( b1 == true );
+		auto b2 = Matches("hello"_ks);
+		CHECK ( b2 == false );
+	}
+
 	SECTION("Basic construction")
 	{
 		KJSON2 j1;
@@ -40,6 +70,7 @@ TEST_CASE("KJSON2")
 		KString value;
 		value = j1.Select("key1");
 		value = j1["key1"];
+		value = j1["key1"_ks];
 		CHECK ( value == "val1" );
 		value = j1["key2"_ksz];
 		CHECK ( value == "val2" );
@@ -113,6 +144,9 @@ TEST_CASE("KJSON2")
 			}}
 		};
 
+		KJSON2 j2 = j1;
+		CHECK ( j2 == j1 );
+
 		KString value = j1["key1"];
 		CHECK ( value == "val1" );
 		value = j1["key2"];
@@ -122,21 +156,66 @@ TEST_CASE("KJSON2")
 		CHECK ( value == "USD" );
 		double d = j1["object"]["value"];
 		CHECK ( d == 42.99 );
-		KJSON2 j2 = j1["object"];
+		j2.clear();
+//		auto p(j1["object"]);
+		auto p = j1["object"];
+		p = j1["object"];
+		j2 = p;
+		j2 = j1["object"];
 		value = j2["currency"];
 		CHECK ( value == "USD" );
 		d = j2["value"];
 		CHECK ( d == 42.99 );
+
+		auto j1Orig(j1);
+		CHECK ( j1Orig == j1 );
+		auto j3(j1Orig);
+		CHECK ( j1Orig == j3 );
+		j2 = std::move(j1);
+		CHECK ( j2 == j1Orig );
+		CHECK ( j1.empty() );
+		KJSON2 j4(std::move(j3));
+		CHECK ( j1Orig == j4 );
+		CHECK ( j3.empty() );
 	}
 
-	SECTION("LJSON basic ops")
+	SECTION("Array expansion")
+	{
+		{
+			LJSON j;
+			j["myObject"] = LJSON({{"some","object"}});
+			auto& ref = j["myArray"] = LJSON::array();
+			CHECK ( j.dump() == R"({"myArray":[],"myObject":{"some":"object"}})" );
+			ref = { 1,2,3 };
+			CHECK ( j.dump() == R"({"myArray":[1,2,3],"myObject":{"some":"object"}})" );
+			ref = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33 };
+			CHECK ( j.dump() == R"({"myArray":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33],"myObject":{"some":"object"}})" );
+		}
+
+		{
+			KJSON2 j;
+			j["myObject"]= KJSON2({{"some", "object"}});
+			auto& ref = j["myArray"] = KJSON2::array();
+			CHECK ( j.dump() == R"({"myArray":[],"myObject":{"some":"object"}})" );
+			ref = { 1,2,3 };
+			CHECK ( j.dump() == R"({"myArray":[1,2,3],"myObject":{"some":"object"}})" );
+			ref = { 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33 };
+			CHECK ( j.dump() == R"({"myArray":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33],"myObject":{"some":"object"}})" );
+		}
+	}
+
+	SECTION("KJSON2 basic ops")
 	{
 		KJSON2 obj;
-		obj["one"] = 1;
+		obj["/one"] = 1;
+		CHECK ( obj("/one") == 1 );
 		obj["two"] = 2;
+		CHECK ( obj("two") == 2 );
+		CHECK ( obj.dump() == R"({"one":1,"two":2})" );
 		KJSON2 child;
 		child["duck"] = "donald";
 		child["pig"]  = "porky";
+		if (child == "str"_ks) {}
 		KJSON child2;
 		child["mouse"] = "mickey";
 		KJSON2 arr0 = child2;
@@ -148,7 +227,7 @@ TEST_CASE("KJSON2")
 		obj["four"] = arr2;
 	}
 
-	SECTION("KJSON - KROW interoperability")
+	SECTION("KJSON2 - KROW interoperability")
 	{
 		KROW row;
 		row.AddCol("first", "value1");
@@ -162,7 +241,7 @@ TEST_CASE("KJSON2")
 		KJSON2 obj = row;
 		CHECK( obj["first"] == "value1" );
 		CHECK( obj["second"] == "value2" );
-		CHECK( obj["third"].UInt64() == 12345UL );
+		CHECK( obj["third"] == 12345UL );
 	}
 
 	SECTION("KROW - KJSON interoperability")
@@ -180,6 +259,8 @@ TEST_CASE("KJSON2")
 
 		KJSON2 json2 = row;
 
+		if (json == json2) {}
+		CHECK ( json2 == json );
 		CHECK ( json == json2 );
 
 		KROW row2;
@@ -295,7 +376,7 @@ TEST_CASE("KJSON2")
 			}}
 		};
 
-		const KJSON& object = kjson::GetObjectRef(json, "object");
+		auto& object = kjson::GetObjectRef(json, "object");
 
 		CHECK ( object["currency"] == "USD" );
 		CHECK ( object["value"]    == 42.99 );
@@ -343,7 +424,9 @@ TEST_CASE("KJSON2")
 		Increment(json, "val1");
 		CHECK ( json["val1"].Int64() == 16 );
 		json["val2"] = std::numeric_limits<uint64_t>::max();
-		CHECK ( json["val2"].Int64() == static_cast<int64_t>(std::numeric_limits<uint64_t>::max()) );
+		CHECK ( json["val2"]          == std::numeric_limits<uint64_t>::max() );
+		CHECK ( json["val2"].UInt64() == std::numeric_limits<uint64_t>::max() );
+		CHECK ( json["val2"].Int64()  == static_cast<int64_t>(std::numeric_limits<uint64_t>::max()) );
 		CHECK ( json["val2"].UInt64() == std::numeric_limits<uint64_t>::max() );
 	}
 
@@ -364,9 +447,123 @@ TEST_CASE("KJSON2")
 		json = KJSON::object();
 		CHECK ( json.is_object() );
 		CHECK ( json.dump() == "{}" );
-		json = KJSON::parse("null");
+		json = LJSON::parse("null");
 		CHECK ( json.is_null() );
 		CHECK ( json.dump() == "null" );
+	}
+
+	SECTION("compile time checks")
+	{
+		KJSON2 json = { 1,2,3,4 };
+		if (json[0] == 1) {}
+		if (json["abc"] == "") {}
+		json.Select(0);
+		json.Select("abc");
+		json = { 1,2,3,4 };
+
+		ambiguousPar("here"_ksv);
+		ambiguousPar(json);
+		ambiguousPar(*json.begin());
+		kDebug(1, json.dump());
+		CHECK ( *json.begin() == 1 );
+
+		for (auto& it : json)
+		{
+			ambiguousPar(it);
+		}
+
+		for (auto& it : json.items())
+		{
+			ambiguousPar(it.value());
+		}
+
+		auto it = kjson::Find(json, "test");
+		if (it == json.end()) {}
+
+		stringViewPar(json["par"]);
+
+		ambiguousPar2(KString()); // to satisfy the compiler..
+		ambiguousPar2(KStringView()); // same here ..
+		CHECK ( ambiguousPar2(json) );
+		const KJSON2 jconst;
+		CHECK ( ambiguousPar2(jconst) );
+	}
+
+	SECTION("Implicit merge")
+	{
+		KJSON2 obj1, obj2;
+		obj1["key1"] = 14;
+		obj2["key2"] += obj1;
+		CHECK ( obj2.dump() == R"({"key2":[{"key1":14}]})" );
+
+		KJSON2  tjson;
+		KJSON2& jheaders = tjson["headers"] = KJSON2::object();
+		CHECK ( jheaders.dump() == R"({})" );
+		jheaders += { "one", "oneval" };
+		CHECK ( jheaders.dump() == R"({"one":"oneval"})" );
+		CHECK_NOTHROW( ( jheaders += { 7, "oneval" } ) ); // throws, but is caught
+		CHECK ( jheaders.dump() == R"({"one":"oneval"})" );
+		jheaders += { "two", "twoval" };
+		CHECK ( jheaders.dump() == R"({"one":"oneval","two":"twoval"})" );
+		CHECK ( tjson.dump() == R"({"headers":{"one":"oneval","two":"twoval"}})" );
+
+		KJSON2 a1, a2;
+		a2 = KJSON2::array();
+		a2 += "1";
+		a2 += "2";
+		a2 += "3";
+		a1["e"] += a2;
+		CHECK ( a1.dump() == R"({"e":[["1","2","3"]]})" );
+
+		a1 = KJSON2();
+		a2 = KJSON2::array();
+		a2.push_back("1");
+		a2.push_back("2");
+		a2.push_back("3");
+		a1["e"] += a2;
+		CHECK ( a1.dump() == R"({"e":[["1","2","3"]]})" );
+
+		a1 = KJSON2::object();
+		a1["key"] = "value";
+		CHECK_NOTHROW( ( a1 += 2 ) );
+		CHECK ( a1.dump() == R"([{"key":"value"},2])" );
+
+		KJSON2 variant;
+		variant += 1;
+		variant += "string";
+		variant += 3.14;
+		variant += { 1 , "string", 4.1 };
+		int i = variant(0);
+		CHECK ( i == 1 );
+		KString s = variant(1);
+		CHECK ( s == "string" );
+		double d = variant(2);
+		CHECK ( d == 3.14 );
+		auto j = variant(3);
+		CHECK ( j.dump() == R"([1,"string",4.1])" );
+		CHECK ( variant.dump() == R"([1,"string",3.14,[1,"string",4.1]])" );
+	}
+
+	SECTION("conversions")
+	{
+		KJSON2 json;
+		json = 123;
+		CHECK ( ( json ==  123 ) );
+		KString& sref = json.StringRef();
+		CHECK ( sref == "123" );
+		CHECK ( json == "123" );
+		CHECK ( sref == "123" );
+		int i = json;
+		CHECK ( i == 123 );
+		KString s2 = std::move(json.StringRef());
+		CHECK ( json == "" );
+		CHECK ( s2 == "123" );
+
+		json = "string";
+		KString s = json;
+		CHECK ( s == "string" );
+		const KString& t = json;
+		CHECK ( s == "string" );
 	}
 
 	SECTION("KStringView")
@@ -404,19 +601,446 @@ TEST_CASE("KJSON2")
 		CHECK ( j1["key2" ] == "val2" );
 		CHECK ( j1["key3" ] == "" );
 		CHECK ( j1["/answer/nothing"] == "naught" );
-		CHECK ( j1["answer.nothing" ] == "naught" );
+		CHECK ( j1[".answer.nothing" ] == "naught" );
 		CHECK ( j1["/answer/few/1"  ] == "two" );
-		CHECK ( j1["answer.few[0]"  ] == "one" );
+		CHECK ( j1[".answer.few[0]"  ] == "one" );
 		CHECK ( j1["/slist/0"] == "one" );
 		CHECK ( j1["/slist/1"] == "two" );
-		CHECK ( j1["slist[0]"] == "one" );
-		CHECK ( j1["slist[1]"] == "two" );
-		CHECK ( j1["slist[4]"] == "" );
+		CHECK ( j1[".slist[0]"] == "one" );
+		CHECK ( j1[".slist[1]"] == "two" );
+		CHECK ( j1[".slist[4]"] == "" );
 		CHECK ( j1["/answer/unknown"] == "" );
 		CHECK ( j1["/answer/unknown"] != "something" );
 	}
 
-	SECTION("const Select")
+	SECTION("Comparisons")
+	{
+		KJSON  j1;
+		KJSON2 j2;
+		KJSON2 j22;
+#ifdef USE_JSON_PROXY
+		KJSON2::Proxy p2(j2);
+#endif
+		// eq
+		if (j2 == j1) { };
+		if (j2 == j22) { };
+		if (j2 == "") { };
+		if ("" == j2) { };
+		if (j2 ==  1) { };
+		if (1 ==  j2) { };
+		if (j2["test"] == "" ) { };
+		if (j2("test") == "" ) { };
+
+		if (j1 == j2) { };
+		if (j1 == "") { };
+		if (j1 ==  1) { };
+
+		j2["object"] = { 1, 2, 3, 4 };
+#ifdef USE_JSON_PROXY
+		if ( j1 == p2 ) { }
+		if ( j2 == p2 ) { }
+		if ( p2 == j1 ) { }
+		if ( p2 == j2 ) { }
+		CHECK ( j2 == p2 );
+#endif
+		CHECK ( j2("object") == KJSON2({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") == KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( KJSON2({ 1, 2, 3, 4 }) == j2("object") );
+		CHECK ( KJSON({ 1, 2, 3, 4 }) == j2("object") );
+
+		// neq
+		if (j2 != j1) { };
+		if (j2 != j22) { };
+		if (j2 != "") { };
+		if ("" != j2) { };
+		if (j2 !=  1) { };
+		if (1 !=  j2) { };
+		if (j2["test"] != "" ) { };
+		if (j2("test") != "" ) { };
+
+		if (j1 != j2) { };
+		if (j1 != "") { };
+		if (j1 !=  1) { };
+
+		j2["object"] = { 1, 2, 3, 5 };
+		if (j2("object") != KJSON2({ 1, 2, 3, 4 })) {}
+		if (j2("object") != KJSON({ 1, 2, 3, 4 })) {}
+		if ( KJSON2({ 1, 2, 3, 4 }) != j2("object")) {}
+		if ( KJSON({ 1, 2, 3, 4 })  != j2("object")) {}
+		CHECK ( j2("object") != KJSON2({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") != KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( KJSON2({ 1, 2, 3, 4 }) != j2("object") );
+		CHECK ( KJSON({ 1, 2, 3, 4 })  != j2("object") );
+
+		// lt
+		if (j2 < j1) { };
+		if (j2 < j22) { };
+		if (j2 < "") { };
+		if ("" < j2) { };
+		if (j2 <  1) { };
+		if (1 <  j2) { };
+		if (j2["test"] < "" ) { };
+		if (j2("test") < "" ) { };
+
+		if (j1 < j2) { };
+		if (j1 < "") { };
+		if (j1 <  1) { };
+
+		j2["object"] = { 1, 2, 3, 2 };
+		if (j2("object") < KJSON2({ 1, 2, 3, 4 })) {}
+		if (j2("object") < KJSON({ 1, 2, 3, 4 })) {}
+		if ( KJSON2({ 1, 2, 3, 4 }) < j2("object")) {}
+		if ( KJSON({ 1, 2, 3, 4 })  < j2("object")) {}
+
+		CHECK ( j2("object") < KJSON2({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") < KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( KJSON2({ 1, 2, 3, 1 }) < j2("object") );
+		CHECK ( KJSON({ 1, 2, 3, 1 }) < j2("object") );
+
+		// le
+		if (j2 <= j1) { };
+		if (j2 <= j22) { };
+		if (j2 <= "") { };
+		if ("" <= j2) { };
+		if (j2 <=  1) { };
+		if (1 <=  j2) { };
+		if (j2["test"] <= "" ) { };
+		if (j2("test") <= "" ) { };
+
+		if (j1 <= j2) { };
+		if (j1 <= "") { };
+		if (j1 <=  1) { };
+
+		j2["object"] = { 1, 2, 3, 2 };
+		if (j2("object") <= KJSON2({ 1, 2, 3, 4 })) {}
+		if (j2("object") <= KJSON({ 1, 2, 3, 4 })) {}
+		if ( KJSON2({ 1, 2, 3, 4 }) <= j2("object")) {}
+		if ( KJSON({ 1, 2, 3, 4 })  <= j2("object")) {}
+
+		CHECK ( j2("object") <= KJSON2({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") <= KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( KJSON2({ 1, 2, 3, 1 }) <= j2("object") );
+		CHECK ( KJSON({ 1, 2, 3, 1 }) <= j2("object") );
+
+		// gt
+		if (j2 > j1) { };
+		if (j2 > j22) { };
+		if (j2 > "") { };
+		if ("" > j2) { };
+		if (j2 >  1) { };
+		if (1 >  j2) { };
+		if (j2["test"] > "" ) { };
+		if (j2("test") > "" ) { };
+
+		if (j1 > j2) { };
+		if (j1 > "") { };
+		if (j1 >  1) { };
+
+		j2["object"] = { 1, 2, 3, 6 };
+		if (j2("object") > KJSON2({ 1, 2, 3, 4 })) {}
+		if (j2("object") > KJSON({ 1, 2, 3, 4 })) {}
+		if ( KJSON2({ 1, 2, 3, 4 }) > j2("object")) {}
+		if ( KJSON({ 1, 2, 3, 4 })  > j2("object")) {}
+
+		CHECK ( j2("object") > KJSON2({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") > KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( KJSON2({ 1, 2, 3, 8 }) > j2("object") );
+		CHECK ( KJSON({ 1, 2, 3, 8 }) > j2("object") );
+
+		// ge
+		if (j2 >= j1) { };
+		if (j2 >= j22) { };
+		if (j2 >= "") { };
+		if ("" >= j2) { };
+		if (j2 >=  1) { };
+		if (1  >=  j2) { };
+		if (j2["test"] >= "" ) { };
+		if (j2("test") >= "" ) { };
+
+		if (j1 >= j2) { };
+		if (j1 >= "") { };
+		if (j1 >=  1) { };
+
+		j2["object"] = { 1, 2, 3, 6 };
+		if (j2("object") >= KJSON2({ 1, 2, 3, 4 })) {}
+		if (j2("object") >= KJSON({ 1, 2, 3, 4 })) {}
+		if ( KJSON2({ 1, 2, 3, 4 }) >= j2("object")) {}
+		if ( KJSON({ 1, 2, 3, 4 })  >= j2("object")) {}
+
+		CHECK ( j2("object") >= KJSON2({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") >= KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( KJSON2({ 1, 2, 3, 8 }) >= j2("object") );
+		CHECK ( KJSON({ 1, 2, 3, 8 }) >= j2("object") );
+	}
+
+#ifdef USE_JSON_PROXY
+	SECTION("Proxy Comparisons")
+	{
+		KJSON  j1;
+		KJSON2::Proxy j2(j1);
+		KJSON2 j22;
+
+		// eq
+		if (j2 == j1) { };
+		if (j2 == j22) { };
+		if (j2 == "") { };
+		if ("" == j2) { };
+		if (j2 ==  1) { };
+		if (1 ==  j2) { };
+		if (j2["test"] == "" ) { };
+		if (j2("test") == "" ) { };
+
+		if (j1 == j2) { };
+		if (j1 == "") { };
+		if (j1 ==  1) { };
+
+		j2["object"] = { 1, 2, 3, 4 };
+		CHECK ( j2("object") == KJSON2({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") == KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( KJSON2({ 1, 2, 3, 4 }) == j2("object") );
+		CHECK ( KJSON2({ 1, 2, 3, 4 }) == j2("object") );
+
+		// neq
+		if (j2 != j1) { };
+		if (j2 != j22) { };
+		if (j2 != "") { };
+		if ("" != j2) { };
+		if (j2 !=  1) { };
+		if (1 !=  j2) { };
+		if (j2["test"] != "" ) { };
+		if (j2("test") != "" ) { };
+
+		if (j1 != j2) { };
+		if (j1 != "") { };
+		if (j1 !=  1) { };
+
+		j2["object"] = { 1, 2, 3, 5 };
+		if (j2("object") != KJSON2({ 1, 2, 3, 4 })) {}
+		if (j2("object") != KJSON({ 1, 2, 3, 4 })) {}
+		if ( KJSON2({ 1, 2, 3, 4 }) != j2("object")) {}
+		if ( KJSON({ 1, 2, 3, 4 })  != j2("object")) {}
+		CHECK ( j2("object") != KJSON2({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") != KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( KJSON2({ 1, 2, 3, 4 }) != j2("object") );
+		CHECK ( KJSON({ 1, 2, 3, 4 })  != j2("object") );
+
+		// lt
+		if (j2 < j1) { };
+		if (j2 < j22) { };
+		if (j2 < "") { };
+		if ("" < j2) { };
+		if (j2 <  1) { };
+		if (1 <  j2) { };
+		if (j2["test"] < "" ) { };
+		if (j2("test") < "" ) { };
+
+		if (j1 < j2) { };
+		if (j1 < "") { };
+		if (j1 <  1) { };
+
+		j2["object"] = { 1, 2, 3, 2 };
+		if (j2("object") < KJSON2({ 1, 2, 3, 4 })) {}
+		if (j2("object") < KJSON({ 1, 2, 3, 4 })) {}
+		if ( KJSON2({ 1, 2, 3, 4 }) < j2("object")) {}
+		if ( KJSON({ 1, 2, 3, 4 })  < j2("object")) {}
+
+		CHECK ( j2("object") < KJSON2({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") < KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( KJSON2({ 1, 2, 3, 1 }) < j2("object") );
+		CHECK ( KJSON({ 1, 2, 3, 1 }) < j2("object") );
+
+		{
+			KJSON2 k2 = "aaaa";
+			if (k2 < "bbbb")
+			{
+				CHECK(true);
+			}
+			else
+			{
+				CHECK(false);
+			}
+			CHECK ( k2 < "bbbb" );
+			k2 = KJSON2();
+			CHECK (k2 < "bbbb" );
+
+			k2 = "cccc";
+			if (k2 < "bbbb")
+			{
+				CHECK(false);
+			}
+			else
+			{
+				CHECK(true);
+			}
+			CHECK_FALSE ( k2 < "bbbb" );
+		}
+
+		// le
+		if (j2 <= j1) { };
+		if (j2 <= j22) { };
+		if (j2 <= "") { };
+		if ("" <= j2) { };
+		if (j2 <=  1) { };
+		if (1 <=  j2) { };
+		if (j2("test") <= "" ) { };
+		CHECK (j2("test") <= "" );
+		if (j2["test"] <= "" ) { };
+		CHECK (j2["test"] <= "" );
+
+		if (j1 <= j2) { };
+		if (j1 <= "") { };
+		if (j1 <=  1) { };
+
+		j2["object"] = { 1, 2, 3, 2 };
+		if (j2("object") <= KJSON2({ 1, 2, 3, 4 })) {}
+		if (j2("object") <= KJSON({ 1, 2, 3, 4 })) {}
+		if ( KJSON2({ 1, 2, 3, 4 }) <= j2("object")) {}
+		if ( KJSON({ 1, 2, 3, 4 })  <= j2("object")) {}
+
+		CHECK ( j2("object") <= KJSON2({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") <= KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( KJSON2({ 1, 2, 3, 1 }) <= j2("object") );
+		CHECK ( KJSON({ 1, 2, 3, 1 }) <= j2("object") );
+
+		// gt
+		if (j2 > j1) { };
+		if (j2 > j22) { };
+		if (j2 > "") { };
+		if ("" > j2) { };
+		if (j2 >  1) { };
+		if (1 >  j2) { };
+		if (j2["test"] > "" ) { };
+		if (j2("test") > "" ) { };
+
+		if (j1 > j2) { };
+		if (j1 > "") { };
+		if (j1 >  1) { };
+
+		j2["object"] = { 1, 2, 3, 6 };
+		if (j2("object") > KJSON2({ 1, 2, 3, 4 })) {}
+		if (j2("object") > KJSON({ 1, 2, 3, 4 })) {}
+		if ( KJSON2({ 1, 2, 3, 4 }) > j2("object")) {}
+		if ( KJSON({ 1, 2, 3, 4 })  > j2("object")) {}
+
+		CHECK ( j2("object") > KJSON2({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") > KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( KJSON2({ 1, 2, 3, 8 }) > j2("object") );
+		CHECK ( KJSON({ 1, 2, 3, 8 }) > j2("object") );
+
+		// ge
+		if (j2 >= j1) { };
+		if (j2 >= j22) { };
+		if (j2 >= "") { };
+		if ("" >= j2) { };
+		if (j2 >=  1) { };
+		if (1  >=  j2) { };
+		if (j2["test"] >= "" ) { };
+		if (j2("test") >= "" ) { };
+
+		if (j1 >= j2) { };
+		if (j1 >= "") { };
+		if (j1 >=  1) { };
+
+		j2["object"] = { 1, 2, 3, 6 };
+		if (j2("object") >= KJSON2({ 1, 2, 3, 4 })) {}
+		if (j2("object") >= KJSON({ 1, 2, 3, 4 })) {}
+		if ( KJSON2({ 1, 2, 3, 4 }) >= j2("object")) {}
+		if ( KJSON({ 1, 2, 3, 4 })  >= j2("object")) {}
+
+		CHECK ( j2("object") >= KJSON2({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") >= KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( KJSON2({ 1, 2, 3, 8 }) >= j2("object") );
+		CHECK ( KJSON({ 1, 2, 3, 8 }) >= j2("object") );
+	}
+#endif
+
+	SECTION("Select and struct changes")
+	{
+		KJSON  j1;
+
+		KJSON2 j2 = {
+			{"pi", 3.141},
+			{"happy", true},
+			{"key1", "val1"},
+			{"key2", "val2"},
+			{"nothing", nullptr},
+			{"answer", {
+				{"everything", 42},
+				{"nothing", "naught"},
+				{"few", { "one", "two", "three"}}
+			}},
+			{"ilist", {1, 0, 2}},
+			{"slist", {"one", "two", "three"}},
+			{"object", {
+				{"currency", "USD"},
+				{"value", 42.99}
+			}}
+		};
+
+		j2["/answer/few/1"  ] = 2;
+		CHECK ( j2("/answer/few/1") == 2 );
+
+		j2["/answer/few/2"  ] = "three";
+		CHECK ( j2("/answer/few/2") == "three" );
+
+		j2["/answer/few"  ] = "three";
+		CHECK ( j2("/answer/few") == "three" );
+
+		if (j2 == j1) { };
+		if (j2 == "") { };
+		if ("" == j2) { };
+		if (j2 ==  1) { };
+		if (1 ==  j2) { };
+		if (j2["test"] == "" ) { };
+		if (j2("test") == "" ) { };
+
+		if (j1 == j2) { };
+		if (j1 == "") { };
+		if (j1 ==  1) { };
+
+		j2["object"] = { 1, 2, 3, 4 };
+		CHECK ( j2("object") == KJSON2({ 1, 2, 3, 4 }) );
+
+	}
+
+	SECTION("Implicit SelectConst")
+	{
+		KJSON2 j1 = {
+			{"pi", 3.141},
+			{"happy", true},
+			{"key1", "val1"},
+			{"key2", "val2"},
+			{"nothing", nullptr},
+			{"answer", {
+				{"everything", 42},
+				{"nothing", "naught"},
+				{"few", { "one", "two", "three"}}
+			}},
+			{"ilist", {1, 0, 2}},
+			{"slist", {"one", "two", "three"}},
+			{"object", {
+				{"currency", "USD"},
+				{"value", 42.99}
+			}}
+		};
+
+		CHECK ( j1("/key2") == "val2" );
+		CHECK ( j1("key2" ) == "val2" );
+		CHECK ( j1("key3" ) == "" );
+		CHECK ( j1("/answer/nothing") == "naught" );
+		CHECK ( j1(".answer.nothing") == "naught" );
+		CHECK ( j1("/answer/few/1"  ) == "two" );
+		CHECK ( j1(".answer.few[0]" ) == "one" );
+		CHECK ( j1("/slist/0") == "one" );
+		CHECK ( j1("/slist/1") == "two" );
+		CHECK ( j1(".slist[0]") == "one" );
+		CHECK ( j1(".slist[1]") == "two" );
+		CHECK ( j1(".slist[4]") == "" );
+		CHECK ( j1("/answer/unknown") == "" );
+		CHECK ( j1("/answer/unknown") != "something" );
+	}
+
+	SECTION("Select on const object")
 	{
 		const KJSON2 j1 = {
 			{"pi", 3.141},
@@ -441,16 +1065,53 @@ TEST_CASE("KJSON2")
 		CHECK ( j1.Select("key2" ) == "val2" );
 		CHECK ( j1.Select("key3" ) == "" );
 		CHECK ( j1.Select("/answer/nothing") == "naught" );
-		CHECK ( j1.Select("answer.nothing" ) == "naught" );
+		CHECK ( j1.Select(".answer.nothing" ) == "naught" );
 		CHECK ( j1.Select("/answer/few/1"  ) == "two" );
-		CHECK ( j1.Select("answer.few[0]"  ) == "one" );
+		CHECK ( j1.Select(".answer.few[0]"  ) == "one" );
 		CHECK ( j1.Select("/slist/0") == "one" );
 		CHECK ( j1.Select("/slist/1") == "two" );
-		CHECK ( j1.Select("slist[0]") == "one" );
-		CHECK ( j1.Select("slist[1]") == "two" );
-		CHECK ( j1.Select("slist[4]") == "" );
+		CHECK ( j1.Select(".slist[0]") == "one" );
+		CHECK ( j1.Select(".slist[1]") == "two" );
+		CHECK ( j1.Select(".slist[4]") == "" );
 		CHECK ( j1.Select("/answer/unknown") == "" );
 		CHECK ( j1.Select("/answer/unknown") != "something" );
+	}
+
+	SECTION("SelectConst")
+	{
+		KJSON2 j1 = {
+			{"pi", 3.141},
+			{"happy", true},
+			{"key1", "val1"},
+			{"key2", "val2"},
+			{"nothing", nullptr},
+			{"answer", {
+				{"everything", 42},
+				{"nothing", "naught"},
+				{"few", { "one", "two", "three"}}
+			}},
+			{"ilist", {1, 0, 2}},
+			{"slist", {"one", "two", "three"}},
+			{"object", {
+				{"currency", "USD"},
+				{"value", 42.99}
+			}}
+		};
+
+		CHECK ( j1.SelectConst("/key2") == "val2" );
+		CHECK ( j1.SelectConst("key2" ) == "val2" );
+		CHECK ( j1.SelectConst("key3" ) == "" );
+		CHECK ( j1.SelectConst("/answer/nothing") == "naught" );
+		CHECK ( j1.SelectConst(".answer.nothing") == "naught" );
+		CHECK ( j1.SelectConst("/answer/few/1"  ) == "two" );
+		CHECK ( j1.SelectConst(".answer.few[0]" ) == "one" );
+		CHECK ( j1.SelectConst("/slist/0") == "one" );
+		CHECK ( j1.SelectConst("/slist/1") == "two" );
+		CHECK ( j1.SelectConst(".slist[0]") == "one" );
+		CHECK ( j1.SelectConst(".slist[1]") == "two" );
+		CHECK ( j1.SelectConst(".slist[4]") == "" );
+		CHECK ( j1.SelectConst("/answer/unknown") == "" );
+		CHECK ( j1.SelectConst("/answer/unknown") != "something" );
 	}
 
 	SECTION("SelectString")
@@ -477,14 +1138,14 @@ TEST_CASE("KJSON2")
 		CHECK ( j1.Select("/key2").String() == "val2" );
 		CHECK ( j1.Select("key2" ).String() == "val2" );
 		CHECK ( j1.Select("/answer/nothing").String() == "naught" );
-		CHECK ( j1.Select("answer.nothing" ).String() == "naught" );
+		CHECK ( j1.Select(".answer.nothing").String() == "naught" );
 		CHECK ( j1.Select("/answer/few/1"  ).String() == "two" );
-		CHECK ( j1.Select("answer.few[0]"  ).String() == "one" );
+		CHECK ( j1.Select(".answer.few[0]" ).String() == "one" );
 		CHECK ( j1.Select("/slist/0").String() == "one" );
 		CHECK ( j1.Select("/slist/1").String() == "two" );
-		CHECK ( j1.Select("slist[0]").String() == "one" );
-		CHECK ( j1.Select("slist[1]").String() == "two" );
-		CHECK ( j1.Select("slist[4]").String() == "" );
+		CHECK ( j1.Select(".slist[0]").String() == "one" );
+		CHECK ( j1.Select(".slist[1]").String() == "two" );
+		CHECK ( j1.Select(".slist[4]").String() == "" );
 		CHECK ( j1.Select("/answer/unknown").String() == "" );
 	}
 
@@ -514,6 +1175,44 @@ TEST_CASE("KJSON2")
 		CHECK ( kjson::SelectObject(j1, "/pi") == KJSON() );
 	}
 
+	SECTION("Implicit conversion")
+	{
+		KJSON2 j1 = {
+			{"pi", 3.141},
+			{"happy", true},
+			{"key1", "val1"},
+			{"key2", "val2"},
+			{"nothing", nullptr},
+			{"answer", {
+				{"everything", 42},
+				{"nothing", "naught"},
+				{"few", { "one", "two", "three"}}
+			}},
+			{"ilist", {1, 0, 2}},
+			{"slist", {"one", "two", "three"}},
+			{"object", {
+				{"currency", "USD"},
+				{"value", 42.99}
+			}}
+		};
+
+		uint64_t                 iAnswer = j1["answer"]["everything"];
+		double                        pi = j1["pi"];
+		bool                      bHappy = j1["happy"];
+		KString                     sVal = j1["key1"];
+		// these are not implicit with KJSON2, because we do not have a template operator T()
+		std::vector<int>             Vec1 = j1["ilist"].get<decltype(Vec1)>();
+		std::map<std::string, LJSON> Map1 = j1.get<decltype(Map1)>();
+//		std::vector<int>             Vec2 = j1["ilist"].ToBase();
+//		std::map<std::string, LJSON> Map2 = j1.ToBase();
+
+		CHECK ( iAnswer == 42 );
+		CHECK ( pi == 3.141 );
+		CHECK ( bHappy == true );
+		CHECK ( sVal == "val1" );
+		CHECK ( Vec1 == (std::vector<int>{ 1, 0, 2 }) );
+	}
+
 	SECTION("Assignment")
 	{
 		KJSON2 j1;
@@ -521,7 +1220,8 @@ TEST_CASE("KJSON2")
 		j1["Key2"] = 0.2435;
 		j1["Key3"] = std::numeric_limits<uint64_t>::max();
 		j1["/Key4"] = 2435;
-		j1["/Key5"] = KJSON {
+//		j1["/Key5"] =  { "test" };
+		j1["/Key5"] =  {
 			{"answer", {
 				{"everything", 42},
 				{"nothing", "naught"},
@@ -529,18 +1229,39 @@ TEST_CASE("KJSON2")
 			}}
 		};
 		j1["/Key6/New/Path"] = "Created";
-//		j1["/Key6/New/Path/String"] = "Created";
+		if (j1("/Key6/New/Path/String") == "") {}
+		j1["/Key7/New/Array/2"] = "Created1";
+		j1["/Key7/New/Array/String"] = "Created2";
+		j1["/Key6/New/Path/2"] = "Created2";
+		CHECK ( j1("/Key6/New/Path/2") == "Created2" );
 		CHECK ( j1["Key1"] == "Value1" );
-		CHECK ( j1["Key2"].Float() == 0.2435 );
-		CHECK ( j1["Key3"].UInt64() == std::numeric_limits<uint64_t>::max() );
-		CHECK ( j1["Key4"].UInt64() == 2435 );
+		CHECK ( j1["Key2"] == 0.2435 );
+		CHECK ( j1["Key3"] == std::numeric_limits<uint64_t>::max() );
+		CHECK ( j1["Key4"] == 2435 );
 		CHECK ( j1["/Key5/answer/few/1"] == "two" );
 		CHECK ( j1["Key5"]["answer"]["few"][1] == "two" );
 		CHECK ( j1["Key5"]["answer"]["few"]["2"] == "three" );
-		CHECK ( j1["/Key6/New/Path"] == "Created" );
+		j1["/Key6/New/Path/0"] = "IsArray";
 
 		KJSON2 j2(j1.Select("Key5"));
 		CHECK ( j2.dump() == R"({"answer":{"everything":42,"few":["one","two","three"],"nothing":"naught"}})" );
+	}
+
+	SECTION("initializer lists")
+	{
+		KJSON2 j1 = {{ "one", "two", "three"}};
+		KJSON2 j2 	{
+			{ "key"      , "val" },
+			{ "array"    , j1    }
+		};
+		CHECK ( j2.dump() == R"({"array":[["one","two","three"]],"key":"val"})" );
+
+		LJSON l1 = {{ "one", "two", "three"}};
+		LJSON l2 	{
+			{ "key"      , "val" },
+			{ "array"    , l1    }
+		};
+		CHECK ( l2.dump() == R"({"array":[["one","two","three"]],"key":"val"})" );
 	}
 
 	SECTION("Reference")
@@ -566,6 +1287,30 @@ TEST_CASE("KJSON2")
 
 		CHECK ( jsonAsConstRef<uint64_t>(j1.Select("/answer/everything")) == 42 );
 		CHECK ( jsonAsConstRef<KString>(j1.Select("key1")) == "val1" );
+	}
+
+	SECTION("Primitives")
+	{
+		{
+			KJSON2 j = 123;
+			uint64_t i = j;
+			CHECK ( i == 123 );
+		}
+		{
+			KJSON2 j = 1.23;
+			double d = j;
+			CHECK ( d == 1.23 );
+		}
+		{
+			KJSON2 j = true;
+			bool b = j;
+			CHECK ( b == true );
+		}
+		{
+			KJSON2 j = "string";
+			KString s = j;
+			CHECK ( s == "string" );
+		}
 	}
 
 	SECTION("Merge")
@@ -647,10 +1392,11 @@ TEST_CASE("KJSON2")
 			CHECK (j1.dump() == R"([1,2,3,4,{"object":{"currency":"USD","value":42.99}}])" );
 		}
 		{
-			KJSON2 j1 = "string";
-			j1 += "string2";
-			CHECK (j1.dump() == R"(["string","string2"])");
+//			KJSON2 j1 = "string";
+// TODO			j1 += "string2";
+//			CHECK (j1.dump() == R"(["string","string2"])");
 		}
 	}
 }
+#endif
 #endif

@@ -1864,6 +1864,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 
     @since version 1.0.0
     */
+#ifndef DEKAF2_WRAPPED_KJSON
     template < typename ValueType, typename std::enable_if <
                    detail::conjunction <
                        detail::negation<std::is_pointer<ValueType>>,
@@ -1885,7 +1886,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
         // delegate the call to get<>() const
         return get<ValueType>();
     }
-
+#endif
     /// @brief get a binary value
     /// @sa https://json.nlohmann.me/api/basic_json/get_binary/
     binary_t& get_binary()

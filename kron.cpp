@@ -166,6 +166,15 @@ Kron::Job::Job(KString sName, std::time_t tOnce, KStringView sCommand, KDuration
 Kron::Job::Job(const KJSON& jConfig)
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_WRAPPED_KJSON
+	m_sName            = jConfig("Name");
+	kDebug(1, "building Job '{}' from json", Name());
+	m_sCommand         = jConfig("Command");
+	m_MaxExecutionTime = std::chrono::seconds(jConfig("MaxExecutionTime"));
+	m_tOnce            = jConfig("tOnce");
+	KString sDef       = jConfig("Definition");
+	auto jEnviron      = jConfig("Environment").Array();
+#else
 	m_sName            = kjson::GetStringRef (jConfig, "Name"        );
 	kDebug(1, "building Job '{}' from json", Name());
 	m_sCommand         = kjson::GetStringRef (jConfig, "Command"     );
@@ -173,13 +182,18 @@ Kron::Job::Job(const KJSON& jConfig)
 	m_tOnce            = kjson::GetInt       (jConfig, "tOnce"       );
 	KString sDef       = kjson::GetStringRef (jConfig, "Definition"  );
 	auto jEnviron      = kjson::GetArray     (jConfig, "Environment" );
-
+#endif
 	if (jEnviron.is_array() && !jEnviron.empty())
 	{
 		for (const auto& env : jEnviron)
 		{
+#ifdef DEKAF2_WRAPPED_KJSON_NOT_YET_ADD_AUTO_ITERATION
+			const auto& sName  = env("name" ).String();
+			const auto& sValue = env("value").String();
+#else
 			const auto& sName  = kjson::GetStringRef(env, "name" );
 			const auto& sValue = kjson::GetStringRef(env, "value");
+#endif
 
 			if (!sName.empty() && !sValue.empty())
 			{

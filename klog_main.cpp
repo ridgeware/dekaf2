@@ -393,11 +393,13 @@ void TestBacktraces()
 	KLog::getInstance().SetMode(KLog::CLI);
 	KLog::getInstance().OnlyShowCallerOnJsonError(true);
 
+#ifndef DEKAF2_WRAPPED_KJSON
 	DEKAF2_TRY_EXCEPTION
 	KJSON json;
 	json["hello"] = 42;
 	KString s = json["hello"];
 	DEKAF2_LOG_EXCEPTION
+#endif
 
 	kSetCrashContext("just crashing..");
 

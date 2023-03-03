@@ -45,7 +45,9 @@
 #include "bits/ktemplate.h"
 #include "kprops.h"
 #include "kjson.h"
-#include "experimental/kjson2.h"
+#ifndef DEKAF2_WRAPPED_KJSON
+	#include "kjson2.h"
+#endif
 
 namespace dekaf2 {
 
@@ -432,7 +434,7 @@ public:
 	{
 	}
 
-	KROW (const KJSON& json)
+	KROW (const LJSON& json)
 	{
 		operator+=(json);
 	}
@@ -471,7 +473,18 @@ public:
 	/// @param iFlags special column or name flags, default none
 	/// @param iLen limit size of column string (after string escape), default 0 = unlimited
 	/// @return bool success of operation
-	bool AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags Flags = KCOL::Flags::NOFLAG, KCOL::Len iMaxLen = 0);
+	bool AddCol (KStringView sColName, const LJSON& Value, KCOL::Flags Flags = KCOL::Flags::NOFLAG, KCOL::Len iMaxLen = 0);
+
+	/// Create or set a column from a JSON value
+	/// @param sColName Name of the column
+	/// @param Value JSON value to serialize as the column value
+	/// @param iFlags special column or name flags, default none
+	/// @param iLen limit size of column string (after string escape), default 0 = unlimited
+	/// @return bool success of operation
+	bool AddCol (KStringView sColName, const KJSON2& Value, KCOL::Flags Flags = KCOL::Flags::NOFLAG, KCOL::Len iMaxLen = 0)
+	{
+		return AddCol(sColName, Value.ToBase(), Flags, iMaxLen);
+	}
 
 	/// Create or set a column from a boolean value
 	/// @param sColName Name of the column
@@ -635,17 +648,17 @@ public:
 	/// append columns from another KROW object
 	KROW& operator+=(const KROW& another);
 
-	/// append a KJSON object to a krow
-	KROW& operator+=(const KJSON& json);
+	/// append a LJSON object to a krow
+	KROW& operator+=(const LJSON& json);
 
 	/// append a KJSON2 object to a krow
 	KROW& operator+=(const KJSON2& json)
 	{
-		return operator+=(json.ToKJSON());
+		return operator+=(json.ToBase());
 	}
 
-	/// assign a KJSON object to a krow
-	KROW& operator=(const KJSON& json)
+	/// assign a LJSON object to a krow
+	KROW& operator=(const LJSON& json)
 	{
 		clear();
 		return operator+=(json);
@@ -654,12 +667,11 @@ public:
 	/// assign a KJSON2 object to a krow
 	KROW& operator=(const KJSON2& json)
 	{
-		clear();
-		return operator+=(json);
+		return operator=(json.ToBase());
 	}
 
-	/// Load row from a KJSON object
-	KROW& from_json(const KJSON& json)
+	/// Load row from a LJSON object
+	KROW& from_json(const LJSON& json)
 	{
 		return operator=(json);
 	}
@@ -668,6 +680,20 @@ public:
 	KROW& from_json(const KJSON2& json)
 	{
 		return operator=(json);
+	}
+
+	operator LJSON ()
+	{
+#ifdef DEKAF2_WRAPPED_KJSON
+		return to_json().ToBase();
+#else
+		return to_json();
+#endif
+	}
+
+	operator KJSON2 ()
+	{
+		return to_json();
 	}
 
 //----------
@@ -682,6 +708,38 @@ private:
 
 }; // KROW
 
+//-----------------------------------------------------------------------------
+/// ADL resolver for KROW to KJSON
+inline void to_json(LJSON& j, const KROW& row)
+//-----------------------------------------------------------------------------
+{
+	j = row.to_json();
+}
+
+//-----------------------------------------------------------------------------
+/// ADL resolver for KROW to KJSON
+inline void from_json(const LJSON& j, KROW& row)
+//-----------------------------------------------------------------------------
+{
+	row.from_json(j);
+}
+#if 0
+//-----------------------------------------------------------------------------
+/// ADL resolver for KROW to KJSON2
+inline void to_json(KJSON2& j, const KROW& row)
+//-----------------------------------------------------------------------------
+{
+	j = row.to_json();
+}
+
+//-----------------------------------------------------------------------------
+/// ADL resolver for KROW to KJSON2
+inline void from_json(const KJSON2& j, KROW& row)
+//-----------------------------------------------------------------------------
+{
+	row.from_json(j);
+}
+#endif
 } // namespace dekaf2
 
 namespace std

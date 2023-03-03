@@ -298,7 +298,7 @@ KString KJsonRestClient::DefaultErrorCallback(const KJSON& jResponse, KStringVie
 
 	// our default message parse
 
-	KJSON::const_iterator it = jResponse.end();
+	auto it = jResponse.end();
 
 	for (auto sProp : sErrorProperties.Split())
 	{

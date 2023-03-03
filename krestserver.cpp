@@ -474,11 +474,12 @@ void KRESTServer::Parse()
 		{
 			// try to read input as JSON - if it fails just skip
 
+#ifndef DEKAF2_WRAPPED_KJSON
 			// nobody wants stack traces in the klog when hackers throw crappy json (and attacks)
 			// at their rest server.  so we need to turn off stack traces while we attempt to
 			// parse incoming json from the wire:
 			bool bResetFlag = KLog::getInstance().ShowStackOnJsonError (false);
-
+#endif
 			// parse the content into json.rx
 			KString sError;
 
@@ -503,10 +504,12 @@ void KRESTServer::Parse()
 				}
 			}
 
+#ifndef DEKAF2_WRAPPED_KJSON
 			// after we are done parsing the incoming json from the wire,
 			// restore stack traces for failures in the json that application may
 			// form while processing a request:
 			KLog::getInstance().ShowStackOnJsonError (bResetFlag);
+#endif
 		}
 		break;
 

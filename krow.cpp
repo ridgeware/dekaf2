@@ -917,7 +917,7 @@ KSQLString KROW::FormDelete (DBT iDBType) const
 } // FormDelete
 
 //-----------------------------------------------------------------------------
-bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags Flags, KCOL::Len iMaxLen)
+bool KROW::AddCol (KStringView sColName, const LJSON& Value, KCOL::Flags Flags, KCOL::Len iMaxLen)
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
@@ -927,27 +927,27 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags Flags, 
 
 	switch (Value.type())
 	{
-		case KJSON::value_t::object:
-		case KJSON::value_t::array:
+		case LJSON::value_t::object:
+		case LJSON::value_t::array:
 			return AddCol(sColName, Value.dump(-1), Flags | KCOL::JSON, iMaxLen);
 
-		case KJSON::value_t::string:
-		case KJSON::value_t::binary:
+		case LJSON::value_t::string:
+		case LJSON::value_t::binary:
 			return AddCol(sColName, Value.get<KJSON::string_t>(), Flags | KCOL::NOFLAG, iMaxLen);
 
-		case KJSON::value_t::number_integer:
+		case LJSON::value_t::number_integer:
 			return AddCol(sColName, Value.get<KJSON::number_integer_t>(), Flags | KCOL::NUMERIC, iMaxLen);
 
-		case KJSON::value_t::number_unsigned:
+		case LJSON::value_t::number_unsigned:
 			return AddCol(sColName, Value.get<KJSON::number_unsigned_t>(), Flags | KCOL::NUMERIC, iMaxLen);
 
-		case KJSON::value_t::number_float:
+		case LJSON::value_t::number_float:
 			return AddCol(sColName, Value.get<KJSON::number_float_t>(), Flags | KCOL::MONEY, iMaxLen);
 
-		case KJSON::value_t::boolean:
+		case LJSON::value_t::boolean:
 			return AddCol(sColName, Value.get<KJSON::boolean_t>(), Flags | KCOL::BOOLEAN, iMaxLen);
 
-		case KJSON::value_t::null:
+		case LJSON::value_t::null:
 			if (Flags & KCOL::NULL_IS_NOT_NIL)
 			{
 				return AddCol(sColName, "null", KCOL::EXPRESSION);
@@ -957,7 +957,7 @@ bool KROW::AddCol (KStringView sColName, const KJSON& Value, KCOL::Flags Flags, 
 				return AddCol(sColName, "", Flags | KCOL::JSON, iMaxLen);
 			}
 
-		case KJSON::value_t::discarded:
+		case LJSON::value_t::discarded:
 			kDebug(2, "could not identify JSON type for {}", sColName);
 			return false;
 	}
@@ -972,7 +972,7 @@ KJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 {
 	kDebug (3, "...");
 
-	KJSON json;
+	KJSON json = KJSON::object();
 
 	for (auto& col : *this)
 	{
@@ -989,11 +989,11 @@ KJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 			sKey.MakeUpper();
 		}
 
-		if (col.second.IsFlag(KCOL::NONCOLUMN))
+		if (col.second.HasFlag(KCOL::NONCOLUMN))
 		{
 			continue;
 		}
-		else if (col.second.IsFlag(KCOL::INT64NUMERIC))
+		else if (col.second.HasFlag(KCOL::INT64NUMERIC))
 		{
 			// large integers > 53 bits have no representation in JavaScript and need to
 			// be stored as string values..
@@ -1020,11 +1020,11 @@ KJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 			//
 			// This is why we have to convert 64 bit integers into strings.
 		}
-		else if (col.second.IsFlag(KCOL::BOOLEAN) || sKey.StartsWith("is_"))
+		else if (col.second.HasFlag(KCOL::BOOLEAN) || sKey.StartsWith("is_"))
 		{
 			json[sKey] = col.second.sValue.Bool();
 		}
-		else if (col.second.IsFlag(KCOL::NUMERIC) | col.second.IsFlag(KCOL::MONEY))
+		else if (col.second.HasFlag(KCOL::NUMERIC | KCOL::MONEY))
 		{
 			// TODO get a strategy as to how to and if to adapt to locales with other chars than . as the
 			// decimal separator
@@ -1047,28 +1047,39 @@ KJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 #if 0
 		else if (/*(col.second.iFlags & KCOL::NULL_IS_NOT_NIL) &&*/ col.second.sValue.empty())
 		{
-			json[sKey] = NULL;
+			json[sKey] = KJSON();
 		}
 #endif
-		else if (col.second.IsFlag(KCOL::JSON))
+		else if (col.second.HasFlag(KCOL::JSON))
 		{
 			// this is a json serialization
+#ifndef DEKAF2_WRAPPED_KJSON
+			bool bOld = KLog::getInstance().ShowStackOnJsonError(false);
+#endif
 			DEKAF2_TRY
 			{
 				KJSON object;
-				bool bOld = KLog::getInstance().ShowStackOnJsonError(false);
 				kjson::Parse(object, col.second.sValue);
+#ifndef DEKAF2_WRAPPED_KJSON
 				KLog::getInstance().ShowStackOnJsonError(bOld);
-				json[sKey] = object;
+#endif
+				json[sKey] = std::move(object);
 			}
-			DEKAF2_CATCH(const KJSON::exception& exc)
+			DEKAF2_CATCH(const LJSON::exception& exc)
 			{
 #ifdef _MSC_VER
 				exc.what();
 #endif
 				// not a valid json object / array, store it as a string
+#ifdef DEKAF2_WRAPPED_KJSON
+				kjson::SetStringFromUTF8orLatin1(json[sKey].ToBase(), col.second.sValue);
+#else
 				kjson::SetStringFromUTF8orLatin1(json[sKey], col.second.sValue);
+#endif
 			}
+#ifndef DEKAF2_WRAPPED_KJSON
+			KLog::getInstance().ShowStackOnJsonError(bOld);
+#endif
 		}
 		else
 		{
@@ -1078,27 +1089,38 @@ KJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 					|| (col.second.sValue.front() == '[' && col.second.sValue.back() == ']')))
 			{
 				// we assume this is a json serialization
+#ifndef DEKAF2_WRAPPED_KJSON
+				bool bOld = KLog::getInstance().ShowStackOnJsonError(false);
+#endif
 				DEKAF2_TRY
 				{
 					KJSON object;
-					bool bOld = KLog::getInstance().ShowStackOnJsonError(false);
 					kjson::Parse(object, col.second.sValue);
+#ifndef DEKAF2_WRAPPED_KJSON
 					KLog::getInstance().ShowStackOnJsonError(bOld);
-					json[sKey] = object;
+#endif
+					json[sKey] = std::move(object);
+					// continue the loop right here, do NOT fall through to the plain string case!
+					continue;
 				}
-				DEKAF2_CATCH(const KJSON::exception& exc)
+				DEKAF2_CATCH(const LJSON::exception& exc)
 				{
 #ifdef _MSC_VER
 					exc.what();
 #endif
 					// not a valid json object / array, store it as a string
-					kjson::SetStringFromUTF8orLatin1(json[sKey], col.second.sValue);
+					// fall through to checked string assignment
 				}
+#ifndef DEKAF2_WRAPPED_KJSON
+				KLog::getInstance().ShowStackOnJsonError(bOld);
+#endif
 			}
-			else
-			{
-				kjson::SetStringFromUTF8orLatin1(json[sKey], col.second.sValue);
-			}
+			// treat this as an unstructured string, but check for proper UTF8
+#ifdef DEKAF2_WRAPPED_KJSON
+			kjson::SetStringFromUTF8orLatin1(json[sKey].ToBase(), col.second.sValue);
+#else
+			kjson::SetStringFromUTF8orLatin1(json[sKey], col.second.sValue);
+#endif
 		}
 	}
 
@@ -1192,7 +1214,7 @@ KROW& KROW::operator+=(const KROW& another)
 } // operator+=(KRON)
 
 //-----------------------------------------------------------------------------
-KROW& KROW::operator+=(const KJSON& json)
+KROW& KROW::operator+=(const LJSON& json)
 //-----------------------------------------------------------------------------
 {
 	for (auto& it : json.items())

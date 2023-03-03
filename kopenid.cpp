@@ -448,9 +448,9 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 
 		kjson::Parse(Payload, KBase64Url::Decode(Part[1]));
 
-		const KString& sAlgorithm = Header["alg"];
-		const KString& sKeyID     = Header["kid"];
-		const KString& sKeyDigest = Header["x5t"];
+		const KString& sAlgorithm = Header["alg"].get_ref<const KString&>();
+		const KString& sKeyID     = Header["kid"].get_ref<const KString&>();
+		const KString& sKeyDigest = Header["x5t"].get_ref<const KString&>();
 
 		for (auto& Provider : Providers)
 		{

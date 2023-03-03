@@ -8057,24 +8057,32 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KSQLString& sOrderBy, con
 	auto ParmList = sCommaDelimedSort.Split (",");
 	kDebug (3, "sort='{}' has {} parms ...", sCommaDelimedSort, ParmList.size());
 
+#ifndef DEKAF2_WRAPPED_KJSON
 	bool bResetFlag   = KLog::getInstance().ShowStackOnJsonError(false);
 	// make sure the setting is automatically reset, even when throwing
 	KScopeGuard Guard = [bResetFlag]()
 	{
 		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
 	};
+#endif
 
 	for (KString sParm : ParmList)
 	{
 		bool    bDesc = sParm.contains(" desc");
 		bool    bFound { false };
 
-		sParm.Replace (" descending","");
-		sParm.Replace (" descend",   "");
-		sParm.Replace (" desc",      "");
-		sParm.Replace (" ascending", "");
-		sParm.Replace (" ascend",    "");
-		sParm.Replace (" asc",       "");
+		if (bDesc)
+		{
+			sParm.Replace (" descending","");
+			sParm.Replace (" descend",   "");
+			sParm.Replace (" desc",      "");
+		}
+		else if (sParm.contains(" asc"))
+		{
+			sParm.Replace (" ascending", "");
+			sParm.Replace (" ascend",    "");
+			sParm.Replace (" asc",       "");
+		}
 		sParm.Replace (" ",          "");
 
 		for (auto& it : Config.items())
@@ -9190,8 +9198,13 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 		Tables.push_back(row.GetValue(0).ToUpper());
 	}
 
+#ifdef DEKAF2_WRAPPED_KJSON
+	const bool bIgnoreCollate = options(DIFF::ignore_collate);
+	const bool bShowMetaInfo  = options(DIFF::show_meta_info);
+#else
 	const auto bIgnoreCollate = kjson::GetBool(options, DIFF::ignore_collate);
 	const auto bShowMetaInfo  = kjson::GetBool(options, DIFF::show_meta_info);
+#endif
 
 	for (const auto& sTable : Tables)
 	{
@@ -9296,24 +9309,34 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 //-----------------------------------------------------------------------------
 {
 	size_t  iTotalDiffs { 0 };
-	bool    bShowMissingTablesWithColumns = kjson::GetBool(options, DIFF::include_columns_on_missing_tables);
-	bool    bShowMetaInfo                 = kjson::GetBool(options, DIFF::show_meta_info);
-
 	sSummary.clear();        // <-- return result (verbosity)
 	Diffs.clear();           // <-- return result (SQL commands)
 
+#ifdef DEKAF2_WRAPPED_KJSON
+	      bool     bShowMissingTablesWithColumns
+	                             = options(DIFF::include_columns_on_missing_tables);
+	      bool     bShowMetaInfo = options(DIFF::show_meta_info);
+	const KString& sDiffPrefix   = options(DIFF::diff_prefix   );
+	const KString& sLeftSchema   = options(DIFF::left_schema   );
+	const KString& sRightSchema  = options(DIFF::right_schema  );
+	const KString& sLeftPrefix   = options(DIFF::left_prefix   );
+	const KString& sRightPrefix  = options(DIFF::right_prefix  );
+#else
+	bool bShowMissingTablesWithColumns = kjson::GetBool(options, DIFF::include_columns_on_missing_tables);
+	bool       bShowMetaInfo = kjson::GetBool(options, DIFF::show_meta_info);
 	const auto& sDiffPrefix  = kjson::GetStringRef(options, DIFF::diff_prefix );
 	const auto& sLeftSchema  = kjson::GetStringRef(options, DIFF::left_schema );
 	const auto& sRightSchema = kjson::GetStringRef(options, DIFF::right_schema);
 	const auto& sLeftPrefix  = kjson::GetStringRef(options, DIFF::left_prefix );
 	const auto& sRightPrefix = kjson::GetStringRef(options, DIFF::right_prefix);
+#endif
+
+	static const KJSON s_jEmpty;
 
 	//-----------------------------------------------------------------------------
 	auto FindTable = [](const KJSON& Array, const KString& sProperty, const KString& sName) -> const KJSON&
 	//-----------------------------------------------------------------------------
 	{
-		static const KJSON s_jEmpty;
-
 		for (const auto& jElement : Array)
 		{
 			if (kjson::GetStringRef(jElement,sProperty) == sName)
@@ -9330,8 +9353,6 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 	auto FindField = [](const KJSON& Array, const KString& sName) -> const KJSON&
 	//-----------------------------------------------------------------------------
 	{
-		static const KJSON s_jEmpty;
-
 		for (const auto& jElement : Array)
 		{
 			if (jElement.items().begin().key() == sName)
@@ -9650,9 +9671,13 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 
 		if (! LohmannDiffs.empty())
 		{
-			KJSON LeftTableList  = kjson::GetArray(LeftSchema,  "tables");
-			KJSON RightTableList = kjson::GetArray(RightSchema, "tables");
-
+#ifdef DEKAF2_WRAPPED_KJSON
+			auto LeftTableList  = LeftSchema ("tables");
+			auto RightTableList = RightSchema("tables");
+#else
+			auto LeftTableList  = kjson::GetArray(LeftSchema,  "tables");
+			auto RightTableList = kjson::GetArray(RightSchema, "tables");
+#endif
 			std::set<KStringView> VisitedTables;
 
 			for (const auto& oLeftTable : LeftTableList)

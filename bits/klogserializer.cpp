@@ -50,6 +50,7 @@
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 	#include "../kjson.h"
+	#include "../krow.h"
 #endif
 
 namespace dekaf2

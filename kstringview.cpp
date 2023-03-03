@@ -218,6 +218,7 @@ size_t kFindFirstOfInt(
 #ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
+
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
@@ -268,10 +269,12 @@ size_t kFindFirstNotOfInt(
 #ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
+
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
 		auto result = detail::sse::kFindFirstNotOf(haystack, needle);
+
 		if (DEKAF2_LIKELY(result == KStringView::npos || pos == 0))
 		{
 			return result;
@@ -281,6 +284,7 @@ size_t kFindFirstNotOfInt(
 #endif
 
 	auto result = detail::no_sse::kFindFirstOf(haystack, needle, true);
+
 	if (DEKAF2_LIKELY(pos == 0 || result == KStringView::npos))
 	{
 		return result;
@@ -322,6 +326,7 @@ size_t kFindLastOfInt(
 #ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
+
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
@@ -358,6 +363,7 @@ size_t kFindLastNotOfInt(
 #ifdef DEKAF2_X86_64
 #ifdef DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
+
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
@@ -399,7 +405,9 @@ size_t kFindFirstOfUnescaped(const KStringView haystack,
 			{
 				break;
 			}
+
 			++iEscapes;
+			
 		} // while iStart
 
 		if (!(iEscapes & 1))  // if even number of escapes
@@ -408,6 +416,7 @@ size_t kFindFirstOfUnescaped(const KStringView haystack,
 		}
 
 		iFound = haystack.find_first_of (needle, iFound + 1);
+
 	} // while iFound
 
 	return iFound;
@@ -442,7 +451,9 @@ size_t kFindUnescaped(const KStringView haystack,
 			{
 				break;
 			}
+
 			++iEscapes;
+
 		} // while iStart
 
 		if (!(iEscapes & 1))  // if even number of escapes
@@ -451,6 +462,7 @@ size_t kFindUnescaped(const KStringView haystack,
 		}
 
 		iFound = haystack.find (needle, iFound + 1);
+
 	} // while iFound
 
 	return iFound;
@@ -494,6 +506,7 @@ size_t kFindUnescaped(const KStringView haystack,
 		}
 
 		iFound = haystack.find (needle, iFound + 1);
+
 	} // while iFound
 
 	return iFound;

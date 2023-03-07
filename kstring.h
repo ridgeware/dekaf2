@@ -407,6 +407,30 @@ public:
 	bool remove_suffix(KStringView suffix);
 	// extension from string_view
 	bool remove_prefix(KStringView prefix);
+	// extension from string_view
+	template<typename T, typename std::enable_if<std::is_same<T, std::remove_cv<value_type>::type>::value, int>::type = 0>
+	DEKAF2_CONSTEXPR_14
+	bool remove_prefix(T ch)
+	{
+		if (DEKAF2_LIKELY(starts_with(ch)))
+		{
+			m_rep.erase(0, 1);
+			return true;
+		}
+		return false;
+	}
+	// extension from string_view
+	template<typename T, typename std::enable_if<std::is_same<T, std::remove_cv<value_type>::type>::value, int>::type = 0>
+	DEKAF2_CONSTEXPR_14
+	bool remove_suffix(T ch)
+	{
+		if (DEKAF2_LIKELY(ends_with(ch)))
+		{
+			m_rep.erase(size()-1, 1);
+			return true;
+		}
+		return false;
+	}
 
 	self& replace(size_type pos, size_type n, KStringView sv);
 	self& replace(size_type pos1, size_type n1, KStringView sv, size_type pos2, size_type n2);

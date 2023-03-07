@@ -715,6 +715,36 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	template<typename T, typename std::enable_if<std::is_same<T, std::remove_cv<value_type>::type>::value, int>::type = 0>
+	DEKAF2_CONSTEXPR_14
+	bool remove_prefix(T ch)
+	//-----------------------------------------------------------------------------
+	{
+		if (DEKAF2_LIKELY(starts_with(ch)))
+		{
+			unchecked_remove_prefix(1);
+			return true;
+		}
+		return false;
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	template<typename T, typename std::enable_if<std::is_same<T, std::remove_cv<value_type>::type>::value, int>::type = 0>
+	DEKAF2_CONSTEXPR_14
+	bool remove_suffix(T ch)
+	//-----------------------------------------------------------------------------
+	{
+		if (DEKAF2_LIKELY(ends_with(ch)))
+		{
+			unchecked_remove_suffix(1);
+			return true;
+		}
+		return false;
+	}
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
 	/// append other view to this. Views must overlap or be adjacent, but other has to be to the right of this
 	DEKAF2_CONSTEXPR_14
 	bool append(const self_type other)

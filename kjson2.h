@@ -813,14 +813,14 @@ inline       KJSON2& KJSON2Ref(      LJSON& json) { return KJSON2::MakeRef(json)
 
 
 
-// ADL conversion functions
+// ADL conversion functions - these are important to assign KJSON2 in initialization lists
+// (which are assembled by the base type), as otherwise always a conversion to string would
+// be forced
 
-#if 0
 inline
 void to_json  (LJSON& j, const KJSON2& j2) { j = j2.ToBase(); }
 inline
 void from_json(const LJSON& j, KJSON2& j2) { j2.ToBase() = j; }
-#endif
 
 
 
@@ -1434,7 +1434,7 @@ KJSON2& Select (T& json, std::size_t iSelector) noexcept
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
 const KString& SelectString (const T& json, KStringView sSelector) noexcept
 {
-	return json(sSelector).String();
+	return json(sSelector).StringRef();
 }
 
 /// DEPRECATED - use class method

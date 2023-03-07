@@ -209,6 +209,104 @@ TEST_CASE("KJSON2")
 		KJSON2 obj;
 		obj["/one"] = 1;
 		CHECK ( obj("/one") == 1 );
+		{
+			LJSON lobj2; // null
+			LJSON::json_pointer p("/2");
+			lobj2[p] = 2;
+			CHECK ( lobj2[p] == 2 );
+			CHECK ( lobj2.dump() == "[null,null,2]" );
+			KJSON2 obj2; // null
+			obj2["/2"] = 2;
+			CHECK ( obj2("/2") == 2 );
+			CHECK ( obj2.dump() == "[null,null,2]" );
+			CHECK ( obj2(2) == 2 );
+		}
+		{
+			LJSON lobj2 = LJSON::object();
+			LJSON::json_pointer p("/2");
+			lobj2[p] = 2;
+			CHECK ( lobj2[p] == 2 );
+			CHECK ( lobj2.dump() == R"({"2":2})" );
+			KJSON2 obj2 = KJSON2::object();
+			obj2["/2"] = 2;
+			CHECK ( obj2("/2") == 2 );
+			CHECK ( obj2.dump() == R"({"2":2})" );
+			CHECK ( obj2(2) == nullptr );
+		}
+		{
+			LJSON lobj2 = LJSON::array();
+			LJSON::json_pointer p("/2");
+			lobj2[p] = 2;
+			CHECK ( lobj2[p] == 2 );
+			CHECK ( lobj2.dump() == "[null,null,2]" );
+			KJSON2 obj2 = KJSON2::array();
+			obj2["/2"] = 2;
+			CHECK ( obj2("/2") == 2 );
+			CHECK ( obj2.dump() == "[null,null,2]" );
+			CHECK ( obj2(2) == 2 );
+		}
+		{
+//			LJSON lobj2 = true; // primitive, would crash
+//			LJSON::json_pointer p("/2");
+//			lobj2[p] = 2;
+//			CHECK ( lobj2[p] == 2 );
+//			CHECK ( lobj2.dump() == "[null,null,2]" );
+			KJSON2 obj2 = true; // primitive
+			obj2["/2"] = 2;
+			CHECK ( obj2("/2") == 2 );
+			CHECK ( obj2.dump() == "[null,null,2]" );
+			CHECK ( obj2(2) == 2 );
+		}
+
+		{
+			LJSON lobj2; // null
+			lobj2["2"] = 2;
+			CHECK ( lobj2["2"] == 2 );
+			CHECK ( lobj2.dump() == R"({"2":2})" );
+			KJSON2 obj2; // null
+			obj2["2"] = 2;
+			CHECK ( obj2("2") == 2 );
+			CHECK ( obj2.dump() == R"({"2":2})" );
+			CHECK ( obj2(2) == nullptr );
+		}
+		{
+			LJSON lobj2 = LJSON::object();
+			lobj2["2"] = 2;
+			CHECK ( lobj2["2"] == 2 );
+			CHECK ( lobj2.dump() == R"({"2":2})" );
+			KJSON2 obj2 = KJSON2::object();
+			obj2["2"] = 2;
+			CHECK ( obj2("2") == 2 );
+			CHECK ( obj2.dump() == R"({"2":2})" );
+			CHECK ( obj2(2) == nullptr );
+		}
+		{
+//			LJSON lobj2 = LJSON::array(); // would crash
+//			lobj2["2"] = 2;
+//			CHECK ( lobj2["2"] == 2 );
+//			CHECK ( lobj2.dump() == R"({"2":2})" );
+			KJSON2 obj2 = KJSON2::array();
+			obj2["2"] = 2;
+			CHECK ( obj2("2") == 2 );
+			CHECK ( obj2.dump() == R"({"2":2})" );
+			CHECK ( obj2(2) == nullptr );
+		}
+		{
+//			LJSON lobj2 = true; // primitive, would crash
+//			LJSON::json_pointer p("/2");
+//			lobj2[p] = 2;
+//			CHECK ( lobj2[p] == 2 );
+//			CHECK ( lobj2.dump() == "[null,null,2]" );
+			KJSON2 obj2 = true; // primitive
+			obj2["2"] = 2;
+			CHECK ( obj2("2") == 2 );
+			CHECK ( obj2.dump() == R"({"2":2})" );
+			CHECK ( obj2(2) == nullptr );
+		}
+		KJSON2 obj3 = KJSON2::object();
+		obj3["/array/1"] = 3;
+		CHECK ( obj3("/array/1") == 3 );
+		CHECK ( obj3.dump() == R"({"array":[null,3]})" );
 		obj["two"] = 2;
 		CHECK ( obj("two") == 2 );
 		CHECK ( obj.dump() == R"({"one":1,"two":2})" );
@@ -225,6 +323,42 @@ TEST_CASE("KJSON2")
 		arr1 += child2;
 		obj["three"] = arr1;
 		obj["four"] = arr2;
+
+		{
+			KJSON2 j1    = KJSON2::object();
+			j1["key"]    = KJSON2::object();
+			KJSON2& j2   = j1["key"];
+			j2["123"].push_back({ {"key1", 123 }, { "key2", true } });
+			CHECK ( j2.dump() == R"({"123":[{"key1":123,"key2":true}]})" );
+		}
+		{
+			LJSON j0;
+			j0 = kjson::Parse(R"({"array":[],"boolean":false,"result":"found"})");
+			const LJSON j1 = j0;
+			CHECK ( j1.dump() == R"({"array":[],"boolean":false,"result":"found"})" );
+			LJSON j2 = LJSON::object();
+			j2["key"] = "value";
+			j2["list"] = LJSON::array();
+			j2["list"].push_back({
+				{ "boolean", j1["boolean"] }
+			});
+			CHECK ( j2.dump() == R"({"key":"value","list":[{"boolean":false}]})" );
+
+		}
+		{
+			KJSON2 j0;
+			j0.Parse(R"({"array":[],"boolean":false,"result":"found"})");
+			const KJSON2 j1 = j0;
+			CHECK ( j1.dump() == R"({"array":[],"boolean":false,"result":"found"})" );
+			KJSON2 j2 = KJSON2::object();
+			j2["key"] = "value";
+			j2["list"] = KJSON::array();
+			j2["list"].push_back({
+				{ "boolean1", false },
+				{ "boolean2", j1["boolean"] }
+			});
+			CHECK ( j2.dump() == R"({"key":"value","list":[{"boolean1":false,"boolean2":false}]})" );
+		}
 	}
 
 	SECTION("KJSON2 - KROW interoperability")
@@ -242,6 +376,13 @@ TEST_CASE("KJSON2")
 		CHECK( obj["first"] == "value1" );
 		CHECK( obj["second"] == "value2" );
 		CHECK( obj["third"] == 12345UL );
+
+		KJSON2 obj2(row);
+		CHECK( obj2["first"] == "value1" );
+		CHECK( obj2["second"] == "value2" );
+		CHECK( obj2["third"] == 12345UL );
+
+
 	}
 
 	SECTION("KROW - KJSON interoperability")
@@ -1240,11 +1381,13 @@ TEST_CASE("KJSON2")
 		CHECK ( j1["Key4"] == 2435 );
 		CHECK ( j1["/Key5/answer/few/1"] == "two" );
 		CHECK ( j1["Key5"]["answer"]["few"][1] == "two" );
-		CHECK ( j1["Key5"]["answer"]["few"]["2"] == "three" );
+		CHECK ( j1["Key5"]["answer"]["few"]["/2"] == "three" );
+		CHECK ( j1["Key5"]["answer"]["few"]["2"] == nullptr );
+		CHECK ( j1["Key5"]["answer"]["few"]["/2"] == "" );
 		j1["/Key6/New/Path/0"] = "IsArray";
 
 		KJSON2 j2(j1.Select("Key5"));
-		CHECK ( j2.dump() == R"({"answer":{"everything":42,"few":["one","two","three"],"nothing":"naught"}})" );
+		CHECK ( j2.dump() == R"({"answer":{"everything":42,"few":{"2":null},"nothing":"naught"}})" );
 	}
 
 	SECTION("initializer lists")

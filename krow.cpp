@@ -967,12 +967,12 @@ bool KROW::AddCol (KStringView sColName, const LJSON& Value, KCOL::Flags Flags, 
 } // AddCol
 
 //-----------------------------------------------------------------------------
-KJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
+LJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
 
-	KJSON json = KJSON::object();
+	LJSON json = LJSON::object();
 
 	for (auto& col : *this)
 	{
@@ -1058,7 +1058,7 @@ KJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 #endif
 			DEKAF2_TRY
 			{
-				KJSON object;
+				LJSON object;
 				kjson::Parse(object, col.second.sValue);
 #ifndef DEKAF2_WRAPPED_KJSON
 				KLog::getInstance().ShowStackOnJsonError(bOld);
@@ -1071,11 +1071,7 @@ KJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 				exc.what();
 #endif
 				// not a valid json object / array, store it as a string
-#ifdef DEKAF2_WRAPPED_KJSON
-				kjson::SetStringFromUTF8orLatin1(json[sKey].ToBase(), col.second.sValue);
-#else
 				kjson::SetStringFromUTF8orLatin1(json[sKey], col.second.sValue);
-#endif
 			}
 #ifndef DEKAF2_WRAPPED_KJSON
 			KLog::getInstance().ShowStackOnJsonError(bOld);
@@ -1094,7 +1090,7 @@ KJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 #endif
 				DEKAF2_TRY
 				{
-					KJSON object;
+					LJSON object;
 					kjson::Parse(object, col.second.sValue);
 #ifndef DEKAF2_WRAPPED_KJSON
 					KLog::getInstance().ShowStackOnJsonError(bOld);
@@ -1116,11 +1112,7 @@ KJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 #endif
 			}
 			// treat this as an unstructured string, but check for proper UTF8
-#ifdef DEKAF2_WRAPPED_KJSON
-			kjson::SetStringFromUTF8orLatin1(json[sKey].ToBase(), col.second.sValue);
-#else
 			kjson::SetStringFromUTF8orLatin1(json[sKey], col.second.sValue);
-#endif
 		}
 	}
 

@@ -498,6 +498,76 @@ KString ToJsonPointer(KStringView sSelector)
 
 } // ToJsonPointer
 
+namespace {
+
+static constexpr uint16_t iMaxJSONPointerDepth = 1000;
+
+//-----------------------------------------------------------------------------
+const LJSON& RecurseJSONPointer(const LJSON& json, KStringView sSelector, uint16_t iRecursions = 0)
+//-----------------------------------------------------------------------------
+{
+	// -> /segment/moreSegment/object/array/2/object/property
+	// we are wrapped in a catch/try on json that will return an empty object on failure
+
+	if (iRecursions > iMaxJSONPointerDepth)
+	{
+		kWarning("recursion depth > {}", iMaxJSONPointerDepth);
+		return s_oEmpty;
+	}
+
+	if (DEKAF2_UNLIKELY(sSelector.remove_prefix('/') == false))
+	{
+		kDebug(2, "expected a leading '/', but none found");
+	}
+
+	// isolate the next segment
+	auto iNext    = sSelector.find('/');
+	auto sSegment = sSelector.substr(0, iNext);
+
+	const LJSON* next;
+
+	if (json.is_object())
+	{
+		// need an object key here
+		auto it = json.find(sSegment);
+
+		if (DEKAF2_UNLIKELY(it == json.end()))
+		{
+			// abort traversal here - we are const and cannot add missing segments
+			return s_oEmpty;
+		}
+
+		next = &it.value();
+	}
+	else if (json.is_array())
+	{
+		// need an array index here
+		if (!kIsInteger(sSegment))
+		{
+			return s_oEmpty;
+		}
+		// if this will throw it will be caught in the caller and return an empty object
+		next = &json.at(sSegment.UInt64());
+	}
+	else
+	{
+		// further segment requested, but this is a primitive (or null)..
+		return s_oEmpty;
+	}
+
+	if (iNext == KStringView::npos)
+	{
+		return *next;
+	}
+
+	sSelector.remove_prefix(iNext);
+
+	return RecurseJSONPointer(*next, sSelector, ++iRecursions);
+
+} // RecurseJSONPointer
+
+} // end of anonymous namespace
+
 //-----------------------------------------------------------------------------
 const LJSON& Select (const LJSON& json, KStringView sSelector) noexcept
 //-----------------------------------------------------------------------------
@@ -513,41 +583,25 @@ const LJSON& Select (const LJSON& json, KStringView sSelector) noexcept
 
 	DEKAF2_TRY
 	{
-		if (sSelector.empty())
+		switch (sSelector.front())
 		{
-			return json;
-		}
+			case '.': // a dotted notation
+				return RecurseJSONPointer(json, ToJsonPointer(sSelector));
 
-		auto chFirst = sSelector.front();
+			case '/': // a json pointer
+				return RecurseJSONPointer(json, sSelector);
 
-		if (chFirst == '/')
-		{
-			// a json pointer
-			return json.at(LJSON::json_pointer(sSelector));
-		}
-		else if (chFirst == '.')
-		{
-			// a dotted notation
-			return json.at(LJSON::json_pointer(ToJsonPointer(sSelector)));
-		}
-		else
-		{
-			// this is a simple object key (or maybe integer index)
-			if (json.is_array())
-			{
-				if (KASCII::kIsDigit(chFirst))
+			default:
+				if (json.is_object())
 				{
-					return json.at(sSelector.UInt64());
+					auto it = json.find(sSelector);
+
+					if (it != json.end())
+					{
+						return it.value();
+					}
 				}
-				else
-				{
-					return s_oEmpty;
-				}
-			}
-			else
-			{
-				return json.at(sSelector);
-			}
+				return s_oEmpty;
 		}
 	}
 
@@ -563,72 +617,87 @@ const LJSON& Select (const LJSON& json, KStringView sSelector) noexcept
 namespace { // hide the path traversal in an anonymous namespace
 
 //-----------------------------------------------------------------------------
-LJSON& FindWrongObjectAndReplace (LJSON& json, KStringView sSelector)
+LJSON& RecurseJSONPointer(LJSON& json, KStringView sSelector, uint16_t iRecursions = 0)
 //-----------------------------------------------------------------------------
 {
-	auto* cur = &json;
+	// -> /segment/moreSegment/object/array/2/object/property
 
-	if (!cur->is_object())
+	if (DEKAF2_UNLIKELY(iRecursions > iMaxJSONPointerDepth))
 	{
-		kDebug(2, "switching '{}' to object in pointer hierarchy: {}", "begin()", sSelector);
-
-		(*cur) = LJSON::object();
-		// and try again to resolve the pointer
-		return Select(json, sSelector);
+		kWarning("recursion depth > {}", iMaxJSONPointerDepth);
+		return json;
 	}
 
-	std::vector<KStringView> Splitted;
-
-	auto chFirst = sSelector.front();
-
-	if (chFirst == '/')
+	if (DEKAF2_UNLIKELY(sSelector.remove_prefix('/')) == false)
 	{
-		// a json pointer
-		Splitted = sSelector.Split("/");
+		kDebug(2, "expected a leading '/', but none found");
 	}
-	else if (chFirst == '.')
+
+	// isolate the next segment
+	auto iNext      = sSelector.find('/');
+	auto sSegment   = sSelector.substr(0, iNext);
+
+	LJSON* next;
+
+	if (DEKAF2_LIKELY(json.is_object()))
 	{
-		// a dotted notation
-		Splitted = sSelector.Split(".[", "]");
+		// need an object key here
+		auto it = json.find(sSegment);
+
+		if (DEKAF2_LIKELY(it != json.end()))
+		{
+			next = &it.value();
+		}
+		else
+		{
+			// insert a new json null object here
+			next = &json[sSegment];
+		}
+	}
+	else if (json.is_array())
+	{
+		if (!kIsInteger(sSegment))
+		{
+			// make this an object
+			json = LJSON::object();
+			// and create a new null object
+			next = &json[sSegment];
+		}
+		else
+		{
+			// expand array if necessary
+			next = &json[sSegment.UInt64()];
+		}
 	}
 	else
 	{
-		// plain string
-		Splitted.push_back(sSelector);
+		// further segment requested, but this is a primitive or null..
+		if (!kIsInteger(sSegment))
+		{
+			// make this an object
+			json = LJSON::object();
+			// and create a new null object
+			next = &json[sSegment];
+		}
+		else
+		{
+			// make this an array
+			json = LJSON::array();
+			// and create a new null object
+			next = &json[sSegment.UInt64()];
+		}
 	}
 
-	for (const auto sFragment : Splitted)
+	if (iNext == KStringView::npos)
 	{
-		if (sFragment.empty())
-		{
-			continue;
-		}
-
-		auto it = cur->find(sFragment);
-
-		if (it != cur->end())
-		{
-			cur = &it.value();
-
-			if (cur->is_object() == false)
-			{
-				kDebug(2, "switching '{}' to object in pointer hierarchy: {}", sFragment, sSelector);
-
-				(*cur) = LJSON::object();
-				// and try again to resolve the pointer
-				return Select(json, sSelector);
-			}
-
-			continue;
-		}
+		return *next;
 	}
 
-	kDebug(2, "called with a valid json pointer hierarchy");
+	sSelector.remove_prefix(iNext);
 
-	// this is an error case - stop any recursion
-	return json;
+	return RecurseJSONPointer(*next, sSelector, ++iRecursions);
 
-} // FindWrongObjectAndReplace
+} // RecurseJSONPointer
 
 } // end of anonymous namespace
 
@@ -652,39 +721,37 @@ LJSON& Select (LJSON& json, KStringView sSelector) noexcept
 			return json;
 		}
 
-		auto chFirst = sSelector.front();
+		switch (sSelector.front())
+		{
+			case '.': // a dotted notation
+				return RecurseJSONPointer(json, ToJsonPointer(sSelector));
 
-		if (chFirst == '/')
-		{
-			// a json pointer
-			return json[LJSON::json_pointer(sSelector)];
-		}
-		else if (chFirst == '.')
-		{
-			// a dotted notation
-			return json[LJSON::json_pointer(ToJsonPointer(sSelector))];
-		}
-		else
-		{
-			// this is a simple object key (or maybe integer index)
-			if (json.is_array())
-			{
-				if (KASCII::kIsDigit(chFirst))
+			case '/': // a json pointer
+				return RecurseJSONPointer(json, sSelector);
+
+			default:
+				// direct element access
+				if (DEKAF2_LIKELY(json.is_object()))
 				{
-					return json.at(sSelector.UInt64());
+					// need an object key here
+					auto it = json.find(sSelector);
+
+					if (DEKAF2_LIKELY(it != json.end()))
+					{
+						return it.value();
+					}
+					else
+					{
+						// insert a new json null object here
+						return json[sSelector];
+					}
 				}
-				else
-				{
-					// this makes the array an object..
-					return FindWrongObjectAndReplace(json, sSelector);
-				}
-			}
-			else
-			{
-				// we need subscript access here, as we WANT the element
-				// be created if json is null or the element not existing
+
+				// this is an array, a primitive, or null..
+				// make this an object
+				json = LJSON::object();
+				// and create a new null object
 				return json[sSelector];
-			}
 		}
 	}
 
@@ -693,7 +760,7 @@ LJSON& Select (LJSON& json, KStringView sSelector) noexcept
 		kDebug(1, kStripJSONExceptionMessage(exc.what()));
 	}
 
-	return FindWrongObjectAndReplace(json, sSelector);
+	return json;
 
 } // Select
 
@@ -743,7 +810,13 @@ LJSON& Select (LJSON& json, std::size_t iSelector) noexcept
 
 	DEKAF2_TRY
 	{
-		return json.at(iSelector);
+		if (!json.is_array())
+		{
+			// make this an array
+			json = LJSON::array();
+		}
+		// expand array if necessary
+		return json[iSelector];
 	}
 
 	DEKAF2_CATCH (const LJSON::exception& exc)

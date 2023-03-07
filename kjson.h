@@ -43,7 +43,7 @@
 #pragma once
 
 #include "kconfiguration.h"
-#include "klog.h"
+#include "klog.h" // needed for JSON_THROW_USER
 
 #ifndef DEKAF2_WRAPPED_KJSON
 	// When we define DEKAF2_WRAPPED_KJSON we effectively switch off stack trace

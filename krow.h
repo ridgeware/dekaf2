@@ -630,17 +630,17 @@ public:
 	}
 
 	static KSQLString EscapeChars (KStringView sCol, KStringView sCharsToEscape,
-								KString::value_type iEscapeChar = 0);
+								   KString::value_type iEscapeChar = 0);
 	static KSQLString EscapeChars (KStringView sCol, DBT iDBType);
 
 	static KSQLString EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape,
-								KString::value_type iEscapeChar = 0);
+								   KString::value_type iEscapeChar = 0);
 	static KSQLString EscapeChars (const KROW::value_type& Col, DBT iDBType);
 
 	void LogRowLayout(int iLogLevel = 3) const;
 
 	/// Return row as a KJSON object
-	KJSON to_json (CONVERSION Flags = CONVERSION::NO_CONVERSION) const;
+	LJSON to_json (CONVERSION Flags = CONVERSION::NO_CONVERSION) const;
 
 	/// convert one row to CSV format (or just column headers):
 	KString to_csv (bool bheaders=false, CONVERSION Flags = CONVERSION::NO_CONVERSION) const;
@@ -684,11 +684,7 @@ public:
 
 	operator LJSON ()
 	{
-#ifdef DEKAF2_WRAPPED_KJSON
-		return to_json().ToBase();
-#else
 		return to_json();
-#endif
 	}
 
 	operator KJSON2 ()
@@ -723,23 +719,7 @@ inline void from_json(const LJSON& j, KROW& row)
 {
 	row.from_json(j);
 }
-#if 0
-//-----------------------------------------------------------------------------
-/// ADL resolver for KROW to KJSON2
-inline void to_json(KJSON2& j, const KROW& row)
-//-----------------------------------------------------------------------------
-{
-	j = row.to_json();
-}
 
-//-----------------------------------------------------------------------------
-/// ADL resolver for KROW to KJSON2
-inline void from_json(const KJSON2& j, KROW& row)
-//-----------------------------------------------------------------------------
-{
-	row.from_json(j);
-}
-#endif
 } // namespace dekaf2
 
 namespace std

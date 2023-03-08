@@ -842,7 +842,7 @@ bool check_if_is_default(const char* value)
 
 // overloads for comparisons
 
-inline constexpr
+inline
 bool compare_eq(const KJSON2& json, const double value)
 {
 	return json.Float() == value;
@@ -895,13 +895,13 @@ bool compare_eq(const KJSON2& json, const KString& value)
 	return json.StringRef() == value;
 }
 
-inline constexpr
+inline
 bool compare_eq(const KJSON2& json, const KStringView& value)
 {
 	return json.StringRef() == value;
 }
 
-inline constexpr
+inline
 bool compare_eq(const KJSON2& json, const char* value)
 {
 	return json.StringRef() == value;

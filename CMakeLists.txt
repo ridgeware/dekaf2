@@ -44,7 +44,7 @@ cmake_minimum_required(VERSION 3.13)
 cmake_policy(SET CMP0048 NEW)
 
 # declare the project
-project(dekaf2 VERSION 2.0.22 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.23 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -74,7 +74,7 @@ OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" 
 OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" ON)
 OPTION(DEKAF2_WITH_PEDANTIC_WARNINGS "enable pedantic warnings" ON)
 OPTION(DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT "force the use of fmtlib even if std::format is available" ON)
-OPTION(DEKAF2_WRAPPED_KJSON "create the KJSON class as a non-throwing wrapper type around the native type" OFF)
+OPTION(DEKAF2_WRAPPED_KJSON "create the KJSON class as a non-throwing wrapper type around the native type" ON)
 
 # =================================== C++ STANDARD =================================
 

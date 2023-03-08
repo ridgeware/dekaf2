@@ -262,70 +262,6 @@ struct is_char_ptr
 	std::is_same<const char*, typename std::decay<T>::type>::value
 > {};
 
-template<class T>
-struct is_kjson2
-: std::integral_constant<
-	bool,
-	std::is_same<KJSON2, typename std::decay<T>::type>::value
-> {};
-
-template<class T, class U>
-struct both_kjson2
-: std::integral_constant<
-	bool,
-	is_kjson2<T>::value && is_kjson2<U>::value
-> {};
-
-template<class T, class U>
-struct only_first_kjson2
-: std::integral_constant<
-	bool,
-	is_kjson2<T>::value && !is_kjson2<U>::value
-> {};
-
-namespace hidden {
-
-template<class U,
-	typename std::enable_if<std::is_default_constructible<U>::value, int>::type = 0
->
-constexpr
-bool check_if_is_default(const U& value)
-{
-	return (U() == value);
-}
-
-template<class U,
-	typename std::enable_if<!std::is_default_constructible<U>::value, int>::type = 0
->
-constexpr
-bool check_if_is_default(const U& value)
-{
-	return false;
-}
-
-template<>
-inline // only constexpr after string is
-bool check_if_is_default(const KString& value)
-{
-	return value.empty();
-}
-
-template<>
-inline constexpr
-bool check_if_is_default(char* const& value)
-{
-	return !value || !*value;
-}
-
-} // end of namespace kjson::detail::hidden
-
-template<class U>
-constexpr
-bool check_if_is_default(const U& value)
-{
-	return hidden::check_if_is_default<typename std::decay<U>::type>(value);
-}
-
 } } // end of namespace kjson::detail
 
 #define DEKAF2_FORCE_CHAR_PTR                \
@@ -357,13 +293,10 @@ template<typename T,                         \
 /// in the base class creates two strings during execution - the key and the value. The latter is not a
 /// problem when assigning, but it is in comparison, e.g. in
 /// `if (json["key"] == "value") {}`
-/// as no std::strings needed to be allocated normally.
+/// as no std::strings needed to be allocated normally. This class has special comparison operators
+/// to cover the above case without creating strings.
 ///
-/// This class never creates a string for searching the key, however for implicitly returning the result it has to
-/// create a string, too, due to C++ type conversion rules, but there is a StringRef() accessor that optimizes
-/// these cases:
-/// `if (json["key"].StringRef() == "value") {}`
-/// In a future implementation special operator==() for string types will be added to solve this issue.
+/// This class also never creates a string for searching the key.
 //
 // Implementation hints:
 //
@@ -393,10 +326,9 @@ template<typename T,                         \
 // would work, but we decided this being too confusing for the user, and hence
 // fall back on returning string copies. That then works on all assignments, albeit
 // at the cost of an additional string copy (which will of course be optimized out
-// for assignments, but remain a cost for read access like comparisons. The base
-// class does the same though, so it is not an added cost. Again, CLang would have
-// no issues here with string ref returns, but in this case it is clear that this
-// is stretching C++ conversion rules a bit.
+// for assignments).
+// Again, CLang would have no issues here with string ref returns, but in this case
+// it is clear that this is stretching C++ conversion rules a bit.
 //
 // To also allow for string ref returns there is an explicit accessor:
 //
@@ -771,12 +703,16 @@ public:
 	/// Clears the content - does not reset the content type though, so beware when having an array, clearing, and adding an object..
 	/// It will be added to an array, whereas it would have been merged when the type would have been object.
 	void            clear       ()               noexcept { return base::clear();          }
+	/// returns an iteration_proxy to iterate over key-value pairs of objects
 	iteration_proxy<iterator>
 	                items       ()               noexcept { return iteration_proxy<iterator>(*this);       }
+	/// returns an iteration_proxy to iterate over key-value pairs of objects
 	iteration_proxy<const_iterator>
 	                items       ()         const noexcept { return iteration_proxy<const_iterator>(*this); }
 
+	/// returns explicitly an array constructed with the values of the initializer list (empty by default)
 	static KJSON2   array       (initializer_list_t il = {}) { return base::array  (il);  }
+	/// returns explicitly an object constructed with the values of the initializer list (empty by default)
 	static KJSON2   object      (initializer_list_t il = {}) { return base::object (il);  }
 
 	void            swap        (reference other) noexcept
@@ -793,10 +729,16 @@ public:
 
 	static KJSON2   diff        (const KJSON2& left, const KJSON2& right);
 
+	/// helper function to cast a const reference of type KJSON2 for a const reference of the base json type (LJSON)
 	static const_reference MakeRef(base::const_reference json) noexcept { return *static_cast<const_pointer>(&json); }
+	/// helper function to cast a reference of type KJSON2 for a reference of the base json type (LJSON)
 	static       reference MakeRef(base::reference json)       noexcept { return *static_cast<pointer>(&json);       }
+	/// helper function to cast a const pointer of type KJSON2 for a const pointer of the base json type (LJSON)
 	static const_pointer   MakePtr(base::const_pointer json)   noexcept { return  static_cast<const_pointer>(json);  }
+	/// helper function to cast a pointer of type KJSON2 for a pointer of the base json type (LJSON)
 	static       pointer   MakePtr(base::pointer json)         noexcept { return  static_cast<pointer>(json);        }
+
+private:
 
 	static const KString s_sEmpty;
 	static const KJSON2  s_oEmpty;
@@ -841,6 +783,146 @@ inline bool operator!=(const KJSON2::iterator& left, const KJSON2::const_iterato
 
 
 
+namespace kjson { namespace detail {
+
+// template helpers
+
+template<class T>
+struct is_kjson2
+: std::integral_constant<
+	bool,
+	std::is_same<KJSON2, typename std::decay<T>::type>::value
+> {};
+
+template<class T, class U>
+struct both_kjson2
+: std::integral_constant<
+	bool,
+	is_kjson2<T>::value && is_kjson2<U>::value
+> {};
+
+template<class T, class U>
+struct only_first_kjson2
+: std::integral_constant<
+	bool,
+	is_kjson2<T>::value && !is_kjson2<U>::value
+> {};
+
+// overloads for check_if_is_default()
+
+template<class U,
+	typename std::enable_if<std::is_default_constructible<U>::value && !is_char_ptr<U>::value, int>::type = 0
+>
+constexpr
+bool check_if_is_default(const U& value)
+{
+	return (U() == value);
+}
+
+template<class U,
+	typename std::enable_if<!std::is_default_constructible<U>::value, int>::type = 0
+>
+constexpr
+bool check_if_is_default(const U& value)
+{
+	return false;
+}
+
+inline // only constexpr after string is
+bool check_if_is_default(const KString& value)
+{
+	return value.empty();
+}
+
+inline constexpr
+bool check_if_is_default(const char* value)
+{
+	return !value || !*value;
+}
+
+// overloads for comparisons
+
+inline constexpr
+bool compare_eq(const KJSON2& json, const double value)
+{
+	return json.Float() == value;
+}
+
+template<typename U>
+typename std::enable_if <
+	std::conjunction <
+					   std::is_integral<U>,
+					   std::is_unsigned<U>,
+		std::negation< std::is_same    <U, std::remove_cv<bool>::type>    >,
+		std::negation< std::is_same    <U, char>                          >,
+		std::negation< std::is_pointer <U>                                >,
+		std::negation< std::is_same    <U, std::nullptr_t>                >
+	>::value
+, bool >::type
+compare_eq(const KJSON2& json, const U value)
+{
+	return json.UInt64() == value;
+}
+
+template<typename U>
+typename std::enable_if <
+	std::conjunction <
+					   std::is_integral<U>,
+					   std::is_signed  <U>,
+		std::negation< std::is_same    <U, std::remove_cv<bool>::type>    >,
+		std::negation< std::is_same    <U, char>                          >,
+		std::negation< std::is_pointer <U>                                >,
+		std::negation< std::is_same    <U, std::nullptr_t>                >
+	>::value
+, bool >::type
+compare_eq(const KJSON2& json, const U value)
+{
+	return json.Int64() == value;
+}
+
+template<typename U>
+	typename std::enable_if <
+		std::is_same <U, std::remove_cv<bool>::type>::value
+	, bool >::type
+compare_eq(const KJSON2& json, const U value)
+{
+	return json.Bool() == value;
+}
+
+inline
+bool compare_eq(const KJSON2& json, const KString& value)
+{
+	return json.StringRef() == value;
+}
+
+inline constexpr
+bool compare_eq(const KJSON2& json, const KStringView& value)
+{
+	return json.StringRef() == value;
+}
+
+inline constexpr
+bool compare_eq(const KJSON2& json, const char* value)
+{
+	return json.StringRef() == value;
+}
+
+template<typename U>
+typename std::enable_if <
+	std::is_integral<U>::value == false &&
+	std::is_floating_point<U>::value == false &&
+	std::is_same <U, std::remove_cv<bool>::type>::value == false &&
+	is_char_ptr<U>::value == false
+, bool >::type
+compare_eq(const KJSON2& json, const U& value)
+{
+	return json.ToBase() == value;
+}
+
+} } // end of namespace kjson::detail
+
+
+
 
 
 // comparison
@@ -868,11 +950,11 @@ template<class T, class U,
 DEKAF2_PUBLIC
 bool operator==(const T& left, U&& right)
 {
-	if (left.empty())
+	if (left.is_null())
 	{
-		return kjson::detail::check_if_is_default<U>(right);
+		return kjson::detail::check_if_is_default(right);
 	}
-	return left.ToBase() == std::forward<U>(right);
+	return kjson::detail::compare_eq(left, right);
 }
 
 // operator==(U, KJSON2)
@@ -910,11 +992,11 @@ template<class T, class U,
 DEKAF2_PUBLIC
 bool operator!=(const T& left, U&& right)
 {
-	if (left.empty())
+	if (left.is_null())
 	{
-		return !kjson::detail::check_if_is_default<U>(right);
+		return !kjson::detail::check_if_is_default(right);
 	}
-	return left.ToBase() != std::forward<U>(right);
+	return !kjson::detail::compare_eq(left, right);
 }
 
 // operator!=(U, KJSON2)

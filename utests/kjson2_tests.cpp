@@ -46,6 +46,24 @@ TEST_CASE("KJSON2")
 {
 	SECTION("chars")
 	{
+		LJSON l;
+		l = "abc";
+		KString s = "def";
+		if (l == s)
+		{
+			CHECK ( false );
+		}
+		KJSON2 j;
+		j = "abc";
+		if (j == s)
+		{
+			CHECK ( false );
+		}
+		j = "def";
+		if (j == s)
+		{
+			CHECK ( true );
+		}
 		auto b1 = Matches("hello");
 		CHECK ( b1 == true );
 		auto b2 = Matches("hello"_ks);
@@ -756,12 +774,10 @@ TEST_CASE("KJSON2")
 
 	SECTION("Comparisons")
 	{
-		KJSON  j1;
+		LJSON  j1;
 		KJSON2 j2;
 		KJSON2 j22;
-#ifdef USE_JSON_PROXY
-		KJSON2::Proxy p2(j2);
-#endif
+
 		// eq
 		if (j2 == j1) { };
 		if (j2 == j22) { };
@@ -777,17 +793,11 @@ TEST_CASE("KJSON2")
 		if (j1 ==  1) { };
 
 		j2["object"] = { 1, 2, 3, 4 };
-#ifdef USE_JSON_PROXY
-		if ( j1 == p2 ) { }
-		if ( j2 == p2 ) { }
-		if ( p2 == j1 ) { }
-		if ( p2 == j2 ) { }
-		CHECK ( j2 == p2 );
-#endif
+
 		CHECK ( j2("object") == KJSON2({ 1, 2, 3, 4 }) );
-		CHECK ( j2("object") == KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") == LJSON({ 1, 2, 3, 4 }) );
 		CHECK ( KJSON2({ 1, 2, 3, 4 }) == j2("object") );
-		CHECK ( KJSON({ 1, 2, 3, 4 }) == j2("object") );
+		CHECK ( LJSON({ 1, 2, 3, 4 }) == j2("object") );
 
 		// neq
 		if (j2 != j1) { };
@@ -805,13 +815,13 @@ TEST_CASE("KJSON2")
 
 		j2["object"] = { 1, 2, 3, 5 };
 		if (j2("object") != KJSON2({ 1, 2, 3, 4 })) {}
-		if (j2("object") != KJSON({ 1, 2, 3, 4 })) {}
+		if (j2("object") != LJSON({ 1, 2, 3, 4 })) {}
 		if ( KJSON2({ 1, 2, 3, 4 }) != j2("object")) {}
-		if ( KJSON({ 1, 2, 3, 4 })  != j2("object")) {}
+		if ( LJSON({ 1, 2, 3, 4 })  != j2("object")) {}
 		CHECK ( j2("object") != KJSON2({ 1, 2, 3, 4 }) );
-		CHECK ( j2("object") != KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") != LJSON({ 1, 2, 3, 4 }) );
 		CHECK ( KJSON2({ 1, 2, 3, 4 }) != j2("object") );
-		CHECK ( KJSON({ 1, 2, 3, 4 })  != j2("object") );
+		CHECK ( LJSON({ 1, 2, 3, 4 })  != j2("object") );
 
 		// lt
 		if (j2 < j1) { };
@@ -829,14 +839,14 @@ TEST_CASE("KJSON2")
 
 		j2["object"] = { 1, 2, 3, 2 };
 		if (j2("object") < KJSON2({ 1, 2, 3, 4 })) {}
-		if (j2("object") < KJSON({ 1, 2, 3, 4 })) {}
+		if (j2("object") < LJSON({ 1, 2, 3, 4 })) {}
 		if ( KJSON2({ 1, 2, 3, 4 }) < j2("object")) {}
-		if ( KJSON({ 1, 2, 3, 4 })  < j2("object")) {}
+		if ( LJSON({ 1, 2, 3, 4 })  < j2("object")) {}
 
 		CHECK ( j2("object") < KJSON2({ 1, 2, 3, 4 }) );
-		CHECK ( j2("object") < KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") < LJSON({ 1, 2, 3, 4 }) );
 		CHECK ( KJSON2({ 1, 2, 3, 1 }) < j2("object") );
-		CHECK ( KJSON({ 1, 2, 3, 1 }) < j2("object") );
+		CHECK ( LJSON({ 1, 2, 3, 1 }) < j2("object") );
 
 		// le
 		if (j2 <= j1) { };
@@ -854,14 +864,14 @@ TEST_CASE("KJSON2")
 
 		j2["object"] = { 1, 2, 3, 2 };
 		if (j2("object") <= KJSON2({ 1, 2, 3, 4 })) {}
-		if (j2("object") <= KJSON({ 1, 2, 3, 4 })) {}
+		if (j2("object") <= LJSON({ 1, 2, 3, 4 })) {}
 		if ( KJSON2({ 1, 2, 3, 4 }) <= j2("object")) {}
-		if ( KJSON({ 1, 2, 3, 4 })  <= j2("object")) {}
+		if ( LJSON({ 1, 2, 3, 4 })  <= j2("object")) {}
 
 		CHECK ( j2("object") <= KJSON2({ 1, 2, 3, 4 }) );
-		CHECK ( j2("object") <= KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") <= LJSON({ 1, 2, 3, 4 }) );
 		CHECK ( KJSON2({ 1, 2, 3, 1 }) <= j2("object") );
-		CHECK ( KJSON({ 1, 2, 3, 1 }) <= j2("object") );
+		CHECK ( LJSON({ 1, 2, 3, 1 }) <= j2("object") );
 
 		// gt
 		if (j2 > j1) { };
@@ -879,14 +889,14 @@ TEST_CASE("KJSON2")
 
 		j2["object"] = { 1, 2, 3, 6 };
 		if (j2("object") > KJSON2({ 1, 2, 3, 4 })) {}
-		if (j2("object") > KJSON({ 1, 2, 3, 4 })) {}
+		if (j2("object") > LJSON({ 1, 2, 3, 4 })) {}
 		if ( KJSON2({ 1, 2, 3, 4 }) > j2("object")) {}
-		if ( KJSON({ 1, 2, 3, 4 })  > j2("object")) {}
+		if ( LJSON({ 1, 2, 3, 4 })  > j2("object")) {}
 
 		CHECK ( j2("object") > KJSON2({ 1, 2, 3, 4 }) );
-		CHECK ( j2("object") > KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") > LJSON({ 1, 2, 3, 4 }) );
 		CHECK ( KJSON2({ 1, 2, 3, 8 }) > j2("object") );
-		CHECK ( KJSON({ 1, 2, 3, 8 }) > j2("object") );
+		CHECK ( LJSON({ 1, 2, 3, 8 }) > j2("object") );
 
 		// ge
 		if (j2 >= j1) { };
@@ -904,196 +914,15 @@ TEST_CASE("KJSON2")
 
 		j2["object"] = { 1, 2, 3, 6 };
 		if (j2("object") >= KJSON2({ 1, 2, 3, 4 })) {}
-		if (j2("object") >= KJSON({ 1, 2, 3, 4 })) {}
+		if (j2("object") >= LJSON({ 1, 2, 3, 4 })) {}
 		if ( KJSON2({ 1, 2, 3, 4 }) >= j2("object")) {}
-		if ( KJSON({ 1, 2, 3, 4 })  >= j2("object")) {}
+		if ( LJSON({ 1, 2, 3, 4 })  >= j2("object")) {}
 
 		CHECK ( j2("object") >= KJSON2({ 1, 2, 3, 4 }) );
-		CHECK ( j2("object") >= KJSON({ 1, 2, 3, 4 }) );
+		CHECK ( j2("object") >= LJSON({ 1, 2, 3, 4 }) );
 		CHECK ( KJSON2({ 1, 2, 3, 8 }) >= j2("object") );
-		CHECK ( KJSON({ 1, 2, 3, 8 }) >= j2("object") );
+		CHECK ( LJSON({ 1, 2, 3, 8 }) >= j2("object") );
 	}
-
-#ifdef USE_JSON_PROXY
-	SECTION("Proxy Comparisons")
-	{
-		KJSON  j1;
-		KJSON2::Proxy j2(j1);
-		KJSON2 j22;
-
-		// eq
-		if (j2 == j1) { };
-		if (j2 == j22) { };
-		if (j2 == "") { };
-		if ("" == j2) { };
-		if (j2 ==  1) { };
-		if (1 ==  j2) { };
-		if (j2["test"] == "" ) { };
-		if (j2("test") == "" ) { };
-
-		if (j1 == j2) { };
-		if (j1 == "") { };
-		if (j1 ==  1) { };
-
-		j2["object"] = { 1, 2, 3, 4 };
-		CHECK ( j2("object") == KJSON2({ 1, 2, 3, 4 }) );
-		CHECK ( j2("object") == KJSON({ 1, 2, 3, 4 }) );
-		CHECK ( KJSON2({ 1, 2, 3, 4 }) == j2("object") );
-		CHECK ( KJSON2({ 1, 2, 3, 4 }) == j2("object") );
-
-		// neq
-		if (j2 != j1) { };
-		if (j2 != j22) { };
-		if (j2 != "") { };
-		if ("" != j2) { };
-		if (j2 !=  1) { };
-		if (1 !=  j2) { };
-		if (j2["test"] != "" ) { };
-		if (j2("test") != "" ) { };
-
-		if (j1 != j2) { };
-		if (j1 != "") { };
-		if (j1 !=  1) { };
-
-		j2["object"] = { 1, 2, 3, 5 };
-		if (j2("object") != KJSON2({ 1, 2, 3, 4 })) {}
-		if (j2("object") != KJSON({ 1, 2, 3, 4 })) {}
-		if ( KJSON2({ 1, 2, 3, 4 }) != j2("object")) {}
-		if ( KJSON({ 1, 2, 3, 4 })  != j2("object")) {}
-		CHECK ( j2("object") != KJSON2({ 1, 2, 3, 4 }) );
-		CHECK ( j2("object") != KJSON({ 1, 2, 3, 4 }) );
-		CHECK ( KJSON2({ 1, 2, 3, 4 }) != j2("object") );
-		CHECK ( KJSON({ 1, 2, 3, 4 })  != j2("object") );
-
-		// lt
-		if (j2 < j1) { };
-		if (j2 < j22) { };
-		if (j2 < "") { };
-		if ("" < j2) { };
-		if (j2 <  1) { };
-		if (1 <  j2) { };
-		if (j2["test"] < "" ) { };
-		if (j2("test") < "" ) { };
-
-		if (j1 < j2) { };
-		if (j1 < "") { };
-		if (j1 <  1) { };
-
-		j2["object"] = { 1, 2, 3, 2 };
-		if (j2("object") < KJSON2({ 1, 2, 3, 4 })) {}
-		if (j2("object") < KJSON({ 1, 2, 3, 4 })) {}
-		if ( KJSON2({ 1, 2, 3, 4 }) < j2("object")) {}
-		if ( KJSON({ 1, 2, 3, 4 })  < j2("object")) {}
-
-		CHECK ( j2("object") < KJSON2({ 1, 2, 3, 4 }) );
-		CHECK ( j2("object") < KJSON({ 1, 2, 3, 4 }) );
-		CHECK ( KJSON2({ 1, 2, 3, 1 }) < j2("object") );
-		CHECK ( KJSON({ 1, 2, 3, 1 }) < j2("object") );
-
-		{
-			KJSON2 k2 = "aaaa";
-			if (k2 < "bbbb")
-			{
-				CHECK(true);
-			}
-			else
-			{
-				CHECK(false);
-			}
-			CHECK ( k2 < "bbbb" );
-			k2 = KJSON2();
-			CHECK (k2 < "bbbb" );
-
-			k2 = "cccc";
-			if (k2 < "bbbb")
-			{
-				CHECK(false);
-			}
-			else
-			{
-				CHECK(true);
-			}
-			CHECK_FALSE ( k2 < "bbbb" );
-		}
-
-		// le
-		if (j2 <= j1) { };
-		if (j2 <= j22) { };
-		if (j2 <= "") { };
-		if ("" <= j2) { };
-		if (j2 <=  1) { };
-		if (1 <=  j2) { };
-		if (j2("test") <= "" ) { };
-		CHECK (j2("test") <= "" );
-		if (j2["test"] <= "" ) { };
-		CHECK (j2["test"] <= "" );
-
-		if (j1 <= j2) { };
-		if (j1 <= "") { };
-		if (j1 <=  1) { };
-
-		j2["object"] = { 1, 2, 3, 2 };
-		if (j2("object") <= KJSON2({ 1, 2, 3, 4 })) {}
-		if (j2("object") <= KJSON({ 1, 2, 3, 4 })) {}
-		if ( KJSON2({ 1, 2, 3, 4 }) <= j2("object")) {}
-		if ( KJSON({ 1, 2, 3, 4 })  <= j2("object")) {}
-
-		CHECK ( j2("object") <= KJSON2({ 1, 2, 3, 4 }) );
-		CHECK ( j2("object") <= KJSON({ 1, 2, 3, 4 }) );
-		CHECK ( KJSON2({ 1, 2, 3, 1 }) <= j2("object") );
-		CHECK ( KJSON({ 1, 2, 3, 1 }) <= j2("object") );
-
-		// gt
-		if (j2 > j1) { };
-		if (j2 > j22) { };
-		if (j2 > "") { };
-		if ("" > j2) { };
-		if (j2 >  1) { };
-		if (1 >  j2) { };
-		if (j2["test"] > "" ) { };
-		if (j2("test") > "" ) { };
-
-		if (j1 > j2) { };
-		if (j1 > "") { };
-		if (j1 >  1) { };
-
-		j2["object"] = { 1, 2, 3, 6 };
-		if (j2("object") > KJSON2({ 1, 2, 3, 4 })) {}
-		if (j2("object") > KJSON({ 1, 2, 3, 4 })) {}
-		if ( KJSON2({ 1, 2, 3, 4 }) > j2("object")) {}
-		if ( KJSON({ 1, 2, 3, 4 })  > j2("object")) {}
-
-		CHECK ( j2("object") > KJSON2({ 1, 2, 3, 4 }) );
-		CHECK ( j2("object") > KJSON({ 1, 2, 3, 4 }) );
-		CHECK ( KJSON2({ 1, 2, 3, 8 }) > j2("object") );
-		CHECK ( KJSON({ 1, 2, 3, 8 }) > j2("object") );
-
-		// ge
-		if (j2 >= j1) { };
-		if (j2 >= j22) { };
-		if (j2 >= "") { };
-		if ("" >= j2) { };
-		if (j2 >=  1) { };
-		if (1  >=  j2) { };
-		if (j2["test"] >= "" ) { };
-		if (j2("test") >= "" ) { };
-
-		if (j1 >= j2) { };
-		if (j1 >= "") { };
-		if (j1 >=  1) { };
-
-		j2["object"] = { 1, 2, 3, 6 };
-		if (j2("object") >= KJSON2({ 1, 2, 3, 4 })) {}
-		if (j2("object") >= KJSON({ 1, 2, 3, 4 })) {}
-		if ( KJSON2({ 1, 2, 3, 4 }) >= j2("object")) {}
-		if ( KJSON({ 1, 2, 3, 4 })  >= j2("object")) {}
-
-		CHECK ( j2("object") >= KJSON2({ 1, 2, 3, 4 }) );
-		CHECK ( j2("object") >= KJSON({ 1, 2, 3, 4 }) );
-		CHECK ( KJSON2({ 1, 2, 3, 8 }) >= j2("object") );
-		CHECK ( KJSON({ 1, 2, 3, 8 }) >= j2("object") );
-	}
-#endif
 
 	SECTION("Select and struct changes")
 	{

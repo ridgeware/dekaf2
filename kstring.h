@@ -243,13 +243,13 @@ public:
 	self& operator+= (const value_type ch)                    { push_back(ch); return *this; }
 	self& operator+= (std::initializer_list<value_type> il);
 
-	iterator                begin()            noexcept       { return m_rep.begin();        }
+	iterator                begin()                  noexcept { return m_rep.begin();        }
 	const_iterator          begin()            const noexcept { return m_rep.begin();        }
-	iterator                end()              noexcept       { return m_rep.end();          }
+	iterator                end()                    noexcept { return m_rep.end();          }
 	const_iterator          end()              const noexcept { return m_rep.end();          }
-	reverse_iterator        rbegin()           noexcept       { return m_rep.rbegin();       }
+	reverse_iterator        rbegin()                 noexcept { return m_rep.rbegin();       }
 	const_reverse_iterator  rbegin()           const noexcept { return m_rep.rbegin();       }
-	reverse_iterator        rend()             noexcept       { return m_rep.rend();         }
+	reverse_iterator        rend()                   noexcept { return m_rep.rend();         }
 	const_reverse_iterator  rend()             const noexcept { return m_rep.rend();         }
 	const_iterator          cbegin()           const noexcept { return m_rep.cbegin();       }
 	const_iterator          cend()             const noexcept { return m_rep.cend();         }
@@ -361,7 +361,7 @@ public:
 
 	size_type find_first_not_of(value_type c, size_type pos = 0)                   const { return find_first_not_of(&c, pos, 1);                  }
 	size_type find_first_not_of(KStringView sv, size_type pos = 0)                 const;
-	size_type find_first_not_of(const value_type* s, size_type pos = 0)           const;
+	size_type find_first_not_of(const value_type* s, size_type pos = 0)            const;
 	size_type find_first_not_of(const value_type* s, size_type pos, size_type n)   const;
 	template<typename T,
 			 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type = 0>
@@ -383,7 +383,7 @@ public:
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
 	iterator insert(iterator it, value_type c);
 	template<class _InputIterator>
-	void insert(const_iterator it, _InputIterator beg, _InputIterator end)              { m_rep.insert(it, beg, end);                             }
+	void insert(const_iterator it, _InputIterator beg, _InputIterator end)               { m_rep.insert(it, beg, end);                            }
 	// should be const_iterator with C++11, but is not supported by libstdc++
 	iterator insert (iterator it, std::initializer_list<value_type> il);
 	template<typename T,
@@ -475,9 +475,9 @@ public:
 	/// substring starting at zero-based position "pos" for "n" chars.  if "n" is not specified return the rest of the string starting at "pos"
 	KString substr(size_type pos = 0, size_type n = npos) &&;
 
-	void swap(KString& s) { m_rep.swap(s.m_rep); }
+	void swap(KString& other)     { using std::swap; swap(m_rep, other.m_rep); }
 #ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
-	void swap(std::string& s) { m_rep.swap(s); }
+	void swap(std::string& other) { using std::swap; swap(m_rep, other);       }
 #endif
 
 	allocator_type get_allocator() const noexcept { return m_rep.get_allocator(); }

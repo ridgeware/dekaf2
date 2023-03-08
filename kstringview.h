@@ -343,6 +343,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// @return a std::string_view of this string view
 	constexpr
 	sv::string_view ToStdView() const
 	//-----------------------------------------------------------------------------
@@ -375,6 +376,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// empty content of this string view
 	DEKAF2_CONSTEXPR_14
 	void clear()
 	//-----------------------------------------------------------------------------
@@ -388,6 +390,9 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// assign to string view from char pointer
+	/// @param start the start of the string
+	/// @param size the size of the string
 	DEKAF2_CONSTEXPR_14
 	void assign(const value_type* start, size_type size)
 	//-----------------------------------------------------------------------------
@@ -397,6 +402,9 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// assign to string view from char pointer
+	/// @param start the start of the string
+	/// @param end the end of the string (pointing on the character directly after the end)
 	DEKAF2_CONSTEXPR_14
 	void assign(const value_type* start, const value_type* end)
 	//-----------------------------------------------------------------------------
@@ -405,6 +413,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// maximum size for this string view implementation
 	constexpr
 	size_type max_size() const
 	//-----------------------------------------------------------------------------
@@ -413,6 +422,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns size of this string view - synonym for length()
 	constexpr
 	size_type size() const
 	//-----------------------------------------------------------------------------
@@ -421,6 +431,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns length of this string view - synonym for size()
 	constexpr
 	size_type length() const
 	//-----------------------------------------------------------------------------
@@ -429,6 +440,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns true if size() == 0
 	constexpr
 	bool empty() const
 	//-----------------------------------------------------------------------------
@@ -446,6 +458,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns pointer on begin of the string view
 	constexpr
 	const value_type* data() const
 	//-----------------------------------------------------------------------------
@@ -454,6 +467,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns begin iterator
 	constexpr
 	iterator begin() const
 	//-----------------------------------------------------------------------------
@@ -462,6 +476,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns end iterator
 	constexpr
 	iterator end() const
 	//-----------------------------------------------------------------------------
@@ -470,6 +485,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns reverse begin iterator
 	DEKAF2_CONSTEXPR_REVERSE_ITERATORS
 	reverse_iterator rbegin() const
 	//-----------------------------------------------------------------------------
@@ -478,6 +494,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns reverse end iterator
 	DEKAF2_CONSTEXPR_REVERSE_ITERATORS
 	reverse_iterator rend() const
 	//-----------------------------------------------------------------------------
@@ -486,6 +503,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns constant begin iterator
 	constexpr
 	const_iterator cbegin() const
 	//-----------------------------------------------------------------------------
@@ -494,6 +512,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns constant end iterator
 	constexpr
 	const_iterator cend() const
 	//-----------------------------------------------------------------------------
@@ -502,6 +521,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns constant reverse begin iterator
 	DEKAF2_CONSTEXPR_REVERSE_ITERATORS
 	const_reverse_iterator crbegin() const
 	//-----------------------------------------------------------------------------
@@ -510,6 +530,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns constant reverse end iterator
 	DEKAF2_CONSTEXPR_REVERSE_ITERATORS
 	const_reverse_iterator crend() const
 	//-----------------------------------------------------------------------------
@@ -518,6 +539,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns reference to first character. NUL if string view is empty, never throws.
 	DEKAF2_CONSTEXPR_14
 	const value_type& front() const noexcept
 	//-----------------------------------------------------------------------------
@@ -533,6 +555,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns reference to last character. NUL if string view is empty, never throws.
 	DEKAF2_CONSTEXPR_14
 	const value_type& back() const noexcept
 	//-----------------------------------------------------------------------------
@@ -548,6 +571,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// compares this string view with another
 	DEKAF2_CONSTEXPR_14
 	int compare(const self_type& other) const
 	//-----------------------------------------------------------------------------
@@ -557,6 +581,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// compares part of this string view with another
 	DEKAF2_CONSTEXPR_14
 	int compare(size_type pos1, size_type count1,
 	            self_type other) const
@@ -566,6 +591,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// compares part of this string view with part of another
 	DEKAF2_CONSTEXPR_14
 	int compare(size_type pos1, size_type count1,
 	            self_type other,
@@ -576,6 +602,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// compares this string view with a char string
 	DEKAF2_CONSTEXPR_14
 	int compare(const value_type* str) const
 	//-----------------------------------------------------------------------------
@@ -584,6 +611,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// compares part of this string view with a char string
 	DEKAF2_CONSTEXPR_14
 	int compare(size_type pos1, size_type count1,
 	            const value_type* str) const
@@ -593,6 +621,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// compares part of this string view with part of a char string
 	DEKAF2_CONSTEXPR_14
 	int compare(size_type pos1, size_type count1,
 	            const value_type* str, size_type count2) const
@@ -602,6 +631,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// copies this string view into a char string
 	size_type copy(value_type* dest, size_type count, size_type pos = 0) const;
 	//-----------------------------------------------------------------------------
 
@@ -621,6 +651,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// checked index access, returns NUL on range error, never throws
 	DEKAF2_CONSTEXPR_14
 	const value_type& at(size_t index) const
 	//-----------------------------------------------------------------------------
@@ -636,6 +667,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns sub string of this string view, checks range, never throws
 	DEKAF2_CONSTEXPR_14
 	self_type substr(size_type pos = 0, size_type count = npos) const
 	//-----------------------------------------------------------------------------
@@ -647,7 +679,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	/// returns a sub-view of the current view
+	/// returns a sub-view of the current view (synonym for substr(), aliased for template use because
+	/// KString has both and makes a difference
 	DEKAF2_CONSTEXPR_14
 	self_type ToView(size_type pos = 0, size_type count = npos) const
 	//-----------------------------------------------------------------------------
@@ -656,6 +689,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// shrinks the view by moving its start forward by n characters
 	DEKAF2_CONSTEXPR_14
 	void remove_prefix(size_type n)
 	//-----------------------------------------------------------------------------
@@ -671,6 +705,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// shrinks the view by moving its end backwards by n characters
 	DEKAF2_CONSTEXPR_14
 	void remove_suffix(size_type n)
 	//-----------------------------------------------------------------------------
@@ -687,6 +722,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// shrinks the view by moving its start forward if start is other string
+	/// @return true if successful, else false
 	DEKAF2_CONSTEXPR_14
 	bool remove_prefix(const self_type other)
 	//-----------------------------------------------------------------------------
@@ -701,6 +738,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// shrinks the view by moving its end backwards if end is other string
+	/// @return true if successful, else false
 	DEKAF2_CONSTEXPR_14
 	bool remove_suffix(const self_type other)
 	//-----------------------------------------------------------------------------
@@ -715,6 +754,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// shrinks the view by moving its start forward if start is other character
+	/// @return true if successful, else false
 	template<typename T, typename std::enable_if<std::is_same<T, std::remove_cv<value_type>::type>::value, int>::type = 0>
 	DEKAF2_CONSTEXPR_14
 	bool remove_prefix(T ch)
@@ -730,6 +771,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// shrinks the view by moving its end backwards if end is other character
+	/// @return true if successful, else false
 	template<typename T, typename std::enable_if<std::is_same<T, std::remove_cv<value_type>::type>::value, int>::type = 0>
 	DEKAF2_CONSTEXPR_14
 	bool remove_suffix(T ch)
@@ -746,6 +789,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// append other view to this. Views must overlap or be adjacent, but other has to be to the right of this
+	/// @return true if successful, else false
 	DEKAF2_CONSTEXPR_14
 	bool append(const self_type other)
 	//-----------------------------------------------------------------------------
@@ -793,6 +837,7 @@ public:
 	//--------------------------------------------------------------------------------
 	// nonstandard
 	/// merge another view with this, regardless from which side and how much overlap..
+	/// @return true if successful, else false
 	DEKAF2_CONSTEXPR_14
 	bool Merge(self_type other)
 	//--------------------------------------------------------------------------------
@@ -1158,10 +1203,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// swaps the contents with another string view
 	void swap(self_type& other)
 	//-----------------------------------------------------------------------------
 	{
-		std::swap(m_rep, other.m_rep);
+		using std::swap;
+		swap(m_rep, other.m_rep);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1202,10 +1249,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// nonstandard: caseless ASCII search
 	size_type FindCaselessASCII(const self_type str, size_type pos = 0) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// nonstandard: returns true if caseless ASCII search of another string is successful
 	bool ContainsCaselessASCII(const self_type str) const noexcept
 	//-----------------------------------------------------------------------------
 	{

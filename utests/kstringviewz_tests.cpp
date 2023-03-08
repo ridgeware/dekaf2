@@ -1403,5 +1403,21 @@ TEST_CASE("KStringViewZ") {
 		CHECK ( KStringViewZ("abcæå").AtUTF8(5) == Unicode::INVALID_CODEPOINT );
 	}
 
+	SECTION("remove_prefix")
+	{
+		KStringViewZ sString { "abcdefghijklmnopqrstuvwxyz" };
+		auto sStr = sString;
+		sStr.remove_prefix(1);
+		CHECK ( sStr == "bcdefghijklmnopqrstuvwxyz" );
+		sStr.remove_prefix(50);
+		CHECK ( sStr == "" );
+		sStr = sString;
+		CHECK ( sStr.remove_prefix("bcd") == false );
+		CHECK ( sStr.remove_prefix('b') == false );
+		CHECK ( sStr.remove_prefix("abcd") == true );
+		CHECK ( sStr == "efghijklmnopqrstuvwxyz" );
+		CHECK ( sStr.remove_prefix('e') == true );
+		CHECK ( sStr == "fghijklmnopqrstuvwxyz" );
+	}
 }
 

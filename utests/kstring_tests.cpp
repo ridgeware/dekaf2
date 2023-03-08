@@ -1913,4 +1913,39 @@ TEST_CASE("KString") {
 		CHECK ( KString("åꜩbcꝙ").AtUTF8(4) == 42841 );
 		CHECK ( KString("abcæå").AtUTF8(5) == Unicode::INVALID_CODEPOINT );
 	}
+
+	SECTION("remove_prefix")
+	{
+		KString sString { "abcdefghijklmnopqrstuvwxyz" };
+		auto sStr = sString;
+		sStr.remove_prefix(1);
+		CHECK ( sStr == "bcdefghijklmnopqrstuvwxyz" );
+		sStr.remove_prefix(50);
+		CHECK ( sStr == "" );
+		sStr = sString;
+		CHECK ( sStr.remove_prefix("bcd") == false );
+		CHECK ( sStr.remove_prefix('b') == false );
+		CHECK ( sStr.remove_prefix("abcd") == true );
+		CHECK ( sStr == "efghijklmnopqrstuvwxyz" );
+		CHECK ( sStr.remove_prefix('e') == true );
+		CHECK ( sStr == "fghijklmnopqrstuvwxyz" );
+	}
+
+	SECTION("remove_suffix")
+	{
+		KString sString { "abcdefghijklmnopqrstuvwxyz" };
+		auto sStr = sString;
+		sStr.remove_suffix(1);
+		CHECK ( sStr == "abcdefghijklmnopqrstuvwxy" );
+		sStr.remove_suffix(50);
+		CHECK ( sStr == "" );
+		sStr = sString;
+		CHECK ( sStr.remove_suffix("bcd") == false );
+		CHECK ( sStr.remove_suffix('b') == false );
+		CHECK ( sStr.remove_suffix("xyz") == true );
+		CHECK ( sStr == "abcdefghijklmnopqrstuvw" );
+		CHECK ( sStr.remove_suffix('w') == true );
+		CHECK ( sStr == "abcdefghijklmnopqrstuv" );
+	}
+
 }

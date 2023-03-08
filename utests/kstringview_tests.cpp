@@ -18,16 +18,16 @@ TEST_CASE("KStringView") {
 		// fatal error C1001: An internal error has occurred in the compiler.
 		// (compiler file 'msc1.cpp', line 1518)
 		// To work around this problem, try simplifying or changing the program near the locations listed above.
-	#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION > 90000
+#if !defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION > 90000
 		static constexpr KStringView sv1 { nullptr };
 		static constexpr KStringView sv2 = nullptr;
-	#else
+#else
 		static KStringView sv1 { nullptr };
 		static KStringView sv2 = nullptr;
-	#endif
+#endif
 		CHECK ( sv1.empty() );
 		CHECK ( sv2.empty() );
-	#endif
+#endif
 	}
 
 	SECTION("find")
@@ -1566,5 +1566,39 @@ TEST_CASE("KStringView") {
 		CHECK ( kContainsWord(sString, "inn aaa"     ) == true  );
 		CHECK ( kContainsWord(sString, "string"      ) == false );
 		CHECK ( kContainsWord(sString, "stringstring") == true  );
+	}
+
+	SECTION("remove_prefix")
+	{
+		KStringView sString { "abcdefghijklmnopqrstuvwxyz" };
+		auto sStr = sString;
+		sStr.remove_prefix(1);
+		CHECK ( sStr == "bcdefghijklmnopqrstuvwxyz" );
+		sStr.remove_prefix(50);
+		CHECK ( sStr == "" );
+		sStr = sString;
+		CHECK ( sStr.remove_prefix("bcd") == false );
+		CHECK ( sStr.remove_prefix('b') == false );
+		CHECK ( sStr.remove_prefix("abcd") == true );
+		CHECK ( sStr == "efghijklmnopqrstuvwxyz" );
+		CHECK ( sStr.remove_prefix('e') == true );
+		CHECK ( sStr == "fghijklmnopqrstuvwxyz" );
+	}
+
+	SECTION("remove_suffix")
+	{
+		KStringView sString { "abcdefghijklmnopqrstuvwxyz" };
+		auto sStr = sString;
+		sStr.remove_suffix(1);
+		CHECK ( sStr == "abcdefghijklmnopqrstuvwxy" );
+		sStr.remove_suffix(50);
+		CHECK ( sStr == "" );
+		sStr = sString;
+		CHECK ( sStr.remove_suffix("bcd") == false );
+		CHECK ( sStr.remove_suffix('b') == false );
+		CHECK ( sStr.remove_suffix("xyz") == true );
+		CHECK ( sStr == "abcdefghijklmnopqrstuvw" );
+		CHECK ( sStr.remove_suffix('w') == true );
+		CHECK ( sStr == "abcdefghijklmnopqrstuv" );
 	}
 }

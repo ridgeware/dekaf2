@@ -3,7 +3,7 @@
 #%
 #% bootstrap - create initial dekaf2 install
 #%
-#% usage: bootstrap [-with-debug] -go
+#% usage: bootstrap [-scratch][-no-pull][-with-debug] -go
 #%
 #% where -with-debug will install both debug and release versions
 #%
@@ -102,6 +102,8 @@ Setup ()
 
 	cd "${ME_ONLYPATH}"  || Die "Cannot cd into source directory ${ME_ONLYPATH}"
 
+	[[ ! -z "${bScratch}" ]] && rm -rf "${BuildDir}"
+
 	if [[ -d "${BuildDir}" ]]; then
 
 		Info "Build directory ${BuildDir} already setup."
@@ -115,8 +117,10 @@ Setup ()
 
 	fi
 
-	Info "Checking for updates.."
-	git pull             || Die "Cannot pull source code changes"
+	if [[ -z "${bNoPull}" ]]; then
+		Info "Checking for updates.."
+		git pull         || Die "Cannot pull source code changes"
+	fi
 
 	cd "${BuildDir}"     || Die "Cannot cd into build directory ${BuildDir}"
 
@@ -156,12 +160,35 @@ BuildDir="${ME_ONLYPATH}/build"
 
 source ${ScriptLib}
 
-if [[ "$1" == "-with-debug" ]]; then
-	bWithDebug="1"
+# read arguments
+while [[ $# -gt 0 ]]
+do
+	case "$1" in
+	-help|--help|-h)
+		Synopsis
+		exit 1
+		;;
+	-with-debug)
+		bWithDebug="1"
+		;;
+	-scratch)
+		bScratch="1"
+		;;
+	-nopull|-no-pull)
+		bNoPull="1"
+		;;
+	-go)
+		bGo="1"
+		;;
+	*)
+		Die "unknown option: $1"
+		exit 1
+		;;
+	esac
 	shift
-fi
+done
 
-if [ "$1" != "-go" ]; then
+if [[ -z "${bGo}" ]]; then
 	Synopsis
 	exit 1
 fi

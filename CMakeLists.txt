@@ -23,8 +23,9 @@ endif()
 
 # =================================== UPDATE CMAKE =================================
 
+message(STATUS "Current CMake version is ${CMAKE_VERSION}")
+
 if(CMAKE_VERSION VERSION_LESS "3.13.0")
-	message(STATUS "Current CMake version is ${CMAKE_VERSION}")
 	if (DEKAF2_NO_BUILDSETUP)
 		message(FATAL_ERROR "Please make sure CMake 3.13 or newer is available")
 	endif()
@@ -818,6 +819,8 @@ endif()
 list(SORT HEADERS)
 
 set (PRECOMPILED_HEADERS
+
+	# std headers
 	<unordered_map>
 	<unordered_set>
 	<map>
@@ -838,14 +841,9 @@ set (PRECOMPILED_HEADERS
 	<thread>
 	<utility>
 	<chrono>
-	<nlohmann/json.hpp>
-	<fmt/format.h>
-	<boost/multi_index_container.hpp>
-	<boost/multi_index/hashed_index.hpp>
-	<boost/multi_index/ordered_index.hpp>
-	<boost/multi_index/identity.hpp>
-	<boost/multi_index/member.hpp>
-	<boost/multi_index/sequenced_index.hpp>
+
+	# our own headers
+	[["kconfiguration.h"]]
 	bits/kstring_view.h
 	bits/khash.h
 	bits/kcppcompat.h
@@ -856,13 +854,13 @@ set (PRECOMPILED_HEADERS
 	dekaf2.h
 	kassociative.h
 	kctype.h
-	[["kconfiguration.h"]]
 	kduration.h
 	kfilesystem.h
 	kformat.h
 	khtmlentities.h
 	kjoin.h
 	kjson.h
+	kjson2.h
 	klog.h
 	koutstringstream.h
 	kprops.h
@@ -881,6 +879,16 @@ set (PRECOMPILED_HEADERS
 	kurlencode.h
 	kutf8.h
 	kwriter.h
+
+	# 3rd party libs
+	<nlohmann/json.hpp>
+	<fmt/format.h>
+	<boost/multi_index_container.hpp>
+	<boost/multi_index/hashed_index.hpp>
+	<boost/multi_index/ordered_index.hpp>
+	<boost/multi_index/identity.hpp>
+	<boost/multi_index/member.hpp>
+	<boost/multi_index/sequenced_index.hpp>
 )
 
 # =============================== SOURCE FILES ====================================

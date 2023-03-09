@@ -1364,10 +1364,36 @@ TEST_CASE("KJSON2")
 			CHECK (j1.dump() == R"([1,2,3,4,{"object":{"currency":"USD","value":42.99}}])" );
 		}
 		{
-//			KJSON2 j1 = "string";
-// TODO			j1 += "string2";
-//			CHECK (j1.dump() == R"(["string","string2"])");
+			KJSON2 j1 = "string";
+			j1 += "string2";
+			CHECK (j1.dump() == R"(["string","string2"])");
 		}
+	}
+
+	SECTION("auto range for loop")
+	{
+		KJSON2 j = { { "array", { "col1", "col2", "col3" } } };
+		CHECK ( j.dump() == R"({"array":["col1","col2","col3"]})" );
+
+		auto& Array = j("array").Array();
+
+		if (!Array.empty())
+		{
+			KString sValues;
+
+			for (const KString& sEntry : Array)
+			{
+				if (!sValues.empty())
+				{
+					sValues += ',';
+				}
+
+				sValues += sEntry;
+			}
+
+			CHECK ( sValues == "col1,col2,col3" );
+		}
+
 	}
 }
 #endif

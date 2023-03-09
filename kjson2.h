@@ -364,10 +364,12 @@ public:
 		pointer operator->()  const { return parent::MakePtr(base::operator->()); }
 		// overwrite method to wrap reference type
 		reference value()     const { return parent::MakeRef(base::value());      }
+		// return base reference for this
+		const base& ToBase()  const { return *this; }
 		// make the equality comparison available for the wrapped type
-		bool operator==(const iterator& other) const { return base::operator==(base(other)); }
+		bool operator==(const iterator& other) const { return base::operator==(other.ToBase()); }
 		// make the unequality comparison available for the wrapped type
-		bool operator!=(const iterator& other) const { return base::operator!=(base(other)); }
+		bool operator!=(const iterator& other) const { return base::operator!=(other.ToBase()); }
 	};
 
 	class const_iterator : public LJSON::const_iterator
@@ -389,10 +391,12 @@ public:
 		pointer operator->()  const { return parent::MakePtr(base::operator->()); }
 		// overwrite method to wrap reference type
 		reference value()     const { return parent::MakeRef(base::value());      }
+		// return base reference for this
+		const base& ToBase()  const { return *this; }
 		// make the equality comparison available for the wrapped type
-		bool operator==(const const_iterator& other) const { return base::operator==(base(other)); }
+		bool operator==(const const_iterator& other) const { return base::operator==(other.ToBase()); }
 		// make the unequality comparison available for the wrapped type
-		bool operator!=(const const_iterator& other) const { return base::operator!=(base(other)); }
+		bool operator!=(const const_iterator& other) const { return base::operator!=(other.ToBase()); }
 	};
 
 	// imported types
@@ -694,8 +698,8 @@ public:
 	const_iterator  end         ()         const noexcept { return cend();                 }
 	iterator        begin       ()               noexcept { return base::begin();          }
 	iterator        end         ()               noexcept { return base::end();            }
-	const_iterator  cbegin      ()         const noexcept { return base::begin();          }
-	const_iterator  cend        ()         const noexcept { return base::end();            }
+	const_iterator  cbegin      ()         const noexcept { return base::cbegin();         }
+	const_iterator  cend        ()         const noexcept { return base::cend();           }
 	const_reference	front       ()         const noexcept { return MakeRef(base::front()); }
 	reference       front       ()               noexcept { return MakeRef(base::front()); }
 	const_reference	back        ()         const noexcept { return MakeRef(base::back());  }

@@ -152,11 +152,6 @@ std::tm kGetBrokenDownTime (time_t tTime, bool bAsLocalTime)
 		gmtime_s(&time, &tTime);
 	}
 
-	kDebug(3, "ix:{} d:{} m:{} y:{} h:{} m:{} s:{}",
-		   tTime,
-		   time.tm_mday, time.tm_mon+1, time.tm_year+1900,
-		   time.tm_hour, time.tm_min,   time.tm_sec);
-
 #else
 
 	if (bAsLocalTime)
@@ -167,12 +162,6 @@ std::tm kGetBrokenDownTime (time_t tTime, bool bAsLocalTime)
 	{
 		gmtime_r(&tTime, &time);
 	}
-
-	kDebug(3, "ix:{} d:{} m:{} y:{} h:{} m:{} s:{} offs:{} zone:{}",
-		   tTime,
-		   time.tm_mday,   time.tm_mon+1, time.tm_year+1900,
-		   time.tm_hour,   time.tm_min,   time.tm_sec,
-		   time.tm_gmtoff, time.tm_zone);
 
 #endif
 
@@ -897,6 +886,7 @@ time_t kParseTimestamp(KStringView sTimestamp)
 	}};
 
 	auto iSize = sTimestamp.SizeUTF8();
+	bool bHasUTF8Runs = iSize != sTimestamp.size();
 
 	for (auto Format : Formats)
 	{
@@ -905,8 +895,6 @@ time_t kParseTimestamp(KStringView sTimestamp)
 		if (iSize == iFSize)
 		{
 			auto iCheckPos = Format.iPos;
-
-			bool bHasUTF8Runs = iSize != sTimestamp.size();
 
 			if (iCheckPos == 0 ||
 				(!bHasUTF8Runs && Format.sFormat[iCheckPos] == sTimestamp[iCheckPos]) ||

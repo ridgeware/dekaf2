@@ -1097,7 +1097,7 @@ void KRESTServer::Output()
 				// the content:
 				if (!m_sMessage.empty())
 				{
-					if (!json.tx.empty() || Route->Parser == KRESTRoute::JSON)
+					if (!json.tx.is_null() || Route->Parser == KRESTRoute::JSON)
 					{
 						json.tx["message"] = std::move(m_sMessage);
 					}
@@ -1105,8 +1105,8 @@ void KRESTServer::Output()
 
 				if (m_JsonLogger && !m_JsonLogger->empty() && !m_Options.KLogHeader.empty())
 				{
-					if ((!json.tx.empty() || Route->Parser == KRESTRoute::JSON)
-						&& json.tx.is_object())
+					if ((!json.tx.is_null() || Route->Parser == KRESTRoute::JSON)
+						&& (json.tx.is_object() || json.tx.is_null()))
 					{
 						json.tx[m_Options.KLogHeader.Serialize()] = std::move(*m_JsonLogger);
 					}
@@ -1116,18 +1116,10 @@ void KRESTServer::Output()
 					}
 				}
 
-				if (!json.tx.empty())
+				if (!json.tx.is_null())
 				{
 					kDebug (2, "serializing JSON response");
 					sContent = json.tx.dump(m_iJSONPrint, '\t');
-
-					// ensure that all JSON responses end in a newline:
-					if (!sContent.ends_with('\n'))
-					{
-						sContent += '\n';
-					}
-
-					kDebug (2, "JSON response has {} bytes", sContent.length());
 				}
 				else if (!xml.tx.empty())
 				{
@@ -1140,17 +1132,17 @@ void KRESTServer::Output()
 
 					kDebug (2, "serializing XML response");
 					xml.tx.Serialize(sContent, m_iXMLPrint);
+				}
 
-					// ensure that all XML responses end in a newline:
-					if (!sContent.ends_with('\n'))
-					{
-						sContent += '\n';
-					}
-
-					kDebug (2, "XML response has {} bytes", sContent.length());
+				// ensure that all responses end in a newline:
+				if (!sContent.empty() && !sContent.ends_with('\n'))
+				{
+					sContent += '\n';
 				}
 
 				m_iContentLength = sContent.length();
+
+				kDebug (2, "response has {} bytes", m_iContentLength);
 			}
 
 			WriteHeaders();
@@ -1224,10 +1216,13 @@ void KRESTServer::Output()
 			{
 				if (!m_sMessage.empty())
 				{
-					json.tx["message"] = std::move(m_sMessage);
+					if (!json.tx.is_null() || Route->Parser == KRESTRoute::JSON)
+					{
+						json.tx["message"] = std::move(m_sMessage);
+					}
 				}
 
-				if (!json.tx.empty())
+				if (!json.tx.is_null())
 				{
 					tjson["body"] = std::move(json.tx);
 				}

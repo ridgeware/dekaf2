@@ -1863,20 +1863,6 @@ inline uint128_t KString::UInt128(bool bIsHex) const noexcept
 #endif
 
 //-----------------------------------------------------------------------------
-inline KString KString::to_string(float f)
-//-----------------------------------------------------------------------------
-{
-	return KString(std::to_string(f));
-}
-
-//-----------------------------------------------------------------------------
-inline KString KString::to_string(double f)
-//-----------------------------------------------------------------------------
-{
-	return KString(std::to_string(f));
-}
-
-//-----------------------------------------------------------------------------
 inline KStringView KString::MatchRegex(const KStringView sRegEx, size_type pos) const
 //-----------------------------------------------------------------------------
 {

@@ -1,11 +1,19 @@
 #!/bin/bash
 
 #%
-#% bootstrap - create initial dekaf2 install
+#% bootstrap - pull, build and install dekaf2
 #%
-#% usage: bootstrap [-scratch][-no-pull][-with-debug] -go
+#% usage: bootstrap [<options>] go
 #%
-#% where -with-debug will install both debug and release versions
+#% with <options>:
+#%
+#%   -with-debug : will install both debug and release versions
+#%   -scratch    : clear build directory before building
+#%   -no-pull    : do not pull the latest sources before building
+#%   -no-setup   : do not install helper packages/libs
+#%
+#% The build directory will be a subdirectory 'build/Release|Debug|Xcode'
+#% of the directory in which this script is located.
 #%
 
 # are we in test mode?
@@ -13,15 +21,6 @@ if [ "$1" = "-x" ]; then
 	set -x
 	shift
 fi # end check test mode
-
-setx=Synopsis
-#==================
-Synopsis ()
-#==================
-{
-	awk '/^#%/ {print substr($0,3)}' "${ME_FULLPATH}"
-
-} # Synopsis
 
 setx=Install
 #==================
@@ -35,7 +34,7 @@ Install ()
 	# install
 
 	Info "now installing dekaf2 ${BuildType} project (may need root password)"
-	sudo make install
+	sudo make install | grep -v "Up-to-date"
 
 	Info "dekaf2 ${BuildType} build successfully installed"
 
@@ -148,17 +147,20 @@ Setup ()
 setx=Main_Body
 #==================
 
-ME=$(basename "${BASH_SOURCE}")
-ME_ONLYPATH="$(cd $(dirname ${BASH_SOURCE}) && pwd)"
+IMAYBE="${BASH_SOURCE:-$0}"
+ME=$(basename "${IMAYBE}")
+ME_ONLYPATH="$(cd $(dirname ${IMAYBE}) && pwd)"
 ME_FULLPATH="$ME_ONLYPATH/$ME"
 ScriptLib="${ME_ONLYPATH}/scripts/scriptlib"
 BuildSetup="${ME_ONLYPATH}/scripts/buildsetup"
 BuildDir="${ME_ONLYPATH}/build"
 
 [[ ! -f "${ScriptLib}" ]] && Die "Cannot check OS version, script '${ScriptLib}' not found"
-[[ ! -f "${BuildSetup}" ]] && Die "Cannot setup build, script '${BuildSetup}' not found"
 
 source ${ScriptLib}
+
+SetupColors
+GetOS
 
 # read arguments
 while [[ $# -gt 0 ]]
@@ -166,22 +168,24 @@ do
 	case "$1" in
 	-help|--help|-h)
 		Synopsis
-		exit 1
 		;;
-	-with-debug)
+	-with-debug|--with-debug)
 		bWithDebug="1"
 		;;
-	-scratch)
+	-scratch|--scratch)
 		bScratch="1"
 		;;
-	-nopull|-no-pull)
+	-nopull|-no-pull|--no-pull)
 		bNoPull="1"
 		;;
-	-go)
+	-nosetup|-no-setup|--no-setup)
+		bNoSetup="1"
+		;;
+	-go|--go|go)
 		bGo="1"
 		;;
 	*)
-		Die "unknown option: $1"
+		Die "unknown option: '$1' -- try ${IMAYBE} -help"
 		exit 1
 		;;
 	esac
@@ -190,13 +194,12 @@ done
 
 if [[ -z "${bGo}" ]]; then
 	Synopsis
-	exit 1
 fi
 
-SetupColors
-GetOS
-
-"${BuildSetup}" -go || Die "could not configure target machine"
+if [[ -z "${bNoSetup}" ]]; then
+	[[ ! -f "${BuildSetup}" ]] && Die "Cannot setup build, script '${BuildSetup}' not found"
+	"${BuildSetup}" -go || Die "could not configure target machine"
+fi
 
 Setup
 

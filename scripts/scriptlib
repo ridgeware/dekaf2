@@ -8,7 +8,9 @@ setx=Synopsis
 Synopsis ()
 #==================
 {
-	awk '/^#%/ {print substr($0,3)}' "$1"
+	[[ -f "${1}" ]] && fname="${1}" || fname="${ME_FULLPATH}"
+
+	[[ -f "${fname}" ]] && awk '/^#%/ {print substr($0,3)}' "${fname}" || echo ":: synopsis file '${fname}' not found"
 
 	exit 1
 
@@ -38,7 +40,7 @@ Info ()
 {
 	# All input args are interpreted as info text to display
 
-	echo ":: ${*}"
+	echo ":: ${ME}: ${*}"
 
 } # Info
 
@@ -49,7 +51,7 @@ Warn ()
 {
 	# All input args are interpreted as error text to display
 
-	echo "${xWarnColor}${ME}: WARNING: ${*:-unspecified}${xResetColor}" >&2
+	echo "${xWarnColor}>> ${ME}: WARNING: ${*:-unspecified}${xResetColor}" >&2
 
 } # Warn
 
@@ -60,7 +62,7 @@ Error ()
 {
 	# All input args are interpreted as error text to display
 
-	echo "${xErrorColor}${ME}: ERROR: ${*:-unspecified}${xResetColor}" >&2
+	echo "${xErrorColor}>> ${ME}: ERROR: ${*:-unspecified}${xResetColor}" >&2
 
 } # Error
 

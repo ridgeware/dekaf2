@@ -98,7 +98,7 @@ template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type
 KString kFormat(KStringView sFormat, Args&&... args) noexcept
 //-----------------------------------------------------------------------------
 {
-	return detail::kFormat(sFormat, format::make_format_args(args...));
+	return detail::kFormat(sFormat, format::make_format_args(std::forward<Args>(args)...));
 }
 
 //-----------------------------------------------------------------------------

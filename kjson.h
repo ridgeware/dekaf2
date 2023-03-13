@@ -376,3 +376,17 @@ using kjson::Decrement;
 } // end of namespace dekaf2
 
 #include "kjson2.h"
+
+namespace fmt {
+
+template <>
+struct formatter<dekaf2::LJSON> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::LJSON& json, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(dekaf2::kjson::Print(json), ctx);
+	}
+};
+
+} // end of namespace fmt

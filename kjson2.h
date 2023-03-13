@@ -1566,5 +1566,19 @@ struct hash<dekaf2::KJSON2>
 
 } // end of namespace std
 
+namespace fmt {
+
+template <>
+struct formatter<dekaf2::KJSON2> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KJSON2& json, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(json.Print(), ctx);
+	}
+};
+
+} // end of namespace fmt
+
 #undef DEKAF2_FORCE_KJSON2
 #undef DEKAF2_FORCE_CHAR_PTR

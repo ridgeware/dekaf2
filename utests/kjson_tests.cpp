@@ -651,6 +651,31 @@ TEST_CASE("LJSON")
 			CHECK (j1.dump() == R"([1,2,3,4,{"object":{"currency":"USD","value":42.99}}])" );
 		}
 	}
+
+	SECTION("format")
+	{
+		LJSON j1 = "hello world";
+		CHECK ( kFormat("{}", j1) == "hello world" );
+		j1 = 123;
+		CHECK ( kFormat("{}", j1) == "123" );
+		j1 = 1.23;
+		CHECK ( kFormat("{}", j1) == "1.23" );
+		j1 = true;
+		CHECK ( kFormat("{}", j1) == "true" );
+		j1 = nullptr;
+		CHECK ( kFormat("{}", j1) == "NULL" );
+		j1 = { 1, 2, 3, 4,
+			{
+				{ "object",
+					{
+						{"currency", "USD"},
+						{"value",    42.99}
+					}
+				}
+			}
+		};
+		CHECK ( kFormat("{}", j1) == R"([1,2,3,4,{"object":{"currency":"USD","value":42.99}}])" );
+	}
 }
 #endif
 #endif

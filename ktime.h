@@ -531,3 +531,27 @@ template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>
 inline KUTCTime operator-(const KUTCTime& left, const T Duration) { KUTCTime Ret(left); Ret.Add(Duration * -1); return Ret; }
 
 } // end of namespace dekaf2
+
+namespace fmt {
+
+template <>
+struct formatter<dekaf2::KLocalTime> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KLocalTime& time, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(time.ToString(), ctx);
+	}
+};
+
+template <>
+struct formatter<dekaf2::KUTCTime> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KUTCTime& time, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(time.ToString(), ctx);
+	}
+};
+
+} // end of namespace fmt

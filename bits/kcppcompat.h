@@ -650,6 +650,14 @@ static constexpr std::size_t npos = static_cast<std::size_t>(-1);
 
 static constexpr std::size_t KDefaultCopyBufSize = 4096;
 
+#ifndef DEKAF2_HAS_SPACESHIP_OPERATOR
+	#if defined(__cpp_impl_three_way_comparison) && __cpp_impl_three_way_comparison >= 201907L && \
+		defined(__cpp_lib_three_way_comparison) && __cpp_lib_three_way_comparison >= 201907L
+		#define DEKAF2_HAS_SPACESHIP_OPERATOR 1
+	#endif
+#endif
+
+
 // Helper macros to make an enum type a "flag" type, that is, bit operations with enum values are permitted
 // in a type-safe fashion.
 //

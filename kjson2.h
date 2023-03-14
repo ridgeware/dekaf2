@@ -952,7 +952,7 @@ template<class T, class U,
 	, int>::type = 0
 >
 DEKAF2_PUBLIC
-bool operator==(const T& left, U&& right)
+bool operator==(const T& left, const U& right)
 {
 	if (left.is_null())
 	{
@@ -968,7 +968,7 @@ template<class T, class U,
 	, int>::type = 0
 >
 DEKAF2_PUBLIC
-bool operator==(U&& left, const T& right)
+bool operator==(const U& left, const T& right)
 {
 	return right == left;
 }
@@ -994,7 +994,7 @@ template<class T, class U,
 	, int>::type = 0
 >
 DEKAF2_PUBLIC
-bool operator!=(const T& left, U&& right)
+bool operator!=(const T& left, const U& right)
 {
 	if (left.is_null())
 	{
@@ -1010,7 +1010,7 @@ template<class T, class U,
 	, int>::type = 0
 >
 DEKAF2_PUBLIC
-bool operator!=(U&& left, const T& right)
+bool operator!=(const U& left, const T& right)
 {
 	return right != left;
 }
@@ -1024,7 +1024,7 @@ template<class T, class U,
 	, int>::type = 0
 >
 DEKAF2_PUBLIC
-bool operator<(T&& left, U&& right)
+bool operator<(const T& left, const U& right)
 {
 	return left.ToBase() < right.ToBase();
 }
@@ -1036,9 +1036,9 @@ template<class T, class U,
 	, int>::type = 0
 >
 DEKAF2_PUBLIC
-bool operator<(T&& left, U&& right)
+bool operator<(const T& left, const U& right)
 {
-	return left.ToBase() < std::forward<U>(right);
+	return left.ToBase() < right;
 }
 
 // operator<(U, KJSON2)
@@ -1048,9 +1048,9 @@ template<class T, class U,
 	, int>::type = 0
 >
 DEKAF2_PUBLIC
-bool operator<(U&& left, const T& right)
+bool operator<(const U& left, const T& right)
 {
-	return std::forward<U>(left) < right.ToBase();
+	return left < right.ToBase();
 }
 
 // <=<=<=<=<=<=<=<=<=<=<=<=<=
@@ -1074,9 +1074,9 @@ template<class T, class U,
 	, int>::type = 0
 >
 DEKAF2_PUBLIC
-bool operator<=(const T& left, U&& right)
+bool operator<=(const T& left, const U& right)
 {
-	return left.ToBase() <= std::forward<U>(right);
+	return left.ToBase() <= right;
 }
 
 // operator<=(U, KJSON2)
@@ -1086,9 +1086,9 @@ template<class T, class U,
 	, int>::type = 0
 >
 DEKAF2_PUBLIC
-bool operator<=(U&& left, const T& right)
+bool operator<=(const U& left, const T& right)
 {
-	return std::forward<U>(left) <= right.ToBase();
+	return left <= right.ToBase();
 }
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>
@@ -1112,9 +1112,9 @@ template<class T, class U,
 	, int>::type = 0
 >
 DEKAF2_PUBLIC
-bool operator>(const T& left, U&& right)
+bool operator>(const T& left, const U& right)
 {
-	return left.ToBase() > std::forward<U>(right);
+	return left.ToBase() > right;
 }
 
 // operator>(U, KJSON2)
@@ -1124,9 +1124,9 @@ template<class T, class U,
 	, int>::type = 0
 >
 DEKAF2_PUBLIC
-bool operator>(U&& left, const T& right)
+bool operator>(const U& left, const T& right)
 {
-	return std::forward<U>(left) > right.ToBase();
+	return left > right.ToBase();
 }
 
 // >=>=>=>=>=>=>=>=>=>=>=>=>=
@@ -1150,9 +1150,9 @@ template<class T, class U,
 	, int>::type = 0
 >
 DEKAF2_PUBLIC
-bool operator>=(const T& left, U&& right)
+bool operator>=(const T& left, const U& right)
 {
-	return left.ToBase() >= std::forward<U>(right);
+	return left.ToBase() >= right;
 }
 
 // operator>=(U, KJSON2)
@@ -1162,9 +1162,9 @@ template<class T, class U,
 	, int>::type = 0
 >
 DEKAF2_PUBLIC
-bool operator>=(U&& left, const T& right)
+bool operator>=(const U& left, const T& right)
 {
-	return std::forward<U>(left) >= right.ToBase();
+	return left >= right.ToBase();
 }
 
 // ######################

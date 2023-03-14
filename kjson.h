@@ -60,6 +60,9 @@
 	// on the compiler, but that would make the code behave differently depending
 	// on the compiler.
 	#define JSON_USE_IMPLICIT_CONVERSIONS 0
+	// also, disable three way comparison, it does not work currently
+	// with KString and JSON
+	#define JSON_HAS_THREE_WAY_COMPARISON 0
 #endif
 
 #include "kcrashexit.h"

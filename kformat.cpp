@@ -116,7 +116,7 @@ KString kFormat(KStringView sFormat, format::format_args args) noexcept
 		sOut = vformat(sFormat.operator format::string_view(), args);
 #endif
 	}
-	DEKAF2_CATCH (std::exception& e)
+	DEKAF2_CATCH (const std::exception& e)
 	{
 		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h",
 						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));

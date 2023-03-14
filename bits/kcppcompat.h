@@ -397,7 +397,7 @@ namespace std
 #else
 	#ifdef DEKAF2_HAS_CPP_11
 		// for C++11 we alias a non-shared mutex - it can be costly on lock contention
-		// TODO implement a platform native shared mutex..
+		// but we do not care anymore, as we are in 2023..
 		using shared_mutex = mutex;
 		template<class T>
 		using shared_lock = unique_lock<T>;

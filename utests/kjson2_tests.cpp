@@ -1372,6 +1372,8 @@ TEST_CASE("KJSON2")
 		}
 	}
 
+#if !DEKAF2_IS_GCC || DEKAF2_GCC_VERSION_MAJOR != 11 || __GNUC_MINOR__ != 3
+	// disable this test for gcc 11.3 (at least) - it insists that the for loop has a dangling string
 	SECTION("auto range for loop")
 	{
 		KJSON2 j = { { "array", { "col1", "col2", "col3" } } };
@@ -1395,8 +1397,8 @@ TEST_CASE("KJSON2")
 
 			CHECK ( sValues == "col1,col2,col3" );
 		}
-
 	}
+#endif
 
 	SECTION("format")
 	{

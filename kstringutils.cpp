@@ -367,5 +367,74 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_in_impl(KStringView sHayst
 
 } // find_last_in_impl
 
+//-----------------------------------------------------------------------------
+void kResizeUninitialized(KString& sStr, KString::size_type iNewSize)
+//-----------------------------------------------------------------------------
+{
+#if defined(__cpp_lib_string_resize_and_overwrite_NOTYET) && !defined(DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED)
+	// with C++23 we will get the equivalence of what we used to do with FBString:
+	// resizing the string buffer uninitialized, with a handler to set its content
+	// (which we won't do)
+	sStr.str().resize_and_overwrite(iNewSize, [](std::string::pointer buf, std::string::size_type buf_size) noexcept { return buf_size; });
+#else
+	#ifdef DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
+	static constexpr KString::size_type LARGEST_SSO = 23;
+
+	// never do this optimization for SSO strings
+	if (iNewSize > LARGEST_SSO)
+	{
+		auto iSize = sStr.size();
+
+		if (iNewSize > iSize)
+		{
+			auto iUninitialized = iNewSize - iSize;
+
+			if (!iSize || (iUninitialized / iSize > 2))
+			{
+				// We can do this trick only with FBString, as std::string does not
+				// offer a matching constructor: we malloc enough memory for the full
+				// buffer, memcopy the existing string (if any) into it, construct a
+				// new fbstring from that partly uninitialized buffer, and swap the string.
+
+				// reserve the buffer
+				char* buf = static_cast<char*>(std::malloc(iSize + iUninitialized + 1)); // do not forget the 0-terminator
+
+				if (buf)
+				{
+					// copy existing string content into
+					std::memcpy(buf, sStr.data(), iSize);
+					// set 0 at end of buffer
+					buf[iSize + iUninitialized] = 0;
+					// construct string on the buffer
+					KString sNew(buf, iSize + iUninitialized, iSize + iUninitialized + 1, KString::AcquireMallocatedString{});
+					// and swap it in for the existing string
+					sStr.swap(sNew);
+					// that's it
+					return;
+				}
+			}
+		}
+	}
+	#endif
+
+	// fallback to an initialized resize
+	sStr.resize(iNewSize);
+#endif
+
+} // kResizeUninitialized
+
+//-----------------------------------------------------------------------------
+void kResizeUninitialized(std::string& sStr, std::string::size_type iNewSize)
+//-----------------------------------------------------------------------------
+{
+#ifdef __cpp_lib_string_resize_and_overwrite_NOTYET
+	sStr.resize_and_overwrite(iNewSize, [](std::string::pointer buf, std::string::size_type buf_size) noexcept { return buf_size; });
+#else
+	// fallback to an initialized resize
+	sStr.resize(iNewSize);
+#endif
+
+} // kResizeUninitialized
+
 } // end of namespace dekaf2
 

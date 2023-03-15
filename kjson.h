@@ -86,7 +86,7 @@
 #define JSON_USE_GLOBAL_UDLS 0
 
 #include <nlohmann/json.hpp>
-#include <fmt/format.h>
+
 #include "kstring.h"
 #include "kstringview.h"
 #include "kreader.h"
@@ -378,6 +378,7 @@ using kjson::Decrement;
 
 } // end of namespace dekaf2
 
+#include <fmt/format.h>
 #include "kjson2.h"
 
 namespace fmt {

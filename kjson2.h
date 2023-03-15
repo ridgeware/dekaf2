@@ -322,7 +322,7 @@ template<typename T,                         \
 //
 // `KString str = json["key"]`
 //
-// Any other, like `KString str; str = json["key"];` or `KString str(json["key"];`
+// Any other, like `KString str; str = json["key"];` or `KString str(json["key"]);`
 // would work, but we decided this being too confusing for the user, and hence
 // fall back on returning string copies. That then works on all assignments, albeit
 // at the cost of an additional string copy (which will of course be optimized out

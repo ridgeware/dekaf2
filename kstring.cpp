@@ -71,54 +71,7 @@ void KString::log_exception(const std::exception& e, const char* sWhere)
 void KString::resize_uninitialized(size_type n)
 //------------------------------------------------------------------------------
 {
-#if defined(__cpp_lib_string_resize_and_overwrite) && !defined(DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED)
-	// with C++23 we will get the equivalence of what we used to do with FBString:
-	// resizing the string buffer uninitialized, with a handler to set its content
-	// (which we won't do)
-	resize_and_overwrite(n, [](pointer buf, size_type buf_size) noexcept { return buf_size; });
-#else
-	#ifdef DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
-	static constexpr size_type LARGEST_SSO = 23;
-
-	// never do this optimization for SSO strings
-	if (n > LARGEST_SSO)
-	{
-		auto iSize = size();
-
-		if (n > iSize)
-		{
-			auto iUninitialized = n - iSize;
-			if (!iSize || (iUninitialized / iSize > 2))
-			{
-				// We can do this trick only with FBString, as std::string does not
-				// offer a matching constructor: we malloc enough memory for the full
-				// buffer, memcopy the existing string (if any) into it, construct a
-				// new fbstring from that partly uninitialized buffer, and swap the string.
-
-				// reserve the buffer
-				char* buf = static_cast<char*>(std::malloc(iSize + iUninitialized + 1)); // do not forget the 0-terminator
-
-				if (buf)
-				{
-					// copy existing string content into
-					std::memcpy(buf, data(), iSize);
-					// set 0 at end of buffer
-					buf[iSize + iUninitialized] = 0;
-					// construct string on the buffer
-					KString sNew(buf, iSize + iUninitialized, iSize + iUninitialized + 1, AcquireMallocatedString{});
-					// and swap it in for the existing string
-					this->swap(sNew);
-					// that's it
-					return;
-				}
-			}
-		}
-	}
-	#endif
-
-	// fallback to an initialized resize
-	resize(n);
-#endif
+	kResizeUninitialized(*this, n);
 }
 
 //------------------------------------------------------------------------------

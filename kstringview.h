@@ -572,7 +572,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// compares this string view with another
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_CONSTEXPR_17
 	int compare(const self_type& other) const
 	//-----------------------------------------------------------------------------
 	{
@@ -582,7 +582,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// compares part of this string view with another
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_CONSTEXPR_17
 	int compare(size_type pos1, size_type count1,
 	            self_type other) const
 	//-----------------------------------------------------------------------------
@@ -592,7 +592,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// compares part of this string view with part of another
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_CONSTEXPR_17
 	int compare(size_type pos1, size_type count1,
 	            self_type other,
 	            size_type pos2, size_type count2) const
@@ -603,7 +603,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// compares this string view with a char string
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_CONSTEXPR_17
 	int compare(const value_type* str) const
 	//-----------------------------------------------------------------------------
 	{
@@ -612,7 +612,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// compares part of this string view with a char string
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_CONSTEXPR_17
 	int compare(size_type pos1, size_type count1,
 	            const value_type* str) const
 	//-----------------------------------------------------------------------------
@@ -622,7 +622,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// compares part of this string view with part of a char string
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_CONSTEXPR_17
 	int compare(size_type pos1, size_type count1,
 	            const value_type* str, size_type count2) const
 	//-----------------------------------------------------------------------------

@@ -588,15 +588,7 @@ bool KUnTar::Read(KStringRef& sBuffer)
 
 	
 	// resize the buffer to be able to read the file size
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	sBuffer.resize_uninitialized(Filesize());
-#else
-	#ifdef __cpp_lib_string_resize_and_overwrite
-	sContent.resize_and_overwrite(Filesize(), [](KStringRef::pointer buf, KStringRef::size_type buf_size) noexcept { return buf_size; });
-	#else
-	sBuffer.resize(Filesize());
-	#endif
-#endif
+	kResizeUninitialized(sBuffer, Filesize());
 
 	// read the file into the buffer
 	if (!Read(&sBuffer[0], Filesize()))

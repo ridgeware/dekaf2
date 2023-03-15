@@ -328,7 +328,7 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 		int compare(basic_string_view other) const noexcept
 		{
 			auto cmp = traits_type::compare(data(), other.data(), std::min(size(), other.size()));
-			return (cmp) ? cmp : size() - other.size();
+			return (cmp) ? cmp : (size() > other.size()) ? 1 : (size() < other.size()) ? -1 : 0;
 		}
 
 		// this find() is constexpr only if it has a needle size of less than 2

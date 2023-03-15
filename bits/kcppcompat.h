@@ -235,7 +235,7 @@
 	#define DEKAF2_HAS_CHRONO_WEEKDAY 1
 #endif
 
-#if DEKAF2_HAS_CPP_ATTRIBUTE(fallthrough)
+#if DEKAF2_HAS_CPP_17 && DEKAF2_HAS_CPP_ATTRIBUTE(fallthrough)
 	#define DEKAF2_FALLTHROUGH [[fallthrough]]
 #elif DEKAF2_HAS_CPP_ATTRIBUTE(clang::fallthrough)
 	#define DEKAF2_FALLTHROUGH [[clang::fallthrough]]
@@ -434,6 +434,18 @@ namespace std
 
 template <typename...>
 using void_t = void;
+
+template<class...> struct conjunction : true_type { };
+template<class T1> struct conjunction<T1> : T1 { };
+template<class T1, class... Tn>
+struct conjunction<T1, Tn...>
+: conditional<bool(T1::value), conjunction<Tn...>, T1>::type {};
+
+template<bool T>
+using bool_constant = integral_constant<bool, T>;
+
+template<class T>
+struct negation : bool_constant<!bool(T::value)> { };
 
 }
 #endif

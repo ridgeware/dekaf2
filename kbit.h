@@ -53,9 +53,11 @@
 #include "bits/kcppcompat.h"
 #include "kcrashexit.h"
 #include <type_traits>
-#if DEKAF2_HAS_INCLUDE(<bit>)
-	#include <bit>
-	#define DEKAF2_HAS_STD_BIT 1
+#if DEKAF2_HAS_CPP_20
+	#if DEKAF2_HAS_INCLUDE(<bit>)
+		#include <bit>
+		#define DEKAF2_HAS_STD_BIT 1
+	#endif
 #endif
 
 namespace dekaf2 {

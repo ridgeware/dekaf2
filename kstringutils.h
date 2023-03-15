@@ -1263,4 +1263,10 @@ private:
 
 }; // KFindSetOfChars
 
+/// resize a KString without initialization
+void kResizeUninitialized(KString& sStr, KString::size_type iNewSize);
+
+/// resize a std::string without initialization
+void kResizeUninitialized(std::string& sStr, std::string::size_type iNewSize);
+
 } // end of namespace dekaf2

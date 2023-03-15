@@ -48,8 +48,11 @@
 #include <memory>
 #include "../kstring.h"
 #include "../kstringview.h"
-#include "../kjson.h"
 #include "../kduration.h"
+
+#ifdef DEKAF2_KLOG_WITH_TCP
+	#include "../kjson.h"
+#endif
 
 #ifndef DEKAF2_IS_WINDOWS
 	#define DEKAF2_HAS_SYSLOG

@@ -459,7 +459,16 @@ void KWebObjectBase::Generate(KWebObjectBase* Element,
 
 				if (iAddress)
 				{
+#ifdef DEKAF2_HAS_CPP_17
 					NameMap.insert_or_assign(iAddress, sName);
+#else
+					auto p = NameMap.insert(namemap::value_type(iAddress, sName));
+
+					if (!p.second)
+					{
+						p.first->second = sName;
+					}
+#endif
 				}
 			}
 			break;

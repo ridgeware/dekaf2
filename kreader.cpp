@@ -364,18 +364,13 @@ bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRe
 #ifdef DEKAF2_READALL_USE_IOSTREAMS
 
 		KInFile File(sFileName);
+
 		if (File.is_open())
 		{
 			auto iContent = sContent.size();
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-			sContent.resize_uninitialized(iContent + iSize);
-#else
-	#ifdef __cpp_lib_string_resize_and_overwrite
-			sContent.resize_and_overwrite(iContent + iSize, [](KStringRef::pointer buf, KStringRef::size_type buf_size) noexcept { return buf_size; });
-	#else
-			sContent.resize(iContent + iSize);
-	#endif
-#endif
+
+			kResizeUninitialized(sContent, iContent + iSize);
+
 			auto iRead = File.Read(&sContent[iContent], iSize);
 
 			if (iRead < static_cast<std::size_t>(iSize))
@@ -395,15 +390,9 @@ bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRe
 		if (fd >= 0)
 		{
 			auto iContent = sContent.size();
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-			sContent.resize_uninitialized(iContent + iSize);
-#else
-	#ifdef __cpp_lib_string_resize_and_overwrite
-			sContent.resize_and_overwrite(iContent + iSize, [](KStringRef::pointer buf, KStringRef::size_type buf_size) noexcept { return buf_size; });
-	#else
-			sContent.resize(iContent + iSize);
-	#endif
-#endif
+
+			kResizeUninitialized(sContent, iContent + iSize);
+
 			auto iRead = kReadFromFileDesc(fd, &sContent[iContent], iSize);
 
 			close(fd);

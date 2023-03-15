@@ -297,7 +297,7 @@ void KBAR::_SliderAction (int iAction, uint64_t iSoFarLast, uint64_t iSoFarNow)
 bool KSharedBar::Start  (uint64_t iExpected)
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_Mutex);
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 	return KBAR::Start(iExpected);
 }
 
@@ -305,7 +305,7 @@ bool KSharedBar::Start  (uint64_t iExpected)
 bool KSharedBar::Adjust (uint64_t iExpected)
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_Mutex);
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 	return KBAR::Adjust(iExpected);
 }
 
@@ -313,7 +313,7 @@ bool KSharedBar::Adjust (uint64_t iExpected)
 bool KSharedBar::Move   (int64_t iDelta)
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_Mutex);
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 	return KBAR::Move(iDelta);
 }
 
@@ -321,7 +321,7 @@ bool KSharedBar::Move   (int64_t iDelta)
 void KSharedBar::Break  (KStringView sMsg)
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_Mutex);
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 	KBAR::Break(sMsg);
 }
 
@@ -329,7 +329,7 @@ void KSharedBar::Break  (KStringView sMsg)
 void KSharedBar::Finish ()
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_Mutex);
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 	KBAR::Finish();
 }
 
@@ -337,7 +337,7 @@ void KSharedBar::Finish ()
 KString KSharedBar::GetBar (int chBlank)
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_Mutex);
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 	return KBAR::GetBar(chBlank);
 }
 
@@ -345,7 +345,7 @@ KString KSharedBar::GetBar (int chBlank)
 uint64_t KSharedBar::GetSoFar() const
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_Mutex);
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 	return KBAR::GetSoFar();
 }
 
@@ -353,7 +353,7 @@ uint64_t KSharedBar::GetSoFar() const
 void KSharedBar::RepaintSlider ()
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_Mutex);
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 	KBAR::RepaintSlider();
 }
 

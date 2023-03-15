@@ -385,7 +385,7 @@ bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRe
 
 #else
 
-		auto fd = open(KString{sFileName}.c_str(), O_RDONLY | DEKAF2_CLOSE_ON_EXEC_FLAG);
+		auto fd = open(sFileName.c_str(), O_RDONLY | DEKAF2_CLOSE_ON_EXEC_FLAG);
 
 		if (fd >= 0)
 		{

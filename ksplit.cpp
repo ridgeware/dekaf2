@@ -44,17 +44,17 @@
 
 namespace dekaf2 {
 
-namespace detail {
+namespace {
 
 //-----------------------------------------------------------------------------
 DEKAF2_ALWAYS_INLINE
-bool StripPrefix(KStringView& svBuffer, const KStringView& svTrim)
+bool StripPrefix(KStringView& svBuffer, const KFindSetOfChars& Trim)
 //-----------------------------------------------------------------------------
 {
 	// Strip prefix space characters.
-	auto iFound = svBuffer.find_first_not_of (svTrim);
+	auto iFound = Trim.find_first_not_in(svBuffer);
 
-	if (DEKAF2_UNLIKELY(iFound == KStringView::npos))
+	if (iFound == KStringView::npos)
 	{
 		return false;
 	}
@@ -70,31 +70,29 @@ bool StripPrefix(KStringView& svBuffer, const KStringView& svTrim)
 
 //-----------------------------------------------------------------------------
 DEKAF2_ALWAYS_INLINE
-void StripSuffix(KStringView& svElement, const KStringView& svTrim)
+void StripSuffix(KStringView& svElement, const KFindSetOfChars& Trim)
 //-----------------------------------------------------------------------------
 {
-	if (DEKAF2_LIKELY(!svTrim.empty()))
+	//  Strip suffix space characters.
+	auto iFound = Trim.find_last_not_in(svElement);
+
+	if (iFound != KStringView::npos)
 	{
-		//  Strip suffix space characters.
-		auto iFound = svElement.find_last_not_of (svTrim);
-		if (iFound != KStringView::npos)
-		{
-			auto iRemove = svElement.size() - 1 - iFound;
-			svElement.remove_suffix(iRemove);
-		}
-		else
-		{
-			svElement.clear();
-		}
+		auto iRemove = svElement.size() - 1 - iFound;
+		svElement.remove_suffix(iRemove);
+	}
+	else
+	{
+		svElement.clear();
 	}
 
 } // StripSuffix
 
 //-----------------------------------------------------------------------------
 KStringViewPair kSplitToPairInt(
-        KStringView svBuffer,
-        KStringView svPairDelim
-	)
+							 KStringView svBuffer,
+							 KStringView svPairDelim
+							 )
 //-----------------------------------------------------------------------------
 {
 	KStringViewPair svPair;
@@ -122,20 +120,27 @@ KStringViewPair kSplitToPairInt(
 
 	return svPair;
 
-}  // detail::kSplitToPairInt
+}  // kSplitToPair
+
+} // of anonymous namespace
 
 //-----------------------------------------------------------------------------
-KStringViewPair kSplitToPairInt(
+KStringViewPair kSplitToPair(
         KStringView svBuffer,
         KStringView svPairDelim,
-        KStringView svTrim,
+		const KFindSetOfChars& Trim,
         const char  chEscape
 	)
 //-----------------------------------------------------------------------------
 {
+	if (Trim.empty() && !chEscape)
+	{
+		return kSplitToPairInt(svBuffer, svPairDelim);
+	}
+
 	KStringViewPair svPair;
 
-	if (DEKAF2_LIKELY(StripPrefix(svBuffer, svTrim)))
+	if (DEKAF2_LIKELY(StripPrefix(svBuffer, Trim)))
 	{
 		// Look for delimiter character, respect escapes
 		auto iNext = kFindUnescaped (svBuffer, svPairDelim, chEscape);
@@ -146,11 +151,11 @@ KStringViewPair kSplitToPairInt(
 
 			svBuffer.remove_prefix(iNext + svPairDelim.size());
 
-			StripSuffix(svPair.first, svTrim);
+			StripSuffix(svPair.first, Trim);
 
 			if (DEKAF2_LIKELY(!svBuffer.empty()))
 			{
-				if (!StripPrefix(svBuffer, svTrim))
+				if (!StripPrefix(svBuffer, Trim))
 				{
 					// empty input
 					return svPair;
@@ -158,14 +163,14 @@ KStringViewPair kSplitToPairInt(
 
 				svPair.second = svBuffer;
 
-				StripSuffix(svPair.second, svTrim);
+				StripSuffix(svPair.second, Trim);
 			}
 		}
 		else
 		{
 			svPair.first = svBuffer;
 
-			StripSuffix(svPair.first, svTrim);
+			StripSuffix(svPair.first, Trim);
 
 			// there is no second element
 		}
@@ -173,9 +178,7 @@ KStringViewPair kSplitToPairInt(
 
 	return svPair;
 
-}  // kSplitToPairInt
-
-} // of namespace detail
+}  // kSplitToPair
 
 #if !defined(_MSC_VER) && (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION_MAJOR > 5)
 // precompile for std::vector<KStringView>
@@ -183,8 +186,8 @@ template
 std::size_t kSplit(
 		std::vector<KStringView>& cContainer,
         KStringView svBuffer,
-        KStringView svDelim  = ",",                  // default: comma delimiter
-        KStringView svTrim   = detail::kASCIISpaces, // default: trim all whitespace
+        const KFindSetOfChars& Delim   = ",",                  // default: comma delimiter
+        const KFindSetOfChars& Trim    = detail::kASCIISpaces, // default: trim all whitespace
         const char  chEscape = '\0',                 // default: ignore escapes
         bool        bCombineDelimiters = false,      // default: create an element for each delimiter char found
         bool        bQuotesAreEscapes  = false       // default: treat double quotes like any other char

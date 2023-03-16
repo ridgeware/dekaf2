@@ -1602,6 +1602,164 @@ bool operator>=(const KStringView left, const KStringView right)
 // ======================= end comparisons ========================
 
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// This is a replacement for the string find_first/last_of type of methods for non-SSE 4.2 architectures
+/// which operate repeatedly on the same set of characters. Why not simply using std::string's methods?
+/// They are orders of magnitude slower as they do not use a table based approach (which of course
+/// only works with 8 bit characters..).
+/// When this class is used on X86_64 architectures we assume that SSE 4.2 is available, and delegate
+/// the call to the SSE implementation.
+class KFindSetOfChars
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#ifndef DEKAF2_X86_64
+{
+
+	enum STATE : uint8_t { EMPTY = 0, SINGLE, MULTI };
+
+//------
+public:
+//------
+
+	using size_type = std::size_t;
+
+	KFindSetOfChars() = default;
+
+	/// construct with set of characters to match / not to match
+	KFindSetOfChars(const KStringView& sNeedles);
+
+	/// construct with set of characters to match / not to match
+	KFindSetOfChars(const KStringViewZ& sNeedles) : KFindSetOfChars(KStringView(sNeedles)) {}
+
+	/// construct with set of characters to match / not to match
+	KFindSetOfChars(const char* sNeedles);
+
+	/// find first occurence of needles in haystack
+	size_type find_first_in(const KStringView& sHaystack) const
+	{
+		return find_first_in_impl(sHaystack, false);
+	}
+
+	/// find first occurence of needles in haystack, start search at pos
+	size_type find_first_in(const KStringView& sHaystack, size_type pos) const;
+
+	/// find first occurence of character in haystack that is not in needles
+	size_type find_first_not_in(const KStringView& sHaystack) const
+	{
+		return find_first_in_impl(sHaystack, true);
+	}
+
+	/// find first occurence of character in haystack that is not in needles, start search at pos
+	size_type find_first_not_in(const KStringView& sHaystack, size_type pos) const;
+
+	/// find last occurence of needles in haystack
+	size_type find_last_in(const KStringView& sHaystack) const
+	{
+		return find_last_in_impl(sHaystack, false);
+	}
+
+	/// find last occurence of needles in haystack, start backward search at pos
+	size_type find_last_in(const KStringView& sHaystack, size_type pos) const;
+
+	/// find last occurence of character in haystack that is not in needles
+	size_type find_last_not_in(const KStringView& sHaystack) const
+	{
+		return find_last_in_impl(sHaystack, true);
+	}
+
+	/// find last occurence of character in haystack that is not in needles, start backward search at pos
+	size_type find_last_not_in(const KStringView& sHaystack, size_type pos) const;
+
+	/// is the set of characters empty?
+	bool empty() const { return m_state == STATE::EMPTY; }
+
+	/// has the set of characters only one single char?
+	bool is_single_char() const { return m_state == STATE::SINGLE; }
+
+	/// does the set of characters contain ch
+	bool contains(const char ch) const
+	{
+		return (is_single_char()) ? ch == m_chSingle : m_table[static_cast<unsigned char>(ch)];
+	}
+
+//------
+private:
+//------
+
+	size_type find_first_in_impl (const KStringView& sHaystack, bool bNot) const;
+	size_type find_last_in_impl  (const KStringView& sHaystack, bool bNot) const;
+
+	std::array<bool, 256> m_table {};
+
+	STATE m_state { STATE::EMPTY };
+
+	char m_chSingle { 0 };
+
+}; // KFindSetOfChars
+
+#else // is 86_64
+
+{
+
+//------
+public:
+//------
+
+	using size_type = std::size_t;
+
+	KFindSetOfChars() = default;
+
+	/// construct with set of characters to match / not to match
+	KFindSetOfChars(const KStringView& sNeedles) : m_sNeedles(sNeedles) {}
+
+	/// construct with set of characters to match / not to match
+	KFindSetOfChars(const KStringViewZ& sNeedles) : KFindSetOfChars(KStringView(sNeedles)) {}
+
+	/// construct with set of characters to match / not to match
+	KFindSetOfChars(const char* sNeedles) : m_sNeedles(sNeedles) {}
+
+	/// find first occurence of needles in haystack
+	size_type find_first_in(const KStringView& sHaystack) const;
+
+	/// find first occurence of needles in haystack
+	size_type find_first_in(const KStringView& sHaystack, size_type pos) const;
+
+	/// find first occurence of character in haystack that is not in needles
+	size_type find_first_not_in(const KStringView& sHaystack) const;
+
+	/// find first occurence of character in haystack that is not in needles
+	size_type find_first_not_in(const KStringView& sHaystack, size_type pos) const;
+
+	/// find last occurence of needles in haystack
+	size_type find_last_in(const KStringView& sHaystack) const;
+
+	/// find last occurence of needles in haystack, start backward search at pos
+	size_type find_last_in(const KStringView& sHaystack, size_type pos) const;
+
+	/// find last occurence of character in haystack that is not in needles
+	size_type find_last_not_in(const KStringView& sHaystack) const;
+
+	/// find last occurence of character in haystack that is not in needles, start backward search at pos
+	size_type find_last_not_in(const KStringView& sHaystack, size_type pos) const;
+
+	/// is the set of characters empty?
+	bool empty() const { return m_sNeedles.empty(); }
+
+	/// has the set of characters only one single char?
+	bool is_single_char() const { return m_sNeedles.size() == 1; }
+
+	/// does the set of characters contain ch
+	bool contains(const char ch) const { return m_sNeedles.contains(ch); }
+
+//------
+private:
+//------
+
+	KStringView m_sNeedles;
+
+}; // KFindSetOfChars#endif
+
+#endif // of X86_64
+
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14
 size_t kFind(
@@ -1744,9 +1902,9 @@ size_t kFindLastNotOf(
 /// Ignore delimiter chars prefixed by odd number of escapes.
 DEKAF2_PUBLIC
 size_t kFindFirstOfUnescaped(const KStringView haystack,
-							 const KStringView needle,
-                             KStringView::value_type chEscape,
-                             KStringView::size_type pos = 0);
+							 const KFindSetOfChars& needle,
+							 KStringView::value_type chEscape,
+							 KStringView::size_type pos = 0);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

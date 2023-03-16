@@ -379,12 +379,12 @@ size_t kFindLastNotOfInt(
 
 //-----------------------------------------------------------------------------
 size_t kFindFirstOfUnescaped(const KStringView haystack,
-                             const KStringView needle,
-                             KStringView::value_type chEscape,
-                             KStringView::size_type pos)
+							 const KFindSetOfChars& needle,
+							 KStringView::value_type chEscape,
+							 KStringView::size_type pos)
 //-----------------------------------------------------------------------------
 {
-	auto iFound = haystack.find_first_of (needle, pos);
+	auto iFound = needle.find_first_in(haystack, pos);
 
 	if (!chEscape || iFound == 0)
 	{
@@ -407,7 +407,7 @@ size_t kFindFirstOfUnescaped(const KStringView haystack,
 			}
 
 			++iEscapes;
-			
+
 		} // while iStart
 
 		if (!(iEscapes & 1))  // if even number of escapes
@@ -415,7 +415,7 @@ size_t kFindFirstOfUnescaped(const KStringView haystack,
 			break;
 		}
 
-		iFound = haystack.find_first_of (needle, iFound + 1);
+		iFound = needle.find_first_in(haystack, iFound + 1);
 
 	} // while iFound
 
@@ -861,6 +861,260 @@ KStringView::size_type KStringView::FindCaselessASCII(const self_type str, size_
 {
 	return kCaselessFind(*this, str, pos);
 }
+
+#ifndef DEKAF2_X86_64
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::KFindSetOfChars(const KStringView& sNeedles)
+//-----------------------------------------------------------------------------
+{
+	switch (sNeedles.size())
+	{
+		case 0:
+			break;
+
+		case 1:
+			m_state = STATE::SINGLE;
+			m_chSingle = sNeedles.front();
+			break;
+
+		default:
+			m_state = STATE::MULTI;
+			for (auto c : sNeedles)
+			{
+				m_table[static_cast<unsigned char>(c)] = true;
+			}
+			break;
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::KFindSetOfChars(const char* sNeedles)
+//-----------------------------------------------------------------------------
+{
+	if (sNeedles && *sNeedles)
+	{
+		if (sNeedles[1] == 0)
+		{
+			m_state = STATE::SINGLE;
+			m_chSingle = *sNeedles;
+		}
+		else
+		{
+			m_state = STATE::MULTI;
+			for(;;)
+			{
+				auto c = static_cast<unsigned char>(*sNeedles++);
+				if (!c) break;
+				m_table[c] = true;
+			}
+		}
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_first_in_impl(const KStringView& sHaystack, bool bNot) const
+//-----------------------------------------------------------------------------
+{
+	switch (m_state)
+	{
+		case STATE::EMPTY:
+			return (!bNot) ? KStringView::npos : sHaystack.empty() ? KStringView::npos : 0;
+
+		case STATE::SINGLE:
+		{
+			if (!bNot) return sHaystack.find(m_chSingle);
+
+			auto it = std::find_if(sHaystack.begin(),
+								   sHaystack.end(),
+								   [this](const char c)
+			{
+				return c != m_chSingle;
+			});
+
+			return (it == sHaystack.end()) ? KStringView::npos : static_cast<std::size_t>(it - sHaystack.begin());
+		}
+
+		case STATE::MULTI:
+		{
+			auto it = std::find_if(sHaystack.begin(),
+								   sHaystack.end(),
+								   [this, bNot](const char c)
+			{
+				return m_table[static_cast<unsigned char>(c)] != bNot;
+			});
+
+			return (it == sHaystack.end()) ? KStringView::npos : static_cast<std::size_t>(it - sHaystack.begin());
+		}
+	}
+
+	// for gcc..
+	return KStringView::npos;
+
+} // find_first_in_impl
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_first_in(const KStringView& sHaystack, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	auto sNewHaystack = sHaystack;
+	sNewHaystack.remove_prefix(pos);
+	auto found = find_first_in_impl(sNewHaystack, false);
+	return (found == KStringView::npos) ? found : found + pos;
+
+} // find_first_in
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_first_not_in(const KStringView& sHaystack, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	auto sNewHaystack = sHaystack;
+	sNewHaystack.remove_prefix(pos);
+	auto found = find_first_in_impl(sNewHaystack, true);
+	return (found == KStringView::npos) ? found : found + pos;
+
+} // find_first_not_in
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_last_in_impl(const KStringView& sHaystack, bool bNot) const
+//-----------------------------------------------------------------------------
+{
+	switch (m_state)
+	{
+		case STATE::EMPTY:
+			return (!bNot) ? KStringView::npos : sHaystack.empty() ? KStringView::npos : sHaystack.size() - 1;
+
+		case STATE::SINGLE:
+		{
+			if (!bNot) return sHaystack.rfind(m_chSingle);
+
+			auto it = std::find_if(sHaystack.rbegin(),
+								   sHaystack.rend(),
+								   [this](const char c)
+			{
+				return c != m_chSingle;
+			});
+
+			return (it == sHaystack.rend()) ? KStringView::npos : static_cast<std::size_t>((it.base() - 1) - sHaystack.begin());
+		}
+
+		case STATE::MULTI:
+		{
+			auto it = std::find_if(sHaystack.rbegin(),
+								   sHaystack.rend(),
+								   [this, bNot](const char c)
+			{
+				return m_table[static_cast<unsigned char>(c)] != bNot;
+			});
+
+			return (it == sHaystack.rend()) ? KStringView::npos : static_cast<std::size_t>((it.base() - 1) - sHaystack.begin());
+		}
+	}
+
+	// for gcc..
+	return KStringView::npos;
+
+} // find_last_in_impl
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_last_in(const KStringView& sHaystack, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	auto sNewHaystack = sHaystack;
+	sNewHaystack.remove_suffix(sNewHaystack.size() - (pos+1));
+	auto found = find_last_in_impl(sNewHaystack, false);
+	return (found == KStringView::npos) ? found : found + pos;
+
+} // find_last_in
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(const KStringView& sHaystack, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	auto sNewHaystack = sHaystack;
+	sNewHaystack.remove_suffix(sNewHaystack.size() - (pos+1));
+	auto found = find_last_in_impl(sNewHaystack, true);
+	return (found == KStringView::npos) ? found : found + pos;
+
+} // find_last_not_in
+
+#else // is 86_64
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_first_in(const KStringView& sHaystack) const
+//-----------------------------------------------------------------------------
+{
+	return detail::sse::kFindFirstOf(sHaystack, m_sNeedles);
+}
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_first_in(const KStringView& sHaystack, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	auto sNewHaystack = sHaystack;
+	sNewHaystack.remove_prefix(pos);
+	auto found = find_first_in(sNewHaystack);
+	return (found == KStringView::npos) ? found : found + pos;
+}
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_first_not_in(const KStringView& sHaystack) const
+//-----------------------------------------------------------------------------
+{
+	return detail::sse::kFindFirstNotOf(sHaystack, m_sNeedles);
+}
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_first_not_in(const KStringView& sHaystack, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	auto sNewHaystack = sHaystack;
+	sNewHaystack.remove_prefix(pos);
+	auto found = find_first_not_in(sNewHaystack);
+	return (found == KStringView::npos) ? found : found + pos;
+}
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_last_in(const KStringView& sHaystack) const
+//-----------------------------------------------------------------------------
+{
+	return detail::sse::kFindLastOf(sHaystack, m_sNeedles);
+}
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(const KStringView& sHaystack) const
+//-----------------------------------------------------------------------------
+{
+	return detail::sse::kFindLastNotOf(sHaystack, m_sNeedles);
+}
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_last_in(const KStringView& sHaystack, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	auto sNewHaystack = sHaystack;
+	sNewHaystack.remove_suffix(sNewHaystack.size() - (pos+1));
+	auto found = find_last_in(sNewHaystack);
+	return (found == KStringView::npos) ? found : found + pos;
+
+} // find_last_in
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(const KStringView& sHaystack, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	auto sNewHaystack = sHaystack;
+	sNewHaystack.remove_suffix(sNewHaystack.size() - (pos+1));
+	auto found = find_last_not_in(sNewHaystack);
+	return (found == KStringView::npos) ? found : found + pos;
+
+} // find_last_not_in
+
+#endif // is 86_64
+
+
 
 static_assert(std::is_nothrow_move_constructible<KStringView>::value,
 			  "KStringView is intended to be nothrow move constructible, but is not!");

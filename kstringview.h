@@ -101,15 +101,31 @@ DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 size_t kFind(
         const KStringView haystack,
         char needle,
-        size_t pos = 0);
+        size_t pos = 0) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-DEKAF2_PUBLIC
+DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
+size_t kFindNot(
+		const KStringView haystack,
+		char needle,
+		size_t pos = 0) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 size_t kRFind(
         const KStringView haystack,
         char needle,
-        size_t pos = std::string::npos);
+        size_t pos = std::string::npos) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
+size_t kRFindNot(
+		const KStringView haystack,
+		char needle,
+		size_t pos = std::string::npos) noexcept;
 //-----------------------------------------------------------------------------
 
 namespace detail { namespace stringview {
@@ -1765,7 +1781,7 @@ DEKAF2_CONSTEXPR_14
 size_t kFind(
 		const KStringView haystack,
         const char needle,
-        size_t pos)
+        size_t pos) noexcept
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
@@ -1796,11 +1812,35 @@ size_t kFind(
 }
 
 //-----------------------------------------------------------------------------
-inline
+DEKAF2_CONSTEXPR_14
+size_t kFindNot(
+		const KStringView haystack,
+		const char needle,
+		size_t pos) noexcept
+//-----------------------------------------------------------------------------
+{
+	const auto iHaystackSize = haystack.size();
+
+	if (DEKAF2_LIKELY(pos < iHaystackSize))
+	{
+		for (auto it = haystack.begin() + pos; it != haystack.end();)
+		{
+			if (*it++ != needle)
+			{
+				return it - haystack.begin() - 1;
+			}
+		}
+	}
+
+	return KStringView::npos;
+}
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_14
 size_t kRFind(
         const KStringView haystack,
         const char needle,
-        size_t pos)
+        size_t pos) noexcept
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
@@ -1811,7 +1851,7 @@ size_t kRFind(
 		return KStringView::npos;
 	}
 
-	if (DEKAF2_UNLIKELY(pos >= iHaystackSize))
+	if (pos >= iHaystackSize)
 	{
 		pos = iHaystackSize;
 	}
@@ -1831,6 +1871,36 @@ size_t kRFind(
 #else
 	return static_cast<KStringView::rep_type>(haystack).rfind(needle, pos);
 #endif
+}
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_14
+size_t kRFindNot(
+		const KStringView haystack,
+		const char needle,
+		size_t pos) noexcept
+//-----------------------------------------------------------------------------
+{
+	const auto iHaystackSize = haystack.size();
+
+	if (pos >= iHaystackSize)
+	{
+		pos = iHaystackSize;
+	}
+	else
+	{
+		++pos;
+	}
+
+	for (auto it = haystack.begin() + pos; it != haystack.begin();)
+	{
+		if (*--it != needle)
+		{
+			return it - haystack.begin();
+		}
+	}
+
+	return KStringView::npos;
 }
 
 //-----------------------------------------------------------------------------

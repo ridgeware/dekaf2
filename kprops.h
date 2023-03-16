@@ -457,6 +457,7 @@ public:
 				Input.SetReaderEndOfLine(svDelim.front());
 				Input.SetReaderRightTrim(svDelim);
 			}
+			KFindSetOfChars Delim(svDelim);
 			KString sLine;
 			while (Input.ReadLine(sLine))
 			{
@@ -465,7 +466,7 @@ public:
 
 				if (svDelim != "\n" || (!sLine.empty() && sLine.front() != '#'))
 				{
-					iNewElements += kSplit(*this, sLine, svDelim, svPairDelim);
+					iNewElements += kSplit(*this, sLine, Delim, svPairDelim);
 				}
 			}
 		}

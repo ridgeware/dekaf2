@@ -113,7 +113,8 @@ size_t kFindNot(
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
+DEKAF2_PUBLIC
+inline
 size_t kRFind(
         const KStringView haystack,
         char needle,
@@ -1836,7 +1837,6 @@ size_t kFindNot(
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
 size_t kRFind(
         const KStringView haystack,
         const char needle,

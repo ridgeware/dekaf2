@@ -1610,19 +1610,10 @@ bool operator>=(const KStringView left, const KStringView right)
 
 // ======================= end comparisons ========================
 
-//-----------------------------------------------------------------------------
-/// a constexpr fill, like memset.. the std version is only constexpr since C++20
-template<typename Iterator, typename Value>
-DEKAF2_CONSTEXPR_14
-void kFillConst(Iterator it, Iterator ie, Value val)
-//-----------------------------------------------------------------------------
-{
-	for(;it != ie; ++it)
-	{
-		*it = val;
-	}
 
-} // kFillConst
+
+
+
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This is a replacement for the string find_first/last_of type of methods for non-SSE 4.2 architectures
@@ -1636,6 +1627,12 @@ void kFillConst(Iterator it, Iterator ie, Value val)
 class KFindSetOfChars
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 #ifndef DEKAF2_X86_64
+
+#ifdef DEKAF2_HAS_CPP_20
+	#if DEKAF2_NO_GCC || DEKAF2_GCC_VERSION_MAJOR >= 10
+		#define DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED
+	#endif
+#endif
 {
 
 	enum STATE : uint8_t { MULTI = 0 << 6, SINGLE = 1 << 6, EMPTY = 2 << 6 };
@@ -1666,7 +1663,9 @@ public:
 				break;
 
 			default:
-				kFillConst(m_table.begin(), m_table.end(), 0);
+#ifdef DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED
+				m_table.fill(0);
+#endif
 				for (auto c : sNeedles)
 				{
 					m_table[static_cast<unsigned char>(c)] = 1;
@@ -1692,7 +1691,9 @@ public:
 			}
 			else
 			{
-				kFillConst(m_table.begin(), m_table.end(), 0);
+#ifdef DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED
+				m_table.fill(0);
+#endif
 				for(;;)
 				{
 					auto c = static_cast<unsigned char>(*sNeedles++);
@@ -1762,7 +1763,11 @@ private:
 		m_table[1] = ch;
 	}
 
+#ifdef DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED
 	std::array<value_type, 256> m_table; // <- no value initialization on purpose!
+#else
+	std::array<value_type, 256> m_table{};
+#endif
 
 }; // KFindSetOfChars
 

@@ -1532,14 +1532,6 @@ protected:
 
 };
 
-using KStringViewPair = std::pair<KStringView, KStringView>;
-
-namespace detail {
-
-static constexpr KStringView kASCIISpaces { " \f\n\r\t\v\b" };
-
-} // end of namespace detail
-
 // ======================= comparisons ========================
 
 //-----------------------------------------------------------------------------
@@ -1618,6 +1610,19 @@ bool operator>=(const KStringView left, const KStringView right)
 
 // ======================= end comparisons ========================
 
+//-----------------------------------------------------------------------------
+/// a constexpr fill, like memset.. the std version is only constexpr since C++20
+template<typename Iterator, typename Value>
+DEKAF2_CONSTEXPR_14
+void kFillConst(Iterator it, Iterator ie, Value val)
+//-----------------------------------------------------------------------------
+{
+	for(;it != ie; ++it)
+	{
+		*it = val;
+	}
+
+} // kFillConst
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This is a replacement for the string find_first/last_of type of methods for non-SSE 4.2 architectures
@@ -1626,90 +1631,138 @@ bool operator>=(const KStringView left, const KStringView right)
 /// only works with 8 bit characters..).
 /// When this class is used on X86_64 architectures we assume that SSE 4.2 is available, and delegate
 /// the call to the SSE implementation.
+/// Please note that the construction can happen constexpr, and therefore the class instance itself declared
+/// as constexpr variable.
 class KFindSetOfChars
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 #ifndef DEKAF2_X86_64
 {
 
-	enum STATE : uint8_t { EMPTY = 0, SINGLE, MULTI };
+	enum STATE : uint8_t { MULTI = 0 << 6, SINGLE = 1 << 6, EMPTY = 2 << 6 };
+	static constexpr uint8_t MASK = 3 << 6;
 
 //------
 public:
 //------
 
-	using size_type = std::size_t;
+	using size_type  = KStringView::size_type;
+	using value_type = KStringView::value_type;
 
 	KFindSetOfChars() = default;
 
+	DEKAF2_CONSTEXPR_14
 	/// construct with set of characters to match / not to match
-	KFindSetOfChars(const KStringView& sNeedles);
+	KFindSetOfChars(KStringView sNeedles)
+	{
+		switch (sNeedles.size())
+		{
+			case 0:
+				SetState(STATE::EMPTY);
+				break;
 
+			case 1:
+				SetSingleChar(sNeedles.front());
+				SetState(STATE::SINGLE);
+				break;
+
+			default:
+				kFillConst(m_table.begin(), m_table.end(), 0);
+				for (auto c : sNeedles)
+				{
+					m_table[static_cast<unsigned char>(c)] = 1;
+				}
+	// do not set the state for MULTI, it is 0 anyway, but could
+	// overwrite the 1 from a NUL char
+	//			SetState(STATE::MULTI);
+				break;
+		}
+
+	} // ctor
+
+	DEKAF2_CONSTEXPR_14
 	/// construct with set of characters to match / not to match
-	KFindSetOfChars(const KStringViewZ& sNeedles) : KFindSetOfChars(KStringView(sNeedles)) {}
-
-	/// construct with set of characters to match / not to match
-	KFindSetOfChars(const char* sNeedles);
-
-	/// find first occurence of needles in haystack
-	size_type find_first_in(const KStringView& sHaystack) const
+	KFindSetOfChars(const value_type* sNeedles)
 	{
-		return find_first_in_impl(sHaystack, false);
-	}
+		if (sNeedles && *sNeedles)
+		{
+			if (sNeedles[1] == 0)
+			{
+				SetSingleChar(*sNeedles);
+				SetState(STATE::SINGLE);
+			}
+			else
+			{
+				kFillConst(m_table.begin(), m_table.end(), 0);
+				for(;;)
+				{
+					auto c = static_cast<unsigned char>(*sNeedles++);
+					if (!c) break;
+					m_table[c] = 1;
+				}
+	// do not set the state for MULTI, it is 0 anyway
+	//			SetState(STATE::MULTI);
+			}
+		}
+		else
+		{
+			SetState(STATE::EMPTY);
+		}
 
-	/// find first occurence of needles in haystack, start search at pos
-	size_type find_first_in(const KStringView& sHaystack, size_type pos) const;
+	} // ctor
 
-	/// find first occurence of character in haystack that is not in needles
-	size_type find_first_not_in(const KStringView& sHaystack) const
-	{
-		return find_first_in_impl(sHaystack, true);
-	}
+	/// find first occurence of needles in haystack, start search at pos (default 0)
+	size_type find_first_in(KStringView sHaystack, const size_type pos = 0) const;
 
-	/// find first occurence of character in haystack that is not in needles, start search at pos
-	size_type find_first_not_in(const KStringView& sHaystack, size_type pos) const;
+	/// find first occurence of character in haystack that is not in needles, start search at pos (default 0)
+	size_type find_first_not_in(KStringView sHaystack, const size_type pos = 0) const;
 
-	/// find last occurence of needles in haystack
-	size_type find_last_in(const KStringView& sHaystack) const
-	{
-		return find_last_in_impl(sHaystack, false);
-	}
+	/// find last occurence of needles in haystack, start backward search at pos (default: end of string)
+	size_type find_last_in(KStringView sHaystack, size_type pos = KStringView::npos) const;
 
-	/// find last occurence of needles in haystack, start backward search at pos
-	size_type find_last_in(const KStringView& sHaystack, size_type pos) const;
-
-	/// find last occurence of character in haystack that is not in needles
-	size_type find_last_not_in(const KStringView& sHaystack) const
-	{
-		return find_last_in_impl(sHaystack, true);
-	}
-
-	/// find last occurence of character in haystack that is not in needles, start backward search at pos
-	size_type find_last_not_in(const KStringView& sHaystack, size_type pos) const;
+	/// find last occurence of character in haystack that is not in needles, start backward search at pos (default: end of string)
+	size_type find_last_not_in(KStringView sHaystack, size_type pos = KStringView::npos) const;
 
 	/// is the set of characters empty?
-	bool empty() const { return m_state == STATE::EMPTY; }
+	bool empty() const { return GetState() == STATE::EMPTY; }
 
 	/// has the set of characters only one single char?
-	bool is_single_char() const { return m_state == STATE::SINGLE; }
+	bool is_single_char() const { return GetState() == STATE::SINGLE; }
 
 	/// does the set of characters contain ch
-	bool contains(const char ch) const
+	bool contains(const value_type ch) const
 	{
-		return (is_single_char()) ? ch == m_chSingle : m_table[static_cast<unsigned char>(ch)];
+		return (is_single_char()) ? ch == GetSingleChar() : m_table[static_cast<unsigned char>(ch)] & 0x01;
 	}
 
 //------
 private:
 //------
 
-	size_type find_first_in_impl (const KStringView& sHaystack, bool bNot) const;
-	size_type find_last_in_impl  (const KStringView& sHaystack, bool bNot) const;
+	DEKAF2_CONSTEXPR_14
+	STATE GetState() const
+	{
+		return static_cast<STATE>(m_table[0] & MASK);
+	}
 
-	std::array<bool, 256> m_table {};
+	DEKAF2_CONSTEXPR_14
+	void SetState(STATE state)
+	{
+		m_table[0] = state;
+	}
 
-	STATE m_state { STATE::EMPTY };
+	DEKAF2_CONSTEXPR_14
+	value_type GetSingleChar() const
+	{
+		return m_table[1];
+	}
 
-	char m_chSingle { 0 };
+	DEKAF2_CONSTEXPR_14
+	void SetSingleChar(value_type ch)
+	{
+		m_table[1] = ch;
+	}
+
+	std::array<value_type, 256> m_table; // <- no value initialization on purpose!
 
 }; // KFindSetOfChars
 
@@ -1721,42 +1774,30 @@ private:
 public:
 //------
 
-	using size_type = std::size_t;
+	using size_type  = KStringView::size_type;
+	using value_type = KStringView::value_type;
 
 	KFindSetOfChars() = default;
 
+	DEKAF2_CONSTEXPR_14
 	/// construct with set of characters to match / not to match
-	KFindSetOfChars(const KStringView& sNeedles) : m_sNeedles(sNeedles) {}
+	KFindSetOfChars(KStringView sNeedles) : m_sNeedles(sNeedles) {}
 
+	DEKAF2_CONSTEXPR_14
 	/// construct with set of characters to match / not to match
-	KFindSetOfChars(const KStringViewZ& sNeedles) : KFindSetOfChars(KStringView(sNeedles)) {}
-
-	/// construct with set of characters to match / not to match
-	KFindSetOfChars(const char* sNeedles) : m_sNeedles(sNeedles) {}
+	KFindSetOfChars(const value_type* sNeedles) : m_sNeedles(sNeedles) {}
 
 	/// find first occurence of needles in haystack
-	size_type find_first_in(const KStringView& sHaystack) const;
-
-	/// find first occurence of needles in haystack
-	size_type find_first_in(const KStringView& sHaystack, size_type pos) const;
+	size_type find_first_in(KStringView sHaystack, size_type pos = 0) const;
 
 	/// find first occurence of character in haystack that is not in needles
-	size_type find_first_not_in(const KStringView& sHaystack) const;
-
-	/// find first occurence of character in haystack that is not in needles
-	size_type find_first_not_in(const KStringView& sHaystack, size_type pos) const;
-
-	/// find last occurence of needles in haystack
-	size_type find_last_in(const KStringView& sHaystack) const;
+	size_type find_first_not_in(KStringView sHaystack, size_type pos = 0) const;
 
 	/// find last occurence of needles in haystack, start backward search at pos
-	size_type find_last_in(const KStringView& sHaystack, size_type pos) const;
-
-	/// find last occurence of character in haystack that is not in needles
-	size_type find_last_not_in(const KStringView& sHaystack) const;
+	size_type find_last_in(KStringView sHaystack, size_type pos = KStringView::npos) const;
 
 	/// find last occurence of character in haystack that is not in needles, start backward search at pos
-	size_type find_last_not_in(const KStringView& sHaystack, size_type pos) const;
+	size_type find_last_not_in(KStringView sHaystack, size_type pos = KStringView::npos) const;
 
 	/// is the set of characters empty?
 	bool empty() const { return m_sNeedles.empty(); }
@@ -1765,7 +1806,7 @@ public:
 	bool is_single_char() const { return m_sNeedles.size() == 1; }
 
 	/// does the set of characters contain ch
-	bool contains(const char ch) const { return m_sNeedles.contains(ch); }
+	bool contains(const value_type ch) const { return m_sNeedles.contains(ch); }
 
 //------
 private:
@@ -1776,6 +1817,22 @@ private:
 }; // KFindSetOfChars#endif
 
 #endif // of X86_64
+
+
+
+using KStringViewPair = std::pair<KStringView, KStringView>;
+
+namespace detail {
+
+static constexpr KStringView kASCIISpaces { " \f\n\r\t\v\b" };
+static constexpr KFindSetOfChars kASCIISpacesSet(kASCIISpaces);
+static constexpr KFindSetOfChars kCommaSet(",,"); // the double ,, are on purpose..
+
+} // end of namespace detail
+
+
+
+
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14

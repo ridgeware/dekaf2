@@ -407,6 +407,7 @@ public:
 	using base            = BasicJSON;
 
 	using reference       = KJSON2&;
+	using rvalue_reference= KJSON2&&;
 	using const_reference = const KJSON2&;
 	using pointer         = KJSON2*;
 	using const_pointer   = const KJSON2*;
@@ -780,7 +781,7 @@ public:
 
 
 
-	// imported methods from base which are exception safe
+	// imported methods from base which are exception safe:
 
 	using base::type;
 	using base::type_name;
@@ -802,18 +803,33 @@ public:
 	using base::count;
 	using base::contains;
 
-	// imported methods from base which are not exception safe
-
-	using base::emplace; // add checks
-	using base::erase;   // add checks
-//  using base::insert;  // add checks
-
 //	using base::get;     // deprecated
 //	using base::get_ref; // deprecated
 //	using base::get_ptr; // deprecated
 //	using base::get_to;  // deprecated
 
-	// wrapped methods from base to return our wrapper types
+	// wrapped methods from base to return our wrapper types:
+
+	template<class... Args>
+	reference       emplace_back(Args&& ... args)                           { try { return base::emplace_back(std::forward<Args>(args)...); } catch (const exception& e) { return *this; } }
+
+	template<class... Args>
+	std::pair<iterator, bool>
+	                emplace     (Args&& ... args)                           { try { return base::emplace(std::forward<Args>(args)...); } catch (const exception& e) { return { end(), false }; } }
+
+	const_iterator  erase       (const_iterator it)                         { try { return base::erase(it.ToBase());                   } catch (const exception& e) { return cend(); } }
+	iterator        erase       (iterator it)                               { try { return base::erase(it.ToBase());                   } catch (const exception& e) { return  end(); } }
+	const_iterator  erase       (const_iterator first, const_iterator last) { try { return base::erase(first.ToBase(), last.ToBase()); } catch (const exception& e) { return cend(); } }
+	iterator        erase       (iterator first, iterator last)             { try { return base::erase(first.ToBase(), last.ToBase()); } catch (const exception& e) { return  end(); } }
+	size_type       erase       (StringViewT sKey)                          { try { return base::erase(sKey);                          } catch (const exception& e) { return 0;      } }
+	void            erase       (const size_type iIndex)                    { try {        base::erase(iIndex);                        } catch (const exception& e) {                } }
+
+	iterator        insert      (const_iterator it, const_reference val)                       { try { return base::insert(it.ToBase(), val.ToBase());                  } catch (const exception& e) { return end(); } }
+	iterator        insert      (const_iterator it, rvalue_reference val)                      { try { return base::insert(it.ToBase(), std::move(val.ToBase()));       } catch (const exception& e) { return end(); } }
+	iterator        insert      (const_iterator it, size_type count, const_reference val)      { try { return base::insert(it.ToBase(), count, val.ToBase());           } catch (const exception& e) { return end(); } }
+	iterator        insert      (const_iterator it, const_iterator first, const_iterator last) { try { return base::insert(it.ToBase(), first.ToBase(), last.ToBase()); } catch (const exception& e) { return end(); } }
+	iterator        insert      (const_iterator it, initializer_list_t ilist)                  { try { return base::insert(it.ToBase(), ilist);                         } catch (const exception& e) { return end(); } }
+	void            insert      (const_iterator first, const_iterator last)                    { try {        base::insert(first.ToBase(), last.ToBase());              } catch (const exception& e) {               } }
 
 	const_iterator  find        (StringViewT sWhat) const { return base::find(sWhat);      }
 	iterator        find        (StringViewT sWhat)       { return base::find(sWhat);      }
@@ -823,10 +839,13 @@ public:
 	iterator        end         ()               noexcept { return base::end();            }
 	const_iterator  cbegin      ()         const noexcept { return base::cbegin();         }
 	const_iterator  cend        ()         const noexcept { return base::cend();           }
-	const_reference	front       ()         const noexcept { return MakeRef(base::front()); }
-	reference       front       ()               noexcept { return MakeRef(base::front()); }
-	const_reference	back        ()         const noexcept { return MakeRef(base::back());  }
-	reference       back        ()               noexcept { return MakeRef(base::back());  }
+
+	// checked front/back
+	const_reference	front       ()         const noexcept { try { return MakeRef(base::front()); } catch (const exception& e) { return s_oEmpty; } }
+	reference       front       ()               noexcept { try { return MakeRef(base::front()); } catch (const exception& e) { return *this;    } }
+	const_reference	back        ()         const noexcept { try { return MakeRef(base::back ()); } catch (const exception& e) { return s_oEmpty; } }
+	reference       back        ()               noexcept { try { return MakeRef(base::back ()); } catch (const exception& e) { return *this;    } }
+
 	/// Clears the content - does not reset the content type though, so beware when having an array, clearing, and adding an object..
 	/// It will be added to an array, whereas it would have been merged when the type would have been object.
 	void            clear       ()               noexcept { return base::clear();          }

@@ -45,6 +45,22 @@ bool Matches(T&& t) { return false; }
 
 TEST_CASE("KJSON2")
 {
+	SECTION("front/back")
+	{
+		KJSON2 j;
+		j.front() = "hello";
+		CHECK ( j == "hello" );
+		KJSON2 j2;
+		j2.back() = "hello";
+		CHECK ( j2 == "hello" );
+		KJSON2 j3;
+		j3 = "a string";
+		auto it = j3.find("key");
+		CHECK ( it == j3.end() );
+		auto i = j3.erase("key");
+		CHECK ( i == 0 );
+	}
+
 	SECTION("Split")
 	{
 		KJSON2 j;

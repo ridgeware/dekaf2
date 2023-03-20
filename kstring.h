@@ -185,7 +185,7 @@ public:
 	KString (const value_type* s)                             : m_rep(s?s:"") {}
 	KString (const std::string& s)                            : m_rep(s.data(), s.size()) {}
 #ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
-	KString (std::string&& s)                                 : m_rep(std::move(s)) {}
+	KString (std::string&& s) noexcept                        : m_rep(std::move(s)) {}
 #else
 	KString (const folly::fbstring& s)                        : m_rep(s) {}
 	KString (folly::fbstring&& s)                             : m_rep(std::move(s)) {}
@@ -218,24 +218,17 @@ public:
 	KString (const T& sv, size_type pos, size_type n);
 
 	// assignment operators
-	self& operator= (const KString& str)                      = default;
-#if defined(DEKAF2_HAS_FULL_CPP_17) && (!defined(DEKAF2_IS_CLANG) || DEKAF2_CLANG_VERSION >= 90000)
-	self& operator= (KString&& str) noexcept                  = default;
-#else
-	self& operator= (KString&& str)                           = default;
-#endif
-	template<typename T,
-	         typename std::enable_if<detail::is_kstring_move_assignable<T>::value, int>::type = 0>
-#if defined(DEKAF2_HAS_FULL_CPP_17) && (!defined(DEKAF2_IS_CLANG) || DEKAF2_CLANG_VERSION >= 90000)
-	self& operator= (T&& str) noexcept               { m_rep = std::move(str); return *this; }
-#else
-	self& operator= (T&& str)                        { m_rep = std::move(str); return *this; }
-#endif
+	self& operator= (KString str) noexcept                    { swap(str); return *this;     }
 	self& operator= (value_type ch);
 	self& operator= (const value_type *s);
 	template<typename T,
-	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
+	    typename std::enable_if<
+			detail::is_kstringview_assignable<T>::value &&
+			!std::is_same<T, std::string>::value
+		, int>::type = 0
+	>
 	self& operator= (const T& sv);
+	self& operator= (std::nullptr_t) = delete; // C++23..
 
 	template<typename T,
 			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
@@ -1011,7 +1004,11 @@ inline KString& KString::operator= (const value_type *s)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T>::value &&
+		!std::is_same<T, std::string>::value
+	, int>::type
+>
 KString& KString::operator= (const T& sv)
 //-----------------------------------------------------------------------------
 {
@@ -1020,7 +1017,10 @@ KString& KString::operator= (const T& sv)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T, true>::value
+	, int>::type
+>
 KString& KString::replace(size_type pos, size_type n, T sv)
 //-----------------------------------------------------------------------------
 {
@@ -1036,7 +1036,10 @@ inline KString& KString::replace(size_type pos1, size_type n1, KStringView sv, s
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T, true>::value
+	, int>::type
+>
 KString& KString::replace(iterator i1, iterator i2, T sv)
 //-----------------------------------------------------------------------------
 {
@@ -1045,7 +1048,10 @@ KString& KString::replace(iterator i1, iterator i2, T sv)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T, true>::value
+	, int>::type
+>
 KString& KString::replace(size_type pos1, size_type n1, T sv, size_type pos2, size_type n2)
 //-----------------------------------------------------------------------------
 {
@@ -1061,7 +1067,10 @@ inline KString& KString::replace(size_type pos, size_type n1, const value_type* 
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T>::value
+	, int>::type
+>
 KString& KString::append(const T& sv)
 //-----------------------------------------------------------------------------
 {
@@ -1072,7 +1081,10 @@ KString& KString::append(const T& sv)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T>::value
+	, int>::type
+>
 KString& KString::append(const T& sv, size_type pos, size_type n)
 //-----------------------------------------------------------------------------
 {
@@ -1088,7 +1100,10 @@ inline KString& KString::operator+= (std::initializer_list<value_type> il)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T, true>::value
+	, int>::type
+>
 KString& KString::operator+= (const T& sv)
 //-----------------------------------------------------------------------------
 {
@@ -1097,7 +1112,10 @@ KString& KString::operator+= (const T& sv)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T, true>::value
+	, int>::type
+>
 int KString::compare(const T& sv) const
 //-----------------------------------------------------------------------------
 {
@@ -1106,7 +1124,10 @@ int KString::compare(const T& sv) const
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T, true>::value
+	, int>::type
+>
 int KString::compare(size_type pos, size_type n1, const T& sv) const
 //-----------------------------------------------------------------------------
 {
@@ -1115,7 +1136,10 @@ int KString::compare(size_type pos, size_type n1, const T& sv) const
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T>::value
+	, int>::type
+>
 int KString::compare(size_type pos, size_type n1, const T& sv, size_type pos2, size_type n2) const
 //-----------------------------------------------------------------------------
 {
@@ -1193,7 +1217,10 @@ inline KString::size_type KString::find(const value_type* s, size_type pos, size
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T, false>::value
+	, int>::type
+>
 KString::size_type KString::find(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
@@ -1264,7 +1291,10 @@ inline KString::size_type KString::rfind(const value_type* s, size_type pos, siz
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T, false>::value
+	, int>::type
+>
 KString::size_type KString::rfind(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
@@ -1335,7 +1365,10 @@ inline KString::size_type KString::find_first_of(const value_type* s, size_type 
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T, false>::value
+	, int>::type
+>
 KString::size_type KString::find_first_of(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
@@ -1408,7 +1441,10 @@ inline KString::size_type KString::find_last_of(const value_type* s, size_type p
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T, false>::value
+	, int>::type
+>
 KString::size_type KString::find_last_of(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
@@ -1465,7 +1501,10 @@ inline KString::size_type KString::find_first_not_of(KStringView sv, size_type p
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T, false>::value
+	, int>::type
+>
 KString::size_type KString::find_first_not_of(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
@@ -1522,7 +1561,10 @@ inline KString::size_type KString::find_last_not_of(KStringView sv, size_type po
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, false>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T, false>::value
+	, int>::type
+>
 KString::size_type KString::find_last_not_of(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
@@ -1538,7 +1580,10 @@ inline KString& KString::insert(size_type pos1, KStringView sv, size_type pos2, 
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T, true>::value
+	, int>::type
+>
 KString& KString::insert(size_type pos, const T& sv)
 //-----------------------------------------------------------------------------
 {
@@ -1547,7 +1592,10 @@ KString& KString::insert(size_type pos, const T& sv)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type>
+	typename std::enable_if<
+		detail::is_kstringview_assignable<T>::value
+	, int>::type
+>
 KString& KString::insert(size_type pos1, const T& sv, size_type pos2, size_type n)
 //-----------------------------------------------------------------------------
 {

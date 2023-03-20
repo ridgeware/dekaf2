@@ -168,6 +168,8 @@ TEST_CASE("StringBalance") {
 		static_assert( std::is_constructible<std::string_view,      const std::string&>::value     , "not constructible");
 		static_assert( std::is_constructible<std::string,           const std::string_view&>::value, "constructible");
 #endif
+		static_assert( std::is_convertible<const KString&,          std::string>::value, "not convertible");
+		static_assert( std::is_convertible<const std::string&,      KString>::value    , "not convertible");
 		static_assert( std::is_convertible<const std::string&,      KStringView>::value, "not convertible");
 		static_assert( std::is_convertible<const KStringView&,      std::string>::value, "not convertible");
 #ifdef DEKAF2_HAS_STD_STRING_VIEW

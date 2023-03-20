@@ -9376,7 +9376,11 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 				sDiffPrefix,
 				sPrefix,
 				it.begin().key(),
+#ifdef DEKAF2_WRAPPED_KJSON
+				it.begin().value().String());
+#else
 				it.begin().value().get_ref<const KString&>());
+#endif
 		}
 
 	}; // lambda: PrintColumn
@@ -9389,8 +9393,11 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 		{
 			auto        it       = jColumn.items();
 			const auto& sName    = it.begin().key();
+#ifdef DEKAF2_WRAPPED_KJSON
+			KString     sValue   = it.begin().value().String(); sValue.Trim();
+#else
 			KString     sValue   = it.begin().value().get_ref<const KString&>(); sValue.Trim();
-
+#endif
 			if (sResult.empty())
 			{
 				sResult =  FormatSQL ("create table {}\n(\n    {:<25} {}\n", sTableName, sName, sValue);
@@ -9413,7 +9420,11 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 		{
 			auto        it       = jColumn.items();
 			const auto& sName    = it.begin().key();
+#ifdef DEKAF2_WRAPPED_KJSON
+			const auto& sValue   = it.begin().value().String();
+#else
 			const auto& sValue   = it.begin().value().get_ref<const KString&>();
+#endif
 			bool        bIsIndex = sValue.StartsWith("(");
 
 			if (sName == "PRIMARY KEY")

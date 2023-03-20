@@ -107,6 +107,10 @@ class KJSON2;
 namespace kjson
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+	/// advance a stream over leading spaces
+	/// @return false if first non-space char could not be returned into the stream, true otherwise
+	bool SkipLeadingSpace(KInStream& InStream);
+
 	/// Parse a string, throws with KJSON::exception in case of error
 	/// @param json the json output
 	/// @param sJSON the input string to parse
@@ -309,10 +313,6 @@ namespace kjson
 	/// merges objects or arrays, or arrays and objects
 	DEKAF2_PUBLIC
 	void Merge (LJSON& json1, LJSON json2);
-
-	/// appends json values one to another, regardless of their type, may change json1
-	DEKAF2_PUBLIC
-	void Append (LJSON& json1, LJSON json2);
 
 	/// returns true if a selector seems to be a json pointer
 	DEKAF2_PUBLIC

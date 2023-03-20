@@ -42,12 +42,73 @@
 
 #pragma once
 
-#include "bits/ktemplate.h"
-#include "kstringview.h"
-#include "kstring.h"
-#include "kjson.h"
+#if __cplusplus > 201402L
+	#if __has_include("kconfiguration.h")
+		#include "kconfiguration.h"
+	#endif
+#endif
 
-namespace dekaf2 {
+#ifdef DEKAF2
+	#include "kstringview.h"
+	#include "kstring.h"
+	#include "kjson.h"
+#else
+	#include <string_view>
+	#include <string>
+	#include <istream>
+	#include <ostream>
+	#define JSON_USE_IMPLICIT_CONVERSIONS 0
+	#define JSON_HAS_THREE_WAY_COMPARISON 0
+	#define JSON_DIAGNOSTICS 0
+	#define JSON_USE_GLOBAL_UDLS 0
+	#include <nlohmann/json.hpp>
+#endif
+
+#ifndef DEKAF2_KJSON_ALLOW_IMPLICIT_CONVERSION_IN_PLACE
+	#define DEKAF2_KJSON_ALLOW_IMPLICIT_CONVERSION_IN_PLACE 1
+#endif
+
+#ifndef DEKAF2_KJSON_NAMESPACE
+	#define DEKAF2_KJSON_NAMESPACE dekaf2
+#endif
+
+#ifndef DEKAF2_PUBLIC
+	#define DEKAF2_PUBLIC
+#endif
+
+#ifndef DEKAF2_TRY
+	#define DEKAF2_TRY try
+#endif
+
+#ifndef DEKAF2_CATCH
+	#define DEKAF2_CATCH(ex) catch(ex)
+#endif
+
+#ifndef DEKAF2_LIKELY
+	#define DEKAF2_LIKELY
+#endif
+
+#ifndef DEKAF2_UNLIKELY
+	#define DEKAF2_UNLIKELY
+#endif
+
+#ifndef kDebug
+	#define kDebug(x, y)
+#endif
+
+#ifndef kWarning
+	#define kWarning(x)
+#endif
+
+
+namespace DEKAF2_KJSON_NAMESPACE {
+
+#ifdef DEKAF2
+using BasicJSON = LJSON;
+#else
+using BasicJSON = nlohmann::json;
+#endif
+
 
 
 
@@ -78,15 +139,19 @@ void int_to_string( string_type& target, std::size_t value )
 
 template<>
 inline
-void int_to_string( KString& target, std::size_t value )
+void int_to_string( BasicJSON::string_t& target, std::size_t value )
 {
+#ifdef DEKAF2
 	target = KString::to_string(value);
+#else
+	target = std::to_string(value);
+#endif
 }
 
 template<typename IteratorType> class iteration_proxy_value
 {
 public:
-	using value_t = LJSON::value_t;
+	using value_t = BasicJSON::value_t;
 	using difference_type = std::ptrdiff_t;
 	using value_type = iteration_proxy_value;
 	using pointer = value_type *;
@@ -262,6 +327,29 @@ struct is_char_ptr
 	std::is_same<const char*, typename std::decay<T>::type>::value
 > {};
 
+template<class T>
+struct is_narrow_cpp_str
+  : std::integral_constant<
+      bool,
+#ifdef DEKAF2
+      std::is_same<KString,                typename std::decay<T>::type>::value ||
+#endif
+      std::is_same<std::string,            typename std::decay<T>::type>::value
+> {};
+
+template<class T>
+struct is_narrow_string_view
+  : std::integral_constant<
+      bool,
+#ifdef DEKAF2
+      std::is_same<KStringViewZ,           typename std::decay<T>::type>::value ||
+      std::is_same<KStringView,            typename std::decay<T>::type>::value ||
+      std::is_same<sv::string_view,        typename std::decay<T>::type>::value
+#else
+      std::is_same<std::string_view,       typename std::decay<T>::type>::value
+#endif
+> {};
+
 } } // end of namespace kjson::detail
 
 #define DEKAF2_FORCE_CHAR_PTR                \
@@ -310,93 +398,81 @@ template<typename T,                         \
 // class to construct with a dedicated object_type parameter which we store in our own
 // accessible variable.
 //
-// Additionally, and very unfortunately, we need to undefine the implicit value cast
-// accessor in the json base class, because gcc otherwise fails on resolving overloads
-// for our own implicit value casts, because it still sniffs the private base class's
-// value casts, even if overwritten by the exact same signature in the derived class,
-// and complains them being inaccessible. CLang works fine without this modification.
-//
-// Also, unfortunately, with gcc it is not possible to implicitly return strings as
-// reference types, because this will then not resolve on implicit string constructors,
-// like here:
-//
-// `KString str = json["key"]`
-//
-// Any other, like `KString str; str = json["key"];` or `KString str(json["key"]);`
-// would work, but we decided this being too confusing for the user, and hence
-// fall back on returning string copies. That then works on all assignments, albeit
-// at the cost of an additional string copy (which will of course be optimized out
-// for assignments).
-// Again, CLang would have no issues here with string ref returns, but in this case
-// it is clear that this is stretching C++ conversion rules a bit.
-//
-// To also allow for string ref returns there is an explicit accessor:
-//
-// `json["key"].StringRef().`
-//
-class DEKAF2_PUBLIC KJSON2 : private LJSON
+class DEKAF2_PUBLIC KJSON2 : private BasicJSON
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 public:
 
-	using base            = LJSON;
+	using base            = BasicJSON;
 
 	using reference       = KJSON2&;
 	using const_reference = const KJSON2&;
 	using pointer         = KJSON2*;
 	using const_pointer   = const KJSON2*;
 
-	class iterator : public LJSON::iterator
+#ifdef DEKAF2
+	using StringT         = KString;
+	using StringViewT     = KStringView;
+	using IStreamT        = KInStream;
+	using OStreamT        = KOutStream;
+#else
+	using StringT         = std::string;
+	using StringViewT     = std::string_view;
+	using IStreamT        = std::istream;
+	using OStreamT        = std::ostream;
+#endif
+
+	class iterator : public base::iterator
 	{
 	public:
-		using base      = LJSON::iterator;
-		using parent    = KJSON2;
-		using reference = parent::reference;
-		using pointer   = parent::pointer;
+		using iteratorbase = base::iterator; // gcc < 9 complains when using base instead of iteratorbase
+		using parent       = KJSON2;
+		using reference    = parent::reference;
+		using pointer      = parent::pointer;
 		// import ctors
-		using base::base;
+		using iteratorbase::iteratorbase;
 		// converting ctor
-		iterator(base it) : base(it) {}
+		iterator(iteratorbase it) : iteratorbase(it) {}
 		// overwrite operator to wrap reference type
-		reference operator*() const { return parent::MakeRef(base::operator*());  }
+		reference operator*() const { return parent::MakeRef(iteratorbase::operator*());  }
 		// overwrite operator to wrap pointer type
-		pointer operator->()  const { return parent::MakePtr(base::operator->()); }
+		pointer operator->()  const { return parent::MakePtr(iteratorbase::operator->()); }
 		// overwrite method to wrap reference type
-		reference value()     const { return parent::MakeRef(base::value());      }
+		reference value()     const { return parent::MakeRef(iteratorbase::value());      }
 		// return base reference for this
-		const base& ToBase()  const { return *this; }
+		const iteratorbase& ToBase() const { return *this; }
 		// make the equality comparison available for the wrapped type
-		bool operator==(const iterator& other) const { return base::operator==(other.ToBase()); }
+		bool operator==(const iterator& other) const { return iteratorbase::operator==(other.ToBase()); }
 		// make the unequality comparison available for the wrapped type
-		bool operator!=(const iterator& other) const { return base::operator!=(other.ToBase()); }
+		bool operator!=(const iterator& other) const { return iteratorbase::operator!=(other.ToBase()); }
 	};
 
-	class const_iterator : public LJSON::const_iterator
+	class const_iterator : public base::const_iterator
 	{
 	public:
-		using base            = LJSON::const_iterator;
+		using iteratorbase    = base::const_iterator; // gcc < 9 complains when using base instead of iteratorbase
 		using parent          = KJSON2;
 		using const_reference = parent::const_reference;
 		using reference       = const_reference;
 		using const_pointer   = parent::const_pointer;
 		using pointer         = const_pointer;
 		// import ctors
-		using base::base;
+		using iteratorbase::iteratorbase;
 		// converting ctor
-		const_iterator(base it) : base(it) {}
+		const_iterator(iteratorbase it) : iteratorbase(it) {}
 		// overwrite operator to wrap reference type
-		reference operator*() const { return parent::MakeRef(base::operator*());  }
+		reference operator*() const { return parent::MakeRef(iteratorbase::operator*());  }
 		// overwrite operator to wrap pointer type
-		pointer operator->()  const { return parent::MakePtr(base::operator->()); }
+		pointer operator->()  const { return parent::MakePtr(iteratorbase::operator->()); }
 		// overwrite method to wrap reference type
-		reference value()     const { return parent::MakeRef(base::value());      }
+		reference value()     const { return parent::MakeRef(iteratorbase::value());      }
 		// return base reference for this
-		const base& ToBase()  const { return *this; }
+		const iteratorbase& ToBase() const { return *this; }
 		// make the equality comparison available for the wrapped type
-		bool operator==(const const_iterator& other) const { return base::operator==(other.ToBase()); }
+		bool operator==(const const_iterator& other) const { return iteratorbase::operator==(other.ToBase()); }
 		// make the unequality comparison available for the wrapped type
-		bool operator!=(const const_iterator& other) const { return base::operator!=(other.ToBase()); }
+		bool operator!=(const const_iterator& other) const { return iteratorbase::operator!=(other.ToBase()); }
 	};
 
 	// imported types
@@ -419,14 +495,9 @@ public:
 	using json_ref = nlohmann::detail::json_ref<base>;
 
 					KJSON2() = default;
-					KJSON2(const KJSON2&) = default;
-					KJSON2(KJSON2&&) noexcept = default;
-					KJSON2(const LJSON& other) noexcept : base(std::move(other)) {}
+					KJSON2(base&& other) noexcept : base(std::move(other)) {}
 
-					using LJSON::LJSON;
-
-	KJSON2&         operator=(const KJSON2&) = default;
-	KJSON2&         operator=(KJSON2&&) = default;
+					using base::base;
 
 	// service methods
 
@@ -434,31 +505,31 @@ public:
 	/// @par sJson the input string with json serializations
 	/// @par bThrow if true parser will throw on syntax errors, default is false
 	/// @return true on successful parsing, false otherwise
-	bool            Parse     (KStringView sJson, bool bThrow = false);
+	bool            Parse     (StringViewT sJson, bool bThrow = false);
 
 	/// Parses a stream into json, can throw for parsing errors on request
 	/// @par istream the input stream with json serializations
 	/// @par bThrow if true parser will throw on syntax errors, default is false
 	/// @return true on successful parsing, false otherwise
-	bool            Parse     (KInStream& istream, bool bThrow = false);
+	bool            Parse     (IStreamT& istream, bool bThrow = false);
 
 	/// Serializes this json element into a string.
 	/// @param bPretty uses pretty printing when bPretty is set to true, default is false
 	/// @return a string with the serialized json
-	KString         Serialize (bool bPretty = false) const { return Dump(bPretty); }
+	StringT         Serialize (bool bPretty = false) const { return Dump(bPretty); }
 
 	/// Serializes this json element into a string.
 	/// @param bPretty uses pretty printing when bPretty is set to true, default is false
 	/// @return a string with the serialized json
-	void            Serialize (KOutStream& ostream, bool bPretty = false) const;
+	void            Serialize (OStreamT& ostream, bool bPretty = false) const;
 
 	/// Serializes this json element into a string.
 	/// @param bPretty uses pretty printing when bPretty is set to true, default is false
 	/// @return a string with the serialized json
-	KString         Dump      (bool bPretty = false) const { return dump(bPretty ? 1 : -1, '\t'); }
+	StringT         Dump      (bool bPretty = false) const { return dump(bPretty ? 1 : -1, '\t'); }
 
 	/// Serializes this json element into a string. Emulates the interface of the base class to select indents etc.
-	KString         dump      (int   iIndent = -1,
+	StringT         dump      (int   iIndent = -1,
 							   char  chIndent = ' ',
 							   bool  bEnsureASCII = false,
 							   const base::error_handler_t error_handler = base::error_handler_t::strict) const;
@@ -473,16 +544,19 @@ public:
 	const_reference Array     (const_reference Default = s_oEmpty) const noexcept;
 
 	/// Returns a const string reference to this json element. Will return reference to an empty string if this element is not a string.
-	const KString&  StringRef () const noexcept;
+	const StringT&  ConstString () const noexcept;
+
+	/// Returns a const string reference to this json element. Will return reference to an empty string if this element is not a string.
+	const StringT&  String    () const noexcept { return ConstString(); }
 
 	/// Returns a string reference to this json element. If the element is a number, float, or boolean, the value will be converted to string and
 	/// stored in place of the previous element. Arrays and objects will be converted to the empty string. To instead return a value for all
 	/// json types, use Print() (which is non-destructive).
-	      KString&  StringRef (KStringView sDefault = KStringView{}) ;
+	StringT&        String    (StringViewT sDefault = StringViewT{}) ;
 
 	/// Returns a string (copy) of this json element. If the element is a number, float, or boolean, the value will be converted to string.
 	/// Arrays and objects will be converted to the empty string. To instead return a value for all json types, use Print().
-	      KString   String    (KStringView sDefault = KStringView{}) const;
+	StringT         CopyString (StringViewT sDefault = StringViewT{}) const { return Print(sDefault, false); }
 
 	/// Returns an unsigned 64 bit integer value for this json element. If the element was a float or string, the value will be converted.
 	/// For all other types, the parameter iDefault is returned (which defaults to 0).
@@ -501,7 +575,7 @@ public:
 	double          Float     (double   dDefault = 0.0)   const noexcept;
 
 	/// Returns a string representation for any type of json element, which includes serializations for arrays and objects
-	KString         Print     () const { return kjson::Print(ToBase());     }
+	StringT         Print     (StringViewT sDefault = StringViewT{}, bool bSerializeAll = true) const;
 
 	// unfortunately, C++ does not allow an implicit conversion to a private base class,
 	// therefore we have to declare it as a named method here (and force it manually
@@ -513,6 +587,42 @@ public:
 	// (checked) implicit conversions to value types that do not throw - if the
 	// json value does not match it is default constructed
 	// - together with the throwless Select() this is all the magic
+
+	operator const StringT&    () const noexcept { return ConstString(); }
+#if DEKAF2_KJSON_ALLOW_IMPLICIT_CONVERSION_IN_PLACE
+	operator       StringT&    () &              { return String();      }
+	operator       StringT&&   () &&             { return std::move(String()); }
+#else
+	operator const StringT&    ()       noexcept { return ConstStringRef(); }
+#endif
+	operator       StringViewT () const noexcept { return ConstString(); }
+#if DEKAF2_KJSON_ALLOW_IMPLICIT_CONVERSION_IN_PLACE
+	operator       StringViewT ()                { return String();      }
+#endif
+#ifdef DEKAF2
+	operator       KStringViewZ() const noexcept { return ConstString(); }
+#if DEKAF2_KJSON_ALLOW_IMPLICIT_CONVERSION_IN_PLACE
+	operator       KStringViewZ()                { return String();      }
+#else
+	operator       KStringViewZ()       noexcept { return ConstStringRef(); }
+#endif
+	operator const std::string&() const noexcept { return ConstString().ToStdString(); }
+#if DEKAF2_KJSON_ALLOW_IMPLICIT_CONVERSION_IN_PLACE
+	operator       std::string&()  &             { return String().ToStdString();      }
+	operator       std::string&&() &&            { return std::move(String().ToStdString()); }
+#else
+	operator const std::string&()       noexcept { return ConstStringRef().ToStdString(); }
+#endif
+#endif
+
+	// we have to declare the conversions for fundamental types once explicit (as std::string
+	// has an operator=(value_type) that would take any of those), and again with SFINAE
+	// to catch all subtypes, matching therefore better or equal to the JSON base class
+	explicit operator uint64_t () const noexcept { return UInt64();         }
+	explicit operator  int64_t () const noexcept { return  Int64();         }
+	explicit operator   double () const noexcept { return  Float();         }
+	explicit operator    float () const noexcept { return  Float();         }
+	explicit operator     bool () const noexcept { return   Bool();         }
 
 	template < typename ValueType,
 		typename std::enable_if <
@@ -552,75 +662,83 @@ public:
 		, int >::type = 0>
 	operator        ValueType  () const noexcept { return Float(); }
 
-	template < typename ValueType,
-		typename std::enable_if <
-			detail::is_narrow_cpp_str<ValueType>::value &&
-			!detail::is_string_view<ValueType>::value
-		, int >::type = 0>
-	operator        ValueType  () const          { return String(); }
-
-	template < typename ValueType,
-		typename std::enable_if <
-			detail::is_string_view<ValueType>::value
-		, int >::type = 0>
-	operator        ValueType  () const noexcept { return StringRef(); }
-
 	constexpr
 	operator        value_t    () const noexcept { return type();   }
 	operator        json_ref   ()       noexcept { return ToBase(); } // embedded in initializer lists..
 
-	// accessors that permit to return selectors with any of pointer or single element syntax
+	// accessors:
 
-	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
-	const_reference	SelectConst(KStringView sSelector) const noexcept { return MakeRef(kjson::Select(ToBase(), sSelector)); }
+	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	const_reference	ConstElement(StringViewT sElement) const noexcept;
+
+	/// Selects the array index iElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	const_reference	ConstElement(size_type   iElement) const noexcept;
+
+	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	const_reference	Element    (StringViewT sElement)  const noexcept { return ConstElement(sElement); }
+
+	/// Selects the element in sElement, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Does not throw.
+	reference       Element    (StringViewT sElement)        noexcept;
 
 	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
-	const_reference	SelectConst(size_type   iSelector) const noexcept { return MakeRef(kjson::Select(ToBase(), iSelector)); }
+	const_reference Element    (size_type   iElement)  const noexcept { return ConstElement(iElement); }
+
+	/// Selects the array index iSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. Does not throw.
+	reference       Element    (size_type   iElement)        noexcept;
 
 	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
-	const_reference	Select     (KStringView sSelector) const noexcept { return SelectConst(sSelector); }
+	const_reference	ConstSelect(StringViewT sSelector) const noexcept;
+
+	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	const_reference	ConstSelect(size_type   iSelector) const noexcept { return ConstElement(iSelector); }
+
+	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	const_reference	Select     (StringViewT sSelector) const noexcept { return ConstSelect(sSelector); }
 
 	/// Selects the key or path in sSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. Does not throw.
-	reference       Select     (KStringView sSelector)       noexcept { return MakeRef(kjson::Select(ToBase(), sSelector)); }
+	reference       Select     (StringViewT sSelector)       noexcept;
 
 	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
-	const_reference Select     (size_type   iSelector) const noexcept { return SelectConst(iSelector); }
+	const_reference Select     (size_type   iSelector) const noexcept { return ConstSelect(iSelector); }
 
 	/// Selects the array index iSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. Does not throw.
-	reference       Select     (size_type   iSelector)       noexcept { return MakeRef(kjson::Select(ToBase(), iSelector)); }
+	reference       Select     (size_type   iSelector)       noexcept { return Element(iSelector);     }
 
-	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
-	const_reference operator[] (KStringView sSelector) const noexcept { return SelectConst(sSelector); }
+	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	const_reference operator[] (StringViewT sElement)  const noexcept { return ConstElement(sElement); }
 
-	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
-	reference       operator[] (KStringView sSelector)       noexcept { return Select(sSelector);      }
+	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	reference       operator[] (StringViewT sElement)        noexcept { return Element(sElement);      }
 
-	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
 	DEKAF2_FORCE_CHAR_PTR
-	const_reference operator[] (T&& sSelector)         const noexcept { return SelectConst(sSelector); }
+	const_reference operator[] (T&& sElement)          const noexcept { return ConstElement(sElement); }
 
-	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
 	DEKAF2_FORCE_CHAR_PTR
-	reference       operator[] (T&& sSelector)               noexcept { return Select(sSelector);      }
+	reference       operator[] (T&& sElement)                noexcept { return Element(sElement);      }
 
 	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
-	const_reference operator[] (size_type   iSelector) const noexcept { return SelectConst(iSelector); }
+	const_reference operator[] (size_type   iElement)  const noexcept { return ConstElement(iElement); }
 
 	/// Selects the array index iSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. Does not throw.
-	reference       operator[] (size_type   iSelector)       noexcept { return Select(iSelector);      }
+	reference       operator[] (size_type   iElement)        noexcept { return Element(iElement);      }
 
-	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
-	const_reference	operator() (KStringView sSelector) const noexcept { return SelectConst(sSelector); }
+	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	const_reference	operator() (StringViewT sElement)  const noexcept { return ConstElement(sElement); }
 
 	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
-	const_reference	operator() (size_type   iSelector) const noexcept { return SelectConst(iSelector); }
+	const_reference	operator() (size_type   iElement)  const noexcept { return ConstElement(iElement); }
 
 	// helper methods to ensure that merging objects/arrays/primitives yield
 	// expected / palpable results (and do NEVER throw except for malloc),
 	// because, yes, we can merge and append, and convert the type if needed)
 
-	reference       Append     (KJSON2 other)       { kjson::Append(ToBase(), std::move(other.ToBase())); return *this;    }
+	reference       Append     (KJSON2 other);
+
+#ifdef DEKAF2
 	reference       Merge      (KJSON2 other)       { kjson::Merge (ToBase(), std::move(other.ToBase())); return *this;    }
+#endif
 
 	/// Append to array. If current content is not an array it will be converted to one.
 	void push_back(KJSON2 json)                     { Append(std::move(json)); }
@@ -630,13 +748,17 @@ public:
 	template<typename T,
 		typename std::enable_if<
 			std::is_constructible<object_t, T>::value &&
-			!std::is_same<LJSON, typename std::decay<T>::type>::value
+			!std::is_same<base, typename std::decay<T>::type>::value
 		, int>::type = 0
 	>
 	void push_back(const T& value)                  { try { base::push_back(value); } catch (const exception& e) { Append(value); } }
 
 	/// Merge initializer list with existing object if size == 2 and begin() is string, otherwise add a new object. May fail, but will not throw.
-	void push_back(const initializer_list_t value)  { try { base::push_back(value); } catch (const exception& e) { kDebug(1, kjson::kStripJSONExceptionMessage(e.what())); } }
+	void push_back(const initializer_list_t value)  { try { base::push_back(value); } catch (const exception& e) {
+#ifdef DEKAF2
+		kDebug(2, kjson::kStripJSONExceptionMessage(e.what()));
+#endif
+	} }
 
 	/// Append to array. If current content is not an array it will be converted to one.
 	reference operator+=(KJSON2 json)               { push_back(std::move(json)); return *this; }
@@ -647,7 +769,7 @@ public:
 	template<typename T,
 		typename std::enable_if<
 			std::is_constructible<object_t, T>::value &&
-			!std::is_same<LJSON, typename std::decay<T>::type>::value
+			!std::is_same<base, typename std::decay<T>::type>::value
 		, int>::type = 0
 	>
 	reference operator+=(const T& value)           { push_back(value); return *this; }
@@ -685,15 +807,16 @@ public:
 	using base::emplace; // add checks
 	using base::erase;   // add checks
 //  using base::insert;  // add checks
-	using base::get;     // deprecated
-	using base::get_ref; // deprecated
-	using base::get_ptr; // deprecated
-	using base::get_to;  // deprecated
+
+//	using base::get;     // deprecated
+//	using base::get_ref; // deprecated
+//	using base::get_ptr; // deprecated
+//	using base::get_to;  // deprecated
 
 	// wrapped methods from base to return our wrapper types
 
-	const_iterator  find        (KStringView sWhat) const { return base::find(sWhat);      }
-	iterator        find        (KStringView sWhat)       { return base::find(sWhat);      }
+	const_iterator  find        (StringViewT sWhat) const { return base::find(sWhat);      }
+	iterator        find        (StringViewT sWhat)       { return base::find(sWhat);      }
 	const_iterator  begin       ()         const noexcept { return cbegin();               }
 	const_iterator  end         ()         const noexcept { return cend();                 }
 	iterator        begin       ()               noexcept { return base::begin();          }
@@ -733,29 +856,27 @@ public:
 
 	static KJSON2   diff        (const KJSON2& left, const KJSON2& right);
 
-	/// helper function to cast a const reference of type KJSON2 for a const reference of the base json type (LJSON)
+	/// helper function to cast a const reference of type KJSON2 for a const reference of the base json type
 	static const_reference MakeRef(base::const_reference json) noexcept { return *static_cast<const_pointer>(&json); }
-	/// helper function to cast a reference of type KJSON2 for a reference of the base json type (LJSON)
+	/// helper function to cast a reference of type KJSON2 for a reference of the base json type
 	static       reference MakeRef(base::reference json)       noexcept { return *static_cast<pointer>(&json);       }
-	/// helper function to cast a const pointer of type KJSON2 for a const pointer of the base json type (LJSON)
+	/// helper function to cast a const pointer of type KJSON2 for a const pointer of the base json type
 	static const_pointer   MakePtr(base::const_pointer json)   noexcept { return  static_cast<const_pointer>(json);  }
-	/// helper function to cast a pointer of type KJSON2 for a pointer of the base json type (LJSON)
+	/// helper function to cast a pointer of type KJSON2 for a pointer of the base json type
 	static       pointer   MakePtr(base::pointer json)         noexcept { return  static_cast<pointer>(json);        }
 
 private:
 
-	static const KString s_sEmpty;
+	static constexpr uint16_t iMaxJSONPointerDepth = 1000;
+
+	static const_reference RecurseJSONPointer(const_reference json, StringViewT sSelector, uint16_t iRecursions = 0);
+	static       reference RecurseJSONPointer(      reference json, StringViewT sSelector, uint16_t iRecursions = 0);
+
+	static const StringT s_sEmpty;
 	static const KJSON2  s_oEmpty;
 
 }; // KJSON2
 
-
-
-
-// shorthand to create a KJSON2 ref from a LJSON ref
-
-inline const KJSON2& KJSON2Ref(const LJSON& json) { return KJSON2::MakeRef(json); }
-inline       KJSON2& KJSON2Ref(      LJSON& json) { return KJSON2::MakeRef(json); }
 
 
 
@@ -764,9 +885,9 @@ inline       KJSON2& KJSON2Ref(      LJSON& json) { return KJSON2::MakeRef(json)
 // be forced
 
 inline
-void to_json  (LJSON& j, const KJSON2& j2) { j = j2.ToBase(); }
+void to_json  (BasicJSON& j, const KJSON2& j2) { j = j2.ToBase(); }
 inline
-void from_json(const LJSON& j, KJSON2& j2) { j2.ToBase() = j; }
+void from_json(const BasicJSON& j, KJSON2& j2) { j2.ToBase() = j; }
 
 
 
@@ -776,12 +897,12 @@ void from_json(const LJSON& j, KJSON2& j2) { j2.ToBase() = j; }
 
 inline bool operator==(const KJSON2::iterator& left, const KJSON2::const_iterator& right)
 {
-	return left.KJSON2::iterator::base::operator==(KJSON2::const_iterator::base(right));
+	return left.KJSON2::iterator::iteratorbase::operator==(KJSON2::const_iterator::iteratorbase(right));
 }
 
 inline bool operator!=(const KJSON2::iterator& left, const KJSON2::const_iterator& right)
 {
-	return left.KJSON2::iterator::base::operator!=(KJSON2::const_iterator::base(right));
+	return left.KJSON2::iterator::iteratorbase::operator!=(KJSON2::const_iterator::iteratorbase(right));
 }
 
 
@@ -833,7 +954,7 @@ bool check_if_is_default(const U& value)
 }
 
 inline // only constexpr after string is
-bool check_if_is_default(const KString& value)
+bool check_if_is_default(const KJSON2::StringT& value)
 {
 	return value.empty();
 }
@@ -894,21 +1015,21 @@ compare_eq(const KJSON2& json, const U value)
 }
 
 inline
-bool compare_eq(const KJSON2& json, const KString& value)
+bool compare_eq(const KJSON2& json, const KJSON2::StringT& value)
 {
-	return json.StringRef() == value;
+	return json.String() == value;
 }
 
 inline
-bool compare_eq(const KJSON2& json, const KStringView& value)
+bool compare_eq(const KJSON2& json, const KJSON2::StringViewT& value)
 {
-	return json.StringRef() == value;
+	return json.String() == value;
 }
 
 inline
 bool compare_eq(const KJSON2& json, const char* value)
 {
-	return json.StringRef() == value;
+	return json.String() == value;
 }
 
 template<typename U>
@@ -1200,6 +1321,10 @@ std::istream& operator >>(std::istream& stream, T& json)
 
 
 
+
+
+
+
 #define DEKAF2_FORCE_KJSON2         \
 template<typename T,                \
 	typename std::enable_if<        \
@@ -1207,10 +1332,7 @@ template<typename T,                \
 	, int>::type = 0                \
 >
 
-
-
-
-
+#ifdef DEKAF2
 
 // legacy (checked) operations on the base type, converted to
 // the checked type for legacy code - except the parse functions
@@ -1218,13 +1340,14 @@ template<typename T,                \
 
 namespace kjson {
 
+/// DEPRECATED - use class member
 /// Parse a string, throws with KJSON::exception in case of error
 /// @param json the json output
 /// @param sJSON the input string to parse
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-void Parse (T& json, KStringView sJSON)
+void Parse (T& json, KJSON2::StringViewT sJSON)
 {
-	Parse(json.ToBase(), sJSON);
+	json.Parse(sJSON, true);
 }
 
 /// Parse a string, returns error in sError if any, never throws
@@ -1232,18 +1355,19 @@ void Parse (T& json, KStringView sJSON)
 /// @param sJSON the input string to parse
 /// @param sError the error string
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-bool Parse (T& json, KStringView sJSON, KStringRef& sError) noexcept
+bool Parse (T& json, KJSON2::StringViewT sJSON, KStringRef& sError) noexcept
 {
 	return Parse(json.ToBase(), sJSON, sError);
 }
 
+/// DEPRECATED - use class member
 /// Parse a stream, throws with KJSON::exception in case of error
 /// @param json the json output
 /// @param InStream the input stream to parse
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-void Parse (T& json, KInStream& InStream)
+void Parse (T& json, KJSON2::IStreamT& InStream)
 {
-	Parse(json.ToBase(), InStream);
+	json.Parse(InStream, true);
 }
 
 /// Parse a stream, returns error in sError if any, never throws
@@ -1251,7 +1375,7 @@ void Parse (T& json, KInStream& InStream)
 /// @param InStream the input stream to parse
 /// @param sError the error string
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-bool Parse (T& json, KInStream& InStream, KStringRef& sError) noexcept
+bool Parse (T& json, KJSON2::IStreamT& InStream, KStringRef& sError) noexcept
 {
 	return Parse(json.ToBase(), InStream, sError);
 }
@@ -1260,215 +1384,220 @@ bool Parse (T& json, KInStream& InStream, KStringRef& sError) noexcept
 /// returns a string representation for the KJSON object, never throws
 /// @param json the json input
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-KString Print(const T& json) noexcept
+KJSON2::StringT Print(const T& json) noexcept
 {
 	return json.Print();
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// Returns a string ref for a key, never throws. Returns empty ref
 /// for non-string values.
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-const KString& GetStringRef(const T& json, KStringView sKey) noexcept
+const KJSON2::StringT& GetStringRef(const T& json, KJSON2::StringViewT sKey) noexcept
 {
-	return json(sKey).StringRef();
+	return json(sKey).String();
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// Returns a string value for a key, never throws. Prints non-string
 /// values into string representation.
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-KString GetString(const T& json, KStringView sKey) noexcept
+KJSON2::StringT GetString(const T& json, KJSON2::StringViewT sKey) noexcept
 {
+	// The old semantics were as follows: if the key does not exist, then return an
+	// empty string. If it exists, print anything, even a null element (as NULL).
+	// We cannot map that with our new implementation (we do not know if the result
+	// of the call operator is null because of a null value, or because of key not found).
+	// Hence we fall back to the old implementation
 	return GetString(json.ToBase(), sKey);
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// Returns a uint value for a key, never throws. Returns 0 if value was
 /// neither an integer nor a string representation of an integer.
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-uint64_t GetUInt(const T& json, KStringView sKey) noexcept
+uint64_t GetUInt(const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).UInt64();
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// Returns an int value for a key, never throws. Returns 0 if value was
 /// neither an integer nor a string representation of an integer.
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-int64_t GetInt(const T& json, KStringView sKey) noexcept
+int64_t GetInt(const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).Int64();
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// Returns a bool value for a key, never throws. Returns 0 if value was
 /// neither an integer nor a string representation of an integer.
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-bool GetBool(const T& json, KStringView sKey) noexcept
+bool GetBool(const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).Bool();
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// Returns a const object ref for a key, never throws. Returns empty ref
 /// for non-object values.
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-const KJSON2& GetObjectRef (const T& json, KStringView sKey) noexcept
+const KJSON2& GetObjectRef (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	// GetObject does not test that the object is actually an object..
 	// it just returns any json
 	return json(sKey);
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// returns a const object ref for a key, never throws. Returns empty
 /// object for non-object values.
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-const KJSON2& GetObject (const T& json, KStringView sKey) noexcept
+const KJSON2& GetObject (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	// GetObject does not test that the object is actually an object..
 	// it just returns any json
 	return json(sKey);
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// returns an array value for a key, never throws. Returns empty
 /// array for non-array values.
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-const KJSON2& GetArray (const T& json, KStringView sKey) noexcept
+const KJSON2& GetArray (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	// GetArray tests that the object is actually an array..
 	return json(sKey).Array();
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// returns true if the key exists, never throws
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-bool Exists (const T& json, KStringView sKey) noexcept
+bool Exists (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_null() == false;
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// returns true if the key exists and contains an object, never throws
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-bool IsObject (const T& json, KStringView sKey) noexcept
+bool IsObject (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_object();
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// returns true if the key exists and contains an array, never throws
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-bool IsArray (const T& json, KStringView sKey) noexcept
+bool IsArray (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_array();
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// returns true if the key exists and contains a string, never throws
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-bool IsString (const T& json, KStringView sKey) noexcept
+bool IsString (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_string();
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// returns true if the key exists and contains an integer, never throws
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-bool IsInteger (const T& json, KStringView sKey) noexcept
+bool IsInteger (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_integer();
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// returns true if the key exists and contains a float, never throws
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-bool IsFloat (const T& json, KStringView sKey) noexcept
+bool IsFloat (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_number_float();
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// returns true if the key exists and contains null, never throws
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-bool IsNull (const T& json, KStringView sKey) noexcept
+bool IsNull (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_null();
 }
 
-/// DEPRECATED - use Select or call access
+/// DEPRECATED - use call operator access
 /// returns true if the key exists and contains a bool, never throws
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-bool IsBoolean (const T& json, KStringView sKey) noexcept
+bool IsBoolean (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_boolean();
 }
 
 /// adds the given integer to the given key, creates key if it does not yet exist
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-void Increment (T& json, KStringView sKey, uint64_t iAddMe=1) noexcept
+void Increment (T& json, KJSON2::StringViewT sKey, uint64_t iAddMe=1) noexcept
 {
 	Increment(json.ToBase(), sKey, iAddMe);
 }
 
 /// subtracts the given integer from the given key, creates key if it does not yet exist
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-void Decrement (T& json, KStringView sKey, uint64_t iSubstractMe=1) noexcept
+void Decrement (T& json, KJSON2::StringViewT sKey, uint64_t iSubstractMe=1) noexcept
 {
 	Decrement(json.ToBase(), sKey, iSubstractMe);
 }
 
 /// returns an iterator to the found element if object is a string array or an object and contains the given string, never throws
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-KJSON2::const_iterator Find (const T& json, KStringView sString) noexcept
+KJSON2::const_iterator Find (const T& json, KJSON2::StringViewT sString) noexcept
 {
 	return Find(json.ToBase(), sString);
 }
 
 /// returns true if object is a string array or an object and contains the given string, never throws
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-bool Contains (const T& json, KStringView sString) noexcept
+bool Contains (const T& json, KJSON2::StringViewT sString) noexcept
 {
 	return Contains(json.ToBase(), sString);
 }
 
 /// RecursiveMatchValue (json, m_sSearchX);
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-bool RecursiveMatchValue (const T& json, KStringView sSearch)
+bool RecursiveMatchValue (const T& json, KJSON2::StringViewT sSearch)
 {
 	return RecursiveMatchValue(json.ToBase(), sSearch);
 }
@@ -1484,17 +1613,17 @@ void Merge (T& object1, const KJSON2& object2) noexcept
 /// DEPRECATED - use class method
 /// use a path-style selector to isolate any type of value inside a JSON structure, never throws
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-const KJSON2& Select (const T& json, KStringView sSelector) noexcept
+const KJSON2& Select (const T& json, KJSON2::StringViewT sSelector) noexcept
 {
-	return json(sSelector);
+	return json.Select(sSelector);
 }
 
 /// DEPRECATED - use class method
 /// use a path-style selector to isolate any type of value inside a JSON structure, throws on error
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-KJSON2& Select (T& json, KStringView sSelector) noexcept
+KJSON2& Select (T& json, KJSON2::StringViewT sSelector) noexcept
 {
-	return json(sSelector);
+	return json.Select(sSelector);
 }
 
 /// DEPRECATED - use class method
@@ -1502,7 +1631,7 @@ KJSON2& Select (T& json, KStringView sSelector) noexcept
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
 const KJSON2& Select (const T& json, std::size_t iSelector) noexcept
 {
-	return json(iSelector);
+	return json.Select(iSelector);
 }
 
 /// DEPRECATED - use class method
@@ -1510,7 +1639,7 @@ const KJSON2& Select (const T& json, std::size_t iSelector) noexcept
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
 KJSON2& Select (T& json, std::size_t iSelector) noexcept
 {
-	return json(iSelector);
+	return json.Select(iSelector);
 }
 
 /// DEPRECATED - use class method
@@ -1518,9 +1647,9 @@ KJSON2& Select (T& json, std::size_t iSelector) noexcept
 /// e.g. .data.object.payment.sources[0].creditCard.lastFourDigits
 /// or /data/object/payment/sources/0/creditCard/lastFourDigits
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-const KString& SelectString (const T& json, KStringView sSelector) noexcept
+const KJSON2::StringT& SelectString (const T& json, KJSON2::StringViewT sSelector) noexcept
 {
-	return json(sSelector).StringRef();
+	return json.Select(sSelector).String();
 }
 
 /// DEPRECATED - use class method
@@ -1528,9 +1657,9 @@ const KString& SelectString (const T& json, KStringView sSelector) noexcept
 /// e.g. .data.object.payment.sources[0].creditCard
 /// or /data/object/payment/sources/0/creditCard
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
-const KJSON2& SelectObject (const T& json, KStringView sSelector) noexcept
+const KJSON2& SelectObject (const T& json, KJSON2::StringViewT sSelector) noexcept
 {
-	return json(sSelector).Object();
+	return json.Select(sSelector).Object();
 }
 
 } // end of namespace kjson
@@ -1551,6 +1680,8 @@ using kjson::Contains;
 using kjson::Increment;
 using kjson::Decrement;
 
+#endif // of #ifdef DEKAF2
+
 } // end of namespace dekaf2
 
 namespace std {
@@ -1560,11 +1691,13 @@ struct hash<dekaf2::KJSON2>
 {
 	std::size_t operator()(const dekaf2::KJSON2& json) const
 	{
-		return hash<dekaf2::LJSON>()(json.ToBase());
+		return hash<dekaf2::BasicJSON>()(json.ToBase());
 	}
 };
 
 } // end of namespace std
+
+#ifdef DEKAF2
 
 namespace fmt {
 
@@ -1579,6 +1712,8 @@ struct formatter<dekaf2::KJSON2> : formatter<string_view>
 };
 
 } // end of namespace fmt
+
+#endif // of #ifdef DEKAF2
 
 #undef DEKAF2_FORCE_KJSON2
 #undef DEKAF2_FORCE_CHAR_PTR

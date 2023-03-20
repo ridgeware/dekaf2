@@ -222,8 +222,6 @@ KJSON ParseOrThrow (KInStream& istream)
 
 } // Parse
 
-namespace {
-
 //-----------------------------------------------------------------------------
 bool SkipLeadingSpace(KInStream& InStream)
 //-----------------------------------------------------------------------------
@@ -249,8 +247,6 @@ bool SkipLeadingSpace(KInStream& InStream)
 		}
 	}
 }
-
-} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
 bool Parse (LJSON& json, KInStream& InStream, KStringRef& sError) noexcept
@@ -485,7 +481,10 @@ KString ToJsonPointer(KStringView sSelector)
 	KString sPointer;
 	sPointer.reserve(sSelector.size());
 
-	for (const auto& sElement : sSelector.Split(".[", " \f\n\r\t\v\b]"))
+	static const KFindSetOfChars Trim(" \f\n\r\t\v\b]");
+	static const KFindSetOfChars Dots(".[");
+
+	for (const auto& sElement : sSelector.Split(Dots, Trim))
 	{
 		if (!sElement.empty())
 		{
@@ -1199,10 +1198,6 @@ void Merge (LJSON& left, LJSON right)
 
 	DEKAF2_TRY
 	{
-#ifndef NDEBUG
-		kDebug(2, "left: {}, right: {}", left.type_name(), right.type_name());
-#endif
-
 		// null is empty, too - but take care for arrays as (left) - the caller may just want
 		// to add an empty object at the end of an array (perhaps to manipulate it later)
 		if (right.is_null() && left.is_array() == false)
@@ -1253,49 +1248,6 @@ void Merge (LJSON& left, LJSON right)
 		{
 			left[it.key()] = std::move(it.value());
 		}
-	}
-
-	DEKAF2_CATCH (const LJSON::exception& exc)
-	{
-		kDebug(1, kStripJSONExceptionMessage(exc.what()));
-	}
-
-} // Merge
-
-//-----------------------------------------------------------------------------
-void Append (LJSON& left, LJSON right)
-//-----------------------------------------------------------------------------
-{
-	// this operation will always succeed
-
-	DEKAF2_TRY
-	{
-#ifndef NDEBUG
-		kDebug(2, "left: {}, right: {}", left.type_name(), right.type_name());
-#endif
-
-		if (left.is_null())
-		{
-			// make it an array
-			left = LJSON::array();
-		}
-		else if (!left.is_array())
-		{
-			if (left.is_object() && right.is_object())
-			{
-				// merge both objects
-				left.push_back(right);
-				return;
-			}
-
-			// we have to make left an array to be able to append and
-			// move the existing value into the first element of the (new) array
-			LJSON copy = LJSON::array();
-			copy.push_back(std::move(left));
-			left = std::move(copy);
-		}
-
-		left.push_back(std::move(right));
 	}
 
 	DEKAF2_CATCH (const LJSON::exception& exc)

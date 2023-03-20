@@ -110,8 +110,11 @@ KOpenIDKeys::KOpenIDKeys (const KURL& URL)
 					if (it["kty"] == "RSA")
 					{
 						// construct RSA key and store it by its key ID
+#ifdef DEKAF2_WRAPPED_KJSON
+						auto p = WebKeys.emplace(std::move(it["kid"].String()), WebKey(it));
+#else
 						auto p = WebKeys.emplace(std::move(it["kid"].get_ref<KString&>()), WebKey(it));
-
+#endif
 						if (p.second)
 						{
 							kDebug(2, "inserted {} {} key with ID {}",
@@ -171,10 +174,18 @@ bool KOpenIDProvider::Validate(const KJSON& Configuration, const KURL& URL, KStr
 	kDebug(3, Configuration.dump(1, '\t'));
 
 	// gcc 8 needs the explicit get()..
+#ifdef DEKAF2_WRAPPED_KJSON
+	if (Configuration["issuer"].String() != URL.Serialize())
+#else
 	if (Configuration["issuer"].get_ref<const KString&>() != URL.Serialize())
+#endif
 	{
 		return SetError(kFormat("issuer ({}) does not match URL ({})",
+#ifdef DEKAF2_WRAPPED_KJSON
+								Configuration["issuer"].String(),
+#else
 								Configuration["issuer"].get_ref<const KString&>(),
+#endif
 								URL.Serialize()));
 	}
 	if (Configuration["authorization_endpoint"].empty())
@@ -360,10 +371,18 @@ bool KJWT::Validate(KStringView sIssuer, KStringView sScope, time_t tClockLeeway
 	kDebug(3, Payload.dump(1, '\t'));
 
 	// gcc 8 needs the explicit get()..
+#ifdef DEKAF2_WRAPPED_KJSON
+	if (Payload["iss"].String() != sIssuer)
+#else
 	if (Payload["iss"].get_ref<const KString&>() != sIssuer)
+#endif
 	{
 		return SetError(kFormat("Payload issuer {} does not match Provider issuer {}",
+#ifdef DEKAF2_WRAPPED_KJSON
+								Payload["iss"].String(),
+#else
 								Payload["iss"].get_ref<const KString&>(),
+#endif
 								sIssuer));
 	}
 
@@ -395,7 +414,11 @@ bool KJWT::Validate(KStringView sIssuer, KStringView sScope, time_t tClockLeeway
 				{
 					sScopes += ',';
 				}
+#ifdef DEKAF2_WRAPPED_KJSON
+				sScopes += Scope.String();
+#else
 				sScopes += Scope.get_ref<const KString&>();
+#endif
 			}
 			return SetError(kFormat("scope '{}' not supported, known scopes: '{}'", sScope, sScopes));
 		}
@@ -443,15 +466,24 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 
 		if  (Header["typ"] != "JWT")
 		{
+#ifdef DEKAF2_WRAPPED_KJSON
+			return SetError(kFormat("not a JWT header: {}", Header["typ"].String()));
+#else
 			return SetError(kFormat("not a JWT header: {}", Header["typ"].get_ref<const KString&>()));
+#endif
 		}
 
 		kjson::Parse(Payload, KBase64Url::Decode(Part[1]));
 
+#ifdef DEKAF2_WRAPPED_KJSON
+		const KString& sAlgorithm = Header["alg"].String();
+		const KString& sKeyID     = Header["kid"].String();
+		const KString& sKeyDigest = Header["x5t"].String();
+#else
 		const KString& sAlgorithm = Header["alg"].get_ref<const KString&>();
 		const KString& sKeyID     = Header["kid"].get_ref<const KString&>();
 		const KString& sKeyDigest = Header["x5t"].get_ref<const KString&>();
-
+#endif
 		for (auto& Provider : Providers)
 		{
 			if (!Provider.IsValid())

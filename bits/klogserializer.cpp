@@ -360,9 +360,11 @@ void KLogJSONSerializer::Serialize()
 
 } // Serialize
 
-#if defined(DEKAF2_USE_PRECOMPILED_HEADERS) && (__GNUC__ > 6)
+#if defined(DEKAF2_USE_PRECOMPILED_HEADERS) && DEKAF2_IS_GCC
 #pragma GCC diagnostic push
+#ifdef DEKAF2_HAS_WARN_STRINGOP_OVERFLOW
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 #endif
 //---------------------------------------------------------------------------
 void KLogJSONArraySerializer::Serialize()
@@ -376,7 +378,7 @@ void KLogJSONArraySerializer::Serialize()
 	}
 
 } // Serialize
-#if defined(DEKAF2_USE_PRECOMPILED_HEADERS) && (__GNUC__ > 6)
+#if defined(DEKAF2_USE_PRECOMPILED_HEADERS) && DEKAF2_IS_GCC
 #pragma GCC diagnostic pop
 #endif
 

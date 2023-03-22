@@ -197,9 +197,11 @@ uint64_t KUnTar::Decoded::FromNumbers(const char* pStart, uint16_t iSize)
 
 } // FromNumbers
 
-#if (__GNUC__ > 10)
+#if DEKAF2_IS_GCC
 #pragma GCC diagnostic push
+#ifdef DEKAF2_HAS_WARN_STRINGOP_OVERREAD
 #pragma GCC diagnostic ignored "-Wstringop-overread"
+#endif
 #endif
 //-----------------------------------------------------------------------------
 bool KUnTar::Decoded::Decode(const tar::TarHeader& Tar)
@@ -387,7 +389,7 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& Tar)
 	return true;
 
 } // Decode
-#if (__GNUC__ > 10)
+#if DEKAF2_IS_GCC
 #pragma GCC diagnostic pop
 #endif
 

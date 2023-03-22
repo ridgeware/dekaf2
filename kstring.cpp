@@ -759,9 +759,11 @@ bool KString::ClipAtReverse(KStringView sClipAtReverse)
 
 } // ClipAtReverse
 
-#if (__GNUC__ > 6)
+#if DEKAF2_IS_GCC
 #pragma GCC diagnostic push
+#ifdef DEKAF2_HAS_WARN_STRINGOP_OVERFLOW
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 #endif
 //----------------------------------------------------------------------
 KString::size_type KString::RemoveChars(KStringView sChars)
@@ -785,7 +787,7 @@ KString::size_type KString::RemoveChars(KStringView sChars)
 	return iOrigLen - size();
 
 } // RemoveChars
-#if (__GNUC__ > 6)
+#if DEKAF2_IS_GCC
 #pragma GCC diagnostic pop
 #endif
 

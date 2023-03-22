@@ -50,11 +50,15 @@
 #if OPENSSL_VERSION_NUMBER >= 0x030000000
 #ifdef DEKAF2_IS_CLANG
 #pragma clang diagnostic push
+#ifdef DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 #endif
 #ifdef DEKAF2_IS_GCC
 #pragma GCC diagnostic push
+#ifdef DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 #endif
 #endif
 

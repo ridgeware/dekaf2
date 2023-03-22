@@ -365,7 +365,7 @@ KString KIPCMessages::Receive(std::size_t iExpectedSize, KDuration timeout, long
 				break;
 
 			case ENOMSG:
-				if (Timer.elapsed() > timeout)
+				if (Timer.elapsed() >= timeout)
 				{
 					return sMessage;
 				}
@@ -406,7 +406,7 @@ bool KIPCMessages::ReceiveRaw (void* addr, std::size_t size, long msgtype, KDura
 		switch (errno)
 		{
 			case ENOMSG:
-				if (Timer.elapsed() > timeout)
+				if (Timer.elapsed() >= timeout)
 				{
 					return false;
 				}

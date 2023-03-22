@@ -119,7 +119,7 @@ bool KThreadPool::resize(std::size_t nThreads)
 
 		for (std::size_t i = oldNThreads; i < nThreads; ++i)
 		{
-			m_abort[i] = std::make_shared<std::atomic<eABORT>>(eABORT::NONE);
+			m_abort[i] = std::make_shared<std::atomic<eAbort>>(eAbort::None);
 
 			if (!run_thread(i))
 			{
@@ -138,7 +138,7 @@ bool KThreadPool::resize(std::size_t nThreads)
 			// increase counter for threads that have to finish
 			// - they are now detached and cannot be joined anymore
 			++ma_iDetachedThreadsToFinish;
-			*m_abort[i] = eABORT::RESIZE; // this thread will finish
+			*m_abort[i] = eAbort::Resize; // this thread will finish
 			m_threads[i]->detach();
 
 			if (i == 0)
@@ -186,7 +186,7 @@ void KThreadPool::stop(bool bKill)
 			// do not increase the counter for detached threads, as we
 			// want to finish these with join() - therefore set a differnt
 			// abort flag than for the resize case
-			*m_abort[i] = eABORT::STOP; // command the threads to stop
+			*m_abort[i] = eAbort::Stop; // command the threads to stop
 		}
 	}
 
@@ -243,11 +243,11 @@ bool KThreadPool::run_thread(std::size_t i)
 //-----------------------------------------------------------------------------
 {
 	// a copy of the shared ptr to the abort
-	std::shared_ptr<std::atomic<eABORT>> abort_ptr(m_abort[i]);
+	std::shared_ptr<std::atomic<eAbort>> abort_ptr(m_abort[i]);
 
 	auto f = [this, abort_ptr]()
 	{
-		std::atomic<eABORT>& abort = *abort_ptr;
+		std::atomic<eAbort>& abort = *abort_ptr;
 		std::packaged_task<void()> _f;
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
 
@@ -276,7 +276,7 @@ bool KThreadPool::run_thread(std::size_t i)
 					kUnknownException();
 				}
 
-				if (abort != eABORT::NONE)
+				if (abort != eAbort::None)
 				{
 					notify_thread_shutdown(false, abort);
 
@@ -306,7 +306,7 @@ bool KThreadPool::run_thread(std::size_t i)
 
 			m_cond_var.wait(lock, [this, &_f, &bMoreTasks, &abort]()
 			{
-				if (abort != eABORT::NONE || ma_interrupt)
+				if (abort != eAbort::None || ma_interrupt)
 				{
 					return true;
 				}
@@ -384,10 +384,10 @@ KThreadPool::Diagnostics KThreadPool::get_diagnostics(bool bWasIdle) const
 } // get_diagnostics
 
 //-----------------------------------------------------------------------------
-void KThreadPool::notify_thread_shutdown(bool bWasIdle, eABORT abort)
+void KThreadPool::notify_thread_shutdown(bool bWasIdle, eAbort abort)
 //-----------------------------------------------------------------------------
 {
-	if (abort == eABORT::STOP)
+	if (abort == eAbort::Stop)
 	{
 		++ma_iAlreadyStopped;
 	}
@@ -399,7 +399,7 @@ void KThreadPool::notify_thread_shutdown(bool bWasIdle, eABORT abort)
 
 	// don't run this as an else of above - it has to happen past
 	// the shutdown callback, and the former before..
-	if (abort == eABORT::RESIZE)
+	if (abort == eAbort::Resize)
 	{
 		// decrease the count of detached threads to wait for in the join()
 		--ma_iDetachedThreadsToFinish;

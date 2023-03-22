@@ -361,11 +361,11 @@ public:
 private:
 //------
 
-	enum eABORT
+	enum eAbort
 	{
-		NONE,
-		RESIZE,
-		STOP
+		None,
+		Resize,
+		Stop
 	};
 
 	DEKAF2_PRIVATE
@@ -377,10 +377,10 @@ private:
 	bool run_thread( size_t i );
 
 	DEKAF2_PRIVATE
-	void notify_thread_shutdown(bool bWasIdle, eABORT abort);
+	void notify_thread_shutdown(bool bWasIdle, eAbort abort);
 
 	std::vector<std::unique_ptr<std::thread>>             m_threads;
-	std::vector<std::shared_ptr<std::atomic<eABORT>>>     m_abort;
+	std::vector<std::shared_ptr<std::atomic<eAbort>>>     m_abort;
 	detail::threadpool::Queue<std::packaged_task<void()>> m_queue;
 
 	std::atomic<std::size_t> ma_iTotalTasks              { 0 };

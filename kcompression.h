@@ -52,9 +52,15 @@
 
 #if defined(DEKAF2_USE_PRECOMPILED_HEADERS) && (__GNUC__ > 6)
 #pragma GCC diagnostic push
+#ifdef DEKAF2_HAS_WARN_ARRAY_BOUNDS
 #pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+#ifdef DEKAF2_HAS_WARN_STRINGOP_OVERFLOW
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+#ifdef DEKAF2_HAS_WARN_STRINGOP_OVERREAD
 #pragma GCC diagnostic ignored "-Wstringop-overread"
+#endif
 #endif
 
 #include <boost/iostreams/filtering_stream.hpp>

@@ -585,6 +585,12 @@ endif (DOXYGEN_FOUND)
 
 # =============================== GENERATED FILES =================================
 
+# warning flags
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag(-Wstringop-overflow DEKAF2_HAS_WARN_STRINGOP_OVERFLOW)
+check_cxx_compiler_flag(-Wstringop-overread DEKAF2_HAS_WARN_STRINGOP_OVERREAD)
+check_cxx_compiler_flag(-Warray-bounds      DEKAF2_HAS_WARN_ARRAY_BOUNDS)
+
 # create and include the build directory for generated files
 set(GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${GENERATED_FILES_DIR}")

@@ -47,6 +47,7 @@
 #include "kstring.h"
 #include "kthreadsafe.h"
 #include "kfilesystem.h"
+#include "kduration.h"
 #include <fcntl.h>
 #include <sys/types.h>
 
@@ -128,6 +129,13 @@ class DEKAF2_PUBLIC KSharedMemoryBase
 public:
 //------
 
+	/// Opens/creates shared memory.
+	/// @param sPathname path name (any valid path, does not have to exist, but should start
+	/// with a slash). Will be used as common identifier for the shared memory.
+	/// @param size the size of the shared memory to be opened/created
+	/// @param bool bForceCreation if false, it is first tried to open an existing shared memory,
+	/// if true it is immediately tried to create one.
+	/// @param iMode access permissions as for any other file open
 	KSharedMemoryBase(KStringView sPathname,
 					  std::size_t iSize,
 					  bool        bForceCreation = false,
@@ -135,6 +143,7 @@ public:
 
 	~KSharedMemoryBase();
 
+	/// @return true if shared memory is opened/created
 	bool is_open()  const { return m_pAddr;   }
 	operator bool() const { return is_open(); }
 
@@ -181,6 +190,12 @@ public:
 
 	using base = detail::KSharedMemoryBase;
 
+	/// Opens/creates shared memory of sizeof(Object).
+	/// @param sPathname path name (any valid path, does not have to exist, but should start
+	/// with a slash). Will be used as common identifier for the shared memory.
+	/// @param bool bForceCreation if false, it is first tried to open an existing shared memory,
+	/// if true it is immediately tried to create one.
+	/// @param iMode access permissions as for any other file open
 	KSharedMemory(KStringView sPathname,
 				  bool        bForceCreation = false,
 				  int         iMode = DEKAF2_MODE_CREATE_FILE)
@@ -188,6 +203,7 @@ public:
 	{
 	}
 
+	/// get reference on object
 	Object& get() const
 	{
 		return *static_cast<Object*>(base::get());
@@ -218,6 +234,135 @@ public:
 template<typename Object, key_t iIPCKey>
 using KIPCSafeSharedMemory = KIPCSafe<KSharedMemory<Object>, iIPCKey>;
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+class KIPCMessages;
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+template<typename Object,
+		 typename std::enable_if<std::is_trivially_copyable<Object>::value, int>::type = 0>
+class KIPCMessagePayload
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	friend class KIPCMessages;
+
+//------
+public:
+//------
+
+	/// get reference on object
+	Object& get()
+	{
+		return m_object;
+	}
+
+	/// get pointer on object
+	Object* operator->()
+	{
+		return &get();
+	}
+
+	/// get reference on object
+	Object& operator*()
+	{
+		return get();
+	}
+
+	/// get reference on object
+	operator Object&()
+	{
+		return get();
+	}
+
+
+//------
+private:
+//------
+
+	using is_IPCMessagePayload = int;
+
+	mutable long m_msgtype;
+	Object m_object;
+
+}; // KIPCMessagePayload
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Pass messages with IPC between processes on the same computer. Can send/receive
+/// unstructured data (strings), or structured, trivially copyable data wrapped into KIPCMessagePayload<>.
+class KIPCMessages
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	/// constructor
+	/// @param iIPCKey the "channel" between two or more IPC users. Any uint32_t integer.
+	/// @param iMinMessageQueueSize the requested minimum size for content in the message
+	/// queue. Defaults normally to some kB on MacOS and Linux. Should be at least as high as the
+	/// largest object that should be passed in a message.
+	/// @param iMode access permissions as for any other file open
+	KIPCMessages(key_t       iIPCKey,
+				 std::size_t iMinMessageQueueSize = 0,
+				 int         iMode = DEKAF2_MODE_CREATE_FILE);
+
+	/// Send any string or unstructured data on the messaging channel.
+	/// @param sMessage the message
+	/// @param msgtype the message type, a positive, non-null long - defaults to 1
+	bool Send(const KStringView sMessage, long msgtype = 1);
+
+	/// Send an object wrapped into KIPCMessagePayload<> on the messaging channel
+	/// @param payload the object to be sent. Must be trivially copyable
+	/// @param msgtype the message type, a positive, non-null long - defaults to sizeof(payload)
+	template<typename Payload,
+			 typename std::enable_if<std::is_trivially_copyable<Payload>::value, typename Payload::is_IPCMessagePayload>::type = 0>
+	bool Send(const Payload& payload, long msgtype = sizeof(Payload))
+	{
+		static_assert(sizeof(payload) >= sizeof(long), "payload is too small");
+
+		payload.m_msgtype = msgtype;
+		return SendRaw(std::addressof(payload), sizeof(payload));
+	}
+
+
+	/// Receive any string or unstructured data on the messaging channel.
+	/// @param iExpectedSize the expected message size. Adjusts by power of two
+	/// until message fits into the result string. Defaults to 15 - sizeof(long) or 22 - sizeof(long),
+	/// depending on the SSO implementation of the string type.
+	/// @param timeout a KDuration timeout after which a receive attempt is stopped. Defaults to
+	/// KDuration::zero() = unlimited
+	/// @param msgtype the message type to receive, a positive long - defaults to 1, 0 means any message
+	KString Receive(std::size_t iExpectedSize = npos,
+					KDuration   timeout = KDuration::zero(),
+					long        msgtype = 1);
+
+	/// Receive an object wrapped into KIPCMessagePayload<> on the messaging channel
+	/// @param payload the object to be received. Must be trivially copyable
+	/// @param msgtype the message type, a positive long - defaults to sizeof(payload), 0 means any message
+	template<typename Payload,
+			 typename std::enable_if<std::is_trivially_copyable<Payload>::value, typename Payload::is_IPCMessagePayload>::type = 0>
+	bool Receive(Payload&  payload,
+				 KDuration timeout = KDuration::zero(),
+				 long      msgtype = sizeof(Payload))
+	{
+		static_assert(sizeof(payload) >= sizeof(long), "payload is too small");
+
+		payload.m_msgtype = msgtype;
+		return ReceiveRaw(std::addressof(payload), sizeof(payload), msgtype, timeout);
+	}
+
+//------
+private:
+//------
+
+	bool  SendRaw    (const void* addr, std::size_t size);
+	bool  ReceiveRaw (void* addr, std::size_t size, long msgtype, KDuration timeout);
+
+	key_t m_iIPCKey;
+
+}; // KIPCMessages
 
 } // end of namespace dekaf2
 

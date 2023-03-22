@@ -80,6 +80,7 @@ set (USOURCES
 	krestserver_tests.cpp
 	kron_tests.cpp
 	krow_tests.cpp
+	ksharedmemory_tests.cpp
 	ksharedptr_tests.cpp
 	ksharedref_tests.cpp
 	ksnippets_tests.cpp

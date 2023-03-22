@@ -44,11 +44,13 @@
 #include "kfilesystem.h"
 #include "ksystem.h"
 #include "klog.h"
+#include "kcrashexit.h"
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <sys/ipc.h>
 #include <sys/types.h>
 #include <sys/sem.h>
+#include <sys/msg.h>
 #include <mutex>
 
 // we use the posix interface to shared memory
@@ -245,6 +247,180 @@ bool detail::KSharedMemoryBase::SetError(KString sError)
 	return false;
 
 } // SetError
+
+
+//-----------------------------------------------------------------------------
+KIPCMessages::KIPCMessages(key_t iIPCKey, std::size_t iMinMessageQueueSize, int iMode)
+//-----------------------------------------------------------------------------
+{
+	m_iIPCKey = msgget(iIPCKey, IPC_CREAT | iMode);
+
+	if (m_iIPCKey == -1)
+	{
+		kDebug(2, strerror(errno));
+		return;
+	}
+
+	if (iMinMessageQueueSize)
+	{
+		msqid_ds info;
+
+		auto iResult = msgctl(m_iIPCKey, IPC_STAT, &info);
+
+		if (iResult == -1)
+		{
+			kDebug(2, strerror(errno));
+			return;
+		}
+
+		if (info.msg_qbytes < iMinMessageQueueSize)
+		{
+			info.msg_qbytes = iMinMessageQueueSize;
+
+			iResult = msgctl(m_iIPCKey, IPC_SET, &info);
+
+			if (iResult == -1)
+			{
+				kDebug(2, strerror(errno));
+				return;
+			}
+		}
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+bool KIPCMessages::SendRaw(const void* sMessage, std::size_t size)
+//-----------------------------------------------------------------------------
+{
+	kAssert(size >= sizeof(long), "payload is too small");
+
+	auto iResult = msgsnd(m_iIPCKey, sMessage, size - sizeof(long), IPC_NOWAIT);
+
+	if (iResult == -1)
+	{
+		kDebug(2, strerror(errno));
+	}
+
+	return !iResult;
+
+} // Send
+
+//-----------------------------------------------------------------------------
+bool KIPCMessages::Send(const KStringView sMessage, long msgtype)
+//-----------------------------------------------------------------------------
+{
+	KString sSendBuffer;
+
+	sSendBuffer.reserve(sizeof(long) + sMessage.size());
+	sSendBuffer.assign(reinterpret_cast<const char*>(&msgtype), sizeof(long));
+	sSendBuffer.append(sMessage);
+
+	return SendRaw(sSendBuffer.data(), sSendBuffer.size());
+
+} // Send
+
+//-----------------------------------------------------------------------------
+KString KIPCMessages::Receive(std::size_t iExpectedSize, KDuration timeout, long msgtype)
+//-----------------------------------------------------------------------------
+{
+	KString sMessage;
+	KStopTime Timer(KStopTime::Halted);
+
+	if (iExpectedSize == npos)
+	{
+#ifdef DEKAF2_IS_APPLE_CLANG
+		iExpectedSize = 22 - sizeof(long);
+#else
+		iExpectedSize = 15 - sizeof(long);
+#endif
+	}
+
+	if (timeout != KDuration::zero())
+	{
+		Timer.clear();
+	}
+
+	for (;;)
+	{
+		sMessage.resize_uninitialized(iExpectedSize + sizeof(long));
+
+		auto iReceived = msgrcv(m_iIPCKey, sMessage.data(), sMessage.size() - sizeof(long), msgtype, (timeout != KDuration::zero()) ? IPC_NOWAIT : 0);
+
+		if (iReceived >= 0)
+		{
+			// success - remove the leading type from the string
+			sMessage.erase(0, sizeof(long));
+			// and make sure we resize the string to the length of the received message
+			sMessage.resize(iReceived);
+			// return the net message
+			return sMessage;
+		}
+
+		switch (errno)
+		{
+			case E2BIG:
+				// exponential strategy as for vector
+				iExpectedSize *= 2;
+				break;
+
+			case ENOMSG:
+				if (Timer.elapsed() > timeout)
+				{
+					return sMessage;
+				}
+				// else sleep and retry
+				kMilliSleep(10);
+				break;
+
+			default:
+				kDebug(2, strerror(errno));
+				return sMessage;
+		}
+	}
+
+} // Receive
+
+//-----------------------------------------------------------------------------
+bool KIPCMessages::ReceiveRaw (void* addr, std::size_t size, long msgtype, KDuration timeout)
+//-----------------------------------------------------------------------------
+{
+	kAssert(size >= sizeof(long), "payload is too small");
+
+	KStopTime Timer(KStopTime::Halted);
+
+	if (timeout != KDuration::zero())
+	{
+		Timer.clear();
+	}
+
+	for (;;)
+	{
+		auto iReceived = msgrcv(m_iIPCKey, addr, size - sizeof(long), msgtype, (timeout != KDuration::zero()) ? IPC_NOWAIT : 0);
+
+		if (iReceived >= 0)
+		{
+			return (static_cast<std::size_t>(iReceived) == size - sizeof(long));
+		}
+
+		switch (errno)
+		{
+			case ENOMSG:
+				if (Timer.elapsed() > timeout)
+				{
+					return false;
+				}
+				// else sleep and retry
+				kMilliSleep(10);
+				break;
+
+			default:
+				kDebug(2, strerror(errno));
+				return false;
+		}
+	}
+
+} // Receive
 
 } // end of namespace dekaf2
 

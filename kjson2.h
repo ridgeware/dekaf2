@@ -93,11 +93,11 @@
 #endif
 
 #ifndef kDebug
-	#define kDebug(x, y)
+	#define kDebug(iLevel, ...)
 #endif
 
 #ifndef kWarning
-	#define kWarning(x)
+	#define kWarning(...)
 #endif
 
 

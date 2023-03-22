@@ -43,6 +43,13 @@
 
 #include "kconfiguration.h"
 
+#if defined(DEKAF2_USE_PRECOMPILED_HEADERS) && (__GNUC__ > 6)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#pragma GCC diagnostic ignored "-Wstringop-overread"
+#endif
+
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
 #include <boost/iostreams/filter/bzip2.hpp>
@@ -56,6 +63,11 @@
 		#include <boost/iostreams/filter/lzma.hpp>
 	#endif
 #endif
+
+#if defined(DEKAF2_USE_PRECOMPILED_HEADERS) && (__GNUC__ > 6)
+#pragma GCC diagnostic pop
+#endif
+
 #ifdef DEKAF2_HAS_LIBZSTD
 	// we pick our own zstd.hpp instead one that might have come with boost,
 	// as we link to our object anyway

@@ -50,7 +50,18 @@
 #include "kinstringstream.h"
 #include "koutstringstream.h"
 
+#if defined(DEKAF2_USE_PRECOMPILED_HEADERS) && (__GNUC__ > 6)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#pragma GCC diagnostic ignored "-Wstringop-overread"
+#endif
+
 #include <boost/iostreams/filtering_stream.hpp>
+
+#if defined(DEKAF2_USE_PRECOMPILED_HEADERS) && (__GNUC__ > 6)
+#pragma GCC diagnostic pop
+#endif
 
 namespace dekaf2 {
 

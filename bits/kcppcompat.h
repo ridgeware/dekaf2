@@ -228,9 +228,16 @@
 	#define DEKAF2_CONSTEXPR_IF
 #endif
 
-#if (__cpp_lib_chrono >= 201510L || (DEKAF2_IS_OSX && DEKAF2_HAS_CPP_17))
-	#define DEKAF2_HAS_CHRONO_ROUND 1
+#ifndef DEKAF2_HAS_CHRONO_ROUND
+	#if defined(_MSC_FULL_VER) && (_MSC_FULL_VER >= 190023918 || (_MSC_FULL_VER >= 190000000 && defined (__clang__)))
+		#define DEKAF2_HAS_CHRONO_ROUND 1
+	#elif DEKAF2_HAS_CPP_17 && __cpp_lib_chrono >= 201510L
+		#define DEKAF2_HAS_CHRONO_ROUND 1
+	#elif DEKAF2_HAS_CPP_17 && _LIBCPP_VERSION >= 3800
+		#define DEKAF2_HAS_CHRONO_ROUND 1
+	#endif
 #endif
+
 #if (__cpp_lib_chrono >= 201907L || (DEKAF2_IS_OSX && DEKAF2_HAS_CPP_20))
 	#define DEKAF2_HAS_CHRONO_WEEKDAY 1
 #endif

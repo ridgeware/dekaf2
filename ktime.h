@@ -183,6 +183,7 @@ time_t kParseTimestamp(KStringView sFormat, KStringView sTimestamp);
 
 //-----------------------------------------------------------------------------
 /// parse a timestamp from predefined formats
+/// - the format is automatically detected from about 100 common patterns
 DEKAF2_PUBLIC
 time_t kParseTimestamp(KStringView sTimestamp);
 //-----------------------------------------------------------------------------
@@ -410,8 +411,10 @@ public:
 	/// construct from a KUTCTime
 	KLocalTime (const KUTCTime& gmtime);
 	/// construct from a string representation, which is interpreted as local time (if there is no time zone indicator telling other)
+	/// - the string format is automatically detected from about 100 common patterns
 	KLocalTime (KStringView sTimestamp) : KLocalTime(kParseTimestamp(sTimestamp)) {}
 	/// construct from a string representation with format description
+	/// @see kParseTimestamp for a format string description
 	KLocalTime (KStringView sFormat, KStringView sTimestamp) : KLocalTime(kParseTimestamp(sFormat, sTimestamp)) {}
 
 	/// return the offset in seconds between this time and UTC
@@ -446,8 +449,8 @@ bool operator<(const KLocalTime& left, const KLocalTime& right)
 DEKAF2_COMPARISON_OPERATORS(KLocalTime)
 
 inline time_t operator-(const KLocalTime& left, const KLocalTime& right) { return left.ToTimeT() - right.ToTimeT(); }
-inline time_t operator-(const KLocalTime& left, const time_t right)           { return left.ToTimeT() - right;           }
-inline time_t operator-(const time_t left, const KLocalTime& right)           { return left - right.ToTimeT();           }
+inline time_t operator-(const KLocalTime& left, const time_t right)      { return left.ToTimeT() - right;           }
+inline time_t operator-(const time_t left, const KLocalTime& right)      { return left - right.ToTimeT();           }
 inline std::chrono::system_clock::duration operator-(const KLocalTime& left, const std::chrono::system_clock::time_point right) { return left.ToTimePoint() - right; }
 inline std::chrono::system_clock::duration operator-(const std::chrono::system_clock::time_point left, const KLocalTime& right) { return left - right.ToTimePoint(); }
 
@@ -481,8 +484,10 @@ public:
 	/// construct from a KLocalTime
 	KUTCTime (const KLocalTime& localtime);
 	/// construct from a string representation, which is interpreted as UTC time (if there is no time zone indicator telling other)
+	/// - the string format is automatically detected from about 100 common patterns
 	KUTCTime (KStringView sTimestamp) : KUTCTime(kParseTimestamp(sTimestamp)) {}
 	/// construct from a string representation with format description
+	/// @see kParseTimestamp for a format string description
 	KUTCTime (KStringView sFormat, KStringView sTimestamp) : KUTCTime(kParseTimestamp(sFormat, sTimestamp)) {}
 
 	/// return the offset in seconds between this time and UTC (always 0)
@@ -516,9 +521,11 @@ bool operator<(const KUTCTime& left, const KUTCTime& right)
 
 DEKAF2_COMPARISON_OPERATORS(KUTCTime)
 
-inline time_t operator-(const KUTCTime& left, const KUTCTime& right) { return left.ToTimeT() - right.ToTimeT(); }
-inline time_t operator-(const KUTCTime& left, const time_t right)    { return left.ToTimeT() - right;           }
-inline time_t operator-(const time_t left, const KUTCTime& right)   { return left - right.ToTimeT();           }
+inline time_t operator-(const KUTCTime& left, const KUTCTime& right)  { return left.ToTimeT() - right.ToTimeT(); }
+inline time_t operator-(const KUTCTime& left, const time_t right)     { return left.ToTimeT() - right;           }
+inline time_t operator-(const time_t left, const KUTCTime& right)     { return left - right.ToTimeT();           }
+inline time_t operator-(const KUTCTime& left, const KLocalTime right) { return left.ToTimeT() - right.ToTimeT(); }
+inline time_t operator-(const KLocalTime left, const KUTCTime& right) { return left.ToTimeT() - right.ToTimeT(); }
 inline std::chrono::system_clock::duration operator-(const KUTCTime& left, const std::chrono::system_clock::time_point right) { return left.ToTimePoint() - right; }
 inline std::chrono::system_clock::duration operator-(const std::chrono::system_clock::time_point left, const KUTCTime& right) { return left - right.ToTimePoint(); }
 

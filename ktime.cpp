@@ -821,68 +821,148 @@ time_t kParseTimestamp(KStringView sTimestamp)
 	}; // TimeFormat
 
 	// order formats by size
-	static constexpr std::array<TimeFormat, 57> Formats
+	static constexpr std::array<TimeFormat, 113> Formats
 	{{
 		{ "???, DD NNN YYYY hh:mm:ss ZZZZZ", 25 }, // WWW timestamp with timezone
+
 		{ "???, DD NNN YYYY hh:mm:ss zzzz" , 25 }, // WWW timestamp with abbreviated timezone name
 		{ "??, DD NNN YYYY hh:mm:ss ZZZZZ" , 24 }, // WWW timestamp with timezone and two letter day name
+
 		{ "???, DD NNN YYYY hh:mm:ss zzz"  , 25 }, // WWW timestamp with abbreviated timezone name
 		{ "YYYY-MM-DD hh:mm:ss.SSS ZZZZZ"  , 19 }, // 2018-04-13 22:08:13.211 -0700
 		{ "YYYY-MM-DD hh:mm:ss,SSS ZZZZZ"  , 19 }, // 2018-04-13 22:08:13,211 -0700
-		{ "??, DD NNN YYYY hh:mm:ss zzzz"  , 24 }, // WWW timestamp with abbreviated timezone name and two letter day name
-		{ "YYYY NNN DD hh:mm:ss.SSS zzzz"  , 24 }, // 2017 Mar 03 05:12:41.211 CEST
+		{ "??, DD NNN YYYY hh:mm:ss zzzz"  , 21 }, // WWW timestamp with abbreviated timezone name and two letter day name
+		{ "YYYY NNN DD hh:mm:ss.SSS zzzz"  , 20 }, // 2017 Mar 03 05:12:41.211 CEST
+
 		{ "YYYY NNN DD hh:mm:ss.SSS zzz"   , 24 }, // 2017 Mar 03 05:12:41.211 PDT
 		{ "YYYY-MM-DD hh:mm:ss.SSSZZZZZ"   , 19 }, // 2018-04-13 22:08:13.211-0700
 		{ "YYYY-MM-DD hh:mm:ss,SSSZZZZZ"   , 19 }, // 2018-04-13 22:08:13,211-0700
 		{ "??, DD NNN YYYY hh:mm:ss zzz"   , 24 }, // WWW timestamp with abbreviated timezone name and two letter day name
+
 		{ "DD/NNN/YYYY:hh:mm:ss ZZZZZ"     , 11 }, // 19/Apr/2017:06:36:15 -0700
 		{ "DD/NNN/YYYY hh:mm:ss ZZZZZ"     , 11 }, // 19/Apr/2017 06:36:15 -0700
 		{ "NNN DD hh:mm:ss ZZZZZ YYYY"     , 15 }, // Jan 21 18:20:11 +0000 2017
+
 		{ "YYYY-MM-DD hh:mm:ss ZZZZZ"      , 19 }, // 2017-10-14 22:11:20 +0000
+
 		{ "NNN DD, YYYY hh:mm:ss aa"       , 21 }, // Dec 02, 2017 2:39:58 AM
 		{ "YYYY-MM-DD hh:mm:ssZZZZZ"       , 10 }, // 2017-10-14 22:11:20+0000
-		{ "YYYY-MM-DDThh:mm:ssZZZZZ"       , 10 }, // 2017-10-14T22:11:20+0000
 		{ "YYYY-MM-DDThh:mm:ss.SSS?"       , 19 }, // 2002-12-06T19:23:15.372Z
+		{ "YYYY-MM-DDThh:mm:ssZZZZZ"       , 10 }, // 2017-10-14T22:11:20+0000
+		{ "YYYY NNN DD hh:mm:ss zzz"       , 20 }, // 2017 Mar 03 05:12:41 PDT
 		{ "YYYY NNN DD hh:mm:ss.SSS"       ,  4 }, // 2002 Dec 06 19:23:15.372
 		{ "DD-NNN-YYYY hh:mm:ss.SSS"       ,  2 }, // 17-Apr-1998 14:32:12.372
-		{ "YYYY NNN DD hh:mm:ss zzz"       , 20 }, // 2017 Mar 03 05:12:41 PDT
+
 		{ "YYYY-MM-DD hh:mm:ss zzz"        , 19 }, // 2017-10-14 22:11:20 PDT
+		{ "YYYY-MM-DD hh:mm:ss,SSS"        , 19 }, // 2002-12-06 19:23:15,372
 		{ "YYYY-MM-DD hh:mm:ss.SSS"        , 10 }, // 2002-12-06 19:23:15.372
 		{ "YYYY-MM-DDThh:mm:ss.SSS"        , 10 }, // 2002-12-06T19:23:15.372
-		{ "YYYY-MM-DD hh:mm:ss,SSS"        , 19 }, // 2002-12-06 19:23:15,372
 		{ "YYYY-MM-DD*hh:mm:ss:SSS"        , 10 }, // 2002-12-06*19:23:15:372
+
 		{ "YYYYMMDD hh:mm:ss.SSS"          , 17 }, // 20211230 12:23:54.372
+
+		{ "NNN DD hh:mm:ss YYYY"           ,  9 }, // Apr 17 00:00:35 2010
 		{ "NNN DD YYYY hh:mm:ss"           ,  3 }, // May 01 1967 14:16:24
 		{ "hh:mm:ss NNN DD YYYY"           ,  2 }, // 14:16:24 May 01 1967
-		{ "NNN DD hh:mm:ss YYYY"           ,  9 }, // Apr 17 00:00:35 2010
 		{ "YYYY-MM-DDThh:mm:ss?"           , 10 }, // 2002-12-06T19:23:15Z
 		{ "DD NNN YYYY hh:mm:ss"           ,  2 }, // 17 Apr 1998 14:32:12
 		{ "DD-NNN-YYYY hh:mm:ss"           ,  2 }, // 17-Apr-1998 14:32:12
 		{ "DD/NNN/YYYY hh:mm:ss"           , 11 }, // 17/Apr/1998 14:32:12
 		{ "DD/NNN/YYYY:hh:mm:ss"           , 11 }, // 17/Apr/1998:14:32:12
-		{ "YYYY-MM-DD hh:mm:ss"            , 10 }, // 2002-12-06 19:23:15
-		{ "YYYY-MM-DDThh:mm:ss"            , 10 }, // 2002-12-06T19:23:15
-		{ "YYYY-MM-DD*hh:mm:ss"            ,  4 }, // 2002-12-06*19:23:15
-		{ "YYYY/MM/DD hh:mm:ss"            , 10 }, // 2002/12/31 23:59:59
-		{ "YYYY/MM/DD*hh:mm:ss"            , 10 }, // 2002/12/31*23:59:59
+
+		{ "NNN D hh:mm:ss YYYY"            ,  8 }, // Apr 7 00:00:35 2010
+		{ "NNN D YYYY hh:mm:ss"            ,  3 }, // May 1 1967 14:16:24
+		{ "D NNN YYYY hh:mm:ss"            ,  1 }, // 7 Apr 1998 14:32:12
+		{ "D-NNN-YYYY hh:mm:ss"            ,  1 }, // 7-Apr-1998 14:32:12
+		{ "D/NNN/YYYY hh:mm:ss"            ,  1 }, // 7/Apr/1998 14:32:12
 		{ "hh:mm:ss DD-MM-YYYY"            , 11 }, // 17:12:34 30-12-2002
 		{ "DD-MM-YYYY hh:mm:ss"            ,  2 }, // 30-12-2002 17:12:34
 		{ "hh:mm:ss DD.MM.YYYY"            , 11 }, // 17:12:34 30.12.2002
 		{ "DD.MM.YYYY hh:mm:ss"            ,  2 }, // 30.12.2002 17:12:34
-		{ "hh:mm:ss DD/MM/YYYY"            ,  2 }, // 17:12:34 30/12/2002
+		{ "hh:mm:ss DD/MM/YYYY"            , 11 }, // 17:12:34 30/12/2002
 		{ "DD/MM/YYYY hh:mm:ss"            ,  2 }, // 30/12/2002 17:12:34
+		{ "hh:mm:ss NNN D YYYY"            ,  2 }, // 14:16:24 May 1 1967
+		{ "YYYY/MM/DD hh:mm:ss"            ,  4 }, // 2002/12/31 23:59:59
+		{ "YYYY-MM-DD hh:mm:ss"            , 10 }, // 2002-12-06 19:23:15
+		{ "YYYY-MM-DDThh:mm:ss"            , 10 }, // 2002-12-06T19:23:15
+		{ "YYYY-MM-DD*hh:mm:ss"            ,  4 }, // 2002-12-06*19:23:15
+		{ "YYYY/MM/DD*hh:mm:ss"            , 10 }, // 2002/12/31*23:59:59 (the only one that needs two tries)
+
 		// we do not add the US form MM/DD/YYYY hh:mm:ss here as it causes too many ambiguities -
 		// (for any first 12 days of each month) - if you want to decode it you have to do it
 		// explicitly based on the input source or the set locale
+		
+		{ "YYYY.M.DD hh:mm:ss"             ,  6 }, // 2002.1.30 19:23:15
+		{ "YYYY.MM.D hh:mm:ss"             ,  7 }, // 2002.12.3 19:23:15
+		{ "YYYY-M-DD hh:mm:ss"             ,  6 }, // 2002-1-30 19:23:15
+		{ "YYYY-MM-D hh:mm:ss"             ,  7 }, // 2002-12-3 19:23:15
+		{ "YYYY/M/DD hh:mm:ss"             ,  6 }, // 2002/1/31 23:59:59
+		{ "YYYY/MM/D hh:mm:ss"             ,  7 }, // 2002/12/3 23:59:59
+
 		{ "hh:mm:ss DD-MM-YY"              , 11 }, // 17:12:34 30-12-02
 		{ "DD-MM-YY hh:mm:ss"              ,  2 }, // 30-12-02 17:12:34
 		{ "hh:mm:ss DD.MM.YY"              , 11 }, // 17:12:34 30.12.02
 		{ "DD.MM.YY hh:mm:ss"              ,  2 }, // 30.12.02 17:12:34
 		{ "hh:mm:ss DD/MM/YY"              ,  2 }, // 17:12:34 30/12/02
 		{ "DD/MM/YY hh:mm:ss"              ,  2 }, // 30/12/02 17:12:34
+		{ "YYYY.M.D hh:mm:ss"              ,  4 }, // 2002.1.3 19:23:15
+		{ "YYYY-M-D hh:mm:ss"              ,  4 }, // 2002-1-3 19:23:15
+		{ "YYYY/M/D hh:mm:ss"              ,  4 }, // 2002/1/3 23:59:59
+
 		{ "YYYYMMDDThhmmss?"               ,  8 }, // 20021230T171234Z
+
 		{ "YYMMDD hh:mm:ss"                ,  6 }, // 211230 12:23:54
+
 		{ "YYYYMMDDhhmmss"                 ,  0 }, // 20021230171234
+
+		// date only formats
+		{ "NNN DD, YYYY"                   ,  6 }, // May 01, 1967
+
+		{ "NNN D, YYYY"                    ,  5 }, // May 1, 1967
+		{ "YYYY NNN DD"                    ,  4 }, // 2002 Dec 06
+		{ "DD-NNN-YYYY"                    ,  2 }, // 17-Apr-1998
+		{ "NNN DD YYYY"                    ,  3 }, // May 01 1967
+		{ "DD NNN YYYY"                    ,  2 }, // 17 Apr 1998
+		{ "DD/NNN/YYYY"                    ,  2 }, // 17/Apr/1998
+
+		{ "YYYY/MM/DD"                     ,  4 }, // 2002/12/30
+		{ "YYYY-MM-DD"                     ,  4 }, // 2002-12-30
+		{ "YYYY.MM.DD"                     ,  4 }, // 2002.12.30
+		{ "DD/MM/YYYY"                     ,  2 }, // 30/12/2002
+		{ "DD-MM-YYYY"                     ,  2 }, // 30-12-2002
+		{ "DD.MM.YYYY"                     ,  2 }, // 30.12.2002
+
+		{ "D.MM.YYYY"                      ,  1 }, // 3.12.2002
+		{ "DD.M.YYYY"                      ,  2 }, // 30.1.2002
+		{ "D/MM/YYYY"                      ,  1 }, // 3/12/2002
+		{ "DD/M/YYYY"                      ,  2 }, // 30/1/2002
+		{ "D-MM-YYYY"                      ,  1 }, // 3-12-2002
+		{ "DD-M-YYYY"                      ,  2 }, // 30-1-2002
+		{ "YYYY/M/DD"                      ,  6 }, // 2002/1/30
+		{ "YYYY/MM/D"                      ,  7 }, // 2002/12/3
+		{ "YYYY-M-DD"                      ,  6 }, // 2002-1-30
+		{ "YYYY-MM-D"                      ,  7 }, // 2002-12-3
+
+		{ "D.M.YYYY"                       ,  3 }, // 3.1.2002
+		{ "D/M/YYYY"                       ,  3 }, // 3/1/2002
+		{ "D-M-YYYY"                       ,  3 }, // 3-1-2002
+		{ "DD/MM/YY"                       ,  2 }, // 30/12/02
+		{ "DD-MM-YY"                       ,  2 }, // 30-12-02
+		{ "DD.MM.YY"                       ,  2 }, // 30.12.02
+		{ "YYYY.M.D"                       ,  4 }, // 2002.1.3
+		{ "YYYY/M/D"                       ,  4 }, // 2002/1/3
+		{ "YYYY-M-D"                       ,  4 }, // 2002-1-3
+		{ "YYYYMMDD"                       ,  0 }, // 20021230
+
+		{ "D.MM.YY"                        ,  1 }, // 3.12.02
+		{ "DD.M.YY"                        ,  2 }, // 30.1.02
+		{ "D/MM/YY"                        ,  1 }, // 3/12/02
+		{ "DD/M/YY"                        ,  2 }, // 13/1/02
+
+		{ "D.M.YY"                         ,  3 }, // 3.1.02
+		{ "D/M/YY"                         ,  3 }, // 3/1/02
+		{ "D-M-YY"                         ,  3 }, // 3-1-02
+		{ "YYMMDD"                         ,  0 }, // 211230
 	}};
 
 	auto iSize = sTimestamp.SizeUTF8();

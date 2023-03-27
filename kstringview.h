@@ -705,6 +705,11 @@ public:
 		return substr(pos, count);
 	}
 
+#if DEKAF2_IS_GCC && DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW && defined(DEKAF2_HAS_WARN_ARRAY_BOUNDS)
+// gcc errs on bounds checking when we use our own string_view type in C++ < 17
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
 	//-----------------------------------------------------------------------------
 	/// shrinks the view by moving its start forward by n characters
 	DEKAF2_CONSTEXPR_14
@@ -802,6 +807,9 @@ public:
 		}
 		return false;
 	}
+#if DEKAF2_IS_GCC && DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW && defined(DEKAF2_HAS_WARN_ARRAY_BOUNDS)
+#pragma GCC diagnostic pop
+#endif
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
@@ -1621,7 +1629,7 @@ bool operator>=(const KStringView left, const KStringView right)
 /// They are orders of magnitude slower as they do not use a table based approach (which of course
 /// only works with 8 bit characters..).
 /// When this class is used on X86_64 architectures we assume that SSE 4.2 is available, and delegate
-/// the call to the SSE implementation.
+/// the call to the SSE implementation, which is still an order of magnitude faster.
 /// Please note that the construction can happen constexpr, and therefore the class instance itself declared
 /// as constexpr variable.
 class KFindSetOfChars
@@ -1635,8 +1643,12 @@ class KFindSetOfChars
 #endif
 {
 
-	enum STATE : uint8_t { MULTI = 0 << 6, SINGLE = 1 << 6, EMPTY = 2 << 6 };
-	static constexpr uint8_t MASK = 3 << 6;
+	// Note: we use a char array instead of a std::array<char> because the
+	// latter is not completely constexpr until C++20
+
+	enum State : uint8_t { Multi = 0 << 6, Single = 1 << 6, Empty = 2 << 6 };
+	static constexpr uint8_t Mask = 3 << 6;
+	static_assert(Multi == 0, "Multi enum has to stay null to match the algorithm");
 
 //------
 public:
@@ -1654,25 +1666,25 @@ public:
 		switch (sNeedles.size())
 		{
 			case 0:
-				SetState(STATE::EMPTY);
+				SetState(State::Empty);
 				break;
 
 			case 1:
 				SetSingleChar(sNeedles.front());
-				SetState(STATE::SINGLE);
+				SetState(State::Single);
 				break;
 
 			default:
-#ifdef DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED
-				m_table.fill(0);
-#endif
+				// clear the table in a constexpr way
+				for (auto* p = m_table, *e = p + 256; p != e; ++p) { *p = 0; }
+				// assign the needles to the table
 				for (auto c : sNeedles)
 				{
 					m_table[static_cast<unsigned char>(c)] = 1;
 				}
-	// do not set the state for MULTI, it is 0 anyway, but could
-	// overwrite the 1 from a NUL char
-	//			SetState(STATE::MULTI);
+				// do not set the state for Multi, it is 0 anyway, but could
+				// overwrite the 1 from a NUL char
+				// SetState(State::Multi);
 				break;
 		}
 
@@ -1682,31 +1694,31 @@ public:
 	/// construct with set of characters to match / not to match
 	KFindSetOfChars(const value_type* sNeedles)
 	{
-		if (sNeedles && *sNeedles)
+		if (!sNeedles || !*sNeedles)
+		{
+			SetState(State::Empty);
+		}
+		else
 		{
 			if (sNeedles[1] == 0)
 			{
 				SetSingleChar(*sNeedles);
-				SetState(STATE::SINGLE);
+				SetState(State::Single);
 			}
 			else
 			{
-#ifdef DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED
-				m_table.fill(0);
-#endif
+				// clear the table in a constexpr way
+				for (auto* p = m_table, *e = p + 256; p != e; ++p) { *p = 0; }
+				// assign the needles to the table
 				for(;;)
 				{
 					auto c = static_cast<unsigned char>(*sNeedles++);
 					if (!c) break;
 					m_table[c] = 1;
 				}
-	// do not set the state for MULTI, it is 0 anyway
-	//			SetState(STATE::MULTI);
+				// do not set the state for Multi, it is 0 anyway
+				// SetState(State::Multi);
 			}
-		}
-		else
-		{
-			SetState(STATE::EMPTY);
 		}
 
 	} // ctor
@@ -1723,12 +1735,15 @@ public:
 	/// find last occurence of character in haystack that is not in needles, start backward search at pos (default: end of string)
 	size_type find_last_not_in(KStringView sHaystack, size_type pos = KStringView::npos) const;
 
+	DEKAF2_CONSTEXPR_14
 	/// is the set of characters empty?
-	bool empty() const { return GetState() == STATE::EMPTY; }
+	bool empty() const { return GetState() == State::Empty; }
 
+	DEKAF2_CONSTEXPR_14
 	/// has the set of characters only one single char?
-	bool is_single_char() const { return GetState() == STATE::SINGLE; }
+	bool is_single_char() const { return GetState() == State::Single; }
 
+	DEKAF2_CONSTEXPR_14
 	/// does the set of characters contain ch
 	bool contains(const value_type ch) const
 	{
@@ -1740,13 +1755,13 @@ private:
 //------
 
 	DEKAF2_CONSTEXPR_14
-	STATE GetState() const
+	State GetState() const
 	{
-		return static_cast<STATE>(m_table[0] & MASK);
+		return static_cast<State>(m_table[0] & Mask);
 	}
 
 	DEKAF2_CONSTEXPR_14
-	void SetState(STATE state)
+	void SetState(State state)
 	{
 		m_table[0] = state;
 	}
@@ -1764,9 +1779,9 @@ private:
 	}
 
 #ifdef DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED
-	std::array<value_type, 256> m_table; // <- no value initialization on purpose!
+	value_type m_table[256]; // <- no value initialization on purpose!
 #else
-	std::array<value_type, 256> m_table{};
+	value_type m_table[256] = { 0 }; // minimal initialization to satisfy the constexpr constructor rules of C++ < 20
 #endif
 
 }; // KFindSetOfChars
@@ -1804,12 +1819,15 @@ public:
 	/// find last occurence of character in haystack that is not in needles, start backward search at pos
 	size_type find_last_not_in(KStringView sHaystack, size_type pos = KStringView::npos) const;
 
+	DEKAF2_CONSTEXPR_14
 	/// is the set of characters empty?
 	bool empty() const { return m_sNeedles.empty(); }
 
+	DEKAF2_CONSTEXPR_14
 	/// has the set of characters only one single char?
 	bool is_single_char() const { return m_sNeedles.size() == 1; }
 
+	DEKAF2_CONSTEXPR_14
 	/// does the set of characters contain ch
 	bool contains(const value_type ch) const { return m_sNeedles.contains(ch); }
 
@@ -1819,7 +1837,7 @@ private:
 
 	KStringView m_sNeedles;
 
-}; // KFindSetOfChars#endif
+}; // KFindSetOfChars
 
 #endif // of X86_64
 

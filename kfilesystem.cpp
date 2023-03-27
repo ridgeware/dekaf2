@@ -1800,7 +1800,10 @@ KString kMakeSafePathname(KStringView sName, bool bToLowercase, KStringView sEmp
 	KString sSafe;
 	sSafe.reserve(sName.size());
 
-	for (auto Part : sName.Split(detail::kAllowedDirSep, detail::kUnsafeLimiterChars))
+	static const KFindSetOfChars AllowedDirSep(detail::kAllowedDirSep);
+	static const KFindSetOfChars UnsafeLimiterChars(detail::kUnsafeLimiterChars);
+
+	for (auto Part : sName.Split(AllowedDirSep, UnsafeLimiterChars))
 	{
 		if (Part.empty())
 		{

@@ -884,13 +884,13 @@ KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack,
 {
 	switch (GetState())
 	{
-		case STATE::EMPTY:
+		case State::Empty:
 			return KStringView::npos;
 
-		case STATE::SINGLE:
+		case State::Single:
 			return sHaystack.find(GetSingleChar(), pos);
 
-		case STATE::MULTI:
+		case State::Multi:
 		{
 			if (pos < sHaystack.size())
 			{
@@ -917,10 +917,10 @@ KFindSetOfChars::size_type KFindSetOfChars::find_first_not_in(KStringView sHayst
 {
 	switch (GetState())
 	{
-		case STATE::EMPTY:
+		case State::Empty:
 			return sHaystack.empty() ? KStringView::npos : 0;
 
-		case STATE::SINGLE:
+		case State::Single:
 		{
 			if (pos < sHaystack.size())
 			{
@@ -937,7 +937,7 @@ KFindSetOfChars::size_type KFindSetOfChars::find_first_not_in(KStringView sHayst
 			return KStringView::npos;
 		}
 
-		case STATE::MULTI:
+		case State::Multi:
 		{
 			if (pos < sHaystack.size())
 			{
@@ -964,15 +964,15 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, 
 {
 	switch (GetState())
 	{
-		case STATE::EMPTY:
+		case State::Empty:
 			return KStringView::npos;
 
-		case STATE::SINGLE:
+		case State::Single:
 		{
 			return sHaystack.rfind(GetSingleChar(), pos);
 		}
 
-		case STATE::MULTI:
+		case State::Multi:
 		{
 			if (pos > sHaystack.size())
 			{
@@ -1000,10 +1000,10 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 {
 	switch (GetState())
 	{
-		case STATE::EMPTY:
+		case State::Empty:
 			return sHaystack.empty() ? KStringView::npos : sHaystack.size() - 1;
 
-		case STATE::SINGLE:
+		case State::Single:
 		{
 			if (pos > sHaystack.size())
 			{
@@ -1022,7 +1022,7 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 			return KStringView::npos;
 		}
 
-		case STATE::MULTI:
+		case State::Multi:
 		{
 			if (pos > sHaystack.size())
 			{

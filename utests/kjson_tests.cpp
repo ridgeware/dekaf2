@@ -4,6 +4,8 @@
 #include <vector>
 
 #ifndef DEKAF2_IS_WINDOWS
+// we use implicit conversions in the tests, which we switch off in LJSON when we wrap it
+// therefore these tests only complete without wrapped JSON
 #ifndef DEKAF2_WRAPPED_KJSON
 
 using namespace dekaf2;
@@ -520,18 +522,14 @@ TEST_CASE("LJSON")
 		double                        pi = j1["pi"];
 		bool                      bHappy = j1["happy"];
 		KString                     sVal = j1["key1"];
-#ifndef DEKAF2_WRAPPED_KJSON
 		std::vector<int>             Vec = j1["ilist"];
-		std::map<std::string, LJSON> Map = j1;
-#endif
+//		std::map<std::string, LJSON> Map = j1["slist"];
 
 		CHECK ( iAnswer == 42 );
 		CHECK ( pi == 3.141 );
 		CHECK ( bHappy == true );
 		CHECK ( sVal == "val1" );
-#ifndef DEKAF2_WRAPPED_KJSON
 		CHECK ( Vec == (std::vector<int>{ 1, 0, 2 }) );
-#endif
 	}
 
 	SECTION("Assignment")

@@ -224,6 +224,13 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
 	endif()
 endif()
 
+if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_STANDARD LESS 17)
+	if (DEKAF2_WRAPPED_KJSON)
+		message(STATUS "cannot use wrapped KJSON type with GCC and C++ < 17 - switching off")
+		set(DEKAF2_WRAPPED_KJSON OFF)
+	endif()
+endif()
+
 # ================================ CMAKE INTERNALS =================================
 
 # Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)

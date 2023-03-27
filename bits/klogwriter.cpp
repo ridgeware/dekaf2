@@ -60,7 +60,6 @@
 	#include "../kwebclient.h"
 	#include "../kconnection.h"
 	#include "../kmime.h"
-	#include "../kjson.h"
 	#include "../khttp_header.h" // for LogToRESTResponse()
 #endif
 

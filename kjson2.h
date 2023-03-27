@@ -42,13 +42,19 @@
 
 #pragma once
 
-#if __cplusplus > 201402L
-	#if __has_include("kconfiguration.h")
-		#include "kconfiguration.h"
+#ifndef DEKAF2_KJSON2_IS_DISABLED
+	#if (__cplusplus <= 201402L) && (defined(__GNUC__) && !defined(__clang__))
+		// when compiling with GCC this code needs C++17
+		#define DEKAF2_KJSON2_IS_DISABLED 1
+	#else
+		#define DEKAF2_KJSON2_IS_DISABLED 0
 	#endif
 #endif
 
+#if !DEKAF2_KJSON2_IS_DISABLED
+
 #ifdef DEKAF2
+	#include "kconfiguration.h"
 	#include "kstringview.h"
 	#include "kstring.h"
 	#include "kjson.h"
@@ -1736,3 +1742,5 @@ struct formatter<dekaf2::KJSON2> : formatter<string_view>
 
 #undef DEKAF2_FORCE_KJSON2
 #undef DEKAF2_FORCE_CHAR_PTR
+
+#endif // of !DEKAF2_KJSON2_IS_DISABLED

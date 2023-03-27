@@ -596,6 +596,27 @@ check_cxx_compiler_flag(-Wdeprecated-declarations DEKAF2_HAS_WARN_DEPRECATED_DEC
 set(GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${GENERATED_FILES_DIR}")
 
+# discover availability of std::chrono calendar capabilities
+if (CMAKE_CXX_STANDARD GREATER 17)
+	file(WRITE ${GENERATED_FILES_DIR}/chrono_calendar_test.cpp
+		"#include <chrono> \n"
+		"inline std::chrono::year_month_day calendar_test() { return std::chrono::year_month_day{std::chrono::floor<std::chrono::days>(std::chrono::system_clock::now())};} \n"
+		"int main() { return calendar_test().day() == std::chrono::day(1); } \n\n")
+
+	try_compile(DEKAF2_HAS_CHRONO_CALENDAR
+				${GENERATED_FILES_DIR}
+				${GENERATED_FILES_DIR}/chrono_calendar_test.cpp
+				COMPILE_DEFINITIONS "--std=c++20")
+
+	if(DEKAF2_HAS_CHRONO_CALENDAR)
+		message(STATUS "we have chrono calendar support in std::chrono")
+	else()
+		message(STATUS "we do not have chrono calendar support in std::chrono - will configure for date lib as replacement")
+	endif()
+else()
+	message(STATUS "no chrono calendar support in std::chrono before C++20 - will configure for date lib as replacement")
+endif()
+
 # create the configuration header file
 configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
 
@@ -682,6 +703,7 @@ set(PUBLIC_HEADERS
 	kcrc.h
 	kcsv.h
 	kctype.h
+	kdate.h
 	kdiff.h
 	kduration.h
 	kencode.h
@@ -1164,6 +1186,7 @@ target_include_directories(dekaf2
 	$<INSTALL_INTERFACE:${dekaf2_lib_dest}>
 	${Boost_INCLUDE_DIR}
 	${OPENSSL_INCLUDE_DIR}
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant> # we need the date header in any case, for users compiling with less than C++20
 	PRIVATE
 	$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
@@ -1327,6 +1350,7 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/templates                       DE
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/ DESTINATION ${dekaf2_include_dest}/nlohmann FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/     DESTINATION ${dekaf2_include_dest}/frozen   FILES_MATCHING PATTERN "*.h")
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-8.1.1/include/fmt/     DESTINATION ${dekaf2_include_dest}/fmt      FILES_MATCHING PATTERN "*.h")
+install(FILES    "${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant/date/date.h"      DESTINATION ${dekaf2_include_dest}/date)
 if (DEKAF2_HAS_MINIFOLLY)
 	install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/           DESTINATION ${dekaf2_include_dest}/folly    FILES_MATCHING PATTERN "*.h")
 	install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/folly/glog/            DESTINATION ${dekaf2_include_dest}/glog     FILES_MATCHING PATTERN "*.h")

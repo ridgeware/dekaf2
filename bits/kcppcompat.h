@@ -238,10 +238,6 @@
 	#endif
 #endif
 
-#if (__cpp_lib_chrono >= 201907L || (DEKAF2_IS_OSX && DEKAF2_HAS_CPP_20))
-	#define DEKAF2_HAS_CHRONO_WEEKDAY 1
-#endif
-
 #if DEKAF2_HAS_CPP_17 && DEKAF2_HAS_CPP_ATTRIBUTE(fallthrough)
 	#define DEKAF2_FALLTHROUGH [[fallthrough]]
 #elif DEKAF2_HAS_CPP_ATTRIBUTE(clang::fallthrough)

@@ -652,7 +652,7 @@ bool KSQL::SetError(KString sError, uint32_t iErrorNum/*=-1*/, bool bNoThrow/*=f
 
 	if (m_TimingCallback)
 	{
-		m_TimingCallback (*this, /*iMilliseconds=*/0, GetLastError());
+		m_TimingCallback (*this, chrono::milliseconds(0), GetLastError());
 	}
 
 	if (!bNoThrow && m_bMayThrow && (!bIgnore))
@@ -2179,7 +2179,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 } // ExecLastRawSQL
 
 //-----------------------------------------------------------------------------
-void KSQL::LogPerformance (uint64_t iMilliseconds, bool bIsQuery)
+void KSQL::LogPerformance (KDuration iMilliseconds, bool bIsQuery)
 //-----------------------------------------------------------------------------
 {
 	auto iQueryType = GetQueryType(m_sLastSQL.str());
@@ -2191,14 +2191,15 @@ void KSQL::LogPerformance (uint64_t iMilliseconds, bool bIsQuery)
 	if (!(GetFlags() & F_NoKlogDebug))
 	{
 		KString sThreshold;
-		if (m_iWarnIfOverMilliseconds)
+		if (m_iWarnIfOverMilliseconds > chrono::milliseconds::zero())
 		{
 			sThreshold += kFormat (", warning set to {} ms", kFormNumber(m_iWarnIfOverMilliseconds));
 			kDebug (GetDebugLevel(), "took: {} ms{}", kFormNumber(iMilliseconds), sThreshold);
 		}
 	}
 
-	if (m_iWarnIfOverMilliseconds && (iMilliseconds > m_iWarnIfOverMilliseconds))
+	if (m_iWarnIfOverMilliseconds > chrono::milliseconds::zero()
+		&& (iMilliseconds > m_iWarnIfOverMilliseconds))
 	{
 		KString sWarning;
 		sWarning.Format (
@@ -2330,7 +2331,7 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError)
 
 			if (m_TimingCallback)
 			{
-				m_TimingCallback (*this, /*iMilliseconds=*/0, kFormat ("{}\n{}", GetLastError(), "automatic retry now in progress..."));
+				m_TimingCallback (*this, chrono::milliseconds(0), kFormat ("{}\n{}", GetLastError(), "automatic retry now in progress..."));
 			}
 		}
 
@@ -2350,7 +2351,7 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError)
 			kWarning ("NEW CONNECTION FAILED.");
 			if (m_TimingCallback)
 			{
-				m_TimingCallback (*this, /*iMilliseconds=*/0, "NEW CONNECTION FAILED.");
+				m_TimingCallback (*this, chrono::milliseconds(0), "NEW CONNECTION FAILED.");
 			}
 		}
 

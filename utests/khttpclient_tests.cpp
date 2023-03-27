@@ -179,7 +179,7 @@ TEST_CASE("KHTTPClient") {
 		KStopTime Stop;
 		CHECK( Client.SendRequest() == false );
 		// allow for ten millisecond of fail time
-		CHECK( Stop.microseconds() < 10000 );
+		CHECK( Stop.microseconds() < chrono::microseconds(10000) );
 	}
 
 	SECTION("send a stream")

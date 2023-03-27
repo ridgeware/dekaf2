@@ -427,10 +427,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return the count in microsecond ticks for a request until the last byte was sent
-	std::chrono::microseconds::rep GetTimeToLastByte() const
+	chrono::microseconds GetTimeToLastByte() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_Timers ? m_Timers->duration().microseconds() : 0;
+		return m_Timers ? m_Timers->duration().microseconds() : chrono::microseconds(0);
 	}
 
 	//-----------------------------------------------------------------------------

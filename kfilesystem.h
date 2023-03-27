@@ -49,6 +49,7 @@
 #include "kstringview.h"
 #include "kstring.h"
 #include "kwriter.h"
+#include "ktime.h"
 #include <cinttypes>
 #include <vector>
 
@@ -473,13 +474,13 @@ public:
 	uint32_t GID()            const { return m_gid;   }
 
 	/// Returns file's last access time
-	time_t AccessTime()       const { return m_atime; }
+	KUnixTime AccessTime()       const { return m_atime; }
 
 	/// Returns file's last modification time
-	time_t ModificationTime() const { return m_mtime; }
+	KUnixTime ModificationTime() const { return m_mtime; }
 
 	/// Returns file's status change time (writes, but also inode changes)
-	time_t ChangeTime()       const { return m_ctime; }
+	KUnixTime ChangeTime()       const { return m_ctime; }
 
 	/// Returns file's size
 	size_t Size()             const { return m_size;  }
@@ -521,13 +522,13 @@ public:
 	void SetGID(uint32_t gid)              { m_gid   = gid;   }
 
 	/// Set file's last access time
-	void SetAccessTime(time_t atime)       { m_atime = atime; }
+	void SetAccessTime(KUnixTime atime)    { m_atime = atime; }
 
 	/// Set file's last modification time
-	void SetModificationTime(time_t mtime) { m_mtime = mtime; }
+	void SetModificationTime(KUnixTime mtime) { m_mtime = mtime; }
 
 	/// Set file's status change time (writes, but also inode changes)
-	void SetChangeTime(time_t ctime)       { m_ctime = ctime; }
+	void SetChangeTime(KUnixTime ctime)    { m_ctime = ctime; }
 
 	/// Set file's size
 	void SetSize(size_t size)              { m_size  = size;  }
@@ -545,9 +546,9 @@ private:
 #endif
 
 	uint64_t  m_inode { 0 };
-	time_t    m_atime { 0 };
-	time_t    m_mtime { 0 };
-	time_t    m_ctime { 0 };
+	KUnixTime m_atime { 0 };
+	KUnixTime m_mtime { 0 };
+	KUnixTime m_ctime { 0 };
 	size_t    m_size  { 0 };
 	uint32_t  m_mode  { 0 };
 	uint32_t  m_uid   { 0 };
@@ -682,19 +683,19 @@ public:
 		}
 
 		/// Returns file's last access time
-		time_t AccessTime()       const
+		KUnixTime AccessTime()    const
 		{
 			return FileStat().AccessTime();
 		}
 
 		/// Returns file's last modification time
-		time_t ModificationTime() const
+		KUnixTime ModificationTime() const
 		{
 			return FileStat().ModificationTime();
 		}
 
 		/// Returns file's status change time
-		time_t ChangeTime()       const
+		KUnixTime ChangeTime()    const
 		{
 			return FileStat().ChangeTime();
 		}

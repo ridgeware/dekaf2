@@ -448,7 +448,8 @@ bool kIsBinary(KStringView sBuffer);
 
 //-----------------------------------------------------------------------------
 /// Convert value into string and insert separator every n digits
-template <class Arithmetic, class String = KString>
+template <class Arithmetic, class String = KString,
+		  typename std::enable_if<!detail::is_duration<Arithmetic>::value, int>::type = 0>
 String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', uint16_t iEvery = 3, uint16_t iPrecision = 0)
 //-----------------------------------------------------------------------------
 {
@@ -555,6 +556,16 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 	return sResult;
 
 } // kFormNumber
+
+//-----------------------------------------------------------------------------
+/// Convert value into string and insert separator every n digits
+template <class Duration, class String = KString,
+typename std::enable_if<detail::is_duration<Duration>::value, int>::type = 0>
+String kFormNumber(Duration duration, typename String::value_type chSeparator = ',', uint16_t iEvery = 3, uint16_t iPrecision = 0)
+//-----------------------------------------------------------------------------
+{
+	return kFormNumber(duration.count(), chSeparator, iEvery, iPrecision);
+}
 
 //-----------------------------------------------------------------------------
 /// Copy sInp and insert separator every n digits

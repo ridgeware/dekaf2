@@ -50,6 +50,7 @@
 #include "khttpclient.h"
 #include "kjson.h"
 #include "kcookie.h"
+#include "kduration.h"
 
 namespace dekaf2 {
 
@@ -69,7 +70,7 @@ public:
 //------
 
 	using self = KWebClient;
-	using TimingCallback_t = std::function<void(const KWebClient&, uint64_t, const KString&)>;
+	using TimingCallback_t = std::function<void(const KWebClient&, KDuration, const KString&)>;
 
 	//-----------------------------------------------------------------------------
 	/// default ctor
@@ -199,7 +200,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// call back everytime a web request exceeds the given duration
-	self& SetTimingCallback (int64_t iWarnIfOverMilliseconds, TimingCallback_t TimingCallback = nullptr)
+	self& SetTimingCallback (KDuration iWarnIfOverMilliseconds, TimingCallback_t TimingCallback = nullptr)
 	//-----------------------------------------------------------------------------
 	{
 		m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
@@ -222,7 +223,7 @@ protected:
 
 	KCookies         m_Cookies;
 	TimingCallback_t m_TimingCallback { nullptr };
-	int64_t          m_iWarnIfOverMilliseconds { 0 };
+	KDuration        m_iWarnIfOverMilliseconds { 0 };
 	KJSON*           m_pServiceSummary { nullptr };   // running details about external service calls
 	uint16_t         m_iMaxRedirects { 3 };
 	bool             m_bAllowOneRetry { true };

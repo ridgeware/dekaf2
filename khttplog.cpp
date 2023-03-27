@@ -295,7 +295,7 @@ void KHTTPLog::WriteJSONAccessLog(const KRESTServer& HTTP) const
 	Log.Write("tx-comp"   , HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) );
 	Log.Write("forwarded" , HTTP.Response.Headers.Get(KHTTPHeader::X_FORWARDED_FOR)  );
 	Log.Write("user"      , kjson::GetString(HTTP.GetAuthToken(), "sub")             );
-	Log.Write("TTLB"      , HTTP.GetTimeToLastByte()                                 );
+	Log.Write("TTLB"      , HTTP.GetTimeToLastByte().count()                         );
 
 	kLogger(*m_LogStream, Log.Dump());
 
@@ -422,7 +422,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						break;
 
 					case 'D': // TTLB in usecs
-						Log.Write(HTTP.GetTimeToLastByte());
+						Log.Write(chrono::duration_cast<chrono::microseconds>(HTTP.GetTimeToLastByte()).count());
 						break;
 
 					case 'f': // filename?
@@ -476,7 +476,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						break;
 
 					case 'T': // TTLB in seconds..
-						Log.Write(HTTP.GetTimeToLastByte() / 1000 / 1000);
+						Log.Write(chrono::duration_cast<chrono::seconds>(HTTP.GetTimeToLastByte()).count());
 						break;
 
 					case 'u': // remote user
@@ -608,15 +608,15 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 					case 'T': // used time in various formats
 						if (sVariable == "us")
 						{
-							Log.Write(HTTP.GetTimeToLastByte());
+							Log.Write(chrono::duration_cast<chrono::microseconds>(HTTP.GetTimeToLastByte()).count());
 						}
 						else if (sVariable == "ms")
 						{
-							Log.Write(HTTP.GetTimeToLastByte() / 1000);
+							Log.Write(chrono::duration_cast<chrono::milliseconds>(HTTP.GetTimeToLastByte()).count());
 						}
 						else if (sVariable == "s")
 						{
-							Log.Write(HTTP.GetTimeToLastByte() / 1000 / 1000);
+							Log.Write(chrono::duration_cast<chrono::seconds>(HTTP.GetTimeToLastByte()).count());
 						}
 						else
 						{

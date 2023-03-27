@@ -459,9 +459,9 @@ KJSON Kron::Job::Print(std::size_t iMaxResultSize) const
 		{ "Starts"      , m_Control.iStartCount                                 },
 		{ "Definition"  , m_ParsedCron ? cxget(m_ParsedCron)->to_cronstr() : "" },
 		{ "Environment" , std::move(jEnv)                                       },
-		{ "Executed"    , m_Control.ExecutionTime.milliseconds()                },
+		{ "Executed"    , m_Control.ExecutionTime.milliseconds().count()        },
 		{ "Output"      , m_Control.sLastOutput.Left(iMaxResultSize)            },
-		{ "MaxExecutionTime", m_MaxExecutionTime.seconds()                      },
+		{ "MaxExecutionTime", m_MaxExecutionTime.seconds().count()              },
 		{ "Status"      , m_Control.iLastStatus                                 },
 		{ "ProcessID"   , m_Control.ProcessID                                   }
 	};
@@ -780,11 +780,11 @@ void Kron::Launcher(KDuration CheckEvery)
 	std::size_t iFactor  { 1 };
 	std::size_t iRunning { 0 };
 
-	if (CheckEvery.milliseconds() > 100)
+	if (CheckEvery.milliseconds() > chrono::milliseconds(100))
 	{
 		// while jobs are running, we want to check for termination at
 		// least every 100 millisecods
-		iFactor = CheckEvery.milliseconds() / 100;
+		iFactor = CheckEvery.milliseconds() / chrono::milliseconds(100);
 
 		if (iFactor > 1)
 		{
@@ -835,7 +835,7 @@ void Kron::Launcher(KDuration CheckEvery)
 		}
 
 		std::this_thread::sleep_for((iRunning && iFactor > 1)
-									? std::chrono::milliseconds(100)
+									? chrono::milliseconds(100)
 									: CheckEvery.duration());
 	}
 

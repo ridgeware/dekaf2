@@ -225,10 +225,10 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 			{ "bytes_request_body",  svRequestBody.size()       },
 			{ "bytes_response_body", iRead                      },
 			{ "error_string",        Error()                    },
-			{ "msecs_connect",       iConnectTime               },
-			{ "msecs_transmit",      iTransmitTime              },
-			{ "msecs_receive",       iReceiveTime               },
-			{ "msecs_total",         iTotalTime                 },
+			{ "msecs_connect",       iConnectTime.count()       },
+			{ "msecs_transmit",      iTransmitTime.count()      },
+			{ "msecs_receive",       iReceiveTime.count()       },
+			{ "msecs_total",         iTotalTime.count()         },
 			{ "num_redirects",       iRedirects                 },
 			{ "num_retries",         iRetries                   },
 			{ "response_code",       Response.GetStatusCode()   },
@@ -236,7 +236,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 		};
 	}
 
-	if (m_iWarnIfOverMilliseconds &&
+	if (m_iWarnIfOverMilliseconds > KDuration::zero() &&
 		m_TimingCallback &&
 		iTotalTime > m_iWarnIfOverMilliseconds)
 	{

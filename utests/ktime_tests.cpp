@@ -55,8 +55,8 @@ TEST_CASE("KTime") {
 
 	SECTION("kTranslateSeconds")
 	{
-		CHECK ( KDuration::max().seconds() == 9223372036 );
-		CHECK ( kTranslateSeconds(KDuration::max().seconds()
+		CHECK ( KDuration::max().seconds() == chrono::seconds(9223372036) );
+		CHECK ( kTranslateSeconds(KDuration::max().seconds().count()
 								               , true ) == "292 yrs, 24 wks, 3 days, 23 hrs, 47 mins, 16 secs" );
 		CHECK ( kTranslateSeconds(0            , false) == "less than a second" );
 		CHECK ( kTranslateSeconds(1            , false) == "1 sec" );
@@ -71,7 +71,7 @@ TEST_CASE("KTime") {
 		CHECK ( kTranslateSeconds(-80          , false) == "-1.3 mins" );
 		CHECK ( kTranslateSeconds(-3*60*60-15  , false) == "-3.0 hours" );
 		CHECK ( kTranslateSeconds(9223372036+1 , false) == "a very long time" );
-		CHECK ( kTranslateSeconds(KDuration::min().seconds()-1, false) == "a very short time" );
+		CHECK ( kTranslateSeconds(KDuration::min().seconds().count()-1, false) == "a very short time" );
 		CHECK ( kTranslateSeconds(120          , true ) == "2 mins" );
 		CHECK ( kTranslateSeconds(0            , true ) == "less than a second" );
 		CHECK ( kTranslateSeconds(1            , true ) == "1 sec" );
@@ -174,23 +174,11 @@ TEST_CASE("KTime") {
 		CHECK ( UTC2.Format()       == "1974-01-01 00:33:59" );
 		UTC2 += std::chrono::seconds(1 * 60 * 60 * 24 * 365UL);
 		CHECK ( UTC2.Format()       == "1975-01-01 00:33:59" );
-#ifdef DEKAF2_HAS_CHRONO_WEEKDAY
-		UTC2 += std::chrono::days(365);
-#else
-		UTC2 += std::chrono::seconds(1 * 60 * 60 * 24 * 365UL);
-#endif
+		UTC2 += chrono::days(365);
 		CHECK ( UTC2.Format()       == "1976-01-01 00:33:59" );
-#ifdef DEKAF2_HAS_CHRONO_WEEKDAY
-		UTC2 += std::chrono::days(70 * 365);
-#else
-		UTC2 += std::chrono::seconds(70 * 60 * 60 * 24 * 365UL);
-#endif
+		UTC2 += chrono::days(70 * 365);
 		CHECK ( UTC2.Format()       == "2045-12-14 00:33:59" );
-#ifdef DEKAF2_HAS_CHRONO_WEEKDAY
-		UTC2 -= std::chrono::days(70 * 365);
-#else
-		UTC2 -= std::chrono::seconds(70 * 60 * 60 * 24 * 365UL);
-#endif
+		UTC2 -= chrono::days(70 * 365);
 		CHECK ( UTC2.Format()       == "1976-01-01 00:33:59" );
 		UTC2 += time_t(1 * 60 * 60 * 24 * 365UL);
 		CHECK ( UTC2.Format()       == "1976-12-31 00:33:59" );
@@ -205,15 +193,15 @@ TEST_CASE("KTime") {
 
 		auto UTC3 = UTC2 + std::chrono::seconds(61);
 		auto tDiff = UTC3 - UTC2;
-		CHECK ( tDiff == 61 );
+		CHECK ( tDiff == std::chrono::seconds(61) );
 		tDiff = UTC3.ToTimeT() - UTC2;
-		CHECK ( tDiff == 61 );
+		CHECK ( tDiff == std::chrono::seconds(61) );
 		tDiff = UTC3 - UTC2.ToTimeT();
-		CHECK ( tDiff == 61 );
+		CHECK ( tDiff == std::chrono::seconds(61) );
 		auto dDiff = UTC3 - UTC2.ToTimePoint();
-		CHECK ( KDuration(dDiff).seconds() == 61 );
+		CHECK ( KDuration(dDiff).seconds() == chrono::seconds(61) );
 		dDiff = UTC3.ToTimePoint() - UTC2;
-		CHECK ( KDuration(dDiff).seconds() == 61 );
+		CHECK ( KDuration(dDiff).seconds() == chrono::seconds(61) );
 
 		auto oldLocale = kGetGlobalLocale();
 		if (kSetGlobalLocale("fr_FR.UTF-8"))
@@ -228,7 +216,7 @@ TEST_CASE("KTime") {
 			SysTime2 = Local1;
 			CHECK ( SysTime == SysTime2 );
 
-			if (Local1.GetUTCOffset() == 60 * 60)
+			if (Local1.GetUTCOffset() == std::chrono::minutes(60))
 			{
 				// these checks only work correctly with timezone set to CET
 				CHECK ( Local1.Format()       == "1974-01-01 00:59:59" );
@@ -239,7 +227,7 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.GetHour()      == 0     );
 				CHECK ( Local1.GetMinute()    == 59    );
 				CHECK ( Local1.GetSecond()    == 59    );
-				CHECK ( Local1.GetHour12()    == 0     );
+				CHECK ( Local1.GetHour12()    == 12    );
 				CHECK ( Local1.IsPM()         == false );
 #ifdef DEKAF2_IS_OSX
 				CHECK ( Local1.GetMonthName( true, true) == "jan" );
@@ -247,7 +235,7 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.GetDayName  ( true, true) == "Mar" );
 				CHECK ( Local1.GetDayName  (false, true) == "Mardi" );
 #endif
-				CHECK ( Local1.GetUTCOffset() == 3600  );
+				CHECK ( Local1.GetUTCOffset() == chrono::minutes(60) );
 #ifdef DEKAF2_IS_OSX
 				CHECK ( kFormTimestamp(UTC1.ToTimeT(), "%A %c", true) == "Mardi Mar  1 jan 00:59:59 1974" );
 #endif
@@ -297,7 +285,7 @@ TEST_CASE("KTime") {
 
 	SECTION("kParseTimestamp 2")
 	{
-		static constexpr std::array<std::pair<KStringView, KStringView>, 110> Timestamps
+		static constexpr std::array<std::pair<KStringView, KStringView>, 122> Timestamps
 		{{
 			{ "Tue, 16 Aug 2021 11:23:42 +0100", "Mon, 16 Aug 2021 10:23:42 GMT" },
 			{ "Tue, 17 Aug 2021 12:23:42 CEST" , "Tue, 17 Aug 2021 10:23:42 GMT" },
@@ -366,8 +354,20 @@ TEST_CASE("KTime") {
 			{ "21.08.21 10:23:42"              , "Sat, 21 Aug 2021 10:23:42 GMT" },
 			{ "10:23:42 22/08/21"              , "Sun, 22 Aug 2021 10:23:42 GMT" },
 			{ "23/08/21 10:23:42"              , "Mon, 23 Aug 2021 10:23:42 GMT" },
+			{ "23.10.2021 10:23"               , "Sat, 23 Oct 2021 10:23:00 GMT" },
+			{ "24/10/2021 10:23"               , "Sun, 24 Oct 2021 10:23:00 GMT" },
+			{ "25-10-2021 10:23"               , "Mon, 25 Oct 2021 10:23:00 GMT" },
 			{ "20210824T102342Z"               , "Tue, 24 Aug 2021 10:23:42 GMT" },
+			{ "23.1.2021 10:23"                , "Sat, 23 Jan 2021 10:23:00 GMT" },
+			{ "24/1/2021 10:23"                , "Sun, 24 Jan 2021 10:23:00 GMT" },
+			{ "25-1-2021 10:23"                , "Mon, 25 Jan 2021 10:23:00 GMT" },
+			{ "3.10.2021 10:23"                , "Sun, 03 Oct 2021 10:23:00 GMT" },
+			{ "4/10/2021 10:23"                , "Mon, 04 Oct 2021 10:23:00 GMT" },
+			{ "5-10-2021 10:23"                , "Tue, 05 Oct 2021 10:23:00 GMT" },
 			{ "210825 10:23:42"                , "Wed, 25 Aug 2021 10:23:42 GMT" },
+			{ "3.1.2021 10:23"                 , "Sun, 03 Jan 2021 10:23:00 GMT" },
+			{ "4/1/2021 10:23"                 , "Mon, 04 Jan 2021 10:23:00 GMT" },
+			{ "5-1-2021 10:23"                 , "Tue, 05 Jan 2021 10:23:00 GMT" },
 			{ "20210826102342"                 , "Thu, 26 Aug 2021 10:23:42 GMT" },
 			{ "Aug 27, 2021"                   , "Fri, 27 Aug 2021 00:00:00 GMT" },
 			{ "Aug 3, 2021"                    , "Tue, 03 Aug 2021 00:00:00 GMT" },
@@ -469,13 +469,13 @@ TEST_CASE("KTime") {
 
 	SECTION("kGetTimezoneOffset")
 	{
-		CHECK ( kGetTimezoneOffset("XYZ" ) == -1  );
-		CHECK ( kGetTimezoneOffset("GMT" ) ==  0  );
-		CHECK ( kGetTimezoneOffset("CET" ) ==  1 * 60 * 60 );
-		CHECK ( kGetTimezoneOffset("NPT" ) == (5 * 60 + 45) * 60 );
-		CHECK ( kGetTimezoneOffset("NZST") == 12 * 60 * 60 );
-		CHECK ( kGetTimezoneOffset("COST") == -4 * 60 * 60 );
-		CHECK ( kGetTimezoneOffset("HST" ) == -10 * 60 * 60 );
+		CHECK ( kGetTimezoneOffset("XYZ" ) == std::chrono::seconds(-1)  );
+		CHECK ( kGetTimezoneOffset("GMT" ) == std::chrono::seconds(0)   );
+		CHECK ( kGetTimezoneOffset("CET" ) == std::chrono::seconds(1 * 60 * 60) );
+		CHECK ( kGetTimezoneOffset("NPT" ) == std::chrono::seconds((5 * 60 + 45) * 60) );
+		CHECK ( kGetTimezoneOffset("NZST") == std::chrono::seconds(12 * 60 * 60) );
+		CHECK ( kGetTimezoneOffset("COST") == std::chrono::seconds(-4 * 60 * 60) );
+		CHECK ( kGetTimezoneOffset("HST" ) == std::chrono::seconds(-10 * 60 * 60) );
 	}
 
 	SECTION("comparison")
@@ -545,6 +545,37 @@ TEST_CASE("KTime") {
 			CHECK ( kGetDayName( 3, false, true) == "Wednesday" );
 		}
  */
+
+		SECTION("KUnixTime")
+		{
+			// check that our own constexpr from_time_t() works correctly
+			CHECK ( KUnixTime::from_time_t(23445823474) == std::chrono::system_clock::from_time_t(23445823474) );
+			auto tp = std::chrono::system_clock::now();
+			KUnixTime UT = tp;
+			// check that our own constexpr to_time_t() works correctly
+			CHECK ( KUnixTime::to_time_t(UT) == std::chrono::system_clock::to_time_t(tp) );
+		}
+
+		SECTION("diff")
+		{
+			{
+				KUTCTime Date1("1.5.2006 12:00");
+				KUTCTime Date2("3.5.2007 11:00");
+				auto d = Date2 - Date1;
+				d.days();
+				time_t t = d;
+				time_t diff = Date2 - Date1;
+				CHECK ( diff == 367 * 86400 - 3600 );
+				KDuration duration = diff;
+				CHECK ( duration.days() == chrono::days(366) );
+			}
+			{
+				KUTCTime Date1(3298462375);
+				KUTCTime Date2(3298462342);
+				auto d = Date1 - Date2;
+				auto days = d.days();
+			}
+		}
 	}
 #endif
 }

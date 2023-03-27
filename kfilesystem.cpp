@@ -981,7 +981,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 KFileStat& KFileStat::SetDefaults()
 //-----------------------------------------------------------------------------
 {
-	time_t tNow { 0 };
+	KUnixTime tNow { 0 };
 
 	if (ModificationTime() == 0)
 	{

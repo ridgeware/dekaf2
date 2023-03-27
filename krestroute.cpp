@@ -466,12 +466,12 @@ KJSON KRESTRoutes::GetRouterStats() const
 		if (iRounds)
 		{
 			KJSON jUSecs {
-				{ "total" , Statistics.Durations.duration().microseconds() / iRounds  }
+				{ "total" , Statistics.Durations.duration().microseconds().count() / iRounds  }
 			};
 
 			for (const auto& it : KRESTServer::Timers)
 			{
-				jUSecs.push_back({ it.sLabel, Statistics.Durations[it.Value].average().microseconds() });
+				jUSecs.push_back({ it.sLabel, Statistics.Durations[it.Value].average().microseconds().count() });
 			}
 
 			KJSON jRoute {

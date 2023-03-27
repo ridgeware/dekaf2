@@ -56,6 +56,7 @@
 #include "kthreadsafe.h"
 #include "kassociative.h"
 #include "kscopeguard.h"
+#include "kduration.h"
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
@@ -409,15 +410,15 @@ public:
 	void   ClearErrorPrefix ()        { m_sErrorPrefix.clear(); }
 
 	/// issue a klog warning everytime a query or sql statement exceeds the given number of seconds
-	void   SetWarningThreshold  (uint64_t iWarnIfOverMilliseconds, FILE* fpAlternativeToKlog=nullptr)
+	void   SetWarningThreshold  (KDuration iWarnIfOverMilliseconds, FILE* fpAlternativeToKlog=nullptr)
 	{
 			m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
 			m_fpPerformanceLog        = fpAlternativeToKlog;
 	}
 
 	/// call back everytime a query or sql statement exceeds the given duration
-	void   SetWarningThreshold  (uint64_t iWarnIfOverMilliseconds,
-								 std::function<void(const KSQL&, uint64_t, const KString&)> TimingCallback = nullptr)
+	void   SetWarningThreshold  (KDuration iWarnIfOverMilliseconds,
+								 std::function<void(const KSQL&, KDuration, const KString&)> TimingCallback = nullptr)
 	{
 			m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
 			m_TimingCallback = TimingCallback;
@@ -1070,7 +1071,7 @@ private:
 
 	void BulkCopyFlush (std::vector<KROW>& BulkRows, bool bLast=true);
 
-	void LogPerformance (uint64_t iMilliseconds, bool bIsQuery);
+	void LogPerformance (KDuration iMilliseconds, bool bIsQuery);
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct DBCLoader
@@ -1566,11 +1567,11 @@ private:
 	static std::atomic<QueryType> s_QueryTypeForTimeout;
 	std::chrono::milliseconds m_QueryTimeout { 0 };
 	QueryType  m_QueryTypeForTimeout { QueryType::None };
-	uint64_t   m_iWarnIfOverMilliseconds { 0 };
+	KDuration  m_iWarnIfOverMilliseconds { 0 };
 	FILE*      m_fpPerformanceLog { nullptr };
 	KString    m_sTempDir { "/tmp" };
 	KSQLStatementStats m_SQLStmtStats;
-	std::function<void(const KSQL&, uint64_t, const KString&)> m_TimingCallback;
+	std::function<void(const KSQL&, KDuration, const KString&)> m_TimingCallback;
 
 	bool  BufferResults ();
 	void  FreeAll (bool bDestructor=false);

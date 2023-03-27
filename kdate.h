@@ -76,8 +76,59 @@ namespace dekaf2 {
 namespace chrono {
 
 using namespace std::chrono;
+
 #if DEKAF2_USE_HINNANT_DATE
-using namespace date;
+
+#if __cplusplus <= 201703L
+// take care with these - they exist in post 2017 libs independently of the calendar functions
+using date::days;
+using date::weeks;
+using date::years;
+using date::months;
+#endif
+
+// import all other types from date::
+template <class Duration>
+using sys_time = date::sys_time<Duration>;
+using date::sys_days;
+using date::sys_seconds;
+
+template <class Duration>
+using local_time = date::local_time<Duration>;
+
+using date::local_seconds;
+using date::local_days;
+
+using date::day;
+using date::month;
+using date::year;
+
+using date::weekday;
+using date::weekday_indexed;
+using date::weekday_last;
+
+using date::month_day;
+using date::month_day_last;
+using date::month_weekday;
+using date::month_weekday_last;
+
+using date::year_month;
+
+using date::year_month_day;
+using date::year_month_day_last;
+using date::year_month_weekday;
+using date::year_month_weekday_last;
+
+template <class Duration>
+using hh_mm_ss = date::hh_mm_ss<Duration>;
+
+using date::is_am;
+using date::is_pm;
+using date::make12;
+using date::make24;
+template <class Rep, class Period>
+using make_time = date::make_time<Rep,Period>;
+
 #endif
 
 } // end of namespace (dekaf2::)chrono

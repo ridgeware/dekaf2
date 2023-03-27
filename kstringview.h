@@ -1724,6 +1724,12 @@ public:
 
 	} // ctor
 
+	/// construct with set of characters to match / not to match
+	KFindSetOfChars(const KString& sNeedles)
+	: KFindSetOfChars(KStringView(sNeedles))
+	{
+	}
+
 	/// find first occurence of needles in haystack, start search at pos (default 0)
 	size_type find_first_in(KStringView sHaystack, const size_type pos = 0) const;
 

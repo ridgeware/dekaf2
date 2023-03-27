@@ -570,6 +570,17 @@ TEST_CASE("kSplit")
 		Parts.clear();
 	}
 
+	SECTION("split with strings")
+	{
+		std::vector<KString> Parts;
+
+		kSplit(Parts, "line 1\nline 2\nline 3"_ks, "\n", " \t\r\b"_ks);
+		CHECK ( Parts.size() == 3 );
+		CHECK ( Parts[0] == "line 1" );
+		CHECK ( Parts[1] == "line 2" );
+		CHECK ( Parts[2] == "line 3" );
+	}
+
 	SECTION("split auto range")
 	{
 		std::vector<KStringView> vresult {
@@ -728,7 +739,7 @@ TEST_CASE("kSplit for sets")
 		}
 	}
 
-	SECTION("split mutiset")
+	SECTION("split multiset")
 	{
 		auto Result = kSplits<std::multiset<KStringView>>("aaa,ccc , bbb ,  ddd", ",");
 		CHECK (Result.size() == 4);

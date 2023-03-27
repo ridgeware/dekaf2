@@ -45,9 +45,6 @@
 #include "bits/ktemplate.h"
 #include "kprops.h"
 #include "kjson.h"
-#ifndef DEKAF2_WRAPPED_KJSON
-	#include "kjson2.h"
-#endif
 
 namespace dekaf2 {
 
@@ -439,10 +436,12 @@ public:
 		operator+=(json);
 	}
 
+#if !DEKAF2_KJSON2_IS_DISABLED
 	KROW (const KJSON2& json)
 	{
 		operator+=(json);
 	}
+#endif
 
 	using KCOLS::KCOLS;
 
@@ -475,6 +474,7 @@ public:
 	/// @return bool success of operation
 	bool AddCol (KStringView sColName, const LJSON& Value, KCOL::Flags Flags = KCOL::Flags::NOFLAG, KCOL::Len iMaxLen = 0);
 
+#if !DEKAF2_KJSON2_IS_DISABLED
 	/// Create or set a column from a JSON value
 	/// @param sColName Name of the column
 	/// @param Value JSON value to serialize as the column value
@@ -485,6 +485,7 @@ public:
 	{
 		return AddCol(sColName, Value.ToBase(), Flags, iMaxLen);
 	}
+#endif
 
 	/// Create or set a column from a boolean value
 	/// @param sColName Name of the column
@@ -651,12 +652,6 @@ public:
 	/// append a LJSON object to a krow
 	KROW& operator+=(const LJSON& json);
 
-	/// append a KJSON2 object to a krow
-	KROW& operator+=(const KJSON2& json)
-	{
-		return operator+=(json.ToBase());
-	}
-
 	/// assign a LJSON object to a krow
 	KROW& operator=(const LJSON& json)
 	{
@@ -664,20 +659,8 @@ public:
 		return operator+=(json);
 	}
 
-	/// assign a KJSON2 object to a krow
-	KROW& operator=(const KJSON2& json)
-	{
-		return operator=(json.ToBase());
-	}
-
 	/// Load row from a LJSON object
 	KROW& from_json(const LJSON& json)
-	{
-		return operator=(json);
-	}
-
-	/// Load row from a KJSON2 object
-	KROW& from_json(const KJSON2& json)
 	{
 		return operator=(json);
 	}
@@ -687,10 +670,30 @@ public:
 		return to_json();
 	}
 
+#if !DEKAF2_KJSON2_IS_DISABLED
+	/// append a KJSON2 object to a krow
+	KROW& operator+=(const KJSON2& json)
+	{
+		return operator+=(json.ToBase());
+	}
+
+	/// assign a KJSON2 object to a krow
+	KROW& operator=(const KJSON2& json)
+	{
+		return operator=(json.ToBase());
+	}
+
+	/// Load row from a KJSON2 object
+	KROW& from_json(const KJSON2& json)
+	{
+		return operator=(json);
+	}
+
 	operator KJSON2 ()
 	{
 		return to_json();
 	}
+#endif
 
 //----------
 private:

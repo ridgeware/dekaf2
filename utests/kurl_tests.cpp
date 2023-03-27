@@ -1339,7 +1339,8 @@ TEST_CASE("URIComponent")
 	CHECK ( Query.size() == 3 );
 	CHECK ( Query.find("test") == Query.end() );
 	CHECK ( Query.find("key2") != Query.end() );
-	if (auto it = Query.find("key2"); it != Query.end())
+	auto it = Query.find("key2");
+	if (it != Query.end())
 	{
 		CHECK ( it->first  == "key2" );
 		CHECK ( it->second == "val2" );

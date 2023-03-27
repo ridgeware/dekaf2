@@ -1548,11 +1548,17 @@ constexpr KStringView KHTMLProcessingInstruction::LEAD_IN;
 constexpr KStringView KHTMLProcessingInstruction::LEAD_OUT;
 constexpr KStringView KHTMLCData::LEAD_IN;
 constexpr KStringView KHTMLCData::LEAD_OUT;
+constexpr std::size_t KHTMLText::TYPE;
 constexpr KStringView KHTMLText::s_sObjectName;
+constexpr std::size_t KHTMLTag::TYPE;
 constexpr KStringView KHTMLTag::s_sObjectName;
+constexpr std::size_t KHTMLComment::TYPE;
 constexpr KStringView KHTMLComment::s_sObjectName;
+constexpr std::size_t KHTMLDocumentType::TYPE;
 constexpr KStringView KHTMLDocumentType::s_sObjectName;
+constexpr std::size_t KHTMLProcessingInstruction::TYPE;
 constexpr KStringView KHTMLProcessingInstruction::s_sObjectName;
+constexpr std::size_t KHTMLCData::TYPE;
 constexpr KStringView KHTMLCData::s_sObjectName;
 #endif
 

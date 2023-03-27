@@ -1379,7 +1379,7 @@ uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStr
 	}
 	else
 	{
-		sResponse = kFormat ("BUG: KSystem::PushStats only accepts iMime = KMIME::JSON or KMIME::WWW_FORM_URLENCODED");
+		sResponse = kFormat ("BUG: KSystem::PushStats only accepts iMime = KMIME::JSON or KMIME::WWW_FORM_URLENCODED").ToStdString(); // <-- ToStdString() is needed for C++ < 17 (and does not hurt above)
 		return 0;
 	}
 
@@ -1432,7 +1432,7 @@ uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStr
 
 	kDebug (3, "sending POST to: {}", sURL);
 	KWebClient HTTP;
-	sResponse = HTTP.Post(sURL, sBody, iMime);
+	sResponse = HTTP.Post(sURL, sBody, iMime).ToStdString(); // <-- ToStdString() is needed for C++ < 17 (and does not hurt above)
 
 	if (!sResponse.empty())
 	{

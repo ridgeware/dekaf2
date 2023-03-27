@@ -499,7 +499,7 @@ KString ToJsonPointer(KStringView sSelector)
 
 namespace {
 
-static constexpr uint16_t iMaxJSONPointerDepth = 1000;
+constexpr uint16_t iMaxJSONPointerDepth = 1000;
 
 //-----------------------------------------------------------------------------
 const LJSON& RecurseJSONPointer(const LJSON& json, KStringView sSelector, uint16_t iRecursions = 0)

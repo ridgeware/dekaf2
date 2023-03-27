@@ -42,6 +42,8 @@
 
 #include "kjson2.h"
 
+#if !DEKAF2_KJSON2_IS_DISABLED
+
 #ifdef DEKAF2
 	#include "klog.h"
 	#include "kstringutils.h"
@@ -872,4 +874,10 @@ KJSON2::reference KJSON2::Select (StringViewT sSelector) noexcept
 
 } // Select
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr uint16_t KJSON2::iMaxJSONPointerDepth;
+#endif
+
 } // end of namespace dekaf2
+
+#endif // of !DEKAF2_KJSON2_IS_DISABLED

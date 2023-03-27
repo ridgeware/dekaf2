@@ -338,7 +338,7 @@ TEST_CASE("KWriter") {
 
 	SECTION("move")
 	{
-		static_assert(std::is_move_constructible<std::ofstream>::value);
+		static_assert(std::is_move_constructible<std::ofstream>::value, "std::ofstream has to be move constructible");
 
 		std::ofstream F1;
 		auto F2 = std::move(F1);

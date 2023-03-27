@@ -1134,6 +1134,7 @@ void KHTML::Invalid(char ch)
 } // Invalid
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr std::size_t KHTMLElement::TYPE;
 constexpr KStringView KHTMLElement::s_sObjectName;
 #endif
 

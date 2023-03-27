@@ -62,12 +62,12 @@
 // type is a forward declaration. There is currently no other solution than using
 // glibstdc++ 11.
 
-#if DEKAF2_HAS_INCLUDE(<variant>) && !DEKAF2_IS_CLANG
+#if DEKAF2_HAS_CPP_17 && DEKAF2_HAS_INCLUDE(<variant>) && !DEKAF2_IS_CLANG
 	#include <variant>
 	#define DEKAF2_HAS_VARIANT 1
 	#define DEKAF2_HAS_STD_VARIANT 1
 	#define DEKAF2_VARIANT_NAMESPACE std
-#elif DEKAF2_HAS_INCLUDE(<experimental/variant>) && !DEKAF2_IS_CLANG
+#elif DEKAF2_HAS_CPP_17 && DEKAF2_HAS_INCLUDE(<experimental/variant>) && !DEKAF2_IS_CLANG
 	#include <experimental/variant>
 	#define DEKAF2_HAS_VARIANT 1
 	#define DEKAF2_HAS_STD_VARIANT 1

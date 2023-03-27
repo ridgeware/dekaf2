@@ -1255,7 +1255,11 @@ TEST_CASE("KStringUtils") {
 		CHECK ( sStr == "" );
 
 		std::string stdStr = "123456789-1234567890";
+#ifdef DEKAF2_HAS_CPP_17
 		stdStr = kLimitSize(stdStr, 10);
+#else
+		stdStr = kLimitSize(stdStr, 10).ToStdString(); // for C++ < 17 we need the ToStdString here - the template receives bad types through the default
+#endif
 		CHECK ( stdStr == "1234...890");
 	}
 
@@ -1329,7 +1333,11 @@ TEST_CASE("KStringUtils") {
 		CHECK ( Unicode::ValidUTF8(sStr) );
 
 		std::string stdStr = "œpęϧϯꜻꜿⱥⱡ";
+#ifdef DEKAF2_HAS_CPP_17
 		stdStr = kLimitSizeUTF8(stdStr, 11);
+#else
+		stdStr = kLimitSizeUTF8(stdStr, 11).ToStdString(); // for C++ < 17 we need the ToStdString here - the template receives bad types through the default
+#endif
 		CHECK ( stdStr == "œp…ⱡ");
 		CHECK ( Unicode::ValidUTF8(stdStr) );
 	}

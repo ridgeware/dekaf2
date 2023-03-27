@@ -588,6 +588,7 @@ public:
 	// therefore we have to declare it as a named method here (and force it manually
 	// wherever needed)
 
+	constexpr
 	const base&    ToBase     () const noexcept { return *this; }
 	base&          ToBase     ()       noexcept { return *this; }
 

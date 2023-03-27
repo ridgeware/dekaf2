@@ -81,9 +81,9 @@ struct elsa<dekaf2::KStringView>
 	{
 		// a fast and simple hash
 		std::size_t hash = 5381;
-		for (std::size_t i = 0; i < value.size(); ++i)
+		for (const auto ch : value)
 		{
-		  hash = hash * 33 + static_cast<std::size_t>(value[i]);
+		  hash = hash * 33 + static_cast<std::size_t>(ch);
 		}
 		return hash;
 	}
@@ -92,9 +92,9 @@ struct elsa<dekaf2::KStringView>
 	{
 		// this is FNV1a 32 bit, seeded
 		std::size_t hash = (static_cast<std::size_t>(2166136261U) ^ seed) * static_cast<std::size_t>(16777619U);
-		for (std::size_t i = 0; i < value.size(); ++i)
+		for (const auto ch : value)
 		{
-			hash = (hash ^ static_cast<std::size_t>(value[i])) * static_cast<std::size_t>(16777619U);
+			hash = (hash ^ static_cast<std::size_t>(ch)) * static_cast<std::size_t>(16777619U);
 		}
 		return hash;
 	}
@@ -107,9 +107,9 @@ struct elsa<dekaf2::KStringViewZ>
 	{
 		// a fast and simple hash
 		std::size_t hash = 5381;
-		for (std::size_t i = 0; i < value.size(); ++i)
+		for (const auto ch : value)
 		{
-		  hash = hash * 33 + static_cast<std::size_t>(value[i]);
+		  hash = hash * 33 + static_cast<std::size_t>(ch);
 		}
 		return hash;
 	}
@@ -118,9 +118,9 @@ struct elsa<dekaf2::KStringViewZ>
 	{
 		// this is FNV1a 32 bit, seeded
 		std::size_t hash = (static_cast<std::size_t>(2166136261U) ^ seed) * static_cast<std::size_t>(16777619U);
-		for (std::size_t i = 0; i < value.size(); ++i)
+		for (const auto ch : value)
 		{
-			hash = (hash ^ static_cast<std::size_t>(value[i])) * static_cast<std::size_t>(16777619U);
+			hash = (hash ^ static_cast<std::size_t>(ch)) * static_cast<std::size_t>(16777619U);
 		}
 		return hash;
 	}

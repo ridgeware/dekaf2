@@ -109,6 +109,11 @@ struct OKSZ
 	static constexpr KStringViewZ m_s { "pqrst" };
 };
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KStringView OKSV::m_s;
+constexpr KStringViewZ OKSZ::m_s;
+#endif
+
 } // end of anonymous namespace
 
 TEST_CASE("StringBalance") {

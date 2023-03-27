@@ -508,7 +508,7 @@ TEST_CASE("KReader") {
 
 	SECTION("move")
 	{
-		static_assert(std::is_move_constructible<std::ifstream>::value);
+		static_assert(std::is_move_constructible<std::ifstream>::value, "std::ifstream has to be move constructible");
 
 		std::ifstream F1;
 		auto F2 = std::move(F1);

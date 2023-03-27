@@ -9372,15 +9372,15 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 	{
 		if (jColumn.is_object() && !jColumn.empty())
 		{
-			auto it = jColumn.items();
+			auto it = jColumn.items().begin();
 			sResult += kFormat("{}{} {} {}\n",
 				sDiffPrefix,
 				sPrefix,
-				it.begin().key(),
+				it.key(),
 #ifdef DEKAF2_WRAPPED_KJSON
-				it.begin().value().String());
+				it.value().String());
 #else
-				it.begin().value().get_ref<const KString&>());
+				it.value().get_ref<const KString&>());
 #endif
 		}
 
@@ -9392,12 +9392,12 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 	{
 		if (jColumn.is_object() && !jColumn.empty())
 		{
-			auto        it       = jColumn.items();
-			const auto& sName    = it.begin().key();
+			auto        it       = jColumn.items().begin();
+			const auto& sName    = it.key();
 #ifdef DEKAF2_WRAPPED_KJSON
-			KString     sValue   = it.begin().value().String(); sValue.Trim();
+			KString     sValue   = it.value().String(); sValue.Trim();
 #else
-			KString     sValue   = it.begin().value().get_ref<const KString&>(); sValue.Trim();
+			KString     sValue   = it.value().get_ref<const KString&>(); sValue.Trim();
 #endif
 			if (sResult.empty())
 			{
@@ -9419,12 +9419,12 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 
 		if (jColumn.is_object() && !jColumn.empty())
 		{
-			auto        it       = jColumn.items();
-			const auto& sName    = it.begin().key();
+			auto        it       = jColumn.items().begin();
+			const auto& sName    = it.key();
 #ifdef DEKAF2_WRAPPED_KJSON
-			const auto& sValue   = it.begin().value().String();
+			const auto& sValue   = it.value().String();
 #else
-			const auto& sValue   = it.begin().value().get_ref<const KString&>();
+			const auto& sValue   = it.value().get_ref<const KString&>();
 #endif
 			bool        bIsIndex = sValue.StartsWith("(");
 

@@ -209,7 +209,7 @@ bool kContains(const KStringView sInput, const KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-DEKAF2_PUBLIC
+DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kContains(const KStringView sInput, char ch) noexcept;
 //----------------------------------------------------------------------
 
@@ -958,6 +958,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// std::C++23
 	/// does the string contain the ch?
+	DEKAF2_CONSTEXPR_14
 	bool contains(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -2129,7 +2130,7 @@ bool kContains(const KStringView sInput, const KStringView sPattern) noexcept
 }
 
 //----------------------------------------------------------------------
-inline DEKAF2_PUBLIC
+DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kContains(const KStringView sInput, const char ch) noexcept
 //----------------------------------------------------------------------
 {

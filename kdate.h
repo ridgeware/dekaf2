@@ -79,7 +79,7 @@ using namespace std::chrono;
 
 #if DEKAF2_USE_HINNANT_DATE
 
-#if __cplusplus <= 201703L
+#if (__cpp_lib_chrono < 201907L && !(DEKAF2_IS_OSX && DEKAF2_HAS_CPP_20))
 // take care with these - they exist in post 2017 libs independently of the calendar functions
 using date::days;
 using date::weeks;
@@ -126,8 +126,7 @@ using date::is_am;
 using date::is_pm;
 using date::make12;
 using date::make24;
-template <class Rep, class Period>
-using make_time = date::make_time<Rep,Period>;
+using date::make_time;
 
 #endif
 

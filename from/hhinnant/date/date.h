@@ -1646,6 +1646,8 @@ operator-(const month& x, const months& y) NOEXCEPT
     return x + -y;
 }
 
+#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
+
 namespace detail
 {
 
@@ -1675,6 +1677,8 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const month& m)
         os << " is not a valid month";
     return os;
 }
+
+#endif // DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 
 // year
 
@@ -1935,6 +1939,8 @@ operator-(const weekday& x, const days& y) NOEXCEPT
     return x + -y;
 }
 
+#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
+
 namespace detail
 {
 
@@ -1964,6 +1970,8 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const weekday& wd)
         os << " is not a valid weekday";
     return os;
 }
+
+#endif // DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 
 #if !defined(_MSC_VER) || (_MSC_VER >= 1900)
 inline namespace literals
@@ -4201,6 +4209,8 @@ make_time(const std::chrono::duration<Rep, Period>& d)
 {
     return hh_mm_ss<std::chrono::duration<Rep, Period>>(d);
 }
+
+#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 
 template <class CharT, class Traits, class Duration>
 inline
@@ -8220,6 +8230,8 @@ operator<<(std::basic_ostream<CharT, Traits>& os,
     return os << detail::make_string<CharT, Traits>::from(d.count()) +
                  detail::get_units<CharT>(typename Period::type{});
 }
+
+#endif // DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 
 }  // namespace date
 

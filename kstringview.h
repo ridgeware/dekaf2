@@ -1658,6 +1658,7 @@ public:
 	using size_type  = KStringView::size_type;
 	using value_type = KStringView::value_type;
 
+	DEKAF2_CONSTEXPR_14
 	KFindSetOfChars() = default;
 
 	DEKAF2_CONSTEXPR_14
@@ -1804,6 +1805,7 @@ public:
 	using size_type  = KStringView::size_type;
 	using value_type = KStringView::value_type;
 
+	DEKAF2_CONSTEXPR_14
 	KFindSetOfChars() = default;
 
 	DEKAF2_CONSTEXPR_14
@@ -1813,6 +1815,9 @@ public:
 	DEKAF2_CONSTEXPR_14
 	/// construct with set of characters to match / not to match
 	KFindSetOfChars(const value_type* sNeedles) : m_sNeedles(sNeedles) {}
+
+	/// construct with set of characters to match / not to match
+	KFindSetOfChars(const KString& sNeedles) : m_sNeedles(sNeedles) {}
 
 	/// find first occurence of needles in haystack
 	size_type find_first_in(KStringView sHaystack, size_type pos = 0) const;

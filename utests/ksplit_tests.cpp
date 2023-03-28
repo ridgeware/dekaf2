@@ -574,7 +574,7 @@ TEST_CASE("kSplit")
 	{
 		std::vector<KString> Parts;
 
-		kSplit(Parts, "line 1\nline 2\nline 3"_ks, "\n", " \t\r\b"_ks);
+		kSplit(Parts, "line 1\nline 2\nline 3"_ks, "\n"_ks, " \t\r\b"_ks);
 		CHECK ( Parts.size() == 3 );
 		CHECK ( Parts[0] == "line 1" );
 		CHECK ( Parts[1] == "line 2" );

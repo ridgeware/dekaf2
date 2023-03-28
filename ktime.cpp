@@ -564,14 +564,8 @@ KDuration kGetTimezoneOffset(KStringView sTimezone)
 
 } // kGetTimezoneOffset
 
-namespace {
-
-constexpr int InvalidTimeTM { std::numeric_limits<int>::min() };
-static std::tm s_InvalidTime = [](){ std::tm tm; tm.tm_wday = InvalidTimeTM; return tm; }();
-bool IsInvalidTime(const std::tm& tm) { return tm.tm_wday == InvalidTimeTM; }
-
 //-----------------------------------------------------------------------------
-std::tm kParseTimestampToTM(KStringView sFormat, KStringView sTimestamp)
+KUnixTime kParseTimestamp(KStringView sFormat, KStringView sTimestamp)
 //-----------------------------------------------------------------------------
 {
 	//-----------------------------------------------------------------------------
@@ -600,6 +594,9 @@ std::tm kParseTimestampToTM(KStringView sFormat, KStringView sTimestamp)
 
 	KString  sMonthName;
 	KString  sTimezoneName;
+	// we still use a std::tm to collect all the different values, but
+	// we wrap them into chrono types for conversion - therefore we do
+	// not apply anymore the corrections for std::tm like year -= 1900 ..
 	std::tm  tm               {   };
 	int      iTimezoneHours   { 0 };
 	int      iTimezoneMinutes { 0 };
@@ -607,6 +604,7 @@ std::tm kParseTimestampToTM(KStringView sFormat, KStringView sTimestamp)
 	uint16_t iYearPos         { 0 };
 	uint16_t iDayPos          { 0 };
 	int16_t  iTimezoneIsNeg   { 0 };
+	int      iMilliseconds    { 0 };
 
 	auto iTs = sTimestamp.begin();
 	auto eTs = sTimestamp.end();
@@ -615,7 +613,7 @@ std::tm kParseTimestampToTM(KStringView sFormat, KStringView sTimestamp)
 	{
 		if (iTs == eTs)
 		{
-			return s_InvalidTime;
+			return 0;
 		}
 
 		auto ch = *iTs++;
@@ -629,58 +627,57 @@ std::tm kParseTimestampToTM(KStringView sFormat, KStringView sTimestamp)
 				switch (ch)
 				{
 					case 'a':
-						if (tm.tm_hour > 11) return s_InvalidTime;
+						if (tm.tm_hour > 11) return 0;
 						break;
 
 					case 'm':
 						break;
 
 					case 'p':
-						if (tm.tm_hour > 11) return s_InvalidTime;
+						if (tm.tm_hour > 11) return 0;
 						tm.tm_hour += 12;
 						break;
 
 					default:
-						return s_InvalidTime;
+						return 0;
 				}
 				break;
 
 			case 'h':
 				// hour digit
-				if (!AddDigit(ch, 23, tm.tm_hour)) return s_InvalidTime;
+				if (!AddDigit(ch, 23, tm.tm_hour)) return 0;
 				break;
 
 			case 'm':
 				// min digit
-				if (!AddDigit(ch, 59, tm.tm_min )) return s_InvalidTime;
+				if (!AddDigit(ch, 59, tm.tm_min )) return 0;
 				break;
 
 			case 's':
 				// sec digit
-				if (!AddDigit(ch, 60, tm.tm_sec )) return s_InvalidTime;
+				if (!AddDigit(ch, 60, tm.tm_sec )) return 0;
 				break;
 
 			case 'S':
 				// msec digit
-				// we currently ignore any milliseconds value, but it has to be a digit if defined
-				if (!KASCII::kIsDigit(ch)) return s_InvalidTime;
+				if (!AddDigit(ch, 999, iMilliseconds )) return 0;
 				break;
 
 			case 'D':
 				// day digit
 				// leading spaces are allowed for dates
 				if (++iDayPos == 1 && ch == ' ') break;
-				if (!AddDigit(ch, 31, tm.tm_mday)) return s_InvalidTime;
+				if (!AddDigit(ch, 31, tm.tm_mday)) return 0;
 				break;
 
 			case 'M':
 				// month digit
-				if (!AddDigit(ch, 12, tm.tm_mon )) return s_InvalidTime;
+				if (!AddDigit(ch, 12, tm.tm_mon )) return 0;
 				break;
 
 			case 'Y':
 				// year digit
-				if (!AddDigit(ch, 9999, tm.tm_year)) return s_InvalidTime;
+				if (!AddDigit(ch, 9999, tm.tm_year)) return 0;
 				++iYearPos;
 				break;
 
@@ -690,7 +687,7 @@ std::tm kParseTimestampToTM(KStringView sFormat, KStringView sTimestamp)
 				break;
 
 			case 'z': // PST, GMT, ..
-				if (!KASCII::kIsAlpha(ch)) return s_InvalidTime;
+				if (!KASCII::kIsAlpha(ch)) return 0;
 				sTimezoneName += KASCII::kToUpper(ch);
 				break;
 
@@ -710,22 +707,22 @@ std::tm kParseTimestampToTM(KStringView sFormat, KStringView sTimestamp)
 								break;
 
 							default:
-								return s_InvalidTime;
+								return 0;
 						}
 						break;
 
 					case 2:
 					case 3:
-						if (!AddDigit(ch, 23, iTimezoneHours)) return s_InvalidTime;
+						if (!AddDigit(ch, 23, iTimezoneHours)) return 0;
 						break;
 
 					case 4:
 					case 5:
-						if (!AddDigit(ch, 59, iTimezoneMinutes)) return s_InvalidTime;
+						if (!AddDigit(ch, 59, iTimezoneMinutes)) return 0;
 						break;
 
 					default:
-						return s_InvalidTime;
+						return 0;
 				}
 				break;
 
@@ -733,7 +730,7 @@ std::tm kParseTimestampToTM(KStringView sFormat, KStringView sTimestamp)
 				break;
 
 			default: // match char exactly
-				if (chFormat != ch) return s_InvalidTime;
+				if (chFormat != ch) return 0;
 				break;
 		}
 	}
@@ -741,12 +738,12 @@ std::tm kParseTimestampToTM(KStringView sFormat, KStringView sTimestamp)
 	if (iTs != eTs)
 	{
 		// we must have consumed all sTimestamp characters - else fail
-		return s_InvalidTime;
+		return 0;
 	}
 
 	if (tm.tm_mday == 0)
 	{
-		return s_InvalidTime;
+		return 0;
 	}
 
 	if (iYearPos < 4 && tm.tm_year < 100)
@@ -764,14 +761,11 @@ std::tm kParseTimestampToTM(KStringView sFormat, KStringView sTimestamp)
 		}
 	}
 
-	// and correct for std::tm's base year
-	tm.tm_year -= 1900;
-
 	if (tm.tm_mon == 0)
 	{
 		if (sMonthName.empty())
 		{
-			return s_InvalidTime;
+			return 0;
 		}
 
 		// search the english month names first, if the name size is 3
@@ -779,7 +773,7 @@ std::tm kParseTimestampToTM(KStringView sFormat, KStringView sTimestamp)
 
 		if (it != AbbreviatedMonths.end())
 		{
-			tm.tm_mon = static_cast<int>(it - AbbreviatedMonths.begin());
+			tm.tm_mon = static_cast<int>(it - AbbreviatedMonths.begin()) + 1;
 		}
 		else
 		{
@@ -790,39 +784,35 @@ std::tm kParseTimestampToTM(KStringView sFormat, KStringView sTimestamp)
 
 			if (it2 == Months.end())
 			{
-				return s_InvalidTime;
+				return 0;
 			}
 			else
 			{
-				tm.tm_mon = static_cast<int>(it2 - Months.begin());
+				tm.tm_mon = static_cast<int>(it2 - Months.begin()) + 1;
 			}
 		}
 	}
-	else
-	{
-		tm.tm_mon -= 1;
-	}
 
-	KDuration TimezoneOffset = std::chrono::seconds((iTimezoneHours * 60 * 60 + iTimezoneMinutes * 60) * iTimezoneIsNeg);
+	KDuration TimezoneOffset = chrono::seconds((iTimezoneHours * 60 * 60 + iTimezoneMinutes * 60) * iTimezoneIsNeg);
 
 	if (!sTimezoneName.empty())
 	{
-		if (TimezoneOffset != KDuration::zero()) return s_InvalidTime;
+		if (TimezoneOffset != KDuration::zero()) return 0;
 		TimezoneOffset = kGetTimezoneOffset(sTimezoneName);
-		if (TimezoneOffset == chrono::seconds(-1)) return s_InvalidTime;
+		if (TimezoneOffset == chrono::seconds(-1)) return 0;
 	}
 
-	tm.tm_min -= TimezoneOffset.minutes().count();
+	return chrono::sys_days(chrono::day(tm.tm_mday) / chrono::month(tm.tm_mon) / chrono::year(tm.tm_year))
+			+ chrono::hours(tm.tm_hour)
+			+ chrono::minutes(tm.tm_min)
+			+ chrono::seconds(tm.tm_sec)
+			+ chrono::milliseconds(iMilliseconds)
+			- TimezoneOffset.minutes();
 
-	// make sure we're not flagged as invalid time
-	tm.tm_wday = -1;
-
-	return tm;
-
-} // kParseTimestampToTM
+} // kParseTimestamp
 
 //-----------------------------------------------------------------------------
-std::tm kParseTimestampToTM(KStringView sTimestamp)
+KUnixTime kParseTimestamp(KStringView sTimestamp)
 //-----------------------------------------------------------------------------
 {
 	struct TimeFormat
@@ -1004,9 +994,9 @@ std::tm kParseTimestampToTM(KStringView sTimestamp)
 				(!bHasUTF8Runs && Format.sFormat[iCheckPos] == sTimestamp[iCheckPos]) ||
 				( bHasUTF8Runs && Unicode::CodepointCast(Format.sFormat[iCheckPos]) == sTimestamp.AtUTF8(iCheckPos)))
 			{
-				auto tm = kParseTimestampToTM(Format.sFormat, sTimestamp);
+				auto tm = kParseTimestamp(Format.sFormat, sTimestamp);
 
-				if (IsInvalidTime(tm) == false)
+				if (tm != 0)
 				{
 					return tm;
 				}
@@ -1018,27 +1008,9 @@ std::tm kParseTimestampToTM(KStringView sTimestamp)
 		}
 	}
 
-	return s_InvalidTime;
+	return 0;
 
 } // kParseTimestamp
-
-} // end of anonymous namespace
-
-//-----------------------------------------------------------------------------
-KUnixTime kParseTimestamp(KStringView sFormat, KStringView sTimestamp)
-//-----------------------------------------------------------------------------
-{
-	auto tm = kParseTimestampToTM(sFormat, sTimestamp);
-	return (IsInvalidTime(tm)) ? 0 : timegm(const_cast<std::tm*>(&tm));
-}
-
-//-----------------------------------------------------------------------------
-KUnixTime kParseTimestamp(KStringView sTimestamp)
-//-----------------------------------------------------------------------------
-{
-	auto tm = kParseTimestampToTM(sTimestamp);
-	return (IsInvalidTime(tm)) ? 0 : timegm(const_cast<std::tm*>(&tm));
-}
 
 //-----------------------------------------------------------------------------
 /// Returns day of week for every gregorian date. Sunday = 0.
@@ -1459,20 +1431,6 @@ std::chrono::seconds KLocalTime::GetUTCOffset() const
 #endif
 
 //-----------------------------------------------------------------------------
-KLocalTime::KLocalTime (KStringView sTimestamp)
-//-----------------------------------------------------------------------------
-: KLocalTime(kParseTimestampToTM(sTimestamp))
-{
-}
-
-//-----------------------------------------------------------------------------
-KLocalTime::KLocalTime (KStringView sFormat, KStringView sTimestamp)
-//-----------------------------------------------------------------------------
-: KLocalTime(kParseTimestampToTM(sFormat, sTimestamp))
-{
-}
-
-//-----------------------------------------------------------------------------
 std::tm KLocalTime::BreakDown(const std::time_t time) const
 //-----------------------------------------------------------------------------
 {
@@ -1483,20 +1441,6 @@ std::tm KLocalTime::BreakDown(const std::time_t time) const
 KUTCTime::KUTCTime(const KLocalTime& localtime)
 //-----------------------------------------------------------------------------
 : KUTCTime(localtime.ToTimeT())
-{
-}
-
-//-----------------------------------------------------------------------------
-KUTCTime::KUTCTime (KStringView sTimestamp)
-//-----------------------------------------------------------------------------
-: KUTCTime(kParseTimestampToTM(sTimestamp))
-{
-}
-
-//-----------------------------------------------------------------------------
-KUTCTime::KUTCTime (KStringView sFormat, KStringView sTimestamp)
-//-----------------------------------------------------------------------------
-: KUTCTime(kParseTimestampToTM(sFormat, sTimestamp))
 {
 }
 

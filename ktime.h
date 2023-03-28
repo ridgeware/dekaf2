@@ -132,10 +132,6 @@ public:
 	/// converts from time_t timepoint to system_clock timeppoint (constexpr)
 	DEKAF2_CONSTEXPR_14 static time_point from_time_t(std::time_t tTime) { return time_point(chrono::seconds(tTime));                    }
 
-//--------
-private:
-//--------
-
 }; // KUnixTime
 
 /// Get the English or local abbreviated or full weekday name, input 0..6, 0 == Sunday
@@ -480,10 +476,10 @@ public:
 	KLocalTime (const KUTCTime& gmtime);
 	/// construct from a string representation, which is interpreted as local time (if there is no time zone indicator telling other)
 	/// - the string format is automatically detected from about 100 common patterns
-	KLocalTime (KStringView sTimestamp);
+	KLocalTime (KStringView sTimestamp) : KLocalTime(kParseTimestamp(sTimestamp)) {}
 	/// construct from a string representation with format description
 	/// @see kParseTimestamp for a format string description
-	KLocalTime (KStringView sFormat, KStringView sTimestamp);
+	KLocalTime (KStringView sFormat, KStringView sTimestamp) : KLocalTime(kParseTimestamp(sFormat, sTimestamp)) {}
 	/// construct from current time
 	KLocalTime (std::nullptr_t) { *this = Now(); }
 
@@ -545,10 +541,10 @@ public:
 	KUTCTime (const KLocalTime& localtime);
 	/// construct from a string representation, which is interpreted as UTC time (if there is no time zone indicator telling other)
 	/// - the string format is automatically detected from about 100 common patterns
-	KUTCTime (KStringView sTimestamp);
+	KUTCTime (KStringView sTimestamp) : KUTCTime(kParseTimestamp(sTimestamp)) {}
 	/// construct from a string representation with format description
 	/// @see kParseTimestamp for a format string description
-	KUTCTime (KStringView sFormat, KStringView sTimestamp);
+	KUTCTime (KStringView sFormat, KStringView sTimestamp) : KUTCTime(kParseTimestamp(sFormat, sTimestamp)) {}
 	/// construct from current time
 	KUTCTime (std::nullptr_t) { *this = Now(); }
 	/// return the offset in seconds between this time and UTC (always 0)
@@ -594,8 +590,6 @@ inline KLocalTime operator-(const KLocalTime& left, const T Duration)       { KL
 inline KDuration operator-(const KUTCTime& left, const KUTCTime& right)     { return left.ToTimeT() - right.ToTimeT(); }
 inline KDuration operator-(const KUTCTime& left, const time_t right)        { return left.ToTimeT() - right;           }
 inline KDuration operator-(const time_t left, const KUTCTime& right)        { return left - right.ToTimeT();           }
-inline KDuration operator-(const KUTCTime& left, const KLocalTime right)    { return left.ToTimeT() - right.ToTimeT(); }
-inline KDuration operator-(const KLocalTime left, const KUTCTime& right)    { return left.ToTimeT() - right.ToTimeT(); }
 inline chrono::system_clock::duration operator-(const KUTCTime& left, const chrono::system_clock::time_point right) { return left.ToTimePoint() - right; }
 inline chrono::system_clock::duration operator-(const chrono::system_clock::time_point left, const KUTCTime& right) { return left - right.ToTimePoint(); }
 
@@ -603,6 +597,9 @@ template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>
 inline KUTCTime operator+(const KUTCTime& left, const T Duration)           { KUTCTime Ret(left); Ret.Add(Duration); return Ret;        }
 template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
 inline KUTCTime operator-(const KUTCTime& left, const T Duration)           { KUTCTime Ret(left); Ret.Add(Duration * -1); return Ret;   }
+
+inline KDuration operator-(const KUTCTime& left, const KLocalTime right)    { return left.ToTimeT() - right.ToTimeT(); }
+inline KDuration operator-(const KLocalTime left, const KUTCTime& right)    { return left.ToTimeT() - right.ToTimeT(); }
 
 } // end of namespace dekaf2
 

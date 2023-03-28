@@ -88,6 +88,8 @@ using date::months;
 #endif
 
 // import all other types from date::
+using date::last_spec;
+
 template <class Duration>
 using sys_time = date::sys_time<Duration>;
 using date::sys_days;
@@ -122,11 +124,36 @@ using date::year_month_weekday_last;
 template <class Duration>
 using hh_mm_ss = date::hh_mm_ss<Duration>;
 
+using date::is_clock;
 using date::is_am;
 using date::is_pm;
 using date::make12;
 using date::make24;
 using date::make_time;
+
+using date::operator/;
+
+inline constexpr last_spec last{};
+inline constexpr weekday Sunday{0};
+inline constexpr weekday Monday{1};
+inline constexpr weekday Tuesday{2};
+inline constexpr weekday Wednesday{3};
+inline constexpr weekday Thursday{4};
+inline constexpr weekday Friday{5};
+inline constexpr weekday Saturday{6};
+
+inline constexpr month January{1};
+inline constexpr month February{2};
+inline constexpr month March{3};
+inline constexpr month April{4};
+inline constexpr month May{5};
+inline constexpr month June{6};
+inline constexpr month July{7};
+inline constexpr month August{8};
+inline constexpr month September{9};
+inline constexpr month October{10};
+inline constexpr month November{11};
+inline constexpr month December{12};
 
 #endif
 

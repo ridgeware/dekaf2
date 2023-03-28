@@ -576,6 +576,34 @@ TEST_CASE("KTime") {
 				auto days = d.days();
 			}
 		}
+
+		SECTION("KTimeOfDay")
+		{
+			KUnixTime U = kParseTimestamp("20.12.2022 14:37:56");
+//			auto d = chrono::floor<chrono::days>(U);
+//			chrono::hh_mm_ss hms = chrono::make_time(U - d);
+			KTimeOfDay TD = U;
+			CHECK ( TD.hours().count()   == 14 );
+			CHECK ( TD.minutes().count() == 37 );
+			CHECK ( TD.seconds().count() == 56 );
+			CHECK ( TD.is_negative()     == false );
+			CHECK ( TD.subseconds().count() == 0 );
+
+			TD = kParseTimestamp("2022-12-20 14:37:56.789");
+			CHECK ( TD.hours().count()   == 14 );
+			CHECK ( TD.minutes().count() == 37 );
+			CHECK ( TD.seconds().count() == 56 );
+			CHECK ( TD.is_negative()     == false );
+			CHECK ( TD.subseconds() == chrono::milliseconds(789) );
+
+			TD = KUnixTime(1671547076);
+			CHECK ( TD.hours().count()   == 14 );
+			CHECK ( TD.minutes().count() == 37 );
+			CHECK ( TD.seconds().count() == 56 );
+			CHECK ( TD.is_negative()     == false );
+			CHECK ( TD.subseconds() == chrono::milliseconds(0) );
+		}
+
 	}
 #endif
 }

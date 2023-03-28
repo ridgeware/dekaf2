@@ -30,10 +30,14 @@ TEST_CASE("KDate")
 	auto ns     = 12ns;
 	auto tp     = chrono::sys_days{dd/10/yy} + hh + mm + ss + ms + us + ns;
 	auto t      = chrono::sys_days{10d/10/2012} + 12h + 38min + 40s + 123456us;
+	CHECK ( tp < t );
+
+	// we need to untangle the stream operators a bit more for month and weekday in date::
+#if !DEKAF2_USE_HINNANT_DATE
 	auto x      = chrono::April;
 	auto y      = chrono::Monday;
 
-	CHECK ( tp < t );
 	CHECK ( x > chrono::February );
 	CHECK ( y != chrono::Friday  );
+#endif
 }

@@ -162,6 +162,12 @@ inline constexpr month October{10};
 inline constexpr month November{11};
 inline constexpr month December{12};
 
+#else // of DEKAF2_USE_HINNANT_DATE
+
+// helper from date that did not make it into the standard
+template <class Rep, class Period>
+inline constexpr hh_mm_ss<duration<Rep, Period>> make_time(const duration<Rep, Period>& d) { return hh_mm_ss<duration<Rep, Period>>(d); }
+
 #endif // of DEKAF2_USE_HINNANT_DATE
 
 #ifdef DEKAF2_HAS_WARN_LITERAL_SUFFIX

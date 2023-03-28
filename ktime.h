@@ -134,6 +134,33 @@ public:
 
 }; // KUnixTime
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// constexpr breaking down any duration or timepoint into a 24h duration with accessors for hours, minutes, seconds, subseconds
+class DEKAF2_PUBLIC KTimeOfDay : public chrono::hh_mm_ss<chrono::system_clock::duration>
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//--------
+public:
+//--------
+
+	using base = chrono::hh_mm_ss<chrono::system_clock::duration>;
+
+	constexpr KTimeOfDay() noexcept = default;
+	template<typename Duration>
+	constexpr explicit KTimeOfDay(Duration d) noexcept : base(d % Duration(chrono::hours(24))) {}
+	constexpr KTimeOfDay(KUnixTime timepoint) noexcept : KTimeOfDay(timepoint.time_since_epoch()) {}
+
+//  the base class adds accessors:
+//	constexpr bool is_negative()        const noexcept
+//	constexpr chrono::hours hours()     const noexcept
+//	constexpr chrono::minutes minutes() const noexcept
+//	constexpr chrono::seconds seconds() const noexcept
+//	constexpr precision subseconds()    const noexcept
+//	constexpr precision to_duration()   const noexcept
+
+}; // KTimeOfDay
+
 /// Get the English or local abbreviated or full weekday name, input 0..6, 0 == Sunday
 DEKAF2_PUBLIC
 KStringViewZ kGetDayName(uint16_t iDay, bool bAbbreviated, bool bLocal);

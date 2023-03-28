@@ -598,6 +598,7 @@ check_cxx_compiler_flag(-Wstringop-overflow       DEKAF2_HAS_WARN_STRINGOP_OVERF
 check_cxx_compiler_flag(-Wstringop-overread       DEKAF2_HAS_WARN_STRINGOP_OVERREAD)
 check_cxx_compiler_flag(-Warray-bounds            DEKAF2_HAS_WARN_ARRAY_BOUNDS)
 check_cxx_compiler_flag(-Wdeprecated-declarations DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS)
+check_cxx_compiler_flag(-Wliteral-suffix          DEKAF2_HAS_WARN_LITERAL_SUFFIX)
 
 # create and include the build directory for generated files
 set(GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
@@ -605,14 +606,9 @@ file(MAKE_DIRECTORY "${GENERATED_FILES_DIR}")
 
 # discover availability of std::chrono calendar capabilities
 if (CMAKE_CXX_STANDARD GREATER 17)
-	file(WRITE ${GENERATED_FILES_DIR}/chrono_calendar_test.cpp
-		"#include <chrono> \n"
-		"inline std::chrono::year_month_day calendar_test() { return std::chrono::year_month_day{std::chrono::floor<std::chrono::days>(std::chrono::system_clock::now())};} \n"
-		"int main() { return calendar_test().day() == std::chrono::day(1); } \n\n")
-
 	try_compile(DEKAF2_HAS_CHRONO_CALENDAR
 				${GENERATED_FILES_DIR}
-				${GENERATED_FILES_DIR}/chrono_calendar_test.cpp
+				${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_calendar_test.cpp
 				COMPILE_DEFINITIONS "--std=c++20")
 
 	if(DEKAF2_HAS_CHRONO_CALENDAR)

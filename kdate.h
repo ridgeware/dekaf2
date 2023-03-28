@@ -75,6 +75,7 @@ namespace dekaf2 {
 
 namespace chrono {
 
+// importing std::chrono into dekaf2::chrono
 using namespace std::chrono;
 
 #if DEKAF2_USE_HINNANT_DATE
@@ -132,6 +133,12 @@ using date::make24;
 using date::make_time;
 
 using date::operator/;
+using date::operator==;
+using date::operator!=;
+using date::operator<;
+using date::operator<=;
+using date::operator>;
+using date::operator>=;
 
 inline constexpr last_spec last{};
 inline constexpr weekday Sunday{0};
@@ -155,8 +162,60 @@ inline constexpr month October{10};
 inline constexpr month November{11};
 inline constexpr month December{12};
 
+#endif // of DEKAF2_USE_HINNANT_DATE
+
+#ifdef DEKAF2_HAS_WARN_LITERAL_SUFFIX
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wliteral-suffix"
+#elif DEKAF2_IS_CLANG
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wliteral-suffix"
+#endif
 #endif
 
-} // end of namespace (dekaf2::)chrono
+inline namespace literals { // dekaf2::chrono::literals
+
+#if (__cpp_lib_chrono_udls < 201304L) && (__cplusplus < 201402L)
+// the namespace literals are missing in this lib.. add them here
+
+constexpr chrono::hours                                operator""h   (unsigned long long h)  { return chrono::hours(static_cast<chrono::hours::rep>(h));                }
+constexpr chrono::duration<long double, ratio<3600,1>> operator""h   (long double h)         { return chrono::duration<long double, ratio<3600,1>>(h);                  }
+constexpr chrono::minutes                              operator""min (unsigned long long m)  { return chrono::minutes(static_cast<chrono::minutes::rep>(m));            }
+constexpr chrono::duration<long double, ratio<60,1>>   operator""min (long double m)         { return chrono::duration<long double, ratio<60,1>>(m);                    }
+constexpr chrono::seconds                              operator""s   (unsigned long long s)  { return chrono::seconds(static_cast<chrono::seconds::rep>(s));            }
+constexpr chrono::duration<long double>                operator""s   (long double s)         { return chrono::duration<long double>(s);                                 }
+constexpr chrono::milliseconds                         operator""ms  (unsigned long long ms) { return chrono::milliseconds(static_cast<chrono::milliseconds::rep>(ms)); }
+constexpr chrono::duration<long double, milli>         operator""ms  (long double ms)        { return chrono::duration<long double, milli>(ms);                         }
+constexpr chrono::microseconds                         operator""us  (unsigned long long us) { return chrono::microseconds(static_cast<chrono::microseconds::rep>(us)); }
+constexpr chrono::duration<long double, micro>         operator""us  (long double us)        { return chrono::duration<long double, micro>(us);                         }
+constexpr chrono::nanoseconds                          operator""ns  (unsigned long long ns) { return chrono::nanoseconds(static_cast<chrono::nanoseconds::rep>(ns));   }
+constexpr chrono::duration<long double, nano>          operator""ns  (long double ns)        { return chrono::duration<long double, nano>(ns);                          }
+
+#else // not missing chrono literals
+
+// importing std::literals::chrono_literals into dekaf2::chrono::literals
+using namespace std::literals::chrono_literals;
+
+#endif // of missing chrono literals
+
+//#if (__cplusplus <= 201703L)
+#ifndef DEKAF2_HAS_CHRONO_CALENDAR
+// d and y are not included until after C++17, but are also missing in older libs with C++20
+constexpr chrono::day  operator ""d (unsigned long long d) noexcept { return chrono::day (static_cast<unsigned>(d)); }
+constexpr chrono::year operator ""y (unsigned long long y) noexcept { return chrono::year(static_cast<int>(y));      }
+#endif
+
+} // end of namespace dekaf2::chrono::literals
+
+#ifdef DEKAF2_HAS_WARN_LITERAL_SUFFIX
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic pop
+#elif DEKAF2_IS_CLANG
+#pragma clang diagnostic pop
+#endif
+#endif
+
+} // end of namespace dekaf2::chrono
 
 } // end of namespace dekaf2

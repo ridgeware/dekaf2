@@ -18,9 +18,22 @@ TEST_CASE("KDate")
 	// Split time since local midnight into {h, m, s, subseconds}
 	chrono::hh_mm_ss<chrono::system_clock::duration> hms{now - day};
 
-	using namespace std::literals::chrono_literals;
+	using namespace chrono::literals;
 
-	auto t = chrono::sys_days{10d/10/2012} + 12h + 38min + 40s + 123456us;
-	auto x = chrono::April;
-	auto y = 20d;
+	auto yy     = 2000y;
+	auto dd     = 12d;
+	auto hh     = 12h;
+	auto mm     = 12min;
+	auto ss     = 12s;
+	auto ms     = 12ms;
+	auto us     = 12us;
+	auto ns     = 12ns;
+	auto tp     = chrono::sys_days{dd/10/yy} + hh + mm + ss + ms + us + ns;
+	auto t      = chrono::sys_days{10d/10/2012} + 12h + 38min + 40s + 123456us;
+	auto x      = chrono::April;
+	auto y      = chrono::Monday;
+
+	CHECK ( tp < t );
+	CHECK ( x > chrono::February );
+	CHECK ( y != chrono::Friday  );
 }

@@ -1159,7 +1159,7 @@ bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
 		kDebug (GetDebugLevel() + 1, "  DBPort   = {}", m_iDBPortNum);
 		kDebug (GetDebugLevel() + 1, "  DBName   = {}", m_sDatabase);
 		kDebug (GetDebugLevel() + 1, "  Flags    = {} ( {}{}{}{})",
-			m_iFlags,
+			std::to_underlying(m_iFlags),
 			IsFlag(F_IgnoreSQLErrors)  ? "IgnoreSQLErrors "  : "",
 			IsFlag(F_BufferResults)    ? "BufferResults "    : "",
 			IsFlag(F_NoAutoCommit)     ? "NoAutoCommit "     : "",
@@ -2935,7 +2935,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 				ColInfo.sColName = pField->name;
 				ColInfo.SetColumnType (DBT::MYSQL, pField->type, static_cast<KCOL::Len>(pField->length));
 				kDebug (3, "col {:35} mysql_datatype: {:4} => ksql_flags: 0x{:08x} = {}",
-					ColInfo.sColName, pField->type, ColInfo.iKSQLDataType, KCOL::FlagsToString(ColInfo.iKSQLDataType));
+					ColInfo.sColName, std::to_underlying(pField->type), std::to_underlying(ColInfo.iKSQLDataType), KCOL::FlagsToString(ColInfo.iKSQLDataType));
 
 				m_dColInfo.push_back(std::move(ColInfo));
 			}
@@ -7461,7 +7461,7 @@ bool KSQL::ctlib_prepare_results ()
 		ColInfo.SetColumnType(DBT::SYBASE, ColInfo.iKSQLDataType, std::max(colinfo.maxlength, 8000)); // <-- allocate at least the max-varchar length to avoid overflows
 		ColInfo.sColName        = (colinfo.namelen) ? colinfo.name : "";
 
-		enum {SANITY_MAX = 50*1024};
+		static constexpr KCOL::Len SANITY_MAX = 50*1024;
 		if (ColInfo.iMaxDataLen > SANITY_MAX)
 		{
 			kDebug (KSQL2_CTDEBUG, " col#{:02}: name='{}':  maxlength changed from {} to {}",
@@ -8119,12 +8119,12 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KSQLString& sOrderBy, con
 } // FormOrderBy
 
 //-----------------------------------------------------------------------------
-bool KSQL::GetLock (KStringView sName, int16_t iTimeoutSeconds)
+bool KSQL::GetLock (KStringView sName, chrono::seconds iTimeoutSeconds)
 //-----------------------------------------------------------------------------
 {
 	if (m_iDBType == DBT::MYSQL)
 	{
-		return SingleIntQuery ("select GET_LOCK('{}', {})", sName, iTimeoutSeconds) >= 1;
+		return SingleIntQuery ("select GET_LOCK('{}', {})", sName, iTimeoutSeconds.count()) >= 1;
 	}
 
 	// else fall through to table based locking
@@ -8164,7 +8164,7 @@ bool KSQL::IsLocked (KStringView sName)
 } // IsLocked
 
 //-----------------------------------------------------------------------------
-bool KSQL::GetPersistentLock (KStringView sName, int16_t iTimeoutSeconds)
+bool KSQL::GetPersistentLock (KStringView sName, chrono::seconds iTimeoutSeconds)
 //-----------------------------------------------------------------------------
 {
 	auto sTableName = kFormat ("{}_LOCK", sName);
@@ -8180,7 +8180,7 @@ bool KSQL::GetPersistentLock (KStringView sName, int16_t iTimeoutSeconds)
 			return true;  // the lock has been obtained
 		}
 
-		if (iTimeoutSeconds > 0)
+		if (iTimeoutSeconds > chrono::seconds::zero())
 		{
 			kDebug (2, "lock failed: {}, sleeping ...", sName);
 			kMilliSleep (1000);
@@ -8245,7 +8245,7 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 		return true;
 	}
 
-	enum     {WAIT_FOR_SECS = 5};
+	constexpr chrono::seconds WAIT_FOR_SECS{5};
 	auto     iSigned    = (bForce) ? 0 : GetSchemaVersion (sSchemaVersionTable);
 	uint16_t iSchemaRev = (iSigned < 0) ? 0 : static_cast<uint16_t>(iSigned);
 	KString  sError;
@@ -8261,8 +8261,8 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 	auto sLock = kFormat ("{}_{}", sSchemaVersionTable, GetDBName()).ToUpper();
 	if (!GetLock (sLock, WAIT_FOR_SECS))
 	{
-		kWarning("Could not acquire schema update lock within {} seconds. Another process may be updating the schema. Abort.", WAIT_FOR_SECS);
-		return SetError(kFormat("schema updater for table {} is locked.  gave up after {} seconds", sSchemaVersionTable, WAIT_FOR_SECS));
+		kWarning("Could not acquire schema update lock within {}. Another process may be updating the schema. Abort.", WAIT_FOR_SECS); // note that format appends a 's' to the chrono::seconds type
+		return SetError(kFormat("schema updater for table {} is locked.  gave up after {}", sSchemaVersionTable, WAIT_FOR_SECS));
 	}
 
 	// query rev again after acquiring the lock
@@ -8956,7 +8956,7 @@ KString KSQL::ConvertTimestamp (KStringView sTimestamp)
 
 
 //-----------------------------------------------------------------------------
-DbSemaphore::DbSemaphore (KSQL& db, KString sAction, bool bThrow, bool bWait, int16_t iTimeout, bool bVerbose)
+DbSemaphore::DbSemaphore (KSQL& db, KString sAction, bool bThrow, bool bWait, chrono::seconds iTimeout, bool bVerbose)
 //-----------------------------------------------------------------------------
 	: m_db       { db       }
 	, m_sAction  { sAction  }
@@ -8971,7 +8971,7 @@ DbSemaphore::DbSemaphore (KSQL& db, KString sAction, bool bThrow, bool bWait, in
 } // ctor
 
 //-----------------------------------------------------------------------------
-bool DbSemaphore::CreateSemaphore (int16_t iTimeout)
+bool DbSemaphore::CreateSemaphore (chrono::seconds iTimeout)
 //-----------------------------------------------------------------------------
 {
 	if (!m_bIsSet)

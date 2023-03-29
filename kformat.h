@@ -65,7 +65,6 @@
 #else
 	#define DEKAF2_FORMAT_NAMESPACE fmt
 	#include <fmt/core.h>
-	#include <fmt/printf.h>
 	#include <fmt/chrono.h>
 #endif
 #include <ostream>

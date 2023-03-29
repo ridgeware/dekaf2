@@ -320,11 +320,11 @@ uint16_t KProtocol::DefaultPort() const
 	{
 		if (m_eProto == UNKNOWN)
 		{
-			kDebug (1, "no default port for protocol {} ('{}') - returning 0", m_eProto, m_sProto);
+			kDebug (1, "no default port for protocol {} ('{}') - returning 0", std::to_underlying(m_eProto), m_sProto);
 		}
 		else
 		{
-			kDebug (1, "no default port for protocol {} ('{}') - returning 0", m_eProto, s_Canonical[m_eProto].sName);
+			kDebug (1, "no default port for protocol {} ('{}') - returning 0", std::to_underlying(m_eProto), s_Canonical[m_eProto].sName);
 		}
 	}
 

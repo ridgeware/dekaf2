@@ -932,14 +932,14 @@ public:
 
 	/// acquire a named lock, which is automatically released when the connection fails
 	/// (on mysql, on other platforms this defers to GetPersistentLock())
-	bool GetLock (KStringView sName, int16_t iTimeoutSeconds = -1);
+	bool GetLock (KStringView sName, chrono::seconds iTimeoutSeconds = chrono::seconds(-1));
 	/// release a named lock (on mysql, on other platforms this defers to ReleasePersistentLock())
 	bool ReleaseLock (KStringView sName);
 	/// check a named lock (on mysql, on other platforms this defers to IsPersistentlyLocked())
 	bool IsLocked (KStringView sName);
 
 	/// acquire a lock that is persistent through database connections
-	bool GetPersistentLock (KStringView sName, int16_t iTimeoutSeconds = -1);
+	bool GetPersistentLock (KStringView sName, chrono::seconds iTimeoutSeconds = chrono::seconds(-1));
 	/// release a lock that is persistent through database connections
 	bool ReleasePersistentLock (KStringView sName);
 	/// check a lock that is persistent through database connections
@@ -1650,10 +1650,10 @@ class DbSemaphore
 public:
 //----------
 
-	DbSemaphore (KSQL& db, KString sAction, bool bThrow=true, bool bWait=false, int16_t iTimeout=0, bool bVerbose=false);
+	DbSemaphore (KSQL& db, KString sAction, bool bThrow=true, bool bWait=false, chrono::seconds iTimeout=chrono::seconds::zero(), bool bVerbose=false);
 	~DbSemaphore () { ClearSemaphore(); }
 
-	bool  CreateSemaphore (int16_t iTimeout = 0);
+	bool  CreateSemaphore (chrono::seconds iTimeout = chrono::seconds::zero());
 	bool  ClearSemaphore ();
 	bool  IsCreated () const { return m_bIsSet; }
 	const KString& GetLastError () const { return m_sLastError; }

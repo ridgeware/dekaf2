@@ -710,7 +710,7 @@ bool KZip::SetCompression(CompMethod Compression, uint16_t iCompressionLevelInPe
 
 	if (!HaveCompression(Compression))
 	{
-		kDebug(1, "compression method {} is not supported", Compression);
+		kDebug(1, "compression method {} is not supported", std::to_underlying(Compression));
 		m_Compression = CompMethod::DEFLATE;
 		return false;
 	}

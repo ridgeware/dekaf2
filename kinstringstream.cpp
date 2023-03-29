@@ -143,7 +143,7 @@ std::streambuf::pos_type KInStringStreamBuf::seekoff(off_type off,
 
 	if (pRead < eback() || pRead > egptr())
 	{
-		kDebug(1, "offset out of range in mode {}: {}", dir, off);
+		kDebug(1, "offset out of range in mode {}: {}", std::to_underlying(dir), off);
 		return pos_type(off_type(-1));
 	}
 

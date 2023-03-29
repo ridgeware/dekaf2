@@ -725,6 +725,21 @@ inline void from_json(const LJSON& j, KROW& row)
 
 } // namespace dekaf2
 
+namespace fmt
+{
+
+template <>
+struct formatter<dekaf2::KCOL::Flags> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KCOL::Flags& Flags, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(dekaf2::KCOL::FlagsToString(Flags), ctx);
+	}
+};
+
+} // end of namespace fmt
+
 namespace std
 {
 

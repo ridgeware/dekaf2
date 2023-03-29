@@ -976,7 +976,7 @@ LJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 
 	for (auto& col : *this)
 	{
-		kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), col.second.FlagsToString());
+		kDebug (3, "{:35}: 0x{:08x} = {}", col.first, std::to_underlying(col.second.GetFlags()), col.second.FlagsToString());
 
 		KString sKey = col.first;
 
@@ -1135,7 +1135,7 @@ KString KROW::to_csv (bool bHeaders/*=false*/, CONVERSION Flags/*=CONVERSION::NO
 
 		for (const auto& col : *this)
 		{
-			kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), col.second.FlagsToString());
+			kDebug (3, "{:35}: 0x{:08x} = {}", col.first, std::to_underlying(col.second.GetFlags()), col.second.FlagsToString());
 
 			if (col.second.IsFlag(KCOL::NONCOLUMN))
 			{
@@ -1164,7 +1164,7 @@ KString KROW::to_csv (bool bHeaders/*=false*/, CONVERSION Flags/*=CONVERSION::NO
 
 		for (const auto& col : *this)
 		{
-			kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), col.second.FlagsToString());
+			kDebug (3, "{:35}: 0x{:08x} = {}", col.first, std::to_underlying(col.second.GetFlags()), col.second.FlagsToString());
 
 			if (col.second.IsFlag(KCOL::NONCOLUMN))
 			{

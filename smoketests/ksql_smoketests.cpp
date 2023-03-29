@@ -1255,7 +1255,7 @@ TEST_CASE("KSQL")
 		{
 			bool b;
 			{
-				b = db.GetLock("TestLock", 1);
+				b = db.GetLock("TestLock", chrono::seconds(1));
 				INFO ( "GetLock()" );
 				CHECK ( b );
 			}
@@ -1285,7 +1285,7 @@ TEST_CASE("KSQL")
 			}
 
 			{
-				b = db.GetPersistentLock("TestLock", 1);
+				b = db.GetPersistentLock("TestLock", chrono::seconds(1));
 				INFO ( "GetPersistentLock()" );
 				CHECK ( b );
 			}
@@ -1327,7 +1327,7 @@ TEST_CASE("KSQL")
 				CHECK ( Semaphore.CreateSemaphore() );
 				CHECK ( Semaphore.CreateSemaphore() );
 				auto db2 = db;
-				DbSemaphore Semaphore2(db2, "TestLock", false, false, 0);
+				DbSemaphore Semaphore2(db2, "TestLock", false, false, chrono::seconds(0));
 				CHECK ( Semaphore2.IsCreated() == false );
 			}
 			CHECK ( db.IsLocked("TestLock") == false );

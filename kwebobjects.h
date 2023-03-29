@@ -2070,9 +2070,10 @@ public:
 	using self   = RadioButton<ValueType>;
 	using parent = LabeledInput<self>;
 
+	template<typename ValueT = ValueType, typename std::enable_if<!std::is_enum<ValueT>::value, int>::type = 0>
 	RadioButton(ValueType&  Result,
 				KStringView sName  = KStringView{},
-				ValueType   Value  = ValueType{},
+				ValueT      Value  = ValueType{},
 				KStringView sID    = KStringView{},
 				const Classes& Classes = html::Classes{})
 	: parent(sName, "", Input::RADIO, sID, Classes)
@@ -2091,12 +2092,30 @@ public:
 		}
 	}
 
-	self& SetValue(const ValueType& Value) &
+	template<typename ValueT = ValueType, typename std::enable_if<std::is_enum<ValueT>::value, int>::type = 0>
+	RadioButton(ValueType&  Result,
+				KStringView sName  = KStringView{},
+				ValueT      Value  = ValueType{},
+				KStringView sID    = KStringView{},
+				const Classes& Classes = html::Classes{})
+	: RadioButton(Result, sName, std::to_underlying(Value), sID, Classes)
+	{
+	}
+
+	template<typename ValueT = ValueType, typename std::enable_if<!std::is_enum<ValueT>::value, int>::type = 0>
+	self& SetValue(const ValueT& Value) &
 	{
 		parent::SetChecked(Value == m_Result);
 		parent::SetValue(kFormat("{}", Value));
 		return *this;
 	}
+
+	template<typename ValueT = ValueType, typename std::enable_if<std::is_enum<ValueT>::value, int>::type = 0>
+	self& SetValue(const ValueT& Value) &
+	{
+		return SetValue(std::to_underlying(Value));
+	}
+
 	self&& SetValue(const ValueType& Value) &&
 	{
 		return std::move(SetValue(Value));

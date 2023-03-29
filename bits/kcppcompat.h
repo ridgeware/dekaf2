@@ -453,6 +453,16 @@ struct negation : bool_constant<!bool(T::value)> { };
 }
 #endif
 
+#ifndef DEKAF2_HAS_CPP_23
+namespace std {
+template<class Enum, typename enable_if<is_enum<Enum>::value, int>::type = 0>
+constexpr typename underlying_type<Enum>::type to_underlying(Enum e) noexcept
+{
+	return static_cast<typename underlying_type<Enum>::type>(e);
+}
+}
+#endif
+
 // Make sure we have std::apply from C++17 available in namespace std::
 // It does not matter if they had been declared by other code already. The compiler
 // simply picks the first one that matches.

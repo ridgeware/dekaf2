@@ -5,8 +5,6 @@ cmake_minimum_required(VERSION 3.8)
 include(ExternalProject)
 
 # add the format lib
-set(FMT_MASTER_PROJECT OFF)
-set(FMT_INSTALL OFF)
 add_subdirectory(fmt-9.1.0)
 
 # add fast regular expressions

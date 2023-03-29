@@ -100,6 +100,17 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-result)
 			add_compile_options($<$<CONFIG:DEBUG>:-Werror>)
 
+			if (DEKAF2_HAS_WARN_ARRAY_BOUNDS AND CMAKE_CXX_STANDARD LESS 17)
+				# gcc has an overzealous array bounds check that triggers with no reason
+				# when we use our own string_view on remove_prefix()
+				# (which we do with C++ < 17)
+				# unfortunately it seems to be impossible to switch this check
+				# off for the call place, therefore we do it for all (as this is
+				# only one build configuration any other ones will still check
+				# for array bounds)
+				add_compile_options(-Wno-array-bounds)
+			endif()
+
 			if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.1)
 				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wpessimizing-move>)
 			endif()

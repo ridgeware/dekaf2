@@ -61,13 +61,16 @@
 #endif
 
 #include <chrono>
-#if DEKAF2_USE_HINNANT_DATE
+#if DEKAF2_USE_HINNANT_DATE || !DEKAF2_HAS_CHRONO_ROUND
 	// the date lib does not compile the code for stream formatting with gcc 8
 	// as we do not need it at all we switch it off (there are three if/endif
 	// sections added to the original code)
 	#ifndef DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 		#define DEKAF2_DATE_WITH_STREAMS_AND_FORMAT 0
 	#endif
+	// date:: only creates the is_clock check when we have void_t - and we supply
+	// a void_t also for C++ < 17
+	#define HAS_VOID_T 1
 	#include <date/date.h>
 #endif
 
@@ -125,7 +128,8 @@ using date::year_month_weekday_last;
 template <class Duration>
 using hh_mm_ss = date::hh_mm_ss<Duration>;
 
-using date::is_clock;
+template <class T>
+using is_clock = date::is_clock<T>;
 using date::is_am;
 using date::is_pm;
 using date::make12;
@@ -140,27 +144,27 @@ using date::operator<=;
 using date::operator>;
 using date::operator>=;
 
-inline constexpr last_spec last{};
-inline constexpr weekday Sunday{0};
-inline constexpr weekday Monday{1};
-inline constexpr weekday Tuesday{2};
-inline constexpr weekday Wednesday{3};
-inline constexpr weekday Thursday{4};
-inline constexpr weekday Friday{5};
-inline constexpr weekday Saturday{6};
+using date::last_spec;
+using date::Sunday;
+using date::Monday;
+using date::Tuesday;
+using date::Wednesday;
+using date::Thursday;
+using date::Friday;
+using date::Saturday;
 
-inline constexpr month January{1};
-inline constexpr month February{2};
-inline constexpr month March{3};
-inline constexpr month April{4};
-inline constexpr month May{5};
-inline constexpr month June{6};
-inline constexpr month July{7};
-inline constexpr month August{8};
-inline constexpr month September{9};
-inline constexpr month October{10};
-inline constexpr month November{11};
-inline constexpr month December{12};
+using date::January;
+using date::February;
+using date::March;
+using date::April;
+using date::May;
+using date::June;
+using date::July;
+using date::August;
+using date::September;
+using date::October;
+using date::November;
+using date::December;
 
 #else // of DEKAF2_USE_HINNANT_DATE
 
@@ -170,21 +174,26 @@ inline constexpr hh_mm_ss<duration<Rep, Period>> make_time(const duration<Rep, P
 
 #endif // of DEKAF2_USE_HINNANT_DATE
 
-#ifdef DEKAF2_HAS_WARN_LITERAL_SUFFIX
-#if DEKAF2_IS_GCC
+#if !DEKAF2_HAS_CHRONO_ROUND
+using date::floor;
+using date::ceil;
+using date::round;
+using date::abs;
+#endif
+
+#if DEKAF2_IS_GCC && defined(DEKAF2_HAS_WARN_LITERAL_SUFFIX)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wliteral-suffix"
-#elif DEKAF2_IS_CLANG
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wliteral-suffix"
-#endif
 #endif
 
 inline namespace literals { // dekaf2::chrono::literals
 
 #if (__cpp_lib_chrono_udls < 201304L) && (__cplusplus < 201402L)
 // the namespace literals are missing in this lib.. add them here
-
+#if !DEKAF2_IS_CLANG
+// clang effectively makes it impossible to define system literals
+// but, irritatingly, provides the below literals also for C++11 on newer libs
+// (which means that we do not have to create them on our own, which we couldn't anyway)
 constexpr chrono::hours                                operator""h   (unsigned long long h)  { return chrono::hours(static_cast<chrono::hours::rep>(h));                }
 constexpr chrono::duration<long double, ratio<3600,1>> operator""h   (long double h)         { return chrono::duration<long double, ratio<3600,1>>(h);                  }
 constexpr chrono::minutes                              operator""min (unsigned long long m)  { return chrono::minutes(static_cast<chrono::minutes::rep>(m));            }
@@ -197,6 +206,7 @@ constexpr chrono::microseconds                         operator""us  (unsigned l
 constexpr chrono::duration<long double, micro>         operator""us  (long double us)        { return chrono::duration<long double, micro>(us);                         }
 constexpr chrono::nanoseconds                          operator""ns  (unsigned long long ns) { return chrono::nanoseconds(static_cast<chrono::nanoseconds::rep>(ns));   }
 constexpr chrono::duration<long double, nano>          operator""ns  (long double ns)        { return chrono::duration<long double, nano>(ns);                          }
+#endif // !DEKAF2_IS_CLANG
 
 #else // not missing chrono literals
 
@@ -205,21 +215,23 @@ using namespace std::literals::chrono_literals;
 
 #endif // of missing chrono literals
 
-//#if (__cplusplus <= 201703L)
-#ifndef DEKAF2_HAS_CHRONO_CALENDAR
-// d and y are not included until after C++17, but are also missing in older libs with C++20
+#if !defined(DEKAF2_HAS_CHRONO_CALENDAR)
+// d and y are not included until after C++17, but are also missing in older libs with C++20. Unfortunately we cannot
+// inject them into clang, but for gcc the below works
+#if !DEKAF2_IS_CLANG
+// clang effectively makes it impossible to define system literals,
+// so with clang we will always need C++20 to use the below literals (from the base lib)
 constexpr chrono::day  operator ""d (unsigned long long d) noexcept { return chrono::day (static_cast<unsigned>(d)); }
 constexpr chrono::year operator ""y (unsigned long long y) noexcept { return chrono::year(static_cast<int>(y));      }
+#else // !DEKAF2_IS_CLANG
+// #define DEKAF2_
+#endif
 #endif
 
 } // end of namespace dekaf2::chrono::literals
 
-#ifdef DEKAF2_HAS_WARN_LITERAL_SUFFIX
-#if DEKAF2_IS_GCC
+#if DEKAF2_IS_GCC && defined(DEKAF2_HAS_WARN_LITERAL_SUFFIX)
 #pragma GCC diagnostic pop
-#elif DEKAF2_IS_CLANG
-#pragma clang diagnostic pop
-#endif
 #endif
 
 } // end of namespace dekaf2::chrono

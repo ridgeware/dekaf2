@@ -705,11 +705,6 @@ public:
 		return substr(pos, count);
 	}
 
-#if DEKAF2_IS_GCC && DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW && defined(DEKAF2_HAS_WARN_ARRAY_BOUNDS)
-// gcc errs on bounds checking when we use our own string_view type in C++ < 17
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#endif
 	//-----------------------------------------------------------------------------
 	/// shrinks the view by moving its start forward by n characters
 	DEKAF2_CONSTEXPR_14
@@ -807,9 +802,6 @@ public:
 		}
 		return false;
 	}
-#if DEKAF2_IS_GCC && DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW && defined(DEKAF2_HAS_WARN_ARRAY_BOUNDS)
-#pragma GCC diagnostic pop
-#endif
 
 	//-----------------------------------------------------------------------------
 	// nonstandard

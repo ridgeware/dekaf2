@@ -20,8 +20,13 @@ TEST_CASE("KDate")
 
 	using namespace chrono::literals;
 
+#if DEKAF2_HAS_CPP_20 || !DEKAF2_IS_CLANG
 	auto yy     = 2000y;
 	auto dd     = 12d;
+#else
+	auto yy     = chrono::year(2000);
+	auto dd     = chrono::day(12);
+#endif
 	auto hh     = 12h;
 	auto mm     = 12min;
 	auto ss     = 12s;
@@ -29,15 +34,16 @@ TEST_CASE("KDate")
 	auto us     = 12us;
 	auto ns     = 12ns;
 	auto tp     = chrono::sys_days{dd/10/yy} + hh + mm + ss + ms + us + ns;
+#if DEKAF2_HAS_CPP_20 || !DEKAF2_IS_CLANG
 	auto t      = chrono::sys_days{10d/10/2012} + 12h + 38min + 40s + 123456us;
+#else
+	auto t      = chrono::sys_days{chrono::day(10)/10/2012} + 12h + 38min + 40s + 123456us;
+#endif
 	CHECK ( tp < t );
 
-	// we need to untangle the stream operators a bit more for month and weekday in date::
-#if !DEKAF2_USE_HINNANT_DATE
 	auto x      = chrono::April;
 	auto y      = chrono::Monday;
 
 	CHECK ( x > chrono::February );
 	CHECK ( y != chrono::Friday  );
-#endif
 }

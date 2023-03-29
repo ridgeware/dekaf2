@@ -45,7 +45,7 @@ cmake_minimum_required(VERSION 3.13)
 cmake_policy(SET CMP0048 NEW)
 
 # declare the project
-project(dekaf2 VERSION 2.0.24 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.25 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -1368,6 +1368,7 @@ install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kmru-multi-index.h)")
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kmru-std-vector.h)")
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/experimental/kjson2.h)")
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/fmt/locale.h)")
 
 set(CPACK_SOURCE_GENERATOR ZIP)
 set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})

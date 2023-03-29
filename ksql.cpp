@@ -4167,14 +4167,14 @@ bool KSQL::LoadColumnLayout(KROW& Row, KStringView sColumns)
 	if (GetDBType() == DBT::SQLSERVER ||
 		GetDBType() == DBT::SQLSERVER15)
 	{
-		if (!ExecQuery(FormatSQL("select top 0 {} from {}", sExpandedColumns, Row.GetTablename()), Flags::F_None, "LoadColumnLayout"))
+		if (!ExecRawQuery(FormatSQL("select top 0 {} from {}", sExpandedColumns, Row.GetTablename()), Flags::F_None, "LoadColumnLayout"))
 		{
 			return false;
 		}
 	}
 	else
 	{
-		if (!ExecQuery(FormatSQL("select {} from {} limit 0", sExpandedColumns, Row.GetTablename()), Flags::F_None, "LoadColumnLayout"))
+		if (!ExecRawQuery(FormatSQL("select {} from {} limit 0", sExpandedColumns, Row.GetTablename()), Flags::F_None, "LoadColumnLayout"))
 		{
 			return false;
 		}
@@ -7608,7 +7608,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 	KSQLString sSafeSQL;
 	sSafeSQL.ref() = sSQL;
 
-	if (!ExecQuery (sSafeSQL, GetFlags(), "OutputQuery"))
+	if (!ExecRawQuery (sSafeSQL, GetFlags(), "OutputQuery"))
 	{
 		return (-1);
 	}

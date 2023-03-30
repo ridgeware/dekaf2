@@ -68,6 +68,7 @@
 	#include <fmt/chrono.h>
 #endif
 #include <ostream>
+#include <locale>
 
 namespace dekaf2 {
 
@@ -77,6 +78,9 @@ namespace detail {
 
 DEKAF2_PUBLIC
 KString kFormat(KStringView sFormat, format::format_args args) noexcept;
+
+DEKAF2_PUBLIC
+KString kFormat(const std::locale& locale, KStringView sFormat, format::format_args args) noexcept;
 
 } // end of namespace detail
 
@@ -92,12 +96,32 @@ KString kFormat(KStringView sFormat) noexcept
 
 //-----------------------------------------------------------------------------
 // C++20
+/// format no-op with locale
+inline DEKAF2_PUBLIC
+KString kFormat(const std::locale& locale, KStringView sFormat) noexcept
+//-----------------------------------------------------------------------------
+{
+	return sFormat;
+}
+
+//-----------------------------------------------------------------------------
+// C++20
 /// formats a KString using Python syntax
 template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
 KString kFormat(KStringView sFormat, Args&&... args) noexcept
 //-----------------------------------------------------------------------------
 {
 	return detail::kFormat(sFormat, format::make_format_args(std::forward<Args>(args)...));
+}
+
+//-----------------------------------------------------------------------------
+// C++20
+/// formats a KString using Python syntax, using locale specification for decimal points and time formatting (month and day names)
+template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+KString kFormat(const std::locale& locale, KStringView sFormat, Args&&... args) noexcept
+//-----------------------------------------------------------------------------
+{
+	return detail::kFormat(locale, sFormat, format::make_format_args(std::forward<Args>(args)...));
 }
 
 //-----------------------------------------------------------------------------

@@ -126,6 +126,31 @@ KString kFormat(KStringView sFormat, format::format_args args) noexcept
 
 } // kFormat
 
+//-----------------------------------------------------------------------------
+/// formats a KString using Python syntax, with locale
+KString kFormat(const std::locale& locale, KStringView sFormat, format::format_args args) noexcept
+//-----------------------------------------------------------------------------
+{
+	KString sOut;
+
+	DEKAF2_TRY
+	{
+#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
+		format::vformat_to(locale, std::back_inserter(sOut), sFormat.operator format::string_view(), args);
+#else
+		sOut = vformat(locale, sFormat.operator format::string_view(), args);
+#endif
+	}
+	DEKAF2_CATCH (const std::exception& e)
+	{
+		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h",
+						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));
+	}
+
+	return sOut;
+
+} // kFormat
+
 } // end of namespace detail
 
 } // end of namespace dekaf2

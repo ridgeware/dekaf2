@@ -237,7 +237,7 @@ TEST_CASE("KTime") {
 #endif
 				CHECK ( Local1.GetUTCOffset() == chrono::minutes(60) );
 #ifdef DEKAF2_IS_OSX
-				CHECK ( kFormTimestamp(UTC1.ToTimeT(), "%A %c", true) == "Mardi Mar  1 jan 00:59:59 1974" );
+				CHECK ( kFormTimestamp(std::locale(), UTC1.ToTimeT(), "%A %c", true) == "Mardi Mar  1 jan 00:59:59 1974" );
 #endif
 			}
 		}

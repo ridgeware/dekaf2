@@ -18,12 +18,12 @@ TEST_CASE("KTime") {
 		static constexpr KStringView sBadOrigTime3 = "10:23:42";
 
 		auto tTime = kParseHTTPTimestamp(sOrigTime);
-		CHECK ( tTime != 0 );
+		CHECK ( tTime != KUnixTime(0) );
 		auto sTime = kFormHTTPTimestamp(tTime);
 		CHECK ( sTime == sOrigTime );
-		CHECK ( kParseHTTPTimestamp(sBadOrigTime1) == 0 );
-		CHECK ( kParseHTTPTimestamp(sBadOrigTime2) == 0 );
-		CHECK ( kParseHTTPTimestamp(sBadOrigTime3) == 0 );
+		CHECK ( kParseHTTPTimestamp(sBadOrigTime1) == KUnixTime(0) );
+		CHECK ( kParseHTTPTimestamp(sBadOrigTime2) == KUnixTime(0) );
+		CHECK ( kParseHTTPTimestamp(sBadOrigTime3) == KUnixTime(0) );
 	}
 
 	SECTION("kParseSMTPTimestamp")
@@ -31,26 +31,28 @@ TEST_CASE("KTime") {
 		static constexpr KStringView sOrigTime1 = "Tue, 03 Aug 2021 10:23:42 -0000";
 		static constexpr KStringView sOrigTime2 = "Tue, 03 Aug 2021 10:23:42 -0330";
 		static constexpr KStringView sOrigTime3 = "Tue, 03 Aug 2021 10:23:42 +1101";
-		static constexpr KStringView sBadOrigTime1 = "Tue, 03 Aug 2021 10:23:42 CET";
+		static constexpr KStringView sOrigTime4 = "Tue, 03 Aug 2021 10:23:42 CET";
+		static constexpr KStringView sBadOrigTime1 = "Tue, 03 Aug 2021 10:23:42 XXX";
 		static constexpr KStringView sBadOrigTime2 = "Tue, 03 Aug 2021 10:23:42 -00";
 
 		auto tTime = kParseSMTPTimestamp(sOrigTime1);
-		CHECK (tTime != 0);
+		CHECK (tTime != KUnixTime(0));
 		auto sTime = kFormSMTPTimestamp(tTime);
 		CHECK (sTime == sOrigTime1);
 
 		tTime = kParseSMTPTimestamp(sOrigTime2);
-		CHECK (tTime != 0);
+		CHECK (tTime != KUnixTime(0));
 		sTime = kFormSMTPTimestamp(tTime);
 		CHECK (sTime == "Tue, 03 Aug 2021 06:53:42 -0000");
 
 		tTime = kParseSMTPTimestamp(sOrigTime3);
-		CHECK (tTime != 0);
+		CHECK (tTime != KUnixTime(0));
 		sTime = kFormSMTPTimestamp(tTime);
 		CHECK (sTime == "Tue, 03 Aug 2021 21:24:42 -0000");
 
-		CHECK ( kParseSMTPTimestamp(sBadOrigTime1) == 0 );
-		CHECK ( kParseSMTPTimestamp(sBadOrigTime2) == 0 );
+		CHECK ( kParseSMTPTimestamp(sOrigTime4) == kParseTimestamp("2021-08-03 09:23:42") );
+		CHECK ( kParseSMTPTimestamp(sBadOrigTime1) == KUnixTime(0) );
+		CHECK ( kParseSMTPTimestamp(sBadOrigTime2) == KUnixTime(0) );
 	}
 
 	SECTION("kTranslateSeconds")
@@ -107,67 +109,64 @@ TEST_CASE("KTime") {
 
 	SECTION("KBrokenDownTime")
 	{
+		CHECK ( sizeof(std::time_t) <=  8 );
+		CHECK ( sizeof(KUnixTime)   <=  8 );
+		CHECK ( sizeof(KUnixTime)   == sizeof(std::time_t) );
+		CHECK ( sizeof(KUTCTime)    <= 56 );
+		CHECK ( sizeof(KLocalTime)  <= 72 );
+		CHECK ( sizeof(std::tm)     <= 56 );
+
 		KUTCTime UTC1;
 		CHECK ( UTC1.empty()                 );
-		CHECK ( UTC1.ToTimeT()      == 0     );
-		UTC1.AddSeconds(1);
-//		CHECK ( UTC1.empty()                 );
-//		CHECK ( UTC1.Format()       == ""    );
-		UTC1.AddSeconds(86399);
-#ifdef DEKAF2_IS_MACOS
-		// this is admittedly an edge case ..
+		CHECK ( UTC1.to_unix()      == KUnixTime(0));
+		UTC1 += chrono::seconds(1);
+		UTC1 += chrono::seconds(86399);
 		CHECK ( UTC1.empty()        == false );
-		CHECK ( UTC1.Format()       == "1900-01-01 00:00:00" );
-#endif
+		CHECK ( UTC1.Format()       == "1970-01-02 00:00:00" );
 		KLocalTime Local1;
 		CHECK ( Local1.empty()               );
-		CHECK ( Local1.ToTimeT()    == 0     );
-		KUTCTime UTC2(123545656);
+		KUTCTime UTC2(KUnixTime::from_time_t(123545656));
 		CHECK ( UTC2.empty()        == false );
-		CHECK ( UTC2.ToTimeT()      == 123545656 );
+		CHECK ( UTC2.to_unix()      == KUnixTime(123545656) );
 
-		CHECK ( UTC2.GetDay()       == 30    );
-		CHECK ( UTC2.GetMonth()     == 11    );
-		CHECK ( UTC2.GetYear()      == 1973  );
-		CHECK ( UTC2.GetHour()      == 22    );
-		CHECK ( UTC2.GetMinute()    == 14    );
-		CHECK ( UTC2.GetSecond()    == 16    );
-		CHECK ( UTC2.GetHour12()    == 10    );
-		CHECK ( UTC2.GetDayName(true)   == "Fri" );
-		CHECK ( UTC2.GetMonthName(true) == "Nov" );
-		CHECK ( UTC2.IsPM()         == true  );
-		CHECK ( UTC2.Format()       == "1973-11-30 22:14:16" );
-		CHECK ( UTC2.ToTimeT()      == 123545656 );
+		CHECK ( UTC2.days().count()     == 30    );
+		CHECK ( UTC2.months().count()   == 11    );
+		CHECK ( UTC2.years().count()    == 1973  );
+		CHECK ( UTC2.hours().count()    == 22    );
+		CHECK ( UTC2.minutes().count()  == 14    );
+		CHECK ( UTC2.seconds().count()  == 16    );
+		CHECK ( UTC2.hours12().count()  == 10    );
+		CHECK ( UTC2.get_day_name(true)   == "Fri" );
+		CHECK ( UTC2.get_month_name(true) == "Nov" );
+		CHECK ( UTC2.is_pm()            == true  );
+		CHECK ( UTC2.to_string()        == "1973-11-30 22:14:16" );
+		CHECK ( UTC2.to_unix()          == KUnixTime(123545656) );
 		UTC1 = UTC2;
-		CHECK ( UTC1.ToTimeT()      == 123545656 );
-		UTC1.SetDay(31);
-		UTC1.SetMonth(12);
-		UTC1.SetHour(23);
-		UTC1.SetMinute(59);
-		UTC1.SetSecond(59);
+		CHECK ( UTC1.to_unix()          == KUnixTime(123545656) );
+		UTC1 = KUnixTime(126230399);
 		CHECK ( UTC1.Format()       == "1973-12-31 23:59:59" );
-		CHECK ( UTC1.ToTimeT()      == 126230399 );
-		UTC2 = UTC1.ToTimeT();
+		CHECK ( UTC1.to_unix()      == KUnixTime(126230399) );
+		UTC2 = UTC1.to_unix();
 		CHECK ( (UTC2 == UTC1) );
-		CHECK ( UTC2.GetMonthName(true) == "Dec" );
-		CHECK ( UTC2.GetDayName(true)   == "Mon" );
-		CHECK ( UTC2.IsPM()         == true  );
-		UTC1.AddSeconds(2);
+		CHECK ( UTC2.get_month_name(true) == "Dec" );
+		CHECK ( UTC2.get_day_name(true)   == "Mon" );
+		CHECK ( UTC2.is_pm()        == true  );
+		UTC1 += chrono::seconds(2);
 		CHECK ( UTC1.Format()       == "1974-01-01 00:00:01" );
-		CHECK ( UTC1.ToTimeT()      == 126230401 );
-		CHECK ( UTC1.GetMonthName(true) == "Jan" );
-		CHECK ( UTC1.GetDayName(true)   == "Tue" );
-		CHECK ( UTC1.IsPM()         == false  );
-		UTC1.AddSeconds(-2);
+		CHECK ( UTC1.to_unix()      == KUnixTime(126230401) );
+		CHECK ( UTC1.get_month_name(true) == "Jan" );
+		CHECK ( UTC1.get_day_name(true)   == "Tue" );
+		CHECK ( UTC1.is_pm()        == false  );
+		UTC1 -= chrono::seconds(2);
 		CHECK ( UTC1.Format()       == "1973-12-31 23:59:59" );
-		CHECK ( UTC1.ToTimeT()      == 126230399 );
-		CHECK ( UTC1.GetMonthName(true) == "Dec" );
-		CHECK ( UTC1.GetDayName(true)   == "Mon" );
-		CHECK ( UTC1.IsPM()         == true  );
+		CHECK ( UTC1.to_unix()      == KUnixTime(126230399) );
+		CHECK ( UTC1.get_month_name(true) == "Dec" );
+		CHECK ( UTC1.get_day_name(true)   == "Mon" );
+		CHECK ( UTC1.is_pm()        == true  );
 
-		auto SysTime = UTC1.ToTimePoint();
-		CHECK ( std::chrono::system_clock::to_time_t(SysTime) == UTC1.ToTimeT() );
-		std::chrono::system_clock::time_point SysTime2 = UTC1;
+		auto SysTime = UTC1.to_sys();
+		CHECK ( std::chrono::system_clock::to_time_t(SysTime) == UTC1.to_unix().to_time_t() );
+		std::chrono::system_clock::time_point SysTime2 = UTC1.to_sys();
 		CHECK ( SysTime == SysTime2 );
 
 		UTC2 += std::chrono::minutes(34);
@@ -189,59 +188,116 @@ TEST_CASE("KTime") {
 		UTC2 += KDuration(std::chrono::microseconds(1000123));
 		CHECK ( UTC2.Format()       == "1976-12-31 00:34:02" );
 		UTC2 -= KDuration(std::chrono::microseconds(2000123));
-		CHECK ( UTC2.Format()       == "1976-12-31 00:34:00" );
+		CHECK ( UTC2.Format()       == "1976-12-31 00:33:59" ); // subseconds ..
 
-		auto UTC3 = UTC2 + std::chrono::seconds(61);
-		auto tDiff = UTC3 - UTC2;
-		CHECK ( tDiff == std::chrono::seconds(61) );
-		tDiff = UTC3.ToTimeT() - UTC2;
-		CHECK ( tDiff == std::chrono::seconds(61) );
-		tDiff = UTC3 - UTC2.ToTimeT();
-		CHECK ( tDiff == std::chrono::seconds(61) );
-		auto dDiff = UTC3 - UTC2.ToTimePoint();
-		CHECK ( KDuration(dDiff).seconds() == chrono::seconds(61) );
-		dDiff = UTC3.ToTimePoint() - UTC2;
-		CHECK ( KDuration(dDiff).seconds() == chrono::seconds(61) );
+		auto UTC3 = UTC2;
+		UTC3 += std::chrono::seconds(61);
+		auto tDiff1 = UTC3 - UTC2;
+		CHECK ( tDiff1 == std::chrono::seconds(61) );
+		auto tDiff2 = UTC3.to_unix() - UTC2;
+		CHECK ( tDiff2 == std::chrono::seconds(61) );
+		auto tDiff3 = UTC3 - UTC2.to_unix();
+		CHECK ( tDiff3 == std::chrono::seconds(61) );
+		auto dDiff4 = UTC3 - UTC2.to_sys();
+		CHECK ( KDuration(dDiff4).seconds() == chrono::seconds(61) );
+		auto dDiff5 = UTC3.to_sys() - UTC2;
+		CHECK ( KDuration(dDiff5).seconds() == chrono::seconds(61) );
+
+		auto tz = kFindTimezone("Europe/Paris");
 
 		auto oldLocale = kGetGlobalLocale();
-		if (kSetGlobalLocale("fr_FR.UTF-8"))
+		auto bLocaleIsSet = kSetGlobalLocale("fr_FR.UTF-8");
+
+		CHECK ( bLocaleIsSet );
+
+		if (bLocaleIsSet)
 		{
 			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
 
 			KLocalTime Local1;
 			Local1 = UTC1;
+			Local1 = KLocalTime(UTC1, tz);
 
-			SysTime = Local1.ToTimePoint();
-			CHECK ( std::chrono::system_clock::to_time_t(SysTime) == Local1.ToTimeT() );
-			SysTime2 = Local1;
-			CHECK ( SysTime == SysTime2 );
+			SysTime =  kFromLocalTime(Local1.to_local(), tz);
+			CHECK ( std::chrono::system_clock::to_time_t(SysTime) == KUnixTime(Local1.to_sys()).to_time_t());
 
-			if (Local1.GetUTCOffset() == std::chrono::minutes(60))
+			if (Local1.get_utc_offset() == std::chrono::minutes(60))
 			{
 				// these checks only work correctly with timezone set to CET
-				CHECK ( Local1.Format()       == "1974-01-01 00:59:59" );
-				CHECK ( Local1.ToTimeT()      == 126230399 );
-				CHECK ( Local1.GetDay()       == 1     );
-				CHECK ( Local1.GetMonth()     == 1     );
-				CHECK ( Local1.GetYear()      == 1974  );
-				CHECK ( Local1.GetHour()      == 0     );
-				CHECK ( Local1.GetMinute()    == 59    );
-				CHECK ( Local1.GetSecond()    == 59    );
-				CHECK ( Local1.GetHour12()    == 12    );
-				CHECK ( Local1.IsPM()         == false );
-#ifdef DEKAF2_IS_OSX
-				CHECK ( Local1.GetMonthName( true, true) == "jan" );
-				CHECK ( Local1.GetMonthName(false, true) == "janvier" );
-				CHECK ( Local1.GetDayName  ( true, true) == "Mar" );
-				CHECK ( Local1.GetDayName  (false, true) == "Mardi" );
-#endif
-				CHECK ( Local1.GetUTCOffset() == chrono::minutes(60) );
-#ifdef DEKAF2_IS_OSX
-				CHECK ( kFormTimestamp(std::locale(), UTC1.ToTimeT(), "%A %c", true) == "Mardi Mar  1 jan 00:59:59 1974" );
-#endif
+				CHECK ( UTC1.Format()            == "1973-12-31 23:59:59" );
+				CHECK ( Local1.Format()          == "1974-01-01 00:59:59" );
+				CHECK ( Local1.get_utc_offset().count() == 3600 );
+				CHECK ( Local1.days().count()    == 1     );
+				CHECK ( Local1.months().count()  == 1     );
+				CHECK ( Local1.years().count()   == 1974  );
+				CHECK ( Local1.hours().count()   == 0     );
+				CHECK ( Local1.minutes().count() == 59    );
+				CHECK ( Local1.seconds().count() == 59    );
+				CHECK ( Local1.hours12().count() == 12    );
+				CHECK ( Local1.is_pm()           == false );
+				CHECK ( Local1.get_zone_abbrev() == "CET" );
+				CHECK ( Local1.get_zone_name()   == "Europe/Paris" );
+				CHECK ( Local1.get_month_name( true, true) == "jan" );
+				CHECK ( Local1.get_month_name(false, true) == "janvier" );
+				CHECK ( Local1.get_day_name  ( true, true) == "Mar" );
+				CHECK ( Local1.get_day_name  (false, true) == "Mardi" );
+				CHECK ( Local1.get_utc_offset() == chrono::minutes(60) );
+				CHECK ( kFormTimestamp(std::locale(), tz, UTC1.to_unix(), "%A %c") == "Mardi Mar  1 jan 00:59:59 1974" );
+				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), kFindTimezone("America/Mexico_City"), UTC1.to_unix(), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
 			}
 		}
 
+		{
+			// these checks do not rely on global environment settings
+
+			bool bHasLocale = false;
+			bool bHasTimezone = false;
+
+			const chrono::time_zone* tz = nullptr;
+			try {
+				tz = kFindTimezone("Asia/Tokyo");
+				bHasTimezone = true;
+			} catch (const std::exception& ex) {
+				INFO ( "cannot find timezone Asia/Tokyo" );
+				CHECK ( false );
+			}
+
+			KLocalTime Local1(UTC1, tz);
+
+			std::locale loc;
+			try {
+				loc = std::locale("fr_FR");
+				bHasLocale = true;
+			} catch (const std::exception& ex) {
+				INFO ( "cannot get locale fr_FR" );
+				CHECK ( false );
+			}
+
+			SysTime =  kFromLocalTime(Local1.to_local(), Local1.get_time_zone());
+			CHECK ( std::chrono::system_clock::to_time_t(SysTime) == KUnixTime(Local1.to_sys()).to_time_t());
+			SysTime =  Local1.to_sys();
+			CHECK ( std::chrono::system_clock::to_time_t(SysTime) == KUnixTime(Local1.to_sys()).to_time_t());
+			CHECK ( Local1.get_utc_offset()  == chrono::seconds(32400));
+			CHECK ( UTC1.Format()            == "1973-12-31 23:59:59" );
+			CHECK ( Local1.Format()          == "1974-01-01 08:59:59" );
+			CHECK ( Local1.days().count()    == 1     );
+			CHECK ( Local1.months().count()  == 1     );
+			CHECK ( Local1.years().count()   == 1974  );
+			CHECK ( Local1.hours().count()   == 8     );
+			CHECK ( Local1.minutes().count() == 59    );
+			CHECK ( Local1.seconds().count() == 59    );
+			CHECK ( Local1.hours12().count() == 8     );
+			CHECK ( Local1.is_pm()           == false );
+			CHECK ( Local1.get_zone_abbrev() == "JST" );
+			CHECK ( Local1.get_zone_name()   == "Asia/Tokyo" );
+			CHECK ( Local1.get_month_name( true, true) == "jan" );
+			CHECK ( Local1.get_month_name(false, true) == "janvier" );
+			CHECK ( Local1.get_day_name  ( true, true) == "Mar" );
+			CHECK ( Local1.get_day_name  (false, true) == "Mardi" );
+			if (bHasLocale && bHasTimezone) {
+				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), kFindTimezone("America/Mexico_City"), UTC1.to_unix(), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
+			}
+		}
 	}
 
 	SECTION("kParseTimestamp")
@@ -415,7 +471,7 @@ TEST_CASE("KTime") {
 		{
 			auto tTime = kParseTimestamp(Timestamp.first);
 			INFO  ( Timestamp.first );
-			CHECK ( tTime != 0 );
+			CHECK ( tTime != KUnixTime(0) );
 			auto sTime = kFormHTTPTimestamp(tTime);
 			INFO  ( Timestamp.first );
 			CHECK ( sTime == Timestamp.second );
@@ -469,7 +525,7 @@ TEST_CASE("KTime") {
 
 	SECTION("kGetTimezoneOffset")
 	{
-		CHECK ( kGetTimezoneOffset("XYZ" ) == std::chrono::seconds(-1)  );
+		CHECK ( kGetTimezoneOffset("XYZ" ) == KDuration(-1)  );
 		CHECK ( kGetTimezoneOffset("GMT" ) == std::chrono::seconds(0)   );
 		CHECK ( kGetTimezoneOffset("CET" ) == std::chrono::seconds(1 * 60 * 60) );
 		CHECK ( kGetTimezoneOffset("NPT" ) == std::chrono::seconds((5 * 60 + 45) * 60) );
@@ -480,13 +536,34 @@ TEST_CASE("KTime") {
 
 	SECTION("comparison")
 	{
-		KUTCTime a = 123456;
-		KUTCTime b = 12345;
+		KUTCTime a = KUnixTime(123456);
+		KUTCTime b = KUnixTime(12345);
+		if (a > b)
+		{
+			CHECK ( true );
+		}
+		else
+		{
+			CHECK ( false );
+		}
 		CHECK ( (a >  b) );
 		CHECK ( (a >= b) );
 		CHECK ( (a != b) );
 		CHECK ( (b <  a) );
 		CHECK ( (b <= a) );
+
+		KLocalTime c = b;
+		CHECK ( (a >  c) );
+		CHECK ( (a >= c) );
+		CHECK ( (a != c) );
+		CHECK ( (c <  a) );
+		CHECK ( (c <= a) );
+
+		CHECK_FALSE ( (c >  a) );
+		CHECK_FALSE ( (c >= a) );
+		CHECK       ( (c != a) );
+		CHECK_FALSE ( (a <  c) );
+		CHECK_FALSE ( (a <= c) );
 	}
 
 #ifdef DEKAF2_IS_OSX
@@ -570,8 +647,8 @@ TEST_CASE("KTime") {
 				CHECK ( duration.days() == chrono::days(366) );
 			}
 			{
-				KUTCTime Date1(3298462375);
-				KUTCTime Date2(3298462342);
+				KUTCTime Date1(KUnixTime::from_time_t(3298462375));
+				KUTCTime Date2(KUnixTime::from_time_t(3298462342));
 				auto d = Date1 - Date2;
 				auto days = d.days();
 			}
@@ -604,6 +681,26 @@ TEST_CASE("KTime") {
 			CHECK ( TD.subseconds() == chrono::milliseconds(0) );
 		}
 
+		SECTION("kFormTimeStamp")
+		{
+			auto tz = kFindTimezone("Asia/Tokyo");
+			KUnixTime U("12:34:56 16.08.2022");
+			CHECK ( kFormTimestamp(U) == "2022-08-16 12:34:56" );
+			CHECK ( kFormTimestamp(tz, U, "%Y-%m-%d %H:%M:%S") == "2022-08-16 21:34:56" );
+		}
+
+		SECTION("custom formatters")
+		{
+			KUnixTime U = kParseTimestamp("12:34:56 16.08.2022");
+			CHECK ( kFormat("{:%F %T}", U) == "2022-08-16 12:34:56" );
+			KUTCTime UTC("12:34:56 16.08.2022");
+			auto tz = kFindTimezone("Asia/Tokyo");
+			KLocalTime Local(UTC, tz);
+			CHECK ( kFormat("{:%Z: %F %T}, {:%Z: %F %T}", UTC, Local) == "UTC: 2022-08-16 12:34:56, JST: 2022-08-16 21:34:56" );
+			CHECK ( kFormat("{}", UTC.hours()) == "12h" );
+//			CHECK ( kFormat("{}", UTC.days())  == "16d" );
+			// mind you that days/months/years do not yet work.. (but would output e.g. "16[86400]s" for 16 days)
+		}
 	}
 #endif
 }

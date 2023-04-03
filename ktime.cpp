@@ -49,6 +49,7 @@
 #include "koutstringstream.h"
 #include "kthreadsafe.h"
 #include "klog.h"
+#include <date/tz.h>
 #include <type_traits>
 
 #define DEKAF2_USE_WINDOWS_TIMEZONEAPI
@@ -65,6 +66,30 @@
 #endif
 
 namespace dekaf2 {
+
+//-----------------------------------------------------------------------------
+std::vector<KString> kGetListOfTimezoneNames()
+//-----------------------------------------------------------------------------
+{
+	std::vector<KString> Zones;
+
+	auto& db = chrono::get_tzdb();
+
+	for (auto& zone : db.zones)
+	{
+		Zones.push_back(zone.name());
+	}
+
+	return Zones;
+
+} // kGetListOfTimezones
+
+//-----------------------------------------------------------------------------
+const chrono::time_zone* kFindTimezone(KStringView sZoneName)
+//-----------------------------------------------------------------------------
+{
+	return chrono::locate_zone(sZoneName);
+}
 
 namespace {
 
@@ -130,6 +155,7 @@ constexpr std::array<KStringViewZ, 12> Months
 	}
 };
 
+#if 0
 //-----------------------------------------------------------------------------
 std::tm kGetBrokenDownTime (KUnixTime tTime, bool bAsLocalTime)
 //-----------------------------------------------------------------------------
@@ -174,6 +200,7 @@ std::tm kGetBrokenDownTime (KUnixTime tTime, bool bAsLocalTime)
 	return time;
 
 } // kGetBrokenDownTime
+#endif
 
 //-----------------------------------------------------------------------------
 KString kFormWebTimestamp (KUnixTime tTime, KStringView sTimezoneDesignator)
@@ -182,13 +209,13 @@ KString kFormWebTimestamp (KUnixTime tTime, KStringView sTimezoneDesignator)
 	KUTCTime Time(tTime);
 
 	return kFormat("{}, {:02} {} {:04} {:02}:{:02}:{:02} {}",
-				   Time.GetDayName(true, false),
-				   Time.GetDay(),
-				   Time.GetMonthName(true, false),
-				   Time.GetYear(),
-				   Time.GetHour(),
-				   Time.GetMinute(),
-				   Time.GetSecond(),
+				   Time.get_day_name(true, false),
+				   Time.days().count(),
+				   Time.get_month_name(true, false),
+				   Time.years().count(),
+				   Time.hours().count(),
+				   Time.minutes().count(),
+				   Time.seconds().count(),
 				   sTimezoneDesignator);
 
 } // kFormWebTimestamp
@@ -206,24 +233,27 @@ KUnixTime kParseWebTimestamp (KStringView sTime, bool bOnlyGMT)
 
 	if (Part.size() == 8)
 	{
-		struct tm time;
-
-		time.tm_mday = Part[1].UInt16();
+		auto day = chrono::day(Part[1].UInt16());
 
 		auto it = std::find(AbbreviatedMonths.begin(), AbbreviatedMonths.end(), Part[2]);
 
 		if (it != AbbreviatedMonths.end())
 		{
-			time.tm_mon    = static_cast<int>(it - AbbreviatedMonths.begin());
-			time.tm_year   = Part[3].UInt16() - 1900;
-			time.tm_hour   = Part[4].UInt16();
-			time.tm_min    = Part[5].UInt16();
-			time.tm_sec    = Part[6].UInt16();
+			auto month = chrono::month   (static_cast<int>(it - AbbreviatedMonths.begin()) + 1);
+			auto year  = chrono::year    (Part[3].UInt16());
+			tTime      = chrono::sys_days(day/month/year);
+			tTime     += chrono::hours   (Part[4].UInt16());
+			tTime     += chrono::minutes (Part[5].UInt16());
+			tTime     += chrono::seconds (Part[6].UInt16());
+
 			auto sTimezone = Part[7];
 
-			if (bOnlyGMT && sTimezone == "GMT")
+			if (bOnlyGMT)
 			{
-				tTime = timegm(&time);
+				if (sTimezone != "GMT")
+				{
+					tTime = KUnixTime(0);
+				}
 			}
 			else
 			{
@@ -240,19 +270,37 @@ KUnixTime kParseWebTimestamp (KStringView sTime, bool bOnlyGMT)
 
 					if (sTimezone.size() == 4)
 					{
-						auto   iHours   = sTimezone.Left(2).UInt16();
-						auto   iMinutes = sTimezone.Right(2).UInt16();
-						time_t iOffset  = iHours * 60 * 60 + iMinutes * 60;
+						auto   iHours   = chrono::hours(sTimezone.Left(2).UInt16());
+						auto   iMinutes = chrono::minutes(sTimezone.Right(2).UInt16());
+						auto   iOffset  = iHours + iMinutes;
 
-						if (iOffset < 24*60*60)
+						if (iOffset < chrono::days(1))
 						{
 							if (bMinus)
 							{
 								iOffset *= -1;
 							}
 
-							tTime = timegm(&time) + iOffset;
+							tTime += iOffset;
 						}
+					}
+					else
+					{
+						tTime = KUnixTime(0);
+					}
+				}
+				else
+				{
+					// look timezone up in our fixed list
+					auto Offset = kGetTimezoneOffset(sTimezone);
+
+					if (Offset != KDuration(-1))
+					{
+						tTime -= Offset;
+					}
+					else
+					{
+						tTime = KUnixTime(0);
 					}
 				}
 			}
@@ -562,7 +610,7 @@ KDuration kGetTimezoneOffset(KStringView sTimezone)
 	if (tz == s_Timezones.end())
 	{
 		kDebug(2, "unrecognized time zone: {}", sTimezone);
-		return chrono::seconds(-1);
+		return KDuration(-1);
 	}
 
 	return chrono::minutes(tz->second);
@@ -806,7 +854,7 @@ KUnixTime kParseTimestamp(KStringView sFormat, KStringView sTimestamp)
 	{
 		if (TimezoneOffset != KDuration::zero()) return Invalid;
 		TimezoneOffset = kGetTimezoneOffset(sTimezoneName);
-		if (TimezoneOffset == chrono::seconds(-1)) return Invalid;
+		if (TimezoneOffset == KDuration(-1)) return Invalid;
 	}
 
 	return chrono::sys_days(chrono::day(tm.tm_mday) / chrono::month(tm.tm_mon) / chrono::year(tm.tm_year))
@@ -1049,9 +1097,9 @@ KString BuildTimeFormatString(KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
 	KString sFormatString;
-
 	sFormatString.reserve(sFormat.size() + 3);
-	sFormatString += "{:";
+
+	sFormatString  = "{:";
 	sFormatString += sFormat;
 	sFormatString += '}';
 
@@ -1074,23 +1122,47 @@ KString kFormTimestamp (const std::tm& time, KStringView sFormat)
 {
 	return kFormat(BuildTimeFormatString(sFormat), time);
 
-#if 0
-	std::array<char, 100> sBuffer;
+} // kFormTimestamp
 
-	auto iLength = strftime (sBuffer.data(), sBuffer.size(), szFormat, &time);
-
-	if (DEKAF2_UNLIKELY(iLength == sBuffer.size()))
+//-----------------------------------------------------------------------------
+KString kFormTimestamp (const std::locale& locale, const chrono::time_zone* timezone, KUnixTime tTime, KStringView sFormat)
+//-----------------------------------------------------------------------------
+{
+	if (tTime == KUnixTime(0))
 	{
-		kWarning("format string too long: {}", szFormat);
+		tTime = KUnixTime::now();
 	}
+	// get current timezone if it is nullptr
+	if (!timezone)
+	{
+		timezone = chrono::current_zone();
+	}
+	// fmt uses std::tm as base - convert into it and avoid
+	// calling with chrono::time_point
+	return kFormTimestamp(locale, KLocalTime(tTime, timezone).to_tm(), sFormat);
+}
 
-	return { sBuffer.data(), iLength };
-#endif
+//-----------------------------------------------------------------------------
+KString kFormTimestamp (const chrono::time_zone* timezone, KUnixTime tTime, KStringView sFormat)
+//-----------------------------------------------------------------------------
+{
+	if (tTime == KUnixTime(0))
+	{
+		tTime = KUnixTime::now();
+	}
+	// get current timezone if it is nullptr
+	if (!timezone)
+	{
+		timezone = chrono::current_zone();
+	}
+	// fmt uses std::tm as base - convert into it and avoid
+	// calling with chrono::time_point
+	return kFormTimestamp(KLocalTime(tTime, timezone).to_tm(), sFormat);
 
 } // kFormTimestamp
 
 //-----------------------------------------------------------------------------
-KString kFormTimestamp (const std::locale& locale, KUnixTime tTime, KStringView sFormat, bool bAsLocalTime)
+KString kFormTimestamp (KUnixTime tTime, KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
 	if (tTime == KUnixTime(0))
@@ -1099,32 +1171,7 @@ KString kFormTimestamp (const std::locale& locale, KUnixTime tTime, KStringView 
 	}
 	// fmt uses std::tm as base - convert into it and avoid
 	// calling with chrono::time_point
-//	return kFormTimestamp(locale, KUnixTime::to_tm(tTime), sFormat);
-	return kFormTimestamp(locale, kGetBrokenDownTime(tTime, bAsLocalTime), sFormat);
-}
-
-//-----------------------------------------------------------------------------
-KString kFormTimestamp (KUnixTime tTime, KStringView sFormat, bool bAsLocalTime)
-//-----------------------------------------------------------------------------
-{
-	if (tTime == KUnixTime(0))
-	{
-		tTime = KUnixTime::now();
-	}
-	// fmt uses std::tm as base - convert into it and avoid
-	// calling with chrono::time_point
-//	return kFormTimestamp(KUnixTime::to_tm(tTime), sFormat);
-	return kFormTimestamp(kGetBrokenDownTime(tTime, bAsLocalTime), sFormat);
-
-#if 0
-	KString sFormatString;
-	sFormatString.reserve(sFormat.size() + 4);
-	sFormatString += "{:";
-	sFormatString += sFormat;
-	sFormatString += '}';
-	return kFormat(sFormatString, tTime);
-//	return kFormTimestamp(kGetBrokenDownTime(tTime, bAsLocalTime), szFormat);
-#endif
+	return kFormTimestamp(KUnixTime::to_tm(tTime), sFormat);
 
 } // kFormTimestamp
 
@@ -1138,18 +1185,18 @@ KString kFormCommonLogTimestamp(KUnixTime tTime, bool bAsLocalTime)
 
 		// [18/Sep/2011:19:18:28 +0000]
 		return kFormat("[{:02}/{}/{:04}:{:02}:{:02}:{:02} +0000]",
-					   Time.GetDay(),
-					   Time.GetMonthName(true, false),
-					   Time.GetYear(),
-					   Time.GetHour(),
-					   Time.GetMinute(),
-					   Time.GetSecond());
+					   Time.days().count(),
+					   Time.get_month_name(true, false),
+					   Time.years().count(),
+					   Time.hours().count(),
+					   Time.minutes().count(),
+					   Time.seconds().count());
 	}
 	else
 	{
 		KLocalTime Time(tTime);
 
-		auto iUTCOffset     = Time.GetUTCOffset().count();
+		auto iUTCOffset     = Time.get_utc_offset().count();
 		char chSign         = iUTCOffset < 0 ? '-' : '+';
 		auto iMinutesOffset = abs(iUTCOffset / 60);
 		auto iHoursOffset   = iMinutesOffset / 60;
@@ -1157,12 +1204,12 @@ KString kFormCommonLogTimestamp(KUnixTime tTime, bool bAsLocalTime)
 
 		// [18/Sep/2011:19:18:28 -0400]
 		return kFormat("[{:02}/{}/{:04}:{:02}:{:02}:{:02} {}{:02}{:02}]",
-					   Time.GetDay(),
-					   Time.GetMonthName(true, true),
-					   Time.GetYear(),
-					   Time.GetHour(),
-					   Time.GetMinute(),
-					   Time.GetSecond(),
+					   Time.days().count(),
+					   Time.get_month_name(true, true),
+					   Time.years().count(),
+					   Time.hours().count(),
+					   Time.minutes().count(),
+					   Time.seconds().count(),
 					   chSign,
 					   iHoursOffset,
 					   iMinutesOffset);
@@ -1429,94 +1476,91 @@ KUnixTime::KUnixTime(KStringView sFormat, KStringView sTimestamp)
 {
 }
 
-namespace detail {
-
 //-----------------------------------------------------------------------------
-KBrokenDownTime::KBrokenDownTime(std::time_t tGMTime, bool bAsLocalTime)
+KStringViewZ detail::KBrokenDownTime::get_day_name(bool bAbbreviated, bool bLocal) const
 //-----------------------------------------------------------------------------
-: m_time_t(tGMTime)
 {
-	m_time = kGetBrokenDownTime(tGMTime, bAsLocalTime);
+	return kGetDayName(weekday().c_encoding(), bAbbreviated, bLocal);
 }
 
 //-----------------------------------------------------------------------------
-KStringViewZ KBrokenDownTime::GetDayName(bool bAbbreviated, bool bLocal) const
+KStringViewZ detail::KBrokenDownTime::get_month_name(bool bAbbreviated, bool bLocal) const
 //-----------------------------------------------------------------------------
 {
-	return kGetDayName(GetWeekday(), bAbbreviated, bLocal);
+	return kGetMonthName(months().count() - 1, bAbbreviated, bLocal);
 }
 
 //-----------------------------------------------------------------------------
-KStringViewZ KBrokenDownTime::GetMonthName(bool bAbbreviated, bool bLocal) const
-//-----------------------------------------------------------------------------
-{
-	CheckNormalization();
-	return kGetMonthName(static_cast<uint16_t>(m_time.tm_mon), bAbbreviated, bLocal);
-}
-
-//-----------------------------------------------------------------------------
-KString KBrokenDownTime::ToString (KStringView sFormat) const
+KString KUTCTime::to_string (KStringView sFormat) const
 //-----------------------------------------------------------------------------
 {
 	if (empty())
 	{
 		return KString();
 	}
-	return kFormTimestamp (m_time, sFormat);
+	return kFormTimestamp (to_tm(), sFormat);
 }
 
-} // end of namespace detail
-
 //-----------------------------------------------------------------------------
-KLocalTime::KLocalTime(const KUTCTime& gmtime)
-//-----------------------------------------------------------------------------
-: KLocalTime(gmtime.ToTimeT())
-{
-}
-
-#ifndef DEKAF2_IS_UNIX
-//-----------------------------------------------------------------------------
-std::chrono::seconds KLocalTime::GetUTCOffset() const
+KString KLocalTime::to_string (KStringView sFormat) const
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_USE_WINDOWS_TIMEZONEAPI
-
-	DYNAMIC_TIME_ZONE_INFORMATION TZID;
-	auto iTZID = GetDynamicTimeZoneInformation(&TZID);
-	if (iTZID != TIME_ZONE_ID_INVALID)
+	if (empty())
 	{
-		return std::chrono::seconds(TZID.Bias * 60);
+		return KString();
 	}
+	return kFormTimestamp (to_tm(), sFormat);
+}
 
-	kDebug(2, "cannot read time zone information");
+//-----------------------------------------------------------------------------
+std::tm KLocalTime::to_tm() const
+//-----------------------------------------------------------------------------
+{
+	std::tm tm;
 
-	// fall back to the brute force approach
+	tm.tm_sec    = static_cast<int>(seconds().count());
+	tm.tm_min    = static_cast<int>(minutes().count());
+	tm.tm_hour   = static_cast<int>(hours  ().count());
+	tm.tm_mday   = days   ().count();
+	tm.tm_mon    = months ().count() - 1;
+	tm.tm_year   = years  ().count() - 1900;
+	tm.tm_wday   = weekday().c_encoding();
+	tm.tm_yday   = (m_days - chrono::local_days(chrono::year_month_day(m_ymd.year()/1/1))).count();
+	tm.tm_isdst  = is_dst  ();
+
+#ifndef DEKAF2_IS_WINDOWS
+	tm.tm_gmtoff = get_utc_offset().count();
+
+	KString sAbbrev = get_zone_abbrev();
+
+	// persist the zone abbreviation
+	{
+		// check if we have it already in our store (in shared mode)
+		auto Store = s_TimezoneNameStore.shared();
+
+		auto it = Store->find(sAbbrev);
+
+		if (it != Store->end())
+		{
+			// yes, add a pointer to it in the tm.tm_zone char*
+			tm.tm_zone = const_cast<char*>(it->c_str());
+			// and return
+			return tm;
+		}
+	}
+	// try to insert it as a new abbreviation in unique access
+	auto p = s_TimezoneNameStore.unique()->insert(sAbbrev);
+	// and add a pointer to it to the tm_zone char*
+	tm.tm_zone = const_cast<char*>(p.first->c_str());
 #endif
 
-	return std::chrono::seconds(static_cast<int32_t>(timegm(const_cast<std::tm*>(&m_time)) - ToTimeT()));
+	return tm;
 
-} // GetUTCOffset
+} // to_tm
+
+#ifndef DEKAF2_IS_WINDOWS
+KThreadSafe<std::set<KString>> KLocalTime::s_TimezoneNameStore;
 #endif
 
-//-----------------------------------------------------------------------------
-std::tm KLocalTime::BreakDown(const std::time_t time) const
-//-----------------------------------------------------------------------------
-{
-	return kGetBrokenDownTime(time, true);
-}
-
-//-----------------------------------------------------------------------------
-KUTCTime::KUTCTime(const KLocalTime& localtime)
-//-----------------------------------------------------------------------------
-: KUTCTime(localtime.ToTimeT())
-{
-}
-
-//-----------------------------------------------------------------------------
-std::tm KUTCTime::BreakDown(const std::time_t time) const
-//-----------------------------------------------------------------------------
-{
-	return kGetBrokenDownTime(time, false);
-}
 
 } // end of namespace dekaf2

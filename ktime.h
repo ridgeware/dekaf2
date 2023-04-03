@@ -47,40 +47,73 @@
 #include "kstring.h"
 #include "kstringview.h"
 #include "kduration.h"
+#include "kthreadsafe.h"
 #include "bits/ktemplate.h"
 #include "kdate.h"
 #include <cinttypes>
 #include <ctime>
 #include <chrono>
+#include <map>
 
 namespace dekaf2
 {
 
-// There is a general problem with switching locale data between threads:
-// Currently (C++17/C++20), C++ does not offer a library function that
-// converts a time_t value into a local time std::tm representation
-// _without_ changing the process-global locale (which you should really
-// not do in multi-threaded environments).
-//
-// This library therefore assumes that a global locale is _once_ set at
-// process initialization (e.g. through Dekaf::SetUnicodeLocale() or
-// KInit().SetLocale()), and that all threads then will share the same
-// global locale.
-//
-// If you switch the global locale after you have first used kGetDayName()
-// or kGetMonthName() with blocal==true, the day and month names will not
-// change to the new locale but stay in the locale you first used them with.
-//
-// This affects
-//
-//   kGetDayName()
-//   kGetMonthName()
-//   kFormCommonLogTimeStamp()
-//   kParseTimestamp()
-//   KUTCTime/KLocalTime::GetDayName()
-//   KUTCTime/KLocalTime::GetMonthName()
-//
-// when being used in a local context
+/// returns the timezone of the local timezone for this process
+inline const chrono::time_zone* kGetLocalTimezone()
+{
+	return chrono::current_zone();
+}
+
+/// returns the timezone name of the local timezone for this process
+inline KString kGetLocalTimezoneName()
+{
+	return kGetLocalTimezone()->name();
+}
+
+/// returns a sorted vector with all time zone names
+DEKAF2_PUBLIC
+std::vector<KString> kGetListOfTimezoneNames();
+
+/// returns a time zone that matches the sZoneName, or throws std::runtime_error
+DEKAF2_PUBLIC
+const chrono::time_zone* kFindTimezone(KStringView sZoneName);
+
+// We deliberately do not offer a method to set the local timezone
+// as it would only have effect on C time utilities, not on the C++
+// variants. Use timezones passed in to the C++ functions instead
+// of switching the process globally.
+
+/// converts any UTC timepoint to a local timepoint (at least exact for the past, not necessarily for the future)
+template<class Duration>
+DEKAF2_PUBLIC
+auto kToLocalZone(chrono::sys_time<Duration> tp, const chrono::time_zone* zone = chrono::current_zone()) -> chrono::zoned_time<Duration>
+{
+	return chrono::zoned_time<Duration>(zone, tp);
+}
+
+/// converts any UTC timepoint to a local timepoint (at least exact for the past, not necessarily for the future)
+template<class Duration>
+DEKAF2_PUBLIC
+auto kToLocalTime(chrono::sys_time<Duration> tp, const chrono::time_zone* zone = chrono::current_zone()) -> chrono::local_time<typename std::common_type<Duration, chrono::seconds>::type>
+{
+	return zone->to_local(tp);
+}
+
+/// converts any local timepoint to a UTC timepoint (at least exact for the past, not necessarily for the future)
+template<class Duration>
+DEKAF2_PUBLIC
+auto kFromLocalTime(chrono::zoned_time<Duration> ztp) -> chrono::sys_time<typename std::common_type<Duration, chrono::seconds>::type>
+{
+	return ztp.get_sys_time();
+}
+
+/// converts any local timepoint to a UTC timepoint (at least exact for the past, not necessarily for the future)
+template<class Duration>
+DEKAF2_PUBLIC
+auto kFromLocalTime(chrono::local_time<Duration> tp, const chrono::time_zone* zone = chrono::current_zone()) -> chrono::sys_time<typename std::common_type<Duration, chrono::seconds>::type>
+{
+	return zone->to_sys(tp);
+}
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// this class is a modern version of the legacy time point usage of time_t -
@@ -101,22 +134,22 @@ public:
 	DEKAF2_CONSTEXPR_14 KUnixTime(base&& other)      noexcept : base(std::move(other)) {}
 
 	/// construct from time_t timepoint (constexpr)
-	DEKAF2_CONSTEXPR_14 KUnixTime(time_t time) : KUnixTime(from_time_t(time)) {}
+	DEKAF2_CONSTEXPR_14          KUnixTime(time_t time) : KUnixTime(from_time_t(time)) {}
 	/// construct from std::tm timepoint (constexpr)
-	DEKAF2_CONSTEXPR_14 KUnixTime(std::tm tm)  : KUnixTime(    from_tm(tm)  ) {}
+	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const std::tm& tm)  : KUnixTime(    from_tm(tm)  ) {}
 	/// construct from a string representation, which is interpreted as UTC time (if there is no time zone indicator telling other)
 	/// - the string format is automatically detected from about 100 common patterns
-	KUnixTime (KStringView sTimestamp);
+	                    explicit KUnixTime (KStringView sTimestamp);
 	/// construct from a string representation with format description
 	/// @see kParseTimestamp for a format string description
-	KUnixTime (KStringView sFormat, KStringView sTimestamp);
+	                    KUnixTime (KStringView sFormat, KStringView sTimestamp);
 
 	using base::base;
 
 	/// returns true if not zero
 	DEKAF2_CONSTEXPR_14 explicit operator bool()              const noexcept { return time_since_epoch() != duration::zero();                }
-	/// converts to time_t timepoint
-	DEKAF2_CONSTEXPR_14 operator std::time_t()                const noexcept { return to_time_t(*this);                                      }
+	/// converts implicitly to time_t timepoint, although it loses precision..
+	DEKAF2_CONSTEXPR_14 explicit operator std::time_t()                const noexcept { return to_time_t(*this);                                      }
 
 	DEKAF2_CONSTEXPR_17 self& operator+=(std::time_t seconds)       noexcept { base::operator += (chrono::seconds(seconds)); return *this;   }
 	DEKAF2_CONSTEXPR_17 self& operator-=(std::time_t seconds)       noexcept { base::operator -= (chrono::seconds(seconds)); return *this;   }
@@ -124,29 +157,34 @@ public:
 	using base::operator+=;
 	using base::operator-=;
 
+	/// converts to std::time_t timepoint 
+	DEKAF2_CONSTEXPR_14 std::time_t to_time_t ()              const noexcept { return to_time_t(*this);                                      }
+	/// converts to std::tm timepoint (constexpr)
+	DEKAF2_CONSTEXPR_14 std::tm     to_tm     ()              const noexcept { return to_tm(*this);                                          }
+
 	/// converts from KUnixTime to time_t timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14 static std::time_t to_time_t(KUnixTime tp)  noexcept { return time_t(chrono::duration_cast<chrono::seconds>(tp.time_since_epoch()).count()); }
 	/// converts from system_clock timepoint to time_t timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14 static std::time_t to_time_t(time_point tp) noexcept { return time_t(chrono::duration_cast<chrono::seconds>(tp.time_since_epoch()).count()); }
 	/// converts from time_t timepoint to system_clock timeppoint (constexpr)
-	/// converts from KUnixTime to std::tm timepoint
-	DEKAF2_CONSTEXPR_14 static std::tm     to_tm(KUnixTime tp, duration tzOffset = duration::zero(), bool bIsDST = false) noexcept;
-	/// converts from system_clock timepoint to std::tm timepoint
+	/// converts from KUnixTime to std::tm timepoint (constexpr)
+	DEKAF2_CONSTEXPR_14 static std::tm     to_tm(KUnixTime tp)      noexcept;
+	/// converts from system_clock timepoint to std::tm timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14 static std::tm     to_tm(time_point tp)     noexcept { return to_tm(KUnixTime(tp)); }
 
 	/// converts from time_t timepoint to system_clock timeppoint (constexpr)
 	DEKAF2_CONSTEXPR_14 static time_point  from_time_t(std::time_t tTime) noexcept { return time_point(chrono::seconds(tTime)); }
 	/// converts from std::tm timepoint to system_clock timepoint (constexpr)
-	DEKAF2_CONSTEXPR_14 static time_point  from_tm    (std::tm tm)        noexcept;
+	DEKAF2_CONSTEXPR_14 static time_point  from_tm    (const std::tm& tm) noexcept;
 
 	/// returns a KUnixTime with the current time
-	                    static KUnixTime   now()                          { return clock::now(); }
+	                    static KUnixTime   now()                             { return clock::now(); }
 
 }; // KUnixTime
 
 //-----------------------------------------------------------------------------
 // constexpr implementation of std::tm to std::time_t conversion
-DEKAF2_CONSTEXPR_14 KUnixTime::time_point KUnixTime::from_tm(std::tm tm) noexcept
+DEKAF2_CONSTEXPR_14 KUnixTime::time_point KUnixTime::from_tm(const std::tm& tm) noexcept
 //-----------------------------------------------------------------------------
 {
 	return chrono::sys_days(chrono::day(tm.tm_mday) / chrono::month(tm.tm_mon + 1) / chrono::year(tm.tm_year + 1900))
@@ -159,8 +197,8 @@ DEKAF2_CONSTEXPR_14 KUnixTime::time_point KUnixTime::from_tm(std::tm tm) noexcep
 }
 
 //-----------------------------------------------------------------------------
-// constexpr implementation of std::time_t to std::tm conversion
-DEKAF2_CONSTEXPR_14 std::tm KUnixTime::to_tm(KUnixTime tp, duration tzOffset, bool bIsDST) noexcept
+// constexpr implementation of std::time_t to std::tm conversion for UTC timepoints
+DEKAF2_CONSTEXPR_14 std::tm KUnixTime::to_tm(KUnixTime tp) noexcept
 //-----------------------------------------------------------------------------
 {
 #if DEKAF2_HAS_CPP_20 && (DEKAF2_NO_GCC || DEKAF2_GCC_VERSION_MAJOR >= 10)
@@ -168,30 +206,24 @@ DEKAF2_CONSTEXPR_14 std::tm KUnixTime::to_tm(KUnixTime tp, duration tzOffset, bo
 #else
 	std::tm tm{};
 #endif
-
-	// subtract tz offset
-	tp -= tzOffset;
-
-	tm.tm_isdst  = bIsDST;
-#ifndef DEKAF2_IS_WINDOWS
-	tm.tm_gmtoff = chrono::duration_cast<chrono::seconds>(tzOffset).count();
-	tm.tm_zone   = tzOffset == duration::zero() ? const_cast<char*>("UTC") : const_cast<char*>("");
-#endif
-
 	// break up
-	auto dp    = chrono::floor<chrono::days>(tp);
-	auto ymd   = chrono::year_month_day(dp);
-	auto time  = chrono::make_time(tp - dp);
-
-	tm.tm_sec  = static_cast<int>(time.seconds().count());
-	tm.tm_min  = static_cast<int>(time.minutes().count());
-	tm.tm_hour = static_cast<int>(time.hours().count());
-	tm.tm_mday = static_cast<int>(unsigned(ymd.day()));
-	tm.tm_mon  = static_cast<int>(unsigned(ymd.month())) - 1;
-	tm.tm_year = static_cast<int>(ymd.year()) - 1900;
-	tm.tm_wday = chrono::weekday(dp).c_encoding();
-	tm.tm_yday = (dp - chrono::sys_days(chrono::year_month_day(ymd.year() / 1 / 1 ))).count();
-
+	auto dp      = chrono::floor<chrono::days>(tp);
+	auto ymd     = chrono::year_month_day(dp);
+	auto time    = chrono::make_time(tp - dp);
+	// assign
+	tm.tm_sec    = static_cast<int>(time.seconds().count());
+	tm.tm_min    = static_cast<int>(time.minutes().count());
+	tm.tm_hour   = static_cast<int>(time.hours().count());
+	tm.tm_mday   = static_cast<int>(unsigned(ymd.day()));
+	tm.tm_mon    = static_cast<int>(unsigned(ymd.month())) - 1;
+	tm.tm_year   = static_cast<int>(ymd.year()) - 1900;
+	tm.tm_wday   = chrono::weekday(dp).c_encoding();
+	tm.tm_yday   = (dp - chrono::sys_days(chrono::year_month_day(ymd.year()/1/1))).count();
+	tm.tm_isdst  = 0;
+#ifndef DEKAF2_IS_WINDOWS
+	tm.tm_gmtoff = 0;
+	tm.tm_zone   = const_cast<char*>("UTC");
+#endif
 	return tm;
 
 } // KUnixTime::to_tm
@@ -250,24 +282,32 @@ KString kFormTimestamp (const std::tm& time, KStringView sFormat = "%Y-%m-%d %H:
 DEKAF2_PUBLIC
 KString kFormTimestamp (const std::locale& locale, const std::tm& time, KStringView sFormat = "%Y-%m-%d %H:%M:%S");
 
-/// Create a time stamp following std::format patterns, defaults to "%Y-%m-%d %H:%M:%S"
+/// Create a UTC time stamp following std::format patterns, defaults to "%Y-%m-%d %H:%M:%S"
 /// If tTime is constructed with 0, current time is used.
 /// @param tTime KUnixTime. If 0, query current time from the system
 /// @param pszFormat format string
-/// @param bAsLocalTime display as local time instead of UTC
 /// @return the timestamp string
 DEKAF2_PUBLIC
-KString kFormTimestamp (KUnixTime tTime = KUnixTime::now(), KStringView sFormat = "%Y-%m-%d %H:%M:%S", bool bAsLocalTime = false);
+KString kFormTimestamp (KUnixTime tTime = KUnixTime::now(), KStringView sFormat = "%Y-%m-%d %H:%M:%S");
+
+/// Create a local time stamp following std::format patterns, defaults to "%Y-%m-%d %H:%M:%S"
+/// If tTime is constructed with 0, current time is used.
+/// @param timezone the time zone into which the unix time shall be translated
+/// @param tTime KUnixTime. If 0, query current time from the system
+/// @param pszFormat format string
+/// @return the timestamp string
+DEKAF2_PUBLIC
+KString kFormTimestamp (const chrono::time_zone* timezone, KUnixTime tTime = KUnixTime::now(), KStringView sFormat = "%Y-%m-%d %H:%M:%S");
 
 /// Create a time stamp following std::format patterns, defaults to "%Y-%m-%d %H:%M:%S"
 /// If tTime is constructed with 0, current time is used.
 /// @param locale a system locale to localize day and month names
+/// @param timezone the time zone into which the unix time shall be translated
 /// @param tTime KUnixTime. If 0, query current time from the system
 /// @param pszFormat format string
-/// @param bAsLocalTime display as local time instead of UTC
 /// @return the timestamp string
 DEKAF2_PUBLIC
-KString kFormTimestamp (const std::locale& locale, KUnixTime tTime = KUnixTime::now(), KStringView sFormat = "%Y-%m-%d %H:%M:%S", bool bAsLocalTime = false);
+KString kFormTimestamp (const std::locale& locale, const chrono::time_zone* timezone, KUnixTime tTime = KUnixTime::now(), KStringView sFormat = "%Y-%m-%d %H:%M:%S");
 
 /// Create a HTTP time stamp
 /// @param tTime Seconds since epoch. If constructed with 0 or defaulted, query current time from the system
@@ -305,9 +345,6 @@ KUnixTime kParseSMTPTimestamp (KStringView sTime);
 DEKAF2_PUBLIC
 KDuration kGetTimezoneOffset(KStringView sTimezone);
 
-/// Instead of using this function prefer using the built-in methods of KUnixTime, KUTCTime or KLocalTime
-/// - those require less overhead (two system calls less on average)
-///
 /// Parse any timestamp that matches a format string built from h m s D M Y, and a S z Z N ?
 /// Y(ear) could be 2 or 4 digits,
 /// aa = am/pm, case insensitive
@@ -321,9 +358,6 @@ KDuration kGetTimezoneOffset(KStringView sTimezone);
 DEKAF2_PUBLIC
 KUnixTime kParseTimestamp(KStringView sFormat, KStringView sTimestamp);
 
-/// When not returning to KUnixTime, instead of using this function prefer using the built-in methods of KUTCTime or KLocalTime
-/// - those require less overhead (two system calls less on average)
-///
 /// parse a timestamp from predefined formats
 /// - the format is automatically detected from about 100 common patterns
 DEKAF2_PUBLIC
@@ -344,7 +378,7 @@ KString kTranslateDuration(const KDuration& Duration, bool bLongForm = false, KS
 namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A wrapper around datetime functions that works cross platform
+/// A broken down time representation in UTC, base class to store data and access interface
 class DEKAF2_PUBLIC KBrokenDownTime
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -355,276 +389,73 @@ public:
 
 	using self = KBrokenDownTime;
 
-	KBrokenDownTime() = default;
+	DEKAF2_CONSTEXPR_14 KBrokenDownTime() noexcept = default;
 
-	// it does not make sense to declare the getters constexpr, they never will
-	// be in reality, as there will always be one call to the C time functions in between
-
-	/// return day of month (1-based)
-	          uint16_t GetDay    () const { return Get(m_time.tm_mday);                          }
 	/// return chrono::days
-		chrono::days   days      () const { return chrono::days(GetDay());                       }
-	/// return month (1-based)
-	          uint16_t GetMonth  () const { return Get(m_time.tm_mon)  + 1;                      }
+	DEKAF2_CONSTEXPR_14 chrono::days    days     () const noexcept { return chrono::days(unsigned(m_ymd.day()));     }
 	/// return chrono::months
-		chrono::months months    () const { return chrono::months(GetMonth());                   }
-	/// return year (0-based)
-	          uint16_t GetYear   () const { return Get(m_time.tm_year) + 1900;                   }
+	DEKAF2_CONSTEXPR_14 chrono::months  months   () const noexcept { return chrono::months(unsigned(m_ymd.month())); }
 	/// return chrono::years
-		chrono::years  years     () const { return chrono::years(GetYear());                     }
+	DEKAF2_CONSTEXPR_14 chrono::years   years    () const noexcept { return chrono::years(signed(m_ymd.year()));     }
 	/// return hour in 24 hour format
-	          uint16_t GetHour24 () const { return Get(m_time.tm_hour);                          }
-	/// return chrono::hours in 24 hour format
-		chrono::hours  hours24   () const { return chrono::hours(GetHour());                     }
+	DEKAF2_CONSTEXPR_14 chrono::hours   hours24  () const noexcept { return m_hhmmss.hours();                        }
 	/// return hour in 12 hour format
-	          uint16_t GetHour12 () const { auto h = GetHour24() % 12; return (h == 0) ? 12 : h; }
-	/// return chrono::hours in 12 hour format
-		chrono::hours  hours12   () const { return chrono::hours(GetHour12());                   }
+	DEKAF2_CONSTEXPR_14 chrono::hours   hours12  () const noexcept { auto h = hours24().count() % 12; return chrono::hours((h == 0) ? 12 : h); }
 	/// return hour in 24 hour format
-	          uint16_t GetHour   () const { return GetHour24();                                  }
-	/// return chrono::hours in 24 hour format
-		chrono::hours  hours     () const { return hours24();                                    }
+	DEKAF2_CONSTEXPR_14 chrono::hours   hours    () const noexcept { return hours24();                               }
 	/// return minute
-	          uint16_t GetMinute () const { return Get(m_time.tm_min);                           }
-	/// return chrono::minutes
-		chrono::minutes minutes  () const { return chrono::minutes(GetMinute());                 }
+	DEKAF2_CONSTEXPR_14 chrono::minutes minutes  () const noexcept { return m_hhmmss.minutes();                      }
 	/// return second
-	          uint16_t GetSecond () const { return Get(m_time.tm_sec);                           }
-	/// return chrono::seconds
-		chrono::seconds seconds  () const { return chrono::seconds(GetSecond());                 }
-	/// return KHourMinSec (the hours/minutes/seconds of the day)
-	chrono::hh_mm_ss<chrono::seconds> GetHourMinSec () const { return chrono::hh_mm_ss<chrono::seconds>(hours() + minutes() + seconds()); }
+	DEKAF2_CONSTEXPR_14 chrono::seconds seconds  () const noexcept { return m_hhmmss.seconds();                      }
 	/// return weekday (Sunday == 0)
-	          uint16_t GetWeekday() const { return Get(m_time.tm_wday);                          }
+	DEKAF2_CONSTEXPR_14 chrono::weekday weekday  () const noexcept { return m_weekday;                               }
 	/// return English or localized full or abbreviated weekday name
-	      KStringViewZ GetDayName   (bool bAbbreviated, bool bLocalized = false) const;
+	KStringViewZ                   get_day_name  (bool bAbbreviated, bool bLocalized = false) const;
 	/// return English or localized full or abbreviated month name
-	      KStringViewZ GetMonthName (bool bAbbreviated, bool bLocalized = false) const;
+	KStringViewZ                 get_month_name  (bool bAbbreviated, bool bLocalized = false) const;
 	/// returns true if hour > 11
-	          bool     IsPM      ()  const { return Get(m_time.tm_hour) > 11;                   }
+	DEKAF2_CONSTEXPR_14 bool            is_pm    () const noexcept { return chrono::is_pm(m_hhmmss.hours());         }
 	/// returns true if hour < 12
-	          bool     IsAM      ()  const { return !IsPM();                                    }
-	/// return true if daylight saving time is in effect
-	          bool     IsDST     ()  const { return Get(m_time.tm_isdst) > 0;                   }
+	DEKAF2_CONSTEXPR_14 bool            is_am    () const noexcept { return chrono::is_am(m_hhmmss.hours());         }
+	/// returns true if year is leap year
+	DEKAF2_CONSTEXPR_14 bool            is_leap  () const noexcept { return m_ymd.year().is_leap();                  }
 	/// returns true if this is not a valid date
-	          bool     empty     ()  const { return Get(m_time.tm_mday) == 0;                   }
+	DEKAF2_CONSTEXPR_14 bool            empty    () const noexcept { return !m_ymd.ok();                             }
 	/// returns true if this is a valid date
-	          operator bool      ()  const { return !empty();                                   }
-
-	// the setters however can be constexpr when being initialized from a std::tm
-
-	/// set day of month (1-based)
-	constexpr self&    SetDay    (uint16_t iVal) { Set(m_time.tm_mday, iVal); return *this; }
-	/// set month (1-based)
-	constexpr self&    SetMonth  (uint16_t iVal) { Set(m_time.tm_mon,  iVal - 1);    return *this; }
-	/// set year (0-based)
-	constexpr self&    SetYear   (uint16_t iVal) { Set(m_time.tm_year, iVal - 1900); return *this; }
-	/// set hour in 24 hour format
-	constexpr self&    SetHour   (uint16_t iVal) { Set(m_time.tm_hour, iVal); return *this; }
-	/// set minute
-	constexpr self&    SetMinute (uint16_t iVal) { Set(m_time.tm_min,  iVal); return *this; }
-	/// set second
-	constexpr self&    SetSecond (uint16_t iVal) { Set(m_time.tm_sec,  iVal); return *this; }
-
-	/// add days, value may be negative to substract
-	constexpr self&    AddDays   (int32_t iVal)  { Add(m_time.tm_mday, iVal); return *this; }
-	/// add months, value may be negative to substract
-	constexpr self&    AddMonths (int32_t iVal)  { Add(m_time.tm_mon,  iVal); return *this; }
-	/// add years, value may be negative to substract
-	constexpr self&    AddYears  (int32_t iVal)  { Add(m_time.tm_year, iVal); return *this; }
-	/// add hours, value may be negative to substract
-	constexpr self&    AddHours  (int32_t iVal)  { Add(m_time.tm_hour, iVal); return *this; }
-	/// add minutes, value may be negative to substract
-	constexpr self&    AddMinutes(int32_t iVal)  { Add(m_time.tm_min,  iVal); return *this; }
-	/// add seconds, value may be negative to substract
-	template<typename I, typename std::enable_if<sizeof(I) <= sizeof(int32_t), int>::type = 0>
-	constexpr self&    AddSeconds(I iVal)        { Add(m_time.tm_sec,  iVal); return *this; }
-	/// add seconds, value may be negative to substract
-	template<typename I, typename std::enable_if<sizeof(int32_t) < sizeof(I), int>::type = 0>
-	constexpr self&    AddSeconds(I iVal)        { AddSeconds64(iVal); return *this;        }
-
-	/// add any chrono::duration type, value may be negative to substract
-	constexpr self&    Add(KDuration Duration)   { return AddSeconds(Duration.seconds().count()); }
-
-	template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
-	constexpr self& operator+=(T Duration)       { return Add(Duration);                    }
-
-	template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
-	constexpr self& operator-=(T Duration)       { return Add(Duration * -1);               }
-
-	template<typename T, typename std::enable_if<std::is_same<T, time_t>::value, int>::type = 0>
-	constexpr self& operator+=(T Duration)       { return AddSeconds(Duration);             }
-
-	template<typename T, typename std::enable_if<std::is_same<T, time_t>::value, int>::type = 0>
-	constexpr self& operator-=(T Duration)       { return AddSeconds(Duration * -1);        }
+	DEKAF2_CONSTEXPR_14 explicit operator bool   () const noexcept { return !empty();                                }
 
 	/// set to midnight, that is, clear hours, minutes, and seconds
-	constexpr self&    ToMidnight()
+	DEKAF2_CONSTEXPR_14 self&           to_midnight ()    noexcept
 	{
-		m_time.tm_sec  = 0;
-		m_time.tm_min  = 0;
-		m_time.tm_hour = 0;
-		// do not force normalization.. this operation does not change the
-		// integrity of other fields
+		m_hhmmss = chrono::hh_mm_ss<chrono::system_clock::duration>();
 		return *this;
 	}
 
-	/// return struct tm
-	std::tm            ToTM      ()  const { CheckNormalization(); return m_time;     }
-	/// return our own KUnixTime (a replacement for the non-typesafe std::time_t)
-	KUnixTime          ToUnixTime()  const { CheckNormalization(); return m_time_t;   }
-	/// return chrono::system_clock::time_point
-	chrono::system_clock::time_point ToTimePoint () const { return chrono::system_clock::time_point(ToUnixTime()); }
-	/// DEPRECATED, use ToUnixTime() in new code, which converts automatically to time_t
-	time_t             ToTimeT   ()  const { return ToUnixTime();                     }
+	/// return KHourMinSec (the hours/minutes/seconds of the day)
+	DEKAF2_CONSTEXPR_14 chrono::hh_mm_ss<
+		chrono::system_clock::duration
+	>                                   to_hhmmss   () const noexcept { return m_hhmmss; }
 
-	/// DEPRECATED, use ToString() in new code
-	KString            Format    (KStringView sFormat = "%Y-%m-%d %H:%M:%S") const { return ToString(sFormat); }
-	/// return a string following strftime patterns - default = %Y-%m-%d %H:%M:%S
-	KString            ToString  (KStringView sFormat = "%Y-%m-%d %H:%M:%S") const;
-
-	operator           std::tm   ()  const { return ToTM ();                  }
-	operator           time_t    ()  const { return ToTimeT ();               }
-	operator           chrono::system_clock::time_point() const { return ToTimePoint(); }
-	operator           KUnixTime ()  const { return ToUnixTime();             }
-	operator           KString   ()  const { return ToString ();              }
-	operator           chrono::hh_mm_ss<chrono::seconds> () const { return GetHourMinSec();    }
+	/// return chrono::year_month_day
+	DEKAF2_CONSTEXPR_14 chrono::year_month_day
+	                                    to_ymd      () const noexcept { return m_ymd;    }
 
 //--------
 protected:
 //--------
 
-	/// construct from a time_t epoch time, either as local or as GMT / UTC time
-	                   KBrokenDownTime (std::time_t tGMTime, bool bAsLocalTime);
-	/// construct from a chrono::system_clock::time_point time, either as local or as GMT / UTC time
-	                   KBrokenDownTime (chrono::system_clock::time_point tTime, bool bAsLocalTime) : KBrokenDownTime(KUnixTime::to_time_t(tTime), bAsLocalTime) {}
-	/// construct from a KUnixTime, either as local or as GMT / UTC time
-	                   KBrokenDownTime (KUnixTime time, bool bAsLocalTime) : KBrokenDownTime(KUnixTime::to_time_t(time), bAsLocalTime) {}
-	/// construct from a struct tm time
-	constexpr          KBrokenDownTime (const std::tm& tm_time) : m_time(tm_time) {
-		// we do not know if the struct tm was normalized
-		ForceNormalization();
-	}
-
-	/// return the value of a struct tm field, enforce normalization if needed
-	constexpr uint16_t Get          (const int& field) const { CheckNormalization(); return field; }
-	/// set the value of a struct tm field, request normalization
-	constexpr void     Set          (int& field, uint16_t iValue) { field = iValue; ForceNormalization(); }
-	/// add the value of a struct tm field, request normalization
-	constexpr void     Add          (int& field, int32_t iValue) { field += iValue; ForceNormalization(); }
-	/// add (and properly cast) a long long seconds duration
-	constexpr void     AddSeconds64 (int64_t iSeconds)
-	{
-		if (DEKAF2_UNLIKELY(iSeconds > std::numeric_limits<int>::max() - m_time.tm_sec ||
-							iSeconds < std::numeric_limits<int>::min() + m_time.tm_sec))
-		{
-			// expensive
-			CheckNormalization();
-			auto seconds = chrono::seconds(iSeconds);
-			m_time_t += seconds;
-			m_time = BreakDown(m_time_t);
-		}
-		else
-		{
-			// cheap
-			AddSeconds(static_cast<int32_t>(iSeconds));
-		}
-	}
-	/// virtual method to normalize the date struct
-	virtual KUnixTime   Normalize   (std::tm& time) const = 0;
-	/// virtual method to convert from time_t into tm
-	virtual std::tm     BreakDown   (std::time_t time) const = 0;
-	/// set the day of week to an invalid value to indicate normalization required
-	DEKAF2_ALWAYS_INLINE
-	constexpr void      ForceNormalization()       { m_time.tm_wday = -1; }
-	/// check if normalization is required, and do it
-	DEKAF2_ALWAYS_INLINE
-	constexpr void      CheckNormalization() const { if (m_time.tm_wday < 0) { m_time_t = Normalize(m_time); } }
-
-#ifdef DEKAF2_IS_UNIX
-	chrono::seconds     GetTzOffset       () const { return chrono::seconds(m_time.tm_gmtoff); }
-#endif
-
-//--------
-private:
-//--------
-
-	mutable KUnixTime   m_time_t { 0 };
-	mutable std::tm     m_time   {   };
+	chrono::hh_mm_ss<KUnixTime::duration> m_hhmmss {};
+	chrono::year_month_day m_ymd { };
+	chrono::weekday m_weekday {};
 
 }; // KBrokenDownTime
 
 } // end of namespace detail
 
-class KUTCTime;
+class KLocalTime;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A wrapper around datetime functions that work cross platform - time is local time
-class DEKAF2_PUBLIC KLocalTime : public detail::KBrokenDownTime
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//--------
-public:
-//--------
-
-	using base = detail::KBrokenDownTime;
-
-	KLocalTime() = default;
-	/// construct from a KUnixTime as local time
-	KLocalTime (KUnixTime UnixTime) : base(UnixTime, true) {}
-	/// construct from a time_t epoch time, as local time
-	KLocalTime (std::time_t tGMTime) : base(tGMTime, true) {}
-	/// construct from a chrono::system_clock::time_point time
-	KLocalTime (chrono::system_clock::time_point tTime) : base(tTime, true) {}
-	/// construct from a struct tm time
-	KLocalTime (const std::tm& tm_time) : base(tm_time) {}
-	/// construct from a KUTCTime
-	KLocalTime (const KUTCTime& gmtime);
-	/// construct from a string representation, which is interpreted as local time (if there is no time zone indicator telling other)
-	/// - the string format is automatically detected from about 100 common patterns
-	KLocalTime (KStringView sTimestamp) : KLocalTime(kParseTimestamp(sTimestamp)) {}
-	/// construct from a string representation with format description
-	/// @see kParseTimestamp for a format string description
-	KLocalTime (KStringView sFormat, KStringView sTimestamp) : KLocalTime(kParseTimestamp(sFormat, sTimestamp)) {}
-	/// construct from current time
-	KLocalTime (std::nullptr_t) { *this = Now(); }
-
-	/// return the offset in seconds between this time and UTC
-#ifdef DEKAF2_IS_UNIX
-	chrono::seconds GetUTCOffset () const { return GetTzOffset(); }
-#else
-	chrono::seconds GetUTCOffset () const;
-#endif
-
-	/// get the current time as local time
-	static KLocalTime Now() { return KLocalTime(chrono::system_clock::now()); }
-
-//--------
-protected:
-//--------
-
-	virtual KUnixTime   Normalize(std::tm& time   ) const override final { return mktime(const_cast<std::tm*>(&time)); }
-	virtual std::tm     BreakDown(std::time_t time) const override final;
-
-}; // KLocalTime
-
-inline
-bool operator==(const KLocalTime& left, const KLocalTime& right)
-{
-	return left.ToTimeT() == right.ToTimeT();
-}
-
-inline
-bool operator<(const KLocalTime& left, const KLocalTime& right)
-{
-	return left.ToTimeT() < right.ToTimeT();
-}
-
-DEKAF2_COMPARISON_OPERATORS(KLocalTime)
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A wrapper around datetime functions that work cross platform - time is UTC / GMT
+/// A broken down time representation in UTC
 class DEKAF2_PUBLIC KUTCTime : public detail::KBrokenDownTime
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -633,92 +464,244 @@ class DEKAF2_PUBLIC KUTCTime : public detail::KBrokenDownTime
 public:
 //--------
 
-	using base = detail::KBrokenDownTime;
+	using self = KUTCTime;
 
-	KUTCTime() = default;
-	/// construct from a KUnixTime as GMT / UTC time
-	KUTCTime (KUnixTime UnixTime) : base(UnixTime, false) {}
-	/// construct from a time_t epoch time,  as GMT / UTC time
-	KUTCTime (std::time_t tGMTime) : base(tGMTime, false) {}
-	/// construct from a chrono::system_clock::time_point time
-	KUTCTime (chrono::system_clock::time_point tTime) : base(tTime, false) {}
+	DEKAF2_CONSTEXPR_14 KUTCTime() noexcept = default;
+
+	/// construct from a KUnixTime
+	DEKAF2_CONSTEXPR_14 KUTCTime (KUnixTime time) noexcept { split(time); }
+
 	/// construct from a struct tm time
-	KUTCTime (const std::tm& tm_time) : base(tm_time) {}
-	/// construct from a KLocalTime
-	KUTCTime (const KLocalTime& localtime);
+	DEKAF2_CONSTEXPR_14 KUTCTime (const std::tm& tm_time) noexcept { from_tm(tm_time); }
+
 	/// construct from a string representation, which is interpreted as UTC time (if there is no time zone indicator telling other)
 	/// - the string format is automatically detected from about 100 common patterns
-	KUTCTime (KStringView sTimestamp) : KUTCTime(kParseTimestamp(sTimestamp)) {}
+	                    KUTCTime (KStringView sTimestamp) : KUTCTime(kParseTimestamp(sTimestamp)) {}
 	/// construct from a string representation with format description
 	/// @see kParseTimestamp for a format string description
-	KUTCTime (KStringView sFormat, KStringView sTimestamp) : KUTCTime(kParseTimestamp(sFormat, sTimestamp)) {}
+	                    KUTCTime (KStringView sFormat, KStringView sTimestamp) : KUTCTime(kParseTimestamp(sFormat, sTimestamp)) {}
 	/// construct from current time
-	KUTCTime (std::nullptr_t) { *this = Now(); }
-	/// return the offset in seconds between this time and UTC (always 0)
-	chrono::seconds GetUTCOffset () const { return chrono::seconds{0}; };
+	                    KUTCTime (std::nullptr_t) { *this = now(); }
+
+	                    KUTCTime (const KLocalTime& local) noexcept;
 
 	/// get the current time as GMT / UTC time
-	static KUTCTime Now() { return KUTCTime(chrono::system_clock::now()); }
+	static KUTCTime now() { return KUTCTime(chrono::system_clock::now()); }
+
+	template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+	DEKAF2_CONSTEXPR_17 self& operator+=(T Duration)      { *this = KUnixTime(to_unix() + chrono::duration_cast<KUnixTime::duration>(Duration)); return *this; }
+
+	template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+	DEKAF2_CONSTEXPR_17 self& operator-=(T Duration)      { return operator+=(-Duration); }
+
+	template<typename T, typename std::enable_if<std::is_same<T, time_t>::value, int>::type = 0>
+	DEKAF2_CONSTEXPR_17 self& operator+=(T Duration)      { *this += chrono::seconds(Duration); return *this; }
+
+	template<typename T, typename std::enable_if<std::is_same<T, time_t>::value, int>::type = 0>
+	DEKAF2_CONSTEXPR_17 self& operator-=(T Duration)      { *this -= chrono::seconds(Duration); return *this; }
+
+	template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+	DEKAF2_CONSTEXPR_14 self& operator=(T Duration)       { *this = Duration; return *this; }
+
+	/// return struct tm
+	DEKAF2_CONSTEXPR_14 std::tm   to_tm     ()  const noexcept { return KUnixTime::to_tm(join()); }
+	/// return our own KUnixTime (a replacement for the non-typesafe std::time_t)
+	DEKAF2_CONSTEXPR_14 KUnixTime to_unix   ()  const noexcept { return join();  }
+	/// return chrono::system_clock::time_point
+	DEKAF2_CONSTEXPR_14 chrono::system_clock::time_point to_sys () const noexcept { return chrono::system_clock::time_point(to_unix()); }
+
+	DEKAF2_CONSTEXPR_14          operator  std::tm   ()  const noexcept { return to_tm      (); }
+	DEKAF2_CONSTEXPR_14 explicit operator  KUnixTime ()  const noexcept { return to_unix    (); }
+	                             operator  KString   ()  const          { return to_string  (); }
+	DEKAF2_CONSTEXPR_14 explicit operator  chrono::system_clock::time_point                 () const { return to_sys(); }
+	DEKAF2_CONSTEXPR_14 explicit operator  chrono::hh_mm_ss<chrono::system_clock::duration> () const { return to_hhmmss(); }
+
+	/// return a string following strftime patterns - default = %Y-%m-%d %H:%M:%S
+	KString            Format    (KStringView sFormat = "%Y-%m-%d %H:%M:%S") const { return to_string(sFormat); }
+	/// return a string following strftime patterns - default = %Y-%m-%d %H:%M:%S
+	KString            to_string (KStringView sFormat = "%Y-%m-%d %H:%M:%S") const;
 
 //--------
-protected:
+private:
 //--------
 
-	virtual KUnixTime   Normalize(std::tm&    time) const override final { auto tmp = KUnixTime::from_tm(time); time = KUnixTime::to_tm(tmp); return tmp; }
-	virtual std::tm     BreakDown(std::time_t time) const override final;
+	DEKAF2_CONSTEXPR_14 void split(KUnixTime tp) noexcept
+	{
+		m_days      = chrono::floor<chrono::days>(tp);
+		m_ymd       = chrono::year_month_day(m_days);
+		m_hhmmss    = chrono::make_time(tp - m_days);
+		m_weekday   = chrono::weekday(m_days);
+
+	} // split
+
+	DEKAF2_CONSTEXPR_14 KUnixTime join() const noexcept
+	{
+		return !empty() ? m_days
+		                  + m_hhmmss.hours()
+		                  + m_hhmmss.minutes()
+		                  + m_hhmmss.seconds()
+		                : KUnixTime(0);
+	}
+
+	DEKAF2_CONSTEXPR_14 void from_tm(const std::tm& tm) noexcept { split(KUnixTime::from_tm(tm)); } // needs to consider possible utc offset
+
+	chrono::sys_days m_days;
 
 }; // KUTCTime
 
-inline
-bool operator==(const KUTCTime& left, const KUTCTime& right)
+DEKAF2_CONSTEXPR_14 bool operator==(const KUTCTime& left, const KUTCTime& right)
 {
-	return left.ToTimeT() == right.ToTimeT();
+	return left.to_sys() == right.to_sys();
 }
 
-inline
-bool operator<(const KUTCTime& left, const KUTCTime& right)
+DEKAF2_CONSTEXPR_14 bool operator<(const KUTCTime& left, const KUTCTime& right)
 {
-	return left.ToTimeT() < right.ToTimeT();
+	return left.to_sys() < right.to_sys();
 }
 
 DEKAF2_COMPARISON_OPERATORS(KUTCTime)
 
-inline KDuration operator-(const KLocalTime& left, const KLocalTime& right) { return left.ToTimeT() - right.ToTimeT(); }
-inline KDuration operator-(const KLocalTime& left, const time_t right)      { return left.ToTimeT() - right;           }
-inline KDuration operator-(const time_t left, const KLocalTime& right)      { return left - right.ToTimeT();           }
-inline chrono::system_clock::duration operator-(const KLocalTime& left, const chrono::system_clock::time_point right) { return left.ToTimePoint() - right; }
-inline chrono::system_clock::duration operator-(const chrono::system_clock::time_point left, const KLocalTime& right) { return left - right.ToTimePoint(); }
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A broken down time representation in local time (any timezone that this system supports)
+class DEKAF2_PUBLIC KLocalTime : public detail::KBrokenDownTime
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
 
-template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
-inline KLocalTime operator+(const KLocalTime& left, const T Duration)       { KLocalTime Ret(left); Ret.Add(Duration); return Ret;      }
-template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
-inline KLocalTime operator-(const KLocalTime& left, const T Duration)       { KLocalTime Ret(left); Ret.Add(Duration * -1); return Ret; }
+//--------
+public:
+//--------
 
-inline KDuration operator-(const KUTCTime& left, const KUTCTime& right)     { return left.ToTimeT() - right.ToTimeT(); }
-inline KDuration operator-(const KUTCTime& left, const time_t right)        { return left.ToTimeT() - right;           }
-inline KDuration operator-(const time_t left, const KUTCTime& right)        { return left - right.ToTimeT();           }
-inline chrono::system_clock::duration operator-(const KUTCTime& left, const chrono::system_clock::time_point right) { return left.ToTimePoint() - right; }
-inline chrono::system_clock::duration operator-(const chrono::system_clock::time_point left, const KUTCTime& right) { return left - right.ToTimePoint(); }
+	using self = KLocalTime;
 
-template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
-inline KUTCTime operator+(const KUTCTime& left, const T Duration)           { KUTCTime Ret(left); Ret.Add(Duration); return Ret;        }
-template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
-inline KUTCTime operator-(const KUTCTime& left, const T Duration)           { KUTCTime Ret(left); Ret.Add(Duration * -1); return Ret;   }
+	KLocalTime() = default;
 
-inline KDuration operator-(const KUTCTime& left, const KLocalTime right)    { return left.ToTimeT() - right.ToTimeT(); }
-inline KDuration operator-(const KLocalTime left, const KUTCTime& right)    { return left.ToTimeT() - right.ToTimeT(); }
+	/// construct from a KUnixTime, and translate into a timezone, default timezone is the system's local time
+	KLocalTime (KUnixTime time, const chrono::time_zone* timezone = chrono::current_zone())
+	: m_zoned_time(kToLocalZone(time, timezone))
+	{
+		split(m_zoned_time.get_local_time());
+	}
+
+	/// construct from a string representation, which is interpreted as UTC time (if there is no time zone indicator telling other)
+	/// - the string format is automatically detected from about 100 common patterns
+	KLocalTime (KStringView sTimestamp)
+	: KLocalTime(kParseTimestamp(sTimestamp))
+	{
+	}
+	/// construct from a string representation with format description
+	/// @see kParseTimestamp for a format string description
+	KLocalTime (KStringView sFormat, KStringView sTimestamp)
+	: KLocalTime(kParseTimestamp(sFormat, sTimestamp))
+	{
+	}
+	/// construct from current time
+	KLocalTime (std::nullptr_t) { *this = now(); }
+	/// construct from KUTCTime, and translate into a timezone, default timezone is the system's local time
+	KLocalTime (const KUTCTime& utc, const chrono::time_zone* timezone = chrono::current_zone())
+	: KLocalTime(utc.to_unix(), timezone)
+	{
+	}
+
+	/// get the current time as local time or any other timezone, default timezone is the system's local time
+	static KLocalTime   now(const chrono::time_zone* timezone = chrono::current_zone()) { return KLocalTime(chrono::system_clock::now(), timezone); }
+
+	/// return KUnixTime
+	KUnixTime           to_unix   ()  const { return m_zoned_time.get_sys_time(); }
+	/// return struct tm (needed for efficient formatting)
+	std::tm             to_tm     ()  const;
+	/// return a string following strftime patterns - default = %Y-%m-%d %H:%M:%S
+	KString             Format    (KStringView sFormat = "%Y-%m-%d %H:%M:%S") const { return to_string(sFormat);    }
+	/// return a string following strftime patterns - default = %Y-%m-%d %H:%M:%S
+	KString             to_string (KStringView sFormat = "%Y-%m-%d %H:%M:%S") const;
+
+			   operator KString   () const { return to_string(); }
+	           operator chrono::hh_mm_ss<chrono::system_clock::duration> () const { return to_hhmmss(); }
+	/// zero cost conversion, but loses time zone properties in implicit conversion..
+	explicit   operator chrono::system_clock::time_point () const { return to_sys(); }
+	/// zero cost conversion, but loses time zone properties in implicit conversion..
+	explicit   operator chrono::local_time<chrono::system_clock::duration> () const { return to_local(); }
+
+	/// returns the chrono::time_zone struct
+	const chrono::time_zone*                           get_time_zone     () const { return m_zoned_time.get_time_zone();   }
+	/// returns the chrono::sys_info struct
+	chrono::sys_info                                   get_info          () const { return m_zoned_time.get_info();        }
+	/// get offset from UTC
+	chrono::seconds                                    get_utc_offset    () const { return get_info().offset;              }
+	/// get offset for DST
+	chrono::minutes                                    get_dst_offset    () const { return get_info().save;                }
+	/// return chrono::local_time
+	chrono::local_time<chrono::system_clock::duration> to_local          () const { return m_zoned_time.get_local_time();  }
+	/// return UTC chrono::system_clock::time_point
+	chrono::system_clock::time_point                   to_sys            () const { return m_zoned_time.get_sys_time();    }
+	/// returns true if DST is active
+	bool                                               is_dst            () const { return get_dst_offset() != chrono::minutes::zero(); }
+	/// returns the abbreviated timezone name
+	KString                                            get_zone_abbrev   () const { return get_info().abbrev;              }
+	/// returns the full timezone name
+	KString                                            get_zone_name     () const { return get_time_zone()->name();        }
+
+//--------
+private:
+//--------
+
+	using local_unix = chrono::local_time<chrono::system_clock::duration>;
+
+	DEKAF2_CONSTEXPR_14 void split(local_unix tp) noexcept
+	{
+		m_days      = chrono::floor<chrono::days>(tp);
+		m_ymd       = chrono::year_month_day(m_days);
+		m_hhmmss    = chrono::make_time(tp - m_days);
+		m_weekday   = chrono::weekday(m_days);
+
+	} // split
+
+	chrono::zoned_time<chrono::system_clock::duration> m_zoned_time;
+	chrono::local_days m_days;
+
+#ifndef DEKAF2_IS_WINDOWS
+	static KThreadSafe<std::set<KString>> s_TimezoneNameStore;
+#endif
+
+}; // KLocalTime
+
+inline KUTCTime::KUTCTime (const KLocalTime& local) noexcept : KUTCTime(local.to_sys()) {}
+
+inline bool operator==(const KLocalTime& left, const KLocalTime& right) { return left.to_sys() == right.to_sys(); }
+inline bool operator< (const KLocalTime& left, const KLocalTime& right) { return left.to_sys() <  right.to_sys(); }
+DEKAF2_COMPARISON_OPERATORS(KLocalTime)
+
+inline bool operator==(const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() == right.to_sys(); }
+inline bool operator< (const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() <  right.to_sys(); }
+inline bool operator<=(const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() <= right.to_sys(); }
+inline bool operator> (const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() >  right.to_sys(); }
+inline bool operator>=(const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() >= right.to_sys(); }
+inline bool operator< (const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() <  right.to_sys(); }
+inline bool operator<=(const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() <= right.to_sys(); }
+inline bool operator> (const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() > right.to_sys();  }
+inline bool operator>=(const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() >= right.to_sys(); }
+
+inline KDuration operator-(const KUTCTime&   left, const KUTCTime&   right) { return left.to_sys() - right.to_sys(); }
+inline KDuration operator-(const KLocalTime& left, const KLocalTime& right) { return left.to_sys() - right.to_sys(); }
+inline KDuration operator-(const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() - right.to_sys(); }
+inline KDuration operator-(const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() - right.to_sys(); }
+
+inline chrono::system_clock::duration operator-(const KUTCTime& left, const chrono::system_clock::time_point right) { return left.to_sys() - right; }
+inline chrono::system_clock::duration operator-(const chrono::system_clock::time_point left, const KUTCTime& right) { return left - right.to_sys(); }
+
+inline chrono::system_clock::duration operator-(const KLocalTime& left, const chrono::system_clock::time_point right) { return left.to_sys() - right; }
+inline chrono::system_clock::duration operator-(const chrono::system_clock::time_point left, const KLocalTime& right) { return left - right.to_sys(); }
 
 } // end of namespace dekaf2
 
 namespace fmt {
 
 template <>
-struct formatter<dekaf2::KUnixTime> : formatter<std::chrono::system_clock::time_point>
+struct formatter<dekaf2::KUnixTime> : formatter<std::tm>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::KUnixTime& time, FormatContext& ctx) const
 	{
-		return formatter<std::chrono::system_clock::time_point>::format(std::chrono::system_clock::time_point(time), ctx);
+		return formatter<std::tm>::format(dekaf2::KUnixTime::to_tm(time), ctx);
 	}
 };
 
@@ -728,7 +711,7 @@ struct formatter<dekaf2::KLocalTime> : formatter<std::tm>
 	template <typename FormatContext>
 	auto format(const dekaf2::KLocalTime& time, FormatContext& ctx) const
 	{
-		return formatter<std::tm>::format(time.ToTM(), ctx);
+		return formatter<std::tm>::format(time.to_tm(), ctx);
 	}
 };
 
@@ -738,7 +721,7 @@ struct formatter<dekaf2::KUTCTime> : formatter<std::tm>
 	template <typename FormatContext>
 	auto format(const dekaf2::KUTCTime& time, FormatContext& ctx) const
 	{
-		return formatter<std::tm>::format(time.ToTM(), ctx);
+		return formatter<std::tm>::format(time.to_tm(), ctx);
 	}
 };
 

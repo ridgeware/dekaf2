@@ -528,7 +528,7 @@ TEST_CASE("KTime") {
 
 	SECTION("kGetTimezoneOffset")
 	{
-		CHECK ( kGetTimezoneOffset("XYZ" ) == KDuration(-1)  );
+		CHECK ( kGetTimezoneOffset("XYZ" ) == chrono::minutes(-1)  );
 		CHECK ( kGetTimezoneOffset("GMT" ) == std::chrono::seconds(0)   );
 		CHECK ( kGetTimezoneOffset("CET" ) == std::chrono::seconds(1 * 60 * 60) );
 		CHECK ( kGetTimezoneOffset("NPT" ) == std::chrono::seconds((5 * 60 + 45) * 60) );

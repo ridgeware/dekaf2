@@ -289,12 +289,12 @@ KUnixTime kParseWebTimestamp (KStringView sTime, bool bOnlyGMT)
 						tTime = KUnixTime(0);
 					}
 				}
-				else
+				else if (sTimezone.size() < 5)
 				{
 					// look timezone up in our fixed list
-					auto Offset = kGetTimezoneOffset(sTimezone);
+					auto Offset = kGetTimezoneOffset(KString(sTimezone));
 
-					if (Offset != KDuration(-1))
+					if (Offset != chrono::minutes(-1))
 					{
 						tTime -= Offset;
 					}
@@ -302,6 +302,10 @@ KUnixTime kParseWebTimestamp (KStringView sTime, bool bOnlyGMT)
 					{
 						tTime = KUnixTime(0);
 					}
+				}
+				else
+				{
+					tTime = KUnixTime(0);
 				}
 			}
 		}
@@ -440,177 +444,195 @@ KStringViewZ kGetMonthName(uint16_t iMonth, bool bAbbreviated, bool bLocal)
 
 } // kGetMonthName
 
+namespace {
+
+#ifdef DEKAF2_HAS_FROZEN
+constexpr auto g_Timezones = frozen::make_unordered_map<KStringViewZ, int16_t>(
+#else
+static const std::unordered_map<KStringViewZ, int16_t> g_Timezones
+#endif
+{
+	{ "IDLW", -12 * 60 },
+	{ "BIT" , -12 * 60 },
+	{ "NUT" , -11 * 60 },
+	{ "HST" , -10 * 60 },
+	{ "CKT" , -10 * 60 },
+	{ "TAHT", -10 * 60 },
+	{ "MART",  -1 * (9 * 60 + 30) },
+	{ "HDT" ,  -9 * 60 },
+	{ "AKST",  -9 * 60 },
+	{ "AKDT",  -8 * 60 },
+	{ "CIST",  -8 * 60 },
+	{ "PST" ,  -8 * 60 },
+	{ "MST" ,  -7 * 60 },
+	{ "PDT" ,  -7 * 60 },
+	{ "MDT" ,  -6 * 60 },
+	{ "CST" ,  -6 * 60 }, // that is US and China and Cuba ..
+	{ "GALT",  -6 * 60 },
+	{ "CDT" ,  -5 * 60 },
+	{ "EST" ,  -5 * 60 },
+	{ "COT" ,  -5 * 60 },
+	{ "PET" ,  -5 * 60 },
+	{ "EDT" ,  -4 * 60 },
+	{ "BOT" ,  -4 * 60 },
+	{ "AMT" ,  -4 * 60 },
+	{ "COST",  -4 * 60 },
+	{ "CLT" ,  -4 * 60 },
+	{ "FKT" ,  -4 * 60 },
+	{ "GYT" ,  -4 * 60 },
+	{ "PYT" ,  -4 * 60 },
+	{ "VET" ,  -4 * 60 },
+	{ "NST" ,  -1 * (3 * 60 + 30) },
+	{ "AMST",  -3 * 60 },
+	{ "ADT" ,  -3 * 60 },
+	{ "ART" ,  -3 * 60 },
+	{ "BRT" ,  -3 * 60 },
+	{ "CLST",  -3 * 60 },
+	{ "FKST",  -3 * 60 },
+	{ "PYST",  -3 * 60 },
+	{ "GFT" ,  -3 * 60 },
+	{ "SRT" ,  -3 * 60 },
+	{ "UYT" ,  -3 * 60 },
+	{ "NDT" ,  -1 * (2 * 60 + 30) },
+	{ "BRST",  -2 * 60 },
+	{ "UYST",  -2 * 60 },
+	{ "AZOT",  -1 * 60 },
+	{ "CVT" ,  -1 * 60 },
+	{ "EGT" ,  -1 * 60 },
+	{ "UTC" ,        0 },
+	{ "GMT" ,        0 },
+	{ "WET" ,        0 },
+	{ "EGST",        0 },
+	{ "BST" ,   1 * 60 },
+	{ "CET" ,   1 * 60 },
+	{ "DFT" ,   1 * 60 }, // AIX uses this as synonym for CET
+	{ "MET" ,   1 * 60 },
+	{ "WAT" ,   1 * 60 },
+	{ "WEST",   1 * 60 },
+	{ "CEST",   2 * 60 },
+	{ "MEST",   2 * 60 },
+	{ "HAEC",   2 * 60 },
+	{ "EET" ,   2 * 60 },
+	{ "CAT" ,   2 * 60 },
+	{ "KALT",   2 * 60 },
+	{ "WAST",   2 * 60 },
+	{ "SAST",   2 * 60 },
+	{ "EAT" ,   3 * 60 },
+	{ "FET" ,   3 * 60 },
+	{ "MSK" ,   3 * 60 },
+	{ "TRT" ,   3 * 60 },
+	{ "EEST",   3 * 60 },
+	{ "IDT" ,   3 * 60 },
+	{ "IOT" ,   3 * 60 },
+	{ "IRST",   3 * 60 + 30 },
+	{ "GST" ,   4 * 60 },
+	{ "MUT" ,   4 * 60 },
+	{ "AZT" ,   4 * 60 },
+	{ "GET" ,   4 * 60 },
+	{ "RET" ,   4 * 60 },
+	{ "SCT" ,   4 * 60 },
+	{ "SAMT",   4 * 60 },
+	{ "VOLT",   4 * 60 },
+	{ "IRDT",   4 * 60 + 30 },
+	{ "MVT" ,   5 * 60 },
+	{ "PKT" ,   5 * 60 },
+	{ "TJT" ,   5 * 60 },
+	{ "TMT" ,   5 * 60 },
+	{ "UZT" ,   5 * 60 },
+	{ "ORAT",   5 * 60 },
+	{ "YEKT",   5 * 60 },
+	{ "SLST",   5 * 60 + 30 },
+	{ "NPT" ,   5 * 60 + 45 },
+	{ "BTT" ,   6 * 60 },
+	{ "BIOT",   6 * 60 },
+	{ "KGT" ,   6 * 60 },
+	{ "OMST",   6 * 60 },
+	{ "QYZT",   6 * 60 },
+	{ "CCT" ,   6 * 60 + 30 },
+	{ "MMT" ,   6 * 60 + 30 },
+	{ "ICT" ,   7 * 60 },
+	{ "THA" ,   7 * 60 },
+	{ "CXT" ,   7 * 60 },
+	{ "WIB" ,   7 * 60 },
+	{ "HOVT",   7 * 60 },
+	{ "KRAT",   7 * 60 },
+	{ "NOVT",   7 * 60 },
+	{ "BNT" ,   8 * 60 },
+	{ "HKT" ,   8 * 60 },
+	{ "SGT" ,   8 * 60 },
+	{ "MYT" ,   8 * 60 },
+	{ "WST" ,   8 * 60 },
+	{ "PHT" ,   8 * 60 },
+	{ "PHST",   8 * 60 },
+	{ "AWST",   8 * 60 },
+	{ "IRKT",   8 * 60 },
+	{ "WITA",   8 * 60 },
+	{ "ULAT",   8 * 60 },
+	{ "CWST",   8 * 60 + 45 },
+	{ "JST" ,   9 * 60 },
+	{ "KST" ,   9 * 60 },
+	{ "PWT" ,   9 * 60 },
+	{ "TLT" ,   9 * 60 },
+	{ "WIT" ,   9 * 60 },
+	{ "YAKT",   9 * 60 },
+	{ "ACST",   9 * 60 + 30 },
+	{ "PGT" ,  10 * 60 },
+	{ "AEST",  10 * 60 },
+	{ "CHST",  10 * 60 },
+	{ "CHUT",  10 * 60 },
+	{ "VLAT",  10 * 60 },
+	{ "ACDT",  10 * 60 + 30 },
+	{ "NCT" ,  11 * 60 },
+	{ "VUT" ,  11 * 60 },
+	{ "AEDT",  11 * 60 },
+	{ "KOST",  11 * 60 },
+	{ "SAKT",  11 * 60 },
+	{ "SRET",  11 * 60 },
+	{ "MAGT",  12 * 60 },
+	{ "MHT" ,  12 * 60 },
+	{ "FJT" ,  12 * 60 },
+	{ "TVT" ,  12 * 60 },
+	{ "NZST",  12 * 60 },
+	{ "PETT",  12 * 60 },
+	{ "TKT" ,  13 * 60 },
+	{ "TOT" ,  13 * 60 },
+	{ "NZDT",  13 * 60 },
+	{ "LINT",  14 * 60 }
+}
+#ifdef DEKAF2_HAS_FROZEN
+)
+#endif
+; // do not erase..
+
 //-----------------------------------------------------------------------------
-KDuration kGetTimezoneOffset(KStringView sTimezone)
+const char* kGetTimezoneCharPointer(const KString& sTimezone)
+//-----------------------------------------------------------------------------
+{
+	auto tz = g_Timezones.find(sTimezone);
+
+	if (tz == g_Timezones.end())
+	{
+		return "";
+	}
+
+	return tz->first.c_str();
+
+} // kGetTimezoneOffset
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+chrono::minutes kGetTimezoneOffset(KStringViewZ sTimezone)
 //-----------------------------------------------------------------------------
 {
 	// abbreviated timezone support is brittle - as there are many duplicate names,
 	// and we only support english abbreviations
 
-#ifdef DEKAF2_HAS_FROZEN
-	static constexpr auto s_Timezones = frozen::make_unordered_map<KStringView, int16_t>(
-#else
-	static const std::unordered_map<KStringView, int16_t> s_Timezones
-#endif
-	{
-		{ "IDLW", -12 * 60 },
-		{ "BIT" , -12 * 60 },
-		{ "NUT" , -11 * 60 },
-		{ "HST" , -10 * 60 },
-		{ "CKT" , -10 * 60 },
-		{ "TAHT", -10 * 60 },
-		{ "MART",  -1 * (9 * 60 + 30) },
-		{ "HDT" ,  -9 * 60 },
-		{ "AKST",  -9 * 60 },
-		{ "AKDT",  -8 * 60 },
-		{ "CIST",  -8 * 60 },
-		{ "PST" ,  -8 * 60 },
-		{ "MST" ,  -7 * 60 },
-		{ "PDT" ,  -7 * 60 },
-		{ "MDT" ,  -6 * 60 },
-		{ "CST" ,  -6 * 60 }, // that is US and China and Cuba ..
-		{ "GALT",  -6 * 60 },
-		{ "CDT" ,  -5 * 60 },
-		{ "EST" ,  -5 * 60 },
-		{ "COT" ,  -5 * 60 },
-		{ "PET" ,  -5 * 60 },
-		{ "EDT" ,  -4 * 60 },
-		{ "BOT" ,  -4 * 60 },
-		{ "AMT" ,  -4 * 60 },
-		{ "COST",  -4 * 60 },
-		{ "CLT" ,  -4 * 60 },
-		{ "FKT" ,  -4 * 60 },
-		{ "GYT" ,  -4 * 60 },
-		{ "PYT" ,  -4 * 60 },
-		{ "VET" ,  -4 * 60 },
-		{ "NST" ,  -1 * (3 * 60 + 30) },
-		{ "AMST",  -3 * 60 },
-		{ "ADT" ,  -3 * 60 },
-		{ "ART" ,  -3 * 60 },
-		{ "BRT" ,  -3 * 60 },
-		{ "CLST",  -3 * 60 },
-		{ "FKST",  -3 * 60 },
-		{ "PYST",  -3 * 60 },
-		{ "GFT" ,  -3 * 60 },
-		{ "SRT" ,  -3 * 60 },
-		{ "UYT" ,  -3 * 60 },
-		{ "NDT" ,  -1 * (2 * 60 + 30) },
-		{ "BRST",  -2 * 60 },
-		{ "UYST",  -2 * 60 },
-		{ "AZOT",  -1 * 60 },
-		{ "CVT" ,  -1 * 60 },
-		{ "EGT" ,  -1 * 60 },
-		{ "UTC" ,        0 },
-		{ "GMT" ,        0 },
-		{ "WET" ,        0 },
-		{ "EGST",        0 },
-		{ "BST" ,   1 * 60 },
-		{ "CET" ,   1 * 60 },
-		{ "DFT" ,   1 * 60 }, // AIX uses this as synonym for CET
-		{ "MET" ,   1 * 60 },
-		{ "WAT" ,   1 * 60 },
-		{ "WEST",   1 * 60 },
-		{ "CEST",   2 * 60 },
-		{ "MEST",   2 * 60 },
-		{ "HAEC",   2 * 60 },
-		{ "EET" ,   2 * 60 },
-		{ "CAT" ,   2 * 60 },
-		{ "KALT",   2 * 60 },
-		{ "WAST",   2 * 60 },
-		{ "SAST",   2 * 60 },
-		{ "EAT" ,   3 * 60 },
-		{ "FET" ,   3 * 60 },
-		{ "MSK" ,   3 * 60 },
-		{ "TRT" ,   3 * 60 },
-		{ "EEST",   3 * 60 },
-		{ "IDT" ,   3 * 60 },
-		{ "IOT" ,   3 * 60 },
-		{ "IRST",   3 * 60 + 30 },
-		{ "GST" ,   4 * 60 },
-		{ "MUT" ,   4 * 60 },
-		{ "AZT" ,   4 * 60 },
-		{ "GET" ,   4 * 60 },
-		{ "RET" ,   4 * 60 },
-		{ "SCT" ,   4 * 60 },
-		{ "SAMT",   4 * 60 },
-		{ "VOLT",   4 * 60 },
-		{ "IRDT",   4 * 60 + 30 },
-		{ "MVT" ,   5 * 60 },
-		{ "PKT" ,   5 * 60 },
-		{ "TJT" ,   5 * 60 },
-		{ "TMT" ,   5 * 60 },
-		{ "UZT" ,   5 * 60 },
-		{ "ORAT",   5 * 60 },
-		{ "YEKT",   5 * 60 },
-		{ "SLST",   5 * 60 + 30 },
-		{ "NPT" ,   5 * 60 + 45 },
-		{ "BTT" ,   6 * 60 },
-		{ "BIOT",   6 * 60 },
-		{ "KGT" ,   6 * 60 },
-		{ "OMST",   6 * 60 },
-		{ "QYZT",   6 * 60 },
-		{ "CCT" ,   6 * 60 + 30 },
-		{ "MMT" ,   6 * 60 + 30 },
-		{ "ICT" ,   7 * 60 },
-		{ "THA" ,   7 * 60 },
-		{ "CXT" ,   7 * 60 },
-		{ "WIB" ,   7 * 60 },
-		{ "HOVT",   7 * 60 },
-		{ "KRAT",   7 * 60 },
-		{ "NOVT",   7 * 60 },
-		{ "BNT" ,   8 * 60 },
-		{ "HKT" ,   8 * 60 },
-		{ "SGT" ,   8 * 60 },
-		{ "MYT" ,   8 * 60 },
-		{ "WST" ,   8 * 60 },
-		{ "PHT" ,   8 * 60 },
-		{ "PHST",   8 * 60 },
-		{ "AWST",   8 * 60 },
-		{ "IRKT",   8 * 60 },
-		{ "WITA",   8 * 60 },
-		{ "ULAT",   8 * 60 },
-		{ "CWST",   8 * 60 + 45 },
-		{ "JST" ,   9 * 60 },
-		{ "KST" ,   9 * 60 },
-		{ "PWT" ,   9 * 60 },
-		{ "TLT" ,   9 * 60 },
-		{ "WIT" ,   9 * 60 },
-		{ "YAKT",   9 * 60 },
-		{ "ACST",   9 * 60 + 30 },
-		{ "PGT" ,  10 * 60 },
-		{ "AEST",  10 * 60 },
-		{ "CHST",  10 * 60 },
-		{ "CHUT",  10 * 60 },
-		{ "VLAT",  10 * 60 },
-		{ "ACDT",  10 * 60 + 30 },
-		{ "NCT" ,  11 * 60 },
-		{ "VUT" ,  11 * 60 },
-		{ "AEDT",  11 * 60 },
-		{ "KOST",  11 * 60 },
-		{ "SAKT",  11 * 60 },
-		{ "SRET",  11 * 60 },
-		{ "MAGT",  12 * 60 },
-		{ "MHT" ,  12 * 60 },
-		{ "FJT" ,  12 * 60 },
-		{ "TVT" ,  12 * 60 },
-		{ "NZST",  12 * 60 },
-		{ "PETT",  12 * 60 },
-		{ "TKT" ,  13 * 60 },
-		{ "TOT" ,  13 * 60 },
-		{ "NZDT",  13 * 60 },
-		{ "LINT",  14 * 60 }
-	}
-#ifdef DEKAF2_HAS_FROZEN
-	)
-#endif
-	; // do not erase..
+	auto tz = g_Timezones.find(sTimezone);
 
-	auto tz = s_Timezones.find(sTimezone);
-
-	if (tz == s_Timezones.end())
+	if (tz == g_Timezones.end())
 	{
-		kDebug(2, "unrecognized time zone: {}", sTimezone);
-		return KDuration(-1);
+		return chrono::minutes(-1);
 	}
 
 	return chrono::minutes(tz->second);
@@ -660,6 +682,7 @@ KUnixTime kParseTimestamp(KStringView sFormat, KStringView sTimestamp)
 	uint16_t iDayPos          { 0 };
 	int16_t  iTimezoneIsNeg   { 0 };
 	int      iMilliseconds    { 0 };
+	int      iMicroseconds    { 0 };
 
 	auto iTs = sTimestamp.begin();
 	auto eTs = sTimestamp.end();
@@ -716,6 +739,11 @@ KUnixTime kParseTimestamp(KStringView sFormat, KStringView sTimestamp)
 			case 'S':
 				// msec digit
 				if (!AddDigit(ch, 999, iMilliseconds )) return Invalid;
+				break;
+
+			case 'U':
+				// usec digit
+				if (!AddDigit(ch, 999, iMicroseconds )) return Invalid;
 				break;
 
 			case 'D':
@@ -848,13 +876,13 @@ KUnixTime kParseTimestamp(KStringView sFormat, KStringView sTimestamp)
 		}
 	}
 
-	KDuration TimezoneOffset = chrono::seconds((iTimezoneHours * 60 * 60 + iTimezoneMinutes * 60) * iTimezoneIsNeg);
+	auto TimezoneOffset = chrono::minutes((iTimezoneHours * 60 + iTimezoneMinutes) * iTimezoneIsNeg);
 
 	if (!sTimezoneName.empty())
 	{
 		if (TimezoneOffset != KDuration::zero()) return Invalid;
 		TimezoneOffset = kGetTimezoneOffset(sTimezoneName);
-		if (TimezoneOffset == KDuration(-1)) return Invalid;
+		if (TimezoneOffset == chrono::minutes(-1)) return Invalid;
 	}
 
 	return chrono::sys_days(chrono::day(tm.tm_mday) / chrono::month(tm.tm_mon) / chrono::year(tm.tm_year))
@@ -862,7 +890,8 @@ KUnixTime kParseTimestamp(KStringView sFormat, KStringView sTimestamp)
 			+ chrono::minutes(tm.tm_min)
 			+ chrono::seconds(tm.tm_sec)
 			+ chrono::milliseconds(iMilliseconds)
-			- TimezoneOffset.minutes();
+	        + chrono::microseconds(iMicroseconds)
+			- TimezoneOffset;
 
 } // kParseTimestamp
 
@@ -878,29 +907,33 @@ KUnixTime kParseTimestamp(KStringView sTimestamp)
 	}; // TimeFormat
 
 	// order formats by size
-	static constexpr std::array<TimeFormat, 125> Formats
+	static constexpr std::array<TimeFormat, 130> Formats
 	{{
 		{ "???, DD NNN YYYY hh:mm:ss ZZZZZ", 25 }, // WWW timestamp with timezone
 
 		{ "???, DD NNN YYYY hh:mm:ss zzzz" , 25 }, // WWW timestamp with abbreviated timezone name
 		{ "??, DD NNN YYYY hh:mm:ss ZZZZZ" , 24 }, // WWW timestamp with timezone and two letter day name
+		{ "??? NNN DD hh:mm:ss YYYY ZZZZZ" , 13 }, // Fri Oct 24 15:32:27 2014 +0400 (Git log) *
+		{ "??? NNN DD hh:mm:ss ZZZZZ YYYY" , 13 }, // Fri Oct 24 15:32:27 +0400 2006 (Ruby) <- collision *
 
 		{ "???, DD NNN YYYY hh:mm:ss zzz"  , 25 }, // WWW timestamp with abbreviated timezone name
 		{ "YYYY-MM-DD hh:mm:ss.SSS ZZZZZ"  , 19 }, // 2018-04-13 22:08:13.211 -0700
 		{ "YYYY-MM-DD hh:mm:ss,SSS ZZZZZ"  , 19 }, // 2018-04-13 22:08:13,211 -0700
 		{ "??, DD NNN YYYY hh:mm:ss zzzz"  , 21 }, // WWW timestamp with abbreviated timezone name and two letter day name
 		{ "YYYY NNN DD hh:mm:ss.SSS zzzz"  , 20 }, // 2017 Mar 03 05:12:41.211 CEST
+		{ "??? NNN DD hh:mm:ss zzzz YYYY"  , 13 }, // Fri Oct 24 15:32:27 EDT 2014 (date output) *
 
 		{ "YYYY NNN DD hh:mm:ss.SSS zzz"   , 24 }, // 2017 Mar 03 05:12:41.211 PDT
 		{ "YYYY-MM-DD hh:mm:ss.SSSZZZZZ"   , 19 }, // 2018-04-13 22:08:13.211-0700
 		{ "YYYY-MM-DD hh:mm:ss,SSSZZZZZ"   , 19 }, // 2018-04-13 22:08:13,211-0700
 		{ "??, DD NNN YYYY hh:mm:ss zzz"   , 24 }, // WWW timestamp with abbreviated timezone name and two letter day name
+		{ "??? NNN DD hh:mm:ss zzz YYYY"   ,  7 }, // Fri Oct 24 15:32:27 EDT 2014 (date output) *
 
 		{ "DD/NNN/YYYY:hh:mm:ss ZZZZZ"     , 11 }, // 19/Apr/2017:06:36:15 -0700
 		{ "DD/NNN/YYYY hh:mm:ss ZZZZZ"     , 11 }, // 19/Apr/2017 06:36:15 -0700
 		{ "NNN DD hh:mm:ss ZZZZZ YYYY"     , 15 }, // Jan 21 18:20:11 +0000 2017
 
-		{ "YYYY-MM-DD hh:mm:ss ZZZZZ"      , 19 }, // 2017-10-14 22:11:20 +0000
+		{ "YYYY-MM-DD hh:mm:ss ZZZZZ"      , 19 }, // 2017-10-14 22:11:20 +0000 (date output with -rfc-3339 option)
 
 		{ "NNN DD, YYYY hh:mm:ss aa"       , 21 }, // Dec 02, 2017 2:39:58 AM
 		{ "YYYY-MM-DD hh:mm:ssZZZZZ"       , 10 }, // 2017-10-14 22:11:20+0000
@@ -915,6 +948,8 @@ KUnixTime kParseTimestamp(KStringView sTimestamp)
 		{ "YYYY-MM-DD hh:mm:ss.SSS"        , 10 }, // 2002-12-06 19:23:15.372
 		{ "YYYY-MM-DDThh:mm:ss.SSS"        , 10 }, // 2002-12-06T19:23:15.372
 		{ "YYYY-MM-DD*hh:mm:ss:SSS"        , 10 }, // 2002-12-06*19:23:15:372
+
+		{ "YYYYMMDDhhmmss.SSSUUUZ"         , 14 }, // 20141024192327.000000Z (LDAP RFC-2252/X.680/X.208) *
 
 		{ "YYYYMMDD hh:mm:ss.SSS"          , 17 }, // 20211230 12:23:54.372
 
@@ -943,7 +978,7 @@ KUnixTime kParseTimestamp(KStringView sTimestamp)
 		{ "YYYY-MM-DD hh:mm:ss"            , 10 }, // 2002-12-06 19:23:15
 		{ "YYYY-MM-DDThh:mm:ss"            , 10 }, // 2002-12-06T19:23:15
 		{ "YYYY-MM-DD*hh:mm:ss"            ,  4 }, // 2002-12-06*19:23:15
-		{ "YYYY/MM/DD*hh:mm:ss"            , 10 }, // 2002/12/31*23:59:59 (the only one that needs two tries)
+		{ "YYYY/MM/DD*hh:mm:ss"            , 10 }, // 2002/12/31*23:59:59 (one of two that needs two tries)
 
 		// we do not add the US form MM/DD/YYYY hh:mm:ss here as it causes too many ambiguities -
 		// (for any first 12 days of each month) - if you want to decode it you have to do it
@@ -1558,8 +1593,17 @@ std::tm KLocalTime::to_tm() const
 
 	KString sAbbrev = get_zone_abbrev();
 
-	// persist the zone abbreviation
+	// this should normally find the tz abbreviation
+	const char* tzname = kGetTimezoneCharPointer(sAbbrev);
+
+	if (tzname && *tzname)
 	{
+		// yes, found
+		tm.tm_zone = const_cast<char*>(tzname);
+	}
+	else
+	{
+		// no, persist the zone abbreviation
 		// check if we have it already in our store (in shared mode)
 		auto Store = s_TimezoneNameStore.shared();
 

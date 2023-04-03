@@ -340,15 +340,16 @@ KUnixTime kParseHTTPTimestamp (KStringView sTime);
 DEKAF2_PUBLIC
 KUnixTime kParseSMTPTimestamp (KStringView sTime);
 
-/// Parse a time zone name like EDT / GMT / CEST in uppercase and return offset to GMT in seconds
-/// @return KDuration of timezone offset, or -1 second in case of error
+/// Parse a time zone name like EDT / GMT / CEST in uppercase and return offset to GMT in minutes
+/// @return chrono::minutes of timezone offset, or -1 minute in case of error
 DEKAF2_PUBLIC
-KDuration kGetTimezoneOffset(KStringView sTimezone);
+chrono::minutes kGetTimezoneOffset(KStringViewZ sTimezone);
 
-/// Parse any timestamp that matches a format string built from h m s D M Y, and a S z Z N ?
+/// Parse any timestamp that matches a format string built from h m s D M Y, and a S U z Z N ?
 /// Y(ear) could be 2 or 4 digits,
 /// aa = am/pm, case insensitive
-/// S = milliseconds (ignored for output, but checked for 0..9)
+/// SSS = milliseconds
+/// UUU = microseconds
 /// zzz = time zone like "EST"
 /// ZZZZZ = time zone like "-0630",
 /// NNN = abbreviated month name like "Jan", both in English and the user's locale

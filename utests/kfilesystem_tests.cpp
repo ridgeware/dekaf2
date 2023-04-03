@@ -76,12 +76,12 @@ TEST_CASE("KFilesystem")
 
 	SECTION("setup test file")
 	{
-		time_t now = time(0);
+		auto now = KUnixTime::now();
 
 		KOutFile fWriter(sFile, std::ios_base::trunc);
 		CHECK( fWriter.is_open() == true );
 
-		CHECK ( kGetLastMod(sFile) - now < 2 );
+		CHECK ( kGetLastMod(sFile) - now < chrono::seconds(2) );
 
 		if (fWriter.is_open())
 		{

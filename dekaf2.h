@@ -52,6 +52,7 @@
 #include <folly/CpuId.h>
 #endif
 #include "kstring.h"
+#include "ktime.h"
 #include "ktimer.h"
 #include "ksignals.h"
 #include "ksystem.h"
@@ -163,13 +164,16 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Get current time without constantly querying the OS
-	time_t GetCurrentTime() const;
+	KUnixTime GetCurrentTime() const;
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
 	/// Get current time without constantly querying the OS
-	KTimer::Timepoint GetCurrentTimepoint() const;
+	KUnixTime GetCurrentTimepoint() const
 	//---------------------------------------------------------------------------
+	{
+		return GetCurrentTime();
+	}
 
 	//---------------------------------------------------------------------------
 	/// Get verbose dekaf2 version information (build settings)
@@ -281,8 +285,7 @@ private:
 	KTimer::ID_t m_OneSecTimerID;
 	std::mutex m_OneSecTimerMutex;
 	std::vector<OneSecCallback> m_OneSecTimers;
-	std::atomic<time_t> m_iCurrentTime;
-	KTimer::Timepoint m_iCurrentTimepoint;
+	std::atomic<KUnixTime> m_iCurrentTime;
 	KThreadSafe<std::default_random_engine> m_Random;
 	bool m_bInConstruction { true };
 	static std::atomic<bool> s_bStarted;

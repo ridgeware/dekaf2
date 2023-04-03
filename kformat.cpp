@@ -103,7 +103,7 @@ namespace detail {
 
 //-----------------------------------------------------------------------------
 /// formats a KString using Python syntax
-KString kFormat(KStringView sFormat, format::format_args args) noexcept
+KString kFormat(KStringView sFormat, dekaf2_format::format_args args) noexcept
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
@@ -111,9 +111,9 @@ KString kFormat(KStringView sFormat, format::format_args args) noexcept
 	DEKAF2_TRY
 	{
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-		format::vformat_to(std::back_inserter(sOut), sFormat.operator format::string_view(), args);
+		dekaf2_format::vformat_to(std::back_inserter(sOut), sFormat.operator format::string_view(), args);
 #else
-		sOut = vformat(sFormat.operator format::string_view(), args);
+		sOut = dekaf2_format::vformat(sFormat.operator dekaf2_format::string_view(), args);
 #endif
 	}
 	DEKAF2_CATCH (const std::exception& e)
@@ -128,7 +128,7 @@ KString kFormat(KStringView sFormat, format::format_args args) noexcept
 
 //-----------------------------------------------------------------------------
 /// formats a KString using Python syntax, with locale
-KString kFormat(const std::locale& locale, KStringView sFormat, format::format_args args) noexcept
+KString kFormat(const std::locale& locale, KStringView sFormat, dekaf2_format::format_args args) noexcept
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
@@ -138,7 +138,7 @@ KString kFormat(const std::locale& locale, KStringView sFormat, format::format_a
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 		format::vformat_to(locale, std::back_inserter(sOut), sFormat.operator format::string_view(), args);
 #else
-		sOut = vformat(locale, sFormat.operator format::string_view(), args);
+		sOut = dekaf2_format::vformat(locale, sFormat.operator dekaf2_format::string_view(), args);
 #endif
 	}
 	DEKAF2_CATCH (const std::exception& e)

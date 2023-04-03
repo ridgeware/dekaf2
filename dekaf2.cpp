@@ -350,31 +350,16 @@ KStringView Dekaf::GetVersion()
 }
 
 //---------------------------------------------------------------------------
-time_t Dekaf::GetCurrentTime() const
+KUnixTime Dekaf::GetCurrentTime() const
 //---------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(!m_Timer))
 	{
-		return std::time(nullptr);
+		return KUnixTime::now();
 	}
 	else
 	{
 		return m_iCurrentTime;
-	}
-}
-
-//---------------------------------------------------------------------------
-/// Get current time without constantly querying the OS
-KTimer::Timepoint Dekaf::GetCurrentTimepoint() const
-//---------------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(!m_Timer))
-	{
-		return KTimer::Clock::now();
-	}
-	else
-	{
-		return m_iCurrentTimepoint;
 	}
 }
 
@@ -386,8 +371,7 @@ void Dekaf::StartDefaultTimer()
 	{
 		// make sure we have an initial value set for
 		// the time keepers
-		m_iCurrentTimepoint = KTimer::Clock::now();
-		m_iCurrentTime = KTimer::ToTimeT(m_iCurrentTimepoint);
+		m_iCurrentTime = KUnixTime::now();
 
 		// create a KTimer
 		m_Timer = std::make_unique<KTimer>();
@@ -432,8 +416,7 @@ KTimer& Dekaf::GetTimer()
 void Dekaf::OneSecTimer(KTimer::Timepoint tp)
 //---------------------------------------------------------------------------
 {
-	m_iCurrentTime = KTimer::Clock::to_time_t(tp);
-	m_iCurrentTimepoint = tp;
+	m_iCurrentTime = tp;
 
 	if (m_OneSecTimerMutex.try_lock())
 	{

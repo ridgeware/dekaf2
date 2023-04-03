@@ -69,7 +69,7 @@ class DEKAF2_PUBLIC Kron
 public:
 //----------
 
-	static constexpr time_t INVALID_TIME = -1;
+	static constexpr KUnixTime INVALID_TIME = KUnixTime(-1);
 
 	class Job;
 	using SharedJob = std::shared_ptr<Job>;
@@ -88,8 +88,8 @@ public:
 
 		struct Control
 		{
-			std::time_t    tLastStarted   { INVALID_TIME }; ///< last start time
-			std::time_t    tLastStopped   { INVALID_TIME }; ///< last stop time
+			KUnixTime      tLastStarted   { INVALID_TIME }; ///< last start time
+			KUnixTime      tLastStopped   { INVALID_TIME }; ///< last stop time
 			std::size_t    iStartCount    {  0 };           ///< total count of executions
 			int            iLastStatus    {  0 };           ///< last status return code
 			pid_t          ProcessID      { -1 };           ///< process ID of the running job
@@ -106,7 +106,7 @@ public:
 			KDuration    MaxExecutionTime = KDuration::max());
 
 		Job(KString      sName,
-			std::time_t  tOnce,
+			KUnixTime    tOnce,
 			KStringView  sCommand,
 			KDuration    MaxExecutionTime = KDuration::max());
 
@@ -117,7 +117,7 @@ public:
 		void SetEnvironment(std::vector<std::pair<KString, KString>> Environment) { m_Environment = std::move(Environment); }
 
 		/// return next execution time after tAfter, in unix time_t
-		std::time_t Next(std::time_t tAfter = 0) const;
+		KUnixTime Next(KUnixTime tAfter = KUnixTime(0)) const;
 
 		/// return next execution time after tAfter, in KUTCTime
 		KUTCTime Next(const KUTCTime& tAfter) const;
@@ -182,7 +182,7 @@ public:
 		KString                   m_sCommand;
 		KDuration                 m_MaxExecutionTime { KDuration::max() };
 		ID                        m_iJobID           { 0 };
-		std::time_t               m_tOnce            { INVALID_TIME };
+		KUnixTime                 m_tOnce            { INVALID_TIME };
 		KUniqueVoidPtr            m_ParsedCron;
 		struct Control            m_Control;
 		std::vector<
@@ -231,7 +231,7 @@ public:
 		friend class Kron;
 
 		/// get next Job to execute, can return with nullptr
-		virtual SharedJob GetJob(std::time_t tNow);
+		virtual SharedJob GetJob(KUnixTime tNow);
 		/// a Job has been run and is returned to the scheduler
 		virtual void JobFinished(const SharedJob& Job);
 		/// a Job failed to run and is returned to the scheduler
@@ -266,14 +266,14 @@ public:
 	//----------
 
 		/// get next Job to execute, can return with nullptr
-		virtual SharedJob GetJob(std::time_t tNow) override final;
+		virtual SharedJob GetJob(KUnixTime tNow) override final;
 
 	//----------
 	private:
 	//----------
 
 		KThreadSafe<
-			KMultiMap<time_t, SharedJob>
+			KMultiMap<KUnixTime, SharedJob>
 		> m_Jobs;  // the Job list, sorted by next execution time
 
 	}; // Kron::LocalScheduler

@@ -50,6 +50,7 @@
 #include "kstring.h"
 #include "kstringview.h"
 #include "kformat.h"
+#include "ktime.h"
 
 #include <memory>
 #include <exception>
@@ -674,7 +675,7 @@ private:
 	std::recursive_mutex m_LogMutex;
 
 	int m_iBackTrace { -2 };
-	time_t m_sTimestampFlagfile { 0 };
+	KUnixTime m_sTimestampFlagfile { 0 };
 	std::unique_ptr<KLogSerializer> m_Serializer;
 	std::unique_ptr<KLogWriter> m_Logger;
 	// the m_Traces vector is protected by the s_LogMutex

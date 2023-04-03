@@ -4566,7 +4566,7 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 } // KSQL::Get
 
 //-----------------------------------------------------------------------------
-time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
+KUnixTime KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
@@ -4579,16 +4579,16 @@ time_t KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 
 	if (sVal.empty() || sVal == "0" || sVal.starts_with("00000"))
 	{
-		return (0);
+		return KUnixTime(0);
 	}
 
 	if (sVal.contains("ERR"))
 	{
 		SetError(kFormat ("IntValue(row={},col={}): {}", m_iRowNum, iOneBasedColNum+1, sVal));
-		return (0);
+		return KUnixTime(0);
 	}
 
-	time_t tTime { 0 };
+	KUnixTime tTime { 0 };
 
 	switch (sVal.size())
 	{
@@ -6590,11 +6590,11 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLString& sW
 	KBAR    bar;
 	int64_t iExpected{-1};
 	bool    bPBAR = (iPbarThreshold >= 0);
-	time_t  tStarted = time(NULL);
+	KUnixTime tStarted = KUnixTime::now();
 
 	if (bPBAR)
 	{
-		KOut.Format (":: {} : {:50} : ", kFormTimestamp(0,"%a %T"), sTablename);
+		KOut.Format (":: {} : {:50} : ", kFormTimestamp(tStarted ,"%a %T"), sTablename);
 	}
 	
 	if (bPBAR)
@@ -6669,13 +6669,13 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLString& sW
 		BulkCopyFlush (BulkRows, /*bLast=*/true);
 	}
 
-	time_t tTook = time(NULL) - tStarted;
+	KDuration tTook = KUnixTime::now() - tStarted;
 	if (bPBAR)
 	{
 		bar.Finish();
-		if (tTook >= 10)
+		if (tTook >= chrono::seconds(10))
 		{
-			KOut.FormatLine (":: {} : {:50} : took {}\n", kFormTimestamp(0,"%a %T"), sTablename, kTranslateSeconds(tTook));
+			KOut.FormatLine (":: {} : {:50} : took {}\n", kFormTimestamp(KUnixTime::now(), "%a %T"), sTablename, kTranslateDuration(tTook));
 		}
 	}
 
@@ -8980,7 +8980,7 @@ bool DbSemaphore::CreateSemaphore (chrono::seconds iTimeout)
 
 		if (m_bVerbose)
 		{
-			KOut.FormatLine (":: {}: {}: getting lock '{}' ...", kFormTimestamp(0,"%a %T"), m_db.ConnectSummary(), m_sAction);
+			KOut.FormatLine (":: {}: {}: getting lock '{}' ...", kFormTimestamp(KUnixTime::now(), "%a %T"), m_db.ConnectSummary(), m_sAction);
 		}
 
 		if (!m_db.GetPersistentLock(m_sAction, iTimeout))
@@ -8989,7 +8989,7 @@ bool DbSemaphore::CreateSemaphore (chrono::seconds iTimeout)
 
 			if (m_bVerbose)
 			{
-				KOut.FormatLine (":: {}: {}: {}.", kFormTimestamp(0,"%a %T"), m_db.ConnectSummary(), m_sLastError);
+				KOut.FormatLine (":: {}: {}: {}.", kFormTimestamp(KUnixTime::now(), "%a %T"), m_db.ConnectSummary(), m_sLastError);
 			}
 
 			kDebug(1, m_sLastError);
@@ -9019,7 +9019,7 @@ bool DbSemaphore::ClearSemaphore ()
 
 		if (m_bVerbose)
 		{
-			KOut.FormatLine (":: {}: {}: releasing lock '{}' ...", kFormTimestamp(0,"%a %T"), m_db.ConnectSummary(), m_sAction);
+			KOut.FormatLine (":: {}: {}: releasing lock '{}' ...", kFormTimestamp(KUnixTime::now(), "%a %T"), m_db.ConnectSummary(), m_sAction);
 		}
 
 		if (!m_db.ReleasePersistentLock(m_sAction))

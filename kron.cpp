@@ -149,7 +149,7 @@ Kron::Job::Job(KString sName, KStringView sCronDef, bool bHasSeconds, KDuration 
 } // ctor
 
 //-----------------------------------------------------------------------------
-Kron::Job::Job(KString sName, std::time_t tOnce, KStringView sCommand, KDuration MaxExecutionTime)
+Kron::Job::Job(KString sName, KUnixTime tOnce, KStringView sCommand, KDuration MaxExecutionTime)
 //-----------------------------------------------------------------------------
 : m_sName            (std::move(sName))
 , m_sCommand         (sCommand)
@@ -171,7 +171,7 @@ Kron::Job::Job(const KJSON& jConfig)
 	kDebug(1, "building Job '{}' from json", Name());
 	m_sCommand         = jConfig("Command");
 	m_MaxExecutionTime = std::chrono::seconds(jConfig("MaxExecutionTime"));
-	m_tOnce            = jConfig("tOnce");
+	m_tOnce            = KUnixTime::from_time_t(jConfig("tOnce"));
 	KString sDef       = jConfig("Definition");
 	auto jEnviron      = jConfig("Environment").Array();
 #else
@@ -207,7 +207,7 @@ Kron::Job::Job(const KJSON& jConfig)
 		m_MaxExecutionTime = KDuration::max();
 	}
 
-	if (m_tOnce == 0)
+	if (m_tOnce == KUnixTime(0))
 	{
 		m_tOnce = INVALID_TIME;
 	}
@@ -244,7 +244,7 @@ Kron::Job::~Job() {}
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-std::time_t Kron::Job::Next(std::time_t tAfter) const
+KUnixTime Kron::Job::Next(KUnixTime tAfter) const
 //-----------------------------------------------------------------------------
 {
 	if (!m_ParsedCron)
@@ -253,12 +253,12 @@ std::time_t Kron::Job::Next(std::time_t tAfter) const
 		return m_tOnce;
 	}
 
-	if (tAfter == 0)
+	if (tAfter == KUnixTime(0))
 	{
 		tAfter = Dekaf::getInstance().GetCurrentTime();
 	}
 
-	std::time_t tNext = KCronParser::cron_next(*cxget(m_ParsedCron), tAfter);
+	KUnixTime tNext = KUnixTime::from_time_t(KCronParser::cron_next(*cxget(m_ParsedCron), tAfter.to_time_t()));
 	kDebug(2, "next execution time for job '{}': {}", Name(), kFormTimestamp(tNext));
 
 	return tNext;
@@ -275,7 +275,7 @@ KUTCTime Kron::Job::Next(const KUTCTime& tAfter) const
 		return KUTCTime(m_tOnce);
 	}
 
-	KUTCTime UTC = KCronParser::cron_next(*cxget(m_ParsedCron), tAfter.ToTM());
+	KUTCTime UTC = KCronParser::cron_next(*cxget(m_ParsedCron), tAfter.to_tm());
 	kDebug(2, "next execution time for job '{}': {}", Name(), UTC.Format());
 
 	return UTC;
@@ -453,9 +453,9 @@ KJSON Kron::Job::Print(std::size_t iMaxResultSize) const
 		{ "Command"     , m_sCommand                                            },
 		{ "ID"          , KString::to_string(m_iJobID)                          },
 		{ "IsRunning"   , IsRunning()                                           },
-		{ "tOnce"       , m_tOnce                                               },
-		{ "LastStarted" , m_Control.tLastStarted                                },
-		{ "LastStopped" , m_Control.tLastStopped                                },
+		{ "tOnce"       , m_tOnce.to_time_t()                                   },
+		{ "LastStarted" , m_Control.tLastStarted.to_time_t()                    },
+		{ "LastStopped" , m_Control.tLastStopped.to_time_t()                    },
 		{ "Starts"      , m_Control.iStartCount                                 },
 		{ "Definition"  , m_ParsedCron ? cxget(m_ParsedCron)->to_cronstr() : "" },
 		{ "Environment" , std::move(jEnv)                                       },
@@ -475,7 +475,7 @@ bool            Kron::Scheduler::DeleteJob   (Job::ID JobID)                    
 KJSON           Kron::Scheduler::ListJobs    ()                                   const { return KJSON{}; }
 std::size_t     Kron::Scheduler::size        ()                                   const { return 0;       }
 bool            Kron::Scheduler::empty       ()                                   const { return !size(); }
-Kron::SharedJob Kron::Scheduler::GetJob      (std::time_t tNow)                         { return nullptr; }
+Kron::SharedJob Kron::Scheduler::GetJob      (KUnixTime tNow)                           { return nullptr; }
 void            Kron::Scheduler::JobFinished (const SharedJob& Job)                     {                 }
 void            Kron::Scheduler::JobFailed   (const SharedJob& Job, KStringView sError) {                 }
 
@@ -597,7 +597,7 @@ bool Kron::LocalScheduler::DeleteJob(Job::ID JobID)
 } // LocalScheduler::DeleteJob
 
 //-----------------------------------------------------------------------------
-Kron::SharedJob Kron::LocalScheduler::GetJob(std::time_t tNow)
+Kron::SharedJob Kron::LocalScheduler::GetJob(KUnixTime tNow)
 //-----------------------------------------------------------------------------
 {
 	auto Jobs = m_Jobs.unique();
@@ -642,7 +642,7 @@ KJSON Kron::LocalScheduler::ListJobs() const
 	for (const auto& job : *Jobs)
 	{
 		jobs.push_back(job.second->Print());
-		jobs.back()["tNext"] = job.first;
+		jobs.back()["tNext"] = job.first.to_time_t();
 	}
 
 	return jobs;

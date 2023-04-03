@@ -141,7 +141,7 @@ void KUnTar::Decoded::Reset()
 		m_iUserId           = 0;
 		m_iGroupId          = 0;
 		m_iFilesize         = 0;
-		m_tModificationTime = 0;
+		m_tModificationTime = KUnixTime(0);
 		m_bIsEnd            = false;
 		m_bIsUstar          = false;
 		m_EntryType         = tar::Unknown;
@@ -346,7 +346,7 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& Tar)
             }
             m_EntryType         = tar::File;
 			m_iFilesize         = FromNumbers(Tar.header.file_bytes, 12);
-			m_tModificationTime = FromNumbers(Tar.header.modification_time , 12);
+			m_tModificationTime = KUnixTime(std::time_t(FromNumbers(Tar.header.modification_time , 12)));
 			break;
 
         case '1':
@@ -367,7 +367,7 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& Tar)
             // directory
             m_EntryType         = tar::Directory;
             m_iFilesize         = 0;
-			m_tModificationTime = FromNumbers(Tar.header.modification_time, 12);
+			m_tModificationTime = KUnixTime(std::time_t(FromNumbers(Tar.header.modification_time, 12)));
             break;
 
         case '6':

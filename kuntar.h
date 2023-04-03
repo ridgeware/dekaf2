@@ -266,7 +266,7 @@ public:
 	}
 
 	/// Returns the modification time of the tar entry
-	time_t ModificationTime() const
+	KUnixTime ModificationTime() const
 	{
 		return m_Header.m_tModificationTime;
 	}
@@ -361,7 +361,7 @@ private:
 		uint32_t  m_iUserId;
 		uint32_t  m_iGroupId;
 		uint64_t  m_iFilesize;
-		time_t    m_tModificationTime;
+		KUnixTime m_tModificationTime;
 		tar::EntryType m_EntryType    { tar::Unknown };
 
 	//----------

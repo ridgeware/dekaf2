@@ -749,6 +749,8 @@ bool KSystemStats::GatherCpuInfo ()
 	kDebug (3, "reading {} ...", PROC_STAT);
 	file.open (PROC_STAT);
 
+	KUnixTime tNow  = KUnixTime::now();
+
 	while (file.ReadLine(sLine))
 	{
 		if (sLine.empty())
@@ -793,13 +795,12 @@ bool KSystemStats::GatherCpuInfo ()
 		}
 		else if (Parts.at(0) == "btime")
 		{
-			time_t tBoot = Parts.at(1).Int64();
-			time_t tNow  = time(nullptr);
-			time_t tAgo  = tNow - tBoot;
+			KUnixTime tBoot = KUnixTime(std::time_t(Parts.at(1).Int64()));
+			KDuration tAgo  = tNow - tBoot;
 
-			Add("boot_time_unix", static_cast<int_t>(tBoot), StatType::INTEGER);
-			Add("boot_time_dtm",  kFormTimestamp(tBoot),     StatType::STRING);
-			Add("boot_time_ago",  static_cast<int_t>(tAgo),  StatType::INTEGER);
+			Add("boot_time_unix", static_cast<int_t>(tBoot.to_time_t()), StatType::INTEGER);
+			Add("boot_time_dtm",  kFormTimestamp(tBoot), StatType::STRING);
+			Add("boot_time_ago",  static_cast<int_t>(tAgo.seconds().count()), StatType::INTEGER);
 		}
 	}
 

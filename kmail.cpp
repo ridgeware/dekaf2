@@ -431,7 +431,7 @@ KString KMail::Serialize() const
 } // Serialize
 
 //-----------------------------------------------------------------------------
-time_t KMail::Time() const
+KUnixTime KMail::Time() const
 //-----------------------------------------------------------------------------
 {
 	return m_Time;

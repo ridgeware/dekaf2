@@ -365,7 +365,7 @@ bool KJWT::SetError(KString sError)
 } // SetError
 
 //-----------------------------------------------------------------------------
-bool KJWT::Validate(KStringView sIssuer, KStringView sScope, time_t tClockLeeway)
+bool KJWT::Validate(KStringView sIssuer, KStringView sScope, KDuration tClockLeeway)
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, Payload.dump(1, '\t'));
@@ -424,16 +424,16 @@ bool KJWT::Validate(KStringView sIssuer, KStringView sScope, time_t tClockLeeway
 		}
 	}
 
-	time_t now = Dekaf::getInstance().GetCurrentTime();
+	auto now = Dekaf::getInstance().GetCurrentTime();
 
-	auto tNBF = kjson::GetInt(Payload, "nbf");
+	auto tNBF = KUnixTime::from_time_t(kjson::GetInt(Payload, "nbf"));
 
 	if (tNBF > (now + tClockLeeway))
 	{
 		return SetError(kFormat("token will be valid in {} seconds", tNBF - now));
 	}
 
-	auto tExp = kjson::GetInt(Payload, "exp");
+	KUnixTime tExp = KUnixTime::from_time_t(kjson::GetInt(Payload, "exp"));
 
 	if (tExp < (now - tClockLeeway))
 	{
@@ -445,7 +445,7 @@ bool KJWT::Validate(KStringView sIssuer, KStringView sScope, time_t tClockLeeway
 } // Validate
 
 //-----------------------------------------------------------------------------
-bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope, time_t tClockLeeway)
+bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope, KDuration tClockLeeway)
 //-----------------------------------------------------------------------------
 {
 	m_bSignatureIsValid = false;

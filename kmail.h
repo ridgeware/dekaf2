@@ -200,7 +200,7 @@ public:
 	KString Serialize() const;
 
 	/// Returns creation time
-	time_t Time() const;
+	KUnixTime Time() const;
 
 	/// Returns last error
 	const KString& Error() const;
@@ -222,7 +222,7 @@ private:
 
 	std::shared_ptr<KReplacer> m_Replacer;
 	mutable KString m_sError;
-	time_t m_Time { Dekaf::getInstance().GetCurrentTime() };
+	KUnixTime m_Time { Dekaf::getInstance().GetCurrentTime() };
 	mutable KMIMEMultiPart m_Parts;
 	mutable size_t m_iBody { 0 };
 

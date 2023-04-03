@@ -92,7 +92,7 @@ protected:
 	int         m_iLevel { 0 };
 	pid_t       m_Pid { 0 };
 	uint64_t    m_Tid { 0 }; // tid is 64 bit on OSX
-	time_t      m_Time { 0 };
+	KUnixTime   m_Time { 0 };
 	KStringView m_sShortName;
 	KStringView m_sPathName;
 	KStringView m_sFunctionName;

@@ -336,7 +336,7 @@ KJSON KLogJSONSerializer::CreateObject() const
 	json["level"] = m_iLevel;
 	json["pid"] = m_Pid;
 	json["tid"] = m_Tid;
-	json["time_t"] = m_Time;
+	json["time_t"] = m_Time.to_time_t();
 	json["short_name"] = m_sShortName;
 	json["path_name"] = m_sPathName;
 	json["function_name"] = m_sFunctionName;

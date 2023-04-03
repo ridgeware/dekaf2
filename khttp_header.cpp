@@ -49,7 +49,7 @@
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-KString KHTTPHeader::DateToString(time_t tTime)
+KString KHTTPHeader::DateToString(KUnixTime tTime)
 //-----------------------------------------------------------------------------
 {
 	return kFormHTTPTimestamp(tTime);
@@ -58,7 +58,7 @@ KString KHTTPHeader::DateToString(time_t tTime)
 
 //-----------------------------------------------------------------------------
 /// read a date from a string with HTTP date formatting
-time_t KHTTPHeader::StringToDate(KStringView sTime)
+KUnixTime KHTTPHeader::StringToDate(KStringView sTime)
 //-----------------------------------------------------------------------------
 {
 	return kParseHTTPTimestamp(sTime);

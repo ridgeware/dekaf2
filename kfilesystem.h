@@ -229,7 +229,7 @@ KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash = false);
 //-----------------------------------------------------------------------------
 /// Get last modification time of a file, returns -1 if file not found
 DEKAF2_PUBLIC
-time_t kGetLastMod(KStringViewZ sFilePath);
+KUnixTime kGetLastMod(KStringViewZ sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

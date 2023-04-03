@@ -755,9 +755,9 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 
 	// this format is compatible to the dekaf1 flag file format (which only reads the first line)
 
-	time_t tTouchTime = kGetLastMod(GetDebugFlag());
+	KUnixTime tTouchTime = kGetLastMod(GetDebugFlag());
 
-	if (tTouchTime == -1)
+	if (tTouchTime == KUnixTime(-1))
 	{
 		// no flagfile (anymore)
 		if (m_bHadConfigFromFlagFile)

@@ -77,15 +77,15 @@ struct Kron_utils
 	{
 		ThrowAssert(date != nullptr, "date must not be nullptr");
 		ThrowAssert(out  != nullptr, "out must not be nullptr");
-		KUTCTime Time(*date);
-		*out = Time.ToTM();
+		KUTCTime Time(KUnixTime::from_time_t(*date));
+		*out = Time.to_tm();
 		return out;
 	}
 
 	static inline std::tm to_tm(stringview_t sTime)
 	{
 		KUTCTime Time(sTime);
-		return Time.ToTM();
+		return Time.to_tm();
 	}
 
 	static inline string_t to_string(std::tm const & tm)

@@ -644,12 +644,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// create a string with correct HTTP date formatting
-	static KString DateToString(time_t tTime);
+	static KString DateToString(KUnixTime tTime);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// read a date from a string with  HTTP date formatting
-	static time_t StringToDate(KStringView sTime);
+	static KUnixTime StringToDate(KStringView sTime);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

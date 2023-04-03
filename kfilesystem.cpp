@@ -574,14 +574,14 @@ bool kTouchFile(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_FILE */)
 } // kTouchFile
 
 //-----------------------------------------------------------------------------
-time_t kGetLastMod(KStringViewZ sFilePath)
+KUnixTime kGetLastMod(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
 	KFileStat Stat(sFilePath);
 
 	if (!Stat.Exists())
 	{
-		return -1;  // <-- file doesn't exist
+		return KUnixTime(-1);  // <-- file doesn't exist
 	}
 
 	return Stat.ModificationTime();
@@ -864,9 +864,9 @@ void KFileStat::FromStat(struct stat& StatStruct)
 //-----------------------------------------------------------------------------
 {
 	m_inode = StatStruct.st_ino;
-	m_atime = StatStruct.st_atime;
-	m_mtime = StatStruct.st_mtime;
-	m_ctime = StatStruct.st_ctime;
+	m_atime = KUnixTime(StatStruct.st_atime);
+	m_mtime = KUnixTime(StatStruct.st_mtime);
+	m_ctime = KUnixTime(StatStruct.st_ctime);
 	m_mode  = StatStruct.st_mode & ~S_IFMT;
 	m_uid   = StatStruct.st_uid;
 	m_gid   = StatStruct.st_gid;
@@ -957,10 +957,10 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 		// this will change with C++20!
 		static constexpr uint64_t WINDOWS_TICK = 10000000;
 		static constexpr uint64_t SEC_TO_UNIX_EPOCH = 11644473600LL;
-		time_t stime = (ftime.time_since_epoch().count() / WINDOWS_TICK - SEC_TO_UNIX_EPOCH);
+		std::time_t stime = (ftime.time_since_epoch().count() / WINDOWS_TICK - SEC_TO_UNIX_EPOCH);
 
 #else
-		time_t stime = decltype(ftime)::clock::to_time_t(ftime);
+		std::time_t stime = decltype(ftime)::clock::to_time_t(ftime);
 #endif
 		m_atime = stime;
 		m_mtime = stime;
@@ -983,7 +983,7 @@ KFileStat& KFileStat::SetDefaults()
 {
 	KUnixTime tNow { 0 };
 
-	if (ModificationTime() == 0)
+	if (ModificationTime() == KUnixTime(0))
 	{
 		tNow = Dekaf::getInstance().GetCurrentTime();
 		SetModificationTime(tNow);
@@ -993,12 +993,12 @@ KFileStat& KFileStat::SetDefaults()
 		tNow = ModificationTime();
 	}
 
-	if (AccessTime() == 0)
+	if (AccessTime() == KUnixTime(0))
 	{
 		SetAccessTime(tNow);
 	}
 
-	if (ChangeTime() == 0)
+	if (ChangeTime() == KUnixTime(0))
 	{
 		SetChangeTime(tNow);
 	}

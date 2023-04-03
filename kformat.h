@@ -72,15 +72,15 @@
 
 namespace dekaf2 {
 
-namespace format = DEKAF2_FORMAT_NAMESPACE;
+namespace dekaf2_format = DEKAF2_FORMAT_NAMESPACE;
 
 namespace detail {
 
 DEKAF2_PUBLIC
-KString kFormat(KStringView sFormat, format::format_args args) noexcept;
+KString kFormat(KStringView sFormat, dekaf2_format::format_args args) noexcept;
 
 DEKAF2_PUBLIC
-KString kFormat(const std::locale& locale, KStringView sFormat, format::format_args args) noexcept;
+KString kFormat(const std::locale& locale, KStringView sFormat, dekaf2_format::format_args args) noexcept;
 
 } // end of namespace detail
 
@@ -111,7 +111,7 @@ template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type
 KString kFormat(KStringView sFormat, Args&&... args) noexcept
 //-----------------------------------------------------------------------------
 {
-	return detail::kFormat(sFormat, format::make_format_args(std::forward<Args>(args)...));
+	return detail::kFormat(sFormat, dekaf2_format::make_format_args(std::forward<Args>(args)...));
 }
 
 //-----------------------------------------------------------------------------
@@ -121,7 +121,7 @@ template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type
 KString kFormat(const std::locale& locale, KStringView sFormat, Args&&... args) noexcept
 //-----------------------------------------------------------------------------
 {
-	return detail::kFormat(locale, sFormat, format::make_format_args(std::forward<Args>(args)...));
+	return detail::kFormat(locale, sFormat, dekaf2_format::make_format_args(std::forward<Args>(args)...));
 }
 
 //-----------------------------------------------------------------------------

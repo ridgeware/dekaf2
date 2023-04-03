@@ -288,6 +288,25 @@
 //	#endif
 #endif
 
+/// suppress compiler warnings on seemingly unused variables
+template <typename... T> constexpr
+void kIgnoreUnused(const T&...) {}
+
+/// returns true if we are in a constexpr context (with C++20..)
+constexpr
+#if DEKAF2_HAS_CPP_17
+inline
+#endif
+bool kIsConstantEvaluated(bool default_value = false) noexcept
+{
+#ifdef __cpp_lib_is_constant_evaluated
+	kIgnoreUnused(default_value);
+	return std::is_constant_evaluated();
+#else
+	return default_value;
+#endif
+}
+
 // configure exception behavior
 #if (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
 	// The system has exception handling features. Now check

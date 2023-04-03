@@ -97,7 +97,7 @@ void KZip::DirEntry::clear()
 	iIndex    = 0;
 	iSize     = 0;
 	iCompSize = 0;
-	mtime     = 0;
+	mtime     = KUnixTime(0);
 
 } // clear
 
@@ -146,7 +146,7 @@ bool KZip::DirEntry::from_zip_stat(const struct zip_stat* stat)
 	iIndex     = stat->index;
 	iSize      = stat->size;
 	iCompSize  = stat->comp_size;
-	mtime      = stat->mtime;
+	mtime      = KUnixTime::from_time_t(stat->mtime);
 
 	switch (stat->comp_method)
 	{

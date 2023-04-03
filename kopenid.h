@@ -177,13 +177,13 @@ public:
 	KJWT() = default;
 
 	/// construct with a token
-	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, time_t tClockLeeway = 5)
+	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, KDuration tClockLeeway = chrono::seconds(5))
 	{
 		Check(sBase64Token, Providers, sScope, tClockLeeway);
 	}
 
 	/// check a new token
-	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, time_t tClockLeeway = 5);
+	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, KDuration tClockLeeway = chrono::seconds(5));
 
 	/// return error string
 	const KString& Error() const { return m_sError; }
@@ -205,7 +205,7 @@ private:
 //----------
 
 	DEKAF2_PRIVATE
-	bool Validate(KStringView sIssuer, KStringView sScope, time_t tClockLeeway);
+	bool Validate(KStringView sIssuer, KStringView sScope, KDuration tClockLeeway);
 	DEKAF2_PRIVATE
 	bool SetError(KString sError);
 	DEKAF2_PRIVATE

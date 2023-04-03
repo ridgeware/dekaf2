@@ -89,7 +89,7 @@ public:
 		std::size_t  iIndex;             ///< index within archive
 		uint64_t     iSize;              ///< size of file (uncompressed)
 		uint64_t     iCompSize;          ///< size of file (compressed)
-		time_t       mtime;              ///< modification time
+		KUnixTime    mtime;              ///< modification time
 		CompMethod   Compression;        ///< compression method
 
 		/// clear the DirEntry struct

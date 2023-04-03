@@ -463,11 +463,11 @@ TEST_CASE("KRON")
 		auto cronexp = cron::make_cron("* 0/5 * * * ?");
 		std::time_t now = 1647620612;
 		std::time_t next = cron::cron_next(cronexp, now);
-		CHECK ( kFormTimestamp(next) == "2022-03-18 16:25:00" );
+		CHECK ( kFormTimestamp(KUnixTime(next)) == "2022-03-18 16:25:00" );
 
 		std::tm time = cron::utils::to_tm("2022-03-18 16:24:45");
 		std::tm nexttm = cron::cron_next(cronexp, time);
-		CHECK ( kFormTimestamp(nexttm) == kFormTimestamp(next) );
+		CHECK ( kFormTimestamp(nexttm) == kFormTimestamp(KUnixTime(next)) );
 	}
 
 	SECTION("KRON::JOB")
@@ -475,7 +475,7 @@ TEST_CASE("KRON")
 		auto Job = Kron::Job::Create("testjob", "* 0/5 * * * ? \t fstrim -a >/dev/null 2>&1  ", true);
 		CHECK ( Job->Name()    == "testjob"                    );
 		CHECK ( Job->Command() == "fstrim -a >/dev/null 2>&1"  );
-		auto next = Job->Next(1647620612);
+		auto next = Job->Next(KUnixTime::from_time_t(1647620612));
 		CHECK ( kFormTimestamp(next) == "2022-03-18 16:25:00" );
 
 		KUTCTime Now("2022-03-18 16:24:45");
@@ -488,9 +488,9 @@ TEST_CASE("KRON")
 	SECTION("KRON 1")
 	{
 		Kron Cron(true, std::chrono::milliseconds(10));
-		time_t tNow = Dekaf::getInstance().GetCurrentTime();
+		KUnixTime tNow = Dekaf::getInstance().GetCurrentTime();
 		KString sFilename = kFormat("{}{}test.txt", TempDir.Name(), kDirSep);
-		Cron.Scheduler().AddJob(Kron::Job::Create("JobName", tNow-1, kFormat("echo hello world > {}", sFilename)));
+		Cron.Scheduler().AddJob(Kron::Job::Create("JobName", tNow-chrono::seconds(1), kFormat("echo hello world > {}", sFilename)));
 		KString sContent;
 		for (int i = 0; i < 20; ++i)
 		{

@@ -911,23 +911,23 @@ KUnixTime kParseTimestamp(KStringView sTimestamp)
 	{{
 		{ "???, DD NNN YYYY hh:mm:ss ZZZZZ", 25 }, // WWW timestamp with timezone
 
-		{ "???, DD NNN YYYY hh:mm:ss zzzz" , 25 }, // WWW timestamp with abbreviated timezone name
-		{ "??, DD NNN YYYY hh:mm:ss ZZZZZ" , 24 }, // WWW timestamp with timezone and two letter day name
-		{ "??? NNN DD hh:mm:ss YYYY ZZZZZ" , 13 }, // Fri Oct 24 15:32:27 2014 +0400 (Git log) *
-		{ "??? NNN DD hh:mm:ss ZZZZZ YYYY" , 13 }, // Fri Oct 24 15:32:27 +0400 2006 (Ruby) <- collision *
+		{ "???, DD NNN YYYY hh:mm:ss zzzz" , 22 }, // WWW timestamp with abbreviated timezone name
+		{ "??, DD NNN YYYY hh:mm:ss ZZZZZ" , 21 }, // WWW timestamp with timezone and two letter day name
+		{ "??? NNN DD hh:mm:ss YYYY ZZZZZ" , 24 }, // Fri Oct 24 15:32:27 2014 +0400 (Git log)
+		{ "??? NNN DD hh:mm:ss ZZZZZ YYYY" , 25 }, // Fri Oct 24 15:32:27 +0400 2006 (Ruby)
 
 		{ "???, DD NNN YYYY hh:mm:ss zzz"  , 25 }, // WWW timestamp with abbreviated timezone name
 		{ "YYYY-MM-DD hh:mm:ss.SSS ZZZZZ"  , 19 }, // 2018-04-13 22:08:13.211 -0700
 		{ "YYYY-MM-DD hh:mm:ss,SSS ZZZZZ"  , 19 }, // 2018-04-13 22:08:13,211 -0700
 		{ "??, DD NNN YYYY hh:mm:ss zzzz"  , 21 }, // WWW timestamp with abbreviated timezone name and two letter day name
 		{ "YYYY NNN DD hh:mm:ss.SSS zzzz"  , 20 }, // 2017 Mar 03 05:12:41.211 CEST
-		{ "??? NNN DD hh:mm:ss zzzz YYYY"  , 13 }, // Fri Oct 24 15:32:27 EDT 2014 (date output) *
+		{ "??? NNN DD hh:mm:ss zzzz YYYY"  , 13 }, // Fri Oct 24 15:32:27 EDT 2014 (date output)
 
 		{ "YYYY NNN DD hh:mm:ss.SSS zzz"   , 24 }, // 2017 Mar 03 05:12:41.211 PDT
 		{ "YYYY-MM-DD hh:mm:ss.SSSZZZZZ"   , 19 }, // 2018-04-13 22:08:13.211-0700
 		{ "YYYY-MM-DD hh:mm:ss,SSSZZZZZ"   , 19 }, // 2018-04-13 22:08:13,211-0700
 		{ "??, DD NNN YYYY hh:mm:ss zzz"   , 24 }, // WWW timestamp with abbreviated timezone name and two letter day name
-		{ "??? NNN DD hh:mm:ss zzz YYYY"   ,  7 }, // Fri Oct 24 15:32:27 EDT 2014 (date output) *
+		{ "??? NNN DD hh:mm:ss zzz YYYY"   ,  7 }, // Fri Oct 24 15:32:27 EDT 2014 (date output)
 
 		{ "DD/NNN/YYYY:hh:mm:ss ZZZZZ"     , 11 }, // 19/Apr/2017:06:36:15 -0700
 		{ "DD/NNN/YYYY hh:mm:ss ZZZZZ"     , 11 }, // 19/Apr/2017 06:36:15 -0700
@@ -978,7 +978,7 @@ KUnixTime kParseTimestamp(KStringView sTimestamp)
 		{ "YYYY-MM-DD hh:mm:ss"            , 10 }, // 2002-12-06 19:23:15
 		{ "YYYY-MM-DDThh:mm:ss"            , 10 }, // 2002-12-06T19:23:15
 		{ "YYYY-MM-DD*hh:mm:ss"            ,  4 }, // 2002-12-06*19:23:15
-		{ "YYYY/MM/DD*hh:mm:ss"            , 10 }, // 2002/12/31*23:59:59 (one of two that needs two tries)
+		{ "YYYY/MM/DD*hh:mm:ss"            , 10 }, // 2002/12/31*23:59:59 (the only one that needs two tries)
 
 		// we do not add the US form MM/DD/YYYY hh:mm:ss here as it causes too many ambiguities -
 		// (for any first 12 days of each month) - if you want to decode it you have to do it

@@ -344,17 +344,23 @@ TEST_CASE("KTime") {
 
 	SECTION("kParseTimestamp 2")
 	{
-		static constexpr std::array<std::pair<KStringView, KStringView>, 122> Timestamps
+		static constexpr std::array<std::pair<KStringView, KStringView>, 125> Timestamps
 		{{
 			{ "Tue, 16 Aug 2021 11:23:42 +0100", "Mon, 16 Aug 2021 10:23:42 GMT" },
 			{ "Tue, 17 Aug 2021 12:23:42 CEST" , "Tue, 17 Aug 2021 10:23:42 GMT" },
+			{ "Fri Oct 24 15:32:27 2014 +0400" , "Fri, 24 Oct 2014 11:32:27 GMT" },
+			{ "Fri Oct 24 15:32:29 +0400 2006" , "Tue, 24 Oct 2006 11:32:29 GMT" },
+
 			{ "Tue, 18 Aug 2021 11:23:42 CET"  , "Wed, 18 Aug 2021 10:23:42 GMT" },
+
 			{ "2021-08-19 03:23:42.211 -0700"  , "Thu, 19 Aug 2021 10:23:42 GMT" },
 			{ "2021-08-20 03:23:42,211 -0700"  , "Fri, 20 Aug 2021 10:23:42 GMT" },
 			{ "2021 Aug 21 12:23:42.211 CEST"  , "Sat, 21 Aug 2021 10:23:42 GMT" },
 			{ "2021 Aug 22 11:23:42.211 CET"   , "Sun, 22 Aug 2021 10:23:42 GMT" },
 			{ "2021-08-23 02:53:42.211-0730"   , "Mon, 23 Aug 2021 10:23:42 GMT" },
 			{ "2021-08-24 02:53:42,211-0730"   , "Tue, 24 Aug 2021 10:23:42 GMT" },
+			{ "Fri Oct 24 15:32:27 EDT 2014"   , "Fri, 24 Oct 2014 19:32:27 GMT" },
+
 			{ "25/Aug/2021:02:53:42 -0730"     , "Wed, 25 Aug 2021 10:23:42 GMT" },
 			{ "26/Aug/2021 02:53:42 -0730"     , "Thu, 26 Aug 2021 10:23:42 GMT" },
 			{ "Aug 27 02:53:42 -0730 2021"     , "Fri, 27 Aug 2021 10:23:42 GMT" },
@@ -363,6 +369,7 @@ TEST_CASE("KTime") {
 			{ "Aug 30, 2021 10:23:42 PM"       , "Mon, 30 Aug 2021 22:23:42 GMT" },
 			{ "2021-08-31 02:53:42-0730"       , "Tue, 31 Aug 2021 10:23:42 GMT" },
 			{ "2021-08-10T02:53:42-0730"       , "Tue, 10 Aug 2021 10:23:42 GMT" },
+
 			{ "2021-08-11T10:23:42.321Z"       , "Wed, 11 Aug 2021 10:23:42 GMT" },
 			{ "2021 Aug 12 10:23:42.321"       , "Thu, 12 Aug 2021 10:23:42 GMT" },
 			{ "13-Aug-2021 10:23:42.321"       , "Fri, 13 Aug 2021 10:23:42 GMT" },

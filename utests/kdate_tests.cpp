@@ -1,6 +1,9 @@
 #include "catch.hpp"
 
 #include <dekaf2/kdate.h>
+#include <dekaf2/ktime.h>
+#include <dekaf2/kformat.h>
+#include <iostream>
 
 using namespace dekaf2;
 
@@ -11,6 +14,7 @@ TEST_CASE("KDate")
 
 	// Get a local time_point with days precision
 	auto day = chrono::floor<chrono::days>(now);
+	day.time_since_epoch();
 
 	// Convert local days-precision time_point to a local {y, m, d} calendar
 	chrono::year_month_day ymd{day};
@@ -20,7 +24,7 @@ TEST_CASE("KDate")
 
 	using namespace chrono::literals;
 
-#if DEKAF2_HAS_CPP_20 || !DEKAF2_IS_CLANG
+#if DEKAF2_HAS_CPP_20 && (!DEKAF2_IS_GCC || DEKAF2_GCC_VERSION_MAJOR > 9)
 	auto yy     = 2000y;
 	auto dd     = 12d;
 #else
@@ -34,7 +38,7 @@ TEST_CASE("KDate")
 	auto us     = 12us;
 	auto ns     = 12ns;
 	auto tp     = chrono::sys_days{dd/10/yy} + hh + mm + ss + ms + us + ns;
-#if DEKAF2_HAS_CPP_20 || !DEKAF2_IS_CLANG
+#if DEKAF2_HAS_CPP_20 && (!DEKAF2_IS_GCC || DEKAF2_GCC_VERSION_MAJOR > 9)
 	auto t      = chrono::sys_days{10d/10/2012} + 12h + 38min + 40s + 123456us;
 #else
 	auto t      = chrono::sys_days{chrono::day(10)/10/2012} + 12h + 38min + 40s + 123456us;

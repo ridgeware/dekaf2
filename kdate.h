@@ -233,8 +233,11 @@ using namespace std::literals::chrono_literals;
 #if !DEKAF2_IS_CLANG
 // clang effectively makes it impossible to define system literals,
 // so with clang we will always need C++20 to use the below literals (from the base lib)
+#if 0
+// as this does not work for all build environments we disable the injection of these literals
 constexpr chrono::day  operator ""d (unsigned long long d) noexcept { return chrono::day (static_cast<unsigned>(d)); }
 constexpr chrono::year operator ""y (unsigned long long y) noexcept { return chrono::year(static_cast<int>(y));      }
+#endif
 #endif
 #endif
 

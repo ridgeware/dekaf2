@@ -53,7 +53,7 @@
 #include <cinttypes>
 #include <ctime>
 #include <chrono>
-#include <map>
+#include <set>
 
 namespace dekaf2
 {
@@ -388,8 +388,8 @@ public:
 //--------
 
 	using self = KBrokenDownTime;
-
-	DEKAF2_CONSTEXPR_14 KBrokenDownTime() noexcept = default;
+	
+	                    KBrokenDownTime() = default;
 
 	/// return chrono::days
 	DEKAF2_CONSTEXPR_14 chrono::days    days     () const noexcept { return chrono::days(unsigned(m_ymd.day()));     }
@@ -466,7 +466,7 @@ public:
 
 	using self = KUTCTime;
 
-	DEKAF2_CONSTEXPR_14 KUTCTime() noexcept = default;
+	                    KUTCTime() = default;
 
 	/// construct from a KUnixTime
 	DEKAF2_CONSTEXPR_14 KUTCTime (KUnixTime time) noexcept { split(time); }

@@ -206,11 +206,8 @@ TEST_CASE("KTime") {
 		auto tz = kFindTimezone("Europe/Paris");
 
 		auto oldLocale = kGetGlobalLocale();
-		auto bLocaleIsSet = kSetGlobalLocale("fr_FR.UTF-8");
 
-		CHECK ( bLocaleIsSet );
-
-		if (bLocaleIsSet)
+		if (kSetGlobalLocale("fr_FR.UTF-8"))
 		{
 			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
 
@@ -250,7 +247,6 @@ TEST_CASE("KTime") {
 		{
 			// these checks do not rely on global environment settings
 
-			bool bHasLocale = false;
 			bool bHasTimezone = false;
 
 			const chrono::time_zone* tz = nullptr;
@@ -258,19 +254,19 @@ TEST_CASE("KTime") {
 				tz = kFindTimezone("Asia/Tokyo");
 				bHasTimezone = true;
 			} catch (const std::exception& ex) {
-				INFO ( "cannot find timezone Asia/Tokyo" );
-				CHECK ( false );
+				kPrintLine ( "cannot find timezone Asia/Tokyo" );
 			}
 
 			KLocalTime Local1(UTC1, tz);
+
+			bool bHasLocale = false;
 
 			std::locale loc;
 			try {
 				loc = std::locale("fr_FR");
 				bHasLocale = true;
 			} catch (const std::exception& ex) {
-				INFO ( "cannot get locale fr_FR" );
-				CHECK ( false );
+				kPrintLine ( "cannot get locale fr_FR" );
 			}
 
 			SysTime =  kFromLocalTime(Local1.to_local(), Local1.get_time_zone());
@@ -290,13 +286,20 @@ TEST_CASE("KTime") {
 			CHECK ( Local1.is_pm()           == false );
 			CHECK ( Local1.get_zone_abbrev() == "JST" );
 			CHECK ( Local1.get_zone_name()   == "Asia/Tokyo" );
-			CHECK ( Local1.get_month_name( true, true) == "jan" );
-			CHECK ( Local1.get_month_name(false, true) == "janvier" );
-			CHECK ( Local1.get_day_name  ( true, true) == "Mar" );
-			CHECK ( Local1.get_day_name  (false, true) == "Mardi" );
-			if (bHasLocale && bHasTimezone) {
-				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), kFindTimezone("America/Mexico_City"), UTC1.to_unix(), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
+			if (bHasLocale)
+			{
+				CHECK ( Local1.get_month_name( true, true) == "jan" );
+				CHECK ( Local1.get_month_name(false, true) == "janvier" );
+				CHECK ( Local1.get_day_name  ( true, true) == "Mar" );
+				CHECK ( Local1.get_day_name  (false, true) == "Mardi" );
+				if (bHasTimezone) {
+					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), kFindTimezone("America/Mexico_City"), UTC1.to_unix(), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
+				}
 			}
+			// test for the day of year calculation
+			CHECK ( Local1.to_tm().tm_yday   == 0     );
+			Local1 = kParseTimestamp("16.08.2012 12:00:00");
+			CHECK ( Local1.to_tm().tm_yday   == 228  );
 		}
 	}
 
@@ -700,6 +703,12 @@ TEST_CASE("KTime") {
 			CHECK ( kFormat("{}", UTC.hours()) == "12h" );
 //			CHECK ( kFormat("{}", UTC.days())  == "16d" );
 			// mind you that days/months/years do not yet work.. (but would output e.g. "16[86400]s" for 16 days)
+		}
+
+		SECTION("test")
+		{
+			KUTCTime utc(1234567);
+
 		}
 	}
 #endif

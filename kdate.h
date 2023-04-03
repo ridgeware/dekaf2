@@ -53,25 +53,38 @@
 // the latter is compatible to the known stdlibs and then offers the interface that the
 // users would expect from our library
 #ifndef DEKAF2_USE_HINNANT_DATE
-	#if defined(DEKAF2_HAS_CHRONO_CALENDAR) && DEKAF2_HAS_CPP_20
+	#if defined(DEKAF2_STD_CHRONO_HAS_CALENDAR) && DEKAF2_HAS_CPP_20
 		#define DEKAF2_USE_HINNANT_DATE 0
 	#else
 		#define DEKAF2_USE_HINNANT_DATE 1
 	#endif
 #endif
 
+#ifndef DEKAF2_USE_HINNANT_TIMEZONE
+	#if defined(DEKAF2_STD_CHRONO_HAS_TIMEZONE) && DEKAF2_HAS_CPP_20
+		#define DEKAF2_USE_HINNANT_TIMEZONE 0
+	#else
+		#define DEKAF2_USE_HINNANT_TIMEZONE 1
+#endif
+#endif
+
+// again, when we built our lib with C++20, but someone else uses it
+// with a previous standard, we have to undefine DEKAF2_STD_CHRONO_HAS_LOCAL_T
+// because the chrono header will not make it visible then
+#if DEKAF2_STD_CHRONO_HAS_LOCAL_T && !DEKAF2_HAS_CPP_20
+	#undef DEKAF2_STD_CHRONO_HAS_LOCAL_T
+#endif
+
 #include <chrono>
 #if DEKAF2_USE_HINNANT_DATE || !DEKAF2_HAS_CHRONO_ROUND
-	// the date lib does not compile the code for stream formatting with gcc 8
-	// as we do not need it at all we switch it off (there are three if/endif
-	// sections added to the original code)
-	#ifndef DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
-		#define DEKAF2_DATE_WITH_STREAMS_AND_FORMAT 0
-	#endif
 	// date:: only creates the is_clock check when we have void_t - and we supply
 	// a void_t also for C++ < 17
 	#define HAS_VOID_T 1
 	#include <date/date.h>
+#endif
+
+#ifdef DEKAF2_USE_HINNANT_TIMEZONE
+	#include <date/tz.h>
 #endif
 
 namespace dekaf2 {
@@ -101,7 +114,6 @@ using date::sys_seconds;
 
 template <class Duration>
 using local_time = date::local_time<Duration>;
-
 using date::local_seconds;
 using date::local_days;
 
@@ -223,8 +235,6 @@ using namespace std::literals::chrono_literals;
 // so with clang we will always need C++20 to use the below literals (from the base lib)
 constexpr chrono::day  operator ""d (unsigned long long d) noexcept { return chrono::day (static_cast<unsigned>(d)); }
 constexpr chrono::year operator ""y (unsigned long long y) noexcept { return chrono::year(static_cast<int>(y));      }
-#else // !DEKAF2_IS_CLANG
-// #define DEKAF2_
 #endif
 #endif
 
@@ -232,6 +242,32 @@ constexpr chrono::year operator ""y (unsigned long long y) noexcept { return chr
 
 #if DEKAF2_IS_GCC && defined(DEKAF2_HAS_WARN_LITERAL_SUFFIX)
 #pragma GCC diagnostic pop
+#endif
+
+#if DEKAF2_USE_HINNANT_TIMEZONE
+
+#if !DEKAF2_USE_HINNANT_DATE && (!defined(DEKAF2_STD_CHRONO_HAS_LOCAL_T) || !DEKAF2_HAS_CPP20)
+template <class Duration>
+using local_time = date::local_time<Duration>;
+using date::local_seconds;
+using date::local_days;
+#endif
+
+using date::time_zone;
+using date::current_zone;
+using date::sys_info;
+using date::tzdb;
+using date::tzdb_list;
+using date::get_tzdb;
+using date::get_tzdb_list;
+using date::get_leap_second_info;
+using date::locate_zone;
+
+// gcc aliases this, but clang does not and tells that only class templates can be type deduced (this is an alias on a class template)
+// so always declare the template type for the first argument (normally chrono::system_clock::duration) or the build will fail on clang
+template <class Duration, class TimeZonePtr = const date::time_zone*>
+using zoned_time = date::zoned_time<Duration, TimeZonePtr>;
+
 #endif
 
 } // end of namespace dekaf2::chrono

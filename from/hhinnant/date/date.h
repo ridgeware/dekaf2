@@ -193,7 +193,11 @@ template <class Duration>
 using sys_days    = sys_time<days>;
 using sys_seconds = sys_time<std::chrono::seconds>;
 
+#if DEKAF2_STD_CHRONO_HAS_LOCAL_T
+using std::chrono::local_t;
+#else
 struct local_t {};
+#endif
 
 template <class Duration>
     using local_time = std::chrono::time_point<local_t, Duration>;
@@ -348,11 +352,9 @@ CONSTCD11 day  operator+(const days& x, const day&  y) NOEXCEPT;
 CONSTCD11 day  operator-(const day&  x, const days& y) NOEXCEPT;
 CONSTCD11 days operator-(const day&  x, const day&  y) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const day& d);
-#endif
 
 // month
 
@@ -388,11 +390,9 @@ CONSTCD14 month  operator+(const months& x,  const month& y) NOEXCEPT;
 CONSTCD14 month  operator-(const month&  x, const months& y) NOEXCEPT;
 CONSTCD14 months operator-(const month&  x,  const month& y) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const month& m);
-#endif
 
 // year
 
@@ -436,11 +436,9 @@ CONSTCD11 year  operator+(const years& x, const year&  y) NOEXCEPT;
 CONSTCD11 year  operator-(const year&  x, const years& y) NOEXCEPT;
 CONSTCD11 years operator-(const year&  x, const year&  y) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const year& y);
-#endif
 
 // weekday
 
@@ -475,11 +473,9 @@ private:
     friend CONSTCD11 bool operator==(const weekday& x, const weekday& y) NOEXCEPT;
     friend CONSTCD14 days operator-(const weekday& x, const weekday& y) NOEXCEPT;
     friend CONSTCD14 weekday operator+(const weekday& x, const days& y) NOEXCEPT;
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
     template<class CharT, class Traits>
         friend std::basic_ostream<CharT, Traits>&
             operator<<(std::basic_ostream<CharT, Traits>& os, const weekday& wd);
-#endif
     friend class weekday_indexed;
 };
 
@@ -491,11 +487,9 @@ CONSTCD14 weekday operator+(const days&    x, const weekday& y) NOEXCEPT;
 CONSTCD14 weekday operator-(const weekday& x, const days&    y) NOEXCEPT;
 CONSTCD14 days    operator-(const weekday& x, const weekday& y) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const weekday& wd);
-#endif
 
 // weekday_indexed
 
@@ -516,11 +510,9 @@ public:
 CONSTCD11 bool operator==(const weekday_indexed& x, const weekday_indexed& y) NOEXCEPT;
 CONSTCD11 bool operator!=(const weekday_indexed& x, const weekday_indexed& y) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const weekday_indexed& wdi);
-#endif
 
 // weekday_last
 
@@ -538,11 +530,9 @@ public:
 CONSTCD11 bool operator==(const weekday_last& x, const weekday_last& y) NOEXCEPT;
 CONSTCD11 bool operator!=(const weekday_last& x, const weekday_last& y) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const weekday_last& wdl);
-#endif
 
 namespace detail
 {
@@ -594,11 +584,9 @@ CONSTCD11 year_month operator+(const year_month& ym, const years& dy) NOEXCEPT;
 CONSTCD11 year_month operator+(const years& dy, const year_month& ym) NOEXCEPT;
 CONSTCD11 year_month operator-(const year_month& ym, const years& dy) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const year_month& ym);
-#endif
 
 // month_day
 
@@ -624,11 +612,9 @@ CONSTCD11 bool operator> (const month_day& x, const month_day& y) NOEXCEPT;
 CONSTCD11 bool operator<=(const month_day& x, const month_day& y) NOEXCEPT;
 CONSTCD11 bool operator>=(const month_day& x, const month_day& y) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const month_day& md);
-#endif
 
 // month_day_last
 
@@ -650,11 +636,9 @@ CONSTCD11 bool operator> (const month_day_last& x, const month_day_last& y) NOEX
 CONSTCD11 bool operator<=(const month_day_last& x, const month_day_last& y) NOEXCEPT;
 CONSTCD11 bool operator>=(const month_day_last& x, const month_day_last& y) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const month_day_last& mdl);
-#endif
 
 // month_weekday
 
@@ -675,11 +659,9 @@ public:
 CONSTCD11 bool operator==(const month_weekday& x, const month_weekday& y) NOEXCEPT;
 CONSTCD11 bool operator!=(const month_weekday& x, const month_weekday& y) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const month_weekday& mwd);
-#endif
 
 // month_weekday_last
 
@@ -703,11 +685,9 @@ CONSTCD11
 CONSTCD11
     bool operator!=(const month_weekday_last& x, const month_weekday_last& y) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const month_weekday_last& mwdl);
-#endif
 
 // class year_month_day
 
@@ -763,11 +743,9 @@ CONSTCD11 year_month_day operator+(const year_month_day& ymd, const years& dy)  
 CONSTCD11 year_month_day operator+(const years& dy, const year_month_day& ymd)  NOEXCEPT;
 CONSTCD11 year_month_day operator-(const year_month_day& ymd, const years& dy)  NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const year_month_day& ymd);
-#endif
 
 // year_month_day_last
 
@@ -837,11 +815,9 @@ CONSTCD11
 year_month_day_last
 operator-(const year_month_day_last& ymdl, const years& dy) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const year_month_day_last& ymdl);
-#endif
 
 // year_month_weekday
 
@@ -912,11 +888,9 @@ CONSTCD11
 year_month_weekday
 operator-(const year_month_weekday& ymwd, const years& dy) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const year_month_weekday& ymwdi);
-#endif
 
 // year_month_weekday_last
 
@@ -985,11 +959,9 @@ CONSTCD11
 year_month_weekday_last
 operator-(const year_month_weekday_last& ymwdl, const years& dy) NOEXCEPT;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const year_month_weekday_last& ymwdl);
-#endif
 
 #if !defined(_MSC_VER) || (_MSC_VER >= 1900)
 inline namespace literals
@@ -1036,7 +1008,11 @@ struct is_clock<T, std::void_t<decltype(T::now()), typename T::rep, typename T::
     : std::true_type
 {};
 
-template<class T> inline constexpr bool is_clock_v = is_clock<T>::value;
+template<class T>
+#if __cplusplus >= 201703
+inline
+#endif
+constexpr bool is_clock_v = is_clock<T>::value;
 
 #endif  // HAS_VOID_T
 
@@ -1555,7 +1531,6 @@ low_level_fmt(std::basic_ostream<CharT, Traits>& os, const day& d)
 
 }  // namespace detail
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 inline
 std::basic_ostream<CharT, Traits>&
@@ -1566,7 +1541,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const day& d)
         os << " is not a valid day";
     return os;
 }
-#endif
 
 // month
 
@@ -1680,7 +1654,6 @@ operator-(const month& x, const months& y) NOEXCEPT
     return x + -y;
 }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 
 namespace detail
 {
@@ -1711,7 +1684,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const month& m)
         os << " is not a valid month";
     return os;
 }
-#endif // DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 
 // year
 
@@ -1841,7 +1813,6 @@ low_level_fmt(std::basic_ostream<CharT, Traits>& os, const year& y)
 
 }  // namespace detail
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 inline
 std::basic_ostream<CharT, Traits>&
@@ -1852,7 +1823,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const year& y)
         os << " is not a valid year";
     return os;
 }
-#endif
 
 // weekday
 
@@ -1974,7 +1944,6 @@ operator-(const weekday& x, const days& y) NOEXCEPT
     return x + -y;
 }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 
 namespace detail
 {
@@ -2005,8 +1974,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const weekday& wd)
         os << " is not a valid weekday";
     return os;
 }
-
-#endif // DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 
 #if !defined(_MSC_VER) || (_MSC_VER >= 1900)
 inline namespace literals
@@ -2113,7 +2080,6 @@ weekday_indexed::weekday_indexed(const date::weekday& wd, unsigned index) NOEXCE
 #  pragma GCC diagnostic pop
 #endif  // __GNUC__
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 namespace detail
 {
 
@@ -2136,7 +2102,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const weekday_indexed& wdi)
         os << " is not a valid weekday_indexed";
     return os;
 }
-#endif
 
 CONSTCD11
 inline
@@ -2184,7 +2149,6 @@ operator!=(const weekday_last& x, const weekday_last& y) NOEXCEPT
     return !(x == y);
 }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 namespace detail
 {
 
@@ -2207,7 +2171,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const weekday_last& wdl)
         os << " is not a valid weekday_last";
     return os;
 }
-#endif
 
 CONSTCD11
 inline
@@ -2381,7 +2344,6 @@ operator-(const year_month& ym, const years& dy) NOEXCEPT
     return ym + -dy;
 }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 namespace detail
 {
 
@@ -2405,7 +2367,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const year_month& ym)
         os << " is not a valid year_month";
     return os;
 }
-#endif
 
 // month_day
 
@@ -2484,7 +2445,6 @@ operator>=(const month_day& x, const month_day& y) NOEXCEPT
     return !(x < y);
 }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 namespace detail
 {
 
@@ -2508,7 +2468,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const month_day& md)
         os << " is not a valid month_day";
     return os;
 }
-#endif
 
 // month_day_last
 
@@ -2564,7 +2523,6 @@ operator>=(const month_day_last& x, const month_day_last& y) NOEXCEPT
     return !(x < y);
 }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 namespace detail
 {
 
@@ -2587,7 +2545,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const month_day_last& mdl)
         os << " is not a valid month_day_last";
     return os;
 }
-#endif
 
 // month_weekday
 
@@ -2633,7 +2590,6 @@ operator!=(const month_weekday& x, const month_weekday& y) NOEXCEPT
     return !(x == y);
 }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 namespace detail
 {
 
@@ -2657,7 +2613,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const month_weekday& mwd)
         os << " is not a valid month_weekday";
     return os;
 }
-#endif
 
 // month_weekday_last
 
@@ -2703,7 +2658,6 @@ operator!=(const month_weekday_last& x, const month_weekday_last& y) NOEXCEPT
     return !(x == y);
 }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 namespace detail
 {
 
@@ -2727,7 +2681,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const month_weekday_last& mwdl
         os << " is not a valid month_weekday_last";
     return os;
 }
-#endif
 
 // year_month_day_last
 
@@ -2876,7 +2829,6 @@ operator>=(const year_month_day_last& x, const year_month_day_last& y) NOEXCEPT
     return !(x < y);
 }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 namespace detail
 {
 
@@ -2900,7 +2852,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const year_month_day_last& ymd
         os << " is not a valid year_month_day_last";
     return os;
 }
-#endif
 
 template<class>
 CONSTCD14
@@ -3121,7 +3072,6 @@ operator>=(const year_month_day& x, const year_month_day& y) NOEXCEPT
     return !(x < y);
 }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 inline
 std::basic_ostream<CharT, Traits>&
@@ -3140,7 +3090,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const year_month_day& ymd)
         os << " is not a valid year_month_day";
     return os;
 }
-#endif
 
 CONSTCD14
 inline
@@ -3369,7 +3318,6 @@ operator!=(const year_month_weekday& x, const year_month_weekday& y) NOEXCEPT
     return !(x == y);
 }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 inline
 std::basic_ostream<CharT, Traits>&
@@ -3382,7 +3330,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const year_month_weekday& ymwd
         os << " is not a valid year_month_weekday";
     return os;
 }
-#endif
 
 template<class>
 CONSTCD14
@@ -3552,7 +3499,6 @@ operator!=(const year_month_weekday_last& x, const year_month_weekday_last& y) N
     return !(x == y);
 }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template<class CharT, class Traits>
 inline
 std::basic_ostream<CharT, Traits>&
@@ -3565,7 +3511,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const year_month_weekday_last&
         os << " is not a valid year_month_weekday_last";
     return os;
 }
-#endif
 
 template<class>
 CONSTCD14
@@ -3953,7 +3898,6 @@ operator/(const month_weekday_last& mwdl, int y) NOEXCEPT
 template <class Duration>
 struct fields;
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 template <class CharT, class Traits, class Duration>
 std::basic_ostream<CharT, Traits>&
 to_stream(std::basic_ostream<CharT, Traits>& os, const CharT* fmt,
@@ -3965,7 +3909,6 @@ std::basic_istream<CharT, Traits>&
 from_stream(std::basic_istream<CharT, Traits>& is, const CharT* fmt,
             fields<Duration>& fds, std::basic_string<CharT, Traits, Alloc>* abbrev = nullptr,
             std::chrono::minutes* offset = nullptr);
-#endif
 
 // hh_mm_ss
 
@@ -4053,7 +3996,6 @@ public:
         return sub_s_ < std::chrono::seconds{1} && s_ < std::chrono::minutes{1};
     }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
     template <class CharT, class Traits>
     friend
     std::basic_ostream<CharT, Traits>&
@@ -4098,7 +4040,6 @@ public:
         }
         return os;
     }
-#endif
 };
 
 template <class Rep, class Period>
@@ -4175,7 +4116,6 @@ public:
 
 private:
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
     template <class charT, class traits>
     friend
     std::basic_ostream<charT, traits>&
@@ -4205,7 +4145,6 @@ private:
     date::from_stream(std::basic_istream<CharT, Traits>& is, const CharT* fmt,
           fields<Duration2>& fds,
           std::basic_string<CharT, Traits, Alloc>* abbrev, std::chrono::minutes* offset);
-#endif
 };
 
 inline
@@ -4273,7 +4212,6 @@ make_time(const std::chrono::duration<Rep, Period>& d)
     return hh_mm_ss<std::chrono::duration<Rep, Period>>(d);
 }
 
-#if DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 
 template <class CharT, class Traits, class Duration>
 inline
@@ -8293,8 +8231,6 @@ operator<<(std::basic_ostream<CharT, Traits>& os,
     return os << detail::make_string<CharT, Traits>::from(d.count()) +
                  detail::get_units<CharT>(typename Period::type{});
 }
-
-#endif // DEKAF2_DATE_WITH_STREAMS_AND_FORMAT
 
 }  // namespace date
 

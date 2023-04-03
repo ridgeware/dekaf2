@@ -607,18 +607,48 @@ file(MAKE_DIRECTORY "${GENERATED_FILES_DIR}")
 
 # discover availability of std::chrono calendar capabilities
 if (CMAKE_CXX_STANDARD GREATER 17)
-	try_compile(DEKAF2_HAS_CHRONO_CALENDAR
+	try_compile(DEKAF2_STD_CHRONO_HAS_CALENDAR
 				${GENERATED_FILES_DIR}
-				${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_calendar_test.cpp
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_calendar_test.cpp"
 				COMPILE_DEFINITIONS "--std=c++20")
 
-	if(DEKAF2_HAS_CHRONO_CALENDAR)
+	if(DEKAF2_STD_CHRONO_HAS_CALENDAR)
 		message(STATUS "we have chrono calendar support in std::chrono")
 	else()
 		message(STATUS "we do not have chrono calendar support in std::chrono - will configure for date lib as replacement")
 	endif()
 else()
 	message(STATUS "no chrono calendar support in std::chrono before C++20 - will configure for date lib as replacement")
+endif()
+
+if (CMAKE_CXX_STANDARD GREATER 17)
+	try_compile(DEKAF2_STD_CHRONO_HAS_LOCAL_T
+				${GENERATED_FILES_DIR}
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_local_t_test.cpp"
+				COMPILE_DEFINITIONS "--std=c++20")
+
+	if(DEKAF2_STD_CHRONO_HAS_LOCAL_T)
+		message(STATUS "we have chrono local_t support in std::chrono")
+	else()
+		message(STATUS "we do not have chrono local_t support in std::chrono - will configure for date lib as replacement")
+	endif()
+else()
+	message(STATUS "no chrono local_t support in std::chrono before C++20 - will configure for date lib as replacement")
+endif()
+
+if (CMAKE_CXX_STANDARD GREATER 17)
+	try_compile(DEKAF2_STD_CHRONO_HAS_TIMEZONE
+				${GENERATED_FILES_DIR}
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_timezone_test.cpp"
+				COMPILE_DEFINITIONS "--std=c++20")
+
+	if(DEKAF2_STD_CHRONO_HAS_TIMEZONE)
+		message(STATUS "we have chrono timezone support in std::chrono")
+	else()
+		message(STATUS "we do not have chrono timezone support in std::chrono - will configure for date-tz lib as replacement")
+	endif()
+else()
+	message(STATUS "no chrono timezone support in std::chrono before C++20 - will configure for date-tz lib as replacement")
 endif()
 
 # create the configuration header file
@@ -887,6 +917,7 @@ set (PRECOMPILED_HEADERS
 	dekaf2.h
 	kassociative.h
 	kctype.h
+	kdate.h
 	kduration.h
 	kfilesystem.h
 	kformat.h
@@ -908,6 +939,7 @@ set (PRECOMPILED_HEADERS
 	kstringutils.h
 	kstringview.h
 	ksystem.h
+	ktime.h
 	kurl.h
 	kurlencode.h
 	kutf8.h
@@ -1116,6 +1148,35 @@ if (CPU_ARM EQUAL 32)
 	set(ARM_NEEDS_ATOMIC_LIB atomic)
 endif()
 
+set(DATE_PUBLIC_HEADERS
+	from/hhinnant/date/ios.h
+	from/hhinnant/date/date.h
+	from/hhinnant/date/tz.h
+	from/hhinnant/date/tz_private.h
+)
+
+# build the date library with tz support
+add_library(date-tz ${DATE_PUBLIC_HEADERS} from/hhinnant/date/tz.cpp)
+
+target_include_directories(date-tz
+	PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant>
+	$<INSTALL_INTERFACE:${dekaf2_include_dest}>
+)
+
+target_compile_definitions(date-tz
+	PRIVATE
+	AUTO_DOWNLOAD=0
+	HAS_REMOTE_API=0
+	INSTALL=.
+	PUBLIC
+	USE_OS_TZDB=1
+)
+
+if (DEKAF2_STD_CHRONO_HAS_LOCAL_T)
+	target_compile_definitions(date-tz PUBLIC DEKAF2_STD_CHRONO_HAS_LOCAL_T=1)
+endif()
+
 # we add the HEADERS as well, as otherwise cmake based IDEs would not see them
 # as belonging to the project. CMake would not need them here.
 add_library(dekaf2 ${HEADERS} ${SOURCES})
@@ -1163,6 +1224,7 @@ target_link_libraries(dekaf2
 	PUBLIC
 		fmt
 		nlohmann-json
+		date-tz
 		${Boost_LIBRARIES}
 		${OPENSSL_LIBRARIES}
 		frozen
@@ -1190,7 +1252,7 @@ target_include_directories(dekaf2
 	$<INSTALL_INTERFACE:${dekaf2_lib_dest}>
 	${Boost_INCLUDE_DIR}
 	${OPENSSL_INCLUDE_DIR}
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant> # we need the date header in any case, for users compiling with less than C++20
+#	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant> # we need the date headers in any case, for users compiling with less than C++20
 	PRIVATE
 	$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
@@ -1311,14 +1373,16 @@ string(REPLACE "${CMAKE_INSTALL_PREFIX}/" "" dekaf2_share_dest ${dekaf2_share_de
 # always put this first, otherwise it risks to remove other already installed cmake config files
 install(EXPORT ${PROJECT_NAME} DESTINATION "${dekaf2_lib_dest}")
 
-# create dummy exports to satisfy cmake for the statically and PRIVATE linked in libraries (this is a bug in cmake)
+# create dummy exports to satisfy cmake for the statically and PRIVATE linked in libraries
 if (DEKAF2_HAS_MINIFOLLY)
 	install(TARGETS minifolly EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 endif()
-install(TARGETS fmt EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+
+install(TARGETS fmt           EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(TARGETS nlohmann-json EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
-install(TARGETS re2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
-install(TARGETS frozen EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+install(TARGETS re2           EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+install(TARGETS frozen        EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+install(TARGETS date-tz       EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 
 install(TARGETS dekaf2 ksql2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
@@ -1350,14 +1414,14 @@ else()
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/compat)")
 endif()
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/templates                       DESTINATION ${dekaf2_share_dest})
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/ DESTINATION ${dekaf2_include_dest}/nlohmann FILES_MATCHING PATTERN "*.hpp")
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/     DESTINATION ${dekaf2_include_dest}/frozen   FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-9.1.0/include/fmt/     DESTINATION ${dekaf2_include_dest}/fmt      FILES_MATCHING PATTERN "*.h")
-install(FILES    "${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant/date/date.h"      DESTINATION ${dekaf2_include_dest}/date)
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/templates"                       DESTINATION "${dekaf2_share_dest}")
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/" DESTINATION "${dekaf2_include_dest}/nlohmann" FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/"     DESTINATION "${dekaf2_include_dest}/frozen"   FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-9.1.0/include/fmt/"     DESTINATION "${dekaf2_include_dest}/fmt"      FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant/date/"             DESTINATION "${dekaf2_include_dest}/date"     FILES_MATCHING PATTERN "*.h")
 if (DEKAF2_HAS_MINIFOLLY)
-	install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/           DESTINATION ${dekaf2_include_dest}/folly    FILES_MATCHING PATTERN "*.h")
-	install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/from/folly/glog/            DESTINATION ${dekaf2_include_dest}/glog     FILES_MATCHING PATTERN "*.h")
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/"           DESTINATION "${dekaf2_include_dest}/folly"    FILES_MATCHING PATTERN "*.h")
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/glog/"            DESTINATION "${dekaf2_include_dest}/glog"     FILES_MATCHING PATTERN "*.h")
 else()
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/folly)")
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/glog)")

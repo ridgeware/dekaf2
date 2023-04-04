@@ -1119,11 +1119,21 @@ KUnixTime kParseTimestamp(KStringView sTimestamp)
 	using IteratorPair = std::pair<FormatArray::const_iterator, FormatArray::const_iterator>;
 	using SizeArray    = std::array<IteratorPair, iSizeArraySize>;
 
+	// The SizeArray helps to look up a pair of iterators into the FormatArray table - the first
+	// iterator points to the first entry for a particular size range, the second to the entry after the
+	// last for a size range. This helps to directly jump to the comparisons with time format strings
+	// of the correct size range. We do all the setup computations (plus a number of sanity checks for
+	// both arrays) at compile time (if we have at least C++17 - else at static intialization)
+
 #undef DEKAF2_CONSTEXPR
 #if DEKAF2_HAS_CPP_17
 	#define DEKAF2_CONSTEXPR constexpr
+#else
+	#define DEKAF2_CONSTEXPR
 #endif
 
+	// build the Sizes lookup table by a constexpr lambda (if we have C++17 or later, for older
+	// versions this is a normal static initialisation at first use..)
 	static DEKAF2_CONSTEXPR SizeArray Sizes = []() DEKAF2_CONSTEXPR -> SizeArray
 	{
 #if DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED
@@ -1131,31 +1141,80 @@ KUnixTime kParseTimestamp(KStringView sTimestamp)
 #else
 		SizeArray S {}; // gcc8..
 #endif
-
 		// clear the table in a constexpr way that gcc 8 understands
-		for (auto it = S.begin(); it != S.end(); ++it) { it->first = Formats.end(); it->second = Formats.end(); }
+		for (auto& it : S) { it.first = Formats.end(); it.second = Formats.end(); }
 
-		KStringView::size_type lastsize { S.size() + 1 };
+		auto last_it = S.end();
 
 		for (auto& Format : Formats)
 		{
-			auto size = Format.sFormat.size() - iShortest + 1;
+			auto it = S.begin() + (Format.sFormat.size() - iShortest);
 
-			if (size > 0 && size < lastsize)
+			// we actually want the iterator comparison with lt here, it is an additonal
+			// safe guard against unordered format tables
+			if (it < last_it)
 			{
-				if (size < S.size())
+				// the first .second already points to Formats.last(), which is correct..
+				if (last_it != S.end())
 				{
-					S[lastsize - 1].second = &Format;
+					last_it->second = &Format;
 				}
-				lastsize = size;
-				S[size - 1].first = &Format;
+
+				it->first = &Format;
+				last_it   = it;
 			}
 		}
-		// the last .second will point to Formats.last(), which is correct..
 
 		return S;
 
 	}();
+
+#if DEKAF2_HAS_CPP_17
+	// do a second constexpr sanity check, this time over the generated lookup table
+	static constexpr bool bArrayIsSane = []() constexpr -> bool
+	{
+		auto end { Formats.end() };
+		KStringView::size_type lastsize { 0 };
+		kIgnoreUnused(lastsize);
+
+		for (auto it = Sizes.begin(); it != Sizes.end(); ++it)
+		{
+			// we either expect both iterators to be end, (empty entry)
+			// both non-end (normal entry)
+			// or the the second being end (first entry)
+			if (it == Sizes.begin())
+			{
+				// this is the first entry in the sizes table, which
+				// points to the last section in the formats table
+				if (it->first == end || it->second != end) return false;
+				// get last size range
+				lastsize = it->first->sFormat.size();
+			}
+			else
+			{
+				if (it->first == end)
+				{
+					// empty entry
+					if (it->second != end) return false;
+				}
+				else
+				{
+					// normal entry
+					if (it->second == end) return false;
+					// check size range for increasing order
+					if (it->first->sFormat.size() <= lastsize) return false;
+					if (it->first->sFormat.size() <= it->second->sFormat.size()) return false;
+					lastsize = it->first->sFormat.size();
+				}
+			}
+		}
+		// table may not be empty
+		return !Sizes.empty();
+
+	}();
+
+	static_assert(bArrayIsSane, "the lookup table wasn't generated correctly - check the algorithm in the generator lambda");
+#endif
 
 	// check precondition to avoid UB
 	static_assert(std::is_unsigned<decltype(sTimestamp.SizeUTF8())>::value, ".SizeUTF8() must return an unsigned type");

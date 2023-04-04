@@ -906,8 +906,10 @@ KUnixTime kParseTimestamp(KStringView sTimestamp)
 
 	}; // TimeFormat
 
+	using FormatArray = std::array<TimeFormat, 130>;
+
 	// order formats by size
-	static constexpr std::array<TimeFormat, 130> Formats
+	static constexpr FormatArray Formats
 	{{
 		{ "???, DD NNN YYYY hh:mm:ss ZZZZZ", 25 }, // WWW timestamp with timezone
 
@@ -1069,32 +1071,143 @@ KUnixTime kParseTimestamp(KStringView sTimestamp)
 		{ "YYMMDD"                         ,  0 }, // 211230
 	}};
 
-	auto iSize = sTimestamp.SizeUTF8();
-	bool bHasUTF8Runs = iSize != sTimestamp.size();
-
-	for (auto Format : Formats)
+	// let's do some constexpr sanity checks on the table above
+	// we need C++17 for constexpr lambdas though
+#if DEKAF2_HAS_CPP_17
+	static constexpr bool bArrayIsOrderedAndValid = []() constexpr -> bool
 	{
-		auto iFSize = Format.sFormat.size();
+		KStringView::size_type lastsize { KStringView::npos };
 
-		if (iSize == iFSize)
+		for (auto& Format : Formats)
 		{
-			auto iCheckPos = Format.iPos;
+			auto size = Format.sFormat.size();
 
-			if (iCheckPos == 0 ||
-				(!bHasUTF8Runs && Format.sFormat[iCheckPos] == sTimestamp[iCheckPos]) ||
-				( bHasUTF8Runs && Unicode::CodepointCast(Format.sFormat[iCheckPos]) == sTimestamp.AtUTF8(iCheckPos)))
+			// table must be sorted descending on string length, and iPos may not be too large
+			if (size == 0 || size > lastsize || Format.iPos >= size)
 			{
-				auto tm = kParseTimestamp(Format.sFormat, sTimestamp);
+				return false;
+			}
 
-				if (tm != KUnixTime(0))
+			// the iPos check marker may not point into a time format char
+			// (but for simplicity we check against all alphas and exlude the T,
+			// which we use for checks)
+			if (Format.iPos)
+			{
+				auto ch = Format.sFormat[Format.iPos];
+
+				if (KASCII::kIsAlpha(ch) && ch != 'T')
 				{
-					return tm;
+					return false;
 				}
 			}
+
+			lastsize = size;
 		}
-		else if (iSize > iFSize)
+
+		// table may not be empty
+		return !Formats.empty();
+
+	}();
+
+	static_assert(bArrayIsOrderedAndValid, "The time format array has to be sorted from longest to shortest, and may not have empty strings, and iPos may not be larger than the string length");
+#endif
+
+	static constexpr KStringView::size_type iLongest       = Formats[0].sFormat.size();
+	static constexpr KStringView::size_type iShortest      = Formats[Formats.size() - 1].sFormat.size();
+	static constexpr KStringView::size_type iSizeArraySize = iLongest - iShortest + 1;
+
+	using IteratorPair = std::pair<FormatArray::const_iterator, FormatArray::const_iterator>;
+	using SizeArray    = std::array<IteratorPair, iSizeArraySize>;
+
+#undef DEKAF2_CONSTEXPR
+#if DEKAF2_HAS_CPP_17
+	#define DEKAF2_CONSTEXPR constexpr
+#endif
+
+	static DEKAF2_CONSTEXPR SizeArray Sizes = []() DEKAF2_CONSTEXPR -> SizeArray
+	{
+#if DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED
+		SizeArray S;
+#else
+		SizeArray S {}; // gcc8..
+#endif
+
+		// clear the table in a constexpr way that gcc 8 understands
+		for (auto it = S.begin(); it != S.end(); ++it) { it->first = Formats.end(); it->second = Formats.end(); }
+
+		KStringView::size_type lastsize { S.size() + 1 };
+
+		for (auto& Format : Formats)
 		{
-			break;
+			auto size = Format.sFormat.size() - iShortest + 1;
+
+			if (size > 0 && size < lastsize)
+			{
+				if (size < S.size())
+				{
+					S[lastsize - 1].second = &Format;
+				}
+				lastsize = size;
+				S[size - 1].first = &Format;
+			}
+		}
+		// the last .second will point to Formats.last(), which is correct..
+
+		return S;
+
+	}();
+
+	// check precondition to avoid UB
+	static_assert(std::is_unsigned<decltype(sTimestamp.SizeUTF8())>::value, ".SizeUTF8() must return an unsigned type");
+
+	// this is an unsigned type - overflow will not create UB
+	auto iSize = sTimestamp.SizeUTF8() - iShortest; // this is deliberately creating an overflow if SizeUTF8 is < iShortest!
+
+	if (iSize < Sizes.size()) // the overflow would be detected here
+	{
+		auto pair = Sizes[iSize];
+
+		// check if we need to check in a UTF8-safe way
+		if (iSize != sTimestamp.size() - iShortest)
+		{
+			// yes, we have UTF8
+			for (; pair.first != pair.second; ++pair.first)
+			{
+				auto it = pair.first;
+
+				auto iCheckPos = it->iPos;
+
+				if (iCheckPos == 0 || Unicode::CodepointCast(it->sFormat[iCheckPos]) == sTimestamp.AtUTF8(iCheckPos))
+				{
+					auto tm = kParseTimestamp(it->sFormat, sTimestamp);
+
+					if (tm != KUnixTime(0))
+					{
+						return tm;
+					}
+				}
+			}
+
+		}
+		else
+		{
+			// no, we have no UTF8
+			for (; pair.first != pair.second; ++pair.first)
+			{
+				auto it = pair.first;
+
+				auto iCheckPos = it->iPos;
+
+				if (iCheckPos == 0 || it->sFormat[iCheckPos] == sTimestamp[iCheckPos])
+				{
+					auto tm = kParseTimestamp(it->sFormat, sTimestamp);
+
+					if (tm != KUnixTime(0))
+					{
+						return tm;
+					}
+				}
+			}
 		}
 	}
 

@@ -111,7 +111,12 @@ TEST_CASE("KTime") {
 	{
 		CHECK ( sizeof(std::time_t) <=  8 );
 		CHECK ( sizeof(KUnixTime)   <=  8 );
-		CHECK ( sizeof(KUnixTime)   == sizeof(std::time_t) );
+
+		if (sizeof(std::time_t) == sizeof(long long))
+		{
+			CHECK ( sizeof(KUnixTime)   == sizeof(std::time_t) );
+		}
+
 		CHECK ( sizeof(KUTCTime)    <= 56 );
 		CHECK ( sizeof(KLocalTime)  <= 72 );
 		CHECK ( sizeof(std::tm)     <= 56 );

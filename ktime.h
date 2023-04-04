@@ -83,7 +83,9 @@ const chrono::time_zone* kFindTimezone(KStringView sZoneName);
 // variants. Use timezones passed in to the C++ functions instead
 // of switching the process globally.
 
-/// converts any UTC timepoint to a local timepoint (at least exact for the past, not necessarily for the future)
+/// Converts any UTC timepoint to a local zoned time (at least exact for the past, not necessarily for the future)
+/// Never use local times to do arithmetics: DST changes, leap seconds, and history will all bite you!
+/// A zoned time is a local timepoint with all information about the local timezone it is contained in, at its very point in time, but not at any other point in time
 template<class Duration>
 DEKAF2_PUBLIC
 auto kToLocalZone(chrono::sys_time<Duration> tp, const chrono::time_zone* zone = chrono::current_zone()) -> chrono::zoned_time<Duration>
@@ -91,7 +93,9 @@ auto kToLocalZone(chrono::sys_time<Duration> tp, const chrono::time_zone* zone =
 	return chrono::zoned_time<Duration>(zone, tp);
 }
 
-/// converts any UTC timepoint to a local timepoint (at least exact for the past, not necessarily for the future)
+/// Converts any UTC timepoint to a local timepoint (at least exact for the past, not necessarily for the future)
+/// Never use local timepoints to do arithmetics: DST changes, leap seconds, and history will all bite you!
+/// A local timepoint is only valid at its exact point in time.
 template<class Duration>
 DEKAF2_PUBLIC
 auto kToLocalTime(chrono::sys_time<Duration> tp, const chrono::time_zone* zone = chrono::current_zone()) -> chrono::local_time<typename std::common_type<Duration, chrono::seconds>::type>
@@ -116,8 +120,12 @@ auto kFromLocalTime(chrono::local_time<Duration> tp, const chrono::time_zone* zo
 }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// this class is a modern version of the legacy time point usage of time_t -
-/// in contrast to the legacy duration usage of time_t, which should be done with KDuration
+/// This class is a modern version of the legacy time point usage of time_t -
+/// in contrast to the legacy duration usage of time_t, which should be done with KDuration.
+/// It uses high resolution (clang libc++: microseconds, gnu libstdc++: nanoseconds), but
+/// is as small as a std::time_t (long long).
+/// It publicly inherits from chrono::system_clock::time_point, and adds constexpr conversions
+/// to and from std::time_t and std::tm.
 class DEKAF2_PUBLIC KUnixTime : public chrono::system_clock::time_point
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -142,7 +150,7 @@ public:
 	                    explicit KUnixTime (KStringView sTimestamp);
 	/// construct from a string representation with format description
 	/// @see kParseTimestamp for a format string description
-	                    KUnixTime (KStringView sFormat, KStringView sTimestamp);
+	                             KUnixTime (KStringView sFormat, KStringView sTimestamp);
 
 	using base::base;
 
@@ -254,6 +262,10 @@ public:
 //	constexpr precision to_duration()   const noexcept
 
 }; // KTimeOfDay
+
+/// returns the current system time as KUnixTime in high resolution (clang libc++: microseconds, gnu libstdc++: nanoseconds)
+DEKAF2_PUBLIC inline
+KUnixTime kNow() { return KUnixTime::now(); }
 
 /// Get the English or local abbreviated or full weekday name, input 0..6, 0 == Sunday
 DEKAF2_PUBLIC
@@ -456,7 +468,8 @@ protected:
 class KLocalTime;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A broken down time representation in UTC
+/// A broken down time representation in UTC - you can do arithmetics with it, but it is more expensive
+/// than doing arithmetics on a time point (or a KUnixTime)
 class DEKAF2_PUBLIC KUTCTime : public detail::KBrokenDownTime
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -481,9 +494,7 @@ public:
 	/// construct from a string representation with format description
 	/// @see kParseTimestamp for a format string description
 	                    KUTCTime (KStringView sFormat, KStringView sTimestamp) : KUTCTime(kParseTimestamp(sFormat, sTimestamp)) {}
-	/// construct from current time
-	                    KUTCTime (std::nullptr_t) { *this = now(); }
-
+	/// construct from KLocalTime
 	                    KUTCTime (const KLocalTime& local) noexcept;
 
 	/// get the current time as GMT / UTC time
@@ -563,7 +574,9 @@ DEKAF2_CONSTEXPR_14 bool operator<(const KUTCTime& left, const KUTCTime& right)
 DEKAF2_COMPARISON_OPERATORS(KUTCTime)
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A broken down time representation in local time (any timezone that this system supports)
+/// A broken down time representation in local time (any timezone that this system supports) - you
+/// cannot do arithmetics on it, because that is in general invalid on local times (you may step
+/// transition points in local time, like DST changes and leap seconds)
 class DEKAF2_PUBLIC KLocalTime : public detail::KBrokenDownTime
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -595,8 +608,6 @@ public:
 	: KLocalTime(kParseTimestamp(sFormat, sTimestamp))
 	{
 	}
-	/// construct from current time
-	KLocalTime (std::nullptr_t) { *this = now(); }
 	/// construct from KUTCTime, and translate into a timezone, default timezone is the system's local time
 	KLocalTime (const KUTCTime& utc, const chrono::time_zone* timezone = chrono::current_zone())
 	: KLocalTime(utc.to_unix(), timezone)

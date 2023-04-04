@@ -45,7 +45,7 @@
 /// @file dekaf2.h
 /// basic initialization of the library
 
-#include <atomic>
+#include "bits/kcppcompat.h"
 #include "kconfiguration.h"
 #include "kthreadsafe.h"
 #ifdef DEKAF2_HAS_MINIFOLLY
@@ -56,6 +56,7 @@
 #include "ktimer.h"
 #include "ksignals.h"
 #include "ksystem.h"
+#include <atomic>
 #include <vector>
 #include <thread>
 #include <random>
@@ -285,7 +286,7 @@ private:
 	KTimer::ID_t m_OneSecTimerID;
 	std::mutex m_OneSecTimerMutex;
 	std::vector<OneSecCallback> m_OneSecTimers;
-#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 9
+#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 9) || DEKAF2_BITS < 64
 	KUnixTime m_iCurrentTime;
 #else
 	std::atomic<KUnixTime> m_iCurrentTime;

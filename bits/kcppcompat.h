@@ -377,16 +377,16 @@ bool kIsConstantEvaluated(bool default_value = false) noexcept
 
 namespace dekaf2 {
 #if (UINTPTR_MAX == 0xffff)
-	#define DEKAF2_IS_16_BITS = 1
-	#define DEKAF2_BITS = 16
+	#define DEKAF2_IS_16_BITS 1
+	#define DEKAF2_BITS 16
 	static constexpr uint16_t KiBits = 16;
 #elif (UINTPTR_MAX == 0xffffffff)
-	#define DEKAF2_IS_32_BITS = 1
-	#define DEKAF2_BITS = 32
+	#define DEKAF2_IS_32_BITS 1
+	#define DEKAF2_BITS 32
 	static constexpr uint16_t KiBits = 32;
 #elif (UINTPTR_MAX == 0xffffffffffffffff)
-	#define DEKAF2_IS_64_BITS = 1
-	#define DEKAF2_BITS = 64
+	#define DEKAF2_IS_64_BITS 1
+	#define DEKAF2_BITS 64
 	static constexpr uint16_t KiBits = 64;
 #else
 	#error "unsupported maximum pointer type"

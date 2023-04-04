@@ -286,7 +286,7 @@ private:
 	KTimer::ID_t m_OneSecTimerID;
 	std::mutex m_OneSecTimerMutex;
 	std::vector<OneSecCallback> m_OneSecTimers;
-#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 9) || DEKAF2_BITS < 64
+#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 9)
 	KUnixTime m_iCurrentTime;
 #else
 	std::atomic<KUnixTime> m_iCurrentTime;

@@ -1230,6 +1230,7 @@ target_link_libraries(dekaf2
 		frozen
 		${MINIFOLLY}
 		Threads::Threads
+		${ARM_NEEDS_ATOMIC_LIB}
 	PRIVATE
 		${FCGILIBS}
 		${FSLIB}
@@ -1285,7 +1286,6 @@ target_link_libraries(ksql2
 	PRIVATE
 		${MYSQL_LIBRARIES}
 		${FREETDS_LIBRARIES}
-		${ARM_NEEDS_ATOMIC_LIB}
 	)
 target_include_directories(ksql2
 	PRIVATE

@@ -209,9 +209,9 @@ KString kFormWebTimestamp (KUnixTime tTime, KStringView sTimezoneDesignator)
 	KUTCTime Time(tTime);
 
 	return kFormat("{}, {:02} {} {:04} {:02}:{:02}:{:02} {}",
-				   Time.get_day_name(true, false),
+				   kGetDayName(Time.weekday().c_encoding(), true, false),
 				   Time.days().count(),
-				   Time.get_month_name(true, false),
+				   kGetMonthName(unsigned(Time.month()) - 1, true, false),
 				   Time.years().count(),
 				   Time.hours().count(),
 				   Time.minutes().count(),
@@ -1393,7 +1393,7 @@ KString kFormCommonLogTimestamp(KUnixTime tTime, bool bAsLocalTime)
 		// [18/Sep/2011:19:18:28 +0000]
 		return kFormat("[{:02}/{}/{:04}:{:02}:{:02}:{:02} +0000]",
 					   Time.days().count(),
-					   Time.get_month_name(true, false),
+					   kGetMonthName(unsigned(Time.month()) - 1, true, false),
 					   Time.years().count(),
 					   Time.hours().count(),
 					   Time.minutes().count(),
@@ -1412,7 +1412,7 @@ KString kFormCommonLogTimestamp(KUnixTime tTime, bool bAsLocalTime)
 		// [18/Sep/2011:19:18:28 -0400]
 		return kFormat("[{:02}/{}/{:04}:{:02}:{:02}:{:02} {}{:02}{:02}]",
 					   Time.days().count(),
-					   Time.get_month_name(true, true),
+					   kGetMonthName(unsigned(Time.month()) - 1, true, true),
 					   Time.years().count(),
 					   Time.hours().count(),
 					   Time.minutes().count(),
@@ -1684,20 +1684,6 @@ KUnixTime::KUnixTime(KStringView sFormat, KStringView sTimestamp)
 }
 
 //-----------------------------------------------------------------------------
-KStringViewZ detail::KBrokenDownTime::get_day_name(bool bAbbreviated, bool bLocal) const
-//-----------------------------------------------------------------------------
-{
-	return kGetDayName(weekday().c_encoding(), bAbbreviated, bLocal);
-}
-
-//-----------------------------------------------------------------------------
-KStringViewZ detail::KBrokenDownTime::get_month_name(bool bAbbreviated, bool bLocal) const
-//-----------------------------------------------------------------------------
-{
-	return kGetMonthName(months().count() - 1, bAbbreviated, bLocal);
-}
-
-//-----------------------------------------------------------------------------
 KString KUTCTime::to_string (KStringView sFormat) const
 //-----------------------------------------------------------------------------
 {
@@ -1756,8 +1742,8 @@ std::tm KLocalTime::to_tm() const
 	tm.tm_year   = years  ().count() - 1900;
 	tm.tm_wday   = weekday().c_encoding();
 	// gcc > 10 does not like the below type conversion from year_month_day to local_days..
-//	tm.tm_yday   = (m_days - chrono::local_days(chrono::year_month_day(m_ymd.year()/1/1))).count();
-	tm.tm_yday   = (m_days - chrono::local_days(days_from_civil(chrono::year_month_day(m_ymd.year()/1/1)))).count();
+//	tm.tm_yday   = (m_days - chrono::local_days(chrono::year_month_day(year()/1/1))).count();
+	tm.tm_yday   = (days_from_civil(KConstDate(*this)) - days_from_civil(chrono::year_month_day(year()/1/1))).count();
 	tm.tm_isdst  = is_dst ();
 
 #ifndef DEKAF2_IS_WINDOWS

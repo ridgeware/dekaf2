@@ -984,6 +984,7 @@ set (SOURCES
 	kcrc.cpp
 	kcsv.cpp
 	kctype.cpp
+	kdate.cpp
 	kdiff.cpp
 	kduration.cpp
 	kencode.cpp

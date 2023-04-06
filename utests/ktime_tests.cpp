@@ -59,7 +59,7 @@ TEST_CASE("KTime") {
 	{
 		CHECK ( KDuration::max().seconds() == chrono::seconds(9223372036) );
 		CHECK ( kTranslateSeconds(KDuration::max().seconds().count()
-								               , true ) == "292 yrs, 24 wks, 3 days, 23 hrs, 47 mins, 16 secs" );
+								  , true ) == "292 yrs, 24 wks, 3 days, 23 hrs, 47 mins, 16 secs" );
 		CHECK ( kTranslateSeconds(0            , false) == "less than a second" );
 		CHECK ( kTranslateSeconds(1            , false) == "1 sec" );
 		CHECK ( kTranslateSeconds(2            , false) == "2 secs" );
@@ -141,8 +141,8 @@ TEST_CASE("KTime") {
 		CHECK ( UTC2.minutes().count()  == 14    );
 		CHECK ( UTC2.seconds().count()  == 16    );
 		CHECK ( UTC2.hours12().count()  == 10    );
-		CHECK ( UTC2.get_day_name(true)   == "Fri" );
-		CHECK ( UTC2.get_month_name(true) == "Nov" );
+		CHECK ( UTC2.weekday()          == chrono::Friday );
+		CHECK ( UTC2.month()            == chrono::November );
 		CHECK ( UTC2.is_pm()            == true  );
 		CHECK ( UTC2.to_string()        == "1973-11-30 22:14:16" );
 		CHECK ( UTC2.to_unix()          == KUnixTime(123545656) );
@@ -153,20 +153,20 @@ TEST_CASE("KTime") {
 		CHECK ( UTC1.to_unix()      == KUnixTime(126230399) );
 		UTC2 = UTC1.to_unix();
 		CHECK ( (UTC2 == UTC1) );
-		CHECK ( UTC2.get_month_name(true) == "Dec" );
-		CHECK ( UTC2.get_day_name(true)   == "Mon" );
+		CHECK ( UTC2.weekday()          == chrono::Monday );
+		CHECK ( UTC2.month()            == chrono::December );
 		CHECK ( UTC2.is_pm()        == true  );
 		UTC1 += chrono::seconds(2);
 		CHECK ( UTC1.Format()       == "1974-01-01 00:00:01" );
 		CHECK ( UTC1.to_unix()      == KUnixTime(126230401) );
-		CHECK ( UTC1.get_month_name(true) == "Jan" );
-		CHECK ( UTC1.get_day_name(true)   == "Tue" );
+		CHECK ( UTC1.month()        == chrono::January );
+		CHECK ( UTC1.weekday()      == chrono::Tuesday );
 		CHECK ( UTC1.is_pm()        == false  );
 		UTC1 -= chrono::seconds(2);
 		CHECK ( UTC1.Format()       == "1973-12-31 23:59:59" );
 		CHECK ( UTC1.to_unix()      == KUnixTime(126230399) );
-		CHECK ( UTC1.get_month_name(true) == "Dec" );
-		CHECK ( UTC1.get_day_name(true)   == "Mon" );
+		CHECK ( UTC1.month()        == chrono::December );
+		CHECK ( UTC1.weekday()      == chrono::Monday   );
 		CHECK ( UTC1.is_pm()        == true  );
 
 		auto SysTime = UTC1.to_sys();
@@ -239,10 +239,8 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.is_pm()           == false );
 				CHECK ( Local1.get_zone_abbrev() == "CET" );
 				CHECK ( Local1.get_zone_name()   == "Europe/Paris" );
-				CHECK ( Local1.get_month_name( true, true) == "jan" );
-				CHECK ( Local1.get_month_name(false, true) == "janvier" );
-				CHECK ( Local1.get_day_name  ( true, true) == "Mar" );
-				CHECK ( Local1.get_day_name  (false, true) == "Mardi" );
+				CHECK ( Local1.month()           == chrono::January );
+				CHECK ( Local1.weekday()         == chrono::Tuesday );
 				CHECK ( Local1.get_utc_offset() == chrono::minutes(60) );
 				CHECK ( kFormTimestamp(std::locale(), tz, UTC1.to_unix(), "%A %c") == "Mardi Mar  1 jan 00:59:59 1974" );
 				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), kFindTimezone("America/Mexico_City"), UTC1.to_unix(), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
@@ -293,10 +291,8 @@ TEST_CASE("KTime") {
 			CHECK ( Local1.get_zone_name()   == "Asia/Tokyo" );
 			if (bHasLocale)
 			{
-				CHECK ( Local1.get_month_name( true, true) == "jan" );
-				CHECK ( Local1.get_month_name(false, true) == "janvier" );
-				CHECK ( Local1.get_day_name  ( true, true) == "Mar" );
-				CHECK ( Local1.get_day_name  (false, true) == "Mardi" );
+				CHECK ( Local1.month()       == chrono::January );
+				CHECK ( Local1.weekday()     == chrono::Tuesday );
 				if (bHasTimezone) {
 					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), kFindTimezone("America/Mexico_City"), UTC1.to_unix(), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
 				}
@@ -568,11 +564,12 @@ TEST_CASE("KTime") {
 		CHECK ( (b <= a) );
 
 		KLocalTime c = b;
-		CHECK ( (a >  c) );
-		CHECK ( (a >= c) );
-		CHECK ( (a != c) );
-		CHECK ( (c <  a) );
-		CHECK ( (c <= a) );
+		CHECK       ( (a >  c) );
+		CHECK       ( (a >= c) );
+		CHECK_FALSE ( (a == c) );
+		CHECK       ( (a != c) );
+		CHECK       ( (c <  a) );
+		CHECK       ( (c <= a) );
 
 		CHECK_FALSE ( (c >  a) );
 		CHECK_FALSE ( (c >= a) );
@@ -602,126 +599,256 @@ TEST_CASE("KTime") {
 			CHECK ( kGetDayName( 1, false, true) == "Lundi"    );
 			CHECK ( kGetDayName( 3, false, true) == "Mercredi" );
 		}
-/*
+		/*
 
- With the current implementation, month and day names will stick
- to the first locale they were used with - see comment in ktime.h
+		 With the current implementation, month and day names will stick
+		 to the first locale they were used with - see comment in ktime.h
 
-		if (kSetGlobalLocale("de_DE.UTF-8"))
-		{
-			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
+		 if (kSetGlobalLocale("de_DE.UTF-8"))
+		 {
+		 KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
 
-			CHECK ( kGetMonthName( 0,  true, true) == "Jan"      );
-			CHECK ( kGetMonthName( 2,  true, true) == "Mär"      );
-			CHECK ( kGetMonthName( 0, false, true) == "Januar"   );
-			CHECK ( kGetMonthName(11, false, true) == "Dezember" );
+		 CHECK ( kGetMonthName( 0,  true, true) == "Jan"      );
+		 CHECK ( kGetMonthName( 2,  true, true) == "Mär"      );
+		 CHECK ( kGetMonthName( 0, false, true) == "Januar"   );
+		 CHECK ( kGetMonthName(11, false, true) == "Dezember" );
 
-			CHECK ( kGetDayName( 1,  true, true) == "Mo"       );
-			CHECK ( kGetDayName( 3,  true, true) == "Mi"       );
-			CHECK ( kGetDayName( 1, false, true) == "Montag"   );
-			CHECK ( kGetDayName( 3, false, true) == "Mittwoch" );
-		}
+		 CHECK ( kGetDayName( 1,  true, true) == "Mo"       );
+		 CHECK ( kGetDayName( 3,  true, true) == "Mi"       );
+		 CHECK ( kGetDayName( 1, false, true) == "Montag"   );
+		 CHECK ( kGetDayName( 3, false, true) == "Mittwoch" );
+		 }
 
-		if (kSetGlobalLocale("en_US.UTF-8"))
-		{
-			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
+		 if (kSetGlobalLocale("en_US.UTF-8"))
+		 {
+		 KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
 
-			CHECK ( kGetMonthName( 0,  true, true) == "Jan"      );
-			CHECK ( kGetMonthName( 2,  true, true) == "Mar"      );
-			CHECK ( kGetMonthName( 0, false, true) == "January"   );
-			CHECK ( kGetMonthName(11, false, true) == "December" );
+		 CHECK ( kGetMonthName( 0,  true, true) == "Jan"      );
+		 CHECK ( kGetMonthName( 2,  true, true) == "Mar"      );
+		 CHECK ( kGetMonthName( 0, false, true) == "January"   );
+		 CHECK ( kGetMonthName(11, false, true) == "December" );
 
-			CHECK ( kGetDayName( 1,  true, true) == "Mon"       );
-			CHECK ( kGetDayName( 3,  true, true) == "Wed"       );
-			CHECK ( kGetDayName( 1, false, true) == "Monday"   );
-			CHECK ( kGetDayName( 3, false, true) == "Wednesday" );
-		}
- */
+		 CHECK ( kGetDayName( 1,  true, true) == "Mon"       );
+		 CHECK ( kGetDayName( 3,  true, true) == "Wed"       );
+		 CHECK ( kGetDayName( 1, false, true) == "Monday"   );
+		 CHECK ( kGetDayName( 3, false, true) == "Wednesday" );
+		 }
+		 */
 
-		SECTION("KUnixTime")
-		{
-			// check that our own constexpr from_time_t() works correctly
-			CHECK ( KUnixTime::from_time_t(23445823474) == std::chrono::system_clock::from_time_t(23445823474) );
-			auto tp = std::chrono::system_clock::now();
-			KUnixTime UT = tp;
-			// check that our own constexpr to_time_t() works correctly
-			CHECK ( KUnixTime::to_time_t(UT) == std::chrono::system_clock::to_time_t(tp) );
-		}
-
-		SECTION("diff")
-		{
-			{
-				KUTCTime Date1("1.5.2006 12:00");
-				KUTCTime Date2("3.5.2007 11:00");
-				auto d = Date2 - Date1;
-				d.days();
-				time_t t = d;
-				time_t diff = Date2 - Date1;
-				CHECK ( diff == 367 * 86400 - 3600 );
-				KDuration duration = diff;
-				CHECK ( duration.days() == chrono::days(366) );
-			}
-			{
-				KUTCTime Date1(KUnixTime::from_time_t(3298462375));
-				KUTCTime Date2(KUnixTime::from_time_t(3298462342));
-				auto d = Date1 - Date2;
-				auto days = d.days();
-			}
-		}
-
-		SECTION("KTimeOfDay")
-		{
-			KUnixTime U = kParseTimestamp("20.12.2022 14:37:56");
-//			auto d = chrono::floor<chrono::days>(U);
-//			chrono::hh_mm_ss hms = chrono::make_time(U - d);
-			KTimeOfDay TD = U;
-			CHECK ( TD.hours().count()   == 14 );
-			CHECK ( TD.minutes().count() == 37 );
-			CHECK ( TD.seconds().count() == 56 );
-			CHECK ( TD.is_negative()     == false );
-			CHECK ( TD.subseconds().count() == 0 );
-
-			TD = kParseTimestamp("2022-12-20 14:37:56.789");
-			CHECK ( TD.hours().count()   == 14 );
-			CHECK ( TD.minutes().count() == 37 );
-			CHECK ( TD.seconds().count() == 56 );
-			CHECK ( TD.is_negative()     == false );
-			CHECK ( TD.subseconds() == chrono::milliseconds(789) );
-
-			TD = KUnixTime(1671547076);
-			CHECK ( TD.hours().count()   == 14 );
-			CHECK ( TD.minutes().count() == 37 );
-			CHECK ( TD.seconds().count() == 56 );
-			CHECK ( TD.is_negative()     == false );
-			CHECK ( TD.subseconds() == chrono::milliseconds(0) );
-		}
-
-		SECTION("kFormTimeStamp")
-		{
-			auto tz = kFindTimezone("Asia/Tokyo");
-			KUnixTime U("12:34:56 16.08.2022");
-			CHECK ( kFormTimestamp(U) == "2022-08-16 12:34:56" );
-			CHECK ( kFormTimestamp(tz, U, "%Y-%m-%d %H:%M:%S") == "2022-08-16 21:34:56" );
-		}
-
-		SECTION("custom formatters")
-		{
-			KUnixTime U = kParseTimestamp("12:34:56 16.08.2022");
-			CHECK ( kFormat("{:%F %T}", U) == "2022-08-16 12:34:56" );
-			KUTCTime UTC("12:34:56 16.08.2022");
-			auto tz = kFindTimezone("Asia/Tokyo");
-			KLocalTime Local(UTC, tz);
-			CHECK ( kFormat("{:%Z: %F %T}, {:%Z: %F %T}", UTC, Local) == "UTC: 2022-08-16 12:34:56, JST: 2022-08-16 21:34:56" );
-			CHECK ( kFormat("{}", UTC.hours()) == "12h" );
-//			CHECK ( kFormat("{}", UTC.days())  == "16d" );
-			// mind you that days/months/years do not yet work.. (but would output e.g. "16[86400]s" for 16 days)
-		}
-
-		SECTION("test")
-		{
-			KUTCTime utc(1234567);
-
-		}
 	}
 #endif
+
+	SECTION("KUnixTime")
+	{
+		// check that our own constexpr from_time_t() works correctly
+		CHECK ( KUnixTime::from_time_t(23445823474) == std::chrono::system_clock::from_time_t(23445823474) );
+		auto tp = std::chrono::system_clock::now();
+		KUnixTime UT = tp;
+		// check that our own constexpr to_time_t() works correctly
+		CHECK ( KUnixTime::to_time_t(UT) == std::chrono::system_clock::to_time_t(tp) );
+	}
+
+	SECTION("diff")
+	{
+		{
+			KUTCTime Date1("1.5.2006 12:00");
+			KUTCTime Date2("3.5.2007 11:00");
+			auto d = Date2 - Date1;
+			d.days();
+			time_t t = d;
+			time_t diff = Date2 - Date1;
+			CHECK ( diff == 367 * 86400 - 3600 );
+			KDuration duration = diff;
+			CHECK ( duration.days() == chrono::days(366) );
+		}
+		{
+			KUTCTime Date1(KUnixTime::from_time_t(3298462375));
+			KUTCTime Date2(KUnixTime::from_time_t(3298462342));
+			auto d = Date1 - Date2;
+			auto days = d.days();
+		}
+	}
+
+#if 0
+	SECTION("KTimeOfDay")
+	{
+		KUnixTime U = kParseTimestamp("20.12.2022 14:37:56");
+		//			auto d = chrono::floor<chrono::days>(U);
+		//			chrono::hh_mm_ss hms = chrono::make_time(U - d);
+		KTimeOfDay TD = U;
+		CHECK ( TD.hours().count()   == 14 );
+		CHECK ( TD.minutes().count() == 37 );
+		CHECK ( TD.seconds().count() == 56 );
+		CHECK ( TD.is_negative()     == false );
+		CHECK ( TD.subseconds().count() == 0 );
+
+		TD = kParseTimestamp("2022-12-20 14:37:56.789");
+		CHECK ( TD.hours().count()   == 14 );
+		CHECK ( TD.minutes().count() == 37 );
+		CHECK ( TD.seconds().count() == 56 );
+		CHECK ( TD.is_negative()     == false );
+		CHECK ( TD.subseconds() == chrono::milliseconds(789) );
+
+		TD = KUnixTime(1671547076);
+		CHECK ( TD.hours().count()   == 14 );
+		CHECK ( TD.minutes().count() == 37 );
+		CHECK ( TD.seconds().count() == 56 );
+		CHECK ( TD.is_negative()     == false );
+		CHECK ( TD.subseconds() == chrono::milliseconds(0) );
+	}
+#endif
+
+	SECTION("kFormTimeStamp")
+	{
+		auto tz = kFindTimezone("Asia/Tokyo");
+		KUnixTime U("12:34:56 16.08.2022");
+		CHECK ( kFormTimestamp(U) == "2022-08-16 12:34:56" );
+		CHECK ( kFormTimestamp(tz, U, "%Y-%m-%d %H:%M:%S") == "2022-08-16 21:34:56" );
+	}
+
+	SECTION("custom formatters")
+	{
+		KUnixTime U = kParseTimestamp("12:34:56 16.08.2022");
+		CHECK ( kFormat("{:%F %T}", U) == "2022-08-16 12:34:56" );
+		KUTCTime UTC("12:34:56 16.08.2022");
+		auto tz = kFindTimezone("Asia/Tokyo");
+		KLocalTime Local(UTC, tz);
+		CHECK ( kFormat("{:%Z: %F %T}, {:%Z: %F %T}", UTC, Local) == "UTC: 2022-08-16 12:34:56, JST: 2022-08-16 21:34:56" );
+		CHECK ( kFormat("{}", UTC.hours()) == "12h" );
+		//			CHECK ( kFormat("{}", UTC.days())  == "16d" );
+		// mind you that days/months/years do not yet work.. (but would output e.g. "16[86400]s" for 16 days)
+	}
+
+	SECTION("utc dates")
+	{
+		KUTCTime Date0;
+		CHECK ( Date0.ok() == false );
+		Date0.trunc();
+		CHECK ( Date0.ok() == true );
+		CHECK ( Date0.month() == chrono::January    );
+		CHECK ( Date0.day()   == chrono::day(1)     );
+		CHECK ( Date0.last_day() == chrono::day(31) );
+		CHECK ( Date0.year()  == chrono::year(0)    );
+		CHECK ( Date0.is_leap()== true              );
+
+		KUTCTime Date1;
+		Date1.year(2024);
+		CHECK ( Date1.ok() == false );
+		CHECK ( Date1 == false );
+		Date1.month(8);
+		CHECK ( Date1.ok() == false );
+		Date1.day(16);
+		CHECK ( Date1.ok() == true );
+		CHECK ( Date1.month() == chrono::August     );
+		CHECK ( Date1.day()   == chrono::day(16)    );
+		CHECK ( Date1.last_day() == chrono::day(31) );
+		CHECK ( Date1.year()  == chrono::year(2024) );
+		CHECK ( Date1.is_leap()== true              );
+
+		Date1 = KUTCTime(chrono::year(2023)/3/8);
+		Date1 += chrono::months(1);
+		CHECK ( Date1.month() == chrono::April      );
+		CHECK ( Date1.day()   == chrono::day(8)     );
+		CHECK ( Date1.last_day() == chrono::day(30) );
+		CHECK ( Date1.year()  == chrono::year(2023) );
+		CHECK ( Date1.is_leap()== false             );
+
+		Date1 = KUTCTime(chrono::year(2023)/2/28);
+		Date1 += chrono::days(1);
+		CHECK ( Date1.month() == chrono::March      );
+		CHECK ( Date1.day()   == chrono::day(1)     );
+		CHECK ( Date1.last_day() == chrono::day(31) );
+		CHECK ( Date1.year()  == chrono::year(2023) );
+		CHECK ( Date1.is_leap()== false             );
+
+		Date1 -= chrono::days(1);
+		CHECK ( Date1.month() == chrono::February   );
+		CHECK ( Date1.day()   == chrono::day(28)    );
+		CHECK ( Date1.last_day() == chrono::day(28) );
+		CHECK ( Date1.year()  == chrono::year(2023) );
+		CHECK ( Date1.is_leap()== false             );
+
+		Date1 = KUTCTime(chrono::year(2024)/2/28);
+		Date1 += chrono::days(1);
+		CHECK ( Date1.month() == chrono::February   );
+		CHECK ( Date1.day()   == chrono::day(29)    );
+		CHECK ( Date1.last_day() == chrono::day(29) );
+		CHECK ( Date1.year()  == chrono::year(2024) );
+		CHECK ( Date1.is_leap()== true              );
+
+		KUTCTime Date2(chrono::year(2018)/8/16);
+		CHECK_FALSE ( Date2 == Date1 );
+		CHECK       ( Date2 != Date1 );
+		CHECK_FALSE ( Date2 >  Date1 );
+		CHECK_FALSE ( Date2 >= Date1 );
+		CHECK       ( Date2 <  Date1 );
+		CHECK       ( Date2 <= Date1 );
+
+		Date2 = Date1;
+		CHECK       ( Date2 == Date1 );
+		CHECK_FALSE ( Date2 != Date1 );
+		CHECK_FALSE ( Date2 >  Date1 );
+		CHECK       ( Date2 >= Date1 );
+		CHECK_FALSE ( Date2 <  Date1 );
+		CHECK       ( Date2 <= Date1 );
+
+		Date2 = Date1 + chrono::years(2);
+		CHECK ( Date2.ok() == false ); // 2026-02-29 ..
+		Date2.floor();
+		CHECK ( Date2.ok() == true  ); // 2026-02-28 ..
+		CHECK ( Date2.month() == chrono::February   );
+		CHECK ( Date2.day()   == chrono::day(28)    );
+		CHECK ( Date2.last_day() == chrono::day(28) );
+		CHECK ( Date2.year()  == chrono::year(2026) );
+		CHECK ( Date2.is_leap()== false             );
+
+		Date2 = Date1 + chrono::years(2);
+		CHECK ( Date2.ok() == false ); // 2026-02-29 ..
+		Date2.ceil();
+		CHECK ( Date2.ok() == true  ); // 2026-03-01 ..
+		CHECK ( Date2.month() == chrono::March   );
+		CHECK ( Date2.day()   == chrono::day(1)    );
+		CHECK ( Date2.last_day() == chrono::day(31) );
+		CHECK ( Date2.year()  == chrono::year(2026) );
+		CHECK ( Date2.is_leap()== false             );
+
+		Date2 = Date1 + chrono::months(8);
+		Date2 = Date1 + chrono::days(60);
+	}
+
+	SECTION("local dates")
+	{
+		KLocalTime Date0;
+		CHECK ( Date0.ok() == false );
+
+		auto Date1 = KLocalTime(chrono::year(2023)/3/8);
+		CHECK ( Date1.month() == chrono::March       );
+		CHECK ( Date1.day()   == chrono::day(8)      );
+		CHECK ( Date1.last_day() == chrono::day(31)  );
+		CHECK ( Date1.year()   == chrono::year(2023) );
+		CHECK ( Date1.is_leap()== false              );
+
+		Date1 = KLocalTime(chrono::year(2024)/2/29);
+		CHECK ( Date1.month() == chrono::February    );
+		CHECK ( Date1.day()   == chrono::day(29)     );
+		CHECK ( Date1.last_day() == chrono::day(29)  );
+		CHECK ( Date1.year()   == chrono::year(2024) );
+		CHECK ( Date1.is_leap()== true               );
+
+		KLocalTime Date2(chrono::year(2018)/8/16);
+		CHECK_FALSE ( ( Date2 == Date1 ) );
+		CHECK       ( ( Date2 != Date1 ) );
+		CHECK_FALSE ( ( Date2 >  Date1 ) );
+		CHECK_FALSE ( ( Date2 >= Date1 ) );
+		CHECK       ( ( Date2 <  Date1 ) );
+		CHECK       ( ( Date2 <= Date1 ) );
+
+		Date2 = Date1;
+		CHECK       ( ( Date2 == Date1 ) );
+		CHECK_FALSE ( ( Date2 != Date1 ) );
+		CHECK_FALSE ( ( Date2 >  Date1 ) );
+		CHECK       ( ( Date2 >= Date1 ) );
+		CHECK_FALSE ( ( Date2 <  Date1 ) );
+		CHECK       ( ( Date2 <= Date1 ) );
+	}
 }

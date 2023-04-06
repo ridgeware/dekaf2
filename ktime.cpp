@@ -1705,29 +1705,6 @@ KString KLocalTime::to_string (KStringView sFormat) const
 	return kFormTimestamp (to_tm(), sFormat);
 }
 
-namespace {
-
-// gcc > 10 has problems with converting a ymd into local_days - so we give it
-// a conversion into the neutral chrono::days ..
-// (from https://howardhinnant.github.io/date_algorithms.html#days_from_civil )
-// "Consider these donated to the public domain."
-//-----------------------------------------------------------------------------
-constexpr chrono::days days_from_civil(const chrono::year_month_day& ymd) noexcept
-//-----------------------------------------------------------------------------
-{
-	int      y   = static_cast<int     >(ymd.year ());
-	unsigned m   = static_cast<unsigned>(ymd.month());
-	unsigned d   = static_cast<unsigned>(ymd.day  ());
-	y -= m <= 2;
-	const int      era = (y >= 0 ? y : y - 399) / 400;
-	const unsigned yoe = static_cast<unsigned>(y - era * 400);
-	const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d-1;
-	const unsigned doe = yoe * 365 + yoe/4 - yoe/100 + doy;
-	return chrono::days{ era * 146097 + static_cast<int>(doe) - 719468 };
-}
-
-}
-
 //-----------------------------------------------------------------------------
 std::tm KLocalTime::to_tm() const
 //-----------------------------------------------------------------------------
@@ -1743,7 +1720,7 @@ std::tm KLocalTime::to_tm() const
 	tm.tm_wday   = weekday().c_encoding();
 	// gcc > 10 does not like the below type conversion from year_month_day to local_days..
 //	tm.tm_yday   = (m_days - chrono::local_days(chrono::year_month_day(year()/1/1))).count();
-	tm.tm_yday   = (days_from_civil(KConstDate(*this)) - days_from_civil(chrono::year_month_day(year()/1/1))).count();
+	tm.tm_yday   = (detail::days_from_civil(KConstDate(*this)) - detail::days_from_civil(chrono::year_month_day(year()/1/1))).count();
 	tm.tm_isdst  = is_dst ();
 
 #ifndef DEKAF2_IS_WINDOWS

@@ -280,6 +280,33 @@ using zoned_time = date::zoned_time<Duration, TimeZonePtr>;
 
 
 
+
+
+namespace detail {
+
+// gcc > 10 and its libs can currently not convert a ymd into local_days, as it is not yet
+// prepared for local time conversions.
+// Therefore we add a conversion into the neutral chrono::days, that can then be assigned
+// to either local_days or sys_days
+// (from https://howardhinnant.github.io/date_algorithms.html#days_from_civil )
+// "Consider these donated to the public domain."
+//-----------------------------------------------------------------------------
+constexpr chrono::days days_from_civil(const chrono::year_month_day& ymd) noexcept
+//-----------------------------------------------------------------------------
+{
+	int      y   = static_cast<int     >(ymd.year ());
+	unsigned m   = static_cast<unsigned>(ymd.month());
+	unsigned d   = static_cast<unsigned>(ymd.day  ());
+	y -= m <= 2;
+	const int      era = (y >= 0 ? y : y - 399) / 400;
+	const unsigned yoe = static_cast<unsigned>(y - era * 400);
+	const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d-1;
+	const unsigned doe = yoe * 365 + yoe/4 - yoe/100 + doy;
+	return chrono::days{ era * 146097 + static_cast<int>(doe) - 719468 };
+}
+
+} // end of namespace detail
+
 class KUnixTime;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -323,9 +350,9 @@ public:
 	constexpr /*explicit*/    operator bool  () const noexcept { return ok();                              }
 
 	/// return count of days in epoch
-	constexpr chrono::sys_days to_sys_days   () const noexcept { return chrono::sys_days(*this); }
+	constexpr chrono::sys_days to_sys_days   () const noexcept { return chrono::sys_days(detail::days_from_civil(*this)); }
 	/// return count of days in epoch
-	constexpr chrono::local_days to_local_days () const noexcept { return chrono::local_days(*this); }
+	constexpr chrono::local_days to_local_days () const noexcept { return chrono::local_days(detail::days_from_civil(*this));  }
 	/// return KUnixTime
 	constexpr KUnixTime       to_unix        ()  const noexcept; // this one is implemented in ktime.h ..
 	/// return struct tm (needed for efficient formatting)
@@ -365,8 +392,6 @@ constexpr std::tm KConstDate::to_tm () const noexcept
 	tm.tm_mon    = months ().count() - 1;
 	tm.tm_year   = years  ().count() - 1900;
 	tm.tm_wday   = weekday().c_encoding();
-	// gcc > 10 does not like the below type conversion from year_month_day to local_days..
-	//	tm.tm_yday   = (m_days - chrono::local_days(chrono::year_month_day(year()/1/1))).count();
 	tm.tm_yday   = (chrono::sys_days(*this) - chrono::sys_days(chrono::year_month_day(year()/1/1))).count();
 	tm.tm_isdst  = 0; // we do not know this ..
 #ifndef DEKAF2_IS_WINDOWS
@@ -478,10 +503,21 @@ inline constexpr
 KDate operator-(const KDate& left, const chrono::days& right) noexcept
 { return chrono::sys_days(left) - right; }
 
-inline chrono::days operator-(const KDate&      left, const KDate&      right) { return left.to_sys_days() - right.to_sys_days(); }
-inline chrono::days operator-(const KConstDate& left, const KConstDate& right) { return left.to_sys_days() - right.to_sys_days(); }
-inline chrono::days operator-(const KConstDate& left, const KDate&      right) { return left.to_sys_days() - right.to_sys_days(); }
-inline chrono::days operator-(const KDate&      left, const KConstDate& right) { return left.to_sys_days() - right.to_sys_days(); }
+inline constexpr
+chrono::days operator-(const KDate&      left, const KDate&      right)
+{ return left.to_sys_days() - right.to_sys_days(); }
+
+inline constexpr
+chrono::days operator-(const KConstDate& left, const KConstDate& right)
+{ return left.to_sys_days() - right.to_sys_days(); }
+
+inline constexpr
+chrono::days operator-(const KConstDate& left, const KDate&      right)
+{ return left.to_sys_days() - right.to_sys_days(); }
+
+inline constexpr
+chrono::days operator-(const KDate&      left, const KConstDate& right)
+{ return left.to_sys_days() - right.to_sys_days(); }
 
 inline constexpr
 KDate& KDate::trunc() noexcept

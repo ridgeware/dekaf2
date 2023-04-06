@@ -744,6 +744,8 @@ TEST_CASE("KTime") {
 		CHECK ( Date1.last_day() == chrono::day(31) );
 		CHECK ( Date1.year()  == chrono::year(2024) );
 		CHECK ( Date1.is_leap()== true              );
+		CHECK ( Date1.to_string() == "2024-08-16 00:00:00"   );
+		CHECK ( kFormat("{:%d/%m/%Y %H:%M:%S}", Date1) == "16/08/2024 00:00:00" );
 
 		Date1 = KUTCTime(chrono::year(2023)/3/8);
 		Date1 += chrono::months(1);
@@ -834,6 +836,8 @@ TEST_CASE("KTime") {
 		CHECK ( Date1.last_day() == chrono::day(29)  );
 		CHECK ( Date1.year()   == chrono::year(2024) );
 		CHECK ( Date1.is_leap()== true               );
+		CHECK ( Date1.to_string() == "2024-02-29 01:00:00"   );
+		CHECK ( kFormat("{:%d/%m/%Y %H:%M:%S}", Date1) == "29/02/2024 01:00:00" );
 
 		KLocalTime Date2(chrono::year(2018)/8/16);
 		CHECK_FALSE ( ( Date2 == Date1 ) );

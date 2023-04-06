@@ -78,6 +78,8 @@ TEST_CASE("KDate")
 		CHECK ( Date1.last_day() == chrono::day(31) );
 		CHECK ( Date1.year()  == chrono::year(2024) );
 		CHECK ( Date1.is_leap()== true              );
+		CHECK ( Date1.to_string() == "2024-08-16"   );
+		CHECK ( kFormat("{:%d/%m/%Y}", Date1) == "16/08/2024" );
 
 		Date1 = KDate(chrono::year(2023)/3/8);
 		Date1 += chrono::months(1);

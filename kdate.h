@@ -50,6 +50,7 @@
 #include <kconfiguration.h>
 #include "kstring.h"
 #include "kstringview.h"
+#include "bits/khash.h"
 
 // we need to allow users of this lib to define a standard less than C++20
 // even when our lib is compiled with C++20 and without Howard Hinnant's date lib -
@@ -556,6 +557,14 @@ KDate& KDate::ceil() noexcept
 }
 
 inline DEKAF2_PUBLIC
+std::ostream& operator <<(std::ostream& stream, KConstDate time)
+{
+	auto s = time.to_string();
+	stream.write(s.data(), s.size());
+	return stream;
+}
+
+inline DEKAF2_PUBLIC
 std::ostream& operator <<(std::ostream& stream, KDate time)
 {
 	auto s = time.to_string();
@@ -564,3 +573,47 @@ std::ostream& operator <<(std::ostream& stream, KDate time)
 }
 
 } // end of namespace dekaf2
+
+namespace fmt {
+
+template <>
+struct formatter<dekaf2::KConstDate> : formatter<std::tm>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KConstDate& date, FormatContext& ctx) const
+	{
+		return formatter<std::tm>::format(date.to_tm(), ctx);
+	}
+};
+
+template <>
+struct formatter<dekaf2::KDate> : formatter<std::tm>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KDate& date, FormatContext& ctx) const
+	{
+		return formatter<std::tm>::format(date.to_tm(), ctx);
+	}
+};
+
+} // end of namespace fmt
+
+namespace std {
+
+template<> struct hash<dekaf2::KConstDate>
+{
+	std::size_t operator()(dekaf2::KConstDate date) const noexcept
+	{
+		return dekaf2::kHash(&date, sizeof(date));
+	}
+};
+
+template<> struct hash<dekaf2::KDate>
+{
+	std::size_t operator()(dekaf2::KDate date) const noexcept
+	{
+		return dekaf2::kHash(&date, sizeof(date));
+	}
+};
+
+} // end of namespace std

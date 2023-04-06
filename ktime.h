@@ -49,6 +49,7 @@
 #include "kduration.h"
 #include "kthreadsafe.h"
 #include "bits/ktemplate.h"
+#include "bits/khash.h"
 #include "kdate.h"
 #include <cinttypes>
 #include <ctime>
@@ -710,3 +711,39 @@ struct formatter<dekaf2::KUTCTime> : formatter<std::tm>
 };
 
 } // end of namespace fmt
+
+namespace std {
+
+template<> struct hash<dekaf2::KUnixTime>
+{
+	std::size_t operator()(dekaf2::KUnixTime time) const noexcept
+	{
+		return dekaf2::kHash(&time, sizeof(time));
+	}
+};
+
+template<> struct hash<dekaf2::KTimeOfDay>
+{
+	std::size_t operator()(dekaf2::KTimeOfDay time) const noexcept
+	{
+		return dekaf2::kHash(&time, sizeof(time));
+	}
+};
+
+template<> struct hash<dekaf2::KUTCTime>
+{
+	std::size_t operator()(dekaf2::KUTCTime time) const noexcept
+	{
+		return dekaf2::kHash(&time, sizeof(time));
+	}
+};
+
+template<> struct hash<dekaf2::KLocalTime>
+{
+	std::size_t operator()(dekaf2::KLocalTime time) const noexcept
+	{
+		return dekaf2::kHash(&time, sizeof(time));
+	}
+};
+
+} // end of namespace std

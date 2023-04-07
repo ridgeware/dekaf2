@@ -35,7 +35,12 @@ TEST_CASE("kFormat")
 	SECTION("chrono")
 	{
 		using namespace std::literals::chrono_literals;
+#if DEKAF2_BITS > 32
+		// this works on 32 bits but spits out a compiler warning
+		// about a stringop overflow in fmt::format - which is not
+		// _our_ problem ..
 		CHECK ( kFormat("{} {}", 42s, 100ms) == "42s 100ms" );
+#endif
 		CHECK ( kFormat("{:%H:%M:%S}", 3h + 15min + 30s) == "03:15:30");
 	}
 }

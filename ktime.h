@@ -168,7 +168,7 @@ public:
 	using base::operator+=;
 	using base::operator-=;
 
-	/// converts to std::time_t timepoint 
+	/// converts to std::time_t timepoint
 	DEKAF2_CONSTEXPR_14 std::time_t to_time_t ()              const noexcept { return to_time_t(*this);                                      }
 	/// converts to std::tm timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14 std::tm     to_tm     ()              const noexcept { return to_tm(*this);                                          }
@@ -220,7 +220,7 @@ DEKAF2_CONSTEXPR_14 std::tm KUnixTime::to_tm(KUnixTime tp) noexcept
 	// break up
 	auto dp      = chrono::floor<chrono::days>(tp);
 	auto ymd     = chrono::year_month_day(dp);
-	auto time    = chrono::make_time(tp - dp);
+	auto time    = chrono::make_time(tp.time_since_epoch() % chrono::hours(24)); // the modulo operation prevents an overflow around the min value of the time point
 	// assign
 	tm.tm_sec    = static_cast<int>(time.seconds().count());
 	tm.tm_min    = static_cast<int>(time.minutes().count());
@@ -301,8 +301,9 @@ DEKAF2_PUBLIC
 KStringViewZ kGetMonthName(uint16_t iMonth, bool bAbbreviated, bool bLocal);
 
 /// Returns day of week for every gregorian date. Sunday == 0.
-DEKAF2_PUBLIC
-uint16_t kDayOfWeek(uint16_t iDay, uint16_t iMonth, uint16_t iYear);
+DEKAF2_PUBLIC constexpr
+uint16_t kDayOfWeek(chrono::year year, chrono::month month, chrono::day day)
+{ return detail::weekday_from_civil(chrono::year_month_day(year/month/day)).c_encoding(); }
 
 /// Create a time stamp following std::format patterns, defaults to "%Y-%m-%d %H:%M:%S"
 /// @param time time struct
@@ -653,7 +654,7 @@ inline chrono::system_clock::duration operator-(const KLocalTime& left, const ch
 inline chrono::system_clock::duration operator-(const chrono::system_clock::time_point left, const KLocalTime& right) { return left - right.to_sys(); }
 
 inline DEKAF2_PUBLIC
-std::ostream& operator <<(std::ostream& stream, KUnixTime time)
+std::ostream& operator<<(std::ostream& stream, KUnixTime time)
 {
 	auto s = time.to_string();
 	stream.write(s.data(), s.size());
@@ -661,7 +662,7 @@ std::ostream& operator <<(std::ostream& stream, KUnixTime time)
 }
 
 inline DEKAF2_PUBLIC
-std::ostream& operator <<(std::ostream& stream, KUTCTime time)
+std::ostream& operator<<(std::ostream& stream, KUTCTime time)
 {
 	auto s = time.to_string();
 	stream.write(s.data(), s.size());
@@ -669,7 +670,7 @@ std::ostream& operator <<(std::ostream& stream, KUTCTime time)
 }
 
 inline DEKAF2_PUBLIC
-std::ostream& operator <<(std::ostream& stream, KLocalTime time)
+std::ostream& operator<<(std::ostream& stream, KLocalTime time)
 {
 	auto s = time.to_string();
 	stream.write(s.data(), s.size());
@@ -680,8 +681,7 @@ std::ostream& operator <<(std::ostream& stream, KLocalTime time)
 
 namespace fmt {
 
-template <>
-struct formatter<dekaf2::KUnixTime> : formatter<std::tm>
+template<> struct formatter<dekaf2::KUnixTime> : formatter<std::tm>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::KUnixTime& time, FormatContext& ctx) const
@@ -690,8 +690,7 @@ struct formatter<dekaf2::KUnixTime> : formatter<std::tm>
 	}
 };
 
-template <>
-struct formatter<dekaf2::KLocalTime> : formatter<std::tm>
+template<> struct formatter<dekaf2::KLocalTime> : formatter<std::tm>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::KLocalTime& time, FormatContext& ctx) const
@@ -700,8 +699,7 @@ struct formatter<dekaf2::KLocalTime> : formatter<std::tm>
 	}
 };
 
-template <>
-struct formatter<dekaf2::KUTCTime> : formatter<std::tm>
+template<> struct formatter<dekaf2::KUTCTime> : formatter<std::tm>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::KUTCTime& time, FormatContext& ctx) const

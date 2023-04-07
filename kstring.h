@@ -2180,7 +2180,7 @@ namespace std
 	{
 		using is_transparent = void;
 
-		bool DEKAF2_CONSTEXPR_14 operator()(dekaf2::KStringView s1, dekaf2::KStringView s2) const
+		bool DEKAF2_CONSTEXPR_17 operator()(dekaf2::KStringView s1, dekaf2::KStringView s2) const
 		{
 			return s1 < s2;
 		}

@@ -640,12 +640,33 @@ TEST_CASE("KTime") {
 
 	SECTION("KUnixTime")
 	{
-		// check that our own constexpr from_time_t() works correctly
-		CHECK ( KUnixTime::from_time_t(23445823474) == std::chrono::system_clock::from_time_t(23445823474) );
+		// check that our own constexpr from_time_t() works correctly (take care to keep time_t small enough
+		// for 32 bit time_t ..)
+		CHECK ( KUnixTime::from_time_t(2445823474) == std::chrono::system_clock::from_time_t(2445823474) );
 		auto tp = std::chrono::system_clock::now();
 		KUnixTime UT = tp;
 		// check that our own constexpr to_time_t() works correctly
 		CHECK ( KUnixTime::to_time_t(UT) == std::chrono::system_clock::to_time_t(tp) );
+
+		// check that time conversions don't have overflows
+		KUnixTime UMax = KUnixTime::max();
+		KUnixTime UMin = KUnixTime::min();
+
+		if (KUnixTime::duration(1) == chrono::microseconds(1))
+		{
+			CHECK ( UMax.to_string() == "32103-01-10 04:00:54"  );
+			CHECK ( UMin.to_string() == "-28164-12-21 04:00:54" );
+		}
+		else if (KUnixTime::duration(1) == chrono::nanoseconds(1))
+		{
+			CHECK ( UMax.to_string() == "2262-04-11 23:47:16"  );
+			CHECK ( UMin.to_string() == "1677-09-21 00:12:43" );
+		}
+		else
+		{
+			INFO("bad system clock duration type of larger than microseconds");
+			CHECK ( false );
+		}
 	}
 
 	SECTION("diff")

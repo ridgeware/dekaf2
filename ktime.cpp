@@ -1274,29 +1274,6 @@ KUnixTime kParseTimestamp(KStringView sTimestamp)
 
 } // kParseTimestamp
 
-//-----------------------------------------------------------------------------
-/// Returns day of week for every gregorian date. Sunday = 0.
-uint16_t kDayOfWeek(uint16_t iDay, uint16_t iMonth, uint16_t iYear)
-//-----------------------------------------------------------------------------
-{
-	static constexpr std::array<uint16_t, 12> MonthOffsets { 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
-
-	if (DEKAF2_UNLIKELY(iMonth < 1 || iMonth > 12))
-	{
-		// prevent us from crashing
-		kDebug(1, "invalid month: {}", iMonth);
-		return 0;
-	}
-
-	if (iMonth < 3)
-	{
-		iYear -= 1;
-	}
-
-	return (iYear + iYear/4 - iYear/100 + iYear/400 + MonthOffsets[iMonth-1] + iDay) % 7;
-
-} // kDayOfWeek
-
 namespace {
 
 //-----------------------------------------------------------------------------
@@ -1709,7 +1686,8 @@ KString KLocalTime::to_string (KStringView sFormat) const
 std::tm KLocalTime::to_tm() const
 //-----------------------------------------------------------------------------
 {
-	std::tm tm;
+	// we do not know all fields of std::tm, therefore let's default initialize it
+	std::tm tm{};
 
 	tm.tm_sec    = static_cast<int>(seconds().count());
 	tm.tm_min    = static_cast<int>(minutes().count());

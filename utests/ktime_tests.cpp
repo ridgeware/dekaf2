@@ -666,7 +666,7 @@ TEST_CASE("KTime") {
 		else if (KUnixTime::duration(1) == chrono::nanoseconds(1))
 		{
 			CHECK ( UMax.to_string() == "2262-04-11 23:47:16"  );
-			CHECK ( UMin.to_string() == "1677-09-21 00:12:43" );
+			CHECK ( UMin.to_string() == "1677-09-21 23:47:16" );
 		}
 		else
 		{

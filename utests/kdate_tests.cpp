@@ -171,5 +171,7 @@ TEST_CASE("KDate")
 		CHECK ( Date2 - Date1 == chrono::duration_cast<chrono::days>(chrono::months(8)) );
 		Date2 = Date1 + chrono::days(60);
 		CHECK ( Date2 - Date1 == chrono::days(60)  );
+		CHECK ( Date1.to_tm().tm_isdst == 0        );
+		CHECK ( Date1.to_string("%Y%Z") == "2024"   );
 	}
 }

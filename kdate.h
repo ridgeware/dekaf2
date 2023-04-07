@@ -320,7 +320,7 @@ constexpr chrono::weekday weekday_from_civil(const chrono::year_month_day& ymd) 
 
 	d += m <= 2 ? y-- : y - 2;
 	
-	return chrono::weekday((23 * m / 9 + d + 4 + y / 4 - y / 100 + y / 400) % 7);
+	return chrono::weekday{ (23 * m / 9 + d + 4 + y / 4 - y / 100 + y / 400) % 7 };
 }
 
 //-----------------------------------------------------------------------------
@@ -335,7 +335,7 @@ constexpr inline uint32_t compute_lookup_offsets()
 //-----------------------------------------------------------------------------
 {
 	uint32_t lookup_offsets = 0;
-	uint8_t  real_start     = 0;
+	uint16_t real_start     = 0;
 
 	std::array<uint16_t, 12> month_start_offset {{ 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30 }};
 
@@ -346,11 +346,11 @@ constexpr inline uint32_t compute_lookup_offsets()
 
 		if (month > 2)
 		{
-			uint8_t naive  = (month - 1) * 31;
-			auto    offset = naive - real_start;
+			uint16_t naive  = (month - 1) * 31;
+			auto     offset = naive - real_start;
 			// make room for the next offset
 			lookup_offsets <<= 3;
-			lookup_offsets |= offset;
+			lookup_offsets  |= offset;
 		}
 	}
 
@@ -369,12 +369,12 @@ constexpr chrono::days yearday_from_civil(const chrono::year_month_day& ymd) noe
 	const auto m = static_cast<unsigned>(ymd.month()) - 1;
 	const auto d = static_cast<unsigned>(ymd.day  ());
 
-	constexpr auto lookup_offset = compute_lookup_offsets();
+	constexpr auto lookup_offsets = compute_lookup_offsets();
 
 	return chrono::days{ m * 31 + d - ((m < 2)
-									   ? 0
-									   : ((lookup_offset >> ((11 - m) * 3) & 7)
-										  - (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)))) };
+	                                   ? 0
+	                                   : ((lookup_offsets >> ((11 - m) * 3) & 7)
+	                                      - (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)))) };
 }
 
 } // end of namespace detail
@@ -408,7 +408,7 @@ public:
 	constexpr chrono::months  months         () const noexcept { return chrono::months(unsigned(month())); }
 	/// return chrono::years
 	constexpr chrono::years   years          () const noexcept { return chrono::years (signed(year()));    }
-	/// return weekday (Sunday == 0)
+	/// return weekday
 	constexpr chrono::weekday weekday        () const noexcept { return chrono::weekday(detail::weekday_from_civil(*this)); }
 	/// return day of year (Jan 01 == 1)
 	constexpr chrono::days    yearday        () const noexcept { return detail::yearday_from_civil(*this); }
@@ -459,18 +459,16 @@ constexpr std::tm KConstDate::to_tm () const noexcept
 	// we do not know all fields of std::tm, therefore let's default initialize it
 	std::tm tm{};
 
-	tm.tm_sec    = 0;
-	tm.tm_min    = 0;
-	tm.tm_hour   = 0;
 	tm.tm_mday   = days   ().count();
 	tm.tm_mon    = months ().count() - 1;
 	tm.tm_year   = years  ().count() - 1900;
 	tm.tm_wday   = weekday().c_encoding();
-	tm.tm_yday   = (chrono::sys_days(*this) - chrono::sys_days(chrono::year_month_day(year()/1/1))).count();
-	tm.tm_isdst  = 0; // we do not know this ..
+	tm.tm_yday   = yearday().count() - 1;
+	// tm_isdst is irrelevant in this context. Leave at 0 instead of setting to -1 to avoid
+	// issues with code that only checks for is_dst == true.
 #ifndef DEKAF2_IS_WINDOWS
-	tm.tm_gmtoff = 0;
-	tm.tm_zone   = const_cast<char*>("");
+	// tm_gmtoff stays at 0
+	tm.tm_zone   = const_cast<char*>(""); // cannot be nullptr or format() crashes on %Z
 #endif
 	return tm;
 
@@ -511,11 +509,11 @@ public:
 	constexpr self& year (chrono::year  y) noexcept { return *this = self(y, month(), day());  }
 
 	/// sets the day of the month - does not check for last_day()- call floor() or ceil() to adjust
-	constexpr self& day  (uint8_t       d) noexcept { return *this = self(year(), month(), chrono::day(d)); }
+	constexpr self& day  (uint8_t       d) noexcept { return day  (chrono::day(d)  );          }
 	/// sets the month of the year - does not check for last_day() - call floor() or ceil() to adjust
-	constexpr self& month(uint8_t       m) noexcept { return *this = self(year(), chrono::month(m), day()); }
+	constexpr self& month(uint8_t       m) noexcept { return month(chrono::month(m));          }
 	/// sets the year - does not check for last_day() - call floor() or ceil() to adjust
-	constexpr self& year (int16_t       y) noexcept { return *this = self(chrono::year(y), month(), day()); }
+	constexpr self& year (int16_t       y) noexcept { return year (chrono::year(y) );          }
 	// consider weekday(weekday[index]/last)
 
 	using base::day;

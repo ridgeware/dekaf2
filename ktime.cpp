@@ -1728,6 +1728,7 @@ std::tm KLocalTime::to_tm() const
 			return tm;
 		}
 	}
+
 	// try to insert it as a new abbreviation in unique access
 	auto p = s_TimezoneNameStore.unique()->insert(sAbbrev);
 	// and add a pointer to it to the tm_zone char*

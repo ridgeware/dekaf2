@@ -140,14 +140,14 @@ public:
 	using time_point = chrono::system_clock::time_point;
 	using clock      = chrono::system_clock;
 	
-	                    KUnixTime() = default;
-	DEKAF2_CONSTEXPR_14 KUnixTime(const base& other) noexcept : base(other) {}
-	DEKAF2_CONSTEXPR_14 KUnixTime(base&& other)      noexcept : base(std::move(other)) {}
+	                             KUnixTime() = default;
+	DEKAF2_CONSTEXPR_14          KUnixTime(const base& other) noexcept : base(other) {}
+	DEKAF2_CONSTEXPR_14          KUnixTime(base&& other)      noexcept : base(std::move(other)) {}
 
 	/// construct from time_t timepoint (constexpr)
-	DEKAF2_CONSTEXPR_14          KUnixTime(time_t time)       : KUnixTime(from_time_t(time)) {}
+	DEKAF2_CONSTEXPR_14          KUnixTime(time_t time)       noexcept : KUnixTime(from_time_t(time)) {}
 	/// construct from std::tm timepoint (constexpr)
-	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const std::tm& tm) : KUnixTime(    from_tm(tm)  ) {}
+	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const std::tm& tm) noexcept : KUnixTime(    from_tm(tm)  ) {}
 	/// construct from a string representation, which is interpreted as UTC time (if there is no time zone indicator telling other)
 	/// - the string format is automatically detected from about 100 common patterns
 	                    explicit KUnixTime (KStringView sTimestamp);
@@ -160,7 +160,7 @@ public:
 	/// returns true if not zero
 	DEKAF2_CONSTEXPR_14 explicit operator bool()              const noexcept { return time_since_epoch() != duration::zero();                }
 	/// converts implicitly to time_t timepoint, although it loses precision..
-	DEKAF2_CONSTEXPR_14 explicit operator std::time_t()                const noexcept { return to_time_t(*this);                                      }
+	DEKAF2_CONSTEXPR_14 explicit operator std::time_t()       const noexcept { return to_time_t(*this);                                      }
 
 	DEKAF2_CONSTEXPR_17 self& operator+=(std::time_t seconds)       noexcept { base::operator += (chrono::seconds(seconds)); return *this;   }
 	DEKAF2_CONSTEXPR_17 self& operator-=(std::time_t seconds)       noexcept { base::operator -= (chrono::seconds(seconds)); return *this;   }
@@ -230,9 +230,9 @@ DEKAF2_CONSTEXPR_14 std::tm KUnixTime::to_tm(KUnixTime tp) noexcept
 	tm.tm_year   = static_cast<int>(ymd.year()) - 1900;
 	tm.tm_wday   = chrono::weekday(dp).c_encoding();
 	tm.tm_yday   = (dp - chrono::sys_days(chrono::year_month_day(ymd.year()/1/1))).count();
-	tm.tm_isdst  = 0;
+	// tm_isdst is defaulted to 0
 #ifndef DEKAF2_IS_WINDOWS
-	tm.tm_gmtoff = 0;
+	// tm_gmtoff is defaulted to 0
 	tm.tm_zone   = const_cast<char*>("UTC");
 #endif
 	return tm;
@@ -529,7 +529,7 @@ private:
 DEKAF2_CONSTEXPR_14 bool operator==(const KUTCTime& left, const KUTCTime& right) { return left.to_sys() == right.to_sys(); }
 DEKAF2_CONSTEXPR_14 bool operator< (const KUTCTime& left, const KUTCTime& right) { return left.to_sys() <  right.to_sys(); }
 
-DEKAF2_COMPARISON_OPERATORS(KUTCTime)
+DEKAF2_COMPARISON_OPERATORS(KUTCTime) // TODO these should be constexpr
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A broken down time representation in local time (any timezone that this system supports) - you
@@ -642,12 +642,15 @@ inline bool operator<=(const KLocalTime& left, const KUTCTime&   right) { return
 inline bool operator> (const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() >  right.to_sys(); }
 inline bool operator>=(const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() >= right.to_sys(); }
 
+constexpr
 inline KDuration operator-(const KUTCTime&   left, const KUTCTime&   right) { return left.to_sys() - right.to_sys(); }
 inline KDuration operator-(const KLocalTime& left, const KLocalTime& right) { return left.to_sys() - right.to_sys(); }
 inline KDuration operator-(const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() - right.to_sys(); }
 inline KDuration operator-(const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() - right.to_sys(); }
 
+constexpr
 inline chrono::system_clock::duration operator-(const KUTCTime& left, const chrono::system_clock::time_point right) { return left.to_sys() - right; }
+constexpr
 inline chrono::system_clock::duration operator-(const chrono::system_clock::time_point left, const KUTCTime& right) { return left - right.to_sys(); }
 
 inline chrono::system_clock::duration operator-(const KLocalTime& left, const chrono::system_clock::time_point right) { return left.to_sys() - right; }
@@ -684,6 +687,7 @@ namespace fmt {
 template<> struct formatter<dekaf2::KUnixTime> : formatter<std::tm>
 {
 	template <typename FormatContext>
+	DEKAF2_CONSTEXPR_14
 	auto format(const dekaf2::KUnixTime& time, FormatContext& ctx) const
 	{
 		return formatter<std::tm>::format(dekaf2::KUnixTime::to_tm(time), ctx);
@@ -693,6 +697,7 @@ template<> struct formatter<dekaf2::KUnixTime> : formatter<std::tm>
 template<> struct formatter<dekaf2::KLocalTime> : formatter<std::tm>
 {
 	template <typename FormatContext>
+	DEKAF2_CONSTEXPR_14
 	auto format(const dekaf2::KLocalTime& time, FormatContext& ctx) const
 	{
 		return formatter<std::tm>::format(time.to_tm(), ctx);

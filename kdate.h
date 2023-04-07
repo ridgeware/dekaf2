@@ -295,15 +295,86 @@ namespace detail {
 constexpr chrono::days days_from_civil(const chrono::year_month_day& ymd) noexcept
 //-----------------------------------------------------------------------------
 {
-	int      y   = static_cast<int     >(ymd.year ());
-	unsigned m   = static_cast<unsigned>(ymd.month());
-	unsigned d   = static_cast<unsigned>(ymd.day  ());
+	      auto y = static_cast<int     >(ymd.year ());
+	const auto m = static_cast<unsigned>(ymd.month());
+	const auto d = static_cast<unsigned>(ymd.day  ());
+
 	y -= m <= 2;
+
 	const int      era = (y >= 0 ? y : y - 399) / 400;
 	const unsigned yoe = static_cast<unsigned>(y - era * 400);
 	const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d-1;
 	const unsigned doe = yoe * 365 + yoe/4 - yoe/100 + doy;
 	return chrono::days{ era * 146097 + static_cast<int>(doe) - 719468 };
+}
+// Howard Hinnant until here
+
+// compute the weekday from ymd without going over days_from_civil
+//-----------------------------------------------------------------------------
+constexpr chrono::weekday weekday_from_civil(const chrono::year_month_day& ymd) noexcept
+//-----------------------------------------------------------------------------
+{
+	      auto y = static_cast<int     >(ymd.year ());
+	const auto m = static_cast<unsigned>(ymd.month());
+	      auto d = static_cast<unsigned>(ymd.day  ());
+
+	d += m <= 2 ? y-- : y - 2;
+	
+	return chrono::weekday((23 * m / 9 + d + 4 + y / 4 - y / 100 + y / 400) % 7);
+}
+
+//-----------------------------------------------------------------------------
+// Compile-time constant expression to compute a lookup table for all months
+// following February stuffed into one 32 bit unsigned.
+// The offset of a month start to the naive month start (month * 31) varies from
+// 3 to 7, and needs thus 3 bits to represent, times 10 months from March to
+// December = 30 bits.
+// We could of course also simply hardcode the result for the lookup value,
+// which is 462609335U, but constexpr explains better the algorithm behind..
+constexpr inline uint32_t compute_lookup_offsets()
+//-----------------------------------------------------------------------------
+{
+	uint32_t lookup_offsets = 0;
+	uint8_t  real_start     = 0;
+
+	std::array<uint16_t, 12> month_start_offset {{ 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30 }};
+
+	for (int month = 1; month <= 12; ++month)
+	{
+		// 10 months from march til december
+		real_start += month_start_offset[month - 1];
+
+		if (month > 2)
+		{
+			uint8_t naive  = (month - 1) * 31;
+			auto    offset = naive - real_start;
+			// make room for the next offset
+			lookup_offsets <<= 3;
+			lookup_offsets |= offset;
+		}
+	}
+
+	return lookup_offsets;
+}
+
+//-----------------------------------------------------------------------------
+// we do not want to use lookup tables in the calculation because that would require
+// to do bounds checking, which we do not want to expense - so we use a lookup table
+// for the month start offsets from a naive first calculation (m * 31) that is condensed
+// into an unsigned integer and accessed by bit shifts - all in a constant expression.
+constexpr chrono::days yearday_from_civil(const chrono::year_month_day& ymd) noexcept
+//-----------------------------------------------------------------------------
+{
+	const auto y = static_cast<int     >(ymd.year ());
+	const auto m = static_cast<unsigned>(ymd.month()) - 1;
+	const auto d = static_cast<unsigned>(ymd.day  ());
+
+	constexpr auto lookup_offset = compute_lookup_offsets();
+
+	return chrono::days{ m * 31 + d - ((m < 2)
+									   ? 0
+									   : ((lookup_offset >> ((11 - m) * 3) & 7)
+										  - (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)))) };
 }
 
 } // end of namespace detail
@@ -338,7 +409,9 @@ public:
 	/// return chrono::years
 	constexpr chrono::years   years          () const noexcept { return chrono::years (signed(year()));    }
 	/// return weekday (Sunday == 0)
-	constexpr chrono::weekday weekday        () const noexcept { return chrono::weekday(chrono::sys_days(*this)); }
+	constexpr chrono::weekday weekday        () const noexcept { return chrono::weekday(detail::weekday_from_civil(*this)); }
+	/// return day of year (Jan 01 == 1)
+	constexpr chrono::days    yearday        () const noexcept { return detail::yearday_from_civil(*this); }
 	/// returns true if year is leap year
 	constexpr bool            is_leap        () const noexcept { return year().is_leap();                  }
 	/// returns the last day of the month
@@ -430,7 +503,7 @@ public:
 	// allow all base class constructors
 	using base::base;
 
-	/// sets the day of the month - does not check for last_day()- call floor() or ceil() to adjust
+	/// sets the day of the month - does not check for last_day() - call floor() or ceil() to adjust
 	constexpr self& day  (chrono::day   d) noexcept { return *this = self(year(), month(), d); }
 	/// sets the month of the year - does not check for last_day() - call floor() or ceil() to adjust
 	constexpr self& month(chrono::month m) noexcept { return *this = self(year(), m, day());   }
@@ -557,7 +630,7 @@ KDate& KDate::ceil() noexcept
 }
 
 inline DEKAF2_PUBLIC
-std::ostream& operator <<(std::ostream& stream, KConstDate time)
+std::ostream& operator<<(std::ostream& stream, KConstDate time)
 {
 	auto s = time.to_string();
 	stream.write(s.data(), s.size());
@@ -565,7 +638,7 @@ std::ostream& operator <<(std::ostream& stream, KConstDate time)
 }
 
 inline DEKAF2_PUBLIC
-std::ostream& operator <<(std::ostream& stream, KDate time)
+std::ostream& operator<<(std::ostream& stream, KDate time)
 {
 	auto s = time.to_string();
 	stream.write(s.data(), s.size());
@@ -576,8 +649,7 @@ std::ostream& operator <<(std::ostream& stream, KDate time)
 
 namespace fmt {
 
-template <>
-struct formatter<dekaf2::KConstDate> : formatter<std::tm>
+template<> struct formatter<dekaf2::KConstDate> : formatter<std::tm>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::KConstDate& date, FormatContext& ctx) const
@@ -586,8 +658,7 @@ struct formatter<dekaf2::KConstDate> : formatter<std::tm>
 	}
 };
 
-template <>
-struct formatter<dekaf2::KDate> : formatter<std::tm>
+template<> struct formatter<dekaf2::KDate> : formatter<std::tm>
 {
 	template <typename FormatContext>
 	auto format(const dekaf2::KDate& date, FormatContext& ctx) const

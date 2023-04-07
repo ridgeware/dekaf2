@@ -299,8 +299,14 @@ TEST_CASE("KTime") {
 			}
 			// test for the day of year calculation
 			CHECK ( Local1.to_tm().tm_yday   == 0     );
+			Local1 = kParseTimestamp("16.08.2011 12:00:00");
+			CHECK ( Local1.yearday().count() == 228   );
+			CHECK ( Local1.to_tm().tm_yday   == 227   );
+			CHECK ( Local1.is_leap()         == false );
 			Local1 = kParseTimestamp("16.08.2012 12:00:00");
-			CHECK ( Local1.to_tm().tm_yday   == 228  );
+			CHECK ( Local1.yearday().count() == 229   );
+			CHECK ( Local1.to_tm().tm_yday   == 228   );
+			CHECK ( Local1.is_leap()         == true  );
 		}
 	}
 

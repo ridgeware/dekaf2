@@ -1696,9 +1696,7 @@ std::tm KLocalTime::to_tm() const
 	tm.tm_mon    = months ().count() - 1;
 	tm.tm_year   = years  ().count() - 1900;
 	tm.tm_wday   = weekday().c_encoding();
-	// gcc > 10 does not like the below type conversion from year_month_day to local_days..
-//	tm.tm_yday   = (m_days - chrono::local_days(chrono::year_month_day(year()/1/1))).count();
-	tm.tm_yday   = (detail::days_from_civil(KConstDate(*this)) - detail::days_from_civil(chrono::year_month_day(year()/1/1))).count();
+	tm.tm_yday   = yearday().count() - 1;
 	tm.tm_isdst  = is_dst ();
 
 #ifndef DEKAF2_IS_WINDOWS

@@ -678,7 +678,6 @@ public:
 	using base = KParsedTimestampBase;
 
 	KParsedTimestamp() = default;
-
 	KParsedTimestamp(KStringView sTimestamp, const chrono::time_zone* timezone = nullptr)                      : base(Parse(sTimestamp), timezone)          {}
 	KParsedTimestamp(KStringView sFormat, KStringView sTimestamp, const chrono::time_zone* timezone = nullptr) : base(Parse(sFormat, sTimestamp), timezone) {}
 
@@ -707,7 +706,6 @@ public:
 	using base = KParsedTimestampBase;
 
 	KParsedWebTimestamp() = default;
-
 	KParsedWebTimestamp(KStringView sTimestamp, bool bOnlyGMT) : base(Parse(sTimestamp, bOnlyGMT), nullptr) {}
 
 	using base::base;
@@ -757,54 +755,47 @@ DEKAF2_PUBLIC inline KStringViewZ kGetLocalMonthName(chrono::month month, bool b
 /// Get an array of the local abbreviated or full month names of the given locale
 DEKAF2_PUBLIC std::array<KString, 12> kGetLocalMonthNames(const std::locale& locale, bool bAbbreviated);
 
-/// Returns day of week for every gregorian date. Sunday == 0.
-DEKAF2_PUBLIC constexpr uint16_t kDayOfWeek(chrono::year year, chrono::month month, chrono::day day) { return detail::weekday_from_civil(chrono::year_month_day(year/month/day)).c_encoding(); }
+/// Returns day of week for every gregorian date
+DEKAF2_PUBLIC constexpr chrono::weekday kDayOfWeek(chrono::year year, chrono::month month, chrono::day day) { return detail::weekday_from_civil(chrono::year_month_day(year/month/day)); }
 
-/// Create a UTC time stamp following std::format patterns, defaults to "%Y-%m-%d %H:%M:%S"
-/// If tTime is constructed with 0, current time is used.
-/// @param tTime KUTCTime. If !ok(), query current time from the system
-/// @param pszFormat format string
+/// Create a UTC time stamp following std::format patterns
+/// @param tUTC KUTCTime. If !ok(), queries current time from the system, defaults to current time
+/// @param sFormat format string, defaults to "%Y-%m-%d %H:%M:%S"
 /// @return the timestamp string
 DEKAF2_PUBLIC KString kFormTimestamp (const KUTCTime& tUTC = KUTCTime::now(), KStringView sFormat = detail::fDefaultDateTime);
 
-/// Create a local time stamp following std::format patterns, defaults to "%Y-%m-%d %H:%M:%S"
-/// If tTime is constructed with 0, current time is used.
-/// @param timezone the time zone into which the unix time shall be translated
-/// @param tTime KUnixTime. If 0, query current time from the system
-/// @param pszFormat format string
+/// Create a local time stamp following std::format patterns
+/// @param tLocal KLocalTime
+/// @param sFormat format string, defaults to "%Y-%m-%d %H:%M:%S"
 /// @return the timestamp string
 DEKAF2_PUBLIC KString kFormTimestamp (const KLocalTime& tLocal, KStringView sFormat = detail::fDefaultDateTime);
 
-/// Create a time stamp following std::format patterns, defaults to "%Y-%m-%d %H:%M:%S"
-/// If tTime is constructed with 0, current time is used.
+/// Create a time stamp following std::format patterns
 /// @param locale a system locale to localize day and month names
-/// @param timezone the time zone into which the unix time shall be translated
-/// @param tTime KUnixTime. If 0, query current time from the system
-/// @param pszFormat format string
+/// @param tUTC KUTCTime. If !ok(), queries current time from the system
+/// @param sFormat format string, defaults to "%Y-%m-%d %H:%M:%S"
 /// @return the timestamp string
 DEKAF2_PUBLIC KString kFormTimestamp (const std::locale& locale, const KUTCTime& tUTC, KStringView sFormat = detail::fDefaultDateTime);
 
-/// Create a time stamp following std::format patterns, defaults to "%Y-%m-%d %H:%M:%S"
-/// If tTime is constructed with 0, current time is used.
+/// Create a time stamp following std::format patterns
 /// @param locale a system locale to localize day and month names
-/// @param timezone the time zone into which the unix time shall be translated
-/// @param tTime KUnixTime. If 0, query current time from the system
-/// @param pszFormat format string
+/// @param tLocal KLocalTime
+/// @param sFormat format string, defaults to "%Y-%m-%d %H:%M:%S"
 /// @return the timestamp string
 DEKAF2_PUBLIC KString kFormTimestamp (const std::locale& locale, const KLocalTime& tLocal, KStringView sFormat = detail::fDefaultDateTime);
 
 /// Create a HTTP time stamp
-/// @param tTime Seconds since epoch. If constructed with 0 or defaulted, query current time from the system
+/// @param tUTC KUTCTime, defaults to current time
 /// @return the timestamp string
 DEKAF2_PUBLIC inline KString kFormHTTPTimestamp (const KUTCTime& tUTC = KUTCTime::now())     { return detail::FormWebTimestamp(tUTC, "GMT"); }
 
 /// Create a SMTP time stamp
-/// @param tTime Seconds since epoch. If constructed with 0 or defaulted, query current time from the system
+/// @param tUTC KUTCTime, defaults to current time
 /// @return the timestamp string
 DEKAF2_PUBLIC inline KString kFormSMTPTimestamp (const KUTCTime& tUTC = KUTCTime::now())     { return detail::FormWebTimestamp(tUTC, "-0000"); }
 
 /// Create a common log format time stamp
-/// @param tTime Seconds since epoch. If constructed with 0 or defaulted, query current time from the system
+/// @param tUTC KUTCTime, defaults to current time
 /// @return the timestamp string
 // [18/Sep/2011:19:18:28 +0000]
 DEKAF2_PUBLIC inline KString kFormCommonLogTimestamp(const KUTCTime& tUTC = KUTCTime::now()) { return kFormat("[{:%d/%b/%Y:%H:%M:%S %z}]", tUTC); }
@@ -822,7 +813,7 @@ DEKAF2_PUBLIC inline KString kFormCommonLogTimestamp(const KUTCTime& tUTC = KUTC
 /// @param sFormat the parse format string
 /// @param sTimestamp the string to parse
 /// @param timezone the timezone to assume if there is no timezone indication in the string - defaults to UTC
-/// @return KUnixTime of the time stamp or 0 for error
+/// @return a detail::KParsedTimestamp, that implicitly converts into either KUnixTime, KUTCTime, or KLocalTime. Check with .ok() for valid result.
 DEKAF2_PUBLIC inline detail::KParsedTimestamp kParseTimestamp(KStringView sFormat, KStringView sTimestamp, const chrono::time_zone* timezone = nullptr) { return detail::KParsedTimestamp(sFormat, sTimestamp, timezone); }
 
 /// Parse any timestamp that matches a format string built from h m s D M Y, and a S U z Z N ?
@@ -837,41 +828,47 @@ DEKAF2_PUBLIC inline detail::KParsedTimestamp kParseTimestamp(KStringView sForma
 /// example: "???, DD NNN YYYY hh:mm:ss zzz" for a web time stamp
 /// @param sFormat the parse format string
 /// @param sTimestamp the string to parse
-/// @param timezone the timezone to assume if there is no timezone indication in the string - defaults to current zone. Is also used as the timezone for the result type.
-/// @return KUnixTime of the time stamp or 0 for error
+/// @param timezone the timezone to assume if there is no timezone indication in the string - defaults to current zone. Is also used as the timezone for the result type. If the string contained a time zone indication, it is translated into the timezone of the result type.
+/// @return KLocalTime of the time stamp. Check with .ok() for valid result.
 DEKAF2_PUBLIC inline KLocalTime kParseLocalTimestamp(KStringView sFormat, KStringView sTimestamp, const chrono::time_zone* timezone = chrono::current_zone()) { return detail::KParsedTimestamp(sFormat, sTimestamp, timezone); }
 
 /// parse a timestamp from predefined formats - the format is automatically (and fast) detected from about 130 common patterns
-/// @param sTimestamp the string to parse
-/// @param timezone the timezone to assume if there is no timezone indication in the string - defaults to nullptr == UTC
+/// @param sTimestamp the string to parse - if there is no timezone indication in the string it is assumed as UTC
+/// @return a detail::KParsedTimestamp, that implicitly converts into either KUnixTime, KUTCTime, or KLocalTime. Check with .ok() for valid result.
 DEKAF2_PUBLIC inline detail::KParsedTimestamp kParseTimestamp(KStringView sTimestamp)    { return detail::KParsedTimestamp(sTimestamp);     }
 
 /// parse a timestamp from predefined formats - the format is automatically (and fast) detected from about 130 common patterns
 /// @param sTimestamp the string to parse
-/// @param timezone the timezone to assume if there is no timezone indication in the string - defaults to current zone. Is also used as the timezone for the result type.
+/// @param timezone the timezone to assume if there is no timezone indication in the string - defaults to current zone. Is also used as the timezone for the result type. If the string contained a time zone indication, it is translated into the timezone of the result type.
+/// @return KLocalTime of the time stamp. Check with .ok() for valid result.
 DEKAF2_PUBLIC inline KLocalTime kParseLocalTimestamp(KStringView sTimestamp, const chrono::time_zone* timezone = chrono::current_zone()) { return detail::KParsedTimestamp(sTimestamp, timezone); }
 
 /// Parse a HTTP time stamp - only accepts GMT timezone
 /// @param sTime time stamp to parse
-/// @return KUnixTime of the time stamp or 0 for error
+/// @return a detail::KParsedWebTimestamp, that implicitly converts into either KUnixTime, KUTCTime, or KLocalTime. Check with .ok() for valid result.
 DEKAF2_PUBLIC inline detail::KParsedWebTimestamp kParseHTTPTimestamp (KStringView sTime) { return detail::KParsedWebTimestamp(sTime, true ); }
 
-/// Parse a SMTP time stamp - accepts variable timezone in -0500 format
+/// Parse a SMTP time stamp - accepts variable timezone in -0500 format or timezone acronyms
 /// @param sTime time stamp to parse
-/// @return KUnixTime of the time stamp or 0 for error
+/// @return a detail::KParsedWebTimestamp, that implicitly converts into either KUnixTime, KUTCTime, or KLocalTime. Check with .ok() for valid result.
 DEKAF2_PUBLIC inline detail::KParsedWebTimestamp kParseSMTPTimestamp (KStringView sTime) { return detail::KParsedWebTimestamp(sTime, false); }
 
-/// Parse a time zone name like EDT / GMT / CEST in uppercase and return offset to GMT in minutes
+/// Parse a time zone abbreviation like EDT / GMT / CEST in uppercase and return offset to GMT
+/// @param sTimezone the abbreviation of a timezone to search for
 /// @return chrono::minutes of timezone offset, or -1 minute in case of error
 DEKAF2_PUBLIC chrono::minutes kGetTimezoneOffset(KStringViewZ sTimezone);
 
 /// Form a string that expresses a duration
+/// @param iNumSeconds count of seconds
+/// @param bLongForm set to true for verbose output: verbose = "3 days, 23 hrs, 47 mins, 16 secs", condensed = "2.2 wks"
+/// @return the output string
 DEKAF2_PUBLIC KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm = false);
 
 /// Form a string that expresses a duration
 /// @param Duration a KDuration value
-/// @param bLongForm set to true for verbose output
+/// @param bLongForm set to true for verbose output: verbose = "3 days, 23 hrs, 47 mins, 16 secs", condensed = "2.2 wks"
 /// @param sMinInterval unit to display if duration is 0 ("less than a ...")
+/// @return the output string
 DEKAF2_PUBLIC KString kTranslateDuration(const KDuration& Duration, bool bLongForm = false, KStringView sMinInterval = "nanosecond");
 
 

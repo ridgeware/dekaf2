@@ -49,6 +49,7 @@
 #include "dekaf2.h"
 #include "kinshell.h"
 #include "kutf8.h"             // for Windows API conversions
+#include "kexception.h"
 #include <thread>
 #include <cstdlib>
 #include <ctime>
@@ -1290,11 +1291,31 @@ std::locale kGetGlobalLocale()
 } // kGetGlobalLocale
 
 //-----------------------------------------------------------------------------
-char kGetDecimalPoint()
+std::locale kGetLocale(KStringViewZ sLocale, bool bThrow)
 //-----------------------------------------------------------------------------
 {
-	auto locale = kGetGlobalLocale();
+	DEKAF2_TRY
+	{
+		return std::locale(sLocale);
+	}
+	DEKAF2_CATCH (const std::exception& ex)
+	{
+		kDebug(1, "failed to get locale for {}: {}", sLocale, ex.what());
 
+		if (bThrow)
+		{
+			throw KException(ex.what());
+		}
+
+		return std::locale();
+	}
+
+} // kGetLocale
+
+//-----------------------------------------------------------------------------
+char kGetDecimalPoint(std::locale locale)
+//-----------------------------------------------------------------------------
+{
 	if (std::has_facet<std::numpunct<char>>(locale))
 	{
 		return std::use_facet<std::numpunct<char>>(locale).decimal_point();
@@ -1307,11 +1328,9 @@ char kGetDecimalPoint()
 } // kGetDecimalPoint
 
 //-----------------------------------------------------------------------------
-char kGetThousandsSeparator()
+char kGetThousandsSeparator(std::locale locale)
 //-----------------------------------------------------------------------------
 {
-	auto locale = kGetGlobalLocale();
-
 	if (std::has_facet<std::numpunct<char>>(locale))
 	{
 		return std::use_facet<std::numpunct<char>>(locale).thousands_sep();

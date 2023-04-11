@@ -25,7 +25,7 @@ TEST_CASE("KDate")
 
 		using namespace chrono::literals;
 
-#if DEKAF2_HAS_CPP_20 && (!DEKAF2_IS_GCC || DEKAF2_GCC_VERSION_MAJOR > 10)
+#if DEKAF2_HAS_DATE_AND_YEAR_LITERALS
 		auto yy     = 2000y;
 		auto dd     = 12d;
 #else
@@ -39,7 +39,7 @@ TEST_CASE("KDate")
 		auto us     = 12us;
 		auto ns     = 12ns;
 		auto tp     = chrono::sys_days{dd/10/yy} + hh + mm + ss + ms + us + ns;
-#if DEKAF2_HAS_CPP_20 && (!DEKAF2_IS_GCC || DEKAF2_GCC_VERSION_MAJOR > 10)
+#if DEKAF2_HAS_DATE_AND_YEAR_LITERALS
 		auto t      = chrono::sys_days{10d/10/2012} + 12h + 38min + 40s + 123456us;
 #else
 		auto t      = chrono::sys_days{chrono::day(10)/10/2012} + 12h + 38min + 40s + 123456us;
@@ -172,6 +172,7 @@ TEST_CASE("KDate")
 		Date2 = Date1 + chrono::days(60);
 		CHECK ( Date2 - Date1 == chrono::days(60)  );
 		CHECK ( Date1.to_tm().tm_isdst == 0        );
-		CHECK ( Date1.to_string("%Y%Z") == "2024"   );
+		CHECK_NOTHROW( Date1.to_string("%Y%Z")     );
+		CHECK ( Date1.to_string("%Y%Z") == "2024"  ); // this would look differently with time_put() and gcc..
 	}
 }

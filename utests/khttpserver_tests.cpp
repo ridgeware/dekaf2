@@ -38,7 +38,7 @@ X-ProxyUser-Ip: 203.0.113.19
 		Browser.Parse();
 		CHECK ( Browser.GetRemoteIP() == "192.0.2.60" );
 		CHECK ( Browser.GetRemotePort() == 0 );
-		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTPS );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTPS ) ); // inner parens for clang 7
 	}
 
 	SECTION("GetRemoteIP 2")
@@ -58,7 +58,7 @@ X-Forwarded-For: 203.0.113.195, 70.41.3.18, 150.172.238.178
 		Browser.Parse();
 		CHECK ( Browser.GetRemoteIP() == "203.0.113.195" );
 		CHECK ( Browser.GetRemotePort() == 0 );
-		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTP ) );
 	}
 
 	SECTION("GetRemoteIP 2")
@@ -77,7 +77,7 @@ Host: www.test.com
 		Browser.Parse();
 		CHECK ( Browser.GetRemoteIP() == "192.168.178.1" );
 		CHECK ( Browser.GetRemotePort() == 234 );
-		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTPS );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTPS ) );
 	}
 
 	SECTION("GetRemoteIP 3")
@@ -97,7 +97,7 @@ X-Forwarded-For: 2001:db8:85a3:8d3:1319:8a2e:370:7348
 		Browser.Parse();
 		CHECK ( Browser.GetRemoteIP() == "2001:db8:85a3:8d3:1319:8a2e:370:7348" );
 		CHECK ( Browser.GetRemotePort() == 0 );
-		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTP ) );
 	}
 
 	SECTION("GetRemoteIP 4")
@@ -117,7 +117,7 @@ X-Forwarded-For: 203.0.113.195
 		Browser.Parse();
 		CHECK ( Browser.GetRemoteIP() == "203.0.113.195" );
 		CHECK ( Browser.GetRemotePort() == 0 );
-		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTP ) );
 	}
 
 	SECTION("GetRemoteIP 5")
@@ -137,7 +137,7 @@ X-ProxyUser-Ip: 203.0.113.19
 		Browser.Parse();
 		CHECK ( Browser.GetRemoteIP() == "203.0.113.19" );
 		CHECK ( Browser.GetRemotePort() == 0 );
-		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTP ) );
 	}
 
 	SECTION("GetRemoteIP 6")
@@ -157,7 +157,7 @@ Forwarded: For="[2001:db8:cafe::17]:4711"
 		Browser.Parse();
 		CHECK ( Browser.GetRemoteIP() == "2001:db8:cafe::17" );
 		CHECK ( Browser.GetRemotePort() == 4711 );
-		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTP ) );
 	}
 
 	SECTION("GetRemoteIP 7")
@@ -177,7 +177,7 @@ Forwarded: for="[2001:db8:cafe::17]"
 		Browser.Parse();
 		CHECK ( Browser.GetRemoteIP() == "2001:db8:cafe::17" );
 		CHECK ( Browser.GetRemotePort() == 0 );
-		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTP ) );
 	}
 
 	SECTION("GetRemoteIP 8")
@@ -197,7 +197,7 @@ Forwarded: for=192.0.2.43:1234, for=198.51.100.17; proto=https
 		Browser.Parse();
 		CHECK ( Browser.GetRemoteIP() == "192.0.2.43" );
 		CHECK ( Browser.GetRemotePort() == 1234 );
-		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTPS );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTPS ) );
 	}
 
 	SECTION("RequestLine")
@@ -218,7 +218,7 @@ Forwarded: for=192.0.2.43:1234, for=198.51.100.17; proto=https
 		CHECK ( Browser.Error() == "invalid request line" );
 		CHECK ( Browser.GetRemoteIP() == "192.168.178.1" );
 		CHECK ( Browser.GetRemotePort() == 234 );
-		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTP ) );
 	}
 
 	SECTION("RequestLine")
@@ -239,7 +239,7 @@ Forwarded: for=192.0.2.43:1234, for=198.51.100.17; proto=https
 		CHECK ( Browser.Error() == "invalid request line" );
 		CHECK ( Browser.GetRemoteIP() == "192.168.178.1" );
 		CHECK ( Browser.GetRemotePort() == 234 );
-		CHECK ( Browser.GetRemoteProto() == url::KProtocol::HTTP );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTP ) );
 	}
 
 }

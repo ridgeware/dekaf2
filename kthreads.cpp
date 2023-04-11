@@ -52,7 +52,7 @@ struct formatter<std::thread::id> : formatter<string_view>
 	auto format(const std::thread::id& id, FormatContext& ctx) const
 	{
 		dekaf2::KString sID;
-		dekaf2::KOutStringStream oss(sID);
+		dekaf2::KOStringStream oss(sID);
 		oss << id;
 		return formatter<string_view>::format(sID, ctx);
 	}

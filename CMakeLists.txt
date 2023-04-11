@@ -45,7 +45,7 @@ cmake_minimum_required(VERSION 3.13)
 cmake_policy(SET CMP0048 NEW)
 
 # declare the project
-project(dekaf2 VERSION 2.0.25 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.26 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -651,6 +651,21 @@ else()
 	message(STATUS "no chrono timezone support in std::chrono before C++20 - will configure for date-tz lib as replacement")
 endif()
 
+if (CMAKE_CXX_STANDARD GREATER 17)
+	try_compile(DEKAF2_HAS_DATE_AND_YEAR_LITERALS
+				${GENERATED_FILES_DIR}
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_year_and_day_literals_test.cpp"
+				COMPILE_DEFINITIONS "--std=c++20")
+
+	if(DEKAF2_HAS_DATE_AND_YEAR_LITERALS)
+		message(STATUS "we have year and day literals support in std::chrono")
+	else()
+		message(STATUS "we do not have year and day literals support in std::chrono")
+	endif()
+else()
+	message(STATUS "no year and day literals support in std::chrono before C++20")
+endif()
+
 # create the configuration header file
 configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
 
@@ -868,11 +883,16 @@ if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
 	)
 endif ()
 
+set(PRIVATE_HEADERS
+	bits/kron_utils.h
+)
+
 set(HEADERS
 	${BITS_HEADERS}
 	${COMPAT_HEADERS}
 	${BITS_SIMD_HEADERS}
 	${PUBLIC_HEADERS}
+	${PRIVATE_HEADERS}
 )
 
 if (DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD)

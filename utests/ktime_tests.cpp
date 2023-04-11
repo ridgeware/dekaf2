@@ -4,6 +4,7 @@
 #include <dekaf2/kduration.h>
 #include <dekaf2/ksystem.h>
 #include <dekaf2/kscopeguard.h>
+#include <dekaf2/kstringutils.h>
 #include <array>
 
 using namespace dekaf2;
@@ -17,13 +18,13 @@ TEST_CASE("KTime") {
 		static constexpr KStringView sBadOrigTime2 = "Tue, 03 NaN 2021 10:23:42 GMT";
 		static constexpr KStringView sBadOrigTime3 = "10:23:42";
 
-		auto tTime = kParseHTTPTimestamp(sOrigTime);
+		KUnixTime tTime = kParseHTTPTimestamp(sOrigTime);
 		CHECK ( tTime != KUnixTime(0) );
 		auto sTime = kFormHTTPTimestamp(tTime);
 		CHECK ( sTime == sOrigTime );
-		CHECK ( kParseHTTPTimestamp(sBadOrigTime1) == KUnixTime(0) );
-		CHECK ( kParseHTTPTimestamp(sBadOrigTime2) == KUnixTime(0) );
-		CHECK ( kParseHTTPTimestamp(sBadOrigTime3) == KUnixTime(0) );
+		CHECK ( kParseHTTPTimestamp(sBadOrigTime1).ok() == false );
+		CHECK ( kParseHTTPTimestamp(sBadOrigTime2).ok() == false );
+		CHECK ( kParseHTTPTimestamp(sBadOrigTime3).ok() == false );
 	}
 
 	SECTION("kParseSMTPTimestamp")
@@ -36,23 +37,27 @@ TEST_CASE("KTime") {
 		static constexpr KStringView sBadOrigTime2 = "Tue, 03 Aug 2021 10:23:42 -00";
 
 		auto tTime = kParseSMTPTimestamp(sOrigTime1);
-		CHECK (tTime != KUnixTime(0));
+		CHECK (tTime.ok());
 		auto sTime = kFormSMTPTimestamp(tTime);
 		CHECK (sTime == sOrigTime1);
 
 		tTime = kParseSMTPTimestamp(sOrigTime2);
-		CHECK (tTime != KUnixTime(0));
+		CHECK (tTime.ok());
 		sTime = kFormSMTPTimestamp(tTime);
 		CHECK (sTime == "Tue, 03 Aug 2021 06:53:42 -0000");
 
 		tTime = kParseSMTPTimestamp(sOrigTime3);
-		CHECK (tTime != KUnixTime(0));
+		CHECK (tTime.ok());
 		sTime = kFormSMTPTimestamp(tTime);
 		CHECK (sTime == "Tue, 03 Aug 2021 21:24:42 -0000");
 
-		CHECK ( kParseSMTPTimestamp(sOrigTime4) == kParseTimestamp("2021-08-03 09:23:42") );
-		CHECK ( kParseSMTPTimestamp(sBadOrigTime1) == KUnixTime(0) );
-		CHECK ( kParseSMTPTimestamp(sBadOrigTime2) == KUnixTime(0) );
+		tTime = kParseSMTPTimestamp(sOrigTime4);
+		CHECK (tTime.ok());
+		sTime = kFormSMTPTimestamp(tTime);
+		CHECK (sTime == "Tue, 03 Aug 2021 09:23:42 -0000");
+
+		CHECK ( kParseSMTPTimestamp(sBadOrigTime1).ok() == false );
+		CHECK ( kParseSMTPTimestamp(sBadOrigTime2).ok() == false );
 	}
 
 	SECTION("kTranslateSeconds")
@@ -73,7 +78,7 @@ TEST_CASE("KTime") {
 		CHECK ( kTranslateSeconds(-80          , false) == "-1.3 mins" );
 		CHECK ( kTranslateSeconds(-3*60*60-15  , false) == "-3.0 hours" );
 		CHECK ( kTranslateSeconds(9223372036+1 , false) == "a very long time" );
-		CHECK ( kTranslateSeconds(KDuration::min().seconds().count()-1, false) == "a very short time" );
+		CHECK ( kTranslateSeconds(KDuration::min().seconds().count()-1, false) == "a very long negative time" );
 		CHECK ( kTranslateSeconds(120          , true ) == "2 mins" );
 		CHECK ( kTranslateSeconds(0            , true ) == "less than a second" );
 		CHECK ( kTranslateSeconds(1            , true ) == "1 sec" );
@@ -102,7 +107,7 @@ TEST_CASE("KTime") {
 		CHECK ( kTranslateDuration(nanoseconds(1)      , false) == "1 nanosec" );
 		CHECK ( kTranslateDuration(nanoseconds::max()  , false) == "292.5 yrs" );
 		CHECK ( kTranslateDuration(nanoseconds::max()  , true) == "292 yrs, 24 wks, 3 days, 23 hrs, 47 mins, 16 secs, 854 msecs, 775 usecs, 807 nsecs" );
-		CHECK ( kTranslateDuration(nanoseconds::min()  , true) == "a very short time" );
+		CHECK ( kTranslateDuration(nanoseconds::min()  , true) == "a very long negative time" );
 		CHECK ( kTranslateDuration(nanoseconds::min()
 								   +nanoseconds(1)     , true) == "-292.5 yrs" );
 	}
@@ -192,7 +197,7 @@ TEST_CASE("KTime") {
 		CHECK ( UTC2.Format()       == "1976-12-31 00:34:01" );
 		UTC2 += KDuration(std::chrono::microseconds(1000123));
 		CHECK ( UTC2.Format()       == "1976-12-31 00:34:02" );
-		UTC2 -= KDuration(std::chrono::microseconds(2000123));
+		UTC2 -= KDuration(std::chrono::microseconds(2000126));
 		CHECK ( UTC2.Format()       == "1976-12-31 00:33:59" ); // subseconds ..
 
 		auto UTC3 = UTC2;
@@ -217,7 +222,7 @@ TEST_CASE("KTime") {
 			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
 
 			KLocalTime Local1;
-			Local1 = UTC1;
+			Local1 = KLocalTime(UTC1);
 			Local1 = KLocalTime(UTC1, tz);
 
 			SysTime =  kFromLocalTime(Local1.to_local(), tz);
@@ -242,8 +247,8 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.month()           == chrono::January );
 				CHECK ( Local1.weekday()         == chrono::Tuesday );
 				CHECK ( Local1.get_utc_offset() == chrono::minutes(60) );
-				CHECK ( kFormTimestamp(std::locale(), tz, UTC1.to_unix(), "%A %c") == "Mardi Mar  1 jan 00:59:59 1974" );
-				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), kFindTimezone("America/Mexico_City"), UTC1.to_unix(), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
+				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "%A %c") == "Mardi Mar  1 jan 00:59:59 1974" );
+				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City")), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
 			}
 		}
 
@@ -294,16 +299,16 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.month()       == chrono::January );
 				CHECK ( Local1.weekday()     == chrono::Tuesday );
 				if (bHasTimezone) {
-					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), kFindTimezone("America/Mexico_City"), UTC1.to_unix(), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
+					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City")), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
 				}
 			}
 			// test for the day of year calculation
 			CHECK ( Local1.to_tm().tm_yday   == 0     );
-			Local1 = kParseTimestamp("16.08.2011 12:00:00");
+			Local1 = kParseLocalTimestamp("16.08.2011 12:00:00");
 			CHECK ( Local1.yearday().count() == 228   );
 			CHECK ( Local1.to_tm().tm_yday   == 227   );
 			CHECK ( Local1.is_leap()         == false );
-			Local1 = kParseTimestamp("16.08.2012 12:00:00");
+			Local1 = kParseLocalTimestamp("16.08.2012 12:00:00");
 			CHECK ( Local1.yearday().count() == 229   );
 			CHECK ( Local1.to_tm().tm_yday   == 228   );
 			CHECK ( Local1.is_leap()         == true  );
@@ -488,7 +493,7 @@ TEST_CASE("KTime") {
 		{
 			auto tTime = kParseTimestamp(Timestamp.first);
 			INFO  ( Timestamp.first );
-			CHECK ( tTime != KUnixTime(0) );
+			CHECK ( tTime.ok() );
 			auto sTime = kFormHTTPTimestamp(tTime);
 			INFO  ( Timestamp.first );
 			CHECK ( sTime == Timestamp.second );
@@ -569,7 +574,7 @@ TEST_CASE("KTime") {
 		CHECK ( (b <  a) );
 		CHECK ( (b <= a) );
 
-		KLocalTime c = b;
+		KLocalTime c = KLocalTime(b);
 		CHECK       ( (a >  c) );
 		CHECK       ( (a >= c) );
 		CHECK_FALSE ( (a == c) );
@@ -727,10 +732,15 @@ TEST_CASE("KTime") {
 
 	SECTION("kFormTimeStamp")
 	{
+		auto now = kNow();
+		auto sNow = kFormTimestamp();
+		auto now2 = kParseTimestamp(sNow);
+		auto diff = KUnixTime(now2) - now;
+		CHECK ( chrono::duration_cast<chrono::seconds>(diff).count() < 3 );
 		auto tz = kFindTimezone("Asia/Tokyo");
 		KUnixTime U("12:34:56 16.08.2022");
 		CHECK ( kFormTimestamp(U) == "2022-08-16 12:34:56" );
-		CHECK ( kFormTimestamp(tz, U, "%Y-%m-%d %H:%M:%S") == "2022-08-16 21:34:56" );
+		CHECK ( kFormTimestamp(KLocalTime(U, tz), "%Y-%m-%d %H:%M:%S") == "2022-08-16 21:34:56" );
 	}
 
 	SECTION("custom formatters")
@@ -882,5 +892,39 @@ TEST_CASE("KTime") {
 		CHECK       ( ( Date2 >= Date1 ) );
 		CHECK_FALSE ( ( Date2 <  Date1 ) );
 		CHECK       ( ( Date2 <= Date1 ) );
+	}
+
+	SECTION("kFormCommonLogTimestamp")
+	{
+		bool bHasLocale = false;
+
+		KUnixTime U = kParseTimestamp("12:34:56 16.08.2022");
+		CHECK ( kFormCommonLogTimestamp(U) == "[16/Aug/2022:12:34:56 +0000]" );
+	}
+
+	SECTION("detail::KParsedTimestamp")
+	{
+		auto t1 = kParseTimestamp("12:34:56 16.08.2022");
+		KUnixTime t2 = kParseTimestamp("13:34:56 16.08.2022");
+		auto diff1 = t2 - t1;
+		auto diff2 = t1 - t2;
+		auto diff3 = t1 - t1;
+		CHECK ( diff1 == chrono::hours(1)  );
+		CHECK ( diff2 == chrono::hours(-1) );
+		CHECK ( diff3 == KDuration::zero() );
+
+		CHECK_FALSE ( ( t1 == t2 ) );
+		CHECK       ( ( t1 != t2 ) );
+		CHECK       ( ( t1 <  t2 ) );
+		CHECK       ( ( t1 <= t2 ) );
+		CHECK_FALSE ( ( t1 >  t2 ) );
+		CHECK_FALSE ( ( t1 >= t2 ) );
+
+		CHECK_FALSE ( ( t2 == t1 ) );
+		CHECK       ( ( t2 != t1 ) );
+		CHECK_FALSE ( ( t2 <  t1 ) );
+		CHECK_FALSE ( ( t2 <= t1 ) );
+		CHECK       ( ( t2 >  t1 ) );
+		CHECK       ( ( t2 >= t1 ) );
 	}
 }

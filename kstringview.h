@@ -1624,13 +1624,15 @@ bool operator>=(const KStringView left, const KStringView right)
 /// When this class is used on X86_64 architectures we assume that SSE 4.2 is available, and delegate
 /// the call to the SSE implementation, which is still an order of magnitude faster.
 /// Please note that the construction can happen constexpr, and therefore the class instance itself declared
-/// as constexpr variable.
+/// as a constexpr variable.
 class KFindSetOfChars
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 #ifndef DEKAF2_X86_64
 
 #ifdef DEKAF2_HAS_CPP_20
-	#if DEKAF2_NO_GCC || DEKAF2_GCC_VERSION_MAJOR >= 10
+	#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR >= 10
+		#define DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED 1
+	#elif DEKAF2_IS_CLANG && DEKAF2_CLANG_VERSION_MAJOR > 9
 		#define DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED 1
 	#endif
 #endif
@@ -1641,7 +1643,7 @@ class KFindSetOfChars
 
 	enum State : uint8_t { Multi = 0 << 6, Single = 1 << 6, Empty = 2 << 6 };
 	static constexpr uint8_t Mask = 3 << 6;
-	static_assert(Multi == 0, "Multi enum has to stay null to match the algorithm");
+	static_assert(Multi == 0, "Multi enum must be zero to match the algorithm");
 
 //------
 public:

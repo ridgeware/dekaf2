@@ -465,9 +465,11 @@ TEST_CASE("KRON")
 		std::time_t next = cron::cron_next(cronexp, now);
 		CHECK ( kFormTimestamp(KUnixTime(next)) == "2022-03-18 16:25:00" );
 
+		// this set reads and writes local times..
 		std::tm time = cron::utils::to_tm("2022-03-18 16:24:45");
 		std::tm nexttm = cron::cron_next(cronexp, time);
-		CHECK ( kFormTimestamp(nexttm) == kFormTimestamp(KUnixTime(next)) );
+		KString sNext = kFormTimestamp(KLocalTime(nexttm));
+		CHECK ( sNext == "2022-03-18 16:25:00");
 	}
 
 	SECTION("KRON::JOB")

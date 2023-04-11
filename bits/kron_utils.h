@@ -90,7 +90,7 @@ struct Kron_utils
 
 	static inline string_t to_string(std::tm const & tm)
 	{
-		return kFormTimestamp(tm, "%Y-%m-%d %H:%M:%S");
+		return kFormTimestamp(tm);
 	}
 
 	static inline string_t to_upper(string_t text)

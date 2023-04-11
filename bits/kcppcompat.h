@@ -86,6 +86,7 @@
 #define DEKAF2_stringify(x) DEKAF2_xstringify(x)
 
 #if defined __clang__
+	#define DEKAF2_CLANG_VERSION_MAJOR __clang_major__
 	#define DEKAF2_CLANG_VERSION __clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__
 	#define DEKAF2_IS_CLANG 1
 	#define DEKAF2_NO_GCC 1
@@ -588,7 +589,12 @@ static constexpr std::size_t npos = static_cast<std::size_t>(-1);
 	#ifndef timegm
 		#define timegm _mkgmtime
 	#endif
-
+	#ifndef localtime_r
+		#define localtime_r localtime_s
+	#endif
+	#ifndef gmtime_r
+		#define gmtime_r gmtime_s
+	#endif
 	#ifndef WIFSIGNALED
 		#define WIFSIGNALED(x) ((x) == 3)
 	#endif
@@ -714,39 +720,41 @@ static constexpr std::size_t KDefaultCopyBufSize = 4096;
 // DEKAF2_ENUM_IS_FLAG(Flags);
 // Flags MyFlags = Flags::RED | FLAGS::BLUE;
 
-#define DEKAF2_DETAIL_ENUM_INNER_BIN_OP(T, OP) \
-constexpr T operator OP (T left, T right) \
+#define DEKAF2_DETAIL_ENUM_INNER_BIN_OP(Type, Operator) \
+constexpr Type operator Operator (Type left, Type right) \
 { \
-	return static_cast<T>(static_cast<typename std::underlying_type<T>::type>(left) OP static_cast<typename std::underlying_type<T>::type>(right)); \
+	return static_cast<Type>(static_cast<typename std::underlying_type<Type>::type>(left) Operator static_cast<typename std::underlying_type<Type>::type>(right)); \
 }
 
-#define DEKAF2_DETAIL_ENUM_INNER_UNA_OP(T, OP) \
-constexpr T operator OP (T other) \
+#define DEKAF2_DETAIL_ENUM_INNER_UNA_OP(Type, Operator) \
+constexpr Type operator Operator (Type other) \
 { \
-	return static_cast<T>(OP static_cast<typename std::underlying_type<T>::type>(other)); \
+	return static_cast<Type>(Operator static_cast<typename std::underlying_type<Type>::type>(other)); \
 }
 
-#define DEKAF2_DETAIL_ENUM_INNER_REF_OP(T, OP) \
-inline T& operator OP (T& left, T right) \
+#define DEKAF2_DETAIL_ENUM_INNER_REF_OP(Type, Operator) \
+inline Type& operator Operator (Type& left, Type right) \
 { \
-	return reinterpret_cast<T&>(reinterpret_cast<typename std::underlying_type<T>::type&>(left) OP static_cast<typename std::underlying_type<T>::type>(right)); \
+	return reinterpret_cast<Type&>(reinterpret_cast<typename std::underlying_type<Type>::type&>(left) Operator static_cast<typename std::underlying_type<Type>::type>(right)); \
 }
 
-#define DEKAF2_ENUM_IS_FLAG(T) \
- DEKAF2_DETAIL_ENUM_INNER_BIN_OP(T,  |) \
- DEKAF2_DETAIL_ENUM_INNER_BIN_OP(T,  &) \
- DEKAF2_DETAIL_ENUM_INNER_BIN_OP(T,  ^) \
- DEKAF2_DETAIL_ENUM_INNER_UNA_OP(T,  ~) \
- DEKAF2_DETAIL_ENUM_INNER_REF_OP(T, |=) \
- DEKAF2_DETAIL_ENUM_INNER_REF_OP(T, &=) \
- DEKAF2_DETAIL_ENUM_INNER_REF_OP(T, ^=)
+#define DEKAF2_ENUM_IS_FLAG(Type) \
+ DEKAF2_DETAIL_ENUM_INNER_BIN_OP(Type,  |) \
+ DEKAF2_DETAIL_ENUM_INNER_BIN_OP(Type,  &) \
+ DEKAF2_DETAIL_ENUM_INNER_BIN_OP(Type,  ^) \
+ DEKAF2_DETAIL_ENUM_INNER_UNA_OP(Type,  ~) \
+ DEKAF2_DETAIL_ENUM_INNER_REF_OP(Type, |=) \
+ DEKAF2_DETAIL_ENUM_INNER_REF_OP(Type, &=) \
+ DEKAF2_DETAIL_ENUM_INNER_REF_OP(Type, ^=)
 
 // helpers for enums end here
 
 // helper macro to generate the remaining comparison operators for a type from existing
 // equality and less operators
-#define DEKAF2_COMPARISON_OPERATORS(T) \
- inline bool operator!=(const T& left, const T& right) { return !(left == right); } \
- inline bool operator> (const T& left, const T& right) { return   right < left;   } \
- inline bool operator<=(const T& left, const T& right) { return !(right < left);  } \
- inline bool operator>=(const T& left, const T& right) { return !(left  < right); }
+#define DEKAF2_COMPARISON_OPERATORS_WITH_ATTR(Attr, Type) \
+ Attr bool operator!=(const Type& left, const Type& right) { return !(left == right); } \
+ Attr bool operator> (const Type& left, const Type& right) { return   right < left;   } \
+ Attr bool operator<=(const Type& left, const Type& right) { return !(right < left);  } \
+ Attr bool operator>=(const Type& left, const Type& right) { return !(left  < right); }
+
+#define DEKAF2_COMPARISON_OPERATORS(Type) DEKAF2_COMPARISON_OPERATORS_WITH_ATTR(inline, Type)

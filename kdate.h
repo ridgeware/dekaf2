@@ -52,6 +52,19 @@
 #include "kstringview.h"
 #include "bits/khash.h"
 
+// We do not generally want to use std::time_put() for time formatting because it uses a different
+// formatting engine than std::format() or fmt::format() - the rules for the conversion specifiers
+// differ slightly, see e.g. %Ez %Oz and %Z (and this is actually visible in real code).
+// Unfortunately, the call interface of std::time_put(), although hidden behind an opaque stream
+// interface, is easier to call for existing code, because it does not require the format string
+// being framed in "{: }". We alleviate that somehow by providing defaults for the formatting
+// functions that use the std::format syntax already, and check if we need to wrap user supplied
+// format strings to the new syntax.
+
+#ifndef DEKAF2_USE_TIME_PUT
+	#define DEKAF2_USE_TIME_PUT 0
+#endif
+
 // we need to allow users of this lib to define a standard less than C++20
 // even when our lib is compiled with C++20 and without Howard Hinnant's date lib -
 // the latter is compatible to the known stdlibs and then offers the interface that the
@@ -285,6 +298,12 @@ using zoned_time = date::zoned_time<Duration, TimeZonePtr>;
 
 namespace detail {
 
+#if DEKAF2_USE_TIME_PUT
+constexpr KStringView fDefaultDate { "%Y-%m-%d" };
+#else
+constexpr KStringView fDefaultDate { "{:%Y-%m-%d}" };
+#endif
+
 // gcc > 10 and its libs can currently not convert a ymd into local_days, as it is not yet
 // prepared for local time conversions.
 // Therefore we add a conversion into the neutral chrono::days, that can then be assigned
@@ -432,9 +451,13 @@ public:
 	/// return struct tm (needed for efficient formatting)
 	constexpr std::tm         to_tm          ()  const noexcept;
 	/// return a string following std::format patterns - default = %Y-%m-%d
-	KString                   Format         (KStringView sFormat = "%Y-%m-%d") const { return to_string(sFormat);    }
+	KString                   Format         (KStringView sFormat = detail::fDefaultDate) const { return to_string(sFormat);   }
 	/// return a string following std::format patterns - default = %Y-%m-%d
-	KString                   to_string      (KStringView sFormat = "%Y-%m-%d") const;
+	KString                   to_string      (KStringView sFormat = detail::fDefaultDate) const;
+	/// return a string following std::format patterns, use given locale for formatting - default = %Y-%m-%d
+	KString                   Format         (const std::locale& locale, KStringView sFormat = detail::fDefaultDate) const { return to_string(locale, sFormat);   }
+	/// return a string following std::format patterns, use given locale for formatting - default = %Y-%m-%d
+	KString                   to_string      (const std::locale& locale, KStringView sFormat = detail::fDefaultDate) const;
 
 	// has also day()/month()/year() from its base
 
@@ -529,7 +552,7 @@ public:
 
 	/// makes a day that is > last_day() the last_day() of the month
 	constexpr self& floor() noexcept;
-	/// makes a day that is > last_day() the first day of the next month
+	/// makes a day that is > last_day() the first day of the next month, except if the month is december, in which case the day will be set to 31
 	constexpr self& ceil () noexcept;
 	/// makes sure month is between 1..12 and day between 1..31 - does not adjust the day for last_day()..
 	constexpr self& trunc() noexcept;
@@ -620,8 +643,16 @@ KDate& KDate::ceil() noexcept
 		auto last = last_day();
 		if (day() > last)
 		{
-			day(chrono::day(1));
-			*this += chrono::months(1);
+			// prevent from overflow - this was an invalid date
+			if (month() == chrono::December)
+			{
+				day(last );
+			}
+			else
+			{
+				day(chrono::day(1));
+				*this += chrono::months(1);
+			}
 		}
 	}
 	return *this;

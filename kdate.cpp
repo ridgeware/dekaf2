@@ -52,7 +52,22 @@ KString KConstDate::to_string (KStringView sFormat) const
 	{
 		return KString();
 	}
-	return kFormTimestamp (to_tm(), sFormat);
-}
+
+	return detail::FormTimestamp(to_tm(), sFormat);
+
+} // to_string
+
+//-----------------------------------------------------------------------------
+KString KConstDate::to_string (const std::locale& locale, KStringView sFormat) const
+//-----------------------------------------------------------------------------
+{
+	if (empty())
+	{
+		return KString();
+	}
+
+	return detail::FormTimestamp(locale, to_tm(), sFormat);
+
+} // to_string
 
 } // end of namespace dekaf2

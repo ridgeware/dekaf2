@@ -329,7 +329,11 @@ inline std::size_t kGetMicroTicksPerChildProcesses()
 	return detail::TicksFromRusage(RUSAGE_CHILDREN);
 }
 
-/// Set the global locale for all threads, set to environment preset if sLocale == empty
+/// Set the global locale for all threads, set to environment preset if sLocale == empty. You should
+/// in general leave the global locale untouched - the exception is a server application that does
+/// not reply to the local user, but over the internet. In which case you may probably want to set
+/// the global locale to en_US.UTF-8 (or any other UTF-8 locale if you prefer), and use _local_
+/// locales for serving different regions.
 /// @par sLocale the locale string to construct the std::locale from. Use a unicode aware locale.
 /// @return true if locale could be set, false otherwise
 DEKAF2_PUBLIC
@@ -339,13 +343,22 @@ bool kSetGlobalLocale(KStringViewZ sLocale = KStringViewZ{});
 DEKAF2_PUBLIC
 std::locale kGetGlobalLocale();
 
-/// @return the decimal point in the currently set global locale
+/// This is how you should in general work with locales - leaving the global locale untouched,
+/// and operating with user specific local locales.
+/// @param sLocale a string to lookup the locale. Normally in the form "en_US.UTF-8"
+/// @param bThrow throw KException if locale is not available, defaults to false, in which
+/// case the returned locale will be the default locale
+/// @return a locale that matches the description in sLocale or the default locale
 DEKAF2_PUBLIC
-char kGetDecimalPoint();
+std::locale kGetLocale(KStringViewZ sLocale = KStringViewZ{}, bool bThrow = false);
 
-/// @return the thousands separator in the currently set global locale
+/// @return the decimal point in the given locale (defaults to the global locale)
 DEKAF2_PUBLIC
-char kGetThousandsSeparator();
+char kGetDecimalPoint(std::locale locale = std::locale());
+
+/// @return the thousands separator in the given locale (defaults to the global locale)
+DEKAF2_PUBLIC
+char kGetThousandsSeparator(std::locale locale = std::locale());
 
 /// @return the full path name of the running exe
 DEKAF2_PUBLIC

@@ -12,20 +12,20 @@
 
 #if __cplusplus > 201402L
 	#if __cplusplus >= 201703L
-		#define CRONCPP_HAS_REAL_CPP_17
+		#define CRONCPP_HAS_REAL_CPP_17 1
 	#endif
 	#ifdef __has_include
 		#if __has_include(<string_view>)
 			#include <string_view>
 			#define CRONCPP_STRING_VIEW       std::string_view
 			#define CRONCPP_STRING_VIEW_NPOS  std::string_view::npos
-			#define CRONCPP_HAS_STRING_VIEW
-			#define CRONCPP_STRING_VIEW_CONSTEXPR
+			#define CRONCPP_HAS_STRING_VIEW 1
+			#define CRONCPP_STRING_VIEW_CONSTEXPR 1
 		#elif __has_include(<experimental/string_view>)
 			#include <experimental/string_view>
 			#define CRONCPP_STRING_VIEW       std::experimental::string_view
 			#define CRONCPP_STRING_VIEW_NPOS  std::experimental::string_view::npos
-			#define CRONCPP_HAS_STRING_VIEW
+			#define CRONCPP_HAS_STRING_VIEW 1
 		#endif
 	#endif
 	#define CRONCPP_CONSTEXPR constexpr

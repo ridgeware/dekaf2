@@ -1584,7 +1584,7 @@ KUnixTime::KUnixTime(KStringView sFormat, KStringView sTimestamp)
 //-----------------------------------------------------------------------------
 KUTCTime::KUTCTime (KStringView sTimestamp)
 //-----------------------------------------------------------------------------
-#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 10
+#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 10) || !(DEKAF2_HAS_CPP_17)
 : KUTCTime(kParseTimestamp(sTimestamp).to_utc())
 #else
 : KUTCTime(kParseTimestamp(sTimestamp))
@@ -1595,7 +1595,7 @@ KUTCTime::KUTCTime (KStringView sTimestamp)
 //-----------------------------------------------------------------------------
 KUTCTime::KUTCTime (KStringView sFormat, KStringView sTimestamp)
 //-----------------------------------------------------------------------------
-#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 10
+#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 10) || !(DEKAF2_HAS_CPP_17)
 : KUTCTime(kParseTimestamp(sFormat, sTimestamp).to_utc())
 #else
 : KUTCTime(kParseTimestamp(sFormat, sTimestamp))

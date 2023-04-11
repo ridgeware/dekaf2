@@ -629,7 +629,7 @@ public:
 private:
 //--------
 
-#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 10
+#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 10) || !DEKAF2_HAS_CPP_17
 	// gcc 8 needs the below explicit conversions
 	friend class dekaf2::KUTCTime;
 #endif

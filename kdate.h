@@ -356,7 +356,8 @@ constexpr inline uint32_t compute_lookup_offsets()
 	uint32_t lookup_offsets = 0;
 	uint16_t real_start     = 0;
 
-	std::array<uint16_t, 12> month_start_offset {{ 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30 }};
+	// we use a built-in array type, not a std::array, as that is constexpr with C++11..
+	uint16_t month_start_offset[12] { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30 };
 
 	for (int month = 1; month <= 12; ++month)
 	{

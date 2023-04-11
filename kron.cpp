@@ -883,4 +883,8 @@ bool Kron::KillJob(Job::ID ID)
 
 } // KillJob
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KUnixTime Kron::INVALID_TIME;
+#endif
+
 } // end of namespace dekaf2

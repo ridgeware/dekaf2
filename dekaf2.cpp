@@ -353,9 +353,9 @@ KStringView Dekaf::GetVersion()
 KUnixTime Dekaf::GetCurrentTime() const
 //---------------------------------------------------------------------------
 {
-#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 9) || \
+#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 10) || \
 	(DEKAF2_IS_CLANG && DEKAF2_CLANG_VERSION_MAJOR < 9)
-	// GCC 8 does not accept an atomic timepoint
+	// GCC 8/9 does not accept an atomic timepoint
 	return KUnixTime::now();
 #else
 	if (DEKAF2_UNLIKELY(!m_Timer))

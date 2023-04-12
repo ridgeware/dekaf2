@@ -278,36 +278,6 @@ const std::array<KString, 7>& GetDefaultLocalDayNames(bool bAbbreviated)
 } // end of namespace detail
 
 //-----------------------------------------------------------------------------
-KStringViewZ kGetDayName(uint16_t iWeekday, bool bAbbreviated, bool bLocal)
-//-----------------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(iWeekday > 6))
-	{
-		// mimic the GNU extension: 7 == Sunday == 0
-		if (iWeekday == 7)
-		{
-			iWeekday = 0;
-		}
-		else
-		{
-			return {};
-		}
-	}
-
-	chrono::weekday weekday(iWeekday);
-
-	if (bLocal)
-	{
-		return kGetLocalDayName(weekday, bAbbreviated);
-	}
-	else
-	{
-		return kGetDayName(weekday, bAbbreviated);
-	}
-
-} // kGetDayName
-
-//-----------------------------------------------------------------------------
 std::array<KString, 7> kGetLocalDayNames(const std::locale& locale, bool bAbbreviated)
 //-----------------------------------------------------------------------------
 {
@@ -325,33 +295,6 @@ std::array<KString, 7> kGetLocalDayNames(const std::locale& locale, bool bAbbrev
 
 	return Names;
 }
-
-//-----------------------------------------------------------------------------
-KStringViewZ kGetMonthName(uint16_t iMonth, bool bAbbreviated, bool bLocal)
-//-----------------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(iMonth > 11))
-	{
-		return {};
-	}
-
-	if (bLocal)
-	{
-		return detail::GetDefaultLocalMonthNames(bAbbreviated)[iMonth];
-	}
-	else
-	{
-		if (bAbbreviated)
-		{
-			return detail::AbbreviatedMonths[iMonth];
-		}
-		else
-		{
-			return detail::Months[iMonth];
-		}
-	}
-
-} // kGetMonthName
 
 //-----------------------------------------------------------------------------
 std::array<KString, 12> kGetLocalMonthNames(const std::locale& locale, bool bAbbreviated)

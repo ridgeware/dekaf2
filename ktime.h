@@ -314,6 +314,7 @@ public:
 	{
 	}
 
+	/// construct from a system_clock::time_point
 	DEKAF2_CONSTEXPR_14 KUTCTime (chrono::system_clock::time_point time) noexcept
 	: KUTCTime(KUnixTime(time))
 	{
@@ -423,10 +424,7 @@ private:
 
 }; // KUTCTime
 
-DEKAF2_CONSTEXPR_14 bool operator==(const KUTCTime& left, const KUTCTime& right) { return left.to_sys() == right.to_sys(); }
-DEKAF2_CONSTEXPR_14 bool operator< (const KUTCTime& left, const KUTCTime& right) { return left.to_sys() <  right.to_sys(); }
-
-DEKAF2_COMPARISON_OPERATORS_WITH_ATTR(DEKAF2_CONSTEXPR_14, KUTCTime)
+DEKAF2_WRAPPED_COMPARISON_OPERATORS_ONE_TYPE(KUTCTime, left.to_sys(), right.to_sys())
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A broken down time representation in local time (any timezone that this system supports) - you
@@ -458,7 +456,6 @@ public:
 	: KLocalTime(time, chrono::current_zone())
 	{
 	}
-
 
 	explicit KLocalTime (chrono::system_clock::time_point time)
 	: KLocalTime(KUnixTime(time))
@@ -538,22 +535,8 @@ private:
 
 inline KUTCTime::KUTCTime (const KLocalTime& local) noexcept : KUTCTime(KUnixTime(local.to_sys())) {}
 
-inline bool operator==(const KLocalTime& left, const KLocalTime& right) { return left.to_sys() == right.to_sys(); }
-inline bool operator< (const KLocalTime& left, const KLocalTime& right) { return left.to_sys() <  right.to_sys(); }
-DEKAF2_COMPARISON_OPERATORS(KLocalTime)
-
-inline bool operator==(const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() == right.to_sys(); }
-inline bool operator!=(const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() != right.to_sys(); }
-inline bool operator< (const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() <  right.to_sys(); }
-inline bool operator<=(const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() <= right.to_sys(); }
-inline bool operator> (const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() >  right.to_sys(); }
-inline bool operator>=(const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() >= right.to_sys(); }
-inline bool operator==(const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() == right.to_sys(); }
-inline bool operator!=(const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() != right.to_sys(); }
-inline bool operator< (const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() <  right.to_sys(); }
-inline bool operator<=(const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() <= right.to_sys(); }
-inline bool operator> (const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() >  right.to_sys(); }
-inline bool operator>=(const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() >= right.to_sys(); }
+DEKAF2_WRAPPED_COMPARISON_OPERATORS_ONE_TYPE (KLocalTime, left.to_sys(), right.to_sys())
+DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES(KUTCTime, KLocalTime, first.to_sys(), second.to_sys())
 
 constexpr
 inline KDuration operator-(const KUTCTime&   left, const KUTCTime&   right) { return left.to_sys() - right.to_sys(); }
@@ -651,18 +634,8 @@ inline KDuration operator-(const KParsedTimestampBase& left, const KUTCTime&   r
 inline KDuration operator-(const KLocalTime& left, const KParsedTimestampBase& right) { return left - KUnixTime(right); }
 inline KDuration operator-(const KParsedTimestampBase& left, const KLocalTime& right) { return KUnixTime(left) - right; }
 
-inline bool operator==(const KUnixTime&   left, const KParsedTimestampBase& right) { return left == KUnixTime(right); }
-inline bool operator!=(const KUnixTime&   left, const KParsedTimestampBase& right) { return left != KUnixTime(right); }
-inline bool operator< (const KUnixTime&   left, const KParsedTimestampBase& right) { return left <  KUnixTime(right); }
-inline bool operator<=(const KUnixTime&   left, const KParsedTimestampBase& right) { return left <= KUnixTime(right); }
-inline bool operator> (const KUnixTime&   left, const KParsedTimestampBase& right) { return left >  KUnixTime(right); }
-inline bool operator>=(const KUnixTime&   left, const KParsedTimestampBase& right) { return left >= KUnixTime(right); }
-inline bool operator==(const KParsedTimestampBase& left, const KUnixTime&   right) { return KUnixTime(left) == right; }
-inline bool operator!=(const KParsedTimestampBase& left, const KUnixTime&   right) { return KUnixTime(left) != right; }
-inline bool operator< (const KParsedTimestampBase& left, const KUnixTime&   right) { return KUnixTime(left) <  right; }
-inline bool operator<=(const KParsedTimestampBase& left, const KUnixTime&   right) { return KUnixTime(left) <= right; }
-inline bool operator> (const KParsedTimestampBase& left, const KUnixTime&   right) { return KUnixTime(left) >  right; }
-inline bool operator>=(const KParsedTimestampBase& left, const KUnixTime&   right) { return KUnixTime(left) >= right; }
+DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES(KUnixTime, KParsedTimestampBase, first, KUnixTime(second))
+
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 // helper class to delay time format conversion after string parsing
@@ -718,7 +691,6 @@ private:
 
 }; // KParsedWebTimestamp
 
-
 constexpr std::array<KStringViewZ,  7> AbbreviatedWeekdays {{ "Sun"   , "Mon"   , "Tue"    , "Wed"      , "Thu"     , "Fri"   , "Sat"      }};
 constexpr std::array<KStringViewZ,  7> Weekdays            {{ "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }};
 constexpr std::array<KStringViewZ, 12> AbbreviatedMonths   {{ "Jan"    , "Feb"     , "Mar"  , "Apr"  , "May", "Jun" , "Jul" , "Aug"   , "Sep"      , "Oct"    , "Nov"     , "Dec"      }};
@@ -728,77 +700,73 @@ DEKAF2_PUBLIC const std::array<KString, 12>& GetDefaultLocalMonthNames(bool bAbb
 DEKAF2_PUBLIC const std::array<KString,  7>& GetDefaultLocalDayNames  (bool bAbbreviated);
 
 // "Tue, 03 Aug 2021 10:23:42 +0000"
-DEKAF2_PUBLIC inline KString FormWebTimestamp (const std::tm& tTime, KStringView sTimezoneDesignator) { return kFormat("{:%a, %d %b %Y %H:%M:%S} {}", tTime, sTimezoneDesignator); }
-DEKAF2_PUBLIC KString FormTimestamp (const std::tm& time, KStringView sFormat);
-DEKAF2_PUBLIC KString FormTimestamp (const std::locale& locale, const std::tm& time, KStringView sFormat);
+DEKAF2_PUBLIC inline            KString FormWebTimestamp (const std::tm& tTime, KStringView sTimezoneDesignator) { return kFormat("{:%a, %d %b %Y %H:%M:%S} {}", tTime, sTimezoneDesignator); }
+DEKAF2_PUBLIC                   KString FormTimestamp    (const std::tm& time, KStringView sFormat);
+DEKAF2_PUBLIC                   KString FormTimestamp    (const std::locale& locale, const std::tm& time, KStringView sFormat);
 
 } // end of namespace detail
 
 /// returns the current system time as KUnixTime in high resolution (clang libc++: microseconds, gnu libstdc++: nanoseconds)
-DEKAF2_PUBLIC inline KUnixTime kNow()                                                                { return KUnixTime::now(); }
+DEKAF2_PUBLIC inline          KUnixTime kNow                    ()                                           { return KUnixTime::now(); }
 
-/// Get the English abbreviated or full weekday name, input 0..6, 0 == Sunday
-DEKAF2_PUBLIC KStringViewZ kGetDayName(uint16_t iWeekday, bool bAbbreviated, bool bLocal);
 /// Get the English abbreviated or full weekday name
-DEKAF2_PUBLIC constexpr KStringViewZ kGetDayName(chrono::weekday weekday, bool bAbbreviated)         { return !weekday.ok() ? KStringViewZ{} : bAbbreviated ? detail::AbbreviatedWeekdays[weekday.c_encoding()] : detail::Weekdays[weekday.c_encoding()]; }
+DEKAF2_PUBLIC constexpr    KStringViewZ kGetDayName             (chrono::weekday weekday, bool bAbbreviated) { return !weekday.ok() ? KStringViewZ{} : bAbbreviated ? detail::AbbreviatedWeekdays[weekday.c_encoding()] : detail::Weekdays[weekday.c_encoding()]; }
 /// Get the local abbreviated or full weekday name of the default locale
-DEKAF2_PUBLIC inline KStringViewZ kGetLocalDayName(chrono::weekday weekday, bool bAbbreviated)       { return !weekday.ok() ? KStringViewZ{} : KStringViewZ(detail::GetDefaultLocalDayNames(bAbbreviated)[weekday.c_encoding()]); }
+DEKAF2_PUBLIC inline       KStringViewZ kGetLocalDayName        (chrono::weekday weekday, bool bAbbreviated) { return !weekday.ok() ? KStringViewZ{} : KStringViewZ(detail::GetDefaultLocalDayNames(bAbbreviated)[weekday.c_encoding()]); }
 /// Get an array of the local abbreviated or full weekday names of the given locale
-DEKAF2_PUBLIC std::array<KString, 7> kGetLocalDayNames(const std::locale& locale, bool bAbbreviated);
+DEKAF2_PUBLIC    std::array<KString, 7> kGetLocalDayNames       (const std::locale& locale, bool bAbbreviated);
 
-/// Get the English abbreviated or full month name, input 0..11, 0 == January
-DEKAF2_PUBLIC KStringViewZ kGetMonthName(uint16_t iMonth, bool bAbbreviated, bool bLocal);
 /// Get the English abbreviated or full month name
-DEKAF2_PUBLIC constexpr KStringViewZ kGetMonthName(chrono::month month, bool bAbbreviated)           { return !month.ok() ? KStringViewZ{} : bAbbreviated ? detail::AbbreviatedMonths[unsigned(month)] : detail::Months[unsigned(month)]; }
+DEKAF2_PUBLIC constexpr    KStringViewZ kGetMonthName           (chrono::month month, bool bAbbreviated)     { return !month.ok() ? KStringViewZ{} : bAbbreviated ? detail::AbbreviatedMonths[unsigned(month) - 1] : detail::Months[unsigned(month) - 1]; }
 /// Get the local abbreviated or full month name of the default locale
-DEKAF2_PUBLIC inline KStringViewZ kGetLocalMonthName(chrono::month month, bool bAbbreviated)         { return !month.ok() ? KStringViewZ{} : KStringViewZ(detail::GetDefaultLocalMonthNames(bAbbreviated)[unsigned(month)]); }
+DEKAF2_PUBLIC inline       KStringViewZ kGetLocalMonthName      (chrono::month month, bool bAbbreviated)     { return !month.ok() ? KStringViewZ{} : KStringViewZ(detail::GetDefaultLocalMonthNames(bAbbreviated)[unsigned(month) - 1]); }
 /// Get an array of the local abbreviated or full month names of the given locale
-DEKAF2_PUBLIC std::array<KString, 12> kGetLocalMonthNames(const std::locale& locale, bool bAbbreviated);
+DEKAF2_PUBLIC   std::array<KString, 12> kGetLocalMonthNames     (const std::locale& locale, bool bAbbreviated);
 
 /// Returns day of week for every gregorian date
-DEKAF2_PUBLIC constexpr chrono::weekday kDayOfWeek(chrono::year year, chrono::month month, chrono::day day) { return detail::weekday_from_civil(chrono::year_month_day(year/month/day)); }
+DEKAF2_PUBLIC constexpr chrono::weekday kDayOfWeek              (chrono::year year, chrono::month month, chrono::day day) { return detail::weekday_from_civil(chrono::year_month_day(year/month/day)); }
 
 /// Create a UTC time stamp following std::format patterns
 /// @param tUTC KUTCTime. If !ok(), queries current time from the system, defaults to current time
 /// @param sFormat format string, defaults to "%Y-%m-%d %H:%M:%S"
 /// @return the timestamp string
-DEKAF2_PUBLIC KString kFormTimestamp (const KUTCTime& tUTC = KUTCTime::now(), KStringView sFormat = detail::fDefaultDateTime);
+DEKAF2_PUBLIC                   KString kFormTimestamp          (const KUTCTime& tUTC = KUTCTime::now(), KStringView sFormat = detail::fDefaultDateTime);
 
 /// Create a local time stamp following std::format patterns
 /// @param tLocal KLocalTime
 /// @param sFormat format string, defaults to "%Y-%m-%d %H:%M:%S"
 /// @return the timestamp string
-DEKAF2_PUBLIC KString kFormTimestamp (const KLocalTime& tLocal, KStringView sFormat = detail::fDefaultDateTime);
+DEKAF2_PUBLIC                   KString kFormTimestamp          (const KLocalTime& tLocal, KStringView sFormat = detail::fDefaultDateTime);
 
 /// Create a time stamp following std::format patterns
 /// @param locale a system locale to localize day and month names
 /// @param tUTC KUTCTime. If !ok(), queries current time from the system
 /// @param sFormat format string, defaults to "%Y-%m-%d %H:%M:%S"
 /// @return the timestamp string
-DEKAF2_PUBLIC KString kFormTimestamp (const std::locale& locale, const KUTCTime& tUTC, KStringView sFormat = detail::fDefaultDateTime);
+DEKAF2_PUBLIC                   KString kFormTimestamp          (const std::locale& locale, const KUTCTime& tUTC, KStringView sFormat = detail::fDefaultDateTime);
 
 /// Create a time stamp following std::format patterns
 /// @param locale a system locale to localize day and month names
 /// @param tLocal KLocalTime
 /// @param sFormat format string, defaults to "%Y-%m-%d %H:%M:%S"
 /// @return the timestamp string
-DEKAF2_PUBLIC KString kFormTimestamp (const std::locale& locale, const KLocalTime& tLocal, KStringView sFormat = detail::fDefaultDateTime);
+DEKAF2_PUBLIC                   KString kFormTimestamp          (const std::locale& locale, const KLocalTime& tLocal, KStringView sFormat = detail::fDefaultDateTime);
 
 /// Create a HTTP time stamp
 /// @param tUTC KUTCTime, defaults to current time
 /// @return the timestamp string
-DEKAF2_PUBLIC inline KString kFormHTTPTimestamp (const KUTCTime& tUTC = KUTCTime::now())     { return detail::FormWebTimestamp(tUTC, "GMT"); }
+DEKAF2_PUBLIC inline            KString kFormHTTPTimestamp      (const KUTCTime& tUTC = KUTCTime::now())     { return detail::FormWebTimestamp(tUTC, "GMT"); }
 
 /// Create a SMTP time stamp
 /// @param tUTC KUTCTime, defaults to current time
 /// @return the timestamp string
-DEKAF2_PUBLIC inline KString kFormSMTPTimestamp (const KUTCTime& tUTC = KUTCTime::now())     { return detail::FormWebTimestamp(tUTC, "-0000"); }
+DEKAF2_PUBLIC inline            KString kFormSMTPTimestamp      (const KUTCTime& tUTC = KUTCTime::now())     { return detail::FormWebTimestamp(tUTC, "-0000"); }
 
 /// Create a common log format time stamp
 /// @param tUTC KUTCTime, defaults to current time
 /// @return the timestamp string
 // [18/Sep/2011:19:18:28 +0000]
-DEKAF2_PUBLIC inline KString kFormCommonLogTimestamp(const KUTCTime& tUTC = KUTCTime::now()) { return kFormat("[{:%d/%b/%Y:%H:%M:%S %z}]", tUTC); }
+DEKAF2_PUBLIC inline            KString kFormCommonLogTimestamp (const KUTCTime& tUTC = KUTCTime::now())     { return kFormat("[{:%d/%b/%Y:%H:%M:%S %z}]", tUTC); }
 
 /// Parse any timestamp that matches a format string built from h m s D M Y, and a S U z Z N ?
 /// Y(ear) could be 2 or 4 digits,
@@ -814,7 +782,7 @@ DEKAF2_PUBLIC inline KString kFormCommonLogTimestamp(const KUTCTime& tUTC = KUTC
 /// @param sTimestamp the string to parse
 /// @param timezone the timezone to assume if there is no timezone indication in the string - defaults to UTC
 /// @return a detail::KParsedTimestamp, that implicitly converts into either KUnixTime, KUTCTime, or KLocalTime. Check with .ok() for valid result.
-DEKAF2_PUBLIC inline detail::KParsedTimestamp kParseTimestamp(KStringView sFormat, KStringView sTimestamp, const chrono::time_zone* timezone = nullptr) { return detail::KParsedTimestamp(sFormat, sTimestamp, timezone); }
+DEKAF2_PUBLIC inline    detail::KParsedTimestamp kParseTimestamp      (KStringView sFormat, KStringView sTimestamp, const chrono::time_zone* timezone = nullptr) { return detail::KParsedTimestamp(sFormat, sTimestamp, timezone); }
 
 /// Parse any timestamp that matches a format string built from h m s D M Y, and a S U z Z N ?
 /// Y(ear) could be 2 or 4 digits,
@@ -830,46 +798,46 @@ DEKAF2_PUBLIC inline detail::KParsedTimestamp kParseTimestamp(KStringView sForma
 /// @param sTimestamp the string to parse
 /// @param timezone the timezone to assume if there is no timezone indication in the string - defaults to current zone. Is also used as the timezone for the result type. If the string contained a time zone indication, it is translated into the timezone of the result type.
 /// @return KLocalTime of the time stamp. Check with .ok() for valid result.
-DEKAF2_PUBLIC inline KLocalTime kParseLocalTimestamp(KStringView sFormat, KStringView sTimestamp, const chrono::time_zone* timezone = chrono::current_zone()) { return detail::KParsedTimestamp(sFormat, sTimestamp, timezone); }
+DEKAF2_PUBLIC inline                  KLocalTime kParseLocalTimestamp (KStringView sFormat, KStringView sTimestamp, const chrono::time_zone* timezone = chrono::current_zone()) { return detail::KParsedTimestamp(sFormat, sTimestamp, timezone); }
 
 /// parse a timestamp from predefined formats - the format is automatically (and fast) detected from about 130 common patterns
 /// @param sTimestamp the string to parse - if there is no timezone indication in the string it is assumed as UTC
 /// @return a detail::KParsedTimestamp, that implicitly converts into either KUnixTime, KUTCTime, or KLocalTime. Check with .ok() for valid result.
-DEKAF2_PUBLIC inline detail::KParsedTimestamp kParseTimestamp(KStringView sTimestamp)    { return detail::KParsedTimestamp(sTimestamp);     }
+DEKAF2_PUBLIC inline    detail::KParsedTimestamp kParseTimestamp      (KStringView sTimestamp) { return detail::KParsedTimestamp(sTimestamp); }
 
 /// parse a timestamp from predefined formats - the format is automatically (and fast) detected from about 130 common patterns
 /// @param sTimestamp the string to parse
 /// @param timezone the timezone to assume if there is no timezone indication in the string - defaults to current zone. Is also used as the timezone for the result type. If the string contained a time zone indication, it is translated into the timezone of the result type.
 /// @return KLocalTime of the time stamp. Check with .ok() for valid result.
-DEKAF2_PUBLIC inline KLocalTime kParseLocalTimestamp(KStringView sTimestamp, const chrono::time_zone* timezone = chrono::current_zone()) { return detail::KParsedTimestamp(sTimestamp, timezone); }
+DEKAF2_PUBLIC inline                  KLocalTime kParseLocalTimestamp (KStringView sTimestamp, const chrono::time_zone* timezone = chrono::current_zone()) { return detail::KParsedTimestamp(sTimestamp, timezone); }
 
 /// Parse a HTTP time stamp - only accepts GMT timezone
 /// @param sTime time stamp to parse
 /// @return a detail::KParsedWebTimestamp, that implicitly converts into either KUnixTime, KUTCTime, or KLocalTime. Check with .ok() for valid result.
-DEKAF2_PUBLIC inline detail::KParsedWebTimestamp kParseHTTPTimestamp (KStringView sTime) { return detail::KParsedWebTimestamp(sTime, true ); }
+DEKAF2_PUBLIC inline detail::KParsedWebTimestamp kParseHTTPTimestamp  (KStringView sTime) { return detail::KParsedWebTimestamp(sTime, true ); }
 
 /// Parse a SMTP time stamp - accepts variable timezone in -0500 format or timezone acronyms
 /// @param sTime time stamp to parse
 /// @return a detail::KParsedWebTimestamp, that implicitly converts into either KUnixTime, KUTCTime, or KLocalTime. Check with .ok() for valid result.
-DEKAF2_PUBLIC inline detail::KParsedWebTimestamp kParseSMTPTimestamp (KStringView sTime) { return detail::KParsedWebTimestamp(sTime, false); }
+DEKAF2_PUBLIC inline detail::KParsedWebTimestamp kParseSMTPTimestamp  (KStringView sTime) { return detail::KParsedWebTimestamp(sTime, false); }
 
 /// Parse a time zone abbreviation like EDT / GMT / CEST in uppercase and return offset to GMT
 /// @param sTimezone the abbreviation of a timezone to search for
 /// @return chrono::minutes of timezone offset, or -1 minute in case of error
-DEKAF2_PUBLIC chrono::minutes kGetTimezoneOffset(KStringViewZ sTimezone);
+DEKAF2_PUBLIC                    chrono::minutes kGetTimezoneOffset   (KStringViewZ sTimezone);
 
 /// Form a string that expresses a duration
 /// @param iNumSeconds count of seconds
 /// @param bLongForm set to true for verbose output: verbose = "3 days, 23 hrs, 47 mins, 16 secs", condensed = "2.2 wks"
 /// @return the output string
-DEKAF2_PUBLIC KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm = false);
+DEKAF2_PUBLIC                            KString kTranslateSeconds    (int64_t iNumSeconds, bool bLongForm = false);
 
 /// Form a string that expresses a duration
 /// @param Duration a KDuration value
 /// @param bLongForm set to true for verbose output: verbose = "3 days, 23 hrs, 47 mins, 16 secs", condensed = "2.2 wks"
 /// @param sMinInterval unit to display if duration is 0 ("less than a ...")
 /// @return the output string
-DEKAF2_PUBLIC KString kTranslateDuration(const KDuration& Duration, bool bLongForm = false, KStringView sMinInterval = "nanosecond");
+DEKAF2_PUBLIC                            KString kTranslateDuration   (const KDuration& Duration, bool bLongForm = false, KStringView sMinInterval = "nanosecond");
 
 
 /// converts to string

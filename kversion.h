@@ -149,25 +149,7 @@ private:
 extern DEKAF2_PUBLIC bool operator==(const KVersion& left, const KVersion& right);
 extern DEKAF2_PUBLIC bool operator<(const KVersion& left, const KVersion& right);
 
-inline bool operator!=(const KVersion& left, const KVersion& right)
-{
-	return !operator==(left, right);
-}
-
-inline bool operator>(const KVersion& left, const KVersion& right)
-{
-	return operator<(right, left);
-}
-
-inline bool operator<=(const KVersion& left, const KVersion& right)
-{
-	return !operator<(right, left);
-}
-
-inline bool operator>=(const KVersion& left, const KVersion& right)
-{
-	return !operator<(left, right);
-}
+DEKAF2_COMPARISON_OPERATORS(KVersion)
 
 } // end of namespace dekaf2
 

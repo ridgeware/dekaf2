@@ -883,45 +883,17 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// compares other instance with this
-	friend bool operator!= (const KProtocol& left, const KProtocol& right)
+	friend bool operator<(const KProtocol& left, const KProtocol& right)
 	//-------------------------------------------------------------------------
 	{
-		return !(left == right);
-	}
-
-	//-------------------------------------------------------------------------
-	bool operator<(const KProtocol& other) const
-	//-------------------------------------------------------------------------
-	{
-		if (DEKAF2_UNLIKELY(m_eProto == UNKNOWN))
+		if (DEKAF2_UNLIKELY(left.m_eProto == UNKNOWN))
 		{
-			return m_sProto < other.m_sProto;
+			return left.m_sProto < right.m_sProto;
 		}
 
-		return m_eProto < other.m_eProto;
+		return left.m_eProto < right.m_eProto;
 	}
 
-	//-------------------------------------------------------------------------
-	bool operator>(const KProtocol& other) const
-	//-------------------------------------------------------------------------
-	{
-		return other.operator<(*this);
-	}
-
-	//-------------------------------------------------------------------------
-	bool operator<=(const KProtocol& other) const
-	//-------------------------------------------------------------------------
-	{
-		return !operator>(other);
-	}
-
-	//-------------------------------------------------------------------------
-	bool operator>=(const KProtocol& other) const
-	//-------------------------------------------------------------------------
-	{
-		return !operator<(other);
-	}
 	//-------------------------------------------------------------------------
 	/// returns true if protocol was set/parsed
 	bool empty () const
@@ -945,6 +917,8 @@ private:
 	eProto  m_eProto { UNDEFINED };
 
 }; // KProtocol
+
+DEKAF2_COMPARISON_OPERATORS(KProtocol)
 
 } // end of namespace url
 

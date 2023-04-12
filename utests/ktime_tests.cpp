@@ -600,20 +600,20 @@ TEST_CASE("KTime") {
 		{
 			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
 
-			CHECK ( kGetMonthName( 1,  true, true) == "fév"      );
-			CHECK ( kGetMonthName( 7,  true, true) == "aoû"      );
-			CHECK ( kGetMonthName( 0, false, true) == "janvier"  );
-			CHECK ( kGetMonthName(11, false, true) == "décembre" );
+			CHECK ( kGetLocalMonthName( chrono::February,  true) == "fév"      );
+			CHECK ( kGetLocalMonthName( chrono::August  ,  true) == "aoû"      );
+			CHECK ( kGetLocalMonthName( chrono::January , false) == "janvier"  );
+			CHECK ( kGetLocalMonthName( chrono::December, false) == "décembre" );
 
-			CHECK ( kGetDayName( 1,  true, true) == "Lun"       );
-			CHECK ( kGetDayName( 3,  true, true) == "Mer"       );
-			CHECK ( kGetDayName( 1, false, true) == "Lundi"    );
-			CHECK ( kGetDayName( 3, false, true) == "Mercredi" );
+			CHECK ( kGetLocalDayName( chrono::Monday   ,  true) == "Lun"      );
+			CHECK ( kGetLocalDayName( chrono::Wednesday,  true) == "Mer"      );
+			CHECK ( kGetLocalDayName( chrono::Monday   , false) == "Lundi"    );
+			CHECK ( kGetLocalDayName( chrono::Wednesday, false) == "Mercredi" );
 		}
 		/*
 
 		 With the current implementation, month and day names will stick
-		 to the first locale they were used with - see comment in ktime.h
+		 to the first locale they were used with
 
 		 if (kSetGlobalLocale("de_DE.UTF-8"))
 		 {

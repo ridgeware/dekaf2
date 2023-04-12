@@ -757,4 +757,45 @@ inline Type& operator Operator (Type& left, Type right) \
  Attr bool operator<=(const Type& left, const Type& right) { return !(right < left);  } \
  Attr bool operator>=(const Type& left, const Type& right) { return !(left  < right); }
 
+// assume "inline" as the function attribute
 #define DEKAF2_COMPARISON_OPERATORS(Type) DEKAF2_COMPARISON_OPERATORS_WITH_ATTR(inline, Type)
+
+// helper macro to generate all comparison operators for one type from some
+// transformation, like function call or type conversion. Refer to the objects
+// in the wrapper with "left" or "right"
+#define DEKAF2_WRAPPED_COMPARISON_OPERATORS_ONE_TYPE_WITH_ATTR(Attr, Type, WrappedTypeLeft, WrappedTypeRight) \
+ Attr bool operator==(const Type&  left , const Type& right) { return WrappedTypeLeft  == WrappedTypeRight; } \
+ Attr bool operator< (const Type&  left , const Type& right) { return WrappedTypeLeft  <  WrappedTypeRight; } \
+ DEKAF2_COMPARISON_OPERATORS_WITH_ATTR(Attr, Type)
+
+// assume "inline" as the function attribute
+#define DEKAF2_WRAPPED_COMPARISON_OPERATORS_ONE_TYPE(Type, WrappedTypeLeft, WrappedTypeRight) \
+ DEKAF2_WRAPPED_COMPARISON_OPERATORS_ONE_TYPE_WITH_ATTR(inline, Type, WrappedTypeLeft, WrappedTypeRight)
+
+#define DEKAF2_DETAIL_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(Attr, TFirst, TSecond) \
+ Attr bool operator!=(const TFirst& left, const TSecond& right) { return !(left == right); } \
+ Attr bool operator> (const TFirst& left, const TSecond& right) { return   right < left;   } \
+ Attr bool operator<=(const TFirst& left, const TSecond& right) { return !(right < left);  } \
+ Attr bool operator>=(const TFirst& left, const TSecond& right) { return !(left  < right); } \
+
+// helper macro to generate the remaining comparison operators for two types from existing
+// equality and less operators (must exist in both directions)
+#define DEKAF2_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(Attr, TFirst, TSecond) \
+ DEKAF2_DETAIL_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(Attr, TFirst, TSecond) \
+ DEKAF2_DETAIL_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(Attr, TSecond, TFirst) \
+
+// helper macro to generate all comparison operators for one or two types from some
+// transformation, like function call or type conversion. If one of the two types
+// does not need a "wrapped" conversion, name it first or second..
+#define DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(Attr, TFirst, TSecond, WrappedFirst, WrappedSecond) \
+ Attr bool operator==(const TFirst&  first , const TSecond& second) { return WrappedFirst  == WrappedSecond; } \
+ Attr bool operator< (const TFirst&  first , const TSecond& second) { return WrappedFirst  <  WrappedSecond; } \
+ Attr bool operator==(const TSecond& second, const TFirst&  first ) { return WrappedSecond == WrappedFirst;  } \
+ Attr bool operator< (const TSecond& second, const TFirst&  first ) { return WrappedSecond <  WrappedFirst;  } \
+ DEKAF2_DETAIL_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(Attr, TFirst, TSecond) \
+ DEKAF2_DETAIL_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(Attr, TSecond, TFirst)
+
+// assume "inline" as the function attribute
+#define DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES(TFirst, TSecond, WrappedFirst, WrappedSecond) \
+ DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(inline, TFirst, TSecond, WrappedFirst, WrappedSecond)
+

@@ -1357,3 +1357,16 @@ TEST_CASE("URIComponent")
 	CHECK ( Path.contains("test"  ) == false );
 	CHECK ( Path.contains("simple") == true  );
 }
+
+TEST_CASE("kGetBaseDomain")
+{
+	CHECK ( kGetBaseDomain("www.acme.com"       ) == "ACME"        );
+	CHECK ( kGetBaseDomain("www.corp.co.jp"     ) == "CORP"        );
+	CHECK ( kGetBaseDomain("www.corp.OrG.jp"    ) == "CORP"        );
+	CHECK ( kGetBaseDomain("www.test.int.com"   ) == "TEST"        );
+	CHECK ( kGetBaseDomain("support.acme.com"   ) == "ACME"        );
+	CHECK ( kGetBaseDomain("www.ted.expert"     ) == "TED"         );
+	CHECK ( kGetBaseDomain("www.nutcrackers.top") == "NUTCRACKERS" );
+	CHECK ( kGetBaseDomain("www.acme.org.jp"    ) == "ACME"        );
+	CHECK ( kGetBaseDomain("morewords.somelongdomain.org.ar") == "SOMELONGDOMAIN" );
+}

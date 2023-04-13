@@ -53,64 +53,39 @@ namespace dekaf2 {
 KString kGetBaseDomain (KStringView sHostName)
 //-------------------------------------------------------------------------
 {
-	KString sBaseName;
+	// in general, skip all TLDs when used as second level domains
+	// and return the third level in uppercase, or return the
+	// second level in uppercase
 
-	if (!sHostName.empty())
+	auto Domains = sHostName.Split(".", "");
+
+	// Ignore simple non-dot hostname (localhost).
+	if (Domains.size() == 2)
 	{
-		// sBaseName   is special-cased
-		//
-		//         google.com       1Back but no 2Back     GOOGLE
-		//
-		//        www.ibm.com       2Back but no ".co."    IBM
-		//
-		// foo.bar.baz.co.jp        3Back and is ".co."    BAZ
-		//    ^   ^   ^  ^
-		//    |   |   |  |
-		//    4   3   2  1 Back
-		// If ".co." between 2Back & 1Back : base domain is between 3Back & 2Back
-		// If not, and 2Back exists: base domain is between 2Back & 1Back
-		// If not even 2Back then base domain is between beginning and 1Back
-
-		auto iDotEnd = sHostName.rfind ('.');
-		if (iDotEnd == 0 || iDotEnd == KStringView::npos)
+		return Domains[0].ToUpperASCII();
+	}
+	else if (Domains.size() > 2)
+	{
+		switch (Domains[Domains.size() - 2].CaseHash())
 		{
-			// Ignore simple non-dot hostname (localhost).
-		}
-		else
-		{
-			// When there is at least 1 dot, look for domain name features
-
-			auto iDotStart = sHostName.rfind ('.', iDotEnd - 1);
-
-			if (iDotStart != KStringView::npos)
-			{
-				// When there are at least 2 dots, look for ".co.".
-
-				KStringView svCheckForDotCo (sHostName);
-				svCheckForDotCo.remove_prefix (iDotStart);
-
-				if (svCheckForDotCo.starts_with (".co."))
-				{
-					iDotEnd = iDotStart;
-					iDotStart = sHostName.rfind ('.', iDotStart - 1);
-				}
-			}
-
-			if (iDotStart == KStringView::npos)
-			{
-				iDotStart = 0;
-			}
-			else
-			{
-				++iDotStart;
-			}
-
-			sBaseName = kToUpper(KStringView(sHostName.data() + iDotStart, iDotEnd - iDotStart));
+			case "co"_hash:
+			case "com"_hash:
+			case "int"_hash:
+			case "org"_hash:
+			case "edu"_hash:
+			case "gov"_hash:
+			case "net"_hash:
+			case "mil"_hash:
+				return Domains[Domains.size() - 3].ToUpperASCII();
+			default:
+				return Domains[Domains.size() - 2].ToUpperASCII();
+				break;
 		}
 	}
 
-	return sBaseName;
-}
+	return {};
+
+} // kGetBaseDomain
 
 //-----------------------------------------------------------------------------
 bool kIsSubDomainOf(const url::KDomain& Domain, const url::KDomain& SubDomain)

@@ -320,6 +320,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	template <class iterator, class end, typename std::enable_if<std::is_integral<end>::value == false, int>::type =0>
+	DEKAF2_CONSTEXPR_20
+	constexpr KStringView(iterator first, end last) noexcept
+	//-----------------------------------------------------------------------------
+	: m_rep(first, last - first)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
 	self& operator=(const self_type& other) noexcept = default;
 	//-----------------------------------------------------------------------------

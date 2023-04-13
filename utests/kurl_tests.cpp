@@ -1358,15 +1358,63 @@ TEST_CASE("URIComponent")
 	CHECK ( Path.contains("simple") == true  );
 }
 
-TEST_CASE("kGetBaseDomain")
+TEST_CASE("url::GetDomainIdentity")
 {
-	CHECK ( kGetBaseDomain("www.acme.com"       ) == "ACME"        );
-	CHECK ( kGetBaseDomain("www.corp.co.jp"     ) == "CORP"        );
-	CHECK ( kGetBaseDomain("www.corp.OrG.jp"    ) == "CORP"        );
-	CHECK ( kGetBaseDomain("www.test.int.com"   ) == "TEST"        );
-	CHECK ( kGetBaseDomain("support.acme.com"   ) == "ACME"        );
-	CHECK ( kGetBaseDomain("www.ted.expert"     ) == "TED"         );
-	CHECK ( kGetBaseDomain("www.nutcrackers.top") == "NUTCRACKERS" );
-	CHECK ( kGetBaseDomain("www.acme.org.jp"    ) == "ACME"        );
-	CHECK ( kGetBaseDomain("morewords.somelongdomain.org.ar") == "SOMELONGDOMAIN" );
+	using namespace dekaf2::url;
+
+	CHECK ( GetDomainIdentity("localhost"          ) == ""            );
+	CHECK ( GetDomainIdentity(""                   ) == ""            );
+	CHECK ( GetDomainIdentity("."                  ) == ""            );
+	CHECK ( GetDomainIdentity(".."                 ) == ""            );
+	CHECK ( GetDomainIdentity("www.acme.com"       ) == "ACME"        );
+	CHECK ( GetDomainIdentity("www.corp.co.jp"     ) == "CORP"        );
+	CHECK ( GetDomainIdentity("www.corp.OrG.jp"    ) == "CORP"        );
+	CHECK ( GetDomainIdentity("www.test.int.com"   ) == "TEST"        );
+	CHECK ( GetDomainIdentity("support.acme.com"   ) == "ACME"        );
+	CHECK ( GetDomainIdentity("www.ted.expert"     ) == "TED"         );
+	CHECK ( GetDomainIdentity("www.nutcrackers.top") == "NUTCRACKERS" );
+	CHECK ( GetDomainIdentity("www.acme.org.jp"    ) == "ACME"        );
+	CHECK ( GetDomainIdentity("more.sub.domains.here.somelongdomain.org.ar") == "SOMELONGDOMAIN" );
+
+	CHECK ( GetSubDomain("localhost"          ) == ""           );
+	CHECK ( GetSubDomain(""                   ) == ""           );
+	CHECK ( GetSubDomain("."                  ) == ""           );
+	CHECK ( GetSubDomain(".."                 ) == ""           );
+	CHECK ( GetSubDomain("www.acme.com"       ) == "www"        );
+	CHECK ( GetSubDomain("www.corp.co.jp"     ) == "www"        );
+	CHECK ( GetSubDomain("www.corp.OrG.jp"    ) == "www"        );
+	CHECK ( GetSubDomain("www.test.int.com"   ) == "www"        );
+	CHECK ( GetSubDomain("support.acme.com"   ) == "support"    );
+	CHECK ( GetSubDomain("www.ted.expert"     ) == "www"        );
+	CHECK ( GetSubDomain("www.nutcrackers.top") == "www"        );
+	CHECK ( GetSubDomain("www.acme.org.jp"    ) == "www"        );
+	CHECK ( GetSubDomain("more.sub.domains.here.somelongdomain.org.ar") == "more.sub.domains.here" );
+
+	CHECK ( GetRootDomain("localhost"          ) == "localhost"  );
+	CHECK ( GetRootDomain(""                   ) == ""           );
+	CHECK ( GetRootDomain("."                  ) == ""           );
+	CHECK ( GetRootDomain(".."                 ) == ""           );
+	CHECK ( GetRootDomain("www.acme.com"       ) == "acme.com"           );
+	CHECK ( GetRootDomain("www.corp.co.jp"     ) == "corp.co.jp"         );
+	CHECK ( GetRootDomain("www.corp.OrG.jp"    ) == "corp.OrG.jp"        );
+	CHECK ( GetRootDomain("www.test.int.com"   ) == "test.int.com"       );
+	CHECK ( GetRootDomain("support.acme.com"   ) == "acme.com"           );
+	CHECK ( GetRootDomain("www.ted.expert"     ) == "ted.expert"         );
+	CHECK ( GetRootDomain("www.nutcrackers.top") == "nutcrackers.top"    );
+	CHECK ( GetRootDomain("www.acme.org.jp"    ) == "acme.org.jp"        );
+	CHECK ( GetRootDomain("more.sub.domains.here.somelongdomain.org.ar") == "somelongdomain.org.ar" );
+
+	CHECK ( GetDomainSuffix("localhost"          ) == ""           );
+	CHECK ( GetDomainSuffix(""                   ) == ""           );
+	CHECK ( GetDomainSuffix("."                  ) == ""           );
+	CHECK ( GetDomainSuffix(".."                 ) == ""           );
+	CHECK ( GetDomainSuffix("www.acme.com"       ) == "com"           );
+	CHECK ( GetDomainSuffix("www.corp.co.jp"     ) == "co.jp"         );
+	CHECK ( GetDomainSuffix("www.corp.OrG.jp"    ) == "OrG.jp"        );
+	CHECK ( GetDomainSuffix("www.test.int.com"   ) == "int.com"       );
+	CHECK ( GetDomainSuffix("support.acme.com"   ) == "com"           );
+	CHECK ( GetDomainSuffix("www.ted.expert"     ) == "expert"        );
+	CHECK ( GetDomainSuffix("www.nutcrackers.top") == "top"           );
+	CHECK ( GetDomainSuffix("www.acme.org.jp"    ) == "org.jp"        );
+	CHECK ( GetDomainSuffix("more.sub.domains.here.somelongdomain.org.ar") == "org.ar" );
 }

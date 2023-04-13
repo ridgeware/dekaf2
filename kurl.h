@@ -56,28 +56,18 @@
 
 namespace dekaf2 {
 
-//-------------------------------------------------------------------------
-/// Convert into a special "Base" domain
-/// @param sHostName hostname to be converted into the base domain
-///
-/// The return value of kGetBaseDomain is special-cased:
-///
-///         google.com       1Back but no 2Back     GOOGLE
-///
-///        www.ibm.com       2Back but no ".co."    IBM
-///
-/// foo.bar.baz.co.jp        3Back and is ".co."    BAZ
-///    ^   ^   ^  ^
-///    |   |   |  |
-///    4   3   2  1 Back
-/// If ".co." between 2Back & 1Back : base domain is between 3Back & 2Back
-/// If not, and 2Back exists: base domain is between 2Back & 1Back
-/// If not even 2Back then base domain is between beginning and 1Back
-DEKAF2_PUBLIC
-KString kGetBaseDomain (KStringView sHostName);
-//-------------------------------------------------------------------------
-
 namespace url {
+
+/// @param sHostName hostname to be converted into the domain suffix
+/// @return the domain suffix
+DEKAF2_PUBLIC KStringView GetDomainSuffix   (KStringView sHostName);
+
+DEKAF2_PUBLIC KString     GetDomainIdentity (KStringView sHostName);
+
+DEKAF2_PUBLIC KStringView GetRootDomain     (KStringView sHostName);
+
+DEKAF2_PUBLIC KStringView GetSubDomain      (KStringView sHostName);
+
 namespace detail {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -920,6 +910,12 @@ private:
 
 DEKAF2_COMPARISON_OPERATORS(KProtocol)
 
+/// returns true if the second parameter is a subdomain of the first
+/// @param Domain the base domain
+/// @param SubDomain the sub domain
+DEKAF2_PUBLIC
+bool IsSubDomainOf(const KDomain& Domain, const KDomain& SubDomain);
+
 } // end of namespace url
 
 
@@ -927,8 +923,8 @@ DEKAF2_COMPARISON_OPERATORS(KProtocol)
 /// returns true if the second parameter is a subdomain of the first
 /// @param Domain the base domain
 /// @param SubDomain the sub domain
-DEKAF2_PUBLIC
-bool kIsSubDomainOf(const url::KDomain& Domain, const url::KDomain& SubDomain);
+DEKAF2_PUBLIC inline
+bool kIsSubDomainOf(const url::KDomain& Domain, const url::KDomain& SubDomain) { return url::IsSubDomainOf(Domain, SubDomain); }
 //-------------------------------------------------------------------------
 
 
@@ -1283,7 +1279,7 @@ public:
 	KString GetBaseDomain() const
 	//-------------------------------------------------------------------------
 	{
-		return kGetBaseDomain(Domain.get());
+		return url::GetDomainIdentity(Domain.get());
 	}
 
 	url::KProtocol  Protocol;
@@ -1443,6 +1439,11 @@ public:
 	url::KPort      Port;
 
 }; // KTCPEndPoint
+
+/// Convert into a special "Base" domain
+/// @param sHostName hostname to be converted into the base domain
+DEKAF2_PUBLIC inline
+KString kGetBaseDomain (KStringView sHostName) { return url::GetDomainIdentity(sHostName); }
 
 } // of namespace dekaf2
 

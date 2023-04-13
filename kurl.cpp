@@ -49,22 +49,39 @@
 
 namespace dekaf2 {
 
+namespace url {
+
+// domain            GetSubdomain()     GetRootDomain()     GetBaseDomain()        GetDomainSuffix()
+// www.acme.com      www                acme.com            ACME                   com
+// www.acme.co.uk    www                acme.co.uk          ACME                   co.uk
+// www.acme.edu      www                acme.edu            ACME                   edu
+// acme.com                             acme.com            ACME                   com
+// acme.co.uk                           acme.co.uk          ACME                   co.uk
+// www.ted.expert    www                ted.expert          TED                    expert
+// ted.expert                           ted.expert          TED                    expert
+// www.expert.com    www                expert.com          EXPERT                 com
+// expert.com                           expert.com          EXPERT                 com
+
+namespace {
+
+struct DomainsAndIndex
+{
+	std::vector<KStringView> Domains;
+	std::size_t iIndex;
+	bool bValid;
+};
+
 //-------------------------------------------------------------------------
-KString kGetBaseDomain (KStringView sHostName)
+DomainsAndIndex SplitAndIndexDomain(KStringView sHostName)
 //-------------------------------------------------------------------------
 {
-	// in general, skip all TLDs when used as second level domains
-	// and return the third level in uppercase, or return the
-	// second level in uppercase
-
 	auto Domains = sHostName.Split(".", "");
 
+	std::size_t iIndex = 0;
+	bool bValid = true;
+
 	// Ignore simple non-dot hostname (localhost).
-	if (Domains.size() == 2)
-	{
-		return Domains[0].ToUpperASCII();
-	}
-	else if (Domains.size() > 2)
+	if (Domains.size() > 2)
 	{
 		switch (Domains[Domains.size() - 2].CaseHash())
 		{
@@ -76,19 +93,90 @@ KString kGetBaseDomain (KStringView sHostName)
 			case "gov"_hash:
 			case "net"_hash:
 			case "mil"_hash:
-				return Domains[Domains.size() - 3].ToUpperASCII();
-			default:
-				return Domains[Domains.size() - 2].ToUpperASCII();
+				iIndex = Domains.size() - 3;
 				break;
+			default:
+				iIndex = Domains.size() - 2;
+				break;
+		}
+	}
+
+	if (Domains.size() < 2 || Domains[iIndex].empty())
+	{
+		bValid = false;
+	}
+
+	return { Domains, iIndex, bValid };
+
+} // SplitAndIndexDomain
+
+}
+
+//-------------------------------------------------------------------------
+KString GetDomainIdentity (KStringView sHostName)
+//-------------------------------------------------------------------------
+{
+	// in general, skip all TLDs when used as second level domains
+	// and return the third level in uppercase, or return the
+	// second level in uppercase
+
+	auto pair = SplitAndIndexDomain(sHostName);
+
+	return (pair.bValid) ? pair.Domains[pair.iIndex].ToUpperASCII() : KString();
+
+} // GetDomainIdentity
+
+//-------------------------------------------------------------------------
+KStringView GetDomainSuffix (KStringView sHostName)
+//-------------------------------------------------------------------------
+{
+	auto pair = SplitAndIndexDomain(sHostName);
+
+	if (pair.bValid)
+	{
+		if (pair.Domains.size() == 2)
+		{
+			return pair.Domains[1];
+		}
+		else if (pair.iIndex < pair.Domains.size() - 1)
+		{
+			return KStringView(pair.Domains[pair.iIndex + 1].begin(), sHostName.end());
 		}
 	}
 
 	return {};
 
-} // kGetBaseDomain
+} // GetDomainSuffix
 
 //-----------------------------------------------------------------------------
-bool kIsSubDomainOf(const url::KDomain& Domain, const url::KDomain& SubDomain)
+KStringView GetRootDomain (KStringView sHostName)
+//-----------------------------------------------------------------------------
+{
+	auto pair = SplitAndIndexDomain(sHostName);
+
+	if (pair.iIndex == 0 && pair.Domains.size() == 1) return sHostName;
+	
+	return (pair.bValid) ? KStringView(pair.Domains[pair.iIndex].begin(), sHostName.end()) : KStringView{};
+
+} // GetRootDomain
+
+//-----------------------------------------------------------------------------
+KStringView GetSubDomain (KStringView sHostName)
+//-----------------------------------------------------------------------------
+{
+	auto pair = SplitAndIndexDomain(sHostName);
+
+	if (pair.bValid && pair.iIndex > 0)
+	{
+		return KStringView(pair.Domains[0].begin(), pair.Domains[pair.iIndex-1].end());
+	}
+
+	return {};
+
+} // GetSubDomain
+
+//-----------------------------------------------------------------------------
+bool IsSubDomainOf(const url::KDomain& Domain, const url::KDomain& SubDomain)
 //-----------------------------------------------------------------------------
 {
 	KString sDomain    = Domain.get().ToLowerASCII();
@@ -110,9 +198,7 @@ bool kIsSubDomainOf(const url::KDomain& Domain, const url::KDomain& SubDomain)
 	}
 	return false;
 
-} // kIsSubDomainOf
-
-namespace url {
+} // IsSubDomainOf
 
 namespace detail {
 

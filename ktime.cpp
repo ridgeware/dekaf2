@@ -1513,36 +1513,28 @@ KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
 //-----------------------------------------------------------------------------
 KUnixTime::KUnixTime(KStringView sTimestamp)
 //-----------------------------------------------------------------------------
-: KUnixTime(kParseTimestamp(sTimestamp))
+: KUnixTime(kParseTimestamp(sTimestamp).to_unix())
 {
 }
 
 //-----------------------------------------------------------------------------
 KUnixTime::KUnixTime(KStringView sFormat, KStringView sTimestamp)
 //-----------------------------------------------------------------------------
-: KUnixTime(kParseTimestamp(sFormat, sTimestamp))
+: KUnixTime(kParseTimestamp(sFormat, sTimestamp).to_unix())
 {
 }
 
 //-----------------------------------------------------------------------------
 KUTCTime::KUTCTime (KStringView sTimestamp)
 //-----------------------------------------------------------------------------
-#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 10) || !(DEKAF2_HAS_CPP_17)
 : KUTCTime(kParseTimestamp(sTimestamp).to_utc())
-#else
-: KUTCTime(kParseTimestamp(sTimestamp))
-#endif
 {
 }
 
 //-----------------------------------------------------------------------------
 KUTCTime::KUTCTime (KStringView sFormat, KStringView sTimestamp)
 //-----------------------------------------------------------------------------
-#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 10) || !(DEKAF2_HAS_CPP_17)
 : KUTCTime(kParseTimestamp(sFormat, sTimestamp).to_utc())
-#else
-: KUTCTime(kParseTimestamp(sFormat, sTimestamp))
-#endif
 {
 }
 

@@ -760,7 +760,7 @@ TEST_CASE("KTime") {
 	{
 		KUTCTime Date0;
 		CHECK ( Date0.ok() == false );
-		Date0.trunc();
+		Date0.to_trunc();
 		CHECK ( Date0.ok() == true );
 		CHECK ( Date0.month() == chrono::January    );
 		CHECK ( Date0.day()   == chrono::day(1)     );
@@ -771,7 +771,6 @@ TEST_CASE("KTime") {
 		KUTCTime Date1;
 		Date1.year(2024);
 		CHECK ( Date1.ok() == false );
-		CHECK ( Date1 == false );
 		Date1.month(8);
 		CHECK ( Date1.ok() == false );
 		Date1.day(16);
@@ -832,8 +831,6 @@ TEST_CASE("KTime") {
 		CHECK       ( Date2 <= Date1 );
 
 		Date2 = Date1 + chrono::years(2);
-		CHECK ( Date2.ok() == false ); // 2026-02-29 ..
-		Date2.floor();
 		CHECK ( Date2.ok() == true  ); // 2026-02-28 ..
 		CHECK ( Date2.month() == chrono::February   );
 		CHECK ( Date2.day()   == chrono::day(28)    );
@@ -842,8 +839,9 @@ TEST_CASE("KTime") {
 		CHECK ( Date2.is_leap()== false             );
 
 		Date2 = Date1 + chrono::years(2);
+		Date2.day(29);
 		CHECK ( Date2.ok() == false ); // 2026-02-29 ..
-		Date2.ceil();
+		Date2.to_ceil();
 		CHECK ( Date2.ok() == true  ); // 2026-03-01 ..
 		CHECK ( Date2.month() == chrono::March   );
 		CHECK ( Date2.day()   == chrono::day(1)    );
@@ -926,5 +924,96 @@ TEST_CASE("KTime") {
 		CHECK_FALSE ( ( t2 <= t1 ) );
 		CHECK       ( ( t2 >  t1 ) );
 		CHECK       ( ( t2 >= t1 ) );
+	}
+
+	SECTION("samples")
+	{
+		bool bHasTimezone = false;
+		bool bHasLocale = false;
+
+		{ // setup flags
+			try {
+				kFindTimezone("Asia/Tokyo");
+				bHasTimezone = true;
+			} catch (const std::exception& ex) {
+				kPrintLine ( "cannot find timezone Asia/Tokyo" );
+			}
+			std::locale loc;
+			try {
+				std::locale("ja_JP");
+				bHasLocale = true;
+			} catch (const std::exception& ex) {
+				kPrintLine ( "cannot get locale ja_JP" );
+			}
+		}
+
+		if (false && bHasTimezone && bHasLocale)
+		{
+			                                  // create the local time in Tokyo on Jan 1, 2012
+			                                  // - as we do not note a timezone in the timestamp,
+			                                  // the timestamp is interpreted as local to the
+			                                  // timezone assigned to KLocalTime (Asia/Tokyo)
+			KLocalTime TokyoTime("2012-01-31 12:15:00", kFindTimezone("Asia/Tokyo"));
+			kPrintLine(kFormat("Tokyo: {:%Z %c}", TokyoTime));              // -> "Tokyo: JST Tue Jan 31 12:15:00 2012"
+			kPrintLine(std::locale("ja_JP"), "Tokyo: {:%Z %c}", TokyoTime); // -> "Tokyo: JST 火  1/31 12:15:00 2012"
+			kPrintLine(std::locale("de_DE"), "Tokio: {:%Z %c}", TokyoTime); // -> "Tokio: JST Di 31 Jan 12:15:00 2012"
+
+			                                  // this does not work:
+			//TokyoTime += chrono::hours(12); // "no viable overloaded +="
+			                                  // computing time on a local time is always dangerous,
+			                                  // as it may cross DST changes or leap second insertions
+			                                  // hence we simply do not allow it
+
+			                                  // to compute with a local time, make the time a UTC time
+			auto utc = KUTCTime(TokyoTime);   // needs explicit conversion as conversion loses information (the timezone)
+			kPrintLine("{:%Z %c}", utc);     // -> "UTC Tue Jan 31 03:15:00 2012"
+			if (utc.month() != chrono::December) utc += chrono::months(1); // automatic end of month correction!
+			                                  // adding months or years is dangerous, February 31 does not exist. You can either ceil() or floor() the day:
+			kPrintLine("{:%Z %c}", utc);     // -> "UTC Wed Feb 29 03:15:00 2012"
+			                                  // it depends on the circumstances if one wants to use floor() or ceil() ..
+
+			                                  // faster for multiple computations and short durations, use KUnixTime (a simple time_point):
+			auto Unix = KUnixTime(TokyoTime); // needs explicit conversion as conversion loses information (the timezone) and possibly year range
+			kPrintLine("{:%Z %c}", Unix);    // -> "UTC Tue Jan 31 03:15:00 2012"
+			// unix += chrono::years(1);      // this would result in an astronomical year, so we forbid it
+			// kPrintLine("{:%Z %c}", unix); // -> "UTC Wed Jan 30 09:04:12 2013" (probably not what you expected..)
+			                                  // therefore, only calculate with days, hours, minutes, seconds, subseconds in a KUnixTime.
+			Unix += chrono::minutes(5);       // that works!
+			kPrintLine("{:%Z %c}", Unix);    // -> "UTC Tue Jan 31 03:20:00 2012"
+			Unix += chrono::days(1245);       // that works, too!
+			kPrintLine("{:%Z %c}", Unix);    // -> "UTC Mon Jun 29 03:20:00 2015"
+			kPrintLine("{:%Z %c}", KLocalTime(Unix, TokyoTime.get_time_zone())); // -> "JST Mon Jun 29 12:20:00 2015"
+
+			                                  // if you want to calculate with years and months, use a KUTCTime
+			utc = KUTCTime(TokyoTime);        // needs explicit conversion as conversion loses information (the timezone)
+			kPrintLine("{:%Z %c}", utc);     // -> "UTC Tue Jan 31 03:15:00 2012"
+			utc += chrono::years(1);
+			kPrintLine("{:%Z %c}", utc);     // -> "UTC Thu Jan 31 03:15:00 2013" (MUCH better than the forbidden calculation on KUnixTime above..)
+			utc += chrono::months(1);        // automatic end of month correction!
+			kPrintLine("{:%Z %c}", utc);     // -> "UTC Thu Feb 28 03:15:00 2013"
+
+			                                  // transform into eastern time:
+			auto BostonTime = KLocalTime(TokyoTime, kFindTimezone("America/New_York"));
+
+			if (BostonTime.is_leap() && !BostonTime.is_dst() && !BostonTime.is_last_day())
+			{                                 // is leap year, no DST, not last day of the month..
+				kPrintLine("{:%Z %c} in Boston is: {:%Z %c}", TokyoTime, BostonTime); // -> "JST Tue Jan 31 12:15:00 2012 in Boston is: EST Mon Jan 30 22:15:00 2012"
+			}
+
+			                                  // if you do not need time of day, better use a simpler type without any timezone:
+			KDate Date(chrono::year(2012)/01/30);
+			Date.day(31);                     // it's now the 31/01/2012
+			Date += chrono::months(1);        // that's now the 31/02/2012 but that is silently corrected to 29/02/2012
+			Date.is_leap();                   // returns true
+			                                  // how long ago was that? (a subtraction of KDate is returned in chrono::KDateDiff)
+			/* chrono::KDateDiff */ auto diff = KDate(chrono::year(2023)/chrono::April/12) - Date;
+			                                  // and the best is that all time functions that do not involve output formatting are constexpr,
+			                                  // the compiler calculates the result at compile time if all inputs are available
+			                                  // so until here all Date calculations were actually condensed to one result date
+			kPrintLine(kTranslateDuration(diff, true)); // -> 11 yrs, 6 wks, 3 days
+			kPrintLine("that was {} years, {} months and {} days (a total of {} months or {} days or {} weeks) ago",
+					   diff.years().count(), diff.months().count(), diff.days().count(), diff.to_months().count(), diff.to_days().count(), diff.to_weeks().count());
+			                                  // -> "that was 11 years, 1 months and 14 days (a total of 133 months or 4060 days or 580 weeks) ago"
+		}
 	}
 }

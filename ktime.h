@@ -97,6 +97,13 @@ DEKAF2_PUBLIC auto kFromLocalTime(chrono::zoned_time<Duration> ztp) -> chrono::s
 template<class Duration>
 DEKAF2_PUBLIC auto kFromLocalTime(chrono::local_time<Duration> tp, const chrono::time_zone* zone = chrono::current_zone()) -> chrono::sys_time<typename std::common_type<Duration, chrono::seconds>::type> { return zone->to_sys(tp); }
 
+class KLocalTime;
+class KUTCTime;
+namespace detail {
+// we need a constructor in KUnixTime for this because otherwise gcc 8 complains about conversion ambiguities
+class KParsedTimestampBase;
+}
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This class is a modern version of the legacy time point usage of time_t -
 /// in contrast to the legacy duration usage of time_t, which should be done with KDuration.
@@ -130,6 +137,12 @@ public:
 	DEKAF2_CONSTEXPR_14          KUnixTime(time_t time)       noexcept : KUnixTime(from_time_t(time)) {}
 	/// construct from std::tm timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const std::tm& tm) noexcept : KUnixTime(    from_tm(tm)  ) {}
+	// we need this constructor because otherwise gcc 8 complains about conversion ambiguities
+	                    explicit KUnixTime (const detail::KParsedTimestampBase& parsed) noexcept;
+	/// construct from KUTCTime timepoint (constexpr)
+	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const KUTCTime& local) noexcept;
+	/// construct from KLocalTime timepoint (constexpr)
+	                    explicit KUnixTime(const KLocalTime& local) noexcept;
 	/// construct from a string representation, which is interpreted as UTC time (if there is no time zone indicator telling other)
 	/// - the string format is automatically detected from about 130 common patterns
 	                    explicit KUnixTime (KStringView sTimestamp);
@@ -139,8 +152,6 @@ public:
 
 	using base::base;
 
-	/// returns true if not zero
-	DEKAF2_CONSTEXPR_14 explicit operator bool()              const noexcept { return ok();                                                  }
 	/// converts implicitly to time_t timepoint, although it loses precision..
 	DEKAF2_CONSTEXPR_14 explicit operator std::time_t()       const noexcept { return to_time_t(*this);                                      }
 
@@ -175,6 +186,17 @@ public:
 
 	/// returns a KUnixTime with the current time
 	                    static KUnixTime   now()                             { return clock::now(); }
+
+//--------
+private:
+//--------
+
+	// we do not permit addition or subtraction of years and months
+	// - they will always lead to unexpected results
+	constexpr void operator+=(chrono::months) noexcept {}
+	constexpr void operator+=(chrono::years ) noexcept {}
+	constexpr void operator-=(chrono::months) noexcept {}
+	constexpr void operator-=(chrono::years ) noexcept {}
 
 }; // KUnixTime
 
@@ -380,9 +402,8 @@ public:
 	/// return chrono::system_clock::time_point
 	DEKAF2_CONSTEXPR_14 chrono::system_clock::time_point to_sys () const noexcept { return chrono::system_clock::time_point(to_unix()); }
 
-	DEKAF2_CONSTEXPR_14          operator  std::tm   ()  const noexcept { return to_tm      (); }
-	DEKAF2_CONSTEXPR_14 explicit operator  KUnixTime ()  const noexcept { return to_unix    (); }
-	DEKAF2_CONSTEXPR_14 explicit operator  chrono::system_clock::time_point                 () const { return to_sys(); }
+	DEKAF2_CONSTEXPR_14          operator  std::tm () const noexcept { return to_tm(); }
+	DEKAF2_CONSTEXPR_14 explicit operator  chrono::system_clock::time_point () const { return to_sys(); }
 
 	/// return a string following std::format patterns - default = %Y-%m-%d %H:%M:%S
 	KString            Format    (KStringView sFormat = detail::fDefaultDateTime) const { return to_string(sFormat); }
@@ -470,12 +491,19 @@ public:
 	/// @see kParseTimestamp for a format string description
 	KLocalTime (KStringView sFormat, KStringView sTimestamp, const chrono::time_zone* timezone = chrono::current_zone());
 
-	/// construct from KUTCTime, and translate into a timezone, default timezone is the system's local time
+	/// construct from KUTCTime, and translate into a timezone
 	KLocalTime (const KUTCTime& utc, const chrono::time_zone* timezone)
 	: KLocalTime(utc.to_unix(), timezone)
 	{
 	}
 
+	/// construct from KLocalTime, and translate into a timezone
+	KLocalTime (const KLocalTime& local, const chrono::time_zone* timezone)
+	: KLocalTime(local.to_unix(), timezone)
+	{
+	}
+
+	/// construct from KUTCTime, and translate into the system's local time
 	explicit KLocalTime(const KUTCTime& utc)
 	: KLocalTime(utc, chrono::current_zone())
 	{
@@ -534,6 +562,8 @@ private:
 }; // KLocalTime
 
 inline KUTCTime::KUTCTime (const KLocalTime& local) noexcept : KUTCTime(KUnixTime(local.to_sys())) {}
+inline KUnixTime::KUnixTime(const KLocalTime& local) noexcept : KUnixTime(local.to_unix()) {}
+DEKAF2_CONSTEXPR_14 KUnixTime::KUnixTime(const KUTCTime& utc) noexcept : KUnixTime(utc.to_unix()) {}
 
 DEKAF2_WRAPPED_COMPARISON_OPERATORS_ONE_TYPE (KLocalTime, left.to_sys(), right.to_sys())
 DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES(KUTCTime, KLocalTime, first.to_sys(), second.to_sys())
@@ -612,30 +642,29 @@ public:
 private:
 //--------
 
-#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 10) || !DEKAF2_HAS_CPP_17
 	// gcc 8 needs the below explicit conversions
 	friend class dekaf2::KUTCTime;
-#endif
+	friend class dekaf2::KUnixTime;
 
 	KUnixTime  to_unix  () const;
 	KUTCTime   to_utc   () const;
 	KLocalTime to_local () const;
 
+	// these must be declared as friend and with access on .to_unix() as otherwise gcc 8 would complain about ambiguous conversions
+	friend KDuration operator-(const KParsedTimestampBase& left, const KParsedTimestampBase&  right) { return left.to_unix() - right.to_unix(); }
+	friend KDuration operator-(const KUnixTime& left, const KParsedTimestampBase&  right) { return left - right.to_unix(); }
+	friend KDuration operator-(const KParsedTimestampBase& left, const KUnixTime&  right) { return left.to_unix() - right; }
+	friend KDuration operator-(const KUTCTime& left, const KParsedTimestampBase&   right) { return left - right.to_unix(); }
+	friend KDuration operator-(const KParsedTimestampBase& left, const KUTCTime&   right) { return left.to_unix() - right; }
+	friend KDuration operator-(const KLocalTime& left, const KParsedTimestampBase& right) { return left - right.to_unix(); }
+	friend KDuration operator-(const KParsedTimestampBase& left, const KLocalTime& right) { return left.to_unix() - right; }
+
+	DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(friend, KUnixTime, KParsedTimestampBase, first, second.to_unix())
+
 	raw_time                 m_tm      { };
 	const chrono::time_zone* m_from_tz { nullptr };
 
 }; // KParsedTimestampBase
-
-inline KDuration operator-(const KParsedTimestampBase& left, const KParsedTimestampBase&  right) { return KUnixTime(left) - KUnixTime(right); }
-inline KDuration operator-(const KUnixTime& left, const KParsedTimestampBase&  right) { return left - KUnixTime(right); }
-inline KDuration operator-(const KParsedTimestampBase& left, const KUnixTime&  right) { return KUnixTime(left) - right; }
-inline KDuration operator-(const KUTCTime& left, const KParsedTimestampBase&   right) { return left - KUnixTime(right); }
-inline KDuration operator-(const KParsedTimestampBase& left, const KUTCTime&   right) { return KUnixTime(left) - right; }
-inline KDuration operator-(const KLocalTime& left, const KParsedTimestampBase& right) { return left - KUnixTime(right); }
-inline KDuration operator-(const KParsedTimestampBase& left, const KLocalTime& right) { return KUnixTime(left) - right; }
-
-DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES(KUnixTime, KParsedTimestampBase, first, KUnixTime(second))
-
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 // helper class to delay time format conversion after string parsing
@@ -705,6 +734,8 @@ DEKAF2_PUBLIC                   KString FormTimestamp    (const std::tm& time, K
 DEKAF2_PUBLIC                   KString FormTimestamp    (const std::locale& locale, const std::tm& time, KStringView sFormat);
 
 } // end of namespace detail
+
+inline KUnixTime::KUnixTime (const detail::KParsedTimestampBase& parsed) noexcept : KUnixTime(parsed.to_unix()) {}
 
 /// returns the current system time as KUnixTime in high resolution (clang libc++: microseconds, gnu libstdc++: nanoseconds)
 DEKAF2_PUBLIC inline          KUnixTime kNow                    ()                                           { return KUnixTime::now(); }

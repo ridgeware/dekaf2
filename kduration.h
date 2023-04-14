@@ -65,7 +65,7 @@ public:
 
 	using Duration  = chrono::nanoseconds;
 
-	// std::chrono::duration is not default initialized - make sure it is 0
+	// chrono::duration is not default initialized - make sure it is 0
 	constexpr KDuration()                      noexcept : Duration(Duration::zero()) {}
 	constexpr KDuration(const Duration& other) noexcept : Duration(other) {}
 	constexpr KDuration(Duration&& other)      noexcept : Duration(std::move(other)) {}
@@ -78,7 +78,7 @@ public:
 
 	/// construct from a time_t, considering the duration counted as seconds
 	template<typename T, typename std::enable_if<std::is_same<time_t, T>::value, int>::type = 0>
-	constexpr KDuration(T tSeconds) : Duration(std::chrono::seconds(tSeconds)) {}
+	constexpr KDuration(T tSeconds) : Duration(chrono::seconds(tSeconds)) {}
 
 	/// reset the duration to zero
 	constexpr void                           clear()                { *this = Duration::zero(); }
@@ -95,7 +95,7 @@ public:
 		else
 	#endif
 		{
-			return std::chrono::duration_cast<DurationType>(*this);
+			return chrono::duration_cast<DurationType>(*this);
 		}
 	}
 
@@ -105,17 +105,17 @@ public:
 	constexpr operator                  TimeT()          const { return seconds().count(); }
 
 	/// returns elapsed nanoseconds as duration type
-	constexpr chrono::nanoseconds       nanoseconds()  const { return duration<std::chrono::nanoseconds>();  }
+	constexpr chrono::nanoseconds       nanoseconds()  const { return duration<chrono::nanoseconds>();  }
 	/// returns elapsed microseconds as duration type
-	constexpr chrono::microseconds      microseconds() const { return duration<std::chrono::microseconds>(); }
+	constexpr chrono::microseconds      microseconds() const { return duration<chrono::microseconds>(); }
 	/// returns elapsed milliseconds as duration type
-	constexpr chrono::milliseconds      milliseconds() const { return duration<std::chrono::milliseconds>(); }
+	constexpr chrono::milliseconds      milliseconds() const { return duration<chrono::milliseconds>(); }
 	/// returns elapsed seconds as duration type
-	constexpr chrono::seconds           seconds()      const { return duration<std::chrono::seconds>();      }
+	constexpr chrono::seconds           seconds()      const { return duration<chrono::seconds>();      }
 	/// returns elapsed minutes as duration type
-	constexpr chrono::minutes           minutes()      const { return duration<std::chrono::minutes>();      }
+	constexpr chrono::minutes           minutes()      const { return duration<chrono::minutes>();      }
 	/// returns elapsed hours as duration type
-	constexpr chrono::hours             hours()        const { return duration<std::chrono::hours>();        }
+	constexpr chrono::hours             hours()        const { return duration<chrono::hours>();        }
 	/// returns elapsed days as duration type
 	constexpr chrono::days              days()         const { return duration<chrono::days>();              }
 	/// returns elapsed weeks as duration type

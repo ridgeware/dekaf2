@@ -4602,12 +4602,12 @@ KUnixTime KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 			break;
 	}
 
-	if (!tTime)
+	if (!tTime.ok())
 	{
 		// try if any of the other predefined time stamps matches
 		tTime = kParseTimestamp(sVal);
 
-		if (!tTime)
+		if (!tTime.ok())
 		{
 			SetError(kFormat ("UnixTime({}): expected '{}' to look like '20010302213436' or '2001-03-21 06:18:33'",
 							  iOneBasedColNum, sVal));

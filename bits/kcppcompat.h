@@ -784,7 +784,7 @@ inline Type& operator Operator (Type& left, Type right) \
  DEKAF2_DETAIL_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(Attr, TFirst, TSecond) \
  DEKAF2_DETAIL_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(Attr, TSecond, TFirst) \
 
-// helper macro to generate all comparison operators for one or two types from some
+// helper macro to generate all comparison operators for two types from some
 // transformation, like function call or type conversion. If one of the two types
 // does not need a "wrapped" conversion, name it first or second..
 #define DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(Attr, TFirst, TSecond, WrappedFirst, WrappedSecond) \

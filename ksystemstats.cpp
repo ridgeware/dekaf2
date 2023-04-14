@@ -267,7 +267,7 @@ bool KSystemStats::GatherProcInfo ()
 			sVersion.TrimRight();
 			kDebug (3, "LOADAVG: {}", sLoadAvg);
 			sLoadAvg.Replace('/', ' ',true);
-			auto Parts = sLoadAvg.Split(" ");
+			auto Parts = sLoadAvg.Split(' ');
 	
 			// 4th item had a slash and became 2 items with the Replace+kSplit above, and last field is just most recent PID (disregard)
 			if (Parts.size() == 6)
@@ -284,7 +284,7 @@ bool KSystemStats::GatherProcInfo ()
 		{
 			sUptime.TrimRight();
 			kDebug (3, "UPTIME: {}", sUptime);
-			auto Parts = sUptime.Split(" ");
+			auto Parts = sUptime.Split(' ');
 			if (Parts.size() == 2)
 			{
 				double nTotal = Parts.at(0).Double();
@@ -325,7 +325,7 @@ bool KSystemStats::GatherProcInfo ()
 		// MacOS:
 		// 19:03  up  1:14, 2 users, load averages: 1.24 1.60 1.77
 
-		auto Parts = sScratch.Split(" ");
+		auto Parts = sScratch.Split(' ');
 		Add ("load_average_1min",  Parts.at(Parts.size()-3), StatType::FLOAT);
 		Add ("load_average_5min",  Parts.at(Parts.size()-2), StatType::FLOAT);
 		Add ("load_average_15min", Parts.at(Parts.size()-1), StatType::FLOAT);
@@ -380,7 +380,7 @@ bool KSystemStats::GatherMiscInfo ()
 	{
 		kDebug (3, "{}: raw: {}", PROC_MISC, sLine);
 
-		auto Parts = sLine.Split(" ");
+		auto Parts = sLine.Split(' ');
 		if (Parts.size() != 2)
 		{
 			kDebug (3, "Got an unexpected line: {}", sLine);
@@ -482,7 +482,7 @@ bool KSystemStats::GatherVmStatInfo ()
 
 		kDebug (3, "{}: raw: {}", PROC_VMSTAT, sLine);
 
-		auto Parts = sLine.Split(" ");
+		auto Parts = sLine.Split(' ');
 
 		if (Parts.size() != 2)
 		{
@@ -567,7 +567,7 @@ bool KSystemStats::GatherDiskStats ()
 		sLine.TrimLeft();
 		sLine.ReplaceRegex("[ ]{2,}", " ", true);
 
-		auto Parts = sLine.Split(" ");
+		auto Parts = sLine.Split(' ');
 		if (Parts.size() != 14)
 		{
 			kDebug(3, "Got unexpected line from {}", PROC_DISKSTATS);
@@ -775,7 +775,7 @@ bool KSystemStats::GatherCpuInfo ()
 
 		kDebug (3, "{}: raw: {}", PROC_STAT, sLine);
 
-		auto Parts = sLine.Split(" ");
+		auto Parts = sLine.Split(' ');
 
 		if (Parts.at(0) == "cpu")
 		{
@@ -961,7 +961,7 @@ bool KSystemStats::GatherNetstat ()
 		// unix  2      [ ]         DGRAM                    1739   @/org/kernel/udev/udevd
 		// unix  3      [ ]         STREAM     CONNECTED     27941272
 
-		auto Parts = sLine.Split(" ");
+		auto Parts = sLine.Split(' ');
 
 		KString sName("netstat_");
 
@@ -1001,7 +1001,7 @@ bool KSystemStats::GatherNetstat ()
 	if (m_Stats.contains("ipv4_ip_local_port_range"))
 	{
 		// the ip_local_port_range file has a min and max:
-		auto Parts = m_Stats["ipv4_ip_local_port_range"].sValue.Split(" ");
+		auto Parts = m_Stats["ipv4_ip_local_port_range"].sValue.Split(' ');
 		// TODO re-examine logic here... converting atoi and then "AddNonEmpty" stat converts itoa...
 		// But there is also the NeverNegative logic
 		Add ("ipv4_ip_local_port_min", NeverNegative (Parts.at(0).Int32()), StatType::INTEGER);
@@ -1123,7 +1123,7 @@ size_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNoSh
 			//  2742     1 automount       automount --pid-file /var/run/autofs.pid
 			// 22463 13273 httpd           /usr/local/packages/onelink/apache.redhat64/bin/http
 
-			auto Parts = sLine.Split(" ", " \r\n\t\b", '\0', false, false);
+			auto Parts = sLine.Split(' ');
 
 			// Did we get the correct number of parts?
 			if (4 != Parts.size())
@@ -1482,7 +1482,7 @@ KString KSystemStats::Backtrace (pid_t iPID)
 		sPath.Format ("/proc/{}/stat", iPID);
 		if (kReadFile (sPath, sLine, true))
 		{
-			auto Words = sLine.Split(" ");
+			auto Words = sLine.Split(' ');
 			iPPID = Words.at(4-1).UInt32();
 			if (!iPPID) 
 			{

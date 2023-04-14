@@ -2569,7 +2569,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 
 		if (sStart.starts_with("#include"_ksv))
 		{
-			auto Parts = sStart.Split("\""_ksv, ""_ksv);
+			auto Parts = sStart.Split('"');
 			if (Parts.size() < 2)
 			{
 				return SetError(kFormat ("{}:{}: malformed include directive (file should be enclosed in double quotes).", sFilename, Parms.iLineNum));
@@ -4061,7 +4061,7 @@ bool KSQL::NextRow ()
 
 			// row|col|strlen
 			KStack<KStringView> Parts;
-			if (kSplit (Parts, szStatLine, "|", "") != 3)
+			if (kSplit (Parts, szStatLine, '|') != 3)
 			{
 				return SetError(kFormat ("NextRow(): buffered results corrupted stat line for row={}, col={}: '{}'",
 										 m_iRowNum, ii+1, szStatLine));

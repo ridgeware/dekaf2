@@ -337,7 +337,7 @@ void parse_menufile (KStringViewZ sMenuFile, menuT* menu)
 	menu->sSelectMSG = DEFAULT_MSG;
 	menu->iSleep     = g_iSleep;
 
-	for (auto sLine : sContents.Split("\n"))
+	for (auto sLine : sContents.Split('\n'))
 	{
 		++iLineNo;
 		sLine.Trim();
@@ -345,7 +345,7 @@ void parse_menufile (KStringViewZ sMenuFile, menuT* menu)
 		{
 			// blank line
 		}
-		else if (sLine.StartsWith ("#"))
+		else if (sLine.starts_with ('#'))
 		{
 			switch (sLine[1])
 			{

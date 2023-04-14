@@ -75,7 +75,7 @@ struct DomainsAndIndex
 DomainsAndIndex SplitAndIndexDomain(KStringView sHostName)
 //-------------------------------------------------------------------------
 {
-	auto Domains = sHostName.Split(".", "");
+	auto Domains = sHostName.Split('.');
 
 	std::size_t iIndex = 0;
 	bool bValid = true;
@@ -95,6 +95,7 @@ DomainsAndIndex SplitAndIndexDomain(KStringView sHostName)
 			case "mil"_hash:
 				iIndex = Domains.size() - 3;
 				break;
+
 			default:
 				iIndex = Domains.size() - 2;
 				break;
@@ -154,7 +155,7 @@ KStringView GetRootDomain (KStringView sHostName)
 {
 	auto pair = SplitAndIndexDomain(sHostName);
 
-	if (pair.iIndex == 0 && pair.Domains.size() == 1) return sHostName;
+	if (pair.iIndex == 0 && pair.Domains.size() == 1 && !pair.Domains[0].empty()) return sHostName;
 	
 	return (pair.bValid) ? KStringView(pair.Domains[pair.iIndex].begin(), sHostName.end()) : KStringView{};
 

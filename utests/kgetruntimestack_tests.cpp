@@ -12,7 +12,7 @@ TEST_CASE("kGetRuntimeStack")
 	{
 		KString sTrace = kGetRuntimeStack();
 		INFO  ( sTrace );
-		CHECK ( sTrace.Split("\n", "").size() >= 5 );
+		CHECK ( sTrace.Split('\n').size() >= 5 );
 	}
 
 }

@@ -1569,7 +1569,7 @@ KTTYSize kGetTerminalSize(int fd, uint16_t iDefaultColumns, uint16_t iDefaultLin
 			}
 		}
 
-		auto sCols = sOutput.Split(" ");
+		auto sCols = sOutput.Split(' ');
 
 		if (sCols.size() == 2)
 		{

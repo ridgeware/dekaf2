@@ -717,7 +717,7 @@ KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles)
 KString kGetAddress2Line(KStringView sAddresses)
 //-----------------------------------------------------------------------------
 {
-	auto vAddresses = sAddresses.Split(" ");
+	auto vAddresses = sAddresses.Split(' ');
 
 	auto vResult = detail::bt::Addr2Line(vAddresses);
 

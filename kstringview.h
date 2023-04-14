@@ -1758,7 +1758,7 @@ public:
 	/// does the set of characters contain ch
 	bool contains(const value_type ch) const
 	{
-		return (is_single_char()) ? ch == GetSingleChar() : m_table[static_cast<unsigned char>(ch)] & 0x01;
+		return (empty()) ? false : (is_single_char()) ? ch == GetSingleChar() : m_table[static_cast<unsigned char>(ch)] & 0x01;
 	}
 
 //------

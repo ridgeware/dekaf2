@@ -54,6 +54,102 @@ namespace dekaf2
 {
 
 //-----------------------------------------------------------------------------
+/// Simplified version for single delimiter char.
+/// Splits string into token container using one delimiter. Container is a sequence, like a vector.
+/// @param cContainer needs to have a push_back() that can construct an element from
+/// a KStringView.
+/// @param svBuffer the source char sequence.
+/// @param svDelim a char with the delimiter character.
+/// @return count of added tokens.
+///
+/// @code
+/// std::vector<KStringView> Words;
+/// auto iWordCount = kSplit(Words, "This sentence has five words", ' ');
+/// @endcode
+template<typename Container,
+	typename std::enable_if<
+		detail::has_key_type<Container>::value == false &&
+		std::is_constructible<typename Container::value_type, KStringViewPair>::value == false
+	, int>::type = 0
+>
+std::size_t kSplit (
+        Container&  cContainer,
+        KStringView svBuffer,
+		const char  Delim
+)
+//-----------------------------------------------------------------------------
+{
+	if (svBuffer.empty()) return 0;
+
+	std::size_t iStartSize = cContainer.size();
+
+	if (Delim == ' ')
+	{
+		for(;;)
+		{
+			// Look for delimiter character, respect escapes
+			auto iNext = kFind (svBuffer, ' ', 0);
+
+			if (iNext != KStringView::npos)
+			{
+				cContainer.push_back(svBuffer.substr(0, iNext));
+
+				// if space is a delimiter we always treat consecutive spaces as one delimiter
+				iNext = kFindNot (svBuffer, ' ', ++iNext);
+
+				if (iNext > svBuffer.size())
+				{
+					iNext = svBuffer.size();
+				}
+
+				svBuffer.remove_prefix(iNext);
+
+				if (svBuffer.empty())
+				{
+					break;
+				}
+			}
+			else
+			{
+				cContainer.push_back(svBuffer);
+				break;
+			}
+		}
+
+	}
+	else
+	{
+		for(;;)
+		{
+			// Look for delimiter character, respect escapes
+			auto iNext = kFind (svBuffer, Delim, 0);
+
+			if (iNext != KStringView::npos)
+			{
+				cContainer.push_back(svBuffer.substr(0, iNext));
+
+				svBuffer.remove_prefix(++iNext);
+
+				if (svBuffer.empty())
+				{
+					// add a last empty element
+					cContainer.push_back(KStringView{});
+					break;
+				}
+			}
+			else
+			{
+				cContainer.push_back(svBuffer);
+				break;
+			}
+		}
+	}
+
+	return cContainer.size() - iStartSize;
+
+} // kSplit with single split char and no trimming/escaping
+
+//-----------------------------------------------------------------------------
 /// Splits string into token container using delimiters, trim, and escape. Container is
 /// a sequence, like a vector.
 /// @param cContainer needs to have a push_back() that can construct an element from
@@ -84,11 +180,11 @@ template<typename Container,
 std::size_t kSplit (
         Container&  cContainer,
         KStringView svBuffer,
-        const KFindSetOfChars& Delim   = detail::kCommaSet,       // default: comma delimiter
-        const KFindSetOfChars& Trim    = detail::kASCIISpacesSet, // default: trim all whitespace
-        const char  chEscape           = '\0',                 // default: ignore escapes
-        bool        bCombineDelimiters = false,                // default: create an element for each delimiter char found
-        bool        bQuotesAreEscapes  = false                 // default: treat double quotes like any other char
+		const KFindSetOfChars& Delim   = detail::kCommaSet,       // default: comma delimiter
+		const KFindSetOfChars& Trim    = detail::kASCIISpacesSet, // default: trim all whitespace
+		const char chEscape            = '\0',                    // default: no escape character
+		bool  bCombineDelimiters       = false,                   // default: create empty elements for adjacent delimiters
+        bool  bQuotesAreEscapes        = false                    // default: treat double quotes like any other char
 )
 //-----------------------------------------------------------------------------
 {
@@ -154,7 +250,7 @@ std::size_t kSplit (
 				++iNext;
 			}
 
-			if (DEKAF2_UNLIKELY(bCombineDelimiters && DEKAF2_LIKELY(!(Delim.is_single_char() && Delim.contains(' ')))))
+			if (DEKAF2_UNLIKELY(bCombineDelimiters))
 			{
 				// skip all adjacent delimiters
 				iNext = Delim.find_first_not_in(svBuffer, iNext);
@@ -228,6 +324,31 @@ std::size_t kSplit(
 #endif // of _MSC_VER
 
 //-----------------------------------------------------------------------------
+/// Simplified version for single delimiter char.
+/// Splits string into token container using one delimiter. Returned Container is a sequence, like a vector.
+/// @param svBuffer the source char sequence.
+/// @param svDelim a delimiter character.
+/// @return a new Container, its type needs to have a push_back() that can construct
+/// an element from a KStringView.
+///
+/// @code
+/// auto Words = kSplits("This sentence has five words", ' ');
+/// @endcode
+template<typename Container = std::vector<KStringView>,
+	typename std::enable_if<detail::has_key_type<Container>::value == false
+								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == false, int>::type = 0 >
+Container kSplits(
+			  KStringView svBuffer,
+			  const char Delim
+)
+//-----------------------------------------------------------------------------
+{
+	Container ctContainer;
+	kSplit(ctContainer, svBuffer, Delim);
+	return ctContainer;
+}
+
+//-----------------------------------------------------------------------------
 /// Splits string into token container using delimiters, trim, and escape. Returned
 /// Container is a sequence, like a vector.
 /// @param svBuffer the source char sequence.
@@ -254,9 +375,9 @@ Container kSplits(
 			  KStringView svBuffer,
 			  const KFindSetOfChars& Delim   = detail::kCommaSet,       // default: comma delimiter
 			  const KFindSetOfChars& Trim    = detail::kASCIISpacesSet, // default: trim all whitespace
-			  const char  chEscape           = '\0',                 // default: ignore escapes
-			  bool        bCombineDelimiters = false,                // default: create an element for each delimiter char found
-			  bool        bQuotesAreEscapes  = false                 // default: treat double quotes like any other char
+			  const char  chEscape           = '\0',                    // default: ignore escapes
+			  bool        bCombineDelimiters = false,                   // default: create an element for each delimiter char found
+			  bool        bQuotesAreEscapes  = false                    // default: treat double quotes like any other char
 )
 //-----------------------------------------------------------------------------
 {
@@ -280,9 +401,9 @@ Container kSplits(
 DEKAF2_PUBLIC
 KStringViewPair kSplitToPair(
         KStringView svBuffer,
-        KStringView svPairDelim     = "=",                  // default: equal delimiter
+        KStringView svPairDelim     = "=",                     // default: equal delimiter
 		const KFindSetOfChars& Trim = detail::kASCIISpacesSet, // default: trim all whitespace
-        const char  chEscape        = '\0'                  // default: ignore escapes
+        const char  chEscape        = '\0'                     // default: ignore escapes
 	);
 //-----------------------------------------------------------------------------
 

@@ -493,7 +493,7 @@ std::size_t Kron::Scheduler::AddJobsFromCrontab(KStringView sCrontab, bool bHasS
 	std::size_t iCount { 0 };
 	std::vector<std::pair<KString, KString>> Environment;
 
-	for (auto sLine : sCrontab.Split("\n"))
+	for (auto sLine : sCrontab.Split('\n'))
 	{
 		sLine.erase(sLine.find('#'));
 		sLine.Trim();

@@ -458,7 +458,7 @@ void KOptions::HelpFormatter::CalcExtends(const CallbackParam& Callback)
 
 		auto& iMaxLen = m_MaxLens[(m_bSpacingPerSection && Callback.IsCommand()) ? 1 : 0];
 
-		for (const auto sFragment : Callback.m_sNames.Split("\n", ""))
+		for (const auto sFragment : Callback.m_sNames.Split('\n'))
 		{
 			auto iSize = (Callback.m_sNames.front() == '-') ? sFragment.size() - 1 : sFragment.size();
 			iMaxLen = std::max(iMaxLen, iSize);

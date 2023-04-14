@@ -92,7 +92,7 @@ KHTTPPath::URLParts KHTTPPath::SplitURL(KStringView sURLPath)
 {
 	sURLPath.remove_prefix("/");
 
-	return kSplits<URLParts>(sURLPath, "/", "");
+	return kSplits<URLParts>(sURLPath, '/');
 
 } // SplitURL
 

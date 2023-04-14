@@ -441,7 +441,7 @@ public:
 	/// returns true if day or month are zero (which is the state after default construction)
 	constexpr bool            empty          () const noexcept { return day() == chrono::day(0) || month() == chrono::month(0); }
 	/// returns true if this is a valid date
-	constexpr /*explicit*/    operator bool  () const noexcept { return ok();                              }
+	constexpr explicit        operator bool  () const noexcept { return ok();                              }
 
 	/// return count of days in epoch
 	constexpr chrono::sys_days to_sys_days   () const noexcept { return chrono::sys_days(detail::days_from_civil(*this)); }
@@ -537,33 +537,42 @@ public:
 	/// sets the month of the year - does not check for last_day() - call floor() or ceil() to adjust
 	constexpr self& month(uint8_t       m) noexcept { return month(chrono::month(m));          }
 	/// sets the year - does not check for last_day() - call floor() or ceil() to adjust
-	constexpr self& year (int16_t       y) noexcept { return year (chrono::year(y) );          }
-	// consider weekday(weekday[index]/last)
+	constexpr self& year (int16_t       y) noexcept  { return year (chrono::year(y) );         }
+
+	/// sets the day of the month from an indexed weeday (1..5) - does not check for last_day()- call floor() or ceil() to adjust
+	constexpr self& weekday(chrono::weekday_indexed wi) noexcept { return *this = self(year()/month()/wi); }
+	/// sets the day of the month from a last weeday
+	constexpr self& weekday(chrono::weekday_last wl)    noexcept { return *this = self(year()/month()/wl); }
 
 	using base::day;
 	using base::month;
 	using base::year;
+	using base::weekday;
 
-	constexpr self& operator+=(chrono::days   d) noexcept { return *this = chrono::sys_days(*this) + d; }
-	constexpr self& operator+=(chrono::months m) noexcept { base::operator+=(m); return *this; }
-	constexpr self& operator+=(chrono::years  y) noexcept { base::operator+=(y); return *this; }
-	constexpr self& operator-=(chrono::days   d) noexcept { return operator+=(-d);             }
-	constexpr self& operator-=(chrono::months m) noexcept { base::operator-=(m); return *this; }
-	constexpr self& operator-=(chrono::years  y) noexcept { base::operator-=(y); return *this; }
+	constexpr self& operator+=(chrono::days   d) noexcept { return *this = chrono::sys_days(*this) + d;    }
+	constexpr self& operator+=(chrono::months m) noexcept { base::operator+=(m); to_floor(); return *this; }
+	constexpr self& operator+=(chrono::years  y) noexcept { base::operator+=(y); to_floor(); return *this; }
+	constexpr self& operator-=(chrono::days   d) noexcept { return operator+=(-d);                         }
+	constexpr self& operator-=(chrono::months m) noexcept { base::operator-=(m); to_floor(); return *this; }
+	constexpr self& operator-=(chrono::years  y) noexcept { base::operator-=(y); to_floor(); return *this; }
 
-	/// makes a day that is > last_day() the last_day() of the month
-	constexpr self& floor() noexcept;
+	/// makes a day that is > last_day() the last_day() of the month - this is our general perception about how adding months works
+	constexpr self& to_floor() noexcept;
 	/// makes a day that is > last_day() the first day of the next month, except if the month is december, in which case the day will be set to 31
-	constexpr self& ceil () noexcept;
+	constexpr self& to_ceil () noexcept;
 	/// makes sure month is between 1..12 and day between 1..31 - does not adjust the day for last_day()..
-	constexpr self& trunc() noexcept;
+	constexpr self& to_trunc() noexcept;
+	/// sets the day, month and year to the next day with the given weekday. If times > 1 will add the respective week count
+	constexpr self& to_next(chrono::weekday weekday, uint16_t times = 1);
+	/// sets the day, month and year to the previous day with the given weekday. If times > 1 will subtract the respective week count
+	constexpr self& to_previous(chrono::weekday weekday, uint16_t times = 1);
 
 }; // KDate
 
 // +- years
 inline constexpr
 KDate operator+(const KDate& left, const chrono::years& right) noexcept
-{ return operator+(KDate::base(left), right); }
+{ KDate d = operator+(KDate::base(left), right); d.to_floor(); return d; }
 
 inline constexpr
 KDate operator+(const chrono::years& left, const KDate& right) noexcept
@@ -571,12 +580,12 @@ KDate operator+(const chrono::years& left, const KDate& right) noexcept
 
 inline constexpr
 KDate operator-(const KDate& left, const chrono::years& right) noexcept
-{ return operator-(KDate::base(left), right); }
+{ KDate d = operator-(KDate::base(left), right); d.to_floor(); return d; }
 
 // +- months
 inline constexpr
 KDate operator+(const KDate& left, const chrono::months& right) noexcept
-{ return operator+(KDate::base(left), right); }
+{ KDate d = operator+(KDate::base(left), right); d.to_floor(); return d; }
 
 inline constexpr
 KDate operator+(const chrono::months& left, const KDate& right) noexcept
@@ -584,7 +593,7 @@ KDate operator+(const chrono::months& left, const KDate& right) noexcept
 
 inline constexpr
 KDate operator-(const KDate& left, const chrono::months& right) noexcept
-{ return operator-(KDate::base(left), right); }
+{ KDate d = operator-(KDate::base(left), right); d.to_floor(); return d; }
 
 // +- days
 inline constexpr
@@ -599,24 +608,146 @@ inline constexpr
 KDate operator-(const KDate& left, const chrono::days& right) noexcept
 { return chrono::sys_days(left) - right; }
 
-inline constexpr
-chrono::days operator-(const KDate&      left, const KDate&      right)
-{ return left.to_sys_days() - right.to_sys_days(); }
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// helper class to give easy access on years or months in a day count
+class DEKAF2_PUBLIC KDays : public chrono::days
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//--------
+public:
+//--------
+
+	using self = KDays;
+	using base = chrono::days;
+
+	KDays() = default;
+	constexpr KDays(const base& other) noexcept : base(other) {}
+	constexpr KDays(base&& other)      noexcept : base(std::move(other)) {}
+
+	// allow all base class constructors
+	using base::base;
+
+	/// return chrono::days
+	constexpr chrono::days    to_days        () const noexcept { return *this;                                    }
+	/// return floored chrono::weeks
+	constexpr chrono::weeks   to_weeks       () const noexcept { return chrono::floor<chrono::weeks>(to_days());  }
+	/// return floored chrono::months
+	constexpr chrono::months  to_months      () const noexcept { return chrono::floor<chrono::months>(to_days()); }
+	/// return floored chrono::years
+	constexpr chrono::years   to_years       () const noexcept { return chrono::floor<chrono::years>(to_days());  }
+
+}; // KDays
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// helper class to give easy access on broken down years, months, and days in a date diff
+class DEKAF2_PUBLIC KDateDiff : public KDays
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//--------
+public:
+//--------
+
+	using self = KDateDiff;
+	using base = KDays;
+
+	KDateDiff() = default;
+
+	/// construct from two KConstDate/KDate objects
+	constexpr KDateDiff(const KConstDate& left, const KConstDate& right) noexcept;
+
+	/// return broken down days in date diff
+	constexpr chrono::days    days        () const noexcept { return chrono::days(m_days);     }
+	/// return broken down months in date diff
+	constexpr chrono::months  months      () const noexcept { return chrono::months(m_months); }
+	/// return broken down years in date diff
+	constexpr chrono::years   years       () const noexcept { return chrono::years(m_years);   }
+	/// returns true if date difference is negative
+	constexpr bool            is_negative () const noexcept { return m_is_negative;            }
+
+//--------
+private:
+//--------
+
+	int16_t  m_years       {};
+	uint16_t m_days        {};
+	uint8_t  m_months      {};
+	bool     m_is_negative {};
+
+}; // KDateDiff
+
+constexpr KDateDiff::KDateDiff(const KConstDate& left, const KConstDate& right) noexcept
+: base(left.to_sys_days() - right.to_sys_days())
+{
+	m_is_negative = base(*this) < chrono::days(0);
+
+	const auto& newer = (m_is_negative) ? right : left;
+	const auto& older = (m_is_negative) ? left  : right;
+
+	m_years = chrono::years(newer.year() - older.year()).count();
+
+	if (m_years != 0 && newer.month() < older.month())
+	{
+		--m_years;
+	}
+
+	if (newer.month() >= older.month())
+	{
+		m_months = chrono::months(newer.month() - older.month()).count();
+	}
+	else
+	{
+		m_months = unsigned(newer.month() + (chrono::December - older.month()));
+	}
+
+	if (newer.day() >= older.day())
+	{
+		m_days = chrono::days(newer.day() - older.day()).count();
+	}
+	else
+	{
+		// the days from the newer month
+		m_days = unsigned(newer.day());
+		// get the previous month
+		auto month_before = (newer.month() <= chrono::January) ? chrono::December : --(newer.month());
+		// get the year of the previous month
+		auto year_before  = (newer.month() <= chrono::January) ? --newer.year() : newer.year();
+		// caculate last day of the month of that year
+		auto last_day = chrono::year_month_day_last(year_before, chrono::month_day_last(month_before)).day();
+		// check how many days from the older day of month projected into the
+		// previous month of the new date we still have to add
+		if (last_day > older.day())
+		{
+			// else this was moved into the days past the last day of that month,
+			// which we silently correct to the last day of that month and which
+			// would result in 0 more days
+			m_days += (last_day - older.day()).count();
+		}
+		// and finally subtract one month, as we had created the count without
+		// looking at the days
+		--m_months;
+	}
+}
+
+inline //constexpr
+KDateDiff operator-(const KDate&      left, const KDate&      right)
+{ return KDateDiff(left, right); }
+
+inline //constexpr
+KDateDiff operator-(const KConstDate& left, const KConstDate& right)
+{ return KDateDiff(left, right); }
+
+inline //constexpr
+KDateDiff operator-(const KConstDate& left, const KDate&      right)
+{ return KDateDiff(left, right); }
+
+inline //constexpr
+KDateDiff operator-(const KDate&      left, const KConstDate& right)
+{ return KDateDiff(left, right); }
 
 inline constexpr
-chrono::days operator-(const KConstDate& left, const KConstDate& right)
-{ return left.to_sys_days() - right.to_sys_days(); }
-
-inline constexpr
-chrono::days operator-(const KConstDate& left, const KDate&      right)
-{ return left.to_sys_days() - right.to_sys_days(); }
-
-inline constexpr
-chrono::days operator-(const KDate&      left, const KConstDate& right)
-{ return left.to_sys_days() - right.to_sys_days(); }
-
-inline constexpr
-KDate& KDate::trunc() noexcept
+KDate& KDate::to_trunc() noexcept
 {
 	if      (month() < chrono::January ) month(chrono::January );
 	else if (month() > chrono::December) month(chrono::December);
@@ -626,7 +757,7 @@ KDate& KDate::trunc() noexcept
 }
 
 inline constexpr
-KDate& KDate::floor() noexcept
+KDate& KDate::to_floor() noexcept
 {
 	if (day() > chrono::day(28))
 	{
@@ -637,7 +768,7 @@ KDate& KDate::floor() noexcept
 }
 
 inline constexpr
-KDate& KDate::ceil() noexcept
+KDate& KDate::to_ceil() noexcept
 {
 	if (day() > chrono::day(28))
 	{
@@ -657,6 +788,24 @@ KDate& KDate::ceil() noexcept
 		}
 	}
 	return *this;
+}
+
+inline constexpr
+KDate& KDate::to_next(chrono::weekday wd, uint16_t times)
+{
+	if (!times) return *this;
+	--times;
+	auto cur = weekday();
+	return operator+=(chrono::days(((cur.c_encoding() < wd.c_encoding()) ? 0 : 7) + wd.c_encoding() - cur.c_encoding() + times * 7));
+}
+
+inline constexpr
+KDate& KDate::to_previous(chrono::weekday wd, uint16_t times)
+{
+	if (!times) return *this;
+	--times;
+	auto cur = weekday();
+	return operator-=(chrono::days(((wd.c_encoding() < cur.c_encoding()) ? 0 : 7) + cur.c_encoding() - wd.c_encoding() + times * 7));
 }
 
 inline DEKAF2_PUBLIC

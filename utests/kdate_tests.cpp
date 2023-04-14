@@ -57,7 +57,7 @@ TEST_CASE("KDate")
 	{
 		KDate Date0;
 		CHECK ( Date0.ok() == false );
-		Date0.trunc();
+		Date0.to_trunc();
 		CHECK ( Date0.ok() == true );
 		CHECK ( Date0.month() == chrono::January    );
 		CHECK ( Date0.day()   == chrono::day(1)     );
@@ -68,7 +68,6 @@ TEST_CASE("KDate")
 		KDate Date1;
 		Date1.year(2024);
 		CHECK ( Date1.ok() == false );
-		CHECK ( Date1 == false );
 		Date1.month(8);
 		CHECK ( Date1.ok() == false );
 		Date1.day(16);
@@ -113,20 +112,10 @@ TEST_CASE("KDate")
 		CHECK ( Date1.is_leap()== true              );
 
 		auto Date3 = Date1 + chrono::years(1);
-		CHECK ( Date3.ok()    == false              );
-		Date3.floor();
+		CHECK ( Date3.ok()    == true               );
 		CHECK ( Date3.month() == chrono::February   );
 		CHECK ( Date3.day()   == chrono::day(28)    );
 		CHECK ( Date3.last_day() == chrono::day(28) );
-		CHECK ( Date3.year()  == chrono::year(2025) );
-		CHECK ( Date3.is_leap()== false             );
-
-		Date3 = Date1 + chrono::years(1);
-		CHECK ( Date3.ok()    == false              );
-		Date3.ceil();
-		CHECK ( Date3.month() == chrono::March      );
-		CHECK ( Date3.day()   == chrono::day(1)     );
-		CHECK ( Date3.last_day() == chrono::day(31) );
 		CHECK ( Date3.year()  == chrono::year(2025) );
 		CHECK ( Date3.is_leap()== false             );
 
@@ -147,32 +136,43 @@ TEST_CASE("KDate")
 		CHECK       ( Date2 <= Date1 );
 
 		Date2 = Date1 + chrono::years(2);
-		CHECK ( Date2.ok() == false ); // 2026-02-29 ..
-		Date2.floor();
-		CHECK ( Date2.ok() == true  ); // 2026-02-28 ..
+		CHECK ( Date2.ok() == true  );
 		CHECK ( Date2.month() == chrono::February   );
 		CHECK ( Date2.day()   == chrono::day(28)    );
 		CHECK ( Date2.last_day() == chrono::day(28) );
 		CHECK ( Date2.year()  == chrono::year(2026) );
 		CHECK ( Date2.is_leap()== false             );
 
-		Date2 = Date1 + chrono::years(2);
-		CHECK ( Date2.ok() == false ); // 2026-02-29 ..
-		Date2.ceil();
-		CHECK ( Date2.ok() == true  ); // 2026-03-01 ..
-		CHECK ( Date2.month() == chrono::March   );
-		CHECK ( Date2.day()   == chrono::day(1)    );
-		CHECK ( Date2.last_day() == chrono::day(31) );
-		CHECK ( Date2.year()  == chrono::year(2026) );
-		CHECK ( Date2.is_leap()== false             );
-
 		Date2 = Date1 + chrono::months(8);
-		Date2.ceil();
 		CHECK ( Date2 - Date1 == chrono::duration_cast<chrono::days>(chrono::months(8)) );
 		Date2 = Date1 + chrono::days(60);
 		CHECK ( Date2 - Date1 == chrono::days(60)  );
 		CHECK ( Date1.to_tm().tm_isdst == 0        );
 		CHECK_NOTHROW( Date1.to_string("%Y%Z")     );
 		CHECK ( Date1.to_string("%Y%Z") == "2024"  ); // this would look differently with time_put() and gcc..
+	}
+
+	SECTION("next previous")
+	{
+		KDate Date(chrono::year(2023)/chrono::April/12);
+		CHECK ( Date.weekday() == chrono::Wednesday );
+		Date.to_next(chrono::Monday);
+		CHECK ( Date.weekday() == chrono::Monday );
+		CHECK ( Date.days().count() == 17 );
+		Date.to_previous(chrono::Tuesday);
+		CHECK ( Date.days().count() == 11 );
+		CHECK ( Date.weekday() == chrono::Tuesday );
+		Date.to_next(chrono::Wednesday, 2);
+		CHECK ( Date.days().count() == 19 );
+		CHECK ( Date.weekday() == chrono::Wednesday );
+
+		Date = KDate(chrono::year(2023)/chrono::April/chrono::weekday_indexed(chrono::Monday, 1));
+		CHECK ( Date.to_string() == "2023-04-03" );
+		Date = KDate(chrono::year(2023)/chrono::April/chrono::weekday_last(chrono::Monday));
+		CHECK ( Date.to_string() == "2023-04-24" );
+		Date.weekday(chrono::weekday_indexed(chrono::Monday, 1));
+		CHECK ( Date.to_string() == "2023-04-03" );
+		Date.weekday(chrono::weekday_last(chrono::Monday));
+		CHECK ( Date.to_string() == "2023-04-24" );
 	}
 }

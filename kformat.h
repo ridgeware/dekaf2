@@ -96,16 +96,6 @@ KString kFormat(KStringView sFormat) noexcept
 
 //-----------------------------------------------------------------------------
 // C++20
-/// format no-op with locale
-inline DEKAF2_PUBLIC
-KString kFormat(const std::locale& locale, KStringView sFormat) noexcept
-//-----------------------------------------------------------------------------
-{
-	return sFormat;
-}
-
-//-----------------------------------------------------------------------------
-// C++20
 /// formats a KString using Python syntax
 template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
 KString kFormat(KStringView sFormat, Args&&... args) noexcept
@@ -117,7 +107,7 @@ KString kFormat(KStringView sFormat, Args&&... args) noexcept
 //-----------------------------------------------------------------------------
 // C++20
 /// formats a KString using Python syntax, using locale specification for decimal points and time formatting (month and day names)
-template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+template<class... Args>
 KString kFormat(const std::locale& locale, KStringView sFormat, Args&&... args) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -142,6 +132,16 @@ bool kPrint(KStringView sFormat, Args&&... args) noexcept
 
 //-----------------------------------------------------------------------------
 // C++23
+/// formats to stdout using Python syntax
+template<class... Args>
+bool kPrint(const std::locale& locale, KStringView sFormat, Args&&... args) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrint(kFormat(locale, sFormat, std::forward<Args>(args)...));
+}
+
+//-----------------------------------------------------------------------------
+// C++23
 /// format no-op to stdout, with newline
 bool kPrintLine(KStringView sFormat) noexcept;
 //-----------------------------------------------------------------------------
@@ -154,6 +154,16 @@ bool kPrintLine(KStringView sFormat, Args&&... args) noexcept
 //-----------------------------------------------------------------------------
 {
 	return kPrintLine(kFormat(sFormat, std::forward<Args>(args)...));
+}
+
+//-----------------------------------------------------------------------------
+// C++23
+/// formats to stdout using Python syntax
+template<class... Args>
+bool kPrintLine(const std::locale& locale, KStringView sFormat, Args&&... args) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrintLine(kFormat(locale, sFormat, std::forward<Args>(args)...));
 }
 
 //-----------------------------------------------------------------------------
@@ -246,6 +256,16 @@ std::ostream& kPrint(std::ostream& os, KStringView sFormat, Args&&... args) noex
 
 //-----------------------------------------------------------------------------
 // C++23
+/// formats a std::ostream using Python syntax, with locale
+template<class... Args>
+std::ostream& kPrint(const std::locale& locale, std::ostream& os, KStringView sFormat, Args&&... args) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrint(os, kFormat(locale, sFormat, std::forward<Args>(args)...));
+}
+
+//-----------------------------------------------------------------------------
+// C++23
 /// format no-op for std::ostream
 inline DEKAF2_PUBLIC
 std::ostream& kPrintLine(std::ostream& os, KStringView sFormat) noexcept
@@ -262,6 +282,16 @@ std::ostream& kPrintLine(std::ostream& os, KStringView sFormat, Args&&... args) 
 //-----------------------------------------------------------------------------
 {
 	return kPrintLine(os, kFormat(sFormat, std::forward<Args>(args)...));
+}
+
+//-----------------------------------------------------------------------------
+// C++23
+/// formats a std::ostream using Python syntax, with locale
+template<class... Args>
+std::ostream& kPrintLine(const std::locale& locale, std::ostream& os, KStringView sFormat, Args&&... args) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kPrintLine(os, kFormat(locale, sFormat, std::forward<Args>(args)...));
 }
 
 } // end of namespace dekaf2

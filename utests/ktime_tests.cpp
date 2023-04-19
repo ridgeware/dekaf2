@@ -966,31 +966,30 @@ TEST_CASE("KTime") {
 
 			                                  // to compute with a local time, make the time a UTC time
 			auto utc = KUTCTime(TokyoTime);   // needs explicit conversion as conversion loses information (the timezone)
-			kPrintLine("{:%Z %c}", utc);     // -> "UTC Tue Jan 31 03:15:00 2012"
+			kPrintLine("{:%Z %c}", utc);      // -> "UTC Tue Jan 31 03:15:00 2012"
 			if (utc.month() != chrono::December) utc += chrono::months(1); // automatic end of month correction!
-			                                  // adding months or years is dangerous, February 31 does not exist. You can either ceil() or floor() the day:
-			kPrintLine("{:%Z %c}", utc);     // -> "UTC Wed Feb 29 03:15:00 2012"
-			                                  // it depends on the circumstances if one wants to use floor() or ceil() ..
+			                                  // adding months or years is dangerous, February 31 does not exist:
+			kPrintLine("{:%Z %c}", utc);      // -> "UTC Wed Feb 29 03:15:00 2012"
 
 			                                  // faster for multiple computations and short durations, use KUnixTime (a simple time_point):
 			auto Unix = KUnixTime(TokyoTime); // needs explicit conversion as conversion loses information (the timezone) and possibly year range
-			kPrintLine("{:%Z %c}", Unix);    // -> "UTC Tue Jan 31 03:15:00 2012"
+			kPrintLine("{:%Z %c}", Unix);     // -> "UTC Tue Jan 31 03:15:00 2012"
 			// unix += chrono::years(1);      // this would result in an astronomical year, so we forbid it
-			// kPrintLine("{:%Z %c}", unix); // -> "UTC Wed Jan 30 09:04:12 2013" (probably not what you expected..)
+			// kPrintLine("{:%Z %c}", unix);  // -> "UTC Wed Jan 30 09:04:12 2013" (probably not what you expected..)
 			                                  // therefore, only calculate with days, hours, minutes, seconds, subseconds in a KUnixTime.
 			Unix += chrono::minutes(5);       // that works!
-			kPrintLine("{:%Z %c}", Unix);    // -> "UTC Tue Jan 31 03:20:00 2012"
+			kPrintLine("{:%Z %c}", Unix);     // -> "UTC Tue Jan 31 03:20:00 2012"
 			Unix += chrono::days(1245);       // that works, too!
-			kPrintLine("{:%Z %c}", Unix);    // -> "UTC Mon Jun 29 03:20:00 2015"
+			kPrintLine("{:%Z %c}", Unix);     // -> "UTC Mon Jun 29 03:20:00 2015"
 			kPrintLine("{:%Z %c}", KLocalTime(Unix, TokyoTime.get_time_zone())); // -> "JST Mon Jun 29 12:20:00 2015"
 
 			                                  // if you want to calculate with years and months, use a KUTCTime
 			utc = KUTCTime(TokyoTime);        // needs explicit conversion as conversion loses information (the timezone)
-			kPrintLine("{:%Z %c}", utc);     // -> "UTC Tue Jan 31 03:15:00 2012"
+			kPrintLine("{:%Z %c}", utc);      // -> "UTC Tue Jan 31 03:15:00 2012"
 			utc += chrono::years(1);
-			kPrintLine("{:%Z %c}", utc);     // -> "UTC Thu Jan 31 03:15:00 2013" (MUCH better than the forbidden calculation on KUnixTime above..)
-			utc += chrono::months(1);        // automatic end of month correction!
-			kPrintLine("{:%Z %c}", utc);     // -> "UTC Thu Feb 28 03:15:00 2013"
+			kPrintLine("{:%Z %c}", utc);      // -> "UTC Thu Jan 31 03:15:00 2013" (MUCH better than the forbidden calculation on KUnixTime above..)
+			utc += chrono::months(1);         // automatic end of month correction!
+			kPrintLine("{:%Z %c}", utc);      // -> "UTC Thu Feb 28 03:15:00 2013"
 
 			                                  // transform into eastern time:
 			auto BostonTime = KLocalTime(TokyoTime, kFindTimezone("America/New_York"));

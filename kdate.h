@@ -343,8 +343,9 @@ constexpr chrono::weekday weekday_from_civil(const chrono::year_month_day& ymd) 
 }
 
 //-----------------------------------------------------------------------------
-// Compile-time constant expression to compute a lookup table for all months
-// following February stuffed into one 32 bit unsigned.
+// Compile-time constant expression to compute a lookup table for the month length
+// difference of all months following February from the expected naive month length
+// of 31 stuffed into one 32 bit unsigned.
 // The offset of a month start to the naive month start (month * 31) varies from
 // 3 to 7, and needs thus 3 bits to represent, times 10 months from March to
 // December = 30 bits.
@@ -670,8 +671,8 @@ public:
 private:
 //--------
 
-	int16_t  m_years       {};
-	uint16_t m_days        {};
+	uint16_t m_years       {};
+	uint8_t  m_days        {};
 	uint8_t  m_months      {};
 	bool     m_is_negative {};
 
@@ -687,11 +688,6 @@ constexpr KDateDiff::KDateDiff(const KConstDate& left, const KConstDate& right) 
 
 	m_years = chrono::years(newer.year() - older.year()).count();
 
-	if (m_years != 0 && newer.month() < older.month())
-	{
-		--m_years;
-	}
-
 	if (newer.month() >= older.month())
 	{
 		m_months = chrono::months(newer.month() - older.month()).count();
@@ -699,6 +695,9 @@ constexpr KDateDiff::KDateDiff(const KConstDate& left, const KConstDate& right) 
 	else
 	{
 		m_months = unsigned(newer.month() + (chrono::December - older.month()));
+		// and finally subtract one year, as we had created the count without
+		// looking at the months
+		--m_years;
 	}
 
 	if (newer.day() >= older.day())
@@ -730,19 +729,19 @@ constexpr KDateDiff::KDateDiff(const KConstDate& left, const KConstDate& right) 
 	}
 }
 
-inline //constexpr
+inline constexpr
 KDateDiff operator-(const KDate&      left, const KDate&      right)
 { return KDateDiff(left, right); }
 
-inline //constexpr
+inline constexpr
 KDateDiff operator-(const KConstDate& left, const KConstDate& right)
 { return KDateDiff(left, right); }
 
-inline //constexpr
+inline constexpr
 KDateDiff operator-(const KConstDate& left, const KDate&      right)
 { return KDateDiff(left, right); }
 
-inline //constexpr
+inline constexpr
 KDateDiff operator-(const KDate&      left, const KConstDate& right)
 { return KDateDiff(left, right); }
 
@@ -778,7 +777,7 @@ KDate& KDate::to_ceil() noexcept
 			// prevent from overflow - this was an invalid date
 			if (month() == chrono::December)
 			{
-				day(last );
+				day(last);
 			}
 			else
 			{

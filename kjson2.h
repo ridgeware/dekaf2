@@ -42,6 +42,12 @@
 
 #pragma once
 
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 7
+	// need at least gcc 7 to compile
+	#undef DEKAF2_KJSON2_IS_DISABLED
+	#define DEKAF2_KJSON2_IS_DISABLED 1
+#endif
+
 #ifndef DEKAF2_KJSON2_IS_DISABLED
 	#if (__cplusplus <= 201402L) && (defined(__GNUC__) && !defined(__clang__))
 		// when compiling with GCC this code needs C++17

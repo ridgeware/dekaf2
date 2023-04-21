@@ -155,8 +155,8 @@ public:
 	/// converts implicitly to time_t timepoint, although it loses precision..
 	DEKAF2_CONSTEXPR_14 explicit operator std::time_t()       const noexcept { return to_time_t(*this);                                      }
 
-	DEKAF2_CONSTEXPR_17 self& operator+=(std::time_t seconds)       noexcept { base::operator += (chrono::seconds(seconds)); return *this;   }
-	DEKAF2_CONSTEXPR_17 self& operator-=(std::time_t seconds)       noexcept { base::operator -= (chrono::seconds(seconds)); return *this;   }
+	DEKAF2_FULL_CONSTEXPR_17 self& operator+=(std::time_t seconds)  noexcept { base::operator += (chrono::seconds(seconds)); return *this;   }
+	DEKAF2_FULL_CONSTEXPR_17 self& operator-=(std::time_t seconds)  noexcept { base::operator -= (chrono::seconds(seconds)); return *this;   }
 
 	using base::operator+=;
 	using base::operator-=;
@@ -729,7 +729,7 @@ DEKAF2_PUBLIC const std::array<KString, 12>& GetDefaultLocalMonthNames(bool bAbb
 DEKAF2_PUBLIC const std::array<KString,  7>& GetDefaultLocalDayNames  (bool bAbbreviated);
 
 // "Tue, 03 Aug 2021 10:23:42 +0000"
-DEKAF2_PUBLIC inline            KString FormWebTimestamp (const std::tm& tTime, KStringView sTimezoneDesignator) { return kFormat("{:%a, %d %b %Y %H:%M:%S} {}", tTime, sTimezoneDesignator); }
+DEKAF2_PUBLIC                   KString FormWebTimestamp (const std::tm& tTime, KStringView sTimezoneDesignator);
 DEKAF2_PUBLIC                   KString FormTimestamp    (const std::tm& time, KStringView sFormat);
 DEKAF2_PUBLIC                   KString FormTimestamp    (const std::locale& locale, const std::tm& time, KStringView sFormat);
 
@@ -797,7 +797,7 @@ DEKAF2_PUBLIC inline            KString kFormSMTPTimestamp      (const KUTCTime&
 /// @param tUTC KUTCTime, defaults to current time
 /// @return the timestamp string
 // [18/Sep/2011:19:18:28 +0000]
-DEKAF2_PUBLIC inline            KString kFormCommonLogTimestamp (const KUTCTime& tUTC = KUTCTime::now())     { return kFormat("[{:%d/%b/%Y:%H:%M:%S %z}]", tUTC); }
+DEKAF2_PUBLIC                   KString kFormCommonLogTimestamp (const KUTCTime& tUTC = KUTCTime::now());
 
 /// Parse any timestamp that matches a format string built from h m s D M Y, and a S U z Z N ?
 /// Y(ear) could be 2 or 4 digits,

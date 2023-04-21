@@ -945,7 +945,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 	// let's do some constexpr sanity checks on the table above
 	// we need C++17 for constexpr lambdas though
-#if DEKAF2_HAS_CPP_17
+#if DEKAF2_HAS_FULL_CPP_17
 	static constexpr bool bArrayIsOrderedAndValid = []() constexpr -> bool
 	{
 		KStringView::size_type lastsize { KStringView::npos };
@@ -998,7 +998,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 	// both arrays) at compile time (if we have at least C++17 - else at static intialization)
 
 #undef DEKAF2_CONSTEXPR
-#if DEKAF2_HAS_CPP_17
+#if DEKAF2_HAS_FULL_CPP_17
 	#define DEKAF2_CONSTEXPR constexpr
 #else
 	#define DEKAF2_CONSTEXPR
@@ -1041,7 +1041,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 	}();
 
-#if DEKAF2_HAS_CPP_17
+#if DEKAF2_HAS_FULL_CPP_17
 	// do a second constexpr sanity check, this time over the generated lookup table
 	static constexpr bool bArrayIsSane = []() constexpr -> bool
 	{
@@ -1194,6 +1194,13 @@ constexpr inline bool TimeFormatStringIsOK(KStringView sFormat)
 } // of anonymous namespace
 
 //-----------------------------------------------------------------------------
+KString detail::FormWebTimestamp (const std::tm& tTime, KStringView sTimezoneDesignator)
+//-----------------------------------------------------------------------------
+{
+	return kFormat("{:%a, %d %b %Y %H:%M:%S} {}", tTime, sTimezoneDesignator);
+}
+
+//-----------------------------------------------------------------------------
 KString detail::FormTimestamp (const std::locale& locale, const std::tm& time, KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
@@ -1296,6 +1303,13 @@ KString kFormTimestamp (const KUTCTime& tUTC, KStringView sFormat)
 	return detail::FormTimestamp(tUTC.to_tm(), sFormat);
 
 } // kFormTimestamp
+
+//-----------------------------------------------------------------------------
+DEKAF2_PUBLIC KString kFormCommonLogTimestamp (const KUTCTime& tUTC)
+//-----------------------------------------------------------------------------
+{
+	return kFormat("[{:%d/%b/%Y:%H:%M:%S %z}]", tUTC);
+}
 
 //-----------------------------------------------------------------------------
 KString kTranslateDuration(const KDuration& Duration, bool bLongForm, KStringView sMinInterval)

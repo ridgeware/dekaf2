@@ -96,8 +96,8 @@ namespace dekaf2 {
 // the native nlohmann::json type, using KString instead of std::string though
 using LJSON = nlohmann::basic_json<std::map, std::vector, dekaf2::KString>;
 
-class KJSON2;
 #ifdef DEKAF2_WRAPPED_KJSON
+	class KJSON2;
 	using KJSON = KJSON2;
 #else
 	using KJSON = LJSON;

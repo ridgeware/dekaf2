@@ -154,6 +154,9 @@ TEST_CASE("KPool")
 		CHECK ( Pool.size() <= 20 );
 	}
 
+// gcc 6 has difficulties casting timepoints of different durations
+#if !DEKAF2_IS_GCC || DEKAF2_GCC_VERSION_MAJOR > 6
+
 	SECTION("dynamic")
 	{
 		using PoolResolution = std::chrono::duration<long, std::ratio<1, 1000>>;
@@ -202,4 +205,5 @@ TEST_CASE("KPool")
 		CHECK ( Stats.iAvailable ==  10 );
 		CHECK ( Stats.iMaxPool   ==  10 );
 	}
+#endif
 }

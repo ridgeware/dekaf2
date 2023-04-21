@@ -82,7 +82,11 @@ namespace dekaf2 {
 template<class String>
 fs::path kToFilesystemPath(const String& sPath)
 {
+#if DEKAF2_HAS_CPP_20 && DEKAF2_HAS_U8STRING
+	return fs::path(std::u8string(sPath.begin(), sPath.end()));
+#else
 	return fs::u8path(sPath.begin(), sPath.end());
+#endif
 }
 
 #else

@@ -827,7 +827,7 @@ KHTMLAttributes& KHTMLAttributes::Set(KHTMLAttributes Attributes)
 {
 	for (auto& Attribute : Attributes)
 	{
-		Set(std::move(Attribute));
+		Set(Attribute);
 	}
 	return *this;
 

@@ -208,6 +208,12 @@
 	#define DEKAF2_CONSTEXPR_17 inline
 #endif
 
+#ifdef DEKAF2_HAS_FULL_CPP_17
+	#define DEKAF2_FULL_CONSTEXPR_17 constexpr
+#else
+	#define DEKAF2_FULL_CONSTEXPR_17 inline
+#endif
+
 #ifdef DEKAF2_HAS_CPP_20_NOT_YET
 	// need to make sure first that string classes are constexpr on all platforms,
 	// and all internal representations

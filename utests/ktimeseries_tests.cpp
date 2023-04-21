@@ -95,6 +95,9 @@ TEST_CASE("KTimeSeries")
 		TS2.Add(tp4 + std::chrono::minutes(3), 2343);
 		CHECK ( TS2.size() == 3 );
 
+// gcc 6 has difficulties casting timepoints of different durations
+#if !DEKAF2_IS_GCC || DEKAF2_GCC_VERSION_MAJOR > 6
+
 		KTimeSeries<uint64_t, std::chrono::minutes> TS3;
 
 		auto tp = std::chrono::system_clock::now();
@@ -109,7 +112,10 @@ TEST_CASE("KTimeSeries")
 		CHECK ( TS3.Get(tp + std::chrono::milliseconds(100)).Min()   ==   332235 );
 		CHECK ( TS3.Get(tp + std::chrono::microseconds(124)).Mean()   == 15276807 );
 		CHECK ( TS3.Get(tp + std::chrono::nanoseconds(177) ).Max()   == 42623456 );
+#endif
 	}
+
+#if !DEKAF2_IS_GCC || DEKAF2_GCC_VERSION_MAJOR > 6
 
 	SECTION("odd interval")
 	{
@@ -130,4 +136,5 @@ TEST_CASE("KTimeSeries")
 		CHECK ( TM5.Sum().Mean()     == 33870 );
 		CHECK ( TM5.Interval().count() == 5UL * 60 * 1000 * 1000 * 1000 );
 	}
+#endif
 }

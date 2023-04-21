@@ -224,9 +224,9 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
 	endif()
 endif()
 
-if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_STANDARD LESS 17)
+if (CMAKE_COMPILER_IS_GNUCXX AND (CMAKE_CXX_STANDARD LESS 17 OR CMAKE_CXX_COMPILER_VERSION LESS 7))
 	if (DEKAF2_WRAPPED_KJSON)
-		message(STATUS "cannot use wrapped KJSON type with GCC and C++ < 17 - switching off")
+		message(STATUS "cannot use wrapped KJSON type with GCC and C++ < 17 or GCC < 7 - switching off")
 		set(DEKAF2_WRAPPED_KJSON OFF)
 	endif()
 endif()
@@ -461,10 +461,10 @@ message(STATUS "boost root: ${BOOST_ROOT}")
 if (IS_WINDOWS)
 	# Windows boost binary builds have zlib and bzip2 included, so we do not
 	# need external libs
-	find_package(Boost 1.54 COMPONENTS system iostreams date_time zlib bzip2)
+	find_package(Boost 1.54 COMPONENTS system iostreams zlib bzip2)
 else()
 	# Unix boost packages do rely on external versions of zlib and bzip2
-	find_package(Boost 1.54 COMPONENTS system iostreams date_time)
+	find_package(Boost 1.54 COMPONENTS system iostreams)
 endif()
 
 if (NOT Boost_FOUND)
@@ -508,10 +508,9 @@ if (DEKAF2_HAS_LIBLZMA)
 		# On the mac we now always fall back to our own LZMA implementation, as boost 1.79
 		# comes with an lzma object file with multi threading, but fails to link against the
 		# single threading lzma libs that we have installed.
-		# We will check over time if we will set this flag for Linux, too
 		set(DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD ON)
-	endif()
-	if (NOT DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD)
+	else ()
+		# with linux, check the symbols in the boost lib for lzma
 		execute_process(COMMAND /bin/sh -c "nm \"${Boost_IOSTREAMS_LIBRARY}\" | grep -i lzma | wc -l" OUTPUT_VARIABLE SYM_COUNT OUTPUT_STRIP_TRAILING_WHITESPACE)
 		if (SYM_COUNT STREQUAL "")
 			set(SYM_COUNT 0)
@@ -652,18 +651,33 @@ else()
 endif()
 
 if (CMAKE_CXX_STANDARD GREATER 17)
-	try_compile(DEKAF2_HAS_DATE_AND_YEAR_LITERALS
+	try_compile(DEKAF2_HAS_MONTH_AND_YEAR_LITERALS
 				${GENERATED_FILES_DIR}
-				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_year_and_day_literals_test.cpp"
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_year_and_month_literals_test.cpp"
 				COMPILE_DEFINITIONS "--std=c++20")
 
-	if(DEKAF2_HAS_DATE_AND_YEAR_LITERALS)
-		message(STATUS "we have year and day literals support in std::chrono")
+	if(DEKAF2_HAS_MONTH_AND_YEAR_LITERALS)
+		message(STATUS "we have year and month literals support in std::chrono")
 	else()
-		message(STATUS "we do not have year and day literals support in std::chrono")
+		message(STATUS "we do not have year and month literals support in std::chrono")
 	endif()
 else()
-	message(STATUS "no year and day literals support in std::chrono before C++20")
+	message(STATUS "no year and month literals support in std::chrono before C++20")
+endif()
+
+if (CMAKE_CXX_STANDARD GREATER 17)
+	try_compile(DEKAF2_HAS_U8STRING
+				${GENERATED_FILES_DIR}
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/u8string_test.cpp"
+				COMPILE_DEFINITIONS "--std=c++20")
+
+	if(DEKAF2_HAS_U8STRING)
+		message(STATUS "we have std::u8string")
+	else()
+		message(STATUS "we do not have std::u8string")
+	endif()
+else()
+	message(STATUS "no std::u8string support before C++20")
 endif()
 
 # create the configuration header file
@@ -684,10 +698,10 @@ include ("${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake")
 # ========================= THIRD PARTY SOURCE LIBS ============================
 
 # add third party libraries included in source control
-add_subdirectory(libs EXCLUDE_FROM_ALL)
+add_subdirectory(libs)
 
 # add partial third party libraries included in source control
-add_subdirectory(from EXCLUDE_FROM_ALL)
+add_subdirectory(from)
 
 # =============================== HEADER FILES ====================================
 
@@ -1274,7 +1288,6 @@ target_include_directories(dekaf2
 	$<INSTALL_INTERFACE:${dekaf2_lib_dest}>
 	${Boost_INCLUDE_DIR}
 	${OPENSSL_INCLUDE_DIR}
-#	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant> # we need the date headers in any case, for users compiling with less than C++20
 	PRIVATE
 	$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
 	$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>

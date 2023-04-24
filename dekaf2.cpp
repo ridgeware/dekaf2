@@ -284,9 +284,9 @@ KStringView Dekaf::GetVersionInformation()
 		" c++20"
 #elif DEKAF2_HAS_CPP_17
 		" c++17"
-#elif defined(DEKAF_HAS_CPP_14)
+#elif DEKAF2_HAS_CPP_14
 		" c++14"
-#elif defined(DEKAF_HAS_CPP_11)
+#elif DEKAF2_HAS_CPP_11
 		" c++11"
 #endif
 #ifdef DEKAF2_HAS_JEMALLOC

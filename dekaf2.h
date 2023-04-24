@@ -292,7 +292,7 @@ private:
 #else
 	std::atomic<KUnixTime> m_iCurrentTime;
 #endif
-	KThreadSafe<std::default_random_engine> m_Random;
+	KThreadSafe<std::mt19937> m_Random;
 	bool m_bInConstruction { true };
 	static std::atomic<bool> s_bStarted;
 	static std::atomic<bool> s_bShutdown;

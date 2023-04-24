@@ -503,10 +503,14 @@ constexpr std::tm KConstDate::to_tm () const noexcept
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A class representing a date that can be calculated and changed. This class follows more palpable
 /// rules when adding/subtracting months, years and days than a chrono::duration calculation would:
-/// Adding a month or a year never changes the day. As that could lead to illegal dates (days 29/30/31
-/// do not exist in all months..) there are two member functions to fix the result: ceil() and floor():
-/// ceil() changes the date to the first day of the next month (if the day is invalid for the current month)
-/// floor() to the last day of the current month (if the day is invalid for the current month).
+/// Normally, adding a month or a year never changes the day. As that could lead to illegal dates (days
+/// 29/30/31 do not exist in all months..) there are two member functions to fix the result: to_ceil() and to_floor():
+/// - to_ceil() changes the date to the first day of the next month (if the day is invalid for the current month)
+/// - to_floor() to the last day of the current month (if the day is invalid for the current month).
+/// The addition and subtraction methods now automatically call to_floor(), as that is the result expected
+/// by most humans.
+/// However, when changing days, months, and years manually with the setter methods, it is your responsibility
+/// to either call to_floor() or to_ceil() in the end to ensure a valid date.
 class DEKAF2_PUBLIC KDate : public KConstDate
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -538,7 +542,7 @@ public:
 	/// sets the month of the year - does not check for last_day() - call floor() or ceil() to adjust
 	constexpr self& month(uint8_t       m) noexcept { return month(chrono::month(m));          }
 	/// sets the year - does not check for last_day() - call floor() or ceil() to adjust
-	constexpr self& year (int16_t       y) noexcept  { return year (chrono::year(y) );         }
+	constexpr self& year (int16_t       y) noexcept { return year (chrono::year(y) );          }
 
 	/// sets the day of the month from an indexed weeday (1..5) - does not check for last_day()- call floor() or ceil() to adjust
 	constexpr self& weekday(chrono::weekday_indexed wi) noexcept { return *this = self(year()/month()/wi); }

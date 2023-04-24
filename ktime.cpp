@@ -1539,6 +1539,13 @@ KUnixTime::KUnixTime(KStringView sFormat, KStringView sTimestamp)
 }
 
 //-----------------------------------------------------------------------------
+KString KConstTimeOfDay::to_string (KStringView sFormat) const
+//-----------------------------------------------------------------------------
+{
+	return detail::FormTimestamp (to_tm(), sFormat);
+}
+
+//-----------------------------------------------------------------------------
 KUTCTime::KUTCTime (KStringView sTimestamp)
 //-----------------------------------------------------------------------------
 : KUTCTime(kParseTimestamp(sTimestamp).to_utc())

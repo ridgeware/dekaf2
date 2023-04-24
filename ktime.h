@@ -83,6 +83,12 @@ DEKAF2_PUBLIC inline const chrono::time_zone* kFindTimezone(KStringView sZoneNam
 template<class Duration>
 DEKAF2_PUBLIC auto kToLocalZone(chrono::sys_time<Duration> tp, const chrono::time_zone* zone = chrono::current_zone()) -> chrono::zoned_time<Duration> { return chrono::zoned_time<Duration>(zone, tp); }
 
+/// Converts any UTC timepoint to a local zoned time (at least exact for the past, not necessarily for the future)
+/// Never use local times to do arithmetics: DST changes, leap seconds, and history will all bite you!
+/// A zoned time is a local timepoint with all information about the local timezone it is contained in, at its very point in time, but not at any other point in time
+template<class Duration>
+DEKAF2_PUBLIC auto kToLocalZone(chrono::sys_time<Duration> tp, KStringView sZone) -> chrono::zoned_time<Duration> { return chrono::zoned_time<Duration>(sZone, tp); }
+
 /// Converts any UTC timepoint to a local timepoint (at least exact for the past, not necessarily for the future)
 /// Never use local timepoints to do arithmetics: DST changes, leap seconds, and history will all bite you!
 /// A local timepoint is only valid at its exact point in time.
@@ -252,10 +258,169 @@ constexpr KUnixTime KConstDate::to_unix () const noexcept
 
 } // KConstDate::to_unix
 
+namespace detail {
+
+// helper for KConstTimeOfDay
+constexpr uint64_t calc_power_of_10(unsigned exp) noexcept
+{
+	uint64_t ret = 1;
+	for (unsigned i = 0; i < exp; ++i) ret *= 10U;
+	return ret;
+}
+
+// helper for KConstTimeOfDay -- cannot be declared in-class, see here:
+// https://stackoverflow.com/questions/29551223/static-constexpr-function-called-in-a-constant-expression-is-an-error
+// IMHO this is a bug in the C++ standard
+constexpr unsigned calc_fractional_width(uint64_t n, uint64_t d = 10, unsigned w = 0) noexcept
+{
+	if (n >= 2 && d != 0 && w < 19) return 1 + calc_fractional_width(n, d % n * 10, w + 1);
+	return 0;
+}
+
+// helper for KConstTimeOfDay -- cannot be declared in-class, see here:
+// https://stackoverflow.com/questions/29551223/static-constexpr-function-called-in-a-constant-expression-is-an-error
+// IMHO this is a bug in the C++ standard
+// std::abs() is only constexpr with C++23..
+constexpr uint8_t tiny_abs(int8_t i) noexcept
+{
+	// we will never see an underflow because we modulo the input value far below its maximum/minimum count
+	return (i >= 0) ? i : i == std::numeric_limits<int8_t>::min() ? 0 : i * (-1);
+}
+
+#if DEKAF2_USE_TIME_PUT
+constexpr KStringView fDefaultTime { "%%H:%M:%S" };
+#else
+constexpr KStringView fDefaultTime { "{:%H:%M:%S}" };
+#endif
+
+} // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// constexpr breaking down any duration or timepoint into a 24h duration with accessors for hours, minutes, seconds, subseconds
-class DEKAF2_PUBLIC KTimeOfDay : public chrono::hh_mm_ss<chrono::system_clock::duration>
+/// constexpr breaking down any duration or timepoint into a const 24h duration with accessors for hours, minutes, seconds, subseconds
+class DEKAF2_PUBLIC KConstTimeOfDay
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//--------
+private:
+//--------
+
+	using Duration = chrono::system_clock::duration;
+	using CommonType = typename std::common_type<Duration, chrono::seconds>::type;
+
+//--------
+public:
+//--------
+
+	static unsigned constexpr fractional_width = detail::calc_fractional_width(CommonType::period::den) < 19 ? detail::calc_fractional_width(CommonType::period::den) : 6u;
+
+	using self       = KConstTimeOfDay;
+	using precision  = chrono::duration<typename std::common_type<typename Duration::rep, chrono::seconds::rep>::type, std::ratio<1, detail::calc_power_of_10(fractional_width)>>;
+
+	/// construct default time of day (00:00:00)
+	KConstTimeOfDay() = default;
+	/// construct time of day from chrono::hours, minutes, seconds, subseconds
+	constexpr KConstTimeOfDay(chrono::hours h, chrono::minutes m, chrono::seconds s, precision subseconds = precision(0)) noexcept
+	: m_is_neg(false)
+	, m_hour  (detail::tiny_abs(h.count() % 24))
+	, m_minute(detail::tiny_abs(m.count() % 60))
+	, m_second(detail::tiny_abs(s.count() % 60))
+	, m_subseconds(subseconds)
+	{
+	}
+	/// construct time of day from unsigned hours, minutes, seconds
+	constexpr KConstTimeOfDay(uint8_t h, uint8_t m, uint8_t s) noexcept
+	: m_is_neg(false)
+	, m_hour  (h % 24)
+	, m_minute(m % 60)
+	, m_second(s % 60)
+	{
+	}
+	/// construct time of day from a chrono::system_clock::duration (modulo 24 hours to not overflow the hour counter)
+	constexpr explicit KConstTimeOfDay(Duration d) noexcept : KConstTimeOfDay(chrono::abs(d % Duration(chrono::hours(24))), d < Duration(0)) {}
+	/// construct time of day from a KUnixTime
+	constexpr KConstTimeOfDay(KUnixTime timepoint) noexcept : KConstTimeOfDay(timepoint.time_since_epoch()) {}
+
+	/// is the duration negative?
+	constexpr bool            is_negative () const noexcept { return m_is_neg;                  }
+	/// return hour in 24 hour format
+	constexpr chrono::hours   hours       () const noexcept { return chrono::hours(m_hour);     }
+	/// return minutes
+	constexpr chrono::minutes minutes     () const noexcept { return chrono::minutes(m_minute); }
+	/// return seconds
+	constexpr chrono::seconds seconds     () const noexcept { return chrono::seconds(m_second); }
+	/// return subseconds (either nano- or microseconds, depending on the std::chrono library)
+	constexpr precision       subseconds  () const noexcept { return m_subseconds;              }
+
+	/// return the duration into the day
+	constexpr precision       to_duration () const noexcept
+	{
+		auto dur = hours() + minutes() + seconds() + subseconds();
+		return is_negative() ? -dur : dur;
+	}
+
+	/// return hour in 24 hour format
+	constexpr chrono::hours   hours24     () const noexcept { return hours();                   }
+	/// return hour in 12 hour format
+	constexpr chrono::hours   hours12     () const noexcept { return chrono::make12(hours());   }
+	/// returns true if time is pm
+	constexpr bool            is_pm       () const noexcept { return chrono::is_pm(hours());    }
+	/// returns true if time is am
+	constexpr bool            is_am       () const noexcept { return chrono::is_am(hours());    }
+
+	/// return a string following std::format patterns - default = %H:%M:%S
+	KString                   Format      (KStringView sFormat = detail::fDefaultTime) const { return to_string(sFormat); }
+	/// return a string following std::format patterns - default = %H:%M:%S
+	KString                   to_string   (KStringView sFormat = detail::fDefaultTime) const;
+
+	constexpr std::tm         to_tm       () const noexcept;
+
+	// a KConstTimeOfDay is always in the valid range, it does not need a check for bool ok() ..
+
+//--------
+private:
+//--------
+
+	friend class KTimeOfDay;
+
+	constexpr KConstTimeOfDay(Duration d, bool bIsNeg) noexcept
+	: m_is_neg     (bIsNeg)
+	, m_hour       (chrono::duration_cast<chrono::hours  >(d).count())
+	, m_minute     (chrono::duration_cast<chrono::minutes>(d - hours()).count())
+	, m_second     (chrono::duration_cast<chrono::seconds>(d - hours() - minutes()).count())
+	, m_subseconds (d - hours() - minutes() - seconds())
+	{
+	}
+
+	bool      m_is_neg     {false};
+	uint8_t   m_hour       {0};
+	uint8_t   m_minute     {0};
+	uint8_t   m_second     {0};
+	precision m_subseconds {0};
+
+}; // KConstTimeOfDay
+
+//-----------------------------------------------------------------------------
+constexpr std::tm KConstTimeOfDay::to_tm () const noexcept
+//-----------------------------------------------------------------------------
+{
+	// we do not know all fields of std::tm, therefore let's default initialize it
+	std::tm tm{};
+
+	tm.tm_hour   = static_cast<int>(hours   ().count());
+	tm.tm_min    = static_cast<int>(minutes ().count());
+	tm.tm_sec    = static_cast<int>(seconds ().count());
+#ifndef DEKAF2_IS_WINDOWS
+	tm.tm_zone   = const_cast<char*>(""); // cannot be nullptr or format() crashes on %Z
+#endif
+	return tm;
+
+} // KConstTimeOfDay::to_tm
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// constexpr breaking down any duration or timepoint into a 24h duration with accessors for hours, minutes, seconds, subseconds.
+/// The time of day can be modified with accessors hour(), minute(), second()
+class DEKAF2_PUBLIC KTimeOfDay : public KConstTimeOfDay
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -263,35 +428,27 @@ class DEKAF2_PUBLIC KTimeOfDay : public chrono::hh_mm_ss<chrono::system_clock::d
 public:
 //--------
 
-	using self     = KTimeOfDay;
-	using base     = chrono::hh_mm_ss<chrono::system_clock::duration>;
-	using duration = chrono::system_clock::duration;
+	using base = KConstTimeOfDay;
+	using self = KTimeOfDay;
 
-	KTimeOfDay() = default;
-	template<typename Duration, typename std::enable_if<detail::is_duration<Duration>::value, int>::type = 0>
-	constexpr explicit KTimeOfDay(Duration d) noexcept : base(d % Duration(chrono::hours(24))) {}
-	constexpr KTimeOfDay(KUnixTime timepoint) noexcept : KTimeOfDay(timepoint.time_since_epoch()) {}
-	constexpr KTimeOfDay(const base& other)   noexcept : base(other) {}
-	constexpr KTimeOfDay(base&& other)        noexcept : base(std::move(other)) {}
+	using base::base;
 
-//  the base class adds accessors:
-//	constexpr bool is_negative()        const noexcept
-//	constexpr chrono::hours hours()     const noexcept
-//	constexpr chrono::minutes minutes() const noexcept
-//	constexpr chrono::seconds seconds() const noexcept
-//	constexpr precision subseconds()    const noexcept
-//	constexpr precision to_duration()   const noexcept
-
-	/// return hour in 24 hour format
-	constexpr chrono::hours   hours24  () const noexcept { return hours();                 }
-	/// return hour in 12 hour format
-	constexpr chrono::hours   hours12  () const noexcept { return chrono::make12(hours()); }
-	/// returns true if time is pm
-	constexpr bool            is_pm    () const noexcept { return chrono::is_pm(hours());  }
-	/// returns true if time is am
-	constexpr bool            is_am    () const noexcept { return chrono::is_am(hours());  }
-
-	// a KTimeOfDay is always in the valid range, it does not need a check for bool ok() ..
+	/// set the hour of the day from chrono::hours
+	constexpr self& hour       (chrono::hours   h) noexcept { m_hour   = h.count() % 24; return *this; }
+	/// set the minute of the hour from chrono::minutes
+	constexpr self& minute     (chrono::minutes m) noexcept { m_minute = m.count() % 60; return *this; }
+	/// set the second of the minute from chrono::seconds
+	constexpr self& second     (chrono::seconds s) noexcept { m_second = s.count() % 60; return *this; }
+	/// set the subseconds of the second from KTimeOfDay::precision
+	constexpr self& subseconds (precision subsecs) noexcept { m_subseconds = subsecs;    return *this; }
+	// make the base method visible again
+	using base::subseconds;
+	/// set the hour of the day from unsigned
+	constexpr self& hour       (uint8_t h)         noexcept { m_hour   = h % 24;         return *this; }
+	/// set the minute of the hour from unsigned
+	constexpr self& minute     (uint8_t m)         noexcept { m_minute = m % 60;         return *this; }
+	/// set the second of the minute from unsigned
+	constexpr self& second     (uint8_t s)         noexcept { m_second = s % 60;         return *this; }
 
 }; // KTimeOfDay
 
@@ -332,7 +489,7 @@ public:
 	/// construct from a KUnixTime
 	DEKAF2_CONSTEXPR_14 KUTCTime (KUnixTime time) noexcept
 	: KDate      (chrono::floor<chrono::days>(time))
-	, KTimeOfDay (chrono::make_time(time.time_since_epoch() % chrono::hours(24))) // the modulo operation prevents an overflow around the min value of the time point
+	, KTimeOfDay (time.time_since_epoch())
 	{
 	}
 
@@ -344,17 +501,7 @@ public:
 
 	/// construct from a struct tm time
 	DEKAF2_CONSTEXPR_14 KUTCTime (const std::tm& tm) noexcept
-	: KDate      (chrono::year(tm.tm_year + 1900), chrono::month(tm.tm_mon + 1), chrono::day(tm.tm_mday))
-	, KTimeOfDay (chrono::make_time
-	                 (chrono::system_clock::duration
-	                   (chrono::hours  (tm.tm_hour)
-	                  + chrono::minutes(tm.tm_min)
-#ifndef DEKAF2_IS_WINDOWS
-				      - chrono::seconds(tm.tm_gmtoff)
-#endif
-				      + chrono::seconds(tm.tm_sec))
-	                 )
-	             )
+	: KUTCTime(KUnixTime(tm))
 	{
 	}
 
@@ -416,7 +563,7 @@ private:
 
 	DEKAF2_CONSTEXPR_14 KUnixTime join() const noexcept
 	{
-		return !empty() ? chrono::sys_days(KDate(*this))
+		return !empty() ? to_sys_days()
 		                  + hours()
 		                  + minutes()
 		                  + seconds()
@@ -451,7 +598,7 @@ DEKAF2_WRAPPED_COMPARISON_OPERATORS_ONE_TYPE(KUTCTime, left.to_sys(), right.to_s
 /// A broken down time representation in local time (any timezone that this system supports) - you
 /// cannot do arithmetics on it, because that is in general invalid on local times (you may step
 /// transition points in local time, like DST changes and leap seconds)
-class DEKAF2_PUBLIC KLocalTime : private chrono::zoned_time<chrono::system_clock::duration>, public KConstDate, public KTimeOfDay
+class DEKAF2_PUBLIC KLocalTime : private chrono::zoned_time<chrono::system_clock::duration>, public KConstDate, public KConstTimeOfDay
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using zoned_time = chrono::zoned_time<chrono::system_clock::duration>;
@@ -465,11 +612,19 @@ public:
 
 	KLocalTime() = default;
 
-	/// construct from a KUnixTime, and translate into a timezone, default timezone is the system's local time
+	/// construct from a KUnixTime, and translate into a timezone, default timezone is the system's local zone
 	KLocalTime (KUnixTime time, const chrono::time_zone* timezone)
 	: zoned_time(kToLocalZone(time, timezone))
 	, KConstDate(chrono::floor<chrono::days>(get_local_time()))
-	, KTimeOfDay(chrono::make_time(local_time(get_local_time()) - chrono::floor<chrono::days>(get_local_time())))
+	, KConstTimeOfDay(local_time(get_local_time()) - chrono::floor<chrono::days>(get_local_time()))
+	{
+	}
+
+	/// construct from a KUnixTime, and a timezone string
+	KLocalTime (KUnixTime time, KStringView sTimezone)
+	: zoned_time(kToLocalZone(time, sTimezone))
+	, KConstDate(chrono::floor<chrono::days>(get_local_time()))
+	, KConstTimeOfDay(local_time(get_local_time()) - chrono::floor<chrono::days>(get_local_time()))
 	{
 	}
 
@@ -480,6 +635,26 @@ public:
 
 	explicit KLocalTime (chrono::system_clock::time_point time)
 	: KLocalTime(KUnixTime(time))
+	{
+	}
+
+	/// construct from a chrono::zoned_time
+	KLocalTime (const zoned_time& time) noexcept
+	: zoned_time(time)
+	, KConstDate(chrono::floor<chrono::days>(get_local_time()))
+	, KConstTimeOfDay(local_time(get_local_time()) - chrono::floor<chrono::days>(get_local_time()))
+	{
+	}
+
+	/// construct from a KConstDate, a KConstTimeofDay, and a timezone, default timezone is the system's local zone
+	KLocalTime (KConstDate date, KConstTimeOfDay time, const chrono::time_zone* timezone = chrono::current_zone()) noexcept
+	: KLocalTime(zoned_time(timezone, date.to_local_days() + time.to_duration()))
+	{
+	}
+
+	/// construct from a KConstDate, a KConstTimeofDay, and a timezone string
+	KLocalTime (KConstDate date, KConstTimeOfDay time, KStringView sTimezone) noexcept
+	: KLocalTime(zoned_time(sTimezone, date.to_local_days() + time.to_duration()))
 	{
 	}
 
@@ -497,9 +672,21 @@ public:
 	{
 	}
 
+	/// construct from KUTCTime, and translate into a timezone
+	KLocalTime (const KUTCTime& utc, KStringView sTimezone)
+	: KLocalTime(utc.to_unix(), sTimezone)
+	{
+	}
+
 	/// construct from KLocalTime, and translate into a timezone
 	KLocalTime (const KLocalTime& local, const chrono::time_zone* timezone)
 	: KLocalTime(local.to_unix(), timezone)
+	{
+	}
+
+	/// construct from KLocalTime, and translate into a timezone
+	KLocalTime (const KLocalTime& local, KStringView sTimezone)
+	: KLocalTime(local.to_unix(), sTimezone)
 	{
 	}
 
@@ -509,9 +696,9 @@ public:
 	{
 	}
 
-	// do not allow base class constructors - they do not make sense for the static KLocalTime
+	// do not allow base class constructors - they do not make sense for the const KLocalTime
 
-	/// get the current time as local time or any other timezone, default timezone is the system's local time
+	/// get the current time as local time or any other timezone, default timezone is the system's local zone
 	static KLocalTime   now(const chrono::time_zone* timezone = chrono::current_zone()) { return KLocalTime(KUnixTime::now(), timezone); }
 
 	/// return KUnixTime
@@ -885,6 +1072,16 @@ template<> struct formatter<dekaf2::KUnixTime> : formatter<std::tm>
 	auto format(const dekaf2::KUnixTime& time, FormatContext& ctx) const
 	{
 		return formatter<std::tm>::format(dekaf2::KUnixTime::to_tm(time), ctx);
+	}
+};
+
+template<> struct formatter<dekaf2::KConstTimeOfDay> : formatter<std::tm>
+{
+	template <typename FormatContext>
+	DEKAF2_CONSTEXPR_14
+	auto format(const dekaf2::KConstTimeOfDay& time, FormatContext& ctx) const
+	{
+		return formatter<std::tm>::format(time.to_tm(), ctx);
 	}
 };
 

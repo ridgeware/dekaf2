@@ -8,10 +8,10 @@ include(ExternalProject)
 add_subdirectory(fmt-9.1.0)
 
 # add fast regular expressions
-add_subdirectory(re2)
+add_subdirectory(re2 EXCLUDE_FROM_ALL)
 
 # add the frozen lib (constexpr set and map)
-add_subdirectory(frozen)
+add_subdirectory(frozen EXCLUDE_FROM_ALL)
 
 if (DEKAF2_WITH_FCGI)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

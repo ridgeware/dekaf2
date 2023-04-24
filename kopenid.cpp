@@ -430,14 +430,14 @@ bool KJWT::Validate(KStringView sIssuer, KStringView sScope, KDuration tClockLee
 
 	if (tNBF > (now + tClockLeeway))
 	{
-		return SetError(kFormat("token will be valid in {} seconds", tNBF - now));
+		return SetError(kFormat("token will be valid in {} seconds", chrono::floor<chrono::seconds>(tNBF - now).count()));
 	}
 
 	KUnixTime tExp = KUnixTime::from_time_t(kjson::GetInt(Payload, "exp"));
 
 	if (tExp < (now - tClockLeeway))
 	{
-		return SetError(kFormat("token has expired {} seconds ago", now - tExp));
+		return SetError(kFormat("token has expired {} seconds ago", chrono::floor<chrono::seconds>(now - tExp).count()));
 	}
 
 	return true;

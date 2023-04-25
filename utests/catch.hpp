@@ -7146,6 +7146,7 @@ namespace Catch {
 #include <set>
 #include <sstream>
 #include <algorithm>
+#include <random>
 
 namespace Catch {
 
@@ -7161,10 +7162,13 @@ namespace Catch {
 #endif
         template<typename V>
         static void shuffle( V& vector ) {
-            RandomNumberGenerator rng;
 #ifdef CATCH_CONFIG_CPP11_SHUFFLE
+			std::random_device RandDevice;
+			std::mt19937 rng;
+			rng.seed(RandDevice());
             std::shuffle( vector.begin(), vector.end(), rng );
 #else
+			RandomNumberGenerator rng;
             std::random_shuffle( vector.begin(), vector.end(), rng );
 #endif
         }

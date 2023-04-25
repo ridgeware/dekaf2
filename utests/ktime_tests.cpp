@@ -701,18 +701,31 @@ TEST_CASE("KTime") {
 		}
 	}
 
-#if 0
 	SECTION("KTimeOfDay")
 	{
 		KUnixTime U = kParseTimestamp("20.12.2022 14:37:56");
-		//			auto d = chrono::floor<chrono::days>(U);
-		//			chrono::hh_mm_ss hms = chrono::make_time(U - d);
 		KTimeOfDay TD = U;
-		CHECK ( TD.hours().count()   == 14 );
-		CHECK ( TD.minutes().count() == 37 );
-		CHECK ( TD.seconds().count() == 56 );
+		CHECK ( TD.hours().count()   == 14    );
+		CHECK ( TD.hours12().count() == 2     );
+		CHECK ( TD.hours24().count() == 14    );
+		CHECK ( TD.minutes().count() == 37    );
+		CHECK ( TD.seconds().count() == 56    );
 		CHECK ( TD.is_negative()     == false );
-		CHECK ( TD.subseconds().count() == 0 );
+		CHECK ( TD.subseconds().count() == 0  );
+		CHECK ( TD.is_am()           == false );
+		CHECK ( TD.is_pm()           == true  );
+		CHECK ( TD.to_string()       == "14:37:56" );
+		CHECK ( kFormat("{:%H.%M.%S}", TD) == "14.37.56" );
+
+		TD += chrono::hours(16);
+		CHECK ( TD.hours().count()   == 6     );
+		TD += chrono::minutes(188);
+		CHECK ( TD.hours().count()   == 9     );
+		CHECK ( TD.minutes().count() == 45    );
+		TD += chrono::seconds(chrono::seconds(86400) + chrono::hours(2) + chrono::minutes(6) + chrono::seconds(2));
+		CHECK ( TD.hours().count()   == 11    );
+		CHECK ( TD.minutes().count() == 51    );
+		CHECK ( TD.seconds().count() == 58    );
 
 		TD = kParseTimestamp("2022-12-20 14:37:56.789");
 		CHECK ( TD.hours().count()   == 14 );
@@ -727,8 +740,27 @@ TEST_CASE("KTime") {
 		CHECK ( TD.seconds().count() == 56 );
 		CHECK ( TD.is_negative()     == false );
 		CHECK ( TD.subseconds() == chrono::milliseconds(0) );
+
+		auto TD2 = TD;
+		CHECK       ( TD == TD2 );
+		CHECK_FALSE ( TD != TD2 );
+		TD2 += chrono::milliseconds(1);
+		CHECK       ( TD <  TD2 );
+		CHECK       ( TD <= TD2 );
+		CHECK_FALSE ( TD >  TD2 );
+		CHECK_FALSE ( TD >= TD2 );
+
+		TD2 -= chrono::milliseconds(1);
+		TD2 -= chrono::hours(3) + chrono::minutes(1);
+		auto D = TD - TD2;
+		CHECK ( D == KDuration(chrono::hours(3) + chrono::minutes(1)) );
+
+		KConstTimeOfDay CTD(chrono::hours(14), chrono::minutes(18), chrono::seconds(12));
+		KTimeOfDay TDx(CTD);
+		CHECK ( TDx.hours().count()   == 14    );
+		CHECK ( TDx.minutes().count() == 18    );
+		CHECK ( TDx.seconds().count() == 12    );
 	}
-#endif
 
 	SECTION("kFormTimeStamp")
 	{

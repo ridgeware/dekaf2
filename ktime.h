@@ -120,8 +120,8 @@ class KParsedTimestampBase;
 /// Please note that due to the higher resolution, the covered date range is much lower than the
 /// one of std::time_t:
 /// std::time_t:      -292,471,206,707 years to 292,471,210,647 years
-/// clang::KUnixTime: -28164-12-21 04:00:54  to 32103-01-10 04:00:54
-/// gcc::KUnixTime:   1677-09-21 23:47:16    to 2262-04-11 23:47:16
+/// clang::KUnixTime:  -28164-12-21 04:00:54 to 32103-01-10 04:00:54
+/// gcc::KUnixTime:      1677-09-21 23:47:16 to 2262-04-11 23:47:16
 class DEKAF2_PUBLIC KUnixTime : public chrono::system_clock::time_point
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -206,6 +206,9 @@ private:
 
 }; // KUnixTime
 
+DEKAF2_CONSTEXPR_14 KDuration operator-(const KUnixTime& left, const KUnixTime& right)
+{ return KUnixTime::base(left) - KUnixTime::base(right); }
+
 //-----------------------------------------------------------------------------
 // constexpr implementation of std::tm to std::time_t conversion
 DEKAF2_CONSTEXPR_14 KUnixTime KUnixTime::from_tm(const std::tm& tm) noexcept
@@ -284,7 +287,7 @@ constexpr unsigned calc_fractional_width(uint64_t n, uint64_t d = 10, unsigned w
 constexpr uint8_t tiny_abs(int8_t i) noexcept
 {
 	// we will never see an underflow because we modulo the input value far below its maximum/minimum count
-	return (i >= 0) ? i : i == std::numeric_limits<int8_t>::min() ? 0 : i * (-1);
+	return (i >= 0) ? +i : -i;
 }
 
 #if DEKAF2_USE_TIME_PUT
@@ -372,7 +375,7 @@ public:
 	KString                   Format      (KStringView sFormat = detail::fDefaultTime) const { return to_string(sFormat); }
 	/// return a string following std::format patterns - default = %H:%M:%S
 	KString                   to_string   (KStringView sFormat = detail::fDefaultTime) const;
-
+	/// convert into a std::tm (date part is obviously zeroed)
 	constexpr std::tm         to_tm       () const noexcept;
 
 	// a KConstTimeOfDay is always in the valid range, it does not need a check for bool ok() ..
@@ -399,6 +402,29 @@ private:
 	precision m_subseconds {0};
 
 }; // KConstTimeOfDay
+
+//-----------------------------------------------------------------------------
+constexpr bool operator==(const KConstTimeOfDay& left, const KConstTimeOfDay& right)
+//-----------------------------------------------------------------------------
+{
+	return left.is_negative() == right.is_negative()
+	     && left.hours()      == right.hours()
+	     && left.minutes()    == right.minutes()
+	     && left.seconds()    == right.seconds()
+	     && left.subseconds() == right.subseconds();
+}
+
+//-----------------------------------------------------------------------------
+constexpr bool operator< (const KConstTimeOfDay& left, const KConstTimeOfDay& right)
+//-----------------------------------------------------------------------------
+{
+	return left.to_duration() < right.to_duration();
+}
+
+DEKAF2_COMPARISON_OPERATORS(KConstTimeOfDay)
+
+constexpr KDuration operator-(const KConstTimeOfDay& left, const KConstTimeOfDay& right)
+{ return left.to_duration() - right.to_duration(); }
 
 //-----------------------------------------------------------------------------
 constexpr std::tm KConstTimeOfDay::to_tm () const noexcept
@@ -431,24 +457,34 @@ public:
 	using base = KConstTimeOfDay;
 	using self = KTimeOfDay;
 
+	                KTimeOfDay() = default;
+
+	constexpr       KTimeOfDay(const base& other) noexcept : base(other) {}
+	constexpr       KTimeOfDay(base&& other)      noexcept : base(std::move(other)) {}
+	
 	using base::base;
 
 	/// set the hour of the day from chrono::hours
-	constexpr self& hour       (chrono::hours   h) noexcept { m_hour   = h.count() % 24; return *this; }
+	constexpr self& hour       (chrono::hours   h) noexcept { m_hour   = detail::tiny_abs(h.count() % 24); return *this; }
 	/// set the minute of the hour from chrono::minutes
-	constexpr self& minute     (chrono::minutes m) noexcept { m_minute = m.count() % 60; return *this; }
+	constexpr self& minute     (chrono::minutes m) noexcept { m_minute = detail::tiny_abs(m.count() % 60); return *this; }
 	/// set the second of the minute from chrono::seconds
-	constexpr self& second     (chrono::seconds s) noexcept { m_second = s.count() % 60; return *this; }
+	constexpr self& second     (chrono::seconds s) noexcept { m_second = detail::tiny_abs(s.count() % 60); return *this; }
 	/// set the subseconds of the second from KTimeOfDay::precision
-	constexpr self& subseconds (precision subsecs) noexcept { m_subseconds = subsecs;    return *this; }
+	constexpr self& subseconds (precision subsecs) noexcept { m_subseconds = chrono::abs(subsecs);         return *this; }
 	// make the base method visible again
 	using base::subseconds;
 	/// set the hour of the day from unsigned
-	constexpr self& hour       (uint8_t h)         noexcept { m_hour   = h % 24;         return *this; }
+	constexpr self& hour       (uint8_t h)         noexcept { m_hour   = h % 24; return *this; }
 	/// set the minute of the hour from unsigned
-	constexpr self& minute     (uint8_t m)         noexcept { m_minute = m % 60;         return *this; }
+	constexpr self& minute     (uint8_t m)         noexcept { m_minute = m % 60; return *this; }
 	/// set the second of the minute from unsigned
-	constexpr self& second     (uint8_t s)         noexcept { m_second = s % 60;         return *this; }
+	constexpr self& second     (uint8_t s)         noexcept { m_second = s % 60; return *this; }
+
+	template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+	constexpr self& operator+= (T Duration)        noexcept { return *this = KTimeOfDay(to_duration() + chrono::duration_cast<KTimeOfDay::precision>(Duration)); }
+	template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+	constexpr self& operator-= (T Duration)        noexcept { return operator+=(-Duration);    }
 
 }; // KTimeOfDay
 
@@ -1085,6 +1121,16 @@ template<> struct formatter<dekaf2::KConstTimeOfDay> : formatter<std::tm>
 	}
 };
 
+template<> struct formatter<dekaf2::KTimeOfDay> : formatter<std::tm>
+{
+	template <typename FormatContext>
+	DEKAF2_CONSTEXPR_14
+	auto format(const dekaf2::KTimeOfDay& time, FormatContext& ctx) const
+	{
+		return formatter<std::tm>::format(time.to_tm(), ctx);
+	}
+};
+
 template<> struct formatter<dekaf2::KLocalTime> : formatter<std::tm>
 {
 	template <typename FormatContext>
@@ -1111,6 +1157,14 @@ namespace std {
 template<> struct hash<dekaf2::KUnixTime>
 {
 	std::size_t operator()(dekaf2::KUnixTime time) const noexcept
+	{
+		return dekaf2::kHash(&time, sizeof(time));
+	}
+};
+
+template<> struct hash<dekaf2::KConstTimeOfDay>
+{
+	std::size_t operator()(dekaf2::KConstTimeOfDay time) const noexcept
 	{
 		return dekaf2::kHash(&time, sizeof(time));
 	}

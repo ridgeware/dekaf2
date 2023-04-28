@@ -211,7 +211,7 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 	auto iReceiveTime  = ReceiveTime.milliseconds();
 	auto iTotalTime    = iConnectTime + iTransmitTime + iReceiveTime;
 
-	kDebug(3, "connect {} ms, transmit {} ms, receive {} ms, total {} ms", iConnectTime, iTransmitTime, iReceiveTime, iTotalTime);
+	kDebug(3, "connect {}, transmit {}, receive {}, total {}", iConnectTime, iTransmitTime, iReceiveTime, iTotalTime);
 
 	if (m_pServiceSummary)
 	{

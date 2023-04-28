@@ -11,6 +11,8 @@
 #%   -scratch    : clear build directory before building
 #%   -no-pull    : do not pull the latest sources before building
 #%   -no-setup   : do not install helper packages/libs
+#%   -j N        : build with N processes in parallel
+#%                 (default is number of cpu cores)
 #%
 #% The build directory will be a subdirectory 'build/Release|Debug|Xcode'
 #% of the directory in which this script is located.
@@ -34,7 +36,7 @@ Install ()
 	# install
 
 	Info "now installing dekaf2 ${BuildType} project (may need root password)"
-	sudo make install | grep -v "Up-to-date"
+	sudo cmake --build . --target install --config ${BuildType} | grep -v "Up-to-date"
 
 	Info "dekaf2 ${BuildType} build successfully installed"
 
@@ -53,7 +55,8 @@ Build ()
 
 	# build
 
-	make -j4 all || Die "Cannot build ${BuildType} project"
+	Info "now building dekaf2 ${BuildType} project with ${CPUCORES} processes"
+	cmake --build . --parallel ${CPUCORES} --target all --config ${BuildType} || Die "Cannot build ${BuildType} project"
 
 	cd ..
 
@@ -162,6 +165,16 @@ source ${ScriptLib}
 SetupColors
 GetOS
 
+case $(uname) in
+Linux)
+	CPUCORES=$(grep -E '^vendor_id' /proc/cpuinfo | wc -l)
+	[[ $CPUCORES -eq 0 ]] && CPUCORES=$(grep -E '^processor' /proc/cpuinfo | wc -l)
+	;;
+Darwin)
+	CPUCORES=$(expr $(sysctl -n hw.logicalcpu) / 1)
+	;;
+esac
+
 # read arguments
 while [[ $# -gt 0 ]]
 do
@@ -181,6 +194,10 @@ do
 	-nosetup|-no-setup|--no-setup)
 		bNoSetup="1"
 		;;
+	-j)
+		shift
+		CPUCORES=$1
+		;;
 	-go|--go|go)
 		bGo="1"
 		;;
@@ -192,9 +209,9 @@ do
 	shift
 done
 
-if [[ -z "${bGo}" ]]; then
-	Synopsis
-fi
+[[ -z "${bGo}" ]] && Synopsis
+
+[[ $CPUCORES -eq 0 ]] && CPUCORES=4
 
 if [[ -z "${bNoSetup}" ]]; then
 	[[ ! -f "${BuildSetup}" ]] && Die "Cannot setup build, script '${BuildSetup}' not found"

@@ -8654,7 +8654,6 @@ KSQL::ConnectionIDs KSQL::s_CanceledConnections;
 KSQL::TimedConnectionIDs::TimedConnectionIDs()
 //-----------------------------------------------------------------------------
 : m_bQuit(false)
-, m_Watcher(&TimedConnectionIDs::Watcher, this)
 {
 } // TimedConnectionIDs::ctor
 
@@ -8663,7 +8662,11 @@ KSQL::TimedConnectionIDs::~TimedConnectionIDs()
 //-----------------------------------------------------------------------------
 {
 	m_bQuit = true;
-	m_Watcher.join();
+
+	if (m_Watcher)
+	{
+		m_Watcher->join();
+	}
 
 } // TimedConnectionIDs::dtor
 
@@ -8679,6 +8682,12 @@ void KSQL::TimedConnectionIDs::Add(KSQL& Instance)
 void KSQL::TimedConnectionIDs::Add(ConnectionID iConnectionID, std::chrono::milliseconds Timeout, const KSQL& Instance)
 //-----------------------------------------------------------------------------
 {
+	std::call_once(m_Once, [this]
+	{
+		kDebug (2, "creating watcher thread");
+		m_Watcher = std::make_unique<std::thread>(&TimedConnectionIDs::Watcher, this);
+	});
+
 	Clock::time_point Expires = Clock::now() + Timeout;
 	auto iServerHash = Instance.GetHash();
 

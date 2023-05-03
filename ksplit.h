@@ -103,15 +103,13 @@ std::size_t kSplit (
 				}
 
 				svBuffer.remove_prefix(iNext);
-
-				if (svBuffer.empty())
-				{
-					break;
-				}
 			}
 			else
 			{
-				cContainer.push_back(svBuffer);
+				if (!svBuffer.empty())
+				{
+					cContainer.push_back(svBuffer);
+				}
 				break;
 			}
 		}
@@ -129,13 +127,6 @@ std::size_t kSplit (
 				cContainer.push_back(svBuffer.substr(0, iNext));
 
 				svBuffer.remove_prefix(++iNext);
-
-				if (svBuffer.empty())
-				{
-					// add a last empty element
-					cContainer.push_back(KStringView{});
-					break;
-				}
 			}
 			else
 			{

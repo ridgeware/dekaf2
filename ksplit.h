@@ -207,9 +207,14 @@ std::size_t kSplit (
 		KStringView sElement;
 		bool bHaveQuotes { false };
 
-		if (DEKAF2_UNLIKELY(bQuotesAreEscapes && svBuffer.front() == '"'))
+		for (;DEKAF2_UNLIKELY(bQuotesAreEscapes);)
 		{
-			auto iQuote = kFindUnescaped(svBuffer, '"', chEscape, 1);
+			char chQuote;
+			if (svBuffer.front() == '"') chQuote = '"';
+			else if (svBuffer.front() == '\'') chQuote = '\'';
+			else break;
+
+			auto iQuote = kFindUnescaped(svBuffer, chQuote, chEscape, 1);
 			if (DEKAF2_LIKELY(iQuote != KStringView::npos))
 			{
 				// only treat this as a quoted token if we have a closing quote
@@ -217,6 +222,7 @@ std::size_t kSplit (
 				svBuffer.remove_prefix(iQuote + 1);
 				bHaveQuotes = true;
 			}
+			break;
 		}
 
 		// Look for delimiter character, respect escapes
@@ -918,5 +924,53 @@ std::size_t kSplitArgsInPlace(
 	return cContainer.size() - iOriginalSize;
 
 } // kSplitArgsInPlace
+
+//-----------------------------------------------------------------------------
+/// Splits argument list string into token container. Container is
+/// a sequence, like a vector.
+/// @param cContainer needs to have a push_back() that can construct an element from
+/// a KStringView.
+/// @param svBuffer the source char sequence.
+/// @return count of added tokens.
+///
+/// @code
+/// std::vector<KStringView> Arguments;
+/// auto iArgumentCount = kSplit(Arguments, R"(something "like this" should be 'coded for' quotes so that 'the output\'s' smarter));
+/// @endcode
+template<typename Container,
+typename std::enable_if<
+		detail::has_key_type<Container>::value == false &&
+		std::is_constructible<typename Container::value_type, KStringViewPair>::value == false
+	, int>::type = 0
+>
+std::size_t kSplitArgs (Container&  cContainer, KStringView svBuffer)
+//-----------------------------------------------------------------------------
+{
+	return kSplit(cContainer, svBuffer, " ", detail::kASCIISpacesSet, '\\', false, true);
+}
+
+//-----------------------------------------------------------------------------
+/// Splits argument list string into token container. Container is
+/// a sequence, like a vector
+/// @param svBuffer the source char sequence.
+/// @return a new Container, its type needs to have a push_back() that can construct
+/// an element from a KStringView  (defaults to std::vector<KStringView> )
+///
+/// @code
+/// auto Arguments = kSplit(R"(something "like this" should be 'coded for' quotes so that 'the output\'s' smarter)");
+/// @endcode
+template<typename Container = std::vector<KStringView>,
+typename std::enable_if<
+		detail::has_key_type<Container>::value == false &&
+		std::is_constructible<typename Container::value_type, KStringViewPair>::value == false
+	, int>::type = 0
+>
+Container kSplitsArgs (KStringView svBuffer)
+//-----------------------------------------------------------------------------
+{
+	Container cContainer;
+	kSplitArgs(cContainer, svBuffer);
+	return cContainer;
+}
 
 } // namespace dekaf2

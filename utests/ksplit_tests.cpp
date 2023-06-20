@@ -595,6 +595,65 @@ TEST_CASE("kSplit")
 			CHECK ( it == *rit++);
 		}
 	}
+
+	SECTION("split with quotes")
+	{
+		std::vector<KStringView> Parts;
+		kSplit(Parts, R"(something "like this" should be 'coded for' quotes so that 'the output\'s' smarter)", " ", detail::kASCIISpacesSet, '\\', false, true);
+		CHECK ( Parts.size() == 10 );
+		if (Parts.size() == 10)
+		{
+			CHECK ( Parts[0] == "something");
+			CHECK ( Parts[1] == "like this");
+			CHECK ( Parts[2] == "should");
+			CHECK ( Parts[3] == "be");
+			CHECK ( Parts[4] == "coded for");
+			CHECK ( Parts[5] == "quotes");
+			CHECK ( Parts[6] == "so");
+			CHECK ( Parts[7] == "that");
+			CHECK ( Parts[8] == R"(the output\'s)");
+			CHECK ( Parts[9] == "smarter");
+		}
+	}
+
+	SECTION("kSplitArgs")
+	{
+		std::vector<KStringView> Parts;
+		kSplitArgs(Parts, R"(something "like this" should be 'coded for' quotes so that 'the output\'s' smarter)");
+		CHECK ( Parts.size() == 10 );
+		if (Parts.size() == 10)
+		{
+			CHECK ( Parts[0] == "something");
+			CHECK ( Parts[1] == "like this");
+			CHECK ( Parts[2] == "should");
+			CHECK ( Parts[3] == "be");
+			CHECK ( Parts[4] == "coded for");
+			CHECK ( Parts[5] == "quotes");
+			CHECK ( Parts[6] == "so");
+			CHECK ( Parts[7] == "that");
+			CHECK ( Parts[8] == R"(the output\'s)");
+			CHECK ( Parts[9] == "smarter");
+		}
+	}
+
+	SECTION("kSplitArgs")
+	{
+		auto Parts = kSplitsArgs(R"(something "like this" should be 'coded for' quotes so that 'the output\'s' smarter)");
+		CHECK ( Parts.size() == 10 );
+		if (Parts.size() == 10)
+		{
+			CHECK ( Parts[0] == "something");
+			CHECK ( Parts[1] == "like this");
+			CHECK ( Parts[2] == "should");
+			CHECK ( Parts[3] == "be");
+			CHECK ( Parts[4] == "coded for");
+			CHECK ( Parts[5] == "quotes");
+			CHECK ( Parts[6] == "so");
+			CHECK ( Parts[7] == "that");
+			CHECK ( Parts[8] == R"(the output\'s)");
+			CHECK ( Parts[9] == "smarter");
+		}
+	}
 }
 
 TEST_CASE("kSplitEmpty")
@@ -705,6 +764,27 @@ TEST_CASE("kSplitArgsInPlace")
 				INFO (argVector[i]);
 				CHECK( strcmp(compVector[i], argVector[i]) == 0);
 			}
+		}
+	}
+
+	SECTION("split with quotes")
+	{
+		std::vector<KStringView> Parts;
+		KString sCommand(R"(something "like this" should be 'coded for' quotes so that 'the output\'s' smarter)");
+		kSplitArgsInPlace(Parts, sCommand);
+		CHECK ( Parts.size() == 10 );
+		if (Parts.size() == 10)
+		{
+			CHECK ( Parts[0] == "something");
+			CHECK ( Parts[1] == "like this");
+			CHECK ( Parts[2] == "should");
+			CHECK ( Parts[3] == "be");
+			CHECK ( Parts[4] == "coded for");
+			CHECK ( Parts[5] == "quotes");
+			CHECK ( Parts[6] == "so");
+			CHECK ( Parts[7] == "that");
+			CHECK ( Parts[8] == R"(the output\'s)");
+			CHECK ( Parts[9] == "smarter");
 		}
 	}
 }

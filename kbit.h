@@ -474,7 +474,7 @@ kBitCountLeftZero(T iValue) noexcept
 #endif
 }
 
-#if !(defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_bitops >= 201907L || DEKAF2_IS_MACOS))
+#if !(defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_int_pow2 >= 202002L || DEKAF2_IS_MACOS))
 namespace detail {
 // integral log base 2
 template<class T>

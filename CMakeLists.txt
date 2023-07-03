@@ -747,6 +747,7 @@ set(PUBLIC_HEADERS
 	kallocator.h
 	kassociative.h
 	katomic_object.h
+	kawsauth.h
 	kbar.h
 	kbase64.h
 	kbit.h
@@ -1002,6 +1003,7 @@ set (SOURCES
 	bits/kstringviewz.cpp
 	bits/simd/kfindfirstof.cpp
 	dekaf2.cpp
+	kawsauth.cpp
 	kbar.cpp
 	kbase64.cpp
 	kbufferedreader.cpp

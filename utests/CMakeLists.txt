@@ -27,6 +27,7 @@ set (USOURCES
 	kctype_tests.cpp
 	kallocator_tests.cpp
 	kassociative_tests.cpp
+	kawsauth_tests.cpp
 	kbase64_tests.cpp
 	kbit_tests.cpp
 	kbitfields_tests.cpp

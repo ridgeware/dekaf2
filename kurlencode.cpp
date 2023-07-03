@@ -62,9 +62,9 @@ KUrlEncodingTables KUrlEncodingTables::MyInstance {};
 
 const char* KUrlEncodingTables::s_sExcludes[] =
 {
-    "-._~",     // used by Schema .. Port                https://tools.ietf.org/html/rfc3986#section-3
-    "-._~;,=/", // used by Path (actually there is more) https://tools.ietf.org/html/rfc3986#section-3.3
-    "-._~/?"    // used by Query and Fragment            https://tools.ietf.org/html/rfc3986#section-3.4
+//  "",     // used by Schema .. Port                https://tools.ietf.org/html/rfc3986#section-3
+    ";,=/", // used by Path (actually there is more) https://tools.ietf.org/html/rfc3986#section-3.3
+    "/?"    // used by Query and Fragment            https://tools.ietf.org/html/rfc3986#section-3.4
 };
 
 bool* KUrlEncodingTables::EncodingTable[TABLECOUNT];
@@ -78,22 +78,36 @@ KUrlEncodingTables::KUrlEncodingTables() noexcept
 	for (auto table = 0; table < INT_TABLECOUNT; ++table)
 	{
 		std::memset(&Tables[table], false, 256);
-		auto p = reinterpret_cast<const unsigned char*>(s_sExcludes[table]);
-		while (auto ch = *p++)
+
+		constexpr KStringView UnreservedValues("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+											   "abcdefghijklmnopqrstuvwxyz"
+											   "0123456789"
+											   "-_.~");
+
+		for (auto value : UnreservedValues)
 		{
-			Tables[table][ch] = true;
+			Tables[table][static_cast<unsigned char>(value)] = true;
 		}
 	}
+
+	for (auto table = 1; table < INT_TABLECOUNT; ++table)
+	{
+		auto p = s_sExcludes[table-1];
+		while (auto ch = *p++)
+		{
+			Tables[table][static_cast<unsigned char>(ch)] = true;
+		}
+	}
+
 	// now set up the pointers into these tables, as some are shared..
 	for (auto table = static_cast<int>(URIPart::Protocol); table < static_cast<int>(URIPart::Path); ++table)
 	{
 		EncodingTable[table] = Tables[0];
 	}
-	for (auto table = static_cast<int>(URIPart::Path); table < static_cast<int>(URIPart::Fragment); ++table)
-	{
-		EncodingTable[table] = Tables[(table - static_cast<int>(URIPart::Path)) + 1];
-	}
-	EncodingTable[static_cast<int>(URIPart::Fragment)] = EncodingTable[static_cast<int>(URIPart::Query)];
+
+	EncodingTable[static_cast<int>(URIPart::Path)]     = Tables[1];
+	EncodingTable[static_cast<int>(URIPart::Query)]    = Tables[2];
+	EncodingTable[static_cast<int>(URIPart::Fragment)] = Tables[2];
 }
 
 } // end of namespace detail

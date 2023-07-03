@@ -238,7 +238,7 @@ void kUrlEncode (const StringView& sSource, String& sTarget, const bool excludeT
 	{
 		auto ch = static_cast<unsigned char>(sSource[iIndex]);
 		// Do not encode either alnum or encoding excluded characters.
-		if ((KASCII::kIsAlNum (ch)) || excludeTable[ch])
+		if (excludeTable[ch])
 		{
 			sTarget += ch;
 		}
@@ -256,27 +256,6 @@ void kUrlEncode (const StringView& sSource, String& sTarget, const bool excludeT
 			sTarget += sxDigit[(ch     ) & 0x0f];
 		}
 	}
-}
-
-//-----------------------------------------------------------------------------
-/// percent-encodes string
-/// @param sSource the unencoded input string
-/// @param sTarget the encoded output string
-/// @param svExclude string view with ASCII chars that are not to be percent encoded
-/// @param bSpaceAsPlus if true, a space will be translated as + sign, default is false
-template<class String, class StringView>
-void kUrlEncode (const StringView& sSource, String& sTarget, KStringView svExclude=KStringView{}, bool bSpaceAsPlus = false)
-//-----------------------------------------------------------------------------
-{
-	// to exclude encoding of special characters, make a table of exclusions.
-	bool bExcludeTable[256] = {false};
-
-	for (auto iC: svExclude)
-	{
-		bExcludeTable[static_cast<unsigned char>(iC)] = true;
-	}
-
-	kUrlEncode (sSource, sTarget, reinterpret_cast<const bool*>(&bExcludeTable), bSpaceAsPlus);
 }
 
 //-----------------------------------------------------------------------------
@@ -306,12 +285,28 @@ void kUrlDecode (KStringView sSource, String& sTarget, URIPart encoding)
 /// percent-encode
 /// @param sSource the input string
 /// @param sTarget the output string
-/// @param encoding the URIPart component, used to determine the applicable exclusion table for the conversion
+/// @param encoding the URIPart component, used to determine the applicable exclusion table for the conversion,
+/// defaults to URIPart::Protocol and hence encodes most defensively per default
 template<class String>
-void kUrlEncode (KStringView sSource, String& sTarget, URIPart encoding)
+void kUrlEncode (KStringView sSource, String& sTarget, URIPart encoding = URIPart::Protocol)
 //-----------------------------------------------------------------------------
 {
 	kUrlEncode(sSource, sTarget, detail::KUrlEncodingTables::getTable(encoding), encoding == URIPart::Query);
+}
+
+//-----------------------------------------------------------------------------
+/// percent-encode
+/// @param sSource the input string
+/// @param encoding the URIPart component, used to determine the applicable exclusion table for the conversion,
+/// defaults to URIPart::Protocol and hence encodes most defensively per default
+/// @return the output string
+template<class String = KString>
+String kUrlEncode (KStringView sSource, URIPart encoding = URIPart::Protocol)
+//-----------------------------------------------------------------------------
+{
+	String sTarget;
+	kUrlEncode(sSource, sTarget, encoding);
+	return sTarget;
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

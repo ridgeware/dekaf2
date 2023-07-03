@@ -105,10 +105,19 @@ DEKAF2_PUBLIC auto kFromLocalTime(chrono::local_time<Duration> tp, const chrono:
 
 class KLocalTime;
 class KUTCTime;
+
 namespace detail {
+
 // we need a constructor in KUnixTime for this because otherwise gcc 8 complains about conversion ambiguities
 class KParsedTimestampBase;
-}
+
+#if DEKAF2_USE_TIME_PUT
+constexpr KStringView fDefaultDateTime { "%Y-%m-%d %H:%M:%S" };
+#else
+constexpr KStringView fDefaultDateTime { "{:%Y-%m-%d %H:%M:%S}" };
+#endif
+
+} // of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This class is a modern version of the legacy time point usage of time_t -
@@ -172,7 +181,7 @@ public:
 	/// converts to std::tm timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14 std::tm     to_tm     ()              const noexcept { return to_tm(*this);                                          }
 	/// converts to string
-	                    KString     to_string ()              const noexcept;
+	                    KString     to_string (KStringView sFormat = detail::fDefaultDateTime) const noexcept;
 
 	DEKAF2_CONSTEXPR_14 bool        ok        ()              const noexcept { return time_since_epoch() != duration::zero();                }
 
@@ -487,16 +496,6 @@ public:
 	constexpr self& operator-= (T Duration)        noexcept { return operator+=(-Duration);    }
 
 }; // KTimeOfDay
-
-namespace detail {
-
-#if DEKAF2_USE_TIME_PUT
-constexpr KStringView fDefaultDateTime { "%Y-%m-%d %H:%M:%S" };
-#else
-constexpr KStringView fDefaultDateTime { "{:%Y-%m-%d %H:%M:%S}" };
-#endif
-
-} // of namespace detail
 
 class KLocalTime;
 
@@ -1095,7 +1094,7 @@ DEKAF2_PUBLIC                            KString kTranslateDuration   (const KDu
 
 
 /// converts to string
-inline KString KUnixTime::to_string () const noexcept { return detail::FormTimestamp(to_tm(), detail::fDefaultDateTime); }
+inline KString KUnixTime::to_string (KStringView sFormat) const noexcept { return detail::FormTimestamp(to_tm(), sFormat); }
 
 } // end of namespace dekaf2
 

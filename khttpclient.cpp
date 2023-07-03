@@ -125,12 +125,12 @@ const KString& KHTTPClient::DigestAuthenticator::GetAuthHeader(const KOutHTTPReq
 	if (sQoP == "auth-int")
 	{
 		HA2 += ":";
-		HA2 += KMD5(sBody).Digest();
+		HA2 += KMD5(sBody).HexDigest();
 	}
 
 	bool bSimpleResponse = sQoP != "auth" && sQoP != "auth-int";
 
-	Response = HA1.Digest();
+	Response = HA1.HexDigest();
 	Response += ":";
 	Response += sNonce;
 	Response += ":";
@@ -145,7 +145,7 @@ const KString& KHTTPClient::DigestAuthenticator::GetAuthHeader(const KOutHTTPReq
 		Response += ":";
 	}
 
-	Response += HA2.Digest();
+	Response += HA2.HexDigest();
 
 	if (bSimpleResponse)
 	{
@@ -161,7 +161,7 @@ const KString& KHTTPClient::DigestAuthenticator::GetAuthHeader(const KOutHTTPReq
 				   sRealm,
 				   sNonce,
 				   Request.Resource.Path, // uri
-				   Response.Digest(),
+				   Response.HexDigest(),
 				   sOpaque
 				);
 	}
@@ -185,7 +185,7 @@ const KString& KHTTPClient::DigestAuthenticator::GetAuthHeader(const KOutHTTPReq
 				   sQoP,
 				   sNonceCount, // nc
 				   sCNonce,
-				   Response.Digest(),
+				   Response.HexDigest(),
 				   sOpaque
 				);
 	}

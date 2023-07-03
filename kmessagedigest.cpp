@@ -286,11 +286,11 @@ const KString& KMessageDigest::Digest() const
 		}
 		else
 		{
-			m_sDigest.reserve(iDigestLen * 2);
+			m_sDigest.reserve(iDigestLen);
 			
 			for (unsigned int iDigit = 0; iDigit < iDigestLen; ++iDigit)
 			{
-				KEncode::HexAppend(m_sDigest, Buffer[iDigit]);
+				m_sDigest += Buffer[iDigit];
 			}
 		}
 	}
@@ -298,6 +298,14 @@ const KString& KMessageDigest::Digest() const
 	return m_sDigest;
 
 } // Digest
+
+//---------------------------------------------------------------------------
+KString KMessageDigest::HexDigest() const
+//---------------------------------------------------------------------------
+{
+	return KEncode::Hex(Digest());
+
+} // HexDigest
 
 static_assert(std::is_nothrow_move_constructible<KMessageDigestBase>::value,
 			  "KMessageDigestBase is intended to be nothrow move constructible, but is not!");

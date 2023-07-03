@@ -636,7 +636,7 @@ TEST_CASE("kSplit")
 		}
 	}
 
-	SECTION("kSplitArgs")
+	SECTION("kSplitsArgs")
 	{
 		auto Parts = kSplitsArgs(R"(something "like this" should be 'coded for' quotes so that 'the output\'s' smarter)");
 		CHECK ( Parts.size() == 10 );

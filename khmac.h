@@ -119,18 +119,10 @@ public:
 		Update(InputStream);
 	}
 
-	/// returns the HMAC
-	const KString& HMAC() const;
-	/// returns the HMAC
-	operator KStringView() const
-	{
-		return HMAC();
-	}
-	/// returns the HMAC
-	const KString& operator()() const
-	{
-		return HMAC();
-	}
+	/// returns the HMAC in binary notation
+	const KString& Digest() const;
+	/// returns the HMAC in hexadecimal notation
+	KString HexDigest() const;
 
 //------
 protected:

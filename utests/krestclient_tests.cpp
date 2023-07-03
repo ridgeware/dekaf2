@@ -13,7 +13,7 @@ namespace {
 void rest_login(KRESTServer& REST)
 {
 	if (REST.GetQueryParm("user") == "Jason"
-		&& REST.GetQueryParm("pass") == KSHA256("secret").Digest())
+		&& REST.GetQueryParm("pass") == KSHA256("secret").HexDigest())
 	{
 		REST.json.tx =
 		{
@@ -102,7 +102,7 @@ TEST_CASE("KRESTCLIENT")
 		auto oResponse = Host.Get("login")
 							 .SetError(ec)
 		                     .AddQuery("user", "Tom")
-		                     .AddQuery("pass", KSHA256("Jerry").Digest())
+		                     .AddQuery("pass", KSHA256("Jerry").HexDigest())
 		                     .Request();
 
 		CHECK ( ec.value() == 401 );
@@ -117,7 +117,7 @@ TEST_CASE("KRESTCLIENT")
 		oResponse = Host.Post("login")
 						 .SetError(ec)
 						 .AddQuery("user", "Tom")
-						 .AddQuery("pass", KSHA256("Jerry").Digest())
+						 .AddQuery("pass", KSHA256("Jerry").HexDigest())
 						 .Request();
 
 		CHECK ( ec.value() == 405 );
@@ -132,7 +132,7 @@ TEST_CASE("KRESTCLIENT")
 		oResponse = Host.Get("login")
 						 .SetError(ec)
 						 .AddQuery("user", "Jason")
-						 .AddQuery("pass", KSHA256("secret").Digest())
+						 .AddQuery("pass", KSHA256("secret").HexDigest())
 						 .Request();
 
 		CHECK ( ec.value() == 0 );

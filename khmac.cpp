@@ -233,7 +233,7 @@ bool KHMAC::Update(KInStream&& InputStream)
 } // Update
 
 //---------------------------------------------------------------------------
-const KString& KHMAC::HMAC() const
+const KString& KHMAC::Digest() const
 //---------------------------------------------------------------------------
 {
 	if (m_sHMAC.empty())
@@ -247,11 +247,10 @@ const KString& KHMAC::HMAC() const
 		}
 		else
 		{
-			m_sHMAC.reserve(iDigestLen * 2);
+			m_sHMAC.reserve(iDigestLen);
 
-			for (unsigned int iDigit = 0; iDigit < iDigestLen; ++iDigit)
-			{
-				KEncode::HexAppend(m_sHMAC, Buffer[iDigit]);
+			for (unsigned int iDigit = 0; iDigit < iDigestLen; ++iDigit) {
+				m_sHMAC += Buffer[iDigit];
 			}
 		}
 	}
@@ -259,6 +258,14 @@ const KString& KHMAC::HMAC() const
 	return m_sHMAC;
 
 } // Digest
+
+//---------------------------------------------------------------------------
+KString KHMAC::HexDigest() const
+//---------------------------------------------------------------------------
+{
+	return KEncode::Hex(Digest());
+
+} // HexDigest
 
 } // end of namespace dekaf2
 

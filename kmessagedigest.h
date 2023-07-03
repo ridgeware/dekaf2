@@ -171,18 +171,11 @@ public:
 	/// move assignment
 	KMessageDigest& operator=(KMessageDigest&&) = default;
 
-	/// returns the message digest
+	/// returns the message digest in binary encoding
 	const KString& Digest() const;
-	/// returns the message digest
-	operator KStringView() const
-	{
-		return Digest();
-	}
-	/// returns the message digest
-	const KString& operator()() const
-	{
-		return Digest();
-	}
+
+	/// returns the message digest in hexadecimal encoding
+	KString HexDigest() const;
 
 	/// clears the digest and prepares for new computation
 	void clear();

@@ -113,12 +113,16 @@ SignedRequest::SignedRequest(const KURL& URL,
 		LowerCaseHeaders.insert(HTTPHeaders::value_type{std::move(sKey), std::move(sValue)});
 	}
 
-	LowerCaseHeaders.insert(HTTPHeaders::value_type { "content-type", sContentType });
+	if (!sContentType.empty() &&
+		(Method == KHTTPMethod::POST || Method == KHTTPMethod::PUT || Method == KHTTPMethod::PATCH))
+	{
+		LowerCaseHeaders.insert(HTTPHeaders::value_type { "content-type", sContentType });
+		m_AddedHeaders  .insert(HTTPHeaders::value_type { "Content-Type", sContentType });
+	}
 	LowerCaseHeaders.insert(HTTPHeaders::value_type { "host"        , m_sHost      });
 	LowerCaseHeaders.insert(HTTPHeaders::value_type { "x-amz-date"  , m_sDateTime  });
 	LowerCaseHeaders.insert(HTTPHeaders::value_type { "x-amz-target", sTarget      });
 
-	m_AddedHeaders  .insert(HTTPHeaders::value_type { "Content-Type", sContentType });
 	m_AddedHeaders  .insert(HTTPHeaders::value_type { "Host"        , m_sHost      });
 	m_AddedHeaders  .insert(HTTPHeaders::value_type { "X-Amz-Date"  , m_sDateTime  });
 	m_AddedHeaders  .insert(HTTPHeaders::value_type { "X-Amz-Target", sTarget      });

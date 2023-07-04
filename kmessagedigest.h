@@ -51,17 +51,17 @@
 #include "kstring.h"
 
 
-#if OPENSSL_VERSION_NUMBER >= 0x010100000
-struct evp_md_ctx_st;
-#else
+#if OPENSSL_VERSION_NUMBER < 0x010100000
 struct env_md_ctx_st;
+#else
+struct evp_md_ctx_st;
 #endif
 
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KMessageDigestBase constructs the basic algorithms for message digest
-/// computations
+/// computations, used by KMessageDigest and KRSASign
 class DEKAF2_PUBLIC KMessageDigestBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -138,10 +138,10 @@ protected:
 	/// releases context
 	void Release() noexcept;
 
-#if OPENSSL_VERSION_NUMBER >= 0x010100000
-	evp_md_ctx_st* evpctx { nullptr }; // is a EVP_MD_CTX
+#if OPENSSL_VERSION_NUMBER < 0x010100000
+	env_md_ctx_st* evpctx { nullptr }; // is a ENV_MD_CTX
 #else
-	env_md_ctx_st* evpctx { nullptr }; // is a EVP_MD_CTX
+	evp_md_ctx_st* evpctx { nullptr }; // is a EVP_MD_CTX
 #endif
 	UpdateFunc Updater { nullptr }; // is a EVP_Update function
 

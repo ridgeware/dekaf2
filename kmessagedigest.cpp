@@ -45,23 +45,6 @@
 #include "klog.h"
 #include <openssl/evp.h>
 
-// OpenSSL 3.0 introduces a new HMAC interface and makes the
-// old one deprecated. For now simply ignore the deprecation.
-#if OPENSSL_VERSION_NUMBER >= 0x030000000
-#ifdef DEKAF2_IS_CLANG
-#pragma clang diagnostic push
-#ifdef DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-#endif
-#ifdef DEKAF2_IS_GCC
-#pragma GCC diagnostic push
-#ifdef DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-#endif
-#endif
-
 namespace dekaf2 {
 
 //---------------------------------------------------------------------------
@@ -164,7 +147,11 @@ void KMessageDigestBase::clear()
 		return;
 	}
 
+#if OPENSSL_VERSION_NUMBER < 0x030000000
 	const EVP_MD* md = EVP_MD_CTX_md(evpctx);
+#else
+	const EVP_MD* md = EVP_MD_CTX_get0_md(evpctx);
+#endif
 
 	if (1 != EVP_DigestInit_ex(evpctx, md, nullptr))
 	{
@@ -317,12 +304,3 @@ static_assert(std::is_nothrow_move_constructible<KMD5>::value,
 			  "KMD5 is intended to be nothrow move constructible, but is not!");
 
 } // end of namespace dekaf2
-
-#if OPENSSL_VERSION_NUMBER >= 0x030000000
-#ifdef DEKAF2_IS_GCC
-#pragma GCC diagnostic pop
-#endif
-#ifdef DEKAF2_IS_CLANG
-#pragma clang diagnostic pop
-#endif
-#endif

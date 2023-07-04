@@ -137,7 +137,7 @@ constexpr uint8_t LookupBase36[256] =
 } // end of namespace detail
 
 //-----------------------------------------------------------------------------
-KString kFormString(KStringView sInp, typename KString::value_type separator, typename KString::size_type every)
+KString kFormString(KStringView sInp, KString::value_type separator, KString::size_type every)
 //-----------------------------------------------------------------------------
 {
 	KString result{sInp};
@@ -394,6 +394,75 @@ void kResizeUninitialized(std::string& sStr, std::string::size_type iNewSize)
 #endif
 
 } // kResizeUninitialized
+
+//-----------------------------------------------------------------------------
+KString kCurlyToStraight(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	Unicode::FromUTF8 (sInput, [&sTransformed](Unicode::codepoint_t ch)
+	{
+		// fix "leaning" quotes and doubles to be plain ascii:
+		switch (ch)
+		{
+			// single quotes
+			case 0x2018:
+			case 0x2019:
+			case 0x201A:
+			case 0x201B:
+			case 0x2039:
+			case 0x203A:
+				ch = '\'';
+				break;
+
+			// double quotes
+			case 0x201C:
+			case 0x201D:
+			case 0x00AB: // «
+			case 0x00BB: // »
+				ch = '"';
+				break;
+
+			// ~
+			case 0x223C:
+				ch = '~';
+				break;
+
+			// space
+			case 0x00A0:
+			case 0x2000:
+			case 0x2001:
+			case 0x2002:
+			case 0x2003:
+			case 0x2004:
+			case 0x2005:
+			case 0x2006:
+			case 0x2007:
+			case 0x2008:
+				ch = ' ';
+				break;
+
+			// hyphen / minus
+			case 0x2010:
+			case 0x2011:
+			case 0x2212:
+				ch = '-';
+				break;
+
+			default:
+				break;
+		}
+
+		Unicode::ToUTF8 (ch, sTransformed);
+
+		return true;
+	});
+
+	return sTransformed;
+
+} // kCurlyToStraight
 
 } // end of namespace dekaf2
 

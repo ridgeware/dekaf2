@@ -1227,4 +1227,8 @@ void kResizeUninitialized(KString& sStr, KString::size_type iNewSize);
 /// resize a std::string without initialization
 void kResizeUninitialized(std::string& sStr, std::string::size_type iNewSize);
 
+/// convert unicode representations of ASCII punctuation into their ASCII forms. Mainly quotes, but also
+/// tilde, spaces, and hyphen
+KString kCurlyToStraight(KStringView sInput);
+
 } // end of namespace dekaf2

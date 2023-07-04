@@ -47,8 +47,8 @@
 #include "kwriter.h"
 #include "kreader.h"
 #include "kfilesystem.h"
-#include "bits/kunique_deleter.h"
 
+struct zip;
 struct zip_stat;
 
 namespace dekaf2 {
@@ -201,21 +201,12 @@ public:
 
 	using const_iterator = iterator;
 
-	KZip(bool bThrow = false)
-	: m_bThrow(bThrow)
-	{
-	}
-
-	KZip(KStringViewZ sFilename, bool bWrite = false, bool bThrow = false)
-	: m_bThrow(bThrow)
-	{
-		Open(sFilename, bWrite);
-	}
-
+	KZip(bool bThrow = false);
+	KZip(KStringViewZ sFilename, bool bWrite = false, bool bThrow = false);
 	KZip(const KZip&) = delete;
-	KZip(KZip&&) = default;
+	KZip(KZip&&);
 	KZip& operator=(const KZip&) = delete;
-	KZip& operator=(KZip&&) = default;
+	KZip& operator=(KZip&&);
 
 	~KZip();
 
@@ -245,7 +236,7 @@ public:
 	/// returns true if archive is opened
 	bool is_open() const
 	{
-		return D.get();
+		return m_ZipC.get();
 	}
 
 	/// close a zip archive - not needed, will be done by dtor, ctor, or
@@ -408,7 +399,10 @@ private:
 	uint16_t            m_iCompressionLevel { 0 };
 	bool                m_bThrow            { false };
 
-	KUniqueVoidPtr D;
+	static void ZipDeleter(zip* data);
+
+	using unique_zip_t = std::unique_ptr<zip, decltype(&ZipDeleter)>;
+	unique_zip_t m_ZipC;
 
 }; // KZip
 

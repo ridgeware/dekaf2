@@ -507,3 +507,18 @@ namespace dekaf2
 		return s.Hash();
 	}
 }
+
+namespace fmt
+{
+
+template <>
+struct formatter<dekaf2::KStringViewZ> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KStringViewZ& String, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(string_view(String.data(), String.size()), ctx);
+	}
+};
+
+} // end of namespace fmt

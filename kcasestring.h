@@ -423,3 +423,28 @@ inline std::size_t dekaf2::KCaseStringBase<Trimming>::Hash() const
 {
 	return std::hash<dekaf2::KCaseStringBase<Trimming>>()(*this);
 }
+
+namespace fmt
+{
+
+template <typename Trimming>
+struct formatter<dekaf2::KCaseStringViewBase<Trimming>> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KCaseStringViewBase<Trimming>& String, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(string_view(String.data(), String.size()), ctx);
+	}
+};
+
+template <typename Trimming>
+struct formatter<dekaf2::KCaseStringBase<Trimming>> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KCaseStringBase<Trimming>& String, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(string_view(String.data(), String.size()), ctx);
+	}
+};
+
+} // end of namespace fmt

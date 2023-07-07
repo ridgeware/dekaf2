@@ -2215,3 +2215,17 @@ inline std::size_t dekaf2::KString::CaseHash() const
 	return dekaf2::kCaseHash(data(), size());
 }
 
+namespace fmt
+{
+
+template <>
+struct formatter<dekaf2::KString> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KString& String, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(string_view(String.data(), String.size()), ctx);
+	}
+};
+
+} // end of namespace fmt

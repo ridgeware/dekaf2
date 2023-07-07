@@ -103,7 +103,7 @@ namespace detail {
 
 //-----------------------------------------------------------------------------
 /// formats a KString using Python syntax
-KString kFormat(KStringView sFormat, dekaf2_format::format_args args) noexcept
+KString kFormat(KStringView sFormat, const dekaf2_format::format_args& args) noexcept
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
@@ -128,7 +128,7 @@ KString kFormat(KStringView sFormat, dekaf2_format::format_args args) noexcept
 
 //-----------------------------------------------------------------------------
 /// formats a KString using Python syntax, with locale
-KString kFormat(const std::locale& locale, KStringView sFormat, dekaf2_format::format_args args) noexcept
+KString kFormat(const std::locale& locale, KStringView sFormat, const dekaf2_format::format_args& args) noexcept
 //-----------------------------------------------------------------------------
 {
 	KString sOut;

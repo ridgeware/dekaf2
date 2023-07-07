@@ -1669,6 +1669,10 @@ constexpr auto encode_types() -> unsigned long long {
          (encode_types<Context, Args...>() << packed_arg_bits);
 }
 
+#if !defined(__clang__) && defined(__GNUC__) && (__GNUC__ >= 13)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdangling-reference"
+#endif
 template <typename Context, typename T>
 FMT_CONSTEXPR FMT_INLINE auto make_value(T&& val) -> value<Context> {
   auto&& arg = arg_mapper<Context>().map(FMT_FORWARD(val));
@@ -1693,6 +1697,9 @@ FMT_CONSTEXPR FMT_INLINE auto make_value(T&& val) -> value<Context> {
       "formatter<T> specialization: https://fmt.dev/latest/api.html#udt");
   return {arg};
 }
+#if !defined(__clang__) && defined(__GNUC__) && (__GNUC__ >= 13)
+#pragma GCC diagnostic pop
+#endif
 
 template <typename Context, typename T>
 FMT_CONSTEXPR auto make_arg(T&& value) -> basic_format_arg<Context> {

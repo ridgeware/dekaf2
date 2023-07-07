@@ -70,17 +70,31 @@
 #include <ostream>
 #include <locale>
 
+// fmt v10.0 doesn't support enum to int conversion anymore - add a generic conversion
+template<typename Enum, typename std::enable_if<std::is_enum<Enum>::value, int>::type = 0>
+constexpr typename std::underlying_type<Enum>::type format_as(Enum e)
+{
+	return std::to_underlying(e);
+}
+
 namespace dekaf2 {
+
+// add a generic enum to int conversion to namespace dekaf2 as well
+template<typename Enum, typename std::enable_if<std::is_enum<Enum>::value, int>::type = 0>
+constexpr typename std::underlying_type<Enum>::type format_as(Enum e)
+{
+	return std::to_underlying(e);
+}
 
 namespace dekaf2_format = DEKAF2_FORMAT_NAMESPACE;
 
 namespace detail {
 
 DEKAF2_PUBLIC
-KString kFormat(KStringView sFormat, dekaf2_format::format_args args) noexcept;
+KString kFormat(KStringView sFormat, const dekaf2_format::format_args& args) noexcept;
 
 DEKAF2_PUBLIC
-KString kFormat(const std::locale& locale, KStringView sFormat, dekaf2_format::format_args args) noexcept;
+KString kFormat(const std::locale& locale, KStringView sFormat, const dekaf2_format::format_args& args) noexcept;
 
 } // end of namespace detail
 

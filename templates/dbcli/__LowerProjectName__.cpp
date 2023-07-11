@@ -9,22 +9,6 @@
 
 using namespace dekaf2;
 
-constexpr KStringView g_Help[] = {
-	"",
-	"__LowerProjectName__ -- dekaf2 __ProjectType__ template",
-	"",
-	"usage: __LowerProjectName__ [<options>]",
-	"",
-	"where <options> are:",
-	"   -version               :: show software version and exit",
-	"   -help                  :: this help message",
-	"   -[d[d[d]]]             :: 3 optional levels of stdout debugging",
-	"   -dbc <file>            :: set database connection",
-	"   -schema                :: check (possibly upgrade) the database schema",
-	"   -schemaforce           :: force recreation of the schema (be careful)",
-	""
-};
-
 //-----------------------------------------------------------------------------
 const __ProjectName__::IniParms& __ProjectName__::GetIniParms ()
 //-----------------------------------------------------------------------------
@@ -47,13 +31,30 @@ const __ProjectName__::IniParms& __ProjectName__::GetIniParms ()
 __ProjectName__::__ProjectName__ ()
 //-----------------------------------------------------------------------------
 {
-	KInit().SetName(s_sProjectName).SetMultiThreading().SetOnlyShowCallerOnJsonError();
+	KInit()
+		.SetName(s_sProjectName)
+		.SetMultiThreading()
+		.SetOnlyShowCallerOnJsonError();
+}
 
-	m_CLI.Throw();
+//-----------------------------------------------------------------------------
+void __ProjectName__::SetupOptions (KOptions& Options)
+//-----------------------------------------------------------------------------
+{
+	Options
+		.Throw()
+		.SetBriefDescription       ("__LowerProjectName__ -- dekaf2 __ProjectType__ template")
+		// .SetHelpSeparator          ("::")              // the column separator between option and help text
+		// .SetLinefeedBetweenOptions (false)             // add linefeed between separate options or commands?
+		// .SetWrappedHelpIndent      (1)                 // the indent for continuation help text
+		.SetSpacingPerSection      (true)                 // whether commands and options get the same or separate column layout
+		// .SetAdditionalHelp         (g_sAdditionalHelp) // extra help text at end of generated help
+	;
 
-	m_CLI.RegisterHelp(g_Help);
-
-	m_CLI.RegisterOption("dbc", "dbc file name", [&](KStringViewZ sFileName)
+	Options
+		.Option("dbc", "dbc file name")
+		.Help("set database connection")
+	([&](KStringViewZ sFileName)
 	{
 		if (!kFileExists (sFileName))
 		{
@@ -63,7 +64,11 @@ __ProjectName__::__ProjectName__ ()
 		DB::SetDBCFilename (sFileName);
 	});
 
-	m_CLI.RegisterOption("schema", [&]()
+	Options
+		.Option("schema")
+		.Help("check (possibly upgrade) the database schema")
+		.Stop()
+	([&]()
 	{
 		auto pdb = DB::Get ();
 
@@ -73,20 +78,25 @@ __ProjectName__::__ProjectName__ ()
 		{
 			pdb->EnsureSchema (/*bForce=*/false);
 		}
-		m_Config.bTerminate = true;
 	});
 
-	m_CLI.RegisterOption("schemaforce", [&]()
+	Options
+		.Option("schemaforce")
+		.Help("force recreation of the schema (be careful)")
+		.Stop()
+	([&]()
 	{
 		kDebug (1, "schema FORCE logic");
 		DB::Get ()->EnsureSchema (/*bForce=*/true);
-		m_Config.bTerminate = true;
 	});
 
-	m_CLI.RegisterOption("version,rev,revision", [&]()
+	Options
+		.Option("version")
+		.Help("show version information")
+		.Stop()
+	([&]()
 	{
 		ShowVersion();
-		m_Config.bTerminate = true;
 	});
 
 } // ctor
@@ -95,7 +105,7 @@ __ProjectName__::__ProjectName__ ()
 void __ProjectName__::ShowVersion()
 //-----------------------------------------------------------------------------
 {
-	KOut.FormatLine(":: {} v{}", s_sProjectName, s_sProjectVersion);
+	kPrintLine(":: {} v{}", s_sProjectName, s_sProjectVersion);
 
 } // ShowVersion
 
@@ -105,9 +115,12 @@ int __ProjectName__::Main (int argc, char** argv)
 {
 	// ---------------- parse CLI ------------------
 	{
-		auto iRetVal = m_CLI.Parse(argc, argv, KOut);
+		KOptions Options(true);
+		SetupOptions(Options);
 
-		if (iRetVal	|| m_Config.bTerminate)
+		auto iRetVal = Options.Parse(argc, argv, KOut);
+
+		if (Options.Terminate() || iRetVal)
 		{
 			// either error or completed
 			return iRetVal;

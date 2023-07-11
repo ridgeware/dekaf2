@@ -36,20 +36,13 @@ protected:
 
 	void ShowVersion ();
 
-	struct Config
-	{
-		bool        bTerminate { false };
-	};
-
-	Config m_Config;
-
 //----------
 private:
 //----------
 
+	void SetupOptions (KOptions& Options);
+
 	static IniParms s_INI;
 	static bool     s_bINILoaded;
-
-	KOptions m_CLI { true };
 
 }; // __ProjectName__

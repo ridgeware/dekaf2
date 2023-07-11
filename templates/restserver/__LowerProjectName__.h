@@ -21,8 +21,6 @@ public:
 //----------
 
 	uint16_t                   iSSOLevel { 0 };       // the SSO level - 0 = off, 1 = AUTHORIZATION header present, 2 = checked AUTHORIZATION header
-	bool                       bUseTLS { false };     // use TLS
-	bool                       bTerminate { false };  // stop running?
 
 }; // ServerOptions
 
@@ -57,12 +55,12 @@ protected:
 private:
 //----------
 
+	void SetupOptions (KOptions& Options);
+
 	static constexpr KStringView s_SSOProvider  = "__SSOProvider__";
 	static constexpr KStringView s_SSOScope     = "__SSOScope__";
 
 	static constexpr KStringViewZ s_sRecordFlag = "/tmp/__LowerProjectName__.record";
 	static constexpr KStringViewZ s_sRecordFile = "/tmp/__LowerProjectName__.log";
-
-	KOptions m_CLI { false };
 
 }; // __ProjectName__

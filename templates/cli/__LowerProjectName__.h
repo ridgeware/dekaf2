@@ -31,17 +31,10 @@ protected:
 
 	void ShowVersion ();
 
-	struct Config
-	{
-		bool        bTerminate { false };
-	};
-
-	Config m_Config;
-
 //----------
 private:
 //----------
 
-	KOptions m_CLI { true };
+	void SetupOptions(KOptions& Options);
 
 }; // __ProjectName__

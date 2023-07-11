@@ -10,34 +10,32 @@
 
 using namespace dekaf2;
 
-constexpr KStringView g_Help[] = {
-	"",
-	"__LowerProjectName__ -- dekaf2 __ProjectType__ template",
-	"",
-	"usage: __LowerProjectName__ [<options>] <URL>",
-	"",
-	"where <options> are:",
-	"   -help                  :: this text",
-	"   -version,rev,revision  :: show version information",
-	"   -d[d[d]]               :: different levels of debug messages",
-	"   -X, --request <method> :: set request method of simulated request (default = GET)",
-	"   -D, --data [@]<data>   :: add literal request body, or with @ take contents of file",
-	"   -M, --mime <mimetype>  :: set mime type for request body (default = application/json)",
-	"   -H, --header <header>  :: add HTTP header to the request (can be used multiple times)",
-	""
-};
-
 //-----------------------------------------------------------------------------
 __ProjectName__::__ProjectName__ ()
 //-----------------------------------------------------------------------------
 {
-	KInit().SetName(s_sProjectName).SetMultiThreading().SetOnlyShowCallerOnJsonError();
+	KInit()
+		.SetName(s_sProjectName)
+		.SetMultiThreading()
+		.SetOnlyShowCallerOnJsonError();
+}
 
-	m_CLI.Throw();
+//-----------------------------------------------------------------------------
+void __ProjectName__::SetupOptions (KOptions& Options)
+//-----------------------------------------------------------------------------
+{
+	Options
+		.Throw()
+		.SetBriefDescription       ("__LowerProjectName__ -- dekaf2 __ProjectType__ template")
+		// .SetHelpSeparator          ("::")             // the column separator between option and help text
+		// .SetLinefeedBetweenOptions (false)            // add linefeed between separate options or commands?
+		// .SetWrappedHelpIndent      (1)                // the indent for continuation help text
+		.SetSpacingPerSection      (true)                // whether commands and options get the same or separate column layout
+		//.SetAdditionalHelp         (g_sAdditionalHelp) // extra help text at end of generated help
+	;
 
-	m_CLI.RegisterHelp(g_Help);
-
-	m_CLI.RegisterUnknownCommand([&](KOptions::ArgList& Commands)
+	Options
+		.UnknownCommand([&](KOptions::ArgList& Commands)
 	{
 		if (!m_Config.URL.empty() || Commands.size() > 1)
 		{
@@ -46,13 +44,11 @@ __ProjectName__::__ProjectName__ ()
 		m_Config.URL = Commands.pop();
 	});
 
-	m_CLI.RegisterOption("version,rev,revision", [&]()
-	{
-		ShowVersion();
-		m_Config.bTerminate = true;
-	});
-
-	m_CLI.RegisterOption("X,request", "request_method", [&](KStringViewZ sMethod)
+	Options
+		.Option("X,request <method>", "request_method")
+		.ToUpper()
+		.Help("set request method (default = GET)")
+	([&](KStringViewZ sMethod)
 	{
 		m_Config.Method = sMethod.ToUpperASCII();
 
@@ -62,7 +58,10 @@ __ProjectName__::__ProjectName__ ()
 		}
 	});
 
-	m_CLI.RegisterOption("D,data", "request_body", [&](KStringViewZ sArg)
+	Options
+		.Option("D,data [@]<data>", "request_body")
+		.Help("add literal request body, or with @ take contents of file")
+	([&](KStringViewZ sArg)
 	{
 		if (sArg.StartsWith("@"))
 		{
@@ -79,15 +78,29 @@ __ProjectName__::__ProjectName__ ()
 		}
 	});
 
-	m_CLI.RegisterOption("M,mime", "mime type", [&](KStringViewZ sMimeType)
+	Options.
+		Option("M,mime <mime>", "mime type, default = application/json")
+	([&](KStringViewZ sMimeType)
 	{
 		m_Config.MimeType = sMimeType;
 	});
 
-	m_CLI.RegisterOption("H,header", "header with key:value", [&](KStringViewZ sHeader)
+	Options
+		.Option("H,header <header>", "header with key:value")
+		.Help("add HTTP header to the request (can be used multiple times)")
+	([&](KStringViewZ sHeader)
 	{
 		auto Pair = kSplitToPair (sHeader, ":");
 		m_Config.Headers.insert ({Pair.first, Pair.second});
+	});
+
+	Options
+		.Option("version")
+		.Help("show version information")
+		.Stop()
+	([&]()
+	{
+		ShowVersion();
 	});
 
 } // ctor
@@ -122,7 +135,7 @@ void __ProjectName__::ServerQuery ()
 void __ProjectName__::ShowVersion ()
 //-----------------------------------------------------------------------------
 {
-	KOut.FormatLine (":: {} v{}", s_sProjectName, s_sProjectVersion);
+	kPrintLine (":: {} v{}", s_sProjectName, s_sProjectVersion);
 
 } // ShowVersion
 
@@ -132,9 +145,12 @@ int __ProjectName__::Main (int argc, char** argv)
 {
 	// ---------------- parse CLI ------------------
 	{
-		auto iRetVal = m_CLI.Parse(argc, argv, KOut);
+		KOptions Options(true);
+		SetupOptions(Options);
 
-		if (iRetVal	|| m_Config.bTerminate)
+		auto iRetVal = Options.Parse(argc, argv, KOut);
+
+		if (Options.Terminate() || iRetVal)
 		{
 			// either error or completed
 			return iRetVal;

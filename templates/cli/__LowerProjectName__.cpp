@@ -8,33 +8,37 @@
 
 using namespace dekaf2;
 
-constexpr KStringView g_Help[] = {
-	"",
-	"__LowerProjectName__ -- dekaf2 __ProjectType__ template",
-	"",
-	"usage: __LowerProjectName__ [<options>]",
-	"",
-	"where <options> are:",
-	"   -help                  :: this text",
-	"   -version,rev,revision  :: show version information",
-	"   -d[d[d]]               :: different levels of debug messages",
-	""
-};
-
 //-----------------------------------------------------------------------------
 __ProjectName__::__ProjectName__ ()
 //-----------------------------------------------------------------------------
 {
-	KInit().SetName(s_sProjectName).SetMultiThreading().SetOnlyShowCallerOnJsonError();
+	KInit()
+		.SetName(s_sProjectName)
+		.SetMultiThreading()
+		.SetOnlyShowCallerOnJsonError();
+}
 
-	m_CLI.Throw();
+//-----------------------------------------------------------------------------
+void __ProjectName__::SetupOptions (KOptions& Options)
+//-----------------------------------------------------------------------------
+{
+	Options
+		.Throw()
+		.SetBriefDescription       ("__LowerProjectName__ -- dekaf2 __ProjectType__ template")
+		// .SetHelpSeparator          ("::")             // the column separator between option and help text
+		// .SetLinefeedBetweenOptions (false)            // add linefeed between separate options or commands?
+		// .SetWrappedHelpIndent      (1)                // the indent for continuation help text
+		.SetSpacingPerSection      (true)                // whether commands and options get the same or separate column layout
+		//.SetAdditionalHelp         (g_sAdditionalHelp) // extra help text at end of generated help
+	;
 
-	m_CLI.RegisterHelp(g_Help);
-
-	m_CLI.RegisterOption("version,rev,revision", [&]()
+	Options
+		.Option("version")
+		.Help("show version information")
+		.Stop()
+	([&]()
 	{
 		ShowVersion();
-		m_Config.bTerminate = true;
 	});
 
 } // ctor
@@ -43,7 +47,7 @@ __ProjectName__::__ProjectName__ ()
 void __ProjectName__::ShowVersion()
 //-----------------------------------------------------------------------------
 {
-	KOut.FormatLine(":: {} v{}", s_sProjectName, s_sProjectVersion);
+	kPrintLine(":: {} v{}", s_sProjectName, s_sProjectVersion);
 
 } // ShowVersion
 
@@ -53,9 +57,12 @@ int __ProjectName__::Main(int argc, char** argv)
 {
 	// ---------------- parse CLI ------------------
 	{
-		auto iRetVal = m_CLI.Parse(argc, argv, KOut);
+		KOptions Options(true);
+		SetupOptions(Options);
 
-		if (iRetVal	|| m_Config.bTerminate)
+		auto iRetVal = Options.Parse(argc, argv, KOut);
+
+		if (Options.Terminate() || iRetVal)
 		{
 			// either error or completed
 			return iRetVal;

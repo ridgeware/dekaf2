@@ -44,7 +44,6 @@ protected:
 		KHTTPMethod Method     { KHTTPMethod::GET };
 		KJSON       jBody;
 		HeaderMap   Headers;
-		bool        bTerminate { false };
 	};
 
 	Config m_Config;
@@ -53,6 +52,6 @@ protected:
 private:
 //----------
 
-	KOptions m_CLI { true };
+	void SetupOptions (KOptions& Options);
 
 }; // __ProjectName__

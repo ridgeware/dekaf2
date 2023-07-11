@@ -22,8 +22,6 @@ public:
 //----------
 
 	uint16_t                   iSSOLevel { 0 };       // the SSO level - 0 = off, 1 = AUTHORIZATION header present, 2 = checked AUTHORIZATION header
-	bool                       bUseTLS { false };     // use TLS
-	bool                       bTerminate { false };  // stop running?
 
 }; // ServerOptions
 
@@ -54,13 +52,15 @@ public:
 protected:
 //----------
 
-	void SetupInputFile(KOptions::ArgList& ArgList);
+	void SetupInputFile (KOptions::ArgList& ArgList);
 
 	ServerOptions m_ServerOptions;
 
 //----------
 private:
 //----------
+
+	void SetupOptions (KOptions& Options);
 
 	static constexpr KStringView s_SSOProvider  = "__SSOProvider__";
 	static constexpr KStringView s_SSOScope     = "__SSOScope__";
@@ -70,7 +70,5 @@ private:
 
 	static IniParms s_INI;
 	static bool     s_bINILoaded;
-
-	KOptions m_CLI { false };
 
 }; // __ProjectName__

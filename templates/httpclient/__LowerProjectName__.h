@@ -45,7 +45,6 @@ protected:
 		KMIME       MimeType   { KMIME::JSON };
 		KString     sBody;
 		HeaderMap   Headers;
-		bool        bTerminate { false };
 	};
 
 	Config m_Config;
@@ -54,6 +53,6 @@ protected:
 private:
 //----------
 
-	KOptions m_CLI { true };
+	void SetupOptions (KOptions& Options);
 
 }; // __ProjectName__

@@ -176,6 +176,7 @@ TEST_CASE("KOptions")
 /*
 	SECTION("Help")
 	{
+		Options.SetAdditionalHelp("This:\n    indented\n\nhere\n    and more");
 		Options.Parse("MyProg --help");
 	}
  */

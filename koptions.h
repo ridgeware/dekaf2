@@ -109,31 +109,31 @@ public:
 	explicit KOptions (bool bEmptyParmsIsError, KStringView sCliDebugTo = KLog::STDOUT, bool bThrow = false);
 
 	/// set a brief description of the program, will appear in first line of generated help
-	KOptions& SetBriefDescription(KString sBrief) { m_HelpParams.sBriefDescription = std::move(sBrief); return *this; }
+	KOptions& SetBriefDescription(KString sBrief)                     { m_HelpParams.sBriefDescription       = std::move(sBrief);             return *this; }
 
 	/// set an additional description at the end of the automatic "usage:" string
-	KOptions& SetAdditionalArgDescription(KString sAdditionalArgDesc) { m_HelpParams.sAdditionalArgDesc = std::move(sAdditionalArgDesc); return *this; }
+	KOptions& SetAdditionalArgDescription(KString sAdditionalArgDesc) { m_HelpParams.sAdditionalArgDesc      = std::move(sAdditionalArgDesc); return *this; }
+
+	/// set an additional help text at the end of the generated help
+	KOptions& SetAdditionalHelp(KString sAdditionalHelp)              { m_HelpParams.sAdditionalHelp         = std::move(sAdditionalHelp);    return *this; }
 
 	/// set the separator style for the generated help - default is ::
-	KOptions& SetHelpSeparator(KString sSeparator) { m_HelpParams.sSeparator = std::move(sSeparator); return *this; }
+	KOptions& SetHelpSeparator(KString sSeparator)                    { m_HelpParams.sSeparator              = std::move(sSeparator);         return *this; }
 
 	/// set max generated help width in characters if terminal size is unknown, default = 100
-	KOptions& SetMaxHelpWidth(uint16_t iMaxWidth) { m_HelpParams.iMaxHelpRowWidth = iMaxWidth; return *this; }
+	KOptions& SetMaxHelpWidth(uint16_t iMaxWidth)                     { m_HelpParams.iMaxHelpRowWidth        = iMaxWidth;                     return *this; }
 
 	/// set indent for wrapped help lines, default 1
-	KOptions& SetWrappedHelpIndent(uint16_t iIndent) { m_HelpParams.iWrappedHelpIndent = iIndent; return *this; }
+	KOptions& SetWrappedHelpIndent(uint16_t iIndent)                  { m_HelpParams.iWrappedHelpIndent      = iIndent;                       return *this; }
 
 	/// calculate column width for names per section, or same for all (default = false)
-	KOptions& SetSpacingPerSection(bool bSpacingPerSection) { m_HelpParams.bSpacingPerSection = bSpacingPerSection; return *this; }
+	KOptions& SetSpacingPerSection(bool bSpacingPerSection)           { m_HelpParams.bSpacingPerSection      = bSpacingPerSection;            return *this; }
 
 	/// write an empty line between all options? (default = false)
-	KOptions& SetLinefeedBetweenOptions(bool bLinefeedBetweenOptions) { m_HelpParams.bLinefeedBetweenOptions = bLinefeedBetweenOptions; return *this; }
+	KOptions& SetLinefeedBetweenOptions(bool bLinefeedBetweenOptions) { m_HelpParams.bLinefeedBetweenOptions = bLinefeedBetweenOptions;       return *this; }
 
 	/// throw on errors or not?
-	void Throw(bool bYesNo = true)
-	{
-		m_bThrow = bYesNo;
-	}
+	KOptions& Throw(bool bYesNo = true)                               { m_bThrow = bYesNo;                                                    return *this; }
 
 	/// Parse arguments and call the registered callback functions. Returns 0
 	/// if valid, -1 if -help was called, and > 0 for error
@@ -521,10 +521,12 @@ private:
 			KStringView    GetProgramName()      const;
 			const KString& GetProgramPath()      const { return sProgramPathName;  }
 			const KString& GetBriefDescription() const { return sBriefDescription; }
+			const KString& GetAdditionalHelp()   const { return sAdditionalHelp;   }
 
 			KString        sProgramPathName;
 			KString        sBriefDescription;
 			KString        sAdditionalArgDesc;
+			KString        sAdditionalHelp;
 			KString        sSeparator              {    "::" };
 			uint16_t       iWrappedHelpIndent      {       1 };
 			uint16_t       iMaxHelpRowWidth        {     100 };
@@ -560,7 +562,7 @@ private:
 		}; // Mask
 
 		static KStringView SplitAtLinefeed(KStringView& sInput);
-		static KStringView WrapOutput(KStringView& sInput, std::size_t iMaxSize);
+		static KStringView WrapOutput(KStringView& sInput, std::size_t iMaxSize, bool bKeepLineFeeds);
 		static KStringView::size_type AdjustPos(KStringView::size_type iPos, int iAdjust);
 
 		void           GetEnvironment();

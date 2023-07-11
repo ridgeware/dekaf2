@@ -342,7 +342,7 @@ KStringView::size_type KOptions::HelpFormatter::AdjustPos(KStringView::size_type
 } // HelpFormatter::AdjustPos
 
 //---------------------------------------------------------------------------
-KStringView KOptions::HelpFormatter::WrapOutput(KStringView& sInput, std::size_t iMaxSize)
+KStringView KOptions::HelpFormatter::WrapOutput(KStringView& sInput, std::size_t iMaxSize, bool bKeepLineFeeds)
 //---------------------------------------------------------------------------
 {
 	auto sWrapped = sInput;
@@ -389,15 +389,29 @@ KStringView KOptions::HelpFormatter::WrapOutput(KStringView& sInput, std::size_t
 	{
 		if (!sInput.empty())
 		{
-			// this is only possible due to a logic error,
-			// make sure we do not loop forever
-			kDebugLog(1, "KOptions::WrapOutput() resulted in an empty string");
-			sWrapped = sInput;
+			if (!bKeepLineFeeds || sInput.front() != '\n')
+			{
+				// this is only possible due to a logic error,
+				// make sure we do not loop forever
+				kDebugLog(1, "KOptions::WrapOutput() resulted in an empty string");
+				sWrapped = sInput;
+			}
 		}
 	}
 
 	sInput.remove_prefix(sWrapped.size());
-	sInput.TrimLeft();
+
+	if (bKeepLineFeeds)
+	{
+		if (sInput.front() == '\n')
+		{
+			sInput.remove_prefix(1);
+		}
+	}
+	else
+	{
+		sInput.TrimLeft();
+	}
 
 	return sWrapped;
 
@@ -531,7 +545,7 @@ void KOptions::HelpFormatter::FormatOne(KOutStream& out,
 	{
 		while (bFirst || !sHelp.empty() || !sNames.empty())
 		{
-			auto sLimited      = WrapOutput(sHelp, iHelp);
+			auto sLimited      = WrapOutput(sHelp, iHelp, false);
 			auto sLimitedNames = SplitAtLinefeed(sNames);
 
 			if (bFirst)
@@ -601,7 +615,7 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 
 		KStringView sDescription = m_Params.GetBriefDescription();
 
-		auto sLimited = WrapOutput(sDescription, m_iColumns - iIndent);
+		auto sLimited = WrapOutput(sDescription, m_iColumns - iIndent, false);
 		out.WriteLine(sLimited);
 
 		iIndent += m_iWrappedHelpIndent;
@@ -614,7 +628,7 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 				out.Write(' ');
 			}
 
-			auto sLimited = WrapOutput(sDescription, m_iColumns - iIndent);
+			auto sLimited = WrapOutput(sDescription, m_iColumns - iIndent, false);
 			out.WriteLine(sLimited);
 		}
 	}
@@ -672,6 +686,18 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 	if (m_bHaveCommands)
 	{
 		Show(true);
+	}
+
+	KStringView sAdditionalHelp = m_Params.GetAdditionalHelp();
+
+	if (!sAdditionalHelp.empty())
+	{
+		while (sAdditionalHelp.size())
+		{
+			auto sLimited = WrapOutput(sAdditionalHelp, m_iColumns, true);
+			out.WriteLine(sLimited);
+		}
+		out.WriteLine();
 	}
 
 } // HelpFormatter::BuildAll

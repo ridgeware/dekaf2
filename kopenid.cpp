@@ -260,7 +260,7 @@ void KOpenIDProvider::Refresh(KTimer::Timepoint Now)
 					m_DecayingKeys = std::move(m_Keys);
 					auto& sIssuer  = kjson::GetStringRef(Configuration, "issuer");
 					m_Keys         = std::make_unique<KeysAndIssuer>(KeysAndIssuer { std::move(Keys), sIssuer } );
-					kDebug(2, "got {} valid keys from provider", m_Keys->Keys.size(), m_URL);
+					kDebug(2, "got {} valid keys from provider {}", m_Keys->Keys.size(), m_URL);
 				}
 				else
 				{

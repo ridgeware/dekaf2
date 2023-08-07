@@ -118,7 +118,7 @@ KString kFormat(KStringView sFormat, const dekaf2_format::format_args& args) noe
 	}
 	DEKAF2_CATCH (const std::exception& e)
 	{
-		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h",
+		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h,ktime.cpp,ktime.h,kdate.cpp,kdate.h",
 						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));
 	}
 
@@ -143,7 +143,7 @@ KString kFormat(const std::locale& locale, KStringView sFormat, const dekaf2_for
 	}
 	DEKAF2_CATCH (const std::exception& e)
 	{
-		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h",
+		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h,ktime.cpp,ktime.h,kdate.cpp,kdate.h",
 						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));
 	}
 

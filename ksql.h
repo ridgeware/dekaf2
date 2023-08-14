@@ -1372,6 +1372,15 @@ private:
 public:
 //----------
 
+	/// add a temp table to list that gets cleaned up on descruction
+	void AddTempTable (KStringView sTablename);
+
+	/// remove a temp table to list that gets cleaned up on descruction
+	void RemoveTempTable (KStringView sTablename);
+
+	/// drop all temp table in the list formed by AddTempTable();
+	void PurgeTempTables ();
+
 	//----------------------------------------------------------------------
 	/// helper function to detect dynamic (format) strings which could be the source of SQL injections
 	static bool IsDynamicString(KStringView sStr,  bool bThrowIfDynamic = false);
@@ -1495,6 +1504,9 @@ private:
 	KString    m_sHostname;
 	KString    m_sDatabase;
 	mutable KString m_sConnectSummary;
+
+	/// vector of temp tables to drop on descruction of class
+	std::set<KString> m_TempTables;
 
 #ifdef DEKAF2_HAS_MYSQL
 	MYSQL*         m_dMYSQL       { nullptr };     // MYSQL      m_mysql;

@@ -593,6 +593,7 @@ KSQL::~KSQL ()
 //-----------------------------------------------------------------------------
 {
 	EndQuery (/*bDestructor=*/true);
+	PurgeTempTables ();
 	CloseConnection (/*bDestructor=*/true);  // <-- this calls FreeAll()
 
 } // destructor
@@ -5450,7 +5451,7 @@ bool KSQL::DescribeTable (KStringView sTablename)
 } // DescribeTable
 
 //-----------------------------------------------------------------------------
-KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName/*current dbname*/, KStringView sTableNameLike/*="%"*/)
+KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName/*current dbname*/, KStringView sTablenameLike/*="%"*/)
 //-----------------------------------------------------------------------------
 {
 	KString sTableSchema = (sSchemaName ? sSchemaName : GetDBName());
@@ -5480,7 +5481,7 @@ KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName/*current dbnam
 			" order by table_schema, table_name desc, column_name, column_type",
 				sColLike,
 				sTableSchema,
-				sTableNameLike))
+				sTablenameLike))
 		{
 			return list; // empty
 		}
@@ -6438,12 +6439,12 @@ bool KSQL::PurgeKey (KStringView sSchemaName, KROW& OtherKeys, KStringView sPKEY
 	{
 		KJSON    obj;
 		KString  sTableSchema = table["table_schema"];		
-		KString  sTableName   = table["table_name"];
+		KString  sTablename   = table["table_name"];
 		uint64_t iChanged{0};
 
-		obj["table_name"] = sTableName;
+		obj["table_name"] = sTablename;
 
-		if (sIgnoreRegex && sTableName.ToUpper().MatchRegex (sIgnoreRegex.ToUpper()))
+		if (sIgnoreRegex && sTablename.ToUpper().MatchRegex (sIgnoreRegex.ToUpper()))
 		{
 			obj["ignored"] = true;
 			iChanged = 0;
@@ -6451,7 +6452,7 @@ bool KSQL::PurgeKey (KStringView sSchemaName, KROW& OtherKeys, KStringView sPKEY
 		else
 		{
 			// do not escape the table name - KROW takes care of that
-			row.SetTablename (kFormat ("{}.{} /*KSQL::PurgeKey*/", sTableSchema, sTableName));
+			row.SetTablename (kFormat ("{}.{} /*KSQL::PurgeKey*/", sTableSchema, sTablename));
 			row.AddCol (sPKEY_colname, sValue, KCOL::PKEY);
 			if (!Delete (row))
 			{
@@ -6489,20 +6490,20 @@ bool KSQL::PurgeKey (KStringView sSchemaName, KStringView sPKEY_colname, KString
 	{
 		KJSON    obj;
 		KString  sTableSchema = table["table_schema"];
-		KString  sTableName = table["table_name"];
+		KString  sTablename = table["table_name"];
 		uint64_t iChanged{0};
 
 //		obj["table_schema"] = sTableSchema; // It makes sense to add this to the JSON result but it then names the smoketest baselines schema name dependent
-		obj["table_name"] = sTableName;		
+		obj["table_name"] = sTablename;		
 
-		if (sIgnoreRegex && sTableName.ToUpper().MatchRegex (sIgnoreRegex.ToUpper()))
+		if (sIgnoreRegex && sTablename.ToUpper().MatchRegex (sIgnoreRegex.ToUpper()))
 		{
 			obj["ignored"] = true;
 			iChanged = 0;
 		}
 		else
 		{
-			if (!ExecSQL ("delete from {}.{} /*KSQL::PurgeKey*/ where {} = binary '{}'", sTableSchema, sTableName, sPKEY_colname, sValue))
+			if (!ExecSQL ("delete from {}.{} /*KSQL::PurgeKey*/ where {} = binary '{}'", sTableSchema, sTablename, sPKEY_colname, sValue))
 			{
 				return (false);
 			}
@@ -6538,26 +6539,26 @@ bool KSQL::PurgeKeyList (KStringView sSchemaName, KStringView sPKEY_colname, con
 	{
 		KJSON    obj;
 		KString  sTableSchema = table["table_schema"];
-		KString  sTableName = table["table_name"];
+		KString  sTablename = table["table_name"];
 		int64_t  iChanged{0};
 
-		obj["table_name"] = sTableName;
+		obj["table_name"] = sTablename;
 
-		if (sIgnoreRegex && sTableName.ToUpper().MatchRegex (sIgnoreRegex.ToUpper()))
+		if (sIgnoreRegex && sTablename.ToUpper().MatchRegex (sIgnoreRegex.ToUpper()))
 		{
 			obj["ignored"] = true;
 			iChanged = 0;
 		}
 		else if (bDryRun)
 		{
-			iChanged = SingleIntQuery ("select count(*) from {}.{} /*KSQL::PurgeKey*/ where {} in ({})", sTableSchema, sTableName, sPKEY_colname, sInClause);
+			iChanged = SingleIntQuery ("select count(*) from {}.{} /*KSQL::PurgeKey*/ where {} in ({})", sTableSchema, sTablename, sPKEY_colname, sInClause);
 			if (iChanged < 0)
 			{
 				return (false);
 			}
 			obj["rows_selected"] = iChanged;
 		}
-		else if (!ExecSQL ("delete from {}.{} /*KSQL::PurgeKey*/ where {} in ({})", sTableSchema, sTableName, sPKEY_colname, sInClause))
+		else if (!ExecSQL ("delete from {}.{} /*KSQL::PurgeKey*/ where {} in ({})", sTableSchema, sTablename, sPKEY_colname, sInClause))
 		{
 			return (false);
 		}
@@ -8167,15 +8168,28 @@ bool KSQL::IsLocked (KStringView sName)
 bool KSQL::GetPersistentLock (KStringView sName, chrono::seconds iTimeoutSeconds)
 //-----------------------------------------------------------------------------
 {
-	auto sTableName = kFormat ("{}_LOCK", sName);
+	auto sTablename = kFormat ("{}_LOCK", sName);
 
 	for (;;)
 	{
 		auto Guard = ScopedFlags (KSQL::F_IgnoreSQLErrors);
 
 		kDebug (2, "obtaining lock: {}", sName);
-		if (ExecSQL ("create table {} (a integer null)", sTableName))
+		if (ExecSQL (
+			"create table {}\n"
+			"(\n"
+			"  created_utc  timestamp    not null,\n"
+			"  geo_ip       varchar(50)  null,\n"
+			"  hostname     varchar(100) null\n"
+			")", sTablename))
 		{
+			AddTempTable (sTablename);
+
+			KROW row(sTablename);
+			row.AddCol ("created_utc", "utc_timestamp()", KCOL::EXPRESSION);
+			row.AddCol ("hostname",    kGetHostname(),    KCOL::NOFLAG,    100);
+			Insert(row);
+
 			kDebug (2, "obtained lock: {}", sName);
 			return true;  // the lock has been obtained
 		}
@@ -8199,12 +8213,14 @@ bool KSQL::GetPersistentLock (KStringView sName, chrono::seconds iTimeoutSeconds
 bool KSQL::ReleasePersistentLock (KStringView sName)
 //-----------------------------------------------------------------------------
 {
-	auto sTableName = kFormat ("{}_LOCK", sName);
+	auto sTablename = kFormat ("{}_LOCK", sName);
 	auto Guard      = ScopedFlags (KSQL::F_IgnoreSQLErrors);
 
 	kDebug (2, "releasing lock: {}", sName);
-	if (ExecSQL ("drop table {}", sTableName))
+	if (ExecSQL ("drop table {}", sTablename))
 	{
+		RemoveTempTable (sTablename);
+
 		kDebug (2, "released lock: {}", sName);
 		return true;  // the lock has been released
 	}
@@ -8218,10 +8234,10 @@ bool KSQL::ReleasePersistentLock (KStringView sName)
 bool KSQL::IsPersistentlyLocked (KStringView sName)
 //-----------------------------------------------------------------------------
 {
-	auto sTableName = kFormat ("{}_LOCK", sName);
+	auto sTablename = kFormat ("{}_LOCK", sName);
 	auto Guard      = ScopedFlags (KSQL::F_IgnoreSQLErrors);
 
-	return DescribeTable (sTableName);
+	return DescribeTable (sTablename);
 
 } // IsPersistentlyLocked
 
@@ -8974,7 +8990,7 @@ DbSemaphore::DbSemaphore (KSQL& db, KString sAction, bool bThrow, bool bWait, ch
 {
 	if (!bWait)
 	{
-		CreateSemaphore(iTimeout);
+		CreateSemaphore (iTimeout);
 	}
 
 } // ctor
@@ -8992,7 +9008,7 @@ bool DbSemaphore::CreateSemaphore (chrono::seconds iTimeout)
 			KOut.FormatLine (":: {}: {}: getting lock '{}' ...", kFormTimestamp(kNow(), "%a %T"), m_db.ConnectSummary(), m_sAction);
 		}
 
-		if (!m_db.GetPersistentLock(m_sAction, iTimeout))
+		if (! m_db.GetPersistentLock (m_sAction, iTimeout))
 		{
 			m_sLastError.Format ("could not create named lock '{}', already exists", m_sAction);
 
@@ -9396,7 +9412,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 	}; // lambda: PrintColumn
 
 	//-----------------------------------------------------------------------------
-	auto FormCreateAction = [this] (KStringView sTableName, const KJSON& jColumn, KSQLString& sResult)
+	auto FormCreateAction = [this] (KStringView sTablename, const KJSON& jColumn, KSQLString& sResult)
 	//-----------------------------------------------------------------------------
 	{
 		if (jColumn.is_object() && !jColumn.empty())
@@ -9410,7 +9426,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 #endif
 			if (sResult.empty())
 			{
-				sResult =  FormatSQL ("create table {}\n(\n    {:<25} {}\n", sTableName, sName, sValue);
+				sResult =  FormatSQL ("create table {}\n(\n    {:<25} {}\n", sTablename, sName, sValue);
 			}
 			else
 			{
@@ -9421,7 +9437,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 	}; // lambda: FormCreateAction
 
 	//-----------------------------------------------------------------------------
-	auto FormAlterAction  = [this] (KStringView sTableName, const KJSON& jColumn, KStringView sVerb) -> KSQLString
+	auto FormAlterAction  = [this] (KStringView sTablename, const KJSON& jColumn, KStringView sVerb) -> KSQLString
 	//-----------------------------------------------------------------------------
 	{
 		KSQLString sResult;
@@ -9442,15 +9458,15 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 				switch (sVerb.Hash())
 				{
 				case "drop"_hash:
-					sResult += FormatSQL ("alter table {} drop primary key", sTableName);
+					sResult += FormatSQL ("alter table {} drop primary key", sTablename);
 					break;
 				case "add"_hash:
-					sResult += FormatSQL ("alter table {} add primary key {}", sTableName, sValue);
+					sResult += FormatSQL ("alter table {} add primary key {}", sTablename, sValue);
 					break;
 				case "modify"_hash:
 				default:
-					sResult += FormatSQL ("alter table {} drop primary key; ", sTableName);
-					sResult += FormatSQL ("alter table {} add primary key {}", sTableName, sValue);
+					sResult += FormatSQL ("alter table {} drop primary key; ", sTablename);
+					sResult += FormatSQL ("alter table {} add primary key {}", sTablename, sValue);
 					break;
 				}
 			}
@@ -9459,13 +9475,13 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 				switch (sVerb.Hash())
 				{
 				case "drop"_hash:
-					sResult += FormatSQL ("drop index {} on {}", sName, sTableName);
+					sResult += FormatSQL ("drop index {} on {}", sName, sTablename);
 					break;
 				case "add"_hash:
 				case "modify"_hash:
 				default:
-					sResult += FormatSQL ("drop index if exists {} on {}; ", sName, sTableName);
-					sResult += FormatSQL ("create index {} on {} {}", sName, sTableName, sValue); // <-- TODO: how do I know if its UNIQUE ??
+					sResult += FormatSQL ("drop index if exists {} on {}; ", sName, sTablename);
+					sResult += FormatSQL ("create index {} on {} {}", sName, sTablename, sValue); // <-- TODO: how do I know if its UNIQUE ??
 					break;
 				}
 			}
@@ -9474,12 +9490,12 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 				switch (sVerb.Hash())
 				{
 				case "drop"_hash:
-					sResult = FormatSQL ("alter table {} {} column {}", sTableName, sVerb, sName);
+					sResult = FormatSQL ("alter table {} {} column {}", sTablename, sVerb, sName);
 					break;
 				case "add"_hash:
 				case "modify"_hash:
 				default:
-					sResult = FormatSQL ("alter table {} {} column {} {}", sTableName, sVerb, sName, sValue);
+					sResult = FormatSQL ("alter table {} {} column {} {}", sTablename, sVerb, sName, sValue);
 					break;
 				}
 			}
@@ -9490,12 +9506,12 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 	}; // lambda: FormAlterAction
 
 	//-----------------------------------------------------------------------------
-	auto DiffOneTable = [&](const KString& sTableName, const KJSON& left, const KJSON& right) -> size_t
+	auto DiffOneTable = [&](const KString& sTablename, const KJSON& left, const KJSON& right) -> size_t
 	//-----------------------------------------------------------------------------
 	{
 		size_t iTableDiffs{0};
 
-		sSummary += kFormat ("{}{}", sDiffPrefix, sTableName); // <-- no newline on purpose
+		sSummary += kFormat ("{}{}", sDiffPrefix, sTablename); // <-- no newline on purpose
 
 		int iCreateTable { 0 };
 		KSQLString sLeftCreate;
@@ -9504,14 +9520,14 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 		if (left.is_null())
 		{
 			sSummary += kFormat (" <-- table is only in {}\n", sRightSchema);
-			sRightCreate = FormatSQL ("drop table {}", sTableName);
+			sRightCreate = FormatSQL ("drop table {}", sTablename);
 			iCreateTable = 'L'; // left
 			++iTableDiffs;
 		}
 		else if (right.is_null())
 		{
 			sSummary += kFormat (" <-- table is only in {}\n", sLeftSchema);
-			sLeftCreate = FormatSQL ("drop table {}", sTableName);
+			sLeftCreate = FormatSQL ("drop table {}", sTablename);
 			iCreateTable = 'R'; // right
 			++iTableDiffs;
 		}
@@ -9533,10 +9549,10 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 				switch (iCreateTable)
 				{
 				case 'L':
-					FormCreateAction (sTableName, oRightColumn, sLeftCreate);
+					FormCreateAction (sTablename, oRightColumn, sLeftCreate);
 					break;
 				case 'R':
-					FormCreateAction (sTableName, oLeftColumn, sRightCreate);
+					FormCreateAction (sTablename, oLeftColumn, sRightCreate);
 					break;
 				}
 
@@ -9553,26 +9569,26 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 					{
 						// columns/indexes on the LEFT table but not on the RIGHT table
 						Diffs.push_back({
-							kFormat ("{}.{}: column/index on the RIGHT table but not on the LEFT table: we can either drop it from the RIGHT or add it to the LEFT", sTableName, sField),
-							FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"add"),
-							FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"drop")
+							kFormat ("{}.{}: column/index on the RIGHT table but not on the LEFT table: we can either drop it from the RIGHT or add it to the LEFT", sTablename, sField),
+							FormAlterAction (sTablename, oRightColumn, /*sVerb=*/"add"),
+							FormAlterAction (sTablename, oRightColumn, /*sVerb=*/"drop")
 						});
 					}
 					else if (oRightColumn.is_null())
 					{
 						// columns/indexes on the LEFT table but not on the RIGHT table
 						Diffs.push_back ({
-							kFormat ("{}.{}: column/index on the LEFT table but not on the RIGHT table: we can either drop it from the LEFT or add it to the RIGHT", sTableName, sField),
-							FormAlterAction (sTableName, oLeftColumn, /*sVerb=*/"drop"),
-							FormAlterAction (sTableName, oLeftColumn, /*sVerb=*/"add")
+							kFormat ("{}.{}: column/index on the LEFT table but not on the RIGHT table: we can either drop it from the LEFT or add it to the RIGHT", sTablename, sField),
+							FormAlterAction (sTablename, oLeftColumn, /*sVerb=*/"drop"),
+							FormAlterAction (sTablename, oLeftColumn, /*sVerb=*/"add")
 						});
 					}
 					else
 					{
 						Diffs.push_back ({
-							kFormat ("{}.{}: column/index definition differs: we can either synch LEFT to RIGHT or synch RIGHT to LEFT", sTableName, sField),
-							FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"modify"),
-							FormAlterAction (sTableName, oLeftColumn,  /*sVerb=*/"modify")
+							kFormat ("{}.{}: column/index definition differs: we can either synch LEFT to RIGHT or synch RIGHT to LEFT", sTablename, sField),
+							FormAlterAction (sTablename, oRightColumn, /*sVerb=*/"modify"),
+							FormAlterAction (sTablename, oLeftColumn,  /*sVerb=*/"modify")
 						});
 					}
 					++iTableDiffs;
@@ -9607,13 +9623,13 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 				switch (iCreateTable)
 				{
 				case 'R':
-					FormCreateAction (sTableName, oRightColumn, sLeftCreate);
+					FormCreateAction (sTablename, oRightColumn, sLeftCreate);
 					break;
 				case 0:
 					Diffs.push_back ({
-						kFormat ("{}.{}: columns/indexes on the RIGHT table but not on the LEFT table", sTableName, sField),
-						FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"add"),
-						FormAlterAction (sTableName, oRightColumn, /*sVerb=*/"drop")
+						kFormat ("{}.{}: columns/indexes on the RIGHT table but not on the LEFT table", sTablename, sField),
+						FormAlterAction (sTablename, oRightColumn, /*sVerb=*/"add"),
+						FormAlterAction (sTablename, oRightColumn, /*sVerb=*/"drop")
 					});
 				}
 
@@ -9631,7 +9647,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 		case 'L':
 			sLeftCreate += ")";
 			Diffs.push_back ({
-				kFormat ("{}: table is only in the RIGHT schema: we can either drop it from the RIGHT or add it to the LEFT", sTableName),
+				kFormat ("{}: table is only in the RIGHT schema: we can either drop it from the RIGHT or add it to the LEFT", sTablename),
 				sLeftCreate,
 				sRightCreate
 			});
@@ -9639,7 +9655,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 		case 'R':
 			sRightCreate += ")";
 			Diffs.push_back ({
-				kFormat ("{}: table is only in the LEFT schema: we can either drop it from the LEFT or add it to the RIGHT", sTableName),
+				kFormat ("{}: table is only in the LEFT schema: we can either drop it from the LEFT or add it to the RIGHT", sTablename),
 				sLeftCreate,
 				sRightCreate
 			});
@@ -9656,7 +9672,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 	}; // lambda: DiffOneTable
 
 	//-----------------------------------------------------------------------------
-	auto DiffOneTableMetaInfo = [&](const KString& sTableName, const KJSON& left, const KJSON& right) -> size_t
+	auto DiffOneTableMetaInfo = [&](const KString& sTablename, const KJSON& left, const KJSON& right) -> size_t
 	//-----------------------------------------------------------------------------
 	{
 		size_t iTableDiffs{0};
@@ -9671,8 +9687,8 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 
 			if (sLeftValue != sRightValue)
 			{
-				sSummary += kFormat ("{}{} {}: {} = {}\n", sDiffPrefix, sLeftPrefix,  sTableName, sLeftKey, sLeftValue);
-				sSummary += kFormat ("{}{} {}: {} = {}\n", sDiffPrefix, sRightPrefix, sTableName, sLeftKey, sRightValue);
+				sSummary += kFormat ("{}{} {}: {} = {}\n", sDiffPrefix, sLeftPrefix,  sTablename, sLeftKey, sLeftValue);
+				sSummary += kFormat ("{}{} {}: {} = {}\n", sDiffPrefix, sRightPrefix, sTablename, sLeftKey, sRightValue);
 				++iTableDiffs;
 			}
 		}
@@ -9703,11 +9719,11 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 
 			for (const auto& oLeftTable : LeftTableList)
 			{
-				const KString& sTableName = kjson::GetStringRef(oLeftTable, "tablename");
+				const KString& sTablename = kjson::GetStringRef(oLeftTable, "tablename");
 
 				// find the table in the right list
-				auto& oRightTable = FindTable (RightTableList, "tablename", sTableName);
-				VisitedTables.insert(sTableName);
+				auto& oRightTable = FindTable (RightTableList, "tablename", sTablename);
+				VisitedTables.insert(sTablename);
 
 				if (oLeftTable == oRightTable)
 				{
@@ -9716,26 +9732,26 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 				}
 
 				// tables differ
-				iTotalDiffs += DiffOneTable (sTableName, kjson::GetArray(oLeftTable, "columns"), kjson::GetArray(oRightTable, "columns"));
+				iTotalDiffs += DiffOneTable (sTablename, kjson::GetArray(oLeftTable, "columns"), kjson::GetArray(oRightTable, "columns"));
 
 				if (bShowMetaInfo && ! kjson::GetObject(oRightTable, "meta_info").is_null())
 				{
-					iTotalDiffs += DiffOneTableMetaInfo (sTableName, kjson::GetObject(oLeftTable, "meta_info"), kjson::GetObject(oRightTable, "meta_info"));
+					iTotalDiffs += DiffOneTableMetaInfo (sTablename, kjson::GetObject(oLeftTable, "meta_info"), kjson::GetObject(oRightTable, "meta_info"));
 				}
 			}
 
 			for (const auto& oRightTable : RightTableList)
 			{
-				const KString& sTableName = kjson::GetStringRef(oRightTable, "tablename");
+				const KString& sTablename = kjson::GetStringRef(oRightTable, "tablename");
 
 				// check if we have it already visited
-				if (VisitedTables.find(sTableName) != VisitedTables.end())
+				if (VisitedTables.find(sTablename) != VisitedTables.end())
 				{
 					continue;
 				}
 
 				// table exists only in RightTableList..
-				iTotalDiffs += DiffOneTable (sTableName, KJSON{}, kjson::GetArray(oRightTable, "columns"));
+				iTotalDiffs += DiffOneTable (sTablename, KJSON{}, kjson::GetArray(oRightTable, "columns"));
 			}
 
 		} // if diffs (across entire two schema)
@@ -9883,6 +9899,35 @@ KSQLString KSQL::EscapeFromQuotedList(KStringView sList)
 	return sResult;
 
 } // EscapeFromQuotedList
+
+//-----------------------------------------------------------------------------
+void KSQL::AddTempTable (KStringView sTablename)
+//-----------------------------------------------------------------------------
+{
+	m_TempTables.insert (sTablename);
+
+} // AddTempTable
+
+//-----------------------------------------------------------------------------
+void KSQL::RemoveTempTable (KStringView sTablename)
+//-----------------------------------------------------------------------------
+{
+	m_TempTables.erase (sTablename);
+
+} // RemoveTempTable
+
+//-----------------------------------------------------------------------------
+void KSQL::PurgeTempTables ()
+//-----------------------------------------------------------------------------
+{
+	kDebug (1, "...");
+
+	for (const auto& sTablename : m_TempTables)
+	{
+		ExecSQL ("drop table {}", sTablename);
+	}
+
+} // PurgeTempTables
 
 std::atomic<std::chrono::milliseconds> KSQL::s_QueryTimeout        { std::chrono::milliseconds(0) };
 std::atomic<KSQL::QueryType>           KSQL::s_QueryTypeForTimeout { QueryType::None              };

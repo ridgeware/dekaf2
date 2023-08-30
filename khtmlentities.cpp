@@ -165,15 +165,16 @@ KString KHTMLEntity::Encode(KStringView sIn)
 //-----------------------------------------------------------------------------
 {
 	KString sRet;
-	sRet.reserve(sIn.size()*2);
 
 	Unicode::FromUTF8(sIn, [&sRet](uint32_t ch)
 	{
-		if (kIsAlNum(ch) || kIsSpace(ch))
+		auto Property = KCodePoint(ch).GetProperty();
+
+		if (Property.IsAlNum() || Property.IsSpace())
 		{
 			Unicode::ToUTF8(ch, sRet);
 		}
-		else if (kIsPunct(ch))
+		else if (Property.IsPunct())
 		{
 			ToMandatoryEntity(ch, sRet);
 		}
@@ -181,6 +182,7 @@ KString KHTMLEntity::Encode(KStringView sIn)
 		{
 			ToHex(ch, sRet);
 		}
+
 		return true;
 	});
 

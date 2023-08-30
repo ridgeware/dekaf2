@@ -573,7 +573,7 @@ KString GenerateServerSecKeyResponse(KString sSecKey, bool bThrowIfInvalid)
 
 		SHA1 += s_sWebsocket_sec_key_suffix;
 
-		return KEncode::Base64(KDecode::Hex(SHA1.HexDigest()));
+		return KEncode::Base64(SHA1.Digest());
 	}
 	else
 	{

@@ -518,7 +518,7 @@ namespace std
 		template<typename F, typename Tuple>
 		auto apply(F&& f, Tuple&& t)
 		{
-			static_assert(false, "dekaf2 misses a C++11-only implementation of std::apply");
+			static_assert(false, "dekaf2 misses a C++11-only implementation of std::apply, if possible update to C++14 or newer");
 		}
 	#endif
 } // of namespace std

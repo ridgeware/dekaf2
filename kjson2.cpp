@@ -78,7 +78,7 @@ void TrimLeft(KJSON2::StringViewT& sView) noexcept
 #ifdef DEKAF2
 	kTrimLeft(sView);
 #else
-	while (!sView.empty()) { if (std::isspace(sView.front())) { sView.remove_prefix(1); } }
+	while (!sView.empty()) { if (std::isspace(sView.front())) { sView.remove_prefix(1); } else break; }
 #endif
 }
 
@@ -89,6 +89,9 @@ bool SkipLeadingSpace(KJSON2::IStreamT& InStream) noexcept
 #ifdef DEKAF2
 	return kjson::SkipLeadingSpace(InStream);
 #else
+	// ultimately we should implement a logic like in kjson::SkipLeadingSpace()
+	// here, but it is not mission critical, as json is expected to start without
+	// leading spaces
 	return true;
 #endif
 }

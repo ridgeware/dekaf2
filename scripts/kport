@@ -32,21 +32,21 @@ fi
 #------------+--------------------------------------+------------------------------------------------------------------------------------------------------------------------
 # 
 case $(file /bin/ls) in
-*32-bit*)
-	bits=32
-	;;
-*64-bit*)
-	bits=64
-	;;
-*128-bit*)
-	bits=128
-	;;
+	*32-bit*)
+		bits=32
+		;;
+	*64-bit*)
+		bits=64
+		;;
+	*128-bit*)
+		bits=128
+		;;
 esac
 
 case $(uname -m) in
-*aarch64*|*arm64*)
-	arch="arm"
-	;;
+	*aarch64*|*arm64*)
+		arch="arm"
+		;;
 esac
 
 [[ -f /etc/redhat-release ]] && name=$(cat /etc/redhat-release) || name=$(uname -a)
@@ -80,7 +80,7 @@ case "$name" in
 		version=$(cat /etc/system-release-cpe | sed -r 's,cpe:.*:amazon:.*linux:,,g' | sed -r 's,:ga,,g')
 		distribution="aws"
 		;;
-	"CentOS Linux release"*)
+	"CentOS Linux release"*|"CentOS Stream release"*)
 		distribution="centos"
 		version=$(echo "$name" | tr '.' ' ' | awk '{printf ("%d", $4)}')
 		;;
@@ -89,8 +89,16 @@ case "$name" in
 		version=$(echo "$name" | tr '.' ' ' | awk '{printf ("%d", $7)}')
 		;;
 	*)
-		echo ">> dont know about arch: $name"
-		exit 1
+		if [[ -f /etc/lsb-release ]]; then
+			distribution=$(grep 'DISTRIB_ID=' /etc/lsb-release | sed -r 's,DISTRIB_ID=,,g' | tr 'A-Z' 'a-z')
+			version=$(grep 'DISTRIB_RELEASE=' /etc/lsb-release | sed -r 's,DISTRIB_RELEASE=,,g' | tr '.' ' ' | awk '{printf ("%d", $1)}')
+		elif [[ -f /etc/debian_version ]]; then
+			distribution="debian"
+			version=$(cat /etc/debian_version | tr '.' ' ' | awk '{printf ("%d", $1)}')
+		else
+			echo ">> dont know about arch: $name"
+			exit 1
+		fi
 		;;
 esac
 

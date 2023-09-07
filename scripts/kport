@@ -59,6 +59,8 @@ case "$name" in
 		# fedora is special in that we want no 'v' in between the name and version
 		# so we put both into the name
 		distribution=$(echo "$name" | awk '{printf ("f%d", $3)}')
+		arch=""
+		bits="" # <-- drop the 64 from f29, f32, etc.
 		;;
 	*SUSE*|*suse*)
 		BIN="suse"

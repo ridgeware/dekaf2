@@ -30,18 +30,32 @@ fi
 # centos64v7 | CentOS Linux release 7.7.1908 (Core) | Linux may-anleonard-apache-04 3.10.0-1062.1.2.el7.x86_64 #1 SMP Mon Sep 30 14:19:46 UTC 2019 x86_64 x86_64 x86_64 GNU/Linux
 # centos64v7 | Red Hat Enterprise Linux Server release 7.6 (Maipo) | Linux may-oladm01 3.10.0-957.10.1.el7.x86_64 #1 SMP Thu Feb 7 07:12:53 UTC 2019 x86_64 x86_64 x86_64 GNU/Linux
 #------------+--------------------------------------+------------------------------------------------------------------------------------------------------------------------
-# 
-case $(file /bin/ls) in
-	*32-bit*)
-		bits=32
-		;;
-	*64-bit*)
-		bits=64
-		;;
-	*128-bit*)
-		bits=128
-		;;
-esac
+#
+if [[ "$(which file)" != "" ]]; then
+	case $(file /bin/ls) in
+		*32-bit*)
+			bits=32
+			;;
+		*64-bit*)
+			bits=64
+			;;
+		*128-bit*)
+			bits=128
+			;;
+	esac
+else
+	case $(uname -m) in
+		*64*)
+			bits=64
+			;;
+		*32*)
+			bits=32
+			;;
+		*)
+			bits=32
+			;;
+	esac
+fi
 
 case $(uname -m) in
 	*aarch64*|*arm64*|arm*)
@@ -92,6 +106,9 @@ case "$name" in
 		if [[ -f /etc/lsb-release ]]; then
 			distribution=$(grep 'DISTRIB_ID=' /etc/lsb-release | sed -r 's,DISTRIB_ID=,,g' | tr 'A-Z' 'a-z')
 			version=$(grep 'DISTRIB_RELEASE=' /etc/lsb-release | sed -r 's,DISTRIB_RELEASE=,,g' | tr '.' ' ' | awk '{printf ("%d", $1)}')
+		elif [[ -f /etc/os-release ]]; then
+			distribution=$(grep 'ID=' /etc/os-release | grep -v "_ID=" | sed -r 's,ID=,,g' | tr 'A-Z' 'a-z' | awk '{printf ("%s", $1)}')
+			version=$(grep 'VERSION_ID=' /etc/os-release | sed -r 's,VERSION_ID=,,g' | tr '."' '  ' | awk '{printf ("%d", $1)}')
 		elif [[ -f /etc/debian_version ]]; then
 			distribution="debian"
 			version=$(cat /etc/debian_version | tr '.' ' ' | awk '{printf ("%d", $1)}')

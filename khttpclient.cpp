@@ -593,7 +593,7 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 	}
 	else if (!m_sForcedHost.empty())
 	{
-		kDebug(2, "host forcd by user to: Host: {}", m_sForcedHost);
+		kDebug(2, "host forced by user to: Host: {}", m_sForcedHost);
 		Request.Headers.Set(KHTTPHeader::HOST, m_sForcedHost);
 	}
 	else if (url.Domain.empty())
@@ -739,7 +739,7 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 		{
 			AddHeader(KHTTPHeader::TRANSFER_ENCODING, "chunked");
 		}
-		else if (len != npos && len > 0)
+		else if (len > 0 || Request.Method != KHTTPMethod::GET)
 		{
 			AddHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(len));
 		}

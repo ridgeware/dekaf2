@@ -279,7 +279,7 @@ GetOS ()
 				BINDIR="aarmv${sMajorRevision}"
 				DISTRIB="amazon"
 				BaseOS="aws"
-				[ ${sRelease} -le 2 ] && SETMODERNCC="env CC=clang CXX=clang++"
+				SETMODERNCC="env CC=clang CXX=clang++"
 			else
 				local sMajorRevision=$(grep -Po '(?<=cpe:/o:amazon:linux:).+(?=:ga)' /etc/system-release-cpe)
 				BINDIR="aws64v${sMajorRevision}"

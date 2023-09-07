@@ -38,46 +38,58 @@ case $(file /bin/ls) in
 	;;
 esac
 
-arch=$(uname -a)
-[[ -f /etc/redhat-release ]] && arch=$(cat /etc/redhat-release)
+case $(uname -m) in
+*aarch64*|*arm64*)
+	arch="arm"
+	;;
+esac
 
-case "$arch" in
+[[ -f /etc/redhat-release ]] && name=$(cat /etc/redhat-release) || name=$(uname -a)
+
+case "$name" in
 	"Darwin"*)
-		BIN="osx"
+		distribution="osx"
 		;;
 	"Fedora release"*)
-		BIN=$(echo "$arch" | awk '{printf ("f%d", $3)}')
+		# fedora is special in that we want no 'v' in between the name and version
+		# so we put both into the name
+		distribution=$(echo "$name" | awk '{printf ("f%d", $3)}')
 		;;
 	*SUSE*|*suse*)
-		BIN="suse${bits}"
+		BIN="suse"
 		;;
 	*Gentoo*|*gentoo*)
-		BIN="gentoo${bits}"
+		distribution="gentoo"
 		;;
 	*Debian*)
-		BIN="debian${bits}"
+		distribution="debian"
 		;;
 	*Ubuntu*|*ubuntu*)
-		BIN="ubuntu${bits}"
+		distribution="ubuntu"
 		;;
 	FreeBSD|OpenBSD|*BSD)
-		BIN="freebsd"
+		distribution="freebsd"
 		;;
 	*amzn*|*AMZN*) # must be before Red Hat
-		version=$(cat /etc/system-release-cpe | sed -r 's,cpe:\/o:amazon:linux:,,g' | sed -r 's,:ga,,g')
-		BIN="aws${bits}v${version}"
+		version=$(cat /etc/system-release-cpe | sed -r 's,cpe:.*:amazon:.*linux:,,g' | sed -r 's,:ga,,g')
+		distribution="aws"
 		;;
 	"CentOS Linux release"*)
-		BIN=$(echo "$arch" | tr '.' ' ' | awk -v "bits=$bits" '{printf ("centos%sv%d", bits, $4)}')
+		distribution="centos"
+		version=$(echo "$name" | tr '.' ' ' | awk '{printf ("%d", $4)}')
 		;;
-	"Red Hat Enterprise Linux Server release 7"*)
-		BIN=$(echo "$arch" | tr '.' ' ' | awk -v "bits=$bits" '{printf ("centos%sv%d", bits, $7)}')
+	"Red Hat Enterprise Linux Server release"*)
+		distribution="centos"
+		version=$(echo "$name" | tr '.' ' ' | awk '{printf ("%d", $7)}')
 		;;
 	*)
-		echo ">> dont know about arch: $arch"
+		echo ">> dont know about arch: $name"
 		exit 1
 		;;
 esac
+
+BIN=${distribution}${arch}${bits}
+[[ "${version}" != "" ]] && BIN="${BIN}v${version}"
 
 case "$1" in
 	-arch|-ARCH|arch|ARCH)

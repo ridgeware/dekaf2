@@ -744,7 +744,7 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 			AddHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(len));
 		}
 
-		if (Mime != KMIME::NONE && (len > 0 || PostDataStream))
+		if (Mime != KMIME::NONE && (len > 0 || Request.Method != KHTTPMethod::GET || PostDataStream))
 		{
 			AddHeader(KHTTPHeader::CONTENT_TYPE, Mime.Serialize());
 		}

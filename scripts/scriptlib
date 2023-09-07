@@ -273,13 +273,13 @@ GetOS ()
 
 		elif [[ ${fAmazon} -ne 0 ]]; then
 
-			local sRelease=$(cat /etc/system-release-cpe)
-			if [[ ${sRelease} == "cpe:2.3:o:amazon:amazon_linux:2" ]]; then
-				local sMajorRevision="2"
+			local sRelease=$(grep -Po '(?<=cpe:2.3:o:amazon:amazon_linux:).+' /etc/system-release-cpe)
+			if [[ ${sRelease} != "" ]]; then
+				local sMajorRevision=${sRelease}
 				BINDIR="aarmv${sMajorRevision}"
 				DISTRIB="amazon"
 				BaseOS="aws"
-				SETMODERNCC="env CC=clang CXX=clang++"
+				[ ${sRelease} -le 2 ] && SETMODERNCC="env CC=clang CXX=clang++"
 			else
 				local sMajorRevision=$(grep -Po '(?<=cpe:/o:amazon:linux:).+(?=:ga)' /etc/system-release-cpe)
 				BINDIR="aws64v${sMajorRevision}"

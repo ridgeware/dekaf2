@@ -41,7 +41,7 @@ BuildSetup ()
 			darwin)
 				InstallSystemPackages cmake boost openssl wget
 
-				InstallOptionalSystemPackages doxygen graphviz libzip xz zstd brotli mariadb sqlite jemalloc \
+				InstallOptionalSystemPackages libzip xz zstd brotli mariadb sqlite jemalloc \
 					ncurses
 				;;
 			debian)
@@ -51,7 +51,7 @@ BuildSetup ()
 				InstallSystemPackages cmake libboost-all${DEVPKG} openssl libssl-dev wget git sed tar gcc \
 					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g${DEVPKG}
 
-				InstallOptionalSystemPackages libmariadb${DEVPKG} sqlite3 libsqlite3${DEVPKG} doxygen graphviz \
+				InstallOptionalSystemPackages libmariadb${DEVPKG} sqlite3 libsqlite3${DEVPKG} \
 					libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG} libbrotli${DEVPKG} jemalloc${DEVPKG} \
 					ncurses${DEVPKG}
 				;;
@@ -59,13 +59,13 @@ BuildSetup ()
 				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} wget git sed tar gcc \
 					zlib${DEVPKG} bzip2${DEVPKG}
 
-				InstallOptionalSystemPackages mariadb${DEVPKG} sqlite${DEVPKG} doxygen graphviz libzip${DEVPKG} \
+				InstallOptionalSystemPackages mariadb${DEVPKG} sqlite${DEVPKG} libzip${DEVPKG} \
 					xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG} jemalloc${DEVPKG} ncurses${DEVPKG}
 				;;
 		esac
 
 		case "${DISTRIB}" in
-			fedora|centos)
+			fedora|centos|amazon)
 				# fedora-29 is just crazy to split C++ from gcc - and it appears to be the
 				# only system on which you have to install ubsan and asan independently, too
 				InstallSystemPackages gcc-c++ libubsan libasan

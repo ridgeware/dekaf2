@@ -59,7 +59,7 @@ BuildSetup ()
 				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} wget git sed tar gcc \
 					zlib${DEVPKG} bzip2${DEVPKG}
 
-				InstallOptionalSystemPackages mariadb${DEVPKG} sqlite${DEVPKG} libzip${DEVPKG} \
+				InstallOptionalSystemPackages libmariadb${DEVPKG} mariadb-connector-c${DEVPKG} sqlite${DEVPKG} libzip${DEVPKG} \
 					xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG} jemalloc${DEVPKG} ncurses${DEVPKG}
 				;;
 		esac

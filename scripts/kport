@@ -11,6 +11,11 @@
 #%   bindir   : same as -archx
 #%
 
+if [[ ${1} = -x ]]; then
+	set -x
+	shift
+fi
+
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # ARCHITECTURE
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

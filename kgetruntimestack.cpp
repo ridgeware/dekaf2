@@ -52,7 +52,9 @@
 #include <vector>
 
 #ifdef DEKAF2_IS_UNIX
-#include <execinfo.h>          // for backtrace
+	#ifndef DEKAF2_HAS_MUSL
+		#include <execinfo.h>          // for backtrace
+	#endif
 #include <cxxabi.h>            // for demangling
 #include <unistd.h>
 #endif

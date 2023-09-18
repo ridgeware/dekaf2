@@ -102,6 +102,10 @@ case "$name" in
 		distribution="centos"
 		version=$(echo "$name" | tr '.' ' ' | awk '{printf ("%d", $7)}')
 		;;
+	"Red Hat Enterprise Linux release"*)
+		distribution="centos"
+		version=$(echo "$name" | tr '.' ' ' | awk '{printf ("%d", $6)}')
+		;;
 	*)
 		if [[ -f /etc/lsb-release ]]; then
 			distribution=$(grep 'DISTRIB_ID=' /etc/lsb-release | sed -r 's,DISTRIB_ID=,,g' | tr 'A-Z' 'a-z')

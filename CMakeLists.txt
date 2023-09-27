@@ -809,6 +809,7 @@ set(PUBLIC_HEADERS
 	kmime.h
 	kmpsearch.h
 	kmru.h
+	kngram.h
 	koptions.h
 	kopenid.h
 	koutpipe.h

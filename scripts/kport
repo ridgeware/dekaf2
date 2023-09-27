@@ -76,7 +76,7 @@ case "$name" in
 		bits="" # <-- drop the 64 from f29, f32, etc.
 		;;
 	*SUSE*|*suse*)
-		BIN="suse"
+		distribution="suse"
 		;;
 	*Gentoo*|*gentoo*)
 		distribution="gentoo"

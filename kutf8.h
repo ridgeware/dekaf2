@@ -93,15 +93,28 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 namespace dekaf2 {
 #else
 #include <cwctype>
+#include <cuchar>
 #endif
 
 namespace Unicode {
 
-#ifndef DEKAF2
-using codepoint_t = uint32_t;
+#ifdef __cpp_unicode_characters
+	#ifndef DEKAF2
+	using codepoint_t = char32_t;
+	#endif
+	using utf16_t     = char16_t;
+	#ifdef __cpp_char8_t
+	using utf8_t      = char8_t;
+	#else
+	using utf8_t      = uint8_t;
+	#endif
+#else
+	#ifndef DEKAF2
+	using codepoint_t = uint32_t;
+	#endif
+	using utf16_t     = uint16_t;
+	using utf8_t      = uint8_t;
 #endif
-using utf16_t     = uint16_t;
-using utf8_t      = uint8_t;
 
 static constexpr codepoint_t INVALID_CODEPOINT     = UINT32_MAX; ///< our flag for invalid codepoints
 static constexpr codepoint_t REPLACEMENT_CHARACTER = 0x0fffd;    ///< the replacement character to signal invalid codepoints in strings

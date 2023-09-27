@@ -1537,18 +1537,18 @@ TEST_CASE("KStringView") {
 
 	SECTION("AtUTF8")
 	{
-		CHECK ( KStringView(""     ).AtUTF8(9) == Unicode::INVALID_CODEPOINT );
-		CHECK ( KStringView("abcæå").AtUTF8(0) ==   'a' );
-		CHECK ( KStringView("abcæå").AtUTF8(1) ==   'b' );
-		CHECK ( KStringView("abcæå").AtUTF8(2) ==   'c' );
-		CHECK ( KStringView("abcæå").AtUTF8(3) ==   230 );
-		CHECK ( KStringView("abcæå").AtUTF8(4) ==   229 );
-		CHECK ( KStringView("aꜩꝙæå").AtUTF8(3) ==  230 );
-		CHECK ( KStringView("aꜩꝙæå").AtUTF8(4) ==  229 );
-		CHECK ( KStringView("åabcæ").AtUTF8(0) ==   229 );
-		CHECK ( KStringView("åꜩbcꝙ").AtUTF8(3) ==  'c' );
-		CHECK ( KStringView("åꜩbcꝙ").AtUTF8(4) == 42841 );
-		CHECK ( KStringView("abcæå").AtUTF8(5) == Unicode::INVALID_CODEPOINT );
+		CHECK ( uint32_t(KStringView(""     ).AtUTF8(9)) == uint32_t(Unicode::INVALID_CODEPOINT) );
+		CHECK ( uint32_t(KStringView("abcæå").AtUTF8(0)) ==   'a' );
+		CHECK ( uint32_t(KStringView("abcæå").AtUTF8(1)) ==   'b' );
+		CHECK ( uint32_t(KStringView("abcæå").AtUTF8(2)) ==   'c' );
+		CHECK ( uint32_t(KStringView("abcæå").AtUTF8(3)) ==   230 );
+		CHECK ( uint32_t(KStringView("abcæå").AtUTF8(4)) ==   229 );
+		CHECK ( uint32_t(KStringView("aꜩꝙæå").AtUTF8(3)) ==  230 );
+		CHECK ( uint32_t(KStringView("aꜩꝙæå").AtUTF8(4)) ==  229 );
+		CHECK ( uint32_t(KStringView("åabcæ").AtUTF8(0)) ==   229 );
+		CHECK ( uint32_t(KStringView("åꜩbcꝙ").AtUTF8(3)) ==  'c' );
+		CHECK ( uint32_t(KStringView("åꜩbcꝙ").AtUTF8(4)) == 42841 );
+		CHECK ( uint32_t(KStringView("abcæå").AtUTF8(5)) == uint32_t(Unicode::INVALID_CODEPOINT) );
 	}
 
 	SECTION("kContainsWord")

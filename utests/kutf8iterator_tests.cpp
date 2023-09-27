@@ -15,23 +15,23 @@ TEST_CASE("UTF8Iterator") {
 		Unicode::UTF8ConstIterator<KString> it(str, false);
 		Unicode::UTF8ConstIterator<KString> ie(str, true);
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 'a' );
+		CHECK ( uint32_t(*it++) == 'a' );
 		CHECK (    it != ie  );
-		CHECK (   *it == 'b' );
-		CHECK ( *++it == 'c' );
+		CHECK ( uint32_t(*it)   == 'b' );
+		CHECK ( uint32_t(*++it) == 'c' );
 		++it;
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 0xe4);
+		CHECK ( uint32_t(*it++) == 0xe4);
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 0xf6);
+		CHECK ( uint32_t(*it++) == 0xf6);
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 0xfc);
+		CHECK ( uint32_t(*it++) == 0xfc);
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 'a' );
+		CHECK ( uint32_t(*it++) == 'a' );
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 'b' );
+		CHECK ( uint32_t(*it++) == 'b' );
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 'c' );
+		CHECK ( uint32_t(*it++) == 'c' );
 		CHECK (    it == ie  );
 	}
 
@@ -41,25 +41,25 @@ TEST_CASE("UTF8Iterator") {
 		Unicode::UTF8Iterator<KString> it(str, false);
 		Unicode::UTF8Iterator<KString> ie(str, true);
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 'a' );
+		CHECK ( uint32_t(*it++) == 'a' );
 		CHECK (    it != ie  );
-		CHECK (   *it == 'b' );
-		CHECK ( *++it == 'c' );
+		CHECK ( uint32_t(*it)   == 'b' );
+		CHECK ( uint32_t(*++it) == 'c' );
 		++it;
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 0xe4);
+		CHECK ( uint32_t(*it++) == 0xe4);
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 0xf6);
+		CHECK ( uint32_t(*it++) == 0xf6);
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 0xfc);
+		CHECK ( uint32_t(*it++) == 0xfc);
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 'a' );
+		CHECK ( uint32_t(*it++) == 'a' );
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 'b' );
-		CHECK ( *--it == 'b' );
+		CHECK ( uint32_t(*it++) == 'b' );
+		CHECK ( uint32_t(*--it) == 'b' );
 		++it;
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 'c' );
+		CHECK ( uint32_t(*it++) == 'c' );
 		CHECK (    it == ie  );
 	}
 
@@ -69,31 +69,30 @@ TEST_CASE("UTF8Iterator") {
 		Unicode::UTF8Iterator<KString> it(str, false);
 		Unicode::UTF8Iterator<KString> ie(str, true);
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 'a' );
+		CHECK ( uint32_t(*it++) == 'a' );
 		CHECK (    it != ie  );
-		CHECK (   *it == 'b' );
+		CHECK ( uint32_t(*it)   == 'b' );
 		*it = 'a';
-		CHECK (   *it == 'a' );
-		CHECK ( *++it == 'c' );
+		CHECK ( uint32_t(*it)   == 'a' );
+		CHECK ( uint32_t(*++it) == 'c' );
 		++it;
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 0xe4);
+		CHECK ( uint32_t(*it++) == 0xe4);
 		CHECK (    it != ie  );
-		CHECK (   *it == 0xf6);
+		CHECK ( uint32_t(*it)   == 0xf6);
 		*it = 'o';
 		++it;
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 0xfc);
+		CHECK ( uint32_t(*it++) == 0xfc);
 		CHECK (    it != ie  );
-		CHECK ( *it   == 'a' );
+		CHECK ( uint32_t(*it)   == 'a' );
 		CHECK (    it != ie  );
 		*++it = 0xe4;
-		CHECK ( *it++ == 0xe4);
+		CHECK ( uint32_t(*it++) == 0xe4);
 		CHECK (    it != ie  );
-		CHECK ( *it++ == 'c' );
+		CHECK ( uint32_t(*it++) == 'c' );
 		CHECK (    it == ie  );
 		CHECK ( str == "aacäoüaäc" );
 	}
-
 }
 

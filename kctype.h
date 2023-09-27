@@ -47,6 +47,7 @@
 #include <type_traits>
 #include <cstdint>
 #include <cwctype>
+#include <cuchar>
 #include <array>
 #include "bits/kcppcompat.h"
 
@@ -54,7 +55,11 @@ namespace dekaf2 {
 
 namespace Unicode {
 
+#ifdef __cpp_unicode_characters
+using codepoint_t = char32_t;
+#else
 using codepoint_t = uint32_t;
+#endif
 
 } // end of namespace Unicode
 
@@ -67,11 +72,13 @@ class DEKAF2_PUBLIC KCodePoint
 public:
 //------
 
+	using value_type = Unicode::codepoint_t;
+
 	//-----------------------------------------------------------------------------
-	/// Cast any integral type into a codepoint_t, without signed bit expansion.
+	/// Cast any integral type into a value_type (codepoint_t), without signed bit expansion.
 	template<typename Ch>
 	constexpr
-	Unicode::codepoint_t CodepointCast(Ch sch)
+	value_type CodepointCast(Ch sch)
 	//-----------------------------------------------------------------------------
 	{
 		static_assert(std::is_integral<Ch>::value, "can only convert integral types");
@@ -88,19 +95,19 @@ public:
 	constexpr
 	KCodePoint(CP cp) : m_CodePoint(CodepointCast(cp)) {}
 
-	/// explicit conversion to const Unicode::codepoint_t
+	/// explicit conversion to const value_type (const Unicode::codepoint_t)
 	constexpr
-	const Unicode::codepoint_t& value() const { return m_CodePoint; }
+	const value_type& value() const { return m_CodePoint; }
 
-	/// explicit conversion to Unicode::codepoint_t
+	/// explicit conversion to value_type (Unicode::codepoint_t)
 	DEKAF2_CONSTEXPR_14
-	Unicode::codepoint_t& value() { return m_CodePoint; }
+	value_type& value() { return m_CodePoint; }
 
 	constexpr
-	operator const Unicode::codepoint_t&() const { return value(); }
+	operator const value_type&() const { return value(); }
 
 	DEKAF2_CONSTEXPR_14
-	operator Unicode::codepoint_t&() { return value(); }
+	operator value_type&() { return value(); }
 
 	enum Categories
 	{
@@ -278,9 +285,9 @@ private:
 	Property GetHighUnicodeProperty() const;
 	//-----------------------------------------------------------------------------
 
-	static constexpr Unicode::codepoint_t MAX_ASCII     = 0x7F;
-	static constexpr Unicode::codepoint_t MAX_CASEFOLDS = 0xFF;
-	static constexpr Unicode::codepoint_t MAX_TABLE     = 0x1FFFF;
+	static constexpr value_type MAX_ASCII     = 0x7F;
+	static constexpr value_type MAX_CASEFOLDS = 0xFF;
+	static constexpr value_type MAX_TABLE     = 0x1FFFF;
 
 	static constexpr std::array<CTYPE, MAX_ASCII + 1> ASCIITable
 	{
@@ -298,7 +305,7 @@ private:
 	static const std::array<int32_t , MAX_CASEFOLDS + 1> CaseFolds;
 	static const std::array<Property, MAX_TABLE     + 1> CodePoints;
 
-	Unicode::codepoint_t m_CodePoint { 0 };
+	value_type m_CodePoint { 0 };
 
 //------
 public:

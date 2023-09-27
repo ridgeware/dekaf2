@@ -206,7 +206,7 @@ TEST_CASE("UTF8") {
 			Unicode::SurrogatePair sp(static_cast<Unicode::codepoint_t>(ch));
 			if (sp.ToCodepoint() != ch)
 			{
-				CHECK(sp.ToCodepoint() == ch);
+				CHECK( uint32_t(sp.ToCodepoint()) == ch);
 			}
 			if (!Unicode::IsLeadSurrogate(sp.low))
 			{
@@ -219,7 +219,7 @@ TEST_CASE("UTF8") {
 			Unicode::SurrogatePair sp2(sp.low, sp.high);
 			if (sp2.ToCodepoint() != ch)
 			{
-				CHECK(sp2.ToCodepoint() == ch);
+				CHECK( uint32_t(sp2.ToCodepoint()) == ch);
 			}
 		}
 	}

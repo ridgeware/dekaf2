@@ -93,7 +93,6 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 namespace dekaf2 {
 #else
 #include <cwctype>
-#include <cuchar>
 #endif
 
 namespace Unicode {

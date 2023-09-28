@@ -47,7 +47,6 @@
 #include <type_traits>
 #include <cstdint>
 #include <cwctype>
-#include <cuchar>
 #include <array>
 #include "bits/kcppcompat.h"
 

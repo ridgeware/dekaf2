@@ -68,6 +68,11 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		if (NOT Boost_FOUND)
 
+			if (CMAKE_VERSION VERSION_GREATER 3.26)
+				# allow mixed case find_package names
+				cmake_policy(SET CMP0144 OLD)
+			endif()
+
 			# we only need to find boost to check its version, as we have to switch
 			# inline symbol visibility off if version is >= 1.69
 

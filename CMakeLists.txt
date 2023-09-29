@@ -2,14 +2,18 @@
 #
 # In reality we need cmake 3.8 (for C++17) but that would stop the automatic install
 # of a new cmake through the cmakeinstall script below. So we lower the required
-# version to 2.6, then install 3.13, and initially run into a cmake error in the
+# version to 2.8.12, then install 3.13, and initially run into a cmake error in the
 # running instance. At the next run, the new cmake then will complete without error..
 #
 # Note: C++20 is supported starting with 3.12, targets from subdirectories with 3.13
 #
-# Starting with cmake 3.19, the minimal supported cmake version is 2.8.12
+# Starting with cmake 3.27, the minimal supported cmake version is 2.8.12
 #
-cmake_minimum_required(VERSION 2.8.12)
+if(CMAKE_VERSION VERSION_LESS "3.27.0")
+	cmake_minimum_required(VERSION 2.8.12)
+else()
+	cmake_minimum_required(VERSION 3.13)
+endif()
 #
 # ================================= BUILD SYSTEM SETUP =============================
 
@@ -43,6 +47,10 @@ cmake_minimum_required(VERSION 3.13)
 
 # allow version number in project command
 cmake_policy(SET CMP0048 NEW)
+if (CMAKE_VERSION VERSION_GREATER 3.26)
+	# allow mixed case find_package names (Boost needs this with cmake 3.27)
+	cmake_policy(SET CMP0144 OLD)
+endif()
 
 # declare the project
 project(dekaf2 VERSION 2.0.30 DESCRIPTION "C++14/17/20 rapid application development framework")

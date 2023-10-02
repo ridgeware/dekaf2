@@ -47,7 +47,7 @@ cmake_minimum_required(VERSION 3.13)
 
 # allow version number in project command
 cmake_policy(SET CMP0048 NEW)
-if (CMAKE_VERSION VERSION_GREATER 3.26)
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 	# allow mixed case find_package names (Boost needs this with cmake 3.27)
 	cmake_policy(SET CMP0144 OLD)
 endif()

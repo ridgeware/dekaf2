@@ -271,6 +271,11 @@ if (DEKAF2_PREFER_STATIC_LIBS)
 	endif()
 endif()
 
+# ================================= Threads ===================================
+
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 # ============================== ZLIB / BZIP2 =================================
 
 if (IS_WINDOWS)

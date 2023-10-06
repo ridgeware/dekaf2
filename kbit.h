@@ -57,6 +57,20 @@
 	#if DEKAF2_HAS_INCLUDE(<bit>)
 		#include <bit>
 		#define DEKAF2_HAS_STD_BIT 1
+		#if DEKAF2_IS_MACOS
+			// unfortunately current macos implementations of libc++ do not 
+			// define all __cpp_lib_bitops version markers, so when on macos
+			// and C++>=20 and <bit> is existing, we assume we have all
+			// implementations for C++20
+			#define DEKAF2_BITS_HAS_BITOPS 1
+			#define DEKAF2_BITS_HAS_POW2   1
+		#else
+			#define DEKAF2_BITS_HAS_BITOPS (__cpp_lib_bitops   >= 201907L)
+			#define DEKAF2_BITS_HAS_POW2   (__cpp_lib_int_pow2 >= 202002L)
+		#endif
+		// these ones are properly signalled by macos with C++23
+		#define DEKAF2_BITS_HAS_BYTESWAP (__cpp_lib_byteswap >= 202110L)
+		#define DEKAF2_BITS_HAS_BITCAST  (__cpp_lib_bit_cast >= 201806L)
 	#endif
 #endif
 
@@ -82,7 +96,7 @@ DEKAF2_LE_BE_CONSTEXPR bool kIsBigEndian() noexcept
 {
 #if defined(__BYTE_ORDER__)
 	return __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__;
-#elif DEKAF2_HAS_INCLUDE(<bit>)
+#elif DEKAF2_HAS_STD_BIT
 	return std::endian::native == std::endian::big;
 #else
 	union endian_t
@@ -115,7 +129,7 @@ constexpr typename std::enable_if<std::is_integral<T>::value, T>::type
 kByteSwap(T iIntegral) noexcept
 //-----------------------------------------------------------------------------
 {
-#ifdef __cpp_lib_byteswap // not available with apple clang currently
+#if DEKAF2_BITS_HAS_BYTESWAP
 	return std::byteswap(iIntegral);
 #else
 	auto len = sizeof(T);
@@ -183,7 +197,7 @@ void kFromLittleEndian(T& value) noexcept
 
 namespace detail {
 
-#if !(defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_bitops >= 201907L || DEKAF2_IS_MACOS))
+#if !DEKAF2_BITS_HAS_BITOPS
 #ifndef _MSC_VER
 
 inline DEKAF2_PUBLIC constexpr
@@ -361,7 +375,7 @@ int popcount(unsigned long long iValue) noexcept
 }
 
 #endif // _MSC_VER
-#endif // DEKAF2_HAS_STD_BIT
+#endif // DEKAF2_BITS_HAS_BITOPS
 
 } // end of namespace detail
 
@@ -373,7 +387,7 @@ DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, T>::
 kRotateLeft(T iValue, unsigned int iCount) noexcept
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_bitops >= 201907L || DEKAF2_IS_MACOS)
+#if DEKAF2_BITS_HAS_BITOPS
 	return std::rotl(iValue, iCount);
 #else
 	const unsigned int iDigits = std::numeric_limits<T>::digits;
@@ -395,7 +409,7 @@ DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, T>::
 kRotateRight(T iValue, unsigned int iCount) noexcept
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_bitops >= 201907L || DEKAF2_IS_MACOS)
+#if DEKAF2_BITS_HAS_BITOPS
 	return std::rotr(iValue, iCount);
 #else
 	const unsigned int iDigits = std::numeric_limits<T>::digits;
@@ -417,7 +431,7 @@ DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, bool
 kHasSingleBit(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_int_pow2 >= 202002L || DEKAF2_IS_MACOS)
+#if DEKAF2_BITS_HAS_POW2
 	return std::has_single_bit(iValue);
 #else
 	return iValue != 0 && ((iValue & (iValue - 1)) == 0);
@@ -432,7 +446,7 @@ DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, int>
 kBitCountLeftZero(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_bitops >= 201907L || DEKAF2_IS_MACOS)
+#if DEKAF2_BITS_HAS_BITOPS
 	return std::countl_zero(iValue);
 #else
 	if (!iValue)
@@ -474,7 +488,7 @@ kBitCountLeftZero(T iValue) noexcept
 #endif
 }
 
-#if !(defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_int_pow2 >= 202002L || DEKAF2_IS_MACOS))
+#if !DEKAF2_BITS_HAS_POW2
 namespace detail {
 // integral log base 2
 template<class T>
@@ -496,7 +510,7 @@ DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, int>
 kBitCountRightZero(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_bitops >= 201907L || DEKAF2_IS_MACOS)
+#if DEKAF2_BITS_HAS_BITOPS
 	return std::countr_zero(iValue);
 #else
 	if (!iValue)
@@ -540,7 +554,7 @@ DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, int>
 kBitCountLeftOne(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_bitops >= 201907L || DEKAF2_IS_MACOS)
+#if DEKAF2_BITS_HAS_BITOPS
 	return std::countl_one(iValue);
 #else
 	return (iValue != std::numeric_limits<T>::max())
@@ -557,7 +571,7 @@ DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, int>
 kBitCountRightOne(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_bitops >= 201907L || DEKAF2_IS_MACOS)
+#if DEKAF2_BITS_HAS_BITOPS
 	return std::countr_one(iValue);
 #else
 	return (iValue != std::numeric_limits<T>::max())
@@ -574,7 +588,7 @@ DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, T>::
 kBitCeil(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_int_pow2 >= 202002L || DEKAF2_IS_MACOS)
+#if DEKAF2_BITS_HAS_POW2
 	return std::bit_ceil(iValue);
 #else
 	if (iValue < 2)
@@ -606,7 +620,7 @@ DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, T>::
 kBitFloor(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_int_pow2 >= 202002L || DEKAF2_IS_MACOS)
+#if DEKAF2_BITS_HAS_POW2
 	return std::bit_floor(iValue);
 #else
 	return iValue == 0 ? 0 : T{ 1 } << detail::bit_log2(iValue);
@@ -621,7 +635,7 @@ DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, int>
 kBitWidth(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_int_pow2 >= 202002L || DEKAF2_IS_MACOS)
+#if DEKAF2_BITS_HAS_POW2
 	return std::bit_width(iValue);
 #else
 	return iValue == 0 ? 0 : detail::bit_log2(iValue) + 1;
@@ -637,7 +651,7 @@ typename std::enable_if<std::is_unsigned<T>::value, int>::type
 kBitCountOne(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_HAS_STD_BIT) && (__cpp_lib_bitops >= 201907L || DEKAF2_IS_MACOS)
+#if DEKAF2_BITS_HAS_BITOPS
 	return std::popcount(iValue);
 #else
 	if (sizeof(T) <= sizeof(unsigned int))
@@ -667,22 +681,34 @@ kBitCountOne(T iValue) noexcept
 #endif
 }
 
-/*
- It does not make sense to provide kBitCast() for some platforms only -
- we cannot emulate it without compiler support..
-//-----------------------------------------------------------------------------
+#if DEKAF2_BITS_HAS_BITCAST
 template<class To, class From>
 DEKAF2_PUBLIC constexpr
 // C++20
-To kBitCast(const From& iValue) noexcept
+/// convert one trivially copyable object into another trivially copyable object of the same size
+To kBitCast(const From& src) noexcept
 //-----------------------------------------------------------------------------
 {
-#ifdef __cpp_lib_bit_cast >= 201806L
-	return std::bit_cast<To, From>(iValue);
-#else
-	assert("kBitCast is not supported on this platform");
-#endif
+	return std::bit_cast<To, From>(src);
 }
-*/
+#else
+// this emulation of bit_cast is not constexpr
+template<class To, class From>
+DEKAF2_PUBLIC typename std::enable_if<
+       sizeof(To) == sizeof(From) 
+	&& std::is_trivially_copyable<From>::value 
+	&& std::is_trivially_copyable<To>::value, 
+	To
+>::type
+/// convert one trivially copyable object into another trivially copyable object of the same size
+kBitCast(const From& src) noexcept
+{
+    static_assert(std::is_trivially_constructible<To>::value,
+	              "This implementation requires the destination type to be trivially constructible");
+    To dst;
+    std::memcpy(&dst, &src, sizeof(To));
+    return dst;
+}
+#endif
 
 } // end of namespace dekaf2

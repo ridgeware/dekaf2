@@ -105,6 +105,23 @@ TEST_CASE("KBit")
 		CHECK ( a == 2 );
 	}
 
+	SECTION("kBitCast")
+	{
+		constexpr double f64v = 19880124.0;
+#ifdef DEKAF2_BITS_HAS_BITCAST
+		constexpr
+#endif
+		auto u64v = kBitCast<std::uint64_t>(f64v);
+		CHECK ( kBitCast<double>(u64v) == f64v ); // round-trip
+
+		constexpr std::uint64_t u64v2 = 0x3fe9000000000000ull;
+#ifdef DEKAF2_BITS_HAS_BITCAST
+		constexpr
+#endif
+		auto f64v2 = kBitCast<double>(u64v2);
+		CHECK ( kBitCast<std::uint64_t>(f64v2) == u64v2 ); // round-trip
+	}
+
 	SECTION("Endianess")
 	{
 		if (kIsLittleEndian())

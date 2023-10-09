@@ -62,6 +62,31 @@
 #include <vector>
 #include <ostream>
 
+// =================== configure with or without SIMD =====================
+
+// MSC does not offer a test for __SSE4_2__ support in the compiler,
+// so we simply always assume it is there for MSC
+
+// GCC 6 and 7 have serious problems with inlining and intrinsics and
+// ASAN attributes, and there is no solution except upgrading the compiler
+//
+// Therefore, in debug mode with gcc < 8 we simply switch SSE off and
+// fall back to traditional code
+
+#if !DEKAF2_IS_GCC || (DEKAF2_GCC_VERSION_MAJOR >= 8 || defined(NDEBUG))
+	#if DEKAF2_ARM || DEKAF2_ARM64
+		// the x86 simd emulation through sse2neon would be 3-8 times slower,
+		// therefore we do not use it
+//		#define DEKAF2_FIND_FIRST_OF_USE_SIMD 1
+	#else
+		#if defined(__SSE4_2__) || defined _MSC_VER
+			#define DEKAF2_FIND_FIRST_OF_USE_SIMD 1
+		#endif
+	#endif
+#endif
+
+// =================== configure string view base =====================
+
 #if !defined(DEKAF2_HAS_STD_STRING_VIEW) \
 	&& !defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
 	// we have to use our own string_view if we do not have C++17..
@@ -1636,15 +1661,7 @@ bool operator>=(const KStringView left, const KStringView right)
 /// as a constexpr variable.
 class KFindSetOfChars
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-#ifndef DEKAF2_X86_64
-
-#ifdef DEKAF2_HAS_CPP_20
-	#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR >= 10
-		#define DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED 1
-	#elif DEKAF2_IS_CLANG && DEKAF2_CLANG_VERSION_MAJOR > 9
-		#define DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED 1
-	#endif
-#endif
+#if !DEKAF2_FIND_FIRST_OF_USE_SIMD
 {
 
 	// Note: we use a char array instead of a std::array<char> because the
@@ -1789,15 +1806,11 @@ private:
 		m_table[1] = ch;
 	}
 
-#ifdef DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED
-	value_type m_table[256]; // <- no value initialization on purpose!
-#else
-	value_type m_table[256] = { 0 }; // minimal initialization to satisfy the constexpr constructor rules of C++ < 20
-#endif
+	value_type m_table[256] = { 0 }; // minimal initialization
 
 }; // KFindSetOfChars
 
-#else // is 86_64
+#else // !DEKAF2_FIND_FIRST_OF_USE_SIMD
 
 {
 
@@ -1854,7 +1867,7 @@ private:
 
 }; // KFindSetOfChars
 
-#endif // of X86_64
+#endif // !DEKAF2_FIND_FIRST_OF_USE_SIMD
 
 
 
@@ -1864,7 +1877,7 @@ namespace detail {
 
 static constexpr KStringView kASCIISpaces { " \f\n\r\t\v\b" };
 static constexpr KFindSetOfChars kASCIISpacesSet(kASCIISpaces);
-static constexpr KFindSetOfChars kCommaSet(",,"); // the double ,, are on purpose..
+static constexpr KFindSetOfChars kCommaSet(",");
 
 } // end of namespace detail
 

@@ -215,8 +215,8 @@ size_t kFindFirstOfInt(
 		return KStringView::npos;
 	}
 
-#ifdef DEKAF2_X86_64
-#ifdef DEKAF2_HAS_MINIFOLLY
+#if DEKAF2_FIND_FIRST_OF_USE_SIMD
+#if DEKAF2_X86_64 && DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
 
 	if (DEKAF2_LIKELY(has_sse42))
@@ -251,7 +251,7 @@ size_t kFindFirstNotOfInt(
         size_t pos)
 //-----------------------------------------------------------------------------
 {
-#ifndef DEKAF2_X86_64
+#if !DEKAF2_FIND_FIRST_OF_USE_SIMD
 	if (DEKAF2_UNLIKELY(needle.size() == 1))
 	{
 		return kFindNot(haystack, needle[0], pos);
@@ -273,8 +273,8 @@ size_t kFindFirstNotOfInt(
 		return 0;
 	}
 
-#ifdef DEKAF2_X86_64
-#ifdef DEKAF2_HAS_MINIFOLLY
+#if DEKAF2_FIND_FIRST_OF_USE_SIMD
+#if DEKAF2_X86_64 && DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
 
 	if (DEKAF2_LIKELY(has_sse42))
@@ -330,8 +330,8 @@ size_t kFindLastOfInt(
 		return KStringView::npos;
 	}
 
-#ifdef DEKAF2_X86_64
-#ifdef DEKAF2_HAS_MINIFOLLY
+#if DEKAF2_FIND_FIRST_OF_USE_SIMD
+#if DEKAF2_X86_64 && DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
 
 	if (DEKAF2_LIKELY(has_sse42))
@@ -357,7 +357,7 @@ size_t kFindLastNotOfInt(
 		return KStringView::npos;
 	}
 
-#ifndef DEKAF2_X86_64
+#if !DEKAF2_FIND_FIRST_OF_USE_SIMD
 	if (DEKAF2_UNLIKELY(needle.size() == 1))
 	{
 		return kRFindNot(haystack, needle[0], pos);
@@ -374,8 +374,8 @@ size_t kFindLastNotOfInt(
 		return KStringView::npos;
 	}
 
-#ifdef DEKAF2_X86_64
-#ifdef DEKAF2_HAS_MINIFOLLY
+#if DEKAF2_FIND_FIRST_OF_USE_SIMD
+#if DEKAF2_X86_64 && DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = Dekaf::getInstance().GetCpuId().sse42();
 
 	if (DEKAF2_LIKELY(has_sse42))
@@ -876,7 +876,7 @@ KStringView::size_type KStringView::FindCaselessASCII(const self_type str, size_
 	return kCaselessFind(*this, str, pos);
 }
 
-#ifndef DEKAF2_X86_64
+#if !DEKAF2_FIND_FIRST_OF_USE_SIMD
 
 //-----------------------------------------------------------------------------
 KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, const size_type pos) const
@@ -1044,7 +1044,7 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 
 } // find_last_not_in
 
-#else // is 86_64
+#else // DEKAF2_FIND_FIRST_OF_USE_SIMD
 
 //-----------------------------------------------------------------------------
 KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, size_type pos) const
@@ -1100,7 +1100,7 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 	return detail::sse::kFindLastNotOf(sHaystack, m_sNeedles);
 }
 
-#endif // is 86_64
+#endif // DEKAF2_FIND_FIRST_OF_USE_SIMD
 
 
 

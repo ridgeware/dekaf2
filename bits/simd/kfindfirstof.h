@@ -63,6 +63,42 @@ DEKAF2_PUBLIC std::size_t kFindLastOf  (KStringView haystack, KStringView needle
 
 namespace sse {
 
+#if !DEKAF2_FIND_FIRST_OF_USE_SIMD
+
+/// non-sse version of kFindFirstOf
+/// @param haystack the string to search in
+/// @param needles  the characters to find
+DEKAF2_PUBLIC inline std::size_t kFindFirstOf    (KStringView haystack, KStringView needles)
+{
+	return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, false);
+}
+
+/// non-sse version of kFindFirstNotOf
+/// @param haystack the string to search in
+/// @param needles  the characters not to find
+DEKAF2_PUBLIC inline std::size_t kFindFirstNotOf (KStringView haystack, KStringView needles)
+{
+	return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, true);
+}
+
+/// non-sse version of kFindLastOf
+/// @param haystack the string to search in
+/// @param needles  the characters to find
+DEKAF2_PUBLIC inline std::size_t kFindLastOf     (KStringView haystack, KStringView needles)
+{
+	return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, false);
+}
+
+/// non-sse version of kFindLastNotOf
+/// @param haystack the string to search in
+/// @param needles  the characters not to find
+DEKAF2_PUBLIC inline std::size_t kFindLastNotOf  (KStringView haystack, KStringView needles)
+{
+	return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
+}
+
+#else // !DEKAF2_FIND_FIRST_OF_USE_SIMD
+
 /// sse version of kFindFirstOf
 /// @param haystack the string to search in
 /// @param needles  the characters to find
@@ -82,6 +118,8 @@ DEKAF2_PUBLIC std::size_t kFindLastOf     (KStringView haystack, KStringView nee
 /// @param haystack the string to search in
 /// @param needles  the characters not to find
 DEKAF2_PUBLIC std::size_t kFindLastNotOf  (KStringView haystack, KStringView needles);
+
+#endif
 
 } // end of namespace sse
 

@@ -4,7 +4,7 @@
 #include <dekaf2/bits/simd/kfindfirstof.h>
 #include <dekaf2/kexception.h>
 
-#if !defined(DEKAF2_IS_WINDOWS) && defined(DEKAF2_X86_64)
+#if !defined(DEKAF2_IS_WINDOWS) && defined(DEKAF2_FIND_FIRST_OF_USE_SIMD)
 
 #include <unistd.h>
 #include <signal.h>

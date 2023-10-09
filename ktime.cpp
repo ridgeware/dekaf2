@@ -1004,11 +1004,18 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 	#define DEKAF2_CONSTEXPR
 #endif
 
+#ifdef DEKAF2_HAS_CPP_20
+	#if (DEKAF2_IS_GCC   && DEKAF2_GCC_VERSION_MAJOR   >= 10) || \
+	    (DEKAF2_IS_CLANG && DEKAF2_CLANG_VERSION_MAJOR >= 10)
+		#define DEKAF2_USE_ARRAY_UNINITIALIZED 1
+	#endif
+#endif
+
 	// build the Sizes lookup table by a constexpr lambda (if we have C++17 or later, for older
 	// versions this is a normal static initialisation at first use..)
 	static DEKAF2_CONSTEXPR SizeArray Sizes = []() DEKAF2_CONSTEXPR -> SizeArray
 	{
-#if DEKAF2_KFINDSETOFCHARS_USE_ARRAY_UNINITIALIZED
+#if DEKAF2_USE_ARRAY_UNINITIALIZED
 		SizeArray S;
 #else
 		SizeArray S {}; // gcc8..

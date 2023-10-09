@@ -120,78 +120,27 @@ std::size_t kFindLastOf(KStringView haystack, KStringView needles, bool bNot)
 } // end of namespace detail
 } // end of namespace dekaf
 
+#if DEKAF2_FIND_FIRST_OF_USE_SIMD
 
-// MSC does not offer a test for __SSE4_2__ support in the compiler,
-// so we simply always assume it is there for MSC
-
-// GCC 6 and 7 have serious problems with inlining and intrinsics and
-// ASAN attributes, and there is no solution except upgrading the compiler:
-//
-// /opt/rh/devtoolset-7/root/usr/lib/gcc/x86_64-redhat-linux/7/include/pmmintrin.h: In function 'std::size_t dekaf2::detail::sse::kFindFirstOfNeedles16(dekaf2::KStringView, dekaf2::KStringView) [with bool bNot = false; int iOperation = 0]':
-// /opt/rh/devtoolset-7/root/usr/lib/gcc/x86_64-redhat-linux/7/include/pmmintrin.h:110:1: error: inlining failed in call to always_inline '__m128i _mm_lddqu_si128(const __m128i*)': function attribute mismatch
-//  _mm_lddqu_si128 (__m128i const *__P)
-//  ^~~~~~~~~~~~~~~
-//
-// Therefore, in debug mode with gcc < 8 we simply switch SSE off and
-// fall back to traditional code
-
-#if (!defined __clang__ && defined __GNUC__ && __GNUC__ < 8)
-	#ifndef NDEBUG
-		#define KFINDFIRSTOF_NO_SSE = 1
+#if DEKAF2_ARM || DEKAF2_ARM64
+	// this _would_ work, but it is 3 to 8 times slower
+	// than the table lookup approach - cmpestri/cmpestrm
+	// are hard to replace in neon
+	#include "../../from/sse2neon/sse2neon.h"
+#else
+	#if defined(__SSE4_2__) || defined _MSC_VER
+		#include <emmintrin.h>
+		#include <nmmintrin.h>
+		#include <smmintrin.h>
+		#ifdef _MSC_VER
+			#include <intrin.h>
+		#endif
 	#endif
 #endif
-
-#if ((!defined(__SSE4_2__)) && (!defined _MSC_VER) || (defined KFINDFIRSTOF_NO_SSE))
-
-namespace dekaf2 {
-namespace detail {
-namespace sse    {
-
-//-----------------------------------------------------------------------------
-std::size_t kFindFirstOf(KStringView haystack, KStringView needles)
-//-----------------------------------------------------------------------------
-{
-	return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, false);
-}
-
-//-----------------------------------------------------------------------------
-std::size_t kFindFirstNotOf(KStringView haystack, KStringView needles)
-//-----------------------------------------------------------------------------
-{
-	return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, true);
-}
-
-//-----------------------------------------------------------------------------
-std::size_t kFindLastOf(KStringView haystack, KStringView needles)
-//-----------------------------------------------------------------------------
-{
-	return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, false);
-}
-
-//-----------------------------------------------------------------------------
-std::size_t kFindLastNotOf(KStringView haystack, KStringView needles)
-//-----------------------------------------------------------------------------
-{
-	return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
-}
-
-} // end of namespace sse
-} // end of namespace detail
-} // end of namespace dekaf2
-
-#else
 
 #include <cstdint>
 #include <limits>
 #include <string>
-
-#include <emmintrin.h>
-#include <nmmintrin.h>
-#include <smmintrin.h>
-
-#ifdef _MSC_VER
-#include <intrin.h>
-#endif
 
 namespace dekaf2 {
 namespace detail {
@@ -310,7 +259,7 @@ std::size_t kFindFirstOfNeedles16(KStringView haystack,
 	auto arr1 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.data()));
 
 	// compare first block with needles
-	auto index = _mm_cmpestri(arr2, needles.size(), arr1, haystack.size(), iOperation);
+	auto index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, static_cast<int>(haystack.size()), iOperation);
 
 	if (index < 16)
 	{
@@ -332,7 +281,7 @@ std::size_t kFindFirstOfNeedles16(KStringView haystack,
 		for (; i < haystack.size(); i += 16)
 		{
 			arr1 = _mm_load_si128(reinterpret_cast<const __m128i*>(haystack.data() + i));
-			index = _mm_cmpestri(arr2, needles.size(), arr1, haystack.size() - i, iOperation);
+			index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, static_cast<int>(haystack.size() - i), iOperation);
 
 			if (index < 16)
 			{
@@ -369,7 +318,7 @@ std::size_t kFindLastOfNeedles16(KStringView haystack,
 
 	// load first unaligned block
 	auto arr1  = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(EndAsCharPtr(haystack) - 16));
-	auto index = _mm_cmpestri(arr2, needles.size(), arr1, 16, iOperation);
+	auto index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, 16, iOperation);
 
 	if (index < 16)
 	{
@@ -394,7 +343,7 @@ std::size_t kFindLastOfNeedles16(KStringView haystack,
 		for (;;)
 		{
 			arr1  = _mm_load_si128(reinterpret_cast<const __m128i*>(p));
-			index = _mm_cmpestri(arr2, needles.size(), arr1, 16, iOperation);
+			index = _mm_cmpestri(arr2, static_cast<int>(needles.size()), arr1, 16, iOperation);
 
 			if (index < 16)
 			{
@@ -463,7 +412,7 @@ std::size_t scanHaystackBlock(KStringView haystack,
 	for (; j < needles.size(); j += 16)
 	{
 		arr2       = _mm_load_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
-		auto index = _mm_cmpestri(arr2, needles.size() - j, arr1, useSize, 0);
+		auto index = _mm_cmpestri(arr2, static_cast<int>(needles.size() - j), arr1, useSize, 0);
 		b          = std::min(index, b);
 	}
 
@@ -503,7 +452,7 @@ std::size_t scanHaystackBlockNot(KStringView haystack,
 		arr1 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx));
 	}
 
-	std::size_t useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
+	int useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
 
 	// This load is safe because needles.size() >= 16
 	__m128i arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needles.data()));
@@ -516,7 +465,7 @@ std::size_t scanHaystackBlockNot(KStringView haystack,
 	for (; j < needles.size(); j += 16)
 	{
 		arr2 = _mm_load_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
-		OperatorOrEqual(mask, _mm_cmpestrm(arr2, needles.size() - j, arr1, useSize, 0b00000000));
+		OperatorOrEqual(mask, _mm_cmpestrm(arr2, static_cast<int>(needles.size() - j), arr1, useSize, 0b00000000));
 	}
 
 #ifndef _MSC_VER
@@ -530,7 +479,7 @@ std::size_t scanHaystackBlockNot(KStringView haystack,
 
 	auto b = kBitCountRightOne(val);
 
-	if (static_cast<std::size_t>(b) < useSize)
+	if (b < useSize)
 	{
 		return blockStartIdx + b;
 	}
@@ -577,7 +526,7 @@ std::size_t reverseScanHaystackBlock(KStringView haystack,
 	for (; j < needles.size(); j += 16)
 	{
 		arr2 = _mm_load_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
-		auto index = _mm_cmpestri(arr2, needles.size() - j, arr1, useSize, 0b01000000);
+		auto index = _mm_cmpestri(arr2, static_cast<int>(needles.size() - j), arr1, useSize, 0b01000000);
 
 		if (index < useSize)
 		{
@@ -628,7 +577,7 @@ std::size_t reverseScanHaystackBlockNot(KStringView haystack,
 		arr1 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(haystack.data() + blockStartIdx));
 	}
 
-	unsigned long useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
+	int useSize = std::min(16, static_cast<int>(haystack.size() - blockStartIdx));
 
 	__m128i arr2 = _mm_lddqu_si128(reinterpret_cast<const __m128i*>(needles.data()));
 	__m128i mask = _mm_cmpestrm(arr2, 16, arr1, useSize, 0);
@@ -638,7 +587,7 @@ std::size_t reverseScanHaystackBlockNot(KStringView haystack,
 	for (; j < needles.size(); j += 16)
 	{
 		arr2 = _mm_load_si128(reinterpret_cast<const __m128i*>(needles.data() + j));
-		OperatorOrEqual(mask, _mm_cmpestrm(arr2, needles.size() - j, arr1, useSize, 0));
+		OperatorOrEqual(mask, _mm_cmpestrm(arr2, static_cast<int>(needles.size() - j), arr1, useSize, 0));
 	}
 
 #ifndef _MSC_VER
@@ -661,9 +610,9 @@ std::size_t reverseScanHaystackBlockNot(KStringView haystack,
 
 	auto b = 16 - (kBitCountLeftZero(val) + 1); // CLZ + 1 will be the last thing that was a 0
 
-	if (static_cast<std::size_t>(b) < useSize) // b can only be valid if the index is within the haystack
+	if (b >= 0 && b < useSize) // b can only be valid if the index is within the haystack
 	{
-		return blockStartIdx + static_cast<std::size_t>(b);
+		return blockStartIdx + b;
 	}
 
 	return KStringView::npos;

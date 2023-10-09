@@ -60,7 +60,7 @@ namespace dekaf2 {
 void* memrchr(const void* s, int c, size_t n)
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_X86_64
+#if DEKAF2_FIND_FIRST_OF_USE_SIMD
 #ifdef DEKAF2_HAS_MINIFOLLY
 	static bool has_sse42 = dekaf2::Dekaf::getInstance().GetCpuId().sse42();
 	if (DEKAF2_LIKELY(has_sse42))

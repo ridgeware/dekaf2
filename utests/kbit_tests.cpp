@@ -109,14 +109,19 @@ TEST_CASE("KBit")
 	{
 		constexpr double f64v = 19880124.0;
 #ifdef DEKAF2_BITS_HAS_BITCAST
+		// unfortunately gcc 10 comes with bitcast, but without it being constexpr..
+#if !DEKAF2_IS_GCC || DEKAF2_GCC_VERSION_MAJOR > 10
 		constexpr
+#endif
 #endif
 		auto u64v = kBitCast<std::uint64_t>(f64v);
 		CHECK ( kBitCast<double>(u64v) == f64v ); // round-trip
 
 		constexpr std::uint64_t u64v2 = 0x3fe9000000000000ull;
 #ifdef DEKAF2_BITS_HAS_BITCAST
+#if !DEKAF2_IS_GCC || DEKAF2_GCC_VERSION_MAJOR > 10
 		constexpr
+#endif
 #endif
 		auto f64v2 = kBitCast<double>(u64v2);
 		CHECK ( kBitCast<std::uint64_t>(f64v2) == u64v2 ); // round-trip

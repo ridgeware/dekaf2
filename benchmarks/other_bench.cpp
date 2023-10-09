@@ -461,7 +461,7 @@ void dtime()
 
 		for (size_t count = 0; count < 1024*1024; ++count)
 		{
-			time_t a = Dekaf::getInstance().GetCurrentTime();
+			auto a = Dekaf::getInstance().GetCurrentTime();
 			dekaf2::KProf::Force(&a);
 		}
 	}

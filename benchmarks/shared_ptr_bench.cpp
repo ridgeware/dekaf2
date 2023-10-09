@@ -65,7 +65,7 @@ void shared_ptr_bench()
 {
 	KString sPage;
 	sPage.reserve(60000);
-	enum { STRSIZE = 1000 };
+	constexpr KStringView::size_type STRSIZE = 1000;
 	for (uint32_t ct = 0; ct < 1000; ++ct)
 	{
 		sPage += "1234567889012345678901234567890123456789012345678901234567890\r\n";

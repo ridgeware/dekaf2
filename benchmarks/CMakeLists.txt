@@ -23,6 +23,7 @@ set (SOURCES
 	khtml_bench.cpp
 	kbitfields_bench.cpp
 	kcasestring_bench.cpp
+	kfindsetofchars_bench.cpp
 	kprops_bench.cpp
 	kreader_bench.cpp
 	kstring_bench.cpp

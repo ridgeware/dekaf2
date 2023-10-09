@@ -15,6 +15,7 @@ extern void kcasestring_bench();
 extern void kxml_bench();
 extern void khtmlparser_bench();
 extern void kutf8_bench();
+extern void kfindsetofchars_bench();
 
 using namespace dekaf2;
 
@@ -31,6 +32,7 @@ int main()
 	kprops_bench();
 	kwriter_bench();
 	kreader_bench();
+	kfindsetofchars_bench();
 	std_string_bench();
 	kstring_bench();
 	kstringview_bench();

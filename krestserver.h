@@ -232,7 +232,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// set success status code and corresponding default status string - for errors throw a KHTTPError..
 	/// @param iCode a HTTP success status code
-	void SetStatus(int iCode);
+	void SetStatus(int iCode, KStringView sOptionalStatusString="");
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

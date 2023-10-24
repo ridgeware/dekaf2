@@ -8043,6 +8043,67 @@ KSQLString KSQL::FormGroupBy (uint8_t iNumCols)
 } // FormGroupBy
 
 //-----------------------------------------------------------------------------
+KString KSQL::ToYYYYMMDD (KString/*copy*/ sDate)
+//-----------------------------------------------------------------------------
+{
+	KString sYYYYMMDD{sDate};
+
+	if (sDate)
+	{
+		sDate.ClipAt (" "); // trim off any vestiage of time
+		sDate.Replace ("-"," ", /*all=*/true);
+		sDate.Replace ("/"," ", /*all=*/true);
+		auto parts = sDate.Split(" ");
+		if ((parts.size() <= 3) && (parts.size() >= 2))
+		{
+			auto iPart1 = parts[0].UInt16();
+			auto iPart2 = parts[1].UInt16();
+			auto iPart3 = (parts.size() ==3) ? parts[2].UInt16() : 0;
+
+			uint16_t iYear;
+			uint16_t iMonth;
+			uint16_t iDay;
+
+			if (iPart1 >= 1965)
+			{
+				// yyyy - m - d
+				iYear  = iPart1;
+				iMonth = iPart2;
+				iDay   = iPart3;
+			}
+			else
+			{
+				// m / d / [yyyy]   <-- if its all numbers, assume American format 
+				iMonth = iPart1;
+				iDay   = iPart2;
+				iYear  = iPart3 ? iPart3 : kFormTimestamp(kNow(),"%Y").UInt16();
+			}
+
+			sYYYYMMDD.Format ("{:04}-{:02}-{:02}", iYear, iMonth, iDay);
+		}
+	}
+
+	kDebug (1, "date={}, yyyymmdd={}", sDate, sYYYYMMDD);
+
+	return sYYYYMMDD;
+
+} // ToYYYYMMDD
+
+//-----------------------------------------------------------------------------
+KString KSQL::FullDay (KStringView sDate)
+//-----------------------------------------------------------------------------
+{
+	if (!sDate)
+	{
+		return "";
+	}
+
+	auto sYYYYMMDD = ToYYYYMMDD (sDate);
+	return kFormat ("{} 00:00:00,{} 23:59:59", sYYYYMMDD, sYYYYMMDD);
+
+} // FullDay
+
+//-----------------------------------------------------------------------------
 bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KSQLString& sOrderBy, const KJSON& Config)
 //-----------------------------------------------------------------------------
 {

@@ -767,8 +767,15 @@ public:
 
 	/// helper method to form AND clauses for dynamic SQL.
 	KSQLString FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm, FAC iFlags=FAC::FAC_NORMAL, KStringView sSplitBy=",");
+
 	/// general purpose helper to create "group by 1,2,3,4..."
 	static KSQLString FormGroupBy (uint8_t iNumCols);
+
+	/// static helper for parsing and formatting dates
+	static KString ToYYYYMMDD (KString/*copy*/ sDate);
+
+	/// static helper to bracket an entire day used by FormAndClause
+	static KString FullDay (KStringView sDate);
 
 	/// General purpose helper method to create "order by X.column1 desc, Y.column2, ..."
 	/// Designed to support (among other things) ANT table sorting.

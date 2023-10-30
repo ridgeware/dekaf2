@@ -44,6 +44,7 @@
 
 #include "bits/kcppcompat.h"
 #include "kdate.h"
+#include "kstring.h"
 #include <vector>
 #include <type_traits>
 
@@ -102,7 +103,7 @@ public:
 	/// we convert automatically into time_t durations, which are counted in seconds..
 	template<typename TimeT,
 			 typename std::enable_if<std::is_same<std::time_t, TimeT>::value, int>::type = 0>
-	constexpr operator                  TimeT()          const { return seconds().count(); }
+	constexpr operator                  TimeT()         const { return seconds().count(); }
 
 	/// returns elapsed nanoseconds as duration type
 	constexpr chrono::nanoseconds       nanoseconds()  const { return duration<chrono::nanoseconds>();  }
@@ -124,6 +125,36 @@ public:
 	constexpr chrono::months            months()       const { return duration<chrono::months>();            }
 	/// returns elapsed years as duration type
 	constexpr chrono::years             years()        const { return duration<chrono::years>();             }
+
+	/// output format for ToString()
+	enum Format
+	{
+		Smart = 0, ///< human readable, auto adapting to value
+		Long,      ///< verbose ("1 yr, 2 wks, 3 days, 6 hrs, 23 min, 10 sec")
+		Brief      ///< brief, auto adapting to value, same size for all ("23.2 ms", "421.3 us")
+	};
+
+	/// minimum interval to use for ToString()
+	enum BaseInterval
+	{
+		NanoSeconds = 0,
+		MilliSeconds,
+		MicroSeconds,
+		Seconds,
+		Minutes,
+		Hours,
+		Days,
+		Weeks,
+		Years
+	};
+
+	/// returns formatted string with duration
+	/// @param format one of Smart, Long, Brief, default Smart
+	/// @param Interval minimum interval (resolution)
+	/// @param iPrecision floating point precision to use for Brief format
+	KString ToString(Format       Format     = Format::Smart,
+					 BaseInterval Interval   = BaseInterval::NanoSeconds,
+					 uint8_t      iPrecision = 1) const;
 
 }; // KDuration
 
@@ -446,11 +477,6 @@ private:
 
 #include "kformat.h"
 
-namespace dekaf2
-{
-	extern KString kTranslateDuration(const KDuration& Duration, bool bLongForm, KStringView sMinInterval);
-}
-
 namespace fmt
 {
 
@@ -460,7 +486,7 @@ struct formatter<dekaf2::KDuration> : formatter<string_view>
 	template <typename FormatContext>
 	auto format(const dekaf2::KDuration& Duration, FormatContext& ctx) const
 	{
-		return formatter<string_view>::format(dekaf2::kTranslateDuration(Duration, false, "nanosecond"), ctx);
+		return formatter<string_view>::format(Duration.ToString(dekaf2::KDuration::Format::Smart, dekaf2::KDuration::BaseInterval::NanoSeconds), ctx);
 	}
 };
 

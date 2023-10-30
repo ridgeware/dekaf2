@@ -974,7 +974,7 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 
 		if (m_Serializer->Matches(m_bEGrep, m_bInvertedGrep, m_sGrepExpression))
 		{
-			m_Logger->Write(iLevel, m_Serializer->IsMultiline(), m_Serializer->Get());
+			m_Logger->Write(iLevel, m_Serializer->IsMultiline(), m_Serializer->Get(GetUSecMode()));
 		}
 	}
 

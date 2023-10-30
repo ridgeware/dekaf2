@@ -1088,9 +1088,11 @@ DEKAF2_PUBLIC                            KString kTranslateSeconds    (int64_t i
 /// Form a string that expresses a duration
 /// @param Duration a KDuration value
 /// @param bLongForm set to true for verbose output: verbose = "3 days, 23 hrs, 47 mins, 16 secs", condensed = "2.2 wks"
-/// @param sMinInterval unit to display if duration is 0 ("less than a ...")
 /// @return the output string
-DEKAF2_PUBLIC                            KString kTranslateDuration   (const KDuration& Duration, bool bLongForm = false, KStringView sMinInterval = "nanosecond");
+DEKAF2_PUBLIC inline                     KString kTranslateDuration   (const KDuration& Duration, bool bLongForm = false, KDuration::BaseInterval Interval = KDuration::BaseInterval::NanoSeconds)
+{
+	return Duration.ToString(bLongForm ? KDuration::Format::Long : KDuration::Format::Smart, Interval);
+}
 
 
 /// converts to string

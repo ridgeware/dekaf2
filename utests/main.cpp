@@ -77,15 +77,17 @@ int main( int argc, char* const argv[] )
 		if (kStrIn (argv[ii], "-k,-kk,-kkk"))
 		{
 			iLast = ii;
-			KLog::getInstance().SetLevel(static_cast<int>(strlen(argv[ii]) - 1));
-			KLog::getInstance().SetDebugLog(KLog::STDOUT);
+			KLog::getInstance()
+				.SetLevel(static_cast<int>(strlen(argv[ii]) - 1))
+				.SetDebugLog(KLog::STDOUT);
 			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
 		else if (kStrIn (argv[ii], "-k0"))
 		{
 			iLast = ii;
-			KLog::getInstance().SetLevel( 0 );
-			KLog::getInstance().SetDebugLog(KLog::STDOUT);
+			KLog::getInstance()
+				.SetLevel( 0 )
+				.SetDebugLog(KLog::STDOUT);
 			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
 		else if (kStrIn (argv[ii], "-dgrep,-dgrepv"))
@@ -100,8 +102,9 @@ int main( int argc, char* const argv[] )
 				{
 					KLog::getInstance().SetLevel (3);
 				}
-				KLog::getInstance().SetDebugLog (KLog::STDOUT);
-				KLog::getInstance().LogWithGrepExpression(true, KStringView(argv[ii-1]) == "-dgrepv"_ksv, argv[ii]);
+				KLog::getInstance()
+					.LogWithGrepExpression(true, KStringView(argv[ii-1]) == "-dgrepv"_ksv, argv[ii])
+					.SetDebugLog (KLog::STDOUT);
 			}
 		}
 
@@ -115,17 +118,15 @@ int main( int argc, char* const argv[] )
 		}
 	}
 
-#ifndef DEKAF2_DO_NOT_WARN_ABOUT_COW_STRING
-#if _GLIBCXX_USE_CXX11_ABI
-	bool old_ABI = false;
-#else
-	bool old_ABI = true;
-#endif
+	// switch microseconds logging on
+	KLog::getInstance()
+		.SetUSecMode(true);
 
-	if (stdstring_supports_cow() || old_ABI)
+#ifndef DEKAF2_DO_NOT_WARN_ABOUT_COW_STRING
+	if (stdstring_supports_cow())
 	{
 		std::cout << "Warning: The std::string implementation you use works with Copy On Write.\n";
-		std::cout << "         This is a bad thing! Beside reducing performance in modern C++,\n";
+		std::cout << "         This is an issue! Beside reducing performance in modern C++,\n";
 		std::cout << "         it is also not legal starting with the C++11 standard.\n";
 		std::cout << "         Make sure you switch to using -D_GLIBCXX_USE_CXX11_ABI=1 when\n";
 		std::cout << "         invoking g++ ! And if RedHat does not let you do so, then\n";

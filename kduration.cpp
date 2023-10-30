@@ -51,6 +51,308 @@ KStopWatch::ConstructHalted KStopWatch::Halted;
 #endif
 
 //-----------------------------------------------------------------------------
+KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPrecision) const
+//-----------------------------------------------------------------------------
+{
+	KString sOut;
+
+	using int_t = Duration::rep;
+
+	//-----------------------------------------------------------------------------
+	auto PrintInt = [&sOut](KStringView sLabel, int_t iValue, char chPlural = 's')
+	//-----------------------------------------------------------------------------
+	{
+		if (iValue)
+		{
+			if (!sOut.empty())
+			{
+				sOut += ", ";
+			}
+
+			sOut += KString::to_string(iValue);
+			sOut += ' ';
+			sOut += sLabel;
+
+			if (iValue > 1 && chPlural)
+			{
+				sOut += chPlural;
+			}
+		}
+
+	}; // PrintInt
+
+	//-----------------------------------------------------------------------------
+	auto PrintFloat = [&sOut,&PrintInt](KStringView sLabel, int_t iValue, int_t iDivider, uint8_t iPrecision, char chPlural = 's')
+	//-----------------------------------------------------------------------------
+	{
+		// we use chPlural as a flag here - if it is 0, no abbreviated value representation
+		// is wanted (into which we otherwise flip if there is no remainder after division)
+		if (chPlural && iValue % iDivider == 0)
+		{
+			PrintInt(sLabel, iValue / iDivider, chPlural);
+		}
+		else
+		{
+			KStringView sFormat;
+
+			if (iPrecision >= 3)
+			{
+				sFormat = "{:.3f} {}";
+			}
+			else if (iPrecision == 2)
+			{
+				sFormat = "{:.2f} {}";
+			}
+			else if (iPrecision == 1)
+			{
+				sFormat = "{:.1f} {}";
+			}
+			else if (iPrecision == 0)
+			{
+				sFormat = "{:.0f} {}";
+			}
+
+			sOut = kFormat(sFormat, (double)iValue / (double)iDivider, sLabel);
+
+			if (chPlural)
+			{
+				sOut += chPlural;
+			}
+		}
+
+	}; // PrintFloat
+
+	auto IntervalToString = [](BaseInterval Interval, bool bLong) -> KStringView
+	{
+		if (!bLong)
+		{
+			switch (Interval)
+			{
+				case NanoSeconds : return "ns";
+				case MicroSeconds: return "us";
+				case MilliSeconds: return "ms";
+				case Seconds     : return "s";
+				case Minutes     : return "m";
+				case Hours       : return "h";
+				case Days        : return "d";
+				case Weeks       : return "w";
+				case Years       : return "y";
+			}
+		}
+		else
+		{
+			switch (Interval)
+			{
+				case NanoSeconds : return "nanosecond";
+				case MicroSeconds: return "microsecond";
+				case MilliSeconds: return "millisecond";
+				case Seconds     : return "second";
+				case Minutes     : return "minute";
+				case Hours       : return "hour";
+				case Days        : return "day";
+				case Weeks       : return "week";
+				case Years       : return "year";
+			}
+		}
+	};
+
+	static constexpr int_t NANOSECS_PER_MICROSEC = (1000);
+	static constexpr int_t NANOSECS_PER_MILLISEC = (1000*1000);
+	static constexpr int_t NANOSECS_PER_SEC      = (1000*1000*1000);
+	static constexpr int_t NANOSECS_PER_MIN      = (60*NANOSECS_PER_SEC);
+	static constexpr int_t NANOSECS_PER_HOUR     = (60*60*NANOSECS_PER_SEC);
+	static constexpr int_t NANOSECS_PER_DAY      = (60*60*24*NANOSECS_PER_SEC);
+	static constexpr int_t NANOSECS_PER_WEEK     = (60*60*24*7*NANOSECS_PER_SEC);
+	static constexpr int_t NANOSECS_PER_YEAR     = (60*60*24*365*NANOSECS_PER_SEC);
+
+	int_t iNanoSecs   = nanoseconds().count();
+	bool  bIsNegative = iNanoSecs < 0;
+
+	if (bIsNegative && Format == Format::Long)
+	{
+		Format = Format::Smart;
+	}
+
+	if (iNanoSecs == 0)
+	{
+		if (Format == Format::Brief)
+		{
+			PrintFloat(IntervalToString(Interval, false), 0, 1, iPrecision, 0);
+		}
+		else
+		{
+			sOut  = "less than a ";
+			sOut += IntervalToString(Interval, true);
+		}
+		return sOut;
+	}
+
+	switch (Format)
+	{
+		// e.g. "1 yr, 2 wks, 3 days, 6 hrs, 23 min, 10 sec"
+		case Format::Long:
+		{
+			auto PrintLong = [&iNanoSecs,&PrintInt](KStringView sLabel, int_t iDivider)
+			{
+				auto iValue = iNanoSecs / iDivider;
+				iNanoSecs  -= (iValue * iDivider);
+				PrintInt (sLabel, iValue );
+			};
+
+			PrintLong("yr" , NANOSECS_PER_YEAR);
+			PrintLong("wk" , NANOSECS_PER_WEEK);
+			PrintLong("day", NANOSECS_PER_DAY );
+			PrintLong("hr" , NANOSECS_PER_HOUR);
+			PrintLong("min", NANOSECS_PER_MIN );
+			PrintLong("sec", NANOSECS_PER_SEC );
+
+			if (iNanoSecs)
+			{
+				PrintLong("msec" , NANOSECS_PER_MILLISEC);
+				PrintLong("usec" , NANOSECS_PER_MICROSEC);
+				PrintInt ("nsec" , iNanoSecs);
+			}
+		}
+		break;
+
+		// short same length format, e.g. "103.23 us"
+		case Format::Brief:
+		{
+			// the parens are important to avoid a clash with defined min and max macros,
+			// particularly on windows
+			if (iNanoSecs <= (std::numeric_limits<int_t>::min)())
+			{
+				sOut = "> -292.5 y";
+			}
+			else
+			{
+				std::make_unsigned<int_t>::type iAbsNanoSecs = std::abs(iNanoSecs);
+
+				if (iAbsNanoSecs >= NANOSECS_PER_YEAR || Interval == BaseInterval::Years)
+				{
+					PrintFloat ("y ", iNanoSecs, NANOSECS_PER_YEAR, iPrecision, 0);
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_WEEK || Interval == BaseInterval::Weeks)
+				{
+					PrintFloat ("w ", iNanoSecs, NANOSECS_PER_WEEK, iPrecision, 0);
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_DAY || Interval == BaseInterval::Days)
+				{
+					PrintFloat ("d ", iNanoSecs, NANOSECS_PER_DAY, iPrecision, 0);
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_HOUR || Interval == BaseInterval::Hours)
+				{
+					PrintFloat ("h ", iNanoSecs, NANOSECS_PER_HOUR, iPrecision, 0);
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_MIN || Interval == BaseInterval::Minutes)
+				{
+					PrintFloat ("m ", iNanoSecs, NANOSECS_PER_MIN, iPrecision, 0);
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_SEC || Interval == BaseInterval::Seconds)
+				{
+					PrintFloat ("s ", iNanoSecs, NANOSECS_PER_SEC, iPrecision, 0);
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_MILLISEC || Interval == BaseInterval::MilliSeconds)
+				{
+					PrintFloat ("ms", iNanoSecs, NANOSECS_PER_MILLISEC, iPrecision, 0);
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_MICROSEC || Interval == BaseInterval::MicroSeconds)
+				{
+					PrintFloat ("us", iNanoSecs, NANOSECS_PER_MICROSEC, iPrecision, 0);
+				}
+				else
+				{
+					PrintFloat ("ns", iNanoSecs, 1, iPrecision, 0);
+				}
+			}
+		}
+		break;
+
+		// smarter, generally more useful logic: display something that makes sense
+		case Format::Smart:
+		{
+			// the parens are important to avoid a clash with defined min and max macros,
+			// particularly on windows
+			if (iNanoSecs <= (std::numeric_limits<int_t>::min)())
+			{
+				sOut = "a very long negative time"; // < -292.5 years
+			}
+			else
+			{
+				std::make_unsigned<int_t>::type iAbsNanoSecs = std::abs(iNanoSecs);
+
+				if (iAbsNanoSecs >= NANOSECS_PER_YEAR)
+				{
+					PrintFloat ("yr" , iNanoSecs, NANOSECS_PER_YEAR, 1);
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_WEEK)
+				{
+					PrintFloat ("wk" , iNanoSecs, NANOSECS_PER_WEEK, 1);
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_DAY)
+				{
+					PrintFloat ("day", iNanoSecs, NANOSECS_PER_DAY, 1);
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_HOUR)
+				{
+					if (bIsNegative)
+					{
+						PrintFloat ("hour", iNanoSecs, NANOSECS_PER_HOUR, 1);
+					}
+					else
+					{
+						// show hours and minutes, but not seconds:
+						auto iHours  = iNanoSecs / NANOSECS_PER_HOUR;
+						iNanoSecs   -= iHours    * NANOSECS_PER_HOUR;
+						auto iMins   = iNanoSecs / NANOSECS_PER_MIN;
+
+						PrintInt ("hr" , iHours);
+						PrintInt ("min", iMins);
+					}
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_MIN)
+				{
+					if (bIsNegative)
+					{
+						PrintFloat ("min", iNanoSecs, NANOSECS_PER_MIN, 1);
+					}
+					else
+					{
+						// show minutes and seconds:
+						auto iMins = iNanoSecs / NANOSECS_PER_MIN;
+						iNanoSecs -= iMins     * NANOSECS_PER_MIN;
+						auto iSecs = iNanoSecs / NANOSECS_PER_SEC;
+
+						PrintInt ("min", iMins);
+						PrintInt ("sec", iSecs);
+					}
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_SEC)
+				{
+					PrintFloat ("sec", iNanoSecs, NANOSECS_PER_SEC, 3);
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_MILLISEC)
+				{
+					PrintFloat ("millisec", iNanoSecs, NANOSECS_PER_MILLISEC, 3);
+				}
+				else if (iAbsNanoSecs >= NANOSECS_PER_MICROSEC)
+				{
+					PrintFloat ("microsec", iNanoSecs, NANOSECS_PER_MICROSEC, 3);
+				}
+				else
+				{
+					PrintFloat ("nanosec", iNanoSecs, 1, 3);
+				}
+			}
+		}
+		break;
+	}
+
+	return sOut;
+
+} // ToString
+
+//-----------------------------------------------------------------------------
 void KMultiDuration::clear()
 //-----------------------------------------------------------------------------
 {

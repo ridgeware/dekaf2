@@ -101,15 +101,19 @@ int main( int argc, char* const argv[] )
 		if (kStrIn (argv[ii], "-d,-dd,-ddd"))
 		{
 			iLast = ii;
-			KLog::getInstance().SetLevel(static_cast<int>(strlen(argv[ii]) - 1));
-			KLog::getInstance().KeepCLIMode(true);
+			KLog::getInstance()
+				.SetLevel(static_cast<int>(strlen(argv[ii]) - 1))
+				.KeepCLIMode(true)
+				.SetDebugLog (KLog::STDOUT);
 			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
 		else if (!strcmp (argv[ii], "-d0"))
 		{
 			iLast = ii;
-			KLog::getInstance().SetLevel( 0 );
-			KLog::getInstance().KeepCLIMode(true);
+			KLog::getInstance()
+				.SetLevel( 0 )
+				.KeepCLIMode(true)
+				.SetDebugLog (KLog::STDOUT);
 			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
 		else if (kStrIn (argv[ii], "-dgrep,-dgrepv"))
@@ -124,9 +128,10 @@ int main( int argc, char* const argv[] )
 				{
 					KLog::getInstance().SetLevel (3);
 				}
-				KLog::getInstance().SetDebugLog (KLog::STDOUT);
-				KLog::getInstance().LogWithGrepExpression(true, KStringView(argv[ii-1]) == "-dgrepv"_ksv, argv[ii]);
-				KLog::getInstance().KeepCLIMode(true);
+				KLog::getInstance()
+					.LogWithGrepExpression(true, KStringView(argv[ii-1]) == "-dgrepv"_ksv, argv[ii])
+					.KeepCLIMode(true)
+					.SetDebugLog (KLog::STDOUT);
 			}
 		}
 		else if (!strcmp(argv[ii], "-dbc"))
@@ -147,6 +152,10 @@ int main( int argc, char* const argv[] )
 			bSynopsis = true;
 		}
 	}
+
+	// switch microseconds logging on
+	KLog::getInstance()
+		.SetUSecMode(true);
 
 	if (g_sDbcFile.empty())
 	{

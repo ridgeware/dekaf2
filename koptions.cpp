@@ -723,16 +723,29 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 	});
 
 #ifdef DEKAF2_WITH_KLOG
+	auto SetKLogDebugging = [](KStringView sArg, KStringView sDebugTo, bool bUSeconds)
+	{
+		int iLevel = (sArg == (bUSeconds ? "ud0" : "d0")) ? 0 : static_cast<int>(sArg.size()) - bUSeconds;
+		KLog::getInstance()
+			.SetLevel    (iLevel)
+			.KeepCLIMode (true)
+			.SetUSecMode (bUSeconds)
+			.SetDebugLog (sDebugTo);
+		kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
+	};
+
 	Option("d0,d,dd,ddd")
 		.Help("increasing optional stdout debug levels", -1)
-	([this,sCliDebugTo]()
+	([this,sCliDebugTo, &SetKLogDebugging]()
 	{
-		auto sArg = GetCurrentArg();
-		auto iLevel = (sArg == "d0") ? 0 : sArg.size();
-		KLog::getInstance().SetLevel    (static_cast<int>(iLevel));
-		KLog::getInstance().SetDebugLog (sCliDebugTo);
-		KLog::getInstance().KeepCLIMode (true);
-		kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
+		SetKLogDebugging(GetCurrentArg(), sCliDebugTo, false);
+	});
+
+	Option("ud0,ud,udd,uddd")
+		.Help("increasing optional stdout debug levels, with microseconds timestamps", -1)
+	([this,sCliDebugTo,&SetKLogDebugging]()
+	 {
+		SetKLogDebugging(GetCurrentArg(), sCliDebugTo, true);
 	});
 
 	Option("dgrep,dgrepv <regex>", "grep expression")

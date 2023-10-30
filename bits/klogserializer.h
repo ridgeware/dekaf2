@@ -89,10 +89,14 @@ protected:
 
 	static KStringView SanitizeFunctionName(KStringView sFunction);
 
+	static              uint64_t  s_iStartThread;
+	static thread_local KUnixTime s_TimeThreadStarted;
+	static thread_local KUnixTime s_TimeLastLogged;
+
 	int         m_iLevel { 0 };
 	pid_t       m_Pid { 0 };
 	uint64_t    m_Tid { 0 }; // tid is 64 bit on OSX
-	KUnixTime   m_Time { 0 };
+	KUnixTime   m_Time;
 	KStringView m_sShortName;
 	KStringView m_sPathName;
 	KStringView m_sFunctionName;
@@ -112,7 +116,7 @@ class DEKAF2_PUBLIC KLogSerializer : public KLogData
 public:
 //----------
 
-	const KString& Get();
+	const KString& Get(bool bHiRes = false);
 	virtual operator KStringView();
 	virtual void Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage) override;
 	bool IsMultiline() const { return m_bIsMultiline; }
@@ -124,7 +128,7 @@ public:
 protected:
 //----------
 
-	virtual void Serialize() = 0;
+	virtual void Serialize(bool bHiRes) = 0;
 
 	KString m_sBuffer;
 	bool m_bIsMultiline;
@@ -142,8 +146,8 @@ class DEKAF2_PUBLIC KLogTTYSerializer : public KLogSerializer
 protected:
 //----------
 
-	virtual void Serialize() override;
-	virtual KString PrintStatus(KStringView sLevel);
+	virtual void Serialize(bool bHiRes) override;
+	virtual KString PrintStatus(KStringView sLevel, bool bHiRes);
 
 	void AddMultiLineMessage(KStringView sPrefix, KStringView sMessage);
 
@@ -162,8 +166,8 @@ class DEKAF2_PUBLIC KLogSyslogSerializer : public KLogTTYSerializer
 protected:
 //----------
 
-	virtual void Serialize() override;
-	
+	virtual void Serialize(bool bHiRes) override;
+
 }; // KLogSyslogSerializer
 
 #endif // of DEKAF2_HAS_SYSLOG
@@ -193,7 +197,7 @@ public:
 protected:
 //----------
 
-	virtual KString PrintStatus(KStringView sLevel) override;
+	virtual KString PrintStatus(KStringView sLevel, bool bHiRes) override;
 
 	KStopTime m_Clock;
 	std::chrono::microseconds m_iElapsedMicroSeconds { 0 };
@@ -211,7 +215,7 @@ class DEKAF2_PUBLIC KLogJSONSerializer : public KLogSerializer
 protected:
 //----------
 
-	virtual void Serialize() override;
+	virtual void Serialize(bool bHiRes) override;
 	KJSON CreateObject() const;
 
 }; // KLogJSONSerializer
@@ -232,7 +236,7 @@ public:
 protected:
 //----------
 
-	virtual void Serialize() override;
+	virtual void Serialize(bool bHiRes) override;
 
 	KJSON& m_json;
 

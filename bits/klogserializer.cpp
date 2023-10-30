@@ -51,18 +51,23 @@
 namespace dekaf2
 {
 
+             uint64_t  KLogData::s_iStartThread      = kGetTid();
+thread_local KUnixTime KLogData::s_TimeThreadStarted = kNow();
+thread_local KUnixTime KLogData::s_TimeLastLogged;
+
 //---------------------------------------------------------------------------
 void KLogData::Set(int iLevel, KStringView sShortName, KStringView sPathName, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-	m_iLevel = iLevel;
-	m_Pid = kGetPid();
-	m_Tid = kGetTid();
-	m_Time = Dekaf::getInstance().GetCurrentTime();
+	m_iLevel        = iLevel;
+	m_Pid           = kGetPid();
+	m_Tid           = kGetTid();
+	m_Time          = kNow();
 	m_sFunctionName = SanitizeFunctionName(sFunction);
-	m_sShortName = sShortName;
-	m_sPathName = sPathName;
-	m_sMessage = sMessage;
+	m_sShortName    = sShortName;
+	m_sPathName     = sPathName;
+	m_sMessage      = sMessage;
+
 	m_sMessage.TrimRight();
 	m_sBacktrace.clear();
 
@@ -94,12 +99,12 @@ KStringView KLogData::SanitizeFunctionName(KStringView sFunction)
 } // SanitizeFunctionName
 
 //---------------------------------------------------------------------------
-const KString& KLogSerializer::Get()
+const KString& KLogSerializer::Get(bool bHiRes)
 //---------------------------------------------------------------------------
 {
 	if (m_sBuffer.empty())
 	{
-		Serialize();
+		Serialize(bHiRes);
 	}
 	return m_sBuffer;
 
@@ -206,7 +211,7 @@ void KLogTTYSerializer::AddMultiLineMessage(KStringView sPrefix, KStringView sMe
 } // HandleMultiLineMessages
 
 //---------------------------------------------------------------------------
-void KLogTTYSerializer::Serialize()
+void KLogTTYSerializer::Serialize(bool bHiRes)
 //---------------------------------------------------------------------------
 {
 	// desired format:
@@ -223,7 +228,7 @@ void KLogTTYSerializer::Serialize()
 		sLevel.Format("DB{}", m_iLevel > 3 ? 3 : m_iLevel);
 	}
 
-	auto sPrefix = PrintStatus(sLevel);
+	auto sPrefix = PrintStatus(sLevel, bHiRes);
 
 	auto PrefixWithoutFunctionSize = sPrefix.size();
 
@@ -258,18 +263,59 @@ void KLogTTYSerializer::Serialize()
 } // Serialize
 
 //---------------------------------------------------------------------------
-KString KLogTTYSerializer::PrintStatus(KStringView sLevel)
+KString KLogTTYSerializer::PrintStatus(KStringView sLevel, bool bHiRes)
 //---------------------------------------------------------------------------
 {
 	// desired format:
 	// | WAR | MYPRO | 17202 | 12345 | 2001-08-24 10:37:04 |
 
-	KString sPrefix;
+	if (!bHiRes)
+	{
+		return kFormat("| {:3.3s} | {:5.5s} | {:5d} | {:5d} | {:%Y-%m-%d %H:%M:%S} | ",
+					   sLevel, m_sShortName, m_Pid, m_Tid, m_Time);
+	}
+	else
+	{
+		auto totalTicks = m_Time - s_TimeThreadStarted;
 
-	sPrefix.Format("| {:3.3s} | {:5.5s} | {:5d} | {:5d} | {} | ",
-				   sLevel, m_sShortName, m_Pid, m_Tid, kFormTimestamp(m_Time));
+		if (totalTicks.duration() < KDuration::duration::zero())
+		{
+			// sometimes we get small negative durations - remove
+			// them to not confuse readers
+			totalTicks = KDuration();
+		}
 
-	return sPrefix;
+		KDuration thisTicks;
+		
+		if (s_TimeLastLogged.time_since_epoch() > KUnixTime::time_point::duration::zero())
+		{
+			thisTicks  = m_Time - s_TimeLastLogged;
+
+			if (thisTicks.duration() < KDuration::duration::zero())
+			{
+				// sometimes we get small negative durations - remove
+				// them to not confuse readers
+				thisTicks = KDuration();
+			}
+		}
+		
+		s_TimeLastLogged = m_Time;
+
+#ifdef DEKAF2_IS_MACOS
+		uint64_t iThread = m_Tid - s_iStartThread;
+		constexpr KDuration::BaseInterval Interval = KDuration::BaseInterval::MicroSeconds;
+#else
+		uint64_t iThread = m_Tid < s_iStartThread ? m_Tid + 65535 - s_iStartThread : m_Tid - s_iStartThread;
+		constexpr KDuration::BaseInterval Interval = KDuration::BaseInterval::NanoSeconds;
+#endif
+
+		return kFormat("| {:%H:%M:%S} | {:5d} | {:5d} | + {:>6.6s} | {:>6.6s} | ",
+					   m_Time,
+					   m_Pid,
+					   iThread,
+					   thisTicks .ToString(KDuration::Format::Brief, Interval, 0),
+					   totalTicks.ToString(KDuration::Format::Brief, Interval, 0));
+	}
 
 } // Serialize
 
@@ -313,17 +359,13 @@ KString KLogHTTPHeaderSerializer::GetTimeStamp(KStringView sWhat)
 } // GetTimeStamp
 
 //---------------------------------------------------------------------------
-KString KLogHTTPHeaderSerializer::PrintStatus(KStringView sLevel)
+KString KLogHTTPHeaderSerializer::PrintStatus(KStringView sLevel, bool bHiRes)
 //---------------------------------------------------------------------------
 {
 	// desired format:
 	// | WAR |      12345 |
 
-	KString sPrefix;
-
-	sPrefix.Format("| {:3.3s} | {:>10.10s} | ", sLevel, kFormNumber(m_iElapsedMicroSeconds.count()));
-
-	return sPrefix;
+	return kFormat("| {:3.3s} | {:>10.10s} | ", sLevel, kFormNumber(m_iElapsedMicroSeconds.count()));
 
 } // Serialize
 
@@ -336,7 +378,9 @@ KJSON KLogJSONSerializer::CreateObject() const
 	json["level"] = m_iLevel;
 	json["pid"] = m_Pid;
 	json["tid"] = m_Tid;
-	json["time_t"] = m_Time.to_time_t();
+	auto ttime = m_Time.to_time_t();
+	json["time_t"] = ttime;
+	json["usecs"] = (m_Time - KUnixTime(ttime)).microseconds().count();
 	json["short_name"] = m_sShortName;
 	json["path_name"] = m_sPathName;
 	json["function_name"] = m_sFunctionName;
@@ -347,7 +391,7 @@ KJSON KLogJSONSerializer::CreateObject() const
 } // Serialize
 
 //---------------------------------------------------------------------------
-void KLogJSONSerializer::Serialize()
+void KLogJSONSerializer::Serialize(bool bHiRes)
 //---------------------------------------------------------------------------
 {
 	m_sBuffer.reserve(m_sShortName.size()
@@ -367,7 +411,7 @@ void KLogJSONSerializer::Serialize()
 #endif
 #endif
 //---------------------------------------------------------------------------
-void KLogJSONArraySerializer::Serialize()
+void KLogJSONArraySerializer::Serialize(bool bHiRes)
 //---------------------------------------------------------------------------
 {
 	if (m_json.is_array())
@@ -387,7 +431,7 @@ void KLogJSONArraySerializer::Serialize()
 #ifdef DEKAF2_HAS_SYSLOG
 
 //---------------------------------------------------------------------------
-void KLogSyslogSerializer::Serialize()
+void KLogSyslogSerializer::Serialize(bool bHiRes)
 //---------------------------------------------------------------------------
 {
 	KString sPrefix(m_sFunctionName);

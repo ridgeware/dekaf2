@@ -209,6 +209,30 @@ public:
 #endif
 
 	//---------------------------------------------------------------------------
+	/// display microsecond timestamps, and remove fields not needed for performance debugging like
+	/// year/month/day
+	self& SetUSecMode(bool bYesNo)
+	//---------------------------------------------------------------------------
+	{
+#ifdef DEKAF2_WITH_KLOG
+		m_bIsUSecMode = bYesNo;
+#endif
+		return *this;
+	}
+
+	//---------------------------------------------------------------------------
+	/// get state of microsecond mode
+	bool GetUSecMode()
+	//---------------------------------------------------------------------------
+	{
+#ifdef DEKAF2_WITH_KLOG
+		return m_bIsUSecMode;
+#else
+		return false;
+#endif
+	}
+
+	//---------------------------------------------------------------------------
 	/// Get level at which back traces are automatically generated.
 	inline int GetBackTraceLevel() const
 	//---------------------------------------------------------------------------
@@ -675,7 +699,7 @@ private:
 	std::recursive_mutex m_LogMutex;
 
 	int m_iBackTrace { -2 };
-	KUnixTime m_sTimestampFlagfile { 0 };
+	KUnixTime m_sTimestampFlagfile;
 	std::unique_ptr<KLogSerializer> m_Serializer;
 	std::unique_ptr<KLogWriter> m_Logger;
 	// the m_Traces vector is protected by the s_LogMutex
@@ -691,14 +715,15 @@ private:
 	bool m_bGlobalShouldShowStackOnJsonError { true };
 #endif
 	bool m_bGlobalShouldOnlyShowCallerOnJsonError { false };
-	bool m_bHadConfigFromFlagFile { false };
-	bool m_bLogIsRegularFile { false };
-	bool m_bIsCGI { false }; // we need this bool on top of m_Logmode for the constructor
-	bool m_bEGrep { false };
-	bool m_bInvertedGrep { false };
-	bool m_bKeepCLIMode { false };
+	bool m_bHadConfigFromFlagFile  { false };
+	bool m_bLogIsRegularFile       { false };
+	bool m_bIsCGI                  { false }; // we need this bool on top of m_Logmode for the constructor
+	bool m_bEGrep                  { false };
+	bool m_bInvertedGrep           { false };
+	bool m_bKeepCLIMode            { false };
+	bool m_bIsUSecMode             { false };
 
-	LOGMODE m_Logmode { CLI };
+	LOGMODE m_Logmode              { CLI   };
 
 #endif // of ifdef DEKAF2_WITH_KLOG
 

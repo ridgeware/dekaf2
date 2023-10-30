@@ -158,6 +158,17 @@ kurl::kurl ()
 	});
 
 	m_CLI
+		.Option("A,user-agent <useragent>", "user agent string")
+		.Help("set user agent header for the request")
+	([&](KStringViewZ sUserAgent)
+	{
+		if (m_Config.Headers.insert ({"User-Agent", sUserAgent}).second == false)
+		{
+			throw KOptions::Error("user agent header already set");
+		}
+	});
+
+	m_CLI
 		.Option("m,mime <MIME>", "request MIME type")
 		.Help("set MIME type for the request")
 	([&](KStringViewZ sMIME)

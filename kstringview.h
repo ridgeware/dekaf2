@@ -1424,7 +1424,7 @@ public:
 	size_type find_first_not_of(value_type ch, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return find_first_not_of(self_type(&ch, 1), pos);
+		return kFindNot(*this, ch, pos);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1452,7 +1452,7 @@ public:
 	size_type find_last_not_of(value_type ch, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return find_last_not_of(self_type(&ch, 1), pos);
+		return kRFindNot(*this, ch, pos);
 	}
 
 	//-----------------------------------------------------------------------------

@@ -315,10 +315,12 @@ size_t kFindLastOfInt(
 		return KStringView::npos;
 	}
 
+#if !DEKAF2_FIND_FIRST_OF_USE_SIMD
 	if (DEKAF2_UNLIKELY(needle.size() == 1))
 	{
 		return kRFind(haystack, needle[0], pos);
 	}
+#endif
 
 	if (DEKAF2_UNLIKELY(pos < haystack.size()))
 	{

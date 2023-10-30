@@ -154,6 +154,7 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 				case Years       : return "year";
 			}
 		}
+		return ""; // gcc ..
 	};
 
 	static constexpr int_t NANOSECS_PER_MICROSEC = (1000);

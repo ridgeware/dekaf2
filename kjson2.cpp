@@ -218,6 +218,29 @@ KJSON2::StringT KJSON2::dump(int iIndent, char chIndent, bool bEnsureASCII, cons
 }
 
 //-----------------------------------------------------------------------------
+void KJSON2::Serialize (OStreamT& ostream, bool bPretty) const
+//-----------------------------------------------------------------------------
+{
+	if (!bPretty)
+	{
+#ifdef DEKAF2
+		ostream.OutStream() << ToBase();
+#else
+		ostream << ToBase();
+#endif
+	}
+	else
+	{
+#ifdef DEKAF2
+		ostream.OutStream() << std::setw(1) << std::setfill('\t') << ToBase();
+#else
+		ostream << std::setw(1) << std::setfill('\t') << ToBase();
+#endif
+	}
+
+} // Serialize
+
+//-----------------------------------------------------------------------------
 bool KJSON2::Parse(StringViewT sJson, bool bThrow)
 //-----------------------------------------------------------------------------
 {
@@ -250,7 +273,8 @@ bool KJSON2::Parse(StringViewT sJson, bool bThrow)
 	}
 
 	return !is_null();
-}
+
+} // Parse
 
 //-----------------------------------------------------------------------------
 bool KJSON2::Parse(IStreamT& istream, bool bThrow)
@@ -283,7 +307,8 @@ bool KJSON2::Parse(IStreamT& istream, bool bThrow)
 	}
 
 	return !is_null();
-}
+
+} // Parse
 
 //-----------------------------------------------------------------------------
 KJSON2::const_reference KJSON2::Object(const_reference Default) const noexcept
@@ -322,7 +347,7 @@ const KJSON2::StringT& KJSON2::ConstString() const noexcept
 
 	return s_sEmpty;
 
-} // String
+} // ConstString
 
 //-----------------------------------------------------------------------------
 KJSON2::StringT& KJSON2::String(StringViewT sDefault)
@@ -374,7 +399,7 @@ KJSON2::StringT KJSON2::Print(StringViewT sDefault, bool bSerializeAll) const
 
 	return StringT(sDefault);
 
-} // String
+} // Print
 
 //-----------------------------------------------------------------------------
 uint64_t KJSON2::UInt64(uint64_t iDefault) const noexcept

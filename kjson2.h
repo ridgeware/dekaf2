@@ -531,9 +531,9 @@ public:
 	/// @return a string with the serialized json
 	StringT         Serialize (bool bPretty = false) const { return Dump(bPretty); }
 
-	/// Serializes this json element into a string.
+	/// Serializes this json element into a stream.
 	/// @param bPretty uses pretty printing when bPretty is set to true, default is false
-	/// @return a string with the serialized json
+	/// @param ostream a stream to receive the serialized json
 	void            Serialize (OStreamT& ostream, bool bPretty = false) const;
 
 	/// Serializes this json element into a string.

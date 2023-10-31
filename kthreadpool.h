@@ -95,7 +95,7 @@ public:
 	bool pop(T& v)
 	//-----------------------------------------------------------------------------
 	{
-		if (m_queue.empty())
+		if (m_queue.empty() || m_bPaused)
 		{
 			return false;
 		}
@@ -134,6 +134,13 @@ public:
 		return size();
 	}
 
+	//-----------------------------------------------------------------------------
+	void pause(bool bYesno)
+	//-----------------------------------------------------------------------------
+	{
+		m_bPaused = bYesno;
+	}
+
 //------
 private:
 //------
@@ -146,6 +153,7 @@ private:
 	}
 
 	std::queue<T> m_queue;
+	bool m_bPaused { false };
 
 }; // Queue
 
@@ -235,6 +243,11 @@ public:
 	/// Restart the pool - this method blocks until all existing tasks have been serviced
 	/// @return false if some threads could not be restarted - check new size with size() then
 	bool restart();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Pause or un-pause the pool (this is not the counterpart to restart())
+	void pause(bool bYesNo);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

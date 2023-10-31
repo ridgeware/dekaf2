@@ -751,8 +751,11 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 	}
 	else
 	{
-		kDebug(1, "cannot send body data with {} request, data ignored", Request.Method.Serialize())
-		len = 0;
+		if (len > 0)
+		{
+			kDebug(1, "cannot send body data with {} request, data ignored", Request.Method.Serialize())
+			len = 0;
+		}
 	}
 
 	if (m_Authenticator)

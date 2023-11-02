@@ -595,10 +595,14 @@ bool KURL::operator<(const KURL& other) const
 //-------------------------------------------------------------------------
 KTCPEndPoint::KTCPEndPoint(const KURL& URL)
 //-------------------------------------------------------------------------
-    : Domain(URL.Domain)
-    , Port(URL.Port)
+: KTCPEndPoint(URL.Domain, URL.Port)
 {
-	if (Port.empty())
+	if (URL.Protocol == url::KProtocol::UNIX && Domain.empty())
+	{
+		bIsUnixDomain = true;
+		Domain.get()  = URL.Path;
+	}
+	else if (Port.empty())
 	{
 		if (URL.Protocol.DefaultPort() > 0)
 		{
@@ -618,20 +622,30 @@ KStringView KTCPEndPoint::Parse(KStringView svSource)
 	url::KProtocol Protocol;
 	svSource = Protocol.Parse  (svSource);
 
-	auto pos = svSource.find_first_of("@/;?#");
-
-	if (pos != KStringView::npos && svSource[pos] == '@')
+	if (Protocol == url::KProtocol::UNIX || svSource.front() == '/')
 	{
-		// this is most likely the username separator, step past it
-		svSource.remove_prefix(pos + 1);
+		// this is a unix domain endpoint ..
+		bIsUnixDomain = true;
+		Domain.get() = svSource;
+		svSource.clear();
 	}
-
-	svSource = Domain.Parse    (svSource);
-	svSource = Port.Parse      (svSource);
-
-	if (Port.empty() && !Protocol.empty())
+	else
 	{
-		Port = KString::to_string(Protocol.DefaultPort());
+		auto pos = svSource.find_first_of("@/;?#");
+
+		if (pos != KStringView::npos && svSource[pos] == '@')
+		{
+			// this is most likely the username separator, step past it
+			svSource.remove_prefix(pos + 1);
+		}
+
+		svSource = Domain.Parse    (svSource);
+		svSource = Port.Parse      (svSource);
+
+		if (Port.empty() && !Protocol.empty())
+		{
+			Port = KString::to_string(Protocol.DefaultPort());
+		}
 	}
 
 	return svSource;
@@ -649,18 +663,34 @@ void KTCPEndPoint::clear()
 bool KTCPEndPoint::Serialize(KStringRef& sTarget) const
 //-------------------------------------------------------------------------
 {
-	Port.WantStartSeparator();
-	return Domain.Serialize    (sTarget)
-		&& Port.Serialize      (sTarget);
+	if (bIsUnixDomain)
+	{
+		sTarget = Domain.get();
+		return true;
+	}
+	else
+	{
+		Port.WantStartSeparator();
+		return Domain.Serialize    (sTarget)
+		    && Port.Serialize      (sTarget);
+	}
 }
 
 //-------------------------------------------------------------------------
 bool KTCPEndPoint::Serialize(KOutStream& sTarget) const
 //-------------------------------------------------------------------------
 {
-	Port.WantStartSeparator();
-	return Domain.Serialize    (sTarget)
-		&& Port.Serialize      (sTarget);
+	if (bIsUnixDomain)
+	{
+		sTarget.Write(Domain.get());
+		return true;
+	}
+	else
+	{
+		Port.WantStartSeparator();
+		return Domain.Serialize    (sTarget)
+		    && Port.Serialize      (sTarget);
+	}
 }
 //-------------------------------------------------------------------------
 bool operator==(const KTCPEndPoint& left, const KTCPEndPoint& right)

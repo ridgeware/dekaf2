@@ -996,8 +996,6 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod, bool b
 bool KHTTPClient::AlreadyConnected(const KTCPEndPoint& EndPoint) const
 //-----------------------------------------------------------------------------
 {
-	// TBD: currently all local unix socket endpoints appear all empty.. and hence
-	// compare equal..
 	if (!m_bKeepAlive || !m_Connection || !m_Connection->Good())
 	{
 		return false;

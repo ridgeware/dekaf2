@@ -1437,6 +1437,7 @@ public:
 	
 	url::KDomain    Domain;
 	url::KPort      Port;
+	bool            bIsUnixDomain { false };
 
 }; // KTCPEndPoint
 

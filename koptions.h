@@ -167,6 +167,9 @@ public:
 		File,      ///< file must exist
 		Directory, ///< directory must exist, with or without trailing slash
 		Path,      ///< path component of pathname must exist
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+		Socket,    ///< socket pathname, must exist (and be a socket)
+#endif
 		Email,     ///< email address
 		URL,       ///< URL
 	};

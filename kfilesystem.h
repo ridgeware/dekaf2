@@ -497,6 +497,9 @@ public:
 	/// Is this a symlink
 	bool IsSymlink()          const { return m_ftype == KFileType::SYMLINK;    }
 
+	/// Is this a socket
+	bool IsSocket()           const { return m_ftype == KFileType::SOCKET;     }
+
 	/// Does this object exist?
 	bool Exists()             const { return m_ftype != KFileType::UNEXISTING; }
 

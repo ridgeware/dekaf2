@@ -1189,6 +1189,9 @@ KString KOptions::BadBoundsReason(ArgTypes Type, KStringView sParm, int64_t iMin
 		case File:
 		case Path:
 		case Directory:
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+		case Socket:
+#endif
 		case Email:
 		case URL:
 			return kFormat("length of {} not in limits [{}..{}]", sParm.size(), iMinBound, iMaxBound);
@@ -1229,6 +1232,9 @@ bool KOptions::ValidBounds(ArgTypes Type, KStringView sParm, int64_t iMinBound, 
 		case File:
 		case Path:
 		case Directory:
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+		case Socket:
+#endif
 		case Email:
 		case URL:
 		{
@@ -1270,7 +1276,10 @@ KString KOptions::BadArgReason(ArgTypes Type, KStringView sParm) const
 
 		case Directory:
 			return kFormat("not an existing directory: {}", sParm);
-
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+		case Socket:
+			return kFormat("not an existing unix socket: {}", sParm);
+#endif
 		case Path:
 			return kFormat("not an existing directory base: {}", sParm);
 
@@ -1317,7 +1326,13 @@ bool KOptions::ValidArgType(ArgTypes Type, KStringViewZ sParm) const
 			KString sDirname = kDirname(sParm);
 			return kDirExists(sDirname);
 		}
-
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+		case Socket:
+		{
+			KFileStat Stat(sParm);
+			return Stat.IsSocket();
+		}
+#endif
 		case Email:
 			return kIsEmail(sParm);
 

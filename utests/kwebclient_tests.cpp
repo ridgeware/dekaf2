@@ -213,27 +213,27 @@ TEST_CASE("KWebClient") {
 
 		KURL ConnectURL = kFormat("unix://{}", Options.sSocketFile);
 
-		HTTP.HttpRequest(oss, ConnectURL, "localhost/test0", KHTTPMethod::GET);
+		HTTP.HttpRequest2Host(oss, ConnectURL, "localhost/test0", KHTTPMethod::GET);
 		CHECK( sRet == "" );
 		CHECK( HTTP.GetStatusCode() == 200 );
 		CHECK( HTTP.Error() == "" );
 		HTTP.Disconnect();
 		sRet.clear();
 
-		HTTP.HttpRequest(oss, ConnectURL, "localhost/test0", KHTTPMethod::GET, "some body", KMIME::HTML_UTF8);
+		HTTP.HttpRequest2Host(oss, ConnectURL, "localhost/test0", KHTTPMethod::GET, "some body", KMIME::HTML_UTF8);
 		CHECK( sRet == "some body" );
 		CHECK( HTTP.GetStatusCode() == 200 );
 		CHECK( HTTP.Error() == "" );
 		HTTP.Disconnect();
 		sRet.clear();
 
-		HTTP.HttpRequest(oss, ConnectURL, "localhost/test0", KHTTPMethod::POST, "some body", KMIME::HTML_UTF8);
+		HTTP.HttpRequest2Host(oss, ConnectURL, "localhost/test0", KHTTPMethod::POST, "some body", KMIME::HTML_UTF8);
 		CHECK( sRet == "some body" );
 		CHECK( HTTP.GetStatusCode() == 200 );
 		CHECK( HTTP.Error() == "" );
 		sRet.clear();
 		// leave connection open!
-		HTTP.HttpRequest(oss, ConnectURL, "localhost/test0", KHTTPMethod::POST, "some other body", KMIME::HTML_UTF8);
+		HTTP.HttpRequest2Host(oss, ConnectURL, "localhost/test0", KHTTPMethod::POST, "some other body", KMIME::HTML_UTF8);
 		CHECK( sRet == "some other body" );
 		CHECK( HTTP.GetStatusCode() == 200 );
 		CHECK( HTTP.Error() == "" );
@@ -241,7 +241,7 @@ TEST_CASE("KWebClient") {
 		sRet.clear();
 
 		g_bDone = false;
-		HTTP.HttpRequest(oss, ConnectURL, "localhost/test1", KHTTPMethod::POST, "some body", KMIME::HTML_UTF8);
+		HTTP.HttpRequest2Host(oss, ConnectURL, "localhost/test1", KHTTPMethod::POST, "some body", KMIME::HTML_UTF8);
 		CHECK( sRet.empty() );
 		CHECK( HTTP.GetStatusCode() == 598 );
 		CHECK( HTTP.Error() == "Operation canceled" );
@@ -254,7 +254,7 @@ TEST_CASE("KWebClient") {
 		}
 		kDebug(2, "========= after timeout 2 ==========");
 
-		HTTP.HttpRequest(oss, ConnectURL, "localhost/test0", KHTTPMethod::POST, "some other body", KMIME::HTML_UTF8);
+		HTTP.HttpRequest2Host(oss, ConnectURL, "localhost/test0", KHTTPMethod::POST, "some other body", KMIME::HTML_UTF8);
 		CHECK( sRet == "some other body" );
 		CHECK( HTTP.GetStatusCode() == 200 );
 		CHECK( HTTP.Error() == "" );

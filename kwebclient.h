@@ -79,7 +79,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response to an output stream - this variant is needed for Unix socket requests, which need a separate URL for the connection target
-	bool HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestURL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON);
+	bool HttpRequest2Host (KOutStream& OutStream, KURL HostURL, KURL RequestURL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Send given request method and return raw response as a string - this variant is needed for Unix socket requests, which need a separate URL for the connection target
+	KString HttpRequest2Host (KURL HostURL, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -87,13 +92,16 @@ public:
 	bool HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (OutStream, KURL{}, std::move(URL), RequestMethod, svRequestBody, MIME);
+		return HttpRequest2Host (OutStream, KURL{}, std::move(URL), RequestMethod, svRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response as a string
-	KString HttpRequest (KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON);
+	KString HttpRequest (KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON)
 	//-----------------------------------------------------------------------------
+	{
+		return HttpRequest2Host(KURL{}, std::move(URL), RequestMethod, svRequestBody, MIME);
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Get from URL, store response body in return value KString

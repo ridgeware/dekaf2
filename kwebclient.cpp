@@ -83,7 +83,7 @@ KWebClient::KWebClient(bool bVerifyCerts/*=false*/)
 }
 
 //-----------------------------------------------------------------------------
-bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestURL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
+bool KWebClient::HttpRequest2Host (KOutStream& OutStream, KURL HostURL, KURL RequestURL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
 //-----------------------------------------------------------------------------
 {
 	// placeholder for a web form we may generate from query parms
@@ -293,15 +293,15 @@ bool KWebClient::HttpRequest (KOutStream& OutStream, KURL HostURL, KURL RequestU
 		return false; // return with failure
 	}
 
-} // HttpRequest
+} // HttpRequest2Host
 
 //-----------------------------------------------------------------------------
-KString KWebClient::HttpRequest (KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, const KMIME& MIME/* = KMIME::JSON*/)
+KString KWebClient::HttpRequest2Host (KURL HostURL, KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, const KMIME& MIME/* = KMIME::JSON*/)
 //-----------------------------------------------------------------------------
 {
 	KString sResponse;
 	KOutStringStream oss(sResponse);
-	HttpRequest(oss, KURL{}, std::move(URL), RequestMethod, svRequestBody, MIME);
+	HttpRequest2Host(oss, HostURL, std::move(URL), RequestMethod, svRequestBody, MIME);
 
 	if (kWouldLog(2))
 	{

@@ -222,7 +222,7 @@ bool KRestClient::NoExceptRequest (KOutStream& OutStream, KStringView sBody, con
 		RequestURL.Query += m_Query;
 		m_bNeedReset = true;
 
-		return KWebClient::HttpRequest(OutStream, m_URL, RequestURL, m_Verb, sBody, mime);
+		return KWebClient::HttpRequest2Host(OutStream, m_URL, RequestURL, m_Verb, sBody, mime);
 	}
 
 } // NoExceptRequest

@@ -9066,7 +9066,7 @@ bool DbSemaphore::CreateSemaphore (chrono::seconds iTimeout)
 
 		if (m_bVerbose)
 		{
-			KOut.FormatLine (":: {}: {}: getting lock '{}' ...", kFormTimestamp(kNow(), "%a %T"), m_db.ConnectSummary(), m_sAction);
+			KOut.FormatLine (":: {}: {} : getting lock '{}' ...", kFormTimestamp(kNow(), "%a %T"), m_db.ConnectSummary(), m_sAction);
 		}
 
 		if (! m_db.GetPersistentLock (m_sAction, iTimeout))
@@ -9075,7 +9075,7 @@ bool DbSemaphore::CreateSemaphore (chrono::seconds iTimeout)
 
 			if (m_bVerbose)
 			{
-				KOut.FormatLine (":: {}: {}: {}.", kFormTimestamp(kNow(), "%a %T"), m_db.ConnectSummary(), m_sLastError);
+				KOut.FormatLine (":: {}: {} : {}.", kFormTimestamp(kNow(), "%a %T"), m_db.ConnectSummary(), m_sLastError);
 			}
 
 			kDebug(1, m_sLastError);
@@ -9105,7 +9105,7 @@ bool DbSemaphore::ClearSemaphore ()
 
 		if (m_bVerbose)
 		{
-			KOut.FormatLine (":: {}: {}: releasing lock '{}' ...", kFormTimestamp(kNow(), "%a %T"), m_db.ConnectSummary(), m_sAction);
+			KOut.FormatLine (":: {}: {} : releasing lock '{}' ...", kFormTimestamp(kNow(), "%a %T"), m_db.ConnectSummary(), m_sAction);
 		}
 
 		if (!m_db.ReleasePersistentLock(m_sAction))

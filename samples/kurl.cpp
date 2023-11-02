@@ -48,6 +48,7 @@
 #include <dekaf2/ksplit.h>
 #include <dekaf2/kwebclient.h>
 #include <dekaf2/kxml.h>
+#include <dekaf2/kthreadpool.h>
 
 using namespace dekaf2;
 
@@ -67,11 +68,20 @@ kurl::kurl ()
 		.SetAdditionalArgDescription("<URL>");
 
 	m_CLI
+		.Option(":,next")
+		.Help("open next config section")
+	([&]()
+	{
+		m_RequestList.Add(std::move(BuildMRQ));
+		BuildMRQ.clear();
+	});
+
+	m_CLI
 		.Option("i,include")
 		.Help("show http response headers in output")
 	([&]()
 	{
-		m_Config.Flags |= Flags::RESPONSE_HEADERS;
+		BuildMRQ.Flags |= Flags::RESPONSE_HEADERS;
 	});
 
 	m_CLI
@@ -79,7 +89,7 @@ kurl::kurl ()
 		.Help("do not verify SSL/TLS certificates")
 	([&]()
 	{
-		m_Config.Flags |= Flags::INSECURE_CERTS;
+		BuildMRQ.Flags |= Flags::INSECURE_CERTS;
 	});
 
 	m_CLI
@@ -87,7 +97,7 @@ kurl::kurl ()
 		.Help("pretty print XML or JSON data")
 	([&]()
 	{
-		m_Config.Flags |= Flags::PRETTY;
+		BuildMRQ.Flags |= Flags::PRETTY;
 	});
 
 	m_CLI
@@ -95,7 +105,7 @@ kurl::kurl ()
 		.Help("verbose status output")
 	([&]()
 	{
-		m_Config.Flags |= (Flags::VERBOSE | Flags::REQUEST_HEADERS | Flags::RESPONSE_HEADERS);
+		BuildMRQ.Flags |= (Flags::VERBOSE | Flags::REQUEST_HEADERS | Flags::RESPONSE_HEADERS);
 	});
 
 	m_CLI
@@ -103,7 +113,7 @@ kurl::kurl ()
 		.Help("quiet operation")
 	([&]()
 	{
-		m_Config.Flags |= Flags::QUIET;
+		BuildMRQ.Flags |= Flags::QUIET;
 	});
 
 	m_CLI
@@ -117,15 +127,31 @@ kurl::kurl ()
 
 	m_CLI
 		.Option("X,request <method>", "request method")
-		.Help(kFormat("set request method ({}) of simulated request (default = GET)", KHTTPMethod::REQUEST_METHODS))
+		.Help(kFormat("set request method ({}), default = GET", KHTTPMethod::REQUEST_METHODS))
 	([&](KStringViewZ sMethod)
 	{
-		m_Config.Method = sMethod.ToUpperASCII();
+		BuildMRQ.Method = sMethod.ToUpperASCII();
 
-		if (!m_Config.Method.Serialize().In(KHTTPMethod::REQUEST_METHODS))
+		if (!BuildMRQ.Method.Serialize().In(KHTTPMethod::REQUEST_METHODS))
 		{
 			throw KOptions::WrongParameterError(kFormat("invalid request method '{}', legal ones are: {}", sMethod, KHTTPMethod::REQUEST_METHODS));
 		}
+	});
+
+	m_CLI
+		.Option("I,head")
+		.Help("issue a HEAD request")
+	([&]()
+	{
+		BuildMRQ.Method = KHTTPMethod::HEAD;
+	});
+
+	m_CLI
+		.Option("get")
+		.Help("issue a GET request, even if there is request data")
+	([&]()
+	{
+		BuildMRQ.Method = KHTTPMethod::GET;
 	});
 
 	m_CLI
@@ -137,14 +163,19 @@ kurl::kurl ()
 		{
 			sArg.TrimLeft('@');
 
-			if (!kReadAll (sArg, m_Config.sRequestBody))
+			if (!kAppendAll (sArg, BuildMRQ.sRequestBody))
 			{
 				throw KOptions::WrongParameterError(kFormat("invalid filename: {}", sArg));
 			}
 		}
 		else
 		{
-			m_Config.sRequestBody = sArg;
+			BuildMRQ.sRequestBody += sArg;
+		}
+
+		if (BuildMRQ.Method.empty())
+		{
+			BuildMRQ.Method = KHTTPMethod::POST;
 		}
 	});
 
@@ -154,7 +185,7 @@ kurl::kurl ()
 	([&](KStringViewZ sHeader)
 	{
 		auto Pair = kSplitToPair (sHeader, ":");
-		m_Config.Headers.insert ({Pair.first, Pair.second});
+		BuildMRQ.Headers.insert ({Pair.first, Pair.second});
 	});
 
 	m_CLI
@@ -162,10 +193,40 @@ kurl::kurl ()
 		.Help("set user agent header for the request")
 	([&](KStringViewZ sUserAgent)
 	{
-		if (m_Config.Headers.insert ({"User-Agent", sUserAgent}).second == false)
+		if (BuildMRQ.Headers.insert ({"User-Agent", sUserAgent}).second == false)
 		{
 			throw KOptions::Error("user agent header already set");
 		}
+	});
+
+	m_CLI
+		.Option("force-close")
+		.Help("set Connection: Close header, and disconnect after RX")
+	([&]()
+	{
+		if (BuildMRQ.Headers.insert ({"Connection", "close"}).second == false)
+		{
+			throw KOptions::Error("Connection header already set");
+		}
+		BuildMRQ.Flags |= Flags::CONNECTION_CLOSE;
+	});
+
+	m_CLI
+		.Option("repeat <n>").MinArgs(1).MaxArgs(1).Type(dekaf2::KOptions::ArgTypes::Unsigned)
+		.Help("repeat request <n> times")
+	([&](KStringViewZ sArg)
+	{
+		m_Config.iRepeat = sArg.UInt64();
+		kDebug(2, "repeat count set to {}", sArg.UInt64());
+	});
+
+	m_CLI
+		.Option("Z,parallel <n>").MinArgs(1).MaxArgs(1).Type(dekaf2::KOptions::ArgTypes::Unsigned)
+		.Help("send <n> parallel requests")
+	([&](KStringViewZ sArg)
+	 {
+		m_Config.iParallel = sArg.UInt64();
+		kDebug(2, "parallel count set to {}", m_Config.iParallel);
 	});
 
 	m_CLI
@@ -173,96 +234,170 @@ kurl::kurl ()
 		.Help("set MIME type for the request")
 	([&](KStringViewZ sMIME)
 	{
-		m_Config.sRequestMIME = sMIME;
+		BuildMRQ.sRequestMIME = sMIME;
 	});
 
 	m_CLI
-		.Option("compression <method>", "request compression")
-		.Help("set accepted compressions/encodings")
+		.Option("o,output <file>", "output file name")
+		.Help("set output file name for the request")
+	([&](KStringViewZ sFile)
+	{
+		BuildMRQ.AddOutput(sFile);
+	});
+
+	m_CLI
+		.Option("O")
+		.Help("sets output file name to last path part of the URL")
+	([&]()
+	 {
+		BuildMRQ.AddOutput(sOutputToLastPathComponent);
+	});
+
+	m_CLI
+		.Option("compression <method>", "requested compression")
+		.Help("set accepted compressions/encodings, or - for no compression")
 	([&](KStringViewZ sCompression)
 	{
-		m_Config.sRequestCompression = sCompression;
+		BuildMRQ.sRequestCompression = sCompression;
 	});
+
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+	m_CLI
+		.Option("unix-socket <socket path>", "path to unix socket")
+		.Type(KOptions::ArgTypes::Socket)
+		.Help("use <socket path> to connect to unix domain socket. Use 'localhost' as domain name in the URL.")
+	([&](KStringViewZ sSocket)
+	{
+		BuildMRQ.sUnixSocket = sSocket;
+	});
+#endif
 
 	m_CLI
 		.UnknownCommand([&](KOptions::ArgList& Commands)
 	{
-		if (!m_Config.URL.empty() || Commands.size() > 1)
+		while (!Commands.empty())
 		{
-			throw KOptions::Error("multiple URLs");
-		}
-		m_Config.URL = Commands.pop();
+			KURL URL(Commands.pop());
 
-		if (m_Config.URL.Protocol == url::KProtocol::UNDEFINED)
-		{
-			kDebug(2, "no protocol specified - assuming HTTP");
-			m_Config.URL.Protocol = url::KProtocol::HTTP;
+			if (URL.Protocol == url::KProtocol::UNDEFINED)
+			{
+				kDebug(2, "no protocol specified - assuming HTTP");
+				URL.Protocol = url::KProtocol::HTTP;
+			}
+
+			BuildMRQ.AddURL(std::move(URL));
 		}
 	});
 
 } // ctor
 
 //-----------------------------------------------------------------------------
-void kurl::ServerQuery ()
+void kurl::ServerQuery (std::size_t iRepeat)
 //-----------------------------------------------------------------------------
 {
-	KWebClient HTTP (!(m_Config.Flags & Flags::INSECURE_CERTS));
+	KWebClient HTTP;
 
-	if (m_Config.sRequestCompression == "-")
+	for (;;)
 	{
-		HTTP.RequestCompression(false);
-	}
-	else
-	{
-		HTTP.RequestCompression(true, m_Config.sRequestCompression);
-	}
+		auto RQ = m_RequestList.GetNextRequest();
 
-	for (const auto& Header : m_Config.Headers)
-	{
-		HTTP.AddHeader (Header.first, Header.second);
-	}
-
-	auto sResponse = HTTP.HttpRequest(m_Config.URL, m_Config.Method, m_Config.sRequestBody, m_Config.sRequestMIME);
-
-	if (m_Config.Flags & Flags::REQUEST_HEADERS)
-	{
-		HTTP.Request.KHTTPRequestHeaders::Serialize(KOut, "> ");
-	}
-
-	if (m_Config.Flags & Flags::RESPONSE_HEADERS)
-	{
-		HTTP.Response.KHTTPResponseHeaders::Serialize(KOut, "< ");
-	}
-
-	bool bPrinted = false;
-
-	if (m_Config.Flags & Flags::PRETTY)
-	{
-		if (HTTP.Response.ContentType() == KMIME::JSON)
+		if (!RQ)
 		{
-			auto json = kjson::Parse(sResponse);
-
-			if (!json.is_null())
+			if (iRepeat-- == 1)
 			{
-				KOut.WriteLine(json.dump(1, '\t'));
-				bPrinted = true;
+				break;
+			}
+			m_RequestList.ResetRequest();
+			continue;
+		}
+
+		KOutFile OutFile;
+
+		// prepare the output
+		if (!RQ->sOutput.empty())
+		{
+			OutFile.open(RQ->sOutput);
+		}
+
+		KOutStream Out(!RQ->sOutput.empty() ? OutFile : std::cout);
+
+		// write all line endings that _we_ provoke (with .WriteLine()) in canonical form
+		Out.SetWriterEndOfLine("\r\n");
+
+		HTTP.VerifyCerts(!(RQ->Config.Flags & Flags::INSECURE_CERTS));
+
+		if (RQ->Config.sRequestCompression == "-")
+		{
+			HTTP.RequestCompression(false);
+		}
+		else
+		{
+			HTTP.RequestCompression(true, RQ->Config.sRequestCompression);
+		}
+
+		for (const auto& Header : RQ->Config.Headers)
+		{
+			HTTP.AddHeader (Header.first, Header.second);
+		}
+
+		KURL SocketURL;
+
+		if (!RQ->Config.sUnixSocket.empty())
+		{
+			SocketURL.Protocol = url::KProtocol::UNIX;
+			SocketURL.Path.get() = RQ->Config.sUnixSocket;
+		}
+
+		auto sResponse = HTTP.HttpRequest2Host(SocketURL, RQ->URL, RQ->Config.Method, RQ->Config.sRequestBody, RQ->Config.sRequestMIME);
+
+		if (RQ->Config.Flags & Flags::REQUEST_HEADERS)
+		{
+			HTTP.Request.KHTTPRequestHeaders::Serialize(KErr, "> ");
+			// actually curl prints both request and response headers on stderr with -v
+			HTTP.Response.KHTTPResponseHeaders::Serialize(KErr, "< ");
+		}
+
+		if (RQ->Config.Flags & Flags::RESPONSE_HEADERS)
+		{
+			HTTP.Response.KHTTPResponseHeaders::Serialize(Out);
+		}
+
+		bool bPrinted = false;
+
+		if (RQ->Config.Flags & Flags::PRETTY)
+		{
+			if (HTTP.Response.ContentType() == KMIME::JSON)
+			{
+				KJSON json;
+
+				if (json.Parse(sResponse))
+				{
+					json.Serialize(Out, true);
+					Out.Write('\n');
+					bPrinted = true;
+				}
+			}
+			else if (HTTP.Response.ContentType() == KMIME::XML)
+			{
+				KXML XML;
+
+				if (XML.Parse(sResponse))
+				{
+					XML.Serialize(Out);
+					bPrinted = true;
+				}
 			}
 		}
-		else if (HTTP.Response.ContentType() == KMIME::XML)
+
+		if (!bPrinted)
 		{
-			KXML XML;
-
-			if (XML.Parse(sResponse))
-			{
-				XML.Serialize(KOut);
-				bPrinted = true;
-			}
+			Out.Write (sResponse);
 		}
-	}
 
-	if (!bPrinted)
-	{
-		KOut.WriteLine (sResponse);
+		if (RQ->Config.Flags & Flags::CONNECTION_CLOSE)
+		{
+			HTTP.Disconnect();
+		}
 	}
 
 } // ServerQuery
@@ -291,14 +426,33 @@ int kurl::Main (int argc, char** argv)
 		}
 	}
 
-	// ---- insert project code here ----
+	m_RequestList.Add(std::move(BuildMRQ));
+	m_RequestList.CreateRequestList();
 
-	if (m_Config.URL.empty())
+	if (m_RequestList.empty())
 	{
 		throw KException ("missing URL");
 	}
 
-	ServerQuery ();
+	if (m_Config.iParallel == 1)
+	{
+		ServerQuery (m_Config.iRepeat.shared().get());
+	}
+	else
+	{
+		KThreadPool Threads(m_Config.iParallel);
+
+		Threads.pause(true);
+
+		for (auto i = m_Config.iParallel; i > 0; --i)
+		{
+			Threads.push(&kurl::ServerQuery, this, 1);
+		}
+
+		kDebug(2, "have {} queries for {} threads", *m_Config.iRepeat.shared(), Threads.size() );
+		
+		Threads.pause(false);
+	}
 
 	return 0;
 

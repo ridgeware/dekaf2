@@ -1242,7 +1242,7 @@ bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
 		// no need to execute an extra query (select CONNECTION_ID())
 		m_iConnectionID = m_dMYSQL->thread_id;
 
-		mysql_set_character_set (m_dMYSQL, "utf8"); // by default
+		mysql_set_character_set (m_dMYSQL, "utf8mb4"); // by default
 		break;
 	#endif
 

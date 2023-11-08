@@ -48,7 +48,7 @@
 #include <dekaf2/ksplit.h>
 #include <dekaf2/kwebclient.h>
 #include <dekaf2/kxml.h>
-#include <dekaf2/kthreadpool.h>
+#include <dekaf2/kparallel.h>
 
 using namespace dekaf2;
 
@@ -200,7 +200,7 @@ kurl::kurl ()
 	});
 
 	m_CLI
-		.Option("force-close")
+		.Option("close")
 		.Help("set Connection: Close header, and disconnect after RX")
 	([&]()
 	{
@@ -212,21 +212,65 @@ kurl::kurl ()
 	});
 
 	m_CLI
-		.Option("repeat <n>").MinArgs(1).MaxArgs(1).Type(dekaf2::KOptions::ArgTypes::Unsigned)
-		.Help("repeat request <n> times")
-	([&](KStringViewZ sArg)
+		.Option("progress <Wheel|Bar>")
+		.MinArgs(0).MaxArgs(1)
+		.Help("show progress either as spinning wheel (default), or as a progress bar")
+	([&](KOptions::ArgList& Commands)
 	{
-		m_Config.iRepeat = sArg.UInt64();
-		kDebug(2, "repeat count set to {}", sArg.UInt64());
+		if (Commands.empty())
+		{
+			m_Progress.SetType(Progress::None);
+		}
+		else if (Commands.pop().ToLower() == "wheel")
+		{
+			m_Progress.SetType(Progress::Wheel);
+		}
+		else
+		{
+			m_Progress.SetType(Progress::Bar);
+		}
 	});
 
 	m_CLI
-		.Option("Z,parallel <n>").MinArgs(1).MaxArgs(1).Type(dekaf2::KOptions::ArgTypes::Unsigned)
+		.Option("stats")
+		.Help("show statistics")
+	([&]()
+	{
+		m_Config.bShowStats = true;
+	});
+
+	m_CLI
+		.Option("timeout <n>")
+		.MinArgs(1).MaxArgs(1)
+		.Type(KOptions::ArgTypes::Unsigned)
+		.Range(0, 1000000)
+		.Help("timeout in seconds, default 5")
+	([&](KStringViewZ sArg)
+	{
+		BuildMRQ.iSecondsTimeout = sArg.UInt64();
+		m_Config.bShowStats = true;
+	});
+
+	m_CLI
+		.Option("repeat <n>")
+		.MinArgs(1).MaxArgs(1)
+		.Type(KOptions::ArgTypes::Unsigned)
+		.Help("repeat request <n> times (and show statistics)")
+	([&](KStringViewZ sArg)
+	{
+		m_Config.iRepeat    = sArg.UInt64();
+		m_Config.bShowStats = true;
+	});
+
+	m_CLI
+		.Option("Z,parallel <n>")
+		.MinArgs(1).MaxArgs(1)
+		.Range(1, 10000)
+		.Type(KOptions::ArgTypes::Unsigned)
 		.Help("send <n> parallel requests")
 	([&](KStringViewZ sArg)
 	 {
 		m_Config.iParallel = sArg.UInt64();
-		kDebug(2, "parallel count set to {}", m_Config.iParallel);
 	});
 
 	m_CLI
@@ -292,7 +336,7 @@ kurl::kurl ()
 } // ctor
 
 //-----------------------------------------------------------------------------
-void kurl::ServerQuery (std::size_t iRepeat)
+void kurl::ServerQuery ()
 //-----------------------------------------------------------------------------
 {
 	KWebClient HTTP;
@@ -303,12 +347,7 @@ void kurl::ServerQuery (std::size_t iRepeat)
 
 		if (!RQ)
 		{
-			if (iRepeat-- == 1)
-			{
-				break;
-			}
-			m_RequestList.ResetRequest();
-			continue;
+			break;
 		}
 
 		KOutFile OutFile;
@@ -325,6 +364,7 @@ void kurl::ServerQuery (std::size_t iRepeat)
 		Out.SetWriterEndOfLine("\r\n");
 
 		HTTP.VerifyCerts(!(RQ->Config.Flags & Flags::INSECURE_CERTS));
+		HTTP.SetTimeout(RQ->Config.iSecondsTimeout);
 
 		if (RQ->Config.sRequestCompression == "-")
 		{
@@ -348,7 +388,13 @@ void kurl::ServerQuery (std::size_t iRepeat)
 			SocketURL.Path.get() = RQ->Config.sUnixSocket;
 		}
 
+		KStopTime tDuration;
+
 		auto sResponse = HTTP.HttpRequest2Host(SocketURL, RQ->URL, RQ->Config.Method, RQ->Config.sRequestBody, RQ->Config.sRequestMIME);
+
+		m_Progress.ProgressOne();
+
+		m_Results.Add(HTTP.Response.iStatusCode, tDuration.elapsed());
 
 		if (RQ->Config.Flags & Flags::REQUEST_HEADERS)
 		{
@@ -412,10 +458,26 @@ void kurl::ShowVersion ()
 } // ShowVersion
 
 //-----------------------------------------------------------------------------
+void kurl::ShowStats (KDuration tTotal, std::size_t iTotalRequests)
+//-----------------------------------------------------------------------------
+{
+	KErr.WriteLine();
+	KErr.WriteLine("==================================================");
+	KErr.FormatLine("running with {} threads in parallel", m_Config.iParallel);
+	KErr.FormatLine("total {} for {} requests, {:.0f} req/sec",
+					tTotal,
+					iTotalRequests,
+					iTotalRequests / (tTotal.microseconds().count() / 1000000.0));
+	KErr.WriteLine();
+	KErr.WriteLine(m_Results.Print());
+	KErr.WriteLine("==================================================");
+
+} // ShowStats
+
+//-----------------------------------------------------------------------------
 int kurl::Main (int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
-	// ---------------- parse CLI ------------------
 	{
 		auto iRetVal = m_CLI.Parse(argc, argv, KOut);
 
@@ -427,31 +489,38 @@ int kurl::Main (int argc, char** argv)
 	}
 
 	m_RequestList.Add(std::move(BuildMRQ));
-	m_RequestList.CreateRequestList();
+	m_RequestList.CreateRequestList(m_Config.iRepeat);
 
 	if (m_RequestList.empty())
 	{
 		throw KException ("missing URL");
 	}
 
+	auto iTotalRequests = m_Config.iRepeat * m_RequestList.size();
+
+	kDebug(2, "have {} queries for {} threads",
+		   iTotalRequests,
+		   m_Config.iParallel );
+
+	m_Progress.Start(iTotalRequests);
+
+	KStopTime tStopTotal;
+
 	if (m_Config.iParallel == 1)
 	{
-		ServerQuery (m_Config.iRepeat.shared().get());
+		ServerQuery ();
 	}
 	else
 	{
-		KThreadPool Threads(m_Config.iParallel);
+		KRunThreads Threads(m_Config.iParallel);
+		Threads.Create(&kurl::ServerQuery, this);
+	}
 
-		Threads.pause(true);
+	m_Progress.Finish();
 
-		for (auto i = m_Config.iParallel; i > 0; --i)
-		{
-			Threads.push(&kurl::ServerQuery, this, 1);
-		}
-
-		kDebug(2, "have {} queries for {} threads", *m_Config.iRepeat.shared(), Threads.size() );
-		
-		Threads.pause(false);
+	if (m_Config.bShowStats)
+	{
+		ShowStats(tStopTotal.elapsed(), iTotalRequests);
 	}
 
 	return 0;

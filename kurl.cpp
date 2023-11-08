@@ -631,6 +631,8 @@ KStringView KTCPEndPoint::Parse(KStringView svSource)
 	}
 	else
 	{
+		bIsUnixDomain = false;
+		
 		auto pos = svSource.find_first_of("@/;?#");
 
 		if (pos != KStringView::npos && svSource[pos] == '@')

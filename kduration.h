@@ -307,11 +307,11 @@ public:
 	/// push back another interval
 	void           push_back(Duration duration);
 	/// returns the average duration, that is, the total duration time divided by the count of durations
-	Duration       average()      { return m_iRounds ? Duration(duration() / m_iRounds) : Duration(); }
+	Duration       average()  const { return m_iRounds ? Duration(duration() / m_iRounds) : Duration(); }
 	/// returns count of stored durations
-	size_type      Rounds() const { return m_iRounds;     }
+	size_type      Rounds()   const { return m_iRounds;     }
 	/// do we have any interval?
-	bool           empty()  const { return Rounds() == 0; }
+	bool           empty()    const { return Rounds() == 0; }
 	/// add another duration to this
 	KMultiDuration operator+ (const KMultiDuration& other) const;
 	/// add another duration to this

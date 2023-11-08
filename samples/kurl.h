@@ -51,6 +51,9 @@
 #include <dekaf2/kjson.h>
 #include <dekaf2/kthreadsafe.h>
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/kduration.h>
+#include <dekaf2/kstringutils.h>
+#include <dekaf2/kbar.h>
 
 using namespace dekaf2;
 
@@ -86,8 +89,10 @@ public:
 protected:
 //----------
 
-	void ServerQuery (std::size_t iRepeat = 1);
+	void ServerQuery ();
 	void ShowVersion ();
+	void ShowProgress();
+	void ShowStats   (KDuration tTotal, std::size_t iTotalRequests);
 
 	static constexpr KStringView sOutputToLastPathComponent = "}.";
 
@@ -104,8 +109,9 @@ protected:
 		KMIME       sRequestMIME;
 		KString     sRequestCompression;
 		HeaderMap   Headers;
-		KHTTPMethod Method         { KHTTPMethod::GET };
-		enum Flags  Flags          { Flags::NONE };
+		KHTTPMethod Method          { KHTTPMethod::GET };
+		enum Flags  Flags           { Flags::NONE };
+		uint16_t    iSecondsTimeout { 5 };
 	};
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -189,8 +195,10 @@ protected:
 			}
 		}
 
-		void CreateRequestList()
+		void CreateRequestList(std::size_t iRepeat)
 		{
+			m_iRepeat = iRepeat;
+
 			// now create the single request list out of the multi-requests that may have
 			// been configured - we keep the MultiRequests as the data store, and only
 			// create references to it in the RequestList
@@ -208,14 +216,21 @@ protected:
 		const SingleRequest* GetNextRequest()
 		{
 			auto p = it.unique();
+
 			if (*p == m_RequestList.end())
 			{
-				return nullptr;
+				if (m_iRepeat == 1)
+				{
+					return nullptr;
+				}
+				else
+				{
+					--m_iRepeat;
+					*p = m_RequestList.begin();
+				}
 			}
-			else
-			{
-				return &*(*p)++;
-			}
+
+			return &*(*p)++;
 		}
 
 		void ResetRequest()
@@ -240,26 +255,189 @@ protected:
 		std::vector<SingleRequest> m_RequestList;
 		std::vector<MultiRequest>  m_MultiRequests;
 		KThreadSafe<decltype(m_RequestList)::iterator> it;
+		std::size_t                m_iRepeat;
 
 	};
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	struct Results
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+	
+	//----------
+	public:
+	//----------
+
+		void Add(uint16_t iResultCode, KDuration tDuration)
+		{
+			auto Codes = m_ResultCodes.unique();
+			auto it    = Codes->find(iResultCode);
+
+			if (it == Codes->end())
+			{
+				auto pair = Codes->insert({iResultCode, Result{}});
+				it = pair.first;
+			}
+
+			it->second.Add(tDuration);
+		}
+
+		KString Print()
+		{
+			auto Codes = m_ResultCodes.shared();
+
+			KString sResult;
+
+			for (const auto& it : *Codes)
+			{
+				sResult += kFormat("HTTP {}: count {}, avg {}",
+								   it.first,
+								   kFormNumber(it.second.m_tDuration.Rounds()),
+								   it.second.m_tDuration.average());
+			}
+
+			return sResult;
+		}
+
+
+	//----------
+	private:
+	//----------
+
+		//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		struct Result
+		//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		{
+			Result() = default;
+
+			void Add(KDuration tDuration)
+			{
+				m_tDuration += tDuration;
+			}
+
+			KMultiDuration m_tDuration;
+
+		}; // Result
+
+		KThreadSafe<std::map<uint16_t, Result>> m_ResultCodes;
+
+	}; // Results
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct Config
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		KThreadSafe<std::size_t> iRepeat       { 1 };
-		std::size_t iParallel                  { 1 };
+		std::size_t iRepeat       { 1 };
+		std::size_t iParallel     { 1 };
+		bool        bShowStats    { false };
 	};
 
-	Config m_Config;
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	struct Progress
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		enum Type
+		{
+			None,
+			Wheel,
+			Bar
+		};
+
+		void SetType(Type t)
+		{
+			m_ProgressType = t;
+		}
+
+		void Start(std::size_t iSize)
+		{
+			if (m_ProgressType == Type::Bar)
+			{
+				m_Bar = std::make_unique<KBAR>(iSize, 
+											   KBAR::DEFAULT_WIDTH,
+											   KBAR::SLIDER,
+											   KBAR::DEFAULT_DONE_CHAR,
+											   KErr);
+			}
+		}
+
+		void ProgressOne()
+		{
+			switch (m_ProgressType)
+			{
+				case Type::None:
+					break;
+				case Type::Wheel:
+					PrintNextWheel();
+					break;
+				case Type::Bar:
+					if (m_Bar)
+					{
+						m_Bar->Move();
+					}
+					break;
+			}
+		}
+
+		void Finish()
+		{
+			switch (m_ProgressType)
+			{
+				case Type::None:
+					break;
+				case Type::Wheel:
+					break;
+				case Type::Bar:
+					if (m_Bar)
+					{
+						m_Bar->Finish();
+					}
+					break;
+			}
+		}
+
+	//----------
+	private:
+	//----------
+
+		void PrintNextWheel()
+		{
+			static std::mutex mutex;
+			std::lock_guard lock(mutex);
+
+			KErr.Format("\b{:c}", GetNextWheelChar());
+		}
+
+		char GetNextWheelChar()
+		{
+			static constexpr std::array<char, 8> m_Wheel = {'/', '-', '\\', '|', '/', '-', '\\', '|'};
+
+			if (m_WheelChar > 6) m_WheelChar = 0;
+			else ++m_WheelChar;
+			kDebug(2, "counter == {}, char = {:c}", m_WheelChar, m_Wheel[m_WheelChar]);
+			return m_Wheel[m_WheelChar];
+		}
+
+		std::unique_ptr<KBAR> m_Bar;
+		Type                  m_ProgressType { Type::None };
+		uint8_t               m_WheelChar;
+
+	}; // Progress
 
 //----------
 private:
 //----------
 
-	KOptions m_CLI { true };
-
+	KOptions    m_CLI { true };
+	Config      m_Config;
 	RequestList m_RequestList;
+	Results     m_Results;
+	Progress    m_Progress;
+
 	// this is the request that gets filled up subsequently by CLI options
 	BuildMultiRequest BuildMRQ;
 

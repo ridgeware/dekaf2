@@ -94,7 +94,7 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPResponseHeaders::Serialize(KOutStream& Stream, KStringView sLinePrefix) const
+bool KHTTPResponseHeaders::Serialize(KOutStream& Stream, bool bFlush, KStringView sLinePrefix) const
 //-----------------------------------------------------------------------------
 {
 	if (sHTTPVersion.empty())
@@ -107,7 +107,7 @@ bool KHTTPResponseHeaders::Serialize(KOutStream& Stream, KStringView sLinePrefix
 		return SetError("Cannot write headers");
 	}
 
-	return KHTTPHeaders::Serialize(Stream, sLinePrefix);
+	return KHTTPHeaders::Serialize(Stream, bFlush, sLinePrefix);
 
 } // Serialize
 
@@ -148,11 +148,11 @@ void KHTTPResponseHeaders::SetStatus(uint16_t iCode, KStringView sMessage)
 } // SetStatus
 
 //-----------------------------------------------------------------------------
-bool KOutHTTPResponse::Serialize()
+bool KOutHTTPResponse::Serialize(bool bFlush)
 //-----------------------------------------------------------------------------
 {
 	// set up the chunked writer
-	return KOutHTTPFilter::Parse(*this) && KHTTPResponseHeaders::Serialize(UnfilteredStream());
+	return KOutHTTPFilter::Parse(*this) && KHTTPResponseHeaders::Serialize(UnfilteredStream(), bFlush);
 
 } // Serialize
 

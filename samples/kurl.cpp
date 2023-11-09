@@ -392,15 +392,15 @@ void kurl::ServerQuery ()
 
 		auto sResponse = HTTP.HttpRequest2Host(SocketURL, RQ->URL, RQ->Config.Method, RQ->Config.sRequestBody, RQ->Config.sRequestMIME);
 
-		m_Progress.ProgressOne();
-
 		m_Results.Add(HTTP.Response.iStatusCode, tDuration.elapsed());
+
+		m_Progress.ProgressOne();
 
 		if (RQ->Config.Flags & Flags::REQUEST_HEADERS)
 		{
-			HTTP.Request.KHTTPRequestHeaders::Serialize(KErr, "> ");
+			HTTP.Request.KHTTPRequestHeaders::Serialize(KErr, true, "> ");
 			// actually curl prints both request and response headers on stderr with -v
-			HTTP.Response.KHTTPResponseHeaders::Serialize(KErr, "< ");
+			HTTP.Response.KHTTPResponseHeaders::Serialize(KErr, true, "< ");
 		}
 
 		if (RQ->Config.Flags & Flags::RESPONSE_HEADERS)

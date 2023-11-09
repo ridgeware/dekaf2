@@ -836,7 +836,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Serialize(KOutStream& Stream, KStringView sLinePrefix = KStringView{}) const;
+	bool Serialize(KOutStream& Stream, bool bFlush = true, KStringView sLinePrefix = KStringView{}) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

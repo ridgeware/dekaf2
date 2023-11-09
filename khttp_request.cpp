@@ -407,11 +407,11 @@ bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream, KStringView s
 } // SerializeRequestLine
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequestHeaders::Serialize(KOutStream& Stream, KStringView sLinePrefix) const
+bool KHTTPRequestHeaders::Serialize(KOutStream& Stream, bool bFlush, KStringView sLinePrefix) const
 //-----------------------------------------------------------------------------
 {
 	return SerializeRequestLine(Stream, sLinePrefix) &&
-		KHTTPHeaders::Serialize(Stream, sLinePrefix);
+		KHTTPHeaders::Serialize(Stream, bFlush, sLinePrefix);
 
 } // Serialize
 
@@ -654,11 +654,11 @@ void KHTTPRequestHeaders::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-bool KOutHTTPRequest::Serialize()
+bool KOutHTTPRequest::Serialize(bool bFlush)
 //-----------------------------------------------------------------------------
 {
 	// set up the chunked writer
-	return KOutHTTPFilter::Parse(*this) && KHTTPRequestHeaders::Serialize(UnfilteredStream());
+	return KOutHTTPFilter::Parse(*this) && KHTTPRequestHeaders::Serialize(UnfilteredStream(), bFlush);
 
 } // Serialize
 

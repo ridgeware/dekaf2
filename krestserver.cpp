@@ -880,7 +880,7 @@ bool KRESTServer::Execute()
 				{
 					if (!Request.HasKeepAlive())
 					{
-						kDebug (2, "keep-alive not supported by client - closing connection in round {}", m_iRound);
+						kDebug (2, "keep-alive not requested by client - closing connection in round {}", m_iRound);
 					}
 					else
 					{
@@ -997,8 +997,9 @@ void KRESTServer::WriteHeaders()
 		// therefore we have to count them outside of the filter pipeline
 		KCountingOutputStreamBuf OutputCounter(Response.UnfilteredStream());
 
-		// writes response headers to output
-		Serialize();
+		// writes response headers to output, do not flush, we will have content following
+		// immediately
+		Serialize(false);
 
 		m_iTXBytes = OutputCounter.Count();
 

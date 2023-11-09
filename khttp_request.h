@@ -132,8 +132,9 @@ public:
 	//-----------------------------------------------------------------------------
 	/// serialize request line and headers into Stream
 	/// @param Stream output stream to write to
+	/// @param bFlush if true (default), flush stream after writing the headers
 	/// @param sLinePrefix prefix for each printed line, default empty, useful for logging
-	bool Serialize(KOutStream& Stream, KStringView sLinePrefix = KStringView{}) const;
+	bool Serialize(KOutStream& Stream, bool bFlush = false, KStringView sLinePrefix = KStringView{}) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -244,7 +245,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Serialize / write the request and headers to the output stream.
-	bool Serialize();
+	/// @param bFlush if true (default), flush stream after writing the headers
+	bool Serialize(bool bFlush = true);
 	//-----------------------------------------------------------------------------
 
 protected:

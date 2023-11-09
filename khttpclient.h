@@ -255,7 +255,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// write request headers (and setup the filtered output stream)
-	bool Serialize();
+	/// @param bFlush if true (default) flush stream after writing the headers
+	bool Serialize(bool bFlush = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

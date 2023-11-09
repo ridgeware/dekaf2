@@ -112,8 +112,9 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// write reponse headers (and setup the filtered output stream)
+	/// @param bFlush if true (default), stream will be flushed after serialization
 	/// @return true if response could be serialized, false otherwise
-	bool Serialize();
+	bool Serialize(bool bFlush = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

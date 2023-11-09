@@ -418,7 +418,6 @@ protected:
 
 			if (m_WheelChar > 6) m_WheelChar = 0;
 			else ++m_WheelChar;
-			kDebug(2, "counter == {}, char = {:c}", m_WheelChar, m_Wheel[m_WheelChar]);
 			return m_Wheel[m_WheelChar];
 		}
 

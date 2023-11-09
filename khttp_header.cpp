@@ -224,7 +224,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 
 
 //-----------------------------------------------------------------------------
-bool KHTTPHeaders::Serialize(KOutStream& Stream, KStringView sLinePrefix) const
+bool KHTTPHeaders::Serialize(KOutStream& Stream, bool bFlush, KStringView sLinePrefix) const
 //-----------------------------------------------------------------------------
 {
 	for (const auto& iter : Headers)
@@ -241,7 +241,7 @@ bool KHTTPHeaders::Serialize(KOutStream& Stream, KStringView sLinePrefix) const
 
 	if (   !Stream.Write(sLinePrefix)
 		|| !Stream.WriteLine() // blank line indicates end of headers
-		|| !Stream.Flush())
+		|| !(!bFlush || Stream.Flush()))
 	{
 		return SetError("Cannot write headers");
 	}
@@ -380,13 +380,15 @@ const KString& KHTTPHeaders::Charset() const
 bool KHTTPHeaders::HasKeepAlive() const
 //-----------------------------------------------------------------------------
 {
+	auto sValue = Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII();
+
 	if (sHTTPVersion == "HTTP/1.0" || sHTTPVersion == "HTTP/0.9")
 	{
-		return false;
+		// close is default with HTTP < 1.1 - but we allow the client to override
+		return sValue == "keep-alive" || sValue == "keepalive";
 	}
 	else
 	{
-		auto sValue = Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII();
 		// keepalive is default with HTTP/1.1
 		return sValue.empty() || sValue == "keep-alive" || sValue == "keepalive";
 	}

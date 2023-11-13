@@ -94,7 +94,7 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPResponseHeaders::Serialize(KOutStream& Stream, bool bFlush, KStringView sLinePrefix) const
+bool KHTTPResponseHeaders::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
 	if (sHTTPVersion.empty())
@@ -102,12 +102,12 @@ bool KHTTPResponseHeaders::Serialize(KOutStream& Stream, bool bFlush, KStringVie
 		return SetError("missing http version");
 	}
 	
-	if (!Stream.FormatLine("{}{} {} {}", sLinePrefix, sHTTPVersion, iStatusCode, sStatusString))
+	if (!Stream.FormatLine("{} {} {}", sHTTPVersion, iStatusCode, sStatusString))
 	{
 		return SetError("Cannot write headers");
 	}
 
-	return KHTTPHeaders::Serialize(Stream, bFlush, sLinePrefix);
+	return KHTTPHeaders::Serialize(Stream);
 
 } // Serialize
 
@@ -148,11 +148,11 @@ void KHTTPResponseHeaders::SetStatus(uint16_t iCode, KStringView sMessage)
 } // SetStatus
 
 //-----------------------------------------------------------------------------
-bool KOutHTTPResponse::Serialize(bool bFlush)
+bool KOutHTTPResponse::Serialize()
 //-----------------------------------------------------------------------------
 {
 	// set up the chunked writer
-	return KOutHTTPFilter::Parse(*this) && KHTTPResponseHeaders::Serialize(UnfilteredStream(), bFlush);
+	return KOutHTTPFilter::Parse(*this) && KHTTPResponseHeaders::Serialize(UnfilteredStream());
 
 } // Serialize
 

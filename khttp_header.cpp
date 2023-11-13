@@ -224,14 +224,13 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 
 
 //-----------------------------------------------------------------------------
-bool KHTTPHeaders::Serialize(KOutStream& Stream, bool bFlush, KStringView sLinePrefix) const
+bool KHTTPHeaders::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
 	for (const auto& iter : Headers)
 	{
 		kDebug (2, "{}: {}", iter.first.Serialize(), iter.second);
-		if (   !Stream.Write(sLinePrefix)
-			|| !Stream.Write(iter.first.Serialize())
+		if (   !Stream.Write(iter.first.Serialize())
 			|| !Stream.Write(": ")
 			|| !Stream.WriteLine(iter.second))
 		{
@@ -239,9 +238,7 @@ bool KHTTPHeaders::Serialize(KOutStream& Stream, bool bFlush, KStringView sLineP
 		}
 	}
 
-	if (   !Stream.Write(sLinePrefix)
-		|| !Stream.WriteLine() // blank line indicates end of headers
-		|| !(!bFlush || Stream.Flush()))
+	if (!Stream.WriteLine() ) // blank line indicates end of headers
 	{
 		return SetError("Cannot write headers");
 	}

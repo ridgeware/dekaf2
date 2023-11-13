@@ -119,7 +119,7 @@ bool KHTTPServer::Parse()
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPServer::Serialize(bool bFlush)
+bool KHTTPServer::Serialize()
 //-----------------------------------------------------------------------------
 {
 	if (m_bConfigureCompression)
@@ -127,7 +127,7 @@ bool KHTTPServer::Serialize(bool bFlush)
 		EnableCompressionIfPossible();
 	}
 
-	if (!Response.Serialize(bFlush))
+	if (!Response.Serialize())
 	{
 		SetError(Response.Error());
 		return false;

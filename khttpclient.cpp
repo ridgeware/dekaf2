@@ -787,9 +787,8 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 		Request.Headers.Set(KHTTPHeader::USER_AGENT, "dekaf/" DEKAF_VERSION );
 	}
 
-	// send the request headers to the remote server, only immediately flush if we
-	// will not send content immediately
-	if (!Serialize((len == 0)))
+	// send the request headers to the remote server
+	if (!Serialize())
 	{
 		kDebugLog(2, "cannot write header");
 		return false;
@@ -834,10 +833,10 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 } // SendRequest
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::Serialize(bool bFlush)
+bool KHTTPClient::Serialize()
 //-----------------------------------------------------------------------------
 {
-	if (!Request.Serialize(bFlush))
+	if (!Request.Serialize())
 	{
 		return SetNetworkError(false, Request.Error());
 	}

@@ -328,7 +328,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream, KStringView sLinePrefix) const
+bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
 	if (!Resource.empty())
@@ -340,8 +340,7 @@ bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream, KStringView s
 					Endpoint.Serialize(),
 					Resource.Serialize(),
 					sHTTPVersion);
-			if (!Stream.FormatLine("{}{} http://{}{} {}",
-								   sLinePrefix,
+			if (!Stream.FormatLine("{} http://{}{} {}",
 								   Method.Serialize(),
 								   Endpoint.Serialize(),
 								   Resource.Serialize(),
@@ -356,8 +355,7 @@ bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream, KStringView s
 					Method.Serialize(),
 					Resource.Serialize(),
 					sHTTPVersion);
-			if (!Stream.FormatLine("{}{} {} {}",
-								   sLinePrefix,
+			if (!Stream.FormatLine("{} {} {}",
 								   Method.Serialize(),
 								   Resource.Serialize(),
 								   sHTTPVersion))
@@ -375,8 +373,7 @@ bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream, KStringView s
 					Endpoint.Serialize(),
 					sHTTPVersion);
 			// this is a CONNECT request
-			if (!Stream.FormatLine("{}{} {} {}",
-								   sLinePrefix,
+			if (!Stream.FormatLine("{} {} {}",
 								   Method.Serialize(),
 								   Endpoint.Serialize(),
 								   sHTTPVersion))
@@ -392,8 +389,7 @@ bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream, KStringView s
 			kDebug(2, "{} / {}",
 						Method.Serialize(),
 						sHTTPVersion);
-			if (!Stream.FormatLine("{}{} / {}",
-								   sLinePrefix,
+			if (!Stream.FormatLine("{} / {}",
 								   Method.Serialize(),
 								   sHTTPVersion))
 			{
@@ -407,11 +403,11 @@ bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream, KStringView s
 } // SerializeRequestLine
 
 //-----------------------------------------------------------------------------
-bool KHTTPRequestHeaders::Serialize(KOutStream& Stream, bool bFlush, KStringView sLinePrefix) const
+bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
-	return SerializeRequestLine(Stream, sLinePrefix) &&
-		KHTTPHeaders::Serialize(Stream, bFlush, sLinePrefix);
+	return SerializeRequestLine(Stream) &&
+		KHTTPHeaders::Serialize(Stream);
 
 } // Serialize
 
@@ -654,11 +650,11 @@ void KHTTPRequestHeaders::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-bool KOutHTTPRequest::Serialize(bool bFlush)
+bool KOutHTTPRequest::Serialize()
 //-----------------------------------------------------------------------------
 {
 	// set up the chunked writer
-	return KOutHTTPFilter::Parse(*this) && KHTTPRequestHeaders::Serialize(UnfilteredStream(), bFlush);
+	return KOutHTTPFilter::Parse(*this) && KHTTPRequestHeaders::Serialize(UnfilteredStream());
 
 } // Serialize
 

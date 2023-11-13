@@ -999,7 +999,7 @@ void KRESTServer::WriteHeaders()
 
 		// writes response headers to output, do not flush, we will have content following
 		// immediately
-		Serialize(false);
+		Serialize();
 
 		m_iTXBytes = OutputCounter.Count();
 

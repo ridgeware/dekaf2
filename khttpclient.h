@@ -221,7 +221,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Set the resource to be requested - for proxied connections, this also sets the proxied endpoint!
+	/// Set the resource to be requested - for proxied connections, this also sets the proxied TCP endpoint!
 	bool Resource(const KURL& url, KHTTPMethod method = KHTTPMethod::GET);
 	//-----------------------------------------------------------------------------
 
@@ -255,8 +255,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// write request headers (and setup the filtered output stream)
-	/// @param bFlush if true (default) flush stream after writing the headers
-	bool Serialize(bool bFlush = true);
+	bool Serialize();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

@@ -53,7 +53,7 @@ namespace dekaf2 {
 bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 //-----------------------------------------------------------------------------
 {
-	reset();
+	Flush();
 
 	m_bChunked = headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
 
@@ -64,17 +64,13 @@ bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KOutHTTPFilter::SetupOutputFilter()
+void KOutHTTPFilter::SetupOutputFilter()
 //-----------------------------------------------------------------------------
 {
 	// we lazy-create the input filter chain because we want to give
 	// the user the chance to switch off compression AFTER reading
 	// the headers
-
-	if (!m_Filter)
-	{
-		return false;
-	}
+	m_Filter = std::make_unique<boost::iostreams::filtering_ostream>();
 
 	if (m_bAllowCompression)
 	{
@@ -144,7 +140,8 @@ bool KOutHTTPFilter::SetupOutputFilter()
 	// and finally add our source stream to the filtering_ostream
 	m_Filter->push(std::move(Sink));
 
-	return true;
+	// save the pointer in a KOutStream object for return by reference
+	m_FilteredOutStream = KOutStream(*m_Filter.get());
 
 } // SetupOutputFilter
 
@@ -153,10 +150,11 @@ bool KOutHTTPFilter::SetupOutputFilter()
 KOutStream& KOutHTTPFilter::FilteredStream()
 //-----------------------------------------------------------------------------
 {
-	if (m_Filter && m_Filter->empty())
+	if (!m_Filter)
 	{
 		SetupOutputFilter();
 	}
+
 	return m_FilteredOutStream;
 }
 
@@ -295,34 +293,42 @@ size_t KOutHTTPFilter::WriteLine(KStringView sBuffer)
 } // WriteLine
 
 //-----------------------------------------------------------------------------
-void KOutHTTPFilter::reset()
+void KOutHTTPFilter::Flush()
 //-----------------------------------------------------------------------------
 {
-	if (m_Filter && !m_Filter->empty())
+	if (m_Filter)
 	{
-		// this resets (empties) the filter chain, but not the unique ptr m_Filter
-		m_Filter->reset();
-
-		if (m_OutStream)
+		if (!m_Filter->empty())
 		{
-			m_OutStream->Flush();
+			// the only way to reliably flush the filter chain is to reset it!
+			// this resets (empties) the filter chain, but not the unique ptr m_Filter
+			m_Filter->reset();
 		}
+
+		m_Filter.reset();
 	}
 
-	KHTTPCompression::SetCompression(NONE);
-	m_bChunked          = false;
-	m_bAllowCompression = true;
+	if (m_OutStream)
+	{
+		// flush the outermost stream
+		m_OutStream->Flush();
+	}
 
-} // reset
+	m_bAllowCompression = true;
+	m_bChunked          = false;
+
+} // Flush
 
 //-----------------------------------------------------------------------------
-void KOutHTTPFilter::close()
+void KOutHTTPFilter::Reset()
 //-----------------------------------------------------------------------------
 {
-	reset();
-	ResetOutputStream();
+	m_OutStream         = &s_Empty;
+	m_Filter.reset();
+	m_bAllowCompression = true;
+	m_bChunked          = false;
 
-} // close
+} // Reset
 
 KOutStringStream KOutHTTPFilter::s_Empty;
 

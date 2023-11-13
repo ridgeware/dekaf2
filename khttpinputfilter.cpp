@@ -51,7 +51,7 @@ namespace dekaf2 {
 bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode)
 //-----------------------------------------------------------------------------
 {
-	reset();
+	NextRound();
 
 	// find the content length
 	KStringView sRemainingContentSize = headers.Headers.Get(KHTTPHeader::CONTENT_LENGTH);
@@ -79,11 +79,7 @@ bool KInHTTPFilter::SetupInputFilter()
 	// we lazy-create the input filter chain because we want to give
 	// the user the chance to switch off compression AFTER reading
 	// the headers
-
-	if (!m_Filter)
-	{
-		return false;
-	}
+	m_Filter = std::make_unique<boost::iostreams::filtering_istream>();
 
 	if (m_bAllowUncompression)
 	{
@@ -157,6 +153,9 @@ bool KInHTTPFilter::SetupInputFilter()
 	// and finally add our source stream to the filtering_istream
 	m_Filter->push(Source);
 
+	// save the pointer in a KInStream object for return by reference
+	m_FilteredInStream = KInStream(*m_Filter.get());
+
 	return true;
 
 } // SetupInputFilter
@@ -166,10 +165,11 @@ bool KInHTTPFilter::SetupInputFilter()
 KInStream& KInHTTPFilter::FilteredStream()
 //-----------------------------------------------------------------------------
 {
-	if (m_Filter && m_Filter->empty())
+	if (!m_Filter)
 	{
 		SetupInputFilter();
 	}
+
 	return m_FilteredInStream;
 
 } // Stream
@@ -278,28 +278,29 @@ bool KInHTTPFilter::ReadLine(KStringRef& sBuffer)
 } // ReadLine
 
 //-----------------------------------------------------------------------------
-void KInHTTPFilter::reset()
+void KInHTTPFilter::NextRound()
 //-----------------------------------------------------------------------------
 {
-	if (m_Filter && !m_Filter->empty())
+	if (m_Filter)
 	{
-		m_Filter->reset();
+		m_Filter.reset();
 	}
+
 	KHTTPCompression::SetCompression(NONE);
-	m_bChunked            = false;
 	m_bAllowUncompression = true;
+	m_bChunked            = false;
 	m_iContentSize        = -1;
 
-} // reset
+} // NextRound
 
 //-----------------------------------------------------------------------------
-void KInHTTPFilter::close()
+void KInHTTPFilter::Reset()
 //-----------------------------------------------------------------------------
 {
-	reset();
-	ResetInputStream();
+	NextRound();
+	m_InStream = &s_Empty;
 
-} // close
+} // Reset
 
 KInStringStream KInHTTPFilter::s_Empty;
 

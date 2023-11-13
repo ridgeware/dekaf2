@@ -81,8 +81,8 @@ bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint, url::KPro
 	Stream.SetReaderRightTrim("\r\n");
 	Stream.SetWriterEndOfLine("\r\n");
 
-	Response.SetOutputStream(Stream);
 	Request.SetInputStream(Stream);
+	Response.SetOutputStream(Stream);
 
 	return Stream.InStream().good() && Stream.OutStream().good();
 
@@ -92,8 +92,8 @@ bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint, url::KPro
 void KHTTPServer::Disconnect()
 //-----------------------------------------------------------------------------
 {
-	Response.close();
-	Request.close();
+	Request.Reset();
+	Response.Reset();
 }
 
 //-----------------------------------------------------------------------------

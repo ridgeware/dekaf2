@@ -245,7 +245,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// set stream to output (mutually exclusive to other output types)
 	/// @param Stream an open stream to read from
-	/// @param iContentLength the count of bytes to read, or npos for read until EOF
+	/// @param iContentLength the count of bytes to read, or npos for read until EOF (the default)
 	/// @return true if stream is good for reading, false otherwise
 	bool SetStreamToOutput(std::unique_ptr<KInStream> Stream, std::size_t iContentLength = npos);
 	//-----------------------------------------------------------------------------
@@ -451,7 +451,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// switch to streaming output - this writes first the headers (if requested), and then leaves the output stream open
-	/// @param bAllowCompressionIfPossible switch compression on if possible
+	/// @param bAllowCompressionIfPossible switch compression on if possible (only if bWriteHeaders is true, too)
 	/// @param bWriteHeaders output headers - if false, neither headers nor end-of-header is written to the output
 	void Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders = true);
 	//-----------------------------------------------------------------------------

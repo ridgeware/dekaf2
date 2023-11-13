@@ -274,11 +274,8 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 
 	if (!m_Connection || !m_Connection->Good())
 	{
-		// Reset the streams in the filters, as they may now
-		// point into a deleted connection object from a
-		// previous connection!
-		Response.ResetInputStream();
-		Request.ResetOutputStream();
+		Request.Reset();
+		Response.Reset();
 
 		if (m_Connection && !m_Connection->Good())
 		{
@@ -288,20 +285,15 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 		return SetError("KConnection is invalid");
 	}
 
-	// reset status code and string
-	Response.SetStatus(0, "");
+	m_Connection->SetTimeout(m_Timeout);
+	m_Connection->Stream().SetReaderEndOfLine('\n');
+	m_Connection->Stream().SetReaderLeftTrim("");
+	m_Connection->Stream().SetReaderRightTrim("\r\n");
+	m_Connection->Stream().SetWriterEndOfLine("\r\n");
 
 	// immediately set the filter streams to the new object
-	// (see comment above)
-	Response.SetInputStream(m_Connection->Stream());
 	Request.SetOutputStream(m_Connection->Stream());
-
-	m_Connection->SetTimeout(m_Timeout);
-
-	(*m_Connection)->SetReaderEndOfLine('\n');
-	(*m_Connection)->SetReaderLeftTrim("");
-	(*m_Connection)->SetReaderRightTrim("\r\n");
-	(*m_Connection)->SetWriterEndOfLine("\r\n");
+	Response.SetInputStream(m_Connection->Stream());
 
 	// this is a new connection, so initially assume no proxying
 	m_bUseHTTPProxyProtocol	= false;
@@ -869,7 +861,7 @@ bool KHTTPClient::StatusIsRedirect() const
 bool KHTTPClient::Parse()
 //-----------------------------------------------------------------------------
 {
-	Request.reset();
+	Request.Flush();
 
 	m_bKeepAlive = true;
 

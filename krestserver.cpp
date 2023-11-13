@@ -1029,7 +1029,8 @@ void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders)
 	}
 
 	// do not signal nor perform a keep alive connection
-	m_bKeepAlive = false;
+	m_bKeepAlive   = false;
+	m_bIsStreaming = true;
 
 	if (!bWriteHeaders)
 	{
@@ -1042,8 +1043,6 @@ void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders)
 	ConfigureCompression(m_Options.bAllowCompression && bAllowCompressionIfPossible);
 
 	WriteHeaders();
-
-	m_bIsStreaming = true;
 
 } // Stream
 
@@ -1186,9 +1185,8 @@ void KRESTServer::Output()
 				}
 			}
 
-			// we have to force the output pipeline to close to reliably
 			// flush all content
-			Response.reset();
+			Response.Flush();
 
 			m_iTXBytes += Response.Count();
 			kDebug(2, "sent bytes: {}", m_iTXBytes);
@@ -1488,9 +1486,8 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 				}
 			}
 
-			// we have to force the output pipeline to close to reliably
 			// flush all content
-			Response.reset();
+			Response.Flush();
 
 			m_iTXBytes += Response.Count();
 			kDebug(2, "sent bytes: {}", m_iTXBytes);

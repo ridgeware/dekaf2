@@ -53,7 +53,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.34 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.35 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -820,6 +820,7 @@ set(PUBLIC_HEADERS
 	kmakecopyable.h
 	kmessagedigest.h
 	kmime.h
+	kmodifyingstreambuf.h
 	kmpsearch.h
 	kmru.h
 	kngram.h
@@ -861,6 +862,7 @@ set(PUBLIC_HEADERS
 	kstack.h
 	kstream.h
 	kstreambuf.h
+	kstreambufadaptor.h
 	kstring.h
 	kstringstream.h
 	kstringutils.h
@@ -1070,6 +1072,7 @@ set (SOURCES
 	kmail.cpp
 	kmessagedigest.cpp
 	kmime.cpp
+	kmodifyingstreambuf.cpp
 	kmpsearch.cpp
 	kopenid.cpp
 	koptions.cpp
@@ -1103,6 +1106,7 @@ set (SOURCES
 	ksslstream.cpp
 	kstream.cpp
 	kstreambuf.cpp
+	kstreambufadaptor.cpp
 	kstring.cpp
 	kstringstream.cpp
 	kstringutils.cpp

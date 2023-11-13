@@ -81,23 +81,14 @@ public:
 	KOutHTTPFilter(const KOutHTTPFilter&) = delete;
 	KOutHTTPFilter(KOutHTTPFilter&&) = default;
 	KOutHTTPFilter& operator=(const KOutHTTPFilter&) = delete;
-	KOutHTTPFilter& operator=(KOutHTTPFilter&&) = delete;
+	KOutHTTPFilter& operator=(KOutHTTPFilter&&) = default;
 
 	//-----------------------------------------------------------------------------
 	/// Set a new output stream for the filter
 	void SetOutputStream(KOutStream& OutStream)
 	//-----------------------------------------------------------------------------
 	{
-		close();
 		m_OutStream = &OutStream;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Reset the output stream for the filter to nil
-	void ResetOutputStream()
-	//-----------------------------------------------------------------------------
-	{
-		m_OutStream = &s_Empty;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -141,11 +132,13 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	void reset();
+	/// flushes all content in the output pipelines
+	void Flush();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void close();
+	/// resets to initial state
+	void Reset();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -175,22 +168,20 @@ private:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	bool SetupOutputFilter();
+	void SetupOutputFilter();
 	//-----------------------------------------------------------------------------
 
 	static KOutStringStream s_Empty;
 
 	KOutStream*     m_OutStream         { &s_Empty  };
-	// We made the filter a unique_ptr because we want to be able to move
-	// construct this class. We never reset it so it will never be null otherwise..
 	std::unique_ptr<boost::iostreams::filtering_ostream>
-	                m_Filter            { std::make_unique<boost::iostreams::filtering_ostream>() };
-	KOutStream      m_FilteredOutStream { *m_Filter };
+	                m_Filter;
+	KOutStream      m_FilteredOutStream { s_Empty.OutStream() };
 	std::streamsize m_iCount            { 0         };
 	bool            m_bChunked          { false     };
 	bool            m_bAllowCompression { true      };
 
-}; // KHTTPOutputFilter
+}; // KOutHTTPFilter
 
 } // of namespace dekaf2
 

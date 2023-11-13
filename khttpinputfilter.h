@@ -80,7 +80,7 @@ public:
 	KInHTTPFilter(const KInHTTPFilter&) = delete;
 	KInHTTPFilter(KInHTTPFilter&&) = default;
 	KInHTTPFilter& operator=(const KInHTTPFilter&) = delete;
-	KInHTTPFilter& operator=(KInHTTPFilter&&) = delete;
+	KInHTTPFilter& operator=(KInHTTPFilter&&) = default;
 
 	//-----------------------------------------------------------------------------
 	/// Set a new input stream for the filter
@@ -88,14 +88,6 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		m_InStream = &InStream;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Reset the input stream for the filter to nil
-	void ResetInputStream()
-	//-----------------------------------------------------------------------------
-	{
-		m_InStream = &s_Empty;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -147,11 +139,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	void reset();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	void close();
+	void Reset();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -182,20 +170,23 @@ private:
 	bool SetupInputFilter();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// resets/closes the filter pipeline
+	void NextRound();
+	//-----------------------------------------------------------------------------
+
 	static KInStringStream s_Empty;
 
 	KInStream*      m_InStream            { &s_Empty  };
-	// We made the filter a unique_ptr because we want to be able to move
-	// construct this class. We never reset it so it will never be null otherwise.
+	KInStream       m_FilteredInStream    { s_Empty.InStream() };
 	std::unique_ptr<boost::iostreams::filtering_istream>
-					m_Filter              { std::make_unique<boost::iostreams::filtering_istream>() };
-	KInStream       m_FilteredInStream    { *m_Filter };
+					m_Filter;
 	std::streamsize m_iContentSize        { -1        };
 	std::streamsize m_iCount              { 0         };
 	bool            m_bChunked            { false     };
 	bool            m_bAllowUncompression { true      };
 
-};
+}; // KInHTTPFilter
 
 } // of namespace dekaf2
 

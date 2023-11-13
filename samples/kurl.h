@@ -290,7 +290,7 @@ protected:
 
 			for (const auto& it : *Codes)
 			{
-				sResult += kFormat("HTTP {}: count {}, avg {}",
+				sResult += kFormat("HTTP {}: count {}, avg {}\n",
 								   it.first,
 								   kFormNumber(it.second.m_tDuration.Rounds()),
 								   it.second.m_tDuration.average());

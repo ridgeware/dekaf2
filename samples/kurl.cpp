@@ -49,6 +49,7 @@
 #include <dekaf2/kwebclient.h>
 #include <dekaf2/kxml.h>
 #include <dekaf2/kparallel.h>
+#include <dekaf2/kmodifyingstreambuf.h>
 
 using namespace dekaf2;
 
@@ -398,9 +399,12 @@ void kurl::ServerQuery ()
 
 		if (RQ->Config.Flags & Flags::REQUEST_HEADERS)
 		{
-			HTTP.Request.KHTTPRequestHeaders::Serialize(KErr, true, "> ");
+			KModifyingOutputStreamBuf Modifier(KErr.OutStream());
+			Modifier.Replace("", "> ");
+			HTTP.Request.KHTTPRequestHeaders::Serialize(KErr);
 			// actually curl prints both request and response headers on stderr with -v
-			HTTP.Response.KHTTPResponseHeaders::Serialize(KErr, true, "< ");
+			Modifier.Replace("", "< ");
+			HTTP.Response.KHTTPResponseHeaders::Serialize(KErr);
 		}
 
 		if (RQ->Config.Flags & Flags::RESPONSE_HEADERS)

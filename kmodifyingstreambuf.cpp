@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2020, Ridgeware, Inc.
+// Copyright (c) 2023, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -39,49 +39,164 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kcountingstreambuf.h"
+#include "kmodifyingstreambuf.h"
 
 namespace dekaf2 {
 
 //-----------------------------------------------------------------------------
-bool KCountingOutputStreamBuf::Output(char ch)
+KModifyingOutputStreamBuf::~KModifyingOutputStreamBuf()
 //-----------------------------------------------------------------------------
 {
-	if (Write(ch) == traits_type::eof())
+	if (m_iFound > 0)
 	{
-		return false;
+		// flush remaining output
+		Write(m_sSearch.Left(m_iFound));
 	}
-	++m_iCount;
+
+} // dtor
+
+//-----------------------------------------------------------------------------
+void KModifyingOutputStreamBuf::Replace(KStringView sSearch, KStringView sReplace)
+//-----------------------------------------------------------------------------
+{
+	m_sSearch  = sSearch;
+	m_sReplace = sReplace;
+	m_iFound   = 0;
+
+} // Replace
+
+//-----------------------------------------------------------------------------
+bool KModifyingOutputStreamBuf::OutputSingleChar(char ch)
+//-----------------------------------------------------------------------------
+{
+	if (ch == m_sSearch[m_iFound])
+	{
+		++m_iFound;
+
+		if (m_iFound == m_sSearch.size())
+		{
+			m_iFound = 0;
+			return Write(m_sReplace) == m_sReplace.size();
+		}
+
+		// we do not care for start of line if m_sSearch is not empty
+//		m_bAtStartOfLine = ch == '\n';
+
+		return true;
+	}
+
+	if (m_iFound > 0)
+	{
+		Write(m_sSearch.Left(m_iFound));
+		// if we are eof here we will also be in the next call
+		// to write below, therefore we do not have to check
+		m_iFound = 0;
+	}
+
+	return !traits_type::eq_int_type(traits_type::eof(), Write(ch));
+
+} // OutputSingleChar
+
+//-----------------------------------------------------------------------------
+bool KModifyingOutputStreamBuf::Output(char ch)
+//-----------------------------------------------------------------------------
+{
+	if (!m_sSearch.empty())
+	{
+		return OutputSingleChar(ch);
+	}
+	else 
+	{
+		if (m_bAtStartOfLine) // && m_sSearch == empty
+		{
+			Write(m_sReplace);
+		}
+
+		m_bAtStartOfLine = ch == '\n';
+	}
+
+	return !traits_type::eq_int_type(traits_type::eof(), Write(ch));
+
+} // Output
+
+//-----------------------------------------------------------------------------
+bool KModifyingOutputStreamBuf::Output(KStringView sOut)
+//-----------------------------------------------------------------------------
+{
+	if (m_sSearch.empty())
+	{
+		bool bGood { true };
+
+		for (; bGood && !sOut.empty(); )
+		{
+			if (m_bAtStartOfLine)
+			{
+				bGood = Write(m_sReplace) == m_sReplace.size();
+			}
+			// search for next lf
+			auto iNext = sOut.find('\n');
+
+			if (iNext != KStringView::npos)
+			{
+				++iNext; // write the LF as well
+				bGood = Write(sOut.Left(iNext)) == iNext;
+				sOut.remove_prefix(iNext);
+				m_bAtStartOfLine = true;
+			}
+			else
+			{
+				bGood = Write(sOut) == sOut.size();
+				sOut.clear();
+				m_bAtStartOfLine = false;
+			}
+		}
+
+		return bGood;
+	}
+	else
+	{
+		for (; !sOut.empty(); )
+		{
+			if (m_iFound == 0)
+			{
+				auto iNext = sOut.find(m_sSearch.front());
+
+				if (iNext != KStringView::npos)
+				{
+					if (Write(sOut.Left(iNext)) != iNext)
+					{
+						return false;
+					}
+
+					sOut.remove_prefix(iNext);
+				}
+			}
+
+			KStringView::size_type iWrote { 0 };
+
+			for (auto ch : sOut)
+			{
+				if (!OutputSingleChar(ch))
+				{
+					return false;
+				}
+				++iWrote;
+
+				if (!m_iFound)
+				{
+					break;
+				}
+			}
+
+			sOut.remove_prefix(iWrote);
+		}
+	}
+
 	return true;
 
 } // Output
 
-//-----------------------------------------------------------------------------
-bool KCountingOutputStreamBuf::Output(KStringView sOut)
-//-----------------------------------------------------------------------------
-{
-	auto iWrote = Write(sOut);
-	m_iCount   += iWrote;
-	return iWrote == sOut.size();
 
-} // Output
-
-
-//-----------------------------------------------------------------------------
-KCountingInputStreamBuf::int_type KCountingInputStreamBuf::Inspect(char_type ch)
-//-----------------------------------------------------------------------------
-{
-	++m_iCount;
-	return ch;
-}
-
-//-----------------------------------------------------------------------------
-std::streamsize KCountingInputStreamBuf::Inspect(char* sBuffer, std::streamsize iSize)
-//-----------------------------------------------------------------------------
-{
-	m_iCount += iSize;
-	return iSize;
-}
 
 } // end of namespace dekaf2
 

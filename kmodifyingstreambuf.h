@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2020, Ridgeware, Inc.
+// Copyright (c) 2023, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -41,16 +41,16 @@
 
 #pragma once
 
-/// @file kcountingstreambuf.h
-/// a streambuf that counts the bytes flowing through it
+/// @file kmodifyingstreambuf.h
+/// a streambuf that modifies the bytes flowing through it
 
 #include "kstreambufadaptor.h"
 
 namespace dekaf2 {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// helper class to count the characters written through a streambuf
-class DEKAF2_PUBLIC KCountingOutputStreamBuf : public KOutStreamBufAdaptor
+/// helper class to modify the characters written through a streambuf
+class DEKAF2_PUBLIC KModifyingOutputStreamBuf : public KOutStreamBufAdaptor
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -60,11 +60,11 @@ public:
 
 	using KOutStreamBufAdaptor::KOutStreamBufAdaptor;
 
-	/// get count of written bytes so far
-	std::streamsize Count() const { return m_iCount; }
+	~KModifyingOutputStreamBuf();
 
-	/// reset count of written bytes
-	void ResetCount() { m_iCount = 0; }
+	/// Replace sequence sSearch with sequence sReplace during streaming.
+	/// If sSearch is empty insert sReplace at every start of line!
+	void Replace(KStringView sSearch, KStringView sReplace);
 
 //-------
 protected:
@@ -78,13 +78,19 @@ protected:
 private:
 //-------
 
-	std::streamsize m_iCount  { 0 };
+	bool OutputSingleChar(char ch);
 
-}; // KCountingOutputStreamBuf
+	KString     m_sSearch;
+	KString     m_sReplace;
+	std::size_t m_iFound { 0 };
+	bool        m_bAtStartOfLine { true };
 
+}; // KModifyingOutputStreamBuf
+
+#if 0
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// helper class to count the characters read through a streambuf
-class DEKAF2_PUBLIC KCountingInputStreamBuf : public KInStreamBufAdaptor
+/// helper class to modify the characters read through a streambuf
+class DEKAF2_PUBLIC KModifyingInputStreamBuf : std::streambuf
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -92,29 +98,79 @@ class DEKAF2_PUBLIC KCountingInputStreamBuf : public KInStreamBufAdaptor
 public:
 //-------
 
-	using KInStreamBufAdaptor::KInStreamBufAdaptor;
+	//-----------------------------------------------------------------------------
+	KModifyingInputStreamBuf() = default;
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	KModifyingInputStreamBuf(std::istream& istream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	KModifyingInputStreamBuf(dekaf2::KInStream& instream)
+	//-----------------------------------------------------------------------------
+	: KModifyingInputStreamBuf(instream.InStream())
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	virtual ~KModifyingInputStreamBuf();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void Attach(std::istream& istream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	void Attach(dekaf2::KInStream& instream)
+	//-----------------------------------------------------------------------------
+	{
+		Attach(instream.InStream());
+	}
+
+	//-----------------------------------------------------------------------------
+	void Detach();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// get count of read bytes so far
 	std::streamsize Count() const { return m_iCount; }
+	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
 	/// reset count of read bytes
 	void ResetCount() { m_iCount = 0; }
+	//-----------------------------------------------------------------------------
 
 //-------
 protected:
 //-------
 
-	virtual int_type Inspect(char_type ch) override;
+	//-----------------------------------------------------------------------------
+	virtual int_type underflow() override;
+	//-----------------------------------------------------------------------------
 
-	virtual std::streamsize Inspect(char* sBuffer, std::streamsize iSize) override;
+	//-----------------------------------------------------------------------------
+	virtual std::streamsize xsgetn(char_type* s, std::streamsize n) override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	virtual pos_type seekoff(off_type off,
+							 std::ios_base::seekdir dir,
+							 std::ios_base::openmode which = std::ios_base::in | std::ios_base::out ) override;
+	//-----------------------------------------------------------------------------
 
 //-------
 private:
 //-------
 
+	std::istream*   m_istream    { nullptr };
+	std::streambuf* m_SBuf       { nullptr };
 	std::streamsize m_iCount     { 0 };
+	char_type       m_chBuf;
 
-}; // KCountingInputStreamBuf
+}; // KModifyingInputStreamBuf
+#endif
 
 } // end of namespace dekaf2
 

@@ -69,6 +69,7 @@ set (USOURCES
 	klog_tests.cpp
 	kmessagedigest_tests.cpp
 	kmime_tests.cpp
+	kmodifyingstreambuf_tests.cpp
 	kmpsearch_tests.cpp
 	kngram_tests.cpp
 	koptions_tests.cpp

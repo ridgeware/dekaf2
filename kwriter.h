@@ -97,13 +97,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// copy assignment is deleted
-	self_type& operator=(const self_type& other) = delete;
+	/// copy assignment
+	self_type& operator=(const self_type& other) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// move assignment is deleted, as with std::ostream
-	self_type& operator=(self_type&& other) = delete;
+	/// move assignment
+	self_type& operator=(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

@@ -80,6 +80,23 @@ KBAR::KBAR (uint64_t iExpected/*=0*/, uint32_t iWidth/*=DEFAULT_WIDTH*/, uint64_
 } // constructor
 
 //-----------------------------------------------------------------------------
+void KBAR::SetFlags (uint64_t iFlags)
+//-----------------------------------------------------------------------------
+{
+	m_iFlags = iFlags;
+	if (m_iFlags & SLIDER)
+	{
+		_SliderAction (KPS_START, 0, 0);
+		m_bSliding = true;
+	}
+	else
+	{
+		m_bSliding = false;
+	}
+
+} // SetFlags
+
+//-----------------------------------------------------------------------------
 KBAR::~KBAR()
 //-----------------------------------------------------------------------------
 {

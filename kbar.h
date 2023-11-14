@@ -78,6 +78,7 @@ public:
 	KBAR  (uint64_t iExpected=0, uint32_t iWidth=DEFAULT_WIDTH, uint64_t iFlags=SLIDER, int chDone=DEFAULT_DONE_CHAR, KOutStream& Out = KOut);
 	~KBAR ();
 
+	void      SetFlags (uint64_t iFlags);
 	bool      Start  (uint64_t iExpected);
 	bool      Adjust (uint64_t iExpected);
 	bool      Move   (int64_t iDelta=1);
@@ -86,6 +87,8 @@ public:
 	KString   GetBar (int chBlank=' ');
 	uint64_t  GetSoFar() const { return m_iSoFar; }
 	void      RepaintSlider ();
+	bool      IsActive ()  { return (m_iExpected > 0); }
+	uint64_t  GetExpected() { return m_iExpected; }
 
 //----------
 private:

@@ -84,7 +84,7 @@ public:
 	bool      Move   (int64_t iDelta=1);
 	void      Break  (KStringView sMsg="!!!");
 	void      Finish ();
-	KString   GetBar (int chBlank=' ');
+	KString   GetBar (uint16_t iStaticWidth=30, int chBlank=' ');
 	uint64_t  GetSoFar() const { return m_iSoFar; }
 	void      RepaintSlider ();
 	bool      IsActive ()  { return (m_iExpected > 0); }
@@ -124,7 +124,7 @@ public:
 	bool      Move   (int64_t iDelta=1);
 	void      Break  (KStringView sMsg="!!!");
 	void      Finish ();
-	KString   GetBar (int chBlank=' ');
+	KString   GetBar (uint16_t iStaticWidth=30, int chBlank=' ');
 	uint64_t  GetSoFar() const;
 	void      RepaintSlider ();
 

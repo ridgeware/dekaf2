@@ -176,7 +176,7 @@ bool KBAR::Move (int64_t iDelta)
 } // Move
 
 //-----------------------------------------------------------------------------
-KString KBAR::GetBar (int chBlank/*=' '*/)
+KString KBAR::GetBar (uint16_t iStaticWidth/*=30*/, int chBlank/*=' '*/)
 //-----------------------------------------------------------------------------
 {
 	KString  sBar;
@@ -193,11 +193,11 @@ KString KBAR::GetBar (int chBlank/*=' '*/)
 		nPercentNow = 100.0;
 	}
 
-	uint32_t iNumBarsNow  = (int) (nPercentNow  * (double)(m_iWidth));
+	uint32_t iNumBarsNow  = (int) (nPercentNow  * (double)(iStaticWidth));
 
-	kDebug (1, "{} out of {}, {}%, {} out of {} bars", m_iSoFar, m_iExpected, nPercentNow, iNumBarsNow, m_iWidth);
+	kDebug (1, "{} out of {}, {}%, {} out of {} bars", m_iSoFar, m_iExpected, nPercentNow, iNumBarsNow, iStaticWidth);
 
-	for (uint32_t ii=1; ii<=m_iWidth; ++ii)
+	for (uint32_t ii=1; ii<=iStaticWidth; ++ii)
 	{
 		if (ii <= iNumBarsNow)
 		{
@@ -351,11 +351,11 @@ void KSharedBar::Finish ()
 }
 
 //-----------------------------------------------------------------------------
-KString KSharedBar::GetBar (int chBlank)
+KString KSharedBar::GetBar (uint16_t iStaticWidth, int chBlank)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
-	return KBAR::GetBar(chBlank);
+	return KBAR::GetBar(iStaticWidth,chBlank);
 }
 
 //-----------------------------------------------------------------------------

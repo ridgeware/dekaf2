@@ -220,7 +220,7 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 		return false;
 	}
 
-	kDebug(2, "connected to endpoint {}", Endpoint.Serialize());
+	kDebug(2, "connected to endpoint {}", m_Stream.sEndpoint);
 
 	return true;
 

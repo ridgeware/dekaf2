@@ -90,6 +90,24 @@ int main( int argc, char* const argv[] )
 				.SetDebugLog(KLog::STDOUT);
 			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
+		if (kStrIn (argv[ii], "-uk,-ukk,-ukkk"))
+		{
+			iLast = ii;
+			KLog::getInstance()
+				.SetLevel(static_cast<int>(strlen(argv[ii]) - 2))
+				.SetUSecMode(true)
+				.SetDebugLog(KLog::STDOUT);
+			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
+		}
+		else if (kStrIn (argv[ii], "-uk0"))
+		{
+			iLast = ii;
+			KLog::getInstance()
+				.SetLevel( 0 )
+				.SetUSecMode(true)
+				.SetDebugLog(KLog::STDOUT);
+			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
+		}
 		else if (kStrIn (argv[ii], "-dgrep,-dgrepv"))
 		{
 			if (ii < argc-1)

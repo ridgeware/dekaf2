@@ -235,7 +235,7 @@ void KBAR::Finish ()
 		m_bSliding = false;
 	}
 
-	m_iExpected = m_iSoFar;
+	m_iExpected = 0;
 
 } // Finish
 

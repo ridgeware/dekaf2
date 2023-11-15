@@ -84,7 +84,7 @@ bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint, url::KPro
 	Request.SetInputStream(Stream);
 	Response.SetOutputStream(Stream);
 
-	return Stream.InStream().good() && Stream.OutStream().good();
+	return Stream.istream().good() && Stream.ostream().good();
 
 } // Accept
 

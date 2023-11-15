@@ -42,11 +42,28 @@
 
 #include <iostream>
 #include "kstream.h"
+#include "kstreambuf.h"
 
 namespace dekaf2
 {
 
 KStream KInOut(std::cin, std::cout);
+
+//-----------------------------------------------------------------------------
+std::iostream& kGetNullIOStream()
+//-----------------------------------------------------------------------------
+{
+	static std::unique_ptr<std::iostream> NullStream = std::make_unique<std::iostream>(&KNullStreamBuf::Create());
+	return *NullStream.get();
+}
+
+//-----------------------------------------------------------------------------
+KStream& kGetNullStream()
+//-----------------------------------------------------------------------------
+{
+	static std::unique_ptr<KStream> NullStream = std::make_unique<KStream>(kGetNullInStream(), kGetNullOutStream());
+	return *NullStream.get();
+}
 
 //-----------------------------------------------------------------------------
 KStream::~KStream()

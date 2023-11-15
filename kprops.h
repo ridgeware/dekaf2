@@ -450,7 +450,7 @@ public:
 	{
 		size_t iNewElements { 0 };
 
-		if (Input.InStream().good())
+		if (Input.istream().good())
 		{
 			if (!svDelim.empty())
 			{

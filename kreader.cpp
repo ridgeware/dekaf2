@@ -46,6 +46,7 @@
 #include "kfilesystem.h"
 #include "ksystem.h"
 #include "kstringutils.h"
+#include "kstreambuf.h"
 #include <iostream>
 #include <fcntl.h>
 
@@ -59,6 +60,22 @@ namespace dekaf2
 {
 
 KInStream KIn(std::cin);
+
+//-----------------------------------------------------------------------------
+std::istream& kGetNullIStream()
+//-----------------------------------------------------------------------------
+{
+	static std::unique_ptr<std::istream> NullStream = std::make_unique<std::istream>(&KNullStreamBuf::Create());
+	return *NullStream.get();
+}
+
+//-----------------------------------------------------------------------------
+KInStream& kGetNullInStream()
+//-----------------------------------------------------------------------------
+{
+	static std::unique_ptr<KInStream> NullStream = std::make_unique<KInStream>(kGetNullIStream(), "", "", '\n', true);
+	return *NullStream.get();
+}
 
 //-----------------------------------------------------------------------------
 bool kRewind(std::istream& Stream)
@@ -698,7 +715,7 @@ KInStream::const_kreader_line_iterator::self_type& KInStream::const_kreader_line
 {
 	if (DEKAF2_LIKELY(m_it != nullptr))
 	{
-		if (!kReadLine(m_it->InStream(),
+		if (!kReadLine(m_it->istream(),
 		               m_sBuffer,
 		               m_it->m_sTrimRight,
 		               m_it->m_sTrimLeft,
@@ -725,15 +742,30 @@ const KInStream::const_kreader_line_iterator::self_type KInStream::const_kreader
 } // postfix
 
 //-----------------------------------------------------------------------------
+KInStream::KInStream(std::istream&           InStream,
+					 KStringView             sTrimRight,
+					 KStringView             sTrimLeft,
+					 KStringView::value_type chDelimiter,
+					 bool                    bImmutable)
+//-----------------------------------------------------------------------------
+	: m_InStream   (&InStream  )
+	, m_sTrimRight (sTrimRight )
+	, m_sTrimLeft  (sTrimLeft  )
+	, m_chDelimiter(chDelimiter)
+	, m_bImmutable (bImmutable )
+{
+}
+
+//-----------------------------------------------------------------------------
 /// UnRead a character
 bool KInStream::UnRead()
 //-----------------------------------------------------------------------------
 {
-	auto streambuf = InStream().rdbuf();
+	auto streambuf = istream().rdbuf();
 
 	if (DEKAF2_UNLIKELY(!streambuf))
 	{
-		InStream().setstate(std::ios::failbit);
+		istream().setstate(std::ios::failbit);
 
 		return false;
 	}
@@ -748,7 +780,7 @@ bool KInStream::UnRead()
 	}
 
 	// make sure we are no more in eof state if we were before
-	InStream().clear();
+	istream().clear();
 
 	return true;
 
@@ -759,11 +791,11 @@ bool KInStream::UnRead()
 std::istream::int_type KInStream::Read()
 //-----------------------------------------------------------------------------
 {
-	auto streambuf = InStream().rdbuf();
+	auto streambuf = istream().rdbuf();
 
 	if (DEKAF2_UNLIKELY(streambuf == nullptr))
 	{
-		InStream().setstate(std::ios::failbit);
+		istream().setstate(std::ios::failbit);
 
 		return std::istream::traits_type::eof();
 	}
@@ -772,7 +804,7 @@ std::istream::int_type KInStream::Read()
 
 	if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
 	{
-		InStream().setstate(std::ios::eofbit);
+		istream().setstate(std::ios::eofbit);
 	}
 
 	return iCh;
@@ -784,11 +816,11 @@ std::istream::int_type KInStream::Read()
 std::size_t KInStream::Read(void* pAddress, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	auto streambuf = InStream().rdbuf();
+	auto streambuf = istream().rdbuf();
 
 	if (DEKAF2_UNLIKELY(streambuf == nullptr))
 	{
-		InStream().setstate(std::ios::failbit);
+		istream().setstate(std::ios::failbit);
 
 		return 0;
 	}
@@ -797,12 +829,12 @@ std::size_t KInStream::Read(void* pAddress, std::size_t iCount)
 
 	if (DEKAF2_UNLIKELY(iRead < 0))
 	{
-		InStream().setstate(std::ios::badbit);
+		istream().setstate(std::ios::badbit);
 		iRead = 0;
 	}
 	else if (DEKAF2_UNLIKELY(static_cast<std::size_t>(iRead) < iCount))
 	{
-		InStream().setstate(std::ios::eofbit);
+		istream().setstate(std::ios::eofbit);
 	}
 
 	return static_cast<std::size_t>(iRead);
@@ -867,6 +899,67 @@ std::size_t KInStream::Read(KOutStream& Stream, std::size_t iCount)
 	return iRead;
 
 } // Read
+
+//-----------------------------------------------------------------------------
+/// Set the end-of-line character (defaults to LF)
+bool KInStream::SetReaderEndOfLine(char chDelimiter)
+//-----------------------------------------------------------------------------
+{
+	if (!m_bImmutable)
+	{
+		m_chDelimiter = chDelimiter;
+	}
+	else
+	{
+		kDebug(2, "{} is made immutable - cannot change to {}", "line delimiter", chDelimiter);
+	}
+	return !m_bImmutable;
+
+} // SetReaderEndOfLine
+
+//-----------------------------------------------------------------------------
+/// Set the left trim characters for line based reading (default to none)
+bool KInStream::SetReaderLeftTrim(KStringView sTrimLeft)
+//-----------------------------------------------------------------------------
+{
+	if (!m_bImmutable)
+	{
+		m_sTrimLeft  = sTrimLeft;
+	}
+	else
+	{
+		kDebug(2, "{} is made immutable - cannot change to {}", "trimming", sTrimLeft);
+	}
+	return !m_bImmutable;
+
+} // SetReaderLeftTrim
+
+//-----------------------------------------------------------------------------
+/// Set the right trim characters for line based reading (default to LF)
+bool KInStream::SetReaderRightTrim(KStringView sTrimRight)
+//-----------------------------------------------------------------------------
+{
+	if (!m_bImmutable)
+	{
+		m_sTrimRight = sTrimRight;
+	}
+	else
+	{
+		kDebug(2, "{} is made immutable - cannot change to {}", "trimming", sTrimRight);
+	}
+	return !m_bImmutable;
+
+} // SetReaderRightTrim
+
+//-----------------------------------------------------------------------------
+/// Set the right and left trim characters for line based reading (default to LF for right, none for left)
+bool KInStream::SetReaderTrim(KStringView sTrimRight, KStringView sTrimLeft)
+//-----------------------------------------------------------------------------
+{
+	return SetReaderRightTrim(sTrimRight) && SetReaderLeftTrim(sTrimLeft);
+
+} // SetReaderTrim
+
 
 template class KReader<std::ifstream>;
 

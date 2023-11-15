@@ -147,7 +147,7 @@ public:
 	bool Fail() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_InStream && m_InStream->InStream().fail();
+		return m_InStream && m_InStream->istream().fail();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -175,10 +175,8 @@ private:
 	void NextRound();
 	//-----------------------------------------------------------------------------
 
-	static KInStringStream s_Empty;
-
-	KInStream*      m_InStream            { &s_Empty  };
-	KInStream       m_FilteredInStream    { s_Empty.InStream() };
+	KInStream*      m_InStream            { &kGetNullInStream() };
+	KInStream       m_FilteredInStream    { kGetNullInStream().istream() };
 	std::unique_ptr<boost::iostreams::filtering_istream>
 					m_Filter;
 	std::streamsize m_iContentSize        { -1        };

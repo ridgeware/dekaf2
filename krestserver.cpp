@@ -667,6 +667,7 @@ bool KRESTServer::Execute()
 				m_Timers->StoreInterval(Timer::RECEIVE);
 			}
 
+			kDebug (1, "============== new request ==============");
 			kDebug (2, "incoming: {} {}", Request.Method.Serialize(), Request.Resource.Path);
 
 			if (m_Options.PreRouteCallback)
@@ -823,7 +824,6 @@ bool KRESTServer::Execute()
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			// debug info
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
-			kDebug (1, KLog::DASH);
 			kDebug (1, "{}: {}", GetRequestMethod(), GetRequestPath());
 
 			kSetCrashContext (kFormat ("{}: {}\nHost: {} Remote IP: {}",

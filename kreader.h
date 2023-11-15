@@ -290,15 +290,16 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// value constructor
-	KInStream(std::istream& InStream)
+	KInStream(std::istream&           InStream,
+			  KStringView             sTrimRight  = detail::kLineRightTrims,
+			  KStringView             sTrimLeft   = KStringView{},
+			  KStringView::value_type chDelimiter = '\n',
+			  bool                    bImmutable  = false);
 	//-----------------------------------------------------------------------------
-	    : m_InStream(&InStream)
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// copy construction is deleted (to avoid ambiguities with the value constructor)
-	KInStream(const self_type& other) = delete;
+	KInStream(const self_type& other) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -366,7 +367,7 @@ public:
 	bool ReadLine(KStringRef& sLine, std::size_t iMaxRead = npos)
 	//-----------------------------------------------------------------------------
 	{
-		return kReadLine(InStream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter, iMaxRead);
+		return kReadLine(istream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter, iMaxRead);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -378,7 +379,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		KString sLine;
-		kReadLine(InStream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter, iMaxRead);
+		kReadLine(istream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter, iMaxRead);
 		return sLine;
 	}
 
@@ -388,7 +389,7 @@ public:
 	bool ReadAll(KStringRef& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
-		return kReadAll(InStream(), sBuffer, true);
+		return kReadAll(istream(), sBuffer, true);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -396,7 +397,7 @@ public:
 	KString ReadAll()
 	//-----------------------------------------------------------------------------
 	{
-		return kReadAll(InStream(), true);
+		return kReadAll(istream(), true);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -405,7 +406,7 @@ public:
 	bool ReadRemaining(KStringRef& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
-		return kReadAll(InStream(), sBuffer, false);
+		return kReadAll(istream(), sBuffer, false);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -414,7 +415,7 @@ public:
 	KString ReadRemaining()
 	//-----------------------------------------------------------------------------
 	{
-		return kReadAll(InStream(), false);
+		return kReadAll(istream(), false);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -439,7 +440,7 @@ public:
 	std::size_t GetSize()
 	//-----------------------------------------------------------------------------
 	{
-		auto iSize = kGetSize(InStream(), true);
+		auto iSize = kGetSize(istream(), true);
 
 		if (iSize < 0)
 		{
@@ -457,7 +458,7 @@ public:
 	std::size_t GetRemainingSize()
 	//-----------------------------------------------------------------------------
 	{
-		auto iSize = kGetSize(InStream(), false);
+		auto iSize = kGetSize(istream(), false);
 		
 		if (iSize < 0)
 		{
@@ -487,7 +488,7 @@ public:
 	bool Rewind()
 	//-----------------------------------------------------------------------------
 	{
-		return kRewind(InStream());
+		return kRewind(istream());
 	}
 
 	//-----------------------------------------------------------------------------
@@ -529,7 +530,7 @@ public:
 	char_iterator char_begin()
 	//-----------------------------------------------------------------------------
 	{
-		return char_iterator(InStream());
+		return char_iterator(istream());
 	}
 
 	//-----------------------------------------------------------------------------
@@ -542,41 +543,52 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Set the end-of-line character (defaults to LF)
-	void SetReaderEndOfLine(char chDelimiter = '\n')
+	/// Fixates all trim and eol settings
+	void SetReaderImmutable()
 	//-----------------------------------------------------------------------------
 	{
-		m_chDelimiter = chDelimiter;
+		m_bImmutable = true;
 	}
+
+	//-----------------------------------------------------------------------------
+	/// Set the end-of-line character (defaults to LF)
+	bool SetReaderEndOfLine(char chDelimiter = '\n');
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Set the left trim characters for line based reading (default to none)
-	void SetReaderLeftTrim(KStringView sTrimLeft = "")
+	bool SetReaderLeftTrim(KStringView sTrimLeft = "");
 	//-----------------------------------------------------------------------------
-	{
-		m_sTrimLeft  = sTrimLeft;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Set the right trim characters for line based reading (default to LF)
-	void SetReaderRightTrim(KStringView sTrimRight = detail::kLineRightTrims)
+	bool SetReaderRightTrim(KStringView sTrimRight = detail::kLineRightTrims);
 	//-----------------------------------------------------------------------------
-	{
-		m_sTrimRight = sTrimRight;
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Set the right and left trim characters for line based reading (default to LF for right, none for left)
-	void SetReaderTrim(KStringView sTrimRight = detail::kLineRightTrims, KStringView sTrimLeft = "")
+	bool SetReaderTrim(KStringView sTrimRight = detail::kLineRightTrims, KStringView sTrimLeft = "");
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Get a const ref on the KInStream component
+	const self_type& InStream() const
 	//-----------------------------------------------------------------------------
 	{
-		SetReaderRightTrim(sTrimRight);
-		SetReaderLeftTrim(sTrimLeft);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get a ref on the KInStream component
+	self_type& InStream()
+	//-----------------------------------------------------------------------------
+	{
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Get the std::istream
-	const std::istream& InStream() const
+	const std::istream& istream() const
 	//-----------------------------------------------------------------------------
 	{
 		return *m_InStream;
@@ -584,7 +596,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get the std::istream
-	std::istream& InStream()
+	std::istream& istream()
 	//-----------------------------------------------------------------------------
 	{
 		return *m_InStream;
@@ -595,7 +607,7 @@ public:
 	operator const std::istream& () const
 	//-----------------------------------------------------------------------------
 	{
-		return InStream();
+		return istream();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -603,7 +615,7 @@ public:
 	operator std::istream& ()
 	//-----------------------------------------------------------------------------
 	{
-		return InStream();
+		return istream();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -611,21 +623,32 @@ public:
 	bool Good() const
 	//-----------------------------------------------------------------------------
 	{
-		return InStream().good();
+		return istream().good();
 	}
 
 //-------
 private:
 //-------
 
-	std::istream* m_InStream;
-	KString m_sTrimRight { detail::kLineRightTrims };
-	KString m_sTrimLeft;
-	KString::value_type m_chDelimiter { '\n' };
+	std::istream*       m_InStream;
+	KString             m_sTrimRight;
+	KString             m_sTrimLeft;
+	KString::value_type m_chDelimiter;
+	bool                m_bImmutable;
 
 }; // KInStream
 
 extern KInStream KIn;
+
+//-----------------------------------------------------------------------------
+/// return a std::istream object that reads from nothing, but is valid
+std::istream& kGetNullIStream();
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// return a KInStream object that reads from nothing, but is valid
+KInStream& kGetNullInStream();
+//-----------------------------------------------------------------------------
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The general reader abstraction for dekaf2. Can be constructed around any

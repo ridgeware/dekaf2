@@ -139,7 +139,7 @@ bool KBufferedReader::ReadLine(KStringRef& sBuffer, KStringView::value_type deli
 /// construct from any istream
 KBufferedStreamReader::KBufferedStreamReader(KInStream& istream, size_t iBufferSize)
 //-----------------------------------------------------------------------------
-	: m_istream(&istream.InStream())
+	: m_istream(&istream.istream())
 	, m_buffer(std::make_unique<char[]>(iBufferSize))
 {
 	m_Arena = Arena(m_buffer.get(), iBufferSize);

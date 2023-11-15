@@ -80,13 +80,30 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
-	/// move construct a KStream
-	KStream(self_type&& other) = default;
+	/// value construct a KStream from separate in- and out-streams
+	KStream(KInStream& InStream, KOutStream& OutStream)
+	//-----------------------------------------------------------------------------
+	: reader_type(InStream)
+	, writer_type(OutStream)
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// value construct a KStream from separate in- and out-streams
+	template<class In, class Out>
+	KStream(KReader<In>& InStream, KWriter<Out>& OutStream)
+	//-----------------------------------------------------------------------------
+	: reader_type(InStream.InStream())
+	, writer_type(OutStream.OutStream())
+	{}
+
+	//-----------------------------------------------------------------------------
+	/// copy construction
+	KStream(const self_type& other) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// copy construction is deleted, as with std::iostream
-	KStream(self_type& other) = delete;
+	/// move construct a KStream
+	KStream(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -95,18 +112,28 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// assignment operator is deleted, as with std::iostream
-	self_type& operator=(const self_type& other) = delete;
+	/// assignment operator
+	self_type& operator=(const self_type& other) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// move operator is deleted, as with std::iostream (use the move constructor instead)
-	self_type& operator=(self_type&& other) = delete;
+	/// move operator is deleted, as with std::iostream
+	self_type& operator=(self_type&& other) = default;
 	//-----------------------------------------------------------------------------
 
 };
 
 extern KStream KInOut;
+
+//-----------------------------------------------------------------------------
+/// return a std::iostream object that reads and writes from/to nothing, but is valid
+std::iostream& kGetNullIOStream();
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// return a KStream object that reads and writes from/to nothing, but is valid
+KStream& kGetNullStream();
+//-----------------------------------------------------------------------------
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The templatized bidirectional stream abstraction for dekaf2. Can be constructed

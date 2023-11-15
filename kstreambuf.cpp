@@ -83,6 +83,13 @@ std::streamsize KNullStreamBuf::xsgetn(char_type* s, std::streamsize n)
 	return n;
 }
 
+//-----------------------------------------------------------------------------
+KNullStreamBuf& KNullStreamBuf::Create()
+//-----------------------------------------------------------------------------
+{
+	static std::unique_ptr<KNullStreamBuf> NullBuf = std::make_unique<KNullStreamBuf>();
+	return *NullBuf.get();
+}
 
 //-----------------------------------------------------------------------------
 KInStreamBuf::~KInStreamBuf()

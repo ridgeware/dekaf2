@@ -224,7 +224,7 @@ void KJSON2::Serialize (OStreamT& ostream, bool bPretty) const
 	if (!bPretty)
 	{
 #ifdef DEKAF2
-		ostream.OutStream() << ToBase();
+		ostream.ostream() << ToBase();
 #else
 		ostream << ToBase();
 #endif
@@ -232,7 +232,7 @@ void KJSON2::Serialize (OStreamT& ostream, bool bPretty) const
 	else
 	{
 #ifdef DEKAF2
-		ostream.OutStream() << std::setw(1) << std::setfill('\t') << ToBase();
+		ostream.ostream() << std::setw(1) << std::setfill('\t') << ToBase();
 #else
 		ostream << std::setw(1) << std::setfill('\t') << ToBase();
 #endif

@@ -72,7 +72,7 @@ public:
 	//-----------------------------------------------------------------------------
 	KOutStreamBufAdaptor(KOutStream& outstream)
 	//-----------------------------------------------------------------------------
-	: KOutStreamBufAdaptor(outstream.OutStream())
+	: KOutStreamBufAdaptor(outstream.ostream())
 	{
 	}
 
@@ -151,7 +151,7 @@ public:
 	//-----------------------------------------------------------------------------
 	KInStreamBufAdaptor(KInStream& instream)
 	//-----------------------------------------------------------------------------
-	: KInStreamBufAdaptor(instream.InStream())
+	: KInStreamBufAdaptor(instream.istream())
 	{
 	}
 

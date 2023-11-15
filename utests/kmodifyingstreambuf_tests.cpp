@@ -36,7 +36,7 @@ TEST_CASE("KModifyingStreambuf")
 		KOutStringStream oss(sOutput);
 
 		{
-			KModifyingOutputStreamBuf Modifier(oss.OutStream());
+			KModifyingOutputStreamBuf Modifier(oss.ostream());
 			Modifier.Replace("jkl", "+++replaced+++");
 
 			oss.Write(sInput.front());
@@ -55,7 +55,7 @@ TEST_CASE("KModifyingStreambuf")
 		KOutStringStream oss(sOutput);
 
 		{
-			KModifyingOutputStreamBuf Modifier(oss.OutStream());
+			KModifyingOutputStreamBuf Modifier(oss.ostream());
 			Modifier.Replace("jkl", "+++replaced+++");
 			
 			for (auto ch : sInput)
@@ -75,7 +75,7 @@ TEST_CASE("KModifyingStreambuf")
 		KString sOutput;
 		KOutStringStream oss(sOutput);
 
-		KModifyingOutputStreamBuf Modifier(oss.OutStream());
+		KModifyingOutputStreamBuf Modifier(oss.ostream());
 		Modifier.Replace("", "|");
 
 		oss.Write(sInput.front());

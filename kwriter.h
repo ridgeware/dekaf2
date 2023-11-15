@@ -80,15 +80,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// value constructor
-	KOutStream(std::ostream& OutStream)
+	KOutStream(std::ostream& OutStream, KStringView sLineDelimiter = "\n", bool bImmutable = false);
 	//-----------------------------------------------------------------------------
-	    : m_OutStream(&OutStream)
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// copy construction is deleted (to avoid ambiguities with the value constructor)
-	KOutStream(const self_type& other) = delete;
+	KOutStream(const self_type& other) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -126,8 +123,7 @@ public:
 	self_type& Write(KStringView str)
 	//-----------------------------------------------------------------------------
 	{
-		Write(str.data(), str.size());
-		return *this;
+		return Write(str.data(), str.size());
 	}
 
 	//-----------------------------------------------------------------------------
@@ -156,8 +152,7 @@ public:
 	self_type& WriteLine()
 	//-----------------------------------------------------------------------------
 	{
-		Write(m_sDelimiter.data(), m_sDelimiter.size());
-		return *this;
+		return Write(GetWriterEndOfLine());
 	}
 
 	//-----------------------------------------------------------------------------
@@ -193,25 +188,43 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Set the end-of-line sequence (defaults to "LF", may differ depending on platform)
-	self_type& SetWriterEndOfLine(KStringView sDelimiter = "\n")
+	/// Fixates eol settings
+	self_type& SetWriterImmutable();
 	//-----------------------------------------------------------------------------
-	{
-		m_sDelimiter = sDelimiter;
-		return *this;
-	}
+
+	//-----------------------------------------------------------------------------
+	/// Set the end-of-line sequence (defaults to "LF", may differ depending on platform).  If the
+	/// delimiter is NUL, NUL (two consecutive zeroes), the delimiter may not be changed anymore.
+	self_type& SetWriterEndOfLine(KStringView sLineDelimiter = "\n");
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Get the end-of-line sequence (defaults to "LF", may differ depending on platform)
 	const KString& GetWriterEndOfLine() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_sDelimiter;
+		return m_sLineDelimiter;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get a const ref on the KOutStream component
+	const self_type& OutStream() const
+	//-----------------------------------------------------------------------------
+	{
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get a ref on the KOutStream component
+	self_type& OutStream()
+	//-----------------------------------------------------------------------------
+	{
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Get the std::ostream
-	const std::ostream& OutStream() const
+	const std::ostream& ostream() const
 	//-----------------------------------------------------------------------------
 	{
 		return *m_OutStream;
@@ -219,7 +232,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get the std::ostream
-	std::ostream& OutStream()
+	std::ostream& ostream()
 	//-----------------------------------------------------------------------------
 	{
 		return *m_OutStream;
@@ -230,7 +243,7 @@ public:
 	operator const std::ostream& () const
 	//-----------------------------------------------------------------------------
 	{
-		return OutStream();
+		return ostream();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -238,7 +251,7 @@ public:
 	operator std::ostream& ()
 	//-----------------------------------------------------------------------------
 	{
-		return OutStream();
+		return ostream();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -246,7 +259,7 @@ public:
 	self_type& Flush()
 	//-----------------------------------------------------------------------------
 	{
-		OutStream().flush();
+		ostream().flush();
 		return *this;
 	}
 
@@ -255,7 +268,7 @@ public:
 	bool Good() const
 	//-----------------------------------------------------------------------------
 	{
-		return OutStream().good();
+		return ostream().good();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -271,12 +284,23 @@ private:
 //-------
 
 	std::ostream* m_OutStream;
-	KString m_sDelimiter{"\n"};
+	KString       m_sLineDelimiter;
+	bool          m_bImmutable;
 
 }; // KOutStream
 
 extern KOutStream KErr;
 extern KOutStream KOut;
+
+//-----------------------------------------------------------------------------
+/// return a std::ostream object that writes to nothing, but is valid
+std::ostream& kGetNullOStream();
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// return a KOutStream object that writes to nothing, but is valid
+KOutStream& kGetNullOutStream();
+//-----------------------------------------------------------------------------
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The general Writer abstraction for dekaf2. Can be constructed around any

@@ -44,6 +44,7 @@
 #include "klog.h"
 #include "kthreadpool.h"
 #include "kurl.h"
+#include "kstreambuf.h"
 #include <iostream>
 #include <fstream>
 
@@ -58,6 +59,22 @@ namespace dekaf2
 
 KOutStream KErr(std::cerr);
 KOutStream KOut(std::cout);
+
+//-----------------------------------------------------------------------------
+std::ostream& kGetNullOStream()
+//-----------------------------------------------------------------------------
+{
+	static std::unique_ptr<std::ostream> NullStream = std::make_unique<std::ostream>(&KNullStreamBuf::Create());
+	return *NullStream.get();
+}
+
+//-----------------------------------------------------------------------------
+KOutStream& kGetNullOutStream()
+//-----------------------------------------------------------------------------
+{
+	static std::unique_ptr<KOutStream> NullStream = std::make_unique<KOutStream>(kGetNullOStream(), "\n", true);
+	return *NullStream.get();
+}
 
 //-----------------------------------------------------------------------------
 std::size_t kWriteToFileDesc(int fd, const void* sBuffer, std::size_t iCount)
@@ -193,11 +210,21 @@ std::size_t kWriteToFilePtr(FILE* fp, const void* sBuffer, std::size_t iCount)
 } // kWriteToFilePtr
 
 //-----------------------------------------------------------------------------
+/// value constructor
+KOutStream::KOutStream(std::ostream& OutStream, KStringView sLineDelimiter, bool bImmutable)
+//-----------------------------------------------------------------------------
+	: m_OutStream     (&OutStream    )
+	, m_sLineDelimiter(sLineDelimiter)
+	, m_bImmutable    (bImmutable    )
+{
+}
+
+//-----------------------------------------------------------------------------
 /// Write a character. Returns stream reference that resolves to false on failure
 KOutStream::self_type& KOutStream::Write(KString::value_type ch)
 //-----------------------------------------------------------------------------
 {
-	auto streambuf = OutStream().rdbuf();
+	auto streambuf = ostream().rdbuf();
 
 	std::ostream::int_type iCh;
 
@@ -212,7 +239,7 @@ KOutStream::self_type& KOutStream::Write(KString::value_type ch)
 
 	if (DEKAF2_UNLIKELY(std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof())))
 	{
-		OutStream().setstate(std::ios_base::badbit);
+		ostream().setstate(std::ios_base::badbit);
 	}
 
 	return *this;
@@ -224,7 +251,7 @@ KOutStream::self_type& KOutStream::Write(KString::value_type ch)
 KOutStream::self_type& KOutStream::Write(const void* pAddress, size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	auto streambuf = OutStream().rdbuf();
+	auto streambuf = ostream().rdbuf();
 
 	std::size_t iWrote { 0 };
 
@@ -235,7 +262,7 @@ KOutStream::self_type& KOutStream::Write(const void* pAddress, size_t iCount)
 
 	if (DEKAF2_UNLIKELY(iWrote != iCount))
 	{
-		OutStream().setstate(std::ios_base::badbit);
+		ostream().setstate(std::ios_base::badbit);
 	}
 
 	return *this;
@@ -271,6 +298,33 @@ KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 	return *this;
 
 } // Write
+
+//-----------------------------------------------------------------------------
+/// Fixates eol settings
+KOutStream& KOutStream::SetWriterImmutable()
+//-----------------------------------------------------------------------------
+{
+	m_bImmutable = true;
+	return *this;
+
+} // SetWriterImmutable
+
+//-----------------------------------------------------------------------------
+KOutStream& KOutStream::SetWriterEndOfLine(KStringView sLineDelimiter)
+//-----------------------------------------------------------------------------
+{
+	if (m_bImmutable)
+	{
+		kDebug(2, "line delimiter is made immutable - cannot change to {}", sLineDelimiter);
+	}
+	else
+	{
+		m_sLineDelimiter = sLineDelimiter;
+	}
+	return *this;
+
+} // SetWriterEndOfLine
+
 
 template class KWriter<std::ofstream>;
 

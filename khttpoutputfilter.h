@@ -146,7 +146,7 @@ public:
 	bool Fail()
 	//-----------------------------------------------------------------------------
 	{
-		return !m_OutStream || m_OutStream->OutStream().fail();
+		return !m_OutStream || m_OutStream->ostream().fail();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -171,12 +171,10 @@ private:
 	void SetupOutputFilter();
 	//-----------------------------------------------------------------------------
 
-	static KOutStringStream s_Empty;
-
-	KOutStream*     m_OutStream         { &s_Empty  };
+	KOutStream*     m_OutStream         { &kGetNullOutStream() };
+	KOutStream      m_FilteredOutStream { kGetNullOStream() };
 	std::unique_ptr<boost::iostreams::filtering_ostream>
 	                m_Filter;
-	KOutStream      m_FilteredOutStream { s_Empty.OutStream() };
 	std::streamsize m_iCount            { 0         };
 	bool            m_bChunked          { false     };
 	bool            m_bAllowCompression { true      };

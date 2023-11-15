@@ -184,14 +184,14 @@ void KXML::Serialize(KOutStream& OutStream, int iPrintFlags, KStringView sDropRo
 		// make this a document node..
 		node->type(rapidxml::node_document);
 		// and print from there
-		print(OutStream.OutStream(), *node, iPrintFlags);
+		print(OutStream.ostream(), *node, iPrintFlags);
 		// and restore the original type
 		node->type(oldtype);
 	}
 	else
 	{
 		// in all other cases print the whole document
-		print(OutStream.OutStream(), *pDocument(D.get()), iPrintFlags);
+		print(OutStream.ostream(), *pDocument(D.get()), iPrintFlags);
 	}
 }
 

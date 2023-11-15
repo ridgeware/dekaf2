@@ -42,7 +42,7 @@ x-klog: -out json -level 1
 		CHECK ( json["response"] == "hello world" );
 		KJSON& xklog = json["x-klog"];
 		CHECK ( xklog.is_array() );
-		KJSON& object1 = xklog[2];
+		KJSON& object1 = xklog[1];
 		CHECK ( object1.is_object() );
 		CHECK( kjson::GetStringRef(object1, "message") == "HTTP-200: OK" );
 	}

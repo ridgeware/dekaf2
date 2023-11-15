@@ -15,7 +15,7 @@ TEST_CASE("KCountingStreambuf")
 		KInStringStream iss(sInput);
 		KString sOutput;
 
-		KCountingInputStreamBuf Counter(iss.InStream());
+		KCountingInputStreamBuf Counter(iss.istream());
 
 		sOutput += iss.Read();
 		sOutput += iss.ReadRemaining();
@@ -31,7 +31,7 @@ TEST_CASE("KCountingStreambuf")
 		KString sOutput;
 		KOutStringStream oss(sOutput);
 
-		KCountingOutputStreamBuf Counter(oss.OutStream());
+		KCountingOutputStreamBuf Counter(oss.ostream());
 
 		oss.Write(sInput.front());
 		oss.Write(sInput.data() + 1, sInput.size() - 1);

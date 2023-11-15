@@ -310,7 +310,7 @@ bool KCompressOStream::CreateFilter(COMPRESSION compression, uint16_t iLevel, ui
 #endif
 	}
 
-	compressor::push(m_TargetStream->OutStream());
+	compressor::push(m_TargetStream->ostream());
 
 	return true;
 
@@ -402,7 +402,7 @@ bool KUnCompressIStream::CreateFilter(COMPRESSION compression)
 #endif
 	}
 
-	uncompressor::push(m_SourceStream->InStream());
+	uncompressor::push(m_SourceStream->istream());
 
 	return true;
 

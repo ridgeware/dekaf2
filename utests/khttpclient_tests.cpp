@@ -72,8 +72,8 @@ TEST_CASE("KHTTPClient") {
 		CHECK( cx->Good() == true );
 		if (cx->Good() == true)
 		{
-			CHECK( cx->Stream().OutStream().good() == true );
-			CHECK( cx->Stream().InStream().good()  == true );
+			CHECK( cx->Stream().ostream().good() == true );
+			CHECK( cx->Stream().istream().good()  == true );
 		}
 		KHTTPClient cHTTP(std::move(cx));
 		cHTTP.Resource(URL);
@@ -104,8 +104,8 @@ TEST_CASE("KHTTPClient") {
 		CHECK( cx->Good() == true );
 		if (cx->Good() == true)
 		{
-			CHECK( cx->Stream().OutStream().good() == true );
-			CHECK( cx->Stream().InStream().good()  == true );
+			CHECK( cx->Stream().ostream().good() == true );
+			CHECK( cx->Stream().istream().good()  == true );
 		}
 		KHTTPClient cHTTP(std::move(cx));
 		cHTTP.Resource(URL);

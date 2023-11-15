@@ -399,7 +399,7 @@ void kurl::ServerQuery ()
 
 		if (RQ->Config.Flags & Flags::REQUEST_HEADERS)
 		{
-			KModifyingOutputStreamBuf Modifier(KErr.OutStream());
+			KModifyingOutputStreamBuf Modifier(KErr.ostream());
 			Modifier.Replace("", "> ");
 			HTTP.Request.KHTTPRequestHeaders::Serialize(KErr);
 			// actually curl prints both request and response headers on stderr with -v

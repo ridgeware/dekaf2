@@ -142,7 +142,7 @@ void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint, int iSock
 
 		KString line;
 
-		while (!parameters->terminate && !stream.InStream().bad() && !m_bQuit)
+		while (!parameters->terminate && !stream.istream().bad() && !m_bQuit)
 		{
 
 			if (!stream.ReadLine(line))

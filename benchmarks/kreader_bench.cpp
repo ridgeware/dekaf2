@@ -115,7 +115,7 @@ void compare_readers()
 			if (is.is_open())
 			{
 				std::istream::int_type Ch;
-				std::streambuf* sb = is.InStream().rdbuf();
+				std::streambuf* sb = is.istream().rdbuf();
 				if (sb)
 				{
 					KProf prof("read std::streambuf, single chars");

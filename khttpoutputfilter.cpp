@@ -236,7 +236,7 @@ size_t KOutHTTPFilter::Write(KInStream& InStream, size_t len)
 	if (len == npos)
 	{
 		// write until eof
-		Out.OutStream() << InStream.InStream().rdbuf();
+		Out.ostream() << InStream.istream().rdbuf();
 	}
 	else
 	{
@@ -323,14 +323,12 @@ void KOutHTTPFilter::Flush()
 void KOutHTTPFilter::Reset()
 //-----------------------------------------------------------------------------
 {
-	m_OutStream         = &s_Empty;
+	m_OutStream         = &kGetNullOutStream();
 	m_Filter.reset();
 	m_bAllowCompression = true;
 	m_bChunked          = false;
 
 } // Reset
-
-KOutStringStream KOutHTTPFilter::s_Empty;
 
 } // of namespace dekaf2
 

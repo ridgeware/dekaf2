@@ -238,7 +238,7 @@ size_t KInHTTPFilter::Read(KOutStream& OutStream, size_t len)
 
 		// read until eof
 		// ignore len, copy full stream
-		OutStream.OutStream() << In.InStream().rdbuf();
+		OutStream.ostream() << In.istream().rdbuf();
 
 		return Count.Count();
 	}
@@ -298,11 +298,9 @@ void KInHTTPFilter::Reset()
 //-----------------------------------------------------------------------------
 {
 	NextRound();
-	m_InStream = &s_Empty;
+	m_InStream = &kGetNullInStream();
 
 } // Reset
-
-KInStringStream KInHTTPFilter::s_Empty;
 
 } // of namespace dekaf2
 

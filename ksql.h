@@ -478,6 +478,10 @@ private:
 	inline
 	bool ExecRawSQL  (KSQLString sSQL, Flags iFlags = Flags::F_None, KStringView sAPI="ExecRawSQL")
 	{
+		if (m_bActiveQuery)
+		{
+			return SetError (kFormat ("new operation attempted:\n{}\nwhile results still pending from:\n{}", sSQL, m_sLastSQL));
+		}
 		m_sLastSQL = std::move(sSQL);
 		return ExecLastRawSQL(iFlags, sAPI);
 	}
@@ -485,6 +489,10 @@ private:
 	inline
 	bool ExecRawQuery   (KSQLString sSQL, Flags iFlags=Flags::F_None, KStringView sAPI = "ExecRawQuery")
 	{
+		if (m_bActiveQuery)
+		{
+			return SetError (kFormat ("new operation attempted:\n{}\nwhile results still pending from:\n{}", sSQL, m_sLastSQL));
+		}
 		m_sLastSQL = std::move(sSQL);
 		return ExecLastRawQuery(iFlags, sAPI);
 	}
@@ -515,7 +523,12 @@ public:
 	template<class... Args>
 	bool ExecSQL (Args&&... args)
 	{
-		m_sLastSQL = FormatSQL (std::forward<Args>(args)...);
+		auto sSQL = FormatSQL (std::forward<Args>(args)...);
+		if (m_bActiveQuery)
+		{
+			return SetError (kFormat ("new statement attempted:\n{}\nwhile results still pending from:\n{}", sSQL, m_sLastSQL));
+		}
+		m_sLastSQL = sSQL;
 		bool bOK   = ExecLastRawSQL (Flags::F_None, "ExecSQL");
 		return (bOK);
 
@@ -527,7 +540,12 @@ public:
 	template<class... Args>
 	bool ExecQuery (Args&&... args)
 	{
-		m_sLastSQL = FormatSQL (std::forward<Args>(args)...);
+		auto sSQL = FormatSQL (std::forward<Args>(args)...);
+		if (m_bActiveQuery)
+		{
+			return SetError (kFormat ("new statement attempted:\n{}\nwhile results still pending from:\n{}", sSQL, m_sLastSQL));
+		}
+		m_sLastSQL = sSQL;
 		return (ExecLastRawQuery (Flags::F_None, "ExecQuery"));
 
 	} // ExecQuery
@@ -536,7 +554,13 @@ public:
 	template<class... Args>
 	KROW SingleQuery (Args&&... args)
 	{
-		return (SingleRawQuery (FormatSQL (std::forward<Args>(args)...), Flags::F_None, "SingleQuery"));
+		auto sSQL = FormatSQL (std::forward<Args>(args)...);
+		if (m_bActiveQuery)
+		{
+			kDebug (1, "{}: new query attempted:\n{}\nwhile results still pending from:\n{}", m_sLastSQL);
+			return {};
+		}
+		return (SingleRawQuery (sSQL, Flags::F_None, "SingleQuery"));
 
 	} // KSQL::SingleQuery
 
@@ -544,7 +568,13 @@ public:
 	template<class... Args>
 	int64_t SingleIntQuery (Args&&... args)
 	{
-		return (SingleIntRawQuery (FormatSQL (std::forward<Args>(args)...), Flags::F_None, "SingleIntQuery"));
+		auto sSQL = FormatSQL (std::forward<Args>(args)...);
+		if (m_bActiveQuery)
+		{
+			kDebug (1, "{}: new query attempted:\n{}\nwhile results still pending from:\n{}", m_sLastSQL);
+			return {};
+		}
+		return (SingleIntRawQuery (sSQL, Flags::F_None, "SingleIntQuery"));
 
 	} // KSQL::SingleIntQuery
 
@@ -552,7 +582,13 @@ public:
 	template<class... Args>
 	KString SingleStringQuery (Args&&... args)
 	{
-		return (SingleStringRawQuery (FormatSQL (std::forward<Args>(args)...), Flags::F_None, "SingleStringQuery"));
+		auto sSQL = FormatSQL (std::forward<Args>(args)...);
+		if (m_bActiveQuery)
+		{
+			kDebug (1, "{}: new query attempted:\n{}\nwhile results still pending from:\n{}", m_sLastSQL);
+			return {};
+		}
+		return (SingleStringRawQuery (sSQL, Flags::F_None, "SingleStringQuery"));
 
 	} // KSQL::SingleStringQuery
 
@@ -1078,7 +1114,7 @@ private:
 
 	void BulkCopyFlush (std::vector<KROW>& BulkRows, bool bLast=true);
 
-	void LogPerformance (KDuration iMilliseconds, bool bIsQuery);
+	void LogPerformance (KDuration iMilliseconds);
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct DBCLoader
@@ -1571,6 +1607,7 @@ private:
 	bool       m_bConnectionIsOpen { false };
 	bool       m_bFileIsOpen { false };
 	bool       m_bQueryStarted { false };
+	bool       m_bActiveQuery { false };
 	bool       m_bMayThrow { false };
 	KString    m_sDBCFile;
 	KString    m_sNeverReadMeDirectlyTmpResultsFile;

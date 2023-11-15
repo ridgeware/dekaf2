@@ -2173,14 +2173,14 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		return SetError(sError, iErrorNum);
 	}
 
-	LogPerformance (Timer.milliseconds());
+	LogPerformance (Timer.milliseconds(), /*bIsQuery=*/false);
 
 	return (bOK);
 
 } // ExecLastRawSQL
 
 //-----------------------------------------------------------------------------
-void KSQL::LogPerformance (KDuration iMilliseconds)
+void KSQL::LogPerformance (KDuration iMilliseconds, bool bIsQuery)
 //-----------------------------------------------------------------------------
 {
 	auto iQueryType = GetQueryType(m_sLastSQL.str());
@@ -2874,7 +2874,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 	if (!(iFlags & F_IgnoreSelectKeyword) && !IsFlag(F_IgnoreSelectKeyword) && ! IsSelect (m_sLastSQL.str()))
 	{
-		return SetError (kFormat ("{}: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]", sAPI));
+		return SetError ("ExecQuery: query does not start with keyword 'select' [see F_IgnoreSelectKeyword]");
 	}
 
 	KStopTime Timer;
@@ -3359,7 +3359,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 	m_iNumRowsBuffered  = 0;
 	m_iNumRowsAffected  = 0;
 
-	LogPerformance (Timer.milliseconds());
+	LogPerformance (Timer.milliseconds(), /*bIsQuery=*/true);
 	
 	if (IsFlag(F_BufferResults))
 	{
@@ -3900,14 +3900,12 @@ bool KSQL::NextRow ()
 					++m_iRowNum;
 					kDebug (3, "mysql_fetch_row gave us row {}", m_iRowNum);
 					m_MYSQLRowLens = mysql_fetch_lengths(m_dMYSQLResult);
-					m_bActiveQuery = true;
 					return true;
 				}
 				else
 				{
 					kDebug (3, "{} row{} fetched (end was hit)", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
 					m_MYSQLRowLens = nullptr;
-					m_bActiveQuery = false;
 					return false;
 				}
 				break;
@@ -3924,7 +3922,6 @@ bool KSQL::NextRow ()
 					if (m_iOCI8FirstRowStat == OCI_NO_DATA)
 					{
 						kDebug (3, "OCIStmtExecute() said we were done");
-						m_bActiveQuery = false;
 						return (false); // end of data from select
 					}
 
@@ -3948,7 +3945,6 @@ bool KSQL::NextRow ()
 					if (!WasOCICallOK("NextRow:OCIStmtFetch", iErrorNum, sError))
 					{
 						kDebug (3, "OCIStmtFetch() says we're done");
-						m_bActiveQuery = false;
 						return (false); // end of data from select
 					}
 					kDebug (3, "OCIStmtFetch() says we got row # {}", m_iRowNum+1);
@@ -3956,7 +3952,6 @@ bool KSQL::NextRow ()
 
 				++m_iRowNum;
 
-				m_bActiveQuery = true;
 				return (true);
 
 				// - - - - - - - - - - - - - - - - -
@@ -3972,7 +3967,6 @@ bool KSQL::NextRow ()
 				if (!WasOCICallOK("NextRow:ofetch", iErrorNum, sError))
 				{
 					kDebug (3, "ofetch() says we're done");
-					m_bActiveQuery = false;
 					return (false); // end of data from select
 				}
 
@@ -3991,7 +3985,6 @@ bool KSQL::NextRow ()
 					}
 				}
 
-				m_bActiveQuery = true;
 				return (true);
 			}
 #endif
@@ -4000,8 +3993,7 @@ bool KSQL::NextRow ()
 				// - - - - - - - - - - - - - - - - -
 			case API::CTLIB:
 				// - - - - - - - - - - - - - - - - -
-				m_bActiveQuery = ctlib_nextrow();
-				return (m_bActiveQuery);
+				return (ctlib_nextrow());
 #endif
 
 				// - - - - - - - - - - - - - - - - -
@@ -4052,7 +4044,6 @@ bool KSQL::NextRow ()
 			if (!bOK && !ii)
 			{
 				kDebug (3, "end of buffered results: fgets() returned nullptr");
-				m_bActiveQuery = false;
 				return (false);  // <-- no more rows
 			}
 
@@ -4131,12 +4122,10 @@ bool KSQL::NextRow ()
 				spot = strchr (spot+1, 2);
 			}
 		}
-		m_bActiveQuery = true;
 		return (true); // <-- we got a row out of buffer file
 	}
 
 	// we never get here..
-	m_bActiveQuery = false;
 	return (false);
 
 } // KSQL::NextRow
@@ -4362,8 +4351,6 @@ bool KSQL::ResetBuffer ()
 void KSQL::EndQuery (bool bDestructor/*=false*/)
 //-----------------------------------------------------------------------------
 {
-	m_bActiveQuery = false;
-
 	if (!m_bQueryStarted)
 	{
 		return;
@@ -6204,11 +6191,6 @@ bool KSQL::BindByPos (uint32_t iPosition, uint64_t* piValue)
 bool KSQL::Load (KROW& Row, bool bSelectAllColumns)
 //-----------------------------------------------------------------------------
 {
-	if (m_bActiveQuery)
-	{
-		return SetError (kFormat ("{} operation attempted while results still pending from:\n{}", "LOAD", m_sLastSQL));
-	}
-
 	m_sLastSQL = Row.FormSelect (m_iDBType, bSelectAllColumns);
 
 	if (m_sLastSQL.empty())
@@ -6255,14 +6237,7 @@ bool KSQL::ExecLastRawInsert(bool bIgnoreDupes)
 bool KSQL::Insert (const KROW& Row, bool bIgnoreDupes/*=false*/)
 //-----------------------------------------------------------------------------
 {
-	auto sSQL = Row.FormInsert(m_iDBType);
-
-	if (m_bActiveQuery)
-	{
-		return SetError (kFormat ("new operation attempted:\n{}\nwhile results still pending from:\n{}", sSQL, m_sLastSQL));
-	}
-
-	m_sLastSQL = sSQL;
+	m_sLastSQL = Row.FormInsert(m_iDBType);
 
 	if (m_sLastSQL.empty())
 	{
@@ -6277,11 +6252,6 @@ bool KSQL::Insert (const KROW& Row, bool bIgnoreDupes/*=false*/)
 bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 //-----------------------------------------------------------------------------
 {
-	if (m_bActiveQuery)
-	{
-		return SetError (kFormat ("{} operation started while results still pending from:\n{}", "BULK INSERT", m_sLastSQL));
-	}
-
 	static constexpr std::size_t iMaxRows = 1000;
 
 	KString     sLastTablename;
@@ -6395,14 +6365,7 @@ bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 bool KSQL::Update (const KROW& Row)
 //-----------------------------------------------------------------------------
 {
-	auto sSQL = Row.FormUpdate(m_iDBType);
-
-	if (m_bActiveQuery)
-	{
-		return SetError (kFormat ("new operation attempted:\n{}\nwhile results still pending from:\n{}", sSQL, m_sLastSQL));
-	}
-
-	m_sLastSQL = sSQL;
+	m_sLastSQL = Row.FormUpdate (m_iDBType);
 
 	if (m_sLastSQL.empty())
 	{
@@ -6426,14 +6389,7 @@ bool KSQL::Update (const KROW& Row)
 bool KSQL::Delete (const KROW& Row)
 //-----------------------------------------------------------------------------
 {
-	auto sSQL = Row.FormDelete (m_iDBType);
-
-	if (m_bActiveQuery)
-	{
-		return SetError (kFormat ("new operation attempted:\n{}\nwhile results still pending from:\n{}", sSQL, m_sLastSQL));
-	}
-
-	m_sLastSQL = sSQL;
+	m_sLastSQL = Row.FormDelete (m_iDBType);
 
 	if (m_sLastSQL.empty())
 	{

@@ -300,7 +300,7 @@ constexpr uint8_t tiny_abs(int8_t i) noexcept
 }
 
 #if DEKAF2_USE_TIME_PUT
-constexpr KStringView fDefaultTime { "%%H:%M:%S" };
+constexpr KStringView fDefaultTime { "%H:%M:%S" };
 #else
 constexpr KStringView fDefaultTime { "{:%H:%M:%S}" };
 #endif

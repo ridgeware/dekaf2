@@ -49,6 +49,7 @@
 #include "bits/ktemplate.h"
 #include "bits/khash.h"
 #include "kutf8.h"
+#include "kbit.h"
 #include <fmt/format.h>
 #include <cinttypes>
 #include <functional>
@@ -77,8 +78,11 @@
 	#if DEKAF2_ARM || DEKAF2_ARM64
 		// the x86 simd emulation through sse2neon would be 3-8 times slower,
 		// therefore we do not use it
-//		#define DEKAF2_FIND_FIRST_OF_USE_SIMD 1
-	#else
+		// #define DEKAF2_FIND_FIRST_OF_USE_SIMD 1
+		// use bit shifted search tables (compressed into 4 x 64bits)
+		// instead of flat tables (256 x 8bits)
+		#define DEKAF2_DETAIL_FIND_FIRST_USE_BITSHIFTS 1
+#else
 		#if defined(__SSE4_2__) || defined _MSC_VER
 			#define DEKAF2_FIND_FIRST_OF_USE_SIMD 1
 		#endif
@@ -1662,6 +1666,225 @@ bool operator>=(const KStringView left, const KStringView right)
 class KFindSetOfChars
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 #if !DEKAF2_FIND_FIRST_OF_USE_SIMD
+
+#if DEKAF2_DETAIL_FIND_FIRST_USE_BITSHIFTS
+// This is a compressed form of the table search algorithm, testing
+// single bits in a 4 x 64 bit mask instead of a 256 x 8 bit table
+// (where the table only uses one bit of eight available).
+// The algorithm remodels what optimizers in newest clang and gcc
+// generate if the needles fit into one 64 bit mask, but extended
+// to the full 256 needle range. As the construction happens constexpr,
+// this algorithm is as performant as the optimizations in clang and gcc.
+{
+
+//------
+public:
+//------
+
+	using size_type  = KStringView::size_type;
+	using value_type = KStringView::value_type;
+
+	DEKAF2_CONSTEXPR_14
+	KFindSetOfChars() = default;
+
+	DEKAF2_CONSTEXPR_14
+	KFindSetOfChars(KStringView sNeedles)
+	{
+		// precondition:
+		// C++17
+		// sNeedles = constant evaluated
+
+		if (!sNeedles.empty())
+		{
+			uint8_t iLowest  { 255 };
+			uint8_t iHighest {   0 };
+
+			for (auto Needle : sNeedles)
+			{
+				iLowest  = std::min(iLowest , static_cast<uint8_t>(Needle));
+				iHighest = std::max(iHighest, static_cast<uint8_t>(Needle));
+			}
+
+			m_iBuckets  = (iHighest - iLowest) / 64 + 1;
+			// try to align on a multiple of 64
+			auto iLowest64 = (iLowest / 64) * 64;
+			m_iOffset = (iHighest < iLowest64 + 64 * m_iBuckets) ? iLowest64 : iLowest;
+
+			for (auto Needle : sNeedles)
+			{
+				auto ch = static_cast<uint8_t>(Needle);
+
+				auto iBucket = (ch - m_iOffset) / 64;
+				m_iMask[iBucket] |= 1ull << (ch - (m_iOffset + 64 * iBucket));
+			}
+		}
+	}
+
+	DEKAF2_CONSTEXPR_14
+	KFindSetOfChars(const char* szNeedles)
+	: KFindSetOfChars(KStringView(szNeedles))
+	{
+	}
+
+	KFindSetOfChars(const KString& sNeedles)
+	: KFindSetOfChars(KStringView(sNeedles))
+	{
+	}
+
+	/// find first occurence of needles in haystack, start search at pos (default 0)
+	DEKAF2_CONSTEXPR_14
+	size_type find_first_in(KStringView sHaystack, const size_type pos = 0) const
+	{
+		return find_first_in(sHaystack, pos, false);
+	}
+
+	/// find first occurence of character in haystack that is not in needles, start search at pos (default 0)
+	DEKAF2_CONSTEXPR_14
+	size_type find_first_not_in(KStringView sHaystack, const size_type pos = 0) const
+	{
+		return find_first_in(sHaystack, pos, true);
+	}
+
+	/// find last occurence of needles in haystack, start backward search at pos (default: end of string)
+	DEKAF2_CONSTEXPR_14
+	size_type find_last_in(KStringView sHaystack, size_type pos = KStringView::npos) const
+	{
+		return find_last_in(sHaystack, pos, false);
+	}
+
+	/// find last occurence of character in haystack that is not in needles, start backward search at pos (default: end of string)
+	DEKAF2_CONSTEXPR_14
+	size_type find_last_not_in(KStringView sHaystack, size_type pos = KStringView::npos) const
+	{
+		return find_last_in(sHaystack, pos, true);
+	}
+
+	DEKAF2_CONSTEXPR_14
+	/// is the set of characters empty?
+	bool empty() const { return m_iBuckets == 0; }
+
+	DEKAF2_CONSTEXPR_14
+	/// has the set of characters only one single char?
+	bool is_single_char() const { return m_iBuckets == 1 && kBitCountOne(m_iMask[0]) == 1; }
+
+	DEKAF2_CONSTEXPR_14
+	/// does the set of characters contain ch
+	bool contains(const value_type ch) const
+	{
+		auto uch = static_cast<uint8_t>(ch);
+		if (uch < m_iOffset) return false;
+		uch -= m_iOffset;
+		auto bucket = uch / 64;
+		if (m_iBuckets < bucket) return false;
+		return m_iMask[bucket] & (1ull << (uch - bucket * 64));
+	}
+
+//------
+private:
+//------
+
+	DEKAF2_CONSTEXPR_14
+	size_type find_first_in(KStringView sHaystack, size_type pos, bool bNot) const
+	{
+		if (pos > sHaystack.size())
+		{
+			pos = sHaystack.size();
+		}
+
+		auto it = sHaystack.begin() + pos;
+		auto ie = sHaystack.end();
+
+		for (;; ++it)
+		{
+			if (it >= ie)
+			{
+				return KStringView::npos;
+			}
+
+			auto ch = static_cast<uint8_t>(*it);
+
+			if (ch >= m_iOffset /* && ch < m_iOffset + 64 */)
+			{
+				auto iBucket = (ch - m_iOffset) / 64;
+
+				if (iBucket < m_iBuckets)
+				{
+					auto iBitValue = 1ull << (ch - (m_iOffset + 64 * iBucket));
+
+					if (static_cast<bool>(iBitValue & m_iMask[iBucket]) != bNot)
+					{
+						break;
+					}
+				}
+				else if (bNot)
+				{
+					break;
+				}
+			}
+			else if (bNot)
+			{
+				break;
+			}
+		}
+
+		return it - sHaystack.begin();
+	}
+
+	DEKAF2_CONSTEXPR_14
+	size_type find_last_in(KStringView sHaystack, size_type pos, bool bNot) const
+	{
+		if (pos < sHaystack.size())
+		{
+			sHaystack.remove_suffix(sHaystack.size() - (pos + 1));
+		}
+
+		auto it = sHaystack.end();
+		auto ie = sHaystack.begin();
+
+		for (;;)
+		{
+			if (it <= ie)
+			{
+				return KStringView::npos;
+			}
+
+			auto ch = static_cast<uint8_t>(*--it);
+
+			if (ch >= m_iOffset /* && ch < m_iOffset + 64 */)
+			{
+				auto iBucket = (ch - m_iOffset) / 64;
+
+				if (iBucket < m_iBuckets)
+				{
+					auto iBitValue = 1ull << (ch - (m_iOffset + 64 * iBucket));
+
+					if (static_cast<bool>(iBitValue & m_iMask[iBucket]) != bNot)
+					{
+						break;
+					}
+				}
+				else if (bNot)
+				{
+					break;
+				}
+			}
+			else if (bNot)
+			{
+				break;
+			}
+		}
+
+		return it - ie;
+	}
+
+	uint64_t m_iMask[4] { 0, 0, 0, 0 };
+	uint8_t  m_iOffset  { 0 };
+	uint8_t  m_iBuckets { 0 };
+
+}; // KFindSetOfChars
+
+#else // DEKAF2_DETAIL_FIND_FIRST_USE_BITSHIFTS
+
 {
 
 	// Note: we use a char array instead of a std::array<char> because the
@@ -1810,6 +2033,7 @@ private:
 
 }; // KFindSetOfChars
 
+#endif // DEKAF2_DETAIL_FIND_FIRST_USE_BITSHIFTS
 #else // !DEKAF2_FIND_FIRST_OF_USE_SIMD
 
 {

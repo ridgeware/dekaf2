@@ -879,6 +879,7 @@ KStringView::size_type KStringView::FindCaselessASCII(const self_type str, size_
 }
 
 #if !DEKAF2_FIND_FIRST_OF_USE_SIMD
+#if !DEKAF2_DETAIL_FIND_FIRST_USE_BITSHIFTS
 
 //-----------------------------------------------------------------------------
 KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, const size_type pos) const
@@ -1046,6 +1047,7 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 
 } // find_last_not_in
 
+#endif // DEKAF2_DETAIL_FIND_FIRST_USE_BITSHIFTS
 #else // DEKAF2_FIND_FIRST_OF_USE_SIMD
 
 //-----------------------------------------------------------------------------

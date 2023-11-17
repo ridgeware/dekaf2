@@ -407,7 +407,7 @@ protected:
 		void PrintNextWheel()
 		{
 			static std::mutex mutex;
-			std::lock_guard lock(mutex);
+			std::lock_guard<std::mutex> lock(mutex);
 
 			KErr.Format("\b{:c}", GetNextWheelChar());
 		}

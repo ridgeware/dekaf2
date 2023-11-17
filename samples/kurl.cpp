@@ -420,9 +420,18 @@ void kurl::ServerQuery ()
 			{
 				KJSON json;
 
+#if !DEKAF2_KJSON2_IS_DISABLED
 				if (json.Parse(sResponse))
+#else
+				KString sError;
+				if (kjson::Parse(json, sResponse, sError))
+#endif
 				{
+#if !DEKAF2_KJSON2_IS_DISABLED
 					json.Serialize(Out, true);
+#else
+					Out.ostream() << std::setw(1) << std::setfill('\t') << json;
+#endif
 					Out.Write('\n');
 					bPrinted = true;
 				}
@@ -552,6 +561,7 @@ int main (int argc, char** argv)
 } // main
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KStringView  kurl::sOutputToLastPathComponent;
 constexpr KStringViewZ kurl::s_sProjectName;
 constexpr KStringViewZ kurl::s_sProjectVersion;
 #endif

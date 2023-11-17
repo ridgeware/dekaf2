@@ -42,6 +42,7 @@
 
 #include "kcrashexit.h"
 #include "bits/kcppcompat.h"
+#include "kstringview.h"
 #include "klog.h"
 #include "kgetruntimestack.h"
 #include "ksignals.h"
@@ -228,6 +229,14 @@ void kAppendCrashContext (KStringView sContext, KStringView sSeparator)
 }
 
 //-----------------------------------------------------------------------------
+void kAppendCrashContext (KStringView sContext)
+//-----------------------------------------------------------------------------
+{
+	g_tl_sCrashContext += "\n";
+	g_tl_sCrashContext += sContext;
+}
+
+//-----------------------------------------------------------------------------
 void kSetCrashCallback (KCrashCallback pFunction)
 //-----------------------------------------------------------------------------
 {
@@ -239,7 +248,16 @@ void kSetCrashCallback (KCrashCallback pFunction)
 namespace detail {
 
 //-----------------------------------------------------------------------------
-void kFailedAssert (KStringView sCrashMessage)
+void kFailedAssert (const KStringView& sCrashMessage)
+//-----------------------------------------------------------------------------
+{
+	kWarning ("ASSERT FAILURE: {}", sCrashMessage);
+	kCrashExit (0);
+
+} // kFailedAssert
+
+//-----------------------------------------------------------------------------
+void kFailedAssert (const char* sCrashMessage)
 //-----------------------------------------------------------------------------
 {
 	kWarning ("ASSERT FAILURE: {}", sCrashMessage);

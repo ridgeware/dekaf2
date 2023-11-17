@@ -45,11 +45,14 @@
 /// @file kcrashexit.h
 /// show reason for a program crash
 
+#include "bits/kcppcompat.h"
+#include <functional>
 #include <csignal>
-#include "kstringview.h"
 
 namespace dekaf2
 {
+
+class KStringView;
 
 /// special "signal" numbers to be sent to kCrashExit() to indicate
 /// crash reason
@@ -91,7 +94,11 @@ void kSetCrashContext (KStringView sContext);
 
 /// allow the appliation to append to thread specific context information in case the app crashes
 DEKAF2_PUBLIC
-void kAppendCrashContext (KStringView sContext, KStringView sSeparator = "\n");
+void kAppendCrashContext (KStringView sContext, KStringView sSeparator);
+
+/// allow the appliation to append to thread specific context information in case the app crashes
+DEKAF2_PUBLIC
+void kAppendCrashContext (KStringView sContext);
 
 /// in addition to the KLOG, all the application to get a callback when it is crashing with the crash message (app will still exit after callback is done)
 DEKAF2_PUBLIC
@@ -99,14 +106,16 @@ void kSetCrashCallback (KCrashCallback pFunction);
 
 namespace detail {
 
-DEKAF2_PRIVATE
-void kFailedAssert(KStringView sCrashMessage);
+DEKAF2_PUBLIC
+void kFailedAssert(const KStringView& sCrashMessage);
+DEKAF2_PUBLIC
+void kFailedAssert(const char* sCrashMessage);
 
 } // end of namespace detail
 
 inline
 DEKAF2_PUBLIC
-void kAssert (bool bMustBeTrue, KStringView sCrashMessage)
+void kAssert (bool bMustBeTrue, const KStringView& sCrashMessage)
 {
 #ifndef NDEBUG
 	if (!bMustBeTrue)

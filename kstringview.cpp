@@ -186,6 +186,7 @@ size_t kRFind(
 
 } // kRFind
 
+#if DEKAF2_FIND_FIRST_OF_USE_SIMD
 namespace detail { namespace stringview {
 
 //-----------------------------------------------------------------------------
@@ -232,7 +233,7 @@ size_t kFindFirstOfInt(
 #endif
 
 	auto result = detail::no_sse::kFindFirstOf(haystack, needle, false);
-	
+
 	if (DEKAF2_LIKELY(pos == 0 || result == KStringView::npos))
 	{
 		return result;
@@ -392,15 +393,16 @@ size_t kFindLastNotOfInt(
 } // kFindLastNotOfInt
 
 } } // end of namespace detail::stringview
+#endif // DEKAF2_FIND_FIRST_OF_USE_SIMD
 
 //-----------------------------------------------------------------------------
 size_t kFindFirstOfUnescaped(const KStringView haystack,
-							 const KFindSetOfChars& needle,
+							 const KFindSetOfChars& needles,
 							 KStringView::value_type chEscape,
 							 KStringView::size_type pos)
 //-----------------------------------------------------------------------------
 {
-	auto iFound = needle.find_first_in(haystack, pos);
+	auto iFound = needles.find_first_in(haystack, pos);
 
 	if (!chEscape || iFound == 0)
 	{
@@ -431,7 +433,7 @@ size_t kFindFirstOfUnescaped(const KStringView haystack,
 			break;
 		}
 
-		iFound = needle.find_first_in(haystack, iFound + 1);
+		iFound = needles.find_first_in(haystack, iFound + 1);
 
 	} // while iFound
 
@@ -879,7 +881,7 @@ KStringView::size_type KStringView::FindCaselessASCII(const self_type str, size_
 }
 
 #if !DEKAF2_FIND_FIRST_OF_USE_SIMD
-#if !DEKAF2_DETAIL_FIND_FIRST_USE_BITSHIFTS
+#if !DEKAF2_USE_COMPRESSED_SEARCH_TABLES
 
 //-----------------------------------------------------------------------------
 KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, const size_type pos) const
@@ -977,9 +979,13 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, 
 
 		case State::Multi:
 		{
-			if (pos > sHaystack.size())
+			if (pos >= sHaystack.size())
 			{
 				pos = sHaystack.size();
+			}
+			else
+			{
+				++pos;
 			}
 			for (auto it = sHaystack.begin() + pos, ie = sHaystack.begin(); it != ie;)
 			{
@@ -1008,9 +1014,13 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 
 		case State::Single:
 		{
-			if (pos > sHaystack.size())
+			if (pos >= sHaystack.size())
 			{
 				pos = sHaystack.size();
+			}
+			else
+			{
+				++pos;
 			}
 
 			auto ch = GetSingleChar();
@@ -1027,10 +1037,15 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 
 		case State::Multi:
 		{
-			if (pos > sHaystack.size())
+			if (pos >= sHaystack.size())
 			{
 				pos = sHaystack.size();
 			}
+			else
+			{
+				++pos;
+			}
+
 			for (auto it = sHaystack.begin() + pos, ie = sHaystack.begin(); it != ie;)
 			{
 				if (!(m_table[static_cast<unsigned char>(*--it)] & 0x01))
@@ -1047,7 +1062,7 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 
 } // find_last_not_in
 
-#endif // DEKAF2_DETAIL_FIND_FIRST_USE_BITSHIFTS
+#endif // DEKAF2_USE_COMPRESSED_SEARCH_TABLES
 #else // DEKAF2_FIND_FIRST_OF_USE_SIMD
 
 //-----------------------------------------------------------------------------

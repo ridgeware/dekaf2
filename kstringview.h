@@ -74,18 +74,24 @@
 // Therefore, in debug mode with gcc < 8 we simply switch SSE off and
 // fall back to traditional code
 
-#if !DEKAF2_IS_GCC || (DEKAF2_GCC_VERSION_MAJOR >= 8 || defined(NDEBUG))
-	#if DEKAF2_ARM || DEKAF2_ARM64
-		// the x86 simd emulation through sse2neon would be 3-8 times slower,
-		// therefore we do not use it
-		// #define DEKAF2_FIND_FIRST_OF_USE_SIMD 1
-		// use bit shifted search tables (compressed into 4 x 64bits)
-		// instead of flat tables (256 x 8bits)
-		#define DEKAF2_DETAIL_FIND_FIRST_USE_BITSHIFTS 1
+#if (defined(__SSE4_2__) || defined _MSC_VER) \
+ && (!DEKAF2_IS_GCC || (DEKAF2_GCC_VERSION_MAJOR >= 8 || defined(NDEBUG)))
+	#define DEKAF2_FIND_FIRST_OF_USE_SIMD 1
 #else
-		#if defined(__SSE4_2__) || defined _MSC_VER
-			#define DEKAF2_FIND_FIRST_OF_USE_SIMD 1
-		#endif
+	#if DEKAF2_ARM || DEKAF2_ARM64
+		// The x86 simd emulation through sse2neon would be 3-8 times slower,
+		// therefore we do not use it. It can be enabled though by
+		// setting DEKAF2_FIND_FIRST_OF_USE_SIMD to 1
+//		#define DEKAF2_FIND_FIRST_OF_USE_SIMD 1
+
+		// Use bit shifted search tables (compressed into 4 x 64bits)
+		// instead of flat tables (256 x 8bits).
+		// The compressed table approach is slower though on larger
+		// needles, and on setup. As the only disadvantage of the
+		// flat uncompressed tables is their size (256 bytes instead of 32)
+		// we opt to use those. As flat tables are the default, simply
+		// do not define any other option.
+//		#define DEKAF2_USE_COMPRESSED_SEARCH_TABLES 1
 	#endif
 #endif
 
@@ -158,43 +164,45 @@ size_t kRFindNot(
 		size_t pos = std::string::npos) noexcept;
 //-----------------------------------------------------------------------------
 
+#if DEKAF2_FIND_FIRST_OF_USE_SIMD
 namespace detail { namespace stringview {
 
 //-----------------------------------------------------------------------------
 size_t kFindFirstOfInt(
         KStringView haystack,
-        const KStringView needle,
+        const KStringView needles,
         size_t pos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 size_t kFindFirstNotOfInt(
         KStringView haystack,
-        const KStringView needle,
+        const KStringView needles,
         size_t pos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 size_t kFindLastOfInt(
         KStringView haystack,
-        const KStringView needle,
+        const KStringView needles,
         size_t pos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 size_t kFindLastNotOfInt(
         KStringView haystack,
-        const KStringView needle,
+        const KStringView needles,
         size_t pos);
 //-----------------------------------------------------------------------------
 
 } } // end of namespace detail::stringview
+#endif // DEKAF2_FIND_FIRST_OF_USE_SIMD
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
 size_t kFindFirstOf(
         KStringView haystack,
-        const KStringView needle,
+        const KStringView needles,
         size_t pos = 0);
 //-----------------------------------------------------------------------------
 
@@ -202,7 +210,7 @@ size_t kFindFirstOf(
 DEKAF2_PUBLIC
 size_t kFindFirstNotOf(
         KStringView haystack,
-        const KStringView needle,
+        const KStringView needles,
         size_t pos = 0);
 //-----------------------------------------------------------------------------
 
@@ -210,7 +218,7 @@ size_t kFindFirstNotOf(
 DEKAF2_PUBLIC
 size_t kFindLastOf(
         KStringView haystack,
-        const KStringView needle,
+        const KStringView needles,
         size_t pos = npos);
 //-----------------------------------------------------------------------------
 
@@ -218,7 +226,7 @@ size_t kFindLastOf(
 DEKAF2_PUBLIC
 size_t kFindLastNotOf(
         KStringView haystack,
-        const KStringView needle,
+        const KStringView needles,
         size_t pos = npos);
 //-----------------------------------------------------------------------------
 
@@ -1425,6 +1433,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_CONSTEXPR_14
 	size_type find_first_not_of(value_type ch, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1667,7 +1676,7 @@ class KFindSetOfChars
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 #if !DEKAF2_FIND_FIRST_OF_USE_SIMD
 
-#if DEKAF2_DETAIL_FIND_FIRST_USE_BITSHIFTS
+#if DEKAF2_USE_COMPRESSED_SEARCH_TABLES
 // This is a compressed form of the table search algorithm, testing
 // single bits in a 4 x 64 bit mask instead of a 256 x 8 bit table
 // (where the table only uses one bit of eight available).
@@ -1883,7 +1892,7 @@ private:
 
 }; // KFindSetOfChars
 
-#else // DEKAF2_DETAIL_FIND_FIRST_USE_BITSHIFTS
+#else // DEKAF2_USE_COMPRESSED_SEARCH_TABLES
 
 {
 
@@ -2033,7 +2042,7 @@ private:
 
 }; // KFindSetOfChars
 
-#endif // DEKAF2_DETAIL_FIND_FIRST_USE_BITSHIFTS
+#endif // DEKAF2_USE_COMPRESSED_SEARCH_TABLES
 #else // !DEKAF2_FIND_FIRST_OF_USE_SIMD
 
 {
@@ -2239,15 +2248,19 @@ size_t kRFindNot(
 inline
 size_t kFindFirstOf(
 		KStringView haystack,
-		const KStringView needle,
+		const KStringView needles,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
 	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
-	return detail::stringview::kFindFirstOfInt(haystack, needle, pos);
+#if !DEKAF2_FIND_FIRST_OF_USE_SIMD
+	return KFindSetOfChars(needles).find_first_in(haystack, pos);
 #else
-	return static_cast<KStringView::rep_type>(haystack).find_first_of(needle, pos);
+	return detail::stringview::kFindFirstOfInt(haystack, needles, pos);
+#endif
+#else
+	return static_cast<KStringView::rep_type>(haystack).find_first_of(needles, pos);
 #endif
 }
 
@@ -2255,15 +2268,19 @@ size_t kFindFirstOf(
 inline
 size_t kFindFirstNotOf(
 		KStringView haystack,
-		const KStringView needle,
+		const KStringView needles,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
 	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
-	return detail::stringview::kFindFirstNotOfInt(haystack, needle, pos);
+#if !DEKAF2_FIND_FIRST_OF_USE_SIMD
+	return KFindSetOfChars(needles).find_first_not_in(haystack, pos);
 #else
-	return static_cast<KStringView::rep_type>(haystack).find_first_not_of(needle, pos);
+	return detail::stringview::kFindFirstNotOfInt(haystack, needles, pos);
+#endif
+#else
+	return static_cast<KStringView::rep_type>(haystack).find_first_not_of(needles, pos);
 #endif
 }
 
@@ -2271,15 +2288,19 @@ size_t kFindFirstNotOf(
 inline
 size_t kFindLastOf(
 		KStringView haystack,
-		const KStringView needle,
+		const KStringView needles,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
 	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
-	return detail::stringview::kFindLastOfInt(haystack, needle, pos);
+#if !DEKAF2_FIND_FIRST_OF_USE_SIMD
+	return KFindSetOfChars(needles).find_last_in(haystack, pos);
 #else
-	return static_cast<KStringView::rep_type>(haystack).find_last_of(needle, pos);
+	return detail::stringview::kFindLastOfInt(haystack, needles, pos);
+#endif
+#else
+	return static_cast<KStringView::rep_type>(haystack).find_last_of(needles, pos);
 #endif
 }
 
@@ -2287,15 +2308,19 @@ size_t kFindLastOf(
 inline
 size_t kFindLastNotOf(
 		KStringView haystack,
-		const KStringView needle,
+		const KStringView needles,
         size_t pos)
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
 	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
-	return detail::stringview::kFindLastNotOfInt(haystack, needle, pos);
+#if !DEKAF2_FIND_FIRST_OF_USE_SIMD
+	return KFindSetOfChars(needles).find_last_not_in(haystack, pos);
 #else
-	return static_cast<KStringView::rep_type>(haystack).find_last_not_of(needle, pos);
+	return detail::stringview::kFindLastNotOfInt(haystack, needles, pos);
+#endif
+#else
+	return static_cast<KStringView::rep_type>(haystack).find_last_not_of(needles, pos);
 #endif
 }
 
@@ -2304,7 +2329,7 @@ size_t kFindLastNotOf(
 /// Ignore delimiter chars prefixed by odd number of escapes.
 DEKAF2_PUBLIC
 size_t kFindFirstOfUnescaped(const KStringView haystack,
-							 const KFindSetOfChars& needle,
+							 const KFindSetOfChars& needles,
 							 KStringView::value_type chEscape,
 							 KStringView::size_type pos = 0);
 //-----------------------------------------------------------------------------

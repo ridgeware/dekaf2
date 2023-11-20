@@ -53,6 +53,9 @@
 #include "bits/kcppcompat.h"
 #include "kcrashexit.h"
 #include <type_traits>
+#include <limits>
+#include <cstring> // memcpy
+
 #if DEKAF2_HAS_CPP_20
 	#if DEKAF2_HAS_INCLUDE(<bit>)
 		#include <bit>
@@ -501,6 +504,10 @@ unsigned bit_log2(T iValue) noexcept
 } // end of namespace detail
 #endif
 
+#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 7
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshift-count-overflow"
+#endif
 //-----------------------------------------------------------------------------
 // C++20
 template<class T>
@@ -545,6 +552,9 @@ kBitCountRightZero(T iValue) noexcept
 	}
 #endif
 }
+#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 7
+#pragma GCC diagnostic pop
+#endif
 
 //-----------------------------------------------------------------------------
 template<class T>
@@ -642,6 +652,10 @@ kBitWidth(T iValue) noexcept
 #endif
 }
 
+#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 7
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshift-count-overflow"
+#endif
 //-----------------------------------------------------------------------------
 template<class T>
 DEKAF2_PUBLIC constexpr
@@ -680,6 +694,9 @@ kBitCountOne(T iValue) noexcept
 	}
 #endif
 }
+#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 7
+#pragma GCC diagnostic pop
+#endif
 
 #if DEKAF2_BITS_HAS_BITCAST
 template<class To, class From>
@@ -704,7 +721,7 @@ DEKAF2_PUBLIC typename std::enable_if<
 kBitCast(const From& src) noexcept
 {
     static_assert(std::is_trivially_constructible<To>::value,
-	              "This implementation requires the destination type to be trivially constructible");
+	              "This implementation of std::bit_cast requires the destination type to be trivially constructible");
     To dst;
     std::memcpy(&dst, &src, sizeof(To));
     return dst;

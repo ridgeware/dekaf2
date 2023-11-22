@@ -387,14 +387,5 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 
 #endif // DEKAF2_FIND_FIRST_OF_USE_SIMD
 
-#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-
-namespace detail {
-constexpr KFindSetOfChars kASCIISpacesSet;
-constexpr KFindSetOfChars kCommaSet;
-} // end of namespace detail
-
-#endif
-
 } // end of namespace dekaf2
 

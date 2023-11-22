@@ -623,6 +623,11 @@ std::size_t reverseScanHaystackBlockNot(KStringView haystack,
 std::size_t kFindFirstOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
+	if (DEKAF2_UNLIKELY(haystack.empty() || needles.empty()))
+	{
+		return KStringView::npos;
+	}
+
 	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
 	{
 		// We can't safely SSE-load haystack. Use a different approach.
@@ -668,6 +673,16 @@ std::size_t kFindFirstOf(KStringView haystack, KStringView needles)
 std::size_t kFindFirstNotOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
+	if (DEKAF2_UNLIKELY(haystack.empty()))
+	{
+		return KStringView::npos;
+	}
+
+	if (DEKAF2_UNLIKELY(needles.empty()))
+	{
+		return 0;
+	}
+
 	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
 	{
 		// We can't safely SSE-load haystack. Use a different approach.
@@ -713,6 +728,11 @@ std::size_t kFindFirstNotOf(KStringView haystack, KStringView needles)
 std::size_t kFindLastOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
+	if (DEKAF2_UNLIKELY(haystack.empty() || needles.empty()))
+	{
+		return KStringView::npos;
+	}
+
 	if (DEKAF2_UNLIKELY(UnalignedPageUnderflow(haystack)))
 	{
 		return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, false);
@@ -781,6 +801,16 @@ std::size_t kFindLastOf(KStringView haystack, KStringView needles)
 std::size_t kFindLastNotOf(KStringView haystack, KStringView needles)
 //-----------------------------------------------------------------------------
 {
+	if (DEKAF2_UNLIKELY(haystack.empty()))
+	{
+		return KStringView::npos;
+	}
+
+	if (DEKAF2_UNLIKELY(needles.empty()))
+	{
+		return haystack.size() - 1;
+	}
+
 	// test for underflow on haystack
 	if (DEKAF2_UNLIKELY(UnalignedPageUnderflow(haystack)))
 	{

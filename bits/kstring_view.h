@@ -47,6 +47,7 @@
 /// available
 
 #include "kcppcompat.h"
+#include <cassert>
 #include <cstring>
 
 #undef DEKAF2_HAS_STD_STRING_VIEW
@@ -86,7 +87,9 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 #if defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW) \
 	|| !defined(DEKAF2_HAS_STD_STRING_VIEW)
 
-	/// tiny but nearly complete string_view implementation - it only does not have find_first/last_(not)_of() (but those are supplied through KStringView)
+	// tiny but nearly complete string_view implementation 
+	// - it only does not have find_first/last_(not)_of()
+	// (but those are supplied through KStringView)
 
 	#define DEKAF2_HAS_OWN_STRING_VIEW 1
 	#undef DEKAF2_SV_NAMESPACE // could have been set above already
@@ -95,23 +98,6 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 	namespace dekaf2 {
 	namespace detail {
 	namespace stringview {
-
-#ifndef NDEBUG
-	DEKAF2_PUBLIC
-	void svFailedAssert(const char* sCrashMessage);
-#endif
-
-	inline
-	DEKAF2_PUBLIC
-	void svAssert (bool bMustBeTrue, const char* sCrashMessage)
-	{
-#ifndef NDEBUG
-		if (!bMustBeTrue)
-		{
-			svFailedAssert(sCrashMessage);
-		}
-#endif
-	}
 
 	template<typename CharT, typename Traits = std::char_traits<CharT>>
 	class basic_string_view {
@@ -252,14 +238,14 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 		constexpr
 		const_reference front() const noexcept
 		{
-			svAssert(!empty(), "is empty");
+			assert(!empty());
 			return *begin();
 		}
 
 		constexpr
 		const_reference back() const noexcept
 		{
-			svAssert(!empty(), "is empty");
+			assert(!empty());
 			return *(end() - 1);
 		}
 
@@ -288,7 +274,7 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 		DEKAF2_CONSTEXPR_14
 		void remove_prefix(size_type n) noexcept
 		{
-			svAssert(n <= m_iSize, "overrun");
+			assert(n <= m_iSize);
 			m_pszString += n;
 			m_iSize -= n;
 		}
@@ -296,7 +282,7 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 		DEKAF2_CONSTEXPR_14
 		void remove_suffix(size_type n) noexcept
 		{
-			svAssert(n <= m_iSize, "overrun");
+			assert(n <= m_iSize);
 			m_iSize -= n;
 		}
 

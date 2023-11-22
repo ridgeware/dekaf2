@@ -46,6 +46,7 @@ set (USOURCES
 	kduration_tests.cpp
 	kencode_tests.cpp
 	kfilesystem_tests.cpp
+	kfindsetofchars_tests.cpp
 	kformat_tests.cpp
 	kgetruntimestack_tests.cpp
 	khash_tests.cpp

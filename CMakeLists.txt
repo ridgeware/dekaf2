@@ -723,6 +723,7 @@ set (BITS_HEADERS
 	bits/kbasepipe.h
 	bits/kcppcompat.h
 	bits/kfilesystem.h
+	bits/kfindsetofchars.h
 	bits/khash.h
 	bits/kiostreams_filters.h
 	bits/klogwriter.h
@@ -1010,6 +1011,7 @@ set (SOURCES
 	# KEEP ALPHABETIZED
 	bits/kbasepipe.cpp
 	bits/kbaseshell.cpp
+	bits/kfindsetofchars.cpp
 	bits/klogwriter.cpp
 	bits/klogserializer.cpp
 	bits/kstring_view.cpp
@@ -1328,7 +1330,8 @@ target_include_directories(dekaf2
 	$<BUILD_INTERFACE:${GENERATED_FILES_DIR}>
 )
 
-target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2)
+# DEKAF2_LIBRARY_BUILD is needed for dynamic libs
+target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2=1)
 
 if (DEKAF2_USE_PRECOMPILED_HEADERS)
 	target_precompile_headers(dekaf2 PRIVATE ${PRECOMPILED_HEADERS})

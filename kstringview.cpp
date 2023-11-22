@@ -680,9 +680,6 @@ static_assert(std::is_nothrow_move_constructible<KStringView>::value,
 
 constexpr KStringView::size_type KStringView::npos;
 constexpr KStringView::value_type KStringView::s_0ch;
-namespace detail {
-constexpr KStringView kASCIISpaces;
-} // end of namespace detail
 
 #endif
 

@@ -76,19 +76,23 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 	#define KUTF8_CONSTEXPR_14 inline
 #endif
 
-#if __cplusplus >= 201703L
+#if __cplusplus >= 202002L
 	#define KUTF8_CONSTEXPR_20 constexpr
 #else
 	#define KUTF8_CONSTEXPR_20 inline
 #endif
 
-#if __cplusplus > 201402L
-	#if __has_include("kconfiguration.h")
+#ifdef __has_include
+	#if __has_include("kconfiguration.h") && __has_include("kctype.h")
 		#include "kconfiguration.h"
 	#endif
 #endif
 
-#ifdef DEKAF2
+#if defined(DEKAF2) || DEKAF_MAJOR_VERSION >= 2
+	#define KUTF8_DEKAF2 1
+#endif
+
+#if KUTF8_DEKAF2
 #include "kctype.h"
 namespace dekaf2 {
 #else
@@ -98,7 +102,7 @@ namespace dekaf2 {
 namespace Unicode {
 
 #ifdef __cpp_unicode_characters
-	#ifndef DEKAF2
+	#ifndef KUTF8_DEKAF2
 	using codepoint_t = char32_t;
 	#endif
 	using utf16_t     = char16_t;
@@ -108,7 +112,7 @@ namespace Unicode {
 	using utf8_t      = uint8_t;
 	#endif
 #else
-	#ifndef DEKAF2
+	#ifndef KUTF8_DEKAF2
 	using codepoint_t = uint32_t;
 	#endif
 	using utf16_t     = uint16_t;
@@ -1218,7 +1222,7 @@ void ToLowerUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 
 	TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowReturnString& sOut)
 	{
-#ifdef DEKAF2
+#ifdef KUTF8_DEKAF2
 		ToUTF8(kToLower(uch), sOut);
 #else
 		ToUTF8(std::towlower(uch), sOut);
@@ -1239,7 +1243,7 @@ void ToUpperUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 
 	TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowReturnString& sOut)
 	{
-#ifdef DEKAF2
+#ifdef KUTF8_DEKAF2
 		ToUTF8(kToUpper(uch), sOut);
 #else
 		ToUTF8(std::towupper(uch), sOut);
@@ -1363,6 +1367,6 @@ ByteString UTF8ToUTF16Bytes(const NarrowString& sUTF8String)
 
 } // namespace Unicode
 
-#ifdef DEKAF2
+#ifdef KUTF8_DEKAF2
 } // of namespace dekaf2
 #endif

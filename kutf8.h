@@ -447,8 +447,8 @@ void ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 
 				if (KUTF8_UNLIKELY(it == ie))
 				{
-					// we replace incomplete surrogates with the replacement character
-					ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
+					// this is an incomplete surrogate
+					ToUTF8(INVALID_CODEPOINT, sNarrow);
 				}
 				else
 				{
@@ -456,9 +456,8 @@ void ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 
 					if (KUTF8_UNLIKELY(!IsTrailSurrogate(sp.high)))
 					{
-						// the second surrogate is not valid - simply replace them
-						// with the replacement character if not
-						ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
+						// the second surrogate is not valid
+						ToUTF8(INVALID_CODEPOINT, sNarrow);
 					}
 					else
 					{
@@ -470,7 +469,7 @@ void ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 			else
 			{
 				// this was a trail surrogate withoud lead..
-				ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
+				ToUTF8(INVALID_CODEPOINT, sNarrow);
 			}
 		}
 		else
@@ -647,8 +646,8 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 
 				if (KUTF8_UNLIKELY(it == ie))
 				{
-					// we replace incomplete surrogates with the replacement character
-					return REPLACEMENT_CHARACTER;
+					// this is an incomplete surrogate
+					return INVALID_CODEPOINT;
 				}
 				else
 				{
@@ -657,7 +656,7 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 					if (KUTF8_UNLIKELY(!IsTrailSurrogate(sp.high)))
 					{
 						// the second surrogate is not valid - do not advance input a second time
-						return REPLACEMENT_CHARACTER;
+						return INVALID_CODEPOINT;
 					}
 					else
 					{
@@ -671,7 +670,7 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 			else
 			{
 				// this was a trail surrogate withoud lead..
-				return REPLACEMENT_CHARACTER;
+				return INVALID_CODEPOINT;
 			}
 		}
 		else

@@ -49,6 +49,8 @@
 #include "../kdefinitions.h"
 #include <cassert>
 #include <cstring>
+#include <string>    // for std::char_traits<>
+#include <stdexcept> // for std::out_of_range
 
 #undef DEKAF2_HAS_STD_STRING_VIEW
 #undef DEKAF2_SV_NAMESPACE

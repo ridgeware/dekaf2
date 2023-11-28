@@ -177,6 +177,15 @@ struct SurrogatePair
 }; // SurrogatePair
 
 //-----------------------------------------------------------------------------
+/// Returns true if the given character is a single byte run, and thus an ASCII char
+inline constexpr
+bool IsSingleByte(utf8_t ch)
+//-----------------------------------------------------------------------------
+{
+	return ch < 0x080;
+}
+
+//-----------------------------------------------------------------------------
 /// Returns true if the given character is a UTF8 start byte (which starts a UTF8 sequence and is followed by one to three continuation bytes)
 inline constexpr
 bool IsStartByte(utf8_t ch)
@@ -682,6 +691,28 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 	{
 		return CodepointCast(*it++);
 	}
+}
+
+//-----------------------------------------------------------------------------
+/// advance the input iterator by n codepoints - this works with UTF8, UTF16, or UTF32
+/// @param it iterator that points to the current position in the string. Will be advanced to the new position.
+/// @param ie iterator that points to the end of the string. If on return it == ie the string was exhausted.
+/// @param n the number of unicode codepoints to advanve for iterator it (default = 1)
+/// @return true if it != ie, else false (input string exhausted)
+template<typename Iterator>
+KUTF8_CONSTEXPR_14
+bool Advance(Iterator& it, Iterator ie, std::size_t n = 1)
+//-----------------------------------------------------------------------------
+{
+	for (; n-- > 0 && it != ie; )
+	{
+		if (Codepoint(it, ie) == INVALID_CODEPOINT)
+		{
+			return false;
+		}
+	}
+
+	return it != ie;
 }
 
 //-----------------------------------------------------------------------------

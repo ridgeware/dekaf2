@@ -3,6 +3,9 @@
 #include <dekaf2/kutf8.h>
 #include <dekaf2/kstring.h>
 #include <vector>
+#ifdef DEKAF2_HAS_CPP_17
+	#include <string_view>
+#endif
 
 using namespace dekaf2;
 
@@ -325,5 +328,44 @@ TEST_CASE("UTF8") {
 			CHECK ( sUTF8[1] == char(0x8d) );
 		}
 	}
+
+	SECTION("Advance UTF8")
+	{
+		KStringView sInput = "testäöü test日本語abc中文Русский ..";
+		auto it = sInput.begin();
+		auto ie = sInput.end();
+		auto it2 = it;
+		CHECK ( Unicode::Advance(it, ie,  0) == true );
+		CHECK ( it == it2 );
+		CHECK ( Unicode::Advance(it, ie,  1) == true );
+		CHECK ( *it == 'e' );
+		CHECK ( Unicode::Advance(it, ie,  6) == true );
+		CHECK ( *it == ' ' );
+		CHECK ( Unicode::Advance(it, ie, 20) == true );
+		CHECK ( *it == ' ' );
+		CHECK ( Unicode::Advance(it, ie,  5) == false);
+		CHECK ( it == ie );
+	}
+
+#ifdef DEKAF2_HAS_CPP_17
+	SECTION("Advance UTF32")
+	{
+		std::wstring_view sInput = L"testäöü test日本語abc中文Русский ..";
+		auto it = sInput.begin();
+		auto ie = sInput.end();
+		auto it2 = it;
+		CHECK ( Unicode::Advance(it, ie,  0) == true );
+		CHECK ( it == it2 );
+		CHECK ( Unicode::Advance(it, ie,  1) == true );
+		CHECK ( (*it == wchar_t('e')) );
+		CHECK ( Unicode::Advance(it, ie,  6) == true );
+		CHECK ( (*it == wchar_t(' ')) );
+		CHECK ( Unicode::Advance(it, ie, 20) == true );
+		CHECK ( (*it == wchar_t(' ')) );
+		CHECK ( Unicode::Advance(it, ie,  5) == false);
+		CHECK ( it == ie );
+	}
+#endif
+
 }
 

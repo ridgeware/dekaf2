@@ -43,7 +43,7 @@
 #include "khash.h"
 #include <array>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
 bool KHash::Update(KStringView::value_type chInput)
@@ -130,4 +130,4 @@ bool KCaseHash::Update(KInStream& InputStream)
 
 } // Update
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

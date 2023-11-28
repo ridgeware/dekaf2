@@ -41,6 +41,7 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "dekaf2.h"
 #include <chrono>
 #include <map>
@@ -50,7 +51,7 @@
 /// @file ktimeseries.h
 /// collecting and analyzing data points over time
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 
@@ -681,4 +682,4 @@ protected:
 template<typename Datum, typename Resolution>
 const typename KTimeSeries<Datum, Resolution>::Stored KTimeSeries<Datum, Resolution>::s_EmptyStored;
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

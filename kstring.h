@@ -48,11 +48,7 @@
 /// handles most error cases in a benign way and speeds up searching
 /// up to 50 times compared to std::string implementations
 
-#include <string>
-#include <istream>
-#include <ostream>
-#include <vector>
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "bits/kstring_view.h"
 #include "bits/khash.h"
 #include "bits/ktemplate.h"
@@ -60,9 +56,12 @@
 #include <folly/FBString.h>
 #endif
 #include <fmt/format.h>
+#include <string>
+#include <istream>
+#include <ostream>
+#include <vector>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 // forward declarations
 class KString;
@@ -924,8 +923,7 @@ private:
 
 }; // KString
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // KString is now complete - here follow KString inline methods that need
@@ -936,7 +934,7 @@ private:
 #include "ksplit.h"
 #include "kjoin.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 inline KString::KString(const KStringView& sv)
@@ -2107,25 +2105,25 @@ inline KString operator+(KString&& left, KString::value_type right)
 inline namespace literals {
 
 	/// provide a string literal for KString
-	inline dekaf2::KString operator"" _ks(const char *data, std::size_t size)
+	inline DEKAF2_PREFIX KString operator"" _ks(const char *data, std::size_t size)
 	{
 		return {data, size};
 	}
 
 } // namespace literals
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #include "kformat.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //----------------------------------------------------------------------
 /// helper operator to allow KString as formatting arg of fmt::format
-inline KString::operator fmt::string_view() const
+inline KString::operator DEKAF2_FORMAT_NAMESPACE ::string_view() const
 //----------------------------------------------------------------------
 {
-	return fmt::string_view(data(), size());
+	return DEKAF2_FORMAT_NAMESPACE::string_view(data(), size());
 }
 
 //----------------------------------------------------------------------
@@ -2137,22 +2135,22 @@ KString& KString::Format(Args&&... args) &
 	return *this;
 }
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 namespace std
 {
-	std::istream& getline(std::istream& stream, dekaf2::KString& str);
-	std::istream& getline(std::istream& stream, dekaf2::KString& str, dekaf2::KString::value_type delimiter);
+	std::istream& getline(std::istream& stream, DEKAF2_PREFIX KString& str);
+	std::istream& getline(std::istream& stream, DEKAF2_PREFIX KString& str, DEKAF2_PREFIX KString::value_type delimiter);
 
 	/// provide a std::hash for KString
-	template<> struct hash<dekaf2::KString>
+	template<> struct hash<DEKAF2_PREFIX KString>
 	{
 		// we actually use a KStringView as the parameter, as this avoids
 		// accidentially constructing a KString if coming from a KStringView
 		// or char* in a template that uses KString as elements
-		DEKAF2_CONSTEXPR_14 std::size_t operator()(dekaf2::KStringView sv) const noexcept
+		DEKAF2_CONSTEXPR_14 std::size_t operator()(DEKAF2_PREFIX KStringView sv) const noexcept
 		{
-			return dekaf2::kHash(sv.data(), sv.size());
+			return DEKAF2_PREFIX kHash(sv.data(), sv.size());
 		}
 
 		// and provide an explicit hash function for const char*, as this avoids
@@ -2160,27 +2158,27 @@ namespace std
 		// the size of the array)
 		DEKAF2_CONSTEXPR_14 std::size_t operator()(const char* s) const noexcept
 		{
-			return dekaf2::kHash(s);
+			return DEKAF2_PREFIX kHash(s);
 		}
 	};
 
 	// make sure comparisons work without construction of KString
-	template<> struct equal_to<dekaf2::KString>
+	template<> struct equal_to<DEKAF2_PREFIX KString>
 	{
 		using is_transparent = void;
 
-		bool DEKAF2_CONSTEXPR_14 operator()(dekaf2::KStringView s1, dekaf2::KStringView s2) const
+		bool DEKAF2_CONSTEXPR_14 operator()(DEKAF2_PREFIX KStringView s1, DEKAF2_PREFIX KStringView s2) const
 		{
 			return s1 == s2;
 		}
 	};
 
 	// make sure comparisons work without construction of KString
-	template<> struct less<dekaf2::KString>
+	template<> struct less<DEKAF2_PREFIX KString>
 	{
 		using is_transparent = void;
 
-		bool DEKAF2_CONSTEXPR_17 operator()(dekaf2::KStringView s1, dekaf2::KStringView s2) const
+		bool DEKAF2_CONSTEXPR_17 operator()(DEKAF2_PREFIX KStringView s1, DEKAF2_PREFIX KStringView s2) const
 		{
 			return s1 < s2;
 		}
@@ -2189,43 +2187,45 @@ namespace std
 } // end of namespace std
 
 #ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-namespace boost
+namespace boost {
 #else
-namespace dekaf2
+DEKAF2_NAMESPACE_BEGIN
 #endif
-{
 	inline
-	std::size_t hash_value(const dekaf2::KString& s)
+	std::size_t hash_value(const DEKAF2_PREFIX KString& s)
 	{
 		return s.Hash();
 	}
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
+}
+#else
+DEKAF2_NAMESPACE_END
+#endif
+
+//----------------------------------------------------------------------
+inline std::size_t DEKAF2_PREFIX KString::Hash() const
+//----------------------------------------------------------------------
+{
+	return std::hash<DEKAF2_PREFIX KString>()(KStringView(*this));
 }
 
 //----------------------------------------------------------------------
-inline std::size_t dekaf2::KString::Hash() const
+inline std::size_t DEKAF2_PREFIX KString::CaseHash() const
 //----------------------------------------------------------------------
 {
-	return std::hash<dekaf2::KString>()(KStringView(*this));
+	return DEKAF2_PREFIX kCaseHash(data(), size());
 }
 
-//----------------------------------------------------------------------
-inline std::size_t dekaf2::KString::CaseHash() const
-//----------------------------------------------------------------------
-{
-	return dekaf2::kCaseHash(data(), size());
-}
-
-namespace fmt
-{
+namespace DEKAF2_FORMAT_NAMESPACE {
 
 template <>
-struct formatter<dekaf2::KString> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KString> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KString& String, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KString& String, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(string_view(String.data(), String.size()), ctx);
 	}
 };
 
-} // end of namespace fmt
+} // end of DEKAF2_FORMAT_NAMESPACE

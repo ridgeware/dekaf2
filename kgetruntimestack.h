@@ -45,12 +45,12 @@
 /// @file kgetruntimestack.h
 /// provides a stack tracer
 
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "kjson.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 /// strips a fully qualified function name down to a minimum
 DEKAF2_PUBLIC
@@ -102,4 +102,4 @@ struct DEKAF2_PUBLIC KStackFrame
 DEKAF2_PUBLIC
 KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles);
 
-}
+DEKAF2_NAMESPACE_END

@@ -41,7 +41,7 @@
 
 #include "kstreambufadaptor.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KOutStreamBufAdaptor::KOutStreamBufAdaptor(std::ostream& ostream)
@@ -239,6 +239,4 @@ std::streamsize KInStreamBufAdaptor::Inspect(char* sBuffer, std::streamsize iSiz
 	return it - sBuffer;
 }
 
-
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

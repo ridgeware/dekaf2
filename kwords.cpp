@@ -44,11 +44,11 @@
 #include "kutf8.h"
 #include "khtmlentities.h"
 #include "kctype.h"
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include <cctype>
 
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 namespace splitting_parser {
@@ -576,5 +576,4 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 } // of namespace splitting_parser
 } // of namespace detail
 
-
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

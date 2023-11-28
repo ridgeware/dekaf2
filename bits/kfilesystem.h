@@ -46,7 +46,7 @@
 /// test for include file locations for std::filesystem, and include if
 /// available
 
-#include "kcppcompat.h"
+#include "../kdefinitions.h"
 
 #if DEKAF2_HAS_CPP_17 && !DEKAF2_IS_CLANG
 	#if DEKAF2_HAS_INCLUDE(<filesystem>)
@@ -74,7 +74,7 @@
 	namespace fs = DEKAF2_FS_NAMESPACE;
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
 
@@ -101,5 +101,4 @@ const char* kToFilesystemPath(const String& sPath)
 
 #endif
 
-} // of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

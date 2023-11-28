@@ -53,7 +53,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.38 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.39 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -721,7 +721,6 @@ set (BITS_HEADERS
 	bits/kasiostream.h
 	bits/kbaseshell.h
 	bits/kbasepipe.h
-	bits/kcppcompat.h
 	bits/kfilesystem.h
 	bits/kfindsetofchars.h
 	bits/khash.h
@@ -770,6 +769,7 @@ set(PUBLIC_HEADERS
 	kcgistream.h
 	kchildprocess.h
 	kchunkedtransfer.h
+	kcompatibility.h
 	kcompression.h
 	kconnection.h
 	kcookie.h
@@ -779,6 +779,7 @@ set(PUBLIC_HEADERS
 	kcsv.h
 	kctype.h
 	kdate.h
+	kdefinitions.h
 	kdiff.h
 	kduration.h
 	kencode.h
@@ -958,15 +959,16 @@ set (PRECOMPILED_HEADERS
 	[["kconfiguration.h"]]
 	bits/kstring_view.h
 	bits/khash.h
-	bits/kcppcompat.h
 	bits/ktemplate.h
 	bits/kmutable_pair.h
 	bits/ktemplate.h
 	bits/kunique_deleter.h
 	dekaf2.h
 	kassociative.h
+	kcompatibility.h
 	kctype.h
 	kdate.h
+	kdefinitions.h
 	kduration.h
 	kfilesystem.h
 	kformat.h
@@ -1484,6 +1486,9 @@ else()
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/folly)")
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/glog)")
 endif()
+
+# remove old headers, until mid-2024
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kcppcompat.h)")
 # remove old headers, until mid-2023
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kprops-multi-index.h)")
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kprops-std-map.h)")

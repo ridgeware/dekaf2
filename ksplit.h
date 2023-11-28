@@ -43,15 +43,14 @@
 #pragma once
 
 #include <vector>
-#include "bits/kcppcompat.h"
+#include "kdefinitions.h"
 #include "bits/ktemplate.h"
 #include "kstringview.h"
 
 /// @file ksplit.h
 /// Highly configurable tokenizer templates
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 /// Simplified version for single delimiter char.
@@ -973,4 +972,4 @@ Container kSplitsArgs (KStringView svBuffer)
 	return cContainer;
 }
 
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END

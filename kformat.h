@@ -43,7 +43,7 @@
 /// @file kformat.h
 /// provides basic string formatter functionality
 
-#include "bits/kcppcompat.h"
+#include "kdefinitions.h"
 
 #undef DEKAF2_HAS_STD_FORMAT
 #undef DEKAF2_FORMAT_NAMESPACE
@@ -59,7 +59,6 @@
 	#endif
 #endif
 
-#include "kstringview.h"
 #ifdef DEKAF2_HAS_STD_FORMAT
 	#define DEKAF2_FORMAT_NAMESPACE std
 #else
@@ -67,6 +66,9 @@
 	#include <fmt/core.h>
 	#include <fmt/chrono.h>
 #endif
+
+#include "kstringview.h"
+#include "kstring.h"
 #include <ostream>
 #include <locale>
 
@@ -77,7 +79,7 @@ constexpr typename std::underlying_type<Enum>::type format_as(Enum e)
 	return std::to_underlying(e);
 }
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 // add a generic enum to int conversion to namespace dekaf2 as well
 template<typename Enum, typename std::enable_if<std::is_enum<Enum>::value, int>::type = 0>

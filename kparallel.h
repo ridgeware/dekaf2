@@ -44,15 +44,14 @@
 /// @file kparallel.h
 /// collection of classes and functions for parallelization support
 
-#include <thread>
-#include <utility>
-#include <unordered_map>
 #include "kthreads.h"
 #include "kthreadsafe.h"
 #include "klog.h"
+#include <thread>
+#include <utility>
+#include <unordered_map>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Runs a number of threads that call a given function. The number of threads
@@ -372,4 +371,4 @@ private:
 
 }; // KBlockOnID
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END

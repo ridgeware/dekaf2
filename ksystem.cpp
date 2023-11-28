@@ -41,7 +41,7 @@
 */
 
 #include "ksystem.h"
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "bits/kfilesystem.h"
 #include "bits/kasio.h"
 #include "kfilesystem.h"

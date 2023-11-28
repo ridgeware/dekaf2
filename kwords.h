@@ -43,14 +43,14 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "kstring.h"
 
 /// @file kwords.h
 /// Split marked up input buffer into words + skeleton.
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 namespace splitting_parser {
@@ -409,4 +409,4 @@ using KNormalizingHTMLWords = KWords<std::vector<KString>, detail::splitting_par
 using KSimpleHTMLSkeletonWords = KWords<std::vector<std::pair<KString, KStringView>>, detail::splitting_parser::SimpleHTML>;
 using KNormalizingHTMLSkeletonWords = KWords<std::vector<std::pair<KString, KString>>, detail::splitting_parser::NormalizingHTML>;
 
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END

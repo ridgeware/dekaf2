@@ -44,12 +44,17 @@
 /// @file kstreambufadaptor.h
 /// a streambuf baseclass that can be customized to watch or modify a streambuf it is attached to
 
-#include "kwriter.h"
-#include "kreader.h"
+#include "kdefinitions.h"
+#if DEKAF2_HAS_INCLUDE("kwriter.h")
+	#include "kwriter.h"
+#endif
+#if DEKAF2_HAS_INCLUDE("kreader.h")
+	#include "kreader.h"
+#endif
 #include <ostream>
 #include <istream>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// helper class to watch or modify the characters written through a streambuf
@@ -69,12 +74,14 @@ public:
 	KOutStreamBufAdaptor(std::ostream& ostream);
 	//-----------------------------------------------------------------------------
 
+#ifdef DEKAF2_HAS_KWRITER
 	//-----------------------------------------------------------------------------
 	KOutStreamBufAdaptor(KOutStream& outstream)
 	//-----------------------------------------------------------------------------
 	: KOutStreamBufAdaptor(outstream.ostream())
 	{
 	}
+#endif
 
 	//-----------------------------------------------------------------------------
 	virtual ~KOutStreamBufAdaptor();
@@ -148,12 +155,14 @@ public:
 	KInStreamBufAdaptor(std::istream& istream);
 	//-----------------------------------------------------------------------------
 
+#ifdef DEKAF2_HAS_KREADER
 	//-----------------------------------------------------------------------------
 	KInStreamBufAdaptor(KInStream& instream)
 	//-----------------------------------------------------------------------------
 	: KInStreamBufAdaptor(instream.istream())
 	{
 	}
+#endif
 
 	//-----------------------------------------------------------------------------
 	virtual ~KInStreamBufAdaptor();
@@ -200,5 +209,4 @@ private:
 
 }; // KInStreamBufAdaptor
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/bits/kcppcompat.h>
+#include <dekaf2/kcompatibility.h>
 #include <dekaf2/bits/simd/kfindfirstof.h>
 #include <dekaf2/kexception.h>
 

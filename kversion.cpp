@@ -43,7 +43,7 @@
 #include "kversion.h"
 #include <algorithm>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KVersion::value_type KVersion::operator[](std::size_t iPos) const
@@ -189,5 +189,4 @@ bool operator<(const KVersion& left, const KVersion& right)
 constexpr KStringView KVersion::sDefaultSeparators;
 #endif
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

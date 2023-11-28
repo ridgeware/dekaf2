@@ -44,13 +44,16 @@
 /// @file kreader.h
 /// holds the basic reader abstraction
 
+#include "kdefinitions.h"
 #include "bits/kfilesystem.h"
 #include "kfilesystem.h"
 #include "kstring.h"
 #include <istream>
+#include <fstream>
 
-namespace dekaf2
-{
+#define DEKAF2_HAS_KREADER_H 1
+
+DEKAF2_NAMESPACE_BEGIN
 
 /// Read a line of text until EOF or delimiter from a std::istream. Right trim values of sTrimRight.
 /// Reads directly in the underlying streambuf
@@ -789,5 +792,4 @@ public:
 
 };
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

@@ -42,6 +42,7 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "bits/khash.h"
 #include "kstringview.h"
 #include "kreader.h"
@@ -49,7 +50,7 @@
 /// @file khash.h
 /// FNV hash class
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Generates a FNV hash value, also over consecutive pieces of data
@@ -275,4 +276,4 @@ protected:
 
 }; // KCaseHash
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -42,7 +42,7 @@
 
 #pragma once
 
-#include "bits/kcppcompat.h"
+#include "kdefinitions.h"
 
 // frozen constexpr need at least C++14
 #ifndef DEKAF2_HAS_CPP_14

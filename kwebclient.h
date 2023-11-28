@@ -44,6 +44,7 @@
 /// @file kwebclient.h
 /// HTTP client implementation - high level
 
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "kmime.h"
 #include "kurl.h"
@@ -52,7 +53,7 @@
 #include "kcookie.h"
 #include "kduration.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 /// Simplified helper method that uses KWebClient to "wget" a file from a remote server
 /// to a local filesystem.  Eventually we will support all wget's cli options but currently
@@ -258,4 +259,4 @@ DEKAF2_PUBLIC
 KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime);
 //-----------------------------------------------------------------------------
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -46,7 +46,7 @@
 /// test for include file locations for std::variant, and include if
 /// available, otherwise provide an alternative boost implementation
 
-#include "bits/kcppcompat.h"
+#include "kdefinitions.h"
 
 // clang has multiple issues with variants:
 //
@@ -113,7 +113,7 @@
 	namespace var = DEKAF2_VARIANT_NAMESPACE;
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 #if (DEKAF2_HAS_BOOST_VARIANT == 1)
 	template<typename RETURNTYPE = void>
@@ -157,4 +157,4 @@ namespace dekaf2 {
 
 #endif
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END

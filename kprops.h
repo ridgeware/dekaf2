@@ -53,7 +53,7 @@
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/random_access_index.hpp>
 #include <algorithm>
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "bits/kmutable_pair.h"
 #include "ksplit.h"
 #include "kjoin.h"

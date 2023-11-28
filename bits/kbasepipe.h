@@ -42,7 +42,7 @@
 #pragma once
 
 // Dekaf Includes
-#include "kcppcompat.h"
+#include "../kcompatibility.h"
 #include "../kstring.h"
 
 #ifdef DEKAF2_HAS_PIPES

@@ -48,7 +48,7 @@
 #include <sys/socket.h>
 
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KPoll::~KPoll()
@@ -376,6 +376,6 @@ void KSocketWatch::Watch()
 
 } // Watch
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif // DEKAF2_IS_WINDOWS

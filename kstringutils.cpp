@@ -41,12 +41,10 @@
 
 #include "kstringutils.h"
 #include "kurl.h"
-#include "dekaf2.h"
 #include "kregex.h"
 #include "kencode.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim/*=','*/)
@@ -464,5 +462,4 @@ KString kCurlyToStraight(KStringView sInput)
 
 } // kCurlyToStraight
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

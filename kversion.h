@@ -45,11 +45,12 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include <vector>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Helper class for version number parsing and comparison
@@ -151,5 +152,4 @@ extern DEKAF2_PUBLIC bool operator<(const KVersion& left, const KVersion& right)
 
 DEKAF2_COMPARISON_OPERATORS(KVersion)
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

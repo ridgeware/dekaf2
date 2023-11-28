@@ -59,7 +59,7 @@
 
 #include <cinttypes>
 #include <type_traits> // std::enable_if
-#include "bits/kcppcompat.h" // enable_if_t < C++14
+#include "kcompatibility.h" // enable_if_t < C++14
 
 namespace dekaf2 {
 namespace detail {

@@ -94,7 +94,7 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 
 #if KUTF8_DEKAF2
 #include "kctype.h"
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 #else
 #include <cwctype>
 #endif
@@ -1368,5 +1368,5 @@ ByteString UTF8ToUTF16Bytes(const NarrowString& sUTF8String)
 } // namespace Unicode
 
 #ifdef KUTF8_DEKAF2
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 #endif

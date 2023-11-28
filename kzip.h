@@ -41,17 +41,18 @@
 
 #pragma once
 
-#include <iterator>
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kexception.h"
 #include "kwriter.h"
 #include "kreader.h"
 #include "kfilesystem.h"
+#include <iterator>
 
 struct zip;
 struct zip_stat;
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Wrapper class around libzip to give easy access from C++ to the files in
@@ -406,4 +407,4 @@ private:
 
 }; // KZip
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

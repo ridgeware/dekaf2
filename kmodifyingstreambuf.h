@@ -45,8 +45,10 @@
 /// a streambuf that modifies the bytes flowing through it
 
 #include "kstreambufadaptor.h"
+#include "kstringview.h"
+#include "kstring.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// helper class to modify the characters written through a streambuf
@@ -106,12 +108,14 @@ public:
 	KModifyingInputStreamBuf(std::istream& istream);
 	//-----------------------------------------------------------------------------
 
+#ifdef DEKAF2_HAS_KREADER
 	//-----------------------------------------------------------------------------
 	KModifyingInputStreamBuf(dekaf2::KInStream& instream)
 	//-----------------------------------------------------------------------------
 	: KModifyingInputStreamBuf(instream.InStream())
 	{
 	}
+#endif
 
 	//-----------------------------------------------------------------------------
 	virtual ~KModifyingInputStreamBuf();
@@ -121,12 +125,14 @@ public:
 	void Attach(std::istream& istream);
 	//-----------------------------------------------------------------------------
 
+#ifdef DEKAF2_HAS_KREADER
 	//-----------------------------------------------------------------------------
 	void Attach(dekaf2::KInStream& instream)
 	//-----------------------------------------------------------------------------
 	{
 		Attach(instream.InStream());
 	}
+#endif
 
 	//-----------------------------------------------------------------------------
 	void Detach();
@@ -170,7 +176,7 @@ private:
 	char_type       m_chBuf;
 
 }; // KModifyingInputStreamBuf
+
 #endif
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

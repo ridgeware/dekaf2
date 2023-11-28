@@ -44,19 +44,19 @@
 /// @file kstringviewz.h
 /// string view implementation with a trailing zero
 
-#include "kcppcompat.h"
+#include "../kdefinitions.h"
 #include "../kstringview.h"
 #include "../kutf8.h"
 #include "khash.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 class KStringViewZ;
 
 inline namespace literals {
 
 	/// provide a string literal for KStringViewZ
-	constexpr dekaf2::KStringViewZ operator"" _ksz(const char *data, std::size_t size);
+	constexpr DEKAF2_PREFIX KStringViewZ operator"" _ksz(const char *data, std::size_t size);
 
 } // namespace literals
 
@@ -464,7 +464,7 @@ using KStringViewZPair = std::pair<KStringViewZ, KStringViewZ>;
 inline namespace literals {
 
 	/// provide a string literal for KStringViewZ
-	constexpr dekaf2::KStringViewZ operator"" _ksz(const char *data, std::size_t size)
+	constexpr DEKAF2_PREFIX KStringViewZ operator"" _ksz(const char *data, std::size_t size)
 	{
 		// we can access a private constructor of KStringViewZ because we are a friend..
 		return { data, size };
@@ -472,53 +472,58 @@ inline namespace literals {
 
 } // namespace literals
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 namespace std
 {
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// provide a std::hash for KStringViewZ
 	template<>
-	struct hash<dekaf2::KStringViewZ>
+	struct hash<DEKAF2_PREFIX KStringViewZ>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		DEKAF2_CONSTEXPR_14 std::size_t operator()(dekaf2::KStringView s) const noexcept
+		DEKAF2_CONSTEXPR_14 std::size_t operator()(DEKAF2_PREFIX KStringView s) const noexcept
 		{
-			return dekaf2::kHash(s.data(), s.size());
+			return DEKAF2_PREFIX kHash(s.data(), s.size());
 		}
 
 		DEKAF2_CONSTEXPR_14 std::size_t operator()(const char* s) const noexcept
 		{
-			return dekaf2::kHash(s);
+			return DEKAF2_PREFIX kHash(s);
 		}
 	};
 
 } // namespace std
 
 #ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-namespace boost
+namespace boost {
 #else
-namespace dekaf2
+DEKAF2_NAMESPACE_BEGIN
 #endif
-{
 	inline
 	std::size_t hash_value(const dekaf2::KStringViewZ& s)
 	{
 		return s.Hash();
 	}
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 }
+#else
+DEKAF2_NAMESPACE_END
+#endif
 
-namespace fmt
+#include "../kformat.h"
+
+namespace DEKAF2_FORMAT_NAMESPACE
 {
 
 template <>
-struct formatter<dekaf2::KStringViewZ> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KStringViewZ> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KStringViewZ& String, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KStringViewZ& String, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(string_view(String.data(), String.size()), ctx);
 	}
 };
 
-} // end of namespace fmt
+} // end of DEKAF2_FORMAT_NAMESPACE

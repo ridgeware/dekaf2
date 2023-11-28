@@ -43,11 +43,11 @@
 /// @file kexception.h
 /// provides basic dekaf2 exception / error class
 
-#include <exception>
+#include "kdefinitions.h"
 #include "kstringview.h"
+#include <exception>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Basic dekaf2 exception class inheriting from std::runtime_error, and adding
@@ -108,5 +108,4 @@ protected:
 /// Alias for KException
 using KError = KException;
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

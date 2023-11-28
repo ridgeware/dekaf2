@@ -47,7 +47,7 @@
 
 #if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include <map>
 #include <cinttypes>
 #include <cstring>

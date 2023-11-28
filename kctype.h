@@ -44,13 +44,13 @@
 /// @file kctype.h
 /// fast unicode character type detection and conversion
 
+#include "kdefinitions.h"
 #include <type_traits>
 #include <cstdint>
 #include <cwctype>
 #include <array>
-#include "bits/kcppcompat.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace Unicode {
 
@@ -1062,4 +1062,4 @@ inline CP kToUpper(CP ch)
 	return KCodePoint(ch).ToUpper();
 }
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

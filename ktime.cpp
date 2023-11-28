@@ -39,12 +39,12 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "bits/kcppcompat.h"
 #include "ktime.h"
 #include "kduration.h"
 #include "kstringutils.h"
-#include "kfrozen.h"
-#include "dekaf2.h"
+#if DEKAF2_HAS_INCLUDE("kfrozen.h") || (DEKAF2_HAS_CPP_14 && !defined(__cpp_has_include))
+	#include "kfrozen.h"
+#endif
 #include "kutf8.h"
 #include "koutstringstream.h"
 #include "kthreadsafe.h"
@@ -52,7 +52,7 @@
 #include <date/tz.h>
 #include <type_traits>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 std::vector<KString> kGetListOfTimezoneNames()
@@ -1478,5 +1478,5 @@ std::tm KLocalTime::to_tm() const
 KThreadSafe<std::set<KString>> KLocalTime::s_TimezoneNameStore;
 #endif
 
+DEKAF2_NAMESPACE_END
 
-} // end of namespace dekaf2

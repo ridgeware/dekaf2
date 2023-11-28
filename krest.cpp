@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "krest.h"
 #include "kcgistream.h"
 #include "klambdastream.h"

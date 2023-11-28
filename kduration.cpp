@@ -43,7 +43,7 @@
 #include "kduration.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 #ifdef _MSC_VER
 KStopTime::ConstructHalted KStopTime::Halted;
@@ -700,4 +700,4 @@ KStopDurations::base::DurationBase KStopDurations::StoreInterval(size_type iInte
 
 } // StoreInterval
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END

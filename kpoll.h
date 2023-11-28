@@ -43,7 +43,7 @@
 /// @file kpoll.h
 /// Maintaining a list of file descriptors and associated actions to call when the file descriptor creates an event
 
-#include "bits/kcppcompat.h"
+#include "kdefinitions.h"
 
 // there is no poll on windows, so these classes remain non-functional currently
 #ifndef DEKAF2_IS_WINDOWS
@@ -58,7 +58,7 @@
 #include <cinttypes>
 #include <poll.h>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Maintaining a list of file descriptors and associated actions to call when the file descriptor creates an event
@@ -148,7 +148,7 @@ protected:
 
 #else // DEKAF2_IS_WINDOWS
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// non-functional version for Windows
@@ -183,4 +183,4 @@ using KSocketWatch = KPoll;
 
 #endif // DEKAF2_IS_WINDOWS
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

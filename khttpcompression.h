@@ -41,7 +41,7 @@
 
 #pragma once
 
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "kconfiguration.h" // for DEKAF2_HAS_LIBLZMA/LIBZSTD ..
 #include "kstringview.h"
 #include "khttp_header.h"

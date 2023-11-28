@@ -40,7 +40,6 @@
 //
 */
 
-#include "kcppcompat.h"
 #include "kstring_view.h"
 #include "simd/kfindfirstof.h"
 #ifdef DEKAF2_X86_64
@@ -49,7 +48,7 @@
 #endif
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 #ifndef __GLIBC__
 
@@ -59,14 +58,14 @@ void* memrchr(const void* s, int c, size_t n)
 {
 #if DEKAF2_FIND_FIRST_OF_USE_SIMD
 #ifdef DEKAF2_HAS_MINIFOLLY
-	static bool has_sse42 = dekaf2::Dekaf::getInstance().GetCpuId().sse42();
+	static bool has_sse42 = DEKAF2_PREFIX Dekaf::getInstance().GetCpuId().sse42();
 	if (DEKAF2_LIKELY(has_sse42))
 #endif
 	{
 		const char* p = static_cast<const char*>(s);
 		char ch = static_cast<char>(c);
-		size_t pos = dekaf2::detail::sse::kFindLastOf(dekaf2::KStringView(p, n), dekaf2::KStringView(&ch, 1));
-		if (pos != dekaf2::KStringView::npos)
+		size_t pos = DEKAF2_PREFIX detail::sse::kFindLastOf(DEKAF2_PREFIX KStringView(p, n), DEKAF2_PREFIX KStringView(&ch, 1));
+		if (pos != DEKAF2_PREFIX KStringView::npos)
 		{
 			return const_cast<char*>(p + pos);
 		}
@@ -127,4 +126,4 @@ void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, siz
 
 #endif // of __GLIBC__
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -29,13 +29,16 @@
 
 #pragma once
 
+#include "kdefinitions.h"
+#include "kctype.h"
+#include "kutf8.h"
+#include "kstringview.h"
 #include <cctype>
 #include <array>
 #include <vector>
 #include <algorithm>
-#include "kctype.h"
-#include "kstringview.h"
-#include "kutf8.h"
+
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template <uint16_t iNGLen = 3, bool bAddSpaces = true, bool bSortedNgrams = true>
@@ -49,7 +52,7 @@ class KNGrams
 private:
 //----------
 
-	using WideChar   = dekaf2::KCodePoint;
+	using WideChar   = KCodePoint;
 	using NGram      = std::array<WideChar, iNGLen>;
 	using NGramStore = std::vector<NGram>;
 
@@ -60,7 +63,7 @@ public:
 //----------
 
 	using size_type  = typename NGramStore::size_type;
-	using StringView = dekaf2::KStringView;
+	using StringView = KStringView;
 
 	KNGrams() = default;
 
@@ -83,7 +86,7 @@ public:
 		bool bLastWasSpace { true };
 
 		// transform to uc4 and lowercase, and filter anything that is not alnum
-		dekaf2::Unicode::FromUTF8(sUTF8, [&sWide, &bLastWasSpace](WideChar CP) -> bool
+		Unicode::FromUTF8(sUTF8, [&sWide, &bLastWasSpace](WideChar CP) -> bool
 		{
 			if (CP.IsAlNum())
 			{
@@ -365,3 +368,4 @@ private:
 
 }; // KNGrams
 
+DEKAF2_NAMESPACE_END

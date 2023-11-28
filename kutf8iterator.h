@@ -43,11 +43,11 @@
 /// @file kutf8iterator.h
 /// provides iterator types for utf8 strings
 
-#include <iterator>
 #include "kutf8.h"
+#include <iterator>
 
 #ifdef DEKAF2
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 #endif
 
 namespace Unicode {
@@ -431,5 +431,5 @@ protected:
 } // namespace Unicode
 
 #ifdef DEKAF2
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 #endif

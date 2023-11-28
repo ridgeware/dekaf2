@@ -45,16 +45,14 @@
 /// @file kpool.h
 /// generic pools to reuse expensive to construct objects
 
-#include "bits/kcppcompat.h"
-#include "dekaf2.h"
+#include "kdefinitions.h"
 #include "klog.h"
 #include "ktimeseries.h"
 #include <memory>
 #include <mutex>
 #include <condition_variable>
 
-
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 #ifdef DEKAF2_HAS_CPP_14
 // this code needs C++14, it uses (and needs) auto deduced return types
@@ -583,4 +581,4 @@ public:
 
 #endif
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END

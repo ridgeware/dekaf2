@@ -42,7 +42,7 @@
 #include "kdate.h"
 #include "ktime.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KString KConstDate::to_string (KStringView sFormat) const
@@ -70,4 +70,5 @@ KString KConstDate::to_string (const std::locale& locale, KStringView sFormat) c
 
 } // to_string
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
+

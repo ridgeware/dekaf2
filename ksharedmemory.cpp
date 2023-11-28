@@ -55,8 +55,7 @@
 
 // we use the posix interface to shared memory
 
-namespace dekaf2 {
-
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KSemaphoreMutex::KSemaphoreMutex(key_t iIPCKey) noexcept
@@ -422,6 +421,6 @@ bool KIPCMessages::ReceiveRaw (void* addr, std::size_t size, long msgtype, KDura
 
 } // Receive
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif // DEKAF2_IS_WINDOWS

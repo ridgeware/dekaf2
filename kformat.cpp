@@ -47,11 +47,11 @@
 #ifndef DEKAF2_HAS_STD_FORMAT
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 template<>
-struct dekaf2::format::is_contiguous<dekaf2::KString> : std::true_type {};
+struct DEKAF2_PREFIX format::is_contiguous<dekaf2::KString> : std::true_type {};
 #endif
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 /// format no-op for filedesc
@@ -153,5 +153,4 @@ KString kFormat(const std::locale& locale, KStringView sFormat, const dekaf2_for
 
 } // end of namespace detail
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "kreader.h"
 #include "kwriter.h" // we need KOutStream
 #include "klog.h"
@@ -56,8 +56,7 @@
 	#include <unistd.h>
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 KInStream KIn(std::cin);
 
@@ -963,5 +962,4 @@ bool KInStream::SetReaderTrim(KStringView sTrimRight, KStringView sTrimLeft)
 
 template class KReader<std::ifstream>;
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

@@ -40,7 +40,7 @@
 
 #include "kscopeguard.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KScopeGuard::KScopeGuard(KScopeGuard&& other) noexcept
@@ -82,5 +82,4 @@ void KScopeGuard::call() noexcept
 
 } // call
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

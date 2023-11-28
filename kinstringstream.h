@@ -45,7 +45,7 @@
 /// provides an input stream that reads from KStringViews
 
 #include <istream>
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "kstreambuf.h"
 #include "kstringview.h"
 #include "kreader.h"

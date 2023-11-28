@@ -42,7 +42,7 @@
 // named entity list. The other functions are implemented in khtmlentities.cpp.
 
 
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "khtmlentities.h"
 #include "kutf8.h"
 #include "kstringutils.h"

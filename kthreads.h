@@ -44,15 +44,14 @@
 /// @file kthreads.h
 /// keep track of running threads
 
+#include "kthreadsafe.h"
 #include <thread>
 #include <utility>
 #include <functional>
 #include <vector>
 #include <unordered_map>
-#include "kthreadsafe.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Base class for generated threads. Maintains a list of started threads
@@ -170,5 +169,4 @@ public:
 
 }; // KThreads
 
-} // of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

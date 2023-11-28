@@ -38,6 +38,7 @@
 */
 #pragma once
 
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "kmime.h"
@@ -51,7 +52,8 @@
 #include <chrono>
 #include <unordered_map>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
+
 namespace html {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -2501,4 +2503,5 @@ public:
 }; // Text
 
 } // end of namespace html
-} // end of namespace dekaf2
+
+DEKAF2_NAMESPACE_END

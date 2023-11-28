@@ -44,15 +44,15 @@
 /// @file kstringstream.h
 /// provides a stream around a KString
 
-#include <iostream>
-#include "bits/kcppcompat.h"
+#include "kdefinitions.h"
 #include "kstreambuf.h"
 #include "kstring.h"
 #include "koutstringstream.h"
 #include "kinstringstream.h"
 #include "kstream.h"
+#include <iostream>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 
@@ -156,4 +156,4 @@ protected:
 /// String stream that reads and writes copy-free from and into a KString
 using KStringStream    = KReaderWriter<KIOStringStream>;
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

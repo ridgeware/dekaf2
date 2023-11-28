@@ -41,7 +41,7 @@
 
 #include "kctype.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 // we need to patch the unicode table such that 0x09..0x0d are of Type Separator
 // (they are Control characters, but we don't care for that type)
@@ -91,4 +91,4 @@ constexpr std::array<KCodePoint::CTYPE, KCodePoint::MAX_ASCII + 1> KCodePoint::A
 
 #endif
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

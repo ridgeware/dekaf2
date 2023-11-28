@@ -47,7 +47,7 @@
 #include "krsasign.h"
 #include <vector>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 static constexpr KStringViewZ OpenID_Configuration = "/.well-known/openid-configuration";
 static constexpr int DEFAULT_OPENID_TCP_TIMEOUT = 30;
@@ -610,6 +610,4 @@ static_assert(!std::is_nothrow_move_constructible<std::atomic<void*>>::value ||
 static_assert(std::is_nothrow_move_constructible<KJWT>::value,
 			  "KJWT is intended to be nothrow move constructible, but is not!");
 
-} // end of namespace dekaf2
-
-
+DEKAF2_NAMESPACE_END

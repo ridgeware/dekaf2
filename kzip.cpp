@@ -46,7 +46,7 @@
 #include "kfilesystem.h"
 #include <zip.h>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 #if (LIBZIP_VERSION_MAJOR > 1) || (LIBZIP_VERSION_MAJOR == 1 && LIBZIP_VERSION_MINOR >= 7)
 	#define DEKAF2_HAVE_LIBZIP_COMPRESSION_METHOD_SUPPORTED 1
@@ -1007,5 +1007,4 @@ bool KZip::WriteFiles(KStringViewZ sSourceDirectory, KStringView sNewRoot, bool 
 
 } // WriteFiles
 
-
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -41,10 +41,12 @@
 */
 
 #include "kstreambuf.h"
-#include <cstring> // memcpy()..
+#include "kcompatibility.h" // for std::make_unique in C++11
+#include <cstring>          // memcpy()..
 #include <algorithm>
+#include <memory>           // std::unique_ptr
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KNullStreamBuf::~KNullStreamBuf()
@@ -457,4 +459,4 @@ int KBufferedStreamBuf::sync()
 
 } // sync
 
-}
+DEKAF2_NAMESPACE_END

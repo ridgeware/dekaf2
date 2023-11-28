@@ -3,7 +3,7 @@
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/kprops.h>
-#include <dekaf2/bits/kcppcompat.h>
+#include <dekaf2/kcompatibility.h>
 #include <vector>
 #include <list>
 

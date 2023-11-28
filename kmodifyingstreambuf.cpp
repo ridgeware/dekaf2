@@ -41,7 +41,7 @@
 
 #include "kmodifyingstreambuf.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KModifyingOutputStreamBuf::~KModifyingOutputStreamBuf()
@@ -196,7 +196,4 @@ bool KModifyingOutputStreamBuf::Output(KStringView sOut)
 
 } // Output
 
-
-
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

@@ -356,6 +356,10 @@ bool KTCPServer::TCPServer(bool ipv6)
 				// overwritten in round robin, therefore we have to call
 				// Disconnect explicitly now to shut down the connection
 				moved_stream->Disconnect();
+				kDebug(1, "ssl task pool size: {}, idle threads: {} total threads: {}",
+					   m_ThreadPool.n_queued(),
+					   m_ThreadPool.n_idle(),
+					   m_ThreadPool.size());
 			});
 		}
 
@@ -399,6 +403,10 @@ bool KTCPServer::TCPServer(bool ipv6)
 				// overwritten in round robin, therefore we have to call
 				// Disconnect explicitly now to shut down the connection
 				moved_stream->Disconnect();
+				kDebug(1, "task pool size: {}, idle threads: {} total threads: {}",
+					   m_ThreadPool.n_queued(),
+					   m_ThreadPool.n_idle(),
+					   m_ThreadPool.size());
 			});
 		}
 

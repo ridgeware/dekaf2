@@ -44,13 +44,13 @@
 /// @file koutstringstream.h
 /// provides an output stream that writes into a KString
 
-#include <ostream>
-#include "bits/kcppcompat.h"
+#include "kdefinitions.h"
 #include "kstreambuf.h"
 #include "kstring.h"
 #include "kwriter.h"
+#include <ostream>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 
@@ -149,4 +149,4 @@ protected:
 /// String stream that writes copy-free into a KString
 using KOutStringStream = KWriter<KOStringStream>;
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

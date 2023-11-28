@@ -42,6 +42,8 @@
 
 #pragma once
 
+#include "kdefinitions.h"
+#include "kthreadsafe.h"
 #include <chrono>
 #include <memory>
 #include <thread>
@@ -49,13 +51,11 @@
 #include <atomic>
 #include <unordered_map>
 #include <mutex>
-#include "bits/kcppcompat.h"
-#include "kthreadsafe.h"
 
 /// @file ktimer.h
 /// general timing facilities
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KTimer can be used to call functions both repeatedly after a fixed
@@ -337,4 +337,4 @@ private:
 
 }; // KTimer
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -52,7 +52,7 @@
 #include <vector>
 #include <atomic>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// holds all keys from a validated OpenID provider
@@ -216,5 +216,4 @@ private:
 
 }; // KJWT
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

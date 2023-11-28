@@ -44,6 +44,7 @@
 /// @file kwriter.h
 /// holds the basic writer abstraction
 
+#include "kdefinitions.h"
 #include "bits/kfilesystem.h"
 #include "kstring.h"
 #include "kformat.h"
@@ -51,8 +52,9 @@
 #include <ostream>
 #include <fstream>
 
-namespace dekaf2
-{
+#define DEKAF2_HAS_KWRITER_H 1
+
+DEKAF2_NAMESPACE_BEGIN
 
 /// Writes iCount chars from sBuffer into file descriptor, signal safe
 DEKAF2_PUBLIC
@@ -454,5 +456,4 @@ extern DEKAF2_PUBLIC std::unique_ptr<KOutStream> kOpenOutStream(KStringViewZ sSc
 extern DEKAF2_PUBLIC void kLogger(KOutStream& Stream, KString sMessage, bool bFlush = true);
 //-----------------------------------------------------------------------------
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

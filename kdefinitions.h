@@ -43,18 +43,21 @@
 
 #pragma once
 
-/// @file kcppcompat.h
-/// compatibility layer to provide same interfaces for C++11 to 17
+/// @file kdefinitions.h
+/// dekaf2 preprocessor defines
 
-#include "kconfiguration.h"
 #include <climits>
-#include <cinttypes>
-#include <type_traits>
+#include <cstdint>
+#include <cstddef>
 
 #ifndef __has_include
 	#define DEKAF2_HAS_INCLUDE(x) 0
 #else
 	#define DEKAF2_HAS_INCLUDE(x) __has_include(x)
+#endif
+
+#if DEKAF2_HAS_INCLUDE("kconfiguration.h")
+	#include "kconfiguration.h"
 #endif
 
 #ifndef __has_attribute
@@ -295,25 +298,6 @@
 //	#endif
 #endif
 
-/// suppress compiler warnings on seemingly unused variables
-template <typename... T> constexpr
-void kIgnoreUnused(const T&...) {}
-
-/// returns true if we are in a constexpr context (with C++20..)
-constexpr
-#if DEKAF2_HAS_CPP_17
-inline
-#endif
-bool kIsConstantEvaluated(bool default_value = false) noexcept
-{
-#ifdef __cpp_lib_is_constant_evaluated
-	kIgnoreUnused(default_value);
-	return std::is_constant_evaluated();
-#else
-	return default_value;
-#endif
-}
-
 // configure exception behavior
 #if (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
 	// The system has exception handling features. Now check
@@ -382,148 +366,6 @@ bool kIsConstantEvaluated(bool default_value = false) noexcept
 	#endif
 #endif
 
-namespace dekaf2 {
-#if (UINTPTR_MAX == 0xffff)
-	#define DEKAF2_IS_16_BITS 1
-	#define DEKAF2_BITS 16
-	static constexpr uint16_t KiBits = 16;
-#elif (UINTPTR_MAX == 0xffffffff)
-	#define DEKAF2_IS_32_BITS 1
-	#define DEKAF2_BITS 32
-	static constexpr uint16_t KiBits = 32;
-#elif (UINTPTR_MAX == 0xffffffffffffffff)
-	#define DEKAF2_IS_64_BITS 1
-	#define DEKAF2_BITS 64
-	static constexpr uint16_t KiBits = 64;
-#else
-	#error "unsupported maximum pointer type"
-#endif
-	static constexpr bool kIs16Bits() noexcept { return KiBits == 16; }
-	static constexpr bool kIs32Bits() noexcept { return KiBits == 32; }
-	static constexpr bool kIs64Bits() noexcept { return KiBits == 64; }
-} // end of namespace dekaf2
-
-// prepare for the shared_mutex enabler below - this has to go into
-// the base namespace
-#ifdef DEKAF2_HAS_CPP_14
-	#include <shared_mutex>
-	#include <mutex> // to be balanced with the C++11 case below
-#else
-	#include <mutex>
-#endif
-
-namespace std
-{
-
-// make sure we have a shared_mutex and a shared_lock by injecting
-// matching types into the std:: namespace
-#ifdef DEKAF2_HAS_CPP_14
-	// C++17 has both already
-	#ifndef DEKAF2_HAS_CPP_17
-		// for C++14 that's easy - just alias a shared_timed_mutex - it's a superset
-		using shared_mutex = shared_timed_mutex;
-	#endif
-#else
-	#ifdef DEKAF2_HAS_CPP_11
-		// for C++11 we alias a non-shared mutex - it can be costly on lock contention
-		// but we do not care anymore, as we are in 2023..
-		using shared_mutex = mutex;
-		template<class T>
-		using shared_lock = unique_lock<T>;
-	#endif
-#endif
-
-}
-
-// Make sure we have standard helper templates from C++14 available in namespace std::
-// It does not matter if they had been declared by other code already. The compiler
-// simply picks the first one that matches.
-#ifndef DEKAF2_HAS_CPP_14
-
-#include "kmake_unique.h"
-
-namespace std
-{
-
-template<bool B, class T, class F>
-using conditional_t = typename conditional<B,T,F>::type;
-
-template <bool B, typename T = void>
-using enable_if_t = typename enable_if<B,T>::type;
-
-template< class T >
-using decay_t = typename decay<T>::type;
-
-}
-#endif
-
-#ifndef DEKAF2_HAS_CPP_17
-namespace std
-{
-
-template <typename...>
-using void_t = void;
-
-template<class...> struct conjunction : true_type { };
-template<class T1> struct conjunction<T1> : T1 { };
-template<class T1, class... Tn>
-struct conjunction<T1, Tn...>
-: conditional<bool(T1::value), conjunction<Tn...>, T1>::type {};
-
-template<bool T>
-using bool_constant = integral_constant<bool, T>;
-
-template<class T>
-struct negation : bool_constant<!bool(T::value)> { };
-
-}
-#endif
-
-#ifndef DEKAF2_HAS_CPP_23
-namespace std {
-template<class Enum, typename enable_if<is_enum<Enum>::value, int>::type = 0>
-constexpr typename underlying_type<Enum>::type to_underlying(Enum e) noexcept
-{
-	return static_cast<typename underlying_type<Enum>::type>(e);
-}
-}
-#endif
-
-// Make sure we have std::apply from C++17 available in namespace std::
-// It does not matter if they had been declared by other code already. The compiler
-// simply picks the first one that matches.
-// Old gcc versions < 7 do not have std::apply even in C++17 mode
-#if !defined(DEKAF2_HAS_FULL_CPP_17)
-namespace std
-{
-	#ifdef DEKAF2_HAS_CPP_14
-		namespace detail
-		{
-			template<typename F, typename Tuple, std::size_t... I>
-			decltype(auto) dekaf2_apply_impl(F&& f, Tuple&& t, std::index_sequence<I...>)
-			{
-				return std::forward<F>(f)(std::get<I>(std::forward<Tuple>(t))...);
-			}
-		} // of namespace detail
-
-		template<typename F, typename Tuple>
-		decltype(auto) apply(F&& f, Tuple&& t)
-		{
-			return detail::dekaf2_apply_impl(
-					std::forward<F>(f), std::forward<Tuple>(t),
-					std::make_index_sequence<std::tuple_size<std::remove_reference_t<Tuple>>::value>{});
-		}
-	#else
-		// we lack a C++11 implementation..
-		template<typename F, typename Tuple>
-		auto apply(F&& f, Tuple&& t)
-		{
-			static_assert(false, "dekaf2 misses a C++11-only implementation of std::apply, if possible update to C++14 or newer");
-		}
-	#endif
-} // of namespace std
-#endif
-
 // define macros to teach the compiler which branch is more likely
 // to be taken - the effects are actually minimal to nonexisting,
 // so do not bother for code that is not really core
@@ -553,11 +395,6 @@ namespace std
 	#define DEKAF2_NEVER_INLINE
 #endif
 
-namespace dekaf2 {
-// npos is used in dekaf2 as error return for unsigned return types
-static constexpr std::size_t npos = static_cast<std::size_t>(-1);
-} // end of namespace dekaf2
-
 #ifdef DEKAF2_IS_WINDOWS
 	#ifdef _M_X64
 		#ifndef __x86_64__
@@ -568,56 +405,6 @@ static constexpr std::size_t npos = static_cast<std::size_t>(-1);
 		#ifndef __arm__
 			#define __arm__
 		#endif
-	#endif
-
-	#include <BaseTsd.h>
-	using ssize_t = SSIZE_T;
-	using pid_t = int;
-
-	#include <process.h>
-	#ifndef getpid
-		#define getpid _getpid
-	#endif
-
-	#include <cstdio>
-	#ifndef popen
-		#define popen _popen
-	#endif
-	#ifndef pclose
-		#define pclose _pclose
-	#endif
-	#ifndef strncasecmp
-		#define strncasecmp _strnicmp
-	#endif
-	#ifndef strcasecmp
-		#define strcasecmp _stricmp
-	#endif
-	#ifndef timegm
-		#define timegm _mkgmtime
-	#endif
-	#ifndef localtime_r
-		#define localtime_r localtime_s
-	#endif
-	#ifndef gmtime_r
-		#define gmtime_r gmtime_s
-	#endif
-	#ifndef WIFSIGNALED
-		#define WIFSIGNALED(x) ((x) == 3)
-	#endif
-	#ifndef WIFEXITED
-		#define WIFEXITED(x) ((x) != 3)
-	#endif
-	#ifndef WIFSTOPPED
-		#define WIFSTOPPED(x) 0
-	#endif
-	#ifndef WTERMSIG
-		#define WTERMSIG(x) SIGTERM
-	#endif
-	#ifndef WEXITSTATUS
-		#define WEXITSTATUS(x) (x)
-	#endif
-	#ifndef WCOREDUMP
-		#define WCOREDUMP(x) 0
 	#endif
 
 	#define DEKAF2_POPEN_COMMAND_NOT_FOUND 1
@@ -703,8 +490,6 @@ static constexpr std::size_t npos = static_cast<std::size_t>(-1);
 		#define DEKAF2_PRIVATE
 	#endif
 #endif
-
-static constexpr std::size_t KDefaultCopyBufSize = 4096;
 
 #ifndef DEKAF2_HAS_SPACESHIP_OPERATOR
 	#if defined(__cpp_impl_three_way_comparison) && __cpp_impl_three_way_comparison >= 201907L && \
@@ -805,3 +590,51 @@ inline Type& operator Operator (Type& left, Type right) \
 #define DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES(TFirst, TSecond, WrappedFirst, WrappedSecond) \
  DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(inline, TFirst, TSecond, WrappedFirst, WrappedSecond)
 
+#ifndef DEKAF2_NAMESPACE_NAME
+	#define DEKAF2_NAMESPACE_NAME dekaf2
+#endif
+
+#ifndef DEKAF2_PREFIX
+	#define DEKAF2_PREFIX DEKAF2_NAMESPACE_NAME::
+#endif
+
+#ifndef DEKAF2_NAMESPACE_BEGIN
+	#define DEKAF2_NAMESPACE_BEGIN namespace DEKAF2_NAMESPACE_NAME {
+#endif
+
+#ifndef DEKAF2_NAMESPACE_END
+	#define DEKAF2_NAMESPACE_END }
+#endif
+
+#ifndef DEKAF2_USING_NAMESPACE_DEKAF2
+	#define DEKAF2_USING_NAMESPACE_DEKAF2 using namespace DEKAF2_NAMESPACE_NAME;
+#endif
+
+DEKAF2_NAMESPACE_BEGIN
+
+#if (UINTPTR_MAX == 0xffff)
+	#define DEKAF2_IS_16_BITS 1
+	#define DEKAF2_BITS 16
+	static constexpr uint16_t KiBits = 16;
+#elif (UINTPTR_MAX == 0xffffffff)
+	#define DEKAF2_IS_32_BITS 1
+	#define DEKAF2_BITS 32
+	static constexpr uint16_t KiBits = 32;
+#elif (UINTPTR_MAX == 0xffffffffffffffff)
+	#define DEKAF2_IS_64_BITS 1
+	#define DEKAF2_BITS 64
+	static constexpr uint16_t KiBits = 64;
+#else
+	#error "unsupported maximum pointer type"
+#endif
+	static constexpr bool kIs16Bits() noexcept { return KiBits == 16; }
+	static constexpr bool kIs32Bits() noexcept { return KiBits == 32; }
+	static constexpr bool kIs64Bits() noexcept { return KiBits == 64; }
+
+	// KDefaultCopyBufSize is used in dekaf2 as default size for all temp buffers
+	static constexpr std::size_t KDefaultCopyBufSize = 4096;
+
+	// npos is used in dekaf2 as error return for unsigned return types
+	static constexpr std::size_t npos = static_cast<std::size_t>(-1);
+
+DEKAF2_NAMESPACE_END

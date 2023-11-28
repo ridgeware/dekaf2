@@ -45,7 +45,7 @@
 #include "libs/rapidxml-1.13/rapidxml.hpp"
 #include "libs/rapidxml-1.13/rapidxml_print.hpp"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 using Ch                = char;
 using rapidXMLDoc       = rapidxml::xml_document<Ch>;
@@ -888,6 +888,4 @@ KXMLAttribute KXMLAttribute::AddAttribute(KStringView sName, KStringView sValue)
 	return sibling;
 }
 
-} // end of namespace dekaf2
-
-
+DEKAF2_NAMESPACE_END

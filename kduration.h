@@ -42,7 +42,7 @@
 
 #pragma once
 
-#include "bits/kcppcompat.h"
+#include "kdefinitions.h"
 #include "kdate.h"
 #include "kstring.h"
 #include <vector>
@@ -51,7 +51,7 @@
 /// @file kduration.h
 /// keep and measure durations
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a duration type that constructs always initialized, converts properly from and to time_t,
@@ -471,23 +471,23 @@ private:
 
 }; // KStopDurations
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 // kFormat formatters
 
 #include "kformat.h"
 
-namespace fmt
+namespace DEKAF2_FORMAT_NAMESPACE
 {
 
 template <>
-struct formatter<dekaf2::KDuration> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KDuration> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KDuration& Duration, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KDuration& Duration, FormatContext& ctx) const
 	{
-		return formatter<string_view>::format(Duration.ToString(dekaf2::KDuration::Format::Smart, dekaf2::KDuration::BaseInterval::NanoSeconds), ctx);
+		return formatter<string_view>::format(Duration.ToString(DEKAF2_PREFIX KDuration::Format::Smart, DEKAF2_PREFIX KDuration::BaseInterval::NanoSeconds), ctx);
 	}
 };
 
-} // end of namespace fmt
+} // end of DEKAF2_FORMAT_NAMESPACE

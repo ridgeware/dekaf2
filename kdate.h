@@ -46,7 +46,7 @@
 /// make sure we have calendar and timezone extensions for std::chrono
 /// and provides the KDate class to calculate with dates
 
-#include "bits/kcppcompat.h"
+#include "kdefinitions.h"
 #include <kconfiguration.h>
 #include "kstring.h"
 #include "kstringview.h"
@@ -104,7 +104,7 @@
 	#include <date/tz.h>
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace chrono {
 
@@ -827,45 +827,47 @@ std::ostream& operator<<(std::ostream& stream, KDate time)
 	return stream;
 }
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
-namespace fmt {
+#include "kformat.h"
 
-template<> struct formatter<dekaf2::KConstDate> : formatter<std::tm>
+namespace DEKAF2_FORMAT_NAMESPACE {
+
+template<> struct formatter<DEKAF2_PREFIX KConstDate> : formatter<std::tm>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KConstDate& date, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KConstDate& date, FormatContext& ctx) const
 	{
 		return formatter<std::tm>::format(date.to_tm(), ctx);
 	}
 };
 
-template<> struct formatter<dekaf2::KDate> : formatter<std::tm>
+template<> struct formatter<DEKAF2_PREFIX KDate> : formatter<std::tm>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KDate& date, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KDate& date, FormatContext& ctx) const
 	{
 		return formatter<std::tm>::format(date.to_tm(), ctx);
 	}
 };
 
-} // end of namespace fmt
+} // end of DEKAF2_FORMAT_NAMESPACE
 
 namespace std {
 
-template<> struct hash<dekaf2::KConstDate>
+template<> struct hash<DEKAF2_PREFIX KConstDate>
 {
-	std::size_t operator()(dekaf2::KConstDate date) const noexcept
+	std::size_t operator()(DEKAF2_PREFIX KConstDate date) const noexcept
 	{
-		return dekaf2::kHash(&date, sizeof(date));
+		return DEKAF2_PREFIX kHash(&date, sizeof(date));
 	}
 };
 
-template<> struct hash<dekaf2::KDate>
+template<> struct hash<DEKAF2_PREFIX KDate>
 {
-	std::size_t operator()(dekaf2::KDate date) const noexcept
+	std::size_t operator()(DEKAF2_PREFIX KDate date) const noexcept
 	{
-		return dekaf2::kHash(&date, sizeof(date));
+		return DEKAF2_PREFIX kHash(&date, sizeof(date));
 	}
 };
 

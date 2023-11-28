@@ -53,7 +53,7 @@
 
 #pragma once
 
-#include "bits/kcppcompat.h"
+#include "kdefinitions.h"
 #include <functional>
 #include <thread>
 #include <atomic>
@@ -67,7 +67,7 @@
 /// thread pool to run user's tasks (all types of callables) with signature
 /// ret func(params, ...)
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 namespace threadpool {
@@ -410,5 +410,4 @@ private:
 
 }; // KThreadPool
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

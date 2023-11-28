@@ -41,7 +41,7 @@
 // This file implements all of khtmlentities.h that does not need the large
 // named entity list. The other functions are implemented in khtmlentities5.cpp.
 
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "khtmlentities.h"
 #include "kutf8.h"
 #include "kstringutils.h"

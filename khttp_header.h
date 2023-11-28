@@ -41,7 +41,7 @@
 
 #pragma once
 
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include "kcaseless.h"

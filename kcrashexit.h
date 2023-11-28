@@ -45,7 +45,7 @@
 /// @file kcrashexit.h
 /// show reason for a program crash
 
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include <functional>
 #include <csignal>
 

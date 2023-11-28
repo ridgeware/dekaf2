@@ -50,7 +50,7 @@
 #include "kfilesystem.h"
 #include "kwriter.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 // create a minimal KLog environment for the !DEKAF2_WITH_KLOG case
 
@@ -119,7 +119,7 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 
 } // IntException
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 //===========================================================================
 #else // of ifndef DEKAF2_WITH_KLOG
@@ -145,8 +145,7 @@ void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sC
 	#include "kurl.h"
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 constexpr KStringViewZ s_sEnvLog      = "DEKAFLOG";
 constexpr KStringViewZ s_sEnvFlag     = "DEKAFDBG";
@@ -253,7 +252,7 @@ KLog::KLog()
 } // ctor
 
 //---------------------------------------------------------------------------
-dekaf2::KLog::~KLog()
+KLog::~KLog()
 //---------------------------------------------------------------------------
 {
 	// we need the dtor in the cpp, as otherwise the compiler would not have
@@ -1081,14 +1080,14 @@ void KLog::JSONTrace(KStringView sFunction)
 
 } // JSONTrace
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 //===========================================================================
 #endif // of ifndef DEKAF2_WITH_KLOG
 //===========================================================================
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 constexpr KStringViewZ KLog::STDOUT;
 constexpr KStringViewZ KLog::STDERR;
 #ifdef DEKAF2_HAS_SYSLOG
@@ -1096,5 +1095,5 @@ constexpr KStringViewZ KLog::SYSLOG;
 #endif
 constexpr KStringViewZ KLog::BAR;
 constexpr KStringViewZ KLog::DASH;
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 #endif

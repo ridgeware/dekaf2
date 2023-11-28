@@ -41,7 +41,7 @@
 
 #pragma once
 
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #ifndef DEKAF2_IS_WINDOWS
 #include "kstringview.h"
 #include "kstring.h"
@@ -51,7 +51,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// IPC semaphore mutex, usable cross processes with std::unique_lock, std::lock_guard, KThreadSafe, etc..
@@ -364,6 +364,6 @@ private:
 
 }; // KIPCMessages
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif // DEKAF2_IS_WINDOWS

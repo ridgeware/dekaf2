@@ -44,6 +44,7 @@
 /// @file kstringutils.h
 /// standalone string utility functions
 
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "ksystem.h"
@@ -57,8 +58,7 @@
 #include <map>
 #include <array>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //----------------------------------------------------------------------
 DEKAF2_PUBLIC
@@ -639,7 +639,7 @@ inline DEKAF2_PUBLIC
 uint8_t kFromBase36(char ch) noexcept
 //-----------------------------------------------------------------------------
 {
-	return dekaf2::detail::LookupBase36[static_cast<unsigned char>(ch)];
+	return detail::LookupBase36[static_cast<unsigned char>(ch)];
 }
 
 //-----------------------------------------------------------------------------
@@ -1231,4 +1231,4 @@ void kResizeUninitialized(std::string& sStr, std::string::size_type iNewSize);
 /// tilde, spaces, and hyphen
 KString kCurlyToStraight(KStringView sInput);
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

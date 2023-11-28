@@ -49,7 +49,7 @@
 #include "kctype.h"
 #include "kcaseless.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 size_t kFind(
@@ -683,4 +683,4 @@ constexpr KStringView::value_type KStringView::s_0ch;
 
 #endif
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

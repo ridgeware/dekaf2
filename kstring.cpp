@@ -48,8 +48,7 @@
 #include "kstack.h"
 #include "kctype.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
@@ -467,9 +466,9 @@ KString::size_type KString::ReplaceRegex(const KStringView sRegEx, const KString
 //----------------------------------------------------------------------
 {
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	return dekaf2::KRegex::Replace(*this, sRegEx, sReplaceWith, bReplaceAll);
+	return KRegex::Replace(*this, sRegEx, sReplaceWith, bReplaceAll);
 #else
-	return dekaf2::KRegex::Replace(m_rep, sRegEx, sReplaceWith, bReplaceAll);
+	return KRegex::Replace(m_rep, sRegEx, sReplaceWith, bReplaceAll);
 #endif
 }
 
@@ -620,7 +619,7 @@ KString& KString::MakeUpperASCII() &
 KString& KString::PadLeft(size_t iWidth, value_type chPad) &
 //----------------------------------------------------------------------
 {
-	dekaf2::kPadLeft(m_rep, iWidth, chPad);
+	kPadLeft(m_rep, iWidth, chPad);
 	return *this;
 }
 
@@ -628,7 +627,7 @@ KString& KString::PadLeft(size_t iWidth, value_type chPad) &
 KString& KString::PadRight(size_t iWidth, value_type chPad) &
 //----------------------------------------------------------------------
 {
-	dekaf2::kPadRight(m_rep, iWidth, chPad);
+	kPadRight(m_rep, iWidth, chPad);
 	return *this;
 }
 
@@ -636,7 +635,7 @@ KString& KString::PadRight(size_t iWidth, value_type chPad) &
 KString& KString::TrimLeft() &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(*this);
+	kTrimLeft(*this);
 	return *this;
 }
 
@@ -644,7 +643,7 @@ KString& KString::TrimLeft() &
 KString& KString::TrimLeft(value_type chTrim) &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(*this, [chTrim](value_type ch){ return ch == chTrim; } );
+	kTrimLeft(*this, [chTrim](value_type ch){ return ch == chTrim; } );
 	return *this;
 }
 
@@ -652,7 +651,7 @@ KString& KString::TrimLeft(value_type chTrim) &
 KString& KString::TrimLeft(KStringView sTrim) &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(*this, sTrim);
+	kTrimLeft(*this, sTrim);
 	return *this;
 }
 
@@ -660,7 +659,7 @@ KString& KString::TrimLeft(KStringView sTrim) &
 KString& KString::TrimRight() &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimRight(*this);
+	kTrimRight(*this);
 	return *this;
 }
 
@@ -668,7 +667,7 @@ KString& KString::TrimRight() &
 KString& KString::TrimRight(value_type chTrim) &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimRight(*this, [chTrim](value_type ch){ return ch == chTrim; } );
+	kTrimRight(*this, [chTrim](value_type ch){ return ch == chTrim; } );
 	return *this;
 }
 
@@ -676,7 +675,7 @@ KString& KString::TrimRight(value_type chTrim) &
 KString& KString::TrimRight(KStringView sTrim) &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimRight(*this, sTrim);
+	kTrimRight(*this, sTrim);
 	return *this;
 }
 
@@ -684,7 +683,7 @@ KString& KString::TrimRight(KStringView sTrim) &
 KString& KString::Trim() &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrim(*this);
+	kTrim(*this);
 	return *this;
 }
 
@@ -692,7 +691,7 @@ KString& KString::Trim() &
 KString& KString::Trim(value_type chTrim) &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrim(*this, [chTrim](value_type ch){ return ch == chTrim; } );
+	kTrim(*this, [chTrim](value_type ch){ return ch == chTrim; } );
 	return *this;
 }
 
@@ -700,7 +699,7 @@ KString& KString::Trim(value_type chTrim) &
 KString& KString::Trim(KStringView sTrim) &
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrim(*this, sTrim);
+	kTrim(*this, sTrim);
 	return *this;
 }
 
@@ -979,15 +978,15 @@ KString KString::unsigned_to_string(uint64_t i, uint16_t iBase, bool bZeroPad, b
 static_assert(std::is_nothrow_move_constructible<KString>::value,
 			  "KString is intended to be nothrow move constructible, but is not!");
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 
 //----------------------------------------------------------------------
-std::istream& std::getline(std::istream& stream, dekaf2::KString& str)
+std::istream& std::getline(std::istream& stream, DEKAF2_PREFIX KString& str)
 //----------------------------------------------------------------------
 {
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	dekaf2::KString::string_type& sref = str.str();
+	DEKAF2_PREFIX KString::string_type& sref = str.str();
 	return getline(stream, sref);
 #else
 	return std::getline(stream, str.str());
@@ -995,11 +994,11 @@ std::istream& std::getline(std::istream& stream, dekaf2::KString& str)
 }
 
 //----------------------------------------------------------------------
-std::istream& std::getline(std::istream& stream, dekaf2::KString& str, dekaf2::KString::value_type delimiter)
+std::istream& std::getline(std::istream& stream, DEKAF2_PREFIX KString& str, DEKAF2_PREFIX KString::value_type delimiter)
 //----------------------------------------------------------------------
 {
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	dekaf2::KString::string_type& sref = str.str();
+	DEKAF2_PREFIX KString::string_type& sref = str.str();
 	return getline(stream, sref, delimiter);
 #else
 	return std::getline(stream, str.str(), delimiter);

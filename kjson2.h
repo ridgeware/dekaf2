@@ -60,7 +60,7 @@
 #if !DEKAF2_KJSON2_IS_DISABLED
 
 #ifdef DEKAF2
-	#include "kconfiguration.h"
+	#include "kdefinitions.h"
 	#include "kstringview.h"
 	#include "kstring.h"
 	#include "kjson.h"
@@ -1714,7 +1714,7 @@ using kjson::Decrement;
 
 #endif // of #ifdef DEKAF2
 
-} // end of namespace dekaf2
+} // end of DEKAF2_KJSON_NAMESPACE
 
 namespace std {
 
@@ -1731,7 +1731,9 @@ struct hash<dekaf2::KJSON2>
 
 #ifdef DEKAF2
 
-namespace fmt {
+#include "kformat.h"
+
+namespace DEKAF2_FORMAT_NAMESPACE {
 
 template <>
 struct formatter<dekaf2::KJSON2> : formatter<string_view>
@@ -1743,7 +1745,7 @@ struct formatter<dekaf2::KJSON2> : formatter<string_view>
 	}
 };
 
-} // end of namespace fmt
+} // end of DEKAF2_FORMAT_NAMESPACE
 
 #endif // of #ifdef DEKAF2
 

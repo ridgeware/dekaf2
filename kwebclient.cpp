@@ -44,7 +44,7 @@
 #include "kduration.h"
 #include "kstringutils.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool KWget (KStringView sURL, KStringViewZ sOutfile, const KJSON& Options/*=KJSON{}*/)
@@ -346,4 +346,4 @@ KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime)
 
 } // kHTTPPost
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

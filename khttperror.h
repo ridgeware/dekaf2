@@ -45,11 +45,12 @@
 /// provides HTTP exception / error class
 
 
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "kexception.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A HTTP error to throw or to return
@@ -149,4 +150,4 @@ protected:
 
 }; // KHTTPError
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

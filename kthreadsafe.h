@@ -45,11 +45,11 @@
 /// @file kthreadsafe.h
 /// generic threadsafe sharing for non-atomic types
 
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "bits/ktemplate.h"
 #include <mutex>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Template for generic threadsafe sharing for non-atomic types
@@ -208,5 +208,4 @@ private:
 
 }; // KThreadSafe
 
-} // of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

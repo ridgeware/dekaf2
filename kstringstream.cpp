@@ -42,7 +42,7 @@
 #include "kstringstream.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 std::streamsize detail::KIOStringReader(void* sBuffer, std::streamsize iCount, void* sSourceBuf)
@@ -99,4 +99,4 @@ void KIOStringStream::str(KString sString)
 	}
 }
 
-} // end namespace dekaf2
+DEKAF2_NAMESPACE_END

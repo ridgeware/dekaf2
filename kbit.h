@@ -50,7 +50,7 @@
 /// @file kbit.h
 /// generalized implementation of the C++20/23 bit functions
 
-#include "bits/kcppcompat.h"
+#include "kdefinitions.h"
 #include "kcrashexit.h"
 #include <type_traits>
 #include <limits>
@@ -77,7 +77,7 @@
 	#endif
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 #if defined(__BYTE_ORDER__)
 	// we can use the preprocessor defines, which is constant
@@ -728,4 +728,4 @@ kBitCast(const From& src) noexcept
 }
 #endif
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -44,14 +44,13 @@
 /// @file ktemplate.h
 /// helper templates for template meta programming
 
-#include "kcppcompat.h"
+#include "../kcompatibility.h"
 #include "kstring_view.h"
 #include <functional>
 #include <cwctype>
 #include <type_traits>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 class KDuration; // we need it for is_duration
 
@@ -417,5 +416,4 @@ private:
 
 } // of namespace detail
 
-} // of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

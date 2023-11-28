@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include <dekaf2/bits/kcppcompat.h>
+#include <dekaf2/kcompatibility.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kformat.h>
@@ -49,7 +49,7 @@ static KString FormatEscaped(KStringView sFormat, Args&&... args)
 } // end of anonymous namespace
 #endif
 
-TEST_CASE("KCppCompat")
+TEST_CASE("KCompatibility")
 {
 #ifdef DEKAF2_HAS_CPP_14
 	SECTION("std::apply")

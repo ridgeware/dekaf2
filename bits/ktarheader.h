@@ -68,11 +68,11 @@
 
 #pragma once
 
-#include "kcppcompat.h"
+#include "../kcompatibility.h"
 #include <cinttypes>
 #include <cstring>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace tar {
 
@@ -166,4 +166,4 @@ union DEKAF2_PUBLIC TarHeader
 
 } // end of namespace tar
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

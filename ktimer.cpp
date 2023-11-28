@@ -44,7 +44,7 @@
 #include "dekaf2.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
 KTimer::KTimer(Interval Granularity)
@@ -319,4 +319,4 @@ KTimer::Timepoint KTimer::FromTimeT(time_t tt)
 	return Clock::from_time_t(tt);
 }
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END

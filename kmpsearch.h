@@ -41,11 +41,11 @@
 
 #pragma once
 
-#include "bits/kcppcompat.h"
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "kreader.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KMPSearch
@@ -235,6 +235,4 @@ constexpr static auto bb { kfrozen::CreateKMPSearch<sv.size()>(sv) };
 
 #endif // of DEKAF2_HAS_CPP_17
 
-} // end of namespace dekaf2
-
-
+DEKAF2_NAMESPACE_END

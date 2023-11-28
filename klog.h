@@ -46,7 +46,7 @@
 /// Logging framework
 
 #include "kconfiguration.h"
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "kformat.h"
@@ -61,8 +61,7 @@
 	#define DEKAF2_HAS_SYSLOG
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 class KLogWriter;
 class KLogSerializer;
@@ -729,7 +728,7 @@ private:
 
 }; // KLog
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 // there is no way to convince gcc to inline a variadic template function
 // (and as "inline" is not imperative it may happen on other compilers as well)
@@ -754,9 +753,9 @@ private:
 /// log a debug message, automatically provide function name.
 #define kDebug(iLevel, ...) \
 { \
-	if (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_iThreadLogLevel)) \
+	if (DEKAF2_UNLIKELY(iLevel <= DEKAF2_PREFIX KLog::s_iThreadLogLevel)) \
 	{ \
-		dekaf2::KLog::getInstance().debug_fun(iLevel, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+		DEKAF2_PREFIX KLog::getInstance().debug_fun(iLevel, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 	} \
 }
 //---------------------------------------------------------------------------
@@ -772,9 +771,9 @@ private:
 /// log a debug message, do NOT automatically provide function name.
 #define kDebugLog(iLevel, ...) \
 { \
-	if (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_iThreadLogLevel)) \
+	if (DEKAF2_UNLIKELY(iLevel <= DEKAF2_PREFIX KLog::s_iThreadLogLevel)) \
 	{ \
-		dekaf2::KLog::getInstance().debug(iLevel, __VA_ARGS__); \
+		DEKAF2_PREFIX KLog::getInstance().debug(iLevel, __VA_ARGS__); \
 	} \
 }
 //---------------------------------------------------------------------------
@@ -789,7 +788,7 @@ private:
 /// log a warning message, automatically provide function name.
 #define kWarning(...) \
 { \
-	dekaf2::KLog::getInstance().debug_fun(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+	DEKAF2_PREFIX KLog::getInstance().debug_fun(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 
@@ -800,7 +799,7 @@ private:
 /// log a warning message, do NOT automatically provide function name.
 #define kWarningLog(...) \
 { \
-	dekaf2::KLog::getInstance().debug(-1, __VA_ARGS__); \
+	DEKAF2_PREFIX KLog::getInstance().debug(-1, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 
@@ -812,7 +811,7 @@ private:
 /// stacktrace at level -2
 #define kException(except) \
 { \
-	dekaf2::KLog::getInstance().Exception(except, DEKAF2_FUNCTION_NAME); \
+	DEKAF2_PREFIX KLog::getInstance().Exception(except, DEKAF2_FUNCTION_NAME); \
 }
 //---------------------------------------------------------------------------
 
@@ -823,7 +822,7 @@ private:
 /// log an unknown exception, automatically provide function name.
 #define kUnknownException() \
 { \
-	dekaf2::KLog::getInstance().Exception(DEKAF2_FUNCTION_NAME); \
+	DEKAF2_PREFIX KLog::getInstance().Exception(DEKAF2_FUNCTION_NAME); \
 }
 //---------------------------------------------------------------------------
 
@@ -835,7 +834,7 @@ private:
 /// force a stack trace, automatically provide function name.
 #define kDebugTrace(...) \
 { \
-	dekaf2::KLog::getInstance().debug_fun(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
+	DEKAF2_PREFIX KLog::getInstance().debug_fun(-2, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
 #else
@@ -850,7 +849,7 @@ private:
 /// special stack dump handling just for KJSON (nlohmann)
 #define kJSONTrace() \
 { \
-	dekaf2::KLog::getInstance().JSONTrace(DEKAF2_FUNCTION_NAME); \
+	DEKAF2_PREFIX KLog::getInstance().JSONTrace(DEKAF2_FUNCTION_NAME); \
 }
 //---------------------------------------------------------------------------
 #else
@@ -865,7 +864,7 @@ private:
 /// print first frame from a file not in sSkipFiles (comma separated basenames)
 #define kTraceDownCaller(iSkipStackLines, sSkipFiles, sMessage) \
 { \
-	dekaf2::KLog::getInstance().TraceDownCaller(iSkipStackLines, sSkipFiles, sMessage); \
+	DEKAF2_PREFIX KLog::getInstance().TraceDownCaller(iSkipStackLines, sSkipFiles, sMessage); \
 }
 //---------------------------------------------------------------------------
 #else
@@ -878,7 +877,7 @@ private:
 #ifdef DEKAF2_WITH_KLOG
 //---------------------------------------------------------------------------
 /// test if a given log level would create output
-#define kWouldLog(iLevel) (DEKAF2_UNLIKELY(iLevel <= dekaf2::KLog::s_iThreadLogLevel))
+#define kWouldLog(iLevel) (DEKAF2_UNLIKELY(iLevel <= DEKAF2_PREFIX KLog::s_iThreadLogLevel))
 //---------------------------------------------------------------------------
 #else
 #define kWouldLog(iLevel) (false)

@@ -45,7 +45,7 @@
 /// @file dekaf2.h
 /// basic initialization of the library
 
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "kconfiguration.h"
 #include "kthreadsafe.h"
 #ifdef DEKAF2_HAS_MINIFOLLY
@@ -63,8 +63,8 @@
 
 /// @namespace dekaf2 The basic dekaf2 library namespace. All functions,
 /// variables and classes are prefixed with this namespace.
-namespace dekaf2
-{
+
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Basic initialization of the library.
@@ -340,4 +340,4 @@ void kInit(KStringView sName = KStringView{},
 		   bool bStartSignalHandlerThread = true);
 //---------------------------------------------------------------------------
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

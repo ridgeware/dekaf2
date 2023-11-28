@@ -43,7 +43,7 @@
 #include <algorithm>
 #include "dekaf2.h"
 #include "bits/kfilesystem.h"
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "kfilesystem.h"
 #include "ksystem.h"
 #include "kstringutils.h"
@@ -58,8 +58,7 @@
 #include "kutf8.h"
 
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool kChangeMode(KStringViewZ sPath, int iMode)
@@ -1924,5 +1923,4 @@ constexpr KStringViewZ kUnsafeLimiterChars;
 }
 #endif
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

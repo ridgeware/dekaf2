@@ -41,14 +41,15 @@
 
 #pragma once
 
-#include <iterator>
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include "kreader.h"
 #include "kwriter.h"
 #include "bits/kunique_deleter.h"
+#include <iterator>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 class KXMLNode;
 
@@ -420,4 +421,4 @@ inline KXMLNode::KXMLNode(const KXML& DOM)
 {
 }
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

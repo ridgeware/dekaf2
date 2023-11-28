@@ -47,10 +47,10 @@
 
 #include <cinttypes>
 #include <climits>
-#include "kcppcompat.h"
+#include "../kdefinitions.h"
 #include "../kctype.h" // for ASCII lowercase conversion
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace hash {
 
@@ -200,26 +200,26 @@ inline namespace literals {
 //---------------------------------------------------------------------------
 /// literal type for constexpr hash computations, e.g. for switch statements
 constexpr
-dekaf2::hash::fnv1a<dekaf2::hash::size>::Hash operator"" _hash(const char* data, std::size_t size) noexcept
+DEKAF2_PREFIX hash::fnv1a<DEKAF2_PREFIX hash::size>::Hash operator"" _hash(const char* data, std::size_t size) noexcept
 //---------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_14
-	return size != 0 ? hash::fnv1a<dekaf2::hash::size>::hash(data, size, dekaf2::hash::fnv1a<dekaf2::hash::size>::Basis) : 0;
+	return size != 0 ? hash::fnv1a<DEKAF2_PREFIX hash::size>::hash(data, size, DEKAF2_PREFIX hash::fnv1a<DEKAF2_PREFIX hash::size>::Basis) : 0;
 #else
-	return size != 0 ? hash::fnv1a<dekaf2::hash::size>::hash_constexpr(data, size, dekaf2::hash::fnv1a<dekaf2::hash::size>::Basis) : 0;
+	return size != 0 ? hash::fnv1a<DEKAF2_PREFIX hash::size>::hash_constexpr(data, size, DEKAF2_PREFIX hash::fnv1a<DEKAF2_PREFIX hash::size>::Basis) : 0;
 #endif
 }
 
 //---------------------------------------------------------------------------
 /// literal type for lowercase constexpr hash computations, e.g. for switch statements
 constexpr
-dekaf2::hash::fnv1a<dekaf2::hash::size>::Hash operator"" _casehash(const char* data, std::size_t size) noexcept
+DEKAF2_PREFIX hash::fnv1a<DEKAF2_PREFIX hash::size>::Hash operator"" _casehash(const char* data, std::size_t size) noexcept
 //---------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_14
-	return size != 0 ? hash::fnv1a<dekaf2::hash::size>::casehash(data, size, dekaf2::hash::fnv1a<dekaf2::hash::size>::Basis) : 0;
+	return size != 0 ? hash::fnv1a<DEKAF2_PREFIX hash::size>::casehash(data, size, DEKAF2_PREFIX hash::fnv1a<DEKAF2_PREFIX hash::size>::Basis) : 0;
 #else
-	return size != 0 ? hash::fnv1a<dekaf2::hash::size>::casehash_constexpr(data, size, dekaf2::hash::fnv1a<dekaf2::hash::size>::Basis) : 0;
+	return size != 0 ? hash::fnv1a<DEKAF2_PREFIX hash::size>::casehash_constexpr(data, size, DEKAF2_PREFIX hash::fnv1a<DEKAF2_PREFIX hash::size>::Basis) : 0;
 #endif
 }
 
@@ -325,4 +325,4 @@ typename hash::fnv1a<iSize>::Hash kHash(const char* data, std::size_t size, std:
 
 } // end of namespace frozen
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

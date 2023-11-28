@@ -44,7 +44,7 @@
 /// @file ksetofchars.h
 /// string operations for a set of chars
 
-#include "kcppcompat.h"
+#include "../kdefinitions.h"
 #include "../kbit.h"
 #include "../kstringview.h"
 #include <cinttypes>
@@ -60,7 +60,7 @@
 // #define DEKAF2_USE_COMPRESSED_SEARCH_TABLES 1
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This is a replacement for the string find_first/last_of type of methods for non-SSE 4.2 architectures
@@ -364,5 +364,4 @@ static constexpr KFindSetOfChars kCommaSet(",");
 
 } // end of namespace detail
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

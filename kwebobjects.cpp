@@ -41,7 +41,8 @@
 #include "kmime.h"
 #include "khtmlentities.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
+
 namespace html {
 
 //-----------------------------------------------------------------------------
@@ -861,4 +862,4 @@ constexpr KStringView LineBreak::s_sObjectName;
 constexpr KStringView KWebObjectBase::s_sObjectName;
 #endif
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

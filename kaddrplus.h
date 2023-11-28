@@ -43,7 +43,7 @@
 /// @file kaddrplus.h
 /// using the MSB of a pointer for other purposes
 
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "kbitfields.h"
 
 namespace dekaf2 {

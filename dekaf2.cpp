@@ -41,7 +41,7 @@
 */
 
 #include "dekaf2.h"
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "kconfiguration.h"
 #include "klog.h"
 #include "kfilesystem.h"

@@ -46,7 +46,7 @@
 /// test for include file locations for std::string_view, and include if
 /// available
 
-#include "kcppcompat.h"
+#include "../kdefinitions.h"
 #include <cassert>
 #include <cstring>
 
@@ -66,7 +66,7 @@
 	#endif
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 #ifndef __GLIBC__
 //-----------------------------------------------------------------------------
@@ -82,7 +82,7 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 //-----------------------------------------------------------------------------
 #endif
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #if defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW) \
 	|| !defined(DEKAF2_HAS_STD_STRING_VIEW)
@@ -93,9 +93,9 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 
 	#define DEKAF2_HAS_OWN_STRING_VIEW 1
 	#undef DEKAF2_SV_NAMESPACE // could have been set above already
-	#define DEKAF2_SV_NAMESPACE dekaf2::detail::stringview
+	#define DEKAF2_SV_NAMESPACE DEKAF2_PREFIX detail::stringview
 
-	namespace dekaf2 {
+	DEKAF2_NAMESPACE_BEGIN
 	namespace detail {
 	namespace stringview {
 
@@ -591,7 +591,7 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 
 	} // end of namespace stringview
 	} // end of namespace detail
-	} // end of namespace dekaf2
+	DEKAF2_NAMESPACE_END
 
 	#include "khash.h"
 	namespace std
@@ -599,12 +599,12 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 		/// provide a std::hash for our string_view
 		template<typename CharT>
-		struct hash<dekaf2::detail::stringview::basic_string_view<CharT>>
+		struct hash<DEKAF2_PREFIX detail::stringview::basic_string_view<CharT>>
 		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 		{
-			std::size_t operator()(typename dekaf2::detail::stringview::basic_string_view<CharT> s) const noexcept
+			std::size_t operator()(typename DEKAF2_PREFIX detail::stringview::basic_string_view<CharT> s) const noexcept
 			{
-				return dekaf2::kHash(reinterpret_cast<const char*>(s.data()), s.size() * sizeof(typename dekaf2::detail::stringview::basic_string_view<CharT>::value_type));
+				return DEKAF2_PREFIX kHash(reinterpret_cast<const char*>(s.data()), s.size() * sizeof(typename DEKAF2_PREFIX detail::stringview::basic_string_view<CharT>::value_type));
 			}
 		};
 
@@ -612,8 +612,8 @@ extern void* memmem(const void* haystack, size_t iHaystackSize, const void *need
 #endif
 
 #ifdef DEKAF2_SV_NAMESPACE
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 // define the sv namespace symbol inside the dekaf2 namespace
 namespace sv = DEKAF2_SV_NAMESPACE;
-}
+DEKAF2_NAMESPACE_END
 #endif

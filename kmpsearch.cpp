@@ -42,7 +42,7 @@
 
 #include "kmpsearch.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KMPSearch::KMPSearch(KStringView sPattern)
@@ -135,6 +135,4 @@ bool KMPSearch::Match(KInStream& InStream) const
 
 } // Match
 
-} // end of namespace dekaf2
-
-
+DEKAF2_NAMESPACE_END

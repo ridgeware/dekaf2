@@ -42,11 +42,11 @@
 
 #pragma once
 
-#include "bits/kcppcompat.h"
+#include "kdefinitions.h"
 #include <streambuf>
 #include <array>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a streambuf that reads from /dev/null and writes to /dev/null (and is fast at it)
@@ -276,7 +276,7 @@ public:
 	/// provide a Writer function, it will be called by std::streambuf on buffer flushes
 	KBufferedOutStreamBuf(Writer cb, void* CustomPointer = nullptr)
 	//-----------------------------------------------------------------------------
-	: dekaf2::KOutStreamBuf(cb, CustomPointer)
+	: KOutStreamBuf(cb, CustomPointer)
 	{
 		setp(m_buf.data(), m_buf.data()+STREAMBUFSIZE);
 	}
@@ -407,4 +407,4 @@ private:
 
 }; // KBufferedStreamBuf
 
-}
+DEKAF2_NAMESPACE_END

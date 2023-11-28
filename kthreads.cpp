@@ -42,8 +42,9 @@
 #include "kthreads.h"
 #include "klog.h"
 #include "koutstringstream.h"
+#include "kformat.h"
 
-namespace fmt {
+namespace DEKAF2_FORMAT_NAMESPACE {
 
 template <>
 struct formatter<std::thread::id> : formatter<string_view>
@@ -51,16 +52,16 @@ struct formatter<std::thread::id> : formatter<string_view>
 	template <typename FormatContext>
 	auto format(const std::thread::id& id, FormatContext& ctx) const
 	{
-		dekaf2::KString sID;
-		dekaf2::KOStringStream oss(sID);
+		DEKAF2_PREFIX KString sID;
+		DEKAF2_PREFIX KOStringStream oss(sID);
 		oss << id;
 		return formatter<string_view>::format(sID, ctx);
 	}
 };
 
-} // end of namespace fmt
+} // end of DEKAF2_FORMAT_NAMESPACE
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 std::thread::id KThreads::AddLocked(KThreadSafe<Storage>::UniqueLocked& Threads, std::thread newThread)
@@ -249,5 +250,4 @@ bool KThreads::empty() const
 
 } // size
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

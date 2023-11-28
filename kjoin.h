@@ -42,6 +42,7 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "bits/ktemplate.h"
 #include "kstringview.h"
 #include "kstring.h"
@@ -51,8 +52,7 @@
 /// @file kjoin.h
 /// Highly configurable join template.
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 /// join for sequential containers, outputs to strings and streams
@@ -228,4 +228,4 @@ Result kJoined (
 	return result;
 }
 
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END

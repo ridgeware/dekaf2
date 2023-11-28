@@ -46,7 +46,7 @@
 #include "simd/kfindfirstof.h"
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 #if DEKAF2_FIND_FIRST_OF_USE_SIMD
 
@@ -387,5 +387,4 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 
 #endif // DEKAF2_FIND_FIRST_OF_USE_SIMD
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

@@ -44,6 +44,7 @@
 /// @file ktime.h
 /// cross platform date and time utilities
 
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "kduration.h"
@@ -57,8 +58,7 @@
 #include <set>
 #include <array>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 /// returns the timezone of the local timezone for this process
 DEKAF2_PUBLIC inline const chrono::time_zone* kGetLocalTimezone()                  { return chrono::current_zone();         }
@@ -1098,54 +1098,54 @@ DEKAF2_PUBLIC inline                     KString kTranslateDuration   (const KDu
 /// converts to string
 inline KString KUnixTime::to_string (KStringView sFormat) const noexcept { return detail::FormTimestamp(to_tm(), sFormat); }
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 namespace fmt {
 
-template<> struct formatter<dekaf2::KUnixTime> : formatter<std::tm>
+template<> struct formatter<DEKAF2_PREFIX KUnixTime> : formatter<std::tm>
 {
 	template <typename FormatContext>
 	DEKAF2_CONSTEXPR_14
-	auto format(const dekaf2::KUnixTime& time, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KUnixTime& time, FormatContext& ctx) const
 	{
-		return formatter<std::tm>::format(dekaf2::KUnixTime::to_tm(time), ctx);
+		return formatter<std::tm>::format(DEKAF2_PREFIX KUnixTime::to_tm(time), ctx);
 	}
 };
 
-template<> struct formatter<dekaf2::KConstTimeOfDay> : formatter<std::tm>
+template<> struct formatter<DEKAF2_PREFIX KConstTimeOfDay> : formatter<std::tm>
 {
 	template <typename FormatContext>
 	DEKAF2_CONSTEXPR_14
-	auto format(const dekaf2::KConstTimeOfDay& time, FormatContext& ctx) const
-	{
-		return formatter<std::tm>::format(time.to_tm(), ctx);
-	}
-};
-
-template<> struct formatter<dekaf2::KTimeOfDay> : formatter<std::tm>
-{
-	template <typename FormatContext>
-	DEKAF2_CONSTEXPR_14
-	auto format(const dekaf2::KTimeOfDay& time, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KConstTimeOfDay& time, FormatContext& ctx) const
 	{
 		return formatter<std::tm>::format(time.to_tm(), ctx);
 	}
 };
 
-template<> struct formatter<dekaf2::KLocalTime> : formatter<std::tm>
+template<> struct formatter<DEKAF2_PREFIX KTimeOfDay> : formatter<std::tm>
 {
 	template <typename FormatContext>
 	DEKAF2_CONSTEXPR_14
-	auto format(const dekaf2::KLocalTime& time, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KTimeOfDay& time, FormatContext& ctx) const
 	{
 		return formatter<std::tm>::format(time.to_tm(), ctx);
 	}
 };
 
-template<> struct formatter<dekaf2::KUTCTime> : formatter<std::tm>
+template<> struct formatter<DEKAF2_PREFIX KLocalTime> : formatter<std::tm>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KUTCTime& time, FormatContext& ctx) const
+	DEKAF2_CONSTEXPR_14
+	auto format(const DEKAF2_PREFIX KLocalTime& time, FormatContext& ctx) const
+	{
+		return formatter<std::tm>::format(time.to_tm(), ctx);
+	}
+};
+
+template<> struct formatter<DEKAF2_PREFIX KUTCTime> : formatter<std::tm>
+{
+	template <typename FormatContext>
+	auto format(const DEKAF2_PREFIX KUTCTime& time, FormatContext& ctx) const
 	{
 		return formatter<std::tm>::format(time.to_tm(), ctx);
 	}
@@ -1155,43 +1155,43 @@ template<> struct formatter<dekaf2::KUTCTime> : formatter<std::tm>
 
 namespace std {
 
-template<> struct hash<dekaf2::KUnixTime>
+template<> struct hash<DEKAF2_PREFIX KUnixTime>
 {
-	std::size_t operator()(dekaf2::KUnixTime time) const noexcept
+	std::size_t operator()(DEKAF2_PREFIX KUnixTime time) const noexcept
 	{
-		return dekaf2::kHash(&time, sizeof(time));
+		return DEKAF2_PREFIX kHash(&time, sizeof(time));
 	}
 };
 
-template<> struct hash<dekaf2::KConstTimeOfDay>
+template<> struct hash<DEKAF2_PREFIX KConstTimeOfDay>
 {
-	std::size_t operator()(dekaf2::KConstTimeOfDay time) const noexcept
+	std::size_t operator()(DEKAF2_PREFIX KConstTimeOfDay time) const noexcept
 	{
-		return dekaf2::kHash(&time, sizeof(time));
+		return DEKAF2_PREFIX kHash(&time, sizeof(time));
 	}
 };
 
-template<> struct hash<dekaf2::KTimeOfDay>
+template<> struct hash<DEKAF2_PREFIX KTimeOfDay>
 {
-	std::size_t operator()(dekaf2::KTimeOfDay time) const noexcept
+	std::size_t operator()(DEKAF2_PREFIX KTimeOfDay time) const noexcept
 	{
-		return dekaf2::kHash(&time, sizeof(time));
+		return DEKAF2_PREFIX kHash(&time, sizeof(time));
 	}
 };
 
-template<> struct hash<dekaf2::KUTCTime>
+template<> struct hash<DEKAF2_PREFIX KUTCTime>
 {
-	std::size_t operator()(dekaf2::KUTCTime time) const noexcept
+	std::size_t operator()(DEKAF2_PREFIX KUTCTime time) const noexcept
 	{
-		return dekaf2::kHash(&time, sizeof(time));
+		return DEKAF2_PREFIX kHash(&time, sizeof(time));
 	}
 };
 
-template<> struct hash<dekaf2::KLocalTime>
+template<> struct hash<DEKAF2_PREFIX KLocalTime>
 {
-	std::size_t operator()(dekaf2::KLocalTime time) const noexcept
+	std::size_t operator()(DEKAF2_PREFIX KLocalTime time) const noexcept
 	{
-		return dekaf2::kHash(&time, sizeof(time));
+		return DEKAF2_PREFIX kHash(&time, sizeof(time));
 	}
 };
 

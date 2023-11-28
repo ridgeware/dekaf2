@@ -65,7 +65,7 @@
 #include <array>
 #include <cstddef>
 #include "kfindfirstof.h"
-#include "../kcppcompat.h"
+#include "../../kcompatibility.h"
 #include "../../kbit.h"
 
 namespace dekaf2 {

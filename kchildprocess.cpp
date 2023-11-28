@@ -58,8 +58,7 @@
 #include <dirent.h>
 #include <cstdlib>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 
@@ -578,6 +577,6 @@ KChildProcess::~KChildProcess()
 
 } // dtor
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif // of !DEKAF2_IS_WINDOWS

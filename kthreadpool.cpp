@@ -55,7 +55,7 @@
 #include "bits/kmake_unique.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KThreadPool::KThreadPool(std::size_t nThreads)
@@ -420,5 +420,4 @@ void KThreadPool::notify_thread_shutdown(bool bWasIdle, eAbort abort)
 
 } // notify_thread_shutdown
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

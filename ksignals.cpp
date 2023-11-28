@@ -41,7 +41,7 @@
 */
 
 #include "ksignals.h"
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "kcrashexit.h"
 #include "kparallel.h"
 #include "klog.h"

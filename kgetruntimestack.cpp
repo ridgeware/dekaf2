@@ -41,7 +41,7 @@
 */
 
 #include "kgetruntimestack.h"
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "kstring.h"
 #include "kstack.h"
 #include "ksplit.h"

@@ -906,6 +906,6 @@ KJSON2::reference KJSON2::Select (StringViewT sSelector) noexcept
 constexpr uint16_t KJSON2::iMaxJSONPointerDepth;
 #endif
 
-} // end of namespace dekaf2
+} // end of DEKAF2_KJSON_NAMESPACE
 
 #endif // of !DEKAF2_KJSON2_IS_DISABLED

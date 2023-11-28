@@ -54,8 +54,7 @@
 	#include <unistd.h>
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 KOutStream KErr(std::cerr);
 KOutStream KOut(std::cout);
@@ -366,5 +365,4 @@ void kLogger(KOutStream& Stream, KString sMessage, bool bFlush)
 
 } // kLogger
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

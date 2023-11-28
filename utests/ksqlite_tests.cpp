@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/bits/kcppcompat.h>
+#include <dekaf2/kcompatibility.h>
 
 #ifdef DEKAF2_HAS_SQLITE3
 

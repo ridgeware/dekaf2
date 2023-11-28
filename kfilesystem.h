@@ -45,7 +45,7 @@
 /// @file kfilesystem.h
 /// standalone functions and classes around files and the file system
 
-#include "bits/kcppcompat.h"
+#include "kcompatibility.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include "kwriter.h"
@@ -60,8 +60,7 @@
 	#define DEKAF2_FILESTAT_USE_STD_FILESYSTEM
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 enum DefaultFileCeateFlags
 {
@@ -981,5 +980,4 @@ private:
 
 }; // KTempDir
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

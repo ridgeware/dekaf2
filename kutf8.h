@@ -546,21 +546,36 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 		return INVALID_CODEPOINT;
 	}
 
-	// need to initialize the vars for constexpr, so let's take
-	// the most probable value (for 2 byte sequences)
+#if (__cplusplus > 201703L)
+	// C++20 constexpr permits variable declarations without initialization
+	codepoint_t lower_limit;
+	codepoint_t codepoint;
+	uint16_t    remaining;
+	bool        bCheckForSurrogates;
+#else
+	// for C++ constexpr < 20 we need to initialize the vars at declaration,
+	// so let's take the most probable values (for 2 byte sequences)
 	codepoint_t lower_limit         = 0x080;
 	codepoint_t codepoint           = ch & 0x01f;
 	uint16_t    remaining           = 1;
 	bool        bCheckForSurrogates = false;
+#endif
 
 	if ((ch & 0x0e0) == 0x0c0)
 	{
+#if (__cplusplus > 201703L)
+		// for C++20, finally init the vars here
+		lower_limit         = 0x080;
+		codepoint           = ch & 0x01f;
+		remaining           = 1;
+		bCheckForSurrogates = false;
+#endif
 	}
 	else if ((ch & 0x0f0) == 0x0e0)
 	{
-		remaining           = 2;
 		lower_limit         = 0x0800;
 		codepoint           = ch & 0x0f;
+		remaining           = 2;
 		bCheckForSurrogates = ch == 0xbd;
 	}
 	else if ((ch & 0x0f8) == 0x0f0)
@@ -568,9 +583,10 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 		// do not check for too large lead byte values at this place
 		// (ch >= 0x0f5) as apparently that deranges the pipeline.
 		// Testing the final codepoint value below is about 10% faster.
-		remaining   = 3;
-		lower_limit = 0x010000;
-		codepoint   = ch & 0x07;
+		lower_limit         = 0x010000;
+		codepoint           = ch & 0x07;
+		remaining           = 3;
+		bCheckForSurrogates = false;
 	}
 	else
 	{

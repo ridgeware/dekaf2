@@ -80,9 +80,11 @@ KBAR::KBAR (uint64_t iExpected/*=0*/, uint32_t iWidth/*=DEFAULT_WIDTH*/, uint64_
 } // constructor
 
 //-----------------------------------------------------------------------------
-void KBAR::SetFlags (uint64_t iFlags)
+uint64_t KBAR::SetFlags (uint64_t iFlags)
 //-----------------------------------------------------------------------------
 {
+	auto iSaved = m_iFlags;
+	
 	m_iFlags = iFlags;
 	if (m_iFlags & SLIDER)
 	{
@@ -93,6 +95,8 @@ void KBAR::SetFlags (uint64_t iFlags)
 	{
 		m_bSliding = false;
 	}
+
+	return iSaved;
 
 } // SetFlags
 
@@ -311,6 +315,14 @@ void KBAR::_SliderAction (int iAction, uint64_t iSoFarLast, uint64_t iSoFarNow)
 // ************************ KSharedBar **************************
 
 //-----------------------------------------------------------------------------
+uint64_t KSharedBar::SetFlags (uint64_t iFlags)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+	return KBAR::SetFlags (iFlags);
+}
+
+//-----------------------------------------------------------------------------
 bool KSharedBar::Start  (uint64_t iExpected)
 //-----------------------------------------------------------------------------
 {
@@ -374,4 +386,23 @@ void KSharedBar::RepaintSlider ()
 	KBAR::RepaintSlider();
 }
 
+//-----------------------------------------------------------------------------
+bool KSharedBar::IsActive ()
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+	return KBAR::IsActive ();
+}
+
+//-----------------------------------------------------------------------------
+uint64_t KSharedBar::GetExpected()
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+	return KBAR::GetExpected();
+}
+
+
+
 } // of namespace dekaf2
+

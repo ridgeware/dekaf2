@@ -209,7 +209,7 @@ void PrintException(const KDiffMatchPatch::string_t& sEx)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_KDIFF_USE_WSTRING
-	kException(Unicode::ToUTF8<KString>(sEx));
+	kException(Unicode::ToUTF8<KString>(sEx).c_str());
 #else
 	kException(sEx);
 #endif

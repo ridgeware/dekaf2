@@ -129,7 +129,9 @@ void KThreads::DecayInt()
 	auto Threads = m_Decay.unique();
 
 	std::size_t iSize = Threads->size();
+#ifdef DEKAF2_WITH_KLOG
 	auto iCount = iSize;
+#endif
 
 	for (auto& Thread : *Threads)
 	{
@@ -139,7 +141,9 @@ void KThreads::DecayInt()
 			Thread.join();
 		}
 
+#ifdef DEKAF2_WITH_KLOG
 		--iCount;
+#endif
 	}
 
 	if (iSize)

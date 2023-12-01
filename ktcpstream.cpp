@@ -68,6 +68,7 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 
 		stream->RunTimed();
 
+#ifdef DEKAF2_WITH_KLOG
 		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 		{
 			if (stream->ec.value() == boost::asio::error::eof)
@@ -81,6 +82,7 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 					   stream->ec.message());
 			}
 		}
+#endif
 	}
 
 	return iRead;
@@ -118,6 +120,7 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 
 			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 			{
+#ifdef DEKAF2_WITH_KLOG
 				if (stream->ec.value() == boost::asio::error::eof)
 				{
 					kDebug(2, "output stream got closed by endpoint {}", stream->sEndpoint);
@@ -128,6 +131,7 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 						   stream->sEndpoint,
 						   stream->ec.message());
 				}
+#endif
 				break;
 			}
 		}
@@ -174,6 +178,7 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 
 	if (Good())
 	{
+#ifdef DEKAF2_WITH_KLOG
 		if (kWouldLog(2))
 		{
 #if (BOOST_VERSION < 106600)
@@ -188,6 +193,7 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 				kDebug(2, "resolved to: {}", it->endpoint().address().to_string());
 			}
 		}
+#endif
 
 		boost::asio::async_connect(m_Stream.Socket.lowest_layer(),
 								   hosts,

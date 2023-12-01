@@ -50,6 +50,11 @@
 #include <cstdint>
 #include <cstddef>
 
+// While __has_include only became a standard in C++20, it is supported
+// by clang since ever, by gcc since 5.0.0, and by MSVC since some time
+// as well. Therefore we take it for granted that it is available and
+// working, and use it to test for features of either the C++ lib or
+// of dekaf2 itself.
 #ifndef __has_include
 	#define DEKAF2_HAS_INCLUDE(x) 0
 #else

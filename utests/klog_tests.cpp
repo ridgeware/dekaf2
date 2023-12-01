@@ -22,6 +22,10 @@ TEST_CASE("KLog") {
 
 	SECTION("Program name")
 	{
+#ifdef DEKAF2_WITH_KLOG
 		CHECK ( KLog::getInstance().GetName().empty() == false );
+#else
+		CHECK ( KLog::getInstance().GetName().empty() == true );
+#endif
 	}
 }

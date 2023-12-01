@@ -362,7 +362,9 @@ bool KSSLIOStream::handshake(KAsioSSLStream<asiostream>* stream)
 		return false;
 	}
 
+#if OPENSSL_VERSION_NUMBER <= 0x10002000L || defined(DEKAF2_WITH_KLOG)
 	auto ssl = stream->Socket.native_handle();
+#endif
 
 #if OPENSSL_VERSION_NUMBER <= 0x10002000L
 	// OpenSSL <= 1.0.2 did not do hostname validation - let's do it manually
@@ -397,6 +399,7 @@ bool KSSLIOStream::handshake(KAsioSSLStream<asiostream>* stream)
 	// one of the certificate host names ..
 #endif
 
+#ifdef DEKAF2_WITH_KLOG
 	if (kWouldLog(2))
 	{
 		kDebug(2, "TLS handshake successful, rx/tx {}/{} bytes",
@@ -418,6 +421,7 @@ bool KSSLIOStream::handshake(KAsioSSLStream<asiostream>* stream)
 				   expansion ? SSL_COMP_get_name(expansion) : "NONE");
 		}
 	}
+#endif
 
 	return true;
 
@@ -495,6 +499,7 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 
 		stream->RunTimed();
 
+#ifdef DEKAF2_WITH_KLOG
 		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.lowest_layer().is_open())
 		{
 			if (stream->ec.value() == boost::asio::error::eof)
@@ -508,6 +513,7 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 					   stream->ec.message());
 			}
 		}
+#endif
 	}
 
 	return iRead;
@@ -565,6 +571,7 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 
 			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.lowest_layer().is_open())
 			{
+#ifdef DEKAF2_WITH_KLOG
 				if (stream->ec.value() == boost::asio::error::eof)
 				{
 					kDebug(2, "output stream got closed by endpoint {}", stream->sEndpoint);
@@ -575,6 +582,7 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 						   stream->sEndpoint,
 						   stream->ec.message());
 				}
+#endif
 				break;
 			}
 		}
@@ -631,6 +639,7 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 
 	if (Good())
 	{
+#ifdef DEKAF2_WITH_KLOG
 		if (kWouldLog(2))
 		{
 #if (BOOST_VERSION < 106600)
@@ -645,6 +654,7 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 				kDebug(2, "resolved to: {}", it->endpoint().address().to_string());
 			}
 		}
+#endif
 
 		if (m_Stream.SSLContext.GetVerify())
 		{

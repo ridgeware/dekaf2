@@ -352,7 +352,9 @@ int Kron::Job::Wait(int msecs)
 	// close the shell and report the return value to the caller
 	int iResult = m_Shell->Close(msecs);
 
+#ifdef DEKAF2_WITH_KLOG
 	auto lastDuration      = m_Control.ExecutionTime.Stop();
+#endif
 	m_Control.ProcessID    = -1;
 	m_Control.sLastOutput  = std::move(sOutput);
 	m_Control.iLastStatus  = iResult;

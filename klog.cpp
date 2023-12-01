@@ -43,86 +43,7 @@
 #include "klog.h"
 
 //===========================================================================
-#ifndef DEKAF2_WITH_KLOG
-//===========================================================================
-
-#include "dekaf2.h"
-#include "kfilesystem.h"
-#include "kwriter.h"
-
-DEKAF2_NAMESPACE_BEGIN
-
-// create a minimal KLog environment for the !DEKAF2_WITH_KLOG case
-
-KString KLog::s_sEmpty;
-
-//---------------------------------------------------------------------------
-KLog::KLog()
-//---------------------------------------------------------------------------
-{
-	m_sPathName =  Dekaf::getInstance().GetProgPath();
-	m_sPathName += kDirSep;
-	m_sPathName += Dekaf::getInstance().GetProgName();
-
-	SetName(Dekaf::getInstance().GetProgName());
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KLog::~KLog()
-//---------------------------------------------------------------------------
-{
-	// we need the dtor in the cpp, as otherwise the compiler would not have
-	// access to KLogWriter / KLogSerializer type information..
-
-} // dtor
-
-//---------------------------------------------------------------------------
-KLog& KLog::SetName(KStringView sName)
-//---------------------------------------------------------------------------
-{
-	if (sName.size() > 5)
-	{
-		sName.erase(5, KStringView::npos);
-	}
-
-	m_sShortName = kToUpper(sName);
-
-	return *this;
-
-} // SetName
-
-//---------------------------------------------------------------------------
-bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
-//---------------------------------------------------------------------------
-{
-	if (DEKAF2_LIKELY(iLevel < 0))
-	{
-		KErr.FormatLine(">> {}: {}", sFunction, sMessage);
-	}
-	return true;
-
-} // IntDebug
-
-//---------------------------------------------------------------------------
-void KLog::IntException(KStringView sWhat, KStringView sFunction, KStringView sClass)
-//---------------------------------------------------------------------------
-{
-	if (!sClass.empty())
-	{
-		IntDebug(-2, kFormat("{0}::{1}()", sClass, sFunction), kFormat("caught exception: '{0}'", sWhat));
-	}
-	else
-	{
-		IntDebug(-2, sFunction, kFormat("caught exception: '{0}'", sWhat));
-	}
-
-} // IntException
-
-DEKAF2_NAMESPACE_END
-
-//===========================================================================
-#else // of ifndef DEKAF2_WITH_KLOG
+#ifdef DEKAF2_WITH_KLOG
 //===========================================================================
 
 #include "bits/klogwriter.h"
@@ -1083,7 +1004,7 @@ void KLog::JSONTrace(KStringView sFunction)
 DEKAF2_NAMESPACE_END
 
 //===========================================================================
-#endif // of ifndef DEKAF2_WITH_KLOG
+#endif // of ifdef DEKAF2_WITH_KLOG
 //===========================================================================
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
@@ -1093,7 +1014,5 @@ constexpr KStringViewZ KLog::STDERR;
 #ifdef DEKAF2_HAS_SYSLOG
 constexpr KStringViewZ KLog::SYSLOG;
 #endif
-constexpr KStringViewZ KLog::BAR;
-constexpr KStringViewZ KLog::DASH;
 DEKAF2_NAMESPACE_END
 #endif

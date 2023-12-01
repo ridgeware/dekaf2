@@ -63,7 +63,11 @@ KString::value_type KString::s_0ch_v { '\0' };
 void KString::log_exception(const std::exception& e, const char* sWhere)
 //------------------------------------------------------------------------------
 {
+#ifdef DEKAF2_WITH_KLOG
 	KLog::getInstance().Exception(e, sWhere);
+#else
+	detail::IntException_uNuSuAlNaMe(e, sWhere);
+#endif
 }
 
 //------------------------------------------------------------------------------

@@ -45,10 +45,13 @@
 /// @file klogwriter.h
 /// Output writers for the logging framework
 
-#include <memory>
+#include "../kdefinitions.h"
+
+#ifdef DEKAF2_WITH_KLOG
 #include "../kstring.h"
 #include "../kstringview.h"
 #include "../kwriter.h"
+#include <memory>
 
 #ifndef DEKAF2_IS_WINDOWS
 	#define DEKAF2_HAS_SYSLOG
@@ -58,8 +61,7 @@
 	#include "../kjson.h"
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 class KWebClient;
 class KHTTPHeaders;
@@ -299,4 +301,6 @@ protected:
 
 #endif // of DEKAF2_KLOG_WITH_TCP
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
+
+#endif // of DEKAF2_WITH_KLOG

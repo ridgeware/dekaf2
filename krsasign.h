@@ -52,7 +52,7 @@
 #include "kmessagedigest.h"
 
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KRSASign gives the interface for all RSA signature algorithms. The
@@ -90,5 +90,4 @@ public:
 
 }; // KRSASign
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

@@ -7668,7 +7668,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 					{
 						const KString& sName = it.first;
 						int iMax = static_cast<int>(Widths.Get (sName));
-						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, KLog::BAR.c_str());
+						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, kFormat("{:-^100}", "").c_str());
 						bFirst = false;
 					}
 					fprintf (fpout, "\n");
@@ -7684,7 +7684,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 					{
 						const KString& sName = it.first;
 						int iMax = static_cast<int>(Widths.Get (sName));
-						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, KLog::BAR.c_str());
+						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, kFormat("{:-^100}", "").c_str());
 						bFirst = false;
 					}
 					fprintf (fpout, "\n");
@@ -7763,7 +7763,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 				{
 					const KString& sName  = it.first;
 					int iMax  = static_cast<int>(Widths.Get (sName));
-					fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, KLog::BAR.c_str());
+					fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, kFormat("{:-^100}", "").c_str());
 					bFirst = false;
 				}
 				fprintf (fpout, "\n");
@@ -8338,7 +8338,7 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 	auto sLock = kFormat ("{}_{}", sSchemaVersionTable, GetDBName()).ToUpper();
 	if (!GetLock (sLock, WAIT_FOR_SECS))
 	{
-		kWarning("Could not acquire schema update lock within {}. Another process may be updating the schema. Abort.", WAIT_FOR_SECS); // note that format appends a 's' to the chrono::seconds type
+		kWarning(kFormat("Could not acquire schema update lock within {}. Another process may be updating the schema. Abort.", WAIT_FOR_SECS)); // note that format appends a 's' to the chrono::seconds type
 		return SetError(kFormat("schema updater for table {} is locked.  gave up after {}", sSchemaVersionTable, WAIT_FOR_SECS));
 	}
 
@@ -8357,9 +8357,9 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 
 		for (auto ii = std::max(++iSchemaRev, iInitialSchema); ii <= iCurrentSchema; ++ii)
 		{
-			kDebug (1, KLog::DASH);
+			kDebug (1, kFormat("{:-^100}", ""));
 			kDebug (1, "attempting to apply schema version {} to db {} ...", ii, ConnectSummary());
-			kDebug (1, KLog::DASH);
+			kDebug (1, kFormat("{:-^100}", ""));
 
 			KString sFile = kFormat ("{}/{}{}.ksql", sSchemaFolder, sFilenamePrefix, ii);
 

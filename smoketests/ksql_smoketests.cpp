@@ -1594,20 +1594,23 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 int64_t DumpRows (KSQL& db)
 //-----------------------------------------------------------------------------
 {
-	kDebugLog (1, "  {:<4.4}-+-{:4.4}-+-{:<7.7}-+-{:<9.9}-+-{:20.20}-+",
-		KLog::BAR, KLog::BAR, KLog::BAR, KLog::BAR, KLog::BAR);
+#ifdef DEKAF2_WITH_KLOG
+	kDebugLog (1, "  {:-<4}-+-{:-<4}-+-{:-<7}-+-{:-<9}-+-{:-<20}-+",
+			   "", "", "", "", "");
 
-	kDebugLog (1, "  {:<4.4} | {:4.4} | {:<7.7} | {:<9.9} | {:20.20} |",
+	kDebugLog (1, "  {:<4} | {:4} | {:<7} | {:<9} | {:20} |",
 		"row#", "anum", "astring", "bigstring", "dtmnow");
 
-	kDebugLog (1, "  {:<4.4}-+-{:4.4}-+-{:<7.7}-+-{:<9.9}-+-{:20.20}-+",
-		KLog::BAR, KLog::BAR, KLog::BAR, KLog::BAR, KLog::BAR);
+	kDebugLog (1, "  {:-<4}-+-{:-<4}-+-{:-<7}-+-{:-<9}-+-{:-<20}-+",
+			   "", "", "", "", "");
+#endif
 
 	int64_t iRows = 0;
 	while (db.NextRow())
 	{
 		++iRows;
 
+#ifdef DEKAF2_WITH_KLOG
 		auto  anum      = db.Get(1).Int32();
 		auto  astring   = db.Get(2);
 		auto  bigstring = db.Get(3);
@@ -1615,10 +1618,13 @@ int64_t DumpRows (KSQL& db)
 
 		kDebugLog (1, "  {:<4} | {:4} | {:<7.7} | {:<9.9} | {:20.20} |",
 			iRows, anum, astring, bigstring, pszTime);
+#endif
 	}
 
-	kDebugLog (1, "  {:<4.4}-+-{:4.4}-+-{:<7.7}-+-{:<9.9}-+-{:20.20}-+",
-		KLog::BAR, KLog::BAR, KLog::BAR, KLog::BAR, KLog::BAR);
+#ifdef DEKAF2_WITH_KLOG
+	kDebugLog (1, "  {:-<4}-+-{:-<4}-+-{:-<7}-+-{:-<9}-+-{:-<20}-+",
+			   "", "", "", "", "");
+#endif
 
 	return (iRows);
 

@@ -45,7 +45,7 @@
 #include "krsasign.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
 KRSASign::KRSASign(ALGORITHM Algorithm, KStringView sMessage)
@@ -129,6 +129,4 @@ bool KRSAVerify::Verify(const KRSAKey& Key, KStringView _sSignature) const
 
 } // Verify
 
-} // end of namespace dekaf2
-
-
+DEKAF2_NAMESPACE_END

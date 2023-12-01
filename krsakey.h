@@ -50,7 +50,7 @@
 
 struct evp_pkey_st;
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// RSA key class to transform formats
@@ -137,6 +137,4 @@ private:
 
 }; // KRSAKey
 
-
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

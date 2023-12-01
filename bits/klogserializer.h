@@ -45,10 +45,14 @@
 /// @file klogserializer.h
 /// Data serializers for the logging framework
 
-#include <memory>
+#include "../kdefinitions.h"
+
+#ifdef DEKAF2_WITH_KLOG
+
 #include "../kstring.h"
 #include "../kstringview.h"
 #include "../kduration.h"
+#include <memory>
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 	#include "../kjson.h"
@@ -58,8 +62,7 @@
 	#define DEKAF2_HAS_SYSLOG
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Base class for KLog serialization. Takes the data to be written someplace.
@@ -244,4 +247,6 @@ protected:
 
 #endif // of DEKAF2_KLOG_WITH_TCP
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
+
+#endif // of DEKAF2_WITH_KLOG

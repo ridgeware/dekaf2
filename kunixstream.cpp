@@ -72,6 +72,7 @@ std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize i
 
 		stream->RunTimed();
 
+#ifdef DEKAF2_WITH_KLOG
 		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 		{
 			if (stream->ec.value() == boost::asio::error::eof)
@@ -85,6 +86,7 @@ std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize i
 					   stream->ec.message());
 			}
 		}
+#endif
 	}
 
 	return iRead;
@@ -123,6 +125,7 @@ std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::stream
 
 			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
 			{
+#ifdef DEKAF2_WITH_KLOG
 				if (stream->ec.value() == boost::asio::error::eof)
 				{
 					kDebug(2, "output stream got closed by endpoint {}", stream->sEndpoint);
@@ -133,6 +136,7 @@ std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::stream
 						   stream->sEndpoint,
 						   stream->ec.message());
 				}
+#endif
 				break;
 			}
 		}

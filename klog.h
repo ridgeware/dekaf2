@@ -45,26 +45,31 @@
 /// @file klog.h
 /// Logging framework
 
-#include "kconfiguration.h"
-#include "kcompatibility.h"
-#include "kstring.h"
+#include "kdefinitions.h"
 #include "kstringview.h"
-#include "kformat.h"
-#include "ktime.h"
 
-#include <memory>
-#include <exception>
-#include <mutex>
-#include <vector>
+#ifdef DEKAF2_WITH_KLOG
+	#include "kstring.h"
+	#include "kformat.h"
+	#include "ktime.h"
+	#include <memory>
+	#include <exception>
+	#include <mutex>
+	#include <vector>
 
-#ifndef DEKAF2_IS_WINDOWS
-	#define DEKAF2_HAS_SYSLOG
+	#ifndef DEKAF2_IS_WINDOWS
+		#define DEKAF2_HAS_SYSLOG
+	#endif
+#else
+	#include <iostream>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
 
+#ifdef DEKAF2_WITH_KLOG
 class KLogWriter;
 class KLogSerializer;
+#endif
 
 #ifdef DEKAF2_KLOG_WITH_TCP
 class KHTTPHeaders;
@@ -103,7 +108,12 @@ private:
 //----------
 
 	// private ctor
-	KLog();
+	KLog()
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{}
+#endif
 
 //----------
 public:
@@ -123,15 +133,18 @@ public:
 	KLog(KLog&&) = delete;
 	KLog& operator=(const KLog&) = delete;
 	KLog& operator=(KLog&&) = delete;
-	~KLog();
+	~KLog()
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{}
+#endif
 
 	static constexpr KStringViewZ STDOUT = "stdout";
 	static constexpr KStringViewZ STDERR = "stderr";
 #ifdef DEKAF2_HAS_SYSLOG
 	static constexpr KStringViewZ SYSLOG = "syslog";
 #endif
-	static constexpr KStringViewZ BAR    = "----------------------------------------------------------------------------------------------------------------------------------------------------------------";
-	static constexpr KStringViewZ DASH   = " - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -";
 
 	enum LOGMODE { CLI, SERVER };
 
@@ -279,8 +292,13 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Set application name for logging (will be limited to 5 characters)
-	self& SetName(KStringView sName);
+	self& SetName(KStringView sName)
 	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Get the full application path name as determined by the OS (not related to SetName() )
@@ -288,7 +306,11 @@ public:
 	KStringViewZ GetName() const
 	//---------------------------------------------------------------------------
 	{
+#ifdef DEKAF2_WITH_KLOG
 		return m_sPathName;
+#else
+		return KStringViewZ{};
+#endif
 	}
 
 	//---------------------------------------------------------------------------
@@ -328,64 +350,14 @@ public:
 	};
 
 	//---------------------------------------------------------------------------
-	/// Create a Writer of specific type
-	static std::unique_ptr<KLogWriter> CreateWriter(Writer writer, KStringViewZ sLogname = KStringViewZ{});
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	/// Create a Serializer of specific type
-	static std::unique_ptr<KLogSerializer> CreateSerializer(Serializer serializer);
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	/// Set the log writer directly instead of opening one implicitly with SetDebugLog()
-	self& SetWriter(std::unique_ptr<KLogWriter> logger)
-	//---------------------------------------------------------------------------
-#ifdef DEKAF2_WITH_KLOG
-	;
-#else
-	{ return *this; }
-#endif
-
-	//---------------------------------------------------------------------------
-	/// Set the log writer directly instead of opening one implicitly with SetDebugLog()
-	self& SetWriter(Writer writer, KStringViewZ sLogname = KStringViewZ{})
-	//---------------------------------------------------------------------------
-#ifdef DEKAF2_WITH_KLOG
-	;
-#else
-	{ return *this; }
-#endif
-
-	//---------------------------------------------------------------------------
-	/// Set the log serializer directly instead of opening one implicitly with SetDebugLog()
-	self& SetSerializer(std::unique_ptr<KLogSerializer> serializer)
-	//---------------------------------------------------------------------------
-#ifdef DEKAF2_WITH_KLOG
-	;
-#else
-	{ return *this; }
-#endif
-
-	//---------------------------------------------------------------------------
-	/// Set the log serializer directly instead of opening one implicitly with SetDebugLog()
-	self& SetSerializer(Serializer serializer)
-	//---------------------------------------------------------------------------
-#ifdef DEKAF2_WITH_KLOG
-	;
-#else
-	{ return *this; }
-#endif
-
-	//---------------------------------------------------------------------------
 	/// Gets the file name of the output file for the log.
-	inline const KString& GetDebugLog() const
+	inline KStringViewZ GetDebugLog() const
 	//---------------------------------------------------------------------------
 	{
 #ifdef DEKAF2_WITH_KLOG
 		return m_sLogName;
 #else
-		return s_sEmpty;
+		return KStringViewZ{};
 #endif
 	}
 
@@ -403,13 +375,13 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Gets the file name of the flag file.
-	inline const KString& GetDebugFlag() const
+	inline KStringViewZ GetDebugFlag() const
 	//---------------------------------------------------------------------------
 	{
 #ifdef DEKAF2_WITH_KLOG
 		return m_sFlagfile;
 #else
-		return s_sEmpty;
+		return KStringViewZ{};
 #endif
 	}
 
@@ -435,9 +407,10 @@ public:
 #endif
 	}
 
+#ifdef DEKAF2_WITH_KLOG
 	//---------------------------------------------------------------------------
 	/// this function is deprecated - use kDebug() instead!
-	template<class... Args, typename std::enable_if<sizeof...(Args) != 1, int>::type = 0>
+	template<class... Args>
 	inline bool debug(int iLevel, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
@@ -446,32 +419,13 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// this function is deprecated - use kDebug() instead!
-	template<class... Args, typename std::enable_if<sizeof...(Args) == 1, int>::type = 0>
-	inline bool debug(int iLevel, Args&&... args)
-	//---------------------------------------------------------------------------
-	{
-		return IntDebug(iLevel, KStringView(), std::forward<Args>(args)...);
-	}
-
-	//---------------------------------------------------------------------------
-	/// this function is deprecated - use kDebug() instead!
-	template<class... Args, typename std::enable_if<sizeof...(Args) != 1, int>::type = 0>
+	template<class... Args>
 	inline bool debug_fun(int iLevel, KStringView sFunction, Args&&... args)
 	//---------------------------------------------------------------------------
 	{
 		return IntDebug(iLevel, sFunction, kFormat(std::forward<Args>(args)...));
 	}
 
-	//---------------------------------------------------------------------------
-	/// this function is deprecated - use kDebug() instead!
-	template<class... Args, typename std::enable_if<sizeof...(Args) == 1, int>::type = 0>
-	inline bool debug_fun(int iLevel, KStringView sFunction, Args&&... args)
-	//---------------------------------------------------------------------------
-	{
-		return IntDebug(iLevel, sFunction, std::forward<Args>(args)...);
-	}
-
-#ifdef DEKAF2_WITH_KLOG
 	//---------------------------------------------------------------------------
 	/// print first frame from a file not in sSkipFiles (comma separated basenames)
 	void TraceDownCaller(int iSkipStackLines, KStringView sSkipFiles, KStringView sMessage);
@@ -498,7 +452,6 @@ public:
 	{
 		return IntDebug(-1, KStringView(), std::forward<Args>(args)...);
 	}
-#endif
 
 	//---------------------------------------------------------------------------
 	/// report a known exception - better use kException().
@@ -515,6 +468,7 @@ public:
 	{
 		IntException("unknown", sFunction, sClass);
 	}
+#endif
 
 	//---------------------------------------------------------------------------
 	/// Registered with Dekaf::AddToOneSecTimer() at construction, gets
@@ -639,16 +593,40 @@ public:
 private:
 //----------
 
+#ifdef DEKAF2_WITH_KLOG
+
 	bool IntDebug (int iLevel, KStringView sFunction, KStringView sMessage);
 	void IntException (KStringView sWhat, KStringView sFunction, KStringView sClass);
 
-#ifndef DEKAF2_WITH_KLOG
+	//---------------------------------------------------------------------------
+	/// Create a Writer of specific type
+	static std::unique_ptr<KLogWriter> CreateWriter(Writer writer, KStringViewZ sLogname = KStringViewZ{});
+	//---------------------------------------------------------------------------
 
-	static KString s_sEmpty;
-	KString m_sPathName;
-	KString m_sShortName;
+	//---------------------------------------------------------------------------
+	/// Create a Serializer of specific type
+	static std::unique_ptr<KLogSerializer> CreateSerializer(Serializer serializer);
+	//---------------------------------------------------------------------------
 
-#else
+	//---------------------------------------------------------------------------
+	/// Set the log writer directly instead of opening one implicitly with SetDebugLog()
+	self& SetWriter(std::unique_ptr<KLogWriter> logger);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Set the log writer directly instead of opening one implicitly with SetDebugLog()
+	self& SetWriter(Writer writer, KStringViewZ sLogname = KStringViewZ{});
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Set the log serializer directly instead of opening one implicitly with SetDebugLog()
+	self& SetSerializer(std::unique_ptr<KLogSerializer> serializer);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// Set the log serializer directly instead of opening one implicitly with SetDebugLog()
+	self& SetSerializer(Serializer serializer);
+	//---------------------------------------------------------------------------
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class DEKAF2_PRIVATE PreventRecursion
@@ -728,6 +706,35 @@ private:
 
 }; // KLog
 
+#ifndef DEKAF2_WITH_KLOG
+namespace detail {
+template <typename Arg, typename... Args>
+void IntWarning_uNuSuAlNaMe (const char* sFunction, Arg&& arg, Args&&... args)
+{
+	std::clog << ">> ";
+	if (*sFunction) std::clog << sFunction << ": ";
+	std::clog << std::forward<Arg>(arg);
+#ifdef DEKAF2_HAS_CPP_17
+	((std::clog << ' ' << std::forward<Args>(args)), ...);
+#else
+	using expander = int[];
+	(void) expander { 0, (void(std::clog << ' ' << std::forward<Args>(args)), 0)... };
+#endif
+	std::clog << std::endl;
+}
+
+inline void IntException_uNuSuAlNaMe (const char* sWhat, const char* sFunction)
+{
+	std::clog << ">> " << sFunction << ": caught exception: '" << sWhat << '\'' << std::endl;
+}
+
+inline void IntException_uNuSuAlNaMe (const std::exception& e, const char* sFunction)
+{
+	IntException_uNuSuAlNaMe(e.what(), sFunction);
+}
+} // end of namespace detail
+#endif
+
 DEKAF2_NAMESPACE_END
 
 // there is no way to convince gcc to inline a variadic template function
@@ -784,6 +791,7 @@ DEKAF2_NAMESPACE_END
 #ifdef kWarning
 #undef kWarning
 #endif
+#ifdef DEKAF2_WITH_KLOG
 //---------------------------------------------------------------------------
 /// log a warning message, automatically provide function name.
 #define kWarning(...) \
@@ -791,10 +799,14 @@ DEKAF2_NAMESPACE_END
 	DEKAF2_PREFIX KLog::getInstance().debug_fun(-1, DEKAF2_FUNCTION_NAME, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
+#else
+#define kWarning(...) DEKAF2_PREFIX detail::IntWarning_uNuSuAlNaMe(DEKAF2_FUNCTION_NAME, __VA_ARGS__)
+#endif
 
 #ifdef kWarningLog
 #undef kWarningLog
 #endif
+#ifdef DEKAF2_WITH_KLOG
 //---------------------------------------------------------------------------
 /// log a warning message, do NOT automatically provide function name.
 #define kWarningLog(...) \
@@ -802,10 +814,14 @@ DEKAF2_NAMESPACE_END
 	DEKAF2_PREFIX KLog::getInstance().debug(-1, __VA_ARGS__); \
 }
 //---------------------------------------------------------------------------
+#else
+#define kWarningLog(...) DEKAF2_PREFIX detail::IntWarning_uNuSuAlNaMe("", __VA_ARGS__)
+#endif
 
 #ifdef kException
 #undef kException
 #endif
+#ifdef DEKAF2_WITH_KLOG
 //---------------------------------------------------------------------------
 /// log an exception, automatically provide function name and generate a
 /// stacktrace at level -2
@@ -814,10 +830,14 @@ DEKAF2_NAMESPACE_END
 	DEKAF2_PREFIX KLog::getInstance().Exception(except, DEKAF2_FUNCTION_NAME); \
 }
 //---------------------------------------------------------------------------
+#else
+#define kException(except) DEKAF2_PREFIX detail::IntException_uNuSuAlNaMe(except, DEKAF2_FUNCTION_NAME)
+#endif
 
 #ifdef kUnknownException
 #undef kUnknownException
 #endif
+#ifdef DEKAF2_WITH_KLOG
 //---------------------------------------------------------------------------
 /// log an unknown exception, automatically provide function name.
 #define kUnknownException() \
@@ -825,6 +845,9 @@ DEKAF2_NAMESPACE_END
 	DEKAF2_PREFIX KLog::getInstance().Exception(DEKAF2_FUNCTION_NAME); \
 }
 //---------------------------------------------------------------------------
+#else
+#define kUnknownException() DEKAF2_PREFIX detail::IntException_uNuSuAlNaMe("unknown", DEKAF2_FUNCTION_NAME)
+#endif
 
 #ifdef kDebugTrace
 #undef kDebugTrace

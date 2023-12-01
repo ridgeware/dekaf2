@@ -75,7 +75,7 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 
 	switch (iSignalNum)
 	{
-	#ifdef UNIX
+#ifdef DEKAF2_IS_UNIX
 	case SIGTERM:  // <-- [STOP] in browser causes apache to send SIGTERM to CGIs
 		sVerb = "KILLED";
 		break;
@@ -92,8 +92,8 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 		sVerb = "SIGPIPE";
 		sWarning += kFormat ("|       * * *  SIGPIPE  * * *\n");
 		break;
+#endif
 
-	#endif
 	case 0:
 	default:
 		sVerb = "CRASHED";
@@ -103,22 +103,30 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	// and start our own stackdump
 	if (g_tl_sCrashContext)
 	{
-		sWarning += ">>:=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:<<\n";
+		for (int i = 0; i < 44; ++i)
+		{
+			sWarning += ":=";
+		}
+		sWarning += '\n';
 		for (const auto sLine : g_tl_sCrashContext.Split("\n"))
 		{
 			sWarning += kFormat (">> {}: {}\n", sVerb, sLine);
 		}
-		sWarning += ">>:=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:=::=:=:<<\n";
+		for (int i = 0; i < 44; ++i)
+		{
+			sWarning += ":=";
+		}
+		sWarning += '\n';
 	}
 	else
 	{
-		sWarning += kFormat ("|                 *      \n");
-		sWarning += kFormat ("|            *    *    * \n");
-		sWarning += kFormat ("|              *  *  *   \n");
-		sWarning += kFormat ("|              {}\n", sVerb);
-		sWarning += kFormat ("|              *  *  *   \n");
-		sWarning += kFormat ("|            *    *    * \n");
-		sWarning += kFormat ("|                 *      \n");
+		sWarning += kFormat ("|{:<17}\n",      '*');
+		sWarning += kFormat ("|{:<12}\n", "*    *    *");
+		sWarning += kFormat ("|{:<14}\n",   "*  *  *");
+		sWarning += kFormat ("|{:<14}\n",     sVerb);
+		sWarning += kFormat ("|{:<14}\n",   "*  *  *");
+		sWarning += kFormat ("|{:<12}\n", "*    *    *");
+		sWarning += kFormat ("|{:<17}\n",      '*');
 	}
 
 	switch (iSignalNum)

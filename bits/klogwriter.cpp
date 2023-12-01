@@ -41,6 +41,9 @@
 */
 
 #include "klogwriter.h"
+
+#ifdef DEKAF2_WITH_KLOG
+
 #include "../kstring.h"
 #include "../ksplit.h"
 #include "../kfilesystem.h"
@@ -63,8 +66,7 @@
 	#include "../khttp_header.h" // for LogToRESTResponse()
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
 KLogWriter::~KLogWriter()
@@ -324,4 +326,6 @@ bool KLogHTTPHeaderWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOu
 
 #endif // of DEKAF2_KLOG_WITH_TCP
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
+
+#endif // of DEKAF2_WITH_KLOG

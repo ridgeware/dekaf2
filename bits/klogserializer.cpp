@@ -41,15 +41,17 @@
 */
 
 #include "klogserializer.h"
+
+#ifdef DEKAF2_WITH_KLOG
+
 #include "../ksystem.h"
 #include "../dekaf2.h"
 #include "../kgetruntimestack.h"
 #include "../kstringutils.h"
-#include "../klog.h" // for KLog::DASH ..
+#include "../kformat.h"
 #include "../ktime.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
              uint64_t  KLogData::s_iStartThread      = kGetTid();
 thread_local KUnixTime KLogData::s_TimeThreadStarted = kNow();
@@ -257,7 +259,7 @@ void KLogTTYSerializer::Serialize(bool bHiRes)
 	if (!m_sBacktrace.empty())
 	{
 		AddMultiLineMessage(sPrefix.ToView(0, PrefixWithoutFunctionSize), m_sBacktrace);
-		AddMultiLineMessage(sPrefix.ToView(0, PrefixWithoutFunctionSize), KLog::DASH);
+		AddMultiLineMessage(sPrefix.ToView(0, PrefixWithoutFunctionSize), kFormat("{:-^100}", ""));
 	}
 
 } // Serialize
@@ -445,11 +447,13 @@ void KLogSyslogSerializer::Serialize(bool bHiRes)
 	if (!m_sBacktrace.empty())
 	{
 		AddMultiLineMessage(sPrefix, m_sBacktrace);
-		AddMultiLineMessage(sPrefix, KLog::DASH);
+		AddMultiLineMessage(sPrefix, kFormat("{:-^100}", ""));
 	}
 
 } // Serialize
 
 #endif // of DEKAF2_HAS_SYSLOG
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
+
+#endif // of DEKAF2_WITH_KLOG

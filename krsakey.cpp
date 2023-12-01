@@ -64,7 +64,7 @@
 #endif
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
 KRSAKey::KRSAKey(KRSAKey&& other) noexcept
@@ -245,7 +245,7 @@ KRSAKey::Parameters::Parameters(const KJSON& json)
 {
 }
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #if OPENSSL_VERSION_NUMBER >= 0x030000000
 #ifdef DEKAF2_IS_GCC

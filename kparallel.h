@@ -126,7 +126,7 @@ public:
 			++iCount;
 		}
 
-		kDebugLog(2, "KRunThreads::Create(): started {} additional threads", iCount);
+		kDebug(2, "started {} additional threads", iCount);
 
 		return iCount;
 	}

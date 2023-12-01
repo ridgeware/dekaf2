@@ -3,12 +3,20 @@
    version = "1.0">
    <SummaryFormatters>
       <SummaryFormatter
-         formatString = "{$VAR.data()}:s"
+         formatString = "{$VAR.m_rep}:s"
          type = "dekaf2::KStringView">
       </SummaryFormatter>
       <SummaryFormatter
-         formatString = "{$VAR.c_str()}:s"
-         type = "dekaf2::KString">
+         formatString = "{$VAR.m_rep}:s"
+         type = "dekaf2::KStringViewZ">
       </SummaryFormatter>
+	  <SummaryFormatter
+		  formatString = "{$VAR.m_rep}:s"
+		  type = "dekaf2::KString">
+	  </SummaryFormatter>
+	  <SummaryFormatter
+		  formatString = "{$VAR.m_sContent.m_rep}:s"
+		  type = "dekaf2::KSQLString">
+	  </SummaryFormatter>
    </SummaryFormatters>
 </CustomDataFormatters>

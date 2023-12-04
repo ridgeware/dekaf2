@@ -347,7 +347,7 @@ TEST_CASE("UTF8") {
 		CHECK ( it == ie );
 	}
 
-#ifdef DEKAF2_HAS_CPP_17
+#ifdef DEKAF2_HAS_FULL_CPP_17
 	SECTION("Advance UTF32")
 	{
 		std::wstring_view sInput = L"testäöü test日本語abc中文Русский ..";

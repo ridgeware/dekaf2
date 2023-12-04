@@ -37,22 +37,33 @@ TEST_CASE("KTime") {
 		static constexpr KStringView sBadOrigTime2 = "Tue, 03 Aug 2021 10:23:42 -00";
 
 		auto tTime = kParseSMTPTimestamp(sOrigTime1);
+		auto tTime2 = kParseTimestamp(sOrigTime1);
 		CHECK (tTime.ok());
+		CHECK ( KUnixTime(tTime) == KUnixTime(tTime2) );
+		CHECK ( KUTCTime(tTime) == KUTCTime(tTime2) );
 		auto sTime = kFormSMTPTimestamp(tTime);
 		CHECK (sTime == sOrigTime1);
 
 		tTime = kParseSMTPTimestamp(sOrigTime2);
+		tTime2 = kParseTimestamp(sOrigTime2);
 		CHECK (tTime.ok());
+		CHECK ( KUnixTime(tTime) == KUnixTime(tTime2) );
+		CHECK ( KUTCTime(tTime) == KUTCTime(tTime2) );
 		sTime = kFormSMTPTimestamp(tTime);
-		CHECK (sTime == "Tue, 03 Aug 2021 06:53:42 -0000");
+		CHECK (sTime == "Tue, 03 Aug 2021 13:53:42 -0000");
 
 		tTime = kParseSMTPTimestamp(sOrigTime3);
+		tTime2 = kParseTimestamp(sOrigTime3);
 		CHECK (tTime.ok());
+		CHECK ( KUnixTime(tTime) == KUnixTime(tTime2) );
+		CHECK ( KUTCTime(tTime) == KUTCTime(tTime2) );
 		sTime = kFormSMTPTimestamp(tTime);
-		CHECK (sTime == "Tue, 03 Aug 2021 21:24:42 -0000");
+		CHECK (sTime == "Mon, 02 Aug 2021 23:22:42 -0000");
 
 		tTime = kParseSMTPTimestamp(sOrigTime4);
+		tTime2 = kParseTimestamp(sOrigTime4);
 		CHECK (tTime.ok());
+		CHECK ( KUnixTime(tTime) == KUnixTime(tTime2) );
 		sTime = kFormSMTPTimestamp(tTime);
 		CHECK (sTime == "Tue, 03 Aug 2021 09:23:42 -0000");
 

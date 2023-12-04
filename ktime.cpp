@@ -123,18 +123,54 @@ KUTCTime detail::KParsedTimestampBase::to_utc() const
 		return KUTCTime{to_unix()};
 	}
 
-	return KUTCTime{
-		KDate{chrono::year(m_tm.year), chrono::month(m_tm.month), chrono::day(m_tm.day)},
-		KTimeOfDay{
-			chrono::hours(m_tm.hour)
-			+ chrono::minutes(m_tm.minute)
-			+ chrono::seconds(m_tm.second)
-			+ chrono::milliseconds(m_tm.millisecond)
-			+ chrono::microseconds(m_tm.microsecond)
-		//	+ chrono::nanoseconds(m_tm.nanosecond)
-			- chrono::minutes(m_tm.utc_offset_minutes)
+	if (m_tm.utc_offset_minutes == 0)
+	{
+		return KUTCTime{
+			KDate{chrono::year(m_tm.year), chrono::month(m_tm.month), chrono::day(m_tm.day)},
+			KTimeOfDay{
+				chrono::hours(m_tm.hour),
+				chrono::minutes(m_tm.minute),
+				chrono::seconds(m_tm.second),
+				chrono::milliseconds(m_tm.millisecond)
+				+ chrono::microseconds(m_tm.microsecond)
+			//	+ chrono::nanoseconds(m_tm.nanosecond)
+			}
+		};
+	}
+	else 
+	{
+		auto d = chrono::hours(m_tm.hour)
+					+ chrono::minutes(m_tm.minute)
+					+ chrono::seconds(m_tm.second)
+					+ chrono::milliseconds(m_tm.millisecond)
+					+ chrono::microseconds(m_tm.microsecond);
+
+		if (m_tm.utc_offset_minutes > 0)
+		{
+			if (chrono::minutes(m_tm.utc_offset_minutes) <= d)
+			{
+				return KUTCTime{
+					KDate{chrono::year(m_tm.year), chrono::month(m_tm.month), chrono::day(m_tm.day)},
+					KTimeOfDay{ d - chrono::minutes(m_tm.utc_offset_minutes) }
+				};
+			}
 		}
-	};
+		else
+		{
+			// tz offset is negative
+			if (d - chrono::minutes(m_tm.utc_offset_minutes) < chrono::hours(24))
+			{
+				return KUTCTime{
+					KDate{chrono::year(m_tm.year), chrono::month(m_tm.month), chrono::day(m_tm.day)},
+					KTimeOfDay{ d - chrono::minutes(m_tm.utc_offset_minutes) }
+				};
+			}
+		}
+
+		return KUTCTime{ KUnixTime { chrono::sys_days(chrono::day(m_tm.day) / chrono::month(m_tm.month) / chrono::year(m_tm.year))
+									 + d
+									 - chrono::minutes(m_tm.utc_offset_minutes) } };
+	}
 
 } // to_utc
 
@@ -211,7 +247,7 @@ detail::KParsedWebTimestamp::raw_time detail::KParsedWebTimestamp::Parse(KString
 
 						if (Offset < chrono::days(1))
 						{
-							if (!bMinus)
+							if (bMinus)
 							{
 								Offset *= -1;
 							}

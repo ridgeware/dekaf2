@@ -648,6 +648,15 @@ bool KRESTServer::Execute()
 				}
 			}
 
+			// set crash context before rewriting any resources, to make sure we get the
+			// original input in case of a segfault
+			kSetCrashContext (kFormat ("{}: {}\nHost: {} Remote IP: {}",
+									   Request.Method.Serialize(),
+									   Request.Resource.Serialize(),
+									   m_Options.sServername,
+									   Request.GetRemoteIP())
+							  );
+
 			if (Request.Method == KHTTPMethod::INVALID)
 			{
 				kDebug (2, "invalid request method: {}", Request.RequestLine.GetMethod());
@@ -681,11 +690,16 @@ bool KRESTServer::Execute()
 			sURLPath.remove_prefix(m_Options.sBaseRoute);
 
 			// check if we have rewrite rules for the request path
-			m_Routes.RewritePath(sURLPath);
+			if (m_Routes.RewritePath(sURLPath) > 0)
+			{
+				kAppendCrashContext(kFormat("path {} to '{}'", "rewritten", sURLPath));
+			}
 
 			// check if we have redirect rules for the request path
 			if (m_Routes.RedirectPath(sURLPath) > 0)
 			{
+				kAppendCrashContext(kFormat("path {} to '{}'", "redirected", sURLPath));
+
 				Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
 				Response.Headers.Set(KHTTPHeader::LOCATION, sURLPath);
 
@@ -825,13 +839,6 @@ bool KRESTServer::Execute()
 			// debug info
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			kDebug (1, "{}: {}", GetRequestMethod(), GetRequestPath());
-
-			kSetCrashContext (kFormat ("{}: {}\nHost: {} Remote IP: {}",
-									   Request.Method.Serialize(),
-									   Request.Resource.Serialize(),
-									   m_Options.sServername,
-									   Request.GetRemoteIP())
-							  );
 
 			// check that we are still connected to the remote end
 			ThrowIfDisconnected();

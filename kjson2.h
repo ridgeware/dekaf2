@@ -49,8 +49,10 @@
 #endif
 
 #ifndef DEKAF2_KJSON2_IS_DISABLED
-	#if (__cplusplus <= 201402L) && (defined(__GNUC__) && !defined(__clang__))
-		// when compiling with GCC this code needs C++17
+	#if ((__cplusplus <= 201402L) && (defined(__GNUC__) && !defined(__clang__))) \
+		|| !__has_include(<nlohmann/json.hpp>)
+		// when compiling with GCC this code needs C++17,
+		// and in any case we need the nlohmann::json class..
 		#define DEKAF2_KJSON2_IS_DISABLED 1
 	#else
 		#define DEKAF2_KJSON2_IS_DISABLED 0
@@ -81,7 +83,11 @@
 #endif
 
 #ifndef DEKAF2_KJSON_NAMESPACE
-	#define DEKAF2_KJSON_NAMESPACE dekaf2
+	#ifdef DEKAF2_NAMESPACE_NAME
+		#define DEKAF2_KJSON_NAMESPACE DEKAF2_NAMESPACE_NAME
+	#else
+		#define DEKAF2_KJSON_NAMESPACE dekaf2
+	#endif
 #endif
 
 #ifndef DEKAF2_PUBLIC
@@ -102,6 +108,10 @@
 
 #ifndef DEKAF2_UNLIKELY
 	#define DEKAF2_UNLIKELY
+#endif
+
+#ifndef DEKAF2_HAS_INCLUDE
+	#define DEKAF2_HAS_INCLUDE(x) __has_include(x)
 #endif
 
 #ifndef kDebug
@@ -590,6 +600,9 @@ public:
 	/// Returns a string representation for any type of json element, which includes serializations for arrays and objects
 	StringT         Print     (StringViewT sDefault = StringViewT{}, bool bSerializeAll = true) const;
 
+	///Returns true if the json element exists, else false. Does not throw.
+	bool            Exists     () const noexcept { return is_null() == false; }
+
 	// unfortunately, C++ does not allow an implicit conversion to a private base class,
 	// therefore we have to declare it as a named method here (and force it manually
 	// wherever needed)
@@ -794,7 +807,7 @@ public:
 
 
 
-	// imported methods from base which are exception safe:
+	// imported methods from base that do not throw:
 
 	using base::type;
 	using base::type_name;
@@ -1519,14 +1532,14 @@ const KJSON2& GetArray (const T& json, KJSON2::StringViewT sKey) noexcept
 	return json(sKey).Array();
 }
 
-/// DEPRECATED - use call operator access
+/// DEPRECATED - use member function Exists()
 /// returns true if the key exists, never throws
 /// @param json the json input
 /// @param sKey the key to search for
 DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
 bool Exists (const T& json, KJSON2::StringViewT sKey) noexcept
 {
-	return json(sKey).is_null() == false;
+	return json(sKey).Exists();
 }
 
 /// DEPRECATED - use call operator access
@@ -1712,6 +1725,12 @@ using kjson::Contains;
 using kjson::Increment;
 using kjson::Decrement;
 
+#else // of #ifdef DEKAF2
+
+// alias KJSON2 into KJSON, as we usually access it by
+// the old name
+using KJSON = KJSON2;
+
 #endif // of #ifdef DEKAF2
 
 } // end of DEKAF2_KJSON_NAMESPACE
@@ -1729,7 +1748,7 @@ struct hash<dekaf2::KJSON2>
 
 } // end of namespace std
 
-#ifdef DEKAF2
+#if DEKAF2_HAS_INCLUDE("kformat.h")
 
 #include "kformat.h"
 
@@ -1747,7 +1766,7 @@ struct formatter<dekaf2::KJSON2> : formatter<string_view>
 
 } // end of DEKAF2_FORMAT_NAMESPACE
 
-#endif // of #ifdef DEKAF2
+#endif // of #if DEKAF2_HAS_INCLUDE("kformat.h")
 
 #undef DEKAF2_FORCE_KJSON2
 #undef DEKAF2_FORCE_CHAR_PTR

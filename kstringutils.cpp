@@ -40,9 +40,13 @@
 */
 
 #include "kstringutils.h"
-#include "kurl.h"
-#include "kregex.h"
-#include "kencode.h"
+#include "khex.h"
+#if DEKAF2_HAS_INCLUDE("kurl.h")
+	#include "kurl.h"
+#endif
+#if DEKAF2_HAS_INCLUDE("kregex.h")
+	#include "kregex.h"
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 

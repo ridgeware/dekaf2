@@ -45,6 +45,7 @@
 
 #include "kstringview.h"
 #include "kstring.h"
+#include "khex.h"
 #include "kbase64.h"
 #include "kurlencode.h"
 #include "khtmlentities.h"
@@ -67,15 +68,15 @@ public:
 	/// Append a char in hexadecimal to sOut
 	static void HexAppend(KStringRef& sOut, char chIn)
 	{
-		static constexpr KStringView hexify { "0123456789abcdef" };
-
-		sOut += hexify[(chIn >> 4) & 0x0f];
-		sOut += hexify[(chIn     ) & 0x0f];
+		kHexAppend(sOut, chIn);
 
 	} // KEnc::HexAppend
 
 	/// Convert an input string to hexadecimal
-	static KString Hex(KStringView sIn);
+	static KString Hex(KStringView sIn)
+	{
+		return kHex(sIn);
+	}
 
 	/// Convert an input string to hexadecimal
 	static void HexInPlace(KStringRef& sBuffer)
@@ -170,7 +171,10 @@ public:
 //----------
 
 	/// Decode a hexadecimal input string
-	static KString Hex(KStringView sIn);
+	static KString Hex(KStringView sIn)
+	{
+		return kUnHex(sIn);
+	}
 
 	/// Decode a hexadecimal input string
 	static void HexInPlace(KStringRef& sBuffer)

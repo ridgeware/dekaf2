@@ -792,6 +792,7 @@ set(PUBLIC_HEADERS
 	kgetruntimestack.h
 	khash.h
 	kheapmon.h
+	khex.h
 	khmac.h
 	khtmlcontentblocks.h
 	khtmldom.h
@@ -972,6 +973,7 @@ set (PRECOMPILED_HEADERS
 	kduration.h
 	kfilesystem.h
 	kformat.h
+	khex.h
 	khtmlentities.h
 	kjoin.h
 	kjson.h
@@ -1048,6 +1050,7 @@ set (SOURCES
 	kgetruntimestack.cpp
 	khash.cpp
 	kheapmon.cpp
+	khex.cpp
 	khmac.cpp
 	khtmlcontentblocks.cpp
 	khtmldom.cpp

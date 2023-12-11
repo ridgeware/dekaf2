@@ -38,14 +38,14 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kencode.h"
+#include "khex.h"
 #include "kstringutils.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-KString KEncode::Hex(KStringView sIn)
+KString kHex(KStringView sIn)
 //-----------------------------------------------------------------------------
 {
 	KString sRet;
@@ -54,15 +54,15 @@ KString KEncode::Hex(KStringView sIn)
 
 	for (auto ch : sIn)
 	{
-		HexAppend(sRet, ch);
+		kHexAppend(sRet, ch);
 	}
 
 	return sRet;
 
-} // KEnc::Hex
+} // kHex
 
 //-----------------------------------------------------------------------------
-KString KDecode::Hex(KStringView sIn)
+KString kUnHex(KStringView sIn)
 //-----------------------------------------------------------------------------
 {
 	KString sRet;
@@ -99,7 +99,6 @@ KString KDecode::Hex(KStringView sIn)
 
 	return sRet;
 
-} // KDec::Hex
+} // kUnHex
 
-} // of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

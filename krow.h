@@ -47,7 +47,7 @@
 #include "kprops.h"
 #include "kjson.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ///  a string type that guarantees that all string values (from string var formatting) are SQL escaped
@@ -724,9 +724,13 @@ inline void from_json(const LJSON& j, KROW& row)
 	row.from_json(j);
 }
 
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END
 
-namespace fmt
+#if DEKAF2_HAS_INCLUDE("kformat.h")
+
+#include "kformat.h"
+
+namespace DEKAF2_FORMAT_NAMESPACE
 {
 
 template <>
@@ -739,7 +743,19 @@ struct formatter<dekaf2::KCOL::Flags> : formatter<string_view>
 	}
 };
 
-} // end of namespace fmt
+template <>
+struct formatter<dekaf2::KSQLString> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const dekaf2::KSQLString& sString, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(sString.str(), ctx);
+	}
+};
+
+} // end of DEKAF2_FORMAT_NAMESPACE
+
+#endif // of DEKAF2_HAS_INCLUDE("kformat.h")
 
 namespace std
 {
@@ -752,18 +768,3 @@ std::ostream& operator <<(std::ostream& stream, const T& sString)
 }
 
 } // namespace std
-
-namespace fmt
-{
-
-template <>
-struct formatter<dekaf2::KSQLString> : formatter<string_view>
-{
-	template <typename FormatContext>
-	auto format(const dekaf2::KSQLString& sString, FormatContext& ctx) const
-	{
-		return formatter<string_view>::format(sString.str(), ctx);
-	}
-};
-
-} // namespace fmt

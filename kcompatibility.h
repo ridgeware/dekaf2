@@ -109,7 +109,9 @@ namespace std
 // simply picks the first one that matches.
 #ifndef DEKAF2_HAS_CPP_14
 
-#include "bits/kmake_unique.h"
+#if DEKAF2_HAS_INCLUDE("bits/kmake_unique.h")
+	#include "bits/kmake_unique.h"
+#endif
 
 namespace std
 {
@@ -149,12 +151,13 @@ struct negation : bool_constant<!bool(T::value)> { };
 #endif
 
 #ifndef DEKAF2_HAS_CPP_23
-namespace std {
-template<class Enum, typename enable_if<is_enum<Enum>::value, int>::type = 0>
-constexpr typename underlying_type<Enum>::type to_underlying(Enum e) noexcept
+namespace std 
 {
-	return static_cast<typename underlying_type<Enum>::type>(e);
-}
+	template<class Enum, typename enable_if<is_enum<Enum>::value, int>::type = 0>
+	constexpr typename underlying_type<Enum>::type to_underlying(Enum e) noexcept
+	{
+		return static_cast<typename underlying_type<Enum>::type>(e);
+	}
 } // end of namespace std
 #endif
 
@@ -185,7 +188,7 @@ namespace std
 	#else
 		// we lack a C++11 implementation..
 		template<typename F, typename Tuple>
-		auto apply(F&& f, Tuple&& t)
+		void apply(F&& f, Tuple&& t)
 		{
 			static_assert(false, "dekaf2 misses a C++11-only implementation of std::apply, if possible update to C++14 or newer");
 		}

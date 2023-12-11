@@ -41,7 +41,6 @@
 */
 
 #include "kcrashexit.h"
-#include "kcompatibility.h"
 #include "kstringview.h"
 #include "klog.h"
 #include "kgetruntimestack.h"

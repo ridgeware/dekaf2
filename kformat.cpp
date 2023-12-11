@@ -42,7 +42,6 @@
 #include "kwrite.h"
 #include "kstring.h"
 #include "klog.h"
-#include <cstdio>
 
 #ifndef DEKAF2_HAS_STD_FORMAT
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
@@ -112,6 +111,8 @@ KString kFormat(KStringView sFormat, const dekaf2_format::format_args& args) noe
 	{
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 		dekaf2_format::vformat_to(std::back_inserter(sOut), sFormat.operator format::string_view(), args);
+#elif DEKAF2_KSTRINGVIEW_IS_STD_STRINGVIEW
+		sOut = dekaf2_format::vformat(sFormat, args);
 #else
 		sOut = dekaf2_format::vformat(sFormat.operator dekaf2_format::string_view(), args);
 #endif
@@ -137,6 +138,8 @@ KString kFormat(const std::locale& locale, KStringView sFormat, const dekaf2_for
 	{
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 		format::vformat_to(locale, std::back_inserter(sOut), sFormat.operator format::string_view(), args);
+#elif DEKAF2_KSTRINGVIEW_IS_STD_STRINGVIEW
+		sOut = dekaf2_format::vformat(locale, sFormat, args);
 #else
 		sOut = dekaf2_format::vformat(locale, sFormat.operator dekaf2_format::string_view(), args);
 #endif

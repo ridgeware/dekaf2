@@ -840,7 +840,9 @@ set(PUBLIC_HEADERS
 	kprof.h
 	kprops.h
 	kquotedprintable.h
+	kread.h
 	kreader.h
+	kreference_proxy.h
 	kregex.h
 	kreplacer.h
 	krest.h
@@ -895,6 +897,7 @@ set(PUBLIC_HEADERS
 	kwebobjects.h
 	kwebsocket.h
 	kwords.h
+	kwrite.h
 	kwriter.h
 	kxml.h
 )
@@ -961,7 +964,6 @@ set (PRECOMPILED_HEADERS
 	bits/kstring_view.h
 	bits/khash.h
 	bits/kmutable_pair.h
-	bits/ktemplate.h
 	bits/kunique_deleter.h
 	dekaf2.h
 	kassociative.h
@@ -980,7 +982,9 @@ set (PRECOMPILED_HEADERS
 	klog.h
 	koutstringstream.h
 	kprops.h
+	kread.h
 	kreader.h
+	kreference_proxy.h
 	krow.h
 	ksplit.h
 	kstack.h
@@ -996,6 +1000,7 @@ set (PRECOMPILED_HEADERS
 	kurl.h
 	kurlencode.h
 	kutf8.h
+	kwrite.h
 	kwriter.h
 
 	# 3rd party libs
@@ -1042,7 +1047,6 @@ set (SOURCES
 	kdate.cpp
 	kdiff.cpp
 	kduration.cpp
-	kencode.cpp
 	kfdstream.cpp
 	kfileserver.cpp
 	kfilesystem.cpp
@@ -1093,6 +1097,7 @@ set (SOURCES
 	kprof.cpp
 	kprops.cpp
 	kquotedprintable.cpp
+	kread.cpp
 	kreader.cpp
 	kregex.cpp
 	kreplacer.cpp
@@ -1135,6 +1140,7 @@ set (SOURCES
 	kwebobjects.cpp
 	kwebsocket.cpp
 	kwords.cpp
+	kwrite.cpp
 	kwriter.cpp
 	kxml.cpp
 )

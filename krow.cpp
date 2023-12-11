@@ -46,7 +46,7 @@
 #include "ksystem.h"
 #include "kexception.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 // MySQL requires NUL, the quotes and backslash to be escaped. Do not escape
 // by doubling the value, as the result then depends on the context (if inside
@@ -1225,4 +1225,4 @@ bool KROW::Exists (KStringView sColName) const
 
 } // Exists
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

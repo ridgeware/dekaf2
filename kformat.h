@@ -43,7 +43,7 @@
 /// @file kformat.h
 /// provides basic string formatter functionality
 
-#include "kdefinitions.h"
+#include "kcompatibility.h"
 
 #undef DEKAF2_HAS_STD_FORMAT
 #undef DEKAF2_FORMAT_NAMESPACE
@@ -61,16 +61,20 @@
 
 #ifdef DEKAF2_HAS_STD_FORMAT
 	#define DEKAF2_FORMAT_NAMESPACE std
-#else
+#elif DEKAF2_HAS_INCLUDE(<fmt/format.h>)
 	#define DEKAF2_FORMAT_NAMESPACE fmt
-	#include <fmt/core.h>
+	#define DEKAF2_HAS_FMT_FORMAT 1
+	#include <fmt/format.h>
 	#include <fmt/chrono.h>
+#else
+	#error "no formatting library found"
 #endif
 
 #include "kstringview.h"
 #include "kstring.h"
 #include <ostream>
 #include <locale>
+#include <cstdio>
 
 // fmt v10.0 doesn't support enum to int conversion anymore - add a generic conversion
 template<typename Enum, typename std::enable_if<std::is_enum<Enum>::value, int>::type = 0>
@@ -107,7 +111,7 @@ inline DEKAF2_PUBLIC
 KString kFormat(KStringView sFormat) noexcept
 //-----------------------------------------------------------------------------
 {
-	return sFormat;
+	return KString(sFormat);
 }
 
 //-----------------------------------------------------------------------------

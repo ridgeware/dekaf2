@@ -46,8 +46,8 @@
 
 #include "kdefinitions.h"
 #include "bits/kstring_view.h"
-#include "bits/ktemplate.h"
 #include "bits/khash.h"
+#include "ktemplate.h"
 #include "kutf8.h"
 #include "kbit.h"
 #include <fmt/format.h>

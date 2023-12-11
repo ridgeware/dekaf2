@@ -44,7 +44,7 @@
 
 #include <vector>
 #include "kdefinitions.h"
-#include "bits/ktemplate.h"
+#include "ktemplate.h"
 #include "kstringview.h"
 
 /// @file ksplit.h

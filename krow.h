@@ -42,7 +42,8 @@
 
 #pragma once
 
-#include "bits/ktemplate.h"
+#include "kdefinitions.h"
+#include "ktemplate.h"
 #include "kprops.h"
 #include "kjson.h"
 

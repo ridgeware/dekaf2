@@ -46,7 +46,7 @@
 /// generic threadsafe sharing for non-atomic types
 
 #include "kcompatibility.h"
-#include "bits/ktemplate.h"
+#include "kreference_proxy.h"
 #include <mutex>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -66,7 +66,7 @@ public:
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper type for unique locked access
-	class UniqueLocked : public detail::ReferenceProxy<T>
+	class UniqueLocked : public KReferenceProxy<T>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 
@@ -75,7 +75,7 @@ public:
 	//----------
 
 		UniqueLocked(KThreadSafe& Parent)
-		: detail::ReferenceProxy<T>(Parent.m_Shared)
+		: KReferenceProxy<T>(Parent.m_Shared)
 		, m_Lock(Parent.m_Mutex)
 		{
 		}
@@ -90,7 +90,7 @@ public:
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper type for shared locked access
-	class SharedLocked : public detail::ConstReferenceProxy<T>
+	class SharedLocked : public KConstReferenceProxy<T>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 
@@ -99,7 +99,7 @@ public:
 	//----------
 
 		SharedLocked(const KThreadSafe& Parent)
-		: detail::ConstReferenceProxy<T>(Parent.m_Shared)
+		: KConstReferenceProxy<T>(Parent.m_Shared)
 		, m_Lock(Parent.m_Mutex)
 		{
 		}

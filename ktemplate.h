@@ -44,8 +44,10 @@
 /// @file ktemplate.h
 /// helper templates for template meta programming
 
-#include "../kcompatibility.h"
-#include "kstring_view.h"
+#include "kcompatibility.h"
+#if DEKAF2_HAS_INCLUDE("bits/kstring_view.h")
+	#include "bits/kstring_view.h"
+#endif
 #include <functional>
 #include <cwctype>
 #include <type_traits>
@@ -171,9 +173,11 @@ struct is_pod
 
 } // of namespace detail
 
+#ifndef DEKAF2_KSTRING_IS_STD_STRING
 class KString;
 class KStringView;
 class KStringViewZ;
+#endif
 
 namespace detail
 {
@@ -208,7 +212,9 @@ struct is_narrow_string_view
       bool,
       std::is_same<KStringViewZ,           typename std::decay<T>::type>::value
    || std::is_same<KStringView,            typename std::decay<T>::type>::value
+#ifdef DEKAF2_SV_NAMESPACE
    || std::is_same<sv::string_view,        typename std::decay<T>::type>::value
+#endif
 > {};
 
 template<class T>
@@ -216,7 +222,7 @@ struct is_wide_string_view
   : std::integral_constant<
       bool,
       false
-#if defined(DEKAF2_HAS_FULL_CPP_17)
+#ifdef DEKAF2_HAS_FULL_CPP_17
    || std::is_same<std::wstring_view,      typename std::decay<T>::type>::value
 #endif
 > {};
@@ -293,126 +299,6 @@ struct is_kstringviewz_assignable
 	bool,
 	std::is_assignable<KStringViewZ, T>::value
 > {};
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// helper class to wrap one object reference and access it through a proxy object
-template<class T>
-class ReferenceProxy
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	ReferenceProxy(T& proxied) : m_proxied(proxied) {};
-
-	/// get reference on object
-	T& get()
-	{
-		return m_proxied;
-	}
-
-	/// get pointer on object
-	T* operator->()
-	{
-		return &get();
-	}
-
-	/// get reference on object
-	T& operator*()
-	{
-		return get();
-	}
-
-	/// get reference on object
-	operator T&()
-	{
-		return get();
-	}
-
-	/// helper for subscript access - acts as a proxy for the real object
-	template<typename KeyType, typename Map = T,
-			 typename std::enable_if<detail::is_map_type<Map>::value == true, int>::type = 0>
-	typename Map::mapped_type& operator[](KeyType&& Key)
-	{
-		return get().operator[](std::forward<KeyType>(Key));
-	}
-
-	template<typename KeyType, typename Array = T,
-			 typename std::enable_if<detail::is_std_array<Array>::value == true, int>::type = 0>
-	typename Array::value_type& operator[](KeyType&& Key)
-	{
-		return get().operator[](std::forward<KeyType>(Key));
-	}
-
-//----------
-private:
-//----------
-
-	T& m_proxied;
-
-}; // ReferenceProxy
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// helper class to const wrap one object reference and access it through a proxy object
-template<class T>
-class ConstReferenceProxy
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	ConstReferenceProxy(const T& proxied) : m_proxied(proxied) {};
-
-	/// get const reference on object
-	const T& get() const
-	{
-		return m_proxied;
-	}
-
-	/// get const pointer on object
-	const T* operator->() const
-	{
-		return &get();
-	}
-
-	/// get const reference on object
-	const T& operator*() const
-	{
-		return get();
-	}
-
-	/// get const reference on object
-	operator const T&() const
-	{
-		return get();
-	}
-
-	/// helper for subscript access - acts as a proxy for the real object
-	template<typename KeyType, typename Map = T,
-			 typename std::enable_if<detail::is_map_type<Map>::value == true, int>::type = 0>
-	const typename Map::mapped_type& operator[](KeyType&& Key)
-	{
-		return get().at(std::forward<KeyType>(Key));
-	}
-
-	template<typename KeyType, typename Array = T,
-			 typename std::enable_if<detail::is_std_array<Array>::value == true, int>::type = 0>
-	const typename Array::value_type& operator[](KeyType&& Key)
-	{
-		return get().at(std::forward<KeyType>(Key));
-	}
-
-//----------
-private:
-//----------
-
-	const T& m_proxied;
-
-}; // ConstReferenceProxy
 
 } // of namespace detail
 

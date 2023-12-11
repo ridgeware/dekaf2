@@ -52,7 +52,7 @@
 #include "../kstringview.h"
 #include "../kstring.h"
 #include "../kprops.h"
-#include "ktemplate.h"
+#include "../ktemplate.h"
 #include "../kwriter.h"
 #include <cinttypes>
 

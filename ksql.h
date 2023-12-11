@@ -45,7 +45,7 @@
 /// @file ksql.h
 /// dekaf2's main SQL abstraction KSQL
 
-#include "kconfiguration.h"
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "krow.h"
@@ -54,9 +54,11 @@
 #include "kexception.h"
 #include "ksystem.h"
 #include "kthreadsafe.h"
+#include "kreference_proxy.h"
 #include "kassociative.h"
 #include "kscopeguard.h"
 #include "kduration.h"
+#include "ktemplate.h"
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
@@ -890,7 +892,7 @@ public:
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper object to proxy access to KSQL and reset the Throw/NoThrow state after use
 	template<class SQL>
-	class ThrowingSQL : public detail::ReferenceProxy<SQL>
+	class ThrowingSQL : public KReferenceProxy<SQL>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 
@@ -898,7 +900,7 @@ public:
 	public:
 	//----------
 
-		using base = detail::ReferenceProxy<SQL>;
+		using base = KReferenceProxy<SQL>;
 
 		ThrowingSQL(SQL& sql, bool bYesNo)
 		: base(sql)

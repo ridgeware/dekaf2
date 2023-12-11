@@ -50,8 +50,8 @@
 
 #include "kcompatibility.h"
 #include "bits/kstring_view.h"
-#include "bits/khash.h"
-#include "bits/ktemplate.h"
+#include "ktemplate.h"
+#include "kctype.h"
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 #include <folly/FBString.h>
 #endif

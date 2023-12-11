@@ -43,7 +43,7 @@
 #pragma once
 
 #include "kdefinitions.h"
-#include "bits/ktemplate.h"
+#include "ktemplate.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include "kformat.h"

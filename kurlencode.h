@@ -48,7 +48,7 @@
 #include "kstringview.h"
 #include "kstring.h"
 #include "kprops.h"
-#include "bits/ktemplate.h"
+#include "ktemplate.h"
 #include "kwriter.h"
 #include <cinttypes>
 #include "kctype.h"

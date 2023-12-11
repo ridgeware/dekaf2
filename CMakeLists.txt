@@ -732,7 +732,6 @@ set (BITS_HEADERS
 	bits/kstring_view.h
 	bits/kstringviewz.h
 	bits/ktarheader.h
-	bits/ktemplate.h
 	bits/kunique_deleter.h
 	bits/kurldualencode.h
 )
@@ -876,6 +875,7 @@ set(PUBLIC_HEADERS
 	ktcpclient.h
 	ktcpserver.h
 	ktcpstream.h
+	ktemplate.h
 	kthreadpool.h
 	kthreads.h
 	kthreadsafe.h
@@ -960,7 +960,6 @@ set (PRECOMPILED_HEADERS
 	[["kconfiguration.h"]]
 	bits/kstring_view.h
 	bits/khash.h
-	bits/ktemplate.h
 	bits/kmutable_pair.h
 	bits/ktemplate.h
 	bits/kunique_deleter.h
@@ -992,6 +991,7 @@ set (PRECOMPILED_HEADERS
 	kstringutils.h
 	kstringview.h
 	ksystem.h
+	ktemplate.h
 	ktime.h
 	kurl.h
 	kurlencode.h
@@ -1492,6 +1492,7 @@ endif()
 
 # remove old headers, until mid-2024
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kcppcompat.h)")
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/ktemplate.h)")
 # remove old headers, until mid-2023
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kprops-multi-index.h)")
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kprops-std-map.h)")

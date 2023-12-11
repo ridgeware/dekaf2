@@ -51,7 +51,7 @@
 #include "kprops.h"
 #include "kstream.h"
 #include "kformat.h"
-#include "bits/ktemplate.h"
+#include "ktemplate.h"
 #include <cinttypes>
 
 namespace dekaf2 {

@@ -50,7 +50,7 @@
 #include "ksystem.h"
 #include "kctype.h"
 #include "kutf8.h"
-#include "bits/ktemplate.h"
+#include "ktemplate.h"
 #include <cinttypes>
 #include <algorithm>
 #include <cstring>

@@ -48,9 +48,7 @@
 #include "kstring.h"
 #include "kstringview.h"
 #include "kduration.h"
-#include "kthreadsafe.h"
-#include "bits/ktemplate.h"
-#include "bits/khash.h"
+#include "ktemplate.h"
 #include "kdate.h"
 #include <cinttypes>
 #include <ctime>

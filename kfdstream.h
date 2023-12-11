@@ -41,6 +41,8 @@
 
 #pragma once
 
+#include "kread.h"
+#include "kwrite.h"
 #include "kstream.h"
 #include "kstreambuf.h"
 #include <cstdio>

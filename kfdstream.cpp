@@ -64,7 +64,7 @@ std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* file
 
 	int fd = *static_cast<int*>(filedesc);
 
-	return static_cast<std::streamsize>(kReadFromFileDesc(fd, sBuffer, static_cast<size_t>(iCount)));
+	return static_cast<std::streamsize>(kRead(fd, sBuffer, static_cast<size_t>(iCount)));
 
 } // FileDescReader
 
@@ -80,7 +80,7 @@ std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void
 
 	int fd = *static_cast<int*>(filedesc);
 
-	return static_cast<std::streamsize>(kWriteToFileDesc(fd, sBuffer, static_cast<size_t>(iCount)));
+	return static_cast<std::streamsize>(kWrite(fd, sBuffer, static_cast<size_t>(iCount)));
 
 } // FileDescWriter
 
@@ -95,7 +95,7 @@ std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* filep
 
 	FILE** fp = static_cast<FILE**>(fileptr);
 
-	return static_cast<std::streamsize>(kReadFromFilePtr(*fp, sBuffer, static_cast<size_t>(iCount)));
+	return static_cast<std::streamsize>(kRead(*fp, sBuffer, static_cast<size_t>(iCount)));
 
 } // FilePtrReader
 
@@ -110,7 +110,7 @@ std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void*
 
 	FILE** fp = static_cast<FILE**>(fileptr);
 
-	return static_cast<std::streamsize>(kWriteToFilePtr(*fp, sBuffer, static_cast<size_t>(iCount)));
+	return static_cast<std::streamsize>(kWrite(*fp, sBuffer, static_cast<size_t>(iCount)));
 
 } // FilePtrWriter
 

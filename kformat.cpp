@@ -39,7 +39,7 @@
 */
 
 #include "kformat.h"
-#include "kwriter.h"
+#include "kwrite.h"
 #include "kstring.h"
 #include "klog.h"
 #include <cstdio>
@@ -58,7 +58,7 @@ DEKAF2_NAMESPACE_BEGIN
 bool kPrint(int fd, KStringView sFormat) noexcept
 //-----------------------------------------------------------------------------
 {
-	return kWriteToFileDesc(fd, sFormat.data(), sFormat.size()) == sFormat.size();
+	return kWrite(fd, sFormat.data(), sFormat.size()) == sFormat.size();
 }
 
 //-----------------------------------------------------------------------------
@@ -74,7 +74,7 @@ bool kPrintLine(int fd, KStringView sFormat) noexcept
 bool kPrint(std::FILE* fp, KStringView sFormat) noexcept
 //-----------------------------------------------------------------------------
 {
-	return kWriteToFilePtr(fp, sFormat.data(), sFormat.size()) == sFormat.size();
+	return kWrite(fp, sFormat.data(), sFormat.size()) == sFormat.size();
 }
 
 //-----------------------------------------------------------------------------

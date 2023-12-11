@@ -47,10 +47,14 @@
 /// and provides the KDate class to calculate with dates
 
 #include "kdefinitions.h"
-#include <kconfiguration.h>
+#if DEKAF2_HAS_INCLUDE(<kconfiguration.h>)
+	#include <kconfiguration.h>
+#endif
 #include "kstring.h"
 #include "kstringview.h"
-#include "bits/khash.h"
+#include <chrono>
+#include <locale>
+#include <ostream>
 
 // We do not generally want to use std::time_put() for time formatting because it uses a different
 // formatting engine than std::format() or fmt::format() - the rules for the conversion specifiers
@@ -72,17 +76,13 @@
 #ifndef DEKAF2_USE_HINNANT_DATE
 	#if defined(DEKAF2_STD_CHRONO_HAS_CALENDAR) && DEKAF2_HAS_CPP_20
 		#define DEKAF2_USE_HINNANT_DATE 0
-	#else
+	#elif DEKAF2_HAS_INCLUDE(<date/date.h>)
 		#define DEKAF2_USE_HINNANT_DATE 1
-	#endif
-#endif
-
-#ifndef DEKAF2_USE_HINNANT_TIMEZONE
-	#if defined(DEKAF2_STD_CHRONO_HAS_TIMEZONE) && DEKAF2_HAS_CPP_20
-		#define DEKAF2_USE_HINNANT_TIMEZONE 0
+	#elif DEKAF2_HAS_INCLUDE("hhinnant-date.h")
+		#define DEKAF2_USE_HINNANT_DATE 2
 	#else
-		#define DEKAF2_USE_HINNANT_TIMEZONE 1
-#endif
+		#define DEKAF2_USE_HINNANT_DATE 0
+	#endif
 #endif
 
 // again, when we built our lib with C++20, but someone else uses it
@@ -92,21 +92,41 @@
 	#undef DEKAF2_STD_CHRONO_HAS_LOCAL_T
 #endif
 
-#include <chrono>
 #if DEKAF2_USE_HINNANT_DATE || !DEKAF2_HAS_CHRONO_ROUND
-	// date:: only creates the is_clock check when we have void_t - and we supply
-	// a void_t also for C++ < 17
-	#define HAS_VOID_T 1
-	#include <date/date.h>
+	#if DEKAF2_HAS_INCLUDE(<date/date.h>)
+		// date:: only creates the is_clock check when we have void_t - and we supply
+		// a void_t also for C++ < 17
+		#define HAS_VOID_T 1
+		#include <date/date.h>
+	#elif DEKAF2_HAS_INCLUDE("hhinnant-date.h")
+		#define HAS_VOID_T 1
+		#include "hhinnant-date.h"
+	#endif
 #endif
 
-#ifdef DEKAF2_USE_HINNANT_TIMEZONE
+#ifndef DEKAF2_USE_HINNANT_TIMEZONE
+	#if defined(DEKAF2_STD_CHRONO_HAS_TIMEZONE) && DEKAF2_HAS_CPP_20
+		#define DEKAF2_USE_HINNANT_TIMEZONE 0
+		#define DEKAF2_HAS_TIMEZONES 1
+	#elif DEKAF2_HAS_INCLUDE(<date/tz.h>)
+		#define DEKAF2_USE_HINNANT_TIMEZONE 1
+		#define DEKAF2_HAS_TIMEZONES 1
+		#include <date/tz.h>
+	#else
+		#define DEKAF2_USE_HINNANT_TIMEZONE 0
+	#endif
+#else
+	#define DEKAF2_HAS_TIMEZONES 1
 	#include <date/tz.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
 
 namespace chrono {
+
+#if !DEKAF2_HAS_TIMEZONES
+typedef void time_zone;
+#endif
 
 // importing std::chrono into dekaf2::chrono
 using namespace std::chrono;
@@ -829,6 +849,10 @@ std::ostream& operator<<(std::ostream& stream, KDate time)
 
 DEKAF2_NAMESPACE_END
 
+#if DEKAF2_HAS_INCLUDE("kformat.h")
+
+// kFormat formatters
+
 #include "kformat.h"
 
 namespace DEKAF2_FORMAT_NAMESPACE {
@@ -853,6 +877,12 @@ template<> struct formatter<DEKAF2_PREFIX KDate> : formatter<std::tm>
 
 } // end of DEKAF2_FORMAT_NAMESPACE
 
+#endif // has #include "kformat.h"
+
+#if DEKAF2_HAS_INCLUDE("bits/khash.h")
+
+#include "bits/khash.h"
+
 namespace std {
 
 template<> struct hash<DEKAF2_PREFIX KConstDate>
@@ -872,3 +902,5 @@ template<> struct hash<DEKAF2_PREFIX KDate>
 };
 
 } // end of namespace std
+
+#endif // of has #include "bits/khash.h"

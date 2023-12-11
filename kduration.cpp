@@ -42,6 +42,13 @@
 
 #include "kduration.h"
 #include "klog.h"
+#if DEKAF2_HAS_INCLUDE("kformat.h")
+	#include "kformat.h"
+#else
+	#include <cstdio> // for snprintf
+	#include <array>
+	#include <algorithm>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -69,7 +76,11 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 				sOut += ", ";
 			}
 
+#ifndef DEKAF2_KSTRING_IS_STD_STRING
 			sOut += KString::to_string(iValue);
+#else
+			sOut += std::to_string(iValue);
+#endif
 			sOut += ' ';
 			sOut += sLabel;
 
@@ -93,6 +104,7 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 		}
 		else
 		{
+#ifdef DEKAF2_FORMAT_NAMESPACE
 			KStringView sFormat;
 
 			if (iPrecision >= 3)
@@ -112,8 +124,41 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 				sFormat = "{:.0f} {}";
 			}
 
-			sOut = kFormat(sFormat, (double)iValue / (double)iDivider, sLabel);
+			auto f = (double)iValue / (double)iDivider;
 
+			sOut = kFormat(sFormat, f, sLabel);
+#else
+			const char* sFormat;
+
+			if (iPrecision >= 3)
+			{
+				sFormat = "%3f";
+			}
+			else if (iPrecision == 2)
+			{
+				sFormat = "%2f";
+			}
+			else if (iPrecision == 1)
+			{
+				sFormat = "%1f";
+			}
+			else if (iPrecision == 0)
+			{
+				sFormat = "%0f";
+			}
+			
+			std::array<char, 20> sBuffer;
+
+			auto iWrote = snprintf(sBuffer.data(), sBuffer.size(), sFormat, (double)iValue / (double)iDivider);
+
+			if (iWrote > 0)
+			{
+				sOut.append(sBuffer.data(), std::min(static_cast<int>(sBuffer.size()), iWrote));
+			}
+
+			sOut += ' ';
+			sOut += sLabel;
+#endif
 			if (chPlural)
 			{
 				sOut += chPlural;

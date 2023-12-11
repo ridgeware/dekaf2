@@ -473,6 +473,8 @@ private:
 
 DEKAF2_NAMESPACE_END
 
+#if DEKAF2_HAS_INCLUDE("kformat.h")
+
 // kFormat formatters
 
 #include "kformat.h"
@@ -491,3 +493,5 @@ struct formatter<DEKAF2_PREFIX KDuration> : formatter<string_view>
 };
 
 } // end of DEKAF2_FORMAT_NAMESPACE
+
+#endif // of has #include "kformat.h"

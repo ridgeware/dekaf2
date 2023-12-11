@@ -42,18 +42,21 @@
 #include "ktime.h"
 #include "kduration.h"
 #include "kstringutils.h"
-#if DEKAF2_HAS_INCLUDE("kfrozen.h") || (DEKAF2_HAS_CPP_14 && !defined(__cpp_has_include))
+#if DEKAF2_HAS_INCLUDE("kfrozen.h")
 	#include "kfrozen.h"
 #endif
 #include "kutf8.h"
-#include "koutstringstream.h"
-#include "kthreadsafe.h"
 #include "klog.h"
-#include <date/tz.h>
+#if DEKAF2_HAS_TIMEZONES
+	#include "kthreadsafe.h"
+	#include <date/tz.h>
+#endif
 #include <type_traits>
+#include <sstream>
 
 DEKAF2_NAMESPACE_BEGIN
 
+#if DEKAF2_HAS_TIMEZONES
 //-----------------------------------------------------------------------------
 std::vector<KString> kGetListOfTimezoneNames()
 //-----------------------------------------------------------------------------
@@ -70,6 +73,7 @@ std::vector<KString> kGetListOfTimezoneNames()
 	return Zones;
 
 } // kGetListOfTimezones
+#endif
 
 //-----------------------------------------------------------------------------
 KUnixTime detail::KParsedTimestampBase::to_unix() const
@@ -80,6 +84,7 @@ KUnixTime detail::KParsedTimestampBase::to_unix() const
 		return KUnixTime{0};
 	}
 
+#if DEKAF2_HAS_TIMEZONES
 	if (!m_tm.has_tz && m_from_tz != nullptr)
 	{
 		// compute the utc for the given origin timezone
@@ -97,6 +102,7 @@ KUnixTime detail::KParsedTimestampBase::to_unix() const
 
 		return KUnixTime{m_from_tz->to_sys(local)};
 	}
+#endif
 
 	return chrono::sys_days(chrono::day(m_tm.day) / chrono::month(m_tm.month) / chrono::year(m_tm.year))
 		+ chrono::hours(m_tm.hour)
@@ -174,6 +180,7 @@ KUTCTime detail::KParsedTimestampBase::to_utc() const
 
 } // to_utc
 
+#if DEKAF2_HAS_TIMEZONES
 //-----------------------------------------------------------------------------
 KLocalTime detail::KParsedTimestampBase::to_local () const
 //-----------------------------------------------------------------------------
@@ -191,6 +198,7 @@ KLocalTime detail::KParsedTimestampBase::to_local () const
 	return KLocalTime{to_unix()};
 
 } // to_local
+#endif
 
 //-----------------------------------------------------------------------------
 detail::KParsedWebTimestamp::raw_time detail::KParsedWebTimestamp::Parse(KStringView sTime, bool bOnlyGMT)
@@ -201,21 +209,36 @@ detail::KParsedWebTimestamp::raw_time detail::KParsedWebTimestamp::Parse(KString
 	// "Tue, 03 Aug 2021 10:23:42 GMT"
 	// "Tue, 03 Aug 2021 10:23:42 -0500"
 
+#if DEKAF2_KSTRINGVIEW_IS_STD_STRINGVIEW
+	std::vector<KStringView> Part;
+	for (std::size_t iPos; iPos = sTime.find_first_of(" ,:"), iPos != KStringView::npos; sTime.remove_prefix(iPos + 1))
+	{
+		if (iPos > 0)
+		{
+			Part.push_back(sTime.substr(0, iPos));
+		}
+	}
+	if (!sTime.empty())
+	{
+		Part.push_back(sTime);
+	}
+#else
 	auto Part = sTime.Split(" ,:");
+#endif
 
 	if (Part.size() == 8)
 	{
-		tm.day = Part[1].UInt16();
+		tm.day = kToInt<uint16_t>(Part[1]);
 
 		auto it = std::find(detail::AbbreviatedMonths.begin(), detail::AbbreviatedMonths.end(), Part[2]);
 
 		if (it != detail::AbbreviatedMonths.end())
 		{
 			tm.month  = static_cast<int>(it - detail::AbbreviatedMonths.begin()) + 1;
-			tm.year   = Part[3].UInt16();
-			tm.hour   = Part[4].UInt16();
-			tm.minute = Part[5].UInt16();
-			tm.second = Part[6].UInt16();
+			tm.year   = kToInt<uint16_t>(Part[3]);
+			tm.hour   = kToInt<uint16_t>(Part[4]);
+			tm.minute = kToInt<uint16_t>(Part[5]);
+			tm.second = kToInt<uint16_t>(Part[6]);
 
 			auto sTimezone = Part[7];
 
@@ -241,8 +264,8 @@ detail::KParsedWebTimestamp::raw_time detail::KParsedWebTimestamp::Parse(KString
 
 					if (sTimezone.size() == 4)
 					{
-						auto   Hours   = chrono::hours(sTimezone.Left(2).UInt16());
-						auto   Minutes = chrono::minutes(sTimezone.Right(2).UInt16());
+						auto   Hours   = chrono::hours(kToInt<uint16_t>(sTimezone.substr(0, 2)));
+						auto   Minutes = chrono::minutes(kToInt<uint16_t>(sTimezone.substr(2, 2)));
 						auto   Offset  = Hours + Minutes;
 
 						if (Offset < chrono::days(1))
@@ -324,9 +347,10 @@ std::array<KString, 7> kGetLocalDayNames(const std::locale& locale, bool bAbbrev
 
 	for (uint16_t iDay = 0; iDay < 7; ++iDay)
 	{
-		KOStringStream oss(Names[iDay]);
+		std::ostringstream oss;
 		tm.tm_wday = iDay;
 		TimePut.put(std::ostreambuf_iterator<char>(oss), oss, ' ', &tm, bAbbreviated ? 'a' : 'A', 0);
+		Names[iDay] = std::move(oss).str();
 	}
 
 	return Names;
@@ -343,9 +367,10 @@ std::array<KString, 12> kGetLocalMonthNames(const std::locale& locale, bool bAbb
 
 	for (uint16_t iMon = 0; iMon < 12; ++iMon)
 	{
-		KOStringStream oss(Names[iMon]);
+		std::ostringstream oss;
 		tm.tm_mon = iMon;
 		TimePut.put(std::ostreambuf_iterator<char>(oss), oss, ' ', &tm, bAbbreviated ? 'b' : 'B', 0);
+		Names[iMon] = std::move(oss).str();
 	}
 
 	return Names;
@@ -355,6 +380,8 @@ namespace {
 
 #ifdef DEKAF2_HAS_FROZEN
 constexpr auto g_Timezones = frozen::make_unordered_map<KStringViewZ, int16_t>(
+#elif DEKAF2_KSTRINGVIEWZ_IS_STD_STRINGVIEW
+static const std::unordered_map<KString, int16_t> g_Timezones
 #else
 static const std::unordered_map<KStringViewZ, int16_t> g_Timezones
 #endif
@@ -535,7 +562,11 @@ chrono::minutes kGetTimezoneOffset(KStringViewZ sTimezone)
 	// abbreviated timezone support is brittle - as there are many duplicate names,
 	// and we only support english abbreviations
 
+#if DEKAF2_KSTRINGVIEWZ_IS_STD_STRINGVIEW
+	auto tz = g_Timezones.find(KString(sTimezone));
+#else
 	auto tz = g_Timezones.find(sTimezone);
+#endif
 
 	if (tz == g_Timezones.end())
 	{
@@ -1132,10 +1163,10 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 #endif
 
 	// check precondition to avoid UB
-	static_assert(std::is_unsigned<decltype(sTimestamp.SizeUTF8())>::value, ".SizeUTF8() must return an unsigned type");
+	static_assert(std::is_unsigned<decltype(Unicode::CountUTF8(sTimestamp))>::value, "Unicode::CountUTF8() must return an unsigned type");
 
 	// this is an unsigned type - overflow will not create UB
-	auto iSize = sTimestamp.SizeUTF8() - iShortest; // this is deliberately creating an overflow if SizeUTF8 is < iShortest!
+	auto iSize = Unicode::CountUTF8(sTimestamp) - iShortest; // this is deliberately creating an overflow if CountUTF8 is < iShortest!
 
 	if (iSize < Sizes.size()) // the overflow would be detected here
 	{
@@ -1151,7 +1182,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 				auto iCheckPos = it->iPos;
 
-				if (iCheckPos == 0 || Unicode::CodepointCast(it->sFormat[iCheckPos]) == sTimestamp.AtUTF8(iCheckPos))
+				if (iCheckPos == 0 || Unicode::CodepointCast(it->sFormat[iCheckPos]) == Unicode::AtUTF8(sTimestamp, iCheckPos))
 				{
 					auto tm = Parse(it->sFormat, sTimestamp);
 
@@ -1240,7 +1271,7 @@ constexpr inline bool TimeFormatStringIsOK(KStringView sFormat)
 KString detail::FormWebTimestamp (const std::tm& tTime, KStringView sTimezoneDesignator)
 //-----------------------------------------------------------------------------
 {
-	return kFormat("{:%a, %d %b %Y %H:%M:%S} {}", tTime, sTimezoneDesignator);
+	return DEKAF2_PREFIX kFormat("{:%a, %d %b %Y %H:%M:%S} {}", tTime, sTimezoneDesignator);
 }
 
 //-----------------------------------------------------------------------------
@@ -1253,21 +1284,20 @@ KString detail::FormTimestamp (const std::locale& locale, const std::tm& time, K
 
 	auto& TimePut = std::use_facet<std::time_put<KString::value_type>>(locale);
 
-	KString sOut;
-	KOStringStream oss(sOut);
+	std::ostringstream oss;
 
 	TimePut.put(std::ostreambuf_iterator<KString::value_type>(oss), oss, ' ', &time, sFormat.data(), sFormat.data() + sFormat.size());
 
-	return sOut;
+	return std::move(oss).str();
 
 #else
 
 	if (TimeFormatStringIsOK(sFormat))
 	{
-		return kFormat(locale, sFormat, time);
+		return DEKAF2_PREFIX kFormat(locale, sFormat, time);
 	}
 
-	return kFormat(locale, BuildTimeFormatString(sFormat), time);
+	return DEKAF2_PREFIX kFormat(locale, BuildTimeFormatString(sFormat), time);
 
 #endif
 }
@@ -1281,26 +1311,26 @@ KString detail::FormTimestamp (const std::tm& time, KStringView sFormat)
 
 	auto& TimePut = std::use_facet<std::time_put<KString::value_type>>(s_locale);
 
-	KString sOut;
-	KOStringStream oss(sOut);
+	std::ostringstream oss;
 
 	TimePut.put(std::ostreambuf_iterator<KString::value_type>(oss), oss, ' ', &time, sFormat.data(), sFormat.data() + sFormat.size());
 
-	return sOut;
+	return std::move(oss).str();
 
 #else
 
 	if (TimeFormatStringIsOK(sFormat))
 	{
-		return kFormat(sFormat, time);
+		return DEKAF2_PREFIX kFormat(sFormat, time);
 	}
 
-	return kFormat(BuildTimeFormatString(sFormat), time);
+	return DEKAF2_PREFIX kFormat(BuildTimeFormatString(sFormat), time);
 
 #endif
 
 } // kFormTimestamp
 
+#if DEKAF2_HAS_TIMEZONES
 //-----------------------------------------------------------------------------
 KString kFormTimestamp (const std::locale& locale, const KLocalTime& tLocal, KStringView sFormat)
 //-----------------------------------------------------------------------------
@@ -1318,6 +1348,7 @@ KString kFormTimestamp (const KLocalTime& tLocal, KStringView sFormat)
 	// calling with chrono::time_point
 	return detail::FormTimestamp(tLocal.to_tm(), sFormat);
 }
+#endif
 
 //-----------------------------------------------------------------------------
 KString kFormTimestamp (const std::locale& locale, const KUTCTime& tUTC, KStringView sFormat)
@@ -1407,6 +1438,18 @@ KUTCTime::KUTCTime (KStringView sFormat, KStringView sTimestamp)
 }
 
 //-----------------------------------------------------------------------------
+KString KUTCTime::to_string (KStringView sFormat) const
+//-----------------------------------------------------------------------------
+{
+	if (empty())
+	{
+		return KString();
+	}
+	return detail::FormTimestamp (to_tm(), sFormat);
+}
+
+#if DEKAF2_HAS_TIMEZONES
+//-----------------------------------------------------------------------------
 KLocalTime::KLocalTime (KStringView sTimestamp, const chrono::time_zone* timezone)
 //-----------------------------------------------------------------------------
 : KLocalTime(kParseLocalTimestamp(sTimestamp, timezone))
@@ -1418,17 +1461,6 @@ KLocalTime::KLocalTime (KStringView sFormat, KStringView sTimestamp, const chron
 //-----------------------------------------------------------------------------
 : KLocalTime(kParseLocalTimestamp(sFormat, sTimestamp, timezone))
 {
-}
-
-//-----------------------------------------------------------------------------
-KString KUTCTime::to_string (KStringView sFormat) const
-//-----------------------------------------------------------------------------
-{
-	if (empty())
-	{
-		return KString();
-	}
-	return detail::FormTimestamp (to_tm(), sFormat);
 }
 
 //-----------------------------------------------------------------------------
@@ -1513,6 +1545,8 @@ std::tm KLocalTime::to_tm() const
 #ifndef DEKAF2_IS_WINDOWS
 KThreadSafe<std::set<KString>> KLocalTime::s_TimezoneNameStore;
 #endif
+
+#endif // of DEKAF2_HAS_TIMEZONES
 
 DEKAF2_NAMESPACE_END
 

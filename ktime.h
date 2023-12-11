@@ -50,6 +50,9 @@
 #include "kduration.h"
 #include "ktemplate.h"
 #include "kdate.h"
+#if DEKAF2_HAS_TIMEZONES
+	#include "kthreadsafe.h"
+#endif
 #include <cinttypes>
 #include <ctime>
 #include <chrono>
@@ -57,6 +60,8 @@
 #include <array>
 
 DEKAF2_NAMESPACE_BEGIN
+
+#if DEKAF2_HAS_TIMEZONES
 
 /// returns the timezone of the local timezone for this process
 DEKAF2_PUBLIC inline const chrono::time_zone* kGetLocalTimezone()                  { return chrono::current_zone();         }
@@ -102,6 +107,9 @@ template<class Duration>
 DEKAF2_PUBLIC auto kFromLocalTime(chrono::local_time<Duration> tp, const chrono::time_zone* zone = chrono::current_zone()) -> chrono::sys_time<typename std::common_type<Duration, chrono::seconds>::type> { return zone->to_sys(tp); }
 
 class KLocalTime;
+
+#endif // of DEKAF2_HAS_TIMEZONES
+
 class KUTCTime;
 
 namespace detail {
@@ -154,8 +162,10 @@ public:
 	                    explicit KUnixTime (const detail::KParsedTimestampBase& parsed) noexcept;
 	/// construct from KUTCTime timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const KUTCTime& local) noexcept;
+#ifdef DEKAF2_HAS_TIMEZONES
 	/// construct from KLocalTime timepoint (constexpr)
 	                    explicit KUnixTime(const KLocalTime& local) noexcept;
+#endif
 	/// construct from a string representation, which is interpreted as UTC time (if there is no time zone indicator telling other)
 	/// - the string format is automatically detected from about 130 common patterns
 	                    explicit KUnixTime (KStringView sTimestamp);
@@ -627,6 +637,7 @@ private:
 
 DEKAF2_WRAPPED_COMPARISON_OPERATORS_ONE_TYPE(KUTCTime, left.to_sys(), right.to_sys())
 
+#if DEKAF2_HAS_TIMEZONES
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A broken down time representation in local time (any timezone that this system supports) - you
 /// cannot do arithmetics on it, because that is in general invalid on local times (you may step
@@ -794,13 +805,22 @@ inline KDuration operator-(const KLocalTime& left, const KLocalTime& right) { re
 inline KDuration operator-(const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() - right.to_sys(); }
 inline KDuration operator-(const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() - right.to_sys(); }
 
+inline chrono::system_clock::duration operator-(const KLocalTime& left, const chrono::system_clock::time_point right) { return left.to_sys() - right; }
+inline chrono::system_clock::duration operator-(const chrono::system_clock::time_point left, const KLocalTime& right) { return left - right.to_sys(); }
+
+inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KLocalTime time)
+{
+	auto s = time.to_string();
+	stream.write(s.data(), s.size());
+	return stream;
+}
+
+#endif // of DEKAF2_HAS_TIMEZONES
+
 constexpr
 inline chrono::system_clock::duration operator-(const KUTCTime& left, const chrono::system_clock::time_point right) { return left.to_sys() - right; }
 constexpr
 inline chrono::system_clock::duration operator-(const chrono::system_clock::time_point left, const KUTCTime& right) { return left - right.to_sys(); }
-
-inline chrono::system_clock::duration operator-(const KLocalTime& left, const chrono::system_clock::time_point right) { return left.to_sys() - right; }
-inline chrono::system_clock::duration operator-(const chrono::system_clock::time_point left, const KLocalTime& right) { return left - right.to_sys(); }
 
 inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KUnixTime time)
 {
@@ -810,13 +830,6 @@ inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KUnixTime ti
 }
 
 inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KUTCTime time)
-{
-	auto s = time.to_string();
-	stream.write(s.data(), s.size());
-	return stream;
-}
-
-inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KLocalTime time)
 {
 	auto s = time.to_string();
 	stream.write(s.data(), s.size());
@@ -853,7 +866,9 @@ public:
 
 	operator KUnixTime  () const { return to_unix  (); }
 	operator KUTCTime   () const { return to_utc   (); }
+#if DEKAF2_HAS_TIMEZONES
 	operator KLocalTime () const { return to_local (); }
+#endif
 
 	bool ok() const { return m_tm.is_valid; }
 	explicit operator bool() const { return ok(); }
@@ -863,12 +878,18 @@ private:
 //--------
 
 	// gcc 8 needs the below explicit conversions
-	friend class dekaf2::KUTCTime;
-	friend class dekaf2::KUnixTime;
+	friend class DEKAF2_PREFIX KUTCTime;
+	friend class DEKAF2_PREFIX KUnixTime;
 
 	KUnixTime  to_unix  () const;
 	KUTCTime   to_utc   () const;
+#if DEKAF2_HAS_TIMEZONES
 	KLocalTime to_local () const;
+
+	// these must be declared as friend and with access on .to_unix() as otherwise gcc 8 would complain about ambiguous conversions
+	friend KDuration operator-(const KLocalTime& left, const KParsedTimestampBase& right) { return left - right.to_unix(); }
+	friend KDuration operator-(const KParsedTimestampBase& left, const KLocalTime& right) { return left.to_unix() - right; }
+#endif
 
 	// these must be declared as friend and with access on .to_unix() as otherwise gcc 8 would complain about ambiguous conversions
 	friend KDuration operator-(const KParsedTimestampBase& left, const KParsedTimestampBase&  right) { return left.to_unix() - right.to_unix(); }
@@ -876,8 +897,6 @@ private:
 	friend KDuration operator-(const KParsedTimestampBase& left, const KUnixTime&  right) { return left.to_unix() - right; }
 	friend KDuration operator-(const KUTCTime& left, const KParsedTimestampBase&   right) { return left - right.to_unix(); }
 	friend KDuration operator-(const KParsedTimestampBase& left, const KUTCTime&   right) { return left.to_unix() - right; }
-	friend KDuration operator-(const KLocalTime& left, const KParsedTimestampBase& right) { return left - right.to_unix(); }
-	friend KDuration operator-(const KParsedTimestampBase& left, const KLocalTime& right) { return left.to_unix() - right; }
 
 	DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES_WITH_ATTR(friend, KUnixTime, KParsedTimestampBase, first, second.to_unix())
 
@@ -1035,6 +1054,7 @@ DEKAF2_PUBLIC                   KString kFormCommonLogTimestamp (const KUTCTime&
 /// @return a detail::KParsedTimestamp, that implicitly converts into either KUnixTime, KUTCTime, or KLocalTime. Check with .ok() for valid result.
 DEKAF2_PUBLIC inline    detail::KParsedTimestamp kParseTimestamp      (KStringView sFormat, KStringView sTimestamp, const chrono::time_zone* timezone = nullptr) { return detail::KParsedTimestamp(sFormat, sTimestamp, timezone); }
 
+#if DEKAF2_HAS_TIMEZONES
 /// Parse any timestamp that matches a format string built from h m s D M Y, and a S U z Z N ?
 /// Y(ear) could be 2 or 4 digits,
 /// aa = am/pm, case insensitive
@@ -1050,17 +1070,20 @@ DEKAF2_PUBLIC inline    detail::KParsedTimestamp kParseTimestamp      (KStringVi
 /// @param timezone the timezone to assume if there is no timezone indication in the string - defaults to current zone. Is also used as the timezone for the result type. If the string contained a time zone indication, it is translated into the timezone of the result type.
 /// @return KLocalTime of the time stamp. Check with .ok() for valid result.
 DEKAF2_PUBLIC inline                  KLocalTime kParseLocalTimestamp (KStringView sFormat, KStringView sTimestamp, const chrono::time_zone* timezone = chrono::current_zone()) { return detail::KParsedTimestamp(sFormat, sTimestamp, timezone); }
+#endif
 
 /// parse a timestamp from predefined formats - the format is automatically (and fast) detected from about 130 common patterns
 /// @param sTimestamp the string to parse - if there is no timezone indication in the string it is assumed as UTC
 /// @return a detail::KParsedTimestamp, that implicitly converts into either KUnixTime, KUTCTime, or KLocalTime. Check with .ok() for valid result.
 DEKAF2_PUBLIC inline    detail::KParsedTimestamp kParseTimestamp      (KStringView sTimestamp) { return detail::KParsedTimestamp(sTimestamp); }
 
+#if DEKAF2_HAS_TIMEZONES
 /// parse a timestamp from predefined formats - the format is automatically (and fast) detected from about 130 common patterns
 /// @param sTimestamp the string to parse
 /// @param timezone the timezone to assume if there is no timezone indication in the string - defaults to current zone. Is also used as the timezone for the result type. If the string contained a time zone indication, it is translated into the timezone of the result type.
 /// @return KLocalTime of the time stamp. Check with .ok() for valid result.
 DEKAF2_PUBLIC inline                  KLocalTime kParseLocalTimestamp (KStringView sTimestamp, const chrono::time_zone* timezone = chrono::current_zone()) { return detail::KParsedTimestamp(sTimestamp, timezone); }
+#endif
 
 /// Parse a HTTP time stamp - only accepts GMT timezone
 /// @param sTime time stamp to parse
@@ -1098,7 +1121,14 @@ inline KString KUnixTime::to_string (KStringView sFormat) const noexcept { retur
 
 DEKAF2_NAMESPACE_END
 
-namespace fmt {
+#if DEKAF2_HAS_INCLUDE("kformat.h")
+
+// kFormat formatters
+
+#include "kformat.h"
+
+namespace DEKAF2_FORMAT_NAMESPACE
+{
 
 template<> struct formatter<DEKAF2_PREFIX KUnixTime> : formatter<std::tm>
 {
@@ -1130,16 +1160,6 @@ template<> struct formatter<DEKAF2_PREFIX KTimeOfDay> : formatter<std::tm>
 	}
 };
 
-template<> struct formatter<DEKAF2_PREFIX KLocalTime> : formatter<std::tm>
-{
-	template <typename FormatContext>
-	DEKAF2_CONSTEXPR_14
-	auto format(const DEKAF2_PREFIX KLocalTime& time, FormatContext& ctx) const
-	{
-		return formatter<std::tm>::format(time.to_tm(), ctx);
-	}
-};
-
 template<> struct formatter<DEKAF2_PREFIX KUTCTime> : formatter<std::tm>
 {
 	template <typename FormatContext>
@@ -1149,7 +1169,25 @@ template<> struct formatter<DEKAF2_PREFIX KUTCTime> : formatter<std::tm>
 	}
 };
 
-} // end of namespace fmt
+#if DEKAF2_HAS_TIMEZONES
+template<> struct formatter<DEKAF2_PREFIX KLocalTime> : formatter<std::tm>
+{
+	template <typename FormatContext>
+	DEKAF2_CONSTEXPR_14
+	auto format(const DEKAF2_PREFIX KLocalTime& time, FormatContext& ctx) const
+	{
+		return formatter<std::tm>::format(time.to_tm(), ctx);
+	}
+};
+#endif
+
+} // end of DEKAF2_FORMAT_NAMESPACE
+
+#endif // of has #include "kformat.h"
+
+#if DEKAF2_HAS_INCLUDE("bits/khash.h")
+
+#include "bits/khash.h"
 
 namespace std {
 
@@ -1185,6 +1223,7 @@ template<> struct hash<DEKAF2_PREFIX KUTCTime>
 	}
 };
 
+#ifdef DEKAF2_HAS_TIMEZONES
 template<> struct hash<DEKAF2_PREFIX KLocalTime>
 {
 	std::size_t operator()(DEKAF2_PREFIX KLocalTime time) const noexcept
@@ -1192,5 +1231,8 @@ template<> struct hash<DEKAF2_PREFIX KLocalTime>
 		return DEKAF2_PREFIX kHash(&time, sizeof(time));
 	}
 };
+#endif
 
 } // end of namespace std
+
+#endif // of has #include "bits/khash.h"

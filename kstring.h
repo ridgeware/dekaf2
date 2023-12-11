@@ -78,42 +78,6 @@ using KStringRef = KString;
 using KStringRef = std::string;
 #endif
 
-//----------------------------------------------------------------------
-/// returns a copy of the string in uppercase (UTF8)
-DEKAF2_PUBLIC
-KString kToUpper(KStringView sInput);
-//----------------------------------------------------------------------
-
-//----------------------------------------------------------------------
-/// returns a copy of the string in lowercase (UTF8)
-DEKAF2_PUBLIC
-KString kToLower(KStringView sInput);
-//----------------------------------------------------------------------
-
-//----------------------------------------------------------------------
-/// returns a copy of the string in uppercase according to the current locale (does not work with UTF8 strings)
-DEKAF2_PUBLIC
-KString kToUpperLocale(KStringView sInput);
-//----------------------------------------------------------------------
-
-//----------------------------------------------------------------------
-/// returns a copy of the string in lowercase according to the current locale (does not work with UTF8 strings)
-DEKAF2_PUBLIC
-KString kToLowerLocale(KStringView sInput);
-//----------------------------------------------------------------------
-
-//----------------------------------------------------------------------
-/// returns a copy of the string in uppercase assuming ASCII encoding
-DEKAF2_PUBLIC
-KString kToUpperASCII(KStringView sInput);
-//----------------------------------------------------------------------
-
-//----------------------------------------------------------------------
-/// returns a copy of the string in lowercase assuming ASCII encoding
-DEKAF2_PUBLIC
-KString kToLowerASCII(KStringView sInput);
-//----------------------------------------------------------------------
-
 namespace detail {
 
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
@@ -927,12 +891,14 @@ DEKAF2_NAMESPACE_END
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // KString is now complete - here follow KString inline methods that need
-// KStringView and / or KStringViewZ being complete as well
+// KStringView and / or KStringViewZ being complete as well, or use functions
+// from ksplit.h, kjoin.h, or kstringutils.h
 
 #include "kstringview.h"
 #include "bits/kstringviewz.h"
 #include "ksplit.h"
 #include "kjoin.h"
+#include "kstringutils.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -2006,34 +1972,15 @@ inline KString::size_type KString::RemoveIllegalChars(KStringView sIllegalChars)
 	return RemoveChars(sIllegalChars);
 }
 
-// KString inline methods until here
-// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-//------------------------------------------------------------------------------
-DEKAF2_PUBLIC
-KStringRef::size_type kReplace(KStringRef& string,
-							   const KStringView sSearch,
-							   const KStringView sReplaceWith,
-							   KStringRef::size_type pos = 0,
-							   bool bReplaceAll = true);
-//------------------------------------------------------------------------------
-
-//------------------------------------------------------------------------------
-DEKAF2_PUBLIC
-KStringRef::size_type kReplace(KStringRef& string,
-							   const KStringRef::value_type chSearch,
-							   const KStringRef::value_type chReplaceWith,
-							   KStringRef::size_type pos = 0,
-							   bool bReplaceAll = true);
-//------------------------------------------------------------------------------
-
 //-----------------------------------------------------------------------------
-// this inline method has to be defined after kReplace() ..
 inline KString::size_type KString::Replace(const KStringView sSearch, const KStringView sReplace, size_type pos, bool bReplaceAll)
 //-----------------------------------------------------------------------------
 {
 	return kReplace(*this, sSearch, sReplace, pos, bReplaceAll);
 }
+
+// KString inline methods until here
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 //-----------------------------------------------------------------------------
 inline std::istream& operator >>(std::istream& stream, KString& str)
@@ -2136,6 +2083,8 @@ KString& KString::Format(Args&&... args) &
 }
 
 DEKAF2_NAMESPACE_END
+
+#include "bits/khash.h"
 
 namespace std
 {

@@ -47,7 +47,6 @@
 #include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
-#include "ksystem.h"
 #include "kctype.h"
 #include "kutf8.h"
 #include "ktemplate.h"
@@ -60,6 +59,162 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+DEKAF2_PUBLIC
+KStringRef::size_type kReplace(KStringRef& string,
+							   const KStringView sSearch,
+							   const KStringView sReplaceWith,
+							   KStringRef::size_type pos = 0,
+							   bool bReplaceAll = true);
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+DEKAF2_PUBLIC
+KStringRef::size_type kReplace(KStringRef& string,
+							   const KStringRef::value_type chSearch,
+							   const KStringRef::value_type chReplaceWith,
+							   KStringRef::size_type pos = 0,
+							   bool bReplaceAll = true);
+//------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+/// returns a copy of the string in uppercase (UTF8)
+DEKAF2_PUBLIC
+KString kToUpper(KStringView sInput);
+//----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+/// returns a copy of the string in lowercase (UTF8)
+DEKAF2_PUBLIC
+KString kToLower(KStringView sInput);
+//----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+/// returns a copy of the string in uppercase according to the current locale (does not work with UTF8 strings)
+DEKAF2_PUBLIC
+KString kToUpperLocale(KStringView sInput);
+//----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+/// returns a copy of the string in lowercase according to the current locale (does not work with UTF8 strings)
+DEKAF2_PUBLIC
+KString kToLowerLocale(KStringView sInput);
+//----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+/// returns a copy of the string in uppercase assuming ASCII encoding
+DEKAF2_PUBLIC
+KString kToUpperASCII(KStringView sInput);
+//----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+/// returns a copy of the string in lowercase assuming ASCII encoding
+DEKAF2_PUBLIC
+KString kToLowerASCII(KStringView sInput);
+//----------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// returns leftmost iCount chars of string
+template<class String, class StringView = KStringView>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+StringView kLeft(const String& sInput, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	return StringView(sInput.data(), std::min(iCount, sInput.size()));
+}
+
+//-----------------------------------------------------------------------------
+/// returns substring starting at iStart for iCount chars
+template<class String, class StringView = KStringView>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+StringView kMid(const String& sInput, std::size_t iStart, std::size_t iCount = npos)
+//-----------------------------------------------------------------------------
+{
+	if (iStart > sInput.size()) iStart = sInput.size();
+	if (iCount > sInput.size() - iStart) iCount = sInput.size() - iStart;
+	return StringView(&sInput[iStart], iCount);
+}
+
+//-----------------------------------------------------------------------------
+/// returns rightmost iCount chars of string
+template<class String, class StringView = KStringView>
+DEKAF2_PUBLIC
+StringView kRight(const String& sInput, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	return (iCount > sInput.size())
+		? StringView(sInput)
+		: StringView(sInput.data() + sInput.size() - iCount, iCount);
+}
+
+//-----------------------------------------------------------------------------
+/// returns leftmost iCount codepoints of string
+template<class String, class StringView = KStringView>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+StringView kLeftUTF8(const String& sInput, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	return Unicode::LeftUTF8<String, StringView>(sInput, iCount);
+}
+
+//-----------------------------------------------------------------------------
+/// returns substring starting at codepoint iStart for iCount codepoints
+template<class String, class StringView = KStringView>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+StringView kMidUTF8(const String& sInput, std::size_t iStart, std::size_t iCount = npos)
+//-----------------------------------------------------------------------------
+{
+	return Unicode::MidUTF8<String, StringView>(sInput, iStart, iCount);
+}
+
+//-----------------------------------------------------------------------------
+/// returns rightmost iCount UTF8 codepoints of string
+template<class String, class StringView = KStringView>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+StringView kRightUTF8(const String& sInput, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	return Unicode::RightUTF8<String, StringView>(sInput, iCount);
+}
+
+//-----------------------------------------------------------------------------
+/// returns KCcodePoint at UTF8 position iCount
+template<class String>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+KCodePoint kAtUTF8(const String& sInput, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	return Unicode::AtUTF8(sInput, iCount);
+}
+
+//-----------------------------------------------------------------------------
+/// returns true if string contains UTF8 runs
+template<class String>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+bool kHasUTF8(const String& sInput)
+//-----------------------------------------------------------------------------
+{
+	return Unicode::HasUTF8(sInput);
+}
+
+//-----------------------------------------------------------------------------
+/// returns the count of unicode codepoints (or, UTF8 sequences)
+template<class String>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+std::size_t kSizeUTF8(const String& sInput)
+//-----------------------------------------------------------------------------
+{
+	return Unicode::CountUTF8(sInput);
+}
+
 //----------------------------------------------------------------------
 DEKAF2_PUBLIC
 bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim = ',');
@@ -67,11 +222,8 @@ bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim = ',');
 
 //----------------------------------------------------------------------
 DEKAF2_PUBLIC
-inline bool kStrIn (KStringView sNeedle, KStringView sHaystack, char iDelim = ',')
+bool kStrIn (KStringView sNeedle, KStringView sHaystack, char iDelim = ',');
 //----------------------------------------------------------------------
-{
-	return sNeedle.In(sHaystack, iDelim);
-}
 
 //----------------------------------------------------------------------
 DEKAF2_PUBLIC
@@ -459,7 +611,7 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 
 	DEKAF2_TRY
 	{
-#if defined(DEKAF2_HAS_FULL_CPP_17)
+#if defined(DEKAF2_HAS_FULL_CPP_17) && !DEKAF2_KSTRING_IS_STD_STRING
 		if constexpr (std::is_same<String, KString>::value)
 		{
 			sResult = KString::to_string(i);
@@ -613,13 +765,15 @@ bool kIsFloat(KStringView str, KStringView::value_type chDecimalSeparator = '.')
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Returns true if str contains a syntactically valid email address
+/// Returns true if str contains a syntactically valid email address. This function always returns false if
+/// KRegex is not available.
 DEKAF2_PUBLIC
 bool kIsEmail(KStringView str) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Returns true if str contains a syntactically valid URL
+/// Returns true if str contains a syntactically valid URL. This function always returns false if
+/// KURL is not available.
 DEKAF2_PUBLIC
 bool kIsURL(KStringView str) noexcept;
 //-----------------------------------------------------------------------------
@@ -883,7 +1037,12 @@ inline
 void kFromString(float& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_KSTRING_IS_STD_STRING
+	KString sTmp(sValue);
+	Value = std::strtof(sTmp.c_str(), nullptr);
+#else
 	Value = sValue.Float();
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -891,7 +1050,12 @@ inline
 void kFromString(double& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_KSTRING_IS_STD_STRING
+	KString sTmp(sValue);
+	Value = std::strtod(sTmp.c_str(), nullptr);
+#else
 	Value = sValue.Double();
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -1221,8 +1385,10 @@ String kLimitSizeUTF8(const StringView& sLimitMe,
 
 } // kLimitSizeUTF8
 
+#ifndef DEKAF2_KSTRING_IS_STD_STRING
 /// resize a KString without initialization
 void kResizeUninitialized(KString& sStr, KString::size_type iNewSize);
+#endif
 
 /// resize a std::string without initialization
 void kResizeUninitialized(std::string& sStr, std::string::size_type iNewSize);

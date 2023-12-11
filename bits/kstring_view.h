@@ -55,8 +55,8 @@
 #undef DEKAF2_HAS_STD_STRING_VIEW
 #undef DEKAF2_SV_NAMESPACE
 
-#if defined(DEKAF2_HAS_CPP_17) \
-  && (defined(DEKAF2_NO_GCC) || (DEKAF2_GCC_VERSION_MAJOR > 6))
+#if DEKAF2_HAS_CPP_17 \
+  && (DEKAF2_NO_GCC || DEKAF2_GCC_VERSION_MAJOR > 6)
 	#if DEKAF2_HAS_INCLUDE(<string_view>)
 		#include <string_view>
 		#define DEKAF2_HAS_STD_STRING_VIEW 1
@@ -462,8 +462,8 @@ DEKAF2_NAMESPACE_END
 
 	private:
 
-#if !defined(DEKAF2_HAS_FULL_CPP_17) && !defined(__clang__)
-	#if (DEKAF2_HAS_CPP_14)
+#if !DEKAF2_HAS_FULL_CPP_17 && !DEKAF2_IS_CLANG
+	#if DEKAF2_HAS_CPP_14
 		static constexpr DEKAF2_ALWAYS_INLINE
 		size_type local_constexpr_strlen(const CharT* s) noexcept
 		{
@@ -488,10 +488,10 @@ DEKAF2_NAMESPACE_END
 		static constexpr DEKAF2_ALWAYS_INLINE
 		size_type constexpr_strlen(const CharT* s) noexcept
 		{
-#if defined(DEKAF2_HAS_FULL_CPP_17)
+#if DEKAF2_HAS_FULL_CPP_17
 			return s ? traits_type::length(s) : 0;
 #else
-	#if defined(__clang__)
+	#if DEKAF2_IS_CLANG
 			return s ? __builtin_strlen(s) : 0;
 	#else
 			return s ? local_constexpr_strlen(s) : 0;
@@ -595,6 +595,7 @@ DEKAF2_NAMESPACE_END
 	} // end of namespace detail
 	DEKAF2_NAMESPACE_END
 
+#if DEKAF2_HAS_INCLUDE("khash.h")
 	#include "khash.h"
 	namespace std
 	{
@@ -611,6 +612,8 @@ DEKAF2_NAMESPACE_END
 		};
 
 	} // namespace std
+#endif // has include khash.h
+
 #endif
 
 #ifdef DEKAF2_SV_NAMESPACE

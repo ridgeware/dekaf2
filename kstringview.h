@@ -1039,92 +1039,63 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns leftmost iCount chars of string
-	KStringView Left(size_type iCount) const
+	KStringView Left(size_type iCount) const;
 	//-----------------------------------------------------------------------------
-	{
-		return self_type(data(), std::min(iCount, size()));
-	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns substring starting at iStart for iCount chars
 	DEKAF2_CONSTEXPR_14
-	KStringView Mid(size_type iStart, size_type iCount = npos) const
+	KStringView Mid(size_type iStart, size_type iCount = npos) const;
 	//-----------------------------------------------------------------------------
-	{
-		return substr(iStart, iCount);
-	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns rightmost iCount chars of string
-	KStringView Right(size_type iCount) const
+	KStringView Right(size_type iCount) const;
 	//-----------------------------------------------------------------------------
-	{
-		return DEKAF2_UNLIKELY(iCount > size())
-		  ? *this
-		  : self_type(data() + size() - iCount, iCount);
-	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns leftmost iCount codepoints of string
 	DEKAF2_CONSTEXPR_14
-	KStringView LeftUTF8(size_type iCount) const
+	KStringView LeftUTF8(size_type iCount) const;
 	//-----------------------------------------------------------------------------
-	{
-		return Unicode::LeftUTF8(*this, iCount);
-	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns substring starting at codepoint iStart for iCount codepoints
 	DEKAF2_CONSTEXPR_14
-	KStringView MidUTF8(size_type iStart, size_type iCount = npos) const
+	KStringView MidUTF8(size_type iStart, size_type iCount = npos) const;
 	//-----------------------------------------------------------------------------
-	{
-		return Unicode::MidUTF8(*this, iStart, iCount);
-	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns rightmost iCount UTF8 codepoints of string
 	DEKAF2_CONSTEXPR_14
-	KStringView RightUTF8(size_type iCount) const
+	KStringView RightUTF8(size_type iCount) const;
 	//-----------------------------------------------------------------------------
-	{
-		return Unicode::RightUTF8(*this, iCount);
-	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns KCcodePoint at UTF8 position iCount
 	DEKAF2_CONSTEXPR_14
-	KCodePoint AtUTF8(size_type iCount) const
+	KCodePoint AtUTF8(size_type iCount) const;
 	//-----------------------------------------------------------------------------
-	{
-		return Unicode::AtUTF8(*this, iCount);
-	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns true if string contains UTF8 runs
 	DEKAF2_CONSTEXPR_14
-	bool HasUTF8() const
+	bool HasUTF8() const;
 	//-----------------------------------------------------------------------------
-	{
-		return Unicode::HasUTF8(*this);
-	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns the count of unicode codepoints (or, UTF8 sequences)
 	DEKAF2_CONSTEXPR_14
-	size_type SizeUTF8() const
+	size_type SizeUTF8() const;
 	//-----------------------------------------------------------------------------
-	{
-		return Unicode::CountUTF8(*this);
-	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
@@ -1977,6 +1948,8 @@ DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC std::size_t DEKAF2_PREFIX KStringView::CaseHas
 
 #include "bits/kstringviewz.h"
 #include "ksplit.h"
+#include "kstring.h"
+#include "kstringutils.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -1997,11 +1970,13 @@ KStringView& KStringView::operator=(const KStringViewZ& other)
 	return *this;
 }
 
-DEKAF2_NAMESPACE_END
-
-#include "kstring.h"
-
-DEKAF2_NAMESPACE_BEGIN
+//-----------------------------------------------------------------------------
+inline
+bool KStringView::In (const KStringView sHaystack, value_type iDelim) const
+//-----------------------------------------------------------------------------
+{
+	return kStrIn (*this, sHaystack, iDelim);
+}
 
 //-----------------------------------------------------------------------------
 inline
@@ -2066,6 +2041,88 @@ KString KStringView::ToLowerASCII() const
 //-----------------------------------------------------------------------------
 {
 	return kToLowerASCII(*this);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KStringView KStringView::Left(size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return kLeft<KStringView, KStringView>(*this, iCount);
+}
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_14
+KStringView KStringView::Mid(size_type iStart, size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return kMid<KStringView, KStringView>(*this, iStart, iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KStringView KStringView::Right(size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return kRight<KStringView, KStringView>(*this, iCount);
+}
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_14
+KStringView KStringView::LeftUTF8(size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return kLeftUTF8<KStringView, KStringView>(*this, iCount);
+}
+
+//-----------------------------------------------------------------------------
+// nonstandard
+/// returns substring starting at codepoint iStart for iCount codepoints
+DEKAF2_CONSTEXPR_14
+KStringView KStringView::MidUTF8(size_type iStart, size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return kMidUTF8<KStringView, KStringView>(*this, iStart, iCount);
+}
+
+//-----------------------------------------------------------------------------
+// nonstandard
+/// returns rightmost iCount UTF8 codepoints of string
+DEKAF2_CONSTEXPR_14
+KStringView KStringView::RightUTF8(size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return kRightUTF8<KStringView, KStringView>(*this, iCount);
+}
+
+//-----------------------------------------------------------------------------
+// nonstandard
+/// returns KCcodePoint at UTF8 position iCount
+DEKAF2_CONSTEXPR_14
+KCodePoint KStringView::AtUTF8(size_type iCount) const
+//-----------------------------------------------------------------------------
+{
+	return kAtUTF8(*this, iCount);
+}
+
+//-----------------------------------------------------------------------------
+// nonstandard
+/// returns true if string contains UTF8 runs
+DEKAF2_CONSTEXPR_14
+bool KStringView::HasUTF8() const
+//-----------------------------------------------------------------------------
+{
+	return kHasUTF8(*this);
+}
+
+//-----------------------------------------------------------------------------
+// nonstandard
+/// returns the count of unicode codepoints (or, UTF8 sequences)
+DEKAF2_CONSTEXPR_14
+KStringView::size_type KStringView::SizeUTF8() const
+//-----------------------------------------------------------------------------
+{
+	return kSizeUTF8(*this);
 }
 
 //-----------------------------------------------------------------------------

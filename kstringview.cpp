@@ -418,52 +418,6 @@ KStringView::self_type& KStringView::erase(size_type pos, size_type n)
 } // erase
 
 //-----------------------------------------------------------------------------
-bool KStringView::In (const KStringView sHaystack, value_type iDelim) const
-//-----------------------------------------------------------------------------
-{
-	// gcc 4.8.5 needs the non-brace initialization here..
-	auto& sNeedle(m_rep);
-
-	size_type iNeedle = 0;
-	size_type iHaystack = 0; // Beginning indices
-	size_type iNsize = sNeedle.size ();
-	size_type iHsize = sHaystack.size (); // Ending
-
-	while (iHaystack < iHsize)
-	{
-		iNeedle = 0;
-
-		// Search for matching tokens
-		while ( (iNeedle < iNsize)
-		     && (iHaystack < iHsize)
-		     && (sNeedle[iNeedle] == sHaystack[iHaystack]))
-		{
-			++iNeedle;
-			++iHaystack;
-		}
-
-		// If end of needle or haystack at delimiter or end of haystack
-		if ((iNeedle >= iNsize) &&
-			(iHaystack >= iHsize || (sHaystack[iHaystack] == iDelim)))
-		{
-			return true;
-		}
-
-		// Advance to next delimiter
-		while (iHaystack < iHsize && sHaystack[iHaystack] != iDelim)
-		{
-			++iHaystack;
-		}
-
-		// skip delimiter (if present, otherwise we are at end of string)
-		++iHaystack;
-	}
-
-	return false;
-
-} // In
-
-//-----------------------------------------------------------------------------
 bool KStringView::Bool() const noexcept
 //-----------------------------------------------------------------------------
 {

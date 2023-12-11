@@ -50,6 +50,295 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+//----------------------------------------------------------------------
+std::size_t kReplace(KStringRef& sString,
+					 KStringRef::value_type chSearch,
+					 KStringRef::value_type chReplace,
+					 KStringRef::size_type pos,
+					 bool bReplaceAll)
+//----------------------------------------------------------------------
+{
+	KStringRef::size_type iReplaced{0};
+
+	while ((pos = sString.find(chSearch, pos)) != npos)
+	{
+		sString[pos] = chReplace;
+		++pos;
+		++iReplaced;
+
+		if (!bReplaceAll)
+		{
+			break;
+		}
+	}
+
+	return iReplaced;
+
+} // kReplace
+
+//----------------------------------------------------------------------
+std::size_t kReplace(KStringRef& sString,
+					 const KStringView sSearch,
+					 const KStringView sReplace,
+					 KStringRef::size_type pos,
+					 bool bReplaceAll)
+//----------------------------------------------------------------------
+{
+	const auto iSize = sString.size();
+
+	if (DEKAF2_UNLIKELY(pos >= iSize))
+	{
+		return 0;
+	}
+
+	const auto iSearchSize = sSearch.size();
+
+	if (DEKAF2_UNLIKELY(sSearch.empty() || iSize - pos < iSearchSize))
+	{
+		return 0;
+	}
+
+	const auto iReplaceSize = sReplace.size();
+
+	if (DEKAF2_UNLIKELY(iSearchSize == 1 && iReplaceSize == 1))
+	{
+		return kReplace(sString, sSearch.front(), sReplace.front(), pos, bReplaceAll);
+	}
+
+	KStringRef::size_type iNumReplacement = 0;
+	// use a non-const ref to the first element, as .data() is const with C++ < 17
+	KStringRef::value_type* haystack = &sString[pos];
+	KStringRef::size_type haystackSize = iSize - pos;
+
+	auto pszFound = static_cast<KStringRef::value_type*>(memmem(haystack, haystackSize, sSearch.data(), iSearchSize));
+
+	if (DEKAF2_LIKELY(pszFound != nullptr))
+	{
+
+		if (iReplaceSize <= iSearchSize)
+		{
+			// execute an in-place substitution
+
+			auto pszTarget = haystack;
+
+			while (pszFound)
+			{
+				auto untouchedSize = static_cast<KStringRef::size_type>(pszFound - haystack);
+
+				if (pszTarget < haystack)
+				{
+					std::memmove(pszTarget, haystack, untouchedSize);
+				}
+
+				pszTarget += untouchedSize;
+
+				if (DEKAF2_LIKELY(iReplaceSize != 0))
+				{
+					std::memmove(pszTarget, sReplace.data(), iReplaceSize);
+					pszTarget += iReplaceSize;
+				}
+
+				haystack = pszFound + iSearchSize;
+				haystackSize -= (iSearchSize + untouchedSize);
+
+				pszFound = static_cast<KStringRef::value_type*>(memmem(haystack, haystackSize, sSearch.data(), iSearchSize));
+
+				++iNumReplacement;
+
+				if (DEKAF2_UNLIKELY(bReplaceAll == false))
+				{
+					break;
+				}
+			}
+
+			if (DEKAF2_LIKELY(haystackSize > 0))
+			{
+				std::memmove(pszTarget, haystack, haystackSize);
+				pszTarget += haystackSize;
+			}
+
+			auto iResultSize = static_cast<KStringRef::size_type>(pszTarget - sString.data());
+			sString.resize(iResultSize);
+
+		}
+		else
+		{
+			// execute a copy substitution
+
+			KString sResult;
+			// make room for at least one replace without realloc
+			sResult.reserve(iSize + iReplaceSize - iSearchSize);
+
+			if (DEKAF2_UNLIKELY(pos))
+			{
+				// copy the skipped part of the source string
+				sResult.append(sString, 0, pos);
+			}
+
+			while (pszFound)
+			{
+				auto untouchedSize = static_cast<KStringRef::size_type>(pszFound - haystack);
+				sResult.append(haystack, untouchedSize);
+				sResult.append(sReplace.data(), iReplaceSize);
+
+				haystack = pszFound + iSearchSize;
+				haystackSize -= (iSearchSize + untouchedSize);
+
+				pszFound = static_cast<KStringRef::value_type*>(memmem(haystack, haystackSize, sSearch.data(), iSearchSize));
+
+				++iNumReplacement;
+
+				if (DEKAF2_UNLIKELY(bReplaceAll == false))
+				{
+					break;
+				}
+			}
+
+			sResult.append(haystack, haystackSize);
+			sString.swap(sResult);
+
+		}
+	}
+
+	return iNumReplacement;
+
+} // kReplace
+
+//----------------------------------------------------------------------
+KString kToUpper(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	Unicode::FromUTF8(sInput, [&](Unicode::codepoint_t ch)
+	{
+		Unicode::ToUTF8(kToUpper(ch), sTransformed);
+		return true;
+	});
+
+	return sTransformed;
+}
+
+//----------------------------------------------------------------------
+KString kToLower(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	Unicode::FromUTF8(sInput, [&](Unicode::codepoint_t ch)
+	{
+		Unicode::ToUTF8(kToLower(ch), sTransformed);
+		return true;
+	});
+
+	return sTransformed;
+}
+
+//----------------------------------------------------------------------
+KString kToUpperLocale(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	for (const auto& it : sInput)
+	{
+		sTransformed += static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(it)));
+	}
+
+	return sTransformed;
+}
+
+//----------------------------------------------------------------------
+KString kToLowerLocale(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	for (const auto& it : sInput)
+	{
+		sTransformed += static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(it)));
+	}
+
+	return sTransformed;
+}
+
+//----------------------------------------------------------------------
+KString kToUpperASCII(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	for (const auto& it : sInput)
+	{
+		sTransformed += KASCII::kToUpper(it);
+	}
+
+	return sTransformed;
+}
+
+//----------------------------------------------------------------------
+KString kToLowerASCII(KStringView sInput)
+//----------------------------------------------------------------------
+{
+	KString sTransformed;
+	sTransformed.reserve(sInput.size());
+
+	for (const auto& it : sInput)
+	{
+		sTransformed += KASCII::kToLower(it);
+	}
+
+	return sTransformed;
+}
+
+//-----------------------------------------------------------------------------
+bool kStrIn (KStringView sNeedle, KStringView sHaystack, char iDelim)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iNeedle = 0;
+	std::size_t iHaystack = 0; // Beginning indices
+	std::size_t iNsize = sNeedle.size ();
+	std::size_t iHsize = sHaystack.size (); // Ending
+
+	while (iHaystack < iHsize)
+	{
+		iNeedle = 0;
+
+		// Search for matching tokens
+		while ( (iNeedle < iNsize)
+			   && (iHaystack < iHsize)
+			   && (sNeedle[iNeedle] == sHaystack[iHaystack]))
+		{
+			++iNeedle;
+			++iHaystack;
+		}
+
+		// If end of needle or haystack at delimiter or end of haystack
+		if ((iNeedle >= iNsize) &&
+			(iHaystack >= iHsize || (sHaystack[iHaystack] == iDelim)))
+		{
+			return true;
+		}
+
+		// Advance to next delimiter
+		while (iHaystack < iHsize && sHaystack[iHaystack] != iDelim)
+		{
+			++iHaystack;
+		}
+
+		// skip delimiter (if present, otherwise we are at end of string)
+		++iHaystack;
+	}
+
+	return false;
+
+} // kStrIn
+
 //-----------------------------------------------------------------------------
 bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim/*=','*/)
 //-----------------------------------------------------------------------------
@@ -59,7 +348,7 @@ bool kStrIn (const char* sNeedle, const char* sHaystack, char iDelim/*=','*/)
 		return false;
 	}
 
-	size_t iNeedle = 0, iHaystack = 0; // Beginning indices
+	std::size_t iNeedle = 0, iHaystack = 0; // Beginning indices
 
 	while (sHaystack[iHaystack])
 	{
@@ -109,6 +398,8 @@ bool kStrIn (KStringView sNeedle, const char* Haystack[])
 
 } // kStrIn
 
+
+
 namespace detail {
 
 // table with base36 integer values for lower and upper case ASCII
@@ -155,6 +446,7 @@ KString kFormString(KStringView sInp, KString::value_type separator, KString::si
 			pos -= every;
 		}
 	}
+
 	return result;
 
 } // kFormString
@@ -248,6 +540,7 @@ bool kIsFloat(KStringView str, KStringView::value_type chDecimalSeparator) noexc
 bool kIsEmail(KStringView str) noexcept
 //-----------------------------------------------------------------------------
 {
+#if DEKAF2_HAS_INCLUDE("kregex.h")
  	// see https://stackoverflow.com/a/201378
 	// but note that we extended the regex to match uppercase ASCII alphabetic characters
 	// as well, as that is what RFC5322 and RFC1035 permit (addresses are caseless)
@@ -255,6 +548,9 @@ bool kIsEmail(KStringView str) noexcept
 	R"foo((?:[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-zA-Z0-9-]*[a-zA-Z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\]))foo";
 
 	return KRegex::Matches(str, sRegex);
+#else
+	return false;
+#endif
 
 } // kIsEmail
 
@@ -262,7 +558,11 @@ bool kIsEmail(KStringView str) noexcept
 bool kIsURL(KStringView str) noexcept
 //-----------------------------------------------------------------------------
 {
+#if DEKAF2_HAS_INCLUDE("kurl.h")
 	return KURL(str).IsURL();
+#else
+	return false;
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -313,7 +613,7 @@ void kEscapeForLogging(KStringRef& sLog, KStringView sInput)
 			// escape non-printable characters..
 			sLog += '\\';
 			sLog += 'x';
-			KEncode::HexAppend(sLog, ch);
+			kHexAppend(sLog, ch);
 		}
 		else if (DEKAF2_UNLIKELY(ch == '\\' || ch == '"'))
 		{
@@ -328,6 +628,7 @@ void kEscapeForLogging(KStringRef& sLog, KStringView sInput)
 
 } // kEscapeForLogging
 
+#ifndef DEKAF2_KSTRING_IS_STD_STRING
 //-----------------------------------------------------------------------------
 void kResizeUninitialized(KString& sStr, KString::size_type iNewSize)
 //-----------------------------------------------------------------------------
@@ -383,6 +684,7 @@ void kResizeUninitialized(KString& sStr, KString::size_type iNewSize)
 #endif
 
 } // kResizeUninitialized
+#endif
 
 //-----------------------------------------------------------------------------
 void kResizeUninitialized(std::string& sStr, std::string::size_type iNewSize)

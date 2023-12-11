@@ -76,7 +76,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Cast any integral type into a value_type (codepoint_t), without signed bit expansion.
 	template<typename Ch>
-	constexpr
+	static constexpr
 	value_type CodepointCast(Ch sch)
 	//-----------------------------------------------------------------------------
 	{

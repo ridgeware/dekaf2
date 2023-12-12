@@ -47,7 +47,7 @@
 #include "klog.h"
 #include "kurl.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 
 //-----------------------------------------------------------------------------
@@ -214,7 +214,7 @@ std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile, int iSe
 	return std::make_unique<KUnixStream>(sSocketFile, iSecondsTimeout);
 }
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif // DEKAF2_HAS_UNIX_SOCKETS
 

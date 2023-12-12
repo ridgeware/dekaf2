@@ -50,7 +50,7 @@
 #include "kstringview.h"
 #include "kreader.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 
@@ -281,4 +281,4 @@ using KInStringStream  = KReader<KIStringStream>;
 /// Seekable string stream that reads copy-free from a KStringView / KString
 using KSeekableInStringStream  = KReader<KSeekableIStringStream>;
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

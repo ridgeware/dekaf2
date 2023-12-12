@@ -1,5 +1,6 @@
 #pragma once
 
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "kurl.h"
@@ -7,7 +8,7 @@
 #include "ktime.h"
 #include <map>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace AWSAuth4 {
 
@@ -105,4 +106,4 @@ private:
 
 }  // namespace AWSAuth4
 
-}  // namespace dekaf2
+DEKAF2_NAMESPACE_END

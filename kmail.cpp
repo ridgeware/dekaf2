@@ -47,7 +47,7 @@
 #include "klog.h"
 #include "kstringutils.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KMail& KMail::To(KString sTo, KString sPretty)
@@ -468,4 +468,4 @@ bool KMail::Send(const KURL& URL, KStringView sUsername, KStringView sPassword)
 static_assert(!std::is_nothrow_move_constructible<std::map<int, int>>::value || std::is_nothrow_move_constructible<KMail>::value,
 			  "KMail is intended to be nothrow move constructible, but is not!");
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

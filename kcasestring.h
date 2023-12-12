@@ -41,11 +41,12 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringutils.h"
 #include "kcaseless.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 namespace casestring {
@@ -315,7 +316,7 @@ using KCaseString         = KCaseStringBase<detail::casestring::NoTrim>;
 using KCaseTrimStringView = KCaseStringViewBase<detail::casestring::TrimWhiteSpaces>;
 using KCaseTrimString     = KCaseStringBase<detail::casestring::TrimWhiteSpaces>;
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 
 namespace std
@@ -383,30 +384,26 @@ namespace std
 } // end of namespace std
 
 #ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-namespace boost
+namespace boost {
 #else
-namespace dekaf2
+DEKAF2_NAMESPACE_BEGIN
 #endif
-{
 	template<typename Trimming>
 	std::size_t hash_value(const dekaf2::KCaseStringViewBase<Trimming>& s)
 	{
 		return dekaf2::kCalcCaseHashTrim<Trimming>(s);
 	}
-}
 
-#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-namespace boost
-#else
-namespace dekaf2
-#endif
-{
 	template<typename Trimming>
 	std::size_t hash_value(const dekaf2::KCaseStringBase<Trimming>& s)
 	{
 		return dekaf2::kCalcCaseHashTrim<Trimming>(s);
 	}
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 }
+#else
+DEKAF2_NAMESPACE_END
+#endif
 
 //----------------------------------------------------------------------
 template<typename Trimming>
@@ -424,7 +421,11 @@ inline std::size_t dekaf2::KCaseStringBase<Trimming>::Hash() const
 	return std::hash<dekaf2::KCaseStringBase<Trimming>>()(*this);
 }
 
-namespace fmt
+#if DEKAF2_HAS_INCLUDE("kformat.h")
+
+#include "kformat.h"
+
+namespace DEKAF2_FORMAT_NAMESPACE
 {
 
 template <typename Trimming>
@@ -447,4 +448,6 @@ struct formatter<dekaf2::KCaseStringBase<Trimming>> : formatter<string_view>
 	}
 };
 
-} // end of namespace fmt
+} // end of DEKAF2_FORMAT_NAMESPACE
+
+#endif // of #if DEKAF2_HAS_INCLUDE("kformat.h")

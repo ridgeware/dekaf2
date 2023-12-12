@@ -48,7 +48,7 @@
 #include "ktcpstream.h"
 
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KConnection::KConnection(KConnection&& other) noexcept
@@ -374,4 +374,4 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 
 } // Create
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

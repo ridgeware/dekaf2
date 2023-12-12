@@ -52,7 +52,7 @@
 /// @file khttpserver.h
 /// HTTP server implementation
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTTPServer
@@ -405,4 +405,4 @@ public:
 }; // KHTTPServer
 
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -62,8 +62,7 @@
 #endif
 #include <thread>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 /// Get environment variable.
 /// @param szEnvVar the environment variable's name
@@ -408,5 +407,5 @@ KTTYSize kGetTerminalSize(int fd = 0, uint16_t iDefaultColumns = 80, uint16_t iD
 DEKAF2_PUBLIC
 bool kIsInsideDataSegment(const void* addr);
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

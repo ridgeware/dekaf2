@@ -61,7 +61,7 @@
 #include <type_traits> // std::enable_if
 #include "kcompatibility.h" // enable_if_t < C++14
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 namespace detail {
 namespace bitfields {
 
@@ -241,5 +241,5 @@ public:
 
 }; // KBitfields
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

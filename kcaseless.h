@@ -41,10 +41,11 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "bits/khash.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 /// compares case insensitive
@@ -182,4 +183,4 @@ DEKAF2_PUBLIC
 std::size_t kCalcCaselessHashTrim(KStringView, KStringView svTrim);
 //-----------------------------------------------------------------------------
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

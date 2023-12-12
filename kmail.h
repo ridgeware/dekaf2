@@ -51,7 +51,7 @@
 /// @file kmail.h
 /// Adds the KMail class to represent an email to be sent
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This class takes all information for an email message. It can then be used
@@ -228,4 +228,4 @@ private:
 
 }; // KMail
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

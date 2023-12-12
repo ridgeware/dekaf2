@@ -45,13 +45,13 @@
 /// @file kcrc.h
 /// CRC computations
 
-#include <boost/crc.hpp>
+#include "kdefinitions.h"
 #include "kstream.h"
 #include "kstringview.h"
 #include "kstring.h"
+#include <boost/crc.hpp>
 
-
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KCRC32
@@ -132,5 +132,4 @@ protected:
 
 }; // KCRC32
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

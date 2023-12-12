@@ -38,13 +38,13 @@
 // +-------------------------------------------------------------------------+
 //
 
-#include "kstring.h"
 #include "kbar.h"
+#include "kstring.h"
 #include "kwriter.h"
 #include "ksystem.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KBAR::KBAR (uint64_t iExpected/*=0*/, uint32_t iWidth/*=DEFAULT_WIDTH*/, uint64_t iFlags/*=SLIDER*/, int chDone/*='%'*/, KOutStream& Out/*=KOut*/)
@@ -402,7 +402,4 @@ uint64_t KSharedBar::GetExpected()
 	return KBAR::GetExpected();
 }
 
-
-
-} // of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

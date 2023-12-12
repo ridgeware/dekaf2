@@ -44,6 +44,7 @@
 /// @file ktcpstream.h
 /// provides an implementation of std::iostreams for TCP
 
+#include "kdefinitions.h"
 #include "bits/kasio.h"
 #include "bits/kasiostream.h"
 #include "kstring.h"
@@ -51,9 +52,7 @@
 #include "kstreambuf.h"
 #include "kurl.h"
 
-namespace dekaf2
-{
-
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream TCP implementation with timeout.
@@ -225,5 +224,4 @@ DEKAF2_PUBLIC
 std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, int iSecondsTimeout = KTCPStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 
-} // namespace dekaf2
-
+DEKAF2_NAMESPACE_END

@@ -62,14 +62,14 @@
 #ifndef BOOST_NO_CXX98_FUNCTION_BASE
 	#define BOOST_NO_CXX98_FUNCTION_BASE
 #endif
+#include "kdefinitions.h"
+#include "bits/kmutable_pair.h"
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
-#include "bits/kmutable_pair.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
 // boost::multi_index versions of std::map/multimap/set/multiset
@@ -457,6 +457,4 @@ private:
 template<class Key, class Value, class Hash, class KeyEqual, class Allocator>
 const Value KUnorderedMultiMap<Key, Value, Hash, KeyEqual, Allocator>::s_Empty = Value();
 
-
-
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

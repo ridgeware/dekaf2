@@ -44,7 +44,7 @@
 #include "kstringutils.h"
 #include "kconfiguration.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 std::vector<KStringView> KInHTTPRequestLine::Parse(KString sRequestLine)
@@ -688,5 +688,5 @@ KStringView KInHTTPRequest::GetCookie (KStringView sCookieName) const
 
 } // GetCookie
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

@@ -45,7 +45,7 @@
 #include "kstringview.h"
 #include "kstring.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KQuotedPrintable
@@ -70,5 +70,5 @@ public:
 
 };
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

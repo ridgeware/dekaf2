@@ -51,7 +51,7 @@
 /// @file ksmtp.h
 /// Adds the KSMTP class which sends a KMail via SMTP to an MTA
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This class speaks the SMTP protocol with a mail relay. It takes a KMail class
@@ -117,4 +117,4 @@ private:
 
 }; // KSMTP
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

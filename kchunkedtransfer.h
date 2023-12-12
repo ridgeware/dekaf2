@@ -45,10 +45,11 @@
 /// @file kchunkedtransfer.h
 /// Implements chunked reader and writer as boost iostreams source and sink
 
-#include <boost/iostreams/concepts.hpp>    // source
+#include "kdefinitions.h"
 #include "kstream.h"
+#include <boost/iostreams/concepts.hpp>    // source
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KChunkedSource : public boost::iostreams::source
@@ -174,6 +175,4 @@ private:
 
 };
 
-
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

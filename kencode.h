@@ -43,6 +43,7 @@
 /// @file kencode.h
 /// provides support for various encoding schemes
 
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include "khex.h"
@@ -51,8 +52,7 @@
 #include "khtmlentities.h"
 #include "kquotedprintable.h"
 
-
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Collection of string encoders
@@ -261,5 +261,4 @@ using KEnc = KEncode;
 // alias for the old class name
 using KDec = KDecode;
 
-} // of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

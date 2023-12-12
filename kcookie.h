@@ -41,12 +41,13 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include "kurl.h"
 #include <vector>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a (HTTP) Cookie type
@@ -164,4 +165,4 @@ private:
 
 }; // KCookies
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

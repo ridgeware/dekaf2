@@ -45,7 +45,7 @@
 #include "kcountingstreambuf.h"
 #include "bits/kiostreams_filters.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode)
@@ -302,6 +302,6 @@ void KInHTTPFilter::Reset()
 
 } // Reset
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 

@@ -42,7 +42,7 @@
 #include "kstringstream.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool KOutputTemplate::AddStream(KInStream& InStream)
@@ -151,5 +151,5 @@ KString KOutputTemplate::Write(KStringView sFrom,
 static_assert(std::is_nothrow_move_constructible<KOutputTemplate>::value,
 			  "KOutputTemplate is intended to be nothrow move constructible, but is not!");
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

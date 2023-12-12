@@ -51,7 +51,7 @@
 #include "bits/kron_utils.h"
 #include "croncpp.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 using KCronParser = cron_base<cron_standard_traits<KString, KStringView>, Kron_utils>;
 
@@ -889,4 +889,4 @@ bool Kron::KillJob(Job::ID ID)
 constexpr KUnixTime Kron::INVALID_TIME;
 #endif
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -52,8 +52,7 @@
 #endif
 #include <cstdlib>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 void kBlockAllSignals(bool bExceptSEGVandFPE)
@@ -615,5 +614,5 @@ KStringView kTranslateSignal (int iSignalNum, bool bConcise/*=TRUE*/)
 
 } // kTranslateSignal
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

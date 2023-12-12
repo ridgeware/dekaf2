@@ -45,10 +45,10 @@
 /// @file khash.h
 /// provides a Fowler-Noll-Vo hash
 
-#include <cinttypes>
-#include <climits>
 #include "../kdefinitions.h"
 #include "../kctype.h" // for ASCII lowercase conversion
+#include <cinttypes>
+#include <climits>
 
 DEKAF2_NAMESPACE_BEGIN
 

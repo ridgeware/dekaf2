@@ -157,8 +157,7 @@
 //	 SQLT_TIMESTAMP_LTZ             232        /* TIMESTAMP WITH LOCAL TZ */
 //	 SQLT_PNTY   241              /* pl/sql representation of named types */
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 struct SQLTX
 {
@@ -10007,4 +10006,4 @@ constexpr KStringViewZ KSQL::DIFF::ignore_collate;
 constexpr KStringViewZ KSQL::DIFF::show_meta_info;
 #endif
 
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -44,7 +44,7 @@
 /// @file kunixstream.h
 /// provides an implementation of std::iostreams for Unix stream sockets
 
-#include <kconfiguration.h>
+#include "kdefinitions.h"
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 
@@ -55,9 +55,7 @@
 #include "kstreambuf.h"
 #include "kurl.h"
 
-namespace dekaf2
-{
-
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream TCP implementation with timeout.
@@ -226,6 +224,6 @@ DEKAF2_PUBLIC
 std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile, int iSecondsTimeout = KUnixIOStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif // DEKAF2_HAS_UNIX_SOCKETS

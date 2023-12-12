@@ -45,7 +45,7 @@
 /// @file kcompression.h
 /// Compression framework
 
-#include "kconfiguration.h"
+#include "kdefinitions.h"
 #include "kstream.h"
 #include "kinstringstream.h"
 #include "koutstringstream.h"
@@ -69,7 +69,7 @@
 #pragma GCC diagnostic pop
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 
@@ -364,5 +364,4 @@ using KBrotli   = detail::KOneComp<detail::KCompressionBase::BROTLI>;
 using KUnBrotli = detail::KOneUnComp<detail::KCompressionBase::BROTLI>;
 #endif
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

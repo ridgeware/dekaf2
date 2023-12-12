@@ -47,7 +47,7 @@
 #include "kmime.h"
 
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool KOutHTTPFilter::Parse(const KHTTPHeaders& headers)
@@ -330,6 +330,6 @@ void KOutHTTPFilter::Reset()
 
 } // Reset
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 

@@ -91,7 +91,7 @@
 #include "kstringview.h"
 #include "kreader.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 // the native nlohmann::json type, using KString instead of std::string though
 using LJSON = nlohmann::basic_json<std::map, std::vector, dekaf2::KString>;
@@ -376,7 +376,7 @@ using kjson::Contains;
 using kjson::Increment;
 using kjson::Decrement;
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #include <fmt/format.h>
 #include "kjson2.h"

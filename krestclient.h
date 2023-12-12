@@ -50,7 +50,7 @@
 #include "kjson.h"
 #include "khttperror.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// REST client implementation with string input/output
@@ -297,4 +297,4 @@ protected:
 
 }; // KJsonRestClient
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

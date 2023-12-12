@@ -45,16 +45,17 @@
 /// @file kcsv.h
 /// CSV reader/writer
 
-#include <vector>
-#include <memory>
+#include "kdefinitions.h"
 #include "kreader.h"
 #include "kwriter.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "kinstringstream.h"
 #include "koutstringstream.h"
+#include <vector>
+#include <memory>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// read and write CSV files
@@ -320,4 +321,4 @@ protected:
 
 }; // KOutCSV
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

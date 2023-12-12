@@ -41,7 +41,7 @@
 
 #include "kcasestring.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
@@ -63,4 +63,4 @@ static_assert(std::is_nothrow_move_constructible<KCaseStringViewBase<>>::value,
 static_assert(std::is_nothrow_move_constructible<KCaseStringBase<>>::value,
 			  "KCaseStringBase is intended to be nothrow move constructible, but is not!");
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

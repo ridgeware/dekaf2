@@ -44,8 +44,7 @@
 #include "kstringutils.h"
 #include "klog.h"
 
-namespace dekaf2 {
-
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KChunkedSource::KChunkedSource(KInStream& src, bool bIsChunked, std::streamsize iContentLen, std::streamsize* pCount)
@@ -375,6 +374,4 @@ void KChunkedSink::close()
 
 } // close
 
-} // end of namespace dekaf2
-
-
+DEKAF2_NAMESPACE_END

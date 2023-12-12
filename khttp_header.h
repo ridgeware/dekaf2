@@ -57,7 +57,8 @@
 #else
 		#define DEKAF2_KHTTP_HEADER_CONSTEXPR_14 inline
 #endif
-namespace dekaf2 {
+
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTTPHeader
@@ -762,7 +763,7 @@ bool operator!=(const KHTTPHeader& left, const KHTTPHeader& right)
 	return !operator==(left, right);
 }
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 namespace fmt
 {
@@ -804,19 +805,22 @@ namespace std
 } // end of namespace std
 
 #ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-namespace boost
+namespace boost {
 #else
-namespace dekaf2
+DEKAF2_NAMESPACE_BEGIN
 #endif
-{
 	inline
 	std::size_t hash_value(const dekaf2::KHTTPHeader& header)
 	{
 		return header.Hash();
 	}
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 }
+#else
+DEKAF2_NAMESPACE_END
+#endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTTPHeaders
@@ -925,4 +929,4 @@ private:
 
 }; // KHTTPHeaders
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

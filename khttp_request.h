@@ -48,7 +48,7 @@
 #include "kurl.h"
 #include "kstring.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Holds information about the original request line of an incoming request
@@ -353,4 +353,4 @@ protected:
 
 };
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

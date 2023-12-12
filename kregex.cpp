@@ -48,8 +48,7 @@
 #ifdef DEKAF2_ADD_REGEX_FOR_KSTRING
 #include <re2/../util/utf.h>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail
 {
@@ -253,11 +252,11 @@ int GlobalReplace(KString& str,
 
 } // end of namespace detail
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 namespace kregex {
@@ -633,5 +632,5 @@ size_t KRegex::GetCacheSize()
 static_assert(std::is_nothrow_move_constructible<KRegex>::value,
 			  "KRegex is intended to be nothrow move constructible, but is not!");
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

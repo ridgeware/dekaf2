@@ -51,7 +51,7 @@
 #include "kmru.h"
 
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 
@@ -413,5 +413,5 @@ private:
 
 }; // KSharedCache
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

@@ -45,7 +45,7 @@
 #include <algorithm>
 #include <array>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace {
 
@@ -393,4 +393,4 @@ std::size_t kCalcCaselessHashTrim(KStringView sv, KStringView svTrim)
 	return kCalcCaselessHash(sv);
 }
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

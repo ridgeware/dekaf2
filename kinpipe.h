@@ -48,9 +48,7 @@
 
 #include "kfdstream.h"
 
-namespace dekaf2
-
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Execute another process and attach read pipe to its std::out
@@ -129,6 +127,6 @@ public:
 
 }; // class KInPipe
 
-} // end namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif

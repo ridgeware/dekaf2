@@ -52,8 +52,7 @@
 #endif
 
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KBaseShell::~KBaseShell()
@@ -148,6 +147,6 @@ int KBaseShell::Close(int milliseconds /* unused */)
 
 } // Close
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif // of !DEKAF2_IS_UNIX

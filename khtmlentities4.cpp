@@ -53,7 +53,7 @@
 #include <unordered_map>
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 struct codes_t
 {
@@ -2554,5 +2554,5 @@ KString KHTMLEntity::DecodeOne(KStringView sIn)
 
 } // DecodeOne
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

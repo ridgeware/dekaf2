@@ -44,9 +44,10 @@
 /// @file kcountingstreambuf.h
 /// a streambuf that counts the bytes flowing through it
 
+#include "kdefinitions.h"
 #include "kstreambufadaptor.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// helper class to count the characters written through a streambuf
@@ -116,5 +117,5 @@ private:
 
 }; // KCountingInputStreamBuf
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

@@ -51,7 +51,7 @@
 	#include "kscopeguard.h"
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace kjson {
 
@@ -1259,4 +1259,4 @@ void Merge (LJSON& left, LJSON right)
 
 } // end of namespace kjson
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

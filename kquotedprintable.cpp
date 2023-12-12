@@ -45,7 +45,7 @@
 #include "klog.h"
 #include <cctype>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 constexpr char sxDigit[] = "0123456789ABCDEF";
 
@@ -275,5 +275,5 @@ KString KQuotedPrintable::Decode(KStringView sInput, bool bDotStuffing)
 
 } // Decode
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

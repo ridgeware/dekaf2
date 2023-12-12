@@ -42,10 +42,11 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "kstring.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Base64 with standard character set (not URL safe), padding appended, linebreaks
@@ -92,5 +93,4 @@ public:
 
 }; // KBase64Url
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

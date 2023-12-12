@@ -41,7 +41,7 @@
 
 #include "kparallel.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 /// sets number of threads to #cpu if numThreads == 0, but
@@ -129,5 +129,5 @@ bool KBlockOnID::Data::Unlock(std::size_t ID)
 
 } // Data::Unlock
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

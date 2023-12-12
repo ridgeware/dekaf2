@@ -52,11 +52,11 @@
 /// Also provides a template to generate a
 /// class of any type that will hold a reference to the shared pointer.
 
+#include "kdefinitions.h" // for DEKAF2_NAMESPACE
 #include <atomic>
 #include <type_traits>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A shared pointer implementation that adapts per template instance for
@@ -480,5 +480,4 @@ protected:
 
 }; // KDependant
 
-
-}
+DEKAF2_NAMESPACE_END

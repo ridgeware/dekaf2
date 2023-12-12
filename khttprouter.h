@@ -52,7 +52,7 @@
 /// HTTP server router layer implementation - associating callbacks
 /// with specific URL paths
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 class KHTTPRouter;
 
@@ -189,4 +189,4 @@ protected:
 }; // KHTTPRouter
 
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

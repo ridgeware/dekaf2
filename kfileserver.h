@@ -41,6 +41,7 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "kreader.h"
@@ -52,7 +53,7 @@
 /// @file kfileserver.h
 /// file server implementation
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Simple file server implementation
@@ -126,4 +127,4 @@ protected:
 
 }; // KFileServer
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

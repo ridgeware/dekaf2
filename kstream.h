@@ -47,8 +47,7 @@
 #include "kreader.h"
 #include "kwriter.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The generalized bidirectional stream abstraction for dekaf2
@@ -282,5 +281,5 @@ public:
 
 };
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

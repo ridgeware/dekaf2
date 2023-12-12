@@ -47,8 +47,7 @@
 #include "ksystem.h"
 #include <forward_list>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// template to store Values that can always be dereferenced from the same address
@@ -218,4 +217,4 @@ public:
 
 }; // KPersistStrings
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

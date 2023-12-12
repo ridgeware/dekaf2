@@ -51,7 +51,7 @@
 /// @file khttppath.h
 /// Primitives for HTTP routing
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A HTTP path object, used as base class for all HTTP and REST path / route objects
@@ -145,4 +145,4 @@ public:
 
 }; // KHTTPRewrite
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

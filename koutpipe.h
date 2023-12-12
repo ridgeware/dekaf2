@@ -47,9 +47,7 @@
 
 #include "kfdstream.h"
 
-namespace dekaf2
-
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Execute another process and attach write pipe to its std::in
@@ -129,6 +127,6 @@ public:
 
 }; // class KOutPipe
 
-} // end namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif

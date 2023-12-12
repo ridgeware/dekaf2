@@ -50,7 +50,7 @@
 #include "kctype.h"
 #include "kinshell.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
@@ -921,4 +921,4 @@ static_assert(std::is_nothrow_move_constructible<KMIMEPart>::value,
 static_assert(std::is_nothrow_move_constructible<KMIMEText>::value,
 			  "KMIMEText is intended to be nothrow move constructible, but is not!");
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

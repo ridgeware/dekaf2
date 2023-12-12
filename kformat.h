@@ -314,5 +314,4 @@ std::ostream& kPrintLine(const std::locale& locale, std::ostream& os, KStringVie
 	return kPrintLine(os, kFormat(locale, sFormat, std::forward<Args>(args)...));
 }
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

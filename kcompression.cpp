@@ -48,7 +48,7 @@
 #endif
 #include "bits/kiostreams_filters.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 detail::KCompressionBase::COMPRESSION detail::KCompressionBase::FromString(KStringView sCompression)
@@ -417,6 +417,5 @@ void KUnCompressIStream::close()
 
 } // close
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END
 

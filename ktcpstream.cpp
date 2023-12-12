@@ -44,7 +44,7 @@
 #include "klog.h"
 #include "kurl.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
@@ -248,5 +248,4 @@ std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, int i
 	return std::make_unique<KTCPStream>(EndPoint, iSecondsTimeout);
 }
 
-} // of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

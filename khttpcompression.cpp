@@ -41,7 +41,7 @@
 
 #include "khttpcompression.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KHTTPCompression::COMP KHTTPCompression::FromString(KStringView sCompression)
@@ -266,4 +266,4 @@ KAtomicObject<KString> KHTTPCompression::s_sPermittedCompressors { KHTTPCompress
 constexpr KStringViewZ KHTTPCompression::s_sSupportedCompressors;
 #endif
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END

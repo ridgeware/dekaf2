@@ -40,9 +40,11 @@
 
 #pragma once
 
+#include "../../kdefinitions.h"
 #include "../../kstringview.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
+
 namespace detail {
 
 namespace no_sse {
@@ -124,4 +126,5 @@ DEKAF2_PUBLIC std::size_t kFindLastNotOf  (KStringView haystack, KStringView nee
 } // end of namespace sse
 
 } // end of namespace detail
-} // end of namespace dekaf2
+
+DEKAF2_NAMESPACE_END

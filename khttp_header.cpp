@@ -46,7 +46,7 @@
 #include "ktime.h"
 #include "kstringutils.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KString KHTTPHeader::DateToString(KUnixTime tTime)
@@ -427,4 +427,4 @@ KHTTPHeaders::BasicAuthParms KHTTPHeaders::GetBasicAuthParms() const
 
 } // GetBasicAuthParms
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

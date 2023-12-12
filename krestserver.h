@@ -60,7 +60,7 @@
 /// @file krestserver.h
 /// HTTP REST server implementation
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// HTTP REST server with JSON, XML, or plain input / output
@@ -586,4 +586,4 @@ private:
 
 }; // KRESTServer
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -52,8 +52,7 @@
 	#include "koutpipe.h"
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 // For unixes we will use KPipe (with internal fork and exec) instead of popen,
 // as this permits us to close all open file descriptors before executing the
@@ -103,5 +102,5 @@ public:
 
 }; // END KOutShell
 
-} // END NAMESPACE DEKAF2
+DEKAF2_NAMESPACE_END
 

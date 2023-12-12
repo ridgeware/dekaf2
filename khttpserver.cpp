@@ -41,7 +41,7 @@
 
 #include "khttpserver.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 void KHTTPServer::clear()
@@ -330,4 +330,4 @@ void KHTTPServer::EnableCompressionIfPossible()
 
 } // EnableCompressionIfPossible
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

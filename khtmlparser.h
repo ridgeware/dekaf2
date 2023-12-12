@@ -41,6 +41,7 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include "kstream.h"
@@ -48,7 +49,7 @@
 #include "khash.h"
 #include <set>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Interface
@@ -669,7 +670,7 @@ inline KInStream& operator <<(T& Object, KInStream& stream)
 	return stream;
 }
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 namespace std
 {
@@ -686,14 +687,17 @@ namespace std
 } // end of namespace std
 
 #ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-namespace boost
+namespace boost {
 #else
-namespace dekaf2
+DEKAF2_NAMESPACE_BEGIN
 #endif
-{
 	inline
 	std::size_t hash_value(const dekaf2::KHTMLObject& o)
 	{
 		return o.Type();
 	}
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 }
+#else
+DEKAF2_NAMESPACE_END
+#endif

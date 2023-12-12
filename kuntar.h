@@ -80,7 +80,7 @@
 #include <vector>
 #include <memory>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Tar unarchiver for uncompressed archives
@@ -507,4 +507,4 @@ public:
 }; // KUnTarZstd
 #endif
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

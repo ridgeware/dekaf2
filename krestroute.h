@@ -53,7 +53,7 @@
 /// @file krestroute.h
 /// Primitives for REST routing
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 class KRESTServer;
 
@@ -547,4 +547,4 @@ private:
 
 }; // KRESTRoutes
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

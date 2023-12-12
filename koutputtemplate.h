@@ -49,7 +49,7 @@
 #include "kreplacer.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Replace variables with values
@@ -112,5 +112,5 @@ private:
 
 }; // KOutputtemplate
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

@@ -47,7 +47,7 @@
 #include "kcrashexit.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 namespace kwebsocket {
 
 namespace {
@@ -682,4 +682,4 @@ KWebSocketServer::Handle KWebSocketServer::AddWebSocket(KWebSocket WebSocket)
 
 } // AddConnection
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -68,7 +68,7 @@
 #include "../../kcompatibility.h"
 #include "../../kbit.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 namespace detail {
 namespace no_sse {
 
@@ -118,7 +118,7 @@ std::size_t kFindLastOf(KStringView haystack, KStringView needles, bool bNot)
 
 } // end of namespace no_sse
 } // end of namespace detail
-} // end of namespace dekaf
+DEKAF2_NAMESPACE_END
 
 #if DEKAF2_FIND_FIRST_OF_USE_SIMD
 
@@ -142,7 +142,7 @@ std::size_t kFindLastOf(KStringView haystack, KStringView needles, bool bNot)
 #include <limits>
 #include <string>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 namespace detail {
 namespace sse    {
 
@@ -631,14 +631,14 @@ std::size_t kFindFirstOf(KStringView haystack, KStringView needles)
 	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
 	{
 		// We can't safely SSE-load haystack. Use a different approach.
-		return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, false);
+		return detail::no_sse::kFindFirstOf(haystack, needles, false);
 	}
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
 		if (DEKAF2_UNLIKELY(UnalignedPageOverflow16(needles)))
 		{
-			return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, false);
+			return detail::no_sse::kFindFirstOf(haystack, needles, false);
 		}
 
 		// we can save some unnecessary load instructions by optimizing for
@@ -686,14 +686,14 @@ std::size_t kFindFirstNotOf(KStringView haystack, KStringView needles)
 	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
 	{
 		// We can't safely SSE-load haystack. Use a different approach.
-		return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, true);
+		return detail::no_sse::kFindFirstOf(haystack, needles, true);
 	}
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
 		if (DEKAF2_UNLIKELY(UnalignedPageOverflow16(needles)))
 		{
-			return dekaf2::detail::no_sse::kFindFirstOf(haystack, needles, true);
+			return detail::no_sse::kFindFirstOf(haystack, needles, true);
 		}
 
 		// we can save some unnecessary load instructions by optimizing for
@@ -735,14 +735,14 @@ std::size_t kFindLastOf(KStringView haystack, KStringView needles)
 
 	if (DEKAF2_UNLIKELY(UnalignedPageUnderflow(haystack)))
 	{
-		return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, false);
+		return detail::no_sse::kFindLastOf(haystack, needles, false);
 	}
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
 		if (DEKAF2_UNLIKELY(UnalignedPageOverflow16(needles)))
 		{
-			return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, false);
+			return detail::no_sse::kFindLastOf(haystack, needles, false);
 		}
 
 		// For a 16 byte or less needle you don't need to cycle through it
@@ -753,7 +753,7 @@ std::size_t kFindLastOf(KStringView haystack, KStringView needles)
 	// we need to test for an overflow on haystack as well
 	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
 	{
-		return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, false);
+		return detail::no_sse::kFindLastOf(haystack, needles, false);
 	}
 
 	// Account for haystack < 16
@@ -814,14 +814,14 @@ std::size_t kFindLastNotOf(KStringView haystack, KStringView needles)
 	// test for underflow on haystack
 	if (DEKAF2_UNLIKELY(UnalignedPageUnderflow(haystack)))
 	{
-		return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
+		return detail::no_sse::kFindLastOf(haystack, needles, true);
 	}
 
 	if (DEKAF2_LIKELY(needles.size() <= 16))
 	{
 		if (DEKAF2_UNLIKELY(UnalignedPageOverflow16(needles)))
 		{
-			return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
+			return detail::no_sse::kFindLastOf(haystack, needles, true);
 		}
 
 		// For a 16 byte or less needle you don't need to cycle through it
@@ -832,7 +832,7 @@ std::size_t kFindLastNotOf(KStringView haystack, KStringView needles)
 	// we need to test for an overflow on haystack as well
 	if (DEKAF2_UNLIKELY(UnalignedPageOverflow(haystack)))
 	{
-		return dekaf2::detail::no_sse::kFindLastOf(haystack, needles, true);
+		return detail::no_sse::kFindLastOf(haystack, needles, true);
 	}
 
 	// Account for haystack < 16
@@ -882,6 +882,6 @@ std::size_t kFindLastNotOf(KStringView haystack, KStringView needles)
 
 } // end of namespace sse
 } // end of namespace detail
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif

@@ -42,7 +42,7 @@
 #include "kinstringstream.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 /// this is the custom KStringView reader
@@ -153,4 +153,4 @@ std::streambuf::pos_type KInStringStreamBuf::seekoff(off_type off,
 
 } // seekoff
 
-} // end namespace dekaf2
+DEKAF2_NAMESPACE_END

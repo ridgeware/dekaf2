@@ -52,7 +52,7 @@
 	#endif
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTTPMethod
@@ -137,7 +137,7 @@ private:
 
 }; // KHTTPMethod
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 namespace fmt
 {

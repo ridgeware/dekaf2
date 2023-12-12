@@ -45,7 +45,7 @@
 #include "klog.h"
 #include <openssl/evp.h>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
 KMessageDigestBase::KMessageDigestBase(ALGORITHM Algorithm, UpdateFunc _Updater)
@@ -303,4 +303,4 @@ static_assert(std::is_nothrow_move_constructible<KMessageDigest>::value,
 static_assert(std::is_nothrow_move_constructible<KMD5>::value,
 			  "KMD5 is intended to be nothrow move constructible, but is not!");
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

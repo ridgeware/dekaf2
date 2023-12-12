@@ -44,14 +44,13 @@
 /// @file kcgistream.h
 /// provides an implementation of a std::istream for CGI
 
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kstreambuf.h"
 #include "khttp_header.h"
 #include <vector>
 
-namespace dekaf2
-{
-
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::istream CGI implementation
@@ -209,5 +208,5 @@ private:
 
 }; // KCGIInStream
 
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END
 

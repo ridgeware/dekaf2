@@ -43,8 +43,7 @@
 
 #ifdef DEKAF2_HAS_PIPES
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool KInPipe::Open(KString sCommand, KStringViewZ sShell,
@@ -73,6 +72,6 @@ int KInPipe::Close (int iWaitMilliseconds)
 
 } // Close
 
-} // end namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif

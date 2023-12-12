@@ -43,7 +43,7 @@
 #include "kcrc.h"
 #include <array>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
 bool KCRC32::Update(KInStream& InputStream)
@@ -65,6 +65,4 @@ bool KCRC32::Update(KInStream& InputStream)
 
 } // Update
 
-} // end of namespace dekaf2
-
-
+DEKAF2_NAMESPACE_END

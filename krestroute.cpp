@@ -47,7 +47,7 @@
 #include "ktime.h"
 #include "kduration.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KRESTPath::KRESTPath(KHTTPMethod _Method, KString _sRoute)
@@ -513,4 +513,4 @@ static_assert(!std::is_nothrow_move_constructible<std::function<void(int)>>::val
 static_assert(!std::is_nothrow_move_constructible<std::function<void(int)>>::value || std::is_nothrow_move_constructible<KRESTRoutes>::value,
 			  "KRESTRoutes is intended to be nothrow move constructible, but is not!");
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

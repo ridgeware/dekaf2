@@ -42,7 +42,7 @@
 #include "khtmlcontentblocks.h"
 #include "kctype.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 void KHTMLContentBlocks::BlockContent::FlushText()
@@ -238,5 +238,4 @@ void KHTMLContentBlocks::Invalid(char ch)
 
 } // Invalid
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

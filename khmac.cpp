@@ -62,7 +62,7 @@
 #endif
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
 KHMAC::KHMAC(ALGORITHM Algorithm, KStringView sKey, KStringView sMessage)
@@ -267,7 +267,7 @@ KString KHMAC::HexDigest() const
 
 } // HexDigest
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #if OPENSSL_VERSION_NUMBER >= 0x030000000
 #ifdef DEKAF2_IS_GCC

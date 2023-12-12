@@ -55,8 +55,7 @@
  #include <csignal>
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 static KCrashCallback       g_pCrashCallback{nullptr};
 thread_local static KString g_tl_sCrashContext;
@@ -274,5 +273,4 @@ void kFailedAssert (const char* sCrashMessage)
 
 } // of namespace detail
 
-} // of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

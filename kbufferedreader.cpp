@@ -50,7 +50,7 @@
 	#include <io.h>
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KBufferedReader::~KBufferedReader()
@@ -417,4 +417,4 @@ bool KBufferedFileReader::UnReadStreamBuf(size_t iSize)
 
 } // UnReadStreamBuf
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

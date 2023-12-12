@@ -56,7 +56,7 @@
 #include <atomic>
 #include <thread>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 class DEKAF2_PUBLIC KWebSocketError : public KException
 {
@@ -256,4 +256,4 @@ private:
 
 }; // KWebSocketServer
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

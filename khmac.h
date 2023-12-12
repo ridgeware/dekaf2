@@ -45,15 +45,15 @@
 /// @file khmac.h
 /// HMAC message digests
 
-#include <openssl/opensslv.h>
+#include "kdefinitions.h"
 #include "kstream.h"
 #include "kstringview.h"
 #include "kstring.h"
-
+#include <openssl/opensslv.h>
 
 struct hmac_ctx_st;
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KHMAC gives the interface for all HMAC algorithms. The
@@ -272,5 +272,4 @@ using KHMAC512 = KHMAC_SHA512;
 
 #endif // of OPENSSL_VERSION_NUMBER >= 0x010100000
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

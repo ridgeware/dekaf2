@@ -45,9 +45,11 @@
 /// @file kmutable_pair.h
 /// provides a helper for boost multi_index
 
+#include "../kdefinitions.h"
 #include <utility>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
+
 namespace detail {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -134,5 +136,5 @@ struct KMutablePair
 }; // KMutablePair
 
 } // end of namespace detail
-} // end of namespace dekaf2
 
+DEKAF2_NAMESPACE_END

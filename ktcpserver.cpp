@@ -84,8 +84,7 @@
 #include "dekaf2.h"
 #include "ksignals.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 using boost::asio::ip::tcp;
 using endpoint_type = boost::asio::ip::tcp::acceptor::endpoint_type;
@@ -899,5 +898,5 @@ bool KTCPServer::SetError(KString sError, bool bNoLogging)
 	return false;
 }
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

@@ -41,12 +41,12 @@
 
 #pragma once
 
-#include <kconfiguration.h>
+#include "kdefinitions.h"
 #include "kstream.h"
 #include "kstringstream.h"
 #include "kurl.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KConnection
@@ -323,5 +323,4 @@ public:
 
 };
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

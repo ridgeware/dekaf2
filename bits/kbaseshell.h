@@ -43,12 +43,13 @@
 /// @file kbaseshell.h
 /// basic shell I/O class
 
+#include "../kdefinitions.h"
 #include "../kstring.h"
+#include <cstdio>
 
 #ifndef DEKAF2_IS_UNIX
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KBaseShell
@@ -103,6 +104,6 @@ protected:
 
 }; // class KPIPE
 
-} // end of namespace DEKAF2
+DEKAF2_NAMESPACE_END
 
 #endif // !DEKAF2_IS_UNIX

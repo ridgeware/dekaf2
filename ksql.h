@@ -164,7 +164,7 @@ typedef unsigned long* MYSQL_ROW_LENS; // this one is not a MYSQL type, but it i
 // KSQL: DATABASE CONNECTION CLASS
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Normalizing date/time columns into format like "20010723211321"...
@@ -1695,4 +1695,4 @@ private:
 
 }; // DbSemaphore
 
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END

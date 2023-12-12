@@ -43,7 +43,7 @@
 #include "kurlencode.h"
 #include "kstringutils.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 
@@ -138,4 +138,4 @@ template class KURLEncoded<KString>;
 template class KURLEncoded<KProps<KString, KString>, '&', '='>;
 #endif // of _MSC_VER
 
-}// end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -44,7 +44,7 @@
 #include "kfrozen.h"
 #include <openssl/opensslv.h>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 #if (BOOST_VERSION < 106600)
 boost::asio::io_service KSSLContext::s_IO_Service;
@@ -738,5 +738,5 @@ std::unique_ptr<KSSLClient> CreateKSSLClient(const KTCPEndPoint& EndPoint, bool 
 
 } // CreateKSSLClient
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

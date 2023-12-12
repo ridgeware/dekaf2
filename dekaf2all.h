@@ -72,6 +72,7 @@
 #include "kcrc.h"
 #include "kcsv.h"
 #include "kctype.h"
+#include "kdefinitions.h"
 #include "kdiff.h"
 #include "kduration.h"
 #include "kencode.h"

@@ -47,7 +47,7 @@
 #include "ktime.h"
 
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisconnectOnFailure)
@@ -493,4 +493,4 @@ void KSMTP::SetTimeout(uint16_t iSeconds)
 }
 
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

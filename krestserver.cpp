@@ -58,7 +58,7 @@
 #include "kwebsocket.h"
 #include "kscopeguard.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 void KRESTServer::Options::AddHeader(KHTTPHeader Header, KString sValue)
@@ -1692,4 +1692,4 @@ const KRESTRoute KRESTServer::s_EmptyRoute({}, false, "/empty", "", nullptr, KRE
 constexpr std::array<KRESTServer::TimerLabel, KRESTServer::SEND + 1> KRESTServer::Timers;
 #endif
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -46,12 +46,13 @@
 /// generic atomic wrapping for larger objects through an atomic pointer - access on the object is read only,
 /// and updates must happen less frequent than maximum lifetime of the unwrapped object
 
+#include "kdefinitions.h"
 #include "kthreadsafe.h"
 #include <memory>
 #include <mutex>
 #include <atomic>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// generic atomic wrapping for larger objects through an atomic pointer - access on the object is read only,
@@ -179,4 +180,4 @@ private:
 
 }; // KAtomicObject
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

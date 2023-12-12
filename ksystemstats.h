@@ -50,7 +50,7 @@
 #include "kprops.h"
 #include "kmime.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KSystemStats
@@ -232,4 +232,4 @@ private:
 
 }; // KSystemStats
 
-} // end namespace dekaf2
+DEKAF2_NAMESPACE_END

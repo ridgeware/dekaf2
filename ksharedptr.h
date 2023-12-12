@@ -54,10 +54,10 @@
 /// any given point in time across threads, and therefore a call to use_count() is
 /// declared as "approximate" by the standard.
 
+#include "kdefinitions.h" // for DEKAF2_NAMESPACE
 #include <atomic>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A shared pointer implementation that adapts per template instance for
@@ -433,4 +433,4 @@ KSharedPtr<T, bMultiThreaded, bAcquireRelease> kMakeShared(Args&&... args)
 
 } // kMakeShared
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

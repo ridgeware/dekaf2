@@ -55,7 +55,7 @@
 #include <mutex>
 #include <atomic>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 namespace enabled {
 
 class KProf;
@@ -352,13 +352,13 @@ private:
 }; // KProf
 
 } // of namespace enabled
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif // DEKAF2_ENABLE_PROFILING || DEKAF2_LIBRARY_BUILD
 
 #if !defined(DEKAF2_ENABLE_PROFILING)
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 namespace disabled {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -507,12 +507,11 @@ public:
 
 } // of namespace disabled
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif // DEKAF2_ENABLE_PROFILING == false
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 #if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 #ifndef DEKAF2_DISABLE_AUTOMATIC_PROFILER
@@ -557,5 +556,5 @@ DEKAF2_PUBLIC inline void kProfFinalize()
 
 #endif // DEKAF2_ENABLE_PROFILING == false
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

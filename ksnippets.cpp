@@ -42,7 +42,7 @@
 #include "kstringstream.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KSnippets::KSnippets(KInStream& InStream, KStringView sLeadIn, KStringView sLeadOut)
@@ -274,5 +274,5 @@ void KSnippets::clear()
 static_assert(!std::is_nothrow_move_constructible<std::unordered_map<int, int>>::value || std::is_nothrow_move_constructible<KSnippets>::value,
 			  "KSnippets is intended to be nothrow move constructible, but is not!");
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

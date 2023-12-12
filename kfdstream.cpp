@@ -49,7 +49,7 @@
 	#include <unistd.h>
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 
@@ -294,5 +294,4 @@ template class KReader<KInputFDStream>;
 template class KReader<KInputFPStream>;
 template class KReaderWriter<KInOutFDStream>;
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

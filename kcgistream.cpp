@@ -47,7 +47,7 @@
 #include "kctype.h"
 #include <array>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 std::streamsize KCGIInStream::StreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
@@ -371,5 +371,5 @@ constexpr KStringViewZ KCGIInStream::SERVER_SOFTWARE;
 constexpr KStringViewZ KCGIInStream::WEB_SERVER_API;
 
 #endif
-} // of namespace dekaf2
 
+DEKAF2_NAMESPACE_END

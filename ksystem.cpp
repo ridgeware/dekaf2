@@ -104,8 +104,7 @@
 	#endif
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 /// Get environment variable. Return @p szDefault if not found.
@@ -1604,7 +1603,7 @@ KTTYSize kGetTerminalSize(int fd, uint16_t iDefaultColumns, uint16_t iDefaultLin
 
 } // kGetTerminalSize
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #if !defined(DEKAF2_IS_MACOS) && defined(DEKAF2_IS_UNIX)
 extern char _etext;
@@ -1612,7 +1611,7 @@ extern char _edata;
 //extern char _end;
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool kIsInsideDataSegment(const void* addr)
@@ -1929,4 +1928,4 @@ bool kIsInsideDataSegment(const void* addr)
 
 } // kIsInsideDataSegment
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -45,7 +45,7 @@
 #include "kfileserver.h"
 #include "ktime.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KHTTPRoute::KHTTPRoute(KString _sRoute, KString _sDocumentRoot, HTTPCallback _Callback)
@@ -354,4 +354,4 @@ void KHTTPRouter::ErrorHandler(const std::exception& ex)
 
 } // ErrorHandler
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

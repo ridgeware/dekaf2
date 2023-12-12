@@ -41,7 +41,7 @@
 
 #include "kcountingstreambuf.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool KCountingOutputStreamBuf::Output(char ch)
@@ -83,5 +83,4 @@ std::streamsize KCountingInputStreamBuf::Inspect(char* sBuffer, std::streamsize 
 	return iSize;
 }
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

@@ -58,7 +58,7 @@
 #include <map>
 #include <vector>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Kron
@@ -310,4 +310,4 @@ protected:
 
 }; // Kron
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

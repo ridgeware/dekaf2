@@ -49,7 +49,7 @@
 #include <string>
 #include <type_traits>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 
@@ -604,4 +604,4 @@ std::size_t KDiffToASCII2 (KStringRef& sOldText, KStringRef& sNewText,
 
 } // KDiffToASCII2
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

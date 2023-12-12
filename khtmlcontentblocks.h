@@ -41,9 +41,10 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "khtmlparser.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTMLContentBlocks : public KHTMLParser
@@ -131,6 +132,4 @@ private:
 
 }; // KHTMLContentBlocks
 
-
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

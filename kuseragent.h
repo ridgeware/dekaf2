@@ -43,7 +43,7 @@
 
 #include "kstringview.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC DEKAF2_DEPRECATED("no more maintained") KHTTPUserAgent
@@ -162,4 +162,4 @@ private:
 
 };
 
-} // enf of namespace dekaf2
+DEKAF2_NAMESPACE_END

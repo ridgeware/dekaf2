@@ -44,10 +44,11 @@
 /// provides std::allocator that reserves a certain size on the stack, and
 /// only if more storage is needed switches to dynamic allocation
 
+#include "kdefinitions.h"
 #include <cstddef>
 #include <cassert>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 // This source is largely taken from https://howardhinnant.github.io/short_alloc.h
 // and has the following original license note
@@ -266,4 +267,4 @@ bool operator!=(const KStackAlloc<T, N, A1>& x, const KStackAlloc<U, M, A2>& y) 
 	return !(x == y);
 }
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END

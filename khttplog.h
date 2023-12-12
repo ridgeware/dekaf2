@@ -45,7 +45,7 @@
 #include "kstringview.h"
 #include "kwriter.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 class KRESTServer;
 
@@ -109,4 +109,4 @@ private:
 
 }; // KHTTPLog
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

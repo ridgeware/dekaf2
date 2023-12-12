@@ -60,8 +60,7 @@
 #include "klog.h"
 #include "kstream.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// definition of the multi index storage type for non-sequential KProps types
@@ -1023,4 +1022,4 @@ extern template class KProps<KString, KString, /*order-matters=*/true,  /*unique
 extern template class KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/false>;
 extern template class KProps<KString, KString, /*order-matters=*/true,  /*unique-keys=*/false>;
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

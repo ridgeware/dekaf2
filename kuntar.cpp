@@ -89,7 +89,7 @@
 #include <cstring>
 #include <array>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 KUnTar::iterator::iterator(KUnTar* UnTar) noexcept
 : m_UnTar(UnTar)
@@ -804,5 +804,5 @@ KUnTarCompressed::KUnTarCompressed(KUnCompressIStream::COMPRESSION Compression,
 
 } // ctor
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

@@ -43,10 +43,12 @@
 /// @file kheapmon.h
 /// monitoring and profiling memory usage
 
-#include <cstddef>
+#include "kdefinitions.h"
 #include "kstringview.h"
+#include <cstddef>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
+
 namespace Heap {
 
 /// return last error code - translate with strerror() .. (thread local implementation)
@@ -87,6 +89,7 @@ bool    Reset();
 /// returns true if monitoring was started
 bool    IsStarted();
 
-}
-}
-} // of namespace dekaf2
+} // namespace Profiling
+} // namespace Heap
+
+DEKAF2_NAMESPACE_END

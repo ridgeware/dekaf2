@@ -49,14 +49,14 @@
 /// is however as fast as is this implementation, so if not needed for
 /// cross-platform performance this implementation is unneeded.
 
-#include <istream>
-#include <fcntl.h>
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "kreader.h"
 #include "kfilesystem.h"
+#include <istream>
+#include <fcntl.h>
 
-
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KBufferedReader speeds up read operations in small chunks noticeably on
@@ -315,4 +315,4 @@ private:
 
 }; // KBufferedFileReader
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

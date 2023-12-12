@@ -46,7 +46,7 @@
 #include "khtmlentities.h"
 #include "kexception.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KHTMLElement::KHTMLElement(const KHTMLElement& other)
@@ -1138,4 +1138,4 @@ constexpr std::size_t KHTMLElement::TYPE;
 constexpr KStringView KHTMLElement::s_sObjectName;
 #endif
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

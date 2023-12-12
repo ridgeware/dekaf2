@@ -46,7 +46,7 @@
 #include "khttp_header.h"
 #include "kurlencode.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 std::streamsize KLambdaInStream::StreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
@@ -222,5 +222,5 @@ KLambdaInStream::KLambdaInStream(std::istream& istream)
 
 } // ctor
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

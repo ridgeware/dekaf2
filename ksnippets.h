@@ -52,7 +52,7 @@
 #include <unordered_map>
 #include <forward_list>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Replace variables with values
@@ -107,5 +107,5 @@ private:
 
 }; // KSnippets
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

@@ -52,7 +52,7 @@
 #include "dekaf2.h"
 #include "koutstringstream.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace {
 
@@ -1637,4 +1637,4 @@ int KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
 	constexpr KStringView  KOptions::UNKNOWN_ARG;
 #endif
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

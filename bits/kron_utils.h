@@ -42,12 +42,13 @@
 
 #pragma once
 
+#include "../kdefinitions.h"
 #include "../kstringview.h"
 #include "../kstring.h"
 #include "../kstringutils.h"
 #include "../ktime.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 struct Kron_utils
 {
@@ -120,4 +121,4 @@ struct Kron_utils
 
 }; // Kron_utils
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

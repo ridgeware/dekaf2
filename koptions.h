@@ -58,7 +58,7 @@
 /// option parsing
 
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KOptions
@@ -637,7 +637,7 @@ private:
 
 }; // KOptions
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 
 

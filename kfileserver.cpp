@@ -44,7 +44,7 @@
 #include "khttperror.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool KFileServer::Open(KStringView sDocumentRoot,
@@ -229,4 +229,4 @@ void KFileServer::clear()
 static_assert(std::is_nothrow_move_constructible<KFileServer>::value,
 			  "KFileServer is intended to be nothrow move constructible, but is not!");
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

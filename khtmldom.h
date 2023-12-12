@@ -41,11 +41,11 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "khtmlparser.h"
 #include "klog.h"
 
-namespace dekaf2 {
-
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Basic element of a HTML DOM structure
@@ -508,4 +508,4 @@ private:
 
 }; // KHTML
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

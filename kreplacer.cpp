@@ -43,7 +43,7 @@
 #include "kstringutils.h" // for kFormNumber()
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool KReplacer::empty() const
@@ -508,5 +508,5 @@ static_assert(!std::is_nothrow_move_constructible<std::map<int, int>>::value || 
 static_assert(!std::is_nothrow_move_constructible<std::map<int, int>>::value || std::is_nothrow_move_constructible<KVariables>::value,
 			  "KVariables is intended to be nothrow move constructible, but is not!");
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

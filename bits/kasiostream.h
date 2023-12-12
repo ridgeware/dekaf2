@@ -44,9 +44,12 @@
 /// @file kasiostream.h
 /// provides asio stream abstraction with deadline timer
 
-#include "kasio.h"
+#include "../kdefinitions.h"
 #include "../kstring.h"
 #include "../klog.h"
+#include "kasio.h"
+
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<typename StreamType>
@@ -181,9 +184,11 @@ struct KAsioStream
 
 	boost::asio::io_service IOService;
 	StreamType Socket;
-	dekaf2::KString sEndpoint;
+	KString sEndpoint;
 	boost::asio::deadline_timer Timer;
 	boost::system::error_code ec;
 	int iSecondsTimeout;
 
 }; // KAsioStream
+
+DEKAF2_NAMESPACE_END

@@ -46,7 +46,7 @@
 #include "kcompatibility.h"
 #include "kbitfields.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Experimental type to use the upper bits of an address for other purposes.
@@ -129,5 +129,4 @@ public:
 
 }; // KAddrPlus
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

@@ -43,8 +43,7 @@
 #include "koutshell.h"
 #include "klog.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 #ifdef DEKAF2_IS_UNIX
 
@@ -83,4 +82,4 @@ bool KOutShell::Open(KString sCommand, KStringViewZ sShell,
 
 #endif
 
-} // END NAMESPACE dekaf2
+DEKAF2_NAMESPACE_END

@@ -57,7 +57,7 @@ struct env_md_ctx_st;
 struct evp_md_ctx_st;
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KMessageDigestBase constructs the basic algorithms for message digest
@@ -373,5 +373,5 @@ using KHASH512 = KSHA512;
 
 #endif // of OPENSSL_VERSION_NUMBER >= 0x010100000
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

@@ -42,7 +42,7 @@
 
 #include "ksplit.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace {
 
@@ -194,4 +194,4 @@ std::size_t kSplit(
 );
 #endif // of _MSC_VER
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

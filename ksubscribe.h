@@ -52,8 +52,7 @@
 #include "bits/kmake_unique.h"
 #include "klog.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail
 {
@@ -558,5 +557,5 @@ protected:
 
 };
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

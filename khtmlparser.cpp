@@ -47,7 +47,7 @@
 #include "kfrozen.h"
 #include "kctype.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace {
 
@@ -1562,5 +1562,5 @@ constexpr std::size_t KHTMLCData::TYPE;
 constexpr KStringView KHTMLCData::s_sObjectName;
 #endif
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

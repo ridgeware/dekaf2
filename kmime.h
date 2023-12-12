@@ -53,7 +53,7 @@
 	#include <vector>
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a MIME type
@@ -494,7 +494,7 @@ public:
 
 }; // KMIMEDirectory
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 namespace fmt
 {

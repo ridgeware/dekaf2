@@ -62,8 +62,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 using StringVec = std::vector<KString>;
 using FrameVec  = std::vector<KStackFrame>;
@@ -892,4 +891,4 @@ KString KStackFrame::Serialize(bool bNormalize) const
 
 } // KStackFrame::Serialize
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END

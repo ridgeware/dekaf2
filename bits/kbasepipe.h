@@ -50,7 +50,7 @@
 // Generic Includes
 #include <sys/wait.h>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KBasePipe
@@ -133,6 +133,6 @@ protected:
 
 DEKAF2_ENUM_IS_FLAG(KBasePipe::OpenMode)
 
-}
+DEKAF2_NAMESPACE_END
 
 #endif

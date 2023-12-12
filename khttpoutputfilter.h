@@ -54,7 +54,7 @@
 /// HTTP streaming output filter implementation
 
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KOutHTTPFilter : public KHTTPCompression
@@ -181,6 +181,6 @@ private:
 
 }; // KOutHTTPFilter
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 

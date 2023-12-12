@@ -46,7 +46,7 @@
 #include "khttpinputfilter.h"
 #include "khttpoutputfilter.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTTPResponseHeaders : public KHTTPHeaders
@@ -288,4 +288,4 @@ protected:
 };
 
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

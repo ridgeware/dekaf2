@@ -49,8 +49,7 @@
 #include <functional>
 #include <csignal>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 class KStringView;
 
@@ -137,5 +136,4 @@ void kAssert (bool bMustBeTrue, const char* sCrashMessage)
 #endif
 }
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

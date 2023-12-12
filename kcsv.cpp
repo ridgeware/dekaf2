@@ -42,7 +42,7 @@
 
 #include "kcsv.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KCSV::KCSV(char chRecordLimiter,
@@ -154,4 +154,4 @@ KCSV::STATE KCSV::ReadColumn(KInStream& In, KStringRef& sColumn)
 
 } // ReadColumn
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END

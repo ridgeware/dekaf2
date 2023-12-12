@@ -46,11 +46,9 @@
 
 #include "ktcpstream.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 // there is nothing special with a tcp client
 using KTCPClient = KTCPStream;
 
-}
-
+DEKAF2_NAMESPACE_END

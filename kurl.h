@@ -54,7 +54,7 @@
 #include "ktemplate.h"
 #include <cinttypes>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace url {
 
@@ -683,7 +683,7 @@ extern template class URIComponent<URLEncodedString, URIPart::Path,     '/',  fa
 extern template class URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false, false>;
 extern template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false, true >;
 
-} // end of namespace dekaf2::url::detail
+DEKAF2_NAMESPACE_END
 
 using KUser     = detail::URIComponent<URLEncodedString, URIPart::User,     '\0', false, true,  true >;
 using KPassword = detail::URIComponent<URLEncodedString, URIPart::Password, '\0', false, true,  true >;

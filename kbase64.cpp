@@ -40,16 +40,16 @@
 //
 */
 
+#include "kbase64.h"
+#include "klog.h"
+
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/binary_from_base64.hpp>
 #include <boost/archive/iterators/insert_linebreaks.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
 #include <boost/archive/iterators/remove_whitespace.hpp>
 
-#include "kbase64.h"
-#include "klog.h"
-
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KString KBase64::Encode(KStringView sInput, bool bWithLinebreaks)
@@ -329,5 +329,4 @@ KString KBase64Url::Decode(KStringView sInput)
 
 } // Decode
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

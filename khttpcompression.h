@@ -48,7 +48,7 @@
 #include "katomic_object.h"
 #include <vector>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTTPCompression
@@ -175,4 +175,4 @@ private:
 
 DEKAF2_ENUM_IS_FLAG(KHTTPCompression::COMP)
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END

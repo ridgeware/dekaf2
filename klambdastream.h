@@ -47,8 +47,7 @@
 #include "kstring.h"
 #include "kstreambuf.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -100,5 +99,5 @@ private:
 
 }; // KLambdaInStream
 
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END
 

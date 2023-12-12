@@ -61,8 +61,7 @@
 #include <CoreFoundation/CoreFoundation.h> // for locale retrieval
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 // POSIX compliant systems check the following extensions on locales when en_US.UTF-8 is used:
 // en_US.UTF-8, en_US.utf8, en_US, en.UTF-8, en.utf8, and en
@@ -673,5 +672,4 @@ void kInit (KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, 
 
 } // kInit
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

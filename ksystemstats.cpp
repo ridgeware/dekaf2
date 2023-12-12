@@ -52,7 +52,7 @@
 #include "kfilesystem.h"
 #include "ktime.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 KStringViewZ KSystemStats::PROC_VERSION       = "/proc/version";
 KStringViewZ KSystemStats::PROC_LOADAVG       = "/proc/loadavg";
@@ -1498,5 +1498,5 @@ KString KSystemStats::Backtrace (pid_t iPID)
 
 } // Backtrace
 
-} // end namespace dekaf2
+DEKAF2_NAMESPACE_END
 

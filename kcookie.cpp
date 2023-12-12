@@ -43,7 +43,7 @@
 #include "klog.h"
 #include <vector>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 void KCookie::clear()
@@ -300,4 +300,4 @@ KString KCookies::Serialize(const KURL& URL) const
 static_assert(std::is_nothrow_move_constructible<KCookie>::value,
 			  "KCookie is intended to be nothrow move constructible, but is not!");
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

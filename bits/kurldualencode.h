@@ -57,7 +57,7 @@
 #include <cinttypes>
 
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<typename Decoded, const char chPairSep = '\0', const char chKeyValSep = '\0'>
@@ -376,4 +376,4 @@ protected:
 using URLDualEncodedString = KURLDualEncoded<KString>;
 using URLDualEncodedQuery  = KURLDualEncoded<KProps<KString, KString>, '&', '='>;
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

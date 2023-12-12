@@ -43,13 +43,13 @@
 /// @file kbar.h
 /// provides ascii-style progress bar
 
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "kwriter.h"
 #include <mutex>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 /// a single thread implementation of a progress bar
@@ -139,4 +139,4 @@ private:
 
 };
 
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END

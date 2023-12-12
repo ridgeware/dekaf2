@@ -54,7 +54,7 @@
 #include "kctype.h"
 
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// the different URL components
@@ -636,4 +636,4 @@ using URLEncodedUInt   = KURLEncoded<uint16_t>;
 using URLEncodedString = KURLEncoded<KString>;
 using URLEncodedQuery  = KURLEncoded<KProps<KString, KString, /*Sequential=*/true, /*Unique=*/false>, '&', '='>;
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

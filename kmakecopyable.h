@@ -41,7 +41,7 @@
 
 #pragma once
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A class that makes a non-copy-constructible type copy-constructible by assigning
@@ -123,4 +123,4 @@ private:
 
 }; // KMakeCopyable
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

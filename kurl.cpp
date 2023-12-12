@@ -47,7 +47,7 @@
 #include "kstack.h"
 
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace url {
 
@@ -750,4 +750,4 @@ static_assert(std::is_nothrow_move_constructible<url::KFragment>::value,
 static_assert(std::is_nothrow_move_constructible<url::KProtocol>::value,
 			  "url::KProtocol is intended to be nothrow move constructible, but is not!");
 
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END

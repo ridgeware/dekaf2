@@ -42,7 +42,7 @@
 #include "khttp_response.h"
 #include "khttperror.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 
 //-----------------------------------------------------------------------------
@@ -184,4 +184,4 @@ bool KInHTTPResponse::Fail() const
 
 } // Fail
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

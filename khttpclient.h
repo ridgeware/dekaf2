@@ -63,7 +63,7 @@
 	#endif
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// low level implementation of a HTTP client
@@ -539,4 +539,4 @@ public:
 
 }; // KHTTPClient
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -45,6 +45,7 @@
 /// @file kdiff.h
 /// Generate diffs in various formats from two input strings
 
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
 #include "bits/kunique_deleter.h"
@@ -58,7 +59,7 @@
   #include <string>
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Generate diffs in various formats from two input strings
@@ -257,5 +258,4 @@ std::size_t KDiffToASCII2 (KStringRef& sOldText, KStringRef& sNewText,
 						   KDiff::DiffMode Mode  = KDiff::DiffMode::Character,
 						   KDiff::Sanitation San = KDiff::Sanitation::Semantic);
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

@@ -41,7 +41,7 @@
 
 #include "khttp_method.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KHTTPMethod::Method KHTTPMethod::Parse(KStringView sMethod)
@@ -127,5 +127,5 @@ constexpr KStringViewZ KHTTPMethod::REQUEST_METHODS;
 static_assert(std::is_nothrow_move_constructible<KHTTPMethod>::value,
 			  "KHTTPMethod is intended to be nothrow move constructible, but is not!");
 	
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

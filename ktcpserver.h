@@ -85,8 +85,7 @@
 	#define DEKAF2_TCPSERVER_CONNECT_TO_STOP
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A TCP server implementation supporting SSL/TLS.
@@ -408,5 +407,5 @@ private:
 
 }; // KTCPServer
 
-}
+DEKAF2_NAMESPACE_END
 

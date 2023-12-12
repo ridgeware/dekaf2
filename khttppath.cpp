@@ -43,7 +43,7 @@
 #include "ksplit.h"
 #include "klog.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KHTTPPath::KHTTPPath(KString _sRoute)
@@ -140,4 +140,4 @@ KHTTPRewrite::KHTTPRewrite(KStringView _sRegex, KString _sTo)
 }
 
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -43,11 +43,11 @@
 #include "kprops.h"
 #include "kstring.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 template class KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/true >;
 template class KProps<KString, KString, /*order-matters=*/true,  /*unique-keys=*/true >;
 template class KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/false>;
 template class KProps<KString, KString, /*order-matters=*/true,  /*unique-keys=*/false>;
 
-}
+DEKAF2_NAMESPACE_END

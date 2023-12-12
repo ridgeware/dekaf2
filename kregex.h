@@ -54,8 +54,7 @@
   #define DEKAF2_ADD_REGEX_FOR_KSTRING 1
 #endif
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KRegex constructs a (shared) regex object. Normally you do not use it
@@ -226,5 +225,5 @@ private:
 /// * and ? are allowed expressions.
 KString kWildCard2Regex(KStringView sInput);
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

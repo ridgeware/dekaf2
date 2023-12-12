@@ -68,7 +68,7 @@
 
 #pragma once
 
-#include "../kcompatibility.h"
+#include "../kdefinitions.h"
 #include <cinttypes>
 #include <cstring>
 

@@ -47,7 +47,7 @@
 #include "kencode.h"
 #include "ktime.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace {
 
@@ -717,4 +717,4 @@ bool KHTTPLog::Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringVi
 
 } // Open
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

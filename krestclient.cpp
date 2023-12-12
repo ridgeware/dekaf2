@@ -44,7 +44,7 @@
 #include "kjson.h"
 #include "kstringutils.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 #ifdef NDEBUG
 constexpr int iPretty = -1;
@@ -458,4 +458,4 @@ KJSON KJsonRestClient::ThrowOrReturn(KHTTPError&& ec, KJSON&& retval)
 
 } // ThrowOrReturn
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

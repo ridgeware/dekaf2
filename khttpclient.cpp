@@ -46,7 +46,7 @@
 #include "kstring.h"
 #include "ksystem.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 KHTTPClient::BasicAuthenticator::BasicAuthenticator(KString _sUsername, KString _sPassword)
@@ -1029,4 +1029,4 @@ bool KHTTPClient::SetNetworkError(bool bRead, KString sError)
 
 } // SetNetworkError
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

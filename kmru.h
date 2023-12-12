@@ -53,8 +53,7 @@
 #include <iterator>
 #include "bits/kmutable_pair.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KMRU base type for non-maps
@@ -332,5 +331,5 @@ public:
 	{}
 };
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

@@ -46,7 +46,7 @@
 #include "kfilesystem.h"
 #include "kstringutils.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, int iSocketFd)
@@ -599,4 +599,4 @@ void KREST::RegisterShutdownCallback(KThreadPool::ShutdownCallback callback)
 } // RegisterShutdownCallback
 
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

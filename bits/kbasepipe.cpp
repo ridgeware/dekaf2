@@ -52,8 +52,7 @@
 #include <csignal>
 #include <thread>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const std::vector<std::pair<KString, KString>>& Environment)
@@ -380,6 +379,6 @@ void KBasePipe::CloseAndResetFileDescriptor(int& iFileDescriptor)
 
 } // CloseAndResetFileDescriptor
 
-} // end namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif

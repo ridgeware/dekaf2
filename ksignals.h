@@ -50,8 +50,7 @@
 #include <array>
 #include <csignal>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Provides a threaded signal handler framework. Other threads will not receive signals.
@@ -206,5 +205,5 @@ DEKAF2_PUBLIC
 void kBlockAllSignals(bool bExceptSEGVandFPE = true);
 //-----------------------------------------------------------------------------
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

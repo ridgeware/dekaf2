@@ -46,10 +46,10 @@
 /// provides a deleter template to enable Empty Base Optimization for
 /// non-default deleters of std::unique_ptr
 
+#include "../kdefinitions.h"
 #include <memory>
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 namespace detail
 {
@@ -89,5 +89,4 @@ using KVoidDeleter = std::function<void(void *)>;
 /// a unique ptr that uses a void* publicly - construct it with a customized KVoidDeleter..
 using KUniqueVoidPtr = std::unique_ptr<void, KVoidDeleter>;
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

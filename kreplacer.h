@@ -49,7 +49,7 @@
 #include "krow.h"
 #include <map>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Replace variables (aka tokens) with values, with configurable token-prefix and token-suffix
@@ -193,5 +193,5 @@ public:
 
 }; // KVariables
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 

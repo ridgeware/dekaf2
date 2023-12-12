@@ -4,7 +4,7 @@
 #include "kstringutils.h"
 #include "kurlencode.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 namespace {
 
@@ -196,4 +196,4 @@ const HTTPHeaders& SignedRequest::Authorize(KStringView sAccessKey,
 
 }  // namespace AWSAuth4
 
-}  // namespace dekaf2
+DEKAF2_NAMESPACE_END

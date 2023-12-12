@@ -44,8 +44,7 @@
 #include "kstream.h"
 #include "kstreambuf.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 KStream KInOut(std::cin, std::cout);
 
@@ -73,4 +72,4 @@ KStream::~KStream()
 
 template class KReaderWriter<std::fstream>;
 
-}
+DEKAF2_NAMESPACE_END

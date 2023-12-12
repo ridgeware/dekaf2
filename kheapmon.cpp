@@ -51,7 +51,7 @@
 #include "ksystem.h"
 #include <jemalloc/jemalloc.h>
 
-namespace dekaf2   {
+DEKAF2_NAMESPACE_BEGIN
 namespace Heap     {
 namespace jemalloc {
 namespace detail   {
@@ -309,11 +309,11 @@ bool IsStarted()
 
 } // Profiling
 } // Heap
-} // dekaf2
+DEKAF2_NAMESPACE_END
 
 #else // no jemalloc
 
-namespace dekaf2    {
+DEKAF2_NAMESPACE_BEGIN
 namespace Heap      {
 
 int     LastError   ()        { return EPERM;     }
@@ -333,6 +333,6 @@ bool    IsStarted   ()        { return false;     }
 
 } // Profiling
 } // Heap
-} // dekaf2
+DEKAF2_NAMESPACE_END
 
 #endif

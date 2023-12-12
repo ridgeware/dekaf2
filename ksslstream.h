@@ -50,8 +50,7 @@
 #include "kstreambuf.h"
 #include "kurl.h"
 
-namespace dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Holds a configured ssl context - will be used in the constructor of KSSLIOStream
@@ -518,6 +517,6 @@ DEKAF2_PUBLIC
 std::unique_ptr<KSSLClient> CreateKSSLClient(const KTCPEndPoint& EndPoint, bool bVerifyCerts = false, bool bManualHandshake = false, int iSecondsTimeout = KSSLIOStream::DEFAULT_TIMEOUT);
 //-----------------------------------------------------------------------------
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 

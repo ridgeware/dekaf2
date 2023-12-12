@@ -46,7 +46,7 @@
 
 #ifdef DEKAF2
 #include "klog.h"
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 #endif
 
 namespace KSQLite {
@@ -699,6 +699,6 @@ Column::ColType Column::Type()
 } // of namespace KSQLite
 
 #ifdef DEKAF2
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 #endif
 

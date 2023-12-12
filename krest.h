@@ -50,7 +50,7 @@
 /// @file krest.h
 /// HTTP REST service implementation
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KREST
@@ -214,4 +214,4 @@ private:
 
 }; // KREST
 
-} // end of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -161,4 +161,98 @@ std::size_t kRead(FILE* fp, void* sBuffer, std::size_t iCount)
 
 } // kRead
 
+//-----------------------------------------------------------------------------
+std::size_t kRead(std::istream& Stream, void* sBuffer, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	auto streambuf = Stream.rdbuf();
+
+	if (DEKAF2_UNLIKELY(streambuf == nullptr))
+	{
+		Stream.setstate(std::ios::failbit);
+		return 0;
+	}
+
+	auto iRead = streambuf->sgetn(static_cast<std::istream::char_type*>(sBuffer), iCount);
+
+	if (DEKAF2_UNLIKELY(iRead < 0))
+	{
+		Stream.setstate(std::ios::badbit);
+		iRead = 0;
+	}
+	else if (DEKAF2_UNLIKELY(static_cast<std::size_t>(iRead) < iCount))
+	{
+		Stream.setstate(std::ios::eofbit);
+	}
+
+	return static_cast<std::size_t>(iRead);
+
+} // kRead
+
+//-----------------------------------------------------------------------------
+std::istream::int_type kRead(std::istream& Stream)
+//-----------------------------------------------------------------------------
+{
+	auto streambuf = Stream.rdbuf();
+
+	if (DEKAF2_UNLIKELY(streambuf == nullptr))
+	{
+		Stream.setstate(std::ios::failbit);
+
+		return std::istream::traits_type::eof();
+	}
+
+	auto iCh = streambuf->sbumpc();
+
+	if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
+	{
+		Stream.setstate(std::ios::eofbit);
+	}
+
+	return iCh;
+
+} // kRead
+
+//-----------------------------------------------------------------------------
+std::size_t kRead(std::istream& Stream, char& ch)
+//-----------------------------------------------------------------------------
+{
+	auto iCh = kRead(Stream);
+	ch = std::istream::traits_type::to_char_type(iCh);
+	return (std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof())) ? 0 : 1;
+
+} // kRead
+
+//-----------------------------------------------------------------------------
+std::size_t kUnRead(std::istream& Stream, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	auto streambuf = Stream.rdbuf();
+
+	if (DEKAF2_UNLIKELY(!streambuf))
+	{
+		Stream.setstate(std::ios::failbit);
+
+		return iCount;
+	}
+
+	for (; iCount > 0; --iCount)
+	{
+		auto iCh = streambuf->sungetc();
+
+		if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
+		{
+			// could not unread - note that this does not have to be a stream error,
+			// therefore we do not set badbit or failbit
+			return iCount; // > 0, fail
+		}
+	}
+
+	// make sure we are no more in eof state if we were before
+	Stream.clear();
+
+	return iCount; // 0, success
+
+} // kUnRead
+
 DEKAF2_NAMESPACE_END

@@ -86,56 +86,6 @@ KOutStream::KOutStream(std::ostream& OutStream, KStringView sLineDelimiter, bool
 }
 
 //-----------------------------------------------------------------------------
-/// Write a character. Returns stream reference that resolves to false on failure
-KOutStream::self_type& KOutStream::Write(KString::value_type ch)
-//-----------------------------------------------------------------------------
-{
-	auto streambuf = ostream().rdbuf();
-
-	std::ostream::int_type iCh;
-
-	if (DEKAF2_LIKELY(streambuf != nullptr))
-	{
-		iCh = streambuf->sputc(ch);
-	}
-	else
-	{
-		iCh = std::ostream::traits_type::eof();
-	}
-
-	if (DEKAF2_UNLIKELY(std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof())))
-	{
-		ostream().setstate(std::ios_base::badbit);
-	}
-
-	return *this;
-
-} // Write
-
-//-----------------------------------------------------------------------------
-/// Write a range of characters. Returns stream reference that resolves to false on failure.
-KOutStream::self_type& KOutStream::Write(const void* pAddress, size_t iCount)
-//-----------------------------------------------------------------------------
-{
-	auto streambuf = ostream().rdbuf();
-
-	std::size_t iWrote { 0 };
-
-	if (DEKAF2_LIKELY(streambuf != nullptr))
-	{
-		iWrote = static_cast<size_t>(streambuf->sputn(static_cast<const std::ostream::char_type*>(pAddress), iCount));
-	}
-
-	if (DEKAF2_UNLIKELY(iWrote != iCount))
-	{
-		ostream().setstate(std::ios_base::badbit);
-	}
-
-	return *this;
-
-} // Write
-
-//-----------------------------------------------------------------------------
 /// Read a range of characters and append to Stream. Returns stream reference that resolves to false on failure.
 KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 //-----------------------------------------------------------------------------

@@ -40,16 +40,15 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
-#include "kwriter.h"
-
+#include <ostream>
 
 /// @file khtmlentities.h
 /// provides support for html entity encoding
 
-
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 class DEKAF2_PUBLIC KHTMLEntity
 {
@@ -73,7 +72,7 @@ public:
 	static KString EncodeMandatory(KStringView sIn);
 
 	/// Escapes utf8 input with mandatory HTML entities (<>'"&)
-	static void EncodeMandatory(KOutStream& Out, KStringView sIn);
+	static void EncodeMandatory(std::ostream& Out, KStringView sIn);
 
 	/// Converts utf8 input into HTML entities for non-alnum/space/punct characters
 	static KString Encode(KStringView sIn);
@@ -89,5 +88,4 @@ public:
 
 }; // KHTMLEntity
 
-} // of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

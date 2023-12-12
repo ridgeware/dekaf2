@@ -41,12 +41,14 @@
 
 #pragma once
 
-/// @file kwriter.h
-/// holds the basic writer abstraction
+/// @file kwrite.h
+/// file/stream write atoms: signal safe and non-locale dependant
 
 #include "kdefinitions.h"
 #include <cstdio>
 #include <cstdint>
+#include <cstring>
+#include <ostream>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -57,5 +59,20 @@ std::size_t kWrite(int fd, const void* sBuffer, std::size_t iCount);
 /// Writes iCount chars from sBuffer into FILE*, signal safe
 DEKAF2_PUBLIC
 std::size_t kWrite(FILE* fp, const void* sBuffer, std::size_t iCount);
+
+/// Writes iCount chars from sBuffer into std::ostream, not touching the locale sentinel
+DEKAF2_PUBLIC
+std::size_t kWrite(std::ostream& Stream, const void* sBuffer, std::size_t iCount);
+
+/// Writes chars from string literal into std::ostream, not touching the locale sentinel
+DEKAF2_PUBLIC inline
+std::size_t kWrite(std::ostream& Stream, const char* sBuffer)
+{
+	return kWrite(Stream, sBuffer, std::strlen(sBuffer));
+}
+
+/// Writes one char into std::ostream, not touching the locale sentinel
+DEKAF2_PUBLIC
+std::size_t kWrite(std::ostream& Stream, char ch);
 
 DEKAF2_NAMESPACE_END

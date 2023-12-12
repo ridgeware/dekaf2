@@ -183,4 +183,53 @@ std::size_t kWrite(FILE* fp, const void* sBuffer, std::size_t iCount)
 
 } // kWrite
 
+//-----------------------------------------------------------------------------
+std::size_t kWrite(std::ostream& Stream, const void* sBuffer, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	auto streambuf = Stream.rdbuf();
+
+	std::size_t iWrote { 0 };
+
+	if (DEKAF2_LIKELY(streambuf != nullptr))
+	{
+		iWrote = static_cast<std::size_t>(streambuf->sputn(static_cast<const std::ostream::char_type*>(sBuffer), iCount));
+	}
+
+	if (DEKAF2_UNLIKELY(iWrote != iCount))
+	{
+		Stream.setstate(std::ios_base::badbit);
+	}
+
+	return iWrote;
+
+} // kWrite
+
+//-----------------------------------------------------------------------------
+std::size_t kWrite(std::ostream& Stream, char ch)
+//-----------------------------------------------------------------------------
+{
+	auto streambuf = Stream.rdbuf();
+
+	std::ostream::int_type iCh;
+
+	if (DEKAF2_LIKELY(streambuf != nullptr))
+	{
+		iCh = streambuf->sputc(ch);
+	}
+	else
+	{
+		iCh = std::ostream::traits_type::eof();
+	}
+
+	if (DEKAF2_UNLIKELY(std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof())))
+	{
+		Stream.setstate(std::ios_base::badbit);
+		return 0;
+	}
+
+	return 1;
+
+} // kWrite
+
 DEKAF2_NAMESPACE_END

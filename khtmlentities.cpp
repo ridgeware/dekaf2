@@ -41,20 +41,20 @@
 // This file implements all of khtmlentities.h that does not need the large
 // named entity list. The other functions are implemented in khtmlentities5.cpp.
 
-#include "kcompatibility.h"
 #include "khtmlentities.h"
 #include "kutf8.h"
 #include "kstringutils.h"
 #include "kctype.h"
+#include "kwrite.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 void KHTMLEntity::ToHex(uint32_t ch, KStringRef& sOut)
 //-----------------------------------------------------------------------------
 {
 	sOut += "&#x";
-	sOut += KString::to_hexstring(ch, true, false);
+	sOut += kUnsignedToString<KStringRef>(ch, 16, true, false);
 	sOut += ';';
 }
 
@@ -120,7 +120,7 @@ void KHTMLEntity::AppendMandatory(KStringRef& sAppendTo, KStringView sIn)
 } // AppendMandatory
 
 //-----------------------------------------------------------------------------
-void KHTMLEntity::EncodeMandatory(KOutStream& Out, KStringView sIn)
+void KHTMLEntity::EncodeMandatory(std::ostream& Out, KStringView sIn)
 //-----------------------------------------------------------------------------
 {
 	for (auto ch : sIn)
@@ -128,22 +128,22 @@ void KHTMLEntity::EncodeMandatory(KOutStream& Out, KStringView sIn)
 		switch (ch)
 		{
 			case '"':
-				Out += "&quot;";
+				kWrite(Out, "&quot;");
 				break;
 			case '&':
-				Out += "&amp;";
+				kWrite(Out, "&amp;");
 				break;
 			case '\'':
-				Out += "&apos;";
+				kWrite(Out, "&apos;");
 				break;
 			case '<':
-				Out += "&lt;";
+				kWrite(Out, "&lt;");
 				break;
 			case '>':
-				Out += "&gt;";
+				kWrite(Out, "&gt;");
 				break;
 			default:
-				Out += ch;
+				kWrite(Out, ch);
 				break;
 		}
 	}
@@ -190,6 +190,4 @@ KString KHTMLEntity::Encode(KStringView sIn)
 
 } // kHTMLEntityEncode
 
-
-} // of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

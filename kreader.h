@@ -48,6 +48,7 @@
 #include "bits/kfilesystem.h"
 #include "kfilesystem.h"
 #include "kstring.h"
+#include "kread.h"
 #include <istream>
 #include <fstream>
 
@@ -317,36 +318,64 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// UnRead / putback a character. Returns false if character cannot be put back.
-	bool UnRead();
+	/// UnRead / putback multiple characters
+	/// @param iCount count of characters to unread
+	/// @returns count of characters that could not get unread (so, 0 on success)
+	std::size_t UnRead(std::size_t iCount)
 	//-----------------------------------------------------------------------------
+	{
+		return kUnRead(istream(), iCount);
+	}
 
 	//-----------------------------------------------------------------------------
-	/// Read a character. Returns std::istream::traits_type::eof() (== -1) if no input available
-	std::istream::int_type Read();
+	/// UnRead / putback a character
+	/// @returns false if character cannot be put back
+	bool UnRead()
 	//-----------------------------------------------------------------------------
+	{
+		return UnRead(1) == 0;
+	}
 
 	//-----------------------------------------------------------------------------
-	/// Read a character. Returns stream reference that resolves to false if no input available
+	/// Read a character
+	/// @returns std::istream::traits_type::eof() (== -1) if no input available
+	std::istream::int_type Read()
+	//-----------------------------------------------------------------------------
+	{
+		return kRead(istream());
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Read a character
+	/// @param ch reference to a read char
+	/// @returns stream reference that resolves to false if no input available
 	self_type& Read(KString::value_type& ch)
 	//-----------------------------------------------------------------------------
 	{
-		ch = std::istream::traits_type::to_char_type(Read());
+		kRead(istream(), ch);
 		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Read a range of characters. Returns count of successfully read charcters.
-	std::size_t Read(void* pAddress, std::size_t iCount);
+	/// Read a range of characters
+	/// @param pAddress address of a memory buffer to be read into
+	/// @param iCount count of bytes to be read into the memory buffer
+	/// @returns count of successfully read charcters
+	std::size_t Read(void* pAddress, std::size_t iCount)
 	//-----------------------------------------------------------------------------
+	{
+		return kRead(istream(), pAddress, iCount);
+	}
 
 	//-----------------------------------------------------------------------------
-	/// Read a range of characters and append to sBuffer. Returns count of successfully read charcters.
+	/// Read a range of characters and append to sBuffer
+	/// @returns count of successfully read charcters
 	std::size_t Read(KStringRef& sBuffer, std::size_t iCount = npos);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Read a range of characters and append to Stream. Returns count of successfully read charcters.
+	/// Read a range of characters and append to Stream
+	/// @returns count of successfully read charcters
 	std::size_t Read(KOutStream& Stream, std::size_t iCount = npos);
 	//-----------------------------------------------------------------------------
 
@@ -379,8 +408,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Returns the complete content of a file in a string. Returns false if no input
-	/// available. Fails on non-seekable inputs, e.g. streams.
+	/// Returns the complete content of a file in a string
+	/// @returns false if no input available. Fails on non-seekable inputs, e.g. streams.
 	bool ReadAll(KStringRef& sBuffer)
 	//-----------------------------------------------------------------------------
 	{
@@ -396,8 +425,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Returns the remaining content of a file in a string. Returns false if no input
-	/// available. Does not fail on non-seekable inputs, but tries to read the utmost.
+	/// Returns the remaining content of a file in a string
+	/// @returns false if no input available. Does not fail on non-seekable inputs, but tries to read the utmost.
 	bool ReadRemaining(KStringRef& sBuffer)
 	//-----------------------------------------------------------------------------
 	{

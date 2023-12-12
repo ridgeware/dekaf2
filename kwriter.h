@@ -46,6 +46,7 @@
 
 #include "kdefinitions.h"
 #include "bits/kfilesystem.h"
+#include "kwrite.h"
 #include "kstring.h"
 #include "kformat.h"
 #include <cinttypes>
@@ -103,14 +104,22 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Write a character. Returns stream reference that resolves to false on failure.
-	self_type& Write(KStringView::value_type ch);
+	self_type& Write(KStringView::value_type ch)
 	//-----------------------------------------------------------------------------
+	{
+		kWrite(ostream(), ch);
+		return *this;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Write a range of characters. Returns stream reference that resolves to false
 	/// on failure.
-	self_type& Write(const void* pAddress, size_t iCount);
+	self_type& Write(const void* pAddress, size_t iCount)
 	//-----------------------------------------------------------------------------
+	{
+		kWrite(ostream(), pAddress, iCount);
+		return *this;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Write a string. Returns stream reference that resolves to false on failure.

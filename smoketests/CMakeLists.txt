@@ -32,4 +32,4 @@ set (USOURCES
 
 add_executable(dekaf2-smoketests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
 target_include_directories(dekaf2-smoketests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../..")
-target_link_libraries(dekaf2-smoketests dekaf2 ksql2)
+target_link_libraries(dekaf2-smoketests PRIVATE dekaf2 ksql2)

@@ -53,7 +53,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.40 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.41 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -1350,9 +1350,8 @@ endif()
 
 add_library(ksql2 ksql.cpp ksql.h bits/ksql_dbc.cpp bits/ksql_dbc.h)
 target_link_libraries(ksql2
-	PUBLIC
-		dekaf2
 	PRIVATE
+		dekaf2
 		${MYSQL_LIBRARIES}
 		${FREETDS_LIBRARIES}
 	)
@@ -1363,7 +1362,6 @@ target_include_directories(ksql2
 )
 # DEKAF2_LIBRARY_BUILD is needed for dynamic libs
 target_compile_definitions(ksql2 PRIVATE DEKAF2_LIBRARY_BUILD)
-add_dependencies(ksql2 dekaf2)
 
 if (DEKAF2_USE_PRECOMPILED_HEADERS)
 	target_precompile_headers(ksql2 REUSE_FROM dekaf2)
@@ -1372,14 +1370,12 @@ endif()
 if(SQLITE3_FOUND)
 	add_library(ksqlite ksqlite.cpp ksqlite.h)
 	target_link_libraries(ksqlite
-		PUBLIC
-			dekaf2
 		PRIVATE
+			dekaf2
 			${SQLITE3_LIBRARIES}
 		)
 	# DEKAF2_LIBRARY_BUILD is needed for dynamic libs
 	target_compile_definitions(ksqlite PRIVATE DEKAF2_LIBRARY_BUILD)
-	add_dependencies(ksqlite dekaf2)
 
 	if (DEKAF2_USE_PRECOMPILED_HEADERS)
 		target_precompile_headers(ksqlite REUSE_FROM dekaf2)
@@ -1389,44 +1385,35 @@ endif()
 add_executable(klog klog_main.cpp)
 target_include_directories(klog PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(klog dekaf2)
-add_dependencies(klog dekaf2)
 
 add_executable(createdbc createdbc.cpp)
 target_include_directories(createdbc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(createdbc dekaf2 ksql2)
-add_dependencies(createdbc dekaf2 ksql2)
+target_link_libraries(createdbc ksql2 dekaf2)
 
 if (DEKAF2_HAS_NCURSES)
 	add_executable(unixmenu unixmenu.cpp)
 	target_include_directories(unixmenu PUBLIC CURSES_INCLUDE_DIRS)
 	target_link_libraries(unixmenu dekaf2 ncurses)
-	add_dependencies(unixmenu dekaf2)
 endif()
 
 add_executable(dekaf2project dekaf2project.cpp)
 target_include_directories(dekaf2project PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(dekaf2project dekaf2)
-add_dependencies(dekaf2project dekaf2)
-
 
 add_executable(kurl samples/kurl.cpp samples/kurl.h)
 target_include_directories(kurl PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(kurl dekaf2)
-add_dependencies(kurl dekaf2)
 
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_include_directories(getentities PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(getentities dekaf2)
-add_dependencies(getentities dekaf2)
 
 add_executable(genunicodetables EXCLUDE_FROM_ALL genunicodetables.cpp)
 target_include_directories(genunicodetables PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(genunicodetables dekaf2)
-add_dependencies(genunicodetables dekaf2)
 
 add_executable(diff-speedtest EXCLUDE_FROM_ALL from/google/diff-speedtest.cpp)
 target_link_libraries(diff-speedtest dekaf2)
-add_dependencies(diff-speedtest dekaf2)
 
 # ============================ UNIT AND SMOKE TESTS ==================================
 

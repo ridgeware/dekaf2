@@ -475,7 +475,7 @@ bool KJSON2::Bool(bool bDefault) const noexcept
 		return config::ToBool(base::get_ref<const KJSON2::StringT&>());
 	}
 
-	return false;
+	return bDefault;
 
 } // Bool
 

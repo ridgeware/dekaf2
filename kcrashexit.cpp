@@ -118,13 +118,13 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	}
 	else
 	{
-		sWarning += kFormat ("|{:<17}\n",      '*');
-		sWarning += kFormat ("|{:<12}\n", "*    *    *");
-		sWarning += kFormat ("|{:<14}\n",   "*  *  *");
-		sWarning += kFormat ("|{:<14}\n",     sVerb);
-		sWarning += kFormat ("|{:<14}\n",   "*  *  *");
-		sWarning += kFormat ("|{:<12}\n", "*    *    *");
-		sWarning += kFormat ("|{:<17}\n",      '*');
+		sWarning += kFormat ("|{:^17}\n",      '*');
+		sWarning += kFormat ("|{:^17}\n", "*    *    *");
+		sWarning += kFormat ("|{:^17}\n",   "*  *  *");
+		sWarning += kFormat ("|{:^17}\n",     sVerb);
+		sWarning += kFormat ("|{:^17}\n",   "*  *  *");
+		sWarning += kFormat ("|{:^17}\n", "*    *    *");
+		sWarning += kFormat ("|{:^17}\n",      '*');
 	}
 
 	switch (iSignalNum)

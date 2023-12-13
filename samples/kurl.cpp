@@ -318,6 +318,22 @@ kurl::kurl ()
 #endif
 
 	m_CLI
+		.Option("url <URL>", "requested URL")
+		.Help("set requested URL")
+	([&](KStringViewZ sURL)
+	{
+		KURL URL(sURL);
+
+		if (URL.Protocol == url::KProtocol::UNDEFINED)
+		{
+			kDebug(2, "no protocol specified - assuming HTTP");
+			URL.Protocol = url::KProtocol::HTTP;
+		}
+
+		BuildMRQ.AddURL(std::move(URL));
+	});
+
+	m_CLI
 		.UnknownCommand([&](KOptions::ArgList& Commands)
 	{
 		while (!Commands.empty())
@@ -475,7 +491,7 @@ void kurl::ShowStats (KDuration tTotal, std::size_t iTotalRequests)
 //-----------------------------------------------------------------------------
 {
 	KErr.WriteLine();
-	KErr.WriteLine("==================================================");
+	KErr.FormatLine("{:=<50}", "");
 	KErr.FormatLine("running with {} threads in parallel", m_Config.iParallel);
 	KErr.FormatLine("total {} for {} requests, {:.0f} req/sec",
 					tTotal,
@@ -483,7 +499,7 @@ void kurl::ShowStats (KDuration tTotal, std::size_t iTotalRequests)
 					iTotalRequests / (tTotal.microseconds().count() / 1000000.0));
 	KErr.WriteLine();
 	KErr.WriteLine(m_Results.Print());
-	KErr.WriteLine("==================================================");
+	KErr.FormatLine("{:=<50}", "");
 
 } // ShowStats
 

@@ -676,7 +676,7 @@ bool KRESTServer::Execute()
 				m_Timers->StoreInterval(Timer::RECEIVE);
 			}
 
-			kDebug (1, "============== new request ==============");
+			kDebug (1, "{:=^50}", " new request ");
 			kDebug (2, "incoming: {} {}", Request.Method.Serialize(), Request.Resource.Path);
 
 			if (m_Options.PreRouteCallback)

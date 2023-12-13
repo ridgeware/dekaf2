@@ -334,6 +334,12 @@ KStringView Dekaf::GetVersionInformation()
 #ifdef DEKAF2_HAS_LIBLZMA
 		" xz"
 #endif
+#ifdef DEKAF2_WITH_KLOG
+		" KLog"
+#endif
+#ifdef DEKAF2_LINK_TIME_OPTIMIZATION
+		" LTO"
+#endif
 	;
 
 	return sVersionInformation;

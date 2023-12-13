@@ -11,6 +11,8 @@
 #%   -scratch    : clear build directory before building
 #%   -no-pull    : do not pull the latest sources before building
 #%   -no-setup   : do not install helper packages/libs
+#%   -no-klog    : configure release build without klog
+#%   -lto        : force link time optimization for release builds
 #%   -j N        : build with N processes in parallel
 #%                 (default is number of cpu cores)
 #%
@@ -68,12 +70,16 @@ Configure ()
 #==================
 {
 	BuildType="$1"
+	shift
+	AdditionalParameters=$*
 
 	cd ${BuildType} || Die "Cannot cd into build directory ${BuildType}"
 
 	# configure CMake
 
-	${SETMODERNCC} cmake -DCMAKE_BUILD_TYPE=${BuildType} "${ME_ONLYPATH}" || Die "Cannot configure CMake project"
+	Info "${SETMODERNCC} cmake -DCMAKE_BUILD_TYPE=${BuildType} ${AdditionalParameters} ${ME_ONLYPATH}"
+
+	${SETMODERNCC} cmake -DCMAKE_BUILD_TYPE=${BuildType} ${AdditionalParameters} "${ME_ONLYPATH}" || Die "Cannot configure CMake project"
 
 	cd ..
 
@@ -104,7 +110,9 @@ Setup ()
 
 	cd "${ME_ONLYPATH}"  || Die "Cannot cd into source directory ${ME_ONLYPATH}"
 
-	[[ ! -z "${bScratch}" ]] && rm -rf "${BuildDir}"
+	[[ ! -z "${bScratch}" ]] && rm -rf "${BuildDir}" \
+		&& Info "removed build directory ${BuildDir}" \
+		|| Die "failed to remove build directory ${BuildDir}"
 
 	if [[ -d "${BuildDir}" ]]; then
 
@@ -130,8 +138,8 @@ Setup ()
 	mkdir -p "Release"   || Die "Cannot create Release build directory"
 
 	[[ ! -z "${bWithDebug}" ]] && Configure "Debug"
-	Configure "Release"
- 
+	Configure "Release" ${sAdditionalOptions}
+
     if [[ "${OS}" == "Darwin" ]]; then
         mkdir -p "Xcode" || Die "Cannot create Xcode build directory"
         ConfigureXcode
@@ -193,6 +201,12 @@ do
 		;;
 	-nosetup|-no-setup|--no-setup)
 		bNoSetup="1"
+		;;
+	-no-klog|--no-klog)
+		sAdditionalOptions="${sAdditionalOptions} -DDEKAF2_WITH_KLOG=OFF"
+		;;
+	-lto|--lto)
+		sAdditionalOptions="${sAdditionalOptions} -DDEKAF2_LINK_TIME_OPTIMIZATION=ON"
 		;;
 	-j)
 		shift

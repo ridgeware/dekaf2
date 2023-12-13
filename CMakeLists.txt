@@ -9,6 +9,8 @@
 #
 # Starting with cmake 3.27, the minimal supported cmake version is 2.8.12
 #
+message(STATUS "======================== starting cmake configuration ========================")
+
 if(CMAKE_VERSION VERSION_LESS "3.27.0")
 	cmake_minimum_required(VERSION 2.8.12)
 else()
@@ -53,7 +55,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.41 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.42 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -84,6 +86,7 @@ OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" ON)
 OPTION(DEKAF2_WITH_PEDANTIC_WARNINGS "enable pedantic warnings" ON)
 OPTION(DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT "force the use of fmtlib even if std::format is available" ON)
 OPTION(DEKAF2_WRAPPED_KJSON "create the KJSON class as a non-throwing wrapper type around the native type" ON)
+OPTION(DEKAF2_LINK_TIME_OPTIMIZATION "force link time optimization for release builds" OFF)
 
 # =================================== C++ STANDARD =================================
 
@@ -215,6 +218,8 @@ endif()
 if (NOT DEKAF2_WITH_KLOG)
 	set(DEKAF2_KLOG_WITH_TCP OFF)
 endif()
+
+message(STATUS "KLog: ${DEKAF2_WITH_KLOG}")
 
 if (DEKAF2_USE_PRECOMPILED_HEADERS)
 	if (CMAKE_VERSION VERSION_LESS "3.16.0")
@@ -704,6 +709,29 @@ configure_file("cmake/${PROJECT_NAME}-setup.cmake.in" "${GENERATED_FILES_DIR}/${
 # eat our own dog food
 set (DEKAF2_INHERIT_BUILD_FLAGS ON)
 include ("${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake")
+
+if (DEKAF2_LINK_TIME_OPTIMIZATION)
+	# enable function and data splitting into different sections for release builds
+	if ((CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
+		OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+		# -flto forces the compiler to dump object files in the internal GIMPL format,
+		# which in turn enables any linker to do
+		#   a) link time optimization and
+		#   b) drop sections not linked into the final executable
+		message(STATUS "forcing link time optimization for release builds")
+		add_compile_options($<$<CONFIG:RELEASE>:-flto>)
+	elseif (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 6)
+		# this is the older way of achieving one section per function, without link
+		# time optimization except removing unused sections/functions
+		message(STATUS "forcing split function and data sections for release builds")
+		add_compile_options($<$<CONFIG:RELEASE>:-fdata-sections>)
+		add_compile_options($<$<CONFIG:RELEASE>:-ffunction-sections>)
+	elseif (MSVC)
+		# /Gy is splitting functions into different sections
+		message(STATUS "forcing split function sections for release builds")
+		add_compile_options($<$<CONFIG:RELEASE>:/Gy>)
+	endif()
+endif()
 
 # ========================= THIRD PARTY SOURCE LIBS ============================
 

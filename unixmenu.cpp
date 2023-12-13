@@ -40,6 +40,7 @@
 //
 */
 
+#include "kdefinitions.h"
 #include "klog.h"
 #include "kstring.h"
 #include "kstringview.h"
@@ -55,7 +56,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-using namespace dekaf2;
+using namespace DEKAF2_NAMESPACE_NAME;
 
 static constexpr KStringViewZ RUN_N_WAIT {"runNwait"};
 static constexpr KStringViewZ EXIT       {"EXIT"};

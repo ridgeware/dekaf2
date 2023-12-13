@@ -83,7 +83,10 @@
 	#include "kbrotli.h"
 #endif
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
+
+// note we use the literal dekaf2 namespace here and not
+// the define from kdefinitions.h
 
 #ifdef DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD
 namespace lzmaiostreams = dekaf2::iostreams;
@@ -91,4 +94,4 @@ namespace lzmaiostreams = dekaf2::iostreams;
 namespace lzmaiostreams = boost::iostreams;
 #endif
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END

@@ -66,6 +66,7 @@
 #include <frozen/set.h>
 #include <frozen/unordered_map.h>
 #include <frozen/unordered_set.h>
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "bits/khash.h"
 
@@ -75,9 +76,9 @@ namespace frozen {
 // the better, the compiler will find the seed needed for a perfect hash anyway
 
 template <>
-struct elsa<dekaf2::KStringView>
+struct elsa<DEKAF2_PREFIX KStringView>
 {
-	constexpr std::size_t operator()(dekaf2::KStringView value) const
+	constexpr std::size_t operator()(DEKAF2_PREFIX KStringView value) const
 	{
 		// a fast and simple hash
 		std::size_t hash = 5381;
@@ -88,7 +89,7 @@ struct elsa<dekaf2::KStringView>
 		return hash;
 	}
 
-	constexpr std::size_t operator()(dekaf2::KStringView value, std::size_t seed) const
+	constexpr std::size_t operator()(DEKAF2_PREFIX KStringView value, std::size_t seed) const
 	{
 		// this is FNV1a 32 bit, seeded
 		std::size_t hash = (static_cast<std::size_t>(2166136261U) ^ seed) * static_cast<std::size_t>(16777619U);
@@ -101,9 +102,9 @@ struct elsa<dekaf2::KStringView>
 };
 
 template <>
-struct elsa<dekaf2::KStringViewZ>
+struct elsa<DEKAF2_PREFIX KStringViewZ>
 {
-	constexpr std::size_t operator()(dekaf2::KStringViewZ value) const
+	constexpr std::size_t operator()(DEKAF2_PREFIX KStringViewZ value) const
 	{
 		// a fast and simple hash
 		std::size_t hash = 5381;
@@ -114,7 +115,7 @@ struct elsa<dekaf2::KStringViewZ>
 		return hash;
 	}
 
-	constexpr std::size_t operator()(dekaf2::KStringViewZ value, std::size_t seed) const
+	constexpr std::size_t operator()(DEKAF2_PREFIX KStringViewZ value, std::size_t seed) const
 	{
 		// this is FNV1a 32 bit, seeded
 		std::size_t hash = (static_cast<std::size_t>(2166136261U) ^ seed) * static_cast<std::size_t>(16777619U);

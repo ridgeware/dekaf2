@@ -40,6 +40,7 @@
  */
 
 #include "kurl.h"
+#include <dekaf2/kdefinitions.h>
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
@@ -51,7 +52,7 @@
 #include <dekaf2/kparallel.h>
 #include <dekaf2/kmodifyingstreambuf.h>
 
-using namespace dekaf2;
+using namespace DEKAF2_NAMESPACE_NAME;
 
 //-----------------------------------------------------------------------------
 kurl::kurl ()

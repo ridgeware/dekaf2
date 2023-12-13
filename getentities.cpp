@@ -1,9 +1,10 @@
+#include <dekaf2/kdefinitions.h>
 #include <dekaf2/kjson.h>
 #include <dekaf2/kstream.h>
 #include <dekaf2/kwebclient.h>
 
 
-using namespace dekaf2;
+using namespace DEKAF2_NAMESPACE_NAME;
 
 
 int main(int argc, char** argv)

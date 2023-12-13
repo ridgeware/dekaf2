@@ -37,6 +37,8 @@
 #endif
 #include <boost/config/abi_prefix.hpp>
 
+// note we use the literal dekaf2 namespace here and not
+// the define from kdefinitions.h
 namespace dekaf2 { namespace iostreams {
 
 namespace brotli {

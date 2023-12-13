@@ -45,7 +45,7 @@
 #include "../klog.h"
 #include "../kctype.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) && defined(__GLIBC__)
 // In contrast to most of the other optimized find functions we do not
@@ -191,7 +191,7 @@ KStringViewZ::size_type KStringViewZ::find_first_not_of(KStringView sv, size_typ
 KStringViewZ& KStringViewZ::TrimLeft()
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(*this, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
+	kTrimLeft(*this, [](value_type ch){ return KASCII::kIsSpace(ch) != 0; } );
 	return *this;
 }
 
@@ -199,7 +199,7 @@ KStringViewZ& KStringViewZ::TrimLeft()
 KStringViewZ& KStringViewZ::TrimLeft(value_type chTrim)
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrimLeft(*this, [chTrim](value_type ch){ return ch == chTrim; } );
+	kTrimLeft(*this, [chTrim](value_type ch){ return ch == chTrim; } );
 	return *this;
 }
 
@@ -211,7 +211,7 @@ KStringViewZ& KStringViewZ::TrimLeft(KStringView sTrim)
 	{
 		return TrimLeft(sTrim[0]);
 	}
-	dekaf2::kTrimLeft(*this, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
+	kTrimLeft(*this, [sTrim](value_type ch){ return memchr(sTrim.data(), ch, sTrim.size()) != nullptr; } );
 	return *this;
 }
 
@@ -286,5 +286,4 @@ constexpr KStringViewZ::value_type KStringViewZ::s_empty;
 static_assert(std::is_nothrow_move_constructible<KStringViewZ>::value,
 			  "KStringViewZ is intended to be nothrow move constructible, but is not!");
 
-} // end of namespace dekaf2
-
+DEKAF2_NAMESPACE_END

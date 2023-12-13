@@ -42,11 +42,12 @@
 
 #pragma once
 
-#include <cinttypes>
+#include "../kdefinitions.h"
 #include "../krow.h"
 #include "../kstring.h"
+#include <cinttypes>
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 /* DBC file format structures:
  These structures, once established, CAN NOT CHANGE.
@@ -338,4 +339,4 @@ private:
 	Data data;
 };
 
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END

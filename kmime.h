@@ -500,10 +500,10 @@ namespace fmt
 {
 
 template <>
-struct formatter<dekaf2::KMIME> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KMIME> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KMIME& MIME, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KMIME& MIME, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(MIME.Serialize(), ctx);
 	}

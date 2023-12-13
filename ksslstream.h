@@ -287,7 +287,7 @@ struct KAsioSSLStream
 	KSSLContext& SSLContext;
 	boost::asio::io_service IOService;
 	StreamType Socket;
-	dekaf2::KString sEndpoint;
+	KString sEndpoint;
 	boost::asio::deadline_timer Timer;
 	boost::system::error_code ec;
 	int iSecondsTimeout;

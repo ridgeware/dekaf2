@@ -675,10 +675,10 @@ DEKAF2_NAMESPACE_END
 namespace std
 {
 	template<>
-	struct hash<dekaf2::KHTMLObject>
+	struct hash<DEKAF2_PREFIX KHTMLObject>
 	{
 		DEKAF2_CONSTEXPR_20
-		std::size_t operator()(const dekaf2::KHTMLObject& o) const noexcept
+		std::size_t operator()(const DEKAF2_PREFIX KHTMLObject& o) const noexcept
 		{
 			return o.Type();
 		}
@@ -692,7 +692,7 @@ namespace boost {
 DEKAF2_NAMESPACE_BEGIN
 #endif
 	inline
-	std::size_t hash_value(const dekaf2::KHTMLObject& o)
+	std::size_t hash_value(const DEKAF2_PREFIX KHTMLObject& o)
 	{
 		return o.Type();
 	}

@@ -42,7 +42,7 @@
 #include "khttperror.h"
 #include "klog.h"
 
-using namespace dekaf2;
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 void KHTTPError::clear()
@@ -136,3 +136,4 @@ KStringView KHTTPError::GetStatusString(uint16_t iStatusCode)
 
 } // GetStatusString
 
+DEKAF2_NAMESPACE_END

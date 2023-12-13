@@ -1068,7 +1068,7 @@ KString Print (const LJSON& json) noexcept
 				return json.dump(-1);
 
 			case LJSON::value_t::string:
-				return json.get<dekaf2::LJSON::string_t>();
+				return json.get<LJSON::string_t>();
 
 			case LJSON::value_t::number_integer:
 				return KString::to_string(json.get<LJSON::number_integer_t>());
@@ -1080,7 +1080,7 @@ KString Print (const LJSON& json) noexcept
 				return KString::to_string(json.get<LJSON::number_float_t>());
 
 			case LJSON::value_t::boolean:
-				return json.get<dekaf2::LJSON::boolean_t>() ? "true" : "false";
+				return json.get<LJSON::boolean_t>() ? "true" : "false";
 
 			case LJSON::value_t::null:
 				return "NULL";

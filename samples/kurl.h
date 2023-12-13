@@ -41,6 +41,7 @@
 
 #pragma once
 
+#include <dekaf2/kdefinitions.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/koptions.h>
@@ -55,7 +56,7 @@
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/kbar.h>
 
-using namespace dekaf2;
+using namespace DEKAF2_NAMESPACE_NAME;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class kurl

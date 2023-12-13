@@ -501,7 +501,7 @@ namespace boost {
 DEKAF2_NAMESPACE_BEGIN
 #endif
 	inline
-	std::size_t hash_value(const dekaf2::KStringViewZ& s)
+	std::size_t hash_value(const DEKAF2_PREFIX KStringViewZ& s)
 	{
 		return s.Hash();
 	}

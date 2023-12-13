@@ -734,20 +734,20 @@ namespace DEKAF2_FORMAT_NAMESPACE
 {
 
 template <>
-struct formatter<dekaf2::KCOL::Flags> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KCOL::Flags> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KCOL::Flags& Flags, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KCOL::Flags& Flags, FormatContext& ctx) const
 	{
-		return formatter<string_view>::format(dekaf2::KCOL::FlagsToString(Flags), ctx);
+		return formatter<string_view>::format(DEKAF2_PREFIX KCOL::FlagsToString(Flags), ctx);
 	}
 };
 
 template <>
-struct formatter<dekaf2::KSQLString> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KSQLString> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KSQLString& sString, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KSQLString& sString, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(sString.str(), ctx);
 	}
@@ -760,7 +760,7 @@ struct formatter<dekaf2::KSQLString> : formatter<string_view>
 namespace std
 {
 
-template<typename T, typename std::enable_if<std::is_same<typename std::decay<T>::type, dekaf2::KSQLString>::value>::type = 0>
+template<typename T, typename std::enable_if<std::is_same<typename std::decay<T>::type, DEKAF2_PREFIX KSQLString>::value>::type = 0>
 std::ostream& operator <<(std::ostream& stream, const T& sString)
 {
 	stream.write(sString.data(), sString.size());

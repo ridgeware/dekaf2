@@ -39,6 +39,7 @@
  // +-------------------------------------------------------------------------+
  */
 
+#include <dekaf2/kdefinitions.h>
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/ksql.h>
 #include <dekaf2/kstring.h>
@@ -47,7 +48,7 @@
 #include <dekaf2/kwriter.h>
 #include <cinttypes>
 
-using namespace dekaf2;
+using namespace DEKAF2_NAMESPACE_NAME;
 
 static const char* g_Synopsis[] = {
 "",

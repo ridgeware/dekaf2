@@ -40,6 +40,7 @@
 //
 */
 
+#include "kdefinitions.h"
 #include "dekaf2.h"
 #include "klog.h"
 #include "kstring.h"
@@ -53,7 +54,7 @@
 #include "ksystem.h"
 #include "kxml.h"
 
-using namespace dekaf2;
+using namespace DEKAF2_NAMESPACE_NAME;
 
 constexpr KStringView g_Synopsis[] = {
 	" ",

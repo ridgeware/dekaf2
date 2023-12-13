@@ -116,7 +116,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// constructs from integer types
 	template<typename T, typename U = typename Storage::value_type,
-	         typename std::enable_if<dekaf2::detail::is_pod<U>::value &&
+	         typename std::enable_if<DEKAF2_PREFIX detail::is_pod<U>::value &&
 	                                 std::is_convertible<T, U>::value == true, int>::type = 0>
 	URIComponent (const T& t)
 	//-------------------------------------------------------------------------
@@ -487,7 +487,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return begin iterator
-	template<typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
+	template<typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
 	auto begin()
 	//-------------------------------------------------------------------------
 	{
@@ -496,7 +496,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return begin iterator
-	template<typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
+	template<typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
 	auto begin() const
 	//-------------------------------------------------------------------------
 	{
@@ -505,7 +505,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return end iterator
-	template<typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
+	template<typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
 	auto end()
 	//-------------------------------------------------------------------------
 	{
@@ -514,7 +514,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return end iterator
-	template<typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
+	template<typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
 	auto end() const
 	//-------------------------------------------------------------------------
 	{
@@ -523,7 +523,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// search element
-	template<typename F, typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
+	template<typename F, typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
 	auto find(F&& Search)
 	//-------------------------------------------------------------------------
 	{
@@ -532,7 +532,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// search element, const
-	template<typename F, typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
+	template<typename F, typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
 	auto find(F&& Search) const
 	//-------------------------------------------------------------------------
 	{
@@ -559,7 +559,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return size
-	template<typename T = typename Storage::value_type, typename std::enable_if<dekaf2::detail::is_pod<T>::value == false, int>::type = 0 >
+	template<typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
 	auto size() const
 	//-------------------------------------------------------------------------
 	{
@@ -745,7 +745,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// constructs instance and parses source into members
 	template<typename T,
-	        typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
+	        typename std::enable_if<DEKAF2_PREFIX detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
 	KProtocol (const T& svSource)
 	//-------------------------------------------------------------------------
 	{
@@ -949,7 +949,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// construct from any type that can be assigned to a KStringView
 	template<typename T,
-			 typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
+			 typename std::enable_if<DEKAF2_PREFIX detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	KResource(const T& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -964,7 +964,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// assign from any type that can be assigned to a KStringView
 	template<typename T,
-			 typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
+			 typename std::enable_if<DEKAF2_PREFIX detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	KResource& operator=(const T& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -1107,7 +1107,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// construct from any type that can be assigned to a KStringView
 	template<typename T,
-	         typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
+	         typename std::enable_if<DEKAF2_PREFIX detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	KURL(const T& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -1125,7 +1125,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// assign from any type that can be assigned to a KStringView
 	template<typename T,
-	         typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
+	         typename std::enable_if<DEKAF2_PREFIX detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	KURL& operator=(const T& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -1311,7 +1311,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// construct from any type that can be assigned to a KStringView
 	template<typename T,
-	         typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
+	         typename std::enable_if<DEKAF2_PREFIX detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	KTCPEndPoint(const T& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -1342,7 +1342,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// assign from any type that can be assigned to a KStringView
 	template<typename T,
-	         typename std::enable_if<::dekaf2::detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
+	         typename std::enable_if<DEKAF2_PREFIX detail::is_kstringview_assignable<T, true>::value == true, int>::type = 0>
 	KTCPEndPoint& operator=(const T& sv)
 	//-------------------------------------------------------------------------
 	{
@@ -1446,7 +1446,7 @@ public:
 DEKAF2_PUBLIC inline
 KString kGetBaseDomain (KStringView sHostName) { return url::GetDomainIdentity(sHostName); }
 
-} // of namespace dekaf2
+DEKAF2_NAMESPACE_END
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1456,110 +1456,110 @@ namespace fmt
 {
 
 template <>
-struct formatter<dekaf2::url::KUser> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX url::KUser> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KUser& URICompoment, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX url::KUser& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
 };
 
 template <>
-struct formatter<dekaf2::url::KPassword> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX url::KPassword> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KPassword& URICompoment, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX url::KPassword& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
 };
 
 template <>
-struct formatter<dekaf2::url::KDomain> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX url::KDomain> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KDomain& URICompoment, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX url::KDomain& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
 };
 
 template <>
-struct formatter<dekaf2::url::KPort> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX url::KPort> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KPort& URICompoment, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX url::KPort& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
 };
 
 template <>
-struct formatter<dekaf2::url::KPath> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX url::KPath> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KPath& URICompoment, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX url::KPath& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
 };
 
 template <>
-struct formatter<dekaf2::url::KQuery> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX url::KQuery> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KQuery& URICompoment, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX url::KQuery& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
 };
 
 template <>
-struct formatter<dekaf2::url::KFragment> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX url::KFragment> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KFragment& URICompoment, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX url::KFragment& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
 };
 
 template <>
-struct formatter<dekaf2::url::KProtocol> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX url::KProtocol> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::url::KProtocol& URICompoment, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX url::KProtocol& URICompoment, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URICompoment.Serialize(), ctx);
 	}
 };
 
 template <>
-struct formatter<dekaf2::KResource> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KResource> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KResource& Resource, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KResource& Resource, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(Resource.Serialize(), ctx);
 	}
 };
 
 template <>
-struct formatter<dekaf2::KURL> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KURL> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KURL& URL, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KURL& URL, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(URL.Serialize(), ctx);
 	}
 };
 
 template <>
-struct formatter<dekaf2::KTCPEndPoint> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KTCPEndPoint> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KTCPEndPoint& EndPoint, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KTCPEndPoint& EndPoint, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(EndPoint.Serialize(), ctx);
 	}

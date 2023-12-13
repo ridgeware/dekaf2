@@ -10,7 +10,7 @@
 #include <vector>
 
 
-using namespace dekaf2;
+using namespace DEKAF2_NAMESPACE_NAME;
 
 constexpr KStringView sURL = "https://www.unicode.org/Public/UCD/latest/ucd/UnicodeData.txt";
 

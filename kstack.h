@@ -48,8 +48,7 @@
 #include <deque>
 #include "klog.h"
 
-namespace  dekaf2
-{
+DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A container with accessors from std::deque plus std::stack, and range protection
@@ -386,4 +385,4 @@ private:
 template<typename Stack_Type>
 const Stack_Type KStack<Stack_Type>::s_cEmptyValue = Stack_Type{};
 
-} // END NAMESPACE DEKAF2
+DEKAF2_NAMESPACE_END

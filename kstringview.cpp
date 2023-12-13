@@ -582,7 +582,7 @@ KStringView& KStringView::Trim()
 KStringView& KStringView::Trim(value_type chTrim)
 //----------------------------------------------------------------------
 {
-	dekaf2::kTrim(*this, [chTrim](value_type ch){ return ch == chTrim; } );
+	kTrim(*this, [chTrim](value_type ch){ return ch == chTrim; } );
 	return *this;
 }
 

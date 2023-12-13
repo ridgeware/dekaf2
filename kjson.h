@@ -67,7 +67,7 @@
 
 #include "kcrashexit.h"
 
-#define JSON_ASSERT(bMustBeTrue) { dekaf2::kAssert(bMustBeTrue, "crash in KJSON"); }
+#define JSON_ASSERT(bMustBeTrue) { DEKAF2_PREFIX kAssert(bMustBeTrue, "crash in KJSON"); }
 
 #if  defined(DEKAF2_IS_DEBUG_BUILD) \
  && !defined(DEKAF2_USE_PRECOMPILED_HEADERS) \
@@ -94,7 +94,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 // the native nlohmann::json type, using KString instead of std::string though
-using LJSON = nlohmann::basic_json<std::map, std::vector, dekaf2::KString>;
+using LJSON = nlohmann::basic_json<std::map, std::vector, DEKAF2_PREFIX KString>;
 
 #ifdef DEKAF2_WRAPPED_KJSON
 	class KJSON2;
@@ -384,12 +384,12 @@ DEKAF2_NAMESPACE_END
 namespace fmt {
 
 template <>
-struct formatter<dekaf2::LJSON> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX LJSON> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::LJSON& json, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX LJSON& json, FormatContext& ctx) const
 	{
-		return formatter<string_view>::format(dekaf2::kjson::Print(json), ctx);
+		return formatter<string_view>::format(DEKAF2_PREFIX kjson::Print(json), ctx);
 	}
 };
 

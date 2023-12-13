@@ -43,7 +43,7 @@
 #include "ksql_dbc.h"
 #include "../ksystem.h"
 
-namespace dekaf2 {
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 DBCFileBase::~DBCFileBase()
@@ -180,4 +180,4 @@ void DBCFileBase::FillBufferWithNoise(void* pBuffer, std::size_t iSize)
 
 } // DBCFileBase::FillBufferWithNoise
 
-} // namespace dekaf2
+DEKAF2_NAMESPACE_END

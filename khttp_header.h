@@ -769,20 +769,20 @@ namespace fmt
 {
 
 template <>
-struct formatter<dekaf2::KHTTPHeader::Header> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KHTTPHeader::Header> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KHTTPHeader::Header& Header, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KHTTPHeader::Header& Header, FormatContext& ctx) const
 	{
-		return formatter<string_view>::format(dekaf2::KHTTPHeader(Header).Serialize(), ctx);
+		return formatter<string_view>::format(DEKAF2_PREFIX KHTTPHeader(Header).Serialize(), ctx);
 	}
 };
 
 template <>
-struct formatter<dekaf2::KHTTPHeader> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KHTTPHeader> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KHTTPHeader& Header, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KHTTPHeader& Header, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(Header.Serialize(), ctx);
 	}
@@ -793,10 +793,10 @@ struct formatter<dekaf2::KHTTPHeader> : formatter<string_view>
 namespace std
 {
 	/// provide a std::hash for KHTTPHeader
-	template<> struct hash<dekaf2::KHTTPHeader>
+	template<> struct hash<DEKAF2_PREFIX KHTTPHeader>
 	{
 		DEKAF2_KHTTP_HEADER_CONSTEXPR_14
-		std::size_t operator()(const dekaf2::KHTTPHeader& header) const noexcept
+		std::size_t operator()(const DEKAF2_PREFIX KHTTPHeader& header) const noexcept
 		{
 			return header.Hash();
 		}
@@ -810,7 +810,7 @@ namespace boost {
 DEKAF2_NAMESPACE_BEGIN
 #endif
 	inline
-	std::size_t hash_value(const dekaf2::KHTTPHeader& header)
+	std::size_t hash_value(const DEKAF2_PREFIX KHTTPHeader& header)
 	{
 		return header.Hash();
 	}

@@ -6,7 +6,7 @@
 #include <dekaf2/kduration.h>
 #include <dekaf2/kfilesystem.h>
 
-using namespace dekaf2;
+using namespace DEKAF2_NAMESPACE_NAME;
 
 struct Options
 {

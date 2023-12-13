@@ -87,7 +87,7 @@ StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 
 #ifdef DEKAF2_IS_OSX
 
-			KString sCmdLine = dekaf2::kFormat("atos -p {}", getpid());
+			KString sCmdLine = DEKAF2_PREFIX kFormat("atos -p {}", getpid());
 
 			for (const auto& it : vsAddress)
 			{

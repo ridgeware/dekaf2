@@ -315,7 +315,7 @@ template<
 	typename Decoded,
 	const char chPairSep = '\0',
 	const char chKeyValSep = '\0',
-	bool bIsPod = dekaf2::detail::is_pod<Decoded>::value
+	bool bIsPod = DEKAF2_PREFIX detail::is_pod<Decoded>::value
 >
 class KURLEncoded
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

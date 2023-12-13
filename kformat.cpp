@@ -46,7 +46,7 @@
 #ifndef DEKAF2_HAS_STD_FORMAT
 #ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
 template<>
-struct DEKAF2_PREFIX format::is_contiguous<dekaf2::KString> : std::true_type {};
+struct DEKAF2_PREFIX format::is_contiguous<DEKAF2_PREFIX KString> : std::true_type {};
 #endif
 #endif
 

@@ -143,10 +143,10 @@ namespace fmt
 {
 
 template <>
-struct formatter<dekaf2::KHTTPMethod> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KHTTPMethod> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KHTTPMethod& Method, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KHTTPMethod& Method, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(Method.Serialize(), ctx);
 	}

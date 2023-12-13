@@ -44,6 +44,7 @@
 /// @file kmodifyingstreambuf.h
 /// a streambuf that modifies the bytes flowing through it
 
+#include "kdefinitions.h"
 #include "kstreambufadaptor.h"
 #include "kstringview.h"
 #include "kstring.h"
@@ -110,7 +111,7 @@ public:
 
 #ifdef DEKAF2_HAS_KREADER
 	//-----------------------------------------------------------------------------
-	KModifyingInputStreamBuf(dekaf2::KInStream& instream)
+	KModifyingInputStreamBuf(DEKAF2_PREFIX KInStream& instream)
 	//-----------------------------------------------------------------------------
 	: KModifyingInputStreamBuf(instream.InStream())
 	{
@@ -127,7 +128,7 @@ public:
 
 #ifdef DEKAF2_HAS_KREADER
 	//-----------------------------------------------------------------------------
-	void Attach(dekaf2::KInStream& instream)
+	void Attach(DEKAF2_PREFIX KInStream& instream)
 	//-----------------------------------------------------------------------------
 	{
 		Attach(instream.InStream());

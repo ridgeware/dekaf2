@@ -322,60 +322,60 @@ DEKAF2_NAMESPACE_END
 namespace std
 {
 	/// provide a std::hash for KCaseStringViewBase
-	template<typename Trimming> struct hash<dekaf2::KCaseStringViewBase<Trimming>>
+	template<typename Trimming> struct hash<DEKAF2_PREFIX KCaseStringViewBase<Trimming>>
 	{
-		std::size_t operator()(dekaf2::KStringView sv) const noexcept
+		std::size_t operator()(DEKAF2_PREFIX KStringView sv) const noexcept
 		{
-			return dekaf2::kCalcCaseHashTrim<Trimming>(sv);
+			return DEKAF2_PREFIX kCalcCaseHashTrim<Trimming>(sv);
 		}
 	};
 
 	/// provide a std::hash for KCaseStringBase
-	template<typename Trimming> struct hash<dekaf2::KCaseStringBase<Trimming>>
+	template<typename Trimming> struct hash<DEKAF2_PREFIX KCaseStringBase<Trimming>>
 	{
-		std::size_t operator()(dekaf2::KStringView sv) const noexcept
+		std::size_t operator()(DEKAF2_PREFIX KStringView sv) const noexcept
 		{
-			return dekaf2::kCalcCaseHashTrim<Trimming>(sv);
+			return DEKAF2_PREFIX kCalcCaseHashTrim<Trimming>(sv);
 		}
 	};
 
 	// make sure comparisons work without construction of KCaseStringBase
-	template<typename Trimming> struct equal_to<dekaf2::KCaseStringBase<Trimming>>
+	template<typename Trimming> struct equal_to<DEKAF2_PREFIX KCaseStringBase<Trimming>>
 	{
 		using is_transparent = void;
 
 #ifdef DEKAF2_HAS_FULL_CPP_17
-		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, dekaf2::KStringView s2) const
+		bool operator()(const DEKAF2_PREFIX KCaseStringBase<Trimming>& s1, DEKAF2_PREFIX KStringView s2) const
 		{
 			return s1 == s2;
 		}
-		bool operator()(dekaf2::KStringView s1, const dekaf2::KCaseStringBase<Trimming>& s2) const
+		bool operator()(DEKAF2_PREFIX KStringView s1, const DEKAF2_PREFIX KCaseStringBase<Trimming>& s2) const
 		{
 			return s1 == s2;
 		}
 #endif
-		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, const dekaf2::KCaseStringBase<Trimming>& s2) const
+		bool operator()(const DEKAF2_PREFIX KCaseStringBase<Trimming>& s1, const DEKAF2_PREFIX KCaseStringBase<Trimming>& s2) const
 		{
 			return s1 == s2;
 		}
 	};
 
 	// make sure comparisons work without construction of KCaseStringBase
-	template<typename Trimming> struct less<dekaf2::KCaseStringBase<Trimming>>
+	template<typename Trimming> struct less<DEKAF2_PREFIX KCaseStringBase<Trimming>>
 	{
 		using is_transparent = void;
 
 #ifdef DEKAF2_HAS_FULL_CPP_17
-		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, dekaf2::KStringView s2) const
+		bool operator()(const DEKAF2_PREFIX KCaseStringBase<Trimming>& s1, DEKAF2_PREFIX KStringView s2) const
 		{
-			return s1.ToView().template compare<Trimming, dekaf2::detail::casestring::NoTrim>(s2) < 0;
+			return s1.ToView().template compare<Trimming, DEKAF2_PREFIX detail::casestring::NoTrim>(s2) < 0;
 		}
-		bool operator()(dekaf2::KStringView s1, const dekaf2::KCaseStringBase<Trimming>& s2) const
+		bool operator()(DEKAF2_PREFIX KStringView s1, const DEKAF2_PREFIX KCaseStringBase<Trimming>& s2) const
 		{
-			return s2.ToView().template compare<Trimming, dekaf2::detail::casestring::NoTrim>(s1) > 0;
+			return s2.ToView().template compare<Trimming, DEKAF2_PREFIX detail::casestring::NoTrim>(s1) > 0;
 		}
 #endif
-		bool operator()(const dekaf2::KCaseStringBase<Trimming>& s1, const dekaf2::KCaseStringViewBase<Trimming>& s2) const
+		bool operator()(const DEKAF2_PREFIX KCaseStringBase<Trimming>& s1, const DEKAF2_PREFIX KCaseStringViewBase<Trimming>& s2) const
 		{
 			return s1.compare(s2) < 0;
 		}
@@ -389,15 +389,15 @@ namespace boost {
 DEKAF2_NAMESPACE_BEGIN
 #endif
 	template<typename Trimming>
-	std::size_t hash_value(const dekaf2::KCaseStringViewBase<Trimming>& s)
+	std::size_t hash_value(const DEKAF2_PREFIX KCaseStringViewBase<Trimming>& s)
 	{
-		return dekaf2::kCalcCaseHashTrim<Trimming>(s);
+		return DEKAF2_PREFIX kCalcCaseHashTrim<Trimming>(s);
 	}
 
 	template<typename Trimming>
-	std::size_t hash_value(const dekaf2::KCaseStringBase<Trimming>& s)
+	std::size_t hash_value(const DEKAF2_PREFIX KCaseStringBase<Trimming>& s)
 	{
-		return dekaf2::kCalcCaseHashTrim<Trimming>(s);
+		return DEKAF2_PREFIX kCalcCaseHashTrim<Trimming>(s);
 	}
 #ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 }
@@ -407,18 +407,18 @@ DEKAF2_NAMESPACE_END
 
 //----------------------------------------------------------------------
 template<typename Trimming>
-inline std::size_t dekaf2::KCaseStringViewBase<Trimming>::Hash() const
+inline std::size_t DEKAF2_PREFIX KCaseStringViewBase<Trimming>::Hash() const
 //----------------------------------------------------------------------
 {
-	return std::hash<dekaf2::KCaseStringViewBase<Trimming>>()(*this);
+	return std::hash<DEKAF2_PREFIX KCaseStringViewBase<Trimming>>()(*this);
 }
 
 //----------------------------------------------------------------------
 template<typename Trimming>
-inline std::size_t dekaf2::KCaseStringBase<Trimming>::Hash() const
+inline std::size_t DEKAF2_PREFIX KCaseStringBase<Trimming>::Hash() const
 //----------------------------------------------------------------------
 {
-	return std::hash<dekaf2::KCaseStringBase<Trimming>>()(*this);
+	return std::hash<DEKAF2_PREFIX KCaseStringBase<Trimming>>()(*this);
 }
 
 #if DEKAF2_HAS_INCLUDE("kformat.h")
@@ -429,20 +429,20 @@ namespace DEKAF2_FORMAT_NAMESPACE
 {
 
 template <typename Trimming>
-struct formatter<dekaf2::KCaseStringViewBase<Trimming>> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KCaseStringViewBase<Trimming>> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KCaseStringViewBase<Trimming>& String, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KCaseStringViewBase<Trimming>& String, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(string_view(String.data(), String.size()), ctx);
 	}
 };
 
 template <typename Trimming>
-struct formatter<dekaf2::KCaseStringBase<Trimming>> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KCaseStringBase<Trimming>> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const dekaf2::KCaseStringBase<Trimming>& String, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KCaseStringBase<Trimming>& String, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(string_view(String.data(), String.size()), ctx);
 	}

@@ -363,11 +363,8 @@ endif()
 # warning: libzip would collide with installed packages libtcod and minizip2
 # - uninstall them if needed, or uncomment
 
-if (IS_WINDOWS)
-	find_package(LibZip QUIET)
-else()
-	find_package(LibZip REQUIRED)
-endif()
+# do not require libzip ..
+find_package(LibZip QUIET)
 
 if (LIBZIP_FOUND)
 	set(DEKAF2_HAS_LIBZIP 1)
@@ -1521,6 +1518,10 @@ install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kmru-std-vector.h)")
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/experimental/kjson2.h)")
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/fmt/locale.h)")
+if (NOT DEKAF2_HAS_LIBZIP)
+	# make sure to remove a kzip.h header if this build did not find libzip
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kzip.h)")
+endif()
 
 set(CPACK_SOURCE_GENERATOR ZIP)
 set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})

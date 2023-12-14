@@ -1703,42 +1703,42 @@ inline bool KString::Contains(const KString::value_type ch) const noexcept
 inline KString KString::ToUpper() const
 //-----------------------------------------------------------------------------
 {
-	return kToUpper(KStringView(*this));
+	return ToView().ToUpper();
 }
 
 //-----------------------------------------------------------------------------
 inline KString KString::ToLower() const
 //-----------------------------------------------------------------------------
 {
-	return kToLower(KStringView(*this));
+	return ToView().ToLower();
 }
 
 //-----------------------------------------------------------------------------
 inline KString KString::ToUpperLocale() const &
 //-----------------------------------------------------------------------------
 {
-	return kToUpperLocale(KStringView(*this));
+	return ToView().ToUpperLocale();
 }
 
 //-----------------------------------------------------------------------------
 inline KString KString::ToLowerLocale() const &
 //-----------------------------------------------------------------------------
 {
-	return kToLowerLocale(KStringView(*this));
+	return ToView().ToLowerLocale();
 }
 
 //-----------------------------------------------------------------------------
 inline KString KString::ToUpperASCII() const &
 //-----------------------------------------------------------------------------
 {
-	return kToUpperASCII(KStringView(*this));
+	return ToView().ToUpperASCII();
 }
 
 //-----------------------------------------------------------------------------
 inline KString KString::ToLowerASCII() const &
 //-----------------------------------------------------------------------------
 {
-	return kToLowerASCII(KStringView(*this));
+	return ToView().ToLowerASCII();
 }
 
 //-----------------------------------------------------------------------------

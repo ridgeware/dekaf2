@@ -44,18 +44,21 @@
 
 #if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 
+#include "kstringview.h"
+#include "kstringutils.h"
 #include <algorithm>
 #include <set>
 #include <cstring>
-#include "kstringutils.h"
 
-using namespace dekaf2::enabled;
+DEKAF2_NAMESPACE_BEGIN
+
+namespace enabled {
 
 size_t                KSharedProfiler::s_refcount{0};
 KSharedProfiler*      KSharedProfiler::s_parent{nullptr};
 std::mutex            KSharedProfiler::s_constructor_mutex;
 std::atomic<uint32_t> KSharedProfiler::s_order{0};
-const char*           dekaf2::enabled::g_empty_label{"(unnamed)"};
+const char*           g_empty_label{"(unnamed)"};
 
 //-----------------------------------------------------------------------------
 KSharedProfiler::KSharedProfiler()
@@ -83,7 +86,7 @@ void KSharedProfiler::finalize()
 	if (!m_bFinalized)
 	{
 		m_bFinalized = true;
-		
+
 		m_profiled_runtime += (clock_t::now() - m_start) - m_slept_for;
 
 		std::lock_guard<std::mutex> Lock(s_constructor_mutex);
@@ -237,7 +240,7 @@ KSharedProfiler::data_t& KSharedProfiler::data_t::operator +=(const data_t& d)
 }
 
 #ifndef DEKAF2_DISABLE_AUTOMATIC_PROFILER
-thread_local KSharedProfiler dekaf2::g_Prof;
+thread_local KSharedProfiler g_Prof;
 #endif
 
 //-----------------------------------------------------------------------------
@@ -303,5 +306,9 @@ void KProf::stop()
 		}
 	}
 }
+
+} // end of namespace enabled
+
+DEKAF2_NAMESPACE_END
 
 #endif // DEKAF2_ENABLE_PROFILING

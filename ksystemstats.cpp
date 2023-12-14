@@ -51,6 +51,7 @@
 #include "kjson.h"
 #include "kfilesystem.h"
 #include "ktime.h"
+#include "ksystem.h"
 
 DEKAF2_NAMESPACE_BEGIN
 

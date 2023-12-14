@@ -547,7 +547,7 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 		return INVALID_CODEPOINT;
 	}
 
-#if (__cplusplus > 201703L)
+#if (__cplusplus >= 202002L)
 	// C++20 constexpr permits variable declarations without initialization
 	codepoint_t lower_limit;
 	codepoint_t codepoint;

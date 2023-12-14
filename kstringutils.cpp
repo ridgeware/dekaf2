@@ -39,7 +39,8 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kstringutils.h"
+#include "kstringview.h"   // keep kstringview.h on top of kstringutils.h
+#include "kstringutils.h"  // or gcc < 10 produces circular references!
 #include "khex.h"
 #if DEKAF2_HAS_INCLUDE("kurl.h")
 	#include "kurl.h"

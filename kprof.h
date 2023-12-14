@@ -47,7 +47,7 @@
 
 #if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 
-#include "kcompatibility.h"
+#include "kdefinitions.h"
 #include <map>
 #include <cinttypes>
 #include <cstring>
@@ -56,6 +56,7 @@
 #include <atomic>
 
 DEKAF2_NAMESPACE_BEGIN
+
 namespace enabled {
 
 class KProf;
@@ -352,6 +353,7 @@ private:
 }; // KProf
 
 } // of namespace enabled
+
 DEKAF2_NAMESPACE_END
 
 #endif // DEKAF2_ENABLE_PROFILING || DEKAF2_LIBRARY_BUILD
@@ -359,6 +361,7 @@ DEKAF2_NAMESPACE_END
 #if !defined(DEKAF2_ENABLE_PROFILING)
 
 DEKAF2_NAMESPACE_BEGIN
+
 namespace disabled {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -557,4 +560,3 @@ DEKAF2_PUBLIC inline void kProfFinalize()
 #endif // DEKAF2_ENABLE_PROFILING == false
 
 DEKAF2_NAMESPACE_END
-

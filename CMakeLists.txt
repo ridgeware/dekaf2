@@ -707,29 +707,6 @@ configure_file("cmake/${PROJECT_NAME}-setup.cmake.in" "${GENERATED_FILES_DIR}/${
 set (DEKAF2_INHERIT_BUILD_FLAGS ON)
 include ("${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake")
 
-if (DEKAF2_LINK_TIME_OPTIMIZATION)
-	# enable function and data splitting into different sections for release builds
-	if ((CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
-		OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-		# -flto forces the compiler to dump object files in the internal GIMPL format,
-		# which in turn enables any linker to do
-		#   a) link time optimization and
-		#   b) drop sections not linked into the final executable
-		message(STATUS "forcing link time optimization for release builds")
-		add_compile_options($<$<CONFIG:RELEASE>:-flto>)
-	elseif (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 6)
-		# this is the older way of achieving one section per function, without link
-		# time optimization except removing unused sections/functions
-		message(STATUS "forcing split function and data sections for release builds")
-		add_compile_options($<$<CONFIG:RELEASE>:-fdata-sections>)
-		add_compile_options($<$<CONFIG:RELEASE>:-ffunction-sections>)
-	elseif (MSVC)
-		# /Gy is splitting functions into different sections
-		message(STATUS "forcing split function sections for release builds")
-		add_compile_options($<$<CONFIG:RELEASE>:/Gy>)
-	endif()
-endif()
-
 # ========================= THIRD PARTY SOURCE LIBS ============================
 
 # add third party libraries included in source control

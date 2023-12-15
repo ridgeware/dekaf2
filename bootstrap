@@ -110,9 +110,11 @@ Setup ()
 
 	cd "${ME_ONLYPATH}"  || Die "Cannot cd into source directory ${ME_ONLYPATH}"
 
-	[[ ! -z "${bScratch}" ]] && rm -rf "${BuildDir}" \
-		&& Info "removed build directory ${BuildDir}" \
-		|| Die "failed to remove build directory ${BuildDir}"
+	if [[ ! -z "${bScratch}" ]]; then
+		rm -rf "${BuildDir}" \
+			&& Info "removed build directory ${BuildDir}" \
+			|| Die "failed to remove build directory ${BuildDir}"
+	fi
 
 	if [[ -d "${BuildDir}" ]]; then
 

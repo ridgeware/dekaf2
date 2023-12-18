@@ -768,9 +768,9 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 	});
 #endif
 
-	Option("ini <filename>", "ini file name")
+	Option("config,ini <filename>", "config file name")
 		.Type(File)
-		.Help("load options from ini file", -1)
+		.Help("load options from config file", -1)
 	([this](KStringViewZ sIni)
 	{
 		if (ParseFile(sIni, KOut))

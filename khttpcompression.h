@@ -41,8 +41,7 @@
 
 #pragma once
 
-#include "kcompatibility.h"
-#include "kconfiguration.h" // for DEKAF2_HAS_LIBLZMA/LIBZSTD ..
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "khttp_header.h"
 #include "katomic_object.h"

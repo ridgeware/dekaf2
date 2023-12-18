@@ -149,7 +149,7 @@ kurl::kurl ()
 	});
 
 	m_CLI
-		.Option("get")
+		.Option("G,get")
 		.Help("issue a GET request, even if there is request data")
 	([&]()
 	{
@@ -183,11 +183,39 @@ kurl::kurl ()
 
 	m_CLI
 		.Option("H,header <key:value>", "request header with key:value")
-		.Help("add HTTP header to the request (can be used multiple times)")
+		.Help("add HTTP header to the request (can be used multiple times)"
+			  " or load a file with @filename with one header per line")
 	([&](KStringViewZ sHeader)
 	{
-		auto Pair = kSplitToPair (sHeader, ":");
-		BuildMRQ.Headers.insert ({Pair.first, Pair.second});
+		if (sHeader.front() == '@')
+		{
+			auto sHeaderFile = sHeader;
+			sHeaderFile.TrimLeft('@');
+
+			KString sHeaders;
+
+			if (!kAppendAll (sHeaderFile, sHeaders))
+			{
+				throw KOptions::WrongParameterError(kFormat("invalid filename: {}", sHeaderFile));
+			}
+
+			for (auto sHeader : sHeaders.Split("\n"))
+			{
+				auto Pair = kSplitToPair (sHeader, ":");
+				if (!Pair.first.empty())
+				{
+					BuildMRQ.Headers.insert ({Pair.first, Pair.second});
+				}
+			}
+		}
+		else
+		{
+			auto Pair = kSplitToPair (sHeader, ":");
+			if (!Pair.first.empty())
+			{
+				BuildMRQ.Headers.insert ({Pair.first, Pair.second});
+			}
+		}
 	});
 
 	m_CLI
@@ -300,11 +328,30 @@ kurl::kurl ()
 	});
 
 	m_CLI
+		.Option("compressed")
+		.Help("requests compressed response (with default compressors - this is the default with kurl")
+	([&]()
+	{
+		// empty method string means default compressors
+		BuildMRQ.sRequestCompression.clear();
+	});
+
+	m_CLI
 		.Option("compression <method>", "requested compression")
-		.Help("set accepted compressions/encodings, or - for no compression")
+		.Help(kFormat("set accepted compressions/encodings ({}), or - for no compression",
+					  KHTTPCompression::GetImplementedCompressors()))
 	([&](KStringViewZ sCompression)
 	{
 		BuildMRQ.sRequestCompression = sCompression;
+	});
+
+	m_CLI
+		.Option("no-compressed,uncompressed")
+		.Help("do not request a compressed response")
+	([&]()
+	{
+		// - means no compression
+		BuildMRQ.sRequestCompression = '-';
 	});
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS

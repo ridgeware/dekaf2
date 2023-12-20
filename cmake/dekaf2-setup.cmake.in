@@ -41,7 +41,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 		# ================================ ASAN / UBSAN =================================
 
 		if (CMAKE_GENERATOR STREQUAL "Xcode")
-			if ("@DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE@" STREQUAL "ON")
+			if ("@DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE@")
 				message(STATUS "enabling ASAN/UBSAN runtime checks for Xcode")
 				set(CMAKE_XCODE_GENERATE_SCHEME ON)
 				set(CMAKE_XCODE_SCHEME_ADDRESS_SANITIZER ON)
@@ -50,7 +50,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			endif()
 		else()
 			if (NOT MSVC)
-				if ("@DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS@" STREQUAL "ON")
+				if ("@DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS@")
 					message(STATUS "enabling ASAN/UBSAN runtime checks for debug builds")
 					if(NOT CMAKE_VERSION VERSION_LESS "3.13.0")
 						add_compile_options("$<$<CONFIG:DEBUG>:-fsanitize=address;-fsanitize=undefined;-fsanitize-address-use-after-scope;-fstack-protector-strong>")
@@ -234,7 +234,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 		# binds ASAN/UBSAN libs if dekaf2 was built against them
 
 		if (CMAKE_GENERATOR STREQUAL "Xcode")
-			if ("@DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE@" STREQUAL "ON")
+			if ("@DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE@")
 				# don't know how to selectively adding ASAN/UBSAN to linker settings in old cmakes,
 				# therefore adding it to the compile stage as well
 				message(STATUS "enabling ASAN/UBSAN runtime checks for Xcode")
@@ -245,7 +245,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			endif()
 		else()
 			if (NOT MSVC)
-				if ("@DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS@" STREQUAL "ON")
+				if ("@DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS@")
 					if(NOT CMAKE_VERSION VERSION_LESS "3.13.0")
 						add_link_options("$<$<CONFIG:DEBUG>:-fsanitize=address;-fsanitize=undefined;-fsanitize-address-use-after-scope;-fstack-protector-strong;-fstack-check>")
 					else()
@@ -260,7 +260,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 	endif()
 
-	if (DEKAF2_LINK_TIME_OPTIMIZATION)
+	if ("@DEKAF2_LINK_TIME_OPTIMIZATION@")
 		# enable function and data splitting into different sections for release builds
 		if ((CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
 			OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -270,6 +270,10 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			#   b) drop sections not linked into the final executable
 			message(STATUS "forcing link time optimization for release builds")
 			add_compile_options($<$<CONFIG:RELEASE>:-flto>)
+			if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+				# gcc recognizes the lto format automatically, clang needs a little help
+				add_link_options($<$<CONFIG:RELEASE>:-flto>)
+			endif()
 		elseif (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 6)
 			# this is the older way of achieving one section per function, without link
 			# time optimization except removing unused sections/functions

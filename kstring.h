@@ -539,6 +539,10 @@ public:
 	/// changes the string to uppercase assuming ASCII encoding
 	self&& MakeUpperASCII() && { return std::move(MakeUpperASCII()); }
 
+	// note that it does not make sense to add an rvalue version of
+	// ToUpper() and ToLower() as we always have to create a new string
+	// (see also note in kstring.cpp about UTF8 casefolds)
+
 	/// returns a copy of the string in uppercase (UTF8)
 	KString ToUpper() const;
 
@@ -570,28 +574,52 @@ public:
 	self&& ToLowerASCII() && { return std::move(MakeLowerASCII()); }
 
 	/// returns leftmost iCount chars of string
-	KStringView Left(size_type iCount) const;
+	KStringView Left(size_type iCount) const &;
+
+	/// returns leftmost iCount chars of string
+	self&& Left(size_type iCount) &&;
 
 	/// returns substring starting at iStart until end of string
-	KStringViewZ Mid(size_type iStart) const;
+	KStringViewZ Mid(size_type iStart) const &;
+
+	/// returns substring starting at iStart until end of string
+	self&& Mid(size_type iStart) &&;
 
 	/// returns substring starting at iStart for iCount chars
-	KStringView Mid(size_type iStart, size_type iCount) const;
+	KStringView Mid(size_type iStart, size_type iCount) const &;
+
+	/// returns substring starting at iStart for iCount chars
+	self&& Mid(size_type iStart, size_type iCount) &&;
 
 	/// returns rightmost iCount chars of string
-	KStringViewZ Right(size_type iCount) const;
+	KStringViewZ Right(size_type iCount) const &;
+
+	/// returns rightmost iCount chars of string
+	self&& Right(size_type iCount) &&;
 
 	/// returns leftmost iCount codepoints of string
-	KStringView LeftUTF8(size_type iCount) const;
+	KStringView LeftUTF8(size_type iCount) const &;
+
+	/// returns leftmost iCount codepoints of string
+	self&& LeftUTF8(size_type iCount) &&;
 
 	/// returns substring starting at codepoint iStart until end of string
-	KStringViewZ MidUTF8(size_type iStart) const;
+	KStringViewZ MidUTF8(size_type iStart) const &;
+
+	/// returns substring starting at codepoint iStart until end of string
+	self&& MidUTF8(size_type iStart) &&;
 
 	/// returns substring starting at codepoint iStart for iCount codepoints
-	KStringView MidUTF8(size_type iStart, size_type iCount) const;
+	KStringView MidUTF8(size_type iStart, size_type iCount) const &;
+
+	/// returns substring starting at codepoint iStart for iCount codepoints
+	self&& MidUTF8(size_type iStart, size_type iCount) &&;
 
 	/// returns rightmost codepoints chars of string
-	KStringViewZ RightUTF8(size_type iCount) const;
+	KStringViewZ RightUTF8(size_type iCount) const &;
+
+	/// returns rightmost codepoints chars of string
+	self&& RightUTF8(size_type iCount) &&;
 
 	/// returns KCcodePoint at UTF8 position iCount
 	KCodePoint AtUTF8(size_type iCount) const;
@@ -1889,59 +1917,115 @@ inline std::vector<KStringView> KString::MatchRegexGroups(const KStringView sReg
 }
 
 //-----------------------------------------------------------------------------
-inline KStringView KString::Left(size_type iCount) const
+inline KStringView KString::Left(size_type iCount) const &
 //-----------------------------------------------------------------------------
 {
 	return ToView().Left(iCount);
 }
 
 //-----------------------------------------------------------------------------
-inline KStringViewZ KString::Mid(size_type iStart) const
+inline KString&& KString::Left(size_type iCount) &&
+//-----------------------------------------------------------------------------
+{
+	return std::move(kMakeLeft(*this, iCount));
+}
+
+//-----------------------------------------------------------------------------
+inline KStringViewZ KString::Mid(size_type iStart) const &
 //-----------------------------------------------------------------------------
 {
 	return ToView().Mid(iStart);
 }
 
 //-----------------------------------------------------------------------------
-inline KStringView KString::Mid(size_type iStart, size_type iCount) const
+inline KString&& KString::Mid(size_type iStart) &&
+//-----------------------------------------------------------------------------
+{
+	return std::move(kMakeMid(*this, iStart));
+}
+
+//-----------------------------------------------------------------------------
+inline KStringView KString::Mid(size_type iStart, size_type iCount) const &
 //-----------------------------------------------------------------------------
 {
 	return ToView().Mid(iStart, iCount);
 }
 
 //-----------------------------------------------------------------------------
-inline KStringViewZ KString::Right(size_type iCount) const
+inline KString&& KString::Mid(size_type iStart, size_type iCount) &&
+//-----------------------------------------------------------------------------
+{
+	return std::move(kMakeMid(*this, iStart, iCount));
+}
+
+//-----------------------------------------------------------------------------
+inline KStringViewZ KString::Right(size_type iCount) const &
 //-----------------------------------------------------------------------------
 {
 	return ToView().Right(iCount);
 }
 
 //-----------------------------------------------------------------------------
-inline KStringView KString::LeftUTF8(size_type iCount) const
+inline KString&& KString::Right(size_type iCount) &&
+//-----------------------------------------------------------------------------
+{
+	return std::move(kMakeRight(*this, iCount));
+}
+
+//-----------------------------------------------------------------------------
+inline KStringView KString::LeftUTF8(size_type iCount) const &
 //-----------------------------------------------------------------------------
 {
 	return ToView().LeftUTF8(iCount);
 }
 
 //-----------------------------------------------------------------------------
-inline KStringViewZ KString::MidUTF8(size_type iStart) const
+inline KString&& KString::LeftUTF8(size_type iCount) &&
+//-----------------------------------------------------------------------------
+{
+	return std::move(kMakeLeftUTF8(*this, iCount));
+}
+
+//-----------------------------------------------------------------------------
+inline KStringViewZ KString::MidUTF8(size_type iStart) const &
 //-----------------------------------------------------------------------------
 {
 	return ToView().MidUTF8(iStart);
 }
 
 //-----------------------------------------------------------------------------
-inline KStringView KString::MidUTF8(size_type iStart, size_type iCount) const
+inline KString&& KString::MidUTF8(size_type iStart) &&
+//-----------------------------------------------------------------------------
+{
+	return std::move(kMakeMidUTF8(*this, iStart));
+}
+
+//-----------------------------------------------------------------------------
+inline KStringView KString::MidUTF8(size_type iStart, size_type iCount) const &
 //-----------------------------------------------------------------------------
 {
 	return ToView().MidUTF8(iStart, iCount);
 }
 
 //-----------------------------------------------------------------------------
-inline KStringViewZ KString::RightUTF8(size_type iCount) const
+inline KString&& KString::MidUTF8(size_type iStart, size_type iCount) &&
+//-----------------------------------------------------------------------------
+{
+	return std::move(kMakeMidUTF8(*this, iStart, iCount));
+}
+
+//-----------------------------------------------------------------------------
+inline KStringViewZ KString::RightUTF8(size_type iCount) const &
 //-----------------------------------------------------------------------------
 {
 	return ToView().RightUTF8(iCount);
+}
+
+//-----------------------------------------------------------------------------
+inline KString&& KString::RightUTF8(size_type iCount) &&
+//-----------------------------------------------------------------------------
+{
+	return std::move(kMakeRightUTF8(*this, iCount));
 }
 
 //-----------------------------------------------------------------------------

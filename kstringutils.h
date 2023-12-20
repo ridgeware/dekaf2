@@ -125,16 +125,68 @@ StringView kLeft(const String& sInput, std::size_t iCount)
 }
 
 //-----------------------------------------------------------------------------
-/// returns substring starting at iStart for iCount chars
+/// reduces string to leftmost iCount chars of string
+template<class String>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+String& kMakeLeft(String& sInput, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	sInput.erase(iCount);
+	return sInput;
+}
+
+//-----------------------------------------------------------------------------
+/// returns substring starting at iStart for remaining chars
 template<class String, class StringView = KStringView>
 DEKAF2_CONSTEXPR_14
 DEKAF2_PUBLIC
-StringView kMid(const String& sInput, std::size_t iStart, std::size_t iCount = npos)
+StringView kMid(const String& sInput, std::size_t iStart)
+//-----------------------------------------------------------------------------
+{
+	if (iStart > sInput.size()) iStart = sInput.size();
+	return StringView(&sInput[iStart], sInput.size() - iStart);
+}
+
+//-----------------------------------------------------------------------------
+/// returns substring starting at iStart for remaining chars
+template<class String, class StringView = KStringView>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+StringView kMid(const String& sInput, std::size_t iStart, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	if (iStart > sInput.size()) iStart = sInput.size();
 	if (iCount > sInput.size() - iStart) iCount = sInput.size() - iStart;
 	return StringView(&sInput[iStart], iCount);
+}
+
+//-----------------------------------------------------------------------------
+/// reduces string to starting at iStart
+template<class String>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+String& kMakeMid(String& sInput, std::size_t iStart)
+//-----------------------------------------------------------------------------
+{
+	if (iStart > sInput.size()) iStart = sInput.size();
+	sInput.erase(0, iStart);
+	return sInput;
+}
+
+//-----------------------------------------------------------------------------
+/// reduces string to starting at iStart with iCount chars
+template<class String>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+String& kMakeMid(String& sInput, std::size_t iStart, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	if (iStart > sInput.size()) iStart = sInput.size();
+	if (iCount > sInput.size() - iStart) iCount = sInput.size() - iStart;
+	sInput.erase(iStart + iCount);
+	sInput.erase(0, iStart);
+	return sInput;
 }
 
 //-----------------------------------------------------------------------------
@@ -150,6 +202,17 @@ StringView kRight(const String& sInput, std::size_t iCount)
 }
 
 //-----------------------------------------------------------------------------
+/// reduces string to rightmost iCount chars of string
+template<class String>
+DEKAF2_PUBLIC
+String& kMakeRight(String& sInput, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	if (iCount < sInput.size()) sInput.erase(0, sInput.size() - iCount);
+	return sInput;
+}
+
+//-----------------------------------------------------------------------------
 /// returns leftmost iCount codepoints of string
 template<class String, class StringView = KStringView>
 DEKAF2_CONSTEXPR_14
@@ -158,6 +221,19 @@ StringView kLeftUTF8(const String& sInput, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	return Unicode::LeftUTF8<String, StringView>(sInput, iCount);
+}
+
+//-----------------------------------------------------------------------------
+/// reduces string to leftmost iCount codepoints of string
+template<class String>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+String& kMakeLeftUTF8(String& sInput, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	auto it = Unicode::LeftUTF8(sInput.begin(), sInput.end(), iCount);
+	sInput.erase(it, sInput.end());
+	return sInput;
 }
 
 //-----------------------------------------------------------------------------
@@ -172,6 +248,19 @@ StringView kMidUTF8(const String& sInput, std::size_t iStart, std::size_t iCount
 }
 
 //-----------------------------------------------------------------------------
+/// reduces string to starting at codepoint iStart with iCount codepoints
+template<class String>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+String& kMakeMidUTF8(String& sInput, std::size_t iStart, std::size_t iCount = npos)
+//-----------------------------------------------------------------------------
+{
+	auto it = Unicode::LeftUTF8(sInput.begin(), sInput.end(), iStart);
+	sInput.erase(sInput.begin(), it);
+	return kMakeLeftUTF8(sInput, iCount);
+}
+
+//-----------------------------------------------------------------------------
 /// returns rightmost iCount UTF8 codepoints of string
 template<class String, class StringView = KStringView>
 DEKAF2_CONSTEXPR_14
@@ -180,6 +269,19 @@ StringView kRightUTF8(const String& sInput, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	return Unicode::RightUTF8<String, StringView>(sInput, iCount);
+}
+
+//-----------------------------------------------------------------------------
+/// reduces string to rightmost iCount UTF8 codepoints of string
+template<class String>
+DEKAF2_CONSTEXPR_14
+DEKAF2_PUBLIC
+String& kMakeRightUTF8(String& sInput, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	auto it = Unicode::RightUTF8(sInput.begin(), sInput.end(), iCount);
+	sInput.erase(sInput.begin(), it);
+	return sInput;
 }
 
 //-----------------------------------------------------------------------------

@@ -51,6 +51,7 @@
 #include <dekaf2/kxml.h>
 #include <dekaf2/kparallel.h>
 #include <dekaf2/kmodifyingstreambuf.h>
+#include <dekaf2/ksystem.h>
 
 using namespace DEKAF2_NAMESPACE_NAME;
 
@@ -58,6 +59,51 @@ using namespace DEKAF2_NAMESPACE_NAME;
 kurl::kurl ()
 //-----------------------------------------------------------------------------
 {
+	auto AddRequestData = [&](KStringViewZ sArg, bool bEncodeAsForm, bool bTakeFile)
+	{
+		KString sData;
+
+		if (bTakeFile && sArg.StartsWith("@"))
+		{
+			sArg.TrimLeft('@');
+
+			if (!kReadAll(sArg, sData))
+			{
+				throw KOptions::WrongParameterError(kFormat("invalid filename: {}", sArg));
+			}
+		}
+		else
+		{
+			if (bEncodeAsForm)
+			{
+				// TODO
+				sData = sArg;
+			}
+			else
+			{
+				sData = sArg;
+			}
+		}
+
+		if (!BuildMRQ.sRequestBody.empty() && !sData.empty())
+		{
+			BuildMRQ.sRequestBody += '&';
+		}
+
+		BuildMRQ.sRequestBody += sData;
+
+		if (BuildMRQ.Method.empty())
+		{
+			BuildMRQ.Method = KHTTPMethod::POST;
+		}
+
+		if (!BuildMRQ.Headers.contains(KHTTPHeader(KHTTPHeader::CONTENT_TYPE).Serialize()))
+		{
+			BuildMRQ.Headers.insert({KHTTPHeader(KHTTPHeader::CONTENT_TYPE).Serialize(), KMIME::WWW_FORM_URLENCODED});
+		}
+
+	}; // AddRequestData
+
 	KInit()
 		.SetName(s_sProjectName)
 		.SetMultiThreading(false)
@@ -111,8 +157,27 @@ kurl::kurl ()
 	});
 
 	m_CLI
-		.Option("q,quiet")
-		.Help("quiet operation")
+		.Option("K,config")
+		.Type(KOptions::ArgTypes::File)
+		.Help("specify file to read kurl arguments from")
+	([&](KStringViewZ sArg)
+	{
+		// load defaults first
+		LoadConfig();
+		m_CLI.ParseFile(sArg);
+	});
+
+	m_CLI
+		.Option("q,disable")
+		.Help("do not read kurlrc")
+	([&]()
+	{
+		m_bLoadDefaultConfig = false;
+	});
+
+	m_CLI
+		.Option("s,silent")
+		.Help("quiet (silent) operation")
 	([&]()
 	{
 		BuildMRQ.Flags |= Flags::QUIET;
@@ -157,28 +222,27 @@ kurl::kurl ()
 	});
 
 	m_CLI
-		.Option("D,data <content>", "request body")
-		.Help("add literal request body, or with @ take contents of file")
+		.Option("d,data,data-ascii <content>", "request body")
+		.Help("add content as HTML form, or with prefixed @ take contents of file")
 	([&](KStringViewZ sArg)
 	{
-		if (sArg.StartsWith("@"))
-		{
-			sArg.TrimLeft('@');
+		AddRequestData(sArg, true, true);
+	});
 
-			if (!kAppendAll (sArg, BuildMRQ.sRequestBody))
-			{
-				throw KOptions::WrongParameterError(kFormat("invalid filename: {}", sArg));
-			}
-		}
-		else
-		{
-			BuildMRQ.sRequestBody += sArg;
-		}
+	m_CLI
+		.Option("data-binary <content>", "request body")
+		.Help("add unconverted, binary content, or with prefixed @ take contents of file")
+	([&](KStringViewZ sArg)
+	{
+		AddRequestData(sArg, false, true);
+	});
 
-		if (BuildMRQ.Method.empty())
-		{
-			BuildMRQ.Method = KHTTPMethod::POST;
-		}
+	m_CLI
+		.Option("data-raw <content>", "request body")
+		.Help("add content as HTML form, do not treat prefixed @ as file")
+	([&](KStringViewZ sArg)
+	{
+		AddRequestData(sArg, true, false);
 	});
 
 	m_CLI
@@ -213,8 +277,24 @@ kurl::kurl ()
 			auto Pair = kSplitToPair (sHeader, ":");
 			if (!Pair.first.empty())
 			{
-				BuildMRQ.Headers.insert ({Pair.first, Pair.second});
+				// use a pre-C++17-safe insert_or_assign
+				auto p = BuildMRQ.Headers.insert ({Pair.first, Pair.second});
+				if (!p.second)
+				{
+					p.first->second = Pair.second;
+				}
 			}
+		}
+	});
+
+	m_CLI
+		.Option("referer,referrer <referrer>", "referrer URL")
+		.Help("set refer(r)er header for the request")
+	([&](KStringViewZ sReferer)
+	{
+		if (BuildMRQ.Headers.insert ({KHTTPHeader(KHTTPHeader::REFERER).Serialize(), sReferer}).second == false)
+		{
+			throw KOptions::Error("referer header already set");
 		}
 	});
 
@@ -223,7 +303,7 @@ kurl::kurl ()
 		.Help("set user agent header for the request")
 	([&](KStringViewZ sUserAgent)
 	{
-		if (BuildMRQ.Headers.insert ({"User-Agent", sUserAgent}).second == false)
+		if (BuildMRQ.Headers.insert ({KHTTPHeader(KHTTPHeader::USER_AGENT).Serialize(), sUserAgent}).second == false)
 		{
 			throw KOptions::Error("user agent header already set");
 		}
@@ -401,6 +481,43 @@ kurl::kurl ()
 } // ctor
 
 //-----------------------------------------------------------------------------
+void kurl::LoadConfig ()
+//-----------------------------------------------------------------------------
+{
+	if (!m_bLoadDefaultConfig) return;
+	static bool s_bIsLoaded = false;
+	if (s_bIsLoaded) return;
+	s_bIsLoaded = true;
+
+	// check for default config file:
+	// KURL_HOME/.kurlrc
+	// HOME/.kurlrc
+	// CURL_HOME/.curlrc
+	// HOME/.curlrc
+
+	auto CheckForConfig = [&](KStringView sDir, KStringView sFile) -> bool
+	{
+		if (!sDir.empty())
+		{
+			auto sPathname = kFormat("{}{}{}", sDir, kDirSep, sFile);
+			if (kFileExists(sPathname))
+			{
+				kDebug(2, "loading config from: {}", sPathname);
+				m_CLI.ParseFile(sPathname);
+				return true;
+			}
+		}
+		return false;
+	};
+
+	if (CheckForConfig(kGetEnv("KURL_HOME"), ".kurlrc")) return;
+	if (CheckForConfig(kGetHome()          , ".kurlrc")) return;
+//	if (CheckForConfig(kGetEnv("CURL_HOME"), ".curlrc")) return;
+//	if (CheckForConfig(kGetHome()          , ".curlrc")) return;
+
+} // LoadConfig
+
+//-----------------------------------------------------------------------------
 void kurl::ServerQuery ()
 //-----------------------------------------------------------------------------
 {
@@ -563,6 +680,9 @@ int kurl::Main (int argc, char** argv)
 			// either error or completed
 			return iRetVal;
 		}
+
+		// load default config if not already done..
+		LoadConfig();
 	}
 
 	m_RequestList.Add(std::move(BuildMRQ));

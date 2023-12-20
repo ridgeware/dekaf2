@@ -94,6 +94,7 @@ protected:
 	void ShowVersion ();
 	void ShowProgress();
 	void ShowStats   (KDuration tTotal, std::size_t iTotalRequests);
+	void LoadConfig  ();
 
 	static constexpr KStringView sOutputToLastPathComponent = "}.";
 
@@ -440,6 +441,9 @@ private:
 
 	// this is the request that gets filled up subsequently by CLI options
 	BuildMultiRequest BuildMRQ;
+
+	// search for .kurlrc at KURL_HOME, HOME ?
+	bool        m_bLoadDefaultConfig { true };
 
 }; // kurl
 

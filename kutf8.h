@@ -564,7 +564,7 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 
 	if ((ch & 0x0e0) == 0x0c0)
 	{
-#if (__cplusplus > 201703L)
+#if (__cplusplus >= 202002L)
 		// for C++20, finally init the vars here
 		lower_limit         = 0x080;
 		codepoint           = ch & 0x01f;

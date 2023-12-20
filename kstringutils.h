@@ -993,7 +993,7 @@ String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false,
 
 	return sResult;
 
-} // detail::kUnsignedToString
+} // kUnsignedToString
 
 //-----------------------------------------------------------------------------
 template<class String = KString>

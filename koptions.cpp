@@ -84,12 +84,13 @@ private:
 } // end of anonymous namespace
 
 //---------------------------------------------------------------------------
-KOptions::CallbackParam::CallbackParam(KStringView sNames, KStringView sMissingArgs, uint16_t fFlags, uint16_t iMinArgs, CallbackN Func)
+KOptions::CallbackParam::CallbackParam(KStringView sNames, KStringView sMissingArgs, uint16_t fFlags, uint16_t iMinArgs, uint16_t iMaxArgs, CallbackN Func)
 //---------------------------------------------------------------------------
 : m_Callback     ( std::move(Func) )
 , m_sNames       ( sNames          )
 , m_sMissingArgs ( sMissingArgs    )
 , m_iMinArgs     ( iMinArgs        )
+, m_iMaxArgs     ( iMaxArgs        )
 , m_iFlags       ( fFlags          )
 {
 	if (m_iMinArgs == 0 && !m_sMissingArgs.empty())
@@ -240,15 +241,47 @@ KStringViewZ KOptions::CLIParms::Arg_t::Dashes() const
 } // CLIParms::Arg_t::Dashes
 
 //---------------------------------------------------------------------------
-void KOptions::CLIParms::Create(int argc, char const* const* argv)
+void KOptions::CLIParms::Create(KStringViewZ sArg, PersistedStrings& Strings)
+//---------------------------------------------------------------------------
+{
+	if (sArg.front() == '-')
+	{
+		// split an arg with "key=value", for any options, being them single or double dashed
+
+		KStringViewZ::size_type iPos { 0 };
+
+		for (auto ch : sArg)
+		{
+			if (KASCII::kIsBlank(ch) || ch == '=')
+			{
+				break;
+			}
+
+			++iPos;
+		}
+
+		if (iPos > 1 && sArg[iPos] == '=')
+		{
+			KString sNewArg = sArg.ToView(0, iPos);
+			m_ArgVec.push_back(Strings.Persist(sNewArg).ToView());
+			sArg.remove_prefix(iPos + 1);
+		}
+	}
+
+	m_ArgVec.push_back(sArg);
+
+} // Create
+
+//---------------------------------------------------------------------------
+void KOptions::CLIParms::Create(const std::vector<KStringViewZ>& parms, PersistedStrings& Strings)
 //---------------------------------------------------------------------------
 {
 	m_ArgVec.clear();
-	m_ArgVec.reserve(argc);
+	m_ArgVec.reserve(parms.size());
 
-	for (int ii = 0; ii < argc; ++ii)
+	for (auto it : parms)
 	{
-		m_ArgVec.push_back(KStringViewZ(*argv++));
+		Create(it, Strings);
 	}
 
 	if (!m_ArgVec.empty())
@@ -260,22 +293,17 @@ void KOptions::CLIParms::Create(int argc, char const* const* argv)
 } // CLIParms::Create
 
 //---------------------------------------------------------------------------
-void KOptions::CLIParms::Create(const std::vector<KStringViewZ>& parms)
+void KOptions::CLIParms::Create(int argc, char const* const* argv, PersistedStrings& Strings)
 //---------------------------------------------------------------------------
 {
-	m_ArgVec.clear();
-	m_ArgVec.reserve(parms.size());
+	std::vector<KStringViewZ> parms;
 
-	for (auto it : parms)
+	while (argc-- > 0)
 	{
-		m_ArgVec.push_back(it);
+		parms.push_back(KStringViewZ(*argv++));
 	}
 
-	if (!m_ArgVec.empty())
-	{
-		m_sProgramPathName = m_ArgVec.front().sArg;
-		m_ArgVec.front().bConsumed = true;
-	}
+	Create(parms, Strings);
 
 } // CLIParms::Create
 
@@ -294,6 +322,24 @@ KStringView KOptions::CLIParms::GetProgramName() const
 	return kBasename(GetProgramPath());
 
 } // CLIParms::GetProgramName
+
+//---------------------------------------------------------------------------
+KOptions::CLIParms::iterator KOptions::CLIParms::ExpandToSingleCharArgs(iterator it, const std::vector<KStringViewZ>& SplittedArgs)
+//---------------------------------------------------------------------------
+{
+	auto iPos = it - begin();
+
+	it = m_ArgVec.erase(it);
+
+	for (auto sArg : SplittedArgs)
+	{
+		it = m_ArgVec.insert(it, Arg_t(sArg, 1));
+		++it;
+	}
+
+	return begin() + iPos;
+
+} // ExpandToSingleCharArgs
 
 //---------------------------------------------------------------------------
 KStringView KOptions::HelpFormatter::HelpParams::GetProgramName() const
@@ -853,18 +899,26 @@ void KOptions::Help(KOutStream& out)
 } // Help
 
 //---------------------------------------------------------------------------
-const KOptions::CallbackParam* KOptions::FindParam(KStringView sName, bool bIsOption)
+const KOptions::CallbackParam* KOptions::FindParam(KStringView sName, bool bIsOption, bool bMarkAsUsed)
 //---------------------------------------------------------------------------
 {
 	auto& Lookup = bIsOption ? m_Options : m_Commands;
+
 	auto it = Lookup.find(sName);
+
 	if (it == Lookup.end() || it->second >= m_Callbacks.size())
 	{
 		return nullptr;
 	}
+
 	auto Callback = &m_Callbacks[it->second];
-	// mark option as used
-	Callback->m_bUsed = true;
+
+	if (bMarkAsUsed)
+	{
+		// mark option as used
+		Callback->m_bUsed = true;
+	}
+
 	return Callback;
 
 } // FindParam
@@ -979,47 +1033,47 @@ void KOptions::RegisterCommand(KStringView sCommands, uint16_t iMinArgs, KString
 void KOptions::RegisterOption(KStringView sOption, Callback0 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterOption(sOption, 0, "", [func = std::move(Function)](ArgList& unused)
+	Register(CallbackParam(sOption, "", CallbackParam::fNone, 0, 0, [func = std::move(Function)](ArgList& unused)
 	{
 		func();
-	});
+	}));
 }
 
 //---------------------------------------------------------------------------
 void KOptions::RegisterCommand(KStringView sCommand, Callback0 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterCommand(sCommand, 0, "", [func = std::move(Function)](ArgList& unused)
+	Register(CallbackParam(sCommand, "", CallbackParam::fIsCommand, 0, 0, [func = std::move(Function)](ArgList& unused)
 	{
 		func();
-	});
+	}));
 }
 
 //---------------------------------------------------------------------------
 void KOptions::RegisterOption(KStringView sOption, KStringViewZ sMissingParm, Callback1 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterOption(sOption, 1, sMissingParm, [func = std::move(Function)](ArgList& args)
+	Register(CallbackParam(sOption, sMissingParm, CallbackParam::fNone, 1, 1, [func = std::move(Function)](ArgList& args)
 	{
 		func(args.pop());
-	});
+	}));
 }
 
 //---------------------------------------------------------------------------
 void KOptions::RegisterCommand(KStringView sCommand, KStringViewZ sMissingParm, Callback1 Function)
 //---------------------------------------------------------------------------
 {
-	RegisterCommand(sCommand, 1, sMissingParm, [func = std::move(Function)](ArgList& args)
+	Register(CallbackParam(sCommand, sMissingParm, CallbackParam::fIsCommand, 1, 1, [func = std::move(Function)](ArgList& args)
 	{
 		func(args.pop());
-	});
+	}));
 }
 
 //---------------------------------------------------------------------------
 int KOptions::Parse(int argc, char const* const* argv, KOutStream& out)
 //---------------------------------------------------------------------------
 {
-	return Execute(CLIParms(argc, argv), out);
+	return Execute(CLIParms(argc, argv, m_Strings), out);
 
 } // Parse
 
@@ -1034,7 +1088,7 @@ int KOptions::Parse(KString sCLI, KOutStream& out)
 	std::vector<KStringViewZ> parms;
 	kSplitArgsInPlace(parms, m_Strings.MutablePersist(std::move(sCLI)), /*svDelim  =*/" \f\v\t\r\n\b", /*svQuotes =*/"\"'", /*chEscape =*/'\\');
 
-	return Execute(CLIParms(parms), out);
+	return Execute(CLIParms(parms, m_Strings), out);
 
 } // Parse
 
@@ -1104,7 +1158,7 @@ int KOptions::ParseCGI(KStringViewZ sProgramName, KOutStream& out)
 
 	kDebug(2, "parsed {} arguments from CGI query string: {}", QueryArgs.size() - 1, kJoined(QueryArgs, " "));
 
-	return Execute(CLIParms(QueryArgs), out);
+	return Execute(CLIParms(QueryArgs, m_Strings), out);
 
 } // ParseCGI
 
@@ -1396,6 +1450,55 @@ void KOptions::ResetBeforeParsing()
 } // ResetBeforeParsing
 
 //---------------------------------------------------------------------------
+std::vector<KStringViewZ> KOptions::CheckForCombinedArg(const CLIParms::Arg_t& arg)
+//---------------------------------------------------------------------------
+{
+	bool bValid = true;
+	auto iLast = arg.sArg.size();
+
+	// must have at least two chars here, prefixed by ONE dash
+	if (arg.DashCount() == 0 || iLast < 2)
+	{
+		bValid = false;
+	}
+	else
+	{
+		// check for each character if a single char arg exists
+		for (std::size_t i = 0; i < iLast; ++i)
+		{
+			auto Callback = FindParam(arg.sArg.ToView(i, 1), true, false);
+
+			if (Callback == nullptr)
+			{
+				bValid = false;
+				break;
+			}
+			else
+			{
+				if (Callback->m_iMaxArgs > 0 && i != iLast-1)
+				{
+					bValid = false;
+					break;
+				}
+			}
+		}
+	}
+
+	std::vector<KStringViewZ> SplittedArgs;
+
+	if (bValid)
+	{
+		for (auto ch : arg.sArg)
+		{
+			SplittedArgs.push_back(m_Strings.Persist(KString(1, ch)));
+		}
+	}
+
+	return SplittedArgs;
+
+} // CheckForCombinedArg
+
+//---------------------------------------------------------------------------
 int KOptions::Execute(CLIParms Parms, KOutStream& out)
 //---------------------------------------------------------------------------
 {
@@ -1431,6 +1534,21 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 
 				if (DEKAF2_UNLIKELY(Callback == nullptr))
 				{
+					// check if this is might be a combined single char arg,
+					// like -ets test for -e -t -s test
+					auto SplittedArgs = CheckForCombinedArg(*it);
+					
+					if (!SplittedArgs.empty())
+					{
+						// yes, expand this arg into multiple args (in place of the
+						// previous combined arg)
+						it = Parms.ExpandToSingleCharArgs(it, SplittedArgs);
+						// readjust the loop position
+						--it;
+						// and restart looping at the current position
+						continue;
+					}
+
 					// check if we have a handler for an unknown arg
 					Callback = FindParam(UNKNOWN_ARG, it->IsOption());
 

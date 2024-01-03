@@ -202,7 +202,9 @@ private:
 		};
 
 		CallbackParam() = default;
-		CallbackParam(KStringView sNames, KStringView sMissingArgs, uint16_t fFlags, uint16_t iMinArgs = 0, CallbackN Func = CallbackN{});
+		CallbackParam(KStringView sNames, KStringView sMissingArgs, uint16_t fFlags, uint16_t iMinArgs, uint16_t iMaxArgs, CallbackN Func);
+		CallbackParam(KStringView sNames, KStringView sMissingArgs, uint16_t fFlags, uint16_t iMinArgs = 0, CallbackN Func = CallbackN{})
+		: CallbackParam(sNames, sMissingArgs, fFlags, iMinArgs, 65535, std::move(Func)) {}
 
 		CallbackN    m_Callback;
 		KStringView  m_sNames;
@@ -443,6 +445,8 @@ protected:
 private:
 //----------
 
+	using PersistedStrings = KPersistStrings<KString, false>;
+
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class DEKAF2_PRIVATE CLIParms
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -458,9 +462,14 @@ private:
 		{
 			Arg_t() = default;
 			Arg_t(KStringViewZ sArg_);
+			Arg_t(KStringViewZ sArg_, uint8_t iDashes_)
+			: sArg(sArg_)
+			, iDashes(iDashes_)
+			{}
 
-			bool         IsOption() const { return iDashes; }
-			KStringViewZ Dashes()   const;
+			uint8_t      DashCount() const { return iDashes; }
+			bool         IsOption () const { return DashCount() > 0; }
+			KStringViewZ Dashes   () const;
 
 			KStringViewZ sArg;
 			bool         bConsumed { false };
@@ -480,17 +489,12 @@ private:
 		using const_iterator = ArgVec::const_iterator;
 
 		CLIParms() = default;
-		CLIParms(int argc, char const* const* argv)
-		{
-			Create(argc, argv);
-		}
-		CLIParms(const std::vector<KStringViewZ>& parms)
-		{
-			Create(parms);
-		}
+		CLIParms(int argc, char const* const* argv, PersistedStrings& Strings) { Create(argc, argv, Strings); }
+		CLIParms(const std::vector<KStringViewZ>& parms, PersistedStrings& Strings) { Create(parms, Strings); }
 
-		void           Create(int argc, char const* const* argv);
-		void           Create(const std::vector<KStringViewZ>& parms);
+		void           Create(KStringViewZ sArg, PersistedStrings& Strings);
+		void           Create(const std::vector<KStringViewZ>& parms, PersistedStrings& Strings);
+		void           Create(int argc, char const* const* argv, PersistedStrings& Strings);
 
 		size_t         size()  const { return m_ArgVec.size();  }
 		size_t         empty() const { return m_ArgVec.empty(); }
@@ -502,6 +506,8 @@ private:
 
 		KStringViewZ   GetProgramPath() const;
 		KStringView    GetProgramName() const;
+
+		iterator       ExpandToSingleCharArgs(iterator it, const std::vector<KStringViewZ>& SplittedArgs);
 
 		ArgVec         m_ArgVec;
 		KStringViewZ   m_sProgramPathName;
@@ -606,7 +612,7 @@ private:
 	DEKAF2_PRIVATE
 	bool ValidArgType(ArgTypes Type, KStringViewZ sParm) const;
 	DEKAF2_PRIVATE
-	const CallbackParam* FindParam(KStringView sName, bool bIsOption);
+	const CallbackParam* FindParam(KStringView sName, bool bIsOption, bool bMarkAsUsed = true);
 	DEKAF2_PRIVATE
 	void ResetBeforeParsing();
 	DEKAF2_PRIVATE
@@ -617,6 +623,10 @@ private:
 	void AutomaticHelp() const;
 	DEKAF2_PRIVATE
 	KString BuildParameterError(const CallbackParam& Callback, KString sMessage) const;
+	DEKAF2_PRIVATE
+	/// Is this arg maybe a combination of single char args?
+	std::vector<KStringViewZ> CheckForCombinedArg(const CLIParms::Arg_t& arg);
+
 
 	using CommandLookup = KUnorderedMap<KStringView, std::size_t>;
 

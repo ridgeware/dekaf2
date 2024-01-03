@@ -1024,7 +1024,11 @@ LJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 		{
 			json[sKey] = col.second.sValue.Bool();
 		}
-		else if (col.second.HasFlag(KCOL::NUMERIC | KCOL::MONEY))
+		else if (col.second.HasFlag(KCOL::MONEY))
+		{
+			json[sKey] = col.second.sValue.Double();
+		}
+		else if (col.second.HasFlag(KCOL::NUMERIC))
 		{
 			// TODO get a strategy as to how to and if to adapt to locales with other chars than . as the
 			// decimal separator

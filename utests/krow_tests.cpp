@@ -25,32 +25,33 @@ TEST_CASE("KROW")
 	row.AddCol("col6"  , 123.456);
 	row.AddCol("col6"  , 123.456);
 	row.AddCol("col7"  , 0xFFFFFFFFFFFFFFFF);
+	row.AddCol("col8"  , 123, KCOL::MONEY);
 
-	CHECK ( row.size() == 8 );
+	CHECK ( row.size() == 9 );
 
 #ifndef _MSC_VER // MSC has issues with \" inside R"()";
 	SECTION("to_json")
 	{
 		{
 			KJSON jRow = row.to_json();
-			CHECK ( jRow.dump(-1) == R"({"\"col2":"string2\"",",col3":"string3,","col1":"string1","col4":true,"col5":123,"col6":123.456,"col7":18446744073709551615})" );
+			CHECK ( jRow.dump(-1) == R"({"\"col2":"string2\"",",col3":"string3,","col1":"string1","col4":true,"col5":123,"col6":123.456,"col7":18446744073709551615,"col8":123.0})" );
 		}
 		{
 			KJSON jRow = row.to_json(KROW::KEYS_TO_UPPER);
-			CHECK ( jRow.dump(-1) == R"({"\"COL2":"string2\"",",COL3":"string3,","COL1":"string1","COL4":true,"COL5":123,"COL6":123.456,"COL7":18446744073709551615})" );
+			CHECK ( jRow.dump(-1) == R"({"\"COL2":"string2\"",",COL3":"string3,","COL1":"string1","COL4":true,"COL5":123,"COL6":123.456,"COL7":18446744073709551615,"COL8":123.0})" );
 		}
 		{
 			// implicit conversion
 			KJSON jRow = row;
-			CHECK ( jRow.dump(-1) == R"({"\"col2":"string2\"",",col3":"string3,","col1":"string1","col4":true,"col5":123,"col6":123.456,"col7":18446744073709551615})" );
+			CHECK ( jRow.dump(-1) == R"({"\"col2":"string2\"",",col3":"string3,","col1":"string1","col4":true,"col5":123,"col6":123.456,"col7":18446744073709551615,"col8":123.0})" );
 		}
 		{
 			// implicit conversion both directions
 			KJSON jRow = row;
-			CHECK ( jRow.dump(-1) == R"({"\"col2":"string2\"",",col3":"string3,","col1":"string1","col4":true,"col5":123,"col6":123.456,"col7":18446744073709551615})" );
+			CHECK ( jRow.dump(-1) == R"({"\"col2":"string2\"",",col3":"string3,","col1":"string1","col4":true,"col5":123,"col6":123.456,"col7":18446744073709551615,"col8":123.0})" );
 			KROW NewRow = jRow;
 			KJSON jNewRow = NewRow;
-			CHECK ( jNewRow.dump(-1) == R"({"\"col2":"string2\"",",col3":"string3,","col1":"string1","col4":true,"col5":123,"col6":123.456,"col7":18446744073709551615})" );
+			CHECK ( jNewRow.dump(-1) == R"({"\"col2":"string2\"",",col3":"string3,","col1":"string1","col4":true,"col5":123,"col6":123.456,"col7":18446744073709551615,"col8":123.0})" );
 		}
 		{
 			// Latin1 instead of UTF8
@@ -65,13 +66,13 @@ TEST_CASE("KROW")
 	SECTION("to_csv")
 	{
 		auto sCSV = row.to_csv(true);
-		CHECK ( sCSV == "col1,\"\"\"col2\",\",col3\",col4,col5,col6,col7\r\n" );
+		CHECK ( sCSV == "col1,\"\"\"col2\",\",col3\",col4,col5,col6,col7,col8\r\n" );
 
 		sCSV = row.to_csv(true, KROW::KEYS_TO_UPPER);
-		CHECK ( sCSV == "COL1,\"\"\"COL2\",\",COL3\",COL4,COL5,COL6,COL7\r\n" );
+		CHECK ( sCSV == "COL1,\"\"\"COL2\",\",COL3\",COL4,COL5,COL6,COL7,COL8\r\n" );
 
 		sCSV = row.to_csv();
-		CHECK ( sCSV == "string1,\"string2\"\"\",\"string3,\",1,123,123.456,18446744073709551615\r\n" );
+		CHECK ( sCSV == "string1,\"string2\"\"\",\"string3,\",1,123,123.456,18446744073709551615,123\r\n" );
 	}
 
 	SECTION("MySQL escapes")

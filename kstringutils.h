@@ -132,7 +132,7 @@ DEKAF2_PUBLIC
 String& kMakeLeft(String& sInput, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	sInput.erase(iCount);
+	sInput.erase(std::min(iCount, sInput.size()));
 	return sInput;
 }
 

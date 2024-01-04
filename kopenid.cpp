@@ -136,6 +136,11 @@ KOpenIDKeys::KOpenIDKeys (const KURL& URL)
 		SetError(kFormat("OpenID provider keys '{}' returned invalid JSON: {}", URL.Serialize(), exc.what()));
 	}
 
+	if (WebKeys.empty() && Error().empty())
+	{
+		SetError(kFormat("got no keys when polling provider {}", URL));
+	}
+
 } // ctor
 
 //-----------------------------------------------------------------------------
@@ -264,7 +269,14 @@ void KOpenIDProvider::Refresh(KTimer::Timepoint Now)
 				}
 				else
 				{
-					kDebug(1, "got no keys when polling provider {}", m_URL);
+					if (!m_Keys || m_Keys->Keys.empty())
+					{
+						SetError(kFormat("got no keys when polling provider {}", m_URL));
+					}
+					else
+					{
+						kDebug(1, "got no keys when polling provider {}", m_URL);
+					}
 				}
 			}
 		}

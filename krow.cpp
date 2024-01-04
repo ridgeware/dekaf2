@@ -1020,10 +1020,6 @@ LJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 			//
 			// This is why we have to convert 64 bit integers into strings.
 		}
-		else if (col.second.HasFlag(KCOL::BOOLEAN) || sKey.StartsWith("is_"))
-		{
-			json[sKey] = col.second.sValue.Bool();
-		}
 		else if (col.second.HasFlag(KCOL::MONEY))
 		{
 			json[sKey] = col.second.sValue.Double();
@@ -1080,6 +1076,10 @@ LJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 #ifndef DEKAF2_WRAPPED_KJSON
 			KLog::getInstance().ShowStackOnJsonError(bOld);
 #endif
+		}
+		else if (col.second.HasFlag(KCOL::BOOLEAN) || sKey.StartsWith("is_"))
+		{
+			json[sKey] = col.second.sValue.Bool();
 		}
 		else
 		{

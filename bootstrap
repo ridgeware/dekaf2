@@ -13,6 +13,7 @@
 #%   -no-setup   : do not install helper packages/libs
 #%   -no-klog    : configure release build without klog
 #%   -lto        : force link time optimization for release builds
+#%   -static     : link against static third party libs (if available)
 #%   -j N        : build with N processes in parallel
 #%                 (default is number of cpu cores)
 #%
@@ -31,7 +32,7 @@ setx=Install
 Install ()
 #==================
 {
-	BuildType="$1"
+	local BuildType="$1"
 
 	cd ${BuildType} || Die "Cannot cd into build directory ${BuildType}"
 
@@ -51,7 +52,7 @@ setx=Build
 Build ()
 #==================
 {
-	BuildType="$1"
+	local BuildType="$1"
 
 	cd ${BuildType} || Die "Cannot cd into build directory ${BuildType}"
 
@@ -69,38 +70,27 @@ setx=Configure
 Configure ()
 #==================
 {
-	BuildType="$1"
+	local BuildType="$1"
 	shift
-	AdditionalParameters=$*
+	local AdditionalParameters=$*
 
 	cd ${BuildType} || Die "Cannot cd into build directory ${BuildType}"
 
+	if [[ "${BuildType}" == "Xcode" ]]; then
+		local BuildCommand="cmake -G Xcode"
+	else
+		local BuildCommand="cmake -DCMAKE_BUILD_TYPE=${BuildType}"
+	fi
+
 	# configure CMake
 
-	Info "${SETMODERNCC} cmake -DCMAKE_BUILD_TYPE=${BuildType} ${AdditionalParameters} ${ME_ONLYPATH}"
+	Info "${SETMODERNCC} ${BuildCommand} ${AdditionalParameters} ${ME_ONLYPATH}"
 
-	${SETMODERNCC} cmake -DCMAKE_BUILD_TYPE=${BuildType} ${AdditionalParameters} "${ME_ONLYPATH}" || Die "Cannot configure CMake project"
+	${SETMODERNCC} ${BuildCommand} ${AdditionalParameters} "${ME_ONLYPATH}" || Die "Cannot configure CMake project"
 
 	cd ..
 
 } # Configure
-
-setx=ConfigureXcode
-#==================
-ConfigureXcode ()
-#==================
-{
-    BuildType="Xcode"
-
-    cd ${BuildType} || Die "Cannot cd into build directory ${BuildType}"
-
-    # configure CMake
-
-    cmake -G Xcode "${ME_ONLYPATH}" || Die "Cannot configure CMake project"
-
-    cd ..
-
-} # ConfigureXcode
 
 setx=Setup
 #==================
@@ -139,12 +129,12 @@ Setup ()
 	mkdir -p "Debug"     || Die "Cannot create Debug build directory"
 	mkdir -p "Release"   || Die "Cannot create Release build directory"
 
-	[[ ! -z "${bWithDebug}" ]] && Configure "Debug"
+	[[ ! -z "${bWithDebug}" ]] && Configure "Debug" ${sAdditionalOptions}
 	Configure "Release" ${sAdditionalOptions}
 
     if [[ "${OS}" == "Darwin" ]]; then
         mkdir -p "Xcode" || Die "Cannot create Xcode build directory"
-        ConfigureXcode
+        Configure "Xcode" ${sAdditionalOptions}
     fi
 
 	[[ ! -z "${bWithDebug}" ]] && Build "Debug"
@@ -209,6 +199,9 @@ do
 		;;
 	-lto|--lto)
 		sAdditionalOptions="${sAdditionalOptions} -DDEKAF2_LINK_TIME_OPTIMIZATION=ON"
+		;;
+	-static|--static)
+		sAdditionalOptions="${sAdditionalOptions} -DDEKAF2_PREFER_STATIC_LIBS=ON"
 		;;
 	-j)
 		shift

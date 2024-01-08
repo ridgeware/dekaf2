@@ -1233,6 +1233,7 @@ target_link_libraries(dekaf2
 	PUBLIC
 		fmt
 		nlohmann-json
+		${TIMEZONE_LIBRARIES}
 		${Boost_LIBRARIES}
 		${OPENSSL_LIBRARIES}
 		frozen
@@ -1240,7 +1241,6 @@ target_link_libraries(dekaf2
 		Threads::Threads
 		${ARM_NEEDS_ATOMIC_LIB}
 	PRIVATE
-		${TIMEZONE_LIBRARIES}
 		${FCGILIBS}
 		${FSLIB}
 		${libproc_LIBRARIES}

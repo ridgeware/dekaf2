@@ -1177,6 +1177,9 @@ if (NOT DEKAF2_STD_CHRONO_HAS_TIMEZONE)
 	if (DEKAF2_STD_CHRONO_HAS_LOCAL_T)
 		target_compile_definitions(date-tz PUBLIC DEKAF2_STD_CHRONO_HAS_LOCAL_T=1)
 	endif()
+
+	set(TIMEZONE_LIBRARIES date-tz)
+
 endif() # no timezone support
 
 # we add the HEADERS as well, as otherwise cmake based IDEs would not see them
@@ -1230,7 +1233,6 @@ target_link_libraries(dekaf2
 	PUBLIC
 		fmt
 		nlohmann-json
-		date-tz
 		${Boost_LIBRARIES}
 		${OPENSSL_LIBRARIES}
 		frozen
@@ -1238,6 +1240,7 @@ target_link_libraries(dekaf2
 		Threads::Threads
 		${ARM_NEEDS_ATOMIC_LIB}
 	PRIVATE
+		${TIMEZONE_LIBRARIES}
 		${FCGILIBS}
 		${FSLIB}
 		${libproc_LIBRARIES}

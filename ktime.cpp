@@ -49,7 +49,9 @@
 #include "klog.h"
 #if DEKAF2_HAS_TIMEZONES
 	#include "kthreadsafe.h"
-	#include <date/tz.h>
+	#if !DEKAF2_STD_CHRONO_HAS_TIMEZONE
+		#include <date/tz.h>
+	#endif
 #endif
 #include <type_traits>
 #include <sstream>

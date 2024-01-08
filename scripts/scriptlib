@@ -188,6 +188,7 @@ GetOS ()
 	# ARCH           : uname -m (X86_64, armv7l, ...)
 	# OS             : uname -s (Linux, Darwin, ...)
 	# DISTRIB        : darwin, debian, redhat, centos, fedora, aws
+	# DVERSION       : 6, 7, 8, 9 ..
 	# BINDIR         : redhat64v7, centos64v7, debian-armv7l, darwin-X86_64, fedora64v28, ...
 	# DEVPKG         : suffix for developer packages (-dev, -devel, empty (for brew))
 	# SETMODERNCC    : either empty, or for some environments a env setup for newer compilers
@@ -219,6 +220,7 @@ GetOS ()
 		STARTSERVICE="brew services start"
 		STOPSERVICE="brew services stop"
 		DISTRIB="darwin"
+		DVERSION="$(sw_vers -ProductVersion) | tr '.' ' ' | awk '{printf ("%d", $1)}'"
 		DEVPKG=""
 
 	elif [[ "${OS}" == "Linux" ]]; then
@@ -237,6 +239,7 @@ GetOS ()
 			UNINSTALL="${SUDO} ${INSTALLER} remove -y"
 			CHECKINSTALLED="dpkg -l"
 			DISTRIB="debian"
+			DVERSION="$(cat /etc/debian_version 2>/dev/null | tr '.' ' ' | awk '{print $1}')"
 			DEVPKG="-dev"
 
 			if [[ "$(grep ^ID=ubuntu$ /etc/os-release)" != "" ]]; then
@@ -255,38 +258,41 @@ GetOS ()
 
 			if [[ "$derivate" == "Fedora" ]]; then
 				DISTRIB="fedora"
-				local RHEL="$(cat /etc/redhat-release 2>/dev/null | awk '{print $3}')"
+				DVERSION="$(cat /etc/redhat-release 2>/dev/null | awk '{print $3}')"
+				BINDIR="${DISTRIB}64v${DVERSION}"
 			elif [[ "$derivate" == "CentOS" ]]; then
 				DISTRIB="centos"
-				local RHEL="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $4}')"
+				DVERSION="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $4}')"
+				BINDIR="${DISTRIB}64v${DVERSION}"
+			elif [[ "$derivate" == "Rocky" ]]; then
+				DISTRIB="rockylinux"
+				DVERSION="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $4}')"
+				BINDIR="redhat64v${DVERSION}"
 			else
 				DISTRIB="redhat"
-				local RHEL="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $7}')"
-			fi
-
-			# RHEL 5 gets special handling
-			if [[ "${RHEL}" -eq 5 ]]; then
-				BINDIR="${DISTRIB}64"
-			else
-				BINDIR="${DISTRIB}64v${RHEL}"
+				DVERSION="$(cat /etc/redhat-release 2>/dev/null | tr '.' ' ' | awk '{print $7}')"
+				# RHEL 5 gets special handling
+				if [[ "${DVERSION}" -eq 5 ]]; then
+					BINDIR="${DISTRIB}64"
+				else
+					BINDIR="${DISTRIB}64v${DVERSION}"
+				fi
 			fi
 
 		elif [[ ${fAmazon} -ne 0 ]]; then
 
+			DVERSION=$(cat /etc/system-release-cpe | sed -r 's,cpe:.*:amazon:.*linux:,,g' | sed -r 's,:ga,,g')
 			local sRelease=$(grep -Po '(?<=cpe:2.3:o:amazon:amazon_linux:).+' /etc/system-release-cpe)
 			if [[ ${sRelease} != "" ]]; then
 				local sMajorRevision=${sRelease}
 				BINDIR="aarmv${sMajorRevision}"
 				DISTRIB="amazon"
-				BaseOS="aws"
 				SETMODERNCC="env CC=clang CXX=clang++"
 			else
 				local sMajorRevision=$(grep -Po '(?<=cpe:/o:amazon:linux:).+(?=:ga)' /etc/system-release-cpe)
 				BINDIR="aws64v${sMajorRevision}"
 				DISTRIB="amazon"
-				BaseOS="aws"
 			fi
-			[[ "${sMajorRevision}" != "" ]] || Die "could not determine major revision of Amazon AWS VM"
 
 		fi
 

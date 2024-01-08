@@ -26,14 +26,15 @@ BuildSetup ()
 
 		[[ -z "${bQuiet}" ]] && Info "Prepare ${DISTRIB} system for dekaf2 builds"
 
+		local iNeedDevtoolSet=0
 		case "${DISTRIB}" in
-			centos)
-				InstallSystemPackages centos-release-scl
-				InstallSystemPackages devtoolset-7 devtoolset-7-libasan-devel devtoolset-7-libubsan-devel
+			centos|redhat)
+				[[ "${DVERSION}" -le 6 ]] && iNeedDevtoolSet=7
 				;;
-			rhel)
-				InstallSystemPackages yum-config-manager
-				sudo yum-config-manager --enable rhel-server-rhscl-7-rpms
+			rockylinux)
+				# enable epel and crb
+				InstallSystemPackages epel-release
+				crb enable
 				;;
 		esac
 
@@ -41,8 +42,7 @@ BuildSetup ()
 			darwin)
 				InstallSystemPackages cmake boost openssl wget
 
-				InstallOptionalSystemPackages libzip xz zstd brotli mariadb sqlite jemalloc \
-					ncurses
+				InstallOptionalSystemPackages libzip xz zstd brotli mariadb sqlite jemalloc ncurses
 				;;
 			debian)
 				# make sure the repo content lists are current
@@ -51,9 +51,9 @@ BuildSetup ()
 				InstallSystemPackages cmake libboost-all${DEVPKG} openssl libssl-dev wget git sed tar gcc \
 					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g${DEVPKG}
 
-				InstallOptionalSystemPackages libmariadb${DEVPKG} sqlite3 libsqlite3${DEVPKG} \
-					libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG} libbrotli${DEVPKG} jemalloc${DEVPKG} \
-					ncurses${DEVPKG}
+				InstallOptionalSystemPackages libmariadb${DEVPKG} mariadb-client sqlite3 libsqlite3${DEVPKG} \
+					libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG} libbrotli${DEVPKG} libjemalloc${DEVPKG} \
+					libncurses${DEVPKG}
 				;;
 			*)
 				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} wget git sed tar gcc \
@@ -65,10 +65,11 @@ BuildSetup ()
 		esac
 
 		case "${DISTRIB}" in
-			fedora|centos|amazon)
-				# fedora-29 is just crazy to split C++ from gcc - and it appears to be the
-				# only system on which you have to install ubsan and asan independently, too
+			fedora|centos|rockylinux|amazon)
 				InstallSystemPackages gcc-c++ libubsan libasan
+				;;
+			debian)
+				InstallSystemPackages g++
 				;;
 		esac
 
@@ -77,8 +78,19 @@ BuildSetup ()
 			InstallSystemPackages clang
 		fi
 
-		if [ "${DISTRIB}" == "centos" ] || [ "${DISTRIB}" == "rhel" ]
+		if [ "${iNeedDevtoolSet}" -gt 0 ]
 		then
+			case "${DISTRIB}" in
+				centos)
+					InstallSystemPackages centos-release-scl
+					InstallSystemPackages devtoolset-${iNeedDevtoolSet} devtoolset-${iNeedDevtoolSet}-libasan-devel devtoolset-${iNeedDevtoolSet}-libubsan-devel
+					;;
+				redhat)
+					InstallSystemPackages yum-config-manager
+					sudo yum-config-manager --enable rhel-server-rhscl-${iNeedDevtoolSet}-rpms
+					;;
+			esac
+
  			# disable /bin/git replacement for now
 			if [ -f "/bin/git-no-git-replacement" ]
 			then
@@ -91,7 +103,7 @@ BuildSetup ()
 			fi
 
 			# enable gcc 7 for the subsequent install
-			source scl_source enable devtoolset-7
+			source scl_source enable devtoolset-${iNeedDevtoolSet}
 			# and git 2.9 as well
 			# git-2.9 appears to have vanished from centos7 by now
 #			source /opt/rh/rh-git29/enable
@@ -113,15 +125,11 @@ BuildSetup ()
 		[[ -z "${bQuiet}" ]] && Info "${DISTRIB} system already prepared for dekaf2 builds"
 	fi
 
-	if [[ "${DISTRIB}" == "centos" ]] || [[ "${DISTRIB}" == "rhel" ]]
-	then
-		if [[ ! -z "${bQuiet}" ]]
-		then
-			Info "execute the following to make sure you use a modern gcc:"
-			Info ""
-			Info "    source scl_source enable devtoolset-7"
-#			Info "    source /opt/rh/rh-git29/enable"
-		fi
+	if [[ "${iNeedDevtoolSet}" -gt 0 ]] && [[ ! -z "${bQuiet}" ]]; then
+		Info "execute the following to make sure you use a modern gcc:"
+		Info ""
+		Info "    source scl_source enable devtoolset-${iNeedDevtoolSet}"
+#		Info "    source /opt/rh/rh-git29/enable"
 	fi
 
 } # BuildSetup

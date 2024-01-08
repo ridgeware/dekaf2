@@ -217,34 +217,67 @@ template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  fa
 // do not need URL encoding! Therefore, when you add one that does,
 // please use the URL encoded form here, too.
 
-struct Protocols
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class Protocols
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+//----------
+public:
+//----------
+
+	DEKAF2_CONSTEXPR_14
+	Protocols(uint16_t _iPort, KStringView _sName, KStringView sPrefix)
+	: iPort(_iPort)
+	, sName(_sName.empty() ? sPrefix.substr(0, constexpr_find(':', sPrefix)) : _sName)
+	, sProtoPrefix(sPrefix)
+	{
+	}
 	const uint16_t    iPort;
 	const KStringView sName;
 	const KStringView sProtoPrefix;
-};
 
-constexpr Protocols s_Canonical [KProtocol::UNKNOWN+1] =
+//----------
+private:
+//----------
+
+	DEKAF2_CONSTEXPR_14
+	KStringView::size_type constexpr_find(KStringView::value_type ch, KStringView sStr) const
+	{
+		KStringView::size_type iPos = 0;
+		for(;;)
+		{
+			if (iPos >= sStr.size()) return KStringView::npos;
+			if (sStr[iPos] == ch) return iPos;
+			++iPos;
+		}
+	}
+
+}; // Protocols
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+DEKAF2_CONSTEXPR_14
+Protocols s_Canonical [KProtocol::UNKNOWN+1] =
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	{    0, ""       , ""          }, // Empty placeholder for UNDEFINED, parse has not been run yet.
-	{   25, "mailto" , "mailto:"   }, // mailto stays first, auto second!
+	{   25, ""       , "mailto:"   }, // mailto stays first, auto second!
 	{   80, "auto"   , "//"        }, // auto falls back to HTTP..
-	{   80, "http"   , "http://"   },
-	{  443, "https"  , "https://"  },
-	{    0, "file"   , "file://"   },
-	{   21, "ftp"    , "ftp://"    },
-	{ 9418, "git"    , "git://"    },
-	{    0, "svn"    , "svn://"    },
-	{  531, "irc"    , "irc://"    },
-	{  119, "news"   , "news://"   },
-	{  119, "nntp"   , "nntp://"   },
-	{   23, "telnet" , "telnet://" },
-	{   70, "gopher" , "gopher://" }, // pure nostalgia
-	{    0, "unix"   , "unix://"   }, // this is for unix socket files ("unix:///this/is/my/socket")
-	{   25, "smtp"   , "smtp://"   },
-	{  587, "smtps"  , "smtps://"  },
-	{   80, "ws"     , "ws://"     },
-	{  443, "wss"    , "wss://"    },
+	{   80, ""       , "http://"   },
+	{  443, ""       , "https://"  },
+	{    0, ""       , "file://"   },
+	{   21, ""       , "ftp://"    },
+	{ 9418, ""       , "git://"    },
+	{    0, ""       , "svn://"    },
+	{  531, ""       , "irc://"    },
+	{  119, ""       , "news://"   },
+	{  119, ""       , "nntp://"   },
+	{   23, ""       , "telnet://" },
+	{   70, ""       , "gopher://" }, // pure nostalgia
+	{    0, ""       , "unix://"   }, // this is for unix socket files ("unix:///this/is/my/socket")
+	{   25, ""       , "smtp://"   },
+	{  587, ""       , "smtps://"  },
+	{   80, ""       , "ws://"     },
+	{  443, ""       , "wss://"    },
 	{    0, ""       , ""          }  // Empty placeholder for UNKNOWN, use m_sProto.
 };
 

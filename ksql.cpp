@@ -77,7 +77,13 @@
     #undef STDCALL
   #endif
   #include <mysql.h>          // mysql top include
-  #include <mysql/errmsg.h>   // mysql error codes (start with CR_)
+  #if DEKAF2_HAS_INCLUDE(<mysql/errmsg.h>)
+    #include <mysql/errmsg.h>   // mysql error codes (start with CR_)
+  #elif DEKAF2_HAS_INCLUDE(<mariadb/errmsg.h>)
+    #include <mariadb/errmsg.h>
+  #else
+    #error "cannot find header file with mysql error codes"
+  #endif
 #endif
 
 #ifdef DEKAF2_HAS_SQLITE3

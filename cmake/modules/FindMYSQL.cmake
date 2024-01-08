@@ -41,14 +41,16 @@ if( WIN32 )
 else()
 	find_path( MYSQL_INCLUDE_DIR
 		NAMES "mysql.h"
-		PATHS "/usr/include/mysql"
+		PATHS "/usr/include/mariadb"
+			"/usr/local/include/mariadb"
+			"/usr/include/mysql"
 		      "/usr/local/include/mysql"
 			  "/usr/mysql/include/mysql"
 			  "/opt/homebrew/include/mysql"
 	)
 
 	find_library( MYSQL_LIBRARY
-		NAMES "mysqlclient" "mysqlclient_r"
+		NAMES "mysqlclient" "mysqlclient_r" "mariadbclient" "mariadb"
 		PATHS "/lib/mysql"
 		      "/lib64/mysql"
 			  "/usr/lib/mysql"
@@ -61,6 +63,9 @@ else()
 			  "/opt/homebrew/lib"
 	)
 endif()
+
+#message(STATUS "mysql include: ${MYSQL_INCLUDE_DIR}")
+#message(STATUS "mysql library: ${MYSQL_LIBRARY}")
 
 if( MYSQL_INCLUDE_DIR )
 

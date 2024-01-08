@@ -283,51 +283,8 @@ find_package(Threads REQUIRED)
 
 # ============================== ZLIB / BZIP2 =================================
 
-if (IS_WINDOWS)
-
-	if (DEKAF2_BUILD_COMPRESSORS)
-
-		# on windows we will build zlib and bz2lib ourselves if wanted (but not per default)
-
-		file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include")
-
-		ExternalProject_Add(
-			ext_ZLIB
-			URL https://www.zlib.net/zlib-1.2.11.tar.gz
-			URL_HASH SHA256=c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1
-			CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR} -DCMAKE_INSTALL_LIBDIR=lib
-		)
-
-		add_library(ZLIB STATIC IMPORTED GLOBAL)
-		set_target_properties(ZLIB PROPERTIES IMPORTED_LOCATION_RELEASE ${CMAKE_CURRENT_BINARY_DIR}/lib/zlibstatic.lib)
-		set_target_properties(ZLIB PROPERTIES IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_BINARY_DIR}/lib/zlibstaticd.lib)
-		set_target_properties(ZLIB PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/include)
-		add_dependencies(ZLIB ext_ZLIB)
-
-		ExternalProject_Add(
-			ext_BZip2
-			GIT_REPOSITORY https://git.code.sf.net/p/bzip2/bzip2
-			GIT_TAG bzip2-1_0_6
-			GIT_SHALLOW ON
-			UPDATE_COMMAND ""
-			PATCH_COMMAND cmake -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/cmake/bzip2build/CMakeLists.txt ${CMAKE_CURRENT_BINARY_DIR}/ext_BZip2-prefix/src/ext_BZip2
-			CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR} -DCMAKE_INSTALL_LIBDIR=lib
-		)
-
-		add_library(BZip2 STATIC IMPORTED GLOBAL)
-		set_target_properties(BZip2 PROPERTIES IMPORTED_LOCATION_RELEASE ${CMAKE_CURRENT_BINARY_DIR}/lib/bz2.lib)
-		set_target_properties(BZip2 PROPERTIES IMPORTED_LOCATION_DEBUG ${CMAKE_CURRENT_BINARY_DIR}/lib/bz2d.lib)
-		set_target_properties(BZip2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/include)
-		add_dependencies(BZip2 ext_BZip2)
-
-	endif()
-
-else()
-
-	find_package(ZLIB REQUIRED)
-	find_package(BZip2 REQUIRED)
-
-endif()
+find_package(ZLIB REQUIRED)
+find_package(BZip2 REQUIRED)
 
 # ============================== LZMA / ZSTD =================================
 
@@ -427,25 +384,7 @@ endif()
 
 # ================================ OPENSSL ===================================
 
-# openssl (needed for boost asio)
-
-if (IS_WINDOWS)
-	set(OPENSSL_USE_STATIC_LIBS TRUE)
-endif()
-
-if (NOT OPENSSL_ROOT_DIR)
-	if (IS_WINDOWS)
-		set(OPENSSL_ROOT_DIR "C:\\Program Files\\OpenSSL\\lib")
-	endif ()
-endif ()
-
 find_package(OpenSSL REQUIRED)
-
-if (IS_WINDOWS)
-	# unfortunately openssl forgets to link their static versions against Windows's crypt32.lib
-	# ( https://github.com/openssl/openssl/issues/1061 )
-	set(OPENSSL_LIBRARIES ${OPENSSL_LIBRARIES} crypt32)
-endif()
 
 # ================================= BOOST ====================================
 
@@ -470,14 +409,7 @@ message(STATUS "boost root: ${BOOST_ROOT}")
 # boost asio (header only) needs system and date_time
 # dekaf2's http part needs iostreams
 
-if (IS_WINDOWS)
-	# Windows boost binary builds have zlib and bzip2 included, so we do not
-	# need external libs
-	find_package(Boost 1.54 COMPONENTS system iostreams zlib bzip2)
-else()
-	# Unix boost packages do rely on external versions of zlib and bzip2
-	find_package(Boost 1.54 COMPONENTS system iostreams)
-endif()
+find_package(Boost 1.54 COMPONENTS system iostreams)
 
 if (NOT Boost_FOUND)
 	if (DEKAF2_NO_BUILDSETUP OR IS_WINDOWS)

@@ -85,6 +85,7 @@ OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" 
 OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" ON)
 OPTION(DEKAF2_WITH_PEDANTIC_WARNINGS "enable pedantic warnings" ON)
 OPTION(DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT "force the use of fmtlib even if std::format is available" ON)
+OPTION(DEKAF2_USE_SYSTEM_FMTLIB "use a system installed fmtlib instead of our own copy" OFF)
 OPTION(DEKAF2_WRAPPED_KJSON "create the KJSON class as a non-throwing wrapper type around the native type" ON)
 OPTION(DEKAF2_LINK_TIME_OPTIMIZATION "force link time optimization for release builds" OFF)
 
@@ -1147,34 +1148,36 @@ if (CPU_ARM EQUAL 32)
 	set(ARM_NEEDS_ATOMIC_LIB atomic)
 endif()
 
-set(DATE_PUBLIC_HEADERS
-	from/hhinnant/date/ios.h
-	from/hhinnant/date/date.h
-	from/hhinnant/date/tz.h
-	from/hhinnant/date/tz_private.h
-)
+if (NOT DEKAF2_STD_CHRONO_HAS_TIMEZONE)
+	set(DATE_PUBLIC_HEADERS
+		from/hhinnant/date/ios.h
+		from/hhinnant/date/date.h
+		from/hhinnant/date/tz.h
+		from/hhinnant/date/tz_private.h
+	)
 
-# build the date library with tz support
-add_library(date-tz ${DATE_PUBLIC_HEADERS} from/hhinnant/date/tz.cpp)
+	# build the date library with tz support
+	add_library(date-tz ${DATE_PUBLIC_HEADERS} from/hhinnant/date/tz.cpp)
 
-target_include_directories(date-tz
-	PUBLIC
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant>
-	$<INSTALL_INTERFACE:${dekaf2_include_dest}>
-)
+	target_include_directories(date-tz
+		PUBLIC
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant>
+		$<INSTALL_INTERFACE:${dekaf2_include_dest}>
+	)
 
-target_compile_definitions(date-tz
-	PRIVATE
-	AUTO_DOWNLOAD=0
-	HAS_REMOTE_API=0
-	INSTALL=.
-	PUBLIC
-	USE_OS_TZDB=1
-)
+	target_compile_definitions(date-tz
+		PRIVATE
+		AUTO_DOWNLOAD=0
+		HAS_REMOTE_API=0
+		INSTALL=.
+		PUBLIC
+		USE_OS_TZDB=1
+	)
 
-if (DEKAF2_STD_CHRONO_HAS_LOCAL_T)
-	target_compile_definitions(date-tz PUBLIC DEKAF2_STD_CHRONO_HAS_LOCAL_T=1)
-endif()
+	if (DEKAF2_STD_CHRONO_HAS_LOCAL_T)
+		target_compile_definitions(date-tz PUBLIC DEKAF2_STD_CHRONO_HAS_LOCAL_T=1)
+	endif()
+endif() # no timezone support
 
 # we add the HEADERS as well, as otherwise cmake based IDEs would not see them
 # as belonging to the project. CMake would not need them here.
@@ -1372,7 +1375,10 @@ install(TARGETS fmt           EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(TARGETS nlohmann-json EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(TARGETS re2           EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(TARGETS frozen        EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
-install(TARGETS date-tz       EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+
+if (NOT DEKAF2_STD_CHRONO_HAS_TIMEZONE)
+	install(TARGETS date-tz   EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+endif()
 
 install(TARGETS dekaf2 ksql2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})

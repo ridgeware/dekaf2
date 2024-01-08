@@ -1,8 +1,9 @@
 # dekaf2 dockerfile
 #
 # this dockerfile takes the arguments
-# from      : the base image to build from
-# buildtype : either "release" or "debug", defaults to "release"
+# from          : the base image to build from
+# buildtype     : either "release" or "debug", defaults to "release"
+# build_options : additional cmake options for dekaf2
 #
 # to build a dekaf2 image
 
@@ -11,6 +12,7 @@ ARG from
 FROM ${from} as build-stage
 
 ARG buildtype="release"
+ARG build_options=""
 
 # copy the source
 COPY . /home/dekaf2/
@@ -22,7 +24,12 @@ RUN mkdir -p /home/dekaf2/build/${buildtype}
 WORKDIR /home/dekaf2/build/${buildtype}
 
 # create cmake setup
-RUN cmake -DCMAKE_BUILD_TYPE="${buildtype}" -DDEKAF2_NO_BUILDSETUP=ON -DDEKAF2_USE_JEMALLOC=ON ../../
+RUN cmake \
+	-DCMAKE_BUILD_TYPE="${buildtype}" \
+	${build_options}                  \
+	-DDEKAF2_NO_BUILDSETUP=ON         \
+	-DDEKAF2_USE_JEMALLOC=ON          \
+	../../
 
 # build
 RUN export CPUCORES=$(expr $(egrep '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \

@@ -89,6 +89,11 @@ NewPass="$3"
 UserType="$4"
 DBName="$5"
 
+if [[ ${NewUser} = root ]]; then
+	echo ">> mysql-newuser called with 'root' as the newuser."
+	return 1
+fi
+
 CreateDB="no"
 if [[ "$DBName" = "-new" ]]; then
 	CreateDB="yes"

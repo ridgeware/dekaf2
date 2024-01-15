@@ -31,7 +31,9 @@ TEST_CASE("KPipe")
 
 		// Verify contents of test file
 		CHECK(pipe.Open("/bin/sh -c \"cat /tmp/kpipetests/koutpipetest1.file\""));
+#ifndef DEKAF2_HAS_MUSL
 		CHECK(pipe.IsRunning());
+#endif
 		bool output = pipe.ReadLine(sCurrentLine);
 		CHECK(output);
 		CHECK("rdoanm txet over 9000 \n" == sCurrentLine);

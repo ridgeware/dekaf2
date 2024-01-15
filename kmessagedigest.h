@@ -51,13 +51,22 @@
 #include "kstring.h"
 
 
-#if OPENSSL_VERSION_NUMBER < 0x010100000
-struct env_md_ctx_st;
-#else
+#if OPENSSL_VERSION_NUMBER >= 0x030000000L \
+  || (OPENSSL_VERSION_NUMBER >= 0x010100000 && OPENSSL_VERSION_NUMBER < 0x020000000L)
 struct evp_md_ctx_st;
+#else
+struct env_md_ctx_st;
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+#if !defined(DEKAF2_HAS_BLAKE2) \
+  && (OPENSSL_VERSION_NUMBER >= 0x030000000L \
+    || (OPENSSL_VERSION_NUMBER >= 0x010100000 && OPENSSL_VERSION_NUMBER < 0x020000000L))
+
+#define DEKAF2_HAS_BLAKE2 1
+
+#endif
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KMessageDigestBase constructs the basic algorithms for message digest
@@ -79,7 +88,7 @@ public:
 		SHA256,
 		SHA384,
 		SHA512,
-#if OPENSSL_VERSION_NUMBER >= 0x010100000
+#if DEKAF2_HAS_BLAKE2
 		BLAKE2S,
 		BLAKE2B,
 #endif
@@ -138,10 +147,11 @@ protected:
 	/// releases context
 	void Release() noexcept;
 
-#if OPENSSL_VERSION_NUMBER < 0x010100000
-	env_md_ctx_st* evpctx { nullptr }; // is a ENV_MD_CTX
-#else
+#if OPENSSL_VERSION_NUMBER >= 0x030000000L \
+  || (OPENSSL_VERSION_NUMBER >= 0x010100000 && OPENSSL_VERSION_NUMBER < 0x020000000L)
 	evp_md_ctx_st* evpctx { nullptr }; // is a EVP_MD_CTX
+#else
+	env_md_ctx_st* evpctx { nullptr }; // is a ENV_MD_CTX
 #endif
 	UpdateFunc Updater { nullptr }; // is a EVP_Update function
 
@@ -314,9 +324,7 @@ public:
 
 }; // KSHA512
 
-#if OPENSSL_VERSION_NUMBER >= 0x010100000
-
-#define DEKAF2_HAS_BLAKE2 1
+#if DEKAF2_HAS_BLAKE2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KBLAKE2S : public KMessageDigest
@@ -371,7 +379,7 @@ using KHASH512 = KBLAKE2B;
 using KHASH256 = KSHA256;
 using KHASH512 = KSHA512;
 
-#endif // of OPENSSL_VERSION_NUMBER >= 0x010100000
+#endif // of DEKAF2_HAS_BLAKE2
 
 DEKAF2_NAMESPACE_END
 

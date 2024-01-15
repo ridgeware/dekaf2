@@ -109,7 +109,7 @@ KHMAC::KHMAC(ALGORITHM Algorithm, KStringView sKey, KStringView sMessage)
 			callback = EVP_sha512;
 			break;
 
-#if OPENSSL_VERSION_NUMBER >= 0x010100000
+#if DEKAF2_HAS_BLAKE2
 		case BLAKE2S:
 			callback = EVP_blake2s256;
 			break;

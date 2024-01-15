@@ -55,6 +55,14 @@ struct hmac_ctx_st;
 
 DEKAF2_NAMESPACE_BEGIN
 
+#if !defined(DEKAF2_HAS_BLAKE2) \
+  && (OPENSSL_VERSION_NUMBER >= 0x030000000L \
+      || (OPENSSL_VERSION_NUMBER >= 0x010100000 && OPENSSL_VERSION_NUMBER < 0x020000000L))
+
+#define DEKAF2_HAS_BLAKE2 1
+
+#endif
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KHMAC gives the interface for all HMAC algorithms. The
 /// framework allows to calculate HMACs out of strings and streams.
@@ -75,7 +83,7 @@ public:
 		SHA256,
 		SHA384,
 		SHA512,
-#if OPENSSL_VERSION_NUMBER >= 0x010100000
+#if DEKAF2_HAS_BLAKE2
 		BLAKE2S,
 		BLAKE2B,
 #endif
@@ -225,9 +233,7 @@ public:
 
 }; // KHMAC_SHA512
 
-#if OPENSSL_VERSION_NUMBER >= 0x010100000
-
-#define DEKAF2_HAS_KHMAC_BLAKE2 1
+#if DEKAF2_HAS_BLAKE2
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHMAC_BLAKE2S : public KHMAC
@@ -270,6 +276,6 @@ using KHMAC512 = KHMAC_BLAKE2B;
 using KHMAC256 = KHMAC_SHA256;
 using KHMAC512 = KHMAC_SHA512;
 
-#endif // of OPENSSL_VERSION_NUMBER >= 0x010100000
+#endif // of DEKAF2_HAS_BLAKE2
 
 DEKAF2_NAMESPACE_END

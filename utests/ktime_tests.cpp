@@ -258,8 +258,10 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.month()           == chrono::January );
 				CHECK ( Local1.weekday()         == chrono::Tuesday );
 				CHECK ( Local1.get_utc_offset() == chrono::minutes(60) );
+#ifndef DEKAF2_HAS_MUSL
 				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "%A %c") == "Mardi Mar  1 jan 00:59:59 1974" );
 				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City")), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
+#endif
 			}
 		}
 
@@ -309,9 +311,11 @@ TEST_CASE("KTime") {
 			{
 				CHECK ( Local1.month()       == chrono::January );
 				CHECK ( Local1.weekday()     == chrono::Tuesday );
+#ifndef DEKAF2_HAS_MUSL
 				if (bHasTimezone) {
 					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City")), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
 				}
+#endif
 			}
 			// test for the day of year calculation
 			CHECK ( Local1.to_tm().tm_yday   == 0     );

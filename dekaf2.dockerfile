@@ -2,23 +2,26 @@
 #
 # this dockerfile takes the arguments
 # from          : the base image to build from
+# to            : the base image to copy onto, defaults to ${from}
 # buildtype     : either "release" or "debug", defaults to "release"
 # build_options : additional cmake options for dekaf2
 #
 # to build a dekaf2 image
 
-ARG from
+ARG from="buildenv"
+ARG to="${from}"
 
 FROM ${from} as build-stage
 
 ARG buildtype="release"
 ARG build_options=""
-
-# copy the source
-COPY . /home/dekaf2/
+ARG parallel=""
 
 # create source and build directories
 RUN mkdir -p /home/dekaf2/build/${buildtype}
+
+# copy the source
+COPY . /home/dekaf2/
 
 # change into build dir
 WORKDIR /home/dekaf2/build/${buildtype}
@@ -32,14 +35,16 @@ RUN cmake \
 	../../
 
 # build
-RUN export CPUCORES=$(expr $(egrep '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
+RUN [[ "${parallel}" != "" ]] \
+    && export CPUCORES="${parallel}" \
+    || export CPUCORES=$(expr $(egrep '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
     cmake --build . --parallel ${CPUCORES} --target all
 
 # install
 #RUN cmake --install .
 RUN make install
 
-FROM ${from} as final
+FROM ${to} as final
 
 COPY --from=build-stage /usr/local/bin/klog           /usr/local/bin/klog
 COPY --from=build-stage /usr/local/bin/createdbc      /usr/local/bin/createdbc

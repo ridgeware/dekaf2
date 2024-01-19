@@ -299,12 +299,12 @@ extern KOutStream KOut;
 
 //-----------------------------------------------------------------------------
 /// return a std::ostream object that writes to nothing, but is valid
-std::ostream& DEKAF2_PUBLIC kGetNullOStream();
+std::ostream& kGetNullOStream();
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// return a KOutStream object that writes to nothing, but is valid
-KOutStream& DEKAF2_PUBLIC kGetNullOutStream();
+KOutStream& kGetNullOutStream();
 //-----------------------------------------------------------------------------
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

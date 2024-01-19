@@ -12,7 +12,7 @@ else()
 	set(dekaf2-utests_IS_TOP_LEVEL OFF)
 endif()
 
-if (dekaf2-utests_IS_TOP_LEVEL OR NOT GENERATED_FILES_DIR)
+if (dekaf2-utests_IS_TOP_LEVEL OR NOT DEKAF2_GENERATED_FILES_DIR)
 	set(DEKAF2_INHERIT_BUILD_FLAGS ON)
 	find_package(dekaf2 2.0 REQUIRED)
 endif()

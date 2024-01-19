@@ -90,7 +90,7 @@ template<
 	bool RemoveEndSeparator,
 	bool IsString
 >
-class URIComponent
+class DEKAF2_PUBLIC URIComponent
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -675,13 +675,13 @@ template<
  >
 */
 
-extern template class URIComponent<URLEncodedString, URIPart::User,     '\0', false, true,  true >;
-extern template class URIComponent<URLEncodedString, URIPart::Password, '\0', false, true,  true >;
-extern template class URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false, true >;
-extern template class URIComponent<URLEncodedUInt,   URIPart::Port,     ':',  true,  false, false>;
-extern template class URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false, true >;
-extern template class URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false, false>;
-extern template class URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false, true >;
+extern template class DEKAF2_PUBLIC URIComponent<URLEncodedString, URIPart::User,     '\0', false, true,  true >;
+extern template class DEKAF2_PUBLIC URIComponent<URLEncodedString, URIPart::Password, '\0', false, true,  true >;
+extern template class DEKAF2_PUBLIC URIComponent<URLEncodedString, URIPart::Domain,   '\0', false, false, true >;
+extern template class DEKAF2_PUBLIC URIComponent<URLEncodedUInt,   URIPart::Port,     ':',  true,  false, false>;
+extern template class DEKAF2_PUBLIC URIComponent<URLEncodedString, URIPart::Path,     '/',  false, false, true >;
+extern template class DEKAF2_PUBLIC URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false, false>;
+extern template class DEKAF2_PUBLIC URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false, true >;
 
 DEKAF2_NAMESPACE_END
 

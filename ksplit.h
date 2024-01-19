@@ -71,6 +71,7 @@ template<typename Container,
 		std::is_constructible<typename Container::value_type, KStringViewPair>::value == false
 	, int>::type = 0
 >
+DEKAF2_PUBLIC 
 std::size_t kSplit (
         Container&  cContainer,
         KStringView svBuffer,
@@ -167,6 +168,7 @@ template<typename Container,
 		std::is_constructible<typename Container::value_type, KStringViewPair>::value == false
 	, int>::type = 0
 >
+DEKAF2_PUBLIC
 std::size_t kSplit (
         Container&  cContainer,
         KStringView svBuffer,
@@ -308,6 +310,7 @@ std::size_t kSplit (
 #if !defined(_MSC_VER) && (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION_MAJOR > 5)
 // precompile for std::vector<KStringView>
 extern template
+DEKAF2_PUBLIC
 std::size_t kSplit(
 		std::vector<KStringView>& cContainer,
         KStringView svBuffer,
@@ -333,6 +336,7 @@ std::size_t kSplit(
 template<typename Container = std::vector<KStringView>,
 	typename std::enable_if<detail::has_key_type<Container>::value == false
 								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == false, int>::type = 0 >
+DEKAF2_PUBLIC
 Container kSplits(
 			  KStringView svBuffer,
 			  const char Delim
@@ -367,6 +371,7 @@ Container kSplits(
 template<typename Container = std::vector<KStringView>,
 	typename std::enable_if<detail::has_key_type<Container>::value == false
 								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == false, int>::type = 0 >
+DEKAF2_PUBLIC
 Container kSplits(
 			  KStringView svBuffer,
 			  const KFindSetOfChars& Delim   = detail::kCommaSet,       // default: comma delimiter
@@ -410,7 +415,7 @@ namespace container_adaptor {
 /// helper template to use containers with insert() instead of push_back(),
 /// taking the value given to push_back() as the single value for insert()
 template<typename Container>
-class InsertValue
+class DEKAF2_PUBLIC InsertValue
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -457,7 +462,7 @@ private:
 /// helper template to use containers with insert() instead of push_back(),
 /// splitting the value given to push_back() into a key value pair for insert()
 template<typename Container>
-class InsertPair
+class DEKAF2_PUBLIC InsertPair
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -519,7 +524,7 @@ private:
 /// helper template to use containers with push_back() on a pair instead of push_back(),
 /// splitting the value given to push_back() into a key value pair for push_back()
 template<typename Container>
-class PushBackPair
+class DEKAF2_PUBLIC PushBackPair
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -601,6 +606,7 @@ private:
 /// @endcode
 template<typename Container,
 	typename std::enable_if<detail::is_map_type<Container>::value == true, int>::type = 0 >
+DEKAF2_PUBLIC
 std::size_t kSplit(
         Container&  cContainer,
         KStringView svBuffer,
@@ -645,6 +651,7 @@ std::size_t kSplit(
 /// @endcode
 template<typename Container,
 	typename std::enable_if<detail::is_set_type<Container>::value == true, int>::type = 0 >
+DEKAF2_PUBLIC
 std::size_t kSplit(
 		Container&  cContainer,
 		KStringView svBuffer,
@@ -686,6 +693,7 @@ std::size_t kSplit(
 
 template<typename Container,
 	typename std::enable_if<detail::is_set_type<Container>::value == true, int>::type = 0 >
+DEKAF2_PUBLIC
 Container kSplits(
 			  KStringView svBuffer,
 			  const KFindSetOfChars& Delim   = detail::kCommaSet,       // default: comma delimiter
@@ -725,6 +733,7 @@ Container kSplits(
 
 template<typename Container,
 	typename std::enable_if<detail::is_map_type<Container>::value == true, int>::type = 0 >
+DEKAF2_PUBLIC
 Container kSplits(
 			  KStringView svBuffer,
 			  const KFindSetOfChars& Delim   = detail::kCommaSet,       // default: comma delimiter
@@ -769,6 +778,7 @@ Container kSplits(
 template<typename Container,
 	typename std::enable_if<detail::has_key_type<Container>::value == false
 								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == true, int>::type = 0 >
+DEKAF2_PUBLIC
 std::size_t kSplit(
         Container&  cContainer,
         KStringView svBuffer,
@@ -814,6 +824,7 @@ std::size_t kSplit(
 template<typename Container,
 	typename std::enable_if<detail::has_key_type<Container>::value == false
 								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == true, int>::type = 0 >
+DEKAF2_PUBLIC
 Container kSplits(
 			  KStringView svBuffer,
 			  const KFindSetOfChars& Delim   = detail::kCommaSet,       // default: comma delimiter
@@ -942,6 +953,7 @@ typename std::enable_if<
 		std::is_constructible<typename Container::value_type, KStringViewPair>::value == false
 	, int>::type = 0
 >
+DEKAF2_PUBLIC
 std::size_t kSplitArgs (Container&  cContainer, KStringView svBuffer)
 //-----------------------------------------------------------------------------
 {

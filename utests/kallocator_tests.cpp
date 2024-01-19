@@ -16,7 +16,7 @@ using namespace dekaf2;
 std::size_t memory = 0;
 std::size_t allocations = 0;
 
-#ifdef DEKAF2_NO_GCC
+#ifdef DEKAF2_NO_GCC_DISABLED
 
 void* operator new(std::size_t s) noexcept(false)
 {

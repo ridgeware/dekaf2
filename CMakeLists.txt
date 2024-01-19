@@ -55,7 +55,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.44 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.45 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -88,6 +88,8 @@ OPTION(DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT "force the use of fmtlib even if std:
 OPTION(DEKAF2_USE_SYSTEM_FMTLIB "use a system installed fmtlib instead of our own copy" OFF)
 OPTION(DEKAF2_WRAPPED_KJSON "create the KJSON class as a non-throwing wrapper type around the native type" ON)
 OPTION(DEKAF2_LINK_TIME_OPTIMIZATION "force link time optimization for release builds" OFF)
+OPTION(DEKAF2_BUILD_STATIC_DEKAF2 "build a static version of dekaf2" ON)
+OPTION(DEKAF2_BUILD_SHARED_DEKAF2 "build a shared version of dekaf2" OFF)
 
 # =================================== C++ STANDARD =================================
 
@@ -243,6 +245,11 @@ if (CMAKE_COMPILER_IS_GNUCXX AND (CMAKE_CXX_STANDARD LESS 17 OR CMAKE_CXX_COMPIL
 		message(STATUS "cannot use wrapped KJSON type with GCC and C++ < 17 or GCC < 7 - switching off")
 		set(DEKAF2_WRAPPED_KJSON OFF)
 	endif()
+endif()
+
+if (NOT DEKAF2_BUILD_STATIC_DEKAF2 AND NOT DEKAF2_BUILD_DYNAMIC_DEKAF2)
+	set(DEKAF2_BUILD_STATIC_DEKAF2 ON)
+	message(STATUS "forcing static dekaf2 build - do not switch both dynamic and static options off")
 endif()
 
 # ================================ CMAKE INTERNALS =================================
@@ -546,13 +553,13 @@ check_cxx_compiler_flag(-Wliteral-suffix                DEKAF2_HAS_WARN_LITERAL_
 check_cxx_compiler_flag(-Wreserved-user-defined-literal DEKAF2_HAS_WARN_RESERVED_USER_DEFINED_LITERAL)
 
 # create and include the build directory for generated files
-set(GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
-file(MAKE_DIRECTORY "${GENERATED_FILES_DIR}")
+set(DEKAF2_GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY "${DEKAF2_GENERATED_FILES_DIR}")
 
 # discover availability of std::chrono calendar capabilities
 if (CMAKE_CXX_STANDARD GREATER 17)
 	try_compile(DEKAF2_STD_CHRONO_HAS_CALENDAR
-				${GENERATED_FILES_DIR}
+				"${DEKAF2_GENERATED_FILES_DIR}"
 				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_calendar_test.cpp"
 				COMPILE_DEFINITIONS "--std=c++20")
 
@@ -567,7 +574,7 @@ endif()
 
 if (CMAKE_CXX_STANDARD GREATER 17)
 	try_compile(DEKAF2_STD_CHRONO_HAS_LOCAL_T
-				${GENERATED_FILES_DIR}
+				"${DEKAF2_GENERATED_FILES_DIR}"
 				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_local_t_test.cpp"
 				COMPILE_DEFINITIONS "--std=c++20")
 
@@ -582,7 +589,7 @@ endif()
 
 if (CMAKE_CXX_STANDARD GREATER 17)
 	try_compile(DEKAF2_STD_CHRONO_HAS_TIMEZONE
-				${GENERATED_FILES_DIR}
+				"${DEKAF2_GENERATED_FILES_DIR}"
 				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_timezone_test.cpp"
 				COMPILE_DEFINITIONS "--std=c++20")
 
@@ -597,7 +604,7 @@ endif()
 
 if (CMAKE_CXX_STANDARD GREATER 17)
 	try_compile(DEKAF2_HAS_MONTH_AND_YEAR_LITERALS
-				${GENERATED_FILES_DIR}
+				"${DEKAF2_GENERATED_FILES_DIR}"
 				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_year_and_month_literals_test.cpp"
 				COMPILE_DEFINITIONS "--std=c++20")
 
@@ -612,7 +619,7 @@ endif()
 
 if (CMAKE_CXX_STANDARD GREATER 17)
 	try_compile(DEKAF2_HAS_U8STRING
-				${GENERATED_FILES_DIR}
+				"${DEKAF2_GENERATED_FILES_DIR}"
 				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/u8string_test.cpp"
 				COMPILE_DEFINITIONS "--std=c++20")
 
@@ -626,19 +633,19 @@ else()
 endif()
 
 # create the configuration header file
-configure_file("bits/kconfiguration.h.in" "${GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
+configure_file("bits/kconfiguration.h.in" "${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
 
 # create the cmake version comparison file for find_package()
-configure_file("cmake/${PROJECT_NAME}-config-version.cmake.in" "${GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake" @ONLY)
+configure_file("cmake/${PROJECT_NAME}-config-version.cmake.in" "${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake" @ONLY)
 
 # create the cmake version setup file for find_package()
-configure_file("cmake/${PROJECT_NAME}-setup.cmake.in" "${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake" @ONLY)
+configure_file("cmake/${PROJECT_NAME}-setup.cmake.in" "${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake" @ONLY)
 
 # ======================== COMPILER AND LINKER OPTIONS ============================
 
 # eat our own dog food
 set (DEKAF2_INHERIT_BUILD_FLAGS ON)
-include ("${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake")
+include ("${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake")
 
 # ========================= THIRD PARTY SOURCE LIBS ============================
 
@@ -1148,43 +1155,39 @@ if (CPU_ARM EQUAL 32)
 	set(ARM_NEEDS_ATOMIC_LIB atomic)
 endif()
 
-if (NOT DEKAF2_STD_CHRONO_HAS_TIMEZONE)
-	set(DATE_PUBLIC_HEADERS
-		from/hhinnant/date/ios.h
-		from/hhinnant/date/date.h
-		from/hhinnant/date/tz.h
-		from/hhinnant/date/tz_private.h
-	)
+# we have to create the timezone library even when dekaf2 itself has
+# std::chrono timezones - the reason is that users may compile with
+# C++ < 20, in which case the std headers do not expose the timezone
+# functionality.. as a fallback we then provide the tzlib of hhinnant
 
-	# build the date library with tz support
-	add_library(date-tz ${DATE_PUBLIC_HEADERS} from/hhinnant/date/tz.cpp)
+set(DATE_PUBLIC_HEADERS
+	from/hhinnant/date/ios.h
+	from/hhinnant/date/date.h
+	from/hhinnant/date/tz.h
+	from/hhinnant/date/tz_private.h
+)
 
-	target_include_directories(date-tz
-		PUBLIC
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant>
-		$<INSTALL_INTERFACE:${dekaf2_include_dest}>
-	)
+# build the date library with tz support
+add_library(date-tz ${DATE_PUBLIC_HEADERS} from/hhinnant/date/tz.cpp)
 
-	target_compile_definitions(date-tz
-		PRIVATE
-		AUTO_DOWNLOAD=0
-		HAS_REMOTE_API=0
-		INSTALL=.
-		PUBLIC
-		USE_OS_TZDB=1
-	)
+target_include_directories(date-tz
+	PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant>
+	$<INSTALL_INTERFACE:${dekaf2_include_dest}>
+)
 
-	if (DEKAF2_STD_CHRONO_HAS_LOCAL_T)
-		target_compile_definitions(date-tz PUBLIC DEKAF2_STD_CHRONO_HAS_LOCAL_T=1)
-	endif()
+target_compile_definitions(date-tz
+	PRIVATE
+	AUTO_DOWNLOAD=0
+	HAS_REMOTE_API=0
+	INSTALL=.
+	PUBLIC
+	USE_OS_TZDB=1
+)
 
-	set(TIMEZONE_LIBRARIES date-tz)
-
-endif() # no timezone support
-
-# we add the HEADERS as well, as otherwise cmake based IDEs would not see them
-# as belonging to the project. CMake would not need them here.
-add_library(dekaf2 ${HEADERS} ${SOURCES})
+if (DEKAF2_STD_CHRONO_HAS_LOCAL_T)
+	target_compile_definitions(date-tz PUBLIC DEKAF2_STD_CHRONO_HAS_LOCAL_T=1)
+endif()
 
 if (DEKAF2_HAS_MINIFOLLY)
 	set (MINIFOLLY minifolly)
@@ -1229,11 +1232,42 @@ if (IS_WINDOWS)
 	set (DEBUG_HELP "dbghelp")
 endif()
 
-target_link_libraries(dekaf2
+set(DEKAF2_SOURCE_FILES
+	# we add the HEADERS as well, as otherwise cmake based IDEs would not see them
+	# as belonging to the project. CMake would not need them here.
+	${HEADERS}
+	${SOURCES}
+)
+
+set(DEKAF2_INCLUDE_DIRECTORIES
+	SYSTEM
+		# include all external headers (and own installed headers) as
+		# SYSTEM headers to suppress warnings on their contents
+	PUBLIC
+		# for internal build, include the headers without SYSTEM property so that
+		# we get all warnings
+		$<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>
+		$<INSTALL_INTERFACE:${dekaf2_include_dest}>
+		$<INSTALL_INTERFACE:${dekaf2_lib_dest}>
+		${Boost_INCLUDE_DIR}
+		${OPENSSL_INCLUDE_DIR}
+	PRIVATE
+		$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
+		$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
+		$<BUILD_INTERFACE:${LIBZIP_INCLUDE_DIRS}>
+		$<BUILD_INTERFACE:${BROTLI_INCLUDE_DIRS}>
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/google>
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/croncpp/include>
+		$<BUILD_INTERFACE:${JEMalloc_INCLUDE_DIRS}>
+		# for centos libzip:
+		/include
+)
+
+set(DEKAF2_LINK_LIBRARIES
 	PUBLIC
 		fmt
 		nlohmann-json
-		${TIMEZONE_LIBRARIES}
+		date-tz
 		${Boost_LIBRARIES}
 		${OPENSSL_LIBRARIES}
 		frozen
@@ -1251,74 +1285,133 @@ target_link_libraries(dekaf2
 		${DEBUG_HELP}
 		re2
 		${JEMalloc_LIBRARIES}
-	)
+)
 
-# include all external headers (and own installed headers) as
-# SYSTEM headers to suppress warnings on their contents
-target_include_directories(dekaf2
-	SYSTEM
-	PUBLIC
-	$<INSTALL_INTERFACE:${dekaf2_include_dest}>
-	$<INSTALL_INTERFACE:${dekaf2_lib_dest}>
-	${Boost_INCLUDE_DIR}
-	${OPENSSL_INCLUDE_DIR}
+set(DEKAF2_COMPILE_DEFINITIONS
 	PRIVATE
-	$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
-	$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
-	$<BUILD_INTERFACE:${LIBZIP_INCLUDE_DIRS}>
-	$<BUILD_INTERFACE:${BROTLI_INCLUDE_DIRS}>
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/google>
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/croncpp/include>
-	$<BUILD_INTERFACE:${JEMalloc_INCLUDE_DIRS}>
-	# for centos libzip:
-	/include
-)
-
-# for internal build, include the headers without SYSTEM property so that
-# we get all warnings
-target_include_directories(dekaf2
+		# needed for dynamic libs
+		DEKAF2_LIBRARY_BUILD
 	PUBLIC
-	$<BUILD_INTERFACE:${GENERATED_FILES_DIR}>
+		DEKAF2=1
 )
 
-# DEKAF2_LIBRARY_BUILD is needed for dynamic libs
-target_compile_definitions(dekaf2 PRIVATE DEKAF2_LIBRARY_BUILD PUBLIC DEKAF2=1)
-
-if (DEKAF2_USE_PRECOMPILED_HEADERS)
-	target_precompile_headers(dekaf2 PRIVATE ${PRECOMPILED_HEADERS})
+if (CMAKE_GENERATOR MATCHES "Xcode")
+	# To successfully link targets, Xcode required at least one
+	# real file besides object libraries in each target. We
+	# create a dummy file with only one symbol.
+	# With version 15.0.0 of AppleClang this seems to be fixed though.
+	set (DEKAF2_DUMMYFILE "${DEKAF2_GENERATED_FILES_DIR}/dummy.cpp")
+	FILE(WRITE "${DEKAF2_DUMMYFILE}"
+		"void dekaf2_dummy_for_xcode() {}\n\n"
+	)
 endif()
 
-add_library(ksql2 ksql.cpp ksql.h bits/ksql_dbc.cpp bits/ksql_dbc.h)
-target_link_libraries(ksql2
+add_library                (dekaf2-objects OBJECT ${DEKAF2_SOURCE_FILES})
+target_include_directories (dekaf2-objects ${DEKAF2_INCLUDE_DIRECTORIES})
+target_link_libraries      (dekaf2-objects ${DEKAF2_LINK_LIBRARIES})
+target_compile_definitions (dekaf2-objects ${DEKAF2_COMPILE_DEFINITIONS})
+if (DEKAF2_USE_PRECOMPILED_HEADERS)
+  target_precompile_headers(dekaf2-objects PRIVATE ${PRECOMPILED_HEADERS})
+endif()
+
+if (DEKAF2_BUILD_SHARED_DEKAF2)
+	set_target_properties      (dekaf2-objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
+	add_library                (dekaf2-shared  SHARED $<TARGET_OBJECTS:dekaf2-objects> ${DEKAF2_DUMMYFILE})
+	target_include_directories (dekaf2-shared  ${DEKAF2_INCLUDE_DIRECTORIES})
+	target_link_libraries      (dekaf2-shared  ${DEKAF2_LINK_LIBRARIES})
+	target_compile_definitions (dekaf2-shared  ${DEKAF2_COMPILE_DEFINITIONS})
+	set_target_properties      (dekaf2-shared  PROPERTIES C_VISIBILITY_PRESET   hidden)
+	set_target_properties      (dekaf2-shared  PROPERTIES CXX_VISIBILITY_PRESET hidden)
+	set_target_properties      (dekaf2-shared  PROPERTIES OUTPUT_NAME "dekaf2")
+	set_target_properties      (dekaf2-shared  PROPERTIES SOVERSION ${PROJECT_VERSION_MAJOR} VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
+endif()
+
+if (DEKAF2_BUILD_STATIC_DEKAF2)
+	add_library                (dekaf2 STATIC $<TARGET_OBJECTS:dekaf2-objects> ${DEKAF2_DUMMYFILE})
+	target_include_directories (dekaf2 ${DEKAF2_INCLUDE_DIRECTORIES})
+	target_link_libraries      (dekaf2 ${DEKAF2_LINK_LIBRARIES})
+	target_compile_definitions (dekaf2 ${DEKAF2_COMPILE_DEFINITIONS})
+endif()
+
+set(KSQL2_INCLUDE_DIRECTORIES
+	PRIVATE
+		$<BUILD_INTERFACE:${MYSQL_INCLUDE_DIRS}>
+		$<BUILD_INTERFACE:${FREETDS_INCLUDE_DIRS}>
+)
+
+set(KSQL2_LINK_LIBRARIES
 	PRIVATE
 		dekaf2
 		${MYSQL_LIBRARIES}
 		${FREETDS_LIBRARIES}
-	)
-target_include_directories(ksql2
-	PRIVATE
-	$<BUILD_INTERFACE:${MYSQL_INCLUDE_DIRS}>
-	$<BUILD_INTERFACE:${FREETDS_INCLUDE_DIRS}>
 )
-# DEKAF2_LIBRARY_BUILD is needed for dynamic libs
-target_compile_definitions(ksql2 PRIVATE DEKAF2_LIBRARY_BUILD)
 
+set(KSQL2_COMPILE_DEFINITIONS
+	PRIVATE
+		DEKAF2_LIBRARY_BUILD
+)
+
+add_library                   (ksql2-objects OBJECT ksql.cpp ksql.h bits/ksql_dbc.cpp bits/ksql_dbc.h)
+target_include_directories    (ksql2-objects ${KSQL2_INCLUDE_DIRECTORIES})
+target_link_libraries         (ksql2-objects ${KSQL2_LINK_LIBRARIES})
+target_compile_definitions    (ksql2-objects ${KSQL2_COMPILE_DEFINITIONS})
 if (DEKAF2_USE_PRECOMPILED_HEADERS)
-	target_precompile_headers(ksql2 REUSE_FROM dekaf2)
+	target_precompile_headers (ksql2-objects REUSE_FROM dekaf2-objects)
+endif()
+
+if (DEKAF2_BUILD_SHARED_DEKAF2)
+	set_target_properties      (ksql2-objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
+	add_library                (ksql2-shared  SHARED $<TARGET_OBJECTS:ksql2-objects> ${DEKAF2_DUMMYFILE})
+	target_include_directories (ksql2-shared  ${KSQL2_INCLUDE_DIRECTORIES})
+	target_link_libraries      (ksql2-shared  ${KSQL2_LINK_LIBRARIES})
+	target_compile_definitions (ksql2-shared  ${KSQL2_COMPILE_DEFINITIONS})
+	set_target_properties      (ksql2-shared  PROPERTIES C_VISIBILITY_PRESET   hidden)
+	set_target_properties      (ksql2-shared  PROPERTIES CXX_VISIBILITY_PRESET hidden)
+	set_target_properties      (ksql2-shared  PROPERTIES OUTPUT_NAME "ksql2")
+	set_target_properties      (ksql2-shared  PROPERTIES SOVERSION ${PROJECT_VERSION_MAJOR} VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
+endif()
+
+if (DEKAF2_BUILD_STATIC_DEKAF2)
+	add_library                (ksql2 STATIC $<TARGET_OBJECTS:ksql2-objects> ${DEKAF2_DUMMYFILE})
+	target_include_directories (ksql2 ${KSQL2_INCLUDE_DIRECTORIES})
+	target_link_libraries      (ksql2 ${KSQL2_LINK_LIBRARIES})
+	target_compile_definitions (ksql2 ${KSQL2_COMPILE_DEFINITIONS})
 endif()
 
 if(SQLITE3_FOUND)
-	add_library(ksqlite ksqlite.cpp ksqlite.h)
-	target_link_libraries(ksqlite
-		PRIVATE
-			dekaf2
-			${SQLITE3_LIBRARIES}
-		)
-	# DEKAF2_LIBRARY_BUILD is needed for dynamic libs
-	target_compile_definitions(ksqlite PRIVATE DEKAF2_LIBRARY_BUILD)
+	if (DEKAF2_BUILD_SHARED_DEKAF2)
+		add_library(ksqlite-shared SHARED ksqlite.cpp ksqlite.h)
+		set_target_properties      (ksqlite-shared PROPERTIES POSITION_INDEPENDENT_CODE ON)
+		target_link_libraries      (ksqlite-shared
+			PRIVATE
+				dekaf2-shared
+				${SQLITE3_LIBRARIES}
+			)
+		# DEKAF2_LIBRARY_BUILD is needed for dynamic libs
+		target_compile_definitions (ksqlite-shared PRIVATE DEKAF2_LIBRARY_BUILD)
+		set_target_properties      (ksqlite-shared PROPERTIES C_VISIBILITY_PRESET   hidden)
+		set_target_properties      (ksqlite-shared PROPERTIES CXX_VISIBILITY_PRESET hidden)
+		set_target_properties      (ksqlite-shared PROPERTIES OUTPUT_NAME "ksqlite")
+		set_target_properties      (ksqlite-shared PROPERTIES SOVERSION ${PROJECT_VERSION_MAJOR} VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
 
-	if (DEKAF2_USE_PRECOMPILED_HEADERS)
-		target_precompile_headers(ksqlite REUSE_FROM dekaf2)
+		if (DEKAF2_USE_PRECOMPILED_HEADERS)
+			target_precompile_headers(ksqlite-shared REUSE_FROM dekaf2-objects)
+		endif()
+	endif()
+
+	if (DEKAF2_BUILD_STATIC_DEKAF2)
+		add_library(ksqlite STATIC ksqlite.cpp ksqlite.h)
+		target_link_libraries(ksqlite
+			PRIVATE
+				dekaf2
+				${SQLITE3_LIBRARIES}
+			)
+		# DEKAF2_LIBRARY_BUILD is needed for dynamic libs
+		target_compile_definitions(ksqlite PRIVATE DEKAF2_LIBRARY_BUILD)
+
+		if (DEKAF2_USE_PRECOMPILED_HEADERS)
+			target_precompile_headers(ksqlite REUSE_FROM dekaf2-objects)
+		endif()
 	endif()
 endif()
 
@@ -1343,6 +1436,12 @@ target_link_libraries(dekaf2project dekaf2)
 add_executable(kurl samples/kurl.cpp samples/kurl.h)
 target_include_directories(kurl PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(kurl dekaf2)
+
+if (DEKAF2_BUILD_SHARED_DEKAF2)
+	add_executable(kurl-shared samples/kurl.cpp samples/kurl.h)
+	target_include_directories(kurl-shared PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+	target_link_libraries(kurl-shared dekaf2-shared)
+endif()
 
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_include_directories(getentities PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
@@ -1378,15 +1477,18 @@ install(TARGETS fmt           EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(TARGETS nlohmann-json EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(TARGETS re2           EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(TARGETS frozen        EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+install(TARGETS date-tz       EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 
-if (NOT DEKAF2_STD_CHRONO_HAS_TIMEZONE)
-	install(TARGETS date-tz   EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+if (DEKAF2_BUILD_SHARED_DEKAF2)
+	install(TARGETS dekaf2-shared ksql2-shared EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 endif()
-
-install(TARGETS dekaf2 ksql2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+if (DEKAF2_BUILD_STATIC_DEKAF2)
+	install(TARGETS dekaf2 ksql2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+endif()
+install(TARGETS ${DEKAF2_TARGETS} EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
-install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
-install(FILES ${GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake DESTINATION ${dekaf2_lib_dest})
+install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
+install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake DESTINATION ${dekaf2_lib_dest})
 install(TARGETS klog createdbc dekaf2project kurl DESTINATION ${dekaf2_bin_dest})
 if (DEKAF2_HAS_NCURSES)
 	install(TARGETS unixmenu DESTINATION ${dekaf2_bin_dest})
@@ -1397,12 +1499,17 @@ install(FILES ${PUBLIC_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2)
 install(FILES ksql.h DESTINATION ${dekaf2_include_dest}/dekaf2)
 install(FILES bits/ksql_dbc.h DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
 if(SQLITE3_FOUND)
-	install(TARGETS ksqlite EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+	if (DEKAF2_BUILD_SHARED_DEKAF2)
+		install(TARGETS ksqlite-shared EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+	endif()
+	if (DEKAF2_BUILD_STATIC_DEKAF2)
+		install(TARGETS ksqlite EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+	endif()
 	install(FILES ksqlite.h DESTINATION ${dekaf2_include_dest}/dekaf2)
 endif()
 install(FILES ${BITS_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
 install(FILES ${BITS_SIMD_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits/simd)
-install(FILES "${GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION ${dekaf2_lib_dest})
+install(FILES "${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION ${dekaf2_lib_dest})
 install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/mysql-newuser" DESTINATION ${dekaf2_bin_dest})
 install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/findcol" DESTINATION ${dekaf2_bin_dest})
 install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/kport" DESTINATION ${dekaf2_bin_dest})

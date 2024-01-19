@@ -678,7 +678,7 @@ KInStream& kGetNullInStream();
 /// The general reader abstraction for dekaf2. Can be constructed around any
 /// std::istream.
 template<class IStream>
-class KReader
+class DEKAF2_PUBLIC KReader
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
         : public IStream
         , public KInStream

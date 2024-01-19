@@ -292,24 +292,26 @@ private:
 
 }; // KOutStream
 
+DEKAF2_PUBLIC
 extern KOutStream KErr;
+DEKAF2_PUBLIC
 extern KOutStream KOut;
 
 //-----------------------------------------------------------------------------
 /// return a std::ostream object that writes to nothing, but is valid
-std::ostream& kGetNullOStream();
+std::ostream& DEKAF2_PUBLIC kGetNullOStream();
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// return a KOutStream object that writes to nothing, but is valid
-KOutStream& kGetNullOutStream();
+KOutStream& DEKAF2_PUBLIC kGetNullOutStream();
 //-----------------------------------------------------------------------------
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The general Writer abstraction for dekaf2. Can be constructed around any
 /// std::ostream.
 template<class OStream>
-class KWriter
+class DEKAF2_PUBLIC KWriter
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
         : public OStream
         , public KOutStream

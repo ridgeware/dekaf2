@@ -56,7 +56,7 @@ DEKAF2_NAMESPACE_BEGIN
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a duration type that constructs always initialized, converts properly from and to time_t,
 /// and offers quick accessors to various duration casts
-class KDuration : public chrono::nanoseconds
+class DEKAF2_PUBLIC KDuration : public chrono::nanoseconds
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

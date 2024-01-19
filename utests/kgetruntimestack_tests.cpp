@@ -10,9 +10,11 @@ TEST_CASE("kGetRuntimeStack")
 {
 	SECTION("backtrace")
 	{
+#ifndef DEKAF2_HAS_MUSL
 		KString sTrace = kGetRuntimeStack();
 		INFO  ( sTrace );
 		CHECK ( sTrace.Split('\n').size() >= 5 );
+#endif
 	}
 
 }

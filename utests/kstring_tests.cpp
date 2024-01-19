@@ -2207,4 +2207,38 @@ TEST_CASE("KString") {
 		CHECK ( sStr == "abcdefghijklmnopqrstuv" );
 	}
 
+	SECTION("std::to_string")
+	{
+		std::array<std::pair<double, KStringView>, 3> dTests
+		{{
+			{ 1.0         , "1.000000" },
+			{ 1.1         , "1.100000" },
+			{ 1.1234567890, "1.123457" },
+		}};
+
+		for (auto& Test : dTests)
+		{
+			auto s = std::to_string(Test.first);
+			CHECK ( s == Test.second );
+		}
+	}
+
+	SECTION("KString::to_string")
+	{
+		std::array<std::pair<double, KStringView>, 5> dTests
+		{{
+			{ 1.0         , "1" },
+			{ 1.1         , "1.1" },
+			{ 1.1234567890, "1.123456789" },
+			{ 1.123456784444444441, "1.1234567844444445" }, // this is an interesting rounding behavior in fmtlib
+			{ 1.123456784444444447, "1.1234567844444445" },
+		}};
+
+		for (auto& Test : dTests)
+		{
+			auto s = KString::to_string(Test.first);
+			CHECK ( s == Test.second );
+		}
+	}
+
 }

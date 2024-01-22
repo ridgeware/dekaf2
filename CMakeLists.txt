@@ -142,16 +142,15 @@ set(dekaf2_share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}-${lib_versi
 
 # =================================== ENVIRONMENT ==================================
 
-if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
-	set (CPU_x86 64)
-elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
-	set (CPU_x86 32)
-elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
-	set (CPU_ARM 64)
-elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
-	set (CPU_ARM 32)
-elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch")
-	set (CPU_ARM 64)
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" OR
+	CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
+	MATH(EXPR CPU_x86 "${CMAKE_SIZEOF_VOID_P} * 8")
+	message(STATUS "CPU_x86: ${CPU_x86} bit OS")
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm64" OR
+	CMAKE_SYSTEM_PROCESSOR MATCHES "arm"       OR
+	CMAKE_SYSTEM_PROCESSOR MATCHES "aarch")
+	MATH(EXPR CPU_ARM "${CMAKE_SIZEOF_VOID_P} * 8")
+	message(STATUS "CPU_ARM: ${CPU_ARM} bit OS")
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -541,9 +540,13 @@ else ()
 
 endif (DOXYGEN_FOUND)
 
-# =============================== GENERATED FILES =================================
+# =============================== COMPILE TESTS =================================
 
-# warning flags
+# create the build directory for generated files
+set(DEKAF2_GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY "${DEKAF2_GENERATED_FILES_DIR}")
+
+# test warning flags
 include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag(-Wstringop-overflow             DEKAF2_HAS_WARN_STRINGOP_OVERFLOW)
 check_cxx_compiler_flag(-Wstringop-overread             DEKAF2_HAS_WARN_STRINGOP_OVERREAD)
@@ -551,10 +554,6 @@ check_cxx_compiler_flag(-Warray-bounds                  DEKAF2_HAS_WARN_ARRAY_BO
 check_cxx_compiler_flag(-Wdeprecated-declarations       DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS)
 check_cxx_compiler_flag(-Wliteral-suffix                DEKAF2_HAS_WARN_LITERAL_SUFFIX)
 check_cxx_compiler_flag(-Wreserved-user-defined-literal DEKAF2_HAS_WARN_RESERVED_USER_DEFINED_LITERAL)
-
-# create and include the build directory for generated files
-set(DEKAF2_GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
-file(MAKE_DIRECTORY "${DEKAF2_GENERATED_FILES_DIR}")
 
 # discover availability of std::chrono calendar capabilities
 if (CMAKE_CXX_STANDARD GREATER 17)
@@ -631,6 +630,18 @@ if (CMAKE_CXX_STANDARD GREATER 17)
 else()
 	message(STATUS "no std::u8string support before C++20")
 endif()
+
+# test if libatomic is needed
+try_compile(DEKAF2_NO_NEED_FOR_LIBATOMIC
+			"${DEKAF2_GENERATED_FILES_DIR}"
+			"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/libatomic_test.cpp")
+
+if (NOT DEKAF2_NO_NEED_FOR_LIBATOMIC)
+	set(DEKAF2_ATOMIC_LIB atomic)
+	message(STATUS "we need libatomic")
+endif()
+
+# =============================== GENERATED FILES =================================
 
 # create the configuration header file
 configure_file("bits/kconfiguration.h.in" "${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
@@ -1151,10 +1162,6 @@ if (DEKAF2_WITH_PEDANTIC_WARNINGS)
 	endif()
 endif()
 
-if (CPU_ARM EQUAL 32)
-	set(ARM_NEEDS_ATOMIC_LIB atomic)
-endif()
-
 # we have to create the timezone library even when dekaf2 itself has
 # std::chrono timezones - the reason is that users may compile with
 # C++ < 20, in which case the std headers do not expose the timezone
@@ -1273,7 +1280,7 @@ set(DEKAF2_LINK_LIBRARIES
 		frozen
 		${MINIFOLLY}
 		Threads::Threads
-		${ARM_NEEDS_ATOMIC_LIB}
+		${DEKAF2_ATOMIC_LIB}
 	PRIVATE
 		${FCGILIBS}
 		${FSLIB}

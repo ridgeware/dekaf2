@@ -252,19 +252,23 @@ void KOptions::CLIParms::Create(KStringViewZ sArg, PersistedStrings& Strings)
 
 		for (auto ch : sArg)
 		{
-			if (KASCII::kIsBlank(ch) || ch == '=')
+			if (KASCII::kIsBlank(ch))
 			{
 				break;
 			}
 
-			++iPos;
-		}
+			if (ch == '=')
+			{
+				if (iPos > 0)
+				{
+					KString sNewArg = sArg.ToView(0, iPos);
+					m_ArgVec.push_back(Strings.Persist(sNewArg).ToView());
+					sArg.remove_prefix(iPos + 1);
+				}
+				break;
+			}
 
-		if (iPos > 1 && sArg[iPos] == '=')
-		{
-			KString sNewArg = sArg.ToView(0, iPos);
-			m_ArgVec.push_back(Strings.Persist(sNewArg).ToView());
-			sArg.remove_prefix(iPos + 1);
+			++iPos;
 		}
 	}
 

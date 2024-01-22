@@ -31,8 +31,11 @@ fi
 # centos64v7 | Red Hat Enterprise Linux Server release 7.6 (Maipo) | Linux may-oladm01 3.10.0-957.10.1.el7.x86_64 #1 SMP Thu Feb 7 07:12:53 UTC 2019 x86_64 x86_64 x86_64 GNU/Linux
 #------------+--------------------------------------+------------------------------------------------------------------------------------------------------------------------
 #
-if [[ "$(which file)" != "" ]]; then
-	case $(file /bin/ls) in
+# 'which' is not always existing, and 'ls' may be a script or busybox or similar
+# therefore test for 'file' with 'command -v', and let file test itself
+file_bin="$(command -v file)"
+if [[ "${file_bin}" != "" ]]; then
+	case $("${file_bin}" "${file_bin}") in
 		*32-bit*)
 			bits=32
 			;;
@@ -63,7 +66,10 @@ case $(uname -m) in
 		;;
 esac
 
-[[ -f /etc/redhat-release ]] && name=$(cat /etc/redhat-release) || name=$(uname -a)
+[[ "${name}" == "" ]] && [[ -f /etc/redhat-release     ]] && name=$(cat /etc/redhat-release)
+[[ "${name}" == "" ]] && [[ -f /etc/system-release     ]] && name=$(cat /etc/system-release)
+[[ "${name}" == "" ]] && [[ -f /etc/system-release-cpe ]] && name=$(cat /etc/system-release-cpe)
+[[ "${name}" == "" ]] && name=$(uname -a)
 
 case "$name" in
 	"Darwin"*)
@@ -90,8 +96,8 @@ case "$name" in
 	FreeBSD|OpenBSD|*BSD)
 		distribution="freebsd"
 		;;
-	*amzn*|*AMZN*) # must be before Red Hat
-		version=$(cat /etc/system-release-cpe | sed -r 's,cpe:.*:amazon:.*linux:,,g' | sed -r 's,:ga,,g')
+	*amazon*|*Amazon*|*amzn*|*AMZN*) # must be before Red Hat
+		version=$(cut -d: -f6 /etc/system-release-cpe)
 		distribution="aws"
 		;;
 	"CentOS Linux release"*|"CentOS Stream release"*)
@@ -112,10 +118,10 @@ case "$name" in
 		;;
 	*)
 		if [[ -f /etc/lsb-release ]]; then
-			distribution=$(grep 'DISTRIB_ID=' /etc/lsb-release | sed -r 's,DISTRIB_ID=,,g' | tr 'A-Z' 'a-z')
+			distribution=$(grep 'DISTRIB_ID=' /etc/lsb-release | sed -r 's,DISTRIB_ID=,,g' | tr 'A-Z"' 'a-z ')
 			version=$(grep 'DISTRIB_RELEASE=' /etc/lsb-release | sed -r 's,DISTRIB_RELEASE=,,g' | tr '.' ' ' | awk '{printf ("%d", $1)}')
 		elif [[ -f /etc/os-release ]]; then
-			distribution=$(grep 'ID=' /etc/os-release | grep -v "_ID=" | sed -r 's,ID=,,g' | tr 'A-Z' 'a-z' | awk '{printf ("%s", $1)}')
+			distribution=$(grep 'ID=' /etc/os-release | grep -v "_ID=" | sed -r 's,ID=,,g' | tr 'A-Z"' 'a-z ' | awk '{printf ("%s", $1)}')
 			version=$(grep 'VERSION_ID=' /etc/os-release | sed -r 's,VERSION_ID=,,g' | tr '."' '  ' | awk '{printf ("%d", $1)}')
 		elif [[ -f /etc/debian_version ]]; then
 			distribution="debian"
@@ -127,8 +133,13 @@ case "$name" in
 		;;
 esac
 
+[[ "${distribution}" == "amzn" ]] && distribution="aws"
+
 BIN=${distribution}${arch}${bits}
 [[ "${version}" != "" ]] && BIN="${BIN}v${version}"
+
+# for historical reasons we treat amazon aarch64 linux 2 as aws6
+[[ "${BIN}" == "awsarm64v2" ]] && BIN="aws6"
 
 case "$1" in
 	-arch|-ARCH|arch|ARCH)
@@ -138,7 +149,7 @@ case "$1" in
 		echo "$BIN"
 		;;
 	*)
-		awk  '($0 ~ /^#%/) {print substr($0,3)}' $0
+		awk '($0 ~ /^#%/) {print substr($0,3)}' $0
 		exit 1
 		;;
 esac

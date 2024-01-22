@@ -28,17 +28,17 @@ WORKDIR /home/dekaf2/build/${buildtype}
 
 # create cmake setup
 RUN cmake \
-	-DCMAKE_BUILD_TYPE="${buildtype}" \
-	${build_options}                  \
-	-DDEKAF2_NO_BUILDSETUP=ON         \
-	-DDEKAF2_USE_JEMALLOC=ON          \
-	../../
+  -DCMAKE_BUILD_TYPE="${buildtype}" \
+  ${build_options} \
+  -DDEKAF2_NO_BUILDSETUP=ON \
+  -DDEKAF2_USE_JEMALLOC=ON \
+  ../../
 
 # build
 RUN [[ "${parallel}" != "" ]] \
-    && export CPUCORES="${parallel}" \
-    || export CPUCORES=$(expr $(egrep '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
-    cmake --build . --parallel ${CPUCORES} --target all
+  && export CPUCORES="${parallel}" \
+  || export CPUCORES=$(expr $(egrep '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
+  cmake --build . --parallel ${CPUCORES} --target all
 
 # install
 #RUN cmake --install .

@@ -93,7 +93,8 @@ OPTION(DEKAF2_BUILD_SHARED_DEKAF2 "build a shared version of dekaf2" OFF)
 
 # =================================== C++ STANDARD =================================
 
-set(CMAKE_CXX_STANDARD 20)
+set(DEKAF2_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD ${DEKAF2_CXX_STANDARD})
 
 # we do not force C++20 if not available, cmake will pick the highest available
 # dekaf2 supports 14/17/20, and also 11 for mostly all code, but uses smarter options

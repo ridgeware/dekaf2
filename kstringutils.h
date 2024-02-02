@@ -285,7 +285,7 @@ String& kMakeRightUTF8(String& sInput, std::size_t iCount)
 }
 
 //-----------------------------------------------------------------------------
-/// returns KCcodePoint at UTF8 position iCount
+/// returns KCodePoint at UTF8 position iCount
 template<class String>
 DEKAF2_CONSTEXPR_14
 DEKAF2_PUBLIC
@@ -917,7 +917,7 @@ KString kFormString(KStringView sInp, typename KString::value_type separator = '
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Count occurence of ch in container
+/// Count occurrence of ch in container
 template<class Container>
 inline size_t kCountChar(const Container& container, const typename Container::value_type ch) noexcept
 //-----------------------------------------------------------------------------
@@ -926,7 +926,7 @@ inline size_t kCountChar(const Container& container, const typename Container::v
 }
 
 //-----------------------------------------------------------------------------
-/// Count occurence of ch in str (to catch char* as well)
+/// Count occurrence of ch in str (to catch char* as well)
 DEKAF2_PUBLIC
 inline size_t kCountChar(KStringView str, const char ch) noexcept
 //-----------------------------------------------------------------------------

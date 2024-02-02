@@ -243,7 +243,7 @@ void KOpenIDProvider::Refresh(KTimer::Timepoint Now)
 	if (m_URL.Protocol != url::KProtocol::HTTPS)
 	{
 		SetError(kFormat("provider URL does not use HTTPS, but has to: {}", m_URL.Serialize()));
-		m_RefreshInterval = m_RefreshInterval.zero();
+		m_RefreshInterval = KTimer::Interval::zero();
 	}
 	else
 	{
@@ -321,7 +321,7 @@ void KOpenIDProvider::Refresh(KTimer::Timepoint Now)
 	else
 	{
 		// atomically switch to new keys
-		m_CurrentKeys.get()->store(m_Keys.get(), std::memory_order_relaxed);
+		m_CurrentKeys->store(m_Keys.get(), std::memory_order_relaxed);
 	}
 
 } // Refresh
@@ -518,7 +518,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 				break;
 			}
 
-			KRSAVerify::ALGORITHM Algorithm = KRSAVerify::NONE;
+			KRSAVerify::ALGORITHM Algorithm;
 
 			if (sAlgorithm == "RS256")
 			{
@@ -551,7 +551,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 			}
 
 			// mark that the token itself is from the right issuer (so that we could
-			// e.g. read the sub field or any other)
+			// e.g. read the sub-field or any other)
 			m_bSignatureIsValid = true;
 
 			// clear error

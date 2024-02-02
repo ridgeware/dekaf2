@@ -48,9 +48,9 @@
 #include "kstringutils.h"
 #include "kcgistream.h"
 #include "kurl.h"
-#include "khttp_header.h"
 #include "dekaf2.h"
 #include "koutstringstream.h"
+#include <utility>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -112,7 +112,7 @@ KOptions::OptionalParm::~OptionalParm()
 KOptions::OptionalParm& KOptions::OptionalParm::IntSection(KStringView sSection)
 //---------------------------------------------------------------------------
 {
-	// generate a sub-section
+	// generate a subsection
 	CallbackParam Section;
 
 	Section.m_iFlags    = CallbackParam::fIsSection;
@@ -301,10 +301,11 @@ void KOptions::CLIParms::Create(int argc, char const* const* argv, PersistedStri
 //---------------------------------------------------------------------------
 {
 	std::vector<KStringViewZ> parms;
+	parms.reserve(argc);
 
 	while (argc-- > 0)
 	{
-		parms.push_back(KStringViewZ(*argv++));
+		parms.emplace_back(*argv++);
 	}
 
 	Create(parms, Strings);
@@ -417,7 +418,7 @@ KStringView KOptions::HelpFormatter::WrapOutput(KStringView& sInput, std::size_t
 			{
 				// we prefer wrapping at spaces, and particularly so when the
 				// remainder would then fit into the next line without further
-				// wrapping (as we will have two lines anyways)
+				// wrapping (as we will have two lines anyway)
 				sWrapped.erase(iLastSpace);
 			}
 			else
@@ -480,7 +481,7 @@ void KOptions::HelpFormatter::GetEnvironment()
 	{
 		auto sPart = sEnv.Split();
 
-		if (sPart.size() > 0)
+		if (!sPart.empty())
 		{
 			m_sSeparator = sPart[0];
 
@@ -670,7 +671,7 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 
 		iIndent += m_iWrappedHelpIndent;
 
-		while (sDescription.size())
+		while (!sDescription.empty())
 		{
 			auto iSpaces = iIndent;
 			while (iSpaces--)
@@ -678,7 +679,7 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 				out.Write(' ');
 			}
 
-			auto sLimited = WrapOutput(sDescription, m_iColumns - iIndent, false);
+			sLimited = WrapOutput(sDescription, m_iColumns - iIndent, false);
 			out.WriteLine(sLimited);
 		}
 	}
@@ -742,7 +743,7 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 
 	if (!sAdditionalHelp.empty())
 	{
-		while (sAdditionalHelp.size())
+		while (!sAdditionalHelp.empty())
 		{
 			auto sLimited = WrapOutput(sAdditionalHelp, m_iColumns, true);
 			out.WriteLine(sLimited);
@@ -868,7 +869,7 @@ void KOptions::Help(KOutStream& out)
 
 	if (m_iRecursedHelp)
 	{
-		// we're calling ourself in a loop, because the user has setup an own
+		// we're calling ourselves in a loop, because the user has set up an own
 		// help callback which calls KOptions::Help()..
 		// Stop here, and output the automatic help
 		AutomaticHelp();
@@ -1003,7 +1004,7 @@ void KOptions::UnknownOption(CallbackN Function)
 						   CallbackParam::fIsUnknown |
 						   CallbackParam::fIsHidden,
 						   0,
-						   Function));
+						   std::move(Function)));
 }
 
 //---------------------------------------------------------------------------
@@ -1016,21 +1017,21 @@ void KOptions::UnknownCommand(CallbackN Function)
 						   CallbackParam::fIsUnknown |
 						   CallbackParam::fIsHidden,
 						   0,
-						   Function));
+						   std::move(Function)));
 }
 
 //---------------------------------------------------------------------------
 void KOptions::RegisterOption(KStringView sOptions, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	Register(CallbackParam(sOptions, sMissingParms, CallbackParam::fNone, iMinArgs, Function));
+	Register(CallbackParam(sOptions, sMissingParms, CallbackParam::fNone, iMinArgs, std::move(Function)));
 }
 
 //---------------------------------------------------------------------------
 void KOptions::RegisterCommand(KStringView sCommands, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
 //---------------------------------------------------------------------------
 {
-	Register(CallbackParam(sCommands, sMissingParms, CallbackParam::fIsCommand, iMinArgs, Function));
+	Register(CallbackParam(sCommands, sMissingParms, CallbackParam::fIsCommand, iMinArgs, std::move(Function)));
 }
 
 //---------------------------------------------------------------------------
@@ -1368,8 +1369,6 @@ bool KOptions::ValidArgType(ArgTypes Type, KStringViewZ sParm) const
 			return kIsFloat(sParm) || kIsInteger(sParm);
 
 		case Boolean:
-			return true;
-
 		case String:
 			return true;
 

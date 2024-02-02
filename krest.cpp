@@ -45,6 +45,7 @@
 #include "klambdastream.h"
 #include "kfilesystem.h"
 #include "kstringutils.h"
+#include <utility>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -158,7 +159,7 @@ bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStre
 
 	KRESTServer RESTServer(Routes, Options);
 	
-	RESTServer.Accept(Stream, sRemoteIP, Proto, iPort);
+	RESTServer.Accept(Stream, sRemoteIP, std::move(Proto), iPort);
 	bool bRet = RESTServer.Execute();
 
 	if (RESTServer.SwitchToWebSocket())

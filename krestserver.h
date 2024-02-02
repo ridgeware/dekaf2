@@ -53,6 +53,7 @@
 #include "kpoll.h"
 #include "khttplog.h"
 #include "kwebsocket.h"
+#include <utility>
 #include <vector>
 #include <memory>
 #include <limits>
@@ -299,7 +300,7 @@ public:
 	{
 		/// the json input object
 		KJSON rx;
-		/// the json output obect
+		/// the json output object
 		KJSON tx;
 
 		//-----------------------------------------------------------------------------
@@ -314,7 +315,7 @@ public:
 	{
 		/// the xml input object
 		KXML rx;
-		/// the xml output obect
+		/// the xml output object
 		KXML tx;
 
 		//-----------------------------------------------------------------------------
@@ -463,7 +464,7 @@ public:
 	void SetPostResponseCallback(std::function<void(const KRESTServer&)> PostResponseCallback)
 	//-----------------------------------------------------------------------------
 	{
-		m_PostResponseCallback = PostResponseCallback;
+		m_PostResponseCallback = std::move(PostResponseCallback);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -479,7 +480,7 @@ public:
 	void SetWebSocketHandler(std::function<void(KWebSocket&)> WebSocketHandler)
 	//-----------------------------------------------------------------------------
 	{
-		m_WebSocketHandlerCallback = WebSocketHandler;
+		m_WebSocketHandlerCallback = std::move(WebSocketHandler);
 	}
 
 	//-----------------------------------------------------------------------------

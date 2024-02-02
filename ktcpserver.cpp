@@ -352,7 +352,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 #endif
 				RunSession(*moved_stream, to_string(remote_endpoint), moved_stream->GetTCPSocket().native_handle());
 				// the thread pool keeps the object alive until it is
-				// overwritten in round robin, therefore we have to call
+				// overwritten in round-robin, therefore we have to call
 				// Disconnect explicitly now to shut down the connection
 				moved_stream->Disconnect();
 				kDebug(1, "ssl task pool size: {}, idle threads: {} total threads: {}",
@@ -399,7 +399,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 #endif
 				RunSession(*moved_stream, to_string(remote_endpoint), moved_stream->GetTCPSocket().native_handle());
 				// the thread pool keeps the object alive until it is
-				// overwritten in round robin, therefore we have to call
+				// overwritten in round-robin, therefore we have to call
 				// Disconnect explicitly now to shut down the connection
 				moved_stream->Disconnect();
 				kDebug(1, "task pool size: {}, idle threads: {} total threads: {}",
@@ -490,7 +490,7 @@ bool KTCPServer::UnixServer()
 #endif
 				RunSession(*moved_stream, m_sSocketFile, moved_stream->GetUnixSocket().native_handle());
 				// the thread pool keeps the object alive until it is
-				// overwritten in round robin, therefore we have to call
+				// overwritten in round-robin, therefore we have to call
 				// Disconnect explicitly now to shut down the connection
 				moved_stream->Disconnect();
 			});
@@ -800,7 +800,7 @@ bool KTCPServer::Stop()
 
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::RegisterShutdownWithSignals(std::vector<int> Signals)
+bool KTCPServer::RegisterShutdownWithSignals(const std::vector<int>& Signals)
 //-----------------------------------------------------------------------------
 {
 	auto SignalHandlers = Dekaf::getInstance().Signals();

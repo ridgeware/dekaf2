@@ -169,7 +169,7 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters* Params, bool bCompar
 							// this is a variable, add the value to our temporary query parms
 							if (Params)
 							{
-								Params->push_back({part, *req});
+								Params->emplace_back(part, *req);
 							}
 						}
 						else if (DEKAF2_UNLIKELY(part.front() == '='))
@@ -181,7 +181,7 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters* Params, bool bCompar
 							// and add the value to our temporary query parms
 							if (Params)
 							{
-								Params->push_back({sName, *req});
+								Params->emplace_back(sName, *req);
 							}
 						}
 						else if (DEKAF2_LIKELY(part != "*"))
@@ -427,7 +427,7 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 	else
 	{
 		// This file does not exist.. now check if we should better return
-		// a REST error code, or a HTTP server error code
+		// a REST error code, or an HTTP server error code
 
 		if (CheckForWrongMethod(HTTP.RequestPath))
 		{

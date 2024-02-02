@@ -808,7 +808,7 @@ KLog& KLog::LogWithGrepExpression(bool bEGrep, bool bInverted, KStringView sGrep
 bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-	// Moving this check to the first place helps avoiding
+	// Moving this check to the first place helps to avoid
 	// static deinitialization races with static instances of classes that will
 	// output to KLog in their destructor.
 	// It also allows to call functions with potential KLog output in the

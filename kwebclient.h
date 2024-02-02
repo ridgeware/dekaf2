@@ -80,12 +80,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response to an output stream - this variant is needed for Unix socket requests, which need a separate URL for the connection target
-	bool HttpRequest2Host (KOutStream& OutStream, KURL HostURL, KURL RequestURL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON);
+	bool HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, KURL RequestURL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response as a string - this variant is needed for Unix socket requests, which need a separate URL for the connection target
-	KString HttpRequest2Host (KURL HostURL, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON);
+	KString HttpRequest2Host (const KURL& HostURL, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

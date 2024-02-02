@@ -252,7 +252,7 @@ public:
 		return m_Attributes;
 	}
 
-	/// Check for existance of an attribute
+	/// Check for existence of an attribute
 	/// @param sName the attribute name
 	/// @return true it exists, otherwise false
 	bool HasAttribute(KStringView sName) const

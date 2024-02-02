@@ -49,6 +49,7 @@
 #include "ksystem.h"
 #include "kctype.h"
 #include "kinshell.h"
+#include <utility>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -481,7 +482,7 @@ KMIME KMIMEPart::ContentType() const
 } // GetContentType
 
 //-----------------------------------------------------------------------------
-bool KMIMEPart::Serialize(KStringRef& sOut, bool bForHTTP, const KReplacer& Replacer, uint16_t recursion, KMIME ParentMIME) const
+bool KMIMEPart::Serialize(KStringRef& sOut, bool bForHTTP, const KReplacer& Replacer, uint16_t recursion, const KMIME& ParentMIME) const
 //-----------------------------------------------------------------------------
 {
 	if (!IsMultiPart())

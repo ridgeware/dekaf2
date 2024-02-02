@@ -353,11 +353,11 @@ std::locale kGetLocale(KStringViewZ sLocale = KStringViewZ{}, bool bThrow = fals
 
 /// @return the decimal point in the given locale (defaults to the global locale)
 DEKAF2_PUBLIC
-char kGetDecimalPoint(std::locale locale = std::locale());
+char kGetDecimalPoint(const std::locale& locale = std::locale());
 
 /// @return the thousands separator in the given locale (defaults to the global locale)
 DEKAF2_PUBLIC
-char kGetThousandsSeparator(std::locale locale = std::locale());
+char kGetThousandsSeparator(const std::locale& locale = std::locale());
 
 /// @return the full path name of the running exe
 DEKAF2_PUBLIC

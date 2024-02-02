@@ -1387,7 +1387,7 @@ uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStr
 
 	if (true) // add unique tracker on the url
 	{
-		sURL += kFormat ("?uniq={}", kFormat ("{}|{}", time(NULL), sMyUniqueIP).Hash());
+		sURL += kFormat ("?uniq={}", kFormat ("{}|{}", time(nullptr), sMyUniqueIP).Hash());
 	}
 
 	for (const auto& it : m_Stats)

@@ -248,7 +248,7 @@ bool KROW::NeedsEscape (KStringView sCol, KStringView sCharsToEscape)
 KSQLString KROW::EscapeChars (KStringView sCol, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
 //-----------------------------------------------------------------------------
 {
-	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
+	// Note: if iEscapeChar is ZERO, then the char is used as its own escape char (i.e. it gets doubled up).
 	KSQLString sEscaped;
 	auto& sRef = sEscaped.ref();
 	sRef.reserve(sCol.size());
@@ -308,7 +308,7 @@ KSQLString KROW::EscapeChars (KStringView sCol, DBT iDBType)
 KSQLString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
 //-----------------------------------------------------------------------------
 {
-	// Note: if iEscapeChar is ZERO, then the char is used as it's own escape char (i.e. it gets doubled up).
+	// Note: if iEscapeChar is ZERO, then the char is used as its own escape char (i.e. it gets doubled up).
 
 	KSQLString sEscaped;
 
@@ -328,7 +328,7 @@ KSQLString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToE
 			// watch out for a trailing escape or escape char, depending on the algorithm:
 			if (iEscapeChar)
 			{
-				// now walk back to the begin of a sequence of backslashes
+				// now walk back to the beginning of a sequence of backslashes
 				while (iClipAt > 0 && sEscaped.str()[iClipAt-1] == iEscapeChar)
 				{
 					--iClipAt;
@@ -634,7 +634,7 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 	m_sLastError.clear(); // reset
 	KSQLString sSQL;
 	
-	if (!size())
+	if (empty())
 	{
 		m_sLastError = "KROW::FormUpdate(): no columns defined.";
 		kDebugLog (1, m_sLastError);
@@ -764,7 +764,7 @@ KSQLString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) const
 	m_sLastError.clear(); // reset
 	KSQLString sSQL;
 
-	if (!size())
+	if (empty())
 	{
 		bSelectAllColumns = true;
 	}

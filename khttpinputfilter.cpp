@@ -154,7 +154,7 @@ bool KInHTTPFilter::SetupInputFilter()
 	m_Filter->push(Source);
 
 	// save the pointer in a KInStream object for return by reference
-	m_FilteredInStream = KInStream(*m_Filter.get());
+	m_FilteredInStream = KInStream(*m_Filter);
 
 	return true;
 

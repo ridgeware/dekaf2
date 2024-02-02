@@ -366,7 +366,7 @@ bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRe
 		}
 
 		// We use an unbuffered file descriptor read on MacOS because
-		// with sub-optimal iostream implementations like the one coming
+		// with suboptimal iostream implementations like the one coming
 		// with clang on the mac it is about five times faster than
 		// reading from the iostream..
 		//
@@ -375,7 +375,7 @@ bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRe
 		// file descriptor reads. But they do not hurt there either.
 		// However, we do switch to iostreams on Linux now as well.
 		//
-		// For Windows, we switch to iostreams anyways, as otherwise
+		// For Windows, we switch to iostreams anyway, as otherwise
 		// we could not open UTF8 file names
 
 #ifdef DEKAF2_READALL_USE_IOSTREAMS

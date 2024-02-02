@@ -330,7 +330,7 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 		OutStream.Write(m_Name);
 		OutStream.Write('>');
 
-		if (!bIsInline) // do not test for bIsInlineBlock here, outside of the InlineBlock it behaves like an Inline
+		if (!bIsInline) // do not test for bIsInlineBlock here, outside the InlineBlock it behaves like an Inline
 		{
 			WriteLinefeed();
 		}

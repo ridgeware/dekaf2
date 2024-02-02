@@ -83,7 +83,7 @@ KWebClient::KWebClient(bool bVerifyCerts/*=false*/)
 }
 
 //-----------------------------------------------------------------------------
-bool KWebClient::HttpRequest2Host (KOutStream& OutStream, KURL HostURL, KURL RequestURL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
+bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, KURL RequestURL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
 //-----------------------------------------------------------------------------
 {
 	// placeholder for a web form we may generate from query parms
@@ -119,7 +119,7 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, KURL HostURL, KURL Req
 	bool bHaveSeparateConnectURL = !HostURL.empty();
 
 	// avoid a copy, use a ref
-	KURL& ConnectURL = bHaveSeparateConnectURL ? HostURL : RequestURL;
+	const KURL& ConnectURL = bHaveSeparateConnectURL ? HostURL : RequestURL;
 
 	for(;;)
 	{
@@ -296,7 +296,7 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, KURL HostURL, KURL Req
 } // HttpRequest2Host
 
 //-----------------------------------------------------------------------------
-KString KWebClient::HttpRequest2Host (KURL HostURL, KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, const KMIME& MIME/* = KMIME::JSON*/)
+KString KWebClient::HttpRequest2Host (const KURL& HostURL, KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, const KMIME& MIME/* = KMIME::JSON*/)
 //-----------------------------------------------------------------------------
 {
 	KString sResponse;

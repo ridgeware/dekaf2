@@ -40,6 +40,7 @@
 */
 
 #include "khttpserver.h"
+#include <utility>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -62,7 +63,7 @@ void KHTTPServer::clear()
 KHTTPServer::KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort)
 //-----------------------------------------------------------------------------
 {
-	Accept(Stream, sRemoteEndpoint, Proto, iPort);
+	Accept(Stream, sRemoteEndpoint, std::move(Proto), iPort);
 
 } // Ctor
 
@@ -73,7 +74,7 @@ bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint, url::KPro
 	SetError(KStringView{});
 
 	RemoteEndpoint = sRemoteEndpoint;
-	Protocol       = Proto;
+	Protocol       = std::move(Proto);
 	Port           = iPort;
 
 	Stream.SetReaderEndOfLine('\n');
@@ -214,7 +215,7 @@ url::KProtocol KHTTPServer::GetRemoteProto() const
 
 	if (Proto == url::KProtocol::UNDEFINED)
 	{
-		// we fallback to the direct connection protocol in any case
+		// we fall back to the direct connection protocol in any case
 		Proto = Protocol;
 	}
 
@@ -322,7 +323,7 @@ void KHTTPServer::EnableCompressionIfPossible()
 
 	Response.Headers.Set (KHTTPHeader::CONTENT_ENCODING, sCompression);
 
-	// for compression we need to switch to chunked transfer, as we do not know
+	// for compression, we need to switch to chunked transfer, as we do not know
 	// the size of the compressed content in advance
 	Response.Headers.Set (KHTTPHeader::TRANSFER_ENCODING, "chunked");
 	// remove the content length

@@ -855,7 +855,6 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// compares other instance with this
 	friend bool operator== (const KProtocol& left, const KProtocol& right)
 	//-------------------------------------------------------------------------
 	{

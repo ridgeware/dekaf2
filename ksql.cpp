@@ -64,6 +64,7 @@
 #include "ktime.h"
 #include "kduration.h"
 #include <cstdint>
+#include <utility>
 
 #ifndef _WIN32
 #include <sys/time.h>
@@ -663,7 +664,7 @@ bool KSQL::SetError(KString sError, uint32_t iErrorNum/*=-1*/, bool bNoThrow/*=f
 
 	if (!bNoThrow && m_bMayThrow && (!bIgnore))
 	{
-		auto iErrorNum = GetLastErrorNum();
+		iErrorNum = GetLastErrorNum();
 
 		if (iErrorNum == 0)
 		{
@@ -1922,7 +1923,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 
 	if (m_bEnableQueryTimeout && m_QueryTimeout > std::chrono::milliseconds(0) && (m_QueryTypeForTimeout & QueryType) == QueryType)
 	{
-		// we shall cancel long running queries
+		// we shall cancel long-running queries
 		bQueryTypeMatch = true;
 
 		// make sure we have a connection ID (this may lead to a recursion, and we want it
@@ -1944,7 +1945,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		s_TimedConnections.Add(*this);
 	}
 
-	// setup an empty scope guard
+	// set up an empty scope guard
 	KScopeGuard GuardQueryTimeout;
 
 	if (bQueryTypeMatch)
@@ -5456,10 +5457,10 @@ bool KSQL::DescribeTable (KStringView sTablename)
 } // DescribeTable
 
 //-----------------------------------------------------------------------------
-KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName/*current dbname*/, KStringView sTablenameLike/*="%"*/)
+KJSON KSQL::FindColumn (KStringView sColLike, KStringView sSchemaName/*current dbname*/, KStringView sTablenameLike/*="%"*/)
 //-----------------------------------------------------------------------------
 {
-	KString sTableSchema = (sSchemaName ? sSchemaName : GetDBName());
+	KString sTableSchema = (sSchemaName ? KString(sSchemaName) : GetDBName());
 
 	kDebug (3, "{}.{}...", sTableSchema, sColLike);
 	KJSON list = KJSON::array();
@@ -5496,18 +5497,8 @@ KJSON KSQL::FindColumn (KStringView sColLike, KString sSchemaName/*current dbnam
 	case DBT::ORACLE7:
 	case DBT::ORACLE8:
 	case DBT::ORACLE:
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-		SetError(kFormat ("KSQL::FindColumn() not coded yet for {}", TxDBType(m_iDBType)));
-		return list; // empty
-
-	// - - - - - - - - - - - - - - - - - - - - - - - -
 	case DBT::SQLSERVER:
 	case DBT::SQLSERVER15:
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-		SetError(kFormat ("KSQL::FindColumn() not coded yet for {}", TxDBType(m_iDBType)));
-		return list; // empty
-
-	// - - - - - - - - - - - - - - - - - - - - - - - -
 	default:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		SetError(kFormat ("KSQL::FindColumn() not coded yet for {}", TxDBType(m_iDBType)));
@@ -6420,13 +6411,14 @@ bool KSQL::Delete (const KROW& Row)
 } // Delete
 
 //-----------------------------------------------------------------------------
-bool KSQL::PurgeKey (KStringView sSchemaName, KROW& OtherKeys, KStringView sPKEY_colname, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/)
+bool KSQL::PurgeKey (KStringView sSchemaName, const KROW& OtherKeys, KStringView sPKEY_colname, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/)
 //-----------------------------------------------------------------------------
 {
 	KROW row = OtherKeys;
-	for (auto col : OtherKeys)
+
+	for (auto& col : row)
 	{
-		row.AddCol (col.first, col.second.sValue, col.second.GetFlags() | KCOL::PKEY);
+		col.second.AddFlags(KCOL::PKEY);
 	}
 
 	if (!ChangesMade.is_array())
@@ -9050,7 +9042,7 @@ KString KSQL::ConvertTimestamp (KStringView sTimestamp)
 DbSemaphore::DbSemaphore (KSQL& db, KString sAction, bool bThrow, bool bWait, chrono::seconds iTimeout, bool bVerbose)
 //-----------------------------------------------------------------------------
 	: m_db       { db       }
-	, m_sAction  { sAction  }
+	, m_sAction  { std::move(sAction) }
 	, m_bThrow   { bThrow   }
 	, m_bVerbose { bVerbose }
 {
@@ -9634,28 +9626,28 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 					if (oLeftColumn.is_null())
 					{
 						// columns/indexes on the LEFT table but not on the RIGHT table
-						Diffs.push_back({
+						Diffs.emplace_back(
 							kFormat ("{}.{}: column/index on the RIGHT table but not on the LEFT table: we can either drop it from the RIGHT or add it to the LEFT", sTablename, sField),
 							FormAlterAction (sTablename, oRightColumn, /*sVerb=*/"add"),
 							FormAlterAction (sTablename, oRightColumn, /*sVerb=*/"drop")
-						});
+						);
 					}
 					else if (oRightColumn.is_null())
 					{
 						// columns/indexes on the LEFT table but not on the RIGHT table
-						Diffs.push_back ({
+						Diffs.emplace_back(
 							kFormat ("{}.{}: column/index on the LEFT table but not on the RIGHT table: we can either drop it from the LEFT or add it to the RIGHT", sTablename, sField),
 							FormAlterAction (sTablename, oLeftColumn, /*sVerb=*/"drop"),
 							FormAlterAction (sTablename, oLeftColumn, /*sVerb=*/"add")
-						});
+						);
 					}
 					else
 					{
-						Diffs.push_back ({
+						Diffs.emplace_back(
 							kFormat ("{}.{}: column/index definition differs: we can either synch LEFT to RIGHT or synch RIGHT to LEFT", sTablename, sField),
 							FormAlterAction (sTablename, oRightColumn, /*sVerb=*/"modify"),
 							FormAlterAction (sTablename, oLeftColumn,  /*sVerb=*/"modify")
-						});
+						);
 					}
 					++iTableDiffs;
 				}
@@ -9692,11 +9684,11 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 					FormCreateAction (sTablename, oRightColumn, sLeftCreate);
 					break;
 				case 0:
-					Diffs.push_back ({
+					Diffs.emplace_back(
 						kFormat ("{}.{}: columns/indexes on the RIGHT table but not on the LEFT table", sTablename, sField),
 						FormAlterAction (sTablename, oRightColumn, /*sVerb=*/"add"),
 						FormAlterAction (sTablename, oRightColumn, /*sVerb=*/"drop")
-					});
+					);
 				}
 
 				// verbosity:
@@ -9712,23 +9704,23 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 		{
 		case 'L':
 			sLeftCreate += ")";
-			Diffs.push_back ({
+			Diffs.emplace_back(
 				kFormat ("{}: table is only in the RIGHT schema: we can either drop it from the RIGHT or add it to the LEFT", sTablename),
 				sLeftCreate,
 				sRightCreate
-			});
+			);
 			break;
 		case 'R':
 			sRightCreate += ")";
-			Diffs.push_back ({
+			Diffs.emplace_back(
 				kFormat ("{}: table is only in the LEFT schema: we can either drop it from the LEFT or add it to the RIGHT", sTablename),
 				sLeftCreate,
 				sRightCreate
-			});
+			);
 			break;
 		}
 
-		if (! Diffs.size())
+		if (Diffs.empty())
 		{
 			sSummary.clear(); // <-- this happens when columns match but are in a different order in the two databases
 		}

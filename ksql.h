@@ -383,7 +383,7 @@ public:
 	bool   PurgeKey        (KStringView sSchemaName, KStringView sPKEY_colname, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex="");
 
 	/// cascading delete of a given key with other composite key[s] from the entire database (uses data dictionary tables). returns true/false and populates all changes made in given json array. expects a single string or number (without quotes)
-	bool   PurgeKey        (KStringView sSchemaName, KROW& OtherKeys, KStringView sPKEY_colname, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/);
+	bool   PurgeKey        (KStringView sSchemaName, const KROW& OtherKeys, KStringView sPKEY_colname, KStringView sValue, KJSON& ChangesMade, KStringView sIgnoreRegex/*=""*/);
 
 	/// cascading delete of a given key from the entire database (uses data dictionary tables). returns true/false and populates all changes made in given json array. expects IN clause (without the parens)
 	bool   PurgeKeyList    (KStringView sSchemaName, KStringView sPKEY_colname, const KSQLString& sInClause, KJSON& ChangesMade, KStringView sIgnoreRegex="", bool bDryRun=false, int64_t* piNumAffected=NULL);
@@ -751,7 +751,7 @@ public:
 	/// returns a JSON array: table_name, column_name, column_key, column_comment, is_nullable, column_default
 	/// empty array means column not found
 	/// optional sTablenamePrefix will restrict the results to tables/views matching that LIKE pattern
-	KJSON  FindColumn    (KStringView sColLike, KString sSchemaName=""/*current dbname*/, KStringView sTableNameLike="%");
+	KJSON  FindColumn    (KStringView sColLike, KStringView sSchemaName=""/*current dbname*/, KStringView sTableNameLike="%");
 
 
 	bool   QueryStarted ()         { return (m_bQueryStarted); }

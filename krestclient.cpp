@@ -356,8 +356,6 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, const KMIM
 
 	if (!HttpSuccess())
 	{
-		KString sError;
-
 		if (!Error().empty())
 		{
 			sError = Error();

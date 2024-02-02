@@ -151,7 +151,7 @@ bool KHTMLObject::Parse(KBufferedReader& InStream, KStringView sOpening, bool bD
 //-----------------------------------------------------------------------------
 {
 	// it would not make sense to call the string parser, as
-	// we woud not know in advance how many characters of the
+	// we would not know in advance how many characters of the
 	// stream we would have to consume
 	return false;
 
@@ -522,9 +522,9 @@ bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening, b
 	// the algorithm of choice would actually be a Knuth-Morris-Pratt
 	// search. However, for the three patterns we are searching for
 	// in this parser we can implement really fast and simple
-	// hard wired code. But the consequence is that we cannot accept
+	// hard-wired code. But the consequence is that we cannot accept
 	// arbitrary lead-out strings, but only "-->", "?>" and ">".
-	// In fact we delegate the search for the lead-out to the child
+	// In fact, we delegate the search for the lead-out to the child
 	// class to implement the corresponding algorithm there.
 
 	return SearchForLeadOut(InStream);
@@ -822,7 +822,7 @@ KHTMLAttributes& KHTMLAttributes::Set(KHTMLAttribute Attribute)
 } // Set
 
 //-----------------------------------------------------------------------------
-KHTMLAttributes& KHTMLAttributes::Set(KHTMLAttributes Attributes)
+KHTMLAttributes& KHTMLAttributes::Set(const KHTMLAttributes& Attributes)
 //-----------------------------------------------------------------------------
 {
 	for (auto& Attribute : Attributes)

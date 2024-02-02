@@ -105,7 +105,7 @@ set(CMAKE_CXX_STANDARD ${DEKAF2_CXX_STANDARD})
 
 message(STATUS "CMake Generator: ${CMAKE_GENERATOR}")
 
-if (CMAKE_GENERATOR MATCHES "Makefile")
+if (CMAKE_GENERATOR MATCHES "Makefile" OR CMAKE_GENERATOR MATCHES "Ninja")
 
 	# single configuration setup - make sure we have a build type
 

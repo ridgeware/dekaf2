@@ -95,7 +95,7 @@
 
 #if defined __clang__
 	#define DEKAF2_CLANG_VERSION_MAJOR __clang_major__
-	#define DEKAF2_CLANG_VERSION __clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__
+	#define DEKAF2_CLANG_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 	#define DEKAF2_IS_CLANG 1
 	#define DEKAF2_NO_GCC 1
 #else
@@ -372,7 +372,7 @@
 #endif
 
 // define macros to teach the compiler which branch is more likely
-// to be taken - the effects are actually minimal to nonexisting,
+// to be taken - the effects are actually minimal to nonexistent,
 // so do not bother for code that is not really core
 #if defined __clang__ || (defined(__GNUC__) && __GNUC__ >= 4)
 	#define DEKAF2_LIKELY(expression)   (__builtin_expect((expression), 1))
@@ -508,9 +508,9 @@
 // in a type-safe fashion.
 //
 // There is no way except macros to selectively enable bit operators in C++ - the alternative would be to
-// enable them for all enums, which is not desireable.
+// enable them for all enums, which is not desirable.
 //
-// Use preferrably with bitset enums like:
+// Use preferably with bitset enums like:
 //
 // enum Flags { RED = 1 << 0, BLUE = 1 << 1, GREEN = 1 << 2 };
 // DEKAF2_ENUM_IS_FLAG(Flags);

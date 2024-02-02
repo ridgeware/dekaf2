@@ -45,7 +45,6 @@
 #include "klog.h"
 #include "kregex.h"
 #include "kutf8.h"
-#include "kstack.h"
 #include "kctype.h"
 
 DEKAF2_NAMESPACE_BEGIN
@@ -342,11 +341,7 @@ KStringView KString::ToView(size_type pos, size_type n) const
 		pos = iSize;
 	}
 	
-	if (DEKAF2_UNLIKELY(n > iSize))
-	{
-		n = iSize - pos;
-	}
-	else if (DEKAF2_UNLIKELY(pos + n > iSize))
+	if (DEKAF2_UNLIKELY(n > iSize || pos + n > iSize))
 	{
 		n = iSize - pos;
 	}

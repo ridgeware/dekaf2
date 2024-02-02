@@ -128,15 +128,13 @@ public:
 	/// are all info valid?
 	bool IsValid() const { return Error().empty(); }
 
-	KTimer::Timepoint LastRefresh() const;
-
 	struct KeysAndIssuer
 	{
 		KOpenIDKeys Keys;
 		KString     sIssuer;
 	};
 
-	const KeysAndIssuer& Get() const { return *m_CurrentKeys.get()->load(std::memory_order_relaxed); }
+	const KeysAndIssuer& Get() const { return *m_CurrentKeys->load(std::memory_order_relaxed); }
 
 	void Refresh(KTimer::Timepoint Now = Dekaf::getInstance().GetCurrentTimepoint());
 
@@ -156,7 +154,7 @@ private:
 	mutable KString   m_sError;
 	KString           m_sScope;
 	KURL              m_URL;
-	KTimer::Interval  m_RefreshInterval;
+	KTimer::Interval  m_RefreshInterval {};
 	KTimer::Timepoint m_LastRefresh;
 
 }; // KOpenIDProvider

@@ -217,7 +217,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Register to shut down on iSignal
-	bool RegisterShutdownWithSignals(std::vector<int> Signals);
+	bool RegisterShutdownWithSignals(const std::vector<int>& Signals);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

@@ -383,7 +383,7 @@ public:
 
 	KHTMLAttributes& Set(KHTMLAttribute Attribute);
 
-	KHTMLAttributes& Set(KHTMLAttributes Attributes);
+	KHTMLAttributes& Set(const KHTMLAttributes& Attributes);
 
 	KHTMLAttributes& operator+=(KHTMLAttribute Attribute)
 	{

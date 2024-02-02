@@ -57,6 +57,7 @@
 #include "ktime.h"
 #include "kwebsocket.h"
 #include "kscopeguard.h"
+#include <utility>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -85,7 +86,7 @@ KRESTServer::KRESTServer(KStream&           Stream,
 						 const KRESTRoutes& Routes,
 						 const Options&     Options)
 //-----------------------------------------------------------------------------
-: KHTTPServer(Stream, sRemoteEndpoint, Proto, iPort)
+: KHTTPServer(Stream, sRemoteEndpoint, std::move(Proto), iPort)
 , m_Routes(Routes)
 , m_Options(Options)
 {
@@ -762,7 +763,7 @@ bool KRESTServer::Execute()
 					&& GetAuthenticatedUser().empty())
 				{
 					// generic auth was requested, but neither SSO nor any other authentication method
-					// resulted in a user name
+					// resulted in a username
 					if (m_Options.FailedAuthCallback)
 					{
 						m_Options.FailedAuthCallback(*this);
@@ -826,7 +827,7 @@ bool KRESTServer::Execute()
 				}
 
 				// upgrade to a websocket connection - compute and set the needed response headers
-				// we will still call the route handler, but in general it should only setup
+				// we will still call the route handler, but in general it should only set up
 				// the websocket callback, and not add additional output
 				const auto& sClientSecKey = Request.Headers.Get(KHTTPHeader::SEC_WEBSOCKET_KEY);
 				Response.Headers.Add(KHTTPHeader::SEC_WEBSOCKET_ACCEPT, kwebsocket::GenerateServerSecKeyResponse(sClientSecKey, true));
@@ -1001,7 +1002,7 @@ void KRESTServer::WriteHeaders()
 
 	{
 		// the headers get written directly to the unfiltered stream,
-		// therefore we have to count them outside of the filter pipeline
+		// therefore we have to count them outside the filter pipeline
 		KCountingOutputStreamBuf OutputCounter(Response.UnfilteredStream());
 
 		// writes response headers to output, do not flush, we will have content following
@@ -1188,7 +1189,7 @@ void KRESTServer::Output()
 
 				if (m_Options.TimingCallback)
 				{
-					m_Options.TimingCallback(*this, *m_Timers.get());
+					m_Options.TimingCallback(*this, *m_Timers);
 				}
 			}
 
@@ -1419,7 +1420,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 				if (json.tx.empty() &&
 					Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::HTML_UTF8)
 				{
-					// write the error message as a HTML page if there is no
+					// write the error message as an HTML page if there is no
 					// JSON error output and the content type is HTML
 					sContent = kFormat("<html><head>HTTP Error {}</head><body><h2>{} {}</h2></body></html>\n",
 									   Response.GetStatusCode(),
@@ -1489,7 +1490,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 
 				if (m_Options.TimingCallback)
 				{
-					m_Options.TimingCallback(*this, *m_Timers.get());
+					m_Options.TimingCallback(*this, *m_Timers);
 				}
 			}
 

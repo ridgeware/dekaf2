@@ -114,7 +114,7 @@ KMail& KMail::Message(KString sMessage)
 	}
 	else
 	{
-		Attach(KMIMEText(std::move(sMessage)));
+		Attach(KMIMEText(sMessage));
 		m_iBody = m_Parts.size();
 	}
 	return *this;

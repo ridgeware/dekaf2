@@ -44,6 +44,7 @@
 #include "klog.h"
 #include "kfileserver.h"
 #include "ktime.h"
+#include <utility>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -201,7 +202,7 @@ bool KHTTPRoutes::AddRoute(KHTTPRoute _Route)
 void KHTTPRoutes::SetDefaultRoute(KHTTPRoute::HTTPCallback Callback)
 //-----------------------------------------------------------------------------
 {
-	m_DefaultRoute.Callback = Callback;
+	m_DefaultRoute.Callback = std::move(Callback);
 
 } // SetDefaultRoute
 

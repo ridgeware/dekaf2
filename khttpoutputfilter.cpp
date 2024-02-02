@@ -138,10 +138,10 @@ void KOutHTTPFilter::SetupOutputFilter()
 	KChunkedSink Sink(UnfilteredStream(), m_bChunked, &m_iCount);
 
 	// and finally add our source stream to the filtering_ostream
-	m_Filter->push(std::move(Sink));
+	m_Filter->push(Sink);
 
 	// save the pointer in a KOutStream object for return by reference
-	m_FilteredOutStream = KOutStream(*m_Filter.get());
+	m_FilteredOutStream = KOutStream(*m_Filter);
 
 } // SetupOutputFilter
 

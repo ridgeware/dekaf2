@@ -146,7 +146,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 	// Continuation lines are no more allowed in HTTP headers, so we don't
 	// care for them. Any broken header (like missing key, no colon) will
 	// get dropped.
-	// We also do not care for line endings and will cannonify them on
+	// We also do not care for line endings and will canonify them on
 	// serialization.
 	// For sake of SMTP we do now support continuation lines, but we
 	// canonify the separator to a single space when composing multi line

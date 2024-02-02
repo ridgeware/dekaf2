@@ -836,7 +836,7 @@ void kSleepRandomMilliseconds (uint32_t iMin, uint32_t iMax)
 		iSleep = kRandom(iMin, iMax);
 	}
 
-	kDebug (2, "sleeping {} miliseconds...", iSleep);
+	kDebug (2, "sleeping {} milliseconds...", iSleep);
 
 	kMilliSleep(iSleep);
 
@@ -1312,7 +1312,7 @@ std::locale kGetLocale(KStringViewZ sLocale, bool bThrow)
 } // kGetLocale
 
 //-----------------------------------------------------------------------------
-char kGetDecimalPoint(std::locale locale)
+char kGetDecimalPoint(const std::locale& locale)
 //-----------------------------------------------------------------------------
 {
 	if (std::has_facet<std::numpunct<char>>(locale))
@@ -1327,7 +1327,7 @@ char kGetDecimalPoint(std::locale locale)
 } // kGetDecimalPoint
 
 //-----------------------------------------------------------------------------
-char kGetThousandsSeparator(std::locale locale)
+char kGetThousandsSeparator(const std::locale& locale)
 //-----------------------------------------------------------------------------
 {
 	if (std::has_facet<std::numpunct<char>>(locale))

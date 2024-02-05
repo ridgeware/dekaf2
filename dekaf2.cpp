@@ -294,9 +294,6 @@ KStringView Dekaf::GetVersionInformation()
 #ifdef DEKAF2_USE_EXCEPTIONS
 		" exceptions"
 #endif
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-		" fbstring"
-#endif
 #ifdef DEKAF2_USE_OPTIMIZED_STRING_FIND
 		" optimized_string_find"
 #endif

@@ -43,9 +43,6 @@
 #include "kstring_view.h"
 #include "simd/kfindfirstof.h"
 #ifdef DEKAF2_X86_64
-#ifdef DEKAF2_HAS_MINIFOLLY
-#include "../dekaf2.h"
-#endif
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -57,10 +54,6 @@ void* memrchr(const void* s, int c, size_t n)
 //-----------------------------------------------------------------------------
 {
 #if DEKAF2_FIND_FIRST_OF_USE_SIMD
-#ifdef DEKAF2_HAS_MINIFOLLY
-	static bool has_sse42 = DEKAF2_PREFIX Dekaf::getInstance().GetCpuId().sse42();
-	if (DEKAF2_LIKELY(has_sse42))
-#endif
 	{
 		const char* p = static_cast<const char*>(s);
 		char ch = static_cast<char>(c);

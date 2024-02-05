@@ -50,10 +50,6 @@
 #include "kstringview.h"
 #include "bits/kunique_deleter.h"
 
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-  #define DEKAF2_ADD_REGEX_FOR_KSTRING 1
-#endif
-
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -115,15 +111,6 @@ public:
 	size_t Replace(std::string& sStr, KStringView sReplaceWith, bool bReplaceAll = true) const;
 	//-----------------------------------------------------------------------------
 
-#ifdef DEKAF2_ADD_REGEX_FOR_KSTRING
-	// member function interface
-	//-----------------------------------------------------------------------------
-	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text,
-	/// where \0 is the overall match group
-	size_t Replace(KString& sStr, KStringView sReplaceWith, bool bReplaceAll = true) const;
-	//-----------------------------------------------------------------------------
-#endif
-
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return the overall match (group 0)
@@ -148,15 +135,6 @@ public:
 	/// where \0 is the overall match group
 	static size_t Replace(std::string& sStr, KStringView sRegex, KStringView sReplaceWith, bool bReplaceAll = true);
 	//-----------------------------------------------------------------------------
-
-#ifdef DEKAF2_ADD_REGEX_FOR_KSTRING
-	// static interface
-	//-----------------------------------------------------------------------------
-	/// replace a regular expression with new text. Sub groups can be addressed with \1 \2 etc. in the replacement text,
-	/// where \0 is the overall match group
-	static size_t Replace(KString& sStr, KStringView sRegex, KStringView sReplaceWith, bool bReplaceAll = true);
-	//-----------------------------------------------------------------------------
-#endif
 
 	//-----------------------------------------------------------------------------
 	/// returns regular expression string

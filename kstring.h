@@ -52,9 +52,6 @@
 #include "bits/kstring_view.h"
 #include "ktemplate.h"
 #include "kctype.h"
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-#include <folly/FBString.h>
-#endif
 #include <fmt/format.h>
 #include <string>
 #include <istream>
@@ -68,8 +65,7 @@ class KString;
 class KStringView;
 class KStringViewZ;
 
-#if defined(DEKAF2_USE_FBSTRING_AS_KSTRING) || \
-	(defined(DEKAF2_IS_APPLE_CLANG) && DEKAF2_CLANG_VERSION < 120000)
+#if defined(DEKAF2_IS_APPLE_CLANG) && DEKAF2_CLANG_VERSION < 120000
 /// a string type used for string& pars in parameter lists (output string parameters)
 using KStringRef = KString;
 #else
@@ -80,11 +76,7 @@ using KStringRef = std::string;
 
 namespace detail {
 
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	using KStringStringType = folly::fbstring;
-#else
 	using KStringStringType = std::string;
-#endif
 
 template<class T>
 struct is_kstring_move_assignable
@@ -114,14 +106,6 @@ public:
 //----------
 
 	using string_type = detail::KStringStringType;
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	/// tag to construct a string on an existing malloced buffer
-	using AcquireMallocatedString   = folly::AcquireMallocatedString;
-	#define DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
-#else
-	// dummy to allow user code without #ifdefs
-	struct AcquireMallocatedString {};
-#endif
 	using self                      = KString;
 	using traits_type               = string_type::traits_type;
 	using value_type                = string_type::value_type;
@@ -147,12 +131,7 @@ public:
 	// converting constructors
 	KString (const value_type* s)                             : m_rep(s?s:"") {}
 	KString (const std::string& s)                            : m_rep(s.data(), s.size()) {}
-#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 	KString (std::string&& s) noexcept                        : m_rep(std::move(s)) {}
-#else
-	KString (const folly::fbstring& s)                        : m_rep(s) {}
-	KString (folly::fbstring&& s)                             : m_rep(std::move(s)) {}
-#endif
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	KString (const std::string_view& s)                       : m_rep(s.data(), s.size()) {}
 #endif
@@ -169,13 +148,6 @@ public:
 	template<class _InputIterator>
 	KString (_InputIterator first, _InputIterator last)       : m_rep(first, last) {}
 	KString (std::initializer_list<value_type> il)            : m_rep(il) {}
-#ifdef DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
-	// nonstandard constructor to move an existing malloced buffer into the string
-	KString (value_type *s, size_type n, size_type c, AcquireMallocatedString a) : m_rep(s, n, c, a) {}
-#else
-	// no buffer move possible, simply copy and release the input buffer
-	KString (value_type *s, size_type n, size_type c, AcquireMallocatedString a) : KString (s, n) { if (s) free(s); }
-#endif
 	template<typename T,
 	         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
 	KString (const T& sv, size_type pos, size_type n);
@@ -432,9 +404,7 @@ public:
 	KString substr(size_type pos = 0, size_type n = npos) &&;
 
 	void swap(KString& other)     { using std::swap; swap(m_rep, other.m_rep); }
-#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 	void swap(std::string& other) { using std::swap; swap(m_rep, other);       }
-#endif
 
 	allocator_type get_allocator() const noexcept { return m_rep.get_allocator(); }
 
@@ -745,17 +715,12 @@ public:
 	template<typename T, typename... Parms>
 	self&& Join(const T& Container, Parms&&... parms) && { return std::move(Join(Container, std::forward<Parms>(parms)...)); }
 
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	/// convert to std::string
-	std::string ToStdString()        const { return m_rep.toStdString(); }
-#else
 	/// convert to std::string
 	const std::string& ToStdString() const & { return m_rep;             }
 	/// convert to std::string
 	std::string& ToStdString() &           { return m_rep;               }
 	/// convert to std::string
 	std::string&& ToStdString() &&         { return std::move(m_rep);    }
-#endif
 
 	/// return the string type
 	const string_type& str()       const & { return m_rep;               }

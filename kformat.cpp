@@ -44,10 +44,6 @@
 #include "klog.h"
 
 #ifndef DEKAF2_HAS_STD_FORMAT
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-template<>
-struct DEKAF2_PREFIX format::is_contiguous<DEKAF2_PREFIX KString> : std::true_type {};
-#endif
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -109,9 +105,7 @@ KString kFormat(KStringView sFormat, const dekaf2_format::format_args& args) noe
 
 	DEKAF2_TRY
 	{
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-		dekaf2_format::vformat_to(std::back_inserter(sOut), sFormat.operator format::string_view(), args);
-#elif DEKAF2_KSTRINGVIEW_IS_STD_STRINGVIEW
+#if DEKAF2_KSTRINGVIEW_IS_STD_STRINGVIEW
 		sOut = dekaf2_format::vformat(sFormat, args);
 #else
 		sOut = dekaf2_format::vformat(sFormat.operator dekaf2_format::string_view(), args);
@@ -136,9 +130,7 @@ KString kFormat(const std::locale& locale, KStringView sFormat, const dekaf2_for
 
 	DEKAF2_TRY
 	{
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-		format::vformat_to(locale, std::back_inserter(sOut), sFormat.operator format::string_view(), args);
-#elif DEKAF2_KSTRINGVIEW_IS_STD_STRINGVIEW
+#if DEKAF2_KSTRINGVIEW_IS_STD_STRINGVIEW
 		sOut = dekaf2_format::vformat(locale, sFormat, args);
 #else
 		sOut = dekaf2_format::vformat(locale, sFormat.operator dekaf2_format::string_view(), args);

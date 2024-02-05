@@ -183,15 +183,6 @@ TEST_CASE("StringBalance") {
 		static_assert( std::is_convertible<const KString&,          std::string_view>::value, "not convertible");
 		static_assert( std::is_convertible<const std::string_view&, KString         >::value, "not convertible");
 #endif
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-//		static_assert( std::is_convertible<const folly::fbstring&,  KStringView     >::value, "not convertible");
-//		static_assert( std::is_convertible<const KStringView&,      folly::fbstring >::value, "not convertible");
-		static_assert( std::is_convertible<const KString&,          folly::fbstring >::value, "not convertible");
-		static_assert( std::is_convertible<const folly::fbstring&,  KString         >::value, "not convertible");
-#ifdef DEKAF2_HAS_STD_STRING_VIEW
-//		static_assert( std::is_convertible<const std::string_view&, folly::fbstring >::value, "not convertible");
-#endif
-#endif
 		static_assert( std::is_convertible<const KString&,          KStringView>::value, "not convertible");
 		static_assert( std::is_convertible<const KStringView&,      KStringView>::value, "not convertible");
 		static_assert( std::is_convertible<const KStringViewZ&,     KStringView>::value, "not convertible");
@@ -297,7 +288,6 @@ TEST_CASE("StringBalance") {
 			os.fmv(std::move(ost));
 			os.fref(ost);
 
-#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 			KString ks = "123";
 			os.fcp(ks);
 			CHECK ( os.str() == "123" );
@@ -315,7 +305,6 @@ TEST_CASE("StringBalance") {
 			os.fvcp(std::move(ks));
 			CHECK ( ks == "" );
 			CHECK ( os.str() == "123456789012345678901234567890" );
-#endif
 		}
 		{
 			std::string str;
@@ -326,15 +315,11 @@ TEST_CASE("StringBalance") {
 #endif
 			str = "123456789012345678901234567890";
 			oks.fmv(std::move(str));
-#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 			CHECK ( str == "" );
-#endif
 			CHECK ( oks.str() == "123456789012345678901234567890" );
 			str = "123456789012345678901234567890";
 			oks.fvcp(std::move(str));
-#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 			CHECK ( str == "" );
-#endif
 			CHECK ( oks.str() == "123456789012345678901234567890" );
 //			oks.fref(str);
 			oks.fccp(str);
@@ -375,12 +360,10 @@ TEST_CASE("StringBalance") {
 			s   = "123456789012345678901234567890";
 			ks  = std::move(s);
 			CHECK ( ks == "123456789012345678901234567890" );
-#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 			CHECK ( s  == "" );
 			s   = std::move(ks).str();
 			CHECK ( s  == "123456789012345678901234567890" );
 			CHECK ( ks == "" );
-#endif
 			s   = "12321";
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 			ks  = sv;
@@ -389,20 +372,16 @@ TEST_CASE("StringBalance") {
 			ks  = ksz;
 		}
 
-#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 		{
 			KString ks("123456789012345678901234567890");
 			std::string s(std::move(ks).str());
 			CHECK ( ks == "" );
 			CHECK ( s  == "123456789012345678901234567890");
 		}
-#endif
 		{
 			std::string s("123456789012345678901234567890");
 			KString ks(std::move(s));
-#ifndef DEKAF2_USE_FBSTRING_AS_KSTRING
 			CHECK ( s  == "" );
-#endif
 			CHECK ( ks == "123456789012345678901234567890");
 		}
 

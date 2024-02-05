@@ -210,8 +210,7 @@ KString::iterator KString::insert(iterator it, std::initializer_list<value_type>
 		return end();
 	}
 
-#if !defined(DEKAF2_USE_FBSTRING_AS_KSTRING) && \
-	defined(DEKAF2_GLIBCXX_VERSION_MAJOR) && \
+#if defined(DEKAF2_GLIBCXX_VERSION_MAJOR) && \
 	(DEKAF2_GLIBCXX_VERSION_MAJOR < 10)
 	// older versions of libstdc++ do not return an iterator, but void
 	// see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83328
@@ -312,11 +311,7 @@ KString::size_type KString::Replace(
 KString::size_type KString::ReplaceRegex(const KStringView sRegEx, const KStringView sReplaceWith, bool bReplaceAll)
 //----------------------------------------------------------------------
 {
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	return KRegex::Replace(*this, sRegEx, sReplaceWith, bReplaceAll);
-#else
 	return KRegex::Replace(m_rep, sRegEx, sReplaceWith, bReplaceAll);
-#endif
 }
 
 //----------------------------------------------------------------------
@@ -685,23 +680,13 @@ DEKAF2_NAMESPACE_END
 std::istream& std::getline(std::istream& stream, DEKAF2_PREFIX KString& str)
 //----------------------------------------------------------------------
 {
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	DEKAF2_PREFIX KString::string_type& sref = str.str();
-	return getline(stream, sref);
-#else
 	return std::getline(stream, str.str());
-#endif
 }
 
 //----------------------------------------------------------------------
 std::istream& std::getline(std::istream& stream, DEKAF2_PREFIX KString& str, DEKAF2_PREFIX KString::value_type delimiter)
 //----------------------------------------------------------------------
 {
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	DEKAF2_PREFIX KString::string_type& sref = str.str();
-	return getline(stream, sref, delimiter);
-#else
 	return std::getline(stream, str.str(), delimiter);
-#endif
 }
 

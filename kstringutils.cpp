@@ -634,7 +634,7 @@ void kEscapeForLogging(KStringRef& sLog, KStringView sInput)
 void kResizeUninitialized(KString& sStr, KString::size_type iNewSize)
 //-----------------------------------------------------------------------------
 {
-#if defined(__cpp_lib_string_resize_and_overwrite_NOTYET) && !defined(DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED)
+#if defined(__cpp_lib_string_resize_and_overwrite_NOTYET)
 	// with C++23 we will get the equivalence of what we used to do with FBString:
 	// resizing the string buffer uninitialized, with a handler to set its content
 	// (which we won't do)

@@ -48,9 +48,6 @@
 #include "kcompatibility.h"
 #include "kconfiguration.h"
 #include "kthreadsafe.h"
-#ifdef DEKAF2_HAS_MINIFOLLY
-#include <folly/CpuId.h>
-#endif
 #include "kstring.h"
 #include "ktime.h"
 #include "ktimer.h"
@@ -127,17 +124,6 @@ public:
 	/// Get a random value in range [iMin - iMax].
 	uint32_t GetRandomValue(uint32_t iMin, uint32_t iMax);
 	//---------------------------------------------------------------------------
-
-
-#ifdef DEKAF2_HAS_MINIFOLLY
-	//---------------------------------------------------------------------------
-	/// Get the CPU ID and extensions
-	const folly::CpuId& GetCpuId() const
-	//---------------------------------------------------------------------------
-	{
-		return m_CPUID;
-	}
-#endif
 
 	//---------------------------------------------------------------------------
 	/// Get the true directory in which the current process binary is located
@@ -278,9 +264,6 @@ private:
 	std::atomic<bool> m_bIsMultiThreading { false };
 	KStringView m_sProgPath;
 	KStringViewZ m_sProgName;
-#ifdef DEKAF2_HAS_MINIFOLLY
-	folly::CpuId m_CPUID;
-#endif
 	std::unique_ptr<KSignals> m_Signals;
 	std::unique_ptr<KTimer> m_Timer;
 	KTimer::ID_t m_OneSecTimerID;

@@ -69,9 +69,7 @@ include(ExternalProject)
 # these are all configurable project options
 OPTION(DEKAF2_USE_EXCEPTIONS "Use exceptions for error handling" OFF)
 OPTION(DEKAF2_USE_JEMALLOC "Use jemalloc" OFF)
-OPTION(DEKAF2_USE_FBSTRING_AS_KSTRING "Use Folly::FBString for KString" OFF)
 OPTION(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW "Use dekaf2::detail::stringview::string_view for KStringView" OFF)
-OPTION(DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS "Use std::string for debug builds" OFF)
 OPTION(DEKAF2_USE_OPTIMIZED_STRING_FIND "Use optimized string::find" ON)
 OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS "debug build with sanitizers and additional runtime checks" ON)
 OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE "debug build with sanitizers and additional runtime checks in Xcode" ON)
@@ -113,9 +111,6 @@ if (CMAKE_GENERATOR MATCHES "Makefile" OR CMAKE_GENERATOR MATCHES "Ninja")
 	endif()
 
 	if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "debug")
-		if (DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS)
-			SET(DEKAF2_USE_FBSTRING_AS_KSTRING OFF)
-		endif()
 		set(DEKAF2_IS_DEBUG_BUILD ON)
 	else()
 		SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
@@ -180,9 +175,8 @@ if (CPU_ARM AND NOT CPU_ARM EQUAL 64)
 endif()
 
 if (IS_WINDOWS)
-	# on Windows, disable asan/ubsan, and fbstrings/minifolly
+	# on Windows, disable asan/ubsan
 	SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
-	SET(DEKAF2_USE_FBSTRING_AS_KSTRING OFF)
 	# we check for unix sockets on Windows 10 or later once we know the boost version
 else ()
 	# on Unixes, enable unix sockets and pipes
@@ -202,14 +196,6 @@ if (TOTAL_PHYSICAL_MEMORY LESS NEEDED_FROZEN_MEMORY)
 	message(STATUS "switching FROZEN off for large maps - not enough RAM (${TOTAL_PHYSICAL_MEMORY} MB)")
 	# this is not enough RAM for compile time computation of large frozen maps
 	set (DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS OFF)
-endif()
-
-message (STATUS "FBSTRING: ${DEKAF2_USE_FBSTRING_AS_KSTRING}")
-
-if (DEKAF2_USE_FBSTRING_AS_KSTRING)
-	set(DEKAF2_HAS_MINIFOLLY ON)
-else()
-	set(DEKAF2_HAS_MINIFOLLY OFF)
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -1188,10 +1174,6 @@ if (DEKAF2_STD_CHRONO_HAS_LOCAL_T)
 	target_compile_definitions(date-tz PUBLIC DEKAF2_STD_CHRONO_HAS_LOCAL_T=1)
 endif()
 
-if (DEKAF2_HAS_MINIFOLLY)
-	set (MINIFOLLY minifolly)
-endif ()
-
 if (IS_WINDOWS)
 	if (DEKAF2_BUILD_COMPRESSORS)
 		set (COMPRESSORS
@@ -1270,7 +1252,6 @@ set(DEKAF2_LINK_LIBRARIES
 		${Boost_LIBRARIES}
 		${OPENSSL_LIBRARIES}
 		frozen
-		${MINIFOLLY}
 		Threads::Threads
 		${DEKAF2_ATOMIC_LIB}
 	PRIVATE
@@ -1468,10 +1449,6 @@ string(REPLACE "${CMAKE_INSTALL_PREFIX}/" "" dekaf2_share_dest ${dekaf2_share_de
 install(EXPORT ${PROJECT_NAME} DESTINATION "${dekaf2_lib_dest}")
 
 # create dummy exports to satisfy cmake for the statically and PRIVATE linked in libraries
-if (DEKAF2_HAS_MINIFOLLY)
-	install(TARGETS minifolly EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
-endif()
-
 if(NOT DEKAF2_USE_SYSTEM_FMTLIB)
 	install(TARGETS fmt       EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 endif()
@@ -1534,13 +1511,6 @@ else()
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/fmt)")
 endif()
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant/date/"             DESTINATION "${dekaf2_include_dest}/date"     FILES_MATCHING PATTERN "*.h")
-if (DEKAF2_HAS_MINIFOLLY)
-	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/"           DESTINATION "${dekaf2_include_dest}/folly"    FILES_MATCHING PATTERN "*.h")
-	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/glog/"            DESTINATION "${dekaf2_include_dest}/glog"     FILES_MATCHING PATTERN "*.h")
-else()
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/folly)")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/glog)")
-endif()
 
 # remove old headers, until mid-2024
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kcppcompat.h)")

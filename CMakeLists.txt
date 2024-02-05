@@ -515,6 +515,11 @@ endif (DOXYGEN_FOUND)
 # create the build directory for generated files
 set(DEKAF2_GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${DEKAF2_GENERATED_FILES_DIR}")
+if (NOT EXISTS "${DEKAF2_GENERATED_FILES_DIR}/dekaf2")
+	# create a symlink to simulate the <dekaf2/> path for includes at library build time
+	# (we add DEKAF2_GENERATED_FILES_DIR to the include locations below)
+	execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}" "${DEKAF2_GENERATED_FILES_DIR}/dekaf2")
+endif ()
 
 # test warning flags
 include(CheckCXXCompilerFlag)
@@ -611,6 +616,13 @@ if (NOT DEKAF2_NO_NEED_FOR_LIBATOMIC)
 	message(STATUS "we need libatomic")
 endif()
 
+if (DEKAF2_USE_SYSTEM_FMTLIB)
+	set(DMESSAGE_FMT "a system installed")
+else()
+	set(DEKAF2_FMT_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-10.0.0/include")
+	set(DMESSAGE_FMT "our own")
+endif()
+
 # check if we have a working std::format implementation
 if (CMAKE_CXX_STANDARD GREATER 17)
 	try_compile(DEKAF2_HAS_STD_FORMAT
@@ -619,12 +631,13 @@ if (CMAKE_CXX_STANDARD GREATER 17)
 	if (DEKAF2_HAS_STD_FORMAT)
 		if(NOT DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT)
 			message(STATUS "we have std::format (and will use it)")
+			set(DEKAF2_FMT_INCLUDE "")
 		else()
 			set(DEKAF2_HAS_STD_FORMAT "")
-			message(STATUS "we have std::format, but will use our own fmtlib build as replacement")
+			message(STATUS "we have std::format, but will use ${DMESSAGE_FMT} fmtlib build as replacement")
 		endif()
 	else()
-		message(STATUS "we do not have std::format - will use our own fmtlib build as replacement")
+		message(STATUS "we do not have std::format - will use ${DMESSAGE_FMT} fmtlib build as replacement")
 	endif()
 endif()
 
@@ -1225,9 +1238,7 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 		# include all external headers (and own installed headers) as
 		# SYSTEM headers to suppress warnings on their contents
 	PUBLIC
-		# for internal build, include the headers without SYSTEM property so that
-		# we get all warnings
-		$<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>
+		$<BUILD_INTERFACE:${DEKAF2_FMT_INCLUDE}>
 		$<INSTALL_INTERFACE:${dekaf2_include_dest}>
 		$<INSTALL_INTERFACE:${dekaf2_lib_dest}>
 		${Boost_INCLUDE_DIR}
@@ -1240,8 +1251,6 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/google>
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/croncpp/include>
 		$<BUILD_INTERFACE:${JEMalloc_INCLUDE_DIRS}>
-		# for centos libzip:
-		/include
 )
 
 set(DEKAF2_LINK_LIBRARIES
@@ -1287,6 +1296,8 @@ if (CMAKE_GENERATOR MATCHES "Xcode")
 endif()
 
 add_library                (dekaf2-objects OBJECT ${DEKAF2_SOURCE_FILES})
+# for the internal build, include the headers without SYSTEM property so that we get all warnings
+target_include_directories (dekaf2-objects PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 target_include_directories (dekaf2-objects ${DEKAF2_INCLUDE_DIRECTORIES})
 target_link_libraries      (dekaf2-objects ${DEKAF2_LINK_LIBRARIES})
 target_compile_definitions (dekaf2-objects ${DEKAF2_COMPILE_DEFINITIONS})
@@ -1297,6 +1308,7 @@ endif()
 if (DEKAF2_BUILD_SHARED_DEKAF2)
 	set_target_properties      (dekaf2-objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
 	add_library                (dekaf2-shared  SHARED $<TARGET_OBJECTS:dekaf2-objects> ${DEKAF2_DUMMYFILE})
+	target_include_directories (dekaf2-shared  PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 	target_include_directories (dekaf2-shared  ${DEKAF2_INCLUDE_DIRECTORIES})
 	target_link_libraries      (dekaf2-shared  ${DEKAF2_LINK_LIBRARIES})
 	target_compile_definitions (dekaf2-shared  ${DEKAF2_COMPILE_DEFINITIONS})
@@ -1308,6 +1320,7 @@ endif()
 
 if (DEKAF2_BUILD_STATIC_DEKAF2)
 	add_library                (dekaf2 STATIC $<TARGET_OBJECTS:dekaf2-objects> ${DEKAF2_DUMMYFILE})
+	target_include_directories (dekaf2 PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 	target_include_directories (dekaf2 ${DEKAF2_INCLUDE_DIRECTORIES})
 	target_link_libraries      (dekaf2 ${DEKAF2_LINK_LIBRARIES})
 	target_compile_definitions (dekaf2 ${DEKAF2_COMPILE_DEFINITIONS})
@@ -1396,11 +1409,9 @@ if(SQLITE3_FOUND)
 endif()
 
 add_executable(klog klog_main.cpp)
-target_include_directories(klog PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(klog dekaf2)
 
 add_executable(createdbc createdbc.cpp)
-target_include_directories(createdbc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(createdbc ksql2 dekaf2)
 
 if (DEKAF2_HAS_NCURSES)
@@ -1410,25 +1421,15 @@ if (DEKAF2_HAS_NCURSES)
 endif()
 
 add_executable(dekaf2project dekaf2project.cpp)
-target_include_directories(dekaf2project PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(dekaf2project dekaf2)
 
 add_executable(kurl samples/kurl.cpp samples/kurl.h)
-target_include_directories(kurl PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(kurl dekaf2)
 
-if (DEKAF2_BUILD_SHARED_DEKAF2)
-	add_executable(kurl-shared samples/kurl.cpp samples/kurl.h)
-	target_include_directories(kurl-shared PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-	target_link_libraries(kurl-shared dekaf2-shared)
-endif()
-
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
-target_include_directories(getentities PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(getentities dekaf2)
 
 add_executable(genunicodetables EXCLUDE_FROM_ALL genunicodetables.cpp)
-target_include_directories(genunicodetables PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(genunicodetables dekaf2)
 
 add_executable(diff-speedtest EXCLUDE_FROM_ALL from/google/diff-speedtest.cpp)

@@ -626,6 +626,23 @@ if (NOT DEKAF2_NO_NEED_FOR_LIBATOMIC)
 	message(STATUS "we need libatomic")
 endif()
 
+# check if we have a working std::format implementation
+if (CMAKE_CXX_STANDARD GREATER 17)
+	try_compile(DEKAF2_HAS_STD_FORMAT
+				"${DEKAF2_GENERATED_FILES_DIR}"
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/std_format_test.cpp")
+	if (DEKAF2_HAS_STD_FORMAT)
+		if(NOT DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT)
+			message(STATUS "we have std::format (and will use it)")
+		else()
+			set(DEKAF2_HAS_STD_FORMAT "")
+			message(STATUS "we have std::format, but will use our own fmtlib build as replacement")
+		endif()
+	else()
+		message(STATUS "we do not have std::format - will use our own fmtlib build as replacement")
+	endif()
+endif()
+
 # =============================== GENERATED FILES =================================
 
 # create the configuration header file
@@ -1456,7 +1473,10 @@ if (DEKAF2_HAS_MINIFOLLY)
 	install(TARGETS minifolly EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 endif()
 
-install(TARGETS fmt           EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+if(NOT DEKAF2_USE_SYSTEM_FMTLIB)
+	install(TARGETS fmt       EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+endif()
+
 install(TARGETS nlohmann-json EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(TARGETS re2           EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(TARGETS frozen        EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
@@ -1464,10 +1484,17 @@ install(TARGETS date-tz       EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 
 if (DEKAF2_BUILD_SHARED_DEKAF2)
 	install(TARGETS dekaf2-shared ksql2-shared EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+else()
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/dekaf2.so*)")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/ksql2.so*)")
 endif()
+
 if (DEKAF2_BUILD_STATIC_DEKAF2)
 	install(TARGETS dekaf2 ksql2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+else()
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/dekaf2.a)")
 endif()
+
 install(TARGETS ${DEKAF2_TARGETS} EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
@@ -1481,6 +1508,7 @@ endif()
 install(FILES ${PUBLIC_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2)
 install(FILES ksql.h DESTINATION ${dekaf2_include_dest}/dekaf2)
 install(FILES bits/ksql_dbc.h DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
+
 if(SQLITE3_FOUND)
 	if (DEKAF2_BUILD_SHARED_DEKAF2)
 		install(TARGETS ksqlite-shared EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
@@ -1490,6 +1518,7 @@ if(SQLITE3_FOUND)
 	endif()
 	install(FILES ksqlite.h DESTINATION ${dekaf2_include_dest}/dekaf2)
 endif()
+
 install(FILES ${BITS_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
 install(FILES ${BITS_SIMD_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits/simd)
 install(FILES "${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION ${dekaf2_lib_dest})
@@ -1500,7 +1529,11 @@ install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/my-ip-addr" DESTINATION ${
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/templates"                       DESTINATION "${dekaf2_share_dest}")
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/" DESTINATION "${dekaf2_include_dest}/nlohmann" FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/"     DESTINATION "${dekaf2_include_dest}/frozen"   FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-10.0.0/include/fmt/"    DESTINATION "${dekaf2_include_dest}/fmt"      FILES_MATCHING PATTERN "*.h")
+if(NOT DEKAF2_USE_SYSTEM_FMTLIB)
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-10.0.0/include/fmt/" DESTINATION "${dekaf2_include_dest}/fmt"     FILES_MATCHING PATTERN "*.h")
+else()
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/fmt)")
+endif()
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant/date/"             DESTINATION "${dekaf2_include_dest}/date"     FILES_MATCHING PATTERN "*.h")
 if (DEKAF2_HAS_MINIFOLLY)
 	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/folly/folly/"           DESTINATION "${dekaf2_include_dest}/folly"    FILES_MATCHING PATTERN "*.h")
@@ -1513,13 +1546,6 @@ endif()
 # remove old headers, until mid-2024
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kcppcompat.h)")
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/ktemplate.h)")
-# remove old headers, until mid-2023
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kprops-multi-index.h)")
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kprops-std-map.h)")
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kmru-multi-index.h)")
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kmru-std-vector.h)")
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/experimental/kjson2.h)")
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/fmt/locale.h)")
 if (NOT DEKAF2_HAS_LIBZIP)
 	# make sure to remove a kzip.h header if this build did not find libzip
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kzip.h)")

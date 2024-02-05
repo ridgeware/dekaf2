@@ -4,8 +4,10 @@ cmake_minimum_required(VERSION 3.8)
 
 include(ExternalProject)
 
-# add the format lib
-add_subdirectory(fmt-10.0.0)
+if (NOT DEKAF2_USE_SYSTEM_FMTLIB)
+	# add the format lib
+	add_subdirectory(fmt-10.0.0)
+endif()
 
 # add fast regular expressions
 add_subdirectory(re2 EXCLUDE_FROM_ALL)

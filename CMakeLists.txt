@@ -74,7 +74,6 @@ OPTION(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW "Use dekaf2::detail::stringvi
 OPTION(DEKAF2_USE_STD_STRING_FOR_DEBUG_BUILDS "Use std::string for debug builds" OFF)
 OPTION(DEKAF2_USE_OPTIMIZED_STRING_FIND "Use optimized string::find" ON)
 OPTION(DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS "With deprecated KString member functions" OFF)
-OPTION(DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1 "Provide compatibility layer to dekaf1" OFF)
 OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS "debug build with sanitizers and additional runtime checks" ON)
 OPTION(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS_IN_XCODE "debug build with sanitizers and additional runtime checks in Xcode" ON)
 OPTION(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS "use frozen constexpr hash for large maps (needs a lot of memory on comp)" ON)
@@ -256,21 +255,6 @@ endif()
 
 # Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
-
-# ==================================== DEKAF1 ====================================
-
-# if requested to integrate with dekaf1, check if it is available
-if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
-	set (DPATH $ENV{dekaf})
-	if (NOT DPATH)
-		set(DPATH $ENV{HOME}/src/dekaf/src)
-	endif ()
-	if (EXISTS "${DPATH}/dekaf.h")
-		set(DEKAF1_INCLUDE_PATH ${DPATH})
-	else ()
-		message(STATUS "Option to provide compatibility layer to dekaf1 is set, but dekaf1 can't be found. Option disabled.")
-	endif ()
-endif ()
 
 # ============================== Prefer static libs? ==============================
 
@@ -861,15 +845,6 @@ if (DEKAF2_HAS_LIBZIP)
 		kzip.h
 	)
 endif()
-
-if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
-	set(COMPAT_HEADERS
-		compat/kstring.h
-		compat/kprops.h
-		compat/kstack.h
-		compat/dekaf.h
-	)
-endif ()
 
 set(PRIVATE_HEADERS
 	bits/kron_utils.h
@@ -1522,12 +1497,6 @@ install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/mysql-newuser" DESTINATION
 install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/findcol" DESTINATION ${dekaf2_bin_dest})
 install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/kport" DESTINATION ${dekaf2_bin_dest})
 install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/my-ip-addr" DESTINATION ${dekaf2_bin_dest})
-if (DEKAF2_WITH_COMPATIBILITY_LAYER_TO_DEKAF1)
-	install(FILES ${COMPAT_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/compat)
-else()
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/compat)")
-endif()
-
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/templates"                       DESTINATION "${dekaf2_share_dest}")
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/" DESTINATION "${dekaf2_include_dest}/nlohmann" FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/"     DESTINATION "${dekaf2_include_dest}/frozen"   FILES_MATCHING PATTERN "*.h")

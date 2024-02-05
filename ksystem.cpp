@@ -1928,4 +1928,80 @@ bool kIsInsideDataSegment(const void* addr)
 
 } // kIsInsideDataSegment
 
+//-----------------------------------------------------------------------------
+KUTSName kUName()
+//-----------------------------------------------------------------------------
+{
+	KUTSName info;
+
+#ifdef DEKAF2_IS_WINDOWS
+
+	info.sysname     = "";
+	info.nodename[0] = 0;
+	info.release [0] = 0;
+	info.version [0] = 0;
+	info.machine [0] = "";
+
+	SYSTEM_INFO sys;
+	GetNativeSystemInfo(&sys);
+	switch(sys.wProcessorArchitecture) {
+	#ifdef PROCESSOR_ARCHITECTURE_AMD64
+		case PROCESSOR_ARCHITECTURE_AMD64:
+			info.machine = "x64_64";
+			break;
+	#endif
+	#ifdef PROCESSOR_ARCHITECTURE_ARM
+		case PROCESSOR_ARCHITECTURE_ARM:
+			info.machine = "ARM32";
+			break;
+	#endif
+	#ifdef PROCESSOR_ARCHITECTURE_ARM64
+		case PROCESSOR_ARCHITECTURE_ARM64:
+			info.machine = "ARM64";
+			break;
+	#endif
+	#ifdef PROCESSOR_ARCHITECTURE_IA64
+		case PROCESSOR_ARCHITECTURE_IA64:
+			info.machine = "IA-64";
+			break;
+	#endif
+	#ifdef PROCESSOR_ARCHITECTURE_INTEL
+		case PROCESSOR_ARCHITECTURE_INTEL:
+			info.machine = "x86";
+			break;
+	#endif
+		default:
+			info.machine = "UNKNOWN";
+			break;
+	}
+
+	HKEY hkey;
+	RegOpenKeyEx(HKEY_LOCAL_MACHINE, "Software\\Microsoft\\Windows NT\\CurrentVersion", 0, KEY_QUERY_VALUE, &hkey);
+	long unsigned int size = sizeof(info.version);
+	RegQueryValueEx(hkey, "DisplayVersion", NULL, NULL, info.version, &size);
+	RegCloseKey(hkey);
+
+	gethostname(info.nodename, 256);
+
+	info.sysname = "Windows";
+
+#else
+
+	info.sysname [0] = 0;
+	info.nodename[0] = 0;
+	info.release [0] = 0;
+	info.version [0] = 0;
+	info.machine [0] = 0;
+
+	uname(&info);
+
+#endif
+
+	// make sure nodename does not overflow
+	info.nodename[sizeof(info.nodename) - 1] = 0;
+
+	return info;
+
+} // kUName
+
 DEKAF2_NAMESPACE_END

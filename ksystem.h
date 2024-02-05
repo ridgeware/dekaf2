@@ -51,6 +51,7 @@
 #include <locale>
 #ifndef DEKAF2_IS_WINDOWS
 	#include <sys/resource.h>
+	#include <sys/utsname.h>   // for uname()
 	#include <unistd.h>
 #else
 	using HANDLE = void*;
@@ -406,6 +407,28 @@ KTTYSize kGetTerminalSize(int fd = 0, uint16_t iDefaultColumns = 80, uint16_t iD
 /// can go away)
 DEKAF2_PUBLIC
 bool kIsInsideDataSegment(const void* addr);
+
+#ifdef DEKAF2_IS_WINDOWS
+	struct KUTSName
+	{
+		const char* sysname;
+		char nodename[256];
+		char release[1];
+		char version[1];
+		const char* machine;
+	};
+#else
+	using KUTSName = ::utsname;
+#endif
+
+/// returns utsname struct with information about:
+/// sysname : Name of OS
+/// nodename: Name of this network node
+/// release : Release level
+/// version : Version level
+/// machine : Hardware type
+DEKAF2_PUBLIC
+KUTSName kUName();
 
 DEKAF2_NAMESPACE_END
 

@@ -51,7 +51,6 @@
 #include "kstring.h"
 #include "klog.h"
 #include "kregex.h"
-#include "ksplit.h"
 #include "kinshell.h"
 #include "kwriter.h"
 #include "kctype.h"
@@ -827,7 +826,7 @@ std::vector<KStringViewZ> KFileTypes::Serialize() const
 
 	if (m_Types == 255)
 	{
-		Result.push_back("all");
+		Result.emplace_back("all");
 	}
 	else
 	{
@@ -1444,7 +1443,7 @@ KDiskStat& KDiskStat::Check(KStringViewZ sPath)
 		m_SystemFree = m_Free;
 	}
 
-#endif // IS UNIX
+#endif // DEKAF2_IS_UNIX
 
 	return *this;
 

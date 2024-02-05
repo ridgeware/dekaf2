@@ -92,7 +92,6 @@ protected:
 
 	void ServerQuery ();
 	void ShowVersion ();
-	void ShowProgress();
 	void ShowStats   (KDuration tTotal, std::size_t iTotalRequests);
 	void LoadConfig  ();
 
@@ -146,11 +145,11 @@ protected:
 				if (sLastOut == sOutputToLastPathComponent)
 				{
 					KString sComponent = kBasename(URL.Path.get());
-					URLs.push_back({std::move(URL), sComponent});
+					URLs.emplace_back(std::move(URL), sComponent);
 				}
 				else
 				{
-					URLs.push_back({std::move(URL), sLastOut});
+					URLs.emplace_back(std::move(URL), sLastOut);
 				}
 			}
 
@@ -208,7 +207,7 @@ protected:
 			{
 				for (auto& URL : MRQ.URLs)
 				{
-					m_RequestList.push_back(SingleRequest(URL.first, URL.second, MRQ));
+					m_RequestList.emplace_back(URL.first, URL.second, MRQ);
 				}
 			}
 			it.unique().get() = m_RequestList.begin();
@@ -390,7 +389,6 @@ protected:
 			switch (m_ProgressType)
 			{
 				case Type::None:
-					break;
 				case Type::Wheel:
 					break;
 				case Type::Bar:

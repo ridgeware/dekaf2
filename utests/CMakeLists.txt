@@ -133,7 +133,6 @@ set (USOURCES
 )
 
 add_executable(dekaf2-utests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
-target_include_directories(dekaf2-utests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 
 if (DEKAF2_HAS_SQLITE3)
 	target_link_libraries(dekaf2-utests dekaf2 ksqlite ksql2 re2)
@@ -146,5 +145,4 @@ if (GoogleBench_FOUND)
 	add_executable(dekaf2-benchmark EXCLUDE_FROM_ALL benchmarks.cpp)
 	target_link_libraries(dekaf2-benchmark dekaf2 ${GOOGLEBENCH_LIBRARIES})
 	target_include_directories(dekaf2-benchmark PRIVATE ${GOOGLEBENCH_INCLUDE_DIRS})
-	target_include_directories(dekaf2-benchmark PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 endif()

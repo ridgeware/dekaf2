@@ -1936,11 +1936,8 @@ KUTSName kUName()
 
 #ifdef DEKAF2_IS_WINDOWS
 
-	info.sysname     = "";
-	info.nodename[0] = 0;
 	info.release [0] = 0;
 	info.version [0] = 0;
-	info.machine [0] = "";
 
 	SYSTEM_INFO sys;
 	GetNativeSystemInfo(&sys);

@@ -292,4 +292,16 @@ TEST_CASE("KSystem")
 		strncpy(sDynamic.get(), "I am a dynamic string stored on the heap", 41);
 		CHECK ( kIsInsideDataSegment(sDynamic.get()) == false );
 	}
+
+	SECTION("KUName")
+	{
+		auto Info =  kUName();
+		CHECK ( Info.nodename[0] != 0 );
+#ifndef DEKAF2_IS_WINDOWS
+		CHECK ( Info.release[0]  != 0 );
+#endif
+		CHECK ( Info.sysname[0]  != 0 );
+		CHECK ( Info.machine[0]  != 0 );
+		CHECK ( Info.version[0]  != 0 );
+	}
 }

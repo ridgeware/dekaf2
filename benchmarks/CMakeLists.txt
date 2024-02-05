@@ -40,7 +40,6 @@ set (HEADERS
 )
 
 add_executable(benchmarks EXCLUDE_FROM_ALL ${HEADERS} ${SOURCES})
-target_include_directories(benchmarks PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 target_link_libraries(benchmarks dekaf2)
 target_compile_definitions(benchmarks PRIVATE DEKAF2_ENABLE_PROFILING)
 

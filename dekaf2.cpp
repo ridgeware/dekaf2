@@ -319,9 +319,6 @@ KStringView Dekaf::GetVersionInformation()
 #ifdef DEKAF2_WITH_FCGI
 		" fcgi"
 #endif
-#ifdef DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS
-		" deprecated_kstring_interface"
-#endif
 #if (DEKAF1_INCLUDE_PATH)
 		" with-dekaf1-compatibility"
 #endif

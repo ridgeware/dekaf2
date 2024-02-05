@@ -661,57 +661,6 @@ KString KString::to_string(double f)
 	return kFormat("{}", f);
 }
 
-#ifdef DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS
-
-//----------------------------------------------------------------------
-bool KString::FindRegex(KStringView regex) const
-//----------------------------------------------------------------------
-{
-	return KRegex::Matches(ToView(), regex);
-}
-
-//----------------------------------------------------------------------
-bool KString::FindRegex(KStringView regex, unsigned int* start, unsigned int* end, size_type pos) const
-//----------------------------------------------------------------------
-{
-	KStringView sv(ToView());
-	if (pos > 0)
-	{
-		sv.remove_prefix(pos);
-	}
-	size_t s, e;
-	auto ret = KRegex::Matches(sv, regex, s, e);
-	if (s == e)
-	{
-		if (start) *start = 0;
-		if (end)   *end   = 0;
-	}
-	else
-	{
-		// these casts are obviously bogus as size_t on
-		// 64 bit systems is larger than unsigned int
-		// - but this is what the old dekaf KString expects
-		// as return values.. so better do not use it with
-		// strings larger than 2^31 chars
-		if (start) *start = static_cast<unsigned int>(s + pos);
-		if (end)   *end   = static_cast<unsigned int>(e + pos);
-	}
-	return ret;
-}
-
-//----------------------------------------------------------------------
-KString::size_type KString::SubRegex(KStringView pszRegEx, KStringView pszReplaceWith, bool bReplaceAll, size_type* piIdxOffset)
-//----------------------------------------------------------------------
-{
-#ifdef DEKAF2_USE_FBSTRING_AS_KSTRING
-	return KRegex::Replace(*this, pszRegEx, pszReplaceWith, bReplaceAll);
-#else
-	return KRegex::Replace(m_rep, pszRegEx, pszReplaceWith, bReplaceAll);
-#endif
-}
-
-#endif
-
 //-----------------------------------------------------------------------------
 KString KString::signed_to_string(int64_t i, uint16_t iBase, bool bZeroPad, bool bUppercase)
 //-----------------------------------------------------------------------------

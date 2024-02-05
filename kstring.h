@@ -793,39 +793,6 @@ public:
 	/// is string one of the values in sHaystack, delimited by iDelim?
 	bool In (KStringView sHaystack, value_type iDelim=',') const;
 
-#ifdef DEKAF2_WITH_DEPRECATED_KSTRING_MEMBER_FUNCTIONS
-
-	// These functions are either bad in their interfaces, do not
-	// belong into the string class, are duplicates of existing
-	// functionalities or are badly named. We allow them on request
-	// to keep compatibility to the old dekaf KString class.
-	// DO NOT USE THEM IN NEW CODE
-
-	/// DEPRECATED - only for compatibility with old code
-	DEKAF2_DEPRECATED("only for compatibility with old code")
-	bool FindRegex(KStringView regex) const;
-	/// DEPRECATED - only for compatibility with old code
-	DEKAF2_DEPRECATED("only for compatibility with old code")
-	bool FindRegex(KStringView regex, unsigned int* start, unsigned int* end, size_type pos = 0) const;
-	/// DEPRECATED - only for compatibility with old code
-	DEKAF2_DEPRECATED("only for compatibility with old code")
-	size_type SubString(KStringView sReplaceMe, KStringView sReplaceWith, bool bReplaceAll = false) { return Replace(sReplaceMe, sReplaceWith, 0, bReplaceAll); }
-	/// DEPRECATED - only for compatibility with old code
-	DEKAF2_DEPRECATED("only for compatibility with old code")
-	size_type SubRegex(KStringView pszRegEx, KStringView pszReplaceWith, bool bReplaceAll = false, size_type* piIdxOffset = nullptr);
-	/// DEPRECATED - only for compatibility with old code
-	DEKAF2_DEPRECATED("only for compatibility with old code")
-	const value_type* c() const { return c_str(); }
-	/// DEPRECATED - only for compatibility with old code
-	DEKAF2_DEPRECATED("only for compatibility with old code")
-	self& Append(const value_type* pszAppend) { return append(pszAppend); }
-	/// print arguments with fmt::printf - now DEPRECATED, please use Format()!
-	template<class... Args>
-	DEKAF2_DEPRECATED("only for compatibility with old code")
-	self& Printf(Args&&... args);
-
-#endif
-
 	// conversions
 
 	/// returns bool representation of the string:

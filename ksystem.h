@@ -408,27 +408,62 @@ KTTYSize kGetTerminalSize(int fd = 0, uint16_t iDefaultColumns = 80, uint16_t iD
 DEKAF2_PUBLIC
 bool kIsInsideDataSegment(const void* addr);
 
+namespace detail {
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// helper class to fetch the system info on construction
+class KUNameBase
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	KUNameBase() noexcept;
+	KUNameBase(const KUNameBase& other) noexcept;
+
 #ifdef DEKAF2_IS_WINDOWS
-	struct KUTSName
+	struct utsname
 	{
 		const char* sysname;
 		char nodename[256];
 		char release[1];
-		char version[1];
+		char version[256];
 		const char* machine;
 	};
-#else
-	using KUTSName = ::utsname;
 #endif
 
-/// returns utsname struct with information about:
-/// sysname : Name of OS
-/// nodename: Name of this network node
-/// release : Release level
-/// version : Version level
-/// machine : Hardware type
-DEKAF2_PUBLIC
-KUTSName kUName();
+	utsname m_UTSName;
+
+}; // KUNameBase
+
+} // end of namespace detail
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// access uname system info
+class DEKAF2_PUBLIC KUName : private detail::KUNameBase
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	KUName() noexcept;
+	KUName(const KUName& other) noexcept;
+
+	/// name of OS
+	KStringViewZ sysname;
+	/// name of this network node
+	KStringViewZ nodename;
+	/// release level
+	KStringViewZ release;
+	/// version level
+	KStringViewZ version;
+	/// hardware type
+	KStringViewZ machine;
+
+}; // KUName
 
 DEKAF2_NAMESPACE_END
-

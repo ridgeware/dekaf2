@@ -295,13 +295,18 @@ TEST_CASE("KSystem")
 
 	SECTION("KUName")
 	{
-		auto Info =  kUName();
-		CHECK ( Info.nodename[0] != 0 );
+		KUName Info;
+		CHECK ( Info.nodename != "" );
 #ifndef DEKAF2_IS_WINDOWS
-		CHECK ( Info.release[0]  != 0 );
+		CHECK ( Info.release  != "" );
 #endif
-		CHECK ( Info.sysname[0]  != 0 );
-		CHECK ( Info.machine[0]  != 0 );
-		CHECK ( Info.version[0]  != 0 );
+		CHECK ( Info.sysname  != "" );
+		CHECK ( Info.machine  != "" );
+		CHECK ( Info.version  != "" );
+
+		auto ii = std::make_unique<KUName>();
+		KUName I2 = *ii;
+		ii.reset();
+		CHECK ( I2.sysname != "" );
 	}
 }

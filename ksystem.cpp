@@ -1929,76 +1929,103 @@ bool kIsInsideDataSegment(const void* addr)
 } // kIsInsideDataSegment
 
 //-----------------------------------------------------------------------------
-KUTSName kUName()
+detail::KUNameBase::KUNameBase() noexcept
 //-----------------------------------------------------------------------------
 {
-	KUTSName info;
-
 #ifdef DEKAF2_IS_WINDOWS
 
-	info.release [0] = 0;
-	info.version [0] = 0;
+	m_UTSName.release[0] = 0;
 
 	SYSTEM_INFO sys;
 	GetNativeSystemInfo(&sys);
 	switch(sys.wProcessorArchitecture) {
-	#ifdef PROCESSOR_ARCHITECTURE_AMD64
+#ifdef PROCESSOR_ARCHITECTURE_AMD64
 		case PROCESSOR_ARCHITECTURE_AMD64:
-			info.machine = "x64_64";
+			m_UTSName.machine = "x64_64";
 			break;
-	#endif
-	#ifdef PROCESSOR_ARCHITECTURE_ARM
+#endif
+#ifdef PROCESSOR_ARCHITECTURE_ARM
 		case PROCESSOR_ARCHITECTURE_ARM:
-			info.machine = "ARM32";
+			m_UTSName.machine = "ARM32";
 			break;
-	#endif
-	#ifdef PROCESSOR_ARCHITECTURE_ARM64
+#endif
+#ifdef PROCESSOR_ARCHITECTURE_ARM64
 		case PROCESSOR_ARCHITECTURE_ARM64:
-			info.machine = "ARM64";
+			m_UTSName.machine = "ARM64";
 			break;
-	#endif
-	#ifdef PROCESSOR_ARCHITECTURE_IA64
+#endif
+#ifdef PROCESSOR_ARCHITECTURE_IA64
 		case PROCESSOR_ARCHITECTURE_IA64:
-			info.machine = "IA-64";
+			m_UTSName.machine = "IA-64";
 			break;
-	#endif
-	#ifdef PROCESSOR_ARCHITECTURE_INTEL
+#endif
+#ifdef PROCESSOR_ARCHITECTURE_INTEL
 		case PROCESSOR_ARCHITECTURE_INTEL:
-			info.machine = "x86";
+			m_UTSName.machine = "x86";
 			break;
-	#endif
+#endif
 		default:
-			info.machine = "UNKNOWN";
+			m_UTSName.machine = "UNKNOWN";
 			break;
 	}
 
 	HKEY hkey;
 	RegOpenKeyEx(HKEY_LOCAL_MACHINE, "Software\\Microsoft\\Windows NT\\CurrentVersion", 0, KEY_QUERY_VALUE, &hkey);
-	long unsigned int size = sizeof(info.version);
-	RegQueryValueEx(hkey, "DisplayVersion", NULL, NULL, info.version, &size);
+	long unsigned int size = sizeof(m_UTSName.version);
+	RegQueryValueEx(hkey, "DisplayVersion", NULL, NULL, m_UTSName.version, &size);
 	RegCloseKey(hkey);
 
-	gethostname(info.nodename, 256);
+	gethostname(m_UTSName.nodename, 256);
 
-	info.sysname = "Windows";
+	m_UTSName.sysname = "Windows";
 
 #else
 
-	info.sysname [0] = 0;
-	info.nodename[0] = 0;
-	info.release [0] = 0;
-	info.version [0] = 0;
-	info.machine [0] = 0;
+	if (uname(&m_UTSName))
+	{
+		kDebug(1, "cannot get uname info: {}", strerror(errno));
 
-	uname(&info);
+		m_UTSName.sysname [0] = 0;
+		m_UTSName.nodename[0] = 0;
+		m_UTSName.release [0] = 0;
+		m_UTSName.version [0] = 0;
+		m_UTSName.machine [0] = 0;
+	}
 
 #endif
 
-	// make sure nodename does not overflow
-	info.nodename[sizeof(info.nodename) - 1] = 0;
+} // detail::KUNameBase ctor
 
-	return info;
+//-----------------------------------------------------------------------------
+detail::KUNameBase::KUNameBase(const detail::KUNameBase& other) noexcept
+//-----------------------------------------------------------------------------
+{
+	static_assert(std::is_trivially_copyable<utsname>::value, "utsname is not trivially copyable");
+	std::memcpy(&m_UTSName, &other.m_UTSName, sizeof(utsname));
+}
 
-} // kUName
+//-----------------------------------------------------------------------------
+KUName::KUName() noexcept
+//-----------------------------------------------------------------------------
+: detail::KUNameBase()
+, sysname  (m_UTSName.sysname )
+, nodename (m_UTSName.nodename)
+, release  (m_UTSName.release )
+, version  (m_UTSName.version )
+, machine  (m_UTSName.machine )
+{
+} // kUName ctor
+
+//-----------------------------------------------------------------------------
+KUName::KUName(const KUName& other) noexcept
+//-----------------------------------------------------------------------------
+: detail::KUNameBase(other)
+, sysname  (m_UTSName.sysname )
+, nodename (m_UTSName.nodename)
+, release  (m_UTSName.release )
+, version  (m_UTSName.version )
+, machine  (m_UTSName.machine )
+{
+} // KUName copy ctor
 
 DEKAF2_NAMESPACE_END

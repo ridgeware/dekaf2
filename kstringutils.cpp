@@ -769,4 +769,94 @@ KString kCurlyToStraight(KStringView sInput)
 
 } // kCurlyToStraight
 
+//-----------------------------------------------------------------------------
+bool kHasUTF8BOM(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	return sInput.size() >= 3 &&
+	    static_cast<uint8_t>(sInput[0]) == 0xef &&
+	    static_cast<uint8_t>(sInput[1]) == 0xbb &&
+	    static_cast<uint8_t>(sInput[2]) == 0xbf;
+
+} // kHasUTF8BOM
+
+//-----------------------------------------------------------------------------
+KStringView kSkipUTF8BOM(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	if (kHasUTF8BOM(sInput))
+	{
+		sInput.remove_prefix(3);
+	}
+
+	return sInput;
+
+} // kSkipUTF8BOM
+
+//-----------------------------------------------------------------------------
+KInStream& kSkipUTF8BOM(KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	uint8_t iMustUnread { 0 };
+
+	auto ch = InStream.Read();
+
+	if (ch == 0xef)
+	{
+		ch = InStream.Read();
+
+		if (ch == 0xbb)
+		{
+			ch = InStream.Read();
+
+			if (ch != 0xbf)
+			{
+				iMustUnread = 3;
+			}
+		}
+		else
+		{
+			iMustUnread = 2;
+		}
+	}
+	else
+	{
+		iMustUnread = 1;
+	}
+
+	if (std::istream::traits_type::eq_int_type(ch, std::istream::traits_type::eof()))
+	{
+		--iMustUnread;
+	}
+
+	if (iMustUnread)
+	{
+		auto iCouldNotUnread = InStream.UnRead(iMustUnread);
+
+		if (iCouldNotUnread)
+		{
+			kWarning("could not unread {} of {} characters", iCouldNotUnread, iMustUnread);
+		}
+	}
+
+	return InStream;
+
+} // kSkipUTF8BOM
+
+//-----------------------------------------------------------------------------
+bool kSkipUTF8BOMInPlace(KStringRef& sInput)
+//-----------------------------------------------------------------------------
+{
+	if (kHasUTF8BOM(sInput))
+	{
+		sInput.erase(0, 3);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+
+} // kSkipUTF8BOMInPlace
+
 DEKAF2_NAMESPACE_END

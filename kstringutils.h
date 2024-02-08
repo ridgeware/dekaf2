@@ -59,6 +59,8 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+class KInStream;
+
 //------------------------------------------------------------------------------
 DEKAF2_PUBLIC
 KStringRef::size_type kReplace(KStringRef& string,
@@ -1587,5 +1589,17 @@ void kResizeUninitialized(std::string& sStr, std::string::size_type iNewSize);
 /// convert unicode representations of ASCII punctuation into their ASCII forms. Mainly quotes, but also
 /// tilde, spaces, and hyphen
 KString kCurlyToStraight(KStringView sInput);
+
+/// returns true if sInput starts with a UTF8 BOM (Windows programs have the habit to add them to UTF8)
+bool kHasUTF8BOM(KStringView sInput);
+
+/// returns a string view with skipped UTF8 BOM (if found at start of sInput)
+KStringView kSkipUTF8BOM(KStringView sInput);
+
+/// returns a stream with skipped UTF8 BOM (if found at start of InStream)
+KInStream& kSkipUTF8BOM(KInStream& InStream);
+
+/// removes the UTF8 BOM in sInput in place, returning true if removed
+bool kSkipUTF8BOMInPlace(KStringRef& sInput);
 
 DEKAF2_NAMESPACE_END

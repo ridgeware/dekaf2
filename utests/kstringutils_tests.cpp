@@ -3,6 +3,7 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/kstack.h>
+#include <dekaf2/kinstringstream.h>
 #include <vector>
 #include <set>
 
@@ -1497,6 +1498,86 @@ TEST_CASE("KStringUtils") {
 		kLimitSizeUTF8InPlace(stdStr, 11);
 		CHECK ( stdStr == "œp…ⱡ");
 		CHECK ( Unicode::ValidUTF8(stdStr) );
+	}
+
+	SECTION("kHasUTF8BOM")
+	{
+		std::vector<std::pair<KStringView, bool>> tests
+		{{
+			{ ""                    , false },
+			{ "abcdefg"             , false },
+			{ "\xef\xbb\xbf"        , true  },
+			{ "a\xef\xbb\xbf"       , false },
+			{ "\xef \xbb\xbf"       , false },
+			{ "\xef\xbb \xbf"       , false },
+			{ "\xef\xbb\xbf abcdef" , true  },
+		}};
+
+		for (auto& test : tests)
+		{
+			CHECK ( kHasUTF8BOM(test.first) == test.second );
+		}
+	}
+
+	SECTION("kSkipUTF8BOM")
+	{
+		std::vector<std::pair<KStringView, KStringView>> tests
+		{{
+			{ ""                    , ""              },
+			{ "abcdefg"             , "abcdefg"       },
+			{ "\xef\xbb\xbf"        , ""              },
+			{ "a\xef\xbb\xbf"       , "a\xef\xbb\xbf" },
+			{ "\xef \xbb\xbf"       , "\xef \xbb\xbf" },
+			{ "\xef\xbb \xbf"       , "\xef\xbb \xbf" },
+			{ "\xef\xbb\xbf abcdef" , " abcdef"       },
+		}};
+
+		for (auto& test : tests)
+		{
+			CHECK ( kSkipUTF8BOM(test.first) == test.second );
+		}
+	}
+
+	SECTION("kSkipUTF8BOM Stream")
+	{
+		std::vector<std::pair<KStringView, KStringView>> tests
+		{{
+			{ ""                    , ""              },
+			{ "abcdefg"             , "abcdefg"       },
+			{ "\xef\xbb\xbf"        , ""              },
+			{ "a\xef\xbb\xbf"       , "a\xef\xbb\xbf" },
+			{ "\xef \xbb\xbf"       , "\xef \xbb\xbf" },
+			{ "\xef\xbb \xbf"       , "\xef\xbb \xbf" },
+			{ "\xef\xbb\xbf abcdef" , " abcdef"       },
+		}};
+
+		for (auto& test : tests)
+		{
+			KInStringStream iss(test.first);
+			kSkipUTF8BOM(iss);
+			CHECK ( kReadAll(iss) == test.second );
+		}
+	}
+
+	SECTION("kSkipUTF8BOMInPlace")
+	{
+		std::vector<std::pair<KStringView, KStringView>> tests
+		{{
+			{ ""                    , ""              },
+			{ "abcdefg"             , "abcdefg"       },
+			{ "\xef\xbb\xbf"        , ""              },
+			{ "a\xef\xbb\xbf"       , "a\xef\xbb\xbf" },
+			{ "\xef \xbb\xbf"       , "\xef \xbb\xbf" },
+			{ "\xef\xbb \xbf"       , "\xef\xbb \xbf" },
+			{ "\xef\xbb\xbf abcdef" , " abcdef"       },
+		}};
+
+		for (auto& test : tests)
+		{
+			KString s { test.first };
+			kSkipUTF8BOMInPlace(s);
+			CHECK ( s == test.second );
+		}
 	}
 
 }

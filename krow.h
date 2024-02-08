@@ -77,7 +77,7 @@ public:
 	// at runtime this constructor will only accept KStringView from the data segment,
 	// not any transformations from dynamic storage - it will throw otherwise
 	template<class ConstantString,
-			 typename std::enable_if<std::is_same<KStringView,  typename std::decay<ConstantString>::type>::value ||
+	         typename std::enable_if<std::is_same<KStringView,  typename std::decay<ConstantString>::type>::value ||
 	                                 std::is_same<KStringViewZ, typename std::decay<ConstantString>::type>::value, int>::type = 0>
 	KSQLString(ConstantString sContent)
 	{
@@ -305,7 +305,7 @@ public:
 	KCOL () = default;
 
 	template<typename T,
-			 typename std::enable_if<std::is_convertible<const T&, KString>::value == true, int>::type = 0>
+	         typename std::enable_if<std::is_convertible<const T&, KString>::value == true, int>::type = 0>
 	KCOL (T&& _sValue, Flags iFlags = Flags::NOFLAG, Len iMaxLen = 0)
 		: sValue(std::forward<T>(_sValue))
 		, m_iMaxLen(iMaxLen)

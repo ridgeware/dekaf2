@@ -273,8 +273,8 @@ public:
 	/// @param INI a property sheet with ini parameters which
 	/// will be searched as last resort to find connection parameters
 	KSQL (KStringView sIdentifierList,
-		  KStringView sDBCFile,
-		  const IniParms& INI = IniParms{});
+	      KStringView sDBCFile,
+	      const IniParms& INI = IniParms{});
 	/// copy constructor, only copies connection details from other instance, not internal state!
 	KSQL (const KSQL& other);
 	/// move constructor, moves all internal state
@@ -400,13 +400,13 @@ public:
 	bool   BulkCopy        (KSQL& OtherDB, KStringView sTablename, const KSQLString& sWhereClause="", uint16_t iFlushRows=1024, int32_t iPbarThreshold=500);
 
 	KSQLString FormInsert (KROW& Row, bool fIdentityInsert=false)
-			{ return Row.FormInsert (m_iDBType, fIdentityInsert); }
+	        { return Row.FormInsert (m_iDBType, fIdentityInsert); }
 	KSQLString FormUpdate (KROW& Row)
-			{ return Row.FormUpdate (m_iDBType); }
+	        { return Row.FormUpdate (m_iDBType); }
 	KSQLString FormDelete (KROW& Row)
-			{ return Row.FormDelete (m_iDBType); }
+	        { return Row.FormDelete (m_iDBType); }
 	KSQLString FormSelect (KROW& Row, bool bSelectAllColumns = false)
-			{ return Row.FormSelect (m_iDBType, bSelectAllColumns); }
+	        { return Row.FormSelect (m_iDBType, bSelectAllColumns); }
 
 	void   SetErrorPrefix   (KStringView sPrefix, uint32_t iLineNum = 0);
 	void   ClearErrorPrefix ()        { m_sErrorPrefix.clear(); }
@@ -414,16 +414,16 @@ public:
 	/// issue a klog warning everytime a query or sql statement exceeds the given number of seconds
 	void   SetWarningThreshold  (KDuration iWarnIfOverMilliseconds, FILE* fpAlternativeToKlog=nullptr)
 	{
-			m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
-			m_fpPerformanceLog        = fpAlternativeToKlog;
+		m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
+		m_fpPerformanceLog        = fpAlternativeToKlog;
 	}
 
 	/// call back everytime a query or sql statement exceeds the given duration
 	void   SetWarningThreshold  (KDuration iWarnIfOverMilliseconds,
-								 std::function<void(const KSQL&, KDuration, const KString&)> TimingCallback = nullptr)
+	                             std::function<void(const KSQL&, KDuration, const KString&)> TimingCallback = nullptr)
 	{
-			m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
-			m_TimingCallback = TimingCallback;
+		m_iWarnIfOverMilliseconds = iWarnIfOverMilliseconds;
+		m_TimingCallback = TimingCallback;
 	}
 
 	enum class QueryType : uint16_t
@@ -854,8 +854,8 @@ public:
 		{
 			OneDiff() = default;
 			OneDiff(KString sComment,
-					KSQLString sActionLeft,
-					KSQLString sActionRight)
+			        KSQLString sActionLeft,
+			        KSQLString sActionRight)
 			: sComment(std::move(sComment))
 			, sActionLeft(std::move(sActionLeft))
 			, sActionRight(std::move(sActionRight))
@@ -879,15 +879,15 @@ public:
 	/// Produces two summaries of the diffs: one structured (DIFF::Diffs) and the other serialized (ASCII "diff" output).
 	/// Returns the number of diffs (or 0 if no diffs)
 	std::size_t DiffSchemas (const KJSON& LeftSchema,
-							 const KJSON& RightSchema,
-							 DIFF::Diffs& Diffs,
-							 KStringRef&  sSummary,
-							 const KJSON& options={
-								{DIFF::left_schema,"left schema"},
-								{DIFF::left_prefix,"<"},
-								{DIFF::right_schema,"right schema"},
-								{DIFF::right_prefix,">"}
-							 });
+	                         const KJSON& RightSchema,
+	                         DIFF::Diffs& Diffs,
+	                         KStringRef&  sSummary,
+	                         const KJSON& options={
+	                            {DIFF::left_schema,"left schema"},
+	                            {DIFF::left_prefix,"<"},
+	                            {DIFF::right_schema,"right schema"},
+	                            {DIFF::right_prefix,">"}
+	                         });
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper object to proxy access to KSQL and reset the Throw/NoThrow state after use
@@ -960,10 +960,10 @@ public:
 	bool EnsureSchema (KStringView sSchemaVersionTable,
 	                   KStringView sSchemaFolder,
 	                   KStringView sFilenamePrefix,
-					   uint16_t iCurrentSchema,
-					   uint16_t iInitialSchema=100,
-					   bool bForce = false,
-					   const SchemaCallback& Callback = nullptr);
+	                   uint16_t iCurrentSchema,
+	                   uint16_t iInitialSchema=100,
+	                   bool bForce = false,
+	                   const SchemaCallback& Callback = nullptr);
 
 	/// get current schema version
 	uint16_t GetSchemaVersion (KStringView sTablename);
@@ -1280,7 +1280,7 @@ private:
 	//-----------------------------------------------------------------------------
 	template<typename T,
 	         typename std::enable_if<!std::is_constructible<KStringView, T>::value
-								   || std::is_same<KSQLString, typename std::decay<T>::type>::value, int>::type = 0
+	                               || std::is_same<KSQLString, typename std::decay<T>::type>::value, int>::type = 0
 	>
 	static auto EscapeType(DBT iDBType, T&& value)
 	//-----------------------------------------------------------------------------
@@ -1292,7 +1292,7 @@ private:
 	template<typename T,
 	         typename Decayed = typename std::decay<T>::type,
 	         typename std::enable_if<std::is_constructible<KStringView, T>::value
-								 && !std::is_same<KSQLString, Decayed>::value
+	                             && !std::is_same<KSQLString, Decayed>::value
 	                             && !std::is_same<KString,                 Decayed>::value
 	                             && !std::is_same<std::string,             Decayed>::value, int>::type = 0
 	>
@@ -1422,8 +1422,8 @@ public:
 		         class... Args,
 		         typename Decayed = typename std::decay<FormatString>::type,
 		         typename std::enable_if<!std::is_same<KString,     Decayed>::value &&
-										 !std::is_same<std::string, Decayed>::value &&
-	                                     !std::is_same<KSQLString,  Decayed>::value, int>::type = 0
+		                                 !std::is_same<std::string, Decayed>::value &&
+		                                 !std::is_same<KSQLString,  Decayed>::value, int>::type = 0
 		>
 		static KSQLString FormatSQL(DBT iDBType, FormatString&& sFormat, Args&&... args)
 		//-----------------------------------------------------------------------------
@@ -1648,8 +1648,8 @@ KSQLString kFormatSQL (KSQL::DBT iDBType, FormatString&& sFormat, Args&&... args
 //----------------------------------------------------------------------
 {
 	return KSQL::format_detail::FormatSQL(iDBType,
-										  std::forward<FormatString>(sFormat),
-										  std::forward<Args>(args)...);
+	                                      std::forward<FormatString>(sFormat),
+	                                      std::forward<Args>(args)...);
 }
 
 //----------------------------------------------------------------------
@@ -1661,8 +1661,8 @@ KSQLString kFormatSQL (FormatString&& sFormat, Args&&... args)
 //----------------------------------------------------------------------
 {
 	return KSQL::format_detail::FormatSQL(KSQL::DBT::MYSQL,
-										  std::forward<FormatString>(sFormat),
-										  std::forward<Args>(args)...);
+	                                      std::forward<FormatString>(sFormat),
+	                                      std::forward<Args>(args)...);
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

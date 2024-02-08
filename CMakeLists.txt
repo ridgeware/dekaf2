@@ -161,8 +161,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
 	set (DEKAF2_IS_APPLE_CLANG ON)
 endif()
 
-# these are supported by cmake 3.8 as well (but take care for other keys, they are
-# typically only supported starting with 3.10 and cause an error with lower versions)
 cmake_host_system_information(RESULT TOTAL_PHYSICAL_MEMORY QUERY TOTAL_PHYSICAL_MEMORY)
 cmake_host_system_information(RESULT NUMBER_OF_PHYSICAL_CORES QUERY NUMBER_OF_PHYSICAL_CORES)
 cmake_host_system_information(RESULT HOSTNAME QUERY HOSTNAME)
@@ -369,7 +367,9 @@ set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 # to workaround a broken boost cmake config with boost 1.71 disable
 # the boost cmake files
-set(Boost_NO_BOOST_CMAKE 1)
+set(Boost_NO_BOOST_CMAKE ON)
+# most annoying warning ever - finally we can suppress it (cmake 3.20++)
+set(Boost_NO_WARN_NEW_VERSIONS ON)
 
 if (NOT BOOST_ROOT)
 	# only set BOOST_ROOT if not already done by caller
@@ -379,9 +379,9 @@ if (NOT BOOST_ROOT)
 		# we prefer the boost lib that we installed ourselves in /opt/lib ..
 		set(BOOST_ROOT "/opt/boost")
 	endif()
+else()
+	message(STATUS "boost root externally set to: ${BOOST_ROOT}")
 endif ()
-
-message(STATUS "boost root: ${BOOST_ROOT}")
 
 # boost asio (header only) needs system and date_time
 # dekaf2's http part needs iostreams

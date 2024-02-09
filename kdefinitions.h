@@ -137,6 +137,8 @@
 
 #if DEKAF2_HAS_INCLUDE(<source_location>)
 	#include <source_location>
+#endif
+#if __cpp_lib_source_location >= 201907L
 	#define DEKAF2_FUNCTION_NAME std::source_location::current().function_name()
 #elif defined __GNUC__
 	#define DEKAF2_FUNCTION_NAME __PRETTY_FUNCTION__

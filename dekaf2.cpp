@@ -645,6 +645,24 @@ KInit& KInit::SetLocale(KStringViewZ sLocale)
 } // SetLocale
 
 //---------------------------------------------------------------------------
+KInit& KInit::SetUSecMode(bool bYesNo)
+//---------------------------------------------------------------------------
+{
+	KLog::getInstance().SetUSecMode(bYesNo);
+	return *this;
+
+} // SetUSecMode
+
+//---------------------------------------------------------------------------
+KInit& KInit::KeepCLIMode(bool bYesNo)
+//---------------------------------------------------------------------------
+{
+	KLog::getInstance().KeepCLIMode(bYesNo);
+	return *this;
+
+} // KeepCLIMode
+
+//---------------------------------------------------------------------------
 void kInit (KStringView sName, KStringViewZ sDebugLog, KStringViewZ sDebugFlag, bool bShouldDumpCore/*=false*/, bool bEnableMultiThreading/*=false*/, bool bStartSignalHandlerThread/*=true*/)
 //---------------------------------------------------------------------------
 {

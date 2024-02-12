@@ -298,13 +298,24 @@ public:
 	/// Start with own signal handler thread? Advisable for servers..
 	KInit(bool bStartSignalHandlerThread = true);
 
+	/// set log name for the executable, will be limited to 5 chars (uppercased)
 	self& SetName(KStringView sName);
+	/// set debug log file name, may be stdout, stderr, or a URL
 	self& SetDebugLog(KStringView sDebugLog);
+	/// set file name for the debug flag file which controls the debug output in server mode
 	self& SetDebugFlag(KStringView sDebugFlag);
+	/// will the executable run in multithreading?
 	self& SetMultiThreading(bool bYesNo = true);
+	/// do not show a stack trace for JSON errors?
 	self& SetOnlyShowCallerOnJsonError(bool bYesNo = true);
+	/// set debug level
 	self& SetLevel(int iLevel);
+	/// set system locale (used for C functions, defaults to en_US.UTF-8)
 	self& SetLocale(KStringViewZ sLocale = "en_US.UTF-8");
+	/// keep CLI debug mode even after starting a REST server? advisable for docker
+	self& KeepCLIMode(bool bYesNo = true);
+	/// output debug log with microseconds resolution?
+	self& SetUSecMode(bool bYesNo = true);
 
 }; // KInit
 
@@ -313,7 +324,8 @@ public:
 
 //---------------------------------------------------------------------------
 /// Shortcut to initialize Dekaf and KLog in one call - however, not needed for
-/// default settings as those are automatically set at startup
+/// default settings as those are automatically set at startup. New code should
+/// use KInit() above for named parameters.
 DEKAF2_PUBLIC
 void kInit(KStringView sName = KStringView{},
            KStringViewZ sDebugLog = KStringViewZ{},

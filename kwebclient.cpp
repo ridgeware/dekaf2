@@ -273,7 +273,7 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 			SetError(Response.GetStatusString());
 		}
 
-		if (kWouldLog(2))
+		if (kWouldLog(3))
 		{
 			if (!svRequestBody.empty())
 			{
@@ -303,7 +303,7 @@ KString KWebClient::HttpRequest2Host (const KURL& HostURL, KURL URL, KHTTPMethod
 	KOutStringStream oss(sResponse);
 	HttpRequest2Host(oss, HostURL, std::move(URL), RequestMethod, svRequestBody, MIME);
 
-	if (kWouldLog(2))
+	if (kWouldLog(3))
 	{
 		if (!sResponse.empty())
 		{

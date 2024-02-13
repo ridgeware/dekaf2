@@ -693,7 +693,7 @@ public:
 	/// returns last error number
 	uint32_t    GetLastErrorNum () const { return (m_iErrorSetOnlyWithSetError);       }
 	/// returns true for MySQL duplicate index error
-	bool        WasDuplicateError() const { return (GetLastErrorNum() == 1062); /*TODO:MySQL only*/ }
+	bool        WasDuplicateError() const { return (GetLastErrorNum() == 1062); /*TODO:this is hardcoded for MySQL only*/ }
 	int         GetLastOCIError () const { return (GetLastErrorNum()); }
 	/// returns last issued SQL statement
 	const KString& GetLastSQL ()   const { return (m_sLastSQL.str());        }

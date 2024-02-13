@@ -6220,7 +6220,8 @@ bool KSQL::ExecLastRawInsert(bool bIgnoreDupes)
 
 	if (!bOK && bIgnoreDupes && WasDuplicateError())
 	{
-		bOK = true;
+		kDebug (2, "ignoring dupe error: {}", GetLastError());
+		bOK = true; // <-- override return status
 	}
 
 	kDebug (GetDebugLevel(), "{} rows affected.", m_iNumRowsAffected);
@@ -9978,11 +9979,9 @@ void KSQL::RemoveTempTable (KStringView sTablename)
 void KSQL::PurgeTempTables ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
-
 	for (const auto& sTablename : m_TempTables)
 	{
-		ExecSQL ("drop table {}", sTablename);
+		ExecSQL ("drop table {} /*KSQL::PurgeTempTables() on {}*/", sTablename, ConnectSummary());
 	}
 
 } // PurgeTempTables

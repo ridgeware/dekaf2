@@ -781,20 +781,7 @@ bool kHasUTF8BOM(KStringView sInput)
 } // kHasUTF8BOM
 
 //-----------------------------------------------------------------------------
-KStringView kSkipUTF8BOM(KStringView sInput)
-//-----------------------------------------------------------------------------
-{
-	if (kHasUTF8BOM(sInput))
-	{
-		sInput.remove_prefix(3);
-	}
-
-	return sInput;
-
-} // kSkipUTF8BOM
-
-//-----------------------------------------------------------------------------
-KInStream& kSkipUTF8BOM(KInStream& InStream)
+bool kHasUTF8BOM(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
 	uint8_t iMustUnread { 0 };
@@ -809,7 +796,11 @@ KInStream& kSkipUTF8BOM(KInStream& InStream)
 		{
 			ch = InStream.Read();
 
-			if (ch != 0xbf)
+			if (ch == 0xbf)
+			{
+				return true;
+			}
+			else
 			{
 				iMustUnread = 3;
 			}
@@ -839,6 +830,28 @@ KInStream& kSkipUTF8BOM(KInStream& InStream)
 		}
 	}
 
+	return false;
+
+} // kHasUTF8BOM
+
+//-----------------------------------------------------------------------------
+KStringView kSkipUTF8BOM(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	if (kHasUTF8BOM(sInput))
+	{
+		sInput.remove_prefix(3);
+	}
+
+	return sInput;
+
+} // kSkipUTF8BOM
+
+//-----------------------------------------------------------------------------
+KInStream& kSkipUTF8BOM(KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	kHasUTF8BOM(InStream);
 	return InStream;
 
 } // kSkipUTF8BOM

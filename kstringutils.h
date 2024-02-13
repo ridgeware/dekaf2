@@ -1593,6 +1593,9 @@ KString kCurlyToStraight(KStringView sInput);
 /// returns true if sInput starts with a UTF8 BOM (Windows programs have the habit to add them to UTF8)
 bool kHasUTF8BOM(KStringView sInput);
 
+/// returns true if InStream starts with a UTF8 BOM (Windows programs have the habit to add them to UTF8)
+bool kHasUTF8BOM(KInStream& InStream);
+
 /// returns a string view with skipped UTF8 BOM (if found at start of sInput)
 KStringView kSkipUTF8BOM(KStringView sInput);
 

@@ -140,14 +140,14 @@ KString DBCFileBase::GetString(const void* pStr, uint16_t iMaxLen)
 } // DBCFileBase::GetString
 
 //-----------------------------------------------------------------------------
-bool DBCFileBase::SetString(void* pStr, KStringView sStr, uint16_t iMaxLen)
+bool DBCFileBase::SetString(void* pStr, KStringViewZ sStr, uint16_t iMaxLen)
 //-----------------------------------------------------------------------------
 {
 	if (sStr.size() <= iMaxLen)
 	{
 		auto szStr = static_cast<char*>(pStr);
-		std::strncpy(szStr, sStr.data(), iMaxLen);
-		szStr[iMaxLen] = 0;
+		// strncpy() actually zeroes the remainder of the string - we do not want that
+		std::strcpy(szStr, sStr.c_str());
 		encrypt(szStr);
 		return true;
 	}

@@ -82,10 +82,10 @@ public:
 	virtual bool Save(KStringViewZ sFilename) const = 0;
 	virtual void SetDBT(DBT dbt) = 0;
 	virtual void SetAPI(API api) = 0;
-	virtual bool SetUsername(KStringView sName) = 0;
-	virtual bool SetPassword(KStringView sPassword) = 0;
-	virtual bool SetDatabase(KStringView sDatabase) = 0;
-	virtual bool SetHostname(KStringView sHostname) = 0;
+	virtual bool SetUsername(KStringViewZ sName) = 0;
+	virtual bool SetPassword(KStringViewZ sPassword) = 0;
+	virtual bool SetDatabase(KStringViewZ sDatabase) = 0;
+	virtual bool SetHostname(KStringViewZ sHostname) = 0;
 	virtual void SetDBPort(uint16_t iDBPort) = 0;
 
 //----------
@@ -115,7 +115,7 @@ protected:
 		EncodeInt(cTargetArray, static_cast<int32_t>(iAPI));
 	}
 	static KString GetString(const void* pStr, uint16_t iMaxLen);
-	static bool SetString(void* pStr, KStringView sStr, uint16_t iMaxLen);
+	static bool SetString(void* pStr, KStringViewZ sStr, uint16_t iMaxLen);
 	static uint16_t DecodeVersion(const void* pStr);
 	static void FillBufferWithNoise(void* pBuffer, std::size_t iSize);
 
@@ -163,10 +163,10 @@ public:
 
 	virtual void SetDBT(DBT dbt) override final { data.iDBType = static_cast<int32_t>(dbt); }
 	virtual void SetAPI(API api) override final { data.iAPISet = static_cast<int32_t>(api); }
-	virtual bool SetUsername(KStringView sName) override final { return SetString(data.szUsername, sName, MAXLEN_CONNECTPARM); }
-	virtual bool SetPassword(KStringView sPassword) override final { return SetString(data.szPassword, sPassword, MAXLEN_CONNECTPARM); }
-	virtual bool SetDatabase(KStringView sDatabase) override final { return SetString(data.szDatabase, sDatabase, MAXLEN_CONNECTPARM); }
-	virtual bool SetHostname(KStringView sHostname) override final { return SetString(data.szHostname, sHostname, MAXLEN_CONNECTPARM); }
+	virtual bool SetUsername(KStringViewZ sName) override final { return SetString(data.szUsername, sName, MAXLEN_CONNECTPARM); }
+	virtual bool SetPassword(KStringViewZ sPassword) override final { return SetString(data.szPassword, sPassword, MAXLEN_CONNECTPARM); }
+	virtual bool SetDatabase(KStringViewZ sDatabase) override final { return SetString(data.szDatabase, sDatabase, MAXLEN_CONNECTPARM); }
+	virtual bool SetHostname(KStringViewZ sHostname) override final { return SetString(data.szHostname, sHostname, MAXLEN_CONNECTPARM); }
 	virtual void SetDBPort(uint16_t iDBPort) override final { data.iDBPortNum = iDBPort; }
 
 //----------
@@ -237,10 +237,10 @@ public:
 
 	virtual void SetDBT(DBT dbt) override final { EncodeDBT(data.iDBType, dbt); }
 	virtual void SetAPI(API api) override final { EncodeAPI(data.iAPISet, api); }
-	virtual bool SetUsername(KStringView sName) override final { return SetString(data.szUsername, sName, MAXLEN_CONNECTPARM); }
-	virtual bool SetPassword(KStringView sPassword) override final { return SetString(data.szPassword, sPassword, MAXLEN_CONNECTPARM); }
-	virtual bool SetDatabase(KStringView sDatabase) override final { return SetString(data.szDatabase, sDatabase, MAXLEN_CONNECTPARM); }
-	virtual bool SetHostname(KStringView sHostname) override final { return SetString(data.szHostname, sHostname, MAXLEN_CONNECTPARM); }
+	virtual bool SetUsername(KStringViewZ sName) override final { return SetString(data.szUsername, sName, MAXLEN_CONNECTPARM); }
+	virtual bool SetPassword(KStringViewZ sPassword) override final { return SetString(data.szPassword, sPassword, MAXLEN_CONNECTPARM); }
+	virtual bool SetDatabase(KStringViewZ sDatabase) override final { return SetString(data.szDatabase, sDatabase, MAXLEN_CONNECTPARM); }
+	virtual bool SetHostname(KStringViewZ sHostname) override final { return SetString(data.szHostname, sHostname, MAXLEN_CONNECTPARM); }
 	virtual void SetDBPort(uint16_t iDBPort) override final { EncodeInt(data.iDBPortNum, iDBPort); }
 
 //----------
@@ -308,10 +308,10 @@ public:
 
 	virtual void SetDBT(DBT dbt) override final { EncodeDBT(data.iDBType, dbt); }
 	virtual void SetAPI(API api) override final { EncodeAPI(data.iAPISet, api); }
-	virtual bool SetUsername(KStringView sName) override final { return SetString(data.szUsername, sName, MAXLEN_CONNECTPARM); }
-	virtual bool SetPassword(KStringView sPassword) override final { return SetString(data.szPassword, sPassword, MAXLEN_CONNECTPARM); }
-	virtual bool SetDatabase(KStringView sDatabase) override final { return SetString(data.szDatabase, sDatabase, MAXLEN_CONNECTPARM); }
-	virtual bool SetHostname(KStringView sHostname) override final { return SetString(data.szHostname, sHostname, MAXLEN_CONNECTPARM); }
+	virtual bool SetUsername(KStringViewZ sName) override final { return SetString(data.szUsername, sName, MAXLEN_CONNECTPARM); }
+	virtual bool SetPassword(KStringViewZ sPassword) override final { return SetString(data.szPassword, sPassword, MAXLEN_CONNECTPARM); }
+	virtual bool SetDatabase(KStringViewZ sDatabase) override final { return SetString(data.szDatabase, sDatabase, MAXLEN_CONNECTPARM); }
+	virtual bool SetHostname(KStringViewZ sHostname) override final { return SetString(data.szHostname, sHostname, MAXLEN_CONNECTPARM); }
 	virtual void SetDBPort(uint16_t iDBPort) override final { EncodeInt(data.iDBPortNum, iDBPort); }
 
 //----------

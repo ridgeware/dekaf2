@@ -1227,6 +1227,18 @@ String kIntToString(T i, uint16_t iBase = 10, bool bZeroPad = false, bool bUpper
 
 //-----------------------------------------------------------------------------
 inline
+void kFromString(bool& Value, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_KSTRING_IS_STD_STRING
+	return 	kToInt<int>(sValue) != 0 || kIn(sValue, "true,True,TRUE,on,On,ON,yes,Yes,YES");
+#else
+	Value = sValue.Bool();
+#endif
+}
+
+//-----------------------------------------------------------------------------
+inline
 void kFromString(float& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 {

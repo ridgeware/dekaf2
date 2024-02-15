@@ -424,8 +424,9 @@ bool KStringView::Bool() const noexcept
 	// * we need to map literal "true" --> true
 	// * and literal "false" --> false
 	// * as well as non-0 --> true
-	// the literal version is needed for conversions between JSON and KSQL
-	return Int16() != 0 || In("true,TRUE,on,ON");
+	// the literal versions are needed for conversions between JSON and KSQL,
+	// and for various XML formats
+	return Int16() != 0 || In("true,True,TRUE,on,On,ON,yes,Yes,YES");
 }
 
 //-----------------------------------------------------------------------------

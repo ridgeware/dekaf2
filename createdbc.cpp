@@ -43,43 +43,25 @@
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/ksql.h>
 #include <dekaf2/kstring.h>
-#include <dekaf2/kstringutils.h>
 #include <dekaf2/klog.h>
 #include <dekaf2/kwriter.h>
+#include <dekaf2/koptions.h>
+#include <dekaf2/kjoin.h>
 #include <cinttypes>
+#include <algorithm> // std::reverse
 
 using namespace DEKAF2_NAMESPACE_NAME;
 
-static const char* g_Synopsis[] = {
-"",
-"createdbc - create a KSQL database connection file",
-"",
-"usage: createdbc [-d[d[d]]] [-n] <file> <dbtype> <user> <pass> <dbname> <server> [<port>]",
-"",
-"where:",
-"  -d[d[d]] : debug levels (to stdout)",
-"  -n       : flags NOT to test the database connection before creating file",
-"  <file>   : is the target filename (will be trumped if it already exists)",
-"  <dbtype> : oracle, mysql, sqlserver, sybase or a number corresponding to ksql.h",
-"  <user>   : database username",
-"  <pass>   : database password",
-"  <dbname> : database name (use '' for Oracle)",
-"  <server> : hostname (or ORACLE_SID)",
-"  <port>   : optional port override for database service",
-"",
-"history:",
-"  Nov 2001 : keef created",
-"",
-NULL
-};
-
 //-----------------------------------------------------------------------------
-int main (int argc, char* argv[])
+int Main (int argc, char* argv[])
 //-----------------------------------------------------------------------------
 {
-	kInit ("CDBC", ".createdbc.dbg");
+	KInit(false)
+		.SetName("CDBC")
+		.SetDebugFlag(".createdbc.dbg")
+		.SetMultiThreading(false);
 
-	bool  fTestConnection{true};
+	bool    fTestConnection{true};
 	KString sTarget;
 	KString sDBType;
 	KString sDBUser;
@@ -88,72 +70,104 @@ int main (int argc, char* argv[])
 	KString sDBHost;
 	KString sDBPort;
 
-	for (int ii=1; ii < argc; ++ii)
-	{
-		if (kStrIn (argv[ii], "-d,-dd,-ddd"))
-		{
-			KLog::getInstance().SetLevel( static_cast<int>(strlen(argv[ii])) - 1 );
-			KLog::getInstance().SetDebugLog("stdout");
-			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
-		}
-		else if (!strcmp (argv[ii], "-n"))
-		{
-			fTestConnection = false;
-		}
+	KOptions CLI(true);
 
-		// undocumented feature (reads the DBC file and prints summary):
-		else if (!strcmp (argv[ii], "-r"))
+	CLI
+		.Throw()
+		.SetBriefDescription("create a KSQL database connection file")
+		.SetAdditionalArgDescription(
+			"<file> <dbtype> <user> <pass> <dbname> <server> [<port>]\n"
+			"\n"
+			"   <file>   : is the target filename (will be trumped if it already exists)\n"
+			"   <dbtype> : oracle, mysql, sqlserver, sybase or a number corresponding to ksql.h\n"
+			"   <user>   : database username\n"
+			"   <pass>   : database password\n"
+			"   <dbname> : database name (use '' for Oracle)\n"
+			"   <server> : hostname (or ORACLE_SID)\n"
+			"   <port>   : optional port override for database service")
+		.SetAdditionalHelp(
+			"history:\n"
+			"  Nov 2001 : keef created");
+
+	CLI
+		.Option("n")
+		.Set(fTestConnection, false)
+		.Help("flags NOT to test the database connection before creating file");
+
+	// undocumented feature (reads the DBC file and prints summary):
+	CLI
+		.Option("r")
+//		.Type(KOptions::ArgTypes::File)
+		.Hidden()
+	([](KStringViewZ sFilename)
+	{
+		KSQL tmpdb;
+		if (!tmpdb.LoadConnect (sFilename))
 		{
-			KSQL tmpdb;
-			if (!tmpdb.LoadConnect (argv[2]))
+			throw KError(tmpdb.GetLastError());
+		}
+		else
+		{
+			kPrintLine ("createdbc: {}", tmpdb.ConnectSummary());
+			return (0);
+		}
+	});
+
+	CLI
+		.UnknownCommand
+	([&](KOptions::ArgList& Commands)
+	{
+		while (!Commands.empty())
+		{
+			// <file> <dbtype> <user> <pass> <dbname> <server>
+			if (sTarget.empty())
 			{
-				KOut.FormatLine ("createdbc(ERR): {}", tmpdb.GetLastError());
-				return (1);
+				sTarget = Commands.pop();
+			}
+			else if (sDBType.empty())
+			{
+				sDBType = Commands.pop();
+			}
+			else if (sDBUser.empty())
+			{
+				sDBUser = Commands.pop();
+			}
+			else if (sDBPass.empty())
+			{
+				sDBPass = Commands.pop();
+			}
+			else if (sDBName.empty())
+			{
+				sDBName = Commands.pop();
+			}
+			else if (sDBHost.empty())
+			{
+				sDBHost = Commands.pop();
+			}
+			else if (sDBPort.empty())
+			{
+				sDBPort = Commands.pop();
 			}
 			else
 			{
-				KOut.FormatLine ("createdbc: {}", tmpdb.ConnectSummary());
-				return (0);
+				std::reverse(Commands.begin(), Commands.end());
+				throw KOptions::Error("excess parameters: " + kJoined(Commands, " "));
 			}
 		}
 
-		// <file> <dbtype> <user> <pass> <dbname> <server>
-		else if (sTarget.empty())
-		{
-			sTarget = argv[ii];
-		}
-		else if (sDBType.empty())
-		{
-			sDBType = argv[ii];
-		}
-		else if (sDBUser.empty())
-		{
-			sDBUser = argv[ii];
-		}
-		else if (sDBPass.empty())
-		{
-			sDBPass = argv[ii];
-		}
-		else if (sDBName.empty())
-		{
-			sDBName = argv[ii];
-		}
-		else if (sDBHost.empty())
-		{
-			sDBHost = argv[ii];
-		}
-		else if (sDBPort.empty())
-		{
-			sDBPort = argv[ii];
-		}
+	});
+
+	auto iRetVal = CLI.Parse(argc, argv);
+
+	if (iRetVal	|| CLI.Terminate())
+	{
+		// either error or completed
+		return iRetVal;
 	}
 
 	if (sDBHost.empty())
 	{
-		for (int ii=0; g_Synopsis[ii]; ++ii)
-		{
-			KOut.FormatLine (" {}", g_Synopsis[ii]);
-		}
+		CLI.Help(KOut);
 		return (1);
 	}
 
@@ -161,41 +175,56 @@ int main (int argc, char* argv[])
 
 	if (!tmpdb.SetDBType (sDBType))
 	{
-		KErr.FormatLine ("createdbc: {}", tmpdb.GetLastError());
-		return (1);
+		throw KError (tmpdb.GetLastError());
 	}
 
 	if (!tmpdb.SetConnect(tmpdb.GetDBType(), sDBUser, sDBPass, sDBName, sDBHost, sDBPort.UInt16()))
 	{
-		KOut.FormatLine ("FAILED.\n{}", tmpdb.GetLastError());
-		return (1);
+		throw KError(kFormat("FAILED.\n{}", tmpdb.GetLastError()));
 	}
 
 	if (fTestConnection)
 	{
-		KOut.Format ("testing connection to '{}' ... ", tmpdb.ConnectSummary());
+		kPrint ("testing connection to '{}' ... ", tmpdb.ConnectSummary());
 		KOut.Flush();
 
 		if (!tmpdb.OpenConnection())
 		{
-			KOut.FormatLine ("FAILED.\n{}", tmpdb.GetLastError());
+			kPrintLine ("FAILED.\n{}", tmpdb.GetLastError());
 			return (1);
 		}
 
-		KOut.WriteLine ("ok.");
+		kPrintLine ("ok.");
 	}
 
-	KOut.Format ("generating file '{}' ... ", sTarget);
+	kPrint ("generating file '{}' ... ", sTarget);
 	KOut.Flush();
+
 	if (!tmpdb.SaveConnect (sTarget))
 	{
-		KOut.FormatLine ("FAILED.\n{}", tmpdb.GetLastError());
+		kPrintLine ("FAILED.\n{}", tmpdb.GetLastError());
 		return (1);
 	}
 
-	KOut.WriteLine("done.");
+	kPrintLine("done.");
 
 	return (0);
+
+} // Main
+
+//-----------------------------------------------------------------------------
+int main (int argc, char** argv)
+//-----------------------------------------------------------------------------
+{
+	try
+	{
+		return Main (argc, argv);
+	}
+	catch (const std::exception& ex)
+	{
+		KErr.FormatLine(">> createdbc: {}", ex.what());
+	}
+	return 1;
 
 } // main
 

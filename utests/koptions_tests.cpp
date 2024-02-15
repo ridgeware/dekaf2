@@ -11,11 +11,14 @@ TEST_CASE("KOptions")
 {
 	struct Accomplished
 	{
-		bool bEmpty  { false };
-		bool bTest   { false };
-		bool bEmpty2 { false };
-		bool bSingle { false };
-		bool bMulti  { false };
+		bool bEmpty    { false };
+		bool bTest     { false };
+		bool bEmpty2   { false };
+		bool bSingle   { false };
+		bool bMulti    { false };
+		bool bStop     { false };
+		int  iInteger1 {     0 };
+		int  iInteger2 {     0 };
 		KStringViewZ sDatabase;
 		KStringViewZ sSingleArg;
 		KString      sJoinedArgs;
@@ -76,26 +79,72 @@ TEST_CASE("KOptions")
 			a.sDatabase = sDatabase;
 		});
 
+	Options
+		.Option("b")
+		.Help("stop execution")
+		.Set(a.bStop, "true");
+
+	Options
+		.Option("i,Integral")
+		.Help("fill an integer from a string")
+		.Set(a.iInteger1);
+
+	Options
+		.Option("I")
+		.Help("fill an integer from a string with a default")
+		.Set(a.iInteger2, "123");
+
+	struct Something
+	{
+		Something() = default;
+		Something(KStringView s) 
+		{
+			auto p = s.Split();
+			if (p.size() == 2)
+			{
+				x = p[0].Int32();
+				y = p[1].Int32();
+			}
+		}
+
+		int x {};
+		int y {};
+	};
+
+	Something something;
+
+	Options
+		.Option("Something")
+		.Help("fill something from a string")
+		.Set(something);
+
 	Options.Command("run").Help("start running")([](){});
 
 	SECTION("combined short args")
 	{
 		const char* CLI[] {
 			"MyProgramName",
-			"-ets", "first",
+			"-ebts", "first",
 			"-m", "first", "second",
+			"-Ii", "952",
 			"-clear", "database1",
+			"-Something", "555,333",
 			"-unknown", "arg1", "arg2"
 		};
 
 		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
 
-		CHECK( a.bEmpty  == true );
-		CHECK( a.bTest   == true );
-		CHECK( a.bSingle == true );
-		CHECK( a.bMulti  == true );
+		CHECK( a.bEmpty    == true );
+		CHECK( a.bTest     == true );
+		CHECK( a.bSingle   == true );
+		CHECK( a.bMulti    == true );
+		CHECK( a.bStop     == true );
+		CHECK( a.iInteger1 ==  952 );
+		CHECK( a.iInteger2 ==  123 );
 		CHECK( a.sSingleArg == "first" );
 		CHECK( a.sJoinedArgs == "arg2,arg1,unknown" );
+		CHECK( something.x ==  555 );
+		CHECK( something.y ==  333 );
 		CHECK( a.sDatabase == "DATABASE1" );
 	}
 
@@ -104,15 +153,19 @@ TEST_CASE("KOptions")
 		const char* CLI[] {
 			"MyProgramName",
 			"--clear=database1",
+			"--Integral=987",
 			"-unknown", "arg1", "arg2"
 		};
 
 		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
 
-		CHECK( a.bEmpty  == false );
-		CHECK( a.bTest   == false );
-		CHECK( a.bSingle == false );
-		CHECK( a.bMulti  == false );
+		CHECK( a.bEmpty    == false );
+		CHECK( a.bTest     == false );
+		CHECK( a.bSingle   == false );
+		CHECK( a.bMulti    == false );
+		CHECK( a.bStop     == false );
+		CHECK( a.iInteger1 ==   987 );
+		CHECK( a.iInteger2 ==     0 );
 		CHECK( a.sJoinedArgs == "arg2,arg1,unknown" );
 		CHECK( a.sDatabase == "DATABASE1" );
 	}
@@ -130,10 +183,13 @@ TEST_CASE("KOptions")
 
 		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
 
-		CHECK( a.bEmpty  == true );
-		CHECK( a.bTest   == false);
-		CHECK( a.bSingle == true );
-		CHECK( a.bMulti  == true );
+		CHECK( a.bEmpty    == true  );
+		CHECK( a.bTest     == false );
+		CHECK( a.bSingle   == true  );
+		CHECK( a.bMulti    == true  );
+		CHECK( a.bStop     == false );
+		CHECK( a.iInteger1 ==     0 );
+		CHECK( a.iInteger2 ==     0 );
 		CHECK( a.sSingleArg == "first" );
 		CHECK( a.sJoinedArgs == "arg2,arg1,unknown" );
 		CHECK( a.sDatabase == "DATABASE1" );
@@ -150,10 +206,13 @@ TEST_CASE("KOptions")
 
 		Options.Parse(sCLI);
 
-		CHECK( a.bEmpty  == true );
-		CHECK( a.bTest   == false);
-		CHECK( a.bSingle == true );
-		CHECK( a.bMulti  == true );
+		CHECK( a.bEmpty    == true  );
+		CHECK( a.bTest     == false );
+		CHECK( a.bSingle   == true  );
+		CHECK( a.bMulti    == true  );
+		CHECK( a.bStop     == false );
+		CHECK( a.iInteger1 ==     0 );
+		CHECK( a.iInteger2 ==     0 );
 		CHECK( a.sSingleArg == "first" );
 	}
 
@@ -168,10 +227,13 @@ TEST_CASE("KOptions")
 
 		Options.ParseCGI("MyProgramName");
 
-		CHECK( a.bEmpty  == true  );
-		CHECK( a.bTest   == false);
-		CHECK( a.bSingle == true  );
-		CHECK( a.bMulti  == false );
+		CHECK( a.bEmpty    == true  );
+		CHECK( a.bTest     == false );
+		CHECK( a.bSingle   == true  );
+		CHECK( a.bMulti    == false );
+		CHECK( a.bStop     == false );
+		CHECK( a.iInteger1 ==     0 );
+		CHECK( a.iInteger2 ==     0 );
 		CHECK( a.sSingleArg == "first" );
 	}
 
@@ -198,11 +260,14 @@ TEST_CASE("KOptions")
 
 		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
 
-		CHECK( a.bEmpty  == true );
-		CHECK( a.bTest   == false);
-		CHECK( a.bEmpty2 == true );
-		CHECK( a.bSingle == true );
-		CHECK( a.bMulti  == true );
+		CHECK( a.bEmpty    == true  );
+		CHECK( a.bTest     == false );
+		CHECK( a.bEmpty2   == true  );
+		CHECK( a.bSingle   == true  );
+		CHECK( a.bMulti    == true  );
+		CHECK( a.bStop     == false );
+		CHECK( a.iInteger1 ==     0 );
+		CHECK( a.iInteger2 ==     0 );
 		CHECK( a.sSingleArg == "first" );
 	}
 
@@ -229,11 +294,14 @@ TEST_CASE("KOptions")
 
 		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
 
-		CHECK( a.bEmpty  == true );
-		CHECK( a.bTest   == false);
-		CHECK( a.bEmpty2 == true );
-		CHECK( a.bSingle == true );
-		CHECK( a.bMulti  == true );
+		CHECK( a.bEmpty    == true  );
+		CHECK( a.bTest     == false );
+		CHECK( a.bEmpty2   == true  );
+		CHECK( a.bSingle   == true  );
+		CHECK( a.bMulti    == true  );
+		CHECK( a.bStop     == false );
+		CHECK( a.iInteger1 ==     0 );
+		CHECK( a.iInteger2 ==     0 );
 		CHECK( a.sSingleArg == "first" );
 	}
 /*

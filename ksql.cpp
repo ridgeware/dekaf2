@@ -1100,6 +1100,11 @@ bool KSQL::LoadConnect (KStringViewZ sDBCFile)
 
 	auto sBuffer = s_DBCCache.Get(sDBCFile);
 
+	if (sBuffer->empty())
+	{
+		return SetError(kFormat("dbc file empty or unexisting: {}", sDBCFile));
+	}
+
 	return SetConnect (sDBCFile, sBuffer.get());
 
 } // LoadConnect

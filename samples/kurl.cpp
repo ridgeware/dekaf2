@@ -104,14 +104,13 @@ kurl::kurl ()
 
 	}; // AddRequestData
 
-	KInit()
+	KInit(true) // we want a signal handler thread
 		.SetName(s_sProjectName)
 		.SetMultiThreading(false)
 		.SetOnlyShowCallerOnJsonError();
 
-	m_CLI.Throw();
-
 	m_CLI
+		.Throw()
 		.SetBriefDescription("dekaf2 based HTTP query tool")
 		.SetAdditionalArgDescription("<URL>");
 
@@ -170,10 +169,7 @@ kurl::kurl ()
 	m_CLI
 		.Option("q,disable")
 		.Help("do not read kurlrc")
-	([&]()
-	{
-		m_bLoadDefaultConfig = false;
-	});
+		.Set(m_bLoadDefaultConfig, false);
 
 	m_CLI
 		.Option("s,silent")
@@ -208,18 +204,12 @@ kurl::kurl ()
 	m_CLI
 		.Option("I,head")
 		.Help("issue a HEAD request")
-	([&]()
-	{
-		BuildMRQ.Method = KHTTPMethod::HEAD;
-	});
+		.Set(BuildMRQ.Method, KHTTPMethod(KHTTPMethod::HEAD));
 
 	m_CLI
 		.Option("G,get")
 		.Help("issue a GET request, even if there is request data")
-	([&]()
-	{
-		BuildMRQ.Method = KHTTPMethod::GET;
-	});
+		.Set(BuildMRQ.Method, KHTTPMethod(KHTTPMethod::GET));
 
 	m_CLI
 		.Option("d,data,data-ascii <content>", "request body")
@@ -344,10 +334,7 @@ kurl::kurl ()
 	m_CLI
 		.Option("stats")
 		.Help("show statistics")
-	([&]()
-	{
-		m_Config.bShowStats = true;
-	});
+		.Set(m_Config.bShowStats, true);
 
 	m_CLI
 		.Option("timeout <n>")
@@ -378,18 +365,12 @@ kurl::kurl ()
 		.Range(1, 10000)
 		.Type(KOptions::ArgTypes::Unsigned)
 		.Help("send <n> parallel requests")
-	([&](KStringViewZ sArg)
-	 {
-		m_Config.iParallel = sArg.UInt64();
-	});
+		.Set(m_Config.iParallel);
 
 	m_CLI
 		.Option("m,mime <MIME>", "request MIME type")
 		.Help("set MIME type for the request")
-	([&](KStringViewZ sMIME)
-	{
-		BuildMRQ.sRequestMIME = sMIME;
-	});
+		.Set(BuildMRQ.sRequestMIME);
 
 	m_CLI
 		.Option("o,output <file>", "output file name")
@@ -410,39 +391,26 @@ kurl::kurl ()
 	m_CLI
 		.Option("compressed")
 		.Help("requests compressed response (with default compressors - this is the default with kurl")
-	([&]()
-	{
 		// empty method string means default compressors
-		BuildMRQ.sRequestCompression.clear();
-	});
+		.Set(BuildMRQ.sRequestCompression, "");
 
 	m_CLI
 		.Option("compression <method>", "requested compression")
 		.Help(kFormat("set accepted compressions/encodings ({}), or - for no compression",
 					  KHTTPCompression::GetImplementedCompressors()))
-	([&](KStringViewZ sCompression)
-	{
-		BuildMRQ.sRequestCompression = sCompression;
-	});
+		.Set(BuildMRQ.sRequestCompression);
 
 	m_CLI
 		.Option("no-compressed,uncompressed")
 		.Help("do not request a compressed response")
-	([&]()
-	{
-		// - means no compression
-		BuildMRQ.sRequestCompression = '-';
-	});
+		.Set(BuildMRQ.sRequestCompression, "-");
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	m_CLI
 		.Option("unix-socket <socket path>", "path to unix socket")
 		.Type(KOptions::ArgTypes::Socket)
 		.Help("use <socket path> to connect to unix domain socket. Use 'localhost' as domain name in the URL.")
-	([&](KStringViewZ sSocket)
-	{
-		BuildMRQ.sUnixSocket = sSocket;
-	});
+		.Set(BuildMRQ.sUnixSocket);
 #endif
 
 	m_CLI

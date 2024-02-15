@@ -452,16 +452,9 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 			}
 		});
 
-		Options.Command("f,follow")([&]()
-		{
-			Actions.bFollowFlag = true;
-		});
+		Options.Command("f,follow").Set(Actions.bFollowFlag, true);
 
-		Options.Command("listen", "port number").Type(KOptions::Integer).Range(1, 65535)
-		([&](KStringViewZ sPort)
-		{
-			Actions.iPort = sPort.UInt16();
-		});
+		Options.Command("listen", "port number").Type(KOptions::Integer).Range(1, 65535).Set(Actions.iPort);
 
 		Options.Command("crash")([&]()
 		{
@@ -470,11 +463,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 
 	} // ! CGI environment
 
-	Options.Command("grep", "search string").Type(KOptions::String)
-	([&](KStringViewZ sRegex)
-	{
-		Actions.sGrepString = sRegex;
-	});
+	Options.Command("grep", "search string").Type(KOptions::String).Set(Actions.sGrepString);
 
 	Options.Command("clear")([&]()
 	{
@@ -498,16 +487,8 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 		}
 	});
 
-	Options.Command("config")([&]()
-	{
-		PrintFlagFile();
-	});
-
-	Options.Command("off")([&]()
-	{
-		RemoveFlagFile();
-	});
-
+	Options.Command("config")(PrintFlagFile);
+	Options.Command("off")(RemoveFlagFile);
 	Options.Command("on")([&]()
 	{
 		SetLevel(1);
@@ -573,11 +554,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 		SetJSONTraceLevel(sArg);
 	});
 
-	Options.Command("show", "number of lines").Type(KOptions::Unsigned)
-	([&](KStringViewZ sArg)
-	{
-		Actions.iDumpLines = sArg.UInt32();
-	});
+	Options.Command("show", "number of lines").Type(KOptions::Unsigned).Set(Actions.iDumpLines);
 
 	Options.RegisterUnknownCommand([&](KOptions::ArgList& sArgs)
 	{

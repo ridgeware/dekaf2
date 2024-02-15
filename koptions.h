@@ -44,6 +44,7 @@
 
 #include "kstringview.h"
 #include "kstring.h"
+#include "kstringutils.h"
 #include "kwriter.h"
 #include "kstack.h"
 #include "kexception.h"
@@ -61,6 +62,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Option parsing for commandline, ini files, and CGI environments
 class DEKAF2_PUBLIC KOptions
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -300,6 +302,37 @@ public:
 		OptionalParm& operator()(CallbackN Func)  { return Callback(std::move(Func)); }
 		OptionalParm& operator()(Callback1 Func)  { return Callback(std::move(Func)); }
 		OptionalParm& operator()(Callback0 Func)  { return Callback(std::move(Func)); }
+
+		/// set any value that can be converted from the input parameter string
+		template<typename T>
+		OptionalParm& Set(T& Value)
+		{
+			return Callback([&Value](KStringViewZ sValue)
+			{
+				kFromString(Value, sValue);
+			});
+		}
+
+		/// set any value that can be converted from the provided parameter
+		template<typename T>
+		OptionalParm& Set(T& Value, T SetValue)
+		{
+			return Callback([&Value, SetValue]()
+			{
+				Value = std::move(SetValue);
+			});
+		}
+
+		/// set any value that can be converted from the provided parameter string
+		template<typename T>
+		OptionalParm& Set(T& Value, KStringView sValue)
+		{
+			return Callback([&Value, sValue]()
+			{
+				kFromString(Value, sValue);
+			});
+		}
+
 		/// set the text shown in the help for this parameter, iHelpRank controls the order of help output shown, 0 = highest
 		template<class String>
 		OptionalParm& Help(String&& sHelp, uint16_t iHelpRank = 0)

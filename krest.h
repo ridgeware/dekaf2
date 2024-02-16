@@ -64,6 +64,8 @@ public:
 	KREST() = default;
 	~KREST();
 
+	static constexpr KStringViewZ CLI_SIM_AGENT {"cli sim agent"};
+
 	enum ServerType { UNDEFINED, HTTP, CGI, FCGI, LAMBDA, CLI, SIMULATE_HTTP
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	                  , UNIX

@@ -479,13 +479,14 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, const KR
 	{
 		sRequest = kFormat("{} {} HTTP/1.0\r\n"
 						   "Host: localhost\r\n"
-						   "User-Agent: cli sim agent\r\n"
+						   "User-Agent: {}\r\n"
 						   "Connection: close\r\n"
 						   "Content-Length: {}\r\n"
 						   "{}"
 						   "\r\n",
 						   Method.Serialize(),
 						   API.Serialize(),
+						   CLI_SIM_AGENT,
 						   Options.Simulate.sBody.size(),
 						   sHeaders);
 
@@ -495,13 +496,15 @@ bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, const KR
 	{
 		sRequest = kFormat("{} {} HTTP/1.0\r\n"
 						   "Host: localhost\r\n"
-						   "User-Agent: cli sim agent\r\n"
+						   "User-Agent: {}\r\n"
 						   "Connection: close\r\n"
 						   "{}"
 						   "\r\n",
 						   Method.Serialize(),
 						   API.Serialize(),
+						   CLI_SIM_AGENT,
 						   sHeaders);
+
 	}
 
 	KInStringStream String(sRequest);

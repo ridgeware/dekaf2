@@ -331,7 +331,7 @@ KStringView KProtocol::Parse (KStringView svSource, bool bAcceptWithoutColon)
 	{
 		// we search for the colon, but also for all other chars
 		// that would indicate that we are not in a protocol part of the URL
-		size_t iFound = svSource.find_first_of (": \t@/;?=#");
+		auto iFound = svSource.find_first_of (": \t@/;?=#");
 
 		if (iFound != KStringView::npos)
 		{
@@ -341,17 +341,49 @@ KStringView KProtocol::Parse (KStringView svSource, bool bAcceptWithoutColon)
 				KStringView svProto = svSource.substr (0, iFound);
 				// we do accept schemata with only one slash, as that is
 				// a common typo (but we do correct them when serializing)
-				if (svSource.size () > iFound + 1
-					&& svSource[iFound + 1] == '/')
+				// operator[] is length checked with KStringView, no need to test manually
+				if (/* svSource.size() > iFound + 1 && */ svSource[iFound + 1] == '/')
 				{
-					svSource.remove_prefix (iFound + 2);
+					SetProto(svProto);
 
-					if (!svSource.empty () && svSource.front () == '/')
+					// removes including the colon
+					auto iRemove = iFound + 1;
+
+					if (getProtocol() != FILE)
 					{
-						svSource.remove_prefix (1);
+						// first slash
+						++iRemove;
+						// operator[] is length checked with KStringView, no need to test manually
+						if (/* svSource.size() > iFound + 2 && */ svSource[iFound + 2] == '/')
+						{
+							// second slash
+							++iRemove;
+						}
+					}
+					else
+					{
+						// we remove less for FILE if there is no domain part
+						// FILE can have:
+						// file:/path/sub/dir/file.ext
+						// file://domain/path/sub/dir/file.ext
+						// file:///path/sub/dir/file.ext
+						// invalid ("path" will be read as domain):
+						// file://path/sub/dir/file.ext
+
+						if (/* svSource.size() > iFound + 2 && */ svSource[iFound + 2] == '/')
+						{
+							// first slash
+							++iRemove;
+
+							if (/* svSource.size() > iFound + 3 && */ svSource[iFound + 3 == '/'])
+							{
+								// second slash
+								++iRemove;
+							}
+						}
 					}
 
-					SetProto(svProto);
+					svSource.remove_prefix (iRemove);
 				}
 				else if (svProto == "mailto")
 				{

@@ -186,7 +186,7 @@ public:
 						break;
 				}
 
-				size_t iFound;
+				std::size_t iFound;
 
 				if (Component == URIPart::Domain && !svSource.empty() && svSource.front() == '[')
 				{

@@ -1418,3 +1418,31 @@ TEST_CASE("url::GetDomainIdentity")
 	CHECK ( GetDomainSuffix("www.acme.org.jp"    ) == "org.jp"        );
 	CHECK ( GetDomainSuffix("more.sub.domains.here.somelongdomain.org.ar") == "org.ar" );
 }
+
+TEST_CASE("KURL::FILE")
+{
+	KURL URL;
+	URL = "file:///etc/fstab"; // good
+	CHECK ( URL.Protocol == url::KProtocol::FILE );
+	CHECK ( URL.Domain.get() == "" );
+	CHECK ( URL.Path.get() == "/etc/fstab" );
+	CHECK ( URL.Serialize() == "file:///etc/fstab" );
+
+	URL = "file://localhost/etc/fstab"; // good
+	CHECK ( URL.Protocol == url::KProtocol::FILE );
+	CHECK ( URL.Domain.get() == "localhost" );
+	CHECK ( URL.Path.get() == "/etc/fstab" );
+	CHECK ( URL.Serialize() == "file://localhost/etc/fstab" );
+
+	URL = "file://etc/fstab"; // bad
+	CHECK ( URL.Protocol == url::KProtocol::FILE );
+	CHECK ( URL.Domain.get() == "etc" ); // bad, but expected
+	CHECK ( URL.Path.get() == "/fstab" ); // bad, but expected
+	CHECK ( URL.Serialize() == "file://etc/fstab" ); // bad, but expected
+
+	URL = "file:/etc/fstab"; // good
+	CHECK ( URL.Protocol == url::KProtocol::FILE );
+	CHECK ( URL.Domain.get() == "" );
+	CHECK ( URL.Path.get() == "/etc/fstab" );
+	CHECK ( URL.Serialize() == "file:///etc/fstab" ); // different to original, but good and correct
+}

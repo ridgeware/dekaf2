@@ -52,6 +52,7 @@
 #include <dekaf2/kparallel.h>
 #include <dekaf2/kmodifyingstreambuf.h>
 #include <dekaf2/ksystem.h>
+#include <dekaf2/kfilesystem.h>
 
 using namespace DEKAF2_NAMESPACE_NAME;
 
@@ -430,6 +431,15 @@ kurl::kurl ()
 	});
 
 	m_CLI
+		.Option("sim <file>", "input file name")
+		.Help("input <file> used as server response")
+		.Type(KOptions::ArgTypes::File)
+	([&](KStringViewZ sFile)
+	{
+		BuildMRQ.AddURL(kFormat("file://{}", kNormalizePath(sFile)));
+	});
+
+	m_CLI
 		.UnknownCommand([&](KOptions::ArgList& Commands)
 	{
 		while (!Commands.empty())
@@ -540,7 +550,22 @@ void kurl::ServerQuery ()
 
 		KStopTime tDuration;
 
-		auto sResponse = HTTP.HttpRequest2Host(SocketURL, RQ->URL, RQ->Config.Method, RQ->Config.sRequestBody, RQ->Config.sRequestMIME);
+		KString sResponse;
+
+		if (RQ->URL.Protocol != url::KProtocol::FILE)
+		{
+			sResponse = HTTP.HttpRequest2Host(SocketURL, RQ->URL, RQ->Config.Method, RQ->Config.sRequestBody, RQ->Config.sRequestMIME);
+		}
+		else
+		{
+			if (!RQ->URL.Domain.get().empty() && !(RQ->URL.Domain.get() == "localhost" || RQ->URL.Domain.get() == "127.0.0.1"))
+			{
+				throw KError(kFormat("cannot read non-local file: {}", RQ->URL.Domain.get()));
+			}
+			KStringViewZ sPath = RQ->URL.Path.get();
+			sResponse = kReadAll(sPath);
+			HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::CreateByInspection(sPath).Serialize());
+		}
 
 		m_Results.Add(HTTP.Response.iStatusCode, tDuration.elapsed());
 

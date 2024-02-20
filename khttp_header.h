@@ -102,6 +102,8 @@ public:
 		CONTENT_RANGE,
 		CONTENT_TYPE,
 		COOKIE,
+		CROSS_ORIGIN_EMBEDDER_POLICY,
+		CROSS_ORIGIN_OPENER_POLICY,
 		DATE,
 		ETAG,
 		EXPECT,
@@ -300,6 +302,10 @@ public:
 				return "Content-Type";
 			case COOKIE:
 				return "Cookie";
+			case CROSS_ORIGIN_EMBEDDER_POLICY:
+				return "Cross-Origin-Embedder-Policy";
+			case CROSS_ORIGIN_OPENER_POLICY:
+				return "Cross-Origin-Opener-Policy";
 			case DATE:
 				return "Date";
 			case ETAG:
@@ -536,6 +542,10 @@ public:
 				return CONTENT_TYPE;
 			case "Cookie"_casehash:
 				return COOKIE;
+			case "Cross-Origin-Embedder-Policy"_casehash:
+				return CROSS_ORIGIN_EMBEDDER_POLICY;
+			case "Cross-Origin-Opener-Policy"_casehash:
+				return CROSS_ORIGIN_OPENER_POLICY;
 			case "Date"_casehash:
 				return DATE;
 			case "ETag"_casehash:

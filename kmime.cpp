@@ -97,6 +97,7 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		{ "tar"_ksv  , TAR        },
 		{ "ts"_ksv   , TS         },
 		{ "vsd"_ksv  , VSD        },
+		{ "wasm"_ksv , WASM       },
 		{ "xhtml"_ksv, XHTML      },
 		{ "xls"_ksv  , XLS        },
 		{ "xlsx"_ksv , XLSX       },
@@ -879,6 +880,7 @@ constexpr KStringViewZ KMIME::SH;
 constexpr KStringViewZ KMIME::TAR;
 constexpr KStringViewZ KMIME::TS;
 constexpr KStringViewZ KMIME::VSD;
+constexpr KStringViewZ KMIME::WASM;
 constexpr KStringViewZ KMIME::XHTML;
 constexpr KStringViewZ KMIME::XLS;
 constexpr KStringViewZ KMIME::XLSX;

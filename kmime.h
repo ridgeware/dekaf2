@@ -199,6 +199,7 @@ public:
 	static constexpr KStringViewZ TAR                    = "application/x-tar";
 	static constexpr KStringViewZ TS                     = "application/typescript";
 	static constexpr KStringViewZ VSD                    = "application/vnd.visio";
+	static constexpr KStringViewZ WASM                   = "application/wasm";
 	static constexpr KStringViewZ XHTML                  = "application/xhtml+xml";
 	static constexpr KStringViewZ XLS                    = "application/vnd.ms-excel";
 	static constexpr KStringViewZ XLSX                   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";

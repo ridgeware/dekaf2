@@ -122,8 +122,8 @@ public:
 	/// A threadsafe object with usage and timing statistics
 	mutable KThreadSafe<Stats> Statistics;
 
-	bool bHasWildCardAtEnd    { false };
-	bool bHasWildCardFragment { false };
+	bool m_bHasWildCardAtEnd    { false };
+	bool m_bHasWildCardFragment { false };
 
 }; // KHTTPAnalyzedPath
 

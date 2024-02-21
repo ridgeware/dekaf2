@@ -61,9 +61,9 @@ KHTTPRoute::KHTTPRoute(KString _sRoute, KString _sDocumentRoot, HTTPCallback _Ca
 bool KHTTPRoute::Matches(const KHTTPPath& Path) const
 //-----------------------------------------------------------------------------
 {
-	if (!bHasWildCardFragment)
+	if (!m_bHasWildCardFragment)
 	{
-		if (DEKAF2_UNLIKELY(bHasWildCardAtEnd))
+		if (DEKAF2_UNLIKELY(m_bHasWildCardAtEnd))
 		{
 			// this is a plain route with a wildcard at the end
 			if (DEKAF2_UNLIKELY(Path.sRoute.starts_with(sRoute)))

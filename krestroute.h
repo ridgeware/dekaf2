@@ -116,7 +116,7 @@ public:
 
 	KHTTPMethod Method;  	// e.g. GET, or empty for all
 
-	bool bHasParameters { false };
+	bool m_bHasParameters { false };
 
 }; // KRESTAnalyzedPath
 

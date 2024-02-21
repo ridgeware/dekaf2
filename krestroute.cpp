@@ -64,7 +64,7 @@ KRESTAnalyzedPath::KRESTAnalyzedPath(KHTTPMethod _Method, KString _sRoute)
 //-----------------------------------------------------------------------------
 	: KHTTPAnalyzedPath(std::move(_sRoute))
 	, Method(std::move(_Method))
-	, bHasParameters(sRoute.contains("/:") || sRoute.contains("/="))
+	, m_bHasParameters(sRoute.contains("/:") || sRoute.contains("/="))
 {
 } // KRESTAnalyzedPath
 
@@ -72,7 +72,7 @@ KRESTAnalyzedPath::KRESTAnalyzedPath(KHTTPMethod _Method, KString _sRoute)
 bool KRESTAnalyzedPath::HasParameter(KStringView sParam) const
 //-----------------------------------------------------------------------------
 {
-	if (bHasParameters)
+	if (m_bHasParameters)
 	{
 		for (auto sPart : vURLParts)
 		{
@@ -112,9 +112,9 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters* Params, bool bCompar
 		(!bCompareMethods || Method.empty() || Method == Path.Method)        &&
 		(bCheckWebservers || sDocumentRoot.empty()))
 	{
-		if (!bHasParameters && !bHasWildCardFragment)
+		if (!m_bHasParameters && !m_bHasWildCardFragment)
 		{
-			if (DEKAF2_UNLIKELY(bHasWildCardAtEnd))
+			if (DEKAF2_UNLIKELY(m_bHasWildCardAtEnd))
 			{
 				// this is a plain route with a wildcard at the end
 				if (DEKAF2_UNLIKELY(Path.sRoute.starts_with(sRoute)))
@@ -324,10 +324,10 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 	// check for a matching route
 	for (const auto& it : m_Routes)
 	{
-		kDebug (3, "evaluating: {} {}{}" , it.Method.Serialize(), it.sRoute, bIsWebSocket ? " (websocket)" : "");
+		kDebug (3, "evaluating: {:<7} {}{}" , it.Method.Serialize(), it.sRoute, bIsWebSocket ? " (websocket)" : "");
 		if (it.Matches(Path, &Params, true, true, bIsWebSocket))
 		{
-			kDebug (2, "     found: {} {}{}", it.Method.Serialize(), it.sRoute, bIsWebSocket ? " (websocket)" : "");
+			kDebug (2, "     found: {:<7} {}{}", it.Method.Serialize(), it.sRoute, bIsWebSocket ? " (websocket)" : "");
 			return it;
 		}
 	}

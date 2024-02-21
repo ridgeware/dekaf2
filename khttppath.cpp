@@ -113,7 +113,7 @@ KHTTPAnalyzedPath::KHTTPAnalyzedPath(KString _sRoute)
 		{
 			if (iCount == vURLParts.size())
 			{
-				bHasWildCardAtEnd = true;
+				m_bHasWildCardAtEnd = true;
 
 				if (!sRoute.remove_suffix("/*"))
 				{
@@ -122,7 +122,7 @@ KHTTPAnalyzedPath::KHTTPAnalyzedPath(KString _sRoute)
 			}
 			else
 			{
-				bHasWildCardFragment = true;
+				m_bHasWildCardFragment = true;
 			}
 			break;
 		}

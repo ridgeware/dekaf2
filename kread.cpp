@@ -255,4 +255,94 @@ std::size_t kUnRead(std::istream& Stream, std::size_t iCount)
 
 } // kUnRead
 
+//-----------------------------------------------------------------------------
+ssize_t kGetSize(std::istream& Stream, bool bFromStart)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY {
+
+		auto streambuf = Stream.rdbuf();
+
+		if (DEKAF2_UNLIKELY(!streambuf))
+		{
+			kDebug(1, "no streambuf");
+			return -1;
+		}
+
+		auto curPos = streambuf->pubseekoff(0, std::ios_base::cur, std::ios_base::in);
+
+		if (curPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
+		{
+			kDebug(3, "istream is not seekable ({})", 1);
+			return curPos;
+		}
+
+		auto endPos = streambuf->pubseekoff(0, std::ios_base::end, std::ios_base::in);
+
+		if (endPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
+		{
+			kDebug(3, "istream is not seekable ({})", 2);
+			return endPos;
+		}
+
+		if (endPos != curPos)
+		{
+			streambuf->pubseekoff(curPos, std::ios_base::beg, std::ios_base::in);
+		}
+
+		if (bFromStart)
+		{
+			return endPos;
+		}
+		else
+		{
+			return endPos - curPos;
+		}
+	}
+
+	DEKAF2_CATCH (std::exception& e)
+	{
+		kDebug(3, e.what());
+	}
+
+	return -1;
+
+} // kGetSize
+
+//-----------------------------------------------------------------------------
+ssize_t kGetReadPosition(const std::istream& Stream)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY_EXCEPTION
+	return Stream.rdbuf() ? Stream.rdbuf()->pubseekoff(0, std::ios_base::cur, std::ios_base::in) : std::streambuf::pos_type(-1);
+	DEKAF2_LOG_EXCEPTION
+
+	return -1;
+
+} // kGetReadPosition
+
+//-----------------------------------------------------------------------------
+bool kSetReadPosition(std::istream& Stream, std::size_t iPos)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY_EXCEPTION
+	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(iPos, std::ios_base::beg, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	DEKAF2_LOG_EXCEPTION
+
+	return false;
+
+} // kSetReadPosition
+
+//-----------------------------------------------------------------------------
+bool kForward(std::istream& Stream)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY_EXCEPTION
+	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(0, std::ios_base::end, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	DEKAF2_LOG_EXCEPTION
+
+	return false;
+
+} // kForward
+
 DEKAF2_NAMESPACE_END

@@ -70,7 +70,7 @@ bool kReadLine(std::istream& Stream,
                KStringView sTrimRight = "\n",
                KStringView sTrimLeft = "",
                KString::value_type delimiter = '\n',
-			   std::size_t iMaxRead = npos);
+               std::size_t iMaxRead = npos);
 
 /// Appends all content of a std::istream device to a string. Reads from current
 /// position until end of stream and therefore works on unseekable streams.
@@ -82,7 +82,7 @@ DEKAF2_PUBLIC
 bool kAppendAllUnseekable(std::istream& Stream, KStringRef& sContent, std::size_t iMaxRead = npos);
 
 /// Appends all content of a std::istream device to a string. Fails on non-seekable
-/// istreams if bFromStart is true, otherwise reads until end of stream.
+/// istreams if bFromStart is true, otherwise reads from current position until end of stream.
 /// Reads directly in the underlying streambuf
 /// @param Stream the input stream
 /// @param sContent the string to fill with the content of the file
@@ -92,7 +92,7 @@ DEKAF2_PUBLIC
 bool kAppendAll(std::istream& Stream, KStringRef& sContent, bool bFromStart = true, std::size_t iMaxRead = npos);
 
 /// Read all content of a std::istream device into a string. Fails on non-seekable
-/// istreams if bFromStart is true, otherwise reads until end of stream.
+/// istreams if bFromStart is true, otherwise reads from current position until end of stream.
 /// Reads directly in the underlying streambuf
 /// @param Stream the input stream
 /// @param sContent the string to fill with the content of the file
@@ -102,7 +102,7 @@ DEKAF2_PUBLIC
 bool kReadAll(std::istream& Stream, KStringRef& sContent, bool bFromStart = true, std::size_t iMaxRead = npos);
 
 /// Read all content of a std::istream device into a string. Fails on non-seekable
-/// istreams if bFromStart is true, otherwise reads until end of stream.
+/// istreams if bFromStart is true, otherwise reads from current position until end of stream.
 /// Reads directly in the underlying streambuf
 /// @param Stream the input stream
 /// @param bFromStart if true will seek to start before reading
@@ -130,17 +130,9 @@ bool kReadAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead
 DEKAF2_PUBLIC
 KString kReadAll(KStringViewZ sFileName, std::size_t iMaxRead = npos);
 
-/// Get the total size of a std::istream device. Returns -1 on Failure. Fails on non-seekable istreams.
-DEKAF2_PUBLIC
-ssize_t kGetSize(std::istream& Stream, bool bFromStart = true);
-
 /// Get the total size of a file with name sFileName. Returns -1 on Failure.
 DEKAF2_PUBLIC
 ssize_t kGetSize(KStringViewZ sFileName);
-
-/// Reposition the device of a std::istream to the beginning. Fails on non-seekable istreams.
-DEKAF2_PUBLIC
-bool kRewind(std::istream& Stream);
 
 // forward declaration for Read(KOutStream&)
 class KOutStream;
@@ -508,11 +500,35 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Reposition the input device of the std::istream to the beginning. Fails on streams.
+	/// Returns the read position of the input device. Fails on non-seekable streams.
+	ssize_t GetReadPosition() const
+	//-----------------------------------------------------------------------------
+	{
+		return kGetReadPosition(istream());
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Reposition the input device of the std::istream to the given position. Fails on non-seekable streams.
+	bool SetReadPosition(std::size_t iToPos)
+	//-----------------------------------------------------------------------------
+	{
+		return kSetReadPosition(istream(), iToPos);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Reposition the input device of the std::istream to the end position. Fails on non-seekable streams.
+	bool Forward()
+	//-----------------------------------------------------------------------------
+	{
+		return kForward(istream());
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Reposition the input device of the std::istream to the beginning. Fails on non-seekable streams.
 	bool Rewind()
 	//-----------------------------------------------------------------------------
 	{
-		return kRewind(istream());
+		return SetReadPosition(0);
 	}
 
 	//-----------------------------------------------------------------------------

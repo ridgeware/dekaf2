@@ -75,4 +75,20 @@ std::size_t kWrite(std::ostream& Stream, const char* sBuffer)
 DEKAF2_PUBLIC
 std::size_t kWrite(std::ostream& Stream, char ch);
 
+/// Get the current write position of a std::ostream device. Returns -1 on Failure.
+DEKAF2_PUBLIC
+ssize_t kGetWritePosition(const std::ostream& Stream);
+
+/// Reposition the device of a std::ostream to the given position. Fails on non-seekable ostreams.
+DEKAF2_PUBLIC
+bool kSetWritePosition(std::ostream& Stream, std::size_t iPos);
+
+/// Reposition the device of a std::ostream to the end position. Fails on non-seekable ostreams.
+DEKAF2_PUBLIC
+bool kForward(std::ostream& Stream);
+
+/// Reposition the device of a std::ostream to the beginning. Fails on non-seekable ostreams.
+DEKAF2_PUBLIC inline
+bool kRewind(std::ostream& Stream) { return kSetWritePosition(Stream, 0); }
+
 DEKAF2_NAMESPACE_END

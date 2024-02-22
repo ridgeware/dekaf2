@@ -524,4 +524,32 @@ TEST_CASE("KReader") {
 		auto InFile2 = std::move(InFile);
 	}
 
+	SECTION("Seek")
+	{
+		KString sFile = kFormat("{}{}seek-tests", TempDir.Name(), kDirSep);
+		kWriteFile(sFile, "0123456789012345678901234567890123456789012345678901234567890123456789");
+		KInFile File(sFile);
+		KString sBuffer;
+
+		CHECK ( kGetReadPosition(File)     == 0    );
+		CHECK ( kSetReadPosition(File, 55) == true );
+		CHECK ( kGetReadPosition(File)     == 55   );
+		CHECK ( kReadAll(File, false, 10)  == "5678901234" );
+		CHECK ( kGetReadPosition(File)     == 65   );
+		CHECK ( kForward(File)             == true );
+		CHECK ( kGetReadPosition(File)     == 70   );
+		CHECK ( kRewind(File)              == true );
+		CHECK ( kGetReadPosition(File)     == 0    );
+
+		CHECK ( File.GetReadPosition()     == 0    );
+		CHECK ( File.SetReadPosition(54)   == true );
+		CHECK ( kGetReadPosition(File)     == 54   );
+		CHECK ( File.Read(sBuffer, 10)     == 10   );
+		CHECK ( sBuffer == "4567890123" );
+		CHECK ( File.GetReadPosition()     == 64   );
+		CHECK ( File.Forward()             == true );
+		CHECK ( File.GetReadPosition()     == 70   );
+		CHECK ( File.Rewind()              == true );
+		CHECK ( File.GetReadPosition()     == 0    );
+	}
 }

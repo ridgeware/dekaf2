@@ -232,4 +232,40 @@ std::size_t kWrite(std::ostream& Stream, char ch)
 
 } // kWrite
 
+//-----------------------------------------------------------------------------
+ssize_t kGetWritePosition(const std::ostream& Stream)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY_EXCEPTION
+	return Stream.rdbuf() ? Stream.rdbuf()->pubseekoff(0, std::ios_base::cur, std::ios_base::out) : std::streambuf::pos_type(-1);
+	DEKAF2_LOG_EXCEPTION
+	
+	return -1;
+
+} // kGetReadPosition
+
+//-----------------------------------------------------------------------------
+bool kSetWritePosition(std::ostream& Stream, std::size_t iPos)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY_EXCEPTION
+	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(iPos, std::ios_base::beg, std::ios_base::out) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	DEKAF2_LOG_EXCEPTION
+
+	return false;
+
+} // kSetWritePosition
+
+//-----------------------------------------------------------------------------
+bool kForward(std::ostream& Stream)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY_EXCEPTION
+	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(0, std::ios_base::end, std::ios_base::out) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	DEKAF2_LOG_EXCEPTION
+
+	return false;
+
+} // kForward
+
 DEKAF2_NAMESPACE_END

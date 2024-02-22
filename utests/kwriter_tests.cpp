@@ -354,4 +354,51 @@ TEST_CASE("KWriter") {
 		auto OutFile2 = std::move(OutFile);
 	}
 
+	SECTION("Seek")
+	{
+		KString sFile = kFormat("{}{}seek-tests", TempDir.Name(), kDirSep);
+		kRemoveFile(sFile);
+		KOutFile File(sFile);
+		KString sBuffer;
+
+		SECTION("standalone")
+		{
+			CHECK ( kGetWritePosition(File)     == 0     );
+			CHECK ( kSetWritePosition(File, 30) == true  );
+			CHECK ( kGetWritePosition(File)     == 30    );
+			CHECK ( kWrite(File, "01234567890123456789", 20) == 20 );
+			CHECK ( kGetWritePosition(File)     == 50    );
+			CHECK ( kSetWritePosition(File, 5)  == true  );
+			CHECK ( kGetWritePosition(File)     == 5     );
+			CHECK ( kWrite(File, "01234567890123456789", 20) == 20 );
+			CHECK ( kGetWritePosition(File)     == 25    );
+			CHECK ( kRewind(File)               == true  );
+			CHECK ( kGetWritePosition(File)     == 0     );
+			CHECK ( kForward(File)              == true  );
+			CHECK ( kGetWritePosition(File)     == 50    );
+			File.close();
+			sBuffer = kReadAll(sFile);
+			CHECK ( sBuffer == "\0\0\0\0\0" "01234567890123456789\0\0\0\0\0" "01234567890123456789"_ks );
+		}
+
+		SECTION("in class")
+		{
+			CHECK ( File.GetWritePosition()     == 0     );
+			CHECK ( File.SetWritePosition(30)   == true  );
+			CHECK ( File.GetWritePosition()     == 30    );
+			File.Write("01234567890123456789");
+			CHECK ( File.GetWritePosition()     == 50    );
+			CHECK ( File.SetWritePosition(5)    == true  );
+			CHECK ( File.GetWritePosition()     == 5     );
+			File.Write("01234567890123456789");
+			CHECK ( File.GetWritePosition()     == 25    );
+			CHECK ( File.Rewind()               == true  );
+			CHECK ( File.GetWritePosition()     == 0     );
+			CHECK ( File.Forward()              == true  );
+			CHECK ( File.GetWritePosition()     == 50    );
+			File.close();
+			sBuffer = kReadAll(sFile);
+			CHECK ( sBuffer == "\0\0\0\0\0" "01234567890123456789\0\0\0\0\0" "01234567890123456789"_ks );
+		}
+	}
 }

@@ -75,4 +75,24 @@ std::size_t kRead(std::istream& Stream, char& ch);
 DEKAF2_PUBLIC
 std::size_t kUnRead(std::istream& Stream, std::size_t iCount = 1);
 
+/// Get the total size of a std::istream device. Returns -1 on Failure. Fails on non-seekable istreams.
+DEKAF2_PUBLIC
+ssize_t kGetSize(std::istream& Stream, bool bFromStart = true);
+
+/// Get the current read position of a std::istream device. Returns -1 on Failure.
+DEKAF2_PUBLIC
+ssize_t kGetReadPosition(const std::istream& Stream);
+
+/// Reposition the device of a std::istream to the given position. Fails on non-seekable istreams.
+DEKAF2_PUBLIC
+bool kSetReadPosition(std::istream& Stream, std::size_t iPos);
+
+/// Reposition the device of a std::istream to the end position. Fails on non-seekable istreams.
+DEKAF2_PUBLIC
+bool kForward(std::istream& Stream);
+
+/// Reposition the device of a std::istream to the beginning. Fails on non-seekable istreams.
+DEKAF2_PUBLIC inline
+bool kRewind(std::istream& Stream) { return kSetReadPosition(Stream, 0); }
+
 DEKAF2_NAMESPACE_END

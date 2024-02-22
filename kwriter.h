@@ -282,6 +282,38 @@ public:
 		return Good();
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Returns the write position of the input device. Fails on non-seekable streams.
+	ssize_t GetWritePosition() const
+	//-----------------------------------------------------------------------------
+	{
+		return kGetWritePosition(ostream());
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Reposition the output device of the std::ostream to the given position. Fails on non-seekable streams.
+	bool SetWritePosition(std::size_t iToPos)
+	//-----------------------------------------------------------------------------
+	{
+		return kSetWritePosition(ostream(), iToPos);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Reposition the input device of the std::ostream to the end position. Fails on non-seekable streams.
+	bool Forward()
+	//-----------------------------------------------------------------------------
+	{
+		return kForward(ostream());
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Reposition the input device of the std::ostream to the end position. Fails on non-seekable streams.
+	bool Rewind()
+	//-----------------------------------------------------------------------------
+	{
+		return kRewind(ostream());
+	}
+
 //-------
 private:
 //-------

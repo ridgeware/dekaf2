@@ -126,7 +126,7 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 } // Open
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KInStream> KFileServer::GetStreamForReading()
+std::unique_ptr<KInStream> KFileServer::GetStreamForReading(std::size_t iFromPos)
 //-----------------------------------------------------------------------------
 {
 	std::unique_ptr<KInFile> Stream;
@@ -149,13 +149,20 @@ std::unique_ptr<KInStream> KFileServer::GetStreamForReading()
 			Stream.reset();
 		}
 	}
+	else if (iFromPos > 0)
+	{
+		if (!Stream->SetReadPosition(iFromPos))
+		{
+			throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "bad position" };
+		}
+	}
 
 	return Stream;
 
 } // GetStreamForReading
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KOutStream> KFileServer::GetStreamForWriting()
+std::unique_ptr<KOutStream> KFileServer::GetStreamForWriting(std::size_t iToPos)
 //-----------------------------------------------------------------------------
 {
 	std::unique_ptr<KOutFile> Stream;
@@ -173,6 +180,13 @@ std::unique_ptr<KOutStream> KFileServer::GetStreamForWriting()
 		else
 		{
 			Stream.reset();
+		}
+	}
+	else if (iToPos > 0)
+	{
+		if (!Stream->SetWritePosition(iToPos))
+		{
+			throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "bad position" };
 		}
 	}
 

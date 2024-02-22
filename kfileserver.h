@@ -103,10 +103,12 @@ public:
 	const KFileStat& GetFileStat() const { return m_FileStat; }
 
 	/// Returns a stream good for reading the resource. May throw.
-	std::unique_ptr<KInStream> GetStreamForReading();
+	/// @param iFromPos positions the read position of the stream to the given value, defaults to 0/start
+	std::unique_ptr<KInStream> GetStreamForReading(std::size_t iFromPos = 0);
 
 	/// Returns a stream good for writing the resource. May throw.
-	std::unique_ptr<KOutStream> GetStreamForWriting();
+	/// @param iToPos positions the write position of the stream to the given value, defaults to 0/start
+	std::unique_ptr<KOutStream> GetStreamForWriting(std::size_t iToPos = 0);
 
 	/// Returns the mime type of the resource. May throw if file not found.
 	const KMIME& GetMIMEType(bool bInspect);

@@ -136,7 +136,7 @@ bool KHTTPRoute::Matches(const KHTTPPath& Path) const
 void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 //-----------------------------------------------------------------------------
 {
-	if (HTTP.Request.Method != KHTTPMethod::GET)
+	if (HTTP.Request.Method != KHTTPMethod::GET && HTTP.Request.Method != KHTTPMethod::HEAD)
 	{
 		kDebug(1, "invalid method: {}", HTTP.Request.Method.Serialize());
 		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid method: {}", HTTP.Request.Method.Serialize()) };
@@ -167,7 +167,7 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 			HTTP.Response.SetStatus(KHTTPError::H308_PERMANENT_REDIRECT);
 		}
 	}
-	else
+	else if (FileServer.Exists())
 	{
 		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE    , FileServer.GetMIMEType(true).Serialize());
 
@@ -182,10 +182,23 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 		{
 			HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH  , KString::to_string(FileServer.GetFileStat().Size()));
 			HTTP.Response.Headers.Set(KHTTPHeader::LAST_MODIFIED   , KHTTPHeader::DateToString(tLastModified));
+			// announce that we would accept ranges
+			HTTP.Response.Headers.Set(KHTTPHeader::ACCEPT_RANGES   , "bytes");
 			HTTP.Serialize();
-			HTTP.Write(*FileServer.GetStreamForReading());
+			if (HTTP.Request.Method != KHTTPMethod::HEAD)
+			{
+				HTTP.Write(*FileServer.GetStreamForReading());
+			}
 		}
 	}
+	else
+	{
+		// This file does not exist..
+		kDebug(1, "Cannot open file: {}", FileServer.GetFileSystemPath());
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
+	}
+
 
 } // WebServer
 

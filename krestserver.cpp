@@ -1080,6 +1080,14 @@ void KRESTServer::Output()
 	// only allow output compression if this is HTTP mode and if we allow compression and have content
 	ConfigureCompression(m_Options.Out == HTTP && m_Options.bAllowCompression && bOutputContent);
 
+    if (Request.Method == KHTTPMethod::HEAD)
+	{
+		// HEAD requests show all headers as if it were a GET request (therefore we configure
+		// compression above before switching the output off. There may even exist a
+		// Content-Length header, but the response body has to be empty!
+		bOutputContent = false;
+	}
+
 	kDebug (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
 
 	switch (m_Options.Out)

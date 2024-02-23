@@ -109,7 +109,10 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters* Params, bool bCompar
 //-----------------------------------------------------------------------------
 {
 	if ((!bCompareMethods || bIsWebSocket == Option.Has(Options::WEBSOCKET)) &&
-		(!bCompareMethods || Method.empty() || Method == Path.Method)        &&
+		(!bCompareMethods 
+		 || Method.empty()
+		 || Method == Path.Method
+		 || (Path.Method == KHTTPMethod::HEAD && Method == KHTTPMethod::GET)) &&
 		(bCheckWebservers || sDocumentRoot.empty()))
 	{
 		if (!m_bHasParameters && !m_bHasWildCardFragment)
@@ -376,7 +379,7 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Par
 void KRESTRoutes::WebServer(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
-	if (HTTP.Request.Method != KHTTPMethod::GET)
+	if (HTTP.Request.Method != KHTTPMethod::GET && HTTP.Request.Method != KHTTPMethod::HEAD)
 	{
 		kDebug(1, "invalid method: {}", HTTP.Request.Method.Serialize());
 		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid method: {}", HTTP.Request.Method.Serialize()) };
@@ -421,7 +424,19 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 		else
 		{
 			HTTP.Response.Headers.Set(KHTTPHeader::LAST_MODIFIED   , KHTTPHeader::DateToString(tLastModified));
-			HTTP.SetStreamToOutput(FileServer.GetStreamForReading(), FileServer.GetFileStat().Size());
+			// announce that we would accept ranges
+			HTTP.Response.Headers.Set(KHTTPHeader::ACCEPT_RANGES   , "bytes");
+
+			auto iFileSize = FileServer.GetFileStat().Size();
+
+			if (HTTP.Request.Method == KHTTPMethod::HEAD)
+			{
+				HTTP.SetContentLengthToOutput(iFileSize);
+			}
+			else
+			{
+				HTTP.SetStreamToOutput(FileServer.GetStreamForReading(), iFileSize);
+			}
 		}
 	}
 	else

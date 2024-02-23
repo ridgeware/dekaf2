@@ -252,6 +252,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// sets the expected Content Length to output - this is typically used for a HEAD
+	/// request without real response result
+	void SetContentLengthToOutput(std::size_t iContentLength)
+	//-----------------------------------------------------------------------------
+	{
+		m_iContentLength = iContentLength;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// set raw (non-json/non-xml) output
 	/// @param sRaw the string to output
 	void SetRawOutput(KString sRaw)

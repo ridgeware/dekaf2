@@ -755,6 +755,33 @@ public:
 		return Container;
 	}
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class Range
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+	//------
+	public:
+	//------
+
+		Range() = default;
+		Range(uint64_t iStart, uint64_t iEnd) : iStart(iStart), iEnd(iEnd) {}
+
+		uint64_t  GetStart() const { return iStart;        }
+		uint64_t  GetEnd()   const { return iEnd;          }
+		uint64_t  GetSize()  const { return iEnd - iStart; }
+
+	//------
+	private:
+	//------
+
+		uint64_t  iStart { 0 };
+		uint64_t  iEnd   { 0 };
+
+	}; // Range
+
+	/// split a range header value in a vector of Range
+	static std::vector<Range> GetRanges(KStringView sContent, uint64_t iResourceSize);
+
 //------
 private:
 //------

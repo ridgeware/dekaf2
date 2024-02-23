@@ -180,14 +180,29 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 		}
 		else
 		{
-			HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH  , KString::to_string(FileServer.GetFileStat().Size()));
+			uint64_t iFileSize  = FileServer.GetFileStat().Size();
+			uint64_t iFileStart = 0;
+
+			// check for ranges
+			const auto Ranges = KHTTPHeader::GetRanges(HTTP.Request.Headers.Get(KHTTPHeader::RANGE), iFileSize);
+
+			// we currently only support one range per request
+			if (Ranges.size() == 1)
+			{
+				HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_RANGE, kFormat("bytes {}-{}/{}", Ranges.front().GetStart(), Ranges.front().GetEnd(), iFileSize));
+				iFileStart = Ranges.front().GetStart();
+				iFileSize  = Ranges.front().GetSize();
+				HTTP.Response.SetStatus(KHTTPError::H2xx_PARTIAL_CONTENT);
+			}
+
+			HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH  , KString::to_string(iFileSize));
 			HTTP.Response.Headers.Set(KHTTPHeader::LAST_MODIFIED   , KHTTPHeader::DateToString(tLastModified));
 			// announce that we would accept ranges
 			HTTP.Response.Headers.Set(KHTTPHeader::ACCEPT_RANGES   , "bytes");
 			HTTP.Serialize();
 			if (HTTP.Request.Method != KHTTPMethod::HEAD)
 			{
-				HTTP.Write(*FileServer.GetStreamForReading());
+				HTTP.Write(*FileServer.GetStreamForReading(iFileStart), iFileSize);
 			}
 		}
 	}

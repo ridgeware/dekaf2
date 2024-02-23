@@ -1562,13 +1562,14 @@ void KRESTServer::SetStatus (int iCode, KStringView sOptionalStatusString/*=""*/
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// HTTP 200s: success messages
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		case KHTTPError::H2xx_OK:         Response.SetStatus (200, kFirstNonEmpty(sOptionalStatusString,"OK"));           break;
-		case KHTTPError::H2xx_CREATED:    Response.SetStatus (201, kFirstNonEmpty(sOptionalStatusString,"CREATED"));      break;
-		case KHTTPError::H2xx_ACCEPTED:   Response.SetStatus (202, kFirstNonEmpty(sOptionalStatusString,"ACCEPTED"));     break;
-		case KHTTPError::H2xx_UPDATED:    Response.SetStatus (201, kFirstNonEmpty(sOptionalStatusString,"UPDATED"));      break;
-		case KHTTPError::H2xx_DELETED:    Response.SetStatus (201, kFirstNonEmpty(sOptionalStatusString,"DELETED"));      break;
-		case KHTTPError::H2xx_NO_CONTENT: Response.SetStatus (204, kFirstNonEmpty(sOptionalStatusString,"NO CONTENT"));   break;
-		case KHTTPError::H2xx_ALREADY:    Response.SetStatus (208, kFirstNonEmpty(sOptionalStatusString,"ALREADY DONE")); break;
+		case KHTTPError::H2xx_OK:              Response.SetStatus (200, kFirstNonEmpty(sOptionalStatusString,"OK"));              break;
+		case KHTTPError::H2xx_CREATED:         Response.SetStatus (201, kFirstNonEmpty(sOptionalStatusString,"CREATED"));         break;
+		case KHTTPError::H2xx_ACCEPTED:        Response.SetStatus (202, kFirstNonEmpty(sOptionalStatusString,"ACCEPTED"));        break;
+		case KHTTPError::H2xx_UPDATED:         Response.SetStatus (201, kFirstNonEmpty(sOptionalStatusString,"UPDATED"));         break;
+		case KHTTPError::H2xx_DELETED:         Response.SetStatus (201, kFirstNonEmpty(sOptionalStatusString,"DELETED"));         break;
+		case KHTTPError::H2xx_NO_CONTENT:      Response.SetStatus (204, kFirstNonEmpty(sOptionalStatusString,"NO CONTENT"));      break;
+		case KHTTPError::H2xx_PARTIAL_CONTENT: Response.SetStatus (206, kFirstNonEmpty(sOptionalStatusString,"PARTIAL CONTENT")); break;
+		case KHTTPError::H2xx_ALREADY:         Response.SetStatus (208, kFirstNonEmpty(sOptionalStatusString,"ALREADY DONE"));    break;
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// FALL THROUGH: blow up with a 500 error or use custom code/string passed in:

@@ -135,6 +135,48 @@ uint16_t KHTTPHeader::CalcQualityValue(KStringView sContent, KStringView::size_t
 
 } // CalcQualityValue
 
+//-----------------------------------------------------------------------------
+std::vector<KHTTPHeader::Range> KHTTPHeader::GetRanges(KStringView sContent, std::uint64_t iResourceSize)
+//-----------------------------------------------------------------------------
+{
+	std::vector<Range> Ranges;
+
+	if (sContent.remove_prefix("bytes="))
+	{
+		for (const auto vRange : sContent.Split(","))
+		{
+			auto rp = kSplitToPair(vRange, "-");
+
+			uint64_t iStart;
+			uint64_t iEnd;
+
+			if (rp.first.empty())
+			{
+				iEnd   = std::min(iResourceSize, rp.second.UInt64());
+				iStart = iResourceSize - iEnd;
+				iEnd   = iResourceSize;
+			}
+			else if (rp.second.empty())
+			{
+				iStart = rp.first.UInt64();
+				iEnd   = iResourceSize;
+			}
+			else
+			{
+				iStart = rp.first.UInt64();
+				iEnd   = std::min(iResourceSize, rp.second.UInt64());
+			}
+
+			if (iStart < iEnd)
+			{
+				Ranges.emplace_back(iStart, iEnd);
+			}
+		}
+	}
+
+	return Ranges;
+
+} // GetRanges
 
 static_assert(std::is_nothrow_move_constructible<KHTTPHeader>::value,
 			  "KHTTPHeader is intended to be nothrow move constructible, but is not!");

@@ -87,8 +87,16 @@ bool kSetWritePosition(std::ostream& Stream, std::size_t iPos);
 DEKAF2_PUBLIC
 bool kForward(std::ostream& Stream);
 
+/// Reposition the device of a std::ostream by iCount bytes towards the end position. Fails on non-seekable ostreams.
+DEKAF2_PUBLIC
+bool kForward(std::ostream& Stream, std::size_t iCount);
+
 /// Reposition the device of a std::ostream to the beginning. Fails on non-seekable ostreams.
 DEKAF2_PUBLIC inline
 bool kRewind(std::ostream& Stream) { return kSetWritePosition(Stream, 0); }
+
+/// Reposition the device of a std::ostream by iCount bytes towards the beginning. Fails on non-seekable ostreams.
+DEKAF2_PUBLIC
+bool kRewind(std::ostream& Stream, std::size_t iCount);
 
 DEKAF2_NAMESPACE_END

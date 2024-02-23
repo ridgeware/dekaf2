@@ -268,4 +268,29 @@ bool kForward(std::ostream& Stream)
 
 } // kForward
 
+//-----------------------------------------------------------------------------
+bool kForward(std::ostream& Stream, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY_EXCEPTION
+	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(iCount, std::ios_base::cur, std::ios_base::out) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	DEKAF2_LOG_EXCEPTION
+
+	return false;
+
+} // kForward
+
+//-----------------------------------------------------------------------------
+bool kRewind(std::ostream& Stream, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY_EXCEPTION
+	auto iOffset = static_cast<std::streambuf::off_type>(iCount) * -1;
+	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(iOffset, std::ios_base::cur, std::ios_base::out) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+	DEKAF2_LOG_EXCEPTION
+
+	return false;
+
+} // kForward
+
 DEKAF2_NAMESPACE_END

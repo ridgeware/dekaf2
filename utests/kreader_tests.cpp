@@ -536,6 +536,10 @@ TEST_CASE("KReader") {
 		CHECK ( kGetReadPosition(File)     == 55   );
 		CHECK ( kReadAll(File, false, 10)  == "5678901234" );
 		CHECK ( kGetReadPosition(File)     == 65   );
+		CHECK ( kRewind(File, 5)           == true );
+		CHECK ( kGetReadPosition(File)     == 60   );
+		CHECK ( kForward(File, 5)          == true );
+		CHECK ( kGetReadPosition(File)     == 65   );
 		CHECK ( kForward(File)             == true );
 		CHECK ( kGetReadPosition(File)     == 70   );
 		CHECK ( kRewind(File)              == true );
@@ -546,6 +550,10 @@ TEST_CASE("KReader") {
 		CHECK ( kGetReadPosition(File)     == 54   );
 		CHECK ( File.Read(sBuffer, 10)     == 10   );
 		CHECK ( sBuffer == "4567890123" );
+		CHECK ( File.GetReadPosition()     == 64   );
+		CHECK ( File.Rewind(5)             == true );
+		CHECK ( File.GetReadPosition()     == 59   );
+		CHECK ( File.Forward(5)            == true );
 		CHECK ( File.GetReadPosition()     == 64   );
 		CHECK ( File.Forward()             == true );
 		CHECK ( File.GetReadPosition()     == 70   );

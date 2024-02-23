@@ -91,8 +91,16 @@ bool kSetReadPosition(std::istream& Stream, std::size_t iPos);
 DEKAF2_PUBLIC
 bool kForward(std::istream& Stream);
 
+/// Reposition the device of a std::istream by iCount bytes towards the end position. Fails on non-seekable istreams.
+DEKAF2_PUBLIC
+bool kForward(std::istream& Stream, std::size_t iCount);
+
 /// Reposition the device of a std::istream to the beginning. Fails on non-seekable istreams.
 DEKAF2_PUBLIC inline
 bool kRewind(std::istream& Stream) { return kSetReadPosition(Stream, 0); }
+
+/// Reposition the device of a std::istream by iCount bytes towards the beginning. Fails on non-seekable istreams.
+DEKAF2_PUBLIC
+bool kRewind(std::istream& Stream, std::size_t iCount);
 
 DEKAF2_NAMESPACE_END

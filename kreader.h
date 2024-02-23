@@ -524,11 +524,27 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Reposition the input device of the std::istream by iCount bytes towards the end position. Fails on non-seekable streams.
+	bool Forward(std::size_t iCount)
+	//-----------------------------------------------------------------------------
+	{
+		return kForward(istream(), iCount);
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Reposition the input device of the std::istream to the beginning. Fails on non-seekable streams.
 	bool Rewind()
 	//-----------------------------------------------------------------------------
 	{
-		return SetReadPosition(0);
+		return kRewind(istream());
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Reposition the input device of the std::istream by iCount bytes towards the beginning. Fails on non-seekable streams.
+	bool Rewind(std::size_t iCount)
+	//-----------------------------------------------------------------------------
+	{
+		return kRewind(istream(), iCount);
 	}
 
 	//-----------------------------------------------------------------------------

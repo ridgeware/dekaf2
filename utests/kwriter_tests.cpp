@@ -368,6 +368,10 @@ TEST_CASE("KWriter") {
 			CHECK ( kGetWritePosition(File)     == 30    );
 			CHECK ( kWrite(File, "01234567890123456789", 20) == 20 );
 			CHECK ( kGetWritePosition(File)     == 50    );
+			CHECK ( kRewind(File, 5)            == true  );
+			CHECK ( kGetWritePosition(File)     == 45    );
+			CHECK ( kForward(File, 5)           == true  );
+			CHECK ( kGetWritePosition(File)     == 50    );
 			CHECK ( kSetWritePosition(File, 5)  == true  );
 			CHECK ( kGetWritePosition(File)     == 5     );
 			CHECK ( kWrite(File, "01234567890123456789", 20) == 20 );
@@ -387,6 +391,10 @@ TEST_CASE("KWriter") {
 			CHECK ( File.SetWritePosition(30)   == true  );
 			CHECK ( File.GetWritePosition()     == 30    );
 			File.Write("01234567890123456789");
+			CHECK ( File.GetWritePosition()     == 50    );
+			CHECK ( File.Rewind(5)              == true  );
+			CHECK ( File.GetWritePosition()     == 45    );
+			CHECK ( File.Forward(5)             == true  );
 			CHECK ( File.GetWritePosition()     == 50    );
 			CHECK ( File.SetWritePosition(5)    == true  );
 			CHECK ( File.GetWritePosition()     == 5     );

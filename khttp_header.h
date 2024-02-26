@@ -764,18 +764,21 @@ public:
 	//------
 
 		Range() = default;
-		Range(uint64_t iStart, uint64_t iEnd) : iStart(iStart), iEnd(iEnd) {}
+		Range(uint64_t iStart, uint64_t iEnd) : m_iStart(iStart), m_iEnd(iEnd) {}
 
-		uint64_t  GetStart() const { return iStart;        }
-		uint64_t  GetEnd()   const { return iEnd;          }
-		uint64_t  GetSize()  const { return iEnd - iStart; }
+		uint64_t  GetStart() const { return m_iStart;          }
+		uint64_t  GetEnd()   const { return m_iEnd;            }
+		uint64_t  GetSize()  const { return m_iEnd - m_iStart; }
+
+		void SetStart(uint64_t iStart) { m_iStart = iStart;    }
+		void SetEnd  (uint64_t iEnd  ) { m_iEnd   = iEnd;      }
 
 	//------
 	private:
 	//------
 
-		uint64_t  iStart { 0 };
-		uint64_t  iEnd   { 0 };
+		uint64_t  m_iStart { 0 };
+		uint64_t  m_iEnd   { 0 };
 
 	}; // Range
 
@@ -903,6 +906,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	bool HasContent(bool bForRequest) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	std::vector<KHTTPHeader::Range> GetRanges(uint64_t iResourceSize) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

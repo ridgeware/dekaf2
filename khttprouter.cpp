@@ -42,7 +42,7 @@
 #include "khttprouter.h"
 #include "khttperror.h"
 #include "klog.h"
-#include "kfileserver.h"
+#include "kwebserver.h"
 #include "ktime.h"
 #include <utility>
 
@@ -136,84 +136,24 @@ bool KHTTPRoute::Matches(const KHTTPPath& Path) const
 void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 //-----------------------------------------------------------------------------
 {
-	if (HTTP.Request.Method != KHTTPMethod::GET && HTTP.Request.Method != KHTTPMethod::HEAD)
+	KWebServer WebServer;
+
+	WebServer.Serve(HTTP.Route->sDocumentRoot,
+	                HTTP.Request.Resource.Path.get(),
+	                HTTP.Request.Resource.Path.get().back() == '/',
+	                HTTP.Route->sRoute,
+	                HTTP.Request.Method,
+	                HTTP.Request,
+	                HTTP.Response);
+
+	HTTP.Response.SetStatus(WebServer.GetStatus());
+
+	HTTP.Serialize();
+
+	if (HTTP.Request.Method != KHTTPMethod::HEAD)
 	{
-		kDebug(1, "invalid method: {}", HTTP.Request.Method.Serialize());
-		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid method: {}", HTTP.Request.Method.Serialize()) };
+		HTTP.Write(*WebServer.GetStreamForReading(), WebServer.GetFileSize());
 	}
-
-	KFileServer FileServer;
-
-	FileServer.Open(HTTP.Route->sDocumentRoot,
-					HTTP.Request.Resource.Path.get(),
-					HTTP.Route->sRoute,
-					HTTP.Request.Resource.Path.get().back() == '/');
-
-	if (FileServer.RedirectAsDirectory())
-	{
-		// redirect
-		KString sRedirect = HTTP.Request.Resource.Path.get();
-		sRedirect += '/';
-
-		HTTP.Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
-		HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, std::move(sRedirect));
-
-		if (HTTP.Request.Method == KHTTPMethod::GET || HTTP.Request.Method == KHTTPMethod::HEAD)
-		{
-			HTTP.Response.SetStatus(KHTTPError::H301_MOVED_PERMANENTLY);
-		}
-		else
-		{
-			HTTP.Response.SetStatus(KHTTPError::H308_PERMANENT_REDIRECT);
-		}
-	}
-	else if (FileServer.Exists())
-	{
-		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE    , FileServer.GetMIMEType(true).Serialize());
-
-		auto tIfModifiedSince = kParseHTTPTimestamp(HTTP.Request.Headers.Get(KHTTPHeader::IF_MODIFIED_SINCE));
-		auto tLastModified    = FileServer.GetFileStat().ModificationTime();
-
-		if (tLastModified <= tIfModifiedSince)
-		{
-			HTTP.Response.SetStatus(KHTTPError::H304_NOT_MODIFIED);
-		}
-		else
-		{
-			uint64_t iFileSize  = FileServer.GetFileStat().Size();
-			uint64_t iFileStart = 0;
-
-			// check for ranges
-			const auto Ranges = KHTTPHeader::GetRanges(HTTP.Request.Headers.Get(KHTTPHeader::RANGE), iFileSize);
-
-			// we currently only support one range per request
-			if (Ranges.size() == 1)
-			{
-				HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_RANGE, kFormat("bytes {}-{}/{}", Ranges.front().GetStart(), Ranges.front().GetEnd(), iFileSize));
-				iFileStart = Ranges.front().GetStart();
-				iFileSize  = Ranges.front().GetSize();
-				HTTP.Response.SetStatus(KHTTPError::H2xx_PARTIAL_CONTENT);
-			}
-
-			HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH  , KString::to_string(iFileSize));
-			HTTP.Response.Headers.Set(KHTTPHeader::LAST_MODIFIED   , KHTTPHeader::DateToString(tLastModified));
-			// announce that we would accept ranges
-			HTTP.Response.Headers.Set(KHTTPHeader::ACCEPT_RANGES   , "bytes");
-			HTTP.Serialize();
-			if (HTTP.Request.Method != KHTTPMethod::HEAD)
-			{
-				HTTP.Write(*FileServer.GetStreamForReading(iFileStart), iFileSize);
-			}
-		}
-	}
-	else
-	{
-		// This file does not exist..
-		kDebug(1, "Cannot open file: {}", FileServer.GetFileSystemPath());
-		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
-		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
-	}
-
 
 } // WebServer
 

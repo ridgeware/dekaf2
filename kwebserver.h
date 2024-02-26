@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2021, Ridgeware, Inc.
+// Copyright (c) 2024, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -41,26 +41,28 @@
 
 #pragma once
 
-#include "kdefinitions.h"
+#include "kfileserver.h"
+#include "khttp_method.h"
+#include "khttp_header.h"
 #include "kstring.h"
 #include "kstringview.h"
-#include "kreader.h"
-#include "kwriter.h"
-#include "kmime.h"
-#include "kfilesystem.h"
-#include <memory>
+#include "kurl.h"
 
-/// @file kfileserver.h
-/// file server implementation
+/// @file kwebserver.h
+/// a web server implementation
 
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Simple file server implementation. This class keeps state about ONE file at a time when starting a new
-/// request with Open(). If you want concurrent access from multiple threads on the same pool of files,
-/// then use one instance of KFileServer per thread.
-/// The main purpose of this implementation is to maximise security, and detect invalid requests.
-class DEKAF2_PUBLIC KFileServer
+/// Simple web (file) server implementation. This class keeps state about ONE file at a time when starting a new
+/// request with Serve(). If you want concurrent access from multiple threads on the same pool of files,
+/// then use one instance of KWebServer per thread.
+/// The main purpose of this implementation is to maximise security, detect invalid requests, and assure
+/// correct HTTP protocol handling.
+/// This is NOT a "web server" implementation - it handles single requests for static files in the context of
+/// e.g. a KRESTServer instance, which itself is again a per-thread instance called inside KREST.
+/// KREST is what comes closest to a "web server"
+class DEKAF2_PUBLIC KWebServer : protected KFileServer
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -68,65 +70,47 @@ class DEKAF2_PUBLIC KFileServer
 public:
 //------
 
-	/// Simple file server implementation - errors lead to KHTTPErrors thrown
+	/// Simple web server implementation - errors lead to KHTTPErrors thrown
 	/// @param sDirIndexFile file name to serve when resource is a directory, per default index.html
-	KFileServer(KString sDirIndexFile = "index.html")
-	: m_sDirIndexFile(std::move(sDirIndexFile))
+	KWebServer(KString sDirIndexFile = "index.html")
+	: KFileServer(sDirIndexFile)
 	{
 	}
 
-	/// Prepare for file access. May throw.
+	/// serve static pages - throws a KHTTPError on various conditions, or returns either a 200 or 206
+	/// state for success. Subsequently call GetStreamForReading() to read the selected file.
 	/// @param sDocumentRoot The file system directory that contains all served files.
-	/// @param sRequest The normalized resource request with the full external path,
+	/// @param sResourcePath The normalized resource request with the full external path,
 	/// but stripped by the base route prefix and an eventual trailing slash.
-	/// @param sRoute The base path valid for this request. Will be substracted from sRequest.
 	/// @param bHadTrailingSlash did the original request have a trailing slash, so that we can search for the index file?
-	bool Open(KStringView sDocumentRoot,
-	          KStringView sRequest,
-	          KStringView sRoute,
-	          bool        bHadTrailingSlash);
+	/// @param sRoute The base path valid for this request. Will be substracted from sRequest.
+	/// @param Method The HTTP method of the request
+	/// @param RequestHeaders The request headers of the request
+	/// @param ResponseHeaders A reference to the response headers for the response
+	uint16_t Serve(KStringView         sDocumentRoot,
+	               KStringView         sResourcePath,
+	               bool                bHadTrailingSlash,
+	               KStringView         sRoute,
+	               KHTTPMethod         Method,
+	               const KHTTPHeaders& RequestHeaders,
+	               KHTTPHeaders&       ResponseHeaders);
+	/// returns a HTTP 200 or 206 status to be used for the HTTP response
+	uint16_t GetStatus()   const { return m_iStatus;   }
+	/// returns file size, may be shorter than full file size in result of range requests
+	uint64_t GetFileSize() const { return m_iFileSize; }
+	/// returns file stream pointer to output file
+	std::unique_ptr<KInStream> GetStreamForReading() { return KFileServer::GetStreamForReading(m_iFileStart); }
 
-	/// Checks if the requested file exists
-	bool Exists() const { return m_FileStat.IsFile(); }
-
-	/// Checks if the requested file is a directory
-	bool IsDirectory() const { return m_FileStat.IsDirectory(); }
-
-	/// Checks if the requested file is a directory, but the original request did not have a slash at the end.
-	/// This is needed for HTTP redirects, as we cannot simply append a index.html in that case to the
-	/// directory name to serve the index, but have to make sure the client sees the slash after the directory..
-	bool RedirectAsDirectory() const { return m_bReDirectory; }
-
-	/// Returns the file system path as created by Open()
-	const KString& GetFileSystemPath() const { return m_sFileSystemPath; }
-
-	/// Returns KFileStat information about a file
-	const KFileStat& GetFileStat() const { return m_FileStat; }
-
-	/// Returns a stream good for reading the resource. May throw.
-	/// @param iFromPos positions the read position of the stream to the given value, defaults to 0/start
-	std::unique_ptr<KInStream> GetStreamForReading(std::size_t iFromPos = 0);
-
-	/// Returns a stream good for writing the resource. May throw.
-	/// @param iToPos positions the write position of the stream to the given value, defaults to 0/start
-	std::unique_ptr<KOutStream> GetStreamForWriting(std::size_t iToPos = 0);
-
-	/// Returns the mime type of the resource. May throw if file not found.
-	const KMIME& GetMIMEType(bool bInspect);
-
-	/// Clears all state (included by Open())
-	void clear();
+	using KFileServer::GetMIMEType;
 
 //------
-protected:
+private:
 //------
 
-	KString     m_sDirIndexFile;
-	KString     m_sFileSystemPath;
-	KMIME       m_mime   { KMIME::NONE };
-	KFileStat   m_FileStat;
-	bool        m_bReDirectory { false };
+	uint64_t m_iFileStart { 0 };
+	uint64_t m_iFileSize  { 0 };
+	uint16_t m_iStatus    { 0 };
 
-}; // KFileServer
+}; // KWebServer
 
 DEKAF2_NAMESPACE_END

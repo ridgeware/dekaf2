@@ -847,9 +847,28 @@ bool KRESTServer::Execute()
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			// call the application method to handle this request:
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
-			Route->Callback(*this);
+			try
+			{
+				Route->Callback(*this);
 
-			kAppendCrashContext("completed route handler");
+				kAppendCrashContext("completed route handler");
+			}
+			catch (const KHTTPError& ex)
+			{
+				kAppendCrashContext(kFormat("completed route handler with exception HTTP-{}: {}", ex.GetHTTPStatusCode(), ex.GetHTTPStatusString()));
+
+				if (ex.GetHTTPStatusCode() < 400)
+				{
+					// status codes < 400 do not mandate a connection abort,
+					// and are well handled in the normal Output()
+					Response.SetStatus(ex.GetHTTPStatusCode(), ex.GetHTTPStatusString());
+				}
+				else
+				{
+					// everything else breaks the keepalive loop
+					throw;
+				}
+			}
 
 			m_iRequestBodyLength = Request.Count();
 
@@ -884,15 +903,18 @@ bool KRESTServer::Execute()
 
 			if (!m_bKeepAlive)
 			{
-				if (m_Options.Out == HTTP)
+				if (kWouldLog(2))
 				{
-					if (!Request.HasKeepAlive())
+					if (m_Options.Out == HTTP)
 					{
-						kDebug (2, "keep-alive not requested by client - closing connection in round {}", m_iRound);
-					}
-					else
-					{
-						kDebug (2, "no further keep-alive allowed - closing connection in round {}", m_iRound);
+						if (!Request.HasKeepAlive())
+						{
+							kDebug (2, "keep-alive not requested by client - closing connection in round {}", m_iRound);
+						}
+						else
+						{
+							kDebug (2, "no further keep-alive allowed - closing connection in round {}", m_iRound);
+						}
 					}
 				}
 				return true;
@@ -1068,7 +1090,7 @@ void KRESTServer::Output()
 
 	bool bOutputContent { true };
 
-	// do not create a response for 202 and 3xxs
+	// do not create a response body for 202 and 3xxs
 	if (Response.GetStatusCode() == KHTTPError::H2xx_NO_CONTENT ||
 		Response.GetStatusCode() / 100 == 3)
 	{
@@ -1441,9 +1463,9 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 					// write the error message as an HTML page if there is no
 					// JSON error output and the content type is HTML
 					sContent = kFormat("<html><head>HTTP Error {}</head><body><h2>{} {}</h2></body></html>\n",
-									   Response.GetStatusCode(),
-									   Response.GetStatusCode(),
-									   sError.empty() ? Response.GetStatusString().ToView() : sError);
+					                   Response.GetStatusCode(),
+					                   Response.GetStatusCode(),
+					                   sError.empty() ? Response.GetStatusString().ToView() : sError);
 				}
 				else
 				{
@@ -1538,9 +1560,9 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 		case CLI:
 		{
 			Response.UnfilteredStream().FormatLine("{}: {}",
-												   Dekaf::getInstance().GetProgName(),
-												   sError.empty() ? Response.sStatusString.ToView()
-												                  : sError);
+			                                       Dekaf::getInstance().GetProgName(),
+			                                       sError.empty() ? Response.sStatusString.ToView()
+			                                                      : sError);
 		}
 		break;
 	}

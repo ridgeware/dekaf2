@@ -48,9 +48,9 @@ DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool KFileServer::Open(KStringView sDocumentRoot,
-					   KStringView sRequest,
-					   KStringView sRoute,
-					   bool        bHadLeadingSlash)
+                       KStringView sRequest,
+                       KStringView sRoute,
+                       bool        bHadTrailingSlash)
 //-----------------------------------------------------------------------------
 {
 	clear();
@@ -59,14 +59,7 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 	{
 		kDebug(1, "invalid document path (internal error): {}", sRequest);
 
-		if (m_bThrow)
-		{
-			throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("invalid path: {}", sRequest) };
-		}
-		else
-		{
-			return false;
-		}
+		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("invalid path: {}", sRequest) };
 	}
 
 	if (!sRequest.empty())
@@ -77,14 +70,7 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 		{
 			kDebug(1, "invalid document path: {}", sRequest);
 
-			if (m_bThrow)
-			{
-				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid path: /{}", sRequest) };
-			}
-			else
-			{
-				return false;
-			}
+			throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid path: /{}", sRequest) };
 		}
 	}
 
@@ -100,7 +86,7 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 
 	if (IsDirectory())
 	{
-		if (bHadLeadingSlash)
+		if (bHadTrailingSlash)
 		{
 			// try index.html
 			m_sFileSystemPath += kDirSep;
@@ -140,14 +126,7 @@ std::unique_ptr<KInStream> KFileServer::GetStreamForReading(std::size_t iFromPos
 	{
 		kDebug(1, "Cannot open file: {}", m_sFileSystemPath);
 
-		if (m_bThrow)
-		{
-			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
-		}
-		else
-		{
-			Stream.reset();
-		}
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
 	}
 	else if (iFromPos > 0)
 	{
@@ -173,14 +152,7 @@ std::unique_ptr<KOutStream> KFileServer::GetStreamForWriting(std::size_t iToPos)
 	{
 		kDebug(1, "Cannot open file: {}", m_sFileSystemPath);
 
-		if (m_bThrow)
-		{
-			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "cannot open file" };
-		}
-		else
-		{
-			Stream.reset();
-		}
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "cannot open file" };
 	}
 	else if (iToPos > 0)
 	{
@@ -218,10 +190,7 @@ const KMIME& KFileServer::GetMIMEType(bool bInspect)
 		}
 		else
 		{
-			if (m_bThrow)
-			{
-				throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
-			}
+			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
 		}
 	}
 	

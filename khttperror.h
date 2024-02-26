@@ -65,7 +65,7 @@ public:
 	enum
 	{
 		H1xx_CONTINUE           = 100,
-		H1xx_SWITCHING_PROTOCOL = 101,
+		H1xx_SWITCHING_PROTOCOLS= 101,
 		
 		H2xx_OK                 = 200,  // each new code needs logic in GetStatusString()
 		H2xx_CREATED            = 201,
@@ -90,6 +90,7 @@ public:
 		H4xx_NOTFOUND           = 404,
 		H4xx_BADMETHOD          = 405,
 		H4xx_CONFLICT           = 409,
+		H4xx_PRECONDITION_FAILED= 412,
 
 		H5xx_ERROR              = 500,
 		H5xx_NOTIMPL            = 501,

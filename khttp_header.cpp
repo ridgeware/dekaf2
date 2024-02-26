@@ -169,6 +169,19 @@ std::vector<KHTTPHeader::Range> KHTTPHeader::GetRanges(KStringView sContent, std
 
 			if (iStart < iEnd)
 			{
+				// now check for overlaps - we don't allow them
+				for (auto& RG : Ranges)
+				{
+					if (RG.GetStart() <= iStart && RG.GetEnd() >= iStart)
+					{
+						return {};
+					}
+					else if (RG.GetStart() <= iEnd && RG.GetEnd() >= iEnd)
+					{
+						return {};
+					}
+				}
+
 				Ranges.emplace_back(iStart, iEnd);
 			}
 		}
@@ -433,6 +446,14 @@ bool KHTTPHeaders::HasKeepAlive() const
 	}
 
 } // HasKeepAlive
+
+//-----------------------------------------------------------------------------
+std::vector<KHTTPHeader::Range> KHTTPHeaders::GetRanges(uint64_t iResourceSize) const
+//-----------------------------------------------------------------------------
+{
+	return KHTTPHeader::GetRanges(Headers.Get(KHTTPHeader::RANGE), iResourceSize);
+
+} // GetRanges
 
 //-----------------------------------------------------------------------------
 bool KHTTPHeaders::SetError(KString sError) const

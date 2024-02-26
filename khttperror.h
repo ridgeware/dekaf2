@@ -127,7 +127,10 @@ public:
 
 	/// maps UPDATED / DELETED / ALREADY DONE onto OK / CREATED,
 	/// returns all other verbatim
-	uint16_t GetHTTPStatusCode() const;
+	uint16_t GetHTTPStatusCode() const
+	{
+		return ConvertToRealStatusCode(value());
+	}
 
 	/// returns the fixed status string
 	const KString& GetHTTPStatusString() const
@@ -143,6 +146,12 @@ public:
 
 	/// gets the status string depending on the status code
 	static KStringView GetStatusString(uint16_t iStatusCode);
+
+	/// convert our codes 290-292 into 201 or 208s
+	/// (we make a special exception for status codes 290..292 to
+	/// differentiate the response for the various request types - this
+	/// method converts them back into their real values)
+	static uint16_t ConvertToRealStatusCode(uint16_t iStatusCode);
 
 //----------
 protected:

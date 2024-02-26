@@ -134,11 +134,11 @@ void KHTTPResponseHeaders::clear()
 void KHTTPResponseHeaders::SetStatus(uint16_t iCode, KStringView sMessage)
 //-----------------------------------------------------------------------------
 {
-	iStatusCode = iCode;
+	iStatusCode = KHTTPError::ConvertToRealStatusCode(iCode);
 
 	if (sMessage.empty())
 	{
-		sStatusString = KHTTPError::GetStatusString(iStatusCode);
+		sStatusString = KHTTPError::GetStatusString(iCode);
 	}
 	else
 	{

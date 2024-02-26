@@ -54,21 +54,16 @@ void KHTTPError::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-uint16_t KHTTPError::GetHTTPStatusCode() const
+uint16_t KHTTPError::ConvertToRealStatusCode(uint16_t iStatusCode)
 //-----------------------------------------------------------------------------
 {
-	// We make a special exception for status codes 290..292 to
-	// differentiate the response for the various request types
-	if (value() >= 290 && value() <= 292)
-	{
-		return (value() == 292) ? 200 : 201;
-	}
-	else
-	{
-		return value();
-	}
+	if      (iStatusCode == 290) iStatusCode = 201;
+	else if (iStatusCode == 291) iStatusCode = 201;
+	else if (iStatusCode == 292) iStatusCode = 208;
 
-} // GetHTTPStatusCode
+	return iStatusCode;
+
+} // ConvertToRealStatusCode
 
 //-----------------------------------------------------------------------------
 KStringView KHTTPError::GetStatusString(uint16_t iStatusCode)

@@ -47,6 +47,7 @@
 #include "kstring.h"
 #include "kstringview.h"
 #include "kurl.h"
+#include <functional>
 
 /// @file kwebserver.h
 /// a web server implementation
@@ -70,6 +71,8 @@ class DEKAF2_PUBLIC KWebServer : protected KFileServer
 public:
 //------
 
+	using CheckMethod = std::function<bool(KHTTPMethod, KStringView)>;
+
 	/// Simple web server implementation - errors lead to KHTTPErrors thrown
 	/// @param sDirIndexFile file name to serve when resource is a directory, per default index.html
 	KWebServer(KString sDirIndexFile = "index.html")
@@ -82,18 +85,24 @@ public:
 	/// @param sDocumentRoot The file system directory that contains all served files.
 	/// @param sResourcePath The normalized resource request with the full external path,
 	/// but stripped by the base route prefix and an eventual trailing slash.
-	/// @param bHadTrailingSlash did the original request have a trailing slash, so that we can search for the index file?
+	/// @param bHadTrailingSlash did the original request have a trailing slash, so that we can 
+	/// search for the index file?
 	/// @param sRoute The base path valid for this request. Will be substracted from sRequest.
 	/// @param Method The HTTP method of the request
 	/// @param RequestHeaders The request headers of the request
 	/// @param ResponseHeaders A reference to the response headers for the response
+	/// @param Check A function that returns true if the sResourcePath would have been a valid
+	/// REST route with a different HTTP Method (defaults to nullptr) - is only important if you
+	/// want to return a HTTP-405 instead of a HTTP-404 in case of wrong method for any of the
+	/// other routes in your REST or HTTP server
 	uint16_t Serve(KStringView         sDocumentRoot,
 	               KStringView         sResourcePath,
 	               bool                bHadTrailingSlash,
 	               KStringView         sRoute,
 	               KHTTPMethod         Method,
 	               const KHTTPHeaders& RequestHeaders,
-	               KHTTPHeaders&       ResponseHeaders);
+	               KHTTPHeaders&       ResponseHeaders,
+	               const CheckMethod   Check = nullptr);
 	/// returns a HTTP 200 or 206 status to be used for the HTTP response
 	uint16_t GetStatus()   const { return m_iStatus;   }
 	/// returns file size, may be shorter than full file size in result of range requests

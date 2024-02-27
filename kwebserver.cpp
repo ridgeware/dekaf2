@@ -52,7 +52,8 @@ uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
                            KStringView         sRoute,
                            KHTTPMethod         RequestMethod,
                            const KHTTPHeaders& RequestHeaders,
-                           KHTTPHeaders&       ResponseHeaders)
+                           KHTTPHeaders&       ResponseHeaders,
+                           const CheckMethod   Check)
 //-----------------------------------------------------------------------------
 {
 	m_iStatus = KHTTPError::H2xx_OK;
@@ -135,10 +136,24 @@ uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
 	}
 	else
 	{
-		// This file does not exist..
-		kDebug(1, "Cannot open file: {}", this->GetFileSystemPath());
-		ResponseHeaders.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
-		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
+		// This file does not exist.. now check if we should better return
+		// a REST error code, or an HTTP server error code. A REST error code
+		// makes sense when this path was defined in a REST context, but with
+		// a different method. We may end up here in the Web server mode if
+		// the web server is sort of a catch all at the end of the routes..
+		// (which, for security and ambiguity, should really better be avoided)
+
+		if (Check && Check(RequestMethod, sResourcePath))
+		{
+			kDebug (2, "request method {} not supported for path: {}", RequestMethod.Serialize(), sResourcePath);
+			throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", RequestMethod.Serialize(), sResourcePath) };
+		}
+		else
+		{
+			kDebug(1, "Cannot open file: {}", this->GetFileSystemPath());
+			ResponseHeaders.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
+			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
+		}
 	}
 
 	return m_iStatus;

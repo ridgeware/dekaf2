@@ -387,7 +387,11 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 	                HTTP.Route->sRoute,
 	                HTTP.Request.Method,
 	                HTTP.Request,
-	                HTTP.Response);
+	                HTTP.Response,
+	                [this](KHTTPMethod Method, KStringView sPath)
+	                {
+	                	return CheckForWrongMethod(KRESTPath(Method, sPath));
+	                });
 
 	HTTP.SetStatus(WebServer.GetStatus());
 

@@ -124,12 +124,22 @@ else()
 
 endif()
 
+# we only support the Release and Debug output locations - other
+# build types have to pick either or
+if (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+	set(DEKAF2_OUTPUT_PATH "Release")
+elseif(CMAKE_BUILD_TYPE STREQUAL "debug")
+	set(DEKAF2_OUTPUT_PATH "Debug")
+else()
+	set(DEKAF2_OUTPUT_PATH ${CMAKE_BUILD_TYPE})
+endif()
+
 # prepare for install:
 set(lib_version ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR})
 set(dekaf2_bin_dest bin)
 set(dekaf2_include_dest "include/${PROJECT_NAME}-${lib_version}")
 set(dekaf2_main_lib_dest "lib/${PROJECT_NAME}-${lib_version}")
-set(dekaf2_lib_dest "${dekaf2_main_lib_dest}/${CMAKE_BUILD_TYPE}")
+set(dekaf2_lib_dest "${dekaf2_main_lib_dest}/${DEKAF2_OUTPUT_PATH}")
 # we use the dekaf2_share_dest to configure kconfiguration.h.in, so first set it
 # with an absolute path which we remove later on
 set(dekaf2_share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}-${lib_version}")
@@ -196,7 +206,7 @@ if (TOTAL_PHYSICAL_MEMORY LESS NEEDED_FROZEN_MEMORY)
 	set (DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS OFF)
 endif()
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "debug")
 	set (DEKAF2_WITH_KLOG ON)
 endif()
 

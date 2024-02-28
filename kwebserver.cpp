@@ -53,7 +53,7 @@ uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
                            KHTTPMethod         RequestMethod,
                            const KHTTPHeaders& RequestHeaders,
                            KHTTPHeaders&       ResponseHeaders,
-                           const CheckMethod   Check)
+                           const CheckMethod&  Check)
 //-----------------------------------------------------------------------------
 {
 	m_iStatus = KHTTPError::H2xx_OK;

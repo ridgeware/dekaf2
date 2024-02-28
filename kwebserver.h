@@ -76,7 +76,7 @@ public:
 	/// Simple web server implementation - errors lead to KHTTPErrors thrown
 	/// @param sDirIndexFile file name to serve when resource is a directory, per default index.html
 	KWebServer(KString sDirIndexFile = "index.html")
-	: KFileServer(sDirIndexFile)
+	: KFileServer(std::move(sDirIndexFile))
 	{
 	}
 
@@ -102,7 +102,7 @@ public:
 	               KHTTPMethod         Method,
 	               const KHTTPHeaders& RequestHeaders,
 	               KHTTPHeaders&       ResponseHeaders,
-	               const CheckMethod   Check = nullptr);
+	               const CheckMethod&  Check = nullptr);
 	/// returns a HTTP 200 or 206 status to be used for the HTTP response
 	uint16_t GetStatus()   const { return m_iStatus;   }
 	/// returns file size, may be shorter than full file size in result of range requests

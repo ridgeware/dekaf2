@@ -80,28 +80,28 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response to an output stream - this variant is needed for Unix socket requests, which need a separate URL for the connection target
-	bool HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, KURL RequestURL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, KMIME MIME = KMIME::JSON);
+	bool HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, KURL RequestURL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView sRequestBody = KStringView{}, KMIME MIME = KMIME::JSON);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response as a string - this variant is needed for Unix socket requests, which need a separate URL for the connection target
-	KString HttpRequest2Host (const KURL& HostURL, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON);
+	KString HttpRequest2Host (const KURL& HostURL, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView sRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response to an output stream
-	bool HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON)
+	bool HttpRequest (KOutStream& OutStream, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView sRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest2Host (OutStream, KURL{}, std::move(URL), RequestMethod, svRequestBody, MIME);
+		return HttpRequest2Host (OutStream, KURL{}, std::move(URL), RequestMethod, sRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response as a string
-	KString HttpRequest (KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView svRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON)
+	KString HttpRequest (KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView sRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest2Host(KURL{}, std::move(URL), RequestMethod, svRequestBody, MIME);
+		return HttpRequest2Host(KURL{}, std::move(URL), RequestMethod, sRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -114,10 +114,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get from URL, with request body, store response body in return value KString
-	KString Get(KURL URL, KStringView svRequestBody, const KMIME& MIME)
+	KString Get(KURL URL, KStringView sRequestBody, const KMIME& MIME)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (std::move(URL), KHTTPMethod::GET, svRequestBody, MIME);
+		return HttpRequest (std::move(URL), KHTTPMethod::GET, sRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -130,18 +130,18 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Post to URL, store response body in return value KString
-	KString Post(KURL URL, KStringView svRequestBody, const KMIME& MIME)
+	KString Post(KURL URL, KStringView sRequestBody, const KMIME& MIME)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (std::move(URL), KHTTPMethod::POST, svRequestBody, MIME);
+		return HttpRequest (std::move(URL), KHTTPMethod::POST, sRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Deletes URL, store response body in return value KString
-	KString Delete(KURL URL, KStringView svRequestBody = KStringView{}, const KMIME& MIME = KMIME{})
+	KString Delete(KURL URL, KStringView sRequestBody = KStringView{}, const KMIME& MIME = KMIME{})
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (std::move(URL), KHTTPMethod::DELETE, svRequestBody, MIME);
+		return HttpRequest (std::move(URL), KHTTPMethod::DELETE, sRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -155,19 +155,19 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Put to URL - returns true if response is in the 2xx range
-	bool Put(KURL URL, KStringView svRequestBody, const KMIME& MIME)
+	bool Put(KURL URL, KStringView sRequestBody, const KMIME& MIME)
 	//-----------------------------------------------------------------------------
 	{
-		HttpRequest (std::move(URL), KHTTPMethod::PUT, svRequestBody, MIME);
+		HttpRequest (std::move(URL), KHTTPMethod::PUT, sRequestBody, MIME);
 		return HttpSuccess();
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Patch URL - store response body in return value KString
-	KString Patch(KURL URL, KStringView svRequestBody, const KMIME& MIME)
+	KString Patch(KURL URL, KStringView sRequestBody, const KMIME& MIME)
 	//-----------------------------------------------------------------------------
 	{
-		return HttpRequest (std::move(URL), KHTTPMethod::PATCH, svRequestBody, MIME);
+		return HttpRequest (std::move(URL), KHTTPMethod::PATCH, sRequestBody, MIME);
 	}
 
 	//-----------------------------------------------------------------------------

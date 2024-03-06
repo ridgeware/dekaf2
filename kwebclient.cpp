@@ -83,14 +83,14 @@ KWebClient::KWebClient(bool bVerifyCerts/*=false*/)
 }
 
 //-----------------------------------------------------------------------------
-bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, KURL RequestURL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
+bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, KURL RequestURL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView sRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
 //-----------------------------------------------------------------------------
 {
 	// placeholder for a web form we may generate from query parms
 	KString sWWWForm;
 
 	if (m_bQueryToWWWFormConversion           &&
-		svRequestBody.empty()                 &&
+		sRequestBody.empty()                 &&
 		!RequestURL.Query.empty()             &&
 		RequestMethod != KHTTPMethod::GET     &&
 		RequestMethod != KHTTPMethod::OPTIONS &&
@@ -102,7 +102,7 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 		RequestURL.Query.Serialize(sWWWForm);
 		RequestURL.Query.clear();
 		// now point post data into the form
-		svRequestBody = sWWWForm;
+		sRequestBody = sWWWForm;
 		MIME = KMIME::WWW_FORM_URLENCODED;
 		kDebug(3, "created urlencoded form body from query parms");
 	}
@@ -148,7 +148,7 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 
 				TransmitTime.resume();
 				
-				if (SendRequest (svRequestBody, MIME))
+				if (SendRequest (sRequestBody, MIME))
 				{
 					TransmitTime.halt();
 
@@ -222,7 +222,7 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 		(*m_pServiceSummary)["http"] += {
 			{ "request_method",      RequestMethod.Serialize()  },
 			{ "url",                 RequestURL.Serialize()     },
-			{ "bytes_request_body",  svRequestBody.size()       },
+			{ "bytes_request_body",  sRequestBody.size()       },
 			{ "bytes_response_body", iRead                      },
 			{ "error_string",        Error()                    },
 			{ "msecs_connect",       iConnectTime.count()       },
@@ -275,11 +275,11 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 
 		if (kWouldLog(3))
 		{
-			if (!svRequestBody.empty())
+			if (!sRequestBody.empty())
 			{
-				if (!kIsBinary(svRequestBody))
+				if (!kIsBinary(sRequestBody))
 				{
-					kDebug(3, "{} {}\n{}", RequestMethod.Serialize(), RequestURL.KResource::Serialize(), svRequestBody.LeftUTF8(1000));
+					kDebug(3, "{} {}\n{}", RequestMethod.Serialize(), RequestURL.KResource::Serialize(), sRequestBody.LeftUTF8(1000));
 				}
 			}
 			else
@@ -296,12 +296,12 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 } // HttpRequest2Host
 
 //-----------------------------------------------------------------------------
-KString KWebClient::HttpRequest2Host (const KURL& HostURL, KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView svRequestBody/* = ""*/, const KMIME& MIME/* = KMIME::JSON*/)
+KString KWebClient::HttpRequest2Host (const KURL& HostURL, KURL URL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView sRequestBody/* = ""*/, const KMIME& MIME/* = KMIME::JSON*/)
 //-----------------------------------------------------------------------------
 {
 	KString sResponse;
 	KOutStringStream oss(sResponse);
-	HttpRequest2Host(oss, HostURL, std::move(URL), RequestMethod, svRequestBody, MIME);
+	HttpRequest2Host(oss, HostURL, std::move(URL), RequestMethod, sRequestBody, MIME);
 
 	if (kWouldLog(3))
 	{
@@ -317,7 +317,7 @@ KString KWebClient::HttpRequest2Host (const KURL& HostURL, KURL URL, KHTTPMethod
 
 	return sResponse;
 
-} // HttpRequest
+} // HttpRequest2Host
 
 //-----------------------------------------------------------------------------
 KString kHTTPGet(KURL URL)

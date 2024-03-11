@@ -63,16 +63,23 @@ class DEKAF2_PUBLIC KCSV
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+	enum { RecordLimiter = 0, ColumnLimiter = 1, FieldLimiter = 2 };
+
 //------
 public:
 //------
 
 	//-----------------------------------------------------------------------------
 	/// construct a CSV reader/writer with record, column and field delimiters (defaulted)
+	DEKAF2_CONSTEXPR_14
 	KCSV(char chRecordLimiter = '\n',
 		 char chColumnLimiter = ',',
-		 char chFieldLimiter  = '"');
+		 char chFieldLimiter  = '"')
 	//-----------------------------------------------------------------------------
+	: m_Limiters   { chRecordLimiter, chColumnLimiter, chFieldLimiter   }
+	, m_LimiterSet ( KStringView (m_Limiters.data(), m_Limiters.size()) )
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// write any iterable type with elements that are convertible into a string view with correct escaping into an output stream
@@ -93,13 +100,13 @@ public:
 			bFirst = false;
 		}
 
-		if (m_chRecordLimiter == '\n')
+		if (m_Limiters[RecordLimiter] == '\n')
 		{
 			// the csv file format uses the canonical linefeed of http
 			Out += '\r';
 		}
 
-		Out += m_chRecordLimiter;
+		Out += m_Limiters[RecordLimiter];
 
 		return Out.Good();
 	}
@@ -176,10 +183,8 @@ protected:
 private:
 //------
 
-	KString m_sLimiters;
-	char    m_chRecordLimiter;
-	char    m_chColumnLimiter;
-	char    m_chFieldLimiter;
+	std::array<char, 3> m_Limiters;
+	KFindSetOfChars     m_LimiterSet;
 
 }; // KCSV
 
@@ -195,6 +200,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// construct a CSV reader with stream, record, column and field delimiters (defaulted)
+	DEKAF2_CONSTEXPR_14
 	KInCSV(KInStream& In,
 		   char chRecordLimiter = '\n',
 		   char chColumnLimiter = ',',
@@ -294,6 +300,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// construct a CSV writer with stream, record, column and field delimiters (defaulted)
+	DEKAF2_CONSTEXPR_14
 	KOutCSV(KOutStream& Out,
 			char chRecordLimiter = '\n',
 			char chColumnLimiter = ',',
@@ -301,6 +308,19 @@ public:
 	//-----------------------------------------------------------------------------
 	:	KCSV(chRecordLimiter, chColumnLimiter, chFieldLimiter)
 	,	m_Out(Out)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// construct a CSV writer with string, record, column and field delimiters (defaulted)
+	KOutCSV(KStringRef& sOut,
+			char chRecordLimiter = '\n',
+			char chColumnLimiter = ',',
+			char chFieldLimiter  = '"')
+	//-----------------------------------------------------------------------------
+	:	KCSV(chRecordLimiter, chColumnLimiter, chFieldLimiter)
+	,   m_OutStringStream(std::make_unique<KOutStringStream>(sOut))
+	,   m_Out(*m_OutStringStream)
 	{
 	}
 
@@ -317,6 +337,7 @@ public:
 protected:
 //------
 
+	std::unique_ptr<KOutStringStream> m_OutStringStream;
 	KOutStream& m_Out;
 
 }; // KOutCSV

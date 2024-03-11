@@ -107,6 +107,21 @@ TEST_CASE("KCSV")
                 CHECK ( test == tests.end() );
             }
         }
+
+		SECTION("KOutCSV")
+		{
+			KString sOutputBuffer;
+			KOutCSV CSV(sOutputBuffer);
+			KString sExpected;
+
+			for (const auto& test : tests)
+			{
+				CSV.Write(test.first);
+				sExpected += test.second;
+			}
+
+			CHECK ( sOutputBuffer == sExpected );
+		}
 	}
 
 	SECTION("KStack")

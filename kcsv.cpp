@@ -45,47 +45,35 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-KCSV::KCSV(char chRecordLimiter,
-           char chColumnLimiter,
-           char chFieldLimiter)
-//-----------------------------------------------------------------------------
-: m_chRecordLimiter ( chRecordLimiter )
-, m_chColumnLimiter ( chColumnLimiter )
-, m_chFieldLimiter  ( chFieldLimiter  )
-{
-	m_sLimiters  = chRecordLimiter;
-	m_sLimiters += chColumnLimiter;
-	m_sLimiters += chFieldLimiter;
-}
-
-//-----------------------------------------------------------------------------
 bool KCSV::WriteColumn(KOutStream& Out, KStringView sColumn, bool bIsFirst)
 //-----------------------------------------------------------------------------
 {
 	if (!bIsFirst)
 	{
-		Out += m_chColumnLimiter;
+		Out += m_Limiters[ColumnLimiter];
 	}
 
-	if (sColumn.find_first_of(m_sLimiters) == KString::npos)
+	if (m_LimiterSet.find_first_in(sColumn) == KString::npos)
 	{
 		// the fast path - no escapes needed
 		Out += sColumn;
 	}
 	else
 	{
-		Out += m_chFieldLimiter;
+		auto chFieldLimiter = m_Limiters[FieldLimiter];
+
+		Out += chFieldLimiter;
 
 		for (auto ch : sColumn)
 		{
-			if (ch == m_chFieldLimiter)
+			if (ch == chFieldLimiter)
 			{
 				Out += ch;
 			}
 			Out += ch;
 		}
 
-		Out += m_chFieldLimiter;
+		Out += chFieldLimiter;
 	}
 
 	return Out.Good();
@@ -104,17 +92,17 @@ KCSV::STATE KCSV::ReadColumn(KInStream& In, KStringRef& sColumn)
 
 	while (DEKAF2_LIKELY((ch = In.Read()) != std::istream::traits_type::eof()))
 	{
-		if (DEKAF2_UNLIKELY(ch == m_chRecordLimiter && (!bUseFieldLimiter || bLastWasFieldLimiter)))
+		if (DEKAF2_UNLIKELY(ch == m_Limiters[RecordLimiter] && (!bUseFieldLimiter || bLastWasFieldLimiter)))
 		{
 			// return with success
 			return STATE::EndOfRecord;
 		}
-		else if (DEKAF2_UNLIKELY(ch == '\r' && m_chRecordLimiter == '\n' && (!bUseFieldLimiter || bLastWasFieldLimiter)))
+		else if (DEKAF2_UNLIKELY(ch == '\r' && m_Limiters[RecordLimiter] == '\n' && (!bUseFieldLimiter || bLastWasFieldLimiter)))
 		{
 			// skip the CR when LF is the record limiter
 			continue;
 		}
-		else if (DEKAF2_UNLIKELY(ch == m_chFieldLimiter))
+		else if (DEKAF2_UNLIKELY(ch == m_Limiters[FieldLimiter]))
 		{
 			if (bIsStartofColumn)
 			{
@@ -124,7 +112,7 @@ KCSV::STATE KCSV::ReadColumn(KInStream& In, KStringRef& sColumn)
 			else if (bLastWasFieldLimiter)
 			{
 				// output one field limiter
-				sColumn += m_chFieldLimiter;
+				sColumn += m_Limiters[FieldLimiter];
 				bLastWasFieldLimiter = false;
 			}
 			else
@@ -132,7 +120,7 @@ KCSV::STATE KCSV::ReadColumn(KInStream& In, KStringRef& sColumn)
 				bLastWasFieldLimiter = true;
 			}
 		}
-		else if (ch == m_chColumnLimiter && (!bUseFieldLimiter || bLastWasFieldLimiter))
+		else if (ch == m_Limiters[ColumnLimiter] && (!bUseFieldLimiter || bLastWasFieldLimiter))
 		{
 // state would change to:
 //			bLastWasFieldLimiter = false;

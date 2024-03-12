@@ -7631,7 +7631,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 				for (const auto& it : Row)
 				{
 					const KString& sName(it.first);
-					const KString& sValue(it.first);
+					const KString& sValue(it.first); // <-- correct
 					auto iLen = sValue.length();
 					auto iMax = Widths.Get (sName);
 					if ((iLen > iMax) && (iLen <= MAXCOLWIDTH))

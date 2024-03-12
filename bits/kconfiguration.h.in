@@ -78,6 +78,7 @@
 #endif
 #cmakedefine DEKAF2_STD_CHRONO_HAS_TIMEZONE 1
 #cmakedefine DEKAF2_HAS_MONTH_AND_YEAR_LITERALS 1
+#cmakedefine DEKAF2_HAS_STD_TIME_STREAM_OPS 1
 #cmakedefine DEKAF2_HAS_U8STRING 1
 
 #if !defined(NDEBUG)

@@ -55,7 +55,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.48 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.49 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -599,6 +599,21 @@ if (CMAKE_CXX_STANDARD GREATER 17)
 	endif()
 else()
 	message(STATUS "no year and month literals support in std::chrono before C++20")
+endif()
+
+if (CMAKE_CXX_STANDARD GREATER 17)
+	try_compile(DEKAF2_HAS_STD_TIME_STREAM_OPS
+				"${DEKAF2_GENERATED_FILES_DIR}"
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_stream_sys_time_test.cpp"
+				COMPILE_DEFINITIONS "--std=c++20")
+
+	if(DEKAF2_HAS_STD_TIME_STREAM_OPS)
+		message(STATUS "we have sys_time ostream support in std::chrono")
+	else()
+		message(STATUS "we do not have sys_time ostream support in std::chrono - will configure for date lib as replacement")
+	endif()
+else()
+	message(STATUS "no sys_time ostream support in std::chrono before C++20 - will configure for date lib as replacement")
 endif()
 
 if (CMAKE_CXX_STANDARD GREATER 17)
@@ -1197,6 +1212,9 @@ target_compile_definitions(date-tz
 
 if (DEKAF2_STD_CHRONO_HAS_LOCAL_T)
 	target_compile_definitions(date-tz PUBLIC DEKAF2_STD_CHRONO_HAS_LOCAL_T=1)
+endif()
+if (DEKAF2_HAS_STD_TIME_STREAM_OPS)
+	target_compile_definitions(date-tz PUBLIC DEKAF2_HAS_STD_TIME_STREAM_OPS=1)
 endif()
 
 if (IS_WINDOWS)

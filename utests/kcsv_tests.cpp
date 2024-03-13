@@ -60,53 +60,53 @@ TEST_CASE("KCSV")
 				CHECK ( KCSV().Read(test.second) == test.first );
 			}
 		}
-        
-        SECTION("KInCSV")
-        {
-            KString sInputBuffer;
-            
-            for (const auto& test : tests)
-            {
+
+		SECTION("KInCSV")
+		{
+			KString sInputBuffer;
+
+			for (const auto& test : tests)
+			{
 				// need the <> for default param in C++11 and 14
 				KInCSV<> CSV(test.second);
-                CHECK ( CSV.Read() == test.first );
-                // prepare the next test
-                sInputBuffer += test.second;
-            }
-            
-            {
-                auto test = tests.begin();
-                // the first test is empty, we will not see it in the buffer so skip it
-                ++test;
-                for (const auto& row : KInCSV<>(sInputBuffer))
-                {
-                    CHECK ( test != tests.end() );
-                    if (test != tests.end())
-                    {
-                        CHECK ( row == test->first );
-                        ++test;
-                    }
-                }
-                CHECK ( test == tests.end() );
-            }
+				CHECK ( CSV.Read() == test.first );
+				// prepare the next test
+				sInputBuffer += test.second;
+			}
 
-            {
-                auto test = tests.begin();
-                // the first test is empty, we will not see it in the buffer so skip it
-                ++test;
-                KInStringStream iss(sInputBuffer);
-                for (const auto& row : KInCSV<>(iss))
-                {
-                    CHECK ( test != tests.end() );
-                    if (test != tests.end())
-                    {
-                        CHECK ( row == test->first );
-                        ++test;
-                    }
-                }
-                CHECK ( test == tests.end() );
-            }
-        }
+			{
+				auto test = tests.begin();
+				// the first test is empty, we will not see it in the buffer so skip it
+				++test;
+				for (const auto& row : KInCSV<>(sInputBuffer))
+				{
+					CHECK ( test != tests.end() );
+					if (test != tests.end())
+					{
+						CHECK ( row == test->first );
+						++test;
+					}
+				}
+				CHECK ( test == tests.end() );
+			}
+
+			{
+				auto test = tests.begin();
+				// the first test is empty, we will not see it in the buffer so skip it
+				++test;
+				KInStringStream iss(sInputBuffer);
+				for (const auto& row : KInCSV<>(iss))
+				{
+					CHECK ( test != tests.end() );
+					if (test != tests.end())
+					{
+						CHECK ( row == test->first );
+						++test;
+					}
+				}
+				CHECK ( test == tests.end() );
+			}
+		}
 
 		SECTION("KOutCSV")
 		{
@@ -177,33 +177,56 @@ TEST_CASE("KCSV")
 				CHECK ( KCSV().Read<KStack<KString>>(test.second) == test.first );
 			}
 		}
-        
-        SECTION("KInCSV")
-        {
-            KString sInputBuffer;
-            
-            for (const auto& test : tests)
-            {
-                KInCSV<KStack<KString>> CSV(test.second);
-                CHECK ( CSV.Read() == test.first );
-                // prepare the next test
-                sInputBuffer += test.second;
-            }
-            
-            auto test = tests.begin();
-            // the first test is empty, we will not see it in the buffer so skip it
-            ++test;
-            KInCSV<KStack<KString>> CSV(sInputBuffer);
-            for (const auto& row : CSV)
-            {
-                CHECK ( test != tests.end() );
-                if (test != tests.end())
-                {
-                    CHECK ( row == test->first );
-                    ++test;
-                }
-            }
-            CHECK ( test == tests.end() );
-        }
+
+		SECTION("KInCSV")
+		{
+			KString sInputBuffer;
+
+			for (const auto& test : tests)
+			{
+				KInCSV<KStack<KString>> CSV(test.second);
+				CHECK ( CSV.Read() == test.first );
+				// prepare the next test
+				sInputBuffer += test.second;
+			}
+
+			auto test = tests.begin();
+			// the first test is empty, we will not see it in the buffer so skip it
+			++test;
+			KInCSV<KStack<KString>> CSV(sInputBuffer);
+			for (const auto& row : CSV)
+			{
+				CHECK ( test != tests.end() );
+				if (test != tests.end())
+				{
+					CHECK ( row == test->first );
+					++test;
+				}
+			}
+			CHECK ( test == tests.end() );
+		}
 	}
+
+	SECTION("KInCSV::to_json array of objects")
+	{
+		KStringView sCSV = "Product,Type,Kind,Specifics,Production\n"
+		"Coffee,Ground,Arabica,Strong\n" // this misses the last column
+		"Tea,Leaves,Darjeeling,First Flush,Equitable\n";
+
+		KJSON json = KInCSV(sCSV);
+
+		CHECK ( json.dump() == R"([{"Kind":"Arabica","Product":"Coffee","Specifics":"Strong","Type":"Ground"},{"Kind":"Darjeeling","Product":"Tea","Production":"Equitable","Specifics":"First Flush","Type":"Leaves"}])" );
+	}
+
+	SECTION("KInCSV::to_json array of arrays")
+	{
+		KStringView sCSV = "Product,Type,Kind,Specifics,Production\n"
+		"Coffee,Ground,Arabica,Strong\n" // this misses the last column
+		"Tea,Leaves,Darjeeling,First Flush,Equitable\n";
+
+		KJSON json = KInCSV(sCSV).to_json(false);
+
+		CHECK ( json.dump() == R"([["Product","Type","Kind","Specifics","Production"],["Coffee","Ground","Arabica","Strong"],["Tea","Leaves","Darjeeling","First Flush","Equitable"]])" );
+	}
+
 }

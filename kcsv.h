@@ -52,6 +52,7 @@
 #include "kstringview.h"
 #include "kinstringstream.h"
 #include "koutstringstream.h"
+#include "kjson.h"
 #include <vector>
 #include <memory>
 
@@ -198,6 +199,8 @@ class DEKAF2_PUBLIC KInCSV : protected KCSV
 public:
 //------
 
+	using StringVector = std::vector<KString>;
+
 	//-----------------------------------------------------------------------------
 	/// construct a CSV reader with stream, record, column and field delimiters (defaulted)
 	DEKAF2_CONSTEXPR_14
@@ -280,12 +283,89 @@ public:
 		return KCSV::Read<Record>(m_In);
 	}
 
+	//-----------------------------------------------------------------------------
+	/// returns the headers, if not yet set, reads next (probably first) line of input. Can be called repeatedly, will
+	/// always return the initial value until SetHeaders() is used to change the headers to a new set
+	const StringVector& GetHeaders()
+	//-----------------------------------------------------------------------------
+	{
+		if (!m_Headers)
+		{
+			SetHeaders(KCSV::Read<StringVector>(m_In));
+		}
+
+		return *m_Headers;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// sets the headers, use this if they are not contained in first line of input and you want to convert into
+	/// json objects
+	void SetHeaders(StringVector Headers)
+	//-----------------------------------------------------------------------------
+	{
+		m_Headers = std::make_unique<StringVector>(std::move(Headers));
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns a json struct as either an array of arrays of strings, or an array of objects (with the headers as keys),
+	KJSON to_json(bool bAsObject = true)
+	//-----------------------------------------------------------------------------
+	{
+		KJSON json = KJSON::array();
+
+		if (bAsObject)
+		{
+			if (!m_Headers)
+			{
+				// read first / next line as headers
+				SetHeaders(KCSV::Read<StringVector>(m_In));
+			}
+
+			for (auto& Row : *this)
+			{
+				KJSON jObject = KJSON::object();
+
+				for (std::size_t iCol = 0, iMax = std::min(Row.size(), m_Headers->size()); iCol < iMax; ++iCol)
+				{
+					jObject.emplace((*m_Headers)[iCol], std::move(Row[iCol]));
+				}
+
+				json.push_back(std::move(jObject));
+			}
+		}
+		else
+		{
+			for (auto& Row : *this)
+			{
+				KJSON jArr = KJSON::array();
+
+				for (auto& Col : Row)
+				{
+					jArr.push_back(std::move(Col));
+				}
+
+				json.push_back(std::move(jArr));
+			}
+		}
+
+		return json;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns a json array of objects (with the headers as keys),
+	operator KJSON()
+	//-----------------------------------------------------------------------------
+	{
+		return to_json();
+	}
+
 //------
 protected:
 //------
 
 	std::unique_ptr<KInStringStream> m_InStringStream;
-	KInStream& m_In;
+	std::unique_ptr<StringVector>    m_Headers;
+	KInStream&                       m_In;
 
 }; // KInCSV
 
@@ -338,7 +418,7 @@ protected:
 //------
 
 	std::unique_ptr<KOutStringStream> m_OutStringStream;
-	KOutStream& m_Out;
+	KOutStream&                       m_Out;
 
 }; // KOutCSV
 

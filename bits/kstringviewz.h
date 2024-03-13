@@ -482,6 +482,8 @@ namespace std
 	struct hash<DEKAF2_PREFIX KStringViewZ>
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+		using is_transparent = void;
+
 		DEKAF2_CONSTEXPR_14 std::size_t operator()(DEKAF2_PREFIX KStringView s) const noexcept
 		{
 			return DEKAF2_PREFIX kHash(s.data(), s.size());

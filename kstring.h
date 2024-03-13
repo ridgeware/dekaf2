@@ -2110,6 +2110,11 @@ namespace std
 	/// provide a std::hash for KString
 	template<> struct hash<DEKAF2_PREFIX KString>
 	{
+		// C++20 needs the hasher being marked as is_transparent as well, 
+		// not only the comparison functions - only then std::unordered_map
+		// permits find(const char*) without creating a temporary string
+		using is_transparent = void;
+
 		// we actually use a KStringView as the parameter, as this avoids
 		// accidentially constructing a KString if coming from a KStringView
 		// or char* in a template that uses KString as elements

@@ -44,7 +44,7 @@
 
 /// @file kassociative.h
 /// Provides unordered maps and sets based on boost::multi_index to overcome
-/// the weakness of current std::unordered_multimaps/sets to allow for a template
+/// the weakness of current std::unordered_multimaps/sets to _not_ allow for a template
 /// iterator find(T& key), which e.g. with string keys and lookups through
 /// string literals always forces a string allocation. Strangely, these
 /// containers seem to have been overlooked when the ordered versions

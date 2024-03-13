@@ -324,6 +324,8 @@ namespace std
 	/// provide a std::hash for KCaseStringViewBase
 	template<typename Trimming> struct hash<DEKAF2_PREFIX KCaseStringViewBase<Trimming>>
 	{
+		using is_transparent = void;
+
 		std::size_t operator()(DEKAF2_PREFIX KStringView sv) const noexcept
 		{
 			return DEKAF2_PREFIX kCalcCaseHashTrim<Trimming>(sv);
@@ -333,6 +335,8 @@ namespace std
 	/// provide a std::hash for KCaseStringBase
 	template<typename Trimming> struct hash<DEKAF2_PREFIX KCaseStringBase<Trimming>>
 	{
+		using is_transparent = void;
+
 		std::size_t operator()(DEKAF2_PREFIX KStringView sv) const noexcept
 		{
 			return DEKAF2_PREFIX kCalcCaseHashTrim<Trimming>(sv);

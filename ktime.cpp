@@ -847,11 +847,13 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 	}; // TimeFormat
 
-	using FormatArray = std::array<TimeFormat, 130>;
+	using FormatArray = std::array<TimeFormat, 131>;
 
 	// order formats by size
 	static constexpr FormatArray Formats
 	{{
+		{ "YYYY-MM-DDThh:mm:ss.SSSUUUZZZ:ZZ",10 }, // 2024-03-08T17:10:42.440000+00:00, AWS timestamp with timezone
+
 		{ "???, DD NNN YYYY hh:mm:ss ZZZZZ", 25 }, // WWW timestamp with timezone
 
 		{ "???, DD NNN YYYY hh:mm:ss zzzz" , 22 }, // WWW timestamp with abbreviated timezone name

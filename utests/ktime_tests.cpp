@@ -371,8 +371,10 @@ TEST_CASE("KTime") {
 
 	SECTION("kParseTimestamp 2")
 	{
-		static constexpr std::array<std::pair<KStringView, KStringView>, 125> Timestamps
+		static constexpr std::array<std::pair<KStringView, KStringView>, 126> Timestamps
 		{{
+			{ "2024-03-08T17:10:42.440000-01:30","Fri, 08 Mar 2024 18:40:42 GMT" },
+
 			{ "Tue, 16 Aug 2021 11:23:42 +0100", "Mon, 16 Aug 2021 10:23:42 GMT" },
 			{ "Tue, 17 Aug 2021 12:23:42 CEST" , "Tue, 17 Aug 2021 10:23:42 GMT" },
 			{ "Fri Oct 24 15:32:27 2014 +0400" , "Fri, 24 Oct 2014 11:32:27 GMT" },

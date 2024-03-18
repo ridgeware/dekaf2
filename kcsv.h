@@ -77,8 +77,8 @@ public:
 		 char chColumnLimiter = ',',
 		 char chFieldLimiter  = '"')
 	//-----------------------------------------------------------------------------
-	: m_Limiters   { chRecordLimiter, chColumnLimiter, chFieldLimiter   }
-	, m_LimiterSet ( KStringView (m_Limiters.data(), m_Limiters.size()) )
+	: m_Limiters   { chRecordLimiter, chColumnLimiter, chFieldLimiter }
+	, m_LimiterSet ( KStringView (&m_Limiters[0], 3) )
 	{
 	}
 
@@ -184,7 +184,9 @@ protected:
 private:
 //------
 
-	std::array<char, 3> m_Limiters;
+	// using a char array instead of std::array<> because the latter is not
+	// constexpr before C++20
+	char                m_Limiters[3];
 	KFindSetOfChars     m_LimiterSet;
 
 }; // KCSV

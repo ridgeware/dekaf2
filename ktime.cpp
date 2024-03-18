@@ -99,7 +99,9 @@ KUnixTime detail::KParsedTimestampBase::to_unix() const
 			+ chrono::seconds(m_tm.second)
 			+ chrono::milliseconds(m_tm.millisecond)
 			+ chrono::microseconds(m_tm.microsecond)
-		//	+ chrono::nanoseconds(m_tm.nanosecond)
+#if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
+			+ chrono::nanoseconds(m_tm.nanosecond)
+#endif
 			- chrono::minutes(m_tm.utc_offset_minutes);
 
 		return KUnixTime{m_from_tz->to_sys(local)};
@@ -112,7 +114,9 @@ KUnixTime detail::KParsedTimestampBase::to_unix() const
 		+ chrono::seconds(m_tm.second)
 		+ chrono::milliseconds(m_tm.millisecond)
 		+ chrono::microseconds(m_tm.microsecond)
-	//	+ chrono::nanoseconds(m_tm.nanosecond)
+#if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
+		+ chrono::nanoseconds(m_tm.nanosecond)
+#endif
 		- chrono::minutes(m_tm.utc_offset_minutes);
 
 } // to_unix
@@ -141,7 +145,9 @@ KUTCTime detail::KParsedTimestampBase::to_utc() const
 				chrono::seconds(m_tm.second),
 				chrono::milliseconds(m_tm.millisecond)
 				+ chrono::microseconds(m_tm.microsecond)
-			//	+ chrono::nanoseconds(m_tm.nanosecond)
+#if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
+				+ chrono::nanoseconds(m_tm.nanosecond)
+#endif
 			}
 		};
 	}
@@ -151,6 +157,9 @@ KUTCTime detail::KParsedTimestampBase::to_utc() const
 					+ chrono::minutes(m_tm.minute)
 					+ chrono::seconds(m_tm.second)
 					+ chrono::milliseconds(m_tm.millisecond)
+#if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
+					+ chrono::nanoseconds(m_tm.nanosecond)
+#endif
 					+ chrono::microseconds(m_tm.microsecond);
 
 		if (m_tm.utc_offset_minutes > 0)
@@ -676,9 +685,14 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 				if (!AddDigit(ch, 999, tm.millisecond)) return Invalid;
 				break;
 
-			case 'U':
+			case 'u':
 				// usec digit
 				if (!AddDigit(ch, 999, tm.microsecond)) return Invalid;
+				break;
+
+			case 'U':
+				// nsec digit
+				if (!AddDigit(ch, 999, tm.nanosecond)) return Invalid;
 				break;
 
 			case 'D':
@@ -714,6 +728,12 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 				switch (++iTimezonePos)
 				{
 					case 1:
+						if (iTs == eTs)
+						{
+							// Z may be used as a single UTC marker at the end of a timestamp
+							if (ch != 'Z') return Invalid;
+							break;
+						}
 						switch (ch)
 						{
 							case '+':
@@ -847,15 +867,16 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 	}; // TimeFormat
 
-	using FormatArray = std::array<TimeFormat, 131>;
+	using FormatArray = std::array<TimeFormat, 132>;
 
 	// order formats by size
 	static constexpr FormatArray Formats
 	{{
-		{ "YYYY-MM-DDThh:mm:ss.SSSUUUZZZ:ZZ",10 }, // 2024-03-08T17:10:42.440000+00:00, AWS timestamp with timezone
+		{ "YYYY-MM-DDThh:mm:ss.SSSuuuZZZ:ZZ",10 }, // 2024-03-08T17:10:42.440000+00:00, AWS timestamp with timezone
 
 		{ "???, DD NNN YYYY hh:mm:ss ZZZZZ", 25 }, // WWW timestamp with timezone
 
+		{ "YYYY-MM-DDThh:mm:ss.SSSuuuUUUZ" , 19 }, // 2024-03-17T15:03:45.881460216Z, AWS timestamp with nanoseconds, UTC
 		{ "???, DD NNN YYYY hh:mm:ss zzzz" , 22 }, // WWW timestamp with abbreviated timezone name
 		{ "??, DD NNN YYYY hh:mm:ss ZZZZZ" , 21 }, // WWW timestamp with timezone and two letter day name
 		{ "??? NNN DD hh:mm:ss YYYY ZZZZZ" , 24 }, // Fri Oct 24 15:32:27 2014 +0400 (Git log)
@@ -894,7 +915,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 		{ "YYYY-MM-DDThh:mm:ss.SSS"        , 10 }, // 2002-12-06T19:23:15.372
 		{ "YYYY-MM-DD*hh:mm:ss:SSS"        , 10 }, // 2002-12-06*19:23:15:372
 
-		{ "YYYYMMDDhhmmss.SSSUUUZ"         , 14 }, // 20141024192327.000000Z (LDAP RFC-2252/X.680/X.208) *
+		{ "YYYYMMDDhhmmss.SSSuuuZ"         , 14 }, // 20141024192327.000000Z (LDAP RFC-2252/X.680/X.208) *
 
 		{ "YYYYMMDD hh:mm:ss.SSS"          , 17 }, // 20211230 12:23:54.372
 
@@ -949,7 +970,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 		{ "DD.MM.YYYY hh:mm"               ,  2 }, // 12.10.2021 12:34
 		{ "DD/MM/YYYY hh:mm"               ,  2 }, // 12/10/2021 12:34
 		{ "DD-MM-YYYY hh:mm"               ,  2 }, // 12-10-2021 12:34
-		{ "YYYYMMDDThhmmss?"               ,  8 }, // 20021230T171234Z
+		{ "YYYYMMDDThhmmssZ"               ,  8 }, // 20021230T171234Z
 
 		{ "D.MM.YYYY hh:mm"                ,  1 }, // 1.10.2021 12:34
 		{ "D/MM/YYYY hh:mm"                ,  1 }, // 1/10/2021 12:34

@@ -540,6 +540,16 @@ check_cxx_compiler_flag(-Wdeprecated-declarations       DEKAF2_HAS_WARN_DEPRECAT
 check_cxx_compiler_flag(-Wliteral-suffix                DEKAF2_HAS_WARN_LITERAL_SUFFIX)
 check_cxx_compiler_flag(-Wreserved-user-defined-literal DEKAF2_HAS_WARN_RESERVED_USER_DEFINED_LITERAL)
 
+try_compile(DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
+			"${DEKAF2_GENERATED_FILES_DIR}"
+			"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_nanoseconds_sys_clock_test.cpp")
+
+if(DEKAF2_HAS_NANOSECONDS_SYS_CLOCK)
+	message(STATUS "std::chrono::system_clock has nanosecond resolution")
+else()
+	message(STATUS "std::chrono::system_clock does not have nanosecond resolution")
+endif()
+
 # discover availability of std::chrono calendar capabilities
 if (CMAKE_CXX_STANDARD GREATER 17)
 	try_compile(DEKAF2_STD_CHRONO_HAS_CALENDAR

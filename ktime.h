@@ -1059,7 +1059,8 @@ DEKAF2_PUBLIC inline    detail::KParsedTimestamp kParseTimestamp      (KStringVi
 /// Y(ear) could be 2 or 4 digits,
 /// aa = am/pm, case insensitive
 /// SSS = milliseconds
-/// UUU = microseconds
+/// uuu = microseconds
+/// UUU = nanoseconds
 /// zzz = time zone like "EST"
 /// ZZZZZ = time zone like "-0630",
 /// NNN = abbreviated month name like "Jan", both in English and the user's locale

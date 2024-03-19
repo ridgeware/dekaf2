@@ -52,7 +52,8 @@ SignedRequest::SignedRequest(const KURL& URL,
 							 KHTTPMethod Method,       // e.g. "GET"
 							 KStringView sTarget,      // e.g. TranslateDocument
 							 KStringView sPayload,     // e.g. ""
-							 KStringView sContentType,
+							 KString     sContentType,
+							 KStringView sProvider,
 							 const HTTPHeaders& AdditionalSignedHeaders,
 							 KString     sDateTime)
 //---------------------------------------------------------------------------
@@ -63,6 +64,21 @@ SignedRequest::SignedRequest(const KURL& URL,
 
 	m_sHost = URL.Domain.Serialize();
 	m_sHost.Trim();
+
+	if (sProvider.empty())
+	{
+		// empty is not allowed!
+		sProvider = "amz";
+	}
+	KString sProviderLowercase = sProvider.ToLowerASCII();
+	KString sProviderTitlecase = sProviderLowercase;
+	// see above: sProvider is never empty
+	sProviderTitlecase[0] = KASCII::kToUpper(sProviderTitlecase[0]);
+
+	if (sContentType.empty())
+	{
+		sContentType = kFormat("application/x-{}-json-1.1", sProviderLowercase);
+	}
 
 	KString sCanonicalRequest;
 
@@ -116,19 +132,19 @@ SignedRequest::SignedRequest(const KURL& URL,
 	if (!sContentType.empty() &&
 		(Method == KHTTPMethod::POST || Method == KHTTPMethod::PUT || Method == KHTTPMethod::PATCH))
 	{
-		LowerCaseHeaders.insert(HTTPHeaders::value_type { "content-type", sContentType });
-		m_AddedHeaders  .insert(HTTPHeaders::value_type { "Content-Type", sContentType });
+		LowerCaseHeaders.emplace("content-type", sContentType);
+		m_AddedHeaders  .emplace("Content-Type", sContentType);
 	}
-	LowerCaseHeaders.insert(HTTPHeaders::value_type { "host"        , m_sHost      });
-	LowerCaseHeaders.insert(HTTPHeaders::value_type { "x-amz-date"  , m_sDateTime  });
+	LowerCaseHeaders.emplace("host", m_sHost);
+	LowerCaseHeaders.emplace(kFormat("x-{}-date", sProviderLowercase), m_sDateTime);
 
-	m_AddedHeaders  .insert(HTTPHeaders::value_type { "Host"        , m_sHost      });
-	m_AddedHeaders  .insert(HTTPHeaders::value_type { "X-Amz-Date"  , m_sDateTime  });
+	m_AddedHeaders  .emplace("Host", m_sHost);
+	m_AddedHeaders  .emplace(kFormat("X-{}-Date", sProviderTitlecase), m_sDateTime);
 
 	if (!sTarget.empty())
 	{
-		LowerCaseHeaders.insert(HTTPHeaders::value_type { "x-amz-target", sTarget      });
-		m_AddedHeaders  .insert(HTTPHeaders::value_type { "X-Amz-Target", sTarget      });
+		LowerCaseHeaders.emplace(kFormat("x-{}-target", sProviderLowercase), sTarget);
+		m_AddedHeaders  .emplace(kFormat("X-{}-Target", sProviderTitlecase), sTarget);
 	}
 
 	for (const auto& Header : LowerCaseHeaders)
@@ -158,20 +174,51 @@ SignedRequest::SignedRequest(const KURL& URL,
 const HTTPHeaders& SignedRequest::Authorize(KStringView sAccessKey,
 											KStringView sSecretKey,
 											KStringView sRegion,
-											KStringView sService)
+											KStringView sService,
+											KStringView sProvider)
 //---------------------------------------------------------------------------
 {
+	if (sRegion.empty() || sService.empty())
+	{
+		auto Parts = m_sHost.Split(".");
+
+		if (Parts.size() < 4)
+		{
+			kDebug(1, "invalid hostname: {}", m_sHost);
+		}
+		else
+		{
+			if (sRegion.empty())
+			{
+				sRegion = Parts[1];
+			}
+
+			if (sService.empty())
+			{
+				sService = Parts[0];
+			}
+		}
+	}
+
+	if (sProvider.empty())
+	{
+		// empty is not allowed!
+		sProvider = "aws";
+	}
+
 	KString sCredentialScope = GetDate();
 	sCredentialScope += '/';
 	sCredentialScope += sRegion;
 	sCredentialScope += '/';
 	sCredentialScope += sService;
 	sCredentialScope += '/';
-	sCredentialScope += "aws4_request";
+	sCredentialScope += sProvider.ToLowerASCII();
+	sCredentialScope += "4_request";
 
-	constexpr KStringView sAlgorithm = "AWS4-HMAC-SHA256";
+	KString sAlgorithm = sProvider.ToUpperASCII();
+	sAlgorithm += "4-HMAC-SHA256";
 
-	KString sStringToSign = KString(sAlgorithm);
+	KString sStringToSign = sAlgorithm;
 	sStringToSign += '\n';
 	sStringToSign += GetDateTime();
 	sStringToSign += '\n';
@@ -182,7 +229,7 @@ const HTTPHeaders& SignedRequest::Authorize(KStringView sAccessKey,
 	auto sSigningKey = SignatureKey(sSecretKey, GetDate(), sRegion, sService);
 	auto sSignature  = SHA256HMACHexDigest(sSigningKey, sStringToSign);
 
-	KString sAuthHeader = KString(sAlgorithm);
+	KString sAuthHeader = sAlgorithm;
 	sAuthHeader += " Credential=";
 	sAuthHeader += sAccessKey;
 	sAuthHeader += '/';

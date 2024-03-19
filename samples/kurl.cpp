@@ -198,7 +198,12 @@ kurl::kurl ()
 
 	m_CLI
 		.Option("aws-sigv4 <provider1[:provider2\n            [:region[:service]]]>")
-		.Help("set authorization with AWS signature type 4 (requires ID and key set with -u,user)")
+		.Help("set authorization with AWS signature type 4 (requires ID and key set with -u,user). "
+			  "provider1 = aws,goog,osc,.., "
+			  "provider2 = amz,goog,osc, "
+			  "region = e.g. us-west-1, "
+			  "service = e.g. translate. "
+			  "region and service will be deduced from the URL if missing.")
 		.Set(BuildMRQ.sAWSProvider);
 
 	m_CLI
@@ -797,21 +802,44 @@ void kurl::MultiRequest::BuildAuthenticationHeader()
 
 			auto Pieces = sAWSProvider.Split(":");
 
-			if (Pieces.size() != 4)
+			switch (Pieces.size())
 			{
-				throw KError("need 4 parts in aws-sigv4 config");
+				case 0: 
+					Pieces = { "aws", "amz" };
+					break;
+
+				case 1: 
+					if (Pieces[0] == "aws") 
+					{
+						Pieces.push_back("amz");
+					}
+					else
+					{
+						Pieces.push_back(Pieces[0]);
+					}
+					break;
+
+				default:
+					break;
+			}
+
+			while (Pieces.size() < 4)
+			{
+				Pieces.push_back("");
 			}
 
 			AWSAuth4::SignedRequest AWS(URLs.front().first,
 										Method,
 										"",
 										sRequestBody,
-										sRequestMIME);
+										sRequestMIME.Serialize(),
+										Pieces[1]);
 
 			auto AHeaders = AWS.Authorize(sUsername,
 										  sPassword,
 										  Pieces[2],
-										  Pieces[3]);
+										  Pieces[3],
+										  Pieces[0]);
 
 			for (const auto& Header : AHeaders)
 			{

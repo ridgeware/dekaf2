@@ -33,21 +33,23 @@ public:
 
 	/// Create a signature over what AWS calls a canonical request - a mix of
 	/// headers, path, query, and payload, hashed and HMACed.
-	/// @param URL full URL including path and query (if any)
+	/// @param URL full URL including path and query (if any), like "https://translate.us-east-1.amazonaws.com"
 	/// @param Method the HTTP method, like KHTTPMethod::GET or KHTTPMethod::POST
 	/// @param sTarget the API's method, e.g. TranslateDocument. Can also be left empty, e.g. for S3 access.
 	/// @param sPayload a string_view of the payload (body content), to compute hashes..
 	/// @param sContentType the content type is required for translate requests.
-	/// This implementation defaults it to amz-json.
+	/// This implementation defaults it to amz-json (for the empty string)
+	/// @param sProvider component of the x-{provider}-date etc. headers. defaults to "amz", others are "goog", "osc"
 	/// @param AdditionalSignedHeaders should contain all the headers that you would like
 	/// to sign. Defaulted to empty list.
 	/// @param sDateTime timestamp for which the request should be signed, defaults to current time
 	SignedRequest(
 		const KURL& URL,
-		KHTTPMethod Method,       // e.g. "GET"
-		KStringView sTarget,      // e.g. TranslateDocument
-		KStringView sPayload,     // e.g. ""
-		KStringView sContentType = "application/x-amz-json-1.1",
+		KHTTPMethod Method,            // e.g. "GET"
+		KStringView sTarget,           // e.g. TranslateDocument
+		KStringView sPayload,          // e.g. ""
+		KString     sContentType = {}, // application/x-{sProvider}-json-1.1 will be inserted for the empy string
+		KStringView sProvider = "amz", // amz for AWS
 		const HTTPHeaders& AdditionalSignedHeaders = {},
 		KString sDateTime = kNow().to_string("%Y%m%dT%H%M%SZ"));
 
@@ -57,16 +59,20 @@ public:
 	/// @param sAccessKey an AWS access key
 	/// @param sSecretKey an AWS secret key
 	/// @param sRegion an AWS service region, like us-east-1 (this must also be
-	/// part of the host name scheme used in the constructor)
-	/// @param sService an AWS service, like "translate"
+	/// part of the host name scheme used in the constructor, and will be isolated from the host
+	/// name if omitted here)
+	/// @param sService an AWS service, like "translate" (this will be isolated from the host
+	/// name if omitted here)
+	/// @param sProvider aws, goog, osc, .. defaults to aws
 	/// @return the set of HTTP headers that have to be added to a client request
 	/// for authorization. This includes the Authorization header, but also AWS
 	/// internal headers like X-Amz-Target.
 	const HTTPHeaders& Authorize(
 		KStringView sAccessKey,
 		KStringView sSecretKey,
-		KStringView sRegion,    // e.g. "us-east-1"
-		KStringView sService);  // e.g. "translate"
+		KStringView sRegion   = {},   // e.g. "us-east-1", will be isolated from URL if empty
+		KStringView sService  = {},   // e.g. "translate", will be isolated from URL if empty
+		KStringView sProvider = {});  // e.g. "aws"
 
 	/// internal helper, exposes the computed SHA256 digest for the canonical
 	/// request

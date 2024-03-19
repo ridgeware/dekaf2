@@ -49,6 +49,8 @@
 #include <dekaf2/ksplit.h>
 #include <dekaf2/kwebclient.h>
 #include <dekaf2/kxml.h>
+#include <dekaf2/kencode.h>
+#include <dekaf2/kawsauth.h>
 #include <dekaf2/kparallel.h>
 #include <dekaf2/kmodifyingstreambuf.h>
 #include <dekaf2/ksystem.h>
@@ -179,6 +181,30 @@ kurl::kurl ()
 	{
 		BuildMRQ.Flags |= Flags::QUIET;
 	});
+
+	m_CLI
+		.Option("u,user <USER:PASS>", "username and password")
+		.Help("set username and password for the request")
+	([&](KStringViewZ sUserPass)
+	{
+		auto Pieces = sUserPass.Split(":");
+		if (Pieces.size() != 2)
+		{
+			throw KOptions::Error("user option must have username and password concatenated by a colon");
+		}
+		BuildMRQ.sUsername = Pieces[0];
+		BuildMRQ.sPassword = Pieces[1];
+	});
+
+	m_CLI
+		.Option("aws-sigv4 <provider1[:provider2\n            [:region[:service]]]>")
+		.Help("set authorization with AWS signature type 4 (requires ID and key set with -u,user)")
+		.Set(BuildMRQ.sAWSProvider);
+
+	m_CLI
+		.Option("basic")
+		.Hidden();
+//		.Help("force basic authentication for username/password set with -u, --user (default anyway)");
 
 	m_CLI
 		.Option("V,version")
@@ -736,6 +762,260 @@ int main (int argc, char** argv)
 	return 1;
 
 } // main
+
+//-----------------------------------------------------------------------------
+void kurl::MultiRequest::BuildAuthenticationHeader()
+//-----------------------------------------------------------------------------
+{
+	if (!sUsername.empty())
+	{
+		if (sAWSProvider.empty())
+		{
+			// basic authentication
+			if (Headers.emplace (
+				KHTTPHeader(KHTTPHeader::AUTHORIZATION).Serialize(),
+				kFormat("Basic {}", KEnc::Base64(kFormat("{}:{}", sUsername, sPassword)))
+			).second == false)
+			{
+				throw KError("basic auth: authentication header already set");
+			}
+		}
+		else
+		{
+			// AWS Auth v4
+			if (URLs.size() != 1)
+			{
+				throw KError("cannot query multiple URLs with aws-sigv4 option");
+			}
+
+			auto Pieces = sAWSProvider.Split(":");
+
+			if (Pieces.size() != 4)
+			{
+				throw KError("need 4 parts in aws-sigv4 config");
+			}
+
+			AWSAuth4::SignedRequest AWS(URLs.front().first,
+										Method,
+										"",
+										sRequestBody,
+										sRequestMIME);
+
+			auto AHeaders = AWS.Authorize(sUsername,
+										  sPassword,
+										  Pieces[2],
+										  Pieces[3]);
+
+			for (const auto& Header : AHeaders)
+			{
+				Headers.emplace(Header);
+			}
+		}
+	}
+
+} // MultiRequest::BuildAuthenticationHeader
+
+//-----------------------------------------------------------------------------
+void kurl::BuildMultiRequest::BuildPairsOfURLAndOutput()
+//-----------------------------------------------------------------------------
+{
+	KStringView sLastOut;
+	auto it = m_BuildOutputs.begin();
+
+	for (auto& URL : m_BuildURLs)
+	{
+		if (it != m_BuildOutputs.end())
+		{
+			sLastOut = *it++;
+		}
+		if (sLastOut == sOutputToLastPathComponent)
+		{
+			KString sComponent = kBasename(URL.Path.get());
+			URLs.emplace_back(std::move(URL), sComponent);
+		}
+		else
+		{
+			URLs.emplace_back(std::move(URL), sLastOut);
+		}
+	}
+
+	m_BuildURLs.clear();
+	m_BuildOutputs.clear();
+
+} // BuildMultiRequest::BuildPairsOfURLAndOutput
+
+//-----------------------------------------------------------------------------
+void kurl::RequestList::Add(BuildMultiRequest BMRQ)
+//-----------------------------------------------------------------------------
+{
+	BMRQ.BuildPairsOfURLAndOutput();
+	BMRQ.BuildAuthenticationHeader();
+
+	if (!BMRQ.URLs.empty())
+	{
+		m_MultiRequests.push_back(std::move(BMRQ));
+	}
+
+} // RequestList::Add
+
+//-----------------------------------------------------------------------------
+void kurl::RequestList::CreateRequestList(std::size_t iRepeat)
+//-----------------------------------------------------------------------------
+{
+	m_iRepeat = iRepeat;
+
+	// now create the single request list out of the multi-requests that may have
+	// been configured - we keep the MultiRequests as the data store, and only
+	// create references to it in the RequestList
+	for (auto& MRQ : m_MultiRequests)
+	{
+		for (auto& URL : MRQ.URLs)
+		{
+			m_RequestList.emplace_back(URL.first, URL.second, MRQ);
+		}
+	}
+	it.unique().get() = m_RequestList.begin();
+
+} // RequestList::CreateRequestList
+
+//-----------------------------------------------------------------------------
+const kurl::SingleRequest* kurl::RequestList::GetNextRequest()
+//-----------------------------------------------------------------------------
+{
+	auto p = it.unique();
+
+	if (*p == m_RequestList.end())
+	{
+		if (m_iRepeat == 1)
+		{
+			return nullptr;
+		}
+		else
+		{
+			--m_iRepeat;
+			*p = m_RequestList.begin();
+		}
+	}
+
+	return &*(*p)++;
+
+} // RequestList::GetNextRequest
+
+//-----------------------------------------------------------------------------
+void kurl::Results::Add(uint16_t iResultCode, KDuration tDuration)
+//-----------------------------------------------------------------------------
+{
+	auto Codes = m_ResultCodes.unique();
+	auto it    = Codes->find(iResultCode);
+
+	if (it == Codes->end())
+	{
+		auto pair = Codes->insert({iResultCode, Result{}});
+		it = pair.first;
+	}
+
+	it->second.Add(tDuration);
+
+} // Results::Add
+
+//-----------------------------------------------------------------------------
+KString kurl::Results::Print()
+//-----------------------------------------------------------------------------
+{
+	auto Codes = m_ResultCodes.shared();
+
+	KString sResult;
+
+	for (const auto& it : *Codes)
+	{
+		sResult += kFormat("HTTP {}: count {}, avg {}\n",
+						   it.first,
+						   kFormNumber(it.second.m_tDuration.Rounds()),
+						   it.second.m_tDuration.average());
+	}
+
+	return sResult;
+
+} // Results::Print
+
+//-----------------------------------------------------------------------------
+void kurl::Progress::Start(std::size_t iSize)
+//-----------------------------------------------------------------------------
+{
+	if (m_ProgressType == Type::Bar)
+	{
+		m_Bar = std::make_unique<KBAR>(iSize,
+									   KBAR::DEFAULT_WIDTH,
+									   KBAR::SLIDER,
+									   KBAR::DEFAULT_DONE_CHAR,
+									   KErr);
+	}
+
+} // Progress::Start
+
+//-----------------------------------------------------------------------------
+void kurl::Progress::ProgressOne()
+//-----------------------------------------------------------------------------
+{
+	switch (m_ProgressType)
+	{
+		case Type::None:
+			break;
+		case Type::Wheel:
+			PrintNextWheel();
+			break;
+		case Type::Bar:
+			if (m_Bar)
+			{
+				m_Bar->Move();
+			}
+			break;
+	}
+
+} // Progress::ProgressOne
+
+//-----------------------------------------------------------------------------
+void kurl::Progress::Finish()
+//-----------------------------------------------------------------------------
+{
+	switch (m_ProgressType)
+	{
+		case Type::None:
+		case Type::Wheel:
+			break;
+		case Type::Bar:
+			if (m_Bar)
+			{
+				m_Bar->Finish();
+			}
+			break;
+	}
+
+} // Progress::Finish
+
+//-----------------------------------------------------------------------------
+void kurl::Progress::PrintNextWheel()
+//-----------------------------------------------------------------------------
+{
+	static std::mutex mutex;
+	std::lock_guard<std::mutex> lock(mutex);
+
+	KErr.Format("\b{:c}", GetNextWheelChar());
+
+} // Progress::PrintNextWheel
+
+//-----------------------------------------------------------------------------
+char kurl::Progress::GetNextWheelChar()
+//-----------------------------------------------------------------------------
+{
+	static constexpr std::array<char, 8> m_Wheel = {'/', '-', '\\', '|', '/', '-', '\\', '|'};
+
+	if (m_WheelChar > 6) m_WheelChar = 0;
+	else ++m_WheelChar;
+	return m_Wheel[m_WheelChar];
+
+} // Progress::GetNextWheelChar
+
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 constexpr KStringView  kurl::sOutputToLastPathComponent;

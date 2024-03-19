@@ -109,11 +109,15 @@ protected:
 		KString     sRequestBody;
 		KMIME       sRequestMIME;
 		KString     sRequestCompression;
+		KString     sUsername;
+		KString     sPassword;
+		KString     sAWSProvider; //<provider1[:provider2[:region[:service]]]> --aws-sigv4 "aws:amz:us-west-1:es" --user "key:secret"
 		HeaderMap   Headers;
 		KHTTPMethod Method          { KHTTPMethod::GET };
 		enum Flags  Flags           { Flags::NONE };
 		uint16_t    iSecondsTimeout { 5 };
-	};
+
+	}; // BaseRequest
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct MultiRequest : BaseRequest
@@ -121,45 +125,27 @@ protected:
 	{
 		MultiRequest() = default;
 
+		void BuildAuthenticationHeader ();
+
 		std::vector<std::pair<KURL, KString>> URLs; // URL, output stream
-	};
 
+	}; // MultiRequest
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct BuildMultiRequest : MultiRequest
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		void clear()                    { *this = BuildMultiRequest();                  }
-		void AddURL(KURL url)           { m_BuildURLs.push_back(std::move(url));        }
-		void AddOutput(KString sOutput) { m_BuildOutputs.push_back(std::move(sOutput)); }
+		void clear     ()                { *this = BuildMultiRequest();                  }
+		void AddURL    (KURL url)        { m_BuildURLs.push_back(std::move(url));        }
+		void AddOutput (KString sOutput) { m_BuildOutputs.push_back(std::move(sOutput)); }
 
 
-		void BuildPairsOfURLAndOutput()
-		{
-			KStringView sLastOut;
-			auto it = m_BuildOutputs.begin();
-
-			for (auto& URL : m_BuildURLs)
-			{
-				if (it != m_BuildOutputs.end())
-				{
-					sLastOut = *it++;
-				}
-				if (sLastOut == sOutputToLastPathComponent)
-				{
-					KString sComponent = kBasename(URL.Path.get());
-					URLs.emplace_back(std::move(URL), sComponent);
-				}
-				else
-				{
-					URLs.emplace_back(std::move(URL), sLastOut);
-				}
-			}
-
-			m_BuildURLs.clear();
-			m_BuildOutputs.clear();
-		}
+		void BuildPairsOfURLAndOutput();
 
 		std::vector<KURL>    m_BuildURLs;
 		std::vector<KString> m_BuildOutputs;
-	};
+
+	}; // BuildMultiRequest
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct SingleRequest
@@ -172,10 +158,11 @@ protected:
 		{
 		}
 
-		const KURL& URL;
-		const KString& sOutput;
+		const KURL&        URL;
+		const KString&     sOutput;
 		const BaseRequest& Config;
-	};
+
+	}; // SingleRequest
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct RequestList
@@ -186,53 +173,10 @@ protected:
 	public:
 	//----------
 
-		void Add(BuildMultiRequest BMRQ)
-		{
-			BMRQ.BuildPairsOfURLAndOutput();
+		void  Add               (BuildMultiRequest BMRQ);
+		void  CreateRequestList (std::size_t iRepeat);
 
-			if (!BMRQ.URLs.empty())
-			{
-				m_MultiRequests.push_back(std::move(BMRQ));
-			}
-		}
-
-		void CreateRequestList(std::size_t iRepeat)
-		{
-			m_iRepeat = iRepeat;
-
-			// now create the single request list out of the multi-requests that may have
-			// been configured - we keep the MultiRequests as the data store, and only
-			// create references to it in the RequestList
-			for (auto& MRQ : m_MultiRequests)
-			{
-				for (auto& URL : MRQ.URLs)
-				{
-					m_RequestList.emplace_back(URL.first, URL.second, MRQ);
-				}
-			}
-			it.unique().get() = m_RequestList.begin();
-		}
-
-
-		const SingleRequest* GetNextRequest()
-		{
-			auto p = it.unique();
-
-			if (*p == m_RequestList.end())
-			{
-				if (m_iRepeat == 1)
-				{
-					return nullptr;
-				}
-				else
-				{
-					--m_iRepeat;
-					*p = m_RequestList.begin();
-				}
-			}
-
-			return &*(*p)++;
-		}
+		const SingleRequest* GetNextRequest();
 
 		void ResetRequest()
 		{
@@ -258,7 +202,7 @@ protected:
 		KThreadSafe<decltype(m_RequestList)::iterator> it;
 		std::size_t                m_iRepeat;
 
-	};
+	}; // RequestList
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct Results
@@ -269,37 +213,8 @@ protected:
 	public:
 	//----------
 
-		void Add(uint16_t iResultCode, KDuration tDuration)
-		{
-			auto Codes = m_ResultCodes.unique();
-			auto it    = Codes->find(iResultCode);
-
-			if (it == Codes->end())
-			{
-				auto pair = Codes->insert({iResultCode, Result{}});
-				it = pair.first;
-			}
-
-			it->second.Add(tDuration);
-		}
-
-		KString Print()
-		{
-			auto Codes = m_ResultCodes.shared();
-
-			KString sResult;
-
-			for (const auto& it : *Codes)
-			{
-				sResult += kFormat("HTTP {}: count {}, avg {}\n",
-								   it.first,
-								   kFormNumber(it.second.m_tDuration.Rounds()),
-								   it.second.m_tDuration.average());
-			}
-
-			return sResult;
-		}
-
+		void    Add   (uint16_t iResultCode, KDuration tDuration);
+		KString Print ();
 
 	//----------
 	private:
@@ -311,7 +226,7 @@ protected:
 		{
 			Result() = default;
 
-			void Add(KDuration tDuration)
+			void Add (KDuration tDuration)
 			{
 				m_tDuration += tDuration;
 			}
@@ -331,7 +246,8 @@ protected:
 		std::size_t iRepeat       { 1 };
 		std::size_t iParallel     { 1 };
 		bool        bShowStats    { false };
-	};
+
+	}; // Config
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct Progress
@@ -349,77 +265,21 @@ protected:
 			Bar
 		};
 
-		void SetType(Type t)
+		void SetType (Type t)
 		{
 			m_ProgressType = t;
 		}
 
-		void Start(std::size_t iSize)
-		{
-			if (m_ProgressType == Type::Bar)
-			{
-				m_Bar = std::make_unique<KBAR>(iSize, 
-											   KBAR::DEFAULT_WIDTH,
-											   KBAR::SLIDER,
-											   KBAR::DEFAULT_DONE_CHAR,
-											   KErr);
-			}
-		}
-
-		void ProgressOne()
-		{
-			switch (m_ProgressType)
-			{
-				case Type::None:
-					break;
-				case Type::Wheel:
-					PrintNextWheel();
-					break;
-				case Type::Bar:
-					if (m_Bar)
-					{
-						m_Bar->Move();
-					}
-					break;
-			}
-		}
-
-		void Finish()
-		{
-			switch (m_ProgressType)
-			{
-				case Type::None:
-				case Type::Wheel:
-					break;
-				case Type::Bar:
-					if (m_Bar)
-					{
-						m_Bar->Finish();
-					}
-					break;
-			}
-		}
+		void Start       (std::size_t iSize);
+		void ProgressOne ();
+		void Finish      ();
 
 	//----------
 	private:
 	//----------
 
-		void PrintNextWheel()
-		{
-			static std::mutex mutex;
-			std::lock_guard<std::mutex> lock(mutex);
-
-			KErr.Format("\b{:c}", GetNextWheelChar());
-		}
-
-		char GetNextWheelChar()
-		{
-			static constexpr std::array<char, 8> m_Wheel = {'/', '-', '\\', '|', '/', '-', '\\', '|'};
-
-			if (m_WheelChar > 6) m_WheelChar = 0;
-			else ++m_WheelChar;
-			return m_Wheel[m_WheelChar];
-		}
+		void PrintNextWheel   ();
+		char GetNextWheelChar ();
 
 		std::unique_ptr<KBAR> m_Bar;
 		Type                  m_ProgressType { Type::None };

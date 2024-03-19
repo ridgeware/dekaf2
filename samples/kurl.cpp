@@ -597,6 +597,13 @@ void kurl::ServerQuery ()
 
 		m_Progress.ProgressOne();
 
+		if (HTTP.Response.iStatusCode == 0)
+		{
+			// no connection
+			Out.FormatLine("{}: {}", RQ->URL, HTTP.Error());
+			continue;
+		}
+
 		if (RQ->Config.Flags & Flags::REQUEST_HEADERS)
 		{
 			KModifyingOutputStreamBuf Modifier(KErr.ostream());

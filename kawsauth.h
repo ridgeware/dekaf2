@@ -106,6 +106,7 @@ private:
 	KString m_sDateTime;
 	KString m_sDate;
 	KString m_sHost;
+	KString m_sProviderLowercase;
 	HTTPHeaders m_AddedHeaders;
 
 }; // SignedRequest

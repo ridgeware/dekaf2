@@ -70,14 +70,14 @@ SignedRequest::SignedRequest(const KURL& URL,
 		// empty is not allowed!
 		sProvider = "amz";
 	}
-	KString sProviderLowercase = sProvider.ToLowerASCII();
-	KString sProviderTitlecase = sProviderLowercase;
+	m_sProviderLowercase = sProvider.ToLowerASCII();
+	KString sProviderTitlecase = m_sProviderLowercase;
 	// see above: sProvider is never empty
 	sProviderTitlecase[0] = KASCII::kToUpper(sProviderTitlecase[0]);
 
 	if (sContentType.empty())
 	{
-		sContentType = kFormat("application/x-{}-json-1.1", sProviderLowercase);
+		sContentType = kFormat("application/x-{}-json-1.1", m_sProviderLowercase);
 	}
 
 	KString sCanonicalRequest;
@@ -136,14 +136,14 @@ SignedRequest::SignedRequest(const KURL& URL,
 		m_AddedHeaders  .emplace("Content-Type", sContentType);
 	}
 	LowerCaseHeaders.emplace("host", m_sHost);
-	LowerCaseHeaders.emplace(kFormat("x-{}-date", sProviderLowercase), m_sDateTime);
+	LowerCaseHeaders.emplace(kFormat("x-{}-date", m_sProviderLowercase), m_sDateTime);
 
 	m_AddedHeaders  .emplace("Host", m_sHost);
 	m_AddedHeaders  .emplace(kFormat("X-{}-Date", sProviderTitlecase), m_sDateTime);
 
 	if (!sTarget.empty())
 	{
-		LowerCaseHeaders.emplace(kFormat("x-{}-target", sProviderLowercase), sTarget);
+		LowerCaseHeaders.emplace(kFormat("x-{}-target", m_sProviderLowercase), sTarget);
 		m_AddedHeaders  .emplace(kFormat("X-{}-Target", sProviderTitlecase), sTarget);
 	}
 
@@ -203,7 +203,14 @@ const HTTPHeaders& SignedRequest::Authorize(KStringView sAccessKey,
 	if (sProvider.empty())
 	{
 		// empty is not allowed!
-		sProvider = "aws";
+		if (m_sProviderLowercase == "amz")
+		{
+			sProvider = "aws";
+		}
+		else
+		{
+			sProvider = m_sProviderLowercase;
+		}
 	}
 
 	KString sCredentialScope = GetDate();

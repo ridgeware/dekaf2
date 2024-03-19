@@ -35,7 +35,7 @@ public:
 	/// headers, path, query, and payload, hashed and HMACed.
 	/// @param URL full URL including path and query (if any)
 	/// @param Method the HTTP method, like KHTTPMethod::GET or KHTTPMethod::POST
-	/// @param sTarget the API's method, e.g. TranslateDocument
+	/// @param sTarget the API's method, e.g. TranslateDocument. Can also be left empty, e.g. for S3 access.
 	/// @param sPayload a string_view of the payload (body content), to compute hashes..
 	/// @param sContentType the content type is required for translate requests.
 	/// This implementation defaults it to amz-json.

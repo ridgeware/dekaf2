@@ -121,11 +121,15 @@ SignedRequest::SignedRequest(const KURL& URL,
 	}
 	LowerCaseHeaders.insert(HTTPHeaders::value_type { "host"        , m_sHost      });
 	LowerCaseHeaders.insert(HTTPHeaders::value_type { "x-amz-date"  , m_sDateTime  });
-	LowerCaseHeaders.insert(HTTPHeaders::value_type { "x-amz-target", sTarget      });
 
 	m_AddedHeaders  .insert(HTTPHeaders::value_type { "Host"        , m_sHost      });
 	m_AddedHeaders  .insert(HTTPHeaders::value_type { "X-Amz-Date"  , m_sDateTime  });
-	m_AddedHeaders  .insert(HTTPHeaders::value_type { "X-Amz-Target", sTarget      });
+
+	if (!sTarget.empty())
+	{
+		LowerCaseHeaders.insert(HTTPHeaders::value_type { "x-amz-target", sTarget      });
+		m_AddedHeaders  .insert(HTTPHeaders::value_type { "X-Amz-Target", sTarget      });
+	}
 
 	for (const auto& Header : LowerCaseHeaders)
 	{

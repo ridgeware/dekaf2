@@ -213,7 +213,8 @@ TEST_CASE("KCSV")
 		"Coffee,Ground,Arabica,Strong\n" // this misses the last column
 		"Tea,Leaves,Darjeeling,First Flush,Equitable\n";
 
-		KJSON json = KInCSV(sCSV);
+		// we need the <> for C++ < 17
+		KJSON json = KInCSV<>(sCSV);
 
 		CHECK ( json.dump() == R"([{"Kind":"Arabica","Product":"Coffee","Specifics":"Strong","Type":"Ground"},{"Kind":"Darjeeling","Product":"Tea","Production":"Equitable","Specifics":"First Flush","Type":"Leaves"}])" );
 	}
@@ -224,7 +225,8 @@ TEST_CASE("KCSV")
 		"Coffee,Ground,Arabica,Strong\n" // this misses the last column
 		"Tea,Leaves,Darjeeling,First Flush,Equitable\n";
 
-		KJSON json = KInCSV(sCSV).to_json(false);
+		// we need the <> for C++ < 17
+		KJSON json = KInCSV<>(sCSV).to_json(false);
 
 		CHECK ( json.dump() == R"([["Product","Type","Kind","Specifics","Production"],["Coffee","Ground","Arabica","Strong"],["Tea","Leaves","Darjeeling","First Flush","Equitable"]])" );
 	}

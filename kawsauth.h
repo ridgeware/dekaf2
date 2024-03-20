@@ -15,9 +15,12 @@ namespace AWSAuth4 {
 using HTTPHeaders = std::map<KString, KString>;
 
 //-----------------------------------------------------------------------------
-/// generate an AWS signature key for a day, region, and service
-KString SignatureKey(KStringView sKey, KStringView sDateStamp,
-					 KStringView sRegion, KStringView sService);
+/// generate an AWS signature key for a day, region, service, and provider
+KString SignatureKey(KStringView sKey, 
+					 KStringView sDateStamp,
+					 KStringView sRegion, 
+					 KStringView sService,
+					 KStringView sProvider = "aws");
 //-----------------------------------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

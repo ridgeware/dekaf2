@@ -98,6 +98,6 @@ TEST_CASE("KAWSAuth")
 		CHECK ( Headers["Authorization"] ==
 			   "GOOG4-HMAC-SHA256 Credential=AIHDSFNHCSAPJAKCUSHVF/20230703/us-east-1/translate/goog4_request, "
 			   "SignedHeaders=content-type;host;x-goog-date;x-goog-target, "
-			   "Signature=a69dfd419e78aed8c16d4f4b2362595bde29b565637acde617405df81590d197" );
+			   "Signature=70d14cd2d0ec0422013d564f5d3170b29854e91dbd3a79b7981602c64c7b576b" );
 	}
 }

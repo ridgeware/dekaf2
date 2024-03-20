@@ -3,6 +3,7 @@
 #include "kmessagedigest.h"
 #include "kstringutils.h"
 #include "kurlencode.h"
+#include "khttp_header.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -29,21 +30,46 @@ KString SHA256HMACHexDigest(KStringView sKey, KStringView sMessage)
 	return KHMAC(KHMAC::SHA256, sKey, sMessage).HexDigest();
 }
 
+//---------------------------------------------------------------------------
+void AddToHeadersLowercased(AWSAuth4::HTTPHeaders& LowerCaseHeaders, const AWSAuth4::HTTPHeaders& Headers)
+//---------------------------------------------------------------------------
+{
+	for (const auto& Header : Headers)
+	{
+		// lowercase the key (header) and collapse the value, it must be resorted after
+		// encoding..
+		auto sKey   = Header.first.ToLower().Trim();
+		auto sValue = Header.second;
+		sValue.CollapseAndTrim();
+		LowerCaseHeaders.emplace(std::move(sKey), std::move(sValue));
+	}
+
+} // AddToHeadersLowercased
+
 } // end of anonymous namespace
 
 namespace AWSAuth4 {
 
 //---------------------------------------------------------------------------
-KString SignatureKey(KStringView sKey, KStringView sDateStamp,
-					 KStringView sRegion, KStringView sService)
+KString SignatureKey(KStringView sKey, 
+					 KStringView sDateStamp,
+					 KStringView sRegion, 
+					 KStringView sService,
+					 KStringView sProvider)
 //---------------------------------------------------------------------------
 {
-	KString sInit{"AWS4"};
+	if (sProvider.empty())
+	{
+		sProvider = "aws";
+	}
+
+	KString sInit = sProvider.ToUpperASCII();
+	sInit += '4';
 	sInit += sKey;
 	auto skDate    = SHA256HMACDigest(sInit,    sDateStamp);
 	auto skRegion  = SHA256HMACDigest(skDate,   sRegion   );
 	auto skService = SHA256HMACDigest(skRegion, sService  );
-	return SHA256HMACDigest(skService, "aws4_request");
+	return SHA256HMACDigest(skService, kFormat("{}4_request", sProvider.ToLowerASCII()));
 
 } // SignatureKey
 
@@ -118,34 +144,22 @@ SignedRequest::SignedRequest(const KURL& URL,
 		sCanonicalRequest += '\n';
 	}
 
-	HTTPHeaders LowerCaseHeaders;
-	for (auto it = AdditionalSignedHeaders.begin(); it != AdditionalSignedHeaders.end(); ++it)
-	{
-		// lowercase the header and collapse the value, it must be resorted after
-		// encoding..
-		auto sKey   = it->first.ToLower().Trim();
-		auto sValue = it->second;
-		sValue.CollapseAndTrim();
-		LowerCaseHeaders.insert(HTTPHeaders::value_type{std::move(sKey), std::move(sValue)});
-	}
-
 	if (!sContentType.empty() &&
 		(Method == KHTTPMethod::POST || Method == KHTTPMethod::PUT || Method == KHTTPMethod::PATCH))
 	{
-		LowerCaseHeaders.emplace("content-type", sContentType);
-		m_AddedHeaders  .emplace("Content-Type", sContentType);
+		m_AddedHeaders.emplace(KHTTPHeader(KHTTPHeader::CONTENT_TYPE), sContentType);
 	}
-	LowerCaseHeaders.emplace("host", m_sHost);
-	LowerCaseHeaders.emplace(kFormat("x-{}-date", m_sProviderLowercase), m_sDateTime);
-
-	m_AddedHeaders  .emplace("Host", m_sHost);
-	m_AddedHeaders  .emplace(kFormat("X-{}-Date", sProviderTitlecase), m_sDateTime);
+	m_AddedHeaders.emplace(KHTTPHeader(KHTTPHeader::HOST), m_sHost);
+	m_AddedHeaders.emplace(kFormat("X-{}-Date", sProviderTitlecase), m_sDateTime);
 
 	if (!sTarget.empty())
 	{
-		LowerCaseHeaders.emplace(kFormat("x-{}-target", m_sProviderLowercase), sTarget);
-		m_AddedHeaders  .emplace(kFormat("X-{}-Target", sProviderTitlecase), sTarget);
+		m_AddedHeaders.emplace(kFormat("X-{}-Target", sProviderTitlecase), sTarget);
 	}
+
+	HTTPHeaders LowerCaseHeaders;
+	AddToHeadersLowercased (LowerCaseHeaders, m_AddedHeaders         );
+	AddToHeadersLowercased (LowerCaseHeaders, AdditionalSignedHeaders);
 
 	for (const auto& Header : LowerCaseHeaders)
 	{
@@ -233,7 +247,7 @@ const HTTPHeaders& SignedRequest::Authorize(KStringView sAccessKey,
 	sStringToSign += '\n';
 	sStringToSign += GetDigest();
 
-	auto sSigningKey = SignatureKey(sSecretKey, GetDate(), sRegion, sService);
+	auto sSigningKey = SignatureKey(sSecretKey, GetDate(), sRegion, sService, sProvider);
 	auto sSignature  = SHA256HMACHexDigest(sSigningKey, sStringToSign);
 
 	KString sAuthHeader = sAlgorithm;
@@ -246,7 +260,7 @@ const HTTPHeaders& SignedRequest::Authorize(KStringView sAccessKey,
 	sAuthHeader += ", Signature=";
 	sAuthHeader += sSignature;
 
-	m_AddedHeaders.insert(HTTPHeaders::value_type { "Authorization", sAuthHeader });
+	m_AddedHeaders.emplace(KHTTPHeader(KHTTPHeader::AUTHORIZATION), sAuthHeader);
 
 	return m_AddedHeaders;
 

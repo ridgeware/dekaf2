@@ -114,7 +114,8 @@ class KUTCTime;
 
 namespace detail {
 
-// we need a constructor in KUnixTime for this because otherwise gcc 8 complains about conversion ambiguities
+// we need a constructor in KUnixTime/KUTCTime/KLocalTime for this because otherwise
+// gcc versions < 9 complain about conversion ambiguities
 class KParsedTimestampBase;
 
 #if DEKAF2_USE_TIME_PUT
@@ -158,7 +159,7 @@ public:
 	DEKAF2_CONSTEXPR_14          KUnixTime(time_t time)       noexcept : KUnixTime(from_time_t(time)) {}
 	/// construct from std::tm timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const std::tm& tm) noexcept : KUnixTime(    from_tm(tm)  ) {}
-	// we need this constructor because otherwise gcc 8 complains about conversion ambiguities
+	// we need this constructor because otherwise gcc versions < 9 complain about conversion ambiguities
 	                    explicit KUnixTime (const detail::KParsedTimestampBase& parsed) noexcept;
 	/// construct from KUTCTime timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const KUTCTime& local) noexcept;
@@ -556,6 +557,8 @@ public:
 	                    KUTCTime (KStringView sFormat, KStringView sTimestamp);
 	/// construct from KLocalTime
 	           explicit KUTCTime (const KLocalTime& local) noexcept;
+	/// we need this constructor because otherwise gcc versions < 9 complain about conversion ambiguities
+	           explicit KUTCTime (const detail::KParsedTimestampBase& parsed) noexcept;
 
 	// allowing all base class constructors -> KDate
 	using KDate::KDate;
@@ -735,10 +738,13 @@ public:
 	}
 
 	/// construct from KUTCTime, and translate into the system's local time
-	explicit KLocalTime(const KUTCTime& utc)
+	explicit KLocalTime (const KUTCTime& utc)
 	: KLocalTime(utc, chrono::current_zone())
 	{
 	}
+
+	/// we need this constructor because otherwise gcc versions < 9 complain about conversion ambiguities
+	explicit KLocalTime (const detail::KParsedTimestampBase& parsed) noexcept;
 
 	// do not allow base class constructors - they do not make sense for the const KLocalTime
 
@@ -877,9 +883,12 @@ public:
 private:
 //--------
 
-	// gcc 8 needs the below explicit conversions
+	// gcc versions < 9 need the below explicit conversions
 	friend class DEKAF2_PREFIX KUTCTime;
 	friend class DEKAF2_PREFIX KUnixTime;
+#if DEKAF2_HAS_TIMEZONES
+	friend class DEKAF2_PREFIX KLocalTime;
+#endif
 
 	KUnixTime  to_unix  () const;
 	KUTCTime   to_utc   () const;
@@ -974,7 +983,11 @@ DEKAF2_PUBLIC                   KString FormTimestamp    (const std::locale& loc
 
 } // end of namespace detail
 
-inline KUnixTime::KUnixTime (const detail::KParsedTimestampBase& parsed) noexcept : KUnixTime(parsed.to_unix()) {}
+inline KUnixTime  ::KUnixTime   (const detail::KParsedTimestampBase& parsed) noexcept : KUnixTime  (parsed.to_unix  ()) {}
+inline KUTCTime   ::KUTCTime    (const detail::KParsedTimestampBase& parsed) noexcept : KUTCTime   (parsed.to_utc   ()) {}
+#if DEKAF2_HAS_TIMEZONES
+inline KLocalTime ::KLocalTime  (const detail::KParsedTimestampBase& parsed) noexcept : KLocalTime (parsed.to_local ()) {}
+#endif
 
 /// returns the current system time as KUnixTime in high resolution (clang libc++: microseconds, gnu libstdc++: nanoseconds)
 DEKAF2_PUBLIC inline          KUnixTime kNow                    ()                                           { return KUnixTime::now(); }

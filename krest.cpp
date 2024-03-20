@@ -602,5 +602,8 @@ void KREST::RegisterShutdownCallback(KThreadPool::ShutdownCallback callback)
 
 } // RegisterShutdownCallback
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KStringViewZ KREST::CLI_SIM_AGENT;
+#endif
 
 DEKAF2_NAMESPACE_END

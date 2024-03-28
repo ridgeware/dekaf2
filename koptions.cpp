@@ -1091,7 +1091,7 @@ int KOptions::Parse(KString sCLI, KOutStream& out)
 	// create a permanent buffer of the passed CLI
 
 	std::vector<KStringViewZ> parms;
-	kSplitArgsInPlace(parms, m_Strings.MutablePersist(std::move(sCLI)), /*svDelim  =*/" \f\v\t\r\n\b", /*svQuotes =*/"\"'", /*chEscape =*/'\\');
+	kSplitArgsInPlace(parms, m_Strings.MutablePersist(std::move(sCLI)));
 
 	return Execute(CLIParms(parms, m_Strings), out);
 

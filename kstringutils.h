@@ -706,7 +706,7 @@ bool kIsBinary(KStringView sBuffer);
 /// Convert value into string and insert selectable separator every n digits, with requested precision
 /// @param i the arithmetic value to format
 /// @param chSeparator the "thousands" separator char, defaults to ','
-/// @param iEvery insert the chSeparator every iEvery chars
+/// @param iEvery insert the chSeparator every iEvery chars, set to 0 to disable
 /// @param iPrecision decimal precision (also for non-floating point values), defaults to 0
 /// @param bRoundToNearest true if the output shall be rounded to nearest value, defaults to true
 /// @return the formatted number as a String
@@ -721,16 +721,11 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 
 	DEKAF2_TRY
 	{
-#if defined(DEKAF2_HAS_FULL_CPP_17) && !DEKAF2_KSTRING_IS_STD_STRING
-		if constexpr (std::is_same<String, KString>::value)
-		{
-			sResult = KString::to_string(i);
-		}
-		else
+#if !DEKAF2_KSTRING_IS_STD_STRING
+		sResult = KString::to_string(i);
+#else
+		sResult = std::to_string(i);
 #endif
-		{
-			sResult = std::to_string(i);
-		}
 	}
 	DEKAF2_CATCH (...)
 	{

@@ -504,7 +504,7 @@ unsigned bit_log2(T iValue) noexcept
 } // end of namespace detail
 #endif
 
-#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 7
+#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 7 && DEKAF2_HAS_SHIFT_COUNT_OVERFLOW
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wshift-count-overflow"
 #endif
@@ -552,7 +552,7 @@ kBitCountRightZero(T iValue) noexcept
 	}
 #endif
 }
-#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 7
+#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 7 && DEKAF2_HAS_SHIFT_COUNT_OVERFLOW
 #pragma GCC diagnostic pop
 #endif
 
@@ -652,7 +652,7 @@ kBitWidth(T iValue) noexcept
 #endif
 }
 
-#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 7
+#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 7 && DEKAF2_HAS_SHIFT_COUNT_OVERFLOW
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wshift-count-overflow"
 #endif
@@ -694,7 +694,7 @@ kBitCountOne(T iValue) noexcept
 	}
 #endif
 }
-#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 7
+#if DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 7 && DEKAF2_HAS_SHIFT_COUNT_OVERFLOW
 #pragma GCC diagnostic pop
 #endif
 

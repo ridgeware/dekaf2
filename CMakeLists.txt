@@ -55,7 +55,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.49 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.50 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -533,12 +533,13 @@ endif ()
 
 # test warning flags
 include(CheckCXXCompilerFlag)
-check_cxx_compiler_flag(-Wstringop-overflow             DEKAF2_HAS_WARN_STRINGOP_OVERFLOW)
-check_cxx_compiler_flag(-Wstringop-overread             DEKAF2_HAS_WARN_STRINGOP_OVERREAD)
-check_cxx_compiler_flag(-Warray-bounds                  DEKAF2_HAS_WARN_ARRAY_BOUNDS)
-check_cxx_compiler_flag(-Wdeprecated-declarations       DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS)
-check_cxx_compiler_flag(-Wliteral-suffix                DEKAF2_HAS_WARN_LITERAL_SUFFIX)
+check_cxx_compiler_flag(-Wstringop-overflow             DEKAF2_HAS_WARN_STRINGOP_OVERFLOW            )
+check_cxx_compiler_flag(-Wstringop-overread             DEKAF2_HAS_WARN_STRINGOP_OVERREAD            )
+check_cxx_compiler_flag(-Warray-bounds                  DEKAF2_HAS_WARN_ARRAY_BOUNDS                 )
+check_cxx_compiler_flag(-Wdeprecated-declarations       DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS      )
+check_cxx_compiler_flag(-Wliteral-suffix                DEKAF2_HAS_WARN_LITERAL_SUFFIX               )
 check_cxx_compiler_flag(-Wreserved-user-defined-literal DEKAF2_HAS_WARN_RESERVED_USER_DEFINED_LITERAL)
+check_cxx_compiler_flag(-Wshift-count-overflow          DEKAF2_HAS_SHIFT_COUNT_OVERFLOW              )
 
 try_compile(DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
 			"${DEKAF2_GENERATED_FILES_DIR}"

@@ -175,4 +175,56 @@ TEST_CASE("KDate")
 		Date.weekday(chrono::weekday_last(chrono::Monday));
 		CHECK ( Date.to_string() == "2023-04-24" );
 	}
+
+	SECTION("KDateDiff")
+	{
+		KDate D1(chrono::year(2024)/chrono::March/1);
+		KDate D2(chrono::year(2024)/chrono::February/28);
+		auto diff = D1 - D2;
+		CHECK ( kFormat("{}", diff) == "2d" );
+		CHECK ( diff == chrono::days(2) );
+
+		D1 = KDate(chrono::year(2023)/chrono::March/1);
+		D2 = KDate(chrono::year(2023)/chrono::February/28);
+		diff = D1 - D2;
+		CHECK ( kFormat("{}", diff) == "1d" );
+		CHECK ( diff == chrono::days(1) );
+		diff = D2 - D1;
+		CHECK ( kFormat("{}", diff) == "-1d" );
+		CHECK ( diff == chrono::days(-1) );
+
+		D1 = KDate(chrono::year(2023)/chrono::March/30);
+		D2 = KDate(chrono::year(2023)/chrono::February/28);
+		diff = D1 - D2;
+		CHECK ( kFormat("{}", diff) == "1m 2d" );
+		CHECK ( diff == chrono::days(30) );
+
+		D1 = KDate(chrono::year(2023)/chrono::March/31);
+		D2 = KDate(chrono::year(2023)/chrono::February/28);
+		diff = D1 - D2;
+		CHECK ( kFormat("{}", diff) == "1m 3d" );
+		CHECK ( diff == chrono::days(31) );
+
+		D1 = KDate(chrono::year(2023)/chrono::April/1);
+		D2 = KDate(chrono::year(2023)/chrono::February/28);
+		diff = D1 - D2;
+		CHECK ( kFormat("{}", diff) == "1m 4d" );
+		CHECK ( diff == chrono::days(32) );
+
+		D1 = KDate(chrono::year(2024)/chrono::April/1);
+		D2 = KDate(chrono::year(2023)/chrono::February/28);
+		diff = D1 - D2;
+		CHECK ( kFormat("{}", diff) == "1y 1m 4d" );
+		CHECK ( diff == chrono::days(398) );
+
+		diff = D2 - D1;
+		CHECK ( kFormat("{}", diff) == "-1y 1m 4d" );
+		CHECK ( diff == chrono::days(-398) );
+
+		KDays D = chrono::days(5);
+		CHECK ( kFormat("{}", D) == "5d" );
+
+		D = chrono::days(-453);
+		CHECK ( kFormat("{}", D) == "-453d" );
+	}
 }

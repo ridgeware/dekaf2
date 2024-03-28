@@ -661,6 +661,8 @@ public:
 	constexpr chrono::months  to_months      () const noexcept { return chrono::floor<chrono::months>(to_days()); }
 	/// return floored chrono::years
 	constexpr chrono::years   to_years       () const noexcept { return chrono::floor<chrono::years>(to_days());  }
+	/// returns a string representation like 3d
+	KString                   to_string      () const;
 
 }; // KDays
 
@@ -690,6 +692,8 @@ public:
 	constexpr chrono::years   years       () const noexcept { return chrono::years(m_years);   }
 	/// returns true if date difference is negative
 	constexpr bool            is_negative () const noexcept { return m_is_negative;            }
+	/// returns a string representation of the date difference, like 1y 2m 3d
+	KString                   to_string   () const;
 
 //--------
 private:
@@ -872,6 +876,24 @@ template<> struct formatter<DEKAF2_PREFIX KDate> : formatter<std::tm>
 	auto format(const DEKAF2_PREFIX KDate& date, FormatContext& ctx) const
 	{
 		return formatter<std::tm>::format(date.to_tm(), ctx);
+	}
+};
+
+template<> struct formatter<DEKAF2_PREFIX KDays> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const DEKAF2_PREFIX KDays& days, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(days.to_string(), ctx);
+	}
+};
+
+template<> struct formatter<DEKAF2_PREFIX KDateDiff> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const DEKAF2_PREFIX KDateDiff& datediff, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(datediff.to_string(), ctx);
 	}
 };
 

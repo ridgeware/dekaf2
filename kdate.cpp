@@ -70,5 +70,56 @@ KString KConstDate::to_string (const std::locale& locale, KStringView sFormat) c
 
 } // to_string
 
+//-----------------------------------------------------------------------------
+KString KDateDiff::to_string () const
+//-----------------------------------------------------------------------------
+{
+	KString sDateDiff;
+
+	if (is_negative())
+	{
+		sDateDiff += '-';
+	}
+
+	// we currently do not use the duration formatting of fmt because it displays
+	// years, months and days as multiples of seconds
+
+	if (years() > chrono::years(0))
+	{
+		sDateDiff += kFormat("{}y", years().count());
+	}
+
+	if (months() > chrono::months(0))
+	{
+		if (years() > chrono::years(0)) 
+		{
+			sDateDiff += ' ';
+		}
+
+		sDateDiff += kFormat("{}m", months().count());
+	}
+
+	if (days() > chrono::days(0) || sDateDiff.size() < 2)
+	{
+		if (years() > chrono::years(0) || months() > chrono::months(0))
+		{
+			sDateDiff += ' ';
+		}
+
+		sDateDiff += kFormat("{}d", days().count());
+	}
+	
+	return sDateDiff;
+
+} // to_string
+
+//-----------------------------------------------------------------------------
+KString KDays::to_string () const
+//-----------------------------------------------------------------------------
+{
+	return kFormat("{}d", to_days().count());
+
+} // to_string
+
 DEKAF2_NAMESPACE_END
 

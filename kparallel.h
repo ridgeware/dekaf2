@@ -46,7 +46,9 @@
 
 #include "kthreads.h"
 #include "kthreadsafe.h"
+#include "ktemplate.h"
 #include "klog.h"
+#include <algorithm>
 #include <thread>
 #include <utility>
 #include <unordered_map>
@@ -162,7 +164,7 @@ public:
 
 	void Start  (std::size_t iMax)       {}
 	void Move   (std::size_t iDelta = 1) {}
-	void Finish ()                  {}
+	void Finish ()                       {}
 
 }; // KParallelForEachNoProgressPrinter
 
@@ -266,28 +268,82 @@ template<typename InputIterator,
 void kParallelForEach(InputIterator first, InputIterator last,
                       Func&& f,
                       std::size_t iMaxThreads = std::thread::hardware_concurrency(),
-					  Progress&& p = detail::KParallelForEachNoProgressPrinter())
+                      Progress&& p = detail::KParallelForEachNoProgressPrinter())
 //-----------------------------------------------------------------------------
 {
-	kParallelForEach(std::distance(first, last), first, last, f, iMaxThreads, p);
+	kParallelForEach(std::distance(first, last), first, last,
+	                 std::forward<Func>(f),
+	                 iMaxThreads,
+	                 std::forward<Progress>(p));
 }
 
 //-----------------------------------------------------------------------------
-/// Iterate over all elements of a container c and call function f with a ref on the element
+/// Iterate over all elements of a container c that has a size() member function, and call function f with a ref on the element
 /// @param c any container that has a begin(), end(), and size() member function
 /// @param f functor to call with reference on one element of the range
 /// @param iMaxThreads number of threads to start at most, 0/default = count of CPU cores
 /// @param p progress output class, defaults to dummy printer. Use e.g. KBAR for real output to a terminal
 template<typename Container,
          typename Func,
-         typename Progress = detail::KParallelForEachNoProgressPrinter>
+         typename Progress = detail::KParallelForEachNoProgressPrinter,
+         std::enable_if<detail::has_size<Container>::value == true, int>::type = 0>
 void kParallelForEach(Container& c,
                       Func&& f,
                       std::size_t iMaxThreads = std::thread::hardware_concurrency(),
-					  Progress&& p = detail::KParallelForEachNoProgressPrinter())
+                      Progress&& p = detail::KParallelForEachNoProgressPrinter())
 //-----------------------------------------------------------------------------
 {
-	kParallelForEach(c.size(), c.begin(), c.end(), f, iMaxThreads, p);
+	kParallelForEach(c.size(), c.begin(), c.end(),
+	                 std::forward<Func>(f),
+	                 iMaxThreads,
+	                 std::forward<Progress>(p));
+}
+
+//-----------------------------------------------------------------------------
+/// Iterate over all elements of a container c that has no size() member function, and call function f with a ref on the element
+/// @param iSize the count of elements of the container
+/// @param c any container that has a begin(), and end(), but no size() member function
+/// @param f functor to call with reference on one element of the range
+/// @param iMaxThreads number of threads to start at most, 0/default = count of CPU cores
+/// @param p progress output class, defaults to dummy printer. Use e.g. KBAR for real output to a terminal
+template<typename Container,
+         typename Func,
+         typename Progress = detail::KParallelForEachNoProgressPrinter,
+         std::enable_if<detail::has_size<Container>::value == false, int>::type = 0>
+void kParallelForEach(std::size_t iSize,
+                      Container& c,
+                      Func&& f,
+                      std::size_t iMaxThreads = std::thread::hardware_concurrency(),
+                      Progress&& p = detail::KParallelForEachNoProgressPrinter())
+//-----------------------------------------------------------------------------
+{
+	kParallelForEach(iSize, c.begin(), c.end(),
+	                 std::forward<Func>(f),
+	                 iMaxThreads,
+	                 std::forward<Progress>(p));
+}
+
+//-----------------------------------------------------------------------------
+/// Iterate over all elements of a container c that has no size() member function, and call function f with a ref on the element.
+/// The size will internally be set to max(1, iMaxThreads), this enables execution but no progress output with a known end.
+/// @param c any container that has a begin(), and end(), but no size() member function
+/// @param f functor to call with reference on one element of the range
+/// @param iMaxThreads number of threads to start at most, 0/default = count of CPU cores
+/// @param p progress output class, defaults to dummy printer. Use e.g. KBAR for real output to a terminal
+template<typename Container,
+         typename Func,
+         typename Progress = detail::KParallelForEachNoProgressPrinter,
+         std::enable_if<detail::has_size<Container>::value == false, int>::type = 0>
+void kParallelForEach(Container& c,
+                      Func&& f,
+                      std::size_t iMaxThreads = std::thread::hardware_concurrency(),
+                      Progress&& p = detail::KParallelForEachNoProgressPrinter())
+//-----------------------------------------------------------------------------
+{
+	kParallelForEach(std::max(iMaxThreads, std::size_t(1)), c.begin(), c.end(),
+	                 std::forward<Func>(f),
+	                 iMaxThreads,
+	                 std::forward<Progress>(p));
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

@@ -44,6 +44,7 @@
 #include <dekaf2/ksql.h>
 #include <dekaf2/kjson.h>
 #include <dekaf2/kstring.h>
+#include <dekaf2/kparallel.h>
 
 using namespace dekaf2;
 
@@ -321,5 +322,13 @@ TEST_CASE("KSQL")
 		CHECK ( DB.IsFlag(KSQL::Flags::F_IgnoreSelectKeyword) == false );
 		CHECK ( DB.ClearFlags() == (KSQL::Flags::F_IgnoreSQLErrors | KSQL::Flags::F_ReadOnlyMode) );
 		CHECK ( DB.GetFlags() == KSQL::Flags::F_None );
+	}
+
+	SECTION("kParallel")
+	{
+		KSQL DB;
+		kParallelForEach(DB, [](const KROW& row)
+		{
+		});
 	}
 }

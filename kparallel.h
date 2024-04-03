@@ -286,7 +286,7 @@ void kParallelForEach(InputIterator first, InputIterator last,
 template<typename Container,
          typename Func,
          typename Progress = detail::KParallelForEachNoProgressPrinter,
-         std::enable_if<detail::has_size<Container>::value == true, int>::type = 0>
+         typename std::enable_if<detail::has_size<Container>::value == true, int>::type = 0>
 void kParallelForEach(Container& c,
                       Func&& f,
                       std::size_t iMaxThreads = std::thread::hardware_concurrency(),
@@ -309,7 +309,7 @@ void kParallelForEach(Container& c,
 template<typename Container,
          typename Func,
          typename Progress = detail::KParallelForEachNoProgressPrinter,
-         std::enable_if<detail::has_size<Container>::value == false, int>::type = 0>
+         typename std::enable_if<detail::has_size<Container>::value == false, int>::type = 0>
 void kParallelForEach(std::size_t iSize,
                       Container& c,
                       Func&& f,
@@ -333,7 +333,7 @@ void kParallelForEach(std::size_t iSize,
 template<typename Container,
          typename Func,
          typename Progress = detail::KParallelForEachNoProgressPrinter,
-         std::enable_if<detail::has_size<Container>::value == false, int>::type = 0>
+         typename std::enable_if<detail::has_size<Container>::value == false, int>::type = 0>
 void kParallelForEach(Container& c,
                       Func&& f,
                       std::size_t iMaxThreads = std::thread::hardware_concurrency(),

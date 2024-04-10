@@ -859,7 +859,10 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 	{
 		// this is the regular logging
 
-		m_Serializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
+		if (m_Serializer)
+		{
+			m_Serializer->Set(iLevel, m_sShortName, m_sPathName, sFunction, sMessage);
+		}
 
 		// check if we shall print a stacktrace on demand
 		if (iLevel > m_iBackTrace)

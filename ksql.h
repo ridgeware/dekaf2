@@ -768,7 +768,7 @@ public:
 	bool   RollbackTransaction (KStringView sOptions="");
 
 	/// helper method to form AND clauses for dynamic SQL.
-	KSQLString FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm, FAC iFlags=FAC::FAC_NORMAL, KStringView sSplitBy=",");
+	KSQLString FormAndClause (const KSQLString& sDbCol, KString/*copy*/ sQueryParm, FAC iFlags=FAC::FAC_NORMAL, KStringView sSplitBy=",");
 
 	/// general purpose helper to create "group by 1,2,3,4..."
 	static KSQLString FormGroupBy (uint8_t iNumCols);

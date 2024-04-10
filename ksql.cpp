@@ -7835,16 +7835,14 @@ KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KString/*copy*/ sQuery
 	}
 
 	KString sOperator{"="};
-	if (sQueryParm.StartsWith (">"))
+	if (sQueryParm.remove_prefix ('>'))
 	{
 		sOperator = ">";
-		sQueryParm.Mid(1);
 		sQueryParm.Trim();
 	}
-	else if (sQueryParm.StartsWith ("<"))
+	else if (sQueryParm.remove_prefix ('<'))
 	{
 		sOperator = "<";
-		sQueryParm.Mid(1);
 		sQueryParm.Trim();
 	}
 

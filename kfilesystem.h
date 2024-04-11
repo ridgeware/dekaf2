@@ -113,26 +113,26 @@ bool kChangeMode(KStringViewZ sPath, int iMode);
 /// Query file or directory permissions. In case of failure 0 is returned (to
 /// avoid accidentially detecting permission bits set if not checked for negative
 /// value).
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 int kGetMode(KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Checks if a file system entity exists
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kExists (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Checks if a file exists.
 /// @param bTestForEmptyFile If true treats a file as non-existing if its size is 0
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Checks if a directory exists
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kDirExists (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
@@ -203,43 +203,43 @@ bool kTouchFile(KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_FILE);
 
 //-----------------------------------------------------------------------------
 /// Isolate the extension of a path (filename extension after a dot)
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStringView kExtension(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Remove the extension from a path (filename extension after a dot)
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStringView kRemoveExtension(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Isolate the basename of a path (filename without directory)
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStringView kBasename(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Isolate the dirname of a path (directory name without the fileame)
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get last modification time of a file, returns -1 if file not found
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KUnixTime kGetLastMod(KStringViewZ sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found or is not a regular file
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 size_t kFileSize(KStringViewZ sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found or is not a regular file
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline size_t kGetNumBytes(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {
@@ -249,7 +249,7 @@ inline size_t kGetNumBytes(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 /// Returns true if a file name is safe to use, means it cannot escape from a
 /// directory or uses problematic characters
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsSafeFilename(KStringView sName);
 //-----------------------------------------------------------------------------
 
@@ -257,7 +257,7 @@ bool kIsSafeFilename(KStringView sName);
 /// Returns a file name that is safe to use, means it cannot escape from a
 /// directory or uses problematic characters. The input string is the base for
 /// the file name
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kMakeSafeFilename(KStringView sName, bool bToLowercase = true, KStringView sEmptyName = "none");
 //-----------------------------------------------------------------------------
 
@@ -267,7 +267,7 @@ KString kMakeSafeFilename(KStringView sName, bool bToLowercase = true, KStringVi
 /// @param sName the path to check
 /// @param bAllowAbsolutePath if false, only relative paths are allowed (= no leading slash)
 /// @param bAllowTrailingSlash if true, a directory separator as last character is permitted
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsSafePathname(KStringView sName, bool bAllowAbsolutePath = false, bool bAllowTrailingSlash = false);
 //-----------------------------------------------------------------------------
 
@@ -275,13 +275,13 @@ bool kIsSafePathname(KStringView sName, bool bAllowAbsolutePath = false, bool bA
 /// Returns a path name that is safe to use, means it cannot escape from a
 /// directory or uses problematic characters. The input string is the base for
 /// the path name
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kMakeSafePathname(KStringView sName, bool bToLowercase = true, KStringView sEmptyName = "none");
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// resolve .. and . parts of the input path, and make it an absolute path
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kNormalizePath(KStringView sPath);
 //-----------------------------------------------------------------------------
 
@@ -323,6 +323,7 @@ public:
 	}
 
 	/// returns a string serialization of the file type
+	DEKAF2_NODISCARD
 	KStringViewZ Serialize() const;
 
 	constexpr
@@ -376,13 +377,14 @@ public:
 		push_back(ftype);
 	}
 
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool contains(KFileType ftype) const
 	{
 		return (m_Types & ftype);
 	}
 
 	/// returns a vector with string serializations of the file types - join them for single output
+	DEKAF2_NODISCARD
 	std::vector<KStringViewZ> Serialize() const;
 
 	static const KFileTypes ALL;
@@ -458,48 +460,63 @@ public:
 #endif
 
 	/// Returns inode number (only on supported file systems, otherwise 0)
+	DEKAF2_NODISCARD
 	uint64_t Inode()          const { return m_inode; }
 
 	/// Returns inode link count (only on supported file systems, otherwise 0)
+	DEKAF2_NODISCARD
 	uint16_t Links()          const { return m_links; }
 
 	/// Returns file access mode
+	DEKAF2_NODISCARD
 	int AccessMode()          const { return m_mode;  }
 
 	/// Returns file's owner UID
+	DEKAF2_NODISCARD
 	uint32_t UID()            const { return m_uid;   }
 
 	/// Returns file's owner GID
+	DEKAF2_NODISCARD
 	uint32_t GID()            const { return m_gid;   }
 
 	/// Returns file's last access time
+	DEKAF2_NODISCARD
 	KUnixTime AccessTime()       const { return m_atime; }
 
 	/// Returns file's last modification time
+	DEKAF2_NODISCARD
 	KUnixTime ModificationTime() const { return m_mtime; }
 
 	/// Returns file's status change time (writes, but also inode changes)
+	DEKAF2_NODISCARD
 	KUnixTime ChangeTime()       const { return m_ctime; }
 
 	/// Returns file's size
+	DEKAF2_NODISCARD
 	size_t Size()             const { return m_size;  }
 
 	/// Returns file's type
+	DEKAF2_NODISCARD
 	KFileType Type()          const { return m_ftype; }
 
 	/// Is this a directory entry?
+	DEKAF2_NODISCARD
 	bool IsDirectory()        const { return m_ftype == KFileType::DIRECTORY;  }
 
 	/// Is this a file?
+	DEKAF2_NODISCARD
 	bool IsFile()             const { return m_ftype == KFileType::FILE;       }
 
 	/// Is this a symlink
+	DEKAF2_NODISCARD
 	bool IsSymlink()          const { return m_ftype == KFileType::SYMLINK;    }
 
 	/// Is this a socket
+	DEKAF2_NODISCARD
 	bool IsSocket()           const { return m_ftype == KFileType::SOCKET;     }
 
 	/// Does this object exist?
+	DEKAF2_NODISCARD
 	bool Exists()             const { return m_ftype != KFileType::UNEXISTING; }
 
 	// setters to create a KFileStat object piece wise
@@ -597,7 +614,7 @@ inline bool kRemoveSocket (KStringViewZ sPath)
 /// open a file with the name sOrigName + . + sBackupExtension, so that all existing files with the same name are
 /// renamed with an additional sBackupExtension. The open file will have the same flags as the original.
 /// @return unique pointer with open file, or nullptr in case of error
-extern DEKAF2_PUBLIC
+DEKAF2_NODISCARD extern DEKAF2_PUBLIC
 std::unique_ptr<KOutFile> kCreateFileWithBackup(KStringView sOrigname, KStringView sBackupExtension = "old");
 //-----------------------------------------------------------------------------
 
@@ -643,84 +660,98 @@ public:
 		}
 
 		/// returns full pathname (path + filename)
+		DEKAF2_NODISCARD
 		const KString& Path() const
 		{
 			return m_Path;
 		}
 
 		/// returns filename only, no path component
+		DEKAF2_NODISCARD
 		KStringViewZ Filename() const
 		{
 			return m_Path.ToView(m_iFilenameStartsAt);
 		}
 
 		/// returns directory entry type
+		DEKAF2_NODISCARD
 		KFileType Type() const
 		{
 			return m_Type;
 		}
 
 		/// returns directory entry type as name
+		DEKAF2_NODISCARD
 		KStringViewZ Serialize() const
 		{
 			return m_Type.Serialize();
 		}
 
 		/// Returns file access mode
+		DEKAF2_NODISCARD
 		int Mode()                const
 		{
 			return FileStat().AccessMode();
 		}
 
 		/// Returns file's owner UID
+		DEKAF2_NODISCARD
 		uint32_t UID()            const
 		{
 			return FileStat().UID();
 		}
 
 		/// Returns file's owner GID
+		DEKAF2_NODISCARD
 		uint32_t GID()            const
 		{
 			return FileStat().GID();
 		}
 
 		/// Returns file's last access time
+		DEKAF2_NODISCARD
 		KUnixTime AccessTime()    const
 		{
 			return FileStat().AccessTime();
 		}
 
 		/// Returns file's last modification time
+		DEKAF2_NODISCARD
 		KUnixTime ModificationTime() const
 		{
 			return FileStat().ModificationTime();
 		}
 
 		/// Returns file's status change time
+		DEKAF2_NODISCARD
 		KUnixTime ChangeTime()    const
 		{
 			return FileStat().ChangeTime();
 		}
 
 		/// Returns file's size
+		DEKAF2_NODISCARD
 		size_t Size()             const
 		{
 			return FileStat().Size();
 		}
 
 		/// Returns file's inode number (only on supported file systems, otherwise 0)
+		DEKAF2_NODISCARD
 		uint64_t Inode()          const
 		{
 			return FileStat().Inode();
 		}
 
 		/// Returns file's inode link count (only on supported file systems, otherwise 0)
+		DEKAF2_NODISCARD
 		uint64_t Links()          const
 		{
 			return FileStat().Links();
 		}
 
 		/// Return the KFileStat component as a const ref
+		DEKAF2_NODISCARD
 		const KFileStat& FileStat() const;
 
 	//----------
@@ -756,30 +787,38 @@ public:
 	}
 
 	/// returns const_iterator to the start of the directory list
+	DEKAF2_NODISCARD
 	const_iterator cbegin() const { return m_DirEntries.begin(); }
 	/// returns const_iterator to the end of the directory list
+	DEKAF2_NODISCARD
 	const_iterator cend() const { return m_DirEntries.end(); }
 	/// returns const_iterator to the begin of the directory list
+	DEKAF2_NODISCARD
 	const_iterator begin() const { return m_DirEntries.begin(); }
 	/// returns const_iterator to the end of the directory list
+	DEKAF2_NODISCARD
 	const_iterator end() const { return m_DirEntries.end(); }
 
 	/// count of matched directory entries
+	DEKAF2_NODISCARD
 	size_type size() const { return m_DirEntries.size(); }
 
 	/// did no directory entry match?
+	DEKAF2_NODISCARD
 	bool empty() const { return m_DirEntries.empty(); }
 
 	/// clear list of directory entries
 	void clear();
 
 	/// get the directory enty at position pos, never throws, returns empty entry if out of bounds
+	DEKAF2_NODISCARD
 	const DirEntry& at(size_type pos) const noexcept
 	{
 		return (pos < size()) ? m_DirEntries[pos] : s_Empty;
 	}
 
 	/// get the directory enty at position pos, never throws, returns empty entry if out of bounds
+	DEKAF2_NODISCARD
 	const DirEntry& operator[](size_type pos) const noexcept
 	{
 		return at(pos);
@@ -825,10 +864,12 @@ public:
 
 	/// returns first found directory entry if the directory list matches sWildCard, wildcard matching is supported
 	/// @param sWildCard the basic regular expression to search for (e.g. "*.tx?")
+	DEKAF2_NODISCARD
 	const_iterator Find(KStringView sWildCard) const;
 
 	/// returns true if the directory list contains sWildCard, wildcard matching is supported
 	/// @param sWildCard the basic regular expression to search for (e.g. "*.tx?")
+	DEKAF2_NODISCARD
 	bool Contains(KStringView sWildCard) const
 	{
 		return Find(sWildCard) != end();
@@ -890,21 +931,26 @@ public:
 	}
 
 	/// Return count of total bytes on file system
+	DEKAF2_NODISCARD
 	uint64_t Total() const { return m_Total; }
 
 	/// Return count of used bytes on file system
+	DEKAF2_NODISCARD
 	uint64_t Used() const { return m_Used; }
 
 	/// Return count of free bytes on file system for non-priviledged user
+	DEKAF2_NODISCARD
 	uint64_t Free() const { return m_Free; }
 
 	/// Return count of free bytes on file system for priviledged user
+	DEKAF2_NODISCARD
 	uint64_t SystemFree() const { return m_SystemFree; }
 
 	/// Returns false if an error occured
 	operator bool() const { return !m_sError.empty(); }
 
 	/// Return last error
+	DEKAF2_NODISCARD
 	const KString& Error() const { return m_sError; }
 
 	/// Reset to default
@@ -950,6 +996,7 @@ public:
 	~KTempDir ();
 
 	/// get the name of the temp directory
+	DEKAF2_NODISCARD
 	const KString& Name();
 
 	/// do we have a temp directory?
@@ -969,6 +1016,7 @@ public:
 	void clear();
 
 	/// create the temp folder - static method
+	DEKAF2_NODISCARD
 	static KString MakeDir();
 
 //----------

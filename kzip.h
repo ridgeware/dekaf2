@@ -97,21 +97,25 @@ public:
 		void         clear();
 
 		/// return true if the entry is a directory
+		DEKAF2_NODISCARD
 		bool         IsDirectory() const;
 
 		/// return a sanitized file name (no path, no escaping, no special characters)
+		DEKAF2_NODISCARD
 		KString      SafeName() const
 		{
 			return kMakeSafeFilename(kBasename(sName), false);
 		}
 
 		/// return a sanitized path name (no escaping, no special characters)
+		DEKAF2_NODISCARD
 		KString      SafePath() const
 		{
 			return kMakeSafePathname(sName, false);
 		}
 
 		/// return compression ratio in percent
+		DEKAF2_NODISCARD
 		uint16_t     PercentCompressed() const;
 
 	//------
@@ -212,6 +216,7 @@ public:
 	~KZip();
 
 	/// returns true if (strong, AES 256) encryption is available
+	DEKAF2_NODISCARD
 	bool HaveStrongEncryption() const;
 
 	/// set password for encrypted archive entries
@@ -222,6 +227,7 @@ public:
 	}
 
 	/// check if compression method is available on this platform
+	DEKAF2_NODISCARD
 	bool HaveCompression(CompMethod Compression);
 
 	/// set compression method for all following files, returns false if not available on this
@@ -235,6 +241,7 @@ public:
 	bool Open(KStringViewZ sFilename, bool bWrite = false);
 
 	/// returns true if archive is opened
+	DEKAF2_NODISCARD
 	bool is_open() const
 	{
 		return m_ZipC.get();
@@ -247,31 +254,37 @@ public:
 	/// returns count of entries in zip
 	std::size_t size() const noexcept;
 
+	DEKAF2_NODISCARD
 	iterator begin() noexcept
 	{
 		return iterator(*this);
 	}
 
+	DEKAF2_NODISCARD
 	const_iterator begin() const noexcept
 	{
 		return const_iterator(const_cast<KZip&>(*this));
 	}
 
+	DEKAF2_NODISCARD
 	const_iterator cbegin() const noexcept
 	{
 		return const_iterator(const_cast<KZip&>(*this));
 	}
 
+	DEKAF2_NODISCARD
 	iterator end() noexcept
 	{
 		return iterator(*this, size());
 	}
 
+	DEKAF2_NODISCARD
 	const_iterator end() const noexcept
 	{
 		return const_iterator(const_cast<KZip&>(*this), size());
 	}
 
+	DEKAF2_NODISCARD
 	const_iterator cend() const noexcept
 	{
 		return const_iterator(const_cast<KZip&>(*this), size());
@@ -279,18 +292,21 @@ public:
 
 	/// returns a DirEntry at iIndex
 	/// @param iIndex the index position in the archive directory
+	DEKAF2_NODISCARD
 	DirEntry Get(std::size_t iIndex) const;
 
 	/// returns a DirEntry for file sName
 	/// @param sName the file name searched for
 	/// @param bNoPathCompare if true, only the file name part of the path
 	/// is searched for
+	DEKAF2_NODISCARD
 	DirEntry Get(KStringViewZ sName, bool bNoPathCompare = false) const;
 
 	/// returns a DirEntry, alias of Get()
 	/// @param sName the file name searched for
 	/// @param bNoPathCompare if true, only the file name part of the path
 	/// is searched for
+	DEKAF2_NODISCARD
 	DirEntry Find(KStringViewZ sName, bool bNoPathCompare = false) const
 	{
 		return Get(sName, bNoPathCompare);
@@ -300,15 +316,19 @@ public:
 	/// @param sName the file name searched for
 	/// @param bNoPathCompare if true, only the file name part of the path
 	/// is searched for
+	DEKAF2_NODISCARD
 	bool Contains(KStringViewZ sName, bool bNoPathCompare = false) const noexcept;
 
 	/// returns a vector with all DirEntries of files
+	DEKAF2_NODISCARD
 	Directory Files() const;
 
 	/// returns a vector with all DirEntries of directories
+	DEKAF2_NODISCARD
 	Directory Directories() const;
 
 	/// returns a vector with all DirEntries of files and directories
+	DEKAF2_NODISCARD
 	Directory FilesAndDirectories() const;
 
 	/// reads a DirEntry's file into a KOutStream
@@ -323,6 +343,7 @@ public:
 
 	/// reads a DirEntry's file into a string to return
 	/// @param DirEntry the archive directory entry for the file to read
+	DEKAF2_NODISCARD
 	KString Read(const DirEntry& DirEntry);
 
 	/// reads all files listed in Directory into sTargetDirectory

@@ -99,6 +99,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Generate a KMIME instance with the MIME type set according to the extension
 	/// of sFilename. Use Default if no association found.
+	DEKAF2_NODISCARD
 	static KMIME CreateByExtension(KStringView sFilename, KStringView Default = NONE);
 	//-----------------------------------------------------------------------------
 
@@ -110,18 +111,20 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Is this MIME type potentially compressible? (jpg, zip e.g. are not)
+	DEKAF2_NODISCARD
 	bool IsCompressible();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Generate a KMIME instance with the MIME type set according to inspection
 	/// of sFilename. Use Default if no association found.
+	DEKAF2_NODISCARD
 	static KMIME CreateByInspection(KStringViewZ sFilename, KStringView Default = NONE);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// return the const KString& version of the MIME type
-	DEKAF2_CONSTEXPR_20
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_20
 	const KString& Serialize() const
 	//-----------------------------------------------------------------------------
 	{
@@ -139,26 +142,31 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns the type part of a MIME type: type "/" [tree "."] subtype ["+" suffix]* [";" parameter]
+	DEKAF2_NODISCARD
 	KStringView Type()      const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// returns the tree part of a MIME type: type "/" [tree "."] subtype ["+" suffix]* [";" parameter]
+	DEKAF2_NODISCARD
 	KStringView Tree()      const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// returns the subtype part of a MIME type: type "/" [tree "."] subtype ["+" suffix]* [";" parameter]
+	DEKAF2_NODISCARD
 	KStringView SubType()   const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// returns the suffix part of a MIME type: type "/" [tree "."] subtype ["+" suffix]* [";" parameter]
+	DEKAF2_NODISCARD
 	KStringView Suffix()    const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// returns the parameter part of a MIME type: type "/" [tree "."] subtype ["+" suffix]* [";" parameter]
+	DEKAF2_NODISCARD
 	KStringView Parameter() const;
 	//-----------------------------------------------------------------------------
 
@@ -304,28 +312,39 @@ public:
 
 	bool Serialize(KStringRef& sOut, bool bForHTTP = false, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0, const KMIME& ParentMIME = KMIME::NONE) const;
 	bool Serialize(KOutStream& Stream, bool bForHTTP = false, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
+	DEKAF2_NODISCARD
 	KString Serialize(bool bForHTTP = false, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
 
 	/// is this part empty?
 	bool empty() const { return m_Parts.empty(); }
 	/// how many (multi) parts does this struct contain
+	DEKAF2_NODISCARD
 	Storage::size_type size() const { return m_Parts.size(); }
 	/// return iterator to the begin of the struct of parts
+	DEKAF2_NODISCARD
 	iterator begin() { return m_Parts.begin(); }
 	/// return iterator to the end of the struct of parts
+	DEKAF2_NODISCARD
 	iterator end() { return m_Parts.end(); }
+	DEKAF2_NODISCARD
 	KMIMEPart& operator[](size_t pos) { return m_Parts[pos]; }
+	DEKAF2_NODISCARD
 	const KMIMEPart& operator[](size_t pos) const { return m_Parts[pos]; }
 
 	/// return the MIME type of this part
+	DEKAF2_NODISCARD
 	KMIME MIME() const { return m_MIME; }
 	/// return a reference on the content of this part
+	DEKAF2_NODISCARD
 	const KString& Data() const { return m_Data; }
 	/// return a reference on the 'control' name of this part
+	DEKAF2_NODISCARD
 	const KString& ControlName() const { return m_sControlName; }
 	/// return a reference on the file name of this part (if any)
+	DEKAF2_NODISCARD
 	const KString& FileName() const { return m_sFileName; }
 	/// return a content type string with boundary if needed
+	DEKAF2_NODISCARD
 	KMIME ContentType() const;
 
 //----------

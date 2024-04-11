@@ -111,6 +111,7 @@ public:
 	/// checks if this path contains a parameter of the given name (:param or =param)
 	/// @param sParam the named parameter to check
 	/// @return true if the named parameter exists as part of the route, false otherwise
+	DEKAF2_NODISCARD
 	bool HasParameter(KStringView sParam) const;
 	//-----------------------------------------------------------------------------
 
@@ -159,7 +160,7 @@ public:
 		DEKAF2_CONSTEXPR_14
 		Options(std::initializer_list<OPT> il) { for (auto opt : il) Set(opt); }
 
-		constexpr
+		DEKAF2_NODISCARD constexpr
 		bool Has(OPT opt) const        { return (m_Options & opt) != 0; }
 
 		constexpr
@@ -252,6 +253,7 @@ public:
 	/// @param Path the REST path from a request to match with this route
 	/// @param Params pointer on a vector of parameters object, if not null will be filled with the found rest path parameters (components starting with : or = )
 	/// @return true if the Path matches this route, false otherwise
+	DEKAF2_NODISCARD
 	bool Matches(const KRESTPath& Path, Parameters* Params = nullptr, bool bCompareMethods = true, bool bCheckWebservers = true, bool bIsWebSocket = false) const;
 	//-----------------------------------------------------------------------------
 
@@ -496,6 +498,7 @@ public:
 	/// @param bIsWebSocket requested route is a websocket
 	/// @param bCheckForWrongMethod if true, throw a different error message if a route was not matched only because of the request method. Slightly less performant.
 	/// @return the found route, if any
+	DEKAF2_NODISCARD
 	const KRESTRoute& FindRoute(const KRESTPath& Path, Parameters& Params, bool bIsWebSocket, bool bCheckForWrongMethod) const;
 	//-----------------------------------------------------------------------------
 
@@ -506,6 +509,7 @@ public:
 	/// @param bIsWebSocket requested route is a websocket
 	/// @param bCheckForWrongMethod if true, throw a different error message if a route was not matched only because of the request method. Slightly less performant.
 	/// @return the found route, if any
+	DEKAF2_NODISCARD
 	const KRESTRoute& FindRoute(const KRESTPath& Path, url::KQuery& Params, bool bIsWebSocket, bool bCheckForWrongMethod) const;
 	//-----------------------------------------------------------------------------
 
@@ -517,6 +521,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Return detailed statistics on each route
 	/// @return a KJSON object with detailed usage and performance statistics on each route
+	DEKAF2_NODISCARD
 	KJSON GetRouterStats() const;
 	//-----------------------------------------------------------------------------
 
@@ -524,6 +529,7 @@ public:
 	/// Checks if a route was not matched only because of the request method.
 	/// @param Path the REST path from a request to match with the routes
 	/// @return true if a route exists which differs only in the request method
+	DEKAF2_NODISCARD
 	bool CheckForWrongMethod(const KRESTPath& Path) const;
 	//-----------------------------------------------------------------------------
 

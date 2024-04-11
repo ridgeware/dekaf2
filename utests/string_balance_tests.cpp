@@ -193,30 +193,33 @@ TEST_CASE("StringBalance") {
 		static_assert( detail::is_kstringview_assignable<KStringViewZ, true>::value, "not assignable");
 		static_assert( detail::is_kstringview_assignable<OS,           true>::value, "not assignable");
 		{
+			bool b;
 			KString str = "1234567890";
 			std::string s = "123";
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 			std::string_view sv = "123";
-			str.starts_with(sv);
-			str.ends_with(sv);
-			str.contains(sv);
+			b = str.starts_with(sv);
+			b = str.ends_with(sv);
+			b = str.contains(sv);
 			str.replace(0, 2, sv);
 			str.replace(0, 2, OSV());
-			str.find_first_not_of(OSV());
+			static_cast<void>(str.find_first_not_of(OSV()));
 #endif
-			str.starts_with(s);
-			str.ends_with(s);
-			str.contains(s);
+			b = str.starts_with(s);
+			b = str.ends_with(s);
+			b = str.contains(s);
 			str.replace(0, 2, s);
 
-			str.starts_with("abc");
-			str.ends_with("abc");
-			str.contains("abc");
+			b = str.starts_with("abc");
+			b = str.ends_with("abc");
+			b = str.contains("abc");
 			str.replace(0, 2, "abc");
 			
 //			str.starts_with(OKS());
 			str.replace(0, 2, OKS());
-			str.find_first_not_of(OKS());
+			static_cast<void>(str.find_first_not_of(OKS()));
+
+			if (b) { }
 		}
 
 		{

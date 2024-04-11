@@ -104,10 +104,13 @@ public:
 	               KHTTPHeaders&       ResponseHeaders,
 	               const CheckMethod&  Check = nullptr);
 	/// returns a HTTP 200 or 206 status to be used for the HTTP response
+	DEKAF2_NODISCARD
 	uint16_t GetStatus()   const { return m_iStatus;   }
 	/// returns file size, may be shorter than full file size in result of range requests
+	DEKAF2_NODISCARD
 	uint64_t GetFileSize() const { return m_iFileSize; }
 	/// returns file stream pointer to output file
+	DEKAF2_NODISCARD
 	std::unique_ptr<KInStream> GetStreamForReading() { return KFileServer::GetStreamForReading(m_iFileStart); }
 
 	using KFileServer::GetMIMEType;

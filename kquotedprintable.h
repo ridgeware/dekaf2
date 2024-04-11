@@ -59,12 +59,14 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Encodes sInput in QuotedPrintable. If bForMailHeaders is true, inserts a dot
 	/// at the start of a line that itself starts with a dot.
+	DEKAF2_NODISCARD
 	static KString Encode(KStringView sInput, bool bForMailHeaders = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Decodes sInput from QuotedPrintable. If bDotStuffing is true, removes one dot
 	/// at the start of a line (but does not not check if a second follows).
+	DEKAF2_NODISCARD
 	static KString Decode(KStringView sInput, bool bDotStuffing = true);
 	//-----------------------------------------------------------------------------
 

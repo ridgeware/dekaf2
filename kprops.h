@@ -327,6 +327,7 @@ public:
 	/// sequential iterator
 	template<bool Seq = Sequential,
 			typename std::enable_if<Seq == true, int>::type = 0>
+	DEKAF2_NODISCARD
 	iterator begin()
 	//-----------------------------------------------------------------------------
 	{
@@ -337,6 +338,7 @@ public:
 	/// non-sequential (map) iterator
 	template<bool Seq = Sequential,
 			typename std::enable_if<Seq == false, int>::type = 0>
+	DEKAF2_NODISCARD
 	iterator begin()
 	//-----------------------------------------------------------------------------
 	{
@@ -347,6 +349,7 @@ public:
 	/// sequential iterator
 	template<bool Seq = Sequential,
 			typename std::enable_if<Seq == true, int>::type = 0>
+	DEKAF2_NODISCARD
 	iterator end()
 	//-----------------------------------------------------------------------------
 	{
@@ -357,6 +360,7 @@ public:
 	/// non-sequential (map) iterator
 	template<bool Seq = Sequential,
 			typename std::enable_if<Seq == false, int>::type = 0>
+	DEKAF2_NODISCARD
 	iterator end()
 	//-----------------------------------------------------------------------------
 	{
@@ -367,6 +371,7 @@ public:
 	/// sequential iterator
 	template<bool Seq = Sequential,
 			typename std::enable_if<Seq == true, int>::type = 0>
+	DEKAF2_NODISCARD
 	const_iterator cbegin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -377,6 +382,7 @@ public:
 	/// non-sequential (map) iterator
 	template<bool Seq = Sequential,
 			typename std::enable_if<Seq == false, int>::type = 0>
+	DEKAF2_NODISCARD
 	const_iterator cbegin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -387,6 +393,7 @@ public:
 	/// sequential iterator
 	template<bool Seq = Sequential,
 			typename std::enable_if<Seq == true, int>::type = 0>
+	DEKAF2_NODISCARD
 	const_iterator cend() const
 	//-----------------------------------------------------------------------------
 	{
@@ -397,6 +404,7 @@ public:
 	/// non-sequential (map) iterator
 	template<bool Seq = Sequential,
 			typename std::enable_if<Seq == false, int>::type = 0>
+	DEKAF2_NODISCARD
 	const_iterator cend() const
 	//-----------------------------------------------------------------------------
 	{
@@ -405,6 +413,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// const_iterator
+	DEKAF2_NODISCARD
 	const_iterator begin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -413,6 +422,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// const_iterator
+	DEKAF2_NODISCARD
 	const_iterator end() const
 	//-----------------------------------------------------------------------------
 	{
@@ -613,6 +623,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// returns iterator on the element with the given key.
 	template<class K>
+	DEKAF2_NODISCARD
 	iterator find(const K& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -623,6 +634,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// returns const_iterator on the element with the given key.
 	template<class K>
+	DEKAF2_NODISCARD
 	const_iterator find(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
@@ -633,6 +645,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns iterator range of the elements with the given key.
 	template<class K>
+	DEKAF2_NODISCARD
 	const_range equal_range(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
@@ -642,6 +655,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns iterator range of the elements with the given key.
 	template<class K>
+	DEKAF2_NODISCARD
 	range equal_range(const K& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -689,6 +703,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns count of elements with the given key.
 	template<class K>
+	DEKAF2_NODISCARD
 	size_t count(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
@@ -698,6 +713,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns true if at least one element with the given key exists.
 	template<class K>
+	DEKAF2_NODISCARD
 	bool contains(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
@@ -714,6 +730,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns count of all stored elements.
+	DEKAF2_NODISCARD
 	size_t size() const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -722,6 +739,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns maximum size.
+	DEKAF2_NODISCARD
 	size_t max_size() const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -730,6 +748,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns true if no elements are stored.
+	DEKAF2_NODISCARD
 	bool empty() const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -847,6 +866,7 @@ public:
 	/// Returns value of the element with the given key. Returns default constructed
 	/// value if not found.
 	template<class K>
+	DEKAF2_NODISCARD
 	Value& Get(const K& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -862,6 +882,7 @@ public:
 	/// Returns value of the element with the given key. Returns default constructed
 	/// value if not found.
 	template<class K>
+	DEKAF2_NODISCARD
 	const Value& Get(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
@@ -876,6 +897,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns iterator range of the elements with the given key.
 	template<class K>
+	DEKAF2_NODISCARD
 	const_range GetMulti(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
@@ -885,6 +907,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns iterator range of the elements with the given key.
 	template<class K>
+	DEKAF2_NODISCARD
 	range GetMulti(const K& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -894,6 +917,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns count of elements with the given key.
 	template<class K>
+	DEKAF2_NODISCARD
 	size_t Count(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
@@ -903,6 +927,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns true if at least one element with the given key exists.
 	template<class K>
+	DEKAF2_NODISCARD
 	bool Contains(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
@@ -912,6 +937,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns true if a key appears multiple times.
 	template<class K>
+	DEKAF2_NODISCARD
 	bool IsMulti(const K& key) const
 	//-----------------------------------------------------------------------------
 	{
@@ -923,6 +949,7 @@ public:
 	/// Gets the element at index position. Returns empty element if out of range.
 	template<bool Seq = Sequential,
 			typename std::enable_if<Seq == true, int>::type = 0>
+	DEKAF2_NODISCARD
 	const Element& at(size_t index) const
 	//-----------------------------------------------------------------------------
 	{
@@ -942,6 +969,7 @@ public:
 	/// Gets the element at index position. Returns empty element if out of range.
 	template<class T = Key, bool Seq = Sequential,
 			typename std::enable_if<!std::is_integral<T>::value && Seq == true, int>::type = 0>
+	DEKAF2_NODISCARD
 	const Element& operator[](size_t index) const
 	//-----------------------------------------------------------------------------
 	{
@@ -953,6 +981,7 @@ public:
 	/// Gets the value with the given key. Returns empty value if not found.
 	template<class K, class T = Key,
 			typename std::enable_if<std::is_integral<T>::value || !std::is_integral<K>::value, int>::type = 0>
+	DEKAF2_NODISCARD
 	const Value& operator[](const K& key) const
 	//-----------------------------------------------------------------------------
 	{
@@ -964,6 +993,7 @@ public:
 	/// Gets the element with the given key. Returns empty element if not found.
 	template<class K, class T = Key,
 			typename std::enable_if<std::is_integral<T>::value || !std::is_integral<K>::value, int>::type = 0>
+	DEKAF2_NODISCARD
 	Value& operator[](K&& key)
 	//-----------------------------------------------------------------------------
 	{

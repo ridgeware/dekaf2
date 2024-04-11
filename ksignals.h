@@ -191,7 +191,7 @@ private:
 /// @param bConcise
 /// true (default) returns signal name only. false returns a short description
 /// of the signal as well.
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStringView kTranslateSignal (int iSignalNum, bool bConcise = true);
 //-----------------------------------------------------------------------------
 

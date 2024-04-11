@@ -100,6 +100,7 @@ public:
 		return temp += sOther;
 	}
 
+	DEKAF2_NODISCARD
 	const string_type& str() const
 	{
 		return m_sContent;
@@ -121,26 +122,31 @@ public:
 		m_sContent.clear();
 	}
 
+	DEKAF2_NODISCARD
 	bool empty() const
 	{
 		return m_sContent.empty();
 	}
 
+	DEKAF2_NODISCARD
 	std::size_t size() const
 	{
 		return m_sContent.size();
 	}
 
+	DEKAF2_NODISCARD
 	const string_type::value_type* data() const
 	{
 		return m_sContent.data();
 	}
 
+	DEKAF2_NODISCARD
 	std::size_t Hash() const
 	{
 		return m_sContent.Hash();
 	}
 
+	DEKAF2_NODISCARD
 	bool contains(const KStringView sWhat) const
 	{
 		return m_sContent.contains(sWhat);
@@ -160,6 +166,7 @@ public:
 	/// this is a very special version of Split, it will only split at non-quote encompassed delimiters,
 	/// and the delimiter char may not be one of the quotable chars - throws otherwise. Use it to
 	/// split chained commands into multiple single commands.
+	DEKAF2_NODISCARD
 	std::vector<self> Split(const char chDelimit = ';', bool bTrimWhiteSpace = true) const;
 
 //----------
@@ -361,9 +368,11 @@ public:
 	}
 
 	/// print column flags as string, static function
+	DEKAF2_NODISCARD
 	static KString FlagsToString (Flags iFlags);
 
 	/// print column flags as string, member function
+	DEKAF2_NODISCARD
 	KString FlagsToString () const { return FlagsToString(m_Flags); }
 
 	KString  sValue;
@@ -580,18 +589,21 @@ public:
 	const KString& operator[] (KStringView sColName) const  { return KCOLS::operator[](sColName).sValue; }
 
 	/// Returns the Nth column's name (note: column index starts at 0).
+	DEKAF2_NODISCARD
 	const KString& GetName (Index iZeroBasedIndex) const
 	{
 		return (at (iZeroBasedIndex).first);
 	}
 
 	/// Returns the Nth column's value as a string (note: column index starts at 0).  Note that you can map this to literally any data type by using KStringView member functions like .Int32().
+	DEKAF2_NODISCARD
 	const KString& GetValue (Index iZeroBasedIndex) const
 	{
 		return (at (iZeroBasedIndex).second.sValue);
 	}
 
 	/// Formats the proper RDBMS DDL statement for inserting one row into the database for the given table and column structure.
+	DEKAF2_NODISCARD
 	KSQLString FormInsert (DBT iDBType, bool bIdentityInsert=false, bool bIgnore=false) const;
 
 	/// Appends the DDL statement by one more row
@@ -599,6 +611,7 @@ public:
 
 	/// Formats the proper RDBMS DDL statement for updating one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
+	DEKAF2_NODISCARD
 	KSQLString FormUpdate (DBT iDBType) const;
 
 	/// Appends the DDL statement by one more row
@@ -606,45 +619,59 @@ public:
 
 	/// Formats the proper RDBMS DDL statement for selecting one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
+	DEKAF2_NODISCARD
 	KSQLString FormSelect (DBT iDBType, bool bSelectAllColumns = false) const;
 
 	/// Formats the proper RDBMS DDL statement for deleting one row in the database for the given table and column structure.
 	/// Note that at least one column must have the PKEY flag set (so that the framework knows what to put in the WHERE clause).
+	DEKAF2_NODISCARD
 	KSQLString FormDelete (DBT iDBType) const;
 
 	/// Returns the last RDBMS error message.
+	DEKAF2_NODISCARD
 	KStringView GetLastError() const { return (m_sLastError); }
 
 	/// Returns the tablename of this KROW object (if set).
+	DEKAF2_NODISCARD
 	KStringView GetTablename() const { return (m_sTablename); }
 
 	/// Returns true if column is part of the row object.
+	DEKAF2_NODISCARD
 	bool Exists (KStringView sColName) const;
 
 	/// returns the list of chars that are escaped for a given DBType, or per default for MySQL, as that
 	/// provides the superset of escaped characters
+	DEKAF2_NODISCARD
 	static KStringView EscapedCharacters (DBT iDBType = DBT::MYSQL);
 
+	DEKAF2_NODISCARD
 	static bool NeedsEscape (KStringView sCol, KStringView sCharsToEscape);
+	DEKAF2_NODISCARD
 	static bool NeedsEscape (KStringView sCol, DBT iDBType = DBT::MYSQL)
 	{
 		return NeedsEscape(sCol, EscapedCharacters(iDBType));
 	}
 
+	DEKAF2_NODISCARD
 	static KSQLString EscapeChars (KStringView sCol, KStringView sCharsToEscape,
 								   KString::value_type iEscapeChar = 0);
+	DEKAF2_NODISCARD
 	static KSQLString EscapeChars (KStringView sCol, DBT iDBType);
 
+	DEKAF2_NODISCARD
 	static KSQLString EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape,
 								   KString::value_type iEscapeChar = 0);
+	DEKAF2_NODISCARD
 	static KSQLString EscapeChars (const KROW::value_type& Col, DBT iDBType);
 
 	void LogRowLayout(int iLogLevel = 3) const;
 
 	/// Return row as a KJSON object
+	DEKAF2_NODISCARD
 	LJSON to_json (CONVERSION Flags = CONVERSION::NO_CONVERSION) const;
 
 	/// convert one row to CSV format (or just column headers):
+	DEKAF2_NODISCARD
 	KString to_csv (bool bheaders=false, CONVERSION Flags = CONVERSION::NO_CONVERSION) const;
 
 	/// append columns from another KROW object

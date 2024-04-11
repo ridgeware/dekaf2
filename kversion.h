@@ -93,38 +93,46 @@ public:
 	}
 
 	/// is this class empty?
+	DEKAF2_NODISCARD
 	bool empty() const
 	{
 		return m_Version.empty();
 	}
 
 	/// return count of elements
+	DEKAF2_NODISCARD
 	size_type size() const
 	{
 		return m_Version.size();
 	}
 
 	/// get version value at position iPos
+	DEKAF2_NODISCARD
 	value_type operator[](size_type iPos) const;
 
 	/// set version value at position iPos, auto expands version store if pos exceeds current scheme
+	DEKAF2_NODISCARD
 	value_type& operator[](size_type iPos);
 
+	DEKAF2_NODISCARD
 	const_iterator begin() const
 	{
 		return m_Version.begin();
 	}
 
+	DEKAF2_NODISCARD
 	const_iterator end() const
 	{
 		return m_Version.end();
 	}
 
+	DEKAF2_NODISCARD
 	iterator begin()
 	{
 		return m_Version.begin();
 	}
 
+	DEKAF2_NODISCARD
 	iterator end()
 	{
 		return m_Version.end();
@@ -134,6 +142,7 @@ public:
 	bool Parse(KStringView sVersion, KStringView sSeparators = sDefaultSeparators);
 
 	/// generate version string
+	DEKAF2_NODISCARD
 	KString Serialize(KString::value_type chSeparator = '.') const;
 
 	/// remove trailing zeroes

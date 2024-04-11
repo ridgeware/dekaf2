@@ -418,7 +418,7 @@ TEST_CASE("KProps") {
 		SECTION("associative and index access on unexisting elements")
 		{
 			CHECK ( data.size() == 6                     );
-			data["flag"];
+			auto s = data["flag"];
 			CHECK ( data["flag"] == KString("")          );
 			CHECK ( data.size() == 7                     );
 			data["flag"] = "whatever";
@@ -547,7 +547,7 @@ TEST_CASE("KProps") {
 		SECTION("associative and index access on unexisting elements")
 		{
 			CHECK ( data.size() == 3                     );
-			data["flag"];
+			auto s = data["flag"];
 			CHECK ( data["flag"] == KString("")          );
 			CHECK ( data.size() == 4                     );
 			data["flag"] = "whatever";

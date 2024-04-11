@@ -705,7 +705,7 @@ TEST_CASE("KTime") {
 			KUTCTime Date1("1.5.2006 12:00");
 			KUTCTime Date2("3.5.2007 11:00");
 			auto d = Date2 - Date1;
-			d.days();
+			CHECK ( d.days().count() == 366 );
 			time_t t = d;
 			time_t diff = Date2 - Date1;
 			CHECK ( diff == 367 * 86400 - 3600 );
@@ -984,7 +984,7 @@ TEST_CASE("KTime") {
 
 		{ // setup flags
 			try {
-				kFindTimezone("Asia/Tokyo");
+				auto* tz = kFindTimezone("Asia/Tokyo");
 				bHasTimezone = true;
 			} catch (const std::exception& ex) {
 				kPrintLine ( "cannot find timezone Asia/Tokyo" );
@@ -1054,7 +1054,7 @@ TEST_CASE("KTime") {
 			KDate Date(chrono::year(2012)/01/30);
 			Date.day(31);                     // it's now the 31/01/2012
 			Date += chrono::months(1);        // that's now the 31/02/2012 but that is silently corrected to 29/02/2012
-			Date.is_leap();                   // returns true
+			if (Date.is_leap()) {}            // returns true
 			                                  // how long ago was that? (a subtraction of KDate is returned in chrono::KDateDiff)
 			/* chrono::KDateDiff */ auto diff = KDate(chrono::year(2023)/chrono::April/12) - Date;
 			                                  // and the best is that all time functions that do not involve output formatting are constexpr,

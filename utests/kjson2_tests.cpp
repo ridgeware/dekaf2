@@ -697,8 +697,8 @@ TEST_CASE("KJSON2")
 		KJSON2 json = { 1,2,3,4 };
 		if (json[0] == 1) {}
 		if (json["abc"] == "") {}
-		json.Select(0);
-		json.Select("abc");
+		static_cast<void>(json.Select(0));
+		static_cast<void>(json.Select("abc"));
 		json = { 1,2,3,4 };
 
 		ambiguousPar("here"_ksv);

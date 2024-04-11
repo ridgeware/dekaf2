@@ -94,6 +94,7 @@ public:
 	/// Set the connection timeout in seconds, preset is 10
 	void SetTimeout(uint16_t iSeconds);
 	/// Returns last error
+	DEKAF2_NODISCARD
 	KString Error() const;
 
 //----------

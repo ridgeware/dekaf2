@@ -539,6 +539,7 @@ public:
 	/// Serializes this json element into a string.
 	/// @param bPretty uses pretty printing when bPretty is set to true, default is false
 	/// @return a string with the serialized json
+	DEKAF2_NODISCARD
 	StringT         Serialize (bool bPretty = false) const { return Dump(bPretty); }
 
 	/// Serializes this json element into a stream.
@@ -549,9 +550,11 @@ public:
 	/// Serializes this json element into a string.
 	/// @param bPretty uses pretty printing when bPretty is set to true, default is false
 	/// @return a string with the serialized json
+	DEKAF2_NODISCARD
 	StringT         Dump      (bool bPretty = false) const { return dump(bPretty ? 1 : -1, '\t'); }
 
 	/// Serializes this json element into a string. Emulates the interface of the base class to select indents etc.
+	DEKAF2_NODISCARD
 	StringT         dump      (int   iIndent = -1,
 							   char  chIndent = ' ',
 							   bool  bEnsureASCII = false,
@@ -561,54 +564,68 @@ public:
 	// or with best match conversion (e.g. from string to int)
 
 	/// Returns a const reference to this if json is an object. Returns Default parameter if not, which per default references an empty object.
+	DEKAF2_NODISCARD_PEDANTIC
 	const_reference Object    (const_reference Default = s_oEmpty) const noexcept;
 
 	/// Returns a const reference to this if json is an array. Returns Default parameter if not, which per default references an empty array.
+	DEKAF2_NODISCARD_PEDANTIC
 	const_reference Array     (const_reference Default = s_oEmpty) const noexcept;
 
 	/// Returns a const string reference to this json element. Will return reference to an empty string if this element is not a string.
+	DEKAF2_NODISCARD_PEDANTIC
 	const StringT&  ConstString () const noexcept;
 
 	/// Returns a const string reference to this json element. Will return reference to an empty string if this element is not a string.
+	DEKAF2_NODISCARD
 	const StringT&  String    () const noexcept { return ConstString(); }
 
 	/// Returns a string reference to this json element. If the element is a number, float, or boolean, the value will be converted to string and
 	/// stored in place of the previous element. Arrays and objects will be converted to the empty string. To instead return a value for all
 	/// json types, use Print() (which is non-destructive).
+	DEKAF2_NODISCARD
 	StringT&        String    (StringViewT sDefault = StringViewT{}) ;
 
 	/// Returns a string (copy) of this json element. If the element is a number, float, or boolean, the value will be converted to string.
 	/// Arrays and objects will be converted to the empty string. To instead return a value for all json types, use Print().
+	DEKAF2_NODISCARD
 	StringT         CopyString (StringViewT sDefault = StringViewT{}) const { return Print(sDefault, false); }
 
 	/// Returns an unsigned 64 bit integer value for this json element. If the element was a float or string, the value will be converted.
 	/// For all other types, the parameter iDefault is returned (which defaults to 0).
+	DEKAF2_NODISCARD_PEDANTIC
 	uint64_t        UInt64    (uint64_t iDefault = 0)     const noexcept;
 
 	/// Returns a signed 64 bit integer value for this json element. If the element was a float or string, the value will be converted.
 	/// For all other types, the parameter iDefault is returned (which defaults to 0).
+	DEKAF2_NODISCARD_PEDANTIC
 	int64_t         Int64     (int64_t  iDefault = 0)     const noexcept;
 
 	/// Returns a bool value for this json element. If the element was a number, float or string, the value will be converted.
 	/// For all other types, the parameter bDefault is returned (which defaults to false).
+	DEKAF2_NODISCARD_PEDANTIC
 	bool            Bool      (bool     bDefault = false) const noexcept;
 
 	/// Returns a floating point value for this json element. If the element was an integer number or string, the value will be converted.
 	/// For all other types, the parameter dDefault is returned (which defaults to 0.0).
+	DEKAF2_NODISCARD_PEDANTIC
 	double          Float     (double   dDefault = 0.0)   const noexcept;
 
 	/// Returns a string representation for any type of json element, which includes serializations for arrays and objects
+	DEKAF2_NODISCARD
 	StringT         Print     (StringViewT sDefault = StringViewT{}, bool bSerializeAll = true) const;
 
 	///Returns true if the json element exists, else false. Does not throw.
+	DEKAF2_NODISCARD_PEDANTIC
 	bool            Exists     () const noexcept { return is_null() == false; }
 
 	// unfortunately, C++ does not allow an implicit conversion to a private base class,
 	// therefore we have to declare it as a named method here (and force it manually
 	// wherever needed)
 
+	DEKAF2_NODISCARD_PEDANTIC
 	constexpr
 	const base&    ToBase     () const noexcept { return *this; }
+	DEKAF2_NODISCARD_PEDANTIC
 	base&          ToBase     ()       noexcept { return *this; }
 
 	// (checked) implicit conversions to value types that do not throw - if the
@@ -696,65 +713,83 @@ public:
 	// accessors:
 
 	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	DEKAF2_NODISCARD
 	const_reference	ConstElement(StringViewT sElement) const noexcept;
 
 	/// Selects the array index iElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	DEKAF2_NODISCARD
 	const_reference	ConstElement(size_type   iElement) const noexcept;
 
 	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	DEKAF2_NODISCARD
 	const_reference	Element    (StringViewT sElement)  const noexcept { return ConstElement(sElement); }
 
 	/// Selects the element in sElement, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Does not throw.
+	DEKAF2_NODISCARD
 	reference       Element    (StringViewT sElement)        noexcept;
 
 	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	DEKAF2_NODISCARD
 	const_reference Element    (size_type   iElement)  const noexcept { return ConstElement(iElement); }
 
 	/// Selects the array index iSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. Does not throw.
+	DEKAF2_NODISCARD
 	reference       Element    (size_type   iElement)        noexcept;
 
 	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	DEKAF2_NODISCARD
 	const_reference	ConstSelect(StringViewT sSelector) const noexcept;
 
 	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	DEKAF2_NODISCARD
 	const_reference	ConstSelect(size_type   iSelector) const noexcept { return ConstElement(iSelector); }
 
 	/// Selects the key or path in sSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	DEKAF2_NODISCARD
 	const_reference	Select     (StringViewT sSelector) const noexcept { return ConstSelect(sSelector); }
 
 	/// Selects the key or path in sSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. Does not throw.
+	DEKAF2_NODISCARD
 	reference       Select     (StringViewT sSelector)       noexcept;
 
 	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	DEKAF2_NODISCARD
 	const_reference Select     (size_type   iSelector) const noexcept { return ConstSelect(iSelector); }
 
 	/// Selects the array index iSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. Does not throw.
+	DEKAF2_NODISCARD
 	reference       Select     (size_type   iSelector)       noexcept { return Element(iSelector);     }
 
 	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	DEKAF2_NODISCARD
 	const_reference operator[] (StringViewT sElement)  const noexcept { return ConstElement(sElement); }
 
 	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	DEKAF2_NODISCARD
 	reference       operator[] (StringViewT sElement)        noexcept { return Element(sElement);      }
 
 	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
-	DEKAF2_FORCE_CHAR_PTR
+	DEKAF2_FORCE_CHAR_PTR DEKAF2_NODISCARD
 	const_reference operator[] (T&& sElement)          const noexcept { return ConstElement(sElement); }
 
 	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
-	DEKAF2_FORCE_CHAR_PTR
+	DEKAF2_FORCE_CHAR_PTR DEKAF2_NODISCARD
 	reference       operator[] (T&& sElement)                noexcept { return Element(sElement);      }
 
 	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	DEKAF2_NODISCARD
 	const_reference operator[] (size_type   iElement)  const noexcept { return ConstElement(iElement); }
 
 	/// Selects the array index iSelector, and returns a reference to the found json element. In case of unknown element inserts a new element, and returns a reference to this. Expands arrays if needed. Does not throw.
+	DEKAF2_NODISCARD
 	reference       operator[] (size_type   iElement)        noexcept { return Element(iElement);      }
 
 	/// Selects the element in sElement, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	DEKAF2_NODISCARD
 	const_reference	operator() (StringViewT sElement)  const noexcept { return ConstElement(sElement); }
 
 	/// Selects the array index iSelector, and returns a const reference to the found json element. In case of unknown element returns reference to an empty json element. Does not throw.
+	DEKAF2_NODISCARD
 	const_reference	operator() (size_type   iElement)  const noexcept { return ConstElement(iElement); }
 
 	// helper methods to ensure that merging objects/arrays/primitives yield
@@ -857,34 +892,50 @@ public:
 	iterator        insert      (const_iterator it, initializer_list_t ilist)                  { try { return base::insert(it.ToBase(), ilist);                         } catch (const exception& e) { return end(); } }
 	void            insert      (const_iterator first, const_iterator last)                    { try {        base::insert(first.ToBase(), last.ToBase());              } catch (const exception& e) {               } }
 
+	DEKAF2_NODISCARD
 	const_iterator  find        (StringViewT sWhat) const { return base::find(sWhat);      }
+	DEKAF2_NODISCARD
 	iterator        find        (StringViewT sWhat)       { return base::find(sWhat);      }
+	DEKAF2_NODISCARD_PEDANTIC
 	const_iterator  begin       ()         const noexcept { return cbegin();               }
+	DEKAF2_NODISCARD_PEDANTIC
 	const_iterator  end         ()         const noexcept { return cend();                 }
+	DEKAF2_NODISCARD_PEDANTIC
 	iterator        begin       ()               noexcept { return base::begin();          }
+	DEKAF2_NODISCARD_PEDANTIC
 	iterator        end         ()               noexcept { return base::end();            }
+	DEKAF2_NODISCARD_PEDANTIC
 	const_iterator  cbegin      ()         const noexcept { return base::cbegin();         }
+	DEKAF2_NODISCARD_PEDANTIC
 	const_iterator  cend        ()         const noexcept { return base::cend();           }
 
 	// checked front/back
+	DEKAF2_NODISCARD_PEDANTIC
 	const_reference	front       ()         const noexcept { try { return MakeRef(base::front()); } catch (const exception& e) { return s_oEmpty; } }
+	DEKAF2_NODISCARD_PEDANTIC
 	reference       front       ()               noexcept { try { return MakeRef(base::front()); } catch (const exception& e) { return *this;    } }
+	DEKAF2_NODISCARD_PEDANTIC
 	const_reference	back        ()         const noexcept { try { return MakeRef(base::back ()); } catch (const exception& e) { return s_oEmpty; } }
+	DEKAF2_NODISCARD_PEDANTIC
 	reference       back        ()               noexcept { try { return MakeRef(base::back ()); } catch (const exception& e) { return *this;    } }
 
 	/// Clears the content - does not reset the content type though, so beware when having an array, clearing, and adding an object..
 	/// It will be added to an array, whereas it would have been merged when the type would have been object.
 	void            clear       ()               noexcept { return base::clear();          }
 	/// returns an iteration_proxy to iterate over key-value pairs of objects
+	DEKAF2_NODISCARD
 	iteration_proxy<iterator>
 	                items       ()               noexcept { return iteration_proxy<iterator>(*this);       }
 	/// returns an iteration_proxy to iterate over key-value pairs of objects
+	DEKAF2_NODISCARD
 	iteration_proxy<const_iterator>
 	                items       ()         const noexcept { return iteration_proxy<const_iterator>(*this); }
 
 	/// returns explicitly an array constructed with the values of the initializer list (empty by default)
+	DEKAF2_NODISCARD
 	static KJSON2   array       (initializer_list_t il = {}) { return base::array  (il);  }
 	/// returns explicitly an object constructed with the values of the initializer list (empty by default)
+	DEKAF2_NODISCARD
 	static KJSON2   object      (initializer_list_t il = {}) { return base::object (il);  }
 
 	void            swap        (reference other) noexcept
@@ -899,15 +950,20 @@ public:
 		swap(left.ToBase(), right.ToBase());
 	}
 
+	DEKAF2_NODISCARD
 	static KJSON2   diff        (const KJSON2& left, const KJSON2& right);
 
 	/// helper function to cast a const reference of type KJSON2 for a const reference of the base json type
+	DEKAF2_NODISCARD_PEDANTIC
 	static const_reference MakeRef(base::const_reference json) noexcept { return *static_cast<const_pointer>(&json); }
 	/// helper function to cast a reference of type KJSON2 for a reference of the base json type
+	DEKAF2_NODISCARD_PEDANTIC
 	static       reference MakeRef(base::reference json)       noexcept { return *static_cast<pointer>(&json);       }
 	/// helper function to cast a const pointer of type KJSON2 for a const pointer of the base json type
+	DEKAF2_NODISCARD_PEDANTIC
 	static const_pointer   MakePtr(base::const_pointer json)   noexcept { return  static_cast<const_pointer>(json);  }
 	/// helper function to cast a pointer of type KJSON2 for a pointer of the base json type
+	DEKAF2_NODISCARD_PEDANTIC
 	static       pointer   MakePtr(base::pointer json)         noexcept { return  static_cast<pointer>(json);        }
 
 private:
@@ -1428,7 +1484,7 @@ bool Parse (T& json, KJSON2::IStreamT& InStream, KStringRef& sError) noexcept
 /// DEPRECATED - use class member
 /// returns a string representation for the KJSON object, never throws
 /// @param json the json input
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KJSON2::StringT Print(const T& json) noexcept
 {
 	return json.Print();
@@ -1439,7 +1495,7 @@ KJSON2::StringT Print(const T& json) noexcept
 /// for non-string values.
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 const KJSON2::StringT& GetStringRef(const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).String();
@@ -1450,7 +1506,7 @@ const KJSON2::StringT& GetStringRef(const T& json, KJSON2::StringViewT sKey) noe
 /// values into string representation.
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KJSON2::StringT GetString(const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	// The old semantics were as follows: if the key does not exist, then return an
@@ -1466,7 +1522,7 @@ KJSON2::StringT GetString(const T& json, KJSON2::StringViewT sKey) noexcept
 /// neither an integer nor a string representation of an integer.
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 uint64_t GetUInt(const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).UInt64();
@@ -1477,7 +1533,7 @@ uint64_t GetUInt(const T& json, KJSON2::StringViewT sKey) noexcept
 /// neither an integer nor a string representation of an integer.
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 int64_t GetInt(const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).Int64();
@@ -1488,7 +1544,7 @@ int64_t GetInt(const T& json, KJSON2::StringViewT sKey) noexcept
 /// neither an integer nor a string representation of an integer.
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool GetBool(const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).Bool();
@@ -1499,7 +1555,7 @@ bool GetBool(const T& json, KJSON2::StringViewT sKey) noexcept
 /// for non-object values.
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 const KJSON2& GetObjectRef (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	// GetObject does not test that the object is actually an object..
@@ -1512,7 +1568,7 @@ const KJSON2& GetObjectRef (const T& json, KJSON2::StringViewT sKey) noexcept
 /// object for non-object values.
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 const KJSON2& GetObject (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	// GetObject does not test that the object is actually an object..
@@ -1525,7 +1581,7 @@ const KJSON2& GetObject (const T& json, KJSON2::StringViewT sKey) noexcept
 /// array for non-array values.
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 const KJSON2& GetArray (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	// GetArray tests that the object is actually an array..
@@ -1536,7 +1592,7 @@ const KJSON2& GetArray (const T& json, KJSON2::StringViewT sKey) noexcept
 /// returns true if the key exists, never throws
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool Exists (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).Exists();
@@ -1546,7 +1602,7 @@ bool Exists (const T& json, KJSON2::StringViewT sKey) noexcept
 /// returns true if the key exists and contains an object, never throws
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool IsObject (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_object();
@@ -1556,7 +1612,7 @@ bool IsObject (const T& json, KJSON2::StringViewT sKey) noexcept
 /// returns true if the key exists and contains an array, never throws
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool IsArray (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_array();
@@ -1566,7 +1622,7 @@ bool IsArray (const T& json, KJSON2::StringViewT sKey) noexcept
 /// returns true if the key exists and contains a string, never throws
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool IsString (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_string();
@@ -1576,7 +1632,7 @@ bool IsString (const T& json, KJSON2::StringViewT sKey) noexcept
 /// returns true if the key exists and contains an integer, never throws
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool IsInteger (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_integer();
@@ -1586,7 +1642,7 @@ bool IsInteger (const T& json, KJSON2::StringViewT sKey) noexcept
 /// returns true if the key exists and contains a float, never throws
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool IsFloat (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_number_float();
@@ -1596,7 +1652,7 @@ bool IsFloat (const T& json, KJSON2::StringViewT sKey) noexcept
 /// returns true if the key exists and contains null, never throws
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool IsNull (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_null();
@@ -1606,7 +1662,7 @@ bool IsNull (const T& json, KJSON2::StringViewT sKey) noexcept
 /// returns true if the key exists and contains a bool, never throws
 /// @param json the json input
 /// @param sKey the key to search for
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool IsBoolean (const T& json, KJSON2::StringViewT sKey) noexcept
 {
 	return json(sKey).is_boolean();
@@ -1634,14 +1690,14 @@ KJSON2::const_iterator Find (const T& json, KJSON2::StringViewT sString) noexcep
 }
 
 /// returns true if object is a string array or an object and contains the given string, never throws
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool Contains (const T& json, KJSON2::StringViewT sString) noexcept
 {
 	return Contains(json.ToBase(), sString);
 }
 
 /// RecursiveMatchValue (json, m_sSearchX);
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool RecursiveMatchValue (const T& json, KJSON2::StringViewT sSearch)
 {
 	return RecursiveMatchValue(json.ToBase(), sSearch);
@@ -1657,7 +1713,7 @@ void Merge (T& object1, const KJSON2& object2) noexcept
 
 /// DEPRECATED - use class method
 /// use a path-style selector to isolate any type of value inside a JSON structure, never throws
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 const KJSON2& Select (const T& json, KJSON2::StringViewT sSelector) noexcept
 {
 	return json.Select(sSelector);
@@ -1665,7 +1721,7 @@ const KJSON2& Select (const T& json, KJSON2::StringViewT sSelector) noexcept
 
 /// DEPRECATED - use class method
 /// use a path-style selector to isolate any type of value inside a JSON structure, throws on error
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KJSON2& Select (T& json, KJSON2::StringViewT sSelector) noexcept
 {
 	return json.Select(sSelector);
@@ -1673,7 +1729,7 @@ KJSON2& Select (T& json, KJSON2::StringViewT sSelector) noexcept
 
 /// DEPRECATED - use class method
 /// use an integer selector to get an array value, never throws
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 const KJSON2& Select (const T& json, std::size_t iSelector) noexcept
 {
 	return json.Select(iSelector);
@@ -1681,7 +1737,7 @@ const KJSON2& Select (const T& json, std::size_t iSelector) noexcept
 
 /// DEPRECATED - use class method
 /// use an integer selector to get an array value, never throws
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KJSON2& Select (T& json, std::size_t iSelector) noexcept
 {
 	return json.Select(iSelector);
@@ -1691,7 +1747,7 @@ KJSON2& Select (T& json, std::size_t iSelector) noexcept
 /// use a path-style selector to isolate a string inside a JSON structure, never throws
 /// e.g. .data.object.payment.sources[0].creditCard.lastFourDigits
 /// or /data/object/payment/sources/0/creditCard/lastFourDigits
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 const KJSON2::StringT& SelectString (const T& json, KJSON2::StringViewT sSelector) noexcept
 {
 	return json.Select(sSelector).String();
@@ -1701,7 +1757,7 @@ const KJSON2::StringT& SelectString (const T& json, KJSON2::StringViewT sSelecto
 /// use a path-style selector to isolate an object reference inside a JSON structure, never throws
 /// e.g. .data.object.payment.sources[0].creditCard
 /// or /data/object/payment/sources/0/creditCard
-DEKAF2_FORCE_KJSON2 DEKAF2_PUBLIC
+DEKAF2_FORCE_KJSON2 DEKAF2_NODISCARD DEKAF2_PUBLIC
 const KJSON2& SelectObject (const T& json, KJSON2::StringViewT sSelector) noexcept
 {
 	return json.Select(sSelector).Object();

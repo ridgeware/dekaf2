@@ -60,11 +60,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Encode as base64, linebreaks, padding
+	DEKAF2_NODISCARD
 	static KString Encode(KStringView sInput, bool bWithLinebreaks = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Decode from base64, padding and whitespace are ignored
+	DEKAF2_NODISCARD
 	static KString Decode(KStringView sInput);
 	//-----------------------------------------------------------------------------
 
@@ -82,12 +84,14 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Encode as base64 with url safe character set, no linebreaks, no padding
+	DEKAF2_NODISCARD
 	static KString Encode(KStringView sInput);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Decode from base64 with url safe character set (or standard character set),
 	/// padding and whitespace are ignored
+	DEKAF2_NODISCARD
 	static KString Decode(KStringView sInput);
 	//-----------------------------------------------------------------------------
 

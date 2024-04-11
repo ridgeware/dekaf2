@@ -87,31 +87,39 @@ public:
 	          bool        bHadTrailingSlash);
 
 	/// Checks if the requested file exists
+	DEKAF2_NODISCARD
 	bool Exists() const { return m_FileStat.IsFile(); }
 
 	/// Checks if the requested file is a directory
+	DEKAF2_NODISCARD
 	bool IsDirectory() const { return m_FileStat.IsDirectory(); }
 
 	/// Checks if the requested file is a directory, but the original request did not have a slash at the end.
 	/// This is needed for HTTP redirects, as we cannot simply append a index.html in that case to the
 	/// directory name to serve the index, but have to make sure the client sees the slash after the directory..
+	DEKAF2_NODISCARD
 	bool RedirectAsDirectory() const { return m_bReDirectory; }
 
 	/// Returns the file system path as created by Open()
+	DEKAF2_NODISCARD
 	const KString& GetFileSystemPath() const { return m_sFileSystemPath; }
 
 	/// Returns KFileStat information about a file
+	DEKAF2_NODISCARD
 	const KFileStat& GetFileStat() const { return m_FileStat; }
 
 	/// Returns a stream good for reading the resource. May throw.
 	/// @param iFromPos positions the read position of the stream to the given value, defaults to 0/start
+	DEKAF2_NODISCARD
 	std::unique_ptr<KInStream> GetStreamForReading(std::size_t iFromPos = 0);
 
 	/// Returns a stream good for writing the resource. May throw.
 	/// @param iToPos positions the write position of the stream to the given value, defaults to 0/start
+	DEKAF2_NODISCARD
 	std::unique_ptr<KOutStream> GetStreamForWriting(std::size_t iToPos = 0);
 
 	/// Returns the mime type of the resource. May throw if file not found.
+	DEKAF2_NODISCARD
 	const KMIME& GetMIMEType(bool bInspect);
 
 	/// Clears all state (included by Open())

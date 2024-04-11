@@ -386,7 +386,8 @@ int popcount(unsigned long long iValue) noexcept
 template<class T>
 // C++20
 /// Computes the result of bitwise left-rotating iValue by iCount positions
-DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, T>::type
+DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
+typename std::enable_if<std::is_unsigned<T>::value, T>::type
 kRotateLeft(T iValue, unsigned int iCount) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -408,7 +409,8 @@ kRotateLeft(T iValue, unsigned int iCount) noexcept
 template<class T>
 // C++20
 /// Computes the result of bitwise right-rotating iValue by iCount positions
-DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, T>::type
+DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
+typename std::enable_if<std::is_unsigned<T>::value, T>::type
 kRotateRight(T iValue, unsigned int iCount) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -430,7 +432,8 @@ kRotateRight(T iValue, unsigned int iCount) noexcept
 template <class T>
 // C++20
 ///Checks if iValue is an integral power of two
-DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, bool>::type
+DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
+typename std::enable_if<std::is_unsigned<T>::value, bool>::type
 kHasSingleBit(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -445,7 +448,8 @@ kHasSingleBit(T iValue) noexcept
 template<class T>
 // C++20
 /// Returns the number of consecutive 0 bits in the value of x, starting from the most significant bit ("left")
-DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, int>::type
+DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
+typename std::enable_if<std::is_unsigned<T>::value, int>::type
 kBitCountLeftZero(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -513,7 +517,8 @@ unsigned bit_log2(T iValue) noexcept
 template<class T>
 // C++20
 /// Returns the number of consecutive 0 bits in the value of x, starting from the least significant bit ("right")
-DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, int>::type
+DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
+typename std::enable_if<std::is_unsigned<T>::value, int>::type
 kBitCountRightZero(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -560,7 +565,8 @@ kBitCountRightZero(T iValue) noexcept
 template<class T>
 // C++20
 /// Returns the number of consecutive 1 bits in the value of x, starting from the most significant bit ("left")
-DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, int>::type
+DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
+typename std::enable_if<std::is_unsigned<T>::value, int>::type
 kBitCountLeftOne(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -577,7 +583,8 @@ kBitCountLeftOne(T iValue) noexcept
 template<class T>
 // C++20
 /// Returns the number of consecutive 1 bits in the value of x, starting from the least significant bit ("right")
-DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, int>::type
+DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
+typename std::enable_if<std::is_unsigned<T>::value, int>::type
 kBitCountRightOne(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -594,7 +601,8 @@ kBitCountRightOne(T iValue) noexcept
 template<class T>
 // C++20
 /// Calculates the smallest integral power of two that is not smaller than x
-DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, T>::type
+DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
+typename std::enable_if<std::is_unsigned<T>::value, T>::type
 kBitCeil(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -626,7 +634,8 @@ kBitCeil(T iValue) noexcept
 template<class T>
 // C++20
 /// If iValue is not zero, calculates the largest integral power of two that is not greater than iValue. If iValue is zero, returns zero.
-DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, T>::type
+DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
+typename std::enable_if<std::is_unsigned<T>::value, T>::type
 kBitFloor(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -641,7 +650,8 @@ kBitFloor(T iValue) noexcept
 template<class T>
 // C++20
 /// If iValue is not zero, calculates the number of bits needed to store the value iValue. If iValue is zero, returns zero.
-DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_unsigned<T>::value, int>::type
+DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
+typename std::enable_if<std::is_unsigned<T>::value, int>::type
 kBitWidth(T iValue) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -658,7 +668,7 @@ kBitWidth(T iValue) noexcept
 #endif
 //-----------------------------------------------------------------------------
 template<class T>
-DEKAF2_PUBLIC constexpr
+DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
 // C++20
 /// Returns the number of 1 bits in the value of iValue
 typename std::enable_if<std::is_unsigned<T>::value, int>::type
@@ -700,7 +710,7 @@ kBitCountOne(T iValue) noexcept
 
 #if DEKAF2_BITS_HAS_BITCAST
 template<class To, class From>
-DEKAF2_PUBLIC constexpr
+DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
 // C++20
 /// convert one trivially copyable object into another trivially copyable object of the same size
 To kBitCast(const From& src) noexcept

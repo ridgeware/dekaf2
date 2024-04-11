@@ -379,7 +379,6 @@ SCENARIO ( "KURL unit tests on invalid data")
                         {
                             dekaf2::url::KQuery bad;
                             bad.Parse(svConvert);
-                            sResult.size();
                         }
                         if (sResult.size() != 3 || sResult != sValue) {
                             dekaf2::url::KQuery bad;

@@ -106,24 +106,34 @@ public:
 	constexpr operator                  TimeT()         const { return seconds().count(); }
 
 	/// returns elapsed nanoseconds as duration type
+	DEKAF2_NODISCARD
 	constexpr chrono::nanoseconds       nanoseconds()  const { return duration<chrono::nanoseconds>();  }
 	/// returns elapsed microseconds as duration type
+	DEKAF2_NODISCARD
 	constexpr chrono::microseconds      microseconds() const { return duration<chrono::microseconds>(); }
 	/// returns elapsed milliseconds as duration type
+	DEKAF2_NODISCARD
 	constexpr chrono::milliseconds      milliseconds() const { return duration<chrono::milliseconds>(); }
 	/// returns elapsed seconds as duration type
+	DEKAF2_NODISCARD
 	constexpr chrono::seconds           seconds()      const { return duration<chrono::seconds>();      }
 	/// returns elapsed minutes as duration type
+	DEKAF2_NODISCARD
 	constexpr chrono::minutes           minutes()      const { return duration<chrono::minutes>();      }
 	/// returns elapsed hours as duration type
+	DEKAF2_NODISCARD
 	constexpr chrono::hours             hours()        const { return duration<chrono::hours>();        }
 	/// returns elapsed days as duration type
+	DEKAF2_NODISCARD
 	constexpr chrono::days              days()         const { return duration<chrono::days>();              }
 	/// returns elapsed weeks as duration type
+	DEKAF2_NODISCARD
 	constexpr chrono::weeks             weeks()        const { return duration<chrono::weeks>();             }
 	/// returns elapsed months as duration type
+	DEKAF2_NODISCARD
 	constexpr chrono::months            months()       const { return duration<chrono::months>();            }
 	/// returns elapsed years as duration type
+	DEKAF2_NODISCARD
 	constexpr chrono::years             years()        const { return duration<chrono::years>();             }
 
 	/// output format for ToString()
@@ -152,6 +162,7 @@ public:
 	/// @param format one of Smart, Long, Brief, default Smart
 	/// @param Interval minimum interval (resolution)
 	/// @param iPrecision floating point precision to use for Brief format
+	DEKAF2_NODISCARD
 	KString ToString(Format       Format     = Format::Smart,
 					 BaseInterval Interval   = BaseInterval::NanoSeconds,
 					 uint8_t      iPrecision = 1) const;
@@ -181,8 +192,10 @@ public:
 	/// resets start time to now
 	void clear() { m_Start = Clock::now(); }
 	/// returns elapsed time as KDuration
+	DEKAF2_NODISCARD
 	KDuration elapsed(Clock::time_point tNow = Clock::now()) const { return tNow - m_Start; }
 	/// returns elapsed time and resets start time after readout
+	DEKAF2_NODISCARD
 	KDuration elapsedAndClear()
 	{
 		auto tNow = Clock::now();
@@ -192,24 +205,34 @@ public:
 	}
 
 	/// returns elapsed nanoseconds as duration type
+	DEKAF2_NODISCARD
 	chrono::nanoseconds  nanoseconds()  const { return elapsed().nanoseconds();  }
 	/// returns elapsed microseconds as duration type
+	DEKAF2_NODISCARD
 	chrono::microseconds microseconds() const { return elapsed().microseconds(); }
 	/// returns elapsed milliseconds as duration type
+	DEKAF2_NODISCARD
 	chrono::milliseconds milliseconds() const { return elapsed().milliseconds(); }
 	/// returns elapsed seconds as duration type
+	DEKAF2_NODISCARD
 	chrono::seconds      seconds()      const { return elapsed().seconds();      }
 	/// returns elapsed minutes as duration type
+	DEKAF2_NODISCARD
 	chrono::minutes      minutes()      const { return elapsed().minutes();      }
 	/// returns elapsed hours as duration type
+	DEKAF2_NODISCARD
 	chrono::hours        hours()        const { return elapsed().hours();        }
 	/// returns elapsed days as duration type
+	DEKAF2_NODISCARD
 	chrono::days         days()         const { return elapsed().days();         }
 	/// returns elapsed weeks as duration type
+	DEKAF2_NODISCARD
 	chrono::weeks        weeks()        const { return elapsed().weeks();        }
 	/// returns elapsed months as duration type
+	DEKAF2_NODISCARD
 	chrono::months       months()       const { return elapsed().months();       }
 	/// returns elapsed weeks as duration type
+	DEKAF2_NODISCARD
 	chrono::years        years()        const { return elapsed().years();        }
 
 //----------
@@ -244,6 +267,7 @@ public:
 	explicit KStopWatch(ConstructHalted) : base(base::Halted), m_bIsHalted(true) {}
 
 	/// returns elapsed (active) time
+	DEKAF2_NODISCARD
 	Duration elapsed() const { if (!m_bIsHalted) { return base::elapsed() + m_iDurationSoFar; } else { return m_iDurationSoFar; } }
 	/// halts elapsed time counting
 	void     halt()          { m_iDurationSoFar += base::elapsed(); m_bIsHalted = true;    }
@@ -253,24 +277,34 @@ public:
 	void     clear()         { m_iDurationSoFar = Duration::zero(); m_bIsHalted = true;    }
 
 	/// returns elapsed nanoseconds as duration type
+	DEKAF2_NODISCARD
 	chrono::nanoseconds  nanoseconds()  const { return elapsed().nanoseconds();  }
 	/// returns elapsed microseconds as duration type
+	DEKAF2_NODISCARD
 	chrono::microseconds microseconds() const { return elapsed().microseconds(); }
 	/// returns elapsed milliseconds as duration type
+	DEKAF2_NODISCARD
 	chrono::milliseconds milliseconds() const { return elapsed().milliseconds(); }
 	/// returns elapsed seconds as duration type
+	DEKAF2_NODISCARD
 	chrono::seconds      seconds()      const { return elapsed().seconds();      }
 	/// returns elapsed minutes as duration type
+	DEKAF2_NODISCARD
 	chrono::minutes      minutes()      const { return elapsed().minutes();      }
 	/// returns elapsed hours as duration type
+	DEKAF2_NODISCARD
 	chrono::hours        hours()        const { return elapsed().hours();        }
 	/// returns elapsed days as duration type
+	DEKAF2_NODISCARD
 	chrono::days         days()         const { return elapsed().days();         }
 	/// returns elapsed weeks as duration type
+	DEKAF2_NODISCARD
 	chrono::weeks        weeks()        const { return elapsed().weeks();        }
 	/// returns elapsed months as duration type
+	DEKAF2_NODISCARD
 	chrono::months       months()       const { return elapsed().months();       }
 	/// returns elapsed weeks as duration type
+	DEKAF2_NODISCARD
 	chrono::years        years()        const { return elapsed().years();        }
 
 //----------
@@ -307,10 +341,13 @@ public:
 	/// push back another interval
 	void           push_back(Duration duration);
 	/// returns the average duration, that is, the total duration time divided by the count of durations
+	DEKAF2_NODISCARD
 	Duration       average()  const { return m_iRounds ? Duration(duration() / m_iRounds) : Duration(); }
 	/// returns count of stored durations
+	DEKAF2_NODISCARD
 	size_type      Rounds()   const { return m_iRounds;     }
 	/// do we have any interval?
+	DEKAF2_NODISCARD
 	bool           empty()    const { return Rounds() == 0; }
 	/// add another duration to this
 	KMultiDuration operator+ (const KMultiDuration& other) const;
@@ -357,6 +394,7 @@ public:
 	///stop and store the interval, and return last interval
 	base::Duration   Stop();
 	/// returns the KStopTime object for the current round (read access only)
+	DEKAF2_NODISCARD
 	const KStopTime& CurrentRound() const { return m_Timer;  }
 
 //------
@@ -394,25 +432,36 @@ public:
 	/// push back another interval
 	void            push_back(Duration duration) { m_Durations.push_back(duration); }
 	/// get last interval
+	DEKAF2_NODISCARD
 	const Duration& back()                 const { return m_Durations.back();       }
 	/// get duration of an interval
 	/// @param iInterval 0 based index on intervals, returns zero duration if out of bounds
+	DEKAF2_NODISCARD
 	DurationBase    duration(size_type iInterval) const;
 	/// returns total duration of all durations
+	DEKAF2_NODISCARD
 	DurationBase    duration()    const;
 	/// returns start iterator
+	DEKAF2_NODISCARD
 	const_iterator  begin()       const { return m_Durations.begin(); }
 	/// returns end iterator
+	DEKAF2_NODISCARD
 	const_iterator  end()         const { return m_Durations.end();   }
 	/// returns count of intervals
+	DEKAF2_NODISCARD
 	size_type       size()        const { return m_Durations.size();  }
 	/// do we have intervals?
+	DEKAF2_NODISCARD
 	bool            empty()       const { return m_Durations.empty(); }
 
+	DEKAF2_NODISCARD
 	size_type       TotalRounds() const;
+	DEKAF2_NODISCARD
 	size_type       Rounds(size_type i) const { return operator[](i).Rounds(); }
 
+	DEKAF2_NODISCARD
 	const Duration& operator[](size_type iInterval) const;
+	DEKAF2_NODISCARD
 	Duration&       operator[](size_type iInterval);
 
 	/// add other intervals to this, expands size if necessary
@@ -461,6 +510,7 @@ public:
 	/// @param iInterval index position to store the current interval at
 	base::DurationBase StoreInterval(size_type iInterval);
 	/// returns the KStopTime object for the current round (read access only)
+	DEKAF2_NODISCARD
 	const KStopTime&   CurrentRound() const { return m_Timer; }
 
 //----------

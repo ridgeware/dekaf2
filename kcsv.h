@@ -115,6 +115,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// write any iterable type with elements that are convertible into a string view with correct escaping into an output string
 	template<class Columns = std::vector<KString>>
+	DEKAF2_NODISCARD
 	KString Write(const Columns& Record)
 	//-----------------------------------------------------------------------------
 	{
@@ -273,8 +274,10 @@ public:
 	};
 
 	/// return begin of records
+	DEKAF2_NODISCARD
 	iterator begin() { return ++iterator(this); }
 	/// return end of records
+	DEKAF2_NODISCARD
 	iterator end()   { return iterator();       }
 
 	//-----------------------------------------------------------------------------
@@ -310,6 +313,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns a json struct as either an array of arrays of strings, or an array of objects (with the headers as keys),
+	DEKAF2_NODISCARD
 	KJSON to_json(bool bAsObject = true)
 	//-----------------------------------------------------------------------------
 	{

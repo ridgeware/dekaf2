@@ -107,7 +107,7 @@ bool kReadAll(std::istream& Stream, KStringRef& sContent, bool bFromStart = true
 /// @param Stream the input stream
 /// @param bFromStart if true will seek to start before reading
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kReadAll(std::istream& Stream, bool bFromStart = true, std::size_t iMaxRead = npos);
 
 /// Read all content of a file with name sFileName into a string, append to sContent
@@ -127,7 +127,7 @@ bool kReadAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead
 /// Returns all content of a file with name sFileName as a string
 /// @param sFileName the input file's name
 /// @param iMaxRead the maximum number of bytes read from the file, default unlimited
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kReadAll(KStringViewZ sFileName, std::size_t iMaxRead = npos);
 
 /// Get the total size of a file with name sFileName. Returns -1 on Failure.
@@ -410,6 +410,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns the complete content of a file in the returned string. Fails on non-seekable inputs, e.g. streams.
+	DEKAF2_NODISCARD
 	KString ReadAll()
 	//-----------------------------------------------------------------------------
 	{
@@ -428,6 +429,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns the remaining content of a file in a string. Does not fail on non-seekable
 	/// inputs, but tries to read the utmost.
+	DEKAF2_NODISCARD
 	KString ReadRemaining()
 	//-----------------------------------------------------------------------------
 	{
@@ -444,6 +446,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Alias for ReadAll
+	DEKAF2_NODISCARD
 	KString GetContent()
 	//-----------------------------------------------------------------------------
 	{
@@ -453,6 +456,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns the size of a file. Returns 0 if no input available. Fails on
 	/// non-seekable inputs, e.g. streams.
+	DEKAF2_NODISCARD
 	std::size_t GetSize()
 	//-----------------------------------------------------------------------------
 	{
@@ -471,6 +475,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns the remaining size of a file. Returns 0 if no input available.
 	/// Fails on non-seekable inputs, e.g. streams.
+	DEKAF2_NODISCARD
 	std::size_t GetRemainingSize()
 	//-----------------------------------------------------------------------------
 	{
@@ -501,6 +506,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns the read position of the input device. Fails on non-seekable streams.
+	DEKAF2_NODISCARD
 	ssize_t GetReadPosition() const
 	//-----------------------------------------------------------------------------
 	{
@@ -549,6 +555,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns a const_iterator to the current read position in a stream
+	DEKAF2_NODISCARD
 	const_iterator cbegin()
 	//-----------------------------------------------------------------------------
 	{
@@ -558,6 +565,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns a const_iterator that is equal to an iterator that has reached the
 	/// end of a stream
+	DEKAF2_NODISCARD
 	const_iterator cend()
 	//-----------------------------------------------------------------------------
 	{
@@ -566,6 +574,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns a const_iterator to the current read position in a stream
+	DEKAF2_NODISCARD
 	const_iterator begin()
 	//-----------------------------------------------------------------------------
 	{
@@ -575,6 +584,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns a const_iterator that is equal to an iterator that has reached the
 	/// end of a stream
+	DEKAF2_NODISCARD
 	const_iterator end()
 	//-----------------------------------------------------------------------------
 	{
@@ -583,6 +593,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns a char iterator to the current read position in a stream
+	DEKAF2_NODISCARD
 	char_iterator char_begin()
 	//-----------------------------------------------------------------------------
 	{
@@ -592,6 +603,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Returns a char iterator that is equal to an iterator that has reached the
 	/// end of a stream
+	DEKAF2_NODISCARD
 	char_iterator char_end()
 	//-----------------------------------------------------------------------------
 	{
@@ -636,6 +648,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get a ref on the KInStream component
+	DEKAF2_NODISCARD
 	self_type& InStream()
 	//-----------------------------------------------------------------------------
 	{
@@ -644,6 +657,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get the std::istream
+	DEKAF2_NODISCARD
 	const std::istream& istream() const
 	//-----------------------------------------------------------------------------
 	{
@@ -652,6 +666,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get the std::istream
+	DEKAF2_NODISCARD
 	std::istream& istream()
 	//-----------------------------------------------------------------------------
 	{
@@ -676,6 +691,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Check if stream is good for input
+	DEKAF2_NODISCARD
 	bool Good() const
 	//-----------------------------------------------------------------------------
 	{

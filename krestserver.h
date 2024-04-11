@@ -214,6 +214,7 @@ public:
 	/// get one query parm value and throw when the value contains possible injection attempts: single, double, backtick and backslash
 	/// @param sKey the name of the requested query parm
 	/// @return the value for the requested query parm
+	DEKAF2_NODISCARD
 	const KString& GetQueryParmSafe (KStringView sKey) const;
 	//-----------------------------------------------------------------------------
 
@@ -222,11 +223,13 @@ public:
 	/// @param sKey the name of the requested query parm
 	/// @param sDefault the default return value if there is no value for the key
 	/// @return the value for the requested query parm
+	DEKAF2_NODISCARD
 	KString GetQueryParmSafe (KStringView sKey, KStringView sDefault) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// get the content body of a POST or PUT request, only guaranteed to be successful for routes of PLAIN type
+	DEKAF2_NODISCARD
 	const KString& GetRequestBody() const;
 	//-----------------------------------------------------------------------------
 
@@ -280,6 +283,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// get raw (non-json) output as const ref
+	DEKAF2_NODISCARD
 	const KString& GetRawOutput()
 	//-----------------------------------------------------------------------------
 	{
@@ -297,6 +301,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return the output json["message"] string
+	DEKAF2_NODISCARD
 	const KString& GetMessage() const
 	//-----------------------------------------------------------------------------
 	{
@@ -344,6 +349,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// get the JSON payload struct of the JWT auth token
+	DEKAF2_NODISCARD
 	const KJSON& GetAuthToken() const
 	//-----------------------------------------------------------------------------
 	{
@@ -360,6 +366,7 @@ public:
 	/// Get a temporary directory that is guaranteed to exist until this REST request is answered.
 	/// All content and the directory will be removed after the REST connection got closed.
 	/// @return a string with the path name of the temporary directory
+	DEKAF2_NODISCARD
 	const KString& GetTempDir()
 	//-----------------------------------------------------------------------------
 	{
@@ -373,6 +380,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return true if the connection is disconnected
+	DEKAF2_NODISCARD
 	bool IsDisconnected();
 	//-----------------------------------------------------------------------------
 
@@ -389,6 +397,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return the length in bytes of the request body
+	DEKAF2_NODISCARD
 	std::size_t GetRequestBodyLength() const
 	//-----------------------------------------------------------------------------
 	{
@@ -397,6 +406,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return the length in bytes of the request headers
+	DEKAF2_NODISCARD
 	std::size_t GetRequestHeaderLength() const
 	//-----------------------------------------------------------------------------
 	{
@@ -405,6 +415,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return the length in bytes of the response content (body)
+	DEKAF2_NODISCARD
 	std::size_t GetContentLength() const
 	//-----------------------------------------------------------------------------
 	{
@@ -413,6 +424,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return the length in bytes of the request header and request body
+	DEKAF2_NODISCARD
 	std::size_t GetReceivedBytes() const
 	//-----------------------------------------------------------------------------
 	{
@@ -421,6 +433,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return the length in bytes of the sent bytes
+	DEKAF2_NODISCARD
 	std::size_t GetSentBytes() const
 	//-----------------------------------------------------------------------------
 	{
@@ -429,6 +442,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return the count of previous requests on this connection
+	DEKAF2_NODISCARD
 	uint16_t GetKeepaliveRound() const
 	//-----------------------------------------------------------------------------
 	{
@@ -437,6 +451,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return true if consecutive requests are permitted on this connection
+	DEKAF2_NODISCARD
 	bool GetKeepalive() const
 	//-----------------------------------------------------------------------------
 	{
@@ -445,6 +460,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return the count in microsecond ticks for a request until the last byte was sent
+	DEKAF2_NODISCARD
 	chrono::microseconds GetTimeToLastByte() const
 	//-----------------------------------------------------------------------------
 	{
@@ -453,6 +469,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return true if the connection was lost
+	DEKAF2_NODISCARD
 	bool GetLostConnection() const
 	//-----------------------------------------------------------------------------
 	{
@@ -478,6 +495,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return true if this connection shall be switched to the websocket protocol
+	DEKAF2_NODISCARD
 	bool SwitchToWebSocket()
 	//-----------------------------------------------------------------------------
 	{
@@ -494,6 +512,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// gets the websocket callback
+	DEKAF2_NODISCARD
 	const std::function<void(KWebSocket&)>& GetWebSocketHandler()
 	//-----------------------------------------------------------------------------
 	{
@@ -533,6 +552,7 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// check if we shall log this thread's logging output into the response headers
 	/// @return the per-thread logging level from 0 (off) to 3
+	DEKAF2_NODISCARD
 	int VerifyPerThreadKLogToHeader();
 	//-----------------------------------------------------------------------------
 

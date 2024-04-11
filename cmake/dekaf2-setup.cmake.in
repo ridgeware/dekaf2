@@ -100,7 +100,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		if (CMAKE_COMPILER_IS_GNUCXX)
 
-			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-result)
+			add_compile_options(-Wall -Wextra -Wno-unused-parameter)
 			add_compile_options($<$<CONFIG:DEBUG>:-Werror>)
 
 			if (DEKAF2_HAS_WARN_ARRAY_BOUNDS AND CMAKE_CXX_STANDARD LESS 17)
@@ -156,7 +156,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
-			add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-result)
+			add_compile_options(-Wall -Wextra -Wno-unused-parameter)
 			add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wpessimizing-move>)
 			add_compile_options($<$<CONFIG:DEBUG>:-Werror>)
 

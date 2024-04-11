@@ -182,9 +182,11 @@ public:
 	KMessageDigest& operator=(KMessageDigest&&) = default;
 
 	/// returns the message digest in binary encoding
+	DEKAF2_NODISCARD
 	const KString& Digest() const;
 
 	/// returns the message digest in hexadecimal encoding
+	DEKAF2_NODISCARD
 	KString HexDigest() const;
 
 	/// clears the digest and prepares for new computation

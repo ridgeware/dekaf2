@@ -270,6 +270,21 @@
 	#define DEKAF2_FALLTHROUGH do {} while (0)
 #endif
 
+#if DEKAF2_HAS_CPP_17 && DEKAF2_HAS_CPP_ATTRIBUTE(nodiscard)
+	#define DEKAF2_NODISCARD [[nodiscard]]
+#elif DEKAF2_HAS_CPP_ATTRIBUTE(clang::nodiscard)
+	#define DEKAF2_NODISCARD [[clang::nodiscard]]
+#elif DEKAF2_HAS_CPP_ATTRIBUTE(gnu::nodiscard)
+	#define DEKAF2_NODISCARD [[gnu::nodiscard]]
+#else
+	// we do not check for the older explicit attribute (warn_unused_result),
+	// as those gcc versions then typically run into other issues with nodiscard
+	// analysis, e.g. when overloading & and && versions of member functions
+	#define DEKAF2_NODISCARD
+#endif
+
+#define DEKAF2_NODISCARD_PEDANTIC DEKAF2_NODISCARD
+
 #if defined(__clang__) || defined(__GNUC__)
 	#define DEKAF2_DEPRECATED(msg) __attribute__((__deprecated__(msg)))
 #elif defined(_MSC_VER)

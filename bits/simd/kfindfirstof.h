@@ -53,13 +53,15 @@ namespace no_sse {
 /// @param haystack the string to search in
 /// @param needles  the characters to find
 /// @param bNot     whether to search for existing (false) or non-existing (true) needles
-DEKAF2_PUBLIC std::size_t kFindFirstOf (KStringView haystack, KStringView needles, bool bNot);
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+std::size_t kFindFirstOf (KStringView haystack, KStringView needles, bool bNot);
 
 /// non-sse version of kFindLastOf, nonetheless using a very fast std:: algorithm
 /// @param haystack the string to search in
 /// @param needles  the characters to find
 /// @param bNot     whether to search for existing (false) or non-existing (true) needles
-DEKAF2_PUBLIC std::size_t kFindLastOf  (KStringView haystack, KStringView needles, bool bNot);
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+std::size_t kFindLastOf  (KStringView haystack, KStringView needles, bool bNot);
 
 } // end of namespace no_sse
 
@@ -70,7 +72,8 @@ namespace sse {
 /// non-sse version of kFindFirstOf
 /// @param haystack the string to search in
 /// @param needles  the characters to find
-DEKAF2_PUBLIC inline std::size_t kFindFirstOf    (KStringView haystack, KStringView needles)
+DEKAF2_NODISCARD DEKAF2_PUBLIC inline
+std::size_t kFindFirstOf    (KStringView haystack, KStringView needles)
 {
 	return DEKAF2_PREFIX detail::no_sse::kFindFirstOf(haystack, needles, false);
 }
@@ -78,7 +81,8 @@ DEKAF2_PUBLIC inline std::size_t kFindFirstOf    (KStringView haystack, KStringV
 /// non-sse version of kFindFirstNotOf
 /// @param haystack the string to search in
 /// @param needles  the characters not to find
-DEKAF2_PUBLIC inline std::size_t kFindFirstNotOf (KStringView haystack, KStringView needles)
+DEKAF2_NODISCARD DEKAF2_PUBLIC inline
+std::size_t kFindFirstNotOf (KStringView haystack, KStringView needles)
 {
 	return DEKAF2_PREFIX detail::no_sse::kFindFirstOf(haystack, needles, true);
 }
@@ -86,7 +90,8 @@ DEKAF2_PUBLIC inline std::size_t kFindFirstNotOf (KStringView haystack, KStringV
 /// non-sse version of kFindLastOf
 /// @param haystack the string to search in
 /// @param needles  the characters to find
-DEKAF2_PUBLIC inline std::size_t kFindLastOf     (KStringView haystack, KStringView needles)
+DEKAF2_NODISCARD DEKAF2_PUBLIC inline
+std::size_t kFindLastOf     (KStringView haystack, KStringView needles)
 {
 	return DEKAF2_PREFIX detail::no_sse::kFindLastOf(haystack, needles, false);
 }
@@ -94,7 +99,8 @@ DEKAF2_PUBLIC inline std::size_t kFindLastOf     (KStringView haystack, KStringV
 /// non-sse version of kFindLastNotOf
 /// @param haystack the string to search in
 /// @param needles  the characters not to find
-DEKAF2_PUBLIC inline std::size_t kFindLastNotOf  (KStringView haystack, KStringView needles)
+DEKAF2_NODISCARD DEKAF2_PUBLIC inline
+std::size_t kFindLastNotOf  (KStringView haystack, KStringView needles)
 {
 	return DEKAF2_PREFIX detail::no_sse::kFindLastOf(haystack, needles, true);
 }
@@ -104,22 +110,26 @@ DEKAF2_PUBLIC inline std::size_t kFindLastNotOf  (KStringView haystack, KStringV
 /// sse version of kFindFirstOf
 /// @param haystack the string to search in
 /// @param needles  the characters to find
-DEKAF2_PUBLIC std::size_t kFindFirstOf    (KStringView haystack, KStringView needles);
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+std::size_t kFindFirstOf    (KStringView haystack, KStringView needles);
 
 /// sse version of kFindFirstNotOf
 /// @param haystack the string to search in
 /// @param needles  the characters not to find
-DEKAF2_PUBLIC std::size_t kFindFirstNotOf (KStringView haystack, KStringView needles);
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+std::size_t kFindFirstNotOf (KStringView haystack, KStringView needles);
 
 /// sse version of kFindLastOf
 /// @param haystack the string to search in
 /// @param needles  the characters to find
-DEKAF2_PUBLIC std::size_t kFindLastOf     (KStringView haystack, KStringView needles);
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+std::size_t kFindLastOf     (KStringView haystack, KStringView needles);
 
 /// sse version of kFindLastNotOf
 /// @param haystack the string to search in
 /// @param needles  the characters not to find
-DEKAF2_PUBLIC std::size_t kFindLastNotOf  (KStringView haystack, KStringView needles);
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+std::size_t kFindLastNotOf  (KStringView haystack, KStringView needles);
 
 #endif
 

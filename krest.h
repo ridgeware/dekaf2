@@ -144,12 +144,16 @@ public:
 	/// call either of the three other execution methods depending on Options.Type and sFilenameOrSimulation
 	bool Execute(const Options& Options, const KRESTRoutes& Routes);
 	/// returns true if no error
+	DEKAF2_NODISCARD
 	bool Good() const;
 	/// returns error description
+	DEKAF2_NODISCARD
 	const KString& Error() const;
 	/// alias for Error()
+	DEKAF2_NODISCARD
 	const KString& GetLastError() const { return Error(); }
 	/// get diagnostics when running with a TCP server
+	DEKAF2_NODISCARD
 	KThreadPool::Diagnostics GetDiagnostics() const;
 	/// Shall we log the shutdown in TCP server mode?
 	/// @param callback callback function called at each shutdown thread with some diagnostics

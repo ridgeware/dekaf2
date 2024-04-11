@@ -117,24 +117,31 @@ public:
 		void SetEnvironment(std::vector<std::pair<KString, KString>> Environment) { m_Environment = std::move(Environment); }
 
 		/// return next execution time after tAfter, in unix time_t
+		DEKAF2_NODISCARD
 		KUnixTime Next(KUnixTime tAfter = KUnixTime(0)) const;
 
 		/// return next execution time after tAfter, in KUTCTime
+		DEKAF2_NODISCARD
 		KUTCTime Next(const KUTCTime& tAfter) const;
 
 		/// return a copy of the timers and results
+		DEKAF2_NODISCARD
 		struct Control Control() const;
 
 		/// return the command argument
+		DEKAF2_NODISCARD
 		const KString& Command() const { return m_sCommand; }
 
 		/// returns true when the Job is currently executed
+		DEKAF2_NODISCARD
 		bool IsRunning() const { return m_Shell != nullptr; }
 
 		/// returns true when the executing shell/pipe has finished and is waiting to be closed
+		DEKAF2_NODISCARD
 		bool IsWaiting();
 
 		/// returns the Job ID
+		DEKAF2_NODISCARD
 		ID JobID() const { return m_iJobID; }
 
 		/// runs the Job - virtual, to allow extensions
@@ -148,9 +155,11 @@ public:
 		/// print a json description of the job
 		/// @param iMaxResultSize the output of the executed command will be cut off after this count
 		/// @return a KJSON structure with information about the job and its last execution
+		DEKAF2_NODISCARD
 		KJSON Print(std::size_t iMaxResultSize = 4096) const;
 
 		/// return the job name, may be empty
+		DEKAF2_NODISCARD
 		const KString& Name() const { return m_sName; }
 
 		/// kill the job, will return false on Windows (and hence not work there)
@@ -161,6 +170,7 @@ public:
 
 		/// static, create a SharedJob
 		template<typename... Args>
+		DEKAF2_NODISCARD
 		static SharedJob Create(Args&&... args)
 		{
 			return std::make_shared<Job>(std::forward<Args>(args)...);
@@ -289,6 +299,7 @@ public:
 	/// return the Scheduler object
 	Scheduler& Scheduler() { return *m_Scheduler; }
 
+	DEKAF2_NODISCARD
 	KJSON ListRunningJobs(Job::ID filterForID = 0) const;
 
 	bool KillJob(Job::ID ID);

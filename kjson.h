@@ -140,28 +140,28 @@ namespace kjson
 	/// Returns parsed string as a JSON object
 	/// if invalid, just return a null object on failure
 	/// does NOT throw
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	KJSON Parse (KStringView sJSON) noexcept;
 
 	/// Returns parsed string as a JSON object
 	/// if invalid, throw KError
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	KJSON ParseOrThrow (KStringView sJSON);
 
 	/// Returns parsed stream as a JSON object
 	/// if invalid, just return a null object on failure
 	/// does NOT throw
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	KJSON Parse (KInStream& istream) noexcept;
 
 	/// Returns parsed stream as a JSON object
 	/// if invalid, throw KError
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	KJSON ParseOrThrow (KInStream& istream);
 
 	/// returns a string representation for the KJSON object, never throws
 	/// @param json the json input
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	KString Print (const LJSON& json) noexcept;
 
 	/// Sets a JSON string from a KStringView, checks if the string was
@@ -178,104 +178,104 @@ namespace kjson
 	/// for non-string values.
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	const KString& GetStringRef(const LJSON& json, KStringView sKey) noexcept;
 
 	/// Returns a string value for a key, never throws. Prints non-string
 	/// values into string representation.
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	KString GetString(const LJSON& json, KStringView sKey) noexcept;
 
 	/// Returns a uint value for a key, never throws. Returns 0 if value was
 	/// neither an integer nor a string representation of an integer.
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	uint64_t GetUInt(const LJSON& json, KStringView sKey) noexcept;
 
 	/// Returns an int value for a key, never throws. Returns 0 if value was
 	/// neither an integer nor a string representation of an integer.
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	int64_t GetInt(const LJSON& json, KStringView sKey) noexcept;
 
 	/// Returns a bool value for a key, never throws. Returns 0 if value was
 	/// neither an integer nor a string representation of an integer.
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	bool GetBool(const LJSON& json, KStringView sKey) noexcept;
 
 	/// Returns a const object ref for a key, never throws. Returns empty ref
 	/// for non-object values.
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	const LJSON& GetObjectRef (const LJSON& json, KStringView sKey) noexcept;
 
 	/// returns a const object ref for a key, never throws. Returns empty
 	/// object for non-object values.
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	const LJSON& GetObject (const LJSON& json, KStringView sKey) noexcept;
 
 	/// returns an array value for a key, never throws. Returns empty
 	/// array for non-array values.
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	const LJSON& GetArray (const LJSON& json, KStringView sKey) noexcept;
 
 	/// returns true if the key exists, never throws
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	bool Exists (const LJSON& json, KStringView sKey) noexcept;
 
 	/// returns true if the key exists and contains an object, never throws
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	bool IsObject (const LJSON& json, KStringView sKey) noexcept;
 
 	/// returns true if the key exists and contains an array, never throws
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	bool IsArray (const LJSON& json, KStringView sKey) noexcept;
 
 	/// returns true if the key exists and contains a string, never throws
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	bool IsString (const LJSON& json, KStringView sKey) noexcept;
 
 	/// returns true if the key exists and contains an integer, never throws
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	bool IsInteger (const LJSON& json, KStringView sKey) noexcept;
 
 	/// returns true if the key exists and contains a float, never throws
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	bool IsFloat (const LJSON& json, KStringView sKey) noexcept;
 
 	/// returns true if the key exists and contains null, never throws
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	bool IsNull (const LJSON& json, KStringView sKey) noexcept;
 
 	/// returns true if the key exists and contains a bool, never throws
 	/// @param json the json input
 	/// @param sKey the key to search for
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	bool IsBoolean (const LJSON& json, KStringView sKey) noexcept;
 
 	/// adds the given integer to the given key, creates key if it does not yet exist
@@ -295,19 +295,19 @@ namespace kjson
 	/// proper json string escaping
 	/// @param sInput the unescaped input string
 	/// @returns the escaped output string
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	KString Escape (KStringView sInput);
 
 	/// returns an iterator to the found element if object is a string array or an object and contains the given string, never throws
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	LJSON::const_iterator Find (const LJSON& json, KStringView sString) noexcept;
 
 	/// returns true if object is a string array or an object and contains the given string, never throws
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	bool Contains (const LJSON& json, KStringView sString) noexcept;
 
 	/// RecursiveMatchValue (json, m_sSearchX);
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	bool RecursiveMatchValue (const LJSON& json, KStringView sSearch);
 
 	/// merges objects or arrays, or arrays and objects
@@ -319,43 +319,43 @@ namespace kjson
 	bool IsJsonPointer(KStringView sSelector);
 
 	/// returns true if a selector seems to be a json path
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	bool IsJsonPath(KStringView sSelector);
 
 	/// converts a json path into a json pointer
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	KString ToJsonPointer(KStringView sSelector);
 
 	/// use a path-style selector to isolate any type of value inside a JSON structure, never throws
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	const LJSON& Select (const LJSON& json, KStringView sSelector) noexcept;
 
 	/// use a path-style selector to isolate any type of value inside a JSON structure, never throws
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	LJSON& Select (LJSON& json, KStringView sSelector) noexcept;
 
 	/// use an integer selector to get an array value, never throws
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	const LJSON& Select (const LJSON& json, std::size_t iSelector) noexcept;
 
 	/// use an integer selector to get an array value, throws on error
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	LJSON& Select (LJSON& json, std::size_t iSelector) noexcept;
 
 	/// use a path-style selector to isolate a string inside a JSON structure, never throws
 	/// e.g. data.object.payment.sources[0].creditCard.lastFourDigits
 	/// or /data/object/payment/sources/0/creditCard/lastFourDigits
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	const KString& SelectString (const LJSON& json, KStringView sSelector);
 
 	/// use a path-style selector to isolate an object reference inside a JSON structure, never throws
 	/// e.g. data.object.payment.sources[0].creditCard
 	/// or /data/object/payment/sources/0/creditCard
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	const LJSON& SelectObject (const LJSON& json, KStringView sSelector);
 
 	/// helper to trim down the exception message
-	DEKAF2_PUBLIC
+	DEKAF2_NODISCARD DEKAF2_PUBLIC
 	const char* kStripJSONExceptionMessage(const char* sMessage) noexcept;
 
 } // end of namespace kjson

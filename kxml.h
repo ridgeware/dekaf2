@@ -75,9 +75,11 @@ public:
 	KXMLAttribute(const KXMLNode& node);
 
 	/// returns count of attributes
+	DEKAF2_NODISCARD
 	size_t size() const;
 
 	/// true if there are no attributes
+	DEKAF2_NODISCARD
 	bool empty() const
 	{
 		return !m_attribute;
@@ -90,17 +92,21 @@ public:
 	}
 
 	/// ascend to parent node
+	DEKAF2_NODISCARD
 	KXMLNode Parent() const;
 
 	/// find attribute by name
+	DEKAF2_NODISCARD
 	KXMLAttribute find(KStringView sName) const;
 
 	/// return iterator on set of attributes
+	DEKAF2_NODISCARD
 	iterator begin() const
 	{
 		return *this;
 	}
 	/// end iterator
+	DEKAF2_NODISCARD
 	iterator end() const
 	{
 		return {};
@@ -119,6 +125,7 @@ public:
 	const KXMLAttribute  operator--(int);  // postfix
 
 	/// Get next attribute of parent node
+	DEKAF2_NODISCARD
 	KXMLAttribute Next() const
 	{
 		auto sibling = *this;
@@ -126,8 +133,10 @@ public:
 	}
 
 	/// Get attribute name
+	DEKAF2_NODISCARD
 	KStringView GetName() const;
 	/// Get attribute value
+	DEKAF2_NODISCARD
 	KStringView GetValue() const;
 
 	/// Set name of current attribute
@@ -181,9 +190,11 @@ public:
 	KXMLNode(const KXML& DOM);
 
 	/// returns count of child nodes
+	DEKAF2_NODISCARD
 	size_t size() const;
 
 	/// true if this node is empty / unexisting
+	DEKAF2_NODISCARD
 	bool empty() const
 	{
 		return !m_node;
@@ -196,27 +207,34 @@ public:
 	}
 
 	/// Ascend to parent node
+	DEKAF2_NODISCARD
 	KXMLNode Parent() const;
 
 	/// Descend to first child node
+	DEKAF2_NODISCARD
 	KXMLNode Child() const;
 	/// Get next sibling node
+	DEKAF2_NODISCARD
 	KXMLNode Next() const
 	{
 		auto sibling = *this;
 		return ++sibling;
 	}
 	/// Descend to first child node with sName
+	DEKAF2_NODISCARD
 	KXMLNode Child(KStringView sName) const;
 	/// Get next sibling node with sName
+	DEKAF2_NODISCARD
 	KXMLNode Next(KStringView sName) const;
 
 	/// return begin iterator
+	DEKAF2_NODISCARD
 	iterator begin() const
 	{
 		return Child();
 	}
 	/// return end iterator
+	DEKAF2_NODISCARD
 	iterator end() const
 	{
 		return {};
@@ -235,15 +253,19 @@ public:
 	const KXMLNode  operator--(int);  // postfix
 
 	/// Get name of current node
+	DEKAF2_NODISCARD
 	KStringView GetName() const;
 	/// Get value of current node
+	DEKAF2_NODISCARD
 	KStringView GetValue() const;
 	/// Get attributes of current node
+	DEKAF2_NODISCARD
 	KXMLAttribute Attributes() const
 	{
 		return KXMLAttribute(*this);
 	}
 	/// Get attribute with sName
+	DEKAF2_NODISCARD
 	KXMLAttribute Attribute(KStringView sName) const;
 
 	/// Add a child node to current node. Only works if the current node is
@@ -253,6 +275,7 @@ public:
 	/// thus preserve space. Only valid for Element nodes.
 	KXMLNode& SetInlineRoot(bool bInlineRoot = true);
 	/// Is the InlineRoot property set for this element?
+	DEKAF2_NODISCARD
 	bool IsInlineRoot() const;
 	/// Set name of current node. Only works if the current node is
 	/// not empty (= part of a KXML tree).
@@ -318,6 +341,7 @@ public:
 	KXML& operator=(KXML&&) = default;
 
 	/// Returns true if a stack trace is printed to the log in case of parse errors
+	DEKAF2_NODISCARD
 	bool GetTraceOnParseError () const
 	{
 		return m_bStackTraceOnParseError;
@@ -332,6 +356,7 @@ public:
 	}
 
 	/// Returns last error string, if any
+	DEKAF2_NODISCARD
 	const KString& GetLastError () const
 	{
 		return m_sLastError;
@@ -344,6 +369,7 @@ public:
 	/// Print DOM into string
 	void Serialize(KStringRef& string, int iPrintFlags = PrintFlags::Default, KStringView sDropRoot = KStringView{}) const;
 	/// Print DOM into string
+	DEKAF2_NODISCARD
 	KString Serialize(int iPrintFlags = PrintFlags::Default, KStringView sDropRoot = KStringView{}) const;
 
 	/// Parse DOM from InStream
@@ -357,6 +383,7 @@ public:
 	void clear();
 
 	/// No content?
+	DEKAF2_NODISCARD
 	bool empty() const
 	{
 		return begin() == end();
@@ -371,9 +398,11 @@ public:
 	/// Returns true if the last parsed document contained an XML declaration
 	/// (which will nonetheless be stripped from the DOM, but you can add one
 	/// again with AddXMLDeclaration() .. )
+	DEKAF2_NODISCARD
 	bool HadXMLDeclaration() const;
 
 	/// Returns the parsed XML declaration (may be empty)
+	DEKAF2_NODISCARD
 	const KXMLNode GetXMLDeclaration() const;
 
 	/// Add a default XML declaration to the start of DOM
@@ -384,18 +413,21 @@ public:
 	void AddXMLDeclaration(KStringView sVersion, KStringView sEncoding, KStringView sStandalone);
 
 	/// Return first child node with sName
+	DEKAF2_NODISCARD
 	KXMLNode Child(KStringView sName) const
 	{
 		return KXMLNode(*this).Child(sName);
 	}
 
 	/// Return begin iterator
+	DEKAF2_NODISCARD
 	iterator begin() const
 	{
 		return KXMLNode(*this).Child();
 	}
 
 	/// Return end iterator
+	DEKAF2_NODISCARD
 	iterator end() const
 	{
 		return {};

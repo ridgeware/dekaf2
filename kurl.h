@@ -374,6 +374,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return encoded content, without leading separator
+	DEKAF2_NODISCARD
 	KString Serialize() const
 	//-------------------------------------------------------------------------
 	{
@@ -391,6 +392,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return a const reference of the member
+	DEKAF2_NODISCARD
 	const typename Storage::value_type& get () const
 	//-------------------------------------------------------------------------
 	{
@@ -399,6 +401,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return a reference of the member
+	DEKAF2_NODISCARD
 	typename Storage::value_type& get ()
 	//-------------------------------------------------------------------------
 	{
@@ -468,6 +471,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return percent-encoded content
+	DEKAF2_NODISCARD
 	KString Encoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -477,6 +481,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// return percent-decoded content (for query part)
 	template<bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	DEKAF2_NODISCARD
 	KString Decoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -488,6 +493,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// return begin iterator
 	template<typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
+	DEKAF2_NODISCARD
 	auto begin()
 	//-------------------------------------------------------------------------
 	{
@@ -497,6 +503,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// return begin iterator
 	template<typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
+	DEKAF2_NODISCARD
 	auto begin() const
 	//-------------------------------------------------------------------------
 	{
@@ -506,6 +513,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// return end iterator
 	template<typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
+	DEKAF2_NODISCARD
 	auto end()
 	//-------------------------------------------------------------------------
 	{
@@ -515,6 +523,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// return end iterator
 	template<typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
+	DEKAF2_NODISCARD
 	auto end() const
 	//-------------------------------------------------------------------------
 	{
@@ -524,6 +533,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// search element
 	template<typename F, typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
+	DEKAF2_NODISCARD
 	auto find(F&& Search)
 	//-------------------------------------------------------------------------
 	{
@@ -533,6 +543,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// search element, const
 	template<typename F, typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
+	DEKAF2_NODISCARD
 	auto find(F&& Search) const
 	//-------------------------------------------------------------------------
 	{
@@ -542,6 +553,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// contains element, const
 	template<typename F, bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	DEKAF2_NODISCARD
 	auto contains(F&& Search) const
 	//-------------------------------------------------------------------------
 	{
@@ -551,6 +563,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// contains element, const
 	template<typename F, bool X = IsString, typename std::enable_if<X, int>::type = 0 >
+	DEKAF2_NODISCARD
 	auto contains(F&& Search) const
 	//-------------------------------------------------------------------------
 	{
@@ -560,6 +573,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// return size
 	template<typename T = typename Storage::value_type, typename std::enable_if<DEKAF2_PREFIX detail::is_pod<T>::value == false, int>::type = 0 >
+	DEKAF2_NODISCARD
 	auto size() const
 	//-------------------------------------------------------------------------
 	{
@@ -569,6 +583,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// return percent-decoded content (for string parts)
 	template<typename T = Storage, bool X = IsString, typename std::enable_if<X, int>::type = 0 >
+	DEKAF2_NODISCARD
 	const typename T::value_type& Decoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -621,6 +636,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// Predicate: Are there contents?
+	DEKAF2_NODISCARD
 	bool empty () const
 	//-------------------------------------------------------------------------
 	{
@@ -797,6 +813,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return encoded content
+	DEKAF2_NODISCARD
 	KStringView Serialize() const;
 	//-------------------------------------------------------------------------
 
@@ -810,6 +827,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return percent-decoded content
+	DEKAF2_NODISCARD
 	KStringView Decoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -831,6 +849,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return a view of the member
+	DEKAF2_NODISCARD
 	KStringView get () const
 	//-------------------------------------------------------------------------
 	{
@@ -839,6 +858,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return the numeric scheme identifier
+	DEKAF2_NODISCARD
 	eProto getProtocol () const
 	//-------------------------------------------------------------------------
 	{
@@ -885,6 +905,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// returns true if protocol was set/parsed
+	DEKAF2_NODISCARD
 	bool empty () const
 	//-------------------------------------------------------------------------
 	{
@@ -893,6 +914,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// returns the default port for the protocol, or 0 if unknown
+	DEKAF2_NODISCARD
 	uint16_t DefaultPort() const;
 	//-------------------------------------------------------------------------
 
@@ -922,7 +944,7 @@ bool IsSubDomainOf(const KDomain& Domain, const KDomain& SubDomain);
 /// returns true if the second parameter is a subdomain of the first
 /// @param Domain the base domain
 /// @param SubDomain the sub domain
-DEKAF2_PUBLIC inline
+DEKAF2_NODISCARD DEKAF2_PUBLIC inline
 bool kIsSubDomainOf(const url::KDomain& Domain, const url::KDomain& SubDomain) { return url::IsSubDomainOf(Domain, SubDomain); }
 //-------------------------------------------------------------------------
 
@@ -1004,6 +1026,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return percent-encoded content
+	DEKAF2_NODISCARD
 	KString Serialize() const
 	//-------------------------------------------------------------------------
 	{
@@ -1014,6 +1037,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return percent-encoded content (same as Serialize())
+	DEKAF2_NODISCARD
 	KString Encoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -1031,6 +1055,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// is this resource object empty?
+	DEKAF2_NODISCARD
 	bool empty() const
 	//-------------------------------------------------------------------------
 	{
@@ -1156,6 +1181,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return percent-encoded content
+	DEKAF2_NODISCARD
 	KString Serialize() const
 	//-------------------------------------------------------------------------
 	{
@@ -1166,6 +1192,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return percent-encoded content (same as Serialize())
+	DEKAF2_NODISCARD
 	KString Encoded() const
 	//-------------------------------------------------------------------------
 	{
@@ -1174,6 +1201,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return Path, Query as a URL encoded string (for backward compatibility with dekaf1)
+	DEKAF2_NODISCARD
 	KString GetURI() const
 	//-------------------------------------------------------------------------
 	{
@@ -1200,6 +1228,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// is this a valid URL?
+	DEKAF2_NODISCARD
 	bool IsURL () const
 	//-------------------------------------------------------------------------
 	{
@@ -1211,6 +1240,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// is this a valid HTTP / HTTPS URL?
+	DEKAF2_NODISCARD
 	bool IsHttpURL () const
 	//-------------------------------------------------------------------------
 	{
@@ -1231,6 +1261,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// is this object empty?
+	DEKAF2_NODISCARD
 	bool empty() const
 	//-------------------------------------------------------------------------
 	{
@@ -1361,6 +1392,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// is this object empty?
+	DEKAF2_NODISCARD
 	bool empty() const
 	//-------------------------------------------------------------------------
 	{
@@ -1381,6 +1413,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return encoded content
+	DEKAF2_NODISCARD
 	KString Serialize() const
 	//-------------------------------------------------------------------------
 	{

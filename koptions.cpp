@@ -972,17 +972,16 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 			kDebug(1, "overriding existing {}: {}", OptionOrCommand.IsCommand() ? "command" : "option", sOption);
 			Pair.first->second = iIndex;
 			// disable the display of the existing option in the automatic help
-			std::find_if(m_Callbacks.begin(), m_Callbacks.end(), [&](CallbackParam& cbp)
+			for (auto& cbp : m_Callbacks)
 			{
 				if (cbp.IsCommand() == OptionOrCommand.IsCommand()
 					&& cbp.m_sNames == OptionOrCommand.m_sNames
 					&& !cbp.IsHidden())
 				{
 					cbp.m_iFlags |= CallbackParam::fIsHidden;
-					return true;
+					break;
 				}
-				return false;
-			});
+			}
 		}
 	}
 

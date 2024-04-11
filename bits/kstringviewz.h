@@ -219,7 +219,9 @@ public:
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) && defined(__GLIBC__)
 	// we have a super fast implementation for these signatures in GLIBC, let
 	// them supersede base_type's version
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_of(KStringView search, size_type pos = 0) const;
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_not_of(KStringView search, size_type pos = 0) const;
 #endif
 	
@@ -258,7 +260,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns substring starting at iStart until end of string
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	self_type Mid(size_type iStart) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -268,7 +270,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns substring starting at iStart with size iCount
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	base_type Mid(size_type iStart, size_type iCount) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -278,6 +280,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns rightmost iCount chars of string
+	DEKAF2_NODISCARD
 	self_type Right(size_type iCount) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -289,7 +292,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns substring starting at codepoint iStart until end of string
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	self_type MidUTF8(size_type iStart) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -304,7 +307,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns substring starting at codepoint iStart with size iCount (in codepoints)
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	base_type MidUTF8(size_type iStart, size_type iCount) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -314,7 +317,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns rightmost iCount UTF8 codepoints of string
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	self_type RightUTF8(size_type iCount) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -370,7 +373,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns a sub-view of the current view from pos to end of view
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	self_type ToView(size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -389,7 +392,7 @@ public:
 	//----------------------------------------------------------------------
 	/// returns a sub-view of the current view from pos of view with size n,
 	/// return type is a KStringView as the trailing zero got lost
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	base_type ToView(size_type pos, size_type count) const noexcept
 	//----------------------------------------------------------------------
 	{
@@ -399,7 +402,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// returns a C style char array with trailing zero - the reason this class
 	/// exists
-	constexpr
+	DEKAF2_NODISCARD_PEDANTIC constexpr
 	const value_type* c_str() const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -412,7 +415,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// returns a sub-view of the current view from pos of view with size n,
 	/// return type is a KStringView as the trailing zero got lost
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	base_type substr(size_type pos, size_type count) const
 	//-----------------------------------------------------------------------------
 	{
@@ -421,7 +424,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns a sub-view of the current view from pos to end of view
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	self_type substr(size_type pos) const
 	//-----------------------------------------------------------------------------
 	{

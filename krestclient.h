@@ -267,6 +267,7 @@ public:
 									   { base::AddHeader(std::move(Header), sValue);
 										                                   return *this; }
 	/// Return a header's content from the response
+	DEKAF2_NODISCARD
 	const KString& GetResponseHeader(KHTTPHeader Header) const
 	                                   { return base::GetResponseHeader(Header);         }
 

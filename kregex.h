@@ -89,18 +89,21 @@ public:
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return the overall match (group 0)
+	DEKAF2_NODISCARD
 	KStringView Match(KStringView sStr, size_type pos = 0) const;
 	//-----------------------------------------------------------------------------
 
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return all match groups, including the overall match in group 0.
+	DEKAF2_NODISCARD
 	Groups MatchGroups(KStringView sStr, size_type pos = 0) const;
 	//-----------------------------------------------------------------------------
 
 	// member function interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return true if found
+	DEKAF2_NODISCARD
 	bool Matches(KStringView sStr, size_type pos = 0) const;
 	//-----------------------------------------------------------------------------
 
@@ -114,18 +117,21 @@ public:
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return the overall match (group 0)
+	DEKAF2_NODISCARD
 	static KStringView Match(KStringView sStr, KStringView sRegex, size_type pos = 0);
 	//-----------------------------------------------------------------------------
 
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return all match groups, including the overall match in group 0.
+	DEKAF2_NODISCARD
 	static Groups MatchGroups(KStringView sStr, KStringView sRegex, size_type pos = 0);
 	//-----------------------------------------------------------------------------
 
 	// static interface
 	//-----------------------------------------------------------------------------
 	/// match a regular expression in sStr and return true if found
+	DEKAF2_NODISCARD
 	static bool Matches(KStringView sStr, KStringView sRegex, size_type pos = 0);
 	//-----------------------------------------------------------------------------
 
@@ -138,26 +144,31 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns regular expression string
+	DEKAF2_NODISCARD
 	const std::string& Pattern() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// returns an integer that increases with larger complexity of the regex search
+	DEKAF2_NODISCARD
 	size_t Cost() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// returns false if the regular expression could not be compiled
+	DEKAF2_NODISCARD
 	bool Good() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// returns error string if !Good()
+	DEKAF2_NODISCARD
 	const std::string& Error() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// returns erroneous argument if !Good()
+	DEKAF2_NODISCARD
 	const std::string& ErrorArg() const;
 	//-----------------------------------------------------------------------------
 
@@ -173,11 +184,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns the maximum cache size for the regex expression cache
+	DEKAF2_NODISCARD
 	static size_t GetMaxCacheSize();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// returns the current cache size for the regex expression cache
+	DEKAF2_NODISCARD
 	static size_t GetCacheSize();
 	//-----------------------------------------------------------------------------
 

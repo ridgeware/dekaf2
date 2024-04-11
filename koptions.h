@@ -222,26 +222,37 @@ private:
 		bool         m_bUsed        {  false };
 
 		/// returns true if this parameter is required
+		DEKAF2_NODISCARD
 		bool         IsRequired()  const { return m_iFlags & fIsRequired;   }
 		/// returns true if this parameter is an option, not a command
+		DEKAF2_NODISCARD
 		bool         IsOption()    const { return IsCommand() == false;     }
 		/// returns true if this parameter is a command, not an option
+		DEKAF2_NODISCARD
 		bool         IsCommand()   const { return m_iFlags & fIsCommand;    }
 		/// returns true if this parameter shall be hidden from auto-documentation
+		DEKAF2_NODISCARD
 		bool         IsHidden()    const { return m_iFlags & fIsHidden;     }
 		/// returns true if this parameter is a section break for the auto-documentation
+		DEKAF2_NODISCARD
 		bool         IsSection()   const { return m_iFlags & fIsSection;    }
 		/// returns true if this parameter is an "unknown" catchall, either for options or commands
+		DEKAF2_NODISCARD
 		bool         IsUnknown()   const { return m_iFlags & fIsUnknown;    }
 		/// returns true if this parameter ends the execution of a program immediately
+		DEKAF2_NODISCARD
 		bool         IsFinal()     const { return m_iFlags & fIsFinal;      }
 		/// returns true if this parameter ends the execution of a program after all args are parsed
+		DEKAF2_NODISCARD
 		bool         IsStop()      const { return m_iFlags & fIsStop;       }
 		/// returns true if the boundaries of this parameter shall be checked
+		DEKAF2_NODISCARD
 		bool         CheckBounds() const { return m_iFlags & fCheckBounds;  }
 		/// returns true if the string shall be converted to lowercase
+		DEKAF2_NODISCARD
 		bool         ToLower()     const { return m_iFlags & fToLower;      }
 		/// returns true if the string shall be converted to uppercase
+		DEKAF2_NODISCARD
 		bool         ToUpper()     const { return m_iFlags & fToUpper;      }
 
 	}; // CallbackParam
@@ -357,12 +368,14 @@ public:
 
 	/// Start definition of a new option. Have it follow by any chained count of methods of OptionalParms, like Option("clear").Help("clear all data").Callback([&](){ RunClear() });
 	template<class String1>
+	DEKAF2_NODISCARD
 	OptionalParm Option(String1&& sOption)
 	{
 		return IntOptionOrCommand(m_Strings.Persist(std::forward<String1>(sOption)), "", false);
 	}
 	/// Start definition of a new command. Have it follow by any chained count of methods of OptionalParms, like Command("clear").Help("clear all data").Callback([&](){ RunClear() });
 	template<class String1>
+	DEKAF2_NODISCARD
 	OptionalParm Command(String1&& sCommand)
 	{
 		return IntOptionOrCommand(m_Strings.Persist(std::forward<String1>(sCommand)), "", true);
@@ -370,12 +383,14 @@ public:
 
 	/// Start definition of a new option. Have it follow by any chained count of methods of OptionalParms, like Option("clear").Help("clear all data").Callback([&](){ RunClear() });
 	template<class String1, class String2>
+	DEKAF2_NODISCARD
 	OptionalParm Option(String1&& sOption, String2&& sArgDescription)
 	{
 		return IntOptionOrCommand(m_Strings.Persist(std::forward<String1>(sOption)), m_Strings.Persist(std::forward<String2>(sArgDescription)), false);
 	}
 	/// Start definition of a new command. Have it follow by any chained count of methods of OptionalParms, like Command("clear").Help("clear all data").Callback([&](){ RunClear() });
 	template<class String1, class String2>
+	DEKAF2_NODISCARD
 	OptionalParm Command(String1&& sCommand, String2&& sArgDescription)
 	{
 		return IntOptionOrCommand(m_Strings.Persist(std::forward<String1>(sCommand)), m_Strings.Persist(std::forward<String2>(sArgDescription)), true);
@@ -439,30 +454,38 @@ public:
 	void Help(KOutStream& out);
 
 	/// Get the string representation of the current Argument
+	DEKAF2_NODISCARD
 	KStringViewZ GetCurrentArg() const
 	{
 		return m_sCurrentArg;
 	}
 
 	/// Get the current output stream while parsing commands/args
+	DEKAF2_NODISCARD
 	KOutStream& GetCurrentOutputStream() const;
 
 	/// Get the current output stream width while parsing commands/args
+	DEKAF2_NODISCARD
 	uint16_t GetCurrentOutputStreamWidth() const;
 
 	/// Returns true if we are executed inside a CGI server
+	DEKAF2_NODISCARD
 	static bool IsCGIEnvironment();
 
 	/// Returns arg[0] / the path and name of the called executable
+	DEKAF2_NODISCARD
 	const KString& GetProgramPath() const { return m_HelpParams.GetProgramPath(); }
 
 	/// Returns basename of arg[0] / the name of the called executable
+	DEKAF2_NODISCARD
 	KStringView GetProgramName() const { return m_HelpParams.GetProgramName(); }
 
 	/// Returns brief description of the called executable
+	DEKAF2_NODISCARD
 	const KString& GetBriefDescription() const { return m_HelpParams.GetBriefDescription(); }
 
 	/// Terminate app immediately? (check after parsing)
+	DEKAF2_NODISCARD
 	bool Terminate() const { return m_bStopAppAfterParsing; }
 
 //----------
@@ -500,9 +523,9 @@ private:
 			, iDashes(iDashes_)
 			{}
 
-			uint8_t      DashCount() const { return iDashes; }
-			bool         IsOption () const { return DashCount() > 0; }
-			KStringViewZ Dashes   () const;
+			DEKAF2_NODISCARD uint8_t      DashCount() const { return iDashes; }
+			DEKAF2_NODISCARD bool         IsOption () const { return DashCount() > 0; }
+			DEKAF2_NODISCARD KStringViewZ Dashes   () const;
 
 			KStringViewZ sArg;
 			bool         bConsumed { false };
@@ -525,22 +548,22 @@ private:
 		CLIParms(int argc, char const* const* argv, PersistedStrings& Strings) { Create(argc, argv, Strings); }
 		CLIParms(const std::vector<KStringViewZ>& parms, PersistedStrings& Strings) { Create(parms, Strings); }
 
-		void           Create(KStringViewZ sArg, PersistedStrings& Strings);
-		void           Create(const std::vector<KStringViewZ>& parms, PersistedStrings& Strings);
-		void           Create(int argc, char const* const* argv, PersistedStrings& Strings);
+		                 void           Create(KStringViewZ sArg, PersistedStrings& Strings);
+		                 void           Create(const std::vector<KStringViewZ>& parms, PersistedStrings& Strings);
+		                 void           Create(int argc, char const* const* argv, PersistedStrings& Strings);
 
-		size_t         size()  const { return m_ArgVec.size();  }
-		size_t         empty() const { return m_ArgVec.empty(); }
-		iterator       begin()       { return m_ArgVec.begin(); }
-		iterator       end()         { return m_ArgVec.end();   }
-		const_iterator begin() const { return m_ArgVec.begin(); }
-		const_iterator end()   const { return m_ArgVec.end();   }
-		void           clear()       { m_ArgVec.clear();        }
+		DEKAF2_NODISCARD size_t         size()  const { return m_ArgVec.size();  }
+		DEKAF2_NODISCARD size_t         empty() const { return m_ArgVec.empty(); }
+		DEKAF2_NODISCARD iterator       begin()       { return m_ArgVec.begin(); }
+		DEKAF2_NODISCARD iterator       end()         { return m_ArgVec.end();   }
+		DEKAF2_NODISCARD const_iterator begin() const { return m_ArgVec.begin(); }
+		DEKAF2_NODISCARD const_iterator end()   const { return m_ArgVec.end();   }
+		                 void           clear()       { m_ArgVec.clear();        }
 
-		KStringViewZ   GetProgramPath() const;
-		KStringView    GetProgramName() const;
+		DEKAF2_NODISCARD KStringViewZ   GetProgramPath() const;
+		DEKAF2_NODISCARD KStringView    GetProgramName() const;
 
-		iterator       ExpandToSingleCharArgs(iterator it, const std::vector<KStringViewZ>& SplittedArgs);
+		                 iterator       ExpandToSingleCharArgs(iterator it, const std::vector<KStringViewZ>& SplittedArgs);
 
 		ArgVec         m_ArgVec;
 		KStringViewZ   m_sProgramPathName;
@@ -560,10 +583,10 @@ private:
 		struct DEKAF2_PRIVATE HelpParams
 		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 		{
-			KStringView    GetProgramName()      const;
-			const KString& GetProgramPath()      const { return sProgramPathName;  }
-			const KString& GetBriefDescription() const { return sBriefDescription; }
-			const KString& GetAdditionalHelp()   const { return sAdditionalHelp;   }
+			DEKAF2_NODISCARD KStringView    GetProgramName()      const;
+			DEKAF2_NODISCARD const KString& GetProgramPath()      const { return sProgramPathName;  }
+			DEKAF2_NODISCARD const KString& GetBriefDescription() const { return sBriefDescription; }
+			DEKAF2_NODISCARD const KString& GetAdditionalHelp()   const { return sAdditionalHelp;   }
 
 			KString        sProgramPathName;
 			KString        sBriefDescription;
@@ -603,8 +626,11 @@ private:
 
 		}; // Mask
 
+		DEKAF2_NODISCARD
 		static KStringView SplitAtLinefeed(KStringView& sInput);
+		DEKAF2_NODISCARD
 		static KStringView WrapOutput(KStringView& sInput, std::size_t iMaxSize, bool bKeepLineFeeds);
+		DEKAF2_NODISCARD
 		static KStringView::size_type AdjustPos(KStringView::size_type iPos, int iAdjust);
 
 		void           GetEnvironment();
@@ -629,22 +655,22 @@ private:
 
 	DEKAF2_PRIVATE
 	void Register(CallbackParam OptionOrCommand);
-	DEKAF2_PRIVATE
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	OptionalParm IntOptionOrCommand(KStringView sOption, KStringView sArgDescription, bool bIsCommand)
 	{
 		return OptionalParm(*this, sOption, sArgDescription, bIsCommand);
 	}
-	DEKAF2_PRIVATE
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	KStringViewZ ModifyArgument(KStringViewZ sArg, const CallbackParam* Callback);
-	DEKAF2_PRIVATE
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	KString BadBoundsReason(ArgTypes Type, KStringView sParm, int64_t iMinBound, int64_t iMaxBound) const;
-	DEKAF2_PRIVATE
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	bool ValidBounds(ArgTypes Type, KStringView sParm, int64_t iMinBound, int64_t iMaxBound) const;
-	DEKAF2_PRIVATE
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	KString BadArgReason(ArgTypes Type, KStringView sParm) const;
-	DEKAF2_PRIVATE
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	bool ValidArgType(ArgTypes Type, KStringViewZ sParm) const;
-	DEKAF2_PRIVATE
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	const CallbackParam* FindParam(KStringView sName, bool bIsOption, bool bMarkAsUsed = true);
 	DEKAF2_PRIVATE
 	void ResetBeforeParsing();
@@ -654,10 +680,10 @@ private:
 	int Evaluate(const CLIParms& Parms, KOutStream& out);
 	DEKAF2_PRIVATE
 	void AutomaticHelp() const;
-	DEKAF2_PRIVATE
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	KString BuildParameterError(const CallbackParam& Callback, KString sMessage) const;
-	DEKAF2_PRIVATE
 	/// Is this arg maybe a combination of single char args?
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	std::vector<KStringViewZ> CheckForCombinedArg(const CLIParms::Arg_t& arg);
 
 

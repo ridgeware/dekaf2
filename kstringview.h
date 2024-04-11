@@ -107,35 +107,35 @@ DEKAF2_NAMESPACE_BEGIN
 class KStringView;
 
 //-----------------------------------------------------------------------------
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 size_t kFind(const KStringView haystack,
 			 const KStringView needle,
 			 size_t pos = 0);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 size_t kRFind(const KStringView haystack,
               const KStringView needle,
               size_t pos = std::string::npos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 size_t kFind(const KStringView haystack,
              char needle,
              size_t pos = 0) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 size_t kFindNot(const KStringView haystack,
                 char needle,
                 size_t pos = 0) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline
 size_t kRFind(const KStringView haystack,
               char needle,
@@ -143,62 +143,62 @@ size_t kRFind(const KStringView haystack,
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 size_t kRFindNot(const KStringView haystack,
                  char needle,
                  size_t pos = std::string::npos) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 size_t kFindFirstOf(KStringView haystack,
                     const KStringView needles,
                     size_t pos = 0);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 size_t kFindFirstNotOf(KStringView haystack,
                        const KStringView needles,
                        size_t pos = 0);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 size_t kFindLastOf(KStringView haystack,
                    const KStringView needles,
                    size_t pos = npos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 size_t kFindLastNotOf(KStringView haystack,
                       const KStringView needles,
                       size_t pos = npos);
 //-----------------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kStartsWith(const KStringView sInput, const KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kEndsWith(const KStringView sInput, const KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kContains(const KStringView sInput, const KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kContains(const KStringView sInput, char ch) noexcept;
 //----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kContainsWord(const KStringView sInput, const KStringView sPattern) noexcept;
 //----------------------------------------------------------------------
 
@@ -354,7 +354,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// @return a std::string_view of this string view
-	constexpr
+	DEKAF2_NODISCARD_PEDANTIC constexpr
 	sv::string_view ToStdView() const
 	//-----------------------------------------------------------------------------
 	{
@@ -424,7 +424,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// maximum size for this string view implementation
-	constexpr
+	DEKAF2_NODISCARD_PEDANTIC constexpr
 	size_type max_size() const
 	//-----------------------------------------------------------------------------
 	{
@@ -433,7 +433,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns size of this string view - synonym for length()
-	constexpr
+	DEKAF2_NODISCARD_PEDANTIC constexpr
 	size_type size() const
 	//-----------------------------------------------------------------------------
 	{
@@ -442,7 +442,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns length of this string view - synonym for size()
-	constexpr
+	DEKAF2_NODISCARD_PEDANTIC constexpr
 	size_type length() const
 	//-----------------------------------------------------------------------------
 	{
@@ -451,7 +451,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns true if size() == 0
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool empty() const
 	//-----------------------------------------------------------------------------
 	{
@@ -469,7 +469,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns pointer on begin of the string view
-	constexpr
+	DEKAF2_NODISCARD_PEDANTIC constexpr
 	const value_type* data() const
 	//-----------------------------------------------------------------------------
 	{
@@ -478,7 +478,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns begin iterator
-	constexpr
+	DEKAF2_NODISCARD_PEDANTIC constexpr
 	iterator begin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -487,7 +487,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns end iterator
-	constexpr
+	DEKAF2_NODISCARD_PEDANTIC constexpr
 	iterator end() const
 	//-----------------------------------------------------------------------------
 	{
@@ -496,7 +496,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns reverse begin iterator
-	DEKAF2_CONSTEXPR_REVERSE_ITERATORS
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_REVERSE_ITERATORS
 	reverse_iterator rbegin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -505,7 +505,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns reverse end iterator
-	DEKAF2_CONSTEXPR_REVERSE_ITERATORS
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_REVERSE_ITERATORS
 	reverse_iterator rend() const
 	//-----------------------------------------------------------------------------
 	{
@@ -514,7 +514,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns constant begin iterator
-	constexpr
+	DEKAF2_NODISCARD_PEDANTIC constexpr
 	const_iterator cbegin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -523,7 +523,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns constant end iterator
-	constexpr
+	DEKAF2_NODISCARD_PEDANTIC constexpr
 	const_iterator cend() const
 	//-----------------------------------------------------------------------------
 	{
@@ -532,7 +532,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns constant reverse begin iterator
-	DEKAF2_CONSTEXPR_REVERSE_ITERATORS
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_REVERSE_ITERATORS
 	const_reverse_iterator crbegin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -541,7 +541,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns constant reverse end iterator
-	DEKAF2_CONSTEXPR_REVERSE_ITERATORS
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_REVERSE_ITERATORS
 	const_reverse_iterator crend() const
 	//-----------------------------------------------------------------------------
 	{
@@ -550,7 +550,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns reference to first character. NUL if string view is empty, never throws.
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
 	const value_type& front() const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -566,7 +566,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns reference to last character. NUL if string view is empty, never throws.
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
 	const value_type& back() const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -582,7 +582,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// compares this string view with another
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_17
 	int compare(const self_type& other) const
 	//-----------------------------------------------------------------------------
 	{
@@ -592,7 +592,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// compares part of this string view with another
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_17
 	int compare(size_type pos1, size_type count1,
 	            self_type other) const
 	//-----------------------------------------------------------------------------
@@ -602,7 +602,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// compares part of this string view with part of another
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_17
 	int compare(size_type pos1, size_type count1,
 	            self_type other,
 	            size_type pos2, size_type count2) const
@@ -613,7 +613,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// compares this string view with a char string
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_17
 	int compare(const value_type* str) const
 	//-----------------------------------------------------------------------------
 	{
@@ -622,7 +622,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// compares part of this string view with a char string
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_17
 	int compare(size_type pos1, size_type count1,
 	            const value_type* str) const
 	//-----------------------------------------------------------------------------
@@ -632,7 +632,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// compares part of this string view with part of a char string
-	DEKAF2_CONSTEXPR_17
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_17
 	int compare(size_type pos1, size_type count1,
 	            const value_type* str, size_type count2) const
 	//-----------------------------------------------------------------------------
@@ -646,7 +646,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
 	const value_type& operator[](size_t index) const
 	//-----------------------------------------------------------------------------
 	{
@@ -662,7 +662,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// checked index access, returns NUL on range error, never throws
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
 	const value_type& at(size_t index) const
 	//-----------------------------------------------------------------------------
 	{
@@ -678,7 +678,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns sub string of this string view, checks range, never throws
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	self_type substr(size_type pos = 0, size_type count = npos) const
 	//-----------------------------------------------------------------------------
 	{
@@ -691,7 +691,7 @@ public:
 	// nonstandard
 	/// returns a sub-view of the current view (synonym for substr(), aliased for template use because
 	/// KString has both and makes a difference
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	self_type ToView(size_type pos = 0, size_type count = npos) const
 	//-----------------------------------------------------------------------------
 	{
@@ -894,7 +894,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// std::C++20
 	/// does the string start with sPattern?
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	bool starts_with(const self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -904,7 +904,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// std::C++20
 	/// does the string start with ch?
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	bool starts_with(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -914,7 +914,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// std::C++20
 	/// does the string end with sPattern?
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	bool ends_with(const self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -924,7 +924,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// std::C++20
 	/// does the string end with ch?
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	bool ends_with(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -934,6 +934,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// std::C++23
 	/// does the string contain the sPattern?
+	DEKAF2_NODISCARD
 	bool contains(const self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -943,7 +944,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// std::C++23
 	/// does the string contain the ch?
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	bool contains(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -953,7 +954,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// does the string start with sPattern? (Now deprecated, replace by starts_with())
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	bool StartsWith(const self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -963,7 +964,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// does the string end with sPattern? (Now deprecated, replace by ends_with())
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	bool EndsWith(const self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -973,6 +974,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// does the string contain the sPattern? (Now deprecated, replace by contains())
+	DEKAF2_NODISCARD
 	bool Contains(const self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -982,6 +984,7 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// does the string contain the ch? (Now deprecated, replace by contains())
+	DEKAF2_NODISCARD
 	bool Contains(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -991,109 +994,119 @@ public:
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns a copy of the string in uppercase (UTF8)
+	DEKAF2_NODISCARD
 	KString ToUpper() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns a copy of the string in lowercase (UTF8)
+	DEKAF2_NODISCARD
 	KString ToLower() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns a copy of the string in uppercase according to the current locale (does not work with UTF8 strings)
+	DEKAF2_NODISCARD
 	KString ToUpperLocale() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns a copy of the string in lowercase according to the current locale (does not work with UTF8 strings)
+	DEKAF2_NODISCARD
 	KString ToLowerLocale() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns a copy of the string in uppercase assuming ASCII encoding
+	DEKAF2_NODISCARD
 	KString ToUpperASCII() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns a copy of the string in lowercase assuming ASCII encoding
+	DEKAF2_NODISCARD
 	KString ToLowerASCII() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// match with regular expression and return the overall match (group 0)
+	DEKAF2_NODISCARD
 	KStringView MatchRegex(const KStringView sRegEx, size_type pos = 0) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// match with regular expression and return all match groups
+	DEKAF2_NODISCARD
 	std::vector<KStringView> MatchRegexGroups(const KStringView sRegEx, size_type pos = 0) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns leftmost iCount chars of string
+	DEKAF2_NODISCARD
 	KStringView Left(size_type iCount) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns substring starting at iStart for iCount chars
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	KStringView Mid(size_type iStart, size_type iCount = npos) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns rightmost iCount chars of string
+	DEKAF2_NODISCARD
 	KStringView Right(size_type iCount) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns leftmost iCount codepoints of string
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	KStringView LeftUTF8(size_type iCount) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns substring starting at codepoint iStart for iCount codepoints
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	KStringView MidUTF8(size_type iStart, size_type iCount = npos) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns rightmost iCount UTF8 codepoints of string
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	KStringView RightUTF8(size_type iCount) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns KCcodePoint at UTF8 position iCount
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	KCodePoint AtUTF8(size_type iCount) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns true if string contains UTF8 runs
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	bool HasUTF8() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns the count of unicode codepoints (or, UTF8 sequences)
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	size_type SizeUTF8() const;
 	//-----------------------------------------------------------------------------
 
@@ -1181,6 +1194,7 @@ public:
 	/// first character after applied trimming, and trailing content after the closing quote
 	/// is not considered part of the token. Defaults to false.
 	template<typename T = std::vector<KStringView>, typename... Parms>
+	DEKAF2_NODISCARD
 	T Split(Parms&&... parms) const;
 	//-----------------------------------------------------------------------------
 
@@ -1195,13 +1209,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: output the hash value of instance by calling std::hash() for the type
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	std::size_t Hash() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: output the hash value of a lowercase ASCII version of the instance by calling std::hash() for the type
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	std::size_t CaseHash() const;
 	//-----------------------------------------------------------------------------
 
@@ -1232,11 +1246,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: caseless ASCII search
+	DEKAF2_NODISCARD
 	size_type FindCaselessASCII(const self_type str, size_type pos = 0) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: returns true if caseless ASCII search of another string is successful
+	DEKAF2_NODISCARD
 	bool ContainsCaselessASCII(const self_type str) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1244,6 +1260,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find(const self_type str, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1251,7 +1268,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
 	size_type find(value_type ch, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1259,6 +1276,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type rfind(value_type ch, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1266,6 +1284,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type rfind(const self_type sv, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1273,6 +1292,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_of(const self_type sv, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1280,6 +1300,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_of(const value_type* s, size_type pos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1287,6 +1308,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_of(const value_type* s, size_type pos, size_type count) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1294,7 +1316,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
 	size_type find_first_of(value_type ch, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1302,6 +1324,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_of(const self_type sv, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1309,6 +1332,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_of(const value_type* s, size_type pos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1316,6 +1340,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_of(const value_type* s, size_type pos, size_type count) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1323,6 +1348,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_of(value_type ch, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1330,6 +1356,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_not_of(const self_type sv, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1337,6 +1364,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_not_of(const value_type* s, size_type pos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1344,6 +1372,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_not_of(const value_type* s, size_type pos, size_type count) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1351,7 +1380,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
 	size_type find_first_not_of(value_type ch, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1359,6 +1388,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_not_of(const self_type sv, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1366,6 +1396,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_not_of(const value_type* s, size_type pos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1373,6 +1404,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_not_of(const value_type* s, size_type pos, size_type count) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1380,7 +1412,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
 	size_type find_last_not_of(value_type ch, size_type pos = npos) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1389,6 +1421,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// is string one of the values in sHaystack, delimited by iDelim?
+	DEKAF2_NODISCARD
 	bool In (const KStringView sHaystack, value_type iDelim=',') const;
 	//-----------------------------------------------------------------------------
 
@@ -1399,64 +1432,75 @@ public:
 	/// "true" --> true
 	/// "false" --> false
 	/// as well as non-0 --> true
+	DEKAF2_NODISCARD
 	bool Bool() const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// convert to int16_t - set bIsHex to true if string is a hex number
+	DEKAF2_NODISCARD
 	int16_t Int16(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// convert to uint16_t - set bIsHex to true if string is a hex number
+	DEKAF2_NODISCARD
 	uint16_t UInt16(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// convert to int32_t - set bIsHex to true if string is a hex number
+	DEKAF2_NODISCARD
 	int32_t Int32(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// convert to uint32_t - set bIsHex to true if string is a hex number
+	DEKAF2_NODISCARD
 	uint32_t UInt32(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// convert to int64_t - set bIsHex to true if string is a hex number
+	DEKAF2_NODISCARD
 	int64_t Int64(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// convert to uint64_t - set bIsHex to true if string is a hex number
+	DEKAF2_NODISCARD
 	uint64_t UInt64(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_HAS_INT128
 	//-----------------------------------------------------------------------------
 	/// convert to int128_t - set bIsHex to true if string is a hex number
+	DEKAF2_NODISCARD
 	int128_t Int128(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// convert to uint128_t - set bIsHex to true if string is a hex number
+	DEKAF2_NODISCARD
 	uint128_t UInt128(bool bIsHex = false) const noexcept;
 	//-----------------------------------------------------------------------------
 #endif
 
 	//-----------------------------------------------------------------------------
 	/// convert to float
+	DEKAF2_NODISCARD
 	float Float() const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// convert to double
+	DEKAF2_NODISCARD
 	double Double() const noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// returns true if sOther is same
-	DEKAF2_CONSTEXPR_14
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 
 	bool Equal(KStringView sOther) const noexcept
 	//-----------------------------------------------------------------------------
 	{

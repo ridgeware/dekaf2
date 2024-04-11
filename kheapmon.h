@@ -52,8 +52,10 @@ DEKAF2_NAMESPACE_BEGIN
 namespace Heap {
 
 /// return last error code - translate with strerror() .. (thread local implementation)
+DEKAF2_NODISCARD
 int LastError();
 /// print allocation stats, either as text or as JSON
+DEKAF2_NODISCARD
 KString GetStats(bool bAsJSON = false);
 
 namespace Profiling {
@@ -83,6 +85,7 @@ bool    Dump(KStringViewZ sDumpFile, ReportFormat Format, KStringView sAdditiona
 /// @param Format the output format, raw or one of the analyzed formats
 /// @param sAdditionalOptions further analysis options to pass on to the profiler, like --alloc_space, default none
 /// @return a string with the dump output
+DEKAF2_NODISCARD
 KString Dump(ReportFormat Format, KStringView sAdditionalOptions = KStringView{});
 /// clear/reset collected data
 bool    Reset();

@@ -73,6 +73,7 @@ public:
 	} // KEnc::HexAppend
 
 	/// Convert an input string to hexadecimal
+	DEKAF2_NODISCARD
 	static KString Hex(KStringView sIn)
 	{
 		return kHex(sIn);
@@ -85,6 +86,7 @@ public:
 	}
 
 	/// Wrapper around KBase64::Encode. Does the same.
+	DEKAF2_NODISCARD
 	static KString Base64(KStringView sIn)
 	{
 		return KBase64::Encode(sIn);
@@ -97,6 +99,7 @@ public:
 	}
 
 	/// Wrapper around KBase64Url::Encode. Does the same.
+	DEKAF2_NODISCARD
 	static KString Base64Url(KStringView sIn)
 	{
 		return KBase64Url::Encode(sIn);
@@ -109,6 +112,7 @@ public:
 	}
 
 	/// Wrapper around KQuotedPrintable::Encode. Does the same.
+	DEKAF2_NODISCARD
 	static KString QuotedPrintable(KStringView sIn, bool bForMailHeaders = false)
 	{
 		return KQuotedPrintable::Encode(sIn, bForMailHeaders);
@@ -121,6 +125,7 @@ public:
 	}
 
 	/// Wrapper around kURLEncode. Does the same with a different interface.
+	DEKAF2_NODISCARD
 	static KString URL(KStringView sIn, URIPart URIpart = URIPart::Query)
 	{
 		KString sRet;
@@ -135,6 +140,7 @@ public:
 	}
 
 	/// Wrapper around kHTMLEntityEncode. Does the same.
+	DEKAF2_NODISCARD
 	static KString HTML(KStringView sIn)
 	{
 		return KHTMLEntity::Encode(sIn);
@@ -147,6 +153,7 @@ public:
 	}
 
 	/// Wrapper around kHTMLEntityEncode. Does the same.
+	DEKAF2_NODISCARD
 	static KString XML(KStringView sIn)
 	{
 		return KHTMLEntity::Encode(sIn);
@@ -171,6 +178,7 @@ public:
 //----------
 
 	/// Decode a hexadecimal input string
+	DEKAF2_NODISCARD
 	static KString Hex(KStringView sIn)
 	{
 		return kUnHex(sIn);
@@ -183,6 +191,7 @@ public:
 	}
 
 	/// Wrapper around KBase64::Decode. Does the same.
+	DEKAF2_NODISCARD
 	static KString Base64(KStringView sIn)
 	{
 		return KBase64::Decode(sIn);
@@ -195,6 +204,7 @@ public:
 	}
 
 	/// Wrapper around KBase64Url::Decode. Does the same.
+	DEKAF2_NODISCARD
 	static KString Base64Url(KStringView sIn)
 	{
 		return KBase64Url::Decode(sIn);
@@ -207,6 +217,7 @@ public:
 	}
 
 	/// Wrapper around KQuotedPrintable::Decode. Does the same.
+	DEKAF2_NODISCARD
 	static KString QuotedPrintable(KStringView sIn, bool bDotStuffing = true)
 	{
 		return KQuotedPrintable::Decode(sIn, bDotStuffing);
@@ -219,6 +230,7 @@ public:
 	}
 
 	/// Wrapper around kUrlDecode. Does the same.
+	DEKAF2_NODISCARD
 	static KString URL(KStringView sIn, URIPart URIpart = URIPart::Query)
 	{
 		return kUrlDecode<KString>(sIn, URIpart == URIPart::Query);
@@ -231,6 +243,7 @@ public:
 	}
 
 	/// Wrapper around KHTMLEntity::Decode. Does the same.
+	DEKAF2_NODISCARD
 	static KString HTML(KStringView sIn)
 	{
 		return KHTMLEntity::Decode(sIn);
@@ -243,6 +256,7 @@ public:
 	}
 
 	/// Wrapper around KHTMLEntity::Decode. Does the same.
+	DEKAF2_NODISCARD
 	static KString XML(KStringView sIn)
 	{
 		return KHTMLEntity::Decode(sIn);

@@ -215,6 +215,7 @@ void kJoin (Result& Out,
 //-----------------------------------------------------------------------------
 /// join for sequential and associative containers, returns result
 template<typename Container, typename Result = KString>
+DEKAF2_NODISCARD
 Result kJoined (
 			const Container& ctContainer,
 			KStringView svDelim = ",",

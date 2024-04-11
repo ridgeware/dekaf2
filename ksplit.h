@@ -336,7 +336,7 @@ std::size_t kSplit(
 template<typename Container = std::vector<KStringView>,
 	typename std::enable_if<detail::has_key_type<Container>::value == false
 								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == false, int>::type = 0 >
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 Container kSplits(
 			  KStringView svBuffer,
 			  const char Delim
@@ -371,7 +371,7 @@ Container kSplits(
 template<typename Container = std::vector<KStringView>,
 	typename std::enable_if<detail::has_key_type<Container>::value == false
 								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == false, int>::type = 0 >
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 Container kSplits(
 			  KStringView svBuffer,
 			  const KFindSetOfChars& Delim   = detail::kCommaSet,       // default: comma delimiter
@@ -399,7 +399,7 @@ Container kSplits(
 /// auto Pair = kSplitToPair("Apples = Oranges");
 /// // -> Pair.first == "Apples" and Pair.second == "Oranges"
 /// @endcode
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStringViewPair kSplitToPair(
         KStringView svBuffer,
         KStringView svPairDelim     = "=",                     // default: equal delimiter
@@ -693,7 +693,7 @@ std::size_t kSplit(
 
 template<typename Container,
 	typename std::enable_if<detail::is_set_type<Container>::value == true, int>::type = 0 >
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 Container kSplits(
 			  KStringView svBuffer,
 			  const KFindSetOfChars& Delim   = detail::kCommaSet,       // default: comma delimiter
@@ -733,7 +733,7 @@ Container kSplits(
 
 template<typename Container,
 	typename std::enable_if<detail::is_map_type<Container>::value == true, int>::type = 0 >
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 Container kSplits(
 			  KStringView svBuffer,
 			  const KFindSetOfChars& Delim   = detail::kCommaSet,       // default: comma delimiter
@@ -824,7 +824,7 @@ std::size_t kSplit(
 template<typename Container,
 	typename std::enable_if<detail::has_key_type<Container>::value == false
 								&& std::is_constructible<typename Container::value_type, KStringViewPair>::value == true, int>::type = 0 >
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 Container kSplits(
 			  KStringView svBuffer,
 			  const KFindSetOfChars& Delim   = detail::kCommaSet,       // default: comma delimiter
@@ -976,6 +976,7 @@ typename std::enable_if<
 		std::is_constructible<typename Container::value_type, KStringViewPair>::value == false
 	, int>::type = 0
 >
+DEKAF2_NODISCARD
 Container kSplitsArgs (KStringView svBuffer)
 //-----------------------------------------------------------------------------
 {

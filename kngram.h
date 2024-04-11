@@ -174,6 +174,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns match percentage of Needle in Haystack
+	DEKAF2_NODISCARD
 	static uint16_t Concordance(const KNGrams& Needle, const KNGrams& Haystack)
 	//-----------------------------------------------------------------------------
 	{
@@ -237,6 +238,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns match percentage
+	DEKAF2_NODISCARD
 	uint16_t Concordance(const KNGrams& Needle)
 	//-----------------------------------------------------------------------------
 	{
@@ -245,6 +247,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns match percentage
+	DEKAF2_NODISCARD
 	uint16_t Concordance(StringView sNeedle)
 	//-----------------------------------------------------------------------------
 	{
@@ -254,6 +257,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns match percentage
+	DEKAF2_NODISCARD
 	static uint16_t Concordance(StringView sNeedle, StringView sHaystack)
 	//-----------------------------------------------------------------------------
 	{
@@ -264,6 +268,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// returns match percentage, makes sure the longer sequence is matched on the
 	/// shorter one
+	DEKAF2_NODISCARD
 	static uint16_t Match(const KNGrams& Left, const KNGrams& Right)
 	//-----------------------------------------------------------------------------
 	{
@@ -273,6 +278,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// returns match percentage, makes sure the longer sequence is matched on the
 	/// shorter one
+	DEKAF2_NODISCARD
 	uint16_t Match(const KNGrams& other)
 	//-----------------------------------------------------------------------------
 	{
@@ -282,6 +288,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// returns match percentage, makes sure the longer sequence is matched on the
 	/// shorter one
+	DEKAF2_NODISCARD
 	uint16_t Match(StringView sOther)
 	//-----------------------------------------------------------------------------
 	{
@@ -292,6 +299,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// returns match percentage, makes sure the longer sequence is matched on the
 	/// shorter one
+	DEKAF2_NODISCARD
 	static uint16_t Match(StringView sLeft, StringView sRight)
 	//-----------------------------------------------------------------------------
 	{
@@ -308,6 +316,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns count of ngrams
+	DEKAF2_NODISCARD
 	size_type size() const
 	//-----------------------------------------------------------------------------
 	{

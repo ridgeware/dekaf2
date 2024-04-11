@@ -514,7 +514,7 @@ KString KHTTPRequestHeaders::GetRemoteIP() const
 			}
 		}
 
-		sBrowserIP.ToLowerASCII();
+		sBrowserIP.MakeLowerASCII();
 	}
 
 	return sBrowserIP;

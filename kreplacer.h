@@ -146,15 +146,18 @@ public:
 	void AddDebugToken (KStringView sTokenName="DEBUG");
 
 	/// Replaces all variables (tokens) in sIn with their values, returns new string
+	DEKAF2_NODISCARD
 	KString Replace(KStringView sIn) const;
 
 	/// Replaces all variables in sIn with their values, modifying the string in place
 	void ReplaceInPlace(KStringRef& sIn) const;
 
 	/// convert tokens to json keys
+	DEKAF2_NODISCARD
 	KJSON to_json ();
 
 	/// dump all tokens (for debugging)
+	DEKAF2_NODISCARD
 	KString dump (const int iIndent=1, const char indent_char='\t');
 
 	/// helper function for SVGs and HTMLs that have messed up DEKAF {{tokens}}

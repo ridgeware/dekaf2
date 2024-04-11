@@ -211,6 +211,7 @@ void kUrlDecode (const StringView& sSource, String& sTarget, bool bPlusAsSpace =
 /// @param bPlusAsSpace if true, a + sign will be translated as space, default is false
 /// @return the decoded string
 template<class String = KString, class StringView = KStringView>
+DEKAF2_NODISCARD
 String kUrlDecode (const StringView& sSource, bool bPlusAsSpace = false)
 //-----------------------------------------------------------------------------
 {
@@ -301,6 +302,7 @@ void kUrlEncode (KStringView sSource, String& sTarget, URIPart encoding = URIPar
 /// defaults to URIPart::Protocol and hence encodes most defensively per default
 /// @return the output string
 template<class String = KString>
+DEKAF2_NODISCARD
 String kUrlEncode (KStringView sSource, URIPart encoding = URIPart::Protocol)
 //-----------------------------------------------------------------------------
 {
@@ -344,6 +346,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return the decoded value
+	DEKAF2_NODISCARD
 	value_type& get()
 	//-------------------------------------------------------------------------
 	{
@@ -352,6 +355,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// return the (const) decoded value
+	DEKAF2_NODISCARD
 	const value_type& get() const
 	//-------------------------------------------------------------------------
 	{
@@ -415,6 +419,7 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// serialize into a string
+	DEKAF2_NODISCARD
 	KString Serialize(URIPart Component) const
 	//-------------------------------------------------------------------------
 	{
@@ -498,6 +503,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// return the begin iterator
 	template<bool X = bIsPod, typename std::enable_if<!X, int>::type = 0 >
+	DEKAF2_NODISCARD
 	auto begin()
 	//-------------------------------------------------------------------------
 	{
@@ -507,6 +513,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// return the end iterator
 	template<bool X = bIsPod, typename std::enable_if<!X, int>::type = 0 >
+	DEKAF2_NODISCARD
 	auto end()
 	//-------------------------------------------------------------------------
 	{
@@ -516,6 +523,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// return the begin iterator
 	template<bool X = bIsPod, typename std::enable_if<!X, int>::type = 0 >
+	DEKAF2_NODISCARD
 	auto begin() const
 	//-------------------------------------------------------------------------
 	{
@@ -525,6 +533,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// return the const iterator
 	template<bool X = bIsPod, typename std::enable_if<!X, int>::type = 0 >
+	DEKAF2_NODISCARD
 	auto end() const
 	//-------------------------------------------------------------------------
 	{
@@ -543,6 +552,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// is this object empty?
 	template<bool X = bIsPod, typename std::enable_if<X == false, int>::type = 0>
+	DEKAF2_NODISCARD
 	bool empty() const
 	//-------------------------------------------------------------------------
 	{
@@ -552,6 +562,7 @@ public:
 	//-------------------------------------------------------------------------
 	/// is this object empty?
 	template<bool X = bIsPod, typename std::enable_if<X == true, int>::type = 0>
+	DEKAF2_NODISCARD
 	bool empty() const
 	//-------------------------------------------------------------------------
 	{

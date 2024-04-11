@@ -95,6 +95,7 @@ public:
 	self& Message(KString sMessage);
 
 	/// Returns true if this mail has all elements needed for expedition
+	DEKAF2_NODISCARD
 	bool Good() const;
 
 	/// Send the mail via MTA at URL. URL may contain a user's name and pass, or
@@ -182,30 +183,39 @@ public:
 	}
 
 	/// Returns the To recipients
+	DEKAF2_NODISCARD
 	const map_t& To() const;
 
 	/// Returns the Cc recipients
+	DEKAF2_NODISCARD
 	const map_t& Cc() const;
 
 	/// Returns the Bcc recipients
+	DEKAF2_NODISCARD
 	const map_t& Bcc() const;
 
 	/// Returns the sender (only first entry in map is valid)
+	DEKAF2_NODISCARD
 	const map_t& From() const;
 
 	/// Returns the subject
+	DEKAF2_NODISCARD
 	const KString& Subject() const;
 
 	/// Returns the message
+	DEKAF2_NODISCARD
 	KString Serialize() const;
 
 	/// Returns creation time
+	DEKAF2_NODISCARD
 	KUnixTime Time() const;
 
 	/// Returns last error
+	DEKAF2_NODISCARD
 	const KString& Error() const;
 
 	/// Returns last error
+	DEKAF2_NODISCARD
 	const KString& GetLastError() const { return Error(); }
 
 //----------

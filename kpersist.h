@@ -68,6 +68,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	template <class Value>
+	DEKAF2_NODISCARD
 	const Storage& Persist(Value&& value)
 	//-----------------------------------------------------------------------------
 	{
@@ -93,6 +94,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	template <class Value>
+	DEKAF2_NODISCARD
 	Storage& MutablePersist(Value&& value)
 	//-----------------------------------------------------------------------------
 	{
@@ -103,6 +105,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	template <class Value>
+	DEKAF2_NODISCARD
 	const_iterator find(Value&& value) const
 	//-----------------------------------------------------------------------------
 	{
@@ -110,6 +113,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	const_iterator begin() const
 	//-----------------------------------------------------------------------------
 	{
@@ -117,6 +121,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	const_iterator end() const
 	//-----------------------------------------------------------------------------
 	{
@@ -124,6 +129,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	bool empty() const
 	//-----------------------------------------------------------------------------
 	{
@@ -167,6 +173,7 @@ public:
 	                  typename String::const_pointer,
 	                  typename std::decay<Value>::type
 	              >::value, int>::type = 0>
+	DEKAF2_NODISCARD
 	typename String::const_pointer Persist(Value&& value)
 	//-----------------------------------------------------------------------------
 	{
@@ -188,6 +195,7 @@ public:
 	                  typename String::value_type,
 	                  typename std::decay<Value>::type::value_type
 	              >::value, int>::type = 0>
+	DEKAF2_NODISCARD
 	typename std::decay<Value>::type Persist(Value&& value)
 	//-----------------------------------------------------------------------------
 	{
@@ -209,6 +217,7 @@ public:
 	                  typename String::const_pointer,
 	                  typename std::decay<Value>::type
 	              >::value, int>::type = 0>
+	DEKAF2_NODISCARD
 	const String& Persist(Value&& value)
 	//-----------------------------------------------------------------------------
 	{

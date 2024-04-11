@@ -307,6 +307,14 @@ size_t UTF8Bytes(Ch sch)
 
 namespace KUTF8_detail {
 
+#if !defined __clang__ && defined __GNUC__ && __GNUC__ < 9
+// GCC < 9 erroneously see the .size() member return value not being used,
+// although it is in a pure SFINAE context. Using a string class which has
+// [[nodiscard]] set for the size() member would cause a build failure.
+// Hence we disable the check for the following class.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
+#endif
 // SFINAE helper to distinguish between string classes and iterators
 template <typename T>
 class HasSize
@@ -323,6 +331,9 @@ private:
 public:
 	static constexpr bool const value = sizeof(Test<T>(0)) == sizeof(Yes);
 };
+#if !defined __clang__ && defined __GNUC__ && __GNUC__ < 9
+#pragma GCC diagnostic pop
+#endif
 
 } // end of namespace KUTF8_detail
 

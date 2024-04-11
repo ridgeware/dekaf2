@@ -155,6 +155,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Gets the maximum size of the container.
+	DEKAF2_NODISCARD
 	size_t GetMaxSize() const
 	//-----------------------------------------------------------------------------
 	{
@@ -192,6 +193,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Return an iterator on the first element in the MRU sequence.
+	DEKAF2_NODISCARD
 	iterator begin()
 	//-----------------------------------------------------------------------------
 	{
@@ -200,6 +202,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Return an end iterator.
+	DEKAF2_NODISCARD
 	iterator end()
 	//-----------------------------------------------------------------------------
 	{
@@ -210,6 +213,7 @@ public:
 	/// Finds the element with the given key. Returns end() if not found. Moves
 	/// the element to the top of the MRU list if found.
 	template<class K>
+	DEKAF2_NODISCARD
 	iterator find(const K& key)
 	//-----------------------------------------------------------------------------
 	{
@@ -231,6 +235,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns the size of the container.
+	DEKAF2_NODISCARD
 	size_t size() const
 	//-----------------------------------------------------------------------------
 	{
@@ -239,6 +244,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Checks if the container is empty.
+	DEKAF2_NODISCARD
 	bool empty() const
 	//-----------------------------------------------------------------------------
 	{

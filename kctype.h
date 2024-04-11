@@ -311,6 +311,7 @@ public:
 //------
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	Property GetProperty() const
 	//-----------------------------------------------------------------------------
 	{
@@ -325,6 +326,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	uint8_t GetCategory() const
 	//-----------------------------------------------------------------------------
 	{
@@ -332,6 +334,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	uint8_t GetType() const
 	//-----------------------------------------------------------------------------
 	{
@@ -339,6 +342,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	int32_t GetCaseFoldToLower() const
 	//-----------------------------------------------------------------------------
 	{
@@ -355,6 +359,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	int32_t GetCaseFoldToUpper() const
 	//-----------------------------------------------------------------------------
 	{
@@ -371,7 +376,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	CTYPE GetASCIIType() const
 	//-----------------------------------------------------------------------------
 	{
@@ -379,7 +384,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	static bool IsASCIISpace(CTYPE ctype)
 	//-----------------------------------------------------------------------------
 	{
@@ -387,7 +392,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsASCIISpace() const
 	//-----------------------------------------------------------------------------
 	{
@@ -395,6 +400,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	bool IsSpace() const
 	//-----------------------------------------------------------------------------
 	{
@@ -409,7 +415,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	static bool IsASCIIBlank(CTYPE ctype)
 	//-----------------------------------------------------------------------------
 	{
@@ -417,7 +423,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsASCIIBlank() const
 	//-----------------------------------------------------------------------------
 	{
@@ -425,6 +431,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	bool IsBlank() const
 	//-----------------------------------------------------------------------------
 	{
@@ -439,7 +446,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	static bool IsASCIILower(CTYPE ctype)
 	//-----------------------------------------------------------------------------
 	{
@@ -447,7 +454,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsASCIILower() const
 	//-----------------------------------------------------------------------------
 	{
@@ -455,6 +462,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	bool IsLower() const
 	//-----------------------------------------------------------------------------
 	{
@@ -469,7 +477,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	static bool IsASCIIUpper(CTYPE ctype)
 	//-----------------------------------------------------------------------------
 	{
@@ -477,7 +485,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsASCIIUpper() const
 	//-----------------------------------------------------------------------------
 	{
@@ -485,7 +493,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	bool IsUpper() const
+	DEKAF2_NODISCARD bool IsUpper() const
 	//-----------------------------------------------------------------------------
 	{
 		if (DEKAF2_LIKELY(m_CodePoint <= MAX_TABLE))
@@ -499,7 +507,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	static bool IsASCIITitle(CTYPE ctype)
 	//-----------------------------------------------------------------------------
 	{
@@ -507,7 +515,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsASCIITitle() const
 	//-----------------------------------------------------------------------------
 	{
@@ -515,6 +523,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	bool IsTitle() const
 	//-----------------------------------------------------------------------------
 	{
@@ -529,7 +538,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	static bool IsASCIIAlpha(CTYPE ctype)
 	//-----------------------------------------------------------------------------
 	{
@@ -537,7 +546,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsASCIIAlpha() const
 	//-----------------------------------------------------------------------------
 	{
@@ -545,6 +554,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	bool IsAlpha() const
 	//-----------------------------------------------------------------------------
 	{
@@ -560,7 +570,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsASCIIAlNum() const
 	//-----------------------------------------------------------------------------
 	{
@@ -568,6 +578,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	bool IsAlNum() const
 	//-----------------------------------------------------------------------------
 	{
@@ -575,7 +586,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	static bool IsASCIIPunct(CTYPE ctype)
 	//-----------------------------------------------------------------------------
 	{
@@ -583,7 +594,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsASCIIPunct() const
 	//-----------------------------------------------------------------------------
 	{
@@ -591,6 +602,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	bool IsPunct() const
 	//-----------------------------------------------------------------------------
 	{
@@ -598,7 +610,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	static bool IsASCIIDigit(CTYPE ctype)
 	//-----------------------------------------------------------------------------
 	{
@@ -606,7 +618,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsASCIIDigit() const
 	//-----------------------------------------------------------------------------
 	{
@@ -614,7 +626,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsDigit() const
 	//-----------------------------------------------------------------------------
 	{
@@ -622,7 +634,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	static bool IsASCIIXDigit(CTYPE ctype)
 	//-----------------------------------------------------------------------------
 	{
@@ -630,7 +642,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsASCIIXDigit() const
 	//-----------------------------------------------------------------------------
 	{
@@ -638,7 +650,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsXDigit() const
 	//-----------------------------------------------------------------------------
 	{
@@ -646,6 +658,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	bool IsUnicodeDigit() const
 	//-----------------------------------------------------------------------------
 	{
@@ -660,7 +673,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	static bool IsASCIIPrint(CTYPE ctype)
 	//-----------------------------------------------------------------------------
 	{
@@ -668,7 +681,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsASCIIPrint() const
 	//-----------------------------------------------------------------------------
 	{
@@ -676,7 +689,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	static bool IsASCIICntrl(CTYPE ctype)
 	//-----------------------------------------------------------------------------
 	{
@@ -684,7 +697,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	constexpr
+	DEKAF2_NODISCARD constexpr
 	bool IsASCIICntrl() const
 	//-----------------------------------------------------------------------------
 	{
@@ -692,6 +705,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	KCodePoint ToUpper() const
 	//-----------------------------------------------------------------------------
 	{
@@ -699,6 +713,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
 	KCodePoint ToLower() const
 	//-----------------------------------------------------------------------------
 	{
@@ -726,8 +741,7 @@ public:
 namespace KASCII {
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline KCodePoint::CTYPE kCharType(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -735,8 +749,7 @@ inline KCodePoint::CTYPE kCharType(uint16_t ch)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsSpace(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -744,8 +757,7 @@ inline bool kIsSpace(KCodePoint::CTYPE ctype)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsSpace(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -753,8 +765,7 @@ inline bool kIsSpace(uint16_t ch)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsBlank(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -762,8 +773,7 @@ inline bool kIsBlank(KCodePoint::CTYPE ctype)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsBlank(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -771,8 +781,7 @@ inline bool kIsBlank(uint16_t ch)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsDigit(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -780,8 +789,7 @@ inline bool kIsDigit(KCodePoint::CTYPE ctype)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsDigit(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -789,8 +797,7 @@ inline bool kIsDigit(uint16_t ch)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsXDigit(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -798,8 +805,7 @@ inline bool kIsXDigit(KCodePoint::CTYPE ctype)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsXDigit(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -807,8 +813,7 @@ inline bool kIsXDigit(uint16_t ch)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsAlpha(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -816,8 +821,7 @@ inline bool kIsAlpha(KCodePoint::CTYPE ctype)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsAlpha(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -825,8 +829,7 @@ inline bool kIsAlpha(uint16_t ch)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsAlNum(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -834,8 +837,7 @@ inline bool kIsAlNum(KCodePoint::CTYPE ctype)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsAlNum(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -843,8 +845,7 @@ inline bool kIsAlNum(uint16_t ch)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsPunct(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -852,8 +853,7 @@ inline bool kIsPunct(KCodePoint::CTYPE ctype)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsPunct(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -861,8 +861,7 @@ inline bool kIsPunct(uint16_t ch)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsLower(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -870,8 +869,7 @@ inline bool kIsLower(KCodePoint::CTYPE ctype)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsLower(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -879,8 +877,7 @@ inline bool kIsLower(uint16_t ch)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsUpper(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -888,8 +885,7 @@ inline bool kIsUpper(KCodePoint::CTYPE ctype)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsUpper(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -897,8 +893,7 @@ inline bool kIsUpper(uint16_t ch)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsPrint(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -906,8 +901,7 @@ inline bool kIsPrint(KCodePoint::CTYPE ctype)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsPrint(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -915,8 +909,7 @@ inline bool kIsPrint(uint16_t ch)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsCntrl(KCodePoint::CTYPE ctype)
 //-----------------------------------------------------------------------------
 {
@@ -924,8 +917,7 @@ inline bool kIsCntrl(KCodePoint::CTYPE ctype)
 }
 
 //-----------------------------------------------------------------------------
-constexpr
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline bool kIsCntrl(uint16_t ch)
 //-----------------------------------------------------------------------------
 {
@@ -934,7 +926,7 @@ inline bool kIsCntrl(uint16_t ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
-constexpr
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline CP kToLower(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -943,7 +935,7 @@ inline CP kToLower(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
-constexpr
+DEKAF2_NODISCARD constexpr DEKAF2_PUBLIC
 inline CP kToUpper(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -956,6 +948,7 @@ inline CP kToUpper(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline bool kIsSpace(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -964,6 +957,7 @@ inline bool kIsSpace(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline bool kIsBlank(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -972,6 +966,7 @@ inline bool kIsBlank(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline bool kIsLower(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -980,6 +975,7 @@ inline bool kIsLower(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline bool kIsUpper(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -988,6 +984,7 @@ inline bool kIsUpper(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline bool kIsTitle(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -996,6 +993,7 @@ inline bool kIsTitle(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline bool kIsAlpha(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -1004,6 +1002,7 @@ inline bool kIsAlpha(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline bool kIsAlNum(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -1012,6 +1011,7 @@ inline bool kIsAlNum(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline bool kIsPunct(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -1020,6 +1020,7 @@ inline bool kIsPunct(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline bool kIsDigit(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -1028,6 +1029,7 @@ inline bool kIsDigit(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline bool kIsUnicodeDigit(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -1036,6 +1038,7 @@ inline bool kIsUnicodeDigit(CP ch)
 
 //-----------------------------------------------------------------------------
 template<class CP>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline bool kIsXDigit(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -1046,6 +1049,7 @@ inline bool kIsXDigit(CP ch)
 template<class CP,
          typename std::enable_if<std::is_integral<CP>::value, int>::type = 0
 >
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline CP kToLower(CP ch)
 //-----------------------------------------------------------------------------
 {
@@ -1056,6 +1060,7 @@ inline CP kToLower(CP ch)
 template<class CP,
          typename std::enable_if<std::is_integral<CP>::value, int>::type = 0
 >
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline CP kToUpper(CP ch)
 //-----------------------------------------------------------------------------
 {

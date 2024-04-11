@@ -180,6 +180,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Returns the current KLOG operation mode
+	DEKAF2_NODISCARD
 	LOGMODE GetMode() const
 	//---------------------------------------------------------------------------
 	{
@@ -193,6 +194,7 @@ public:
 	//---------------------------------------------------------------------------
 	/// Gets the current log level. Any log message that has a higher level than
 	/// this value is not output.
+	DEKAF2_NODISCARD
 	static inline int GetLevel()
 	//---------------------------------------------------------------------------
 	{
@@ -238,6 +240,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// get state of microsecond mode
+	DEKAF2_NODISCARD
 	bool GetUSecMode()
 	//---------------------------------------------------------------------------
 	{
@@ -250,6 +253,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Get level at which back traces are automatically generated.
+	DEKAF2_NODISCARD
 	inline int GetBackTraceLevel() const
 	//---------------------------------------------------------------------------
 	{
@@ -286,6 +290,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Returns JSON trace mode, one of off,short,full
+	DEKAF2_NODISCARD
 	KStringView GetJSONTrace() const
 	//---------------------------------------------------------------------------
 #ifdef DEKAF2_WITH_KLOG
@@ -307,6 +312,7 @@ public:
 	//---------------------------------------------------------------------------
 	/// Get the full application path name as determined by the OS (not related to SetName() )
 	/// deprecated, use kGetOwnPathname() in ksystem.h
+	DEKAF2_NODISCARD
 	KStringViewZ GetName() const
 	//---------------------------------------------------------------------------
 	{
@@ -355,6 +361,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Gets the file name of the output file for the log.
+	DEKAF2_NODISCARD
 	inline KStringViewZ GetDebugLog() const
 	//---------------------------------------------------------------------------
 	{
@@ -379,6 +386,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Gets the file name of the flag file.
+	DEKAF2_NODISCARD
 	inline KStringViewZ GetDebugFlag() const
 	//---------------------------------------------------------------------------
 	{
@@ -401,6 +409,7 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// Returns true while KLog is available - indication that the executable is neiter in init or exit state
+	DEKAF2_NODISCARD
 	bool Available() const
 	//---------------------------------------------------------------------------
 	{

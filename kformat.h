@@ -107,7 +107,7 @@ KString kFormat(const std::locale& locale, KStringView sFormat, const dekaf2_for
 //-----------------------------------------------------------------------------
 // C++20
 /// format no-op
-inline DEKAF2_PUBLIC
+DEKAF2_NODISCARD inline DEKAF2_PUBLIC
 KString kFormat(KStringView sFormat) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -118,6 +118,7 @@ KString kFormat(KStringView sFormat) noexcept
 // C++20
 /// formats a KString using Python syntax
 template<class... Args, typename std::enable_if<sizeof...(Args) != 0, int>::type = 0>
+DEKAF2_NODISCARD
 KString kFormat(KStringView sFormat, Args&&... args) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -128,6 +129,7 @@ KString kFormat(KStringView sFormat, Args&&... args) noexcept
 // C++20
 /// formats a KString using Python syntax, using locale specification for decimal points and time formatting (month and day names)
 template<class... Args>
+DEKAF2_NODISCARD
 KString kFormat(const std::locale& locale, KStringView sFormat, Args&&... args) noexcept
 //-----------------------------------------------------------------------------
 {

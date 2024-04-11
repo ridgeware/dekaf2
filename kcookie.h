@@ -76,30 +76,36 @@ public:
 
 	/// serialize the value part of the Cookie header
 	/// @param URL the URL for which this cookie is serialized
+	DEKAF2_NODISCARD
 	KString Serialize(const KURL& URL) const;
 
 	/// serialize the value part of the Cookie header unconditionally -
 	/// only use this after testing with WouldSerialize() that this
 	/// cookie is used in a valid context
+	DEKAF2_NODISCARD
 	KString Serialize() const;
 
 	/// returns true if the cookie is valid in context of the URL
 	/// @param URL the URL for which this cookie is serialized
+	DEKAF2_NODISCARD
 	bool WouldSerialize(const KURL& URL) const;
 
 	/// clear the cookie
 	void clear();
 
 	/// is this cookie empty?
+	DEKAF2_NODISCARD
 	bool empty() const;
 
 	/// returns the name of the cookie
+	DEKAF2_NODISCARD_PEDANTIC
 	const KString& Name() const
 	{
 		return m_sName;
 	}
 
 	/// returns the value of the cookie
+	DEKAF2_NODISCARD_PEDANTIC
 	const KString& Value() const
 	{
 		return m_sValue;
@@ -137,6 +143,7 @@ public:
 
 	/// serialize the value part of the Cookie header
 	/// @param URL the URL for which this cookie is serialized
+	DEKAF2_NODISCARD
 	KString Serialize(const KURL& URL) const;
 
 	/// remove all cookies
@@ -146,12 +153,14 @@ public:
 	}
 
 	/// returns count of cookies
+	DEKAF2_NODISCARD_PEDANTIC
 	std::size_t size() const
 	{
 		return m_Cookies.size();
 	}
 
 	/// returns true when we do not have cookies
+	DEKAF2_NODISCARD
 	bool empty() const
 	{
 		return m_Cookies.empty();

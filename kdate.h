@@ -331,6 +331,7 @@ constexpr KStringView fDefaultDate { "{:%Y-%m-%d}" };
 // (from https://howardhinnant.github.io/date_algorithms.html#days_from_civil )
 // "Consider these donated to the public domain."
 //-----------------------------------------------------------------------------
+DEKAF2_NODISCARD
 constexpr chrono::days days_from_civil(const chrono::year_month_day& ymd) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -350,6 +351,7 @@ constexpr chrono::days days_from_civil(const chrono::year_month_day& ymd) noexce
 
 // compute the weekday from ymd without going over days_from_civil
 //-----------------------------------------------------------------------------
+DEKAF2_NODISCARD
 constexpr chrono::weekday weekday_from_civil(const chrono::year_month_day& ymd) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -403,6 +405,7 @@ constexpr inline uint32_t compute_lookup_offsets()
 // to do bounds checking, which we do not want to expense - so we use a lookup table
 // for the month start offsets from a naive first calculation (m * 31) that is condensed
 // into an unsigned integer and accessed by bit shifts - all in a constant expression.
+DEKAF2_NODISCARD
 constexpr chrono::days yearday_from_civil(const chrono::year_month_day& ymd) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -444,41 +447,58 @@ public:
 	using base::base;
 
 	/// return chrono::days
+	DEKAF2_NODISCARD
 	constexpr chrono::days    days           () const noexcept { return chrono::days  (unsigned(day()));   }
 	/// return chrono::months
+	DEKAF2_NODISCARD
 	constexpr chrono::months  months         () const noexcept { return chrono::months(unsigned(month())); }
 	/// return chrono::years
+	DEKAF2_NODISCARD
 	constexpr chrono::years   years          () const noexcept { return chrono::years (signed(year()));    }
 	/// return weekday
+	DEKAF2_NODISCARD
 	constexpr chrono::weekday weekday        () const noexcept { return chrono::weekday(detail::weekday_from_civil(*this)); }
 	/// return day of year (Jan 01 == 1)
+	DEKAF2_NODISCARD
 	constexpr chrono::days    yearday        () const noexcept { return detail::yearday_from_civil(*this); }
 	/// returns true if year is leap year
+	DEKAF2_NODISCARD
 	constexpr bool            is_leap        () const noexcept { return year().is_leap();                  }
 	/// returns the last day of the month
+	DEKAF2_NODISCARD
 	constexpr chrono::day     last_day       () const noexcept { return chrono::year_month_day_last(year(), chrono::month_day_last(month())).day(); }
 	/// returns true if this is the last day of its month
+	DEKAF2_NODISCARD
 	constexpr bool            is_last_day    () const noexcept { return last_day() == day();               }
 	/// returns true if day or month are zero (which is the state after default construction)
+	DEKAF2_NODISCARD
 	constexpr bool            empty          () const noexcept { return day() == chrono::day(0) || month() == chrono::month(0); }
 	/// returns true if this is a valid date
 	constexpr explicit        operator bool  () const noexcept { return ok();                              }
 
 	/// return count of days in epoch
+	DEKAF2_NODISCARD
 	constexpr chrono::sys_days to_sys_days   () const noexcept { return chrono::sys_days(detail::days_from_civil(*this)); }
 	/// return count of days in epoch
+	DEKAF2_NODISCARD
 	constexpr chrono::local_days to_local_days () const noexcept { return chrono::local_days(detail::days_from_civil(*this));  }
 	/// return KUnixTime
+	DEKAF2_NODISCARD
 	constexpr KUnixTime       to_unix        ()  const noexcept; // this one is implemented in ktime.h ..
 	/// return struct tm (needed for efficient formatting)
+	DEKAF2_NODISCARD
 	constexpr std::tm         to_tm          ()  const noexcept;
 	/// return a string following std::format patterns - default = %Y-%m-%d
+	DEKAF2_NODISCARD
 	KString                   Format         (KStringView sFormat = detail::fDefaultDate) const { return to_string(sFormat);   }
 	/// return a string following std::format patterns - default = %Y-%m-%d
+	DEKAF2_NODISCARD
 	KString                   to_string      (KStringView sFormat = detail::fDefaultDate) const;
 	/// return a string following std::format patterns, use given locale for formatting - default = %Y-%m-%d
+	DEKAF2_NODISCARD
 	KString                   Format         (const std::locale& locale, KStringView sFormat = detail::fDefaultDate) const { return to_string(locale, sFormat);   }
 	/// return a string following std::format patterns, use given locale for formatting - default = %Y-%m-%d
+	DEKAF2_NODISCARD
 	KString                   to_string      (const std::locale& locale, KStringView sFormat = detail::fDefaultDate) const;
 
 	// has also day()/month()/year() from its base
@@ -498,6 +518,7 @@ private:
 
 
 //-----------------------------------------------------------------------------
+DEKAF2_NODISCARD
 constexpr std::tm KConstDate::to_tm () const noexcept
 //-----------------------------------------------------------------------------
 {
@@ -654,14 +675,19 @@ public:
 	using base::base;
 
 	/// return chrono::days
+	DEKAF2_NODISCARD
 	constexpr chrono::days    to_days        () const noexcept { return *this;                                    }
 	/// return floored chrono::weeks
+	DEKAF2_NODISCARD
 	constexpr chrono::weeks   to_weeks       () const noexcept { return chrono::floor<chrono::weeks>(to_days());  }
 	/// return floored chrono::months
+	DEKAF2_NODISCARD
 	constexpr chrono::months  to_months      () const noexcept { return chrono::floor<chrono::months>(to_days()); }
 	/// return floored chrono::years
+	DEKAF2_NODISCARD
 	constexpr chrono::years   to_years       () const noexcept { return chrono::floor<chrono::years>(to_days());  }
 	/// returns a string representation like 3d
+	DEKAF2_NODISCARD
 	KString                   to_string      () const;
 
 }; // KDays
@@ -685,14 +711,19 @@ public:
 	constexpr KDateDiff(const KConstDate& left, const KConstDate& right) noexcept;
 
 	/// return broken down days in date diff
+	DEKAF2_NODISCARD
 	constexpr chrono::days    days        () const noexcept { return chrono::days(m_days);     }
 	/// return broken down months in date diff
+	DEKAF2_NODISCARD
 	constexpr chrono::months  months      () const noexcept { return chrono::months(m_months); }
 	/// return broken down years in date diff
+	DEKAF2_NODISCARD
 	constexpr chrono::years   years       () const noexcept { return chrono::years(m_years);   }
 	/// returns true if date difference is negative
+	DEKAF2_NODISCARD
 	constexpr bool            is_negative () const noexcept { return m_is_negative;            }
 	/// returns a string representation of the date difference, like 1y 2m 3d
+	DEKAF2_NODISCARD
 	KString                   to_string   () const;
 
 //--------

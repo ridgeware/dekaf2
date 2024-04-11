@@ -7817,7 +7817,7 @@ bool KSQL::RollbackTransaction (KStringView sOptions/*=""*/)
 } // RollbackTransaction
 
 //-----------------------------------------------------------------------------
-KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KString/*copy*/ sQueryParm, FAC iFlags/*=FAC::FAC_NORMAL*/, KStringView sSplitBy/*=","*/)
+KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm, FAC iFlags/*=FAC::FAC_NORMAL*/, KStringView sSplitBy/*=","*/)
 //-----------------------------------------------------------------------------
 {
 	KSQLString sClause;
@@ -7834,16 +7834,21 @@ KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KString/*copy*/ sQuery
 		iFlags |= FAC_LIKE;
 	}
 
-	KString sOperator{"="};
+	char chOperator;
+
 	if (sQueryParm.remove_prefix ('>'))
 	{
-		sOperator = ">";
+		chOperator = '>';
 		sQueryParm.Trim();
 	}
 	else if (sQueryParm.remove_prefix ('<'))
 	{
-		sOperator = "<";
+		chOperator = '<';
 		sQueryParm.Trim();
+	}
+	else
+	{
+		chOperator = '=';
 	}
 
 	KString sLowerParm (sQueryParm);
@@ -7861,19 +7866,19 @@ KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KString/*copy*/ sQuery
 			case 1: // single value
 				if (iFlags & FAC_DECIMAL)
 				{
-					sClause = FormatSQL ("   and {} {} {}", sDbCol, sOperator, Parts[0].Double());
+					sClause = FormatSQL ("   and {} {} {}", sDbCol, chOperator, Parts[0].Double());
 				}
 				else if (iFlags & FAC_SIGNED)
 				{
-					sClause = FormatSQL ("   and {} {} {}", sDbCol, sOperator, Parts[0].Int64());
+					sClause = FormatSQL ("   and {} {} {}", sDbCol, chOperator, Parts[0].Int64());
 				}
 				else if (iFlags & FAC_NUMERIC)
 				{
-					sClause = FormatSQL ("   and {} {} {}", sDbCol, sOperator, Parts[0].UInt64());
+					sClause = FormatSQL ("   and {} {} {}", sDbCol, chOperator, Parts[0].UInt64());
 				}
 				else
 				{
-					sClause = FormatSQL ("   and {} {} '{}'", sDbCol, sOperator, Parts[0]);
+					sClause = FormatSQL ("   and {} {} '{}'", sDbCol, chOperator, Parts[0]);
 				}
 				break;
 
@@ -7964,15 +7969,15 @@ KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KString/*copy*/ sQuery
 	{
 		if (iFlags & FAC_DECIMAL)
 		{
-			sClause = FormatSQL ("   and {} {} {}", sDbCol, sOperator, sQueryParm.Double());
+			sClause = FormatSQL ("   and {} {} {}", sDbCol, chOperator, sQueryParm.Double());
 		}
 		else if (iFlags & FAC_SIGNED)
 		{
-			sClause = FormatSQL ("   and {} {} {}", sDbCol, sOperator, sQueryParm.Int64());
+			sClause = FormatSQL ("   and {} {} {}", sDbCol, chOperator, sQueryParm.Int64());
 		}
 		else if (iFlags & FAC_NUMERIC)
 		{
-			sClause = FormatSQL ("   and {} {} {}", sDbCol, sOperator, sQueryParm.UInt64());
+			sClause = FormatSQL ("   and {} {} {}", sDbCol, chOperator, sQueryParm.UInt64());
 		}
 		else if (iFlags & FAC_LIKE)
 		{
@@ -7988,7 +7993,7 @@ KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KString/*copy*/ sQuery
 		}
 		else
 		{
-			sClause = FormatSQL ("   and {} {} '{}'", sDbCol, sOperator, sQueryParm);
+			sClause = FormatSQL ("   and {} {} '{}'", sDbCol, chOperator, sQueryParm);
 		}
 	}
 

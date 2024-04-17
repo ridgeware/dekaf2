@@ -664,17 +664,29 @@ if (CMAKE_CXX_STANDARD GREATER 17)
 	try_compile(DEKAF2_HAS_STD_FORMAT
 				"${DEKAF2_GENERATED_FILES_DIR}"
 				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/std_format_test.cpp")
-	if (DEKAF2_HAS_STD_FORMAT)
-		if(NOT DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT)
-			message(STATUS "we have std::format (and will use it)")
-			set(DEKAF2_FMT_INCLUDE "")
-		else()
-			set(DEKAF2_HAS_STD_FORMAT "")
-			message(STATUS "we have std::format, but will use ${DMESSAGE_FMT} fmtlib build as replacement")
-		endif()
+endif()
+if (DEKAF2_HAS_STD_FORMAT)
+	if(NOT DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT)
+		message(STATUS "we have std::format (and will use it)")
+		set(DEKAF2_FMT_INCLUDE "")
 	else()
-		message(STATUS "we do not have std::format - will use ${DMESSAGE_FMT} fmtlib build as replacement")
+		set(DEKAF2_HAS_STD_FORMAT "")
+		message(STATUS "we have std::format, but will use ${DMESSAGE_FMT} fmtlib build as replacement")
 	endif()
+else()
+	message(STATUS "we do not have std::format - will use ${DMESSAGE_FMT} fmtlib build as replacement")
+endif()
+
+# check if we have a constexpr std::string implementation
+if (CMAKE_CXX_STANDARD GREATER 17)
+	try_compile(DEKAF2_HAS_CONSTEXPR_STD_STRING
+				"${DEKAF2_GENERATED_FILES_DIR}"
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/constexpr_string_test.cpp")
+endif()
+if (DEKAF2_HAS_CONSTEXPR_STD_STRING)
+	message(STATUS "we have constexpr std::string")
+else()
+	message(STATUS "we do not have constexpr std::string")
 endif()
 
 # =============================== GENERATED FILES =================================

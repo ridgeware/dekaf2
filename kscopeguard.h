@@ -112,4 +112,53 @@ private:
 
 }; // KScopeGuard
 
+namespace detail {
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a very lightweight (zero overhead) implenentation of an end of scope guard - simply call it through
+/// KAutoScope( ... )
+/// @code
+/// KAutoScope( close(fd) );
+/// @endcode
+// with kind permission from Arthur O'Dwyer,
+// https://quuxplusone.github.io/blog/2018/08/11/the-auto-macro/
+template<class L>
+class AtScopeExit
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	AtScopeExit(L& action)
+	: m_lambda(action)
+	{}
+
+	~AtScopeExit() noexcept(false)
+	{
+		m_lambda();
+	}
+
+//----------
+private:
+//----------
+
+	L& m_lambda;
+
+}; // AtScopeExit
+
+} // end of namespace detail
+
+#define DEKAF2_AutoScope_INTERNAL1(lname, aname, ...) \
+	auto lname = [&]() { __VA_ARGS__; };         \
+	detail::AtScopeExit<decltype(lname)> aname(lname);
+
+#define DEKAF2_AutoScope_INTERNAL2(ctr, ...) \
+	DEKAF2_AutoScope_INTERNAL1(DEKAF2_TOKEN_PASTE(DEKAF2_AutoScope_func_, ctr), \
+	DEKAF2_TOKEN_PASTE(DEKAF2_AutoScope_instance_, ctr), __VA_ARGS__)
+
+#define KAutoScope(...) \
+	DEKAF2_AutoScope_INTERNAL2(__COUNTER__, __VA_ARGS__)
+
 DEKAF2_NAMESPACE_END

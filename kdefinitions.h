@@ -93,6 +93,9 @@
 #define DEKAF2_xstringify(x) #x
 #define DEKAF2_stringify(x) DEKAF2_xstringify(x)
 
+#define DEKAF2_TOKEN_PASTEx(x, y) x ## y
+#define DEKAF2_TOKEN_PASTE(x, y) DEKAF2_TOKEN_PASTEx(x, y)
+
 #if defined __clang__
 	#define DEKAF2_CLANG_VERSION_MAJOR __clang_major__
 	#define DEKAF2_CLANG_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)

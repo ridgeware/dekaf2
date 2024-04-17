@@ -956,6 +956,7 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod, bool b
 						return SetError("not allowed to redirect domain");
 					}
 					// we deliberately drop username and password in a redirection
+					// and therefore do not copy them into the Redirect KURL value
 
 					kDebug(1, "HTTP-{} redirect from {} to {}",
 						   Response.GetStatusCode(),

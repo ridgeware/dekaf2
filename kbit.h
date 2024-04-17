@@ -94,7 +94,8 @@ DEKAF2_NAMESPACE_BEGIN
 #endif
 
 //-----------------------------------------------------------------------------
-DEKAF2_LE_BE_CONSTEXPR bool kIsBigEndian() noexcept
+DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_LE_BE_CONSTEXPR
+bool kIsBigEndian() noexcept
 //-----------------------------------------------------------------------------
 {
 #if defined(__BYTE_ORDER__)
@@ -114,7 +115,8 @@ DEKAF2_LE_BE_CONSTEXPR bool kIsBigEndian() noexcept
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_LE_BE_CONSTEXPR bool kIsLittleEndian() noexcept
+DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_LE_BE_CONSTEXPR
+bool kIsLittleEndian() noexcept
 //-----------------------------------------------------------------------------
 {
 	// this is theoretically wrong, as there may be other
@@ -128,7 +130,7 @@ DEKAF2_LE_BE_CONSTEXPR bool kIsLittleEndian() noexcept
 template<class T>
 // C++23
 /// swap all bytes of a given integral type
-constexpr typename std::enable_if<std::is_integral<T>::value, T>::type
+DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr typename std::enable_if<std::is_integral<T>::value, T>::type
 kByteSwap(T iIntegral) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -152,7 +154,7 @@ kByteSwap(T iIntegral) noexcept
 
 //-----------------------------------------------------------------------------
 template <class T>
-DEKAF2_LE_BE_CONSTEXPR
+DEKAF2_PUBLIC DEKAF2_LE_BE_CONSTEXPR
 void kToBigEndian(T& value) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -164,7 +166,7 @@ void kToBigEndian(T& value) noexcept
 
 //-----------------------------------------------------------------------------
 template <class T>
-DEKAF2_LE_BE_CONSTEXPR
+DEKAF2_PUBLIC DEKAF2_LE_BE_CONSTEXPR
 void kToLittleEndian(T& value) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -176,7 +178,7 @@ void kToLittleEndian(T& value) noexcept
 
 //-----------------------------------------------------------------------------
 template <class T>
-DEKAF2_LE_BE_CONSTEXPR
+DEKAF2_PUBLIC DEKAF2_LE_BE_CONSTEXPR
 void kFromBigEndian(T& value) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -188,7 +190,7 @@ void kFromBigEndian(T& value) noexcept
 
 //-----------------------------------------------------------------------------
 template <class T>
-DEKAF2_LE_BE_CONSTEXPR
+DEKAF2_PUBLIC DEKAF2_LE_BE_CONSTEXPR
 void kFromLittleEndian(T& value) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -198,60 +200,62 @@ void kFromLittleEndian(T& value) noexcept
 	}
 }
 
+#undef DEKAF2_LE_BE_CONSTEXPR
+
 namespace detail {
 
 #if !DEKAF2_BITS_HAS_BITOPS
 #ifndef _MSC_VER
 
-inline DEKAF2_PUBLIC constexpr
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
 int ctz(unsigned iValue) noexcept
 {
 	return __builtin_ctz(iValue);
 }
 
-inline DEKAF2_PUBLIC constexpr
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
 int ctz(unsigned long iValue) noexcept
 {
 	return __builtin_ctzl(iValue);
 }
 
-inline DEKAF2_PUBLIC constexpr
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
 int ctz(unsigned long long iValue) noexcept
 {
 	return __builtin_ctzll(iValue);
 }
 
-inline DEKAF2_PUBLIC constexpr
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
 int clz(unsigned iValue) noexcept
 {
 	return __builtin_clz(iValue);
 }
 
-inline DEKAF2_PUBLIC constexpr
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
 int clz(unsigned long iValue) noexcept
 {
 	return __builtin_clzl(iValue);
 }
 
-inline DEKAF2_PUBLIC constexpr
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
 int clz(unsigned long long iValue) noexcept
 {
 	return __builtin_clzll(iValue);
 }
 
-inline DEKAF2_PUBLIC constexpr
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
 int popcount(unsigned iValue) noexcept
 {
 	return __builtin_popcount(iValue);
 }
 
-inline DEKAF2_PUBLIC constexpr
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
 int popcount(unsigned long iValue) noexcept
 {
 	return __builtin_popcountl(iValue);
 }
 
-inline DEKAF2_PUBLIC constexpr
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
 int popcount(unsigned long long iValue) noexcept
 {
 	return __builtin_popcountll(iValue);
@@ -259,7 +263,7 @@ int popcount(unsigned long long iValue) noexcept
 
 #else  // _MSC_VER
 
-inline DEKAF2_PUBLIC
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC
 int ctz(unsigned iValue) noexcept
 {
 	static_assert(sizeof(unsigned) == sizeof(unsigned long), "unsigned int has a different size than unsigned long");
@@ -275,13 +279,13 @@ int ctz(unsigned iValue) noexcept
 	return 32;
 }
 
-inline DEKAF2_PUBLIC
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC
 int ctz(unsigned long iValue) noexcept
 {
 	return ctz(static_cast<unsigned>(iValue));
 }
 
-inline DEKAF2_PUBLIC
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC
 int ctz(unsigned long long iValue) noexcept
 {
 	unsigned long iPos;
@@ -305,7 +309,7 @@ int ctz(unsigned long long iValue) noexcept
 	return 64;
 }
 
-inline DEKAF2_PUBLIC
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC
 int clz(unsigned iValue) noexcept
 {
 	static_assert(sizeof(unsigned) == sizeof(unsigned long), "unsigned int has a different size than unsigned long");
@@ -321,13 +325,13 @@ int clz(unsigned iValue) noexcept
 	return 32;
 }
 
-inline DEKAF2_PUBLIC
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC
 int clz(unsigned long iValue) noexcept
 {
 	return clz(static_cast<unsigned>(iValue));
 }
 
-inline DEKAF2_PUBLIC
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC
 int clz(unsigned long long iValue) noexcept
 {
 	unsigned long iPos;
@@ -351,21 +355,21 @@ int clz(unsigned long long iValue) noexcept
 	return 64;
 }
 
-inline DEKAF2_PUBLIC
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC
 int popcount(unsigned iValue) noexcept
 {
 	static_assert(sizeof(unsigned) == 4, "");
 	return __popcnt(iValue);
 }
 
-inline DEKAF2_PUBLIC
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC
 int popcount(unsigned long iValue) noexcept
 {
 	static_assert(sizeof(unsigned long) == 4, "");
 	return __popcnt(iValue);
 }
 
-inline DEKAF2_PUBLIC
+inline DEKAF2_NODISCARD DEKAF2_PUBLIC
 int popcount(unsigned long long iValue) noexcept
 {
 	static_assert(sizeof(unsigned long long) == 8, "");

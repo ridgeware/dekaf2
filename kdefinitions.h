@@ -534,7 +534,7 @@
 //
 // enum Flags { RED = 1 << 0, BLUE = 1 << 1, GREEN = 1 << 2 };
 // DEKAF2_ENUM_IS_FLAG(Flags);
-// Flags MyFlags = Flags::RED | FLAGS::BLUE;
+// Flags MyFlags = Flags::RED | Flags::BLUE;
 
 #define DEKAF2_DETAIL_ENUM_INNER_BIN_OP(Type, Operator) \
 constexpr Type operator Operator (Type left, Type right) \

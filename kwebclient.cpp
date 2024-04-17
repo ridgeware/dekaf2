@@ -90,7 +90,7 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 	KString sWWWForm;
 
 	if (m_bQueryToWWWFormConversion           &&
-		sRequestBody.empty()                 &&
+		sRequestBody.empty()                  &&
 		!RequestURL.Query.empty()             &&
 		RequestMethod != KHTTPMethod::GET     &&
 		RequestMethod != KHTTPMethod::OPTIONS &&
@@ -222,7 +222,7 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 		(*m_pServiceSummary)["http"] += {
 			{ "request_method",      RequestMethod.Serialize()  },
 			{ "url",                 RequestURL.Serialize()     },
-			{ "bytes_request_body",  sRequestBody.size()       },
+			{ "bytes_request_body",  sRequestBody.size()        },
 			{ "bytes_response_body", iRead                      },
 			{ "error_string",        Error()                    },
 			{ "msecs_connect",       iConnectTime.count()       },

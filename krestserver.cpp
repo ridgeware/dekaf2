@@ -579,7 +579,7 @@ bool KRESTServer::Execute()
 	}
 
 	// reset m_iRound at end of scope
-	KScopeGuard Guard = [this](){ m_iRound = std::numeric_limits<uint16_t>::max(); };
+	KAutoScope( m_iRound = std::numeric_limits<uint16_t>::max() );
 
 	try
 	{

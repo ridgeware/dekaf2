@@ -230,7 +230,7 @@ TEST_CASE("KTime") {
 
 		if (kSetGlobalLocale("fr_FR.UTF-8"))
 		{
-			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
+			KAutoScope( kSetGlobalLocale(oldLocale.name()) );
 
 			KLocalTime Local1;
 			Local1 = KLocalTime(UTC1);
@@ -551,7 +551,7 @@ TEST_CASE("KTime") {
 
 		if (kSetGlobalLocale("fr_FR.UTF-8"))
 		{
-			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
+			KAutoScope( kSetGlobalLocale(oldLocale.name()) );
 
 			for (auto& Timestamp : Timestamps)
 			{
@@ -617,7 +617,7 @@ TEST_CASE("KTime") {
 
 		if (kSetGlobalLocale("fr_FR.UTF-8"))
 		{
-			KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
+			KAutoScope( kSetGlobalLocale(oldLocale.name()) );
 
 			CHECK ( kGetLocalMonthName( chrono::February,  true) == "fév"      );
 			CHECK ( kGetLocalMonthName( chrono::August  ,  true) == "aoû"      );
@@ -636,7 +636,7 @@ TEST_CASE("KTime") {
 
 		 if (kSetGlobalLocale("de_DE.UTF-8"))
 		 {
-		 KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
+		 KAutoScope( kSetGlobalLocale(oldLocale.name()) );
 
 		 CHECK ( kGetMonthName( 0,  true, true) == "Jan"      );
 		 CHECK ( kGetMonthName( 2,  true, true) == "Mär"      );
@@ -651,7 +651,7 @@ TEST_CASE("KTime") {
 
 		 if (kSetGlobalLocale("en_US.UTF-8"))
 		 {
-		 KScopeGuard TZGuard = [&oldLocale] { kSetGlobalLocale(oldLocale.name()); };
+		 KAutoScope( kSetGlobalLocale(oldLocale.name()) );
 
 		 CHECK ( kGetMonthName( 0,  true, true) == "Jan"      );
 		 CHECK ( kGetMonthName( 2,  true, true) == "Mar"      );

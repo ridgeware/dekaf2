@@ -99,6 +99,7 @@ int Main (int argc, char* argv[])
 		.Option("r")
 //		.Type(KOptions::ArgTypes::File)
 		.Hidden()
+		.Final()
 	([](KStringViewZ sFilename)
 	{
 		KSQL tmpdb;

@@ -579,7 +579,7 @@ bool KRESTServer::Execute()
 	}
 
 	// reset m_iRound at end of scope
-	KAutoScope( m_iRound = std::numeric_limits<uint16_t>::max() );
+	KAtScopeEnd( m_iRound = std::numeric_limits<uint16_t>::max() );
 
 	try
 	{

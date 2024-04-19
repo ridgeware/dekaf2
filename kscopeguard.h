@@ -55,7 +55,21 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// C++11 implementation of a scope guard - a RAII helper that executes arbitrary callables at end of scope
+/// C++11 implementation of a scope guard - a RAII helper that executes arbitrary callables at end of scope.
+/// It is moveable, and has a release() member function.
+#if DEKAF2_HAS_CONCEPTS
+template<typename T>
+concept KScopeGuardCallable = requires(const T& callable) 
+{
+	// make sure callable does not need arguments and returns void
+	// (ideally should also test for noexcept, but that pushes the
+	// work to the caller)
+	{ callable() } -> std::same_as<void>;
+};
+template<KScopeGuardCallable F>
+#else
+template<typename F>
+#endif
 class DEKAF2_PUBLIC KScopeGuard
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -64,66 +78,62 @@ class DEKAF2_PUBLIC KScopeGuard
 public:
 //----------
 
-	KScopeGuard() = default;
-	KScopeGuard(const KScopeGuard&) = delete;
-
 	/// move construction
-	KScopeGuard(KScopeGuard&& other) noexcept;
+	KScopeGuard(KScopeGuard&& other) noexcept
+	: m_Callable(std::move(other.m_Callable))
+	{
+		other.release();
+	}
 
-	/// Construct a scope guard from any type of callable with function signature void(void), e.g. a lambda
-	/// At end of life of Guard the callable will be called, if not either been trigger() ed or dismiss() ed before.
+	/// Construct a moveable scope guard from any type of callable with function signature void(void),
+	/// e.g. a lambda. At end of life of Guard the callable will be called.
 	/// Sample:
 	/// @code
-	/// KScopeGuard Guard = [fd]{ close(fd); };
+	/// auto Guard = KScopeGuard([fd]{ close(fd); });
 	/// @endcode
-	template<class Func>
-	KScopeGuard(Func callable)
-	: m_Callable(std::move(callable))
+	KScopeGuard(F callable)
+	: m_Callable(callable)
 	{}
 
-	/// Calls the callable if still valid
-	~KScopeGuard() noexcept
+	/// Calls the callable
+	~KScopeGuard() noexcept(false)
 	{
-		call();
+		if (m_bActive)
+		{
+			m_Callable();
+		}
 	}
 
-	/// move assignment
-	KScopeGuard& operator=(KScopeGuard&& other) noexcept;
+	KScopeGuard(const KScopeGuard&)            = delete;
+	KScopeGuard& operator=(const KScopeGuard&) = delete;
+	KScopeGuard& operator=(KScopeGuard&&)      = delete;
 
-	/// Call the callable immediately if still valid, invalidates it after execution
-	void trigger() noexcept
+	/// disable the exit function
+	void release() noexcept
 	{
-		call();
+		m_bActive = false;
 	}
 
-	/// Reset (delete) the callable so that it will not be executed at end of scope
-	void reset() noexcept
-	{
-		m_Callable = nullptr;
-	}
+	// keep a compatibility alias until 06/2024
+	void reset() noexcept { release(); }
 
 //----------
 private:
 //----------
 
-	void call() noexcept;
-
-	std::function<void()> m_Callable;
+	F m_Callable;
+	bool m_bActive { true };
 
 }; // KScopeGuard
 
-namespace detail {
-
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a very lightweight (zero overhead) implenentation of an end of scope guard - simply call it through
-/// KAutoScope( ... )
-/// @code
-/// KAutoScope( close(fd) );
-/// @endcode
-// with kind permission from Arthur O'Dwyer,
-// https://quuxplusone.github.io/blog/2018/08/11/the-auto-macro/
-template<class L>
-class AtScopeExit
+/// this is a non-moveable scope guard
+#if DEKAF2_HAS_CONCEPTS
+template<KScopeGuardCallable F>
+#else
+template<typename F>
+#endif
+class DEKAF2_PUBLIC KSimpleScopeGuard
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -131,34 +141,46 @@ class AtScopeExit
 public:
 //----------
 
-	AtScopeExit(L& action)
-	: m_lambda(action)
+	/// Construct a scope guard from any type of callable with function signature void(void), e.g. a lambda
+	/// At end of life of Guard the callable will be called.
+	/// Sample:
+	/// @code
+	/// auto Guard = KSimpleScopeGuard([fd]{ close(fd); });
+	/// // or
+	/// KAtScopeEnd( close(fd) );
+	/// @endcode
+	KSimpleScopeGuard(F callable)
+	: m_Callable(callable)
 	{}
 
-	~AtScopeExit() noexcept(false)
+	/// Calls the callable
+	~KSimpleScopeGuard() noexcept(false)
 	{
-		m_lambda();
+		m_Callable();
 	}
+
+	KSimpleScopeGuard(const KSimpleScopeGuard&)            = delete;
+	KSimpleScopeGuard(KSimpleScopeGuard&&)                 = delete;
+	KSimpleScopeGuard& operator=(const KSimpleScopeGuard&) = delete;
+	KSimpleScopeGuard& operator=(KSimpleScopeGuard&&)      = delete;
 
 //----------
 private:
 //----------
 
-	L& m_lambda;
+	F m_Callable;
 
-}; // AtScopeExit
+}; // KSimpleScopeGuard
 
-} // end of namespace detail
+#define DEKAF2_AtScopeEnd_Inner(lambdaName, guardName, ...) \
+	auto lambdaName = [&]() { __VA_ARGS__; };               \
+	KSimpleScopeGuard<decltype(lambdaName)> guardName(lambdaName);
 
-#define DEKAF2_AutoScope_INTERNAL1(lname, aname, ...) \
-	auto lname = [&]() { __VA_ARGS__; };         \
-	detail::AtScopeExit<decltype(lname)> aname(lname);
+#define DEKAF2_AtScopeEnd_Outer(counter, ...) \
+	DEKAF2_AtScopeEnd_Inner(DEKAF2_concat(DEKAF2_ScopeGuard_lambda, counter),   \
+	                        DEKAF2_concat(DEKAF2_ScopeGuard_instance, counter), \
+	                        __VA_ARGS__)
 
-#define DEKAF2_AutoScope_INTERNAL2(ctr, ...) \
-	DEKAF2_AutoScope_INTERNAL1(DEKAF2_TOKEN_PASTE(DEKAF2_AutoScope_func_, ctr), \
-	DEKAF2_TOKEN_PASTE(DEKAF2_AutoScope_instance_, ctr), __VA_ARGS__)
-
-#define KAutoScope(...) \
-	DEKAF2_AutoScope_INTERNAL2(__COUNTER__, __VA_ARGS__)
+#define KAtScopeEnd(...) DEKAF2_AtScopeEnd_Outer(__COUNTER__, __VA_ARGS__)
 
 DEKAF2_NAMESPACE_END

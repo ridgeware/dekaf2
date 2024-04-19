@@ -93,8 +93,8 @@
 #define DEKAF2_xstringify(x) #x
 #define DEKAF2_stringify(x) DEKAF2_xstringify(x)
 
-#define DEKAF2_TOKEN_PASTEx(x, y) x ## y
-#define DEKAF2_TOKEN_PASTE(x, y) DEKAF2_TOKEN_PASTEx(x, y)
+#define DEKAF2_concatx(x, y) x##y
+#define DEKAF2_concat(x, y) DEKAF2_concatx(x, y)
 
 #if defined __clang__
 	#define DEKAF2_CLANG_VERSION_MAJOR __clang_major__
@@ -526,6 +526,9 @@
 	#endif
 #endif
 
+#if __cpp_concepts >= 202002L
+	#define DEKAF2_HAS_CONCEPTS 1
+#endif
 
 // Helper macros to make an enum type a "flag" type, that is, bit operations with enum values are permitted
 // in a type-safe fashion.

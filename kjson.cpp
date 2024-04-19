@@ -573,11 +573,7 @@ const LJSON& Select (const LJSON& json, KStringView sSelector) noexcept
 {
 #ifndef DEKAF2_WRAPPED_KJSON
 	bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
-	
-	KScopeGuard Guard = [bResetFlag]()
-	{
-		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
-	};
+	KAtScopeEnd( KLog::getInstance().ShowStackOnJsonError(bResetFlag) );
 #endif
 
 	DEKAF2_TRY
@@ -706,11 +702,7 @@ LJSON& Select (LJSON& json, KStringView sSelector) noexcept
 {
 #ifndef DEKAF2_WRAPPED_KJSON
 	bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
-
-	KScopeGuard Guard = [bResetFlag]()
-	{
-		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
-	};
+	KAtScopeEnd( KLog::getInstance().ShowStackOnJsonError(bResetFlag) );
 #endif
 
 	DEKAF2_TRY
@@ -769,11 +761,7 @@ const LJSON& Select (const LJSON& json, std::size_t iSelector) noexcept
 {
 #ifndef DEKAF2_WRAPPED_KJSON
 	bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
-
-	KScopeGuard Guard = [bResetFlag]()
-	{
-		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
-	};
+	KAtScopeEnd( KLog::getInstance().ShowStackOnJsonError(bResetFlag) );
 #endif
 
 	DEKAF2_TRY
@@ -800,11 +788,7 @@ LJSON& Select (LJSON& json, std::size_t iSelector) noexcept
 {
 #ifndef DEKAF2_WRAPPED_KJSON
 	bool bResetFlag = KLog::getInstance().ShowStackOnJsonError(false);
-
-	KScopeGuard Guard = [bResetFlag]()
-	{
-		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
-	};
+	KAtScopeEnd( KLog::getInstance().ShowStackOnJsonError(bResetFlag) );
 #endif
 
 	DEKAF2_TRY

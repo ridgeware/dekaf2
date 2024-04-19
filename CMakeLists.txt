@@ -1102,7 +1102,6 @@ set (SOURCES
 	krow.cpp
 	krsakey.cpp
 	krsasign.cpp
-	kscopeguard.cpp
 	ksharedmemory.cpp
 	ksignals.cpp
 	ksmtp.cpp

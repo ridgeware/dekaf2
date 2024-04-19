@@ -1950,13 +1950,17 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		s_TimedConnections.Add(*this);
 	}
 
-	// set up an empty scope guard
-	KScopeGuard GuardQueryTimeout;
+	// we use a named lambda because we want compatibility with C++11, which needs
+	// a type for KScopeGuard..
+	auto namedLambdaGuard  = [this]() noexcept { s_TimedConnections.Remove(*this); };
+	// construct the scope guard to revoke our connection from the connection timeout
+	// watchlist at end of block
+	auto GuardQueryTimeout = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
 
-	if (bQueryTypeMatch)
+	if (!bQueryTypeMatch)
 	{
-		// revoke our connection from the connection timeout watchlist at end of block
-		GuardQueryTimeout = [this]{ s_TimedConnections.Remove(*this); };
+		// or don't ..
+		GuardQueryTimeout.release();
 	}
 
 	m_SQLStmtStats.Collect(m_sLastSQL.str(), QueryType);
@@ -2507,10 +2511,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 {
 	kDebug (3, "...");
 
-	KScopeGuard Guard = [this]()
-	{
-		ClearErrorPrefix();
-	};
+	KAtScopeEnd( ClearErrorPrefix() );
 
 	EndQuery ();
 	if (!IsConnectionOpen() && !OpenConnection(m_iConnectTimeoutSecs))
@@ -4880,15 +4881,6 @@ KSQL::Flags KSQL::ClearFlag (Flags iFlag)
 	return SetFlags (GetFlags() & ~iFlag);
 
 } // KSQL::ClearFlag
-
-//-----------------------------------------------------------------------------
-KScopeGuard KSQL::ScopedFlags(Flags iFlags, bool bAdditive)
-//-----------------------------------------------------------------------------
-{
-	auto iOrigFlags = bAdditive ? SetFlag(iFlags) : SetFlags(iFlags);
-	return KScopeGuard([iOrigFlags,this]{ SetFlag(iOrigFlags); });
-
-} // KSQL::ScopedFlags
 
 //-----------------------------------------------------------------------------
 KString KSQL::GetLastInfo()
@@ -8148,10 +8140,7 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KSQLString& sOrderBy, con
 #ifndef DEKAF2_WRAPPED_KJSON
 	bool bResetFlag   = KLog::getInstance().ShowStackOnJsonError(false);
 	// make sure the setting is automatically reset, even when throwing
-	KScopeGuard Guard = [bResetFlag]()
-	{
-		KLog::getInstance().ShowStackOnJsonError(bResetFlag);
-	};
+	KAtScopeEnd( KLog::getInstance().ShowStackOnJsonError(bResetFlag) );
 #endif
 
 	for (KString sParm : ParmList)

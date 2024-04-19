@@ -698,8 +698,20 @@ public:
 	/// returns last issued SQL statement
 	const KString& GetLastSQL ()   const { return (m_sLastSQL.str());        }
 
+	// helper struct to enable ScopedFlags with C++11 already
+	struct ResetFlagsCallable
+	{
+		ResetFlagsCallable(KSQL* db, Flags iFlags) : m_db(db), m_iFlags(iFlags) {}
+		void operator()() { m_db->SetFlags(m_iFlags); }
+		KSQL* m_db; Flags m_iFlags;
+	};
+
 	/// set configuration/processing flags, and reset original flags at end of scope
-	KScopeGuard ScopedFlags (Flags iFlags, bool bAdditive = true);
+	KScopeGuard<ResetFlagsCallable> ScopedFlags (Flags iFlags, bool bAdditive = true)
+	{
+		auto iOrigFlags = bAdditive ? SetFlag(iFlags) : SetFlags(iFlags);
+		return KScopeGuard<ResetFlagsCallable>(ResetFlagsCallable(this, iOrigFlags));
+	}
 	/// set configuration/processing flags, returns old flags
 	Flags       SetFlags (Flags iFlags);
 	/// add new flag(s) to existing configuration/processing flags (logical OR)

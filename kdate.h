@@ -373,7 +373,7 @@ constexpr chrono::weekday weekday_from_civil(const chrono::year_month_day& ymd) 
 // December = 30 bits.
 // We could of course also simply hardcode the result for the lookup value,
 // which is 462609335U, but constexpr explains better the algorithm behind..
-constexpr inline uint32_t compute_lookup_offsets()
+constexpr uint32_t compute_lookup_offsets()
 //-----------------------------------------------------------------------------
 {
 	uint32_t lookup_offsets = 0;

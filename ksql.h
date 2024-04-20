@@ -702,7 +702,7 @@ public:
 	struct ResetFlagsCallable
 	{
 		ResetFlagsCallable(KSQL* db, Flags iFlags) : m_db(db), m_iFlags(iFlags) {}
-		void operator()() { m_db->SetFlags(m_iFlags); }
+		void operator()() const noexcept { m_db->SetFlags(m_iFlags); }
 		KSQL* m_db; Flags m_iFlags;
 	};
 

@@ -124,6 +124,11 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 				add_compile_options(-Wno-restrict)
 			endif()
 
+			if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13)
+				# gcc 13 switch concepts diagnostics on
+				add_compile_options(-fconcepts-diagnostics-depth=3)
+			endif()
+
 			# configure cpu architecture dependant optimization
 			if (CPU_x86)
 

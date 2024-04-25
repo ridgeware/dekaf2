@@ -224,11 +224,18 @@ bool Dekaf::SetUnicodeLocale(KStringViewZ sName)
 	std::array<char, 100> UnicodeLocale;
 	{
 		std::ifstream file("/tmp/dekaf2init.txt");
+
+		if (!file.is_open())
+		{
+			std::cerr << "dekaf2: cannot open locales file" << std::endl;
+			return false;
+		}
+
 		file.getline(UnicodeLocale.data(), UnicodeLocale.size(), '\n');
 		UnicodeLocale[UnicodeLocale.size() - 1] = '\0';
 	}
 
-	std::system("rm -f /tmp/dekaf2init.txt");
+	if (std::system("rm -f /tmp/dekaf2init.txt")) { /* avoid warning about unused result */ }
 
 	if (kSetGlobalLocale(UnicodeLocale.data()) && CTypeIsUnicodeAware())
 	{
@@ -315,9 +322,6 @@ KStringView Dekaf::GetVersionInformation()
 #endif
 #ifdef DEKAF2_WITH_FCGI
 		" fcgi"
-#endif
-#if (DEKAF1_INCLUDE_PATH)
-		" with-dekaf1-compatibility"
 #endif
 #ifdef DEKAF2_HAS_LIBZSTD
 		" zstd"

@@ -169,7 +169,7 @@ void     synopsis_abort ();
 int8_t  menu_loop (menuT* menu, int8_t iCPick);
 void     keef_box (int x1, int y1, int x2, int y2);
 
-inline void Pause() { char foo[50+1]; fgets(foo, 50, stdin); }
+inline void Pause() { char foo[50+1]; if (!fgets(foo, 50, stdin)) {/* suppress warning about unused result*/}; }
 
 //-----------------------------------------------------------------------------
 int main (int argc, char* argv[])

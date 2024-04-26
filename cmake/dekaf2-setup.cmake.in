@@ -126,7 +126,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 			if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13)
 				# gcc 13 switch concepts diagnostics on
-				add_compile_options(-fconcepts-diagnostics-depth=3)
+				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fconcepts-diagnostics-depth=3)
 			endif()
 
 			# configure cpu architecture dependant optimization

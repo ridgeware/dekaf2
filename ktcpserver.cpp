@@ -502,7 +502,7 @@ bool KTCPServer::UnixServer()
 
 	} DEKAF2_CATCH(const std::exception& e)
 	{
-		SetError(kFormat("exception: ()", e.what()));
+		SetError(kFormat("exception: {}", e.what()));
 	}
 
 	kDebug(2, "server is closing");

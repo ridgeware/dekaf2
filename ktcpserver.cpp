@@ -256,7 +256,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 	
 	boost::asio::ip::v6_only v6_only(false);
 
-	kDebug(2, "opening listener on port {}", m_iPort);
+	kDebug(2, "opening listener on port {}, asking for {}", m_iPort, (ipv6) ? "dual stack" : "IPv4 only");
 
 	tcp::endpoint local_endpoint((ipv6) ? tcp::v6() : tcp::v4(), m_iPort);
 	auto acceptor = std::make_shared<tcp::acceptor>(m_asio, local_endpoint, true); // true means reuse_addr
@@ -267,9 +267,16 @@ bool KTCPServer::TCPServer(bool ipv6)
 		// check if we listen on both v4 and v6, or only on v6
 		acceptor->get_option(v6_only);
 		// if acceptor is not open this computer does not support v6
+		// (although, the acceptor's constructor would have thrown above already),
 		// if v6_only then this computer does not use a dual stack
 		if (!acceptor->is_open() || v6_only)
 		{
+			// test for v6_only flag, although it should be redundant
+			if (v6_only)
+			{
+				kDebug(2, "listener opened for IPv6 only, dual stack not supported");
+			}
+
 			if (m_bStartIPv4)
 			{
 				// check if we can stay in this thread (because the v6 acceptor
@@ -290,6 +297,8 @@ bool KTCPServer::TCPServer(bool ipv6)
 
 	m_StartedUp.notify_all();
 
+	// this is redundant, the acceptor's constructor would always throw if
+	// it could not open
 	if (!acceptor->is_open())
 	{
 		return SetError(kFormat("IPv{} listener for port {} could not open",
@@ -340,8 +349,8 @@ bool KTCPServer::TCPServer(bool ipv6)
 
 			kDebug(2, "accepting TLS connection from {}", to_string(remote_endpoint));
 
-#if defined(_MSC_VER) || !defined(DEKAF2_HAS_CPP_14)
-			// unfortunately MSC and C++11 does not know how to move a variable into a lambda scope
+#if !DEKAF2_HAS_CPP_14
+			// unfortunately C++11 does not know how to move a variable into a lambda scope
 			auto* Stream = stream.release();
 			m_ThreadPool.push([ this, Stream, remote_endpoint ]()
 			{
@@ -355,10 +364,13 @@ bool KTCPServer::TCPServer(bool ipv6)
 				// overwritten in round-robin, therefore we have to call
 				// Disconnect explicitly now to shut down the connection
 				moved_stream->Disconnect();
+#if 0
+				// for now hide this library debug output
 				kDebug(1, "ssl task pool size: {}, idle threads: {} total threads: {}",
 					   m_ThreadPool.n_queued(),
 					   m_ThreadPool.n_idle(),
 					   m_ThreadPool.size());
+#endif
 			});
 		}
 
@@ -387,8 +399,8 @@ bool KTCPServer::TCPServer(bool ipv6)
 
 			kDebug(2, "accepting TCP connection from {}", to_string(remote_endpoint));
 
-#if defined(_MSC_VER) || !defined(DEKAF2_HAS_CPP_14)
-			// unfortunately MSC and C++11 do not know how to move a variable into a lambda scope
+#if !DEKAF2_HAS_CPP_14
+			// unfortunately C++11 does not know how to move a variable into a lambda scope
 			auto* Stream = stream.release();
 			m_ThreadPool.push([ this, Stream, remote_endpoint ]()
 			{
@@ -402,18 +414,37 @@ bool KTCPServer::TCPServer(bool ipv6)
 				// overwritten in round-robin, therefore we have to call
 				// Disconnect explicitly now to shut down the connection
 				moved_stream->Disconnect();
+#if 0
+				// for now hide this library debug output
 				kDebug(1, "task pool size: {}, idle threads: {} total threads: {}",
 					   m_ThreadPool.n_queued(),
 					   m_ThreadPool.n_idle(),
 					   m_ThreadPool.size());
+#endif
 			});
 		}
 
 	}
 
-	} DEKAF2_CATCH(const std::exception& e)
+	}
+	DEKAF2_CATCH(const std::exception& e)
 	{
-		SetError(kFormat("exception: {}", e.what()));
+		KStringViewZ sError = e.what();
+		// unfortunately we have to investigate the error text from
+		// asio to find out about the reason for the throw
+		if (sError.starts_with("open: ") && ipv6 == true && m_TCPAcceptors.empty() && m_bStartIPv4)
+		{
+			// apparently we tried to open an ipv6 acceptor on a ipv4 only stack, just ignore
+			// the error and try to start a pure ipv4 acceptor
+			// (the full error string may look like: 'open: Address family not supported by protocol')
+			kDebug(1, sError);
+			kDebug(1, "it looks as if IPv6 is not supported");
+			return TCPServer(false);
+		}
+		else
+		{
+			SetError(kFormat("exception: {}", sError));
+		}
 	}
 
 	kDebug(2, "server is closing");
@@ -451,6 +482,8 @@ bool KTCPServer::UnixServer()
 
 	m_StartedUp.notify_all();
 
+	// this is redundant, the acceptor's constructor would always throw if
+	// it could not open
 	if (!acceptor->is_open())
 	{
 		SetError(kFormat("listener for socket file {} could not open", m_sSocketFile));
@@ -478,7 +511,7 @@ bool KTCPServer::UnixServer()
 
 			kDebug(2, "accepting connection from local unix socket");
 
-#if defined(_MSC_VER) || !defined(DEKAF2_HAS_CPP_14)
+#if !DEKAF2_HAS_CPP_14
 			// unfortunately C++11 does not know how to move a variable into a lambda scope
 			auto* Stream = stream.release();
 			m_ThreadPool.push([ this, Stream ]()
@@ -500,7 +533,8 @@ bool KTCPServer::UnixServer()
 		kRemoveSocket(m_sSocketFile);
 	}
 
-	} DEKAF2_CATCH(const std::exception& e)
+	} 
+	DEKAF2_CATCH(const std::exception& e)
 	{
 		SetError(kFormat("exception: {}", e.what()));
 	}

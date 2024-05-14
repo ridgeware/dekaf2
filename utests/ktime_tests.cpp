@@ -909,16 +909,33 @@ TEST_CASE("KTime") {
 		KLocalTime Date0;
 		CHECK ( Date0.ok() == false );
 
+		// this sets the local time to the equivalent of the utc time at 00:00 mm:ss,
+		// which means that the day of month differs if the utc offset is negative
+		// (westwards)
 		auto Date1 = KLocalTime(chrono::year(2023)/3/8);
 		CHECK ( Date1.month() == chrono::March       );
-		CHECK ( Date1.day()   == chrono::day(8)      );
+		if (Date1.get_utc_offset() >= chrono::seconds(0))
+		{
+			CHECK ( Date1.day()   == chrono::day(8)  );
+		}
+		else
+		{
+			CHECK ( Date1.day()   == chrono::day(7)  );
+		}
 		CHECK ( Date1.last_day() == chrono::day(31)  );
 		CHECK ( Date1.year()   == chrono::year(2023) );
 		CHECK ( Date1.is_leap()== false              );
 
 		Date1 = KLocalTime(chrono::year(2024)/2/29);
 		CHECK ( Date1.month() == chrono::February    );
-		CHECK ( Date1.day()   == chrono::day(29)     );
+		if (Date1.get_utc_offset() >= chrono::seconds(0))
+		{
+			CHECK ( Date1.day()   == chrono::day(29) );
+		}
+		else
+		{
+			CHECK ( Date1.day()   == chrono::day(28) );
+		}
 		CHECK ( Date1.last_day() == chrono::day(29)  );
 		CHECK ( Date1.year()   == chrono::year(2024) );
 		CHECK ( Date1.is_leap()== true               );

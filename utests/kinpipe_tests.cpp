@@ -14,18 +14,22 @@
 
 using namespace dekaf2;
 
+namespace {
+KTempDir TempDir;
+}
+
 TEST_CASE("KInPipe")
 {
 	SECTION("KInPipe normal Open and Close")
 	{
-		KInPipe pipe("mkdir /tmp/kinpipetests", "/bin/sh");
+		KInPipe pipe;
 		pipe.SetReaderTrim("");
 
-		CHECK(pipe.Open("/bin/sh -c \"echo 'some random datum' > /tmp/kinpipetests/kinpipetest.file\""));
+		CHECK(pipe.Open(kFormat("/bin/sh -c \"echo 'some random datum' > {}/kinpipetest.file\"", TempDir.Name())));
 		pipe.Wait(1000);
 		CHECK_FALSE(pipe.IsRunning());
 		CHECK(0 == pipe.Close());
-		CHECK(pipe.Open("ls -al /tmp/kinpipetests/kinpipetest.file | grep kinpipetest | wc -l", "/bin/sh"));
+		CHECK(pipe.Open(kFormat("ls -al {}/kinpipetest.file | grep kinpipetest | wc -l", TempDir.Name()), "/bin/sh"));
 
 		KString sCurrentLine;
 
@@ -54,7 +58,7 @@ TEST_CASE("KInPipe")
 		KString sCurrentLine;
 
 		// Double check test files are there
-		CHECK(pipe.Open("/bin/sh -c \"ls /tmp/kinpipetests/ | wc -l\""));
+		CHECK(pipe.Open(kFormat("/bin/sh -c \"ls {}/ | wc -l\"", TempDir.Name())));
 		CHECK(pipe.is_open());
 		CHECK(pipe.IsRunning());
 		bool output = pipe.ReadLine(sCurrentLine);
@@ -65,15 +69,14 @@ TEST_CASE("KInPipe")
 		CHECK_FALSE(pipe.IsRunning());
 
 		// Remove test files
-		CHECK(pipe.Open("/bin/sh -c \"rm -rf /tmp/kinpipetests/\""));
+		CHECK(pipe.Open(kFormat("/bin/sh -c \"rm -rf {}/\"", TempDir.Name())));
 		CHECK(pipe.is_open());
 		CHECK(pipe.IsRunning());
 		CHECK(0 == pipe.Close());
 		CHECK_FALSE(pipe.IsRunning());
 
-
 		// Double check they're gone
-		CHECK(pipe.Open("/bin/sh -c \"ls /tmp/kinpipetests/ 2>/dev/null | wc -l\""));
+		CHECK(pipe.Open(kFormat("/bin/sh -c \"ls {}/ 2>/dev/null | wc -l\"", TempDir.Name())));
 		CHECK(pipe.is_open());
 		CHECK(pipe.IsRunning());
 		output = pipe.ReadLine(sCurrentLine);

@@ -7,42 +7,47 @@
 #include <iostream>
 
 using namespace dekaf2;
+
+namespace {
+KTempDir TempDir;
+}
+
 TEST_CASE("KOutShell")
 {
 
-	SECTION("KOutShell  write_pipe")
+	SECTION("KOutShell write_pipe")
 	{
-		INFO("KOutShell  write_pipe::Start:");
+		INFO("KOutShell write_pipe::Start:");
 
 		KOutShell pipe;
 
-		CHECK(pipe.Open("cat > /tmp/KOutShelltest.file"));
+		CHECK(pipe.Open(kFormat("cat > {}/KOutShelltest.file", TempDir.Name())));
 
-		KString str("echo rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7");
+		KString str("echo rdoanm text over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7");
 		pipe.Write(str);
 		CHECK(pipe.is_open());
 		CHECK(0 == pipe.Close());
 
-		INFO("KOutShell  write_pipe::Done:");
+		INFO("KOutShell write_pipe::Done:");
 
 	} // write_pipe
 
-	SECTION("KOutShell  write_pipe")
+	SECTION("KOutShell write_pipe")
 	{
-		INFO("KOutShell  write_pipe then read to confirm");
+		INFO("KOutShell write_pipe then read to confirm");
 
 		KOutShell pipe;
 
-		CHECK(pipe.Open("cat > /tmp/KOutShelltest.file"));
+		CHECK(pipe.Open(kFormat("cat > {}/KOutShelltest.file", TempDir.Name())));
 		// Write more to pipe
-		KString str("echo rdoanm txet over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7");
+		KString str("echo rdoanm text over 9000 \n line 2 \n line 3 \n line 4 \n SS level 3! \n line 6 \n line 7");
 		pipe.Write(str);
 		CHECK(pipe.is_open());
 		CHECK(0 == pipe.Close());
 
 		KInShell readPipe;
 		readPipe.SetReaderTrim("");
-		CHECK(readPipe.Open("cat /tmp/KOutShelltest.file", "/bin/sh"));
+		CHECK(readPipe.Open(kFormat("cat {}/KOutShelltest.file", TempDir.Name()), "/bin/sh"));
 		KString output;
 		for (auto iter = readPipe.begin(); iter != readPipe.end(); ++iter)
 		{
@@ -50,7 +55,7 @@ TEST_CASE("KOutShell")
 		}
 		CHECK(output.compare(str) == 0);
 
-		INFO("KOutShell  write_pipe::Done:");
+		INFO("KOutShell write_pipe::Done:");
 
 	} // write_pipe
 

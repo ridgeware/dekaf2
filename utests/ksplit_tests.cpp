@@ -751,18 +751,19 @@ TEST_CASE("kSplitArgsInPlace")
 {
 	SECTION("split")
 	{
+		KTempDir TempDir;
 		std::vector<const char*> argVector;
-		KString sCommand("/bin/sh 'random arg' -c \\\"hi! \"echo 'some random data' > /tmp/kinpipetests/kinpipetest.file 2>&1\"");//
+		KString sCommand(kFormat("/bin/sh 'random arg' -c \\\"hi! \"echo 'some random data' > {}/kinpipetest.file 2>&1\"", TempDir.Name()));//
 		CHECK( kSplitArgsInPlace(argVector, sCommand) );
 		CHECK(argVector.size() == 5);
-		std::vector<const char*> compVector = {"/bin/sh", "random arg", "-c", "\"hi!", "echo 'some random data' > /tmp/kinpipetests/kinpipetest.file 2>&1"};
+		std::vector<KString> compVector = {"/bin/sh", "random arg", "-c", "\"hi!", kFormat("echo 'some random data' > {}/kinpipetest.file 2>&1", TempDir.Name())};
 		CHECK ( compVector.size() == argVector.size() );
 		if (compVector.size() == argVector.size())
 		{
 			for (size_t i = 0; i < argVector.size() - 1; i++)
 			{
 				INFO (argVector[i]);
-				CHECK( strcmp(compVector[i], argVector[i]) == 0);
+				CHECK( strcmp(compVector[i].c_str(), argVector[i]) == 0 );
 			}
 		}
 	}

@@ -10,7 +10,10 @@
 
 using namespace dekaf2;
 
+namespace {
+KTempDir TempDir;
 static size_t KPIPE_DELAY (1);
+}
 
 KString KPipeReaderDelayCommand(unsigned int depth, size_t second, const KString sMessage1 = "", const KString sMessage2 = "")
 {
@@ -32,7 +35,7 @@ TEST_CASE("KInShell")
         pipe.SetReaderTrim("");
 
         // open the pipe
-        CHECK(pipe.Open("echo some random data > /tmp/kinshelltest.file && ls -al /tmp/kinshelltest.file | grep kinshelltest | wc -l 2>&1"));
+        CHECK(pipe.Open(kFormat("echo some random data > {}/kinshelltest.file && ls -al {}/kinshelltest.file | grep kinshelltest | wc -l 2>&1", TempDir.Name(), TempDir.Name())));
 
         KString sCurrentLine;
 
@@ -95,7 +98,7 @@ TEST_CASE("KInShell")
     {
         KInShell   pipe;
         pipe.SetReaderTrim("");
-        KString sCurlCMD = "echo 'random text asdfjkl;asdfjkl; qwerty uoip zxcvbnm,zxcvbnm,  ' > /tmp/KInShelltest.file && cat /tmp/KInShelltest.file 2> /dev/null";
+        KString sCurlCMD = kFormat("echo 'random text asdfjkl;asdfjkl; qwerty uoip zxcvbnm,zxcvbnm,  ' > {}/KInShelltest2.file && cat {}/KInShelltest2.file 2> /dev/null", TempDir.Name(), TempDir.Name());
         CHECK(pipe.Open(sCurlCMD));
 
         KString sCurrentLine;
@@ -127,7 +130,7 @@ TEST_CASE("KInShell")
         pipe.SetReaderTrim("");
 
         // open the pipe
-        CHECK(pipe.Open("echo some random data > /tmp/kinshelltest.file && ls -al /tmp/kinshelltest.file | grep kinshelltest | wc -l 2>&1"));
+        CHECK(pipe.Open(kFormat("echo some random data > {}/kinshelltest3.file && ls -al {}/kinshelltest3.file | grep kinshelltest3 | wc -l 2>&1", TempDir.Name(), TempDir.Name())));
 
         KString sCurrentLine;
 

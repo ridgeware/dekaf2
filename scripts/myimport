@@ -1,0 +1,61 @@
+#! /bin/bash
+
+#%
+#% myimport - export an entire INSTANCE of mysql/mariadb, after a 'myexport' invocation
+#%
+#% usage: myimport [-threads <N>] <dumpfolder> -u<rootuser> -p<rootpass> [-h<hostname>]
+#%
+#% where:
+##   -file <name>  :: [undocumented callback] import this file only
+#%   -threads <N>   :: override the default of 12 threads
+#%
+#% history:
+#%   2024-05 : keef created
+#%
+
+file=""
+if [[ ${1} = "-file" ]]; then
+	file=$2
+	shift 2
+fi
+
+iThreads=12
+if [[ ${1} = "-threads" ]]; then
+	iThreads=$2
+	shift 2
+fi
+
+if [[ $# -eq 0 ]]; then
+	awk '/^#%/ {print substr($0,3)}' $0
+	exit 1
+fi
+
+dumpfolder="$1"; shift
+myargs="$@"
+
+if [[ -z ${file} ]]; then
+	#==============================
+	# MAIN LOGIC
+	#==============================
+	if [[ ! -d ${dumpfolder} ]]; then
+		echo ">> dumpfolder does not exist: ${dumpfolder}"
+		exit 1
+	fi
+
+	echo ":: $(date '+%a %T') : importing into instance using ${iThreads} threads ..."
+
+	ls -1 ${dumpfolder} | xargs -n 1 -P 8 -I '{}' ${0} -file '{}' ${dumpfolder} ${myargs}
+
+	echo ":: $(date '+%a %T') : done."
+
+	exit 0
+
+else # worker thread
+
+	cat ${dumpfolder}/${file} | mysql ${myargs}
+	if [[ $? -ne 0 ]]; then
+		echo ">> failure."
+		exit 1
+	fi
+
+fi

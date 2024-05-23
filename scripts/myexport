@@ -1,0 +1,121 @@
+#! /bin/bash
+
+#%
+#% myexport - export an entire INSTANCE of mysql/mariadb (all dbs, all tables), multiplexed
+#%
+#% usage: myexport [-threads <N>] <dumpfolder> -u<rootuser> -p<rootpass> [-h<hostname>]
+#%
+#% where:
+##   -table <name>  :: [undocumented callback] dump this table only
+#%   -threads <N>   :: override the default of 12 threads
+#%
+#% history:
+#%   2024-05 : keef created
+#%
+
+if [[ ${1} = -x ]]; then
+	shift
+	set -x
+fi
+
+table=""
+if [[ ${1} = "-table" ]]; then
+	table=$2
+	shift 2
+fi
+
+iThreads=12
+if [[ ${1} = "-threads" ]]; then
+	iThreads=$2
+	shift 2
+fi
+
+if [[ $# -eq 0 ]]; then
+	awk '/^#%/ {print substr($0,3)}' $0
+	exit 1
+fi
+
+dumpfolder="$1"; shift
+myargs="$@"
+
+if [[ -z ${table} ]]; then
+	#==============================
+	# MAIN LOGIC
+	#==============================
+	if [[ -d ${dumpfolder} ]]; then
+		contents=$(ls -1 ${dumpfolder})
+		if [[ "${contents}" != "" ]]; then
+			echo ">> dumpfolder already exists: ${dumpfolder}"
+			exit 1
+		fi
+	fi
+
+	mkdir -p ${dumpfolder} || exit 1
+
+	dblist=$(mysql ${myargs} -NAB -e "show databases" | grep -vE '^(performance_schema|sys|information_schema|mysql)$')
+	if [[ $? -ne 0 ]]; then
+		echo ">> mysqlargs failed: ${myargs}"
+		exit 1
+	fi
+
+	for db in ${dblist}
+	do
+		echo ":: $(date '+%a %T') : preparing database ${db} ..."
+		tablelist=$(mysql ${myargs} ${db} -NAB -e "show tables")
+		if [[ $? -ne 0 ]]; then
+			echo ">> $(date '+%a %T') : skipping database ${db}."
+		else
+			for table in ${tablelist}
+			do
+				dbtablelist="${dbtablelist} ${db}.${table}"
+			done
+		fi
+	done
+
+	echo ":: $(date '+%a %T') : dumping instance using ${iThreads} threads ..."
+
+	# spawn using xargs
+	echo "_SYSTEM ${dbtablelist}" | xargs -n 1 -P 8 -I '{}' ${0} -table '{}' ${dumpfolder} ${myargs}
+
+	# give a nice summary:
+	iNumFiles=$(ls -1 ${dumpfolder} | wc -l | awk '{printf "%d", $1}')
+	size=$(du -sh ${dumpfolder} | awk '{print $1}')
+	echo ":: $(date '+%a %T') : done: ${iNumFiles} files, ${size}"
+
+	exit 0
+
+elif [[ ${table} = _SYSTEM ]]; then
+
+	#=====================================
+	# SYSTEM TABLES (callback via xargs)
+	#=====================================
+	cmd="mysqldump --lock-tables=false ${myargs} --system=users | grep -vE '(mariadb[.]sys|mysql[.]sys|rdsadmin|rdsrepladmin|proxysql)' > ${dumpfolder}/_SYSTEM.sql"
+	#echo ":: $(date '+%a %T') : ${cmd}"
+	eval "$cmd"
+
+else # an actual table
+
+	#=====================================
+	# SINGLE TABLES (callback via xargs)
+	#=====================================
+	db=$(echo ${table} | awk -F. '{print $1}')
+	tab=$(echo ${table} | awk -F. '{print $2}')
+
+	cat <<-EOF | sed -e 's/^|//g' > ${dumpfolder}/${table}.sql
+		|/*
+		|** created by: ${0}
+		|** created on: $(date '+%a %Y-%m-%d %H:%M')
+		|**  source db: ${db}
+		|**   hostname: $(hostname)
+		|*/
+		|
+		|create database if not exists ${db};
+		|use ${db};
+		|
+	EOF
+
+	cmd="mysqldump --lock-tables=false ${myargs} --databases ${db} --tables ${tab} >> ${dumpfolder}/${table}.sql"
+	#echo ":: $(date '+%a %T') : ${cmd}"
+	eval "$cmd"
+fi
+

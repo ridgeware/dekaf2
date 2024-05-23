@@ -6,7 +6,8 @@
 #% usage: myexport [-threads <N>] <dumpfolder> -u<rootuser> -p<rootpass> [-h<hostname>]
 #%
 #% where:
-##   -table <name>  :: [undocumented callback] dump this table only
+##   -database <db> :: [undocumented xargs callback] prepare this database only
+##   -table <name>  :: [undocumented xargs callback] dump this table only
 #%   -threads <N>   :: override the default of 12 threads
 #%
 #% history:
@@ -16,6 +17,12 @@
 if [[ ${1} = -x ]]; then
 	shift
 	set -x
+fi
+
+database=""
+if [[ ${1} = "-database" ]]; then
+	database=$2
+	shift 2
 fi
 
 table=""
@@ -38,13 +45,16 @@ fi
 dumpfolder="$1"; shift
 myargs="$@"
 
-if [[ -z ${table} ]]; then
+if [[ "${table}" = "" ]] && [[ "${database}" = "" ]]; then
 	#==============================
 	# MAIN LOGIC
 	#==============================
 	if [[ -d ${dumpfolder} ]]; then
 		contents=$(ls -1 ${dumpfolder})
-		if [[ "${contents}" != "" ]]; then
+		if [[ -f ${dumpfolder}/.done ]]; then
+			echo ":: looks like export is already done: ${dumpfolder}"
+			exit 0
+		else if [[ "${contents}" != "" ]]; then
 			echo ">> dumpfolder already exists: ${dumpfolder}"
 			exit 1
 		fi
@@ -58,19 +68,11 @@ if [[ -z ${table} ]]; then
 		exit 1
 	fi
 
-	for db in ${dblist}
-	do
-		echo ":: $(date '+%a %T') : preparing database ${db} ..."
-		tablelist=$(mysql ${myargs} ${db} -NAB -e "show tables")
-		if [[ $? -ne 0 ]]; then
-			echo ">> $(date '+%a %T') : skipping database ${db}."
-		else
-			for table in ${tablelist}
-			do
-				dbtablelist="${dbtablelist} ${db}.${table}"
-			done
-		fi
-	done
+	# spawn for databases:
+	echo "${dblist}" | xargs -n 1 -P 8 -I '{}' ${0} -database '{}' ${dumpfolder} ${myargs}
+
+	ls -l ${dumpfolder}/.db_*
+	exit 100
 
 	echo ":: $(date '+%a %T') : dumping instance using ${iThreads} threads ..."
 
@@ -80,9 +82,24 @@ if [[ -z ${table} ]]; then
 	# give a nice summary:
 	iNumFiles=$(ls -1 ${dumpfolder} | wc -l | awk '{printf "%d", $1}')
 	size=$(du -sh ${dumpfolder} | awk '{print $1}')
+	touch ${dumpfolder}/.done
 	echo ":: $(date '+%a %T') : done: ${iNumFiles} files, ${size}"
 
 	exit 0
+
+elif [[ ! -z ${database} ]]; then
+
+	echo ":: $(date '+%a %T') : preparing database ${database} ..."
+	tablelist=$(mysql ${myargs} ${database} -NAB -e "show tables")
+	if [[ $? -ne 0 ]]; then
+		echo ">> $(date '+%a %T') : skipping database ${database}."
+	else
+		for table in ${tablelist}
+		do
+			dbtablelist="${dbtablelist} ${database}.${table}"
+		done
+		echo "${dbtablelist}" > ${dumpfolder}/.db_${database}
+	fi
 
 elif [[ ${table} = _SYSTEM ]]; then
 

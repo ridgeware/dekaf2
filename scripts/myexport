@@ -98,7 +98,7 @@ elif [[ ! -z ${database} ]]; then
 	else
 		for table in ${tablelist}
 		do
-			dbtablelist="${dbtablelist} ${database}.${table}"
+			dbtablelist=$(printf "%s%s\n" "${dbtablelist}" "${database}.${table}"
 		done
 		echo "${dbtablelist}" > ${dumpfolder}/.db_${database}
 	fi
@@ -118,6 +118,7 @@ else # an actual table
 	# SINGLE TABLES (callback via xargs)
 	#=====================================
 	echo ":: ${table}"
+	exit 0
 
 	db=$(echo ${table} | awk -F. '{print $1}')
 	tab=$(echo ${table} | awk -F. '{print $2}')

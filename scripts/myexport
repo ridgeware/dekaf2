@@ -120,7 +120,7 @@ else # an actual table
 	db=$(echo ${table} | awk -F. '{print $1}')
 	tab=$(echo ${table} | awk -F. '{print $2}')
 
-	header=$(cat <<-EOF | sed -e 's/^|//g'
+	header=$(cat << EOF | sed -e 's/^.*|//g'
 		|/*
 		|** created by: ${0}
 		|** created on: $(date '+%a %Y-%m-%d %H:%M')
@@ -131,7 +131,7 @@ else # an actual table
 		|create database if not exists ${db};
 		|use ${db};
 		|
-	EOF)
+EOF)
 
 	rm -f ${dumpfolder}/${table}.sql
 	echo "${header}" > ${dumpfolder}/${table}.sql

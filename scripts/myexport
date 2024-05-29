@@ -133,6 +133,7 @@ else # an actual table
 		use ${db};
 		
 	EOF
+	exit 0
 
 	cmd="mysqldump --lock-tables=false ${myargs} --databases ${db} --tables ${tab} >> ${dumpfolder}/${table}.sql"
 	#echo ":: $(date '+%a %T') : ${cmd}"

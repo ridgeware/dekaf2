@@ -90,6 +90,7 @@ public:
 		H4xx_NOTFOUND           = 404,
 		H4xx_BADMETHOD          = 405,
 		H4xx_CONFLICT           = 409,
+		H4xx_GONE               = 410,
 		H4xx_PRECONDITION_FAILED= 412,
 
 		H5xx_ERROR              = 500,

@@ -98,7 +98,7 @@ elif [[ ! -z ${database} ]]; then
 	else
 		for table in ${tablelist}
 		do
-			dbtablelist=$(printf "%s%s\n" "${dbtablelist}" "${database}.${table}"
+			dbtablelist=$(printf "%s%s\n" "${dbtablelist}" "${database}.${table}")
 		done
 		echo "${dbtablelist}" > ${dumpfolder}/.db_${database}
 	fi

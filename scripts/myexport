@@ -117,6 +117,8 @@ else # an actual table
 	#=====================================
 	# SINGLE TABLES (callback via xargs)
 	#=====================================
+	echo ":: ${table}"
+
 	db=$(echo ${table} | awk -F. '{print $1}')
 	tab=$(echo ${table} | awk -F. '{print $2}')
 

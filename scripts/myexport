@@ -121,20 +121,19 @@ else # an actual table
 	tab=$(echo ${table} | awk -F. '{print $2}')
 
 	rm -f ${dumpfolder}/${table}.sql
-	if [[ 0 -eq 1 ]]; then
-		#cat <<-EOF > ${dumpfolder}/${table}.sql
-		#/*
-		#** created by: ${0}
-		#** created on: $(date '+%a %Y-%m-%d %H:%M')
-		#**  source db: ${db}
-		#**   hostname: $(hostname)
-		#*/
-		#
-		#create database if not exists ${db};
-		#use ${db};
-		#
-		#EOF
-		:
+	if [[ 1 -eq 1 ]]; then
+		cat <<-EOF > ${dumpfolder}/${table}.sql
+		/*
+		** created by: ${0}
+		** created on: $(date '+%a %Y-%m-%d %H:%M')
+		**  source db: ${db}
+		**   hostname: $(hostname)
+		*/
+		
+		create database if not exists ${db};
+		use ${db};
+		
+		EOF
 	else
 		echo "/*" >> ${dumpfolder}/${table}.sql
 		echo "** created by: ${0}" >> ${dumpfolder}/${table}.sql
@@ -148,8 +147,6 @@ else # an actual table
 		echo "" >> ${dumpfolder}/${table}.sql
 	fi
 
-	cmd="mysqldump --lock-tables=false ${myargs} --databases ${db} --tables ${tab} >> ${dumpfolder}/${table}.sql"
-	#echo ":: $(date '+%a %T') : ${cmd}"
-	eval "$cmd"
+	mysqldump --lock-tables=false ${myargs} --databases ${db} --tables ${tab} >> ${dumpfolder}/${table}.sql
 fi
 

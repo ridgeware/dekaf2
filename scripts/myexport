@@ -45,7 +45,7 @@ fi
 dumpfolder="$1"; shift
 myargs="$@"
 
-if [[ "${table}" = "" ]] && [[ "${database}" = "" ]]; then
+if [[ -z "${table}" ]] && [[ -z "${database}" ]]; then
 	#==============================
 	# MAIN LOGIC
 	#==============================
@@ -54,7 +54,7 @@ if [[ "${table}" = "" ]] && [[ "${database}" = "" ]]; then
 		if [[ -f ${dumpfolder}/.done ]]; then
 			echo ":: looks like export is already done: ${dumpfolder}"
 			exit 0
-		else if [[ "${contents}" != "" ]]; then
+		elif [[ "${contents}" != "" ]]; then
 			echo ">> dumpfolder already exists: ${dumpfolder}"
 			exit 1
 		fi
@@ -68,16 +68,18 @@ if [[ "${table}" = "" ]] && [[ "${database}" = "" ]]; then
 		exit 1
 	fi
 
+	# - - - - - - - - - - - - - - - - - - - - - - - - -
 	# spawn for databases:
+	# - - - - - - - - - - - - - - - - - - - - - - - - -
+	echo ":: $(date '+%a %T') : sizing up each database in the instance ..."
 	echo "${dblist}" | xargs -n 1 -P 8 -I '{}' ${0} -database '{}' ${dumpfolder} ${myargs}
-
-	ls -l ${dumpfolder}/.db_*
-	exit 100
 
 	echo ":: $(date '+%a %T') : dumping instance using ${iThreads} threads ..."
 
-	# spawn using xargs
-	echo "_SYSTEM ${dbtablelist}" | xargs -n 1 -P 8 -I '{}' ${0} -table '{}' ${dumpfolder} ${myargs}
+	# - - - - - - - - - - - - - - - - - - - - - - - - -
+	# spawn for tables:
+	# - - - - - - - - - - - - - - - - - - - - - - - - -
+	(echo _SYSTEM; cat ${dumpfolder}/.db_*) | xargs -n 1 -P 8 -I '{}' ${0} -table '{}' ${dumpfolder} ${myargs}
 
 	# give a nice summary:
 	iNumFiles=$(ls -1 ${dumpfolder} | wc -l | awk '{printf "%d", $1}')
@@ -89,7 +91,7 @@ if [[ "${table}" = "" ]] && [[ "${database}" = "" ]]; then
 
 elif [[ ! -z ${database} ]]; then
 
-	echo ":: $(date '+%a %T') : preparing database ${database} ..."
+	#echo ":: $(date '+%a %T') : preparing database ${database} ..."
 	tablelist=$(mysql ${myargs} ${database} -NAB -e "show tables")
 	if [[ $? -ne 0 ]]; then
 		echo ">> $(date '+%a %T') : skipping database ${database}."

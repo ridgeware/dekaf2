@@ -102,7 +102,7 @@ elif [[ ! -z ${database} ]]; then
 	else
 		for table in ${tablelist}
 		do
-			echo "${db}.${table}" >> ${dumpfolder}/.db_${database}
+			echo "${database}.${table}" >> ${dumpfolder}/.db_${database}
 		done
 	fi
 

@@ -120,21 +120,20 @@ else # an actual table
 	db=$(echo ${table} | awk -F. '{print $1}')
 	tab=$(echo ${table} | awk -F. '{print $2}')
 
-	header=$(cat << EOF | sed -e 's/^.*|//g'
-		|/*
-		|** created by: ${0}
-		|** created on: $(date '+%a %Y-%m-%d %H:%M')
-		|**  source db: ${db}
-		|**   hostname: $(hostname)
-		|*/
-		|
-		|create database if not exists ${db};
-		|use ${db};
-		|
-EOF)
-
 	rm -f ${dumpfolder}/${table}.sql
-	echo "${header}" > ${dumpfolder}/${table}.sql
+	cat <<-EOF > ${dumpfolder}/${table}.sql
+		/*
+		** created by: ${0}
+		** created on: $(date '+%a %Y-%m-%d %H:%M')
+		**  source db: ${db}
+		**   hostname: $(hostname)
+		*/
+		
+		create database if not exists ${db};
+		use ${db};
+		
+	EOF
+
 	cmd="mysqldump --lock-tables=false ${myargs} --databases ${db} --tables ${tab} >> ${dumpfolder}/${table}.sql"
 	#echo ":: $(date '+%a %T') : ${cmd}"
 	eval "$cmd"

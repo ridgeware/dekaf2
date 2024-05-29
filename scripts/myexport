@@ -120,11 +120,6 @@ else # an actual table
 	db=$(echo ${table} | awk -F. '{print $1}')
 	tab=$(echo ${table} | awk -F. '{print $2}')
 
-	echo "::  db: ${db}"
-	echo ":: tab: ${tab}"
-	echo ""
-	exit 0
-
 	rm -f ${dumpfolder}/${table}.sql
 	if [[ 1 -eq 1 ]]; then
 		cat <<-EOF > ${dumpfolder}/${table}.sql

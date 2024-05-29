@@ -76,9 +76,6 @@ if [[ -z "${table}" ]] && [[ -z "${database}" ]]; then
 
 	echo ":: $(date '+%a %T') : dumping instance using ${iThreads} threads ..."
 
-	ls -l ${dumpfolder}/.db_*
-	exit 100
-
 	# - - - - - - - - - - - - - - - - - - - - - - - - -
 	# spawn for tables:
 	# - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -3,12 +3,14 @@
 #%
 #% myexport - export an entire INSTANCE of mysql/mariadb (all dbs, all tables), multiplexed
 #%
-#% usage: myexport [-threads <N>] <dumpfolder> -u<rootuser> -p<rootpass> [-h<hostname>]
+#% usage: myexport [-threads <N>] [-pipe '<cmd>'] [<dumpfolder>] -u<rootuser> -p<rootpass> [-h<hostname>]
 #%
 #% where:
-##   -database <db> :: [undocumented xargs callback] prepare this database only
-##   -table <name>  :: [undocumented xargs callback] dump this table only
 #%   -threads <N>   :: override the default of 12 threads
+#%   -pipe '<cmd>'  :: instead of creating SQL files, pipe all exports into an instance immediately
+#%                     e.g. myexport -pipe 'mysql -uroot -p...' /dev/null -u...
+#%   <dumpfolder>   :: folder to hold result (required if not using -pipe)
+##   -database <db> :: [undocumented xargs callback] prepare this database only
 #%
 #% history:
 #%   2024-05 : keef created
@@ -20,36 +22,67 @@ if [[ ${1} = -x ]]; then
 fi
 
 database=""
-if [[ ${1} = "-database" ]]; then
-	database=$2
-	shift 2
-fi
-
-table=""
-if [[ ${1} = "-table" ]]; then
-	table=$2
-	shift 2
-fi
-
 iThreads=12
-if [[ ${1} = "-threads" ]]; then
-	iThreads=$2
-	shift 2
-fi
+pipe=""
+dumpfolder=""
+myargs=""
 
-if [[ $# -eq 0 ]]; then
+while [[ $# -gt 0 ]]
+do
+	case ${1} in
+	-database)
+		database="$2"
+		shift
+		;;
+	-threads)
+		iThreads=$2
+		shift
+		;;
+	-pipe)
+		pipe="${2}"
+		shift
+		;;
+	-u|-p|-h)
+		myargs="${myargs} ${1} ${2}"
+		shift
+		;;
+	-u*|-p*|-h*)
+		myargs="${myargs} ${1}"
+		;;
+	-*)
+		echo ">> unknown option: ${1}"
+		exit 1
+		;;
+	*)
+		if [[ -z ${dumpfolder} ]]; then
+			dumpfolder="${1}"
+		else
+			echo ">> dumpfolder '${1}' was already specified as '${dumpfolder}'"
+			exit 1
+		fi
+		;;
+	esac
+	shift
+done
+
+if [[ -z ${pipe} ]] && [[ -z ${dumpfolder} ]]; then
+	awk '/^#%/ {print substr($0,3)}' $0
+	exit 1
+elif [[ -z ${myargs} ]]; then
 	awk '/^#%/ {print substr($0,3)}' $0
 	exit 1
 fi
 
-dumpfolder="$1"; shift
-myargs="$@"
+if [[ -n ${pipe} ]] && [[ -n ${dumpfolder} ]] && [[ ${dumpfolder} != /dev/null ]]; then
+	echo ">> warning: dumpfolder '${dumpfolder}' will be ignored because we are piping to: ${pipe}"
+	dumpfolder=""
+fi
 
-if [[ -z "${table}" ]] && [[ -z "${database}" ]]; then
+if [[ -z "${database}" ]]; then
 	#==============================
 	# MAIN LOGIC
 	#==============================
-	if [[ -d ${dumpfolder} ]]; then
+	if [[ -n ${dumpfolder} ]]; then
 		contents=$(ls -1 ${dumpfolder})
 		if [[ -f ${dumpfolder}/.done ]]; then
 			echo ":: looks like export is already done: ${dumpfolder}"
@@ -60,7 +93,9 @@ if [[ -z "${table}" ]] && [[ -z "${database}" ]]; then
 		fi
 	fi
 
-	mkdir -p ${dumpfolder} || exit 1
+	if [[ -n ${dumpfolder} ]]; then
+		mkdir -p ${dumpfolder} || exit 1
+	fi
 
 	dblist=$(mysql ${myargs} -NAB -e "show databases" | grep -vE '^(performance_schema|sys|information_schema|mysql)$')
 	if [[ $? -ne 0 ]]; then
@@ -69,84 +104,56 @@ if [[ -z "${table}" ]] && [[ -z "${database}" ]]; then
 	fi
 
 	# - - - - - - - - - - - - - - - - - - - - - - - - -
-	# spawn for databases:
+	# spawn for each databases:
 	# - - - - - - - - - - - - - - - - - - - - - - - - -
 	echo ":: $(date '+%a %T') : sizing up each database in the instance ..."
-	echo "${dblist}" | xargs -n 1 -P 8 -I '{}' ${0} -database '{}' ${dumpfolder} ${myargs}
+	if [[ -z ${pipe} ]]; then
+		(echo _SYSTEM; echo "${dblist}") | xargs -n 1 -P 8 -I '{}' ${0} -database '{}' ${dumpfolder} ${myargs}
+	else
+		(echo _SYSTEM; echo "${dblist}") | xargs -n 1 -P 8 -I '{}' ${0} -pipe "${pipe}" -database '{}' ${myargs}
+	fi
+	exit $?
 
-	echo ":: $(date '+%a %T') : dumping instance using ${iThreads} threads ..."
+elif [[ ${database} = _SYSTEM ]]; then
 
-	# - - - - - - - - - - - - - - - - - - - - - - - - -
-	# spawn for tables:
-	# - - - - - - - - - - - - - - - - - - - - - - - - -
-	(echo _SYSTEM; cat ${dumpfolder}/.db_*) | xargs -n 1 -P 8 -I '{}' ${0} -table '{}' ${dumpfolder} ${myargs}
+	#=====================================
+	# SYSTEM INFO (callback via xargs)
+	#=====================================
+	if [[ -z ${pipe} ]]; then
+		redirect="> ${dumpfolder}/_SYSTEM.sql"
+	else
+		redirect="| ${pipe}"
+	fi
 
-	# give a nice summary:
-	iNumFiles=$(ls -1 ${dumpfolder} | wc -l | awk '{printf "%d", $1}')
-	size=$(du -sh ${dumpfolder} | awk '{print $1}')
-	touch ${dumpfolder}/.done
-	echo ":: $(date '+%a %T') : done: ${iNumFiles} files, ${size}"
+	echo ":: $(date '+%a %T') : system: dumping system info ..."
+	cmd="mysqldump --lock-tables=false ${myargs} --system=users | grep -vE '(mariadb[.]sys|mysql[.]sys|rdsadmin|rdsrepladmin|proxysql)' ${redirect}"
+	echo ":: $(date '+%a %T') : system: ${cmd}"
+	eval "$cmd"
+	echo ":: $(date '+%a %T') : system: done."
 
-	exit 0
+else # ${database} is set
 
-elif [[ ! -z ${database} ]]; then
-
-	#echo ":: $(date '+%a %T') : preparing database ${database} ..."
+	#=====================================
+	# ONE DATABASE (callback via xargs)
+	#=====================================
 	rm -f ${dumpfolder}/.db_${database}
 	tablelist=$(mysql ${myargs} ${database} -NAB -e "show tables")
 	if [[ $? -ne 0 ]]; then
-		echo ">> $(date '+%a %T') : skipping database ${database}."
-	else
-		for table in ${tablelist}
-		do
-			echo "${database}.${table}" >> ${dumpfolder}/.db_${database}
-		done
+		echo ">> $(date '+%a %T') : ${database}: skipping database."
+		exit 0
 	fi
 
-elif [[ ${table} = _SYSTEM ]]; then
+	if [[ -z ${pipe} ]]; then
+		redirect="> ${dumpfolder}/${database}.sql"
+	else
+		redirect="| ${pipe}"
+	fi
 
-	#=====================================
-	# SYSTEM TABLES (callback via xargs)
-	#=====================================
-	cmd="mysqldump --lock-tables=false ${myargs} --system=users | grep -vE '(mariadb[.]sys|mysql[.]sys|rdsadmin|rdsrepladmin|proxysql)' > ${dumpfolder}/_SYSTEM.sql"
-	#echo ":: $(date '+%a %T') : ${cmd}"
+	echo ":: $(date '+%a %T') : ${database}: dumping database ..."
+	cmd="mysqldump --lock-tables=false ${myargs} --databases ${database} ${redirect}"
+	echo ":: $(date '+%a %T') : ${database}: ${cmd}"
 	eval "$cmd"
+	echo ":: $(date '+%a %T') : ${database}: done."
 
-else # an actual table
-
-	#=====================================
-	# SINGLE TABLES (callback via xargs)
-	#=====================================
-	db=$(echo ${table} | awk -F. '{print $1}')
-	tab=$(echo ${table} | awk -F. '{print $2}')
-
-	rm -f ${dumpfolder}/${table}.sql
-	if [[ 1 -eq 1 ]]; then
-		cat <<-EOF > ${dumpfolder}/${table}.sql
-		/*
-		** created by: ${0}
-		** created on: $(date '+%a %Y-%m-%d %H:%M')
-		**  source db: ${db}
-		**   hostname: $(hostname)
-		*/
-		
-		create database if not exists ${db};
-		use ${db};
-		
-		EOF
-	else
-		echo "/*" >> ${dumpfolder}/${table}.sql
-		echo "** created by: ${0}" >> ${dumpfolder}/${table}.sql
-		echo "** created on: $(date '+%a %Y-%m-%d %H:%M')" >> ${dumpfolder}/${table}.sql
-		echo "**  source db: ${db}" >> ${dumpfolder}/${table}.sql
-		echo "**   hostname: $(hostname)" >> ${dumpfolder}/${table}.sql
-		echo "*/" >> ${dumpfolder}/${table}.sql
-		echo "" >> ${dumpfolder}/${table}.sql
-		echo "create database if not exists ${db};" >> ${dumpfolder}/${table}.sql
-		echo "use ${db};" >> ${dumpfolder}/${table}.sql
-		echo "" >> ${dumpfolder}/${table}.sql
-	fi
-
-	mysqldump --lock-tables=false ${myargs} --databases ${db} --tables ${tab} >> ${dumpfolder}/${table}.sql
 fi
 

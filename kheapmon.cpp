@@ -159,13 +159,7 @@ bool IsAvailable()
 
 		if (jemalloc::ctlRead("config.prof", bAllowed))
 		{
-			if (bAllowed)
-			{
-				if (jemalloc::ctlRead("opt.prof_active", bAllowed))
-				{
-					return bAllowed;
-				}
-			}
+			return bAllowed;
 		}
 
 		return false;

@@ -42,6 +42,10 @@
 
 /// @file kheapmon.h
 /// monitoring and profiling memory usage
+/// To enable heap profiling you must start the final executable with the environment set to
+/// MALLOC_CONF="prof:true,prof_active:false,prof_prefix:jeprof.out"
+/// To start profiling, you then call Heap::Profiling::Start() and can then
+/// get a report with Heap::Profiling::Dump()
 
 #include "kdefinitions.h"
 #include "kstringview.h"
@@ -70,6 +74,7 @@ enum ReportFormat
 };
 
 /// check if monitoring can be switched on
+DEKAF2_NODISCARD
 bool    IsAvailable();
 /// start monitoring
 bool    Start();
@@ -90,6 +95,7 @@ KString Dump(ReportFormat Format, KStringView sAdditionalOptions = KStringView{}
 /// clear/reset collected data
 bool    Reset();
 /// returns true if monitoring was started
+DEKAF2_NODISCARD
 bool    IsStarted();
 
 } // namespace Profiling

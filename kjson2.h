@@ -122,6 +122,13 @@
 	#define kWarning(...)
 #endif
 
+#ifndef DEKAF2_NODISCARD
+	#define DEKAF2_NODISCARD
+#endif
+
+#ifndef DEKAF2_NODISCARD_PEDANTIC
+	#define DEKAF2_NODISCARD_PEDANTIC
+#endif
 
 namespace DEKAF2_KJSON_NAMESPACE {
 
@@ -1426,14 +1433,14 @@ std::istream& operator >>(std::istream& stream, T& json)
 
 
 
+#ifdef DEKAF2
+
 #define DEKAF2_FORCE_KJSON2         \
 template<typename T,                \
 	typename std::enable_if<        \
 		detail::is_kjson2<T>::value \
 	, int>::type = 0                \
 >
-
-#ifdef DEKAF2
 
 // legacy (checked) operations on the base type, converted to
 // the checked type for legacy code - except the parse functions
@@ -1781,6 +1788,8 @@ using kjson::Contains;
 using kjson::Increment;
 using kjson::Decrement;
 
+#undef DEKAF2_FORCE_KJSON2
+
 #else // of #ifdef DEKAF2
 
 // alias KJSON2 into KJSON, as we usually access it by
@@ -1824,7 +1833,6 @@ struct formatter<dekaf2::KJSON2> : formatter<string_view>
 
 #endif // of #if DEKAF2_HAS_INCLUDE("kformat.h")
 
-#undef DEKAF2_FORCE_KJSON2
 #undef DEKAF2_FORCE_CHAR_PTR
 
 #endif // of !DEKAF2_KJSON2_IS_DISABLED

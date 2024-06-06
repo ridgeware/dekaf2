@@ -112,6 +112,7 @@ KStringView KHTTPError::GetStatusString(uint16_t iStatusCode)
 		case H4xx_NOTFOUND:           return "NOT FOUND";
 		case H4xx_BADMETHOD:          return "METHOD NOT ALLOWED";
 		case H4xx_CONFLICT:           return "CONFLICT";
+		case H4xx_GONE:               return "GONE";
 		case H4xx_PRECONDITION_FAILED:return "PRECONDITION FAILED";
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

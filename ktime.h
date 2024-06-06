@@ -724,7 +724,7 @@ public:
 	}
 
 	/// construct from a chrono::zoned_time
-	KLocalTime (const zoned_time& time) noexcept
+	explicit KLocalTime (const zoned_time& time) noexcept
 	: zoned_time(time)
 	, KConstDate(chrono::floor<chrono::days>(get_local_time()))
 	, KConstTimeOfDay(local_time(get_local_time()) - chrono::floor<chrono::days>(get_local_time()))
@@ -819,7 +819,7 @@ public:
 	/// returns the chrono::sys_info struct
 	DEKAF2_NODISCARD
 	chrono::sys_info                                   get_info          () const { return zoned_time::get_info();       }
-	/// get offset from UTC
+	/// get offset from UTC, negative offset is west of Greenwich
 	DEKAF2_NODISCARD
 	chrono::seconds                                    get_utc_offset    () const { return get_info().offset;            }
 	/// get offset for DST

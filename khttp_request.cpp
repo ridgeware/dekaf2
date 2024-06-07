@@ -119,22 +119,22 @@ std::vector<KStringView> KInHTTPRequestLine::Parse(KString sRequestLine)
 							}
 							else
 							{
-								kDebug(1, "more than one space between resource and version");
+								kDebug(1, "more than one space between {}", "resource and version");
 							}
 						}
 						else
 						{
-							kDebug(1, "resource too long: {} bytes", sResource.size());
+							kDebug(1, "{} too long: {} bytes", "resource", sResource.size());
 						}
 					}
 					else
 					{
-						kDebug(1, "more than one space between method and resource");
+						kDebug(1, "more than one space between {}", "method and resource");
 					}
 				}
 				else
 				{
-					kDebug(1, "method too long: {} bytes", sMethod.size());
+					kDebug(1, "{} too long: {} bytes", "method", sMethod.size());
 				}
 			}
 			else
@@ -284,7 +284,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 		kDebug (2, RequestLine.Get());
 		if (!Words.empty())
 		{
-			return SetError(kFormat("invalid request line: {} words instead of 3", Words.size()));
+			return SetError(kFormat("{}: {} words instead of 3", "invalid request line", Words.size()));
 		}
 		else
 		{

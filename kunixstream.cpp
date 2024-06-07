@@ -81,7 +81,8 @@ std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize i
 			}
 			else
 			{
-				kDebug(1, "cannot read from unix stream with endpoint {}: {}",
+				kDebug(1, "cannot read from {} stream with endpoint {}: {}",
+					   "unix",
 					   stream->sEndpoint,
 					   stream->ec.message());
 			}
@@ -132,7 +133,8 @@ std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::stream
 				}
 				else
 				{
-					kDebug(1, "cannot write to unix stream with endpoint {}: {}",
+					kDebug(1, "cannot write to {} stream with endpoint {}: {}",
+						   "unix",
 						   stream->sEndpoint,
 						   stream->ec.message());
 				}
@@ -182,7 +184,7 @@ bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 		m_Stream.ec = ec;
 	});
 
-	kDebug(2, "trying to connect to unix domain socket {}", sSocketFile);
+	kDebug(2, "trying to connect to {} {}", "unix domain socket", sSocketFile);
 
 	m_Stream.RunTimed();
 
@@ -192,7 +194,7 @@ bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 		return false;
 	}
 
-	kDebug(2, "connected to unix domain socket {}", sSocketFile);
+	kDebug(2, "connected to {} {}", "unix domain socket", sSocketFile);
 
 	return true;
 

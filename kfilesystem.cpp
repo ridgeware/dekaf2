@@ -126,7 +126,7 @@ bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile)
 
 	if (Stat.Exists())
 	{
-		kDebug (3, "entry exists, but is a {}, not a file: {}", Stat.Type().Serialize(), sPath);
+		kDebug (3, "entry exists, but is a {}, not a {}: {}", Stat.Type().Serialize(), "file", sPath);
 	}
 
 	return false;
@@ -147,7 +147,7 @@ bool kDirExists (KStringViewZ sPath)
 
 	if (Stat.Exists())
 	{
-		kDebug (3, "entry exists, but is a {}, not a directory: {}", Stat.Type().Serialize(), sPath);
+		kDebug (3, "entry exists, but is a {}, not a {}: {}", Stat.Type().Serialize(), "directory", sPath);
 	}
 
 	return false;
@@ -1864,14 +1864,14 @@ KString KTempDir::MakeDir ()
 		{
 			if (kCreateDir (sDirName))
 			{
-				kDebug(2, "created temp directory: {}", sDirName);
+				kDebug(2, "{}d temp directory: {}", "create", sDirName);
 
 				return sDirName;
 			}
 		}
 	}
 
-	kDebug (1, "failed to create temp directory");
+	kDebug (1, "failed to {} temp directory: {}", "create", sDirName);
 
 	sDirName.clear();
 
@@ -1897,11 +1897,11 @@ void KTempDir::clear()
 		{
 			if (kRemoveDir(m_sTempDirName))
 			{
-				kDebug (2, "removed temp directory: {}", m_sTempDirName);
+				kDebug (2, "{}d temp directory: {}", "remove", m_sTempDirName);
 			}
 			else
 			{
-				kDebug (1, "failed to remove temp directory: {}", m_sTempDirName);
+				kDebug (1, "failed to {} temp directory: {}", "remove", m_sTempDirName);
 			}
 		}
 

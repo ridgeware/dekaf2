@@ -374,7 +374,7 @@ KLog& KLog::SetLevel(int iLevel)
 
 	if (s_iLogLevel > 0 || iLevel > 0)
 	{
-		IntDebug(0, DEKAF2_FUNCTION_NAME, kFormat("setting debug level to {}", iLevel));
+		IntDebug(0, DEKAF2_FUNCTION_NAME, kFormat("setting debug {} to {}", "level", iLevel));
 	}
 
 	s_iLogLevel = iLevel;
@@ -432,7 +432,7 @@ bool KLog::SetDebugLog(KStringView sLogfile)
 		return true;
 	}
 
-	IntDebug(1, DEKAF2_FUNCTION_NAME, kFormat("setting debug log to {}", sLogfile));
+	IntDebug(1, DEKAF2_FUNCTION_NAME, kFormat("setting debug {} to {}", "log", sLogfile));
 
 	m_sLogName = sLogfile;
 

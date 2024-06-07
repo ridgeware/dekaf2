@@ -227,7 +227,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 		}
 		else if (sLine.size() > MAX_LINELENGTH)
 		{
-			return SetError(kFormat("HTTP header line too long: {} bytes", sLine.size()));
+			return SetError(kFormat("HTTP {}header line too long: {} bytes", "", sLine.size()));
 		}
 
 		if (!KASCII::kIsAlpha(sLine.front()))
@@ -240,7 +240,8 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 				{
 					if (last->second.size() + sLine.size() > MAX_LINELENGTH)
 					{
-						return SetError(kFormat("HTTP continuation header line too long: {} bytes",
+						return SetError(kFormat("HTTP {}header line too long: {} bytes",
+												"continuation ",
 												last->second.size() + sLine.size()));
 					}
 					kDebug(2, "continuation header: {}", sLine);

@@ -449,23 +449,23 @@ KString& KReplacer::CleanupTokens (KString& sIn)
 			// Verify this makes sense or log issue
 			if (iStartPos == KString::npos || iEndPos == KString::npos)
 			{
-				kDebug (3, "1. Unsure what to do with region.");
+				kDebug (3, "Unsure what to do with region ({})", 1);
 				// issue - what region can be removed - abort
 			}
 			else if (iEndPos < iTokenPos)
 			{
 				// issue - what region can be removed
-				kDebug (3, "2. Unsure what to do with region.");
+				kDebug (3, "Unsure what to do with region ({})", 2);
 			}
 			else if (iStartPos > iTokenPos + sToken.length())
 			{
 				// impossible - we already found it
-				kDebug (3, "3. Unsure what to do with region.");
+				kDebug (3, "Unsure what to do with region ({})", 3);
 			}
 			else if (iEndPos < iStartPos)
 			{
 				// well can we work with >interloper_text< ? do we want to remove that
-				kDebug (3, "4. Unsure what to do with region.");
+				kDebug (3, "Unsure what to do with region ({})", 4);
 			}
 			else
 			{

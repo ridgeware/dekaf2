@@ -177,14 +177,14 @@ void KSignals::LookupFunc(int iSignal)
 	{
 		std::thread([&]()
 		{
-			kDebug(2, "calling handler for {} as separate thread", kTranslateSignal(iSignal));
+			kDebug(2, "calling handler for {} {} thread", kTranslateSignal(iSignal), "as separate");
 			callable.func(iSignal);
 
 		}).detach();
 	}
 	else
 	{
-		kDebug(2, "calling handler for {} in signal handler thread", kTranslateSignal(iSignal));
+		kDebug(2, "calling handler for {} {} thread", kTranslateSignal(iSignal), "in signal handler");
 		callable.func(iSignal);
 	}
 
@@ -252,12 +252,12 @@ void KSignals::SetDefaultHandler(int iSignal)
 	{
 		case SIGINT:
 		case SIGTERM:
-			kDebug(2, "setting dekaf2 default handler for {}", kTranslateSignal(iSignal));
+			kDebug(2, "setting {} default handler for {}", "dekaf2", kTranslateSignal(iSignal));
 			SetSignalHandler(iSignal, DefaultHandler);
 			break;
 
 		default:
-			kDebug(2, "setting system default handler for {}", kTranslateSignal(iSignal));
+			kDebug(2, "setting {} default handler for {}", "system", kTranslateSignal(iSignal));
 			IntDelSignalHandler(iSignal, SIG_DFL);
 			break;
 	}

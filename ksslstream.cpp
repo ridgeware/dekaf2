@@ -129,7 +129,7 @@ bool KSSLContext::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KSt
 		return SetError(kFormat("cannot set key file {}: {}", sKey, ec.message()));
 	}
 
-	kDebug(2, "TLS certificates successfully loaded");
+	kDebug(2, "TLS certificates successfully {}", "loaded");
 	return true;
 
 } // LoadSSLCertificates
@@ -176,7 +176,7 @@ bool KSSLContext::SetSSLCertificates(KStringView sCert, KStringView sKey, KStrin
 		return SetError(kFormat("cannot set key: {}", ec.message()));
 	}
 
-	kDebug(2, "TLS certificates successfully set");
+	kDebug(2, "TLS certificates successfully {}", "set");
 	return true;
 
 #endif
@@ -287,14 +287,14 @@ bool KSSLContext::SetAllowedCipherSuites(KStringView sCipherSuites)
 		else
 		{
 			auto sCiphers = kJoined(CipherV12, ":");
-			kDebug(2, "set TLSv1.2 cipher suites {}", sCiphers);
+			kDebug(2, "set TLSv{} cipher suites {}", "1.2", sCiphers);
 			if (SSL_CTX_set_cipher_list (m_Context.native_handle(), sCiphers.c_str()))
 			{
 				bSuccess = true;
 			}
 			else
 			{
-				SetError(kFormat("setting TLSv1.2 cipher suites failed: {}", sCiphers));
+				SetError(kFormat("setting TLSv{} cipher suites failed: {}", "1.2", sCiphers));
 			}
 		}
 	}
@@ -303,14 +303,14 @@ bool KSSLContext::SetAllowedCipherSuites(KStringView sCipherSuites)
 	{
 		auto sCiphers = kJoined(CipherV13, ":");
 #ifdef DEKAF2_HAS_TLSv13
-		kDebug(2, "set TLSv1.3 cipher suites {}", sCiphers);
+		kDebug(2, "set TLSv{} cipher suites {}", "1.3", sCiphers);
 		if (SSL_CTX_set_ciphersuites(m_Context.native_handle(), sCiphers.c_str()))
 		{
 			bSuccess = true;
 		}
 		else
 		{
-			SetError(kFormat("setting TLSv1.3 cipher suites failed: {}", sCiphers));
+			SetError(kFormat("setting TLSv{} cipher suites failed: {}", "1.3", sCiphers));
 		}
 #else
 		kDebug(1, "TLSv1.3 is not supported by the linked SSL library\ncannot set TLSv1.3 cipher suites {}", sCiphers);
@@ -508,7 +508,8 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 			}
 			else
 			{
-				kDebug(1, "cannot read from TLS stream with endpoint {}: {}",
+				kDebug(1, "cannot read from {} stream with endpoint {}: {}",
+					   "TLS",
 					   stream->sEndpoint,
 					   stream->ec.message());
 			}
@@ -578,7 +579,8 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 				}
 				else
 				{
-					kDebug(1, "cannot write to TLS stream with endpoint {}: {}",
+					kDebug(1, "cannot write to {} stream with endpoint {}: {}",
+						   "TLS",
 						   stream->sEndpoint,
 						   stream->ec.message());
 				}
@@ -689,7 +691,7 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 			m_Stream.ec = ec;
 		});
 
-		kDebug(2, "trying to connect to endpoint {}", Endpoint.Serialize());
+		kDebug(2, "trying to connect to {} {}", "endpoint", Endpoint.Serialize());
 
 		m_Stream.RunTimed();
 	}
@@ -700,7 +702,7 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint)
 		return false;
 	}
 
-	kDebug(2, "connected to endpoint {}", m_Stream.sEndpoint);
+	kDebug(2, "connected to {} {}", "endpoint", m_Stream.sEndpoint);
 
 	return true;
 

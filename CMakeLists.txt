@@ -55,7 +55,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.52 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.53 DESCRIPTION "C++14/17/20 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -101,6 +101,13 @@ set(CMAKE_CXX_STANDARD ${DEKAF2_CXX_STANDARD})
 
 message(STATUS "CMake Generator: ${CMAKE_GENERATOR}")
 
+# the cmake logic is sometimes case sensitive..
+if (CMAKE_BUILD_TYPE STREQUAL "release" OR CMAKE_BUILD_TYPE STREQUAL "RELEASE")
+	set(CMAKE_BUILD_TYPE "Release")
+elseif (CMAKE_BUILD_TYPE STREQUAL "debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+	set(CMAKE_BUILD_TYPE "Debug")
+endif()
+
 if (CMAKE_GENERATOR MATCHES "Makefile" OR CMAKE_GENERATOR MATCHES "Ninja")
 
 	# single configuration setup - make sure we have a build type
@@ -110,11 +117,8 @@ if (CMAKE_GENERATOR MATCHES "Makefile" OR CMAKE_GENERATOR MATCHES "Ninja")
 		set(CMAKE_BUILD_TYPE "Release")
 	endif()
 
-	if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "debug")
-		set(DEKAF2_IS_DEBUG_BUILD ON)
-	else()
+	if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
 		SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
-		set(DEKAF2_IS_DEBUG_BUILD OFF)
 	endif()
 
 else()
@@ -127,11 +131,11 @@ endif()
 # we only support the Release and Debug output locations - other
 # build types have to pick either or
 if (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-	set(DEKAF2_OUTPUT_PATH "Release")
-elseif(CMAKE_BUILD_TYPE STREQUAL "debug")
-	set(DEKAF2_OUTPUT_PATH "Debug")
+	set(DEKAF2_OUTPUT_TARGET "Release")
+elseif (CMAKE_BUILD_TYPE STREQUAL "ReleaseWithLabels" OR CMAKE_BUILD_TYPE STREQUAL "O3G1")
+	set(DEKAF2_OUTPUT_TARGET "Release")
 else()
-	set(DEKAF2_OUTPUT_PATH ${CMAKE_BUILD_TYPE})
+	set(DEKAF2_OUTPUT_TARGET ${CMAKE_BUILD_TYPE})
 endif()
 
 # prepare for install:
@@ -139,7 +143,7 @@ set(lib_version ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR})
 set(dekaf2_bin_dest bin)
 set(dekaf2_include_dest "include/${PROJECT_NAME}-${lib_version}")
 set(dekaf2_main_lib_dest "lib/${PROJECT_NAME}-${lib_version}")
-set(dekaf2_lib_dest "${dekaf2_main_lib_dest}/${DEKAF2_OUTPUT_PATH}")
+set(dekaf2_lib_dest "${dekaf2_main_lib_dest}/${DEKAF2_OUTPUT_TARGET}")
 # we use the dekaf2_share_dest to configure kconfiguration.h.in, so first set it
 # with an absolute path which we remove later on
 set(dekaf2_share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}-${lib_version}")

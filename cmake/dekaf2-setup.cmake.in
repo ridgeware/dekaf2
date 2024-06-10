@@ -11,6 +11,13 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 	# ============================= BUILD FLAGS =================================
 
+	# the cmake logic is sometimes case sensitive..
+	if (CMAKE_BUILD_TYPE STREQUAL "release" OR CMAKE_BUILD_TYPE STREQUAL "RELEASE")
+		set(CMAKE_BUILD_TYPE "Release")
+	elseif (CMAKE_BUILD_TYPE STREQUAL "debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+		set(CMAKE_BUILD_TYPE "Debug")
+	endif()
+
 	if (CMAKE_BUILD_TYPE)
 		message (STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 	endif()
@@ -25,6 +32,8 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 		set (IS_WINDOWS "@IS_WINDOWS@")
 		set (IS_LINUX "@IS_LINUX@")
 		set (DEKAF2_HAS_SQLITE3 "@DEKAF2_HAS_SQLITE3@")
+		set (DEKAF2_BUILD_TYPE "@CMAKE_BUILD_TYPE@")
+		set (DEKAF2_OUTPUT_TARGET "@DEKAF2_OUTPUT_TARGET@")
 
 		# ================================ CMAKE INTERNALS =================================
 
@@ -96,12 +105,62 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		# ============================= COMPILER FLAGS =================================
 
-		include(CheckCXXCompilerFlag)
+		if (NOT MSVC)
 
-		if (CMAKE_COMPILER_IS_GNUCXX)
+			### add the compile target ('build identity') ReleaseWithLabels, which builds optimized,
+			### but includes minimal labels
+
+			set (CMAKE_CXX_FLAGS_RELEASEWITHLABELS "-O3 -g1 -DNDEBUG" CACHE STRING
+				"C++ options to build optimized, but with minimal labels included" FORCE)
+			set (CMAKE_C_FLAGS_RELEASEWITHLABELS "-O3 -g1 -DNDEBUG" CACHE STRING
+				"C options to build optimized, but with minimal labels included" FORCE)
+			set (CMAKE_EXE_LINKER_FLAGS_RELEASEWITHLABELS "-feliminate-unused-debug-symbols" CACHE STRING
+				"Linker options to build optimized, but with minimal labels included" FORCE)
+			set (CMAKE_SHARED_LINKER_FLAGS_RELEASEWITHLABELS "-feliminate-unused-debug-symbols" CACHE STRING
+				"Shared linker options to build optimized, but with minimal labels included" FORCE)
+
+			MARK_AS_ADVANCED(
+				CMAKE_CXX_FLAGS_RELEASEWITHLABELS
+				CMAKE_C_FLAGS_RELEASEWITHLABELS
+				CMAKE_EXE_LINKER_FLAGS_RELEASEWITHLABELS
+				CMAKE_SHARED_LINKER_FLAGS_RELEASEWITHLABELS
+			)
+
+			# alias for verbose build type
+			if (CMAKE_BUILD_TYPE STREQUAL "O3G1")
+				set (CMAKE_BUILD_TYPE "ReleaseWithLabels")
+			endif()
+
+			### add compile options common to GCC and Clang ###
+
+			include(CheckCXXCompilerFlag)
+			check_cxx_compiler_flag(-Wpessimizing-move              DEKAF2_HAS_WARN_PESSIMIZING_MOVE   )
+			check_cxx_compiler_flag(-Wno-deprecated-copy            DEKAF2_HAS_WARN_NO_DEPRECATED_COPY )
+			if (NOT DEKAF2_HAS_WARN_ARRAY_BOUNDS)
+				check_cxx_compiler_flag(-Warray-bounds              DEKAF2_HAS_WARN_ARRAY_BOUNDS       )
+			endif()
 
 			add_compile_options(-Wall -Wextra -Wno-unused-parameter)
 			add_compile_options($<$<CONFIG:DEBUG>:-Werror>)
+
+			if (DEKAF2_HAS_WARN_PESSIMIZING_MOVE)
+				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wpessimizing-move>)
+			endif()
+
+			if (DEKAF2_HAS_WARN_NO_DEPRECATED_COPY)
+				# adding -Wno-deprecated-copy for boost-1.78 on Apple clang 13.1.6 (ARM64)
+				add_compile_options(-Wno-deprecated-copy)
+			endif()
+
+			if (Boost_VERSION VERSION_GREATER_EQUAL "1.69.00")
+				# satisfy new build mode of boost-1.69
+				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
+			endif()
+			add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility=hidden>)
+
+		endif()
+
+		if (CMAKE_COMPILER_IS_GNUCXX)
 
 			if (DEKAF2_HAS_WARN_ARRAY_BOUNDS AND CMAKE_CXX_STANDARD LESS 17)
 				# gcc has an overzealous array bounds check that triggers with no reason
@@ -112,10 +171,6 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 				# only one build configuration any other ones will still check
 				# for array bounds)
 				add_compile_options(-Wno-array-bounds)
-			endif()
-
-			if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.1)
-				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wpessimizing-move>)
 			endif()
 
 			if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12.0)
@@ -129,19 +184,6 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fconcepts-diagnostics-depth=3>)
 			endif()
 
-			# configure cpu architecture dependant optimization
-			if (CPU_x86)
-
-				if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
-					add_compile_options(-msse4.2 -mfpmath=sse -maes)
-				elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.5)
-					add_compile_options(-msse4.2)
-				else ()
-					add_compile_options(-msse3)
-				endif ()
-
-			endif ()
-
 			if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0) # AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.2) : gcc 8.3 warns again..
 				# mute the annoying warning on changing abi with gcc 7.1
 				add_compile_options(-Wno-psabi)
@@ -153,40 +195,12 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			# increase amount of permitted constexpr depth (default is 512)
 			add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fconstexpr-depth=2048>)
 
-			if (Boost_VERSION VERSION_GREATER_EQUAL "1.69.00")
-				# satisfy new build mode of boost-1.69
-				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
-			endif()
-			add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility=hidden>)
-
 		elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-
-			add_compile_options(-Wall -Wextra -Wno-unused-parameter)
-			add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wpessimizing-move>)
-			add_compile_options($<$<CONFIG:DEBUG>:-Werror>)
-
-			check_cxx_compiler_flag(-Wno-deprecated-copy DEKAF2_HAS_NO_DEPRECATED_COPY)
-
-			if (DEKAF2_HAS_NO_DEPRECATED_COPY)
-				# adding -Wno-deprecated-copy for boost-1.78 on Apple clang 13.1.6 (ARM64)
-				add_compile_options(-Wno-deprecated-copy)
-			endif()
-
-			# configure cpu architecture dependant optimization
-			if (CPU_x86)
-				add_compile_options(-msse4.2 -mfpmath=sse -maes)
-			endif ()
 
 			# increase amount of permitted constexpr steps (default is around 1.000.000)
 			add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fconstexpr-steps=400000000>)
 			# increase amount of permitted constexpr depth (default is 512)
 			add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fconstexpr-depth=2048>)
-
-			if (Boost_VERSION VERSION_GREATER_EQUAL "1.69.00")
-				# satisfy new build mode of boost-1.69
-				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
-			endif()
-			add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility=hidden>)
 
 			# linux clang is way too picky at warnings, but it does not matter to disable
 			# this on MacOS too
@@ -273,9 +287,11 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			#   b) drop sections not linked into the final executable
 			message(STATUS "forcing link time optimization for release builds")
 			add_compile_options($<$<CONFIG:RELEASE>:-flto>)
+			add_compile_options($<$<CONFIG:RELEASEWITHLABELS>:-flto>)
 			if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 				# gcc recognizes the lto format automatically, clang needs a little help
 				add_link_options($<$<CONFIG:RELEASE>:-flto>)
+				add_link_options($<$<CONFIG:RELEASEWITHLABELS>:-flto>)
 			endif()
 		elseif (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 6)
 			# this is the older way of achieving one section per function, without link
@@ -283,15 +299,19 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			message(STATUS "forcing split function and data sections for release builds")
 			add_compile_options($<$<CONFIG:RELEASE>:-fdata-sections>)
 			add_compile_options($<$<CONFIG:RELEASE>:-ffunction-sections>)
+			add_compile_options($<$<CONFIG:RELEASEWITHLABELS>:-fdata-sections>)
+			add_compile_options($<$<CONFIG:RELEASEWITHLABELS>:-ffunction-sections>)
 		elseif (MSVC)
 			# /Gy is splitting functions into different sections
 			message(STATUS "forcing split function sections for release builds")
 			add_compile_options($<$<CONFIG:RELEASE>:/Gy>)
+			add_compile_options($<$<CONFIG:RELEASEWITHLABELS>:/Gy>)
 		endif()
 	endif()
 
-	message(STATUS "${PROJECT_NAME} C++ compile flags for Release build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
-	message(STATUS "${PROJECT_NAME} C++ compile flags for Debug   build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
+	message(STATUS "${PROJECT_NAME} C++ compile flags for ReleaseWithLabels build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASEWITHLABELS}")
+	message(STATUS "${PROJECT_NAME} C++ compile flags for Release           build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+	message(STATUS "${PROJECT_NAME} C++ compile flags for Debug             build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
 
 	get_property(MY_COPTS DIRECTORY PROPERTY COMPILE_OPTIONS)
 	string(REPLACE "$<$<COMPILE_LANGUAGE:CXX>:" "" MY_COPTS "${MY_COPTS}")

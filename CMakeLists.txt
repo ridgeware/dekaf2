@@ -132,7 +132,7 @@ endif()
 # build types have to pick either or
 if (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
 	set(DEKAF2_OUTPUT_TARGET "Release")
-elseif (CMAKE_BUILD_TYPE STREQUAL "ReleaseWithLabels" OR CMAKE_BUILD_TYPE STREQUAL "O3G1")
+elseif (CMAKE_BUILD_TYPE STREQUAL "RelWithLabels" OR CMAKE_BUILD_TYPE STREQUAL "O3G1")
 	set(DEKAF2_OUTPUT_TARGET "Release")
 else()
 	set(DEKAF2_OUTPUT_TARGET ${CMAKE_BUILD_TYPE})
@@ -712,11 +712,19 @@ include ("${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake")
 
 # ========================= THIRD PARTY SOURCE LIBS ============================
 
+set (BACKUP_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithLabels")
+	# resetting build type to Release for third party libraries
+	set (CMAKE_BUILD_TYPE "Release")
+endif()
+
 # add third party libraries included in source control
 add_subdirectory(libs)
 
 # add partial third party libraries included in source control
 add_subdirectory(from)
+
+set (CMAKE_BUILD_TYPE "${BACKUP_BUILD_TYPE}")
 
 # =============================== HEADER FILES ====================================
 

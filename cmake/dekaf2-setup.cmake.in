@@ -107,31 +107,35 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		if (NOT MSVC)
 
-			### add the compile target ('build identity') ReleaseWithLabels, which builds optimized,
+			### add the compile target ('build identity') RelWithLabels, which builds optimized,
 			### but includes minimal labels
 
-			set (CMAKE_CXX_FLAGS_RELEASEWITHLABELS "-O3 -g1 -DNDEBUG" CACHE STRING
+			set (CMAKE_CXX_FLAGS_RELWITHLABELS "-O3 -g1 -DNDEBUG" CACHE STRING
 				"C++ options to build optimized, but with minimal labels included" FORCE)
-			set (CMAKE_C_FLAGS_RELEASEWITHLABELS "-O3 -g1 -DNDEBUG" CACHE STRING
+			set (CMAKE_C_FLAGS_RELWITHLABELS "-O3 -g1 -DNDEBUG" CACHE STRING
 				"C options to build optimized, but with minimal labels included" FORCE)
-			set (CMAKE_EXE_LINKER_FLAGS_RELEASEWITHLABELS "-feliminate-unused-debug-symbols" CACHE STRING
+			set (CMAKE_EXE_LINKER_FLAGS_RELWITHLABELS "-feliminate-unused-debug-symbols" CACHE STRING
 				"Linker options to build optimized, but with minimal labels included" FORCE)
-			set (CMAKE_SHARED_LINKER_FLAGS_RELEASEWITHLABELS "-feliminate-unused-debug-symbols" CACHE STRING
+			set (CMAKE_SHARED_LINKER_FLAGS_RELWITHLABELS "-feliminate-unused-debug-symbols" CACHE STRING
 				"Shared linker options to build optimized, but with minimal labels included" FORCE)
 
 			MARK_AS_ADVANCED(
-				CMAKE_CXX_FLAGS_RELEASEWITHLABELS
-				CMAKE_C_FLAGS_RELEASEWITHLABELS
-				CMAKE_EXE_LINKER_FLAGS_RELEASEWITHLABELS
-				CMAKE_SHARED_LINKER_FLAGS_RELEASEWITHLABELS
+				CMAKE_CXX_FLAGS_RELWITHLABELS
+				CMAKE_C_FLAGS_RELWITHLABELS
+				CMAKE_EXE_LINKER_FLAGS_RELWITHLABELS
+				CMAKE_SHARED_LINKER_FLAGS_RELWITHLABELS
 			)
 
 			# alias for verbose build type
 			if (CMAKE_BUILD_TYPE STREQUAL "O3G1")
-				set (CMAKE_BUILD_TYPE "ReleaseWithLabels")
+				set (CMAKE_BUILD_TYPE "RelWithLabels")
 			endif()
 
 			### add compile options common to GCC and Clang ###
+
+#			# eliminate unused debug symbols from final products
+#			set (CMAKE_EXE_LINKER_FLAGS_RELEASE    "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -feliminate-unused-debug-symbols"    )
+#			set (CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -feliminate-unused-debug-symbols" )
 
 			include(CheckCXXCompilerFlag)
 			check_cxx_compiler_flag(-Wpessimizing-move              DEKAF2_HAS_WARN_PESSIMIZING_MOVE   )
@@ -149,7 +153,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 			if (DEKAF2_HAS_WARN_NO_DEPRECATED_COPY)
 				# adding -Wno-deprecated-copy for boost-1.78 on Apple clang 13.1.6 (ARM64)
-				add_compile_options(-Wno-deprecated-copy)
+				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-copy>)
 			endif()
 
 			if (Boost_VERSION VERSION_GREATER_EQUAL "1.69.00")
@@ -287,11 +291,11 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			#   b) drop sections not linked into the final executable
 			message(STATUS "forcing link time optimization for release builds")
 			add_compile_options($<$<CONFIG:RELEASE>:-flto>)
-			add_compile_options($<$<CONFIG:RELEASEWITHLABELS>:-flto>)
+			add_compile_options($<$<CONFIG:RELWITHLABELS>:-flto>)
 			if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 				# gcc recognizes the lto format automatically, clang needs a little help
 				add_link_options($<$<CONFIG:RELEASE>:-flto>)
-				add_link_options($<$<CONFIG:RELEASEWITHLABELS>:-flto>)
+				add_link_options($<$<CONFIG:RELWITHLABELS>:-flto>)
 			endif()
 		elseif (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 6)
 			# this is the older way of achieving one section per function, without link
@@ -299,19 +303,19 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			message(STATUS "forcing split function and data sections for release builds")
 			add_compile_options($<$<CONFIG:RELEASE>:-fdata-sections>)
 			add_compile_options($<$<CONFIG:RELEASE>:-ffunction-sections>)
-			add_compile_options($<$<CONFIG:RELEASEWITHLABELS>:-fdata-sections>)
-			add_compile_options($<$<CONFIG:RELEASEWITHLABELS>:-ffunction-sections>)
+			add_compile_options($<$<CONFIG:RELWITHLABELS>:-fdata-sections>)
+			add_compile_options($<$<CONFIG:RELWITHLABELS>:-ffunction-sections>)
 		elseif (MSVC)
 			# /Gy is splitting functions into different sections
 			message(STATUS "forcing split function sections for release builds")
 			add_compile_options($<$<CONFIG:RELEASE>:/Gy>)
-			add_compile_options($<$<CONFIG:RELEASEWITHLABELS>:/Gy>)
+			add_compile_options($<$<CONFIG:RELWITHLABELS>:/Gy>)
 		endif()
 	endif()
 
-	message(STATUS "${PROJECT_NAME} C++ compile flags for ReleaseWithLabels build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASEWITHLABELS}")
-	message(STATUS "${PROJECT_NAME} C++ compile flags for Release           build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
-	message(STATUS "${PROJECT_NAME} C++ compile flags for Debug             build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
+	message(STATUS "${PROJECT_NAME} C++ compile flags for RelWithLabels  build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHLABELS}")
+	message(STATUS "${PROJECT_NAME} C++ compile flags for Release        build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+	message(STATUS "${PROJECT_NAME} C++ compile flags for Debug          build : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
 
 	get_property(MY_COPTS DIRECTORY PROPERTY COMPILE_OPTIONS)
 	string(REPLACE "$<$<COMPILE_LANGUAGE:CXX>:" "" MY_COPTS "${MY_COPTS}")

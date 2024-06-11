@@ -69,7 +69,7 @@
 
 #define JSON_ASSERT(bMustBeTrue) { DEKAF2_PREFIX kAssert(bMustBeTrue, "crash in KJSON"); }
 
-#if  defined(DEKAF2_IS_DEBUG_BUILD) \
+#if !defined(NDEBUG) \
  && !defined(DEKAF2_USE_PRECOMPILED_HEADERS) \
  && !defined(DEKAF2_WRAPPED_KJSON)
 	// add exact location to json exceptions in debug mode - we switch them off

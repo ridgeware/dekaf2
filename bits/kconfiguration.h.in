@@ -63,7 +63,6 @@
 #cmakedefine DEKAF2_HAS_SHIFT_COUNT_OVERFLOW 1
 
 // build setup
-#cmakedefine DEKAF2_IS_DEBUG_BUILD 1
 #cmakedefine DEKAF2_MAY_HAVE_INT128 1
 #cmakedefine DEKAF2_USE_PRECOMPILED_HEADERS 1
 #cmakedefine DEKAF2_USE_EXCEPTIONS 1

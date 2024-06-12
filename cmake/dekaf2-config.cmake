@@ -7,7 +7,9 @@ endif()
 
 # we only support the Release and Debug output locations - other
 # build types have to pick either or
-if (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" OR CMAKE_BUILD_TYPE STREQUAL "release")
+if (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"
+ OR CMAKE_BUILD_TYPE STREQUAL "RelWithLabels"
+ OR CMAKE_BUILD_TYPE STREQUAL "release")
 	set(DEKAF2_OUTPUT_PATH "Release")
 elseif(CMAKE_BUILD_TYPE STREQUAL "debug")
 	set(DEKAF2_OUTPUT_PATH "Debug")

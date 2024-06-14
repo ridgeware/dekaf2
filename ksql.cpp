@@ -7832,6 +7832,10 @@ KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm
 	if (sQueryParm == "!")
 	{
 		sClause = FormatSQL ("   and {} is not null\n", sDbCol);
+		if (iFlags & FAC_SUBSELECT)
+		{
+			sClause += ")";
+		}
 		return sClause;
 	}
 	else if (sQueryParm.remove_prefix ('!'))

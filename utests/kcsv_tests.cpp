@@ -231,4 +231,23 @@ TEST_CASE("KCSV")
 		CHECK ( json.dump() == R"([["Product","Type","Kind","Specifics","Production"],["Coffee","Ground","Arabica","Strong"],["Tea","Leaves","Darjeeling","First Flush","Equitable"]])" );
 	}
 
+	SECTION("Read with BOM")
+	{
+		KStringView sCSV = "\xEF\xBB\xBFProduct,Type,Kind,Specifics,Production\n"
+		"Coffee,Ground,Arabica,Strong\n" // this misses the last column
+		"Tea,Leaves,Darjeeling,First Flush,Equitable\n";
+
+		// we need the <> for C++ < 17
+		KJSON json = KInCSV<>(sCSV).SkipBOM();
+		CHECK ( json.dump() == R"([{"Kind":"Arabica","Product":"Coffee","Specifics":"Strong","Type":"Ground"},{"Kind":"Darjeeling","Product":"Tea","Production":"Equitable","Specifics":"First Flush","Type":"Leaves"}])" );
+	}
+
+	SECTION("Write with BOM")
+	{
+		KString sOut;
+		KOutCSV CSV(sOut);
+		CSV.WriteBOM();
+		CSV.Write(std::vector{"Oranges", "Apples", "Bananas", "Pineapples"});
+		CHECK ( sOut == "\xEF\xBB\xBFOranges,Apples,Bananas,Pineapples\r\n" );
+	}
 }

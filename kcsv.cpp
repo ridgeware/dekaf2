@@ -41,8 +41,23 @@
 */
 
 #include "kcsv.h"
+#include "kstringutils.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+//-----------------------------------------------------------------------------
+bool KCSV::WriteBOM(KOutStream& Out)
+//-----------------------------------------------------------------------------
+{
+	return kWriteUTF8BOM(Out).Good();
+}
+
+//-----------------------------------------------------------------------------
+KStringView KCSV::WriteBOM() const
+//-----------------------------------------------------------------------------
+{
+	return kWriteUTF8BOM();
+}
 
 //-----------------------------------------------------------------------------
 bool KCSV::WriteColumn(KOutStream& Out, KStringView sColumn, bool bIsFirst)
@@ -79,6 +94,22 @@ bool KCSV::WriteColumn(KOutStream& Out, KStringView sColumn, bool bIsFirst)
 	return Out.Good();
 
 } // WriteColumn
+
+//-----------------------------------------------------------------------------
+KInStream& KCSV::SkipBOM(KInStream& In)
+//-----------------------------------------------------------------------------
+{
+	return kSkipUTF8BOM(In);
+
+} // SkipBOM
+
+//-----------------------------------------------------------------------------
+KStringView KCSV::SkipBOM(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	return kSkipUTF8BOM(sInput);
+
+} // SkipBOM
 
 //-----------------------------------------------------------------------------
 KCSV::STATE KCSV::ReadColumn(KInStream& In, KStringRef& sColumn)

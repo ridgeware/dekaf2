@@ -60,6 +60,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 class KInStream;
+class KOutStream;
 
 //------------------------------------------------------------------------------
 DEKAF2_PUBLIC
@@ -1610,7 +1611,7 @@ DEKAF2_NODISCARD
 bool kHasUTF8BOM(KStringView sInput);
 
 /// returns true if InStream starts with a UTF8 BOM (Windows programs have the habit to add them to UTF8)
-bool kHasUTF8BOM(KInStream& InStream);
+bool kHasUTF8BOM(KInStream& InStream, bool bSkipIfExisting);
 
 /// returns a string view with skipped UTF8 BOM (if found at start of sInput)
 DEKAF2_NODISCARD
@@ -1621,5 +1622,15 @@ KInStream& kSkipUTF8BOM(KInStream& InStream);
 
 /// removes the UTF8 BOM in sInput in place, returning true if removed
 bool kSkipUTF8BOMInPlace(KStringRef& sInput);
+
+/// Explicitly write the ByteOrderMark in UTF8 encoding. This is deprecated, but some Microsoft applications
+/// require this to display non-ASCII characters correctly. Write the BOM only as the first output, before
+/// any other output, and particularly avoid this if the target could be Unix applications.
+KOutStream& kWriteUTF8BOM(KOutStream& OutStream);
+
+/// Explicitly write the ByteOrderMark in UTF8 encoding. This is deprecated, but some Microsoft applications
+/// require this to display non-ASCII characters correctly. Write the BOM only as the first output, before
+/// any other output, and particularly avoid this if the target could be Unix applications.
+KStringView kWriteUTF8BOM();
 
 DEKAF2_NAMESPACE_END

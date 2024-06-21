@@ -781,10 +781,11 @@ bool kHasUTF8BOM(KStringView sInput)
 } // kHasUTF8BOM
 
 //-----------------------------------------------------------------------------
-bool kHasUTF8BOM(KInStream& InStream)
+bool kHasUTF8BOM(KInStream& InStream, bool bSkipIfExisting)
 //-----------------------------------------------------------------------------
 {
 	uint8_t iMustUnread { 0 };
+	bool    bResult { false };
 
 	auto ch = InStream.Read();
 
@@ -798,12 +799,16 @@ bool kHasUTF8BOM(KInStream& InStream)
 
 			if (ch == 0xbf)
 			{
-				return true;
+				if (bSkipIfExisting)
+				{
+					return true;
+				}
+				else
+				{
+					bResult = true;
+				}
 			}
-			else
-			{
-				iMustUnread = 3;
-			}
+			iMustUnread = 3;
 		}
 		else
 		{
@@ -830,7 +835,7 @@ bool kHasUTF8BOM(KInStream& InStream)
 		}
 	}
 
-	return false;
+	return bResult;
 
 } // kHasUTF8BOM
 
@@ -851,7 +856,7 @@ KStringView kSkipUTF8BOM(KStringView sInput)
 KInStream& kSkipUTF8BOM(KInStream& InStream)
 //-----------------------------------------------------------------------------
 {
-	kHasUTF8BOM(InStream);
+	kHasUTF8BOM(InStream, true);
 	return InStream;
 
 } // kSkipUTF8BOM
@@ -871,5 +876,19 @@ bool kSkipUTF8BOMInPlace(KStringRef& sInput)
 	}
 
 } // kSkipUTF8BOMInPlace
+
+//-----------------------------------------------------------------------------
+KOutStream& kWriteUTF8BOM(KOutStream& Out)
+//-----------------------------------------------------------------------------
+{
+	return Out.Write(kWriteUTF8BOM());
+}
+
+//-----------------------------------------------------------------------------
+KStringView kWriteUTF8BOM()
+//-----------------------------------------------------------------------------
+{
+	return KStringView { "\xef\xbb\xbf" };
+}
 
 DEKAF2_NAMESPACE_END

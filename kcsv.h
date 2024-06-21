@@ -83,6 +83,21 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Explicitly write the ByteOrderMark in UTF8 encoding. This is deprecated, but most Microsoft CSV applications
+	/// require this to display non-ASCII characters correctly. Write the BOM only as the first output, before
+	/// any other output, and particularly avoid this if the target could be Unix applications.
+	bool WriteBOM(KOutStream& Out);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Explicitly write the ByteOrderMark in UTF8 encoding. This is deprecated, but most Microsoft CSV applications
+	/// require this to display non-ASCII characters correctly. Write the BOM only as the first output, before
+	/// any other output, and particularly avoid this if the target could be Unix applications.
+	DEKAF2_NODISCARD
+	KStringView WriteBOM() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// write any iterable type with elements that are convertible into a string view with correct escaping into an output stream
 	template<class Columns = std::vector<KString>>
 	bool Write(KOutStream& Out, const Columns& Record)
@@ -124,6 +139,17 @@ public:
 		Write(Oss, Record);
 		return sRecord;
 	}
+
+	//-----------------------------------------------------------------------------
+	/// skip UTF8 BOM if existing at start of stream - Microsoft applications use to write this at the start of files
+	KInStream& SkipBOM(KInStream& In);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// skip UTF8 BOM if existing at start of input - Microsoft applications use to write this at the start of files
+	DEKAF2_NODISCARD
+	KStringView SkipBOM(KStringView sIn);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// read a vector of strings with correct escaping from an input stream, appending to Record
@@ -281,6 +307,14 @@ public:
 	iterator end()   { return iterator();       }
 
 	//-----------------------------------------------------------------------------
+	KInCSV& SkipBOM()
+	//-----------------------------------------------------------------------------
+	{
+		KCSV::SkipBOM(m_In);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// read a vector of strings with correct escaping from an input stream
 	Record Read()
 	//-----------------------------------------------------------------------------
@@ -305,10 +339,11 @@ public:
 	//-----------------------------------------------------------------------------
 	/// sets the headers, use this if they are not contained in first line of input and you want to convert into
 	/// json objects
-	void SetHeaders(StringVector Headers)
+	KInCSV& SetHeaders(StringVector Headers)
 	//-----------------------------------------------------------------------------
 	{
 		m_Headers = std::make_unique<StringVector>(std::move(Headers));
+		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -408,6 +443,16 @@ public:
 	,   m_OutStringStream(std::make_unique<KOutStringStream>(sOut))
 	,   m_Out(*m_OutStringStream)
 	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Explicitly write the ByteOrderMark in UTF8 encoding. This is deprecated, but most Microsoft applications
+	/// require this to display non-ASCII characters correctly. Write the BOM only as the first output, before
+	/// any other output
+	bool WriteBOM()
+	//-----------------------------------------------------------------------------
+	{
+		return KCSV::WriteBOM(m_Out);
 	}
 
 	//-----------------------------------------------------------------------------

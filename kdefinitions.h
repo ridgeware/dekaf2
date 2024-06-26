@@ -296,12 +296,8 @@
 	#define DEKAF2_DEPRECATED(msg)
 #endif
 
-#ifndef DEKAF2_IS_WINDOWS
-	#if DEKAF2_HAS_CPP_ATTRIBUTE(gsl::Owner)
-		#define DEKAF2_GSL_OWNER(x) [[gsl::Owner(x)]]
-	#else
-		#define DEKAF2_GSL_OWNER(x)
-	#endif
+#if DEKAF2_HAS_CPP_ATTRIBUTE(gsl::Owner)
+	#define DEKAF2_GSL_OWNER(x) [[gsl::Owner(x)]]
 #else
 	#define DEKAF2_GSL_OWNER(x)
 #endif

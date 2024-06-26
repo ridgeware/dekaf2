@@ -93,11 +93,7 @@ struct is_kstring_move_assignable
 /// that offers most string functions from languages like Python or Javascript,
 /// handles most error cases in a benign way and speeds up searching
 /// up to 50 times compared to std::string implementations
-#ifndef DEKAF2_IS_WINDOWS
-class DEKAF2_PUBLIC DEKAF2_GSL_OWNER() KString
-#else
-class DEKAF2_PUBLIC KString
-#endif
+class DEKAF2_PUBLIC DEKAF2_GSL_OWNER(char) KString
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

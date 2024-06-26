@@ -1631,6 +1631,7 @@ KOutStream& kWriteUTF8BOM(KOutStream& OutStream);
 /// Explicitly write the ByteOrderMark in UTF8 encoding. This is deprecated, but some Microsoft applications
 /// require this to display non-ASCII characters correctly. Write the BOM only as the first output, before
 /// any other output, and particularly avoid this if the target could be Unix applications.
+DEKAF2_NODISCARD
 KStringView kWriteUTF8BOM();
 
 DEKAF2_NAMESPACE_END

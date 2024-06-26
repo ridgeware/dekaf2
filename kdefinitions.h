@@ -306,12 +306,8 @@
 	#define DEKAF2_GSL_OWNER(x)
 #endif
 
-#ifndef DEKAF2_IS_WINDOWS
-	#if DEKAF2_HAS_CPP_ATTRIBUTE(gsl::Pointer)
-		#define DEKAF2_GSL_POINTER(x) [[gsl::Pointer(x)]]
-	#else
-		#define DEKAF2_GSL_POINTER(x)
-	#endif
+#if DEKAF2_HAS_CPP_ATTRIBUTE(gsl::Pointer)
+	#define DEKAF2_GSL_POINTER(x) [[gsl::Pointer(x)]]
 #else
 	#define DEKAF2_GSL_POINTER(x)
 #endif

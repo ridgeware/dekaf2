@@ -211,11 +211,7 @@ class KStringViewZ;
 /// folly::StringPiece, or our own implementation. Handles most errors without
 /// throwing and speeds up searching up to 50 times compared to std::string_view
 /// implementations.
-#ifndef DEKAF2_IS_WINDOWS
-class DEKAF2_PUBLIC DEKAF2_GSL_POINTER() KStringView
-#else
-class DEKAF2_PUBLIC KStringView
-#endif
+class DEKAF2_PUBLIC DEKAF2_GSL_POINTER(char) KStringView
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

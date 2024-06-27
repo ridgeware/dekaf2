@@ -7843,7 +7843,7 @@ KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm
 		sOperator = "!=";
 		sQueryParm.Trim();
 	}
-	if (sQueryParm.remove_prefix ('>'))
+	else if (sQueryParm.remove_prefix ('>'))
 	{
 		sOperator = ">";
 		sQueryParm.Trim();

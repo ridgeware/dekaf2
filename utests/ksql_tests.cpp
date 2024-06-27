@@ -256,6 +256,43 @@ TEST_CASE("KSQL")
 		sResult = DB.FormAndClause("if(ifnull(I.test,0) in (100,101),'val'ue1','value2')", "val'ue1", KSQL::FAC_NORMAL, ",").str();
 		sResult.CollapseAndTrim();
 		CHECK (sResult == "and if(ifnull(I.test,0) in (100,101),'val'ue1','value2') = 'val'ue1'" );
+
+		// Tests for Mike
+		sResult = DB.FormAndClause("mycol", "!", KSQL::FAC_NUMERIC | KSQL::FAC_BETWEEN).str();
+		sResult.CollapseAndTrim();
+		CHECK (sResult == "and mycol is not null" );
+
+		sResult = DB.FormAndClause("mycol", "!17", KSQL::FAC_NUMERIC | KSQL::FAC_BETWEEN).str();
+		sResult.CollapseAndTrim();
+		CHECK (sResult == "and mycol != 17" );
+
+		sResult = DB.FormAndClause("mycol", ">17", KSQL::FAC_NUMERIC | KSQL::FAC_BETWEEN).str();
+		sResult.CollapseAndTrim();
+		CHECK (sResult == "and mycol > 17" );
+
+		sResult = DB.FormAndClause("mycol", "<17", KSQL::FAC_NUMERIC | KSQL::FAC_BETWEEN).str();
+		sResult.CollapseAndTrim();
+		CHECK (sResult == "and mycol < 17" );
+
+		sResult = DB.FormAndClause("mycol", "17", KSQL::FAC_NUMERIC | KSQL::FAC_BETWEEN).str();
+		sResult.CollapseAndTrim();
+		CHECK (sResult == "and mycol = 17" );
+
+		sResult = DB.FormAndClause("mycol", "0,1", KSQL::FAC_NUMERIC | KSQL::FAC_BETWEEN).str();
+		sResult.CollapseAndTrim();
+		CHECK (sResult == "and mycol between 0 and 1" );
+
+		sResult = DB.FormAndClause("mycol", "0|1", KSQL::FAC_NUMERIC | KSQL::FAC_BETWEEN, "|").str();
+		sResult.CollapseAndTrim();
+		CHECK (sResult == "and mycol between 0 and 1" );
+
+		sResult = DB.FormAndClause("mycol", "1,0", KSQL::FAC_NUMERIC | KSQL::FAC_BETWEEN).str();
+		sResult.CollapseAndTrim();
+		CHECK (sResult == "and mycol between 1 and 0" );
+
+		sResult = DB.FormAndClause("mycol", "100,-100", KSQL::FAC_SIGNED | KSQL::FAC_BETWEEN).str();
+		sResult.CollapseAndTrim();
+		CHECK (sResult == "and mycol between 100 and -100" );
 	}
 
 	SECTION("FormOrderBy")

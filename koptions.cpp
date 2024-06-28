@@ -955,10 +955,11 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 			}
 
 			// strip name at first special character or space
-			auto pos = sOption.find_first_of(" <>[]|.;=\t\r\n\b");
+			auto pos = sOption.find_first_of(" <>[]|;=\t\r\n\b");
 
 			if (pos != KStringView::npos)
 			{
+				kDebug(1, "removed suffix from option: '{}'", sOption.ToView(pos));
 				sOption.erase(pos);
 			}
 		}

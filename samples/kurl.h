@@ -291,6 +291,8 @@ protected:
 private:
 //----------
 
+	void AddRequestData(KStringViewZ sArg, bool bEncodeAsForm, bool bTakeFile);
+
 	KOptions    m_CLI { true };
 	Config      m_Config;
 	RequestList m_RequestList;

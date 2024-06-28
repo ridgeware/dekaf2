@@ -62,51 +62,6 @@ using namespace DEKAF2_NAMESPACE_NAME;
 kurl::kurl ()
 //-----------------------------------------------------------------------------
 {
-	auto AddRequestData = [&](KStringViewZ sArg, bool bEncodeAsForm, bool bTakeFile)
-	{
-		KString sData;
-
-		if (bTakeFile && sArg.StartsWith("@"))
-		{
-			sArg.TrimLeft('@');
-
-			if (!kReadAll(sArg, sData))
-			{
-				throw KOptions::WrongParameterError(kFormat("invalid filename: {}", sArg));
-			}
-		}
-		else
-		{
-			if (bEncodeAsForm)
-			{
-				// TODO
-				sData = sArg;
-			}
-			else
-			{
-				sData = sArg;
-			}
-		}
-
-		if (!BuildMRQ.sRequestBody.empty() && !sData.empty())
-		{
-			BuildMRQ.sRequestBody += '&';
-		}
-
-		BuildMRQ.sRequestBody += sData;
-
-		if (BuildMRQ.Method.empty())
-		{
-			BuildMRQ.Method = KHTTPMethod::POST;
-		}
-
-		if (!BuildMRQ.Headers.contains(KHTTPHeader(KHTTPHeader::CONTENT_TYPE).Serialize()))
-		{
-			BuildMRQ.Headers.insert({KHTTPHeader(KHTTPHeader::CONTENT_TYPE).Serialize(), KMIME::WWW_FORM_URLENCODED});
-		}
-
-	}; // AddRequestData
-
 	KInit(true) // we want a signal handler thread
 		.SetName(s_sProjectName)
 		.SetMultiThreading(false)
@@ -488,6 +443,53 @@ kurl::kurl ()
 	});
 
 } // ctor
+
+//-----------------------------------------------------------------------------
+void kurl::AddRequestData(KStringViewZ sArg, bool bEncodeAsForm, bool bTakeFile)
+//-----------------------------------------------------------------------------
+{
+	KString sData;
+
+	if (bTakeFile && sArg.StartsWith("@"))
+	{
+		sArg.TrimLeft('@');
+
+		if (!kReadAll(sArg, sData))
+		{
+			throw KOptions::WrongParameterError(kFormat("invalid filename: {}", sArg));
+		}
+	}
+	else
+	{
+		if (bEncodeAsForm)
+		{
+			// TODO
+			sData = sArg;
+		}
+		else
+		{
+			sData = sArg;
+		}
+	}
+
+	if (!BuildMRQ.sRequestBody.empty() && !sData.empty())
+	{
+		BuildMRQ.sRequestBody += '&';
+	}
+
+	BuildMRQ.sRequestBody += sData;
+
+	if (BuildMRQ.Method.empty())
+	{
+		BuildMRQ.Method = KHTTPMethod::POST;
+	}
+
+	if (!BuildMRQ.Headers.contains(KHTTPHeader(KHTTPHeader::CONTENT_TYPE).Serialize()))
+	{
+		BuildMRQ.Headers.insert({KHTTPHeader(KHTTPHeader::CONTENT_TYPE).Serialize(), KMIME::WWW_FORM_URLENCODED});
+	}
+
+}; // AddRequestData
 
 //-----------------------------------------------------------------------------
 void kurl::LoadConfig ()

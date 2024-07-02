@@ -48,13 +48,14 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode)
+bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode, KHTTPVersion HTTPVersion)
 //-----------------------------------------------------------------------------
 {
 	NextRound();
 
 	// find the content length
 	KStringView sRemainingContentSize = headers.Headers.Get(KHTTPHeader::CONTENT_LENGTH);
+
 	if (!sRemainingContentSize.empty())
 	{
 		m_iContentSize = sRemainingContentSize.UInt64();
@@ -64,7 +65,9 @@ bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode)
 		m_iContentSize = 0;
 	}
 
-	m_bChunked = headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
+	m_bChunked = (HTTPVersion & KHTTPVersion::http2)
+	              ? false
+	              : headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
 
 	KHTTPCompression::Parse(headers);
 

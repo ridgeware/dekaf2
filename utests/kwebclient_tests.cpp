@@ -100,11 +100,11 @@ TEST_CASE("KWebClient") {
 		if (server.m_rx.size() == 8)
 		{
 			CHECK( server.m_rx[0] == "POST /path HTTP/1.1" );
-			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7653");
-			CHECK( server.m_rx[2] == "Content-Length: 11");
-			CHECK( server.m_rx[3] == "Content-Type: text/html; charset=UTF-8" );
-			CHECK( server.m_rx[4] == kFormat("Accept-Encoding: {}", KHTTPCompression::GetCompressors()) );
-			CHECK( server.m_rx[5] == "User-Agent: dekaf/" DEKAF_VERSION );
+			CHECK( server.m_rx[1] == "host: 127.0.0.1:7653");
+			CHECK( server.m_rx[2] == "content-length: 11");
+			CHECK( server.m_rx[3] == "content-type: text/html; charset=UTF-8" );
+			CHECK( server.m_rx[4] == kFormat("accept-encoding: {}", KHTTPCompression::GetCompressors()) );
+			CHECK( server.m_rx[5] == "user-agent: dekaf/" DEKAF_VERSION );
 			CHECK( server.m_rx[6] == "");
 			CHECK( server.m_rx[7] == "some body");
 		}

@@ -85,9 +85,9 @@ TEST_CASE("KHTTPClient") {
 		if (server.m_rx.size() == 5)
 		{
 			CHECK( server.m_rx[0] == "GET /path?query=val&another=here HTTP/1.1" );
-			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
-			CHECK( server.m_rx[2] == kFormat("Accept-Encoding: {}", KHTTPCompression::GetCompressors()) );
-			CHECK( server.m_rx[3] == "User-Agent: dekaf/" DEKAF_VERSION );
+			CHECK( server.m_rx[1] == "host: 127.0.0.1:7654");
+			CHECK( server.m_rx[2] == kFormat("accept-encoding: {}", KHTTPCompression::GetCompressors()) );
+			CHECK( server.m_rx[3] == "user-agent: dekaf/" DEKAF_VERSION );
 			CHECK( server.m_rx[4] == "");
 		}
 		server.Stop();
@@ -118,7 +118,7 @@ TEST_CASE("KHTTPClient") {
 		if (server.m_rx.size() == 3)
 		{
 			CHECK( server.m_rx[0] == "GET /path?query=val&another=here HTTP/1.1" );
-			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
+			CHECK( server.m_rx[1] == "host: 127.0.0.1:7654");
 			CHECK( server.m_rx[2] == "");
 		}
 	}
@@ -149,7 +149,7 @@ TEST_CASE("KHTTPClient") {
 		if (server.m_rx.size() == 3)
 		{
 			CHECK( server.m_rx[0] == "GET /path?query=val&another=here HTTP/1.1" );
-			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
+			CHECK( server.m_rx[1] == "host: 127.0.0.1:7654");
 			CHECK( server.m_rx[2] == "");
 		}
 
@@ -166,7 +166,7 @@ TEST_CASE("KHTTPClient") {
 		if (server.m_rx.size() == 3)
 		{
 			CHECK( server.m_rx[0] == "GET /path?query=val&another=here HTTP/1.1" );
-			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
+			CHECK( server.m_rx[1] == "host: 127.0.0.1:7654");
 			CHECK( server.m_rx[2] == "");
 		}
 
@@ -200,10 +200,10 @@ TEST_CASE("KHTTPClient") {
 		if (server.m_rx.size() == 11)
 		{
 			CHECK( server.m_rx[0] == "POST /abc HTTP/1.1" );
-			CHECK( server.m_rx[1] == "Host: 127.0.0.1:7654");
-			CHECK( server.m_rx[2] == "Transfer-Encoding: chunked");
-			CHECK( server.m_rx[3] == "Content-Type: text/plain");
-			CHECK( server.m_rx[4] == kFormat("Accept-Encoding: {}", KHTTPCompression::GetCompressors()) );
+			CHECK( server.m_rx[1] == "host: 127.0.0.1:7654");
+			CHECK( server.m_rx[2] == "transfer-encoding: chunked");
+			CHECK( server.m_rx[3] == "content-type: text/plain");
+			CHECK( server.m_rx[4] == kFormat("accept-encoding: {}", KHTTPCompression::GetCompressors()) );
 			CHECK( server.m_rx[5] == "");
 			sContent.remove_suffix(1);
 			// follows the response wrapped in the chunking protocol

@@ -670,7 +670,17 @@ bool KRESTServer::Execute()
 			}
 
 			Response.SetStatus(200, "OK");
-			Response.sHTTPVersion = "HTTP/1.1";
+
+			if ((Request.GetHTTPVersion() & ~KHTTPVersion::http10) == KHTTPVersion::none)
+			{
+				// this was either http/1.0 or no version set -
+				// force http/1.1 output
+				Response.SetHTTPVersion(KHTTPVersion::http11);
+			}
+			else
+			{
+				Response.SetHTTPVersion(Request.GetHTTPVersion());
+			}
 
 			if (m_Timers)
 			{
@@ -785,7 +795,7 @@ bool KRESTServer::Execute()
 			{
 				if (VerifyPerThreadKLogToHeader() > 1)
 				{
-					kDebug (2, "Request: {} {} {}", Request.Method.Serialize(), Request.Resource.Path, Request.sHTTPVersion);
+					kDebug (2, "Request: {} {} {}", Request.Method.Serialize(), Request.Resource.Path, Request.GetHTTPVersion());
 					// output headers for this thread
 					for (const auto& Header : Request.Headers)
 					{
@@ -1414,7 +1424,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 
 	// we need to set the HTTP version here explicitly, as we could throw as early
 	// that no version is set - which will corrupt headers and body..
-	Response.sHTTPVersion = "HTTP/1.1";
+	Response.SetHTTPVersion(KHTTPVersion::http11);
 
 	KStringViewZ sError = ex.what();
 

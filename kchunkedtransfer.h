@@ -72,9 +72,9 @@ private:
 		Finished
 	};
 
-	static constexpr int LINEFEED = 0x0a;
-	static constexpr int CARRIAGE_RETURN = 0x0d;
-	static constexpr uint16_t MAX_HEX = 15;
+	static constexpr int LineFeed = 0x0a;
+	static constexpr int CarriageReturn = 0x0d;
+	static constexpr uint16_t MaxHex = 15;
 
 //------
 public:

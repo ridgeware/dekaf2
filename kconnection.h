@@ -43,10 +43,31 @@
 
 #include "kdefinitions.h"
 #include "kstream.h"
-#include "kstringstream.h"
 #include "kurl.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+enum TLSOptions : uint8_t
+{
+	None            = 0,                                 ///< no options, use for non-HTTP connections
+	VerifyCert      = 1 << 0,                            ///< verify server certificate
+	ManualHandshake = 1 << 1,                            ///< wait for manual TLS handshake (for protocols like SMTP STARTTLS)
+	RequestHTTP2    = 1 << 2,                            ///< request a ALPN negotiation for HTTP2
+	FallBackToHTTP1 = 1 << 3,                            ///< if RequestHTTP2 is set, allow HTTP1 as fallback if 2 is not available
+	DefaultsForHTTP = 1 << 4                             ///< use for HTTP, per default tries HTTP2 and allows HTTP1, can be changed through SetTLSDefaults()
+};
+
+/// transform DefaultsForHTTP so that they will be resolved to
+/// application wide defaults for HTTP (either with HTTP1 and/or HTTP2 and/or verify)
+TLSOptions GetTLSDefaults(TLSOptions Options);
+
+/// set the application wide defaults for HTTP - this function is not thread safe, set it right
+/// at the start of your application before threading out. Initial defaults are RequestHTTP2 | FallBackToHTTP1
+bool SetTLSDefaults(TLSOptions Options);
+
+DEKAF2_ENUM_IS_FLAG(TLSOptions)
+
+class KSSLIOStream;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KConnection
@@ -159,8 +180,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// get the underlying KSSLIOStream if this connection is a SSL connection, otherwise returns nullptr
+	virtual KSSLIOStream* GetUnderlyingTLSStream();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	// this interface uses KURL instead of KTCPEndPoint to allow construction like "https://www.abc.de" - otherwise the protocol would be lost..
-	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceSSL = false, bool bVerifyCerts = false, int iSecondsTimeout = 15);
+	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceSSL = false, TLSOptions Options = TLSOptions::None, int iSecondsTimeout = 15);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -293,7 +319,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts = false, bool bManualHandshake = false, int iSecondsTimeout = 15);
+	bool Connect(const KTCPEndPoint& Endpoint, TLSOptions Options, int iSecondsTimeout = 15);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -314,6 +340,13 @@ public:
 	//-----------------------------------------------------------------------------
 	/// start the manual TLS handshake
 	virtual bool StartManualTLSHandshake() override;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// note: this header on purpose only forward declares the KSSLIOStream class -
+	// to make use of the result, include the ksslstream.h header at the use place
+	/// get the underlying KSSLIOStream if this connection is established, otherwise returns nullptr
+	virtual KSSLIOStream* GetUnderlyingTLSStream() override;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

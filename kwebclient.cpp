@@ -75,9 +75,9 @@ bool KWget (KStringView sURL, KStringViewZ sOutfile, const KJSON& Options/*=KJSO
 } // KWget
 
 //-----------------------------------------------------------------------------
-KWebClient::KWebClient(bool bVerifyCerts/*=false*/)
+KWebClient::KWebClient(TLSOptions Options /*=TLSOptions::Default*/)
 //-----------------------------------------------------------------------------
-: KHTTPClient(bVerifyCerts)
+: KHTTPClient(Options)
 {
 	AutoConfigureProxy(true);
 }
@@ -320,28 +320,28 @@ KString KWebClient::HttpRequest2Host (const KURL& HostURL, KURL URL, KHTTPMethod
 } // HttpRequest2Host
 
 //-----------------------------------------------------------------------------
-KString kHTTPGet(KURL URL)
+KString kHTTPGet(KURL URL, TLSOptions Options)
 //-----------------------------------------------------------------------------
 {
-	KWebClient HTTP(/* bVerifyCerts = */ true);
+	KWebClient HTTP(Options);
 	return HTTP.Get(std::move(URL));
 
 } // kHTTPGet
 
 //-----------------------------------------------------------------------------
-bool kHTTPHead(KURL URL)
+bool kHTTPHead(KURL URL, TLSOptions Options)
 //-----------------------------------------------------------------------------
 {
-	KWebClient HTTP(/* bVerifyCerts = */ true);
+	KWebClient HTTP(Options);
 	return HTTP.Head(std::move(URL));
 
 } // kHTTPHead
 
 //-----------------------------------------------------------------------------
-KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime)
+KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime, TLSOptions Options)
 //-----------------------------------------------------------------------------
 {
-	KWebClient HTTP(/* bVerifyCerts = */ true);
+	KWebClient HTTP(Options);
 	return HTTP.Post(std::move(URL), svPostData, Mime);
 
 } // kHTTPPost

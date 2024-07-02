@@ -41,13 +41,15 @@
 
 #pragma once
 
-#include "kcompatibility.h"
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include "kcaseless.h"
 #include "kprops.h"
 #include "kcrashexit.h"
 #include "kformat.h"
+#include "khttp_version.h"
+#include "kmime.h"
 #include <memory>
 
 #if (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 90000) \
@@ -100,6 +102,7 @@ public:
 		CONTENT_LOCATION,
 		CONTENT_MD5,
 		CONTENT_RANGE,
+		CONTENT_SECURITY_POLICY_REPORT_ONLY,
 		CONTENT_TYPE,
 		COOKIE,
 		CROSS_ORIGIN_EMBEDDER_POLICY,
@@ -154,6 +157,7 @@ public:
 		X_FORWARDED_SERVER,
 		X_FRAME_OPTIONS,
 		X_POWERED_BY,
+		X_XSS_PROTECTION,
 		OTHER
 	};
 
@@ -216,6 +220,7 @@ public:
 		if (m_header == OTHER)
 		{
 			m_sHeader = std::make_unique<KString>(std::forward<T>(sHeader));
+			m_sHeader->MakeLowerASCII();
 		}
 	}
 
@@ -231,6 +236,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// serialize the header name to lowercase, as required by http/2 and http/3
 	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	KStringViewZ Serialize() const
 	//-----------------------------------------------------------------------------
@@ -243,169 +249,173 @@ public:
 				kAssert(m_sHeader.get(), "m_sHeader must not be nullptr");
 				return *m_sHeader ? m_sHeader->ToView() : "";
 			case ACCEPT:
-				return "Accept";
+				return "accept";
 			case ACCEPT_CHARSET:
-				return "Accept-Charset";
+				return "accept-charset";
 			case ACCEPT_DATETIME:
-				return "Accept-Datetime";
+				return "accept-datetime";
 			case ACCEPT_ENCODING:
-				return "Accept-Encoding";
+				return "accept-encoding";
 			case ACCEPT_LANGUAGE:
-				return "Accept-Language";
+				return "accept-language";
 			case ACCEPT_PATCH:
-				return "Accept-Patch";
+				return "accept-patch";
 			case ACCEPT_RANGES:
-				return "Accept-Ranges";
+				return "accept-ranges";
 			case ACCESS_CONTROL_ALLOW_CREDENTIALS:
-				return "Access-Control-Allow-Credentials";
+				return "access-control-allow-credentials";
 			case ACCESS_CONTROL_ALLOW_HEADERS:
-				return "Access-Control-Allow-Headers";
+				return "access-control-allow-headers";
 			case ACCESS_CONTROL_ALLOW_METHODS:
-				return "Access-Control-Allow-Methods";
+				return "access-control-allow-methods";
 			case ACCESS_CONTROL_ALLOW_ORIGIN:
-				return "Access-Control-Allow-Origin";
+				return "access-control-allow-origin";
 			case ACCESS_CONTROL_EXPOSE_HEADERS:
-				return "Access-Control-Expose-Headers";
+				return "access-control-expose-headers";
 			case ACCESS_CONTROL_MAX_AGE:
-				return "Access-Control-Max-Age";
+				return "access-control-max-age";
 			case ACCESS_CONTROL_REQUEST_HEADERS:
-				return "Access-Control-Request-Headers";
+				return "access-control-request-headers";
 			case ACCESS_CONTROL_REQUEST_METHOD:
-				return "Access-Control-Request-Method";
+				return "access-control-request-method";
 			case AGE:
-				return "Age";
+				return "age";
 			case ALLOW:
-				return "Allow";
+				return "allow";
 			case ALT_SVC:
-				return "Alt-Svc";
+				return "alt-svc";
 			case AUTHORIZATION:
-				return "Authorization";
+				return "authorization";
 			case CACHE_CONTROL:
-				return "Cache-Control";
+				return "cache-control";
 			case CONNECTION:
-				return "Connection";
+				return "connection";
 			case CONTENT_DISPOSITION:
-				return "Content-Disposition";
+				return "content-disposition";
 			case CONTENT_ENCODING:
-				return "Content-Encoding";
+				return "content-encoding";
 			case CONTENT_LANGUAGE:
-				return "Content-Language";
+				return "content-language";
 			case CONTENT_LENGTH:
-				return "Content-Length";
+				return "content-length";
 			case CONTENT_LOCATION:
-				return "Content-Location";
+				return "content-location";
 			case CONTENT_MD5:
-				return "Content-MD5";
+				return "content-md5";
 			case CONTENT_RANGE:
-				return "Content-Range";
+				return "content-range";
+			case CONTENT_SECURITY_POLICY_REPORT_ONLY:
+				return "content-security-policy-report-only";
 			case CONTENT_TYPE:
-				return "Content-Type";
+				return "content-type";
 			case COOKIE:
-				return "Cookie";
+				return "cookie";
 			case CROSS_ORIGIN_EMBEDDER_POLICY:
-				return "Cross-Origin-Embedder-Policy";
+				return "cross-origin-embedder-policy";
 			case CROSS_ORIGIN_OPENER_POLICY:
-				return "Cross-Origin-Opener-Policy";
+				return "cross-origin-opener-policy";
 			case DATE:
-				return "Date";
+				return "date";
 			case ETAG:
-				return "ETag";
+				return "etag";
 			case EXPECT:
-				return "Expect";
+				return "expect";
 			case EXPIRES:
-				return "Expires";
+				return "expires";
 			case FORWARDED:
-				return "Forwarded";
+				return "forwarded";
 			case FROM:
-				return "From";
+				return "from";
 			case HOST:
-				return "Host";
+				return "host";
 			case HOST_OVERRIDE:
-				return "HostOverride";
+				return "hostoverride";
 			case IF_MATCH:
-				return "If-Match";
+				return "if-match";
 			case IF_MODIFIED_SINCE:
-				return "If-Modified-Since";
+				return "if-modified-since";
 			case IF_NONE_MATCH:
-				return "If-None-Match";
+				return "if-none-match";
 			case IF_RANGE:
-				return "If-Range";
+				return "if-range";
 			case IF_UNMODIFIED_SINCE:
-				return "If-Unmodified-Since";
+				return "if-unmodified-since";
 			case KEEP_ALIVE:
-				return "Keep-Alive";
+				return "keep-alive";
 			case LAST_MODIFIED:
-				return "Last-Modified";
+				return "last-modified";
 			case LINK:
-				return "Link";
+				return "link";
 			case LOCATION:
-				return "Location";
+				return "location";
 			case MAX_FORWARDS:
-				return "Max-Forwards";
+				return "max-forwards";
 			case ORIGIN:
-				return "Origin";
+				return "origin";
 			case P3P:
-				return "P3P";
+				return "p3p";
 			case PRAGMA:
-				return "Pragma";
+				return "pragma";
 			case PROXY_AUTHENTICATE:
-				return "Proxy-Authenticate";
+				return "proxy-authenticate";
 			case PROXY_AUTHORIZATION:
-				return "Proxy-Authorization";
+				return "proxy-authorization";
 			case PROXY_CONNECTION:
-				return "Proxy-Connection";
+				return "proxy-connection";
 			case PUBLIC_KEY_PINS:
-				return "Public-Key-Pins";
+				return "public-key-pins";
 			case RANGE:
-				return "Range";
+				return "range";
 			case REFERER:
-				return "Referer";
+				return "referer";
 			case RETRY_AFTER:
-				return "Retry-After";
+				return "retry-after";
 			case SEC_WEBSOCKET_ACCEPT:
-				return "Sec-WebSocket-Accept";
+				return "sec-websocket-accept";
 			case SEC_WEBSOCKET_KEY:
-				return "Sec-WebSocket-Key";
+				return "sec-websocket-key";
 			case SEC_WEBSOCKET_EXTENSIONS:
-				return "Sec-WebSocket-Extensions";
+				return "sec-websocket-extensions";
 			case SEC_WEBSOCKET_VERSION:
-				return "Sec-WebSocket-Version";
+				return "sec-websocket-version";
 			case SEC_WEBSOCKET_PROTOCOL:
-				return "Sec-WebSocket-Protocol";
+				return "sec-websocket-protocol";
 			case SERVER:
-				return "Server";
+				return "server";
 			case SET_COOKIE:
-				return "Set-Cookie";
+				return "set-cookie";
 			case STRICT_TRANSPORT_SECURITY:
-				return "Strict-Transport-Security";
+				return "strict-transport-security";
 			case TRAILER:
-				return "Trailer";
+				return "trailer";
 			case TRANSFER_ENCODING:
-				return "Transfer-Encoding";
+				return "transfer-encoding";
 			case UPGRADE:
-				return "Upgrade";
+				return "upgrade";
 			case USER_AGENT:
-				return "User-Agent";
+				return "user-agent";
 			case VARY:
-				return "Vary";
+				return "vary";
 			case VIA:
-				return "Via";
+				return "via";
 			case WARNING:
-				return "Warning";
+				return "warning";
 			case WWW_AUTHENTICATE:
-				return "WWW-Authenticate";
+				return "www-authenticate";
 			case X_FORWARDED_FOR:
-				return "X-Forwarded-For";
+				return "x-forwarded-for";
 			case X_FORWARDED_HOST:
-				return "X-Forwarded-Host";
+				return "x-forwarded-host";
 			case X_FORWARDED_PROTO:
-				return "X-Forwarded-Proto";
+				return "x-forwarded-proto";
 			case X_FORWARDED_SERVER:
-				return "X-Forwarded-Server";
+				return "x-forwarded-server";
 			case X_FRAME_OPTIONS:
-				return "X-Frame-Options";
+				return "x-frame-options";
 			case X_POWERED_BY:
-				return "X-Powered-By";
+				return "x-powered-by";
+			case X_XSS_PROTECTION:
+				return "x-xss-protection";
 		}
 
 		// not found..
@@ -445,7 +455,7 @@ public:
 	{
 		if (m_header == OTHER && m_sHeader)
 		{
-			return kCalcCaselessHash((*m_sHeader));
+			return m_sHeader->Hash();
 		}
 		else
 		{
@@ -470,7 +480,7 @@ public:
 		}
 
 		return (left.m_sHeader && right.m_sHeader &&
-				kCaselessEqual(*left.m_sHeader, *right.m_sHeader));
+				*left.m_sHeader == *right.m_sHeader);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -538,6 +548,8 @@ public:
 				return CONTENT_MD5;
 			case "Content-Range"_casehash:
 				return CONTENT_RANGE;
+			case "content-security-policy-report-only"_casehash:
+				return CONTENT_SECURITY_POLICY_REPORT_ONLY;
 			case "Content-Type"_casehash:
 				return CONTENT_TYPE;
 			case "Cookie"_casehash:
@@ -646,6 +658,8 @@ public:
 				return X_FRAME_OPTIONS;
 			case "X-Powered-By"_casehash:
 				return X_POWERED_BY;
+			case "x-xss-protection"_casehash:
+				return X_XSS_PROTECTION;
 		}
 
 		// not found..
@@ -805,7 +819,7 @@ bool operator!=(const KHTTPHeader& left, const KHTTPHeader& right)
 
 DEKAF2_NAMESPACE_END
 
-namespace fmt
+namespace DEKAF2_FORMAT_NAMESPACE
 {
 
 template <>
@@ -828,7 +842,7 @@ struct formatter<DEKAF2_PREFIX KHTTPHeader> : formatter<string_view>
 	}
 };
 
-} // end of namespace fmt
+} // end of namespace DEKAF2_FORMAT_NAMESPACE
 
 namespace std
 {
@@ -876,22 +890,27 @@ public:
 	using KHeaderMap = KProps<KHTTPHeader, KString, /*Sequential =*/ true, /*Unique =*/ false>; // case insensitive map for header info
 
 	//-----------------------------------------------------------------------------
+	/// parses from Stream into headers
 	bool Parse(KInStream& Stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// serializes from headers into Stream
 	bool Serialize(KOutStream& Stream) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// clear all headers
 	void clear();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	const KString& ContentType() const;
+	/// returns the content type
+	const KMIME& ContentType() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// returns the character set
 	const KString& Charset() const;
 	//-----------------------------------------------------------------------------
 
@@ -934,12 +953,26 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// return the HTTP version string
-	const KString& GetHTTPVersion() const
+	/// return the HTTP version
+	KHTTPVersion GetHTTPVersion() const
 	//-----------------------------------------------------------------------------
 	{
-		return sHTTPVersion;
+		return m_HTTPVersion;
 	}
+
+	//-----------------------------------------------------------------------------
+	/// set the HTTP version
+	void SetHTTPVersion(KHTTPVersion Version)
+	//-----------------------------------------------------------------------------
+	{
+		m_HTTPVersion = Version;
+	}
+
+//------
+public:
+//------
+
+	KHeaderMap Headers;
 
 //------
 protected:
@@ -954,21 +987,14 @@ protected:
 	//-----------------------------------------------------------------------------
 
 //------
-public:
-//------
-
-	KHeaderMap Headers; // response headers read in
-
-	// we store the http version here as it is a shared property
-	// of request and response headers
-	KString sHTTPVersion;
-
-//------
 private:
 //------
 
+	// we store the http version here as it is a shared property
+	// of request and response headers
+	KHTTPVersion    m_HTTPVersion;
 	mutable KString m_sCharset;
-	mutable KString m_sContentType;
+	mutable KMIME   m_sContentType;
 	mutable KString m_sError;
 
 }; // KHTTPHeaders

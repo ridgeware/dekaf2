@@ -150,11 +150,11 @@ SignedRequest::SignedRequest(const KURL& URL,
 		m_AddedHeaders.emplace(KHTTPHeader(KHTTPHeader::CONTENT_TYPE), sContentType);
 	}
 	m_AddedHeaders.emplace(KHTTPHeader(KHTTPHeader::HOST), m_sHost);
-	m_AddedHeaders.emplace(kFormat("X-{}-Date", sProviderTitlecase), m_sDateTime);
+	m_AddedHeaders.emplace(kFormat("x-{}-date", m_sProviderLowercase), m_sDateTime);
 
 	if (!sTarget.empty())
 	{
-		m_AddedHeaders.emplace(kFormat("X-{}-Target", sProviderTitlecase), sTarget);
+		m_AddedHeaders.emplace(kFormat("x-{}-target", m_sProviderLowercase), sTarget);
 	}
 
 	HTTPHeaders LowerCaseHeaders;

@@ -289,7 +289,8 @@ TEST_CASE("KWriter") {
 		Server.SetSSLCertificates(sCert, sKey);
 		Server.Start(5, false);
 
-		KSSLClient stream("localhost:43236", 5, false);
+		KSSLContext SSLContext(false);
+		KSSLClient stream(SSLContext, "localhost:43236", TLSOptions::None, 5);
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();
@@ -316,7 +317,8 @@ TEST_CASE("KWriter") {
 		Server.SetSSLCertificates(sCert, sKey);
 		Server.Start(5, false);
 
-		KSSLClient stream("localhost:43237", 5, false);
+		KSSLContext SSLContext(false);
+		KSSLClient stream(SSLContext, "localhost:43237", TLSOptions::None, 5);
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();

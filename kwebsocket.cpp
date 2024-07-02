@@ -608,7 +608,7 @@ bool CheckForWebSocketUpgrade(const KInHTTPRequest& Request, bool bThrowIfInvali
 		return Error("websockets require GET requests for session initiation");
 	}
 
-	if (Request.GetHTTPVersion() != "HTTP/1.1")
+	if (Request.GetHTTPVersion() != KHTTPVersion::http11)
 	{
 		return Error("websockets require HTTP/1.1, not any earlier or later version");
 	}

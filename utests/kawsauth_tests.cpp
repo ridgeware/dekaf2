@@ -41,11 +41,11 @@ TEST_CASE("KAWSAuth")
 										 "translate");
 
 		CHECK ( Headers.size() == 5 );
-		CHECK ( Headers["Host"         ] == "translate.us-east-1.amazonaws.com" );
-		CHECK ( Headers["Content-Type" ] == sContentType                        );
-		CHECK ( Headers["X-Amz-Date"   ] == "20230703T115234Z"                  );
-		CHECK ( Headers["X-Amz-Target" ] == "TranslateText"                     );
-		CHECK ( Headers["Authorization"] ==
+		CHECK ( Headers["host"         ] == "translate.us-east-1.amazonaws.com" );
+		CHECK ( Headers["content-type" ] == sContentType                        );
+		CHECK ( Headers["x-amz-date"   ] == "20230703T115234Z"                  );
+		CHECK ( Headers["x-amz-target" ] == "TranslateText"                     );
+		CHECK ( Headers["authorization"] ==
 			   "AWS4-HMAC-SHA256 Credential=AIHDSFNHCSAPJAKCUSHVF/20230703/us-east-1/translate/aws4_request, "
 			   "SignedHeaders=content-type;host;x-amz-date;x-amz-target, "
 			   "Signature=53e58bf1bec7f31e2018bc052a916a4a495c3143e0a9af6fcc7e03822051e362" );
@@ -66,11 +66,11 @@ TEST_CASE("KAWSAuth")
 										 sSecretKey);
 
 		CHECK ( Headers.size() == 5 );
-		CHECK ( Headers["Host"         ] == "translate.us-east-1.amazonaws.com" );
-		CHECK ( Headers["Content-Type" ] == sContentType                        );
-		CHECK ( Headers["X-Amz-Date"   ] == "20230703T115234Z"                  );
-		CHECK ( Headers["X-Amz-Target" ] == "TranslateText"                     );
-		CHECK ( Headers["Authorization"] ==
+		CHECK ( Headers["host"         ] == "translate.us-east-1.amazonaws.com" );
+		CHECK ( Headers["content-type" ] == sContentType                        );
+		CHECK ( Headers["x-amz-date"   ] == "20230703T115234Z"                  );
+		CHECK ( Headers["x-amz-target" ] == "TranslateText"                     );
+		CHECK ( Headers["authorization"] ==
 			   "AWS4-HMAC-SHA256 Credential=AIHDSFNHCSAPJAKCUSHVF/20230703/us-east-1/translate/aws4_request, "
 			   "SignedHeaders=content-type;host;x-amz-date;x-amz-target, "
 			   "Signature=53e58bf1bec7f31e2018bc052a916a4a495c3143e0a9af6fcc7e03822051e362" );
@@ -91,11 +91,11 @@ TEST_CASE("KAWSAuth")
 										 sSecretKey);
 
 		CHECK ( Headers.size() == 5 );
-		CHECK ( Headers["Host"         ] == "translate.us-east-1.amazonaws.com" );
-		CHECK ( Headers["Content-Type" ] == "application/x-goog-json-1.1"       );
-		CHECK ( Headers["X-Goog-Date"  ] == "20230703T115234Z"                  );
-		CHECK ( Headers["X-Goog-Target"] == "TranslateText"                     );
-		CHECK ( Headers["Authorization"] ==
+		CHECK ( Headers["host"         ] == "translate.us-east-1.amazonaws.com" );
+		CHECK ( Headers["content-type" ] == "application/x-goog-json-1.1"       );
+		CHECK ( Headers["x-goog-date"  ] == "20230703T115234Z"                  );
+		CHECK ( Headers["x-goog-target"] == "TranslateText"                     );
+		CHECK ( Headers["authorization"] ==
 			   "GOOG4-HMAC-SHA256 Credential=AIHDSFNHCSAPJAKCUSHVF/20230703/us-east-1/translate/goog4_request, "
 			   "SignedHeaders=content-type;host;x-goog-date;x-goog-target, "
 			   "Signature=70d14cd2d0ec0422013d564f5d3170b29854e91dbd3a79b7981602c64c7b576b" );

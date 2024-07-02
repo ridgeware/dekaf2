@@ -75,8 +75,16 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// default ctor
-	KWebClient(bool bVerifyCerts = false);
+	KWebClient(TLSOptions Options = TLSOptions::DefaultsForHTTP);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// old ctor -- DEPRECATED, use the variant with TLSOptions
+	KWebClient(bool bVerifyCerts)
+	//-----------------------------------------------------------------------------
+	: KWebClient(KHTTPClient::BoolToOptions(bVerifyCerts))
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response to an output stream - this variant is needed for Unix socket requests, which need a separate URL for the connection target
@@ -244,19 +252,19 @@ protected:
 //-----------------------------------------------------------------------------
 /// Get from URL, store body in return value KString
 DEKAF2_PUBLIC
-KString kHTTPGet(KURL URL);
+KString kHTTPGet(KURL URL, TLSOptions Options = TLSOptions::DefaultsForHTTP);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Head from URL - returns true if response is in the 2xx range
 DEKAF2_PUBLIC
-bool kHTTPHead(KURL URL);
+bool kHTTPHead(KURL URL, TLSOptions Options = TLSOptions::DefaultsForHTTP);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Post to URL, store body in return value KString
 DEKAF2_PUBLIC
-KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime);
+KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime, TLSOptions Options = TLSOptions::DefaultsForHTTP);
 //-----------------------------------------------------------------------------
 
 DEKAF2_NAMESPACE_END

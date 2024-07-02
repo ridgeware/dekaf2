@@ -55,6 +55,12 @@
 #include "kurl.h"
 #include "kconfiguration.h"
 
+#ifdef DEKAF2_HAS_NGHTTP2
+	#include "khttp2.h"
+	#include "kstreambuf.h"
+	#include <istream>
+#endif
+
 #ifdef DEKAF2_IS_WINDOWS
 	// Windows has a DELETE macro in winnt.h which interferes with
 	// dekaf2::KHTTPMethod::DELETE (macros are evil!)
@@ -164,18 +170,42 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// default ctor
-	KHTTPClient(bool bVerifyCerts = false);
+	KHTTPClient(TLSOptions Options = TLSOptions::DefaultsForHTTP);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Ctor, connects to a server and sets method and resource
-	KHTTPClient(const KURL& url, KHTTPMethod method = KHTTPMethod::GET, bool bVerifyCerts = false);
+	KHTTPClient(const KURL& url, KHTTPMethod method = KHTTPMethod::GET, TLSOptions Options = TLSOptions::DefaultsForHTTP);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Ctor, connects to a server via proxy and sets method and resource
-	KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method = KHTTPMethod::GET, bool bVerifyCerts = false);
+	KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method = KHTTPMethod::GET, TLSOptions Options = TLSOptions::DefaultsForHTTP);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// old ctor -- DEPRECATED, use the variant with TLSOptions
+	KHTTPClient(bool bVerifyCerts)
+	//-----------------------------------------------------------------------------
+	: KHTTPClient(BoolToOptions(bVerifyCerts))
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// old ctor -- DEPRECATED, use the variant with TLSOptions
+	KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
+	//-----------------------------------------------------------------------------
+	: KHTTPClient(url, method, BoolToOptions(bVerifyCerts))
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// old ctor -- DEPRECATED, use the variant with TLSOptions
+	KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method, bool bVerifyCerts)
+	//-----------------------------------------------------------------------------
+	: KHTTPClient(url, Proxy, method, BoolToOptions(bVerifyCerts))
+	{
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Ctor, takes an existing connection to a server
@@ -368,21 +398,41 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Shall the server Certs be verified?
-	self& VerifyCerts(bool bYesNo)
+	/// Set extended options for TLS connections, like cert verification, HTTP2, or manual handshaking -
+	/// must be set before connection
+	self& SetTLSOptions(TLSOptions Options)
 	//-----------------------------------------------------------------------------
 	{
-		m_bVerifyCerts = bYesNo;
+		m_TLSOptions = GetTLSDefaults(Options);
 		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Shall the server Certs be verified?
-	bool GetVerifyCerts() const
+	/// Get extended options for TLS connections, like cert verification, HTTP2, or manual handshaking
+	TLSOptions GetTLSOptions() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_bVerifyCerts;
+		return m_TLSOptions;
 	}
+
+	//-----------------------------------------------------------------------------
+	/// Shall the server Certs be verified? -- DEPRECATED, use SetVerifyCerts()
+	self& VerifyCerts(bool bYesNo)
+	//-----------------------------------------------------------------------------
+	{
+		return SetVerifyCerts(bYesNo);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Set server cert verification -
+	/// must be set before connection
+	self& SetVerifyCerts(bool bYesNo);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Get server cert verification setting
+	bool GetVerifyCerts() const;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Set a connection timeout in seconds
@@ -504,8 +554,15 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// send a request either with a stream to read body data from, or a stringview
-	bool SendRequest(KStringView* svPostData, KInStream* PostDataStream, size_t len, const KMIME& Mime);
+	bool SendRequest(KStringView* svPostData, KInStream* PostDataStream, std::size_t len, const KMIME& Mime);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	static inline TLSOptions BoolToOptions(bool bVerifyCerts)
+	//-----------------------------------------------------------------------------
+	{
+		return bVerifyCerts ? TLSOptions::DefaultsForHTTP | TLSOptions::VerifyCert : TLSOptions::DefaultsForHTTP;
+	}
 
 //------
 private:
@@ -516,19 +573,48 @@ private:
 	DEKAF2_PRIVATE bool SetHostHeader(const KURL& url, bool bForcePort = false);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	DEKAF2_PRIVATE bool SetupAutomaticHeaders(KStringView* svPostData, KInStream* PostDataStream, std::size_t iBodySize, const KMIME& Mime);
+	//-----------------------------------------------------------------------------
+
+#ifdef DEKAF2_HAS_NGHTTP2
+	//-----------------------------------------------------------------------------
+	// the streambuf reader for KInStreamBuf
+	static std::streamsize HTTP2StreamReader(void* buf, std::streamsize size, void* ptr);
+	//-----------------------------------------------------------------------------
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	struct HTTP2Session
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		HTTP2Session(KSSLIOStream& TLSStream);
+
+		http2::SingleStreamSession Session;
+		KInStreamBuf               StreamBuf;
+		std::istream               IStream;
+		KInStream                  InStream;
+		int32_t                    StreamID { -1 };
+
+	}; // HTTP2Session
+
+	std::unique_ptr<HTTP2Session>  m_HTTP2;
+	KURL                           m_RequestURL;
+#endif
+
 	std::unique_ptr<KConnection>   m_Connection;
 	std::unique_ptr<Authenticator> m_Authenticator;
+
 	mutable KString  m_sError;
 	KString          m_sForcedHost;
 	KString          m_sCompressors;
 	KURL             m_Proxy;
-	int              m_Timeout { 30 };
-	bool             m_bVerifyCerts { false };
-	bool             m_bRequestCompression { true };
-	bool             m_bAutoProxy { false };
+	int              m_Timeout               { 30    };
+	TLSOptions       m_TLSOptions            { GetTLSDefaults(TLSOptions::DefaultsForHTTP) };
+	bool             m_bRequestCompression   { true  };
+	bool             m_bAutoProxy            { false };
 	bool             m_bUseHTTPProxyProtocol { false };
-	bool             m_bKeepAlive { true };
-	bool             m_bHaveHostSet { false };
+	bool             m_bKeepAlive            { true  };
+	bool             m_bHaveHostSet          { false };
 
 //------
 public:

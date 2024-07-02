@@ -45,22 +45,22 @@ TEST_CASE("KHTTPHeader")
 		CHECK ( Header1 != Header3 );
 		CHECK ( Header1.Hash() == Header2.Hash() );
 		CHECK ( Header1.Hash() != Header3.Hash() );
-		CHECK ( Header1 == "Authorization"     );
-		CHECK ( Header1 == "Authorization"_ks  );
-		CHECK ( Header1 == "Authorization"_ksv );
-		CHECK ( Header2 == "Authorization"_ksz );
+		CHECK ( Header1 == "authorization"     );
+		CHECK ( Header1 == "authorization"_ks  );
+		CHECK ( Header1 == "authorization"_ksv );
+		CHECK ( Header2 == "authorization"_ksz );
 		CHECK ( Header1 == KHTTPHeader::AUTHORIZATION );
 		CHECK ( Header2 == KHTTPHeader::AUTHORIZATION );
 		CHECK ( Header1 != KHTTPHeader::CONTENT_TYPE );
 		CHECK ( Header2 != KHTTPHeader::CONTENT_TYPE );
 		CHECK ( KHTTPHeader::CONTENT_TYPE != Header2 );
-		CHECK ( Header1.Serialize() == "Authorization" );
-		CHECK ( Header2.Serialize() == "Authorization" );
+		CHECK ( Header1.Serialize() == "authorization" );
+		CHECK ( Header2.Serialize() == "authorization" );
 
 		Header1 = KHTTPHeader("non-standard-Header");
 		CHECK ( Header1 == KHTTPHeader("non-stAnDard-header") );
-		CHECK ( Header1.Serialize() == "non-standard-Header"_ks);
-		CHECK ( Header1 == "non-standard-Header" );
+		CHECK ( Header1.Serialize() == "non-standard-header"_ks);
+		CHECK ( Header1 == "non-standard-header" );
 		CHECK ( Header1 != KHTTPHeader::X_FORWARDED_FOR );
 
 		KHTTPClient Client;
@@ -128,6 +128,6 @@ TEST_CASE("KHTTPHeader")
 	{
 		KHTTPHeader H = KHTTPHeader::CONTENT_TYPE;
 		auto sHeader = kFormat("{}: none", H);
-		CHECK ( sHeader == "Content-Type: none");
+		CHECK ( sHeader == "content-type: none");
 	}
 }

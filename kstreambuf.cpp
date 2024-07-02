@@ -321,7 +321,7 @@ int KBufferedOutStreamBuf::sync()
 
 	if (iToWrite)
 	{
-		iWrote = base_type::xsputn(m_buf.data(), pptr() - m_buf.data());
+		iWrote = base_type::xsputn(m_buf.data(), iToWrite);
 		setp(m_buf.data(), m_buf.data()+STREAMBUFSIZE);
 	}
 
@@ -411,7 +411,7 @@ std::streamsize KBufferedStreamBuf::xsputn(const char_type* s, std::streamsize n
 			setp(pptr()+iWriteInStreamBuf, epptr());
 		}
 
-		if (epptr() - pptr() == 0)
+		if (iWriteInStreamBuf == iAvail)
 		{
 			// flush buffer
 			if (sync())

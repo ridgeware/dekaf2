@@ -77,8 +77,8 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 		return SetError("cannot read HTTP response status");
 	}
 
-	sHTTPVersion = Words[0];
-	iStatusCode = Words[1].UInt16();
+	SetHTTPVersion(Words[0]);
+	iStatusCode  = Words[1].UInt16();
 
 	if (Words.size() > 2)
 	{
@@ -89,6 +89,11 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 		sStatusString.assign(Words[2].data());
 	}
 
+	if (GetHTTPVersion() == KHTTPVersion::none)
+	{
+		return SetError(kFormat("invalid HTTP version: {}", Words[0]));
+	}
+
 	return KHTTPHeaders::Parse(Stream);
 
 } // Parse
@@ -97,12 +102,12 @@ bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 bool KHTTPResponseHeaders::Serialize(KOutStream& Stream) const
 //-----------------------------------------------------------------------------
 {
-	if (sHTTPVersion.empty())
+	if (GetHTTPVersion().empty())
 	{
 		return SetError("missing http version");
 	}
 	
-	if (!Stream.FormatLine("{} {} {}", sHTTPVersion, iStatusCode, sStatusString))
+	if (!Stream.FormatLine("{} {} {}", GetHTTPVersion(), iStatusCode, sStatusString))
 	{
 		return SetError("Cannot write headers");
 	}
@@ -124,7 +129,6 @@ void KHTTPResponseHeaders::clear()
 //-----------------------------------------------------------------------------
 {
 	KHTTPHeaders::clear();
-	sHTTPVersion.clear();
 	sStatusString.clear();
 	iStatusCode = 0;
 
@@ -151,8 +155,16 @@ void KHTTPResponseHeaders::SetStatus(uint16_t iCode, KStringView sMessage)
 bool KOutHTTPResponse::Serialize()
 //-----------------------------------------------------------------------------
 {
-	// set up the chunked writer
-	return KOutHTTPFilter::Parse(*this) && KHTTPResponseHeaders::Serialize(UnfilteredStream());
+	if ((GetHTTPVersion() & KHTTPVersion::http2) == 0)
+	{
+		// set up the chunked writer
+		return KOutHTTPFilter::Parse(*this) && KHTTPResponseHeaders::Serialize(UnfilteredStream());
+	}
+	else
+	{
+		kDebug(1, "not a valid output path with HTTP/2");
+		return false;
+	}
 
 } // Serialize
 
@@ -160,8 +172,16 @@ bool KOutHTTPResponse::Serialize()
 bool KInHTTPResponse::Parse()
 //-----------------------------------------------------------------------------
 {
-	// set up the chunked reader
-	return KHTTPResponseHeaders::Parse(UnfilteredStream()) && KInHTTPFilter::Parse(*this, iStatusCode);
+	if ((GetHTTPVersion() & KHTTPVersion::http2) == 0)
+	{
+		if (!KHTTPResponseHeaders::Parse(UnfilteredStream()))
+		{
+			return false;
+		}
+	}
+
+	// analyze the headers for the filter chain
+	return  KInHTTPFilter::Parse(*this, iStatusCode, GetHTTPVersion());
 
 } // Parse
 

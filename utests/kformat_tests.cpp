@@ -14,7 +14,7 @@ TEST_CASE("kFormat")
 		KString KS("hello");
 		CHECK ( kFormat("{} {}", KS, "world"_ksv)              == "hello world" );
 		CHECK ( kFormat("{}", KHTTPMethod(KHTTPMethod::POST))  == "POST" );
-		CHECK ( kFormat("{}", KHTTPHeader(KHTTPHeader::DATE))  == "Date" );
+		CHECK ( kFormat("{}", KHTTPHeader(KHTTPHeader::DATE))  == "date" );
 		CHECK ( kFormat("{}", KCaseString("hello"))            == "hello" );
 	}
 

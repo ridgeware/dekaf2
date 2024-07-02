@@ -426,6 +426,30 @@ kurl::kurl ()
 	});
 
 	m_CLI
+		.Option("http1,http1.1")
+		.Help("force http/1.1 protocol, do not allow upgrade to http/2")
+	([&]()
+	{
+		if (BuildMRQ.Flags & FORCE_HTTP_2)
+		{
+			throw KOptions::Error("--http1 and --http2 options are mutually exclusive");
+		}
+		BuildMRQ.Flags |= Flags::FORCE_HTTP_1;
+	});
+
+	m_CLI
+		.Option("http2")
+		.Help("force http/2 protocol, do not allow downgrade to http/1.1")
+	([&]()
+	{
+		if (BuildMRQ.Flags & FORCE_HTTP_1)
+		{
+			throw KOptions::Error("--http1 and --http2 options are mutually exclusive");
+		}
+		BuildMRQ.Flags |= Flags::FORCE_HTTP_2;
+	});
+
+	m_CLI
 		.UnknownCommand([&](KOptions::ArgList& Commands)
 	{
 		while (!Commands.empty())
@@ -556,7 +580,28 @@ void kurl::ServerQuery ()
 		// write all line endings that _we_ provoke (with .WriteLine()) in canonical form
 		Out.SetWriterEndOfLine("\r\n");
 
-		HTTP.VerifyCerts(!(RQ->Config.Flags & Flags::INSECURE_CERTS));
+		{
+			TLSOptions options = (RQ->URL.Protocol == url::KProtocol::HTTPS) 
+									? TLSOptions::DefaultsForHTTP
+									: TLSOptions::None;
+
+			if (RQ->Config.Flags & Flags::FORCE_HTTP_2)
+			{
+				options = TLSOptions::RequestHTTP2;
+			}
+			else if (RQ->Config.Flags & Flags::FORCE_HTTP_1)
+			{
+				options = TLSOptions::None;
+			}
+
+			if ((RQ->Config.Flags & Flags::INSECURE_CERTS) == 0)
+			{
+				options |= TLSOptions::VerifyCert;
+			}
+
+			HTTP.SetTLSOptions(options);
+		}
+		
 		HTTP.SetTimeout(RQ->Config.iSecondsTimeout);
 
 		if (RQ->Config.sRequestCompression == "-")

@@ -75,6 +75,7 @@
 #include "kstream.h"
 #include "kstring.h"
 #include "kthreadpool.h"
+#include "khttp_version.h"
 #include <cinttypes>
 #include <thread>
 #include <future>
@@ -188,6 +189,14 @@ public:
 	{
 		m_sAllowedCipherSuites = std::move(sAllowedCipherSuites);
 	}
+
+	//-----------------------------------------------------------------------------
+	/// Allow HTTP2 protocol selection
+	/// @param bAlsoAllowHTTP1 if set to false, only HTTP/2 connections are permitted. Else a fallback on
+	/// HTTP/1.1 is permitted. Default is true.
+	/// @returns true if protocol selection is permitted
+	bool SetAllowHTTP2(bool bAlsoAllowHTTP1 = true);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Start the server
@@ -398,6 +407,7 @@ private:
 	std::atomic<int>  m_iStarted              {     0 };
 	uint16_t          m_iPort                 {     0 };
 	uint16_t          m_iTimeout              {    15 };
+	KHTTPVersion      m_HTTPVersion           { KHTTPVersion::none };
 	std::atomic<bool> m_bQuit                 { false };
 	bool              m_bBlock                {  true };
 	bool              m_bStartIPv4            {  true };

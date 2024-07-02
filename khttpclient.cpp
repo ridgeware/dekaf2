@@ -202,6 +202,22 @@ bool KHTTPClient::DigestAuthenticator::NeedsContentData() const
 
 } // DigestAuthenticator::NeedsContentData
 
+#if DEKAF2_HAS_NGHTTP2
+//-----------------------------------------------------------------------------
+KHTTPClient::HTTP2Session::HTTP2Session(KSSLIOStream& TLSStream)
+//-----------------------------------------------------------------------------
+: Session(TLSStream, true)
+, StreamBuf(HTTP2StreamReader, this)
+, IStream(&StreamBuf)
+, InStream(IStream)
+{
+	InStream.SetReaderEndOfLine ('\n');
+	InStream.SetReaderLeftTrim  ("");
+	InStream.SetReaderRightTrim ("\r\n");
+
+} // HTTP2Session::ctor
+#endif
+
 //-----------------------------------------------------------------------------
 void KHTTPClient::clear()
 //-----------------------------------------------------------------------------
@@ -222,16 +238,16 @@ void KHTTPClient::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(bool bVerifyCerts)
+KHTTPClient::KHTTPClient(TLSOptions Options)
 //-----------------------------------------------------------------------------
-: m_bVerifyCerts(bVerifyCerts)
+: m_TLSOptions(GetTLSDefaults(Options))
 {
 } // Ctor
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
+KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, TLSOptions Options)
 //-----------------------------------------------------------------------------
-: m_bVerifyCerts(bVerifyCerts)
+: m_TLSOptions(GetTLSDefaults(Options))
 {
 	if (Connect(url))
 	{
@@ -241,9 +257,9 @@ KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
 } // Ctor
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method, bool bVerifyCerts)
+KHTTPClient::KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method, TLSOptions Options)
 //-----------------------------------------------------------------------------
-: m_bVerifyCerts(bVerifyCerts)
+: m_TLSOptions(GetTLSDefaults(Options))
 {
 	if (Connect(url, Proxy))
 	{
@@ -297,6 +313,48 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 
 	// this is a new connection, so initially assume no proxying
 	m_bUseHTTPProxyProtocol	= false;
+	// and HTTP/1.1
+	Request .SetHTTPVersion(KHTTPVersion::http11);
+	Response.SetHTTPVersion(KHTTPVersion::http11);
+
+#if DEKAF2_HAS_NGHTTP2
+	m_HTTP2.reset();
+
+	if (m_TLSOptions & TLSOptions::RequestHTTP2)
+	{
+		auto TLSStream = m_Connection->GetUnderlyingTLSStream();
+
+		if (TLSStream)
+		{
+			// force the handshake right now, we need it before
+			// we try to send our first data (the request) to
+			// know if we must switch to HTTP/2
+			TLSStream->StartManualTLSHandshake();
+
+			// check if we negotiated HTTP/2
+			auto sALPN = TLSStream->GetALPN();
+
+			if (sALPN == "h2")
+			{
+				kDebug(2, "switching to HTTP/2");
+				m_HTTP2 = std::make_unique<HTTP2Session>(*TLSStream);
+
+				if (!m_HTTP2->Session.Error().empty())
+				{
+					return SetError(m_HTTP2->Session.Error());
+				}
+				
+				Request .SetHTTPVersion(KHTTPVersion::http2);
+				Response.SetHTTPVersion(KHTTPVersion::http2);
+				Response.SetInputStream(m_HTTP2->InStream);
+			}
+			else if ((m_TLSOptions & TLSOptions::FallBackToHTTP1) == 0)
+			{
+				return SetError("wanted a HTTP/2 connection, but got only HTTP/1.1");
+			}
+		}
+	}
+#endif
 
 	return true;
 
@@ -364,7 +422,7 @@ bool KHTTPClient::Connect(const KURL& url)
 		}
 	}
 
-	return Connect(KConnection::Create(url, false, m_bVerifyCerts));
+	return Connect(KConnection::Create(url, false, m_TLSOptions));
 
 } // Connect
 
@@ -374,7 +432,7 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 {
 	if (Proxy.empty())
 	{
-		return Connect(KConnection::Create(url, false, m_bVerifyCerts));
+		return Connect(KConnection::Create(url, false, m_TLSOptions));
 	}
 
 	// which protocol on which connection segment?
@@ -404,7 +462,7 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 	kDebug(2, "connecting via proxy {}", Proxy.Serialize());
 
 	// Connect the proxy. Use a TLS connection if either proxy or target is HTTPS.
-	if (!Connect(KConnection::Create(Proxy, bProxyIsHTTPS || bTargetIsHTTPS, m_bVerifyCerts)))
+	if (!Connect(KConnection::Create(Proxy, bProxyIsHTTPS || bTargetIsHTTPS, m_TLSOptions)))
 	{
 		// error is already set
 		return false;
@@ -501,6 +559,31 @@ bool KHTTPClient::Disconnect()
 } // Disconnect
 
 //-----------------------------------------------------------------------------
+KHTTPClient& KHTTPClient::SetVerifyCerts(bool bYesNo)
+//-----------------------------------------------------------------------------
+{
+	if (bYesNo)
+	{
+		m_TLSOptions |= TLSOptions::VerifyCert;
+	}
+	else
+	{
+		m_TLSOptions &= ~TLSOptions::VerifyCert;
+	}
+
+	return *this;
+
+} // SetVerifyCerts
+
+//-----------------------------------------------------------------------------
+/// Shall the server Certs be verified?
+bool KHTTPClient::GetVerifyCerts() const
+//-----------------------------------------------------------------------------
+{
+	return m_TLSOptions & TLSOptions::VerifyCert;
+}
+
+//-----------------------------------------------------------------------------
 KHTTPClient& KHTTPClient::SetTimeout(int iSeconds)
 //-----------------------------------------------------------------------------
 {
@@ -525,7 +608,9 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	};
 
 	Request.Method = method;
-	Request.sHTTPVersion = "HTTP/1.1";
+#ifdef DEKAF2_HAS_NGHTTP2
+	m_RequestURL   = url;
+#endif
 
 	bool bIsConnect { false };
 
@@ -581,11 +666,11 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 {
 	if (m_bHaveHostSet)
 	{
-		kDebug(2, "host already set by user to: Host: {}", Request.Headers.Get(KHTTPHeader::HOST));
+		kDebug(2, "host already set by user to: host: {}", Request.Headers.Get(KHTTPHeader::HOST));
 	}
 	else if (!m_sForcedHost.empty())
 	{
-		kDebug(2, "host forced by user to: Host: {}", m_sForcedHost);
+		kDebug(2, "host forced by user to: host: {}", m_sForcedHost);
 		Request.Headers.Set(KHTTPHeader::HOST, m_sForcedHost);
 	}
 	else if (url.Domain.empty())
@@ -700,14 +785,22 @@ KHTTPClient& KHTTPClient::RequestCompression(bool bYesNo, KStringView sCompresso
 } // RequestCompression
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream, size_t len, const KMIME& Mime)
+bool KHTTPClient::SetupAutomaticHeaders(KStringView* svPostData, KInStream* PostDataStream, std::size_t iBodySize, const KMIME& Mime)
 //-----------------------------------------------------------------------------
 {
-	Response.clear();
-
 	// remove remaining automatic headers from previous requests
 	Request.Headers.Remove(KHTTPHeader::CONTENT_LENGTH);
 	Request.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
+
+	if (Request.GetHTTPVersion() == KHTTPVersion::none)
+	{
+		// the request's http version got reset - make sure it's at the right value
+#if DEKAF2_HAS_NGHTTP2
+		Request.SetHTTPVersion(m_HTTP2 ? KHTTPVersion::http2 : KHTTPVersion::http11);
+#else
+		Request.SetHTTPVersion(KHTTPVersion::http11);
+#endif
+	}
 
 	if (Request.Resource.empty() &&
 		Request.Method != KHTTPMethod::CONNECT)
@@ -727,26 +820,32 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 		// We allow sending body data for GET requests as well, as a few
 		// applications expect doing so. It is not generally advisable due
 		// to proxy issues though.
-		if (len == npos)
+		if (iBodySize == npos)
 		{
-			AddHeader(KHTTPHeader::TRANSFER_ENCODING, "chunked");
+			// the http version is already set, as, if http2 is permitted, the negotiation
+			// happens during the initial connect
+			if ((Request.GetHTTPVersion() & KHTTPVersion::http11) == KHTTPVersion::http11)
+			{
+				// http2/3 do not support chunking (as it is built into the protocol)
+				AddHeader(KHTTPHeader::TRANSFER_ENCODING, "chunked");
+			}
 		}
-		else if (len > 0 || Request.Method != KHTTPMethod::GET)
+		else if (iBodySize > 0 || Request.Method != KHTTPMethod::GET)
 		{
-			AddHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(len));
+			AddHeader(KHTTPHeader::CONTENT_LENGTH, KString::to_string(iBodySize));
 		}
 
-		if (Mime != KMIME::NONE && (len > 0 || Request.Method != KHTTPMethod::GET || PostDataStream))
+		if (Mime != KMIME::NONE && (iBodySize > 0 || Request.Method != KHTTPMethod::GET || PostDataStream))
 		{
 			AddHeader(KHTTPHeader::CONTENT_TYPE, Mime.Serialize());
 		}
 	}
 	else
 	{
-		if (len > 0)
+		if (iBodySize > 0)
 		{
 			kDebug(1, "cannot send body data with {} request, data ignored", Request.Method.Serialize())
-			len = 0;
+			iBodySize = 0;
 		}
 	}
 
@@ -778,6 +877,61 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 	{
 		Request.Headers.Set(KHTTPHeader::USER_AGENT, "dekaf/" DEKAF_VERSION );
 	}
+
+	return true;
+
+} // SetupAutomaticHeaders
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream, std::size_t len, const KMIME& Mime)
+//-----------------------------------------------------------------------------
+{
+	Response.clear();
+
+	if (!SetupAutomaticHeaders(svPostData, PostDataStream, len, Mime))
+	{
+		return false;
+	}
+
+#ifdef DEKAF2_HAS_NGHTTP2
+	if (m_HTTP2)
+	{
+		// send the request via http2
+
+		std::unique_ptr<http2::DataProvider> DataProvider;
+
+		if (len > 0)
+		{
+			if (svPostData)
+			{
+				DataProvider = std::make_unique<http2::ViewProvider>(*svPostData);
+			}
+			else if (PostDataStream)
+			{
+				if (len != npos) return SetError("API error");
+				DataProvider = std::make_unique<http2::IStreamProvider>(*PostDataStream);
+			}
+			else
+			{
+				return SetError("API error");
+			}
+		}
+
+		m_HTTP2->StreamID = m_HTTP2->Session.SubmitRequest(m_RequestURL,
+														   Request.Method,
+														   Request,
+														   std::move(DataProvider),
+														   Response);
+
+		if (m_HTTP2->StreamID < 0)
+		{
+			return SetError(m_HTTP2->Session.Error());
+		}
+
+		return Parse();
+	}
+	else
+#endif
 
 	// send the request headers to the remote server
 	if (!Serialize())
@@ -861,7 +1015,10 @@ bool KHTTPClient::StatusIsRedirect() const
 bool KHTTPClient::Parse()
 //-----------------------------------------------------------------------------
 {
-	Request.Flush();
+	if ((Request.GetHTTPVersion() & KHTTPVersion::http2) == 0)
+	{
+		Request.Flush();
+	}
 
 	m_bKeepAlive = true;
 
@@ -891,6 +1048,17 @@ bool KHTTPClient::Parse()
 	return true;
 
 } // Parse
+
+#ifdef DEKAF2_HAS_NGHTTP2
+//-----------------------------------------------------------------------------
+std::streamsize KHTTPClient::HTTP2StreamReader(void* buf, std::streamsize size, void* ptr)
+//-----------------------------------------------------------------------------
+{
+	auto StreamInfo = static_cast<HTTP2Session*>(ptr);
+	return StreamInfo->Session.ReadData(StreamInfo->StreamID, buf, size);
+
+} // HTTP2StreamReader
+#endif
 
 //-----------------------------------------------------------------------------
 bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod, bool bNoHostChange)

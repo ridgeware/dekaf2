@@ -848,7 +848,7 @@ public:
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	/// return a view of the member
+	/// return the protocol scheme, including ://, like "http://"
 	DEKAF2_NODISCARD
 	KStringView get () const
 	//-------------------------------------------------------------------------
@@ -864,6 +864,12 @@ public:
 	{
 		return m_eProto;
 	}
+
+	//-------------------------------------------------------------------------
+	/// return the protocol name, like "http"
+	DEKAF2_NODISCARD
+	KStringView getProtocolName () const;
+	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
 	/// modify member by parsing argument - accepts also strings without following
@@ -1484,7 +1490,7 @@ DEKAF2_NAMESPACE_END
 
 // kFormat formatters
 
-namespace fmt
+namespace DEKAF2_FORMAT_NAMESPACE
 {
 
 template <>
@@ -1597,4 +1603,4 @@ struct formatter<DEKAF2_PREFIX KTCPEndPoint> : formatter<string_view>
 	}
 };
 
-} // end of namespace fmt
+} // end of namespace DEKAF2_FORMAT_NAMESPACE

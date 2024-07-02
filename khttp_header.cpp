@@ -341,7 +341,7 @@ bool KHTTPHeaders::HasContent(bool bForRequest) const
 
 		auto& sConnection = Headers.Get(KHTTPHeader::CONNECTION);
 
-		if (DEKAF2_LIKELY(sHTTPVersion != "HTTP/1.0"))
+		if (DEKAF2_LIKELY(GetHTTPVersion() != KHTTPVersion::http10))
 		{
 			return sConnection == "close";
 		}
@@ -363,6 +363,7 @@ void KHTTPHeaders::clear()
 //-----------------------------------------------------------------------------
 {
 	Headers.clear();
+	m_HTTPVersion.clear();
 	m_sCharset.clear();
 	m_sContentType.clear();
 	m_sError.clear();
@@ -374,10 +375,13 @@ void KHTTPHeaders::SplitContentType() const
 //-----------------------------------------------------------------------------
 {
 	KStringView sHeader = Headers.Get(KHTTPHeader::CONTENT_TYPE);
+
 	if (!sHeader.empty())
 	{
 		kTrimLeft(sHeader);
+		
 		auto pos = sHeader.find(';');
+
 		if (pos == KStringView::npos)
 		{
 			kTrimRight(sHeader);
@@ -406,7 +410,7 @@ void KHTTPHeaders::SplitContentType() const
 } // SplitContentType
 
 //-----------------------------------------------------------------------------
-const KString& KHTTPHeaders::ContentType() const
+const KMIME& KHTTPHeaders::ContentType() const
 //-----------------------------------------------------------------------------
 {
 	if (m_sContentType.empty())
@@ -435,14 +439,14 @@ bool KHTTPHeaders::HasKeepAlive() const
 {
 	auto sValue = Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII();
 
-	if (sHTTPVersion == "HTTP/1.0" || sHTTPVersion == "HTTP/0.9")
+	if (GetHTTPVersion() == KHTTPVersion::http10)
 	{
 		// close is default with HTTP < 1.1 - but we allow the client to override
 		return sValue == "keep-alive" || sValue == "keepalive";
 	}
 	else
 	{
-		// keepalive is default with HTTP/1.1
+		// keepalive is default with HTTP/1.1 and HTTP/2
 		return sValue.empty() || sValue == "keep-alive" || sValue == "keepalive";
 	}
 

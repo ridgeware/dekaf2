@@ -273,7 +273,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 
 	if (!KASCII::kIsUpper(sLine.front()))
 	{
-		return SetError(kFormat("request line does not start with a valid character: {}", sLine.Left(20)));
+		return SetError(kFormat("request line does not start with a valid character: {}", kEscapeForLogging(sLine.Left(20))));
 	}
 
 	auto Words = RequestLine.Parse(std::move(sLine));
@@ -284,7 +284,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 		kDebug (2, RequestLine.Get());
 		if (!Words.empty())
 		{
-			return SetError(kFormat("{}: {} words instead of 3", "invalid request line", Words.size()));
+			return SetError(kFormat("{}: {} words instead of 3", "invalid request line: {}", Words.size(), kEscapeForLogging(sLine.Left(40))));
 		}
 		else
 		{
@@ -294,13 +294,13 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 
 	Method       = Words[0];
 	Resource     = Words[1];
-	sHTTPVersion = Words[2];
+	SetHTTPVersion(Words[2]);
 
 	kDebug (1, "{} {} {}", Words[0], Words[1], Words[2]);
 
-	if (!sHTTPVersion.starts_with("HTTP/"))
+	if (GetHTTPVersion() == KHTTPVersion::none)
 	{
-		return SetError(kFormat("invalid status line of HTTP header: expected 'HTTP/' not '{}'", sHTTPVersion));
+		return SetError(kFormat("invalid HTTP version: {}", Words[2]));
 	}
 
 	if (!KHTTPHeaders::Parse(Stream))
@@ -339,12 +339,12 @@ bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream) const
 					Method.Serialize(),
 					Endpoint.Serialize(),
 					Resource.Serialize(),
-					sHTTPVersion);
+					GetHTTPVersion());
 			if (!Stream.FormatLine("{} http://{}{} {}",
 								   Method.Serialize(),
 								   Endpoint.Serialize(),
 								   Resource.Serialize(),
-								   sHTTPVersion))
+								   GetHTTPVersion()))
 			{
 				return SetError("Cannot write request line");
 			}
@@ -354,11 +354,11 @@ bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream) const
 			kDebug(2, "{} {} {}",
 					Method.Serialize(),
 					Resource.Serialize(),
-					sHTTPVersion);
+					GetHTTPVersion());
 			if (!Stream.FormatLine("{} {} {}",
 								   Method.Serialize(),
 								   Resource.Serialize(),
-								   sHTTPVersion))
+								   GetHTTPVersion()))
 			{
 				return SetError("Cannot write request line");
 			}
@@ -371,12 +371,12 @@ bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream) const
 			kDebug(2, "{} {} {}",
 					Method.Serialize(),
 					Endpoint.Serialize(),
-					sHTTPVersion);
+				    GetHTTPVersion());
 			// this is a CONNECT request
 			if (!Stream.FormatLine("{} {} {}",
 								   Method.Serialize(),
 								   Endpoint.Serialize(),
-								   sHTTPVersion))
+								   GetHTTPVersion()))
 			{
 				return SetError("Cannot write request line");
 			}
@@ -388,10 +388,10 @@ bool KHTTPRequestHeaders::SerializeRequestLine(KOutStream& Stream) const
 			kDebug(2, "resource is empty, inserting /");
 			kDebug(2, "{} / {}",
 						Method.Serialize(),
-						sHTTPVersion);
+						GetHTTPVersion());
 			if (!Stream.FormatLine("{} / {}",
 								   Method.Serialize(),
-								   sHTTPVersion))
+								   GetHTTPVersion()))
 			{
 				return SetError("Cannot write request line");
 			}
@@ -415,7 +415,7 @@ bool KHTTPRequestHeaders::Serialize(KOutStream& Stream) const
 bool KHTTPRequestHeaders::HasChunking() const
 //-----------------------------------------------------------------------------
 {
-	if (sHTTPVersion == "HTTP/1.0" || sHTTPVersion == "HTTP/0.9")
+	if (GetHTTPVersion() == KHTTPVersion::http10)
 	{
 		return false;
 	}
@@ -642,7 +642,6 @@ void KHTTPRequestHeaders::clear()
 //-----------------------------------------------------------------------------
 {
 	KHTTPHeaders::clear();
-	sHTTPVersion.clear();
 	Resource.clear();
 	RequestLine.clear();
 	Endpoint.clear();
@@ -653,8 +652,16 @@ void KHTTPRequestHeaders::clear()
 bool KOutHTTPRequest::Serialize()
 //-----------------------------------------------------------------------------
 {
-	// set up the chunked writer
-	return KOutHTTPFilter::Parse(*this) && KHTTPRequestHeaders::Serialize(UnfilteredStream());
+	if ((GetHTTPVersion() & KHTTPVersion::http2) == 0)
+	{
+		// set up the chunked writer
+		return KOutHTTPFilter::Parse(*this) && KHTTPRequestHeaders::Serialize(UnfilteredStream());
+	}
+	else
+	{
+		kDebug(1, "not a valid output path with HTTP/2");
+		return false;
+	}
 
 } // Serialize
 
@@ -662,8 +669,16 @@ bool KOutHTTPRequest::Serialize()
 bool KInHTTPRequest::Parse()
 //-----------------------------------------------------------------------------
 {
-	// set up the chunked reader
-	return KHTTPRequestHeaders::Parse(UnfilteredStream()) && KInHTTPFilter::Parse(*this, 0);
+	if ((GetHTTPVersion() & KHTTPVersion::http2) == 0)
+	{
+		if (!KHTTPRequestHeaders::Parse(UnfilteredStream()))
+		{
+			return false;
+		}
+	}
+
+	// analyze the headers for the filter chain
+	return KInHTTPFilter::Parse(*this, 0, GetHTTPVersion());
 
 } // Parse
 

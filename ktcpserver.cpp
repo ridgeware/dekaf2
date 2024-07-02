@@ -312,7 +312,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 	{
 		// the TLS version of the server
 
-		KSSLContext SSLContext(true, false);
+		KSSLContext SSLContext(true);
 
 		if (!SSLContext.SetSSLCertificates(m_sCert, m_sKey, m_sPassword))
 		{
@@ -327,6 +327,11 @@ bool KTCPServer::TCPServer(bool ipv6)
 		if (!SSLContext.SetAllowedCipherSuites(m_sAllowedCipherSuites))
 		{
 			return SetError(SSLContext.Error(), true); // already logged
+		}
+
+		if (m_HTTPVersion & KHTTPVersion::http2)
+		{
+			SSLContext.SetAllowHTTP2(m_HTTPVersion & KHTTPVersion::http11);
 		}
 
 		for (;;)
@@ -601,6 +606,19 @@ bool KTCPServer::SetDHPrimes(KStringViewZ sDHPrimes)
 	return true;
 
 } // SetDHPrimes
+
+//-----------------------------------------------------------------------------
+bool KTCPServer::SetAllowHTTP2(bool bAlsoAllowHTTP1)
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_HAS_NGHTTP2
+	m_HTTPVersion = (bAlsoAllowHTTP1) ? KHTTPVersion::http11 | KHTTPVersion::http2 : KHTTPVersion::http2;
+	return true;
+#else
+	return false;
+#endif
+
+} // SetAllowHTTP2
 
 //-----------------------------------------------------------------------------
 int KTCPServer::GetResult()

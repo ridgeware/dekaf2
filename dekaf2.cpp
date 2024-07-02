@@ -323,6 +323,9 @@ KStringView Dekaf::GetVersionInformation()
 #ifdef DEKAF2_WITH_FCGI
 		" fcgi"
 #endif
+#ifdef DEKAF2_HAS_NGHTTP2
+		" http/2"
+#endif
 #ifdef DEKAF2_HAS_LIBZSTD
 		" zstd"
 #endif

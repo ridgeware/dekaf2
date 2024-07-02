@@ -134,7 +134,7 @@ void KOutHTTPFilter::SetupOutputFilter()
 	m_iCount = 0;
 
 	// we use the chunked writer also in the unchunked case, but
-	// without writing chunks
+	// without writing chunks (we use it to count sent bytes)
 	KChunkedSink Sink(UnfilteredStream(), m_bChunked, &m_iCount);
 
 	// and finally add our source stream to the filtering_ostream

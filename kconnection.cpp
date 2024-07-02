@@ -50,6 +50,40 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace {
+
+TLSOptions g_DefaultTLSOptions =
+#if DEKAF2_HAS_NGHTTP2
+	RequestHTTP2 | FallBackToHTTP1;
+#else
+	None;
+#endif
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+TLSOptions GetTLSDefaults(TLSOptions Options)
+//-----------------------------------------------------------------------------
+{
+	if (Options & DefaultsForHTTP)
+	{
+		Options &= ~DefaultsForHTTP;
+		Options |= g_DefaultTLSOptions;
+	}
+
+	return Options;
+
+} // GetTLSDefaults
+
+//-----------------------------------------------------------------------------
+bool SetTLSDefaults(TLSOptions Options)
+//-----------------------------------------------------------------------------
+{
+	g_DefaultTLSOptions = Options;
+	return true;
+
+} // SetTLSDefaults
+
 //-----------------------------------------------------------------------------
 KConnection::KConnection(KConnection&& other) noexcept
 //-----------------------------------------------------------------------------
@@ -149,6 +183,13 @@ bool KConnection::StartManualTLSHandshake()
 //-----------------------------------------------------------------------------
 {
 	return false;
+}
+
+//-----------------------------------------------------------------------------
+KSSLIOStream* KConnection::GetUnderlyingTLSStream()
+//-----------------------------------------------------------------------------
+{
+	return nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -271,10 +312,10 @@ KString KUnixConnection::Error() const
 
 
 //-----------------------------------------------------------------------------
-bool KSSLConnection::Connect(const KTCPEndPoint& Endpoint, bool bVerifyCerts, bool bManualHandshake, int iSecondsTimeout)
+bool KSSLConnection::Connect(const KTCPEndPoint& Endpoint, TLSOptions Options, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
-	return setConnection(CreateKSSLClient(Endpoint, bVerifyCerts, bManualHandshake, iSecondsTimeout), Endpoint);
+	return setConnection(CreateKSSLClient(Endpoint, Options, iSecondsTimeout), Endpoint);
 
 } // Connect
 
@@ -323,6 +364,14 @@ bool KSSLConnection::SetTimeout(int iSeconds)
 } // SetTimeout
 
 //-----------------------------------------------------------------------------
+KSSLIOStream* KSSLConnection::GetUnderlyingTLSStream()
+//-----------------------------------------------------------------------------
+{
+	auto stream = static_cast<KSSLStream*>(StreamPtr());
+	return stream != nullptr ? &stream->GetKSSLIOStream() : nullptr;
+}
+
+//-----------------------------------------------------------------------------
 KString KSSLConnection::Error() const
 //-----------------------------------------------------------------------------
 {
@@ -340,7 +389,7 @@ KString KSSLConnection::Error() const
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL, bool bVerifyCerts, int iSecondsTimeout)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL, TLSOptions Options, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
@@ -362,7 +411,7 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 	if ((url::KProtocol::UNDEFINED && Port.get() == 443) || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
 	{
 		auto C = std::make_unique<KSSLConnection>();
-		C->Connect(KTCPEndPoint(URL.Domain, Port), bVerifyCerts, false, iSecondsTimeout);
+		C->Connect(KTCPEndPoint(URL.Domain, Port), Options, iSecondsTimeout);
 		return C;
 	}
 	else // NOLINT: we want the else after return..

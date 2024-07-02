@@ -48,6 +48,7 @@
 #include "khttp_header.h"
 #include "kinstringstream.h"
 #include "khttpcompression.h"
+#include "khttp_version.h"
 
 /// @file khttpinputfilter.h
 /// HTTP streaming input filter implementation
@@ -93,7 +94,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// read input configuration from existing set of headers, but do not
 	/// yet build the filter.
-	bool Parse(const KHTTPHeaders& headers, uint16_t iStatusCode);
+	bool Parse(const KHTTPHeaders& headers, uint16_t iStatusCode, KHTTPVersion HTTPVersion);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

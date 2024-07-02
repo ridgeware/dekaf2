@@ -19,7 +19,7 @@ BuildSetup ()
 {
 	# we do not care too much if the flagfile is removed
 	flagfile="/tmp/installflag-dekaf2-build-setup"
-	flagversion="4"
+	flagversion="5"
 
 	if [ ! -f "${flagfile}" ] || [ "$(cat ${flagfile})" != "${flagversion}" ]
 	then
@@ -42,7 +42,7 @@ BuildSetup ()
 			darwin)
 				InstallSystemPackages cmake boost openssl wget
 
-				InstallOptionalSystemPackages libzip xz zstd brotli mariadb sqlite jemalloc ncurses
+				InstallOptionalSystemPackages libzip xz zstd brotli mariadb sqlite jemalloc ncurses libnghttp2
 				;;
 			debian)
 				# make sure the repo content lists are current
@@ -53,14 +53,15 @@ BuildSetup ()
 
 				InstallOptionalSystemPackages libmariadb${DEVPKG} mariadb-client sqlite3 libsqlite3${DEVPKG} \
 					libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG} libbrotli${DEVPKG} libjemalloc${DEVPKG} \
-					libncurses${DEVPKG}
+					libncurses${DEVPKG} libnghttp2${DEVPKG}
 				;;
 			*)
 				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} wget git sed tar gcc \
 					zlib${DEVPKG} bzip2${DEVPKG}
 
 				InstallOptionalSystemPackages mariadb-connector-c${DEVPKG} sqlite${DEVPKG} libzip${DEVPKG} \
-					xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG} jemalloc${DEVPKG} ncurses${DEVPKG}
+					xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG} jemalloc${DEVPKG} ncurses${DEVPKG} \
+					libnghttp2${DEVPKG}
 				;;
 		esac
 

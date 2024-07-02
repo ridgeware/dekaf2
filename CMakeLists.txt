@@ -24,7 +24,7 @@ endif()
 if (NOT WIN32 AND NOT CYGWIN AND NOT DEKAF2_NO_BUILDSETUP)
 	EXECUTE_PROCESS(
 		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/buildsetup -quiet -go
-	)
+ 	)
 endif()
 
 # =================================== UPDATE CMAKE =================================
@@ -55,7 +55,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.53 DESCRIPTION "C++14/17/20 rapid application development framework")
+project(dekaf2 VERSION 2.0.54 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -375,6 +375,13 @@ endif()
 
 find_package(OpenSSL REQUIRED)
 
+# ================================ NGHTTP2 ===================================
+
+find_package(NGHTTP2)
+if (NGHTTP2_FOUND)
+	set(DEKAF2_HAS_NGHTTP2 1)
+endif()
+
 # ================================= BOOST ====================================
 
 set(Boost_USE_STATIC_LIBS ON)
@@ -693,6 +700,18 @@ else()
 	message(STATUS "we do not have constexpr std::string")
 endif()
 
+if (DEKAF2_HAS_NGHTTP2)
+	# our code requires nghttp2_ssize, and the 2 prefix on a few nghttp2 callbacks
+	try_compile(DEKAF2_HAS_NGHTTP2
+				"${DEKAF2_GENERATED_FILES_DIR}"
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/nghttp2_test.cpp"
+				CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${NGHTTP2_INCLUDE_DIR}")
+
+	if (NOT DEKAF2_HAS_NGHTTP2)
+		message(STATUS "dropped NGHTTP2 as it has an antique API")
+	endif()
+endif()
+
 # =============================== GENERATED FILES =================================
 
 # create the configuration header file
@@ -805,6 +824,7 @@ set(PUBLIC_HEADERS
 	khash.h
 	kheapmon.h
 	khex.h
+	khttp2.h
 	khmac.h
 	khtmlcontentblocks.h
 	khtmldom.h
@@ -823,6 +843,7 @@ set(PUBLIC_HEADERS
 	khttp_method.h
 	khttp_request.h
 	khttp_response.h
+	khttp_version.h
 	kinpipe.h
 	kinshell.h
 	kinstringstream.h
@@ -1060,6 +1081,7 @@ set (SOURCES
 	khash.cpp
 	kheapmon.cpp
 	khex.cpp
+	khttp2.cpp
 	khmac.cpp
 	khtmlcontentblocks.cpp
 	khtmldom.cpp
@@ -1078,6 +1100,7 @@ set (SOURCES
 	khttp_method.cpp
 	khttp_request.cpp
 	khttp_response.cpp
+	khttp_version.cpp
 	kinpipe.cpp
 	kinshell.cpp
 	kinstringstream.cpp
@@ -1315,6 +1338,7 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/google>
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/croncpp/include>
 		$<BUILD_INTERFACE:${JEMalloc_INCLUDE_DIRS}>
+		$<BUILD_INTERFACE:${NGHTTP2_INCLUDE_DIRS}>
 )
 
 set(DEKAF2_LINK_LIBRARIES
@@ -1338,6 +1362,7 @@ set(DEKAF2_LINK_LIBRARIES
 		${DEBUG_HELP}
 		re2
 		${JEMalloc_LIBRARIES}
+		${NGHTTP2_LIBRARIES}
 )
 
 set(DEKAF2_COMPILE_DEFINITIONS

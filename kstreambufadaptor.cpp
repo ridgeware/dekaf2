@@ -107,6 +107,7 @@ bool KOutStreamBufAdaptor::Output(KStringView sOut)
 
 } // Output
 
+//-----------------------------------------------------------------------------
 std::size_t KOutStreamBufAdaptor::Write(KStringView sWrite)
 //-----------------------------------------------------------------------------
 {
@@ -188,7 +189,7 @@ std::streamsize KInStreamBufAdaptor::xsgetn(char_type* s, std::streamsize n)
 	{
 		// advance s by the already copied bytes above (or 0)
 		s += iExtracted;
-		// read remaining chars directly from the callback function
+		// read remaining chars directly from the parent streambuf
 		auto iRead = m_ParentStreamBuf->sgetn(s, n);
 		// iRead is -1 on error
 		if (iRead > 0)

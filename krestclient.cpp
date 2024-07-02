@@ -79,7 +79,7 @@ KRestClient& KRestClient::SetURL(KURL URL, bool bVerifyCerts)
 	// do not clear the query part - we will use it if it is set
 	m_URL.Fragment.clear();
 
-	KHTTPClient::VerifyCerts(bVerifyCerts);
+	KHTTPClient::SetVerifyCerts(bVerifyCerts);
 
 	return *this;
 

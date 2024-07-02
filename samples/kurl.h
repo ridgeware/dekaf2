@@ -84,6 +84,8 @@ public:
 		REQUEST_HEADERS  = 1 << 4,
 		INSECURE_CERTS   = 1 << 5,
 		CONNECTION_CLOSE = 1 << 6,
+		FORCE_HTTP_1     = 1 << 7,
+		FORCE_HTTP_2     = 1 << 8
 	};
 
 //----------

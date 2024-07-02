@@ -114,7 +114,7 @@ TEST_CASE("KREST")
 		CHECK ( bCalledNoSlashPath == false );
 
 		sOut.clear();
-		KString sCompare = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 31\r\nConnection: close\r\n\r\n{\n\t\"response\": \"hello world\"\n}\n";
+		KString sCompare = "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 31\r\nconnection: close\r\n\r\n{\n\t\"response\": \"hello world\"\n}\n";
 		CHECK ( REST.Simulate(Options, Routes, "/test", oss) == true );
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
@@ -188,7 +188,7 @@ TEST_CASE("KREST")
 		CHECK ( REST.Simulate(Options, Routes, "/user/\"; DROP DATABASE CLIENTS/address", oss) == false );
 
 		sOut.clear();
-		sCompare = "HTTP/1.1 400 BAD REQUEST\r\nContent-Type: application/json\r\nContent-Length: 37\r\nConnection: close\r\n\r\n{\n\t\"message\": \"missing parameters\"\n}\n";
+		sCompare = "HTTP/1.1 400 BAD REQUEST\r\ncontent-type: application/json\r\ncontent-length: 37\r\nconnection: close\r\n\r\n{\n\t\"message\": \"missing parameters\"\n}\n";
 		CHECK ( REST.Simulate(Options, Routes, "/throw", oss) == false );
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
@@ -198,7 +198,7 @@ TEST_CASE("KREST")
 		CHECK ( sName == "Peter" );
 
 		sOut.clear();
-		sCompare = "HTTP/1.1 404 NOT FOUND\r\nContent-Type: application/json\r\nContent-Length: 45\r\nConnection: close\r\n\r\n{\n\t\"message\": \"invalid path: GET /unknown\"\n}\n";
+		sCompare = "HTTP/1.1 404 NOT FOUND\r\ncontent-type: application/json\r\ncontent-length: 45\r\nconnection: close\r\n\r\n{\n\t\"message\": \"invalid path: GET /unknown\"\n}\n";
 		CHECK ( REST.Simulate(Options, Routes, "/unknown", oss) == false );
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
@@ -255,7 +255,7 @@ TEST_CASE("KREST")
 		sOut.clear();
 		CHECK ( REST.Simulate(Options, Routes, "/web", oss) == true );
 		CHECK ( sOut.starts_with("HTTP/1.1 301 ") );
-		CHECK ( sOut.contains("\r\nLocation: /web/\r\n") );
+		CHECK ( sOut.contains("\r\nlocation: /web/\r\n") );
 
 		sOut.clear();
 		CHECK ( REST.Simulate(Options, Routes, "/web/", oss) == true );
@@ -350,7 +350,7 @@ TEST_CASE("KREST")
 		CHECK ( REST.Simulate(Options, Routes, "/user/Peter/address", oss) == true );
 
 		sOut.clear();
-		KString sCompare = "HTTP/1.1 404 NOT FOUND\r\nContent-Type: application/json\r\nContent-Length: 45\r\nConnection: close\r\n\r\n{\n\t\"message\": \"invalid path: GET /unknown\"\n}\n";
+		KString sCompare = "HTTP/1.1 404 NOT FOUND\r\ncontent-type: application/json\r\ncontent-length: 45\r\nconnection: close\r\n\r\n{\n\t\"message\": \"invalid path: GET /unknown\"\n}\n";
 
 		CHECK ( REST.Simulate(Options, Routes, "/unknown", oss) == false );
 		CHECK ( sOut == sCompare );
@@ -393,8 +393,8 @@ TEST_CASE("KREST")
 		sOut.clear();
 		CHECK ( REST.Simulate(Options, Routes, "/www2/path/to/index.html", oss) == false );
 		CHECK ( sOut.contains("HTTP/1.1 301 MOVED PERMANENTLY") );
-		CHECK ( sOut.contains("Location: /web/path/to/index.html") );
-		CHECK ( sOut.contains("Content-Length: 0") );
+		CHECK ( sOut.contains("location: /web/path/to/index.html") );
+		CHECK ( sOut.contains("content-length: 0") );
 
 		sOut.clear();
 		CHECK ( REST.Simulate(Options, Routes, "/test.html", oss) == true );

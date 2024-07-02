@@ -233,7 +233,7 @@ bool KHTTPRouter::Execute(const KHTTPRoutes& Routes, KStringView sBaseRoute)
 		}
 
 		Response.SetStatus(200, "OK");
-		Response.sHTTPVersion = Request.sHTTPVersion;
+		Response.SetHTTPVersion(Request.GetHTTPVersion());
 
 		KStringView sURLPath = Request.Resource.Path;
 
@@ -286,7 +286,7 @@ void KHTTPRouter::ErrorHandler(const std::exception& ex)
 
 	// we need to set the HTTP version here explicitly, as we could throw as early
 	// that no version is set - which will corrupt headers and body..
-	Response.sHTTPVersion = "HTTP/1.1";
+	Response.SetHTTPVersion(KHTTPVersion::http11);
 
 	KStringViewZ sError = ex.what();
 

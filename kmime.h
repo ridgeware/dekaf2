@@ -141,6 +141,22 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// empties the mime type
+	void clear()
+	//-----------------------------------------------------------------------------
+	{
+		m_mime.clear();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns true if mime is empty
+	bool empty() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_mime.empty();
+	}
+
+	//-----------------------------------------------------------------------------
 	/// returns the type part of a MIME type: type "/" [tree "."] subtype ["+" suffix]* [";" parameter]
 	DEKAF2_NODISCARD
 	KStringView Type()      const;
@@ -516,7 +532,7 @@ public:
 
 DEKAF2_NAMESPACE_END
 
-namespace fmt
+namespace DEKAF2_FORMAT_NAMESPACE
 {
 
 template <>
@@ -529,4 +545,4 @@ struct formatter<DEKAF2_PREFIX KMIME> : formatter<string_view>
 	}
 };
 
-} // end of namespace fmt
+} // end of namespace DEKAF2_FORMAT_NAMESPACE

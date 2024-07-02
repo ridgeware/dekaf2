@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2024, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -41,101 +41,50 @@
 
 #pragma once
 
+#include "kdefinitions.h"
 #include "kstringview.h"
 #include "kformat.h"
-
-#ifdef DEKAF2_IS_WINDOWS
-	// Windows has a DELETE macro in winnt.h which interferes with
-	// dekaf2::KHTTPMethod::DELETE (macros are evil!)
-	#ifdef DELETE
-		#undef DELETE
-	#endif
-#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KHTTPMethod
+/// which HTTP version is used/requested/permitted?
+class DEKAF2_PUBLIC KHTTPVersion
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
 public:
 //------
-    
-    enum Method : uint8_t
-    {
-        GET = 0,
-        HEAD,
-        POST,
-        PUT,
-        DELETE,
-        OPTIONS,
-        PATCH,
-        CONNECT,
-        TRACE,
-        INVALID
-   };
 
-    //-----------------------------------------------------------------------------
-    KHTTPMethod(Method method = GET)
-    //-----------------------------------------------------------------------------
-    : m_method(method)
-    {}
-    
-    //-----------------------------------------------------------------------------
-    KHTTPMethod(KStringView sMethod)
-    //-----------------------------------------------------------------------------
-    : m_method(Parse(sMethod))
-    {}
-    
-    //-----------------------------------------------------------------------------
-    KHTTPMethod(const KString& sMethod)
-    //-----------------------------------------------------------------------------
-    : KHTTPMethod(sMethod.ToView())
-    {}
-    
-    //-----------------------------------------------------------------------------
-    KHTTPMethod(const char* sMethod)
-    //-----------------------------------------------------------------------------
-    : KHTTPMethod(KStringView(sMethod))
-    {}
-    
-    //-----------------------------------------------------------------------------
-    KStringViewZ Serialize() const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	bool empty() const
-	//-----------------------------------------------------------------------------
+	enum Version : uint8_t
 	{
-		return m_method == INVALID;
-	}
+		none     = 0,      ///< unknown / not set
+		http10   = 1 << 0, ///< HTTP/1.0
+		http11   = 1 << 1, ///< HTTP/1.1
+		http2    = 1 << 2, ///< HTTP/2
+		http3    = 1 << 3  ///< HTTP/3
+	};
 
-	//-----------------------------------------------------------------------------
-	void clear()
-	//-----------------------------------------------------------------------------
-	{
-		m_method = GET;
-	}
+	KHTTPVersion(Version Version = none) : m_Version(Version) {}
+	KHTTPVersion(KStringView sVersion)   : m_Version(Parse(sVersion)) {}
 
-	//-----------------------------------------------------------------------------
-	operator Method() const { return m_method; }
-	//-----------------------------------------------------------------------------
+	KStringViewZ   Serialize() const;
+	      operator Version()   const { return m_Version;                  }
+	void           clear()           { m_Version = Version::none;         }
+	bool           empty()     const { return m_Version == Version::none; }
 
-    //-----------------------------------------------------------------------------
-    static Method Parse(KStringView sMethod);
-    //-----------------------------------------------------------------------------
-
-	static constexpr KStringViewZ REQUEST_METHODS = "GET,HEAD,POST,PUT,DELETE,OPTIONS,PATCH,CONNECT,TRACE";
+	static KHTTPVersion Parse(KStringView sVersion);
 
 //------
 private:
 //------
 
-	Method m_method { GET };
+	Version m_Version { Version::none };
 
-}; // KHTTPMethod
+}; // KHTTPVersion
+
+DEKAF2_ENUM_IS_FLAG(KHTTPVersion::Version)
 
 DEKAF2_NAMESPACE_END
 
@@ -143,12 +92,22 @@ namespace DEKAF2_FORMAT_NAMESPACE
 {
 
 template <>
-struct formatter<DEKAF2_PREFIX KHTTPMethod> : formatter<string_view>
+struct formatter<DEKAF2_PREFIX KHTTPVersion::Version> : formatter<string_view>
 {
 	template <typename FormatContext>
-	auto format(const DEKAF2_PREFIX KHTTPMethod& Method, FormatContext& ctx) const
+	auto format(const DEKAF2_PREFIX KHTTPVersion::Version& Version, FormatContext& ctx) const
 	{
-		return formatter<string_view>::format(Method.Serialize(), ctx);
+		return formatter<string_view>::format(DEKAF2_PREFIX KHTTPVersion(Version).Serialize(), ctx);
+	}
+};
+
+template <>
+struct formatter<DEKAF2_PREFIX KHTTPVersion> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const DEKAF2_PREFIX KHTTPVersion& Version, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(Version.Serialize(), ctx);
 	}
 };
 

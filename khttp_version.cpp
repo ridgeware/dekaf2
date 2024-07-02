@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2024, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -39,74 +39,82 @@
 // +-------------------------------------------------------------------------+
 */
 
-#pragma once
+#include "khttp_version.h"
 
-/// @file kconfiguration.h
-/// library configuration at compile time of dekaf2
+DEKAF2_NAMESPACE_BEGIN
 
-#define DEKAF_VERSION "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@"
-#define DEKAF_MAJOR_VERSION @PROJECT_VERSION_MAJOR@
-#define DEKAF_MINOR_VERSION @PROJECT_VERSION_MINOR@
-#define DEKAF_PATCH_VERSION @PROJECT_VERSION_PATCH@
+//-----------------------------------------------------------------------------
+KHTTPVersion KHTTPVersion::Parse(KStringView sVersion)
+//-----------------------------------------------------------------------------
+{
+	if (DEKAF2_LIKELY(sVersion.size() >= KStringView{"HTTP/1"}.size()))
+	{
+		auto it = sVersion.begin();
 
-#define DEKAF2_BUILD_TYPE "@CMAKE_BUILD_TYPE@"
-#define DEKAF2_COMPILER_ID "@CMAKE_CXX_COMPILER_ID@"
-#define DEKAF2_COMPILER_VERSION "@CMAKE_CXX_COMPILER_VERSION@"
+		if (*it++ == 'H' && *it++ == 'T' && *it++ == 'T' && *it++ == 'P' && *it++ == '/')
+		{
+			auto ie    = sVersion.end();
+			char major = *it++;
 
-// compiler options
-#cmakedefine DEKAF2_HAS_WARN_STRINGOP_OVERFLOW 1
-#cmakedefine DEKAF2_HAS_WARN_STRINGOP_OVERREAD 1
-#cmakedefine DEKAF2_HAS_WARN_ARRAY_BOUNDS 1
-#cmakedefine DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS 1
-#cmakedefine DEKAF2_HAS_WARN_LITERAL_SUFFIX 1
-#cmakedefine DEKAF2_HAS_WARN_RESERVED_USER_DEFINED_LITERAL 1
-#cmakedefine DEKAF2_HAS_SHIFT_COUNT_OVERFLOW 1
+			if (it == ie)
+			{
+				if (major == '2')
+				{
+					return KHTTPVersion::http2;
+				}
+				else if (major == '3')
+				{
+					return KHTTPVersion::http3;
+				}
+			}
+			else if (major == '1' && *it++ == '.')
+			{
+				if (it != ie)
+				{
+					char minor = *it++;
 
-// build setup
-#cmakedefine DEKAF2_MAY_HAVE_INT128 1
-#cmakedefine DEKAF2_USE_PRECOMPILED_HEADERS 1
-#cmakedefine DEKAF2_USE_EXCEPTIONS 1
-#cmakedefine DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW 1
-#cmakedefine DEKAF2_USE_OPTIMIZED_STRING_FIND 1
-#cmakedefine DEKAF2_HAS_STD_FORMAT 1
-#cmakedefine DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT 1
-#cmakedefine DEKAF2_USE_SYSTEM_FMTLIB 1
-#cmakedefine DEKAF2_WRAPPED_KJSON 1
-#cmakedefine DEKAF2_STD_CHRONO_HAS_CALENDAR 1
-#ifndef DEKAF2_STD_CHRONO_HAS_LOCAL_T
-	#cmakedefine DEKAF2_STD_CHRONO_HAS_LOCAL_T 1
-#endif
-#cmakedefine DEKAF2_STD_CHRONO_HAS_TIMEZONE 1
-#cmakedefine DEKAF2_HAS_MONTH_AND_YEAR_LITERALS 1
-#cmakedefine DEKAF2_HAS_STD_TIME_STREAM_OPS 1
-#cmakedefine DEKAF2_HAS_NANOSECONDS_SYS_CLOCK 1
-#cmakedefine DEKAF2_HAS_U8STRING 1
-#cmakedefine DEKAF2_HAS_CONSTEXPR_STD_STRING 1
+					if (it == ie)
+					{
+						if (minor == '1')
+						{
+							return KHTTPVersion::http11;
+						}
+						else if (minor == '0')
+						{
+							return KHTTPVersion::http10;
+						}
+					}
+				}
+			}
+		}
+	}
 
-#if !defined(NDEBUG)
-	#define DEKAF2_DO_NOT_WARN_ABOUT_COW_STRING 1
-#endif
+	kDebug(2, "unknown HTTP version: '{}'", sVersion);
+	return KHTTPVersion::none;
 
-#define DEKAF2_SHARED_DIRECTORY "@dekaf2_share_dest@"
+} // Parse
 
-#cmakedefine DEKAF2_HAS_JEMALLOC 1
-#cmakedefine DEKAF2_HAS_LIBPROC 1
-#cmakedefine DEKAF2_HAS_MYSQL 1
-#cmakedefine DEKAF2_MYSQL_IS_MARIADB 1
-#cmakedefine DEKAF2_HAS_SQLITE3 1
-#cmakedefine DEKAF2_HAS_FREETDS 1
-#cmakedefine DEKAF2_HAS_CTLIB 1
-#cmakedefine DEKAF2_HAS_LIBZIP 1
-#cmakedefine DEKAF2_HAS_LIBBROTLI 1
-#cmakedefine DEKAF2_HAS_LIBZSTD 1
-#cmakedefine DEKAF2_HAS_LIBLZMA 1
-#cmakedefine DEKAF2_HAS_NGHTTP2 1
-#cmakedefine DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD 1
-#cmakedefine DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS 1
-#cmakedefine DEKAF2_WITH_FCGI 1
-#cmakedefine DEKAF2_WITH_KLOG 1
-#cmakedefine DEKAF2_KLOG_WITH_TCP 1
-#cmakedefine DEKAF2_HAS_UNIX_SOCKETS 1
-#cmakedefine DEKAF2_HAS_PIPES 1
-#cmakedefine DEKAF2_IS_APPLE_CLANG 1
-#cmakedefine DEKAF2_LINK_TIME_OPTIMIZATION 1
+//-----------------------------------------------------------------------------
+KStringViewZ KHTTPVersion::Serialize() const
+//-----------------------------------------------------------------------------
+{
+	switch (m_Version)
+	{
+		case KHTTPVersion::none:
+			kDebug(2, "no HTTP version set");
+			break;
+		case KHTTPVersion::http10:
+			return "HTTP/1.0";
+		case KHTTPVersion::http11:
+			return "HTTP/1.1";
+		case KHTTPVersion::http2:
+			return "HTTP/2";
+		case KHTTPVersion::http3:
+			return "HTTP/3";
+	}
+
+	kDebug(2, "invalid HTTP version set");
+	return KStringViewZ{};
+}
+
+DEKAF2_NAMESPACE_END

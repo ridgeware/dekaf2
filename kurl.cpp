@@ -438,6 +438,30 @@ KStringView KProtocol::Serialize () const
 }
 
 //-------------------------------------------------------------------------
+KStringView KProtocol::getProtocolName () const
+//-------------------------------------------------------------------------
+{
+	switch (m_eProto)
+	{
+		case UNDEFINED:
+			// The serialization is correctly empty when no value was parsed.
+			break;
+
+		case UNKNOWN:
+		{
+			KStringView sName = m_sProto;
+			sName.remove_suffix("://");
+			return sName;
+		}
+
+		default:
+			return s_Canonical[m_eProto].sName;
+	}
+
+	return KStringView {};
+}
+
+//-------------------------------------------------------------------------
 uint16_t KProtocol::DefaultPort() const
 //-------------------------------------------------------------------------
 {

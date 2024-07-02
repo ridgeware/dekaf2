@@ -49,7 +49,20 @@
 #include "kwrite.h"
 #include <nghttp2/nghttp2.h>
 
-#if defined(nghttp2_ssize)
+#if (NGHTTP2_VERSION_NUM < 0x013d00)
+	// Unfortunately, just when implementing nghttp2 support in dekaf2,
+	// the authors decided to change the interface to avoid an issue
+	// with ::ssize_t on IBM mainframes. They changed ALL function
+	// names that use ::ssize_t ..
+	// So currently on MacOS with homebrew, the new function names are
+	// to be used, and on Linux the old (because the distributions are
+	// all still at v1.59 or less).
+	#define DEKAF2_OLD_NGHTTP2_VERSION 1
+#endif
+
+#if DEKAF2_OLD_NGHTTP2_VERSION
+static_assert(std::is_same<::ssize_t, dekaf2::http2::nghttp2_ssize>::value, "ssize_t != ssize_t");
+#else
 static_assert(std::is_same<nghttp2_ssize, dekaf2::http2::nghttp2_ssize>::value, "nghttp2_ssize != ssize_t");
 #endif
 
@@ -530,9 +543,14 @@ Session::Session(KSSLIOStream& TLSStream, bool bIsClient)
 {
 	nghttp2_session_callbacks* callbacks;
 	nghttp2_session_callbacks_new                             (&callbacks);
+#if DEKAF2_OLD_NGHTTP2_VERSION
+	nghttp2_session_callbacks_set_send_callback               (callbacks, OnSendCallback         );
+	nghttp2_session_callbacks_set_recv_callback               (callbacks, OnReceiveCallback      );
+#else
 	nghttp2_session_callbacks_set_send_callback2              (callbacks, OnSendCallback         );
-	nghttp2_session_callbacks_set_send_data_callback          (callbacks, reinterpret_cast<nghttp2_send_data_callback>       (OnSendDataCallback    ));
 	nghttp2_session_callbacks_set_recv_callback2              (callbacks, OnReceiveCallback      );
+#endif
+	nghttp2_session_callbacks_set_send_data_callback          (callbacks, reinterpret_cast<nghttp2_send_data_callback>       (OnSendDataCallback    ));
 	nghttp2_session_callbacks_set_on_frame_recv_callback      (callbacks, reinterpret_cast<nghttp2_on_frame_recv_callback>   (OnFrameRecvCallback   ));
 	nghttp2_session_callbacks_set_on_data_chunk_recv_callback (callbacks, OnDataChunkRecvCallback);
 	nghttp2_session_callbacks_set_on_stream_close_callback    (callbacks, OnStreamCloseCallback  );
@@ -613,7 +631,9 @@ KStringView Session::TranslateFrameType(uint8_t FrameType)
 		case NGHTTP2_CONTINUATION:    return "Continuation";
 		case NGHTTP2_ALTSVC:          return "AltSvc";
 		case NGHTTP2_ORIGIN:          return "Origin";
+#if !DEKAF2_OLD_NGHTTP2_VERSION
 		case NGHTTP2_PRIORITY_UPDATE: return "PriorityUpdate";
+#endif
 		default:                      return "Unknown";
 	}
 
@@ -949,11 +969,19 @@ int32_t Session::NewRequest (Stream Stream,
 	}
 
 	// this struct will be COPIED with nghttp2_submit_request2
+#if DEKAF2_OLD_NGHTTP2_VERSION
+	nghttp2_data_provider  Data;
+#else
 	nghttp2_data_provider2 Data;
+#endif
 
 	if (SendData && !SendData->IsEOF())
 	{
+#if DEKAF2_OLD_NGHTTP2_VERSION
+		Data.read_callback = reinterpret_cast<nghttp2_data_source_read_callback >(OnDataSourceReadCallback);
+#else
 		Data.read_callback = reinterpret_cast<nghttp2_data_source_read_callback2>(OnDataSourceReadCallback);
+#endif
 		Data.source.ptr    = SendData.get();
 	}
 	else
@@ -962,7 +990,12 @@ int32_t Session::NewRequest (Stream Stream,
 	}
 
 	// submit the request
-	auto StreamID = nghttp2_submit_request2(m_Session,
+#if DEKAF2_OLD_NGHTTP2_VERSION
+	auto StreamID = nghttp2_submit_request (
+#else
+	auto StreamID = nghttp2_submit_request2(
+#endif
+											m_Session,
 											nullptr,
 											Headers.data(), Headers.size(),
 											Data.source.ptr ? &Data : nullptr,
@@ -1070,7 +1103,11 @@ bool Session::SessionReceive()
 bool Session::Received(const void* data, std::size_t len)
 //-----------------------------------------------------------------------------
 {
+#if DEKAF2_OLD_NGHTTP2_VERSION
+	auto readlen = nghttp2_session_mem_recv (m_Session, static_cast<const uint8_t*>(data), len);
+#else
 	auto readlen = nghttp2_session_mem_recv2(m_Session, static_cast<const uint8_t*>(data), len);
+#endif
 
 	if (readlen < 0)
 	{

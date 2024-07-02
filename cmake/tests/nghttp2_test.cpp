@@ -2,6 +2,15 @@
 #include <cstdint>
 #include <type_traits>
 
+#if (NGHTTP2_VERSION_NUM < 0x013d00)
+inline bool nghttp2_test()
+{
+	nghttp2_data_provider Data;
+	Data.read_callback = nullptr;
+
+	return true;
+}
+#else
 inline bool nghttp2_test()
 {
 	static_assert(std::is_same<nghttp2_ssize, ssize_t>::value, "nghttp2_ssize != ssize_t");
@@ -11,6 +20,7 @@ inline bool nghttp2_test()
 
 	return true;
 }
+#endif
 
 int main()
 {

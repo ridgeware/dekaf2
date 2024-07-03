@@ -660,7 +660,6 @@ protected:
 	bool    SessionSend         ();
 	bool    SessionReceive      ();
 	bool    Received            (const void* data, std::size_t len);
-	bool    TerminateSession    (bool bForce);
 
 	bool    AddStream           (Stream Stream);
 	Stream* GetStream           (int32_t StreamID);

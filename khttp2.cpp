@@ -569,31 +569,13 @@ Session::Session(KSSLIOStream& TLSStream, bool bIsClient)
 Session::~Session()
 //-----------------------------------------------------------------------------
 {
-	TerminateSession(true);
-}
-
-//-----------------------------------------------------------------------------
-bool Session::TerminateSession(bool bForce)
-//-----------------------------------------------------------------------------
-{
-	if (bForce || m_Streams.empty())
+	if (m_Session)
 	{
-		if (m_Session)
-		{
-			auto iResult = nghttp2_session_terminate_session(m_Session, NGHTTP2_NO_ERROR);
-
-			if (iResult != 0)
-			{
-				return false;
-			}
-
-			m_Session = nullptr;
-		}
+		nghttp2_session_terminate_session(m_Session, NGHTTP2_NO_ERROR);
+		nghttp2_session_del(m_Session);
 	}
 
-	return true;
-
-} // TerminateSession
+} // dtor
 
 //-----------------------------------------------------------------------------
 KStringView Session::TranslateError(int iError)

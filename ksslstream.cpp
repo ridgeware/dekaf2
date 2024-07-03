@@ -660,8 +660,6 @@ std::streamsize KSSLIOStream::SSLStreamReader(void* sBuffer, std::streamsize iCo
 
 	if (stream_)
 	{
-//		auto stream = static_cast<KAsioSSLStream<asiostream>*>(stream_);
-
 		auto& TLSStream = *static_cast<KSSLIOStream*>(stream_);
 
 		iRead = TLSStream.direct_read_some(sBuffer, iCount);
@@ -703,7 +701,6 @@ std::streamsize KSSLIOStream::SSLStreamWriter(const void* sBuffer, std::streamsi
 
 	if (stream_)
 	{
-//		auto stream = static_cast<KAsioSSLStream<asiostream>*>(stream_);
 		auto& TLSStream = *static_cast<KSSLIOStream*>(stream_);
 
 		if (!TLSStream.m_Stream.bManualHandshake)

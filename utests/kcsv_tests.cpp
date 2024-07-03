@@ -247,7 +247,7 @@ TEST_CASE("KCSV")
 		KString sOut;
 		KOutCSV CSV(sOut);
 		CSV.WriteBOM();
-		CSV.Write(std::vector{"Oranges", "Apples", "Bananas", "Pineapples"});
+		CSV.Write({"Oranges", "Apples", "Bananas", "Pineapples"});
 		CHECK ( sOut == "\xEF\xBB\xBFOranges,Apples,Bananas,Pineapples\r\n" );
 	}
 }

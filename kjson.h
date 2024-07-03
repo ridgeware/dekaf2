@@ -381,7 +381,7 @@ DEKAF2_NAMESPACE_END
 #include <fmt/format.h>
 #include "kjson2.h"
 
-namespace fmt {
+namespace DEKAF2_FORMAT_NAMESPACE {
 
 template <>
 struct formatter<DEKAF2_PREFIX LJSON> : formatter<string_view>
@@ -393,4 +393,4 @@ struct formatter<DEKAF2_PREFIX LJSON> : formatter<string_view>
 	}
 };
 
-} // end of namespace fmt
+} // end of namespace DEKAF2_FORMAT_NAMESPACE

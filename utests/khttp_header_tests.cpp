@@ -45,10 +45,24 @@ TEST_CASE("KHTTPHeader")
 		CHECK ( Header1 != Header3 );
 		CHECK ( Header1.Hash() == Header2.Hash() );
 		CHECK ( Header1.Hash() != Header3.Hash() );
-		CHECK ( Header1 == "authorization"     );
-		CHECK ( Header1 == "authorization"_ks  );
-		CHECK ( Header1 == "authorization"_ksv );
-		CHECK ( Header2 == "authorization"_ksz );
+		if (Header1 != "aUthoriZation") { CHECK ( false ); }
+		if (Header1 != "aUthoriZation"_ksv) { CHECK ( false ); }
+		CHECK ( (Header1 == "authorization")     );
+		CHECK ( (Header1 == "authorization"_ks)  );
+		CHECK ( (Header1 == "authorization"_ksv) );
+		CHECK ( (Header2 == "authorization"_ksz) );
+		CHECK ( (Header1 == "aUthoRization")     );
+		CHECK ( (Header1 == "aUthoRization"_ks)  );
+		CHECK ( (Header1 == "aUthoRization"_ksv) );
+		CHECK ( (Header2 == "aUthoRization"_ksz) );
+		CHECK ( ("authorization"     == Header1) );
+		CHECK ( ("authorization"_ks  == Header1) );
+		CHECK ( ("authorization"_ksv == Header1) );
+		CHECK ( ("authorization"_ksz == Header2) );
+		CHECK ( ("aUthoRization"     == Header1) );
+		CHECK ( ("aUthoRization"_ks  == Header1) );
+		CHECK ( ("aUthoRization"_ksv == Header1) );
+		CHECK ( ("aUthoRization"_ksz == Header2) );
 		CHECK ( Header1 == KHTTPHeader::AUTHORIZATION );
 		CHECK ( Header2 == KHTTPHeader::AUTHORIZATION );
 		CHECK ( Header1 != KHTTPHeader::CONTENT_TYPE );

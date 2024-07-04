@@ -484,6 +484,15 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	template<typename T,
+		typename std::enable_if<detail::is_kstringview_assignable<const T&, true>::value == true, int>::type = 0>
+	friend bool operator==(const KHTTPHeader& left, const T& right)
+	//-----------------------------------------------------------------------------
+	{
+		return left==KHTTPHeader(right);
+	}
+
+	//-----------------------------------------------------------------------------
 	DEKAF2_KHTTP_HEADER_CONSTEXPR_14
 	static Header Parse(KStringView sHeader)
 	//-----------------------------------------------------------------------------
@@ -815,6 +824,15 @@ bool operator!=(const KHTTPHeader& left, const KHTTPHeader& right)
 //-----------------------------------------------------------------------------
 {
 	return !operator==(left, right);
+}
+
+//-----------------------------------------------------------------------------
+template<typename T,
+	typename std::enable_if<detail::is_kstringview_assignable<const T&, true>::value == true, int>::type = 0>
+bool operator!=(const KHTTPHeader& left, const T& right)
+//-----------------------------------------------------------------------------
+{
+	return left!=KHTTPHeader(right);
 }
 
 DEKAF2_NAMESPACE_END

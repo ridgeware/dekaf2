@@ -330,7 +330,7 @@ bool KSSLContext::SetAllowedCipherSuites(KStringView sCipherSuites)
 
 } // SetAllowedCipherSuites
 
-#if DEKAF2_HAS_NGHTTP2 && OPENSSL_VERSION_NUMBER >= 0x10200000L
+#if DEKAF2_HAS_NGHTTP2
 
 #define DEKAF2_ALLOW_HTTP2_SERVER_MODE 0 // set to 1 to allow http2 server mode
 
@@ -399,7 +399,7 @@ int alpn_select_proto_cb(SSL* ssl, const unsigned char** out,
 bool KSSLContext::SetAllowHTTP2(bool bAlsoAllowHTTP1)
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_HAS_NGHTTP2 && OPENSSL_VERSION_NUMBER >= 0x10200000L
+#if DEKAF2_HAS_NGHTTP2
 	// allow ALPN negotiation for HTTP/2 if this is a client
 	if (GetRole() == boost::asio::ssl::stream_base::client)
 	{
@@ -422,13 +422,13 @@ bool KSSLContext::SetAllowHTTP2(bool bAlsoAllowHTTP1)
 			                           alpn_select_proto_cb,
 			                           bAlsoAllowHTTP1 ? this : nullptr); // we use the user ptr as a flag
 		}
-#else
+#else  // of DEKAF2_ALLOW_HTTP2_SERVER_MODE
 		kDebug(1, "HTTP2 is only supported in client mode");
-#endif
+#endif // of DEKAF2_ALLOW_HTTP2_SERVER_MODE
 	}
-#else
+#else  // of DEKAF2_HAS_NGHTTP2
 		kDebug(2, "HTTP2 is not supported by this build");
-#endif
+#endif // of DEKAF2_HAS_NGHTTP2
 
 	return false;
 
@@ -573,7 +573,7 @@ bool KSSLIOStream::SetManualTLSHandshake(bool bYesno)
 bool KSSLIOStream::SetRequestHTTP2(bool bAlsoAllowHTTP1)
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_HAS_NGHTTP2 && OPENSSL_VERSION_NUMBER >= 0x10200000L
+#if DEKAF2_HAS_NGHTTP2
 	// allow ALPN negotiation for HTTP/2 if this is a client
 	if (m_Stream.GetContext().GetRole() == boost::asio::ssl::stream_base::client)
 	{
@@ -591,9 +591,9 @@ bool KSSLIOStream::SetRequestHTTP2(bool bAlsoAllowHTTP1)
 	{
 		kDebug(1, "HTTP2 is only supported in client mode");
 	}
-#else
+#else  // of DEKAF2_HAS_NGHTTP2
 		kDebug(2, "HTTP2 is not supported by this build");
-#endif
+#endif // of DEKAF2_HAS_NGHTTP2
 
 	return false;
 

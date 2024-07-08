@@ -612,8 +612,8 @@ KStringView Session::TranslateFrameType(uint8_t FrameType)
 		case NGHTTP2_WINDOW_UPDATE:   return "WindowUpdate";
 		case NGHTTP2_CONTINUATION:    return "Continuation";
 		case NGHTTP2_ALTSVC:          return "AltSvc";
-		case NGHTTP2_ORIGIN:          return "Origin";
 #if !DEKAF2_OLD_NGHTTP2_VERSION
+		case NGHTTP2_ORIGIN:          return "Origin";
 		case NGHTTP2_PRIORITY_UPDATE: return "PriorityUpdate";
 #endif
 		default:                      return "Unknown";

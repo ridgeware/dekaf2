@@ -40,6 +40,7 @@
 */
 
 #include "khttp_version.h"
+#include "klog.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -101,7 +102,6 @@ KStringViewZ KHTTPVersion::Serialize() const
 	switch (m_Version)
 	{
 		case KHTTPVersion::none:
-			kDebug(2, "no HTTP version set");
 			break;
 		case KHTTPVersion::http10:
 			return "HTTP/1.0";
@@ -113,7 +113,7 @@ KStringViewZ KHTTPVersion::Serialize() const
 			return "HTTP/3";
 	}
 
-	kDebug(2, "invalid HTTP version set");
+	kDebug(2, "no HTTP version set");
 	return KStringViewZ{};
 }
 

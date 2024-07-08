@@ -858,14 +858,28 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint, TLSOptions Options)
                                        const boost::asio::ip::tcp::endpoint& endpoint)
 #endif
 		{
-			m_Stream.sEndpoint.Format("{}:{}",
+			if (endpoint.address().is_v6())
+			{
+				m_Stream.sEndpoint.Format("[{}]:{}",
 #if (BOOST_VERSION < 106600)
-									  endpoint->endpoint().address().to_string(),
-									  endpoint->endpoint().port());
+					endpoint->endpoint().address().to_string(),
+					endpoint->endpoint().port());
 #else
-									  endpoint.address().to_string(),
-									  endpoint.port());
+					endpoint.address().to_string(),
+					endpoint.port());
 #endif
+			}
+			else
+			{
+				m_Stream.sEndpoint.Format("{}:{}",
+#if (BOOST_VERSION < 106600)
+					endpoint->endpoint().address().to_string(),
+					endpoint->endpoint().port());
+#else
+					endpoint.address().to_string(),
+					endpoint.port());
+#endif
+			}
 			m_Stream.ec = ec;
 		});
 

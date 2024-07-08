@@ -62,7 +62,7 @@ TLSOptions g_DefaultTLSOptions =
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
-TLSOptions GetTLSDefaults(TLSOptions Options)
+TLSOptions kGetTLSDefaults(TLSOptions Options)
 //-----------------------------------------------------------------------------
 {
 	if (Options & DefaultsForHTTP)
@@ -73,16 +73,16 @@ TLSOptions GetTLSDefaults(TLSOptions Options)
 
 	return Options;
 
-} // GetTLSDefaults
+} // kGetTLSDefaults
 
 //-----------------------------------------------------------------------------
-bool SetTLSDefaults(TLSOptions Options)
+bool kSetTLSDefaults(TLSOptions Options)
 //-----------------------------------------------------------------------------
 {
 	g_DefaultTLSOptions = Options;
 	return true;
 
-} // SetTLSDefaults
+} // kSetTLSDefaults
 
 //-----------------------------------------------------------------------------
 KConnection::KConnection(KConnection&& other) noexcept

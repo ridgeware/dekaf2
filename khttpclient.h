@@ -403,7 +403,7 @@ public:
 	self& SetTLSOptions(TLSOptions Options)
 	//-----------------------------------------------------------------------------
 	{
-		m_TLSOptions = GetTLSDefaults(Options);
+		m_TLSOptions = kGetTLSDefaults(Options);
 		return *this;
 	}
 
@@ -609,7 +609,7 @@ private:
 	KString          m_sCompressors;
 	KURL             m_Proxy;
 	int              m_Timeout               { 30    };
-	TLSOptions       m_TLSOptions            { GetTLSDefaults(TLSOptions::DefaultsForHTTP) };
+	TLSOptions       m_TLSOptions            { kGetTLSDefaults(TLSOptions::DefaultsForHTTP) };
 	bool             m_bRequestCompression   { true  };
 	bool             m_bAutoProxy            { false };
 	bool             m_bUseHTTPProxyProtocol { false };

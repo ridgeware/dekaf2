@@ -240,14 +240,14 @@ void KHTTPClient::clear()
 //-----------------------------------------------------------------------------
 KHTTPClient::KHTTPClient(TLSOptions Options)
 //-----------------------------------------------------------------------------
-: m_TLSOptions(GetTLSDefaults(Options))
+: m_TLSOptions(kGetTLSDefaults(Options))
 {
 } // Ctor
 
 //-----------------------------------------------------------------------------
 KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, TLSOptions Options)
 //-----------------------------------------------------------------------------
-: m_TLSOptions(GetTLSDefaults(Options))
+: m_TLSOptions(kGetTLSDefaults(Options))
 {
 	if (Connect(url))
 	{
@@ -259,7 +259,7 @@ KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, TLSOptions Options
 //-----------------------------------------------------------------------------
 KHTTPClient::KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method, TLSOptions Options)
 //-----------------------------------------------------------------------------
-: m_TLSOptions(GetTLSDefaults(Options))
+: m_TLSOptions(kGetTLSDefaults(Options))
 {
 	if (Connect(url, Proxy))
 	{

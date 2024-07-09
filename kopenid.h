@@ -121,7 +121,7 @@ public:
 	/// provided if not empty
 	KOpenIDProvider (KURL URL,
 					 KStringView sScope = KStringView{},
-					 KTimer::Interval RefreshInterval = std::chrono::hours(24));
+					 KDuration RefreshInterval = std::chrono::hours(24));
 
 	/// return error string
 	const KString& Error() const { return m_sError; }
@@ -136,7 +136,7 @@ public:
 
 	const KeysAndIssuer& Get() const { return *m_CurrentKeys->load(std::memory_order_relaxed); }
 
-	void Refresh(KTimer::Timepoint Now = Dekaf::getInstance().GetCurrentTimepoint());
+	void Refresh(KUnixTime Now = Dekaf::getInstance().GetCurrentTimepoint());
 
 //----------
 private:
@@ -154,8 +154,8 @@ private:
 	mutable KString   m_sError;
 	KString           m_sScope;
 	KURL              m_URL;
-	KTimer::Interval  m_RefreshInterval {};
-	KTimer::Timepoint m_LastRefresh;
+	KDuration         m_RefreshInterval {};
+	KUnixTime         m_LastRefresh;
 
 }; // KOpenIDProvider
 

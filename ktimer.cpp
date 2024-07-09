@@ -47,33 +47,32 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
-KTimer::KTimer(Interval Granularity)
+KTimer::KTimer(KDuration MaxIdle)
 //---------------------------------------------------------------------------
+: m_bShutdown(std::make_shared<std::atomic<bool>>(false))
+, m_MaxIdle(MaxIdle)
 {
-	m_bShutdown = std::make_shared<std::atomic<bool>>(false);
-	m_tTiming   = std::make_shared<std::thread>(&KTimer::TimingLoop, this, Granularity);
-
 } // ctor
 
 //---------------------------------------------------------------------------
 KTimer::~KTimer()
 //---------------------------------------------------------------------------
 {
-	// signal the thread to shutdown
-	*m_bShutdown = true;
-
-	if (m_tTiming)
+	if (m_TimingThread)
 	{
+		// signal the thread to shutdown
+		*m_bShutdown = true;
+
 		if (!m_bDestructWithJoin)
 		{
 			// detach the thread, we do not want to wait until it has joined
-			m_tTiming->detach();
+			m_TimingThread->detach();
 			kDebug(2, "detached timer thread");
 		}
 		else
 		{
 			// wait until thread has finished
-			m_tTiming->join();
+			m_TimingThread->join();
 			kDebug(2, "joined timer thread");
 		}
 	}
@@ -84,125 +83,81 @@ KTimer::~KTimer()
 KTimer::ID_t KTimer::AddTimer(Timer timer)
 //---------------------------------------------------------------------------
 {
-	if (timer.ID == INVALID)
+	if (timer.ID == InvalidID)
 	{
 		timer.ID = GetNextID();
 	}
 
-	auto Timers = m_Timers.unique();
+	ID_t ID;
 
-	auto ret = Timers->emplace(timer.ID, std::move(timer));
+	{
+		auto Timers = m_Timers.unique();
 
-	if (ret.second)
-	{
-		return ret.first->second.ID;
+		auto ret = Timers->emplace(timer.ID, std::move(timer));
+
+		if (ret.second)
+		{
+			ID = ret.first->second.ID;
+		}
+		else
+		{
+			ID = InvalidID;
+		}
 	}
-	else
+
+	std::lock_guard<std::mutex> Lock(m_ThreadCreationMutex);
+
+	if (!m_TimingThread)
 	{
-		return INVALID;
+		m_TimingThread = std::make_shared<std::thread>(&KTimer::TimingLoop, this, m_MaxIdle);
 	}
+
+	return ID;
 
 } // AddTimer
 
 //---------------------------------------------------------------------------
-KTimer::ID_t KTimer::CallEvery(Interval intv, Callback CB)
+KTimer::ID_t KTimer::CallEvery(KDuration interval, Callback CB, bool bOwnThread)
 //---------------------------------------------------------------------------
 {
-	if (intv.count() == 0)
+	if (interval.count() == 0)
 	{
-		return INVALID;
+		return InvalidID;
 	}
 
-	Timer timer;
-	timer.ExpiresAt = Clock::now() + intv;
-	timer.IVal      = intv;
-	timer.CB        = std::move(CB);
-	timer.Flags     = NONE;
-
-	return AddTimer(std::move(timer));
+	return AddTimer(Timer(interval, std::move(CB), bOwnThread, false));
 
 } // CallEvery
 
 //---------------------------------------------------------------------------
-KTimer::ID_t KTimer::CallOnce(Timepoint tp, Callback CB)
+KTimer::ID_t KTimer::CallOnce(KUnixTime timepoint, Callback CB, bool bOwnThread)
 //---------------------------------------------------------------------------
 {
-	Timer timer;
-	timer.ExpiresAt = tp;
-	timer.CB        = std::move(CB);
-	timer.Flags     = ONCE;
-
-	return AddTimer(std::move(timer));
+	return AddTimer(Timer(timepoint, std::move(CB), bOwnThread));
 
 } // CallOnce
 
 //---------------------------------------------------------------------------
-KTimer::ID_t KTimer::CallEvery(time_t intv, CallbackTimeT CBT)
+KTimer::ID_t KTimer::CallOnce(KDuration interval, Callback CB, bool bOwnThread)
 //---------------------------------------------------------------------------
 {
-	if (intv == 0)
-	{
-		return INVALID;
-	}
-
-	Timer timer;
-	Interval iv     = std::chrono::seconds(intv);
-	timer.ExpiresAt = Clock::now() + iv;
-	timer.IVal      = iv;
-	timer.CBT       = std::move(CBT);
-	timer.Flags     = TIMET;
-
-	return AddTimer(std::move(timer));
-
-} // CallEvery
-
-//---------------------------------------------------------------------------
-KTimer::ID_t KTimer::CallOnce(time_t tp, CallbackTimeT CBT)
-//---------------------------------------------------------------------------
-{
-	Timer timer;
-	timer.ExpiresAt  = Clock::now();
-	time_t now       = ToTimeT(timer.ExpiresAt);
-	timer.ExpiresAt += std::chrono::seconds(tp - now);
-	timer.CBT        = std::move(CBT);
-	timer.Flags      = ONCE | TIMET;
-
-	return AddTimer(std::move(timer));
+	return AddTimer(Timer(interval, std::move(CB), bOwnThread, true));
 
 } // CallOnce
 
 //---------------------------------------------------------------------------
-void KTimer::SleepFor(Interval intv)
+void KTimer::SleepFor(KDuration interval)
 //---------------------------------------------------------------------------
 {
-	std::this_thread::sleep_for(intv);
+	std::this_thread::sleep_for(interval);
 }
 
 //---------------------------------------------------------------------------
-void KTimer::SleepUntil(Timepoint tp)
+void KTimer::SleepUntil(KUnixTime timepoint)
 //---------------------------------------------------------------------------
 {
-	std::this_thread::sleep_until(tp);
+	std::this_thread::sleep_until(timepoint);
 }
-
-//---------------------------------------------------------------------------
-void KTimer::SleepFor(time_t intv)
-//---------------------------------------------------------------------------
-{
-	std::this_thread::sleep_for(std::chrono::seconds(intv));
-}
-
-//---------------------------------------------------------------------------
-void KTimer::SleepUntil(time_t tp)
-//---------------------------------------------------------------------------
-{
-	auto cnow   = Clock::now();
-	time_t now  = ToTimeT(cnow);
-	cnow       += std::chrono::seconds(tp - now);
-
-	std::this_thread::sleep_until(cnow);
-
-} // SleepUntil
 
 //---------------------------------------------------------------------------
 bool KTimer::Cancel(ID_t ID)
@@ -214,7 +169,7 @@ bool KTimer::Cancel(ID_t ID)
 
 	if (it == Timers->end())
 	{
-		// ID not known for this KTimer
+		// ID not known for this timer
 		return false;
 	}
 
@@ -225,7 +180,128 @@ bool KTimer::Cancel(ID_t ID)
 } // Cancel
 
 //---------------------------------------------------------------------------
-void KTimer::TimingLoop(Interval Granularity)
+bool KTimer::Restart(ID_t ID)
+//---------------------------------------------------------------------------
+{
+	auto Timers = m_Timers.unique();
+
+	auto it = Timers->find(ID);
+
+	if (it == Timers->end())
+	{
+		// ID not known for this timer
+		return false;
+	}
+
+	if (it->second.Interval == KDuration::zero())
+	{
+		return false;
+	}
+
+	it->second.ExpiresAt = KUnixTime::now() + it->second.Interval;
+
+	return true;
+
+} // Restart
+
+//---------------------------------------------------------------------------
+bool KTimer::Restart(ID_t ID, KDuration interval)
+//---------------------------------------------------------------------------
+{
+	auto Timers = m_Timers.unique();
+
+	auto it = Timers->find(ID);
+
+	if (it == Timers->end())
+	{
+		// ID not known for this timer
+		return false;
+	}
+
+	if (it->second.Interval == KDuration::zero())
+	{
+		return false;
+	}
+
+	it->second.Interval  = interval;
+	it->second.ExpiresAt = KUnixTime::now() + it->second.Interval;
+
+	return true;
+
+} // Restart
+
+//---------------------------------------------------------------------------
+bool KTimer::Restart(ID_t ID, KUnixTime timepoint)
+//---------------------------------------------------------------------------
+{
+	auto Timers = m_Timers.unique();
+
+	auto it = Timers->find(ID);
+
+	if (it == Timers->end())
+	{
+		// ID not known for this timer
+		return false;
+	}
+
+	if ((it->second.Flags & Once) != Once)
+	{
+		return false;
+	}
+
+	it->second.ExpiresAt = timepoint;
+
+	return true;
+
+} // Restart
+
+namespace {
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DueCallback
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	//---------------------------------------------------------------------------
+	DueCallback(KTimer::Callback CB, bool bOwnThread)
+	//---------------------------------------------------------------------------
+	: m_CB(std::move(CB))
+	, m_bOwnThread(bOwnThread)
+	{
+	}
+
+	//---------------------------------------------------------------------------
+	void Run(KUnixTime Tp)
+	//---------------------------------------------------------------------------
+	{
+		if (m_bOwnThread)
+		{
+			std::thread thread(m_CB, Tp);
+			thread.detach();
+		}
+		else
+		{
+			m_CB(Tp);
+		}
+	}
+
+//----------
+private:
+//----------
+
+	KTimer::Callback m_CB;
+	bool             m_bOwnThread;
+
+}; // DueCallback
+
+} // end of anonymous namespace
+
+//---------------------------------------------------------------------------
+void KTimer::TimingLoop(KDuration MaxIdle)
 //---------------------------------------------------------------------------
 {
 	// make sure we do not catch signals in this thread (this can happen if
@@ -236,11 +312,40 @@ void KTimer::TimingLoop(Interval Granularity)
 	// both instances will point to the same bool
 	auto bShutdown(m_bShutdown);
 
-	kDebug(2, "new timer thread started");
+	// and copy this thread's shared ptr as well, to keep us alive
+	// even after KTimer goes away
+	auto MySelf(m_TimingThread);
+
+	kDebug(2, "new timer thread started with max idle {}", MaxIdle);
+
+	auto tNow = KUnixTime::now();
+
+	KUnixTime tNext = tNow + MaxIdle;
+
+	// find closest deadline
+	{
+		auto Timers = m_Timers.shared();
+
+		for (auto& it : Timers.get())
+		{
+			if (it.second.ExpiresAt < tNext)
+			{
+				tNext = it.second.ExpiresAt;
+			}
+		}
+	}
+
+	std::vector<DueCallback> DueCallbacks;
+	std::vector<ID_t>        CancelledCallbacks;
 
 	for (;;)
 	{
-		std::this_thread::sleep_for(Granularity);
+		kDebug(3, "next deadline in {}", tNext - tNow);
+		std::this_thread::sleep_until(tNext);
+
+		// enable logging in this thread, the global instance of
+		// KTimer is started long before any option parsing
+		KLog::SyncLevel();
 
 		if (*bShutdown || Dekaf::IsShutDown())
 		{
@@ -248,41 +353,61 @@ void KTimer::TimingLoop(Interval Granularity)
 			return;
 		}
 
-		auto now = Clock::now();
+		tNow = KUnixTime::now();
 
-		auto Timers = m_Timers.unique();
+		tNext  = tNow;
+		tNext += MaxIdle;
 
-		// check all timers for their expiration date
-		for (auto& it : Timers.get())
 		{
-			auto& Timer = it.second;
+			auto Timers = m_Timers.unique();
 
-			if (Timer.ExpiresAt < now)
+			// check all timers for their expiration date
+			for (auto& it : Timers.get())
 			{
-				if ((Timer.Flags & TIMET) == TIMET)
+				auto& Timer = it.second;
+
+				if (Timer.ExpiresAt <= tNow)
 				{
-					// call the thread with a time_t value
-					std::thread thread(Timer.CBT, ToTimeT(now));
-					thread.detach();
+					DueCallbacks.push_back(DueCallback(Timer.CB, Timer.Flags & OwnThread));
+
+					if ((Timer.Flags & Once) == Once)
+					{
+						// remove this timer
+						CancelledCallbacks.push_back(Timer.ID);
+					}
+					else
+					{
+						// calculate next expiration
+						Timer.ExpiresAt  = tNow + Timer.Interval;
+					}
 				}
-				else
+
+				// check for closest deadline
+				if (Timer.ExpiresAt < tNext)
 				{
-					// call the thread with a time_point value
-					std::thread thread(Timer.CB, now);
-					thread.detach();
+					tNext = Timer.ExpiresAt;
 				}
-				if ((Timer.Flags & ONCE) == ONCE)
-				{
-					// remove this timer
-					Timers->erase(Timer.ID);
-				}
-				else
-				{
-					// calculate next expiration
-					Timer.ExpiresAt = now + Timer.IVal;
-				}
+
 			}
+
+			for (auto ID : CancelledCallbacks)
+			{
+				kDebug(2, "remove one-time timer {}", ID);
+				Timers->erase(ID);
+			}
+			
+			CancelledCallbacks.clear();
+
+		} // end of scope for unique lock
+
+		// now call all due callbacks
+		for (auto& Due : DueCallbacks)
+		{
+			Due.Run(tNow);
 		}
+
+		// and delete the temporary vector
+		DueCallbacks.clear();
 	}
 
 } // TimingLoop
@@ -291,11 +416,11 @@ void KTimer::TimingLoop(Interval Granularity)
 KTimer::ID_t KTimer::GetNextID()
 //---------------------------------------------------------------------------
 {
-	static std::atomic<KTimer::ID_t> s_LastID { INVALID };
+	static std::atomic<KTimer::ID_t> s_LastID { InvalidID };
 
 	ID_t ID = ++s_LastID;
 
-	while (ID == INVALID)
+	while (ID == InvalidID)
 	{
 		kWarning("timer ID overflow - now reusing IDs");
 		ID = ++s_LastID;
@@ -304,19 +429,5 @@ KTimer::ID_t KTimer::GetNextID()
 	return ID;
 
 } // GetNextID
-
-//---------------------------------------------------------------------------
-time_t KTimer::ToTimeT(Timepoint tp)
-//---------------------------------------------------------------------------
-{
-	return Clock::to_time_t(tp);
-}
-
-//---------------------------------------------------------------------------
-KTimer::Timepoint KTimer::FromTimeT(time_t tt)
-//---------------------------------------------------------------------------
-{
-	return Clock::from_time_t(tt);
-}
 
 DEKAF2_NAMESPACE_END

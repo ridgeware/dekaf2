@@ -230,7 +230,7 @@ bool KOpenIDProvider::Validate(const KJSON& Configuration, const KURL& URL, KStr
 } // Validate
 
 //-----------------------------------------------------------------------------
-void KOpenIDProvider::Refresh(KTimer::Timepoint Now)
+void KOpenIDProvider::Refresh(KUnixTime Now)
 //-----------------------------------------------------------------------------
 {
 	if (Now < m_LastRefresh + m_RefreshInterval)
@@ -243,7 +243,7 @@ void KOpenIDProvider::Refresh(KTimer::Timepoint Now)
 	if (m_URL.Protocol != url::KProtocol::HTTPS)
 	{
 		SetError(kFormat("provider URL does not use HTTPS, but has to: {}", m_URL.Serialize()));
-		m_RefreshInterval = KTimer::Interval::zero();
+		m_RefreshInterval = KDuration::zero();
 	}
 	else
 	{
@@ -327,7 +327,7 @@ void KOpenIDProvider::Refresh(KTimer::Timepoint Now)
 } // Refresh
 
 //-----------------------------------------------------------------------------
-KOpenIDProvider::KOpenIDProvider (KURL URL, KStringView sScope, KTimer::Interval RefreshInterval)
+KOpenIDProvider::KOpenIDProvider (KURL URL, KStringView sScope, KDuration RefreshInterval)
 //-----------------------------------------------------------------------------
 : m_sScope(sScope)
 , m_URL(std::move(URL))

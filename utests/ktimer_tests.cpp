@@ -18,11 +18,12 @@ TEST_CASE("KTimer")
 
 		KTimer Timer(std::chrono::milliseconds(50));
 
-		auto ID = Timer.CallEvery(std::chrono::milliseconds(50), [&](KTimer::Timepoint tp)
+		auto ID = Timer.CallEvery(std::chrono::milliseconds(50), [&](KUnixTime tp)
 		{
 	//		kDebug(1, "the current timepoint is: {}", KTimer::ToTimeT(tp));
 			++iCalled;
-		});
+
+		}, false);
 
 		kMilliSleep(500);
 

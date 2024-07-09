@@ -396,9 +396,9 @@ void Dekaf::StartDefaultTimer()
 		// and start the timer that updates the time keepers
 		m_OneSecTimerID = m_Timer->CallEvery(
 											 std::chrono::seconds(1),
-											 [this](KTimer::Timepoint tp) {
+											 [this](KUnixTime tp) {
 												 this->OneSecTimer(tp);
-											 });
+											 }, false);
 	}
 }
 
@@ -425,7 +425,7 @@ KTimer& Dekaf::GetTimer()
 }
 
 //---------------------------------------------------------------------------
-void Dekaf::OneSecTimer(KTimer::Timepoint tp)
+void Dekaf::OneSecTimer(KUnixTime tp)
 //---------------------------------------------------------------------------
 {
 	m_iCurrentTime = tp;

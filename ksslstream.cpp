@@ -423,11 +423,11 @@ bool KSSLContext::SetAllowHTTP2(bool bAlsoAllowHTTP1)
 			                           bAlsoAllowHTTP1 ? this : nullptr); // we use the user ptr as a flag
 		}
 #else  // of DEKAF2_ALLOW_HTTP2_SERVER_MODE
-		kDebug(1, "HTTP2 is only supported in client mode");
+		kDebug(1, "HTTP/2 is only supported in client mode");
 #endif // of DEKAF2_ALLOW_HTTP2_SERVER_MODE
 	}
 #else  // of DEKAF2_HAS_NGHTTP2
-		kDebug(2, "HTTP2 is not supported by this build");
+		kDebug(2, "HTTP/2 is not supported by this build");
 #endif // of DEKAF2_HAS_NGHTTP2
 
 	return false;
@@ -589,10 +589,10 @@ bool KSSLIOStream::SetRequestHTTP2(bool bAlsoAllowHTTP1)
 	}
 	else
 	{
-		kDebug(1, "HTTP2 is only supported in client mode");
+		kDebug(1, "HTTP/2 is only supported in client mode");
 	}
 #else  // of DEKAF2_HAS_NGHTTP2
-		kDebug(2, "HTTP2 is not supported by this build");
+		kDebug(2, "HTTP/2 is not supported by this build");
 #endif // of DEKAF2_HAS_NGHTTP2
 
 	return false;

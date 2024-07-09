@@ -44,6 +44,7 @@
 
 #include "kdefinitions.h"
 #include "kthreadsafe.h"
+#include "ktime.h"
 #include <chrono>
 #include <memory>
 #include <thread>
@@ -72,16 +73,20 @@ public:
 //----------
 
 	using ID_t          = size_t;
-	using Clock         = std::chrono::system_clock;
-	using Interval      = Clock::duration;
-	using Timepoint     = Clock::time_point;
-	using Callback      = std::function<void(Timepoint)>;
-	using CallbackTimeT = std::function<void(time_t)>;
+	using Callback      = std::function<void(KUnixTime)>;
+	// the following are for backward compatibility only, do not use them in new code
+	using Timepoint     = KUnixTime;
+	using Clock         = KUnixTime::clock;
+	// backward compatibility until here
 
-	static constexpr ID_t INVALID { 0 };
+	static constexpr ID_t InvalidID { 0 };
+	static constexpr KDuration Infinite { chrono::years(100) };
 
 	//---------------------------------------------------------------------------
-	KTimer(Interval Granularity = std::chrono::seconds(1));
+	/// create a new KTimer instance
+	/// @param MaxIdle the maximum wait time until a new timer loop is started - new timers are only
+	/// integrated when a new loop iteration starts
+	KTimer(KDuration MaxIdle = std::chrono::seconds(1));
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -106,65 +111,70 @@ public:
 
 	//---------------------------------------------------------------------------
 	/// nonblocking: calls cb every interval in a separate thread.
-	/// A return other than INVALID is a handle that can be used
+	/// @param interval duration to wait between two calls of the callback
+	/// @param CB the callback to call
+	/// @param bOwnThread if true (default), the callback is called in a thread of its own, else it
+	/// is called in the main timer loop thread and must return fastly and without blocking
+	/// @return if unequal InvalidID a handle that can be used
 	/// to remove the callback (cancel the timer)
-	ID_t CallEvery(Interval intv, Callback CB);
+	ID_t CallEvery(KDuration interval, Callback CB, bool bOwnThread = true);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
 	/// nonblocking: calls cb exactly once at a given timepoint
-	/// A return other than INVALID is a handle that can be used
+	/// @param timepoint a timepoint at which the callback is called. The callback will also be called
+	/// if the timepoint lies in the past
+	/// @param CB the callback to call
+	/// @param bOwnThread if true (default), the callback is called in a thread of its own, else it
+	/// is called in the main timer loop thread and must return fastly and without blocking
+	/// @return if unequal InvalidID a handle that can be used
 	/// to remove the callback (cancel the timer)
-	ID_t CallOnce(Timepoint tp, Callback CB);
+	ID_t CallOnce(KUnixTime timepoint, Callback CB, bool bOwnThread = true);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	/// blocking: sleep for interval
-	static void SleepFor(Interval intv);
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	/// blocking: sleep until timepoint
-	static void SleepUntil(Timepoint tp);
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	/// nonblocking: calls cb every interval in a separate thread
-	/// A return other than INVALID is a handle that can be used
+	/// nonblocking: calls cb exactly once after a certain duration from now has elapse
+	/// @param interval duration to wait from now on at which the callback is called. The callback will also be called
+	/// if the duration is negative.
+	/// @param CB the callback to call
+	/// @param bOwnThread if true (default), the callback is called in a thread of its own, else it
+	/// is called in the main timer loop thread and must return fastly and without blocking
+	/// @return if unequal InvalidID a handle that can be used
 	/// to remove the callback (cancel the timer)
-	ID_t CallEvery(time_t intv, CallbackTimeT CBT);
+	ID_t CallOnce(KDuration interval, Callback CB, bool bOwnThread = true);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	/// nonblocking: calls cb exactly once at a given timepoint
-	/// A return other than INVALID is a handle that can be used
-	/// to remove the callback (cancel the timer)
-	ID_t CallOnce(time_t tp, CallbackTimeT CBT);
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	/// blocking: sleep for interval
-	static void SleepFor(time_t intv);
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	/// blocking: sleep until timepoint
-	static void SleepUntil(time_t tp);
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	/// Cancel pending timer. Returns false if not found.
+	/// cancel pending timer. Returns false if not found.
 	bool Cancel(ID_t ID);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	/// Shorthand to convert a KTimer::Timepoint into a time_t value
-	static time_t ToTimeT(Timepoint tp);
+	/// restart pending timer (increase deadline by repeat interval from now). Returns false if not found or not
+	/// a timer constructed with an interval (including timers triggered only once).
+	bool Restart(ID_t ID);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	/// Shorthand to convert a time_t value into a KTimer::Timepoint
-	static Timepoint FromTimeT(time_t tt);
+	/// restart pending timer (increase deadline by repeat interval from now). Returns false if not found or not
+	/// a timer constructed with an interval (including timers triggered only once). Uses new interval.
+	bool Restart(ID_t ID, KDuration interval);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// restart pending timer by setting new deadline timepoint. Returns false if not found or if
+	/// a timer constructed with an interval (including timers triggered only once).
+	bool Restart(ID_t ID, KUnixTime timepoint);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// blocking: sleep for interval (simple alias for std::this_thread::sleep_for)
+	static void SleepFor(KDuration interval);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// blocking: sleep until timepoint (simple alias for std::this_thread::sleep_until)
+	static void SleepUntil(KUnixTime timepoint);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -289,7 +299,7 @@ private:
 
 	//---------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	void TimingLoop(Interval Granularity);
+	void TimingLoop(KDuration MaxIdle);
 	//---------------------------------------------------------------------------
 
 	struct Timer;
@@ -309,27 +319,43 @@ private:
 	static ID_t GetNextID();
 	//---------------------------------------------------------------------------
 
-	enum FLAGS
+	enum Flags : uint8_t
 	{
-		NONE    = 0,
-		ONCE    = 1 << 0, // this timer shall be run only once
-		TIMET   = 1 << 1, // this timer shall be called with a time_t argument
+		None      = 0,
+		Once      = 1 << 0, // this timer shall be run only once
+		OwnThread = 1 << 1, // the callback shall be called in its own thread
 	};
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct Timer
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		ID_t          ID    { INVALID          };
-		Timepoint     ExpiresAt;
-		Interval      IVal  { Interval::zero() };
-		Callback      CB    { nullptr          };
-		CallbackTimeT CBT   { nullptr          };
-		uint8_t       Flags { NONE             };
+		Timer() = default;
+		Timer(KUnixTime timepoint, Callback CB, bool bOwnThread)
+		: ExpiresAt(timepoint)
+		, CB(std::move(CB))
+		, Flags(bOwnThread ? static_cast<enum Flags>(OwnThread | Once) : Once)
+		{
+		}
+		Timer(KDuration interval,  Callback CB, bool bOwnThread, bool bOnce)
+		: ExpiresAt(KUnixTime::now() + interval)
+		, Interval(interval)
+		, CB(std::move(CB))
+		, Flags(static_cast<enum Flags>((bOwnThread ? OwnThread : None) | (bOnce ? Once : None)))
+		{
+		}
+
+		ID_t          ID       { InvalidID         };
+		KUnixTime     ExpiresAt;
+		KDuration     Interval { KDuration::zero() };
+		Callback      CB       { nullptr           };
+		Flags         Flags    { None              };
 	};
 
-	std::shared_ptr<std::thread>       m_tTiming;
+	std::mutex                         m_ThreadCreationMutex;
+	std::shared_ptr<std::thread>       m_TimingThread;
 	std::shared_ptr<std::atomic<bool>> m_bShutdown;
+	KDuration                          m_MaxIdle;
 	bool                               m_bDestructWithJoin { false };
 
 	using map_t = std::unordered_map<ID_t, Timer>;

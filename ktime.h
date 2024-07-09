@@ -191,6 +191,11 @@ public:
 	DEKAF2_FULL_CONSTEXPR_17 self& operator+=(std::time_t seconds)  noexcept { base::operator += (chrono::seconds(seconds)); return *this;   }
 	DEKAF2_FULL_CONSTEXPR_17 self& operator-=(std::time_t seconds)  noexcept { base::operator -= (chrono::seconds(seconds)); return *this;   }
 
+	template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+	DEKAF2_FULL_CONSTEXPR_17 self& operator+=(const T& Duration) noexcept { base::operator += (Duration.template duration<duration>()); return *this; }
+	template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+	DEKAF2_FULL_CONSTEXPR_17 self& operator-=(const T& Duration) noexcept { base::operator -= (Duration.template duration<duration>()); return *this; }
+
 	using base::operator+=;
 	using base::operator-=;
 
@@ -244,6 +249,22 @@ private:
 
 DEKAF2_CONSTEXPR_14 KDuration operator-(const KUnixTime& left, const KUnixTime& right)
 { return KUnixTime::base(left) - KUnixTime::base(right); }
+
+template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+DEKAF2_CONSTEXPR_14 KUnixTime operator+(const KUnixTime& left, const T& right)
+{ return KUnixTime(left.time_since_epoch() + right.template duration<KUnixTime::duration>()); }
+
+template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+DEKAF2_CONSTEXPR_14 KUnixTime operator+(const T& left, const KUnixTime& right)
+{ return right + left; }
+
+template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+DEKAF2_CONSTEXPR_14 KUnixTime operator-(const KUnixTime& left, const T& right)
+{ return KUnixTime(left.time_since_epoch() - right.template duration<KUnixTime::duration>()); }
+
+template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+DEKAF2_CONSTEXPR_14 KUnixTime operator-(const T& left, const KUnixTime& right)
+{ return right - left; }
 
 //-----------------------------------------------------------------------------
 // constexpr implementation of std::tm to std::time_t conversion

@@ -697,6 +697,24 @@ TEST_CASE("KTime") {
 			INFO("bad system clock duration type of larger than microseconds");
 			CHECK ( false );
 		}
+
+		KUnixTime Tp(2445823474);
+		CHECK ( Tp.time_since_epoch() == chrono::milliseconds(2445823474000) );
+		KDuration D = chrono::milliseconds(50);
+		auto Tp2 = Tp + D;
+		CHECK ( Tp2.time_since_epoch() == chrono::milliseconds(2445823474050) );
+		auto Tp3 = Tp;
+		Tp3 += D;
+		CHECK ( Tp3.time_since_epoch() == chrono::milliseconds(2445823474050) );
+		Tp3 -= D;
+		CHECK ( Tp3.time_since_epoch() == chrono::milliseconds(2445823474000) );
+		Tp2 = Tp - D;
+		CHECK ( Tp2.time_since_epoch() == chrono::milliseconds(2445823473950) );
+		Tp2 = Tp;
+		Tp2 += 50;
+		CHECK ( Tp2.time_since_epoch() == chrono::milliseconds(2445823524000) );
+		Tp2 -= 50;
+		CHECK ( Tp2.time_since_epoch() == chrono::milliseconds(2445823474000) );
 	}
 
 	SECTION("diff")

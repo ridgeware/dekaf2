@@ -904,7 +904,7 @@ void KOptions::Help(KOutStream& out)
 } // Help
 
 //---------------------------------------------------------------------------
-const KOptions::CallbackParam* KOptions::FindParam(KStringView sName, bool bIsOption, bool bMarkAsUsed)
+const KOptions::CallbackParam* KOptions::FindParam(KStringView sName, bool bIsOption) const
 //---------------------------------------------------------------------------
 {
 	auto& Lookup = bIsOption ? m_Options : m_Commands;
@@ -916,9 +916,17 @@ const KOptions::CallbackParam* KOptions::FindParam(KStringView sName, bool bIsOp
 		return nullptr;
 	}
 
-	auto Callback = &m_Callbacks[it->second];
+	return &m_Callbacks[it->second];
 
-	if (bMarkAsUsed)
+} // FindParam
+
+//---------------------------------------------------------------------------
+const KOptions::CallbackParam* KOptions::FindParam(KStringView sName, bool bIsOption, bool bMarkAsUsed)
+//---------------------------------------------------------------------------
+{
+	auto Callback = FindParam(sName, bIsOption);
+
+	if (Callback && bMarkAsUsed)
 	{
 		// mark option as used
 		Callback->m_bUsed = true;
@@ -1533,7 +1541,7 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 				bool bIsUnknown { false };
 				m_sCurrentArg = it->sArg;
 
-				auto Callback = FindParam(it->sArg, it->IsOption());
+				auto Callback = FindParam(it->sArg, it->IsOption(), true);
 
 				if (DEKAF2_UNLIKELY(Callback == nullptr))
 				{
@@ -1553,7 +1561,7 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 					}
 
 					// check if we have a handler for an unknown arg
-					Callback = FindParam(UNKNOWN_ARG, it->IsOption());
+					Callback = FindParam(UNKNOWN_ARG, it->IsOption(), true);
 
 					if (Callback)
 					{
@@ -1614,20 +1622,29 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 
 					if (Callback->m_Callback)
 					{
-						// finally call the callback (if existing)
+						// get a backup of the args stack
+						std::vector<KStringViewZ> ArgsCopy(Args.begin(), Args.end());
+						// finally call the callback
 						Callback->m_Callback(Args);
+						// get count of consumed args
+						auto iCopy = ArgsCopy.size() - Args.size();
+						// copy any arg that was consumed by the callback
+						// and store it for possible .Get() access
+						for (;iCopy--;)
+						{
+							Callback->m_Args.push_back(ArgsCopy[iCopy]);
+						}
 					}
 					else
 					{
-						// this is an edge case - there was no callback, so treat this
-						// option as pure syntax check, consuming its minimum params
-						auto iRemoveArgs = Callback->m_iMinArgs;
-
-						while (!Args.empty() && iRemoveArgs--)
+						// this is an edge case - there was no callback
+						// consume all related args, and store them for .Get()
+						for (auto sArg : Args)
 						{
-							// this will trigger the arg to be marked as consumed below
-							Args.pop();
+							Callback->m_Args.push_back(sArg);
 						}
+
+						Args.clear();
 					}
 
 					if (iOldSize < Args.size())
@@ -1752,6 +1769,85 @@ int KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
 	return bError; // 0 or 1
 
 } // Evaluate
+
+//---------------------------------------------------------------------------
+KOptions::ArgConverter KOptions::Get(KStringView sOptionName) const
+//---------------------------------------------------------------------------
+{
+	auto Callback = FindParam(sOptionName, true);
+
+	if (!Callback)
+	{
+		Callback = FindParam(sOptionName, false);
+
+		if (!Callback)
+		{
+			static std::vector<KStringViewZ> s_Vector;
+			return ArgConverter(s_Vector, false);
+		}
+	}
+
+	return ArgConverter(Callback->m_Args, true);
+
+} // Get
+
+//---------------------------------------------------------------------------
+const std::vector<KStringViewZ>& KOptions::ArgConverter::Vector()
+//---------------------------------------------------------------------------
+{
+	return m_Params;
+
+} // Vector
+
+//---------------------------------------------------------------------------
+KStringViewZ KOptions::ArgConverter::String()
+//---------------------------------------------------------------------------
+{
+	if (m_Params.empty())
+	{
+		return {};
+	}
+
+	return m_Params.front();
+
+} // String
+
+//---------------------------------------------------------------------------
+int64_t KOptions::ArgConverter::Int()
+//---------------------------------------------------------------------------
+{
+	return String().Int64();
+
+} // Int
+
+//---------------------------------------------------------------------------
+uint64_t KOptions::ArgConverter::UInt()
+//---------------------------------------------------------------------------
+{
+	return String().UInt64();
+
+} // UInt
+
+//---------------------------------------------------------------------------
+double KOptions::ArgConverter::Float()
+//---------------------------------------------------------------------------
+{
+	return String().Double();
+
+} // Float
+
+//---------------------------------------------------------------------------
+bool KOptions::ArgConverter::Bool()
+//---------------------------------------------------------------------------
+{
+	if (!m_Params.empty())
+	{
+		return m_Params.front().Bool();
+	}
+
+	return m_bFound;
+
+} // Bool
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 	constexpr KStringViewZ KOptions::CLIParms::Arg_t::s_sDoubleDash;

@@ -94,6 +94,26 @@ TEST_CASE("KOptions")
 		.Help("fill an integer from a string with a default")
 		.Set(a.iInteger2, "123");
 
+	Options
+		.Option("f,file")
+		.Help("a file name");
+
+	Options
+		.Option("r,real")
+		.Help("a floating point number");
+
+	Options
+		.Option("bool")
+		.Help("a boolean");
+
+	Options
+		.Option("bool2")
+		.Help("a boolean");
+
+	Options
+		.Option("bool3")
+		.Help("a boolean");
+
 	struct Something
 	{
 		Something() = default;
@@ -127,6 +147,11 @@ TEST_CASE("KOptions")
 			"-ebts", "first",
 			"-m", "first", "second",
 			"-Ii", "952",
+			"-bool",
+			"-bool2", "false",
+			"-bool3", "true",
+			"-file", "filename.txt",
+			"-real", "123.456",
 			"-clear", "database1",
 			"-Something", "555,333",
 			"-unknown", "arg1", "arg2"
@@ -146,6 +171,15 @@ TEST_CASE("KOptions")
 		CHECK( something.x ==  555 );
 		CHECK( something.y ==  333 );
 		CHECK( a.sDatabase == "DATABASE1" );
+
+		CHECK( Options("file").String() == "filename.txt" );
+		CHECK( Options("f").String()    == "filename.txt" );
+		CHECK( Options("i").UInt()      == 952 );
+		CHECK( Options("bool" ).Bool()  == true  );
+		CHECK( Options("bool2").Bool()  == false );
+		CHECK( Options("bool3").Bool()  == true  );
+		CHECK( Options("real" ).Float() == 123.456 );
+		CHECK((Options("m").Vector()    == std::vector<KStringViewZ>{ "first", "second" }));
 	}
 
 	SECTION("long args with =")

@@ -212,6 +212,7 @@ private:
 		KStringView  m_sNames;
 		KStringView  m_sMissingArgs;
 		KStringView  m_sHelp;
+		mutable std::vector<KStringViewZ> m_Args;
 		int64_t      m_iLowerBound  {      0 };
 		int64_t      m_iUpperBound  {      0 };
 		uint16_t     m_iMinArgs     {      0 };
@@ -219,7 +220,7 @@ private:
 		uint16_t     m_iFlags       {  fNone };
 		uint16_t     m_iHelpRank    {      0 };
 		ArgTypes     m_ArgType      { String };
-		bool         m_bUsed        {  false };
+		mutable bool m_bUsed        {  false };
 
 		/// returns true if this parameter is required
 		DEKAF2_NODISCARD
@@ -488,6 +489,49 @@ public:
 	DEKAF2_NODISCARD
 	bool Terminate() const { return m_bStopAppAfterParsing; }
 
+	/// helper to convert arguments into different data types
+	struct ArgConverter
+	{
+		/// construct ArgConverter with data from parameter parsing
+		ArgConverter(const std::vector<KStringViewZ>& Params, bool bFound)
+		: m_Params(Params), m_bFound(bFound) 
+		{}
+
+		/// Get the value associated to an option name
+		DEKAF2_NODISCARD
+		const std::vector<KStringViewZ>& Vector();
+
+		/// Get the value associated to an option name
+		DEKAF2_NODISCARD
+		KStringViewZ String();
+
+		/// Get the value associated to an option name
+		DEKAF2_NODISCARD
+		int64_t Int();
+
+		/// Get the value associated to an option name
+		DEKAF2_NODISCARD
+		uint64_t UInt();
+
+		/// Get the value associated to an option name
+		DEKAF2_NODISCARD
+		double Float();
+
+		/// Get the value associated to an option name
+		DEKAF2_NODISCARD
+		bool Bool();
+
+		const std::vector<KStringViewZ>& m_Params;
+		bool m_bFound { false };
+
+	}; // ArgConverter
+
+	/// returns parameters belonging to sOptionName (after parsing the arguments)
+	ArgConverter Get(KStringView sOptionName) const;
+
+	/// call operator returns associated parameters
+	ArgConverter operator()(KStringView sOptionName) const { return Get(sOptionName); }
+
 //----------
 protected:
 //----------
@@ -671,7 +715,9 @@ private:
 	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	bool ValidArgType(ArgTypes Type, KStringViewZ sParm) const;
 	DEKAF2_NODISCARD DEKAF2_PRIVATE
-	const CallbackParam* FindParam(KStringView sName, bool bIsOption, bool bMarkAsUsed = true);
+	const CallbackParam* FindParam(KStringView sName, bool bIsOption) const;
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	const CallbackParam* FindParam(KStringView sName, bool bIsOption, bool bMarkAsUsed);
 	DEKAF2_PRIVATE
 	void ResetBeforeParsing();
 	DEKAF2_PRIVATE

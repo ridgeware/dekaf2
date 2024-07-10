@@ -62,6 +62,7 @@ public:
 //----------
 
 	using value_type = Value;
+	using self_type = KStack;
 	using Storage_Type = std::deque<value_type>;
 	using iterator = typename Storage_Type::iterator;
 	using const_iterator = typename Storage_Type::const_iterator;
@@ -72,8 +73,22 @@ public:
 
 	KStack() = default;
 	KStack (std::initializer_list<value_type> il) : m_Storage(il) {}
-	template<typename... Args>
+
+	template<class... Args,
+		typename std::enable_if<
+			sizeof...(Args) != 1, int
+		>::type = 0
+	>
 	KStack(Args&&... args) : m_Storage(std::forward<Args>(args)...) {}
+
+	template<class Arg,
+		typename std::enable_if<
+			!std::is_same<
+				typename std::decay<Arg>::type, self_type
+			>::value, int
+		>::type = 0
+	>
+	KStack(Arg&& arg) : m_Storage(std::forward<Arg>(arg)) {}
 
 	// ===== Comparison =====
 

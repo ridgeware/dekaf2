@@ -618,6 +618,11 @@ void kurl::ServerQuery ()
 			HTTP.AddHeader (Header.first, Header.second);
 		}
 
+		if (HTTP.Request.Headers.Contains(KHTTPHeader::USER_AGENT) == false)
+		{
+			HTTP.AddHeader (KHTTPHeader::USER_AGENT, kFormat("{}/{}", s_sProjectName, s_sProjectVersion));
+		}
+
 		KURL SocketURL;
 
 		if (!RQ->Config.sUnixSocket.empty())

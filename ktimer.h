@@ -349,7 +349,7 @@ private:
 		KUnixTime     ExpiresAt;
 		KDuration     Interval { KDuration::zero() };
 		Callback      CB       { nullptr           };
-		Flags         Flags    { None              };
+		enum Flags    Flags    { None              };
 	};
 
 	std::mutex                         m_ThreadCreationMutex;

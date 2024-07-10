@@ -218,13 +218,13 @@ public:
 	//---------------------------------------------------------------------------
 	/// For long running threads, sync the per-thread log level to the global
 	/// log level (it may have changed through the Dekaf() timing thread)
-	void SyncLevel()
+	static void SyncLevel()
 	//---------------------------------------------------------------------------
+	{
 #ifdef DEKAF2_WITH_KLOG
-	;
-#else
-	{ }
+		s_iThreadLogLevel = s_iLogLevel;
 #endif
+	}
 
 	//---------------------------------------------------------------------------
 	/// display microsecond timestamps, and remove fields not needed for performance debugging like

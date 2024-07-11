@@ -79,7 +79,7 @@ TLSOptions kGetTLSDefaults(TLSOptions Options)
 bool kSetTLSDefaults(TLSOptions Options)
 //-----------------------------------------------------------------------------
 {
-	g_DefaultTLSOptions = Options;
+	g_DefaultTLSOptions = kGetTLSDefaults(Options);
 	return true;
 
 } // kSetTLSDefaults

@@ -49,29 +49,25 @@ DEKAF2_NAMESPACE_BEGIN
 
 enum TLSOptions : uint8_t
 {
-	None            = 0,      ///< no options, use for non-HTTP connections
+	None            = 0,      ///< no options, use for non-HTTP connections, or to restrict to HTTP1 connections
 	VerifyCert      = 1 << 0, ///< verify server certificate
 	ManualHandshake = 1 << 1, ///< wait for manual TLS handshake (for protocols like SMTP STARTTLS)
 	RequestHTTP2    = 1 << 2, ///< request a ALPN negotiation for HTTP2
 	FallBackToHTTP1 = 1 << 3, ///< if RequestHTTP2 is set, allow HTTP1 as fallback if 2 is not available
-	DefaultsForHTTP = 1 << 4  ///< use for HTTP, per default tries HTTP2 and allows HTTP1, can be changed through SetTLSDefaults()
+	DefaultsForHTTP = 1 << 4  ///< use for HTTP, per default tries HTTP2 and allows HTTP1, can be changed through kSetTLSDefaults()
 };
+
+DEKAF2_ENUM_IS_FLAG(TLSOptions)
 
 /// transform DefaultsForHTTP so that they will be resolved to
 /// application wide defaults for HTTP (either with HTTP1 and/or HTTP2 and/or verify)
 TLSOptions kGetTLSDefaults(TLSOptions Options);
 
 /// set the application wide defaults for HTTP - this function is not thread safe, set it right
-/// at the start of your application before threading out. Initial defaults are RequestHTTP2 | FallBackToHTTP1
+/// at the start of your application before threading out. Initial defaults are RequestHTTP2 | FallBackToHTTP1.
+/// Setting the DefaultsForHTTP bit will expand to the previous default settings and merge with any other
+/// given option.
 bool kSetTLSDefaults(TLSOptions Options);
-
-/// deprecated signature to set TLS defaults - use kSetTLSDefaults instead
-inline bool SetLTSDefaults(TLSOptions Options)
-{
-	return kSetTLSDefaults(Options);
-}
-
-DEKAF2_ENUM_IS_FLAG(TLSOptions)
 
 class KSSLIOStream;
 

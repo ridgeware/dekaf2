@@ -51,16 +51,48 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+namespace detail {
+
 template<typename StreamType>
+struct KAsioTraits
+{
+	static bool SocketIsOpen(StreamType& Socket)
+		{ return Socket.is_open(); }
+	static void SocketShutdown(StreamType& Socket, boost::system::error_code& ec)
+		{ Socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec); }
+	static void SocketClose(StreamType& Socket, boost::system::error_code& ec)
+		{ Socket.close(ec); }
+	static void SocketPeek(StreamType& Socket, boost::system::error_code& ec)
+		{ uint16_t buffer; Socket.receive(boost::asio::buffer(&buffer, 1), Socket.message_peek, ec); }
+};
+
+} // end of namespace detail
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+template<typename StreamType, typename Traits = detail::KAsioTraits<StreamType>>
 struct KAsioStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	//-----------------------------------------------------------------------------
+	// the constructor for non-tls-sockets
 	KAsioStream(int _iSecondsTimeout = 15)
 	//-----------------------------------------------------------------------------
 	: IOService       { 1 }
 	, Socket          { IOService }
+	, Timer           { IOService }
+	, iSecondsTimeout { _iSecondsTimeout }
+	{
+		ClearTimer();
+		CheckTimer();
+	}
+
+	//-----------------------------------------------------------------------------
+	// the constructor for tls-sockets (or anything else needing a context)
+	template<typename Context>
+	KAsioStream(Context& context, int _iSecondsTimeout)
+	//-----------------------------------------------------------------------------
+	: IOService       { 1 }
+	, Socket          { IOService , context.GetContext() }
 	, Timer           { IOService }
 	, iSecondsTimeout { _iSecondsTimeout }
 	{
@@ -81,10 +113,12 @@ struct KAsioStream
 	bool Disconnect()
 	//-----------------------------------------------------------------------------
 	{
-		if (Socket.is_open())
+		if (Traits::SocketIsOpen(Socket))
 		{
 			boost::system::error_code ec;
-			Socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+
+			Traits::SocketShutdown(Socket, ec);
+
 			if (ec)
 			{
 				// do not display the shutdown error message when the socket has
@@ -95,7 +129,9 @@ struct KAsioStream
 				}
 				return false;
 			}
-			Socket.close(ec);
+
+			Traits::SocketClose(Socket, ec);
+
 			if (ec)
 			{
 				kDebug(2, "error closing socket: {}", ec.message());
@@ -114,9 +150,7 @@ struct KAsioStream
 	bool IsDisconnected()
 	//-----------------------------------------------------------------------------
 	{
-		uint16_t buffer;
-
-		Socket.receive(boost::asio::buffer(&buffer, 1), Socket.message_peek, ec);
+		Traits::SocketPeek(Socket, ec);
 
 		if (ec == boost::asio::error::would_block)
 		{
@@ -157,13 +191,13 @@ struct KAsioStream
 		if (Timer.expires_at() <= boost::asio::deadline_timer::traits_type::now())
 		{
 			boost::system::error_code ignored_ec;
-			Socket.close(ignored_ec);
+			Traits::SocketClose(Socket, ignored_ec);
 			Timer.expires_at(boost::posix_time::pos_infin);
 			kDebug(2, "Connection timeout ({} seconds): {}",
 				   iSecondsTimeout, sEndpoint);
 		}
 
-		Timer.async_wait(std::bind(&KAsioStream<StreamType>::CheckTimer, this));
+		Timer.async_wait(std::bind(&KAsioStream<StreamType, Traits>::CheckTimer, this));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -173,21 +207,27 @@ struct KAsioStream
 		ResetTimer();
 
 		ec = boost::asio::error::would_block;
+		boost::system::error_code local_ec;
 		do
 		{
-			IOService.run_one();
+			IOService.run_one(local_ec);
+
+			if (local_ec.value())
+			{
+				kDebug(1, "Stream error: {}", local_ec.message());
+			}
 		}
-		while (ec == boost::asio::error::would_block);
+		while (ec == boost::asio::error::would_block && local_ec.value() == 0);
 
 		ClearTimer();
 	}
 
-	boost::asio::io_service IOService;
-	StreamType Socket;
-	KString sEndpoint;
+	boost::asio::io_service     IOService;
+	StreamType                  Socket;
+	KString                     sEndpoint;
 	boost::asio::deadline_timer Timer;
-	boost::system::error_code ec;
-	int iSecondsTimeout;
+	boost::system::error_code   ec;
+	int                         iSecondsTimeout;
 
 }; // KAsioStream
 

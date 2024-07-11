@@ -44,7 +44,7 @@
 /// @file ksslstream.h
 /// provides an implementation of std::iostreams supporting SSL/TLS
 
-#include "bits/kasio.h"
+#include "bits/kasiostream.h"
 #include "kstring.h"
 #include "kstream.h" // TODO remove
 #include "kstreambuf.h"
@@ -146,145 +146,37 @@ private:
 
 }; // KSSLContext
 
+namespace detail {
+
+template<typename StreamType>
+struct KAsioTLSTraits
+{
+	static bool SocketIsOpen(StreamType& Socket)
+		{ return Socket.next_layer().is_open(); }
+	static void SocketShutdown(StreamType& Socket, boost::system::error_code& ec)
+		{ Socket.next_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec); }
+	static void SocketClose(StreamType& Socket, boost::system::error_code& ec)
+		{ Socket.next_layer().close(ec); }
+	static void SocketPeek(StreamType& Socket, boost::system::error_code& ec)
+		{ uint16_t buffer; Socket.next_layer().receive(boost::asio::buffer(&buffer, 1), Socket.next_layer().message_peek, ec); }
+};
+
+} // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<typename StreamType>
-struct KAsioSSLStream
+struct KAsioSSLStream : public KAsioStream<StreamType, detail::KAsioTLSTraits<StreamType>>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	//-----------------------------------------------------------------------------
-	KAsioSSLStream(KSSLContext& Context, int _iSecondsTimeout = 15, bool _bManualHandshake = false)
+	KAsioSSLStream(KSSLContext& Context, int iSecondsTimeout = 15, bool _bManualHandshake = false)
 	//-----------------------------------------------------------------------------
-	: SSLContext       { Context }
-	, IOService        { 1 }
-	, Socket           { IOService, Context.GetContext() }
-	, Timer            { IOService }
-	, iSecondsTimeout  { _iSecondsTimeout }
-	, bManualHandshake { _bManualHandshake }
+	: KAsioStream<StreamType, detail::KAsioTLSTraits<StreamType>>
+	                   { Context, iSecondsTimeout }
+	, SSLContext       { Context                  }
+	, bManualHandshake { _bManualHandshake        }
 	{
-		ClearTimer();
-		CheckTimer();
-
 	} // ctor
-
-	//-----------------------------------------------------------------------------
-	~KAsioSSLStream()
-	//-----------------------------------------------------------------------------
-	{
-		Disconnect();
-
-	} // dtor
-
-	//-----------------------------------------------------------------------------
-	/// disconnect the stream
-	bool Disconnect()
-	//-----------------------------------------------------------------------------
-	{
-		if (Socket.next_layer().is_open())
-		{
-			boost::system::error_code ec;
-
-			Socket.next_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
-
-			if (ec)
-			{
-				// do not display the shutdown error message when the socket has
-				// already been disconnected
-				if (ec.value() != boost::asio::error::not_connected)
-				{
-					kDebug(2, "error shutting down socket: {}", ec.message());
-				}
-				return false;
-			}
-
-			Socket.next_layer().close(ec);
-
-			if (ec)
-			{
-				kDebug(2, "error closing socket: {}", ec.message());
-				return false;
-			}
-
-			kDebug(2, "disconnected from: {}", sEndpoint);
-		}
-
-		return true;
-
-	} // Disconnect
-
-	//-----------------------------------------------------------------------------
-	/// tests for a closed connection of the remote side by trying to peek one byte
-	bool IsDisconnected()
-	//-----------------------------------------------------------------------------
-	{
-		uint16_t buffer;
-
-		Socket.next_layer().receive(boost::asio::buffer(&buffer, 1), Socket.next_layer().message_peek, ec);
-
-		if (ec == boost::asio::error::would_block)
-		{
-			// open but no data
-			ec.clear();
-			return false;
-		}
-		else if (!ec)
-		{
-			// open and data
-			return false;
-		}
-
-		// ec == boost::asio::error::eof would signal a closed socket,
-		// but we treat all other errors as disconnected as well
-		return true;
-
-	} // IsDisconnected
-
-	//-----------------------------------------------------------------------------
-	void ResetTimer()
-	//-----------------------------------------------------------------------------
-	{
-		Timer.expires_from_now(boost::posix_time::seconds(iSecondsTimeout));
-	}
-
-	//-----------------------------------------------------------------------------
-	void ClearTimer()
-	//-----------------------------------------------------------------------------
-	{
-		Timer.expires_at(boost::posix_time::pos_infin);
-	}
-
-	//-----------------------------------------------------------------------------
-	void CheckTimer()
-	//-----------------------------------------------------------------------------
-	{
-		if (Timer.expires_at() <= boost::asio::deadline_timer::traits_type::now())
-		{
-			boost::system::error_code ignored_ec;
-			Socket.next_layer().close(ignored_ec);
-			Timer.expires_at(boost::posix_time::pos_infin);
-			kDebug (1, "Connection timeout ({} seconds): {}", iSecondsTimeout, sEndpoint);
-		}
-
-		Timer.async_wait(boost::bind(&KAsioSSLStream<StreamType>::CheckTimer, this));
-
-	} // CheckTimer
-
-	//-----------------------------------------------------------------------------
-	void RunTimed()
-	//-----------------------------------------------------------------------------
-	{
-		ResetTimer();
-
-		ec = boost::asio::error::would_block;
-		do
-		{
-			IOService.run_one();
-		}
-		while (ec == boost::asio::error::would_block);
-
-		ClearTimer();
-
-	} // RunTimed
 
 	//-----------------------------------------------------------------------------
 	const KSSLContext& GetContext() const
@@ -294,14 +186,8 @@ struct KAsioSSLStream
 	}
 
 	KSSLContext& SSLContext;
-	boost::asio::io_service IOService;
-	StreamType Socket;
-	KString sEndpoint;
-	boost::asio::deadline_timer Timer;
-	boost::system::error_code ec;
-	int iSecondsTimeout;
-	bool bNeedHandshake { true };
-	bool bManualHandshake { false };
+	bool         bNeedHandshake   { true  };
+	bool         bManualHandshake { false };
 
 }; // KAsioSSLStream
 

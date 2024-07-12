@@ -69,7 +69,7 @@ TLSOptions kGetTLSDefaults(TLSOptions Options);
 /// given option.
 bool kSetTLSDefaults(TLSOptions Options);
 
-class KSSLIOStream;
+class KTLSIOStream;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KConnection
@@ -182,13 +182,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// get the underlying KSSLIOStream if this connection is a SSL connection, otherwise returns nullptr
-	virtual KSSLIOStream* GetUnderlyingTLSStream();
+	/// get the underlying KTLSIOStream if this connection is a TLS connection, otherwise returns nullptr
+	virtual KTLSIOStream* GetUnderlyingTLSStream();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	// this interface uses KURL instead of KTCPEndPoint to allow construction like "https://www.abc.de" - otherwise the protocol would be lost..
-	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceSSL = false, TLSOptions Options = TLSOptions::None, int iSecondsTimeout = 15);
+	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceTLS = false, TLSOptions Options = TLSOptions::None, int iSecondsTimeout = 15);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -306,7 +306,7 @@ public:
 #endif
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KSSLConnection : public KConnection
+class DEKAF2_PUBLIC KTLSConnection : public KConnection
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -345,10 +345,10 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	// note: this header on purpose only forward declares the KSSLIOStream class -
-	// to make use of the result, include the ksslstream.h header at the use place
-	/// get the underlying KSSLIOStream if this connection is established, otherwise returns nullptr
-	virtual KSSLIOStream* GetUnderlyingTLSStream() override;
+	// note: this header on purpose only forward declares the KTLSIOStream class -
+	// to make use of the result, include the ktlsstream.h header at the use place
+	/// get the underlying KTLSIOStream if this connection is established, otherwise returns nullptr
+	virtual KTLSIOStream* GetUnderlyingTLSStream() override;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

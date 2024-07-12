@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/ksslclient.h>
+#include <dekaf2/ktlsstream.h>
 #include <dekaf2/ktcpclient.h>
 #include <dekaf2/kwebclient.h>
 #include <dekaf2/kstring.h>
@@ -32,10 +32,10 @@ TEST_CASE("KTCPCLient")
 
 }
 
-TEST_CASE("KSSLClient")
+TEST_CASE("KTLSClient")
 {
 
-	KSSLClient stream;
+	KTLSClient stream;
 	CHECK ( stream.Connect("www.google.com:443", TLSOptions::None) == true );
 	stream.Timeout(1);
 
@@ -58,7 +58,7 @@ TEST_CASE("KSSLClient")
 
 }
 
-TEST_CASE("KSSLClient 2")
+TEST_CASE("KTLSClient 2")
 {
 	KString sURL {"https://www.google.com"};
 	KWebClient HTTP;
@@ -68,7 +68,7 @@ TEST_CASE("KSSLClient 2")
 	CHECK ( HTTP.Response.iStatusCode == 200 );
 }
 
-TEST_CASE("KSSLClient 3")
+TEST_CASE("KTLSClient 3")
 {
 	KString sURL {"https://www.dfggooglesdkjfhsjuhkjlgrsisfugkhvij.com"};
 	KWebClient HTTP;
@@ -83,9 +83,9 @@ TEST_CASE("KSSLClient 3")
 #endif
 }
 
-TEST_CASE("KSSLClient 4")
+TEST_CASE("KTLSClient 4")
 {
-	// we use github as a lickmus test to see if our SSL stack
+	// we use github as a lickmus test to see if our TLS stack
 	// supports TLS 1.2/1.3 (as github removed support for older
 	// versions)
 	KString sURL {"https://github.com"};

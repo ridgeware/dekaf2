@@ -587,7 +587,7 @@ private:
 	struct HTTP2Session
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		HTTP2Session(KSSLIOStream& TLSStream);
+		HTTP2Session(KTLSIOStream& TLSStream);
 
 		http2::SingleStreamSession Session;
 		KInStreamBuf               StreamBuf;

@@ -29,7 +29,7 @@ TEST_CASE("KWebSocket")
 	SECTION("AsioStream")
 	{
 		{
-			auto Stream = CreateKSSLClient();
+			auto Stream = CreateKTLSClient();
 			KStream& RefStream = *Stream;
 			CHECK ( kwebsocket::GetStreamType(RefStream) == kwebsocket::StreamType::TLS );
 			CHECK_THROWS( kwebsocket::GetAsioTCPStream (RefStream) );

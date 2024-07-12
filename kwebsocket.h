@@ -46,7 +46,7 @@
 
 #include "kstream.h"
 #include "ktcpstream.h"
-#include "ksslstream.h"
+#include "ktlsstream.h"
 #include "kunixstream.h"
 #include "kexception.h"
 #include "khttp_request.h"
@@ -77,7 +77,7 @@ enum StreamType
 
 StreamType                  GetStreamType    (KStream& Stream);
 KTCPIOStream::asiostream&&  GetAsioTCPStream (KStream& Stream);
-KSSLIOStream::asiostream&&  GetAsioTLSStream (KStream& Stream);
+KTLSIOStream::asiostream&&  GetAsioTLSStream (KStream& Stream);
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 KUnixIOStream::asiostream&& GetAsioUnixStream(KStream& Stream);
 #endif

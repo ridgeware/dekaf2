@@ -74,7 +74,7 @@
 #endif
 
 #include "ktcpserver.h"
-#include "ksslstream.h"
+#include "ktlsstream.h"
 #include "ktcpstream.h"
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 #include "kunixstream.h"
@@ -308,35 +308,35 @@ bool KTCPServer::TCPServer(bool ipv6)
 
 	AtomicStarted Started(m_iStarted);
 
-	if (IsSSL())
+	if (IsTLS())
 	{
 		// the TLS version of the server
 
-		KSSLContext SSLContext(true);
+		KTLSContext TLSContext(true);
 
-		if (!SSLContext.SetSSLCertificates(m_sCert, m_sKey, m_sPassword))
+		if (!TLSContext.SetTLSCertificates(m_sCert, m_sKey, m_sPassword))
 		{
-			return SetError(SSLContext.Error(), true); // already logged
+			return SetError(TLSContext.Error(), true); // already logged
 		}
 
-		if (!SSLContext.SetDHPrimes(m_sDHPrimes))
+		if (!TLSContext.SetDHPrimes(m_sDHPrimes))
 		{
-			return SetError(SSLContext.Error(), true); // already logged
+			return SetError(TLSContext.Error(), true); // already logged
 		}
 
-		if (!SSLContext.SetAllowedCipherSuites(m_sAllowedCipherSuites))
+		if (!TLSContext.SetAllowedCipherSuites(m_sAllowedCipherSuites))
 		{
-			return SetError(SSLContext.Error(), true); // already logged
+			return SetError(TLSContext.Error(), true); // already logged
 		}
 
 		if (m_HTTPVersion & KHTTPVersion::http2)
 		{
-			SSLContext.SetAllowHTTP2(m_HTTPVersion & KHTTPVersion::http11);
+			TLSContext.SetAllowHTTP2(m_HTTPVersion & KHTTPVersion::http11);
 		}
 
 		for (;;)
 		{
-			auto stream = CreateKSSLServer(SSLContext);
+			auto stream = CreateKTLSServer(TLSContext);
 			stream->Timeout(m_iTimeout);
 
 			endpoint_type remote_endpoint;
@@ -359,7 +359,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 			auto* Stream = stream.release();
 			m_ThreadPool.push([ this, Stream, remote_endpoint ]()
 			{
-				std::unique_ptr<KSSLStream> moved_stream { Stream };
+				std::unique_ptr<KTLSStream> moved_stream { Stream };
 #else
 			m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 			{
@@ -569,7 +569,7 @@ void KTCPServer::RegisterShutdownCallback(KThreadPool::ShutdownCallback callback
 } // RegisterShutdownCallback
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword)
+bool KTCPServer::LoadTLSCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword)
 //-----------------------------------------------------------------------------
 {
 	m_sPassword = sPassword;
@@ -577,10 +577,10 @@ bool KTCPServer::LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KStr
 	m_sKey.clear();
 	return kReadAll(sCert, m_sCert) && (sKey.empty() || kReadAll(sKey, m_sKey));
 
-} // SetSSLCertificateFiles
+} // LoadTLSCertificates
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::SetSSLCertificates(KStringView sCert, KStringView sKey, KStringView sPassword)
+bool KTCPServer::SetTLSCertificates(KStringView sCert, KStringView sKey, KStringView sPassword)
 //-----------------------------------------------------------------------------
 {
 	m_sPassword = sPassword;
@@ -588,7 +588,7 @@ bool KTCPServer::SetSSLCertificates(KStringView sCert, KStringView sKey, KString
 	m_sKey = sKey;
 	return true;
 
-} // SetSSLCertificates
+} // SetTLSCertificates
 
 //-----------------------------------------------------------------------------
 bool KTCPServer::LoadDHPrimes(KStringViewZ sDHPrimesFile)
@@ -646,12 +646,12 @@ bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
 		return SetError(kFormat("Server is already running on port {}", m_iPort));
 	}
 
-	if (IsSSL())
+	if (IsTLS())
 	{
 		if (m_sCert.empty())
 		{
 			promise.set_value(3);
-			return SetError(kFormat("cannot start SSL server on port {}, have no certificate", m_iPort));
+			return SetError(kFormat("cannot start TLS server on port {}, have no certificate", m_iPort));
 		}
 	}
 
@@ -891,11 +891,11 @@ bool KTCPServer::RegisterShutdownWithSignals(const std::vector<int>& Signals)
 
 
 //-----------------------------------------------------------------------------
-KTCPServer::KTCPServer(uint16_t iPort, bool bSSL, uint16_t iMaxConnections)
+KTCPServer::KTCPServer(uint16_t iPort, bool bTLS, uint16_t iMaxConnections)
 //-----------------------------------------------------------------------------
 	: m_ThreadPool(iMaxConnections)
 	, m_iPort(iPort)
-	, m_bIsSSL(bSSL)
+	, m_bIsTLS(bTLS)
 {
 }
 

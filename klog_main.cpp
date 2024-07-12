@@ -882,7 +882,7 @@ int main (int argc, char* argv[])
 	else if (Actions.iPort)
 	{
 		out->Format ("klog: listening to port {} ...\n", Actions.iPort);
-		KlogServer server (Actions.iPort, /*bSSL=*/false);
+		KlogServer server (Actions.iPort, /*bTLS=*/false);
 		server.RegisterShutdownWithSignals({ SIGTERM, SIGINT });
 		server.Start(/*iTimeoutInSeconds=*/static_cast<uint16_t>(-1), /*bBlock=*/true);
 	}

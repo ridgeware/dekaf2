@@ -62,7 +62,7 @@ StreamType GetStreamType(KStream& Stream)
 //-----------------------------------------------------------------------------
 {
 	{
-		auto S = dynamic_cast<KSSLIOStream*>(&Stream);
+		auto S = dynamic_cast<KTLSIOStream*>(&Stream);
 
 		if (S)
 		{
@@ -111,14 +111,14 @@ KTCPIOStream::asiostream&& GetAsioTCPStream (KStream& Stream)
 
 //-----------------------------------------------------------------------------
 // this one _has_ to be an explicit RVALUE because of older GCCs (< 11)
-KSSLIOStream::asiostream&& GetAsioTLSStream (KStream& Stream)
+KTLSIOStream::asiostream&& GetAsioTLSStream (KStream& Stream)
 //-----------------------------------------------------------------------------
 {
-	auto S = dynamic_cast<KSSLIOStream*>(&Stream);
+	auto S = dynamic_cast<KTLSIOStream*>(&Stream);
 
 	if (!S)
 	{
-		throw KWebSocketError("not a KSSLIOStream");
+		throw KWebSocketError("not a KTLSIOStream");
 	}
 
 	return std::move(S->GetAsioSocket());

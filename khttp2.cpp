@@ -537,7 +537,7 @@ int Session::OnSendDataCallback(
 } // OnSendDataCallback
 
 //-----------------------------------------------------------------------------
-Session::Session(KSSLIOStream& TLSStream, bool bIsClient)
+Session::Session(KTLSIOStream& TLSStream, bool bIsClient)
 //-----------------------------------------------------------------------------
 : m_TLSStream(TLSStream)
 {

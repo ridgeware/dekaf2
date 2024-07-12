@@ -302,7 +302,7 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 
 	m_sError.clear();
 
-	// force SSL socket for opportunistic TLS, do not allow ALPN HTTP2 upgrade
+	// force TLS socket for opportunistic TLS, do not allow ALPN HTTP2 upgrade
 	m_Connection = KConnection::Create(Relay, true);
 
 	if (!Good())

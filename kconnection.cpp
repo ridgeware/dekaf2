@@ -44,7 +44,7 @@
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 #include "kunixstream.h"
 #endif
-#include "ksslstream.h"
+#include "ktlsstream.h"
 #include "ktcpstream.h"
 
 
@@ -186,7 +186,7 @@ bool KConnection::StartManualTLSHandshake()
 }
 
 //-----------------------------------------------------------------------------
-KSSLIOStream* KConnection::GetUnderlyingTLSStream()
+KTLSIOStream* KConnection::GetUnderlyingTLSStream()
 //-----------------------------------------------------------------------------
 {
 	return nullptr;
@@ -312,24 +312,24 @@ KString KUnixConnection::Error() const
 
 
 //-----------------------------------------------------------------------------
-bool KSSLConnection::Connect(const KTCPEndPoint& Endpoint, TLSOptions Options, int iSecondsTimeout)
+bool KTLSConnection::Connect(const KTCPEndPoint& Endpoint, TLSOptions Options, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
-	return setConnection(CreateKSSLClient(Endpoint, Options, iSecondsTimeout), Endpoint);
+	return setConnection(CreateKTLSClient(Endpoint, Options, iSecondsTimeout), Endpoint);
 
 } // Connect
 
 //-----------------------------------------------------------------------------
-bool KSSLConnection::Good() const
+bool KTLSConnection::Good() const
 //-----------------------------------------------------------------------------
 {
-	auto stream = static_cast<const KSSLStream*>(StreamPtr());
-	return stream != nullptr && stream->KSSLIOStream::Good();
+	auto stream = static_cast<const KTLSStream*>(StreamPtr());
+	return stream != nullptr && stream->KTLSIOStream::Good();
 
 } // Good
 
 //-----------------------------------------------------------------------------
-bool KSSLConnection::IsTLS() const
+bool KTLSConnection::IsTLS() const
 //-----------------------------------------------------------------------------
 {
 	return true;
@@ -337,47 +337,47 @@ bool KSSLConnection::IsTLS() const
 } // IsTLS
 
 //-----------------------------------------------------------------------------
-bool KSSLConnection::SetManualTLSHandshake(bool bYes)
+bool KTLSConnection::SetManualTLSHandshake(bool bYes)
 //-----------------------------------------------------------------------------
 {
-	auto stream = static_cast<KSSLStream*>(StreamPtr());
+	auto stream = static_cast<KTLSStream*>(StreamPtr());
 	return stream != nullptr && stream->SetManualTLSHandshake(bYes);
 
 } // SetManualTLSHandshake
 
 //-----------------------------------------------------------------------------
-bool KSSLConnection::StartManualTLSHandshake()
+bool KTLSConnection::StartManualTLSHandshake()
 //-----------------------------------------------------------------------------
 {
-	auto stream = static_cast<KSSLStream*>(StreamPtr());
+	auto stream = static_cast<KTLSStream*>(StreamPtr());
 	return stream != nullptr && stream->StartManualTLSHandshake();
 
 } // StartManualTLSHandshake
 
 //-----------------------------------------------------------------------------
-bool KSSLConnection::SetTimeout(int iSeconds)
+bool KTLSConnection::SetTimeout(int iSeconds)
 //-----------------------------------------------------------------------------
 {
-	auto stream = static_cast<KSSLStream*>(StreamPtr());
+	auto stream = static_cast<KTLSStream*>(StreamPtr());
 	return stream != nullptr && stream->Timeout(iSeconds);
 
 } // SetTimeout
 
 //-----------------------------------------------------------------------------
-KSSLIOStream* KSSLConnection::GetUnderlyingTLSStream()
+KTLSIOStream* KTLSConnection::GetUnderlyingTLSStream()
 //-----------------------------------------------------------------------------
 {
-	auto stream = static_cast<KSSLStream*>(StreamPtr());
-	return stream != nullptr ? &stream->GetKSSLIOStream() : nullptr;
+	auto stream = static_cast<KTLSStream*>(StreamPtr());
+	return stream != nullptr ? &stream->GetKTLSIOStream() : nullptr;
 }
 
 //-----------------------------------------------------------------------------
-KString KSSLConnection::Error() const
+KString KTLSConnection::Error() const
 //-----------------------------------------------------------------------------
 {
 	KString sError;
 
-	auto stream = static_cast<const KSSLStream*>(StreamPtr());
+	auto stream = static_cast<const KTLSStream*>(StreamPtr());
 	if (stream != nullptr)
 	{
 		sError = stream->Error();
@@ -389,7 +389,7 @@ KString KSSLConnection::Error() const
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL, TLSOptions Options, int iSecondsTimeout)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceTLS, TLSOptions Options, int iSecondsTimeout)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
@@ -408,9 +408,9 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceSSL
 		Port = KString::to_string(URL.Protocol.DefaultPort());
 	}
 
-	if ((url::KProtocol::UNDEFINED && Port.get() == 443) || URL.Protocol == url::KProtocol::HTTPS || bForceSSL)
+	if ((url::KProtocol::UNDEFINED && Port.get() == 443) || URL.Protocol == url::KProtocol::HTTPS || bForceTLS)
 	{
-		auto C = std::make_unique<KSSLConnection>();
+		auto C = std::make_unique<KTLSConnection>();
 		C->Connect(KTCPEndPoint(URL.Domain, Port), Options, iSecondsTimeout);
 		return C;
 	}

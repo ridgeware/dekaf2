@@ -25,7 +25,7 @@ set (USOURCES
 	main.cpp
 	khttpclient_smoketests.cpp
 	kinshell_smoketests.cpp
-	ksslstream_smoketests.cpp
+	ktlsstream_smoketests.cpp
 	ksql_smoketests.cpp
 	ksystem_smoketests.cpp
 )

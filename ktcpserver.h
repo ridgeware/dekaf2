@@ -69,7 +69,7 @@
 #pragma once
 
 /// @file ktcpserver.h
-/// TCP server implementation with SSL/TLS
+/// TCP server implementation with TLS
 
 #include "bits/kasio.h"
 #include "kstream.h"
@@ -89,7 +89,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A TCP server implementation supporting SSL/TLS.
+/// A TCP server implementation supporting TLS.
 class DEKAF2_PUBLIC KTCPServer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -103,8 +103,8 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Construct a server, but do not yet start it.
 	/// @param iPort Port to bind to
-	/// @param bSSL If true will use SSL/TLS
-	KTCPServer(uint16_t iPort, bool bSSL, uint16_t iMaxConnections = 50);
+	/// @param bTLS If true will use TLS
+	KTCPServer(uint16_t iPort, bool bTLS, uint16_t iMaxConnections = 50);
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
@@ -163,13 +163,13 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Load the SSL/TLS certificates from files (.pem format)
-	bool LoadSSLCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword = KStringView{});
+	/// Load the TLS certificates from files (.pem format)
+	bool LoadTLSCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword = KStringView{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Set the SSL/TLS certificates from strings (.pem format)
-	bool SetSSLCertificates(KStringView sCert, KStringView sKey, KStringView sPassword = KStringView{});
+	/// Set the TLS certificates from strings (.pem format)
+	bool SetTLSCertificates(KStringView sCert, KStringView sKey, KStringView sPassword = KStringView{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -316,11 +316,11 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Returns true if the server is in SSL/TLS mode.
-	bool IsSSL() const
+	/// Returns true if the server is in TLS mode.
+	bool IsTLS() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_bIsSSL;
+		return m_bIsTLS;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -413,7 +413,7 @@ private:
 	bool              m_bStartIPv4            {  true };
 	bool              m_bStartIPv6            {  true };
 	bool              m_bHaveSeparatev4Thread { false };
-	bool              m_bIsSSL                { false };
+	bool              m_bIsTLS                { false };
 
 }; // KTCPServer
 

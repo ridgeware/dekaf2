@@ -79,7 +79,7 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 
 	RESTServer.Accept(Stream,
 				   sRemoteEndpoint,
-				   IsSSL() ? url::KProtocol::HTTPS : url::KProtocol::HTTP,
+				   IsTLS() ? url::KProtocol::HTTPS : url::KProtocol::HTTP,
 				   GetPort());
 
 	RESTServer.Execute();
@@ -248,14 +248,14 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				{
 					if (Options.bPEMsAreFilenames)
 					{
-						if (!m_Server->LoadSSLCertificates(Options.sCert, Options.sKey, Options.sTLSPassword))
+						if (!m_Server->LoadTLSCertificates(Options.sCert, Options.sKey, Options.sTLSPassword))
 						{
 							return SetError("could not load TLS certificate");
 						}
 					}
 					else
 					{
-						if (!m_Server->SetSSLCertificates(Options.sCert, Options.sKey, Options.sTLSPassword))
+						if (!m_Server->SetTLSCertificates(Options.sCert, Options.sKey, Options.sTLSPassword))
 						{
 							return SetError("could not set TLS certificate");
 						}

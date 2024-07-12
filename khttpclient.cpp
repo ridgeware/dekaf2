@@ -204,7 +204,7 @@ bool KHTTPClient::DigestAuthenticator::NeedsContentData() const
 
 #if DEKAF2_HAS_NGHTTP2
 //-----------------------------------------------------------------------------
-KHTTPClient::HTTP2Session::HTTP2Session(KSSLIOStream& TLSStream)
+KHTTPClient::HTTP2Session::HTTP2Session(KTLSIOStream& TLSStream)
 //-----------------------------------------------------------------------------
 : Session(TLSStream, true)
 , StreamBuf(HTTP2StreamReader, this)
@@ -492,7 +492,7 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 			//
 			// We are optimistic and already mark the target URL as our new
 			// connection endpoint.
-			m_Connection = std::make_unique<KSSLConnection>(m_Connection.release()->Stream(), url);
+			m_Connection = std::make_unique<KTLSConnection>(m_Connection.release()->Stream(), url);
 		}
 
 		// We first have to send our CONNECT request in plain text..

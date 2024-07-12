@@ -91,7 +91,7 @@ kurl::kurl ()
 
 	m_CLI
 		.Option("k,insecure")
-		.Help("do not verify SSL/TLS certificates")
+		.Help("do not verify TLS certificates")
 	([&]()
 	{
 		BuildMRQ.Flags |= Flags::INSECURE_CERTS;

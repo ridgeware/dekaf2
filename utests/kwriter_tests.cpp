@@ -3,7 +3,7 @@
 #include <dekaf2/kstream.h>
 #include <dekaf2/ktcpclient.h>
 #include <dekaf2/kunixstream.h>
-#include <dekaf2/ksslclient.h>
+#include <dekaf2/ktlsstream.h>
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/ktcpserver.h>
 #include <dekaf2/ksystem.h>
@@ -286,11 +286,11 @@ TEST_CASE("KWriter") {
 		sLarge = "01234567890123456789012345678901234567890123456789012345678901234567890123456789";
 
 		KMyServer Server(43236, true, 5);
-		Server.SetSSLCertificates(sCert, sKey);
+		Server.SetTLSCertificates(sCert, sKey);
 		Server.Start(5, false);
 
-		KSSLContext SSLContext(false);
-		KSSLClient stream(SSLContext, "localhost:43236", TLSOptions::None, 5);
+		KTLSContext TLSContext(false);
+		KTLSClient stream(TLSContext, "localhost:43236", TLSOptions::None, 5);
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();
@@ -314,11 +314,11 @@ TEST_CASE("KWriter") {
 		}
 
 		KMyServer Server(43237, true, 5);
-		Server.SetSSLCertificates(sCert, sKey);
+		Server.SetTLSCertificates(sCert, sKey);
 		Server.Start(5, false);
 
-		KSSLContext SSLContext(false);
-		KSSLClient stream(SSLContext, "localhost:43237", TLSOptions::None, 5);
+		KTLSContext TLSContext(false);
+		KTLSClient stream(TLSContext, "localhost:43237", TLSOptions::None, 5);
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();

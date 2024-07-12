@@ -55,7 +55,7 @@
 #include "khttp_response.h"
 #include "kstringview.h"
 #include "kstring.h"
-#include "ksslstream.h"
+#include "ktlsstream.h"
 
 #include <cstdint>
 #include <unordered_map>
@@ -628,7 +628,7 @@ public:
 //----------
 
 	/// construct a HTTP/2 session around a connected TLS stream (after successful ALPN H2 negotiation)
-	Session(KSSLIOStream& TLSStream, bool bIsClient);
+	Session(KTLSIOStream& TLSStream, bool bIsClient);
 	~Session();
 
 	/// Submit a (client) request. Internally, this generates a new Stream object, the handle of which is returned as an int32_t.
@@ -671,7 +671,7 @@ protected:
 	static KStringView TranslateError(int iError);
 	static KStringView TranslateFrameType (uint8_t FrameType);
 
-	KSSLIOStream&    m_TLSStream;
+	KTLSIOStream&    m_TLSStream;
 
 //----------
 private:

@@ -896,8 +896,6 @@ set(PUBLIC_HEADERS
 	ksmtp.h
 	ksnippets.h
 	ksplit.h
-	ksslclient.h
-	ksslstream.h
 	kstack.h
 	kstream.h
 	kstreambuf.h
@@ -918,6 +916,8 @@ set(PUBLIC_HEADERS
 	kthreadsafe.h
 	ktime.h
 	ktimer.h
+	ktlscontext.h
+	ktlsstream.h
 	ktimeseries.h
 	kunixstream.h
 	kuntar.h
@@ -1143,7 +1143,6 @@ set (SOURCES
 	ksmtp.cpp
 	ksnippets.cpp
 	ksplit.cpp
-	ksslstream.cpp
 	kstream.cpp
 	kstreambuf.cpp
 	kstreambufadaptor.cpp
@@ -1159,6 +1158,8 @@ set (SOURCES
 	kthreads.cpp
 	ktime.cpp
 	ktimer.cpp
+	ktlscontext.cpp
+	ktlsstream.cpp
 	kunixstream.cpp
 	kuntar.cpp
 	kurl.cpp

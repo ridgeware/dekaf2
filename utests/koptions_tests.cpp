@@ -3,6 +3,7 @@
 #include <dekaf2/ksystem.h>
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/kcgistream.h>
+#include <dekaf2/kstringstream.h>
 
 
 using namespace dekaf2;
@@ -114,6 +115,10 @@ TEST_CASE("KOptions")
 		.Option("bool3")
 		.Help("a boolean");
 
+	Options
+		.Option("neg")
+		.Help("a negative number");
+
 	struct Something
 	{
 		Something() = default;
@@ -140,6 +145,19 @@ TEST_CASE("KOptions")
 
 	Options.Command("run").Help("start running")([](){});
 
+	SECTION("multiple ad-hoc values without declaring .AllowAdHocArgs()")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-unknown", "arg1", "arg2"
+		};
+
+		KOptions Opt(false);
+		Opt.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		KStringView sValue = Opt("unknown", "a default value");
+		CHECK ( sValue == "arg1" );
+	}
+
 	SECTION("combined short args")
 	{
 		const char* CLI[] {
@@ -147,6 +165,7 @@ TEST_CASE("KOptions")
 			"-ebts", "first",
 			"-m", "first", "second",
 			"-Ii", "952",
+			"-neg", "-1234567",
 			"-bool",
 			"-bool2", "false",
 			"-bool3", "true",
@@ -154,9 +173,11 @@ TEST_CASE("KOptions")
 			"-real", "123.456",
 			"-clear", "database1",
 			"-Something", "555,333",
+			"-adhoc1", "hello",
 			"-unknown", "arg1", "arg2"
 		};
 
+		Options.AllowAdHocArgs();
 		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
 
 		CHECK( a.bEmpty    == true );
@@ -174,12 +195,19 @@ TEST_CASE("KOptions")
 
 		CHECK( Options("file").String() == "filename.txt" );
 		CHECK( Options("f").String()    == "filename.txt" );
-		CHECK( Options("i").UInt()      == 952 );
+		CHECK( Options("i").UInt64()    == 952 );
 		CHECK( Options("bool" ).Bool()  == true  );
 		CHECK( Options("bool2").Bool()  == false );
 		CHECK( Options("bool3").Bool()  == true  );
-		CHECK( Options("real" ).Float() == 123.456 );
+		CHECK( Options("real" ).Double()== 123.456 );
 		CHECK((Options("m").Vector()    == std::vector<KStringViewZ>{ "first", "second" }));
+
+		KString sFile = Options("file");
+		CHECK ( sFile == "filename.txt" );
+		uint64_t iUInt = Options("i");
+		CHECK ( iUInt == 952 );
+		int64_t iInt = Options("neg");
+		CHECK ( iInt == -1234567 );
 	}
 
 	SECTION("long args with =")
@@ -338,11 +366,218 @@ TEST_CASE("KOptions")
 		CHECK( a.iInteger2 ==     0 );
 		CHECK( a.sSingleArg == "first" );
 	}
-/*
-	SECTION("Help")
+}
+
+TEST_CASE("KOptions2")
+{
+	SECTION("flat")
 	{
-		Options.SetAdditionalHelp("This:\n    indented\n\nhere\n    and more");
-		Options.Parse("MyProg --help");
+		const char* CLI[] {
+			"MyProgramName",
+			"-f", "test.txt",
+			"-search", "searchme",
+			"-v"
+		};
+
+		KOptions Options(true, sizeof(CLI)/sizeof(char*), CLI);
+
+		KString sFilename = Options("f,filename <filename>: file to search in");
+		KString sSearch   = Options("s,search <search string>: string to search for");
+		bool    bVersion  = Options("v,version: show version information", false);
+
+		CHECK ( sFilename == "test.txt" );
+		CHECK ( sSearch   == "searchme" );
+		CHECK ( bVersion  == true       );
+
+		CHECK ( Options.Check() );
 	}
- */
+
+	SECTION("flat help")
+	{
+		const char* CLI[] {
+			"MyProgramName"
+		};
+
+		KOptions Options(true, sizeof(CLI)/sizeof(char*), CLI);
+
+		KString sFilename = Options("f,filename <filename>: file to search in");
+		KString sSearch   = Options("s,search <search string>: string to search for");
+		bool    bVersion  = Options("v,version: show version information", false);
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		// Check() returns false for no options or help output
+		CHECK ( Options.Check(oss) == false );
+//		KOut.Write(sOut);
+		CHECK ( sOut.find("-f,filename <filename>   "          ) != npos );
+		CHECK ( sOut.find("-s,search <search string> "         ) != npos );
+		CHECK ( sOut.find("-v,version     "         ) != npos );
+		CHECK ( sOut.find("file to search in"       ) != npos );
+		CHECK ( sOut.find("string to search for"    ) != npos );
+		CHECK ( sOut.find("show version information") != npos );
+	}
+
+	SECTION("adhoc args call operator")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-ui", "952",
+			"-neg", "-1234567",
+			"-bool",
+			"-bool2", "false",
+			"-bool3", "true",
+			"-file", "filename.txt",
+			"-real", "123.456",
+			"-adhoc1", "hello",
+			"-unknown", "arg1", "arg2"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI);
+
+		KString sFile = Opt("file");
+		CHECK ( sFile == "filename.txt" );
+		uint64_t iUInt = Opt("ui");
+		CHECK ( iUInt == 952 );
+		int64_t iInt = Opt("neg");
+		CHECK ( iInt == -1234567 );
+		int iInt2 = Opt("neg");
+		CHECK ( iInt2 == -1234567 );
+		KStringViewZ sAdHoc = Opt("adhoc1");
+		CHECK ( sAdHoc == "hello" );
+		KStringView sDefault = Opt("unknown", "a default value");
+		CHECK ( sDefault == "arg1" );
+		KStringView sDefault2 = Opt("reallyunknown", {"a vector", "of values"});
+		CHECK ( sDefault2 == "a vector" );
+		KStringView sDefault22 = Opt("reallyunknown")[1];
+		CHECK ( sDefault22 == "of values" );
+		int i = 0;
+		for (auto sVal : Opt("reallyunknown"))
+		{
+			if (i == 0) CHECK (sVal == "a vector" );
+			else if (i == 1) CHECK (sVal == "of values" );
+			else CHECK ( false );
+			++i;
+		}
+		CHECK ( i == 2);
+		bool bBool = Opt("bool");
+		CHECK ( bBool == true );
+		bool bBool2 = Opt("bool2");
+		CHECK ( bBool2 == false );
+		bool bBool3 = Opt("bool3");
+		CHECK ( bBool3 == true );
+		double real = Opt("real");
+		CHECK ( real == 123.456 );
+		iUInt = Opt("notfound", "234");
+		CHECK ( iUInt == 234 );
+		const char* p = Opt("notfound2", "hello world");
+		CHECK ( KStringViewZ(p) == "hello world" );
+		uint32_t ui32 = Opt("notfound3", 123);
+		CHECK ( ui32 == 123 );
+		bool bb = Opt("notfound4", true);
+		CHECK ( bb == true );
+//		iUInt = Opt("notfound2");
+		CHECK ( Opt.Check() == true );
+	}
+
+	SECTION("adhoc args named type")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-ui", "952",
+			"-neg", "-1234567",
+			"-bool",
+			"-bool2", "false",
+			"-bool3", "true",
+			"-file", "filename.txt",
+			"-real", "123.456", "234.567",
+			"-adhoc1", "hello",
+			"-unknown", "arg1", "arg2"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI);
+
+		auto sFile = Opt("f,file <filename>: a file to read", "xxx").String();
+		CHECK ( sFile == "filename.txt" );
+		auto iUInt = Opt("ui").UInt32();
+		CHECK ( iUInt == 952 );
+		auto iInt = Opt("neg").Int32();
+		CHECK ( iInt == -1234567 );
+		auto sAdHoc = Opt("adhoc1").String();
+		CHECK ( sAdHoc == "hello" );
+		auto sDefault = Opt("unknown", "a default value").String();
+		CHECK ( sDefault == "arg1" );
+		auto sDefault2 = Opt("reallyunknown", "a default value").String();
+		CHECK ( sDefault2 == "a default value" );
+		auto bBool = Opt("bool").Bool();
+		CHECK ( bBool == true );
+		auto bBool2 = Opt("bool2").Bool();
+		CHECK ( bBool2 == false );
+		auto bBool3 = Opt("bool3").Bool();
+		CHECK ( bBool3 == true );
+		auto real = Opt("real").Double();
+		CHECK ( real == 123.456 );
+		iUInt = Opt("notfound", "234").UInt32();
+		CHECK ( iUInt == 234 );
+		auto values = Opt("unknown");
+		CHECK ( values.size() == 2 );
+		CHECK ( values[0] == "arg1" );
+		CHECK ( values[1] == "arg2" );
+		CHECK ( *values.begin() == "arg1" );
+		CHECK_THROWS ( values[2] == "arg2" );
+		CHECK ( Opt("real")[1].Double() == 234.567 );
+		CHECK ( Opt.Check() == true );
+	}
+
+	SECTION("ad hoc with help")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-help"
+		};
+
+		KOptions Opt(false, sizeof(CLI)/sizeof(char*), CLI);
+
+		auto sFile = Opt("f,file <filename>: a file to read").String();
+		CHECK ( sFile == "" );
+		KString sOut;
+		KOutStringStream oss(sOut);
+		CHECK ( Opt.Check(oss) == false );
+		CHECK ( sOut.find("-f,file <filename>") != npos );
+		CHECK ( sOut.find("a file to read")     != npos );
+	}
+
+	SECTION("ad hoc with larger help and no input parms")
+	{
+		const char* CLI[] {
+			"MyProgramName"
+		};
+
+		KOptions Opt(true, sizeof(CLI)/sizeof(char*), CLI);
+
+		KString sFile = Opt("file,f <filename>");
+		uint64_t iUInt = Opt("ui");
+		if (iUInt) {}
+		int64_t iInt = Opt("neg");
+		int iInt2 = Opt("neg");
+		KStringViewZ sAdHoc = Opt("adhoc1");
+		KStringView sDefault = Opt("unknown", "a default value");
+		KStringView sDefault2 = Opt("reallyunknown", {"a vector", "of values"});
+		bool bBool = Opt("bool");
+		bool bBool2 = Opt("bool2");
+		bool bBool3 = Opt("bool3");
+		double real = Opt("real");
+		iUInt = Opt("notfound", "234");
+		const char* p = Opt("notfound2", "hello world");
+		uint32_t ui32 = Opt("notfound3", 123);
+		bool bb = Opt("notfound4", true);
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		CHECK ( Opt.Check(oss) == false );
+		CHECK ( sOut.find("-file,f <filename>") != npos );
+		CHECK ( sOut.find("-notfound4")         != npos );
+//		KOut.Write(sOut);
+	}
 }

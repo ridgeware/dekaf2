@@ -759,7 +759,33 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 	: m_bThrow(bThrow)
 	, m_bEmptyParmsIsError(bEmptyParmsIsError)
 {
-	SetBriefDescription("KOptions based option parsing");
+	SetDefaults(sCliDebugTo);
+}
+
+//---------------------------------------------------------------------------
+KOptions::KOptions (bool bEmptyParmsIsError, int argc, char const* const* argv, KStringView sCliDebugTo/*= KLog::STDOUT*/, bool bThrow/*=false*/)
+//---------------------------------------------------------------------------
+: m_bThrow(bThrow)
+, m_bEmptyParmsIsError(bEmptyParmsIsError)
+, m_bAllowAdHocArgs(true)
+{
+	SetDefaults(sCliDebugTo);
+	Parse(argc, argv);
+}
+
+//---------------------------------------------------------------------------
+KOptions::~KOptions()
+//---------------------------------------------------------------------------
+{
+	Throw(false);
+	Check();
+}
+
+//---------------------------------------------------------------------------
+void KOptions::SetDefaults(KStringView sCliDebugTo/*=KLog::STDOUT*/)
+//---------------------------------------------------------------------------
+{
+//	SetBriefDescription("KOptions based option parsing");
 	SetMaxHelpWidth(120);
 	SetWrappedHelpIndent(0);
 
@@ -787,21 +813,21 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 
 	Option("d0,d,dd,ddd")
 		.Help("increasing optional stdout debug levels", -1)
-	([this,sCliDebugTo, &SetKLogDebugging]()
+	([this, sCliDebugTo, &SetKLogDebugging]()
 	{
 		SetKLogDebugging(GetCurrentArg(), sCliDebugTo, false);
 	});
 
 	Option("ud0,ud,udd,uddd")
 		.Help("increasing optional stdout debug levels, with microseconds timestamps", -1)
-	([this,sCliDebugTo,&SetKLogDebugging]()
+	([this, sCliDebugTo, &SetKLogDebugging]()
 	 {
 		SetKLogDebugging(GetCurrentArg(), sCliDebugTo, true);
 	});
 
 	Option("dgrep,dgrepv <regex>", "grep expression")
 		.Help("search (not) for grep expression in debug output", -1)
-	([this,sCliDebugTo](KStringViewZ sGrep)
+	([this, sCliDebugTo](KStringViewZ sGrep)
 	{
 		bool bIsInverted = GetCurrentArg() == "dgrepv";
 		
@@ -831,12 +857,25 @@ KOptions::KOptions(bool bEmptyParmsIsError, KStringView sCliDebugTo/*=KLog::STDO
 		}
 	});
 
-} // KOptions ctor
+	// we need the count of the automatic options to allow ad hoc parms automatically
+	// if no other options were set
+	m_iAutomaticOptionCount = m_Options.size();
+
+} // SetDefaults
 
 //---------------------------------------------------------------------------
 void KOptions::AutomaticHelp() const
 //---------------------------------------------------------------------------
 {
+	if (m_bAllowAdHocArgs && 
+		!m_bHaveAdHocArgs &&
+		m_iAutomaticOptionCount == m_Options.size() &&
+		!m_bProcessAdHocForHelp)
+	{
+		m_bProcessAdHocForHelp = true;
+		return;
+	}
+	
 	auto& out = GetCurrentOutputStream();
 
 	if (m_sHelp)
@@ -881,7 +920,7 @@ void KOptions::Help(KOutStream& out)
 
 	if (!Callback)
 	{
-		SetError("no help registered");
+		SetError("no help registered", out);
 	}
 	else
 	{
@@ -921,7 +960,7 @@ const KOptions::CallbackParam* KOptions::FindParam(KStringView sName, bool bIsOp
 } // FindParam
 
 //---------------------------------------------------------------------------
-const KOptions::CallbackParam* KOptions::FindParam(KStringView sName, bool bIsOption, bool bMarkAsUsed)
+const KOptions::CallbackParam* KOptions::FindParam(KStringView sName, bool bIsOption, bool bMarkAsUsed) const
 //---------------------------------------------------------------------------
 {
 	auto Callback = FindParam(sName, bIsOption);
@@ -963,7 +1002,7 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 			}
 
 			// strip name at first special character or space
-			auto pos = sOption.find_first_of(" <>[]|;=\t\r\n\b");
+			auto pos = sOption.find_first_of(" <>[]|:;=\t\r\n\b");
 
 			if (pos != KStringView::npos)
 			{
@@ -978,18 +1017,48 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 
 		if (!Pair.second)
 		{
-			kDebug(1, "overriding existing {}: {}", OptionOrCommand.IsCommand() ? "command" : "option", sOption);
-			Pair.first->second = iIndex;
-			// disable the display of the existing option in the automatic help
-			for (auto& cbp : m_Callbacks)
+			if (Pair.first->second < m_Callbacks.size())
 			{
-				if (cbp.IsCommand() == OptionOrCommand.IsCommand()
-					&& cbp.m_sNames == OptionOrCommand.m_sNames
-					&& !cbp.IsHidden())
+				auto& Callback = m_Callbacks[Pair.first->second];
+
+				if (Callback.IsCommand() == OptionOrCommand.IsCommand())
 				{
-					cbp.m_iFlags |= CallbackParam::fIsHidden;
-					break;
+					if (OptionOrCommand.IsAdHoc())
+					{
+						if (!Callback.IsAdHoc())
+						{
+							kDebug(1, "merging with non-ad-hoc option, which should not happen");
+						}
+						else
+						{
+							kDebug(2, "merging help with existing ad-hoc option");
+						}
+
+						if (OptionOrCommand.m_Args.empty())
+						{
+							// move the already collected args
+							OptionOrCommand.m_Args = std::move(Callback.m_Args);
+						}
+						else
+						{
+							kDebug(2, "merging args, which should not happen");
+							for (auto sArg : Callback.m_Args)
+							{
+								OptionOrCommand.m_Args.push_back(sArg);
+							}
+						}
+					}
+					kDebug(1, "overriding existing {}: {}", OptionOrCommand.IsCommand() ? "command" : "option", sOption);
+					Pair.first->second = iIndex;
+					if (!Callback.IsHidden())
+					{
+						Callback.m_iFlags |= CallbackParam::fIsHidden;
+					}
 				}
+			}
+			else
+			{
+				kDebug(1, "bad index in callbacks");
 			}
 		}
 	}
@@ -1136,7 +1205,7 @@ int KOptions::ParseFile(KStringViewZ sFileName, KOutStream& out)
 
 	if (!InFile.is_open())
 	{
-		return SetError(kFormat("cannot open input file: {}", sFileName));
+		return SetError(kFormat("cannot open input file: {}", sFileName), out);
 	}
 
 	return Parse(InFile, out);
@@ -1228,6 +1297,10 @@ int KOptions::SetError(KStringViewZ sError, KOutStream& out)
 {
 	if (m_bThrow)
 	{
+		// setting m_bHaveAdHocArgs to false stops the run of Check() at
+		// destruction (we throw already for another error and do not want
+		// the overall analysis ..)
+		m_bHaveAdHocArgs = false;
 		throw KException(sError);
 	}
 	else
@@ -1456,6 +1529,7 @@ void KOptions::ResetBeforeParsing()
 	{
 		// reset flag
 		Callback.m_bUsed = false;
+		// TODO we should delete the ad hoc options here
 	}
 
 } // ResetBeforeParsing
@@ -1519,6 +1593,12 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 		ResetBeforeParsing();
 	}
 
+	if (!m_bAllowAdHocArgs && m_iAutomaticOptionCount == m_Options.size() && m_Commands.empty())
+	{
+		kDebug(2, "switching ad-hoc options on as there were no other options declared");
+		m_bAllowAdHocArgs = true;
+	}
+
 	KOutStreamRAII KO(&m_CurrentOutputStream, out);
 
 	if (m_HelpParams.sProgramPathName.empty())
@@ -1530,7 +1610,6 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 
 	DEKAF2_TRY
 	{
-
 		if (!Parms.empty())
 		{
 			// using explicit iterators so that options can move the loop forward more than one step
@@ -1574,13 +1653,40 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 					}
 				}
 
+				// if this is an option, and it was not found, and we allow ad hoc arguments,
+				// then add this as a new option
+				if (!Callback && it->IsOption() && m_bAllowAdHocArgs)
+				{
+					// do a sanity check on the option arg
+					if (AdHocOptionSanityCheck(it->sArg))
+					{
+						// count parms until next option, to have a min/max setting for the new option
+						std::size_t iArgs { 0 };
+
+						for (auto it2 = it + 1; it2 != Parms.end() && !it2->IsOption(); ++it2)
+						{
+							++iArgs;
+						}
+
+						// and add the new ad hoc option
+						Option(it->sArg).MinArgs(iArgs).MaxArgs(iArgs).AdHoc();
+						// now search again for the option
+						Callback = FindParam(it->sArg, true);
+						// keep a note that we have to check the consumption
+						// of ad hoc args with Check()
+						m_bHaveAdHocArgs = true;
+					}
+				}
+
 				if (Callback)
 				{
+					// this looks redundant, but it is needed when parsing options
+					// from an ini file, and for ad-hoc options
 					it->bConsumed = true;
 
 					auto iMaxArgs = Callback->m_iMaxArgs;
 
-					// isolate parms until next command and add them to the ArgList
+					// isolate parms until next option and add them to the ArgList
 					for (auto it2 = it + 1; iMaxArgs-- > 0 && it2 != Parms.end() && !it2->IsOption(); ++it2)
 					{
 						Args.push_front(ModifyArgument(it2->sArg, Callback));
@@ -1638,12 +1744,12 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 					else
 					{
 						// this is an edge case - there was no callback
-						// consume all related args, and store them for .Get()
-						for (auto sArg : Args)
+						// copy all args from the stack/deque, and store them in reverse order for .Get()
+						for (auto it = Args.crbegin(), ie = Args.crend(); it != ie; ++it)
 						{
-							Callback->m_Args.push_back(sArg);
+							Callback->m_Args.push_back(*it);
 						}
-
+						// and comsume them as if they had been used by the callback
 						Args.clear();
 					}
 
@@ -1659,6 +1765,7 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 					}
 
 					// advance arg iter by count of consumed args
+					// TODO check if we shouldn't consume for ad hoc
 					while (iOldSize-- > Args.size())
 					{
 						(++it)->bConsumed = true;
@@ -1667,9 +1774,9 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 					if (Callback->IsFinal())
 					{
 						// we're done
-						// set flag to stop program after all args are parsed
+						// set flag to finalize program after this arg
 						m_bStopAppAfterParsing = true;
-						return Evaluate(Parms, out);
+						return !Evaluate(Parms, out);
 					}
 
 					if (Callback->IsStop())
@@ -1680,28 +1787,28 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 				}
 			}
 		}
-		
-		return Evaluate(Parms, out);
+
+		return !Evaluate(Parms, out);
 	}
 
 	DEKAF2_CATCH (const MissingParameterError& error)
 	{
-		return SetError(kFormat("{}: missing parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what()));
+		return SetError(kFormat("{}: missing parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what()), out);
 	}
 
 	DEKAF2_CATCH (const WrongParameterError& error)
 	{
-		return SetError(kFormat("{}: wrong parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what()));
+		return SetError(kFormat("{}: wrong parameter after {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what()), out);
 	}
 
 	DEKAF2_CATCH (const BadOptionError& error)
 	{
-		return SetError(kFormat("{}: {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what()));
+		return SetError(kFormat("{}: {}{}: {}", GetProgramName(), lastCommand->Dashes(), lastCommand->sArg, error.what()), out);
 	}
 
 	DEKAF2_CATCH (const Error& error)
 	{
-		return SetError(error.what());
+		return SetError(error.what(), out);
 	}
 
 	DEKAF2_CATCH (const NoError& error)
@@ -1716,7 +1823,7 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 } // Execute
 
 //---------------------------------------------------------------------------
-int KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
+bool KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
 //---------------------------------------------------------------------------
 {
 	if (Parms.size() < 2)
@@ -1724,11 +1831,11 @@ int KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
 		if (m_bEmptyParmsIsError)
 		{
 			Help(out);
-			return -1;
+			return false;
 		}
 	}
 
-	bool bError { false };
+	bool bOK { true };
 
 	size_t iUnconsumed {0};
 
@@ -1753,7 +1860,7 @@ int KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
 			}
 		}
 
-		bError = true;
+		bOK = false;
 	}
 
 	// now check for required options
@@ -1761,97 +1868,229 @@ int KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
 	{
 		if (Callback.IsRequired() && !Callback.m_bUsed)
 		{
-			bError = true;
+			bOK = false;
 			out.FormatLine("missing required argument: {}{}", Callback.IsCommand() ? "" : "-", Callback.m_sNames);
 		}
 	}
 
-	return bError; // 0 or 1
+	return bOK;
 
 } // Evaluate
 
 //---------------------------------------------------------------------------
-KOptions::ArgConverter KOptions::Get(KStringView sOptionName) const
+bool KOptions::Check(KOutStream& out)
 //---------------------------------------------------------------------------
 {
-	auto Callback = FindParam(sOptionName, true);
+	bool bOK = true;
 
-	if (!Callback)
+	if (!m_bCheckWasCalled)
 	{
-		Callback = FindParam(sOptionName, false);
+		m_bCheckWasCalled = true;
 
-		if (!Callback)
+		if (m_bProcessAdHocForHelp)
 		{
-			static std::vector<KStringViewZ> s_Vector;
-			return ArgConverter(s_Vector, false);
+			KOutStreamRAII KO(&m_CurrentOutputStream, out);
+			AutomaticHelp();
+			return false;
+		}
+		
+		if (m_bHaveAdHocArgs)
+		{
+			// now check for ad-hoc options
+			for (auto& Callback : m_Callbacks)
+			{
+				if (Callback.IsAdHoc() && !Callback.m_bUsed && !Callback.IsHidden())
+				{
+					bOK = false;
+					out.FormatLine("excess argument: -{}", Callback.m_sNames);
+				}
+			}
+		}
+
+		if (!bOK)
+		{
+			SetError("bad CLI parms", out);
 		}
 	}
 
-	return ArgConverter(Callback->m_Args, true);
+	return bOK;
+
+} // Check
+
+//---------------------------------------------------------------------------
+bool KOptions::AdHocOptionSanityCheck(KStringView sOption)
+//---------------------------------------------------------------------------
+{
+	if (sOption.size() > iMaxAdHocOptionLength)
+	{
+		kDebug(2, "ad hoc option would have length {}, exceeding the maximum of {}", sOption.size(), iMaxAdHocOptionLength);
+		return false;
+	}
+
+	return true;
+
+} // AdHocOptionSanityCheck
+
+//---------------------------------------------------------------------------
+std::pair<KStringView, KStringView> KOptions::IsolateOptionNamesFromHelp(KStringView sOptionName)
+//---------------------------------------------------------------------------
+{
+	KStringView sHelp;
+
+	auto iPos = sOptionName.find_first_of("|:");
+
+	if (iPos != npos)
+	{
+		sHelp = sOptionName.ToView(iPos + 1);
+		sHelp.Trim();
+		sOptionName.remove_suffix(sOptionName.size() - iPos);
+	}
+
+	sOptionName.Trim();
+
+	return { sOptionName, sHelp };
+
+} // IsolateOptionNamesFromHelp
+
+//---------------------------------------------------------------------------
+KStringView KOptions::IsolateOptionNamesFromSuffix(KStringView sOptionName)
+//---------------------------------------------------------------------------
+{
+
+	auto iPos = sOptionName.find_first_of(" <>[]|:;=\t\r\n\b");
+
+	if (iPos != npos)
+	{
+		sOptionName.remove_suffix(sOptionName.size() - iPos);
+	}
+
+	return sOptionName;
+
+} // IsolateOptionNamesFromSuffix
+
+//---------------------------------------------------------------------------
+KOptions::Values KOptions::Get(KStringView sOptionName)
+//---------------------------------------------------------------------------
+{
+	const CallbackParam* Callback { nullptr };
+
+	sOptionName.TrimLeft(" \t-");
+
+	for (auto sName : IsolateOptionNamesFromSuffix(IsolateOptionNamesFromHelp(sOptionName).first).Split())
+	{
+		Callback = FindParam(sName, true, true);
+
+		if (Callback)
+		{
+			break;
+		}
+	}
+
+	if (!Callback)
+	{
+		if (!m_bProcessAdHocForHelp)
+		{
+			SetError(kFormat("missing required option: -{}", sOptionName));
+		}
+		// if we process for help generation, do not throw but add
+		// each option as if it had an empty default value
+		return Get(sOptionName, "");
+	}
+
+	return Values(Callback->m_Args, true);
 
 } // Get
 
 //---------------------------------------------------------------------------
-const std::vector<KStringViewZ>& KOptions::ArgConverter::Vector()
+KOptions::Values KOptions::Get(KStringView sOptionName, const std::vector<KStringViewZ>& DefaultValues) noexcept
 //---------------------------------------------------------------------------
 {
-	return m_Params;
+	const CallbackParam* Callback { nullptr };
 
-} // Vector
+	sOptionName.TrimLeft(" \t-");
 
-//---------------------------------------------------------------------------
-KStringViewZ KOptions::ArgConverter::String()
-//---------------------------------------------------------------------------
-{
-	if (m_Params.empty())
+	auto pair = IsolateOptionNamesFromHelp(sOptionName);
+	auto list = IsolateOptionNamesFromSuffix(pair.first).Split();
+
+	for (auto sName : list)
 	{
-		return {};
+		Callback = FindParam(sName, true, true);
+
+		if (Callback)
+		{
+			break;
+		}
 	}
 
-	return m_Params.front();
-
-} // String
-
-//---------------------------------------------------------------------------
-int64_t KOptions::ArgConverter::Int()
-//---------------------------------------------------------------------------
-{
-	return String().Int64();
-
-} // Int
-
-//---------------------------------------------------------------------------
-uint64_t KOptions::ArgConverter::UInt()
-//---------------------------------------------------------------------------
-{
-	return String().UInt64();
-
-} // UInt
-
-//---------------------------------------------------------------------------
-double KOptions::ArgConverter::Float()
-//---------------------------------------------------------------------------
-{
-	return String().Double();
-
-} // Float
-
-//---------------------------------------------------------------------------
-bool KOptions::ArgConverter::Bool()
-//---------------------------------------------------------------------------
-{
-	if (!m_Params.empty())
+	if (!Callback)
 	{
-		return m_Params.front().Bool();
+		Option(pair.first).Help(pair.second).MinArgs(DefaultValues.size()).MaxArgs(DefaultValues.size()).AdHoc();
+		Callback = FindParam(list.front(), true, true);
+
+		if (!Callback)
+		{
+			kDebug(1, "cannot create option: {}", sOptionName);
+			static std::vector<KStringViewZ> s_Empty;
+			return Values(s_Empty, false);
+		}
+
+		// check if the args were already parsed under another name in the callback,
+		// in which case we do not add the default args here, but treat this as an
+		// existing parm set
+		if (Callback->m_Args.empty())
+		{
+			for (auto sDefaultValue : DefaultValues)
+			{
+				Callback->m_Args.push_back(m_Strings.Persist(sDefaultValue));
+			}
+		}
 	}
 
-	return m_bFound;
+	return Values(Callback->m_Args, true);
+
+} // Get
+
+//---------------------------------------------------------------------------
+KOptions::Values KOptions::Get(KStringView sOptionName, const KStringViewZ& sDefaultValue) noexcept
+//---------------------------------------------------------------------------
+{
+	return Get(sOptionName, std::vector<KStringViewZ> { sDefaultValue });
+
+} // Get
+
+//---------------------------------------------------------------------------
+bool KOptions::Values::Bool() const noexcept
+//---------------------------------------------------------------------------
+{
+	const auto& sValue = String();
+
+	if (sValue.empty())
+	{
+		return m_bFound;
+	}
+
+	return sValue.Bool();
 
 } // Bool
+
+//---------------------------------------------------------------------------
+KStringViewZ KOptions::Values::operator [] (std::size_t index) const
+//---------------------------------------------------------------------------
+{
+	if (index < size())
+	{
+		return m_Params[index];
+	}
+	else
+	{
+		throw KException(kFormat("cannot access element {} in an argument list of {}", index + 1, size()));
+	}
+}
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 	constexpr KStringViewZ KOptions::CLIParms::Arg_t::s_sDoubleDash;
 	constexpr KStringView  KOptions::UNKNOWN_ARG;
+	constexpr KStringView::size_type iMaxAdHocOptionLength;
 #endif
 
 DEKAF2_NAMESPACE_END

@@ -110,6 +110,12 @@ public:
 	/// ctor, requiring basic initialization
 	explicit KOptions (bool bEmptyParmsIsError, KStringView sCliDebugTo = KLog::STDOUT, bool bThrow = false);
 
+	/// ctor that immediately parses from the cli (creating ad hoc options)
+	KOptions (bool bEmptyParmsIsError, int argc, char const* const* argv, KStringView sCliDebugTo = KLog::STDOUT, bool bThrow = false);
+
+	/// dtor, may call Check(), but will not throw
+	~KOptions();
+
 	/// set a brief description of the program, will appear in first line of generated help
 	KOptions& SetBriefDescription(KString sBrief)                     { m_HelpParams.sBriefDescription       = std::move(sBrief);             return *this; }
 
@@ -137,6 +143,11 @@ public:
 	/// throw on errors or not?
 	KOptions& Throw(bool bYesNo = true)                               { m_bThrow = bYesNo;                                                    return *this; }
 
+	/// allow unknown options to be parsed like regular options? (default at construction = false). If no regular options
+	/// had been defined at time of parsing, ad-hoc args are automatically enabled. Such args then need to be fetched
+	/// with Get() or the call operator()
+	KOptions& AllowAdHocArgs(bool bYesNo = true)                      { m_bAllowAdHocArgs = bYesNo;                                           return *this; }
+
 	/// Parse arguments and call the registered callback functions. Returns 0
 	/// if valid, -1 if -help was called, and > 0 for error
 	int Parse(int argc, char const* const* argv, KOutStream& out = KOut);
@@ -152,6 +163,14 @@ public:
 
 	/// Parse arguments from CGI QUERY_PARMS
 	int ParseCGI(KStringViewZ sProgramName, KOutStream& out = KOut);
+
+	/// Verify that all given parms have been consumed, and that all required parms were present.
+	/// This method is called automatically after parsing when no ad-hoc parms were generated,
+	/// but if there are ad-hoc parms it has to be called after all .Get() calls to request those. It will
+	/// also be called automatically at destruction of KOptions, but that may be a bit late..
+	/// May throw if KOptions may throw.
+	/// @returns true if all parms have been consumed.
+	bool Check(KOutStream& out = KOut);
 
 	using ArgList   = KStack<KStringViewZ>;
 	using Callback0 = std::function<void()>;
@@ -191,16 +210,17 @@ private:
 		enum Flag
 		{
 			fNone        = 0,
-			fIsRequired  = 1 << 0,
-			fIsCommand   = 1 << 1,
-			fCheckBounds = 1 << 2,
-			fToLower     = 1 << 3,
-			fToUpper     = 1 << 4,
-			fIsHidden    = 1 << 5,
-			fIsSection   = 1 << 6,
-			fIsUnknown   = 1 << 7,
-			fIsFinal     = 1 << 8,
-			fIsStop      = 1 << 9
+			fIsRequired  = 1 <<  0,
+			fIsCommand   = 1 <<  1,
+			fCheckBounds = 1 <<  2,
+			fToLower     = 1 <<  3,
+			fToUpper     = 1 <<  4,
+			fIsHidden    = 1 <<  5,
+			fIsSection   = 1 <<  6,
+			fIsUnknown   = 1 <<  7,
+			fIsFinal     = 1 <<  8,
+			fIsStop      = 1 <<  9,
+			fIsAdHoc     = 1 << 10
 		};
 
 		CallbackParam() = default;
@@ -246,6 +266,9 @@ private:
 		/// returns true if this parameter ends the execution of a program after all args are parsed
 		DEKAF2_NODISCARD
 		bool         IsStop()      const { return m_iFlags & fIsStop;       }
+		/// returns true if this parameter was added ad hoc during cli parsing
+		DEKAF2_NODISCARD
+		bool         IsAdHoc()     const { return m_iFlags & fIsAdHoc;      }
 		/// returns true if the boundaries of this parameter shall be checked
 		DEKAF2_NODISCARD
 		bool         CheckBounds() const { return m_iFlags & fCheckBounds;  }
@@ -305,6 +328,8 @@ public:
 		OptionalParm& Stop()                      { m_iFlags |= fIsStop;    return *this; }
 		/// after parsing _this_ arg the program is terminated (with success if this _is_ the final arg)
 		OptionalParm& Final()                     { m_iFlags |= fIsFinal;   return *this; }
+		/// mark this arg as an ad hoc arg (never do this manually, the parser does it internally)
+		OptionalParm& AdHoc()                     { m_iFlags |= fIsAdHoc;   return *this; }
 		/// set the callback for the parameter as a function void(KOptions::ArgList&)
 		OptionalParm& Callback(CallbackN Func);
 		/// set the callback for the parameter as a function void(KStringViewZ)
@@ -489,48 +514,125 @@ public:
 	DEKAF2_NODISCARD
 	bool Terminate() const { return m_bStopAppAfterParsing; }
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper to convert arguments into different data types
-	struct ArgConverter
+	class Values
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		/// construct ArgConverter with data from parameter parsing
-		ArgConverter(const std::vector<KStringViewZ>& Params, bool bFound)
-		: m_Params(Params), m_bFound(bFound) 
-		{}
-
-		/// Get the value associated to an option name
+	public:
+		/// construct Values with data from parameter parsing
+		Values(const std::vector<KStringViewZ>& Params, bool bFound) noexcept
+		: m_Params(Params), m_bFound(bFound) {}
+		/// Get the values associated to an option name as a vector<KStringViewZ>
 		DEKAF2_NODISCARD
-		const std::vector<KStringViewZ>& Vector();
-
-		/// Get the value associated to an option name
+		const std::vector<KStringViewZ>& Vector() const noexcept { return m_Params; }
+		/// Get the value associated to an option name as string
 		DEKAF2_NODISCARD
-		KStringViewZ String();
-
-		/// Get the value associated to an option name
+		KStringViewZ String() const noexcept { return empty() ? KStringViewZ{} : m_Params.front(); }
+		/// Get the value associated to an option name as signed integer
 		DEKAF2_NODISCARD
-		int64_t Int();
-
-		/// Get the value associated to an option name
+		int64_t Int64()       const noexcept { return String().Int64();  }
+		/// Get the value associated to an option name as unsigned integer
 		DEKAF2_NODISCARD
-		uint64_t UInt();
-
-		/// Get the value associated to an option name
+		uint64_t UInt64()     const noexcept { return String().UInt64(); }
+		/// Get the value associated to an option name as signed integer
 		DEKAF2_NODISCARD
-		double Float();
-
-		/// Get the value associated to an option name
+		int32_t Int32()       const noexcept { return String().Int32();  }
+		/// Get the value associated to an option name as unsigned integer
 		DEKAF2_NODISCARD
-		bool Bool();
+		uint32_t UInt32()     const noexcept { return String().UInt32(); }
+		/// Get the value associated to an option name as signed integer
+		DEKAF2_NODISCARD
+		int16_t Int16()       const noexcept { return String().Int16();  }
+		/// Get the value associated to an option name as unsigned integer
+		DEKAF2_NODISCARD
+		uint16_t UInt16()     const noexcept { return String().UInt16(); }
+		/// Get the value associated to an option name as floating point value
+		DEKAF2_NODISCARD
+		float Float()         const noexcept { return String().Float();  }
+		/// Get the value associated to an option name as floating point value
+		DEKAF2_NODISCARD
+		double Double()       const noexcept { return String().Double(); }
+		/// Get the value associated to an option name as a boolean
+		DEKAF2_NODISCARD
+		bool Bool()           const noexcept;
+		/// Get the count of arguments for this option
+		std::size_t size()    const noexcept { return m_Params.size();   }
+		/// Is the argument container empty?
+		bool empty()          const noexcept { return m_Params.empty();  }
+		/// Was this option used in the cli params?
+		bool Exists()         const noexcept { return m_bFound;          }
 
+		operator const std::vector<KStringViewZ>& () const noexcept { return Vector(); }
+		operator KStringViewZ () const noexcept { return String(); }
+		operator  KStringView () const noexcept { return String(); }
+		operator      KString () const noexcept { return String(); }
+		operator  std::string () const noexcept { return String(); }
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+	operator std::string_view () const noexcept { return String(); }
+#endif
+		operator  const char* () const noexcept { return String().c_str(); }
+		operator     uint64_t () const noexcept { return UInt64(); }
+		operator      int64_t () const noexcept { return  Int64(); }
+		operator     uint32_t () const noexcept { return UInt32(); }
+		operator      int32_t () const noexcept { return  Int32(); }
+		operator     uint16_t () const noexcept { return UInt16(); }
+		operator      int16_t () const noexcept { return  Int16(); }
+		operator       double () const noexcept { return Double(); }
+		operator        float () const noexcept { return  Float(); }
+		operator         bool () const noexcept { return   Bool(); }
+
+		/// index access throws if out of range
+		KStringViewZ operator [] (std::size_t index) const;
+
+		/// get a begin( ) iterator on the list of parameters
+		std::vector<KStringViewZ>::const_iterator begin() const noexcept { return m_Params.begin(); }
+		/// get an end( ) iterator on the list of parameters
+		std::vector<KStringViewZ>::const_iterator end()   const noexcept { return m_Params.end();   }
+
+	private:
 		const std::vector<KStringViewZ>& m_Params;
-		bool m_bFound { false };
+		bool                             m_bFound { false   };
 
-	}; // ArgConverter
+	}; // Values
 
-	/// returns parameters belonging to sOptionName (after parsing the arguments)
-	ArgConverter Get(KStringView sOptionName) const;
+	/// returns parameters belonging to sOptionName (after parsing the arguments). Throws if option is not found.
+	Values Get(KStringView sOptionName);
 
-	/// call operator returns associated parameters
-	ArgConverter operator()(KStringView sOptionName) const { return Get(sOptionName); }
+	/// call operator returns associated parameters. Throws if option is not found.
+	Values operator()(KStringView sOptionName) { return Get(sOptionName); }
+
+	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
+	Values Get(KStringView sOptionName, const KStringViewZ& sDefaultValue) noexcept;
+
+	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
+	template<typename T,
+	         typename std::enable_if<detail::is_kstringviewz_assignable<const T&>::value, int>::type = 0>
+	Values Get(KStringView sOptionName, const T& sDefaultValue) noexcept
+	{
+		return Get(sOptionName, KStringViewZ(sDefaultValue));
+	}
+
+	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
+	template<typename T,
+	         typename std::enable_if<!detail::is_kstringviewz_assignable<const T&>::value, int>::type = 0>
+	Values Get(KStringView sOptionName, const T& DefaultValue) noexcept
+	{
+		return Get(sOptionName, KString::to_string(DefaultValue));
+	}
+
+	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
+	Values Get(KStringView sOptionName, const std::vector<KStringViewZ>& DefaultValues) noexcept;
+
+	/// call operator returns associated parameters. Returns default value if not found.
+	Values operator()(KStringView sOptionName, const KStringViewZ& sDefaultValue) noexcept { return Get(sOptionName, sDefaultValue); }
+
+	/// call operator returns associated parameters. Returns default value if not found.
+	template<typename T>
+	Values operator()(KStringView sOptionName, const T& DefaultValue) noexcept { return Get(sOptionName, DefaultValue); }
+
+	/// call operator returns associated parameters. Returns default value if not found.
+	Values operator()(KStringView sOptionName, const std::vector<KStringViewZ>& DefaultValues) noexcept { return Get(sOptionName, DefaultValues); }
 
 //----------
 protected:
@@ -546,6 +648,8 @@ private:
 //----------
 
 	using PersistedStrings = KPersistStrings<KString, false>;
+
+	static constexpr KStringView::size_type iMaxAdHocOptionLength { 200 };
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	class DEKAF2_PRIVATE CLIParms
@@ -717,20 +821,29 @@ private:
 	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	const CallbackParam* FindParam(KStringView sName, bool bIsOption) const;
 	DEKAF2_NODISCARD DEKAF2_PRIVATE
-	const CallbackParam* FindParam(KStringView sName, bool bIsOption, bool bMarkAsUsed);
+	const CallbackParam* FindParam(KStringView sName, bool bIsOption, bool bMarkAsUsed) const;
 	DEKAF2_PRIVATE
 	void ResetBeforeParsing();
 	DEKAF2_PRIVATE
 	int Execute(CLIParms Parms, KOutStream& out);
 	DEKAF2_PRIVATE
-	int Evaluate(const CLIParms& Parms, KOutStream& out);
+	bool Evaluate(const CLIParms& Parms, KOutStream& out);
+	DEKAF2_PRIVATE
+	void SetDefaults(KStringView sCliDebugTo);
 	DEKAF2_PRIVATE
 	void AutomaticHelp() const;
+	DEKAF2_PRIVATE
+	bool AdHocOptionSanityCheck(KStringView sOption);
 	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	KString BuildParameterError(const CallbackParam& Callback, KString sMessage) const;
 	/// Is this arg maybe a combination of single char args?
 	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	std::vector<KStringViewZ> CheckForCombinedArg(const CLIParms::Arg_t& arg);
+	/// returns the list of isolated option names in the first, and help text in the second string view
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	static std::pair<KStringView, KStringView> IsolateOptionNamesFromHelp(KStringView sOptionNamesAndHelp);
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	static KStringView IsolateOptionNamesFromSuffix(KStringView sOptionName);
 
 
 	using CommandLookup = KUnorderedMap<KStringView, std::size_t>;
@@ -745,10 +858,15 @@ private:
 	KOutStream*                m_CurrentOutputStream     { nullptr };
 	const KStringView*         m_sHelp                   { nullptr };
 	std::size_t                m_iHelpSize               {       0 };
+	std::size_t                m_iAutomaticOptionCount   {       0 };
 	uint16_t                   m_iRecursedHelp           {       0 };
 	uint16_t                   m_iExecutions             {       0 };
 	bool                       m_bEmptyParmsIsError      {    true };
 	bool                       m_bStopAppAfterParsing    {   false };
+	bool                       m_bAllowAdHocArgs         {   false };
+	bool                       m_bHaveAdHocArgs          {   false };
+	bool                       m_bCheckWasCalled         {   false };
+	mutable bool               m_bProcessAdHocForHelp    {   false };
 
 }; // KOptions
 

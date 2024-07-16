@@ -597,17 +597,21 @@ public:
 	}; // Values
 
 	/// returns parameters belonging to sOptionName (after parsing the arguments). Throws if option is not found.
+	DEKAF2_NODISCARD
 	Values Get(KStringView sOptionName);
 
 	/// call operator returns associated parameters. Throws if option is not found.
+	DEKAF2_NODISCARD
 	Values operator()(KStringView sOptionName) { return Get(sOptionName); }
 
 	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
+	DEKAF2_NODISCARD
 	Values Get(KStringView sOptionName, const KStringViewZ& sDefaultValue) noexcept;
 
 	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
 	template<typename T,
 	         typename std::enable_if<detail::is_kstringviewz_assignable<const T&>::value, int>::type = 0>
+	DEKAF2_NODISCARD
 	Values Get(KStringView sOptionName, const T& sDefaultValue) noexcept
 	{
 		return Get(sOptionName, KStringViewZ(sDefaultValue));
@@ -616,22 +620,27 @@ public:
 	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
 	template<typename T,
 	         typename std::enable_if<!detail::is_kstringviewz_assignable<const T&>::value, int>::type = 0>
+	DEKAF2_NODISCARD
 	Values Get(KStringView sOptionName, const T& DefaultValue) noexcept
 	{
 		return Get(sOptionName, KString::to_string(DefaultValue));
 	}
 
 	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
+	DEKAF2_NODISCARD
 	Values Get(KStringView sOptionName, const std::vector<KStringViewZ>& DefaultValues) noexcept;
 
 	/// call operator returns associated parameters. Returns default value if not found.
+	DEKAF2_NODISCARD
 	Values operator()(KStringView sOptionName, const KStringViewZ& sDefaultValue) noexcept { return Get(sOptionName, sDefaultValue); }
 
 	/// call operator returns associated parameters. Returns default value if not found.
 	template<typename T>
+	DEKAF2_NODISCARD
 	Values operator()(KStringView sOptionName, const T& DefaultValue) noexcept { return Get(sOptionName, DefaultValue); }
 
 	/// call operator returns associated parameters. Returns default value if not found.
+	DEKAF2_NODISCARD
 	Values operator()(KStringView sOptionName, const std::vector<KStringViewZ>& DefaultValues) noexcept { return Get(sOptionName, DefaultValues); }
 
 //----------

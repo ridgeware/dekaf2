@@ -572,6 +572,10 @@ TEST_CASE("KOptions2")
 		uint32_t ui32 = Opt("notfound3", 123);
 		bool bb = Opt("notfound4", true);
 
+		if (sAdHoc   .empty()) { /* gcc 13 wants this */ }
+		if (sDefault .empty()) { /* gcc 13 wants this */ }
+		if (sDefault2.empty()) { /* gcc 13 wants this */ }
+
 		KString sOut;
 		KOutStringStream oss(sOut);
 

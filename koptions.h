@@ -563,24 +563,56 @@ public:
 		/// Was this option used in the cli params?
 		bool Exists()         const noexcept { return m_bFound;          }
 
-		operator const std::vector<KStringViewZ>& () const noexcept { return Vector(); }
-		operator KStringViewZ () const noexcept { return String(); }
-		operator  KStringView () const noexcept { return String(); }
-		operator      KString () const noexcept { return String(); }
-		operator  std::string () const noexcept { return String(); }
-#ifdef DEKAF2_HAS_STD_STRING_VIEW
-	operator std::string_view () const noexcept { return String(); }
-#endif
+		// all C++ string(view) types
+		template < typename ValueType,
+			typename std::enable_if <std::is_assignable<ValueType, KStringViewZ>::value, int >::type = 0 >
+		operator    ValueType () const noexcept { return String(); }
+
+		// all unsigned integers
+		template < typename ValueType,
+			typename std::enable_if <
+				std::conjunction < std::is_integral<ValueType>,
+								   std::is_unsigned<ValueType>,
+					std::negation< std::is_same    <ValueType, std::remove_cv<bool>::type>    >,
+					std::negation< std::is_same    <ValueType, char>                          >,
+					std::negation< std::is_pointer <ValueType>                                >,
+					std::negation< std::is_same    <ValueType, std::nullptr_t>                >
+				>::value
+			, int >::type = 0>
+		operator    ValueType () const noexcept { return static_cast<ValueType>(UInt64()); }
+
+		// all signed integers
+		template < typename ValueType,
+			typename std::enable_if <
+				std::conjunction < std::is_integral<ValueType>,
+					std::negation< std::is_unsigned<ValueType>                                >,
+					std::negation< std::is_same    <ValueType, std::remove_cv<bool>::type>    >,
+					std::negation< std::is_same    <ValueType, char>                          >,
+					std::negation< std::is_pointer <ValueType>                                >,
+					std::negation< std::is_same    <ValueType, std::nullptr_t>                >
+				>::value
+			, int >::type = 0>
+		operator    ValueType () const noexcept { return static_cast<ValueType>(Int64()); }
+
+		// bool
+		template < typename ValueType,
+			typename std::enable_if <
+				std::is_same   <ValueType, std::remove_cv<bool>::type>::value
+			, int >::type = 0>
+		operator    ValueType () const noexcept { return Bool(); }
+
+		// floating point types
+		template < typename ValueType,
+			typename std::enable_if <
+				std::is_floating_point<ValueType>::value
+			, int >::type = 0>
+		operator    ValueType () const noexcept { return Double(); }
+
+		// const char*
 		operator  const char* () const noexcept { return String().c_str(); }
-		operator     uint64_t () const noexcept { return UInt64(); }
-		operator      int64_t () const noexcept { return  Int64(); }
-		operator     uint32_t () const noexcept { return UInt32(); }
-		operator      int32_t () const noexcept { return  Int32(); }
-		operator     uint16_t () const noexcept { return UInt16(); }
-		operator      int16_t () const noexcept { return  Int16(); }
-		operator       double () const noexcept { return Double(); }
-		operator        float () const noexcept { return  Float(); }
-		operator         bool () const noexcept { return   Bool(); }
+
+		// the vector type
+		operator const std::vector<KStringViewZ>& () const noexcept { return Vector(); }
 
 		/// index access throws if out of range
 		KStringViewZ operator [] (std::size_t index) const;
@@ -613,18 +645,14 @@ public:
 	         typename std::enable_if<detail::is_kstringviewz_assignable<const T&>::value, int>::type = 0>
 	DEKAF2_NODISCARD
 	Values Get(KStringView sOptionName, const T& sDefaultValue) noexcept
-	{
-		return Get(sOptionName, KStringViewZ(sDefaultValue));
-	}
+	{ return Get(sOptionName, KStringViewZ(sDefaultValue)); }
 
 	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
 	template<typename T,
 	         typename std::enable_if<!detail::is_kstringviewz_assignable<const T&>::value, int>::type = 0>
 	DEKAF2_NODISCARD
 	Values Get(KStringView sOptionName, const T& DefaultValue) noexcept
-	{
-		return Get(sOptionName, KString::to_string(DefaultValue));
-	}
+	{ return Get(sOptionName, KString::to_string(DefaultValue)); }
 
 	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
 	DEKAF2_NODISCARD
@@ -632,16 +660,19 @@ public:
 
 	/// call operator returns associated parameters. Returns default value if not found.
 	DEKAF2_NODISCARD
-	Values operator()(KStringView sOptionName, const KStringViewZ& sDefaultValue) noexcept { return Get(sOptionName, sDefaultValue); }
+	Values operator()(KStringView sOptionName, const KStringViewZ& sDefaultValue) noexcept
+	{ return Get(sOptionName, sDefaultValue); }
 
 	/// call operator returns associated parameters. Returns default value if not found.
 	template<typename T>
 	DEKAF2_NODISCARD
-	Values operator()(KStringView sOptionName, const T& DefaultValue) noexcept { return Get(sOptionName, DefaultValue); }
+	Values operator()(KStringView sOptionName, const T& DefaultValue) noexcept 
+	{ return Get(sOptionName, DefaultValue); }
 
 	/// call operator returns associated parameters. Returns default value if not found.
 	DEKAF2_NODISCARD
-	Values operator()(KStringView sOptionName, const std::vector<KStringViewZ>& DefaultValues) noexcept { return Get(sOptionName, DefaultValues); }
+	Values operator()(KStringView sOptionName, const std::vector<KStringViewZ>& DefaultValues) noexcept 
+	{ return Get(sOptionName, DefaultValues); }
 
 //----------
 protected:

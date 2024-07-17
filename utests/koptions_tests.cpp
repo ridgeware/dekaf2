@@ -204,6 +204,12 @@ TEST_CASE("KOptions")
 
 		KString sFile = Options("file");
 		CHECK ( sFile == "filename.txt" );
+		std::string sFile2 = Options("file");
+		CHECK ( sFile2 == "filename.txt" );
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
+		std::string_view sFile3 = Options("file");
+		CHECK ( sFile3 == "filename.txt" );
+#endif
 		uint64_t iUInt = Options("i");
 		CHECK ( iUInt == 952 );
 		int64_t iInt = Options("neg");
@@ -476,6 +482,8 @@ TEST_CASE("KOptions2")
 		CHECK ( ui32 == 123 );
 		bool bb = Opt("notfound4", true);
 		CHECK ( bb == true );
+		std::size_t iSize = Opt("notfound5", 1234567);
+		CHECK ( iSize == 1234567);
 //		iUInt = Opt("notfound2");
 		CHECK ( Opt.Check() == true );
 	}

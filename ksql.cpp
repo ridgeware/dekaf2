@@ -7774,9 +7774,22 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 bool KSQL::BeginTransaction (KStringView sOptions/*=""*/)
 //-----------------------------------------------------------------------------
 {
-	// TODO: code for non-MySQL
+	switch (GetDBType())
+	{
+		case DBT::MYSQL:
+			return sOptions.empty() ? ExecSQL("start transaction") : ExecSQL("start transaction {}", sOptions);
 
-	return ExecSQL ("start transaction{}{}", sOptions.empty() ? "" : " ", sOptions.empty() ? KStringView("") : sOptions);
+		case DBT::SQLSERVER:
+		case DBT::SQLSERVER15:
+			if (!sOptions.empty()) kDebug(2, "options are not supported for SQLServer: {}", sOptions);
+			return ExecSQL ("begin transaction");
+
+		default:
+			kDebug(2, "DB Type not supported: {}", TxDBType(GetDBType()));
+			return false;
+	}
+
+	return false;
 
 } // BeginTransaction
 
@@ -7784,13 +7797,32 @@ bool KSQL::BeginTransaction (KStringView sOptions/*=""*/)
 bool KSQL::CommitTransaction (KStringView sOptions/*=""*/)
 //-----------------------------------------------------------------------------
 {
-	// TODO: code for non-MySQL
+	switch (GetDBType())
+	{
+		case DBT::MYSQL:
+		{
+			auto iSave = GetNumRowsAffected();
+			bool bOK = sOptions.empty() ? ExecSQL("commit") : ExecSQL("commit {}", sOptions);
+			m_iNumRowsAffected = GetNumRowsAffected() + iSave;
+			return bOK;
+		}
 
-	auto iSave = GetNumRowsAffected();
-	bool bOK   = ExecSQL ("commit{}{}", sOptions.empty() ? "" : " ", sOptions.empty() ? KStringView("") : sOptions);
-	m_iNumRowsAffected = GetNumRowsAffected() + iSave;
+		case DBT::SQLSERVER:
+		case DBT::SQLSERVER15:
+		{
+			if (!sOptions.empty()) kDebug(2, "options are not supported for SQLServer: {}", sOptions);
+			auto iSave = GetNumRowsAffected();
+			bool bOK = ExecSQL ("commit");
+			m_iNumRowsAffected = GetNumRowsAffected() + iSave;
+			return bOK;
+		}
 
-	return bOK;
+		default:
+			kDebug(2, "DB Type not supported: {}", TxDBType(GetDBType()));
+			return false;
+	}
+
+	return false;
 
 } // CommitTransaction
 
@@ -7798,13 +7830,22 @@ bool KSQL::CommitTransaction (KStringView sOptions/*=""*/)
 bool KSQL::RollbackTransaction (KStringView sOptions/*=""*/)
 //-----------------------------------------------------------------------------
 {
-	// TODO: code for non-MySQL
-
-	if (!sOptions.empty())
+	switch (GetDBType())
 	{
-		return ExecSQL ("rollback {}", sOptions);
+		case DBT::MYSQL:
+			return sOptions.empty() ? ExecSQL("rollback") : ExecSQL("rollback {}", sOptions);
+
+		case DBT::SQLSERVER:
+		case DBT::SQLSERVER15:
+			if (!sOptions.empty()) kDebug(2, "options are not supported for SQLServer: {}", sOptions);
+			return ExecSQL ("rollback");
+
+		default:
+			kDebug(2, "DB Type not supported: {}", TxDBType(GetDBType()));
+			return false;
 	}
-	return ExecSQL ("rollback");
+
+	return false;
 
 } // RollbackTransaction
 

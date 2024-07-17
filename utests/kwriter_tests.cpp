@@ -167,9 +167,9 @@ TEST_CASE("KWriter") {
 		sLarge = "01234567890123456789012345678901234567890123456789012345678901234567890123456789";
 
 		KMyServer Server(43234, false, 5);
-		Server.Start(5000, false);
+		Server.Start(chrono::seconds(5), false);
 
-		KTCPClient stream("localhost:43234", 5000);
+		KTCPClient stream("localhost:43234", chrono::seconds(5));
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();
@@ -193,9 +193,9 @@ TEST_CASE("KWriter") {
 		}
 
 		KMyServer Server(43235, false, 5);
-		Server.Start(5, false);
+		Server.Start(chrono::seconds(5), false);
 
-		KTCPClient stream("localhost:43235", 5);
+		KTCPClient stream("localhost:43235", chrono::seconds(5));
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();
@@ -227,9 +227,9 @@ TEST_CASE("KWriter") {
 		sSocket = kFormat("{}/short.socket", TempDir.Name());
 #endif
 		KMyServer Server(sSocket, 5);
-		Server.Start(5, false);
+		Server.Start(chrono::seconds(5), false);
 
-		KUnixStream stream(sSocket, 5);
+		KUnixStream stream(sSocket, chrono::seconds(5));
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();
@@ -262,9 +262,9 @@ TEST_CASE("KWriter") {
 		sSocket = kFormat("{}/large.socket", TempDir.Name());
 #endif
 		KMyServer Server(sSocket, 5);
-		Server.Start(5, false);
+		Server.Start(chrono::seconds(5), false);
 
-		KUnixStream stream(sSocket, 5);
+		KUnixStream stream(sSocket, chrono::seconds(5));
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();
@@ -287,10 +287,10 @@ TEST_CASE("KWriter") {
 
 		KMyServer Server(43236, true, 5);
 		Server.SetTLSCertificates(sCert, sKey);
-		Server.Start(5, false);
+		Server.Start(chrono::seconds(5), false);
 
 		KTLSContext TLSContext(false);
-		KTLSClient stream(TLSContext, "localhost:43236", TLSOptions::None, 5);
+		KTLSClient stream(TLSContext, "localhost:43236", KStreamOptions::None, chrono::seconds(5));
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();
@@ -315,10 +315,10 @@ TEST_CASE("KWriter") {
 
 		KMyServer Server(43237, true, 5);
 		Server.SetTLSCertificates(sCert, sKey);
-		Server.Start(5, false);
+		Server.Start(chrono::seconds(5), false);
 
 		KTLSContext TLSContext(false);
-		KTLSClient stream(TLSContext, "localhost:43237", TLSOptions::None, 5);
+		KTLSClient stream(TLSContext, "localhost:43237", KStreamOptions::None, chrono::seconds(5));
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();

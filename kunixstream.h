@@ -54,6 +54,7 @@
 #include "kstream.h"
 #include "kstreambuf.h"
 #include "kurl.h"
+#include "kstreamoptions.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -70,13 +71,11 @@ public:
 
 	using asiostream = boost::asio::local::stream_protocol::socket;
 
-	enum { DEFAULT_TIMEOUT = 1 * 15 };
-
 	//-----------------------------------------------------------------------------
 	/// Construcs an unconnected stream
 	/// @param iSecondsTimeout
 	/// Timeout in seconds for any I/O. Defaults to 15.
-	KUnixIOStream(int iSecondsTimeout = DEFAULT_TIMEOUT);
+	KUnixIOStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -85,7 +84,7 @@ public:
 	/// a unix socket endpoint file
 	/// @param iSecondsTimeout
 	/// Timeout in seconds for any I/O. Defaults to 15.
-	KUnixIOStream(KStringViewZ sSocketFile, int iSecondsTimeout = DEFAULT_TIMEOUT);
+	KUnixIOStream(KStringViewZ sSocketFile, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -94,8 +93,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Set I/O timeout in seconds.
-	bool Timeout(int iSeconds);
+	/// Set I/O timeout
+	bool Timeout(KDuration Timeout);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -221,12 +220,12 @@ using KUnixStream = KReaderWriter<KUnixIOStream>;
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KUnixStream> CreateKUnixStream(int iSecondsTimeout = KUnixIOStream::DEFAULT_TIMEOUT);
+std::unique_ptr<KUnixStream> CreateKUnixStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile, int iSecondsTimeout = KUnixIOStream::DEFAULT_TIMEOUT);
+std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 //-----------------------------------------------------------------------------
 
 DEKAF2_NAMESPACE_END

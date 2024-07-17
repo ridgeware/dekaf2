@@ -144,27 +144,27 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 } // TCPStreamWriter
 
 //-----------------------------------------------------------------------------
-KTCPIOStream::KTCPIOStream(int iSecondsTimeout)
+KTCPIOStream::KTCPIOStream(KDuration Timeout)
 //-----------------------------------------------------------------------------
     : base_type(&m_TCPStreamBuf)
-    , m_Stream(iSecondsTimeout)
+    , m_Stream(Timeout)
 {
 }
 
 //-----------------------------------------------------------------------------
-KTCPIOStream::KTCPIOStream(const KTCPEndPoint& Endpoint, int iSecondsTimeout)
+KTCPIOStream::KTCPIOStream(const KTCPEndPoint& Endpoint, KDuration Timeout)
 //-----------------------------------------------------------------------------
     : base_type(&m_TCPStreamBuf)
-    , m_Stream(iSecondsTimeout)
+    , m_Stream(Timeout)
 {
 	Connect(Endpoint);
 }
 
 //-----------------------------------------------------------------------------
-bool KTCPIOStream::Timeout(int iSeconds)
+bool KTCPIOStream::Timeout(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	m_Stream.iSecondsTimeout = iSeconds;
+	m_Stream.Timeout = Timeout;
 	return true;
 }
 
@@ -237,17 +237,17 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KTCPStream> CreateKTCPStream(int iSecondsTimeout)
+std::unique_ptr<KTCPStream> CreateKTCPStream(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KTCPStream>(iSecondsTimeout);
+	return std::make_unique<KTCPStream>(Timeout);
 }
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, int iSecondsTimeout)
+std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KTCPStream>(EndPoint, iSecondsTimeout);
+	return std::make_unique<KTCPStream>(EndPoint, Timeout);
 }
 
 DEKAF2_NAMESPACE_END

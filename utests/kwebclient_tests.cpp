@@ -90,7 +90,7 @@ TEST_CASE("KWebClient") {
 	SECTION("basic")
 	{
 		KTinyHTTPServer2 server(7653, false, 3);
-		server.Start(30, false);
+		server.Start(chrono::seconds(30), false);
 		server.clear();
 
 		KWebClient HTTP;
@@ -136,7 +136,7 @@ TEST_CASE("KWebClient") {
 		KString sRet;
 
 		KWebClient HTTP;
-		HTTP.SetTimeout(1);
+		HTTP.SetTimeout(chrono::seconds(1));
 
 		sRet = HTTP.Get("http://localhost:7653/test0");
 		CHECK( sRet == "" );
@@ -207,7 +207,7 @@ TEST_CASE("KWebClient") {
 		KString sRet;
 
 		KWebClient HTTP;
-		HTTP.SetTimeout(1);
+		HTTP.SetTimeout(chrono::seconds(1));
 
 		KOutStringStream oss(sRet);
 

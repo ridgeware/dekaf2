@@ -900,6 +900,7 @@ set(PUBLIC_HEADERS
 	kstream.h
 	kstreambuf.h
 	kstreambufadaptor.h
+	kstreamoptions.h
 	kstring.h
 	kstringstream.h
 	kstringutils.h
@@ -1146,6 +1147,7 @@ set (SOURCES
 	kstream.cpp
 	kstreambuf.cpp
 	kstreambufadaptor.cpp
+	kstreamoptions.cpp
 	kstring.cpp
 	kstringstream.cpp
 	kstringutils.cpp

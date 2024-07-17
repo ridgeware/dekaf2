@@ -59,15 +59,62 @@ std::string KTLSContext::PasswordCallback(std::size_t max_length,
 }
 
 //-----------------------------------------------------------------------------
-KTLSContext::KTLSContext(bool bIsServer)
+SSL_CTX* KTLSContext::CreateContext(bool bIsServer, Transport transport)
+//-----------------------------------------------------------------------------
+{
+	switch (transport)
+	{
+		case Transport::Tcp:
+			if (bIsServer)
+			{
+				return ::SSL_CTX_new(::TLS_server_method());
+			}
+			else
+			{
+				return ::SSL_CTX_new(::TLS_client_method());
+			}
+			break;
+
+		case Transport::Quic:
+#if DEKAF2_HAS_QUIC
+			if (bIsServer)
+			{
+				// TODO !
+				return nullptr;
+			}
+			else
+			{
+				return ::SSL_CTX_new(::OSSL_QUIC_client_method());
+				// the following would spawn a thread to deal with the QUIC timing
+				//return ::SSL_CTX_new(::OSSL_QUIC_client_thread_method();
+			}
+#else
+			kDebug(1, "QUIC protocol not supported by this build");
+#endif
+			break;
+	}
+
+	return nullptr;
+
+} // CreateContext
+
+//-----------------------------------------------------------------------------
+KTLSContext::KTLSContext(bool bIsServer, Transport transport)
 //-----------------------------------------------------------------------------
 #if (BOOST_VERSION < 106600)
-	: m_Context(s_IO_Service, boost::asio::ssl::context::sslv23)
+: m_Context(s_IO_Service, boost::asio::ssl::context::sslv23)
 #else
-	: m_Context(bIsServer ? boost::asio::ssl::context::tls_server : boost::asio::ssl::context::tls_client)
+: m_Context(CreateContext(bIsServer, transport))
 #endif
-	, m_Role(bIsServer ? boost::asio::ssl::stream_base::server : boost::asio::ssl::stream_base::client)
- {
+, m_Role(bIsServer ? boost::asio::ssl::stream_base::server : boost::asio::ssl::stream_base::client)
+{
+	SetDefaults();
+}
+
+//-----------------------------------------------------------------------------
+bool KTLSContext::SetDefaults()
+//-----------------------------------------------------------------------------
+{
 	 boost::asio::ssl::context::options options
 	 	= boost::asio::ssl::context::default_workarounds
 	 	| boost::asio::ssl::context::single_dh_use
@@ -89,7 +136,7 @@ KTLSContext::KTLSContext(bool bIsServer)
 
 	if (ec)
 	{
-		SetError(kFormat("error setting TLS options {}: {}", options, ec.message()));
+		return SetError(kFormat("error setting TLS options {}: {}", options, ec.message()));
 	}
 
 	// set the system default cert paths, but do not yet switch verify mode on
@@ -98,10 +145,12 @@ KTLSContext::KTLSContext(bool bIsServer)
 
 	if (ec)
 	{
-		SetError(kFormat("error setting TLS verify paths: {}", ec.message()));
+		return SetError(kFormat("error setting TLS verify paths: {}", ec.message()));
 	}
 
-} // ctor
+	return true;
+
+} // SetDefaults
 
 //-----------------------------------------------------------------------------
 bool KTLSContext::LoadTLSCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword)
@@ -291,13 +340,13 @@ bool KTLSContext::SetAllowedCipherSuites(KStringView sCipherSuites)
 		if (CipherV12.empty())
 		{
 			kDebug(2, "disable TLSv1.2 (no cipher selected)");
-			SSL_CTX_set_cipher_list(m_Context.native_handle(), "");
+			::SSL_CTX_set_cipher_list(m_Context.native_handle(), "");
 		}
 		else
 		{
 			auto sCiphers = kJoined(CipherV12, ":");
 			kDebug(2, "set TLSv{} cipher suites {}", "1.2", sCiphers);
-			if (SSL_CTX_set_cipher_list (m_Context.native_handle(), sCiphers.c_str()))
+			if (::SSL_CTX_set_cipher_list (m_Context.native_handle(), sCiphers.c_str()))
 			{
 				bSuccess = true;
 			}
@@ -313,7 +362,7 @@ bool KTLSContext::SetAllowedCipherSuites(KStringView sCipherSuites)
 		auto sCiphers = kJoined(CipherV13, ":");
 #ifdef DEKAF2_HAS_TLSv13
 		kDebug(2, "set TLSv{} cipher suites {}", "1.3", sCiphers);
-		if (SSL_CTX_set_ciphersuites(m_Context.native_handle(), sCiphers.c_str()))
+		if (::SSL_CTX_set_ciphersuites(m_Context.native_handle(), sCiphers.c_str()))
 		{
 			bSuccess = true;
 		}
@@ -404,9 +453,9 @@ bool KTLSContext::SetAllowHTTP2(bool bAlsoAllowHTTP1)
 	if (GetRole() == boost::asio::ssl::stream_base::client)
 	{
 		auto sProto = bAlsoAllowHTTP1 ? "\x02h2\0x08http/1.1" : "\x02h2";
-		auto iResult = SSL_CTX_set_alpn_protos(m_Context.native_handle(),
-		                                       reinterpret_cast<const unsigned char*>(sProto),
-		                                       static_cast<unsigned int>(strlen(sProto)));
+		auto iResult = ::SSL_CTX_set_alpn_protos(m_Context.native_handle(),
+		                                         reinterpret_cast<const unsigned char*>(sProto),
+		                                         static_cast<unsigned int>(strlen(sProto)));
 		if (iResult == 0)
 		{
 			return true;
@@ -418,9 +467,9 @@ bool KTLSContext::SetAllowHTTP2(bool bAlsoAllowHTTP1)
 #if DEKAF2_ALLOW_HTTP2_SERVER_MODE
 		if (GetRole() == boost::asio::ssl::stream_base::server)
 		{
-			SSL_CTX_set_alpn_select_cb(m_Context.native_handle(),
-			                           alpn_select_proto_cb,
-			                           bAlsoAllowHTTP1 ? this : nullptr); // we use the user ptr as a flag
+			::SSL_CTX_set_alpn_select_cb(m_Context.native_handle(),
+			                             alpn_select_proto_cb,
+			                             bAlsoAllowHTTP1 ? this : nullptr); // we use the user ptr as a flag
 		}
 #else  // of DEKAF2_ALLOW_HTTP2_SERVER_MODE
 		kDebug(1, "HTTP/2 is only supported in client mode");

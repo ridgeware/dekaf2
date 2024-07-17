@@ -76,6 +76,7 @@
 #include "kstring.h"
 #include "kthreadpool.h"
 #include "khttp_version.h"
+#include "kstreamoptions.h"
 #include <cinttypes>
 #include <thread>
 #include <future>
@@ -200,10 +201,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Start the server
-	/// @param iTimeoutInSeconds Timeout for I/O operations in seconds (default 15)
+	/// @param Timeout Timeout for I/O operations (default 15 seconds)
 	/// @param bBlock If true will only return when server is destructed. If false
 	/// starts a server thread and returns immediately.
-	bool Start(uint16_t iTimeoutInSeconds = 15, bool bBlock = true);
+	bool Start(KDuration Timeout = KStreamOptions::GetDefaultTimeout(), bool bBlock = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -302,10 +303,10 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// Request the stream timeout requested for this instance (set it in own
 	/// session handlers for reading and writing on the stream)
-	uint16_t GetTimeout() const
+	KDuration GetTimeout() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_iTimeout;
+		return m_Timeout;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -406,7 +407,7 @@ private:
 	std::future<int>  m_ResultAsFuture;
 	std::atomic<int>  m_iStarted              {     0 };
 	uint16_t          m_iPort                 {     0 };
-	uint16_t          m_iTimeout              {    15 };
+	KDuration         m_Timeout               { KStreamOptions::GetDefaultTimeout() };
 	KHTTPVersion      m_HTTPVersion           { KHTTPVersion::none };
 	std::atomic<bool> m_bQuit                 { false };
 	bool              m_bBlock                {  true };

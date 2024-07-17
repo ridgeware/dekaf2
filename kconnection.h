@@ -44,30 +44,9 @@
 #include "kdefinitions.h"
 #include "kstream.h"
 #include "kurl.h"
+#include "kstreamoptions.h"
 
 DEKAF2_NAMESPACE_BEGIN
-
-enum TLSOptions : uint8_t
-{
-	None            = 0,      ///< no options, use for non-HTTP connections, or to restrict to HTTP1 connections
-	VerifyCert      = 1 << 0, ///< verify server certificate
-	ManualHandshake = 1 << 1, ///< wait for manual TLS handshake (for protocols like SMTP STARTTLS)
-	RequestHTTP2    = 1 << 2, ///< request a ALPN negotiation for HTTP2
-	FallBackToHTTP1 = 1 << 3, ///< if RequestHTTP2 is set, allow HTTP1 as fallback if 2 is not available
-	DefaultsForHTTP = 1 << 4  ///< use for HTTP, per default tries HTTP2 and allows HTTP1, can be changed through kSetTLSDefaults()
-};
-
-DEKAF2_ENUM_IS_FLAG(TLSOptions)
-
-/// transform DefaultsForHTTP so that they will be resolved to
-/// application wide defaults for HTTP (either with HTTP1 and/or HTTP2 and/or verify)
-TLSOptions kGetTLSDefaults(TLSOptions Options);
-
-/// set the application wide defaults for HTTP - this function is not thread safe, set it right
-/// at the start of your application before threading out. Initial defaults are RequestHTTP2 | FallBackToHTTP1.
-/// Setting the DefaultsForHTTP bit will expand to the previous default settings and merge with any other
-/// given option.
-bool kSetTLSDefaults(TLSOptions Options);
 
 class KTLSIOStream;
 
@@ -163,7 +142,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// always returns false, has no effect in this class
-	virtual bool SetTimeout(int iSeconds);
+	virtual bool SetTimeout(KDuration Timeout);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -188,7 +167,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// this interface uses KURL instead of KTCPEndPoint to allow construction like "https://www.abc.de" - otherwise the protocol would be lost..
-	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceTLS = false, TLSOptions Options = TLSOptions::None, int iSecondsTimeout = 15);
+	static std::unique_ptr<KConnection> Create(const KURL& URL, bool bForceTLS = false, KStreamOptions Options = KStreamOptions::None, KDuration Timeout = chrono::seconds(15));
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -255,12 +234,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(const KTCPEndPoint& Endpoint, int iSecondsTimeout = 15);
+	bool Connect(const KTCPEndPoint& Endpoint, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// set IO timeout in seconds
-	virtual bool SetTimeout(int iSeconds) override;
+	/// set IO timeout
+	virtual bool SetTimeout(KDuration Timeout) override;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -288,12 +267,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(KStringViewZ sSocketFile, int iSecondsTimeout = 15);
+	bool Connect(KStringViewZ sSocketFile, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// set IO timeout in seconds
-	virtual bool SetTimeout(int iSeconds) override;
+	virtual bool SetTimeout(KDuration Timeout) override;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -321,12 +300,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool Connect(const KTCPEndPoint& Endpoint, TLSOptions Options, int iSecondsTimeout = 15);
+	bool Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options, KDuration Timeout = chrono::seconds(15));
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// set IO timeout in seconds
-	virtual bool SetTimeout(int iSeconds) override;
+	/// set IO timeout
+	virtual bool SetTimeout(KDuration Timeout) override;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

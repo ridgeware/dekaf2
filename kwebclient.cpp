@@ -75,7 +75,7 @@ bool KWget (KStringView sURL, KStringViewZ sOutfile, const KJSON& Options/*=KJSO
 } // KWget
 
 //-----------------------------------------------------------------------------
-KWebClient::KWebClient(TLSOptions Options /*=TLSOptions::Default*/)
+KWebClient::KWebClient(KStreamOptions Options /*=KStreamOptions::DefaultsForHTTP*/)
 //-----------------------------------------------------------------------------
 : KHTTPClient(Options)
 {
@@ -320,7 +320,7 @@ KString KWebClient::HttpRequest2Host (const KURL& HostURL, KURL URL, KHTTPMethod
 } // HttpRequest2Host
 
 //-----------------------------------------------------------------------------
-KString kHTTPGet(KURL URL, TLSOptions Options)
+KString kHTTPGet(KURL URL, KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
 	KWebClient HTTP(Options);
@@ -329,7 +329,7 @@ KString kHTTPGet(KURL URL, TLSOptions Options)
 } // kHTTPGet
 
 //-----------------------------------------------------------------------------
-bool kHTTPHead(KURL URL, TLSOptions Options)
+bool kHTTPHead(KURL URL, KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
 	KWebClient HTTP(Options);
@@ -338,7 +338,7 @@ bool kHTTPHead(KURL URL, TLSOptions Options)
 } // kHTTPHead
 
 //-----------------------------------------------------------------------------
-KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime, TLSOptions Options)
+KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime, KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
 	KWebClient HTTP(Options);

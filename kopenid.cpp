@@ -50,7 +50,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 static constexpr KStringViewZ OpenID_Configuration = "/.well-known/openid-configuration";
-static constexpr int DEFAULT_OPENID_TCP_TIMEOUT = 30;
+static constexpr KDuration DefaultOpenIDTCPTimeout = chrono::seconds(30);
 
 const KRSAKey KOpenIDKeys::s_EmptyKey;
 
@@ -99,7 +99,7 @@ KOpenIDKeys::KOpenIDKeys (const KURL& URL)
 		else
 		{
 			KJsonRestClient ProviderKeys(URL, true); // we have to verify the CERT!
-			ProviderKeys.SetTimeout(DEFAULT_OPENID_TCP_TIMEOUT);
+			ProviderKeys.SetTimeout(DefaultOpenIDTCPTimeout);
 			auto Keys = ProviderKeys.Get("").Request();
 
 			if (Validate(Keys))
@@ -251,7 +251,7 @@ void KOpenIDProvider::Refresh(KUnixTime Now)
 		{
 			kDebug(2, "polling OpenID provider {} for keys", m_URL);
 			KJsonRestClient Provider(m_URL, true); // we have to verify the CERT!
-			Provider.SetTimeout(DEFAULT_OPENID_TCP_TIMEOUT);
+			Provider.SetTimeout(DefaultOpenIDTCPTimeout);
 			auto Configuration = Provider.Get(OpenID_Configuration).Request();
 
 			// verify accuracy of information

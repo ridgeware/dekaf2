@@ -157,8 +157,8 @@ public:
 	using base::AllowConnectionRetry;
 	using base::RequestCompression;
 	using base::AllowCompression;
-	using base::SetTLSOptions;
-	using base::GetTLSOptions;
+	using base::SetStreamOptions;
+	using base::GetStreamOptions;
 	using base::SetVerifyCerts;
 	using base::GetVerifyCerts;
 	using base::AllowQueryToWWWFormConversion;

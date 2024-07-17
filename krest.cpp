@@ -283,7 +283,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
-				if (!m_Server->Start(Options.iTimeout, Options.bBlocking))
+				if (!m_Server->Start(chrono::seconds(Options.iTimeout), Options.bBlocking))
 				{
 					return SetError(m_Server->Error(), true); // already logged
 				}
@@ -306,7 +306,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 																 Options.iMaxConnections);
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
-				if (!m_Server->Start(Options.iTimeout, Options.bBlocking))
+				if (!m_Server->Start(chrono::seconds(Options.iTimeout), Options.bBlocking))
 				{
 					return SetError(m_Server->Error(), true); // already logged
 				}

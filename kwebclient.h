@@ -75,7 +75,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// default ctor
-	KWebClient(TLSOptions Options = TLSOptions::DefaultsForHTTP);
+	KWebClient(KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -252,19 +252,19 @@ protected:
 //-----------------------------------------------------------------------------
 /// Get from URL, store body in return value KString
 DEKAF2_PUBLIC
-KString kHTTPGet(KURL URL, TLSOptions Options = TLSOptions::DefaultsForHTTP);
+KString kHTTPGet(KURL URL, KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Head from URL - returns true if response is in the 2xx range
 DEKAF2_PUBLIC
-bool kHTTPHead(KURL URL, TLSOptions Options = TLSOptions::DefaultsForHTTP);
+bool kHTTPHead(KURL URL, KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Post to URL, store body in return value KString
 DEKAF2_PUBLIC
-KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime, TLSOptions Options = TLSOptions::DefaultsForHTTP);
+KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime, KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
 //-----------------------------------------------------------------------------
 
 DEKAF2_NAMESPACE_END

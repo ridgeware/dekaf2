@@ -64,7 +64,7 @@ TEST_CASE("KHTTPClient") {
 	SECTION("check connection setup")
 	{
 		KTinyHTTPServer server(7654, false, 3);
-		server.Start(2, false);
+		server.Start(chrono::seconds(2), false);
 		server.clear();
 
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
@@ -96,7 +96,7 @@ TEST_CASE("KHTTPClient") {
 	SECTION("check serialization")
 	{
 		KTinyHTTPServer server(7654, false);
-		server.Start(2, false);
+		server.Start(chrono::seconds(2), false);
 		server.clear();
 
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
@@ -128,7 +128,7 @@ TEST_CASE("KHTTPClient") {
 	{
 		auto sSocketFile = kFormat("{}/test1.socket", TempDir.Name());
 		KTinyHTTPServer server(sSocketFile);
-		server.Start(2, false);
+		server.Start(chrono::seconds(2), false);
 		server.clear();
 
 		// unix sockets require a different URL for the connection (the file system path
@@ -185,7 +185,7 @@ TEST_CASE("KHTTPClient") {
 	SECTION("send a stream")
 	{
 		KTinyHTTPServer server(7654, false);
-		server.Start(2, false);
+		server.Start(chrono::seconds(2), false);
 		server.clear();
 
 		KStringView sContent = "this is our streamed content\n";

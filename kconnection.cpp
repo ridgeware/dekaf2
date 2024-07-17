@@ -50,40 +50,6 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-namespace {
-
-TLSOptions g_DefaultTLSOptions =
-#if DEKAF2_HAS_NGHTTP2
-	RequestHTTP2 | FallBackToHTTP1;
-#else
-	None;
-#endif
-
-} // end of anonymous namespace
-
-//-----------------------------------------------------------------------------
-TLSOptions kGetTLSDefaults(TLSOptions Options)
-//-----------------------------------------------------------------------------
-{
-	if (Options & DefaultsForHTTP)
-	{
-		Options &= ~DefaultsForHTTP;
-		Options |= g_DefaultTLSOptions;
-	}
-
-	return Options;
-
-} // kGetTLSDefaults
-
-//-----------------------------------------------------------------------------
-bool kSetTLSDefaults(TLSOptions Options)
-//-----------------------------------------------------------------------------
-{
-	g_DefaultTLSOptions = kGetTLSDefaults(Options);
-	return true;
-
-} // kSetTLSDefaults
-
 //-----------------------------------------------------------------------------
 KConnection::KConnection(KConnection&& other) noexcept
 //-----------------------------------------------------------------------------
@@ -158,7 +124,7 @@ bool KConnection::Good() const
 }
 
 //-----------------------------------------------------------------------------
-bool KConnection::SetTimeout(int iSeconds)
+bool KConnection::SetTimeout(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	return false;
@@ -223,10 +189,10 @@ bool KConnection::setConnection(std::unique_ptr<KStream>&& Stream, KTCPEndPoint 
 } // setConnection
 
 //-----------------------------------------------------------------------------
-bool KTCPConnection::Connect(const KTCPEndPoint& Endpoint, int iSecondsTimeout)
+bool KTCPConnection::Connect(const KTCPEndPoint& Endpoint, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	return setConnection(CreateKTCPStream(Endpoint, iSecondsTimeout), Endpoint);
+	return setConnection(CreateKTCPStream(Endpoint, Timeout), Endpoint);
 
 } // Connect
 
@@ -240,11 +206,11 @@ bool KTCPConnection::Good() const
 } // Good
 
 //-----------------------------------------------------------------------------
-bool KTCPConnection::SetTimeout(int iSeconds)
+bool KTCPConnection::SetTimeout(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	auto stream = static_cast<KTCPStream*>(StreamPtr());
-	return stream != nullptr && stream->Timeout(iSeconds);
+	return stream != nullptr && stream->Timeout(Timeout);
 
 } // SetTimeout
 
@@ -267,10 +233,10 @@ KString KTCPConnection::Error() const
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 
 //-----------------------------------------------------------------------------
-bool KUnixConnection::Connect(KStringViewZ sSocketFile, int iSecondsTimeout)
+bool KUnixConnection::Connect(KStringViewZ sSocketFile, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	return setConnection(CreateKUnixStream(sSocketFile, iSecondsTimeout), sSocketFile);
+	return setConnection(CreateKUnixStream(sSocketFile, Timeout), sSocketFile);
 
 } // Connect
 
@@ -284,11 +250,11 @@ bool KUnixConnection::Good() const
 } // Good
 
 //-----------------------------------------------------------------------------
-bool KUnixConnection::SetTimeout(int iSeconds)
+bool KUnixConnection::SetTimeout(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	auto stream = static_cast<KUnixStream*>(StreamPtr());
-	return stream != nullptr && stream->Timeout(iSeconds);
+	return stream != nullptr && stream->Timeout(Timeout);
 
 } // SetTimeout
 
@@ -312,10 +278,10 @@ KString KUnixConnection::Error() const
 
 
 //-----------------------------------------------------------------------------
-bool KTLSConnection::Connect(const KTCPEndPoint& Endpoint, TLSOptions Options, int iSecondsTimeout)
+bool KTLSConnection::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	return setConnection(CreateKTLSClient(Endpoint, Options, iSecondsTimeout), Endpoint);
+	return setConnection(CreateKTLSClient(Endpoint, Options, Timeout), Endpoint);
 
 } // Connect
 
@@ -355,11 +321,11 @@ bool KTLSConnection::StartManualTLSHandshake()
 } // StartManualTLSHandshake
 
 //-----------------------------------------------------------------------------
-bool KTLSConnection::SetTimeout(int iSeconds)
+bool KTLSConnection::SetTimeout(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	auto stream = static_cast<KTLSStream*>(StreamPtr());
-	return stream != nullptr && stream->Timeout(iSeconds);
+	return stream != nullptr && stream->Timeout(Timeout);
 
 } // SetTimeout
 
@@ -389,14 +355,14 @@ KString KTLSConnection::Error() const
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceTLS, TLSOptions Options, int iSecondsTimeout)
+std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceTLS, KStreamOptions Options, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	if (URL.Protocol == url::KProtocol::UNIX)
 	{
 		auto C = std::make_unique<KUnixConnection>();
-		C->Connect(URL.Path.get(), iSecondsTimeout);
+		C->Connect(URL.Path.get(), Timeout);
 		return C;
 	}
 #endif
@@ -411,13 +377,13 @@ std::unique_ptr<KConnection> KConnection::Create(const KURL& URL, bool bForceTLS
 	if ((url::KProtocol::UNDEFINED && Port.get() == 443) || URL.Protocol == url::KProtocol::HTTPS || bForceTLS)
 	{
 		auto C = std::make_unique<KTLSConnection>();
-		C->Connect(KTCPEndPoint(URL.Domain, Port), Options, iSecondsTimeout);
+		C->Connect(KTCPEndPoint(URL.Domain, Port), Options, Timeout);
 		return C;
 	}
 	else // NOLINT: we want the else after return..
 	{
 		auto C = std::make_unique<KTCPConnection>();
-		C->Connect(KTCPEndPoint(URL.Domain, Port), iSecondsTimeout);
+		C->Connect(KTCPEndPoint(URL.Domain, Port), Timeout);
 		return C;
 	}
 

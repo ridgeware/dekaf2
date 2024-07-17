@@ -337,7 +337,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 		for (;;)
 		{
 			auto stream = CreateKTLSServer(TLSContext);
-			stream->Timeout(m_iTimeout);
+			stream->Timeout(m_Timeout);
 
 			endpoint_type remote_endpoint;
 			boost::system::error_code ec;
@@ -387,7 +387,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 		for (;;)
 		{
 			auto stream = CreateKTCPStream();
-			stream->Timeout(m_iTimeout);
+			stream->Timeout(m_Timeout);
 
 			endpoint_type remote_endpoint;
 			boost::system::error_code ec;
@@ -500,7 +500,7 @@ bool KTCPServer::UnixServer()
 		for (;;)
 		{
 			auto stream = CreateKUnixStream();
-			stream->Timeout(m_iTimeout);
+			stream->Timeout(m_Timeout);
 
 			boost::system::error_code ec;
 			acceptor->accept(stream->GetUnixSocket(), ec);
@@ -628,14 +628,14 @@ int KTCPServer::GetResult()
 }
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::Start(uint16_t iTimeoutInSeconds, bool bBlock)
+bool KTCPServer::Start(KDuration Timeout, bool bBlock)
 //-----------------------------------------------------------------------------
 {
 	kDebug(2, "starting server");
 
-	m_iTimeout = iTimeoutInSeconds;
-	m_bBlock   = bBlock;
-	m_bQuit    = false;
+	m_Timeout = Timeout;
+	m_bBlock  = bBlock;
+	m_bQuit   = false;
 
 	std::promise<int> promise;
 	m_ResultAsFuture = promise.get_future();

@@ -581,28 +581,28 @@ void kurl::ServerQuery ()
 		Out.SetWriterEndOfLine("\r\n");
 
 		{
-			TLSOptions options = (RQ->URL.Protocol == url::KProtocol::HTTPS) 
-									? TLSOptions::DefaultsForHTTP
-									: TLSOptions::None;
+			KStreamOptions options = (RQ->URL.Protocol == url::KProtocol::HTTPS)
+									? KStreamOptions::DefaultsForHTTP
+									: KStreamOptions::None;
 
 			if (RQ->Config.Flags & Flags::FORCE_HTTP_2)
 			{
-				options = TLSOptions::RequestHTTP2;
+				options = KStreamOptions::RequestHTTP2;
 			}
 			else if (RQ->Config.Flags & Flags::FORCE_HTTP_1)
 			{
-				options = TLSOptions::None;
+				options = KStreamOptions::None;
 			}
 
 			if ((RQ->Config.Flags & Flags::INSECURE_CERTS) == 0)
 			{
-				options |= TLSOptions::VerifyCert;
+				options = options.Get() | KStreamOptions::VerifyCert;
 			}
 
-			HTTP.SetTLSOptions(options);
+			HTTP.SetStreamOptions(options);
 		}
 		
-		HTTP.SetTimeout(RQ->Config.iSecondsTimeout);
+		HTTP.SetTimeout(chrono::seconds(RQ->Config.iSecondsTimeout));
 
 		if (RQ->Config.sRequestCompression == "-")
 		{

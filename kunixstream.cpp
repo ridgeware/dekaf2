@@ -149,27 +149,27 @@ std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::stream
 } // UnixStreamWriter
 
 //-----------------------------------------------------------------------------
-KUnixIOStream::KUnixIOStream(int iSecondsTimeout)
+KUnixIOStream::KUnixIOStream(KDuration Timeout)
 //-----------------------------------------------------------------------------
     : base_type(&m_TCPStreamBuf)
-    , m_Stream(iSecondsTimeout)
+    , m_Stream(Timeout)
 {
 }
 
 //-----------------------------------------------------------------------------
-KUnixIOStream::KUnixIOStream(KStringViewZ sSocketFile, int iSecondsTimeout)
+KUnixIOStream::KUnixIOStream(KStringViewZ sSocketFile, KDuration Timeout)
 //-----------------------------------------------------------------------------
     : base_type(&m_TCPStreamBuf)
-    , m_Stream(iSecondsTimeout)
+    , m_Stream(Timeout)
 {
 	Connect(sSocketFile);
 }
 
 //-----------------------------------------------------------------------------
-bool KUnixIOStream::Timeout(int iSeconds)
+bool KUnixIOStream::Timeout(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	m_Stream.iSecondsTimeout = iSeconds;
+	m_Stream.Timeout = Timeout;
 	return true;
 }
 
@@ -203,17 +203,17 @@ bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KUnixStream> CreateKUnixStream(int iSecondsTimeout)
+std::unique_ptr<KUnixStream> CreateKUnixStream(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KUnixStream>(iSecondsTimeout);
+	return std::make_unique<KUnixStream>(Timeout);
 }
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile, int iSecondsTimeout)
+std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KUnixStream>(sSocketFile, iSecondsTimeout);
+	return std::make_unique<KUnixStream>(sSocketFile, Timeout);
 }
 
 DEKAF2_NAMESPACE_END

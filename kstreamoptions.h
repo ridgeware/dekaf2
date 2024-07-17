@@ -2,7 +2,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
- // Copyright (c) 2018, Ridgeware, Inc.
+ // Copyright (c) 2024, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -41,84 +41,64 @@
 
 #pragma once
 
-#include "kmail.h"
-#include "kstring.h"
-#include "kstream.h"
-#include "kurl.h"
-#include "kconnection.h"
-#include "kassociative.h"
-#include "kstreamoptions.h"
-
-/// @file ksmtp.h
-/// Adds the KSMTP class which sends a KMail via SMTP to an MTA
+#include "kdefinitions.h"
+#include "kduration.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// This class speaks the SMTP protocol with a mail relay. It takes a KMail class
-/// as the mail to be sent. Multiple mails can be sent consecutively in one
-/// session.
-class DEKAF2_PUBLIC KSMTP
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KStreamOptions {
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-//----------
+//------
 public:
-//----------
+//------
 
-	/// Ctor - connects to mail relay. Relay may contain a user's name and pass, or
-	/// they can be set explicitly with sUsername / sPassword, which will override
-	/// anything in the URL.
-	KSMTP(const KURL& Relay = KURL{}, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{})
+	enum Options : uint8_t
 	{
-		if (!Relay.empty())
-		{
-			Connect(Relay, sUsername, sPassword);
-		}
-	}
+		None            = 0,      ///< no options, use for non-HTTP connections, or to restrict to HTTP1 connections
+		VerifyCert      = 1 << 0, ///< verify server certificate
+		ManualHandshake = 1 << 1, ///< wait for manual TLS handshake (for protocols like SMTP STARTTLS)
+		RequestHTTP2    = 1 << 2, ///< request a ALPN negotiation for HTTP2
+		FallBackToHTTP1 = 1 << 3, ///< if RequestHTTP2 is set, allow HTTP1 as fallback if 2 is not available
+		RequestHTTP3    = 1 << 4, ///< when creating a KQuicStream, negotiate for HTTP/3 ?
+		DefaultsForHTTP = 1 << 5, ///< use for HTTP, per default tries HTTP2 and allows HTTP1, can be changed through kSetTLSDefaults()
+	};
 
-	KSMTP(const KSMTP&) = delete;
-	KSMTP(KSMTP&&) = default;
-	KSMTP& operator=(const KSMTP&) = delete;
-	KSMTP& operator=(KSMTP&&) = default;
+	KStreamOptions() = default;
+	KStreamOptions(Options Options);
 
-	/// Connect to mail relay. Relay may contain a user's name and pass, or
-	/// they can be set explicitly with sUsername / sPassword, which will override
-	/// anything in the URL.
-	bool Connect(const KURL& Relay, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
-	/// Disconnect from mail relay
-	void Disconnect();
-	/// Returns true if connected to a mail relay
-	bool Good() const;
-	/// Send a KMail to the mail relay
-	bool Send(const KMail& Mail);
-	/// Set the connection timeout, preset is 15 seconds
-	void SetTimeout(KDuration Timeout) { m_Timeout = Timeout; }
-	/// Set the connection timeout in seconds, preset is 15
-	void SetTimeout(uint16_t iSeconds) { SetTimeout(chrono::seconds(iSeconds)); }
-	/// Returns last error
-	DEKAF2_NODISCARD
-	KString Error() const;
+	Options Get()      const { return m_Options; }
 
-//----------
+	operator Options() const { return Get();     }
+
+	/// transform DefaultsForHTTP so that they will be resolved to
+	/// application wide defaults for HTTP (either with HTTP1 and/or HTTP2 and/or verify)
+	static Options GetDefaults(Options Options);
+
+	/// set the application wide defaults for HTTP - this function is not thread safe, set it right
+	/// at the start of your application before threading out. Initial defaults are RequestHTTP2 | FallBackToHTTP1.
+	/// Setting the DefaultsForHTTP bit will expand to the previous default settings and merge with any other
+	/// given option.
+	static bool SetDefaults(Options Options);
+
+	static constexpr KDuration GetDefaultTimeout() { return s_DefaultTimeout; }
+
+//------
 private:
-//----------
+//------
 
-	using ESMTPParms = KMap<KString, KString>;
+	static Options s_DefaultOptions;
+	static constexpr KDuration s_DefaultTimeout { chrono::seconds(15) };
 
-	/// Talk to MTA and check response
-	DEKAF2_PRIVATE
-	bool Talk(KStringView sTX, KStringView sRx, ESMTPParms* parms = nullptr, bool bDisconnectOnFailure = true);
-	/// Pretty print and send to MTA one set of addresses
-	DEKAF2_PRIVATE
-	bool PrettyPrint(KStringView sHeader, const KMail::map_t& map);
+	Options m_Options { None };
 
-	mutable KString m_sError;
-	// The TCP stream class
-	std::unique_ptr<KConnection> m_Connection;
-	// the TCP timeout
-	KDuration m_Timeout { KStreamOptions::GetDefaultTimeout() };
+}; // KStreamOptions
 
-}; // KSMTP
+DEKAF2_ENUM_IS_FLAG(KStreamOptions::Options)
+
+using TLSOptions = KStreamOptions::Options;
+
+inline bool kSetTLSDefaults(TLSOptions Options) { return KStreamOptions::SetDefaults(Options); }
 
 DEKAF2_NAMESPACE_END

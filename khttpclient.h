@@ -170,17 +170,17 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// default ctor
-	KHTTPClient(TLSOptions Options = TLSOptions::DefaultsForHTTP);
+	KHTTPClient(KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Ctor, connects to a server and sets method and resource
-	KHTTPClient(const KURL& url, KHTTPMethod method = KHTTPMethod::GET, TLSOptions Options = TLSOptions::DefaultsForHTTP);
+	KHTTPClient(const KURL& url, KHTTPMethod method = KHTTPMethod::GET, KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Ctor, connects to a server via proxy and sets method and resource
-	KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method = KHTTPMethod::GET, TLSOptions Options = TLSOptions::DefaultsForHTTP);
+	KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method = KHTTPMethod::GET, KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -400,19 +400,19 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Set extended options for TLS connections, like cert verification, HTTP2, or manual handshaking -
 	/// must be set before connection
-	self& SetTLSOptions(TLSOptions Options)
+	self& SetStreamOptions(KStreamOptions Options)
 	//-----------------------------------------------------------------------------
 	{
-		m_TLSOptions = kGetTLSDefaults(Options);
+		m_StreamOptions = Options;
 		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
 	/// Get extended options for TLS connections, like cert verification, HTTP2, or manual handshaking
-	TLSOptions GetTLSOptions() const
+	KStreamOptions GetStreamOptions() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_TLSOptions;
+		return m_StreamOptions;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -435,9 +435,17 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Set a connection timeout in seconds
-	self& SetTimeout(int iSeconds);
+	/// Set a connection timeout
+	self& SetTimeout(KDuration Timeout);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set a connection timeout in seconds, DEPRECATED, please use the KDuration variant
+	self& SetTimeout(int iSeconds)
+	//-----------------------------------------------------------------------------
+	{
+		return SetTimeout(chrono::seconds(iSeconds));
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Request response compression. Default is true.
@@ -558,10 +566,10 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	static inline TLSOptions BoolToOptions(bool bVerifyCerts)
+	static inline KStreamOptions BoolToOptions(bool bVerifyCerts)
 	//-----------------------------------------------------------------------------
 	{
-		return bVerifyCerts ? TLSOptions::DefaultsForHTTP | TLSOptions::VerifyCert : TLSOptions::DefaultsForHTTP;
+		return bVerifyCerts ? KStreamOptions::DefaultsForHTTP | KStreamOptions::VerifyCert : KStreamOptions::DefaultsForHTTP;
 	}
 
 //------
@@ -608,8 +616,8 @@ private:
 	KString          m_sForcedHost;
 	KString          m_sCompressors;
 	KURL             m_Proxy;
-	int              m_Timeout               { 30    };
-	TLSOptions       m_TLSOptions            { kGetTLSDefaults(TLSOptions::DefaultsForHTTP) };
+	KDuration        m_Timeout               { KStreamOptions::GetDefaultTimeout() };
+	KStreamOptions   m_StreamOptions         { KStreamOptions::GetDefaults(KStreamOptions::DefaultsForHTTP) };
 	bool             m_bRequestCompression   { true  };
 	bool             m_bAutoProxy            { false };
 	bool             m_bUseHTTPProxyProtocol { false };

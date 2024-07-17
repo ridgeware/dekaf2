@@ -12,7 +12,7 @@ using namespace dekaf2;
 TEST_CASE("KTCPCLient")
 {
 	KTCPClient stream;
-	stream.Timeout(5);
+	stream.Timeout(chrono::seconds(5));
 	stream.Connect("www.google.com:80");
 
 	stream.SetWriterEndOfLine("\r\n");
@@ -36,8 +36,8 @@ TEST_CASE("KTLSClient")
 {
 
 	KTLSClient stream;
-	CHECK ( stream.Connect("www.google.com:443", TLSOptions::None) == true );
-	stream.Timeout(1);
+	CHECK ( stream.Connect("www.google.com:443", KStreamOptions::None) == true );
+	stream.Timeout(chrono::seconds(1));
 
 	stream.SetReaderRightTrim("\r\n");
 	stream.SetWriterEndOfLine("\r\n");
@@ -62,7 +62,7 @@ TEST_CASE("KTLSClient 2")
 {
 	KString sURL {"https://www.google.com"};
 	KWebClient HTTP;
-	HTTP.SetTimeout(1);
+	HTTP.SetTimeout(chrono::seconds(1));
 	KString sResponse = HTTP.Get (sURL);
 	CHECK ( !sResponse.empty() );
 	CHECK ( HTTP.Response.iStatusCode == 200 );
@@ -72,7 +72,7 @@ TEST_CASE("KTLSClient 3")
 {
 	KString sURL {"https://www.dfggooglesdkjfhsjuhkjlgrsisfugkhvij.com"};
 	KWebClient HTTP;
-	HTTP.SetTimeout(1);
+	HTTP.SetTimeout(chrono::seconds(1));
 	KString sResponse = HTTP.Get (sURL);
 	CHECK ( sResponse.empty() );
 	CHECK ( HTTP.Response.iStatusCode != 200 );
@@ -90,7 +90,7 @@ TEST_CASE("KTLSClient 4")
 	// versions)
 	KString sURL {"https://github.com"};
 	KWebClient HTTP;
-	HTTP.SetTimeout(1);
+	HTTP.SetTimeout(chrono::seconds(1));
 	KString sResponse = HTTP.Get (sURL);
 	INFO  ( "Verify TLS 1.2/1.3 support" );
 	CHECK ( !sResponse.empty() );

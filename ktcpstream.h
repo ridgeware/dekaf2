@@ -48,9 +48,10 @@
 #include "bits/kasio.h"
 #include "bits/kasiostream.h"
 #include "kstring.h"
-#include "kstream.h" // TODO remove
+//#include "kstream.h" // TODO remove
 #include "kstreambuf.h"
 #include "kurl.h"
+#include "kstreamoptions.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -67,13 +68,11 @@ public:
 
 	using asiostream = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
 
-	enum { DEFAULT_TIMEOUT = 15 };
-
 	//-----------------------------------------------------------------------------
 	/// Construcs an unconnected stream
-	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 15.
-	KTCPIOStream(int iSecondsTimeout = DEFAULT_TIMEOUT);
+	/// @param Timeout
+	/// Timeout for any I/O. Defaults to 15 seconds.
+	KTCPIOStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -81,9 +80,9 @@ public:
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
-	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 15.
-	KTCPIOStream(const KTCPEndPoint& Endpoint, int iSecondsTimeout = DEFAULT_TIMEOUT);
+	/// @param Timeout
+	/// Timeout for any I/O. Defaults to 15 seconds.
+	KTCPIOStream(const KTCPEndPoint& Endpoint, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -92,8 +91,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Set I/O timeout in seconds.
-	bool Timeout(int iSeconds);
+	/// Set I/O timeout
+	bool Timeout(KDuration Timeout);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -216,12 +215,12 @@ using KTCPStream = KReaderWriter<KTCPIOStream>;
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KTCPStream> CreateKTCPStream(int iSecondsTimeout = KTCPStream::DEFAULT_TIMEOUT);
+std::unique_ptr<KTCPStream> CreateKTCPStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, int iSecondsTimeout = KTCPStream::DEFAULT_TIMEOUT);
+std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 //-----------------------------------------------------------------------------
 
 DEKAF2_NAMESPACE_END

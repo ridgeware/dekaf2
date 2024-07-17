@@ -320,7 +320,7 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 	(*m_Connection)->SetWriterEndOfLine("\r\n");
 	(*m_Connection)->SetReaderRightTrim("\r\n");
 
-	m_Connection->SetTimeout(m_iTimeout);
+	m_Connection->SetTimeout(m_Timeout);
 
 	// get initial welcome message
 	if (!Talk("", "220"))
@@ -484,13 +484,5 @@ KString KSMTP::Error() const
 	return sReturn;
 
 } // Error
-
-//-----------------------------------------------------------------------------
-void KSMTP::SetTimeout(uint16_t iSeconds)
-//-----------------------------------------------------------------------------
-{
-	m_iTimeout = iSeconds;
-}
-
 
 DEKAF2_NAMESPACE_END

@@ -77,12 +77,12 @@ struct KAsioTLSStream : public KAsioStream<StreamType, detail::KAsioTLSTraits<St
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	//-----------------------------------------------------------------------------
-	KAsioTLSStream(KTLSContext& Context, int iSecondsTimeout = 15, bool _bManualHandshake = false)
+	KAsioTLSStream(KTLSContext& Context, KDuration Timeout, bool _bManualHandshake = false)
 	//-----------------------------------------------------------------------------
 	: KAsioStream<StreamType, detail::KAsioTLSTraits<StreamType>>
-	                   { Context, iSecondsTimeout }
-	, TLSContext       { Context                  }
-	, bManualHandshake { _bManualHandshake        }
+	                   { Context, Timeout  }
+	, TLSContext       { Context           }
+	, bManualHandshake { _bManualHandshake }
 	{
 	} // ctor
 
@@ -113,13 +113,11 @@ public:
 
 	using asiostream = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
 
-	enum { DEFAULT_TIMEOUT = 1 * 15 };
-
 	//-----------------------------------------------------------------------------
 	/// Constructs an unconnected client stream
 	/// @param iSecondsTimeout
 	/// Timeout in seconds for any I/O. Defaults to 15.
-	KTLSIOStream(int iSecondsTimeout = DEFAULT_TIMEOUT);
+	KTLSIOStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -130,7 +128,7 @@ public:
 	/// @param iSecondsTimeout
 	/// Timeout in seconds for any I/O. Defaults to 15.
 	KTLSIOStream(KTLSContext& Context,
-				 int iSecondsTimeout = DEFAULT_TIMEOUT);
+				 KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -147,8 +145,8 @@ public:
 	/// Timeout in seconds for any I/O. Defaults to 15.
 	KTLSIOStream(KTLSContext& Context,
 				 const KTCPEndPoint& Endpoint,
-				 TLSOptions Options,
-				 int iSecondsTimeout = DEFAULT_TIMEOUT);
+				 KStreamOptions Options,
+				 KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -157,8 +155,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Set I/O timeout in seconds.
-	bool Timeout(int iSeconds);
+	/// Set I/O timeout.
+	bool Timeout(KDuration Timeout);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -168,7 +166,7 @@ public:
 	/// a variety of inputs, like strings or KURL
 	/// @param Options
 	/// set options like certificate verification, manual TLS handshake, HTTP2 request
-	bool Connect(const KTCPEndPoint& Endpoint, TLSOptions Options);
+	bool Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -178,7 +176,7 @@ public:
 	/// a variety of inputs, like strings or KURL
 	/// @param Options
 	/// set options like certificate verification, manual TLS handshake, HTTP2 request
-	bool open(const KTCPEndPoint& Endpoint, TLSOptions Options)
+	bool open(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	//-----------------------------------------------------------------------------
 	{
 		return Connect(Endpoint, Options);
@@ -336,14 +334,14 @@ std::unique_ptr<KTLSStream> CreateKTLSServer(KTLSContext& Context);
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KTLSClient> CreateKTLSClient(int iSecondsTimeout = KTLSIOStream::DEFAULT_TIMEOUT);
+std::unique_ptr<KTLSClient> CreateKTLSClient(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
 std::unique_ptr<KTLSClient> CreateKTLSClient(const KTCPEndPoint& EndPoint,
-											 TLSOptions Options,
-											 int iSecondsTimeout = KTLSIOStream::DEFAULT_TIMEOUT);
+											 KStreamOptions Options,
+											 KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 //-----------------------------------------------------------------------------
 
 DEKAF2_NAMESPACE_END

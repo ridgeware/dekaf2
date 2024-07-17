@@ -45,6 +45,7 @@
 /// provides asio stream abstraction with deadline timer
 
 #include "../kdefinitions.h"
+#include "../kduration.h"
 #include "../kstring.h"
 #include "../klog.h"
 #include "kasio.h"
@@ -75,12 +76,12 @@ struct KAsioStream
 {
 	//-----------------------------------------------------------------------------
 	// the constructor for non-tls-sockets
-	KAsioStream(int _iSecondsTimeout = 15)
+	KAsioStream(KDuration Timeout)
 	//-----------------------------------------------------------------------------
-	: IOService       { 1 }
-	, Socket          { IOService }
-	, Timer           { IOService }
-	, iSecondsTimeout { _iSecondsTimeout }
+	: IOService { 1 }
+	, Socket    { IOService }
+	, Timer     { IOService }
+	, Timeout   { Timeout }
 	{
 		ClearTimer();
 		CheckTimer();
@@ -89,12 +90,12 @@ struct KAsioStream
 	//-----------------------------------------------------------------------------
 	// the constructor for tls-sockets (or anything else needing a context)
 	template<typename Context>
-	KAsioStream(Context& context, int _iSecondsTimeout)
+	KAsioStream(Context& context, KDuration Timeout)
 	//-----------------------------------------------------------------------------
-	: IOService       { 1 }
-	, Socket          { IOService , context.GetContext() }
-	, Timer           { IOService }
-	, iSecondsTimeout { _iSecondsTimeout }
+	: IOService { 1 }
+	, Socket    { IOService , context.GetContext() }
+	, Timer     { IOService }
+	, Timeout   { Timeout }
 	{
 		ClearTimer();
 		CheckTimer();
@@ -174,7 +175,7 @@ struct KAsioStream
 	void ResetTimer()
 	//-----------------------------------------------------------------------------
 	{
-		Timer.expires_from_now(boost::posix_time::seconds(iSecondsTimeout));
+		Timer.expires_from_now(boost::posix_time::milliseconds(Timeout.milliseconds().count()));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -193,8 +194,8 @@ struct KAsioStream
 			boost::system::error_code ignored_ec;
 			Traits::SocketClose(Socket, ignored_ec);
 			Timer.expires_at(boost::posix_time::pos_infin);
-			kDebug(2, "Connection timeout ({} seconds): {}",
-				   iSecondsTimeout, sEndpoint);
+			kDebug(2, "Connection timeout ({}): {}",
+				   Timeout, sEndpoint);
 		}
 
 		Timer.async_wait(std::bind(&KAsioStream<StreamType, Traits>::CheckTimer, this));
@@ -227,7 +228,7 @@ struct KAsioStream
 	KString                     sEndpoint;
 	boost::asio::deadline_timer Timer;
 	boost::system::error_code   ec;
-	int                         iSecondsTimeout;
+	KDuration                   Timeout;
 
 }; // KAsioStream
 

@@ -41,12 +41,11 @@
 
 #include "ktlsstream.h"
 #include "klog.h"
-#include "kfrozen.h"
 #include <openssl/opensslv.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
-static KTLSContext s_KTLSClientContext { false };
+static KTLSContext s_KTLSClientContext { false, KTLSContext::Transport::Tcp };
 
 //-----------------------------------------------------------------------------
 bool KTLSIOStream::handshake(KAsioTLSStream<asiostream>* stream)
@@ -85,12 +84,12 @@ bool KTLSIOStream::handshake(KAsioTLSStream<asiostream>* stream)
 	if (stream->GetContext().GetVerify())
 	{
 		// look for server certificate
-		auto* cert = SSL_get_peer_certificate(ssl);
+		auto* cert = ::SSL_get_peer_certificate(ssl);
 
 		if (cert)
 		{
 			// have one, free it immediately
-			X509_free(cert);
+			::X509_free(cert);
 		}
 		else
 		{
@@ -99,7 +98,7 @@ bool KTLSIOStream::handshake(KAsioTLSStream<asiostream>* stream)
 		}
 
 		// check chain verification
-		if (SSL_get_verify_result(ssl) != X509_V_OK)
+		if (::SSL_get_verify_result(ssl) != ::X509_V_OK)
 		{
 			kDebug(1, "certificate chain verification failed");
 			return false;
@@ -116,22 +115,22 @@ bool KTLSIOStream::handshake(KAsioTLSStream<asiostream>* stream)
 	if (kWouldLog(2))
 	{
 		kDebug(2, "TLS handshake successful, rx/tx {}/{} bytes",
-			   BIO_number_read(SSL_get_rbio(ssl)),
-			   BIO_number_written(SSL_get_wbio(ssl)));
+			   ::BIO_number_read(::SSL_get_rbio(ssl)),
+			   ::BIO_number_written(::SSL_get_wbio(ssl)));
 
-		auto cipher = SSL_get_current_cipher(ssl);
+		auto cipher = ::SSL_get_current_cipher(ssl);
 		kDebug(2, "TLS version: {}, cipher: {}",
-			   SSL_CIPHER_get_version(cipher),
-			   SSL_CIPHER_get_name(cipher));
+			   ::SSL_CIPHER_get_version(cipher),
+			   ::SSL_CIPHER_get_name(cipher));
 
-		auto compress  = SSL_get_current_compression(ssl);
-		auto expansion = SSL_get_current_expansion(ssl);
+		auto compress  = ::SSL_get_current_compression(ssl);
+		auto expansion = ::SSL_get_current_expansion(ssl);
 
 		if (compress || expansion)
 		{
 			kDebug(2, "TLS compression: {}, expansion: {}",
-				   compress  ? SSL_COMP_get_name(compress ) : "NONE",
-				   expansion ? SSL_COMP_get_name(expansion) : "NONE");
+				   compress  ? ::SSL_COMP_get_name(compress ) : "NONE",
+				   expansion ? ::SSL_COMP_get_name(expansion) : "NONE");
 		}
 	}
 #endif
@@ -179,9 +178,9 @@ bool KTLSIOStream::SetRequestHTTP2(bool bAlsoAllowHTTP1)
 	if (m_Stream.GetContext().GetRole() == boost::asio::ssl::stream_base::client)
 	{
 		auto sProto = bAlsoAllowHTTP1 ? "\x02h2\0x08http/1.1" : "\x02h2";
-		auto iResult = SSL_set_alpn_protos(m_Stream.Socket.native_handle(),
-		                                   reinterpret_cast<const unsigned char*>(sProto),
-		                                   static_cast<unsigned int>(strlen(sProto)));
+		auto iResult = ::SSL_set_alpn_protos(m_Stream.Socket.native_handle(),
+		                                     reinterpret_cast<const unsigned char*>(sProto),
+		                                     static_cast<unsigned int>(strlen(sProto)));
 		if (iResult == 0)
 		{
 			return true;
@@ -206,7 +205,7 @@ KStringView KTLSIOStream::GetALPN()
 {
 	const unsigned char* alpn { nullptr };
 	unsigned int alpnlen { 0 };
-	SSL_get0_alpn_selected(m_Stream.Socket.native_handle(), &alpn, &alpnlen);
+	::SSL_get0_alpn_selected(m_Stream.Socket.native_handle(), &alpn, &alpnlen);
 	return { reinterpret_cast<const char*>(alpn), alpnlen };
 
 } // GetALPN
@@ -364,42 +363,42 @@ std::streamsize KTLSIOStream::TLSStreamWriter(const void* sBuffer, std::streamsi
 } // TLSStreamWriter
 
 //-----------------------------------------------------------------------------
-KTLSIOStream::KTLSIOStream(int iSecondsTimeout)
+KTLSIOStream::KTLSIOStream(KDuration Timeout)
 //-----------------------------------------------------------------------------
-: KTLSIOStream(s_KTLSClientContext, iSecondsTimeout)
+: KTLSIOStream(s_KTLSClientContext, Timeout)
 {
 }
 
 //-----------------------------------------------------------------------------
 KTLSIOStream::KTLSIOStream(KTLSContext& Context,
-                           int iSecondsTimeout)
+						   KDuration Timeout)
 //-----------------------------------------------------------------------------
 	: base_type(&m_TLSStreamBuf)
-	, m_Stream(Context, iSecondsTimeout)
+	, m_Stream(Context, Timeout)
 {
 }
 
 //-----------------------------------------------------------------------------
 KTLSIOStream::KTLSIOStream(KTLSContext& Context, 
                            const KTCPEndPoint& Endpoint,
-                           TLSOptions Options,
-                           int iSecondsTimeout)
+                           KStreamOptions Options,
+						   KDuration Timeout)
 //-----------------------------------------------------------------------------
-    : KTLSIOStream(Context, iSecondsTimeout)
+    : KTLSIOStream(Context, Timeout)
 {
 	Connect(Endpoint, Options);
 }
 
 //-----------------------------------------------------------------------------
-bool KTLSIOStream::Timeout(int iSeconds)
+bool KTLSIOStream::Timeout(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	m_Stream.iSecondsTimeout = iSeconds;
+	m_Stream.Timeout = Timeout;
 	return true;
 }
 
 //-----------------------------------------------------------------------------
-bool KTLSIOStream::Connect(const KTCPEndPoint& Endpoint, TLSOptions Options)
+bool KTLSIOStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
 	m_Stream.bNeedHandshake = true;
@@ -429,7 +428,7 @@ bool KTLSIOStream::Connect(const KTCPEndPoint& Endpoint, TLSOptions Options)
 		}
 #endif
 
-		if ((Options & TLSOptions::VerifyCert) != 0)
+		if ((Options & KStreamOptions::VerifyCert) != 0)
 		{
 			m_Stream.Socket.set_verify_mode(boost::asio::ssl::verify_peer
 										  | boost::asio::ssl::verify_fail_if_no_peer_cert);
@@ -439,24 +438,23 @@ bool KTLSIOStream::Connect(const KTCPEndPoint& Endpoint, TLSOptions Options)
 			m_Stream.Socket.set_verify_mode(boost::asio::ssl::verify_none);
 		}
 
-		SetManualTLSHandshake((Options & TLSOptions::ManualHandshake) != 0);
+		SetManualTLSHandshake(Options & KStreamOptions::ManualHandshake);
 
-		if (m_Stream.GetContext().GetRole() == boost::asio::ssl::stream_base::client 
-			&& (Options & TLSOptions::RequestHTTP2) != 0)
+		if (Options & KStreamOptions::RequestHTTP2)
 		{
-			SetRequestHTTP2((Options & TLSOptions::FallBackToHTTP1) != 0);
+			SetRequestHTTP2(Options & KStreamOptions::FallBackToHTTP1);
 		}
 
 		// make sure client side SNI works..
-		SSL_set_tlsext_host_name(m_Stream.Socket.native_handle(), Endpoint.Domain.get().c_str());
+		::SSL_set_tlsext_host_name(m_Stream.Socket.native_handle(), Endpoint.Domain.get().c_str());
 
 		boost::asio::async_connect(m_Stream.Socket.lowest_layer(),
-								   hosts,
-								   [&](const boost::system::error_code& ec,
+		                           hosts,
+		                           [&](const boost::system::error_code& ec,
 #if (BOOST_VERSION < 106600)
-                                       boost::asio::ip::tcp::resolver::iterator endpoint)
+		                               boost::asio::ip::tcp::resolver::iterator endpoint)
 #else
-                                       const boost::asio::ip::tcp::endpoint& endpoint)
+		                               const boost::asio::ip::tcp::endpoint& endpoint)
 #endif
 		{
 			if (endpoint.address().is_v6())
@@ -510,19 +508,19 @@ std::unique_ptr<KTLSStream> CreateKTLSServer(KTLSContext& Context)
 }
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KTLSClient> CreateKTLSClient(int iSecondsTimeout)
+std::unique_ptr<KTLSClient> CreateKTLSClient(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KTLSClient>(s_KTLSClientContext, iSecondsTimeout);
+	return std::make_unique<KTLSClient>(s_KTLSClientContext, Timeout);
 }
 
 //-----------------------------------------------------------------------------
 std::unique_ptr<KTLSClient> CreateKTLSClient(const KTCPEndPoint& EndPoint,
-											 TLSOptions Options,
-											 int iSecondsTimeout)
+											 KStreamOptions Options,
+											 KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	auto Client = CreateKTLSClient(iSecondsTimeout);
+	auto Client = CreateKTLSClient(Timeout);
 
 	Client->Connect(EndPoint, Options);
 

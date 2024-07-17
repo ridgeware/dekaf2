@@ -238,16 +238,16 @@ void KHTTPClient::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(TLSOptions Options)
+KHTTPClient::KHTTPClient(KStreamOptions Options)
 //-----------------------------------------------------------------------------
-: m_TLSOptions(kGetTLSDefaults(Options))
+: m_StreamOptions(Options)
 {
 } // Ctor
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, TLSOptions Options)
+KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, KStreamOptions Options)
 //-----------------------------------------------------------------------------
-: m_TLSOptions(kGetTLSDefaults(Options))
+: m_StreamOptions(Options)
 {
 	if (Connect(url))
 	{
@@ -257,9 +257,9 @@ KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, TLSOptions Options
 } // Ctor
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method, TLSOptions Options)
+KHTTPClient::KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method, KStreamOptions Options)
 //-----------------------------------------------------------------------------
-: m_TLSOptions(kGetTLSDefaults(Options))
+: m_StreamOptions(Options)
 {
 	if (Connect(url, Proxy))
 	{
@@ -320,7 +320,7 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 #if DEKAF2_HAS_NGHTTP2
 	m_HTTP2.reset();
 
-	if (m_TLSOptions & TLSOptions::RequestHTTP2)
+	if (m_StreamOptions & KStreamOptions::RequestHTTP2)
 	{
 		auto TLSStream = m_Connection->GetUnderlyingTLSStream();
 
@@ -348,7 +348,7 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 				Response.SetHTTPVersion(KHTTPVersion::http2);
 				Response.SetInputStream(m_HTTP2->InStream);
 			}
-			else if ((m_TLSOptions & TLSOptions::FallBackToHTTP1) == 0)
+			else if ((m_StreamOptions & KStreamOptions::FallBackToHTTP1) == 0)
 			{
 				return SetError("wanted a HTTP/2 connection, but got only HTTP/1.1");
 			}
@@ -422,7 +422,7 @@ bool KHTTPClient::Connect(const KURL& url)
 		}
 	}
 
-	return Connect(KConnection::Create(url, false, m_TLSOptions));
+	return Connect(KConnection::Create(url, false, m_StreamOptions));
 
 } // Connect
 
@@ -432,7 +432,7 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 {
 	if (Proxy.empty())
 	{
-		return Connect(KConnection::Create(url, false, m_TLSOptions));
+		return Connect(KConnection::Create(url, false, m_StreamOptions));
 	}
 
 	// which protocol on which connection segment?
@@ -462,7 +462,7 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 	kDebug(2, "connecting via proxy {}", Proxy.Serialize());
 
 	// Connect the proxy. Use a TLS connection if either proxy or target is HTTPS.
-	if (!Connect(KConnection::Create(Proxy, bProxyIsHTTPS || bTargetIsHTTPS, m_TLSOptions)))
+	if (!Connect(KConnection::Create(Proxy, bProxyIsHTTPS || bTargetIsHTTPS, m_StreamOptions)))
 	{
 		// error is already set
 		return false;
@@ -564,11 +564,11 @@ KHTTPClient& KHTTPClient::SetVerifyCerts(bool bYesNo)
 {
 	if (bYesNo)
 	{
-		m_TLSOptions |= TLSOptions::VerifyCert;
+		m_StreamOptions = m_StreamOptions.Get() | KStreamOptions::VerifyCert;
 	}
 	else
 	{
-		m_TLSOptions &= ~TLSOptions::VerifyCert;
+		m_StreamOptions = m_StreamOptions.Get() & ~KStreamOptions::VerifyCert;
 	}
 
 	return *this;
@@ -580,18 +580,18 @@ KHTTPClient& KHTTPClient::SetVerifyCerts(bool bYesNo)
 bool KHTTPClient::GetVerifyCerts() const
 //-----------------------------------------------------------------------------
 {
-	return m_TLSOptions & TLSOptions::VerifyCert;
+	return m_StreamOptions & KStreamOptions::VerifyCert;
 }
 
 //-----------------------------------------------------------------------------
-KHTTPClient& KHTTPClient::SetTimeout(int iSeconds)
+KHTTPClient& KHTTPClient::SetTimeout(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	m_Timeout = iSeconds;
+	m_Timeout = Timeout;
 
 	if (m_Connection)
 	{
-		m_Connection->SetTimeout(iSeconds);
+		m_Connection->SetTimeout(Timeout);
 	}
 
 	return *this;

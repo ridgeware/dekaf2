@@ -178,7 +178,8 @@ TEST_CASE("KOptions")
 		};
 
 		Options.AllowAdHocArgs();
-		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		int iResult = Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		CHECK ( iResult == 0 );
 
 		CHECK( a.bEmpty    == true );
 		CHECK( a.bTest     == true );
@@ -225,7 +226,8 @@ TEST_CASE("KOptions")
 			"-unknown", "arg1", "arg2"
 		};
 
-		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		int iResult = Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		CHECK ( iResult == 0 );
 
 		CHECK( a.bEmpty    == false );
 		CHECK( a.bTest     == false );
@@ -249,7 +251,8 @@ TEST_CASE("KOptions")
 			"-unknown", "arg1", "arg2"
 		};
 
-		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		int iResult = Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		CHECK ( iResult == 0 );
 
 		CHECK( a.bEmpty    == true  );
 		CHECK( a.bTest     == false );
@@ -272,7 +275,8 @@ TEST_CASE("KOptions")
 			"-m first second"
 		};
 
-		Options.Parse(sCLI);
+		int iResult = Options.Parse(sCLI);
+		CHECK ( iResult == 0 );
 
 		CHECK( a.bEmpty    == true  );
 		CHECK( a.bTest     == false );
@@ -293,7 +297,8 @@ TEST_CASE("KOptions")
 		
 		kSetEnv(KCGIInStream::QUERY_STRING, sCLI);
 
-		Options.ParseCGI("MyProgramName");
+		int iResult = Options.ParseCGI("MyProgramName");
+		CHECK ( iResult == 0 );
 
 		CHECK( a.bEmpty    == true  );
 		CHECK( a.bTest     == false );
@@ -326,7 +331,8 @@ TEST_CASE("KOptions")
 			"-empty"
 		};
 
-		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		int iResult = Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		CHECK ( iResult == 0 );
 
 		CHECK( a.bEmpty    == true  );
 		CHECK( a.bTest     == false );
@@ -360,7 +366,8 @@ TEST_CASE("KOptions")
 			"-ini", sIniFile.c_str()
 		};
 
-		Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		int iResult = Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		CHECK ( iResult == 0 );
 
 		CHECK( a.bEmpty    == true  );
 		CHECK( a.bTest     == false );
@@ -397,6 +404,27 @@ TEST_CASE("KOptions2")
 
 		CHECK ( Options.Check() );
 	}
+
+	SECTION("fail check on missing required arguments")
+	{
+		const char* CLI[] {
+			"MyProgramName", 
+			"-v"
+		};
+
+		KOptions Options(true, sizeof(CLI)/sizeof(char*), CLI);
+
+		KString sFilename = Options("f,filename <filename>: file to search in");
+		KString sSearch   = Options("s,search <search string>: string to search for");
+		bool    bVersion  = Options("v,version: show version information", false);
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		// Check() returns false for no options or help output
+		CHECK ( Options.Check(oss) == false );
+	}
+
 
 	SECTION("flat help")
 	{

@@ -330,6 +330,8 @@ public:
 		OptionalParm& Final()                     { m_iFlags |= fIsFinal;   return *this; }
 		/// mark this arg as an ad hoc arg (never do this manually, the parser does it internally)
 		OptionalParm& AdHoc()                     { m_iFlags |= fIsAdHoc;   return *this; }
+		/// adds given flag(s)
+		OptionalParm& AddFlag(Flag flag)          { m_iFlags |= flag;       return *this; }
 		/// set the callback for the parameter as a function void(KOptions::ArgList&)
 		OptionalParm& Callback(CallbackN Func);
 		/// set the callback for the parameter as a function void(KStringViewZ)
@@ -805,7 +807,7 @@ private:
 		struct DEKAF2_PRIVATE Mask
 		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 		{
-			Mask(const HelpFormatter& Formatter, bool bForCommands);
+			Mask(const HelpFormatter& Formatter, bool bForCommands, bool bIsRequired);
 
 			KString        sFormat;
 			KString        sOverflow;
@@ -906,6 +908,7 @@ private:
 	bool                       m_bAllowAdHocArgs         {   false };
 	bool                       m_bHaveAdHocArgs          {   false };
 	bool                       m_bCheckWasCalled         {   false };
+	bool                       m_bHaveErrors             {   false };
 	mutable bool               m_bProcessAdHocForHelp    {   false };
 
 }; // KOptions

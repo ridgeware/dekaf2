@@ -544,7 +544,7 @@ void KOptions::HelpFormatter::CalcExtends(const std::vector<CallbackParam>& Call
 } // HelpFormatter::CalcExtends
 
 //---------------------------------------------------------------------------
-KOptions::HelpFormatter::Mask::Mask(const HelpFormatter& Formatter, bool bForCommands)
+KOptions::HelpFormatter::Mask::Mask(const HelpFormatter& Formatter, bool bForCommands, bool bIsRequired)
 //---------------------------------------------------------------------------
 {
 	auto& iMaxLen = Formatter.m_MaxLens[(Formatter.m_bSpacingPerSection && bForCommands) ? 1 : 0];
@@ -555,8 +555,16 @@ KOptions::HelpFormatter::Mask::Mask(const HelpFormatter& Formatter, bool bForCom
 	// kFormat crashes when we insert the spacing parm at the same time with
 	// the actual parms, therefore we prepare the format strings before inserting
 	// the parms
-	sFormat   = kFormat("   {{}}{{:<{}}} {{}}{} {{}}", iMaxLen, Formatter.m_sSeparator);
-	sOverflow = kFormat("   {{:<{}}} {{}}",
+
+	if (bIsRequired)
+	{
+		sFormat = kFormat("   \x1b[1m{{}}{{:<{}}}\x1b[22m {{}}{} {{}}", iMaxLen, Formatter.m_sSeparator);
+	}
+	else
+	{
+		sFormat = kFormat("   {{}}{{:<{}}} {{}}{} {{}}", iMaxLen, Formatter.m_sSeparator);
+	}
+	sOverflow   = kFormat("   {{:<{}}} {{}}",
 						bOverlapping
 						? 1 + Formatter.m_iWrappedHelpIndent // we need the + 1 to avoid a total of 0 which would crash kFormat
 						: 2 + iMaxLen + Formatter.m_sSeparator.size() + Formatter.m_iWrappedHelpIndent);
@@ -637,7 +645,9 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 {
 	GetEnvironment();
 	CalcExtends(Callback);
-	FormatOne(out, Callback, Mask(*this, Callback.IsCommand()));
+	// we only highlight required options on stdout
+	bool bIsStdOut = &out == &KOut;
+	FormatOne(out, Callback, Mask(*this, Callback.IsCommand(), bIsStdOut && Callback.IsRequired()));
 
 } // HelpFormatter::BuildOne
 
@@ -652,6 +662,8 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 {
 	GetEnvironment();
 	CalcExtends(Callbacks);
+	// we only highlight required options on stdout
+	bool bIsStdOut = &out == &KOut;
 
 	out.WriteLine();
 	out.Format("{} -- ", m_Params.GetProgramName());
@@ -709,14 +721,14 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 			out.WriteLine();
 		}
 
-		Mask mask(*this, bCommands);
-
 		for (const auto& Callback : Callbacks)
 		{
 			if (!Callback.IsHidden()
 				&& Callback.IsCommand() == bCommands
 				&& !Callback.IsUnknown())
 			{
+				Mask mask(*this, bCommands, bIsStdOut && Callback.IsRequired());
+
 				FormatOne(out, Callback, mask);
 
 				if (m_bLinefeedBetweenOptions)
@@ -1002,13 +1014,7 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 			}
 
 			// strip name at first special character or space
-			auto pos = sOption.find_first_of(" <>[]|:;=\t\r\n\b");
-
-			if (pos != KStringView::npos)
-			{
-				kDebug(1, "removed suffix from option: '{}'", sOption.ToView(pos));
-				sOption.erase(pos);
-			}
+			sOption = IsolateOptionNamesFromSuffix(sOption);
 		}
 
 		kDebug(3, "adding option: '{}'", sOption);
@@ -1048,8 +1054,10 @@ void KOptions::Register(CallbackParam OptionOrCommand)
 							}
 						}
 					}
+
 					kDebug(1, "overriding existing {}: {}", OptionOrCommand.IsCommand() ? "command" : "option", sOption);
 					Pair.first->second = iIndex;
+
 					if (!Callback.IsHidden())
 					{
 						Callback.m_iFlags |= CallbackParam::fIsHidden;
@@ -1295,12 +1303,13 @@ uint16_t KOptions::GetCurrentOutputStreamWidth() const
 int KOptions::SetError(KStringViewZ sError, KOutStream& out)
 //---------------------------------------------------------------------------
 {
+	m_bHaveErrors = true;
+
 	if (m_bThrow)
 	{
-		// setting m_bHaveAdHocArgs to false stops the run of Check() at
-		// destruction (we throw already for another error and do not want
-		// the overall analysis ..)
-		m_bHaveAdHocArgs = false;
+		// stop the run of Check() at destruction (we throw already
+		// for another error and do not want the overall analysis ..)
+		m_bCheckWasCalled = true;
 		throw KException(sError);
 	}
 	else
@@ -1524,6 +1533,10 @@ void KOptions::ResetBeforeParsing()
 //---------------------------------------------------------------------------
 {
 	m_bStopAppAfterParsing = false;
+	m_bHaveAdHocArgs       = false;
+	m_bCheckWasCalled      = false;
+	m_bHaveErrors          = false;
+	m_bProcessAdHocForHelp = false;
 
 	for (auto& Callback : m_Callbacks)
 	{
@@ -1873,6 +1886,8 @@ bool KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
 		}
 	}
 
+	if (!bOK) m_bHaveErrors = true;
+
 	return bOK;
 
 } // Evaluate
@@ -1881,8 +1896,6 @@ bool KOptions::Evaluate(const CLIParms& Parms, KOutStream& out)
 bool KOptions::Check(KOutStream& out)
 //---------------------------------------------------------------------------
 {
-	bool bOK = true;
-
 	if (!m_bCheckWasCalled)
 	{
 		m_bCheckWasCalled = true;
@@ -1893,7 +1906,9 @@ bool KOptions::Check(KOutStream& out)
 			AutomaticHelp();
 			return false;
 		}
-		
+
+		bool bErrors = false;
+
 		if (m_bHaveAdHocArgs)
 		{
 			// now check for ad-hoc options
@@ -1901,19 +1916,20 @@ bool KOptions::Check(KOutStream& out)
 			{
 				if (Callback.IsAdHoc() && !Callback.m_bUsed && !Callback.IsHidden())
 				{
-					bOK = false;
+					bErrors = true;
 					out.FormatLine("excess argument: -{}", Callback.m_sNames);
 				}
 			}
 		}
 
-		if (!bOK)
+		if (bErrors)
 		{
+			// SetError() will also set the general m_bHaveErrors to true
 			SetError("bad CLI parms", out);
 		}
 	}
 
-	return bOK;
+	return !m_bHaveErrors;
 
 } // Check
 
@@ -1937,7 +1953,7 @@ std::pair<KStringView, KStringView> KOptions::IsolateOptionNamesFromHelp(KString
 {
 	KStringView sHelp;
 
-	auto iPos = sOptionName.find_first_of("|:");
+	auto iPos = sOptionName.find(':');
 
 	if (iPos != npos)
 	{
@@ -1974,7 +1990,8 @@ KOptions::Values KOptions::Get(KStringView sOptionName)
 {
 	const CallbackParam* Callback { nullptr };
 
-	sOptionName.TrimLeft(" \t-");
+	sOptionName.TrimLeft(' ');
+	sOptionName.TrimLeft('-');
 
 	for (auto sName : IsolateOptionNamesFromSuffix(IsolateOptionNamesFromHelp(sOptionName).first).Split())
 	{
@@ -1992,9 +2009,10 @@ KOptions::Values KOptions::Get(KStringView sOptionName)
 		{
 			SetError(kFormat("missing required option: -{}", sOptionName));
 		}
+
 		// if we process for help generation, do not throw but add
 		// each option as if it had an empty default value
-		return Get(sOptionName, "");
+		return Get(sOptionName, std::vector<KStringViewZ>{});
 	}
 
 	return Values(Callback->m_Args, true);
@@ -2024,7 +2042,13 @@ KOptions::Values KOptions::Get(KStringView sOptionName, const std::vector<KStrin
 
 	if (!Callback)
 	{
-		Option(pair.first).Help(pair.second).MinArgs(DefaultValues.size()).MaxArgs(DefaultValues.size()).AdHoc();
+		Option       (pair.first)
+			.Help    (pair.second)
+			.MinArgs (DefaultValues.size())
+			.MaxArgs (DefaultValues.size())
+			.AdHoc   ()
+			.AddFlag (DefaultValues.empty() ? CallbackParam::fIsRequired : CallbackParam::fNone);
+
 		Callback = FindParam(list.front(), true, true);
 
 		if (!Callback)

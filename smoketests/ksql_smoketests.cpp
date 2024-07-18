@@ -1425,9 +1425,9 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 		});
 		CHECK ( iChanges == 5 );
 		CHECK ( sDiff == R"(TESTSCHEMA1_KSQL
-< astring char(100) COLLATE utf8mb4_unicode_ci NOT NULL
-> astring char(10) COLLATE utf8mb4_unicode_ci NOT NULL
-> newstring char(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+< astring char(100) NOT NULL
+> astring char(10) NOT NULL
+> newstring char(200) DEFAULT NULL
 
 < TESTSCHEMA1_KSQL: engine = InnoDB
 > TESTSCHEMA1_KSQL: engine = MyISAM
@@ -1452,6 +1452,49 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 			db.SetQueryTimeout(std::chrono::seconds(0));
 			db.SetThrow(bTOld);
 			CHECK ( Timer.seconds() < chrono::seconds(5) );
+		}
+
+		{
+			// transactions
+
+			db.ExecSQL("drop table if exists TEST_SQL");
+
+			if (!db.ExecSQL (
+							 "create table TEST_SQL (\n"
+							 "    anum      int           not null,\n"
+							 "    astring   char(10)      not null primary key,\n"
+							 "    key idx01 (anum) \n"
+							 ")"))
+			{
+				INFO (db.GetLastSQL());
+				FAIL_CHECK (db.GetLastError());
+			}
+
+			db.BeginTransaction();
+
+			db.ExecSQL("insert into TEST_SQL set anum=1,astring='s1'");
+			db.ExecSQL("insert into TEST_SQL set anum=2,astring='s2'");
+
+			db.CommitTransaction();
+
+			auto iCount = db.SingleIntQuery("select count(*) from TEST_SQL");
+
+			CHECK ( iCount == 2 );
+
+			db.BeginTransaction();
+
+			db.ExecSQL("insert into TEST_SQL set anum=3,astring='s3'");
+			db.ExecSQL("insert into TEST_SQL set anum=4,astring='s4'");
+
+			db.RollbackTransaction();
+
+			iCount = db.SingleIntQuery("select count(*) from TEST_SQL");
+
+			CHECK ( iCount == 2 );
+
+			db.ExecSQL("drop table if exists TEST_SQL");
+
+			// transactions until here
 		}
 
 		// varchar vs int index

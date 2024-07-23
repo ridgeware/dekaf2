@@ -95,7 +95,7 @@ StreamType GetStreamType(KStream& Stream)
 } // GetStreamType
 
 //-----------------------------------------------------------------------------
-KTCPIOStream::asiostream&& GetAsioTCPStream (KStream& Stream)
+KTCPIOStream::asio_stream_type&& GetAsioTCPStream (KStream& Stream)
 //-----------------------------------------------------------------------------
 {
 	auto S = dynamic_cast<KTCPIOStream*>(&Stream);
@@ -111,7 +111,7 @@ KTCPIOStream::asiostream&& GetAsioTCPStream (KStream& Stream)
 
 //-----------------------------------------------------------------------------
 // this one _has_ to be an explicit RVALUE because of older GCCs (< 11)
-KTLSIOStream::asiostream&& GetAsioTLSStream (KStream& Stream)
+KTLSIOStream::asio_stream_type&& GetAsioTLSStream (KStream& Stream)
 //-----------------------------------------------------------------------------
 {
 	auto S = dynamic_cast<KTLSIOStream*>(&Stream);
@@ -127,7 +127,7 @@ KTLSIOStream::asiostream&& GetAsioTLSStream (KStream& Stream)
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 //-----------------------------------------------------------------------------
-KUnixIOStream::asiostream&& GetAsioUnixStream(KStream& Stream)
+KUnixIOStream::asio_stream_type&& GetAsioUnixStream(KStream& Stream)
 //-----------------------------------------------------------------------------
 {
 	auto S = dynamic_cast<KUnixIOStream*>(&Stream);

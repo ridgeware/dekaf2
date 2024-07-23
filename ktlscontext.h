@@ -46,10 +46,7 @@
 
 #include "bits/kasio.h"
 #include "kstring.h"
-
-#if OPENSSL_VERSION_NUMBER >= 0x30300000L
-	#define DEKAF2_HAS_QUIC 1
-#endif
+#include "kstreamoptions.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -99,8 +96,29 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Set the ALPN data. This API expects a vector of KStringViews and transforms it into the internal
+	/// ALPN format.
+	/// This method is mutually exclusive with SetAllowHTTP2()
+	bool SetALPN(const std::vector<KStringView> ALPNs)
+	//-----------------------------------------------------------------------------
+	{
+		return SetALPNRaw(KStreamOptions::CreateALPNString(ALPNs));
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Set the ALPN data. This API expects a string view and transforms it into the internal
+	/// ALPN format.
+	/// This method is mutually exclusive with SetAllowHTTP2()
+	bool SetALPN(KStringView sALPN)
+	//-----------------------------------------------------------------------------
+	{
+		return SetALPNRaw(KStreamOptions::CreateALPNString(sALPN));
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Allow to switch to HTTP2. This setting can also be applied to the KTLSIOStream class, which may be
 	/// more useful for client implementations. For server contexts, it has to be set here though.
+	/// This method is mutually exclusive with SetALPN()
 	/// @param bAlsoAllowHTTP1 if set to false, only HTTP/2 connections are permitted. Else a fallback on
 	/// HTTP/1.1 is permitted. Default is true.
 	/// @returns true if protocol selection is permitted
@@ -143,6 +161,10 @@ private:
 
 	//-----------------------------------------------------------------------------
 	bool SetDefaults();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	bool SetALPNRaw(KStringView sALPN);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

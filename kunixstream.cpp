@@ -61,7 +61,7 @@ std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize i
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioStream<asiostream>*>(stream_);
+		auto stream = static_cast<KAsioStream<asio_stream_type>*>(stream_);
 
 		stream->Socket.async_read_some(boost::asio::buffer(sBuffer, iCount),
 		[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
@@ -107,7 +107,7 @@ std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::stream
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioStream<asiostream>*>(stream_);
+		auto stream = static_cast<KAsioStream<asio_stream_type>*>(stream_);
 
 		for (;iWrote < iCount;)
 		{
@@ -177,8 +177,8 @@ bool KUnixIOStream::Timeout(KDuration Timeout)
 bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 //-----------------------------------------------------------------------------
 {
-	m_Stream.Socket.async_connect(boost::asio::local::stream_protocol::endpoint(sSocketFile.c_str()),
-								  [&](const boost::system::error_code& ec)
+	GetAsioSocket().async_connect(boost::asio::local::stream_protocol::endpoint(sSocketFile.c_str()),
+	[&](const boost::system::error_code& ec)
 	{
 		m_Stream.sEndpoint = sSocketFile;
 		m_Stream.ec = ec;
@@ -188,7 +188,7 @@ bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
 
 	m_Stream.RunTimed();
 
-	if (!Good() || !m_Stream.Socket.is_open())
+	if (!Good() || !GetAsioSocket().is_open())
 	{
 		kDebug(1, "{}: {}", sSocketFile, Error());
 		return false;

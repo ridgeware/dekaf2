@@ -69,7 +69,13 @@ class DEKAF2_PUBLIC KUnixIOStream : public std::iostream
 public:
 //----------
 
-	using asiostream = boost::asio::local::stream_protocol::socket;
+	using asio_stream_type = boost::asio::local::stream_protocol::socket;
+#if (BOOST_VERSION < 106600)
+	using asio_socket_type = boost::asio::basic_socket<boost::asio::local::stream_protocol, boost::asio::stream_socket_service<boost::asio::local::stream_protocol>>;
+#else
+	using asio_socket_type = boost::asio::basic_socket<boost::asio::local::stream_protocol>;
+#endif
+	using native_socket_type = asio_socket_type::native_handle_type;
 
 	//-----------------------------------------------------------------------------
 	/// Construcs an unconnected stream
@@ -148,26 +154,30 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Gets the underlying socket of the stream
-	/// @return
-	/// The socket of the stream (wrapped into ASIO's basic_socket<> template)
-#if (BOOST_VERSION < 106600)
-	boost::asio::basic_socket<boost::asio::local::stream_protocol, boost::asio::stream_socket_service<boost::asio::local::stream_protocol> >& GetUnixSocket()
-#else
-	boost::asio::basic_socket<boost::asio::local::stream_protocol>& GetUnixSocket()
-#endif
-	//-----------------------------------------------------------------------------
-	{
-		return m_Stream.Socket.lowest_layer();
-	}
-
-	//-----------------------------------------------------------------------------
 	/// Gets the ASIO socket of the stream, e.g. to move it to another place ..
 	DEKAF2_NODISCARD
-	asiostream& GetAsioSocket()
+	asio_stream_type& GetAsioSocket()
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.Socket;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Gets the underlying socket of the stream
+	/// @return
+	/// The socket of the stream (wrapped into ASIO's basic_socket<> template)
+	asio_socket_type& GetUnixSocket()
+	//-----------------------------------------------------------------------------
+	{
+		return GetAsioSocket().lowest_layer();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Gets the underlying OS level native socket of the stream
+	native_socket_type GetNativeSocket()
+	//-----------------------------------------------------------------------------
+	{
+		return GetUnixSocket().native_handle();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -197,9 +207,9 @@ public:
 private:
 //----------
 
-	KAsioStream<asiostream> m_Stream;
+	KAsioStream<asio_stream_type> m_Stream;
 
-	KStreamBuf m_TCPStreamBuf{&UnixStreamReader, &UnixStreamWriter, &m_Stream, &m_Stream};
+	KStreamBuf m_TCPStreamBuf { &UnixStreamReader, &UnixStreamWriter, &m_Stream, &m_Stream };
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader

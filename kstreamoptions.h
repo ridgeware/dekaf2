@@ -82,7 +82,23 @@ public:
 	/// given option.
 	static bool SetDefaults(Options Options);
 
+	/// returns the default timeout for streams
 	static constexpr KDuration GetDefaultTimeout() { return s_DefaultTimeout; }
+
+	/// create the ALPN data
+	/// @param ALPNs a vector of KStringViews for requested protocols
+	/// @return a string in the format expected by the ALPN APIs
+	static KString CreateALPNString(const std::vector<KStringView> ALPNs);
+
+	/// create the ALPN data
+	/// @param sALPN a string view of the requested protocol
+	/// @return a string in the format expected by the ALPN APIs
+	static KString CreateALPNString(KStringView sALPN);
+
+	/// add ALPN data to an existing ALPN string
+	/// @param sALPN the existing ALPN string that shall be extended
+	/// @param sAdd the new ALPN value to add to the existing string
+	static bool AddALPNString(KStringRef& sResult, KStringView sALPN);
 
 //------
 private:

@@ -44,7 +44,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 KStreamOptions::Options KStreamOptions::s_DefaultOptions =
-#if DEKAF2_HAS_NGHTTP2 && DEKAF2_HAS_NGHTTP3
+#if DEKAF2_HAS_NGHTTP2 && DEKAF2_HAS_NGHTTP3_NOTYET
 RequestHTTP2 | FallBackToHTTP1 | RequestHTTP3;
 #elif DEKAF2_HAS_NGHTTP2
 RequestHTTP2 | FallBackToHTTP1;
@@ -83,5 +83,50 @@ bool KStreamOptions::SetDefaults(Options Options)
 	return true;
 
 } // SetTLSDefaults
+
+//-----------------------------------------------------------------------------
+bool KStreamOptions::AddALPNString(KStringRef& sResult, KStringView sALPN)
+//-----------------------------------------------------------------------------
+{
+	if (sALPN.size() < 256)
+	{
+		sResult.append(1, sALPN.size());
+		sResult.append(sALPN);
+		return true;
+	}
+	else
+	{
+		kDebug(2, "dropping ALPN value > 255 chars: {}..", sALPN.LeftUTF8(30));
+		return false;
+	}
+
+} // AddALPNString
+
+//-----------------------------------------------------------------------------
+KString KStreamOptions::CreateALPNString(const std::vector<KStringView> ALPNs)
+//-----------------------------------------------------------------------------
+{
+	KString sResult;
+
+	for (auto sOne : ALPNs)
+	{
+		AddALPNString(sResult, sOne);
+	}
+
+	return sResult;
+
+} // CreateALPNString
+
+//-----------------------------------------------------------------------------
+KString KStreamOptions::CreateALPNString(KStringView sALPN)
+//-----------------------------------------------------------------------------
+{
+	KString sResult;
+
+	AddALPNString(sResult, sALPN);
+
+	return sResult;
+
+} // CreateALPNString
 
 DEKAF2_NAMESPACE_END

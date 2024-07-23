@@ -111,7 +111,7 @@ DomainsAndIndex SplitAndIndexDomain(KStringView sHostName)
 
 } // SplitAndIndexDomain
 
-}
+} // end of anonymous namespace
 
 //-------------------------------------------------------------------------
 KString GetDomainIdentity (KStringView sHostName)

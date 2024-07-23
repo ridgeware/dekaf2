@@ -87,6 +87,7 @@ struct KAsioTLSStream : public KAsioStream<StreamType, detail::KAsioTLSTraits<St
 	} // ctor
 
 	//-----------------------------------------------------------------------------
+	/// Gets the KTLSContext used in construction
 	const KTLSContext& GetContext() const
 	//-----------------------------------------------------------------------------
 	{
@@ -111,7 +112,14 @@ class DEKAF2_PUBLIC KTLSIOStream : public std::iostream
 public:
 //----------
 
-	using asiostream = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
+	using asio_stream_type = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
+#if (BOOST_VERSION < 106600)
+	using asio_socket_type = boost::asio::basic_socket<boost::asio::ip::tcp, boost::asio::stream_socket_service<boost::asio::ip::tcp>>;
+#else
+	using asio_socket_type = boost::asio::basic_socket<boost::asio::ip::tcp>;
+#endif
+	using native_socket_type = asio_socket_type::native_handle_type;
+	using tls_handle_type    = asio_stream_type::native_handle_type;
 
 	//-----------------------------------------------------------------------------
 	/// Constructs an unconnected client stream
@@ -226,6 +234,31 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Set the ALPN data. This API expects a vector of KStringViews and transforms it into the internal
+	/// ALPN format.
+	/// This method is mutually exclusive with SetAllowHTTP2()
+	bool SetALPN(const std::vector<KStringView> ALPNs)
+	//-----------------------------------------------------------------------------
+	{
+		return SetALPNRaw(KStreamOptions::CreateALPNString(ALPNs));
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Set the ALPN data. This API expects a string view and transforms it into the internal
+	/// ALPN format.
+	/// This method is mutually exclusive with SetAllowHTTP2()
+	bool SetALPN(KStringView sALPN)
+	//-----------------------------------------------------------------------------
+	{
+		return SetALPNRaw(KStreamOptions::CreateALPNString(sALPN));
+	}
+	
+	//-----------------------------------------------------------------------------
+	/// Get the Application Layer Protocol Negotiation after the TLS handshake
+	KStringView GetALPN();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Allow to switch to HTTP2
 	/// @param bAlsoAllowHTTP1 if set to false, only HTTP/2 connections are permitted. Else a fallback on
 	/// HTTP/1.1 is permitted. Default is true.
@@ -234,30 +267,45 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Get the Application Layer Protocol Negotiation after the TLS handshake
-	KStringView GetALPN();
+	/// Gets the ASIO socket of the stream, e.g. to move it to another place ..
+	asio_stream_type& GetAsioSocket()
 	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.Socket;
+	}
 
 	//-----------------------------------------------------------------------------
 	/// Gets the underlying TCP socket of the stream
 	/// @return
 	/// The TCP socket of the stream (wrapped into ASIO's basic_socket<> template)
-#if (BOOST_VERSION < 106600)
-	boost::asio::basic_socket<boost::asio::ip::tcp, boost::asio::stream_socket_service<boost::asio::ip::tcp> >& GetTCPSocket()
-#else
-	boost::asio::basic_socket<boost::asio::ip::tcp>& GetTCPSocket()
-#endif
+	asio_socket_type& GetTCPSocket()
 	//-----------------------------------------------------------------------------
 	{
-		return m_Stream.Socket.lowest_layer();
+		return GetAsioSocket().lowest_layer();
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Gets the ASIO socket of the stream, e.g. to move it to another place ..
-	asiostream& GetAsioSocket()
+	/// Gets the underlying OS level native socket of the stream
+	native_socket_type GetNativeSocket()
 	//-----------------------------------------------------------------------------
 	{
-		return m_Stream.Socket;
+		return GetTCPSocket().native_handle();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Gets the underlying openssl handle of the stream
+	tls_handle_type GetNativeTLSHandle()
+	//-----------------------------------------------------------------------------
+	{
+		return GetAsioSocket().native_handle();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Gets the KTLSContext used in construction
+	const KTLSContext& GetContext() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Stream.GetContext();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -297,9 +345,9 @@ public:
 private:
 //----------
 
-	KAsioTLSStream<asiostream> m_Stream;
-
-	KBufferedStreamBuf m_TLSStreamBuf{&TLSStreamReader, &TLSStreamWriter, this, this};
+	//-----------------------------------------------------------------------------
+	bool SetALPNRaw(KStringView sALPN);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader
@@ -315,8 +363,11 @@ private:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	static bool handshake(KAsioTLSStream<asiostream>* stream);
+	static bool handshake(KAsioTLSStream<asio_stream_type>* stream);
 	//-----------------------------------------------------------------------------
+
+	KAsioTLSStream<asio_stream_type> m_Stream;
+	KBufferedStreamBuf m_TLSStreamBuf { &TLSStreamReader, &TLSStreamWriter, this, this };
 
 }; // KTLSIOStream
 
@@ -329,7 +380,8 @@ using KTLSClient = KTLSStream;
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KTLSStream> CreateKTLSServer(KTLSContext& Context);
+std::unique_ptr<KTLSStream> CreateKTLSServer(KTLSContext& Context,
+											 KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

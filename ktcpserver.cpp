@@ -336,8 +336,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 
 		for (;;)
 		{
-			auto stream = CreateKTLSServer(TLSContext);
-			stream->Timeout(m_Timeout);
+			auto stream = CreateKTLSServer(TLSContext, m_Timeout);
 
 			endpoint_type remote_endpoint;
 			boost::system::error_code ec;
@@ -364,7 +363,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 			m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 			{
 #endif
-				RunSession(*moved_stream, to_string(remote_endpoint), moved_stream->GetTCPSocket().native_handle());
+				RunSession(*moved_stream, to_string(remote_endpoint), moved_stream->GetNativeSocket());
 				// the thread pool keeps the object alive until it is
 				// overwritten in round-robin, therefore we have to call
 				// Disconnect explicitly now to shut down the connection
@@ -386,8 +385,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 
 		for (;;)
 		{
-			auto stream = CreateKTCPStream();
-			stream->Timeout(m_Timeout);
+			auto stream = CreateKTCPStream(m_Timeout);
 
 			endpoint_type remote_endpoint;
 			boost::system::error_code ec;
@@ -414,7 +412,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 			m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 			{
 #endif
-				RunSession(*moved_stream, to_string(remote_endpoint), moved_stream->GetTCPSocket().native_handle());
+				RunSession(*moved_stream, to_string(remote_endpoint), moved_stream->GetNativeSocket());
 				// the thread pool keeps the object alive until it is
 				// overwritten in round-robin, therefore we have to call
 				// Disconnect explicitly now to shut down the connection
@@ -499,8 +497,7 @@ bool KTCPServer::UnixServer()
 
 		for (;;)
 		{
-			auto stream = CreateKUnixStream();
-			stream->Timeout(m_Timeout);
+			auto stream = CreateKUnixStream(m_Timeout);
 
 			boost::system::error_code ec;
 			acceptor->accept(stream->GetUnixSocket(), ec);
@@ -526,7 +523,7 @@ bool KTCPServer::UnixServer()
 			m_ThreadPool.push([ this, moved_stream = std::move(stream) ]()
 			{
 #endif
-				RunSession(*moved_stream, m_sSocketFile, moved_stream->GetUnixSocket().native_handle());
+				RunSession(*moved_stream, m_sSocketFile, moved_stream->GetNativeSocket());
 				// the thread pool keeps the object alive until it is
 				// overwritten in round-robin, therefore we have to call
 				// Disconnect explicitly now to shut down the connection

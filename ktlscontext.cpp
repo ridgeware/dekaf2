@@ -76,7 +76,7 @@ SSL_CTX* KTLSContext::CreateContext(bool bIsServer, Transport transport)
 			break;
 
 		case Transport::Quic:
-#if DEKAF2_HAS_QUIC
+#if DEKAF2_HAS_OPENSSL_QUIC
 			if (bIsServer)
 			{
 				// TODO !
@@ -115,11 +115,11 @@ KTLSContext::KTLSContext(bool bIsServer, Transport transport)
 bool KTLSContext::SetDefaults()
 //-----------------------------------------------------------------------------
 {
-	 boost::asio::ssl::context::options options
-	 	= boost::asio::ssl::context::default_workarounds
-	 	| boost::asio::ssl::context::single_dh_use
-	 	| boost::asio::ssl::context::no_sslv2
-	 	| boost::asio::ssl::context::no_sslv3
+	boost::asio::ssl::context::options options
+		= boost::asio::ssl::context::default_workarounds
+		| boost::asio::ssl::context::single_dh_use
+		| boost::asio::ssl::context::no_sslv2
+		| boost::asio::ssl::context::no_sslv3
 #ifdef SSL_OP_NO_COMPRESSION
 		| boost::asio::ssl::context::no_compression
 #endif
@@ -127,10 +127,10 @@ bool KTLSContext::SetDefaults()
 		| SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
 #endif
 #if (BOOST_VERSION >= 106600)
-	 	| boost::asio::ssl::context::no_tlsv1_1
+		| boost::asio::ssl::context::no_tlsv1_1
 #endif
-	 	| boost::asio::ssl::context::no_tlsv1;
-
+		| boost::asio::ssl::context::no_tlsv1;
+	
 	boost::system::error_code ec;
 	m_Context.set_options(options, ec);
 
@@ -482,6 +482,31 @@ bool KTLSContext::SetAllowHTTP2(bool bAlsoAllowHTTP1)
 	return false;
 
 } // SetAllowHTTP2
+
+//-----------------------------------------------------------------------------
+bool KTLSContext::SetALPNRaw(KStringView sALPN)
+//-----------------------------------------------------------------------------
+{
+	if (GetRole() != boost::asio::ssl::stream_base::client)
+	{
+		kDebug(1, "ALPN setup only supported in client mode");
+		return false;
+	}
+
+	auto iResult = ::SSL_CTX_set_alpn_protos(m_Context.native_handle(),
+	                                         reinterpret_cast<const unsigned char*>(sALPN.data()),
+	                                         static_cast<unsigned int>(sALPN.size()));
+
+	if (iResult == 0)
+	{
+		return true;
+	}
+
+	kDebug(1, "failed to set ALPN protocol: '{}' - error {}", kEscapeForLogging(sALPN), iResult);
+
+	return false;
+
+} // SetALPNRaw
 
 //-----------------------------------------------------------------------------
 bool KTLSContext::SetError(KString sError)

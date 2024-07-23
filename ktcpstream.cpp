@@ -57,7 +57,7 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioStream<asiostream>*>(stream_);
+		auto stream = static_cast<KAsioStream<asio_stream_type>*>(stream_);
 
 		stream->Socket.async_read_some(boost::asio::buffer(sBuffer, iCount),
 		[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
@@ -102,7 +102,7 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioStream<asiostream>*>(stream_);
+		auto stream = static_cast<KAsioStream<asio_stream_type>*>(stream_);
 
 		for (;iWrote < iCount;)
 		{
@@ -172,14 +172,25 @@ bool KTCPIOStream::Timeout(KDuration Timeout)
 bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 //-----------------------------------------------------------------------------
 {
-	kDebug(2, "resolving domain {}", Endpoint.Domain.get());
+	auto& sHostname = Endpoint.Domain.get();
+	kDebug(2, "resolving domain {}", sHostname);
 
-	boost::asio::ip::tcp::resolver Resolver(m_Stream.IOService);
-	boost::asio::ip::tcp::resolver::query query(Endpoint.Domain.get().c_str(), Endpoint.Port.Serialize().c_str());
-	auto hosts = Resolver.resolve(query, m_Stream.ec);
-
-	if (Good())
+	auto hosts = [&sHostname, &Endpoint, this]() -> auto
 	{
+		boost::asio::ip::tcp::resolver Resolver(m_Stream.IOService);
+		KString sIPAddress;
+
+		if (kIsValidIPv6(sHostname))
+		{
+			// this is an ip v6 numeric address - get rid of the []
+			sIPAddress = sHostname.ToView(1, sHostname.size() - 2);
+		}
+
+		boost::asio::ip::tcp::resolver::query query(sIPAddress.empty() ? sHostname.c_str()
+		                                                               : sIPAddress.c_str(),
+		                                            Endpoint.Port.Serialize().c_str());
+		auto hosts = Resolver.resolve(query, m_Stream.ec);
+
 #ifdef DEKAF2_WITH_KLOG
 		if (kWouldLog(2))
 		{
@@ -196,23 +207,26 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 			}
 		}
 #endif
+		return hosts;
+	}();
 
-		boost::asio::async_connect(m_Stream.Socket.lowest_layer(),
-								   hosts,
+	if (Good())
+	{
+		boost::asio::async_connect(GetTCPSocket(), hosts,
 		                           [&](const boost::system::error_code& ec,
 #if (BOOST_VERSION < 106600)
-		                               boost::asio::ip::tcp::resolver::iterator endpoint)
+			                           boost::asio::ip::tcp::resolver::iterator endpoint)
 #else
-		                               const boost::asio::ip::tcp::endpoint& endpoint)
+			                           const boost::asio::ip::tcp::endpoint& endpoint)
 #endif
 		{
 			m_Stream.sEndpoint.Format("{}:{}",
 #if (BOOST_VERSION < 106600)
-									  endpoint->endpoint().address().to_string(),
-									  endpoint->endpoint().port());
+			endpoint->endpoint().address().to_string(),
+			endpoint->endpoint().port());
 #else
-									  endpoint.address().to_string(),
-									  endpoint.port());
+			endpoint.address().to_string(),
+			endpoint.port());
 #endif
 			m_Stream.ec = ec;
 		});
@@ -222,7 +236,7 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 		m_Stream.RunTimed();
 	}
 
-	if (!Good() || !m_Stream.Socket.is_open())
+	if (!Good() || !GetAsioSocket().is_open())
 	{
 		kDebug(1, "{}: {}", Endpoint.Serialize(), Error());
 		return false;

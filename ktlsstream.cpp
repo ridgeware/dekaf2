@@ -48,7 +48,7 @@ DEKAF2_NAMESPACE_BEGIN
 static KTLSContext s_KTLSClientContext { false, KTLSContext::Transport::Tcp };
 
 //-----------------------------------------------------------------------------
-bool KTLSIOStream::handshake(KAsioTLSStream<asiostream>* stream)
+bool KTLSIOStream::handshake(KAsioTLSStream<asio_stream_type>* stream)
 //-----------------------------------------------------------------------------
 {
 	if (!stream->bNeedHandshake)
@@ -170,21 +170,58 @@ bool KTLSIOStream::SetManualTLSHandshake(bool bYesno)
 } // SetManualTLSHandshake
 
 //-----------------------------------------------------------------------------
+bool KTLSIOStream::SetALPNRaw(KStringView sALPN)
+//-----------------------------------------------------------------------------
+{
+	if (GetContext().GetRole() != boost::asio::ssl::stream_base::client)
+	{
+		kDebug(1, "ALPN setup only supported in client mode");
+		return false;
+	}
+
+	auto iResult = ::SSL_set_alpn_protos(GetNativeTLSHandle(),
+	                                     reinterpret_cast<const unsigned char*>(sALPN.data()),
+	                                     static_cast<unsigned int>(sALPN.size()));
+
+	if (iResult == 0)
+	{
+		return true;
+	}
+
+	kDebug(1, "failed to set ALPN protocol: '{}' - error {}", kEscapeForLogging(sALPN), iResult);
+
+	return false;
+
+} // SetALPNRaw
+
+//-----------------------------------------------------------------------------
+KStringView KTLSIOStream::GetALPN()
+//-----------------------------------------------------------------------------
+{
+	const unsigned char* alpn { nullptr };
+	unsigned int alpnlen { 0 };
+	::SSL_get0_alpn_selected(GetNativeTLSHandle(), &alpn, &alpnlen);
+	return { reinterpret_cast<const char*>(alpn), alpnlen };
+
+} // GetALPN
+
+//-----------------------------------------------------------------------------
 bool KTLSIOStream::SetRequestHTTP2(bool bAlsoAllowHTTP1)
 //-----------------------------------------------------------------------------
 {
 #if DEKAF2_HAS_NGHTTP2
 	// allow ALPN negotiation for HTTP/2 if this is a client
-	if (m_Stream.GetContext().GetRole() == boost::asio::ssl::stream_base::client)
+	if (GetContext().GetRole() == boost::asio::ssl::stream_base::client)
 	{
 		auto sProto = bAlsoAllowHTTP1 ? "\x02h2\0x08http/1.1" : "\x02h2";
-		auto iResult = ::SSL_set_alpn_protos(m_Stream.Socket.native_handle(),
+		auto iResult = ::SSL_set_alpn_protos(GetNativeTLSHandle(),
 		                                     reinterpret_cast<const unsigned char*>(sProto),
 		                                     static_cast<unsigned int>(strlen(sProto)));
 		if (iResult == 0)
 		{
 			return true;
 		}
+
 		kDebug(1, "failed to set ALPN protocol: '{}' - error {}", kEscapeForLogging(sProto), iResult);
 	}
 	else
@@ -198,17 +235,6 @@ bool KTLSIOStream::SetRequestHTTP2(bool bAlsoAllowHTTP1)
 	return false;
 
 } // SetRequestHTTP2
-
-//-----------------------------------------------------------------------------
-KStringView KTLSIOStream::GetALPN()
-//-----------------------------------------------------------------------------
-{
-	const unsigned char* alpn { nullptr };
-	unsigned int alpnlen { 0 };
-	::SSL_get0_alpn_selected(m_Stream.Socket.native_handle(), &alpn, &alpnlen);
-	return { reinterpret_cast<const char*>(alpn), alpnlen };
-
-} // GetALPN
 
 //-----------------------------------------------------------------------------
 std::streamsize KTLSIOStream::direct_read_some(void* sBuffer, std::streamsize iCount)
@@ -226,7 +252,7 @@ std::streamsize KTLSIOStream::direct_read_some(void* sBuffer, std::streamsize iC
 
 	if (!m_Stream.bManualHandshake)
 	{
-		m_Stream.Socket.async_read_some(boost::asio::buffer(sBuffer, iCount),
+		GetAsioSocket().async_read_some(boost::asio::buffer(sBuffer, iCount),
 		[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
 		{
 			m_Stream.ec = ec;
@@ -235,7 +261,7 @@ std::streamsize KTLSIOStream::direct_read_some(void* sBuffer, std::streamsize iC
 	}
 	else
 	{
-		m_Stream.Socket.next_layer().async_read_some(boost::asio::buffer(sBuffer, iCount),
+		GetAsioSocket().next_layer().async_read_some(boost::asio::buffer(sBuffer, iCount),
 		[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
 		{
 			m_Stream.ec = ec;
@@ -317,7 +343,7 @@ std::streamsize KTLSIOStream::TLSStreamWriter(const void* sBuffer, std::streamsi
 
 			if (!TLSStream.m_Stream.bManualHandshake)
 			{
-				TLSStream.m_Stream.Socket.async_write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
+				TLSStream.GetAsioSocket().async_write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
 				[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
 				{
 					TLSStream.m_Stream.ec = ec;
@@ -326,7 +352,7 @@ std::streamsize KTLSIOStream::TLSStreamWriter(const void* sBuffer, std::streamsi
 			}
 			else
 			{
-				TLSStream.m_Stream.Socket.next_layer().async_write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
+				TLSStream.GetAsioSocket().next_layer().async_write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
 				[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
 				{
 					TLSStream.m_Stream.ec = ec;
@@ -373,8 +399,8 @@ KTLSIOStream::KTLSIOStream(KDuration Timeout)
 KTLSIOStream::KTLSIOStream(KTLSContext& Context,
 						   KDuration Timeout)
 //-----------------------------------------------------------------------------
-	: base_type(&m_TLSStreamBuf)
-	, m_Stream(Context, Timeout)
+: base_type(&m_TLSStreamBuf)
+, m_Stream(Context, Timeout)
 {
 }
 
@@ -384,7 +410,7 @@ KTLSIOStream::KTLSIOStream(KTLSContext& Context,
                            KStreamOptions Options,
 						   KDuration Timeout)
 //-----------------------------------------------------------------------------
-    : KTLSIOStream(Context, Timeout)
+: KTLSIOStream(Context, Timeout)
 {
 	Connect(Endpoint, Options);
 }
@@ -403,14 +429,25 @@ bool KTLSIOStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 {
 	m_Stream.bNeedHandshake = true;
 
-	kDebug(2, "resolving domain {}", Endpoint.Domain.get());
+	auto& sHostname = Endpoint.Domain.get();
+	kDebug(2, "resolving domain {}", sHostname);
 
-	boost::asio::ip::tcp::resolver Resolver(m_Stream.IOService);
-	boost::asio::ip::tcp::resolver::query query(Endpoint.Domain.get().c_str(), Endpoint.Port.Serialize().c_str());
-	auto hosts = Resolver.resolve(query, m_Stream.ec);
-
-	if (Good())
+	auto hosts = [&sHostname, &Endpoint, this]() -> auto
 	{
+		boost::asio::ip::tcp::resolver Resolver(m_Stream.IOService);
+		KString sIPAddress;
+
+		if (kIsIPv6Address(sHostname, true))
+		{
+			// this is an ip v6 numeric address - get rid of the []
+			sIPAddress = sHostname.ToView(1, sHostname.size() - 2);
+		}
+
+		boost::asio::ip::tcp::resolver::query query(sIPAddress.empty() ? sHostname.c_str()
+		                                                               : sIPAddress.c_str(),
+		                                            Endpoint.Port.Serialize().c_str());
+		auto hosts = Resolver.resolve(query, m_Stream.ec);
+
 #ifdef DEKAF2_WITH_KLOG
 		if (kWouldLog(2))
 		{
@@ -427,29 +464,58 @@ bool KTLSIOStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 			}
 		}
 #endif
+		return hosts;
+	}();
 
+	// will be set later by async_connect
+	boost::asio::ip::tcp::endpoint ChosenEndpoint;
+
+	if (Good())
+	{
+#if DEKAF2_SSL_DEBUG
+		SSL_set_msg_callback(GetNativeTLSHandle(), SSL_trace);
+		SSL_set_msg_callback_arg(GetNativeTLSHandle(), BIO_new_fp(stderr, BIO_NOCLOSE));
+#endif
+
+		// QUIC mandates peer verification, but we still allow to switch it off
+		// for testing
 		if ((Options & KStreamOptions::VerifyCert) != 0)
 		{
-			m_Stream.Socket.set_verify_mode(boost::asio::ssl::verify_peer
-										  | boost::asio::ssl::verify_fail_if_no_peer_cert);
+			GetAsioSocket().set_verify_mode(boost::asio::ssl::verify_peer
+			                              | boost::asio::ssl::verify_fail_if_no_peer_cert);
+			// looks as if asio is not setting the expected host name though? Let's do it manually
+			if (!::SSL_set1_host(GetNativeTLSHandle(), sHostname.c_str()))
+			{
+				kDebug(1, "Failed to set the certificate verification hostname: {}", sHostname);
+				return false;
+			}
 		}
 		else
 		{
-			m_Stream.Socket.set_verify_mode(boost::asio::ssl::verify_none);
+			GetAsioSocket().set_verify_mode(boost::asio::ssl::verify_none);
 		}
 
-		SetManualTLSHandshake(Options & KStreamOptions::ManualHandshake);
-
-		if (Options & KStreamOptions::RequestHTTP2)
+		if (GetContext().GetRole() == boost::asio::ssl::stream_base::client)
 		{
-			SetRequestHTTP2(Options & KStreamOptions::FallBackToHTTP1);
+			if (Options & KStreamOptions::ManualHandshake)
+			{
+				SetManualTLSHandshake(true);
+			}
+
+			if (Options & KStreamOptions::RequestHTTP2)
+			{
+				SetRequestHTTP2(Options & KStreamOptions::FallBackToHTTP1);
+			}
 		}
 
 		// make sure client side SNI works..
-		::SSL_set_tlsext_host_name(m_Stream.Socket.native_handle(), Endpoint.Domain.get().c_str());
+		if (!::SSL_set_tlsext_host_name(GetNativeTLSHandle(), sHostname.c_str()))
+		{
+			kDebug(1, "failed to set SNI hostname: {}", sHostname);
+			return false;
+		}
 
-		boost::asio::async_connect(m_Stream.Socket.lowest_layer(),
-		                           hosts,
+		boost::asio::async_connect(GetTCPSocket(), hosts,
 		                           [&](const boost::system::error_code& ec,
 #if (BOOST_VERSION < 106600)
 		                               boost::asio::ip::tcp::resolver::iterator endpoint)
@@ -487,7 +553,7 @@ bool KTLSIOStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		m_Stream.RunTimed();
 	}
 
-	if (!Good() || !m_Stream.Socket.lowest_layer().is_open())
+	if (!Good() || !GetTCPSocket().is_open())
 	{
 		kDebug(1, "{}: {}", Endpoint.Serialize(), Error());
 		return false;
@@ -501,10 +567,10 @@ bool KTLSIOStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KTLSStream> CreateKTLSServer(KTLSContext& Context)
+std::unique_ptr<KTLSStream> CreateKTLSServer(KTLSContext& Context, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KTLSStream>(Context);
+	return std::make_unique<KTLSStream>(Context, Timeout);
 }
 
 //-----------------------------------------------------------------------------

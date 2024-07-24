@@ -2,7 +2,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
- // Copyright (c) 2021, Ridgeware, Inc.
+ // Copyright (c) 2024, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -39,34 +39,10 @@
  // +-------------------------------------------------------------------------+
  */
 
-#pragma once
 
-/// @file kasio.h
-/// provides asio include files and basic asio routines
-
-#ifdef __clang__
-// clang erroneously warns 'allocator<void>' being deprecated - which is not
-// true, only explicit specializations of allocator<void> are deprecated in C++17
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-
-// asio misses to include <utility> (std::exchange) in asio/awaitable.hpp, so we
-// load it here explicitly
-#include <utility>
-#include <boost/asio.hpp>
-#include <boost/asio/basic_socket_iostream.hpp>
-#include <boost/asio/io_service.hpp>
-#include <boost/asio/ssl.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ip/v6_only.hpp>
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-
-#include "../kdefinitions.h"
-#include "../kstringview.h"
+#include "kasio.h"
+#include "../ksystem.h"
+#include "../kurlencode.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -77,23 +53,154 @@ boost::asio::ip::tcp::resolver::results_type
 kResolveTCP(KStringViewZ sHostname,
 			uint16_t iPort,
 			boost::asio::io_service& IOService,
-			boost::system::error_code& ec);
+			boost::system::error_code& ec)
 //-----------------------------------------------------------------------------
+{
+	kDebug(2, "resolving domain {}", sHostname);
+
+	boost::asio::ip::tcp::resolver Resolver(IOService);
+
+	KString sIPAddress;
+
+	if (kIsIPv6Address(sHostname, true))
+	{
+		// this is an ip v6 numeric address - get rid of the []
+		sIPAddress = sHostname.ToView(1, sHostname.size() - 2);
+	}
+
+	boost::asio::ip::tcp::resolver::query query(sIPAddress.empty() ? sHostname.c_str()
+												: sIPAddress.c_str(),
+												KString::to_string(iPort).c_str(),
+												boost::asio::ip::tcp::resolver::query::numeric_service);
+	auto Hosts = Resolver.resolve(query, ec);
+
+#ifdef DEKAF2_WITH_KLOG
+	if (kWouldLog(2))
+	{
+#if (BOOST_VERSION < 106600)
+		auto it = hosts;
+		decltype(it) ie;
+#else
+		auto it = Hosts.begin();
+		auto ie = Hosts.end();
+#endif
+		Hosts.empty();
+		for (; it != ie; ++it)
+		{
+			kDebug(2, "resolved to: {}", it->endpoint().address().to_string());
+		}
+	}
+#endif
+
+	return Hosts;
+
+} // kResolveTCP
 
 //-----------------------------------------------------------------------------
 boost::asio::ip::udp::resolver::results_type
 kResolveUDP(KStringViewZ sHostname,
 			uint16_t iPort,
 			boost::asio::io_service& IOService,
-			boost::system::error_code& ec);
+			boost::system::error_code& ec)
 //-----------------------------------------------------------------------------
+{
+	kDebug(2, "resolving domain {}", sHostname);
+
+	boost::asio::ip::udp::resolver Resolver(IOService);
+
+	KString sIPAddress;
+
+	if (kIsIPv6Address(sHostname, true))
+	{
+		// this is an ip v6 numeric address - get rid of the []
+		sIPAddress = sHostname.ToView(1, sHostname.size() - 2);
+	}
+
+	boost::asio::ip::udp::resolver::query query(sIPAddress.empty() ? sHostname.c_str()
+												: sIPAddress.c_str(),
+												KString::to_string(iPort).c_str(),
+												boost::asio::ip::udp::resolver::query::numeric_service);
+	auto Hosts = Resolver.resolve(query, ec);
+
+#ifdef DEKAF2_WITH_KLOG
+	if (kWouldLog(2))
+	{
+#if (BOOST_VERSION < 106600)
+		auto it = Hosts;
+		decltype(it) ie;
+#else
+		auto it = Hosts.begin();
+		auto ie = Hosts.end();
+#endif
+		for (; it != ie; ++it)
+		{
+			kDebug(2, "resolved to: {}", it->endpoint().address().to_string());
+		}
+	}
+#endif
+
+	return Hosts;
+
+} // kResolveUDP
 
 //-----------------------------------------------------------------------------
 boost::asio::ip::tcp::resolver::results_type
 kReverseLookup(KStringViewZ sIPAddr,
 			   boost::asio::io_service& IOService,
-			   boost::system::error_code& ec);
+			   boost::system::error_code& ec)
 //-----------------------------------------------------------------------------
+{
+	kDebug(2, "reverse lookup for IP {}", sIPAddr);
+
+	boost::asio::ip::tcp::endpoint endpoint;
+
+	if (kIsIPv6Address(sIPAddr, true))
+	{
+		// have [] around the IP as in URLs
+		endpoint.address (boost::asio::ip::address_v6::from_string (KString(sIPAddr.substr(1, sIPAddr.size() - 2))));
+	}
+	else if (kIsValidIPv4 (sIPAddr))
+	{
+		endpoint.address (boost::asio::ip::address_v4::from_string (sIPAddr.c_str(), ec));
+	}
+	else if (kIsValidIPv6 (sIPAddr))
+	{
+		endpoint.address (boost::asio::ip::address_v6::from_string (sIPAddr.c_str(), ec));
+	}
+	else
+	{
+		kDebug(1, "Invalid address specified: {} --> FAILED", sIPAddr);
+		return {};
+	}
+
+	if (ec)
+	{
+		return {};
+	}
+
+	boost::asio::ip::tcp::resolver Resolver (IOService);
+	auto Hosts = Resolver.resolve(endpoint, ec);
+
+#ifdef DEKAF2_WITH_KLOG
+	if (kWouldLog(2))
+	{
+#if (BOOST_VERSION < 106600)
+		auto it = Hosts;
+		decltype(it) ie;
+#else
+		auto it = Hosts.begin();
+		auto ie = Hosts.end();
+#endif
+		for (; it != ie; ++it)
+		{
+			kDebug(2, "resolved to: {}", it->host_name());
+		}
+	}
+#endif
+
+	return Hosts;
+
+} // kReverseLookup
 
 } // of namespace detail
 

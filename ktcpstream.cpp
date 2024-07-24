@@ -173,42 +173,8 @@ bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
 //-----------------------------------------------------------------------------
 {
 	auto& sHostname = Endpoint.Domain.get();
-	kDebug(2, "resolving domain {}", sHostname);
 
-	auto hosts = [&sHostname, &Endpoint, this]() -> auto
-	{
-		boost::asio::ip::tcp::resolver Resolver(m_Stream.IOService);
-		KString sIPAddress;
-
-		if (kIsValidIPv6(sHostname))
-		{
-			// this is an ip v6 numeric address - get rid of the []
-			sIPAddress = sHostname.ToView(1, sHostname.size() - 2);
-		}
-
-		boost::asio::ip::tcp::resolver::query query(sIPAddress.empty() ? sHostname.c_str()
-		                                                               : sIPAddress.c_str(),
-		                                            Endpoint.Port.Serialize().c_str());
-		auto hosts = Resolver.resolve(query, m_Stream.ec);
-
-#ifdef DEKAF2_WITH_KLOG
-		if (kWouldLog(2))
-		{
-#if (BOOST_VERSION < 106600)
-			auto it = hosts;
-			decltype(it) ie;
-#else
-			auto it = hosts.begin();
-			auto ie = hosts.end();
-#endif
-			for (; it != ie; ++it)
-			{
-				kDebug(2, "resolved to: {}", it->endpoint().address().to_string());
-			}
-		}
-#endif
-		return hosts;
-	}();
+	auto hosts = detail::kResolveTCP(sHostname, Endpoint.Port.get(), m_Stream.IOService, m_Stream.ec);
 
 	if (Good())
 	{

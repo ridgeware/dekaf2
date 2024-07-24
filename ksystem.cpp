@@ -646,18 +646,16 @@ int kSystem (KStringView sCommand)
 } // ksystem
 
 //-----------------------------------------------------------------------------
-KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
+std::vector<KString> kResolveHostToList (KStringViewZ sHostname, bool bIPv4, bool bIPv6, std::size_t iMax)
 //-----------------------------------------------------------------------------
 {
 	KString sIPV4;
 	KString sIPV6;
-	KString sRet;
+	std::vector<KString> Hosts;
 
 	boost::asio::io_service IOService;
-	boost::asio::ip::tcp::resolver Resolver(IOService);
-	boost::asio::ip::tcp::resolver::query query(sHostname.c_str(), "80", boost::asio::ip::tcp::resolver::query::numeric_service);
 	boost::system::error_code ec;
-	auto hosts = Resolver.resolve(query, ec);
+	auto hosts = detail::kResolveTCP(sHostname, 80, IOService, ec);
 
 	if (ec)
 	{
@@ -672,58 +670,72 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 		auto it = hosts.begin();
 		auto ie = hosts.end();
 #endif
-		for (; it != ie; ++it)
+		for (; it != ie && Hosts.size() < iMax; ++it)
 		{
 			if (it->endpoint().protocol() == boost::asio::ip::tcp::v4())
 			{
-				sIPV4 = it->endpoint().address().to_string();
-
 				if (bIPv4)
 				{
-					break;
+					Hosts.push_back(it->endpoint().address().to_string());
+				}
+				else if (sIPV4.empty())
+				{
+					sIPV4 = it->endpoint().address().to_string();
 				}
 			}
 			else
 			{
-				sIPV6 = it->endpoint().address().to_string();
-
 				if (bIPv6)
 				{
-					break;
+					Hosts.push_back(it->endpoint().address().to_string());
+				}
+				else if (sIPV6.empty())
+				{
+					sIPV6 = it->endpoint().address().to_string();
 				}
 			}
 		}
 
-		if (bIPv4 && !sIPV4.empty())
+		if (!Hosts.empty())
 		{
 			// success
-			kDebug (2, "{} --> {}", sHostname, sIPV4);
-			sRet = std::move(sIPV4);
+			kDebug (2, "{} --> {}", sHostname, Hosts.front());
 		}
-		else if (bIPv6 && !sIPV6.empty())
+		else if (!sIPV6.empty())
 		{
-			// success
-			kDebug (2, "{} --> {}", sHostname, sIPV6);
-			sRet = std::move(sIPV6);
+			kDebug(1, "{} --> FAILED, only has IPV6 {}", sHostname, sIPV6);
 		}
-		else if (sIPV4.empty() && sIPV6.empty())
+		else if (!sIPV4.empty())
+		{
+			kDebug(1, "{} --> FAILED, only has IPV4 {}", sHostname, sIPV4);
+		}
+		else
 		{
 			// unknown..
 			kDebug(1, "{} --> FAILED", sHostname);
 		}
-		else if (sIPV4.empty())
-		{
-			kDebug(1, "{} --> FAILED, only has IPV6 {}", sHostname, sIPV6);
-		}
-		else if (sIPV6.empty())
-		{
-			kDebug(1, "{} --> FAILED, only has IPV4 {}", sHostname, sIPV4);
-		}
 	}
 
-	return sRet;
+	return Hosts;
 
-} // kResolveHostIPV4
+} // kResolveHostToList
+
+//-----------------------------------------------------------------------------
+KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
+//-----------------------------------------------------------------------------
+{
+	auto List = kResolveHostToList(sHostname, bIPv4, bIPv6, 1);
+
+	if (!List.empty()) 
+	{
+		return KString{std::move(List.front())};
+	}
+	else
+	{
+		return KString{};
+	}
+
+} // kResolveHost
 
 //-----------------------------------------------------------------------------
 bool kIsValidIPv4 (KStringViewZ sIPAddr)
@@ -744,43 +756,52 @@ bool kIsValidIPv6 (KStringViewZ sIPAddr)
 } // kIsValidIPv6
 
 //-----------------------------------------------------------------------------
-KString kHostLookup (KStringViewZ sIPAddr)
+std::vector<KString> kHostLookupToList (KStringViewZ sIPAddr, std::size_t iMax)
 //-----------------------------------------------------------------------------
 {
-	KString sFoundHost;
-	boost::asio::ip::tcp::endpoint endpoint;
-	if (kIsValidIPv4 (sIPAddr))
-	{
-		boost::asio::ip::address_v4 v4Addr = boost::asio::ip::address_v4::from_string (sIPAddr.c_str());
-		endpoint.address (v4Addr);
-	}
-	else if (kIsValidIPv6 (sIPAddr))
-	{
-		boost::asio::ip::address_v6 v6Addr = boost::asio::ip::address_v6::from_string (sIPAddr.c_str());
-		endpoint.address (v6Addr);
-	}
-	else
-	{
-		kDebug(1, "Invalid address specified: {} --> FAILED", sIPAddr);
-		return "";
-	}
-
-	boost::asio::io_service IOService;
-	boost::asio::ip::tcp::resolver Resolver (IOService);
+	std::vector<KString> Hosts;
 	boost::system::error_code ec;
+	boost::asio::io_service IOService;
 
-	auto hostIter = Resolver.resolve(endpoint, ec);
+	auto hostIter = detail::kReverseLookup(sIPAddr, IOService, ec);
 
-	if (ec)
+	if (ec || hostIter.empty())
 	{
 		kDebug (1, "{} --> FAILED : {}", sIPAddr, ec.message());
 	}
 	else
 	{
-		sFoundHost = hostIter->host_name();
+		for (auto host : hostIter)
+		{
+			Hosts.push_back(host.host_name());
+			
+			if (Hosts.size() >= iMax)
+			{
+				break;
+			}
+		}
 	}
 
-	return sFoundHost;
+	return Hosts;
+
+} // kHostLookupToList
+
+//-----------------------------------------------------------------------------
+KString kHostLookup (KStringViewZ sIPAddr)
+//-----------------------------------------------------------------------------
+{
+	KString sFoundHost;
+
+	auto List = kHostLookupToList(sIPAddr, 1);
+
+	if (!List.empty())
+	{
+		return KString{std::move(List.front())};
+	}
+	else
+	{
+		return KString{};
+	}
 
 } // kHostLookup
 

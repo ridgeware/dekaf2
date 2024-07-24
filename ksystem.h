@@ -159,13 +159,23 @@ int kSystem (KStringView sCommand, KStringRef& sOutput);
 DEKAF2_PUBLIC
 int kSystem (KStringView sCommand);
 
-/// Resolve the given hostname into either an IPv4 IP address or an IPv6 address. If both versions are checked, IPv4 takes precedence if both are found.
+/// Resolve the given hostname into either/or IPv4 IP addresses or IPv6 addresses.
 /// @param sHostname the hostname to resolve
-/// @param bIPv4 try IPv4 resolver
-/// @param bIPv6 try IPv6 resolver
+/// @param bIPv4 try IPv4 resolver, default = true
+/// @param bIPv6 try IPv6 resolver, default = true
+/// @param iMax maximum count of returned addresses, default = unlimited
+/// @return resolved IP addresses (as a std::vector<KString>), or if hostname fails to resolve, an empty vector.
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+std::vector<KString> kResolveHostToList (KStringViewZ sHostname, bool bIPv4 = true, bool bIPv6 = true, std::size_t iMax = npos);
+
+/// Resolve the given hostname into either an IPv4 IP address or an IPv6 address. If both versions are checked, the first found takes precedence.
+/// If multiple addresses of the same kind are found, the first one takes precedence.
+/// @param sHostname the hostname to resolve
+/// @param bIPv4 try IPv4 resolver, default = true
+/// @param bIPv6 try IPv6 resolver, default = true
 /// @return resolved IP address (as a string), or if hostname fails to resolve, an empty string.
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6);
+KString kResolveHost (KStringViewZ sHostname, bool bIPv4 = true, bool bIPv6 = true);
 
 /// Resolve the given hostname into an IPv4 IP address, e.g. "50.1.2.3".
 /// @param sHostname the hostname to resolve
@@ -192,6 +202,13 @@ bool kIsValidIPv4 (KStringViewZ sIPAddr);
 /// Return true if the string represents a valid IPV6 address
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsValidIPv6 (KStringViewZ sIPAddr);
+
+/// Return all host names that map to the specified IP address
+/// @param sIPAddr the IP address of the searched host
+/// @param iMax maximum count of returned addresses, default = unlimited
+/// @return resolved host names (as a std::vector<KString>), or if address fails to resolve, an empty vector.
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+std::vector<KString> kHostLookupToList (KStringViewZ sIPAddr, std::size_t iMax = npos);
 
 /// Return the first host name that maps to the specified IP address
 DEKAF2_NODISCARD DEKAF2_PUBLIC

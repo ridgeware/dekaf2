@@ -1046,6 +1046,7 @@ set (PRECOMPILED_HEADERS
 
 set (SOURCES
 	# KEEP ALPHABETIZED
+	bits/kasio.cpp
 	bits/kbasepipe.cpp
 	bits/kbaseshell.cpp
 	bits/kfindsetofchars.cpp

@@ -426,7 +426,57 @@ bool KStringView::Bool() const noexcept
 	// * as well as non-0 --> true
 	// the literal versions are needed for conversions between JSON and KSQL,
 	// and for various XML formats
-	return Int16() != 0 || In("true,True,TRUE,on,On,ON,yes,Yes,YES");
+	switch (size())
+	{
+		case 0:
+			return false;
+
+		case 1:
+			return KASCII::kIsDigit(m_rep[0]) && m_rep[0] != '0';
+
+		case 2:
+			// check on,On,ON
+			if (m_rep[0] == 'o')
+			{
+				if (m_rep[1] == 'n') return true;
+			}
+			else if (m_rep[0] == 'O' && (m_rep[1] == 'n' || m_rep[1] == 'N')) return true;
+			break;
+
+		case 3:
+			// check yes,Yes,YES
+			if (m_rep[0] == 'y')
+			{
+				if (m_rep[1] == 'e' && m_rep[2] == 's') return true;
+			}
+			else if (m_rep[0] == 'Y')
+			{
+				if (m_rep[1] == 'e' && m_rep[2] == 's') return true;
+				if (m_rep[1] == 'E' && m_rep[2] == 'S') return true;
+			}
+			break;
+
+		case 4:
+			// check true,True,TRUE
+			if (m_rep[0] == 't')
+			{
+				if (m_rep[1] == 'r' && m_rep[2] == 'u' && m_rep[3] == 'e') return true;
+			}
+			else if (m_rep[0] == 'T')
+			{
+				if (m_rep[1] == 'r')
+				{
+					if (m_rep[2] == 'u' && m_rep[3] == 'e') return true;
+				}
+				else if (m_rep[1] == 'R' && m_rep[2] == 'U' && m_rep[3] == 'E') return true;
+			}
+			break;
+
+		default:
+			break;
+	}
+
+	return Int16() != 0;
 }
 
 //-----------------------------------------------------------------------------

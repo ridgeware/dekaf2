@@ -744,6 +744,86 @@ TEST_CASE("KStringView") {
 		CHECK( pos == KStringView::npos );
 	}
 
+	SECTION("Bool")
+	{
+		std::vector<KStringView> TrueTests {
+			{ "1" },
+			{ " 1" },
+			{ "      1e" },
+			{ "-12345" },
+			{ "+11234" },
+			{ "   -1x" },
+			{ "    +1x" },
+			{ "yes" },
+			{ "Yes" },
+			{ "YES" },
+			{ "true" },
+			{ "True" },
+			{ "TRUE" },
+			{ "on" },
+			{ "On" },
+			{ "ON" },
+			{ "23423534565465545756745" },
+		};
+
+		std::vector<KStringView> FalseTests {
+			{ "tRue" },
+			{ "yeS" },
+			{ "oN" },
+			{ " yes" },
+			{ "yes " },
+			{ "Yes " },
+			{ " Yes" },
+			{ "YES " },
+			{ " YES" },
+			{ "true " },
+			{ "True " },
+			{ "TRUE " },
+			{ " true" },
+			{ " True" },
+			{ " TRUE" },
+			{ "on " },
+			{ "On " },
+			{ "ON " },
+			{ " on" },
+			{ " On" },
+			{ " ON" },
+			{ "0" },
+			{ "000000" },
+			{ "     0" },
+			{ "   00000" },
+			{ "  -0" },
+			{ "  +0" },
+			{ "+0" },
+			{ "-0" },
+			{ "00" },
+			{ " +0" },
+			{ "+" },
+			{ "-" },
+			{ " +" },
+			{ " -" },
+			{ "hello" },
+			{ "no" },
+			{ "false" },
+			{ "off" },
+			{ " no " },
+			{ " false " },
+			{ " off " },
+		};
+
+		for (const auto& Test : TrueTests)
+		{
+			INFO  ( Test );
+			CHECK ( Test.Bool() == true );
+		}
+
+		for (const auto& Test : FalseTests)
+		{
+			INFO  ( Test );
+			CHECK ( Test.Bool() == false );
+		}
+	}
+
 	SECTION("conversion functions for KStringView")
 	{
 		KStringView s;

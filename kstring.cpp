@@ -125,12 +125,19 @@ KString& KString::replace(iterator i1, iterator i2, std::initializer_list<value_
 }
 
 //------------------------------------------------------------------------------
+KString KString::substr(size_type pos, size_type n) const &
+//------------------------------------------------------------------------------
+{
+	return DEKAF2_UNLIKELY(pos > size())
+		? KString()
+		: KString(data() + pos, std::min(n, size() - pos));
+}
+
+//------------------------------------------------------------------------------
 KString KString::substr(size_type pos, size_type n/*=npos*/) &&
 //------------------------------------------------------------------------------
 {
-	const auto iSize = size();
-
-	if (DEKAF2_UNLIKELY(pos >= iSize))
+	if (DEKAF2_UNLIKELY(pos >= size()))
 	{
 		clear();
 	}
@@ -138,7 +145,7 @@ KString KString::substr(size_type pos, size_type n/*=npos*/) &&
 	{
 		erase(0, pos);
 
-		if (n < iSize - pos)
+		if (n < size() - pos)
 		{
 			resize(n);
 		}
@@ -328,17 +335,15 @@ KStringViewZ KString::ToView(size_type pos) const
 KStringView KString::ToView(size_type pos, size_type n) const
 //----------------------------------------------------------------------
 {
-	const auto iSize = size();
-
-	if (DEKAF2_UNLIKELY(pos > iSize))
+	if (DEKAF2_UNLIKELY(pos > size()))
 	{
-		kDebug (1, "pos ({}) exceeds size ({})", pos, iSize);
-		pos = iSize;
+		kDebug (1, "pos ({}) exceeds size ({})", pos, size());
+		pos = size();
 	}
 	
-	if (DEKAF2_UNLIKELY(n > iSize || pos + n > iSize))
+	if (DEKAF2_UNLIKELY(n > size() || pos + n > size()))
 	{
-		n = iSize - pos;
+		n = size() - pos;
 	}
 
 	return KStringView(data() + pos, n);

@@ -454,12 +454,7 @@ public:
 
 	/// substring starting at zero-based position "pos" for "n" chars.  if "n" is not specified return the rest of the string starting at "pos"
 	DEKAF2_NODISCARD
-	KString substr(size_type pos = 0, size_type n = npos) const &
-	{
-		return DEKAF2_UNLIKELY(pos > size())
-		  ? self()
-		  : self(data() + pos, std::min(n, size() - pos));
-	}
+	KString substr(size_type pos = 0, size_type n = npos) const &;
 
 	/// substring starting at zero-based position "pos" for "n" chars.  if "n" is not specified return the rest of the string starting at "pos"
 	DEKAF2_NODISCARD

@@ -90,6 +90,7 @@ KStringView KHTTPError::GetStatusString(uint16_t iStatusCode)
 		case H2xx_PARTIAL_CONTENT:    return "PARTIAL CONTENT";
 		case H2xx_UPDATED:            return "UPDATED";
 		case H2xx_DELETED:            return "DELETED";
+		case 208: // we translate H2xx_ALREADY into 208, but we do not use an enum for it
 		case H2xx_ALREADY:            return "ALREADY DONE";
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

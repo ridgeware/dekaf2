@@ -47,7 +47,6 @@
 #include "kscopeguard.h"
 #include <openssl/opensslv.h>
 #include <openssl/crypto.h>
-#include <sys/poll.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -81,49 +80,14 @@ bool KQuicStream::Handshake()
 			sWhat.Format("Verify error: {}", ::X509_verify_cert_error_string(::SSL_get_verify_result(GetNativeTLSHandle())));
 		}
 
-		return SetError(kFormat("TLS handshake failed: {}", sWhat));
+		return SetError(kFormat("Quic handshake failed: {}", sWhat));
 	}
-
-#if OPENSSL_VERSION_NUMBER <= 0x10002000L || defined(DEKAF2_WITH_KLOG)
-	auto ssl = GetNativeTLSHandle();
-#endif
-
-#if OPENSSL_VERSION_NUMBER <= 0x10002000L
-	// OpenSSL <= 1.0.2 did not do hostname validation - let's do it manually
-
-	if (GetContext().GetVerify())
-	{
-		// look for server certificate
-		auto* cert = ::SSL_get_peer_certificate(ssl);
-
-		if (cert)
-		{
-			// have one, free it immediately
-			::X509_free(cert);
-		}
-		else
-		{
-			kDebug(1, "server did not present a certificate");
-			return false;
-		}
-
-		// check chain verification
-		if (::SSL_get_verify_result(ssl) != ::X509_V_OK)
-		{
-			kDebug(1, "certificate chain verification failed");
-			return false;
-		}
-	}
-#endif
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-	// in OpenSSL < 1.1.0 we need to manually check that the host name is
-	// one of the certificate host names ..
-#endif
 
 #ifdef DEKAF2_WITH_KLOG
 	if (kWouldLog(2))
 	{
+		auto ssl = GetNativeTLSHandle();
+
 		kDebug(2, "Quic handshake successful, rx/tx {}/{} bytes",
 			   ::BIO_number_read(::SSL_get_rbio(ssl)),
 			   ::BIO_number_written(::SSL_get_wbio(ssl)));
@@ -212,28 +176,6 @@ std::streamsize KQuicStream::QuicStreamReader(void* sBuffer, std::streamsize iCo
 		auto& Quic = *static_cast<KQuicStream*>(stream_);
 
 		iRead = Quic.direct_read_some(sBuffer, iCount);
-
-#ifdef DEKAF2_WITH_KLOG
-		if (DEKAF2_UNLIKELY(kWouldLog(1)))
-		{
-			if (iRead == 0 || Quic.GetNativeSocket() < 0)
-			{
-#if 0
-				if (TLSStream.m_Stream.ec.value() == boost::asio::error::eof)
-				{
-					kDebug(2, "input stream got closed by endpoint {}", TLSStream.m_Stream.sEndpoint);
-				}
-				else
-				{
-					kDebug(1, "cannot read from {} stream with endpoint {}: {}",
-						   "TLS",
-						   TLSStream.m_Stream.sEndpoint,
-						   TLSStream.m_Stream.ec.message());
-				}
-#endif
-			}
-		}
-#endif
 	}
 
 	return iRead;
@@ -267,26 +209,6 @@ std::streamsize KQuicStream::QuicStreamWriter(const void* sBuffer, std::streamsi
 			}
 
 			iWrote += iWrotePart;
-
-			if (iWrotePart == 0 || Quic.GetNativeSocket() < 0)
-			{
-#ifdef DEKAF2_WITH_KLOG
-#if 0
-				if (TLSStream.m_Stream.ec.value() == boost::asio::error::eof)
-				{
-					kDebug(2, "output stream got closed by endpoint {}", TLSStream.m_Stream.sEndpoint);
-				}
-				else
-				{
-					kDebug(1, "cannot write to {} stream with endpoint {}: {}",
-						   "TLS",
-						   TLSStream.m_Stream.sEndpoint,
-						   TLSStream.m_Stream.ec.message());
-				}
-#endif
-#endif
-				break;
-			}
 		}
 	}
 
@@ -351,7 +273,6 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	SetUnresolvedEndPoint(Endpoint);
 
 #if DEKAF2_QUIC_DEBUG
-	// debugging..
 	::SSL_set_msg_callback(GetNativeTLSHandle(), SSL_trace);
 	::SSL_set_msg_callback_arg(GetNativeTLSHandle(), BIO_new_fp(stderr, BIO_NOCLOSE));
 #endif
@@ -435,6 +356,34 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	}
 
 	{
+		// get a pointer on the peer address - we do not need to wrap this,
+		// it is a pointer into a struct that is already wrapped in a std::unique_ptr
+		auto peer_addr = ::BIO_ADDRINFO_address(ai);
+
+		if (!peer_addr)
+		{
+			return SetError("cannot get peer address");
+		}
+
+		KUniquePtr<char, MyOPENSSL_free> ipaddress(::BIO_ADDR_hostname_string(peer_addr, 1)); // 1 means numeric
+		KUniquePtr<char, MyOPENSSL_free> service  (::BIO_ADDR_service_string (peer_addr, 1)); // 1 means numeric
+
+		if (::BIO_ADDR_family(peer_addr) == AF_INET6)
+		{
+			SetEndPointAddress(kFormat("[{}]:{}", ipaddress.get(), service.get()));
+		}
+		else
+		{
+			SetEndPointAddress(kFormat("{}:{}", ipaddress.get(), service.get()));
+		}
+
+		if (!::SSL_set1_initial_peer_addr(GetNativeTLSHandle(), peer_addr))
+		{
+			return SetError(kFormat("failed to set initial peer address: {}", ipaddress.get()));
+		}
+	}
+
+	{
 		// create a BIO to wrap the socket
 		::BIO* bio = ::BIO_new(::BIO_s_datagram());
 
@@ -454,14 +403,6 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 		// and tell OpenSSL to use this BIO - it takes ownership
 		::SSL_set_bio(GetNativeTLSHandle(), bio, bio);
-	}
-
-	// create a safe copy of the peer address
-	KUniquePtr<::BIO_ADDR, ::BIO_ADDR_free> peer_addr(::BIO_ADDR_dup(::BIO_ADDRINFO_address(ai)));
-
-	if (!peer_addr)
-	{
-		return false;
 	}
 
 	if (!::SSL_set1_host(GetNativeTLSHandle(), sHostname.c_str()))
@@ -488,23 +429,6 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		return SetError(kFormat("failed to set SNI hostname: {}", sHostname));
 	}
 
-	KUniquePtr<char, MyOPENSSL_free> ipaddress(::BIO_ADDR_hostname_string(peer_addr.get(), 1)); // 1 means numeric
-	KUniquePtr<char, MyOPENSSL_free> service  (::BIO_ADDR_service_string (peer_addr.get(), 1)); // 1 means numeric
-
-	if (::BIO_ADDR_family(peer_addr.get()) == AF_INET6)
-	{
-		SetEndPointAddress(kFormat("[{}]:{}", ipaddress.get(), service.get()));
-	}
-	else
-	{
-		SetEndPointAddress(kFormat("{}:{}", ipaddress.get(), service.get()));
-	}
-
-	if (!::SSL_set1_initial_peer_addr(GetNativeTLSHandle(), peer_addr.get()))
-	{
-		return SetError(kFormat("failed to set initial peer address: {}", ipaddress.get()));
-	}
-
 	if (!Good() || GetNativeSocket() < 0)
 	{
 		return false;
@@ -529,45 +453,6 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	}
 
 	kDebug(2, "connected to {} {}", "endpoint", GetEndPointAddress());
-
-#if 0
-	const char *request_start = "GET / HTTP/1.0\r\nConnection: close\r\nHost: ";
-	const char *request_end = "\r\n\r\n";
-	std::size_t written;
-
-	/* Write an HTTP GET request to the peer */
-	if (!SSL_write_ex(GetNativeTLSHandle(), request_start, strlen(request_start), &written)) {
-		kDebug(2, "Failed to write start of HTTP request");
-		return false;
-	}
-	if (!SSL_write_ex(GetNativeTLSHandle(), sHostname.c_str(), sHostname.size(), &written)) {
-		kDebug(2, "Failed to write host name of HTTP request");
-		return false;
-	}
-	if (!SSL_write_ex(GetNativeTLSHandle(), request_end, strlen(request_end), &written)) {
-		kDebug(2, "Failed to write start of HTTP request");
-		return false;
-	}
-
-	std::size_t readbytes;
-	char buf[160];
-	/*
-	 * Get up to sizeof(buf) bytes of the response. We keep reading until the
-	 * server closes the connection.
-	 */
-	while (SSL_read_ex(GetNativeTLSHandle(), buf, sizeof(buf), &readbytes)) {
-		/*
-		 * OpenSSL does not guarantee that the returned data is a string or
-		 * that it is NUL terminated so we use fwrite() to write the exact
-		 * number of bytes that we read. The data could be non-printable or
-		 * have NUL characters in the middle of it. For this simple example
-		 * we're going to print it to stdout anyway.
-		 */
-		KOut.Write(buf, readbytes);
-	}
-	/* In case the response didn't finish with a newline we add one now */
-	KOut.WriteLine();
-#endif
 
 	return true;
 

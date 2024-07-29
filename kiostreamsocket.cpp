@@ -48,6 +48,7 @@
 #include "ktlsstream.h"
 #include "kquicstream.h"
 #include <openssl/ssl.h>
+#include <poll.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

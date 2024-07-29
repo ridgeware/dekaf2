@@ -41,7 +41,7 @@
 
 #pragma once
 
-/// @file kinetstreambase.h
+/// @file kiostreamsocket.h
 /// provides common stream methods for all internet streams
 
 #include "kdefinitions.h"
@@ -317,7 +317,7 @@ public:
 // helper for old code expecting KConnection::Create()
 namespace KConnection
 {
-inline static std::unique_ptr<KIOStreamSocket>
+inline std::unique_ptr<KIOStreamSocket>
 Create(const KURL& URL, bool bForceTLS = false, KStreamOptions Options = KStreamOptions::None)
 {
 	return KIOStreamSocket::Create(URL, bForceTLS, Options);

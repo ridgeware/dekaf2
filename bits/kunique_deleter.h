@@ -81,6 +81,11 @@ using KUniquePtr = std::unique_ptr<T, KUniqueDeleter<T, deleter>>;
 
 } // end of namespace detail
 
+// pull KUniquePtr out of ::detail
+/// a unique ptr that uses a publicly visible deleter function
+template <typename T, void (*deleter)(T*) = std::default_delete<T>() >
+using KUniquePtr = detail::KUniquePtr<T, deleter>;
+
 // helper types to allow for a unique_ptr<void>, which lets us hide all
 // implementation headers from the interface and nonetheless keep exception safety
 

@@ -114,10 +114,6 @@ public:
 		m_bActive = false;
 	}
 
-	// keep a compatibility alias until 06/2024
-	/// DEPRECATED, please use release()
-	void reset() noexcept { release(); }
-
 //----------
 private:
 //----------

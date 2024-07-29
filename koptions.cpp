@@ -2114,7 +2114,6 @@ KStringViewZ KOptions::Values::operator [] (std::size_t index) const
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 	constexpr KStringViewZ KOptions::CLIParms::Arg_t::s_sDoubleDash;
 	constexpr KStringView  KOptions::UNKNOWN_ARG;
-	constexpr KStringView::size_type iMaxAdHocOptionLength;
 #endif
 
 DEKAF2_NAMESPACE_END

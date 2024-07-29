@@ -498,7 +498,7 @@ public:
 	friend bool operator==(const T& left, const KHTTPHeader& right)
 	//-----------------------------------------------------------------------------
 	{
-		return right==KHTTPHeader(right);
+		return right==KHTTPHeader(left);
 	}
 
 	//-----------------------------------------------------------------------------

@@ -55,6 +55,7 @@ TEST_CASE("KHTTPHeader")
 		CHECK ( (Header1 == "aUthoRization"_ks)  );
 		CHECK ( (Header1 == "aUthoRization"_ksv) );
 		CHECK ( (Header2 == "aUthoRization"_ksz) );
+		CHECK ( (Header1 == "something") == false );
 		CHECK ( ("authorization"     == Header1) );
 		CHECK ( ("authorization"_ks  == Header1) );
 		CHECK ( ("authorization"_ksv == Header1) );
@@ -63,6 +64,7 @@ TEST_CASE("KHTTPHeader")
 		CHECK ( ("aUthoRization"_ks  == Header1) );
 		CHECK ( ("aUthoRization"_ksv == Header1) );
 		CHECK ( ("aUthoRization"_ksz == Header2) );
+		CHECK ( ("something" == Header1) == false );
 		CHECK ( Header1 == KHTTPHeader::AUTHORIZATION );
 		CHECK ( Header2 == KHTTPHeader::AUTHORIZATION );
 		CHECK ( Header1 != KHTTPHeader::CONTENT_TYPE );

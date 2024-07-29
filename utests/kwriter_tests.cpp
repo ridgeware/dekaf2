@@ -287,10 +287,10 @@ TEST_CASE("KWriter") {
 
 		KMyServer Server(43236, true, 5);
 		Server.SetTLSCertificates(sCert, sKey);
-		Server.Start(chrono::seconds(5), false);
+		Server.Start(chrono::seconds(10), false);
 
 		KTLSContext TLSContext(false);
-		KTLSClient stream(TLSContext, "localhost:43236", KStreamOptions::None, chrono::seconds(5));
+		KTLSClient stream(TLSContext, "localhost:43236", KStreamOptions(KStreamOptions::None, chrono::seconds(10)));
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();
@@ -298,6 +298,7 @@ TEST_CASE("KWriter") {
 
 		if (stream.KOutStream::Good())
 		{
+//			kSleep(5);
 			KString sRx;
 			CHECK ( stream.ReadLine(sRx) == true );
 			CHECK ( sRx == sLarge );
@@ -318,7 +319,7 @@ TEST_CASE("KWriter") {
 		Server.Start(chrono::seconds(5), false);
 
 		KTLSContext TLSContext(false);
-		KTLSClient stream(TLSContext, "localhost:43237", KStreamOptions::None, chrono::seconds(5));
+		KTLSClient stream(TLSContext, "localhost:43237", KStreamOptions(KStreamOptions::None, chrono::seconds(5)));
 		stream.Write(sLarge);
 		stream.Write('\n');
 		stream.Flush();
@@ -333,27 +334,60 @@ TEST_CASE("KWriter") {
 	}
 #endif
 
-	struct mystreambuf : public std::streambuf
-	{
-		mystreambuf() = default;
-	};
-
 	SECTION("move")
 	{
 		static_assert(std::is_move_constructible<std::ofstream>::value, "std::ofstream has to be move constructible");
 
-		std::ofstream F1;
-		auto F2 = std::move(F1);
+		KString sFile = kFormat("{}{}move-tests", TempDir.Name(), kDirSep);
+		KString sLine = "one line of text\n";
 
-		KOutStream outstream(F2);
-		KOutStream outstream2 = std::move(outstream);
-		KOutStream& outstream3 = outstream2;
+		{
+			std::ofstream F1(sFile);
+			CHECK ( F1.is_open() );
+			CHECK ( F1.good() );
+			F1.write(sLine.data(), sLine.size());
+			CHECK ( F1.good() );
+			auto F2 = std::move(F1);
+			CHECK ( F2.good() );
+			F2.write(sLine.data(), sLine.size());
+			CHECK ( F2.good() );
+			F2.close();
+			CHECK ( kReadAll(sFile) == "one line of text\none line of text\n" );
+			CHECK ( kRemoveFile(sFile) );
 
-		KWriter<std::ofstream> File;
-		auto File2 = std::move(File);
-
-		KOutFile OutFile;
-		auto OutFile2 = std::move(OutFile);
+			KOutStream outstream(F2);
+			KOutStream outstream2 = std::move(outstream);
+			KOutStream& outstream3 = outstream2;
+		}
+		{
+			KWriter<std::ofstream> File(sFile);
+			CHECK ( File.is_open() );
+			CHECK ( File.Good() );
+			File.Write(sLine);
+			CHECK ( File.Good() );
+			auto File2 = std::move(File);
+			CHECK ( File2.Good() );
+			File2.Write(sLine);
+			CHECK ( File2.Good() );
+			File2.close();
+			CHECK ( kReadAll(sFile) == "one line of text\none line of text\n" );
+			CHECK ( kRemoveFile(sFile) );
+		}
+		{
+			KOutFile OutFile(sFile);
+			CHECK ( OutFile.is_open() );
+			CHECK ( OutFile.Good() );
+			OutFile.Write(sLine);
+			CHECK ( OutFile.Good() );
+			auto OutFile2 = std::move(OutFile);
+			CHECK ( OutFile2.is_open() );
+			CHECK ( OutFile2.Good() );
+			OutFile2.Write(sLine);
+			CHECK ( OutFile2.Good() );
+			OutFile2.close();
+			CHECK ( kReadAll(sFile) == "one line of text\none line of text\n" );
+			CHECK ( kRemoveFile(sFile) );
+		}
 	}
 
 	SECTION("Seek")

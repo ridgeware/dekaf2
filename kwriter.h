@@ -338,6 +338,18 @@ public:
 	}
 
 //-------
+protected:
+//-------
+
+	//-----------------------------------------------------------------------------
+	/// allow a derived class to set the outstream pointer - e.g. after a move..
+	void SetOutStream(std::ostream& OutStream)
+	//-----------------------------------------------------------------------------
+	{
+		m_OutStream = &OutStream;
+	}
+
+//-------
 private:
 //-------
 
@@ -414,9 +426,11 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	// copy construction is not allowed
+	// copy construction is not allowed - we maintain a pointer to this in the KOutStream child,
+	// and it would probably point to a wrong location after a copy
 	KWriter(const KWriter&) = delete;
 	//-----------------------------------------------------------------------------
+
 
 	//-----------------------------------------------------------------------------
 	// depending on the ostream type, move construction is allowed
@@ -426,6 +440,8 @@ public:
 	    , KOutStream(std::move(other))
 	//-----------------------------------------------------------------------------
 	{
+		// make sure the pointers in the KOutStream point to the moved object
+		SetOutStream(*this);
 	}
 
 	//-----------------------------------------------------------------------------

@@ -510,18 +510,61 @@ TEST_CASE("KReader") {
 	{
 		static_assert(std::is_move_constructible<std::ifstream>::value, "std::ifstream has to be move constructible");
 
-		std::ifstream F1;
-		auto F2 = std::move(F1);
+		{
+			std::ifstream F1;
+			F1.open(sFile.c_str());
+			CHECK ( F1.is_open() );
 
-		KInStream instream(F2);
-		KInStream instream2 = std::move(instream);
-		KInStream& instream3 = instream2;
-		
-		KReader<std::ifstream> File;
-		auto File2 = std::move(File);
+			auto F2 = std::move(F1);
+			CHECK ( F2.is_open() );
 
-		KInFile InFile;
-		auto InFile2 = std::move(InFile);
+			KInStream instream(F2);
+			KInStream instream2 = std::move(instream);
+			KInStream& instream3 = instream2;
+			auto s = instream2.ReadLine();
+			CHECK ( s == "line 1" );
+		}
+		{
+			KReader<std::ifstream> File(sFile);
+			CHECK ( File.is_open() );
+			auto s = File.ReadLine();
+			CHECK ( s == "line 1" );
+			auto File2 = std::move(File);
+			CHECK ( File2.is_open() );
+			s = File2.ReadLine();
+			CHECK ( s == "line 2" );
+			File2.close();
+		}
+		{
+			KInFile InFile(sFile);
+			CHECK ( InFile.is_open() );
+			auto s = InFile.ReadLine();
+			CHECK ( s == "line 1" );
+			auto InFile2 = std::move(InFile);
+			CHECK ( InFile2.is_open() );
+			s = InFile2.ReadLine();
+			CHECK ( s == "line 2" );
+			InFile2.close();
+		}
+		{
+			KInFile InFile(sFile);
+			CHECK ( InFile.is_open() );
+			auto s = InFile.ReadLine();
+			CHECK ( s == "line 1" );
+			KInStream InStream(InFile.InStream());
+			CHECK ( InStream.Good() );
+			s = InStream.ReadLine();
+			CHECK ( s == "line 2" );
+			auto InStream2 = std::move(InStream);
+			CHECK ( InStream2.Good() );
+			s = InStream2.ReadLine();
+			CHECK ( s == "line 3" );
+			auto InFile2 = std::move(InFile);
+			CHECK ( InFile2.is_open() );
+			s = InFile2.ReadLine();
+			CHECK ( s == "line 4" );
+			InFile2.close();
+		}
 	}
 
 	SECTION("Seek")

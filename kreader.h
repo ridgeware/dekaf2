@@ -699,6 +699,18 @@ public:
 	}
 
 //-------
+protected:
+//-------
+
+	//-----------------------------------------------------------------------------
+	/// allow a derived class to set the outstream pointer - e.g. after a move..
+	void SetInStream(std::istream& InStream)
+	//-----------------------------------------------------------------------------
+	{
+		m_InStream = &InStream;
+	}
+
+//-------
 private:
 //-------
 
@@ -786,6 +798,8 @@ public:
 	    , KInStream(std::move(other))
 	//-----------------------------------------------------------------------------
 	{
+		// make sure the pointers in the KInStream point to the moved object
+		SetInStream(*this);
 	}
 
 	//-----------------------------------------------------------------------------

@@ -52,6 +52,12 @@
 
 	// we definitely want to use implicit conversions, else all hell breaks loose
 	#define JSON_USE_IMPLICIT_CONVERSIONS 1
+
+	// and set the define that KJSON2 is disabled!
+	#ifdef DEKAF2_KJSON2_IS_DISABLED
+		#undef DEKAF2_KJSON2_IS_DISABLED
+	#endif
+	#define DEKAF2_KJSON2_IS_DISABLED 1
 #else
 	// we do _not_ want to use implicit conversions, because otherwise, with gcc,
 	// the converting operator of LJSON creates ambiguities with KJSON2 even

@@ -426,6 +426,30 @@ kurl::kurl ()
 	});
 
 	m_CLI
+		.Option("v4,ipv4")
+		.Help("force IPv4 connection")
+	([&]()
+	{
+		if (BuildMRQ.Flags & FORCE_IPV6)
+		{
+			throw KOptions::Error("--ipv4 and --ipv6 options are mutually exclusive");
+		}
+		BuildMRQ.Flags |= Flags::FORCE_IPV4;
+	});
+
+	m_CLI
+		.Option("v6,ipv6")
+		.Help("force IPv6 connection")
+	([&]()
+	{
+		if (BuildMRQ.Flags & FORCE_IPV4)
+		{
+			throw KOptions::Error("--ipv4 and --ipv6 options are mutually exclusive");
+		}
+		BuildMRQ.Flags |= Flags::FORCE_IPV6;
+	});
+
+	m_CLI
 		.Option("http1,http1.1")
 		.Help("force http/1.1 protocol, do not allow upgrade to http/2")
 	([&]()
@@ -447,6 +471,54 @@ kurl::kurl ()
 			throw KOptions::Error("--http1 and --http2 options are mutually exclusive");
 		}
 		BuildMRQ.Flags |= Flags::FORCE_HTTP_2;
+	});
+
+	m_CLI
+		.Command("reverse <IP address>")
+		.Help("run a reverse lookup on an IP address and exit")
+		.Stop()
+	([&](KStringViewZ sAddress)
+	{
+		for (auto& sHost : kHostLookupToList(sAddress))
+		{
+			KOut.WriteLine(sHost);
+		}
+	});
+
+	m_CLI
+		.Command("lookup <hostname> [4|6 [<maxresults>]]")
+		.Help("run a hostname lookup and exit, either for IPv4,6 or both")
+		.MinArgs(1)
+		.MaxArgs(3)
+		.Stop()
+	([&](KOptions::ArgList& Args)
+	{
+		KStringViewZ sHostname;
+		bool bv4 { true };
+		bool bv6 { true };
+		std::size_t iMax { npos };
+		std::reverse(Args.begin(), Args.end());
+
+		switch (Args.size())
+		{
+			case 3:
+				iMax = Args.pop().UInt64();
+				DEKAF2_FALLTHROUGH;
+			case 2:
+				bv4 = (Args.pop().UInt16() == 4);
+				bv6 = !bv4;
+				DEKAF2_FALLTHROUGH;
+			case 1:
+				sHostname = Args.pop();
+				break;
+		}
+
+		auto Hosts = kResolveHostToList(sHostname, bv4, bv6, iMax);
+
+		for (auto& it : Hosts)
+		{
+			KOut.WriteLine(it);
+		}
 	});
 
 	m_CLI
@@ -581,29 +653,39 @@ void kurl::ServerQuery ()
 		Out.SetWriterEndOfLine("\r\n");
 
 		{
-			KStreamOptions options = (RQ->URL.Protocol == url::KProtocol::HTTPS)
-									? KStreamOptions::DefaultsForHTTP
-									: KStreamOptions::None;
+			KHTTPStreamOptions Options = (RQ->URL.Protocol == url::KProtocol::HTTPS)
+			                             ? KHTTPStreamOptions::DefaultsForHTTP
+			                             : KHTTPStreamOptions::None;
 
 			if (RQ->Config.Flags & Flags::FORCE_HTTP_2)
 			{
-				options = KStreamOptions::RequestHTTP2;
+				Options = KHTTPStreamOptions::RequestHTTP2;
 			}
 			else if (RQ->Config.Flags & Flags::FORCE_HTTP_1)
 			{
-				options = KStreamOptions::None;
+				Options = KHTTPStreamOptions::None;
 			}
 
 			if ((RQ->Config.Flags & Flags::INSECURE_CERTS) == 0)
 			{
-				options = options.Get() | KStreamOptions::VerifyCert;
+				Options.Set(KHTTPStreamOptions::VerifyCert);
 			}
 
-			HTTP.SetStreamOptions(options);
+			if (RQ->Config.Flags & Flags::FORCE_IPV4)
+			{
+				Options.Set(KHTTPStreamOptions::ForceIPv4);
+			}
+
+			if (RQ->Config.Flags & Flags::FORCE_IPV6)
+			{
+				Options.Set(KHTTPStreamOptions::ForceIPv6);
+			}
+
+			Options.SetTimeout(chrono::seconds(RQ->Config.iSecondsTimeout));
+
+			HTTP.SetStreamOptions(Options);
 		}
 		
-		HTTP.SetTimeout(chrono::seconds(RQ->Config.iSecondsTimeout));
-
 		if (RQ->Config.sRequestCompression == "-")
 		{
 			HTTP.RequestCompression(false);

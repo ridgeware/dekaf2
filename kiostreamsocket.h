@@ -314,4 +314,15 @@ public:
 
 }; // KStreamSocketAdaptor
 
+// helper for old code expecting KConnection::Create()
+namespace KConnection
+{
+inline static std::unique_ptr<KIOStreamSocket>
+Create(const KURL& URL, bool bForceTLS = false, KStreamOptions Options = KStreamOptions::None)
+{
+	return KIOStreamSocket::Create(URL, bForceTLS, Options);
+}
+
+} // end of namespace KConnection
+
 DEKAF2_NAMESPACE_END

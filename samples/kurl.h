@@ -85,7 +85,10 @@ public:
 		INSECURE_CERTS   = 1 << 5,
 		CONNECTION_CLOSE = 1 << 6,
 		FORCE_HTTP_1     = 1 << 7,
-		FORCE_HTTP_2     = 1 << 8
+		FORCE_HTTP_2     = 1 << 8,
+		FORCE_HTTP_3     = 1 << 9,
+		FORCE_IPV4       = 1 << 10,
+		FORCE_IPV6       = 1 << 11
 	};
 
 //----------

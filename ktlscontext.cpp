@@ -46,7 +46,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-#if (BOOST_VERSION < 106600)
+#if (DEKAF2_CLASSIC_ASIO)
 boost::asio::io_service KTLSContext::s_IO_Service;
 #endif
 
@@ -59,9 +59,10 @@ std::string KTLSContext::PasswordCallback(std::size_t max_length,
 }
 
 //-----------------------------------------------------------------------------
-SSL_CTX* KTLSContext::CreateContext(bool bIsServer, Transport transport)
+::SSL_CTX* KTLSContext::CreateContext(bool bIsServer, Transport transport)
 //-----------------------------------------------------------------------------
 {
+#if (DEKAF2_HAS_ASIO_CONTEXT_FROM_OPENSSL_CONTEXT)
 	switch (transport)
 	{
 		case Transport::Tcp:
@@ -88,12 +89,12 @@ SSL_CTX* KTLSContext::CreateContext(bool bIsServer, Transport transport)
 				// the following would spawn a thread to deal with the QUIC timing
 				//return ::SSL_CTX_new(::OSSL_QUIC_client_thread_method();
 			}
-#else
+#else // of DEKAF2_HAS_OPENSSL_QUIC
 			kDebug(1, "QUIC protocol not supported by this build");
-#endif
+#endif // of DEKAF2_HAS_OPENSSL_QUIC
 			break;
 	}
-
+#endif // of DEKAF2_HAS_ASIO_CONTEXT_FROM_OPENSSL_CONTEXT
 	return nullptr;
 
 } // CreateContext
@@ -101,13 +102,22 @@ SSL_CTX* KTLSContext::CreateContext(bool bIsServer, Transport transport)
 //-----------------------------------------------------------------------------
 KTLSContext::KTLSContext(bool bIsServer, Transport transport)
 //-----------------------------------------------------------------------------
-#if (BOOST_VERSION < 106600)
+#if (DEKAF2_CLASSIC_ASIO)
 : m_Context(s_IO_Service, boost::asio::ssl::context::sslv23)
+#elif (!DEKAF2_HAS_ASIO_CONTEXT_FROM_OPENSSL_CONTEXT)
+: m_Context(bIsServer ? boost::asio::ssl::context::tls_server : boost::asio::ssl::context::tls_client)
 #else
 : m_Context(CreateContext(bIsServer, transport))
 #endif
 , m_Role(bIsServer ? boost::asio::ssl::stream_base::server : boost::asio::ssl::stream_base::client)
 {
+#if (!DEKAF2_HAS_ASIO_CONTEXT_FROM_OPENSSL_CONTEXT)
+	if (transport == Transport::Quic)
+	{
+		kDebug(1, "you need a boost version >= 1.73 to enable QUIC");
+	}
+#endif
+
 	SetDefaults();
 }
 
@@ -126,7 +136,7 @@ bool KTLSContext::SetDefaults()
 #ifdef SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
 		| SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
 #endif
-#if (BOOST_VERSION >= 106600)
+#if (!DEKAF2_CLASSIC_ASIO)
 		| boost::asio::ssl::context::no_tlsv1_1
 #endif
 		| boost::asio::ssl::context::no_tlsv1;

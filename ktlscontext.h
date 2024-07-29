@@ -152,7 +152,7 @@ private:
 //----------
 
 	//-----------------------------------------------------------------------------
-	static SSL_CTX* CreateContext(bool bIsServer, Transport transport);
+	static ::SSL_CTX* CreateContext(bool bIsServer, Transport transport);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -173,7 +173,7 @@ private:
 	//-----------------------------------------------------------------------------
 
 	KString m_sError;
-#if (BOOST_VERSION < 106600)
+#if (DEKAF2_CLASSIC_ASIO)
 	static boost::asio::io_service s_IO_Service;
 #endif
 	boost::asio::ssl::context m_Context;

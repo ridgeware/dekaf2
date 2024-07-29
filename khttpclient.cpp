@@ -371,6 +371,29 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 	}
 #endif
 
+#if DEKAF2_HAS_OPENSSL_QUIC
+	if (m_StreamOptions.IsSet(KHTTPStreamOptions::RequestHTTP3))
+	{
+		auto QuicStream = dynamic_cast<KQuicStream*>(m_Connection.get());
+
+		if (QuicStream)
+		{
+			// Quic forces the handshake during the connection stage
+			// check if we negotiated HTTP/3
+			auto sALPN = QuicStream->GetALPN();
+
+			if (sALPN == "h3")
+			{
+				kDebug(2, "switching to HTTP/3");
+				// TODO
+				return SetError("HTTP/3 not yet implemented");
+			}
+			return SetError("server did not accept HTTP/3 request");
+		}
+		else return SetError("not a KQuicStream");
+	}
+#endif
+
 	return true;
 
 } // Connect

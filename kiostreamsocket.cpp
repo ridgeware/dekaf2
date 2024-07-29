@@ -46,6 +46,7 @@
 #include "kunixstream.h"
 #include "ktcpstream.h"
 #include "ktlsstream.h"
+#include "kquicstream.h"
 #include <openssl/ssl.h>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -556,7 +557,16 @@ std::unique_ptr<KIOStreamSocket> KIOStreamSocket::Create(const KURL& URL, bool b
 
 	if ((url::KProtocol::UNDEFINED && Port.get() == 443) || URL.Protocol == url::KProtocol::HTTPS || bForceTLS)
 	{
-		return std::make_unique<KTLSStream>(KTCPEndPoint(URL.Domain, Port), Options);
+#if DEKAF2_HAS_OPENSSL_QUIC
+		if (Options.IsSet(KStreamOptions::RequestHTTP3))
+		{
+			return std::make_unique<KQuicStream>(KTCPEndPoint(URL.Domain, Port), Options);
+		}
+		else
+#endif
+		{
+			return std::make_unique<KTLSStream>(KTCPEndPoint(URL.Domain, Port), Options);
+		}
 	}
 	else // NOLINT: we want the else after return..
 	{

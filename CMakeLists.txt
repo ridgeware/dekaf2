@@ -375,6 +375,10 @@ endif()
 # ================================ OPENSSL ===================================
 
 find_package(OpenSSL REQUIRED)
+if (OPENSSL_VERSION VERSION_GREATER_EQUAL "3.2")
+	message(STATUS "OpenSSL ${OPENSSL_VERSION} has QUIC")
+	set(DEKAF2_HAS_OPENSSL_QUIC 1)
+endif()
 
 # ================================ NGHTTP2 ===================================
 
@@ -803,7 +807,6 @@ set(PUBLIC_HEADERS
 	kchunkedtransfer.h
 	kcompatibility.h
 	kcompression.h
-	kconnection.h
 	kcookie.h
 	kcountingstreambuf.h
 	kcrashexit.h
@@ -848,6 +851,7 @@ set(PUBLIC_HEADERS
 	kinpipe.h
 	kinshell.h
 	kinstringstream.h
+	kiostreamsocket.h
 	kjoin.h
 	kjson.h
 	kjson2.h
@@ -1046,7 +1050,6 @@ set (PRECOMPILED_HEADERS
 
 set (SOURCES
 	# KEEP ALPHABETIZED
-	bits/kasio.cpp
 	bits/kbasepipe.cpp
 	bits/kbaseshell.cpp
 	bits/kfindsetofchars.cpp
@@ -1066,7 +1069,6 @@ set (SOURCES
 	kchildprocess.cpp
 	kchunkedtransfer.cpp
 	kcompression.cpp
-	kconnection.cpp
 	kcookie.cpp
 	kcountingstreambuf.cpp
 	kcrashexit.cpp
@@ -1107,6 +1109,7 @@ set (SOURCES
 	kinpipe.cpp
 	kinshell.cpp
 	kinstringstream.cpp
+	kiostreamsocket.cpp
 	kjson.cpp
 	kjson2.cpp
 	klambdastream.cpp
@@ -1629,6 +1632,11 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant/date/"             
 # remove old headers, until mid-2024
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kcppcompat.h)")
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/ktemplate.h)")
+# remove old headers, until begin-2025
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kconnection.h)")
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslstream.h)")
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslcontext.h)")
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslclient.h)")
 if (NOT DEKAF2_HAS_LIBZIP)
 	# make sure to remove a kzip.h header if this build did not find libzip
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kzip.h)")

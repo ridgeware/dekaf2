@@ -46,6 +46,8 @@
 #include "kstring.h"
 #include "ksystem.h"
 
+#include "kquicstream.h"
+
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
@@ -204,7 +206,7 @@ bool KHTTPClient::DigestAuthenticator::NeedsContentData() const
 
 #if DEKAF2_HAS_NGHTTP2
 //-----------------------------------------------------------------------------
-KHTTPClient::HTTP2Session::HTTP2Session(KTLSIOStream& TLSStream)
+KHTTPClient::HTTP2Session::HTTP2Session(KTLSStream& TLSStream)
 //-----------------------------------------------------------------------------
 : Session(TLSStream, true)
 , StreamBuf(HTTP2StreamReader, this)
@@ -238,14 +240,14 @@ void KHTTPClient::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(KStreamOptions Options)
+KHTTPClient::KHTTPClient(KHTTPStreamOptions Options)
 //-----------------------------------------------------------------------------
 : m_StreamOptions(Options)
 {
 } // Ctor
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, KStreamOptions Options)
+KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, KHTTPStreamOptions Options)
 //-----------------------------------------------------------------------------
 : m_StreamOptions(Options)
 {
@@ -257,7 +259,7 @@ KHTTPClient::KHTTPClient(const KURL& url, KHTTPMethod method, KStreamOptions Opt
 } // Ctor
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method, KStreamOptions Options)
+KHTTPClient::KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method, KHTTPStreamOptions Options)
 //-----------------------------------------------------------------------------
 : m_StreamOptions(Options)
 {
@@ -269,7 +271,7 @@ KHTTPClient::KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method,
 } // Ctor
 
 //-----------------------------------------------------------------------------
-KHTTPClient::KHTTPClient(std::unique_ptr<KConnection> stream)
+KHTTPClient::KHTTPClient(std::unique_ptr<KIOStreamSocket> stream)
 //-----------------------------------------------------------------------------
 {
 	Connect(std::move(stream));
@@ -277,7 +279,17 @@ KHTTPClient::KHTTPClient(std::unique_ptr<KConnection> stream)
 } // Ctor
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
+KHTTPClient::~KHTTPClient()
+//-----------------------------------------------------------------------------
+{
+	// we call Disconnect() to make sure the http2 object is destructed before
+	// the connection object (as the former references the latter)
+	Disconnect();
+
+} // Dtor
+
+//-----------------------------------------------------------------------------
+bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 //-----------------------------------------------------------------------------
 {
 	SetError(KStringView{});
@@ -301,15 +313,14 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 		return SetError("KConnection is invalid");
 	}
 
-	m_Connection->SetTimeout(m_Timeout);
-	m_Connection->Stream().SetReaderEndOfLine('\n');
-	m_Connection->Stream().SetReaderLeftTrim("");
-	m_Connection->Stream().SetReaderRightTrim("\r\n");
-	m_Connection->Stream().SetWriterEndOfLine("\r\n");
+	m_Connection->SetReaderEndOfLine('\n');
+	m_Connection->SetReaderLeftTrim("");
+	m_Connection->SetReaderRightTrim("\r\n");
+	m_Connection->SetWriterEndOfLine("\r\n");
 
 	// immediately set the filter streams to the new object
-	Request.SetOutputStream(m_Connection->Stream());
-	Response.SetInputStream(m_Connection->Stream());
+	Request.SetOutputStream(*m_Connection);
+	Response.SetInputStream(*m_Connection);
 
 	// this is a new connection, so initially assume no proxying
 	m_bUseHTTPProxyProtocol	= false;
@@ -320,19 +331,19 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 #if DEKAF2_HAS_NGHTTP2
 	m_HTTP2.reset();
 
-	if (m_StreamOptions & KStreamOptions::RequestHTTP2)
+	if (m_StreamOptions.IsSet(KHTTPStreamOptions::RequestHTTP2))
 	{
-		auto TLSStream = m_Connection->GetUnderlyingTLSStream();
+		auto TLSStream = dynamic_cast<KTLSStream*>(m_Connection.get());
 
 		if (TLSStream)
 		{
 			// force the handshake right now, we need it before
 			// we try to send our first data (the request) to
 			// know if we must switch to HTTP/2
-			TLSStream->StartManualTLSHandshake();
+			m_Connection->StartManualTLSHandshake();
 
 			// check if we negotiated HTTP/2
-			auto sALPN = TLSStream->GetALPN();
+			auto sALPN = m_Connection->GetALPN();
 
 			if (sALPN == "h2")
 			{
@@ -343,15 +354,19 @@ bool KHTTPClient::Connect(std::unique_ptr<KConnection> Connection)
 				{
 					return SetError(m_HTTP2->Session.Error());
 				}
-				
+
 				Request .SetHTTPVersion(KHTTPVersion::http2);
 				Response.SetHTTPVersion(KHTTPVersion::http2);
 				Response.SetInputStream(m_HTTP2->InStream);
 			}
-			else if ((m_StreamOptions & KStreamOptions::FallBackToHTTP1) == 0)
+			else if (m_StreamOptions.IsSet(KHTTPStreamOptions::FallBackToHTTP1) == false)
 			{
 				return SetError("wanted a HTTP/2 connection, but got only HTTP/1.1");
 			}
+		}
+		else if (m_StreamOptions.IsSet(KHTTPStreamOptions::FallBackToHTTP1) == false)
+		{
+			return SetError("not a KTLSStream");
 		}
 	}
 #endif
@@ -422,7 +437,7 @@ bool KHTTPClient::Connect(const KURL& url)
 		}
 	}
 
-	return Connect(KConnection::Create(url, false, m_StreamOptions));
+	return Connect(KIOStreamSocket::Create(url, false, m_StreamOptions));
 
 } // Connect
 
@@ -432,7 +447,7 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 {
 	if (Proxy.empty())
 	{
-		return Connect(KConnection::Create(url, false, m_StreamOptions));
+		return Connect(KIOStreamSocket::Create(url, false, m_StreamOptions));
 	}
 
 	// which protocol on which connection segment?
@@ -462,7 +477,7 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 	kDebug(2, "connecting via proxy {}", Proxy.Serialize());
 
 	// Connect the proxy. Use a TLS connection if either proxy or target is HTTPS.
-	if (!Connect(KConnection::Create(Proxy, bProxyIsHTTPS || bTargetIsHTTPS, m_StreamOptions)))
+	if (!Connect(KIOStreamSocket::Create(Proxy, bProxyIsHTTPS || bTargetIsHTTPS, m_StreamOptions)))
 	{
 		// error is already set
 		return false;
@@ -492,7 +507,8 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 			//
 			// We are optimistic and already mark the target URL as our new
 			// connection endpoint.
-			m_Connection = std::make_unique<KTLSConnection>(m_Connection.release()->Stream(), url);
+
+			m_Connection->SetProxiedEndPoint(url);
 		}
 
 		// We first have to send our CONNECT request in plain text..
@@ -547,11 +563,7 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 bool KHTTPClient::Disconnect()
 //-----------------------------------------------------------------------------
 {
-	if (!m_Connection)
-	{
-		return SetError("no connection to disconnect");
-	}
-
+	m_HTTP2.reset();
 	m_Connection.reset();
 
 	return true;
@@ -564,11 +576,11 @@ KHTTPClient& KHTTPClient::SetVerifyCerts(bool bYesNo)
 {
 	if (bYesNo)
 	{
-		m_StreamOptions = m_StreamOptions.Get() | KStreamOptions::VerifyCert;
+		m_StreamOptions.Set(KHTTPStreamOptions::VerifyCert);
 	}
 	else
 	{
-		m_StreamOptions = m_StreamOptions.Get() & ~KStreamOptions::VerifyCert;
+		m_StreamOptions.Unset(KHTTPStreamOptions::VerifyCert);
 	}
 
 	return *this;
@@ -580,15 +592,16 @@ KHTTPClient& KHTTPClient::SetVerifyCerts(bool bYesNo)
 bool KHTTPClient::GetVerifyCerts() const
 //-----------------------------------------------------------------------------
 {
-	return m_StreamOptions & KStreamOptions::VerifyCert;
+	return m_StreamOptions.IsSet(KHTTPStreamOptions::VerifyCert);
 }
 
 //-----------------------------------------------------------------------------
 KHTTPClient& KHTTPClient::SetTimeout(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	m_Timeout = Timeout;
-
+	// just in case we're not yet connected..
+	m_StreamOptions.SetTimeout(Timeout);
+	// if we're connected, set the timeout in the stream class
 	if (m_Connection)
 	{
 		m_Connection->SetTimeout(Timeout);
@@ -933,6 +946,14 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 	else
 #endif
 
+//#ifdef DEKAF2_HAS_NGHTTP3
+#ifdef DEKAF2_HAS_NGHTTP2
+		if (m_StreamOptions.IsSet(KHTTPStreamOptions::RequestHTTP3))
+		{
+			return SetError("HTTP/3 not yet implemented");
+		}
+#endif
+
 	// send the request headers to the remote server
 	if (!Serialize())
 	{
@@ -1162,9 +1183,9 @@ bool KHTTPClient::AlreadyConnected(const KTCPEndPoint& EndPoint) const
 		return false;
 	}
 
-	if (EndPoint == m_Connection->EndPoint())
+	if (EndPoint == m_Connection->GetEndPoint())
 	{
-		kDebug(2, "already connected to {}", m_Connection->EndPoint().Serialize());
+		kDebug(2, "already connected to {}", EndPoint);
 		return true;
 	}
 
@@ -1197,5 +1218,37 @@ bool KHTTPClient::SetNetworkError(bool bRead, KString sError)
 	return SetError(std::move(sError));
 
 } // SetNetworkError
+
+//-----------------------------------------------------------------------------
+const KTCPEndPoint& KHTTPClient::GetConnectedEndpoint() const
+//-----------------------------------------------------------------------------
+{
+	if (m_Connection)
+	{
+		return m_Connection->GetEndPoint();
+	}
+	else
+	{
+		return s_EmptyEndpoint;
+	}
+
+} // GetConnectedEndpoint
+
+//-----------------------------------------------------------------------------
+const KTCPEndPoint& KHTTPClient::GetEndpointAddress() const
+//-----------------------------------------------------------------------------
+{
+	if (m_Connection)
+	{
+		return m_Connection->GetEndPointAddress();
+	}
+	else
+	{
+		return s_EmptyEndpoint;
+	}
+
+} // GetEndpointAddress
+
+KTCPEndPoint KHTTPClient::s_EmptyEndpoint;
 
 DEKAF2_NAMESPACE_END

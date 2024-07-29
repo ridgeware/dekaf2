@@ -3,6 +3,7 @@
 #include <dekaf2/kwebclient.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kjson.h>
+#include <dekaf2/kiostreamsocket.h>
 #include <iostream>
 
 using namespace dekaf2;
@@ -26,8 +27,8 @@ TEST_CASE("KHTTPClient")
 		CHECK ( sHTML.empty() == false );
 
 		KFile File;
-		KConnection Connection(File);
-		CHECK ( Connection.Good() == true );
+		auto Connection = KIOStreamSocket::Create(File);
+		CHECK ( Connection->Good() == true );
 	}
 
 	SECTION("TLSinTLS")

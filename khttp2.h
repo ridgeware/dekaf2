@@ -628,7 +628,7 @@ public:
 //----------
 
 	/// construct a HTTP/2 session around a connected TLS stream (after successful ALPN H2 negotiation)
-	Session(KTLSIOStream& TLSStream, bool bIsClient);
+	Session(KTLSStream& TLSStream, bool bIsClient);
 	~Session();
 
 	/// Submit a (client) request. Internally, this generates a new Stream object, the handle of which is returned as an int32_t.
@@ -671,7 +671,7 @@ protected:
 	static KStringView TranslateError(int iError);
 	static KStringView TranslateFrameType (uint8_t FrameType);
 
-	KTLSIOStream&    m_TLSStream;
+	KTLSStream&    m_TLSStream;
 
 //----------
 private:

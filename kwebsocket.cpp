@@ -62,7 +62,7 @@ StreamType GetStreamType(KStream& Stream)
 //-----------------------------------------------------------------------------
 {
 	{
-		auto S = dynamic_cast<KTLSIOStream*>(&Stream);
+		auto S = dynamic_cast<KTLSStream*>(&Stream);
 
 		if (S)
 		{
@@ -71,7 +71,7 @@ StreamType GetStreamType(KStream& Stream)
 	}
 
 	{
-		auto S = dynamic_cast<KTCPIOStream*>(&Stream);
+		auto S = dynamic_cast<KTCPStream*>(&Stream);
 
 		if (S)
 		{
@@ -81,7 +81,7 @@ StreamType GetStreamType(KStream& Stream)
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	{
-		auto S = dynamic_cast<KUnixIOStream*>(&Stream);
+		auto S = dynamic_cast<KUnixStream*>(&Stream);
 
 		if (S)
 		{
@@ -95,14 +95,14 @@ StreamType GetStreamType(KStream& Stream)
 } // GetStreamType
 
 //-----------------------------------------------------------------------------
-KTCPIOStream::asio_stream_type&& GetAsioTCPStream (KStream& Stream)
+KTCPStream::asio_stream_type&& GetAsioTCPStream (KStream& Stream)
 //-----------------------------------------------------------------------------
 {
-	auto S = dynamic_cast<KTCPIOStream*>(&Stream);
+	auto S = dynamic_cast<KTCPStream*>(&Stream);
 
 	if (!S)
 	{
-		throw KWebSocketError("not a KTCPIOStream");
+		throw KWebSocketError("not a KTCPStream");
 	}
 
 	return std::move(S->GetAsioSocket());
@@ -111,14 +111,14 @@ KTCPIOStream::asio_stream_type&& GetAsioTCPStream (KStream& Stream)
 
 //-----------------------------------------------------------------------------
 // this one _has_ to be an explicit RVALUE because of older GCCs (< 11)
-KTLSIOStream::asio_stream_type&& GetAsioTLSStream (KStream& Stream)
+KTLSStream::asio_stream_type&& GetAsioTLSStream (KStream& Stream)
 //-----------------------------------------------------------------------------
 {
-	auto S = dynamic_cast<KTLSIOStream*>(&Stream);
+	auto S = dynamic_cast<KTLSStream*>(&Stream);
 
 	if (!S)
 	{
-		throw KWebSocketError("not a KTLSIOStream");
+		throw KWebSocketError("not a KTLSStream");
 	}
 
 	return std::move(S->GetAsioSocket());
@@ -127,14 +127,14 @@ KTLSIOStream::asio_stream_type&& GetAsioTLSStream (KStream& Stream)
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 //-----------------------------------------------------------------------------
-KUnixIOStream::asio_stream_type&& GetAsioUnixStream(KStream& Stream)
+KUnixStream::asio_stream_type&& GetAsioUnixStream(KStream& Stream)
 //-----------------------------------------------------------------------------
 {
-	auto S = dynamic_cast<KUnixIOStream*>(&Stream);
+	auto S = dynamic_cast<KUnixStream*>(&Stream);
 
 	if (!S)
 	{
-		throw KWebSocketError("not a KUnixIOStream");
+		throw KWebSocketError("not a KUnixStream");
 	}
 
 	return std::move(S->GetAsioSocket());

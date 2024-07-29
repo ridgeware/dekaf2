@@ -11,6 +11,12 @@ endif()
 
 # add fast regular expressions
 add_subdirectory(re2 EXCLUDE_FROM_ALL)
+if (DEKAF2_HAS_WARN_ARRAY_BOUNDS)
+	# gcc 14.1.1 sees array overflows in re2
+	# and, yes, one can add target options in a parent directory,
+	# after the add_subdirectory!
+	target_compile_options(re2 PRIVATE -Wno-array-bounds)
+endif()
 
 # add the frozen lib (constexpr set and map)
 add_subdirectory(frozen EXCLUDE_FROM_ALL)

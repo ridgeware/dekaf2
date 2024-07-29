@@ -75,7 +75,7 @@ bool KWget (KStringView sURL, KStringViewZ sOutfile, const KJSON& Options/*=KJSO
 } // KWget
 
 //-----------------------------------------------------------------------------
-KWebClient::KWebClient(KStreamOptions Options /*=KStreamOptions::DefaultsForHTTP*/)
+KWebClient::KWebClient(KHTTPStreamOptions Options /*=KHTTPStreamOptions{}*/)
 //-----------------------------------------------------------------------------
 : KHTTPClient(Options)
 {
@@ -185,10 +185,10 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 					}
 				}
 			}
-			else
-			{
-				ConnectTime.halt();
-			}
+		}
+		else
+		{
+			ConnectTime.halt();
 		}
 
 		if (!CheckForRedirect(RequestURL, RequestMethod, /*bNoHostChange=*/bHaveSeparateConnectURL))
@@ -206,12 +206,9 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 		// else loop into the redirection
 	}
 
-	auto iConnectTime  = ConnectTime.milliseconds();
-	auto iTransmitTime = TransmitTime.milliseconds();
-	auto iReceiveTime  = ReceiveTime.milliseconds();
-	auto iTotalTime    = iConnectTime + iTransmitTime + iReceiveTime;
+	KDuration TotalTime = ConnectTime.elapsed() + TransmitTime.elapsed() + ReceiveTime.elapsed();
 
-	kDebug(3, "connect {}, transmit {}, receive {}, total {}", iConnectTime, iTransmitTime, iReceiveTime, iTotalTime);
+	kDebug(3, "connect {}, transmit {}, receive {}, total {}", ConnectTime.elapsed(), TransmitTime.elapsed(), ReceiveTime.elapsed(), TotalTime);
 
 	if (m_pServiceSummary)
 	{
@@ -225,10 +222,10 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 			{ "bytes_request_body",  sRequestBody.size()        },
 			{ "bytes_response_body", iRead                      },
 			{ "error_string",        Error()                    },
-			{ "msecs_connect",       iConnectTime.count()       },
-			{ "msecs_transmit",      iTransmitTime.count()      },
-			{ "msecs_receive",       iReceiveTime.count()       },
-			{ "msecs_total",         iTotalTime.count()         },
+			{ "msecs_connect",       ConnectTime .elapsed().milliseconds().count() },
+			{ "msecs_transmit",      TransmitTime.elapsed().milliseconds().count() },
+			{ "msecs_receive",       ReceiveTime .elapsed().milliseconds().count() },
+			{ "msecs_total",         TotalTime             .milliseconds().count() },
 			{ "num_redirects",       iRedirects                 },
 			{ "num_retries",         iRetries                   },
 			{ "response_code",       Response.GetStatusCode()   },
@@ -238,16 +235,17 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 
 	if (m_iWarnIfOverMilliseconds > KDuration::zero() &&
 		m_TimingCallback &&
-		iTotalTime > m_iWarnIfOverMilliseconds)
+		TotalTime > m_iWarnIfOverMilliseconds)
 	{
-		KString sSummary = kFormat ("{}: {}, took {} msecs (connect {}, transmit {}, receive {})",
-			RequestMethod.Serialize(),
-			RequestURL.Serialize(),
-			kFormNumber (iTotalTime),
-			kFormNumber (iConnectTime),
-			kFormNumber (iTransmitTime),
-			kFormNumber (iReceiveTime));
-		m_TimingCallback (*this, iTotalTime, sSummary);
+		KString sSummary = kFormat ("{}: {}, took {} (connect {}, transmit {}, receive {})",
+			RequestMethod,
+			RequestURL,
+			TotalTime,
+			ConnectTime.elapsed(),
+			TransmitTime.elapsed(),
+			ReceiveTime.elapsed()
+		);
+		m_TimingCallback (*this, TotalTime, sSummary);
 	}
 
 	if (HttpSuccess())
@@ -320,7 +318,7 @@ KString KWebClient::HttpRequest2Host (const KURL& HostURL, KURL URL, KHTTPMethod
 } // HttpRequest2Host
 
 //-----------------------------------------------------------------------------
-KString kHTTPGet(KURL URL, KStreamOptions Options)
+KString kHTTPGet(KURL URL, KHTTPStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
 	KWebClient HTTP(Options);
@@ -329,7 +327,7 @@ KString kHTTPGet(KURL URL, KStreamOptions Options)
 } // kHTTPGet
 
 //-----------------------------------------------------------------------------
-bool kHTTPHead(KURL URL, KStreamOptions Options)
+bool kHTTPHead(KURL URL, KHTTPStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
 	KWebClient HTTP(Options);
@@ -338,7 +336,7 @@ bool kHTTPHead(KURL URL, KStreamOptions Options)
 } // kHTTPHead
 
 //-----------------------------------------------------------------------------
-KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime, KStreamOptions Options)
+KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime, KHTTPStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
 	KWebClient HTTP(Options);

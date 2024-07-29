@@ -42,7 +42,6 @@
 #pragma once
 
 #include "kstringview.h"
-#include "kconnection.h"
 #include "khttp_response.h"
 #include "khttp_request.h"
 #include "khttp_method.h"

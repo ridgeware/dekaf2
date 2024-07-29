@@ -45,7 +45,7 @@
 #include "kstring.h"
 #include "kstream.h"
 #include "kurl.h"
-#include "kconnection.h"
+#include "kiostreamsocket.h"
 #include "kassociative.h"
 #include "kstreamoptions.h"
 
@@ -115,7 +115,7 @@ private:
 
 	mutable KString m_sError;
 	// The TCP stream class
-	std::unique_ptr<KConnection> m_Connection;
+	std::unique_ptr<KIOStreamSocket> m_Connection;
 	// the TCP timeout
 	KDuration m_Timeout { KStreamOptions::GetDefaultTimeout() };
 

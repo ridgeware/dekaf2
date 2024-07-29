@@ -40,6 +40,8 @@
  */
 
 #include "kstreamoptions.h"
+#include "klog.h"
+#include <sys/socket.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -55,11 +57,36 @@ None;
 #endif
 
 //-----------------------------------------------------------------------------
-KStreamOptions::KStreamOptions(Options Options)
+KStreamOptions::KStreamOptions(Options Options, KDuration Timeout)
 //-----------------------------------------------------------------------------
-: m_Options(GetDefaults(Options))
+: m_Timeout(Timeout)
+, m_Options(GetDefaults(Options))
 {
 } // ctor
+
+//-----------------------------------------------------------------------------
+KStreamOptions::KStreamOptions(KDuration Timeout)
+//-----------------------------------------------------------------------------
+: m_Timeout(Timeout)
+, m_Options(Options::None)
+{
+} // ctor
+
+//-----------------------------------------------------------------------------
+void KStreamOptions::Set(Options Options)
+//-----------------------------------------------------------------------------
+{
+	m_Options |= GetDefaults(Options);
+
+} // Set
+
+//-----------------------------------------------------------------------------
+void KStreamOptions::Unset(Options Options)
+//-----------------------------------------------------------------------------
+{
+	m_Options &= ~GetDefaults(Options);
+
+} // Unset
 
 //-----------------------------------------------------------------------------
 KStreamOptions::Options KStreamOptions::GetDefaults(Options Options)
@@ -83,6 +110,17 @@ bool KStreamOptions::SetDefaults(Options Options)
 	return true;
 
 } // SetTLSDefaults
+
+//-----------------------------------------------------------------------------
+KStreamOptions::Family KStreamOptions::GetFamily() const
+//-----------------------------------------------------------------------------
+{
+	if      (IsSet(ForceIPv4)) return Family::IPv4;
+	else if (IsSet(ForceIPv6)) return Family::IPv6;
+	else                       return Family::Any;
+
+} // GetFamily
+
 
 //-----------------------------------------------------------------------------
 bool KStreamOptions::AddALPNString(KStringRef& sResult, KStringView sALPN)

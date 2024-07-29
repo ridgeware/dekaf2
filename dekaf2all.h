@@ -65,7 +65,6 @@
 #include "kchildprocess.h"
 #include "kchunkedtransfer.h"
 #include "kcompression.h"
-#include "kconnection.h"
 #include "kcookie.h"
 #include "kcountingstreambuf.h"
 #include "kcrashexit.h"

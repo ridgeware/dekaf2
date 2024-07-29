@@ -76,10 +76,10 @@ enum StreamType
 };
 
 StreamType                        GetStreamType    (KStream& Stream);
-KTCPIOStream::asio_stream_type&&  GetAsioTCPStream (KStream& Stream);
-KTLSIOStream::asio_stream_type&&  GetAsioTLSStream (KStream& Stream);
+KTCPStream::asio_stream_type&&  GetAsioTCPStream (KStream& Stream);
+KTLSStream::asio_stream_type&&  GetAsioTLSStream (KStream& Stream);
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
-KUnixIOStream::asio_stream_type&& GetAsioUnixStream(KStream& Stream);
+KUnixStream::asio_stream_type&& GetAsioUnixStream(KStream& Stream);
 #endif
 
 /// a websocket frame type

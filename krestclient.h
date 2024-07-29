@@ -66,15 +66,15 @@ public:
 	using base = KWebClient;
 
 	/// Default ctor - call SetURL() before any request
-	KRestClient     ();
+	KRestClient     (KHTTPStreamOptions = KHTTPStreamOptions{});
 
 	/// Construct with URL to connect to, including basic REST path and basic query parms.
 	/// The individual request path will be added to the basic path, same for query parms.
-	KRestClient     (KURL URL, bool bVerifyCerts);
+	KRestClient     (KURL URL, KHTTPStreamOptions);
 
 	/// Set URL to connect to, including basic REST path and basic query parms.
 	/// The individual request path will be added to the basic path, same for query parms.
-	self& SetURL    (KURL URL, bool bVerifyCerts);
+	self& SetURL    (KURL URL, KHTTPStreamOptions);
 
 	/// Get the API URL, const version
 	const KURL& GetURL() const      { return m_URL;                                              }
@@ -166,6 +166,7 @@ public:
 	using base::SetTimingCallback;
 	using base::SetServiceSummary;
 	using base::GetConnectedEndpoint;
+	using base::GetEndpointAddress;
 
 //----------
 protected:
@@ -180,12 +181,12 @@ protected:
 	/// Calls clear once after a Request() to reset all state and setup except from ctor
 	void ResetAfterRequest();
 
-	KURL m_URL;
-	KString m_sPath;
+	KURL        m_URL;
+	KString     m_sPath;
 	url::KQuery m_Query;
-	KHTTPError* m_ec { nullptr };
+	KHTTPError* m_ec         { nullptr };
     KHTTPMethod m_Verb;
-	bool m_bNeedReset { false };
+	bool        m_bNeedReset { false   };
 
 }; // KRestClient
 
@@ -212,16 +213,16 @@ public:
 	/// The individual request path will be added to the basic path, same for query parms.
 	/// The ErrorCallback will be called on non-200 responses with valid JSON response and
 	/// should be used to identify the error text in the JSON.
-	KJsonRestClient (KURL URL, bool bVerifyCerts = false, ErrorCallback ecb = nullptr)
-	: KRestClient(std::move(URL), bVerifyCerts)
+	KJsonRestClient (KURL URL, KHTTPStreamOptions Options = KHTTPStreamOptions{}, ErrorCallback ecb = nullptr)
+	: KRestClient(std::move(URL), Options)
 	, m_ErrorCallback(std::move(ecb))
 	{
 	}
 
 	/// Set URL to connect to, including basic REST path and basic query parms.
 	/// The individual request path will be added to the basic path, same for query parms.
-	self& SetURL    (KURL URL, bool bVerifyCerts = false)
-	                         { base::SetURL(std::move(URL), bVerifyCerts); return *this; }
+	self& SetURL    (KURL URL, KHTTPStreamOptions Options = KHTTPStreamOptions{})
+	                         { base::SetURL(std::move(URL), Options); return *this; }
 
 	/// The ErrorCallback will be called on non-200 responses with valid JSON response and
 	/// should be used to identify the error text in the JSON.

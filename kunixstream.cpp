@@ -51,7 +51,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 
 //-----------------------------------------------------------------------------
-std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
+std::streamsize KUnixStream::UnixStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
 	// we do not need to loop the reader, as the streambuf requests bytes in blocks
@@ -61,30 +61,29 @@ std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize i
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioStream<asio_stream_type>*>(stream_);
+		auto& IOStream = *static_cast<KUnixStream*>(stream_);
 
-		stream->Socket.async_read_some(boost::asio::buffer(sBuffer, iCount),
+		IOStream.m_Stream.Socket.async_read_some(boost::asio::buffer(sBuffer, iCount),
 		[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
 		{
-			stream->ec = ec;
+			IOStream.m_Stream.ec = ec;
 			iRead = bytes_transferred;
 		});
 
-		stream->RunTimed();
+		IOStream.m_Stream.RunTimed();
 
 #ifdef DEKAF2_WITH_KLOG
-		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
+		if (iRead == 0 || IOStream.m_Stream.ec.value() != 0 || !IOStream.m_Stream.Socket.is_open())
 		{
-			if (stream->ec.value() == boost::asio::error::eof)
+			if (IOStream.m_Stream.ec.value() == boost::asio::error::eof)
 			{
-				kDebug(2, "input stream got closed by endpoint {}", stream->sEndpoint);
+				kDebug(2, "input stream got closed by endpoint {}", IOStream.m_Stream.sEndpoint);
 			}
 			else
 			{
-				kDebug(1, "cannot read from {} stream with endpoint {}: {}",
-					   "unix",
-					   stream->sEndpoint,
-					   stream->ec.message());
+				IOStream.SetError(kFormat("cannot read from {} stream: {}",
+										  "unix",
+										  IOStream.m_Stream.ec.message()));
 			}
 		}
 #endif
@@ -95,7 +94,7 @@ std::streamsize KUnixIOStream::UnixStreamReader(void* sBuffer, std::streamsize i
 } // UnixStreamReader
 
 //-----------------------------------------------------------------------------
-std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream_)
+std::streamsize KUnixStream::UnixStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
 	// We need to loop the writer, as write_some() could have an upper limit (the buffer size) to which
@@ -107,36 +106,35 @@ std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::stream
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioStream<asio_stream_type>*>(stream_);
+		auto& IOStream = *static_cast<KUnixStream*>(stream_);
 
 		for (;iWrote < iCount;)
 		{
 			std::size_t iWrotePart { 0 };
 
-			stream->Socket.async_write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
+			IOStream.m_Stream.Socket.async_write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
 			[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
 			{
-				stream->ec = ec;
+				IOStream.m_Stream.ec = ec;
 				iWrotePart = bytes_transferred;
 			});
 
-			stream->RunTimed();
+			IOStream.m_Stream.RunTimed();
 
 			iWrote += iWrotePart;
 
-			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
+			if (iWrotePart == 0 || IOStream.m_Stream.ec.value() != 0 || !IOStream.m_Stream.Socket.is_open())
 			{
 #ifdef DEKAF2_WITH_KLOG
-				if (stream->ec.value() == boost::asio::error::eof)
+				if (IOStream.m_Stream.ec.value() == boost::asio::error::eof)
 				{
-					kDebug(2, "output stream got closed by endpoint {}", stream->sEndpoint);
+					kDebug(2, "output stream got closed by endpoint {}", IOStream.m_Stream.sEndpoint);
 				}
 				else
 				{
-					kDebug(1, "cannot write to {} stream with endpoint {}: {}",
-						   "unix",
-						   stream->sEndpoint,
-						   stream->ec.message());
+					IOStream.SetError(kFormat("cannot write to {} stream: {}",
+											  "unix",
+											  IOStream.m_Stream.ec.message()));
 				}
 #endif
 				break;
@@ -149,24 +147,24 @@ std::streamsize KUnixIOStream::UnixStreamWriter(const void* sBuffer, std::stream
 } // UnixStreamWriter
 
 //-----------------------------------------------------------------------------
-KUnixIOStream::KUnixIOStream(KDuration Timeout)
+KUnixStream::KUnixStream(KDuration Timeout)
 //-----------------------------------------------------------------------------
-    : base_type(&m_TCPStreamBuf)
-    , m_Stream(Timeout)
+: base_type(&m_TCPStreamBuf, Timeout)
+, m_Stream(Timeout)
 {
 }
 
 //-----------------------------------------------------------------------------
-KUnixIOStream::KUnixIOStream(KStringViewZ sSocketFile, KDuration Timeout)
+KUnixStream::KUnixStream(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 //-----------------------------------------------------------------------------
-    : base_type(&m_TCPStreamBuf)
-    , m_Stream(Timeout)
+: base_type(&m_TCPStreamBuf, Options.GetTimeout())
+, m_Stream(Options.GetTimeout())
 {
-	Connect(sSocketFile);
+	Connect(Endpoint, Options);
 }
 
 //-----------------------------------------------------------------------------
-bool KUnixIOStream::Timeout(KDuration Timeout)
+bool KUnixStream::Timeout(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	m_Stream.Timeout = Timeout;
@@ -174,27 +172,38 @@ bool KUnixIOStream::Timeout(KDuration Timeout)
 }
 
 //-----------------------------------------------------------------------------
-bool KUnixIOStream::Connect(KStringViewZ sSocketFile)
+bool KUnixStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
+	SetTimeout(Options.GetTimeout());
+
+	SetUnresolvedEndPoint(Endpoint);
+
+	if (!Endpoint.bIsUnixDomain)
+	{
+		return SetError("not a unix domain socket name");
+	}
+
+	auto& sSocketFile = Endpoint.Domain.get();
+
 	GetAsioSocket().async_connect(boost::asio::local::stream_protocol::endpoint(sSocketFile.c_str()),
 	[&](const boost::system::error_code& ec)
 	{
-		m_Stream.sEndpoint = sSocketFile;
-		m_Stream.ec = ec;
+		m_Stream.sEndpoint  = Endpoint.Serialize(); // for logging only..
+		m_Stream.ec         = ec;
+		SetEndPointAddress(Endpoint);
 	});
 
-	kDebug(2, "trying to connect to {} {}", "unix domain socket", sSocketFile);
+	kDebug(2, "trying to connect to {} {}", "unix domain socket", Endpoint);
 
 	m_Stream.RunTimed();
 
 	if (!Good() || !GetAsioSocket().is_open())
 	{
-		kDebug(1, "{}: {}", sSocketFile, Error());
-		return false;
+		return SetError(m_Stream.ec.message());
 	}
 
-	kDebug(2, "connected to {} {}", "unix domain socket", sSocketFile);
+	kDebug(2, "connected to {} {}", "unix domain socket", GetEndPointAddress());
 
 	return true;
 

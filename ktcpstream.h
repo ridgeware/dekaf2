@@ -45,10 +45,9 @@
 /// provides an implementation of std::iostreams for TCP
 
 #include "kdefinitions.h"
-#include "bits/kasio.h"
+#include "kiostreamsocket.h"
 #include "bits/kasiostream.h"
 #include "kstring.h"
-//#include "kstream.h" // TODO remove
 #include "kstreambuf.h"
 #include "kurl.h"
 #include "kstreamoptions.h"
@@ -57,48 +56,42 @@ DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream TCP implementation with timeout.
-class DEKAF2_PUBLIC KTCPIOStream : public std::iostream
+class DEKAF2_PUBLIC KTCPStream : public KIOStreamSocket
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	using base_type = std::iostream;
+	using base_type = KIOStreamSocket;
 
 //----------
 public:
 //----------
 
 	using asio_stream_type   = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
-#if (BOOST_VERSION < 106600)
+#if (DEKAF2_CLASSIC_ASIO)
 	using asio_socket_type  = boost::asio::basic_socket<boost::asio::ip::tcp, boost::asio::stream_socket_service<boost::asio::ip::tcp>>;
 #else
 	using asio_socket_type  = boost::asio::basic_socket<boost::asio::ip::tcp>;
 #endif
-	using native_socket_type = asio_socket_type::native_handle_type;
 
 	//-----------------------------------------------------------------------------
 	/// Construcs an unconnected stream
 	/// @param Timeout
 	/// Timeout for any I/O. Defaults to 15 seconds.
-	KTCPIOStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
+	KTCPStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Constructs a connected stream as a client.
+	/// Constructs a connected client stream
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
-	/// @param Timeout
-	/// Timeout for any I/O. Defaults to 15 seconds.
-	KTCPIOStream(const KTCPEndPoint& Endpoint, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
+	/// @param Options 
+	/// set options like IPv4 or IPv6, and the timeout
+	KTCPStream(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Destructs and closes a stream
-	~KTCPIOStream() = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Set I/O timeout
-	bool Timeout(KDuration Timeout);
+	~KTCPStream() = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -106,38 +99,21 @@ public:
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
-	bool Connect(const KTCPEndPoint& Endpoint);
+	/// @param Options
+	/// set options like IPv4 or IPv6, and the timeout
+	virtual bool Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{}) override final;
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// std::iostream interface to open a stream. Delegates to connect()
-	/// @param Endpoint
-	/// KTCPEndPoint as the server to connect to - can be constructed from
-	/// a variety of inputs, like strings or KURL
-	bool open(const KTCPEndPoint& Endpoint)
-	//-----------------------------------------------------------------------------
-	{
-		return Connect(Endpoint);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Disconnect the stream
-	bool Disconnect()
+	virtual bool Disconnect() override final
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.Disconnect();
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Disconnect the stream
-	bool close()
-	//-----------------------------------------------------------------------------
-	{
-		return Disconnect();
-	}
-
-	//-----------------------------------------------------------------------------
-	bool is_open() const
+	virtual bool is_open() const override final
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.Socket.is_open();
@@ -145,7 +121,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// tests for a closed connection of the remote side by trying to peek one byte
-	bool IsDisconnected()
+	virtual bool IsDisconnected() override final
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.IsDisconnected();
@@ -171,40 +147,29 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Gets the underlying OS level native socket of the stream
-	native_socket_type GetNativeSocket()
+	virtual native_socket_type GetNativeSocket() override final
 	//-----------------------------------------------------------------------------
 	{
 		return GetTCPSocket().native_handle();
 	}
 
 	//-----------------------------------------------------------------------------
-	bool Good() const
+	virtual bool Good() const override final
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.ec.value() == 0;
-	}
-
-	//-----------------------------------------------------------------------------
-	KString Error() const
-	//-----------------------------------------------------------------------------
-	{
-		KString sError;
-
-		if (!Good())
-		{
-			sError = m_Stream.ec.message();
-		}
-
-		return sError;
 	}
 
 //----------
 private:
 //----------
 
+	/// Set I/O timeout
+	virtual bool Timeout(KDuration Timeout) override final;
+
 	KAsioStream<asio_stream_type> m_Stream;
 
-	KBufferedStreamBuf m_TCPStreamBuf { &TCPStreamReader, &TCPStreamWriter, &m_Stream, &m_Stream };
+	KBufferedStreamBuf m_TCPStreamBuf { &TCPStreamReader, &TCPStreamWriter, this, this };
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader
@@ -220,8 +185,6 @@ private:
 
 };
 
-/// TCP stream based on std::iostream
-using KTCPStream = KReaderWriter<KTCPIOStream>;
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
@@ -230,7 +193,7 @@ std::unique_ptr<KTCPStream> CreateKTCPStream(KDuration Timeout = KStreamOptions:
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
+std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, KStreamOptions Options);
 //-----------------------------------------------------------------------------
 
 DEKAF2_NAMESPACE_END

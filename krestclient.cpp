@@ -53,8 +53,9 @@ constexpr int iPretty = 1;
 #endif
 
 //-----------------------------------------------------------------------------
-KRestClient::KRestClient()
+KRestClient::KRestClient(KHTTPStreamOptions Options)
 //-----------------------------------------------------------------------------
+: KWebClient(Options)
 {
 	// per default, allow proxy configuration through environment
 	KHTTPClient::AutoConfigureProxy(true);
@@ -62,16 +63,16 @@ KRestClient::KRestClient()
 } // ctor
 
 //-----------------------------------------------------------------------------
-KRestClient::KRestClient(KURL URL, bool bVerifyCerts)
+KRestClient::KRestClient(KURL URL, KHTTPStreamOptions Options)
 //-----------------------------------------------------------------------------
-: KRestClient()
+: KRestClient(Options)
 {
-	SetURL(std::move(URL), bVerifyCerts);
+	SetURL(std::move(URL), Options);
 
 } // ctor
 
 //-----------------------------------------------------------------------------
-KRestClient& KRestClient::SetURL(KURL URL, bool bVerifyCerts)
+KRestClient& KRestClient::SetURL(KURL URL, KHTTPStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
 	m_URL = std::move(URL);
@@ -79,7 +80,7 @@ KRestClient& KRestClient::SetURL(KURL URL, bool bVerifyCerts)
 	// do not clear the query part - we will use it if it is set
 	m_URL.Fragment.clear();
 
-	KHTTPClient::SetVerifyCerts(bVerifyCerts);
+	KHTTPClient::SetStreamOptions(Options);
 
 	return *this;
 

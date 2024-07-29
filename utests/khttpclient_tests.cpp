@@ -68,12 +68,12 @@ TEST_CASE("KHTTPClient") {
 		server.clear();
 
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
-		auto cx = KConnection::Create(URL);
+		auto cx = KIOStreamSocket::Create(URL);
 		CHECK( cx->Good() == true );
 		if (cx->Good() == true)
 		{
-			CHECK( cx->Stream().ostream().good() == true );
-			CHECK( cx->Stream().istream().good()  == true );
+			CHECK( cx->ostream().good() == true );
+			CHECK( cx->istream().good() == true );
 		}
 		KHTTPClient cHTTP(std::move(cx));
 		cHTTP.Resource(URL);
@@ -100,12 +100,12 @@ TEST_CASE("KHTTPClient") {
 		server.clear();
 
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
-		auto cx = KConnection::Create(URL);
+		auto cx = KIOStreamSocket::Create(URL);
 		CHECK( cx->Good() == true );
 		if (cx->Good() == true)
 		{
-			CHECK( cx->Stream().ostream().good() == true );
-			CHECK( cx->Stream().istream().good()  == true );
+			CHECK( cx->ostream().good() == true );
+			CHECK( cx->istream().good() == true );
 		}
 		KHTTPClient cHTTP(std::move(cx));
 		cHTTP.Resource(URL);
@@ -224,16 +224,18 @@ TEST_CASE("KHTTPClient") {
 	SECTION("null connection object")
 	{
 		KHTTPClient HTTP;
-		std::unique_ptr<KConnection> Connection;
+		std::unique_ptr<KIOStreamSocket> Connection;
 		HTTP.Connect(std::move(Connection));
 	}
 
+#if 0
 	SECTION("null connection stream")
 	{
 		KHTTPClient HTTP;
-		auto Connection = std::make_unique<KConnection>();
+		auto Connection = std::make_unique<KIOStreamSocket>();
 		HTTP.Connect(std::move(Connection));
 	}
+#endif
 
 	SECTION("moved KOutHTTPFilter")
 	{

@@ -44,6 +44,7 @@
 #include "kcompatibility.h"
 #include "bits/kfilesystem.h"
 #include "bits/kasio.h"
+#include "kiostreamsocket.h"
 #include "kfilesystem.h"
 #include "klog.h"
 #include "dekaf2.h"
@@ -655,7 +656,7 @@ std::vector<KString> kResolveHostToList (KStringViewZ sHostname, bool bIPv4, boo
 
 	boost::asio::io_service IOService;
 	boost::system::error_code ec;
-	auto hosts = detail::kResolveTCP(sHostname, 80, IOService, ec);
+	auto hosts = KIOStreamSocket::ResolveTCP(sHostname, 80, KStreamOptions::Family::Any, IOService, ec);
 
 	if (ec)
 	{
@@ -663,7 +664,7 @@ std::vector<KString> kResolveHostToList (KStringViewZ sHostname, bool bIPv4, boo
 	}
 	else
 	{
-#if (BOOST_VERSION < 106600)
+#if (DEKAF2_CLASSIC_ASIO)
 		auto it = hosts;
 		decltype(it) ie;
 #else
@@ -763,17 +764,25 @@ std::vector<KString> kHostLookupToList (KStringViewZ sIPAddr, std::size_t iMax)
 	boost::system::error_code ec;
 	boost::asio::io_service IOService;
 
-	auto hostIter = detail::kReverseLookup(sIPAddr, IOService, ec);
+	auto hosts = KIOStreamSocket::ReverseLookup(sIPAddr, IOService, ec);
 
-	if (ec || hostIter.empty())
+#if (DEKAF2_CLASSIC_ASIO)
+	auto it = hosts;
+	decltype(it) ie;
+#else
+	auto it = hosts.begin();
+	auto ie = hosts.end();
+#endif
+
+	if (ec || it == ie)
 	{
 		kDebug (1, "{} --> FAILED : {}", sIPAddr, ec.message());
 	}
 	else
 	{
-		for (auto host : hostIter)
+		for (;it != ie; ++it)
 		{
-			Hosts.push_back(host.host_name());
+			Hosts.push_back(it->host_name());
 			
 			if (Hosts.size() >= iMax)
 			{

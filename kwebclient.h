@@ -61,10 +61,15 @@ DEKAF2_NAMESPACE_BEGIN
 bool KWget (KStringView sURL, KStringViewZ sOutfile, const KJSON& Options=KJSON{});
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+// we cannot make this a protected child of KHTTPClient because a lot of users
+// already use the public variables of KHTTPClient, like Request, Response ..
+// Instead, we declare some base methods as protected below.
 /// high level HTTP client implementation with redirects etc.
 class DEKAF2_PUBLIC KWebClient : public KHTTPClient
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+	using base = KHTTPClient;
 
 //------
 public:
@@ -75,16 +80,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// default ctor
-	KWebClient(KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
+	KWebClient(KHTTPStreamOptions Options = KHTTPStreamOptions{});
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// old ctor -- DEPRECATED, use the variant with TLSOptions
-	KWebClient(bool bVerifyCerts)
-	//-----------------------------------------------------------------------------
-	: KWebClient(KHTTPClient::BoolToOptions(bVerifyCerts))
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Send given request method and return raw response to an output stream - this variant is needed for Unix socket requests, which need a separate URL for the connection target
@@ -238,33 +235,49 @@ public:
 protected:
 //------
 
+	// we declare a number of base methods protected, as it
+	// makes no sense to use them in this high level http class
+	using base::Connect;
+	using base::Resource;
+	using base::SendRequest;
+	using base::Serialize;
+	using base::Parse;
+	using base::Write;
+	using base::Read;
+	using base::ReadLine;
+
+	TimingCallback_t m_TimingCallback            { nullptr };
+	KDuration        m_iWarnIfOverMilliseconds   { 0       }; // keep the 'i' to make it compatible to old versions
+	KJSON*           m_pServiceSummary           { nullptr }; // running details about external service calls
+
+//------
+private:
+//------
+
 	KCookies         m_Cookies;
-	TimingCallback_t m_TimingCallback { nullptr };
-	KDuration        m_iWarnIfOverMilliseconds { 0 };
-	KJSON*           m_pServiceSummary { nullptr };   // running details about external service calls
-	uint16_t         m_iMaxRedirects { 3 };
-	bool             m_bAllowOneRetry { true };
-	bool             m_bAcceptCookies { true };
-	bool             m_bQueryToWWWFormConversion { true };
+	uint16_t         m_iMaxRedirects             { 3       };
+	bool             m_bAllowOneRetry            { true    };
+	bool             m_bAcceptCookies            { true    };
+	bool             m_bQueryToWWWFormConversion { true    };
 
 }; // KWebClient
 
 //-----------------------------------------------------------------------------
 /// Get from URL, store body in return value KString
 DEKAF2_PUBLIC
-KString kHTTPGet(KURL URL, KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
+KString kHTTPGet(KURL URL, KHTTPStreamOptions Options = KHTTPStreamOptions{});
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Head from URL - returns true if response is in the 2xx range
 DEKAF2_PUBLIC
-bool kHTTPHead(KURL URL, KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
+bool kHTTPHead(KURL URL, KHTTPStreamOptions Options = KHTTPStreamOptions{});
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Post to URL, store body in return value KString
 DEKAF2_PUBLIC
-KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime, KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
+KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime, KHTTPStreamOptions Options = KHTTPStreamOptions{});
 //-----------------------------------------------------------------------------
 
 DEKAF2_NAMESPACE_END

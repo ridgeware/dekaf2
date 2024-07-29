@@ -45,12 +45,11 @@
 /// provides an implementation of std::iostreams supporting TLS
 
 #include "bits/kasiostream.h"
+#include "kiostreamsocket.h"
 #include "ktlscontext.h"
 #include "kstring.h"
-#include "kstream.h" // TODO remove
 #include "kstreambuf.h"
 #include "kurl.h"
-#include "kconnection.h" // TLSOptions ..
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -103,29 +102,25 @@ struct KAsioTLSStream : public KAsioStream<StreamType, detail::KAsioTLSTraits<St
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream TLS implementation with timeout.
-class DEKAF2_PUBLIC KTLSIOStream : public std::iostream
+class DEKAF2_PUBLIC KTLSStream : public KIOStreamSocket
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	using base_type = std::iostream;
+	using base_type = KIOStreamSocket;
 
 //----------
 public:
 //----------
 
 	using asio_stream_type = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
-#if (BOOST_VERSION < 106600)
+#if (DEKAF2_CLASSIC_ASIO)
 	using asio_socket_type = boost::asio::basic_socket<boost::asio::ip::tcp, boost::asio::stream_socket_service<boost::asio::ip::tcp>>;
 #else
 	using asio_socket_type = boost::asio::basic_socket<boost::asio::ip::tcp>;
 #endif
-	using native_socket_type = asio_socket_type::native_handle_type;
-	using tls_handle_type    = asio_stream_type::native_handle_type;
 
 	//-----------------------------------------------------------------------------
 	/// Constructs an unconnected client stream
-	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 15.
-	KTLSIOStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
+	KTLSStream();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -134,9 +129,8 @@ public:
 	/// A KTLSContext which defines role (server/client). Custom certs and crypto suites
 	/// will also be defined with the KTLSContext.
 	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 15.
-	KTLSIOStream(KTLSContext& Context,
-				 KDuration Timeout = KStreamOptions::GetDefaultTimeout());
+	/// Timeout for any I/O. Defaults to 15 seconds.
+	KTLSStream(KTLSContext& Context, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -148,23 +142,18 @@ public:
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
 	/// @param Options
-	/// set options like certificate verification, manual TLS handshake, HTTP2 request
-	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 15.
-	KTLSIOStream(KTLSContext& Context,
-				 const KTCPEndPoint& Endpoint,
-				 KStreamOptions Options,
-				 KDuration Timeout = KStreamOptions::GetDefaultTimeout());
+	/// set options like certificate verification, manual TLS handshake, HTTP2 request, and the timeout
+	KTLSStream(KTLSContext& Context, const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Destructs and closes a stream
-	~KTLSIOStream() = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Set I/O timeout.
-	bool Timeout(KDuration Timeout);
+	/// Constructs a connected client stream
+	/// @param Endpoint
+	/// KTCPEndPoint as the server to connect to - can be constructed from
+	/// a variety of inputs, like strings or KURL
+	/// @param Options
+	/// set options like certificate verification, manual TLS handshake, HTTP2 request, and the timeout
+	KTLSStream(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -173,41 +162,20 @@ public:
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
 	/// @param Options
-	/// set options like certificate verification, manual TLS handshake, HTTP2 request
-	bool Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options);
+	/// set options like certificate verification, manual TLS handshake, HTTP2 request, and the timeout
+	virtual bool Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{}) override final;
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// std::iostream interface to open a stream. Delegates to connect()
-	/// @param Endpoint
-	/// KTCPEndPoint as the server to connect to - can be constructed from
-	/// a variety of inputs, like strings or KURL
-	/// @param Options
-	/// set options like certificate verification, manual TLS handshake, HTTP2 request
-	bool open(const KTCPEndPoint& Endpoint, KStreamOptions Options)
-	//-----------------------------------------------------------------------------
-	{
-		return Connect(Endpoint, Options);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Disconnect the stream
-	bool Disconnect()
+	virtual bool Disconnect() override final
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.Disconnect();
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Disconnect the stream
-	bool close()
-	//-----------------------------------------------------------------------------
-	{
-		return Disconnect();
-	}
-
-	//-----------------------------------------------------------------------------
-	bool is_open() const
+	virtual bool is_open() const override final
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.Socket.next_layer().is_open();
@@ -215,7 +183,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// tests for a closed connection of the remote side by trying to peek one byte
-	bool IsDisconnected()
+	virtual bool IsDisconnected() override final
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.IsDisconnected();
@@ -224,38 +192,13 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Upgrade connection from TCP to TCP over TLS. Returns true on success. Can also
 	/// be used to force a handshake before any IO is triggered.
-	bool StartManualTLSHandshake();
+	virtual bool StartManualTLSHandshake() override final;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Switch to manual handshake, only possible before any data has been read or
 	/// written
-	bool SetManualTLSHandshake(bool bYesno = true);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Set the ALPN data. This API expects a vector of KStringViews and transforms it into the internal
-	/// ALPN format.
-	/// This method is mutually exclusive with SetAllowHTTP2()
-	bool SetALPN(const std::vector<KStringView> ALPNs)
-	//-----------------------------------------------------------------------------
-	{
-		return SetALPNRaw(KStreamOptions::CreateALPNString(ALPNs));
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Set the ALPN data. This API expects a string view and transforms it into the internal
-	/// ALPN format.
-	/// This method is mutually exclusive with SetAllowHTTP2()
-	bool SetALPN(KStringView sALPN)
-	//-----------------------------------------------------------------------------
-	{
-		return SetALPNRaw(KStreamOptions::CreateALPNString(sALPN));
-	}
-	
-	//-----------------------------------------------------------------------------
-	/// Get the Application Layer Protocol Negotiation after the TLS handshake
-	KStringView GetALPN();
+	virtual bool SetManualTLSHandshake(bool bYesno = true) override final;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -286,7 +229,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Gets the underlying OS level native socket of the stream
-	native_socket_type GetNativeSocket()
+	virtual native_socket_type GetNativeSocket() override final
 	//-----------------------------------------------------------------------------
 	{
 		return GetTCPSocket().native_handle();
@@ -294,7 +237,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Gets the underlying openssl handle of the stream
-	tls_handle_type GetNativeTLSHandle()
+	virtual native_tls_handle_type GetNativeTLSHandle() override final
 	//-----------------------------------------------------------------------------
 	{
 		return GetAsioSocket().native_handle();
@@ -313,32 +256,23 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// is this a stream with TLS?
+	virtual bool IsTLS() const override final { return true; }
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Get a reference to self
-	KTLSIOStream& GetKTLSIOStream()
+	KTLSStream& GetKTLSStream()
 	//-----------------------------------------------------------------------------
 	{
 		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
-	bool Good() const
+	virtual bool Good() const override final
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.ec.value() == 0;
-	}
-
-	//-----------------------------------------------------------------------------
-	KString Error() const
-	//-----------------------------------------------------------------------------
-	{
-		KString sError;
-
-		if (!Good())
-		{
-			sError = m_Stream.ec.message();
-		}
-
-		return sError;
 	}
 
 //----------
@@ -346,7 +280,8 @@ private:
 //----------
 
 	//-----------------------------------------------------------------------------
-	bool SetALPNRaw(KStringView sALPN);
+	/// Set I/O timeout.
+	virtual bool Timeout(KDuration Timeout) override final;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -369,11 +304,8 @@ private:
 	KAsioTLSStream<asio_stream_type> m_Stream;
 	KBufferedStreamBuf m_TLSStreamBuf { &TLSStreamReader, &TLSStreamWriter, this, this };
 
-}; // KTLSIOStream
+}; // KTLSStream
 
-
-/// TLS stream based on std::iostream and asio::ssl
-using KTLSStream = KReaderWriter<KTLSIOStream>;
 
 // there is nothing special with a tcp ssl client
 using KTLSClient = KTLSStream;
@@ -386,14 +318,12 @@ std::unique_ptr<KTLSStream> CreateKTLSServer(KTLSContext& Context,
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KTLSClient> CreateKTLSClient(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
+std::unique_ptr<KTLSClient> CreateKTLSClient();
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KTLSClient> CreateKTLSClient(const KTCPEndPoint& EndPoint,
-											 KStreamOptions Options,
-											 KDuration Timeout = KStreamOptions::GetDefaultTimeout());
+std::unique_ptr<KTLSClient> CreateKTLSClient(const KTCPEndPoint& EndPoint, KStreamOptions Options);
 //-----------------------------------------------------------------------------
 
 DEKAF2_NAMESPACE_END

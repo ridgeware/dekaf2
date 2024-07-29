@@ -61,7 +61,7 @@
 #ifdef DEKAF2_KLOG_WITH_TCP
 	#include "../kurl.h"
 	#include "../kwebclient.h"
-	#include "../kconnection.h"
+	#include "../kiostreamsocket.h"
 	#include "../kmime.h"
 	#include "../khttp_header.h" // for LogToRESTResponse()
 #endif
@@ -224,7 +224,7 @@ bool KLogTCPWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
 
 	if (!m_OutStream)
 	{
-		m_OutStream = KConnection::Create(m_sURL);
+		m_OutStream = KIOStreamSocket::Create(m_sURL);
 
 		if (!m_OutStream->Good())
 		{
@@ -232,8 +232,7 @@ bool KLogTCPWriter::Write(int iLevel, bool bIsMultiline, KStringViewZ sOut)
 		}
 	}
 
-	return m_OutStream != nullptr
-	        && m_OutStream->Stream().Write(sOut).Flush().Good();
+	return m_OutStream != nullptr && m_OutStream->Write(sOut).Flush().Good();
 
 } // Write
 

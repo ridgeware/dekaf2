@@ -48,10 +48,9 @@
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 
-#include "bits/kasio.h"
+#include "kiostreamsocket.h"
 #include "bits/kasiostream.h"
 #include "kstringview.h"
-#include "kstream.h"
 #include "kstreambuf.h"
 #include "kurl.h"
 #include "kstreamoptions.h"
@@ -60,28 +59,27 @@ DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream TCP implementation with timeout.
-class DEKAF2_PUBLIC KUnixIOStream : public std::iostream
+class DEKAF2_PUBLIC KUnixStream : public KIOStreamSocket
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	using base_type = std::iostream;
+	using base_type = KIOStreamSocket;
 
 //----------
 public:
 //----------
 
 	using asio_stream_type = boost::asio::local::stream_protocol::socket;
-#if (BOOST_VERSION < 106600)
+#if (DEKAF2_CLASSIC_ASIO)
 	using asio_socket_type = boost::asio::basic_socket<boost::asio::local::stream_protocol, boost::asio::stream_socket_service<boost::asio::local::stream_protocol>>;
 #else
 	using asio_socket_type = boost::asio::basic_socket<boost::asio::local::stream_protocol>;
 #endif
-	using native_socket_type = asio_socket_type::native_handle_type;
 
 	//-----------------------------------------------------------------------------
 	/// Construcs an unconnected stream
 	/// @param iSecondsTimeout
 	/// Timeout in seconds for any I/O. Defaults to 15.
-	KUnixIOStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
+	KUnixStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -90,55 +88,27 @@ public:
 	/// a unix socket endpoint file
 	/// @param iSecondsTimeout
 	/// Timeout in seconds for any I/O. Defaults to 15.
-	KUnixIOStream(KStringViewZ sSocketFile, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Destructs and closes a stream
-	~KUnixIOStream() = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Set I/O timeout
-	bool Timeout(KDuration Timeout);
+	KUnixStream(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Connects a given server as a client.
 	/// @param sSocketFile
 	/// a unix socket endpoint file
-	bool Connect(KStringViewZ sSocketFile);
+	virtual bool Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{}) override final;
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// std::iostream interface to open a stream. Delegates to connect()
-	/// @param sSocketFile
-	/// a unix socket endpoint file
-	bool open(KStringViewZ sSocketFile)
-	//-----------------------------------------------------------------------------
-	{
-		return Connect(sSocketFile);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Disconnect the stream
-	bool Disconnect()
+	virtual bool Disconnect() override final
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.Disconnect();
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Disconnect the stream
-	bool close()
-	//-----------------------------------------------------------------------------
-	{
-		return Disconnect();
-	}
-
-	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD
-	bool is_open() const
+	virtual bool is_open() const override final
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.Socket.is_open();
@@ -147,7 +117,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// tests for a closed connection of the remote side by trying to peek one byte
 	DEKAF2_NODISCARD
-	bool IsDisconnected()
+	virtual bool IsDisconnected() override final
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.IsDisconnected();
@@ -174,7 +144,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Gets the underlying OS level native socket of the stream
-	native_socket_type GetNativeSocket()
+	virtual native_socket_type GetNativeSocket() override final
 	//-----------------------------------------------------------------------------
 	{
 		return GetUnixSocket().native_handle();
@@ -182,34 +152,24 @@ public:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD
-	bool Good() const
+	virtual bool Good() const override final
 	//-----------------------------------------------------------------------------
 	{
 		return m_Stream.ec.value() == 0;
-	}
-
-	//-----------------------------------------------------------------------------
-	DEKAF2_NODISCARD
-	KString Error() const
-	//-----------------------------------------------------------------------------
-	{
-		KString sError;
-
-		if (!Good())
-		{
-			sError = m_Stream.ec.message();
-		}
-
-		return sError;
 	}
 
 //----------
 private:
 //----------
 
+	//-----------------------------------------------------------------------------
+	/// Set I/O timeout
+	virtual bool Timeout(KDuration Timeout) override final;
+	//-----------------------------------------------------------------------------
+
 	KAsioStream<asio_stream_type> m_Stream;
 
-	KStreamBuf m_TCPStreamBuf { &UnixStreamReader, &UnixStreamWriter, &m_Stream, &m_Stream };
+	KStreamBuf m_TCPStreamBuf { &UnixStreamReader, &UnixStreamWriter, this, this };
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader
@@ -224,9 +184,6 @@ private:
 	//-----------------------------------------------------------------------------
 
 };
-
-/// TCP stream based on std::iostream
-using KUnixStream = KReaderWriter<KUnixIOStream>;
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC

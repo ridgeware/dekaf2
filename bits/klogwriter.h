@@ -67,7 +67,7 @@ class KWebClient;
 class KHTTPHeaders;
 
 #ifdef DEKAF2_KLOG_WITH_TCP
-class KConnection;
+class KIOStreamSocket;
 #endif
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -245,7 +245,7 @@ public:
 protected:
 //----------
 
-	std::unique_ptr<KConnection> m_OutStream;
+	std::unique_ptr<KIOStreamSocket> m_OutStream;
 	KString m_sURL;
 
 }; // KLogTCPWriter

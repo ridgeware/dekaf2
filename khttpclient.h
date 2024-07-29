@@ -46,7 +46,7 @@
 
 #include "kstring.h"
 #include "kstringview.h"
-#include "kconnection.h"
+#include "kiostreamsocket.h"
 #include "khttp_response.h"
 #include "khttp_request.h"
 #include "khttp_method.h"
@@ -170,49 +170,26 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// default ctor
-	KHTTPClient(KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
+	KHTTPClient(KHTTPStreamOptions Options = KHTTPStreamOptions{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Ctor, connects to a server and sets method and resource
-	KHTTPClient(const KURL& url, KHTTPMethod method = KHTTPMethod::GET, KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
+	KHTTPClient(const KURL& url, KHTTPMethod method = KHTTPMethod::GET, KHTTPStreamOptions Options = KHTTPStreamOptions{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Ctor, connects to a server via proxy and sets method and resource
-	KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method = KHTTPMethod::GET, KStreamOptions Options = KStreamOptions::DefaultsForHTTP);
+	KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method = KHTTPMethod::GET, KHTTPStreamOptions Options = KHTTPStreamOptions{});
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// old ctor -- DEPRECATED, use the variant with TLSOptions
-	KHTTPClient(bool bVerifyCerts)
-	//-----------------------------------------------------------------------------
-	: KHTTPClient(BoolToOptions(bVerifyCerts))
-	{
-	}
-
-	//-----------------------------------------------------------------------------
-	/// old ctor -- DEPRECATED, use the variant with TLSOptions
-	KHTTPClient(const KURL& url, KHTTPMethod method, bool bVerifyCerts)
-	//-----------------------------------------------------------------------------
-	: KHTTPClient(url, method, BoolToOptions(bVerifyCerts))
-	{
-	}
-
-	//-----------------------------------------------------------------------------
-	/// old ctor -- DEPRECATED, use the variant with TLSOptions
-	KHTTPClient(const KURL& url, const KURL& Proxy, KHTTPMethod method, bool bVerifyCerts)
-	//-----------------------------------------------------------------------------
-	: KHTTPClient(url, Proxy, method, BoolToOptions(bVerifyCerts))
-	{
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Ctor, takes an existing connection to a server
-	KHTTPClient(std::unique_ptr<KConnection> stream);
+	KHTTPClient(std::unique_ptr<KIOStreamSocket> stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// no copy constructor
 	KHTTPClient(const KHTTPClient&) = delete;
 	//-----------------------------------------------------------------------------
 
@@ -222,17 +199,23 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// no copy assignment
 	KHTTPClient& operator=(const KHTTPClient&) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
-	KHTTPClient& operator=(KHTTPClient&&) = delete;
+	KHTTPClient& operator=(KHTTPClient&&) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Connect with a KConnection object
-	bool Connect(std::unique_ptr<KConnection> Connection);
+	// dtor
+	~KHTTPClient();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Connect with a KIOStreamSocket object
+	bool Connect(std::unique_ptr<KIOStreamSocket> Connection);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -335,13 +318,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Returns the real connection endpoint (may have changed through redirections etc)
-	const KTCPEndPoint& GetConnectedEndpoint() const
+	const KTCPEndPoint& GetConnectedEndpoint() const;
 	//-----------------------------------------------------------------------------
-	{
-		static KTCPEndPoint s_EmptyEndpoint;
 
-		return Good() ? m_Connection->EndPoint() : s_EmptyEndpoint;
-	}
+	//-----------------------------------------------------------------------------
+	/// Returns the real connection endpoint (may have changed through redirections etc)
+	const KTCPEndPoint& GetEndpointAddress() const;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// evaluates the http status code after a request and returns true 200 >= code <= 299
@@ -398,9 +381,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Set extended options for TLS connections, like cert verification, HTTP2, or manual handshaking -
+	/// Set extended options for TLS connections, like cert verification, HTTP2, timeout, or manual handshaking -
 	/// must be set before connection
-	self& SetStreamOptions(KStreamOptions Options)
+	self& SetStreamOptions(KHTTPStreamOptions Options)
 	//-----------------------------------------------------------------------------
 	{
 		m_StreamOptions = Options;
@@ -409,10 +392,23 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Get extended options for TLS connections, like cert verification, HTTP2, or manual handshaking
-	KStreamOptions GetStreamOptions() const
+	KHTTPStreamOptions GetStreamOptions() const
 	//-----------------------------------------------------------------------------
 	{
 		return m_StreamOptions;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Set timeout for I/O
+	self& SetTimeout(KDuration Timeout);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set timeout in seconds for I/O
+	self& SetTimeout(int iTimeout)
+	//-----------------------------------------------------------------------------
+	{
+		return SetTimeout(chrono::seconds(iTimeout));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -433,19 +429,6 @@ public:
 	/// Get server cert verification setting
 	bool GetVerifyCerts() const;
 	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Set a connection timeout
-	self& SetTimeout(KDuration Timeout);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Set a connection timeout in seconds, DEPRECATED, please use the KDuration variant
-	self& SetTimeout(int iSeconds)
-	//-----------------------------------------------------------------------------
-	{
-		return SetTimeout(chrono::seconds(iSeconds));
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Request response compression. Default is true.
@@ -565,13 +548,6 @@ protected:
 	bool SendRequest(KStringView* svPostData, KInStream* PostDataStream, std::size_t len, const KMIME& Mime);
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	static inline KStreamOptions BoolToOptions(bool bVerifyCerts)
-	//-----------------------------------------------------------------------------
-	{
-		return bVerifyCerts ? KStreamOptions::DefaultsForHTTP | KStreamOptions::VerifyCert : KStreamOptions::DefaultsForHTTP;
-	}
-
 //------
 private:
 //------
@@ -591,11 +567,13 @@ private:
 	static std::streamsize HTTP2StreamReader(void* buf, std::streamsize size, void* ptr);
 	//-----------------------------------------------------------------------------
 
+	static KTCPEndPoint s_EmptyEndpoint;
+
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct HTTP2Session
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		HTTP2Session(KTLSIOStream& TLSStream);
+		HTTP2Session(KTLSStream& TLSStream);
 
 		http2::SingleStreamSession Session;
 		KInStreamBuf               StreamBuf;
@@ -609,20 +587,19 @@ private:
 	KURL                           m_RequestURL;
 #endif
 
-	std::unique_ptr<KConnection>   m_Connection;
-	std::unique_ptr<Authenticator> m_Authenticator;
+	std::unique_ptr<KIOStreamSocket> m_Connection;
+	std::unique_ptr<Authenticator>   m_Authenticator;
 
-	mutable KString  m_sError;
-	KString          m_sForcedHost;
-	KString          m_sCompressors;
-	KURL             m_Proxy;
-	KDuration        m_Timeout               { KStreamOptions::GetDefaultTimeout() };
-	KStreamOptions   m_StreamOptions         { KStreamOptions::GetDefaults(KStreamOptions::DefaultsForHTTP) };
-	bool             m_bRequestCompression   { true  };
-	bool             m_bAutoProxy            { false };
-	bool             m_bUseHTTPProxyProtocol { false };
-	bool             m_bKeepAlive            { true  };
-	bool             m_bHaveHostSet          { false };
+	mutable KString    m_sError;
+	KString            m_sForcedHost;
+	KString            m_sCompressors;
+	KURL               m_Proxy;
+	KHTTPStreamOptions m_StreamOptions;
+	bool               m_bRequestCompression   { true  };
+	bool               m_bAutoProxy            { false };
+	bool               m_bUseHTTPProxyProtocol { false };
+	bool               m_bKeepAlive            { true  };
+	bool               m_bHaveHostSet          { false };
 
 //------
 public:

@@ -47,7 +47,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
+std::streamsize KTCPStream::TCPStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
 	// we do not need to loop the reader, as the streambuf requests bytes in blocks
@@ -57,30 +57,29 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioStream<asio_stream_type>*>(stream_);
+		auto& IOStream = *static_cast<KTCPStream*>(stream_);
 
-		stream->Socket.async_read_some(boost::asio::buffer(sBuffer, iCount),
+		IOStream.m_Stream.Socket.async_read_some(boost::asio::buffer(sBuffer, iCount),
 		[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
 		{
-			stream->ec = ec;
+			IOStream.m_Stream.ec = ec;
 			iRead = bytes_transferred;
 		});
 
-		stream->RunTimed();
+		IOStream.m_Stream.RunTimed();
 
 #ifdef DEKAF2_WITH_KLOG
-		if (iRead == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
+		if (iRead == 0 || IOStream.m_Stream.ec.value() != 0 || !IOStream.m_Stream.Socket.is_open())
 		{
-			if (stream->ec.value() == boost::asio::error::eof)
+			if (IOStream.m_Stream.ec.value() == boost::asio::error::eof)
 			{
-				kDebug(2, "input stream got closed by endpoint {}", stream->sEndpoint);
+				kDebug(2, "input stream got closed by endpoint {}", IOStream.m_Stream.sEndpoint);
 			}
 			else
 			{
-				kDebug(1, "cannot read from {} stream with endpoint {}: {}",
-					   "tcp",
-					   stream->sEndpoint,
-					   stream->ec.message());
+				IOStream.SetError(kFormat("cannot read from {} stream: {}",
+										  "tcp",
+										  IOStream.m_Stream.ec.message()));
 			}
 		}
 #endif
@@ -91,7 +90,7 @@ std::streamsize KTCPIOStream::TCPStreamReader(void* sBuffer, std::streamsize iCo
 } // TCPStreamReader
 
 //-----------------------------------------------------------------------------
-std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream_)
+std::streamsize KTCPStream::TCPStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
 	// We need to loop the writer, as write_some() could have an upper limit (the buffer size) to which
@@ -102,36 +101,35 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 
 	if (stream_)
 	{
-		auto stream = static_cast<KAsioStream<asio_stream_type>*>(stream_);
+		auto& IOStream = *static_cast<KTCPStream*>(stream_);
 
 		for (;iWrote < iCount;)
 		{
 			std::size_t iWrotePart { 0 };
 
-			stream->Socket.async_write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
+			IOStream.m_Stream.Socket.async_write_some(boost::asio::buffer(static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote),
 			[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
 			{
-				stream->ec = ec;
+				IOStream.m_Stream.ec = ec;
 				iWrotePart = bytes_transferred;
 			});
 
-			stream->RunTimed();
+			IOStream.m_Stream.RunTimed();
 
 			iWrote += iWrotePart;
 
-			if (iWrotePart == 0 || stream->ec.value() != 0 || !stream->Socket.is_open())
+			if (iWrotePart == 0 || IOStream.m_Stream.ec.value() != 0 || !IOStream.m_Stream.Socket.is_open())
 			{
 #ifdef DEKAF2_WITH_KLOG
-				if (stream->ec.value() == boost::asio::error::eof)
+				if (IOStream.m_Stream.ec.value() == boost::asio::error::eof)
 				{
-					kDebug(2, "output stream got closed by endpoint {}", stream->sEndpoint);
+					kDebug(2, "output stream got closed by endpoint {}", IOStream.m_Stream.sEndpoint);
 				}
 				else
 				{
-					kDebug(1, "cannot write to {} stream with endpoint {}: {}",
-						   "tcp",
-						   stream->sEndpoint,
-						   stream->ec.message());
+					IOStream.SetError(kFormat("cannot write to {} stream: {}",
+											  "tcp",
+											  IOStream.m_Stream.ec.message()));
 				}
 #endif
 				break;
@@ -144,24 +142,24 @@ std::streamsize KTCPIOStream::TCPStreamWriter(const void* sBuffer, std::streamsi
 } // TCPStreamWriter
 
 //-----------------------------------------------------------------------------
-KTCPIOStream::KTCPIOStream(KDuration Timeout)
+KTCPStream::KTCPStream(KDuration Timeout)
 //-----------------------------------------------------------------------------
-    : base_type(&m_TCPStreamBuf)
-    , m_Stream(Timeout)
+: base_type(&m_TCPStreamBuf, Timeout)
+, m_Stream(Timeout)
 {
 }
 
 //-----------------------------------------------------------------------------
-KTCPIOStream::KTCPIOStream(const KTCPEndPoint& Endpoint, KDuration Timeout)
+KTCPStream::KTCPStream(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 //-----------------------------------------------------------------------------
-    : base_type(&m_TCPStreamBuf)
-    , m_Stream(Timeout)
+: base_type(&m_TCPStreamBuf, Options.GetTimeout())
+, m_Stream(Options.GetTimeout())
 {
-	Connect(Endpoint);
+	Connect(Endpoint, Options);
 }
 
 //-----------------------------------------------------------------------------
-bool KTCPIOStream::Timeout(KDuration Timeout)
+bool KTCPStream::Timeout(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	m_Stream.Timeout = Timeout;
@@ -169,46 +167,44 @@ bool KTCPIOStream::Timeout(KDuration Timeout)
 }
 
 //-----------------------------------------------------------------------------
-bool KTCPIOStream::Connect(const KTCPEndPoint& Endpoint)
+bool KTCPStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
+	SetTimeout(Options.GetTimeout());
+
+	SetUnresolvedEndPoint(Endpoint);
+
 	auto& sHostname = Endpoint.Domain.get();
 
-	auto hosts = detail::kResolveTCP(sHostname, Endpoint.Port.get(), m_Stream.IOService, m_Stream.ec);
+	auto hosts = KIOStreamSocket::ResolveTCP(sHostname, Endpoint.Port.get(), Options.GetFamily(), m_Stream.IOService, m_Stream.ec);
 
 	if (Good())
 	{
 		boost::asio::async_connect(GetTCPSocket(), hosts,
 		                           [&](const boost::system::error_code& ec,
-#if (BOOST_VERSION < 106600)
-			                           boost::asio::ip::tcp::resolver::iterator endpoint)
+#if (DEKAF2_CLASSIC_ASIO)
+			                           resolver_endpoint_tcp_type endpoint)
 #else
-			                           const boost::asio::ip::tcp::endpoint& endpoint)
+			                           const resolver_endpoint_tcp_type& endpoint)
 #endif
 		{
-			m_Stream.sEndpoint.Format("{}:{}",
-#if (BOOST_VERSION < 106600)
-			endpoint->endpoint().address().to_string(),
-			endpoint->endpoint().port());
-#else
-			endpoint.address().to_string(),
-			endpoint.port());
-#endif
-			m_Stream.ec = ec;
+			m_Stream.sEndpoint  = PrintResolvedAddress(endpoint);
+			m_Stream.ec         = ec;
+			// parse the endpoint back into our basic KTCPEndpoint
+			SetEndPointAddress(m_Stream.sEndpoint);
 		});
 
-		kDebug(2, "trying to connect to {} {}", "endpoint", Endpoint.Serialize());
+		kDebug(2, "trying to connect to {} {}", "endpoint", Endpoint);
 
 		m_Stream.RunTimed();
 	}
 
 	if (!Good() || !GetAsioSocket().is_open())
 	{
-		kDebug(1, "{}: {}", Endpoint.Serialize(), Error());
-		return false;
+		return SetError(m_Stream.ec.message());
 	}
 
-	kDebug(2, "connected to {} {}", "endpoint", m_Stream.sEndpoint);
+	kDebug(2, "connected to {} {}", "endpoint", GetEndPointAddress());
 
 	return true;
 
@@ -224,10 +220,10 @@ std::unique_ptr<KTCPStream> CreateKTCPStream(KDuration Timeout)
 }
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, KDuration Timeout)
+std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KTCPStream>(EndPoint, Timeout);
+	return std::make_unique<KTCPStream>(EndPoint, Options);
 }
 
 DEKAF2_NAMESPACE_END

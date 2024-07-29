@@ -43,10 +43,15 @@
 
 #include "kdefinitions.h"
 #include "kduration.h"
+#include "kstring.h"
+#include "kstringview.h"
+#include "ktime.h"
+#include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// maintaining options for internet streams: TLS settings, ALPN settings, protocol settings, timeout
 class KStreamOptions {
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -54,6 +59,7 @@ class KStreamOptions {
 public:
 //------
 
+	/// general stream options
 	enum Options : uint8_t
 	{
 		None            = 0,      ///< no options, use for non-HTTP connections, or to restrict to HTTP1 connections
@@ -61,14 +67,54 @@ public:
 		ManualHandshake = 1 << 1, ///< wait for manual TLS handshake (for protocols like SMTP STARTTLS)
 		RequestHTTP2    = 1 << 2, ///< request a ALPN negotiation for HTTP2
 		FallBackToHTTP1 = 1 << 3, ///< if RequestHTTP2 is set, allow HTTP1 as fallback if 2 is not available
-		RequestHTTP3    = 1 << 4, ///< when creating a KQuicStream, negotiate for HTTP/3 ?
-		DefaultsForHTTP = 1 << 5, ///< use for HTTP, per default tries HTTP2 and allows HTTP1, can be changed through kSetTLSDefaults()
+		RequestHTTP3    = 1 << 4, ///< request an ALPN negotiation for HTTP/3, using QUIC. This option cannot fallback to HTTP/2 or 1.1
+		ForceIPv4       = 1 << 5, ///< force an IPv4 connection
+		ForceIPv6       = 1 << 6, ///< force an IPv6 connection
+		DefaultsForHTTP = 1 << 7, ///< use for HTTP, per default tries HTTP2 and allows HTTP1, can be changed through kSetTLSDefaults()
 	};
 
-	KStreamOptions() = default;
-	KStreamOptions(Options Options);
+	/// address family, used mainly for resolver setup
+	enum Family : uint8_t
+	{
+		Any, IPv4, IPv6
+	};
 
+	/// ctor setting options (default = None) and timeout (default = GetDefaultTimeout())
+	KStreamOptions(Options Options = None, KDuration Timeout = GetDefaultTimeout());
+	/// ctor setting options and timeout as chrono::seconds
+	KStreamOptions(Options Options, chrono::seconds Timeout)
+	: KStreamOptions(Options, KDuration(Timeout)) {}
+	/// ctor setting timeout. Options will be set to None
+	KStreamOptions(KDuration Timeout);
+	/// ctor setting timeout as chrono::seconds. Options will be set to None
+	KStreamOptions(chrono::seconds Timeout)
+	: KStreamOptions(KDuration(Timeout)) {}
+	/// ctor setting verify mode. Other options will be set to None, timeout is GetDefaultTimeout()
+	// make sure it really only gets called from bool
+	template<typename T, typename std::enable_if<std::is_same<T, bool>::value, int>::type = 0>
+	KStreamOptions(bool bVerify)
+	: KStreamOptions(Options(bVerify ? VerifyCert : None)) {} ///< constructor to help legacy class interfaces
+
+	/// adds the requested Options to the existing options
+	void Set(Options Options);
+
+	/// removes the requested Options from the existing options
+	void Unset(Options Options);
+
+	/// return the configured options
 	Options Get()      const { return m_Options; }
+
+	/// is the requested option (or set of options) set?
+	bool IsSet(Options Options) const { return (Get() & Options) == Options; }
+
+	/// returns one of Any, IPv4, IPv6 depending on the set options
+	Family GetFamily()    const;
+
+	/// set the timeout
+	void SetTimeout(KDuration Timeout) { m_Timeout = Timeout; }
+
+	/// returns timeout set
+	KDuration GetTimeout() const { return m_Timeout; }
 
 	operator Options() const { return Get();     }
 
@@ -107,9 +153,40 @@ private:
 	static Options s_DefaultOptions;
 	static constexpr KDuration s_DefaultTimeout { chrono::seconds(15) };
 
-	Options m_Options { None };
+	KDuration m_Timeout { s_DefaultTimeout };
+	Options   m_Options { None             };
 
 }; // KStreamOptions
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// options for HTTP streams - they have a different set of default options compared to KStreamOptions - the DefaultsForHTTP
+class KHTTPStreamOptions : public KStreamOptions
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	/// ctor setting options (default = DefaultsForHTTP) and timeout (default = GetDefaultTimeout())
+	KHTTPStreamOptions(Options Options = DefaultsForHTTP, KDuration Timeout = GetDefaultTimeout())
+	: KStreamOptions(Options, Timeout) {}
+	/// ctor setting options and timeout as chrono::seconds
+	KHTTPStreamOptions(Options Options, chrono::seconds Timeout)
+	: KHTTPStreamOptions(Options, KDuration(Timeout)) {}
+	/// ctor setting timeout. Options will be set to DefaultsForHTTP
+	KHTTPStreamOptions(KDuration Timeout)
+	: KHTTPStreamOptions(DefaultsForHTTP, Timeout) {}
+	/// ctor setting timeout as chrono::seconds. Options will be set to DefaultsForHTTP
+	KHTTPStreamOptions(chrono::seconds Timeout)
+	: KHTTPStreamOptions(KDuration(Timeout)) {}
+	/// ctor setting verify mode. Other options will be set to DefaultsForHTTP, timeout is GetDefaultTimeout()
+	// make sure it really only gets called from bool
+	template<typename T, typename std::enable_if<std::is_same<T, bool>::value, int>::type = 0>
+	KHTTPStreamOptions(T bVerify)
+	: KHTTPStreamOptions(Options(bVerify ? VerifyCert | DefaultsForHTTP : DefaultsForHTTP)) {} ///< constructor to help legacy class interfaces
+
+}; // KHTTPStreamOptions
 
 DEKAF2_ENUM_IS_FLAG(KStreamOptions::Options)
 

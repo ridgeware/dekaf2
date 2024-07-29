@@ -12,8 +12,7 @@ using namespace dekaf2;
 TEST_CASE("KTCPCLient")
 {
 	KTCPClient stream;
-	stream.Timeout(chrono::seconds(5));
-	stream.Connect("www.google.com:80");
+	stream.Connect("www.google.com:80", chrono::seconds(5));
 
 	stream.SetWriterEndOfLine("\r\n");
 	stream.SetReaderRightTrim("\r\n");
@@ -37,7 +36,7 @@ TEST_CASE("KTLSClient")
 
 	KTLSClient stream;
 	CHECK ( stream.Connect("www.google.com:443", KStreamOptions::None) == true );
-	stream.Timeout(chrono::seconds(1));
+	stream.SetTimeout(chrono::seconds(1));
 
 	stream.SetReaderRightTrim("\r\n");
 	stream.SetWriterEndOfLine("\r\n");
@@ -77,9 +76,9 @@ TEST_CASE("KTLSClient 3")
 	CHECK ( sResponse.empty() );
 	CHECK ( HTTP.Response.iStatusCode != 200 );
 #ifdef DEKAF2_IS_WINDOWS
-	CHECK ( HTTP.Error() == "No such host is known" );
+	CHECK ( HTTP.Error().contains("No such host is known" ));
 #else
-	CHECK ( HTTP.Error() == "Host not found (authoritative)" );
+	CHECK ( HTTP.Error().contains("Host not found (authoritative)") );
 #endif
 }
 

@@ -65,36 +65,10 @@
 #pragma clang diagnostic pop
 #endif
 
-#include "../kdefinitions.h"
-#include "../kstringview.h"
+#if (BOOST_VERSION < 106600)
+	#define DEKAF2_CLASSIC_ASIO 1
+#endif
 
-DEKAF2_NAMESPACE_BEGIN
-
-namespace detail {
-
-//-----------------------------------------------------------------------------
-boost::asio::ip::tcp::resolver::results_type
-kResolveTCP(KStringViewZ sHostname,
-			uint16_t iPort,
-			boost::asio::io_service& IOService,
-			boost::system::error_code& ec);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-boost::asio::ip::udp::resolver::results_type
-kResolveUDP(KStringViewZ sHostname,
-			uint16_t iPort,
-			boost::asio::io_service& IOService,
-			boost::system::error_code& ec);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-boost::asio::ip::tcp::resolver::results_type
-kReverseLookup(KStringViewZ sIPAddr,
-			   boost::asio::io_service& IOService,
-			   boost::system::error_code& ec);
-//-----------------------------------------------------------------------------
-
-} // of namespace detail
-
-DEKAF2_NAMESPACE_END
+#if (BOOST_VERSION >= 107300)
+	#define DEKAF2_HAS_ASIO_CONTEXT_FROM_OPENSSL_CONTEXT 1
+#endif

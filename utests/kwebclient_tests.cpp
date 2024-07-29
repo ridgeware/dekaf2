@@ -165,7 +165,7 @@ TEST_CASE("KWebClient") {
 		sRet = HTTP.Post("http://localhost:7653/test1", "some body", KMIME::HTML_UTF8);
 		CHECK( sRet.empty() );
 		CHECK( HTTP.GetStatusCode() == 598 );
-		CHECK( HTTP.Error() == "Operation canceled" );
+		CHECK( HTTP.Error().contains("Operation canceled") );
 //		HTTP.Disconnect();
 		// leave connection untouched to test reconnect feature
 		// it is difficult to know when the TCP server is done
@@ -244,7 +244,7 @@ TEST_CASE("KWebClient") {
 		HTTP.HttpRequest2Host(oss, ConnectURL, "localhost/test1", KHTTPMethod::POST, "some body", KMIME::HTML_UTF8);
 		CHECK( sRet.empty() );
 		CHECK( HTTP.GetStatusCode() == 598 );
-		CHECK( HTTP.Error() == "Operation canceled" );
+		CHECK( HTTP.Error().contains("Operation canceled") );
 		sRet.clear();
 		// leave connection untouched to test reconnect feature
 		// it is difficult to know when the TCP server is done

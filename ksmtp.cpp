@@ -63,7 +63,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 	{
 		kDebug(3, "TX: {}", sTx);
 		
-		if (!(*m_Connection)->WriteLine(sTx).Flush().Good())
+		if (!m_Connection->WriteLine(sTx).Flush().Good())
 		{
 			m_sError = "cannot send to SMTP server";
 			if (bDisconnectOnFailure)
@@ -86,7 +86,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 		for (;;)
 		{
 
-			if (!(*m_Connection)->ReadLine(sLine))
+			if (!m_Connection->ReadLine(sLine))
 			{
 				m_sError = "cannot receive from SMTP server";
 				if (bDisconnectOnFailure)
@@ -273,7 +273,7 @@ bool KSMTP::Send(const KMail& Mail)
 
 	// the KMIMEPart serializer guarantees that no dots start a new line,
 	// therefore we do not need to filter for them again with SendDottedMessage()
-	if (!(*m_Connection)->Write(Mail.Serialize()).Good())
+	if (!m_Connection->Write(Mail.Serialize()).Good())
 	{
 		m_sError = "cannot send mail body";
 		Disconnect();
@@ -286,7 +286,7 @@ bool KSMTP::Send(const KMail& Mail)
 		return false;
 	}
 
-	(*m_Connection)->Flush();
+	m_Connection->Flush();
 
 	return true;
 
@@ -303,7 +303,7 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 	m_sError.clear();
 
 	// force TLS socket for opportunistic TLS, do not allow ALPN HTTP2 upgrade
-	m_Connection = KConnection::Create(Relay, true);
+	m_Connection = KIOStreamSocket::Create(Relay, true, m_Timeout);
 
 	if (!Good())
 	{
@@ -317,10 +317,8 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 		m_Connection->SetManualTLSHandshake(true);
 	}
 
-	(*m_Connection)->SetWriterEndOfLine("\r\n");
-	(*m_Connection)->SetReaderRightTrim("\r\n");
-
-	m_Connection->SetTimeout(m_Timeout);
+	m_Connection->SetWriterEndOfLine("\r\n");
+	m_Connection->SetReaderRightTrim("\r\n");
 
 	// get initial welcome message
 	if (!Talk("", "220"))

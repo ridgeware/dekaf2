@@ -227,7 +227,7 @@ void KChildProcess::Clear()
 	m_iExitStatus = 0;
 	m_iExitSignal = 0;
 	m_bIsDaemonized = false;
-	m_sError.clear();
+	ClearError();
 
 } // Clear
 
@@ -265,7 +265,7 @@ bool KChildProcess::Fork(int(*func)(int, char**), int argc, char* argv[])
 
 		if (pid < 0)
 		{
-			return SetError(kFormat("fork(): {}", strerror(errno)));
+			return SetErrnoError("fork(): ");
 		}
 
 		m_child = pid;
@@ -321,7 +321,7 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 
 		if (pid < 0)
 		{
-			return SetError(kFormat("fork(): {}", strerror(errno)));
+			return SetErrnoError("fork(): ");
 		}
 
 		kDebug(2, "new pid: {}", pid);
@@ -341,7 +341,7 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 		{
 			if (errno != EPERM)
 			{
-				SetError(kFormat("setsid failed: {}", std::strerror(errno)));
+				SetErrnoError("setsid failed: ");
 				exit(1);
 			}
 		}
@@ -354,7 +354,7 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 
 			if (pid < 0)
 			{
-				SetError(kFormat("cannot fork again: {}", std::strerror(errno)));
+				SetErrnoError("cannot fork again: ");
 				exit(1);
 			}
 
@@ -398,7 +398,7 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 	{
 		if (chdir(sChangeDirectory.c_str()))
 		{
-			SetError(kFormat("chdir to {} failed: {}", sChangeDirectory, std::strerror(errno)));
+			SetErrnoError(kFormat("chdir to {} failed: ", sChangeDirectory));
 			exit(1);
 		}
 	}
@@ -429,7 +429,7 @@ bool KChildProcess::Detach()
 } // Detach
 
 //-----------------------------------------------------------------------------
-bool KChildProcess::Join(std::chrono::nanoseconds Timeout)
+bool KChildProcess::Join(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	if (!m_child)
@@ -455,7 +455,7 @@ bool KChildProcess::Join(std::chrono::nanoseconds Timeout)
 
 		if (success < 0)
 		{
-			return SetError(kFormat("waitpid(): {}", strerror(errno)));
+			return SetErrnoError("waitpid(): ");
 		}
 	}
 	else
@@ -487,11 +487,11 @@ bool KChildProcess::Join(std::chrono::nanoseconds Timeout)
 
 			if (success < 0)
 			{
-				return SetError(kFormat("waitpid(): {}", strerror(errno)));
+				return SetErrnoError("waitpid(): ");
 			}
 
 		} while (!success
-				 && Timeout < Timer.elapsed().duration<std::chrono::nanoseconds>());
+				 && Timeout < Timer.elapsed());
 	}
 
 	if (success)
@@ -520,7 +520,7 @@ bool KChildProcess::Join(std::chrono::nanoseconds Timeout)
 } // Join
 
 //-----------------------------------------------------------------------------
-bool KChildProcess::Stop(std::chrono::nanoseconds Timeout)
+bool KChildProcess::Stop(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	if (!m_child)
@@ -531,7 +531,7 @@ bool KChildProcess::Stop(std::chrono::nanoseconds Timeout)
 	// send a SIGTERM
 	if (::kill(m_child, SIGTERM))
 	{
-		return SetError(kFormat("kill(): {}", strerror(errno)));
+		return SetErrnoError("kill(): ");
 	}
 
 	return Join(Timeout);
@@ -550,21 +550,12 @@ bool KChildProcess::Kill()
 	// send a SIGHUP
 	if (::kill(m_child, SIGHUP))
 	{
-		return SetError(kFormat("kill(): {}", strerror(errno)));
+		return SetErrnoError("kill(): ");
 	}
 
 	return Join(std::chrono::milliseconds(20));
 
 } // Kill
-
-//-----------------------------------------------------------------------------
-bool KChildProcess::SetError(KStringView sError)
-//-----------------------------------------------------------------------------
-{
-	m_sError = sError;
-	kDebug(1, m_sError);
-	return false;
-}
 
 //-----------------------------------------------------------------------------
 KChildProcess::~KChildProcess()

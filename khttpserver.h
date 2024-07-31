@@ -47,6 +47,7 @@
 #include "khttp_method.h"
 #include "kmime.h"
 #include "kurl.h"
+#include "kerror.h"
 
 /// @file khttpserver.h
 /// HTTP server implementation
@@ -54,7 +55,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KHTTPServer
+class DEKAF2_PUBLIC KHTTPServer : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -200,15 +201,6 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return Response.WriteLine(sBuffer);
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Returns the last error string, if any
-	/// @return a const ref on the error string
-	const KString& Error() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_sError;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -368,17 +360,6 @@ public:
 	//-----------------------------------------------------------------------------
 
 //------
-protected:
-//------
-
-	//-----------------------------------------------------------------------------
-	/// Set the error string, also outputs to debug log
-	/// @param sError the error string
-	/// @return always false
-	bool SetError(KString sError) const;
-	//-----------------------------------------------------------------------------
-
-//------
 private:
 //------
 
@@ -388,7 +369,6 @@ private:
 	//-----------------------------------------------------------------------------
 
 	KString          m_sAuthenticatedUser;
-	mutable KString  m_sError;
 	bool             m_bConfigureCompression { true };
 
 //------

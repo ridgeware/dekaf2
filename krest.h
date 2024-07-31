@@ -45,6 +45,7 @@
 #include "ktcpserver.h"
 #include "kpoll.h"
 #include "kwebsocket.h"
+#include "kerror.h"
 #include <csignal>
 
 /// @file krest.h
@@ -53,7 +54,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KREST
+class DEKAF2_PUBLIC KREST : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -146,12 +147,6 @@ public:
 	/// returns true if no error
 	DEKAF2_NODISCARD
 	bool Good() const;
-	/// returns error description
-	DEKAF2_NODISCARD
-	const KString& Error() const;
-	/// alias for Error()
-	DEKAF2_NODISCARD
-	const KString& GetLastError() const { return Error(); }
 	/// get diagnostics when running with a TCP server
 	DEKAF2_NODISCARD
 	KThreadPool::Diagnostics GetDiagnostics() const;
@@ -166,7 +161,6 @@ protected:
 //----------
 
 	bool RealExecute(const Options& Options, const KRESTRoutes& Routes, KStream& Stream, KStringView sRemoteIP, url::KProtocol Proto, uint16_t iPort);
-	bool SetError(KStringView sError, bool bNoLogging = false);
 
 //----------
 private:
@@ -212,7 +206,6 @@ private:
 
 	}; // RESTServer
 
-	KString                       m_sError;
 	std::unique_ptr<RESTServer>   m_Server;
 	KThreadPool::ShutdownCallback m_ShutdownCallback;
 	std::unique_ptr<KSocketWatch> m_SocketWatch;

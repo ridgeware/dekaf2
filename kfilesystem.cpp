@@ -1342,7 +1342,8 @@ void KDiskStat::clear()
 	m_Total      = 0;
 	m_Used       = 0;
 	m_SystemFree = 0;
-	m_sError.clear();
+
+	ClearError();
 
 } // clear
 

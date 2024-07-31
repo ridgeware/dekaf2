@@ -162,14 +162,14 @@ detail::KSharedMemoryBase::KSharedMemoryBase(KStringView sPathname,
 		{
 			if (errno != EEXIST || !bForceCreation)
 			{
-				SetError(kFormat("shm_open({}): {}", m_sPathname, KStringView(strerror(errno))));
+				SetError(kFormat("shm_open({}): {}", m_sPathname, strerror(errno)));
 				return;
 			}
 			// try to remove
 			if (shm_unlink(m_sPathname.c_str()) < 0)
 			{
 				// could not remove
-				SetError(kFormat("shm_unlink for shm_open({}): {}", m_sPathname, KStringView(strerror(errno))));
+				SetError(kFormat("shm_unlink for shm_open({}): {}", m_sPathname, strerror(errno)));
 				return;
 			}
 			kDebug(2, "removed existing shared memory({})", m_sPathname);
@@ -178,7 +178,7 @@ detail::KSharedMemoryBase::KSharedMemoryBase(KStringView sPathname,
 
 			if (m_iFD < 0)
 			{
-				SetError(kFormat("2:shm_open({}): {}", m_sPathname, KStringView(strerror(errno))));
+				SetError(kFormat("2:shm_open({}): {}", m_sPathname, strerror(errno)));
 				return;
 			}
 		}
@@ -188,7 +188,7 @@ detail::KSharedMemoryBase::KSharedMemoryBase(KStringView sPathname,
 		// set requested size
 		if (ftruncate(m_iFD, m_iSize) < 0)
 		{
-			SetError(kFormat("ftruncate({},{}): {}", m_sPathname, m_iSize, KStringView(strerror(errno))));
+			SetError(kFormat("ftruncate({},{}): {}", m_sPathname, m_iSize, strerror(errno)));
 			return;
 		}
 	}
@@ -198,7 +198,7 @@ detail::KSharedMemoryBase::KSharedMemoryBase(KStringView sPathname,
 	if (m_pAddr == MAP_FAILED)
 	{
 		m_pAddr = nullptr;
-		SetError(kFormat("mmap({}): {}", m_sPathname, KStringView(strerror(errno))));
+		SetError(kFormat("mmap({}): {}", m_sPathname, strerror(errno)));
 		return;
 	}
 
@@ -212,7 +212,7 @@ detail::KSharedMemoryBase::~KSharedMemoryBase()
 	{
 		if (munmap(m_pAddr, m_iSize) < 0)
 		{
-			SetError(kFormat("munmap({}): {}", m_sPathname, KStringView(strerror(errno))));
+			SetError(kFormat("munmap({}): {}", m_sPathname, strerror(errno)));
 		}
 	}
 
@@ -220,7 +220,7 @@ detail::KSharedMemoryBase::~KSharedMemoryBase()
 	{
 		if (close(m_iFD) < 0)
 		{
-			SetError(kFormat("close({}): {}", m_sPathname, KStringView(strerror(errno))));
+			SetError(kFormat("close({}): {}", m_sPathname, strerror(errno)));
 		}
 	}
 
@@ -230,22 +230,12 @@ detail::KSharedMemoryBase::~KSharedMemoryBase()
 		{
 			if (shm_unlink(m_sPathname.c_str()) < 0)
 			{
-				SetError(kFormat("shm_unlink({}): {}", m_sPathname, KStringView(strerror(errno))));
+				SetError(kFormat("shm_unlink({}): {}", m_sPathname, strerror(errno)));
 			}
 		}
 	}
 
 } // dtor
-
-//-----------------------------------------------------------------------------
-bool detail::KSharedMemoryBase::SetError(KString sError)
-//-----------------------------------------------------------------------------
-{
-	m_sError = std::move(sError);
-	kDebug(2, m_sError);
-	return false;
-
-} // SetError
 
 
 //-----------------------------------------------------------------------------

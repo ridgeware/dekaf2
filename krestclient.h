@@ -145,7 +145,8 @@ public:
 	using base::HttpSuccess;
 	using base::HttpFailure;
 	using base::GetStatusCode;
-	using base::Error;
+	using base::GetLastError;
+	using base::HasError;
 	using base::Authentication;
 	using base::BasicAuthentication;
 	using base::DigestAuthentication;

@@ -226,7 +226,7 @@ void KHTTPClient::clear()
 {
 	Request.clear();
 	Response.clear();
-	m_sError.clear();
+	ClearError();
 	m_Authenticator.reset();
 	m_bHaveHostSet = false;
 
@@ -292,7 +292,7 @@ KHTTPClient::~KHTTPClient()
 bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 //-----------------------------------------------------------------------------
 {
-	SetError(KStringView{});
+	ClearError();
 
 	// clear the response object, otherwise a previous
 	// status would prevail if not overwritten by a new connection
@@ -1068,7 +1068,7 @@ bool KHTTPClient::Parse()
 
 	if (!Response.Parse())
 	{
-		return SetNetworkError(true, Response.Error().empty() ? m_Connection->Error() : Response.Error());
+		return SetNetworkError(true, m_Connection->HasError() ? m_Connection->GetLastError() : Response.GetLastError() );
 	}
 
 	// make sure also a network read error triggers a meaningful status
@@ -1217,17 +1217,7 @@ bool KHTTPClient::AlreadyConnected(const KTCPEndPoint& EndPoint) const
 } // AlreadyConnected
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::SetError(KString sError) const
-//-----------------------------------------------------------------------------
-{
-	m_sError = std::move(sError);
-	kDebug(1, m_sError);
-	return false;
-
-} // SetError
-
-//-----------------------------------------------------------------------------
-bool KHTTPClient::SetNetworkError(bool bRead, KString sError)
+bool KHTTPClient::SetNetworkError(bool bRead, KStringViewZ sError)
 //-----------------------------------------------------------------------------
 {
 	if (!Response.GetStatusCode() || Response.Good())
@@ -1238,7 +1228,7 @@ bool KHTTPClient::SetNetworkError(bool bRead, KString sError)
 
 	m_bKeepAlive = false;
 
-	return SetError(std::move(sError));
+	return SetError(sError);
 
 } // SetNetworkError
 

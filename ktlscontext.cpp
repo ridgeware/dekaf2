@@ -470,7 +470,7 @@ bool KTLSContext::SetAllowHTTP2(bool bAlsoAllowHTTP1)
 		{
 			return true;
 		}
-		kDebug(1, "failed to set ALPN protocol: '{}' - error {}", kEscapeForLogging(sProto), iResult);
+		return SetError(kFormat("failed to set ALPN protocol: '{}' - error {}", kEscapeForLogging(sProto), iResult));
 	}
 	else
 	{
@@ -512,21 +512,9 @@ bool KTLSContext::SetALPNRaw(KStringView sALPN)
 		return true;
 	}
 
-	kDebug(1, "failed to set ALPN protocol: '{}' - error {}", kEscapeForLogging(sALPN), iResult);
-
-	return false;
+	return SetError(kFormat("failed to set ALPN protocol: '{}' - error {}", kEscapeForLogging(sALPN), iResult));
 
 } // SetALPNRaw
-
-//-----------------------------------------------------------------------------
-bool KTLSContext::SetError(KString sError)
-//-----------------------------------------------------------------------------
-{
-	m_sError = std::move(sError);
-	kDebug(1, m_sError);
-	return false;
-
-} // SetError
 
 DEKAF2_NAMESPACE_END
 

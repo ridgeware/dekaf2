@@ -55,8 +55,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 {
 	if (!Good())
 	{
-		m_sError = "no connection to SMTP server";
-		return false;
+		return SetError("no connection to SMTP server");
 	}
 
 	if (!sTx.empty())
@@ -65,12 +64,11 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 		
 		if (!m_Connection->WriteLine(sTx).Flush().Good())
 		{
-			m_sError = "cannot send to SMTP server";
 			if (bDisconnectOnFailure)
 			{
 				Disconnect();
 			}
-			return false;
+			return SetError("cannot send to SMTP server");
 		}
 	}
 
@@ -88,12 +86,11 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 
 			if (!m_Connection->ReadLine(sLine))
 			{
-				m_sError = "cannot receive from SMTP server";
 				if (bDisconnectOnFailure)
 				{
 					Disconnect();
 				}
-				return false;
+				return SetError("cannot receive from SMTP server");
 			}
 
 			kDebug(3, "RX: {}", sLine);
@@ -113,12 +110,11 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 
 			if (!sLine.starts_with(sRx))
 			{
-				m_sError.Format("SMTP server responded with '{}' instead of '{}' on query '{}'", sLine, sRx, sTx);
 				if (bDisconnectOnFailure)
 				{
 					Disconnect();
 				}
-				return false;
+				return SetError(kFormat("SMTP server responded with '{}' instead of '{}' on query '{}'", sLine, sRx, sTx));
 			}
 
 			// success
@@ -190,8 +186,7 @@ bool KSMTP::Send(const KMail& Mail)
 {
 	if (!Mail.Good())
 	{
-		m_sError.Format("mail not sent: {}", Mail.Error());
-		return false;
+		return SetError(kFormat("mail not sent: {}", Mail.GetLastError()));
 	}
 
 	if (!Talk(kFormat("MAIL FROM:<{}>", Mail.From().begin()->first), "250"))
@@ -275,9 +270,8 @@ bool KSMTP::Send(const KMail& Mail)
 	// therefore we do not need to filter for them again with SendDottedMessage()
 	if (!m_Connection->Write(Mail.Serialize()).Good())
 	{
-		m_sError = "cannot send mail body";
 		Disconnect();
-		return false;
+		return SetError("cannot send mail body");
 	}
 
 	// Talk() adds another \r\n at the end, which terminates the message
@@ -300,15 +294,14 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 
 	Disconnect();
 
-	m_sError.clear();
+	ClearError();
 
 	// force TLS socket for opportunistic TLS, do not allow ALPN HTTP2 upgrade
 	m_Connection = KIOStreamSocket::Create(Relay, true, m_Timeout);
 
 	if (!Good())
 	{
-		m_sError.Format("cannot connect to SMTP server {}:{} - {}", Relay.Domain.Serialize(), Relay.Port.Serialize(), Error());
-		return false;
+		return SetError(kFormat("cannot connect to SMTP server {}:{} - {}", Relay.Domain.Serialize(), Relay.Port.Serialize(), m_Connection->GetLastError()));
 	}
 
 	if (m_Connection->IsTLS())
@@ -382,13 +375,11 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 	// evaluate ESMTP response
 	if (!sUsername.empty() && sPassword.empty())
 	{
-		m_sError = "missing password";
-		return false;
+		return SetError("missing password");
 	}
 	else if (sUsername.empty() && !sPassword.empty())
 	{
-		m_sError = "missing username";
-		return false;
+		return SetError("missing username");
 	}
 	else if (sUsername.empty() && sPassword.empty())
 	{
@@ -397,8 +388,7 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 
 	if (!bIsTLS)
 	{
-		m_sError = "cannot authenticate without encryption";
-		return false;
+		return SetError("cannot authenticate without encryption");
 	}
 
 	// check for SMTP-Auth
@@ -435,9 +425,7 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 		}
 	}
 
-	m_sError.Format("Cannot authenticate with server - announced capabilities are {}", sAuth);
-
-	return false;
+	return SetError(kFormat("Cannot authenticate with server - announced capabilities are {}", sAuth));
 
 } // Connect
 
@@ -462,25 +450,5 @@ bool KSMTP::Good() const
 {
 	return m_Connection && m_Connection->Good();
 }
-
-//-----------------------------------------------------------------------------
-KString KSMTP::Error() const
-//-----------------------------------------------------------------------------
-{
-	KString sReturn;
-
-	if (m_Connection)
-	{
-		sReturn = m_Connection->Error();
-	}
-
-	if (sReturn.empty() && !m_sError.empty())
-	{
-		sReturn = m_sError;
-	}
-
-	return sReturn;
-
-} // Error
 
 DEKAF2_NAMESPACE_END

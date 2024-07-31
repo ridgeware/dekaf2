@@ -266,7 +266,7 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 	}
 	else // HttpSuccess() -> false
 	{
-		if (Error().empty())
+		if (!HasError())
 		{
 			SetError(Response.GetStatusString());
 		}

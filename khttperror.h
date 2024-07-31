@@ -48,7 +48,7 @@
 #include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
-#include "kexception.h"
+#include "kerror.h"
 
 DEKAF2_NAMESPACE_BEGIN
 

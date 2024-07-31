@@ -72,7 +72,8 @@ x-klog: -level 1
 		KRESTServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80, Routes, Options);
 		Browser.Execute();
 
-		CHECK ( sResponse.contains("KRESTServer::Output(): HTTP-200: OK\r\nx-klog") );
+		CHECK ( sResponse.contains("x-klog-00001: | LVL ") );
+		CHECK ( sResponse.contains("KRESTServer::Output(): HTTP-200: OK\r\n") );
 		sResponse.ClipAtReverse("\r\n\r\n");
 		sResponse.remove_prefix("\r\n\r\n");
 		KJSON json;

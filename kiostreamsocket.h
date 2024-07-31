@@ -48,6 +48,7 @@
 #include "kstringview.h"
 #include "kstreamoptions.h"
 #include "kurl.h"
+#include "kerror.h"
 #include "bits/kasio.h"
 #include <iostream>
 
@@ -55,7 +56,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// base class for the std::iostream based internet stream classes
-class KIOStreamSocket : public KReaderWriter<std::iostream>
+class KIOStreamSocket : public KErrorBase, public KReaderWriter<std::iostream>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using base_type = KReaderWriter<std::iostream>;
@@ -121,6 +122,9 @@ public:
 	/// written
 	virtual bool SetManualTLSHandshake(bool bYes);
 
+	/// Set the endpoint address when in server mode
+	virtual void SetConnectedEndPointAddress(const KTCPEndPoint& Endpoint);
+
 	virtual ~KIOStreamSocket();
 
 	// ------ non-virtual base class methods -------
@@ -183,12 +187,6 @@ public:
 	/// For TLS and Quic streams: Get the Application Layer Protocol Negotiation after the TLS handshake
 	KStringView GetALPN();
 
-	/// Returns the cause of an error if the return string is non-empty. Otherwise no error occured.
-	const KString& Error() const 
-	{
-		return m_sError;
-	}
-
 	// ------ static factory methods -------
 
 	// this interface uses KURL instead of KTCPEndPoint to allow construction like "https://www.abc.de" - otherwise the protocol would be lost..
@@ -245,12 +243,6 @@ protected:
 
 	// ------ service methods for children -------
 
-	/// set an error description, always returns false
-	bool SetError(KString sError);
-	/// set an error from a boost error code
-	bool SetError(boost::system::error_code ec);
-	/// set an error description according to latest errno
-	bool SetSysError(KStringView sMask = "os error: {}");
 	/// query the last ssl error description and set it as error
 	bool SetSSLError();
 
@@ -282,7 +274,6 @@ protected:
 private:
 //----------
 
-	KString      m_sError;
 	KDuration    m_Timeout;
 	KTCPEndPoint m_UnresolvedEndpoint;
 	KTCPEndPoint m_EndpointAddress;

@@ -191,13 +191,13 @@ KMail& KMail::LoadManifestFrom(KStringViewZ sPath)
 		}
 		else
 		{
-			m_sError = kFormat("cannot find manifest in directory '{}'", sPath);
+			SetError(kFormat("cannot find manifest in directory '{}'", sPath));
 			return *this;
 		}
 	}
 	else if (!kFileExists(sPath))
 	{
-		m_sError = kFormat("file '{}' does not exist", sPath);
+		SetError(kFormat("file '{}' does not exist", sPath));
 		return *this;
 	}
 
@@ -211,7 +211,7 @@ KMail& KMail::LoadManifestFrom(KStringViewZ sPath)
 			sLine.Trim();
 			if (sLine != "#manifest")
 			{
-				m_sError = kFormat("no #manifest preamble in file '{}'", sManifestFileName);
+				SetError(kFormat("no #manifest preamble in file '{}'", sManifestFileName));
 				return *this;
 			}
 		}
@@ -222,7 +222,7 @@ KMail& KMail::LoadManifestFrom(KStringViewZ sPath)
 
 	if (Manifest.Headers.empty())
 	{
-		m_sError = kFormat("no manifest headers in file '{}'", sManifestFileName);
+		SetError(kFormat("no manifest headers in file '{}'", sManifestFileName));
 		return *this;
 	}
 
@@ -321,7 +321,7 @@ KMail& KMail::Add(KStringView sWhich, map_t& map, KString Key, KString Value)
 {
 	if (!kIsEmail(Key))
 	{
-		m_sError = kFormat("{} address is invalid: {}", sWhich, Key);
+		SetError(kFormat("{} address is invalid: {}", sWhich, Key));
 	}
 	else
 	{
@@ -335,27 +335,24 @@ KMail& KMail::Add(KStringView sWhich, map_t& map, KString Key, KString Value)
 bool KMail::Good() const
 //-----------------------------------------------------------------------------
 {
-	if (!m_sError.empty())
+	if (HasError())
 	{
 		return false;
 	}
 	
 	if (m_To.empty())
 	{
-		m_sError = "missing To address";
-		return false;
+		return SetError("missing To address");
 	}
 
 	if (m_From.empty())
 	{
-		m_sError = "missing From address";
-		return false;
+		return SetError("missing From address");
 	}
 
 	if (m_Subject.empty())
 	{
-		m_sError = "missing subject";
-		return false;
+		return SetError("missing subject");
 	}
 
 	if (m_Parts.empty())
@@ -363,18 +360,9 @@ bool KMail::Good() const
 		kDebug(1, "no body in mail");
 	}
 
-	m_sError.clear();
-
 	return true;
 
 } // Good
-
-//-----------------------------------------------------------------------------
-const KString& KMail::Error() const
-//-----------------------------------------------------------------------------
-{
-	return m_sError;
-}
 
 //-----------------------------------------------------------------------------
 const KMail::map_t& KMail::To() const
@@ -450,14 +438,12 @@ bool KMail::Send(const KURL& URL, KStringView sUsername, KStringView sPassword)
 
 	if (!server.Connect(URL, sUsername, sPassword))
 	{
-		m_sError = server.Error();
-		return false;
+		return SetError(server.CopyLastError());
 	}
 
 	if (!server.Send(*this))
 	{
-		m_sError = server.Error();
-		return false;
+		return SetError(server.CopyLastError());
 	}
 
 	return true;

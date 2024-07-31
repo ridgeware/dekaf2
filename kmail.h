@@ -46,6 +46,7 @@
 #include "kstringview.h"
 #include "kurl.h"
 #include "kmime.h"
+#include "kerror.h"
 #include "dekaf2.h"
 
 /// @file kmail.h
@@ -57,7 +58,7 @@ DEKAF2_NAMESPACE_BEGIN
 /// This class takes all information for an email message. It can then be used
 /// as an argument for the KSMTP class, or sent via the convenience Send()
 /// method of KMail, which internally calls KSMTP.
-class DEKAF2_PUBLIC KMail
+class DEKAF2_PUBLIC KMail : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -210,14 +211,6 @@ public:
 	DEKAF2_NODISCARD
 	KUnixTime Time() const;
 
-	/// Returns last error
-	DEKAF2_NODISCARD
-	const KString& Error() const;
-
-	/// Returns last error
-	DEKAF2_NODISCARD
-	const KString& GetLastError() const { return Error(); }
-
 //----------
 private:
 //----------
@@ -231,7 +224,6 @@ private:
 	KString m_Subject;
 
 	std::shared_ptr<KReplacer> m_Replacer;
-	mutable KString m_sError;
 	KUnixTime m_Time { Dekaf::getInstance().GetCurrentTime() };
 	mutable KMIMEMultiPart m_Parts;
 	mutable size_t m_iBody { 0 };

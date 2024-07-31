@@ -776,7 +776,7 @@ void KHTML::clear()
 	m_Hierarchy.clear();
 	m_Hierarchy.push_back(&m_Root);
 	m_sContent.clear();
-	m_sError.clear();
+	ClearError();
 	m_Issues.clear();
 	m_bLastWasSpace = true;
 	m_bDoNotEscape  = false;
@@ -807,32 +807,11 @@ void KHTML::FlushText()
 } // FlushText
 
 //-----------------------------------------------------------------------------
-bool KHTML::SetError(KString sError)
-//-----------------------------------------------------------------------------
-{
-	kDebug(1, sError);
-	m_sError = std::move(sError);
-
-	if (m_bThrowOnError)
-	{
-		throw KException(kFormat("KHTML: {}", m_sError));
-	}
-
-	return false;
-
-} // SetError
-
-//-----------------------------------------------------------------------------
 void KHTML::SetIssue(KString sIssue)
 //-----------------------------------------------------------------------------
 {
 	kDebug(1, sIssue);
 	m_Issues.push_back(std::move(sIssue));
-
-	if (m_bThrowOnIssue)
-	{
-		throw KException(kFormat("KHTML: {}", m_Issues.back()));
-	}
 
 } // SetIssue
 

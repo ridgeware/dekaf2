@@ -41,9 +41,10 @@
 
 #include "kzip.h"
 #include "klog.h"
-#include "kexception.h"
+#include "kerror.h"
 #include "koutstringstream.h"
 #include "kfilesystem.h"
+#include "kscopeguard.h"
 #include <zip.h>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -252,62 +253,44 @@ KZip::iterator KZip::iterator::operator--(int) noexcept
 } // operator--(int)
 
 //-----------------------------------------------------------------------------
-bool KZip::SetError(KString sError) const
-//-----------------------------------------------------------------------------
-{
-	kDebug (2, sError);
-
-	m_sError = std::move(sError);
-
-	if (m_bThrow)
-	{
-		throw KError(kFormat("KZip: {}", m_sError));
-	}
-
-	return false;
-
-} // SetError
-
-//-----------------------------------------------------------------------------
-bool KZip::SetError(int iError) const
+bool KZip::SetZipError(int iError) const
 //-----------------------------------------------------------------------------
 {
 #if (LIBZIP_VERSION_MAJOR > 1) || (LIBZIP_VERSION_MAJOR == 1 && LIBZIP_VERSION_MINOR >= 10)
 	zip_error_t error;
 	zip_error_init_with_code(&error, iError);
-	bool bOK = SetError(zip_error_strerror(&error));
-	zip_error_fini(&error);
-	return bOK;
+	KAtScopeEnd(zip_error_fini(&error));
+	return SetError(zip_error_strerror(&error));
 #else
 	std::array<char, 128> Buffer;
 	zip_error_to_str(Buffer.data(), Buffer.size(), iError, errno);
 	return SetError(KString(Buffer.data()));
 #endif
 
-} // SetError
+} // SetZipError
 
 //-----------------------------------------------------------------------------
-bool KZip::SetError() const
+bool KZip::SetZipError() const
 //-----------------------------------------------------------------------------
 {
 	return SetError(zip_strerror(m_ZipC.get()));
 
-} // SetError
+} // SetZipError
 
 //-----------------------------------------------------------------------------
 KZip::KZip(bool bThrow)
 //-----------------------------------------------------------------------------
-: m_bThrow(bThrow)
-, m_ZipC(nullptr, ZipDeleter)
+: m_ZipC(nullptr, ZipDeleter)
 {
+	SetThrowOnError(bThrow);
 }
 
 //-----------------------------------------------------------------------------
 KZip::KZip(KStringViewZ sFilename, bool bWrite, bool bThrow)
 //-----------------------------------------------------------------------------
-: m_bThrow(bThrow)
-, m_ZipC(nullptr, ZipDeleter)
+: m_ZipC(nullptr, ZipDeleter)
 {
+	SetThrowOnError(bThrow);
 	Open(sFilename, bWrite);
 }
 
@@ -339,7 +322,7 @@ bool KZip::Open(KStringViewZ sFilename, bool bWrite)
 
 	if (!zip)
 	{
-		SetError(iError);
+		SetZipError(iError);
 	}
 
 	m_ZipC = unique_zip_t(zip, ZipDeleter);
@@ -377,7 +360,7 @@ struct KZip::DirEntry KZip::Get(std::size_t iIndex) const
 
 	if (zip_stat_index(m_ZipC.get(), iIndex, 0, &stat) < 0)
 	{
-		SetError();
+		SetZipError();
 	}
 	else
 	{
@@ -398,7 +381,7 @@ struct KZip::DirEntry KZip::Get(KStringViewZ sName, bool bNoPathCompare) const
 
 	if (zip_stat(m_ZipC.get(), sName.c_str(), bNoPathCompare ? ZIP_FL_NODIR : 0, &stat) < 0)
 	{
-		SetError();
+		SetZipError();
 	}
 	else
 	{
@@ -505,7 +488,7 @@ bool KZip::Read(KOutStream& OutStream, const DirEntry& DirEntry)
 
 	if (File.get() == nullptr)
 	{
-		return SetError();
+		return SetZipError();
 	}
 
 	for (;;)
@@ -769,7 +752,7 @@ bool KZip::SetEncryptionForFile(uint64_t iIndex)
 	{
 		if (zip_file_set_encryption(m_ZipC.get(), iIndex, ZIP_EM_AES_256, m_sPassword.c_str()) == -1)
 		{
-			return SetError();
+			return SetZipError();
 		}
 	}
 	else
@@ -791,7 +774,7 @@ bool KZip::SetCompressionForFile(uint64_t iIndex)
 	{
 		return true;
 	}
-	return SetError();
+	return SetZipError();
 #else
 	return false;
 #endif
@@ -813,7 +796,7 @@ bool KZip::WriteBuffer(KStringView sBuffer, KStringViewZ sDispname)
 
 	if (!Source)
 	{
-		return SetError();
+		return SetZipError();
 	}
 
 	std::memcpy(pBuffer.get(), sBuffer.data(), sBuffer.size());
@@ -823,7 +806,7 @@ bool KZip::WriteBuffer(KStringView sBuffer, KStringViewZ sDispname)
 	if (iIndex < 0)
 	{
 		zip_source_free(Source);
-		return SetError();
+		return SetZipError();
 	}
 
 #ifdef DEKAF2_HAVE_LIBZIP_COMPRESSION_METHOD_SUPPORTED
@@ -859,7 +842,7 @@ bool KZip::WriteFile(KStringViewZ sFilename, KStringViewZ sDispname)
 
 	if (!Source)
 	{
-		return SetError();
+		return SetZipError();
 	}
 
 	if (sDispname.empty())
@@ -881,7 +864,7 @@ bool KZip::WriteFile(KStringViewZ sFilename, KStringViewZ sDispname)
 	if (iIndex < 0)
 	{
 		zip_source_free(Source);
-		return SetError();
+		return SetZipError();
 	}
 
 #ifdef DEKAF2_HAVE_LIBZIP_COMPRESSION_METHOD_SUPPORTED
@@ -918,7 +901,7 @@ bool KZip::WriteDirectory(KStringViewZ sDispname)
 
 	if (iIndex < 0)
 	{
-		return SetError();
+		return SetZipError();
 	}
 
 	return true;

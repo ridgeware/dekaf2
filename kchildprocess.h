@@ -50,8 +50,9 @@
 
 #ifndef DEKAF2_IS_WINDOWS
 
-#include <chrono>
+#include "kduration.h"
 #include "kstring.h"
+#include "kerror.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -83,7 +84,7 @@ void kCloseOwnFilesForExec(bool bIncludeStandardIO, int Exempt[] = nullptr, size
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Start and control a child process
-class DEKAF2_PUBLIC KChildProcess
+class DEKAF2_PUBLIC KChildProcess : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -121,10 +122,10 @@ public:
 	bool Detach();
 
 	/// Join a started child, wait max for Timeout, 0 = forever (default)
-	bool Join(std::chrono::nanoseconds Timeout = std::chrono::nanoseconds(0));
+	bool Join(KDuration Timeout = chrono::nanoseconds(0));
 
 	/// Stop a started child with SIGTERM, wait max for Timeout, 0 = forever (default)
-	bool Stop(std::chrono::nanoseconds Timeout = std::chrono::nanoseconds(0));
+	bool Stop(KDuration Timeout = chrono::nanoseconds(0));
 
 	/// Kill a started child with SIGHUP
 	bool Kill();
@@ -144,21 +145,16 @@ public:
 	/// Returns the exit signal of a terminated child (or 0)
 	int GetExitSignal() const { return m_iExitSignal; }
 
-	/// Returns error string
-	const KString& Error() const { return m_sError; }
-
 //------
 protected:
 //------
 
 	void Clear();
-	bool SetError(KStringView sError);
 
 	pid_t   m_child         { 0 };
 	int     m_iExitStatus   { 0 };
 	int     m_iExitSignal   { 0 };
 	bool    m_bIsDaemonized { false };
-	KString m_sError;
 
 }; // KChildProcess
 

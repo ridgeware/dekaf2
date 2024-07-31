@@ -75,6 +75,7 @@
 #include "kwriter.h"
 #include "kfilesystem.h"
 #include "kcompression.h"
+#include "kerror.h"
 
 #include <cinttypes>
 #include <vector>
@@ -84,7 +85,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Tar unarchiver for uncompressed archives
-class DEKAF2_PUBLIC KUnTar
+class DEKAF2_PUBLIC KUnTar : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -297,13 +298,6 @@ public:
 	/// Read content of the current file into a file sFilename
 	bool ReadFile(KStringViewZ sFilename);
 
-	/// Returns error description on failure
-	DEKAF2_NODISCARD
-	const KString& Error() const
-	{
-		return m_Error;
-	}
-
 	DEKAF2_NODISCARD
 	iterator begin() noexcept
 	{
@@ -355,8 +349,6 @@ private:
 	DEKAF2_PRIVATE
 	bool    Read(void* buf, size_t len);
 	DEKAF2_PRIVATE
-	bool    SetError(KString sError);
-	DEKAF2_PRIVATE
 	KString CreateTargetDirectory(KStringViewZ sBaseDir, KStringViewZ sEntry, bool bWithSubdirectories);
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -399,7 +391,6 @@ private:
 	}; // Decoded
 
 	Decoded                  m_Header;
-	KString                  m_Error;
 	std::unique_ptr<KInFile> m_File;
 	KInStream&               m_Stream;
 	int                      m_AcceptedTypes;

@@ -77,6 +77,7 @@
 #include "kthreadpool.h"
 #include "khttp_version.h"
 #include "kstreamoptions.h"
+#include "kerror.h"
 #include <cinttypes>
 #include <thread>
 #include <future>
@@ -91,7 +92,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A TCP server implementation supporting TLS.
-class DEKAF2_PUBLIC KTCPServer
+class DEKAF2_PUBLIC KTCPServer : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -246,14 +247,6 @@ public:
 	int GetResult();
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	/// Get error string, if any
-	const KString& Error() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_sError;
-	}
-
 //-------
 protected:
 //-------
@@ -340,11 +333,6 @@ protected:
 		return m_bQuit;
 	}
 
-	//-----------------------------------------------------------------------------
-	/// Set error string and log
-	bool SetError(KString sError, bool bNoLogging = false);
-	//-----------------------------------------------------------------------------
-
 //-------
 private:
 //-------
@@ -403,7 +391,6 @@ private:
 	KString           m_sPassword;
 	KString           m_sDHPrimes;
 	KString           m_sAllowedCipherSuites;
-	KString           m_sError;
 	std::future<int>  m_ResultAsFuture;
 	std::atomic<int>  m_iStarted              {     0 };
 	uint16_t          m_iPort                 {     0 };

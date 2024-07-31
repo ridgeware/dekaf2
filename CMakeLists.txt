@@ -818,6 +818,7 @@ set(PUBLIC_HEADERS
 	kdiff.h
 	kduration.h
 	kencode.h
+	kerror.h
 	kexception.h
 	kfdstream.h
 	kfileserver.h
@@ -900,6 +901,7 @@ set(PUBLIC_HEADERS
 	ksignals.h
 	ksmtp.h
 	ksnippets.h
+	ksourcelocation.h
 	ksplit.h
 	kstack.h
 	kstream.h
@@ -1079,6 +1081,7 @@ set (SOURCES
 	kdate.cpp
 	kdiff.cpp
 	kduration.cpp
+	kerror.cpp
 	kfdstream.cpp
 	kfileserver.cpp
 	kfilesystem.cpp

@@ -504,7 +504,7 @@ TEST_CASE("KOptions2")
 		CHECK ( real == 123.456 );
 		iUInt = Opt("notfound", "234");
 		CHECK ( iUInt == 234 );
-		const char* p = Opt("notfound2", "hello world");
+		const char* p = Opt("notfound2", "hello world").c_str();
 		CHECK ( KStringViewZ(p) == "hello world" );
 		uint32_t ui32 = Opt("notfound3", 123);
 		CHECK ( ui32 == 123 );
@@ -604,7 +604,7 @@ TEST_CASE("KOptions2")
 		bool bBool3 = Opt("bool3");
 		double real = Opt("real");
 		iUInt = Opt("notfound", "234");
-		const char* p = Opt("notfound2", "hello world");
+		const char* p = Opt("notfound2", "hello world").c_str();
 		uint32_t ui32 = Opt("notfound3", 123);
 		bool bb = Opt("notfound4", true);
 

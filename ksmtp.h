@@ -48,6 +48,7 @@
 #include "kiostreamsocket.h"
 #include "kassociative.h"
 #include "kstreamoptions.h"
+#include "kerror.h"
 
 /// @file ksmtp.h
 /// Adds the KSMTP class which sends a KMail via SMTP to an MTA
@@ -58,7 +59,7 @@ DEKAF2_NAMESPACE_BEGIN
 /// This class speaks the SMTP protocol with a mail relay. It takes a KMail class
 /// as the mail to be sent. Multiple mails can be sent consecutively in one
 /// session.
-class DEKAF2_PUBLIC KSMTP
+class DEKAF2_PUBLIC KSMTP : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -96,9 +97,6 @@ public:
 	void SetTimeout(KDuration Timeout) { m_Timeout = Timeout; }
 	/// Set the connection timeout in seconds, preset is 15
 	void SetTimeout(uint16_t iSeconds) { SetTimeout(chrono::seconds(iSeconds)); }
-	/// Returns last error
-	DEKAF2_NODISCARD
-	KString Error() const;
 
 //----------
 private:
@@ -113,7 +111,6 @@ private:
 	DEKAF2_PRIVATE
 	bool PrettyPrint(KStringView sHeader, const KMail::map_t& map);
 
-	mutable KString m_sError;
 	// The TCP stream class
 	std::unique_ptr<KIOStreamSocket> m_Connection;
 	// the TCP timeout

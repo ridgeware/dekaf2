@@ -83,6 +83,16 @@
 	#define DEKAF2_HAS_EXTENSION(x) __has_extension(x)
 #endif
 
+#ifndef __has_builtin
+	#define DEKAF2_HAS_BUILTIN(x) 0
+#else
+	#define DEKAF2_HAS_BUILTIN(x) __has_builtin(x)
+#endif
+
+#if !defined(__cplusplus) && defined(_MSVC_LANG)
+	#define __cplusplus _MSVC_LANG
+#endif
+
 #if (__cplusplus >= 202002L) && DEKAF2_HAS_INCLUDE(<version>)
 	#include <version>
 #else
@@ -138,12 +148,7 @@
 	#define DEKAF2_GLIBC_VERSION_MINOR __GLIBC_MINOR__
 #endif
 
-#if DEKAF2_HAS_INCLUDE(<source_location>)
-	#include <source_location>
-#endif
-#if __cpp_lib_source_location >= 201907L
-	#define DEKAF2_FUNCTION_NAME std::source_location::current().function_name()
-#elif defined __GNUC__
+#if defined __GNUC__
 	#define DEKAF2_FUNCTION_NAME __PRETTY_FUNCTION__
 #elif defined _MSC_VER
 	#define DEKAF2_FUNCTION_NAME __FUNCSIG__

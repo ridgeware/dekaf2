@@ -316,17 +316,17 @@ bool KTCPServer::TCPServer(bool ipv6)
 
 		if (!TLSContext.SetTLSCertificates(m_sCert, m_sKey, m_sPassword))
 		{
-			return SetError(TLSContext.Error(), true); // already logged
+			return SetError(TLSContext.CopyLastError()); // already logged
 		}
 
 		if (!TLSContext.SetDHPrimes(m_sDHPrimes))
 		{
-			return SetError(TLSContext.Error(), true); // already logged
+			return SetError(TLSContext.CopyLastError()); // already logged
 		}
 
 		if (!TLSContext.SetAllowedCipherSuites(m_sAllowedCipherSuites))
 		{
-			return SetError(TLSContext.Error(), true); // already logged
+			return SetError(TLSContext.CopyLastError()); // already logged
 		}
 
 		if (m_HTTPVersion & KHTTPVersion::http2)
@@ -931,20 +931,6 @@ KTCPServer::param_t KTCPServer::CreateParameters()
 //-----------------------------------------------------------------------------
 {
 	return std::make_unique<Parameters>();
-}
-
-//-----------------------------------------------------------------------------
-bool KTCPServer::SetError(KString sError, bool bNoLogging)
-//-----------------------------------------------------------------------------
-{
-	m_sError = std::move(sError);
-
-	if (!bNoLogging)
-	{
-		kDebug(1, m_sError);
-	}
-
-	return false;
 }
 
 DEKAF2_NAMESPACE_END

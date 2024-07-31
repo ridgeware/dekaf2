@@ -1,7 +1,7 @@
 /*
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2018, Ridgeware, Inc.
+// Copyright (c) 2024, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -38,76 +38,64 @@
 // +-------------------------------------------------------------------------+
 */
 
-#pragma once
-
-/// @file kexception.h
-/// provides basic dekaf2 exception class
-
-#include "kdefinitions.h"
-#include "kstringview.h"
-#include <exception>
+#include "kerror.h"
+#include "klog.h"
+#include <boost/system/error_code.hpp>
+#include <errno.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Basic dekaf2 exception class inheriting from std::runtime_error, and adding
-/// a uint16_t error code. Can also be used for error returns.
-class DEKAF2_PUBLIC KException : public std::runtime_error
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//-----------------------------------------------------------------------------
+bool KErrorBase::SetError(const KErrorBase& Error) const
+//-----------------------------------------------------------------------------
 {
+	// keeps this classes members as they are, but copies over all from the base class
+	const_cast<base*>(static_cast<const base*>(this))->operator=(Error);
+	return false;
+}
 
-//----------
-public:
-//----------
-
-	KException()
-	: runtime_error("")
+//-----------------------------------------------------------------------------
+bool KErrorBase::SetError(KStringViewZ sError, uint16_t iErrorCode, KStringView sFunction) const
+//-----------------------------------------------------------------------------
+{
+	if (!sError.empty())
 	{
+		if (DEKAF2_UNLIKELY(1 <= KLog::s_iThreadLogLevel))
+		{
+			KLog::getInstance().debug_fun(1, sFunction, sError);
+		}
 	}
 
-	/// constructs with error message and error code (default UINT16_MAX)
-	KException(KStringViewZ sWhat, uint16_t iErrorCode = -1)
-	: runtime_error(sWhat.c_str())
-	, m_iErrorCode(iErrorCode)
+	SetError(KErrorBase(sError, iErrorCode));
+
+	if (m_bThrow && HasError())
 	{
+		throw base(*this);
 	}
 
-	/// copy ctor is available
-	KException(const KException&) = default;
+	return false;
 
-	/// clears state and resets error code to 0
-	void clear()
-	{
-		*this = KException();
-	}
+} // SetError
 
-	/// returns error code
-	uint16_t value() const
-	{
-		return m_iErrorCode;
-	}
+//-----------------------------------------------------------------------------
+bool KErrorBase::SetError(const boost::system::error_code& ec, KStringView sFunction) const
+//-----------------------------------------------------------------------------
+{
+	return SetError(ec.message(), ec.value(), sFunction);
+}
 
-	/// returns error message, alias for what() that returns a KStringViewZ and
-	/// not a const char*
-	KStringViewZ message() const
-	{
-		return what();
-	}
+//-----------------------------------------------------------------------------
+bool KErrorBase::SetErrnoError(KStringView sPrefix, KStringView sFunction) const
+//-----------------------------------------------------------------------------
+{
+	return SetError(kFormat("{}{}", sPrefix, strerror(errno)), errno, sFunction);
+}
 
-	/// returns true when state is an error
-	operator bool() const
-	{
-		return value() != 0;
-	}
-
-//----------
-protected:
-//----------
-
-	uint16_t m_iErrorCode { 0 };
-
-}; // KException
-
-using KError = KException;
+//-----------------------------------------------------------------------------
+void KErrorBase::ClearError()
+//-----------------------------------------------------------------------------
+{
+	clear();
+}
 
 DEKAF2_NAMESPACE_END

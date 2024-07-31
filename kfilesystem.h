@@ -50,6 +50,7 @@
 #include "kstring.h"
 #include "kwriter.h"
 #include "ktime.h"
+#include "kerror.h"
 #include <cinttypes>
 #include <vector>
 
@@ -904,7 +905,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Get disk capacity
-class DEKAF2_PUBLIC KDiskStat
+class DEKAF2_PUBLIC KDiskStat : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -947,11 +948,7 @@ public:
 	uint64_t SystemFree() const { return m_SystemFree; }
 
 	/// Returns false if an error occured
-	operator bool() const { return !m_sError.empty(); }
-
-	/// Return last error
-	DEKAF2_NODISCARD
-	const KString& Error() const { return m_sError; }
+	operator bool() const { return HasError(); }
 
 	/// Reset to default
 	void clear();
@@ -960,18 +957,10 @@ public:
 private:
 //----------
 
-	bool SetError(KStringView sError)
-	{
-		m_sError = sError;
-		return false;
-	}
-
 	uint64_t m_Free       { 0 };
 	uint64_t m_Total      { 0 };
 	uint64_t m_Used       { 0 };
 	uint64_t m_SystemFree { 0 };
-
-	KString m_sError;
 
 }; // KDiskStat
 

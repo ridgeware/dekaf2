@@ -1,7 +1,7 @@
 /*
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2018, Ridgeware, Inc.
+// Copyright (c) 2024, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -40,74 +40,85 @@
 
 #pragma once
 
-/// @file kexception.h
-/// provides basic dekaf2 exception class
+/// @file kerror.h
+/// provides dekaf2 error base class
 
-#include "kdefinitions.h"
-#include "kstringview.h"
-#include <exception>
+#include "kexception.h"
+#include "ksourcelocation.h"
+
+namespace boost { namespace system {
+
+class error_code;
+
+}}
 
 DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Basic dekaf2 exception class inheriting from std::runtime_error, and adding
-/// a uint16_t error code. Can also be used for error returns.
-class DEKAF2_PUBLIC KException : public std::runtime_error
+/// dekaf2 error base class
+class DEKAF2_PUBLIC KErrorBase : private KError
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+	using base = KError;
 
 //----------
 public:
 //----------
 
-	KException()
-	: runtime_error("")
-	{
-	}
+	KErrorBase() = default;
 
-	/// constructs with error message and error code (default UINT16_MAX)
-	KException(KStringViewZ sWhat, uint16_t iErrorCode = -1)
-	: runtime_error(sWhat.c_str())
-	, m_iErrorCode(iErrorCode)
-	{
-	}
+	using base::base;
 
-	/// copy ctor is available
-	KException(const KException&) = default;
+	/// should we throw on errors, or should they only be noted in GetError() (on construction, throwing is off)
+	void SetThrowOnError(bool bYes) { m_bThrow = bYes; }
 
-	/// clears state and resets error code to 0
-	void clear()
-	{
-		*this = KException();
-	}
+	/// returns true if this class would throw on error
+	DEKAF2_NODISCARD
+	bool WouldThrowOnError() const { return m_bThrow; }
 
-	/// returns error code
-	uint16_t value() const
-	{
-		return m_iErrorCode;
-	}
+	/// Returns the cause of an error if the return string is non-empty. Otherwise no error occured.
+	DEKAF2_NODISCARD
+	KStringViewZ GetLastError() const { return message(); }
 
-	/// returns error message, alias for what() that returns a KStringViewZ and
-	/// not a const char*
-	KStringViewZ message() const
-	{
-		return what();
-	}
+	/// returns the uint16_t error code of this error (0 if no error)
+	DEKAF2_NODISCARD
+	uint16_t GetLastErrorCode() const { return value(); }
 
-	/// returns true when state is an error
-	operator bool() const
-	{
-		return value() != 0;
-	}
+	DEKAF2_NODISCARD
+	KStringViewZ Error() const { return GetLastError(); }
+
+	/// get a copy of this error for propagation into other classes
+	DEKAF2_NODISCARD
+	const KErrorBase& CopyLastError() const { return *this; }
+
+	/// returns true if an error is set
+	DEKAF2_NODISCARD
+	bool HasError() const { return value(); }
+
+	/// clear the error, if any
+	void ClearError();
 
 //----------
 protected:
 //----------
 
-	uint16_t m_iErrorCode { 0 };
+	/// copy an existing error into this class. Only bThrow will remain from this class.
+	bool SetError(const KErrorBase& Error) const;
+	/// set an error description, always returns false
+	bool SetError(KStringViewZ sError, uint16_t iErrorCode = -1, KStringView sFunction = KSourceLocation::current().function_name()) const;
+	/// set an error from a boost error code
+	bool SetError(const boost::system::error_code& ec,           KStringView sFunction = KSourceLocation::current().function_name()) const;
+	/// set an error description according to latest errno
+	bool SetErrnoError(KStringView sPrefix = "os error: ",       KStringView sFunction = KSourceLocation::current().function_name()) const;
 
-}; // KException
+	// throw when setting error string?
+	bool m_bThrow { false };
 
-using KError = KException;
+//----------
+private:
+//----------
+
+}; // KErrorBase
 
 DEKAF2_NAMESPACE_END

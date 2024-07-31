@@ -50,12 +50,12 @@ void KHTTPServer::clear()
 {
 	// this clear is called once per new receive round - we therefore clear
 	// everything that is not related to the connection itself
+	ClearError();
 	Request.clear();
 	Response.clear();
 	// we also clear the authenticated user, as the connection may be proxied
 	// and shared by multiple users
 	m_sAuthenticatedUser.clear();
-	m_sError.clear();
 	m_bConfigureCompression = true;
 }
 
@@ -71,7 +71,7 @@ KHTTPServer::KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint, url::KPro
 bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort)
 //-----------------------------------------------------------------------------
 {
-	SetError(KStringView{});
+	ClearError();
 
 	RemoteEndpoint = sRemoteEndpoint;
 	Protocol       = std::move(Proto);
@@ -111,7 +111,7 @@ bool KHTTPServer::Parse()
 		{
 			kDebug (2, "input stream got closed");
 		}
-		SetError(Request.Error());
+		SetError(Request.CopyLastError());
 		return false;
 	}
 
@@ -130,7 +130,7 @@ bool KHTTPServer::Serialize()
 
 	if (!Response.Serialize())
 	{
-		SetError(Response.Error());
+		SetError(Response.CopyLastError());
 		return false;
 	}
 
@@ -291,16 +291,6 @@ void KHTTPServer::SetAuthenticatedUser(KString sAuthenticatedUser)
 	m_sAuthenticatedUser = std::move(sAuthenticatedUser);
 
 } // SetAuthenticatedUser
-
-//-----------------------------------------------------------------------------
-bool KHTTPServer::SetError(KString sError) const
-//-----------------------------------------------------------------------------
-{
-	kDebug (1, sError);
-	m_sError = std::move(sError);
-	return false;
-
-} // SetError
 
 //-----------------------------------------------------------------------------
 void KHTTPServer::EnableCompressionIfPossible()

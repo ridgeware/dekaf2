@@ -285,7 +285,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 				if (!m_Server->Start(chrono::seconds(Options.iTimeout), Options.bBlocking))
 				{
-					return SetError(m_Server->Error(), true); // already logged
+					return SetError(m_Server->CopyLastError()); // already logged
 				}
 				return true;
 			}
@@ -308,7 +308,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 				if (!m_Server->Start(chrono::seconds(Options.iTimeout), Options.bBlocking))
 				{
-					return SetError(m_Server->Error(), true); // already logged
+					return SetError(m_Server->CopyLastError()); // already logged
 				}
 				return true;
 			}
@@ -551,33 +551,10 @@ bool KREST::Execute(const Options& Options, const KRESTRoutes& Routes)
 } // Execute
 
 //-----------------------------------------------------------------------------
-const KString& KREST::Error() const
-//-----------------------------------------------------------------------------
-{
-	return m_sError;
-
-} // Error
-
-//-----------------------------------------------------------------------------
-bool KREST::SetError(KStringView sError, bool bNoLogging)
-//-----------------------------------------------------------------------------
-{
-	m_sError = sError;
-
-	if (!bNoLogging)
-	{
-		kDebug (1, m_sError);
-	}
-
-	return false;
-
-} // SetError
-
-//-----------------------------------------------------------------------------
 bool KREST::Good() const
 //-----------------------------------------------------------------------------
 {
-	return m_sError.empty();
+	return !HasError();
 
 } // Good
 

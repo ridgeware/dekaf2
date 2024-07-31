@@ -47,6 +47,7 @@
 #include <dekaf2/kwriter.h>
 #include <dekaf2/koptions.h>
 #include <dekaf2/kjoin.h>
+#include <dekaf2/kerror.h>
 #include <cinttypes>
 #include <algorithm> // std::reverse
 

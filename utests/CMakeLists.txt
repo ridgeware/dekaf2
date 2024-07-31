@@ -95,6 +95,7 @@ set (USOURCES
 	ksharedptr_tests.cpp
 	ksharedref_tests.cpp
 	ksnippets_tests.cpp
+	ksourcelocation_tests.cpp
 	ksplit_tests.cpp
 	ksql_tests.cpp
 	ksqlite_tests.cpp

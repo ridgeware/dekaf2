@@ -47,12 +47,13 @@
 #include "bits/kasio.h"
 #include "kstring.h"
 #include "kstreamoptions.h"
+#include "kerror.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Holds a configured tls context - will be used in the constructor of KTLSIOStream
-class DEKAF2_PUBLIC KTLSContext
+class DEKAF2_PUBLIC KTLSContext : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -139,24 +140,12 @@ public:
 		return m_Role;
 	}
 
-	//-----------------------------------------------------------------------------
-	/// Get error string, if any
-	const KString& Error() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_sError;
-	}
-
 //----------
 private:
 //----------
 
 	//-----------------------------------------------------------------------------
 	static ::SSL_CTX* CreateContext(bool bIsServer, Transport transport);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	bool SetError(KString sError);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -172,7 +161,6 @@ private:
 	std::string PasswordCallback(std::size_t max_length, boost::asio::ssl::context::password_purpose purpose) const;
 	//-----------------------------------------------------------------------------
 
-	KString m_sError;
 #if (DEKAF2_CLASSIC_ASIO)
 	static boost::asio::io_service s_IO_Service;
 #endif

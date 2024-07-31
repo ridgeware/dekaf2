@@ -632,7 +632,7 @@ bool KRESTServer::Execute()
 
 			if (!bOK)
 			{
-				if (KHTTPServer::Error().empty())
+				if (Error().empty())
 				{
 					if (m_iRequestHeaderLength > 0)
 					{
@@ -644,8 +644,8 @@ bool KRESTServer::Execute()
 				}
 				else
 				{
-					kDebug (1, "read error: {}", KHTTPServer::Error());
-					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, KHTTPServer::Error() };
+					kDebug (1, "read error: {}", GetLastError());
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, GetLastError() };
 				}
 			}
 

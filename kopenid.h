@@ -48,6 +48,7 @@
 #include "krsakey.h"
 #include "ktimer.h"
 #include "dekaf2.h"
+#include "kerror.h"
 #include <unordered_map>
 #include <vector>
 #include <atomic>
@@ -56,7 +57,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// holds all keys from a validated OpenID provider
-class DEKAF2_PUBLIC KOpenIDKeys
+class DEKAF2_PUBLIC KOpenIDKeys : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -71,10 +72,8 @@ public:
 	/// return a reference to the RSA key that matches the given parameters
 	const KRSAKey& GetRSAKey(KStringView sKeyID, KStringView sAlgorithm, KStringView sKeyDigest, KStringView sUseType = "sig") const;
 
-	/// return error string
-	const KString& Error() const { return m_sError; }
 	/// are all info valid?
-	bool IsValid() const { return Error().empty(); }
+	bool IsValid() const { return !HasError(); }
 
 	bool empty() const { return WebKeys.empty(); }
 	std::size_t size() const { return WebKeys.size(); }
@@ -99,16 +98,12 @@ private:
 
 	DEKAF2_PRIVATE
 	bool Validate(const KJSON& Keys) const;
-	DEKAF2_PRIVATE
-	bool SetError(KString sError) const;
-
-	mutable KString m_sError;
 
 }; // KOpenIDKeys
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// holds all data from a validated OpenID provider
-class DEKAF2_PUBLIC KOpenIDProvider
+class DEKAF2_PUBLIC KOpenIDProvider : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -123,10 +118,8 @@ public:
 					 KStringView sScope = KStringView{},
 					 KDuration RefreshInterval = std::chrono::hours(24));
 
-	/// return error string
-	const KString& Error() const { return m_sError; }
 	/// are all info valid?
-	bool IsValid() const { return Error().empty(); }
+	bool IsValid() const { return !HasError(); }
 
 	struct KeysAndIssuer
 	{
@@ -144,14 +137,11 @@ private:
 
 	DEKAF2_PRIVATE
 	bool Validate(const KJSON& Configuration, const KURL& URL, KStringView sScope) const;
-	DEKAF2_PRIVATE
-	bool SetError(KString sError) const;
 
 	std::unique_ptr<KeysAndIssuer>               m_Keys;
 	std::unique_ptr<KeysAndIssuer>               m_DecayingKeys;
 	std::unique_ptr<std::atomic<KeysAndIssuer*>> m_CurrentKeys;
 
-	mutable KString   m_sError;
 	KString           m_sScope;
 	KURL              m_URL;
 	KDuration         m_RefreshInterval {};
@@ -163,7 +153,7 @@ using KOpenIDProviderList = std::vector<KOpenIDProvider>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// holds an authentication token and validates it
-class DEKAF2_PUBLIC KJWT
+class DEKAF2_PUBLIC KJWT : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -183,11 +173,8 @@ public:
 	/// check a new token
 	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, KDuration tClockLeeway = chrono::seconds(5));
 
-	/// return error string
-	const KString& Error() const { return m_sError; }
-
 	/// is all info valid?
-	bool IsValid() const { return Error().empty(); }
+	bool IsValid() const { return !HasError(); }
 
 	/// get user id ("subject")
 	const KString& GetUser() const;
@@ -205,11 +192,10 @@ private:
 	DEKAF2_PRIVATE
 	bool Validate(KStringView sIssuer, KStringView sScope, KDuration tClockLeeway);
 	DEKAF2_PRIVATE
-	bool SetError(KString sError);
+	bool SetError(KStringView sError);
 	DEKAF2_PRIVATE
 	void ClearJSON();
 
-	mutable KString m_sError;
 	bool            m_bSignatureIsValid { false };
 
 }; // KJWT

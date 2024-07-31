@@ -319,35 +319,6 @@ KIOStreamSocket::~KIOStreamSocket()
 }
 
 //-----------------------------------------------------------------------------
-bool KIOStreamSocket::SetError(KString sError)
-//-----------------------------------------------------------------------------
-{
-	m_sError = std::move(sError);
-
-	if (!m_sError.empty())
-	{
-		kDebug(1, "{}: {}", m_UnresolvedEndpoint, m_sError);
-	}
-
-	return false;
-
-} // SetError
-
-//-----------------------------------------------------------------------------
-bool KIOStreamSocket::SetError(boost::system::error_code ec)
-//-----------------------------------------------------------------------------
-{
-	return SetError(ec.message());
-}
-
-//-----------------------------------------------------------------------------
-bool KIOStreamSocket::SetSysError(KStringView sMask)
-//-----------------------------------------------------------------------------
-{
-	return SetError(kFormat(sMask, strerror(errno)));
-}
-
-//-----------------------------------------------------------------------------
 bool KIOStreamSocket::SetSSLError()
 //-----------------------------------------------------------------------------
 {
@@ -423,7 +394,7 @@ bool KIOStreamSocket::CheckIfReady(int what)
 				kDebug(2, "have an EAGAIN ..");
 				continue;
 			}
-			return SetSysError("error during poll: {}");
+			return SetErrnoError("error during poll: ");
 		}
 
 		if (pollfd.revents & what)
@@ -537,6 +508,14 @@ KIOStreamSocket::native_tls_handle_type KIOStreamSocket::GetNativeTLSHandle()
 	kDebug(2, "method not supported - no TLS stream type");
 	return nullptr;
 }
+
+//-----------------------------------------------------------------------------
+void KIOStreamSocket::SetConnectedEndPointAddress(const KTCPEndPoint& Endpoint)
+//-----------------------------------------------------------------------------
+{
+	SetEndPointAddress(Endpoint);
+}
+
 
 //-----------------------------------------------------------------------------
 std::unique_ptr<KIOStreamSocket> KIOStreamSocket::Create(const KURL& URL, bool bForceTLS, KStreamOptions Options)

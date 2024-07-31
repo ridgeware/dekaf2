@@ -84,6 +84,11 @@ public:
 	/// @return true if file can be opened, false otherwise
 	bool Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringView sFormat = KStringView{});
 
+	/// Set the file name for the access log - can only be called once per instance. Will use COMBINED output format
+	/// @param sAccessLogFile the filename for the access log, or "stdout" / "stderr" for console output
+	/// @return true if file can be opened, false otherwise
+	bool Open(KStringViewZ sAccessLogFile) { return Open(LOG_FORMAT::COMBINED, sAccessLogFile); }
+
 	/// Check if the log stream is available
 	/// @return true if log stream is available
 	bool is_open() const { return m_LogStream != nullptr; }

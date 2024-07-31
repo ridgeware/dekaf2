@@ -44,6 +44,7 @@
 #include "kdefinitions.h"
 #include "khtmlparser.h"
 #include "klog.h"
+#include "kerror.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -369,7 +370,7 @@ DEKAF2_ENUM_IS_FLAG(KHTMLElement::Merge)
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Parses HTML into a DOM structure
-class DEKAF2_PUBLIC KHTML : public KHTMLParser
+class DEKAF2_PUBLIC KHTML : public KErrorBase, public KHTMLParser
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -389,10 +390,8 @@ public:
 
 	/// if the HTML is unbalanced (forgotten close tag), for how many levels down should the resynchronisation be tried (default = 2)
 	KHTML& SetMaxAutoCloseLevels(std::size_t iMaxLevels) { m_iMaxAutoCloseLevels = iMaxLevels; return *this; }
-	/// should we throw on parsing issues, or should they only be noted in Issues()
-	KHTML& SetThrowOnIssue(bool bYesNo) { m_bThrowOnIssue = bYesNo; return *this; }
-	/// should we throw on errors, or should they only be noted in Error()
-	KHTML& SetThrowOnError(bool bYesNo) { m_bThrowOnError = bYesNo; return *this; }
+
+	// SetThrowOnError is in base class
 
 	// parsing is in base class
 
@@ -439,12 +438,6 @@ public:
 		return m_Root.end();
 	}
 
-	/// Return error string
-	const KString& Error() const
-	{
-		return m_sError;
-	}
-
 	const std::vector<KString>& Issues() const
 	{
 		return m_Issues;
@@ -487,7 +480,6 @@ protected:
 	virtual void Finished() override;
 
 	void FlushText();
-	bool SetError(KString sError);
 	void SetIssue(KString sIssue);
 
 //------
@@ -497,14 +489,11 @@ private:
 	KHTMLElement               m_Root;
 	std::vector<KHTMLElement*> m_Hierarchy     { &m_Root };
 	KString                    m_sContent;
-	KString                    m_sError;
 	std::vector<KString>       m_Issues;
 	std::size_t                m_iMaxAutoCloseLevels { 2 };
 	bool                       m_bLastWasSpace { true  };
 	bool                       m_bDoNotEscape  { false };
 	bool                       m_bInsideStyle  { false };
-	bool                       m_bThrowOnIssue { false };
-	bool                       m_bThrowOnError { false };
 
 }; // KHTML
 

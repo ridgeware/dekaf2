@@ -531,6 +531,9 @@ public:
 		/// Get the value associated to an option name as string
 		DEKAF2_NODISCARD
 		KStringViewZ String() const noexcept { return empty() ? KStringViewZ{} : m_Params.front(); }
+		/// Get the value associated to an option name as C string
+		DEKAF2_NODISCARD
+		const char* c_str()   const noexcept { return empty() ? "" : m_Params.front().c_str(); }
 		/// Get the value associated to an option name as signed integer
 		DEKAF2_NODISCARD
 		int64_t Int64()       const noexcept { return String().Int64();  }
@@ -609,9 +612,6 @@ public:
 				std::is_floating_point<ValueType>::value
 			, int >::type = 0>
 		operator    ValueType () const noexcept { return Double(); }
-
-		// const char*
-		operator  const char* () const noexcept { return String().c_str(); }
 
 		// the vector type
 		operator const std::vector<KStringViewZ>& () const noexcept { return Vector(); }

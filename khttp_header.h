@@ -50,6 +50,7 @@
 #include "kformat.h"
 #include "khttp_version.h"
 #include "kmime.h"
+#include "kerror.h"
 #include <memory>
 
 #if (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 90000) \
@@ -913,7 +914,7 @@ DEKAF2_NAMESPACE_END
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KHTTPHeaders
+class DEKAF2_PUBLIC KHTTPHeaders : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -967,13 +968,6 @@ public:
 	std::vector<KHTTPHeader::Range> GetRanges(uint64_t iResourceSize) const;
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	const KString& Error() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_sError;
-	}
-
 	struct BasicAuthParms
 	{
 		KString sUsername;
@@ -1015,10 +1009,6 @@ protected:
 //------
 
 	//-----------------------------------------------------------------------------
-	bool SetError(KString sError) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	void SplitContentType() const;
 	//-----------------------------------------------------------------------------
 
@@ -1031,7 +1021,6 @@ private:
 	KHTTPVersion    m_HTTPVersion;
 	mutable KString m_sCharset;
 	mutable KMIME   m_sContentType;
-	mutable KString m_sError;
 
 }; // KHTTPHeaders
 

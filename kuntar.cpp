@@ -84,7 +84,7 @@
 #include "kfilesystem.h"
 #include "kstringutils.h"
 #include "klog.h"
-#include "kexception.h"
+#include "kerror.h"
 
 #include <cstring>
 #include <array>
@@ -466,7 +466,7 @@ bool KUnTar::Next()
 //-----------------------------------------------------------------------------
 {
 	// delete a previous error
-	m_Error.clear();
+	ClearError();
 
     do
 	{
@@ -761,17 +761,6 @@ bool KUnTar::File(KStringRef& sName, KStringRef& sBuffer)
     return true;
 
 } // File
-
-//-----------------------------------------------------------------------------
-bool KUnTar::SetError(KString sError)
-//-----------------------------------------------------------------------------
-{
-	m_Error = std::move(sError);
-	kDebug(2, m_Error);
-
-	return false;
-
-} // SetError
 
 //-----------------------------------------------------------------------------
 KUnTarCompressed::KUnTarCompressed(KUnCompressIStream::COMPRESSION Compression,

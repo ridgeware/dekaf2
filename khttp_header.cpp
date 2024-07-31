@@ -366,7 +366,7 @@ void KHTTPHeaders::clear()
 	m_HTTPVersion.clear();
 	m_sCharset.clear();
 	m_sContentType.clear();
-	m_sError.clear();
+	ClearError();
 
 } // clear
 
@@ -459,16 +459,6 @@ std::vector<KHTTPHeader::Range> KHTTPHeaders::GetRanges(uint64_t iResourceSize) 
 	return KHTTPHeader::GetRanges(Headers.Get(KHTTPHeader::RANGE), iResourceSize);
 
 } // GetRanges
-
-//-----------------------------------------------------------------------------
-bool KHTTPHeaders::SetError(KString sError) const
-//-----------------------------------------------------------------------------
-{
-	kDebug(1, sError);
-	m_sError = std::move(sError);
-	return false;
-
-} // SetError
 
 //-----------------------------------------------------------------------------
 KHTTPHeaders::BasicAuthParms KHTTPHeaders::GetBasicAuthParms() const

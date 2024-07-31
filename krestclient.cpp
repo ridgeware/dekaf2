@@ -236,7 +236,7 @@ bool KRestClient::Request (KOutStream& OutStream, KStringView sBody, const KMIME
 	{
 		KString sError;
 
-		if (!Error().empty())
+		if (HasError())
 		{
 			sError = Error();
 		}
@@ -357,7 +357,7 @@ KJSON KJsonRestClient::RequestAndParseResponse (KStringView sRequest, const KMIM
 
 	if (!HttpSuccess())
 	{
-		if (!Error().empty())
+		if (HasError())
 		{
 			sError = Error();
 		}

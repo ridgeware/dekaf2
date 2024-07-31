@@ -43,7 +43,7 @@
 
 #include "kdefinitions.h"
 #include "kstring.h"
-#include "kexception.h"
+#include "kerror.h"
 #include "kwriter.h"
 #include "kreader.h"
 #include "kfilesystem.h"
@@ -57,7 +57,7 @@ DEKAF2_NAMESPACE_BEGIN
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Wrapper class around libzip to give easy access from C++ to the files in
 /// a zip archive or to create or append to one
-class DEKAF2_PUBLIC KZip
+class DEKAF2_PUBLIC KZip : KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -392,12 +392,6 @@ public:
 	/// @param bRecursive read files recursively, default true
 	bool WriteFiles(KStringViewZ sSourceDirectory, KStringView sNewRoot = KStringView{}, bool bRecursive = true, bool bSorted = false);
 
-	/// returns last error if class is not constructed to throw (default)
-	const KString& Error() const
-	{
-		return m_sError;
-	}
-
 //------
 private:
 //------
@@ -406,9 +400,8 @@ private:
 	static DEKAF2_PRIVATE uint16_t CompMethodToZipInt(CompMethod Compression);
 	static DEKAF2_PRIVATE uint16_t ScaleCompressionLevel(uint16_t iLevel, uint16_t iMax);
 
-	DEKAF2_PRIVATE bool SetError(KString sError) const;
-	DEKAF2_PRIVATE bool SetError(int iError) const;
-	DEKAF2_PRIVATE bool SetError() const;
+	DEKAF2_PRIVATE bool SetZipError(int iError) const;
+	DEKAF2_PRIVATE bool SetZipError() const;
 	DEKAF2_PRIVATE bool SetEncryptionForFile(uint64_t iIndex);
 	DEKAF2_PRIVATE bool SetCompressionForFile(uint64_t iIndex);
 
@@ -416,10 +409,8 @@ private:
 
 	std::vector<Buffer> m_WriteBuffers;
 	KString             m_sPassword;
-	mutable KString     m_sError;
 	CompMethod          m_Compression       { CompMethod::DEFLATE };
 	uint16_t            m_iCompressionLevel { 0 };
-	bool                m_bThrow            { false };
 
 	static void ZipDeleter(zip* data);
 

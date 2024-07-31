@@ -54,6 +54,7 @@
 #include "kmime.h"
 #include "kurl.h"
 #include "kconfiguration.h"
+#include "kerror.h"
 
 #ifdef DEKAF2_HAS_NGHTTP2
 	#include "khttp2.h"
@@ -73,7 +74,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// low level implementation of a HTTP client
-class DEKAF2_PUBLIC KHTTPClient
+class DEKAF2_PUBLIC KHTTPClient : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -343,14 +344,6 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Returns HTTP error string if any
-	const KString& Error() const
-	//-----------------------------------------------------------------------------
-	{
-		return m_sError;
-	}
-
-	//-----------------------------------------------------------------------------
 	/// Clear all headers, resource, and error. Keep connection
 	void clear();
 	//-----------------------------------------------------------------------------
@@ -510,13 +503,8 @@ protected:
 //------
  
 	//-----------------------------------------------------------------------------
-	/// Set an error string
-	bool SetError(KString sError) const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// Mark an IO error
-	bool SetNetworkError(bool bRead, KString sError);
+	bool SetNetworkError(bool bRead, KStringViewZ sError);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -590,7 +578,6 @@ private:
 	std::unique_ptr<KIOStreamSocket> m_Connection;
 	std::unique_ptr<Authenticator>   m_Authenticator;
 
-	mutable KString    m_sError;
 	KString            m_sForcedHost;
 	KString            m_sCompressors;
 	KURL               m_Proxy;

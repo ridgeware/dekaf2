@@ -48,6 +48,7 @@
 #include "kthreadsafe.h"
 #include "kfilesystem.h"
 #include "kduration.h"
+#include "kerror.h"
 #include <fcntl.h>
 #include <sys/types.h>
 
@@ -121,7 +122,7 @@ using KIPCSafe = KThreadSafe<IPCObject, KKeyedSemaphoreMutex<iIPCKey>>;
 namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KSharedMemoryBase
+class DEKAF2_PUBLIC KSharedMemoryBase : KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -151,22 +152,17 @@ public:
 	/// Can be used e.g. with KFileStat to retrieve information.
 	int GetFileDescriptor() const { return m_iFD;     }
 
-	/// Returns error string if any
-	const KString& Error() const  { return m_sError; }
-
 //------
 protected:
 //------
 
 	void* get() const { return m_pAddr; }
-	bool SetError(KString sError);
 
 //------
 private:
 //------
 
 	KString     m_sPathname;
-	KString     m_sError;
 	void*       m_pAddr      { nullptr };
 	std::size_t m_iSize      {       0 };
 	int         m_iFD        {      -1 };

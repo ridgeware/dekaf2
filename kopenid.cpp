@@ -65,16 +65,6 @@ KOpenIDKeys::WebKey::WebKey(const KJSON& parms)
 }
 
 //-----------------------------------------------------------------------------
-bool KOpenIDKeys::SetError(KString sError) const
-//-----------------------------------------------------------------------------
-{
-	m_sError = std::move(sError);
-	kDebug(1, m_sError);
-	return false;
-
-} // SetError
-
-//-----------------------------------------------------------------------------
 bool KOpenIDKeys::Validate(const KJSON& Keys) const
 //-----------------------------------------------------------------------------
 {
@@ -136,7 +126,7 @@ KOpenIDKeys::KOpenIDKeys (const KURL& URL)
 		SetError(kFormat("OpenID provider keys '{}' returned invalid JSON: {}", URL.Serialize(), exc.what()));
 	}
 
-	if (WebKeys.empty() && Error().empty())
+	if (WebKeys.empty() && !HasError())
 	{
 		SetError(kFormat("got no keys when polling provider {}", URL));
 	}
@@ -161,16 +151,6 @@ const KRSAKey& KOpenIDKeys::GetRSAKey(KStringView sKeyID, KStringView sAlgorithm
 	return s_EmptyKey;
 
 } // GetPublicKey
-
-//-----------------------------------------------------------------------------
-bool KOpenIDProvider::SetError(KString sError) const
-//-----------------------------------------------------------------------------
-{
-	m_sError = std::move(sError);
-	kDebug(1, m_sError);
-	return false;
-
-} // SetError
 
 //-----------------------------------------------------------------------------
 bool KOpenIDProvider::Validate(const KJSON& Configuration, const KURL& URL, KStringView sScope) const
@@ -360,16 +340,13 @@ void KJWT::ClearJSON()
 } // ClearJSON
 
 //-----------------------------------------------------------------------------
-bool KJWT::SetError(KString sError)
+bool KJWT::SetError(KStringView sError)
 //-----------------------------------------------------------------------------
 {
 	if (!sError.empty())
 	{
-		m_sError = kFormat("{}sub {}: {}", m_bSignatureIsValid ? "" : "bad sig for ", GetUser(), sError);
-
 		ClearJSON();
-		kDebug(1, m_sError);
-		return false;
+		return KErrorBase::SetError(kFormat("{}sub {}: {}", m_bSignatureIsValid ? "" : "bad sig for ", GetUser(), sError));
 	}
 
 	return true;

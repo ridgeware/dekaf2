@@ -234,6 +234,14 @@ void KRESTRoutes::AddRoute(KRESTRoute _Route)
 } // AddRoute
 
 //-----------------------------------------------------------------------------
+void KRESTRoutes::AddWebServer(KStringViewZ sWWWDir)
+//-----------------------------------------------------------------------------
+{
+	m_Routes.push_back(KRESTRoute("GET", false, "/*", sWWWDir, *this, &KRESTRoutes::WebServer, KRESTRoute::ParserType::NOREAD));
+
+} // AddWebServer
+
+//-----------------------------------------------------------------------------
 void KRESTRoutes::AddRewrite(KHTTPRewrite _Rewrite)
 //-----------------------------------------------------------------------------
 {

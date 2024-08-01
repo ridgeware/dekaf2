@@ -105,7 +105,14 @@ struct AtomicStarted
 static KString to_string(const endpoint_type& endpoint)
 //-----------------------------------------------------------------------------
 {
-	return kFormat("{}:{}", endpoint.address().to_string(), endpoint.port());
+	if (endpoint.protocol() == tcp::v6())
+	{
+		return kFormat("[{}]:{}", endpoint.address().to_string(), endpoint.port());
+	}
+	else
+	{
+		return kFormat("{}:{}", endpoint.address().to_string(), endpoint.port());
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -353,6 +360,8 @@ bool KTCPServer::TCPServer(bool ipv6)
 
 			kDebug(2, "accepting TLS connection from {}", to_string(remote_endpoint));
 
+			stream->SetConnectedEndPointAddress(to_string(remote_endpoint));
+
 #if !DEKAF2_HAS_CPP_14
 			// unfortunately C++11 does not know how to move a variable into a lambda scope
 			auto* Stream = stream.release();
@@ -401,6 +410,8 @@ bool KTCPServer::TCPServer(bool ipv6)
 			}
 
 			kDebug(2, "accepting TCP connection from {}", to_string(remote_endpoint));
+
+			stream->SetConnectedEndPointAddress(to_string(remote_endpoint));
 
 #if !DEKAF2_HAS_CPP_14
 			// unfortunately C++11 does not know how to move a variable into a lambda scope

@@ -210,6 +210,17 @@ bool KTCPStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 } // connect
 
+//-----------------------------------------------------------------------------
+void KTCPStream::SetConnectedEndPointAddress(const KTCPEndPoint& Endpoint)
+//-----------------------------------------------------------------------------
+{
+	// update stream
+	m_Stream.sEndpoint = Endpoint.Serialize();
+	// update base
+	SetEndPointAddress(Endpoint);
+
+} // SetConnectedEndPointAddress
+
 
 
 //-----------------------------------------------------------------------------

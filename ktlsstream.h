@@ -157,6 +157,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Set the endpoint address when in server mode
+	virtual void SetConnectedEndPointAddress(const KTCPEndPoint& Endpoint) override final;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Connects a given server as a client.
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from

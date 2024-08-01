@@ -366,6 +366,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Add a basic web server for static files
+	/// @param sWWWDir the base directory of the web server
+	void AddWebServer(KStringViewZ sWWWDir);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Add a request route rewrite rule
 	/// @param _Rewrite the rewrite rule to add
 	void AddRewrite(KHTTPRewrite _Rewrite);

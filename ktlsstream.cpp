@@ -477,6 +477,17 @@ bool KTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 } // Connect
 
+//-----------------------------------------------------------------------------
+void KTLSStream::SetConnectedEndPointAddress(const KTCPEndPoint& Endpoint)
+//-----------------------------------------------------------------------------
+{
+	// update stream
+	m_Stream.sEndpoint = Endpoint.Serialize();
+	// update base
+	SetEndPointAddress(Endpoint);
+
+} // SetConnectedEndPointAddress
+
 
 //-----------------------------------------------------------------------------
 std::unique_ptr<KTLSStream> CreateKTLSServer(KTLSContext& Context, KDuration Timeout)

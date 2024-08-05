@@ -46,8 +46,6 @@
 #include "kstring.h"
 #include "ksystem.h"
 
-#include "kquicstream.h"
-
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
@@ -220,6 +218,22 @@ KHTTPClient::HTTP2Session::HTTP2Session(KTLSStream& TLSStream)
 } // HTTP2Session::ctor
 #endif
 
+#if DEKAF2_HAS_NGHTTP3
+//-----------------------------------------------------------------------------
+KHTTPClient::HTTP3Session::HTTP3Session(KQuicStream& QuicStream)
+//-----------------------------------------------------------------------------
+: Session(QuicStream, true)
+, StreamBuf(HTTP3StreamReader, this)
+, IStream(&StreamBuf)
+, InStream(IStream)
+{
+	InStream.SetReaderEndOfLine ('\n');
+	InStream.SetReaderLeftTrim  ("");
+	InStream.SetReaderRightTrim ("\r\n");
+
+} // HTTP3Session::ctor
+#endif
+
 //-----------------------------------------------------------------------------
 void KHTTPClient::clear()
 //-----------------------------------------------------------------------------
@@ -328,6 +342,37 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 	Request .SetHTTPVersion(KHTTPVersion::http11);
 	Response.SetHTTPVersion(KHTTPVersion::http11);
 
+#if DEKAF2_HAS_NGHTTP3
+	if (m_StreamOptions.IsSet(KHTTPStreamOptions::RequestHTTP3))
+	{
+		auto QuicStream = dynamic_cast<KQuicStream*>(m_Connection.get());
+
+		if (QuicStream)
+		{
+			// Quic forces the handshake during the connection stage
+			// check if we negotiated HTTP/3
+			auto sALPN = QuicStream->GetALPN();
+
+			if (sALPN == "h3")
+			{
+				kDebug(2, "switching to HTTP/3");
+				m_HTTP3 = std::make_unique<HTTP3Session>(*QuicStream);
+
+				if (!m_HTTP3->Session.GetLastError().empty())
+				{
+					return SetError(m_HTTP3->Session.CopyLastError());
+				}
+
+				Request .SetHTTPVersion(KHTTPVersion::http3);
+				Response.SetHTTPVersion(KHTTPVersion::http3);
+				Response.SetInputStream(m_HTTP3->InStream);
+			}
+			else return SetError("server did not accept HTTP/3 request");
+		}
+		else return SetError("not a KQuicStream");
+	}
+#endif
+
 #if DEKAF2_HAS_NGHTTP2
 	m_HTTP2.reset();
 
@@ -350,9 +395,9 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 				kDebug(2, "switching to HTTP/2");
 				m_HTTP2 = std::make_unique<HTTP2Session>(*TLSStream);
 
-				if (!m_HTTP2->Session.Error().empty())
+				if (!m_HTTP2->Session.GetLastError().empty())
 				{
-					return SetError(m_HTTP2->Session.Error());
+					return SetError(m_HTTP2->Session.CopyLastError());
 				}
 
 				Request .SetHTTPVersion(KHTTPVersion::http2);
@@ -368,29 +413,6 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 		{
 			return SetError("not a KTLSStream");
 		}
-	}
-#endif
-
-#if DEKAF2_HAS_OPENSSL_QUIC
-	if (m_StreamOptions.IsSet(KHTTPStreamOptions::RequestHTTP3))
-	{
-		auto QuicStream = dynamic_cast<KQuicStream*>(m_Connection.get());
-
-		if (QuicStream)
-		{
-			// Quic forces the handshake during the connection stage
-			// check if we negotiated HTTP/3
-			auto sALPN = QuicStream->GetALPN();
-
-			if (sALPN == "h3")
-			{
-				kDebug(2, "switching to HTTP/3");
-				// TODO
-				return SetError("HTTP/3 not yet implemented");
-			}
-			return SetError("server did not accept HTTP/3 request");
-		}
-		else return SetError("not a KQuicStream");
 	}
 #endif
 
@@ -644,7 +666,7 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	};
 
 	Request.Method = method;
-#ifdef DEKAF2_HAS_NGHTTP2
+#if DEKAF2_HAS_NGHTTP2 || DEKAF2_HAS_NGHTTP3
 	m_RequestURL   = url;
 #endif
 
@@ -831,8 +853,14 @@ bool KHTTPClient::SetupAutomaticHeaders(KStringView* svPostData, KInStream* Post
 	if (Request.GetHTTPVersion() == KHTTPVersion::none)
 	{
 		// the request's http version got reset - make sure it's at the right value
+#if DEKAF2_HAS_NGHTTP3
+		Request.SetHTTPVersion(m_HTTP3 ? KHTTPVersion::http3 : KHTTPVersion::http11);
+#endif
 #if DEKAF2_HAS_NGHTTP2
-		Request.SetHTTPVersion(m_HTTP2 ? KHTTPVersion::http2 : KHTTPVersion::http11);
+		if (Request.GetHTTPVersion() != KHTTPVersion::http3)
+		{
+			Request.SetHTTPVersion(m_HTTP2 ? KHTTPVersion::http2 : KHTTPVersion::http11);
+		}
 #else
 		Request.SetHTTPVersion(KHTTPVersion::http11);
 #endif
@@ -933,19 +961,18 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 	if (m_HTTP2)
 	{
 		// send the request via http2
-
-		std::unique_ptr<http2::DataProvider> DataProvider;
+		std::unique_ptr<KDataProvider> DataProvider;
 
 		if (len > 0)
 		{
 			if (svPostData)
 			{
-				DataProvider = std::make_unique<http2::ViewProvider>(*svPostData);
+				DataProvider = std::make_unique<KViewProvider>(*svPostData);
 			}
 			else if (PostDataStream)
 			{
 				if (len != npos) return SetError("API error");
-				DataProvider = std::make_unique<http2::IStreamProvider>(*PostDataStream);
+				DataProvider = std::make_unique<KIStreamProvider>(*PostDataStream);
 			}
 			else
 			{
@@ -961,7 +988,7 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 
 		if (m_HTTP2->StreamID < 0)
 		{
-			return SetError(m_HTTP2->Session.Error());
+			return SetError(m_HTTP2->Session.CopyLastError());
 		}
 
 		return Parse();
@@ -969,12 +996,44 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 	else
 #endif
 
-//#ifdef DEKAF2_HAS_NGHTTP3
-#ifdef DEKAF2_HAS_NGHTTP2
-		if (m_StreamOptions.IsSet(KHTTPStreamOptions::RequestHTTP3))
+#ifdef DEKAF2_HAS_NGHTTP3
+	if (m_HTTP3)
+	{
+		// send the request via http3
+		std::unique_ptr<KDataProvider> DataProvider;
+
+		if (len > 0)
 		{
-			return SetError("HTTP/3 not yet implemented");
+			if (svPostData)
+			{
+				kDebug(1, "using a KViewProvider");
+				DataProvider = std::make_unique<KViewProvider>(*svPostData);
+			}
+			else if (PostDataStream)
+			{
+				if (len != npos) return SetError("API error");
+				kDebug(1, "using a KIStreamProvider");
+				DataProvider = std::make_unique<KIStreamProvider>(*PostDataStream);
+			}
+			else
+			{
+				return SetError("API error");
+			}
 		}
+
+		m_HTTP3->StreamID = m_HTTP3->Session.SubmitRequest(m_RequestURL,
+														   Request.Method,
+														   Request,
+														   std::move(DataProvider),
+														   Response);
+
+		if (m_HTTP3->StreamID < 0)
+		{
+			return SetError(m_HTTP3->Session.CopyLastError());
+		}
+
+		return Parse();
+	}
 #endif
 
 	// send the request headers to the remote server
@@ -1059,7 +1118,7 @@ bool KHTTPClient::StatusIsRedirect() const
 bool KHTTPClient::Parse()
 //-----------------------------------------------------------------------------
 {
-	if ((Request.GetHTTPVersion() & KHTTPVersion::http2) == 0)
+	if ((Request.GetHTTPVersion() & (KHTTPVersion::http2 | KHTTPVersion::http3)) == 0)
 	{
 		Request.Flush();
 	}
@@ -1099,6 +1158,17 @@ std::streamsize KHTTPClient::HTTP2StreamReader(void* buf, std::streamsize size, 
 //-----------------------------------------------------------------------------
 {
 	auto StreamInfo = static_cast<HTTP2Session*>(ptr);
+	return StreamInfo->Session.ReadData(StreamInfo->StreamID, buf, size);
+
+} // HTTP2StreamReader
+#endif
+
+#ifdef DEKAF2_HAS_NGHTTP3
+//-----------------------------------------------------------------------------
+std::streamsize KHTTPClient::HTTP3StreamReader(void* buf, std::streamsize size, void* ptr)
+//-----------------------------------------------------------------------------
+{
+	auto StreamInfo = static_cast<HTTP3Session*>(ptr);
 	return StreamInfo->Session.ReadData(StreamInfo->StreamID, buf, size);
 
 } // HTTP2StreamReader

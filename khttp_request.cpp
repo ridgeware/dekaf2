@@ -652,7 +652,7 @@ void KHTTPRequestHeaders::clear()
 bool KOutHTTPRequest::Serialize()
 //-----------------------------------------------------------------------------
 {
-	if ((GetHTTPVersion() & KHTTPVersion::http2) == 0)
+	if ((GetHTTPVersion() & (KHTTPVersion::http2 | KHTTPVersion::http3)) == 0)
 	{
 		// set up the chunked writer
 		return KOutHTTPFilter::Parse(*this) && KHTTPRequestHeaders::Serialize(UnfilteredStream());
@@ -669,7 +669,7 @@ bool KOutHTTPRequest::Serialize()
 bool KInHTTPRequest::Parse()
 //-----------------------------------------------------------------------------
 {
-	if ((GetHTTPVersion() & KHTTPVersion::http2) == 0)
+	if ((GetHTTPVersion() & (KHTTPVersion::http2 | KHTTPVersion::http3)) == 0)
 	{
 		if (!KHTTPRequestHeaders::Parse(UnfilteredStream()))
 		{

@@ -45,7 +45,6 @@
 #if DEKAF2_HAS_NGHTTP2
 
 #include "kformat.h"
-#include "kread.h"
 #include "kwrite.h"
 #include <nghttp2/nghttp2.h>
 
@@ -72,204 +71,10 @@ namespace http2
 {
 
 //-----------------------------------------------------------------------------
-Error::Error(int16_t iError, KString sError)
-//-----------------------------------------------------------------------------
-: m_Error(std::make_unique<IntError>(iError, std::move(sError)))
-{
-	kDebug(2, "ec {}, {}", GetValue(), GetString());
-}
-
-//-----------------------------------------------------------------------------
-Buffer::size_type Buffer::Append(const void* data, size_type len)
-//-----------------------------------------------------------------------------
-{
-	if (!data || !m_Data) return 0;
-	auto iCopy = std::min(Remaining(), len);
-	std::memcpy(ToCharPtr() + GetFill(), data, iCopy);
-	AddFill(iCopy);
-	return iCopy;
-
-} // Append
-
-//-----------------------------------------------------------------------------
-Buffer::size_type Buffer::Append(ConstBuffer buffer)
-//-----------------------------------------------------------------------------
-{
-	return Append(buffer.ToVoidPtr(), buffer.size());
-}
-
-//-----------------------------------------------------------------------------
-void Buffer::clear()
-//-----------------------------------------------------------------------------
-{
-	m_Data      = nullptr;
-	m_iCapacity = 0;
-	m_iFill     = 0;
-
-} // clear
-
-//-----------------------------------------------------------------------------
-DataProvider::~DataProvider()
-//-----------------------------------------------------------------------------
-{
-} // dtor
-
-//-----------------------------------------------------------------------------
-std::size_t ViewProvider::Read(void* buffer, std::size_t size)
-//-----------------------------------------------------------------------------
-{
-	auto iRead = CalcNextReadSize(size);
-	std::memcpy(buffer, m_sView.data(), iRead);
-	m_sView.remove_prefix(iRead);
-	return iRead;
-
-} // Read
-
-//-----------------------------------------------------------------------------
-std::size_t ViewProvider::Send(std::ostream& ostream, std::size_t size)
-//-----------------------------------------------------------------------------
-{
-	auto iRead  = CalcNextReadSize(size);
-	auto iWrote = kWrite(ostream, m_sView.data(), iRead);
-	m_sView.remove_prefix(iRead);
-	return iWrote;
-
-} // Send
-
-//-----------------------------------------------------------------------------
-std::size_t IStreamProvider::Read(void* buffer, std::size_t size)
-//-----------------------------------------------------------------------------
-{
-	return kRead(m_IStream, buffer, size);
-
-} // Read
-
-//-----------------------------------------------------------------------------
-void DataConsumer::SetFinished ()
-//-----------------------------------------------------------------------------
-{
-	m_bFinished = true;
-	CallFinishedCallback();
-
-} // SetFinished
-
-//-----------------------------------------------------------------------------
-void ViewConsumer::CallFinishedCallback()
-//-----------------------------------------------------------------------------
-{
-	if (m_Callback)
-	{
-		m_Callback(*this);
-	}
-
-} // CallFinishedCallback
-
-//-----------------------------------------------------------------------------
-std::size_t ViewConsumer::Write (const void* buffer , std::size_t size)
-//-----------------------------------------------------------------------------
-{
-	auto iWrote = m_Buffer.Append(buffer, size);
-	
-	if (iWrote != size)
-	{
-		SetError(Error(-1, "buffer too small for requested output"));
-	}
-
-	return iWrote;
-
-} // Write
-
-//-----------------------------------------------------------------------------
-void StringConsumer::CallFinishedCallback()
-//-----------------------------------------------------------------------------
-{
-	if (m_Callback)
-	{
-		m_Callback(*this);
-	}
-
-} // CallFinishedCallback
-
-//-----------------------------------------------------------------------------
-std::size_t StringConsumer::Write (const void* buffer, std::size_t size)
-//-----------------------------------------------------------------------------
-{
-	m_sBuffer.append(static_cast<const char*>(buffer), size);
-	return size;
-
-} // Write
-
-//-----------------------------------------------------------------------------
-void BufferedConsumer::CallFinishedCallback()
-//-----------------------------------------------------------------------------
-{
-	if (m_Callback)
-	{
-		m_Callback(*this);
-	}
-
-} // CallFinishedCallback
-
-//-----------------------------------------------------------------------------
-void OStreamConsumer::CallFinishedCallback()
-//-----------------------------------------------------------------------------
-{
-	if (m_Callback)
-	{
-		m_Callback(*this);
-	}
-
-} // CallFinishedCallback
-
-//-----------------------------------------------------------------------------
-std::size_t OStreamConsumer::Write (const void* buffer, std::size_t size)
-//-----------------------------------------------------------------------------
-{
-	auto iWrote = kWrite(m_OStream, buffer, size);
-
-	if (iWrote != size)
-	{
-		SetError(Error(-1, "could not write to stream"));
-	}
-
-	return iWrote;
-
-} // Write
-
-//-----------------------------------------------------------------------------
-void CallbackConsumer::CallFinishedCallback()
-//-----------------------------------------------------------------------------
-{
-	if (m_WriteCallback)
-	{
-		m_WriteCallback(this, 0);
-	}
-
-} // CallFinishedCallback
-
-//-----------------------------------------------------------------------------
-std::size_t CallbackConsumer::Write (const void* buffer, std::size_t size)
-//-----------------------------------------------------------------------------
-{
-	if (!size || !m_WriteCallback) return 0;
-
-	auto iWrote = m_WriteCallback(buffer, size);
-
-	if (iWrote != size)
-	{
-		SetError(Error(-1, "could not write to stream"));
-	}
-
-	return iWrote;
-
-} // Write
-
-//-----------------------------------------------------------------------------
-Stream::Stream(int32_t id, KURL url, KHTTPMethod Method, KHTTPResponseHeaders& ResponseHeaders)
+Stream::Stream(KURL url, KHTTPMethod Method, KHTTPResponseHeaders& ResponseHeaders)
 //-----------------------------------------------------------------------------
 : m_ResponseHeaders(ResponseHeaders)
 , m_URI(std::move(url))
-, m_iStreamID(id)
 , m_Method(Method)
 {
 }
@@ -324,12 +129,12 @@ KStringView Stream::GetPath()
 } // GetPath
 
 //-----------------------------------------------------------------------------
-void Stream::SetReceiveBuffer(Buffer buffer)
+void Stream::SetReceiveBuffer(KBuffer buffer)
 //-----------------------------------------------------------------------------
 {
 	if (!m_RXSpillBuffer.empty())
 	{
-		auto iCopied = buffer.Append(m_RXSpillBuffer.data(), m_RXSpillBuffer.size());
+		auto iCopied = buffer.append(m_RXSpillBuffer.data(), m_RXSpillBuffer.size());
 		m_RXSpillBuffer.erase(0, iCopied);
 	}
 
@@ -338,38 +143,41 @@ void Stream::SetReceiveBuffer(Buffer buffer)
 } // SetReceiveBuffer
 
 //-----------------------------------------------------------------------------
-void Stream::Receive(ConstBuffer data)
+void Stream::Receive(KConstBuffer data)
 //-----------------------------------------------------------------------------
 {
-	auto iConsumed  = m_RXBuffer.Append(data);
-	auto iRemaining = data.size() - iConsumed;
-
-	if (iRemaining)
+	if (m_DataConsumer)
 	{
-		m_RXSpillBuffer.append(data.ToCharPtr() + iConsumed, iRemaining);
+		m_DataConsumer->Write(data.data(), data.size());
+	}
+	else
+	{
+		auto iConsumed  = m_RXBuffer.append(data);
+		auto iRemaining = data.size() - iConsumed;
+
+		if (iRemaining)
+		{
+			m_RXSpillBuffer.append(data.CharData() + iConsumed, iRemaining);
+		}
 	}
 
 } // Receive
 
 //-----------------------------------------------------------------------------
-void Stream::AddResponseHeader(KStringView sName, KStringView sValue)
+void Stream::AddResponseHeader(ID id, KStringView sName, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
 	if (!IsHeadersComplete())
 	{
 		if (sName == ":status")
 		{
-			kDebug(2, "[stream {}] setting HTTP response status to {}", m_iStreamID, sValue.UInt16());
+			kDebug(2, "[stream {}] setting HTTP response status to {}", id, sValue.UInt16());
 			m_ResponseHeaders.SetStatus(sValue.UInt16());
 			m_ResponseHeaders.SetHTTPVersion(KHTTPVersion::http2);
 		}
-		else if (sName.front() == ':')
-		{
-			kDebug(2, "[stream {}] dropping pseudo header: {}: {}", m_iStreamID, sName, sValue);
-		}
 		else
 		{
-			kDebug(2, "[stream {}] {}: {}", m_iStreamID, sName, sValue);
+			kDebug(2, "[stream {}] {}: {}", id, sName, sValue);
 			m_ResponseHeaders.Headers.Add(sName, sValue);
 		}
 	}
@@ -398,7 +206,7 @@ nghttp2_ssize Session::OnReceiveCallback(
 )
 //-----------------------------------------------------------------------------
 {
-	return ToThis(user_data)->OnReceive(Buffer(buf, length), flags);
+	return ToThis(user_data)->OnReceive(KBuffer(buf, length), flags);
 }
 
 //-----------------------------------------------------------------------------
@@ -410,7 +218,7 @@ nghttp2_ssize Session::OnSendCallback(
 )
 //-----------------------------------------------------------------------------
 {
-	return ToThis(user_data)->OnSend(ConstBuffer(data, length), flags);
+	return ToThis(user_data)->OnSend(KConstBuffer(data, length), flags);
 }
 
 //-----------------------------------------------------------------------------
@@ -452,19 +260,19 @@ int Session::OnFrameRecvCallback(
 //-----------------------------------------------------------------------------
 int Session::OnDataChunkRecvCallback(
 	nghttp2_session* session,
-	uint8_t flags, int32_t stream_id,
+	uint8_t flags, Stream::ID stream_id,
 	const uint8_t* data, size_t len,
 	void* user_data
 )
 //-----------------------------------------------------------------------------
 {
-	return ToThis(user_data)->OnDataChunkRecv(flags, stream_id, ConstBuffer(data, len));
+	return ToThis(user_data)->OnDataChunkRecv(flags, stream_id, KConstBuffer(data, len));
 }
 
 //-----------------------------------------------------------------------------
 int Session::OnStreamCloseCallback(
 	nghttp2_session* session,
-	int32_t stream_id, uint32_t error_code,
+	Stream::ID stream_id, uint32_t error_code,
 	void* user_data
 )
 //-----------------------------------------------------------------------------
@@ -475,7 +283,7 @@ int Session::OnStreamCloseCallback(
 //-----------------------------------------------------------------------------
 nghttp2_ssize Session::OnDataSourceReadCallback(
 	nghttp2_session *session,
-	int32_t stream_id,
+	Stream::ID stream_id,
 	uint8_t* buf, size_t length,
 	uint32_t* data_flags, void* source, // nghttp2_data_source*
 	void *user_data
@@ -484,7 +292,7 @@ nghttp2_ssize Session::OnDataSourceReadCallback(
 {
 	if (!source) return NGHTTP2_ERR_CALLBACK_FAILURE;
 
-	DataProvider* Data = static_cast<DataProvider*>(static_cast<nghttp2_data_source*>(source)->ptr);
+	KDataProvider* Data = static_cast<KDataProvider*>(static_cast<nghttp2_data_source*>(source)->ptr);
 
 	*data_flags = NGHTTP2_DATA_FLAG_NONE;
 
@@ -531,7 +339,7 @@ int Session::OnSendDataCallback(
 //-----------------------------------------------------------------------------
 {
 	if (!source) return NGHTTP2_ERR_CALLBACK_FAILURE;
-	DataProvider* Data = static_cast<DataProvider*>(static_cast<nghttp2_data_source*>(source)->ptr);
+	KDataProvider* Data = static_cast<KDataProvider*>(static_cast<nghttp2_data_source*>(source)->ptr);
 	return ToThis(user_data)->OnSendData(frame, framehd, length, *Data);
 
 } // OnSendDataCallback
@@ -624,7 +432,7 @@ KStringView Session::TranslateFrameType(uint8_t FrameType)
 } // TranslateFrameType
 
 //-----------------------------------------------------------------------------
-Stream* Session::GetStream(int32_t StreamID)
+Stream* Session::GetStream(Stream::ID StreamID)
 //-----------------------------------------------------------------------------
 {
 	auto it = m_Streams.find(StreamID);
@@ -642,15 +450,15 @@ Stream* Session::GetStream(int32_t StreamID)
 } // GetStream
 
 //-----------------------------------------------------------------------------
-bool Session::AddStream(Stream Stream)
+bool Session::AddStream(Stream::ID StreamID, Stream Stream)
 //-----------------------------------------------------------------------------
 {
-	return m_Streams.emplace(Stream.GetStreamID(), std::move(Stream)).second;
+	return m_Streams.emplace(StreamID, std::move(Stream)).second;
 
 } // AddStream
 
 //-----------------------------------------------------------------------------
-bool Session::CloseStream(int32_t StreamID)
+bool Session::CloseStream(Stream::ID StreamID)
 //-----------------------------------------------------------------------------
 {
 	auto Stream = GetStream(StreamID);
@@ -666,7 +474,7 @@ bool Session::CloseStream(int32_t StreamID)
 } // CloseStream
 
 //-----------------------------------------------------------------------------
-bool Session::DeleteStream(int32_t StreamID)
+bool Session::DeleteStream(Stream::ID StreamID)
 //-----------------------------------------------------------------------------
 {
 	if (m_Streams.erase(StreamID) == 1)
@@ -680,22 +488,23 @@ bool Session::DeleteStream(int32_t StreamID)
 } // DeleteStream
 
 //-----------------------------------------------------------------------------
-nghttp2_ssize Session::OnReceive (Buffer data, int flags)
+nghttp2_ssize Session::OnReceive (KBuffer data, int flags)
 //-----------------------------------------------------------------------------
 {
-	auto iRead = m_TLSStream.direct_read_some(data.ToCharPtr(), data.size());
+	auto iRead = m_TLSStream.direct_read_some(data.CharData(), data.capacity());
+	data.resize(iRead);
 	kDebug(3, "direct TLS read: {}", iRead);
 	return iRead;
 
 } // OnReceive
 
 //-----------------------------------------------------------------------------
-nghttp2_ssize Session::OnSend (ConstBuffer data, int flags)
+nghttp2_ssize Session::OnSend (KConstBuffer data, int flags)
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, "sending data frame of size {} to TLS", data.size());
 
-	auto iWrote = kWrite(m_TLSStream, data.ToCharPtr(), data.size());
+	auto iWrote = kWrite(m_TLSStream, data.CharData(), data.size());
 
 	if (m_TLSStream.bad() || iWrote != data.size())
 	{
@@ -708,7 +517,7 @@ nghttp2_ssize Session::OnSend (ConstBuffer data, int flags)
 } // OnSend
 
 //-----------------------------------------------------------------------------
-int Session::OnSendData (void* frame, const uint8_t* framehd, size_t length, DataProvider& source)
+int Session::OnSendData (void* frame, const uint8_t* framehd, size_t length, KDataProvider& source)
 //-----------------------------------------------------------------------------
 {
 	nghttp2_frame* Frame = static_cast<nghttp2_frame*>(frame);
@@ -728,7 +537,7 @@ int Session::OnSendData (void* frame, const uint8_t* framehd, size_t length, Dat
 
 	kDebug(3, "[stream {}] sending data frame of size {}", Frame->hd.stream_id, length);
 
-	if (source.Send(m_TLSStream, length) != static_cast<std::size_t>(length))
+	if (source.Read(m_TLSStream, length) != static_cast<std::size_t>(length))
 	{
 		SetError("write error");
 		return NGHTTP2_ERR_CALLBACK_FAILURE;
@@ -771,7 +580,7 @@ int Session::OnHeader (const void* frame, KStringView sName, KStringView sValue,
 
 		if (Stream)
 		{
-			Stream->AddResponseHeader(sName, sValue);
+			Stream->AddResponseHeader(Frame->hd.stream_id, sName, sValue);
 		}
 		else
 		{
@@ -829,7 +638,7 @@ int Session::OnFrameRecv (const void* frame)
 } // OnFrameRecv
 
 //-----------------------------------------------------------------------------
-int Session::OnDataChunkRecv (uint8_t flags, int32_t stream_id, ConstBuffer data)
+int Session::OnDataChunkRecv (uint8_t flags, Stream::ID stream_id, KConstBuffer data)
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, "[stream {}] received {} bytes", stream_id, data.size());
@@ -846,7 +655,7 @@ int Session::OnDataChunkRecv (uint8_t flags, int32_t stream_id, ConstBuffer data
 } // OnDataChunkRecv
 
 //-----------------------------------------------------------------------------
-int Session::OnStreamClose (int32_t stream_id, uint32_t error_code)
+int Session::OnStreamClose (Stream::ID stream_id, uint32_t error_code)
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, "[stream {}] closed with error_code={}", stream_id, error_code);
@@ -879,9 +688,9 @@ bool Session::SendClientConnectionHeader()
 } // SendClientConnectionHeader
 
 //-----------------------------------------------------------------------------
-int32_t Session::NewRequest (Stream Stream,
-							 const KHTTPHeaders& RequestHeaders,
-							 std::unique_ptr<DataProvider> SendData)
+Stream::ID Session::NewRequest (Stream Stream,
+                                const KHTTPHeaders& RequestHeaders,
+                                std::unique_ptr<KDataProvider> SendData)
 //-----------------------------------------------------------------------------
 {
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -932,21 +741,20 @@ int32_t Session::NewRequest (Stream Stream,
 	for (const auto& Header : RequestHeaders.Headers)
 	{
 		// drop non-http/2 headers
-		if (DEKAF2_LIKELY(
-						  Header.first != KHTTPHeader::CONNECTION        &&
-						  Header.first != KHTTPHeader::KEEP_ALIVE        &&
-						  Header.first != KHTTPHeader::PROXY_CONNECTION  &&
-						  Header.first != KHTTPHeader::TRANSFER_ENCODING &&
-						  Header.first != KHTTPHeader::UPGRADE           &&
-						  Header.first != KHTTPHeader::HOST))
+		if (DEKAF2_UNLIKELY(
+			Header.first == KHTTPHeader::CONNECTION        ||
+			Header.first == KHTTPHeader::KEEP_ALIVE        ||
+			Header.first == KHTTPHeader::PROXY_CONNECTION  ||
+			Header.first == KHTTPHeader::TRANSFER_ENCODING ||
+			Header.first == KHTTPHeader::UPGRADE))
 		{
-			Headers.push_back(http2header(Header.first.Serialize(), Header.second));
+			// log all dropped headers, except the dropped HOST header
+			// - we pushed it into the :authority pseudo header
+			kDebug(2, "dropping non-HTTP/2 header: {}: {}", Header.first, Header.second);
 		}
 		else if (Header.first != KHTTPHeader::HOST)
 		{
-			// log all other dropped headers, except the dropped HOST header
-			// - we pushed it into the :authority pseudo header
-			kDebug(2, "dropping non-HTTP/2 header: {}: {}", Header.first, Header.second);
+			Headers.push_back(http2header(Header.first.Serialize(), Header.second));
 		}
 	}
 
@@ -1003,12 +811,10 @@ int32_t Session::NewRequest (Stream Stream,
 		return -1;
 	}
 
-	// and enter the StreamID into the Stream struct
-	Stream.SetStreamID(StreamID);
 	Stream.SetDataProvider(std::move(SendData));
 
 	// add the Stream to our local map for opened http2 streams
-	if (!AddStream(std::move(Stream)))
+	if (!AddStream(StreamID, std::move(Stream)))
 	{
 		SetError(kFormat("[stream {}] already exists", StreamID));
 		return -1;
@@ -1019,12 +825,12 @@ int32_t Session::NewRequest (Stream Stream,
 } // NewRequest
 
 //-----------------------------------------------------------------------------
-int32_t Session::NewStream(KURL                          url,
-						   KHTTPMethod                   Method,
-						   const KHTTPHeaders&           RequestHeaders,
-						   std::unique_ptr<DataProvider> SendData,
-						   KHTTPResponseHeaders&         ResponseHeaders,
-						   std::unique_ptr<DataConsumer> ReceiveData)
+Stream::ID Session::NewStream(KURL                           url,
+                              KHTTPMethod                    Method,
+                              const KHTTPHeaders&            RequestHeaders,
+                              std::unique_ptr<KDataProvider> SendData,
+                              KHTTPResponseHeaders&          ResponseHeaders,
+                              std::unique_ptr<KDataConsumer> ReceiveData)
 //-----------------------------------------------------------------------------
 {
 	// construct this stream's data record
@@ -1132,21 +938,11 @@ bool Session::Run()
 } // Run
 
 //-----------------------------------------------------------------------------
-bool Session::SetError(KString sError)
-//-----------------------------------------------------------------------------
-{
-	m_sError = std::move(sError);
-	kDebug(1, m_sError);
-	return false;
-
-} // SetError
-
-//-----------------------------------------------------------------------------
-int32_t SingleStreamSession::SubmitRequest(KURL                          url,
-										   KHTTPMethod                   Method,
-										   const KHTTPHeaders&           RequestHeaders,
-										   std::unique_ptr<DataProvider> SendData,
-										   KHTTPResponseHeaders&         ResponseHeaders)
+Stream::ID SingleStreamSession::SubmitRequest(KURL                           url,
+                                              KHTTPMethod                    Method,
+                                              const KHTTPHeaders&            RequestHeaders,
+                                              std::unique_ptr<KDataProvider> SendData,
+                                              KHTTPResponseHeaders&          ResponseHeaders)
 //-----------------------------------------------------------------------------
 {
 	// construct this stream's data record
@@ -1179,7 +975,7 @@ int32_t SingleStreamSession::SubmitRequest(KURL                          url,
 } // SubmitRequest
 
 //-----------------------------------------------------------------------------
-bool SingleStreamSession::ReadResponseHeaders(int32_t StreamID)
+bool SingleStreamSession::ReadResponseHeaders(Stream::ID StreamID)
 //-----------------------------------------------------------------------------
 {
 	auto Stream = GetStream(StreamID);
@@ -1218,7 +1014,7 @@ bool SingleStreamSession::ReadResponseHeaders(int32_t StreamID)
 } // ReadResponseHeaders
 
 //-----------------------------------------------------------------------------
-std::streamsize SingleStreamSession::ReadData(int32_t StreamID, void* data, std::size_t len)
+std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, std::size_t len)
 //-----------------------------------------------------------------------------
 {
 	if (!len)
@@ -1240,6 +1036,7 @@ std::streamsize SingleStreamSession::ReadData(int32_t StreamID, void* data, std:
 
 	Stream->SetReceiveBuffer( { data, len } );
 
+	// TODO change this to KReservedBuffer !
 	std::array<char, Stream::BufferSize> TLSBuffer;
 
 	nghttp2_ssize iRead { 0 };
@@ -1248,14 +1045,14 @@ std::streamsize SingleStreamSession::ReadData(int32_t StreamID, void* data, std:
 	{
 		if (Stream->IsClosed())
 		{
-			iRead = Stream->GetReceiveBuffer().GetFill();
+			iRead = Stream->GetReceiveBuffer().size();
 			DeleteStream(StreamID);
 			break;
 		}
 
-		if (Stream->GetReceiveBuffer().Remaining() == 0)
+		if (Stream->GetReceiveBuffer().remaining() == 0)
 		{
-			iRead = Stream->GetReceiveBuffer().GetFill();
+			iRead = Stream->GetReceiveBuffer().size();
 			break;
 		}
 

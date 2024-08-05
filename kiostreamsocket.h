@@ -136,6 +136,9 @@ public:
 		return Timeout(timeout);
 	}
 
+	/// Get the I/O timeout
+	KDuration GetTimeout() const { return m_Timeout; }
+
 	/// std::iostream interface to open a stream. Delegates to Connect()
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from
@@ -186,6 +189,13 @@ public:
 	
 	/// For TLS and Quic streams: Get the Application Layer Protocol Negotiation after the TLS handshake
 	KStringView GetALPN();
+
+	/// can we read from this stream? Returns with false after timeout
+	bool IsReadReady();
+	/// can we write to this stream? Returns with false after timeout
+	bool IsWriteReady();
+	/// check any ::poll() flag with the given timeout
+	bool CheckIfReady(int what);
 
 	// ------ static factory methods -------
 
@@ -245,13 +255,6 @@ protected:
 
 	/// query the last ssl error description and set it as error
 	bool SetSSLError();
-
-	/// can we read from this stream? Returns with false after timeout
-	bool IsReadReady();
-	/// can we write to this stream? Returns with false after timeout
-	bool IsWriteReady();
-	/// check any ::poll() flag with the given timeout
-	bool CheckIfReady(int what);
 
 	/// sets the prepared sALPN data for the TLS or Quic stream
 	bool SetALPNRaw(KStringView sALPN);

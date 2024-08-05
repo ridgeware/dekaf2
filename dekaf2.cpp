@@ -302,7 +302,7 @@ KStringView Dekaf::GetVersionInformation()
 		" exceptions"
 #endif
 #ifdef DEKAF2_USE_OPTIMIZED_STRING_FIND
-		" optimized_string_find"
+//		" optimized_string_find"
 #endif
 		" multi_index"
 #ifdef DEKAF2_HAS_LIBPROC
@@ -318,16 +318,19 @@ KStringView Dekaf::GetVersionInformation()
 		" sqlite"
 #endif
 #ifdef DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
-		" large_frozen_maps"
+//		" large_frozen_maps"
 #endif
 #ifdef DEKAF2_WITH_FCGI
 		" fcgi"
 #endif
+#ifdef DEKAF2_HAS_OPENSSL_QUIC
+		" quic"
+#endif
 #ifdef DEKAF2_HAS_NGHTTP2
 		" http/2"
 #endif
-#ifdef DEKAF2_HAS_OPENSSL_QUIC
-		" quic"
+#ifdef DEKAF2_HAS_NGHTTP3
+		" http/3"
 #endif
 #ifdef DEKAF2_HAS_LIBZSTD
 		" zstd"

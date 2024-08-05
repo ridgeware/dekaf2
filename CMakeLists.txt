@@ -55,7 +55,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.60 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.0.61 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -380,11 +380,20 @@ if (OPENSSL_VERSION VERSION_GREATER_EQUAL "3.2")
 	set(DEKAF2_HAS_OPENSSL_QUIC 1)
 endif()
 
-# ================================ NGHTTP2 ===================================
+# =============================== NGHTTP2/3 ==================================
 
 find_package(NGHTTP2)
 if (NGHTTP2_FOUND)
 	set(DEKAF2_HAS_NGHTTP2 1)
+endif()
+
+if (DEKAF2_HAS_OPENSSL_QUIC)
+	# only search for nghttp3 if we have an openssl version supporting QUIC
+	# - this makes some ifdefs shorter..
+	find_package(NGHTTP3)
+	if (NGHTTP3_FOUND)
+		set(DEKAF2_HAS_NGHTTP3 1)
+	endif()
 endif()
 
 # ================================= BOOST ====================================
@@ -798,6 +807,7 @@ set(PUBLIC_HEADERS
 	kbase64.h
 	kbit.h
 	kbitfields.h
+	kbuffer.h
 	kbufferedreader.h
 	kcache.h
 	kcaseless.h
@@ -813,6 +823,8 @@ set(PUBLIC_HEADERS
 	kcrc.h
 	kcsv.h
 	kctype.h
+	kdataprovider.h
+	kdataconsumer.h
 	kdate.h
 	kdefinitions.h
 	kdiff.h
@@ -830,6 +842,7 @@ set(PUBLIC_HEADERS
 	kheapmon.h
 	khex.h
 	khttp2.h
+	khttp3.h
 	khmac.h
 	khtmlcontentblocks.h
 	khtmldom.h
@@ -1078,6 +1091,8 @@ set (SOURCES
 	kcrc.cpp
 	kcsv.cpp
 	kctype.cpp
+	kdataprovider.cpp
+	kdataconsumer.cpp
 	kdate.cpp
 	kdiff.cpp
 	kduration.cpp
@@ -1091,6 +1106,7 @@ set (SOURCES
 	kheapmon.cpp
 	khex.cpp
 	khttp2.cpp
+	khttp3.cpp
 	khmac.cpp
 	khtmlcontentblocks.cpp
 	khtmldom.cpp
@@ -1352,6 +1368,7 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/croncpp/include>
 		$<BUILD_INTERFACE:${JEMalloc_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${NGHTTP2_INCLUDE_DIRS}>
+		$<BUILD_INTERFACE:${NGHTTP3_INCLUDE_DIRS}>
 )
 
 set(DEKAF2_LINK_LIBRARIES
@@ -1376,6 +1393,7 @@ set(DEKAF2_LINK_LIBRARIES
 		re2
 		${JEMalloc_LIBRARIES}
 		${NGHTTP2_LIBRARIES}
+		${NGHTTP3_LIBRARIES}
 )
 
 set(DEKAF2_COMPILE_DEFINITIONS

@@ -42,7 +42,8 @@ BuildSetup ()
 			darwin)
 				InstallSystemPackages cmake boost openssl wget
 
-				InstallOptionalSystemPackages libzip xz zstd brotli mariadb sqlite jemalloc ncurses libnghttp2
+					InstallOptionalSystemPackages libzip xz zstd brotli mariadb sqlite jemalloc ncurses \
+					libnghttp2 libnghttp3
 				;;
 			debian)
 				# make sure the repo content lists are current
@@ -53,7 +54,7 @@ BuildSetup ()
 
 				InstallOptionalSystemPackages libmariadb${DEVPKG} mariadb-client sqlite3 libsqlite3${DEVPKG} \
 					libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG} libbrotli${DEVPKG} libjemalloc${DEVPKG} \
-					libncurses${DEVPKG} libnghttp2${DEVPKG}
+					libncurses${DEVPKG} libnghttp2${DEVPKG} libnghttp3${DEVPKG}
 				;;
 			*)
 				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} wget git sed tar gcc \
@@ -61,7 +62,7 @@ BuildSetup ()
 
 				InstallOptionalSystemPackages mariadb-connector-c${DEVPKG} sqlite${DEVPKG} libzip${DEVPKG} \
 					xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG} jemalloc${DEVPKG} ncurses${DEVPKG} \
-					libnghttp2${DEVPKG}
+					libnghttp2${DEVPKG} libnghttp3${DEVPKG}
 				;;
 		esac
 

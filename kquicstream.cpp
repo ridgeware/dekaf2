@@ -71,26 +71,72 @@ bool KQuicStream::Handshake()
 
 	m_bNeedHandshake = false;
 
-	if (::SSL_connect(GetNativeTLSHandle()) < 1)
+	kDebug(3, "trying to connect");
+
+	// switch to non-blocking mode for the handshake
+
+	auto ssl = GetNativeTLSHandle();
+
+	auto oldBlockingMode = ::SSL_get_blocking_mode(ssl);
+
+	if (oldBlockingMode)
 	{
-		KString sWhat;
-
-		if (::SSL_get_verify_result(GetNativeTLSHandle()) != X509_V_OK)
+		// this sets (temporarily) non-blocking mode to the QUIC stack
+		if (!  ::SSL_set_blocking_mode(ssl, 0)
+			|| ::SSL_get_blocking_mode(ssl))
 		{
-			sWhat.Format("Verify error: {}", ::X509_verify_cert_error_string(::SSL_get_verify_result(GetNativeTLSHandle())));
+			return SetError("cannot switch to non-blocking mode");
 		}
+	}
 
-		return SetError(kFormat("Quic handshake failed: {}", sWhat));
+	for (;;)
+	{
+		auto ec = ::SSL_connect(ssl);
+
+		if (ec < 1)
+		{
+			auto iError = ::SSL_get_error(ssl, ec);
+
+			if (iError == SSL_ERROR_WANT_WRITE)
+			{
+				if (!IsWriteReady()) return false; // error is already set
+			}
+			else if (iError == SSL_ERROR_WANT_READ)
+			{
+				if (!IsReadReady()) return false; // error is already set
+			}
+			else
+			{
+				KString sWhat;
+
+				if (::SSL_get_verify_result(ssl) != X509_V_OK)
+				{
+					sWhat.Format("Verify error: {}", ::X509_verify_cert_error_string(::SSL_get_verify_result(GetNativeTLSHandle())));
+				}
+
+				return SetError(kFormat("Quic handshake failed: {}", sWhat));
+			}
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	// reinstate the old blocking mode
+	if (oldBlockingMode)
+	{
+		::SSL_set_blocking_mode(ssl, 1);
+		if (!::SSL_get_blocking_mode(ssl))
+		{
+			return SetError("cannot switch back to blocking mode");
+		}
 	}
 
 #ifdef DEKAF2_WITH_KLOG
 	if (kWouldLog(2))
 	{
-		auto ssl = GetNativeTLSHandle();
-
-		kDebug(2, "Quic handshake successful, rx/tx {}/{} bytes",
-			   ::BIO_number_read(::SSL_get_rbio(ssl)),
-			   ::BIO_number_written(::SSL_get_wbio(ssl)));
+		kDebug(2, "Quic handshake successful");
 
 		auto cipher = ::SSL_get_current_cipher(ssl);
 		kDebug(2, "Quic version: {}, cipher: {}",

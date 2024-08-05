@@ -65,7 +65,7 @@ bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode, KHT
 		m_iContentSize = 0;
 	}
 
-	m_bChunked = (HTTPVersion & KHTTPVersion::http2)
+	m_bChunked = (HTTPVersion & (KHTTPVersion::http2 | KHTTPVersion::http3))
 	              ? false
 	              : headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
 

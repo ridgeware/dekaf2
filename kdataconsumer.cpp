@@ -1,8 +1,8 @@
 /*
  //
- // DEKAF(tm): Lighter, Faster, Smarter (tm)
+ // DEKAF(tm): Lighter, Faster, Smarter(tm)
  //
- // Copyright (c) 2018, Ridgeware, Inc.
+ // Copyright (c) 2024, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -37,171 +37,132 @@
  // |/+---------------------------------------------------------------------+/|
  // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
  // +-------------------------------------------------------------------------+
+ //
  */
 
-#include "khttp_response.h"
-#include "khttperror.h"
+#include "kdataconsumer.h"
+#include "kwrite.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
-
 //-----------------------------------------------------------------------------
-bool KHTTPResponseHeaders::Parse(KInStream& Stream)
-//-----------------------------------------------------------------------------
-{
-	KString sLine;
-
-	// make sure we detect an empty header
-	Stream.SetReaderRightTrim("\r\n");
-
-	if (!Stream.ReadLine(sLine))
-	{
-		// this is simply a read timeout, probably on a keep-alive
-		// connection. Unset the error string and return false;
-		return SetError("");
-	}
-
-	if (sLine.empty())
-	{
-		return SetError("empty status line");
-	}
-
-	// analyze protocol and status
-	// HTTP/1.1 200 Message with arbitrary words
-
-	auto Words = sLine.Split(" ");
-
-	if (Words.size() < 2)
-	{
-		// garbage, bail out
-		return SetError("cannot read HTTP response status");
-	}
-
-	SetHTTPVersion(Words[0]);
-	iStatusCode  = Words[1].UInt16();
-
-	if (Words.size() > 2)
-	{
-		// this actually copies the reminder of the sLine
-		// into m_sMessage. It looks dangerous but is absolutely
-		// clean, as data() returns a pointer into sLine, which
-		// itself is 0-terminated
-		sStatusString.assign(Words[2].data());
-	}
-
-	if (GetHTTPVersion() == KHTTPVersion::none)
-	{
-		return SetError(kFormat("invalid HTTP version: {}", Words[0]));
-	}
-
-	return KHTTPHeaders::Parse(Stream);
-
-} // Parse
-
-//-----------------------------------------------------------------------------
-bool KHTTPResponseHeaders::Serialize(KOutStream& Stream) const
+void KDataConsumer::SetFinished ()
 //-----------------------------------------------------------------------------
 {
-	if (GetHTTPVersion().empty())
+	m_bFinished = true;
+	CallFinishedCallback();
+
+} // SetFinished
+
+//-----------------------------------------------------------------------------
+void KViewConsumer::CallFinishedCallback()
+//-----------------------------------------------------------------------------
+{
+	if (m_Callback)
 	{
-		return SetError("missing http version");
+		m_Callback(*this);
 	}
+
+} // CallFinishedCallback
+
+//-----------------------------------------------------------------------------
+std::size_t KViewConsumer::Write (const void* buffer , std::size_t size)
+//-----------------------------------------------------------------------------
+{
+	auto iWrote = m_Buffer.append(buffer, size);
 	
-	if (!Stream.FormatLine("{} {} {}", GetHTTPVersion(), iStatusCode, sStatusString))
+	if (iWrote != size)
 	{
-		return SetError("Cannot write headers");
+		SetError("buffer too small for requested output");
 	}
 
-	return KHTTPHeaders::Serialize(Stream);
+	return iWrote;
 
-} // Serialize
+} // Write
 
 //-----------------------------------------------------------------------------
-bool KHTTPResponseHeaders::HasChunking() const
+void KStringConsumer::CallFinishedCallback()
 //-----------------------------------------------------------------------------
 {
-	return Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked";
+	if (m_Callback)
+	{
+		m_Callback(*this);
+	}
 
-} // HasChunking
+} // CallFinishedCallback
 
 //-----------------------------------------------------------------------------
-void KHTTPResponseHeaders::clear()
+std::size_t KStringConsumer::Write (const void* buffer, std::size_t size)
 //-----------------------------------------------------------------------------
 {
-	KHTTPHeaders::clear();
-	sStatusString.clear();
-	iStatusCode = 0;
+	m_sBuffer.append(static_cast<const char*>(buffer), size);
+	return size;
 
-} // clear
-
-//-----------------------------------------------------------------------------
-void KHTTPResponseHeaders::SetStatus(uint16_t iCode, KStringView sMessage)
-//-----------------------------------------------------------------------------
-{
-	iStatusCode = KHTTPError::ConvertToRealStatusCode(iCode);
-
-	if (sMessage.empty())
-	{
-		sStatusString = KHTTPError::GetStatusString(iCode);
-	}
-	else
-	{
-		sStatusString = sMessage;
-	}
-
-} // SetStatus
+} // Write
 
 //-----------------------------------------------------------------------------
-bool KOutHTTPResponse::Serialize()
+void KBufferedConsumer::CallFinishedCallback()
 //-----------------------------------------------------------------------------
 {
-	if ((GetHTTPVersion() & (KHTTPVersion::http2 | KHTTPVersion::http3)) == 0)
+	if (m_Callback)
 	{
-		// set up the chunked writer
-		return KOutHTTPFilter::Parse(*this) && KHTTPResponseHeaders::Serialize(UnfilteredStream());
-	}
-	else
-	{
-		kDebug(1, "not a valid output path with HTTP/2");
-		return false;
+		m_Callback(*this);
 	}
 
-} // Serialize
+} // CallFinishedCallback
 
 //-----------------------------------------------------------------------------
-bool KInHTTPResponse::Parse()
+void KOStreamConsumer::CallFinishedCallback()
 //-----------------------------------------------------------------------------
 {
-	if ((GetHTTPVersion() & (KHTTPVersion::http2 | KHTTPVersion::http3)) == 0)
+	if (m_Callback)
 	{
-		if (!KHTTPResponseHeaders::Parse(UnfilteredStream()))
-		{
-			return false;
-		}
+		m_Callback(*this);
 	}
 
-	// analyze the headers for the filter chain
-	return  KInHTTPFilter::Parse(*this, iStatusCode, GetHTTPVersion());
-
-} // Parse
+} // CallFinishedCallback
 
 //-----------------------------------------------------------------------------
-bool KInHTTPResponse::Fail() const
+std::size_t KOStreamConsumer::Write (const void* buffer, std::size_t size)
 //-----------------------------------------------------------------------------
 {
-	if (KInHTTPFilter::Fail())
+	auto iWrote = kWrite(m_OStream, buffer, size);
+
+	if (iWrote != size)
 	{
-		// check if we have to set an appropriate error code, maybe
-		// we had a timeout after already receiving a bad status code
-		if (KHTTPResponseHeaders::GetStatusCode() == 0 || KHTTPResponseHeaders::Good())
-		{
-			// set a read error - we cast the const away..
-			const_cast<KInHTTPResponse*>(this)->KHTTPResponseHeaders::SetStatus(KHTTPError::H5xx_READTIMEOUT, "NETWORK READ ERROR");
-		}
+		SetError("could not write to stream");
 	}
 
-	return !KHTTPResponseHeaders::Good();
+	return iWrote;
 
-} // Fail
+} // Write
+
+//-----------------------------------------------------------------------------
+void KCallbackConsumer::CallFinishedCallback()
+//-----------------------------------------------------------------------------
+{
+	if (m_WriteCallback)
+	{
+		m_WriteCallback(this, 0);
+	}
+
+} // CallFinishedCallback
+
+//-----------------------------------------------------------------------------
+std::size_t KCallbackConsumer::Write (const void* buffer, std::size_t size)
+//-----------------------------------------------------------------------------
+{
+	if (!size || !m_WriteCallback) return 0;
+
+	auto iWrote = m_WriteCallback(buffer, size);
+
+	if (iWrote != size)
+	{
+		SetError("could not write to stream");
+	}
+
+	return iWrote;
+
+} // Write
 
 DEKAF2_NAMESPACE_END

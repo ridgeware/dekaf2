@@ -454,9 +454,9 @@ kurl::kurl ()
 		.Help("force http/1.1 protocol, do not allow upgrade to http/2")
 	([&]()
 	{
-		if (BuildMRQ.Flags & FORCE_HTTP_2)
+		if (BuildMRQ.Flags & (FORCE_HTTP_2 | FORCE_HTTP_3))
 		{
-			throw KOptions::Error("--http1 and --http2 options are mutually exclusive");
+			throw KOptions::Error("--http1, --http2 and --http3 options are mutually exclusive");
 		}
 		BuildMRQ.Flags |= Flags::FORCE_HTTP_1;
 	});
@@ -466,13 +466,26 @@ kurl::kurl ()
 		.Help("force http/2 protocol, do not allow downgrade to http/1.1")
 	([&]()
 	{
-		if (BuildMRQ.Flags & FORCE_HTTP_1)
+		if (BuildMRQ.Flags & (FORCE_HTTP_1 | FORCE_HTTP_3))
 		{
-			throw KOptions::Error("--http1 and --http2 options are mutually exclusive");
+			throw KOptions::Error("--http1, --http2 and --http3 options are mutually exclusive");
 		}
 		BuildMRQ.Flags |= Flags::FORCE_HTTP_2;
 	});
 
+#if DEKAF2_HAS_NGHTTP3
+	m_CLI
+		.Option("http3")
+		.Help("force http/3 protocol, do not allow downgrade to http/1.1 or http/2")
+	([&]()
+	{
+		if (BuildMRQ.Flags & (FORCE_HTTP_1 | FORCE_HTTP_2))
+		{
+			throw KOptions::Error("--http1, --http2 and --http3 options are mutually exclusive");
+		}
+		BuildMRQ.Flags |= Flags::FORCE_HTTP_3;
+	});
+#endif
 	m_CLI
 		.Command("reverse <IP address>")
 		.Help("run a reverse lookup on an IP address and exit")
@@ -657,6 +670,13 @@ void kurl::ServerQuery ()
 			                             ? KHTTPStreamOptions::DefaultsForHTTP
 			                             : KHTTPStreamOptions::None;
 
+#if DEKAF2_HAS_NGHTTP3
+			if (RQ->Config.Flags & Flags::FORCE_HTTP_3)
+			{
+				Options = KHTTPStreamOptions::RequestHTTP3;
+			}
+			else 
+#endif
 			if (RQ->Config.Flags & Flags::FORCE_HTTP_2)
 			{
 				Options = KHTTPStreamOptions::RequestHTTP2;

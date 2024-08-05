@@ -55,12 +55,19 @@
 #include "kurl.h"
 #include "kconfiguration.h"
 #include "kerror.h"
+#include "kstreambuf.h"
 
-#ifdef DEKAF2_HAS_NGHTTP2
+#if DEKAF2_HAS_NGHTTP2
+	#include "ktlsstream.h"
 	#include "khttp2.h"
-	#include "kstreambuf.h"
-	#include <istream>
 #endif
+
+#if DEKAF2_HAS_NGHTTP3
+	#include "kquicstream.h"
+	#include "khttp3.h"
+#endif
+
+#include <istream>
 
 #ifdef DEKAF2_IS_WINDOWS
 	// Windows has a DELETE macro in winnt.h which interferes with
@@ -549,13 +556,13 @@ private:
 	DEKAF2_PRIVATE bool SetupAutomaticHeaders(KStringView* svPostData, KInStream* PostDataStream, std::size_t iBodySize, const KMIME& Mime);
 	//-----------------------------------------------------------------------------
 
-#ifdef DEKAF2_HAS_NGHTTP2
+	static KTCPEndPoint s_EmptyEndpoint;
+
+#if DEKAF2_HAS_NGHTTP2
 	//-----------------------------------------------------------------------------
-	// the streambuf reader for KInStreamBuf
+	// the streambuf reader for HTTP2Session::KInStreamBuf
 	static std::streamsize HTTP2StreamReader(void* buf, std::streamsize size, void* ptr);
 	//-----------------------------------------------------------------------------
-
-	static KTCPEndPoint s_EmptyEndpoint;
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct HTTP2Session
@@ -567,11 +574,37 @@ private:
 		KInStreamBuf               StreamBuf;
 		std::istream               IStream;
 		KInStream                  InStream;
-		int32_t                    StreamID { -1 };
+		http2::Stream::ID          StreamID { -1 };
 
 	}; // HTTP2Session
 
 	std::unique_ptr<HTTP2Session>  m_HTTP2;
+#endif
+
+#if DEKAF2_HAS_NGHTTP3
+	//-----------------------------------------------------------------------------
+	// the streambuf reader for HTTP3Session::KInStreamBuf
+	static std::streamsize HTTP3StreamReader(void* buf, std::streamsize size, void* ptr);
+	//-----------------------------------------------------------------------------
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	struct HTTP3Session
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		HTTP3Session(KQuicStream& QuicStream);
+
+		http3::SingleStreamSession Session;
+		KInStreamBuf               StreamBuf;
+		std::istream               IStream;
+		KInStream                  InStream;
+		http3::Stream::ID          StreamID { -1 };
+
+	}; // HTTP3Session
+
+	std::unique_ptr<HTTP3Session>  m_HTTP3;
+#endif
+
+#if DEKAF2_HAS_NGHTTP2 || DEKAF2_HAS_NGHTTP3
 	KURL                           m_RequestURL;
 #endif
 

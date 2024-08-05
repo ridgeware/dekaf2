@@ -277,7 +277,6 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	// need to reimplement Get() from scratch to accomodate the share logic
 	/// Get a value for a key from the cache. If the key does not exist, a new
 	/// value will be created and the key value pair will be inserted into the
 	/// cache. For this to be possible, the Value type needs to be constructible

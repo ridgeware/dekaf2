@@ -222,13 +222,11 @@ public:
 	self& operator += (KBufferBase<B, T> Buffer)                { append(Buffer); return *this; }
 	self& operator += (KStringView sData)                       { append(sData);  return *this; }
 	self& operator += (char ch)                                 { append(ch);     return *this; }
-	self& operator += (KConstBuffer Buffer);
 
 	template<bool B, class T>
 	self& operator = (KBufferBase<B, T> Buffer)                 { assign(Buffer); return *this; }
 	self& operator = (KStringView sData)                        { assign(sData);  return *this; }
 	self& operator = (char ch)                                  { assign(ch);     return *this; }
-	self& operator = (KConstBuffer Buffer);
 
 	operator bool () const                                      { return !is_null(); }
 
@@ -320,7 +318,7 @@ private:
 
 //-----------------------------------------------------------------------------
 template<bool B, class T>
-KBufferBase<B, T>::size_type KBufferBase<B, T>::append(KConstBuffer Buffer)
+typename KBufferBase<B, T>::size_type KBufferBase<B, T>::append(KConstBuffer Buffer)
 //-----------------------------------------------------------------------------
 {
 	return append(Buffer.VoidData(), Buffer.size());
@@ -328,7 +326,7 @@ KBufferBase<B, T>::size_type KBufferBase<B, T>::append(KConstBuffer Buffer)
 
 //-----------------------------------------------------------------------------
 template<bool B, class T>
-KBufferBase<B, T>::size_type KBufferBase<B, T>::assign(KConstBuffer Buffer)
+typename KBufferBase<B, T>::size_type KBufferBase<B, T>::assign(KConstBuffer Buffer)
 //-----------------------------------------------------------------------------
 {
 	return assign(Buffer.VoidData(), Buffer.size());
@@ -336,28 +334,10 @@ KBufferBase<B, T>::size_type KBufferBase<B, T>::assign(KConstBuffer Buffer)
 
 //-----------------------------------------------------------------------------
 template<bool B, class T>
-KBufferBase<B, T>::size_type KBufferBase<B, T>::push_back(KConstBuffer Buffer)
+typename KBufferBase<B, T>::size_type KBufferBase<B, T>::push_back(KConstBuffer Buffer)
 //-----------------------------------------------------------------------------
 {
 	return append(Buffer);
-}
-
-//-----------------------------------------------------------------------------
-template<bool B, class T>
-KBufferBase<B, T>& KBufferBase<B, T>::operator += (KConstBuffer Buffer)
-//-----------------------------------------------------------------------------
-{
-	append(Buffer);
-	return *this;
-}
-
-//-----------------------------------------------------------------------------
-template<bool B, class T>
-KBufferBase<B, T>& KBufferBase<B, T>::operator = (KConstBuffer Buffer)
-//-----------------------------------------------------------------------------
-{
-	assign(Buffer);
-	return *this;
 }
 
 DEKAF2_NAMESPACE_END

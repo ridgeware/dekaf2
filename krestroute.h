@@ -195,7 +195,7 @@ public:
 	/// @param _sRoute a REST route, wildcards allowed: /my/path/*/:user/name
 	/// @param _sDocumentRoot the file system path to be used for serving GET requests, or empty
 	/// @param _Callback a method that will be called when the route matches the request, may not be empty
-	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing
+	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing, defaults to JSON
 	KRESTRoute(KHTTPMethod _Method, Options _Options, KString _sRoute, KString _sDocumentRoot, RESTCallback _Callback, ParserType _Parser = JSON);
 	//-----------------------------------------------------------------------------
 
@@ -205,10 +205,22 @@ public:
 	/// @param _Options set various options for this route, e.g. SSO authentication (takes an initializer list for multiple options)
 	/// @param _sRoute a REST route, wildcards allowed: /my/path/*/:user/name
 	/// @param _Callback a method that will be called when the route matches the request, may not be empty
-	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing
+	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing, defaults to JSON
 	KRESTRoute(KHTTPMethod _Method, Options _Options, KString _sRoute, RESTCallback _Callback, ParserType _Parser = JSON)
 	//-----------------------------------------------------------------------------
 	: KRESTRoute(_Method, _Options, std::move(_sRoute), KString{}, _Callback, _Parser)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Construct a REST route for a free function
+	/// @param _Method the HTTP method to match with (or empty method for any method)
+	/// @param _sRoute a REST route, wildcards allowed: /my/path/*/:user/name
+	/// @param _Callback a method that will be called when the route matches the request, may not be empty
+	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing
+	KRESTRoute(KHTTPMethod _Method, KString _sRoute, RESTCallback _Callback, ParserType _Parser = JSON)
+	//-----------------------------------------------------------------------------
+	: KRESTRoute(_Method, Options{}, std::move(_sRoute), KString{}, _Callback, _Parser)
 	{
 	}
 
@@ -222,7 +234,7 @@ public:
 	/// @param _sDocumentRoot the file system path to be used for serving GET requests, or empty
 	/// @param _Object the object for the method to be called, may not be empty
 	/// @param _Callback the object method that will be called when the route matches the request, may not be empty
-	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing
+	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing, defaults to JSON
 	template<class Object>
 	KRESTRoute(KHTTPMethod _Method, Options _Options, KString _sRoute, KString _sDocumentRoot, Object& _Object, MemberFunction<Object> _Callback, ParserType _Parser = JSON)
 	//-----------------------------------------------------------------------------
@@ -239,7 +251,7 @@ public:
 	/// @param _sRoute a REST route, wildcards allowed: /my/path/*/:user/name
 	/// @param _Object the object for the method to be called, may not be empty
 	/// @param _Callback the object method that will be called when the route matches the request, may not be empty
-	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing
+	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing, defaults to JSON
 	template<class Object>
 	KRESTRoute(KHTTPMethod _Method, Options _Options, KString _sRoute, Object& _Object, MemberFunction<Object> _Callback, ParserType _Parser = JSON)
 	//-----------------------------------------------------------------------------
@@ -351,6 +363,55 @@ public:
 
 	using Parameters = KRESTRoute::Parameters;
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Helper class to build a route by calling its methods, adding the route at destruction. Normally invoked
+	/// through KRESTRoutes.AddRoute("")
+	class RouteBuilder
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//------
+	public:
+	//------
+
+		using self = RouteBuilder;
+
+		RouteBuilder(KRESTRoutes& Routes, KString sRoute);
+		~RouteBuilder();
+
+		/// add a callback for all request methods
+		self& Any   (KRESTRoute::RESTCallback Callback)   { return SetCallback(KHTTPMethod{},       std::move(Callback)); }
+		/// add a callback for a GET request
+		self& Get   (KRESTRoute::RESTCallback Callback)   { return SetCallback(KHTTPMethod::GET,    std::move(Callback)); }
+		/// add a callback for a POST request
+		self& Post  (KRESTRoute::RESTCallback Callback)   { return SetCallback(KHTTPMethod::POST,   std::move(Callback)); }
+		/// add a callback for a PUT request
+		self& Put   (KRESTRoute::RESTCallback Callback)   { return SetCallback(KHTTPMethod::PUT,    std::move(Callback)); }
+		/// add a callback for a PATCH request
+		self& Patch (KRESTRoute::RESTCallback Callback)   { return SetCallback(KHTTPMethod::PATCH,  std::move(Callback)); }
+		/// add a callback for a DELETE request
+		self& Delete(KRESTRoute::RESTCallback Callback)   { return SetCallback(KHTTPMethod::DELETE, std::move(Callback)); }
+		/// set options for this route
+		self& Options(KRESTRoute::Options Options)        { m_Options = std::move(Options);   return *this; }
+		/// set parser type for this route, default is JSON
+		self& Parse  (KRESTRoute::ParserType Parser)      { m_Parser  = Parser;               return *this; }
+
+	//------
+	private:
+	//------
+
+		self& SetCallback(KHTTPMethod Method, KRESTRoute::RESTCallback Callback);
+		void AddRoute(bool bKeepSettings = false);
+
+		KRESTRoutes&             m_Routes;
+		KHTTPMethod              m_Verb;
+		KRESTRoute::RESTCallback m_Callback;
+		KRESTRoute::Options      m_Options;
+		KString                  m_sRoute;
+		KRESTRoute::ParserType   m_Parser                 { KRESTRoute::ParserType::JSON };
+
+	}; // RouteBuilder
+
 	//-----------------------------------------------------------------------------
 	/// Construct KRESTRoutes object
 	/// @param DefaultRoute default callback if none of the routes matches, defaults to nullptr
@@ -366,9 +427,17 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Add a composed REST route
+	/// @param sRoute a REST route, wildcards allowed: /my/path/*/img/*
+	/// @returns a compositon helper class, RouteBuilder
+	RouteBuilder AddRoute(KString sRoute);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Add a basic web server for static files
 	/// @param sWWWDir the base directory of the web server
-	void AddWebServer(KStringViewZ sWWWDir);
+	/// @param sRoute a REST route, wildcards allowed: /my/path/*/img/* , defaults to all ("/*")
+	void AddWebServer(KString sWWWDir, KString sRoute = "/*");
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

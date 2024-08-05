@@ -219,6 +219,53 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters* Params, bool bCompar
 
 
 //-----------------------------------------------------------------------------
+KRESTRoutes::RouteBuilder::RouteBuilder(KRESTRoutes& Routes, KString sRoute)
+//-----------------------------------------------------------------------------
+: m_Routes(Routes)
+, m_sRoute(std::move(sRoute))
+{
+}
+
+//-----------------------------------------------------------------------------
+KRESTRoutes::RouteBuilder::~RouteBuilder()
+//-----------------------------------------------------------------------------
+{
+	AddRoute();
+}
+
+//-----------------------------------------------------------------------------
+void KRESTRoutes::RouteBuilder::AddRoute(bool bKeepSettings)
+//-----------------------------------------------------------------------------
+{
+	if (bKeepSettings)
+	{
+		m_Routes.AddRoute(KRESTRoute(m_Verb, m_Options, m_sRoute, std::move(m_Callback), m_Parser));
+	}
+	else
+	{
+		m_Routes.AddRoute(KRESTRoute(m_Verb, std::move(m_Options), std::move(m_sRoute), std::move(m_Callback), m_Parser));
+	}
+
+} // AddRoute
+
+//-----------------------------------------------------------------------------
+KRESTRoutes::RouteBuilder& KRESTRoutes::RouteBuilder::SetCallback(KHTTPMethod Method, KRESTRoute::RESTCallback Callback)
+//-----------------------------------------------------------------------------
+{
+	if (m_Callback)
+	{
+		// callback is already set, finish the last route declararion here and start a new one
+		AddRoute(true);
+	}
+	
+	m_Verb     = Method;
+	m_Callback = std::move(Callback);
+
+	return *this;
+
+} // SetCallback
+
+//-----------------------------------------------------------------------------
 KRESTRoutes::KRESTRoutes(KRESTRoute::RESTCallback DefaultRoute, KString sDocumentRoot, KRESTRoute::Options Options)
 //-----------------------------------------------------------------------------
 	: m_DefaultRoute(KRESTRoute(KHTTPMethod{}, Options, "/", std::move(sDocumentRoot), std::move(DefaultRoute)))
@@ -234,10 +281,18 @@ void KRESTRoutes::AddRoute(KRESTRoute _Route)
 } // AddRoute
 
 //-----------------------------------------------------------------------------
-void KRESTRoutes::AddWebServer(KStringViewZ sWWWDir)
+KRESTRoutes::RouteBuilder KRESTRoutes::AddRoute(KString sRoute)
 //-----------------------------------------------------------------------------
 {
-	m_Routes.push_back(KRESTRoute("GET", false, "/*", sWWWDir, *this, &KRESTRoutes::WebServer, KRESTRoute::ParserType::NOREAD));
+	return RouteBuilder(*this, std::move(sRoute));
+
+} // AddRoute
+
+//-----------------------------------------------------------------------------
+void KRESTRoutes::AddWebServer(KString sWWWDir, KString sRoute)
+//-----------------------------------------------------------------------------
+{
+	m_Routes.push_back(KRESTRoute("GET", false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, KRESTRoute::ParserType::NOREAD));
 
 } // AddWebServer
 

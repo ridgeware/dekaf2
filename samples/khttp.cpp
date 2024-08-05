@@ -33,6 +33,7 @@ public:
 
 		// define cli options and read them into the REST server options
 		KStringViewZ sWWWDir          = Options("www <directory>       : base directory for HTTP server (served content)");
+		KStringViewZ sRoute           = Options("route </path>         : route to serve from, defaults to \"/*\"", "/*");
 		Settings.iPort                = Options("http <port>           : port number to bind to", 0);
 		Settings.sSocketFile          = Options("socket <socket>       : unix domain socket file like /tmp/khttp.sock or unix:///tmp/khttp.sock", "");
 		Settings.iMaxConnections      = Options("n <max>               : max parallel connections (default 25)", 25);
@@ -41,8 +42,8 @@ public:
 		Settings.sCert                = Options("cert <file>           : TLS certificate filepath (.pem)", "");
 		Settings.sKey                 = Options("key <file>            : TLS private key filepath (.pem)", "");
 		Settings.sTLSPassword         = Options("tlspass <pass>        : TLS certificate password, if any", "");
-		Settings.sAllowedCipherSuites = Options("ciphers <suites>      : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values)", "");
-		Settings.sBaseRoute           = Options("baseroute </path>     : route prefix, e.g. '/khttp'", "");
+		Settings.sAllowedCipherSuites = Options("ciphers <suites>      : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
+		Settings.sBaseRoute           = Options("baseroute </path>     : route prefix, e.g. '/khttp', default none", "");
 		KStringViewZ sRestLog         = Options("restlog <file>        : write rest server log to <file> - default off", "");
 
 		// do a final check if all required options were set
@@ -76,8 +77,8 @@ public:
 		if (sWWWDir)
 		{
 			if (!kDirExists(sWWWDir)) SetError(kFormat("www directory does not exist: {}", sWWWDir));
-			// add a static file web server
-			Routes.AddWebServer(sWWWDir);
+			// add a web server for static files
+			Routes.AddWebServer(sWWWDir, sRoute);
 		}
 
 		// create the REST server instance

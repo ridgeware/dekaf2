@@ -324,7 +324,7 @@ kurl::kurl ()
 		.Set(m_Config.bShowStats, true);
 
 	m_CLI
-		.Option("timeout <n>")
+		.Option("timeout,to <n>")
 		.MinArgs(1).MaxArgs(1)
 		.Type(KOptions::ArgTypes::Unsigned)
 		.Range(0, 1000000)
@@ -332,7 +332,6 @@ kurl::kurl ()
 	([&](KStringViewZ sArg)
 	{
 		BuildMRQ.iSecondsTimeout = sArg.UInt64();
-		m_Config.bShowStats = true;
 	});
 
 	m_CLI
@@ -759,7 +758,7 @@ void kurl::ServerQuery ()
 		if (HTTP.Response.iStatusCode == 0)
 		{
 			// no connection
-			Out.FormatLine("{}: {}", RQ->URL, HTTP.Error());
+			KErr.FormatLine("{}: {}", RQ->URL, HTTP.Error());
 			continue;
 		}
 
@@ -905,7 +904,7 @@ int kurl::Main (int argc, char** argv)
 		ShowStats(tStopTotal.elapsed(), iTotalRequests);
 	}
 
-	return 0;
+	return (m_Results.GetLastStatus() / 100 != 2);
 
 } // Main
 
@@ -1095,6 +1094,9 @@ void kurl::Results::Add(uint16_t iResultCode, KDuration tDuration)
 //-----------------------------------------------------------------------------
 {
 	auto Codes = m_ResultCodes.unique();
+
+	m_iLastStatus = iResultCode; // we use the mutex from above
+
 	auto it    = Codes->find(iResultCode);
 
 	if (it == Codes->end())
@@ -1108,7 +1110,7 @@ void kurl::Results::Add(uint16_t iResultCode, KDuration tDuration)
 } // Results::Add
 
 //-----------------------------------------------------------------------------
-KString kurl::Results::Print()
+KString kurl::Results::Print() const
 //-----------------------------------------------------------------------------
 {
 	auto Codes = m_ResultCodes.shared();
@@ -1126,6 +1128,16 @@ KString kurl::Results::Print()
 	return sResult;
 
 } // Results::Print
+
+//-----------------------------------------------------------------------------
+uint16_t kurl::Results::GetLastStatus() const
+//-----------------------------------------------------------------------------
+{
+	auto Codes = m_ResultCodes.shared();
+
+	return m_iLastStatus; // using the mutex from above..
+
+} // Results::GetLastStatus
 
 //-----------------------------------------------------------------------------
 void kurl::Progress::Start(std::size_t iSize)

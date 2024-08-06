@@ -218,8 +218,9 @@ protected:
 	public:
 	//----------
 
-		void    Add   (uint16_t iResultCode, KDuration tDuration);
-		KString Print ();
+		void     Add   (uint16_t iResultCode, KDuration tDuration);
+		KString  Print () const;
+		uint16_t GetLastStatus() const;
 
 	//----------
 	private:
@@ -241,6 +242,7 @@ protected:
 		}; // Result
 
 		KThreadSafe<std::map<uint16_t, Result>> m_ResultCodes;
+		uint16_t m_iLastStatus { 0 };
 
 	}; // Results
 

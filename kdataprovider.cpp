@@ -42,6 +42,7 @@
 
 #include "kdataprovider.h"
 #include "kread.h"
+#include "kwrite.h"
 
 DEKAF2_NAMESPACE_BEGIN
 

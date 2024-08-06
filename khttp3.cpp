@@ -55,13 +55,15 @@ namespace http3
 {
 
 //-----------------------------------------------------------------------------
-Stream::Stream(Session& session, 
-			   KURL url,
-			   KHTTPMethod Method,
-			   const KHTTPRequestHeaders& RequestHeaders,
-			   KHTTPResponseHeaders& ResponseHeaders)
+Stream::Stream(
+	Session&                   Session,
+	KURL                       url,
+	KHTTPMethod                Method,
+	const KHTTPRequestHeaders& RequestHeaders,
+	KHTTPResponseHeaders&      ResponseHeaders
+)
 //-----------------------------------------------------------------------------
-: Stream(session, Type::Request)
+: Stream(Session, Type::Request)
 {
 	m_RequestHeaders  = &RequestHeaders;
 	m_ResponseHeaders = &ResponseHeaders;
@@ -1086,7 +1088,7 @@ bool Session::Run(bool bWithResponses)
 			}
 		}
 		
-		if (!GetKQuicStream().IsReadReady())
+		if (!GetKQuicStream().IsReadReady(Timeout))
 		{
 			kDebug(1, "connection timed out");
 			return false;
@@ -1130,6 +1132,9 @@ Stream::ID SingleStreamSession::SubmitRequest(
 std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, std::size_t len)
 //-----------------------------------------------------------------------------
 {
+	// this method is used by the streamreader inside KHTTPClient to grab data from the single
+	// http/3 request stream into the std::streambuf struct that serves underneath the iostream
+	// interface of KHTTPClient
 	if (!len)
 	{
 		return 0;

@@ -48,7 +48,6 @@
 #include "ktlsstream.h"
 #include "kquicstream.h"
 #include <openssl/ssl.h>
-#include <poll.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -367,9 +366,19 @@ bool KIOStreamSocket::SetSSLError()
 } // SetSSLError
 
 //-----------------------------------------------------------------------------
-bool KIOStreamSocket::CheckIfReady(int what)
+bool KIOStreamSocket::CheckIfReady(int what, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
+	if (what & POLLIN)
+	{
+		auto SSL = GetNativeTLSHandle();
+
+		if (SSL && ::SSL_pending(SSL) > 0)
+		{
+			return true;
+		}
+	}
+
 	struct pollfd pollfd;
 	pollfd.fd      = GetNativeSocket();
 	pollfd.events  = what;
@@ -378,7 +387,7 @@ bool KIOStreamSocket::CheckIfReady(int what)
 	{
 		pollfd.revents = 0;
 
-		int iResult = ::poll(&pollfd, 1, static_cast<int>(m_Timeout.milliseconds().count()));
+		int iResult = ::poll(&pollfd, 1, static_cast<int>(Timeout.milliseconds().count()));
 
 		if (iResult == 0)
 		{
@@ -407,28 +416,6 @@ bool KIOStreamSocket::CheckIfReady(int what)
 	}
 
 } // CheckIfReady
-
-//-----------------------------------------------------------------------------
-bool KIOStreamSocket::IsReadReady()
-//-----------------------------------------------------------------------------
-{
-	auto SSL = GetNativeTLSHandle();
-
-	if (SSL && ::SSL_pending(SSL) > 0)
-	{
-		return true;
-	}
-
-	return CheckIfReady(POLLIN);
-
-} // IsReadReady
-
-//-----------------------------------------------------------------------------
-bool KIOStreamSocket::IsWriteReady()
-//-----------------------------------------------------------------------------
-{
-	return CheckIfReady(POLLOUT);
-}
 
 //-----------------------------------------------------------------------------
 bool KIOStreamSocket::StartManualTLSHandshake()

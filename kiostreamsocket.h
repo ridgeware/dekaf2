@@ -51,6 +51,7 @@
 #include "kerror.h"
 #include "bits/kasio.h"
 #include <iostream>
+#include <poll.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -190,12 +191,18 @@ public:
 	/// For TLS and Quic streams: Get the Application Layer Protocol Negotiation after the TLS handshake
 	KStringView GetALPN();
 
-	/// can we read from this stream? Returns with false after timeout
-	bool IsReadReady();
-	/// can we write to this stream? Returns with false after timeout
-	bool IsWriteReady();
-	/// check any ::poll() flag with the given timeout
-	bool CheckIfReady(int what);
+	/// can we read from this stream? Returns with false after general timeout
+	bool IsReadReady()                           { return CheckIfReady(POLLIN,  m_Timeout); }
+	/// can we read from this stream? Returns with false after specified timeout
+	bool IsReadReady(KDuration Timeout)          { return CheckIfReady(POLLIN,  Timeout  ); }
+	/// can we write to this stream? Returns with false after general timeout
+	bool IsWriteReady()                          { return CheckIfReady(POLLOUT, m_Timeout); }
+	/// can we write to this stream? Returns with false after specified timeout
+	bool IsWriteReady(KDuration Timeout)         { return CheckIfReady(POLLOUT, Timeout  ); }
+	/// check any ::poll() flag with the general timeout
+	bool CheckIfReady(int what)                  { return CheckIfReady(what,    m_Timeout); }
+	/// check any ::poll() flag with the specified timeout
+	bool CheckIfReady(int what, KDuration Timeout);
 
 	// ------ static factory methods -------
 

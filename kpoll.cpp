@@ -275,7 +275,7 @@ void KPoll::Watch()
 			{
 				while (!m_bModified && !m_bStop)
 				{
-					kMilliSleep(m_Timeout > 0 ? m_Timeout.milliseconds().count() : 100);
+					kMilliSleep(m_Timeout != KDuration::zero() ? m_Timeout.milliseconds().count() : 100);
 				}
 				continue;
 			}
@@ -339,7 +339,7 @@ void KSocketWatch::Watch()
 			{
 				while (!m_bModified && !m_bStop)
 				{
-					kMilliSleep(m_Timeout > 0 ? m_Timeout.milliseconds().count() : 100);
+					kMilliSleep(m_Timeout != KDuration::zero() ? m_Timeout.milliseconds().count() : 100);
 				}
 				continue;
 			}

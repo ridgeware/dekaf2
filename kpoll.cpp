@@ -40,15 +40,57 @@
 
 #include "kpoll.h"
 
-#ifndef DEKAF2_IS_WINDOWS
-
 #include "klog.h"
 #include "ksystem.h"
-#include <sys/types.h>
-#include <sys/socket.h>
 
+#if !DEKAF2_IS_WINDOWS
+	#include <sys/types.h>
+	#include <sys/socket.h>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+//-----------------------------------------------------------------------------
+int kPoll(int handle, int what, KDuration Timeout)
+//-----------------------------------------------------------------------------
+{
+	struct pollfd pollfd;
+	pollfd.fd      = handle;
+	pollfd.events  = what;
+
+	for (;;)
+	{
+		pollfd.revents = 0;
+
+#if !DEKAF2_IS_WINDOWS
+		int iResult = ::poll(&pollfd, 1, static_cast<int>(Timeout.milliseconds().count()));
+#else
+		int iResult = WSAPoll(&pollfd, 1, static_cast<INT>(Timeout.milliseconds().count()));
+#endif
+
+		if (iResult == 0)
+		{
+			// timed out, no events
+			return 0;
+		}
+
+		if (iResult < 0)
+		{
+			if (errno == EAGAIN)
+			{
+				// interrupt
+				kDebug(2, "have an EAGAIN ..");
+				continue;
+			}
+			return errno;
+		}
+
+		// data available
+		return pollfd.revents;
+	}
+
+} // kPoll
+
 
 //-----------------------------------------------------------------------------
 KPoll::~KPoll()
@@ -233,13 +275,16 @@ void KPoll::Watch()
 			{
 				while (!m_bModified && !m_bStop)
 				{
-					kMilliSleep(m_iTimeout ? m_iTimeout : 100);
+					kMilliSleep(m_Timeout > 0 ? m_Timeout.milliseconds().count() : 100);
 				}
 				continue;
 			}
 		}
-
-		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), m_iTimeout);
+#if !DEKAF2_IS_WINDOWS
+		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), static_cast<int>(m_Timeout.milliseconds().count()));
+#else
+		auto iEvents = ::WSAPoll(fds.data(), static_cast<ULONG>(fds.size()), static_cast<INT>(m_Timeout.milliseconds().count()));
+#endif
 
 		if (iEvents < 0)
 		{
@@ -269,10 +314,10 @@ void KPoll::Watch()
 
 } // Watch
 
-#ifndef DEKAF2_IS_OSX
+#if !DEKAF2_IS_OSX && !DEKAF2_IS_WINDOWS
 	// Linux requires at least POLLIN being set to detect disconnects,
 	// and requires an additional check with recv()
-	#define DEKAF2_ADD_POLLIN
+	#define DEKAF2_ADD_POLLIN 1
 #endif
 
 //-----------------------------------------------------------------------------
@@ -294,14 +339,14 @@ void KSocketWatch::Watch()
 			{
 				while (!m_bModified && !m_bStop)
 				{
-					kMilliSleep(m_iTimeout ? m_iTimeout : 100);
+					kMilliSleep(m_Timeout > 0 ? m_Timeout.milliseconds().count() : 100);
 				}
 				continue;
 			}
 
 			for (auto& pfd : fds)
 			{
-#ifdef DEKAF2_ADD_POLLIN
+#if DEKAF2_ADD_POLLIN
 				pfd.events |= POLLIN;
 #else
 				// let MacOS detect disconnects
@@ -310,12 +355,15 @@ void KSocketWatch::Watch()
 			}
 		}
 
-#ifdef DEKAF2_ADD_POLLIN
+#if DEKAF2_IS_WINDOWS
+		// on Windows, poll with timeout
+		auto iEvents = ::WSAPoll(fds.data(), static_cast<ULONG>(fds.size()), static_cast<ULONG>(m_Timeout.milliseconds().count()));
+#elif DEKAF2_ADD_POLLIN
 		// on Linux, return immediately from poll
 		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), 0);
 #else
 		// on MacOS, poll with timeout
-		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), m_iTimeout);
+		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), static_cast<int>(m_Timeout.milliseconds().count()));
 #endif
 
 		if (iEvents < 0)
@@ -333,7 +381,7 @@ void KSocketWatch::Watch()
 			{
 				if (pfd.revents)
 				{
-#ifdef DEKAF2_ADD_POLLIN
+#if DEKAF2_ADD_POLLIN
 					// remove POLLIN from events
 					pfd.revents &= ~POLLIN;
 
@@ -367,15 +415,13 @@ void KSocketWatch::Watch()
 			}
 		}
 
-#ifdef DEKAF2_ADD_POLLIN
+#if DEKAF2_ADD_POLLIN
 		// on Linux, sleep outside poll to minimize calls to recv()
 		// for active sockets..
-		kMilliSleep(m_iTimeout);
+		kMilliSleep(m_Timeout.milliseconds().count());
 #endif
 	}
 
 } // Watch
 
 DEKAF2_NAMESPACE_END
-
-#endif // DEKAF2_IS_WINDOWS

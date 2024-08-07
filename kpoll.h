@@ -44,11 +44,8 @@
 /// Maintaining a list of file descriptors and associated actions to call when the file descriptor creates an event
 
 #include "kdefinitions.h"
-
-// there is no poll on windows, so these classes remain non-functional currently
-#ifndef DEKAF2_IS_WINDOWS
-
 #include "kthreadsafe.h"
+#include "kduration.h"
 #include <functional>
 #include <thread>
 #include <atomic>
@@ -56,9 +53,23 @@
 #include <vector>
 #include <unordered_map>
 #include <cinttypes>
-#include <poll.h>
+
+#if DEKAF2_IS_WINDOWS
+	#include <winsock2.h>
+#else
+	#include <poll.h>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+//-----------------------------------------------------------------------------
+/// poll one single fd
+/// @param fd a file descriptor
+/// @param what which events to look for
+/// @param Timeout timeout
+/// @return >0 the triggered events, 0 timeout, < 0 errno error number
+int kPoll(int fd, int what, KDuration Timeout);
+//-----------------------------------------------------------------------------
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Maintaining a list of file descriptors and associated actions to call when the file descriptor creates an event
@@ -81,8 +92,8 @@ public:
 		bool        bOnce      { false };  ///< trigger only once, or repeatedly?
 	};
 
-	KPoll(uint32_t iMilliseconds = 100, bool bAutoStart = true)
-	: m_iTimeout(iMilliseconds)
+	KPoll(KDuration Timeout = chrono::milliseconds(100), bool bAutoStart = true)
+	: m_Timeout(Timeout)
 	, m_bAutoStart(bAutoStart)
 	{
 	}
@@ -107,7 +118,7 @@ protected:
 	void Triggered(int fd, uint16_t events);
 	virtual void Watch();
 
-	uint32_t          m_iTimeout   {   100 };
+	KDuration         m_Timeout    { chrono::milliseconds(100) };
 	std::atomic<bool> m_bModified  { false };
 	std::atomic<bool> m_bStop      { false };
 
@@ -145,42 +156,5 @@ protected:
 	virtual void Watch() override final;
 
 }; // KSocketWatch
-
-#else // DEKAF2_IS_WINDOWS
-
-DEKAF2_NAMESPACE_BEGIN
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// non-functional version for Windows
-class DEKAF2_PUBLIC KPoll
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	/// the callback
-	using CallbackT = std::function<void(int, uint16_t, std::size_t)>;
-
-	struct Parameters
-	{
-		CallbackT   Callback;
-		std::size_t iParameter { 0 };
-		uint16_t    iEvents    { 0 };
-		bool        bOnce      { false };
-	};
-
-	KPoll(uint32_t iMilliseconds = 100, bool bAutoStart = true) {}
-	void Add(int fd, Parameters Parms) {}
-	void Remove(int fd) {}
-	void Start() {}
-	void Stop() {}
-
-}; // KPoll
-
-using KSocketWatch = KPoll;
-
-#endif // DEKAF2_IS_WINDOWS
 
 DEKAF2_NAMESPACE_END

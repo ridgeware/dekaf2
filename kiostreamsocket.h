@@ -51,7 +51,12 @@
 #include "kerror.h"
 #include "bits/kasio.h"
 #include <iostream>
-#include <poll.h>
+
+#if DEKAF2_IS_WINDOWS
+	#include <winsock2.h>
+#else
+	#include <poll.h>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 

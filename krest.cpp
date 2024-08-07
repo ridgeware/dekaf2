@@ -234,7 +234,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				kDebug(1, "starting standalone {} server on port {}...", bUseTLS ? "HTTPS" : "HTTP", Options.iPort);
 				Options.Out = KRESTServer::HTTP;
 
-				m_SocketWatch     = std::make_unique<KSocketWatch>(250);
+				m_SocketWatch     = std::make_unique<KSocketWatch>(chrono::milliseconds(250));
 				m_WebSocketServer = std::make_unique<KWebSocketServer>();
 				m_Server          = std::make_unique<RESTServer>(Options,
 																 Routes,
@@ -296,7 +296,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				KLog::getInstance().SetMode(KLog::SERVER);
 				kDebug(1, "starting standalone HTTP server on socket file {}...", Options.sSocketFile);
 				Options.Out       = KRESTServer::HTTP;
-				m_SocketWatch     = std::make_unique<KSocketWatch>(250);
+				m_SocketWatch     = std::make_unique<KSocketWatch>(chrono::milliseconds(250));
 				m_WebSocketServer = std::make_unique<KWebSocketServer>();
 				m_Server          = std::make_unique<RESTServer>(Options,
 																 Routes,

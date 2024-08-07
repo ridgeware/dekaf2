@@ -47,6 +47,7 @@
 #include "ktcpstream.h"
 #include "ktlsstream.h"
 #include "kquicstream.h"
+#include "kpoll.h"
 #include <openssl/ssl.h>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -379,41 +380,20 @@ bool KIOStreamSocket::CheckIfReady(int what, KDuration Timeout)
 		}
 	}
 
-	struct pollfd pollfd;
-	pollfd.fd      = GetNativeSocket();
-	pollfd.events  = what;
+	auto iResult = kPoll(GetNativeSocket(), what, Timeout);
 
-	for (;;)
+	if (iResult == 0)
 	{
-		pollfd.revents = 0;
-
-		int iResult = ::poll(&pollfd, 1, static_cast<int>(Timeout.milliseconds().count()));
-
-		if (iResult == 0)
-		{
-			// timed out, no events
-			return SetError(kFormat("connection with {} timed out after {}", GetEndPoint(), m_Timeout));
-		}
-
-		if (iResult < 0)
-		{
-			if (errno == EAGAIN)
-			{
-				// interrupt
-				kDebug(2, "have an EAGAIN ..");
-				continue;
-			}
-			return SetErrnoError("error during poll: ");
-		}
-
-		if (pollfd.revents & what)
-		{
-			// data available
-			return true;
-		}
-
-		return SetError("unknown error");
+		// timed out, no events
+		return SetError(kFormat("connection with {} timed out after {}", GetEndPoint(), m_Timeout));
 	}
+	else if (iResult < 0)
+	{
+		return SetErrnoError("error during poll: ");
+	}
+
+	// data available
+	return true;
 
 } // CheckIfReady
 

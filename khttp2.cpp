@@ -59,10 +59,8 @@
 	#define DEKAF2_OLD_NGHTTP2_VERSION 1
 #endif
 
-#if DEKAF2_OLD_NGHTTP2_VERSION
-static_assert(std::is_same<::ssize_t, dekaf2::http2::nghttp2_ssize>::value, "ssize_t != ssize_t");
-#else
-static_assert(std::is_same<nghttp2_ssize, dekaf2::http2::nghttp2_ssize>::value, "nghttp2_ssize != ssize_t");
+#if !DEKAF2_OLD_NGHTTP2_VERSION
+static_assert(std::is_same<nghttp2_ssize, dekaf2::http2::nghttp2_ssize>::value, "nghttp2_ssize != ptrdiff_t");
 #endif
 
 DEKAF2_NAMESPACE_BEGIN

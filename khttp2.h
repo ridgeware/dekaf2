@@ -71,7 +71,7 @@ DEKAF2_NAMESPACE_BEGIN
 namespace http2
 {
 
-using nghttp2_ssize = ::ssize_t;
+using nghttp2_ssize = ::ptrdiff_t;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A Stream describes one request/response stream in a HTTP/2 Session (of which HTTP/2 can have many)

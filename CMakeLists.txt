@@ -1287,13 +1287,19 @@ target_include_directories(date-tz
 	$<INSTALL_INTERFACE:${dekaf2_include_dest}>
 )
 
+if (IS_WINDOWS)
+	set(USE_OS_TZDB 0)
+else()
+	set(USE_OS_TZDB 1)
+endif()
+
 target_compile_definitions(date-tz
 	PRIVATE
 	AUTO_DOWNLOAD=0
 	HAS_REMOTE_API=0
 	INSTALL=.
 	PUBLIC
-	USE_OS_TZDB=1
+	USE_OS_TZDB=${USE_OS_TZDB}
 )
 
 if (DEKAF2_STD_CHRONO_HAS_LOCAL_T)

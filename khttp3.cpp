@@ -40,6 +40,21 @@
  //
  */
 
+/*
+ * Portions of this code have been written based on the OpenSSL demo code for
+ * the HTTP/3 integration of the OpenSSL QUIC layer and nghttp3. The OpenSSL
+ * demo code uses the below copyright.
+ */
+
+/*
+ * Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 #include "khttp3.h"
 
 #if DEKAF2_HAS_NGHTTP3 && DEKAF2_HAS_OPENSSL_QUIC
@@ -1159,7 +1174,6 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 	// check if we have already filled the buffer..
 	if (len > static_cast<std::size_t>(iRead))
 	{
-		kDebug(3, "pumping more data into stream");
 		// read only until we got some data for this stream (maybe we got already buffered some..)
 		if (Stream->ReceiveFromQuic(/*bOnce*/true) < 0)
 		{

@@ -13,7 +13,7 @@ inline bool nghttp2_test()
 #else
 inline bool nghttp2_test()
 {
-	static_assert(std::is_same<nghttp2_ssize, ssize_t>::value, "nghttp2_ssize != ssize_t");
+	static_assert(std::is_same<nghttp2_ssize, ptrdiff_t>::value, "nghttp2_ssize != ptrdiff_t");
 
 	nghttp2_data_provider2 Data;
 	Data.read_callback = nullptr;

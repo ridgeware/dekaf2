@@ -43,4 +43,26 @@ TEST_CASE("kFormat")
 #endif
 		CHECK ( kFormat("{:%H:%M:%S}", 3h + 15min + 30s) == "03:15:30");
 	}
+
+	SECTION("char*")
+	{
+		CHECK ( kFormat("hello {}", "test 123456789012345678901234567890") == "hello test 123456789012345678901234567890" );
+	}
+
+	SECTION("char[]")
+	{
+		char buffer[1024];
+		std::memset(buffer, '-', 1024);
+		strcpy(buffer, "test 123456789012345678901234567890");
+		auto s = kFormat("hello {}", buffer);
+		CHECK ( kFormat("hello {}", buffer) == "hello test 123456789012345678901234567890" );
+	}
+
+	SECTION("KStringView")
+	{
+		char buffer[1024];
+		std::memset(buffer, '+', 1024);
+		strcpy(buffer, "test 123456789012345678901234567890");
+		CHECK ( kFormat("hello {}", KStringView(buffer)) == "hello test 123456789012345678901234567890" );
+	}
 }

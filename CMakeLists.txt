@@ -53,9 +53,13 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 	# allow mixed case find_package names (Boost needs this with cmake 3.27)
 	cmake_policy(SET CMP0144 OLD)
 endif()
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
+	# use boosts own BoostConfig.cmake
+	cmake_policy(SET CMP0167 OLD)
+endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.61 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.0.62 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -189,12 +193,17 @@ endif()
 
 if (IS_WINDOWS)
 	# on Windows, disable asan/ubsan
-	SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
+	set(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 	# we check for unix sockets on Windows 10 or later once we know the boost version
+	# disable the internal format lib, it does not build
+	if (DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT)
+		message(STATUS "the internal fmtlib does not build on Windows - using either std::format or a fmtlib installed elsewhere")
+		set(DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT OFF)
+	endif()
 else ()
 	# on Unixes, enable unix sockets and pipes
-	SET(DEKAF2_HAS_UNIX_SOCKETS ON)
-	SET(DEKAF2_HAS_PIPES ON)
+	set(DEKAF2_HAS_UNIX_SOCKETS ON)
+	set(DEKAF2_HAS_PIPES ON)
 endif()
 
 if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
@@ -422,6 +431,11 @@ endif ()
 # dekaf2's http part needs iostreams
 
 find_package(Boost 1.54 COMPONENTS system iostreams)
+
+if (EXISTS "${Boost_INCLUDE_DIR}/multi_index")
+	# vcpackage makes multi_index a component..
+	find_package(Boost 1.54 COMPONENTS multi_index)
+endif()
 
 if (NOT Boost_FOUND)
 	if (DEKAF2_NO_BUILDSETUP OR IS_WINDOWS)
@@ -769,6 +783,7 @@ set (BITS_HEADERS
 	bits/kbasepipe.h
 	bits/kfilesystem.h
 	bits/kfindsetofchars.h
+	bits/kformat.h
 	bits/khash.h
 	bits/kiostreams_filters.h
 	bits/klogwriter.h

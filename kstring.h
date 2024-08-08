@@ -52,7 +52,7 @@
 #include "bits/kstring_view.h"
 #include "ktemplate.h"
 #include "kctype.h"
-#include <fmt/format.h>
+#include "bits/kformat.h"
 #include <string>
 #include <istream>
 #include <ostream>
@@ -859,8 +859,10 @@ public:
 	/// return the string type as an rvalue
 	operator string_type&&() &&            { return std::move(m_rep);    }
 
+#if DEKAF2_HAS_FMT_FORMAT
 	/// helper operator to allow KString as formatting arg of fmt::format
-	operator fmt::string_view() const;
+	operator DEKAF2_FORMAT_NAMESPACE::string_view() const;
+#endif
 
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	/// allowing conversion into std::string_view
@@ -2214,6 +2216,7 @@ DEKAF2_NAMESPACE_END
 
 DEKAF2_NAMESPACE_BEGIN
 
+#if DEKAF2_HAS_FMT_FORMAT
 //----------------------------------------------------------------------
 /// helper operator to allow KString as formatting arg of fmt::format
 inline KString::operator DEKAF2_FORMAT_NAMESPACE ::string_view() const
@@ -2221,6 +2224,7 @@ inline KString::operator DEKAF2_FORMAT_NAMESPACE ::string_view() const
 {
 	return DEKAF2_FORMAT_NAMESPACE::string_view(data(), size());
 }
+#endif
 
 //----------------------------------------------------------------------
 template<class... Args>

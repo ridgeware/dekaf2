@@ -275,7 +275,7 @@ KUTCTime Kron::Job::Next(const KUTCTime& tAfter) const
 		return KUTCTime(m_tOnce);
 	}
 
-	KUTCTime UTC = KCronParser::cron_next(*cxget(m_ParsedCron), tAfter.to_tm());
+	KUTCTime UTC = KUTCTime(KCronParser::cron_next(*cxget(m_ParsedCron), tAfter.to_tm()));
 	kDebug(2, "next execution time for job '{}': {}", Name(), UTC.Format());
 
 	return UTC;

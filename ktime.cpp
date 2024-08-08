@@ -1270,11 +1270,26 @@ KStringView CheckTimeFormatString(KStringView sFormat)
 KString BuildTimeFormatString(KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
+	// wrap this "%Y-%m-%d %H:%M:%S" in this "{:%Y-%m-%d %H:%M:%S}"
+	// but take care of this: "Hello {:%Y}"
+	//                        "{:%Y} years"
+	// and even               "Hello {:%Y} how {:m} are you"
+	// but also               "Hello %Y"
+	// and                    "Hello %Y how %m are you"
 	KString sFormatString;
 	sFormatString.reserve(sFormat.size() + 3);
 
-	sFormatString  = "{:";
-	sFormatString += sFormat;
+	auto iPos = sFormat.find('%');
+
+	if (iPos == KStringView::npos)
+	{
+		// no format codes??
+		return sFormat;
+	}
+
+	sFormatString = sFormat.ToView(0, iPos);
+	sFormatString += "{:";
+	sFormatString += sFormat.ToView(iPos);
 	sFormatString += '}';
 
 	return sFormatString;
@@ -1285,7 +1300,21 @@ KString BuildTimeFormatString(KStringView sFormat)
 constexpr inline bool TimeFormatStringIsOK(KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
-	return sFormat.size() > 2 && *sFormat.begin() == '{' && *(sFormat.begin() + 1) == ':';
+	// check this             "{:%Y-%m-%d %H:%M:%S}"
+	// but take care of this: "Hello {:%Y}"
+	//                        "{:%Y} years"
+	// and even               "Hello {:%Y} how {:%m} are you"
+	if (sFormat.size() > 2 && *sFormat.begin() == '{' && *(sFormat.begin() + 1) == ':' && *(sFormat.end()) == '}')
+	{
+		return true;
+	}
+
+	if (sFormat.find("{:%") != KStringView::npos || sFormat.find("{:}") != KStringView::npos)
+	{
+		return true;
+	}
+
+	return sFormat.find('%') == KStringView::npos;
 }
 
 #endif // DEKAF2_USE_TIME_PUT
@@ -1293,14 +1322,53 @@ constexpr inline bool TimeFormatStringIsOK(KStringView sFormat)
 } // of anonymous namespace
 
 //-----------------------------------------------------------------------------
-KString detail::FormWebTimestamp (const std::tm& tTime, KStringView sTimezoneDesignator)
+KString detail::FormWebTimestamp (const KUTCTime& time, KStringView sTimezoneDesignator)
 //-----------------------------------------------------------------------------
 {
-	return DEKAF2_PREFIX kFormat("{:%a, %d %b %Y %H:%M:%S} {}", tTime, sTimezoneDesignator);
+	return DEKAF2_PREFIX kFormat("{:%a, %d %b %Y %H:%M:%S} {}", time, sTimezoneDesignator);
 }
 
 //-----------------------------------------------------------------------------
-KString detail::FormTimestamp (const std::locale& locale, const std::tm& time, KStringView sFormat)
+KString kFormTimestamp (const std::tm& time, KStringView sFormat)
+//-----------------------------------------------------------------------------
+{
+	// we don't repeat the DEKAF2_USE_TIME_PUT path here, it is unused.
+	if (TimeFormatStringIsOK(sFormat))
+	{
+		return DEKAF2_PREFIX kFormat(sFormat, time);
+	}
+
+	return DEKAF2_PREFIX kFormat(BuildTimeFormatString(sFormat), time);
+}
+
+//-----------------------------------------------------------------------------
+KString kFormTimestamp (const KConstDate& date, KStringView sFormat)
+//-----------------------------------------------------------------------------
+{
+	// we don't repeat the DEKAF2_USE_TIME_PUT path here, it is unused.
+	if (TimeFormatStringIsOK(sFormat))
+	{
+		return DEKAF2_PREFIX kFormat(sFormat, date);
+	}
+
+	return DEKAF2_PREFIX kFormat(BuildTimeFormatString(sFormat), date);
+}
+
+//-----------------------------------------------------------------------------
+KString kFormTimestamp (const std::locale& locale, const KConstDate& date, KStringView sFormat)
+//-----------------------------------------------------------------------------
+{
+	// we don't repeat the DEKAF2_USE_TIME_PUT path here, it is unused.
+	if (TimeFormatStringIsOK(sFormat))
+	{
+		return DEKAF2_PREFIX kFormat(locale, sFormat, date);
+	}
+
+	return DEKAF2_PREFIX kFormat(locale, BuildTimeFormatString(sFormat), date);
+}
+
+//-----------------------------------------------------------------------------
+KString detail::FormTimestamp (const std::locale& locale, const KUnixTime& time, KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
 #if DEKAF2_USE_TIME_PUT
@@ -1328,7 +1396,7 @@ KString detail::FormTimestamp (const std::locale& locale, const std::tm& time, K
 }
 
 //-----------------------------------------------------------------------------
-KString detail::FormTimestamp (const std::tm& time, KStringView sFormat)
+KString detail::FormTimestamp (const KUnixTime& time, KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
 #if DEKAF2_USE_TIME_PUT
@@ -1355,23 +1423,55 @@ KString detail::FormTimestamp (const std::tm& time, KStringView sFormat)
 
 } // kFormTimestamp
 
+//-----------------------------------------------------------------------------
+KString detail::FormTimestamp (const std::locale& locale, const KUTCTime& time, KStringView sFormat)
+//-----------------------------------------------------------------------------
+{
+	// we don't repeat the DEKAF2_USE_TIME_PUT path here, it is unused.
+	if (TimeFormatStringIsOK(sFormat))
+	{
+		return DEKAF2_PREFIX kFormat(locale, sFormat, time);
+	}
+
+	return DEKAF2_PREFIX kFormat(locale, BuildTimeFormatString(sFormat), time);
+}
+
+//-----------------------------------------------------------------------------
+KString detail::FormTimestamp (const KUTCTime& time, KStringView sFormat)
+//-----------------------------------------------------------------------------
+{
+	// we don't repeat the DEKAF2_USE_TIME_PUT path here, it is unused.
+	if (TimeFormatStringIsOK(sFormat))
+	{
+		return DEKAF2_PREFIX kFormat(sFormat, time);
+	}
+
+	return DEKAF2_PREFIX kFormat(BuildTimeFormatString(sFormat), time);
+}
+
 #if DEKAF2_HAS_TIMEZONES
 //-----------------------------------------------------------------------------
 KString kFormTimestamp (const std::locale& locale, const KLocalTime& tLocal, KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
-	// fmt uses std::tm as base - convert into it and avoid
-	// calling with chrono::time_point
-	return detail::FormTimestamp(locale, tLocal.to_tm(), sFormat);
+	if (TimeFormatStringIsOK(sFormat))
+	{
+		return DEKAF2_PREFIX kFormat(locale, sFormat, tLocal);
+	}
+
+	return DEKAF2_PREFIX kFormat(locale, BuildTimeFormatString(sFormat), tLocal);
 }
 
 //-----------------------------------------------------------------------------
 KString kFormTimestamp (const KLocalTime& tLocal, KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
-	// fmt uses std::tm as base - convert into it and avoid
-	// calling with chrono::time_point
-	return detail::FormTimestamp(tLocal.to_tm(), sFormat);
+	if (TimeFormatStringIsOK(sFormat))
+	{
+		return DEKAF2_PREFIX kFormat(sFormat, tLocal);
+	}
+
+	return DEKAF2_PREFIX kFormat(BuildTimeFormatString(sFormat), tLocal);
 }
 #endif
 
@@ -1379,13 +1479,11 @@ KString kFormTimestamp (const KLocalTime& tLocal, KStringView sFormat)
 KString kFormTimestamp (const std::locale& locale, const KUTCTime& tUTC, KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
-	// fmt uses std::tm as base - convert into it and avoid
-	// calling with chrono::time_point
 	if (!tUTC.ok())
 	{
-		return detail::FormTimestamp(locale, kNow().to_tm(), sFormat);
+		return detail::FormTimestamp(locale, kNow(), sFormat);
 	}
-	return detail::FormTimestamp(locale, tUTC.to_tm(), sFormat);
+	return detail::FormTimestamp(locale, tUTC, sFormat);
 
 } // kFormTimestamp
 
@@ -1393,13 +1491,11 @@ KString kFormTimestamp (const std::locale& locale, const KUTCTime& tUTC, KString
 KString kFormTimestamp (const KUTCTime& tUTC, KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
-	// fmt uses std::tm as base - convert into it and avoid
-	// calling with chrono::time_point
 	if (!tUTC.ok())
 	{
-		return detail::FormTimestamp(kNow().to_tm(), sFormat);
+		return detail::FormTimestamp(kNow(), sFormat);
 	}
-	return detail::FormTimestamp(tUTC.to_tm(), sFormat);
+	return detail::FormTimestamp(tUTC, sFormat);
 
 } // kFormTimestamp
 
@@ -1407,7 +1503,7 @@ KString kFormTimestamp (const KUTCTime& tUTC, KStringView sFormat)
 DEKAF2_PUBLIC KString kFormCommonLogTimestamp (const KUTCTime& tUTC)
 //-----------------------------------------------------------------------------
 {
-	return kFormat("[{:%d/%b/%Y:%H:%M:%S %z}]", tUTC);
+	return kFormat("[{:%d/%b/%Y:%H:%M:%S +0000}]", tUTC);
 }
 
 //-----------------------------------------------------------------------------
@@ -1445,7 +1541,14 @@ KUnixTime::KUnixTime(KStringView sFormat, KStringView sTimestamp)
 KString KConstTimeOfDay::to_string (KStringView sFormat) const
 //-----------------------------------------------------------------------------
 {
-	return detail::FormTimestamp (to_tm(), sFormat);
+//	return detail::FormTimestamp (to_tm(), sFormat); // TODO check if this is needed for fmt::format!
+	if (TimeFormatStringIsOK(sFormat))
+	{
+		return DEKAF2_PREFIX kFormat(sFormat, *this);
+	}
+
+	return DEKAF2_PREFIX kFormat(BuildTimeFormatString(sFormat), *this);
+
 }
 
 //-----------------------------------------------------------------------------
@@ -1470,7 +1573,7 @@ KString KUTCTime::to_string (KStringView sFormat) const
 	{
 		return KString();
 	}
-	return detail::FormTimestamp (to_tm(), sFormat);
+	return detail::FormTimestamp (*this, sFormat);
 }
 
 #if DEKAF2_HAS_TIMEZONES
@@ -1496,7 +1599,7 @@ KString KLocalTime::to_string (KStringView sFormat) const
 	{
 		return KString();
 	}
-	return detail::FormTimestamp (to_tm(), sFormat);
+	return kFormTimestamp (*this, sFormat);
 }
 
 //-----------------------------------------------------------------------------
@@ -1507,7 +1610,7 @@ KString KLocalTime::to_string (const std::locale& locale, KStringView sFormat) c
 	{
 		return KString();
 	}
-	return detail::FormTimestamp (locale, to_tm(), sFormat);
+	return kFormTimestamp (locale, *this, sFormat);
 }
 
 //-----------------------------------------------------------------------------

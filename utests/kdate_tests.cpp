@@ -149,7 +149,19 @@ TEST_CASE("KDate")
 		CHECK ( Date2 - Date1 == chrono::days(60)  );
 		CHECK ( Date1.to_tm().tm_isdst == 0        );
 		CHECK_NOTHROW( Date1.to_string("%Y%Z")     );
-		CHECK ( Date1.to_string("%Y%Z") == "2024"  ); // this would look differently with time_put() and gcc..
+		auto s = Date1.to_string("%Y%Z");
+#if DEKAF2_HAS_STD_FORMAT
+		// with time_put() and gcc the result is the empty string (actually it throws because:
+		// "The supplied date time doesn't contain a time zone"
+		if (!s.empty())
+#endif
+		{
+			CHECK ( s == "2024"  );
+		}
+		CHECK ( Date1.to_string("Hello %Y") == "Hello 2024");
+		CHECK ( Date1.to_string("{:%Y} years") == "2024 years" );
+		CHECK ( Date1.to_string("Hello {:%Y how %m} are you") == "Hello 2024 how 02 are you" );
+		CHECK ( Date1.to_string("Hello %Y how %m are you") == "Hello 2024 how 02 are you" );
 	}
 
 	SECTION("next previous")

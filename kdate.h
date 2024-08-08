@@ -892,6 +892,7 @@ DEKAF2_NAMESPACE_END
 
 namespace DEKAF2_FORMAT_NAMESPACE {
 
+#if DEKAF2_HAS_FMT_FORMAT
 template<> struct formatter<DEKAF2_PREFIX KConstDate> : formatter<std::tm>
 {
 	template <typename FormatContext>
@@ -900,7 +901,18 @@ template<> struct formatter<DEKAF2_PREFIX KConstDate> : formatter<std::tm>
 		return formatter<std::tm>::format(date.to_tm(), ctx);
 	}
 };
+#else
+template<> struct formatter<DEKAF2_PREFIX KConstDate> : formatter<std::chrono::year_month_day>
+{
+	template <typename FormatContext>
+	auto format(const DEKAF2_PREFIX KConstDate& date, FormatContext& ctx) const
+	{
+		return formatter<std::chrono::year_month_day>::format(std::chrono::year_month_day(date), ctx);
+	}
+};
+#endif
 
+#if DEKAF2_HAS_FMT_FORMAT
 template<> struct formatter<DEKAF2_PREFIX KDate> : formatter<std::tm>
 {
 	template <typename FormatContext>
@@ -909,6 +921,16 @@ template<> struct formatter<DEKAF2_PREFIX KDate> : formatter<std::tm>
 		return formatter<std::tm>::format(date.to_tm(), ctx);
 	}
 };
+#else
+template<> struct formatter<DEKAF2_PREFIX KDate> : formatter<std::chrono::year_month_day>
+{
+	template <typename FormatContext>
+	auto format(const DEKAF2_PREFIX KDate& date, FormatContext& ctx) const
+	{
+		return formatter<std::chrono::year_month_day>::format(std::chrono::year_month_day(date), ctx);
+	}
+};
+#endif
 
 template<> struct formatter<DEKAF2_PREFIX KDays> : formatter<string_view>
 {

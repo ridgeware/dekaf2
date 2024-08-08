@@ -1426,7 +1426,12 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 	// that no version is set - which will corrupt headers and body..
 	Response.SetHTTPVersion(KHTTPVersion::http11);
 
-	KStringViewZ sError = ex.what();
+	KString sError = ex.what();
+
+	if (sError.empty())
+	{
+		sError = Response.GetStatusString();
+	}
 
 	kDebug (1, "HTTP-{}: {}\n{}",  Response.iStatusCode, Response.sStatusString, sError);
 
@@ -1472,10 +1477,12 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 				{
 					// write the error message as an HTML page if there is no
 					// JSON error output and the content type is HTML
-					sContent = kFormat("<html><head>HTTP Error {}</head><body><h2>{} {}</h2></body></html>\n",
+					// warning: when using clang's std::format, the below throws a format error when
+					// the {} and </h2> are directly adjacent (no space).
+					sContent = kFormat("<html><head>HTTP Error {}</head><body><h2>{} {} </h2></body></html>\n",
 					                   Response.GetStatusCode(),
 					                   Response.GetStatusCode(),
-					                   sError.empty() ? Response.GetStatusString().ToView() : sError);
+					                   sError);
 				}
 				else
 				{
@@ -1569,10 +1576,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 
 		case CLI:
 		{
-			Response.UnfilteredStream().FormatLine("{}: {}",
-			                                       Dekaf::getInstance().GetProgName(),
-			                                       sError.empty() ? Response.sStatusString.ToView()
-			                                                      : sError);
+			Response.UnfilteredStream().FormatLine("{}: {}", Dekaf::getInstance().GetProgName(), sError);
 		}
 		break;
 	}

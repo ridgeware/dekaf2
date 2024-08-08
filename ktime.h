@@ -156,10 +156,11 @@ public:
 //--------
 
 	using self       = KUnixTime;
-	using base       = chrono::system_clock::time_point;
-	using time_point = chrono::system_clock::time_point;
 	using clock      = chrono::system_clock;
-	
+	using base       = clock::time_point;
+	using time_point = clock::time_point;
+	using duration   = clock::duration;
+
 	                             KUnixTime() = default;
 	DEKAF2_CONSTEXPR_14          KUnixTime(const base& other) noexcept : base(other) {}
 	DEKAF2_CONSTEXPR_14          KUnixTime(base&& other)      noexcept : base(std::move(other)) {}
@@ -205,6 +206,9 @@ public:
 	/// converts to std::tm timepoint (constexpr)
 	DEKAF2_NODISCARD
 	DEKAF2_CONSTEXPR_14 std::tm     to_tm     ()              const noexcept { return to_tm(*this);                                          }
+	/// converts to std::chrono::sys_time
+	DEKAF2_NODISCARD
+	DEKAF2_CONSTEXPR_14 chrono::sys_time<duration>to_sys_time() const noexcept { return *this;                                               }
 	/// converts to string
 	                    KString     to_string (KStringView sFormat = detail::fDefaultDateTime) const noexcept;
 
@@ -447,6 +451,20 @@ public:
 	/// convert into a std::tm (date part is obviously zeroed)
 	DEKAF2_NODISCARD
 	constexpr std::tm         to_tm       () const noexcept;
+	/// convert into std::hh_mm_ss with subseconds
+	DEKAF2_NODISCARD
+	constexpr chrono::hh_mm_ss<precision> to_hh_mm_ss_subseconds() const noexcept
+	{
+		return chrono::hh_mm_ss<precision>(to_duration());
+	}
+	/// convert into std::hh_mm_ss without subseconds
+	DEKAF2_NODISCARD
+	constexpr chrono::hh_mm_ss<chrono::seconds> to_hh_mm_ss() const noexcept
+	{
+		auto dur = hours() + minutes() + seconds();
+		dur = is_negative() ? -dur : dur;
+		return chrono::hh_mm_ss<chrono::seconds>(dur);
+	}
 
 	// a KConstTimeOfDay is always in the valid range, it does not need a check for bool ok() ..
 
@@ -596,7 +614,7 @@ public:
 	}
 
 	/// construct from a struct tm time
-	DEKAF2_CONSTEXPR_14 KUTCTime (const std::tm& tm) noexcept
+	DEKAF2_CONSTEXPR_14 explicit KUTCTime (const std::tm& tm) noexcept
 	: KUTCTime(KUnixTime(tm))
 	{
 	}
@@ -744,6 +762,11 @@ public:
 	{
 	}
 
+	explicit KLocalTime (const std::tm& time)
+	: KLocalTime(KUnixTime(time))
+	{
+	}
+
 	/// construct from a chrono::zoned_time
 	explicit KLocalTime (const zoned_time& time) noexcept
 	: zoned_time(time)
@@ -828,6 +851,9 @@ public:
 	/// return a string following std::format patterns, using the given locale - default = %Y-%m-%d %H:%M:%S
 	DEKAF2_NODISCARD
 	KString             to_string (const std::locale& locale, KStringView sFormat = detail::fDefaultDateTime) const;
+	/// return zoned time
+	DEKAF2_NODISCARD
+	const zoned_time&   to_zoned_time() const { return *this; }
 
 	/// zero cost conversion, but loses time zone properties in implicit conversion..
 	explicit   operator chrono::system_clock::time_point () const { return to_sys(); }
@@ -1052,9 +1078,11 @@ DEKAF2_PUBLIC const std::array<KString, 12>& GetDefaultLocalMonthNames(bool bAbb
 DEKAF2_PUBLIC const std::array<KString,  7>& GetDefaultLocalDayNames  (bool bAbbreviated);
 
 // "Tue, 03 Aug 2021 10:23:42 +0000"
-DEKAF2_PUBLIC                   KString FormWebTimestamp (const std::tm& tTime, KStringView sTimezoneDesignator);
-DEKAF2_PUBLIC                   KString FormTimestamp    (const std::tm& time, KStringView sFormat);
-DEKAF2_PUBLIC                   KString FormTimestamp    (const std::locale& locale, const std::tm& time, KStringView sFormat);
+DEKAF2_NODISCARD DEKAF2_PUBLIC KString FormWebTimestamp (const KUTCTime& time, KStringView sTimezoneDesignator);
+DEKAF2_NODISCARD DEKAF2_PUBLIC KString FormTimestamp    (const KUnixTime& time, KStringView sFormat);
+DEKAF2_NODISCARD DEKAF2_PUBLIC KString FormTimestamp    (const std::locale& locale, const KUnixTime& time, KStringView sFormat);
+DEKAF2_NODISCARD DEKAF2_PUBLIC KString FormTimestamp    (const KUTCTime& time, KStringView sFormat);
+DEKAF2_NODISCARD DEKAF2_PUBLIC KString FormTimestamp    (const std::locale& locale, const KUTCTime& time, KStringView sFormat);
 
 } // end of namespace detail
 
@@ -1092,35 +1120,48 @@ DEKAF2_NODISCARD DEKAF2_PUBLIC
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 constexpr chrono::weekday kDayOfWeek              (chrono::year year, chrono::month month, chrono::day day) { return detail::weekday_from_civil(chrono::year_month_day(year/month/day)); }
 
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+                  KString kFormTimestamp          (const std::tm& time, KStringView sFormat = detail::fDefaultDateTime);
+
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+                  KString kFormTimestamp          (const KConstDate& date, KStringView sFormat = detail::fDefaultDate);
+
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+                  KString kFormTimestamp          (const std::locale& locale, const KConstDate& date, KStringView sFormat = detail::fDefaultDate);
+
 /// Create a UTC time stamp following std::format patterns
 /// @param tUTC KUTCTime. If !ok(), queries current time from the system, defaults to current time
-/// @param sFormat format string, defaults to "%Y-%m-%d %H:%M:%S"
+/// @param sFormat format string, defaults to "{:%Y-%m-%d %H:%M:%S}"
 /// @return the timestamp string
 DEKAF2_NODISCARD DEKAF2_PUBLIC
                   KString kFormTimestamp          (const KUTCTime& tUTC = KUTCTime::now(), KStringView sFormat = detail::fDefaultDateTime);
 
+#if DEKAF2_HAS_TIMEZONES
 /// Create a local time stamp following std::format patterns
 /// @param tLocal KLocalTime
-/// @param sFormat format string, defaults to "%Y-%m-%d %H:%M:%S"
+/// @param sFormat format string, defaults to "{:%Y-%m-%d %H:%M:%S}"
 /// @return the timestamp string
 DEKAF2_NODISCARD DEKAF2_PUBLIC
                    KString kFormTimestamp          (const KLocalTime& tLocal, KStringView sFormat = detail::fDefaultDateTime);
+#endif
 
 /// Create a time stamp following std::format patterns
 /// @param locale a system locale to localize day and month names
 /// @param tUTC KUTCTime. If !ok(), queries current time from the system
-/// @param sFormat format string, defaults to "%Y-%m-%d %H:%M:%S"
+/// @param sFormat format string, defaults to "{:%Y-%m-%d %H:%M:%S}"
 /// @return the timestamp string
 DEKAF2_NODISCARD DEKAF2_PUBLIC
                    KString kFormTimestamp          (const std::locale& locale, const KUTCTime& tUTC, KStringView sFormat = detail::fDefaultDateTime);
 
+#if DEKAF2_HAS_TIMEZONES
 /// Create a time stamp following std::format patterns
 /// @param locale a system locale to localize day and month names
 /// @param tLocal KLocalTime
-/// @param sFormat format string, defaults to "%Y-%m-%d %H:%M:%S"
+/// @param sFormat format string, defaults to "{:%Y-%m-%d %H:%M:%S}"
 /// @return the timestamp string
 DEKAF2_NODISCARD DEKAF2_PUBLIC
                    KString kFormTimestamp          (const std::locale& locale, const KLocalTime& tLocal, KStringView sFormat = detail::fDefaultDateTime);
+#endif
 
 /// Create a HTTP time stamp
 /// @param tUTC KUTCTime, defaults to current time
@@ -1230,7 +1271,7 @@ inline                     KString kTranslateDuration   (const KDuration& Durati
 
 
 /// converts to string
-inline KString KUnixTime::to_string (KStringView sFormat) const noexcept { return detail::FormTimestamp(to_tm(), sFormat); }
+inline KString KUnixTime::to_string (KStringView sFormat) const noexcept { return detail::FormTimestamp(*this, sFormat); }
 
 DEKAF2_NAMESPACE_END
 
@@ -1243,6 +1284,19 @@ DEKAF2_NAMESPACE_END
 namespace DEKAF2_FORMAT_NAMESPACE
 {
 
+#if !DEKAF2_HAS_FMT_FORMAT
+template<> struct formatter<std::tm> : formatter<std::chrono::sys_time<std::chrono::seconds>>
+{
+	template <typename FormatContext>
+	DEKAF2_CONSTEXPR_14
+	auto format(const std::tm& time, FormatContext& ctx) const
+	{
+		return formatter<std::chrono::sys_time<std::chrono::seconds>>::format(std::chrono::floor<std::chrono::seconds>(DEKAF2_PREFIX KUnixTime(time).to_sys_time()), ctx);
+	}
+};
+#endif
+
+#if DEKAF2_HAS_FMT_FORMAT
 template<> struct formatter<DEKAF2_PREFIX KUnixTime> : formatter<std::tm>
 {
 	template <typename FormatContext>
@@ -1252,7 +1306,19 @@ template<> struct formatter<DEKAF2_PREFIX KUnixTime> : formatter<std::tm>
 		return formatter<std::tm>::format(DEKAF2_PREFIX KUnixTime::to_tm(time), ctx);
 	}
 };
+#else
+template<> struct formatter<DEKAF2_PREFIX KUnixTime> : formatter<std::chrono::sys_time<std::chrono::seconds>>
+{
+	template <typename FormatContext>
+	DEKAF2_CONSTEXPR_14
+	auto format(const DEKAF2_PREFIX KUnixTime& time, FormatContext& ctx) const
+	{
+		return formatter<std::chrono::sys_time<std::chrono::seconds>>::format(std::chrono::floor<std::chrono::seconds>(time.to_sys_time()), ctx);
+	}
+};
+#endif
 
+#if DEKAF2_HAS_FMT_FORMAT
 template<> struct formatter<DEKAF2_PREFIX KConstTimeOfDay> : formatter<std::tm>
 {
 	template <typename FormatContext>
@@ -1262,7 +1328,19 @@ template<> struct formatter<DEKAF2_PREFIX KConstTimeOfDay> : formatter<std::tm>
 		return formatter<std::tm>::format(time.to_tm(), ctx);
 	}
 };
+#else
+template<> struct formatter<DEKAF2_PREFIX KConstTimeOfDay> : formatter<std::chrono::hh_mm_ss<std::chrono::seconds>>
+{
+	template <typename FormatContext>
+	DEKAF2_CONSTEXPR_14
+	auto format(const DEKAF2_PREFIX KConstTimeOfDay& time, FormatContext& ctx) const
+	{
+		return formatter<std::chrono::hh_mm_ss<std::chrono::seconds>>::format(time.to_hh_mm_ss(), ctx);
+	}
+};
+#endif
 
+#if DEKAF2_HAS_FMT_FORMAT
 template<> struct formatter<DEKAF2_PREFIX KTimeOfDay> : formatter<std::tm>
 {
 	template <typename FormatContext>
@@ -1272,7 +1350,19 @@ template<> struct formatter<DEKAF2_PREFIX KTimeOfDay> : formatter<std::tm>
 		return formatter<std::tm>::format(time.to_tm(), ctx);
 	}
 };
+#else
+template<> struct formatter<DEKAF2_PREFIX KTimeOfDay> : formatter<std::chrono::hh_mm_ss<std::chrono::seconds>>
+{
+	template <typename FormatContext>
+	DEKAF2_CONSTEXPR_14
+	auto format(const DEKAF2_PREFIX KTimeOfDay& time, FormatContext& ctx) const
+	{
+		return formatter<std::chrono::hh_mm_ss<std::chrono::seconds>>::format(time.to_hh_mm_ss(), ctx);
+	}
+};
+#endif
 
+#if DEKAF2_HAS_FMT_FORMAT
 template<> struct formatter<DEKAF2_PREFIX KUTCTime> : formatter<std::tm>
 {
 	template <typename FormatContext>
@@ -1281,8 +1371,19 @@ template<> struct formatter<DEKAF2_PREFIX KUTCTime> : formatter<std::tm>
 		return formatter<std::tm>::format(time.to_tm(), ctx);
 	}
 };
+#else
+template<> struct formatter<DEKAF2_PREFIX KUTCTime> : formatter<std::chrono::sys_time<std::chrono::seconds>>
+{
+	template <typename FormatContext>
+	auto format(const DEKAF2_PREFIX KUTCTime& time, FormatContext& ctx) const
+	{
+		return formatter<std::chrono::sys_time<std::chrono::seconds>>::format(std::chrono::floor<std::chrono::seconds>(time.to_sys()), ctx);
+	}
+};
+#endif
 
 #if DEKAF2_HAS_TIMEZONES
+#if DEKAF2_HAS_FMT_FORMAT
 template<> struct formatter<DEKAF2_PREFIX KLocalTime> : formatter<std::tm>
 {
 	template <typename FormatContext>
@@ -1292,6 +1393,28 @@ template<> struct formatter<DEKAF2_PREFIX KLocalTime> : formatter<std::tm>
 		return formatter<std::tm>::format(time.to_tm(), ctx);
 	}
 };
+#else
+template<> struct formatter<DEKAF2_PREFIX KLocalTime> : formatter<std::chrono::local_time<std::chrono::seconds>>
+{
+	template <typename FormatContext>
+	DEKAF2_CONSTEXPR_14
+	auto format(const DEKAF2_PREFIX KLocalTime& time, FormatContext& ctx) const
+	{
+#if 1
+		// we lose all zone information by going into a local_time. We would instead need
+		// either a zoned_time (not yet supported by the libs) or a local_time with
+		// local_time_format (not yet supported by the libs). So, %Z will throw!
+		return formatter<std::chrono::local_time<std::chrono::seconds>>::format(std::chrono::floor<std::chrono::seconds>(time.to_local()), ctx);
+#else
+		return formatter<std::chrono::local_time<std::chrono::seconds>>::local_time_format(
+			std::chrono::floor<std::chrono::seconds>(time.to_local()),
+			&time.get_zone_abbrev(),
+			&time.get_utc_offset(),
+		ctx);
+#endif
+	}
+};
+#endif
 #endif
 
 } // end of DEKAF2_FORMAT_NAMESPACE

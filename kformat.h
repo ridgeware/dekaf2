@@ -43,54 +43,43 @@
 /// @file kformat.h
 /// provides basic string formatter functionality
 
-#include "kcompatibility.h"
-
-#undef DEKAF2_HAS_STD_FORMAT
-#undef DEKAF2_FORMAT_NAMESPACE
-
-#ifndef DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT
-	#if defined(DEKAF2_HAS_CPP_20)
-		#if DEKAF2_HAS_INCLUDE(<format>)
-			#include <format>
-			#if defined(__cpp_lib_format)
-				#define DEKAF2_HAS_STD_FORMAT 1
-			#endif
-		#endif
-	#endif
-#endif
-
-#ifdef DEKAF2_HAS_STD_FORMAT
-	#define DEKAF2_FORMAT_NAMESPACE std
-#elif DEKAF2_HAS_INCLUDE(<fmt/format.h>)
-	#define DEKAF2_FORMAT_NAMESPACE fmt
-	#define DEKAF2_HAS_FMT_FORMAT 1
-	#include <fmt/format.h>
-	#include <fmt/chrono.h>
-#else
-	#error "no formatting library found"
-#endif
-
+#include "bits/kformat.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include <ostream>
 #include <locale>
 #include <cstdio>
 
+#if DEKAF2_HAS_FMT_FORMAT
 // fmt v10.0 doesn't support enum to int conversion anymore - add a generic conversion
 template<typename Enum, typename std::enable_if<std::is_enum<Enum>::value, int>::type = 0>
 constexpr typename std::underlying_type<Enum>::type format_as(Enum e)
 {
 	return std::to_underlying(e);
 }
+#else
+// std::format doesn't support enum to int conversion - add a generic conversion
+template<typename Enum>
+struct DEKAF2_FORMAT_NAMESPACE::formatter<typename std::enable_if<std::is_enum<Enum>::value, Enum>> : formatter<std::underlying_type<Enum>>
+{
+	template <typename FormatContext>
+	auto format(const Enum& e, FormatContext& ctx) const
+	{
+		return formatter<std::underlying_type<Enum>>::format(std::to_underlying(e), ctx);
+	}
+};
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
 // add a generic enum to int conversion to namespace dekaf2 as well
+#if DEKAF2_HAS_FMT_FORMAT
 template<typename Enum, typename std::enable_if<std::is_enum<Enum>::value, int>::type = 0>
 constexpr typename std::underlying_type<Enum>::type format_as(Enum e)
 {
 	return std::to_underlying(e);
 }
+#endif
 
 namespace dekaf2_format = DEKAF2_FORMAT_NAMESPACE;
 

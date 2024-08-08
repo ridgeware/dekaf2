@@ -2,7 +2,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
- // Copyright (c) 2023, Ridgeware, Inc.
+ // Copyright (c) 2017, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -39,87 +39,34 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kdate.h"
-#include "ktime.h"
+#pragma once
 
-DEKAF2_NAMESPACE_BEGIN
+/// @file kformat.h
+/// provides format include files depending on configuration
 
-//-----------------------------------------------------------------------------
-KString KConstDate::to_string (KStringView sFormat) const
-//-----------------------------------------------------------------------------
-{
-	if (empty())
-	{
-		return KString();
-	}
+#include "../kdefinitions.h"
 
-	return kFormTimestamp(*this, sFormat);
+#undef DEKAF2_HAS_STD_FORMAT
+#undef DEKAF2_FORMAT_NAMESPACE
 
-} // to_string
+#ifndef DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT
+	#if defined(DEKAF2_HAS_CPP_20)
+		#if DEKAF2_HAS_INCLUDE(<format>)
+			#include <format>
+			#if defined(__cpp_lib_format) || DEKAF2_IS_MACOS
+				#define DEKAF2_HAS_STD_FORMAT 1
+			#endif
+		#endif
+	#endif
+#endif
 
-//-----------------------------------------------------------------------------
-KString KConstDate::to_string (const std::locale& locale, KStringView sFormat) const
-//-----------------------------------------------------------------------------
-{
-	if (empty())
-	{
-		return KString();
-	}
-
-	return kFormTimestamp(locale, *this, sFormat);
-
-} // to_string
-
-//-----------------------------------------------------------------------------
-KString KDateDiff::to_string () const
-//-----------------------------------------------------------------------------
-{
-	KString sDateDiff;
-
-	if (is_negative())
-	{
-		sDateDiff += '-';
-	}
-
-	// we currently do not use the duration formatting of fmt because it displays
-	// years, months and days as multiples of seconds
-
-	if (years() > chrono::years(0))
-	{
-		sDateDiff += kFormat("{}y", years().count());
-	}
-
-	if (months() > chrono::months(0))
-	{
-		if (years() > chrono::years(0)) 
-		{
-			sDateDiff += ' ';
-		}
-
-		sDateDiff += kFormat("{}m", months().count());
-	}
-
-	if (days() > chrono::days(0) || sDateDiff.size() < 2)
-	{
-		if (years() > chrono::years(0) || months() > chrono::months(0))
-		{
-			sDateDiff += ' ';
-		}
-
-		sDateDiff += kFormat("{}d", days().count());
-	}
-	
-	return sDateDiff;
-
-} // to_string
-
-//-----------------------------------------------------------------------------
-KString KDays::to_string () const
-//-----------------------------------------------------------------------------
-{
-	return kFormat("{}d", to_days().count());
-
-} // to_string
-
-DEKAF2_NAMESPACE_END
-
+#ifdef DEKAF2_HAS_STD_FORMAT
+	#define DEKAF2_FORMAT_NAMESPACE std
+#elif DEKAF2_HAS_INCLUDE(<fmt/format.h>)
+	#define DEKAF2_FORMAT_NAMESPACE fmt
+	#define DEKAF2_HAS_FMT_FORMAT 1
+	#include <fmt/format.h>
+	#include <fmt/chrono.h>
+#else
+	#error "no formatting library found"
+#endif

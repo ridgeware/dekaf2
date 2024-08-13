@@ -179,7 +179,9 @@ uint16_t KReplacer::AddTokensFromRow (const KROW& row, bool bFormNumbers/*=true*
 
 	for (auto& col : row)
 	{
+#if DEKAF2_FMT_IS_FORMAT
 		kDebug (3, "{:35}: 0x{:08x} = {}", col.first, col.second.GetFlags(), col.second.FlagsToString());
+#endif
 
 		auto  sKey   = col.first;
 		auto  iFlags = col.second.GetFlags();
@@ -238,16 +240,10 @@ void KReplacer::AddDebugToken (KStringView sTokenName/*="DEBUG"*/)
 		}
 	}
 
-	KString sFormat = "{:";
-	sFormat += kFormat ("{}", iLongest);
-	sFormat += ".";
-	sFormat += kFormat ("{}", iLongest);
-	sFormat += "} = '{}'\n";
-
 	KString sBlock;
 	for (const auto& it : m_RepMap)
 	{
-		sBlock += kFormat (sFormat, it.first, it.second);
+		sBlock += kFormat ("{:{}.{}} = '{}'", it.first, iLongest, iLongest, it.second);
 	}
 
 	insert (sTokenName, sBlock);

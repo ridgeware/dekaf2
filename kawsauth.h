@@ -54,7 +54,7 @@ public:
 		KString     sContentType = {}, // application/x-{sProvider}-json-1.1 will be inserted for the empy string
 		KStringView sProvider = "amz", // amz for AWS
 		const HTTPHeaders& AdditionalSignedHeaders = {},
-		KString sDateTime = kNow().to_string("%Y%m%dT%H%M%SZ"));
+		KString     sDateTime = kFormTimestamp(kNow(), "{:%Y%m%dT%H%M%SZ}"));
 
 	/// use an access key and a shared secret to generate the headers that have to
 	/// be added for a request in a certain region and for a certain service. Add

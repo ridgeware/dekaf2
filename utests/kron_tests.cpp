@@ -482,7 +482,7 @@ TEST_CASE("KRON")
 
 		KUTCTime Now("2022-03-18 16:24:45");
 		auto Next = Job->Next(Now);
-		CHECK ( Next.Format() == kFormTimestamp(next) );
+		CHECK ( Next.to_string() == kFormTimestamp(next) );
 	}
 
 #ifndef DEKAF2_IS_WINDOWS

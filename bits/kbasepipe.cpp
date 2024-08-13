@@ -49,6 +49,7 @@
 #include "../kchildprocess.h"
 #include "../klog.h"
 #include "../kstring.h"
+#include "../kformat.h"
 #include <csignal>
 #include <thread>
 
@@ -125,7 +126,7 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const
 	{
 		case -1: /* error */
 		{
-			kWarning("cannot fork '{}': {}", sCommand.c_str(), strerror(errno));
+			kWarning("cannot fork '{}': {}", sCommand, strerror(errno));
 
 			// could not create the child
 			if (m_Mode & PipeRead)

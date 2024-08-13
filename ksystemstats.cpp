@@ -921,7 +921,7 @@ bool KSystemStats::GatherNetstat ()
 
 	if (!pipe.Open ("netstat -n")) // <-- we need to add --numeric to netstat so that it runs faster and does not try to resolve hostnames, etc.
 	{
-		m_sLastError.Format ("command failed: netstat");
+		m_sLastError = "command failed: netstat";
 		return (false);
 	}
 

@@ -260,7 +260,7 @@ int8_t interpreter_loop (KStringViewZ sMenuFile, int8_t iCPick)
 	}
 	else if (DEBUG == selections.commands[iCPick])
 	{
-		KOut.FormatLine ("DEBUG VALUES  (version 2.0:17-Nov-92):");
+		KOut.WriteLine  ("DEBUG VALUES  (version 2.0:17-Nov-92):");
 		KOut.FormatLine ("      Menu Pick = {}\n", iCPick);
 		KOut.FormatLine ("    Menu Option = '{}'\n", selections.commands[iCPick]);
 		KOut.FormatLine (" last-command:\n {}\n\n", g_sBuffer);
@@ -612,7 +612,7 @@ void synopsis_abort ()
 } /* synopsis_abort */
 
 //-----------------------------------------------------------------------------
-void warning (char* string, char* sarg)
+void warning (KStringView string, KStringView sarg)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
@@ -624,7 +624,7 @@ void warning (char* string, char* sarg)
 	clrtoeol ();
 
 	move (24, 10);
-	KOut.Format (string, sarg).Flush();
+	KOut.Format (KRuntimeFormat(string), sarg).Flush();
 	refresh ();
 
 	sleep (g_iSleep*3);
@@ -635,13 +635,13 @@ void warning (char* string, char* sarg)
 } /* warning */
 
 //-----------------------------------------------------------------------------
-int8_t error_and_exit (char* string, char* sarg)
+int8_t error_and_exit (KStringView string, KStringView sarg)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
 
 	KErr.Write ("unixmenu: ");
-	KErr.Format (string, sarg);
+	KErr.Format (KRuntimeFormat(string), sarg);
 	KErr.Write (".\n");
 
 	exit (1);

@@ -143,7 +143,7 @@ TEST_CASE("KTime") {
 		UTC1 += chrono::seconds(1);
 		UTC1 += chrono::seconds(86399);
 		CHECK ( UTC1.empty()        == false );
-		CHECK ( UTC1.Format()       == "1970-01-02 00:00:00" );
+		CHECK ( UTC1.to_string()    == "1970-01-02 00:00:00" );
 		KLocalTime Local1;
 		CHECK ( Local1.empty()               );
 		KUTCTime UTC2(KUnixTime::from_time_t(123545656));
@@ -165,21 +165,21 @@ TEST_CASE("KTime") {
 		UTC1 = UTC2;
 		CHECK ( UTC1.to_unix()          == KUnixTime(123545656) );
 		UTC1 = KUnixTime(126230399);
-		CHECK ( UTC1.Format()       == "1973-12-31 23:59:59" );
-		CHECK ( UTC1.to_unix()      == KUnixTime(126230399) );
+		CHECK ( UTC1.to_string()        == "1973-12-31 23:59:59" );
+		CHECK ( UTC1.to_unix()          == KUnixTime(126230399) );
 		UTC2 = UTC1.to_unix();
 		CHECK ( (UTC2 == UTC1) );
 		CHECK ( UTC2.weekday()          == chrono::Monday );
 		CHECK ( UTC2.month()            == chrono::December );
-		CHECK ( UTC2.is_pm()        == true  );
+		CHECK ( UTC2.is_pm()            == true  );
 		UTC1 += chrono::seconds(2);
-		CHECK ( UTC1.Format()       == "1974-01-01 00:00:01" );
+		CHECK ( UTC1.to_string()       == "1974-01-01 00:00:01" );
 		CHECK ( UTC1.to_unix()      == KUnixTime(126230401) );
 		CHECK ( UTC1.month()        == chrono::January );
 		CHECK ( UTC1.weekday()      == chrono::Tuesday );
 		CHECK ( UTC1.is_pm()        == false  );
 		UTC1 -= chrono::seconds(2);
-		CHECK ( UTC1.Format()       == "1973-12-31 23:59:59" );
+		CHECK ( UTC1.to_string()    == "1973-12-31 23:59:59" );
 		CHECK ( UTC1.to_unix()      == KUnixTime(126230399) );
 		CHECK ( UTC1.month()        == chrono::December );
 		CHECK ( UTC1.weekday()      == chrono::Monday   );
@@ -191,25 +191,25 @@ TEST_CASE("KTime") {
 		CHECK ( SysTime == SysTime2 );
 
 		UTC2 += std::chrono::minutes(34);
-		CHECK ( UTC2.Format()       == "1974-01-01 00:33:59" );
+		CHECK ( UTC2.to_string()       == "1974-01-01 00:33:59" );
 		UTC2 += std::chrono::seconds(1 * 60 * 60 * 24 * 365UL);
-		CHECK ( UTC2.Format()       == "1975-01-01 00:33:59" );
+		CHECK ( UTC2.to_string()       == "1975-01-01 00:33:59" );
 		UTC2 += chrono::days(365);
-		CHECK ( UTC2.Format()       == "1976-01-01 00:33:59" );
+		CHECK ( UTC2.to_string()       == "1976-01-01 00:33:59" );
 		UTC2 += chrono::days(70 * 365);
-		CHECK ( UTC2.Format()       == "2045-12-14 00:33:59" );
+		CHECK ( UTC2.to_string()       == "2045-12-14 00:33:59" );
 		UTC2 -= chrono::days(70 * 365);
-		CHECK ( UTC2.Format()       == "1976-01-01 00:33:59" );
+		CHECK ( UTC2.to_string()       == "1976-01-01 00:33:59" );
 		UTC2 += time_t(1 * 60 * 60 * 24 * 365UL);
-		CHECK ( UTC2.Format()       == "1976-12-31 00:33:59" );
+		CHECK ( UTC2.to_string()       == "1976-12-31 00:33:59" );
 		UTC2 += KDuration(std::chrono::seconds(2));
-		CHECK ( UTC2.Format()       == "1976-12-31 00:34:01" );
+		CHECK ( UTC2.to_string()       == "1976-12-31 00:34:01" );
 		UTC2 += KDuration(std::chrono::microseconds(2));
-		CHECK ( UTC2.Format()       == "1976-12-31 00:34:01" );
+		CHECK ( UTC2.to_string()       == "1976-12-31 00:34:01" );
 		UTC2 += KDuration(std::chrono::microseconds(1000123));
-		CHECK ( UTC2.Format()       == "1976-12-31 00:34:02" );
+		CHECK ( UTC2.to_string()       == "1976-12-31 00:34:02" );
 		UTC2 -= KDuration(std::chrono::microseconds(2000126));
-		CHECK ( UTC2.Format()       == "1976-12-31 00:33:59" ); // subseconds ..
+		CHECK ( UTC2.to_string()       == "1976-12-31 00:33:59" ); // subseconds ..
 
 		auto UTC3 = UTC2;
 		UTC3 += std::chrono::seconds(61);
@@ -242,8 +242,8 @@ TEST_CASE("KTime") {
 			if (Local1.get_utc_offset() == std::chrono::minutes(60))
 			{
 				// these checks only work correctly with timezone set to CET
-				CHECK ( UTC1.Format()            == "1973-12-31 23:59:59" );
-				CHECK ( Local1.Format()          == "1974-01-01 00:59:59" );
+				CHECK ( UTC1.to_string()         == "1973-12-31 23:59:59" );
+				CHECK ( Local1.to_string()       == "1974-01-01 00:59:59" );
 				CHECK ( Local1.get_utc_offset().count() == 3600 );
 				CHECK ( Local1.days().count()    == 1     );
 				CHECK ( Local1.months().count()  == 1     );
@@ -259,8 +259,8 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.weekday()         == chrono::Tuesday );
 				CHECK ( Local1.get_utc_offset() == chrono::minutes(60) );
 #ifndef DEKAF2_HAS_MUSL
-				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "%A %c") == "Mardi Mar  1 jan 00:59:59 1974" );
-				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City")), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
+				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "{:%A %c}") == "Mardi Mar  1 jan 00:59:59 1974" );
+				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City")), "{:%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
 #endif
 			}
 		}
@@ -295,8 +295,8 @@ TEST_CASE("KTime") {
 			SysTime =  Local1.to_sys();
 			CHECK ( std::chrono::system_clock::to_time_t(SysTime) == KUnixTime(Local1.to_sys()).to_time_t());
 			CHECK ( Local1.get_utc_offset()  == chrono::seconds(32400));
-			CHECK ( UTC1.Format()            == "1973-12-31 23:59:59" );
-			CHECK ( Local1.Format()          == "1974-01-01 08:59:59" );
+			CHECK ( UTC1.to_string()         == "1973-12-31 23:59:59" );
+			CHECK ( Local1.to_string()       == "1974-01-01 08:59:59" );
 			CHECK ( Local1.days().count()    == 1     );
 			CHECK ( Local1.months().count()  == 1     );
 			CHECK ( Local1.years().count()   == 1974  );
@@ -313,7 +313,7 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.weekday()     == chrono::Tuesday );
 #ifndef DEKAF2_HAS_MUSL
 				if (bHasTimezone) {
-					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City")), "%A %c") == "Montag Mo 31 Dez 17:59:59 1973" );
+					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City")), "{:%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
 				}
 #endif
 			}
@@ -335,6 +335,12 @@ TEST_CASE("KTime") {
 		auto tTime = kParseTimestamp("???, DD NNN YYYY hh:mm:ss ???", "Tue, 03 Aug 2021 10:23:42 GMT");
 		auto sTime = kFormHTTPTimestamp(tTime);
 		CHECK ( sTime == "Tue, 03 Aug 2021 10:23:42 GMT" );
+		sTime = kFormTimestamp(tTime);
+		CHECK ( sTime == "2021-08-03 10:23:42" );
+		sTime = kFormTimestamp(tTime, "");
+		CHECK ( sTime == "2021-08-03 10:23:42" );
+		sTime = kFormTimestamp(tTime, "hello");
+		CHECK ( sTime == "hello" );
 
 		tTime = kParseTimestamp("???, DD NNN YYYY hh:mm:ss zzz", "Tue, 03 Aug 2021 10:23:42 GMT");
 		sTime = kFormHTTPTimestamp(tTime);
@@ -756,6 +762,7 @@ TEST_CASE("KTime") {
 		CHECK ( TD.is_am()           == false );
 		CHECK ( TD.is_pm()           == true  );
 		CHECK ( TD.to_string()       == "14:37:56" );
+		CHECK ( TD.to_string("%H.%M.%S")   == "14.37.56" );
 		CHECK ( kFormat("{:%H.%M.%S}", TD) == "14.37.56" );
 
 		TD += chrono::hours(16);
@@ -813,7 +820,7 @@ TEST_CASE("KTime") {
 		auto tz = kFindTimezone("Asia/Tokyo");
 		KUnixTime U("12:34:56 16.08.2022");
 		CHECK ( kFormTimestamp(U) == "2022-08-16 12:34:56" );
-		CHECK ( kFormTimestamp(KLocalTime(U, tz), "%Y-%m-%d %H:%M:%S") == "2022-08-16 21:34:56" );
+		CHECK ( kFormTimestamp(KLocalTime(U, tz), "{:%Y-%m-%d %H:%M:%S}") == "2022-08-16 21:34:56" );
 	}
 
 	SECTION("custom formatters")
@@ -1048,9 +1055,15 @@ TEST_CASE("KTime") {
 			                                  // the timestamp is interpreted as local to the
 			                                  // timezone assigned to KLocalTime (Asia/Tokyo)
 			KLocalTime TokyoTime("2012-01-31 12:15:00", kFindTimezone("Asia/Tokyo"));
-			kPrintLine(kFormat("Tokyo: {:%Z %c}", TokyoTime));              // -> "Tokyo: JST Tue Jan 31 12:15:00 2012"
+#if DEKAF2_HAS_FMT_FORMAT
+			kPrintLine("Tokyo: {:%Z %c}", TokyoTime);              // -> "Tokyo: JST Tue Jan 31 12:15:00 2012"
 			kPrintLine(std::locale("ja_JP"), "Tokyo: {:%Z %c}", TokyoTime); // -> "Tokyo: JST 火  1/31 12:15:00 2012"
 			kPrintLine(std::locale("de_DE"), "Tokio: {:%Z %c}", TokyoTime); // -> "Tokio: JST Di 31 Jan 12:15:00 2012"
+#else
+			kPrintLine("Tokyo: {:%c}", TokyoTime);              // -> "Tokyo: Tue Jan 31 12:15:00 2012"
+			kPrintLine(std::locale("ja_JP"), "Tokyo: {:%c}", TokyoTime); // -> "Tokyo: 火  1/31 12:15:00 2012"
+			kPrintLine(std::locale("de_DE"), "Tokio: {:%c}", TokyoTime); // -> "Tokio: Di 31 Jan 12:15:00 2012"
+#endif
 
 			                                  // this does not work:
 			//TokyoTime += chrono::hours(12); // "no viable overloaded +="
@@ -1075,7 +1088,11 @@ TEST_CASE("KTime") {
 			kPrintLine("{:%Z %c}", Unix);     // -> "UTC Tue Jan 31 03:20:00 2012"
 			Unix += chrono::days(1245);       // that works, too!
 			kPrintLine("{:%Z %c}", Unix);     // -> "UTC Mon Jun 29 03:20:00 2015"
+#if DEKAF2_HAS_FMT_FORMAT
 			kPrintLine("{:%Z %c}", KLocalTime(Unix, TokyoTime.get_time_zone())); // -> "JST Mon Jun 29 12:20:00 2015"
+#else
+			kPrintLine("{:%c}", KLocalTime(Unix, TokyoTime.get_time_zone())); // -> "Mon Jun 29 12:20:00 2015"
+#endif
 
 			                                  // if you want to calculate with years and months, use a KUTCTime
 			utc = KUTCTime(TokyoTime);        // needs explicit conversion as conversion loses information (the timezone)
@@ -1090,7 +1107,11 @@ TEST_CASE("KTime") {
 
 			if (BostonTime.is_leap() && !BostonTime.is_dst() && !BostonTime.is_last_day())
 			{                                 // is leap year, no DST, not last day of the month..
+#if DEKAF2_HAS_FMT_FORMAT
 				kPrintLine("{:%Z %c} in Boston is: {:%Z %c}", TokyoTime, BostonTime); // -> "JST Tue Jan 31 12:15:00 2012 in Boston is: EST Mon Jan 30 22:15:00 2012"
+#else
+				kPrintLine("{:%c} in Boston is: {:%c}", TokyoTime, BostonTime); // -> "Tue Jan 31 12:15:00 2012 in Boston is: EST Mon Jan 30 22:15:00 2012"
+#endif
 			}
 
 			                                  // if you do not need time of day, better use a simpler type without any timezone:
@@ -1103,7 +1124,7 @@ TEST_CASE("KTime") {
 			                                  // and the best is that all time functions that do not involve output formatting are constexpr,
 			                                  // the compiler calculates the result at compile time if all inputs are available
 			                                  // so until here all Date calculations were actually condensed to one result date
-			kPrintLine(kTranslateDuration(diff, true)); // -> 11 yrs, 6 wks, 3 days
+			kPrintLine("{}", kTranslateDuration(diff, true)); // -> 11 yrs, 6 wks, 3 days
 			kPrintLine("that was {} years, {} months and {} days (a total of {} months or {} days or {} weeks) ago",
 					   diff.years().count(), diff.months().count(), diff.days().count(), diff.to_months().count(), diff.to_days().count(), diff.to_weeks().count());
 			                                  // -> "that was 11 years, 1 months and 14 days (a total of 133 months or 4060 days or 580 weeks) ago"

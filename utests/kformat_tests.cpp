@@ -4,6 +4,8 @@
 #include <dekaf2/khttp_header.h>
 #include <dekaf2/kurl.h>
 #include <dekaf2/kcasestring.h>
+#include <dekaf2/kwriter.h>
+#include <dekaf2/kfilesystem.h>
 
 using namespace dekaf2;
 
@@ -51,18 +53,42 @@ TEST_CASE("kFormat")
 
 	SECTION("char[]")
 	{
-		char buffer[1024];
-		std::memset(buffer, '-', 1024);
+		char buffer[70];
+		std::memset(buffer, '-', 70);
 		strcpy(buffer, "test 123456789012345678901234567890");
-		auto s = kFormat("hello {}", buffer);
 		CHECK ( kFormat("hello {}", buffer) == "hello test 123456789012345678901234567890" );
 	}
 
 	SECTION("KStringView")
 	{
-		char buffer[1024];
-		std::memset(buffer, '+', 1024);
+		char buffer[70];
+		std::memset(buffer, '+', 70);
 		strcpy(buffer, "test 123456789012345678901234567890");
 		CHECK ( kFormat("hello {}", KStringView(buffer)) == "hello test 123456789012345678901234567890" );
+	}
+
+	SECTION("std::array")
+	{
+		std::array<char, 70> buffer;
+		std::memset(buffer.data(), '!', buffer.size());
+		strcpy(buffer.data(), "test 123456789012345678901234567890");
+		CHECK ( kFormat("hello {}", buffer.data()) == "hello test 123456789012345678901234567890" );
+	}
+
+	SECTION("KWriter")
+	{
+		KTempDir TempDir;
+		KString sName = kFormat("{}{}test.txt", TempDir.Name(), kDirSep);
+		KOutFile Out(sName);
+		Out.WriteLine("line 1");
+		Out.FormatLine("line {}", 2);
+		Out.FormatLine("line without formatting");
+	}
+
+	SECTION("Formatting")
+	{
+		auto s = kFormat(">| {:<3.3} | {:<5.5} | {:<5.5} | {:<19.19} | {:<7.7} | {}{}/p>",
+						 KString("1"), KString("2"), KString("3"), KString("4"), KString("5"), KString("6"), '<');
+		CHECK ( s == ">| 1   | 2     | 3     | 4                   | 5       | 6</p>" );
 	}
 }

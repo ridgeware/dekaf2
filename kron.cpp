@@ -276,7 +276,7 @@ KUTCTime Kron::Job::Next(const KUTCTime& tAfter) const
 	}
 
 	KUTCTime UTC = KUTCTime(KCronParser::cron_next(*cxget(m_ParsedCron), tAfter.to_tm()));
-	kDebug(2, "next execution time for job '{}': {}", Name(), UTC.Format());
+	kDebug(2, "next execution time for job '{}': {}", Name(), UTC);
 
 	return UTC;
 
@@ -416,7 +416,7 @@ bool Kron::Job::KillIfOverdue()
 
 	Lock.unlock();
 
-	kDebug(1, "killing Job '{}' after runtime of {}", kTranslateDuration(Runtime));
+	kDebug(1, "killing Job '{}' after runtime of {}", Name(), kTranslateDuration(Runtime));
 
 	return Kill();
 

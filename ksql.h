@@ -1360,7 +1360,7 @@ private:
 
 		sRet.ref() = std::apply([sFormat](auto&&... args)
 		{
-			return kFormat(sFormat.str(), std::forward<decltype(args)>(args)...);
+			return kFormat(KRuntimeFormat(sFormat.str()), std::forward<decltype(args)>(args)...);
 		},
 		std::make_tuple(EscapeType(iDBType, args)...));
 
@@ -1381,7 +1381,7 @@ private:
 
 		sRet.ref() = std::apply([sFormat](auto&&... args)
 		{
-			return kFormat(sFormat, std::forward<decltype(args)>(args)...);
+			return kFormat(KRuntimeFormat(sFormat), std::forward<decltype(args)>(args)...);
 		},
 		std::make_tuple(EscapeType(iDBType, args)...));
 

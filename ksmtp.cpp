@@ -189,14 +189,17 @@ bool KSMTP::Send(const KMail& Mail)
 		return SetError(kFormat("mail not sent: {}", Mail.GetLastError()));
 	}
 
-	if (!Talk(kFormat("MAIL FROM:<{}>", Mail.From().begin()->first), "250"))
+	// we use this convoluted form for anything bearing a < or > after the {} format
+	// placeholder because AppleClang mistakenly attributes that > as the fill
+	// instruction for std::format
+	if (!Talk(kFormat("MAIL FROM:<{}{}", Mail.From().begin()->first, '>'), "250"))
 	{
 		return false;
 	}
 
 	for (const auto& it : Mail.To())
 	{
-		if (!Talk(kFormat("RCPT TO:<{}>", it.first), "250"))
+		if (!Talk(kFormat("RCPT TO:<{}{}", it.first, '>'), "250"))
 		{
 			return false;
 		}
@@ -204,7 +207,7 @@ bool KSMTP::Send(const KMail& Mail)
 
 	for (const auto& it : Mail.Cc())
 	{
-		if (!Talk(kFormat("RCPT TO:<{}>", it.first), "250"))
+		if (!Talk(kFormat("RCPT TO:<{}{}", it.first, '>'), "250"))
 		{
 			return false;
 		}
@@ -212,7 +215,7 @@ bool KSMTP::Send(const KMail& Mail)
 
 	for (const auto& it : Mail.Bcc())
 	{
-		if (!Talk(kFormat("RCPT TO:<{}>", it.first), "250"))
+		if (!Talk(kFormat("RCPT TO:<{}{}", it.first, '>'), "250"))
 		{
 			return false;
 		}

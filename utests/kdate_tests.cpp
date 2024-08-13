@@ -148,8 +148,13 @@ TEST_CASE("KDate")
 		Date2 = Date1 + chrono::days(60);
 		CHECK ( Date2 - Date1 == chrono::days(60)  );
 		CHECK ( Date1.to_tm().tm_isdst == 0        );
-		CHECK_NOTHROW( Date1.to_string("%Y%Z")     );
-		auto s = Date1.to_string("%Y%Z");
+#if DEKAF2_HAS_FMT_FORMAT
+		CHECK_NOTHROW( kFormTimestamp(Date1, "{:%Y%Z}") );
+		auto s = kFormTimestamp(Date1, "{:%Y%Z}");
+#else
+		CHECK_NOTHROW( kFormTimestamp(Date1, "{:%Y}") );
+		auto s = kFormTimestamp(Date1, "{:%Y}");
+#endif
 #if DEKAF2_HAS_STD_FORMAT
 		// with time_put() and gcc the result is the empty string (actually it throws because:
 		// "The supplied date time doesn't contain a time zone"
@@ -158,10 +163,10 @@ TEST_CASE("KDate")
 		{
 			CHECK ( s == "2024"  );
 		}
-		CHECK ( Date1.to_string("Hello %Y") == "Hello 2024");
-		CHECK ( Date1.to_string("{:%Y} years") == "2024 years" );
-		CHECK ( Date1.to_string("Hello {:%Y how %m} are you") == "Hello 2024 how 02 are you" );
-		CHECK ( Date1.to_string("Hello %Y how %m are you") == "Hello 2024 how 02 are you" );
+		CHECK ( kFormTimestamp(Date1, "Hello {:%Y}") == "Hello 2024");
+		CHECK ( kFormTimestamp(Date1, "{:%Y} years") == "2024 years" );
+		CHECK ( kFormTimestamp(Date1, "Hello {:%Y how %m} are you") == "Hello 2024 how 02 are you" );
+//		CHECK ( kFormTimestamp(Date1, "Hello %Y how %m are you") == "Hello 2024 how 02 are you" );
 	}
 
 	SECTION("next previous")
@@ -179,13 +184,22 @@ TEST_CASE("KDate")
 		CHECK ( Date.weekday() == chrono::Wednesday );
 
 		Date = KDate(chrono::year(2023)/chrono::April/chrono::weekday_indexed(chrono::Monday, 1));
-		CHECK ( Date.to_string() == "2023-04-03" );
+		CHECK ( Date.to_string()     == "2023-04-03" );
+		CHECK ( kFormTimestamp(Date) == "2023-04-03" );
 		Date = KDate(chrono::year(2023)/chrono::April/chrono::weekday_last(chrono::Monday));
-		CHECK ( Date.to_string() == "2023-04-24" );
+		CHECK ( kFormTimestamp(Date) == "2023-04-24" );
 		Date.weekday(chrono::weekday_indexed(chrono::Monday, 1));
-		CHECK ( Date.to_string() == "2023-04-03" );
+		CHECK ( kFormTimestamp(Date) == "2023-04-03" );
 		Date.weekday(chrono::weekday_last(chrono::Monday));
-		CHECK ( Date.to_string() == "2023-04-24" );
+		CHECK ( kFormTimestamp(Date) == "2023-04-24" );
+	}
+
+	SECTION("KConstDate")
+	{
+		KConstDate Date(chrono::year(2023)/chrono::April/chrono::weekday_indexed(chrono::Monday, 1));
+		CHECK ( Date.weekday()       == chrono::Monday );
+		CHECK ( Date.to_string()     == "2023-04-03" );
+		CHECK ( kFormTimestamp(Date) == "2023-04-03" );
 	}
 
 	SECTION("KDateDiff")

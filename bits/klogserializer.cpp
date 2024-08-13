@@ -227,7 +227,7 @@ void KLogTTYSerializer::Serialize(bool bHiRes)
 	}
 	else
 	{
-		sLevel.Format("DB{}", m_iLevel > 3 ? 3 : m_iLevel);
+		sLevel.Format("DB{}", m_iLevel);
 	}
 
 	auto sPrefix = PrintStatus(sLevel, bHiRes);
@@ -305,18 +305,16 @@ KString KLogTTYSerializer::PrintStatus(KStringView sLevel, bool bHiRes)
 
 #ifdef DEKAF2_IS_MACOS
 		uint64_t iThread = m_Tid - s_iStartThread;
-		constexpr KDuration::BaseInterval Interval = KDuration::BaseInterval::MicroSeconds;
 #else
 		uint64_t iThread = m_Tid < s_iStartThread ? m_Tid + 65535 - s_iStartThread : m_Tid - s_iStartThread;
-		constexpr KDuration::BaseInterval Interval = KDuration::BaseInterval::NanoSeconds;
 #endif
 
 		return kFormat("| {:%H:%M:%S} | {:5d} | {:5d} | + {:>6.6s} | {:>6.6s} | ",
 					   m_Time,
 					   m_Pid,
 					   iThread,
-					   thisTicks .ToString(KDuration::Format::Brief, Interval, 0),
-					   totalTicks.ToString(KDuration::Format::Brief, Interval, 0));
+					   thisTicks,
+					   totalTicks);
 	}
 
 } // Serialize
@@ -367,7 +365,8 @@ KString KLogHTTPHeaderSerializer::PrintStatus(KStringView sLevel, bool bHiRes)
 	// desired format:
 	// | WAR |      12345 |
 
-	return kFormat("| {:3.3s} | {:>10.10s} | ", sLevel, kFormNumber(m_iElapsedMicroSeconds.count()));
+	auto sMicroseconds = kFormNumber(m_iElapsedMicroSeconds.count());
+	return kFormat("| {:3.3s} | {:>10.10s} | ", sLevel, sMicroseconds);
 
 } // Serialize
 

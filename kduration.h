@@ -158,6 +158,12 @@ public:
 		Years
 	};
 
+#if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
+	static constexpr BaseInterval DefaultBaseInterval = BaseInterval::NanoSeconds;
+#else
+	static constexpr BaseInterval DefaultBaseInterval = BaseInterval::MicroSeconds;
+#endif
+
 	/// returns formatted string with duration
 	/// @param format one of Smart, Long, Brief, default Smart
 	/// @param Interval minimum interval (resolution)
@@ -538,7 +544,7 @@ struct formatter<DEKAF2_PREFIX KDuration> : formatter<string_view>
 	template <typename FormatContext>
 	auto format(const DEKAF2_PREFIX KDuration& Duration, FormatContext& ctx) const
 	{
-		return formatter<string_view>::format(Duration.ToString(DEKAF2_PREFIX KDuration::Format::Smart, DEKAF2_PREFIX KDuration::BaseInterval::NanoSeconds), ctx);
+		return formatter<string_view>::format(Duration.ToString(DEKAF2_PREFIX KDuration::Format::Brief, DEKAF2_PREFIX KDuration::DefaultBaseInterval), ctx);
 	}
 };
 

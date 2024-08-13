@@ -468,11 +468,11 @@ public:
 
 	/// print arguments with fmt::format
 	template<class... Args>
-	self& Format(Args&&... args) &;
+	self& Format(KFormatString<Args...> sFormat, Args&&... args) &;
 
 	/// print arguments with fmt::format
 	template<class... Args>
-	self&& Format(Args&&... args) && { return std::move(Format(std::forward<Args>(args)...)); }
+	self&& Format(KFormatString<Args...> sFormat, Args&&... args) && { return std::move(Format(sFormat, std::forward<Args>(args)...)); }
 
 	/// match with regular expression and return the overall match (group 0)
 	DEKAF2_NODISCARD
@@ -2228,10 +2228,10 @@ inline KString::operator DEKAF2_FORMAT_NAMESPACE ::string_view() const
 
 //----------------------------------------------------------------------
 template<class... Args>
-KString& KString::Format(Args&&... args) &
+KString& KString::Format(KFormatString<Args...> sFormat, Args&&... args) &
 //----------------------------------------------------------------------
 {
-	*this = kFormat(std::forward<Args>(args)...);
+	*this = kFormat(sFormat, std::forward<Args>(args)...);
 	return *this;
 }
 

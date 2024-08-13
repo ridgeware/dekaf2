@@ -71,7 +71,11 @@ struct Kron_utils
 	{
 		// we use timegm() directly as it modifies the input argument, which
 		// is needed by the parser to normalize incremented field values
+#ifdef DEKAF2_IS_WINDOWS
+		return _mkgmtime(&date);
+#else
 		return timegm(&date);
+#endif
 	}
 
 	static inline std::tm* time_to_tm(std::time_t const * date, std::tm* const out)
@@ -89,7 +93,7 @@ struct Kron_utils
 		return Time.to_tm();
 	}
 
-	static inline string_t to_string(std::tm const & tm)
+	static inline string_t to_string(const std::tm& tm)
 	{
 		return kFormTimestamp(tm);
 	}

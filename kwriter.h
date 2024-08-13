@@ -172,10 +172,10 @@ public:
 	/// Write a fmt::format() formatted argument list. Returns stream reference that
 	/// resolves to false on failure.
 	template<class... Args>
-	self_type& Format(Args&&... args)
+	self_type& Format(KFormatString<Args...> sFormat, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
-		kPrint(*this, std::forward<Args>(args)...);
+		kPrint(*this, sFormat, std::forward<Args>(args)...);
 		return *this;
 	}
 
@@ -183,12 +183,36 @@ public:
 	/// Write a fmt::format() formatted argument list. Returns stream reference that
 	/// resolves to false on failure.
 	template<class... Args>
-	self_type& FormatLine(Args&&... args)
+	self_type& FormatLine(KFormatString<Args...> sFormat, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
-		kPrint(*this, std::forward<Args>(args)...);
+		kPrint(*this, sFormat, std::forward<Args>(args)...);
 		return WriteLine();
 	}
+
+#if !DEKAF2_HAS_FORMAT_RUNTIME
+	//-----------------------------------------------------------------------------
+	/// Write a fmt::format() formatted argument list. Returns stream reference that
+	/// resolves to false on failure.
+	template<class... Args>
+	self_type& Format(KRuntimeFormatString sFormat, Args&&... args)
+	//-----------------------------------------------------------------------------
+	{
+		kPrint(*this, sFormat, std::forward<Args>(args)...);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Write a fmt::format() formatted argument list. Returns stream reference that
+	/// resolves to false on failure.
+	template<class... Args>
+	self_type& FormatLine(KRuntimeFormatString sFormat, Args&&... args)
+	//-----------------------------------------------------------------------------
+	{
+		kPrint(*this, sFormat, std::forward<Args>(args)...);
+		return WriteLine();
+	}
+#endif
 
 	//-----------------------------------------------------------------------------
 	/// Fixates eol settings

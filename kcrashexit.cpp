@@ -157,7 +157,7 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	// standard UNIX signals:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	default:
-		sWarning += kFormat (kTranslateSignal (iSignalNum, /*fConcise=*/false));
+		sWarning += kTranslateSignal (iSignalNum, /*fConcise=*/false);
 	}
 
 	#ifndef WIN32
@@ -178,7 +178,7 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 
 				if (address)
 				{
-					sWarning += kFormat(kGetAddress2Line(address));
+					sWarning += kGetAddress2Line(address);
 				}
 				break;
 			}

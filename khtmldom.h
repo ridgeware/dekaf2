@@ -218,9 +218,9 @@ public:
 	template<typename Numeric,
 	         typename std::enable_if<std::is_arithmetic<Numeric>::value   == true
 	                              && std::is_same<Numeric, bool>::value == false, int>::type = 0>
-	self& SetAttribute(KString sName, Numeric iValue, KStringView sFormat = "{}")
+	self& SetAttribute(KString sName, Numeric iValue)
 	{
-		return SetAttribute(std::move(sName), kFormat(sFormat, iValue));
+		return SetAttribute(std::move(sName), kFormat("{}", iValue));
 	}
 
 	/// Set all attributes - removes all previously existing attributes

@@ -105,28 +105,9 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 		else
 		{
 #ifdef DEKAF2_FORMAT_NAMESPACE
-			KStringView sFormat;
-
-			if (iPrecision >= 3)
-			{
-				sFormat = "{:.3f} {}";
-			}
-			else if (iPrecision == 2)
-			{
-				sFormat = "{:.2f} {}";
-			}
-			else if (iPrecision == 1)
-			{
-				sFormat = "{:.1f} {}";
-			}
-			else if (iPrecision == 0)
-			{
-				sFormat = "{:.0f} {}";
-			}
-
 			auto f = (double)iValue / (double)iDivider;
 
-			sOut = kFormat(sFormat, f, sLabel);
+			sOut = kFormat("{:.{}f} {}", f, iPrecision, sLabel);
 #else
 			const char* sFormat;
 

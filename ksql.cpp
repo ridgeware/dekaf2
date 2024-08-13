@@ -6598,7 +6598,7 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLString& sW
 		iExpected = OtherDB.SingleIntQuery ("select count(*) from {} {}", sTablename, sWhereClause);
 		if (iExpected < 0)
 		{
-			KOut.FormatLine (OtherDB.GetLastError());
+			KOut.WriteLine (OtherDB.GetLastError());
 			return SetError(kFormat ("{}: {}: {}", OtherDB.ConnectSummary(), OtherDB.GetLastError(), OtherDB.GetLastSQL()));
 		}
 	}
@@ -6607,7 +6607,7 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLString& sW
 	{
 		if (!iExpected)
 		{
-			KOut.FormatLine ("no rows to copy.");
+			KOut.WriteLine ("no rows to copy.");
 		}
 		else
 		{
@@ -6615,7 +6615,7 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLString& sW
 			auto iTarget = SingleIntQuery ("select count(*) from {} {}", sTablename, sWhereClause);
 			if (iTarget < 0)
 			{
-				KOut.FormatLine (":: table does not exist in target, skipping copy.");
+				KOut.WriteLine (":: table does not exist in target, skipping copy.");
 			}
 			else if (iTarget == iExpected)
 			{
@@ -6629,7 +6629,7 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLString& sW
 			}
 			else // target table is empty
 			{
-				KOut.FormatLine ("");
+				KOut.WriteLine ();
 			}
 		}
 	}
@@ -7283,7 +7283,7 @@ uint32_t KSQL::ctlib_check_errors ()
 		}
 		else
 		{
-			kDebug(KSQL2_CTDEBUG, "error {} already set from client, server adds {}", ServerMsg.msgnumber);
+			kDebug(KSQL2_CTDEBUG, "error {} already set from client, server adds {}", m_iCtLibErrorNum, ServerMsg.msgnumber);
 		}
 
 		if (ii)
@@ -9237,12 +9237,9 @@ bool KSQL::ShowCounts (KStringView sRegex/*=""*/)
 
 	EndQuery();
 
-	KString sFormat;
-	sFormat.Format (":: {}:<{}{}  ...  ", "{", iMax, "}");
-
 	for (auto& sTable : Tables)
 	{
-		KOut.Write (kFormat (sFormat, sTable));
+		KOut.Format (":: {:<{}}  ...  ", sTable, iMax);
 		uint64_t iCount = SingleIntQuery ("select count(*) from {}", sTable);
 		KOut.WriteLine (kFormat ("{:>15}", kFormNumber(iCount)));
 	}

@@ -610,11 +610,11 @@ void KOptions::HelpFormatter::FormatOne(KOutStream& out,
 			if (bFirst)
 			{
 				bFirst = false;
-				out.FormatLine(mask.sFormat,
+				out.WriteLine(kFormat(KRuntimeFormat(mask.sFormat),
 							   (Callback.IsOption() && Callback.m_sNames.front() != '-') ? "-" : "",
 							   sLimitedNames,
 							   Callback.IsOption() ? "" : " ",
-							   sLimited);
+							   sLimited));
 
 				if (mask.bOverlapping)
 				{
@@ -627,7 +627,7 @@ void KOptions::HelpFormatter::FormatOne(KOutStream& out,
 			}
 			else
 			{
-				out.FormatLine(mask.sOverflow, sLimitedNames, sLimited);
+				out.WriteLine(kFormat(KRuntimeFormat(mask.sOverflow), sLimitedNames, sLimited));
 			}
 		}
 	}

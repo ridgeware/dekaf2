@@ -484,22 +484,22 @@ public:
 	constexpr chrono::local_days to_local_days () const noexcept { return chrono::local_days(detail::days_from_civil(*this));  }
 	/// return KUnixTime
 	DEKAF2_NODISCARD
-	constexpr KUnixTime       to_unix        ()  const noexcept; // this one is implemented in ktime.h ..
+	constexpr KUnixTime       to_unix        ()  const noexcept; // implemented in ktime.h ..
 	/// return struct tm (needed for efficient formatting)
 	DEKAF2_NODISCARD
 	constexpr std::tm         to_tm          ()  const noexcept;
-	/// return a string following std::format patterns - default = %Y-%m-%d
+	/// return a string following std::format patterns - default = {:%Y-%m-%d}
 	DEKAF2_NODISCARD
-	KString                   Format         (KStringView sFormat = detail::fDefaultDate) const { return to_string(sFormat);   }
-	/// return a string following std::format patterns - default = %Y-%m-%d
+	KString                   to_string      (KFormatString<const KConstDate&> sFormat) const noexcept; // implemented in ktime.h ..
+	/// return a string following std::format patterns - default = {:%Y-%m-%d}
 	DEKAF2_NODISCARD
-	KString                   to_string      (KStringView sFormat = detail::fDefaultDate) const;
-	/// return a string following std::format patterns, use given locale for formatting - default = %Y-%m-%d
+	KString                   to_string      () const noexcept; // implemented in ktime.h ..
+	/// return a string following std::format patterns, use given locale for formatting - default = {:%Y-%m-%d}
 	DEKAF2_NODISCARD
-	KString                   Format         (const std::locale& locale, KStringView sFormat = detail::fDefaultDate) const { return to_string(locale, sFormat);   }
-	/// return a string following std::format patterns, use given locale for formatting - default = %Y-%m-%d
+	KString                   to_string      (const std::locale& locale, KFormatString<const KConstDate&> sFormat) const noexcept; // this one is implemented in ktime.h ..
+	/// return a string following std::format patterns, use given locale for formatting - default = {:%Y-%m-%d}
 	DEKAF2_NODISCARD
-	KString                   to_string      (const std::locale& locale, KStringView sFormat = detail::fDefaultDate) const;
+	KString                   to_string      (const std::locale& locale) const noexcept; // implemented in ktime.h ..
 
 	// has also day()/month()/year() from its base
 
@@ -676,16 +676,16 @@ public:
 
 	/// return chrono::days
 	DEKAF2_NODISCARD
-	constexpr chrono::days    to_days        () const noexcept { return *this;                                    }
+	constexpr chrono::days    to_days        () const noexcept { return *this;                                      }
 	/// return floored chrono::weeks
 	DEKAF2_NODISCARD
-	constexpr chrono::weeks   to_weeks       () const noexcept { return chrono::floor<chrono::weeks>(to_days());  }
+	constexpr chrono::weeks   to_weeks       () const noexcept { return chrono::floor<chrono::weeks>(to_days());    }
 	/// return floored chrono::months
 	DEKAF2_NODISCARD
-	constexpr chrono::months  to_months      () const noexcept { return chrono::floor<chrono::months>(to_days()); }
+	constexpr chrono::months  to_months      () const noexcept { return chrono::floor<chrono::months>(to_days());   }
 	/// return floored chrono::years
 	DEKAF2_NODISCARD
-	constexpr chrono::years   to_years       () const noexcept { return chrono::floor<chrono::years>(to_days());  }
+	constexpr chrono::years   to_years       () const noexcept { return chrono::floor<chrono::years>(to_days());    }
 	/// returns a string representation like 3d
 	DEKAF2_NODISCARD
 	KString                   to_string      () const;
@@ -866,22 +866,6 @@ KDate& KDate::to_previous(chrono::weekday wd, uint16_t times)
 	return operator-=(chrono::days(((wd.c_encoding() < cur.c_encoding()) ? 0 : 7) + cur.c_encoding() - wd.c_encoding() + times * 7));
 }
 
-inline DEKAF2_PUBLIC
-std::ostream& operator<<(std::ostream& stream, KConstDate time)
-{
-	auto s = time.to_string();
-	stream.write(s.data(), s.size());
-	return stream;
-}
-
-inline DEKAF2_PUBLIC
-std::ostream& operator<<(std::ostream& stream, KDate time)
-{
-	auto s = time.to_string();
-	stream.write(s.data(), s.size());
-	return stream;
-}
-
 DEKAF2_NAMESPACE_END
 
 #if DEKAF2_HAS_INCLUDE("kformat.h")
@@ -932,14 +916,25 @@ template<> struct formatter<DEKAF2_PREFIX KDate> : formatter<std::chrono::year_m
 };
 #endif
 
+#if DEKAF2_HAS_FMT_FORMAT
 template<> struct formatter<DEKAF2_PREFIX KDays> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const DEKAF2_PREFIX KDays& days, FormatContext& ctx) const
 	{
-		return formatter<string_view>::format(days.to_string(), ctx);
+		return formatter<string_view>::format(std::to_string(days.to_days().count()) + "d", ctx);
 	}
 };
+#else
+template<> struct formatter<DEKAF2_PREFIX KDays> : formatter<std::chrono::days>
+{
+	template <typename FormatContext>
+	auto format(const DEKAF2_PREFIX KDays& days, FormatContext& ctx) const
+	{
+		return formatter<std::chrono::days>::format(days.to_days(), ctx);
+	}
+};
+#endif
 
 template<> struct formatter<DEKAF2_PREFIX KDateDiff> : formatter<string_view>
 {
@@ -977,5 +972,47 @@ template<> struct hash<DEKAF2_PREFIX KDate>
 };
 
 } // end of namespace std
+
+DEKAF2_NAMESPACE_BEGIN
+
+inline DEKAF2_PUBLIC
+KString KDays::to_string() const
+{
+	return kFormat("{}", *this);
+}
+
+inline DEKAF2_PUBLIC
+std::ostream& operator<<(std::ostream& stream, KConstDate date)
+{
+	auto s = date.to_string();
+	stream.write(s.data(), s.size());
+	return stream;
+}
+
+inline DEKAF2_PUBLIC
+std::ostream& operator<<(std::ostream& stream, KDate date)
+{
+	auto s = date.to_string();
+	stream.write(s.data(), s.size());
+	return stream;
+}
+
+inline DEKAF2_PUBLIC
+std::ostream& operator<<(std::ostream& stream, KDays days)
+{
+	auto s = days.to_string();
+	stream.write(s.data(), s.size());
+	return stream;
+}
+
+inline DEKAF2_PUBLIC
+std::ostream& operator<<(std::ostream& stream, KDateDiff datediff)
+{
+	auto s = datediff.to_string();
+	stream.write(s.data(), s.size());
+	return stream;
+}
+
+DEKAF2_NAMESPACE_END
 
 #endif // of has #include "bits/khash.h"

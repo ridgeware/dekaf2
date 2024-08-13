@@ -1264,10 +1264,12 @@ KStringView CheckTimeFormatString(KStringView sFormat)
 
 } // CheckTimeFormatString
 
-#else
+#endif // DEKAF2_USE_TIME_PUT
+
+} // of anonymous namespace
 
 //-----------------------------------------------------------------------------
-KString BuildTimeFormatString(KStringView sFormat)
+KString detail::BuildTimeFormatString(KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
 	// wrap this "%Y-%m-%d %H:%M:%S" in this "{:%Y-%m-%d %H:%M:%S}"
@@ -1292,219 +1294,16 @@ KString BuildTimeFormatString(KStringView sFormat)
 	sFormatString += sFormat.ToView(iPos);
 	sFormatString += '}';
 
+#ifndef NDEBUG
+	kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h,ktime.cpp,ktime.h,kdate.cpp,kdate.h",
+	                 kFormat("ERROR: please fix the time format string '{}' by changing it to '{}'", sFormat, sFormatString));
+#else
+	kWarning("ERROR: please fix the time format string '{}' by changing it to '{}'", sFormat, sFormatString);
+#endif
+
 	return sFormatString;
 
 } // BuildTimeFormatString
-
-//-----------------------------------------------------------------------------
-constexpr inline bool TimeFormatStringIsOK(KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-	// check this             "{:%Y-%m-%d %H:%M:%S}"
-	// but take care of this: "Hello {:%Y}"
-	//                        "{:%Y} years"
-	// and even               "Hello {:%Y} how {:%m} are you"
-	if (sFormat.size() > 2 && *sFormat.begin() == '{' && *(sFormat.begin() + 1) == ':' && *(sFormat.end()) == '}')
-	{
-		return true;
-	}
-
-	if (sFormat.find("{:%") != KStringView::npos || sFormat.find("{:}") != KStringView::npos)
-	{
-		return true;
-	}
-
-	return sFormat.find('%') == KStringView::npos;
-}
-
-#endif // DEKAF2_USE_TIME_PUT
-
-} // of anonymous namespace
-
-//-----------------------------------------------------------------------------
-KString detail::FormWebTimestamp (const KUTCTime& time, KStringView sTimezoneDesignator)
-//-----------------------------------------------------------------------------
-{
-	return DEKAF2_PREFIX kFormat("{:%a, %d %b %Y %H:%M:%S} {}", time, sTimezoneDesignator);
-}
-
-//-----------------------------------------------------------------------------
-KString kFormTimestamp (const std::tm& time, KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-	// we don't repeat the DEKAF2_USE_TIME_PUT path here, it is unused.
-	if (TimeFormatStringIsOK(sFormat))
-	{
-		return DEKAF2_PREFIX kFormat(sFormat, time);
-	}
-
-	return DEKAF2_PREFIX kFormat(BuildTimeFormatString(sFormat), time);
-}
-
-//-----------------------------------------------------------------------------
-KString kFormTimestamp (const KConstDate& date, KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-	// we don't repeat the DEKAF2_USE_TIME_PUT path here, it is unused.
-	if (TimeFormatStringIsOK(sFormat))
-	{
-		return DEKAF2_PREFIX kFormat(sFormat, date);
-	}
-
-	return DEKAF2_PREFIX kFormat(BuildTimeFormatString(sFormat), date);
-}
-
-//-----------------------------------------------------------------------------
-KString kFormTimestamp (const std::locale& locale, const KConstDate& date, KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-	// we don't repeat the DEKAF2_USE_TIME_PUT path here, it is unused.
-	if (TimeFormatStringIsOK(sFormat))
-	{
-		return DEKAF2_PREFIX kFormat(locale, sFormat, date);
-	}
-
-	return DEKAF2_PREFIX kFormat(locale, BuildTimeFormatString(sFormat), date);
-}
-
-//-----------------------------------------------------------------------------
-KString detail::FormTimestamp (const std::locale& locale, const KUnixTime& time, KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-#if DEKAF2_USE_TIME_PUT
-
-	sFormat = CheckTimeFormatString(sFormat);
-
-	auto& TimePut = std::use_facet<std::time_put<KString::value_type>>(locale);
-
-	std::ostringstream oss;
-
-	TimePut.put(std::ostreambuf_iterator<KString::value_type>(oss), oss, ' ', &time, sFormat.data(), sFormat.data() + sFormat.size());
-
-	return std::move(oss).str();
-
-#else
-
-	if (TimeFormatStringIsOK(sFormat))
-	{
-		return DEKAF2_PREFIX kFormat(locale, sFormat, time);
-	}
-
-	return DEKAF2_PREFIX kFormat(locale, BuildTimeFormatString(sFormat), time);
-
-#endif
-}
-
-//-----------------------------------------------------------------------------
-KString detail::FormTimestamp (const KUnixTime& time, KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-#if DEKAF2_USE_TIME_PUT
-	static std::locale s_locale = std::locale("C");
-
-	auto& TimePut = std::use_facet<std::time_put<KString::value_type>>(s_locale);
-
-	std::ostringstream oss;
-
-	TimePut.put(std::ostreambuf_iterator<KString::value_type>(oss), oss, ' ', &time, sFormat.data(), sFormat.data() + sFormat.size());
-
-	return std::move(oss).str();
-
-#else
-
-	if (TimeFormatStringIsOK(sFormat))
-	{
-		return DEKAF2_PREFIX kFormat(sFormat, time);
-	}
-
-	return DEKAF2_PREFIX kFormat(BuildTimeFormatString(sFormat), time);
-
-#endif
-
-} // kFormTimestamp
-
-//-----------------------------------------------------------------------------
-KString detail::FormTimestamp (const std::locale& locale, const KUTCTime& time, KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-	// we don't repeat the DEKAF2_USE_TIME_PUT path here, it is unused.
-	if (TimeFormatStringIsOK(sFormat))
-	{
-		return DEKAF2_PREFIX kFormat(locale, sFormat, time);
-	}
-
-	return DEKAF2_PREFIX kFormat(locale, BuildTimeFormatString(sFormat), time);
-}
-
-//-----------------------------------------------------------------------------
-KString detail::FormTimestamp (const KUTCTime& time, KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-	// we don't repeat the DEKAF2_USE_TIME_PUT path here, it is unused.
-	if (TimeFormatStringIsOK(sFormat))
-	{
-		return DEKAF2_PREFIX kFormat(sFormat, time);
-	}
-
-	return DEKAF2_PREFIX kFormat(BuildTimeFormatString(sFormat), time);
-}
-
-#if DEKAF2_HAS_TIMEZONES
-//-----------------------------------------------------------------------------
-KString kFormTimestamp (const std::locale& locale, const KLocalTime& tLocal, KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-	if (TimeFormatStringIsOK(sFormat))
-	{
-		return DEKAF2_PREFIX kFormat(locale, sFormat, tLocal);
-	}
-
-	return DEKAF2_PREFIX kFormat(locale, BuildTimeFormatString(sFormat), tLocal);
-}
-
-//-----------------------------------------------------------------------------
-KString kFormTimestamp (const KLocalTime& tLocal, KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-	if (TimeFormatStringIsOK(sFormat))
-	{
-		return DEKAF2_PREFIX kFormat(sFormat, tLocal);
-	}
-
-	return DEKAF2_PREFIX kFormat(BuildTimeFormatString(sFormat), tLocal);
-}
-#endif
-
-//-----------------------------------------------------------------------------
-KString kFormTimestamp (const std::locale& locale, const KUTCTime& tUTC, KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-	if (!tUTC.ok())
-	{
-		return detail::FormTimestamp(locale, kNow(), sFormat);
-	}
-	return detail::FormTimestamp(locale, tUTC, sFormat);
-
-} // kFormTimestamp
-
-//-----------------------------------------------------------------------------
-KString kFormTimestamp (const KUTCTime& tUTC, KStringView sFormat)
-//-----------------------------------------------------------------------------
-{
-	if (!tUTC.ok())
-	{
-		return detail::FormTimestamp(kNow(), sFormat);
-	}
-	return detail::FormTimestamp(tUTC, sFormat);
-
-} // kFormTimestamp
-
-//-----------------------------------------------------------------------------
-DEKAF2_PUBLIC KString kFormCommonLogTimestamp (const KUTCTime& tUTC)
-//-----------------------------------------------------------------------------
-{
-	return kFormat("[{:%d/%b/%Y:%H:%M:%S +0000}]", tUTC);
-}
 
 //-----------------------------------------------------------------------------
 KString kTranslateSeconds(int64_t iNumSeconds, bool bLongForm)
@@ -1538,20 +1337,6 @@ KUnixTime::KUnixTime(KStringView sFormat, KStringView sTimestamp)
 }
 
 //-----------------------------------------------------------------------------
-KString KConstTimeOfDay::to_string (KStringView sFormat) const
-//-----------------------------------------------------------------------------
-{
-//	return detail::FormTimestamp (to_tm(), sFormat); // TODO check if this is needed for fmt::format!
-	if (TimeFormatStringIsOK(sFormat))
-	{
-		return DEKAF2_PREFIX kFormat(sFormat, *this);
-	}
-
-	return DEKAF2_PREFIX kFormat(BuildTimeFormatString(sFormat), *this);
-
-}
-
-//-----------------------------------------------------------------------------
 KUTCTime::KUTCTime (KStringView sTimestamp)
 //-----------------------------------------------------------------------------
 : KUTCTime(kParseTimestamp(sTimestamp).to_utc())
@@ -1563,17 +1348,6 @@ KUTCTime::KUTCTime (KStringView sFormat, KStringView sTimestamp)
 //-----------------------------------------------------------------------------
 : KUTCTime(kParseTimestamp(sFormat, sTimestamp).to_utc())
 {
-}
-
-//-----------------------------------------------------------------------------
-KString KUTCTime::to_string (KStringView sFormat) const
-//-----------------------------------------------------------------------------
-{
-	if (empty())
-	{
-		return KString();
-	}
-	return detail::FormTimestamp (*this, sFormat);
 }
 
 #if DEKAF2_HAS_TIMEZONES
@@ -1589,28 +1363,6 @@ KLocalTime::KLocalTime (KStringView sFormat, KStringView sTimestamp, const chron
 //-----------------------------------------------------------------------------
 : KLocalTime(kParseLocalTimestamp(sFormat, sTimestamp, timezone))
 {
-}
-
-//-----------------------------------------------------------------------------
-KString KLocalTime::to_string (KStringView sFormat) const
-//-----------------------------------------------------------------------------
-{
-	if (empty())
-	{
-		return KString();
-	}
-	return kFormTimestamp (*this, sFormat);
-}
-
-//-----------------------------------------------------------------------------
-KString KLocalTime::to_string (const std::locale& locale, KStringView sFormat) const
-//-----------------------------------------------------------------------------
-{
-	if (empty())
-	{
-		return KString();
-	}
-	return kFormTimestamp (locale, *this, sFormat);
 }
 
 //-----------------------------------------------------------------------------

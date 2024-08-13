@@ -50,7 +50,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 /// format no-op for filedesc
-bool kPrint(int fd, KStringView sFormat) noexcept
+bool kWrite(int fd, KStringView sFormat) noexcept
 //-----------------------------------------------------------------------------
 {
 	return kWrite(fd, sFormat.data(), sFormat.size()) == sFormat.size();
@@ -58,15 +58,15 @@ bool kPrint(int fd, KStringView sFormat) noexcept
 
 //-----------------------------------------------------------------------------
 /// format no-op for filedesc
-bool kPrintLine(int fd, KStringView sFormat) noexcept
+bool kWriteLine(int fd, KStringView sFormat) noexcept
 //-----------------------------------------------------------------------------
 {
-	return kPrint(fd, sFormat) && kPrint(fd, "\n");
+	return kWrite(fd, sFormat) && kWrite(fd, "\n");
 }
 
 //-----------------------------------------------------------------------------
 /// format no-op for std::FILE*
-bool kPrint(std::FILE* fp, KStringView sFormat) noexcept
+bool kWrite(std::FILE* fp, KStringView sFormat) noexcept
 //-----------------------------------------------------------------------------
 {
 	return kWrite(fp, sFormat.data(), sFormat.size()) == sFormat.size();
@@ -74,78 +74,88 @@ bool kPrint(std::FILE* fp, KStringView sFormat) noexcept
 
 //-----------------------------------------------------------------------------
 /// format no-op for std::FILE*
-bool kPrintLine(std::FILE* fp, KStringView sFormat) noexcept
+bool kWriteLine(std::FILE* fp, KStringView sFormat) noexcept
 //-----------------------------------------------------------------------------
 {
-	return kPrint(fp, sFormat) && kPrint(fp, "\n");
+	return kWrite(fp, sFormat) && kWrite(fp, "\n");
 }
 
 //-----------------------------------------------------------------------------
-bool kPrint(KStringView sFormat) noexcept
+std::ostream& kWrite(std::ostream& os, KStringView sOutput) noexcept
 //-----------------------------------------------------------------------------
 {
-	return kPrint(stdout, sFormat);
+	return os.write(sOutput.data(), sOutput.size());
 }
 
 //-----------------------------------------------------------------------------
-bool kPrintLine(KStringView sFormat) noexcept
+std::ostream& kWriteLine(std::ostream& os, KStringView sOutput) noexcept
 //-----------------------------------------------------------------------------
 {
-	return kPrintLine(stdout, sFormat);
+	return os.write(sOutput.data(), sOutput.size()).write("\n", 1);
 }
 
-namespace detail {
+//-----------------------------------------------------------------------------
+bool kWrite(KStringView sFormat) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kWrite(stdout, sFormat);
+}
+
+//-----------------------------------------------------------------------------
+bool kWriteLine(KStringView sFormat) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kWriteLine(stdout, sFormat);
+}
+
+#if !DEKAF2_FORMAT_INLINE || !DEKAF2_HAS_FORMAT_RUNTIME
+
+namespace kformat_detail {
 
 //-----------------------------------------------------------------------------
 /// formats a KString using Python syntax
-KString kFormat(KStringView sFormat, const dekaf2_format::format_args& args) noexcept
+KString Format(DEKAF2_FORMAT_NAMESPACE::string_view sFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& args) noexcept
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
 
 	DEKAF2_TRY
 	{
-#if DEKAF2_KSTRINGVIEW_IS_STD_STRINGVIEW
-		sOut = dekaf2_format::vformat(sFormat, args);
-#else
-		sOut = dekaf2_format::vformat(sFormat.operator dekaf2_format::string_view(), args);
-#endif
+		sOut = DEKAF2_FORMAT_NAMESPACE::vformat(sFormat, args);
 	}
 	DEKAF2_CATCH (const std::exception& e)
 	{
 		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h,ktime.cpp,ktime.h,kdate.cpp,kdate.h",
-						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));
+						 DEKAF2_FORMAT_NAMESPACE::format("bad format arguments for: \"{}\": {}", sFormat, e.what()));
 	}
 
 	return sOut;
 
-} // kFormat
+} // Format
 
 //-----------------------------------------------------------------------------
 /// formats a KString using Python syntax, with locale
-KString kFormat(const std::locale& locale, KStringView sFormat, const dekaf2_format::format_args& args) noexcept
+KString Format(const std::locale& locale, DEKAF2_FORMAT_NAMESPACE::string_view sFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& args) noexcept
 //-----------------------------------------------------------------------------
 {
 	KString sOut;
 
 	DEKAF2_TRY
 	{
-#if DEKAF2_KSTRINGVIEW_IS_STD_STRINGVIEW
-		sOut = dekaf2_format::vformat(locale, sFormat, args);
-#else
-		sOut = dekaf2_format::vformat(locale, sFormat.operator dekaf2_format::string_view(), args);
-#endif
+		sOut = DEKAF2_FORMAT_NAMESPACE::vformat(locale, sFormat, args);
 	}
 	DEKAF2_CATCH (const std::exception& e)
 	{
 		kTraceDownCaller(4, "klog.cpp,klog.h,kformat.cpp,kformat.h,kgetruntimestack.cpp,kgetruntimestack.h,ktime.cpp,ktime.h,kdate.cpp,kdate.h",
-						 kFormat("bad format arguments for: \"{}\": {}", sFormat, e.what()));
+						 DEKAF2_FORMAT_NAMESPACE::format("bad format arguments for: \"{}\": {}", sFormat, e.what()));
 	}
 
 	return sOut;
 
-} // kFormat
+} // Format
 
-} // end of namespace detail
+} // end of namespace kformat_detail
+
+#endif
 
 DEKAF2_NAMESPACE_END

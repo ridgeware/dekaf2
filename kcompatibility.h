@@ -221,6 +221,9 @@ namespace std
 	#ifndef strcasecmp
 		#define strcasecmp _stricmp
 	#endif
+#if 0
+	// we do not add these here anymore because they interfere with
+	// the fmt::fmtlib built on Windows
 	#ifndef timegm
 		#define timegm _mkgmtime
 	#endif
@@ -230,6 +233,7 @@ namespace std
 	#ifndef gmtime_r
 		#define gmtime_r gmtime_s
 	#endif
+#endif
 	#ifndef WIFSIGNALED
 		#define WIFSIGNALED(x) ((x) == 3)
 	#endif

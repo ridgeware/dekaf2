@@ -136,7 +136,11 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 	bool bIsRoot        = m_Name.empty();
 	bool bLastWasSpace  = bIsFirstAfterLinefeed;
 
+#if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
+	kDebug(3, "up: <{}{}, Indent={}, IsStandalone={}, IsInline={}, IsRoot={}, IsFirst={}", m_Name, '>', iIndent, bIsStandalone, bIsInline, bIsRoot, bIsFirstAfterLinefeed);
+#else
 	kDebug(3, "up: <{}>, Indent={}, IsStandalone={}, IsInline={}, IsRoot={}, IsFirst={}", m_Name, iIndent, bIsStandalone, bIsInline, bIsRoot, bIsFirstAfterLinefeed);
+#endif
 
 	auto PrintIndent   = [&bIsFirstAfterLinefeed,&bLastWasSpace,chIndent,&OutStream](uint16_t iIndent)
 	{
@@ -336,7 +340,11 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 		}
 	}
 
+#if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
+	kDebug(3, "down: </{}{}", m_Name, '>');
+#else
 	kDebug(3, "down: </{}>", m_Name);
+#endif
 	return bIsFirstAfterLinefeed;
 
 } // Print
@@ -901,7 +909,11 @@ void KHTML::Object(KHTMLObject& Object)
 					}
 					else
 					{
+#if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
+						SetIssue(kFormat("invalid html - start and end tag differ: <{}{} -> </{}{}", m_Hierarchy.back()->GetName(), '>', Tag.Name, '>'));
+#else
 						SetIssue(kFormat("invalid html - start and end tag differ: <{}> -> </{}>", m_Hierarchy.back()->GetName(), Tag.Name));
+#endif
 
 						// now try to resync
 						auto iMaxAutoClose = m_iMaxAutoCloseLevels;
@@ -911,13 +923,21 @@ void KHTML::Object(KHTMLObject& Object)
 						{
 							if (!iMaxAutoClose--)
 							{
+#if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
+								kDebug(2, "could not resync, max auto close levels = {}, will drop </{}{}", m_iMaxAutoCloseLevels, Tag.Name, '>');
+#else
 								kDebug(2, "could not resync, max auto close levels = {}, will drop </{}>", m_iMaxAutoCloseLevels, Tag.Name);
+#endif
 								break;
 							}
 
 							if (iCurrentLevel-- < 2)
 							{
+#if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
+								kDebug(2, "could not resync, reached root during descent, will drop </{}{}", Tag.Name, '>');
+#else
 								kDebug(2, "could not resync, reached root during descent, will drop </{}>", Tag.Name);
+#endif
 								break;
 							}
 

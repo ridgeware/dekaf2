@@ -39,7 +39,7 @@ static KString FormatEscaped(KStringView sFormat, Args&&... args)
 {
 	return std::apply([sFormat](auto&&... args)
 	{
-		return kFormat(sFormat, std::forward<decltype(args)>(args)...);
+		return kFormat(KRuntimeFormat(sFormat), std::forward<decltype(args)>(args)...);
 	},
 	std::make_tuple(EscapeType(args)...));
 }

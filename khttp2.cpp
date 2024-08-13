@@ -46,6 +46,8 @@
 
 #include "kformat.h"
 #include "kwrite.h"
+
+#define NGHTTP2_NO_SSIZE_T 1
 #include <nghttp2/nghttp2.h>
 
 #if (NGHTTP2_VERSION_NUM < 0x013d00)
@@ -612,7 +614,7 @@ int Session::OnFrameRecv (const void* frame)
 {
 	auto Frame = static_cast<const nghttp2_frame*>(frame);
 
-	kDebug(3, "[stream {}] frame type: {}, category {}", Frame->hd.stream_id, TranslateFrameType(Frame->hd.type), static_cast<uint16_t>(Frame->headers.cat));
+	kDebug(3, "[stream {}] frame type: {}, category {}", Frame->hd.stream_id, TranslateFrameType(Frame->hd.type), Frame->headers.cat);
 
 	if (Frame->hd.type == NGHTTP2_HEADERS && Frame->headers.cat == NGHTTP2_HCAT_RESPONSE)
 	{

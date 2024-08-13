@@ -40,35 +40,9 @@
  */
 
 #include "kdate.h"
-#include "ktime.h"
+#include "kformat.h"
 
 DEKAF2_NAMESPACE_BEGIN
-
-//-----------------------------------------------------------------------------
-KString KConstDate::to_string (KStringView sFormat) const
-//-----------------------------------------------------------------------------
-{
-	if (empty())
-	{
-		return KString();
-	}
-
-	return kFormTimestamp(*this, sFormat);
-
-} // to_string
-
-//-----------------------------------------------------------------------------
-KString KConstDate::to_string (const std::locale& locale, KStringView sFormat) const
-//-----------------------------------------------------------------------------
-{
-	if (empty())
-	{
-		return KString();
-	}
-
-	return kFormTimestamp(locale, *this, sFormat);
-
-} // to_string
 
 //-----------------------------------------------------------------------------
 KString KDateDiff::to_string () const
@@ -110,14 +84,6 @@ KString KDateDiff::to_string () const
 	}
 	
 	return sDateDiff;
-
-} // to_string
-
-//-----------------------------------------------------------------------------
-KString KDays::to_string () const
-//-----------------------------------------------------------------------------
-{
-	return kFormat("{}d", to_days().count());
 
 } // to_string
 

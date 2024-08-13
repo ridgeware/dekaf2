@@ -420,7 +420,7 @@ public:
 		}
 
 		// not found..
-		kDebug(0, "missing switch case: {}", m_header);
+		kDebug(0, "missing switch case: {}", static_cast<std::underlying_type<Header>::type>(m_header));
 
 		return "";
 	}

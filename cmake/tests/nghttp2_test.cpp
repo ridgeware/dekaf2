@@ -1,3 +1,4 @@
+#define NGHTTP2_NO_SSIZE_T 1
 #include <nghttp2/nghttp2.h>
 #include <cstdint>
 #include <type_traits>

@@ -874,7 +874,10 @@ int main (int argc, char* argv[])
 						style = "background-color: red; color: white";
 					}
 
-					out->FormatLine("<span style='{}'>{}</span>", style, KHTMLEntity::Encode(sLine));
+					// we use this convoluted form for anything bearing a < or > after the {} format
+					// placeholder because AppleClang mistakenly attributes that > as the fill
+					// instruction for std::format
+					out->FormatLine("<span style='{}'>{}{}/span>", style, KHTMLEntity::Encode(sLine), '<');
 				}
 			}
 		}

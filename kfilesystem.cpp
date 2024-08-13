@@ -1685,14 +1685,22 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileTypes Types, bool bRecursi
 		struct dirent* dir;
 		while ((dir = ::readdir(d)) != nullptr)
 		{
+			// convert d_name immediately into a string view, as std::format()
+			// would otherwise print the char array _including_ all trailing
+			// bytes after the nul
+#ifdef DEKAF2_IS_OSX
+			KString sName(dir->d_name, dir->d_namlen);
+#else
+			KString sName(dir->d_name);
+#endif
 			// exclude . and .. as std::filesystem excludes them, too
-			if (strcmp(dir->d_name, ".") != 0 && strcmp(dir->d_name, "..") != 0)
+			if (sName != "." && sName != "..")
 			{
 				KFileType FT = KFileTypeFromDirentry(dir->d_type);
 
 				if (Types.contains(FT))
 				{
-					m_DirEntries.emplace_back(sDirectory, dir->d_name, FT);
+					m_DirEntries.emplace_back(sDirectory, sName, FT);
 				}
 
 				if (bRecursive && dir->d_type == DT_DIR)
@@ -1701,7 +1709,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileTypes Types, bool bRecursi
 					KStringView sDir = sDirectory;
 					sDir.TrimRight(detail::kAllowedDirSep);
 					// recurse through the subdirectories
-					Open(kFormat("{}{}{}", sDir, kDirSep, dir->d_name), Types, true, false);
+					Open(kFormat("{}{}{}", sDir, kDirSep, sName), Types, true, false);
 				}
 			}
 		}

@@ -122,7 +122,7 @@ using KIPCSafe = KThreadSafe<IPCObject, KKeyedSemaphoreMutex<iIPCKey>>;
 namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KSharedMemoryBase : KErrorBase
+class DEKAF2_PUBLIC KSharedMemoryBase : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

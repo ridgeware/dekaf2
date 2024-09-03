@@ -81,6 +81,13 @@ constexpr typename std::underlying_type<Enum>::type format_as(Enum e)
 }
 #endif
 
+// keep this alias until merging in the full consteval std::format support
+template<typename... Args>
+using KFormatString = KStringView;
+
+// keep this alias until merging in the full consteval std::format support
+using KRuntimeFormat = KStringView;
+
 namespace dekaf2_format = DEKAF2_FORMAT_NAMESPACE;
 
 namespace detail {

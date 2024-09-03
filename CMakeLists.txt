@@ -384,7 +384,9 @@ endif()
 # ================================ OPENSSL ===================================
 
 find_package(OpenSSL REQUIRED)
-if (OPENSSL_VERSION VERSION_GREATER_EQUAL "3.2")
+if (OPENSSL_VERSION VERSION_GREATER_EQUAL "3.3")
+	# OpenSSL released QUIC first with v3.2.0, but we want at least v3.3,
+	# because SSL_poll() was implemented only then
 	message(STATUS "OpenSSL ${OPENSSL_VERSION} has QUIC")
 	set(DEKAF2_HAS_OPENSSL_QUIC 1)
 endif()

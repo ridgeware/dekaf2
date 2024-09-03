@@ -152,15 +152,49 @@ bool KTLSContext::SetDefaults()
 	// set the system default cert paths, but do not yet switch verify mode on
 	// (we do that individually for each connect on request)
 	m_Context.set_default_verify_paths(ec);
+	
+	if (ec)
+	{
+		return SetError(kFormat("error setting TLS verify path: {}", ec.message()));
+	}
+
+#ifdef DEKAF2_SYSTEM_CERTIFICATE_PATH
+
+	KString sVerifyPath = DEKAF2_SYSTEM_CERTIFICATE_PATH;
+
+	if (!sVerifyPath.empty())
+	{
+		return SetAdditionalTLSVerifyPath(sVerifyPath);
+	}
+
+#endif
+	// when adding more code after the endif here,
+	// modify the return condition above to only return on false
+	return true;
+
+} // SetDefaults
+
+//-----------------------------------------------------------------------------
+bool KTLSContext::SetAdditionalTLSVerifyPath(KStringView sVerifyPath)
+//-----------------------------------------------------------------------------
+{
+	boost::system::error_code ec;
+
+//	kDebug(2, "setting additional TLS verify path: {}", sVerifyPath);
+	kPrintLine("setting additional TLS verify path: {}", sVerifyPath);
+
+	// set the system default cert paths, but do not yet switch verify mode on
+	// (we do that individually for each connect on request)
+	m_Context.add_verify_path(sVerifyPath, ec);
 
 	if (ec)
 	{
-		return SetError(kFormat("error setting TLS verify paths: {}", ec.message()));
+		return SetError(kFormat("error setting TLS verify path {}: {}", sVerifyPath, ec.message()));
 	}
 
 	return true;
 
-} // SetDefaults
+} // SetAdditionalTLSVerifyPath
 
 //-----------------------------------------------------------------------------
 bool KTLSContext::LoadTLSCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword)

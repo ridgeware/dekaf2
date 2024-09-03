@@ -97,6 +97,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Set an additional verify path (the system defaults have been set at construction)
+	bool SetAdditionalTLSVerifyPath(KStringView sVerifyPath);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Set the ALPN data. This API expects a vector of KStringViews and transforms it into the internal
 	/// ALPN format.
 	/// This method is mutually exclusive with SetAllowHTTP2()

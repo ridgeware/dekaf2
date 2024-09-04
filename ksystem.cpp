@@ -2073,10 +2073,10 @@ KDuration kPing(KStringView sHostname, KDuration Timeout)
 	KString sOut;
 
 #ifdef DEKAF2_IS_WINDOWS
-	uint32_t iTimeout = std::max(KDuration(chrono::milliseconds(1)).milliseconds().count(), Timeout.milliseconds().count());
+	uint32_t iTimeout = static_cast<uint32_t>(std::max(KDuration(chrono::milliseconds(1)).milliseconds().count(), Timeout.milliseconds().count()));
 	auto iResult = kSystem(kFormat("ping /n 1 /w {} {}", iTimeout, sHostname), sOut);
 #else
-	uint32_t iTimeout = std::max(KDuration(chrono::seconds(1)).seconds().count(), Timeout.seconds().count());
+	uint32_t iTimeout = static_cast<uint32_t>(std::max(KDuration(chrono::seconds(1)).seconds().count(), Timeout.seconds().count()));
 	auto iResult = kSystem(kFormat("ping -c 1 -t {} {}", iTimeout, sHostname), sOut);
 #endif
 

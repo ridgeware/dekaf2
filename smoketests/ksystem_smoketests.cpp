@@ -20,9 +20,13 @@ TEST_CASE("KSystem")
 	
 	SECTION("KPing")
 	{
-		CHECK ( kPing("localhost-nononono-kgjhdsgfjasf", chrono::seconds(1)) == KDuration::zero() );
-		CHECK ( kPing("localhost", chrono::seconds(1)) != KDuration::zero() );
-		CHECK ( kPing("www.google.com") != KDuration::zero() );
+		// do not run the pings on github actions (or other CIs)
+		if (kGetEnv("CI").empty() && kGetEnv("GITHUB_ACTION").empty())
+		{
+			CHECK ( kPing("localhost-nononono-kgjhdsgfjasf", chrono::seconds(1)) == KDuration::zero() );
+			CHECK ( kPing("localhost", chrono::seconds(1)) != KDuration::zero() );
+			CHECK ( kPing("www.google.com") != KDuration::zero() );
+		}
 	}
 }
 

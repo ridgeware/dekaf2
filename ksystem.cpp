@@ -2058,4 +2058,72 @@ KUName::KUName(const KUName& other) noexcept
 {
 } // KUName copy ctor
 
+//-----------------------------------------------------------------------------
+KDuration kPing(KStringView sHostname, KDuration Timeout)
+//-----------------------------------------------------------------------------
+{
+	if (kIsIPv6Address(sHostname, true))
+	{
+		// this is an ip v6 numerical address
+		sHostname.remove_suffix(1);
+		sHostname.remove_prefix(1);
+	}
+
+	// call the system ping utility, it has setuid or 'setcap cap_net_raw+ep' set
+	KString sOut;
+
+#ifdef DEKAF2_IS_WINDOWS
+	uint32_t iTimeout = std::max(KDuration(chrono::milliseconds(1)).milliseconds().count(), Timeout.milliseconds().count());
+	auto iResult = kSystem(kFormat("ping /n 1 /w {} {}", iTimeout, sHostname), sOut);
+#else
+	uint32_t iTimeout = std::max(KDuration(chrono::seconds(1)).seconds().count(), Timeout.seconds().count());
+	auto iResult = kSystem(kFormat("ping -c 1 -t {} {}", iTimeout, sHostname), sOut);
+#endif
+
+	if (!iResult)
+	{
+		auto pos = sOut.find(" time=");
+
+		if (pos != npos)
+		{
+			KStringView sFound = sOut.ToView(pos + sizeof(" time="));
+
+			uint32_t iMilliSeconds { 0 };
+			uint32_t iMicroSeconds { 0 };
+			bool bHadDot { false };
+
+			for (auto ch : sFound)
+			{
+				if (ch == '.')
+				{
+					if (bHadDot) break;
+					bHadDot = true;
+				}
+				else if (KASCII::kIsDigit(ch))
+				{
+					if (bHadDot)
+					{
+						iMicroSeconds *= 10;
+						iMicroSeconds += ch - '0';
+					}
+					else
+					{
+						iMilliSeconds *= 10;
+						iMilliSeconds += ch - '0';
+					}
+				}
+				else break;
+			}
+
+			KDuration duration(chrono::milliseconds(iMilliSeconds) + chrono::microseconds(iMicroSeconds));
+			kDebug(2, "{}: {}", sHostname, duration);
+			return duration;
+		}
+	}
+
+	kDebug(1, "{}: error {}", sHostname, iResult);
+	return {};
+
+} // kPing
+
 DEKAF2_NAMESPACE_END

@@ -47,6 +47,7 @@
 
 #include "kstring.h"
 #include "kstringview.h"
+#include "kduration.h"
 #include "bits/kstringviewz.h"
 #include <locale>
 #ifndef DEKAF2_IS_WINDOWS
@@ -483,5 +484,12 @@ public:
 	KStringViewZ machine;
 
 }; // KUName
+
+/// ping a hostname or ip address
+/// @param sHostname the hostname  or ip addess to ping
+/// @param Timeout timeout for the ping, defaults to 5 seconds
+/// @returns the ping time, or KDuration::zero() on failure
+DEKAF2_PUBLIC
+KDuration kPing(KStringView sHostname, KDuration Timeout = chrono::seconds(5));
 
 DEKAF2_NAMESPACE_END

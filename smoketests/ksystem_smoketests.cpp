@@ -18,5 +18,11 @@ TEST_CASE("KSystem")
 		CHECK (kResolveHost (sHostname, true, false) == sTestIP);
 	}
 	
+	SECTION("KPing")
+	{
+		CHECK ( kPing("localhost-nononono-kgjhdsgfjasf", chrono::seconds(1)) == KDuration::zero() );
+		CHECK ( kPing("localhost", chrono::seconds(1)) != KDuration::zero() );
+		CHECK ( kPing("www.google.com") != KDuration::zero() );
+	}
 }
 

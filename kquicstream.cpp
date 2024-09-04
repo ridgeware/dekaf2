@@ -336,9 +336,9 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 	KString sIPAddress;
 
-	if (sHostname.starts_with('[') && sHostname.ends_with(']'))
+	if (kIsIPv6Address(sHostname, true))
 	{
-		// this is a ip v6 numerical address TODO better test
+		// this is a ip v6 numerical address
 		sIPAddress = sHostname.ToView(1, sHostname.size() - 2);
 	}
 
@@ -349,7 +349,7 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	                      : sIPAddress.c_str(),
 	                     Endpoint.Port.Serialize().c_str(),
 	                     BIO_LOOKUP_CLIENT,
-	                     Options.GetFamily(),
+	                     Options.GetNativeFamily(),
 	                     SOCK_DGRAM, 0,
 	                     &res_local))
 	{

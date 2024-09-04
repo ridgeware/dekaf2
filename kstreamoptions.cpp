@@ -121,6 +121,23 @@ KStreamOptions::Family KStreamOptions::GetFamily() const
 
 } // GetFamily
 
+//-----------------------------------------------------------------------------
+int KStreamOptions::GetNativeFamily() const
+//-----------------------------------------------------------------------------
+{
+	switch (GetFamily())
+	{
+		case Family::IPv4:
+			return AF_INET;
+		case Family::IPv6:
+			return AF_INET6;
+		case Family::Any:
+			return AF_UNSPEC;
+	}
+
+	return AF_UNSPEC;
+
+} // GetNativeFamily
 
 //-----------------------------------------------------------------------------
 bool KStreamOptions::AddALPNString(KStringRef& sResult, KStringView sALPN)

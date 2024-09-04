@@ -110,6 +110,9 @@ public:
 	/// returns one of Any, IPv4, IPv6 depending on the set options
 	Family GetFamily()    const;
 
+	/// returns the family as native value
+	int GetNativeFamily() const;
+
 	/// set the timeout
 	void SetTimeout(KDuration Timeout) { m_Timeout = Timeout; }
 

@@ -21,7 +21,10 @@ setx=get
 get ()
 #==============================
 {
-	if [[ "$1" != "" ]]; then
+	if [[ "$#" == "2" ]]; then
+		local nic=$1
+		(/sbin/ifconfig | grep -A 8 "${nic}" | sed -e 's/.*inet addr:/inet /' | awk '($1 == "inet") {print $2; exit 0}') 2>/dev/null
+	elif [[ "$1" != "" ]]; then
 		local nic=$1
 		(/sbin/ifconfig $nic | sed -e 's/.*inet addr:/inet /' | awk '($1 == "inet") {print $2; exit 0}') 2>/dev/null
 	else
@@ -40,6 +43,7 @@ case $# in
 		ip=$(get eth0);   [[ "$ip"   != "" ]] && echo "$ip" && exit 0
 		ip=$(get ens160); [[ "$ip"   != "" ]] && echo "$ip" && exit 0
 		ip=$(get ens32);  [[ "$ip"   != "" ]] && echo "$ip" && exit 0
+		ip=$(get en any); [[ "$ip"   != "" ]] && echo "$ip" && exit 0
 		get # <-- give up and pick the first interface
 		;;
 	1)

@@ -1,0 +1,188 @@
+#! /bin/bash
+
+#%
+#% kscan - scan a LAN to produce a simple inventory and warn of new devices
+#%
+#% usage: kscan lan|<N.N.N>   :: will scan N.N.N.1 -> N.N.N.255
+#%
+#% note:
+#%   * requires NMAP
+#%   * run as root (recommended)
+#%   * take more time when it find more devices
+#%
+
+if [[ ${1} = -x ]]; then
+	shift
+	set -x
+fi
+
+setx=_GetIP
+#==============================
+_GetIP ()
+#==============================
+{
+	export PATH="/sbin:${PATH}"
+
+	if [[ $# -eq 2 ]]; then
+		local nic=$1
+		(ifconfig | grep -A 8 "${nic}" | sed -e 's/.*inet addr:/inet /' | awk '($1 == "inet") {print $2; exit 0}') 2>/dev/null
+	elif [[ "$1" != "" ]]; then
+		local nic=$1
+		(ifconfig $nic | sed -e 's/.*inet addr:/inet /' | awk '($1 == "inet") {print $2; exit 0}') 2>/dev/null
+	else
+		#ifconfig | sed -e 's/.*inet addr:/inet /' | awk '($1 == "inet") {print $2; exit 0}' # <-- pick first interface
+
+		# inet 10.10.178.34 netmask 0xffffff00 broadcast 10.10.178.255
+		ifconfig | awk '/[\t ]inet .* broadcast / { print $2 }' | tail -1 # <-- pick the last interface that has a broadcast
+	fi
+
+} # _GetIP
+
+#==============================
+MyIP ()
+#==============================
+{
+	#ip=$(_GetIP eth0);   [[ "$ip"   != "" ]] && echo "$ip" && exit 0
+	#ip=$(_GetIP ens160); [[ "$ip"   != "" ]] && echo "$ip" && exit 0
+	#ip=$(_GetIP ens32);  [[ "$ip"   != "" ]] && echo "$ip" && exit 0
+	#ip=$(_GetIP en any); [[ "$ip"   != "" ]] && echo "$ip" && exit 0
+	ip=$(_GetIP)
+
+	echo ${ip}
+
+} # MyIP
+
+setx=MyLAN
+#==============================
+MyLAN ()
+#==============================
+{
+	local ipv4="$1"
+	echo ${ipv4} | awk -F. '{printf ("%s.%s.%s\n", $1, $2, $3)}'
+
+} # MyLAN
+
+setx=Report
+#==============================
+Report ()
+#==============================
+{
+	local BAR="--------------------------------------------------"
+
+	printf "+-%3.3s-+-%-18.18s+-%-30.30s+-%-45.45s+\n" $BAR $BAR $BAR $BAR
+	printf "| %3.3s | %-18.18s| %-30.30s| %-45.45s|\n" IP DEVICE BRAND OPEN-PORTS
+	printf "+-%3.3s-+-%-18.18s+-%-30.30s+-%-45.45s+\n" $BAR $BAR $BAR $BAR
+
+	local results=$(sed -e 's,[()\/], ,g' | awk 'BEGIN {
+		devices["00:22:6C:1A:90:CD"] = "DAX88 Whole House Audio"
+		devices["08:12:A5:C2:3D:F8"] = "Alexa"
+		devices["0C:AA:EE:0B:25:6D"] = "Ansjer Electronics"
+		devices["28:87:BA:55:82:ED"] = "Outdoor WAP"
+		devices["58:82:A8:22:53:F4"] = "XBOX"
+		devices["58:82:A8:22:53:F6"] = "XBOX"
+		devices["64:C2:DE:73:BE:60"] = "Cristians-Phone"
+		devices["6C:96:CF:DB:24:FD"] = "Mamas MBP"
+		devices["72:54:B0:9D:0E:99"] = "Emilys-iPhone"
+		devices["78:67:0E:06:EA:D7"] = "Verizon Router"
+		devices["8C:E2:DA:F1:5F:C9"] = "Circle Device"
+		devices["98:01:A7:CB:D9:0B"] = "Margarets-Mac-Air"
+		devices["98:FA:9B:A3:B7:C3"] = "TPT Laptop"
+		devices["9A:88:B7:0C:32:EA"] = "Dans-Phone"
+		devices["A4:CF:99:96:C6:D4"] = "Thomas-MBP"
+		devices["AC:04:0B:48:38:30"] = "Peloton Bike"
+		devices["B8:31:B5:BF:8A:33"] = "XBOX"
+		devices["B8:B2:F8:C2:59:F6"] = "Thomas-iPhone"
+		devices["C8:89:F3:B2:80:55"] = "Joshs-Macbook"
+		devices["DC:A6:32:8A:B9:02"] = "Raspberry Pi"
+		devices["F4:30:B9:76:82:40"] = "HP Basement Printer"
+		devices["F4:D4:88:8F:8C:45"] = "Joes MBP"
+		devices["FC:EC:DA:B9:49:54"] = "Ubiquiti Upstairs WAP"
+		devices["70:88:6B:8E:57:C9"] = "Joes MBP Dock"
+	}
+	/^Nmap scan report for / {
+		ip = $NF
+		ports = ""
+		do
+		{
+			if ((0 + $1) > 0)
+			{
+				ports = sprintf ("%s%s%d", ports, (ports=="") ? "" : " ", $1)
+			}
+			else if ($0 ~ /^MAC Address/)
+			{
+				mac = $3
+				brand = ""
+				for (ii=4; ii<=NF; ++ii)
+				{
+					brand = sprintf ("%s%s%s", brand, (brand=="") ? "" : " ", $ii)
+				}
+			}
+			if (!NF) {
+				break # do..while
+			}
+		} while (getline)
+
+		#printf ("DEBUG: mac: %s, ip: %s, brand: %s, ports: %s\n", mac, ip, brand, ports)
+		split(ip,arr,".")
+		last=arr[4]
+		
+		device = mac
+		if (devices[mac] != "")
+		{
+			device = devices[mac]
+		}
+
+		printf ("| %03d | %-18.18s| %-30.30s| %-45.45s|\n", last, mac, brand, ports)
+
+	}' | sort -n)
+
+	echo "$results"
+	printf "+-%3.3s-+-%-18.18s+-%-30.30s+-%-45.45s+\n" $BAR $BAR $BAR $BAR
+
+	local count=$(echo "$results" | wc -l)
+	printf ":: %d devices found.\n" $count
+
+} # Report
+
+setx=MAIN
+#====================
+# MAIN
+#====================
+if [[ $# -lt 1 ]]; then
+	awk '/^#%/ {print substr($0,3)}' $0
+	exit 1
+fi
+
+if [[ $(whoami) != root ]]; then
+	echo ":: re-running as root, not $(whoami) ..."
+	sudo $0 "$@"
+	exit $?
+fi
+
+while [[ $# -gt 0 ]]
+do
+	lan="$1"
+	case ${lan} in
+	*.*.*)
+		# continue
+		;;
+	lan)
+		ip=$(MyIP)
+		echo ":: my ip: ${ip}"
+		lan=$(MyLAN ${ip})
+		;;
+	*)
+		echo ">> invalid network spec: ${lan}"
+		exit 1
+		;;
+	esac
+
+	echo ":: scanning subnet ${lan}.1 --> ${lan}.255 ..."
+	raw=$(nmap ${lan}.0/24)
+	echo "$raw" | Report
+
+	#echo "$raw" > /tmp/nmap
+	#echo ":: raw nmap written to: /tmp/nmap"
+
+	shift
+done

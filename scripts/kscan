@@ -189,7 +189,7 @@ do
 	esac
 
 	echo ":: scanning subnet ${lan}.1 --> ${lan}.255 ..."
-	raw=$(nmap ${lan}.0/24)
+	raw=$(nmap -v ${lan}.0/24)
 	echo "$raw" | Report ${ip}
 
 	#echo "$raw" > /tmp/nmap

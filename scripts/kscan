@@ -67,13 +67,14 @@ setx=Report
 Report ()
 #==============================
 {
+	local myip="${1}"
 	local BAR="--------------------------------------------------"
 
-	printf "+-%3.3s-+-%-18.18s+-%-30.30s+-%-45.45s+\n" $BAR $BAR $BAR $BAR
-	printf "| %3.3s | %-18.18s| %-30.30s| %-45.45s|\n" IP DEVICE BRAND OPEN-PORTS
-	printf "+-%3.3s-+-%-18.18s+-%-30.30s+-%-45.45s+\n" $BAR $BAR $BAR $BAR
+	printf "+-%5.5s-+-%-18.18s+-%-30.30s+-%-45.45s+\n" $BAR $BAR $BAR $BAR
+	printf "| %5.5s | %-18.18s| %-30.30s| %-45.45s|\n" IP DEVICE BRAND OPEN-PORTS
+	printf "+-%5.5s-+-%-18.18s+-%-30.30s+-%-45.45s+\n" $BAR $BAR $BAR $BAR
 
-	local results=$(sed -e 's,[()\/], ,g' | awk 'BEGIN {
+	local results=$(sed -e 's,[()\/], ,g' | awk -v "myip=$myip" 'BEGIN {
 		devices["00:22:6C:1A:90:CD"] = "DAX88 Whole House Audio"
 		devices["08:12:A5:C2:3D:F8"] = "Alexa"
 		devices["0C:AA:EE:0B:25:6D"] = "Ansjer Electronics"
@@ -101,6 +102,7 @@ Report ()
 	}
 	/^Nmap scan report for / {
 		ip = $NF
+		my = (ip == myip) ? "*" : " "
 		ports = ""
 		do
 		{
@@ -122,7 +124,7 @@ Report ()
 			}
 		} while (getline)
 
-		#printf ("DEBUG: mac: %s, ip: %s, brand: %s, ports: %s\n", mac, ip, brand, ports)
+		#printf ("DEBUG: mac: %s, ip: %s%s, brand: %s, ports: %s\n", mac, ip, my, brand, ports)
 		split(ip,arr,".")
 		last=arr[4]
 		
@@ -132,15 +134,15 @@ Report ()
 			device = devices[mac]
 		}
 
-		printf ("| %03d | %-18.18s| %-30.30s| %-45.45s|\n", last, mac, brand, ports)
+		printf ("| .%03d%s | %-18.18s| %-30.30s| %-45.45s|\n", last, my, mac, brand, ports)
 
 	}' | sort -n)
 
 	echo "$results"
-	printf "+-%3.3s-+-%-18.18s+-%-30.30s+-%-45.45s+\n" $BAR $BAR $BAR $BAR
+	printf "+-%5.5s-+-%-18.18s+-%-30.30s+-%-45.45s+\n" $BAR $BAR $BAR $BAR
 
 	local count=$(echo "$results" | wc -l)
-	printf ":: %d devices found.\n" $count
+	printf ":: %d devices found, * is this device.\n" $count
 
 } # Report
 
@@ -165,6 +167,8 @@ if [[ $(whoami) != root ]]; then
 	exit $?
 fi
 
+ip=$(MyIP)
+
 while [[ $# -gt 0 ]]
 do
 	lan="$1"
@@ -173,7 +177,6 @@ do
 		# continue
 		;;
 	lan)
-		ip=$(MyIP)
 		echo ":: my ip: ${ip}"
 		lan=$(MyLAN ${ip})
 		;;
@@ -185,7 +188,7 @@ do
 
 	echo ":: scanning subnet ${lan}.1 --> ${lan}.255 ..."
 	raw=$(nmap ${lan}.0/24)
-	echo "$raw" | Report
+	echo "$raw" | Report ${ip}
 
 	#echo "$raw" > /tmp/nmap
 	#echo ":: raw nmap written to: /tmp/nmap"

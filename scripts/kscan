@@ -7,8 +7,14 @@
 #%
 #% note:
 #%   * requires NMAP
-#%   * run as root (recommended)
-#%   * kscan takes more time when it find more devices on a LAN
+#%   * run as root (will attempt to sudo if necessary)
+#%   * takes more time when it finds more devices on a LAN
+#%   * you can store known devices in a file called: /etc/devices like this:
+#%      UPPER:CASE:MAC:ADDR=18-char-or-less-nice-name
+#%      08:12:A5:C2:3D:F8=Sophies Alexa
+#%      AC:04:0B:48:38:30=Peloton Bike
+#%      78:67:0E:06:EA:D7=Verizon Router
+#%      etc.
 #%
 
 if [[ ${1} = -x ]]; then

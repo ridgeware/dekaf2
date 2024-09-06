@@ -8,7 +8,7 @@
 #% note:
 #%   * requires NMAP
 #%   * run as root (recommended)
-#%   * take more time when it find more devices
+#%   * kscan takes more time when it find more devices on a LAN
 #%
 
 if [[ ${1} = -x ]]; then

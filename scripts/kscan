@@ -16,6 +16,9 @@
 #%      78:67:0E:06:EA:D7=Verizon Router
 #%      etc.
 #%
+#% history:
+#%   Sept 2024  ::  keef created
+#%
 
 if [[ ${1} = -x ]]; then
 	shift

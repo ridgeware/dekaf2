@@ -69,36 +69,29 @@ Report ()
 {
 	local myip="${1}"
 	local BAR="--------------------------------------------------"
+	local devices="/dev/null"
+
+	if [[ -f ${0}.devices ]]; then
+		devices="${0}.devices"
+	elif [[ -f /etc/devices ]]; then
+		devices="/etc/devices"
+	fi
+
+	if [[ ${devices} != "/dev/null" ]]; then
+		echo ":: reading known devices from: ${devices}"
+	fi
 
 	printf "+-%5.5s-+-%-18.18s+-%-30.30s+-%-45.45s+\n" $BAR $BAR $BAR $BAR
 	printf "| %5.5s | %-18.18s| %-30.30s| %-45.45s|\n" IP DEVICE BRAND OPEN-PORTS
 	printf "+-%5.5s-+-%-18.18s+-%-30.30s+-%-45.45s+\n" $BAR $BAR $BAR $BAR
 
-	local results=$(sed -e 's,[()\/], ,g' | awk -v "myip=$myip" 'BEGIN {
-		devices["00:22:6C:1A:90:CD"] = "DAX88 Whole House Audio"
-		devices["08:12:A5:C2:3D:F8"] = "Alexa"
-		devices["0C:AA:EE:0B:25:6D"] = "Ansjer Electronics"
-		devices["28:87:BA:55:82:ED"] = "Outdoor WAP"
-		devices["58:82:A8:22:53:F4"] = "XBOX"
-		devices["58:82:A8:22:53:F6"] = "XBOX"
-		devices["64:C2:DE:73:BE:60"] = "Cristians-Phone"
-		devices["6C:96:CF:DB:24:FD"] = "Mamas MBP"
-		devices["72:54:B0:9D:0E:99"] = "Emilys-iPhone"
-		devices["78:67:0E:06:EA:D7"] = "Verizon Router"
-		devices["8C:E2:DA:F1:5F:C9"] = "Circle Device"
-		devices["98:01:A7:CB:D9:0B"] = "Margarets-Mac-Air"
-		devices["98:FA:9B:A3:B7:C3"] = "TPT Laptop"
-		devices["9A:88:B7:0C:32:EA"] = "Dans-Phone"
-		devices["A4:CF:99:96:C6:D4"] = "Thomas-MBP"
-		devices["AC:04:0B:48:38:30"] = "Peloton Bike"
-		devices["B8:31:B5:BF:8A:33"] = "XBOX"
-		devices["B8:B2:F8:C2:59:F6"] = "Thomas-iPhone"
-		devices["C8:89:F3:B2:80:55"] = "Joshs-Macbook"
-		devices["DC:A6:32:8A:B9:02"] = "Raspberry Pi"
-		devices["F4:30:B9:76:82:40"] = "HP Basement Printer"
-		devices["F4:D4:88:8F:8C:45"] = "Joes MBP"
-		devices["FC:EC:DA:B9:49:54"] = "Ubiquiti Upstairs WAP"
-		devices["70:88:6B:8E:57:C9"] = "Joes MBP Dock"
+	local results=$(sed -e 's,[()\/], ,g' | awk -v "myip=$myip" -v "devicefile=${devices}" 'BEGIN {
+		while (getline < devicefile)
+		{
+			split ($0,fields,"=")
+			devices[fields[1]] = fields[2]
+		}
+		close (devicefile)
 	}
 	/^Nmap scan report for / {
 		ip = $NF
@@ -129,12 +122,12 @@ Report ()
 		last=arr[4]
 		
 		device = mac
-		if (devices[mac] != "")
+		if (devices[mac])
 		{
 			device = devices[mac]
 		}
 
-		printf ("| .%03d%s | %-18.18s| %-30.30s| %-45.45s|\n", last, my, mac, brand, ports)
+		printf ("| .%03d%s | %-18.18s| %-30.30s| %-45.45s|\n", last, my, device, brand, ports)
 
 	}' | sort -n)
 

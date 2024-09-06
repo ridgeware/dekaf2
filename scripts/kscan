@@ -153,6 +153,12 @@ if [[ $# -lt 1 ]]; then
 	exit 1
 fi
 
+nmap --version > /dev/null 2>&1
+if [[ $? -ne 0 ]]; then
+	echo ">> you must install nmap"
+	exit 1
+fi
+
 if [[ $(whoami) != root ]]; then
 	echo ":: re-running as root, not $(whoami) ..."
 	sudo $0 "$@"

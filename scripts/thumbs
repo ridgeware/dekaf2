@@ -1,0 +1,126 @@
+#! /bin/ksh
+
+#%
+#% thumbs - generate thumbnails in /export/home/media
+#%
+#% usage: thumbs [-x] { -full | -force | -last <N> | -one } [<path>]
+#%
+#% where:
+#%   -x        : debugging aid
+#%   -full     : looks for all image files
+#%   -force    : looks for all image files and force regeneration of existing thumbnails
+#%   -last <N> : looks for those modified within the last <N> days
+#%   -one      : generate one thumbnail for image <path>
+#%
+#% history:
+#%   keef
+#%
+
+if [ "$1" = -x ]; then
+	set -x
+	shift
+fi
+
+setx=DoSingleThumbnail
+#==============================
+DoSingleThumbnail ()
+#==============================
+{
+	# $1 = dir
+	# $2 = base imagename
+
+	_ext=$(echo "$2" | awk -F. '{print $NF}')
+	_basename=$(basename "$2" .${_ext})
+	_thumb=".${_basename}.jpg"
+
+	#cho ":: ext      : $_ext"
+	#cho ":: basename : $_basename"
+	echo ":: thumbnail: $1/$_thumb"
+
+	#(cd "$1"; convert "$2" -thumbnail x700 -resize '700x<' -resize 50% -gravity center -crop 250x250+0+0 +repage -format jpg -quality 85 ."$2")
+	(cd "$1"; convert -quiet -define jpeg:size=500X180 -thumbnail x450 -resize '450x<' +repage -format jpg -quality 85 "$2" "$_thumb" 2>&1) | egrep -v '(^Version|^Copyright)'
+
+	chmod 666 "$1/${_thumb}" 2>&1 > /dev/null
+
+} # DoSingleThumbnail
+
+#==============================
+# MAIN SHELL BODY
+#==============================
+
+export LD_LIBRARY_PATH="/usr/local/lib:/usr/lib:$LD_LIBRARY_PATH"
+
+if [ $# -lt 1 ]; then
+	awk '/^#%/ {print substr($0,3)}' $0
+	exit 1
+fi
+
+# Version: ImageMagick 6.4.5 2008-11-06 Q16 http://www.imagemagick.org
+# Copyright: Copyright (C) 1999-2008 ImageMagick Studio LLC
+convert --version | grep ImageMagick
+if [ $? -ne 0 ]; then
+	echo "thumbs: missing: 'convert' command from ImageMagick package."
+	exit 1
+fi
+
+LastMod=""
+fForce=0
+
+case "$1" in
+	-force)
+		LastMod=""
+		fForce=1
+		shift
+		;;
+	-full)
+		LastMod=""
+		shift
+		;;
+	-last)
+		if [ "$2" != "" ]; then
+			LastMod="-mtime $2"
+			shift 2
+		else
+			LastMod="-mtime 0"
+			shift
+		fi
+		;;
+	-one)
+		fullpath="$2"
+		dir=$(dirname "$fullpath")
+		image=$(basename "$fullpath")
+		DoSingleThumbnail "$dir" "$image"
+		exit $?
+		;;		
+esac
+
+StartingDirectory="$1"; [ "$StartingDirectory" = "" ] && StartingDirectory=/export/home/media
+
+echo "generating thumbnails from: $StartingDirectory"
+
+find $StartingDirectory $LastMod -name '*.[jJ][pP][gG]' -print \
+	| while read fullpath
+	do
+		dir=$(dirname "$fullpath")
+		image=$(basename "$fullpath")
+
+		case "$image" in
+			.*) # thumbnail
+				# make sure the thumbnail is not orphaned:
+				orig=$(echo "$image" | cut -c2-)
+				if [ ! -f "$dir/$orig" ]; then
+					echo "removing: $dir/$image"
+					rm -f "$dir/$image"
+				fi
+				continue;;
+		esac
+
+		[ $fForce -eq 1 ] && rm -f "$dir/.$image"
+
+		if [ -f "$dir/.$image" ]; then
+			continue  # thumbnail already exists
+		fi
+
+		DoSingleThumbnail "$dir" "$image"
+	done
+

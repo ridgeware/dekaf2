@@ -1,0 +1,472 @@
+#! /bin/ksh
+
+#%
+#% sort-pix - sort picture files dumped from digital cameras
+#%
+#% usage: sort-pix [<options>] <StartDir> [<TargetDir>]
+#%
+#% where <options> are:
+#%  -x          :: script debug
+#%  -q          :: quiet mode
+#%  -dry        :: dry run (no changes made)
+#%  -offsony    :: add pre-computed offset for incorrect time on Sony CAM
+#%  -offd2      :: add pre-computed offset for incorrect time on Nikon D2H
+#%  -offd300s   :: add pre-computed offset for incorrect time on Nikon D300S
+#%  -rotate     :: assume that all pix in this batch should be rotated ctr-cw 90
+#%  -counts     :: create .tag meta information on all folders recursively
+#%
+#% and:
+#%  <StartDir>  :: directory to start recursing from to find JPGs
+#%  <TargetDir> :: override /home/media as target directory
+#%
+#% history:
+#%   Jan 2007 : keef
+#%
+
+iOffset=0
+fDryRun=0
+fRotate=0
+fCounts=0
+MEDIA=/home/media
+
+if [ "$1" = "-x" ]; then
+	set -x
+	shift
+fi
+
+setx=statinfo
+#==============================
+statinfo ()
+#==============================
+{
+	# expected fullpaths on stdin
+	# need to output: lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
+
+	while read fullpath
+	do
+		local lastmod_utc=$(stat --format '%Y' "${fullpath}")
+		local lastmod_str=$(stat --format '%y' "${fullpath}")
+		echo "${lastmod_utc}|${lastmod_str}|0|owner|uid|type|${fullpath}"
+	done
+
+} # statinfo
+
+setx=ProcessDir
+#==============================
+ProcessDir ()
+#==============================
+{
+	# $2 = optional target dir
+
+	#------------------------------------------------------------	
+	# PASS ONE: RAW FILES (NIKON *.NEF and CANON *.CR2)
+	#------------------------------------------------------------	
+	printf ":: pass 1/3: %s\n" "$1"
+	find "$1" -name "*.[NnCc][EeRr][Ff2]" -print \
+		| statinfo \
+		| while read Line
+		do
+			#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
+
+			case "$Line" in
+			*.NEF|*.nef|*.CR2|*.cr2|*.TIF|*.TIFF|*.tif|*.tiff)
+				ProcessRaw "$Line" "$2" -RAW
+				;;
+			esac
+		done
+
+	#------------------------------------------------------------	
+	# PASS TWO: MOVIE FILES
+	#------------------------------------------------------------	
+	printf ":: pass 2/3: %s\n" "$1"
+	find "$1" -name "*.*" -print \
+		| statinfo \
+		| while read Line
+		do
+			#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
+
+			case "$Line" in
+			*.MP4|*.mp4|*.3GP|*.3gp|*.MTS|*.mts|*.AVI|*.avi)
+	   			ProcessMovie "$Line" "$2" -RAW
+				;;
+			esac
+		done
+
+	#------------------------------	
+	# PASS THREE: EVERYTHING ELSE
+	#------------------------------	
+	printf ":: pass 3/3: %s\n" "$1"
+	find "$1" -name "*.*" -print \
+		| statinfo \
+		| while read Line
+		do
+			#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
+
+			case "$Line" in
+			*.JPG|*.jpg|*.GIF|*.gif|*.PNG|*.png)
+				ProcessImage "$Line" "$2"
+				;;
+			esac
+		done
+
+	printf ":: done: %s\n" "$1"
+
+} # ProcessDir
+
+setx=ComputeNewDir
+#==============================
+ComputeNewDir ()
+#==============================
+{
+	# $1 = statinfo
+	#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
+	statinfo="$1"
+	OrigFile=$(echo "$statinfo" | awk -F'|' '{print $NF}')
+	OrigDir=$(dirname "$OrigFile")
+	Date=$(echo "$statinfo" | awk -F'|' '{print $2}')
+	YearMo=$(echo "$Date"   | awk -F'|' '{print substr($1,1,7)}')
+	Year=$(echo "$YearMo"   | awk -F'|' '{print substr($1,1,4)}')
+
+	case "$OrigDir" in
+		*1945-rbk*|*1976-jmk*) # these are exceptions: leave them alone
+			echo "$OrigDir"
+			;;
+		*/*FILM*)  # ignore all film: no way to tell when it was shot
+			echo "$OrigDir"
+			;;
+	esac
+
+	Month=$(LookupMonth $YearMo) || return 1
+	Day=$(echo "$Date" | cut -c '1-14' | tr ' ' '-')
+	NewDir="$MEDIA/${Year}-Family/${YearMo}-${Month}/$Day"
+
+	echo "$NewDir"
+
+} # ComputeNewDir
+
+setx=ComputeNewBase
+#==============================
+ComputeNewBase ()
+#==============================
+{
+	# $1 = UTC
+	# $2 = Basename
+
+	# "20131116_185008(0).jpg" --> "20131116_185008_0.jpg"
+	_base=$(echo "$2" | sed -e 's/[(]/_/g' -e 's/[)]//g')
+
+	printf "K%010u-%s" $1 "$_base"
+
+} # ComputeNewBase
+
+setx=ProcessRaw
+#==============================
+ProcessRaw ()  # Nikon and Canon RAW camera formats
+#==============================
+{
+	# $1 = statinfo
+	#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
+	statinfo="$1"
+	NewDir="$2"; [ "$NewDir" = "" ] && NewDir=$(ComputeNewDir "$statinfo")
+	iUTC=$(echo "$statinfo" | awk -F'|' '{print $1}')
+	OrigFile=$(echo "$statinfo" | awk -F'|' '{print $NF}')
+	OrigDir=$(dirname "$OrigFile")
+	Ext=$(echo "$OrigFile" | awk -F. '{print $NF}')
+	ExtLC=$(echo "$Ext" | tr '[A-Z]' '[a-z]')
+	Basename=$(basename "$OrigFile" ".$Ext")
+	NewBase=$(ComputeNewBase $iUTC $Basename)
+
+	# two use-cases for Nikon and Canon RAW:
+	#  1. camera only saved a RAW file and we need to create a full-sized JPG *and* a thumbnail
+	#  2. camera already saved two versions: RAW and JPG (we only have to generate the thumbnail)
+
+	Alt1=$(printf "%s/%s.%s" "$OrigDir" "$Basename" "JPG")
+	Alt2=$(printf "%s/%s.%s" "$OrigDir" "$Basename" "jpg")
+	AltFile=""
+
+	if [ -f "$Alt1" ]; then
+		AltFile="$Alt1"
+	elif [ -f "$Alt2" ]; then
+		AltFile="$Alt2"
+	fi
+
+	NewFull=$(printf "%s/%s.%s" "$NewDir" "$NewBase" "$ExtLC")
+	NewAlt=$(printf "%s/%s.%s" "$NewDir" "$NewBase" "jpg")
+
+	printf ":: RAW: %s --> %s\n" "$OrigFile" "$NewFull"
+	if [ "$AltFile" != "" ]; then
+		printf ":: JPG: %s --> %s\n" "$AltFile" "$NewAlt"
+	else
+		printf ":: need to create: %s\n" "$NewAlt"
+	fi
+
+	if [ $fDryRun -eq 0 ]; then
+		mkdir -p "$NewDir" || return 1
+		chmod 777 "$NewDir" > /dev/null 2>&1
+
+		mv -f "$OrigFile" "$NewFull" || return 1
+		chmod 666 "$NewFull"
+
+		if [ $fRotate -eq 1 ]; then
+			exifiron -r "$NewFull"
+			chmod 666 "$NewFull"
+		fi
+
+		# create (or move) full-sized JPG:
+		if [ "$AltFile" != "" ]; then
+			mv -f "$AltFile" "$NewAlt" || return 1
+			chmod 666 "$NewAlt"
+		else
+			# CREATE JPG
+			#(cd "$NewDir"; convert -quiet "$NewBase.$ExtLC" -resize '2464x<' -format jpg -quality 95 "$NewBase.jpg" 2>&1) | egrep -v '(^Version|^Copyright)'
+			#(cd "$NewDir"; mogrify -format jpg "$NewBase.$ExtLC" 2>&1) | egrep -v '(^Version|^Copyright)'
+			ufraw-batch --overwrite --silent --out-type=jpeg "$NewFull" --output="$NewAlt"
+			chmod 666 "$NewAlt"
+		fi
+
+		# produce thumbnail off JPG:
+		thumbs -one "$NewAlt"
+		#Thumb="$NewDir/.$NewBase.jpg"
+		#ufraw-batch --overwrite --silent --out-type=jpeg --size='450x<' --output="$Thumb"
+	fi
+
+} # ProcessRaw
+
+setx=ProcessMovie
+#==============================
+ProcessMovie ()
+#==============================
+{
+	#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
+	statinfo="$1"
+	NewDir="$2"; [ "$NewDir" = "" ] && NewDir=$(ComputeNewDir "$statinfo")
+	iUTC=$(echo "$statinfo" | awk -F'|' '{print $1}')
+	OrigFile=$(echo "$statinfo" | awk -F'|' '{print $NF}')
+	OrigDir=$(dirname "$OrigFile")
+	Ext=$(echo "$OrigFile" | awk -F. '{print $NF}')
+	ExtLC=$(echo "$Ext" | tr '[A-Z]' '[a-z]')
+	Basename=$(basename "$OrigFile" ".$Ext")
+	NewBase=$(ComputeNewBase $iUTC $Basename)
+	NewName="$NewBase.$ExtLC"
+
+	# two movie use-cases:
+	#  1. with corresponding *.THM file (which is a JPG thumbnail)
+	#  2. without a thumbnail (we need to generate one)
+
+	Thumb1=$(printf "%s/%s.%s" "$OrigDir" "$Basename" "THM")
+	Thumb2=$(printf "%s/%s.%s" "$OrigDir" "$Basename" "thm")
+
+	echo ">> movie file left alone: $Basename.$Ext"
+
+	return 0 # TODO: FINISH (this ignores the movie file and leaves it unsorted)
+
+} # ProcessMovie
+
+setx=ProcessImage
+#==============================
+ProcessImage ()
+#==============================
+{
+	#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
+	statinfo="$1"
+	NewDir="$2"; [ "$NewDir" = "" ] && NewDir=$(ComputeNewDir "$statinfo")
+	iUTC=$(echo "$statinfo" | awk -F'|' '{print $1}')
+	OrigFile=$(echo "$statinfo" | awk -F'|' '{print $NF}')
+	OrigDir=$(dirname "$OrigFile")
+	Ext=$(echo "$OrigFile" | awk -F. '{print $NF}')
+	ExtLC=$(echo "$Ext" | tr '[A-Z]' '[a-z]')
+	Basename=$(basename "$OrigFile" ".$Ext")
+	NewBase=$(ComputeNewBase $iUTC $Basename)
+	OrigThumb=""
+
+	case "$Basename" in
+		.*) # skip dot files
+			return 0
+			;;
+
+		# ALREADY RENAMED, but might be in the wrong dir
+		K[0-9][0-9][0-9][0-9][0-9]*)
+			NewName="$Basename.$ExtLC"
+			OrigThumb="$OrigDir/.$Basename.$Ext"
+			;;
+
+		# Normal Renaming Logic:
+		*)
+			NewName="$NewBase.$ExtLC"
+			Thumb=".$NewBase.jpg"
+			;;
+	esac
+
+	if [ "$OrigDir" = "$NewDir" ]; then
+		printf ":: %s --> %s\n" "$OrigFile" "$NewName"
+	else
+		printf ":: %s --> %s/%s\n" "$OrigFile" "$NewDir" "$NewName"
+	fi
+
+	if [ $fDryRun -eq 0 ]; then
+		mkdir -p "$NewDir" || return 1
+		chmod 777 "$NewDir" > /dev/null 2>&1
+
+		mv -f "$OrigFile" "$NewDir/$NewName" || return 1
+		chmod 666 "$NewDir/$NewName"
+
+		if [ $fRotate -eq 1 ]; then
+			exifiron -r "$NewDir/$NewName"
+			chmod 666 "$NewDir/$NewName"
+		fi
+
+		# produce thumbnail:
+		if [ -f "$OrigThumb" ]; then
+			printf ":: using original thumbnail: %s --> %s/.%s\n" "$OrigThumb" "$NewDir" "$NewName"
+			mv -f "$OrigThumb" "$NewDir/.$NewName"
+		else
+			thumbs -one "$NewDir/$NewName"
+		fi
+	fi
+
+} # ProcessImage
+
+setx=LookupMonth
+#==============================
+LookupMonth ()
+#==============================
+{
+	case "$1" in
+	*-01)
+		echo "January";;
+	*-02)
+		echo "February";;
+	*-03)
+		echo "March";;
+	*-04)
+		echo "April";;
+	*-05)
+		echo "May";;
+	*-06)
+		echo "June";;
+	*-07)
+		echo "July";;
+	*-08)
+		echo "August";;
+	*-09)
+		echo "September";;
+	*-10)
+		echo "October";;
+	*-11)
+		echo "November";;
+	*-12)
+		echo "December";;
+	*)
+		echo "UNKNOWN MONTH: $1" 1>&2
+		return 1
+		;;
+	esac
+
+	return 0
+
+} # LookupMonth
+
+#==============================
+CountFiles ()
+#==============================
+{
+	find "$1" -type d 2>/dev/null | while read dir
+	do
+		case "$dir" in
+		*.deleted)
+			;;
+		*)
+			list=$(cd "$dir"; echo .*.jpg 2>/dev/null)
+			iCount=$(echo "$list" | wc -w)
+			if [ $iCount -eq 1 ]; then
+				if [ "$list" = '.*.jpg' ]; then
+					iCount=0
+				fi
+			fi
+			printf ":: %6d : %s\n" "$iCount" "$dir"
+
+			if [ $iCount -eq 0 ]; then
+				rm -f "$dir/.tag"
+			else
+				(printf "%d pix" $iCount > "$dir/.tag") 2>/dev/null
+			fi
+			;;
+		esac
+	done
+
+} # CountFiles
+
+#==============================
+# MAIN BODY
+#==============================
+
+if [ "$1" = "-dry" ]; then
+	fDryRun=1
+	shift
+fi
+
+if [ "$1" = "-counts" ]; then
+	fCounts=1
+	shift
+fi
+
+case "$1" in
+	-offsony)
+		# Aug  5 12:49 SONY.JPG
+		# Dec 26 13:12 NOW.JPG
+		iOffset=$(expr 1230315178 - 1217954998) # add almost 5 months
+		shift
+		;;
+	-offd2|-offd2h)
+		iOffset=$(expr 1390619385 - 1390615090) # add a few hours
+		shift
+		;;
+	-offd300|-offd300s|-off300|-off300s)
+		iOffset=$(expr 1390619385 - 1390619702) # remove 14 minutes
+		shift
+		;;
+	-off*)
+		echo "sort-pix: no predefined offset for: $1"
+		exit 1
+		;;
+esac
+
+if [ "$1" = "-rotate" ]; then
+	fRotate=1
+	shift
+fi
+
+if [ $# -ne 1 ] && [ $# -ne 2 ]; then
+	awk '/^#%/ {print substr($0,3)}' $0
+	exit 1
+fi
+
+export PATH="/home/bin/$(uname):$PATH"
+
+StartDir="$1"
+if [ "$2" != "" ]; then
+	MEDIA="$2"
+	if [ $fDryRun -eq 0 ]; then
+		mkdir -p "$MEDIA" || exit 1
+	fi
+fi
+
+if [ $iOffset -eq 0 ]; then
+	case "$StartDir" in
+		*NCD2H*)
+			echo ":: inferred D2 offest from dirname"
+			iOffset=$(expr 1390619385 - 1390615090) # add a few hours
+			;;
+		*D300S*)
+			echo ":: inferred D300 offest from dirname"
+			iOffset=$(expr 1390619385 - 1390619702) # remove 14 minutes
+			;;
+	esac
+fi
+
+if [ $fCounts -eq 1 ]; then
+	CountFiles "$StartDir"
+else
+	ProcessDir "$StartDir"
+fi
+

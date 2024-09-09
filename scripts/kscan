@@ -20,6 +20,7 @@
 #%   Sept 2024  ::  keef created
 #%
 
+args="$@"
 if [[ ${1} = -x ]]; then
 	shift
 	set -x
@@ -87,7 +88,7 @@ Report ()
 	fi
 
 	if [[ ${devices} != "/dev/null" ]]; then
-		echo ":: reading known devices from: ${devices}"
+		echo ":: $(date '+%a %T') : reading known devices from: ${devices}"
 	fi
 
 	printf "+-%5.5s-+-%-18.18s+-%-30.30s+-%-45.45s+\n" $BAR $BAR $BAR $BAR
@@ -144,7 +145,7 @@ Report ()
 	printf "+-%5.5s-+-%-18.18s+-%-30.30s+-%-45.45s+\n" $BAR $BAR $BAR $BAR
 
 	local count=$(echo "$results" | wc -l)
-	printf ":: %d devices found, * is this device.\n" $count
+	printf ":: $(date '+%a %T') : %d devices found, * is this device.\n" $count
 
 } # Report
 
@@ -164,8 +165,8 @@ if [[ $? -ne 0 ]]; then
 fi
 
 if [[ $(whoami) != root ]]; then
-	echo ":: re-running as root, not $(whoami) ..."
-	sudo $0 "$@"
+	echo ":: $(date '+%a %T') : re-running as root, not $(whoami) ..."
+	sudo $0 ${args}
 	exit $?
 fi
 
@@ -179,7 +180,7 @@ do
 		# continue
 		;;
 	lan)
-		echo ":: my ip: ${ip}"
+		echo ":: $(date '+%a %T') : my ip: ${ip}"
 		lan=$(MyLAN ${ip})
 		;;
 	*)
@@ -188,12 +189,13 @@ do
 		;;
 	esac
 
-	echo ":: scanning subnet ${lan}.1 --> ${lan}.255 ..."
-	raw=$(nmap -v ${lan}.0/24)
+	echo ":: $(date '+%a %T') : scanning subnet ${lan}.1 --> ${lan}.255 ..."
+#	raw=$(nmap -v --max-retries 1 --host-timeout 10s ${lan}.0/24)
+	raw=$(nmap -v --max-retries 1 ${lan}.0/24)
 	echo "$raw" | Report ${ip}
 
 	#echo "$raw" > /tmp/nmap
-	#echo ":: raw nmap written to: /tmp/nmap"
+	#echo ":: $(date '+%a %T') : raw nmap written to: /tmp/nmap"
 
 	shift
 done

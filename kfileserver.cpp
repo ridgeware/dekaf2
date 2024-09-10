@@ -86,6 +86,15 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 
 	m_FileStat = KFileStat(m_sFileSystemPath);
 
+	if (!Exists() && bCreateAdHocIndex && m_sFileSystemPath.ends_with("/index.html"))
+	{
+		// remove the filename component so that this matches the directory
+		// lookup below
+		m_sFileSystemPath = kDirname(m_sFileSystemPath, /*bWithTrailingSlash=*/false);
+		m_FileStat        = KFileStat(m_sFileSystemPath);
+		bHadTrailingSlash = true;
+	}
+
 	if (IsDirectory())
 	{
 		if (bHadTrailingSlash)

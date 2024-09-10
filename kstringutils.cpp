@@ -891,4 +891,37 @@ KStringView kWriteUTF8BOM()
 	return KStringView { "\xef\xbb\xbf" };
 }
 
+//-----------------------------------------------------------------------------
+KString kFormBytes(std::size_t iBytes, KStringView sSeparator, char chDecimalSeparator, uint16_t iDivisor)
+//-----------------------------------------------------------------------------
+{
+	KString sBytes;
+	uint16_t    iMagnitude { 0 };
+	std::size_t iDivideBy  { 1 };
+	std::size_t iOrigBytes { iBytes };
+
+	while (iBytes > 999 && iMagnitude < 8)
+	{
+		iBytes    /= iDivisor;
+		iDivideBy *= iDivisor;
+		++iMagnitude;
+	}
+
+	sBytes = kFormat("{:.1f}", double(iOrigBytes) / iDivideBy);
+
+	sBytes.remove_suffix(".0");
+
+	if (!sSeparator.empty())
+	{
+		sBytes += sSeparator;
+	}
+
+	static constexpr const char Unit[] = { 'B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y' };
+
+	sBytes += Unit[iMagnitude];
+
+	return sBytes;
+
+} // kFormBytes
+
 DEKAF2_NAMESPACE_END

@@ -339,7 +339,7 @@ bool kStrIn (KStringView sNeedle, const char* Haystack[]);
 //----------------------------------------------------------------------
 template<class Container,
 	typename std::enable_if<!detail::is_cpp_str<Container>::value, int>::type = 0>
-DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
+DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kStrIn (KStringView sNeedle, const Container& Haystack)
 //----------------------------------------------------------------------
 {
@@ -349,6 +349,7 @@ bool kStrIn (KStringView sNeedle, const Container& Haystack)
 //-----------------------------------------------------------------------------
 /// pads string at the left up to iWidth size with chPad
 template<class String>
+DEKAF2_PUBLIC
 String& kPadLeft(String& string, size_t iWidth, typename String::value_type chPad = ' ')
 //-----------------------------------------------------------------------------
 {
@@ -362,6 +363,7 @@ String& kPadLeft(String& string, size_t iWidth, typename String::value_type chPa
 //-----------------------------------------------------------------------------
 /// pads string at the right up to iWidth size with chPad
 template<class String>
+DEKAF2_PUBLIC
 String& kPadRight(String& string, size_t iWidth, typename String::value_type chPad = ' ')
 //-----------------------------------------------------------------------------
 {
@@ -376,6 +378,7 @@ String& kPadRight(String& string, size_t iWidth, typename String::value_type chP
 /// removes any character in svTrim from the left of the string
 template<class String, class StringView,
          typename std::enable_if<detail::is_str<StringView>::value, int>::type = 0>
+DEKAF2_PUBLIC
 String& kTrimLeft(String& string, const StringView& svTrim)
 //-----------------------------------------------------------------------------
 {
@@ -391,6 +394,7 @@ String& kTrimLeft(String& string, const StringView& svTrim)
 /// removes any character for which cmp returns true from the left of the string
 template<class String, class Compare,
          typename std::enable_if<!detail::is_str<Compare>::value, int>::type = 0>
+DEKAF2_PUBLIC
 String& kTrimLeft(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
 {
@@ -406,6 +410,7 @@ String& kTrimLeft(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
 /// removes any white space character from the left of the string
 template<class String>
+DEKAF2_PUBLIC
 String& kTrimLeft(String& string)
 //-----------------------------------------------------------------------------
 {
@@ -419,6 +424,7 @@ String& kTrimLeft(String& string)
 /// removes any character in svTrim from the right of the string
 template<class String, class StringView,
          typename std::enable_if<detail::is_str<StringView>::value, int>::type = 0>
+DEKAF2_PUBLIC
 String& kTrimRight(String& string, const StringView& svTrim)
 //-----------------------------------------------------------------------------
 {
@@ -438,6 +444,7 @@ String& kTrimRight(String& string, const StringView& svTrim)
 /// removes any character for which cmp returns true from the right of the string
 template<class String, class Compare,
          typename std::enable_if<!detail::is_str<Compare>::value, int>::type = 0>
+DEKAF2_PUBLIC
 String& kTrimRight(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
 {
@@ -453,6 +460,7 @@ String& kTrimRight(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
 /// removes any white space character from the right of the string
 template<class String>
+DEKAF2_PUBLIC
 String& kTrimRight(String& string)
 //-----------------------------------------------------------------------------
 {
@@ -465,6 +473,7 @@ String& kTrimRight(String& string)
 //-----------------------------------------------------------------------------
 /// removes any white space character from the left and right of the string
 template<class String>
+DEKAF2_PUBLIC
 String& kTrim(String& string)
 //-----------------------------------------------------------------------------
 {
@@ -476,6 +485,7 @@ String& kTrim(String& string)
 /// removes any character in svTrim from the left and right of the string
 template<class String, class StringView,
          typename std::enable_if<detail::is_str<StringView>::value, int>::type = 0>
+DEKAF2_PUBLIC
 String& kTrim(String& string, const StringView& svTrim)
 //-----------------------------------------------------------------------------
 {
@@ -487,6 +497,7 @@ String& kTrim(String& string, const StringView& svTrim)
 /// removes any character for which cmp returns true from the left and right of the string
 template<class String, class Compare,
          typename std::enable_if<!detail::is_str<Compare>::value, int>::type = 0>
+DEKAF2_PUBLIC
 String& kTrim(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
 {
@@ -497,6 +508,7 @@ String& kTrim(String& string, Compare cmp)
 //-----------------------------------------------------------------------------
 /// Collapses consecutive characters for which cmp returns true to one instance of chTo
 template<class String, class Compare>
+DEKAF2_PUBLIC
 String& kCollapse(String& string, typename String::value_type chTo, Compare cmp)
 //-----------------------------------------------------------------------------
 {
@@ -536,6 +548,7 @@ String& kCollapse(String& string, typename String::value_type chTo, Compare cmp)
 //-----------------------------------------------------------------------------
 /// Collapses consecutive white space chars to one space char
 template<class String>
+DEKAF2_PUBLIC
 String& kCollapse(String& string)
 //-----------------------------------------------------------------------------
 {
@@ -548,6 +561,7 @@ String& kCollapse(String& string)
 //-----------------------------------------------------------------------------
 /// Collapses consecutive chars in svCollapse to one instance of chTo
 template<class String, class StringView>
+DEKAF2_PUBLIC
 String& kCollapse(String& string, const StringView& svCollapse, typename String::value_type chTo)
 //-----------------------------------------------------------------------------
 {
@@ -560,6 +574,7 @@ String& kCollapse(String& string, const StringView& svCollapse, typename String:
 //-----------------------------------------------------------------------------
 /// Collapses consecutive characters for which cmp returns true to one instance of chTo and trims those characters left and right
 template<class String, class Compare>
+DEKAF2_PUBLIC
 String& kCollapseAndTrim(String& string, typename String::value_type chTo, Compare cmp)
 //-----------------------------------------------------------------------------
 {
@@ -597,6 +612,7 @@ String& kCollapseAndTrim(String& string, typename String::value_type chTo, Compa
 
 //-----------------------------------------------------------------------------
 template<class String>
+DEKAF2_PUBLIC
 String& kCollapseAndTrim(String& string)
 //-----------------------------------------------------------------------------
 {
@@ -609,6 +625,7 @@ String& kCollapseAndTrim(String& string)
 //-----------------------------------------------------------------------------
 /// Collapses consecutive chars in svCollapse to one instance of chTo and trims the same chars left and right
 template<class String, class StringView>
+DEKAF2_PUBLIC
 String& kCollapseAndTrim(String& string, const StringView& svCollapse, typename String::value_type chTo)
 //-----------------------------------------------------------------------------
 {
@@ -622,6 +639,7 @@ String& kCollapseAndTrim(String& string, const StringView& svCollapse, typename 
 /// Replace variables in sString found in a map Variables, search for sOpen/sClose for lead-in and lead-out.
 /// Returns count of replaces
 template<class String, class StringView, class ReplaceMap = std::map<StringView, StringView> >
+DEKAF2_PUBLIC
 std::size_t kReplaceVariables (String& sString, StringView sOpen, StringView sClose, bool bQueryEnvironment, const ReplaceMap& Variables = ReplaceMap{})
 //-----------------------------------------------------------------------------
 {
@@ -698,7 +716,7 @@ bool kIsBinary(KStringView sBuffer);
 /// @return the formatted number as a String
 template <class Arithmetic, class String = KString,
           typename std::enable_if<!detail::is_duration<Arithmetic>::value, int>::type = 0>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', uint16_t iEvery = 3, uint16_t iPrecision = 0, bool bRoundToNearest = true)
 //-----------------------------------------------------------------------------
 {
@@ -986,7 +1004,7 @@ uint8_t kFromHexChar(char ch) noexcept
 //-----------------------------------------------------------------------------
 template<class Integer, class Iterator,
          typename std::enable_if<std::is_arithmetic<Integer>::value, int>::type = 0>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 Integer kToInt(Iterator it, Iterator end, uint16_t iBase = 10) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -1067,7 +1085,7 @@ Integer kToInt(Iterator it, Iterator end, uint16_t iBase = 10) noexcept
 template<class Integer, class String,
          typename std::enable_if<std::is_arithmetic<Integer>::value &&
                                  detail::is_cpp_str<String>::value, int>::type = 0>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 Integer kToInt(const String& sNumber, uint16_t iBase = 10) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -1078,7 +1096,7 @@ Integer kToInt(const String& sNumber, uint16_t iBase = 10) noexcept
 template<class Integer, class String,
 		 typename std::enable_if<std::is_arithmetic<Integer>::value &&
 								 detail::is_narrow_c_str<String>::value, int>::type = 0>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 Integer kToInt(const String sNumber, uint16_t iBase = 10) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -1089,7 +1107,7 @@ Integer kToInt(const String sNumber, uint16_t iBase = 10) noexcept
 template<class Integer, class String,
 		 typename std::enable_if<std::is_arithmetic<Integer>::value &&
 								 detail::is_wide_c_str<String>::value, int>::type = 0>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 Integer kToInt(const String sNumber, uint16_t iBase = 10) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -1098,7 +1116,7 @@ Integer kToInt(const String sNumber, uint16_t iBase = 10) noexcept
 
 //-----------------------------------------------------------------------------
 template<class First>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 First kFirstNonZero(First iFirst)
 //-----------------------------------------------------------------------------
 {
@@ -1108,7 +1126,7 @@ First kFirstNonZero(First iFirst)
 //-----------------------------------------------------------------------------
 /// return the first in a sequence of objects that is not zero (or false)
 template<class First, class...More, typename std::enable_if<sizeof...(More) != 0, int>::type = 0>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 First kFirstNonZero(First iFirst, More&&...more)
 //-----------------------------------------------------------------------------
 {
@@ -1121,7 +1139,7 @@ First kFirstNonZero(First iFirst, More&&...more)
 
 //-----------------------------------------------------------------------------
 template<class First>
-DEKAF2_NODISCARD 
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 First kFirstNonEmpty(First sFirst)
 //-----------------------------------------------------------------------------
 {
@@ -1131,7 +1149,7 @@ First kFirstNonEmpty(First sFirst)
 //-----------------------------------------------------------------------------
 /// return the first in a sequence of objects that is not .empty()
 template<class First, class...More, typename std::enable_if<sizeof...(More) != 0, int>::type = 0>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 First kFirstNonEmpty(First sFirst, More&&...more)
 //-----------------------------------------------------------------------------
 {
@@ -1144,7 +1162,7 @@ First kFirstNonEmpty(First sFirst, More&&...more)
 
 //-----------------------------------------------------------------------------
 template<class String = KString>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false, bool bIsNeg = false)
 //-----------------------------------------------------------------------------
 {
@@ -1183,7 +1201,7 @@ String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false,
 
 //-----------------------------------------------------------------------------
 template<class String = KString>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 String kSignedToString(int64_t i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false)
 //-----------------------------------------------------------------------------
 {
@@ -1204,7 +1222,7 @@ String kSignedToString(int64_t i, uint16_t iBase = 10, bool bZeroPad = false, bo
 //-----------------------------------------------------------------------------
 template<typename T, class String = KString,
          typename std::enable_if<std::is_unsigned<T>::value && std::is_arithmetic<T>::value, int>::type = 0>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 String kIntToString(T i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false)
 //-----------------------------------------------------------------------------
 {
@@ -1214,7 +1232,7 @@ String kIntToString(T i, uint16_t iBase = 10, bool bZeroPad = false, bool bUpper
 //-----------------------------------------------------------------------------
 template<typename T, class String = KString,
          typename std::enable_if<std::is_signed<T>::value && std::is_arithmetic<T>::value, int>::type = 0>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 String kIntToString(T i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false)
 //-----------------------------------------------------------------------------
 {
@@ -1222,7 +1240,7 @@ String kIntToString(T i, uint16_t iBase = 10, bool bZeroPad = false, bool bUpper
 }
 
 //-----------------------------------------------------------------------------
-inline
+inline DEKAF2_PUBLIC
 void kFromString(bool& Value, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
@@ -1234,7 +1252,7 @@ void kFromString(bool& Value, KStringView sValue)
 }
 
 //-----------------------------------------------------------------------------
-inline
+inline DEKAF2_PUBLIC
 void kFromString(float& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 {
@@ -1247,7 +1265,7 @@ void kFromString(float& Value, KStringView sValue, uint16_t iBase = 10)
 }
 
 //-----------------------------------------------------------------------------
-inline
+inline DEKAF2_PUBLIC
 void kFromString(double& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 {
@@ -1261,9 +1279,10 @@ void kFromString(double& Value, KStringView sValue, uint16_t iBase = 10)
 
 //-----------------------------------------------------------------------------
 template<typename T,
-		 typename std::enable_if<std::is_integral<T>::value == false &&
-								 std::is_enum    <T>::value == false &&
+         typename std::enable_if<std::is_integral<T>::value == false &&
+                                 std::is_enum    <T>::value == false &&
                                  std::is_assignable<T, KStringView>::value == true, int>::type = 0>
+DEKAF2_PUBLIC
 void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 {
@@ -1273,6 +1292,7 @@ void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 template<typename T,
 		 typename std::enable_if<detail::has_Parse<T>::value == true, int>::type = 0>
+DEKAF2_PUBLIC
 void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 {
@@ -1282,6 +1302,7 @@ void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 template<typename T,
 		 typename std::enable_if<std::is_integral<T>::value == true, int>::type = 0>
+DEKAF2_PUBLIC
 void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 {
@@ -1291,6 +1312,7 @@ void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 template<typename T,
 		 typename std::enable_if<std::is_enum<T>::value == true, int>::type = 0>
+DEKAF2_PUBLIC
 void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 {
@@ -1299,7 +1321,7 @@ void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)
 
 //-----------------------------------------------------------------------------
 template<typename T>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 T kFromString(KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 {
@@ -1330,7 +1352,7 @@ inline KString kEscapeForLogging(KStringView sInput)
 /// returns true if iterator at_iter points to start of word in iterator start_iter (start_iter is either lower or equal with at_iter)
 template<class Iterator,
 		 typename std::enable_if<detail::is_cpp_str<Iterator>::value == false, int>::type = 0>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsAtStartofWordASCII(Iterator start_iter, Iterator at_iter)
 //-----------------------------------------------------------------------------
 {
@@ -1342,7 +1364,7 @@ bool kIsAtStartofWordASCII(Iterator start_iter, Iterator at_iter)
 /// returns true if iterator at_iter points to end of word in iterator end_iter (end_iter is either bigger or equal with at_iter)
 template<class Iterator,
 		 typename std::enable_if<detail::is_cpp_str<Iterator>::value == false, int>::type = 0>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsAtEndofWordASCII(Iterator end_iter, Iterator at_iter)
 //-----------------------------------------------------------------------------
 {
@@ -1354,7 +1376,7 @@ bool kIsAtEndofWordASCII(Iterator end_iter, Iterator at_iter)
 /// returns true if pos iPos points to start of word in string sHaystack
 template<class String,
 		 typename std::enable_if<detail::is_cpp_str<String>::value == true, int>::type = 0>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsAtStartofWordASCII(const String& sHaystack, typename String::size_type iPos)
 //-----------------------------------------------------------------------------
 {
@@ -1366,7 +1388,7 @@ bool kIsAtStartofWordASCII(const String& sHaystack, typename String::size_type i
 /// returns true if pos iPos points to end of word in string sHaystack
 template<class String,
 		 typename std::enable_if<detail::is_cpp_str<String>::value == true, int>::type = 0>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsAtEndofWordASCII(const String& sHaystack, typename String::size_type iPos)
 //-----------------------------------------------------------------------------
 {
@@ -1379,6 +1401,7 @@ namespace detail {
 //-----------------------------------------------------------------------------
 template<class String = KString, class StringView = KStringView>
 std::pair<typename String::size_type, typename String::size_type>
+DEKAF2_PUBLIC
 	CalcSizeLimit(const String& sLimitMe,
 				  typename String::size_type iMaxSize,
 				  StringView& sEllipsis)
@@ -1401,6 +1424,7 @@ std::pair<typename String::size_type, typename String::size_type>
 //-----------------------------------------------------------------------------
 template<class String = KString, class StringView = KStringView>
 std::pair<typename String::size_type, typename String::size_type>
+DEKAF2_PUBLIC
 	CalcSizeLimitUTF8(const String& sLimitMe,
 					  typename String::size_type iMaxSize,
 					  StringView& sEllipsis)
@@ -1472,6 +1496,7 @@ std::pair<typename String::size_type, typename String::size_type>
 /// @param sEllipsis the string to insert in place of the removed mid section, default = "..."
 /// @return a reference on the input string
 template<class String = KString, class StringView = KStringView>
+DEKAF2_PUBLIC
 String& kLimitSizeInPlace(String& sLimitMe,
 						  typename String::size_type iMaxSize,
 						  StringView sEllipsis = StringView{"..."})
@@ -1503,7 +1528,7 @@ String& kLimitSizeInPlace(String& sLimitMe,
 /// @param sEllipsis the string to insert in place of the removed mid section, default = "..."
 /// @return the resized output string
 template<class String = KString, class StringView = KStringView>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 String kLimitSize(const StringView& sLimitMe,
 				  typename String::size_type iMaxSize,
 				  StringView sEllipsis = StringView{"..."})
@@ -1537,6 +1562,7 @@ String kLimitSize(const StringView& sLimitMe,
 /// @param sEllipsis the string to insert in place of the removed mid section, default = "…" (the Unicode ellipsis character)
 /// @return a reference on the input string
 template<class String = KString, class StringView = KStringView>
+DEKAF2_PUBLIC
 String& kLimitSizeUTF8InPlace(String& sLimitMe,
 					   typename String::size_type iMaxSize,
 					   StringView sEllipsis = StringView{"…"})
@@ -1567,7 +1593,7 @@ String& kLimitSizeUTF8InPlace(String& sLimitMe,
 /// @param sEllipsis the string to insert in place of the removed mid section, default = "…" (the Unicode ellipsis character)
 /// @return the input string
 template<class String = KString, class StringView = KStringView>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 String kLimitSizeUTF8(const StringView& sLimitMe,
 					  typename String::size_type iMaxSize,
 					  StringView sEllipsis = StringView{"…"})
@@ -1595,43 +1621,57 @@ String kLimitSizeUTF8(const StringView& sLimitMe,
 
 #ifndef DEKAF2_KSTRING_IS_STD_STRING
 /// resize a KString without initialization
+DEKAF2_PUBLIC
 void kResizeUninitialized(KString& sStr, KString::size_type iNewSize);
 #endif
 
 /// resize a std::string without initialization
+DEKAF2_PUBLIC
 void kResizeUninitialized(std::string& sStr, std::string::size_type iNewSize);
 
 /// convert unicode representations of ASCII punctuation into their ASCII forms. Mainly quotes, but also
 /// tilde, spaces, and hyphen
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kCurlyToStraight(KStringView sInput);
 
 /// returns true if sInput starts with a UTF8 BOM (Windows programs have the habit to add them to UTF8)
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kHasUTF8BOM(KStringView sInput);
 
 /// returns true if InStream starts with a UTF8 BOM (Windows programs have the habit to add them to UTF8)
+DEKAF2_PUBLIC
 bool kHasUTF8BOM(KInStream& InStream, bool bSkipIfExisting);
 
 /// returns a string view with skipped UTF8 BOM (if found at start of sInput)
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStringView kSkipUTF8BOM(KStringView sInput);
 
 /// returns a stream with skipped UTF8 BOM (if found at start of InStream)
+DEKAF2_PUBLIC
 KInStream& kSkipUTF8BOM(KInStream& InStream);
 
 /// removes the UTF8 BOM in sInput in place, returning true if removed
+DEKAF2_PUBLIC
 bool kSkipUTF8BOMInPlace(KStringRef& sInput);
 
 /// Explicitly write the ByteOrderMark in UTF8 encoding. This is deprecated, but some Microsoft applications
 /// require this to display non-ASCII characters correctly. Write the BOM only as the first output, before
 /// any other output, and particularly avoid this if the target could be Unix applications.
+DEKAF2_PUBLIC
 KOutStream& kWriteUTF8BOM(KOutStream& OutStream);
 
 /// Explicitly write the ByteOrderMark in UTF8 encoding. This is deprecated, but some Microsoft applications
 /// require this to display non-ASCII characters correctly. Write the BOM only as the first output, before
 /// any other output, and particularly avoid this if the target could be Unix applications.
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStringView kWriteUTF8BOM();
+
+/// @param iBytes the bytes to transform
+/// @param sSeparator the separator between the number and the unit, default none
+/// @param chDecimalSeparator the decimal separator, default . (dot)
+/// @param iDivisor the divisor to apply for each magnitude, defaults to 1024, could reasonably be set to 1000 as well.
+/// @return a string with the count of input bytes transformed into the relevant tera/giga/mega/kilo/byte unit
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kFormBytes(std::size_t iBytes, KStringView sSeparator = KStringView{}, char chDecimalSeparator = '.', uint16_t iDivisor = 1024);
 
 DEKAF2_NAMESPACE_END

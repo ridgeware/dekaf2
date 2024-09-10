@@ -35,14 +35,14 @@ RUN cmake \
   ../../
 
 # build
-RUN [[ "${parallel}" != "" ]] \
+RUN [ "${parallel}" != "" ] \
   && export CPUCORES="${parallel}" \
-  || export CPUCORES=$(expr $(egrep '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
+  || export CPUCORES=$(expr $(grep -Ei '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
   cmake --build . --parallel ${CPUCORES} --target all
 
 # install
 #RUN cmake --install .
-RUN make install
+RUN make install && /usr/local/bin/kurl -V
 
 FROM ${to} as final
 
@@ -50,6 +50,7 @@ COPY --from=build-stage /usr/local/bin/klog           /usr/local/bin/klog
 COPY --from=build-stage /usr/local/bin/createdbc      /usr/local/bin/createdbc
 COPY --from=build-stage /usr/local/bin/dekaf2project  /usr/local/bin/dekaf2project
 COPY --from=build-stage /usr/local/bin/kurl           /usr/local/bin/kurl
+COPY --from=build-stage /usr/local/bin/khttp          /usr/local/bin/khttp
 COPY --from=build-stage /usr/local/bin/mysql-newuser  /usr/local/bin/mysql-newuser
 COPY --from=build-stage /usr/local/bin/findcol        /usr/local/bin/findcol
 COPY --from=build-stage /usr/local/bin/kport          /usr/local/bin/kport

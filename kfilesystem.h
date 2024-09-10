@@ -138,9 +138,21 @@ bool kDirExists (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// rename a file or directory
+/// rename a file or directory, fails across file system boundaries (use kMove instead)
 DEKAF2_PUBLIC
 bool kRename (KStringViewZ sOldPath, KStringViewZ sNewPath);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// copy a file or directory
+DEKAF2_PUBLIC
+bool kCopy (KStringViewZ sOldPath, KStringViewZ sNewPath);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// move a file or directory, also across file system boundaries
+DEKAF2_PUBLIC
+bool kMove (KStringViewZ sOldPath, KStringViewZ sNewPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

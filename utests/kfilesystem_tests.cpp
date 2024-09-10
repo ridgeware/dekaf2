@@ -275,7 +275,7 @@ TEST_CASE("KFilesystem")
 
 	SECTION("kRename")
 	{
-		KString sBaseDir = kGetTemp();
+		KString sBaseDir { sDirectory };
 		sBaseDir += kDirSep;
 		sBaseDir += "fs9238w78";
 
@@ -293,13 +293,55 @@ TEST_CASE("KFilesystem")
 		KString sFileinRenamedDir { sBaseDir };
 		sFileinRenamedDir += "/farer/up/new.txt";
 
-
 		CHECK ( kTouchFile(sNested)              );
 		CHECK ( kFileExists(sNested)             );
 		CHECK ( kRename(sNested, sRenamed)       );
 		CHECK ( kFileExists(sRenamed)            );
 		CHECK ( kRename(sNestedDir, sRenamedDir) );
 		CHECK ( kFileExists(sFileinRenamedDir)   );
+		CHECK ( kRemoveDir(sBaseDir) == true     );
+	}
+
+	SECTION("kCopy")
+	{
+		KString sBaseDir { sDirectory };
+		sBaseDir += kDirSep;
+		sBaseDir += "fs9238w79";
+
+		KString sNested { sBaseDir };
+		sNested += "/farer/down/here.txt";
+
+		KString sRenamed { kDirname(sNested) + "/new.txt" };
+
+		KString sFileinRenamedDir { sBaseDir };
+		sFileinRenamedDir += "/farer/up/new.txt";
+
+		CHECK ( kTouchFile(sNested)              );
+		CHECK ( kFileExists(sNested)             );
+		CHECK ( kCopy(sNested, sRenamed)         );
+		CHECK ( kFileExists(sNested)             );
+		CHECK ( kFileExists(sRenamed)            );
+		CHECK ( kRemoveDir(sBaseDir) == true     );
+	}
+
+	SECTION("kMove")
+	{
+		KString sBaseDir { sDirectory };
+		sBaseDir += kDirSep;
+		sBaseDir += "fs9238w75";
+
+		KString sNested { sBaseDir };
+		sNested += "/farer/down/here.txt";
+
+		KString sRenamed { kDirname(sNested) + "/new.txt" };
+
+		KString sFileinRenamedDir { sBaseDir };
+		sFileinRenamedDir += "/farer/up/new.txt";
+
+		CHECK ( kTouchFile(sNested)              );
+		CHECK ( kFileExists(sNested)             );
+		CHECK ( kMove(sNested, sRenamed)         );
+		CHECK ( kFileExists(sRenamed)            );
 		CHECK ( kRemoveDir(sBaseDir) == true     );
 	}
 

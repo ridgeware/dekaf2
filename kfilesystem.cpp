@@ -282,6 +282,105 @@ bool kRename (KStringViewZ sOldPath, KStringViewZ sNewPath)
 } // kRename
 
 //-----------------------------------------------------------------------------
+/// copy a file or directory
+bool kCopy (KStringViewZ sOldPath, KStringViewZ sNewPath)
+//-----------------------------------------------------------------------------
+{
+	if (sOldPath == sNewPath)
+	{
+		kDebug(1, "old and new path are the same: {}", sOldPath);
+		return false;
+	}
+	else if (kDirExists(sOldPath))
+	{
+		// TODO copy a directory tree, not yet supported
+		kDebug(1, "directory copy not yet implemented");
+		return false;
+	}
+	else if (kFileExists(sOldPath))
+	{
+		KInFile InFile(sOldPath);
+
+		if (!InFile.is_open())
+		{
+			kDebug(1, "cannot open input file: {}", sOldPath);
+			return false;
+		}
+
+		KOutFile OutFile(sNewPath);
+
+		if (!OutFile.is_open())
+		{
+			// we may miss a path component
+			KString sDir = kDirname(sNewPath);
+			if (kCreateDir(sDir))
+			{
+				OutFile.open(sNewPath, std::ios::app);
+				if (!OutFile.is_open())
+				{
+					// give up
+					kDebug(1, "cannot open output file: {}", sNewPath);
+					return false;
+				}
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+		return OutFile.Write(InFile).Good();
+
+		// TODO copy perms
+	}
+
+	kDebug(1, "file not found: {}", sOldPath);
+
+	return false;
+
+} // kCopy
+
+//-----------------------------------------------------------------------------
+/// move a file or directory
+bool kMove (KStringViewZ sOldPath, KStringViewZ sNewPath)
+//-----------------------------------------------------------------------------
+{
+	if (sOldPath == sNewPath)
+	{
+		kDebug(1, "old and new path are the same: {}", sOldPath);
+		return false;
+	}
+	else if (kRename(sOldPath, sNewPath))
+	{
+		// rename worked
+		return true;
+	}
+	else if (kDirExists(sOldPath))
+	{
+		if (!kCopy(sOldPath, sNewPath))
+		{
+			return false;
+		}
+
+		return kRemoveDir(sOldPath);
+	}
+	else if (kFileExists(sOldPath))
+	{
+		if (!kCopy(sOldPath, sNewPath))
+		{
+			return false;
+		}
+
+		return kRemoveFile(sOldPath);
+	}
+
+	kDebug(1, "file not found: {}", sOldPath);
+
+	return false;
+
+} // kMove
+
+//-----------------------------------------------------------------------------
 bool kRemove (KStringViewZ sPath, KFileTypes Types)
 //-----------------------------------------------------------------------------
 {

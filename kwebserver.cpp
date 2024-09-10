@@ -49,6 +49,8 @@ DEKAF2_NAMESPACE_BEGIN
 uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
                            KStringView         sResourcePath,
                            bool                bHadTrailingSlash,
+                           bool                bCreateAdHocIndex,
+                           bool                bWithUpload,
                            KStringView         sRoute,
                            KHTTPMethod         RequestMethod,
                            const KHTTPHeaders& RequestHeaders,
@@ -57,17 +59,32 @@ uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
 //-----------------------------------------------------------------------------
 {
 	m_iStatus = KHTTPError::H2xx_OK;
+	m_bIsValidUpload = false;
 
-	if (RequestMethod != KHTTPMethod::GET && RequestMethod != KHTTPMethod::HEAD)
+	if (   RequestMethod != KHTTPMethod::GET
+		&& RequestMethod != KHTTPMethod::HEAD
+		&& (!bWithUpload || RequestMethod != KHTTPMethod::POST))
 	{
 		kDebug(1, "invalid method: {}", RequestMethod.Serialize());
-		throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", RequestMethod.Serialize(), sRoute) };
+		throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", RequestMethod, sRoute) };
+	}
+
+	bool bIsPost = false;
+
+	if (RequestMethod == KHTTPMethod::POST)
+	{
+		// do not create any temporary files for POST requests - those
+		// are the response to index.html and should be dealt with by
+		// the caller of this method
+		bIsPost = true;
 	}
 
 	this->Open(sDocumentRoot,
 	           sResourcePath,
 	           sRoute,
-	           bHadTrailingSlash);
+	           bHadTrailingSlash,
+	           bCreateAdHocIndex && !bIsPost,
+	           bWithUpload       && !bIsPost);
 
 	if (this->RedirectAsDirectory())
 	{
@@ -89,70 +106,93 @@ uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
 	}
 	else if (this->Exists())
 	{
-		ResponseHeaders.Headers.Set(KHTTPHeader::CONTENT_TYPE, this->GetMIMEType(true).Serialize());
-
-		auto tIfModifiedSince   = kParseHTTPTimestamp(RequestHeaders.Headers.Get(KHTTPHeader::IF_MODIFIED_SINCE  ));
-		auto tIfUnmodifiedSince = kParseHTTPTimestamp(RequestHeaders.Headers.Get(KHTTPHeader::IF_UNMODIFIED_SINCE));
-		auto tLastModified      = this->GetFileStat().ModificationTime();
-
-		if (tIfModifiedSince.ok() && tLastModified <= tIfModifiedSince)
+		if (RequestMethod == KHTTPMethod::POST)
 		{
-			throw KHTTPError { KHTTPError::H304_NOT_MODIFIED, "not modified" };
+			throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid upload directory" };
 		}
-		else if (tIfUnmodifiedSince.ok() && tLastModified > tIfUnmodifiedSince)
+		else if (RequestMethod == KHTTPMethod::GET)
 		{
-			throw KHTTPError { KHTTPError::H4xx_PRECONDITION_FAILED, "precondition failed" };
+			ResponseHeaders.Headers.Set(KHTTPHeader::CONTENT_TYPE, this->GetMIMEType(true).Serialize());
+
+			auto tIfModifiedSince   = kParseHTTPTimestamp(RequestHeaders.Headers.Get(KHTTPHeader::IF_MODIFIED_SINCE  ));
+			auto tIfUnmodifiedSince = kParseHTTPTimestamp(RequestHeaders.Headers.Get(KHTTPHeader::IF_UNMODIFIED_SINCE));
+			auto tLastModified      = this->GetFileStat().ModificationTime();
+
+			if (tIfModifiedSince.ok() && tLastModified <= tIfModifiedSince)
+			{
+				throw KHTTPError { KHTTPError::H304_NOT_MODIFIED, "not modified" };
+			}
+			else if (tIfUnmodifiedSince.ok() && tLastModified > tIfUnmodifiedSince)
+			{
+				throw KHTTPError { KHTTPError::H4xx_PRECONDITION_FAILED, "precondition failed" };
+			}
+			else
+			{
+				m_iFileSize  = this->GetFileStat().Size();
+				m_iFileStart = 0;
+
+				// check for ranges
+				auto Ranges = RequestHeaders.GetRanges(m_iFileSize);
+
+				if (!Ranges.empty())
+				{
+					// if a If-Range header is set with a timestamp, and the resource is of older or
+					// same age, the range request is accepted - otherwise the full (newer) document
+					// is sent - note: we do not check for etags in the If-Range (we never send them
+					// either)
+					auto tIfRange = kParseHTTPTimestamp(RequestHeaders.Headers.Get(KHTTPHeader::IF_RANGE));
+
+					if (!tIfRange.ok() || tLastModified <= tIfRange)
+					{
+						// we currently only support one range per request
+						ResponseHeaders.Headers.Set(KHTTPHeader::CONTENT_RANGE, kFormat("bytes {}-{}/{}", Ranges.front().GetStart(), Ranges.front().GetEnd(), m_iFileSize));
+						m_iFileStart = Ranges.front().GetStart();
+						m_iFileSize  = Ranges.front().GetSize();
+						m_iStatus    = KHTTPError::H2xx_PARTIAL_CONTENT;
+					}
+				}
+
+				ResponseHeaders.Headers.Set(KHTTPHeader::LAST_MODIFIED, KHTTPHeader::DateToString(tLastModified));
+				// announce that we would accept ranges
+				ResponseHeaders.Headers.Set(KHTTPHeader::ACCEPT_RANGES, "bytes");
+			}
 		}
 		else
 		{
-			m_iFileSize  = this->GetFileStat().Size();
-			m_iFileStart = 0;
-
-			// check for ranges
-			auto Ranges = RequestHeaders.GetRanges(m_iFileSize);
-
-			if (!Ranges.empty())
-			{
-				// if a If-Range header is set with a timestamp, and the resource is of older or
-				// same age, the range request is accepted - otherwise the full (newer) document
-				// is sent - note: we do not check for etags in the If-Range (we never send them
-				// either)
-				auto tIfRange = kParseHTTPTimestamp(RequestHeaders.Headers.Get(KHTTPHeader::IF_RANGE));
-
-				if (!tIfRange.ok() || tLastModified <= tIfRange)
-				{
-					// we currently only support one range per request
-					ResponseHeaders.Headers.Set(KHTTPHeader::CONTENT_RANGE, kFormat("bytes {}-{}/{}", Ranges.front().GetStart(), Ranges.front().GetEnd(), m_iFileSize));
-					m_iFileStart = Ranges.front().GetStart();
-					m_iFileSize  = Ranges.front().GetSize();
-					m_iStatus    = KHTTPError::H2xx_PARTIAL_CONTENT;
-				}
-			}
-
-			ResponseHeaders.Headers.Set(KHTTPHeader::LAST_MODIFIED   , KHTTPHeader::DateToString(tLastModified));
-			// announce that we would accept ranges
-			ResponseHeaders.Headers.Set(KHTTPHeader::ACCEPT_RANGES   , "bytes");
+			// redundant..
+			throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", RequestMethod, sRoute) };
 		}
 	}
 	else
 	{
-		// This file does not exist.. now check if we should better return
-		// a REST error code, or an HTTP server error code. A REST error code
-		// makes sense when this path was defined in a REST context, but with
-		// a different method. We may end up here in the Web server mode if
-		// the web server is sort of a catch all at the end of the routes..
-		// (which, for security and ambiguity, should really better be avoided)
-
-		if (Check && Check(RequestMethod, sResourcePath))
+		if (bWithUpload && RequestMethod == KHTTPMethod::POST)
 		{
-			kDebug (2, "request method {} not supported for path: {}", RequestMethod.Serialize(), sResourcePath);
-			throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", RequestMethod.Serialize(), sResourcePath) };
+			if (!bHadTrailingSlash)
+			{
+				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid upload directory" };
+			}
+			m_bIsValidUpload = true;
 		}
 		else
 		{
-			kDebug(1, "Cannot open file: {}", this->GetFileSystemPath());
-			ResponseHeaders.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
-			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
+			// This file does not exist.. now check if we should better return
+			// a REST error code, or an HTTP server error code. A REST error code
+			// makes sense when this path was defined in a REST context, but with
+			// a different method. We may end up here in the Web server mode if
+			// the web server is sort of a catch all at the end of the routes..
+			// (which, for security and ambiguity, should really better be avoided)
+
+			if (Check && Check(RequestMethod, sResourcePath))
+			{
+				kDebug (2, "request method {} not supported for path: {}", RequestMethod.Serialize(), sResourcePath);
+				throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", RequestMethod, sResourcePath) };
+			}
+			else
+			{
+				kDebug(1, "Cannot open file: {}", this->GetFileSystemPath());
+				ResponseHeaders.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
+				throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
+			}
 		}
 	}
 

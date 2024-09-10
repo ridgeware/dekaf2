@@ -467,7 +467,7 @@ public:
 	/// Add a basic web server for static files
 	/// @param sWWWDir the base directory of the web server
 	/// @param sRoute a REST route, wildcards allowed: /my/path/*/img/* , defaults to all ("/*")
-	void AddWebServer(KString sWWWDir, KString sRoute = "/*");
+	void AddWebServer(KString sWWWDir, KString sRoute = "/*", bool bWithAdHocIndex = false, bool bAllowUpload = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

@@ -87,6 +87,9 @@ public:
 	/// but stripped by the base route prefix and an eventual trailing slash.
 	/// @param bHadTrailingSlash did the original request have a trailing slash, so that we can 
 	/// search for the index file?
+	/// @param bCreateAdHocIndex if the path is a directory, and there is no index.html,
+	/// should an automatic index be created?
+	/// @param bWithUpload if the path is a directory, should uploads be allowed?
 	/// @param sRoute The base path valid for this request. Will be substracted from sRequest.
 	/// @param Method The HTTP method of the request
 	/// @param RequestHeaders The request headers of the request
@@ -98,6 +101,8 @@ public:
 	uint16_t Serve(KStringView         sDocumentRoot,
 	               KStringView         sResourcePath,
 	               bool                bHadTrailingSlash,
+	               bool                bCreateAdHocIndex,
+	               bool                bWithUpload,
 	               KStringView         sRoute,
 	               KHTTPMethod         Method,
 	               const KHTTPHeaders& RequestHeaders,
@@ -112,16 +117,21 @@ public:
 	/// returns file stream pointer to output file
 	DEKAF2_NODISCARD
 	std::unique_ptr<KInStream> GetStreamForReading() { return KFileServer::GetStreamForReading(m_iFileStart); }
+	/// returns true if this is a valid upload request
+	bool IsValidUpload() const { return m_bIsValidUpload; }
 
 	using KFileServer::GetMIMEType;
+	using KFileServer::IsAdHocIndex;
+	using KFileServer::GetAdHocIndex;
 
 //------
 private:
 //------
 
-	uint64_t m_iFileStart { 0 };
-	uint64_t m_iFileSize  { 0 };
-	uint16_t m_iStatus    { 0 };
+	uint64_t m_iFileStart     { 0 };
+	uint64_t m_iFileSize      { 0 };
+	uint16_t m_iStatus        { 0 };
+	bool     m_bIsValidUpload { false };
 
 }; // KWebServer
 

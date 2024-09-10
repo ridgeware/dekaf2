@@ -141,6 +141,8 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 	WebServer.Serve(HTTP.Route->sDocumentRoot,
 	                HTTP.Request.Resource.Path.get(),
 	                HTTP.Request.Resource.Path.get().back() == '/',
+	                true,
+	                false,
 	                HTTP.Route->sRoute,
 	                HTTP.Request.Method,
 	                HTTP.Request,
@@ -152,7 +154,14 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 
 	if (HTTP.Request.Method != KHTTPMethod::HEAD)
 	{
-		HTTP.Write(*WebServer.GetStreamForReading(), WebServer.GetFileSize());
+		if (WebServer.IsAdHocIndex())
+		{
+			HTTP.Write(WebServer.GetAdHocIndex());
+		}
+		else
+		{
+			HTTP.Write(*WebServer.GetStreamForReading(), WebServer.GetFileSize());
+		}
 	}
 
 } // WebServer

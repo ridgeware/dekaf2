@@ -81,10 +81,15 @@ public:
 	/// but stripped by the base route prefix and an eventual trailing slash.
 	/// @param sRoute The base path valid for this request. Will be substracted from sRequest.
 	/// @param bHadTrailingSlash did the original request have a trailing slash, so that we can search for the index file?
+	/// @param bCreateAdHocIndex if the path is a directory, and there is no index.html,
+	/// should an automatic index be created?
+	/// @param bWithUpload if the path is a directory, should uploads be allowed?
 	bool Open(KStringView sDocumentRoot,
 	          KStringView sRequest,
 	          KStringView sRoute,
-	          bool        bHadTrailingSlash);
+	          bool        bHadTrailingSlash,
+	          bool        bCreateAdHocIndex,
+			  bool        bWithUpload);
 
 	/// Checks if the requested file exists
 	DEKAF2_NODISCARD
@@ -122,6 +127,14 @@ public:
 	DEKAF2_NODISCARD
 	const KMIME& GetMIMEType(bool bInspect);
 
+	/// Returns true if the last request generated an ad-hoc index file
+	DEKAF2_NODISCARD
+	bool IsAdHocIndex() const { return m_bIsAdHocIndex; }
+
+	/// Returns ad-hoc generated index file
+	DEKAF2_NODISCARD
+	const KString& GetAdHocIndex() const { return m_sIndex; }
+
 	/// Clears all state (included by Open())
 	void clear();
 
@@ -129,11 +142,18 @@ public:
 protected:
 //------
 
+	void StartIndexFile();
+	void EndIndexFile();
+	void GenerateAdHocIndexFile(KStringView sDirectory);
+	void GenerateUploadIndexFile(KStringView sDirectory);
+
 	KString     m_sDirIndexFile;
 	KString     m_sFileSystemPath;
-	KMIME       m_mime   { KMIME::NONE };
+	KString     m_sIndex;
+	KMIME       m_mime    { KMIME::NONE };
 	KFileStat   m_FileStat;
-	bool        m_bReDirectory { false };
+	bool        m_bReDirectory  { false };
+	bool        m_bIsAdHocIndex { false };
 
 }; // KFileServer
 

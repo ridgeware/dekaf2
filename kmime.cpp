@@ -49,6 +49,7 @@
 #include "ksystem.h"
 #include "kctype.h"
 #include "kinshell.h"
+#include "kfilesystem.h"
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -125,6 +126,10 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		{ "txt"_ksv  , TEXT_UTF8  },
 		{ "htm"_ksv  , HTML_UTF8  },
 		{ "html"_ksv , HTML_UTF8  },
+		{ "h"_ksv    , H          },
+		{ "c"_ksv    , C          },
+		{ "cc"_ksv   , CPP        },
+		{ "cpp"_ksv  , CPP        },
 		{ "css"_ksv  , CSS        },
 		{ "csv"_ksv  , CSV        },
 		{ "tsv"_ksv  , TSV        },
@@ -845,6 +850,268 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 
 } // ctor
 
+//-----------------------------------------------------------------------------
+KMIMEReceiveMultiPartFormData::File::File(KString sOrigFilename, KMIME Mime)
+//-----------------------------------------------------------------------------
+{
+	if (!kIsSafeFilename(sOrigFilename))
+	{
+		m_sFilename     = kMakeSafeFilename(sOrigFilename);
+		m_sOrigFilename = std::move(sOrigFilename);
+	}
+	else
+	{
+		m_sFilename     = std::move(sOrigFilename);
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KMIMEReceiveMultiPartFormData::KMIMEReceiveMultiPartFormData(KStringView sOutputDirectory, KStringView sFormBoundary)
+//-----------------------------------------------------------------------------
+: m_sOutputDirectory(sOutputDirectory)
+, m_sFormBoundary(sFormBoundary)
+{
+	if (!m_sFormBoundary.empty())
+	{
+		// we always search for the double slash prefixed boundary, including a \r\n
+		// sequence in front of it..
+		m_sFormBoundary.insert(0, "\r\n--");
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+bool KMIMEReceiveMultiPartFormData::ReadFromStream(KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	// "--[SomeBoundary]\r\n"
+	// "Content-Disposition: form-data; name=\"upload\"; filename=\"something1.pdf\"\r\n"
+	// "Content-Type: application/octet-stream\r\n"
+	// "\r\n"
+	// [data]
+	// "\r\n--[SomeBoundary]\r\n"
+	// "Content-Disposition: form-data; name=\"upload\"; filename=\"something2.pdf\"\r\n"
+	// "Content-Type: application/octet-stream\r\n"
+	// "\r\n"
+	// [data]
+	// "\r\n--[SomeBoundary]--\r\n"
+
+	if (m_sFormBoundary.empty())
+	{
+		// pick the first line as form boundary
+		m_sFormBoundary = InStream.ReadLine();
+		// check that it starts with two dashes
+		if (!m_sFormBoundary.starts_with("--"))
+		{
+			return SetError("form boundary does not start with two dashes");
+		}
+		// and prefix the boundary with \r\n - it is not part of the wrapped data
+		m_sFormBoundary.insert(0, "\r\n");
+	}
+	else
+	{
+		if (!InStream.Good())
+		{
+			return SetError("input stream not good");
+		}
+
+		auto sFormBoundary = InStream.ReadLine();
+
+		// skip the leading \r\n in the comparison
+		if (sFormBoundary != m_sFormBoundary.ToView(2))
+		{
+			return SetError("form boundary does not match preset form boundary");
+		}
+	}
+
+	if (m_sFormBoundary.empty())
+	{
+		return SetError("no form boundary set");
+	}
+
+	if (m_sFormBoundary.size() >= KDefaultCopyBufSize)
+	{
+		return SetError(kFormat("copy buffer size of {} too small for boundary of size {}", KDefaultCopyBufSize, m_sFormBoundary.size()));
+	}
+
+	static const KFindSetOfChars SplitAtSemicolon(";");
+
+	KString sBuffer;
+
+	for (; !sBuffer.empty() || InStream.Good();)
+	{
+		// read until empty line
+		auto iHeaderEndPos = sBuffer.find("\r\n\r\n");
+
+		if (iHeaderEndPos == KString::npos)
+		{
+			KString sLine;
+
+			for (;;)
+			{
+				if (!InStream.Good()) return SetError("unexpected end of input");
+				InStream.ReadLine(sLine);
+				sBuffer += sLine;
+				sBuffer += "\r\n";
+				if (sLine.empty()) break;
+				if (sBuffer.size() > 10000) return SetError("invalid multipart form header");
+			}
+
+			iHeaderEndPos = sBuffer.size();
+		}
+		else
+		{
+			iHeaderEndPos += 4; // include the \r\n\r\n sequence
+		}
+
+		KHTTPHeaders MultiPartHeaders;
+
+		KInStringStream ISS(sBuffer);
+
+		if (MultiPartHeaders.Parse(ISS))
+		{
+			// Parse() stops after empty line. Remove the header from the input buffer.
+			sBuffer.erase(0, iHeaderEndPos);
+
+			bool bHaveName { false };
+
+			for (auto& sPart : MultiPartHeaders.Headers.Get(KHTTPHeader::CONTENT_DISPOSITION).Split(SplitAtSemicolon))
+			{
+				if (sPart.remove_prefix("filename="))
+				{
+					if (sPart.remove_suffix('"'))
+					{
+						sPart.remove_prefix('"');
+					}
+					else if (sPart.remove_suffix('\''))
+					{
+						sPart.remove_prefix('\'');
+					}
+
+					m_Files.push_back(File(sPart, MultiPartHeaders.Headers.Get(KHTTPHeader::CONTENT_TYPE)));
+					bHaveName = true;
+					break;
+				}
+			}
+
+			if (!bHaveName)
+			{
+				return SetError("missing file name");
+			}
+
+			auto sOutFile = kFormat("{}{}{}", m_sOutputDirectory, kDirSep, m_Files.back().GetFilename());
+
+			// now read from stream until boundary
+			KOutFile OutFile(sOutFile);
+
+			if (!OutFile.is_open())
+			{
+				return SetError(kFormat("cannot open file: ", sOutFile));
+			}
+
+			std::size_t iPos { 0 };
+			// we always search for a boundary starting with "\r\n--[TheBoundary]"
+			constexpr char bch = '\r';
+
+			std::size_t iFileSize { 0 };
+
+			for (;;)
+			{
+				auto iWant = KDefaultCopyBufSize - sBuffer.size();
+				auto iRead = InStream.Read(sBuffer, iWant);
+
+				iPos = sBuffer.find(bch, iPos);
+
+				if (iPos == npos)
+				{
+					// no start of boundary found - write whole buffer
+					if (sBuffer.empty())
+					{
+						return SetError("unexpected end of input");
+					}
+
+					if (!OutFile.Write(sBuffer).Good())
+					{
+						return SetError(kFormat("error writing file: {}", m_Files.back().GetFilename()));
+					}
+
+					iFileSize += sBuffer.size();
+					sBuffer.clear();
+					iPos = 0;
+				}
+				else
+				{
+					auto sHaystack = sBuffer.ToView(iPos);
+					// check how much of the boundary string we could check still inside this buffer
+					if (sHaystack.size() >= m_sFormBoundary.size() + 4) // + 4 to check for --\r\n or \r\n as well
+					{
+						// we can check for the full boundary
+						if (sHaystack.starts_with(m_sFormBoundary))
+						{
+							// write anything before the start of boundary to the file
+							if (!OutFile.Write(sBuffer.ToView(0, iPos)).Good())
+							{
+								return SetError(kFormat("error writing file: {}", m_Files.back().GetFilename()));
+							}
+
+							iFileSize += iPos;
+							kDebug(2, "wrote {} in file: {}", kFormBytes(iFileSize), m_Files.back().GetFilename());
+
+							sBuffer.erase(0, iPos + m_sFormBoundary.size());
+
+							// check for quick abort
+							if (sBuffer.starts_with("--\r\n"))
+							{
+								// this is the end of the upload
+								return true;
+							}
+
+							// if the boundary was followed by a linebreak,
+							// the next multipart will start now
+							if (sBuffer.remove_prefix("\r\n"))
+							{
+								// get back into the outer loop
+								break;
+							}
+							else
+							{
+								return SetError("garbage trailing the boundary");
+							}
+						}
+						else
+						{
+							// not found, discard
+							++iPos;
+						}
+					}
+					else
+					{
+						// write anything before the start of the possible boundary to the file
+						if (!OutFile.Write(sBuffer.ToView(0, iPos)).Good())
+						{
+							return SetError(kFormat("error writing file: {}", m_Files.back().GetFilename()));
+						}
+						iFileSize += iPos;
+						// remove the written data from the buffer
+						sBuffer.erase(0, iPos);
+						// and start over, in the hope to find the full boundary once the
+						// buffer is refilled
+						iPos = 0;
+						// check for eof, in which case there will not come more input
+						if (iWant > iRead)
+						{
+							return SetError("unexpected end of input");
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return SetError("unexpected end of input");
+
+} // ReadFromStream
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
@@ -907,6 +1174,9 @@ constexpr KStringViewZ KMIME::MULTIPART_RELATED;
 constexpr KStringViewZ KMIME::TEXT_PLAIN;
 constexpr KStringViewZ KMIME::TEXT_UTF8;
 constexpr KStringViewZ KMIME::HTML_UTF8;
+constexpr KStringViewZ KMIME::H;
+constexpr KStringViewZ KMIME::C;
+constexpr KStringViewZ KMIME::CPP;
 constexpr KStringViewZ KMIME::CSS;
 constexpr KStringViewZ KMIME::CSV;
 constexpr KStringViewZ KMIME::CALENDAR;

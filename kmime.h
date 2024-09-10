@@ -46,6 +46,7 @@
 #include "kwriter.h"
 #include "kreader.h"
 #include "kreplacer.h"
+#include "kerror.h"
 
 #ifndef DEKAF2_HAS_CPP_17
 	#include <boost/container/vector.hpp>
@@ -256,6 +257,9 @@ public:
 	static constexpr KStringViewZ TEXT_PLAIN             = "text/plain";
 	static constexpr KStringViewZ TEXT_UTF8              = "text/plain; charset=UTF-8";
 	static constexpr KStringViewZ HTML_UTF8              = "text/html; charset=UTF-8";
+	static constexpr KStringViewZ H                      = "text/x-h";
+	static constexpr KStringViewZ C                      = "text/x-c";
+	static constexpr KStringViewZ CPP                    = "text/x-c++";
 	static constexpr KStringViewZ CSS                    = "text/css; charset=UTF-8";
 	static constexpr KStringViewZ CSV                    = "text/csv";
 	static constexpr KStringViewZ TSV                    = "text/tab-separated-values";
@@ -529,6 +533,57 @@ public:
 	KMIMEDirectory(KStringViewZ sPathname);
 
 }; // KMIMEDirectory
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// the opposite to KMIMEDirectory: receive a data stream, split it into files that are stored in a given directory
+class DEKAF2_PUBLIC KMIMEReceiveMultiPartFormData : public KErrorBase
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class File
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		File(KString sOrigFilename, KMIME Mime);
+
+		const KString& GetFilename     () const { return m_sFilename; }
+		const KString& GetOrigFilename () const { if (!m_sOrigFilename.empty()) return m_sOrigFilename; else return m_sFilename; }
+		KMIME          GetMIME         () const { return m_Mime;      }
+
+	//----------
+	private:
+	//----------
+
+		KString m_sFilename;
+		KString m_sOrigFilename;
+		KMIME   m_Mime;
+	};
+
+	/// set output directory and boundary string
+	KMIMEReceiveMultiPartFormData(KStringView sOutputDirectory, KStringView sFormBoundary = KStringView{});
+	/// receive from InStream
+	bool ReadFromStream(KInStream& InStream);
+	/// returns received files
+	const std::vector<File>& GetFiles() const { return m_Files; }
+
+//----------
+private:
+//----------
+
+	KStringView       m_sOutputDirectory;
+	KString           m_sFormBoundary;
+	std::vector<File> m_Files;
+
+}; // KReceiveFormData
 
 DEKAF2_NAMESPACE_END
 

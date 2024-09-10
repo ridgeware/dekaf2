@@ -115,7 +115,7 @@ public:
 	bool HasParameter(KStringView sParam) const;
 	//-----------------------------------------------------------------------------
 
-	KHTTPMethod Method;  	// e.g. GET, or empty for all
+	KHTTPMethod Method; ///< the method for this path, e.g. GET, or empty for all
 
 	bool m_bHasParameters { false };
 
@@ -195,6 +195,17 @@ public:
 	/// @param _sRoute a REST route, wildcards allowed: /my/path/*/:user/name
 	/// @param _sDocumentRoot the file system path to be used for serving GET requests, or empty
 	/// @param _Callback a method that will be called when the route matches the request, may not be empty
+	/// @param _Config json config object that will be passed to the callback function, should include a 'parser' property with value PLAIN, JSON, XML, WWWFORM or NOREAD, defaults to JSON
+	KRESTRoute(KHTTPMethod _Method, Options _Options, KString _sRoute, KString _sDocumentRoot, RESTCallback _Callback, KJSON _Config);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Construct a REST route for a free function
+	/// @param _Method the HTTP method to match with (or empty method for any method)
+	/// @param _Options set various options for this route, e.g. SSO authentication (takes an initializer list for multiple options)
+	/// @param _sRoute a REST route, wildcards allowed: /my/path/*/:user/name
+	/// @param _sDocumentRoot the file system path to be used for serving GET requests, or empty
+	/// @param _Callback a method that will be called when the route matches the request, may not be empty
 	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing, defaults to JSON
 	KRESTRoute(KHTTPMethod _Method, Options _Options, KString _sRoute, KString _sDocumentRoot, RESTCallback _Callback, ParserType _Parser = JSON);
 	//-----------------------------------------------------------------------------
@@ -249,6 +260,24 @@ public:
 	/// @param _Method the HTTP method to match with (or empty method for any method)
 	/// @param _Options set various options for this route, e.g. SSO authentication (takes an initializer list for multiple options)
 	/// @param _sRoute a REST route, wildcards allowed: /my/path/*/:user/name
+	/// @param _sDocumentRoot the file system path to be used for serving GET requests, or empty
+	/// @param _Object the object for the method to be called, may not be empty
+	/// @param _Callback the object method that will be called when the route matches the request, may not be empty
+	/// @param _Config json config object that will be passed to the callback function, should include a 'parser' property with value PLAIN, JSON, XML, WWWFORM or NOREAD, defaults to JSON
+	template<class Object>
+	KRESTRoute(KHTTPMethod _Method, Options _Options, KString _sRoute, KString _sDocumentRoot, Object& _Object, MemberFunction<Object> _Callback, KJSON _Config)
+	//-----------------------------------------------------------------------------
+	: KRESTRoute(std::move(_Method), _Options, std::move(_sRoute), std::move(_sDocumentRoot), std::bind(_Callback, &_Object, std::placeholders::_1), _Config)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Construct a REST route for an object method. The object reference
+	/// must stay valid throughout the lifetime of this class (it is a reference on a constructed
+	/// object which method will be called)
+	/// @param _Method the HTTP method to match with (or empty method for any method)
+	/// @param _Options set various options for this route, e.g. SSO authentication (takes an initializer list for multiple options)
+	/// @param _sRoute a REST route, wildcards allowed: /my/path/*/:user/name
 	/// @param _Object the object for the method to be called, may not be empty
 	/// @param _Callback the object method that will be called when the route matches the request, may not be empty
 	/// @param _Parser any of the parser types for input parsing (PLAIN, JSON, XML, WWWFORM) or NOREAD for no parsing, defaults to JSON
@@ -269,10 +298,11 @@ public:
 	bool Matches(const KRESTPath& Path, Parameters* Params = nullptr, bool bCompareMethods = true, bool bCheckWebservers = true, bool bIsWebSocket = false) const;
 	//-----------------------------------------------------------------------------
 
-	RESTCallback Callback;
-	KString      sDocumentRoot;
-	ParserType   Parser;
-	Options      Option;
+	RESTCallback Callback;        ///< the callback for this route
+	KString      sDocumentRoot;   ///< the document root for this route, for web server mode
+	ParserType   Parser { JSON }; ///< the requested input parser, defaults to JSON
+	Options      Option;          ///< options used before calling the callback
+	KJSON        Config;          ///< any configuration to pass on to the callback
 
 }; // KRESTRoute
 

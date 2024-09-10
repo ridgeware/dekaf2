@@ -94,6 +94,56 @@ bool KRESTAnalyzedPath::HasParameter(KStringView sParam) const
 } // end of namespace detail
 
 //-----------------------------------------------------------------------------
+KRESTRoute::KRESTRoute(KHTTPMethod _Method, class Options _Options, KString _sRoute, KString _sDocumentRoot, RESTCallback _Callback, KJSON _Config)
+//-----------------------------------------------------------------------------
+	: detail::KRESTAnalyzedPath(std::move(_Method), std::move(_sRoute))
+	, Callback(std::move(_Callback))
+	, sDocumentRoot(std::move(_sDocumentRoot))
+	, Option(_Options)
+	, Config(std::move(_Config))
+{
+	auto it = Config.find("parser");
+
+	if (it == Config.end())
+	{
+		it = Config.find("Parser");
+	}
+
+	if (it != Config.end())
+	{
+		if (it.value().is_string())
+		{
+#if !DEKAF2_KJSON2_IS_DISABLED
+			// get_ref() is private in KJSON2, so convert to KJSON1
+			auto& sParser = it.value().ToBase().get_ref<const KString&>();
+#else
+			auto& sParser = it.value().get_ref<const KString&>();
+#endif
+
+			switch (sParser.CaseHash())
+			{
+				case "JSON"_casehash:
+					Parser = ParserType::JSON;
+					break;
+				case "PLAIN"_casehash:
+					Parser = ParserType::PLAIN;
+					break;
+				case "XML"_casehash:
+					Parser = ParserType::XML;
+					break;
+				case "WWWFORM"_casehash:
+					Parser = ParserType::WWWFORM;
+					break;
+				case "NOREAD"_casehash:
+					Parser = ParserType::NOREAD;
+					break;
+			}
+		}
+	}
+
+} // KRESTRoute
+
+//-----------------------------------------------------------------------------
 KRESTRoute::KRESTRoute(KHTTPMethod _Method, class Options _Options, KString _sRoute, KString _sDocumentRoot, RESTCallback _Callback, ParserType _Parser)
 //-----------------------------------------------------------------------------
 	: detail::KRESTAnalyzedPath(std::move(_Method), std::move(_sRoute))

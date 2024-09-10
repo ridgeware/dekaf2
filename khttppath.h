@@ -88,8 +88,8 @@ public:
 	static URLParts SplitURL(KStringView sURLPath);
 	//-----------------------------------------------------------------------------
 
-	KString     sRoute;      // e.g. "/some/path/index.html" or "/documents/*" or "/help"
-	URLParts    vURLParts;   // vector of the split path parts
+	KString     sRoute;      ///< the path/route, e.g. "/some/path/index.html" or "/documents/*" or "/help"
+	URLParts    vURLParts;   ///< vector of the split path parts
 
 }; // KHTTPPath
 

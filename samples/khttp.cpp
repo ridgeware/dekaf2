@@ -33,6 +33,8 @@ public:
 
 		// define cli options and read them into the REST server options
 		KStringViewZ sWWWDir          = Options("www <directory>       : base directory for HTTP server (served content)");
+		bool bCreateAdHocIndex        = Options("autoindex             : create an automatic index.html for directories if index.html is not found, default false", false);
+		bool bAllowUpload             = Options("upload                : allow upload into directory, default false", false);
 		KStringViewZ sRoute           = Options("route </path>         : route to serve from, defaults to \"/*\"", "/*");
 		Settings.iPort                = Options("http <port>           : port number to bind to", 0);
 		Settings.sSocketFile          = Options("socket <socket>       : unix domain socket file like /tmp/khttp.sock or unix:///tmp/khttp.sock", "");
@@ -78,7 +80,7 @@ public:
 		{
 			if (!kDirExists(sWWWDir)) SetError(kFormat("www directory does not exist: {}", sWWWDir));
 			// add a web server for static files
-			Routes.AddWebServer(sWWWDir, sRoute);
+			Routes.AddWebServer(sWWWDir, sRoute, bCreateAdHocIndex, bAllowUpload);
 		}
 
 		// create the REST server instance

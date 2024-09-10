@@ -60,12 +60,12 @@
 #endif
 
 #if !DEKAF2_OLD_NGHTTP2_VERSION
-static_assert(std::is_same<nghttp2_ssize, dekaf2::http2::nghttp2_ssize>::value, "nghttp2_ssize != ptrdiff_t");
+static_assert(std::is_same<nghttp2_ssize, dekaf2::khttp2::nghttp2_ssize>::value, "nghttp2_ssize != ptrdiff_t");
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
 
-namespace http2
+namespace khttp2
 {
 
 //-----------------------------------------------------------------------------
@@ -1078,7 +1078,7 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 
 } // ReadData
 
-} // end of namespace http2
+} // end of namespace khttp2
 
 DEKAF2_NAMESPACE_END
 

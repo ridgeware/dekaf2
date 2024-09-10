@@ -66,7 +66,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-namespace http3
+namespace khttp3
 {
 
 //-----------------------------------------------------------------------------
@@ -253,7 +253,7 @@ int Stream::ReadFromDataProvider(KStringView& sBuffer, uint32_t* iPFlags)
 
 	if (!m_DataProvider->Read(sBuffer))
 	{
-		// this data provider has no persistant data, we need to buffer it
+		// TODO this data provider has no persistent data, we need to buffer it
 		// until it gets acked
 		kDebug(1, "missing code HERE");
 	}
@@ -272,6 +272,7 @@ int Stream::ReadFromDataProvider(KStringView& sBuffer, uint32_t* iPFlags)
 int Stream::AckedStreamData(std::size_t iTotalReceived)
 //-----------------------------------------------------------------------------
 {
+	// TODO
 	kDebug(1, "missing code HERE");
 	return 0;
 
@@ -333,7 +334,7 @@ nghttp3_ssize Stream::ReceiveFromQuic(bool bOnce)
 		}
 
 		/*
-		 * Pump data from OpenSSL QUIC to the HTTP/3 stack by calling SSL_peek
+		 * Pump data from OpenSSL QUIC to the HTTP/3 stack by calling SSL_read_ex
 		 * to get received data and passing it to nghttp3 using
 		 * nghttp3_conn_read_stream. Note that this function is confusingly
 		 * named and inputs data to the HTTP/3 stack.
@@ -365,7 +366,7 @@ nghttp3_ssize Stream::ReceiveFromQuic(bool bOnce)
 #endif
 				else if (iError == SSL_ERROR_ZERO_RETURN)
 				{
-					/* Stream concluded normally. Pass FIN to HTTP/3 stack. */
+					// Stream concluded normally. Pass FIN to HTTP/3 stack.
 					ec = static_cast<int>(::nghttp3_conn_read_stream(m_Session.GetNGHTTP3_Session(), GetStreamID(), nullptr, 0, /*fin=*/1));
 
 					if (ec < 0)
@@ -376,11 +377,10 @@ nghttp3_ssize Stream::ReceiveFromQuic(bool bOnce)
 
 					kDebug(3, "[stream {}] stream finished", m_StreamID);
 					m_bDoneReceivedFin = true;
-
 				}
 				else if (::SSL_get_stream_read_state(m_QuicStream.get()) == SSL_STREAM_STATE_RESET_REMOTE)
 				{
-					/* Stream was reset by peer. */
+					// Stream was reset by peer
 					uint64_t aec;
 
 					if (!::SSL_get_stream_read_error_code(m_QuicStream.get(), &aec))
@@ -401,7 +401,7 @@ nghttp3_ssize Stream::ReceiveFromQuic(bool bOnce)
 				}
 				else
 				{
-					/* Other error. */
+					// Other error
 					kDebug(3, "[stream {}] unknown error", m_StreamID);
 					return -2;
 				}
@@ -1497,7 +1497,7 @@ int Session::on_acked_stream_data(
 	return ToThis(conn_user_data)->OnAckedStreamData(stream_id, datalen);
 }
 
-} // end of namespace http3
+} // end of namespace khttp3
 
 DEKAF2_NAMESPACE_END
 

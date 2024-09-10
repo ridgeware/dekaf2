@@ -570,15 +570,15 @@ private:
 	{
 		HTTP2Session(KTLSStream& TLSStream);
 
-		http2::SingleStreamSession Session;
-		KInStreamBuf               StreamBuf;
-		std::istream               IStream;
-		KInStream                  InStream;
-		http2::Stream::ID          StreamID { -1 };
+		khttp2::SingleStreamSession Session;
+		KInStreamBuf                StreamBuf;
+		std::istream                IStream;
+		KInStream                   InStream;
+		khttp2::Stream::ID          StreamID { -1 };
 
 	}; // HTTP2Session
 
-	std::unique_ptr<HTTP2Session>  m_HTTP2;
+	std::unique_ptr<HTTP2Session>   m_HTTP2;
 #endif
 
 #if DEKAF2_HAS_NGHTTP3
@@ -593,19 +593,19 @@ private:
 	{
 		HTTP3Session(KQuicStream& QuicStream);
 
-		http3::SingleStreamSession Session;
-		KInStreamBuf               StreamBuf;
-		std::istream               IStream;
-		KInStream                  InStream;
-		http3::Stream::ID          StreamID { -1 };
+		khttp3::SingleStreamSession Session;
+		KInStreamBuf                StreamBuf;
+		std::istream                IStream;
+		KInStream                   InStream;
+		khttp3::Stream::ID          StreamID { -1 };
 
 	}; // HTTP3Session
 
-	std::unique_ptr<HTTP3Session>  m_HTTP3;
+	std::unique_ptr<HTTP3Session>   m_HTTP3;
 #endif
 
 #if DEKAF2_HAS_NGHTTP2 || DEKAF2_HAS_NGHTTP3
-	KURL                           m_RequestURL;
+	KURL                            m_RequestURL;
 #endif
 
 	std::unique_ptr<KIOStreamSocket> m_Connection;

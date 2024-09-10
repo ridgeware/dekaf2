@@ -68,7 +68,7 @@ struct nghttp2_session;
 
 DEKAF2_NAMESPACE_BEGIN
 
-namespace http2
+namespace khttp2
 {
 
 using nghttp2_ssize = ::ptrdiff_t;
@@ -311,11 +311,11 @@ public:
 
 	/// Submit a (client) request. Internally, this generates a new Stream object, the handle of which is returned as an Stream::ID.
 	/// This method only returns after having sent request headers and body, and received all response headers.
-	Stream::ID SubmitRequest (KURL                          url,
-	                          KHTTPMethod                   Method,
-	                          const KHTTPHeaders&           RequestHeaders,
+	Stream::ID SubmitRequest (KURL                           url,
+	                          KHTTPMethod                    Method,
+	                          const KHTTPHeaders&            RequestHeaders,
 	                          std::unique_ptr<KDataProvider> SendData,
-	                          KHTTPResponseHeaders&         ResponseHeaders);
+	                          KHTTPResponseHeaders&          ResponseHeaders);
 
 	/// read more decoded data from a response stream identified by StreamID and store it into the provided buffer - you
 	/// need to call this method when you use the SubmitRequest() method without DataConsumer objects. Only one
@@ -330,7 +330,7 @@ protected:
 
 }; // SingleStreamSession
 
-} // end of namespace http2
+} // end of namespace khttp2
 
 DEKAF2_NAMESPACE_END
 

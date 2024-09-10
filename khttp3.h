@@ -72,7 +72,7 @@ struct nghttp3_vec;
 
 DEKAF2_NAMESPACE_BEGIN
 
-namespace http3
+namespace khttp3
 {
 
 using nghttp3_ssize = ::ptrdiff_t;
@@ -150,9 +150,13 @@ public:
 	/// returns the Quic stream ID
 	ID            GetStreamID        () const         { return m_StreamID;         }
 
+	/// returns a pointer to the request headers object, may be null
 	const KHTTPRequestHeaders*  GetRequestHeaders () const { return m_RequestHeaders;     }
+	/// returns a pointer to the response headers object, may be null
 	const KHTTPResponseHeaders* GetResponseHeaders() const { return m_ResponseHeaders;    }
+	/// returns a pointer to the data provider object, may be null
 	const KDataProvider*        GetDataProvider   () const { return m_DataProvider.get(); }
+	/// returns a pointer to the data consumer object, may be null
 	const KDataConsumer*        GetDataConsumer   () const { return m_DataConsumer.get(); }
 
 //----------
@@ -230,7 +234,7 @@ private:
 
 DEKAF2_ENUM_IS_FLAG(Stream::WaitFor)
 
-inline Stream::WaitFor Stream::AddWaitFor(WaitFor what) { m_WaitFor |= what; return m_WaitFor;  }
+inline Stream::WaitFor Stream::AddWaitFor(WaitFor what) { m_WaitFor |=  what; return m_WaitFor; }
 inline Stream::WaitFor Stream::DelWaitFor(WaitFor what) { m_WaitFor &= ~what; return m_WaitFor; }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -439,7 +443,6 @@ public:
 //----------
 
 	using Session::Session;
-//	using Session::NewStream;
 	using Session::SetError;
 	using Session::GetLastError;
 	using Session::CopyLastError;
@@ -468,7 +471,7 @@ protected:
 
 }; // SingleStreamSession
 
-} // end of namespace http3
+} // end of namespace khttp3
 
 DEKAF2_NAMESPACE_END
 

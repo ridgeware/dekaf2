@@ -2,6 +2,7 @@
 #include <dekaf2/kerror.h>
 #include <dekaf2/krest.h>
 #include <dekaf2/krestroute.h>
+#include <dekaf2/khttperror.h>
 
 using namespace dekaf2;
 
@@ -35,6 +36,7 @@ public:
 		KStringViewZ sWWWDir          = Options("www <directory>       : base directory for HTTP server (served content)");
 		bool bCreateAdHocIndex        = Options("autoindex             : create an automatic index.html for directories if index.html is not found, default false", false);
 		bool bAllowUpload             = Options("upload                : allow upload into directory, default false", false);
+		KStringViewZ sUserAndPass     = Options("user <user:password>  : set username and password for web access, default is open access", "");
 		KStringViewZ sRoute           = Options("route </path>         : route to serve from, defaults to \"/*\"", "/*");
 		Settings.iPort                = Options("http <port>           : port number to bind to", 0);
 		Settings.sSocketFile          = Options("socket <socket>       : unix domain socket file like /tmp/khttp.sock or unix:///tmp/khttp.sock", "");
@@ -73,6 +75,22 @@ public:
 		Settings.TimerHeader = "x-microseconds";
 		// activate header logging
 		Settings.KLogHeader = "x-klog";
+
+		// set up basic authentication
+		if (!sUserAndPass.empty())
+		{
+			auto Parts = sUserAndPass.Split(":");
+			if (Parts.size() != 2) SetError("need username:password");
+			Settings.PreRouteCallback = [&,Parts](KRESTServer& HTTP)
+			{
+				auto Basic = HTTP.Request.GetBasicAuthParms();
+				if (Basic.sUsername != Parts[0] || Basic.sPassword != Parts[1])
+				{
+					HTTP.Response.Headers.Set(KHTTPHeader::WWW_AUTHENTICATE, "Basic realm=\"KHTTP\"");
+					throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "not authenticated" };
+				}
+			};
+		}
 
 		KRESTRoutes Routes;
 

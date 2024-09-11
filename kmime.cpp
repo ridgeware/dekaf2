@@ -851,20 +851,35 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 } // ctor
 
 //-----------------------------------------------------------------------------
-KMIMEReceiveMultiPartFormData::File::File(KString sOrigFilename, KMIME Mime)
+KMIMEReceiveMultiPartFormData::File::File(KStringView sFilename, KMIME Mime)
 //-----------------------------------------------------------------------------
 {
-	if (!kIsSafeFilename(sOrigFilename))
+	// some browsers include(d) the pathname
+	KStringView sOrigFilename = kBasename(sFilename);
+
+	m_sFilename = kMakeSafeFilename(sOrigFilename);
+
+	if (m_sFilename != sOrigFilename)
 	{
-		m_sFilename     = kMakeSafeFilename(sOrigFilename);
-		m_sOrigFilename = std::move(sOrigFilename);
-	}
-	else
-	{
-		m_sFilename     = std::move(sOrigFilename);
+		m_sOrigFilename = sOrigFilename;
 	}
 
 } // ctor
+
+//-----------------------------------------------------------------------------
+const KString& KMIMEReceiveMultiPartFormData::File::GetOrigFilename() const
+//-----------------------------------------------------------------------------
+{
+	if (!m_sOrigFilename.empty())
+	{
+		return m_sOrigFilename;
+	}
+	else
+	{
+		return m_sFilename;
+	}
+
+} // GetOrigFilename
 
 //-----------------------------------------------------------------------------
 KMIMEReceiveMultiPartFormData::KMIMEReceiveMultiPartFormData(KStringView sOutputDirectory, KStringView sFormBoundary)
@@ -880,6 +895,22 @@ KMIMEReceiveMultiPartFormData::KMIMEReceiveMultiPartFormData(KStringView sOutput
 	}
 
 } // ctor
+
+//-----------------------------------------------------------------------------
+bool KMIMEReceiveMultiPartFormData::WriteToFile(KOutFile& OutFile, KStringView sData, File& file, KStringViewZ sOutFile)
+//-----------------------------------------------------------------------------
+{
+	if (OutFile.Write(sData).Good())
+	{
+		return true;
+	}
+
+	OutFile.close();
+	file.SetReceivedSize(kFileSize(sOutFile));
+
+	return SetError(kFormat("error writing file: {}", file.GetFilename()));
+
+} // WriteToFile
 
 //-----------------------------------------------------------------------------
 bool KMIMEReceiveMultiPartFormData::ReadFromStream(KInStream& InStream)
@@ -1014,8 +1045,6 @@ bool KMIMEReceiveMultiPartFormData::ReadFromStream(KInStream& InStream)
 			// we always search for a boundary starting with "\r\n--[TheBoundary]"
 			constexpr char bch = '\r';
 
-			std::size_t iFileSize { 0 };
-
 			for (;;)
 			{
 				auto iWant = KDefaultCopyBufSize - sBuffer.size();
@@ -1031,12 +1060,11 @@ bool KMIMEReceiveMultiPartFormData::ReadFromStream(KInStream& InStream)
 						return SetError("unexpected end of input");
 					}
 
-					if (!OutFile.Write(sBuffer).Good())
+					if (!WriteToFile(OutFile, sBuffer, m_Files.back(), sOutFile))
 					{
-						return SetError(kFormat("error writing file: {}", m_Files.back().GetFilename()));
+						return false;
 					}
 
-					iFileSize += sBuffer.size();
 					sBuffer.clear();
 					iPos = 0;
 				}
@@ -1050,13 +1078,18 @@ bool KMIMEReceiveMultiPartFormData::ReadFromStream(KInStream& InStream)
 						if (sHaystack.starts_with(m_sFormBoundary))
 						{
 							// write anything before the start of boundary to the file
-							if (!OutFile.Write(sBuffer.ToView(0, iPos)).Good())
+							if (!WriteToFile(OutFile, sBuffer.ToView(0, iPos), m_Files.back(), sOutFile))
 							{
-								return SetError(kFormat("error writing file: {}", m_Files.back().GetFilename()));
+								return false;
 							}
 
-							iFileSize += iPos;
-							kDebug(2, "wrote {} in file: {}", kFormBytes(iFileSize), m_Files.back().GetFilename());
+							OutFile.close();
+							m_Files.back().SetReceivedSize(kFileSize(sOutFile));
+							m_Files.back().SetCompleted();
+
+							kDebug(2, "wrote {} in file: {}",
+							       kFormBytes(m_Files.back().GetReceivedSize()),
+							       m_Files.back().GetFilename());
 
 							sBuffer.erase(0, iPos + m_sFormBoundary.size());
 
@@ -1088,11 +1121,10 @@ bool KMIMEReceiveMultiPartFormData::ReadFromStream(KInStream& InStream)
 					else
 					{
 						// write anything before the start of the possible boundary to the file
-						if (!OutFile.Write(sBuffer.ToView(0, iPos)).Good())
+						if (!WriteToFile(OutFile, sBuffer.ToView(0, iPos), m_Files.back(), sOutFile))
 						{
-							return SetError(kFormat("error writing file: {}", m_Files.back().GetFilename()));
+							return false;
 						}
-						iFileSize += iPos;
 						// remove the written data from the buffer
 						sBuffer.erase(0, iPos);
 						// and start over, in the hope to find the full boundary once the

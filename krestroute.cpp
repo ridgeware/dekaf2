@@ -555,18 +555,37 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing boundary in content type" };
 			}
 
+			if (sBoundary.remove_prefix('"'))
+			{
+				sBoundary.remove_suffix('"');
+			}
+			else if (sBoundary.remove_prefix('\''))
+			{
+				sBoundary.remove_suffix('\'');
+			}
+
 			KTempDir TempDir;
 
 			KMIMEReceiveMultiPartFormData Receiver(TempDir.Name(), sBoundary);
 
-			Receiver.ReadFromStream(HTTP.InStream());
+			if (!Receiver.ReadFromStream(HTTP.InStream()))
+			{
+				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, Receiver.Error() };
+			}
 
 			for (auto& File : Receiver.GetFiles())
 			{
 				// move the files from the temp location into the upload folder
-				auto sFrom = kFormat("{}{}{}", TempDir.Name(), kDirSep, File.GetFilename());
-				auto sTo   = kFormat("{}{}{}", HTTP.Route->sDocumentRoot, kDirSep, File.GetFilename());
-				kMove(sFrom, sTo);
+				if (File.GetCompleted())
+				{
+					auto sFrom = kFormat("{}{}{}", TempDir.Name(), kDirSep, File.GetFilename());
+					auto sTo   = kFormat("{}{}{}", HTTP.Route->sDocumentRoot, kDirSep, File.GetFilename());
+					kMove(sFrom, sTo);
+				}
+				else
+				{
+					kDebug(2, "skipping incomplete upload file: {}", File.GetFilename());
+				}
 			}
 
 			// and show the new list of files:

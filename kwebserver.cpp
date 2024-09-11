@@ -77,6 +77,17 @@ uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
 		// are the response to index.html and should be dealt with by
 		// the caller of this method
 		bIsPost = true;
+
+		if (bWithUpload)
+		{
+			// remove the index.html for POST requests, this may have
+			// been the result of an explicit ask for index.html instead
+			// of the directory only
+			if (sResourcePath.remove_suffix("/index.html"))
+			{
+				bHadTrailingSlash = true;
+			}
+		}
 	}
 
 	this->Open(sDocumentRoot,
@@ -106,7 +117,7 @@ uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
 	}
 	else if (this->Exists())
 	{
-		if (RequestMethod == KHTTPMethod::POST)
+		if (bWithUpload && RequestMethod == KHTTPMethod::POST)
 		{
 			throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid upload directory" };
 		}

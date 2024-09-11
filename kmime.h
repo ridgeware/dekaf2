@@ -548,24 +548,38 @@ public:
 	class File
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+		friend class KMIMEReceiveMultiPartFormData;
 
 	//----------
 	public:
 	//----------
 
-		File(KString sOrigFilename, KMIME Mime);
+		File(KStringView sFilename, KMIME Mime);
 
-		const KString& GetFilename     () const { return m_sFilename; }
-		const KString& GetOrigFilename () const { if (!m_sOrigFilename.empty()) return m_sOrigFilename; else return m_sFilename; }
-		KMIME          GetMIME         () const { return m_Mime;      }
+		const KString& GetFilename     () const { return m_sFilename;     }
+		const KString& GetOrigFilename () const ;
+		KMIME          GetMIME         () const { return m_Mime;          }
+		/// has this file been received successfully?
+		bool           GetCompleted    () const { return m_bCompleted;    }
+		/// returned size will be npos for inexisting file, 0 for empty file
+		std::size_t    GetReceivedSize () const { return m_iReceivedSize; }
+
+	//----------
+	protected:
+	//----------
+
+		void           SetCompleted    ()                  { m_bCompleted    = true;  }
+		void           SetReceivedSize (std::size_t iSize) { m_iReceivedSize = iSize; }
 
 	//----------
 	private:
 	//----------
 
-		KString m_sFilename;
-		KString m_sOrigFilename;
-		KMIME   m_Mime;
+		KString     m_sFilename;
+		KString     m_sOrigFilename;
+		std::size_t m_iReceivedSize  { 0 };
+		KMIME       m_Mime { KMIME::NONE };
+		bool        m_bCompleted { false };
 	};
 
 	/// set output directory and boundary string
@@ -578,6 +592,8 @@ public:
 //----------
 private:
 //----------
+
+	bool WriteToFile(KOutFile& OutFile, KStringView sData, File& file, KStringViewZ sOutFile);
 
 	KStringView       m_sOutputDirectory;
 	KString           m_sFormBoundary;

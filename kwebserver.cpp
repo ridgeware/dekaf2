@@ -58,44 +58,38 @@ uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
                            const CheckMethod&  Check)
 //-----------------------------------------------------------------------------
 {
-	m_iStatus = KHTTPError::H2xx_OK;
-	m_bIsValidUpload = false;
+	m_iStatus         = KHTTPError::H2xx_OK;
+	m_bIsValid        = false;
+	bool bIsGetOrHead = RequestMethod == KHTTPMethod::GET  || RequestMethod == KHTTPMethod::HEAD;
+	bool bIsPostOrPut = RequestMethod == KHTTPMethod::POST || RequestMethod == KHTTPMethod::PUT;
+	bool bIsDelete    = RequestMethod == KHTTPMethod::DELETE;
 
-	if (   RequestMethod != KHTTPMethod::GET
-		&& RequestMethod != KHTTPMethod::HEAD
-		&& (!bWithUpload || RequestMethod != KHTTPMethod::POST))
+	if (!bIsGetOrHead && (!bWithUpload || !(bIsDelete || bIsPostOrPut)))
 	{
 		kDebug(1, "invalid method: {}", RequestMethod.Serialize());
 		throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", RequestMethod, sRoute) };
 	}
 
-	bool bIsPost = false;
-
-	if (RequestMethod == KHTTPMethod::POST)
+	if (bWithUpload && bIsPostOrPut)
 	{
-		// do not create any temporary files for POST requests - those
-		// are the response to index.html and should be dealt with by
-		// the caller of this method
-		bIsPost = true;
-
-		if (bWithUpload)
+		// remove the index.html for POST requests, this may have
+		// been the result of an explicit ask for index.html instead
+		// of the directory only
+		if (sResourcePath.remove_suffix("/index.html"))
 		{
-			// remove the index.html for POST requests, this may have
-			// been the result of an explicit ask for index.html instead
-			// of the directory only
-			if (sResourcePath.remove_suffix("/index.html"))
-			{
-				bHadTrailingSlash = true;
-			}
+			bHadTrailingSlash = true;
 		}
 	}
 
-	this->Open(sDocumentRoot,
-	           sResourcePath,
-	           sRoute,
-	           bHadTrailingSlash,
-	           bCreateAdHocIndex && !bIsPost,
-	           bWithUpload       && !bIsPost);
+	this->Open
+	(
+		sDocumentRoot,
+		sResourcePath,
+		sRoute,
+		bHadTrailingSlash,
+		bCreateAdHocIndex && bIsGetOrHead,
+		bWithUpload       && bIsGetOrHead
+	);
 
 	if (this->RedirectAsDirectory())
 	{
@@ -103,10 +97,10 @@ uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
 		KString sRedirect = sResourcePath;
 		sRedirect += '/';
 
-		ResponseHeaders.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
-		ResponseHeaders.Headers.Set(KHTTPHeader::LOCATION, std::move(sRedirect));
+		ResponseHeaders.Headers.Remove (KHTTPHeader::CONTENT_TYPE);
+		ResponseHeaders.Headers.Set    (KHTTPHeader::LOCATION, std::move(sRedirect));
 
-		if (RequestMethod == KHTTPMethod::GET || RequestMethod == KHTTPMethod::HEAD)
+		if (bIsGetOrHead)
 		{
 			throw KHTTPError { KHTTPError::H301_MOVED_PERMANENTLY, "moved permanently" };
 		}
@@ -115,13 +109,14 @@ uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
 			throw KHTTPError { KHTTPError::H308_PERMANENT_REDIRECT, "permanent redirect" };
 		}
 	}
+
+	if (bIsPostOrPut)
+	{
+		// file may exist or not..
+	}
 	else if (this->Exists())
 	{
-		if (bWithUpload && RequestMethod == KHTTPMethod::POST)
-		{
-			throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid upload directory" };
-		}
-		else if (RequestMethod == KHTTPMethod::GET)
+		if (RequestMethod == KHTTPMethod::GET)
 		{
 			ResponseHeaders.Headers.Set(KHTTPHeader::CONTENT_TYPE, this->GetMIMEType(true).Serialize());
 
@@ -168,45 +163,35 @@ uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
 				ResponseHeaders.Headers.Set(KHTTPHeader::ACCEPT_RANGES, "bytes");
 			}
 		}
-		else
-		{
-			// redundant..
-			throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", RequestMethod, sRoute) };
-		}
 	}
 	else
 	{
-		if (bWithUpload && RequestMethod == KHTTPMethod::POST)
+		// This file does not exist.. now check if we should better return
+		// a REST error code, or an HTTP server error code. A REST error code
+		// makes sense when this path was defined in a REST context, but with
+		// a different method. We may end up here in the Web server mode if
+		// the web server is sort of a catch all at the end of the routes..
+		// (which, for security and ambiguity, should really better be avoided)
+
+		if (Check && Check(RequestMethod, sResourcePath))
 		{
-			if (!bHadTrailingSlash)
-			{
-				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid upload directory" };
-			}
-			m_bIsValidUpload = true;
+			kDebug (2, "request method {} not supported for path: {}", RequestMethod.Serialize(), sResourcePath);
+			throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", RequestMethod, sResourcePath) };
 		}
 		else
 		{
-			// This file does not exist.. now check if we should better return
-			// a REST error code, or an HTTP server error code. A REST error code
-			// makes sense when this path was defined in a REST context, but with
-			// a different method. We may end up here in the Web server mode if
-			// the web server is sort of a catch all at the end of the routes..
-			// (which, for security and ambiguity, should really better be avoided)
+			kDebug(1, "file does not exist: {}", this->GetFileSystemPath());
 
-			if (Check && Check(RequestMethod, sResourcePath))
+			if (bIsGetOrHead)
 			{
-				kDebug (2, "request method {} not supported for path: {}", RequestMethod.Serialize(), sResourcePath);
-				throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", RequestMethod, sResourcePath) };
-			}
-			else
-			{
-				kDebug(1, "Cannot open file: {}", this->GetFileSystemPath());
 				ResponseHeaders.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
-				throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
 			}
+
+			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("file not found: {}", sResourcePath) };
 		}
 	}
 
+	m_bIsValid = true;
 	return m_iStatus;
 
 } // KWebServer::Serve

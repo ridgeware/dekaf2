@@ -356,8 +356,17 @@ void KRESTRoutes::AddWebServer(KString sWWWDir, KString sRoute, bool bWithAdHocI
 
 	kDebug(2, "route : {}\nwww   : {}\nconfig: {}", sRoute, sWWWDir, Config.dump());
 
-	m_Routes.push_back(KRESTRoute("GET" , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, Config));
-	m_Routes.push_back(KRESTRoute("POST", false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, std::move(Config)));
+	if (bAllowUpload)
+	{
+		m_Routes.push_back(KRESTRoute("GET"    , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, Config));
+		m_Routes.push_back(KRESTRoute("PUT"    , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, Config));
+		m_Routes.push_back(KRESTRoute("DELETE" , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, Config));
+		m_Routes.push_back(KRESTRoute("POST"   , false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, std::move(Config)));
+	}
+	else
+	{
+		m_Routes.push_back(KRESTRoute("GET"    , false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, std::move(Config)));
+	}
 
 } // AddWebServer
 
@@ -509,92 +518,41 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 {
 	KWebServer WebServer;
 
-	WebServer.Serve(HTTP.Route->sDocumentRoot,
-	                HTTP.RequestPath.sRoute,
-	                HTTP.Request.Resource.Path.get().back() == '/',
-	                kjson::GetBool(HTTP.Route->Config, "autoindex"),
-	                kjson::GetBool(HTTP.Route->Config, "upload"),
-	                HTTP.Route->sRoute,
-	                HTTP.Request.Method,
-	                HTTP.Request,
-	                HTTP.Response,
-	                [this](KHTTPMethod Method, KStringView sPath)
-	                {
-	                	return CheckForWrongMethod(KRESTPath(Method, sPath));
-	                });
+	bool bHadTrailingSlash = HTTP.Request.Resource.Path.get().back() == '/';
+
+	WebServer.Serve
+	(
+		HTTP.Route->sDocumentRoot,
+		HTTP.RequestPath.sRoute,
+		bHadTrailingSlash,
+		kjson::GetBool(HTTP.Route->Config, "autoindex"),
+		kjson::GetBool(HTTP.Route->Config, "upload"),
+		HTTP.Route->sRoute,
+		HTTP.RequestPath.Method,
+		HTTP.Request,
+		HTTP.Response,
+		[this](KHTTPMethod Method, KStringView sPath)
+		{
+			return CheckForWrongMethod(KRESTPath(Method, sPath));
+		}
+	);
+
+	if (!WebServer.IsValid())
+	{
+		// this should have been thrown already by KWebServer, probably
+		// more precisely
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "bad request" };
+	}
 
 	HTTP.SetStatus(WebServer.GetStatus());
 
-	if (HTTP.Request.Method == KHTTPMethod::HEAD)
+	switch (HTTP.RequestPath.Method)
 	{
-		HTTP.SetContentLengthToOutput(WebServer.GetFileSize());
-	}
-	else
-	{
-		if (HTTP.Request.Method == KHTTPMethod::POST)
-		{
-			if (!WebServer.IsValidUpload())
-			{
-				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "bad request" };
-			}
+		case KHTTPMethod::HEAD:
+			HTTP.SetContentLengthToOutput(WebServer.GetFileSize());
+			break;
 
-			KStringView sBoundary = HTTP.Request.Headers.Get(KHTTPHeader::CONTENT_TYPE);
-
-			auto pos = sBoundary.find(';');
-
-			if (pos == KStringView::npos)
-			{
-				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing boundary in content type" };
-			}
-
-			sBoundary.remove_prefix(pos + 1);
-			sBoundary.Trim();
-
-			if (!sBoundary.remove_prefix("boundary="))
-			{
-				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing boundary in content type" };
-			}
-
-			if (sBoundary.remove_prefix('"'))
-			{
-				sBoundary.remove_suffix('"');
-			}
-			else if (sBoundary.remove_prefix('\''))
-			{
-				sBoundary.remove_suffix('\'');
-			}
-
-			KTempDir TempDir;
-
-			KMIMEReceiveMultiPartFormData Receiver(TempDir.Name(), sBoundary);
-
-			if (!Receiver.ReadFromStream(HTTP.InStream()))
-			{
-				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, Receiver.Error() };
-			}
-
-			for (auto& File : Receiver.GetFiles())
-			{
-				// move the files from the temp location into the upload folder
-				if (File.GetCompleted())
-				{
-					auto sFrom = kFormat("{}{}{}", TempDir.Name(), kDirSep, File.GetFilename());
-					auto sTo   = kFormat("{}{}{}", HTTP.Route->sDocumentRoot, kDirSep, File.GetFilename());
-					kMove(sFrom, sTo);
-				}
-				else
-				{
-					kDebug(2, "skipping incomplete upload file: {}", File.GetFilename());
-				}
-			}
-
-			// and show the new list of files:
-			// change the POST into a GET request
-			HTTP.Request.Method = KHTTPMethod::GET;
-			// and call us recursively
-			this->WebServer(HTTP);
-		}
-		else if (HTTP.Request.Method == KHTTPMethod::GET)
+		case KHTTPMethod::GET:
 		{
 			if (WebServer.IsAdHocIndex())
 			{
@@ -604,7 +562,152 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 			{
 				HTTP.SetStreamToOutput(WebServer.GetStreamForReading(), WebServer.GetFileSize());
 			}
+			break;
 		}
+
+		case KHTTPMethod::POST:
+		{
+			// check if we have a boundary string in the content-type header
+			KStringView sBoundary = HTTP.Request.Headers.Get(KHTTPHeader::CONTENT_TYPE);
+
+			auto pos = sBoundary.find(';');
+
+			if (pos != KStringView::npos)
+			{
+				sBoundary.remove_prefix(pos + 1);
+				sBoundary.Trim();
+
+				if (sBoundary.remove_prefix("boundary="))
+				{
+					if (sBoundary.remove_prefix('"'))
+					{
+						sBoundary.remove_suffix('"');
+					}
+					else if (sBoundary.remove_prefix('\''))
+					{
+						sBoundary.remove_suffix('\'');
+					}
+				}
+				else
+				{
+					sBoundary.clear();
+				}
+			}
+			else
+			{
+				sBoundary.clear();
+			}
+
+			KMIME Mime = HTTP.Request.ContentType();
+
+			if (!sBoundary.empty() || Mime.Serialize().starts_with("multipart/"))
+			{
+				KTempDir TempDir;
+
+				// this is a multipart encoded request
+				KMIMEReceiveMultiPartFormData Receiver(TempDir.Name(), sBoundary);
+
+				if (!Receiver.ReadFromStream(HTTP.InStream()))
+				{
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, Receiver.Error() };
+				}
+
+				for (auto& File : Receiver.GetFiles())
+				{
+					// move the files from the temp location into the upload folder
+					if (File.GetCompleted())
+					{
+						auto sFrom = kFormat("{}{}{}", TempDir.Name(), kDirSep, File.GetFilename());
+						auto sTo   = kFormat("{}{}{}", HTTP.Route->sDocumentRoot, kDirSep, File.GetFilename());
+						kMove(sFrom, sTo);
+					}
+					else
+					{
+						kDebug(2, "skipping incomplete upload file: {}", File.GetFilename());
+					}
+				}
+
+				if (!bHadTrailingSlash)
+				{
+					// this is probably never used, but we keep it for completeness:
+					// remove last path component (the filename)
+					HTTP.RequestPath.sRoute           = kDirname(HTTP.RequestPath.sRoute);
+					HTTP.Request.Resource.Path.get()  = HTTP.RequestPath.sRoute;
+					HTTP.Request.Resource.Path.get() += '/';
+				}
+				// and show the new list of files:
+				// change the POST into a GET request
+				HTTP.RequestPath.Method = KHTTPMethod::GET;
+				// and call us recursively
+				this->WebServer(HTTP);
+				// exit the switch here, the POST was successful
+				break;
+			}
+		}
+		// fallthrough into the PUT case, the POST was not a multipart encoding
+		DEKAF2_FALLTHROUGH;
+
+		case KHTTPMethod::PUT:
+			if (bHadTrailingSlash == false)
+			{
+				// this is a plain PUT (or POST) of data, the file name is taken 
+				// from the last part of the URL
+				auto sName = kMakeSafeFilename(kBasename(HTTP.RequestPath.sRoute));
+
+				if (sName.empty())
+				{
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing target name in URL" };
+				}
+
+				KTempDir TempDir;
+
+				auto sFrom = kFormat("{}{}{}", TempDir.Name(), kDirSep, sName);
+				auto sTo   = kFormat("{}{}{}", HTTP.Route->sDocumentRoot, kDirSep, sName);
+
+				KOutFile OutFile(sFrom);
+
+				if (!OutFile.is_open())
+				{
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "cannot open file" };
+				}
+
+				if (!OutFile.Write(HTTP.InStream()).Good())
+				{
+					throw KHTTPError { KHTTPError::H5xx_ERROR, "cannot write file" };
+				}
+
+				OutFile.close();
+
+				kDebug(2, "received {} for file: {}", kFormBytes(kFileSize(sFrom)), sName);
+
+				kMove(sFrom, sTo);
+
+				HTTP.SetMessage(kFormat("received file: {}", HTTP.RequestPath.sRoute));
+			}
+			else
+			{
+				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing target name in URL" };
+			}
+			// this is a REST request, do not return the index file but simply return
+			break;
+
+		case KHTTPMethod::DELETE:
+		{
+			auto sName = kFormat("{}{}{}", HTTP.Route->sDocumentRoot, kDirSep, HTTP.RequestPath.sRoute);
+
+			kDebug(2, "deleting file: {}", HTTP.RequestPath.sRoute);
+
+			if (!kRemove(sName, KFileTypes::ALL))
+			{
+				throw KHTTPError { KHTTPError::H5xx_ERROR, "cannot remove file" };
+			}
+
+			HTTP.SetMessage(kFormat("deleted file: {}", HTTP.RequestPath.sRoute));
+			break;
+		}
+
+		default:
+			throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "method not supported" };
 	}
 
 } // WebServer

@@ -118,7 +118,7 @@ public:
 	DEKAF2_NODISCARD
 	std::unique_ptr<KInStream> GetStreamForReading() { return KFileServer::GetStreamForReading(m_iFileStart); }
 	/// returns true if this is a valid upload request
-	bool IsValidUpload() const { return m_bIsValidUpload; }
+	bool IsValid() const { return m_bIsValid; }
 
 	using KFileServer::GetMIMEType;
 	using KFileServer::IsAdHocIndex;
@@ -131,7 +131,7 @@ private:
 	uint64_t m_iFileStart     { 0 };
 	uint64_t m_iFileSize      { 0 };
 	uint16_t m_iStatus        { 0 };
-	bool     m_bIsValidUpload { false };
+	bool     m_bIsValid   { false };
 
 }; // KWebServer
 

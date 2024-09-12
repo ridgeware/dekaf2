@@ -81,7 +81,8 @@ public:
 		{
 			auto Parts = sUserAndPass.Split(":");
 			if (Parts.size() != 2) SetError("need username:password");
-			Settings.PreRouteCallback = [&,Parts](KRESTServer& HTTP)
+			
+			Settings.PreRouteCallback = [Parts](KRESTServer& HTTP)
 			{
 				auto Basic = HTTP.Request.GetBasicAuthParms();
 				if (Basic.sUsername != Parts[0] || Basic.sPassword != Parts[1])

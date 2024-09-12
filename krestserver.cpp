@@ -1145,7 +1145,7 @@ void KRESTServer::Output()
 				// the content:
 				if (!m_sMessage.empty())
 				{
-					if (!json.tx.is_null() || Route->Parser == KRESTRoute::JSON)
+					if (!json.tx.is_null() || Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::JSON)
 					{
 						json.tx["message"] = std::move(m_sMessage);
 					}
@@ -1153,7 +1153,7 @@ void KRESTServer::Output()
 
 				if (m_JsonLogger && !m_JsonLogger->empty() && !m_Options.KLogHeader.empty())
 				{
-					if ((!json.tx.is_null() || Route->Parser == KRESTRoute::JSON)
+					if ((!json.tx.is_null() || Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::JSON)
 						&& (json.tx.is_object() || json.tx.is_null()))
 					{
 						json.tx[m_Options.KLogHeader.Serialize()] = std::move(*m_JsonLogger);

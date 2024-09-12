@@ -3,31 +3,31 @@
 #%
 #% sort-pix - sort picture files dumped from digital cameras
 #%
-#% usage: sort-pix [<options>] <StartDir> [<TargetDir>]
+#% usage: sort-pix [<options>] <StartDir> [<category>]
 #%
 #% where <options> are:
 #%  -x          :: script debug
-#%  -q          :: quiet mode
 #%  -dry        :: dry run (no changes made)
-#%  -offsony    :: add pre-computed offset for incorrect time on Sony CAM
-#%  -offd2      :: add pre-computed offset for incorrect time on Nikon D2H
-#%  -offd300s   :: add pre-computed offset for incorrect time on Nikon D300S
-#%  -rotate     :: assume that all pix in this batch should be rotated ctr-cw 90
+##  -offsony    :: add pre-computed offset for incorrect time on Sony CAM        [old camera]
+##  -offd2      :: add pre-computed offset for incorrect time on Nikon D2H       [old camera]
+##  -offd300s   :: add pre-computed offset for incorrect time on Nikon D300S     [old camera]
+##  -rotate     :: assume that all pix in this batch should be rotated ctr-cw 90 [not needed anymore]
 #%  -counts     :: create .tag meta information on all folders recursively
 #%
 #% and:
 #%  <StartDir>  :: directory to start recursing from to find JPGs
-#%  <TargetDir> :: override /home/media as target directory
+#%  <category>  :: is either: family [the default] or D, E, B, M, M2, T, S or G
 #%
 #% history:
-#%   Jan 2007 : keef
+#%   Jan 2007 : keef created to avoid paying for Apple or Google Cloud storage
 #%
 
 iOffset=0
 fDryRun=0
 fRotate=0
 fCounts=0
-MEDIA=/home/media
+TargetDir=/home/media # by default
+YearFolder="-Family"  # by default
 
 if [ "$1" = "-x" ]; then
 	set -x
@@ -44,7 +44,7 @@ statinfo ()
 
     # lastmod-string used to come from statinfo.cpp and contains:
 	#    time_t iUnixTime;
-	#    char   szTimestamp[19+1];  // 2001-03-31 12:00:00
+	#    char   szTimestamp[19+1];  // 2001-03-31 Mon 12:00:00
 	#    char   szHourOfDay[2+1];   // 12
 	#    char   szDayOfWeek[5+1];   // 5:THU
 	#    char   szWeekSpan[33+1];   // 2001-03-04(SUN)-->2001-03-10(SAT)
@@ -56,7 +56,7 @@ statinfo ()
 		case $(uname) in
 			Darwin)
 				local lastmod_utc=$(stat -r "${fullpath}" | awk '{print $9}')
-				local timestamp=$(  stat -f %Sm -t '%Y-%m-%d %H:%M:%S' "${fullpath}")
+				local timestamp=$(  stat -f %Sm -t '%Y-%m-%d %a %H:%M:%S' "${fullpath}")
 				local H=$(          stat -f %Sm -t '%H' "${fullpath}")
 				local DOW=$(        stat -f %Sm -t '%u:%a' "${fullpath}" | tr '[a-z]' '[A-Z]')
 				local MOY=$(        stat -f %Sm -t '%m:%b' "${fullpath}" | tr '[a-z]' '[A-Z]')
@@ -64,7 +64,7 @@ statinfo ()
 				;;
 			*)
 				local lastmod_utc=$(stat --format '%Y'          "${fullpath}")
-				local timestamp=$(  stat --format '%y-%m-%d %T' "${fullpath}")
+				local timestamp=$(  stat --format '%y-%m-%d %a %T' "${fullpath}")
 				local H=$(          stat --format '%H' "${fullpath}")
 				local DOW=$(        stat --format '%u:%a' "${fullpath}" | tr '[a-z]' '[A-Z]')
 				local MOY=$(        stat --format '%m:%b' "${fullpath}" | tr '[a-z]' '[A-Z]')
@@ -146,6 +146,8 @@ setx=ComputeNewDir
 ComputeNewDir ()
 #==============================
 {
+	set -x
+
 	# $1 = statinfo
 	#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
 	statinfo="$1"
@@ -166,7 +168,7 @@ ComputeNewDir ()
 
 	Month=$(LookupMonth $YearMo) || return 1
 	Day=$(echo "$Date" | cut -c '1-14' | tr ' ' '-')
-	NewDir="$MEDIA/${Year}-Family/${YearMo}-${Month}/$Day"
+	NewDir="$TargetDir/${Year}${YearFolder}/${YearMo}-${Month}/$Day"
 
 	echo "$NewDir"
 
@@ -194,8 +196,9 @@ ProcessRaw ()  # Nikon and Canon RAW camera formats
 {
 	# $1 = statinfo
 	#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
-	statinfo="$1"
-	NewDir="$2"; [ "$NewDir" = "" ] && NewDir=$(ComputeNewDir "$statinfo")
+	local statinfo="$1"
+	local NewDir="$2"; [[ -z "$NewDir" ]] && NewDir=$(ComputeNewDir "$statinfo")
+
 	iUTC=$(echo "$statinfo" | awk -F'|' '{print $1}')
 	OrigFile=$(echo "$statinfo" | awk -F'|' '{print $NF}')
 	OrigDir=$(dirname "$OrigFile")
@@ -266,8 +269,9 @@ ProcessMovie ()
 #==============================
 {
 	#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
-	statinfo="$1"
-	NewDir="$2"; [ "$NewDir" = "" ] && NewDir=$(ComputeNewDir "$statinfo")
+	local statinfo="$1"
+	local NewDir="$2"; [[ -z "$NewDir" ]] && NewDir=$(ComputeNewDir "$statinfo")
+
 	iUTC=$(echo "$statinfo" | awk -F'|' '{print $1}')
 	OrigFile=$(echo "$statinfo" | awk -F'|' '{print $NF}')
 	OrigDir=$(dirname "$OrigFile")
@@ -296,8 +300,9 @@ ProcessImage ()
 #==============================
 {
 	#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
-	statinfo="$1"
-	NewDir="$2"; [ "$NewDir" = "" ] && NewDir=$(ComputeNewDir "$statinfo")
+	local statinfo="$1"
+	local NewDir="$2"; [[ -z "$NewDir" ]] && NewDir=$(ComputeNewDir "$statinfo")
+
 	iUTC=$(echo "$statinfo" | awk -F'|' '{print $1}')
 	OrigFile=$(echo "$statinfo" | awk -F'|' '{print $NF}')
 	OrigDir=$(dirname "$OrigFile")
@@ -472,11 +477,51 @@ fi
 export PATH="/home/bin/$(uname):$PATH"
 
 StartDir="$1"
-if [ "$2" != "" ]; then
-	MEDIA="$2"
-	if [ $fDryRun -eq 0 ]; then
-		mkdir -p "$MEDIA" || exit 1
-	fi
+category=$(echo "${2}" | tr '[A-Z]' '[a-z]')
+
+case ${category} in
+	family)
+		# defaults already set..
+		;;
+	d)
+		TargetDir="/home/media/soccer/1993-David"
+		YearFolder=""
+		;;
+	e)
+		TargetDir="/home/media/soccer/1995-Emily"
+		YearFolder=""
+		;;
+	b)
+		TargetDir="/home/media/soccer/1997-Benjamin"
+		YearFolder=""
+		;;
+	m)
+		TargetDir="/home/media/soccer/1999-Matthew"
+		YearFolder=""
+		;;
+	m2)
+		TargetDir="/home/media/soccer/2001-Margaret"
+		YearFolder=""
+		;;
+	t)
+		TargetDir="/home/media/soccer/2005-Thomas"
+		YearFolder=""
+		;;
+	s)
+		TargetDir="/home/media/soccer/2008-Sophie"
+		YearFolder=""
+		;;
+	g)
+		TargetDir="/home/media/soccer/2014-Greg"
+		YearFolder=""
+		;;
+	*)
+		echo ">> unknown category: ${2}"
+		;;
+esac
+
+if [ $fDryRun -eq 0 ]; then
+	mkdir -p "$TargetDir" || exit 1
 fi
 
 if [ $iOffset -eq 0 ]; then
@@ -493,8 +538,9 @@ if [ $iOffset -eq 0 ]; then
 fi
 
 if [ $fCounts -eq 1 ]; then
-	CountFiles "$StartDir"
+	CountFiles "${StartDir}"
 else
-	ProcessDir "$StartDir"
+	ProcessDir "${StartDir}"
+	CountFiles "${TargetDir}"
 fi
 

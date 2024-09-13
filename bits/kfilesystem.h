@@ -48,15 +48,24 @@
 
 #include "../kdefinitions.h"
 
-#if DEKAF2_HAS_CPP_17 && !DEKAF2_IS_CLANG
-	#if DEKAF2_HAS_INCLUDE(<filesystem>)
-		#include <filesystem>
-		#define DEKAF2_HAS_STD_FILESYSTEM 1
-		#define DEKAF2_FS_NAMESPACE std::filesystem
-	#elif DEKAF2_HAS_INCLUDE(<experimental/filesystem>)
-		#include <experimental/filesystem>
-		#define DEKAF2_HAS_STD_FILESYSTEM 1
-		#define DEKAF2_FS_NAMESPACE std::experimental::filesystem
+// Starting 09/2024 we do not use std::filesystem anymore except when
+// not on POSIX systems. Reason is its limited functionality (no user
+// and group modification, multiple system calls instead of just one
+// stat() to gather file information), and the use of std::filesystem::path,
+// which forces a copy of file names even on systems which use UTF8 for
+// their fs strings.
+
+#if !DEKAF2_IS_UNIX
+	#if DEKAF2_HAS_CPP_17 && !DEKAF2_IS_CLANG
+		#if DEKAF2_HAS_INCLUDE(<filesystem>)
+			#include <filesystem>
+			#define DEKAF2_HAS_STD_FILESYSTEM 1
+			#define DEKAF2_FS_NAMESPACE std::filesystem
+		#elif DEKAF2_HAS_INCLUDE(<experimental/filesystem>)
+			#include <experimental/filesystem>
+			#define DEKAF2_HAS_STD_FILESYSTEM 1
+			#define DEKAF2_FS_NAMESPACE std::experimental::filesystem
+		#endif
 	#endif
 #endif
 

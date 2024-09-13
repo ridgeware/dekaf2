@@ -98,8 +98,11 @@ Report ()
 	local results=$(sed -e 's,[()\/], ,g' | awk -v "myip=$myip" -v "devicefile=${devices}" 'BEGIN {
 		while (getline < devicefile)
 		{
-			split ($0,fields,"=")
-			devices[fields[1]] = fields[2]
+			if ((NF == 2) && ($1 !~ /^#/))
+			{
+				split ($0,fields,"=")
+				devices[fields[1]] = fields[2]
+			}
 		}
 		close (devicefile)
 	}

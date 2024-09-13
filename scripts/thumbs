@@ -59,7 +59,7 @@ fi
 # Copyright: Copyright (C) 1999-2008 ImageMagick Studio LLC
 magick convert --version | grep ImageMagick
 if [ $? -ne 0 ]; then
-	echo "thumbs: missing: 'convert' command from ImageMagick package."
+	echo "thumbs: missing: ImageMagick package."
 	exit 1
 fi
 

@@ -573,7 +573,7 @@ int kSystem (KStringView sCommand, KStringRef& sOutput)
 	}
 	else
 	{
-		kReadFile (sTmp, sOutput, true);
+		kReadTextFile (sTmp, sOutput, true);
 		kDebug (3, "output contained {} bytes", sOutput.size());
 		kRemoveFile (sTmp);
 	}

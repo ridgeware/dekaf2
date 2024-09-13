@@ -39,6 +39,12 @@ TEST_CASE("KFilesystem")
 		"line 9\n"
 	};
 
+	SECTION("create existing dir")
+	{
+		CHECK ( kDirExists(TempDir.Name()) == true );
+		CHECK ( kCreateDir(TempDir.Name()) == true );
+	}
+
 	SECTION("create nested dir")
 	{
 		kCreateDir(sDirectory);
@@ -316,12 +322,73 @@ TEST_CASE("KFilesystem")
 		KString sFileinRenamedDir { sBaseDir };
 		sFileinRenamedDir += "/farer/up/new.txt";
 
+		KString sSymlink = sBaseDir;
+		sSymlink += "/mysymlink";
+
 		CHECK ( kTouchFile(sNested)              );
 		CHECK ( kFileExists(sNested)             );
+		CHECK ( kCreateSymlink(sNested, sSymlink));
 		CHECK ( kCopy(sNested, sRenamed)         );
 		CHECK ( kFileExists(sNested)             );
+		CHECK ( kFileExists(sSymlink)            );
 		CHECK ( kFileExists(sRenamed)            );
 		CHECK ( kRemoveDir(sBaseDir) == true     );
+	}
+
+	SECTION("kCopyFile")
+	{
+		KString sBaseDir { sDirectory };
+		sBaseDir += kDirSep;
+		sBaseDir += "fs9238w79a";
+
+		KString sNested { sBaseDir };
+		sNested += "/farer/down/here.txt";
+
+		KString sRenamed { kDirname(sNested) + "/new.txt" };
+
+		KString sFileinRenamedDir { sBaseDir };
+		sFileinRenamedDir += "/farer/up/new.txt";
+
+		KString sSymlink = sBaseDir;
+		sSymlink += "/mysymlink";
+
+		CHECK ( kTouchFile(sNested)              );
+		CHECK ( kFileExists(sNested)             );
+		CHECK ( kCreateSymlink(sNested, sSymlink));
+		CHECK ( kCopyFile(sNested, sRenamed)     );
+		CHECK ( kCopyFile(kFormat("{}{}", sBaseDir, "/does/not/exist.txt"), kFormat("{}{}", sBaseDir, "some.txt")) == false );
+		CHECK ( kFileExists(sNested)             );
+		CHECK ( kFileExists(sSymlink)            );
+		CHECK ( kFileExists(sRenamed)            );
+		CHECK ( kRemoveDir(sBaseDir) == true     );
+	}
+
+	SECTION("kCopy Directory")
+	{
+		KString sBaseDir { sDirectory };
+		sBaseDir += kDirSep;
+		sBaseDir += "fs9238w7b";
+		CHECK ( kCreateDir(kFormat("{}{}", sBaseDir, "/farer/down/and/even/more"           )) );
+		CHECK ( kTouchFile(kFormat("{}{}", sBaseDir, "/farer/down/test1.txt"               )) );
+		CHECK ( kTouchFile(kFormat("{}{}", sBaseDir, "/farer/down/and/test2.txt"           )) );
+		CHECK ( kWriteFile(kFormat("{}{}", sBaseDir, "/farer/down/and/even/test3.txt"      ), "12345678901234567890123456789012345") );
+		CHECK ( kTouchFile(kFormat("{}{}", sBaseDir, "/farer/down/and/even/more/test4.txt" )) );
+		CHECK ( kCreateSymlink(kFormat("{}{}", sBaseDir, "/farer/down/and/even/test3.txt"), kFormat("{}{}", sBaseDir, "/farer/down/symlink1")) );
+		CHECK ( kCopy(kFormat("{}{}", sBaseDir, "/farer/down"), kFormat("{}{}", sBaseDir, "/farer/up")) );
+		CHECK ( kFileExists(kFormat("{}{}", sBaseDir, "/farer/up/and/even/more/test4.txt"  )) );
+		CHECK ( kFileExists(kFormat("{}{}", sBaseDir, "/farer/up/symlink1"                 )) );
+		CHECK ( KFileStat  (kFormat("{}{}", sBaseDir, "/farer/up/symlink1"), false).Type() == KFileType::FILE    );
+		CHECK ( KFileStat  (kFormat("{}{}", sBaseDir, "/farer/up/symlink1"), true ).Type() == KFileType::SYMLINK );
+		CHECK ( KFileStat  (kFormat("{}{}", sBaseDir, "/farer/up/symlink1"), false).Size() == 35 );
+		CHECK ( KFileStat  (kFormat("{}{}", sBaseDir, "/farer/up/symlink1"), true ).Size() == 35 );
+		auto sTarget = kReadLink(kFormat("{}{}", sBaseDir, "/farer/up/symlink1"), false);
+		CHECK ( sTarget.remove_prefix(sBaseDir) );
+		CHECK ( sTarget == "/farer/down/and/even/test3.txt" );
+		auto sCanonicalBaseDir = kReadLink(sBaseDir, true);
+		sTarget = kReadLink(kFormat("{}{}", sBaseDir, "/farer/up/symlink1"), true);
+		CHECK ( sTarget.remove_prefix(sCanonicalBaseDir) );
+		CHECK ( sTarget == "/farer/down/and/even/test3.txt" );
+		CHECK ( kRemoveDir(sBaseDir) == true );
 	}
 
 	SECTION("kMove")

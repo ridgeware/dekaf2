@@ -64,6 +64,7 @@ bool kChangeMode(KStringViewZ sPath, int iMode)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
+
 	std::error_code ec;
 
 	fs::permissions(kToFilesystemPath(sPath), static_cast<fs::perms>(iMode), ec);
@@ -75,11 +76,13 @@ bool kChangeMode(KStringViewZ sPath, int iMode)
 	}
 
 #else
-	if (chmod(sPath.c_str(), iMode))
+
+	if (::chmod(sPath.c_str(), iMode))
 	{
 		kDebug (1, "{}: {}", sPath, strerror (errno));
 		return false;
 	}
+
 #endif
 
 	return true;
@@ -90,11 +93,75 @@ bool kChangeMode(KStringViewZ sPath, int iMode)
 int kGetMode(KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_FILESTAT_USE_STD_FILESYSTEM
+
+	std::error_code ec;
+
+	auto iMode = fs::status(kToFilesystemPath(sPath)).permissions();
+
+	if (ec)
+	{
+		kDebug(1, "{}: {}", sPath, ec.message());
+		return 0;
+	}
+
+	return iMode;
+
+#else
+
 	KFileStat Stat(sPath);
 
 	return Stat.AccessMode();
 
+#endif
+
 } // kGetMode
+
+//-----------------------------------------------------------------------------
+bool kChangeOwnerAndGroup(KStringViewZ sPath, uid_t iOwner, uid_t iGroup)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_FILESTAT_USE_STD_FILESYSTEM
+
+#define DEKAF2_INT_CANNOT_CHANGE_OWNER_AND_GROUP 1
+
+	// there is no way in std::filesystem to set user or group
+	return false;
+
+#else
+	if (::chown(sPath.c_str(), iOwner, iGroup))
+	{
+		kDebug (1, "{}: {}", sPath, strerror (errno));
+		return false;
+	}
+#endif
+
+	return true;
+
+} // kChangeOwnerAndGroup
+
+//-----------------------------------------------------------------------------
+bool kChangeGroup(KStringViewZ sPath, uid_t iGroup)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_FILESTAT_USE_STD_FILESYSTEM
+
+#define DEKAF2_INT_CANNOT_CHANGE_GROUP 1
+
+	// there is no way in std::filesystem to set user or group
+	return false;
+
+#else
+	if (::chown(sPath.c_str(), kGetUid(), iGroup))
+	{
+		kDebug (1, "{}: {}", sPath, strerror (errno));
+		return false;
+	}
+#endif
+
+	return true;
+
+} // kChangeGroup
 
 //-----------------------------------------------------------------------------
 bool kExists (KStringViewZ sPath)
@@ -282,8 +349,7 @@ bool kRename (KStringViewZ sOldPath, KStringViewZ sNewPath)
 } // kRename
 
 //-----------------------------------------------------------------------------
-/// copy a file or directory
-bool kCopy (KStringViewZ sOldPath, KStringViewZ sNewPath)
+bool kCopyFile (KStringViewZ sOldPath, KStringViewZ sNewPath, KCopyOptions Options)
 //-----------------------------------------------------------------------------
 {
 	if (sOldPath == sNewPath)
@@ -291,52 +357,317 @@ bool kCopy (KStringViewZ sOldPath, KStringViewZ sNewPath)
 		kDebug(1, "old and new path are the same: {}", sOldPath);
 		return false;
 	}
-	else if (kDirExists(sOldPath))
+
+	auto NewStats = KFileStat(sNewPath);
+	auto OldStats = KFileStat(sOldPath);
+
+	if (!OldStats.IsFile())
 	{
-		// TODO copy a directory tree, not yet supported
-		kDebug(1, "directory copy not yet implemented");
+		if (!OldStats.Exists())
+		{
+			kDebug(1, "file does not exist: {}", sOldPath);
+		}
+		else
+		{
+			kDebug(1, "source is not a {}, but a {}", "file", OldStats.Type().Serialize());
+		}
 		return false;
 	}
-	else if (kFileExists(sOldPath))
-	{
-		KInFile InFile(sOldPath);
 
-		if (!InFile.is_open())
+	if ((Options & KCopyOptions::SkipExistingFile) == KCopyOptions::SkipExistingFile)
+	{
+		if (NewStats.Exists())
 		{
-			kDebug(1, "cannot open input file: {}", sOldPath);
+			return true;
+		}
+	}
+
+	if ((Options & KCopyOptions::UpdateExistingFile) == KCopyOptions::UpdateExistingFile)
+	{
+		if (NewStats.ModificationTime() > OldStats.ModificationTime())
+		{
+			return true;
+		}
+	}
+
+	if ((Options & KCopyOptions::OverwriteExistingFile) != KCopyOptions::OverwriteExistingFile)
+	{
+		if (NewStats.Exists())
+		{
 			return false;
 		}
+	}
 
-		KOutFile OutFile(sNewPath);
+	KInFile InFile(sOldPath);
+
+	if (!InFile.is_open())
+	{
+		kDebug(1, "cannot open input file: {}", sOldPath);
+		return false;
+	}
+
+	KOutFile OutFile(sNewPath);
+
+	if (!OutFile.is_open())
+	{
+		if ((Options & KCopyOptions::CreateMissingPath) == KCopyOptions::CreateMissingPath)
+		{
+			if (kCreateDir(KString(kDirname(sNewPath))))
+			{
+				OutFile.open(sNewPath);
+			}
+		}
 
 		if (!OutFile.is_open())
 		{
-			// we may miss a path component
-			KString sDir = kDirname(sNewPath);
-			if (kCreateDir(sDir))
-			{
-				OutFile.open(sNewPath, std::ios::app);
-				if (!OutFile.is_open())
-				{
-					// give up
-					kDebug(1, "cannot open output file: {}", sNewPath);
-					return false;
-				}
-			}
-			else
+			kDebug(1, "cannot open output file: {}", sNewPath);
+			return false;
+		}
+	}
+
+	if (!OutFile.Write(InFile).Good())
+	{
+		kDebug(1, "cannot write to output file: {}", sNewPath);
+		return false;
+	}
+
+	OutFile.close();
+
+	if ((Options & KCopyOptions::KeepMode) == KCopyOptions::KeepMode)
+	{
+		if (OldStats.AccessMode() != DEKAF2_MODE_CREATE_FILE)
+		{
+			// try to change mode, but skip any error
+			kChangeMode(sNewPath, OldStats.AccessMode());
+		}
+	}
+
+#if !DEKAF2_INT_CANNOT_CHANGE_GROUP
+	if ((Options & KCopyOptions::KeepOwner) == KCopyOptions::KeepOwner)
+	{
+		// try to change owner and group, but skip any error
+		kChangeOwnerAndGroup(sNewPath, OldStats.UID(), OldStats.GID());
+	}
+	else if ((Options & KCopyOptions::KeepGroup) == KCopyOptions::KeepGroup)
+	{
+		// try to change and group, but skip any error
+		kChangeGroup(sNewPath, OldStats.GID());
+	}
+#endif
+
+	return true;
+
+} // KCopyFile
+
+namespace {
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class KIntCopy
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	KIntCopy(KCopyOptions Options)
+	: m_Options(Options)
+	{
+	}
+
+	bool Copy (
+		KStringViewZ sOldPath,
+		KStringViewZ sNewPath
+	)
+	{
+		if (sOldPath == sNewPath)
+		{
+			kDebug(2, "old and new path are the same: {}", sOldPath);
+			return true;
+		}
+
+		KFileStat FileStat(sOldPath);
+
+		if (FileStat.Type() == KFileType::DIRECTORY)
+		{
+			m_sBaseDir = sOldPath;
+		}
+
+		if (!IntCopy(sOldPath, sNewPath, FileStat.Type()))
+		{
+			return false;
+		}
+
+		for (auto& Pending : m_PendingSymLinks)
+		{
+			if (!kCreateSymlink(Pending.first, Pending.second))
 			{
 				return false;
 			}
 		}
 
-		return OutFile.Write(InFile).Good();
+		if ((m_Options & KCopyOptions::DeleteAfterCopy) == KCopyOptions::DeleteAfterCopy)
+		{
+			switch (FileStat.Type())
+			{
+				case KFileType::DIRECTORY:
+					return kRemoveDir(sOldPath);
 
-		// TODO copy perms
+				case KFileType::FILE:
+				case KFileType::SYMLINK:
+					return kRemoveFile(sOldPath);
+
+				default:
+					break;
+			}
+		}
+
+		return true;
 	}
 
-	kDebug(1, "file not found: {}", sOldPath);
+//------
+private:
+//------
 
-	return false;
+	bool IntCopy (
+			   KStringViewZ sOldPath,
+			   KString      sNewPath,
+			   KFileType    FileType
+			)
+	{
+		switch (FileType)
+		{
+			case KFileType::DIRECTORY:
+			{
+				int       iMode = DEKAF2_MODE_CREATE_DIR;
+				KFileStat OldStats;
+
+				if ((m_Options & (KCopyOptions::KeepMode | KCopyOptions::KeepOwner | KCopyOptions::KeepGroup)) != KCopyOptions::None)
+				{
+					OldStats = KFileStat(sOldPath);
+				}
+
+				if ((m_Options & KCopyOptions::KeepMode) == KCopyOptions::KeepMode)
+				{
+					iMode = OldStats.AccessMode();
+				}
+
+				if (!kCreateDir(sNewPath, iMode))
+				{
+					return false;
+				}
+
+#if !DEKAF2_INT_CANNOT_CHANGE_GROUP
+				if ((m_Options & KCopyOptions::KeepOwner) == KCopyOptions::KeepOwner)
+				{
+					// try to change owner and group, but skip any error
+					kChangeOwnerAndGroup(sNewPath, OldStats.UID(), OldStats.GID());
+				}
+				else if ((m_Options & KCopyOptions::KeepGroup) == KCopyOptions::KeepGroup)
+				{
+					// try to change and group, but skip any error
+					kChangeGroup(sNewPath, OldStats.GID());
+				}
+#endif
+				if ((m_Options & KCopyOptions::Recursive) == KCopyOptions::Recursive)
+				{
+					for (auto& Item : KDirectory(sOldPath, KFileTypes::ALL, /*bRecursive=*/false))
+					{
+						if (!IntCopy(Item.Path(), kFormat("{}{}{}", sNewPath, kDirSep, Item.Filename()), Item.Type()))
+						{
+							return false;
+						}
+					}
+				}
+
+				return true;
+			}
+
+			case KFileType::FILE:
+			{
+				if ((m_Options & KCopyOptions::DirectoriesOnly) == KCopyOptions::DirectoriesOnly)
+				{
+					kDebug(2, "skipped {}: {}", FileType.Serialize(), sOldPath);
+					return true;
+				}
+				else if ((m_Options & KCopyOptions::CreateSymLinks) == KCopyOptions::CreateSymLinks)
+				{
+					return kCreateSymlink(sOldPath, sNewPath);
+				}
+				else if ((m_Options & KCopyOptions::CreateHardLinks) == KCopyOptions::CreateHardLinks)
+				{
+					return kCreateHardlink(sOldPath, sNewPath);
+				}
+				else
+				{
+					return kCopyFile(sOldPath, sNewPath, m_Options);
+				}
+			}
+
+			case KFileType::SYMLINK:
+			{
+				if ((m_Options & KCopyOptions::SkipSymLinks) == KCopyOptions::SkipSymLinks)
+				{
+					kDebug(2, "skipped {}: {}", FileType.Serialize(), sOldPath);
+					return true;
+				}
+				else if ((m_Options & KCopyOptions::CreateHardLinks) == KCopyOptions::CreateHardLinks)
+				{
+					auto sOrigin = kReadLink(sOldPath, true);
+					if (sOrigin.empty()) return false;
+					return kCreateHardlink(sOrigin, sNewPath);
+				}
+				else if ((m_Options & KCopyOptions::CopySymLinks) == KCopyOptions::CopySymLinks)
+				{
+					auto sOrigin = kReadLink(sOldPath, false);
+					if (sOrigin.empty()) return false;
+
+					if (!m_sBaseDir.empty() && sOrigin.starts_with(m_sBaseDir))
+					{
+						// mark this symlink for later, it points into
+						// the directory structure we are about to copy
+						// (so do not link the old file, but the new, later)
+						m_PendingSymLinks.push_back({ sOrigin, sNewPath });
+						return true;
+					}
+					else
+					{
+						// this symlink points outside the directory structure,
+						// create it right now
+						return kCreateSymlink(sOrigin, sNewPath);
+					}
+				}
+				else
+				{
+					return kCopyFile(sOldPath, sNewPath, m_Options);
+				}
+			}
+
+			default:
+				kDebug(2, "skipped {}: {}", FileType.Serialize(), sOldPath);
+				return true;
+		}
+
+		return false;
+
+	} // Copy
+
+	KCopyOptions m_Options;
+	KStringViewZ m_sBaseDir;
+	std::vector<std::pair<KString, KString>> m_PendingSymLinks;
+
+}; // KIntCopy
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+/// copy a file or directory
+bool kCopy (KStringViewZ sOldPath, KStringViewZ sNewPath, KCopyOptions Options)
+//-----------------------------------------------------------------------------
+{
+	KIntCopy Copy(Options);
+
+	return Copy.Copy(sOldPath, sNewPath);
 
 } // kCopy
 
@@ -345,38 +676,16 @@ bool kCopy (KStringViewZ sOldPath, KStringViewZ sNewPath)
 bool kMove (KStringViewZ sOldPath, KStringViewZ sNewPath)
 //-----------------------------------------------------------------------------
 {
-	if (sOldPath == sNewPath)
-	{
-		kDebug(1, "old and new path are the same: {}", sOldPath);
-		return false;
-	}
-	else if (kRename(sOldPath, sNewPath))
+	if (kRename(sOldPath, sNewPath))
 	{
 		// rename worked
 		return true;
 	}
-	else if (kDirExists(sOldPath))
-	{
-		if (!kCopy(sOldPath, sNewPath))
-		{
-			return false;
-		}
 
-		return kRemoveDir(sOldPath);
-	}
-	else if (kFileExists(sOldPath))
-	{
-		if (!kCopy(sOldPath, sNewPath))
-		{
-			return false;
-		}
+	// else copy and delete
+	KIntCopy Copy(KCopyOptions::Default | KCopyOptions::DeleteAfterCopy);
 
-		return kRemoveFile(sOldPath);
-	}
-
-	kDebug(1, "file not found: {}", sOldPath);
-
-	return false;
+	return Copy.Copy(sOldPath, sNewPath);
 
 } // kMove
 
@@ -424,22 +733,20 @@ bool kRemove (KStringViewZ sPath, KFileTypes Types)
 
 #else
 
-	if (unlink (sPath.c_str()) != 0)
+	if (::unlink (sPath.c_str()) != 0)
 	{
 		kChangeMode (sPath, S_IRUSR|S_IWUSR|S_IXUSR | S_IRGRP|S_IWGRP|S_IXGRP | S_IROTH|S_IWOTH|S_IXOTH);
 
-		if (unlink (sPath.c_str()) != 0)
+		if (::unlink (sPath.c_str()) != 0)
 		{
 			if (Stat.Type() == KFileType::DIRECTORY)
 			{
-				if (rmdir (sPath.c_str()) == 0)
+				if (::rmdir (sPath.c_str()) == 0)
 				{
 					return true;
 				}
 
-				KString sCmd;
-				sCmd.Format ("rm -rf \"{}\"", sPath);
-				if (system (sCmd.c_str()) == 0)
+				if (std::system (kFormat("rm -rf \"{}\"", sPath).c_str()) == 0)
 				{
 					return (true);
 				}
@@ -462,46 +769,44 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
 
 	std::error_code ec;
+	bool bIsNew;
 
-	if (!sPath.empty() && (sPath.back() == '/'
+	fs::path fsPath;
+	// make the KStringViewZ a KStringView, we do not need the NUL for std::filesystem,
+	// and we want to remove trailing slashes
+	KStringView sIntPath { sPath };
+
+	while (sIntPath.size() > 1 && (sIntPath.back() == '/'
 #ifdef DEKAF2_IS_WINDOWS
-						   || sPath.back() == '\\'
+			|| sIntPath.back() == '\\'
 #endif
 		))
 	{
-		// unfortunately fs::create_directories chokes on a
-		// trailing slash, so we copy the KStringViewZ if it
-		// has one and remove it from the copy
-		KStringView sTmp = sPath;
-		sTmp.remove_suffix(1);
-		if (fs::create_directories(kToFilesystemPath(sTmp), ec))
-		{
-			// TODO set permissions if iMode != 0777, check ec instead of
-			// fs::create_directories() return value (is false on existing
-			// dir)
-			return true;
-		}
+		// unfortunately fs::create_directories chokes on trailing slashes, so we remove them
+		sIntPath.remove_suffix(1);
 	}
-	else
-	{
-		if (fs::create_directories(kToFilesystemPath(sPath), ec))
-		{
-			// TODO see above
-			return true;
-		}
-	}
+
+	fsPath = kToFilesystemPath(sIntPath);
+	bIsNew = fs::create_directories(fsPath, ec);
 
 	if (ec)
 	{
-		kDebug(2, "{}: {}", sPath, ec.message());
-	}
-	else
-	{
-		// this directory was already existing..
-		return true;
+		kDebug(1, "{}: {}", sPath, ec.message());
+		return false;
 	}
 
-	return false;
+	if (bIsNew && iMode != DEKAF2_MODE_CREATE_DIR)
+	{
+		fs::permissions(fsPath, static_cast<fs::perms>(iMode), ec);
+
+		if (ec)
+		{
+			kDebug(1, "{}: {}", sPath, ec.message());
+			return false;
+		}
+	}
+
+	return true;
 
 #else
 
@@ -510,14 +815,29 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 		return false;
 	}
 
-	if (kDirExists(sPath))
+	KFileStat Stat(sPath);
+
+	if (Stat.IsDirectory())
 	{
 		return true;
 	}
 
-	KString sNewPath;
+	if (Stat.Exists())
+	{
+		kDebug (3, "entry exists, but is a {}, not a {}: {}", Stat.Type().Serialize(), "directory", sPath);
+		return false;
+	}
+
+	// just try to create the full path right away
+	if (!::mkdir(sPath.c_str(), iMode))
+	{
+		return true;
+	}
 
 	// else test each part of the directory chain
+
+	KString sNewPath;
+
 	for (const auto& it : sPath.Split(detail::kAllowedDirSep, "", 0, true, false))
 	{
 		if (!it.empty())
@@ -539,13 +859,23 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 			}
 			sNewPath += it;
 
-			if (!kDirExists(sNewPath))
+			Stat = KFileStat(sNewPath);
+
+			if (Stat.IsDirectory())
 			{
-				if (::mkdir(sNewPath.c_str(), iMode))
-				{
-					kDebug(2, "{}: {}", sNewPath, strerror(errno));
-					return false;
-				}
+				continue;
+			}
+
+			if (Stat.Exists())
+			{
+				kDebug (2, "entry exists, but is a {}, not a {}: {}", Stat.Type().Serialize(), "directory", sNewPath);
+				return false;
+			}
+
+			if (::mkdir(sNewPath.c_str(), iMode))
+			{
+				kDebug(2, "{}: {}", sNewPath, strerror(errno));
+				return false;
 			}
 		}
 	}
@@ -555,6 +885,61 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 #endif
 
 } // kCreateDir
+
+//-----------------------------------------------------------------------------
+KString kReadLink(KStringViewZ sSymlink, bool bRealPath)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+
+	std::error_code ec;
+	fs::path sTarget;
+
+	if (bRealPath)
+	{
+		sTarget = fs::canonical(kToFilesystemPath(sSymlink), ec);
+	}
+	else
+	{
+		sTarget = fs::read_symlink(kToFilesystemPath(sSymlink), ec);
+	}
+
+	if (ec)
+	{
+		kDebug(2, ec.message());
+		return {};
+	}
+
+	return sTarget.string();
+
+#else
+
+	std::array<char, PATH_MAX> Buffer;
+
+	if (bRealPath)
+	{
+		if (!::realpath(sSymlink.c_str(), Buffer.data()))
+		{
+			kDebug (1, "failed: {}: {}", sSymlink, strerror (errno));
+			return {};
+		}
+		return { Buffer.data() };
+	}
+	else
+	{
+		auto iSize = ::readlink(sSymlink.c_str(), Buffer.data(), Buffer.size());
+
+		if (iSize < 0)
+		{
+			kDebug (1, "failed: {}: {}", sSymlink, strerror (errno));
+			return {};
+		}
+		return { Buffer.data(), static_cast<KString::size_type>(iSize) };
+	}
+
+#endif
+
+} // kReadLink
 
 //-----------------------------------------------------------------------------
 bool kCreateSymlink(KStringViewZ sOrigin, KStringViewZ sSymlink)
@@ -644,9 +1029,11 @@ bool kTouchFile(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_FILE */)
 	{
 		// else we may miss a path component
 		KString sDir = kDirname(sPath);
+
 		if (kCreateDir(sDir))
 		{
 			File.open(sPath, std::ios::app);
+
 			if (!File.is_open())
 			{
 				// give up
@@ -957,9 +1344,12 @@ const KFileTypes KFileTypes::ALL = static_cast<KFileType::FileType>(255);
 
 #ifdef DEKAF2_FILESTAT_USE_STAT
 //-----------------------------------------------------------------------------
-void KFileStat::FromStat(struct stat& StatStruct)
+void KFileStat::FromStat(struct stat& StatStruct, bool bAddForSymlinks)
 //-----------------------------------------------------------------------------
 {
+	// when this is called after a stat() that follows an initial lstat() of
+	// which the file type was a symbolic link, we copy all of the values from
+	// the link target EXCEPT the file type..
 	m_inode = StatStruct.st_ino;
 	m_atime = KUnixTime(StatStruct.st_atime);
 	m_mtime = KUnixTime(StatStruct.st_mtime);
@@ -968,7 +1358,11 @@ void KFileStat::FromStat(struct stat& StatStruct)
 	m_uid   = StatStruct.st_uid;
 	m_gid   = StatStruct.st_gid;
 	m_links = StatStruct.st_nlink;
-	m_ftype = KFileTypeFromUnixMode(StatStruct.st_mode);
+
+	if (!bAddForSymlinks)
+	{
+		m_ftype = KFileTypeFromUnixMode(StatStruct.st_mode);
+	}
 
 	if (!IsDirectory())
 	{
@@ -987,26 +1381,44 @@ KFileStat::KFileStat(int iFileDescriptor)
 
 	if (!fstat(iFileDescriptor, &StatStruct))
 	{
-		FromStat(StatStruct);
+		FromStat(StatStruct, false);
 	}
 
 } // ctor
 #endif
 
 //-----------------------------------------------------------------------------
-KFileStat::KFileStat(const KStringViewZ sFilename)
+KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_FILESTAT_USE_STAT
 
-	// use the good ole stat() system call, it fetches all information with one call
-
 	struct stat StatStruct;
 
-	if (!stat(sFilename.c_str(), &StatStruct))
+	if (bDetectSymlinks)
 	{
-		FromStat(StatStruct);
+		if (::lstat(sFilename.c_str(), &StatStruct))
+		{
+			kDebug(1, "failed: {}: {}", sFilename, strerror(errno));
+			return;
+		}
+
+		FromStat(StatStruct, false);
+
+		if (!IsSymlink())
+		{
+			// this is not a symlink, so do not get additional data
+			return;
+		}
 	}
+
+	if (::stat(sFilename.c_str(), &StatStruct))
+	{
+		kDebug(1, "failed: {}: {}", sFilename, strerror(errno));
+		return;
+	}
+
+	FromStat(StatStruct, bDetectSymlinks);
 
 #elif defined(DEKAF2_FILESTAT_USE_STD_FILESYSTEM)
 
@@ -1016,7 +1428,16 @@ KFileStat::KFileStat(const KStringViewZ sFilename)
 	std::error_code ec;
 	auto fsPath = kToFilesystemPath(sFilename);
 
-	auto status = fs::status(fsPath, ec);
+	fs::file_status status;
+
+	if (bDetectSymlinks)
+	{
+		status = fs::symlink_status(fsPath, ec);
+	}
+	else
+	{
+		status = fs::status(fsPath, ec);
+	}
 
 	if (ec)
 	{
@@ -1162,6 +1583,9 @@ const KFileStat& KDirectory::DirEntry::FileStat() const
 		if (!m_Path.empty())
 		{
 			m_Stat = std::make_unique<KFileStat>(m_Path);
+			// copy the entry type from the direntry type, it knows if
+			// this is a regular file or a symlink - KFileStat() would not..
+			m_Stat->SetType(Type());
 		}
 		else
 		{
@@ -1595,7 +2019,7 @@ bool kAppendFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKA
 } // kAppendFile
 
 //-----------------------------------------------------------------------------
-bool kReadFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineFeeds/*=true*/, std::size_t iMaxRead/*=npos*/)
+bool kReadTextFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineFeeds/*=true*/, std::size_t iMaxRead/*=npos*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, sPath);
@@ -1612,7 +2036,14 @@ bool kReadFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineFeeds
 	
 	return true;
 
-} // kReadFile
+} // kReadTextFile
+
+//-----------------------------------------------------------------------------
+bool kReadBinaryFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineFeeds/*=true*/, std::size_t iMaxRead/*=npos*/)
+//-----------------------------------------------------------------------------
+{
+	return kReadAll(sPath, sContents, iMaxRead);
+}
 
 //-----------------------------------------------------------------------------
 KString kNormalizePath(KStringView sPath)

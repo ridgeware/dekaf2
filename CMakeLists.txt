@@ -59,7 +59,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.62 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.0.63 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -1249,8 +1249,9 @@ endif()
 
 # ============================= CONDITIONAL LIBS ==================================
 
-if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
-	set (FSLIB libstdc++fs.a)
+# see note in bits/kfilesystem.h!
+#if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
+#	set (FSLIB libstdc++fs.a)
 # this does currently not work well with mixed gcc/clang systems
 #elseif (CMAKE_CXX_COMPILER_ID MATCHES "[cC][lL][aA][nN][gG]" AND NOT APPLE)
 #	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
@@ -1258,17 +1259,13 @@ if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
 #	elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
 #		set (FSLIB libc++fs.a)
 #	endif()
-else ()
-	set (FSLIB "")
-endif ()
+#endif ()
 
 if (DEKAF2_WITH_FCGI)
 	set (FCGILIBS
 		fcgi
 		fcgilib
 	)
-else ()
-	set (FCGILIBS "")
 endif ()
 
 # =============================== TARGETS ====================================

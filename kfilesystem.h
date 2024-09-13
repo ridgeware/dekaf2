@@ -55,10 +55,10 @@
 #include <vector>
 
 #ifdef DEKAF2_IS_UNIX
-	#define DEKAF2_FILESTAT_USE_STAT
+	#define DEKAF2_FILESTAT_USE_STAT 1
 	#include <sys/stat.h>
 #elif defined(DEKAF2_HAS_STD_FILESYSTEM)
-	#define DEKAF2_FILESTAT_USE_STD_FILESYSTEM
+	#define DEKAF2_FILESTAT_USE_STD_FILESYSTEM 1
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -119,6 +119,26 @@ int kGetMode(KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Change owner and group of a file system entity. Note that only the superuser is permitted to set the owner
+/// to a value other than its own user,  and that ordinary users can only set a group they are member of.
+/// @param sPath the pathname to change
+/// @param iOwner the new owner for the pathname
+/// @param iGroup the new group for the pathname
+/// @return false on error, else true
+DEKAF2_PUBLIC
+bool kChangeOwnerAndGroup(KStringViewZ sPath, uid_t iOwner, uid_t iGroup);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Change group of a file system entity. Note that ordinary users can only set a group they are member of.
+/// @param sPath the pathname to change
+/// @param iGroup the new group for the pathname
+/// @return false on error, else true
+DEKAF2_PUBLIC
+bool kChangeGroup(KStringViewZ sPath, uid_t iGroup);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Checks if a file system entity exists
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kExists (KStringViewZ sPath);
@@ -143,14 +163,58 @@ DEKAF2_PUBLIC
 bool kRename (KStringViewZ sOldPath, KStringViewZ sNewPath);
 //-----------------------------------------------------------------------------
 
+enum class KCopyOptions
+{
+	None                  = 0,       ///< copy files, report an error on existing target files, skip subdirectories, 
+	                                 ///< follow/resolve symlinks, set access mode to defaults, set owner to current owner
+	// files
+	SkipExistingFile      = 1 <<  0, ///< skip existing target files without reporting an error
+	OverwriteExistingFile = 1 <<  1, ///< replace existing target files
+	UpdateExistingFile    = 1 <<  2, ///< replace existing target files if they are older than the source files
+	CreateMissingPath     = 1 <<  3, ///< create missing path components for target file (for single file copy)
+	// directories
+	Recursive             = 1 <<  4, ///< recursively copy directories
+	// symlinks
+	CopySymLinks          = 1 <<  5, ///< copy symlinks as symlinks, not as their target files
+	SkipSymLinks          = 1 <<  6, ///< skip symlinks
+	// general
+	DirectoriesOnly       = 1 <<  7, ///< copy only directories
+	CreateSymLinks        = 1 <<  8, ///< copy only directories, but create symlinks instead of files
+	CreateHardLinks       = 1 <<  9, ///< copy only directories, but create hardlinks instead of files
+	DeleteAfterCopy       = 1 << 10, ///< delete the input files after successful completion
+	// access
+	KeepMode              = 1 << 11, ///< copy access mode
+	KeepOwner             = 1 << 12, ///< copy owner (needs superuser permissions), includes KeepGroup
+	KeepGroup             = 1 << 13, ///< copy group (normal users must be member of the group to set)
+	/// a reasonable default for tree copying: recursive, overwrite existing files, copy symlinks as symlinks, keep access mode
+	Default = OverwriteExistingFile + Recursive + CopySymLinks + KeepMode
+};
+
+DEKAF2_ENUM_IS_FLAG(KCopyOptions)
+
 //-----------------------------------------------------------------------------
-/// copy a file or directory
+/// copy a file
+/// @param sOldPath the origin for the copy
+/// @param sNewPath the new location for the copy
+/// @param Options see KCopyOptions for the copy options.. defaults to KCopyOptions::Default
+/// @return false on failure, true on success.
 DEKAF2_PUBLIC
-bool kCopy (KStringViewZ sOldPath, KStringViewZ sNewPath);
+bool kCopyFile (KStringViewZ sOldPath, KStringViewZ sNewPath, KCopyOptions Options = KCopyOptions::Default);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// move a file or directory, also across file system boundaries
+/// copy a file or directory. If a directory tree is copied, in case of partial failures the copied portion is
+/// not removed.
+/// @param sOldPath the origin for the copy
+/// @param sNewPath the new location for the copy
+/// @param Options see KCopyOptions for the copy options.. defaults to KCopyOptions::Default
+/// @return false on (partial) failure, true on success.
+DEKAF2_PUBLIC
+bool kCopy (KStringViewZ sOldPath, KStringViewZ sNewPath, KCopyOptions Options = KCopyOptions::Default);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// move a file or directory, also across file system boundaries, keeps access modes and symlinks
 DEKAF2_PUBLIC
 bool kMove (KStringViewZ sOldPath, KStringViewZ sNewPath);
 //-----------------------------------------------------------------------------
@@ -160,7 +224,26 @@ bool kMove (KStringViewZ sOldPath, KStringViewZ sNewPath);
 /// bToUnixLineFeeds is true. The base function (that is also called by this
 /// variant) is kReadAll().
 DEKAF2_PUBLIC
-bool kReadFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineFeeds=true, std::size_t iMaxRead=npos);
+bool kReadTextFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineFeeds=true, std::size_t iMaxRead = npos);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// DEPRECATED, use kReadTextFile() in new code.
+/// Read entire text file into a single string and convert DOS newlines if
+/// bToUnixLineFeeds is true. The base function (that is also called by this
+/// variant) is kReadAll().
+DEKAF2_PUBLIC inline
+bool kReadFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineFeeds=true, std::size_t iMaxRead = npos)
+//-----------------------------------------------------------------------------
+{
+	return kReadTextFile(sPath, sContents, bToUnixLineFeeds, iMaxRead);
+}
+
+//-----------------------------------------------------------------------------
+/// Read entire binary file into a single string. The base function (that is also called by this
+/// variant) is kReadAll().
+DEKAF2_PUBLIC inline
+bool kReadBinaryFile (KStringViewZ sPath, KStringRef& sContents, std::size_t iMaxRead = npos);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
@@ -190,6 +273,15 @@ inline bool kMakeDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR)
 {
 	return kCreateDir (sPath, iMode);
 }
+
+//-----------------------------------------------------------------------------
+/// returns the target for a symbolic link
+/// @param sSymlink the pathname of the symbolic link
+/// @param bRealPath if true, the pathname of the fully resolved chain of symlinks is returned,
+/// if false (the default), only the first symlink will be resolved
+DEKAF2_PUBLIC
+KString kReadLink(KStringViewZ sSymlink, bool bRealPath = false);
+//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Create a symbolic link
@@ -460,7 +552,9 @@ public:
 
 	/// Construct KFileStat object on a file
 	/// @param sFilename the file for which the status should be read
-	KFileStat(const KStringViewZ sFilename);
+	/// @param bDetectSymlinks if true, symbolic links will be detected, if false (the default),
+	/// the target type of a symbolic link will be detected
+	KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks = false);
 
 #ifdef DEKAF2_FILESTAT_USE_STAT
 	/// Construct KFileStat object on a file handle
@@ -469,28 +563,28 @@ public:
 
 	/// Construct KFileStat object on a struct stat
 	/// @param StatStruct the stat struct from which the status should be read
-	KFileStat(struct stat& StatStruct) { FromStat(StatStruct); }
+	KFileStat(struct stat& StatStruct) { FromStat(StatStruct, false); }
 #endif
 
 	/// Returns inode number (only on supported file systems, otherwise 0)
 	DEKAF2_NODISCARD
-	uint64_t Inode()          const { return m_inode; }
+	uint64_t Inode()             const { return m_inode; }
 
 	/// Returns inode link count (only on supported file systems, otherwise 0)
 	DEKAF2_NODISCARD
-	uint16_t Links()          const { return m_links; }
+	uint16_t Links()             const { return m_links; }
 
 	/// Returns file access mode
 	DEKAF2_NODISCARD
-	int AccessMode()          const { return m_mode;  }
+	int AccessMode()             const { return m_mode;  }
 
 	/// Returns file's owner UID
 	DEKAF2_NODISCARD
-	uint32_t UID()            const { return m_uid;   }
+	uint32_t UID()               const { return m_uid;   }
 
 	/// Returns file's owner GID
 	DEKAF2_NODISCARD
-	uint32_t GID()            const { return m_gid;   }
+	uint32_t GID()               const { return m_gid;   }
 
 	/// Returns file's last access time
 	DEKAF2_NODISCARD
@@ -506,31 +600,31 @@ public:
 
 	/// Returns file's size
 	DEKAF2_NODISCARD
-	size_t Size()             const { return m_size;  }
+	size_t Size()                const { return m_size;  }
 
 	/// Returns file's type
 	DEKAF2_NODISCARD
-	KFileType Type()          const { return m_ftype; }
+	KFileType Type()             const { return m_ftype; }
 
 	/// Is this a directory entry?
 	DEKAF2_NODISCARD
-	bool IsDirectory()        const { return m_ftype == KFileType::DIRECTORY;  }
+	bool IsDirectory()           const { return m_ftype == KFileType::DIRECTORY;  }
 
 	/// Is this a file?
 	DEKAF2_NODISCARD
-	bool IsFile()             const { return m_ftype == KFileType::FILE;       }
+	bool IsFile()                const { return m_ftype == KFileType::FILE;       }
 
 	/// Is this a symlink
 	DEKAF2_NODISCARD
-	bool IsSymlink()          const { return m_ftype == KFileType::SYMLINK;    }
+	bool IsSymlink()             const { return m_ftype == KFileType::SYMLINK;    }
 
 	/// Is this a socket
 	DEKAF2_NODISCARD
-	bool IsSocket()           const { return m_ftype == KFileType::SOCKET;     }
+	bool IsSocket()              const { return m_ftype == KFileType::SOCKET;     }
 
 	/// Does this object exist?
 	DEKAF2_NODISCARD
-	bool Exists()             const { return m_ftype != KFileType::UNEXISTING; }
+	bool Exists()                const { return m_ftype != KFileType::UNEXISTING; }
 
 	// setters to create a KFileStat object piece wise
 	// (no change to any file system object):
@@ -539,34 +633,34 @@ public:
 	KFileStat& SetDefaults();
 
 	/// Set Inode number
-	void SetInode(uint64_t inode)          { m_inode = inode; }
+	void SetInode(uint64_t inode)             { m_inode = inode; }
 
 	/// Set Inode link count
-	void SetLinks(uint16_t links)          { m_links = links; }
+	void SetLinks(uint16_t links)             { m_links = links; }
 
 	/// Set file access mode
-	void SetAccessMode(uint32_t mode)      { m_mode  = mode;  }
+	void SetAccessMode(uint32_t mode)         { m_mode  = mode;  }
 
 	/// Set file's owner UID
-	void SetUID(uint32_t uid)              { m_uid   = uid;   }
+	void SetUID(uint32_t uid)                 { m_uid   = uid;   }
 
 	/// Set file's owner GID
-	void SetGID(uint32_t gid)              { m_gid   = gid;   }
+	void SetGID(uint32_t gid)                 { m_gid   = gid;   }
 
 	/// Set file's last access time
-	void SetAccessTime(KUnixTime atime)    { m_atime = atime; }
+	void SetAccessTime(KUnixTime atime)       { m_atime = atime; }
 
 	/// Set file's last modification time
 	void SetModificationTime(KUnixTime mtime) { m_mtime = mtime; }
 
 	/// Set file's status change time (writes, but also inode changes)
-	void SetChangeTime(KUnixTime ctime)    { m_ctime = ctime; }
+	void SetChangeTime(KUnixTime ctime)       { m_ctime = ctime; }
 
 	/// Set file's size
-	void SetSize(size_t size)              { m_size  = size;  }
+	void SetSize(std::size_t size)            { m_size  = size;  }
 
 	/// Set file's type
-	void SetType(KFileType ftype)          { m_ftype = ftype; }
+	void SetType(KFileType ftype)             { m_ftype = ftype; }
 
 //----------
 private:
@@ -574,19 +668,19 @@ private:
 
 #ifdef DEKAF2_FILESTAT_USE_STAT
 	DEKAF2_PRIVATE
-	void FromStat(struct stat& StatStruct);
+	void FromStat(struct stat& StatStruct, bool bAddForSymlinks);
 #endif
 
-	uint64_t  m_inode { 0 };
-	KUnixTime m_atime { 0 };
-	KUnixTime m_mtime { 0 };
-	KUnixTime m_ctime { 0 };
-	size_t    m_size  { 0 };
-	uint32_t  m_mode  { 0 };
-	uint32_t  m_uid   { 0 };
-	uint32_t  m_gid   { 0 };
-	uint16_t  m_links { 0 };
-	KFileType m_ftype;
+	uint64_t    m_inode { 0 };
+	KUnixTime   m_atime { 0 };
+	KUnixTime   m_mtime { 0 };
+	KUnixTime   m_ctime { 0 };
+	std::size_t m_size  { 0 };
+	uint32_t    m_mode  { 0 };
+	uint32_t    m_uid   { 0 };
+	uint32_t    m_gid   { 0 };
+	uint16_t    m_links { 0 };
+	KFileType   m_ftype;
 
 }; // KFileStat
 

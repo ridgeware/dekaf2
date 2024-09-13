@@ -1464,7 +1464,7 @@ KString KSystemStats::Backtrace (pid_t iPID)
 		sPath.Format ("/proc/{}/cmdline", iPID);
 
 		KString sCMD;
-		kReadFile (sPath, sCMD, true);
+		kReadTextFile (sPath, sCMD, true);
 
 		KString sAdd;
 		sAdd.Format ("{}{}:{}", sChain.empty() ? "" : " <- ", iPID, sCMD);
@@ -1481,7 +1481,7 @@ KString KSystemStats::Backtrace (pid_t iPID)
 		pid_t iPPID = 0;
 		KString sLine;
 		sPath.Format ("/proc/{}/stat", iPID);
-		if (kReadFile (sPath, sLine, true))
+		if (kReadTextFile (sPath, sLine, true))
 		{
 			auto Words = sLine.Split(' ');
 			iPPID = Words.at(4-1).UInt32();

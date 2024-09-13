@@ -325,7 +325,7 @@ void parse_menufile (KStringViewZ sMenuFile, menuT* menu)
 	int8_t iErrors{0};
 	bool    bAtLeastOne{false};
 
-	if (!kReadFile (sMenuFile, sContents, /*convert newlines=*/true))
+	if (!kReadTextFile (sMenuFile, sContents, /*convert newlines=*/true))
 	{
 		KErr.FormatLine ("unixmenu: system error: couldn't read %s (%s)", sMenuFile, strerror(errno));
 		exit (1);

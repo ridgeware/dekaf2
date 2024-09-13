@@ -602,10 +602,8 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 
 			if (!sBoundary.empty() || Mime.Serialize().starts_with("multipart/"))
 			{
-				KTempDir TempDir;
-
 				// this is a multipart encoded request
-				KMIMEReceiveMultiPartFormData Receiver(TempDir.Name(), sBoundary);
+				KMIMEReceiveMultiPartFormData Receiver(HTTP.GetTempDir(), sBoundary);
 
 				if (!Receiver.ReadFromStream(HTTP.InStream()))
 				{
@@ -614,16 +612,18 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 
 				for (auto& File : Receiver.GetFiles())
 				{
+					auto sFrom = kFormat("{}{}{}", HTTP.GetTempDir(), kDirSep, File.GetFilename());
+
 					// move the files from the temp location into the upload folder
 					if (File.GetCompleted())
 					{
-						auto sFrom = kFormat("{}{}{}", TempDir.Name(), kDirSep, File.GetFilename());
 						auto sTo   = kFormat("{}{}{}", HTTP.Route->sDocumentRoot, kDirSep, File.GetFilename());
 						kMove(sFrom, sTo);
 					}
 					else
 					{
 						kDebug(2, "skipping incomplete upload file: {}", File.GetFilename());
+						kRemoveFile(sFrom);
 					}
 				}
 
@@ -659,9 +659,7 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing target name in URL" };
 				}
 
-				KTempDir TempDir;
-
-				auto sFrom = kFormat("{}{}{}", TempDir.Name(), kDirSep, sName);
+				auto sFrom = kFormat("{}{}{}", HTTP.GetTempDir(), kDirSep, sName);
 				auto sTo   = kFormat("{}{}{}", HTTP.Route->sDocumentRoot, kDirSep, sName);
 
 				KOutFile OutFile(sFrom);

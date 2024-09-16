@@ -54,9 +54,13 @@ DEKAF2_NAMESPACE_BEGIN
 
 namespace {
 
-boost::asio::ip::tcp::resolver::query 
+std::unordered_map<KString, std::pair<KString, bool>> g_KnownHosts;
+
+boost::asio::ip::tcp::resolver::query
 CreateTCPQuery(KStringViewZ sHostname, KStringViewZ sPort, KStreamOptions::Family Family)
 {
+	sHostname = KIOStreamSocket::GetKnownHostAddress(sHostname, Family);
+
 	if (Family == KStreamOptions::Family::Any)
 	{
 		return boost::asio::ip::tcp::resolver::query(
@@ -79,6 +83,8 @@ CreateTCPQuery(KStringViewZ sHostname, KStringViewZ sPort, KStreamOptions::Famil
 boost::asio::ip::udp::resolver::query 
 CreateUDPQuery(KStringViewZ sHostname, KStringViewZ sPort, KStreamOptions::Family Family)
 {
+	sHostname = KIOStreamSocket::GetKnownHostAddress(sHostname, Family);
+
 	if (Family == KStreamOptions::Family::Any)
 	{
 		return boost::asio::ip::udp::resolver::query(
@@ -311,6 +317,54 @@ KString KIOStreamSocket::PrintResolvedAddress(const resolver_endpoint_tcp_type& 
 } // PrintResolvedAddress
 #endif // of DEKAF2_CLASSIC_ASIO
 
+//-----------------------------------------------------------------------------
+void KIOStreamSocket::AddKnownHostAddress(KStringView sHostname, KStringView sIPAddress)
+//-----------------------------------------------------------------------------
+{
+	bool bIsIPv6 { false };
+
+	if (kIsIPv6Address(sIPAddress, true))
+	{
+		// this is an ip v6 numeric address - get rid of the []
+		sIPAddress = sIPAddress.ToView(1, sIPAddress.size() - 2);
+		bIsIPv6 = true;
+	}
+	else if (kIsIPv6Address(sIPAddress, false))
+	{
+		bIsIPv6 = true;
+	}
+
+	auto p = g_KnownHosts.insert({ sHostname, { sIPAddress, bIsIPv6 } });
+
+	if (!p.second)
+	{
+		p.first->second = { sIPAddress, bIsIPv6 };
+	}
+
+	kDebug(2, "added known host: {} -> {}", sHostname, sIPAddress);
+
+} // AddKnownHostAddress
+
+//-----------------------------------------------------------------------------
+KStringViewZ KIOStreamSocket::GetKnownHostAddress(KStringViewZ sHostname, KStreamOptions::Family Family)
+//-----------------------------------------------------------------------------
+{
+	auto it = g_KnownHosts.find(sHostname);
+
+	if (it != g_KnownHosts.end())
+	{
+		if ( Family == KStreamOptions::Family::Any ||
+			(Family == KStreamOptions::Family::IPv4 && !it->second.second) ||
+			(Family == KStreamOptions::Family::IPv4 &&  it->second.second))
+		{
+			kDebug(2, "resolving from known hosts: {} -> {}", sHostname, it->second.first);
+			return it->second.first;
+		}
+	}
+
+	return sHostname;
+
+} // GetKnownHostAddress
 
 //-----------------------------------------------------------------------------
 KIOStreamSocket::~KIOStreamSocket()
@@ -370,12 +424,14 @@ bool KIOStreamSocket::SetSSLError()
 bool KIOStreamSocket::CheckIfReady(int what, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
+	kDebug(1, "what: {}, Timeout: {}", what, Timeout);
 	if (what & POLLIN)
 	{
 		auto SSL = GetNativeTLSHandle();
 
 		if (SSL && ::SSL_pending(SSL) > 0)
 		{
+			kDebug(1, "returned with SSL_pending > 0");
 			return true;
 		}
 	}
@@ -385,7 +441,7 @@ bool KIOStreamSocket::CheckIfReady(int what, KDuration Timeout)
 	if (iResult == 0)
 	{
 		// timed out, no events
-		return SetError(kFormat("connection with {} timed out after {}", GetEndPoint(), m_Timeout));
+		return SetError(kFormat("connection with {} timed out after {}", GetEndPoint(), Timeout));
 	}
 	else if (iResult < 0)
 	{

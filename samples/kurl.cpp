@@ -346,6 +346,20 @@ kurl::kurl ()
 	});
 
 	m_CLI
+		.Option("resolve <hostname:IP-address>")
+		.MinArgs(1).MaxArgs(1)
+		.Help("resolves <hostname> in the URLs to the given IP address, use it to satisfy SNI in test setups")
+	([&](KStringViewZ sArg)
+	{
+		auto iPos = sArg.find(':');
+		if (iPos == KStringView::npos)
+		{
+			throw KOptions::Error("need hostname:IP-address combination");
+		}
+		KIOStreamSocket::AddKnownHostAddress(sArg.ToView(0, iPos), sArg.ToView(iPos+1));
+	});
+
+	m_CLI
 		.Option("Z,parallel <n>")
 		.MinArgs(1).MaxArgs(1)
 		.Range(1, 10000)

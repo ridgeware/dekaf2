@@ -259,6 +259,24 @@ public:
 #endif
 	);
 
+	/// add a hostname and its address to the list of known hosts (like /etc/hosts)
+	/// -this function is not thread safe, use it at init of program
+	static void
+	AddKnownHostAddress(
+		KStringView sHostname,
+		KStringView sIPAddress
+	);
+
+	/// search for a hostname and its address in the list of known hosts (like /etc/hosts)
+	/// @param sHostname the hostname to look up
+	/// @param Family the address family searched for
+	/// @return the resolved IP address or the original hostname
+	static KStringViewZ
+	GetKnownHostAddress(
+		KStringViewZ sHostname,
+		KStreamOptions::Family Family
+	);
+
 //----------
 protected:
 //----------

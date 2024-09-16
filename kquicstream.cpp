@@ -342,11 +342,16 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		sIPAddress = sHostname.ToView(1, sHostname.size() - 2);
 	}
 
+	if (sIPAddress.empty())
+	{
+		// check the known hostnames
+		sIPAddress = KIOStreamSocket::GetKnownHostAddress(sHostname, Options.GetFamily());
+		// sIPAddress now either contains a known IP address, or the original hostname..
+	}
+
 	::BIO_ADDRINFO *res_local;
 	// lookup the ip address
-	if (!::BIO_lookup_ex(sIPAddress.empty() 
-	                      ? sHostname.c_str()
-	                      : sIPAddress.c_str(),
+	if (!::BIO_lookup_ex(sIPAddress.c_str(),
 	                     Endpoint.Port.Serialize().c_str(),
 	                     BIO_LOOKUP_CLIENT,
 	                     Options.GetNativeFamily(),

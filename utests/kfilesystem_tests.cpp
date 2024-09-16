@@ -383,11 +383,11 @@ TEST_CASE("KFilesystem")
 		CHECK ( KFileStat  (kFormat("{}{}", sBaseDir, "/farer/up/symlink1"), true ).Size() == 35 );
 		auto sTarget = kReadLink(kFormat("{}{}", sBaseDir, "/farer/up/symlink1"), false);
 		CHECK ( sTarget.remove_prefix(sBaseDir) );
-		CHECK ( sTarget == "/farer/down/and/even/test3.txt" );
+		CHECK ( sTarget == "/farer/up/and/even/test3.txt" );
 		auto sCanonicalBaseDir = kReadLink(sBaseDir, true);
 		sTarget = kReadLink(kFormat("{}{}", sBaseDir, "/farer/up/symlink1"), true);
 		CHECK ( sTarget.remove_prefix(sCanonicalBaseDir) );
-		CHECK ( sTarget == "/farer/down/and/even/test3.txt" );
+		CHECK ( sTarget == "/farer/up/and/even/test3.txt" );
 		CHECK ( kRemoveDir(sBaseDir) == true );
 	}
 

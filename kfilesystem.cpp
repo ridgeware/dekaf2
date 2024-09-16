@@ -490,13 +490,26 @@ public:
 
 		if (FileStat.Type() == KFileType::DIRECTORY)
 		{
-			m_sBaseDir = sOldPath;
+			m_sOldBaseDir = sOldPath;
+			m_sNewBaseDir = sNewPath;
+#ifdef DEKAF2_IS_WINDOWS
+			while (m_sOldBaseDir.size() > 1 && (m_sOldBaseDir.back() == kDirSep || m_sOldBaseDir.back() == '/')) m_sOldBaseDir.remove_suffix(1);
+			while (m_sNewBaseDir.size() > 1 && (m_sNewBaseDir.back() == kDirSep || m_sNewBaseDir.back() == '/')) m_sNewBaseDir.remove_suffix(1);
+#else
+			while (m_sOldBaseDir.size() > 1 && m_sOldBaseDir.back() == kDirSep) m_sOldBaseDir.remove_suffix(1);
+			while (m_sNewBaseDir.size() > 1 && m_sNewBaseDir.back() == kDirSep) m_sNewBaseDir.remove_suffix(1);
+#endif
 		}
 
 		if (!IntCopy(sOldPath, sNewPath, FileStat.Type()))
 		{
 			return false;
 		}
+
+		// revert the order for symlink creation - we could have a symlink pointing to
+		// a symlink and need to make sure the target exists before the earlier link is
+		// created
+		std::reverse(m_PendingSymLinks.begin(), m_PendingSymLinks.end());
 
 		for (auto& Pending : m_PendingSymLinks)
 		{
@@ -622,12 +635,12 @@ private:
 					auto sOrigin = kReadLink(sOldPath, false);
 					if (sOrigin.empty()) return false;
 
-					if (!m_sBaseDir.empty() && sOrigin.starts_with(m_sBaseDir))
+					if (!m_sOldBaseDir.empty() && sOrigin.remove_prefix(m_sOldBaseDir))
 					{
 						// mark this symlink for later, it points into
 						// the directory structure we are about to copy
 						// (so do not link the old file, but the new, later)
-						m_PendingSymLinks.push_back({ sOrigin, sNewPath });
+						m_PendingSymLinks.push_back({ kFormat("{}{}", m_sNewBaseDir, sOrigin), sNewPath });
 						return true;
 					}
 					else
@@ -652,9 +665,10 @@ private:
 
 	} // Copy
 
-	KCopyOptions m_Options;
-	KStringViewZ m_sBaseDir;
+	KStringView  m_sOldBaseDir;
+	KStringView  m_sNewBaseDir;
 	std::vector<std::pair<KString, KString>> m_PendingSymLinks;
+	KCopyOptions m_Options;
 
 }; // KIntCopy
 

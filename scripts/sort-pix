@@ -146,8 +146,6 @@ setx=ComputeNewDir
 ComputeNewDir ()
 #==============================
 {
-	set -x
-
 	# $1 = statinfo
 	#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
 	statinfo="$1"

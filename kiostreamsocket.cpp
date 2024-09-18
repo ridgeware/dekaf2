@@ -424,14 +424,12 @@ bool KIOStreamSocket::SetSSLError()
 bool KIOStreamSocket::CheckIfReady(int what, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	kDebug(1, "what: {}, Timeout: {}", what, Timeout);
 	if (what & POLLIN)
 	{
 		auto SSL = GetNativeTLSHandle();
 
 		if (SSL && ::SSL_pending(SSL) > 0)
 		{
-			kDebug(1, "returned with SSL_pending > 0");
 			return true;
 		}
 	}

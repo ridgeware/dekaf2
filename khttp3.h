@@ -77,6 +77,11 @@ namespace khttp3
 
 using nghttp3_ssize = ::ptrdiff_t;
 
+//-----------------------------------------------------------------------------
+/// poll for SSL events, and return them if triggered - this function is currently non-blocking only, no timeouts
+uint64_t SSL_Poll(uint64_t what, ::SSL* ssl);
+//-----------------------------------------------------------------------------
+
 class Session;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -169,7 +174,7 @@ protected:
 	/// @return < 0 on error, 0 on no error but (temporarily) empty input or >0 count of read bytes
 	nghttp3_ssize ReceiveFromQuic    (bool bOnce = false);
 	/// send data for this stream coming from nhttp3
-	bool          SendToQuic         (nghttp3_vec* vecs, std::size_t num_vecs, bool bFin);
+	bool          SendToQuic         (const nghttp3_vec* vecs, std::size_t num_vecs, bool bFin);
 	/// add incoming data to this stream - this is a method normally called by the Session class upon reception
 	/// of a data chunk. It is written into the ReceiveBuffer (if existing), and any overflowing data gets stored in
 	/// a temporary FIFO buffer (which gets later emptied when a new receive buffer is set)
@@ -178,9 +183,9 @@ protected:
 	int           Reset              (int64_t iAppErrorCode);
 	/// read from data provider (on request by the nghttp3 layer)
 	int           ReadFromDataProvider(KStringView& Buffer, uint32_t* iPFlags);
-	/// nghttp3 tells us that the other side acked until iTotalReceived data in this stream - check if we can drop
+	/// nghttp3 tells us that the other side acked iReceived data in this stream - check if we can drop
 	/// a buffer that we created for non-persisting data providers
-	int           AckedStreamData    (std::size_t iTotalReceived);
+	int           AckedStreamData    (std::size_t iReceived);
 	/// returns the Stream::Type
 	Type          GetType            () const        { return m_Type;             }
 	/// mark this stream as closed
@@ -193,6 +198,7 @@ protected:
 	void          SetReceiveBuffer   (KBuffer buffer);
 	/// get the receive buffer (to lookup fill and remaining bytes)
 	const KBuffer& GetReceiveBuffer  () const        { return m_RXBuffer;         }
+
 	/// returns the SSL* for this stream
 	::SSL*        GetQuicStream      ()              { return m_QuicStream.get(); }
 
@@ -205,9 +211,27 @@ protected:
 	/// deletes @param what from the WaitFor state, @returns the new state
 	WaitFor       DelWaitFor         (WaitFor what);
 
+	/// check if this stream is write-blocked
+	bool          IsBlocked          () const        { return m_bIsBlocked;       }
+	/// write-block the stream (tell nghttp3 to not provide data)
+	void          Block              ();
+	/// write-unblock the stream (tell nghttp3 to provide more data)
+	void          Unblock            ();
+	/// poll for stream events, and return them if triggered - this function is currently non-blocking only, no timeouts
+	uint64_t      Poll               (uint64_t what) { return SSL_Poll(what, GetQuicStream()); }
+
 //----------
 private:
 //----------
+
+	/// helper for data providers that have no persistent data - we need to buffer
+	/// the sent data until it gets acknowledged from the receiving side
+	struct BufferedData
+	{
+		std::size_t iLastPos { 0 };
+		KReservedBuffer<KDefaultCopyBufSize * 4> Data;
+		void clear() { iLastPos = 0; Data.reset(); }
+	};
 
 	Session&                       m_Session;
 	KUniquePtr<::SSL, ::SSL_free>  m_QuicStream;
@@ -221,14 +245,19 @@ private:
 	KString                        m_sPath;
 	KString                        m_RXSpillBuffer;
 	KBuffer                        m_RXBuffer;
+	std::unique_ptr<BufferedData>  m_IdleBuffer;
+	std::vector<std::unique_ptr<BufferedData>>
+	                               m_TXBuffer;
+	std::size_t                    m_iTotalTXData      { 0 };
+	std::size_t                    m_iTotalAckedTXData { 0 };
+	KReservedBuffer<4096>          m_BufferFromQuic;
 	KHTTPMethod                    m_Method;
 	Type                           m_Type;
 	bool                           m_bHeadersComplete {   false };
 	bool                           m_bDoneReceivedFin {   false };
 	bool                           m_bIsClosed        {   false };
-	bool                           m_bWasBlocked      {   false };
+	bool                           m_bIsBlocked       {   false };
 	WaitFor                        m_WaitFor          { Nothing };
-	KReservedBuffer<4096>          m_BufferFromQuic;
 
 }; // Stream
 
@@ -305,6 +334,9 @@ protected:
 	KQuicStream&  GetKQuicStream      ()                 { return m_KQuickStream;       }
 	::SSL*        GetQuicConnection   ()                 { return m_SSL;                }
 	::BIO*        GetBio              ()                 { return ::SSL_get_wbio(GetQuicConnection()); }
+	KDuration     GetTimeout          ()                 { return GetKQuicStream().GetTimeout(); }
+
+	bool          IsReadReady         (KDuration Timeout);
 
 	std::size_t   GetConsumedAppData  () const           { return m_consumed_app_data;  }
 	void          AddConsumedAppData  (std::size_t size) { m_consumed_app_data += size; }

@@ -6590,7 +6590,7 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLString& sW
 
 	if (bPBAR)
 	{
-		KOut.Format (":: {} : {:50} : ", kFormTimestamp(tStarted ,"%a %T"), sTablename);
+		KOut.Format (":: {:%a %T} : {:50} : ", tStarted, sTablename);
 	}
 	
 	if (bPBAR)
@@ -6671,7 +6671,7 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLString& sW
 		bar.Finish();
 		if (tTook >= chrono::seconds(10))
 		{
-			KOut.FormatLine (":: {} : {:50} : took {}\n", kFormTimestamp(kNow(), "%a %T"), sTablename, kTranslateDuration(tTook));
+			KOut.FormatLine (":: {:%a %T} : {:50} : took {}\n", kNow(), sTablename, kTranslateDuration(tTook));
 		}
 	}
 

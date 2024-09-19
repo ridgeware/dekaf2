@@ -1413,7 +1413,11 @@ KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 	{
 		if (::lstat(sFilename.c_str(), &StatStruct))
 		{
-			kDebug(1, "failed: {}: {}", sFilename, strerror(errno));
+			if (errno != ENOENT)
+			{
+				// only log errors other than not existing (that is expected)
+				kDebug(1, "failed: {}: {}", sFilename, strerror(errno));
+			}
 			return;
 		}
 
@@ -1428,7 +1432,11 @@ KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 
 	if (::stat(sFilename.c_str(), &StatStruct))
 	{
-		kDebug(1, "failed: {}: {}", sFilename, strerror(errno));
+		if (errno != ENOENT)
+		{
+			// only log errors other than not existing (that is expected)
+			kDebug(1, "failed: {}: {}", sFilename, strerror(errno));
+		}
 		return;
 	}
 
@@ -1455,7 +1463,11 @@ KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 
 	if (ec)
 	{
-		kDebug(1, "{}: {}", sFilename, ec.message());
+		// see https://en.cppreference.com/w/cpp/error/errc
+		if (ec != std::errc::no_such_file_or_directory)
+		{
+			kDebug(1, "{}: {}", sFilename, ec.message());
+		}
 		m_mode = 0;
 	}
 	else

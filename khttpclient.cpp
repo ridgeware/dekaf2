@@ -971,8 +971,7 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 			}
 			else if (PostDataStream)
 			{
-				if (len != npos) return SetError("API error");
-				DataProvider = std::make_unique<KIStreamProvider>(*PostDataStream);
+				DataProvider = std::make_unique<KIStreamProvider>(*PostDataStream, len);
 			}
 			else
 			{
@@ -993,7 +992,6 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 
 		return Parse();
 	}
-	else
 #endif
 
 #ifdef DEKAF2_HAS_NGHTTP3
@@ -1011,9 +1009,8 @@ bool KHTTPClient::SendRequest(KStringView* svPostData, KInStream* PostDataStream
 			}
 			else if (PostDataStream)
 			{
-				if (len != npos) return SetError("API error");
 				kDebug(1, "using a KIStreamProvider");
-				DataProvider = std::make_unique<KIStreamProvider>(*PostDataStream);
+				DataProvider = std::make_unique<KIStreamProvider>(*PostDataStream, len);
 			}
 			else
 			{

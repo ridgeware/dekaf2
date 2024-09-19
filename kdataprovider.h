@@ -167,7 +167,8 @@ class KIStreamProvider : public KDataProvider
 public:
 //----------
 
-	KIStreamProvider(std::istream& istream) : m_IStream(istream) {}
+	KIStreamProvider(std::istream& istream, std::size_t iMaxRead = npos)
+	: m_IStream(istream), m_iMaxRead(iMaxRead) {}
 
 	/// copy size_t bytes into buffer
 	/// @return total copied bytes
@@ -175,13 +176,14 @@ public:
 	/// @return true if provider can write data into an std::ostream without copying
 	virtual bool NoCopy() const override final { return false;            }
 	/// @return true if provider is at EOF
-	virtual bool IsEOF () const override final { return m_IStream.eof();  }
+	virtual bool IsEOF () const override final;
 
 //----------
 private:
 //----------
 
 	std::istream& m_IStream;
+	std::size_t   m_iMaxRead { npos };
 
 }; // KIStreamProvider
 

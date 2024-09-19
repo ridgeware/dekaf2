@@ -89,8 +89,19 @@ bool KViewProvider::Read(KStringView& sView, std::size_t size)
 std::size_t KIStreamProvider::Read(void* buffer, std::size_t size)
 //-----------------------------------------------------------------------------
 {
-	return kRead(m_IStream, buffer, size);
+	size = std::min(size, m_iMaxRead);
+	size = kRead(m_IStream, buffer, size);
+	m_iMaxRead -= size;
+	return size;
 
 } // Read
+
+//-----------------------------------------------------------------------------
+bool KIStreamProvider::IsEOF () const
+//-----------------------------------------------------------------------------
+{
+	return !m_iMaxRead || m_IStream.eof();
+
+} // IsEOF
 
 DEKAF2_NAMESPACE_END

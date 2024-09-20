@@ -6,6 +6,7 @@
 #include <dekaf2/kstream.h>
 #include <dekaf2/kexception.h>
 #include <dekaf2/kregex.h>
+#include <dekaf2/kformat.h>
 
 using namespace dekaf2;
 

@@ -7,6 +7,16 @@
 #include <sys/stat.h>
 #include <pwd.h>   // for getpwuid()
 
+#include <dekaf2/kstring.h>
+#include <dekaf2/kregex.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/ksystem.h>
+#include <dekaf2/kwriter.h>
+#include <dekaf2/kfilesystem.h>
+
+using namespace dekaf2;
+
 const char* g_Usage[] = {
 	"",
 	"usage: statinfo [options] { <file[s]> | - }",
@@ -32,10 +42,10 @@ typedef struct
 } DFIELDS;
 
 void  DoStat   (char* pszPath, time_t tOffset=0);
-int   FileType (const char* pszFilename, char szFiletype[20+1]);
+int   FileType (const char* pszFilename, KString& szFiletype);
 bool  kExtendedDateFields (struct tm* ptmStruct, DFIELDS* pDF);
 bool  kExtendedDateFields (time_t iUnixTime, DFIELDS* pDF);
-bool  kExtendedDateFields (LPCTSTR pszMMsDDsYYYY, LPCTSTR pszHH, DFIELDS* pDF);
+bool  kExtendedDateFields (KStringViewZ pszMMsDDsYYYY, KStringViewZ pszHH, DFIELDS* pDF);
 
 //-----------------------------------------------------------------------------
 int main (int argc, char* argv[])
@@ -57,7 +67,7 @@ int main (int argc, char* argv[])
 	{
 		if (!strcmp (argv[ii], "-offset"))
 		{
-			tOffset = katoh (argv[++ii]);
+			tOffset = KString(argv[++ii]).Int64();
 		}
 		else if (!strcmp (argv[ii], "-noheader"))
 		{
@@ -131,22 +141,22 @@ void DoStat (char* pszPath, time_t tOffset/*=0*/)
 
 	time_t  tLastMod;
 	KString sOutput;
-	KREGEX  regex;
-	kDebugLog ("identify -format '%%[exif:DateTimeOriginal]' '%s'", pszPath);
-	ksystem (sOutput, "identify -format '%%[exif:DateTimeOriginal]' '%s'", pszPath);
-	if (regex.Matches (sOutput.c_str(), "[0-9][0-9][0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]"))
+	KRegex  regex{"[0-9][0-9][0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]"};
+	kDebug(1, "identify -format '%%[exif:DateTimeOriginal]' '{}'", pszPath);
+	kSystem (kFormat("identify -format '%%[exif:DateTimeOriginal]' '{}'", pszPath), sOutput);
+	if (regex.Matches (sOutput.c_str() ))
 	{
 		// raw identify: 2016:08:13 13:52:11
-		kDebugLog ("off-exif: %s", sOutput.c_str());
-		sOutput.SubString (":", "-"); // only twice
-		sOutput.SubString (":", "-");
-		kDebugLog ("parsable: %s", sOutput.c_str());
-		tLastMod = kParseDate (sOutput.c_str());
-		kDebugLog ("%s: off exif:DateTimeOriginal: %"PHUGE, pszPath, (SHUGE) tLastMod);
+		kDebug(1, "off-exif: %s", sOutput.c_str());
+		sOutput.Replace (":", "-", /*bReplaceAll=*/false); // only twice
+		sOutput.Replace (":", "-", /*bReplaceAll=*/false);
+		kDebug(1, "parsable: %s", sOutput.c_str());
+		tLastMod = KUnixTime(KUTCTime (sOutput.c_str())).to_time_t();
+		kDebug(1, "{}: off exif:DateTimeOriginal: {}", pszPath, /*(SHUGE)*/ tLastMod);
 	}
 	else {
 		tLastMod = StatStruct.st_mtime;
-		kDebugLog ("%s: imagemagick failed, using mtime off stat: %"PHUGE, pszPath, (SHUGE) tLastMod);
+		kDebug(1, "{}: imagemagick failed, using mtime off stat: {}", pszPath, /*(SHUGE)*/ tLastMod);
 	}
 
 	// watch for prelabelled somedir/K1231373376-IMG-343.jpg and use it for lastmod:
@@ -155,100 +165,123 @@ void DoStat (char* pszPath, time_t tOffset/*=0*/)
 	if (lastslash) {
 		sBase = lastslash + 1;
 	}
-	if (sBase.FindRegex ("^K[0-9]{10}")) {
+	if (sBase.MatchRegex ("^K[0-9]{10}")) {
 		sBase = sBase.Left  (strlen("K1231373376"));
 		sBase = sBase.Right (strlen("1231373376"));
-		kDebugLog ("extracting lastmod info from filename: %s", pszPath);
+		kDebug(1, "extracting lastmod info from filename: %s", pszPath);
 		tLastMod = atoi (sBase.c_str());
-		kDebugLog ("off filename: atoi(%s) = st_mtime = %" PHUGE "\n", sBase.c_str(), (SHUGE) tLastMod);
+		kDebug(1, "off filename: atoi({}) = st_mtime = {}\n", sBase.c_str(), /*(SHUGE)*/ tLastMod);
 	}
 
 	if (tOffset) {
 		tLastMod += tOffset;
-		kDebugLog ("offset   = %" PHUGE "\n", (SHUGE) tOffset);
-		kDebugLog ("adjusted = %" PHUGE "\n", (SHUGE) tLastMod);
+		kDebug(1, "offset   = {}\n", /*(SHUGE)*/ tOffset);
+		kDebug(1, "adjusted = {}\n", /*(SHUGE)*/ tLastMod);
 	}
 
 	char szLastMod[50+1];
-	char szOwner[50+1];
+	//char szOwner[50+1];
+	KStringViewZ szOwner;
 	struct tm*     pTimeStruct = localtime (&tLastMod);
 	struct passwd* pPass       = getpwuid (StatStruct.st_uid);
-	char szFiletype[20+1];
+	KString szFiletype; // since some old style c function are used KStringViewZ might be better, but I had compiler issues -Lenny
 
 	strftime (szLastMod, 50, "%Y-%m-%d %a %H:%M:%S %Z", pTimeStruct);
 
 	if (pPass)
-		strncpy (szOwner, pPass->pw_name, 50);
+	{
+		szOwner = pPass->pw_name;
+	}
 	else
-		sprintf (szOwner, "%lu", (ULONG) StatStruct.st_uid);
+	{
+		szOwner = kFormat("{}", StatStruct.st_uid);
+	}
 
 	if (StatStruct.st_mode & S_IFDIR)
-		strcpy (szFiletype, "dir");
+		szFiletype = "dir";
 	else
 		FileType (pszPath, szFiletype);
 
-	printf ("%" PHUGE "|%s|%" PHUGE "|%s|%" PHUGE "|%s|%s\n", 
-		(SHUGE) tLastMod,
+/*
+	printf ("%lld|%s|%lld|%s|%lld|%s|%s\n", 
+		tLastMod,
 		szLastMod,
-		(SHUGE) StatStruct.st_size,
+		StatStruct.st_size,
 		szOwner,
-		(SHUGE) StatStruct.st_uid,
+		StatStruct.st_uid,
+		szFiletype,
+		pszPath);
+		*/
+
+	KOut.FormatLine("{}|{}|{}|{}|{}|{}|{}\n", 
+		tLastMod,
+		szLastMod,
+		StatStruct.st_size,
+		szOwner,
+		StatStruct.st_uid,
 		szFiletype,
 		pszPath);
 
 } // DoStat
 
 //-----------------------------------------------------------------------------
-int FileType (const char* pszFilename, char szFiletype[20+1])
+int FileType (const char* pszFilename, KString& szFiletype) //char szFiletype[20+1])
 //-----------------------------------------------------------------------------
 {
-	*szFiletype = 0;
+	//*szFiletype = 0;
 
 	enum  {MAXCHUNK = 512};
-	char  Chunk[MAXCHUNK+1];
+	//char  Chunk[MAXCHUNK+1];
+	KString Chunk;
+	/*
 	int	  fd	 = open (pszFilename, O_RDONLY);
 
 	if (!fd) {
 		strcpy (szFiletype, "ERR");
-		return (FALSE);
+		return false; //(FALSE);
 	}
 
 	long  iBytes = read (fd, Chunk, MAXCHUNK);
+	*/
+	long iBytes = Chunk.size();
+
+	kReadTextFile(pszFilename, Chunk, /*bToUnixLineFeeds*/ false, MAXCHUNK);
 	unsigned int  iNotPrintable = 0;
-	int   fIsBinary	    = FALSE;
+	int   fIsBinary	    = false; //FALSE;
 
-	Chunk[iBytes] = 0;
-	close (fd);
+	//Chunk[iBytes] = 0;
+	//close (fd);
 
-	if (iBytes <= 0) {
-		strcpy (szFiletype, "EMPTY");
-		return (FALSE);
+	if (Chunk.empty()) {
+		szFiletype = "EMPTY";
+		return false; //(FALSE);
 	}
 
 	enum { U2B = 64 }; // <-- ('A' - ^A)
 	static char s_pszSolBinary[] = { 127, 'E', 'L', 'F', 0 };
 	static char s_pszHpBinary[]  = { 'B'-U2B, 'P'-U2B, 'A'-U2B, 'H'-U2B, 'E'-U2B, 'R'-U2B, 0 };
-	static char s_pszWinBinary[] = { 'M', 'Z', 144, 0 };
+	static char s_pszWinBinary[] = { 'M', 'Z', static_cast<char>(144), 0 };
 
-	if (strmatchN (Chunk, s_pszSolBinary)) {
-		strcpy (szFiletype, "exe(SunOS)");
-		return (TRUE);
+//	if (strmatchN (Chunk, s_pszSolBinary)) {
+	if (Chunk.StartsWith(s_pszSolBinary)) {
+		szFiletype = "exe(SunOS)";
+		return true; //(TRUE);
 	}
-	if (strmatchN (Chunk, s_pszHpBinary)) {
-		strcpy (szFiletype, "exe(HP-UX)");
-		return (TRUE);
+	if (Chunk.StartsWith(s_pszHpBinary)) {
+		szFiletype = "exe(HP-UX)";
+		return true; //(TRUE);
 	}
-	if (strmatchN (Chunk, s_pszWinBinary)) {
-		strcpy (szFiletype, "exe(Win32)");
-		return (TRUE);
+	if (Chunk.StartsWith(s_pszWinBinary)) {
+		szFiletype = "exe(Win32)";
+		return true; //(TRUE);
 	}
 
 	char* lastdot = (char*)strrchr (pszFilename, '.');
 	if (lastdot && (strlen (lastdot+1) < 5)) {
-		strcpy (szFiletype, lastdot+1);
-		ktolower (szFiletype);
-		if (strstr (szFiletype, "htm"))
-			strcpy (szFiletype, "html");
+		szFiletype = lastdot+1;
+		szFiletype = szFiletype.ToLower();
+		if (szFiletype.Contains("htm"))
+			szFiletype = "html";
 	}
 
 	for (long ii=0; ((ii<iBytes) && (ii<MAXCHUNK)); ++ii)
@@ -270,7 +303,7 @@ int FileType (const char* pszFilename, char szFiletype[20+1])
 	// over 10% non-printable in order to be a binary file:
 	fIsBinary = (((iNotPrintable*100)/iBytes) > 10);
 
-	strcat (szFiletype, fIsBinary ? "(binary)" : "(text)");
+	szFiletype += (fIsBinary) ? "(binary)" : "(text)";
 
 
 	return (fIsBinary);
@@ -284,40 +317,48 @@ bool kExtendedDateFields (struct tm* ptmStruct, DFIELDS* pDF)
 	pDF->iUnixTime = mktime (ptmStruct);
 
 	// a few easy ones:
-	_tcsftime (pDF->szHourOfDay,  2+1, "%H", ptmStruct);
-	_tcsftime (pDF->szYear,       4+1, "%Y", ptmStruct);
-	_tcsftime (pDF->szTimestamp, 19+1, "%Y-%m-%d %H:%M:%S", ptmStruct);
+	strftime (pDF->szHourOfDay,  2+1, "%H", ptmStruct);
+	strftime (pDF->szYear,       4+1, "%Y", ptmStruct);
+	strftime (pDF->szTimestamp, 19+1, "%Y-%m-%d %H:%M:%S", ptmStruct);
 
 	enum   {MAX = 50};
-	_TCHAR szBuf[MAX+1];
+	//_TCHAR szBuf[MAX+1]; tchars are apparently for UTF-16 processing??? -Lenny
+	char szBuf[MAX+1]; // strftime needs a char* buffer it can write to - if we're using time_t I think this is required -Lenny
 
 	// format Day of Week:
-	_tcsftime (szBuf, MAX, "%a", ptmStruct);
-	_sntprintf (pDF->szDayOfWeek, sizeof(pDF->szDayOfWeek), "%d:%3s", ptmStruct->tm_wday + 1, szBuf);
+	strftime (szBuf, MAX, "%a", ptmStruct);
+	//_sntprintf (pDF->szDayOfWeek, sizeof(pDF->szDayOfWeek), "%d:%3s", ptmStruct->tm_wday + 1, szBuf);
+	// TODO @Joe START HERE - this next line "compiles" but does get rid of the specific string sizes.
+	// I don't know if you need the string sizes in the DFIELDS struct to stay the same or not
+	strcpy(pDF->szDayOfWeek, kFormat("{}:{}", ptmStruct->tm_wday + 1, szBuf).c_str());
 
 	// format Month Of Year:
-	_tcsftime (szBuf, MAX, "%b", ptmStruct);
-	_sntprintf (pDF->szMonthOfYear, sizeof(pDF->szMonthOfYear), "%02d:%3s", ptmStruct->tm_mon + 1, szBuf);
+	strftime (szBuf, MAX, "%b", ptmStruct);
+	//_sntprintf (pDF->szMonthOfYear, sizeof(pDF->szMonthOfYear), "%02d:%3s", ptmStruct->tm_mon + 1, szBuf);
+	pDF->szMonthOfYear = kFormat("{}:{}", ptmStruct->tm_mon + 1, szBuf);
 
 	// move time back to first day of week (prior Sunday):
 	time_t iUnixTime = pDF->iUnixTime - (ptmStruct->tm_wday * 24 * 60 * 60);
 	ptmStruct = localtime (&iUnixTime);
 
-	_TCHAR szWeekEnd[MAX];
+	char szWeekEnd[MAX]; // was _TCHAR
 
 	// format the first portion of the Week string:
-	_tcsftime (szBuf, MAX, "%a", ptmStruct);
-	_sntprintf (pDF->szWeekSpan, sizeof(pDF->szWeekSpan), "%04d-%02d-%02d(%3s)-->",
-		ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, szBuf);
+	strftime (szBuf, MAX, "%a", ptmStruct);
+	//_sntprintf (pDF->szWeekSpan, sizeof(pDF->szWeekSpan), "%04d-%02d-%02d(%3s)-->",
+	//	ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, szBuf);
+	pDF->szWeekSpan = kFormat("{}-{}-{}({})-->", ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, szBuf);
 
 	// move time back to last day of week (this coming Saturday):
 	iUnixTime += 6 * 24 * 60 * 60;
 	ptmStruct = localtime (&iUnixTime);
 
 	// format the tail portion:
-	_tcsftime (szBuf, MAX, "%a", ptmStruct);
-	_sntprintf (szWeekEnd, MAX, "%04d-%02d-%02d(%3s)", 
-		ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, szBuf);
+	strftime (szBuf, MAX, "%a", ptmStruct);
+//	_sntprintf (szWeekEnd, MAX, "%04d-%02d-%02d(%3s)", 
+//		ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, szBuf);
+	szWeekEnd = kFormat("{}-{}-{}({})",ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, szBuf);
+
 
 	// combine them:
 	_tcsnccat (pDF->szWeekSpan, szWeekEnd, sizeof(pDF->szWeekSpan) - strlen(pDF->szWeekSpan) - 1);
@@ -326,16 +367,16 @@ bool kExtendedDateFields (struct tm* ptmStruct, DFIELDS* pDF)
 	ktoupper (pDF->szWeekSpan);
 	ktoupper (pDF->szMonthOfYear);
 
-	kDebugLog (2, "kExtendedDateFields:");
-	kDebugLog (2, "  %-12s = %lu (secs since 1970)", "UnixTime", pDF->iUnixTime);
-	kDebugLog (2, "  %-12s = %s", "Timestamp", pDF->szTimestamp);
-	kDebugLog (2, "  %-12s = %s", "HourOfDay", pDF->szHourOfDay);
-	kDebugLog (2, "  %-12s = %s", "DayOfWeek", pDF->szDayOfWeek);
-	kDebugLog (2, "  %-12s = %s", "WeekSpan", pDF->szWeekSpan);
-	kDebugLog (2, "  %-12s = %s", "MonthOfYear", pDF->szMonthOfYear);
-	kDebugLog (2, "  %-12s = %s", "Year", pDF->szYear);
+	kDebug (2, "kExtendedDateFields:");
+	kDebug (2, "  %-12s = %lu (secs since 1970)", "UnixTime", pDF->iUnixTime);
+	kDebug (2, "  %-12s = %s", "Timestamp", pDF->szTimestamp);
+	kDebug (2, "  %-12s = %s", "HourOfDay", pDF->szHourOfDay);
+	kDebug (2, "  %-12s = %s", "DayOfWeek", pDF->szDayOfWeek);
+	kDebug (2, "  %-12s = %s", "WeekSpan", pDF->szWeekSpan);
+	kDebug (2, "  %-12s = %s", "MonthOfYear", pDF->szMonthOfYear);
+	kDebug (2, "  %-12s = %s", "Year", pDF->szYear);
 
-	return (TRUE);
+	return true; //(TRUE);
 
 } // kExtendedDateFields - v1
 
@@ -349,15 +390,15 @@ bool kExtendedDateFields (time_t iUnixTime, DFIELDS* pDF)
 } // kExtendedDateFields - v2
 
 //-----------------------------------------------------------------------------
-bool kExtendedDateFields (LPCTSTR pszMMsDDsYYYY, LPCTSTR pszHH, DFIELDS* pDF)
+bool kExtendedDateFields (KStringViewZ pszMMsDDsYYYY, KStringViewZ pszHH, DFIELDS* pDF)
 //-----------------------------------------------------------------------------
 {
 	//				 0 1 2 3 4 5 6 7 8 9
 	// hardcoded for M M / D D / Y Y Y Y
 	if (_tcsclen(pszMMsDDsYYYY)!=10)
 	{
-		kDebugLog("kExtendeDateFields: invalid arg '%s' (must be MM/DD/YYYY)", pszMMsDDsYYYY);
-		return (FALSE);
+		kDebug("kExtendeDateFields: invalid arg '%s' (must be MM/DD/YYYY)", pszMMsDDsYYYY);
+		return false; //(FALSE);
 	}
 
 	_TCHAR szCopy[10+1];
@@ -375,8 +416,8 @@ bool kExtendedDateFields (LPCTSTR pszMMsDDsYYYY, LPCTSTR pszHH, DFIELDS* pDF)
 
 	if (iYear < 1900)
 	{
-		kDebugLog("kExtendedDateFields: invalid year (%d), must be at least 1900.", iYear);
-		return (FALSE);
+		kDebug("kExtendedDateFields: invalid year (%d), must be at least 1900.", iYear);
+		return false; //(FALSE);
 	}
 
 	// fill in part of tmStruct, then call mktime():

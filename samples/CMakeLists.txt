@@ -50,8 +50,10 @@ set (KREPLACE_HEADERS
 
 # ==================================== SAMPLES =====================================
 
-add_executable(kreplace ${KREPLACE_HEADERS} ${KREPLACE_SOURCES})
-target_link_libraries(kreplace dekaf2)
+add_executable(statinfo statinfo.cpp)
+target_link_libraries(statinfo dekaf2)
+#add_executable(kreplace ${KREPLACE_HEADERS} ${KREPLACE_SOURCES})
+#target_link_libraries(kreplace dekaf2)
 
 # ================================= INSTALLATION =====================================
 
@@ -64,7 +66,7 @@ set(share_dest "share/${PROJECT_NAME}")
 # always put this first, otherwise it risks to remove other already installed cmake config files
 #install(EXPORT ${PROJECT_NAME} DESTINATION "${lib_dest}")
 
-install(TARGETS kreplace DESTINATION ${bin_dest})
+install(TARGETS statinfo DESTINATION ${bin_dest})
 
 set(CPACK_SOURCE_GENERATOR ZIP)
 set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})

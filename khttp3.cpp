@@ -966,9 +966,9 @@ bool Session::IsReadReady(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	// use SSL_Poll first, it does not (yet) have a timeout though
-	auto iResult = SSL_Poll(POLLIN, GetQuicConnection());
+	auto iSSLPoll = SSL_Poll(POLLIN, GetQuicConnection());
 
-	if (iResult > 0)
+	if (iSSLPoll > 0)
 	{
 		// yes, have session data waiting
 		return true;
@@ -981,14 +981,14 @@ bool Session::IsReadReady(KDuration Timeout)
 
 	// until SSL_poll() will offer a timeout version we have to use
 	// the native ::poll to check for arriving input data
-	iResult = kPoll(GetKQuicStream().GetNativeSocket(), POLLIN, Timeout);
+	auto iPoll = kPoll(GetKQuicStream().GetNativeSocket(), POLLIN, Timeout);
 
-	if (iResult == 0)
+	if (iPoll == 0)
 	{
 		// timed out, no events
 		return false;
 	}
-	else if (iResult < 0)
+	else if (iPoll < 0)
 	{
 		return SetErrnoError("error during poll: ");
 	}

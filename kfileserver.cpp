@@ -184,8 +184,8 @@ button:hover {
 void AddIndexItem(html::Table& table, const KDirectory::DirEntry& Item, bool bWithDelete)
 //-----------------------------------------------------------------------------
 {
-	constexpr KStringView sWasteBin   = "&#x1F6AE";
-	constexpr KStringView sFolderIcon = "&#x1F4C1";
+	constexpr KStringView sWasteBin   = "&#x1F6AE;";
+	constexpr KStringView sFolderIcon = "&#x1F4C1;";
 
 	bool bIsDirectory = Item.Type() == KFileType::DIRECTORY;
 
@@ -269,7 +269,7 @@ void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex
 {
 	kDebug(2, "{}", sDirectory);
 
-	constexpr KStringView sBackIcon = "&#x1F519";
+	constexpr KStringView sBackIcon = "&#x1F519;";
 
 	KString sDir   = kDirname(m_sFileSystemPath);
 	KString sTitle = kFormat("Index of /{} :", sDirectory);

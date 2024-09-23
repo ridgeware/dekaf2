@@ -177,24 +177,52 @@ KStringView KWebObjectBase::FromDir(DIR dir)
 KStringView KWebObjectBase::FromLoading(LOADING loading)
 //-----------------------------------------------------------------------------
 {
-	KStringView sLoading;
 	switch (loading)
 	{
 		case AUTO:
-			sLoading = "auto";
-			break;
-
+			return "auto";
 		case EAGER:
-			sLoading = "eager";
-			break;
-
+			return "eager";
 		case LAZY:
-			sLoading = "lazy";
-			break;
+			return "lazy";
 	}
-	return sLoading;
+	return {};
 
 } // FromLoading
+
+//-----------------------------------------------------------------------------
+KStringView KWebObjectBase::FromAlign(ALIGN align)
+//-----------------------------------------------------------------------------
+{
+	switch (align)
+	{
+		case LEFT:
+			return "left";
+		case CENTER:
+			return "center";
+		case RIGHT:
+			return "right";
+	}
+	return {};
+
+} // FromAlign
+
+//-----------------------------------------------------------------------------
+KStringView KWebObjectBase::FromVAlign(VALIGN valign)
+//-----------------------------------------------------------------------------
+{
+	switch (valign)
+	{
+		case VTOP:
+			return "top";
+		case VMIDDLE:
+			return "middle";
+		case VBOTTOM:
+			return "bottom";
+	}
+	return {};
+
+} // FromVAlign
 
 //-----------------------------------------------------------------------------
 void KWebObjectBase::SetTextBefore(KStringView sLabel)
@@ -581,6 +609,22 @@ void Page::AddClass(const Class& _class)
 } // AddClass
 
 //-----------------------------------------------------------------------------
+TableData::TableData(KStringView sContent, KStringView sID, const Classes& Classes)
+//-----------------------------------------------------------------------------
+: KWebObject("td", sID, Classes)
+{
+	AddText(sContent);
+}
+
+//-----------------------------------------------------------------------------
+TableHeader::TableHeader(KStringView sContent, KStringView sID, const Classes& Classes)
+//-----------------------------------------------------------------------------
+: KWebObject("th", sID, Classes)
+{
+	AddText(sContent);
+}
+
+//-----------------------------------------------------------------------------
 Heading::Heading(uint16_t iLevel, KStringView sContent, KStringView sID, const Classes& Classes)
 //-----------------------------------------------------------------------------
 : KWebObject(kFormat("h{}", iLevel), sID, Classes)
@@ -687,6 +731,7 @@ Input::self& Input::SetType(INPUTTYPE type) &
 //-----------------------------------------------------------------------------
 {
 	KStringView sType;
+
 	switch (type)
 	{
 		case CHECKBOX:
@@ -745,6 +790,10 @@ Input::self& Input::SetType(INPUTTYPE type) &
 			sType = "search";
 			break;
 
+		case SUBMIT:
+			sType = "submit";
+			break;
+
 		case TEL:
 			sType = "tel";
 			break;
@@ -765,6 +814,7 @@ Input::self& Input::SetType(INPUTTYPE type) &
 			sType = "week";
 			break;
 	}
+
 	SetAttribute("type", sType, false);
 	return *this;
 

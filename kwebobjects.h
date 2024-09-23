@@ -151,6 +151,8 @@ public:
 	enum LOADING { AUTO, EAGER, LAZY };
 	enum TARGET  { SELF, BLANK, PARENT, TOP };
 	enum DIR     { LTR, RTL };
+	enum ALIGN   { LEFT, CENTER, RIGHT };
+	enum VALIGN  { VTOP, VMIDDLE, VBOTTOM };
 
 	using Pixels = uint32_t;
 
@@ -188,6 +190,8 @@ protected:
 	static KStringView FromDir     (DIR     dir     );
 	static KStringView FromLoading (LOADING loading );
 	static KStringView FromEncType (ENCTYPE encoding);
+	static KStringView FromAlign   (ALIGN   align   );
+	static KStringView FromVAlign  (VALIGN  valign  );
 
 	virtual void Reset(KWebObjectBase* Element);
 	virtual void Sync(KWebObjectBase* Element, KStringView sValue);
@@ -453,6 +457,28 @@ protected:
 	self&& SetLoading(LOADING loading) &&
 	{
 		return std::move(SetLoading(loading));
+	}
+
+	self& SetAlign(ALIGN align) &
+	{
+		SetAttribute("align", FromAlign(align), false);
+		return This();
+	}
+
+	self&& SetAlign(ALIGN align) &&
+	{
+		return std::move(SetAlign(align));
+	}
+
+	self& SetVAlign(VALIGN valign) &
+	{
+		SetAttribute("valign", FromVAlign(valign), false);
+		return This();
+	}
+
+	self&& SetVAlign(VALIGN valign) &&
+	{
+		return std::move(SetVAlign(valign));
 	}
 
 	self& SetName(KStringView sName) &
@@ -978,13 +1004,12 @@ public:
 
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
-	TableData(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("td", sID, Classes)
-	{
-	}
+	TableData(KStringView sContent = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{});
 
 	using KWebObject::SetColSpan;
 	using KWebObject::SetRowSpan;
+	using KWebObject::SetAlign;
+	using KWebObject::SetVAlign;
 
 	virtual KStringView TypeName() const override { return s_sObjectName;  }
 	virtual std::size_t WebObjectType() const override { return TYPE; }
@@ -1004,10 +1029,10 @@ public:
 
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
-	TableHeader(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("th", sID, Classes)
-	{
-	}
+	TableHeader(KStringView sContent = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{});
+
+	using KWebObject::SetAlign;
+	using KWebObject::SetVAlign;
 
 	virtual KStringView TypeName() const override { return s_sObjectName;  }
 	virtual std::size_t WebObjectType() const override { return TYPE; }
@@ -1411,7 +1436,7 @@ public:
 	using self = Input;
 
 	enum INPUTTYPE { CHECKBOX, COLOR, DATE, DATETIME_LOCAL, EMAIL, FILE, HIDDEN,
-	                 IMAGE, MONTH, NUMBER, PASSWORD, RADIO, RANGE, SEARCH,
+	                 IMAGE, MONTH, NUMBER, PASSWORD, RADIO, RANGE, SEARCH, SUBMIT,
 	                 TEL, TEXT, TIME, URL, WEEK };
 
 	Input(KStringView sName  = KStringView{},

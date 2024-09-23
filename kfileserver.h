@@ -142,10 +142,7 @@ public:
 protected:
 //------
 
-	void StartIndexFile();
-	void EndIndexFile();
-	void GenerateAdHocIndexFile(KStringView sDirectory);
-	void GenerateUploadIndexFile(KStringView sDirectory);
+	void GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex, bool bWithDelete);
 
 	KString     m_sDirIndexFile;
 	KString     m_sFileSystemPath;

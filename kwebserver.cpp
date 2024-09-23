@@ -46,16 +46,19 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
-                           KStringView         sResourcePath,
-                           bool                bHadTrailingSlash,
-                           bool                bCreateAdHocIndex,
-                           bool                bWithUpload,
-                           KStringView         sRoute,
-                           KHTTPMethod         RequestMethod,
-                           const KHTTPHeaders& RequestHeaders,
-                           KHTTPHeaders&       ResponseHeaders,
-                           const CheckMethod&  Check)
+void KWebServer::Check
+(
+	KStringView        sDocumentRoot,
+	KStringView         sResourcePath,
+	bool                bHadTrailingSlash,
+	bool                bCreateAdHocIndex,
+	bool                bWithUpload,
+	KStringView         sRoute,
+	KHTTPMethod         RequestMethod,
+	const KHTTPHeaders& RequestHeaders,
+	KHTTPHeaders&       ResponseHeaders,
+	const CheckMethod&  RouteCheck
+)
 //-----------------------------------------------------------------------------
 {
 	m_iStatus         = KHTTPError::H2xx_OK;
@@ -173,7 +176,7 @@ uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
 		// the web server is sort of a catch all at the end of the routes..
 		// (which, for security and ambiguity, should really better be avoided)
 
-		if (Check && Check(RequestMethod, sResourcePath))
+		if (RouteCheck && RouteCheck(RequestMethod, sResourcePath))
 		{
 			kDebug (2, "request method {} not supported for path: {}", RequestMethod.Serialize(), sResourcePath);
 			throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("request method {} not supported for path: {}", RequestMethod, sResourcePath) };
@@ -192,8 +195,299 @@ uint16_t KWebServer::Serve(KStringView         sDocumentRoot,
 	}
 
 	m_bIsValid = true;
-	return m_iStatus;
 
-} // KWebServer::Serve
+} // KWebServer::Check
+
+//-----------------------------------------------------------------------------
+KHTTPMethod KWebServer::Serve
+(
+	KStringView         sDocumentRoot,
+	KStringView         sResourcePath,
+	bool                bHadTrailingSlash,
+	bool                bCreateAdHocIndex,
+	bool                bWithUpload,
+	KStringView         sRoute,
+	KHTTPMethod         RequestMethod,
+	const KHTTPHeaders& RequestHeaders,
+	KHTTPHeaders&       ResponseHeaders,
+	const CheckMethod&  RouteCheck
+)
+//-----------------------------------------------------------------------------
+{
+	Check
+	(
+		sDocumentRoot,
+		sResourcePath,
+		bHadTrailingSlash,
+		bCreateAdHocIndex,
+		bWithUpload,
+		sRoute,
+		RequestMethod,
+		RequestHeaders,
+		ResponseHeaders,
+		RouteCheck
+	);
+
+	if (!IsValid())
+	{
+		// this should have been thrown already, probably more precisely
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "bad request" };
+	}
+
+	switch (RequestMethod)
+	{
+		case KHTTPMethod::HEAD:
+		case KHTTPMethod::GET:
+			break;
+
+		case KHTTPMethod::POST:
+		{
+			if (!m_InputStream)
+			{
+				throw KHTTPError { KHTTPError::H5xx_ERROR, "no input stream"};
+			}
+
+			// check if we have a boundary string in the content-type header
+			KStringView sBoundary = RequestHeaders.Headers.Get(KHTTPHeader::CONTENT_TYPE);
+
+			auto pos = sBoundary.find(';');
+
+			if (pos != KStringView::npos)
+			{
+				sBoundary.remove_prefix(pos + 1);
+				sBoundary.Trim();
+
+				if (sBoundary.remove_prefix("boundary="))
+				{
+					if (sBoundary.remove_prefix('"'))
+					{
+						sBoundary.remove_suffix('"');
+					}
+					else if (sBoundary.remove_prefix('\''))
+					{
+						sBoundary.remove_suffix('\'');
+					}
+				}
+				else
+				{
+					sBoundary.clear();
+				}
+			}
+			else
+			{
+				sBoundary.clear();
+			}
+
+			bool bShowFileIndexAgain { false };
+
+			KMIME Mime = RequestHeaders.ContentType();
+
+			if (!sBoundary.empty() || Mime.Serialize().starts_with("multipart/"))
+			{
+				if (!bHadTrailingSlash)
+				{
+					// we would not know where to write the post data to if this was not a request
+					// on an existing directory path (with a slash at the end)
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("upload path must have a trailing slash: {}", sResourcePath) };
+				}
+
+				// this is a multipart encoded request
+				KMIMEReceiveMultiPartFormData Receiver(m_TempDir.Name(), sBoundary);
+
+				if (!Receiver.ReadFromStream(*m_InputStream))
+				{
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, Receiver.Error() };
+				}
+
+				for (auto& File : Receiver.GetFiles())
+				{
+					auto sFrom = kFormat("{}{}{}", m_TempDir.Name(), kDirSep, File.GetFilename());
+
+					// move the files from the temp location into the upload folder
+					if (File.GetCompleted())
+					{
+						auto sTo   = kFormat("{}{}{}{}", sDocumentRoot, sResourcePath, kDirSep, File.GetFilename());
+						kMove(sFrom, sTo);
+					}
+					else
+					{
+						kDebug(2, "skipping incomplete upload file: {}", File.GetFilename());
+						kRemoveFile(sFrom);
+					}
+				}
+
+				if (!bHadTrailingSlash)
+				{
+					// this is probably never used, but we keep it for completeness:
+					// remove last path component (the filename)
+					sResourcePath     = kDirname(sResourcePath);
+					bHadTrailingSlash = true;
+				}
+
+				bShowFileIndexAgain = true;
+			}
+			else if (bHadTrailingSlash)
+			{
+				// we may have a create/delete file/directory request in HTTP POST logic, issued from
+				// a web browser and not from a REST client
+				KString sBody;
+				kUrlDecode(m_InputStream->ReadAll(), sBody);
+
+				if (sBody.remove_prefix("createDir="))
+				{
+					if (sBody.empty())
+					{
+						throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing directory name" };
+					}
+
+					auto sCreateDir = kFormat("{}{}{}",
+					                          sResourcePath,
+					                          kDirSep,
+					                          kMakeSafePathname(sBody, false)
+					                          );
+
+					if (kCreateDir(kFormat("{}{}", sDocumentRoot, sCreateDir)))
+					{
+						kDebug(2, "created directory: {}", sCreateDir);
+					}
+
+					bShowFileIndexAgain = true;
+				}
+				else if (sBody.remove_prefix("deleteFile="))
+				{
+					if (sBody.empty())
+					{
+						throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing file name" };
+					}
+
+					auto sRemoveFile = kFormat("{}{}{}",
+					                           sResourcePath,
+					                           kDirSep,
+					                           kMakeSafeFilename(sBody, false)
+					                           );
+
+					if (kRemoveFile(kFormat("{}{}", sDocumentRoot, sRemoveFile)))
+					{
+						kDebug(2, "removed file: {}", sRemoveFile);
+					}
+
+					bShowFileIndexAgain = true;
+				}
+				else if (sBody.remove_prefix("deleteDir="))
+				{
+					if (sBody.empty())
+					{
+						throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing directory name" };
+					}
+
+					auto sRemoveDir = kFormat("{}{}{}",
+					                          sResourcePath,
+					                          kDirSep,
+					                          kMakeSafePathname(sBody, false)
+					                          );
+
+					if (kRemoveDir(kFormat("{}{}", sDocumentRoot, sRemoveDir)))
+					{
+						kDebug(2, "removed directory: {}", sRemoveDir);
+					}
+
+					bShowFileIndexAgain = true;
+				}
+			}
+
+			if (bShowFileIndexAgain)
+			{
+				// show the new list of files:
+				// change the POST into a GET request
+				RequestMethod = KHTTPMethod::GET;
+				// and check the files again
+				Check(
+					sDocumentRoot,
+					sResourcePath,
+					bHadTrailingSlash,
+					bCreateAdHocIndex,
+					bWithUpload,
+					sRoute,
+					RequestMethod,
+					RequestHeaders,
+					ResponseHeaders,
+					RouteCheck
+				);
+				// exit the switch here, the POST was successful
+				break;
+			}
+			// else just fall through into PUT..
+		}
+		// fallthrough into the PUT case, the POST was not a multipart encoding
+		DEKAF2_FALLTHROUGH;
+
+		case KHTTPMethod::PUT:
+			RequestMethod = KHTTPMethod::PUT;
+
+			if (!m_InputStream)
+			{
+				throw KHTTPError { KHTTPError::H5xx_ERROR, "no input stream"};
+			}
+
+			if (bHadTrailingSlash == false)
+			{
+				// this is a plain PUT (or POST) of data, the file name is taken
+				// from the last part of the URL
+				auto sName = kMakeSafeFilename(kBasename(sResourcePath));
+
+				if (sName.empty())
+				{
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing target name in URL" };
+				}
+
+				auto sFrom = kFormat("{}{}{}", m_TempDir.Name(), kDirSep, sName);
+				auto sTo   = kFormat("{}{}{}", sDocumentRoot, kDirSep, sName);
+
+				KOutFile OutFile(sFrom);
+
+				if (!OutFile.is_open())
+				{
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "cannot open file" };
+				}
+
+				if (!OutFile.Write(*m_InputStream).Good())
+				{
+					throw KHTTPError { KHTTPError::H5xx_ERROR, "cannot write file" };
+				}
+
+				OutFile.close();
+
+				kDebug(2, "received {} for file: {}", kFormBytes(kFileSize(sFrom)), sName);
+
+				kMove(sFrom, sTo);
+			}
+			else
+			{
+				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing target name in URL" };
+			}
+			// this is a REST request, do not return the index file but simply return
+			break;
+
+		case KHTTPMethod::DELETE:
+		{
+			auto sName = kFormat("{}{}{}", sDocumentRoot, kDirSep, sResourcePath);
+
+			kDebug(2, "deleting file: {}", sResourcePath);
+
+			if (!kRemove(sName, KFileTypes::ALL))
+			{
+				throw KHTTPError { KHTTPError::H5xx_ERROR, "cannot remove file" };
+			}
+
+			break;
+		}
+
+		default:
+			throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "method not supported" };
+	}
+
+	return RequestMethod;
+
+} // Serve
 
 DEKAF2_NAMESPACE_END

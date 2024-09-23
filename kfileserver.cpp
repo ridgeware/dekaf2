@@ -42,6 +42,7 @@
 #include "kfileserver.h"
 #include "kfilesystem.h"
 #include "khttperror.h"
+#include "kwebobjects.h"
 #include "klog.h"
 
 DEKAF2_NAMESPACE_BEGIN
@@ -122,36 +123,14 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 			{
 				if (bCreateAdHocIndex || bWithUpload)
 				{
-					StartIndexFile();
-				}
-
-				if (bCreateAdHocIndex)
-				{
 					if (!IsDirectory())
 					{
-						GenerateAdHocIndexFile(sRequest);
+						GenerateAdHocIndexFile(sRequest, bCreateAdHocIndex, bWithUpload);
 					}
 					else
 					{
 						kDebug(1, "auto generation of index file is shadowed by directory {}{}{}", sRequest, kDirSep, m_sDirIndexFile);
 					}
-				}
-
-				if (bWithUpload)
-				{
-					if (!IsDirectory())
-					{
-						GenerateUploadIndexFile(sRequest);
-					}
-					else
-					{
-						kDebug(1, "auto generation of index file is shadowed by directory {}{}{}", sRequest, kDirSep, m_sDirIndexFile);
-					}
-				}
-
-				if (bCreateAdHocIndex || bWithUpload)
-				{
-					EndIndexFile();
 				}
 			}
 		}
@@ -166,19 +145,213 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 
 } // Open
 
+namespace {
+
+constexpr KStringView sIndexStyles = R"(
+body {
+	font-family: Verdana, sans-serif;
+}
+table {
+	border: 1px solid #bbbbbb;
+}
+td, th {
+	padding: 0px 5px 0px 5px;
+	margin: 0px 0px 0px 0px;
+}
+a {
+	width: fit-content;
+	text-decoration: none;
+	text-color: black;
+	background-color: #ffffff;
+	border: 0px solid #bbbbbb;
+	transition-duration: 0.1s;
+}
+a:hover {
+	box-shadow: 0 12px 16px 0 rgba(0,0,0,0.25),0 17px 50px 0 rgba(0,0,0,0.20);
+}
+button {
+	background-color: #ffffff;
+	border: 0.5px solid #cccccc;
+	cursor: pointer;
+	transition-duration: 0.1s;
+}
+button:hover {
+	box-shadow: 0 12px 16px 0 rgba(0,0,0,0.25),0 17px 50px 0 rgba(0,0,0,0.20);
+}
+)";
+
 //-----------------------------------------------------------------------------
-void KFileServer::StartIndexFile()
+void AddIndexItem(html::Table& table, const KDirectory::DirEntry& Item, bool bWithDelete)
 //-----------------------------------------------------------------------------
 {
-	m_sIndex = "<html><body>\n";
+	constexpr KStringView sWasteBin   = "&#x1F6AE";
+	constexpr KStringView sFolderIcon = "&#x1F4C1";
 
-} // StartIndexFile
+	bool bIsDirectory = Item.Type() == KFileType::DIRECTORY;
+
+	auto& row = table.Add(html::TableRow());
+
+	KString sItemLink = Item.Filename();
+
+	if (bIsDirectory)
+	{
+		sItemLink += '/';
+	}
+
+	KString sTitle;
+
+	if (bIsDirectory)
+	{
+		sTitle = "open directory '";
+		sTitle += Item.Filename();
+		sTitle += '\'';
+
+		auto& td     = row.Add(html::TableData());
+		auto& link   = td.Add(html::Link(sItemLink));
+		auto& button = link.Add(html::Button());
+		button.SetType(html::Button::BUTTON).AddRawText(sFolderIcon).SetTitle(sTitle);
+	}
+	else
+	{
+		sTitle = "open file '";
+		sTitle += Item.Filename();
+		sTitle += '\'';
+
+		row += html::TableData();
+	}
+
+	auto& td = row.Add(html::TableData());
+	td.SetAlign(html::TableData::LEFT);
+	td += html::Link(sItemLink, Item.Filename()).SetTitle(sTitle);
+
+	row += html::TableData(Item.ModificationTime().to_string()).SetAlign(html::TableData::LEFT);
+
+	if (bIsDirectory)
+	{
+		row += html::TableData();
+	}
+	else
+	{
+		row += html::TableData(kFormBytes(Item.Size(), " ")).SetAlign(html::TableData::RIGHT);
+	}
+
+	if (bWithDelete)
+	{
+		auto& td = row.Add(html::TableData());
+		auto& formDel = td.Add(html::Form());
+		formDel.SetMethod(html::Form::POST);
+		auto& formButton = formDel.Add(html::Button(KStringView{}, html::Button::SUBMIT));
+		formButton.AddRawText(sWasteBin).SetValue(Item.Filename());
+
+		if (bIsDirectory)
+		{
+			formButton.SetName("deleteDir");
+			formButton.SetTitle(kFormat("{} '{}'", "delete directory", Item.Filename()));
+		}
+		else
+		{
+			formButton.SetName("deleteFile");
+			formButton.SetTitle(kFormat("{} '{}'", "delete file", Item.Filename()));
+		}
+	}
+	else
+	{
+		row += html::TableData();
+	}
+
+} // AddIndexItem
+
+} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
-void KFileServer::EndIndexFile()
+void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex, bool bWithDelete)
 //-----------------------------------------------------------------------------
 {
-	m_sIndex += "</body></html>\n";
+	kDebug(2, "{}", sDirectory);
+
+	constexpr KStringView sBackIcon = "&#x1F519";
+
+	KString sDir   = kDirname(m_sFileSystemPath);
+	KString sTitle = kFormat("Index of /{} :", sDirectory);
+
+	html::Page page(sTitle, "en");
+	page.AddStyle(sIndexStyles);
+	auto& body = page.Body();
+
+	if (bWithIndex)
+	{
+		KDirectory Dir(sDir);
+		Dir.RemoveHidden();
+		Dir.Sort();
+
+		body.Add(html::Heading(3, sTitle));
+		auto& table = body.Add(html::Table());
+
+		{
+			auto& row = table.Add(html::TableRow());
+			auto& th  = row.Add(html::TableHeader());
+
+			if (!sDirectory.empty())
+			{
+				auto& link   = th.Add(html::Link("..").SetTitle("go back"));
+				auto& button = link.Add(html::Button());
+				button.SetType(html::Button::BUTTON).SetTitle("go back").AddRawText(sBackIcon);
+			}
+
+			row += html::TableHeader("name").SetAlign(html::TableHeader::LEFT);
+			row += html::TableHeader("last modification").SetAlign(html::TableHeader::LEFT);
+			row += html::TableHeader("size").SetAlign(html::TableHeader::RIGHT);
+			row += html::TableHeader();
+		}
+
+		for (const auto& File : Dir)
+		{
+			// list all dirs
+			if (File.Type() == KFileType::DIRECTORY)
+			{
+				AddIndexItem(table, File, bWithDelete);
+			}
+		}
+
+		for (const auto& File : Dir)
+		{
+			// list all files
+			if (File.Type() == KFileType::FILE)
+			{
+				AddIndexItem(table, File, bWithDelete);
+			}
+		}
+	}
+
+	if (bWithDelete)
+	{
+		body += html::Paragraph();
+		auto& table = body.Add(html::Table());
+		{
+			auto& row  = table.Add(html::TableRow());
+			auto& col1 = row.Add(html::TableData());
+			col1.Add(html::HTML("label").AddText("Add Directory:"));
+
+			auto& col2 = row.Add(html::TableData().SetAlign(html::TableData::RIGHT));
+			auto& form = col2.Add(html::Form());
+			form.SetMethod(html::Form::POST);
+			form += html::Input("createDir").SetType(html::Input::TEXT);
+			form += html::Input().SetType(html::Input::SUBMIT).SetValue("Create");
+		}
+		{
+			auto& row  = table.Add(html::TableRow());
+			auto& col1 = row.Add(html::TableData());
+			col1.Add(html::HTML("label").AddText("Add File:"));
+
+			auto& col2 = row.Add(html::TableData().SetAlign(html::TableData::RIGHT));
+			auto& form = col2.Add(html::Form());
+			form.SetMethod(html::Form::POST).SetEncType(html::Form::FORMDATA);
+			form += html::Input("upload1").SetType(html::Input::FILE);
+			form += html::Input().SetType(html::Input::SUBMIT).SetValue("Upload");
+		}
+	}
+
+	m_sIndex = page.Serialize();
 
 	m_FileStat.SetType(KFileType::FILE);
 	m_FileStat.SetSize(m_sIndex.size());
@@ -186,75 +359,7 @@ void KFileServer::EndIndexFile()
 	m_FileStat.SetDefaults();
 	m_bIsAdHocIndex = true;
 
-} // EndIndexFile
-
-//-----------------------------------------------------------------------------
-void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory)
-//-----------------------------------------------------------------------------
-{
-	kDebug(2, "{}", sDirectory);
-	KString sDir = kDirname(m_sFileSystemPath);
-
-	KDirectory Dir(sDir);
-	Dir.RemoveHidden();
-	Dir.Sort();
-
-	m_sIndex += kFormat("<h3>Index of /{}:</h3><table>\n", sDirectory);
-	m_sIndex += "<th></th><th>&nbsp;</th><th align=left>name</th><th>&nbsp;</th><th align=left>last modification</th><th>&nbsp;</th><th align=right>size</th>\n";
-
-	if (!sDirectory.empty())
-	{
-		// add a back link
-		m_sIndex += "<tr><td>&#x23f4;</td><td></td><td align=left><a href=\"..\">.&nbsp;.&nbsp;</a></td><td></td><td></td><td></td><td></td></tr>\n";
-	}
-
-	for (const auto& File : Dir)
-	{
-		// list all dirs
-		if (File.Type() == KFileType::DIRECTORY)
-		{
-			m_sIndex += kFormat("<tr><td>&#x274f;</td><td></td><td align=left><a href=\"{}/\">{}</a></td><td></td><td align=left>{}</td><td></td><td></td></tr>\n",
-								File.Filename(), File.Filename(), File.ModificationTime().to_string());
-		}
-	}
-
-	m_sIndex += "<br/>";
-
-	for (const auto& File : Dir)
-	{
-		// list all files
-		if (File.Type() == KFileType::FILE)
-		{
-			m_sIndex += kFormat("<tr><td></td><td></td><td align=left><a href=\"{}\">{}</a></td><td></td><td align=left>{}</td><td></td><td align=right>{}</td></tr>\n",
-								File.Filename(), File.Filename(), File.ModificationTime().to_string(), kFormBytes(File.Size(), "&nbsp;"));
-		}
-	}
-
-	m_sIndex += "</table>";
-
 } // GenerateAdHocIndexFile
-
-//-----------------------------------------------------------------------------
-void KFileServer::GenerateUploadIndexFile(KStringView sDirectory)
-//-----------------------------------------------------------------------------
-{
-	kDebug(2, "{}", sDirectory);
-
-	m_sIndex += R"(
-		<form method="post" enctype="multipart/form-data">
-		<p>
-			<label>Add file: </label>
-			<br/><input type="file" name="upload1"/>
-<!---		<br/><input type="file" name="upload2"/>
-			<br/><input type="file" name="upload3"/> --->
-		</p>
-		<p>
-			<input type="submit"/>
-		</p>
-		</form>
-	)";
-
-} // GenerateUploadIndexFile
 
 //-----------------------------------------------------------------------------
 std::unique_ptr<KInStream> KFileServer::GetStreamForReading(std::size_t iFromPos)

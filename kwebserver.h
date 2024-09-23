@@ -74,11 +74,15 @@ public:
 	using CheckMethod = std::function<bool(KHTTPMethod, KStringView)>;
 
 	/// Simple web server implementation - errors lead to KHTTPErrors thrown
+	/// @param TempDir reference to a KTempDir instance
 	/// @param sDirIndexFile file name to serve when resource is a directory, per default index.html
-	KWebServer(KString sDirIndexFile = "index.html")
+	KWebServer(KTempDir& TempDir, KString sDirIndexFile = "index.html")
 	: KFileServer(std::move(sDirIndexFile))
+	, m_TempDir(TempDir)
 	{
 	}
+
+	void SetInputStream(KInStream& InStream) { m_InputStream = &InStream; }
 
 	/// serve static pages - throws a KHTTPError on various conditions, or returns either a 200 or 206
 	/// state for success. Subsequently call GetStreamForReading() to read the selected file.
@@ -94,20 +98,25 @@ public:
 	/// @param Method The HTTP method of the request
 	/// @param RequestHeaders The request headers of the request
 	/// @param ResponseHeaders A reference to the response headers for the response
-	/// @param Check A function that returns true if the sResourcePath would have been a valid
+	/// @param RouteCheck A function that returns true if the sResourcePath would have been a valid
 	/// REST route with a different HTTP Method (defaults to nullptr) - is only important if you
 	/// want to return a HTTP-405 instead of a HTTP-404 in case of wrong method for any of the
 	/// other routes in your REST or HTTP server
-	uint16_t Serve(KStringView         sDocumentRoot,
-	               KStringView         sResourcePath,
-	               bool                bHadTrailingSlash,
-	               bool                bCreateAdHocIndex,
-	               bool                bWithUpload,
-	               KStringView         sRoute,
-	               KHTTPMethod         Method,
-	               const KHTTPHeaders& RequestHeaders,
-	               KHTTPHeaders&       ResponseHeaders,
-	               const CheckMethod&  Check = nullptr);
+	/// @return the final HTTP method - a POST may have been transformed into a GET or
+	/// a PUT, depending on the input.
+	KHTTPMethod Serve
+	(
+		KStringView         sDocumentRoot,
+		KStringView         sResourcePath,
+		bool                bHadTrailingSlash,
+		bool                bCreateAdHocIndex,
+		bool                bWithUpload,
+		KStringView         sRoute,
+		KHTTPMethod         Method,
+		const KHTTPHeaders& RequestHeaders,
+		KHTTPHeaders&       ResponseHeaders,
+		const CheckMethod&  RouteCheck = nullptr
+	);
 	/// returns a HTTP 200 or 206 status to be used for the HTTP response
 	DEKAF2_NODISCARD
 	uint16_t GetStatus()   const { return m_iStatus;   }
@@ -128,10 +137,26 @@ public:
 private:
 //------
 
-	uint64_t m_iFileStart     { 0 };
-	uint64_t m_iFileSize      { 0 };
-	uint16_t m_iStatus        { 0 };
-	bool     m_bIsValid   { false };
+	void Check
+	(
+		KStringView         sDocumentRoot,
+		KStringView         sResourcePath,
+		bool                bHadTrailingSlash,
+		bool                bCreateAdHocIndex,
+		bool                bWithUpload,
+		KStringView         sRoute,
+		KHTTPMethod         Method,
+		const KHTTPHeaders& RequestHeaders,
+		KHTTPHeaders&       ResponseHeaders,
+		const CheckMethod&  RouteCheck = nullptr
+	);
+
+	KTempDir&  m_TempDir;
+	KInStream* m_InputStream { nullptr };
+	uint64_t   m_iFileStart     { 0 };
+	uint64_t   m_iFileSize      { 0 };
+	uint16_t   m_iStatus        { 0 };
+	bool       m_bIsValid   { false };
 
 }; // KWebServer
 

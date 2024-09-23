@@ -136,7 +136,8 @@ bool KHTTPRoute::Matches(const KHTTPPath& Path) const
 void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 //-----------------------------------------------------------------------------
 {
-	KWebServer WebServer;
+	KTempDir TempDir;
+	KWebServer WebServer(TempDir);
 
 	WebServer.Serve(HTTP.Route->sDocumentRoot,
 	                HTTP.Request.Resource.Path.get(),

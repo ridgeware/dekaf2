@@ -228,7 +228,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// get the content body of a POST or PUT request, only guaranteed to be successful for routes of PLAIN type
+	/// get the content body of a POST or PUT request, only guaranteed to be successful for routes of types
+	/// NOREAD, PLAIN and WWWFORM type
 	DEKAF2_NODISCARD
 	const KString& GetRequestBody() const;
 	//-----------------------------------------------------------------------------
@@ -371,6 +372,17 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return m_TempDir.Name();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Get a reference on a KTempDir instance that is guaranteed to exist until this REST request is answered.
+	/// All content and the directory will be removed after the REST connection got closed.
+	/// @return a string with the path name of the temporary directory
+	DEKAF2_NODISCARD
+	KTempDir& GetTempDirReference()
+	//-----------------------------------------------------------------------------
+	{
+		return m_TempDir;
 	}
 
 	//-----------------------------------------------------------------------------

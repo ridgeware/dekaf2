@@ -82,6 +82,7 @@ add_custom_target(uninstall-samples
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}/${share_dest}"
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}/${include_dest}"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${bin_dest}/kreplace"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${bin_dest}/statinfo"
 )
 
 # =================================== THE END ========================================

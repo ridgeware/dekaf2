@@ -1262,7 +1262,7 @@ DEKAF2_NODISCARD DEKAF2_PUBLIC
 	return detail::FormTimestamp(locale, time, sFormat);
 }
 
-/// Create a HTTP time stamp
+/// Create a HTTP time stampz
 /// @param time a date/time object, defaults to current time
 /// @return the timestamp string
 template<typename DateTime = detail::ForFormat>

@@ -13,6 +13,8 @@
 #include <dekaf2/ksystem.h>
 #include <dekaf2/kwriter.h>
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/ktime.h>
+#include <dekaf2/kformat.h>
 
 using namespace dekaf2;
 
@@ -185,7 +187,8 @@ void DoStat (KString/*copy*/ sPath, time_t tOffset/*=0*/)
 	KStringViewZ   sOwner;
 	struct tm*     pTimeStruct = localtime (&tLastMod);
 	struct passwd* pPass       = getpwuid (StatStruct.st_uid);
-	auto           sLastMod    = kFormTimestamp (mktime(pTimeStruct), "%Y-%m-%d %a %H:%M:%S %Z");
+	KUnixTime      tTime{(mktime(pTimeStruct))};
+	auto           sLastMod    = kFormTimestamp (tTime, "%Y-%m-%d %a %H:%M:%S %Z");
 	KString        sFiletype;
 
 	if (pPass)
@@ -298,25 +301,27 @@ bool kExtendedDateFields (struct tm* ptmStruct, DFIELDS& DF)
 	DF.iUnixTime = mktime (ptmStruct);
 
 	// a few easy ones:
-	DF.sHourOfDay   = kFormTimestamp (DF.iUnixTime, "%H");
-	DF.sYear        = kFormTimestamp (DF.iUnixTime, "%Y");
-	DF.sTimestamp   = kFormTimestamp (DF.iUnixTime, "%Y-%m-%d %H:%M:%S");
-	DF.sDayOfWeek   = kFormat("{}:{}", ptmStruct->tm_wday + 1, kFormTimestamp (DF.iUnixTime, "%a"));
-	DF.sMonthOfYear = kFormat("{}:{}", ptmStruct->tm_mon + 1,  kFormTimestamp (DF.iUnixTime, "%b"));
+	KUnixTime DFUnixTime (DF.iUnixTime);
+	DF.sHourOfDay   = kFormTimestamp (DFUnixTime, "%H");
+	DF.sYear        = kFormTimestamp (DFUnixTime, "%Y");
+	DF.sTimestamp   = kFormTimestamp (DFUnixTime, "%Y-%m-%d %H:%M:%S");
+	DF.sDayOfWeek   = kFormat("{}:{}", ptmStruct->tm_wday + 1, kFormTimestamp (DFUnixTime, "%a"));
+	DF.sMonthOfYear = kFormat("{}:{}", ptmStruct->tm_mon + 1,  kFormTimestamp (DFUnixTime, "%b"));
 
 	// move time back to first day of week (prior Sunday):
 	time_t iUnixTime = DF.iUnixTime - (ptmStruct->tm_wday * 24 * 60 * 60);
+	KUnixTime PrevSundayUnixTime (iUnixTime);
 	ptmStruct = localtime (&iUnixTime);
 
 	// format the first portion of the Week string:
-	DF.sWeekSpan    = kFormat("{}-{}-{}({})-->", ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, kFormTimestamp (iUnixTime, "%a"));
+	DF.sWeekSpan    = kFormat("{}-{}-{}({})-->", ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, kFormTimestamp (PrevSundayUnixTime, "%a"));
 
 	// move time to last day of week (this coming Saturday):
 	iUnixTime += 6 * 24 * 60 * 60;
 	ptmStruct = localtime (&iUnixTime);
 
 	// format the tail portion:
-	DF.sWeekSpan   += kFormat("{}-{}-{}({})", ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, kFormTimestamp (iUnixTime, "%a"));
+	DF.sWeekSpan   += kFormat("{}-{}-{}({})", ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, kFormTimestamp (PrevSundayUnixTime, "%a"));
 
 	DF.sDayOfWeek.MakeUpper();
 	DF.sWeekSpan.MakeUpper();

@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,26 +30,28 @@ const char* g_Usage[] = {
 
 typedef struct
 {
-	time_t iUnixTime;
-	char   szTimestamp[19+1];  // 2001-03-31 12:00:00
-	char   szHourOfDay[2+1];   // 12
-	char   szDayOfWeek[5+1];   // 5:THU
-	char   szWeekSpan[33+1];   // 2001-03-04(SUN)-->2001-03-10(SAT)
-	char   szMonthOfYear[6+1]; // 03:MAR
-	char   szYear[4+1];        // 2001
+	time_t  iUnixTime;
+	KString sTimestamp;   // 2001-03-31 12:00:00
+	KString sHourOfDay;   // 12
+	KString sDayOfWeek;   // 5:THU
+	KString sWeekSpan;    // 2001-03-04(SUN)-->2001-03-10(SAT)
+	KString sMonthOfYear; // 03:MAR
+	KString sYear;        // 2001
 
 } DFIELDS;
 
-void  DoStat   (char* pszPath, time_t tOffset=0);
-int   FileType (const char* pszFilename, KString& szFiletype);
-bool  kExtendedDateFields (struct tm* ptmStruct, DFIELDS* pDF);
-bool  kExtendedDateFields (time_t iUnixTime, DFIELDS* pDF);
-bool  kExtendedDateFields (KStringViewZ pszMMsDDsYYYY, KStringViewZ pszHH, DFIELDS* pDF);
+void  DoStat   (KString/*copy*/ sPath, time_t tOffset=0);
+bool  FileType (const KString& sFilename, KString& sFiletype);
+bool  kExtendedDateFields (struct tm* ptmStruct, DFIELDS& DF);
+bool  kExtendedDateFields (time_t iUnixTime, DFIELDS& DF);
+bool  kExtendedDateFields (KString/*copy*/ sMMsDDsYYYY, KStringViewZ sHH, DFIELDS& DF);
 
 //-----------------------------------------------------------------------------
 int main (int argc, char* argv[])
 //-----------------------------------------------------------------------------
 {
+	kDebug (1, "...");
+
 	if (argc <= 1)
 	{
 		for (unsigned int ii=0; g_Usage[ii]; ++ii)
@@ -80,7 +81,7 @@ int main (int argc, char* argv[])
 
 			if (!tNoHeader)
 			{
-				printf ("#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname\n");
+				KOut.FormatLine ("#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname");
 			}
 
 			while (fgets (szPath, MAX, stdin))
@@ -97,7 +98,7 @@ int main (int argc, char* argv[])
 		{
 			if (!tNoHeader)
 			{
-				printf ("#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname\n");
+				KOut.FormatLine ("#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname");
 			}
 			DoStat (argv[ii], tOffset);
 		}
@@ -108,185 +109,164 @@ int main (int argc, char* argv[])
 } // main -- statinfo
 
 //-----------------------------------------------------------------------------
-void DoStat (char* pszPath, time_t tOffset/*=0*/)
+void DoStat (KString/*copy*/ sPath, time_t tOffset/*=0*/)
 //-----------------------------------------------------------------------------
 {
-	static struct stat StatStruct;
+	kDebug (1, "...");
 
 	// skip incoming blank lines and comments:
-	if (!pszPath || !*pszPath || (*pszPath == '#'))
-		return;
-
-	if (!strcmp (pszPath, ".") || !strcmp (pszPath, "..")) {
-		printf ("# ignored: %s\n", pszPath);
+	if (!sPath || sPath.StartsWith ("#") || kStrIn(sPath,".,.."))
+	{
 		return;
 	}
 
 	// automatically extract filename from SWISH output:
 	// 288 /full/path/to/file/with possible spaces.txt "Title with possible spaces" 87838
-	char* space    = strchr (pszPath, ' ');
-	char* swishOut = strstr (pszPath, " \"");
-	if ((space && swishOut) && (swishOut > space)) {
-		*swishOut = 0;
-		pszPath   = space+1;
-		while (*pszPath == ' ')
-			++pszPath;
+	if (sPath.Contains (" \""))
+	{
+		auto iSpace = sPath.find(" ");
+		if (iSpace > 0)
+		{
+			sPath = sPath.Mid (iSpace);
+			sPath.ClipAt (" \"");
+			sPath.Trim();
+		}
 	}
 
-	// output a comment if stat() fails:
-	if (stat (pszPath, &StatStruct) != 0) {
-		printf ("# %s: %s\n", strerror(errno), pszPath);
+	struct stat StatStruct;
+	if (stat (sPath.c_str(), &StatStruct) != 0) {
+		KOut.FormatLine ("# {}: {}", strerror(errno), sPath); // output a comment if stat() fails:
 		return;
 	}
 
 	time_t  tLastMod;
 	KString sOutput;
-	KRegex  regex{"[0-9][0-9][0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]"};
-	kDebug(1, "identify -format '%%[exif:DateTimeOriginal]' '{}'", pszPath);
-	kSystem (kFormat("identify -format '%%[exif:DateTimeOriginal]' '{}'", pszPath), sOutput);
-	if (regex.Matches (sOutput.c_str() ))
+
+	// use ImageMagick to get date photo was taken:
+	auto    sCmd = kFormat ("identify -format '%%[exif:DateTimeOriginal]' '{}'", sPath);
+	kDebug (1, sCmd);
+	kSystem (sCmd, sOutput);
+
+	KRegex regex{"[0-9][0-9][0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]"};
+	if (regex.Matches (sOutput))
 	{
 		// raw identify: 2016:08:13 13:52:11
-		kDebug(1, "off-exif: %s", sOutput.c_str());
+		kDebug (1, "off-exif: %s", sOutput);
 		sOutput.Replace (":", "-", /*bReplaceAll=*/false); // only twice
 		sOutput.Replace (":", "-", /*bReplaceAll=*/false);
-		kDebug(1, "parsable: %s", sOutput.c_str());
+		kDebug (1, "parsable: %s", sOutput.c_str());
 		tLastMod = KUnixTime(KUTCTime (sOutput.c_str())).to_time_t();
-		kDebug(1, "{}: off exif:DateTimeOriginal: {}", pszPath, /*(SHUGE)*/ tLastMod);
+		kDebug (1, "{}: off exif:DateTimeOriginal: {}", sPath, /*(SHUGE)*/ tLastMod);
 	}
-	else {
+	else
+	{
 		tLastMod = StatStruct.st_mtime;
-		kDebug(1, "{}: imagemagick failed, using mtime off stat: {}", pszPath, /*(SHUGE)*/ tLastMod);
+		kDebug (1, "{}: imagemagick failed, using mtime off stat: {}", sPath, /*(SHUGE)*/ tLastMod);
 	}
 
 	// watch for prelabelled somedir/K1231373376-IMG-343.jpg and use it for lastmod:
-	KString sBase (pszPath);
-	char* lastslash = strrchr (pszPath, '/');
-	if (lastslash) {
-		sBase = lastslash + 1;
-	}
-	if (sBase.MatchRegex ("^K[0-9]{10}")) {
+	KString sBase = kBasename (sPath);
+	if (sBase.MatchRegex ("^K[0-9]{10}"))
+	{
 		sBase = sBase.Left  (strlen("K1231373376"));
 		sBase = sBase.Right (strlen("1231373376"));
-		kDebug(1, "extracting lastmod info from filename: %s", pszPath);
+		kDebug (1, "extracting lastmod info from filename: %s", sPath);
 		tLastMod = atoi (sBase.c_str());
-		kDebug(1, "off filename: atoi({}) = st_mtime = {}\n", sBase.c_str(), /*(SHUGE)*/ tLastMod);
+		kDebug (1, "off filename: atoi({}) = st_mtime = {}\n", sBase.c_str(), /*(SHUGE)*/ tLastMod);
 	}
 
-	if (tOffset) {
+	if (tOffset)
+	{
 		tLastMod += tOffset;
 		kDebug(1, "offset   = {}\n", /*(SHUGE)*/ tOffset);
 		kDebug(1, "adjusted = {}\n", /*(SHUGE)*/ tLastMod);
 	}
 
-	char szLastMod[50+1];
-	//char szOwner[50+1];
-	KStringViewZ szOwner;
+	KStringViewZ   sOwner;
 	struct tm*     pTimeStruct = localtime (&tLastMod);
 	struct passwd* pPass       = getpwuid (StatStruct.st_uid);
-	KString szFiletype; // since some old style c function are used KStringViewZ might be better, but I had compiler issues -Lenny
-
-	strftime (szLastMod, 50, "%Y-%m-%d %a %H:%M:%S %Z", pTimeStruct);
+	auto           sLastMod    = kFormTimestamp (mktime(pTimeStruct), "%Y-%m-%d %a %H:%M:%S %Z");
+	KString        sFiletype;
 
 	if (pPass)
 	{
-		szOwner = pPass->pw_name;
+		sOwner = pPass->pw_name;
 	}
 	else
 	{
-		szOwner = kFormat("{}", StatStruct.st_uid);
+		sOwner = kFormat("{}", StatStruct.st_uid);
 	}
 
 	if (StatStruct.st_mode & S_IFDIR)
-		szFiletype = "dir";
+	{
+		sFiletype = "dir";
+	}
 	else
-		FileType (pszPath, szFiletype);
+	{
+		FileType (sPath, sFiletype);
+	}
 
-/*
-	printf ("%lld|%s|%lld|%s|%lld|%s|%s\n", 
+	auto sFinal = kFormat ("{}|{}|{}|{}|{}|{}|{}", 
 		tLastMod,
-		szLastMod,
+		sLastMod,
 		StatStruct.st_size,
-		szOwner,
+		sOwner,
 		StatStruct.st_uid,
-		szFiletype,
-		pszPath);
-		*/
+		sFiletype,
+		sPath);
 
-	KOut.FormatLine("{}|{}|{}|{}|{}|{}|{}\n", 
-		tLastMod,
-		szLastMod,
-		StatStruct.st_size,
-		szOwner,
-		StatStruct.st_uid,
-		szFiletype,
-		pszPath);
+	kDebug (1, sFinal);
+	KOut.WriteLine (sFinal);
 
 } // DoStat
 
 //-----------------------------------------------------------------------------
-int FileType (const char* pszFilename, KString& szFiletype) //char szFiletype[20+1])
+bool FileType (const KString& sFilename, KString& sFiletype)
 //-----------------------------------------------------------------------------
 {
-	//*szFiletype = 0;
+	kDebug (1, "...");
 
-	enum  {MAXCHUNK = 512};
-	//char  Chunk[MAXCHUNK+1];
-	KString Chunk;
-	/*
-	int	  fd	 = open (pszFilename, O_RDONLY);
+	enum    {MAXCHUNK = 512};
+	KString sChunk;
 
-	if (!fd) {
-		strcpy (szFiletype, "ERR");
-		return false; //(FALSE);
-	}
+	kReadTextFile (sFilename, sChunk, /*bToUnixLineFeeds*/false, MAXCHUNK);
 
-	long  iBytes = read (fd, Chunk, MAXCHUNK);
-	*/
-	long iBytes = Chunk.size();
+	size_t  iNotPrintable = 0;
+	bool    bIsBinary     = false;
 
-	kReadTextFile(pszFilename, Chunk, /*bToUnixLineFeeds*/ false, MAXCHUNK);
-	unsigned int  iNotPrintable = 0;
-	int   fIsBinary	    = false; //FALSE;
-
-	//Chunk[iBytes] = 0;
-	//close (fd);
-
-	if (Chunk.empty()) {
-		szFiletype = "EMPTY";
-		return false; //(FALSE);
+	if (sChunk.empty())
+	{
+		sFiletype = "EMPTY";
+		return false;
 	}
 
 	enum { U2B = 64 }; // <-- ('A' - ^A)
-	static char s_pszSolBinary[] = { 127, 'E', 'L', 'F', 0 };
-	static char s_pszHpBinary[]  = { 'B'-U2B, 'P'-U2B, 'A'-U2B, 'H'-U2B, 'E'-U2B, 'R'-U2B, 0 };
-	static char s_pszWinBinary[] = { 'M', 'Z', static_cast<char>(144), 0 };
+	static char s_sSolBinary[] = { 127, 'E', 'L', 'F', 0 };
+	static char s_sHpBinary[]  = { 'B'-U2B, 'P'-U2B, 'A'-U2B, 'H'-U2B, 'E'-U2B, 'R'-U2B, 0 };
+	static char s_sWinBinary[] = { 'M', 'Z', static_cast<char>(144), 0 };
 
-//	if (strmatchN (Chunk, s_pszSolBinary)) {
-	if (Chunk.StartsWith(s_pszSolBinary)) {
-		szFiletype = "exe(SunOS)";
+	if (sChunk.StartsWith(s_sSolBinary))
+	{
+		sFiletype = "exe(SunOS)";
 		return true; //(TRUE);
 	}
-	if (Chunk.StartsWith(s_pszHpBinary)) {
-		szFiletype = "exe(HP-UX)";
+	else if (sChunk.StartsWith(s_sHpBinary))
+	{
+		sFiletype = "exe(HP-UX)";
 		return true; //(TRUE);
 	}
-	if (Chunk.StartsWith(s_pszWinBinary)) {
-		szFiletype = "exe(Win32)";
+	else if (sChunk.StartsWith(s_sWinBinary))
+	{
+		sFiletype = "exe(Win32)";
 		return true; //(TRUE);
 	}
 
-	char* lastdot = (char*)strrchr (pszFilename, '.');
-	if (lastdot && (strlen (lastdot+1) < 5)) {
-		szFiletype = lastdot+1;
-		szFiletype = szFiletype.ToLower();
-		if (szFiletype.Contains("htm"))
-			szFiletype = "html";
-	}
+	sFiletype = kExtension(sFilename).ToLower();
 
+	long    iBytes = sChunk.size();
 	for (long ii=0; ((ii<iBytes) && (ii<MAXCHUNK)); ++ii)
 	{
-		switch (Chunk[ii])
+		switch (sChunk[ii])
 		{
 		case 10: // ^J
 		case 13: // ^M
@@ -294,130 +274,108 @@ int FileType (const char* pszFilename, KString& szFiletype) //char szFiletype[20
 		case '\t':
 			break;	// <-- char is printable/not binary
 		default:
-			if ((Chunk[ii] < ' ') || (Chunk[ii] > '~'))
+			if ((sChunk[ii] < ' ') || (sChunk[ii] > '~'))
 				++iNotPrintable;
 			break;
 		}
 	}
 
 	// over 10% non-printable in order to be a binary file:
-	fIsBinary = (((iNotPrintable*100)/iBytes) > 10);
+	bIsBinary = (((iNotPrintable*100)/iBytes) > 10);
 
-	szFiletype += (fIsBinary) ? "(binary)" : "(text)";
+	sFiletype += (bIsBinary) ? "(binary)" : "(text)";
 
-
-	return (fIsBinary);
+	return (bIsBinary);
 
 } // FileType
 
 //-----------------------------------------------------------------------------
-bool kExtendedDateFields (struct tm* ptmStruct, DFIELDS* pDF)
+bool kExtendedDateFields (struct tm* ptmStruct, DFIELDS& DF)
 //-----------------------------------------------------------------------------
 {
-	pDF->iUnixTime = mktime (ptmStruct);
+	kDebug (1, "...");
+
+	DF.iUnixTime = mktime (ptmStruct);
 
 	// a few easy ones:
-	strftime (pDF->szHourOfDay,  2+1, "%H", ptmStruct);
-	strftime (pDF->szYear,       4+1, "%Y", ptmStruct);
-	strftime (pDF->szTimestamp, 19+1, "%Y-%m-%d %H:%M:%S", ptmStruct);
-
-	enum   {MAX = 50};
-	//_TCHAR szBuf[MAX+1]; tchars are apparently for UTF-16 processing??? -Lenny
-	char szBuf[MAX+1]; // strftime needs a char* buffer it can write to - if we're using time_t I think this is required -Lenny
-
-	// format Day of Week:
-	strftime (szBuf, MAX, "%a", ptmStruct);
-	//_sntprintf (pDF->szDayOfWeek, sizeof(pDF->szDayOfWeek), "%d:%3s", ptmStruct->tm_wday + 1, szBuf);
-	// TODO @Joe START HERE - this next line "compiles" but does get rid of the specific string sizes.
-	// I don't know if you need the string sizes in the DFIELDS struct to stay the same or not
-	strcpy(pDF->szDayOfWeek, kFormat("{}:{}", ptmStruct->tm_wday + 1, szBuf).c_str());
-
-	// format Month Of Year:
-	strftime (szBuf, MAX, "%b", ptmStruct);
-	//_sntprintf (pDF->szMonthOfYear, sizeof(pDF->szMonthOfYear), "%02d:%3s", ptmStruct->tm_mon + 1, szBuf);
-	pDF->szMonthOfYear = kFormat("{}:{}", ptmStruct->tm_mon + 1, szBuf);
+	DF.sHourOfDay   = kFormTimestamp (DF.iUnixTime, "%H");
+	DF.sYear        = kFormTimestamp (DF.iUnixTime, "%Y");
+	DF.sTimestamp   = kFormTimestamp (DF.iUnixTime, "%Y-%m-%d %H:%M:%S");
+	DF.sDayOfWeek   = kFormat("{}:{}", ptmStruct->tm_wday + 1, kFormTimestamp (DF.iUnixTime, "%a"));
+	DF.sMonthOfYear = kFormat("{}:{}", ptmStruct->tm_mon + 1,  kFormTimestamp (DF.iUnixTime, "%b"));
 
 	// move time back to first day of week (prior Sunday):
-	time_t iUnixTime = pDF->iUnixTime - (ptmStruct->tm_wday * 24 * 60 * 60);
+	time_t iUnixTime = DF.iUnixTime - (ptmStruct->tm_wday * 24 * 60 * 60);
 	ptmStruct = localtime (&iUnixTime);
 
-	char szWeekEnd[MAX]; // was _TCHAR
-
 	// format the first portion of the Week string:
-	strftime (szBuf, MAX, "%a", ptmStruct);
-	//_sntprintf (pDF->szWeekSpan, sizeof(pDF->szWeekSpan), "%04d-%02d-%02d(%3s)-->",
-	//	ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, szBuf);
-	pDF->szWeekSpan = kFormat("{}-{}-{}({})-->", ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, szBuf);
+	DF.sWeekSpan    = kFormat("{}-{}-{}({})-->", ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, kFormTimestamp (iUnixTime, "%a"));
 
-	// move time back to last day of week (this coming Saturday):
+	// move time to last day of week (this coming Saturday):
 	iUnixTime += 6 * 24 * 60 * 60;
 	ptmStruct = localtime (&iUnixTime);
 
 	// format the tail portion:
-	strftime (szBuf, MAX, "%a", ptmStruct);
-//	_sntprintf (szWeekEnd, MAX, "%04d-%02d-%02d(%3s)", 
-//		ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, szBuf);
-	szWeekEnd = kFormat("{}-{}-{}({})",ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, szBuf);
+	DF.sWeekSpan   += kFormat("{}-{}-{}({})", ptmStruct->tm_year+1900, ptmStruct->tm_mon+1, ptmStruct->tm_mday, kFormTimestamp (iUnixTime, "%a"));
 
-
-	// combine them:
-	_tcsnccat (pDF->szWeekSpan, szWeekEnd, sizeof(pDF->szWeekSpan) - strlen(pDF->szWeekSpan) - 1);
-
-	ktoupper (pDF->szDayOfWeek);
-	ktoupper (pDF->szWeekSpan);
-	ktoupper (pDF->szMonthOfYear);
+	DF.sDayOfWeek.MakeUpper();
+	DF.sWeekSpan.MakeUpper();
+	DF.sMonthOfYear.MakeUpper();
 
 	kDebug (2, "kExtendedDateFields:");
-	kDebug (2, "  %-12s = %lu (secs since 1970)", "UnixTime", pDF->iUnixTime);
-	kDebug (2, "  %-12s = %s", "Timestamp", pDF->szTimestamp);
-	kDebug (2, "  %-12s = %s", "HourOfDay", pDF->szHourOfDay);
-	kDebug (2, "  %-12s = %s", "DayOfWeek", pDF->szDayOfWeek);
-	kDebug (2, "  %-12s = %s", "WeekSpan", pDF->szWeekSpan);
-	kDebug (2, "  %-12s = %s", "MonthOfYear", pDF->szMonthOfYear);
-	kDebug (2, "  %-12s = %s", "Year", pDF->szYear);
+	kDebug (2, "  %-12s = %lu (secs since 1970)", "UnixTime", DF.iUnixTime);
+	kDebug (2, "  %-12s = %s", "Timestamp",                   DF.sTimestamp);
+	kDebug (2, "  %-12s = %s", "HourOfDay",                   DF.sHourOfDay);
+	kDebug (2, "  %-12s = %s", "DayOfWeek",                   DF.sDayOfWeek);
+	kDebug (2, "  %-12s = %s", "WeekSpan",                    DF.sWeekSpan);
+	kDebug (2, "  %-12s = %s", "MonthOfYear",                 DF.sMonthOfYear);
+	kDebug (2, "  %-12s = %s", "Year",                        DF.sYear);
 
 	return true; //(TRUE);
 
 } // kExtendedDateFields - v1
 
 //-----------------------------------------------------------------------------
-bool kExtendedDateFields (time_t iUnixTime, DFIELDS* pDF)
+bool kExtendedDateFields (time_t iUnixTime, DFIELDS& DF)
 //-----------------------------------------------------------------------------
 {
+	kDebug (1, "...");
+
 	struct tm* ptmStruct = localtime (&iUnixTime);
-	return (kExtendedDateFields (ptmStruct, pDF));
+	return (kExtendedDateFields (ptmStruct, DF));
 
 } // kExtendedDateFields - v2
 
 //-----------------------------------------------------------------------------
-bool kExtendedDateFields (KStringViewZ pszMMsDDsYYYY, KStringViewZ pszHH, DFIELDS* pDF)
+bool kExtendedDateFields (KString/*copy*/ sMMsDDsYYYY, KStringViewZ sHH, DFIELDS& DF)
 //-----------------------------------------------------------------------------
 {
+	kDebug (1, "...");
+
 	//				 0 1 2 3 4 5 6 7 8 9
 	// hardcoded for M M / D D / Y Y Y Y
-	if (_tcsclen(pszMMsDDsYYYY)!=10)
+	if (sMMsDDsYYYY.MatchRegex ("^[0-9][0-9][-/:_][0-9][0-9][-/:_][0-9][0-9][0-9][0-9]$"))
 	{
-		kDebug("kExtendeDateFields: invalid arg '%s' (must be MM/DD/YYYY)", pszMMsDDsYYYY);
-		return false; //(FALSE);
+		kDebug (1, "kExtendeDateFields: invalid arg '{}' (must be MM/DD/YYYY)", sMMsDDsYYYY);
+		return false;
 	}
 
-	_TCHAR szCopy[10+1];
-	kstrncpy (szCopy, pszMMsDDsYYYY, sizeof(szCopy));
+	sMMsDDsYYYY.Replace ("-", "/",  0, /*all=*/true);
+	sMMsDDsYYYY.Replace (":", "/",  0, /*all=*/true);
+	sMMsDDsYYYY.Replace ("_", "/",  0, /*all=*/true);
 
-	// nil terminate at the slashes:
-	szCopy[2] = 0;
-	szCopy[5] = 0;
+	auto parts = sMMsDDsYYYY.Split("/");
 
 	// parse date string:
-	int iMonth		= _ttoi(szCopy);
-	int iDay		= _ttoi(szCopy+3);
-	int iYear		= _ttoi(szCopy+6);		// 4-digit year
-	int iHour		= _ttoi(pszHH);
+	auto iMonth		= parts[0].UInt16();
+	auto iDay		= parts[1].UInt16();
+	auto iYear		= parts[2].UInt16();
+	auto iHour		= sHH.UInt16();
 
 	if (iYear < 1900)
 	{
-		kDebug("kExtendedDateFields: invalid year (%d), must be at least 1900.", iYear);
-		return false; //(FALSE);
+		kDebug (1, "kExtendedDateFields: invalid year ({}), must be at least 1900.", iYear);
+		return false;
 	}
 
 	// fill in part of tmStruct, then call mktime():
@@ -433,7 +391,7 @@ bool kExtendedDateFields (KStringViewZ pszMMsDDsYYYY, KStringViewZ pszHH, DFIELD
 	tmStruct.tm_yday  = 0;             // mktime() will fill in
 	tmStruct.tm_isdst = -1;            // convert to daylight savings time
 
-	return (kExtendedDateFields (&tmStruct, pDF));
+	return (kExtendedDateFields (&tmStruct, DF));
 
 } // kExtendedDateFields - v3
 

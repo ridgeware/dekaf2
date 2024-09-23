@@ -1,5 +1,5 @@
 
-BUILD_DIR    :=~/dekaf2-samples-cmake
+BUILD_DIR    :=~/src/dekaf2-samples-cmake
 CMAKE        :=${BUILD_DIR}/Makefile
 CORES        :=4
 

@@ -762,7 +762,7 @@ TEST_CASE("KTime") {
 		CHECK ( TD.is_am()           == false );
 		CHECK ( TD.is_pm()           == true  );
 		CHECK ( TD.to_string()       == "14:37:56" );
-		CHECK ( TD.to_string("%H.%M.%S")   == "14.37.56" );
+		CHECK ( TD.to_string("{:%H.%M.%S}") == "14.37.56" );
 		CHECK ( kFormat("{:%H.%M.%S}", TD) == "14.37.56" );
 
 		TD += chrono::hours(16);

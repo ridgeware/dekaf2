@@ -90,44 +90,44 @@ bool KInHTTPFilter::SetupInputFilter()
 		{
 			case NONE:
 			case ALL:
-				kDebug(2, "no {}compression", "un");
+				kDebug (3, "no {}compression", "un");
 				break;
 
 			case GZIP:
-				kDebug(2, "using {} {}compression", "gzip", "un");
+				kDebug (3, "using {} {}compression", "gzip", "un");
 				m_Filter->push(boost::iostreams::gzip_decompressor());
 				break;
 
 			case ZLIB:
-				kDebug(2, "using {} {}compression", "zlib", "un");
+				kDebug (3, "using {} {}compression", "zlib", "un");
 				m_Filter->push(boost::iostreams::zlib_decompressor());
 				break;
 
 			case BZIP2:
-				kDebug(2, "using {} {}compression", "bzip2", "un");
+				kDebug (3, "using {} {}compression", "bzip2", "un");
 				m_Filter->push(boost::iostreams::bzip2_decompressor());
 				break;
 
 #ifdef DEKAF2_HAS_LIBZSTD
 			case ZSTD:
-				kDebug(2, "using {} {}compression", "zstd", "un");
+				kDebug (3, "using {} {}compression", "zstd", "un");
 				m_Filter->push(dekaf2::iostreams::zstd_decompressor());
 				break;
 #endif
 #ifdef DEKAF2_HAS_LIBLZMA
 			case XZ: // lzma v2
-				kDebug(2, "using {} {}compression", "xz", "un");
+				kDebug (3, "using {} {}compression", "xz", "un");
 				m_Filter->push(lzmaiostreams::lzma_decompressor());
 				break;
 
 			case LZMA: // LZMA means v1, it should be supported by the lzma decompressor
-				kDebug(2, "using {} {}compression", "lzma", "un");
+				kDebug (3, "using {} {}compression", "lzma", "un");
 				m_Filter->push(lzmaiostreams::lzma_decompressor());
 				break;
 #endif
 #ifdef DEKAF2_HAS_LIBBROTLI
 			case BROTLI:
-				kDebug(2, "using {} {}compression", "brotli", "un");
+				kDebug (3, "using {} {}compression", "brotli", "un");
 				m_Filter->push(dekaf2::iostreams::brotli_decompressor());
 				break;
 #endif
@@ -135,12 +135,12 @@ bool KInHTTPFilter::SetupInputFilter()
 	}
 	else
 	{
-		kDebug(2, "no {}compression", "un");
+		kDebug (3, "no {}compression", "un");
 	}
 
 	if (m_bChunked)
 	{
-		kDebug(2, "chunked {}", "RX");
+		kDebug (3, "chunked {}", "RX");
 	}
 
 	m_iCount = 0;

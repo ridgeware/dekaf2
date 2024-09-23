@@ -114,7 +114,7 @@ bool KTLSStream::handshake(KAsioTLSStream<asio_stream_type>* stream)
 #ifdef DEKAF2_WITH_KLOG
 	if (kWouldLog(2))
 	{
-		kDebug(2, "TLS handshake successful, rx/tx {}/{} bytes",
+		kDebug (3, "TLS handshake successful, rx/tx {}/{} bytes",
 			   ::BIO_number_read(::SSL_get_rbio(ssl)),
 			   ::BIO_number_written(::SSL_get_wbio(ssl)));
 
@@ -461,7 +461,7 @@ bool KTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 			SetEndPointAddress(m_Stream.sEndpoint);
 		});
 
-		kDebug(2, "trying to connect to {} {}", "endpoint", Endpoint);
+		kDebug (2, "connecting to {}: {}", "endpoint", Endpoint);
 
 		m_Stream.RunTimed();
 	}
@@ -471,7 +471,7 @@ bool KTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		return SetError(m_Stream.ec.message());
 	}
 
-	kDebug(2, "connected to {} {}", "endpoint", GetEndPointAddress());
+	kDebug(2, "connected to {}: {}", "endpoint", GetEndPointAddress());
 
 	return true;
 

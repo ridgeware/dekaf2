@@ -332,7 +332,7 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	}
 
 	auto& sHostname = Endpoint.Domain.get();
-	kDebug(2, "resolving domain {}", sHostname);
+	kDebug (3, "resolving domain {}", sHostname);
 
 	KString sIPAddress;
 
@@ -363,7 +363,7 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 	KUniquePtr<::BIO_ADDRINFO, ::BIO_ADDRINFO_free> Hosts(res_local);
 
-	kDebug(2, "trying to connect to {} {}", "endpoint", Endpoint);
+	kDebug (3, "trying to connect to {} {}", "endpoint", Endpoint);
 
 	const ::BIO_ADDRINFO *ai;
 

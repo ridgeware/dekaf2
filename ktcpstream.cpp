@@ -194,7 +194,7 @@ bool KTCPStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 			SetEndPointAddress(m_Stream.sEndpoint);
 		});
 
-		kDebug(2, "trying to connect to {} {}", "endpoint", Endpoint);
+		kDebug (3, "trying to connect to {} {}", "endpoint", Endpoint);
 
 		m_Stream.RunTimed();
 	}

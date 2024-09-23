@@ -194,7 +194,7 @@ bool KUnixStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		SetEndPointAddress(Endpoint);
 	});
 
-	kDebug(2, "trying to connect to {} {}", "unix domain socket", Endpoint);
+	kDebug (3, "trying to connect to {} {}", "unix domain socket", Endpoint);
 
 	m_Stream.RunTimed();
 

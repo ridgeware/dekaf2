@@ -117,7 +117,7 @@ KIOStreamSocket::ResolveTCP(
 )
 //-----------------------------------------------------------------------------
 {
-	kDebug(2, "resolving domain {}", sHostname);
+	kDebug (3, "resolving domain {}", sHostname);
 
 	boost::asio::ip::tcp::resolver Resolver(IOService);
 
@@ -149,7 +149,7 @@ KIOStreamSocket::ResolveTCP(
 
 		for (; it != ie; ++it)
 		{
-			kDebug(2, "resolved to: {}", it->endpoint().address().to_string());
+			kDebug (3, "resolved to: {}", it->endpoint().address().to_string());
 		}
 	}
 #endif
@@ -169,7 +169,7 @@ KIOStreamSocket::ResolveUDP(
 )
 //-----------------------------------------------------------------------------
 {
-	kDebug(2, "resolving domain {}", sHostname);
+	kDebug (3, "resolving domain {}", sHostname);
 
 	boost::asio::ip::udp::resolver Resolver(IOService);
 
@@ -202,7 +202,7 @@ KIOStreamSocket::ResolveUDP(
 
 		for (; it != ie; ++it)
 		{
-			kDebug(2, "resolved to: {}", it->endpoint().address().to_string());
+			kDebug (3, "resolved to: {}", it->endpoint().address().to_string());
 		}
 	}
 #endif
@@ -264,7 +264,7 @@ KIOStreamSocket::ReverseLookup(
 #endif
 		for (; it != ie; ++it)
 		{
-			kDebug(2, "resolved to: {}", it->host_name());
+			kDebug (3, "resolved to: {}", it->host_name());
 		}
 	}
 #endif

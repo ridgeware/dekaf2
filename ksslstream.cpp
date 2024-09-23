@@ -514,7 +514,7 @@ bool KSSLIOStream::handshake(KAsioSSLStream<asiostream>* stream)
 #ifdef DEKAF2_WITH_KLOG
 	if (kWouldLog(2))
 	{
-		kDebug(2, "TLS handshake successful, rx/tx {}/{} bytes",
+		kDebug (3, "TLS handshake successful, rx/tx {}/{} bytes",
 			   BIO_number_read(SSL_get_rbio(ssl)),
 			   BIO_number_written(SSL_get_wbio(ssl)));
 
@@ -803,7 +803,7 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint, TLSOptions Options)
 {
 	m_Stream.bNeedHandshake = true;
 
-	kDebug(2, "resolving domain {}", Endpoint.Domain.get());
+	kDebug (3, "resolving domain {}", Endpoint.Domain.get());
 
 	boost::asio::ip::tcp::resolver Resolver(m_Stream.IOService);
 	boost::asio::ip::tcp::resolver::query query(Endpoint.Domain.get().c_str(), Endpoint.Port.Serialize().c_str());
@@ -823,7 +823,7 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint, TLSOptions Options)
 #endif
 			for (; it != ie; ++it)
 			{
-				kDebug(2, "resolved to: {}", it->endpoint().address().to_string());
+				kDebug (3, "resolved to: {}", it->endpoint().address().to_string());
 			}
 		}
 #endif
@@ -883,7 +883,7 @@ bool KSSLIOStream::Connect(const KTCPEndPoint& Endpoint, TLSOptions Options)
 			m_Stream.ec = ec;
 		});
 
-		kDebug(2, "trying to connect to {} {}", "endpoint", Endpoint.Serialize());
+		kDebug (3, "trying to connect to {} {}", "endpoint", Endpoint.Serialize());
 
 		m_Stream.RunTimed();
 	}

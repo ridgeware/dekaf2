@@ -2073,7 +2073,7 @@ bool kReadTextFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineF
 } // kReadTextFile
 
 //-----------------------------------------------------------------------------
-bool kReadBinaryFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineFeeds/*=true*/, std::size_t iMaxRead/*=npos*/)
+bool kReadBinaryFile (KStringViewZ sPath, KStringRef& sContents, std::size_t iMaxRead/*=npos*/)
 //-----------------------------------------------------------------------------
 {
 	return kReadAll(sPath, sContents, iMaxRead);

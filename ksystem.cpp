@@ -75,6 +75,8 @@
 	#include <pwd.h>           // for getpwuid()
 	#include <arpa/inet.h>
 	#include <sys/ioctl.h>     // for ioctl(), TIOCGWINSZ
+	#include <grp.h>           // for getgrgid()
+	#include <uuid/uuid.h>     // getgrgid()
 	#ifdef DEKAF2_IS_MACOS
 		// MacOS
 		#include <sys/syslimits.h> // for MAX_PATH
@@ -374,12 +376,7 @@ KString kGetWhoAmI ()
 	// on UNIX, we do *not* cache the kGetWhoami() result, to allow
 	// identity changes through setuid():
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	int iUID = getuid();
-	struct passwd* pPassStruct = getpwuid (iUID);
-	if (pPassStruct)
-	{
-		sWhoami = pPassStruct->pw_name;
-	}
+	sWhoami = kGetUsername(kGetUid());
 #endif
 
 	kDebug (2, sWhoami);
@@ -387,6 +384,44 @@ KString kGetWhoAmI ()
 	return (sWhoami);
 
 } // kGetWhoami
+
+//-----------------------------------------------------------------------------
+KString kGetUsername (uint32_t iUID)
+//-----------------------------------------------------------------------------
+{
+	KString sUsername;
+
+#ifndef DEKAF2_IS_WINDOWS
+	struct passwd* pPassStruct = getpwuid (iUID);
+
+	if (pPassStruct)
+	{
+		sUsername = pPassStruct->pw_name;
+	}
+#endif
+
+	return sUsername;
+
+} // kGetUsername
+
+//-----------------------------------------------------------------------------
+KString kGetGroupname (uint32_t iGID)
+//-----------------------------------------------------------------------------
+{
+	KString sGroupname;
+
+#ifndef DEKAF2_IS_WINDOWS
+	auto* pGroup = getgrgid(iGID);
+
+	if (pGroup)
+	{
+		sGroupname = pGroup->gr_name;
+	}
+#endif
+
+	return sGroupname;
+
+} // kGetGroupname
 
 //-----------------------------------------------------------------------------
 KStringViewZ kGetHostname (bool bAllowKHostname/*=true*/)

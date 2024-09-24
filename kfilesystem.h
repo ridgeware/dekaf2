@@ -242,7 +242,7 @@ bool kReadFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineFeeds
 //-----------------------------------------------------------------------------
 /// Read entire binary file into a single string. The base function (that is also called by this
 /// variant) is kReadAll().
-DEKAF2_PUBLIC inline
+DEKAF2_PUBLIC
 bool kReadBinaryFile (KStringViewZ sPath, KStringRef& sContents, std::size_t iMaxRead = npos);
 //-----------------------------------------------------------------------------
 

@@ -122,6 +122,14 @@ KString kGetWhoAmI ();
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline KString kwhoami () { return kGetWhoAmI(); }
 
+/// Return operating system user name as a string.
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kGetUsername (uint32_t iUID);
+
+/// Return operating system group name as a string.
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kGetGroupname (uint32_t iGID);
+
 /// Return operating system hostname (or /etc/khostname if it exists) as a string.
 /// @param bAllowKHostname check for /etc/khostname? default is true.
 /// @return the hostname

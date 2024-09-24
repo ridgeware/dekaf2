@@ -76,7 +76,6 @@
 	#include <arpa/inet.h>
 	#include <sys/ioctl.h>     // for ioctl(), TIOCGWINSZ
 	#include <grp.h>           // for getgrgid()
-	#include <uuid/uuid.h>     // getgrgid()
 	#ifdef DEKAF2_IS_MACOS
 		// MacOS
 		#include <sys/syslimits.h> // for MAX_PATH

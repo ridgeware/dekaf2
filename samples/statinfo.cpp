@@ -234,26 +234,6 @@ void StatInfo::DoStat (KString/*copy*/ sPath)
 	}
 
 	KUnixTime tLastMod;
-	KString   sOutput;
-
-	// use ImageMagick to get date photo was taken:
-	auto    sCmd = kFormat ("identify -format '%[exif:DateTimeOriginal] %[exif:OffsetTimeOriginal]' '{}'", sPath);
-	kDebug  (1, sCmd);
-	kSystem (sCmd, sOutput);
-
-	//            output: 2024:04:18 16:36:42 +02:00
-	tLastMod = KUnixTime("YYYY:MM:DD hh:mm:ss ZZZ:ZZ", sOutput);
-
-	if (tLastMod.ok())
-	{
-		kDebug (1, "off-exif: {}", sOutput);
-		kDebug (1, "{}: off exif:DateTimeOriginal: {} > {:%T %F}", sPath, tLastMod.to_time_t(), tLastMod);
-	}
-	else
-	{
-		tLastMod = StatStruct.ModificationTime();
-		kDebug (1, "{}: imagemagick failed, using mtime off stat: {} > {:%T %F}", sPath, tLastMod.to_time_t(), tLastMod);
-	}
 
 	// watch for prelabelled somedir/K1231373376-IMG-343.jpg and use it for lastmod:
 	KString sBase = kBasename (sPath);
@@ -266,13 +246,6 @@ void StatInfo::DoStat (KString/*copy*/ sPath)
 		kDebug (1, "off filename: atoi({}) = st_mtime = {} > {:%T %F}\n", sBase, tLastMod.to_time_t(), tLastMod);
 	}
 
-	if (m_tOffset != 0)
-	{
-		tLastMod += m_tOffset;
-		kDebug(1, "offset   = {}\n", m_tOffset);
-		kDebug(1, "adjusted = {}\n", tLastMod.to_time_t());
-	}
-
 	KString sOwner = kFirstNonEmpty(kGetUsername(StatStruct.UID()), kFormat("{}", StatStruct.UID()));
 	KString sFiletype;
 
@@ -282,12 +255,45 @@ void StatInfo::DoStat (KString/*copy*/ sPath)
 	}
 	else if (StatStruct.IsFile())
 	{
+		if (!tLastMod.ok())
+		{
+			// only run imagemagick if we do not yet have a timestamp off the filename
+			KString   sOutput;
+
+			// use ImageMagick to get date photo was taken:
+			auto    sCmd = kFormat ("identify -format '%[exif:DateTimeOriginal] %[exif:OffsetTimeOriginal]' '{}'", sPath);
+			kDebug  (1, sCmd);
+			kSystem (sCmd, sOutput);
+
+			//            output: 2024:04:18 16:36:42 +02:00
+			tLastMod = KUnixTime("YYYY:MM:DD hh:mm:ss ZZZ:ZZ", sOutput);
+
+			if (tLastMod.ok())
+			{
+				kDebug (1, "off-exif: {}", sOutput);
+				kDebug (1, "{}: off exif:DateTimeOriginal: {} > {:%T %F}", sPath, tLastMod.to_time_t(), tLastMod);
+			}
+		}
+
 		FileType (sPath, sFiletype);
 	}
 	else
 	{
 		// pipes, sockets, devices ..
 		sFiletype = StatStruct.Type().Serialize();
+	}
+
+	if (!tLastMod.ok())
+	{
+		tLastMod = StatStruct.ModificationTime();
+		kDebug (1, "{}: imagemagick failed, using mtime off stat: {} > {:%T %F}", sPath, tLastMod.to_time_t(), tLastMod);
+	}
+
+	if (m_tOffset != 0)
+	{
+		tLastMod += m_tOffset;
+		kDebug(1, "offset   = {}\n", m_tOffset);
+		kDebug(1, "adjusted = {}\n", tLastMod.to_time_t());
 	}
 
 	auto sLastMod = kFormat ("{:%Y-%m-%d %a %H:%M:%S %Z}", tLastMod);

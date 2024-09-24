@@ -748,6 +748,7 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 		// build "domain:port"
 		KString sHost;
 		url.Domain.Serialize(sHost);
+		url.Port.WantStartSeparator();
 		url.Port.Serialize(sHost);
 
 		Request.Headers.Set(KHTTPHeader::HOST, sHost);

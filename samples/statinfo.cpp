@@ -1,11 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <pwd.h>   // for getpwuid()
-
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/kreader.h>
 #include <dekaf2/kwriter.h>
@@ -63,7 +55,7 @@ DateFields::DateFields (KUnixTime UnixTime)
 	sHourOfDay   = kFormat ("{:%H}", UTCTime);
 	sYear        = kFormat ("{:%Y}", UTCTime);
 	sTimestamp   = kFormat ("{:%Y-%m-%d %H:%M:%S}", UTCTime);
-	sDayOfWeek   = kFormat ("{}:{:%a}", UTCTime.weekday().c_encoding() + 1 /*  ptmStruct->tm_wday + 1 */, UTCTime).ToUpper();
+	sDayOfWeek   = kFormat ("{}:{:%a}", UTCTime.weekday().c_encoding() + 1, UTCTime).ToUpper();
 	sMonthOfYear = kFormat ("{}:{:%b}", unsigned(UTCTime.month()), UTCTime).ToUpper();
 
 	// move time back to first day of week (prior Sunday):
@@ -150,24 +142,13 @@ public:
 private:
 //------
 
-	KDuration   m_tOffset;
-	bool        m_bNoHeader { false };
-	KOutStream* m_OutStream { &KOut };
-
-	class DFIELDS
-	{
-		KUnixTime  iUnixTime;
-		KString    sTimestamp;   // 2001-03-31 12:00:00
-		KString    sHourOfDay;   // 12
-		KString    sDayOfWeek;   // 5:THU
-		KString    sWeekSpan;    // 2001-03-04(SUN)-->2001-03-10(SAT)
-		KString    sMonthOfYear; // 03:MAR
-		KString    sYear;        // 2001
-	};
-
 	void DoStat             (KString/*copy*/ sPath);
 	bool FileType           (KStringViewZ sFilename, KString& sFiletype);
 	void WriteHeader        ();
+
+	KDuration   m_tOffset;
+	bool        m_bNoHeader { false };
+	KOutStream* m_OutStream { &KOut };
 
 }; // StatInfo
 
@@ -203,14 +184,12 @@ int StatInfo::Main (int argc, char* argv[])
 				// read file names from stdin
 				for (auto& sFile : KIn)
 				{
-					kDebug(1, "from stdin");
 					sFile.Trim();
 					DoStat(sFile);
 				}
 			}
 			else
 			{
-				kDebug(1, "from args");
 				DoStat(sFile);
 			}
 		}
@@ -226,8 +205,6 @@ int StatInfo::Main (int argc, char* argv[])
 void StatInfo::DoStat (KString/*copy*/ sPath)
 //-----------------------------------------------------------------------------
 {
-	kDebug(1, sPath);
-
 	// skip incoming blank lines and comments:
 	if (!sPath || sPath.starts_with ('#') || sPath.In(".,.."))
 	{
@@ -335,8 +312,6 @@ void StatInfo::DoStat (KString/*copy*/ sPath)
 bool StatInfo::FileType (KStringViewZ sFilename, KString& sFiletype)
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
-
 	constexpr std::size_t MAXCHUNK = 512;
 	KString sChunk;
 
@@ -426,7 +401,7 @@ int main (int argc, char** argv)
 	}
 	catch (const std::exception& ex)
 	{
-		kPrintLine(KErr, ">> {}: {}", *argv, ex.what());
+		kPrintLine(KErr, "#>> {}: {}", *argv, ex.what());
 	}
 
 	return 1;

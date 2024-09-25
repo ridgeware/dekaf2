@@ -1397,6 +1397,11 @@ KFileStat::KFileStat(int iFileDescriptor)
 	{
 		FromStat(StatStruct, false);
 	}
+	else if (errno != ENOENT)
+	{
+		// only log errors other than not existing (that is expected)
+		SetError(kFormat("failed: {}: {}", iFileDescriptor, strerror(errno)));
+	}
 
 } // ctor
 #endif
@@ -1416,7 +1421,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 			if (errno != ENOENT)
 			{
 				// only log errors other than not existing (that is expected)
-				kDebug(1, "failed: {}: {}", sFilename, strerror(errno));
+				SetErrnoError(sFilename);
 			}
 			return;
 		}
@@ -1435,7 +1440,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 		if (errno != ENOENT)
 		{
 			// only log errors other than not existing (that is expected)
-			kDebug(1, "failed: {}: {}", sFilename, strerror(errno));
+			SetErrnoError(sFilename);
 		}
 		return;
 	}
@@ -1466,7 +1471,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 		// see https://en.cppreference.com/w/cpp/error/errc
 		if (ec != std::errc::no_such_file_or_directory)
 		{
-			kDebug(1, "{}: {}", sFilename, ec.message());
+			SetError(kFormat("{}: {}", sFilename, ec.message()));
 		}
 		m_mode = 0;
 	}
@@ -1482,7 +1487,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 
 		if (ec)
 		{
-			kDebug(1, "{}: {}", sFilename, ec.message());
+			SetError(kFormat("{}: {}", sFilename, ec.message()));
 			m_size = 0;
 		}
 	}
@@ -1491,7 +1496,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 
 	if (ec)
 	{
-		kDebug(1, "{}: {}", sFilename, ec.message());
+		SetError(kFormat("{}: {}", sFilename, ec.message()));
 	}
 	else
 	{
@@ -1515,7 +1520,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 
 #else
 
-	kDebug(1, "no implementation available for this environment");
+	SetError("no implementation available for this environment");
 
 #endif
 
@@ -1633,6 +1638,7 @@ const KDirectory::DirEntry KDirectory::s_Empty;
 void KDirectory::clear()
 //-----------------------------------------------------------------------------
 {
+	ClearError();
 	m_DirEntries.clear();
 
 } // clear
@@ -1648,7 +1654,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileTypes Types, bool bRecursi
 
 	if (sDirectory.empty())
 	{
-		kDebug(1, "directory name is empty");
+		SetError("directory name is empty");
 		return 0;
 	}
 
@@ -1660,7 +1666,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileTypes Types, bool bRecursi
 	{
 		if (ec)
 		{
-			kDebug(2, "{}: {}", sDirectory, ec.message());
+			SetError(kFormat("{}: {}", sDirectory, ec.message()));
 			break;
 		}
 
@@ -1668,7 +1674,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileTypes Types, bool bRecursi
 
 		if (ec)
 		{
-			kDebug(2, "{}: {}", sDirectory, ec.message());
+			SetError(kFormat("{}: {}", sDirectory, ec.message()));
 			break;
 		}
 
@@ -1692,9 +1698,11 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileTypes Types, bool bRecursi
 #else
 
 	auto d = ::opendir(sDirectory.c_str());
+
 	if (d)
 	{
 		struct dirent* dir;
+
 		while ((dir = ::readdir(d)) != nullptr)
 		{
 			// convert d_name immediately into a string view, as std::format()
@@ -1729,7 +1737,7 @@ size_t KDirectory::Open(KStringViewZ sDirectory, KFileTypes Types, bool bRecursi
 	}
 	else
 	{
-		kDebug(2, "could not open directory: {}", sDirectory);
+		SetError(kFormat("could not open directory: {}", sDirectory));
 	}
 
 #endif

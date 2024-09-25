@@ -539,7 +539,7 @@ KFileTypes operator|(KFileTypes first, const KFileTypes second)
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve information about a file that is typically found in the stat struct
-class DEKAF2_PUBLIC KFileStat
+class DEKAF2_PUBLIC KFileStat : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -727,7 +727,7 @@ std::unique_ptr<KOutFile> kCreateFileWithBackup(KStringView sOrigname, KStringVi
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve and filter directory listings
-class DEKAF2_PUBLIC KDirectory
+class DEKAF2_PUBLIC KDirectory : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

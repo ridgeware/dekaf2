@@ -561,6 +561,10 @@ public:
 		/// Get the value associated to an option name as a boolean
 		DEKAF2_NODISCARD
 		bool Bool()           const noexcept;
+		/// Get the value associated to an option name as a duration
+		template < typename DurationType = KDuration >
+		DEKAF2_NODISCARD
+		DurationType Duration() const noexcept { DurationType Value; kFromString(Value, String()); return Value; }
 		/// Get the count of arguments for this option
 		std::size_t size()    const noexcept { return m_Params.size();   }
 		/// Is the argument container empty?
@@ -572,6 +576,11 @@ public:
 		template < typename ValueType,
 			typename std::enable_if <std::is_assignable<ValueType, KStringViewZ>::value, int >::type = 0 >
 		operator    ValueType () const noexcept { return String(); }
+
+		// all duration types
+		template < typename ValueType,
+			typename std::enable_if <detail::is_duration<ValueType>::value, int >::type = 0 >
+		operator    ValueType () const noexcept { return Duration<ValueType>(); }
 
 		// all unsigned integers
 		template < typename ValueType,

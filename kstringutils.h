@@ -1311,6 +1311,19 @@ void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)
 
 //-----------------------------------------------------------------------------
 template<typename T,
+		 typename std::enable_if<detail::is_duration<T>::value == true, int>::type = 0>
+DEKAF2_PUBLIC
+void kFromString(T& Value, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	// the rep type may be something other than an int
+	typename T::rep rep_value;
+	kFromString(rep_value, sValue);
+	Value = T(rep_value);
+}
+
+//-----------------------------------------------------------------------------
+template<typename T,
 		 typename std::enable_if<std::is_enum<T>::value == true, int>::type = 0>
 DEKAF2_PUBLIC
 void kFromString(T& Value, KStringView sValue, uint16_t iBase = 10)

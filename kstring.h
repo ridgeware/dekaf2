@@ -915,7 +915,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// convert any integer to KString
-	template<typename Integer>
+	template<typename Integer,
+	         typename std::enable_if<detail::is_duration<Integer>::value == false, int>::type = 0>
 	DEKAF2_NODISCARD
 	static KString to_string(Integer i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = true)
 	//-----------------------------------------------------------------------------
@@ -926,6 +927,17 @@ public:
 			return signed_to_string(static_cast<int64_t>(i), iBase, bZeroPad, bUppercase);
 		}
 		return unsigned_to_string(static_cast<uint64_t>(i), iBase, bZeroPad, bUppercase);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// convert any duration to KString - note that this returns the pure tick count, and no unit whatsoever
+	template<typename Duration,
+	         typename std::enable_if<detail::is_duration<Duration>::value == true, int>::type = 0>
+	DEKAF2_NODISCARD
+	static KString to_string(Duration d)
+	//-----------------------------------------------------------------------------
+	{
+		return to_string(d.count());
 	}
 
 	//-----------------------------------------------------------------------------

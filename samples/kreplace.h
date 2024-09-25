@@ -10,7 +10,7 @@
 using namespace dekaf2;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class kreplace
+class KReplace
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -18,32 +18,35 @@ class kreplace
 public:
 //----------
 
-	kreplace ();
+	KReplace ();
 
 	int Main (int argc, char** argv);
 
 	static constexpr KStringViewZ s_sProjectName    { "kreplace" };
-	static constexpr KStringViewZ s_sProjectVersion { "0.0.1" };
+	static constexpr KStringViewZ s_sProjectVersion { "0.0.1"    };
 
 //----------
-protected:
+private:
 //----------
 
 	void ShowVersion ();
-	void Search(const KString sFilename);
-	struct Config
-	{
-		bool        bRegularExpression { false };
-		bool        bTerminate         { false };
-		bool        bReplace           { false };
-		bool        bRecursive         { false };
-		bool        bQuiet             { false };
-		bool        bBackup            { true  };
-		bool        bDryRun            { false };
-		KString     sSearch;
-		KString     sReplace;
-		std::vector<KString> Files;
-	};
+	void Search (const KString sFilename);
+	void Grep   (const KString sFilename);
+	void Revert ();
+
+	KString     m_sSearch;
+	KString     m_sReplace;
+	std::vector<KString> m_Files;
+	bool        m_bRegularExpression { false };
+	bool        m_bReplace           { false };
+	bool        m_bRecursive         { false };
+	bool        m_bQuiet             { false };
+	bool        m_bBackup            { true  };
+	bool        m_bDryRun            { false };
+	bool        m_bRevert            { false };
+	bool        m_bIgnoreCase        { false };
+	bool        m_bInvertMatch       { false };
+	bool        m_bIsASCII           { true  };
 
 	struct Stats
 	{
@@ -54,14 +57,7 @@ protected:
 		void Print(KOutStream& os);
 	};
 
-	Stats m_Stats;
-
-	Config m_Config;
-
-//----------
-private:
-//----------
-
+	Stats    m_Stats;
 	KOptions m_CLI { true };
 
-}; // kreplace
+}; // KReplace

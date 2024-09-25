@@ -1569,6 +1569,15 @@ target_link_libraries(kurl dekaf2)
 add_executable(khttp samples/khttp.cpp)
 target_link_libraries(khttp dekaf2)
 
+add_executable(kgrep samples/kgrep.h samples/kgrep.cpp)
+target_link_libraries(kgrep dekaf2)
+
+add_executable(kreplace samples/kreplace.h samples/kreplace.cpp)
+target_link_libraries(kreplace dekaf2)
+
+add_executable(statinfo samples/statinfo.cpp)
+target_link_libraries(statinfo dekaf2)
+
 add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
 target_link_libraries(getentities dekaf2)
 
@@ -1638,7 +1647,7 @@ install(TARGETS ${DEKAF2_TARGETS} EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake DESTINATION ${dekaf2_lib_dest})
-install(TARGETS klog createdbc dekaf2project kurl khttp DESTINATION ${dekaf2_bin_dest})
+install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace statinfo DESTINATION ${dekaf2_bin_dest})
 if (DEKAF2_HAS_NCURSES)
 	install(TARGETS unixmenu DESTINATION ${dekaf2_bin_dest})
 endif()
@@ -1710,6 +1719,10 @@ add_custom_target(uninstall
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/mysql-newuser"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/kport"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/my-ip-addr"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/khttp"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/kgrep"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/kreplace"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/statinfo"
 )
 
 # =================================== THE END ========================================

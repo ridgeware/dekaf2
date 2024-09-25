@@ -7,93 +7,54 @@
 #include <dekaf2/kexception.h>
 #include <dekaf2/kregex.h>
 #include <dekaf2/kformat.h>
+#include <dekaf2/kfilesystem.h>
 
 using namespace dekaf2;
 
 //-----------------------------------------------------------------------------
-void kreplace::Stats::Print(KOutStream& os)
+void KReplace::Stats::Print(KOutStream& os)
 //-----------------------------------------------------------------------------
 {
-	os.FormatLine("{} files, {} hits, {} kb", iFiles, iFound, iBytes / 1024);
+	os.FormatLine("{} files, {} hits, {}", iFiles, iFound, kFormBytes(iBytes, " "));
 }
 
 //-----------------------------------------------------------------------------
-kreplace::kreplace ()
+KReplace::KReplace ()
 //-----------------------------------------------------------------------------
 {
 	KInit(false).SetName(s_sProjectName).SetOnlyShowCallerOnJsonError();
 
 	m_CLI.Throw();
 
-	m_CLI.Option("e,expression").Help("is regular expression")
-	([&]
-	{
-		m_Config.bRegularExpression = true;
-	});
-
-	m_CLI.Option("s,search").Help("search [expression]")
-	([&](KStringViewZ sSearch)
-	{
-		m_Config.sSearch = sSearch;
-	});
-
-	m_CLI.Option("r,replace").Help("replace with [expression]")
-	([&](KStringViewZ sReplace)
-	{
-		m_Config.bReplace = true;
-		m_Config.sReplace = sReplace;
-	});
-
-	m_CLI.Option("R,recursive").Help("recursive directory traversal")
-	([&](KStringViewZ sReplace)
-	{
-		m_Config.bReplace = true;
-		m_Config.sReplace = sReplace;
-	});
-
-	m_CLI.Option("q,quiet").Help("quiet operation")
-	([&]()
-	{
-		m_Config.bQuiet = true;
-	});
-
-	m_CLI.Option("u,unsafe").Help("no backup files")
-	([&]()
-	{
-		m_Config.bBackup = false;
-	});
-
-	m_CLI.Option("dry").Help("dry run, no file modifications")
-	([&]
-	{
-		m_Config.bDryRun = true;
-	});
-
-	m_CLI.Option("v,version").Help("show version information")
-	([&]()
-	{
-		ShowVersion();
-		m_Config.bTerminate = true;
-	});
+	m_CLI.Option("e,expression"  ).Help("is regular expression"         ).Set(m_bRegularExpression, true);
+	m_CLI.Option("s,search  [expression]").Help("search [expression]"   ).Set(m_sSearch);
+	m_CLI.Option("r,replace [expression]").Help("replace with [expression]").Callback([&](KStringViewZ sArg) { m_sReplace = sArg; m_bReplace = true; });
+	m_CLI.Option("R,recursive"   ).Help("recursive directory traversal" ).Set(m_bRecursive        , true );
+	m_CLI.Option("q,quiet"       ).Help("quiet operation"               ).Set(m_bQuiet            , true );
+	m_CLI.Option("u,unsafe"      ).Help("no backup files"               ).Set(m_bBackup           , false);
+	m_CLI.Option("dry"           ).Help("dry run, no file modifications").Set(m_bDryRun           , true );
+	m_CLI.Option("i,ignore-case" ).Help("ignore case in comparison"     ).Set(m_bIgnoreCase       , true );
+	m_CLI.Option("v,invert-match").Help("show lines that do not match"  ).Set(m_bInvertMatch      , true );
+	m_CLI.Option("V,version"     ).Help("show version information"      ).Final() ([&]() { ShowVersion(); });
+	m_CLI.Option("revert"        ).Help("rename files with .old suffix to name without .old suffix").Set(m_bRevert, true );
 
 	m_CLI.RegisterUnknownCommand([&](KOptions::ArgList& Args)
 	{
-		for (auto& sArg : Args)
+		while (!Args.empty())
 		{
+			auto sArg = Args.pop();
+			
 			if (kFileExists(sArg))
 			{
-				kDebug(1, "adding: {}", sArg);
-				m_Config.Files.push_back(sArg);
+				m_Files.push_back(sArg);
 			}
 			else if (kDirExists(sArg))
 			{
-				kDebug(1, "directory: {}", sArg);
-				KDirectory Dir(sArg, KFileType::FILE, m_Config.bRecursive);
+				KDirectory Dir(sArg, KFileType::FILE, m_bRecursive);
 
 				for (auto& File : Dir)
 				{
-					kDebug(1, "adding: {}", File.Filename());
-					m_Config.Files.push_back(File);
+					m_Files.push_back(File);
 				}
 			}
 		}
@@ -103,10 +64,10 @@ kreplace::kreplace ()
 } // ctor
 
 //-----------------------------------------------------------------------------
-void kreplace::Search(const KString sFilename)
+void KReplace::Search(const KString sFilename)
 //-----------------------------------------------------------------------------
 {
-	if (!m_Config.bQuiet)
+	if (!m_bQuiet)
 	{
 		KOut.Format("reading {}", sFilename);
 	}
@@ -122,30 +83,81 @@ void kreplace::Search(const KString sFilename)
 	++m_Stats.iFiles;
 	m_Stats.iBytes += sContent.size();
 
-	if (!m_Config.bQuiet)
+	if (!m_bQuiet)
 	{
-		KOut.Format(" - {} kb", sContent.size() / 1024);
+		KOut.Format(" - {}", kFormBytes(sContent.size(), " "));
 	}
 
 	std::size_t iFound { 0 };
 
-	if (m_Config.bRegularExpression)
+	if (!m_bReplace)
 	{
-		iFound = sContent.ReplaceRegex(m_Config.sSearch, m_Config.sReplace);
+		KString::size_type iPos = 0;
+
+		if (m_bRegularExpression)
+		{
+			for (;;)
+			{
+				auto sMatch = sContent.MatchRegex(m_sSearch, iPos);
+
+				if (sMatch.empty())
+				{
+					break;
+				}
+
+				++iFound;
+				iPos = (sMatch.data() - sContent.data()) + sMatch.size();
+			}
+		}
+		else
+		{
+			if (m_bIgnoreCase)
+			{
+				if (m_bIsASCII) sContent.MakeLowerASCII ();
+				else            sContent.MakeLower      ();
+			}
+
+			for (;;)
+			{
+				iPos = sContent.find(m_sSearch, iPos);
+
+				if (iPos == KString::npos)
+				{
+					break;
+				}
+
+				++iFound;
+				++iPos;
+			}
+		}
 	}
 	else
 	{
-		iFound = sContent.Replace(m_Config.sSearch, m_Config.sReplace);
+		if (m_bRegularExpression)
+		{
+			iFound = sContent.ReplaceRegex(m_sSearch, m_sReplace);
+		}
+		else
+		{
+			if (m_bIgnoreCase)
+			{
+				throw KError("case insensitive replace is not available when not in regex mode");
+			}
+			else
+			{
+				iFound = sContent.Replace (m_sSearch, m_sReplace);
+			}
+		}
 	}
 
-	if (!m_Config.bQuiet)
+	if (!m_bQuiet)
 	{
-		KOut.Format(" - {} {}", m_Config.bReplace ? "replaced" : "found", iFound);
+		KOut.Format(" - {} {}", m_bReplace ? "replaced" : "found", iFound);
 	}
 
-	if (iFound && m_Config.bReplace && !m_Config.bDryRun)
+	if (iFound && m_bReplace && !m_bDryRun)
 	{
-		if (m_Config.bBackup)
+		if (m_bBackup)
 		{
 			auto os = kCreateFileWithBackup(sFilename);
 
@@ -167,7 +179,7 @@ void kreplace::Search(const KString sFilename)
 		}
 	}
 
-	if (!m_Config.bQuiet)
+	if (!m_bQuiet)
 	{
 		KOut.WriteLine();
 	}
@@ -177,7 +189,7 @@ void kreplace::Search(const KString sFilename)
 } // Search
 
 //-----------------------------------------------------------------------------
-void kreplace::ShowVersion()
+void KReplace::ShowVersion()
 //-----------------------------------------------------------------------------
 {
 	KOut.FormatLine(":: {} v{}", s_sProjectName, s_sProjectVersion);
@@ -185,42 +197,94 @@ void kreplace::ShowVersion()
 } // ShowVersion
 
 //-----------------------------------------------------------------------------
-int kreplace::Main(int argc, char** argv)
+void KReplace::Revert()
 //-----------------------------------------------------------------------------
 {
+	// search in filelist for files with suffix .old, and rename them
+	for (const auto& sOldFile : m_Files)
 	{
-		auto iRetVal = m_CLI.Parse(argc, argv, KOut);
+		++m_Stats.iFiles;
 
-		if (iRetVal	|| m_Config.bTerminate)
+		if (kExtension(sOldFile) == "old")
 		{
-			// either error or completed
-			return iRetVal;
-		}
+			KString sNewName = kRemoveExtension(sOldFile);
 
-		if (m_Config.Files.empty())
+			if (!m_bDryRun)
+			{
+				kRename(sOldFile, sNewName);
+			}
+
+			++m_Stats.iFound;
+
+			if (!m_bQuiet)
+			{
+				kPrintLine("renamed {} to {}", sOldFile, sNewName);
+			}
+		}
+	}
+
+} // Revert
+
+//-----------------------------------------------------------------------------
+int KReplace::Main(int argc, char** argv)
+//-----------------------------------------------------------------------------
+{
+	auto iRetVal = m_CLI.Parse(argc, argv, KOut);
+
+	if (iRetVal	|| m_CLI.Terminate()) return iRetVal;
+
+	if (m_Files.empty()) throw KError("no input files");
+	if (m_sSearch.empty() && !m_bRevert) throw KError("no search expression");
+
+	for (auto ch : m_sSearch)
+	{
+		if (static_cast<unsigned char>(ch) > 127)
 		{
-			throw KError("no input files");
+			// this search contains other than ASCII characters
+			m_bIsASCII = false;
+			break;
 		}
+	}
 
-		if (m_Config.sSearch.empty())
+	if (m_bRegularExpression)
+	{
+		// enable multi-line mode (^ and $ will match any \n instead of only
+		// start and end of the string)
+		if (m_bIgnoreCase)
 		{
-			throw KError("no search expression");
+			// and also enable case insensitive matching
+			m_sSearch.insert(0, "(?im)");
 		}
-
-		if (m_Config.bDryRun && !m_Config.bQuiet)
+		else
 		{
-			KOut.WriteLine("dry run, no file modifications");
+			m_sSearch.insert(0, "(?m)");
 		}
+	}
+	else
+	{
+		m_sSearch.MakeLower();
+	}
 
-		for (const auto& sFile : m_Config.Files)
+	if (m_bDryRun && !m_bQuiet)
+	{
+		KOut.WriteLine("dry run, no file modifications");
+	}
+
+	if (m_bRevert) 
+	{
+		Revert();
+	}
+	else
+	{
+		for (const auto& sFile : m_Files)
 		{
 			Search(sFile);
 		}
+	}
 
-		if (!m_Config.bQuiet)
-		{
-			m_Stats.Print(KOut);
-		}
+	if (!m_bQuiet)
+	{
+		m_Stats.Print(KOut);
 	}
 
 	return 0;
@@ -233,21 +297,17 @@ int main (int argc, char** argv)
 {
 	try
 	{
-		return kreplace().Main (argc, argv);
-	}
-	catch (const KError& ex)
-	{
-		KErr.FormatLine(">> {}: {}", kreplace::s_sProjectName, ex.what());
+		return KReplace().Main (argc, argv);
 	}
 	catch (const std::exception& ex)
 	{
-		KErr.FormatLine(">> {}: {}", kreplace::s_sProjectName, ex.what());
+		KErr.FormatLine(">> {}: {}", KReplace::s_sProjectName, ex.what());
 	}
 	return 1;
 
 } // main
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-constexpr KStringViewZ kreplace::s_sProjectName;
-constexpr KStringViewZ kreplace::s_sProjectVersion;
+constexpr KStringViewZ KReplace::s_sProjectName;
+constexpr KStringViewZ KReplace::s_sProjectVersion;
 #endif

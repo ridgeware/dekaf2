@@ -52,6 +52,10 @@ set (KREPLACE_HEADERS
 
 add_executable(kreplace ${KREPLACE_HEADERS} ${KREPLACE_SOURCES})
 target_link_libraries(kreplace dekaf2)
+
+add_executable(kgrep kgrep.h kgrep.cpp)
+target_link_libraries(kgrep dekaf2)
+
 add_executable(statinfo statinfo.cpp)
 target_link_libraries(statinfo dekaf2)
 
@@ -66,8 +70,7 @@ set(share_dest "share/${PROJECT_NAME}")
 # always put this first, otherwise it risks to remove other already installed cmake config files
 #install(EXPORT ${PROJECT_NAME} DESTINATION "${lib_dest}")
 
-install(TARGETS kreplace DESTINATION ${bin_dest})
-install(TARGETS statinfo DESTINATION ${bin_dest})
+install(TARGETS kreplace kgrep statinfo DESTINATION ${bin_dest})
 
 set(CPACK_SOURCE_GENERATOR ZIP)
 set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})
@@ -83,6 +86,7 @@ add_custom_target(uninstall-samples
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}/${share_dest}"
 	COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_INSTALL_PREFIX}/${include_dest}"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${bin_dest}/kreplace"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${bin_dest}/kgrep"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${bin_dest}/statinfo"
 )
 

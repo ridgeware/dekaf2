@@ -144,11 +144,13 @@ private:
 
 	void DoStat             (KString/*copy*/ sPath);
 	bool FileType           (KStringViewZ sFilename, KString& sFiletype);
+	void OpenDirectory      (KStringViewZ sDirectory);
 	void WriteHeader        ();
 
-	KDuration   m_tOffset;
-	bool        m_bNoHeader { false };
-	KOutStream* m_OutStream { &KOut };
+	KOutStream*     m_OutStream  { &KOut };
+	chrono::seconds m_tOffset    { chrono::seconds(0) };
+	bool            m_bNoHeader  { false };
+	bool            m_bRecursive { false };
 
 }; // StatInfo
 
@@ -167,8 +169,9 @@ int StatInfo::Main (int argc, char* argv[])
 
 	Options.SetAdditionalArgDescription("{ <file[s]> | - }");
 
-	m_tOffset   = chrono::seconds(Options("offset   : add and offset (in secs) to UTC", 0).Int64());
-	m_bNoHeader =                 Options("noheader : eliminate header row"           , false);
+	Options.Option("o,offset"   ).Help("add an offset (in secs) to UTC").Set(m_tOffset);
+	Options.Option("n,noheader" ).Help("eliminate header row"          ).Set(m_bNoHeader , true);
+	Options.Option("r,recursive").Help("traverse directories"          ).Set(m_bRecursive, true);
 
 	// catch any args that are not known options - those are file names to inspect
 	Options.UnknownCommand([&](KOptions::ArgList& Args)
@@ -202,6 +205,21 @@ int StatInfo::Main (int argc, char* argv[])
 } // StatInfo::Main
 
 //-----------------------------------------------------------------------------
+void StatInfo::OpenDirectory (KStringViewZ sDirectory)
+//-----------------------------------------------------------------------------
+{
+	KDirectory Dir(sDirectory, KFileType::FILE | KFileType::DIRECTORY | KFileType::SYMLINK);
+
+	Dir.RemoveHidden();
+
+	for (auto& File : Dir)
+	{
+		DoStat(kFormat("{}{}{}", sDirectory, kDirSep, File.Filename()));
+	}
+
+} // OpenDirectory
+
+//-----------------------------------------------------------------------------
 void StatInfo::DoStat (KString/*copy*/ sPath)
 //-----------------------------------------------------------------------------
 {
@@ -228,8 +246,14 @@ void StatInfo::DoStat (KString/*copy*/ sPath)
 
 	if (!StatStruct.Exists())
 	{
-		// TODO for non-POSIX
-		KOut.FormatLine ("# {}: {}", strerror(errno), sPath); // output a comment if stat() fails:
+		if (StatStruct.GetLastErrorCode())
+		{
+			kPrintLine (*m_OutStream, "# {}", StatStruct.GetLastError()); // output a comment if stat() fails:
+		}
+		else
+		{
+			kPrintLine (*m_OutStream, "# {}: file not found", sPath);
+		}
 		return;
 	}
 
@@ -251,14 +275,23 @@ void StatInfo::DoStat (KString/*copy*/ sPath)
 
 	if (StatStruct.IsDirectory())
 	{
-		sFiletype = "dir";
+		if (m_bRecursive)
+		{
+			sPath.remove_suffix(kDirSep);
+			OpenDirectory(sPath);
+			return;
+		}
+		else
+		{
+			sFiletype = "dir";
+		}
 	}
 	else if (StatStruct.IsFile())
 	{
 		if (!tLastMod.ok())
 		{
 			// only run imagemagick if we do not yet have a timestamp off the filename
-			KString   sOutput;
+			KString sOutput;
 
 			// use ImageMagick to get date photo was taken:
 			auto    sCmd = kFormat ("identify -format '%[exif:DateTimeOriginal] %[exif:OffsetTimeOriginal]' '{}'", sPath);
@@ -289,7 +322,7 @@ void StatInfo::DoStat (KString/*copy*/ sPath)
 		kDebug (1, "{}: imagemagick failed, using mtime off stat: {} > {:%T %F}", sPath, tLastMod.to_time_t(), tLastMod);
 	}
 
-	if (m_tOffset != 0)
+	if (m_tOffset != chrono::seconds(0))
 	{
 		tLastMod += m_tOffset;
 		kDebug(1, "offset   = {}\n", m_tOffset);

@@ -491,24 +491,49 @@ TEST_CASE("KString") {
 		KString s;
 
 		s = "I like 456ABC and 496EFK.";
-		s.ReplaceRegex("([0-9]+)([A-Z]+)", "Num \\1 and Letters \\2", true);
+		auto iCount = s.ReplaceRegex("([0-9]+)([A-Z]+)", "Num \\1 and Letters \\2", true);
+		CHECK( iCount == 2 );
 		CHECK( s == "I like Num 456 and Letters ABC and Num 496 and Letters EFK.");
 
 		s = "I like 456ABC.";
-		s.ReplaceRegex("([0-9]+)([A-Z]+)", "the \\0", true);
+		iCount = s.ReplaceRegex("([0-9]+)([A-Z]+)", "the \\0", true);
+		CHECK( iCount == 1 );
 		CHECK( s == "I like the 456ABC.");
 
 		s = "I like 456ABC.";
-		s.ReplaceRegex("([0-9]+)([A-Z]+)", "the \\2", true);
+		iCount = s.ReplaceRegex("([0-9]+)([A-Z]+)", "the \\2", true);
+		CHECK( iCount == 1 );
 		CHECK( s == "I like the ABC.");
 
 		s = "abcdefghi";
-		s.ReplaceRegex("c.*f", "--", true);
+		iCount = s.ReplaceRegex("c.*f", "--", true);
+		CHECK( iCount == 1 );
 		CHECK( s == "ab--ghi" );
 
 		s = "abcdefghi";
-		s.ReplaceRegex("c(.*)f", "-\\1-", true);
+		iCount = s.ReplaceRegex("c(.*)f", "-\\1-", true);
+		CHECK( iCount == 1 );
 		CHECK( s == "ab-de-ghi" );
+
+		s = "abcdefghi";
+		iCount = s.ReplaceRegex("cde", "", true);
+		CHECK( iCount == 1 );
+		CHECK( s == "abfghi" );
+
+		s = "abcdefghiabcdefghi";
+		iCount = s.ReplaceRegex("cde", "", true);
+		CHECK( iCount == 2 );
+		CHECK( s == "abfghiabfghi" );
+
+		s = "a\nbcdefghi";
+		iCount = s.ReplaceRegex("(?i)CdE", "", true);
+		CHECK( iCount == 1 );
+		CHECK( s == "a\nbfghi" );
+
+		s = "a\nbcdefgh\niabcdefghi";
+		iCount = s.ReplaceRegex("(?i)CdE", "", true);
+		CHECK( iCount == 2 );
+		CHECK( s == "a\nbfgh\niabfghi" );
 	}
 
 	SECTION("find")

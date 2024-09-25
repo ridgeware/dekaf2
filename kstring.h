@@ -475,14 +475,35 @@ public:
 	self&& Format(KFormatString<Args...> sFormat, Args&&... args) && { return std::move(Format(sFormat, std::forward<Args>(args)...)); }
 
 	/// match with regular expression and return the overall match (group 0)
+	/// please note the following flags when added to the search regex:
+	/// (?i) : case insensitive compare.
+	/// (?m) : multiline mode, ^ and $ will match any linefeed <br>instead of only start and end of the string.
+	/// (?s) : let . match linefeed.
+	/// (?U) : ungreedy.
+	/// these flags can be combined like (?im) and have effect on the following string, they can be
+	/// unset with a prepended - , like (?-im)
 	DEKAF2_NODISCARD
 	KStringView MatchRegex(const KStringView sRegEx, size_type pos = 0) const;
 
 	/// match with regular expression and return all match groups
+	/// please note the following flags when added to the search regex:
+	/// (?i) : case insensitive compare.
+	/// (?m) : multiline mode, ^ and $ will match any linefeed <br>instead of only start and end of the string.
+	/// (?s) : let . match linefeed.
+	/// (?U) : ungreedy.
+	/// these flags can be combined like (?im) and have effect on the following string, they can be
+	/// unset with a prepended - , like (?-im)
 	DEKAF2_NODISCARD
 	std::vector<KStringView> MatchRegexGroups(const KStringView sRegEx, size_type pos = 0) const;
 
 	/// replace with regular expression, sReplaceWith may address sub-groups with \\1 etc., modifies string and returns number of replacements made
+	/// please note the following flags when added to the search regex:
+	/// (?i) : case insensitive compare.
+	/// (?m) : multiline mode, ^ and $ will match any linefeed <br>instead of only start and end of the string.
+	/// (?s) : let . match linefeed.
+	/// (?U) : ungreedy.
+	/// these flags can be combined like (?im) and have effect on the following string, they can be
+	/// unset with a prepended - , like (?-im)
 	size_type ReplaceRegex(const KStringView sRegEx, const KStringView sReplaceWith, bool bReplaceAll = true);
 
 	/// replace part of the string with another string, modifies string and returns number of replacements made

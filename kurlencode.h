@@ -403,7 +403,7 @@ public:
 		if (Component == URIPart::Domain && kIsIPv6Address(m_sDecoded, true))
 		{
 			// an IPv6 address
-			sEncoded = m_sDecoded;
+			sEncoded += m_sDecoded;
 		}
 		else
 		{

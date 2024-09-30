@@ -34,51 +34,6 @@ if [ "$1" = "-x" ]; then
 	shift
 fi
 
-setx=statinfo
-#==============================
-statinfo ()
-#==============================
-{
-	# expected fullpaths on stdin
-	# need to output: lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
-
-    # lastmod-string used to come from statinfo.cpp and contains:
-	#    time_t iUnixTime;
-	#    char   szTimestamp[19+1];  // 2001-03-31 Mon 12:00:00
-	#    char   szHourOfDay[2+1];   // 12
-	#    char   szDayOfWeek[5+1];   // 5:THU
-	#    char   szWeekSpan[33+1];   // 2001-03-04(SUN)-->2001-03-10(SAT)
-	#    char   szMonthOfYear[6+1]; // 03:MAR
-	#    char   szYear[4+1];        // 2001
-
-	while read fullpath
-	do
-		case $(uname) in
-			Darwin)
-				local lastmod_utc=$(stat -r "${fullpath}" | awk '{print $9}')
-				local timestamp=$(  stat -f %Sm -t '%Y-%m-%d %a %H:%M:%S' "${fullpath}")
-				local H=$(          stat -f %Sm -t '%H' "${fullpath}")
-				local DOW=$(        stat -f %Sm -t '%u:%a' "${fullpath}" | tr '[a-z]' '[A-Z]')
-				local MOY=$(        stat -f %Sm -t '%m:%b' "${fullpath}" | tr '[a-z]' '[A-Z]')
-				local Y=$(          stat -f %Sm -t '%Y' "${fullpath}")
-				;;
-			*)
-				local lastmod_utc=$(stat --format '%Y'          "${fullpath}")
-				local timestamp=$(  stat --format '%y-%m-%d %a %T' "${fullpath}")
-				local H=$(          stat --format '%H' "${fullpath}")
-				local DOW=$(        stat --format '%u:%a' "${fullpath}" | tr '[a-z]' '[A-Z]')
-				local MOY=$(        stat --format '%m:%b' "${fullpath}" | tr '[a-z]' '[A-Z]')
-				local Y=$(          stat --format '%Y' "${fullpath}")
-				;;
-		esac
-
-		local lastmod_str="${timestamp}|${H}|${DOW}|weekspan|${MOY}|${Y}"
-
-		echo "${lastmod_utc}|${lastmod_str}|0|owner|uid|type|${fullpath}"
-	done
-
-} # statinfo
-
 setx=ProcessDir
 #==============================
 ProcessDir ()
@@ -91,7 +46,7 @@ ProcessDir ()
 	#------------------------------------------------------------	
 	printf ":: pass 1/3: %s\n" "$1"
 	find "$1" -name "*.[NnCc][EeRr][Ff2]" -print \
-		| statinfo \
+		| statinfo -noheader -offset $iOffset - \
 		| while read Line
 		do
 			#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
@@ -108,7 +63,7 @@ ProcessDir ()
 	#------------------------------------------------------------	
 	printf ":: pass 2/3: %s\n" "$1"
 	find "$1" -name "*.*" -print \
-		| statinfo \
+		| statinfo -noheader -offset $iOffset - \
 		| while read Line
 		do
 			#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
@@ -125,7 +80,7 @@ ProcessDir ()
 	#------------------------------	
 	printf ":: pass 3/3: %s\n" "$1"
 	find "$1" -name "*.*" -print \
-		| statinfo \
+		| statinfo -noheader -offset $iOffset - \
 		| while read Line
 		do
 			#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname

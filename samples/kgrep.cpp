@@ -137,7 +137,7 @@ int KGrep::Main(int argc, char** argv)
 
 		Options.SetAdditionalArgDescription("<search expression> <file[s]>");
 
-		Options.Option("e,expression"  ).Help("is regular expression"         ).Set(m_bRegularExpression , true);
+		Options.Option("e,regexp"      ).Help("is regular expression"         ).Set(m_bRegularExpression , true);
 		Options.Option("R,recursive"   ).Help("recursive directory traversal" ).Set(m_bRecursive         , true);
 		Options.Option("i,ignore-case" ).Help("ignore case in comparison"     ).Set(m_bIgnoreCase        , true);
 		Options.Option("v,invert-match").Help("show lines that do not match"  ).Set(m_bInvertMatch       , true);

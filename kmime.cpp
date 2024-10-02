@@ -50,6 +50,7 @@
 #include "kctype.h"
 #include "kinshell.h"
 #include "kfilesystem.h"
+#include "kinstringstream.h"
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN

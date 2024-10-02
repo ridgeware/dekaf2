@@ -62,7 +62,7 @@ std::string KTLSContext::PasswordCallback(std::size_t max_length,
 ::SSL_CTX* KTLSContext::CreateContext(bool bIsServer, Transport transport)
 //-----------------------------------------------------------------------------
 {
-#if (DEKAF2_HAS_ASIO_CONTEXT_FROM_OPENSSL_CONTEXT)
+#if (DEKAF2_HAS_ASIO_CONTEXT_FROM_OPENSSL_CONTEXT && OPENSSL_VERSION_NUMBER >= 0x10100000L)
 	switch (transport)
 	{
 		case Transport::Tcp:
@@ -104,14 +104,14 @@ KTLSContext::KTLSContext(bool bIsServer, Transport transport)
 //-----------------------------------------------------------------------------
 #if (DEKAF2_CLASSIC_ASIO)
 : m_Context(s_IO_Service, boost::asio::ssl::context::sslv23)
-#elif (!DEKAF2_HAS_ASIO_CONTEXT_FROM_OPENSSL_CONTEXT)
+#elif (!DEKAF2_HAS_ASIO_CONTEXT_FROM_OPENSSL_CONTEXT || OPENSSL_VERSION_NUMBER < 0x10100000L)
 : m_Context(bIsServer ? boost::asio::ssl::context::tls_server : boost::asio::ssl::context::tls_client)
 #else
 : m_Context(CreateContext(bIsServer, transport))
 #endif
 , m_Role(bIsServer ? boost::asio::ssl::stream_base::server : boost::asio::ssl::stream_base::client)
 {
-#if (!DEKAF2_HAS_ASIO_CONTEXT_FROM_OPENSSL_CONTEXT)
+#if (!DEKAF2_HAS_ASIO_CONTEXT_FROM_OPENSSL_CONTEXT || OPENSSL_VERSION_NUMBER < 0x10100000L)
 	if (transport == Transport::Quic)
 	{
 		kDebug(1, "you need a boost version >= 1.73 to enable QUIC");

@@ -417,11 +417,14 @@ bool KTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		{
 			GetAsioSocket().set_verify_mode(boost::asio::ssl::verify_peer
 			                              | boost::asio::ssl::verify_fail_if_no_peer_cert);
-			// looks as if asio is not setting the expected host name though? Let's do it manually
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+			// looks as if asio is not setting the expected host name though? Let's do it manually.
+			// that only works though with OpenSSL versions >= 1.1.0
 			if (!::SSL_set1_host(GetNativeTLSHandle(), sHostname.c_str()))
 			{
 				return SetError(kFormat("Failed to set the certificate verification hostname: {}", sHostname));
 			}
+#endif
 		}
 		else
 		{

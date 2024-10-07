@@ -123,7 +123,11 @@ bool kAppendAllUnseekable(std::istream& Stream, KStringRef& sContent, std::size_
 		{
 			sContent.append(buf.data(), static_cast<std::size_t>(iRead));
 
-			if (sContent.size() > iLimit)
+			if (sContent.size() >= iMaxRead)
+			{
+				return true;
+			}
+			else if (sContent.size() > iLimit)
 			{
 				// only warn if the limit was not iMaxRead
 				if (sContent.size() < iMaxRead)

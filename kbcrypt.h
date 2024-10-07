@@ -69,11 +69,21 @@ public:
 
 	/// constructor that computes the workload factor to take not longer than
 	/// the given duration, e.g. some 100ms for a password check
-	KBCrypt (KDuration Duration) { ComputeWorkload(Duration); }
+	/// @param Duration the maximum duration for the hash computation
+	/// @param bComputeAtFirstUse if true, the workload will be computed at
+	/// first use of the hash function, otherwise immediately.
+	KBCrypt (KDuration Duration, bool bComputeAtFirstUse = true) { ComputeWorkload(Duration, bComputeAtFirstUse); }
 
-	/// generate a bcrypt password hash to store into a database
+	/// constructor that sets the workload factor to a fixed value between 4 and 31 -
+	/// note that this leads to very different execution times on different hardware
+	/// @param iWorkload the workload factor to use
+	/// @param bAdjustIfOutOfBounds if true will correct values outside of
+	/// the valid range, if false will set an error - defaults to true.
+	KBCrypt (uint16_t iWorkload, bool bAdjustIfOutOfBounds = true) { SetWorkload(iWorkload, bAdjustIfOutOfBounds); }
+
+	/// generate a bcrypt password hash to e.g. store into a database
 	/// @param sPassword the password to be hashed
-	/// @return the bcrypt password hash, including salt and algorithm
+	/// @return the bcrypt password hash, including salt and algorithm flag
 	DEKAF2_NODISCARD
 	KString  GenerateHash     (KStringViewZ sPassword);
 
@@ -84,17 +94,28 @@ public:
 	DEKAF2_NODISCARD
 	bool     ValidatePassword (KStringViewZ sPassword, KStringViewZ sHash);
 
-	/// returns the current workload factor, either preset or computed,
+	/// returns the current workload factor, either preset or computed
 	DEKAF2_NODISCARD
-	uint16_t GetWorkload      () const { return m_iWorkload; }
+	uint16_t GetWorkload      ();
 
 	/// sets the workload factor to a fixed value between 4 and 31 -
 	/// better use timed computation
+	/// @param iWorkload the workload factor to use
+	/// @param bAdjustIfOutOfBounds if true will correct values outside of
+	/// the valid range, if false will set an error - defaults to true.
+	/// @return true if the workload factor was accepted (also if adjusted)
 	bool     SetWorkload      (uint16_t iWorkload, bool bAdjustIfOutOfBounds = true);
 
 	/// computes the workload factor to take not longer than
 	/// the given duration, e.g. some 100ms for a password check
-	void     ComputeWorkload  (KDuration Duration);
+	/// @param Duration the maximum duration for the hash computation
+	/// @param bComputeAtNextUse if true, the workload will be computed at
+	/// next use of the hash function, otherwise immediately.
+	void     ComputeWorkload  (KDuration Duration, bool bComputeAtNextUse);
+
+	/// returns the duration set for the last ComputeWorkload()
+	DEKAF2_NODISCARD
+	KDuration GetWorkloadDuration () const { return m_Duration; }
 
 //----------
 private:
@@ -105,7 +126,9 @@ private:
 
 	using Token = std::array<char, iBCryptHashSize>;
 
-	uint16_t m_iWorkload { 8 };
+	KDuration m_Duration;
+	uint16_t  m_iWorkload { 8 };
+	bool      m_bComputeAtNextUse { false };
 
 	bool GenerateSalt  (Token& Salt);
 	bool HashPassword  (KStringViewZ sPassword, const char* sSalt, Token& Hash);

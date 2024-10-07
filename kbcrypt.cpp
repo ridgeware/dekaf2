@@ -44,6 +44,7 @@
 #include "kduration.h"
 #include "kreader.h"
 #include "klog.h"
+#include "ksystem.h"
 
 extern "C" {
 extern char *crypt_rn(const char *key, const char *setting,
@@ -144,16 +145,22 @@ bool KBCrypt::CheckPassword(KStringViewZ sPassword, KStringViewZ sHash)
 KString KBCrypt::GenerateHash(KStringViewZ sPassword)
 //-----------------------------------------------------------------------------
 {
-	std::array<char, iBCryptHashSize> Salt;
-	std::array<char, iBCryptHashSize> Hash;
+	if (m_bComputeAtNextUse)
+	{
+		ComputeWorkload(m_Duration, false);
+	}
 
 	auto Timer = kWouldLog(2) ? KStopTime() : KStopTime(KStopTime::Halted);
+
+	Token Salt;
 
 	if (!GenerateSalt(Salt))
 	{
 		SetError("cannot generate salt");
 		return {};
 	}
+
+	Token Hash;
 
 	if (!HashPassword(sPassword, Salt.data(), Hash) != 0)
 	{
@@ -211,6 +218,7 @@ bool KBCrypt::SetWorkload(uint16_t iWorkload, bool bAdjustIfOutOfBounds)
 	}
 
 	m_iWorkload = iWorkload;
+	m_bComputeAtNextUse = false;
 
 	kDebug(2, "workload set to {}", m_iWorkload);
 
@@ -219,27 +227,55 @@ bool KBCrypt::SetWorkload(uint16_t iWorkload, bool bAdjustIfOutOfBounds)
 } // SetWorkload
 
 //-----------------------------------------------------------------------------
-void KBCrypt::ComputeWorkload(KDuration Duration)
+void KBCrypt::ComputeWorkload(KDuration Duration, bool bComputeAtNextUse)
 //-----------------------------------------------------------------------------
 {
 	// compute a workload value that results in less or equal the requested
 	// duration
 
-	for (uint16_t i = 4; i < 31; ++i)
+	m_Duration = Duration;
+
+	if (bComputeAtNextUse)
+	{
+		m_bComputeAtNextUse = true;
+		return;
+	}
+
+	uint16_t i;
+
+	for (i = 4; i < 31; ++i)
 	{
 		m_iWorkload = i;
 
 		KStopTime Timer;
 
-		auto sHash = GenerateHash("any password would do");
+		Token Salt;
+		GenerateSalt(Salt);
+		Token Hash;
+		HashPassword("any password would do", Salt.data(), Hash);
 
 		if (Timer.elapsed() > Duration)
 		{
-			SetWorkload(--i, true);
+			--i;
 			break;
 		}
 	}
 
+	SetWorkload(i, true);
+
 } // ComputeWorkload
+
+//-----------------------------------------------------------------------------
+uint16_t KBCrypt::GetWorkload()
+//-----------------------------------------------------------------------------
+{
+	if (m_bComputeAtNextUse)
+	{
+		ComputeWorkload(m_Duration, false);
+	}
+
+	return m_iWorkload;
+
+} // GetWorkload
 
 DEKAF2_NAMESPACE_END

@@ -117,7 +117,7 @@ bool kAppendAllUnseekable(std::istream& Stream, KStringRef& sContent, std::size_
 	DEKAF2_TRY_EXCEPTION
 	for (;;)
 	{
-		auto iRead = streambuf->sgetn(buf.data(), buf.size());
+		auto iRead = streambuf->sgetn(buf.data(), std::min(iLimit, buf.size()));
 
 		if (DEKAF2_LIKELY(iRead > 0))
 		{

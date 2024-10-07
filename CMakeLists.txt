@@ -822,6 +822,7 @@ set(PUBLIC_HEADERS
 	kawsauth.h
 	kbar.h
 	kbase64.h
+	kbcrypt.h
 	kbit.h
 	kbitfields.h
 	kbuffer.h
@@ -1095,6 +1096,7 @@ set (SOURCES
 	kawsauth.cpp
 	kbar.cpp
 	kbase64.cpp
+	kbcrypt.cpp
 	kbufferedreader.cpp
 	kcaseless.cpp
 	kcasestring.cpp
@@ -1246,6 +1248,13 @@ else()
 	# move it to the end, as it needs a lot of RAM with older gccs
 	list(APPEND SOURCES khtmlentities4.cpp)
 endif()
+
+# these are for (k)bcrypt
+set (BCRYPT_SOURCES
+	libs/libbcrypt/crypt_blowfish.c
+	libs/libbcrypt/crypt_gensalt.c
+	libs/libbcrypt/wrapper.c
+)
 
 # ============================= CONDITIONAL LIBS ==================================
 
@@ -1445,9 +1454,14 @@ if (DEKAF2_USE_PRECOMPILED_HEADERS)
   target_precompile_headers(dekaf2-objects PRIVATE ${PRECOMPILED_HEADERS})
 endif()
 
+# we have to build the bcrypt objects in a separate target, as otherwise the
+# precompiled header generation seems to use gcc instead of g++ for the
+# C++ files
+add_library                (bcrypt-objects OBJECT ${BCRYPT_SOURCES})
+
 if (DEKAF2_BUILD_SHARED_DEKAF2)
 	set_target_properties      (dekaf2-objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
-	add_library                (dekaf2-shared  SHARED $<TARGET_OBJECTS:dekaf2-objects> ${DEKAF2_DUMMYFILE})
+	add_library                (dekaf2-shared  SHARED $<TARGET_OBJECTS:dekaf2-objects> $<TARGET_OBJECTS:bcrypt-objects> ${DEKAF2_DUMMYFILE})
 	target_include_directories (dekaf2-shared  PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 	target_include_directories (dekaf2-shared  ${DEKAF2_INCLUDE_DIRECTORIES})
 	target_link_libraries      (dekaf2-shared  ${DEKAF2_LINK_LIBRARIES})
@@ -1459,7 +1473,7 @@ if (DEKAF2_BUILD_SHARED_DEKAF2)
 endif()
 
 if (DEKAF2_BUILD_STATIC_DEKAF2)
-	add_library                (dekaf2 STATIC $<TARGET_OBJECTS:dekaf2-objects> ${DEKAF2_DUMMYFILE})
+	add_library                (dekaf2 STATIC $<TARGET_OBJECTS:dekaf2-objects> $<TARGET_OBJECTS:bcrypt-objects> ${DEKAF2_DUMMYFILE})
 	target_include_directories (dekaf2 PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 	target_include_directories (dekaf2 ${DEKAF2_INCLUDE_DIRECTORIES})
 	target_link_libraries      (dekaf2 ${DEKAF2_LINK_LIBRARIES})
@@ -1696,6 +1710,8 @@ if (NOT DEKAF2_HAS_LIBZIP)
 	# make sure to remove a kzip.h header if this build did not find libzip
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kzip.h)")
 endif()
+# remove minifolly, we do not build it anymore since at least 2023, but forgot to remove the lib if it was built, do it until mid-2025
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libminifolly.a)")
 
 set(CPACK_SOURCE_GENERATOR ZIP)
 set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})

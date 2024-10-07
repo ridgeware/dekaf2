@@ -29,6 +29,7 @@ set (USOURCES
 	kassociative_tests.cpp
 	kawsauth_tests.cpp
 	kbase64_tests.cpp
+	kbcrypt_tests.cpp
 	kbit_tests.cpp
 	kbitfields_tests.cpp
 	kcache_tests.cpp

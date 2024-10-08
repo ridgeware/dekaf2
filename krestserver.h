@@ -629,3 +629,25 @@ private:
 }; // KRESTServer
 
 DEKAF2_NAMESPACE_END
+
+namespace DEKAF2_FORMAT_NAMESPACE
+{
+
+template <>
+struct formatter<DEKAF2_PREFIX KRESTServer::Options::AUTH_LEVEL> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const DEKAF2_PREFIX KRESTServer::Options::AUTH_LEVEL& AuthLevel, FormatContext& ctx) const
+	{
+		string_view sVerify;
+		switch (AuthLevel)
+		{
+			case dekaf2::KRESTServer::Options::ALLOW_ALL:                  sVerify = "AllowAll";               break;
+			case dekaf2::KRESTServer::Options::ALLOW_ALL_WITH_AUTH_HEADER: sVerify = "AllowAllWithAuthHeader"; break;
+			case dekaf2::KRESTServer::Options::VERIFY_AUTH_HEADER:         sVerify = "VerifyAuthHeader";       break;
+		}
+		return formatter<string_view>::format(sVerify, ctx);
+	}
+};
+
+} // end of namespace DEKAF2_FORMAT_NAMESPACE

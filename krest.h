@@ -71,7 +71,7 @@ public:
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	                  , UNIX
 #endif
-					};
+	                };
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// Options for simulation mode
@@ -218,3 +218,30 @@ private:
 }; // KREST
 
 DEKAF2_NAMESPACE_END
+
+namespace DEKAF2_FORMAT_NAMESPACE
+{
+
+template <>
+struct formatter<DEKAF2_PREFIX KREST::ServerType> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const DEKAF2_PREFIX KREST::ServerType& ServerType, FormatContext& ctx) const
+	{
+		string_view sType;
+		switch (ServerType)
+		{
+			case dekaf2::KREST::UNDEFINED:     sType = "undefined";     break;
+			case dekaf2::KREST::HTTP:          sType = "http";          break;
+			case dekaf2::KREST::CGI:           sType = "cgi";           break;
+			case dekaf2::KREST::FCGI:          sType = "fcgi";          break;
+			case dekaf2::KREST::LAMBDA:        sType = "lambda";        break;
+			case dekaf2::KREST::CLI:           sType = "cli";           break;
+			case dekaf2::KREST::SIMULATE_HTTP: sType = "simulate http"; break;
+			case dekaf2::KREST::UNIX:          sType = "socket";        break;
+		}
+		return formatter<string_view>::format(sType, ctx);
+	}
+};
+
+} // end of namespace DEKAF2_FORMAT_NAMESPACE

@@ -145,5 +145,7 @@ TEST_CASE("KHTTPHeader")
 		KHTTPHeader H = KHTTPHeader::CONTENT_TYPE;
 		auto sHeader = kFormat("{}: none", H);
 		CHECK ( sHeader == "content-type: none");
+		sHeader = kFormat("{}: none", KHTTPHeader::CONTENT_TYPE);
+		CHECK ( sHeader == "content-type: none");
 	}
 }

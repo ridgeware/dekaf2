@@ -73,15 +73,6 @@ struct DEKAF2_FORMAT_NAMESPACE::formatter<Enum> : formatter<typename std::underl
 
 DEKAF2_NAMESPACE_BEGIN
 
-#if DEKAF2_HAS_FMT_FORMAT
-// add enum conversion to dekaf2 namespace as well
-template<typename Enum, typename std::enable_if<std::is_enum<Enum>::value, int>::type = 0>
-constexpr typename std::underlying_type<Enum>::type format_as(Enum e)
-{
-	return std::to_underlying(e);
-}
-#endif
-
 #if DEKAF2_HAS_FORMAT_RUNTIME
 /// Create a runtime format string
 template<typename String>

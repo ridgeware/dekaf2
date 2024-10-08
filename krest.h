@@ -238,7 +238,9 @@ struct formatter<DEKAF2_PREFIX KREST::ServerType> : formatter<string_view>
 			case dekaf2::KREST::LAMBDA:        sType = "lambda";        break;
 			case dekaf2::KREST::CLI:           sType = "cli";           break;
 			case dekaf2::KREST::SIMULATE_HTTP: sType = "simulate http"; break;
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 			case dekaf2::KREST::UNIX:          sType = "socket";        break;
+#endif
 		}
 		return formatter<string_view>::format(sType, ctx);
 	}

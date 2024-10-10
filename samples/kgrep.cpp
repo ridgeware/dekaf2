@@ -29,35 +29,104 @@ void KGrep::PrintError(KStringView sError)
 } // PrintError
 
 //-----------------------------------------------------------------------------
-void KGrep::Grep(const KString sFilename)
+KString KGrep::Highlight(KStringView sIn, const std::vector<KStringView>& Matches)
 //-----------------------------------------------------------------------------
 {
-	KInFile InFile(sFilename);
+	KString sOut;
+	sOut.reserve(sIn.size() + Matches.size() * 9);
 
-	if (!InFile.is_open())
+	KStringView::size_type iTotalStart = 0;
+
+	KStringView sHighlightOn  = "\x1b[01;31m";
+	KStringView sHighlightOff = "\x1b[m";
+
+	for (auto Match : Matches)
 	{
-		kPrintLine(KErr, " >> cannot open file - skipped: {}", sFilename);
-		return;
+		auto iStart = Match.data() - sIn.data();
+		auto iSize  = Match.size();
+
+		sOut += sIn.ToView(iTotalStart, iStart - iTotalStart);
+		sOut += sHighlightOn;
+		sOut += sIn.ToView(iStart, iSize);
+		sOut += sHighlightOff;
+
+		iTotalStart += (iStart - iTotalStart) + iSize;
 	}
 
-	for (const auto& sLine : InFile)
+	sOut += sIn.ToView(iTotalStart);
+
+	return sOut;
+
+} // Highlight
+
+//-----------------------------------------------------------------------------
+void KGrep::Grep(KInStream& InStream, KStringView sFilename)
+//-----------------------------------------------------------------------------
+{
+	std::vector<KStringView> Matches;
+
+	for (const auto& sLine : InStream)
 	{
 		bool bFound = false;
+		std::size_t iFoundAt = 0;
+		Matches.clear();
 
 		if (m_bRegularExpression)
 		{
-			bFound = (sLine.MatchRegex(m_sSearch).empty() == m_bInvertMatch);
+
+			for (;;)
+			{
+				auto sMatch = sLine.MatchRegex(m_sSearch, iFoundAt);
+
+				if (sMatch.empty() == m_bInvertMatch)
+				{
+					bFound = true;
+
+					if (m_bInvertMatch)
+					{
+						break;
+					}
+
+					Matches.push_back(sMatch);
+					iFoundAt  = sMatch.data() - sLine.data();
+					iFoundAt += sMatch.size();
+				}
+				else
+				{
+					break;
+				}
+			}
 		}
 		else
 		{
-			if (m_bIgnoreCase)
+			for (;;)
 			{
-				if (m_bIsASCII) bFound = (sLine.ToLowerASCII().contains(m_sSearch) == !m_bInvertMatch);
-				else            bFound = (sLine.ToLower     ().contains(m_sSearch) == !m_bInvertMatch);
-			}
-			else
-			{
-				bFound = (sLine.contains(m_sSearch) == !m_bInvertMatch);
+				if (m_bIgnoreCase)
+				{
+					if (m_bIsASCII) iFoundAt = sLine.ToLowerASCII().find(m_sSearch, iFoundAt);
+					else            iFoundAt = sLine.ToLower     ().find(m_sSearch, iFoundAt);
+				}
+				else
+				{
+					iFoundAt = sLine.find(m_sSearch, iFoundAt);
+				}
+				
+				if ((iFoundAt != KString::npos) != m_bInvertMatch)
+				{
+					bFound = true;
+
+					if (m_bInvertMatch)
+					{
+						break;
+					}
+
+					Matches.push_back(KStringView(sLine.data() + iFoundAt, m_sSearch.size()));
+					iFoundAt += m_sSearch.size();
+				}
+				else
+				{
+					break;
+				}
 			}
 		}
 
@@ -68,7 +137,14 @@ void KGrep::Grep(const KString sFilename)
 				kPrint("{}:", sFilename);
 			}
 
-			kWriteLine(sLine);
+			if (!m_bInvertMatch && m_bIsTerminal)
+			{
+				kWriteLine(Highlight(sLine, Matches));
+			}
+			else
+			{
+				kWriteLine(sLine);
+			}
 		}
 	}
 
@@ -137,8 +213,8 @@ int KGrep::Main(int argc, char** argv)
 
 		Options.SetAdditionalArgDescription("<search expression> <file[s]>");
 
-		Options.Option("e,regexp"      ).Help("is regular expression"         ).Set(m_bRegularExpression , true);
-		Options.Option("R,recursive"   ).Help("recursive directory traversal" ).Set(m_bRecursive         , true);
+		Options.Option("E,regexp"      ).Help("is a regular expression"       ).Set(m_bRegularExpression , true);
+		Options.Option("r,recursive"   ).Help("recursive directory traversal" ).Set(m_bRecursive         , true);
 		Options.Option("i,ignore-case" ).Help("ignore case in comparison"     ).Set(m_bIgnoreCase        , true);
 		Options.Option("v,invert-match").Help("show lines that do not match"  ).Set(m_bInvertMatch       , true);
 		Options.Option("H"             ).Help("always print file name headers").Set(m_bPrintFilename     , true);
@@ -153,7 +229,6 @@ int KGrep::Main(int argc, char** argv)
 		m_sProgramName = Options.GetProgramName();
 	}
 
-	if (m_Files  .empty()) throw KError("no input files"      );
 	if (m_sSearch.empty()) throw KError("no search expression");
 
 	for (auto ch : m_sSearch)
@@ -181,7 +256,28 @@ int KGrep::Main(int argc, char** argv)
 
 	if (!m_bPrintFilename && m_Files.size() > 1) m_bPrintFilename = true;
 
-	for (const auto& sFile : m_Files) Grep(sFile);
+	m_bIsTerminal = KFileStat(1).Type() == KFileType::CHARACTER;
+
+	if (m_Files.empty())
+	{
+		Grep(KIn, "stdin");
+	}
+	else
+	{
+		for (const auto& sFilename : m_Files)
+		{
+			KInFile InFile(sFilename);
+
+			if (!InFile.is_open())
+			{
+				kPrintLine(KErr, " >> cannot open file - skipped: {}", sFilename);
+			}
+			else
+			{
+				Grep(InFile, sFilename);
+			}
+		}
+	}
 
 	return 0;
 

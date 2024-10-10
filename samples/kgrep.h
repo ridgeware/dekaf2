@@ -30,9 +30,10 @@ private:
 //----------
 
 	void ShowVersion     ();
-	void Grep            (const KString sFilename);
+	void Grep            (KInStream& InStream, KStringView sFilename);
 	void AddFiles        (KOptions::ArgList& Args);
 	void PrintError      (KStringView sError);
+	KString Highlight    (KStringView sIn, const std::vector<KStringView>& Matches);
 
 	KStringView          m_sProgramName;
 	KString              m_sSearch;
@@ -43,5 +44,6 @@ private:
 	bool                 m_bInvertMatch       { false };
 	bool                 m_bPrintFilename     { false };
 	bool                 m_bIsASCII           { true  };
+	bool                 m_bIsTerminal        { false };
 
 }; // KGrep

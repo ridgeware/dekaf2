@@ -646,8 +646,8 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 	GetEnvironment();
 	CalcExtends(Callback);
 	// we only highlight required options on stdout
-	bool bIsStdOut = &out == &KOut;
-	FormatOne(out, Callback, Mask(*this, Callback.IsCommand(), bIsStdOut && Callback.IsRequired()));
+	bool bIsTerminal = (&out == &KOut) && (KFileStat(1).Type() == KFileType::CHARACTER);
+	FormatOne(out, Callback, Mask(*this, Callback.IsCommand(), bIsTerminal && Callback.IsRequired()));
 
 } // HelpFormatter::BuildOne
 
@@ -663,7 +663,7 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 	GetEnvironment();
 	CalcExtends(Callbacks);
 	// we only highlight required options on stdout
-	bool bIsStdOut = &out == &KOut;
+	bool bIsTerminal = (&out == &KOut) && (KFileStat(1).Type() == KFileType::CHARACTER);
 
 	out.WriteLine();
 	out.Format("{} -- ", m_Params.GetProgramName());
@@ -727,7 +727,7 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 				&& Callback.IsCommand() == bCommands
 				&& !Callback.IsUnknown())
 			{
-				Mask mask(*this, bCommands, bIsStdOut && Callback.IsRequired());
+				Mask mask(*this, bCommands, bIsTerminal && Callback.IsRequired());
 
 				FormatOne(out, Callback, mask);
 

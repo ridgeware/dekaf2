@@ -846,6 +846,16 @@ bool KRESTServer::Execute()
 				Response.SetStatus(101);
 			}
 
+			// We offer a keep-alive if the client did not explicitly
+			// request a close. We only allow for a limited amount
+			// of keep-alive rounds, as this blocks one thread of
+			// execution and could lead to a DoS if an attacker would
+			// hold as many connections as we have simultaneous threads.
+			m_bKeepAlive = !m_bSwitchToWebSocket
+			            && (m_Options.Out == HTTP)
+			            && (m_iRound+1 < m_Options.iMaxKeepaliveRounds)
+			            && Request.HasKeepAlive();
+
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			// debug info
 			// - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -886,17 +896,6 @@ bool KRESTServer::Execute()
 			{
 				m_Timers->StoreInterval(Timer::PROCESS);
 			}
-
-			// We offer a keep-alive if the client did not explicitly
-			// request a close. We only allow for a limited amount
-			// of keep-alive rounds, as this blocks one thread of
-			// execution and could lead to a DoS if an attacker would
-			// hold as many connections as we have simultaneous threads.
-			m_bKeepAlive = !m_bIsStreaming
-						&& !m_bSwitchToWebSocket
-						&& (m_Options.Out == HTTP)
-						&& (m_iRound+1 < m_Options.iMaxKeepaliveRounds)
-						&& Request.HasKeepAlive();
 
 			Output();
 
@@ -1068,8 +1067,6 @@ void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders)
 		throw KHTTPError { KHTTPError::H5xx_NOTIMPL, "streaming mode only allowed in HTTP output mode" };
 	}
 
-	// do not signal nor perform a keep alive connection
-	m_bKeepAlive   = false;
 	m_bIsStreaming = true;
 
 	if (!bWriteHeaders)

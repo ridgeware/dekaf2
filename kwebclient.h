@@ -76,7 +76,8 @@ public:
 //------
 
 	using self = KWebClient;
-	using TimingCallback_t = std::function<void(const KWebClient&, KDuration, const KString&)>;
+	using TimingCallback_t   = std::function<void(const KWebClient&, KDuration, const KString&)>;
+	using ResponseCallback_t = std::function<KOutStream*(const KWebClient&)>;
 
 	//-----------------------------------------------------------------------------
 	/// default ctor
@@ -213,6 +214,16 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// call back after receiving the response headers, but before the response body (only for 2xx responses)
+	/// @param ResponseCallback the callback
+	self& SetResponseCallback (ResponseCallback_t ResponseCallback)
+	//-----------------------------------------------------------------------------
+	{
+		m_ResponseCallback = ResponseCallback;
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// call back everytime a web request exceeds the given duration
 	self& SetTimingCallback (KDuration iWarnIfOverMilliseconds, TimingCallback_t TimingCallback = nullptr)
 	//-----------------------------------------------------------------------------
@@ -254,6 +265,7 @@ protected:
 private:
 //------
 
+	ResponseCallback_t m_ResponseCallback        { nullptr };
 	KCookies         m_Cookies;
 	uint16_t         m_iMaxRedirects             { 3       };
 	bool             m_bAllowOneRetry            { true    };

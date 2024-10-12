@@ -152,11 +152,25 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 				{
 					TransmitTime.halt();
 
+					// make sure we have a valid pointer to an output stream
+					KOutStream* Out = &OutStream;
+
+					if (m_ResponseCallback)
+					{
+						KOutStream* NewOut = m_ResponseCallback(*this);
+
+						if (NewOut != nullptr)
+						{
+							// use the new output stream
+							Out = NewOut;
+						}
+					}
+
 					if (RequestMethod != KHTTPMethod::HEAD &&
 						RequestMethod != KHTTPMethod::TRACE)
 					{
 						ReceiveTime.resume();
-						iRead += Read (OutStream);
+						iRead += Read (*Out);
 						ReceiveTime.halt();
 					}
 				}

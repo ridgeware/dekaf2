@@ -55,165 +55,69 @@ DEKAF2_NAMESPACE_BEGIN
 namespace detail {
 namespace splitting_parser {
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC CountText
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// base class for all splitting parsers
+struct DEKAF2_PUBLIC SplitBase
 {
+	SplitBase(KStringView sInput) : m_sInput(sInput) {}
 
-//------
-public:
-//------
+	bool        empty() const            { return m_sInput.empty();        }
+	void        SkipInput(size_t iCount) { m_sInput.remove_prefix(iCount); }
+	KStringView GetRemaining() const     { return m_sInput;                }
 
-	CountText(KStringView sInput)
-	    : m_sInput(sInput)
-	{}
+protected:
 
-	bool empty()
-	{
-		return m_sInput.empty();
-	}
+	KStringView m_sInput;
 
+}; // SplitBase
+
+/// counting words broken at white space (returning empty string pairs)
+struct DEKAF2_PUBLIC CountSpacedText : public SplitBase
+{
+	using SplitBase::SplitBase;
 	KStringViewPair NextPair();
+};
 
-	void SkipInput(size_t iCount) { m_sInput.remove_prefix(iCount); }
-
-	KStringView GetRemaining() const { return m_sInput; }
-
-//------
-private:
-//------
-
-	KStringView m_sInput;
-
-}; // CountText
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC SimpleText
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// returning words broken at white space
+struct DEKAF2_PUBLIC SimpleSpacedText : public SplitBase
 {
-
-//------
-public:
-//------
-
-	SimpleText(KStringView sInput)
-	    : m_sInput(sInput)
-	{}
-
-	bool empty()
-	{
-		return m_sInput.empty();
-	}
-
+	using SplitBase::SplitBase;
 	KStringViewPair NextPair();
+};
 
-	void SkipInput(size_t iCount) { m_sInput.remove_prefix(iCount); }
-
-	KStringView GetRemaining() const { return m_sInput; }
-
-//------
-private:
-//------
-
-	KStringView m_sInput;
-
-}; // SimpleText
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC CountHTML
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// counting words broken at non-alphanumerical characters (returning empty string pairs)
+struct DEKAF2_PUBLIC CountText : public SplitBase
 {
+	using SplitBase::SplitBase;
+	KStringViewPair NextPair();
+};
 
-//------
-public:
-//------
-
-	CountHTML(KStringView sInput)
-	    : m_sInput(sInput)
-	{}
-
-	bool empty()
-	{
-		return m_sInput.empty();
-	}
-
-	std::pair<KStringView, KStringView> NextPair();
-
-	void SkipInput(size_t iCount) { m_sInput.remove_prefix(iCount); }
-
-	KStringView GetRemaining() const { return m_sInput; }
-
-//------
-private:
-//------
-
-	KStringView m_sInput;
-
-}; // CountHTML
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC SimpleHTML
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// returning words broken at non-alphanumerical characters
+struct DEKAF2_PUBLIC SimpleText : public SplitBase
 {
+	using SplitBase::SplitBase;
+	KStringViewPair NextPair();
+};
 
-//------
-public:
-//------
+/// counting words in HTML code broken by anything non alphanumerical
+struct DEKAF2_PUBLIC CountHTML : public SplitBase
+{
+	using SplitBase::SplitBase;
+	KStringViewPair NextPair();
+};
 
-	SimpleHTML(KStringView sInput)
-	    : m_sInput(sInput)
-	{}
-
-	bool empty()
-	{
-		return m_sInput.empty();
-	}
-
+/// returning words and their leading non-words (HTML code) in HTML code broken by anything non alphanumerical
+struct DEKAF2_PUBLIC SimpleHTML : public SplitBase
+{
+	using SplitBase::SplitBase;
 	std::pair<KString, KStringView> NextPair();
+};
 
-	void SkipInput(size_t iCount) { m_sInput.remove_prefix(iCount); }
-
-	KStringView GetRemaining() const { return m_sInput; }
-
-//------
-private:
-//------
-
-	KStringView m_sInput;
-
-}; // SimpleHTML
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC NormalizingHTML
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// returning words and their leading non-words (HTML code) in HTML code broken by anything non alphanumerical, normalizing (reducing spaces) the skeleton
+struct DEKAF2_PUBLIC NormalizingHTML : public SplitBase
 {
-
-//------
-public:
-//------
-
-	NormalizingHTML(KStringView sInput)
-	    : m_sInput(sInput)
-	{}
-
-	bool empty()
-	{
-		return m_sInput.empty();
-	}
-
-	void SkipInput(size_t iCount) { m_sInput.remove_prefix(iCount); }
-
+	using SplitBase::SplitBase;
 	std::pair<KString, KString> NextPair();
-
-	KStringView GetRemaining() const { return m_sInput; }
-
-//------
-private:
-//------
-
-	KStringView m_sInput;
-
-}; // NormalizingHTML
+};
 
 } // of namespace splitting_parser
 
@@ -233,16 +137,16 @@ public:
 	using iterator = KCountingContainer*;
 	using const_iterator = const KCountingContainer*;
 
-	void clear() { m_iCounter = 0; }
-	size_t size() const { return m_iCounter; }
-	iterator begin() { return this; }
-	iterator end() { return nullptr; }
-	const_iterator begin() const { return this; }
-	const_iterator end() const { return nullptr; }
-	void reserve(size_t) {}
-	void push_back(value_type) { inc(); }
-	iterator insert(value_type) { inc(); return this; }
-	iterator insert(const_iterator pos, const_iterator first, const_iterator last) { m_iCounter += first->size(); return this; }
+	void           clear     ()           { m_iCounter = 0;     }
+	std::size_t    size      () const     { return m_iCounter;  }
+	iterator       begin     ()           { return this;        }
+	iterator       end       ()           { return nullptr;     }
+	const_iterator begin     () const     { return this;        }
+	const_iterator end       () const     { return nullptr;     }
+	void           reserve   (size_t)     {}
+	void           push_back (value_type) { inc();              }
+	iterator       insert    (value_type) { inc(); return this; }
+	iterator       insert    (const_iterator pos, const_iterator first, const_iterator last) { m_iCounter += first->size(); return this; }
 
 //------
 private:
@@ -250,12 +154,11 @@ private:
 
 	void inc() { ++m_iCounter; }
 
-	size_t m_iCounter { 0 };
+	std::size_t m_iCounter { 0 };
 
 }; // KCountingContainer
 
 } // of namespace detail
-
 
 
 //-----------------------------------------------------------------------------
@@ -312,6 +215,7 @@ kSplitWords (
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// word breaking class template constructed around a storage container and a word breaking parser
 template<typename Container, typename Parser = detail::splitting_parser::SimpleText>
 class KWords
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -324,7 +228,7 @@ public:
 	KWords() = default;
 
 	/// Constructs from a buffer. Reserves space for iReserve items.
-	KWords(KStringView sBuffer, size_t iReserve = 1)
+	KWords(KStringView sBuffer, std::size_t iReserve = 1)
 	{
 		m_Container.reserve(iReserve);
 		Add(sBuffer);
@@ -333,13 +237,13 @@ public:
 	/// Adding a new buffer. This adds to the existing content of the internal
 	/// container. If you want to start a new round, clear() the container
 	/// first or use Parse().
-	size_t Add(KStringView sBuffer)
+	std::size_t Add(KStringView sBuffer)
 	{
 		return kSplitWords<Container, Parser>(m_Container, sBuffer);
 	}
 
 	/// Parsing a new buffer. Clears the existing content and adds new content.
-	size_t Parse(KStringView sBuffer)
+	std::size_t Parse(KStringView sBuffer)
 	{
 		m_Container.clear();
 		return Add(sBuffer);
@@ -400,13 +304,28 @@ private:
 
 }; // KWords
 
-using KSimpleWordCounter = KWords<detail::KCountingContainer<KStringView>, detail::splitting_parser::CountText>;
-using KSimpleWords = KWords<std::vector<KStringView>, detail::splitting_parser::SimpleText>;
-using KSimpleSkeletonWords = KWords<std::vector<KStringViewPair>, detail::splitting_parser::SimpleText>;
-using KSimpleHTMLWordCounter = KWords<detail::KCountingContainer<KStringView>, detail::splitting_parser::CountHTML>;
-using KSimpleHTMLWords = KWords<std::vector<KString>, detail::splitting_parser::SimpleHTML>;
-using KNormalizingHTMLWords = KWords<std::vector<KString>, detail::splitting_parser::NormalizingHTML>;
-using KSimpleHTMLSkeletonWords = KWords<std::vector<std::pair<KString, KStringView>>, detail::splitting_parser::SimpleHTML>;
+/// counting words broken at white space only
+using KSimpleSpacedWordCounter      = KWords<detail::KCountingContainer<KStringView>, detail::splitting_parser::CountSpacedText>;
+/// extracting words broken at white space only
+using KSimpleSpacedWords            = KWords<std::vector<KStringView>, detail::splitting_parser::SimpleSpacedText>;
+/// extracting words and their leading non-words broken at white space
+using KSimpleSpacedSkeletonWords    = KWords<std::vector<KStringViewPair>, detail::splitting_parser::SimpleSpacedText>;
+
+/// counting words broken by anything non alphanumerical
+using KSimpleWordCounter            = KWords<detail::KCountingContainer<KStringView>, detail::splitting_parser::CountText>;
+/// extracting words broken by anything non alphanumerical
+using KSimpleWords                  = KWords<std::vector<KStringView>, detail::splitting_parser::SimpleText>;
+/// extracting words and their leading non-words broken by anything non alphanumerical
+using KSimpleSkeletonWords          = KWords<std::vector<KStringViewPair>, detail::splitting_parser::SimpleText>;
+
+/// counting words in HTML code broken by anything non alphanumerical
+using KSimpleHTMLWordCounter        = KWords<detail::KCountingContainer<KStringView>, detail::splitting_parser::CountHTML>;
+/// extracting words in HTML code broken by anything non alphanumerical
+using KSimpleHTMLWords              = KWords<std::vector<KString>, detail::splitting_parser::SimpleHTML>;
+/// extracting words and their leading non-words (HTML code) in HTML code broken by anything non alphanumerical
+using KSimpleHTMLSkeletonWords      = KWords<std::vector<std::pair<KString, KStringView>>, detail::splitting_parser::SimpleHTML>;
+
+/// extracting words and their leading non-words (HTML code) in HTML code broken by anything non alphanumerical, normalizing (reducing spaces) the skeleton
 using KNormalizingHTMLSkeletonWords = KWords<std::vector<std::pair<KString, KString>>, detail::splitting_parser::NormalizingHTML>;
 
 DEKAF2_NAMESPACE_END

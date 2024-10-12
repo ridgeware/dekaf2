@@ -8,6 +8,94 @@ using namespace dekaf2;
 
 TEST_CASE("KWords") {
 
+	SECTION("KSimpleSpacedWordCounter")
+	{
+		struct test_t
+		{
+			KStringView sInput;
+			size_t iCount;
+		};
+
+		// source, target
+		std::vector<test_t> stest
+		{
+			{ "a few_words", 2 },
+			{ "a few words", 3 },
+			{ "a<>tad.@more?7ee1", 1 },
+			{ "   , ", 1 },
+			{ "", 0 }
+		};
+
+		for (auto& it : stest)
+		{
+			KSimpleSpacedWordCounter Words(it.sInput);
+			INFO (it.sInput);
+			CHECK ( it.iCount == Words->size() );
+		}
+		{
+			KSimpleSpacedWordCounter A("one two_three");
+			KSimpleSpacedWordCounter B("four five six");
+			A += B;
+			CHECK ( A->size() == 5 );
+		}
+	}
+
+	SECTION("KSimpleSpacedWords")
+	{
+		struct test_t
+		{
+			KStringView sInput;
+			std::vector<KStringView> sOutput;
+		};
+
+		// source, target
+		std::vector<test_t> stest
+		{
+			{ "a few_words",
+				{
+					"a",
+					"few_words"
+				}
+			},
+			{ "a few words",
+				{
+					"a",
+					"few",
+					"words"
+				}
+			},
+			{ "a<>tad.@more?7ee1",
+				{
+					"a<>tad.@more?7ee1"
+				}
+			},
+			{ "   , ",
+				{
+					","
+				}
+			},
+			{ "",
+				{
+				}
+			}
+		};
+
+		for (auto& it : stest)
+		{
+			KSimpleSpacedWords Words(it.sInput);
+
+			CHECK ( it.sOutput.size() == Words->size() );
+
+			auto sit = it.sOutput.begin();
+
+			for (auto& wit : *Words)
+			{
+				CHECK ( wit  == *sit  );
+				++sit;
+			}
+		}
+	}
+
 	SECTION("KSimpleWordCounter")
 	{
 		struct test_t
@@ -19,6 +107,7 @@ TEST_CASE("KWords") {
 		// source, target
 		std::vector<test_t> stest
 		{
+			{ "a few_words", 3 },
 			{ "a few words", 3 },
 			{ "a<>tad.@more?7ee1", 4 },
 			{ "   , ", 0 },
@@ -32,7 +121,7 @@ TEST_CASE("KWords") {
 			CHECK ( it.iCount == Words->size() );
 		}
 		{
-			KSimpleWordCounter A("one two three");
+			KSimpleWordCounter A("one two_three");
 			KSimpleWordCounter B("four five six");
 			A += B;
 			CHECK ( A->size() == 6 );
@@ -50,6 +139,13 @@ TEST_CASE("KWords") {
 		// source, target
 		std::vector<test_t> stest
 		{
+			{ "a few_words",
+				{
+					"a",
+					"few",
+					"words"
+				}
+			},
 			{ "a few words",
 				{
 					"a",
@@ -79,16 +175,23 @@ TEST_CASE("KWords") {
 		{
 			KSimpleWords Words(it.sInput);
 
+			INFO (it.sInput);
 			CHECK ( it.sOutput.size() == Words->size() );
 
 			auto sit = it.sOutput.begin();
 
 			for (auto& wit : *Words)
 			{
-				CHECK ( wit  == *sit  );
-				++sit;
+				if (sit == it.sOutput.end())
+				{
+					CHECK ( wit == "" );
+				}
+				else
+				{
+					CHECK ( wit  == *sit  );
+					++sit;
+				}
 			}
-
 		}
 	}
 
@@ -143,7 +246,6 @@ TEST_CASE("KWords") {
 				CHECK ( wit.second == sit->second );
 				++sit;
 			}
-
 		}
 	}
 
@@ -245,7 +347,6 @@ TEST_CASE("KWords") {
 				CHECK ( wit.second == sit->second );
 				++sit;
 			}
-
 		}
 	}
 
@@ -345,7 +446,6 @@ TEST_CASE("KWords") {
 				CHECK ( wit.second == sit->second );
 				++sit;
 			}
-
 		}
 	}
 	SECTION("KNormalizingHTMLSkeletonWords")
@@ -444,7 +544,6 @@ TEST_CASE("KWords") {
 				CHECK ( wit.second == sit->second );
 				++sit;
 			}
-
 		}
 	}
 
@@ -513,7 +612,6 @@ TEST_CASE("KWords") {
 				CHECK ( wit.second == sit->second );
 				++sit;
 			}
-
 		}
 	}
 
@@ -586,7 +684,6 @@ TEST_CASE("KWords") {
 					sit = it.sOutput.begin();
 				}
 			}
-
 		}
 	}
 
@@ -660,10 +757,8 @@ TEST_CASE("KWords") {
 					sit = it.sOutput.begin();
 				}
 			}
-
 		}
 	}
-
 
 }
 

@@ -45,8 +45,6 @@
 #include "khtmlentities.h"
 #include "kctype.h"
 #include "kcompatibility.h"
-#include <cctype>
-
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -55,6 +53,71 @@ namespace splitting_parser {
 
 static DEKAF2_CONSTEXPR_14 KStringViewPair s_Pair_Empty { "", "" };
 static DEKAF2_CONSTEXPR_14 KStringViewPair s_Pair_Word { "a", "" };
+
+//-----------------------------------------------------------------------------
+KStringViewPair CountSpacedText::NextPair()
+//-----------------------------------------------------------------------------
+{
+	size_t iSizeConsumed { 0 };
+	bool bIsEmpty { true };
+
+	for (auto ch : m_sInput)
+	{
+		if (KASCII::kIsSpace(ch))
+		{
+			if (!bIsEmpty)
+			{
+				// abort scanning here, this is the trailing skeleton
+				break;
+			}
+		}
+		else
+		{
+			bIsEmpty = false;
+		}
+
+		++iSizeConsumed;
+	}
+
+	m_sInput.remove_prefix(iSizeConsumed);
+
+	return bIsEmpty ? s_Pair_Empty : s_Pair_Word;
+
+} // CountSpacedText::NextPair
+
+//-----------------------------------------------------------------------------
+KStringViewPair SimpleSpacedText::NextPair()
+//-----------------------------------------------------------------------------
+{
+	size_t iSizeSkel { 0 };
+	size_t iSizeWord { 0 };
+
+	for (auto ch : m_sInput)
+	{
+		if (KASCII::kIsSpace(ch))
+		{
+			if (iSizeWord)
+			{
+				// abort scanning here, this is the trailing skeleton
+				break;
+			}
+			++iSizeSkel;
+		}
+		else
+		{
+			++iSizeWord;
+		}
+	}
+
+	KStringViewPair sPair;
+	sPair.second.assign(m_sInput.data(), iSizeSkel);
+	m_sInput.remove_prefix(iSizeSkel);
+	sPair.first.assign(m_sInput.data(), iSizeWord);
+	m_sInput.remove_prefix(iSizeWord);
+
+	return sPair;
+
+} // SimpleSpacedText::NextPair
 
 //-----------------------------------------------------------------------------
 KStringViewPair CountText::NextPair()
@@ -124,7 +187,7 @@ KStringViewPair SimpleText::NextPair()
 } // SimpleText::NextPair
 
 //-----------------------------------------------------------------------------
-std::pair<KStringView, KStringView> CountHTML::NextPair()
+KStringViewPair CountHTML::NextPair()
 //-----------------------------------------------------------------------------
 {
 	size_t iSizeConsumed { 0 };

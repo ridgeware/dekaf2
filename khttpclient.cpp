@@ -343,6 +343,8 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 	Response.SetHTTPVersion(KHTTPVersion::http11);
 
 #if DEKAF2_HAS_NGHTTP3
+	m_HTTP3.reset();
+
 	if (m_StreamOptions.IsSet(KHTTPStreamOptions::RequestHTTP3))
 	{
 		auto QuicStream = dynamic_cast<KQuicStream*>(m_Connection.get());
@@ -608,7 +610,12 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 bool KHTTPClient::Disconnect()
 //-----------------------------------------------------------------------------
 {
+#if DEKAF2_HAS_NGHTTP3
+	m_HTTP3.reset();
+#endif
+#if DEKAF2_HAS_NGHTTP2
 	m_HTTP2.reset();
+#endif
 	m_Connection.reset();
 
 	return true;

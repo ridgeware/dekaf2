@@ -41,6 +41,7 @@
 
 #include "kcookie.h"
 #include "klog.h"
+#include "keraseremove.h"
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -259,12 +260,10 @@ bool KCookies::Parse(const KURL& URL, KStringView sInput)
 	{
 		// check if we have this cookie name already: delete first..
 		// erase-remove idiom..
-		m_Cookies.erase(std::remove_if(m_Cookies.begin(), m_Cookies.end(),
-										  [&Cookie](const KCookie& element)
-										  {
-											  return element.Name() == Cookie.Name();
-										  }),
-						m_Cookies.end());
+		kEraseRemoveIf(m_Cookies, [&Cookie](const KCookie& element)
+		{
+			return element.Name() == Cookie.Name();
+		});
 		// add the new cookie
 		m_Cookies.push_back(Cookie);
 		return true;

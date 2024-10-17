@@ -55,7 +55,7 @@
 #include "kwriter.h"
 #include "kctype.h"
 #include "kutf8.h"
-
+#include "keraseremove.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -1751,13 +1751,10 @@ void KDirectory::RemoveHidden()
 //-----------------------------------------------------------------------------
 {
 	// erase-remove idiom..
-	m_DirEntries.erase(std::remove_if(m_DirEntries.begin(),
-									  m_DirEntries.end(),
-									  [](const DirEntries::value_type& elem)
-                                      {
-                                          return elem.Filename().empty() || elem.Filename().front() == '.';
-									  }),
-                       m_DirEntries.end());
+	kEraseRemoveIf(m_DirEntries, [](const DirEntries::value_type& elem)
+	{
+		return elem.Filename().empty() || elem.Filename().front() == '.';
+	});
 
 } // RemoveHidden
 
@@ -1766,13 +1763,10 @@ void KDirectory::RemoveAppleResourceFiles()
 //-----------------------------------------------------------------------------
 {
 	// erase-remove idiom..
-	m_DirEntries.erase(std::remove_if(m_DirEntries.begin(),
-									  m_DirEntries.end(),
-									  [](const DirEntries::value_type& elem)
-									  {
-										  return elem.Filename().starts_with("._");
-									  }),
-					   m_DirEntries.end());
+	kEraseRemoveIf(m_DirEntries, [](const DirEntries::value_type& elem)
+	{
+		return elem.Filename().starts_with("._");
+	});
 
 } // RemoveAppleResourceFiles
 
@@ -1783,18 +1777,17 @@ size_t KDirectory::Match(KFileTypes Types, bool bRemoveMatches)
 	size_t iMatched { 0 };
 
 	// erase-remove idiom..
-	m_DirEntries.erase(std::remove_if(m_DirEntries.begin(),
-									  m_DirEntries.end(),
-									  [&iMatched, Types, bRemoveMatches](const DirEntries::value_type& elem)
-									  {
-										  bool bMatches = (Types.contains(elem.Type()));
-										  if (bMatches)
-										  {
-											  ++iMatched;
-										  }
-										  return bRemoveMatches == bMatches;
-									  }),
-					   m_DirEntries.end());
+	kEraseRemoveIf(m_DirEntries, [&iMatched, Types, bRemoveMatches](const DirEntries::value_type& elem)
+	{
+		bool bMatches = (Types.contains(elem.Type()));
+
+		if (bMatches)
+		{
+			++iMatched;
+		}
+
+		return bRemoveMatches == bMatches;
+	});
 
 	return iMatched;
 
@@ -1809,18 +1802,17 @@ size_t KDirectory::Match(KStringView sRegex, bool bRemoveMatches)
 	size_t iMatched { 0 };
 
 	// erase-remove idiom..
-	m_DirEntries.erase(std::remove_if(m_DirEntries.begin(),
-                                      m_DirEntries.end(),
-                                      [&Regex, &iMatched, bRemoveMatches](const DirEntries::value_type& elem)
-                                      {
-										  bool bMatches = Regex.Matches(KStringView(elem.Filename()));
-										  if (bMatches)
-										  {
-											  ++iMatched;
-										  }
-										  return bRemoveMatches == bMatches;
-                                      }),
-                       m_DirEntries.end());
+	kEraseRemoveIf(m_DirEntries, [&Regex, &iMatched, bRemoveMatches](const DirEntries::value_type& elem)
+	{
+		bool bMatches = Regex.Matches(KStringView(elem.Filename()));
+
+		if (bMatches)
+		{
+			++iMatched;
+		}
+
+		return bRemoveMatches == bMatches;
+	});
 
 	return iMatched;
 

@@ -848,6 +848,7 @@ set(PUBLIC_HEADERS
 	kdiff.h
 	kduration.h
 	kencode.h
+	keraseremove.h
 	kerror.h
 	kexception.h
 	kfdstream.h

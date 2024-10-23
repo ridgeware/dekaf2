@@ -87,15 +87,15 @@ public:
 
 	/// Wrapper around KBase64::Encode. Does the same.
 	DEKAF2_NODISCARD
-	static KString Base64(KStringView sIn)
+	static KString Base64(KStringView sIn, bool bWithLineBreaks = true)
 	{
-		return KBase64::Encode(sIn);
+		return KBase64::Encode(sIn, bWithLineBreaks);
 	}
 
 	/// Wrapper around KBase64::Encode. Does the same with a different interface.
-	static void Base64InPlace(KStringRef& sBuffer)
+	static void Base64InPlace(KStringRef& sBuffer, bool bWithLineBreaks = true)
 	{
-		sBuffer = Base64(sBuffer).str();
+		sBuffer = Base64(sBuffer, bWithLineBreaks).str();
 	}
 
 	/// Wrapper around KBase64Url::Encode. Does the same.

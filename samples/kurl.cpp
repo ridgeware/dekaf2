@@ -186,17 +186,21 @@ kurl::kurl ()
 		{
 			throw KOptions::WrongParameterError(kFormat("invalid request method '{}', legal ones are: {}", sMethod, KHTTPMethod::REQUEST_METHODS));
 		}
+
+		BuildMRQ.bMethodExplicitlySet = true;
 	});
 
 	m_CLI
 		.Option("I,head")
 		.Help("issue a HEAD request")
-		.Set(BuildMRQ.Method, KHTTPMethod(KHTTPMethod::HEAD));
+		.Set(BuildMRQ.Method, KHTTPMethod(KHTTPMethod::HEAD))
+		.Set(BuildMRQ.bMethodExplicitlySet, true);
 
 	m_CLI
 		.Option("G,get")
 		.Help("issue a GET request, even if there is request data")
-		.Set(BuildMRQ.Method, KHTTPMethod(KHTTPMethod::GET));
+		.Set(BuildMRQ.Method, KHTTPMethod(KHTTPMethod::GET))
+		.Set(BuildMRQ.bMethodExplicitlySet, true);
 
 	m_CLI
 		.Option("d,data,data-ascii <content>", "request body")
@@ -601,7 +605,7 @@ void kurl::AddRequestData(KStringViewZ sArg, bool bEncodeAsForm, bool bTakeFile)
 
 	BuildMRQ.sRequestBody += sData;
 
-	if (BuildMRQ.Method.empty())
+	if (!BuildMRQ.bMethodExplicitlySet)
 	{
 		BuildMRQ.Method = KHTTPMethod::POST;
 	}
@@ -953,7 +957,7 @@ void kurl::MultiRequest::BuildAuthenticationHeader()
 			// basic authentication
 			if (Headers.emplace (
 				KHTTPHeader(KHTTPHeader::AUTHORIZATION).Serialize(),
-				kFormat("Basic {}", KEnc::Base64(kFormat("{}:{}", sUsername, sPassword)))
+				kFormat("Basic {}", KEnc::Base64(kFormat("{}:{}", sUsername, sPassword), false))
 			).second == false)
 			{
 				throw KError("basic auth: authentication header already set");

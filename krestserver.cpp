@@ -704,12 +704,14 @@ bool KRESTServer::Execute()
 			if (m_Routes.RewritePath(sURLPath) > 0)
 			{
 				kAppendCrashContext(kFormat("path {} to '{}'", "rewritten", sURLPath));
+				kDebug(2, "path {} to '{}'", "rewritten", sURLPath);
 			}
 
 			// check if we have redirect rules for the request path
 			if (m_Routes.RedirectPath(sURLPath) > 0)
 			{
 				kAppendCrashContext(kFormat("path {} to '{}'", "redirected", sURLPath));
+				kDebug(2, "path {} to '{}'", "redirected", sURLPath);
 
 				Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
 				Response.Headers.Set(KHTTPHeader::LOCATION, sURLPath);

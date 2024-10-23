@@ -121,6 +121,7 @@ protected:
 		KHTTPMethod Method          { KHTTPMethod::GET };
 		enum Flags  Flags           { Flags::NONE };
 		uint16_t    iSecondsTimeout { 5 };
+		bool        bMethodExplicitlySet { false };
 
 	}; // BaseRequest
 

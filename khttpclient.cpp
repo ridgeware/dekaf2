@@ -729,6 +729,14 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 //-----------------------------------------------------------------------------
 {
+	if (!url.User.empty())
+	{
+		// we also set the AUTHORIZATION header with a basic user:password scheme
+		// if we find user:[pass] in the url
+		BasicAuthenticator Auth(url.User.get(), url.Password.get());
+		Request.Headers.Set(KHTTPHeader::AUTHORIZATION, Auth.GetAuthHeader({}, ""));
+	}
+
 	if (m_bHaveHostSet)
 	{
 		kDebug(2, "host already set by user to: host: {}", Request.Headers.Get(KHTTPHeader::HOST));

@@ -94,19 +94,20 @@ TEST_CASE("KWebClient") {
 		server.clear();
 
 		KWebClient HTTP;
-		auto sRet = HTTP.Post("http://127.0.0.1:7653/path", "some body\r\n", KMIME::HTML_UTF8);
+		auto sRet = HTTP.Post("http://user:pass@127.0.0.1:7653/path", "some body\r\n", KMIME::HTML_UTF8);
 
-		CHECK( server.m_rx.size() == 8 );
-		if (server.m_rx.size() == 8)
+		CHECK( server.m_rx.size() == 9 );
+		if (server.m_rx.size() == 9)
 		{
 			CHECK( server.m_rx[0] == "POST /path HTTP/1.1" );
-			CHECK( server.m_rx[1] == "host: 127.0.0.1:7653");
-			CHECK( server.m_rx[2] == "content-length: 11");
-			CHECK( server.m_rx[3] == "content-type: text/html; charset=UTF-8" );
-			CHECK( server.m_rx[4] == kFormat("accept-encoding: {}", KHTTPCompression::GetCompressors()) );
-			CHECK( server.m_rx[5] == "user-agent: dekaf/" DEKAF_VERSION );
-			CHECK( server.m_rx[6] == "");
-			CHECK( server.m_rx[7] == "some body");
+			CHECK( server.m_rx[1] == "authorization: Basic dXNlcjpwYXNz");
+			CHECK( server.m_rx[2] == "host: 127.0.0.1:7653");
+			CHECK( server.m_rx[3] == "content-length: 11");
+			CHECK( server.m_rx[4] == "content-type: text/html; charset=UTF-8" );
+			CHECK( server.m_rx[5] == kFormat("accept-encoding: {}", KHTTPCompression::GetCompressors()) );
+			CHECK( server.m_rx[6] == "user-agent: dekaf/" DEKAF_VERSION );
+			CHECK( server.m_rx[7] == "");
+			CHECK( server.m_rx[8] == "some body");
 		}
 		CHECK( sRet == "0123456789" );
 	}

@@ -770,7 +770,8 @@ public:
 	void   EndQuery (bool bDestructor=false);
 
 	size_t  OutputQuery     (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout);
-	size_t  OutputQuery     (KStringView sSQL, OutputFormat iFormat = FORM_ASCII, FILE* fpout = stdout);
+	size_t  OutputQuery     (KStringView sSQL, OutputFormat iFormat=FORM_ASCII, FILE* fpout = stdout);
+	KString QueryAllRows    (const KSQLString& sSQL, OutputFormat iFormat=FORM_ASCII, size_t* piNumRows=NULL);
 
 	void   DisableRetries() { m_bDisableRetries = true;  }
 	void   EnableRetries()  { m_bDisableRetries = false; }

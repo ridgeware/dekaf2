@@ -7578,6 +7578,8 @@ void KSQL::ctlib_flush_results ()
 size_t KSQL::OutputQuery (KStringView sSQL, KStringView sFormat, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
 {
+	kDebug (2, "...");
+
 	OutputFormat iFormat = FORM_ASCII;
 
 	if ((sFormat == "-ascii") || (sFormat == "-query"))
@@ -7601,12 +7603,29 @@ size_t KSQL::OutputQuery (KStringView sSQL, KStringView sFormat, FILE* fpout/*=s
 size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
 {
-	KSQLString sSafeSQL;
-	sSafeSQL.ref() = sSQL;
+	kDebug (2, "...");
 
-	if (!ExecRawQuery (sSafeSQL, GetFlags(), "OutputQuery"))
+	KSQLString sSafeSQL; sSafeSQL.ref() = sSQL;
+	size_t     iNumRows{0};
+	auto       sResult = QueryAllRows (sSafeSQL, iFormat, &iNumRows);
+
+	fprintf (fpout, "%s", sResult.c_str());
+
+	return iNumRows;
+
+} // OutputQuery
+
+//-----------------------------------------------------------------------------
+KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_ASCII*/, size_t* piNumRows/*=NULL*/)
+//-----------------------------------------------------------------------------
+{
+	kDebug (2, "...");
+
+	KString sResult;
+
+	if (!ExecRawQuery (sSQL, GetFlags(), "OutputQuery"))
 	{
-		return (-1);
+		return sResult;
 	}
 
 	KProps<KString, std::size_t, false, true> Widths;
@@ -7649,6 +7668,9 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 		ExecLastRawQuery (GetFlags(), "OutputQuery");
 	}
 
+	enum    {MAX = 10000};
+	char    sBuffer[MAX+1];
+
 	iNumRows = 0;
 	while (NextRow (Row))
 	{
@@ -7659,49 +7681,65 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 			switch (iFormat)
 			{
 				case FORM_ASCII:
+					bFirst = true;
 					for (const auto& it : Row)
 					{
 						const KString& sName = it.first;
 						int iMax = static_cast<int>(Widths.Get (sName));
-						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, kFormat("{:-^100}", "").c_str());
+						snprintf (sBuffer, MAX, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, kFormat("{:-^100}", "").c_str());
+						sResult += std::string(sBuffer);
 						bFirst = false;
 					}
-					fprintf (fpout, "\n");
+					snprintf (sBuffer, MAX, "\n");
+					sResult += std::string(sBuffer);
+					bFirst = true;
 					for (const auto& it : Row)
 					{
 						const KString& sName = it.first;
 						int iMax = static_cast<int>(Widths.Get (sName));
-						fprintf (fpout, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sName.c_str());
+						snprintf (sBuffer, MAX, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sName.c_str());
+						sResult += std::string(sBuffer);
 						bFirst = false;
 					}
-					fprintf (fpout, "\n");
+					snprintf (sBuffer, MAX, "\n");
+					sResult += std::string(sBuffer);
+					bFirst = true;
 					for (const auto& it : Row)
 					{
 						const KString& sName = it.first;
 						int iMax = static_cast<int>(Widths.Get (sName));
-						fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, kFormat("{:-^100}", "").c_str());
+						snprintf (sBuffer, MAX, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, kFormat("{:-^100}", "").c_str());
+						sResult += std::string(sBuffer);
 						bFirst = false;
 					}
-					fprintf (fpout, "\n");
+					snprintf (sBuffer, MAX, "\n");
+					sResult += std::string(sBuffer);
 					break;
 				case FORM_HTML:
-					fprintf (fpout, "<table>\n");
-					fprintf (fpout, "<tr>\n");
+					snprintf (sBuffer, MAX, "<table>\n");
+					sResult += std::string(sBuffer);
+					snprintf (sBuffer, MAX, "<tr>\n");
+					sResult += std::string(sBuffer);
 					for (const auto& it : Row)
 					{
 						const KString& sName = it.first;
-						fprintf (fpout, " <th>%s</th>\n", sName.c_str());
+						snprintf (sBuffer, MAX, " <th>%s</th>\n", sName.c_str());
+						sResult += std::string(sBuffer);
 					}
-					fprintf (fpout, "</tr>\n");
+					snprintf (sBuffer, MAX, "</tr>\n");
+					sResult += std::string(sBuffer);
 					break;
 				case FORM_CSV:
+					bFirst = true;
 					for (const auto& it : Row)
 					{
 						const KString& sName = it.first;
-						fprintf (fpout, "%s\"%s\"", (bFirst) ? "" : ",", sName.c_str());
+						snprintf (sBuffer, MAX, "%s\"%s\"", (bFirst) ? "" : ",", sName.c_str());
+						sResult += std::string(sBuffer);
 						bFirst = false;
 					}
-					fprintf (fpout, "\n");
+					snprintf (sBuffer, MAX, "\n");
+					sResult += std::string(sBuffer);
 					break;
 			}
 		}
@@ -7711,33 +7749,42 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 		switch (iFormat)
 		{
 			case FORM_ASCII:
+				bFirst = true;
 				for (const auto& it : Row)
 				{
 					const KString& sName  = it.first;
 					const KString& sValue = it.second.sValue;
 					int iMax = static_cast<int>(Widths.Get (sName));
-					fprintf (fpout, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sValue.c_str());
+					snprintf (sBuffer, MAX, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sValue.c_str());
+					sResult += std::string(sBuffer);
 					bFirst = false;
 				}
-				fprintf (fpout, "\n");
+				snprintf (sBuffer, MAX, "\n");
+				sResult += std::string(sBuffer);
 				break;
 			case FORM_HTML:
-				fprintf (fpout, "<tr>\n");
+				snprintf (sBuffer, MAX, "<tr>\n");
+				sResult += std::string(sBuffer);
 				for (const auto& it : Row)
 				{
 					const KString& sValue = it.second.sValue;
-					fprintf (fpout, " <td>%s</td>\n", sValue.c_str());
+					snprintf (sBuffer, MAX, " <td>%s</td>\n", sValue.c_str());
+					sResult += std::string(sBuffer);
 				}
-				fprintf (fpout, "</tr>\n");
+				snprintf (sBuffer, MAX, "</tr>\n");
+				sResult += std::string(sBuffer);
 				break;
 			case FORM_CSV:
+				bFirst = true;
 				for (const auto& it : Row)
 				{
 					const KString& sValue = it.second.sValue;
-					fprintf (fpout, "%s\"%s\"", (bFirst) ? "" : ",", sValue.c_str());
+					snprintf (sBuffer, MAX, "%s\"%s\"", (bFirst) ? "" : ",", sValue.c_str());
+					sResult += std::string(sBuffer);
 					bFirst = false;
 				}
-				fprintf (fpout, "\n");
+				snprintf (sBuffer, MAX, "\n");
+				sResult += std::string(sBuffer);
 				break;
 		}
 
@@ -7751,24 +7798,33 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 			case FORM_CSV:
 				break;
 			case FORM_HTML:
-				fprintf (fpout, "</table>\n");
+				snprintf (sBuffer, MAX, "</table>\n");
+				sResult += std::string(sBuffer);
 				break;
 			case FORM_ASCII:
+				bFirst = true;
 				for (const auto& it : Row)
 				{
 					const KString& sName  = it.first;
 					int iMax  = static_cast<int>(Widths.Get (sName));
-					fprintf (fpout, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, kFormat("{:-^100}", "").c_str());
+					snprintf (sBuffer, MAX, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, kFormat("{:-^100}", "").c_str());
+					sResult += std::string(sBuffer);
 					bFirst = false;
 				}
-				fprintf (fpout, "\n");
+				snprintf (sBuffer, MAX, "\n");
+				sResult += std::string(sBuffer);
 				break;
 		}
 	}
 
-	return (iNumRows);
+	if (piNumRows)
+	{
+		*piNumRows = iNumRows;
+	}
 
-} // OutputQuery
+	return (sResult);
+
+} // QueryAllRows
 
 //-----------------------------------------------------------------------------
 bool KSQL::BeginTransaction (KStringView sOptions/*=""*/)

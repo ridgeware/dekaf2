@@ -741,14 +741,6 @@ public:
 	/// returns iAPISet as string @param iAPISet an APISet
 	KStringView TxAPISet (API iAPISet) const;
 
-	#if 0
-	// blob and long ascii support:
-	unsigned char* EncodeData (unsigned char* pszBlobData, BlobType iBlobType, uint64_t iBlobDataLen = 0, bool fInPlace = false);
-	unsigned char* DecodeData (unsigned char* pszBlobData, BlobType iBlobType, uint64_t iEncodedLen = 0, bool fInPlace = false);
-	bool           PutBlob    (KStringView sBlobTable, KStringView sBlobKey, unsigned char* pszBlobData, BlobType iBlobType, uint64_t iBlobDataLen = 0);
-	unsigned char* GetBlob    (KStringView sBlobTable, KStringView sBlobKey, uint64_t* piBlobDataLen = nullptr);
-	#endif
-
 	// canned queries:
 	bool   ListTables (KStringView sLike = "%", bool fIncludeViews = false, bool fRestrictToMine = true);
 	                                                  // ORACLE rtns: TableName, 'TABLE'|'VIEW', Owner
@@ -769,9 +761,9 @@ public:
 	bool   QueryStarted ()         { return (m_bQueryStarted); }
 	void   EndQuery (bool bDestructor=false);
 
-	size_t  OutputQuery     (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout);
-	size_t  OutputQuery     (KStringView sSQL, OutputFormat iFormat=FORM_ASCII, FILE* fpout = stdout);
-	KString QueryAllRows    (const KSQLString& sSQL, OutputFormat iFormat=FORM_ASCII, size_t* piNumRows=NULL);
+	std::size_t OutputQuery  (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout);
+	std::size_t OutputQuery  (KStringView sSQL, OutputFormat iFormat=FORM_ASCII, FILE* fpout = stdout);
+	KString     QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat=FORM_ASCII, std::size_t* piNumRows=NULL);
 
 	void   DisableRetries() { m_bDisableRetries = true;  }
 	void   EnableRetries()  { m_bDisableRetries = false; }

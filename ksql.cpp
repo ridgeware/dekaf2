@@ -63,6 +63,8 @@
 #include "kscopeguard.h"
 #include "ktime.h"
 #include "kduration.h"
+#include "khex.h"
+#include "kcsv.h"
 #include <cstdint>
 #include <utility>
 
@@ -1275,12 +1277,10 @@ bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
 
 		m_sConnectOutput.clear();
 
-		snprintf ((char* )m_sConnectString, MAX_ODBCSTR, "DSN={};UID={};PWD={}", m_sDatabase, m_sUsername, m_sPassword);
+		m_sConnectString.Format ("DSN={};UID={};PWD={}", m_sDatabase, m_sUsername, m_sPassword);
 		if (!m_sHostname.empty())
 		{
-			KString sAdd;
-			sAdd.Format (";HOST={}", m_sHostname);
-			m_sConnectString += sAdd;
+			m_sConnectString += kFormat (";HOST={}", m_sHostname);
 		}
 
 		// enum enumSQLDriverConnect {
@@ -1306,7 +1306,7 @@ bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
 		//if (nResult < 0)
 		//	ErrorLog ("{}(warning): SQLDriverConnect() had problems with szConnectOutput\n", g_sProgName);
 
-		if (strcmp ((char* )m_sConnectString, (char* )m_sConnectOutput))
+		if (m_sConnectString != m_sConnectOutput)
 		{
 			kDebug (2, "(warning): connection string was tailored by odbc driver.");
 			kDebug (2, "(warning): orig connect string: '{}'\n", m_sConnectString);
@@ -2233,7 +2233,7 @@ void KSQL::LogPerformance (KDuration iMilliseconds, bool bIsQuery)
 		else if (m_fpPerformanceLog)
 		{
 			kDebugLog (1, "writing warning to special log file:\n{}", sWarning);
-			fprintf (m_fpPerformanceLog, "%s", sWarning.c_str());
+			kWrite (m_fpPerformanceLog, sWarning);
 			fflush (m_fpPerformanceLog);
 		}
 		else
@@ -3780,8 +3780,8 @@ bool KSQL::BufferResults ()
 					*spot = 2; // <-- change them to ^B
 					spot = strchr (spot+1, '\n');
 				}
-				fprintf (fp, "{}|{}|{}\n", m_iNumRowsBuffered, ii+1, strlen(m_dColInfo[ii].dszValue.get()));
-				fprintf (fp, "{}\n", m_dColInfo[ii].dszValue ? m_dColInfo[ii].dszValue.get() : "");
+				kPrint (fp, "{}|{}|{}\n", m_iNumRowsBuffered, ii+1, strlen(m_dColInfo[ii].dszValue.get()));
+				kPrint (fp, "{}\n", m_dColInfo[ii].dszValue ? m_dColInfo[ii].dszValue.get() : "");
 			}
 		}
 		break;
@@ -3828,8 +3828,8 @@ bool KSQL::BufferResults ()
 					*spot = 2; // <-- change them to ^B
 					spot = strchr (spot+1, '\n');
 				}
-				fprintf (fp, "{}|{}|{}\n", m_iNumRowsBuffered, ii+1, strlen(m_dColInfo[ii].dszValue.get()));
-				fprintf (fp, "{}\n", m_dColInfo[ii].dszValue ? m_dColInfo[ii].dszValue.get() : "");
+				kPrint (fp, "{}|{}|{}\n", m_iNumRowsBuffered, ii+1, strlen(m_dColInfo[ii].dszValue.get()));
+				kPrint (fp, "{}\n", m_dColInfo[ii].dszValue ? m_dColInfo[ii].dszValue.get() : "");
 			}
 		}
 		break;
@@ -4717,16 +4717,19 @@ bool KSQL::WasOCICallOK (KStringView sContext, uint32_t iErrorNum, KStringRef& s
 		}
 
 		// TODO rewrite!
-		if (strchr (sError.c_str(), '\n'))
-			*(strchr (sError.c_str(),'\n')) = 0;
-		snprintf (sError+strlen(sError), MAXLEN_ERR, " [{}]", sContext);
+		auto iPos = sError.find('\n');
+		if (iPos != KStringRef::npos)
+		{
+			sError.erase(iPos/*, KStringRef::npos*/);
+		}
+		sError += kFormat(" [{}]", sContext);
 
 		if ( (iErrorNum == 0)    // ORA-00000: no error
 		  || (iErrorNum == 1405) // ORA-01405: fetched column value is nullptr
 		  || (iErrorNum == 1406) // ORA-01406: fetched column value was truncated
 		)
 		{
-			kDebugLog (3, "  {} -- [ok] returned {}", sContext, sError.c_str());
+			kDebugLog (3, "  {} -- [ok] returned {}", sContext, sError);
 			return (true);
 		}
 		break;
@@ -5512,438 +5515,6 @@ KJSON KSQL::FindColumn (KStringView sColLike, KStringView sSchemaName/*current d
 	return list;
 
 } // FindColumn
-
-#if 0
-//-----------------------------------------------------------------------------
-unsigned char* KSQL::EncodeData (unsigned char* sBlobData, BlobType iBlobType, uint64_t iBlobDataLen/*=0*/, bool fInPlace/*=false*/)
-//-----------------------------------------------------------------------------
-{
-	kDebug (3, "...");
-
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// NOTE: this routine returns NEW MEMORY (upon success) 
-	// which needs to be freed (unless BlobType=BT_ASCII and fInPlace=true):
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	unsigned char* dszEncodedBlob = nullptr;
-	uint64_t  ii,jj;
-
-	// - - - - - - - - - - - - - - - - - - - -
-	//case BT_ASCII -- InPlace (no malloc):
-	// - - - - - - - - - - - - - - - - - - - -
-	if (fInPlace)
-	{
-		if (iBlobType != BT_ASCII)
-		{
-			SetError ("EncodeData(): fInPlace is true, but BlobType is not ASCII");
-			return (nullptr);
-		}
-
-		iBlobDataLen   = iBlobDataLen ? iBlobDataLen : strlen((const char*)sBlobData);
-
-		for (ii=0; ii < iBlobDataLen; ++ii)
-		{
-			switch (sBlobData[ii])
-			{
-				case '\'': sBlobData[ii] = 1;                break;  // <-- single quote to ^A
-				case 10:   sBlobData[ii] = 2;                break;  // <-- ^J to ^B
-				case 13:   sBlobData[ii] = 5;                break;  // <-- ^M to ^E
-			}
-		}
-
-		return (sBlobData);  // <-- no new memory, rtn same ptr passed in
-	}
-
-	switch (iBlobType)
-	{
-	// - - - - - - - - - -
-	case BT_ASCII:
-	// - - - - - - - - - -
-		iBlobDataLen   = iBlobDataLen ? iBlobDataLen : strlen((const char*)sBlobData);
-		dszEncodedBlob = (unsigned char*) kmalloc (iBlobDataLen + 1, "KSQL:dszEncodedBlob");
-
-		for (ii=0, jj=0; ii < iBlobDataLen; ++ii, ++jj)
-		{
-			switch (sBlobData[ii])
-			{
-				case '\'': dszEncodedBlob[jj] = 1;                break;  // <-- single quote to ^A
-				case 10:   dszEncodedBlob[jj] = 2;                break;  // <-- ^J to ^B
-				case 13:   dszEncodedBlob[jj] = 5;                break;  // <-- ^M to ^E
-				default:   dszEncodedBlob[jj] = sBlobData[ii];  break;  // <-- no translation
-			}
-		}
-		dszEncodedBlob[jj] = 0;
-
-		if (iBlobDataLen < 40)
-		{
-			kDebug (GetDebugLevel(), "(ASCII): '{}' --> '{}'", sBlobData, dszEncodedBlob);
-		}
-
-		return (dszEncodedBlob); // <-- new memory
-
-	// - - - - - - - - - -
-	case BT_BINARY:
-	// - - - - - - - - - -
-		if (!iBlobDataLen)
-		{
-			SetError ("EncodeData(): BlobType is BINARY, but iBlobDataLen not specified");
-			return (nullptr);
-		}
-
-		dszEncodedBlob = (unsigned char*) kmalloc ((iBlobDataLen+1) * 2, "KSQL:dszEncodedBlob");
-		for (ii=0, jj=0; ii<iBlobDataLen; ++ii)
-		{
-			unsigned char szAdd[2+1];
-			snprintf ((char*)szAdd, 2+1, "%02x", sBlobData[ii]);  // <-- 2-digit HEX encoding
-			dszEncodedBlob[jj++] = szAdd[0];
-			dszEncodedBlob[jj++] = szAdd[1];
-		}
-		dszEncodedBlob[jj] = 0;
-
-		if (iBlobDataLen < 40)
-		{
-			kDebug (GetDebugLevel(), "(BINARY): '{}' --> '{}'", sBlobData, dszEncodedBlob);
-		}
-
-		return (dszEncodedBlob); // <-- new memory
-	}	
-
-	SetError(kFormat ("EncodeData(): unsupported BlobType={}", iBlobType));
-	return (nullptr); // <-- failed (no new memory to free)
-
-} // EncodeData
-
-//-----------------------------------------------------------------------------
-unsigned char* KSQL::DecodeData (unsigned char* sBlobData, BlobType iBlobType, uint64_t iEncodedLen/*=0*/, bool fInPlace/*=false*/)
-//-----------------------------------------------------------------------------
-{
-	kDebug (GetDebugLevel(), "...");
-
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// NOTE: this routine returns NEW MEMORY (upon success) 
-	// which needs to be freed (unless BlobType=BT_ASCII and fInPlace=true):
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-	unsigned char* dszDecodedBlob = nullptr;
-	uint64_t  ii,jj;
-
-	// - - - - - - - - - - - - - - - - - - - -
-	//case BT_ASCII -- InPlace (no malloc):
-	// - - - - - - - - - - - - - - - - - - - -
-	if (fInPlace)
-	{
-		if (iBlobType != BT_ASCII)
-		{
-			SetError ("DecodeData(): fInPlace is true, but BlobType is not ASCII");
-			return (nullptr);
-		}
-
-		iEncodedLen   = iEncodedLen ? iEncodedLen : strlen((const char*)sBlobData);
-
-		for (ii=0; ii < iEncodedLen; ++ii)
-		{
-			switch (sBlobData[ii])
-			{
-				case 1:  sBlobData[ii] = '\''; break;  // <-- ^A to single quote
-				case 2:  sBlobData[ii] = 10;   break;  // <-- ^B to ^J
-				case 5:  sBlobData[ii] = 13;   break;  // <-- ^E to ^M
-			}
-		}
-
-		return (sBlobData);  // <-- no new memory, rtn same ptr passed in
-	}
-
-	switch (iBlobType)
-	{
-	// - - - - - - - - - -
-	case BT_ASCII:
-	// - - - - - - - - - -
-		iEncodedLen    = iEncodedLen ? iEncodedLen : strlen((const char*)sBlobData);
-		dszDecodedBlob = (unsigned char*) kmalloc (iEncodedLen + 1, "KSQL:dszDecodedBlob");
-
-		for (ii=0, jj=0; ii < iEncodedLen; ++ii, ++jj)
-		{
-			switch (sBlobData[ii])
-			{
-			case 1:  dszDecodedBlob[ii] = '\'';             break;  // <-- ^A to single quote
-			case 2:  dszDecodedBlob[ii] = 10;               break;  // <-- ^B to ^J
-			case 5:  dszDecodedBlob[ii] = 13;               break;  // <-- ^E to ^M
-			default: dszDecodedBlob[jj] = sBlobData[ii];  break;  // <-- no translation
-			}
-		}
-		dszDecodedBlob[jj] = 0;
-
-		if (iEncodedLen < 40)
-		{
-			kDebug (GetDebugLevel(), "(ASCII): '{}' --> '{}'", sBlobData, dszDecodedBlob);
-		}
-
-		return (dszDecodedBlob); // <-- new memory
-
-	// - - - - - - - - - -
-	case BT_BINARY:
-	// - - - - - - - - - -
-		if (!iEncodedLen)
-		{
-			SetError ("DecodeData(): BlobType is BINARY, but iEncodedLen not specified");
-			return (nullptr);
-		}
-
-		dszDecodedBlob = (unsigned char*) kmalloc ((iEncodedLen+1) / 2, "KSQL:dszDecodedBlob");
-		for (ii=0, jj=0; ii<iEncodedLen; ii+=2)
-		{
-			unsigned char szHexPair[2+1];
-			szHexPair[0] = sBlobData[ii+0];
-			szHexPair[1] = sBlobData[ii+1];
-			szHexPair[2] = 0;
-
-			// sanity check:
-			bool bOK1 = false;
-			bool bOK2 = false;
-
-			if (!szHexPair[0])
-				bOK1 = true;
-			else if ((szHexPair[0] >= '0') && (szHexPair[0] <= '9'))
-				bOK1 = true;
-			else if ((szHexPair[0] >= 'a') && (szHexPair[0] <= 'f'))
-				bOK1 = true;
-			else if ((szHexPair[0] >= 'A') && (szHexPair[0] <= 'F'))
-				bOK1 = true;
-
-			if (!szHexPair[1])
-				bOK2 = true;
-			else if ((szHexPair[1] >= '0') && (szHexPair[1] <= '9'))
-				bOK2 = true;
-			else if ((szHexPair[1] >= 'a') && (szHexPair[1] <= 'f'))
-				bOK2 = true;
-			else if ((szHexPair[1] >= 'A') && (szHexPair[1] <= 'F'))
-				bOK2 = true;
-
-			if (!bOK1 || !bOK2)
-			{
-				if (kWouldLog(GetDebugLevel())
-				{
-					kDebug (GetDebugLevel(), "corrupted hex pair in encoded data:");
-					kDebug (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 0, szHexPair[0], bOK1 ? "valid hex digit" : "INVALID HEX DIGIT");
-					kDebug (GetDebugLevel(), "  szHexPair[{}+{}] = %3d ({})", ii, 1, szHexPair[1], bOK2 ? "valid hex digit" : "INVALID HEX DIGIT");
-					kDebug (GetDebugLevel(), "  EncodedLen={}", iEncodedLen);
-					kDebug (GetDebugLevel(), "  sBlobData     = {} (memory dump to follow)...", sBlobData);
-					kDebug (GetDebugLevel(), "  sBlobData+Len = {}", sBlobData+iEncodedLen);
-				}
-
-				//kDebugMemory ((const char*) sBlobData, 0, /*iLinesBefore=*/0, /*iLinesAfter=*/iEncodedLen/8);
-
-				SetError ("DecodeData(): corrupted blob (details in klog)");
-				return (nullptr);
-			}
-
-			int iValue = 0;
-			sscanf ((char*)szHexPair, "%x", &iValue);
-
-			kDebug (GetDebugLevel()+1, "  HexPair[%04lu/%04lu]: '{}' ==> %03d ==> '%c'", ii, iEncodedLen, szHexPair, iValue, iValue);
-
-			dszDecodedBlob[jj++] = iValue;
-		}
-		dszDecodedBlob[jj] = 0;
-
-		return (dszDecodedBlob); // <-- new memory
-	}	
-
-	SetError(kFormat ("DecodeData(): unsupported BlobType={}", iBlobType));
-	return (nullptr); // <-- failed (no new memory to free)
-
-} // DecodeData
-
-//-----------------------------------------------------------------------------
-bool KSQL::PutBlob (KStringView sBlobTable, KStringView sBlobKey, unsigned char* sBlobData, BlobType iBlobType, uint64_t iBlobDataLen/*=0*/)
-//-----------------------------------------------------------------------------
-{
-	kDebug (3, "...");
-
-	if (!sBlobTable || !sBlobKey || !sBlobData)
-	{
-		return SetError ("PutBlob(): BlobTable, BlobKey or BlobData is nullptr");
-	}
-
-	enum {MAXLEN = 2000};
-
-	switch (iBlobType)
-	{
-		// - - - - - - - - - -
-		case BT_ASCII:
-		// - - - - - - - - - -
-			iBlobDataLen   = iBlobDataLen ? iBlobDataLen : strlen((const char*)sBlobData);
-			break;
-
-		// - - - - - - - - - -
-		case BT_BINARY:
-		// - - - - - - - - - -
-			if (!iBlobDataLen)
-			{
-				return SetError ("KSQL:PutBlob(): BlobType is BINARY, but iBlobDataLen not specified");
-			}
-			break;
-	}
-	
-	// assumes table looks like this:
-
-	// BlobKey       char(50)      not null,
-	// ChunkNum      int           not null,
-	// Chunk         {{CHAR2000}}  null,
-	// Encoding      int           not null, // 'A'(65):KSQLASCII | 'B'(66):KSQLBINARY
-	// EncodedSize   int           not null,
-	// DataSize      int           not null
-
-	// 1. delete any existing rows from previous puts:
-	ExecSQL ("delete from {} where BlobKey = '{}'", sBlobTable, sBlobKey);
-
-	if (!iBlobDataLen)
-	{
-		return (true);  // <-- nothing to insert, string is NIL
-	}
-
-	unsigned char* dszEncodedBlob = EncodeData (sBlobData, iBlobType, iBlobDataLen); // malloc
-	unsigned char  szChunk[MAX_BLOBCHUNKSIZE+1];
-	unsigned char* sSpot = dszEncodedBlob;
-	int iChunkNum = 0;
-
-	while (sSpot && *sSpot)
-	{
-		++iChunkNum;
-
-		uint64_t iAmountLeft         = strlen((const char*)sSpot);
-		uint64_t iEncodedLenChunk    = (iAmountLeft < MAXLEN) ? iAmountLeft : MAXLEN;
-		uint64_t iDataLenChunk       = iEncodedLenChunk / ((iBlobType==BT_ASCII) ? 1 : 2);
-		memcpy (szChunk, sSpot, iEncodedLenChunk);
-		szChunk[iEncodedLenChunk] = 0;
-
-		kDebug (GetDebugLevel(), "chunk '{}', part[{:02}]: encoding={}, datasize={:04}", sBlobKey, iChunkNum, iBlobType, iDataLenChunk);
-
-		bool bOK = ExecSQL (
-			"insert into {} (BlobKey, ChunkNum, Chunk, Encoding, EncodedSize, DataSize)\n"
-			"values ('{}', {}, '{}', {}, {}, {})",
-				sBlobTable,
-				sBlobKey, iChunkNum, szChunk, iBlobType, iEncodedLenChunk, iDataLenChunk);
-
-		if (!bOK)
-		{
-			return (false);
-		}
-
-		sSpot += iEncodedLenChunk;
-	}
-
-	if (dszEncodedBlob)
-	{
-		free (dszEncodedBlob);
-	}
-
-	return (true);
-
-} // PutBlob
-
-//-----------------------------------------------------------------------------
-unsigned char* KSQL::GetBlob (KStringView sBlobTable, KStringView sBlobKey, uint64_t* piBlobDataLen/*=nullptr*/)
-//-----------------------------------------------------------------------------
-{
-	kDebug (3, "...");
-
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// NOTE: this routine returns NEW MEMORY (upon success) 
-	// which needs to be freed...
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-	// assumes table looks like this:
-
-	// BlobKey       char(50)      not null,
-	// ChunkNum      int           not null,
-	// Chunk         {{CHAR2000}}  null,
-	// Encoding      int           not null, // 'A'(65):KSQLASCII | 'B'(66):KSQLBINARY
-	// EncodedSize   int           not null,
-	// DataSize      int           not null
-
-	int64_t iBlobDataLen = SingleIntQuery ("select sum(DataSize) from {} where BlobKey='{}'", sBlobTable, sBlobKey);
-	if (iBlobDataLen < 0)
-	{
-		return (nullptr); // db error
-	}
-
-	kDebug (GetDebugLevel(), "expecting {} bytes for BlobKey='{}'", iBlobDataLen, sBlobKey);
-
-	if (!iBlobDataLen)
-	{
-		return ((unsigned char*)strdup(""));  // <-- return a zero-length string that can be freed
-	}
-
-	unsigned char* dszBlobData = (unsigned char*) kmalloc ((uint32_t)(iBlobDataLen+1), "KSQL:dszBlobData");
-	unsigned char* sSpot     = dszBlobData;
-
-	if (!ExecQuery ("select ChunkNum, Chunk, Encoding, EncodedSize, DataSize from {} where BlobKey='{}' order by ChunkNum", sBlobTable, sBlobKey))
-	{
-		return (nullptr);
-	}
-
-	while (NextRow())
-	{
-		int         iChunkNum       = IntValue (1);
-		KStringView sEncodedChunk   = (unsigned char*)Get (2, /*fTrimRight=*/false);
-		int         iEncoding       = IntValue (3);
-		uint64_t    iEncodedSize    = ULongValue (4);
-		uint64_t    iDataSize       = ULongValue (5);
-
-		kDebug (GetDebugLevel(), "chunk '{}', part[{:02}]: encoding={}, datasize={:04}", sBlobKey, iChunkNum, iEncoding, iDataSize);
-
-		// 1. decode this chunk:
-		kDebug (GetDebugLevel()+1, "(1): decoding this chunk...");
-		unsigned char* dszChunk        = DecodeData (sEncodedChunk, iEncoding, iEncodedSize); // malloc
-
-		// 2. add this chunk on to our return memory:
-		kDebug (GetDebugLevel()+1, "(2): adding decoded chunk to Spot={} (BlobData={})",
-				sSpot, dszBlobData);
-		memcpy (sSpot, dszChunk, iDataSize);
-
-		// 3. position the pointer:
-		kDebug (GetDebugLevel()+1, "(3): moving Spot from {} to {}...",
-				sSpot, sSpot + iDataSize);
-		sSpot += iDataSize;
-
-		if ((dszChunk != sEncodedChunk)
-				&& (dszChunk != nullptr))
-		{
-			kfree (dszChunk);
-		}
-	}
-
-	kDebug (GetDebugLevel()+1, "checking result...");
-
-	if (sSpot != (dszBlobData + iBlobDataLen))
-	{
-		kDebug (GetDebugLevel(), "sanity check failed:");
-		kDebug (GetDebugLevel(), "    dszBlobData   = {}", dszBlobData);
-		kDebug (GetDebugLevel(), "  + iBlobDataLen  = + {:08}", iBlobDataLen);
-		kDebug (GetDebugLevel(), "  --------------    ----------");
-		kDebug (GetDebugLevel(), "                  = {}", dszBlobData + iBlobDataLen);
-		kDebug (GetDebugLevel(), "    but sSpot   = {}", sSpot);
-	}
-
-	*sSpot = 0;                       // <-- terminate the blob (in case its ascii)
-
-	if (piBlobDataLen)
-	{
-		kDebug (GetDebugLevel(), "return length set to {}", iBlobDataLen);
-
-		*piBlobDataLen = (uint64_t) iBlobDataLen;  // <-- for truly binary data, this data length is essential
-	}
-	else
-	{
-		kDebug (GetDebugLevel(), "return length ({}) not passed back", iBlobDataLen);
-	}
-
-	kDebug (GetDebugLevel(), "return data pointer sBlobData = {}", dszBlobData);
-
-	return (dszBlobData);               // <-- new memory which must be freed
-
-} // GetBlob
-#endif
 
 #ifdef DEKAF2_HAS_ODBC
 //------------------------------------------------------------------------------
@@ -7575,7 +7146,7 @@ void KSQL::ctlib_flush_results ()
 #endif
 
 //-----------------------------------------------------------------------------
-size_t KSQL::OutputQuery (KStringView sSQL, KStringView sFormat, FILE* fpout/*=stdout*/)
+std::size_t KSQL::OutputQuery (KStringView sSQL, KStringView sFormat, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "...");
@@ -7600,7 +7171,7 @@ size_t KSQL::OutputQuery (KStringView sSQL, KStringView sFormat, FILE* fpout/*=s
 } // OutputQuery
 
 //-----------------------------------------------------------------------------
-size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
+std::size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "...");
@@ -7609,14 +7180,14 @@ size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/,
 	size_t     iNumRows{0};
 	auto       sResult = QueryAllRows (sSafeSQL, iFormat, &iNumRows);
 
-	fprintf (fpout, "%s", sResult.c_str());
+	kWrite (fpout, sResult);
 
 	return iNumRows;
 
 } // OutputQuery
 
 //-----------------------------------------------------------------------------
-KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_ASCII*/, size_t* piNumRows/*=NULL*/)
+KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_ASCII*/, std::size_t* piNumRows/*=NULL*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "...");
@@ -7629,9 +7200,9 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_
 	}
 
 	KProps<KString, std::size_t, false, true> Widths;
-	KROW   Row;
-	size_t iNumRows = 0;
-	enum   { MAXCOLWIDTH = 80 };
+	KROW Row;
+	std::size_t iNumRows = 0;
+	static constexpr std::size_t MAXCOLWIDTH = 80;
 
 	if (iFormat == FORM_ASCII)
 	{
@@ -7668,123 +7239,112 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_
 		ExecLastRawQuery (GetFlags(), "OutputQuery");
 	}
 
-	enum    {MAX = 10000};
-	char    sBuffer[MAX+1];
-
 	iNumRows = 0;
+
 	while (NextRow (Row))
 	{
 		// output column headers:
 		if (++iNumRows == 1)
 		{
-			bool bFirst { true };
 			switch (iFormat)
 			{
 				case FORM_ASCII:
+				{
+					bool bFirst = true;
+					for (const auto& it : Row)
+					{
+						auto& sName = it.first;
+						auto  iMax  = Widths.Get (sName);
+						sResult    += kFormat ("{}{:-<{}}-+", (bFirst) ? "+-" : "-", "", iMax);
+						bFirst      = false;
+					}
+					sResult += '\n';
+
 					bFirst = true;
 					for (const auto& it : Row)
 					{
-						const KString& sName = it.first;
-						int iMax = static_cast<int>(Widths.Get (sName));
-						snprintf (sBuffer, MAX, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, kFormat("{:-^100}", "").c_str());
-						sResult += std::string(sBuffer);
-						bFirst = false;
+						auto& sName = it.first;
+						auto  iMax  = Widths.Get (sName);
+						sResult    += kFormat ("{}{:<{}.{}} |", (bFirst) ? "| " : " ", sName, iMax, iMax);
+						bFirst      = false;
 					}
-					snprintf (sBuffer, MAX, "\n");
-					sResult += std::string(sBuffer);
+					sResult += '\n';
+
 					bFirst = true;
 					for (const auto& it : Row)
 					{
-						const KString& sName = it.first;
-						int iMax = static_cast<int>(Widths.Get (sName));
-						snprintf (sBuffer, MAX, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sName.c_str());
-						sResult += std::string(sBuffer);
-						bFirst = false;
+						auto& sName = it.first;
+						auto  iMax  = Widths.Get (sName);
+						sResult    += kFormat("{}{:-<{}}-+", (bFirst) ? "+-" : "-", "", iMax);
+						bFirst      = false;
 					}
-					snprintf (sBuffer, MAX, "\n");
-					sResult += std::string(sBuffer);
-					bFirst = true;
-					for (const auto& it : Row)
-					{
-						const KString& sName = it.first;
-						int iMax = static_cast<int>(Widths.Get (sName));
-						snprintf (sBuffer, MAX, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, kFormat("{:-^100}", "").c_str());
-						sResult += std::string(sBuffer);
-						bFirst = false;
-					}
-					snprintf (sBuffer, MAX, "\n");
-					sResult += std::string(sBuffer);
+					sResult += '\n';
 					break;
+				}
+
 				case FORM_HTML:
-					snprintf (sBuffer, MAX, "<table>\n");
-					sResult += std::string(sBuffer);
-					snprintf (sBuffer, MAX, "<tr>\n");
-					sResult += std::string(sBuffer);
+					sResult += "<table>\n<tr>\n";
 					for (const auto& it : Row)
 					{
-						const KString& sName = it.first;
-						snprintf (sBuffer, MAX, " <th>%s</th>\n", sName.c_str());
-						sResult += std::string(sBuffer);
+						sResult += kFormat(" <th>{}</th>\n", it.first);
 					}
-					snprintf (sBuffer, MAX, "</tr>\n");
-					sResult += std::string(sBuffer);
+					sResult += "</tr>\n";
 					break;
+
 				case FORM_CSV:
-					bFirst = true;
+					KOutCSV CSV(sResult);
 					for (const auto& it : Row)
 					{
-						const KString& sName = it.first;
-						snprintf (sBuffer, MAX, "%s\"%s\"", (bFirst) ? "" : ",", sName.c_str());
-						sResult += std::string(sBuffer);
-						bFirst = false;
+						CSV.WriteColumn(it.first);
 					}
-					snprintf (sBuffer, MAX, "\n");
-					sResult += std::string(sBuffer);
+					CSV.WriteEndOfRecord();
 					break;
 			}
 		}
 
 		// output row:
-		bool bFirst { true };
 		switch (iFormat)
 		{
 			case FORM_ASCII:
-				bFirst = true;
+			{
+				bool bFirst = true;
 				for (const auto& it : Row)
 				{
-					const KString& sName  = it.first;
-					const KString& sValue = it.second.sValue;
-					int iMax = static_cast<int>(Widths.Get (sName));
-					snprintf (sBuffer, MAX, "%s%-*.*s |", (bFirst) ? "| " : " ", iMax, iMax, sValue.c_str());
-					sResult += std::string(sBuffer);
-					bFirst = false;
+					auto& sName  = it.first;
+					auto& sValue = it.second.sValue;
+					auto  iMax   = Widths.Get (sName);
+					if (bFirst)
+					{
+						sResult += kFormat ("| {:<{}.{}} |", sValue, iMax, iMax);
+					}
+					else
+					{
+						sResult += kFormat ( " {:>{}.{}} |", sValue, iMax, iMax);
+					}
+					bFirst       = false;
 				}
-				snprintf (sBuffer, MAX, "\n");
-				sResult += std::string(sBuffer);
+				sResult += '\n';
 				break;
+			}
+
 			case FORM_HTML:
-				snprintf (sBuffer, MAX, "<tr>\n");
-				sResult += std::string(sBuffer);
+				sResult += "<tr>\n";
 				for (const auto& it : Row)
 				{
 					const KString& sValue = it.second.sValue;
-					snprintf (sBuffer, MAX, " <td>%s</td>\n", sValue.c_str());
-					sResult += std::string(sBuffer);
+					sResult += kFormat (" <td>{}</td>\n", sValue);
 				}
-				snprintf (sBuffer, MAX, "</tr>\n");
-				sResult += std::string(sBuffer);
+				sResult += "</tr>\n";
 				break;
+
 			case FORM_CSV:
-				bFirst = true;
+				KOutCSV CSV(sResult);
 				for (const auto& it : Row)
 				{
-					const KString& sValue = it.second.sValue;
-					snprintf (sBuffer, MAX, "%s\"%s\"", (bFirst) ? "" : ",", sValue.c_str());
-					sResult += std::string(sBuffer);
-					bFirst = false;
+					auto& sValue = it.second.sValue;
+					CSV.WriteColumn(sValue);
 				}
-				snprintf (sBuffer, MAX, "\n");
-				sResult += std::string(sBuffer);
+				CSV.WriteEndOfRecord();
 				break;
 		}
 
@@ -7792,28 +7352,28 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_
 
 	if (iNumRows)
 	{
-		bool bFirst { true };
 		switch (iFormat)
 		{
 			case FORM_CSV:
 				break;
+
 			case FORM_HTML:
-				snprintf (sBuffer, MAX, "</table>\n");
-				sResult += std::string(sBuffer);
+				sResult += "</table>\n";
 				break;
+
 			case FORM_ASCII:
-				bFirst = true;
+			{
+				bool bFirst = true;
 				for (const auto& it : Row)
 				{
-					const KString& sName  = it.first;
-					int iMax  = static_cast<int>(Widths.Get (sName));
-					snprintf (sBuffer, MAX, "%s%-*.*s-+", (bFirst) ? "+-" : "-", iMax, iMax, kFormat("{:-^100}", "").c_str());
-					sResult += std::string(sBuffer);
-					bFirst = false;
+					auto& sName = it.first;
+					auto  iMax  = Widths.Get (sName);
+					sResult    += kFormat ("{}{:-<{}}-+", (bFirst) ? "+-" : "-", "", iMax);
+					bFirst      = false;
 				}
-				snprintf (sBuffer, MAX, "\n");
-				sResult += std::string(sBuffer);
+				sResult += '\n';
 				break;
+			}
 		}
 	}
 

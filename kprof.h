@@ -48,6 +48,7 @@
 #if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 
 #include "kdefinitions.h"
+#include "kformat.h"
 #include <map>
 #include <cinttypes>
 #include <cstring>
@@ -91,11 +92,7 @@ public:
 	{
 		if (m_print)
 		{
-#if defined (__APPLE__) || defined (__arm__) || defined (_MSC_VER)
-			fprintf(stdout, "KQDProf::%-25.25s %10lli nsecs\n", m_label, (clock_t::now()-m_start).count());
-#else
-			fprintf(stdout, "KQDProf::%-25.25s %10li nsecs\n", m_label, (clock_t::now()-m_start).count());
-#endif
+			kPrint(stdout, "KQDProf::{:<25.25} {:>10} nsecs\n", m_label, (clock_t::now()-m_start).count());
 		}
 	}
 
@@ -247,7 +244,7 @@ private:
 	map_t::iterator find(const char* label, uint32_t level = 0);
 	//-----------------------------------------------------------------------------
 
-	static size_t                s_refcount;
+	static std::size_t           s_refcount;
 	static KSharedProfiler*      s_parent;
 	static std::mutex            s_constructor_mutex;
 	static std::atomic<uint32_t> s_order;
@@ -323,7 +320,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void SetMultiplier(size_t iMultiplier)
+	void SetMultiplier(std::size_t iMultiplier)
 	//-----------------------------------------------------------------------------
 	{
 		m_callct_multiplier = iMultiplier;
@@ -346,7 +343,7 @@ private:
 	KSharedProfiler::clock_t::time_point m_start;
 	KSharedProfiler::duration_t          m_slept_before;
 	KSharedProfiler::data_t              m_data;
-	size_t                               m_callct_multiplier{1};
+	std::size_t                          m_callct_multiplier{1};
 	bool                                 m_stopped{false};
 	bool                                 m_increment_level{true};
 

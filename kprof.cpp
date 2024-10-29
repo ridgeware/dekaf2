@@ -54,7 +54,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 namespace enabled {
 
-size_t                KSharedProfiler::s_refcount{0};
+std::size_t           KSharedProfiler::s_refcount{0};
 KSharedProfiler*      KSharedProfiler::s_parent{nullptr};
 std::mutex            KSharedProfiler::s_constructor_mutex;
 std::atomic<uint32_t> KSharedProfiler::s_order{0};
@@ -135,7 +135,7 @@ void KSharedProfiler::print()
 
 	// sort result map into an ordered set
 	// and compute max length of labels:
-	size_t maxlen{0};
+	std::size_t maxlen{0};
 	set_t set;
 	for (const auto& it : m_map)
 	{
@@ -148,7 +148,7 @@ void KSharedProfiler::print()
 	std::string sSeparator(imaxlen + 74, '-');
 
 	// report:
-	fprintf (stdout, "\n\nperformance stats:\n\n");
+	kWrite (stdout, "\n\nperformance stats:\n\n");
 	for (const auto& it : set)
 	{
 		double nPercent = (m_profiled_runtime.count())
@@ -161,45 +161,45 @@ void KSharedProfiler::print()
 			// this is a section header
 			if (!it.second.level)
 			{
-				fprintf (stdout,
-						 "|  %s\n",
-						 sSeparator.c_str() );
+				kPrint (stdout,
+						"|  {}\n",
+						sSeparator );
 			}
 			dispname += &it.first[1];
-			fprintf (stdout,
-					 "|  %-*.*s : %12s usecs : %5.1f%%\n",
-					 imaxlen, imaxlen,
-					 dispname.c_str(),
-					 kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(it.second.duration).count()).c_str(),
-					 nPercent);
+			kPrint (stdout,
+					"|  {:{}.{}} : {:>12} usecs : {:5.1f}%\n",
+					dispname,
+					imaxlen, imaxlen,
+					kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(it.second.duration).count()),
+					nPercent);
 		}
 		else
 		{
 			dispname += it.first;
-			fprintf (stdout,
-					 "|  %-*.*s : %12s usecs : %5.1f%% : %10s calls : %16s nsecs\n",
-					 imaxlen, imaxlen,
-					 dispname.c_str(),
-					 kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(it.second.duration).count()).c_str(),
-					 nPercent,
-					 kFormNumber(it.second.count).c_str(),
-					 kFormNumber(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(it.second.duration).count()) / it.second.count).c_str()); // it.second.count is always non-zero..
+			kPrint (stdout,
+					"|  {:{}.{}} : {:>12} usecs : {:5.1f}% : {:>10} calls : {:>16} nsecs\n",
+					dispname,
+					imaxlen, imaxlen,
+					kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(it.second.duration).count()),
+					nPercent,
+					kFormNumber(it.second.count),
+					kFormNumber(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(it.second.duration).count()) / it.second.count)); // it.second.count is always non-zero..
 		}
 	}
 
-	fprintf (stdout, "\n");
+	kWrite (stdout, "\n");
 
-	fprintf (stdout,
-			 "|  %-*.*s : %12s usecs : 100.0%%\n",
-			 imaxlen, imaxlen, "accumulated runtime",
-			 kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(m_profiled_runtime).count()).c_str());
+	kPrint (stdout,
+			"|  {:{}.{}} : {:>12} usecs : 100.0%\n",
+			"accumulated runtime", imaxlen, imaxlen,
+			 kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(m_profiled_runtime).count()));
 
-	fprintf (stdout,
-			 "|  %-*.*s : %12s usecs\n",
-			 imaxlen, imaxlen, "wall clock",
-			 kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(clock_t::now()-m_start).count()).c_str());
+	kPrint (stdout,
+			"|  {:{}.{}} : {:>12} usecs : 100.0%\n",
+			"wall clock", imaxlen, imaxlen,
+			kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(clock_t::now()-m_start).count()));
 
-	fprintf (stdout, "\n");
+	kWrite (stdout, "\n");
 
 } // print
 
@@ -223,7 +223,6 @@ KSharedProfiler::map_t::iterator KSharedProfiler::find(const char* label, uint32
 		return it2.first;
 	}
 }
-
 
 //-----------------------------------------------------------------------------
 KSharedProfiler::data_t& KSharedProfiler::data_t::operator +=(const data_t& d)

@@ -60,12 +60,16 @@ KStringView KCSV::WriteBOM() const
 }
 
 //-----------------------------------------------------------------------------
-bool KCSV::WriteColumn(KOutStream& Out, KStringView sColumn, bool bIsFirst)
+bool KCSV::WriteColumn(KOutStream& Out, KStringView sColumn)
 //-----------------------------------------------------------------------------
 {
-	if (!bIsFirst)
+	if (!m_bFirst)
 	{
 		Out += m_Limiters[ColumnLimiter];
+	}
+	else
+	{
+		m_bFirst = false;
 	}
 
 	if (m_LimiterSet.find_first_in(sColumn) == KString::npos)
@@ -94,6 +98,35 @@ bool KCSV::WriteColumn(KOutStream& Out, KStringView sColumn, bool bIsFirst)
 	return Out.Good();
 
 } // WriteColumn
+
+//-----------------------------------------------------------------------------
+KString KCSV::WriteColumn(KStringView sColumn)
+//-----------------------------------------------------------------------------
+{
+	KString sOut;
+	KOutStringStream Oss(sOut);
+	WriteColumn(Oss, sColumn);
+	return sOut;
+
+} // WriteColumn
+
+//-----------------------------------------------------------------------------
+bool KCSV::WriteEndOfRecord(KOutStream &Out)
+//-----------------------------------------------------------------------------
+{
+	if (m_Limiters[RecordLimiter] == '\n')
+	{
+		// the csv file format uses the canonical linefeed of http
+		Out += '\r';
+	}
+
+	Out += m_Limiters[RecordLimiter];
+
+	m_bFirst = true;
+
+	return Out.Good();
+
+} // WriteEndOfRecord
 
 //-----------------------------------------------------------------------------
 KInStream& KCSV::SkipBOM(KInStream& In)

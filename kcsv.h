@@ -98,6 +98,16 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// write a single column into an output stream. To terminate a record (or, row), call WriteEndOfRecord()
+	bool WriteColumn(KOutStream& Out, KStringView sColumn);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// terminate a record, if single colums were written with WriteColumn(), prepare for the next (if any)
+	bool WriteEndOfRecord(KOutStream& Out);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// write any iterable type with elements that are convertible into a string view with correct escaping into an output stream
 	template<class Columns = std::vector<KString>>
 	bool Write(KOutStream& Out, const Columns& Record)
@@ -108,23 +118,12 @@ public:
 			return false;
 		}
 
-		bool bFirst { true };
-
 		for (const auto& Column : Record)
 		{
-			WriteColumn(Out, Column, bFirst);
-			bFirst = false;
+			WriteColumn(Out, Column);
 		}
 
-		if (m_Limiters[RecordLimiter] == '\n')
-		{
-			// the csv file format uses the canonical linefeed of http
-			Out += '\r';
-		}
-
-		Out += m_Limiters[RecordLimiter];
-
-		return Out.Good();
+		return WriteEndOfRecord(Out);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -139,6 +138,12 @@ public:
 		Write(Oss, Record);
 		return sRecord;
 	}
+
+	//-----------------------------------------------------------------------------
+	/// write a single column into an output string. To terminate a record (or, row), call WriteEndOfRecord()
+	DEKAF2_NODISCARD
+	KString WriteColumn(KStringView sColumn);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// skip UTF8 BOM if existing at start of stream - Microsoft applications use to write this at the start of files
@@ -204,7 +209,6 @@ protected:
 
 	enum class STATE { EndOfRecord, EndOfColumn, EndOfFile };
 
-	bool WriteColumn(KOutStream& Out, KStringView sColumn, bool bIsFirst);
 	STATE ReadColumn(KInStream& In, KStringRef& sColumn);
 
 //------
@@ -215,6 +219,7 @@ private:
 	// constexpr before C++20
 	char                m_Limiters[3];
 	KFindSetOfChars     m_LimiterSet;
+	bool                m_bFirst { true };
 
 }; // KCSV
 
@@ -462,6 +467,22 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return KCSV::Write(m_Out, Record);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// write a single column into the output stream. To terminate a record (or, row), call WriteEndOfRecord()
+	bool WriteColumn(KStringView sColumn)
+	//-----------------------------------------------------------------------------
+	{
+		return KCSV::WriteColumn(m_Out, sColumn);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// terminate a record, if single colums were written with WriteColumn(), prepare for the next (if any)
+	bool WriteEndOfRecord()
+	//-----------------------------------------------------------------------------
+	{
+		return KCSV::WriteEndOfRecord(m_Out);
 	}
 
 //------

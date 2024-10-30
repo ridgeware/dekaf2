@@ -218,8 +218,8 @@ private:
 	// using a char array instead of std::array<> because the latter is not
 	// constexpr before C++20
 	char                m_Limiters[3];
-	KFindSetOfChars     m_LimiterSet;
 	bool                m_bFirst { true };
+	KFindSetOfChars     m_LimiterSet;
 
 }; // KCSV
 

@@ -141,8 +141,16 @@ public:
 	KString (const KString& str, size_type pos, size_type n = npos) : m_rep(str.m_rep, (pos > str.size()) ? str.size() : pos, n) {}
 	KString (size_type n, value_type ch)                      : m_rep(n, ch) {}
 	KString (const value_type* s, size_type n)                : m_rep(s ? s : "", s ? n : 0) {}
+
+	// the iterator constructor of std::string is way too dangerous -
+	// a simple std::string("one", "two") causes a buffer overflow -
+	// we will not implement it for KString..
 	template<class _InputIterator>
-	KString (_InputIterator first, _InputIterator last)       : m_rep(first, last) {}
+	KString (_InputIterator first, _InputIterator last)       : m_rep(first, last) 
+	{
+		static_assert(first == last, "the iterator constructor is not supported - please use the (const char*, std::size_t) constructor instead");
+	}
+
 	KString (std::initializer_list<value_type> il)            : m_rep(il) {}
 	template<typename T,
 	         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>

@@ -525,6 +525,10 @@
 	#endif
 #endif
 
+#if __cpp_concepts >= 201907L
+#define DEKAF2_HAS_CONSTRAINTS 1
+#endif
+
 #if __cpp_concepts >= 202002L
 	#define DEKAF2_HAS_CONCEPTS 1
 #endif

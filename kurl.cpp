@@ -141,7 +141,7 @@ KStringView GetDomainSuffix (KStringView sHostName)
 		}
 		else if (pair.iIndex < pair.Domains.size() - 1)
 		{
-			return KStringView(pair.Domains[pair.iIndex + 1].begin(), sHostName.end());
+			return KStringView(pair.Domains[pair.iIndex + 1].begin(), sHostName.end() - pair.Domains[pair.iIndex + 1].begin());
 		}
 	}
 
@@ -157,7 +157,7 @@ KStringView GetRootDomain (KStringView sHostName)
 
 	if (pair.iIndex == 0 && pair.Domains.size() == 1 && !pair.Domains[0].empty()) return sHostName;
 	
-	return (pair.bValid) ? KStringView(pair.Domains[pair.iIndex].begin(), sHostName.end()) : KStringView{};
+	return (pair.bValid) ? KStringView(pair.Domains[pair.iIndex].begin(), sHostName.end() - pair.Domains[pair.iIndex].begin()) : KStringView{};
 
 } // GetRootDomain
 
@@ -169,7 +169,7 @@ KStringView GetSubDomain (KStringView sHostName)
 
 	if (pair.bValid && pair.iIndex > 0)
 	{
-		return KStringView(pair.Domains[0].begin(), pair.Domains[pair.iIndex-1].end());
+		return KStringView(pair.Domains[0].begin(), pair.Domains[pair.iIndex-1].end() - pair.Domains[0].begin());
 	}
 
 	return {};

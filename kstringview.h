@@ -299,13 +299,26 @@ public:
 	KStringView(const KString& str) noexcept;
 	//-----------------------------------------------------------------------------
 
+	// the iterator constructor of std::string_view is way too dangerous -
+	// a simple std::string_view("one", "two") causes a buffer overflow -
+	// we will not implement it for KStringView..
 	//-----------------------------------------------------------------------------
-	template <class iterator, class end, typename std::enable_if<std::is_integral<end>::value == false, int>::type =0>
+	template <class It, class End,
+		typename std::enable_if<
+			std::is_convertible<End, std::size_t>::value == false &&
+			std::is_same<typename std::iterator_traits<It>::value_type, value_type>::value == true
+		, int>::type=0
+	>
+#if DEKAF2_HAS_CONSTRAINTS
+	requires std::sized_sentinel_for<End, It>
+		&& std::contiguous_iterator<It>
+#endif
 	DEKAF2_CONSTEXPR_20
-	constexpr KStringView(iterator first, end last) noexcept
+	constexpr KStringView(It first, End last) noexcept
 	//-----------------------------------------------------------------------------
 	: m_rep(first, last - first)
 	{
+		static_assert(first == last, "the iterator constructor is not supported - please use the (const char*, std::size_t) constructor instead");
 	}
 
 	//-----------------------------------------------------------------------------

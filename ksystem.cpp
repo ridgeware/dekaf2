@@ -2160,4 +2160,12 @@ KDuration kPing(KStringView sHostname, KDuration Timeout)
 
 } // kPing
 
+//-----------------------------------------------------------------------------
+bool kStdOutIsTerminal()
+//-----------------------------------------------------------------------------
+{
+	return KFileStat(1).Type() == KFileType::CHARACTER;
+
+} // kStdOutIsTerminal
+
 DEKAF2_NAMESPACE_END

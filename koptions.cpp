@@ -646,7 +646,7 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 	GetEnvironment();
 	CalcExtends(Callback);
 	// we only highlight required options on stdout
-	bool bIsTerminal = (&out == &KOut) && (KFileStat(1).Type() == KFileType::CHARACTER);
+	bool bIsTerminal = (&out == &KOut) && kStdOutIsTerminal();
 	FormatOne(out, Callback, Mask(*this, Callback.IsCommand(), bIsTerminal && Callback.IsRequired()));
 
 } // HelpFormatter::BuildOne
@@ -663,7 +663,7 @@ KOptions::HelpFormatter::HelpFormatter(KOutStream& out,
 	GetEnvironment();
 	CalcExtends(Callbacks);
 	// we only highlight required options on stdout
-	bool bIsTerminal = (&out == &KOut) && (KFileStat(1).Type() == KFileType::CHARACTER);
+	bool bIsTerminal = (&out == &KOut) && kStdOutIsTerminal();
 
 	out.WriteLine();
 	out.Format("{} -- ", m_Params.GetProgramName());

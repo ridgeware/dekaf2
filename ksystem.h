@@ -500,4 +500,9 @@ public:
 DEKAF2_PUBLIC
 KDuration kPing(KStringView sHostname, KDuration Timeout = chrono::seconds(5));
 
+/// is the current stdout a terminal or not
+/// @returns true if terminal, false otherwise
+DEKAF2_PUBLIC
+bool kStdOutIsTerminal();
+
 DEKAF2_NAMESPACE_END

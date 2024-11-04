@@ -31,13 +31,14 @@ private:
 
 	void ShowVersion     ();
 	void Grep            (KInStream& InStream, KStringView sFilename);
-	void AddFiles        (KOptions::ArgList& Args);
+	void AddFiles        (std::vector<KStringViewZ> Files);
 	void PrintError      (KStringView sError);
 	KString Highlight    (KStringView sIn, const std::vector<KStringView>& Matches);
 
 	KStringView          m_sProgramName;
 	KString              m_sSearch;
 	std::vector<KString> m_Files;
+	std::size_t          m_iParallel          {     0 };
 	bool                 m_bRegularExpression { false };
 	bool                 m_bRecursive         { false };
 	bool                 m_bIgnoreCase        { false };

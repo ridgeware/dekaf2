@@ -8,6 +8,7 @@
 #include <dekaf2/kregex.h>
 #include <dekaf2/kformat.h>
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/kparallel.h>
 
 using namespace dekaf2;
 
@@ -151,44 +152,43 @@ void KGrep::Grep(KInStream& InStream, KStringView sFilename)
 } // Grep
 
 //-----------------------------------------------------------------------------
-void KGrep::AddFiles (KOptions::ArgList& Args)
+void KGrep::AddFiles (std::vector<KStringViewZ> Files)
 //-----------------------------------------------------------------------------
 {
-	while (!Args.empty())
+	for (auto sFile : Files)
 	{
-		auto sArg = Args.pop();
-
 		if (m_sSearch.empty())
 		{
-			m_sSearch = sArg;
+			m_sSearch = sFile;
 			continue;
 		}
 
-		KFileStat Stat(sArg);
+		KFileStat Stat(sFile);
 
 		switch (Stat.Type())
 		{
 			case KFileType::FILE:
-				m_Files.push_back(sArg);
+				m_Files.push_back(sFile);
 				break;
 
 			case KFileType::DIRECTORY:
 			{
-				KDirectory Dir(sArg, KFileType::FILE, m_bRecursive);
+				KDirectory Dir(sFile, KFileType::FILE, m_bRecursive);
 
 				for (auto& File : Dir)
 				{
+					// using operator const KString&()
 					m_Files.push_back(File);
 				}
 				break;
 			}
 
 			case KFileType::UNEXISTING:
-				PrintError(kFormat("file not found: {}", sArg));
+				PrintError(kFormat("file not found: {}", sFile));
 				break;
 
 			default:
-				PrintError(kFormat("bad file type '{}': {}", Stat.Type().Serialize(), sArg));
+				PrintError(kFormat("bad file type '{}': {}", Stat.Type().Serialize(), sFile));
 				break;
 		}
 	}
@@ -207,26 +207,36 @@ void KGrep::ShowVersion()
 int KGrep::Main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
+	KStopTime OverallTime;
+
 	{
 		// setup CLI option parsing
-		KOptions Options(true, KLog::STDOUT, /*bThrow*/true);
+		KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
 
 		Options.SetAdditionalArgDescription("<search expression> <file[s]>");
 
-		Options.Option("E,regexp"      ).Help("is a regular expression"       ).Set(m_bRegularExpression , true);
-		Options.Option("r,recursive"   ).Help("recursive directory traversal" ).Set(m_bRecursive         , true);
-		Options.Option("i,ignore-case" ).Help("ignore case in comparison"     ).Set(m_bIgnoreCase        , true);
-		Options.Option("v,invert-match").Help("show lines that do not match"  ).Set(m_bInvertMatch       , true);
-		Options.Option("H"             ).Help("always print file name headers").Set(m_bPrintFilename     , true);
-		Options.Option("V,version"     ).Help("show version information"      ).Final() ([&]() { ShowVersion(); });
+		m_bRegularExpression = Options("E,regexp             : is a regular expression"       , false);
+		m_bRecursive         = Options("r,recursive          : recursive directory traversal" , false);
+		m_bIgnoreCase        = Options("i,ignore-case        : ignore case in comparison"     , false);
+		m_bInvertMatch       = Options("v,invert-match       : show lines that do not match"  , false);
+		m_bPrintFilename     = Options("H                    : always print file name headers", false);
+		m_iParallel          = Options("p,parallel <threads> : parallel threads for search, defaults to cpu cores", 0UL);
+		bool bShowVersion    = Options("V,version            : show version information"      , false);
 
-		Options.RegisterUnknownCommand([&](KOptions::ArgList& Args) { AddFiles(Args); });
+		AddFiles(Options.GetUnknownCommands());
 
-		auto iRetVal = Options.Parse(argc, argv, KOut);
-
-		if (iRetVal	|| Options.Terminate()) return iRetVal;
+		// do a final check if all required options were set
+		if (!Options.Check()) return 1;
 
 		m_sProgramName = Options.GetProgramName();
+
+		if (bShowVersion)
+		{
+			ShowVersion();
+			return 0;
+		}
+
+		if (!m_iParallel) m_iParallel = std::thread::hardware_concurrency();
 	}
 
 	if (m_sSearch.empty()) throw KError("no search expression");
@@ -256,7 +266,7 @@ int KGrep::Main(int argc, char** argv)
 
 	if (!m_bPrintFilename && m_Files.size() > 1) m_bPrintFilename = true;
 
-	m_bIsTerminal = KFileStat(1).Type() == KFileType::CHARACTER;
+	m_bIsTerminal = kStdOutIsTerminal();
 
 	if (m_Files.empty())
 	{
@@ -264,20 +274,23 @@ int KGrep::Main(int argc, char** argv)
 	}
 	else
 	{
-		for (const auto& sFilename : m_Files)
+		kDebug(2, "threads: {}, files: {}", m_iParallel, m_Files.size());
+		kParallelForEach(m_Files, [this](KStringViewZ sFilename)
 		{
 			KInFile InFile(sFilename);
 
 			if (!InFile.is_open())
 			{
-				kPrintLine(KErr, " >> cannot open file - skipped: {}", sFilename);
+				kPrintLine(KErr, ">> cannot open file - skipped: {}", sFilename);
 			}
 			else
 			{
 				Grep(InFile, sFilename);
 			}
-		}
+		}, m_iParallel);
 	}
+
+	kDebug(1, "search took {}", OverallTime.elapsed());
 
 	return 0;
 

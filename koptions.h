@@ -56,7 +56,80 @@
 
 
 /// @file koptions.h
-/// option parsing
+/// KOption offers multiple approaches for option parsing, which have evolved over time. These approaches can be mixed.
+///
+/// In general, any input argument is either an option (if it starts with one or two dashes) or a command (if it does not
+/// start with dashes). Options and commands can have arguments, that is, arguments following an option until the next 
+/// argument that starts with dashes). How many of those arguments will be consumed by a single option or command is
+/// determined by the callback type and a possible min/max range declaration.
+///
+/// Additional constructor arguments define whether empty input arguments are an error by itself, and if an exception will
+/// be thrown in case of an error.
+///
+/// 1. The original approach requires the declaration of a callback function for each option or command, in which the
+/// arguments (if any) are evaluated and assigned, and possibly other code is executed.
+/// After all callbacks are setup the input arguments are parsed and the respective callbacks executed.
+/// Typical code for this approach looks like:
+/// @code
+/// // instantiate the KOptions object
+/// KOptions Options;
+/// // add options with their callbacks
+/// Options.Option("f,filename <name>").Help("the name for the file")     .Callback([&](KStringViewZ sArg) { m_sFilename = sArg;          });
+/// Options.Option("m,max <count>")    .Help("the maximum count of words").Callback([&](KStringViewZ sArg) { m_iCount    = sArg.UInt64(); });
+/// // finally parse the arguments and call the callbacks
+/// int iResult = Options.Parse(argc, argv);
+/// if (iResult != 0) return iResult;
+/// @endcode
+/// Three different callback signatures exist, for callbacks without arguments, for callbacks with one argument, or for callbacks with multiple arguments:
+/// @code
+/// Callback([](){});
+/// Callback([](KStringViewZ sArg){});
+/// Callback([](KOptions::ArgList& Args){});
+/// @endcode
+/// The callback with multiple arguments is called with args in a KStack object. After return, all popped arguments will be counted as consumed, all remaining
+/// will either be parsed for being commands with a callback, or, if existing, an unknown command callback will be called with them. The latter is typically
+/// used for unspecified counts of input arguments like e.g. filenames.
+///
+/// A number of requirements can be set for the expected arguments, like signed/unsigned/string/filename etc.:
+/// @code
+/// Options.Option("timeout <sec>")
+///        .Help("timeout in seconds")
+///        .Type(KOptions::Unsigned)
+///        .Range(1, 60)
+///        .Callback([&](KStringViewZ sArg) { m_iTimeout = sArg.UInt64(); });
+/// @endcode
+///
+/// 2. Simplifications for the above syntax exist: The help text can be appended to the opion names, and single variables can be set with the argument value,
+/// automatically converted into the variable type.
+/// @code
+/// Options.Option("f,filename <name> : the name for the file").Set(m_sFilename);
+/// @endcode
+///
+/// 3. A third approach to argument parsing is the so-called ad-hoc parsing. In this approach (which can also be mixed with the previous ones)
+/// the input arguments get parsed first, and then get requested by query functions. Using the call operator and some template magic let
+/// this approach look very natural:
+/// @code
+/// // instantiate the KOptions object and parse all input arguments
+/// KOptions Options(false, argc, argv);
+/// // request options and values
+/// KString  sFilename = Options("f,filename <name> : the name for the file");
+/// // declare a default value of 1000 if the option is missing
+/// uint16_t iCount    = Options("m,max <count>     : the maximum count of words", 1000);
+/// bool     bReverse  = Options("r,reverse         : count from end of file", false);
+/// // you can also explicitly request a value type
+/// auto     iExpect   = Options("e                 : expected average, 1).Int16();
+/// // get all remaining arguments (should be called last..)
+/// auto ArgVec        = Options.GetUnknownCommands();
+/// // finally check if all arguments were evaluated
+/// if (Options.Check()) return false;
+/// @endcode
+/// All options without a default value are required options.
+///
+/// For all approaches, a help text will be auto generated and auto formatted, adapted to the output terminal size. Missing
+/// arguments for options or commands will be annotated with the relevant part of the help.
+/// It is not necessary to use white space formatting as in the above examples - all white space will be normalized,
+/// above it was used to ease reading.
+
 
 
 DEKAF2_NAMESPACE_BEGIN
@@ -233,14 +306,15 @@ private:
 		KStringView  m_sMissingArgs;
 		KStringView  m_sHelp;
 		mutable std::vector<KStringViewZ> m_Args;
-		int64_t      m_iLowerBound  {      0 };
-		int64_t      m_iUpperBound  {      0 };
-		uint16_t     m_iMinArgs     {      0 };
-		uint16_t     m_iMaxArgs     {  65535 };
-		uint16_t     m_iFlags       {  fNone };
-		uint16_t     m_iHelpRank    {      0 };
-		ArgTypes     m_ArgType      { String };
-		mutable bool m_bUsed        {  false };
+		int64_t      m_iLowerBound      {      0 };
+		int64_t      m_iUpperBound      {      0 };
+		uint16_t     m_iMinArgs         {      0 };
+		uint16_t     m_iMaxArgs         {  65535 };
+		uint16_t     m_iFlags           {  fNone };
+		uint16_t     m_iHelpRank        {      0 };
+		ArgTypes     m_ArgType          { String };
+		mutable bool m_bUsed            {  false };
+		mutable bool m_bArgsAreDefaults {  false };
 
 		/// returns true if this parameter is required
 		DEKAF2_NODISCARD
@@ -296,13 +370,7 @@ public:
 	protected:
 
 		// we make the ctor protected to ensure that all passed strings are already persisted
-		OptionalParm(KOptions& base, KStringView sOption, KStringView sArgDescription, bool bIsCommand)
-		: CallbackParam(sOption,
-						sArgDescription,
-						bIsCommand ? fIsCommand : fNone)
-		, m_base(&base)
-		{
-		}
+		OptionalParm(KOptions& base, KStringView sOption, KStringView sArgDescription, bool bIsCommand);
 
 	public:
 
@@ -523,17 +591,19 @@ public:
 	{
 	public:
 		/// construct Values with data from parameter parsing
-		Values(const std::vector<KStringViewZ>& Params, bool bFound) noexcept
-		: m_Params(Params), m_bFound(bFound) {}
+		Values(KOptions& base, const std::vector<KStringViewZ>& Params, bool bFound) noexcept
+		: m_base(base), m_Params(Params), m_bFound(bFound) {}
+		/// dtor to push unused parameters into the unknown commands list
+		~Values();
 		/// Get the values associated to an option name as a vector<KStringViewZ>
 		DEKAF2_NODISCARD
-		const std::vector<KStringViewZ>& Vector() const noexcept { return m_Params; }
+		std::vector<KStringViewZ> Vector() noexcept;
 		/// Get the value associated to an option name as string
 		DEKAF2_NODISCARD
-		KStringViewZ String() const noexcept { return empty() ? KStringViewZ{} : m_Params.front(); }
+		KStringViewZ String() const noexcept;
 		/// Get the value associated to an option name as C string
 		DEKAF2_NODISCARD
-		const char* c_str()   const noexcept { return empty() ? "" : m_Params.front().c_str(); }
+		const char* c_str()   const noexcept { return String().c_str();  }
 		/// Get the value associated to an option name as signed integer
 		DEKAF2_NODISCARD
 		int64_t Int64()       const noexcept { return String().Int64();  }
@@ -558,7 +628,8 @@ public:
 		/// Get the value associated to an option name as floating point value
 		DEKAF2_NODISCARD
 		double Double()       const noexcept { return String().Double(); }
-		/// Get the value associated to an option name as a boolean
+		/// Get a boolean - the option name does not have/needs a value
+		/// - if the option is present the value is true, else false
 		DEKAF2_NODISCARD
 		bool Bool()           const noexcept;
 		/// Get the value associated to an option name as a duration
@@ -623,7 +694,7 @@ public:
 		operator    ValueType () const noexcept { return Double(); }
 
 		// the vector type
-		operator const std::vector<KStringViewZ>& () const noexcept { return Vector(); }
+		operator std::vector<KStringViewZ> () noexcept { return Vector(); }
 
 		/// index access throws if out of range
 		KStringViewZ operator [] (std::size_t index) const;
@@ -634,8 +705,10 @@ public:
 		std::vector<KStringViewZ>::const_iterator end()   const noexcept { return m_Params.end();   }
 
 	private:
+		KOptions&                        m_base;
 		const std::vector<KStringViewZ>& m_Params;
-		bool                             m_bFound { false   };
+		mutable std::size_t              m_iConsumed        { 0 };
+		bool                             m_bFound       { false };
 
 	}; // Values
 
@@ -684,6 +757,10 @@ public:
 	DEKAF2_NODISCARD
 	Values operator()(KStringView sOptionName, const std::vector<KStringViewZ>& DefaultValues) noexcept 
 	{ return Get(sOptionName, DefaultValues); }
+
+	/// returns all commands that were not covered by any declared command in current parsing. For ad-hoc parsing
+	/// call after all other options were checked. Can only be called once.
+	std::vector<KStringViewZ> GetUnknownCommands() { return std::move(m_UnknownCommands); }
 
 //----------
 protected:
@@ -873,6 +950,8 @@ private:
 	const CallbackParam* FindParam(KStringView sName, bool bIsOption) const;
 	DEKAF2_NODISCARD DEKAF2_PRIVATE
 	const CallbackParam* FindParam(KStringView sName, bool bIsOption, bool bMarkAsUsed) const;
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	const CallbackParam* FindParamForGet(KStringView sOptionName) const;
 	DEKAF2_PRIVATE
 	void ResetBeforeParsing();
 	DEKAF2_PRIVATE
@@ -907,6 +986,7 @@ private:
 	CommandLookup              m_Options;
 	KStringViewZ               m_sCurrentArg;
 	KOutStream*                m_CurrentOutputStream     { nullptr };
+	std::vector<KStringViewZ>  m_UnknownCommands;
 	const KStringView*         m_sHelp                   { nullptr };
 	std::size_t                m_iHelpSize               {       0 };
 	std::size_t                m_iAutomaticOptionCount   {       0 };
@@ -923,12 +1003,4 @@ private:
 }; // KOptions
 
 DEKAF2_NAMESPACE_END
-
-
-
-
-
-
-
-
 

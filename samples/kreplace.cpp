@@ -38,7 +38,7 @@ KReplace::KReplace ()
 	m_CLI.Option("V,version"     ).Help("show version information"      ).Final() ([&]() { ShowVersion(); });
 	m_CLI.Option("revert"        ).Help("rename files with .old suffix to name without .old suffix").Set(m_bRevert, true );
 
-	m_CLI.RegisterUnknownCommand([&](KOptions::ArgList& Args)
+	m_CLI.UnknownCommand([&](KOptions::ArgList& Args)
 	{
 		while (!Args.empty())
 		{

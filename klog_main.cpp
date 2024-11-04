@@ -556,7 +556,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 
 	Options.Command("show", "number of lines").Type(KOptions::Unsigned).Set(Actions.iDumpLines);
 
-	Options.RegisterUnknownCommand([&](KOptions::ArgList& sArgs)
+	Options.UnknownCommand([&](KOptions::ArgList& sArgs)
 	{
 		Actions.iDumpLines = sArgs.front().UInt32();
 		if (!Actions.iDumpLines)

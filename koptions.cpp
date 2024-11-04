@@ -101,6 +101,34 @@ KOptions::CallbackParam::CallbackParam(KStringView sNames, KStringView sMissingA
 } // CallbackParam ctor
 
 //---------------------------------------------------------------------------
+KOptions::OptionalParm::OptionalParm(KOptions& base, KStringView sOption, KStringView sArgDescription, bool bIsCommand)
+//---------------------------------------------------------------------------
+: CallbackParam(sOption,
+				sArgDescription,
+				bIsCommand ? fIsCommand : fNone)
+, m_base(&base)
+{
+	// check if we had a help component in the option string
+	auto pair = IsolateOptionNamesFromHelp(sOption);
+
+	if (!pair.second.empty())
+	{
+		// Yes, create option help from the combined option name/help string.
+		// The string was already persisted before this constructor was called,
+		// we do not persist it a second time.
+		IntHelp(pair.second, 0);
+	}
+	else if (!sArgDescription.empty())
+	{
+		// We create the option help from an eventual argument description
+		// (that is normally thrown in case of a missing argument).
+		// The string was already persisted before this constructor was called,
+		// we do not persist it a second time.
+		IntHelp(sArgDescription, 0);
+	}
+}
+
+//---------------------------------------------------------------------------
 KOptions::OptionalParm::~OptionalParm()
 //---------------------------------------------------------------------------
 {
@@ -1105,6 +1133,7 @@ void KOptions::UnknownCommand(CallbackN Function)
 						   std::move(Function)));
 }
 
+#if 1 // these methods are deprecated..
 //---------------------------------------------------------------------------
 void KOptions::RegisterOption(KStringView sOptions, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function)
 //---------------------------------------------------------------------------
@@ -1158,6 +1187,7 @@ void KOptions::RegisterCommand(KStringView sCommand, KStringViewZ sMissingParm, 
 		func(args.pop());
 	}));
 }
+#endif
 
 //---------------------------------------------------------------------------
 int KOptions::Parse(int argc, char const* const* argv, KOutStream& out)
@@ -1756,7 +1786,7 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 					}
 					else
 					{
-						// this is an edge case - there was no callback
+						// this is an edge case - there was no callback, this happens with ad-hoc callbacks
 						// copy all args from the stack/deque, and store them in reverse order for .Get()
 						for (auto it = Args.crbegin(), ie = Args.crend(); it != ie; ++it)
 						{
@@ -1920,6 +1950,12 @@ bool KOptions::Check(KOutStream& out)
 					out.FormatLine("excess argument: -{}", Callback.m_sNames);
 				}
 			}
+
+			for (auto& sCommand : m_UnknownCommands)
+			{
+				bErrors = true;
+				out.FormatLine("excess command: {}", sCommand);
+			}
 		}
 
 		if (bErrors)
@@ -1985,23 +2021,30 @@ KStringView KOptions::IsolateOptionNamesFromSuffix(KStringView sOptionName)
 } // IsolateOptionNamesFromSuffix
 
 //---------------------------------------------------------------------------
-KOptions::Values KOptions::Get(KStringView sOptionName)
+const KOptions::CallbackParam* KOptions::FindParamForGet(KStringView sOptionName) const
 //---------------------------------------------------------------------------
 {
-	const CallbackParam* Callback { nullptr };
-
-	sOptionName.TrimLeft(' ');
-	sOptionName.TrimLeft('-');
+	sOptionName.TrimLeft(" \t-");
 
 	for (auto sName : IsolateOptionNamesFromSuffix(IsolateOptionNamesFromHelp(sOptionName).first).Split())
 	{
-		Callback = FindParam(sName, true, true);
+		auto Callback = FindParam(sName, true, true);
 
 		if (Callback)
 		{
-			break;
+			return Callback;
 		}
 	}
+
+	return nullptr;
+
+} // FindParamForGet
+
+//---------------------------------------------------------------------------
+KOptions::Values KOptions::Get(KStringView sOptionName)
+//---------------------------------------------------------------------------
+{
+	auto Callback = FindParamForGet(sOptionName);
 
 	if (!Callback)
 	{
@@ -2015,7 +2058,7 @@ KOptions::Values KOptions::Get(KStringView sOptionName)
 		return Get(sOptionName, std::vector<KStringViewZ>{});
 	}
 
-	return Values(Callback->m_Args, true);
+	return Values(*this, Callback->m_Args, !Callback->m_bArgsAreDefaults);
 
 } // Get
 
@@ -2027,6 +2070,9 @@ KOptions::Values KOptions::Get(KStringView sOptionName, const std::vector<KStrin
 
 	sOptionName.TrimLeft(" \t-");
 
+	// we need this unfolded version instead of FindParamForGet because
+	// we may generate a new Option and will need the pointers on names
+	// and help text
 	auto pair = IsolateOptionNamesFromHelp(sOptionName);
 	auto list = IsolateOptionNamesFromSuffix(pair.first).Split();
 
@@ -2040,7 +2086,9 @@ KOptions::Values KOptions::Get(KStringView sOptionName, const std::vector<KStrin
 		}
 	}
 
-	if (!Callback)
+	bool bFound = Callback;
+
+	if (!bFound)
 	{
 		Option       (pair.first)
 			.Help    (pair.second)
@@ -2055,7 +2103,7 @@ KOptions::Values KOptions::Get(KStringView sOptionName, const std::vector<KStrin
 		{
 			kDebug(1, "cannot create option: {}", sOptionName);
 			static std::vector<KStringViewZ> s_Empty;
-			return Values(s_Empty, false);
+			return Values(*this, s_Empty, false);
 		}
 
 		// check if the args were already parsed under another name in the callback,
@@ -2067,10 +2115,17 @@ KOptions::Values KOptions::Get(KStringView sOptionName, const std::vector<KStrin
 			{
 				Callback->m_Args.push_back(m_Strings.Persist(sDefaultValue));
 			}
+			// note that these args are defaults, not real input
+			Callback->m_bArgsAreDefaults = true;
 		}
 	}
 
-	return Values(Callback->m_Args, true);
+	if (Callback->m_bArgsAreDefaults)
+	{
+		bFound = false;
+	}
+
+	return Values(*this, Callback->m_Args, bFound);
 
 } // Get
 
@@ -2083,17 +2138,79 @@ KOptions::Values KOptions::Get(KStringView sOptionName, const KStringViewZ& sDef
 } // Get
 
 //---------------------------------------------------------------------------
+KOptions::Values::~Values()
+//---------------------------------------------------------------------------
+{
+	// do we have still unconsumed parameters (typically after ad-hoc assignment)
+	if (m_iConsumed < size() && m_bFound)
+	{
+		// only restore those if the param was found, else it was a default value
+		auto Callback = m_base.FindParam(UNKNOWN_ARG, false, true);
+
+		if (Callback && Callback->m_Callback)
+		{
+			// we have a callback for unknown commands
+			ArgList Args;
+
+			// collect all unconsumed commands
+			for (; m_iConsumed < size(); ++m_iConsumed)
+			{
+				Args.push_back(m_Params[m_iConsumed]);
+			}
+
+			// and call the callback with the params
+			Callback->m_Callback(Args);
+		}
+		else
+		{
+			// add all unconsumed commands to the general unknown commands vec
+			for (; m_iConsumed < size(); ++m_iConsumed)
+			{
+				m_base.m_UnknownCommands.push_back(m_Params[m_iConsumed]);
+			}
+		}
+	}
+
+} // dtor
+
+//---------------------------------------------------------------------------
+std::vector<KStringViewZ> KOptions::Values::Vector() noexcept
+//---------------------------------------------------------------------------
+{
+	m_iConsumed = size();
+	return std::move(m_Params);
+}
+
+//---------------------------------------------------------------------------
+KStringViewZ KOptions::Values::String() const noexcept
+//---------------------------------------------------------------------------
+{
+	if (m_iConsumed >= size())
+	{
+		return {};
+	}
+	else
+	{
+		return m_Params[m_iConsumed++];
+	}
+
+} // String
+
+//---------------------------------------------------------------------------
 bool KOptions::Values::Bool() const noexcept
 //---------------------------------------------------------------------------
 {
-	const auto& sValue = String();
-
-	if (sValue.empty())
+	if (!m_bFound)
 	{
-		return m_bFound;
+		// args are defaults, if any
+		return String().Bool();
 	}
-
-	return sValue.Bool();
+	else
+	{
+		// if the option was found it is always true,
+		// even without any args
+		return true;
+	}
 
 } // Bool
 
@@ -2103,6 +2220,11 @@ KStringViewZ KOptions::Values::operator [] (std::size_t index) const
 {
 	if (index < size())
 	{
+		if (m_iConsumed < index + 1)
+		{
+			m_iConsumed = index + 1;
+		}
+
 		return m_Params[index];
 	}
 	else

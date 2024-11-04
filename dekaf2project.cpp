@@ -121,7 +121,7 @@ CreateProject::CreateProject ()
 
 	m_Options.Throw();
 
-	m_Options.RegisterUnknownCommand([&](KOptions::ArgList& Commands)
+	m_Options.UnknownCommand([&](KOptions::ArgList& Commands)
 	{
 		if (!m_sProjectName.empty() || Commands.size() > 1)
 		{

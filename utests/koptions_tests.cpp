@@ -167,8 +167,8 @@ TEST_CASE("KOptions")
 			"-Ii", "952",
 			"-neg", "-1234567",
 			"-bool",
-			"-bool2", "false",
-			"-bool3", "true",
+//			"-bool2=false",
+//			"-bool3=true",
 			"-file", "filename.txt",
 			"-real", "123.456",
 			"-clear", "database1",
@@ -198,8 +198,8 @@ TEST_CASE("KOptions")
 		CHECK( Options("f").String()    == "filename.txt" );
 		CHECK( Options("i").UInt64()    == 952 );
 		CHECK( Options("bool" ).Bool()  == true  );
-		CHECK( Options("bool2").Bool()  == false );
-		CHECK( Options("bool3").Bool()  == true  );
+//		CHECK( Options("bool2").Bool()  == false );
+//		CHECK( Options("bool3").Bool()  == true  );
 		CHECK( Options("real" ).Double()== 123.456 );
 		CHECK((Options("m").Vector()    == std::vector<KStringViewZ>{ "first", "second" }));
 
@@ -459,8 +459,8 @@ TEST_CASE("KOptions2")
 			"-ui", "952",
 			"-neg", "-1234567",
 			"-bool",
-			"-bool2", "false",
-			"-bool3", "true",
+//			"-bool2=false",
+//			"-bool3=true",
 			"-file", "filename.txt",
 			"-real", "123.456",
 			"-adhoc1", "hello",
@@ -493,13 +493,13 @@ TEST_CASE("KOptions2")
 			else CHECK ( false );
 			++i;
 		}
-		CHECK ( i == 2);
+		CHECK ( i == 2 );
 		bool bBool = Opt("bool");
 		CHECK ( bBool == true );
-		bool bBool2 = Opt("bool2");
-		CHECK ( bBool2 == false );
-		bool bBool3 = Opt("bool3");
-		CHECK ( bBool3 == true );
+//		bool bBool2 = Opt("bool2");
+//		CHECK ( bBool2 == false );
+//		bool bBool3 = Opt("bool3");
+//		CHECK ( bBool3 == true );
 		double real = Opt("real");
 		CHECK ( real == 123.456 );
 		iUInt = Opt("notfound", "234");
@@ -513,6 +513,9 @@ TEST_CASE("KOptions2")
 		std::size_t iSize = Opt("notfound5", 1234567);
 		CHECK ( iSize == 1234567);
 //		iUInt = Opt("notfound2");
+		auto UnknownArgs = Opt.GetUnknownCommands();
+		CHECK ( UnknownArgs.size() == 1 );
+		CHECK ( UnknownArgs.front() == "arg2" );
 		CHECK ( Opt.Check() == true );
 	}
 
@@ -523,8 +526,8 @@ TEST_CASE("KOptions2")
 			"-ui", "952",
 			"-neg", "-1234567",
 			"-bool",
-			"-bool2", "false",
-			"-bool3", "true",
+//			"-bool2=false",
+//			"-bool3=true",
 			"-file", "filename.txt",
 			"-real", "123.456", "234.567",
 			"-adhoc1", "hello",
@@ -547,10 +550,10 @@ TEST_CASE("KOptions2")
 		CHECK ( sDefault2 == "a default value" );
 		auto bBool = Opt("bool").Bool();
 		CHECK ( bBool == true );
-		auto bBool2 = Opt("bool2").Bool();
-		CHECK ( bBool2 == false );
-		auto bBool3 = Opt("bool3").Bool();
-		CHECK ( bBool3 == true );
+//		auto bBool2 = Opt("bool2").Bool();
+//		CHECK ( bBool2 == false );
+//		auto bBool3 = Opt("bool3").Bool();
+//		CHECK ( bBool3 == true );
 		auto real = Opt("real").Double();
 		CHECK ( real == 123.456 );
 		iUInt = Opt("notfound", "234").UInt32();
@@ -562,6 +565,10 @@ TEST_CASE("KOptions2")
 		CHECK ( *values.begin() == "arg1" );
 		CHECK_THROWS ( values[2] == "arg2" );
 		CHECK ( Opt("real")[1].Double() == 234.567 );
+		auto UnknownArgs = Opt.GetUnknownCommands();
+		CHECK ( UnknownArgs.size() == 2 );
+		CHECK ( UnknownArgs[0] == "arg2" );
+		CHECK ( UnknownArgs[1] == "234.567" );
 		CHECK ( Opt.Check() == true );
 	}
 

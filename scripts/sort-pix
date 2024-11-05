@@ -364,23 +364,187 @@ CountFiles ()
 		*)
 			list=$(cd "$dir"; echo .*.jpg 2>/dev/null)
 			iCount=$(echo "$list" | wc -w)
-			if [ $iCount -eq 1 ]; then
-				if [ "$list" = '.*.jpg' ]; then
+			if [[ $iCount -eq 1 ]]; then
+				if [[ "$list" = '.*.jpg' ]]; then
 					iCount=0
 				fi
 			fi
 			printf ":: %6d : %s\n" "$iCount" "$dir"
 
-			if [ $iCount -eq 0 ]; then
+			if [[ $iCount -eq 0 ]]; then
 				rm -f "$dir/.tag"
+				rm -f "$dir/.folder.jpg" # folder thumb
 			else
-				(printf "%d pix" $iCount > "$dir/.tag") 2>/dev/null
+				(printf "%d pix\n" $iCount > "$dir/.tag") 2>/dev/null
+				if [[ ! -f "$dir/.folder.jpg" ]]; then # folder thumb
+					pickone=$(ls -1 "$dir"/.???*.jpg | head -1)
+					cp -pf "$pickone" "$dir/.folder.jpg"
+				fi
 			fi
 			;;
 		esac
 	done
 
 } # CountFiles
+
+setx=DeletePix
+#==============================
+DeletePix ()
+#==============================
+{
+	# $1 : action = delete | undelete
+	# $2 : URL or fullpath to pic or thumbnail
+
+	if [[ $# -lt 2 ]]; then
+		echo "DeletePix needs two args"
+		return 1
+	fi
+
+	local action="$1"; shift
+
+	while [[ $# -gt 0 ]]
+	do
+		local pic="$1"; shift
+
+		case "$pic" in
+			http://ballet.ridgeware.com/*)
+				fullpath=$(echo "$pic" | sed -e 's|.*/d[ie][rv]/|/home/sites/ballet/|' -e 's|/[/]*|/|g')
+				;;
+			http://nepa.ridgeware.com/*)
+				fullpath=$(echo "$pic" | sed -e 's|.*/d[ie][rv]/|/home/sites/nepa/|' -e 's|/[/]*|/|g')
+				;;
+			http://pix.ridgeware.com/*)
+				fullpath=$(echo "$pic" | sed -e 's|.*/d[ie][rv]/|/home/sites/pix/|' -e 's|/[/]*|/|g')
+				;;
+			http://soccer.ridgeware.com/*)
+				fullpath=$(echo "$pic" | sed -e 's|.*/d[ie][rv]/|/home/sites/soccer/|' -e 's|/[/]*|/|g')
+				;;
+			http:*) # home
+				fullpath=$(echo "$pic" | sed -e 's|.*/d[ie][rv]/|/home/media/|' -e 's|/[/]*|/|g')
+				;;
+			/home/media/*)
+				fullpath="$pic"
+				;;
+			*)
+				echo ">> invalid input: $pic"
+				return 1
+				;;
+		esac
+
+		if [[ ! -f "$fullpath" ]]; then
+			echo ">> already ${action}d: $fullpath"
+			shift; continue
+		fi
+
+		local dirname=$(dirname "$fullpath")
+		local basename=$(basename "$fullpath")
+		local thumb=$(echo "$dirname/.$basename" | sed -e 's|.png|.jpg|')
+		local newdir=""
+
+		case "$action" in
+		delete)
+			case "$dirname" in
+			*".deleted"*)
+				echo ">> cannot delete a pic that is already in a .deleted folder"
+				return 1
+				;;
+			*)
+				newdir="$dirname/.deleted"
+				;;
+			esac
+			;;
+		undelete)
+			case "$dirname" in
+			*".deleted"*)
+				newdir=$(dirname "$dirname")
+				;;
+			*)
+				echo ">> cannot undelete a pic that is not in a .deleted folder"
+				return 1
+				;;
+			esac
+			;;
+		esac
+
+		echo ":: action = $action"
+		echo ":: full   = $fullpath"
+		echo ":: thumb  = $thumb"
+		echo ":: newdir = $newdir"
+
+		if [[ ! -d "$newdir" ]]; then
+			mkdir -m 777 -p "$newdir" || return 1
+		fi
+		if [[ -f "$fullpath" ]]; then
+			mv -f "$fullpath" "$newdir/." || return 1
+		fi
+		if [[ -f "$thumb" ]]; then
+			mv -f "$thumb" "$newdir/."
+		fi
+
+		shift
+	done
+
+	return 0
+
+} # DeletePix
+
+setx=EchoDo
+#==============================
+EchoDo ()
+#==============================
+{
+	cmd="$@"
+	echo ":: $cmd"
+	eval "$cmd"
+	return $?
+
+} # EchoDo
+
+setx=SplitDir
+#==============================
+SplitDir ()
+#==============================
+{
+	# <olddir> <newdir> <frompic> [<thrupic>]
+	local olddir="$1"
+	local newdir="$2"
+	local frompic="$3"
+	local thrupic="$4"
+	local iFound=0
+
+	EchoDo "cd '$olddir'" || return 1
+	EchoDo "mkdir -p '$newdir'" || return 1
+
+	bMove=0
+	while read img
+	do
+		if [[ "$img" = "$frompic" ]]; then
+			bMove=1
+		fi
+		if [[ $bMove -eq 1 ]]; then
+			EchoDo "mv -f '$img' '$newdir/.'" || return 1
+			local thumb=$(echo ".$img" | sed -e 's/[.][pP][nN][gG]/.jpg/' -e 's/[.][gG][iI][fF]/.jpg/')
+			if [[ -f "$thumb" ]]; then
+				EchoDo "mv -f '$thumb' '$newdir/.'" || return 1
+			fi
+			let iFound++
+		fi
+		if [[ "$img" = "$thrupic" ]]; then
+			bMove=0
+		fi
+	done < <(ls -1)
+
+	if [[ $iFound -eq 0 ]]; then
+		echo ">> no matching photos found for range: $frompic -> $thrupic"
+	else
+		printf ":: %u matching photos moved\n" $iFound
+		CountFiles "$olddir"
+		CountFiles "$newdir"
+	fi
+
+	return 0
+
+} # SplitDir
 
 #==============================
 # MAIN BODY
@@ -414,6 +578,21 @@ case "$1" in
 	-off*)
 		echo "sort-pix: no predefined offset for: $1"
 		exit 1
+		;;
+	-delete)
+		shift
+		DeletePix delete "$@"
+   		exit $?
+		;;
+	-undelete)
+		shift
+		DeletePix undelete "$@"
+		exit $?
+		;;
+	-split)
+		shift
+		SplitDir "$@"
+		exit $?
 		;;
 esac
 

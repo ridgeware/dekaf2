@@ -42,19 +42,6 @@
 
 #pragma once
 
-#include "kstringview.h"
-#include "kstring.h"
-#include "kstringutils.h"
-#include "kwriter.h"
-#include "kstack.h"
-#include "kexception.h"
-#include "kassociative.h"
-#include "kpersist.h"
-#include <functional>
-#include <vector>
-#include <array>
-
-
 /// @file koptions.h
 /// KOption offers multiple approaches for option parsing, which have evolved over time. These approaches can be mixed.
 ///
@@ -72,23 +59,33 @@
 /// Typical code for this approach looks like:
 /// @code
 /// // instantiate the KOptions object
-/// KOptions Options;
+/// KOptions Options(false);
+///
 /// // add options with their callbacks
-/// Options.Option("f,filename <name>").Help("the name for the file")     .Callback([&](KStringViewZ sArg) { m_sFilename = sArg;          });
-/// Options.Option("m,max <count>")    .Help("the maximum count of words").Callback([&](KStringViewZ sArg) { m_iCount    = sArg.UInt64(); });
+/// Options.Option("f,filename <name>")
+///        .Help("the name for the file")
+///        .Callback([&](KStringViewZ sArg) { m_sFilename = sArg; });
+///
+/// Options.Option("m,max <count>")
+///        .Help("the maximum count of words")
+///        .Callback([&](KStringViewZ sArg) { m_iCount = sArg.UInt64(); });
+///
 /// // finally parse the arguments and call the callbacks
 /// int iResult = Options.Parse(argc, argv);
 /// if (iResult != 0) return iResult;
 /// @endcode
-/// Three different callback signatures exist, for callbacks without arguments, for callbacks with one argument, or for callbacks with multiple arguments:
+///
+/// Three different callback signatures exist, for callbacks without arguments, for callbacks with one argument,
+/// or for callbacks with multiple arguments:
 /// @code
 /// Callback([](){});
 /// Callback([](KStringViewZ sArg){});
 /// Callback([](KOptions::ArgList& Args){});
 /// @endcode
-/// The callback with multiple arguments is called with args in a KStack object. After return, all popped arguments will be counted as consumed, all remaining
-/// will either be parsed for being commands with a callback, or, if existing, an unknown command callback will be called with them. The latter is typically
-/// used for unspecified counts of input arguments like e.g. filenames.
+/// The callback with multiple arguments is called with args in a KStack object. After return, all popped 
+/// arguments will be counted as consumed, all remaining will either be parsed for being commands
+/// with a callback, or, if existing, an unknown command callback will be called with them. The latter is
+/// typically used for unspecified counts of input arguments like e.g. filenames.
 ///
 /// A number of requirements can be set for the expected arguments, like signed/unsigned/string/filename etc.:
 /// @code
@@ -99,38 +96,54 @@
 ///        .Callback([&](KStringViewZ sArg) { m_iTimeout = sArg.UInt64(); });
 /// @endcode
 ///
-/// 2. Simplifications for the above syntax exist: The help text can be appended to the opion names, and single variables can be set with the argument value,
-/// automatically converted into the variable type.
+/// 2. Simplifications for the above syntax exist: The help text can be appended to the option names,
+/// and single variables can be set with the argument value, automatically converted into the variable type.
 /// @code
 /// Options.Option("f,filename <name> : the name for the file").Set(m_sFilename);
 /// @endcode
 ///
-/// 3. A third approach to argument parsing is the so-called ad-hoc parsing. In this approach (which can also be mixed with the previous ones)
-/// the input arguments get parsed first, and then get requested by query functions. Using the call operator and some template magic let
-/// this approach look very natural:
+/// 3. A third approach to argument parsing is the so-called ad-hoc parsing. In this approach (which can also
+/// be mixed with the previous ones) the input arguments get parsed first, and then get requested by query
+/// functions. Using the call operator and some template magic let this approach look very natural:
 /// @code
 /// // instantiate the KOptions object and parse all input arguments
 /// KOptions Options(false, argc, argv);
+///
 /// // request options and values
-/// KString  sFilename = Options("f,filename <name> : the name for the file");
+/// KString  sFilename = Options("f,filename <name>  : the name for the file");
+///
 /// // declare a default value of 1000 if the option is missing
-/// uint16_t iCount    = Options("m,max <count>     : the maximum count of words", 1000);
-/// bool     bReverse  = Options("r,reverse         : count from end of file", false);
+/// uint16_t iCount    = Options("m,max <count>      : the maximum count of words", 1000);
+///
+/// bool     bReverse  = Options("r,reverse          : count from end of file", false);
+///
 /// // you can also explicitly request a value type
-/// auto     iExpect   = Options("e                 : expected average, 1).Int16();
+/// auto     iExpect   = Options("expected <average> : expected average", 1).Int16();
+///
 /// // get all remaining arguments (should be called last..)
 /// auto ArgVec        = Options.GetUnknownCommands();
+///
 /// // finally check if all arguments were evaluated
 /// if (Options.Check()) return false;
 /// @endcode
 /// All options without a default value are required options.
 ///
-/// For all approaches, a help text will be auto generated and auto formatted, adapted to the output terminal size. Missing
-/// arguments for options or commands will be annotated with the relevant part of the help.
+/// For all approaches, a help text will be auto generated and auto formatted, adapted to the output terminal size. 
+/// Missing arguments for options or commands will be annotated with the relevant part of the help.
 /// It is not necessary to use white space formatting as in the above examples - all white space will be normalized,
 /// above it was used to ease reading.
 
-
+#include "kstringview.h"
+#include "kstring.h"
+#include "kstringutils.h"
+#include "kwriter.h"
+#include "kstack.h"
+#include "kexception.h"
+#include "kassociative.h"
+#include "kpersist.h"
+#include <functional>
+#include <vector>
+#include <array>
 
 DEKAF2_NAMESPACE_BEGIN
 

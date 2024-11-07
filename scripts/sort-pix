@@ -13,7 +13,10 @@
 ##  -offd300s   :: add pre-computed offset for incorrect time on Nikon D300S     [old camera]
 ##  -rotate     :: assume that all pix in this batch should be rotated ctr-cw 90 [not needed anymore]
 #%  -counts     :: create .tag meta information on all folders recursively
-#%
+#%  -delete     :: delete a given image (or images)
+#%  -undelete   :: undelete a given image (or images)
+#%  -split <olddir> <newdir> <frompic> [<thrupic>]
+#%              :: create a new folder with the given photos
 #% and:
 #%  <StartDir>  :: directory to start recursing from to find JPGs
 #%  <category>  :: is either: family [the default] or D, E, B, M, M2, T, S or G

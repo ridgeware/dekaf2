@@ -38,7 +38,7 @@ DoSingleThumbnail ()
 	echo ":: thumbnail: $1/$_thumb"
 
 	#(cd "$1"; convert "$2" -thumbnail x700 -resize '700x<' -resize 50% -gravity center -crop 250x250+0+0 +repage -format jpg -quality 85 ."$2")
-	(cd "$1"; magick convert -quiet -define jpeg:size=500X180 -thumbnail x450 -resize '450x<' +repage -format jpg -quality 85 "$2" "$_thumb" 2>&1) | egrep -v '(^Version|^Copyright|deprecated)'
+	(cd "$1"; magick convert -quiet -define jpeg:size=500X180 -thumbnail x450 -resize '450x<' +repage -format jpg -quality 85 "$2" "$_thumb" 2>&1) | egrep -vi '(Version|Copyright|deprecated)'
 
 	chmod 666 "$1/${_thumb}" 2>&1 > /dev/null
 

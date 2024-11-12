@@ -365,15 +365,9 @@ bool StatInfo::FileType (KStringViewZ sFilename, KString& sFiletype)
 		return false;
 	}
 
-	constexpr char U2B = 64 ; // <-- ('A' - ^A)
-
-	static constexpr char s_sSolBinary[] = { 127, 'E', 'L', 'F', 0 };
-	static constexpr char s_sHpBinary[]  = { 'B'-U2B, 'P'-U2B, 'A'-U2B, 'H'-U2B, 'E'-U2B, 'R'-U2B, 0 };
-	static constexpr char s_sWinBinary[] = { 'M', 'Z', static_cast<char>(144), 0 };
-
-	constexpr KStringView sSolBinary { s_sSolBinary };
-	constexpr KStringView sHpBinary  { s_sHpBinary  };
-	constexpr KStringView sWinBinary { s_sWinBinary };
+	constexpr KStringView sSolBinary { "\x7f" "ELF" };                // { 127, 'E', 'L', 'F', 0 }
+	constexpr KStringView sHpBinary  { "\x02\x10\x01\x08\x05\x12"  }; // { 'B'-U2B, 'P'-U2B, 'A'-U2B, 'H'-U2B, 'E'-U2B, 'R'-U2B, 0 }
+	constexpr KStringView sWinBinary { "MZ\x90" };                    // { 'M', 'Z', static_cast<char>(144), 0 }
 
 	if (sChunk.starts_with(sSolBinary))
 	{

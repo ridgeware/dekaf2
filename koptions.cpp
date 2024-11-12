@@ -2178,7 +2178,7 @@ std::vector<KStringViewZ> KOptions::Values::Vector() noexcept
 //---------------------------------------------------------------------------
 {
 	m_iConsumed = size();
-	return std::move(m_Params);
+	return m_Params;
 }
 
 //---------------------------------------------------------------------------

@@ -2174,7 +2174,7 @@ KOptions::Values::~Values()
 } // dtor
 
 //---------------------------------------------------------------------------
-std::vector<KStringViewZ> KOptions::Values::Vector() noexcept
+std::vector<KStringViewZ> KOptions::Values::Vector() const noexcept
 //---------------------------------------------------------------------------
 {
 	m_iConsumed = size();

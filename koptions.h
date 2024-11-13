@@ -610,7 +610,7 @@ public:
 		~Values();
 		/// Get the values associated to an option name as a vector<KStringViewZ>
 		DEKAF2_NODISCARD
-		std::vector<KStringViewZ> Vector() noexcept;
+		std::vector<KStringViewZ> Vector() const noexcept;
 		/// Get the value associated to an option name as string
 		DEKAF2_NODISCARD
 		KStringViewZ String() const noexcept;
@@ -707,7 +707,7 @@ public:
 		operator    ValueType () const noexcept { return Double(); }
 
 		// the vector type
-		operator std::vector<KStringViewZ> () noexcept { return Vector(); }
+		operator std::vector<KStringViewZ> () const noexcept { return Vector(); }
 
 		/// index access throws if out of range
 		KStringViewZ operator [] (std::size_t index) const;

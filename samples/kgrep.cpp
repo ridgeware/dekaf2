@@ -314,6 +314,6 @@ int main (int argc, char** argv)
 } // main
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-constexpr KStringViewZ kreplace::s_sProjectName;
-constexpr KStringViewZ kreplace::s_sProjectVersion;
+constexpr KStringViewZ KGrep::s_sProjectName;
+constexpr KStringViewZ KGrep::s_sProjectVersion;
 #endif

@@ -59,7 +59,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.65 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.0.66 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -739,6 +739,36 @@ if (DEKAF2_HAS_NGHTTP2)
 
 	if (NOT DEKAF2_HAS_NGHTTP2)
 		message(STATUS "dropped NGHTTP2 as it has an antique API")
+	endif()
+endif()
+
+if (DEKAF2_HAS_MYSQL)
+	if (DEKAF2_MYSQL_IS_MARIADB)
+		set(SQL_TEST_NAME mariadb)
+	else()
+		set(SQL_TEST_NAME mysql)
+	endif()
+
+	try_compile(DEKAF2_MYSQL_HAS_TLS
+				"${DEKAF2_GENERATED_FILES_DIR}"
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/${SQL_TEST_NAME}_has_tls.cpp"
+				CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${MYSQL_INCLUDE_DIRS}")
+
+	if (DEKAF2_MYSQL_HAS_TLS)
+		message(STATUS "we have TLS support in MySQL")
+	else()
+		message(STATUS "no TLS support in MySQL")
+	endif()
+
+	try_compile(DEKAF2_MYSQL_HAS_ZSTD
+				"${DEKAF2_GENERATED_FILES_DIR}"
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/${SQL_TEST_NAME}_has_zstd.cpp"
+				CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${MYSQL_INCLUDE_DIRS}")
+
+	if (DEKAF2_MYSQL_HAS_ZSTD)
+		message(STATUS "we have ZSTD support in MySQL")
+	else()
+		message(STATUS "no ZSTD support in MySQL")
 	endif()
 endif()
 

@@ -1210,6 +1210,7 @@ bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
 	// - - - - - - - - - - - - - - - - -
 	case API::MYSQL:
 	// - - - - - - - - - - - - - - - - -
+	{
 		if (m_sHostname.empty())
 		{
 			m_sHostname = "localhost";
@@ -1238,9 +1239,60 @@ bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
 			mysql_options (m_dMYSQL, MYSQL_OPT_CONNECT_TIMEOUT, &iTimeoutUINT);
 		}
 
+		static bool s_bPreferTLS = !kGetEnv("KSQL_NO_TLS").Bool();
+
+		if (s_bPreferTLS)
+		{
+		#ifdef DEKAF2_MYSQL_IS_MARIADB
+			#ifdef DEKAF2_MYSQL_HAS_TLS
+			// starting with mariadb 3.1.1
+			// other than the ENFORCE may make to think, this option only
+			// tries first a TLS connection, but falls back to unencrypted
+			// when not available ..
+			kDebug(3, "will ask for TLS connection with fallback to unencrypted");
+			my_bool bEnforceTLS = 1;
+			mysql_options(m_dMYSQL, MYSQL_OPT_SSL_ENFORCE, &bEnforceTLS);
+			#endif
+		#else
+			#ifdef DEKAF2_MYSQL_HAS_TLS
+			// starting with mysql 5.7.11
+			// options are SSL_MODE_DISABLED, SSL_MODE_PREFERRED, SSL_MODE_REQUIRED, SSL_MODE_VERIFY_CA, SSL_MODE_VERIFY_IDENTITY
+			kDebug(3, "will ask for TLS connection with fallback to unencrypted");
+			unsigned int iEnforceTLS = SSL_MODE_PREFERRED;
+			mysql_options(m_dMYSQL, MYSQL_OPT_SSL_MODE, &iEnforceTLS);
+			#endif
+		#endif
+		}
+
+		unsigned long iMySQLConnectOptions = CLIENT_FOUND_ROWS; // <-- this flag corrects the behavior of GetNumRowsAffected()
+
+		static bool s_bRequestZSTD = kGetEnv("KSQL_ZSTD").Bool();
+
+		if (s_bRequestZSTD)
+		{
+		#ifdef DEKAF2_MYSQL_IS_MARIADB
+			#ifdef DEKAF2_MYSQL_HAS_ZSTD
+			kDebug(3, "will ask for zstd compression");
+			iMySQLConnectOptions |= CLIENT_ZSTD_COMPRESSION;
+			#endif
+		#else
+			#ifdef DEKAF2_MYSQL_HAS_ZSTD
+			// starting with mysql 8.0.18
+			kDebug(3, "will ask for zstd compression");
+			mysql_options(m_dMYSQL, MYSQL_OPT_COMPRESSION_ALGORITHMS, "zstd,uncompressed");
+			#endif
+		#endif
+		}
+
 		kDebug (3, "mysql_real_connect()...");
-		if (!mysql_real_connect (m_dMYSQL, m_sHostname.c_str(), m_sUsername.c_str(), m_sPassword.c_str(), m_sDatabase.c_str(), /*port*/ iPortNum, /*sock*/nullptr,
-			/*flag*/CLIENT_FOUND_ROWS)) // <-- this flag corrects the behavior of GetNumRowsAffected()
+		if (!mysql_real_connect (m_dMYSQL, 
+								 m_sHostname.c_str(),
+								 m_sUsername.c_str(), 
+								 m_sPassword.c_str(),
+								 m_sDatabase.c_str(),
+						/*port*/ iPortNum,
+						/*sock*/ nullptr,
+						/*flag*/ iMySQLConnectOptions))
 		{
 			auto iErrorNum = mysql_errno (m_dMYSQL);
 			auto sError    = kFormat ("KSQL: MSQL-{}: {}", iErrorNum, mysql_error(m_dMYSQL));
@@ -1257,6 +1309,7 @@ bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
 
 		mysql_set_character_set (m_dMYSQL, "utf8mb4"); // by default
 		break;
+	}
 	#endif
 
     #ifdef DEKAF2_HAS_ODBC

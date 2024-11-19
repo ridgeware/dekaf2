@@ -615,7 +615,7 @@ void kurl::AddRequestData(KStringViewZ sArg, bool bEncodeAsForm, bool bTakeFile)
 		BuildMRQ.Headers.insert({KHTTPHeader(KHTTPHeader::CONTENT_TYPE).Serialize(), KMIME::WWW_FORM_URLENCODED});
 	}
 
-}; // AddRequestData
+} // AddRequestData
 
 //-----------------------------------------------------------------------------
 void kurl::LoadConfig ()

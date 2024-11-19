@@ -90,6 +90,8 @@ OPTION(DEKAF2_WRAPPED_KJSON "create the KJSON class as a non-throwing wrapper ty
 OPTION(DEKAF2_LINK_TIME_OPTIMIZATION "force link time optimization for release builds" OFF)
 OPTION(DEKAF2_BUILD_STATIC_DEKAF2 "build a static version of dekaf2" ON)
 OPTION(DEKAF2_BUILD_SHARED_DEKAF2 "build a shared version of dekaf2" OFF)
+OPTION(DEKAF2_DUAL_TARGET "install Release and Debug versions of dekaf2 side by side" ON)
+OPTION(DEKAF2_VERSION_IN_TARGET "include version number in target" ON)
 
 # =================================== C++ STANDARD =================================
 
@@ -133,25 +135,37 @@ else()
 
 endif()
 
-# we only support the Release and Debug output locations - other
-# build types have to pick either or
-if (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-	set(DEKAF2_OUTPUT_TARGET "Release")
-elseif (CMAKE_BUILD_TYPE STREQUAL "RelWithLabels" OR CMAKE_BUILD_TYPE STREQUAL "O3G1")
-	set(DEKAF2_OUTPUT_TARGET "Release")
+if (DEKAF2_DUAL_TARGET)
+	# we only support the Release and Debug output locations - other
+	# build types have to pick either or
+	if (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+		set(DEKAF2_OUTPUT_TARGET "/Release")
+	elseif (CMAKE_BUILD_TYPE STREQUAL "RelWithLabels" OR CMAKE_BUILD_TYPE STREQUAL "O3G1")
+		set(DEKAF2_OUTPUT_TARGET "/Release")
+	else()
+		set(DEKAF2_OUTPUT_TARGET "/${CMAKE_BUILD_TYPE}")
+	endif()
 else()
-	set(DEKAF2_OUTPUT_TARGET ${CMAKE_BUILD_TYPE})
+	set(DEKAF2_OUTPUT_TARGET)
 endif()
 
 # prepare for install:
-set(lib_version ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR})
-set(dekaf2_bin_dest bin)
-set(dekaf2_include_dest "include/${PROJECT_NAME}-${lib_version}")
-set(dekaf2_main_lib_dest "lib/${PROJECT_NAME}-${lib_version}")
-set(dekaf2_lib_dest "${dekaf2_main_lib_dest}/${DEKAF2_OUTPUT_TARGET}")
+set(lib_version "-${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}")
+set(lib_version_regex "-[0-9]+\\.[0-9]+$")
+
+if (DEKAF2_VERSION_IN_TARGET)
+	set(add_version ${lib_version})
+else()
+	set(add_version)
+endif()
+
+set(dekaf2_include_dest "include/${PROJECT_NAME}${add_version}")
+set(dekaf2_main_lib_dest "lib/${PROJECT_NAME}${add_version}")
+set(dekaf2_lib_dest "${dekaf2_main_lib_dest}${DEKAF2_OUTPUT_TARGET}")
 # we use the dekaf2_share_dest to configure kconfiguration.h.in, so first set it
 # with an absolute path which we remove later on
-set(dekaf2_share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}-${lib_version}")
+set(dekaf2_share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}${add_version}")
+set(dekaf2_bin_dest bin)
 
 # =================================== ENVIRONMENT ==================================
 
@@ -776,6 +790,9 @@ endif()
 
 # create the configuration header file
 configure_file("bits/kconfiguration.h.in" "${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
+
+# create the cmake config file for find_package()
+configure_file("cmake/${PROJECT_NAME}-config.cmake.in" "${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config.cmake" @ONLY)
 
 # create the cmake version comparison file for find_package()
 configure_file("cmake/${PROJECT_NAME}-config-version.cmake.in" "${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake" @ONLY)
@@ -1643,6 +1660,40 @@ add_subdirectory(benchmarks)
 # now remove the install prefix from dekaf2_share_dest
 string(REPLACE "${CMAKE_INSTALL_PREFIX}/" "" dekaf2_share_dest ${dekaf2_share_dest})
 
+# check if we have to remove previously installed directories because we changed between
+# mono- and dual-target install, or version and version-less install
+
+# version vs. version-less:
+if (DEKAF2_VERSION_IN_TARGET)
+	string(REGEX REPLACE "${lib_version_regex}" "" removedir "${dekaf2_include_dest}")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
+	string(REGEX REPLACE "${lib_version_regex}" "" removedir "${dekaf2_main_lib_dest}")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
+	string(REGEX REPLACE "${lib_version_regex}" "" removedir "${dekaf2_share_dest}")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
+else()
+	set(removedir "${dekaf2_include_dest}${lib_version}")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
+	set(removedir "${dekaf2_main_lib_dest}${lib_version}")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
+	set(removedir "${dekaf2_share_dest}${lib_version}")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
+endif()
+
+# mono vs. dual:
+if (DEKAF2_DUAL_TARGET)
+	file(GLOB GLOBBED_FILES LIST_DIRECTORIES false "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/*")
+	# do not remove the main config files - they will be overwritten if necessary
+	list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/${PROJECT_NAME}-config.cmake")
+	list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/${PROJECT_NAME}-config-version.cmake")
+	if(GLOBBED_FILES)
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${GLOBBED_FILES})")
+	endif()
+else()
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/Release)")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/Debug)")
+endif()
+
 # always put this first, otherwise it risks to remove other already installed cmake config files
 install(EXPORT ${PROJECT_NAME} DESTINATION "${dekaf2_lib_dest}")
 
@@ -1689,7 +1740,7 @@ else()
 endif()
 
 install(TARGETS ${DEKAF2_TARGETS} EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
+install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
 install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake DESTINATION ${dekaf2_lib_dest})
 install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace statinfo DESTINATION ${dekaf2_bin_dest})

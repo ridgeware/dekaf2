@@ -43,6 +43,8 @@
 
 /// @file kconfiguration.h
 /// library configuration at compile time of dekaf2
+/// this file is generated automatically - do not modify it,
+/// manual changes will have no effect or cause bugs or crashes
 
 #define DEKAF_VERSION "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@"
 #define DEKAF_MAJOR_VERSION @PROJECT_VERSION_MAJOR@

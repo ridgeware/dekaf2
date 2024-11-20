@@ -90,8 +90,8 @@ OPTION(DEKAF2_WRAPPED_KJSON "create the KJSON class as a non-throwing wrapper ty
 OPTION(DEKAF2_LINK_TIME_OPTIMIZATION "force link time optimization for release builds" OFF)
 OPTION(DEKAF2_BUILD_STATIC_DEKAF2 "build a static version of dekaf2" ON)
 OPTION(DEKAF2_BUILD_SHARED_DEKAF2 "build a shared version of dekaf2" OFF)
-OPTION(DEKAF2_DUAL_TARGET "install Release and Debug versions of dekaf2 side by side" ON)
-OPTION(DEKAF2_VERSION_IN_TARGET "include version number in target" ON)
+OPTION(DEKAF2_DUAL_TARGET "install Release and Debug versions of dekaf2 side by side" OFF)
+OPTION(DEKAF2_VERSION_IN_TARGET "include version number in target" OFF)
 
 # =================================== C++ STANDARD =================================
 
@@ -1433,7 +1433,7 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 	PUBLIC
 		$<BUILD_INTERFACE:${DEKAF2_FMT_INCLUDE}>
 		$<INSTALL_INTERFACE:${dekaf2_include_dest}>
-		$<INSTALL_INTERFACE:${dekaf2_lib_dest}>
+		$<INSTALL_INTERFACE:${dekaf2_lib_dest}/include>
 		${Boost_INCLUDE_DIR}
 		${OPENSSL_INCLUDE_DIR}
 	PRIVATE
@@ -1695,7 +1695,7 @@ else()
 endif()
 
 # always put this first, otherwise it risks to remove other already installed cmake config files
-install(EXPORT ${PROJECT_NAME} DESTINATION "${dekaf2_lib_dest}")
+install(EXPORT ${PROJECT_NAME} NAMESPACE dekaf2:: DESTINATION "${dekaf2_lib_dest}")
 
 # create dummy exports to satisfy cmake for the statically and PRIVATE linked in libraries
 if(NOT DEKAF2_USE_SYSTEM_FMTLIB)
@@ -1765,7 +1765,7 @@ endif()
 
 install(FILES ${BITS_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
 install(FILES ${BITS_SIMD_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits/simd)
-install(FILES "${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION ${dekaf2_lib_dest})
+install(FILES "${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION ${dekaf2_lib_dest}/include)
 install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/mysql-newuser" DESTINATION ${dekaf2_bin_dest})
 install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/findcol" DESTINATION ${dekaf2_bin_dest})
 install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/kport" DESTINATION ${dekaf2_bin_dest})

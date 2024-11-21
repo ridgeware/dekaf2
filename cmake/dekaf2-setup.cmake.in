@@ -106,6 +106,9 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 				endif()
 			endif ()
 
+			# most annoying warning ever - finally we can suppress it (cmake 3.20++)
+			set(Boost_NO_WARN_NEW_VERSIONS ON)
+
 			find_package(Boost 1.54 COMPONENTS system REQUIRED)
 
 		endif()

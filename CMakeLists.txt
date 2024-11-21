@@ -14,7 +14,7 @@ message(STATUS "======================== starting cmake configuration ==========
 if(CMAKE_VERSION VERSION_LESS "3.27.0")
 	cmake_minimum_required(VERSION 2.8.12)
 else()
-	cmake_minimum_required(VERSION 3.13)
+	cmake_minimum_required(VERSION 3.13...3.31)
 endif()
 #
 # ================================= BUILD SYSTEM SETUP =============================
@@ -45,7 +45,7 @@ endif()
 # ==================================== PROJECT =====================================
 
 # When arriving here we guarantee at least cmake 3.13 being installed
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.13...3.31)
 
 # allow version number in project command
 cmake_policy(SET CMP0048 NEW)

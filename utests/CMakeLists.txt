@@ -15,6 +15,9 @@ endif()
 if (dekaf2-utests_IS_TOP_LEVEL OR NOT DEKAF2_GENERATED_FILES_DIR)
 	set(DEKAF2_INHERIT_BUILD_FLAGS ON)
 	find_package(dekaf2 2.0 REQUIRED)
+	set(DEKAF2_NAMESPACE "dekaf2::")
+else()
+	set(DEKAF2_NAMESPACE)
 endif()
 
 set (UHEADERS
@@ -139,14 +142,14 @@ set (USOURCES
 add_executable(dekaf2-utests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
 
 if (DEKAF2_HAS_SQLITE3)
-	target_link_libraries(dekaf2-utests dekaf2 ksqlite ksql2 re2)
+	target_link_libraries(dekaf2-utests ${DEKAF2_NAMESPACE}dekaf2 ${DEKAF2_NAMESPACE}ksqlite ${DEKAF2_NAMESPACE}ksql2 ${DEKAF2_NAMESPACE}re2)
 else()
-	target_link_libraries(dekaf2-utests dekaf2 ksql2 re2)
+	target_link_libraries(dekaf2-utests ${DEKAF2_NAMESPACE}dekaf2 ${DEKAF2_NAMESPACE}ksql2 ${DEKAF2_NAMESPACE}re2)
 endif()
 
 find_package(GoogleBench QUIET)
 if (GoogleBench_FOUND)
 	add_executable(dekaf2-benchmark EXCLUDE_FROM_ALL benchmarks.cpp)
-	target_link_libraries(dekaf2-benchmark dekaf2 ${GOOGLEBENCH_LIBRARIES})
+	target_link_libraries(dekaf2-benchmark ${DEKAF2_NAMESPACE}dekaf2 ${GOOGLEBENCH_LIBRARIES})
 	target_include_directories(dekaf2-benchmark PRIVATE ${GOOGLEBENCH_INCLUDE_DIRS})
 endif()

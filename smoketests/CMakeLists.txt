@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.13...3.31)
 
 project(dekaf2-smoketests)
 
@@ -15,6 +15,9 @@ endif()
 if (dekaf2-smoketests_IS_TOP_LEVEL OR NOT DEKAF2_GENERATED_FILES_DIR)
 	set(DEKAF2_INHERIT_BUILD_FLAGS ON)
 	find_package(dekaf2 2.0 REQUIRED)
+	set(DEKAF2_NAMESPACE "dekaf2::")
+else()
+	set(DEKAF2_NAMESPACE)
 endif()
 
 set (UHEADERS
@@ -31,4 +34,4 @@ set (USOURCES
 )
 
 add_executable(dekaf2-smoketests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
-target_link_libraries(dekaf2-smoketests PRIVATE dekaf2 ksql2)
+target_link_libraries(dekaf2-smoketests PRIVATE ${DEKAF2_NAMESPACE}dekaf2 ${DEKAF2_NAMESPACE}ksql2)

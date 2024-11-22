@@ -548,7 +548,7 @@ public:
 //----------
 
 	/// Construct default KFileStat object
-	KFileStat() = default;
+	KFileStat() noexcept = default;
 
 	/// Construct KFileStat object on a file
 	/// @param sFilename the file for which the status should be read
@@ -882,7 +882,7 @@ public:
 	using size_type      = DirEntries::size_type;
 
 	/// default ctor
-	KDirectory() = default;
+	KDirectory() noexcept = default;
 
 	/// ctor that will open a directory and store all entries that are of FileType Type
 	/// @param sDirectory the direcory path to open
@@ -892,6 +892,8 @@ public:
 	{
 		Open(sDirectory, Types, bRecursive, false);
 	}
+
+	KDirectory(KDirectory&&) noexcept = default;
 
 	/// returns const_iterator to the start of the directory list
 	DEKAF2_NODISCARD
@@ -1020,7 +1022,7 @@ public:
 //----------
 
 	/// default ctor
-	KDiskStat() = default;
+	KDiskStat() noexcept = default;
 
 	/// Read disk stats for partition at sPath
 	KDiskStat(KStringViewZ sPath)

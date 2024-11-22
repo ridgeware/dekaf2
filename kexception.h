@@ -60,20 +60,22 @@ class DEKAF2_PUBLIC KException : public std::runtime_error
 public:
 //----------
 
-	KException()
+	KException() noexcept
 	: runtime_error("")
 	{
 	}
 
 	/// constructs with error message and error code (default UINT16_MAX)
-	KException(KStringViewZ sWhat, uint16_t iErrorCode = -1)
+	KException(KStringViewZ sWhat, uint16_t iErrorCode = -1) noexcept
 	: runtime_error(sWhat.c_str())
 	, m_iErrorCode(iErrorCode)
 	{
 	}
 
-	/// copy ctor is available
-	KException(const KException&) = default;
+	KException(const KException&)            noexcept = default;
+	KException(KException&&)                 noexcept = default;
+	KException& operator=(const KException&) noexcept = default;
+	KException& operator=(KException&&)      noexcept = default;
 
 	/// clears state and resets error code to 0
 	void clear()

@@ -67,7 +67,8 @@ constexpr KStringView g_Synopsis[] = {
 	"  -t,type <ProjectType>  :: type of project, default = cli",
 	"  -p,path <ProjectPath>  :: path to project root, name is added, default = current directory",
 	"  -s,sso  <URL> <Scope>  :: URL and scope of SSO server, default = none",
-	"  -v,version <Version>   :: version string, default = 0.0.1"
+	"  -v,version <Version>   :: version string, default = 1.0.0",
+	"  -templates <path>      :: path to templates, defaults to system install dir"
 };
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -82,7 +83,7 @@ public:
 	CreateProject();
 	int Main (int argc, char* argv[]);
 
-	static void ShowAllTemplates();
+	void ShowAllTemplates();
 
 //----------
 private:
@@ -105,6 +106,7 @@ private:
 	KString m_SSOScope;
 	bool m_bIsDone { false };
 
+	KString m_sCanonicalTemplateDir;
 	KString m_sOutputDir;
 	KString m_sTemplateDir;
 	KReplacer m_Variables { "__", "__", false };
@@ -118,6 +120,8 @@ CreateProject::CreateProject ()
 //-----------------------------------------------------------------------------
 {
 	kInit("D2PROJECT");
+
+	m_sCanonicalTemplateDir = kReadLink(kFormat("{}/../{}/templates", Dekaf::getInstance().GetProgPath(), DEKAF2_SHARED_DIRECTORY), true);
 
 	m_Options.Throw();
 
@@ -169,6 +173,12 @@ CreateProject::CreateProject ()
 		m_sProjectType = sType;
 	});
 
+	m_Options.Option("templates", "templates path")
+	([&](KStringViewZ sPath)
+	{
+		m_sCanonicalTemplateDir = sPath;
+	});
+
 	m_Options.Option("s,sso", "SSO server URL and scope").MinArgs(2)
 	([&](KOptions::ArgList& SSO)
 	{
@@ -176,13 +186,19 @@ CreateProject::CreateProject ()
 		m_SSOScope    = SSO.pop();
 	});
 
+	if (!kDirExists(m_sCanonicalTemplateDir))
+	{
+		throw KException(kFormat("template directory not found: {}", m_sCanonicalTemplateDir));
+	}
+
 } // ctor
 
 //-----------------------------------------------------------------------------
 void CreateProject::ShowAllTemplates()
 //-----------------------------------------------------------------------------
 {
-	KDirectory Templates(kFormat("{}{}templates", DEKAF2_SHARED_DIRECTORY, kDirSep), KFileType::DIRECTORY);
+
+	KDirectory Templates(m_sCanonicalTemplateDir, KFileType::DIRECTORY);
 	Templates.Sort();
 
 	KOut.WriteLine();
@@ -270,9 +286,7 @@ void CreateProject::SetupVariables()
 void CreateProject::FinishSetup()
 //-----------------------------------------------------------------------------
 {
-	m_sTemplateDir = DEKAF2_SHARED_DIRECTORY;
-	m_sTemplateDir += kDirSep;
-	m_sTemplateDir += "templates";
+	m_sTemplateDir  = m_sCanonicalTemplateDir;
 	m_sTemplateDir += kDirSep;
 	m_sTemplateDir += m_sProjectType;
 

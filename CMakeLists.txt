@@ -162,9 +162,7 @@ endif()
 set(dekaf2_include_dest "include/${PROJECT_NAME}${add_version}")
 set(dekaf2_main_lib_dest "lib/${PROJECT_NAME}${add_version}")
 set(dekaf2_lib_dest "${dekaf2_main_lib_dest}${DEKAF2_OUTPUT_TARGET}")
-# we use the dekaf2_share_dest to configure kconfiguration.h.in, so first set it
-# with an absolute path which we remove later on
-set(dekaf2_share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}${add_version}")
+set(dekaf2_share_dest "share/${PROJECT_NAME}${add_version}")
 set(dekaf2_bin_dest bin)
 
 # =================================== ENVIRONMENT ==================================
@@ -1656,9 +1654,6 @@ add_subdirectory(smoketests)
 add_subdirectory(benchmarks)
 
 # ================================= INSTALLATION =====================================
-
-# now remove the install prefix from dekaf2_share_dest
-string(REPLACE "${CMAKE_INSTALL_PREFIX}/" "" dekaf2_share_dest ${dekaf2_share_dest})
 
 # check if we have to remove previously installed directories because we changed between
 # mono- and dual-target install, or version and version-less install

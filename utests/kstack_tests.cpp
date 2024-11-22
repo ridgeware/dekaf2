@@ -25,13 +25,13 @@ TEST_CASE("KStack")
 		CHECK(kStack.push_front(my1Int));
 
 		// Look at the top and bottom
-		const int& rtop = kStack.top();
+		int rtop = kStack.top();
 		CHECK(rtop == 15);
-		const int& rbottom = kStack.front();
+		int rbottom = kStack.front();
 		CHECK(rbottom == 5);
 
 		// Look somewhere in the middle
-		const int& rmiddle = kStack.at(3);
+		int rmiddle = kStack.at(3);
 		CHECK(rmiddle == 11);
 		// Set something in the middle
 		kStack[3] = subInt;
@@ -47,7 +47,7 @@ TEST_CASE("KStack")
 		CHECK(rtop == popTop);
 		CHECK(5 == kStack.size());
 		CHECK_FALSE(kStack.empty());
-		const int& popBottom = kStack.pop_front();
+		const int popBottom = kStack.pop_front();
 		CHECK(popBottom == rbottom);
 		CHECK(4 == kStack.size());
 		CHECK_FALSE(kStack.empty());

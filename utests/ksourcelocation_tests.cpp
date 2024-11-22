@@ -47,10 +47,21 @@ TEST_CASE("KSourceLocation") {
 #if DEKAF2_HAS_STD_SOURCE_LOCATION
 	SECTION("functions")
 	{
-		CHECK ( TestFunction1(true) == "dekaf2::KString TestFunction1(bool):16" );
-		CHECK ( NewObject().TestFunction2(true) == "dekaf2::KString NewObject::TestFunction2(bool):23" );
-		CHECK ( TestFunction3(true) == "dekaf2::KString TestFunction3(bool):34" );
-		CHECK ( NewObject2().TestFunction4(true) == "dekaf2::KString NewObject2::TestFunction4(bool):41" );
+		if (TestFunction1(true).starts_with("dekaf2::"))
+		{
+			CHECK ( TestFunction1(true) == "dekaf2::KString TestFunction1(bool):16" );
+			CHECK ( NewObject().TestFunction2(true) == "dekaf2::KString NewObject::TestFunction2(bool):23" );
+			CHECK ( TestFunction3(true) == "dekaf2::KString TestFunction3(bool):34" );
+			CHECK ( NewObject2().TestFunction4(true) == "dekaf2::KString NewObject2::TestFunction4(bool):41" );
+		}
+		else
+		{
+			// apple clang now removes the namespace
+			CHECK ( TestFunction1(true) == "KString TestFunction1(bool):16" );
+			CHECK ( NewObject().TestFunction2(true) == "KString NewObject::TestFunction2(bool):23" );
+			CHECK ( TestFunction3(true) == "KString TestFunction3(bool):34" );
+			CHECK ( NewObject2().TestFunction4(true) == "KString NewObject2::TestFunction4(bool):41" );
+		}
 	}
 #else
 	SECTION("functions")

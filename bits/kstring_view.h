@@ -61,7 +61,9 @@
 		#include <string_view>
 		#define DEKAF2_HAS_STD_STRING_VIEW 1
 		#define DEKAF2_SV_NAMESPACE std
-	#elif DEKAF2_HAS_INCLUDE(<experimental/string_view>)
+	// we prefer our own string_view implementation over older
+	// experimental implementations as it is more constexpr
+	#elif DEKAF2_HAS_INCLUDE(<experimental/string_view_NONONO>)
 		#include <experimental/string_view>
 		#define DEKAF2_HAS_STD_STRING_VIEW 1
 		#define DEKAF2_SV_NAMESPACE std::experimental

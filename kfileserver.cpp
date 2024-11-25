@@ -389,7 +389,11 @@ std::unique_ptr<KInStream> KFileServer::GetStreamForReading(std::size_t iFromPos
 		}
 	}
 
+#if DEKAF2_IS_CLANG && DEKAF2_CLANG_VERSION_MAJOR < 4
+	return std::unique_ptr<KInStream>(static_cast<KInStream*>(Stream.release()));
+#else
 	return Stream;
+#endif
 
 } // GetStreamForReading
 
@@ -415,7 +419,11 @@ std::unique_ptr<KOutStream> KFileServer::GetStreamForWriting(std::size_t iToPos)
 		}
 	}
 
+#if DEKAF2_IS_CLANG && DEKAF2_CLANG_VERSION_MAJOR < 4
+	return std::unique_ptr<KOutStream>(static_cast<KOutStream*>(Stream.release()));
+#else
 	return Stream;
+#endif
 
 } // GetStreamForWriting
 

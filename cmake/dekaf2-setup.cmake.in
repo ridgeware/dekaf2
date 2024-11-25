@@ -224,8 +224,10 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			add_compile_options(-Wno-range-loop-analysis)
 
 			if (NOT IS_MACOS)
-				# this warning is unknown for AppleClang
-				add_compile_options(-Wno-return-std-move)
+				# this warning is unknown for AppleClang, and clang < 4
+				if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 4)
+					add_compile_options(-Wno-return-std-move)
+				endif()
 			endif()
 
 		elseif (MSVC)

@@ -289,7 +289,7 @@ private:
 	static constexpr value_type MAX_TABLE     = 0x1FFFF;
 
 	static constexpr std::array<CTYPE, MAX_ASCII + 1> ASCIITable
-	{
+	{{
 	 // 0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xA 0xB 0xC 0xD 0xE 0xF
 		CC, CC, CC, CC, CC, CC, CC, CC, CC, BL, SP, SP, SP, SP, SP, CC, // 0x00
 		CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, // 0x10
@@ -299,7 +299,7 @@ private:
 		UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, PP, PP, PP, PP, PP, // 0x50
 		PP, LX, LX, LX, LX, LX, LX, LL, LL, LL, LL, LL, LL, LL, LL, LL, // 0x60
 		LL, LL, LL, LL, LL, LL, LL, LL, LL, LL, LL, PP, PP, PP, PP, CC, // 0x70
-	};
+	}};
 
 	static const std::array<int32_t , MAX_CASEFOLDS + 1> CaseFolds;
 	static const std::array<Property, MAX_TABLE     + 1> CodePoints;

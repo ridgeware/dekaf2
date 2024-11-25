@@ -452,7 +452,12 @@ kHasSingleBit(T iValue) noexcept
 template<class T>
 // C++20
 /// Returns the number of consecutive 0 bits in the value of x, starting from the most significant bit ("left")
-DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+#if DEKAF2_IS_CLANG && DEKAF2_CLANG_VERSION_MAJOR < 4
+inline
+#else
+constexpr
+#endif
 typename std::enable_if<std::is_unsigned<T>::value, int>::type
 kBitCountLeftZero(T iValue) noexcept
 //-----------------------------------------------------------------------------

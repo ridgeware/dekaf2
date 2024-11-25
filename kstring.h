@@ -129,7 +129,7 @@ public:
 	KString (const std::string& s)                            : m_rep(s.data(), s.size()) {}
 	KString (std::string&& s) noexcept                        : m_rep(std::move(s)) {}
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
-	KString (const std::string_view& s)                       : m_rep(s.data(), s.size()) {}
+	KString (const DEKAF2_SV_NAMESPACE::string_view& s)       : m_rep(s.data(), s.size()) {}
 #endif
 	KString (const KStringView& sv);
 	KString (const KStringViewZ& svz);
@@ -895,7 +895,7 @@ public:
 
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	/// allowing conversion into std::string_view
-	operator std::string_view()   const { return std::string_view(m_rep.data(), m_rep.size()); }
+	operator DEKAF2_SV_NAMESPACE::string_view() const { return DEKAF2_SV_NAMESPACE::string_view(m_rep.data(), m_rep.size()); }
 #endif
 	/// is string one of the values in sHaystack, delimited by iDelim?
 	DEKAF2_NODISCARD

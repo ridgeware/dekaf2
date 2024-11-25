@@ -72,10 +72,10 @@ TEST_CASE("KSourceLocation") {
 		CHECK ( TestFunction3(true) == "TestFunction3:34" );
 		CHECK ( NewObject2().TestFunction4(true) == "TestFunction4:41" );
 #else
-		CHECK ( TestFunction1(true) == "" );
-		CHECK ( NewObject().TestFunction2(true) == "" );
-		CHECK ( TestFunction3(true) == "" );
-		CHECK ( NewObject2().TestFunction4(true) == "" );
+		CHECK ( TestFunction1(true) == ":0" );
+		CHECK ( NewObject().TestFunction2(true) == ":0" );
+		CHECK ( TestFunction3(true) == ":0" );
+		CHECK ( NewObject2().TestFunction4(true) == ":0" );
 #endif
 	}
 #endif

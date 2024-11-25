@@ -75,8 +75,6 @@ public:
 	{
 	}
 
-	KFileServer(KFileServer&&) noexcept = default;
-
 	/// Prepare for file access. May throw.
 	/// @param sDocumentRoot The file system directory that contains all served files.
 	/// @param sRequest The normalized resource request with the full external path,

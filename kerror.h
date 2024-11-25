@@ -66,11 +66,7 @@ class DEKAF2_PUBLIC KErrorBase : private KError
 public:
 //----------
 
-	KErrorBase()                             noexcept = default;
-	KErrorBase(const KErrorBase&)            noexcept = default;
-	KErrorBase(KErrorBase&&)                 noexcept = default;
-	KErrorBase& operator=(const KErrorBase&) noexcept = default;
-	KErrorBase& operator=(KErrorBase&&)      noexcept = default;
+	KErrorBase() = default;
 
 	using base::base;
 

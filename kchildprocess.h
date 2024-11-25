@@ -93,11 +93,11 @@ public:
 //------
 
 	/// default ctor
-	KChildProcess() noexcept = default;
+	KChildProcess() = default;
 	KChildProcess(const KChildProcess&) = delete;
-	KChildProcess(KChildProcess&&) noexcept = default;
+	KChildProcess(KChildProcess&&) = default;
 	KChildProcess& operator=(const KChildProcess&) = delete;
-	KChildProcess& operator=(KChildProcess&&) noexcept = default;
+	KChildProcess& operator=(KChildProcess&&) = default;
 
 	/// ctor with arguments to start child
 	KChildProcess(KString sCommand,

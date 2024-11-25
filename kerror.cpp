@@ -98,4 +98,13 @@ void KErrorBase::ClearError()
 	clear();
 }
 
+#if 0
+// test for debugging ..
+static_assert(std::is_nothrow_move_constructible<std::runtime_error>::value, "std::runtime_error is not nothrow move constructible, but should be");
+#endif
+
+static_assert(!std::is_nothrow_move_constructible<std::runtime_error>::value || std::is_nothrow_move_constructible<KErrorBase>::value,
+			  "KErrorBase is intended to be nothrow move constructible, but is not!");
+
+
 DEKAF2_NAMESPACE_END

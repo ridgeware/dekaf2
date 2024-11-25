@@ -472,7 +472,9 @@ void KFileServer::clear()
 
 } // clear
 
-static_assert(std::is_nothrow_move_constructible<KFileServer>::value,
+// don't test KFileServer if its base class KErrorBase is not nothrow_move_constructible
+// (this is the case with a combination of old clang and some libstdc++)
+static_assert(!std::is_nothrow_move_constructible<KErrorBase>::value || std::is_nothrow_move_constructible<KFileServer>::value,
 			  "KFileServer is intended to be nothrow move constructible, but is not!");
 
 DEKAF2_NAMESPACE_END

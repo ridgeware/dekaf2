@@ -1583,7 +1583,9 @@ KFileStat& KFileStat::SetDefaults()
 
 } // SetDefaults
 
-static_assert(std::is_nothrow_move_constructible<KFileStat>::value,
+// don't test KFileStat if its base class KErrorBase is not nothrow_move_constructible
+// (this is the case with a combination of old clang and some libstdc++)
+static_assert(!std::is_nothrow_move_constructible<KErrorBase>::value || std::is_nothrow_move_constructible<KFileStat>::value,
 			  "KFileStat is intended to be nothrow move constructible, but is not!");
 
 const KFileStat KDirectory::DirEntry::s_EmptyStat;
@@ -1888,7 +1890,9 @@ void KDirectory::Sort(SortBy SortBy, bool bReverse)
 
 } // Sort
 
-static_assert(std::is_nothrow_move_constructible<KDirectory>::value,
+// don't test KDirectory if its base class KErrorBase is not nothrow_move_constructible
+// (this is the case with a combination of old clang and some libstdc++)
+static_assert(!std::is_nothrow_move_constructible<KErrorBase>::value || std::is_nothrow_move_constructible<KDirectory>::value,
 			  "KDirectory is intended to be nothrow move constructible, but is not!");
 
 //-----------------------------------------------------------------------------

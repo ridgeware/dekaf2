@@ -5,6 +5,7 @@ include(CMakeFindDependencyMacro)
 # the required dependencies
 find_dependency(Threads)
 find_dependency(OpenSSL)
+set(Boost_NO_WARN_NEW_VERSIONS ON)
 find_dependency(Boost)
 
 # optional dependencies

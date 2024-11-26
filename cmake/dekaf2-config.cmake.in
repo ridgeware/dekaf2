@@ -18,11 +18,6 @@ find_dependency(OpenSSL)
 set(Boost_NO_WARN_NEW_VERSIONS ON)
 find_dependency(Boost)
 
-# optional dependencies
-if (@SQLite3_FOUND@) # SQLite3_FOUND
-	find_dependency(SQLite3)
-endif()
-
 if (@DEKAF2_DUAL_TARGET@) # DEKAF2_DUAL_TARGET
 	# if no build type is used, pick the release version of the library
 	if (NOT CMAKE_BUILD_TYPE)

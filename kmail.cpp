@@ -451,7 +451,9 @@ bool KMail::Send(const KURL& URL, KStringView sUsername, KStringView sPassword)
 } // Send
 
 // if std::map is not yet supported by this lib to be nothrow, don't test dependant class
-static_assert(!std::is_nothrow_move_constructible<std::map<int, int>>::value || std::is_nothrow_move_constructible<KMail>::value,
-			  "KMail is intended to be nothrow move constructible, but is not!");
+static_assert(!std::is_nothrow_move_constructible<std::map<int, int>>::value ||
+              !std::is_nothrow_move_constructible<KErrorBase>::value ||
+               std::is_nothrow_move_constructible<KMail>::value,
+              "KMail is intended to be nothrow move constructible, but is not!");
 
 DEKAF2_NAMESPACE_END

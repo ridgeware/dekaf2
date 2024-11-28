@@ -92,6 +92,11 @@ OPTION(DEKAF2_BUILD_STATIC_DEKAF2 "build a static version of dekaf2" ON)
 OPTION(DEKAF2_BUILD_SHARED_DEKAF2 "build a shared version of dekaf2" OFF)
 OPTION(DEKAF2_DUAL_TARGET "install Release and Debug versions of dekaf2 side by side" OFF)
 OPTION(DEKAF2_VERSION_IN_TARGET "include version number in target" OFF)
+OPTION(DEKAF2_FOR_VCPKG "do a build fulfilling vcpkg expectations" OFF)
+OPTION(DEKAF2_INSTALL_BIN "build and install bin artifacts" ON)
+OPTION(DEKAF2_INSTALL_LIB "build and install lib artifacts" ON)
+OPTION(DEKAF2_INSTALL_SHARE "install share data" ON)
+OPTION(DEKAF2_INSTALL_INCLUDE "install include files" ON)
 
 # =================================== C++ STANDARD =================================
 
@@ -115,25 +120,40 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG")
 	set(CMAKE_BUILD_TYPE "Debug")
 endif()
 
-if (CMAKE_GENERATOR MATCHES "Makefile" OR CMAKE_GENERATOR MATCHES "Ninja")
+if (DEKAF2_FOR_VCPKG)
 
-	# single configuration setup - make sure we have a build type
+	set(DEKAF2_DUAL_TARGET OFF)
+	set(DEKAF2_VERSION_IN_TARGET OFF)
+	set(DEKAF2_NO_BUILDSETUP ON)
 
-	if (NOT CMAKE_BUILD_TYPE)
-		# Release is the default build type
-		set(CMAKE_BUILD_TYPE "Release")
+	if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+		set(DEKAF2_INSTALL_SHARE OFF)
+		set(DEKAF2_INSTALL_INCLUDE OFF)
 	endif()
 
-	if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-		SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
+else () # DEKAF2_FOR_VCPKG
+
+	if (CMAKE_GENERATOR MATCHES "Makefile" OR CMAKE_GENERATOR MATCHES "Ninja")
+
+		# single configuration setup - make sure we have a build type
+
+		if (NOT CMAKE_BUILD_TYPE)
+			# Release is the default build type
+			set(CMAKE_BUILD_TYPE "Release")
+		endif()
+
+		if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+			SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
+		endif()
+
+	else()
+
+		# clear any build type to make understood we build a multi configuration setup
+		set(CMAKE_BUILD_TYPE "")
+
 	endif()
 
-else()
-
-	# clear any build type to make understood we build a multi configuration setup
-	set(CMAKE_BUILD_TYPE "")
-
-endif()
+endif() # DEKAF2_FOR_VCPKG
 
 if (DEKAF2_DUAL_TARGET)
 	# we only support the Release and Debug output locations - other
@@ -1424,16 +1444,22 @@ set(DEKAF2_SOURCE_FILES
 	${SOURCES}
 )
 
+if (DEKAF2_INSTALL_INCLUDE)
+	set (DEKAF2_PUBLIC_INCLUDE_DIRECTORIES
+		$<INSTALL_INTERFACE:${dekaf2_include_dest}>
+		$<INSTALL_INTERFACE:${dekaf2_lib_dest}/include>
+		${Boost_INCLUDE_DIR}
+		${OPENSSL_INCLUDE_DIR}
+	)
+endif()
+
 set(DEKAF2_INCLUDE_DIRECTORIES
 	SYSTEM
 		# include all external headers (and own installed headers) as
 		# SYSTEM headers to suppress warnings on their contents
 	PUBLIC
 		$<BUILD_INTERFACE:${DEKAF2_FMT_INCLUDE}>
-		$<INSTALL_INTERFACE:${dekaf2_include_dest}>
-		$<INSTALL_INTERFACE:${dekaf2_lib_dest}/include>
-		${Boost_INCLUDE_DIR}
-		${OPENSSL_INCLUDE_DIR}
+		${DEKAF2_PUBLIC_INCLUDE_DIRECTORIES}
 	PRIVATE
 		$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
@@ -1571,7 +1597,7 @@ if (DEKAF2_BUILD_STATIC_DEKAF2)
 	target_compile_definitions (ksql2 ${KSQL2_COMPILE_DEFINITIONS})
 endif()
 
-if(SQLITE3_FOUND)
+if (SQLITE3_FOUND)
 	if (DEKAF2_BUILD_SHARED_DEKAF2)
 		add_library(ksqlite-shared SHARED ksqlite.cpp ksqlite.h)
 		set_target_properties      (ksqlite-shared PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -1590,7 +1616,7 @@ if(SQLITE3_FOUND)
 		if (DEKAF2_USE_PRECOMPILED_HEADERS)
 			target_precompile_headers(ksqlite-shared REUSE_FROM dekaf2-objects)
 		endif()
-	endif()
+	endif() # DEKAF2_BUILD_SHARED_DEKAF2
 
 	if (DEKAF2_BUILD_STATIC_DEKAF2)
 		add_library(ksqlite STATIC ksqlite.cpp ksqlite.h)
@@ -1605,47 +1631,51 @@ if(SQLITE3_FOUND)
 		if (DEKAF2_USE_PRECOMPILED_HEADERS)
 			target_precompile_headers(ksqlite REUSE_FROM dekaf2-objects)
 		endif()
+	endif() # DEKAF2_BUILD_STATIC_DEKAF2
+endif() # SQLITE3_FOUND
+
+if (DEKAF2_INSTALL_BIN)
+
+	add_executable(klog klog_main.cpp)
+	target_link_libraries(klog dekaf2)
+
+	add_executable(createdbc createdbc.cpp)
+	target_link_libraries(createdbc ksql2 dekaf2)
+
+	if (DEKAF2_HAS_NCURSES)
+		add_executable(unixmenu unixmenu.cpp)
+		target_include_directories(unixmenu PUBLIC CURSES_INCLUDE_DIRS)
+		target_link_libraries(unixmenu dekaf2 ncurses)
 	endif()
+
+	add_executable(dekaf2project dekaf2project.cpp)
+	target_link_libraries(dekaf2project dekaf2)
+
+	add_executable(kurl samples/kurl.cpp samples/kurl.h)
+	target_link_libraries(kurl dekaf2)
+
+	add_executable(khttp samples/khttp.cpp)
+	target_link_libraries(khttp dekaf2)
+
+	add_executable(kgrep samples/kgrep.h samples/kgrep.cpp)
+	target_link_libraries(kgrep dekaf2)
+
+	add_executable(kreplace samples/kreplace.h samples/kreplace.cpp)
+	target_link_libraries(kreplace dekaf2)
+
+	add_executable(statinfo samples/statinfo.cpp)
+	target_link_libraries(statinfo dekaf2)
+
+	add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
+	target_link_libraries(getentities dekaf2)
+
+	add_executable(genunicodetables EXCLUDE_FROM_ALL genunicodetables.cpp)
+	target_link_libraries(genunicodetables dekaf2)
+
+	add_executable(diff-speedtest EXCLUDE_FROM_ALL from/google/diff-speedtest.cpp)
+	target_link_libraries(diff-speedtest dekaf2)
+
 endif()
-
-add_executable(klog klog_main.cpp)
-target_link_libraries(klog dekaf2)
-
-add_executable(createdbc createdbc.cpp)
-target_link_libraries(createdbc ksql2 dekaf2)
-
-if (DEKAF2_HAS_NCURSES)
-	add_executable(unixmenu unixmenu.cpp)
-	target_include_directories(unixmenu PUBLIC CURSES_INCLUDE_DIRS)
-	target_link_libraries(unixmenu dekaf2 ncurses)
-endif()
-
-add_executable(dekaf2project dekaf2project.cpp)
-target_link_libraries(dekaf2project dekaf2)
-
-add_executable(kurl samples/kurl.cpp samples/kurl.h)
-target_link_libraries(kurl dekaf2)
-
-add_executable(khttp samples/khttp.cpp)
-target_link_libraries(khttp dekaf2)
-
-add_executable(kgrep samples/kgrep.h samples/kgrep.cpp)
-target_link_libraries(kgrep dekaf2)
-
-add_executable(kreplace samples/kreplace.h samples/kreplace.cpp)
-target_link_libraries(kreplace dekaf2)
-
-add_executable(statinfo samples/statinfo.cpp)
-target_link_libraries(statinfo dekaf2)
-
-add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
-target_link_libraries(getentities dekaf2)
-
-add_executable(genunicodetables EXCLUDE_FROM_ALL genunicodetables.cpp)
-target_link_libraries(genunicodetables dekaf2)
-
-add_executable(diff-speedtest EXCLUDE_FROM_ALL from/google/diff-speedtest.cpp)
-target_link_libraries(diff-speedtest dekaf2)
 
 # ============================ UNIT AND SMOKE TESTS ==================================
 
@@ -1653,144 +1683,199 @@ add_subdirectory(utests)
 add_subdirectory(smoketests)
 add_subdirectory(benchmarks)
 
-# ================================= INSTALLATION =====================================
+# ======================== CLEANUP BEFORE INSTALLATION ===============================
 
 # check if we have to remove previously installed directories because we changed between
 # mono- and dual-target install, or version and version-less install
 
 # version vs. version-less:
 if (DEKAF2_VERSION_IN_TARGET)
-	string(REGEX REPLACE "${lib_version_regex}" "" removedir "${dekaf2_include_dest}")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
-	string(REGEX REPLACE "${lib_version_regex}" "" removedir "${dekaf2_main_lib_dest}")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
-	string(REGEX REPLACE "${lib_version_regex}" "" removedir "${dekaf2_share_dest}")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
-else()
-	set(removedir "${dekaf2_include_dest}${lib_version}")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
-	set(removedir "${dekaf2_main_lib_dest}${lib_version}")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
-	set(removedir "${dekaf2_share_dest}${lib_version}")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
-endif()
-
-# mono vs. dual:
-if (DEKAF2_DUAL_TARGET)
-	file(GLOB GLOBBED_FILES LIST_DIRECTORIES false "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/*")
-	# do not remove the main config files - they will be overwritten if necessary
-	list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/${PROJECT_NAME}-config.cmake")
-	list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/${PROJECT_NAME}-config-version.cmake")
-	if(GLOBBED_FILES)
-		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${GLOBBED_FILES})")
+	if (DEKAF2_INSTALL_INCLUDE)
+		string(REGEX REPLACE "${lib_version_regex}" "" removedir "${dekaf2_include_dest}")
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
 	endif()
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/include)")
+	if (DEKAF2_INSTALL_LIB)
+		string(REGEX REPLACE "${lib_version_regex}" "" removedir "${dekaf2_main_lib_dest}")
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
+	endif()
+	if (DEKAF2_INSTALL_SHARE)
+		string(REGEX REPLACE "${lib_version_regex}" "" removedir "${dekaf2_share_dest}")
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
+	endif()
 else()
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/Release)")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/Debug)")
+	if (DEKAF2_INSTALL_INCLUDE)
+		set(removedir "${dekaf2_include_dest}${lib_version}")
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
+	endif()
+	if (DEKAF2_INSTALL_LIB)
+		set(removedir "${dekaf2_main_lib_dest}${lib_version}")
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
+	endif()
+	if (DEKAF2_INSTALL_SHARE)
+		set(removedir "${dekaf2_share_dest}${lib_version}")
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
+	endif()
 endif()
 
-# always put this first, otherwise it risks to remove other already installed cmake config files
-install(EXPORT ${PROJECT_NAME} NAMESPACE dekaf2:: DESTINATION "${dekaf2_lib_dest}")
+if (DEKAF2_INSTALL_LIB)
 
-# create dummy exports to satisfy cmake for the statically and PRIVATE linked in libraries
-if(NOT DEKAF2_USE_SYSTEM_FMTLIB)
-	install(TARGETS fmt       EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
-endif()
+	# mono vs. dual:
+	if (DEKAF2_DUAL_TARGET)
+		file(GLOB GLOBBED_FILES LIST_DIRECTORIES false "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/*")
+		# do not remove the main config files - they will be overwritten if necessary
+		list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/${PROJECT_NAME}-config.cmake")
+		list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/${PROJECT_NAME}-config-version.cmake")
+		if(GLOBBED_FILES)
+			install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${GLOBBED_FILES})")
+		endif()
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/include)")
+	else()
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/Release)")
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/Debug)")
+	endif()
 
-install(TARGETS nlohmann-json EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
-install(TARGETS re2           EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
-install(TARGETS frozen        EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
-install(TARGETS date-tz       EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+	if (NOT DEKAF2_BUILD_SHARED_DEKAF2)
+		# remove previously installed shared libs:
+		# globbing takes place at cmake generation, deletion at install, so the following
+		# is not a guarantee to really remove all old artifacts that are not recreated, but
+		# it should work in most cases ..
+		if (IS_LINUX)
+			set(DYN_MASK "so*")
+		elseif (IS_MACOS)
+			set(DYN_MASK "*dylib")
+		else ()
+			set(DYN_MASK "NOTFOUND")
+		endif ()
+		file(GLOB GLOBBED_FILES "${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libdekaf2.${DYN_MASK}")
+		set(DYN_FILES ${GLOBBED_FILES})
+		file(GLOB GLOBBED_FILES "${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libksql2.${DYN_MASK}")
+		set(DYN_FILES ${DYN_FILES} ${GLOBBED_FILES})
+		file(GLOB GLOBBED_FILES "${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libksqlite.${DYN_MASK}")
+		set(DYN_FILES ${DYN_FILES} ${GLOBBED_FILES})
+		if (DYN_FILES)
+			install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${DYN_FILES})")
+		endif ()
+	endif()
 
-if (DEKAF2_BUILD_SHARED_DEKAF2)
-	install(TARGETS dekaf2-shared ksql2-shared EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
-else()
-	# globbing takes place at cmake generation, deletion at install, so the following
-	# is not a guarantee to really remove all old artifacts that are not recreated, but
-	# it should work in most cases ..
-	if (IS_LINUX)
-		set(DYN_MASK "so*")
-	elseif (IS_MACOS)
-		set(DYN_MASK "*dylib")
-	else ()
-		set(DYN_MASK "NOTFOUND")
-	endif ()
-	file(GLOB GLOBBED_FILES "${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libdekaf2.${DYN_MASK}")
-	set(DYN_FILES ${GLOBBED_FILES})
-	file(GLOB GLOBBED_FILES "${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libksql2.${DYN_MASK}")
-	set(DYN_FILES ${DYN_FILES} ${GLOBBED_FILES})
-	file(GLOB GLOBBED_FILES "${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libksqlite.${DYN_MASK}")
-	set(DYN_FILES ${DYN_FILES} ${GLOBBED_FILES})
-	if (DYN_FILES)
-		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${DYN_FILES})")
-	endif ()
-endif()
+	if (NOT DEKAF2_BUILD_STATIC_DEKAF2)
+		# remove previously installed static libs:
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libdekaf2${CMAKE_STATIC_LIBRARY_SUFFIX})")
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libdekaf2${CMAKE_STATIC_LIBRARY_SUFFIX})")
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libksql2${CMAKE_STATIC_LIBRARY_SUFFIX})")
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libsqlite${CMAKE_STATIC_LIBRARY_SUFFIX})")
+	endif()
 
-if (DEKAF2_BUILD_STATIC_DEKAF2)
-	install(TARGETS dekaf2 ksql2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
-else()
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libdekaf2${CMAKE_STATIC_LIBRARY_SUFFIX})")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libksql2${CMAKE_STATIC_LIBRARY_SUFFIX})")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libsqlite${CMAKE_STATIC_LIBRARY_SUFFIX})")
-endif()
+	# remove minifolly, we do not build it anymore since at least 2023, but forgot to remove the lib if it was built, do it until mid-2025
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libminifolly.a)")
 
-install(TARGETS ${DEKAF2_TARGETS} EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
-install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
-install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
-install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake DESTINATION ${dekaf2_lib_dest})
-install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace statinfo DESTINATION ${dekaf2_bin_dest})
-if (DEKAF2_HAS_NCURSES)
-	install(TARGETS unixmenu DESTINATION ${dekaf2_bin_dest})
-endif()
-#install(TARGETS getentities genunicodetables DESTINATION ${dekaf2_bin_dest})
+endif() # DEKAF2_INSTALL_LIB
 
-install(FILES ${PUBLIC_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2)
-install(FILES ksql.h DESTINATION ${dekaf2_include_dest}/dekaf2)
-install(FILES bits/ksql_dbc.h DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
+if (DEKAF2_INSTALL_INCLUDE)
 
-if(SQLITE3_FOUND)
+	if (NOT SQLITE3_FOUND)
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksqlite.h)")
+	endif()
+
+	if (NOT DEKAF2_HAS_LIBZIP)
+		# make sure to remove a kzip.h header if this build did not find libzip
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kzip.h)")
+	endif()
+
+	if(DEKAF2_USE_SYSTEM_FMTLIB)
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/fmt)")
+	endif()
+
+	# remove old headers, until mid-2024:
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kcppcompat.h)")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/ktemplate.h)")
+	# remove old headers, until begin-2025:
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kconnection.h)")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslstream.h)")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslcontext.h)")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslclient.h)")
+
+endif() # DEKAF2_INSTALL_INCLUDE
+
+# ================================= INSTALLATION =====================================
+
+if (DEKAF2_INSTALL_LIB)
+
+	# always put this first, otherwise it risks to remove other already installed cmake config files
+	install(EXPORT ${PROJECT_NAME} NAMESPACE dekaf2:: DESTINATION "${dekaf2_lib_dest}")
+
+	# create dummy exports to satisfy cmake for the statically and PRIVATE linked in libraries
+	if(NOT DEKAF2_USE_SYSTEM_FMTLIB)
+		install(TARGETS fmt EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+	endif()
+
+	install(TARGETS nlohmann-json re2 frozen date-tz EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+
 	if (DEKAF2_BUILD_SHARED_DEKAF2)
-		install(TARGETS ksqlite-shared EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+		install(TARGETS dekaf2-shared ksql2-shared EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+		if(SQLITE3_FOUND)
+			install(TARGETS ksqlite-shared EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+		endif()
 	endif()
+
 	if (DEKAF2_BUILD_STATIC_DEKAF2)
-		install(TARGETS ksqlite EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+		install(TARGETS dekaf2 ksql2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+		if(SQLITE3_FOUND)
+			install(TARGETS ksqlite EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+		endif()
 	endif()
-	install(FILES ksqlite.h DESTINATION ${dekaf2_include_dest}/dekaf2)
-endif()
 
-install(FILES ${BITS_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
-install(FILES ${BITS_SIMD_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits/simd)
-install(FILES "${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION ${dekaf2_lib_dest}/include)
-install(FILES "${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION ${dekaf2_lib_dest}/include/dekaf2)
-install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/mysql-newuser" DESTINATION ${dekaf2_bin_dest})
-install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/findcol" DESTINATION ${dekaf2_bin_dest})
-install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/kport" DESTINATION ${dekaf2_bin_dest})
-install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/my-ip-addr" DESTINATION ${dekaf2_bin_dest})
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/templates"                       DESTINATION "${dekaf2_share_dest}")
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/" DESTINATION "${dekaf2_include_dest}/nlohmann" FILES_MATCHING PATTERN "*.hpp")
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/"     DESTINATION "${dekaf2_include_dest}/frozen"   FILES_MATCHING PATTERN "*.h")
-if(NOT DEKAF2_USE_SYSTEM_FMTLIB)
-	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-10.0.0/include/fmt/" DESTINATION "${dekaf2_include_dest}/fmt"     FILES_MATCHING PATTERN "*.h")
-else()
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/fmt)")
-endif()
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant/date/"             DESTINATION "${dekaf2_include_dest}/date"     FILES_MATCHING PATTERN "*.h")
+	install(TARGETS ${DEKAF2_TARGETS} EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
+	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
+	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake DESTINATION ${dekaf2_lib_dest})
 
-# remove old headers, until mid-2024
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kcppcompat.h)")
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/ktemplate.h)")
-# remove old headers, until begin-2025
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kconnection.h)")
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslstream.h)")
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslcontext.h)")
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslclient.h)")
-if (NOT DEKAF2_HAS_LIBZIP)
-	# make sure to remove a kzip.h header if this build did not find libzip
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kzip.h)")
-endif()
-# remove minifolly, we do not build it anymore since at least 2023, but forgot to remove the lib if it was built, do it until mid-2025
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_lib_dest}/libminifolly.a)")
+	# although being an include file, kconfiguration.h belongs to the lib install, as it changes
+	# depending on the build type
+	install(FILES "${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h" DESTINATION ${dekaf2_lib_dest}/include)
+
+endif() # DEKAF2_INSTALL_LIB
+
+if (DEKAF2_INSTALL_BIN)
+
+	install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace statinfo DESTINATION ${dekaf2_bin_dest})
+	if (DEKAF2_HAS_NCURSES)
+		install(TARGETS unixmenu DESTINATION ${dekaf2_bin_dest})
+	endif()
+
+	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/mysql-newuser" DESTINATION ${dekaf2_bin_dest})
+	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/findcol"       DESTINATION ${dekaf2_bin_dest})
+	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/kport"         DESTINATION ${dekaf2_bin_dest})
+	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/my-ip-addr"    DESTINATION ${dekaf2_bin_dest})
+
+endif() # DEKAF2_INSTALL_BIN
+
+if (DEKAF2_INSTALL_INCLUDE)
+
+	install(FILES ${PUBLIC_HEADERS}    DESTINATION ${dekaf2_include_dest}/dekaf2)
+	install(FILES ksql.h               DESTINATION ${dekaf2_include_dest}/dekaf2)
+	install(FILES ${BITS_HEADERS}      DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
+	install(FILES ${BITS_SIMD_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits/simd)
+	install(FILES bits/ksql_dbc.h      DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
+	if (SQLITE3_FOUND)
+		install(FILES ksqlite.h        DESTINATION ${dekaf2_include_dest}/dekaf2)
+	endif()
+
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/"  DESTINATION "${dekaf2_include_dest}/nlohmann" FILES_MATCHING PATTERN "*.hpp")
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/"      DESTINATION "${dekaf2_include_dest}/frozen"   FILES_MATCHING PATTERN "*.h")
+	if (NOT DEKAF2_USE_SYSTEM_FMTLIB)
+		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-10.0.0/include/fmt/" DESTINATION "${dekaf2_include_dest}/fmt"      FILES_MATCHING PATTERN "*.h")
+	endif()
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant/date/"              DESTINATION "${dekaf2_include_dest}/date"     FILES_MATCHING PATTERN "*.h")
+
+endif() # DEKAF2_INSTALL_INCLUDE
+
+if (DEKAF2_INSTALL_SHARE)
+
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/templates"                        DESTINATION "${dekaf2_share_dest}")
+
+endif() # DEKAF2_INSTALL_SHARE
+
+# ============================= PREPARE PACKAGING ====================================
 
 set(CPACK_SOURCE_GENERATOR ZIP)
 set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})

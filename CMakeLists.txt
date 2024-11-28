@@ -126,11 +126,6 @@ if (DEKAF2_FOR_VCPKG)
 	set(DEKAF2_VERSION_IN_TARGET OFF)
 	set(DEKAF2_NO_BUILDSETUP ON)
 
-	if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-		set(DEKAF2_INSTALL_SHARE OFF)
-		set(DEKAF2_INSTALL_INCLUDE OFF)
-	endif()
-
 else () # DEKAF2_FOR_VCPKG
 
 	if (CMAKE_GENERATOR MATCHES "Makefile" OR CMAKE_GENERATOR MATCHES "Ninja")
@@ -1721,13 +1716,20 @@ if (DEKAF2_INSTALL_LIB)
 
 	# mono vs. dual:
 	if (DEKAF2_DUAL_TARGET)
-		file(GLOB GLOBBED_FILES LIST_DIRECTORIES false "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/*")
+		# remove cmake files of mono install:
+		file(GLOB GLOBBED_FILES LIST_DIRECTORIES false "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/cmake/*")
 		# do not remove the main config files - they will be overwritten if necessary
-		list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/${PROJECT_NAME}-config.cmake")
-		list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/${PROJECT_NAME}-config-version.cmake")
+		list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/cmake/${PROJECT_NAME}-config.cmake")
+		list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/cmake/${PROJECT_NAME}-config-version.cmake")
 		if(GLOBBED_FILES)
 			install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${GLOBBED_FILES})")
 		endif()
+		# remove libs of mono install:
+		file(GLOB GLOBBED_FILES LIST_DIRECTORIES false "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/*")
+		if(GLOBBED_FILES)
+			install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${GLOBBED_FILES})")
+		endif()
+		# remove include/kconfiguration.h of mono install:
 		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/include)")
 	else()
 		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/Release)")
@@ -1801,33 +1803,32 @@ endif() # DEKAF2_INSTALL_INCLUDE
 if (DEKAF2_INSTALL_LIB)
 
 	# always put this first, otherwise it risks to remove other already installed cmake config files
-	install(EXPORT ${PROJECT_NAME} NAMESPACE dekaf2:: DESTINATION "${dekaf2_lib_dest}")
+	install(EXPORT ${PROJECT_NAME}-targets NAMESPACE dekaf2:: DESTINATION "${dekaf2_lib_dest}/cmake")
 
 	# create dummy exports to satisfy cmake for the statically and PRIVATE linked in libraries
 	if(NOT DEKAF2_USE_SYSTEM_FMTLIB)
-		install(TARGETS fmt EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+		install(TARGETS fmt EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 	endif()
 
-	install(TARGETS nlohmann-json re2 frozen date-tz EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+	install(TARGETS nlohmann-json re2 frozen date-tz EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 
 	if (DEKAF2_BUILD_SHARED_DEKAF2)
-		install(TARGETS dekaf2-shared ksql2-shared EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+		install(TARGETS dekaf2-shared ksql2-shared EXPORT ${PROJECT_NAME}-targets   DESTINATION ${dekaf2_lib_dest})
 		if(SQLITE3_FOUND)
-			install(TARGETS ksqlite-shared EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+			install(TARGETS ksqlite-shared EXPORT ${PROJECT_NAME}-targets           DESTINATION ${dekaf2_lib_dest})
 		endif()
 	endif()
 
 	if (DEKAF2_BUILD_STATIC_DEKAF2)
-		install(TARGETS dekaf2 ksql2 EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+		install(TARGETS dekaf2 ksql2 EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 		if(SQLITE3_FOUND)
-			install(TARGETS ksqlite EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
+			install(TARGETS ksqlite EXPORT ${PROJECT_NAME}-targets  DESTINATION ${dekaf2_lib_dest})
 		endif()
 	endif()
 
-	install(TARGETS ${DEKAF2_TARGETS} EXPORT dekaf2 DESTINATION ${dekaf2_lib_dest})
-	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config.cmake DESTINATION ${dekaf2_main_lib_dest})
-	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest})
-	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake DESTINATION ${dekaf2_lib_dest})
+	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config.cmake         DESTINATION ${dekaf2_main_lib_dest}/cmake)
+	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest}/cmake)
+	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake          DESTINATION ${dekaf2_lib_dest}/cmake)
 
 	# although being an include file, kconfiguration.h belongs to the lib install, as it changes
 	# depending on the build type

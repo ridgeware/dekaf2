@@ -1,5 +1,7 @@
 # dekaf2-config.cmake - package configuration file
 
+cmake_policy(PUSH)
+
 if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 	# allow mixed case find_package names (Boost needs this with cmake 3.27)
 	cmake_policy(SET CMP0144 OLD)
@@ -23,11 +25,11 @@ if (@DEKAF2_DUAL_TARGET@) # DEKAF2_DUAL_TARGET
 	# build types have to pick either or
 	if (CMAKE_BUILD_TYPE STREQUAL "Debug"
 	 OR CMAKE_BUILD_TYPE STREQUAL "debug")
-		set(LIB_BUILD_TYPE_PATH "/Debug")
+		set(LIB_BUILD_TYPE_PATH "/../Debug/cmake")
 	elseif (NOT CMAKE_BUILD_TYPE)
 		set(LIB_BUILD_TYPE_PATH "/@CMAKE_BUILD_TYPE@")
 	else()
-		set(LIB_BUILD_TYPE_PATH "/Release")
+		set(LIB_BUILD_TYPE_PATH "/../Release/cmake")
 	endif()
 else() # DEKAF2_DUAL_TARGET
 	# simply leave the output path empty when we output only to one target location
@@ -35,5 +37,7 @@ else() # DEKAF2_DUAL_TARGET
 endif() # DEKAF2_DUAL_TARGET
 
 get_filename_component(SELF_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
-include("${SELF_DIR}${LIB_BUILD_TYPE_PATH}/dekaf2.cmake")
+include("${SELF_DIR}${LIB_BUILD_TYPE_PATH}/dekaf2-targets.cmake")
 include("${SELF_DIR}${LIB_BUILD_TYPE_PATH}/dekaf2-setup.cmake")
+
+cmake_policy(POP)

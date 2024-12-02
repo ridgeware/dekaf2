@@ -92,7 +92,6 @@ OPTION(DEKAF2_BUILD_STATIC_DEKAF2 "build a static version of dekaf2" ON)
 OPTION(DEKAF2_BUILD_SHARED_DEKAF2 "build a shared version of dekaf2" OFF)
 OPTION(DEKAF2_DUAL_TARGET "install Release and Debug versions of dekaf2 side by side" OFF)
 OPTION(DEKAF2_VERSION_IN_TARGET "include version number in target" OFF)
-OPTION(DEKAF2_FOR_VCPKG "do a build fulfilling vcpkg expectations" OFF)
 OPTION(DEKAF2_INSTALL_BIN "build and install bin artifacts" ON)
 OPTION(DEKAF2_INSTALL_LIB "build and install lib artifacts" ON)
 OPTION(DEKAF2_INSTALL_SHARE "install share data" ON)
@@ -120,35 +119,25 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG")
 	set(CMAKE_BUILD_TYPE "Debug")
 endif()
 
-if (DEKAF2_FOR_VCPKG)
+if (CMAKE_GENERATOR MATCHES "Makefile" OR CMAKE_GENERATOR MATCHES "Ninja")
 
-	set(DEKAF2_DUAL_TARGET OFF)
-	set(DEKAF2_VERSION_IN_TARGET OFF)
-	set(DEKAF2_NO_BUILDSETUP ON)
+	# single configuration setup - make sure we have a build type
 
-else () # DEKAF2_FOR_VCPKG
-
-	if (CMAKE_GENERATOR MATCHES "Makefile" OR CMAKE_GENERATOR MATCHES "Ninja")
-
-		# single configuration setup - make sure we have a build type
-
-		if (NOT CMAKE_BUILD_TYPE)
-			# Release is the default build type
-			set(CMAKE_BUILD_TYPE "Release")
-		endif()
-
-		if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-			SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
-		endif()
-
-	else()
-
-		# clear any build type to make understood we build a multi configuration setup
-		set(CMAKE_BUILD_TYPE "")
-
+	if (NOT CMAKE_BUILD_TYPE)
+		# Release is the default build type
+		set(CMAKE_BUILD_TYPE "Release")
 	endif()
 
-endif() # DEKAF2_FOR_VCPKG
+	if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+		SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
+	endif()
+
+else()
+
+	# clear any build type to make understood we build a multi configuration setup
+	set(CMAKE_BUILD_TYPE "")
+
+endif()
 
 if (DEKAF2_DUAL_TARGET)
 	# we only support the Release and Debug output locations - other

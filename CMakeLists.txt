@@ -59,7 +59,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.66 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.0.67 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -82,6 +82,7 @@ OPTION(DEKAF2_WITH_FCGI "build with FCGI" OFF)
 OPTION(DEKAF2_WITH_KLOG "build with KLOG" ON)
 OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" OFF)
+OPTION(DEKAF2_FORCE_STATIC_LIBS "force linking with static libs except for system libs" OFF)
 OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" ON)
 OPTION(DEKAF2_WITH_PEDANTIC_WARNINGS "enable pedantic warnings" ON)
 OPTION(DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT "force the use of fmtlib even if std::format is available" ON)
@@ -96,6 +97,7 @@ OPTION(DEKAF2_INSTALL_BIN "build and install bin artifacts" ON)
 OPTION(DEKAF2_INSTALL_LIB "build and install lib artifacts" ON)
 OPTION(DEKAF2_INSTALL_SHARE "install share data" ON)
 OPTION(DEKAF2_INSTALL_INCLUDE "install include files" ON)
+OPTION(DEKAF2_ALL_LIBS "bind to all found libs (switch off and select single libs for better binary portability)" ON)
 
 # =================================== C++ STANDARD =================================
 
@@ -279,9 +281,30 @@ endif()
 # Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
 
-# ============================== Prefer static libs? ==============================
+# ============================== 3rd party libs ===============================
 
-if (DEKAF2_PREFER_STATIC_LIBS)
+# search for the libs that are always acceptable as dynamic libs first
+# (there may not be static versions anyways)
+
+# ================================ FreeTDS ====================================
+
+if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_FREETDS)
+	# FreeTDS (for KSQL) - if not available it's simply skipped
+	find_package(FreeTDS QUIET)
+	if(FREETDS_FOUND)
+		message(STATUS "configuring with FreeTDS/CTLIB")
+		set(DEKAF2_HAS_FREETDS 1)
+		set(DEKAF2_HAS_CTLIB 1)
+	else()
+		message(STATUS "No MS SQL support. Install FreeTDS package if needed")
+	endif()
+endif()
+
+# =========================== Prefer static libs? =============================
+
+# now prefer static libs if requested
+
+if (DEKAF2_PREFER_STATIC_LIBS OR DEKAF2_FORCE_STATIC_LIBS)
 	set(LIBSFX_BACKUP ${CMAKE_FIND_LIBRARY_SUFFIXES})
 	list(FIND CMAKE_FIND_LIBRARY_SUFFIXES ".a" LIBSFX_FOUND)
 	if (LIBSFX_FOUND GREATER 0)
@@ -301,48 +324,83 @@ find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(BZip2 REQUIRED)
 
-# ============================== LZMA / ZSTD =================================
+# =========================== Force static libs? ==============================
 
-find_package(LibLZMA QUIET)
+# now force static libs if requested
 
-if (LIBLZMA_FOUND)
-	set(DEKAF2_HAS_LIBLZMA 1)
-else()
-	# FindLibLZMA.cmake is causing troubles if not found and
-	# if the advanced state is not cleared..
-	mark_as_advanced(CLEAR LIBLZMA_INCLUDE_DIR LIBLZMA_LIBRARY )
-	set(LIBLZMA_LIBRARY "")
-	set(LIBLZMA_INCLUDE_DIR "")
+if (DEKAF2_FORCE_STATIC_LIBS)
+	list(FIND CMAKE_FIND_LIBRARY_SUFFIXES ".lib" LIBSFX_FOUND)
+	if (LIBSFX_FOUND GREATER 0)
+		set(CMAKE_FIND_LIBRARY_SUFFIXES ".a;.lib")
+	else()
+		set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+	endif()
+	message(STATUS "forcing static libraries: ${CMAKE_FIND_LIBRARY_SUFFIXES}")
 endif()
 
-find_package(ZSTD QUIET)
+# ================================ OPENSSL ===================================
 
-if (ZSTD_FOUND)
-	set(DEKAF2_HAS_LIBZSTD 1)
+# always required
+find_package(OpenSSL REQUIRED)
+if (OPENSSL_VERSION VERSION_GREATER_EQUAL "3.3")
+	# OpenSSL released QUIC first with v3.2.0, but we want at least v3.3,
+	# because SSL_poll() was implemented only then
+	message(STATUS "OpenSSL ${OPENSSL_VERSION} has QUIC")
+	set(DEKAF2_HAS_OPENSSL_QUIC 1)
+endif()
+
+# ================================== LZMA ====================================
+
+if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_LZMA)
+	find_package(LibLZMA QUIET)
+
+	if (LIBLZMA_FOUND)
+		set(DEKAF2_HAS_LIBLZMA 1)
+	else()
+		# FindLibLZMA.cmake is causing troubles if not found and
+		# if the advanced state is not cleared..
+		mark_as_advanced(CLEAR LIBLZMA_INCLUDE_DIR LIBLZMA_LIBRARY )
+		set(LIBLZMA_LIBRARY "")
+		set(LIBLZMA_INCLUDE_DIR "")
+	endif()
+endif()
+
+# ================================== ZSTD ====================================
+
+if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_ZSTD)
+	find_package(ZSTD QUIET)
+
+	if (ZSTD_FOUND)
+		set(DEKAF2_HAS_LIBZSTD 1)
+	endif()
 endif()
 
 # ================================= Brotli ===================================
 
-find_package(Brotli QUIET)
+if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_BROTLI)
+	find_package(Brotli QUIET)
 
-if (BROTLI_FOUND)
-	set(DEKAF2_HAS_LIBBROTLI 1)
+	if (BROTLI_FOUND)
+		set(DEKAF2_HAS_LIBBROTLI 1)
+	endif()
 endif()
 
 # ================================= LIBZIP =====================================
 
-# libzip
-# warning: libzip would collide with installed packages libtcod and minizip2
-# - uninstall them if needed, or uncomment
+if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_ZIP)
+	# libzip
+	# warning: libzip would collide with installed packages libtcod and minizip2
+	# - uninstall them if needed, or uncomment
 
-# do not require libzip ..
-find_package(LibZip QUIET)
+	# do not require libzip ..
+	find_package(LibZip QUIET)
 
-if (LIBZIP_FOUND)
-	set(DEKAF2_HAS_LIBZIP 1)
-else()
-	set(LIBZIP_LIBRARY "")
-	set(LIBZIP_INCLUDE_DIR "")
+	if (LIBZIP_FOUND)
+		set(DEKAF2_HAS_LIBZIP 1)
+	else()
+		set(LIBZIP_LIBRARY "")
+		set(LIBZIP_INCLUDE_DIR "")
+	endif()
 endif()
 
 # ================================ LIBPROC ====================================
@@ -362,25 +420,28 @@ endif ()
 
 # ================================= MYSQL ====================================
 
-# MySQL (for KSQL) - if not available, KSQL will not build something meaningful
-find_package(MYSQL QUIET)
+if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_MYSQL)
+	# MySQL (for KSQL) - if not available, KSQL will not build something meaningful
+	find_package(MYSQL QUIET)
 
-if(MYSQL_FOUND)
-	set(DEKAF2_HAS_MYSQL "${MYSQL_VERSION_STRING}")
-	if(MYSQL_VERSION_STRING STREQUAL "")
-		set(DEKAF2_HAS_MYSQL 1)
-		message(STATUS "MySQL found, but CMAKE is unable to report MySQL version, DEKAF2_HAS_MYSQL set to 1.")
+	if(MYSQL_FOUND)
+		set(DEKAF2_HAS_MYSQL "${MYSQL_VERSION_STRING}")
+		if(MYSQL_VERSION_STRING STREQUAL "")
+			set(DEKAF2_HAS_MYSQL 1)
+			message(STATUS "MySQL found, but CMAKE is unable to report MySQL version, DEKAF2_HAS_MYSQL set to 1.")
+		else()
+			message(STATUS "configuring with MySQL ${MYSQL_VERSION_STRING}")
+		endif()
+		message(STATUS "detected as mariadb: ${MYSQL_IS_MARIADB}")
+		set(DEKAF2_MYSQL_IS_MARIADB ${MYSQL_IS_MARIADB})
 	else()
-		message(STATUS "configuring with MySQL ${MYSQL_VERSION_STRING}")
+		message(STATUS "MySQL not found - will build without. Please install MySQL if you want to use KSQL.")
 	endif()
-	message(STATUS "detected as mariadb: ${MYSQL_IS_MARIADB}")
-	set(DEKAF2_MYSQL_IS_MARIADB ${MYSQL_IS_MARIADB})
-else()
-	message(STATUS "MySQL not found - will build without. Please install MySQL if you want to use KSQL.")
 endif()
 
 # ================================ SQLITE ====================================
 
+# this one is not for dekaf2 but for single target ksqlite
 # SQLite3 (for KSQL and KSQLite) - if not available it's simply skipped
 find_package(SQLite3 QUIET)
 if(SQLITE3_FOUND)
@@ -390,6 +451,8 @@ endif()
 
 # ================================ CURSES ====================================
 
+# this one is not for dekaf2 but for single target unixmenu
+# - search for it unconditionally
 set(CURSES_NEED_NCURSES TRUE)
 find_package(Curses QUIET)
 if(CURSES_FOUND)
@@ -397,34 +460,29 @@ if(CURSES_FOUND)
 	set(DEKAF2_HAS_NCURSES 1)
 endif()
 
-# ================================ OPENSSL ===================================
-
-find_package(OpenSSL REQUIRED)
-if (OPENSSL_VERSION VERSION_GREATER_EQUAL "3.3")
-	# OpenSSL released QUIC first with v3.2.0, but we want at least v3.3,
-	# because SSL_poll() was implemented only then
-	message(STATUS "OpenSSL ${OPENSSL_VERSION} has QUIC")
-	set(DEKAF2_HAS_OPENSSL_QUIC 1)
-endif()
-
 # =============================== NGHTTP2/3 ==================================
 
-find_package(NGHTTP2)
-if (NGHTTP2_FOUND)
-	set(DEKAF2_HAS_NGHTTP2 1)
-endif()
+if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_NGHTTP2)
+	find_package(NGHTTP2)
+	if (NGHTTP2_FOUND)
+		set(DEKAF2_HAS_NGHTTP2 1)
+	endif()
 
-if (DEKAF2_HAS_OPENSSL_QUIC)
-	# only search for nghttp3 if we have an openssl version supporting QUIC
-	# - this makes some ifdefs shorter..
-	find_package(NGHTTP3)
-	if (NGHTTP3_FOUND)
-		set(DEKAF2_HAS_NGHTTP3 1)
+	if (DEKAF2_HAS_OPENSSL_QUIC)
+		if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_NGHTTP3)
+			# only search for nghttp3 if we have an openssl version supporting QUIC
+			# - this makes some ifdefs shorter..
+			find_package(NGHTTP3)
+			if (NGHTTP3_FOUND)
+				set(DEKAF2_HAS_NGHTTP3 1)
+			endif()
+		endif()
 	endif()
 endif()
 
 # ================================= BOOST ====================================
 
+# always required
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 # to workaround a broken boost cmake config with boost 1.71 disable
@@ -526,29 +584,6 @@ if (DEKAF2_USE_JEMALLOC)
 	endif()
 endif()
 
-# ============================== Prefer static libs? ==============================
-
-if (DEKAF2_PREFER_STATIC_LIBS)
-	set(CMAKE_FIND_LIBRARY_SUFFIXES ${LIBSFX_BACKUP})
-endif()
-
-# we have to switch back to dynamic linking before searching for libct, which does
-# not play well with iconv and gssapi when linked statically
-
-# ================================ FreeTDS ====================================
-
-# FreeTDS (for KSQL) - if not available it's simply skipped
-find_package(FreeTDS QUIET)
-if(FREETDS_FOUND)
-	message(STATUS "configuring with FreeTDS/CTLIB")
-	set(DEKAF2_HAS_FREETDS 1)
-	set(DEKAF2_HAS_CTLIB 1)
-else()
-	message(STATUS "No MS SQL support. Install FreeTDS package if needed")
-endif()
-
-# ================================= DOXYGEN ==================================
-
 # add a target to generate API documentation with Doxygen
 # please make sure the graphviz package is installed, too, not only doxygen
 find_package(Doxygen)
@@ -576,6 +611,32 @@ else ()
 	)
 
 endif (DOXYGEN_FOUND)
+
+# ================== show list of found/notfound optional libs ==================
+
+function(LibState State Name Lib)
+	if ("${State}" STREQUAL "")
+		message(STATUS "${Name} not found")
+	else()
+		if ("${Lib}" STREQUAL "")
+			message(STATUS "${Name} found")
+		else()
+			message(STATUS "${Name} found (${Lib})")
+		endif()
+	endif()
+endfunction()
+
+message(STATUS "optional libraries:")
+LibState("${DEKAF2_HAS_LIBZIP}"    "ZIP      :" "${LIBZIP_LIBRARIES}" )
+LibState("${DEKAF2_HAS_LIBLZMA}"   "LZMA     :" "${LIBLZMA_LIBRARIES}")
+LibState("${DEKAF2_HAS_LIBZSTD}"   "ZSTD     :" "${ZSTD_LIBRARIES}"   )
+LibState("${DEKAF2_HAS_MYSQL}"     "MYSQL    :" "${MYSQL_LIBRARIES}"  )
+LibState("${DEKAF2_HAS_SQLITE3}"   "SQLITE   :" "${SQLITE3_LIBRARIES}")
+LibState("${DEKAF2_HAS_LIBBROTLI}" "BROTLI   :" "${BROTLI_LIBRARIES}" )
+LibState("${DEKAF2_HAS_NGHTTP2}"   "NGHTTP2  :" "${NGHTTP2_LIBRARIES}")
+LibState("${DEKAF2_HAS_NGHTTP3}"   "NGHTTP3  :" "${NGHTTP3_LIBRARIES}")
+LibState("${DEKAF2_HAS_FREETDS}"   "FreeTDS  :" "${FREETDS_LIBRARIES}")
+LibState("${DEKAF2_HAS_JEMALLOC}"  "JEMALLOC :" ""                    )
 
 # =============================== COMPILE TESTS =================================
 
@@ -1445,7 +1506,6 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 		$<BUILD_INTERFACE:${DEKAF2_FMT_INCLUDE}>
 		${DEKAF2_PUBLIC_INCLUDE_DIRECTORIES}
 	PRIVATE
-		$<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${libproc_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${LIBZIP_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${BROTLI_INCLUDE_DIRS}>
@@ -1585,6 +1645,7 @@ if (SQLITE3_FOUND)
 	if (DEKAF2_BUILD_SHARED_DEKAF2)
 		add_library(ksqlite-shared SHARED ksqlite.cpp ksqlite.h)
 		set_target_properties      (ksqlite-shared PROPERTIES POSITION_INDEPENDENT_CODE ON)
+		target_include_directories (ksqlite-shared PRIVATE $<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>)
 		target_link_libraries      (ksqlite-shared
 			PRIVATE
 				dekaf2-shared
@@ -1604,6 +1665,7 @@ if (SQLITE3_FOUND)
 
 	if (DEKAF2_BUILD_STATIC_DEKAF2)
 		add_library(ksqlite STATIC ksqlite.cpp ksqlite.h)
+		target_include_directories (ksqlite PRIVATE $<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>)
 		target_link_libraries(ksqlite
 			PRIVATE
 				dekaf2

@@ -26,13 +26,14 @@ if (@DEKAF2_DUAL_TARGET@) # DEKAF2_DUAL_TARGET
 	if (CMAKE_BUILD_TYPE STREQUAL "Debug"
 	 OR CMAKE_BUILD_TYPE STREQUAL "debug")
 		set(LIB_BUILD_TYPE_PATH "/../Debug/cmake")
-	elseif (NOT CMAKE_BUILD_TYPE)
-		set(LIB_BUILD_TYPE_PATH "/@CMAKE_BUILD_TYPE@")
+	elseif (NOT CMAKE_BUILD_TYPE AND NOT "@CMAKE_BUILD_TYPE@" STREQUAL "")
+		set(LIB_BUILD_TYPE_PATH "/../@CMAKE_BUILD_TYPE@/cmake")
 	else()
 		set(LIB_BUILD_TYPE_PATH "/../Release/cmake")
 	endif()
 else() # DEKAF2_DUAL_TARGET
 	# simply leave the output path empty when we output only to one target location
+	# (we are already inside the lib/dekaf2/cmake directory..)
 	set(LIB_BUILD_TYPE_PATH)
 endif() # DEKAF2_DUAL_TARGET
 

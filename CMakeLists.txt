@@ -1766,9 +1766,13 @@ if (DEKAF2_INSTALL_LIB)
 		# remove cmake files of mono install:
 		file(GLOB GLOBBED_FILES LIST_DIRECTORIES false "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/cmake/*")
 		# do not remove the main config files - they will be overwritten if necessary
-		list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/cmake/${PROJECT_NAME}-config.cmake")
-		list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/cmake/${PROJECT_NAME}-config-version.cmake")
-		if(GLOBBED_FILES)
+		if (GLOBBED_FILES)
+			list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/cmake/${PROJECT_NAME}-config.cmake")
+		endif()
+		if (GLOBBED_FILES)
+			list(REMOVE_ITEM ${GLOBBED_FILES} "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/cmake/${PROJECT_NAME}-config-version.cmake")
+		endif()
+		if (GLOBBED_FILES)
 			install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${GLOBBED_FILES})")
 		endif()
 		# remove libs of mono install:

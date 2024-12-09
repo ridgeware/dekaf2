@@ -644,28 +644,28 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	friend bool operator==(const self_type& left, const self_type& right)
+	friend DEKAF2_PUBLIC bool operator==(const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
 		return left.m_sStorage == right.m_sStorage;
 	}
 
 	//-------------------------------------------------------------------------
-	friend bool operator!=(const self_type& left, const self_type& right)
+	friend DEKAF2_PUBLIC bool operator!=(const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
 		return !operator==(left, right);
 	}
 
 	//-------------------------------------------------------------------------
-	friend bool operator< (const self_type& left, const self_type& right)
+	friend DEKAF2_PUBLIC bool operator< (const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
 		return left.m_sStorage < right.m_sStorage;
 	}
 
 	//-------------------------------------------------------------------------
-	friend bool operator> (const self_type& left, const self_type& right)
+	friend DEKAF2_PUBLIC bool operator> (const self_type& left, const self_type& right)
 	//-------------------------------------------------------------------------
 	{
 		return left.m_sStorage > right.m_sStorage;
@@ -881,7 +881,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	friend bool operator== (const KProtocol& left, const KProtocol& right)
+	friend DEKAF2_PUBLIC bool operator== (const KProtocol& left, const KProtocol& right)
 	//-------------------------------------------------------------------------
 	{
 		if (left.m_eProto != right.m_eProto)
@@ -898,7 +898,7 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	friend bool operator<(const KProtocol& left, const KProtocol& right)
+	friend DEKAF2_PUBLIC bool operator<(const KProtocol& left, const KProtocol& right)
 	//-------------------------------------------------------------------------
 	{
 		if (DEKAF2_UNLIKELY(left.m_eProto == UNKNOWN))
@@ -1069,11 +1069,11 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	friend bool operator==(const KResource& left, const KResource& right);
+	friend DEKAF2_PUBLIC bool operator==(const KResource& left, const KResource& right);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	friend bool operator!=(const KResource& left, const KResource& right)
+	friend DEKAF2_PUBLIC bool operator!=(const KResource& left, const KResource& right)
 	//-------------------------------------------------------------------------
 	{
 		return !operator==(left, right);
@@ -1275,11 +1275,11 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	friend bool operator==(const KURL& left, const KURL& right);
+	friend DEKAF2_PUBLIC bool operator==(const KURL& left, const KURL& right);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	friend bool operator!=(const KURL& left, const KURL& right)
+	friend DEKAF2_PUBLIC bool operator!=(const KURL& left, const KURL& right)
 	//-------------------------------------------------------------------------
 	{
 		return !operator==(left, right);
@@ -1438,11 +1438,11 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	friend bool operator==(const KTCPEndPoint& left, const KTCPEndPoint& right);
+	friend DEKAF2_PUBLIC bool operator==(const KTCPEndPoint& left, const KTCPEndPoint& right);
 	//-------------------------------------------------------------------------
 
 	//-------------------------------------------------------------------------
-	friend bool operator!=(const KTCPEndPoint& left, const KTCPEndPoint& right)
+	friend DEKAF2_PUBLIC bool operator!=(const KTCPEndPoint& left, const KTCPEndPoint& right)
 	//-------------------------------------------------------------------------
 	{
 		return !operator==(left, right);

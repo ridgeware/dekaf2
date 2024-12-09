@@ -56,7 +56,7 @@ namespace detail {
 
 //-----------------------------------------------------------------------------
 /// this is the custom KString writer
-std::streamsize KStringWriter(const void* sBuffer, std::streamsize iCount, void* sTargetBuf);
+std::streamsize DEKAF2_PUBLIC KStringWriter(const void* sBuffer, std::streamsize iCount, void* sTargetBuf);
 //-----------------------------------------------------------------------------
 
 } // end of namespace detail

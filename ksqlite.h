@@ -92,7 +92,7 @@ namespace KSQLite {
 				#define constexpr_2014
 			#endif
 		#endif
-		class StringView {
+		class DEKAF2_PUBLIC StringView {
 		public:
 			using CharT = char; using Traits = std::char_traits<CharT>; using traits_type = Traits;
 			using value_type = CharT; using size_type = std::size_t; using const_pointer = const CharT*;
@@ -142,7 +142,7 @@ namespace KSQLite {
 		constexpr_2014 inline bool operator>=(StringView left, StringView right) noexcept { return !(left < right); }
 	#endif
 	/// string view implementation that guarantees a trailing NUL
-	class StringViewZ : private StringView
+	class DEKAF2_PUBLIC StringViewZ : private StringView
 	{
 	public:
 		constexpr2014 StringViewZ(const char* s = "") noexcept : StringView { s } {}
@@ -167,7 +167,7 @@ namespace detail {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// internal database connector class
-struct DBConnector
+struct DEKAF2_PUBLIC DBConnector
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -215,7 +215,7 @@ class Statement;
 /// Database connection class - creates the database connector, and allows
 /// for high level tasks. Creates prepared statements and can be used for
 /// ad-hoc SQL queries.
-class Database
+class DEKAF2_PUBLIC Database
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -288,7 +288,7 @@ class Column;
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Holds information about the result set structure, and gives access to any
 /// of the columns in the result set, either by index or name.
-class Row
+class DEKAF2_PUBLIC Row
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -385,7 +385,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Access on the data of one column
-class Column
+class DEKAF2_PUBLIC Column
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -459,7 +459,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Prepared statement class for SQLite
-class Statement
+class DEKAF2_PUBLIC Statement
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

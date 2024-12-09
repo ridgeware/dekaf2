@@ -58,22 +58,22 @@ namespace detail {
 
 //-----------------------------------------------------------------------------
 /// custom streambuf reader for file descriptors
-std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc);
+std::streamsize DEKAF2_PUBLIC FileDescReader(void* sBuffer, std::streamsize iCount, void* filedesc);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// custom streambuf writer for file descriptors
-std::streamsize FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc);
+std::streamsize DEKAF2_PUBLIC FileDescWriter(const void* sBuffer, std::streamsize iCount, void* filedesc);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// custom streambuf reader for file pointers
-std::streamsize FilePtrReader(void* sBuffer, std::streamsize iCount, void* fileptr);
+std::streamsize DEKAF2_PUBLIC FilePtrReader(void* sBuffer, std::streamsize iCount, void* fileptr);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// custom streambuf writer for file pointers
-std::streamsize FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr);
+std::streamsize DEKAF2_PUBLIC FilePtrWriter(const void* sBuffer, std::streamsize iCount, void* fileptr);
 //-----------------------------------------------------------------------------
 
 } // end of namespace detail

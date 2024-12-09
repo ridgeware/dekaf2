@@ -722,15 +722,17 @@ private:
 
 }; // KInStream
 
-extern KInStream KIn;
+extern DEKAF2_PUBLIC KInStream KIn;
 
 //-----------------------------------------------------------------------------
 /// return a std::istream object that reads from nothing, but is valid
+DEKAF2_PUBLIC
 std::istream& kGetNullIStream();
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// return a KInStream object that reads from nothing, but is valid
+DEKAF2_PUBLIC
 KInStream& kGetNullInStream();
 //-----------------------------------------------------------------------------
 

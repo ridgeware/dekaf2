@@ -56,9 +56,11 @@
 #ifndef BOOST_NO_CXX98_FUNCTION_BASE
 	#define BOOST_NO_CXX98_FUNCTION_BASE
 #endif
-// do not use the new path boost/container_hash/hash.cpp - it will not work on
-// systems with old boost versions. New boost versions will forward the include.
-#include <boost/functional/hash.hpp>
+#if DEKAF2_HAS_INCLUDE(<boost/container_hash/hash.hpp>)
+	#include <boost/container_hash/hash.hpp>
+#else
+	#include <boost/functional/hash.hpp>
+#endif
 #include <string>
 #include <vector>
 #include <ostream>

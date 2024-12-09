@@ -315,7 +315,7 @@ DEKAF2_PUBLIC
 bool kSetThreadCPU(const std::vector<uint16_t>& CPUs);
 
 namespace detail {
-DEKAF2_NODISCARD DEKAF2_PRIVATE
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::size_t TicksFromRusage(int who);
 }
 
@@ -397,9 +397,11 @@ using HANDLE = intptr_t;
 #endif
 
 /// @return a windows file handle for a file descriptor
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 HANDLE kGetHandleFromFileDescriptor(int fd);
 
 /// @return a file descriptor for a windows file handle (must be closed after use!)
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 int kGetFileDescriptorFromHandle(HANDLE handle);
 
 /// return the file name for a given file descriptor

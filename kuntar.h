@@ -402,7 +402,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Tar unarchiver that can read GZip or BZip2 compressed archives
-class KUnTarCompressed : public KUnTar
+class DEKAF2_PUBLIC KUnTarCompressed : public KUnTar
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -443,7 +443,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Tar unarchiver that can read GZip compressed archives
-class KUnTarGZip : public KUnTarCompressed
+class DEKAF2_PUBLIC KUnTarGZip : public KUnTarCompressed
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -470,7 +470,7 @@ public:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Tar unarchiver that can read BZip2 compressed archives
-class KUnTarBZip2 : public KUnTarCompressed
+class DEKAF2_PUBLIC KUnTarBZip2 : public KUnTarCompressed
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -497,7 +497,7 @@ public:
 #ifdef DEKAF2_HAS_LIBZSTD
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Tar unarchiver that can read ZSTD compressed archives
-class KUnTarZstd : public KUnTarCompressed
+class DEKAF2_PUBLIC KUnTarZstd : public KUnTarCompressed
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

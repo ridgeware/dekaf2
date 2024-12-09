@@ -872,7 +872,7 @@ private:
 		struct DEKAF2_PRIVATE HelpParams
 		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 		{
-			DEKAF2_NODISCARD KStringView    GetProgramName()      const;
+			DEKAF2_NODISCARD DEKAF2_PUBLIC KStringView    GetProgramName()      const;
 			DEKAF2_NODISCARD const KString& GetProgramPath()      const { return sProgramPathName;  }
 			DEKAF2_NODISCARD const KString& GetBriefDescription() const { return sBriefDescription; }
 			DEKAF2_NODISCARD const KString& GetAdditionalHelp()   const { return sAdditionalHelp;   }

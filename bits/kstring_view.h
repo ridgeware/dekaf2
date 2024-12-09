@@ -75,14 +75,14 @@ DEKAF2_NAMESPACE_BEGIN
 #ifndef __GLIBC__
 //-----------------------------------------------------------------------------
 /// add a memrchr() to the dekaf2 namespace if not provided - will use SSE4 if available
-extern void* memrchr(const void* s, int c, size_t n);
+extern DEKAF2_PUBLIC void* memrchr(const void* s, int c, size_t n);
 //-----------------------------------------------------------------------------
 
 /// libc has a very slow memmem implementation (about 100 times slower than glibc),
 /// so we write our own, which is only about 2 times slower, by overloading the
 /// function signature in the dekaf2 namespace
 //-----------------------------------------------------------------------------
-extern void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, size_t iNeedleSize);
+extern DEKAF2_PUBLIC void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, size_t iNeedleSize);
 //-----------------------------------------------------------------------------
 #endif
 
@@ -104,7 +104,7 @@ DEKAF2_NAMESPACE_END
 	namespace stringview {
 
 	template<typename CharT, typename Traits = std::char_traits<CharT>>
-	class basic_string_view {
+	class DEKAF2_PUBLIC basic_string_view {
 	public:
 		using traits_type            = Traits;
 		using value_type             = CharT;

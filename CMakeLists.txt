@@ -144,32 +144,32 @@ endif()
 if (DEKAF2_DUAL_TARGET)
 	# we only support the Release and Debug output locations - other
 	# build types have to pick either or
-	if (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-		set(DEKAF2_OUTPUT_TARGET "/Release")
-	elseif (CMAKE_BUILD_TYPE STREQUAL "RelWithLabels" OR CMAKE_BUILD_TYPE STREQUAL "O3G1")
-		set(DEKAF2_OUTPUT_TARGET "/Release")
+	if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+		set(DEKAF2_OUTPUT_TARGET "/Debug")
 	else()
-		set(DEKAF2_OUTPUT_TARGET "/${CMAKE_BUILD_TYPE}")
+		set(DEKAF2_OUTPUT_TARGET "/Release")
 	endif()
 else()
 	set(DEKAF2_OUTPUT_TARGET)
 endif()
 
 # prepare for install:
-set(lib_version "-${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}")
-set(lib_version_regex "-[0-9]+\\.[0-9]+$")
+
+set (dekaf2_include_dest  "include/${PROJECT_NAME}"                            )
+set (dekaf2_main_lib_dest "lib/${PROJECT_NAME}"                                )
+set (dekaf2_lib_dest      "${dekaf2_main_lib_dest}${DEKAF2_OUTPUT_TARGET}"     )
+set (dekaf2_share_dest    "share/${PROJECT_NAME}"                              )
+set (dekaf2_bin_dest      "bin"                                                )
+
+set (lib_version          "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"  )
+set (lib_version_regex    "[0-9]+\\.[0-9]+$"                                   )
 
 if (DEKAF2_VERSION_IN_TARGET)
-	set(add_version ${lib_version})
-else()
-	set(add_version)
+	set (dekaf2_include_dest  "${dekaf2_include_dest}-${lib_version}"          )
+	set (dekaf2_main_lib_dest "${dekaf2_main_lib_dest}-${lib_version}"         )
+	set (dekaf2_lib_dest      "${dekaf2_main_lib_dest}${DEKAF2_OUTPUT_TARGET}" )
+	set (dekaf2_share_dest    "${dekaf2_share_dest}-${lib_version}"            )
 endif()
-
-set(dekaf2_include_dest "include/${PROJECT_NAME}${add_version}")
-set(dekaf2_main_lib_dest "lib/${PROJECT_NAME}${add_version}")
-set(dekaf2_lib_dest "${dekaf2_main_lib_dest}${DEKAF2_OUTPUT_TARGET}")
-set(dekaf2_share_dest "share/${PROJECT_NAME}${add_version}")
-set(dekaf2_bin_dest bin)
 
 # =================================== ENVIRONMENT ==================================
 
@@ -271,9 +271,8 @@ if (CMAKE_COMPILER_IS_GNUCXX AND (CMAKE_CXX_STANDARD LESS 17 OR CMAKE_CXX_COMPIL
 	endif()
 endif()
 
-if (NOT DEKAF2_BUILD_STATIC_DEKAF2 AND NOT DEKAF2_BUILD_DYNAMIC_DEKAF2)
-	set(DEKAF2_BUILD_STATIC_DEKAF2 ON)
-	message(STATUS "forcing static dekaf2 build - do not switch both dynamic and static options off")
+if (NOT DEKAF2_BUILD_STATIC_DEKAF2 AND NOT DEKAF2_BUILD_SHARED_DEKAF2)
+	message(FATAL "do not switch both shared and static options off")
 endif()
 
 # ================================ CMAKE INTERNALS =================================
@@ -483,7 +482,7 @@ endif()
 # ================================= BOOST ====================================
 
 # always required
-set(Boost_USE_STATIC_LIBS ON)
+#set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 # to workaround a broken boost cmake config with boost 1.71 disable
 # the boost cmake files
@@ -506,7 +505,7 @@ endif ()
 # boost asio (header only) needs system and date_time
 # dekaf2's http part needs iostreams
 
-find_package(Boost 1.54 COMPONENTS system iostreams)
+find_package(Boost 1.54 COMPONENTS system iostreams serialization)
 
 if (EXISTS "${Boost_INCLUDE_DIR}/multi_index")
 	# vcpackage makes multi_index a component..
@@ -1495,6 +1494,7 @@ if (DEKAF2_INSTALL_INCLUDE)
 		$<INSTALL_INTERFACE:${dekaf2_lib_dest}/include>
 		${Boost_INCLUDE_DIR}
 		${OPENSSL_INCLUDE_DIR}
+		$<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>
 	)
 endif()
 
@@ -1562,7 +1562,6 @@ endif()
 
 add_library                (dekaf2-objects OBJECT ${DEKAF2_SOURCE_FILES})
 # for the internal build, include the headers without SYSTEM property so that we get all warnings
-target_include_directories (dekaf2-objects PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 target_include_directories (dekaf2-objects ${DEKAF2_INCLUDE_DIRECTORIES})
 target_link_libraries      (dekaf2-objects ${DEKAF2_LINK_LIBRARIES})
 target_compile_definitions (dekaf2-objects ${DEKAF2_COMPILE_DEFINITIONS})
@@ -1578,7 +1577,6 @@ add_library                (bcrypt-objects OBJECT ${BCRYPT_SOURCES})
 if (DEKAF2_BUILD_SHARED_DEKAF2)
 	set_target_properties      (dekaf2-objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
 	add_library                (dekaf2-shared  SHARED $<TARGET_OBJECTS:dekaf2-objects> $<TARGET_OBJECTS:bcrypt-objects> ${DEKAF2_DUMMYFILE})
-	target_include_directories (dekaf2-shared  PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 	target_include_directories (dekaf2-shared  ${DEKAF2_INCLUDE_DIRECTORIES})
 	target_link_libraries      (dekaf2-shared  ${DEKAF2_LINK_LIBRARIES})
 	target_compile_definitions (dekaf2-shared  ${DEKAF2_COMPILE_DEFINITIONS})
@@ -1590,7 +1588,6 @@ endif()
 
 if (DEKAF2_BUILD_STATIC_DEKAF2)
 	add_library                (dekaf2 STATIC $<TARGET_OBJECTS:dekaf2-objects> $<TARGET_OBJECTS:bcrypt-objects> ${DEKAF2_DUMMYFILE})
-	target_include_directories (dekaf2 PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 	target_include_directories (dekaf2 ${DEKAF2_INCLUDE_DIRECTORIES})
 	target_link_libraries      (dekaf2 ${DEKAF2_LINK_LIBRARIES})
 	target_compile_definitions (dekaf2 ${DEKAF2_COMPILE_DEFINITIONS})
@@ -1604,7 +1601,6 @@ set(KSQL2_INCLUDE_DIRECTORIES
 
 set(KSQL2_LINK_LIBRARIES
 	PRIVATE
-		dekaf2
 		${MYSQL_LIBRARIES}
 		${FREETDS_LIBRARIES}
 )
@@ -1615,7 +1611,7 @@ set(KSQL2_COMPILE_DEFINITIONS
 )
 
 add_library                   (ksql2-objects OBJECT ksql.cpp ksql.h bits/ksql_dbc.cpp bits/ksql_dbc.h)
-target_include_directories    (ksql2-objects ${KSQL2_INCLUDE_DIRECTORIES})
+target_include_directories    (ksql2-objects PUBLIC ${KSQL2_INCLUDE_DIRECTORIES} ${DEKAF2_INCLUDE_DIRECTORIES})
 target_link_libraries         (ksql2-objects ${KSQL2_LINK_LIBRARIES})
 target_compile_definitions    (ksql2-objects ${KSQL2_COMPILE_DEFINITIONS})
 if (DEKAF2_USE_PRECOMPILED_HEADERS)
@@ -1626,7 +1622,7 @@ if (DEKAF2_BUILD_SHARED_DEKAF2)
 	set_target_properties      (ksql2-objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
 	add_library                (ksql2-shared  SHARED $<TARGET_OBJECTS:ksql2-objects> ${DEKAF2_DUMMYFILE})
 	target_include_directories (ksql2-shared  ${KSQL2_INCLUDE_DIRECTORIES})
-	target_link_libraries      (ksql2-shared  ${KSQL2_LINK_LIBRARIES})
+	target_link_libraries      (ksql2-shared  ${KSQL2_LINK_LIBRARIES} dekaf2-shared)
 	target_compile_definitions (ksql2-shared  ${KSQL2_COMPILE_DEFINITIONS})
 	set_target_properties      (ksql2-shared  PROPERTIES C_VISIBILITY_PRESET   hidden)
 	set_target_properties      (ksql2-shared  PROPERTIES CXX_VISIBILITY_PRESET hidden)
@@ -1637,7 +1633,7 @@ endif()
 if (DEKAF2_BUILD_STATIC_DEKAF2)
 	add_library                (ksql2 STATIC $<TARGET_OBJECTS:ksql2-objects> ${DEKAF2_DUMMYFILE})
 	target_include_directories (ksql2 ${KSQL2_INCLUDE_DIRECTORIES})
-	target_link_libraries      (ksql2 ${KSQL2_LINK_LIBRARIES})
+	target_link_libraries      (ksql2 ${KSQL2_LINK_LIBRARIES} dekaf2)
 	target_compile_definitions (ksql2 ${KSQL2_COMPILE_DEFINITIONS})
 endif()
 
@@ -1683,43 +1679,43 @@ endif() # SQLITE3_FOUND
 if (DEKAF2_INSTALL_BIN)
 
 	add_executable(klog klog_main.cpp)
-	target_link_libraries(klog dekaf2)
+	target_link_libraries(klog dekaf2${DEKAF2_LINK_SHARED})
 
 	add_executable(createdbc createdbc.cpp)
-	target_link_libraries(createdbc ksql2 dekaf2)
+	target_link_libraries(createdbc ksql2${DEKAF2_LINK_SHARED} dekaf2${DEKAF2_LINK_SHARED})
 
 	if (DEKAF2_HAS_NCURSES)
 		add_executable(unixmenu unixmenu.cpp)
 		target_include_directories(unixmenu PUBLIC CURSES_INCLUDE_DIRS)
-		target_link_libraries(unixmenu dekaf2 ncurses)
+		target_link_libraries(unixmenu dekaf2${DEKAF2_LINK_SHARED} ncurses)
 	endif()
 
 	add_executable(dekaf2project dekaf2project.cpp)
-	target_link_libraries(dekaf2project dekaf2)
+	target_link_libraries(dekaf2project dekaf2${DEKAF2_LINK_SHARED})
 
 	add_executable(kurl samples/kurl.cpp samples/kurl.h)
-	target_link_libraries(kurl dekaf2)
+	target_link_libraries(kurl dekaf2${DEKAF2_LINK_SHARED})
 
 	add_executable(khttp samples/khttp.cpp)
-	target_link_libraries(khttp dekaf2)
+	target_link_libraries(khttp dekaf2${DEKAF2_LINK_SHARED})
 
 	add_executable(kgrep samples/kgrep.h samples/kgrep.cpp)
-	target_link_libraries(kgrep dekaf2)
+	target_link_libraries(kgrep dekaf2${DEKAF2_LINK_SHARED})
 
 	add_executable(kreplace samples/kreplace.h samples/kreplace.cpp)
-	target_link_libraries(kreplace dekaf2)
+	target_link_libraries(kreplace dekaf2${DEKAF2_LINK_SHARED})
 
 	add_executable(statinfo samples/statinfo.cpp)
-	target_link_libraries(statinfo dekaf2)
+	target_link_libraries(statinfo dekaf2${DEKAF2_LINK_SHARED})
 
 	add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
-	target_link_libraries(getentities dekaf2)
+	target_link_libraries(getentities dekaf2${DEKAF2_LINK_SHARED})
 
 	add_executable(genunicodetables EXCLUDE_FROM_ALL genunicodetables.cpp)
-	target_link_libraries(genunicodetables dekaf2)
+	target_link_libraries(genunicodetables dekaf2${DEKAF2_LINK_SHARED})
 
 	add_executable(diff-speedtest EXCLUDE_FROM_ALL from/google/diff-speedtest.cpp)
-	target_link_libraries(diff-speedtest dekaf2)
+	target_link_libraries(diff-speedtest dekaf2${DEKAF2_LINK_SHARED})
 
 endif()
 
@@ -1737,28 +1733,28 @@ add_subdirectory(benchmarks)
 # version vs. version-less:
 if (DEKAF2_VERSION_IN_TARGET)
 	if (DEKAF2_INSTALL_INCLUDE)
-		string(REGEX REPLACE "${lib_version_regex}" "" removedir "${dekaf2_include_dest}")
+		string(REGEX REPLACE "-${lib_version_regex}" "" removedir "${dekaf2_include_dest}")
 		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
 	endif()
 	if (DEKAF2_INSTALL_LIB)
-		string(REGEX REPLACE "${lib_version_regex}" "" removedir "${dekaf2_main_lib_dest}")
+		string(REGEX REPLACE "-${lib_version_regex}" "" removedir "${dekaf2_main_lib_dest}")
 		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
 	endif()
 	if (DEKAF2_INSTALL_SHARE)
-		string(REGEX REPLACE "${lib_version_regex}" "" removedir "${dekaf2_share_dest}")
+		string(REGEX REPLACE "-${lib_version_regex}" "" removedir "${dekaf2_share_dest}")
 		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
 	endif()
 else()
 	if (DEKAF2_INSTALL_INCLUDE)
-		set(removedir "${dekaf2_include_dest}${lib_version}")
+		set(removedir "${dekaf2_include_dest}-${lib_version}")
 		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
 	endif()
 	if (DEKAF2_INSTALL_LIB)
-		set(removedir "${dekaf2_main_lib_dest}${lib_version}")
+		set(removedir "${dekaf2_main_lib_dest}-${lib_version}")
 		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
 	endif()
 	if (DEKAF2_INSTALL_SHARE)
-		set(removedir "${dekaf2_share_dest}${lib_version}")
+		set(removedir "${dekaf2_share_dest}-${lib_version}")
 		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${removedir})")
 	endif()
 endif()

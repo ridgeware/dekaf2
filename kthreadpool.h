@@ -388,7 +388,6 @@ private:
 		Stop
 	};
 
-	DEKAF2_PRIVATE
 	void push_packaged_task(std::packaged_task<void()> task);
 
 	/// start one thread

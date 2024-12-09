@@ -52,7 +52,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// maintaining options for internet streams: TLS settings, ALPN settings, protocol settings, timeout
-class KStreamOptions {
+class DEKAF2_PUBLIC KStreamOptions {
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 //------
@@ -163,7 +163,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// options for HTTP streams - they have a different set of default options compared to KStreamOptions - the DefaultsForHTTP
-class KHTTPStreamOptions : public KStreamOptions
+class DEKAF2_PUBLIC KHTTPStreamOptions : public KStreamOptions
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

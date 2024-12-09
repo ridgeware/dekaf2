@@ -160,7 +160,7 @@ protected:
 /// Also, per default, multiple keys (or key/value pairs) with different or
 /// the same value may exist. To switch to unique keys, set Unique to true.
 template <class Key, class Value, bool Sequential = true, bool Unique = false>
-class KProps : protected KPropsBase<Key, Value, Sequential, Unique>
+class DEKAF2_PUBLIC KProps : protected KPropsBase<Key, Value, Sequential, Unique>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

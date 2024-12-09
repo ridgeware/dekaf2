@@ -50,6 +50,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 /// Append a char in hexadecimal to sOut
+DEKAF2_PUBLIC
 inline void kHexAppend(KStringRef& sOut, char chIn)
 {
 	static constexpr KStringView hexify { "0123456789abcdef" };
@@ -60,11 +61,11 @@ inline void kHexAppend(KStringRef& sOut, char chIn)
 } // KEnc::HexAppend
 
 /// Convert an input string to hexadecimal
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kHex(KStringView sIn);
 
 /// Decode a hexadecimal input string
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kUnHex(KStringView sIn);
 
 DEKAF2_NAMESPACE_END

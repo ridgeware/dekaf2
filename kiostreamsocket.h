@@ -62,7 +62,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// base class for the std::iostream based internet stream classes
-class KIOStreamSocket : public KErrorBase, public KReaderWriter<std::iostream>
+class DEKAF2_PUBLIC KIOStreamSocket : public KErrorBase, public KReaderWriter<std::iostream>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using base_type = KReaderWriter<std::iostream>;
@@ -317,7 +317,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// adaptor class to wrap any std::iostream into a KIOStreamSocket
-class KIOStreamSocketAdaptor : public KIOStreamSocket
+class DEKAF2_PUBLIC KIOStreamSocketAdaptor : public KIOStreamSocket
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using base_type = KIOStreamSocket;

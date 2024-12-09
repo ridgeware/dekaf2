@@ -128,6 +128,7 @@ int kx2c (int c1, int c2);
 //-----------------------------------------------------------------------------
 /// percent-decodes string in place
 template<class String>
+DEKAF2_PUBLIC
 void kUrlDecode (String& sDecode, bool bPlusAsSpace = false)
 //-----------------------------------------------------------------------------
 {
@@ -171,6 +172,7 @@ void kUrlDecode (String& sDecode, bool bPlusAsSpace = false)
 //-----------------------------------------------------------------------------
 /// percent-decodes string to a copy
 template<class String, class StringView>
+DEKAF2_PUBLIC
 void kUrlDecode (const StringView& sSource, String& sTarget, bool bPlusAsSpace = false)
 //-----------------------------------------------------------------------------
 {
@@ -211,7 +213,7 @@ void kUrlDecode (const StringView& sSource, String& sTarget, bool bPlusAsSpace =
 /// @param bPlusAsSpace if true, a + sign will be translated as space, default is false
 /// @return the decoded string
 template<class String = KString, class StringView = KStringView>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 String kUrlDecode (const StringView& sSource, bool bPlusAsSpace = false)
 //-----------------------------------------------------------------------------
 {
@@ -227,6 +229,7 @@ String kUrlDecode (const StringView& sSource, bool bPlusAsSpace = false)
 /// @param excludeTable pointer on a table with ASCII chars that are not to be percent encoded
 /// @param bSpaceAsPlus if true, a space will be translated as + sign, default is false
 template<class String, class StringView>
+DEKAF2_PUBLIC
 void kUrlEncode (const StringView& sSource, String& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false)
 //-----------------------------------------------------------------------------
 {
@@ -264,6 +267,7 @@ void kUrlEncode (const StringView& sSource, String& sTarget, const bool excludeT
 /// @param sTarget the input/output string
 /// @param encoding the URIPart component, used to determine the applicable exclusion table for the conversion
 template<class String>
+DEKAF2_PUBLIC
 void kUrlDecode (String& sTarget, URIPart encoding)
 //-----------------------------------------------------------------------------
 {
@@ -276,6 +280,7 @@ void kUrlDecode (String& sTarget, URIPart encoding)
 /// @param sTarget the output string
 /// @param encoding the URIPart component, used to determine the applicable exclusion table for the conversion
 template<class String>
+DEKAF2_PUBLIC
 void kUrlDecode (KStringView sSource, String& sTarget, URIPart encoding)
 //-----------------------------------------------------------------------------
 {
@@ -289,6 +294,7 @@ void kUrlDecode (KStringView sSource, String& sTarget, URIPart encoding)
 /// @param encoding the URIPart component, used to determine the applicable exclusion table for the conversion,
 /// defaults to URIPart::Protocol and hence encodes most defensively per default
 template<class String>
+DEKAF2_PUBLIC
 void kUrlEncode (KStringView sSource, String& sTarget, URIPart encoding = URIPart::Protocol)
 //-----------------------------------------------------------------------------
 {
@@ -302,7 +308,7 @@ void kUrlEncode (KStringView sSource, String& sTarget, URIPart encoding = URIPar
 /// defaults to URIPart::Protocol and hence encodes most defensively per default
 /// @return the output string
 template<class String = KString>
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 String kUrlEncode (KStringView sSource, URIPart encoding = URIPart::Protocol)
 //-----------------------------------------------------------------------------
 {
@@ -332,7 +338,7 @@ template<
 	const char chKeyValSep = '\0',
 	bool bIsPod = DEKAF2_PREFIX detail::is_pod<Decoded>::value
 >
-class KURLEncoded
+class DEKAF2_PUBLIC KURLEncoded
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

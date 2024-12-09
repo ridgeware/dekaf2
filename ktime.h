@@ -934,7 +934,7 @@ using ForFormat = KUnixTime;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 // helper class to delay time format conversion after string parsing
-class KParsedTimestampBase
+class DEKAF2_PUBLIC KParsedTimestampBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1005,7 +1005,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 // helper class to delay time format conversion after string parsing
-class KParsedTimestamp : public KParsedTimestampBase
+class DEKAF2_PUBLIC KParsedTimestamp : public KParsedTimestampBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -1033,7 +1033,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 // helper class to delay time format conversion after string parsing
-class KParsedWebTimestamp : public KParsedTimestampBase
+class DEKAF2_PUBLIC KParsedWebTimestamp : public KParsedTimestampBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

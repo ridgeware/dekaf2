@@ -56,6 +56,7 @@ namespace detail {
 
 //-----------------------------------------------------------------------------
 /// this is the custom KString reader
+DEKAF2_PUBLIC
 std::streamsize KStringReader(void* sBuffer, std::streamsize iCount, void* sSourceBuf);
 //-----------------------------------------------------------------------------
 

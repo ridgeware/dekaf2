@@ -125,7 +125,7 @@ std::size_t kCalcCaseHashTrim(KStringView sv)
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A string view class that compares and hashes case insensitive and trimmed
 template<typename Trimming = detail::casestring::NoTrim>
-class KCaseStringViewBase : public KStringView
+class DEKAF2_PUBLIC KCaseStringViewBase : public KStringView
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -214,7 +214,7 @@ inline bool operator!=(const T& left, const KCaseStringViewBase<TrimmingRight> r
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A string class that compares and hashes case insensitive and trimmed
 template<typename Trimming = detail::casestring::NoTrim>
-class KCaseStringBase : public KString
+class DEKAF2_PUBLIC KCaseStringBase : public KString
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

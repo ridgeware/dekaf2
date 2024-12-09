@@ -142,14 +142,14 @@ set (USOURCES
 add_executable(dekaf2-utests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
 
 if (DEKAF2_HAS_SQLITE3)
-	target_link_libraries(dekaf2-utests ${DEKAF2_NAMESPACE}dekaf2 ${DEKAF2_NAMESPACE}ksqlite ${DEKAF2_NAMESPACE}ksql2 ${DEKAF2_NAMESPACE}re2)
+	target_link_libraries(dekaf2-utests ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}ksqlite${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}ksql2${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}re2)
 else()
-	target_link_libraries(dekaf2-utests ${DEKAF2_NAMESPACE}dekaf2 ${DEKAF2_NAMESPACE}ksql2 ${DEKAF2_NAMESPACE}re2)
+	target_link_libraries(dekaf2-utests ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}ksql2${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}re2)
 endif()
 
 find_package(GoogleBench QUIET)
 if (GoogleBench_FOUND)
 	add_executable(dekaf2-benchmark EXCLUDE_FROM_ALL benchmarks.cpp)
-	target_link_libraries(dekaf2-benchmark ${DEKAF2_NAMESPACE}dekaf2 ${GOOGLEBENCH_LIBRARIES})
+	target_link_libraries(dekaf2-benchmark ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} ${GOOGLEBENCH_LIBRARIES})
 	target_include_directories(dekaf2-benchmark PRIVATE ${GOOGLEBENCH_INCLUDE_DIRS})
 endif()

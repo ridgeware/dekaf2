@@ -2282,7 +2282,9 @@ DEKAF2_NAMESPACE_END
 
 namespace std
 {
+	DEKAF2_PUBLIC
 	std::istream& getline(std::istream& stream, DEKAF2_PREFIX KString& str);
+	DEKAF2_PUBLIC
 	std::istream& getline(std::istream& stream, DEKAF2_PREFIX KString& str, DEKAF2_PREFIX KString::value_type delimiter);
 
 	/// provide a std::hash for KString

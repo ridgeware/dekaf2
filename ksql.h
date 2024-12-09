@@ -177,7 +177,7 @@ DEKAF2_NAMESPACE_BEGIN
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Dekaf2's general purpose database generalization. Supports MySQL/MariaDB
 /// and MS SQLServer / Sybase
-class KSQL : public detail::KCommonSQLBase
+class DEKAF2_PUBLIC KSQL : public detail::KCommonSQLBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

@@ -98,7 +98,7 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<key_t iIPCKey>
-class KKeyedSemaphoreMutex : public KSemaphoreMutex
+class DEKAF2_PUBLIC KKeyedSemaphoreMutex : public KSemaphoreMutex
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -176,7 +176,7 @@ private:
 /// creates an IPC shared memory section with the size of the templated object
 template<typename Object,
          typename std::enable_if<std::is_trivially_copyable<Object>::value, int>::type = 0>
-class KSharedMemory : public detail::KSharedMemoryBase
+class DEKAF2_PUBLIC KSharedMemory : public detail::KSharedMemoryBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -237,7 +237,7 @@ class KIPCMessages;
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<typename Object,
 		 typename std::enable_if<std::is_trivially_copyable<Object>::value, int>::type = 0>
-class KIPCMessagePayload
+class DEKAF2_PUBLIC KIPCMessagePayload
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -286,7 +286,7 @@ private:
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Pass messages with IPC between processes on the same computer. Can send/receive
 /// unstructured data (strings), or structured, trivially copyable data wrapped into KIPCMessagePayload<>.
-class KIPCMessages
+class DEKAF2_PUBLIC KIPCMessages
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

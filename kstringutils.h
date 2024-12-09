@@ -977,7 +977,7 @@ bool kIsURL(KStringView str) noexcept;
 
 namespace detail {
 
-extern const uint8_t LookupBase36[256];
+extern DEKAF2_PUBLIC const uint8_t LookupBase36[256];
 
 }
 

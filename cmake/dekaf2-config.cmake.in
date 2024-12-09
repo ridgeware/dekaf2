@@ -20,6 +20,8 @@ find_dependency(OpenSSL)
 set(Boost_NO_WARN_NEW_VERSIONS ON)
 find_dependency(Boost)
 
+cmake_policy(POP)
+
 if (@DEKAF2_DUAL_TARGET@) # DEKAF2_DUAL_TARGET
 	# we only support the Release and Debug output locations - other
 	# build types have to pick either or
@@ -40,5 +42,3 @@ endif() # DEKAF2_DUAL_TARGET
 get_filename_component(SELF_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
 include("${SELF_DIR}${LIB_BUILD_TYPE_PATH}/dekaf2-targets.cmake")
 include("${SELF_DIR}${LIB_BUILD_TYPE_PATH}/dekaf2-setup.cmake")
-
-cmake_policy(POP)

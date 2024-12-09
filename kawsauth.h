@@ -16,17 +16,20 @@ using HTTPHeaders = std::map<KString, KString>;
 
 //-----------------------------------------------------------------------------
 /// generate an AWS signature key for a day, region, service, and provider
-KString SignatureKey(KStringView sKey, 
-					 KStringView sDateStamp,
-					 KStringView sRegion, 
-					 KStringView sService,
-					 KStringView sProvider = "aws");
+DEKAF2_PUBLIC
+KString SignatureKey(
+	KStringView sKey,
+	KStringView sDateStamp,
+	KStringView sRegion,
+	KStringView sService,
+	KStringView sProvider = "aws"
+);
 //-----------------------------------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Authorizing a service request to an AWS service with personal access token
 /// and secret key
-class SignedRequest
+class DEKAF2_PUBLIC SignedRequest
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

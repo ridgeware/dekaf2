@@ -63,7 +63,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Generate diffs in various formats from two input strings
-class KDiff
+class DEKAF2_PUBLIC KDiff
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -153,9 +153,9 @@ public:
 	/// @param Mode the diff compare mode: Character, Word, or Line, defaults to Character
 	/// @param San the sanitation mode: Semantic, Lossless, or Efficiency, defaults to Semantic
 	KDiff(KStringView sOldText,
-		  KStringView sNewText,
-		  DiffMode Mode = DiffMode::Character,
-		  Sanitation San = Sanitation::Semantic)
+	      KStringView sNewText,
+	      DiffMode Mode = DiffMode::Character,
+	      Sanitation San = Sanitation::Semantic)
 	{
 		CreateDiff(sOldText, sNewText, Mode, San);
 	}
@@ -166,9 +166,9 @@ public:
 	/// @param Mode the diff compare mode: Character, Word, or Line, defaults to Character
 	/// @param San the sanitation mode: Semantic, Lossless, or Efficiency, defaults to Semantic
 	void CreateDiff(KStringView sOldText,
-					KStringView sNewText,
-					DiffMode Mode = DiffMode::Character,
-					Sanitation San = Sanitation::Semantic);
+	                KStringView sNewText,
+	                DiffMode Mode = DiffMode::Character,
+	                Sanitation San = Sanitation::Semantic);
 
 	/// get a vector with all diffs
 	Diffs& GetDiffs();
@@ -197,7 +197,7 @@ public:
 	/// @param sDeleteTag tag used for deleted text fragments (default = "del")
 	/// @return count of diffs, 0 if equal
 	std::size_t GetHTMLDiff (KStringRef& sOldText, KStringRef& sNewText,
-							 KStringView sInsertTag = "ins", KStringView sDeleteTag = "del");
+	                         KStringView sInsertTag = "ins", KStringView sDeleteTag = "del");
 
 	/// return Levenshtein distance for the diff (number of inserted, deleted or substituted characters)
 	std::size_t GetLevenshteinDistance();
@@ -221,10 +221,11 @@ private:
 /// @param sDeleteTag tag used for deleted text fragments (default = "del")
 /// @param Mode the diff compare mode: Character, Word, or Line, defaults to Character
 /// @param San the sanitation mode: Semantic, Lossless, or Efficiency, defaults to Semantic
+DEKAF2_PUBLIC
 KString KDiffToHTML (KStringView sOldText, KStringView sNewText,
-					 KStringView sInsertTag="ins", KStringView sDeleteTag="del",
-					 KDiff::DiffMode Mode  = KDiff::DiffMode::Character,
-					 KDiff::Sanitation San = KDiff::Sanitation::Semantic);
+                     KStringView sInsertTag="ins", KStringView sDeleteTag="del",
+                     KDiff::DiffMode Mode  = KDiff::DiffMode::Character,
+                     KDiff::Sanitation San = KDiff::Sanitation::Semantic);
 
 /// shortcut to create a diff with HTML markups by modifying both strings in place
 /// @param sOldText the original string
@@ -234,19 +235,21 @@ KString KDiffToHTML (KStringView sOldText, KStringView sNewText,
 /// @param Mode the diff compare mode: Character, Word, or Line, defaults to Character
 /// @param San the sanitation mode: Semantic, Lossless, or Efficiency, defaults to Semantic
 /// @return count of diffs, 0 if equal
+DEKAF2_PUBLIC
 std::size_t KDiffToHTML2 (KStringRef& sOldText, KStringRef& sNewText,
-						  KStringView sInsertTag="ins", KStringView sDeleteTag="del",
-						  KDiff::DiffMode Mode  = KDiff::DiffMode::Character,
-						  KDiff::Sanitation San = KDiff::Sanitation::Semantic);
+                          KStringView sInsertTag="ins", KStringView sDeleteTag="del",
+                          KDiff::DiffMode Mode  = KDiff::DiffMode::Character,
+                          KDiff::Sanitation San = KDiff::Sanitation::Semantic);
 
 /// shortcut to create a diff in text format
 /// @param sOldText the original string
 /// @param sNewText the modified string
 /// @param Mode the diff compare mode: Character, Word, or Line, defaults to Character
 /// @param San the sanitation mode: Semantic, Lossless, or Efficiency, defaults to Semantic
+DEKAF2_PUBLIC
 KString KDiffToASCII (KStringView sOldText, KStringView sNewText,
-					  KDiff::DiffMode Mode  = KDiff::DiffMode::Character,
-					  KDiff::Sanitation San = KDiff::Sanitation::Semantic);
+                      KDiff::DiffMode Mode  = KDiff::DiffMode::Character,
+                      KDiff::Sanitation San = KDiff::Sanitation::Semantic);
 
 /// shortcut to create a diff in text format by modifying both strings in place
 /// @param sOldText the original string
@@ -254,8 +257,9 @@ KString KDiffToASCII (KStringView sOldText, KStringView sNewText,
 /// @param Mode the diff compare mode: Character, Word, or Line, defaults to Character
 /// @param San the sanitation mode: Semantic, Lossless, or Efficiency, defaults to Semantic
 /// @return count of diffs, 0 if equal
+DEKAF2_PUBLIC
 std::size_t KDiffToASCII2 (KStringRef& sOldText, KStringRef& sNewText,
-						   KDiff::DiffMode Mode  = KDiff::DiffMode::Character,
-						   KDiff::Sanitation San = KDiff::Sanitation::Semantic);
+                           KDiff::DiffMode Mode  = KDiff::DiffMode::Character,
+                           KDiff::Sanitation San = KDiff::Sanitation::Semantic);
 
 DEKAF2_NAMESPACE_END

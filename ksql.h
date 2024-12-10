@@ -1446,7 +1446,8 @@ public:
 	// do not test for const data
 	template<class FormatString,
 	         class... Args,
-	         typename std::enable_if<std::is_same<KSQLString, typename std::decay<FormatString>::type>::value, int>::type = 0>
+	         typename std::enable_if<std::is_same<KSQLString, typename std::decay<FormatString>::type>::value, int>::type = 0
+	>
 	KSQLString FormatSQL (const FormatString& sFormat, Args&&... args)
 	//----------------------------------------------------------------------
 	{
@@ -1680,10 +1681,10 @@ public:
 //----------
 
 	DbSemaphore (KSQL& db, KString sAction, bool bThrow=true, bool bWait=false, chrono::seconds iTimeout=chrono::seconds::zero(), bool bVerbose=false);
-	~DbSemaphore () { ClearSemaphore(); }
+	~DbSemaphore () { Clear(); }
 
-	bool  CreateSemaphore (chrono::seconds iTimeout = chrono::seconds::zero());
-	bool  ClearSemaphore ();
+	bool  Create (chrono::seconds iTimeout = chrono::seconds::zero());
+	bool  Clear ();
 	bool  IsCreated () const { return m_bIsSet; }
 	const KString& GetLastError () const { return m_sLastError; }
 

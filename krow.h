@@ -49,6 +49,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+class KROW;
+class KSQL;
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ///  a string type that guarantees that all string values (from string var formatting) are SQL escaped
 class DEKAF2_PUBLIC KSQLString

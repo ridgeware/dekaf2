@@ -222,8 +222,8 @@ private:
 	KTLSContext&           m_TLSContext;
 	KUniquePtr<::SSL, ::SSL_free>
 	                       m_SSL;
-	native_socket_type     m_NativeSocket   { -1    };
-	bool                   m_bNeedHandshake { true  };
+	native_socket_type     m_NativeSocket   { native_socket_type(-1) };
+	bool                   m_bNeedHandshake { true };
 
 	KBufferedStreamBuf     m_QuicStreamBuf { &QuicStreamReader, &QuicStreamWriter, this, this };
 

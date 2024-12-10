@@ -20,8 +20,11 @@ endif()
 # ================================= BUILD SYSTEM SETUP =============================
 
 # Make sure the build system is properly setup
+if ((WIN32 OR CYGWIN) AND DEKAF2_NO_BUILDSETUP STREQUAL "")
+	set (DEKAF2_NO_BUILDSETUP ON)
+endif()
 
-if (NOT WIN32 AND NOT CYGWIN AND NOT DEKAF2_NO_BUILDSETUP)
+if (NOT DEKAF2_NO_BUILDSETUP)
 	EXECUTE_PROCESS(
 		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/buildsetup -quiet -go
  	)
@@ -59,7 +62,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.67 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.0.68 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -212,12 +215,7 @@ endif()
 if (IS_WINDOWS)
 	# on Windows, disable asan/ubsan
 	set(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
-	# we check for unix sockets on Windows 10 or later once we know the boost version
-	# disable the internal format lib, it does not build
-	if (DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT)
-		message(STATUS "the internal fmtlib does not build on Windows - using either std::format or a fmtlib installed elsewhere")
-		set(DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT OFF)
-	endif()
+	# we check for unix style local sockets on Windows 10 or later once we know the boost version
 else ()
 	# on Unixes, enable unix sockets and pipes
 	set(DEKAF2_HAS_UNIX_SOCKETS ON)
@@ -492,12 +490,8 @@ set(Boost_NO_WARN_NEW_VERSIONS ON)
 
 if (NOT BOOST_ROOT)
 	# only set BOOST_ROOT if not already done by caller
-	if (IS_WINDOWS)
-		set(BOOST_ROOT "C:\\boost")
-	else()
-		# we prefer the boost lib that we installed ourselves in /opt/lib ..
-		set(BOOST_ROOT "/opt/boost")
-	endif()
+	# we prefer the boost lib that we installed ourselves in /opt/lib ..
+	set(BOOST_ROOT "/opt/boost")
 else()
 	message(STATUS "boost root externally set to: ${BOOST_ROOT}")
 endif ()
@@ -507,13 +501,23 @@ endif ()
 
 find_package(Boost 1.54 COMPONENTS system iostreams serialization)
 
+# following are the boost modules that vcpkg would need for a
+# successful build
+#
+# "boost-asio"
+# "boost-crc"
+# "boost-iostreams"
+# "boost-multi-index"
+# "boost-serialization"
+# "boost-system"
+
 if (EXISTS "${Boost_INCLUDE_DIR}/multi_index")
 	# vcpackage makes multi_index a component..
 	find_package(Boost 1.54 COMPONENTS multi_index)
 endif()
 
 if (NOT Boost_FOUND)
-	if (DEKAF2_NO_BUILDSETUP OR IS_WINDOWS)
+	if (DEKAF2_NO_BUILDSETUP)
 		message(FATAL_ERROR "please set BOOST_ROOT to the root directory of your boost install")
 	else()
 		EXECUTE_PROCESS(
@@ -532,7 +536,10 @@ endif()
 message(STATUS "boost-hdrs: ${Boost_INCLUDE_DIR}")
 message(STATUS "boost-libs: ${Boost_LIBRARIES}")
 
-if (IS_WINDOWS)
+if (IS_WINDOWS_NONONO)
+	# windows local sockets require more changes than simply
+	# swapping them in for tcp sockets - currently disabled
+	#
 	# enable unix sockets if Windows >= 10 and Boost >= 1.75
 	if (WINDOWS_VERSION GREATER_EQUAL 10)
 		if (Boost_VERSION_MACRO GREATER_EQUAL 107500)
@@ -1442,25 +1449,16 @@ if (DEKAF2_HAS_STD_TIME_STREAM_OPS)
 	target_compile_definitions(date-tz PUBLIC DEKAF2_HAS_STD_TIME_STREAM_OPS=1)
 endif()
 
-if (IS_WINDOWS)
-	if (DEKAF2_BUILD_COMPRESSORS)
-		set (COMPRESSORS
-			ZLIB
-			BZip2
-		)
-	endif()
+set (COMPRESSORS
+	${ZLIB_LIBRARIES}
+	${BZIP2_LIBRARIES}
+	${LIBLZMA_LIBRARIES}
+	${ZSTD_LIBRARIES}
+)
+if (DEKAF2_PREFER_STATIC_LIBS AND BROTLI_STATIC_FOUND)
+	list(APPEND COMPRESSORS ${BROTLI_STATIC_LIBRARIES})
 else()
-	set (COMPRESSORS
-		${ZLIB_LIBRARIES}
-		${BZIP2_LIBRARIES}
-		${LIBLZMA_LIBRARIES}
-		${ZSTD_LIBRARIES}
-	)
-	if (DEKAF2_PREFER_STATIC_LIBS AND BROTLI_STATIC_FOUND)
-		list(APPEND COMPRESSORS ${BROTLI_STATIC_LIBRARIES})
-	else()
-		list(APPEND COMPRESSORS ${BROTLI_LIBRARIES})
-	endif()
+	list(APPEND COMPRESSORS ${BROTLI_LIBRARIES})
 endif()
 
 if (IS_LINUX)

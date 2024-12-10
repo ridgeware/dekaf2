@@ -1927,7 +1927,7 @@ template<typename T, typename...Parms>
 T KString::Split(Parms&&... parms) const
 //-----------------------------------------------------------------------------
 {
-	T Container;
+	T Container{};
 	kSplit(Container, *this, std::forward<Parms>(parms)...);
 	return Container;
 }

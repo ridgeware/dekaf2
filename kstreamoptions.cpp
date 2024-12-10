@@ -41,7 +41,12 @@
 
 #include "kstreamoptions.h"
 #include "klog.h"
-#include <sys/socket.h>
+
+#if !DEKAF2_IS_WINDOWS
+	#include <sys/socket.h>
+#else
+	#include <Winsock2.h>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -865,7 +865,7 @@ bool Session::SessionSend()
 	if (!m_TLSStream.good())
 	{
 		SetError("TLS stream bad");
-		return -1;
+		return false;
 	}
 
 	return true;

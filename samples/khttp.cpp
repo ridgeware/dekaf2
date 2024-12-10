@@ -38,8 +38,12 @@ public:
 		bool bAllowUpload             = Options("upload                : allow upload into directory, default false", false);
 		KStringViewZ sUserAndPass     = Options("user <user:password>  : set username and password for web access, default is open access", "");
 		KStringViewZ sRoute           = Options("route </path>         : route to serve from, defaults to \"/*\"", "/*");
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 		Settings.iPort                = Options("http <port>           : port number to bind to", 0);
 		Settings.sSocketFile          = Options("socket <socket>       : unix domain socket file like /tmp/khttp.sock or unix:///tmp/khttp.sock", "");
+#else
+		Settings.iPort                = Options("http <port>           : port number to bind to");
+#endif
 		Settings.iMaxConnections      = Options("n <max>               : max parallel connections (default 25)", 25);
 		Settings.iMaxKeepaliveRounds  = Options("keepalive <maxrounds> : max keepalive rounds (default 10, 0 == off)", 10);
 		Settings.iTimeout             = Options("timeout <seconds>     : server timeout (default 5)", 5);
@@ -54,12 +58,16 @@ public:
 		if (!Options.Check()) return 1;
 
 		// verify some parms
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 		if (!Settings.iPort && !Settings.sSocketFile) SetError("must have either http or socket option");
-		if ( Settings.iPort &&  Settings.sSocketFile) SetError("http and socket options are mutually exclusive");
+		if (Settings.iPort  &&  Settings.sSocketFile) SetError("http and socket options are mutually exclusive");
+#endif
 
 		// chose the server type, either TCP or UNIX sockets (we speak HTTP over UNIX as well)
 		if (Settings.iPort)       Settings.Type = KREST::HTTP;
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 		if (Settings.sSocketFile) Settings.Type = KREST::UNIX;
+#endif
 
 		if (sRestLog) 
 		{

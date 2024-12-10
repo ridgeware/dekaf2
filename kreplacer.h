@@ -174,7 +174,7 @@ private:
 	KString m_sTokenPrefix;
 	KString m_sTokenSuffix;
 	RepMap  m_RepMap;
-	bool    m_bRemoveUnusedTokens;
+	bool    m_bRemoveUnusedTokens { false };
 
 }; // KReplacer
 

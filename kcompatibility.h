@@ -199,9 +199,9 @@ namespace std
 // make windows look a bit more like linux
 #ifdef DEKAF2_IS_WINDOWS
 
-	#include <BaseTsd.h>
-	using ssize_t = SSIZE_T;
-	using pid_t = int;
+	using ssize_t = std::ptrdiff_t;
+	using pid_t   = int32_t;
+	using uid_t   = uint32_t;
 
 	#include <process.h>
 	#ifndef getpid

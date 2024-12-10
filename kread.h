@@ -45,6 +45,7 @@
 /// read signal safe from a file or device
 
 #include "kdefinitions.h"
+#include "kcompatibility.h"
 #include <cstdio>
 #include <cstdint>
 #include <istream>

@@ -1091,9 +1091,9 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 #undef DEKAF2_CONSTEXPR
 #if DEKAF2_HAS_FULL_CPP_17
-	#define DEKAF2_CONSTEXPR constexpr
+	#define DEKAF2_KTIME_CONSTEXPR constexpr
 #else
-	#define DEKAF2_CONSTEXPR
+	#define DEKAF2_KTIME_CONSTEXPR
 #endif
 
 #ifdef DEKAF2_HAS_CPP_20
@@ -1105,7 +1105,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 	// build the Sizes lookup table by a constexpr lambda (if we have C++17 or later, for older
 	// versions this is a normal static initialisation at first use..)
-	static DEKAF2_CONSTEXPR SizeArray Sizes = []() DEKAF2_CONSTEXPR -> SizeArray
+	static DEKAF2_KTIME_CONSTEXPR SizeArray Sizes = []() DEKAF2_KTIME_CONSTEXPR -> SizeArray
 	{
 #if DEKAF2_USE_ARRAY_UNINITIALIZED
 		SizeArray S;
@@ -1115,11 +1115,11 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 		// clear the table in a constexpr way that gcc 8 understands
 		for (auto& it : S) { it.first = Formats.end(); it.second = Formats.end(); }
 
-		auto last_it = S.end();
+		SizeArray::iterator last_it = S.end();
 
 		for (auto& Format : Formats)
 		{
-			auto it = S.begin() + (Format.sFormat.size() - iShortest);
+			SizeArray::iterator it = S.begin() + (Format.sFormat.size() - iShortest);
 
 			// we actually want the iterator comparison with lt here, it is an additonal
 			// safe guard against unordered format tables
@@ -1128,10 +1128,10 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 				// the first .second already points to Formats.last(), which is correct..
 				if (last_it != S.end())
 				{
-					last_it->second = &Format;
+					last_it->second = static_cast<FormatArray::const_iterator>(&Format);
 				}
 
-				it->first = &Format;
+				it->first = static_cast<FormatArray::const_iterator>(&Format);
 				last_it   = it;
 			}
 		}
@@ -1140,7 +1140,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 	}();
 
-#if DEKAF2_HAS_FULL_CPP_17
+#if DEKAF2_HAS_FULL_CPP_17 && !defined(_MSC_VER)
 	// do a second constexpr sanity check, this time over the generated lookup table
 	static constexpr bool bArrayIsSane = []() constexpr -> bool
 	{

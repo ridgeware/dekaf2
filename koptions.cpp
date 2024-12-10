@@ -830,7 +830,7 @@ void KOptions::SetDefaults(KStringView sCliDebugTo/*=KLog::STDOUT*/)
 	SetWrappedHelpIndent(0);
 
 	Option("h,help")
-		.Help("this help", -1 -1) // show this help before the other automatic options, but after the user defined options
+		.Help("this help", std::numeric_limits<uint16_t>::max() - 1) // show this help before the other automatic options, but after the user defined options
 		.Section("further <options>:")
 	([this]()
 	{
@@ -975,7 +975,7 @@ void KOptions::Help(KOutStream& out)
 		DEKAF2_CATCH (const NoError& error)
 		{
 #ifdef _MSC_VER
-			error.what();
+			const char* p = error.what();
 #endif
 		}
 	}
@@ -1857,7 +1857,7 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 	DEKAF2_CATCH (const NoError& error)
 	{
 #ifdef _MSC_VER
-		error.what();
+		const char* p = error.what();
 #endif
 	}
 

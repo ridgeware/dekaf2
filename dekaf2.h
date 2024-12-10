@@ -154,6 +154,12 @@ public:
 	KUnixTime GetCurrentTime() const;
 	//---------------------------------------------------------------------------
 
+#if DEKAF2_IS_WINDOWS && !defined(GetCurrentTime)
+	// Windows has a #define GetCurrentTime() GetTickCount() in WinBase.h ..
+	inline
+	KUnixTime GetTickCount() const { return (GetCurrentTime()); }
+#endif
+
 	//---------------------------------------------------------------------------
 	/// Get current time without constantly querying the OS
 	KUnixTime GetCurrentTimepoint() const

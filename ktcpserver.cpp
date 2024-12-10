@@ -362,7 +362,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 
 			stream->SetConnectedEndPointAddress(to_string(remote_endpoint));
 
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || defined(_MSC_VER)
 			// unfortunately C++11 does not know how to move a variable into a lambda scope
 			auto* Stream = stream.release();
 			m_ThreadPool.push([ this, Stream, remote_endpoint ]()
@@ -413,7 +413,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 
 			stream->SetConnectedEndPointAddress(to_string(remote_endpoint));
 
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || defined(_MSC_VER)
 			// unfortunately C++11 does not know how to move a variable into a lambda scope
 			auto* Stream = stream.release();
 			m_ThreadPool.push([ this, Stream, remote_endpoint ]()

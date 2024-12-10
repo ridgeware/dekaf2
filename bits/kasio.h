@@ -51,6 +51,11 @@
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
+#ifdef _MSC_VER
+	// doesn't find builtin on at least VS 2022
+	#define BOOST_DISABLE_CURRENT_LOCATION
+#endif
+
 // asio misses to include <utility> (std::exchange) in asio/awaitable.hpp, so we
 // load it here explicitly
 #include <utility>

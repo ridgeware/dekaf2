@@ -436,7 +436,7 @@ KUTF8_CONSTEXPR_14
 NarrowString ToUTF8(Ch sch)
 //-----------------------------------------------------------------------------
 {
-	NarrowString sNarrow;
+	NarrowString sNarrow{};
 	ToUTF8(sch, sNarrow);
 	return sNarrow;
 }
@@ -444,7 +444,8 @@ NarrowString ToUTF8(Ch sch)
 //-----------------------------------------------------------------------------
 /// Convert a wide string (UTF16 or UTF32) into a UTF8 string
 template<typename NarrowString, typename WideString,
-         typename std::enable_if<!std::is_integral<WideString>::value, int>::type = 0>
+         typename std::enable_if<!std::is_integral<WideString>::value
+                              && KUTF8_detail::HasSize<WideString>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
 void ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
@@ -504,13 +505,87 @@ void ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 /// Convert a wide string (UTF16 or UTF32) into a UTF8 string
 template<typename NarrowString, typename WideString,
-		 typename std::enable_if<!std::is_integral<WideString>::value, int>::type = 0>
+         typename std::enable_if<!std::is_integral<WideString>::value
+                              && KUTF8_detail::HasSize<WideString>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
 NarrowString ToUTF8(const WideString& sWide)
 //-----------------------------------------------------------------------------
 {
-	NarrowString sNarrow;
+	NarrowString sNarrow{};
 	ToUTF8(sWide, sNarrow);
+	return sNarrow;
+}
+
+//-----------------------------------------------------------------------------
+/// Convert a wchar_t string (UTF16 or UTF32) into a UTF8 string
+template<typename NarrowString>
+KUTF8_CONSTEXPR_14
+void ToUTF8(const wchar_t* it, NarrowString& sNarrow)
+//-----------------------------------------------------------------------------
+{
+	if KUTF8_UNLIKELY(it == nullptr)
+	{
+		return;
+	}
+
+	for (; KUTF8_LIKELY(*it != 0); ++it)
+	{
+		// Make sure all surrogate combine logic is only compiled in for 16 bit strings.
+		// If we would have surrogate pairs in 32 bit strings it is an error in their
+		// construction in the first place. We will not try to reassemble them.
+		// The UTF8 encoder will convert those to replacement characters.
+		if (sizeof(wchar_t) == 2 && KUTF8_UNLIKELY(IsSurrogate(*it)))
+		{
+			if (KUTF8_LIKELY(IsLeadSurrogate(*it)))
+			{
+				SurrogatePair sp;
+
+				sp.low = CodepointCast(*it++);
+
+				if (KUTF8_UNLIKELY(*it == 0))
+				{
+					// this is an incomplete surrogate
+					ToUTF8(INVALID_CODEPOINT, sNarrow);
+				}
+				else
+				{
+					sp.high = CodepointCast(*it);
+
+					if (KUTF8_UNLIKELY(!IsTrailSurrogate(sp.high)))
+					{
+						// the second surrogate is not valid
+						ToUTF8(INVALID_CODEPOINT, sNarrow);
+					}
+					else
+					{
+						// and output the completed codepoint
+						ToUTF8(sp.ToCodepoint(), sNarrow);
+					}
+				}
+			}
+			else
+			{
+				// this was a trail surrogate withoud lead..
+				ToUTF8(INVALID_CODEPOINT, sNarrow);
+			}
+		}
+		else
+		{
+			// default case
+			ToUTF8(*it, sNarrow);
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+/// Convert a wchar_t string (UTF16 or UTF32) into a UTF8 string
+template<typename NarrowString>
+KUTF8_CONSTEXPR_14
+NarrowString ToUTF8(const wchar_t* it)
+//-----------------------------------------------------------------------------
+{
+	NarrowString sNarrow{};
+	ToUTF8(it, sNarrow);
 	return sNarrow;
 }
 
@@ -793,7 +868,7 @@ KUTF8_CONSTEXPR_14
 OutType Convert(const InpType& sInp)
 //-----------------------------------------------------------------------------
 {
-	OutType sOut;
+	OutType sOut{};
 	Convert(sInp, sOut);
 	return sOut;
 }
@@ -1246,7 +1321,7 @@ KUTF8_CONSTEXPR_20
 WideString FromUTF8(const NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 {
-	WideString sWide;
+	WideString sWide{};
 	FromUTF8(sNarrow, sWide);
 	return sWide;
 }
@@ -1319,7 +1394,7 @@ KUTF8_CONSTEXPR_14
 NarrowString UTF16BytesToUTF8(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-	NarrowString sNarrow;
+	NarrowString sNarrow{};
 
 	for (; KUTF8_LIKELY(it != ie); )
 	{
@@ -1396,7 +1471,7 @@ ByteString UTF8ToUTF16Bytes(const NarrowString& sUTF8String)
 {
 	using W = typename ByteString::value_type;
 
-	ByteString sUTF16ByteString;
+	ByteString sUTF16ByteString{};
 	sUTF16ByteString.reserve(sUTF8String.size() * 2);
 
 	TransformUTF8(sUTF8String, sUTF16ByteString, [](codepoint_t uch, ByteString& sOut)

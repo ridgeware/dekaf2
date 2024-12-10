@@ -36,6 +36,13 @@
 #endif
 #include <boost/config/abi_prefix.hpp>
 
+#ifdef _MSC_VER
+    // for an unknown reason, on Windows boost sets the iostreams link type to dynamic
+    // - we currently brute force this to static/no public symbols
+    #undef BOOST_IOSTREAMS_DECL
+    #define BOOST_IOSTREAMS_DECL
+#endif
+
 // note we use the literal dekaf2 namespace here and not
 // the define from kdefinitions.h
 namespace dekaf2 { namespace iostreams {

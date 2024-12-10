@@ -284,7 +284,7 @@ void KDiff::CreateDiff(KStringView sOldText,
 KDiff::Diffs& KDiff::GetDiffs()
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_HAS_CPP_20) && defined(__cpp_lib_is_layout_compatible)
+#if defined(DEKAF2_HAS_CPP_20) && defined(__cpp_lib_is_layout_compatible) && !defined(_MSC_VER)
 	static_assert(std::is_layout_compatible<KDiff::Diff, KDiffMatchPatch::Diff>::value, "different layout for Diff types");
 #else
 	static_assert(sizeof(KDiff::Diff) == sizeof(KDiffMatchPatch::Diff), "different size for Diff types");

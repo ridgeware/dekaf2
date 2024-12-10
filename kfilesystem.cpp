@@ -105,7 +105,7 @@ int kGetMode(KStringViewZ sPath)
 		return 0;
 	}
 
-	return iMode;
+	return static_cast<int>(iMode);
 
 #else
 
@@ -1474,6 +1474,7 @@ KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 			SetError(kFormat("{}: {}", sFilename, ec.message()));
 		}
 		m_mode = 0;
+		return;
 	}
 	else
 	{

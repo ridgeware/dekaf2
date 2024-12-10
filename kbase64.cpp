@@ -127,7 +127,7 @@ KString KBase64::Decode(KStringView sInput)
 	DEKAF2_CATCH(const std::exception& ex)
 	{
 #ifdef DEKAF2_IS_WINDOWS
-		ex.what();
+		const char* p = ex.what();
 #endif
 		kDebug(1, "invalid base64: {}..", sInput.Left(40));
 		out.clear();
@@ -319,7 +319,7 @@ KString KBase64Url::Decode(KStringView sInput)
 	DEKAF2_CATCH(const std::exception& ex)
 	{
 #ifdef DEKAF2_IS_WINDOWS
-		ex.what();
+		const char* p = ex.what();
 #endif
 		kDebug(1, "invalid base64: {}..", sInput.Left(40));
 		out.clear();

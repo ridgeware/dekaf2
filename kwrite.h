@@ -45,6 +45,7 @@
 /// file/stream write atoms: signal safe and non-locale dependant
 
 #include "kdefinitions.h"
+#include "kcompatibility.h"
 #include <cstdio>
 #include <cstdint>
 #include <cstring>

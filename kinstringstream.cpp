@@ -143,7 +143,11 @@ std::streambuf::pos_type KInStringStreamBuf::seekoff(off_type off,
 
 	if (pRead < eback() || pRead > egptr())
 	{
+#ifdef DEKAF2_IS_WINDOWS
+		kDebug(1, "offset out of range in mode {}: {}", dir, off);
+#else
 		kDebug(1, "offset out of range in mode {}: {}", std::to_underlying(dir), off);
+#endif
 		return pos_type(off_type(-1));
 	}
 

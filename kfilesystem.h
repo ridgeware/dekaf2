@@ -46,6 +46,7 @@
 /// standalone functions and classes around files and the file system
 
 #include "kdefinitions.h"
+#include "kcompatibility.h"
 #include "kstringview.h"
 #include "kstring.h"
 #include "kwriter.h"

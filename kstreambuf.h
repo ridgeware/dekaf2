@@ -145,7 +145,7 @@ private:
 	Reader m_CallbackR     { nullptr };
 	void* m_CustomPointerR { nullptr };
 
-	std::array<char_type, STREAMBUFSIZE> m_buf;
+	std::array<char_type, STREAMBUFSIZE> m_buf {};
 
 }; // KInStreamBuf
 

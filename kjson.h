@@ -97,6 +97,13 @@
 #include "kstringview.h"
 #include "kreader.h"
 
+#if DEKAF2_IS_WINDOWS
+	// macros are evil
+	#if defined(GetObject)
+		#undef GetObject
+	#endif
+#endif
+
 DEKAF2_NAMESPACE_BEGIN
 
 // the native nlohmann::json type, using KString instead of std::string though

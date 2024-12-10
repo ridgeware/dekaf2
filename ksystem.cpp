@@ -69,6 +69,7 @@
 	#include <libloaderapi.h>  // for GetModuleFileName()
 	#include <processthreadsapi.h> // for GetCurrentProcessorNumber()
 	#include <dbghelp.h>       // for kIsInsideDataSegment()
+	#include <charconv>        // for std::to_chars()
 #else
 	#include <unistd.h>        // for sysconf()
 	#include <sys/types.h>     // for getpwuid()
@@ -364,11 +365,11 @@ KString kGetWhoAmI ()
 	// WINDOWS:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	enum { MAX = 100 };
-	char szWhoami[MAX + 1] = { 0 };
+	wchar_t szWhoami[MAX + 1] = { 0 };
 	DWORD nSize = MAX;
 	if (GetUserName (szWhoami, &nSize))
 	{
-		sWhoami = szWhoami;
+		Unicode::ToUTF8(szWhoami, sWhoami);
 	}
 #else
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -446,14 +447,14 @@ KStringViewZ kGetHostname (bool bAllowKHostname/*=true*/)
 
 			#ifdef DEKAF2_IS_WINDOWS
 
-			char szHostname[MAXNAMELEN+1]; szHostname[0] = 0;
+			wchar_t szHostname[MAXNAMELEN + 1]{}; szHostname[0] = 0;
 			DWORD nSize = MAXNAMELEN;
 			GetComputerName (
 				szHostname,       // name buffer
 				&nSize              // address of size of name buffer
 			);
 
-			sHostname = szHostname;
+			Unicode::ToUTF8(szHostname, sHostname);
 
 			#else
 
@@ -776,7 +777,7 @@ KString kResolveHost (KStringViewZ sHostname, bool bIPv4, bool bIPv6)
 bool kIsValidIPv4 (KStringViewZ sIPAddr)
 //-----------------------------------------------------------------------------
 {
-	struct sockaddr_in sockAddr;
+	struct sockaddr_in sockAddr {};
 	return inet_pton(AF_INET, sIPAddr.c_str(), &(sockAddr.sin_addr)) != 0;
 
 } // kIsValidIPv4
@@ -785,7 +786,7 @@ bool kIsValidIPv4 (KStringViewZ sIPAddr)
 bool kIsValidIPv6 (KStringViewZ sIPAddr)
 //-----------------------------------------------------------------------------
 {
-	struct sockaddr_in6 sockAddr;
+	struct sockaddr_in6 sockAddr {};
 	return inet_pton(AF_INET6, sIPAddr.c_str(), &(sockAddr.sin6_addr)) != 0;
 
 } // kIsValidIPv6
@@ -947,7 +948,7 @@ std::size_t kGetPhysicalMemory()
 
 	static auto iPhysMemory = []() -> std::size_t
 	{
-		MEMORYSTATUSEX status;
+		MEMORYSTATUSEX status{};
 		status.dwLength = sizeof(status);
 		GlobalMemoryStatusEx(&status);
 		return status.ullTotalPhys;
@@ -1231,7 +1232,7 @@ DEKAF2_PRIVATE
 void FiletimeToTimeval(struct timeval& tv, const FILETIME& ft)
 //-----------------------------------------------------------------------------
 {
-	ULARGE_INTEGER time;
+	ULARGE_INTEGER time{};
 	time.LowPart   = ft.dwLowDateTime;
 	time.HighPart  = ft.dwHighDateTime;
 	time.QuadPart /= 10L;
@@ -1302,7 +1303,7 @@ DEKAF2_PRIVATE
 std::size_t TimeValToMicroTicks(const struct timeval& tv)
 //-----------------------------------------------------------------------------
 {
-	return tv.tv_sec * 1000000 + tv.tv_usec;
+	return static_cast<std::size_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
 
 } // TimeValToMicroTicks
 
@@ -2034,9 +2035,21 @@ detail::KUNameBase::KUNameBase() noexcept
 	}
 
 	HKEY hkey;
-	RegOpenKeyEx(HKEY_LOCAL_MACHINE, "Software\\Microsoft\\Windows NT\\CurrentVersion", 0, KEY_QUERY_VALUE, &hkey);
-	long unsigned int size = sizeof(m_UTSName.version);
-	RegQueryValueEx(hkey, "DisplayVersion", NULL, NULL, m_UTSName.version, &size);
+	RegOpenKeyEx(HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows NT\\CurrentVersion", 0, KEY_QUERY_VALUE, &hkey);
+	BYTE version;
+	long unsigned int size = sizeof(version);
+	RegQueryValueEx(hkey, L"DisplayVersion", NULL, NULL, &version, &size);
+	char* pStart = m_UTSName.version;
+	char* pEnd   = pStart + sizeof(m_UTSName.version) - 1;
+	auto result  = std::to_chars(pStart, pEnd, static_cast<uint8_t>(version), 10);
+	if (result.ec == std::errc())
+	{
+		result.ptr = 0;
+	}
+	else
+	{
+		m_UTSName.version[0] = 0;
+	}
 	RegCloseKey(hkey);
 
 	gethostname(m_UTSName.nodename, 256);
@@ -2164,7 +2177,12 @@ KDuration kPing(KStringView sHostname, KDuration Timeout)
 bool kStdOutIsTerminal()
 //-----------------------------------------------------------------------------
 {
+#if !DEKAF2_IS_WINDOWS
 	return KFileStat(1).Type() == KFileType::CHARACTER;
+#else
+	// on windows we don't know..
+	return false;
+#endif
 
 } // kStdOutIsTerminal
 

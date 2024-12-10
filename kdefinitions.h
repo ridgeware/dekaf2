@@ -170,8 +170,10 @@
 
 #if !defined(DEKAF2_IS_UNIX) && (defined(_MSC_VER))
 	#define DEKAF2_IS_WINDOWS 1
- 	// works on < VS 2013
-	#define _CRT_SECURE_NO_WARNINGS
+	#ifndef _CRT_SECURE_NO_WARNINGS
+ 		// works on < VS 2013
+		#define _CRT_SECURE_NO_WARNINGS
+	#endif
 	// works on >= VS 2013
 	#pragma warning(disable:4996)
 	// "warning C4307: '*': integral constant overflow" (on an unsigned type..) - this is a comp bug

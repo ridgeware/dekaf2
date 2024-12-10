@@ -120,6 +120,12 @@
   #define KSQL2_CTDEBUG 3
 #endif
 
+#if DEKAF2_IS_WINDOWS
+	#if defined(GetObject)
+		#undef GetObject
+	#endif
+#endif
+
 // FYI: from ocidfn.h
 //	 SQLT_CHR  1                        /* (ORANET TYPE) character string */
 //	 SQLT_NUM  2                          /* (ORANET TYPE) oracle numeric */
@@ -8790,13 +8796,13 @@ DbSemaphore::DbSemaphore (KSQL& db, KString sAction, bool bThrow, bool bWait, ch
 {
 	if (!bWait)
 	{
-		CreateSemaphore (iTimeout);
+		Create (iTimeout);
 	}
 
 } // ctor
 
 //-----------------------------------------------------------------------------
-bool DbSemaphore::CreateSemaphore (chrono::seconds iTimeout)
+bool DbSemaphore::Create (chrono::seconds iTimeout)
 //-----------------------------------------------------------------------------
 {
 	if (!m_bIsSet)
@@ -8832,10 +8838,10 @@ bool DbSemaphore::CreateSemaphore (chrono::seconds iTimeout)
 
 	return m_bIsSet;
 
-} // CreateSemaphore
+} // Create
 
 //-----------------------------------------------------------------------------
-bool DbSemaphore::ClearSemaphore ()
+bool DbSemaphore::Clear ()
 //-----------------------------------------------------------------------------
 {
 	if (m_bIsSet)
@@ -8873,7 +8879,7 @@ bool DbSemaphore::ClearSemaphore ()
 
 	return !m_bIsSet;
 
-} // ClearSemaphore
+} // Clear
 
 //-----------------------------------------------------------------------------
 bool KSQL::ShowCounts (KStringView sRegex/*=""*/)

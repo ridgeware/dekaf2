@@ -1605,24 +1605,14 @@ set(KSQL2_LINK_LIBRARIES
 		${FREETDS_LIBRARIES}
 )
 
-if (DEKAF2_USE_PRECOMPILED_HEADERS)
-	# we need to get the compile definitions that were used in creation of the
-	# precompiled headers - the ones affecting the build are from dekaf2 and implicitly
-	# from date-tz
-	get_target_property(DEKAF2_COMPILE_DEFS dekaf2  INTERFACE_COMPILE_DEFINITIONS)
-	get_target_property(DATE_COMPILE_DEFS   date-tz INTERFACE_COMPILE_DEFINITIONS)
-endif()
-
 set(KSQL2_COMPILE_DEFINITIONS
 	PRIVATE
 		DEKAF2_LIBRARY_BUILD
-		${DEKAF2_COMPILE_DEFS}
-		${DATE_COMPILE_DEFS}
 )
 
 add_library                   (ksql2-objects OBJECT ksql.cpp ksql.h bits/ksql_dbc.cpp bits/ksql_dbc.h)
-target_include_directories    (ksql2-objects PUBLIC ${KSQL2_INCLUDE_DIRECTORIES} ${DEKAF2_INCLUDE_DIRECTORIES})
-target_link_libraries         (ksql2-objects ${KSQL2_LINK_LIBRARIES})
+target_include_directories    (ksql2-objects PUBLIC ${KSQL2_INCLUDE_DIRECTORIES})
+target_link_libraries         (ksql2-objects ${KSQL2_LINK_LIBRARIES} dekaf2)
 target_compile_definitions    (ksql2-objects ${KSQL2_COMPILE_DEFINITIONS})
 if (DEKAF2_USE_PRECOMPILED_HEADERS)
 	target_precompile_headers (ksql2-objects REUSE_FROM dekaf2-objects)

@@ -432,7 +432,14 @@ if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_MYSQL)
 		message(STATUS "detected as mariadb: ${MYSQL_IS_MARIADB}")
 		set(DEKAF2_MYSQL_IS_MARIADB ${MYSQL_IS_MARIADB})
 	else()
-		message(STATUS "MySQL not found - will build without. Please install MySQL if you want to use KSQL.")
+		find_package(unofficial-libmariadb QUIET)
+		if (unofficial-libmariadb_FOUND)
+			set(DEKAF2_MYSQL_IS_MARIADB 1)
+			set(DEKAF2_HAS_MYSQL 1)
+			message(STATUS "configuring with MariaDB")
+		else()
+			message(STATUS "MySQL not found - will build without. Please install MySQL if you want to use KSQL.")
+		endif()
 	endif()
 endif()
 
@@ -1602,6 +1609,13 @@ set(KSQL2_LINK_LIBRARIES
 		${MYSQL_LIBRARIES}
 		${FREETDS_LIBRARIES}
 )
+
+if (unofficial-libmariadb_FOUND)
+	set(KSQL2_LINK_LIBRARIES
+		${KSQL2_LINK_LIBRARIES}
+		unofficial::libmariadb
+	)
+endif()
 
 set(KSQL2_COMPILE_DEFINITIONS
 	PRIVATE

@@ -15,7 +15,6 @@ TEST_CASE("KDate")
 
 		// Get a local time_point with days precision
 		auto day = chrono::floor<chrono::days>(now);
-		day.time_since_epoch();
 
 		// Convert local days-precision time_point to a local {y, m, d} calendar
 		chrono::year_month_day ymd{day};

@@ -407,7 +407,7 @@ protected:
 			it = m_String->begin() + m_next - iOrigLen;
 
 			// calculate size difference
-			ssize_t iAdjust = iNewLen - iOrigLen;
+			std::ptrdiff_t iAdjust = iNewLen - iOrigLen;
 
 			// adjust m_next to point after end of replaced sequence
 			m_next += iAdjust;

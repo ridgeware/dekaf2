@@ -329,14 +329,6 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	// need this signature due to the template Range() below
-	static std::pair<const_iterator, const_iterator> Range(iterator it, iterator ie)
-	//-------------------------------------------------------------------------
-	{
-		return std::make_pair<const_iterator, const_iterator>(it, ie);
-	}
-
-	//-------------------------------------------------------------------------
 	std::pair<const_iterator, const_iterator> Range(Timepoint tStart, Timepoint tEnd) const
 	//-------------------------------------------------------------------------
 	{
@@ -344,7 +336,9 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	template<typename TP, typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
+	template<typename TP,
+	         typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false
+	                             && !std::is_same<TP, iterator>::value, int>::type = 0>
 	std::pair<const_iterator, const_iterator> Range(TP tStart, TP tEnd) const
 	//-------------------------------------------------------------------------
 	{
@@ -361,7 +355,8 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// find the interval at a given Timepoint (returns end() if no Datum was stored in the respective interval)
-	template<typename TP, typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
+	template<typename TP,
+	         typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
 	const_iterator find(TP tp) const
 	//-------------------------------------------------------------------------
 	{
@@ -378,7 +373,8 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// find the interval at a given Timepoint (returns end() if no Datum was stored in the respective interval)
-	template<typename TP, typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
+	template<typename TP,
+	         typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
 	const_iterator lower_bound(TP tp) const
 	//-------------------------------------------------------------------------
 	{
@@ -395,7 +391,8 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// find the interval at a given Timepoint (returns end() if no Datum was stored in the respective interval)
-	template<typename TP, typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
+	template<typename TP,
+	         typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
 	const_iterator upper_bound(TP tp) const
 	//-------------------------------------------------------------------------
 	{
@@ -419,7 +416,8 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// get the interval at a given Timepoint (may be empty if no Datum was stored in the respective interval)
-	template<typename TP, typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
+	template<typename TP,
+	         typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
 	const Stored& Get(TP tp) const
 	//-------------------------------------------------------------------------
 	{
@@ -528,7 +526,8 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// erase all data before tBefore
-	template<typename TP, typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
+	template<typename TP,
+	         typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
 	self& EraseBefore(TP tBefore)
 	//-------------------------------------------------------------------------
 	{
@@ -537,7 +536,8 @@ public:
 
 	//-------------------------------------------------------------------------
 	/// erase all data after tAfter (this actually erases the interval that begins with tAfter as well)
-	template<typename TP, typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
+	template<typename TP,
+	         typename std::enable_if<std::is_constructible<Timepoint, TP>::value == false, int>::type = 0>
 	self& EraseAfter(TP tAfter)
 	//-------------------------------------------------------------------------
 	{

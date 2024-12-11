@@ -1,8 +1,9 @@
 #include "catch.hpp"
 
+#include <dekaf2/ksharedmemory.h>
+
 #ifndef DEKAF2_IS_WINDOWS
 
-#include <dekaf2/ksharedmemory.h>
 #include <dekaf2/kthreadpool.h>
 #include <dekaf2/kstring.h>
 

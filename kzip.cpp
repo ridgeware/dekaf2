@@ -252,6 +252,10 @@ KZip::iterator KZip::iterator::operator--(int) noexcept
 
 } // operator--(int)
 
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 //-----------------------------------------------------------------------------
 bool KZip::SetZipError(int iError) const
 //-----------------------------------------------------------------------------
@@ -268,6 +272,9 @@ bool KZip::SetZipError(int iError) const
 #endif
 
 } // SetZipError
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic pop
+#endif
 
 //-----------------------------------------------------------------------------
 bool KZip::SetZipError() const

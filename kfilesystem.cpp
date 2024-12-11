@@ -900,6 +900,10 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 
 } // kCreateDir
 
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 //-----------------------------------------------------------------------------
 KString kReadLink(KStringViewZ sSymlink, bool bRealPath)
 //-----------------------------------------------------------------------------
@@ -954,6 +958,9 @@ KString kReadLink(KStringViewZ sSymlink, bool bRealPath)
 #endif
 
 } // kReadLink
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic pop
+#endif
 
 //-----------------------------------------------------------------------------
 bool kCreateSymlink(KStringViewZ sOrigin, KStringViewZ sSymlink)

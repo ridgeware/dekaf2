@@ -487,7 +487,9 @@ endif()
 # ================================= BOOST ====================================
 
 # always required
-#set(Boost_USE_STATIC_LIBS ON)
+if (DEKAF2_PREFER_STATIC_LIBS OR DEKAF2_FORCE_STATIC_LIBS)
+	set(Boost_USE_STATIC_LIBS ON)
+endif()
 set(Boost_USE_MULTITHREADED ON)
 # to workaround a broken boost cmake config with boost 1.71 disable
 # the boost cmake files
@@ -495,11 +497,7 @@ set(Boost_NO_BOOST_CMAKE ON)
 # most annoying warning ever - finally we can suppress it (cmake 3.20++)
 set(Boost_NO_WARN_NEW_VERSIONS ON)
 
-if (NOT BOOST_ROOT)
-	# only set BOOST_ROOT if not already done by caller
-	# we prefer the boost lib that we installed ourselves in /opt/lib ..
-	set(BOOST_ROOT "/opt/boost")
-else()
+if (BOOST_ROOT)
 	message(STATUS "boost root externally set to: ${BOOST_ROOT}")
 endif ()
 

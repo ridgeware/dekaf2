@@ -55,7 +55,7 @@ struct Kron_utils
 	using string_t     = KString;
 	using stringview_t = KStringView;
 
-#ifdef _NDEBUG
+#ifdef NDEBUG
 	static inline void ThrowAssert(bool bCondition, const char* sText) {}
 #else
 	static void ThrowAssert(bool bCondition, const char* sText)

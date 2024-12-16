@@ -499,6 +499,10 @@ set(Boost_NO_WARN_NEW_VERSIONS ON)
 
 if (BOOST_ROOT)
 	message(STATUS "boost root externally set to: ${BOOST_ROOT}")
+elseif (EXISTS "/opt/boost")
+	# check if we installed a boost build in /opt/boost
+	set(BOOST_ROOT "/opt/boost")
+	message(STATUS "setting boost root to: ${BOOST_ROOT}")
 endif ()
 
 # boost asio (header only) needs system and date_time
@@ -1775,12 +1779,15 @@ if (DEKAF2_INSTALL_LIB)
 	if (DEKAF2_DUAL_TARGET)
 		# remove cmake files of mono install:
 		file(GLOB GLOBBED_FILES LIST_DIRECTORIES false "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/cmake/*")
-		# do not remove the main config files - they will be overwritten if necessary
-		if (GLOBBED_FILES)
-			list(REMOVE_ITEM "${GLOBBED_FILES}" "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/cmake/${PROJECT_NAME}-config.cmake")
-		endif()
-		if (GLOBBED_FILES)
-			list(REMOVE_ITEM "${GLOBBED_FILES}" "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/cmake/${PROJECT_NAME}-config-version.cmake")
+		# list remove_item is buggy on cmake < 3.20 - skip it
+		if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.20.0")
+			# do not remove the main config files - they will be overwritten if necessary
+			if (GLOBBED_FILES)
+				list(REMOVE_ITEM "${GLOBBED_FILES}" "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/cmake/${PROJECT_NAME}-config.cmake")
+			endif()
+			if (GLOBBED_FILES)
+				list(REMOVE_ITEM "${GLOBBED_FILES}" "${CMAKE_INSTALL_PREFIX}/${dekaf2_main_lib_dest}/cmake/${PROJECT_NAME}-config-version.cmake")
+			endif()
 		endif()
 		if (GLOBBED_FILES)
 			install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${GLOBBED_FILES})")

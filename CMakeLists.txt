@@ -502,6 +502,8 @@ if (BOOST_ROOT)
 elseif (EXISTS "/opt/boost")
 	# check if we installed a boost build in /opt/boost
 	set(BOOST_ROOT "/opt/boost")
+	# force static boost, the source build does not give dynamic libs
+	set(Boost_USE_STATIC_LIBS ON)
 	message(STATUS "setting boost root to: ${BOOST_ROOT}")
 endif ()
 

@@ -45,17 +45,17 @@ ProcessDir ()
 	# $2 = optional target dir
 
 	#------------------------------------------------------------	
-	# PASS ONE: RAW FILES (NIKON *.NEF and CANON *.CR2)
+	# PASS ONE: FILES REQUIRING PRE-PROCESSING
 	#------------------------------------------------------------	
-	printf ":: pass 1/3: %s\n" "$1"
-	find "$1" -name "*.[NnCc][EeRr][Ff2]" -print \
+	printf ":: pass 1/3: %s (NEF, CR2, HEIC, TIFF) ...\n" "$1"
+	find "$1" -name "*.*" -print \
 		| statinfo -noheader -offset $iOffset - \
 		| while read Line
 		do
 			#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
 
 			case "$Line" in
-			*.NEF|*.nef|*.CR2|*.cr2|*.TIF|*.TIFF|*.tif|*.tiff)
+			*.NEF|*.nef|*.CR2|*.cr2|*.TIF|*.TIFF|*.tif|*.tiff|*.HEIC|*.heic)
 				ProcessRaw "$Line" "$2" -RAW
 				;;
 			esac
@@ -64,7 +64,7 @@ ProcessDir ()
 	#------------------------------------------------------------	
 	# PASS TWO: MOVIE FILES
 	#------------------------------------------------------------	
-	printf ":: pass 2/3: %s\n" "$1"
+	printf ":: pass 2/3: %s (MP4, 3GP, MTS, AVI) ...\n" "$1"
 	find "$1" -name "*.*" -print \
 		| statinfo -noheader -offset $iOffset - \
 		| while read Line
@@ -79,9 +79,9 @@ ProcessDir ()
 		done
 
 	#------------------------------	
-	# PASS THREE: EVERYTHING ELSE
+	# PASS THREE: PHOTOS
 	#------------------------------	
-	printf ":: pass 3/3: %s\n" "$1"
+	printf ":: pass 3/3: %s (JPEG, GIF, PNG) ...\n" "$1"
 	find "$1" -name "*.*" -print \
 		| statinfo -noheader -offset $iOffset - \
 		| while read Line
@@ -89,7 +89,7 @@ ProcessDir ()
 			#lastmod-utc|lastmod-string|bytes|owner|uid|type|pathname
 
 			case "$Line" in
-			*.JPG|*.jpg|*.GIF|*.gif|*.PNG|*.png)
+			*.JPEG|*.jpeg|*.JPG|*.jpg|*.GIF|*.gif|*.PNG|*.png)
 				ProcessImage "$Line" "$2"
 				;;
 			esac
@@ -162,6 +162,8 @@ ProcessRaw ()  # Nikon and Canon RAW camera formats
 	ExtLC=$(echo "$Ext" | tr '[A-Z]' '[a-z]')
 	Basename=$(basename "$OrigFile" ".$Ext")
 	NewBase=$(ComputeNewBase $iUTC $Basename)
+
+	# YOU ARE HERE, RE: HEIC...
 
 	# two use-cases for Nikon and Canon RAW:
 	#  1. camera only saved a RAW file and we need to create a full-sized JPG *and* a thumbnail
@@ -263,7 +265,7 @@ ProcessImage ()
 	OrigFile=$(echo "$statinfo" | awk -F'|' '{print $NF}')
 	OrigDir=$(dirname "$OrigFile")
 	Ext=$(echo "$OrigFile" | awk -F. '{print $NF}')
-	ExtLC=$(echo "$Ext" | tr '[A-Z]' '[a-z]')
+	ExtLC=$(echo "$Ext" | tr '[A-Z]' '[a-z]' | sed -e 's/jpeg/jpg/')
 	Basename=$(basename "$OrigFile" ".$Ext")
 	NewBase=$(ComputeNewBase $iUTC $Basename)
 	OrigThumb=""

@@ -1494,6 +1494,9 @@ public:
 
 	} // FormatSQL
 
+	/// ensure that changing the db connection takes effect in the summary
+	void  InvalidateConnectSummary () const { m_sConnectSummary.clear(); InvalidateConnectHash(); }
+
 //----------
 private:
 //----------
@@ -1608,7 +1611,6 @@ private:
 	void  FreeBufferedColArray (bool fValuesOnly=false);
 	void  InvalidateConnectHash () const { m_iConnectHash = 0; }
 	void  FormatConnectSummary () const;
-	void  InvalidateConnectSummary () const { m_sConnectSummary.clear(); InvalidateConnectHash(); }
 	/// modifies sError if connection was lost due to a connection kill request, else retains old message
 	bool  PreparedToRetry (uint32_t iErrorNum, KString* sError = nullptr);
 

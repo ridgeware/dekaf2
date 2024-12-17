@@ -928,7 +928,7 @@ bool KSQL::SetDBHost (KStringView sHostname)
 bool KSQL::SetDBName (KStringView sDatabase)
 //-----------------------------------------------------------------------------
 {
-	NOT_IF_ALREADY_OPEN ("SetDBName");
+	//NOT_IF_ALREADY_OPEN ("SetDBName"); <-- allow dbname to change when they invoke "use xxx"
 	m_sDatabase = sDatabase;
 	InvalidateConnectSummary();
 	return (true);

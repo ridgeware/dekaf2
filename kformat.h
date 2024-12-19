@@ -118,6 +118,10 @@ DEKAF2_PUBLIC bool kWriteLine(int fd, KStringView sOutput) noexcept;
 /// write sOutput to std::ostream
 DEKAF2_PUBLIC std::ostream& kWriteLine(std::ostream& os, KStringView sOutput) noexcept;
 
+/// writes buffered output to stdout
+DEKAF2_PUBLIC bool kFlush() noexcept;
+// other kFlush signatures are in kwrite.h
+
 #if !DEKAF2_FORMAT_INLINE || !DEKAF2_HAS_FORMAT_RUNTIME
 
 namespace kformat_detail {
@@ -218,7 +222,7 @@ DEKAF2_PUBLIC bool kPrint(const std::locale& locale, KFormatString<Args...> sFor
 }
 
 /// format no-op to stdout
-DEKAF2_PUBLIC inline bool kPrintLine(KFormatString<> sFormat) noexcept
+DEKAF2_PUBLIC inline bool kPrintLine(KFormatString<> sFormat = "") noexcept
 {
 	return kWriteLine(KStringView(sFormat.get().data(), sFormat.get().size()));
 }

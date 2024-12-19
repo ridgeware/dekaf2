@@ -291,6 +291,35 @@ bool kRewind(std::ostream& Stream, std::size_t iCount)
 
 	return false;
 
-} // kForward
+} // kRewind
+
+//-----------------------------------------------------------------------------
+bool kFlush(FILE* fp)
+//-----------------------------------------------------------------------------
+{
+	if (::fflush(fp) != 0)
+	{
+		kDebug(1, "cannot flush: {}", strerror(errno));
+		return false;
+	}
+
+	return true;
+
+} // kFlush
+
+//-----------------------------------------------------------------------------
+bool kFlush(std::ostream& Stream)
+//-----------------------------------------------------------------------------
+{
+	auto streambuf = Stream.rdbuf();
+
+	if (DEKAF2_LIKELY(streambuf != nullptr))
+	{
+		return streambuf->pubsync() == 0;
+	}
+
+	return false;
+
+} // kFlush
 
 DEKAF2_NAMESPACE_END

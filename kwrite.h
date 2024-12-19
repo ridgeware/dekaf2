@@ -100,4 +100,12 @@ bool kRewind(std::ostream& Stream) { return kSetWritePosition(Stream, 0); }
 DEKAF2_PUBLIC
 bool kRewind(std::ostream& Stream, std::size_t iCount);
 
+/// Flush buffered output to FILE*
+DEKAF2_PUBLIC
+bool kFlush(FILE* fp);
+
+/// Flush buffered output to std::ostream
+DEKAF2_PUBLIC
+bool kFlush(std::ostream& Stream);
+
 DEKAF2_NAMESPACE_END

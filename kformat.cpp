@@ -108,6 +108,13 @@ bool kWriteLine(KStringView sFormat) noexcept
 	return kWriteLine(stdout, sFormat);
 }
 
+//-----------------------------------------------------------------------------
+bool kFlush() noexcept
+//-----------------------------------------------------------------------------
+{
+	return kFlush(stdout);
+}
+
 #if !DEKAF2_FORMAT_INLINE || !DEKAF2_HAS_FORMAT_RUNTIME
 
 namespace kformat_detail {

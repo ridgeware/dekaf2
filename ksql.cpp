@@ -5048,7 +5048,54 @@ void KSQL::DoTranslations (KSQLString& sSQL)
 } // DoTranslations
 
 //-----------------------------------------------------------------------------
-KStringView KSQL::TxDBType (DBT iDBType) const
+KSQL::DBT KSQL::TxDBType (KStringView sDBType)
+//-----------------------------------------------------------------------------
+{
+	DBT DBType;
+
+	switch (sDBType.CaseHash())
+	{
+		case "mysql"_casehash:
+			DBType = DBT::MYSQL;
+			break;
+		case "sqlite3"_casehash:
+			DBType = DBT::SQLITE3;
+			break;
+		case "oracle6"_casehash:
+			DBType = DBT::ORACLE6;
+			break;
+		case "oracle7"_casehash:
+			DBType = DBT::ORACLE7;
+			break;
+		case "oracle8"_casehash:
+			DBType = DBT::ORACLE8;
+			break;
+		case "oracle"_casehash:
+			DBType = DBT::ORACLE;
+			break;
+		case "sqlserver"_casehash:
+			DBType = DBT::SQLSERVER;
+			break;
+		case "sqlserver15"_casehash:
+			DBType = DBT::SQLSERVER15;
+			break;
+		case "sybase"_casehash:
+			DBType = DBT::SYBASE;
+			break;
+		case "informix"_casehash:
+			DBType = DBT::INFORMIX;
+			break;
+		default:
+			DBType = DBT::NONE;
+			break;
+	}
+
+	return DBType;
+
+} // TxDBType
+
+//-----------------------------------------------------------------------------
+KStringView KSQL::TxDBType (DBT iDBType)
 //-----------------------------------------------------------------------------
 {
 	switch (iDBType)
@@ -5070,7 +5117,7 @@ KStringView KSQL::TxDBType (DBT iDBType) const
 } // TxDBType
 
 //-----------------------------------------------------------------------------
-KStringView KSQL::TxAPISet (API iAPISet) const
+KStringView KSQL::TxAPISet (API iAPISet)
 //-----------------------------------------------------------------------------
 {
 	switch (iAPISet)

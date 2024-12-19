@@ -736,10 +736,12 @@ public:
 
 	void        BuildTranslationList (TXList& pList, DBT iDBType = DBT::NONE);
 	void        DoTranslations (KSQLString& sSQL);
+	/// returns string as iDBType @param KStringView dbtype string
+	static DBT TxDBType (KStringView sDBType);
 	/// returns iDBType as string @param iDBType a DBType
-	KStringView TxDBType (DBT iDBType) const;
+	static KStringView TxDBType (DBT iDBType);
 	/// returns iAPISet as string @param iAPISet an APISet
-	KStringView TxAPISet (API iAPISet) const;
+	static KStringView TxAPISet (API iAPISet);
 
 	// canned queries:
 	bool   ListTables (KStringView sLike = "%", bool fIncludeViews = false, bool fRestrictToMine = true);

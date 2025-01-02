@@ -62,10 +62,6 @@ class DEKAF2_PUBLIC KRegex
 {
 	
 //----------
-private:
-//----------
-
-//----------
 public:
 //----------
 
@@ -192,6 +188,12 @@ public:
 	/// returns the current cache size for the regex expression cache
 	DEKAF2_NODISCARD
 	static size_t GetCacheSize();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns properly escaped input text to insert into regexes
+	DEKAF2_NODISCARD
+	static KString EscapeText(KStringView sInput);
 	//-----------------------------------------------------------------------------
 
 //----------

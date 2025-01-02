@@ -301,6 +301,41 @@ size_t KRegex::Replace(std::string& sStr, KStringView sRegex, KStringView sRepla
 }
 
 //-----------------------------------------------------------------------------
+KString EscapeText(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	KString sEscaped;
+	sEscaped.reserve(sInput.size() + 5);
+
+	for (auto ch : sInput)
+	{
+		switch (ch)
+		{
+			case '.':
+			case '^':
+			case '$':
+			case '*':
+			case '+':
+			case '?':
+			case '(':
+			case ')':
+			case '[':
+			case '{':
+			case '\\':
+			case '|':
+				sEscaped += '\\';
+				DEKAF2_FALLTHROUGH;
+			default:
+				sEscaped += ch;
+				break;
+		}
+	}
+
+	return sEscaped;
+
+} // EscapeText
+
+//-----------------------------------------------------------------------------
 KString kWildCard2Regex(KStringView sInput)
 //-----------------------------------------------------------------------------
 {

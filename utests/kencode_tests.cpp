@@ -144,7 +144,7 @@ TEST_CASE("KEncoding") {
 			}
 
 			std::vector<std::vector<KString>> mtests = {
-				{ "café garçon dîner", "=?UTF-8?Q?caf=C3=A9=20gar=C3=A7on=20d=C3=AEner?=" },
+				{ "café (garçon) dîner", "=?UTF-8?Q?caf=C3=A9=20=28gar=C3=A7on=29=20d=C3=AEner?=" },
 			    { "And here we go with a really long line to verify automatic line break insertion ==",
 			      "=?UTF-8?Q?And=20here=20we=20go=20with=20a=20really=20long=20?=\r\n"
 				  " =?UTF-8?Q?line=20to=20verify=20automatic=20line=20break=20insertion=20=3D?=\r\n"

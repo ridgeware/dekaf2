@@ -534,7 +534,7 @@ bool KMIMEPart::Serialize(KStringRef& sOut, bool bForHTTP, const KReplacer& Repl
 							sOut += "; name=\"";
 							// TODO check if we should better use QuotedPrintable for UTF8 file names
 							sOut += m_sControlName;
-							sOut += "\"";
+							sOut += '"';
 						}
 						if (!m_sFileName.empty())
 						{
@@ -546,8 +546,9 @@ bool KMIMEPart::Serialize(KStringRef& sOut, bool bForHTTP, const KReplacer& Repl
 					}
 					else
 					{
-						sOut += "attachment;\r\n filename=";
+						sOut += "attachment;\r\n filename=\"";
 						sOut += KQuotedPrintable::Encode(m_sFileName, true);
+						sOut += '"';
 					}
 				}
 				else

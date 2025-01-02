@@ -386,9 +386,13 @@ KString kMakeSafePathname(KStringView sName, bool bToLowercase = true, KStringVi
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// resolve .. and . parts of the input path, and make it an absolute path
+/// resolve .. and . parts of the input path, and make it an absolute path - WARNING: relative paths get the
+/// current directory inserted as a prefix BEFORE resolution of .. if bKeepRelative is false
+/// @param bKeepRelative if true, a relative path will not be expanded to the current directory, excess
+/// ../ will thus not permit to break out of the base location. Default is false though.
+/// @param bThrowOnError if true, instead of silently skipping excess ../ throw an error
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kNormalizePath(KStringView sPath);
+KString kNormalizePath(KStringView sPath, bool bKeepRelative = false);
 //-----------------------------------------------------------------------------
 
 class KFileTypes;

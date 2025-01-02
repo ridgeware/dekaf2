@@ -208,11 +208,12 @@ TEST_CASE("KFilesystem")
 #else
 		CHECK ( kNormalizePath("/this.is/a./.name") == "/this.is/a./.name" );
 		CHECK ( kNormalizePath("/this..is////a/.././name") == "/this..is/name" );
-		CHECK ( kNormalizePath("/this.is/../../../wrong") == "/wrong" );
+		CHECK ( kNormalizePath("/this.is/../../../wrong") == "" );
 		auto sCWD = kGetCWD();
 		KString sCompare (sCWD);
 		sCompare += "/this..is/name";
 		CHECK ( kNormalizePath("this..is////a/.././name") == sCompare );
+		CHECK ( kNormalizePath("this..is/../..//a/.././name", true) == "" );
 #endif
 	}
 

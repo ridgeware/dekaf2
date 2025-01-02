@@ -92,6 +92,11 @@ TEST_CASE("KREST")
 			CHECK ( OutFile.is_open() );
 			OutFile.Write(sWebContent);
 		}
+		{
+			KOutFile OutFile(kFormat("{}/test (spaced name).html", WebRoot.Name()));
+			CHECK ( OutFile.is_open() );
+			OutFile.Write(sWebContent);
+		}
 
 		Routes.AddRoute({ KHTTPMethod::GET, false, "/web/*", WebRoot.Name(), Routes, &KRESTRoutes::WebServer });
 
@@ -259,11 +264,21 @@ TEST_CASE("KREST")
 
 		sOut.clear();
 		CHECK ( REST.Simulate(Options, Routes, "/web/", oss) == true );
-		auto iPos3 = sOut.find("\r\n\r\n");
-		CHECK ( iPos3 != npos );
-		if (iPos3 != npos)
+		iPos = sOut.find("\r\n\r\n");
+		CHECK ( iPos != npos );
+		if (iPos != npos)
 		{
-			sOut.erase(0, iPos3+4);
+			sOut.erase(0, iPos+4);
+		}
+		CHECK ( sOut == sWebContent );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/web/test (spaced name).html", oss) == true );
+		iPos = sOut.find("\r\n\r\n");
+		CHECK ( iPos != npos );
+		if (iPos != npos)
+		{
+			sOut.erase(0, iPos+4);
 		}
 		CHECK ( sOut == sWebContent );
 	}

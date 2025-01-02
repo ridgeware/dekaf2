@@ -2092,7 +2092,7 @@ bool kReadBinaryFile (KStringViewZ sPath, KStringRef& sContents, std::size_t iMa
 }
 
 //-----------------------------------------------------------------------------
-KString kNormalizePath(KStringView sPath)
+KString kNormalizePath(KStringView sPath, bool bKeepRelative)
 //-----------------------------------------------------------------------------
 {
 	// "/user/./test/../peter/myfile" -> "/user/peter/myfile"
@@ -2123,6 +2123,7 @@ KString kNormalizePath(KStringView sPath)
 #endif
 
 	std::vector<KStringView> Normalized;
+	bool bToAbsolute { true };
 
 	KString sCWD;
 
@@ -2136,23 +2137,30 @@ KString kNormalizePath(KStringView sPath)
 		if (!chHasDrive)
 #endif
 		{
-			// This is a relative path. Get current working directory
-			std::vector<KStringView> CWD;
-			sCWD = kGetCWD();
+			if (!bKeepRelative)
+			{
+				// This is a relative path. Get current working directory
+				std::vector<KStringView> CWD;
+				sCWD = kGetCWD();
 #ifdef DEKAF2_IS_WINDOWS
-			if (sCWD.size() > 1 && sCWD[1] == ':' && KASCII::kIsAlpha(sCWD[0]))
-			{
-				chHasDrive = KASCII::kToUpper(sCWD[0]);
-				sCWD.remove_prefix(2);
-			}
-#endif
-			// and add it to the normalized path
-			for (auto it : sCWD.Split(detail::kAllowedDirSep, ""))
-			{
-				if (!it.empty())
+				if (sCWD.size() > 1 && sCWD[1] == ':' && KASCII::kIsAlpha(sCWD[0]))
 				{
-					Normalized.push_back(it);
+					chHasDrive = KASCII::kToUpper(sCWD[0]);
+					sCWD.remove_prefix(2);
 				}
+#endif
+				// and add it to the normalized path
+				for (auto it : sCWD.Split(detail::kAllowedDirSep, ""))
+				{
+					if (!it.empty())
+					{
+						Normalized.push_back(it);
+					}
+				}
+			}
+			else
+			{
+				bToAbsolute = false;
 			}
 		}
 	}
@@ -2208,20 +2216,35 @@ KString kNormalizePath(KStringView sPath)
 	}
 
 	KString sNormalized;
-	sNormalized.reserve(sPath.size());
+
+	if (!bWarned)
+	{
+		sNormalized.reserve(sPath.size());
 
 #ifdef DEKAF2_IS_WINDOWS
-	if (chHasDrive)
-	{
-		sNormalized = chHasDrive;
-		sNormalized += ':';
-	}
+		if (chHasDrive)
+		{
+			sNormalized = chHasDrive;
+			sNormalized += ':';
+		}
 #endif
 
-	for (auto it : Normalized)
-	{
-		sNormalized += kDirSep;
-		sNormalized += it;
+		for (auto it : Normalized)
+		{
+			if (sNormalized.empty())
+			{
+				if (bToAbsolute)
+				{
+					sNormalized += kDirSep;
+				}
+			}
+			else
+			{
+				sNormalized += kDirSep;
+			}
+			sNormalized += it;
+		}
+
 	}
 
 	return sNormalized;

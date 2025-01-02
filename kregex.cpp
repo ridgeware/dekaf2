@@ -301,7 +301,7 @@ size_t KRegex::Replace(std::string& sStr, KStringView sRegex, KStringView sRepla
 }
 
 //-----------------------------------------------------------------------------
-KString EscapeText(KStringView sInput)
+KString KRegex::EscapeText(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
 	KString sEscaped;

@@ -144,6 +144,14 @@ TEST_CASE("KRegex")
 		CHECK ( MatchGroup == "SomeTextHere");
 	}
 
+	SECTION("EscapeText")
+	{
+		CHECK ( KRegex::EscapeText("")            == ""                );
+		CHECK ( KRegex::EscapeText("0123-234")    == "0123-234"        );
+		CHECK ( KRegex::EscapeText("Test. Here")  == "Test\\. Here"    );
+		CHECK ( KRegex::EscapeText("Test (here)") == "Test \\(here\\)" );
+	}
+
 #ifdef DEKAF2_HAVE_RE2_INTERNAL
 	SECTION("RE2")
 	{

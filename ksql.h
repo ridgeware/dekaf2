@@ -45,6 +45,7 @@
 /// @file ksql.h
 /// dekaf2's main SQL abstraction KSQL
 
+#include "kfrozen.h"
 #include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
@@ -245,10 +246,11 @@ public:
 		FAC_SUBSELECT         = 1 << 2,      ///< FAC_SUBSELECT: se code examples
 		FAC_BETWEEN           = 1 << 3,      ///< FAC_BETWEEN: handles empty string, single number and number range with a dash
 		FAC_LIKE              = 1 << 4,      ///< FAC_LIKE: use LIKE operator instead of EQUALS
-		FAC_TEXT_CONTAINS     = 1 << 5,      ///< FAC_TEXT_CONTAINS: full-text search using SQL tolower and like operator
+		FAC_TEXT_CONTAINS     = 1 << 5,      ///< FAC_TEXT_CONTAINS: poor-mans full-text search using SQL tolower and like operator
 		FAC_TIME_PERIODS      = 1 << 6,      ///< FAC_TIME_PERIODS: time intervals >= 'hour', 'day', 'week', 'month' or 'year'
 		FAC_DECIMAL           = 1 << 7,      ///< FAC_DECIMAL: like FAC_NUMERIC but expects float/double
-		FAC_SIGNED            = 1 << 8       ///< FAC_SIGNED: like FAC_NUMERIC but retains +/- sign
+		FAC_SIGNED            = 1 << 8,      ///< FAC_SIGNED: like FAC_NUMERIC but retains +/- sign
+		FAC_FULLTEXT          = 1 << 9       ///< FAC_FULLTEXT: requires a fulltext index on this set of columns
 	};
 
 	/// default constructor
@@ -468,6 +470,44 @@ public:
 
 	/// enable an existing query timeout (needs timeout value > 0 and query type != None to be effective)
 	void EnableQueryTimeout()  { m_bEnableQueryTimeout = true;  }
+
+	static constexpr auto s_FullTextStopwordsInnoDB { frozen::make_unordered_set ({
+		"a"_ksv,
+		"about"_ksv,
+		"an"_ksv,
+		"are"_ksv,
+		"as"_ksv,
+		"at"_ksv,
+		"be"_ksv,
+		"by"_ksv,
+		"com"_ksv,
+		"de"_ksv,
+		"en"_ksv,
+		"for"_ksv,
+		"from"_ksv,
+		"how"_ksv,
+		"i"_ksv,
+		"in"_ksv,
+		"is"_ksv,
+		"it"_ksv,
+		"la"_ksv,
+		"of"_ksv,
+		"on"_ksv,
+		"or"_ksv,
+		"that"_ksv,
+		"the"_ksv,
+		"this"_ksv,
+		"to"_ksv,
+		"und"_ksv,
+		"was"_ksv,
+		"what"_ksv,
+		"when"_ksv,
+		"where"_ksv,
+		"who"_ksv,
+		"will"_ksv,
+		"with"_ksv,
+		"www"_ksv,
+	})};
 
 //----------
 private:
@@ -776,6 +816,9 @@ public:
 
 	/// helper method to form AND clauses for dynamic SQL.
 	KSQLString FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm, FAC iFlags=FAC::FAC_NORMAL, KStringView sSplitBy=",");
+
+	/// helper method to form AND clauses for dynamic SQL.
+	KSQLString FormFulltextAndClause (const KSQLString& sDbColList, KString/*copy*/ sGrepStr);
 
 	/// general purpose helper to create "group by 1,2,3,4..."
 	static KSQLString FormGroupBy (uint8_t iNumCols);

@@ -7584,6 +7584,11 @@ KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm
 
 	kDebug (3, "dbcol={}, queryparm={}, splitby={}", sDbCol, sQueryParm, sSplitBy);
 
+	if (iFlags & FAC_FULLTEXT)
+	{
+		return KSQL::FormFulltextAndClause (sDbCol, sQueryParm);
+	}
+
 	if ((iFlags == FAC_NORMAL) && sQueryParm.Contains("%"))
 	{
 		iFlags |= FAC_LIKE;
@@ -7814,6 +7819,56 @@ KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm
 	return sClause;
 
 } // FormAndClause
+
+//-----------------------------------------------------------------------------
+KSQLString KSQL::FormFulltextAndClause (const KSQLString& sDbColList, KString/*copy*/ sGrepStr)
+//-----------------------------------------------------------------------------
+{
+	// sGrepStr (q) spec:
+	// q=oneterm        -->  'oneterm*'
+	// q=multi terms    -->  'multi* +terms*'
+	// q="quoted term"  -->  '"quoted term"'
+	// q=!advanced      -->  'advanced'
+
+	KSQLString sClause;
+	if (sGrepStr.StartsWith("!"))
+	{
+		sClause = FormatSQL ("   and match({}) against ('{}' in boolean mode)\n", sDbColList, sGrepStr.Mid(1)); // wrap raw expression in singles
+	}
+	else if (sGrepStr.StartsWith("\"") && sGrepStr.EndsWith("\""))
+	{
+		sClause = FormatSQL ("   and match({}) against ('{}' in boolean mode)\n", sDbColList, sGrepStr); // retain doubles but still wrap with singles
+	}
+	else if (sGrepStr)
+	{
+		// Remove useless characters:
+		sGrepStr.Replace ('-', ' ');
+		sGrepStr.ReplaceRegex ("[@+()<>~*\"]", " ");
+		sGrepStr.CollapseAndTrim (" ,.", ' ');
+
+		// Form each term:
+		KSQLString sSearch;
+		for (const auto sTerm : sGrepStr.Split (" "))
+		{
+			static constexpr auto s_iMinWordLength { 3 };
+
+			// Do NOT mandate stopwords:
+			if ((sTerm.length() >= s_iMinWordLength) && (KSQL::s_FullTextStopwordsInnoDB.count (sTerm) == 0))
+			{
+				sSearch += "+";
+			}
+
+			// Treat all terms as prefixes:
+			sSearch += FormatSQL ("{}* ", sTerm);
+		}
+		sSearch.remove_suffix (" "); // trims the extra space at the end
+
+		sClause = FormatSQL ("   and match ({}) against ('{}' in boolean mode)\n", sDbColList, sSearch);
+	}
+
+	return sClause;
+
+} // FormFulltextAndClause
 
 //-----------------------------------------------------------------------------
 KSQLString KSQL::FormGroupBy (uint8_t iNumCols)

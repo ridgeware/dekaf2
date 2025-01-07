@@ -45,7 +45,6 @@
 /// @file ksql.h
 /// dekaf2's main SQL abstraction KSQL
 
-#include "kfrozen.h"
 #include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
@@ -470,44 +469,6 @@ public:
 
 	/// enable an existing query timeout (needs timeout value > 0 and query type != None to be effective)
 	void EnableQueryTimeout()  { m_bEnableQueryTimeout = true;  }
-
-	static constexpr auto s_FullTextStopwordsInnoDB { frozen::make_unordered_set ({
-		"a"_ksv,
-		"about"_ksv,
-		"an"_ksv,
-		"are"_ksv,
-		"as"_ksv,
-		"at"_ksv,
-		"be"_ksv,
-		"by"_ksv,
-		"com"_ksv,
-		"de"_ksv,
-		"en"_ksv,
-		"for"_ksv,
-		"from"_ksv,
-		"how"_ksv,
-		"i"_ksv,
-		"in"_ksv,
-		"is"_ksv,
-		"it"_ksv,
-		"la"_ksv,
-		"of"_ksv,
-		"on"_ksv,
-		"or"_ksv,
-		"that"_ksv,
-		"the"_ksv,
-		"this"_ksv,
-		"to"_ksv,
-		"und"_ksv,
-		"was"_ksv,
-		"what"_ksv,
-		"when"_ksv,
-		"where"_ksv,
-		"who"_ksv,
-		"will"_ksv,
-		"with"_ksv,
-		"www"_ksv,
-	})};
 
 //----------
 private:

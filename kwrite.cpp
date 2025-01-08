@@ -60,6 +60,11 @@ std::size_t kWrite(int fd, const void* sBuffer, std::size_t iCount)
 		return 0;
 	}
 
+	if (!iCount)
+	{
+		return 0;
+	}
+
 	std::streamsize iWrote { 0 };
 
 #ifndef DEKAF2_IS_WINDOWS
@@ -155,6 +160,11 @@ std::size_t kWrite(FILE* fp, const void* sBuffer, std::size_t iCount)
 		return 0;
 	}
 
+	if (!iCount)
+	{
+		return 0;
+	}
+
 	std::size_t iWrote { 0 };
 
 	do
@@ -193,7 +203,10 @@ std::size_t kWrite(std::ostream& Stream, const void* sBuffer, std::size_t iCount
 
 	if (DEKAF2_LIKELY(streambuf != nullptr))
 	{
-		iWrote = static_cast<std::size_t>(streambuf->sputn(static_cast<const std::ostream::char_type*>(sBuffer), iCount));
+		if (iCount)
+		{
+			iWrote = static_cast<std::size_t>(streambuf->sputn(static_cast<const std::ostream::char_type*>(sBuffer), iCount));
+		}
 	}
 
 	if (DEKAF2_UNLIKELY(iWrote != iCount))

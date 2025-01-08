@@ -1569,8 +1569,7 @@ bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
 	// - - - - - - - - - - - - - - - - -
 		if (!ctlib_login())
 		{
-			// ctlib_login logs and throws, or returns false - no need to further log here
-			return false;
+			return SetError("CTLIB: connection failed");
 		}
 		break;
 	#endif

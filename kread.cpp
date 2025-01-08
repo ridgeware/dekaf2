@@ -133,6 +133,11 @@ std::size_t kRead(FILE* fp, void* sBuffer, std::size_t iCount)
 		return 0;
 	}
 
+	if (!iCount)
+	{
+		return 0;
+	}
+
 	std::size_t iRead;
 
 	do
@@ -170,6 +175,11 @@ std::size_t kRead(std::istream& Stream, void* sBuffer, std::size_t iCount)
 	if (DEKAF2_UNLIKELY(streambuf == nullptr))
 	{
 		Stream.setstate(std::ios::failbit);
+		return 0;
+	}
+
+	if (!iCount)
+	{
 		return 0;
 	}
 

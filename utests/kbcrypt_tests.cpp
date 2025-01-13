@@ -19,7 +19,7 @@ TEST_CASE("KBCrypt")
 		auto Elapsed = Timer.elapsed();
 
 		CHECK ( sHash.size() == 60 );
-		CHECK ( Elapsed < chrono::milliseconds(50 + 10));
+		CHECK ( Elapsed.milliseconds().count() < 60 );
 
 		auto bValid = BCrypt.ValidatePassword(sPassword, sHash);
 		CHECK ( bValid );

@@ -86,6 +86,7 @@ OPTION(DEKAF2_WITH_KLOG "build with KLOG" ON)
 OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" OFF)
 OPTION(DEKAF2_FORCE_STATIC_LIBS "force linking with static libs except for system libs" OFF)
+OPTION(DEKAF2_USE_SHARED_BOOST "link dynamically to boost" OFF)
 OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" ON)
 OPTION(DEKAF2_WITH_PEDANTIC_WARNINGS "enable pedantic warnings" ON)
 OPTION(DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT "force the use of fmtlib even if std::format is available" ON)
@@ -487,7 +488,7 @@ endif()
 # ================================= BOOST ====================================
 
 # always required
-if (DEKAF2_PREFER_STATIC_LIBS OR DEKAF2_FORCE_STATIC_LIBS)
+if (NOT DEKAF2_USE_SHARED_BOOST)
 	set(Boost_USE_STATIC_LIBS ON)
 endif()
 set(Boost_USE_MULTITHREADED ON)

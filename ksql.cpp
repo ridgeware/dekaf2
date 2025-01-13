@@ -6566,16 +6566,18 @@ bool KSQL::ctlib_login ()
 		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 	}
 
-	kDebug (KSQL2_CTDEBUG, "connecting as {} to {}.{}\n", GetDBUser(), GetDBHost(), GetDBName());
 	int iTryConnect = 0;
 	while(true)
 	{
+		kDebug (KSQL2_CTDEBUG, "connecting as {} to {}.{}\n", GetDBUser(), GetDBHost(), GetDBName());
 		auto sHost = GetDBHost();
-		if (ct_connect (m_pCtConnection, sHost.data(), static_cast<CS_INT>(sHost.size())) == CS_SUCCEED)
+		auto iRetcode = ct_connect (m_pCtConnection, sHost.data(), static_cast<CS_INT>(sHost.size()));
+		if (iRetcode == CS_SUCCEED)
 		{
 			break;
 		}
-		else if (++iTryConnect >= 3)
+		kDebug (KSQL2_CTDEBUG, "got error {} : {}", iRetcode, cs_prretcode(iRetcode));
+		if (++iTryConnect >= 3)
 		{
 			//try to connect 3 times.
 			ctlib_api_error ("ctlib_login>ct_connect");

@@ -59,7 +59,6 @@
 #include "kscopeguard.h"
 #include "kduration.h"
 #include "ktemplate.h"
-#include "kfrozen.h"
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
@@ -471,53 +470,6 @@ public:
 	/// enable an existing query timeout (needs timeout value > 0 and query type != None to be effective)
 	void EnableQueryTimeout()  { m_bEnableQueryTimeout = true;  }
 
-#ifdef DEKAF2_HAS_FROZEN
-	static constexpr auto s_FullTextStopwordsInnoDB { frozen::make_unordered_set (
-#else
-	static const std::unordered_set<KStringView> s_FullTextStopwordsInnoDB
-#endif
-	{
-		"a"_ksv,
-		"about"_ksv,
-		"an"_ksv,
-		"are"_ksv,
-		"as"_ksv,
-		"at"_ksv,
-		"be"_ksv,
-		"by"_ksv,
-		"com"_ksv,
-		"de"_ksv,
-		"en"_ksv,
-		"for"_ksv,
-		"from"_ksv,
-		"how"_ksv,
-		"i"_ksv,
-		"in"_ksv,
-		"is"_ksv,
-		"it"_ksv,
-		"la"_ksv,
-		"of"_ksv,
-		"on"_ksv,
-		"or"_ksv,
-		"that"_ksv,
-		"the"_ksv,
-		"this"_ksv,
-		"to"_ksv,
-		"und"_ksv,
-		"was"_ksv,
-		"what"_ksv,
-		"when"_ksv,
-		"where"_ksv,
-		"who"_ksv,
-		"will"_ksv,
-		"with"_ksv,
-		"www"_ksv,
-	}
-#ifdef DEKAF2_HAS_FROZEN
-	)}
-#endif
-	;
-
 //----------
 private:
 //----------
@@ -822,6 +774,9 @@ public:
 	bool   BeginTransaction (KStringView sOptions="");
 	bool   CommitTransaction (KStringView sOptions="");
 	bool   RollbackTransaction (KStringView sOptions="");
+
+	/// returns true if sWord is in the list of InnoDB fulltext stopwords
+	static bool IsFullTextStopwordInnoDB(KStringView sWord);
 
 	/// helper method to form AND clauses for dynamic SQL.
 	KSQLString FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm, FAC iFlags=FAC::FAC_NORMAL, KStringView sSplitBy=",");

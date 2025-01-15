@@ -65,6 +65,7 @@
 #include "kduration.h"
 #include "khex.h"
 #include "kcsv.h"
+#include "kfrozen.h"
 #include <cstdint>
 #include <utility>
 
@@ -7822,6 +7823,61 @@ KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm
 } // FormAndClause
 
 //-----------------------------------------------------------------------------
+bool KSQL::IsFullTextStopwordInnoDB(KStringView sWord)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_FROZEN
+	static constexpr auto s_FullTextStopwordsInnoDB { frozen::make_unordered_set (
+#else
+	static const std::unordered_set<KStringView> s_FullTextStopwordsInnoDB
+#endif
+	{
+	  "a"_ksv,
+	  "about"_ksv,
+	  "an"_ksv,
+	  "are"_ksv,
+	  "as"_ksv,
+	  "at"_ksv,
+	  "be"_ksv,
+	  "by"_ksv,
+	  "com"_ksv,
+	  "de"_ksv,
+	  "en"_ksv,
+	  "for"_ksv,
+	  "from"_ksv,
+	  "how"_ksv,
+	  "i"_ksv,
+	  "in"_ksv,
+	  "is"_ksv,
+	  "it"_ksv,
+	  "la"_ksv,
+	  "of"_ksv,
+	  "on"_ksv,
+	  "or"_ksv,
+	  "that"_ksv,
+	  "the"_ksv,
+	  "this"_ksv,
+	  "to"_ksv,
+	  "und"_ksv,
+	  "was"_ksv,
+	  "what"_ksv,
+	  "when"_ksv,
+	  "where"_ksv,
+	  "who"_ksv,
+	  "will"_ksv,
+	  "with"_ksv,
+	  "www"_ksv,
+	}
+#ifdef DEKAF2_HAS_FROZEN
+	)}
+#endif
+	;
+
+	return s_FullTextStopwordsInnoDB.count (sWord);
+
+} // IsFullTextStopwordInnoDB
+
+//-----------------------------------------------------------------------------
 KSQLString KSQL::FormFulltextAndClause (const KSQLString& sDbColList, KString/*copy*/ sGrepStr)
 //-----------------------------------------------------------------------------
 {
@@ -7854,7 +7910,7 @@ KSQLString KSQL::FormFulltextAndClause (const KSQLString& sDbColList, KString/*c
 			static constexpr auto s_iMinWordLength { 3 };
 
 			// Do NOT mandate stopwords:
-			if ((sTerm.length() >= s_iMinWordLength) && (s_FullTextStopwordsInnoDB.count (sTerm) == 0))
+			if ((sTerm.length() >= s_iMinWordLength) && (IsFullTextStopwordInnoDB (sTerm) == false))
 			{
 				sSearch += "+";
 			}

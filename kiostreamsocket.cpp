@@ -56,53 +56,79 @@ namespace {
 
 std::unordered_map<KString, std::pair<KString, bool>> g_KnownHosts;
 
-boost::asio::ip::tcp::resolver::query
-CreateTCPQuery(KStringViewZ sHostname, KStringViewZ sPort, KStreamOptions::Family Family)
+//-----------------------------------------------------------------------------
+KIOStreamSocket::resolver_results_tcp_type
+CreateTCPQuery(
+	boost::asio::io_service& IOService,
+	KStringViewZ sHostname,
+	KStringViewZ sPort,
+	KStreamOptions::Family Family,
+	boost::system::error_code& ec
+)
+//-----------------------------------------------------------------------------
 {
+	boost::asio::ip::tcp::resolver Resolver(IOService);
+
 	sHostname = KIOStreamSocket::GetKnownHostAddress(sHostname, Family);
 
 	if (Family == KStreamOptions::Family::Any)
 	{
-		return boost::asio::ip::tcp::resolver::query(
+		return Resolver.resolve(
 			sHostname.c_str(),
 			sPort.c_str(),
-			boost::asio::ip::tcp::resolver::query::numeric_service
+			boost::asio::ip::tcp::resolver::numeric_service,
+			ec
 		);
 	}
 	else
 	{
-		return boost::asio::ip::tcp::resolver::query(
+		return Resolver.resolve(
 			Family == KStreamOptions::Family::IPv4 ? boost::asio::ip::tcp::v4() : boost::asio::ip::tcp::v6(),
 			sHostname.c_str(),
 			sPort.c_str(),
-			boost::asio::ip::tcp::resolver::query::numeric_service
+			boost::asio::ip::tcp::resolver::numeric_service,
+			ec
 		);
 	}
-}
 
-boost::asio::ip::udp::resolver::query 
-CreateUDPQuery(KStringViewZ sHostname, KStringViewZ sPort, KStreamOptions::Family Family)
+} // CreateTCPQuery
+
+//-----------------------------------------------------------------------------
+KIOStreamSocket::resolver_results_udp_type
+CreateUDPQuery(
+	boost::asio::io_service& IOService,
+	KStringViewZ sHostname,
+	KStringViewZ sPort,
+	KStreamOptions::Family Family,
+	boost::system::error_code& ec
+)
+//-----------------------------------------------------------------------------
 {
+	boost::asio::ip::udp::resolver Resolver(IOService);
+
 	sHostname = KIOStreamSocket::GetKnownHostAddress(sHostname, Family);
 
 	if (Family == KStreamOptions::Family::Any)
 	{
-		return boost::asio::ip::udp::resolver::query(
+		return Resolver.resolve(
 			sHostname.c_str(),
 			sPort.c_str(),
-			boost::asio::ip::tcp::resolver::query::numeric_service
+			boost::asio::ip::udp::resolver::numeric_service,
+			ec
 		);
 	}
 	else
 	{
-		return boost::asio::ip::udp::resolver::query(
+		return Resolver.resolve(
 			Family == KStreamOptions::Family::IPv4 ? boost::asio::ip::udp::v4() : boost::asio::ip::udp::v6(),
 			sHostname.c_str(),
 			sPort.c_str(),
-			boost::asio::ip::tcp::resolver::query::numeric_service
+			boost::asio::ip::udp::resolver::numeric_service,
+			ec
 		);
 	}
-}
+
+} // 
 
 } // end of anonymous namespace
 
@@ -119,8 +145,6 @@ KIOStreamSocket::ResolveTCP(
 {
 	kDebug (3, "resolving domain {}", sHostname);
 
-	boost::asio::ip::tcp::resolver Resolver(IOService);
-
 	KString sIPAddress;
 
 	if (kIsIPv6Address(sHostname, true))
@@ -129,8 +153,7 @@ KIOStreamSocket::ResolveTCP(
 		sIPAddress = sHostname.ToView(1, sHostname.size() - 2);
 	}
 
-	//	auto query = CreateQuery<boost::asio::ip::tcp>(sHostname, KString::to_string(iPort).c_str(), iFamily);
-	auto Hosts = Resolver.resolve(CreateTCPQuery(sIPAddress.empty() ? sHostname.c_str() : sIPAddress.c_str(), KString::to_string(iPort).c_str(), Family), ec);
+	auto Hosts = CreateTCPQuery(IOService, sIPAddress.empty() ? sHostname.c_str() : sIPAddress.c_str(), KString::to_string(iPort).c_str(), Family, ec);
 
 #ifdef DEKAF2_WITH_KLOG
 	if (kWouldLog(2))
@@ -171,8 +194,6 @@ KIOStreamSocket::ResolveUDP(
 {
 	kDebug (3, "resolving domain {}", sHostname);
 
-	boost::asio::ip::udp::resolver Resolver(IOService);
-
 	KString sIPAddress;
 
 	if (kIsIPv6Address(sHostname, true))
@@ -181,9 +202,7 @@ KIOStreamSocket::ResolveUDP(
 		sIPAddress = sHostname.ToView(1, sHostname.size() - 2);
 	}
 
-
-	//	auto Hosts = Resolver.resolve(query, ec);
-	auto Hosts = Resolver.resolve(CreateUDPQuery(sIPAddress.empty() ? sHostname.c_str() : sIPAddress.c_str(), KString::to_string(iPort).c_str(), Family), ec);
+	auto Hosts = CreateUDPQuery(IOService, sIPAddress.empty() ? sHostname.c_str() : sIPAddress.c_str(), KString::to_string(iPort).c_str(), Family, ec);
 
 #ifdef DEKAF2_WITH_KLOG
 	if (kWouldLog(2))
@@ -227,15 +246,27 @@ KIOStreamSocket::ReverseLookup(
 	if (kIsIPv6Address(sIPAddr, true))
 	{
 		// have [] around the IP as in URLs
-		endpoint.address (boost::asio::ip::address_v6::from_string (KString(sIPAddr.substr(1, sIPAddr.size() - 2))));
+#ifdef DEKAF2_CLASSIC_ASIO
+		endpoint.address (boost::asio::ip::address_v6::from_string (KString(sIPAddr.substr(1, sIPAddr.size() - 2)), ec));
+#else
+		endpoint.address (boost::asio::ip::make_address_v6 (KString(sIPAddr.substr(1, sIPAddr.size() - 2)).ToStdString(), ec));
+#endif
 	}
 	else if (kIsValidIPv4 (sIPAddr))
 	{
+#ifdef DEKAF2_CLASSIC_ASIO
 		endpoint.address (boost::asio::ip::address_v4::from_string (sIPAddr.c_str(), ec));
+#else
+		endpoint.address (boost::asio::ip::make_address_v4 (sIPAddr.c_str(), ec));
+#endif
 	}
 	else if (kIsValidIPv6 (sIPAddr))
 	{
+#ifdef DEKAF2_CLASSIC_ASIO
 		endpoint.address (boost::asio::ip::address_v6::from_string (sIPAddr.c_str(), ec));
+#else
+		endpoint.address (boost::asio::ip::make_address_v6 (sIPAddr.c_str(), ec));
+#endif
 	}
 	else
 	{

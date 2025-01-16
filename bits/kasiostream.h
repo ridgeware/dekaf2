@@ -175,25 +175,37 @@ struct KAsioStream
 	void ResetTimer()
 	//-----------------------------------------------------------------------------
 	{
+#if DEKAF2_CLASSIC_ASIO
 		Timer.expires_from_now(boost::posix_time::milliseconds(Timeout.milliseconds().count()));
+#else
+		Timer.expires_after(Timeout.milliseconds());
+#endif
 	}
 
 	//-----------------------------------------------------------------------------
 	void ClearTimer()
 	//-----------------------------------------------------------------------------
 	{
+#if DEKAF2_CLASSIC_ASIO
 		Timer.expires_at(boost::posix_time::pos_infin);
+#else
+		Timer.expires_at(chrono::steady_clock::now() + chrono::years(10));
+#endif
 	}
 
 	//-----------------------------------------------------------------------------
 	void CheckTimer()
 	//-----------------------------------------------------------------------------
 	{
+#if DEKAF2_CLASSIC_ASIO
 		if (Timer.expires_at() <= boost::asio::deadline_timer::traits_type::now())
+#else
+		if (Timer.expiry() <= chrono::steady_clock::now())
+#endif
 		{
 			boost::system::error_code ignored_ec;
 			Traits::SocketClose(Socket, ignored_ec);
-			Timer.expires_at(boost::posix_time::pos_infin);
+			ClearTimer();
 			kDebug(2, "Connection timeout ({}): {}",
 				   Timeout, sEndpoint);
 		}
@@ -207,18 +219,20 @@ struct KAsioStream
 	{
 		ResetTimer();
 
-		ec = boost::asio::error::would_block;
-		boost::system::error_code local_ec;
-		do
+		try
 		{
-			IOService.run_one(local_ec);
-
-			if (local_ec.value())
+			ec = boost::asio::error::would_block;
+			do
 			{
-				kDebug(1, "Stream error: {}", local_ec.message());
+				IOService.run_one();
 			}
+			while (ec == boost::asio::error::would_block);
 		}
-		while (ec == boost::asio::error::would_block && local_ec.value() == 0);
+
+		catch (const boost::system::error_code& local_ec)
+		{
+			kDebug(1, "Stream error: {}", local_ec.message());
+		}
 
 		ClearTimer();
 	}
@@ -226,7 +240,11 @@ struct KAsioStream
 	boost::asio::io_service     IOService;
 	StreamType                  Socket;
 	KString                     sEndpoint;
+#if DEKAF2_CLASSIC_ASIO
 	boost::asio::deadline_timer Timer;
+#else
+	boost::asio::steady_timer   Timer;
+#endif
 	boost::system::error_code   ec;
 	KDuration                   Timeout;
 

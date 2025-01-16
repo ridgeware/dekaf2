@@ -714,7 +714,7 @@ bool KTCPServer::Start(KDuration Timeout, bool bBlock)
 #ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP
 
 //-----------------------------------------------------------------------------
-void KTCPServer::StopServerThread(ServerType SType)
+bool KTCPServer::StopServerThread(ServerType SType)
 //-----------------------------------------------------------------------------
 {
 	boost::asio::ip::address localhost;
@@ -723,11 +723,19 @@ void KTCPServer::StopServerThread(ServerType SType)
 	switch (SType)
 	{
 		case TCPv6:
+#ifdef DEKAF2_CLASSIC_ASIO
 			localhost.from_string("::1");
+#else
+			localhost = boost::asio::ip::make_address("::1");
+#endif
 			break;
 
 		case TCPv4:
+#ifdef DEKAF2_CLASSIC_ASIO
 			localhost.from_string("127.0.0.1");
+#else
+			localhost = boost::asio::ip::make_address("127.0.0.1");
+#endif
 			break;
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
@@ -739,7 +747,7 @@ void KTCPServer::StopServerThread(ServerType SType)
 			s.connect(boost::asio::local::stream_protocol::endpoint(m_sSocketFile.c_str()), ec);
 			// wait a little to avoid acceptor exception
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			return;
+			return true;
 
 #endif
 
@@ -749,8 +757,16 @@ void KTCPServer::StopServerThread(ServerType SType)
 	tcp::endpoint remote_endpoint(localhost, m_iPort);
 	boost::asio::ip::tcp::socket socket(m_asio);
 	socket.connect(remote_endpoint, ec);
+
+	if (ec)
+	{
+		kDebug(2, "cannot connect to {}:{}: {}", remote_endpoint.address().to_string(), remote_endpoint.port(), ec.message());
+		return false;
+	}
+
 	// wait a little to avoid acceptor exception
 	std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	return true;
 
 } // StopServerThread
 
@@ -801,8 +817,14 @@ bool KTCPServer::Stop()
 	// give it another shot for older systems
 	if (m_bStartIPv6)
 	{
-		StopServerThread(TCPv6);
-		if (m_bHaveSeparatev4Thread)
+		bool bStopped = StopServerThread(TCPv6);
+		// it may happen (e.g. in a container without IPv6 support)
+		// that we open a dual stack listener, but in fact it only
+		// listens on an IPv4 interface. In that case, StopServerThread(TCPv6)
+		// would return with false, because it could not connect to the
+		// v6 interface. We then _have_ to connect to the v4 interface
+		// to shut down the listener.
+		if (m_bHaveSeparatev4Thread || !bStopped)
 		{
 			StopServerThread(TCPv4);
 		}

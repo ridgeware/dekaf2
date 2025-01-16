@@ -366,7 +366,7 @@ private:
 #ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	void StopServerThread(ServerType SType);
+	bool StopServerThread(ServerType SType);
 	//-----------------------------------------------------------------------------
 #endif
 

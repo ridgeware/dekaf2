@@ -73,15 +73,37 @@ CreateTCPQuery(
 
 	if (Family == KStreamOptions::Family::Any)
 	{
+#ifdef DEKAF2_CLASSIC_ASIO
+		return Resolver.resolve(
+			boost::asio::ip::tcp::resolver::query(
+				sHostname.c_str(),
+				sPort.c_str(),
+				boost::asio::ip::tcp::resolver::query::numeric_service
+			),
+			ec
+		);
+#else
 		return Resolver.resolve(
 			sHostname.c_str(),
 			sPort.c_str(),
 			boost::asio::ip::tcp::resolver::numeric_service,
 			ec
 		);
+#endif
 	}
 	else
 	{
+#ifdef DEKAF2_CLASSIC_ASIO
+		return Resolver.resolve(
+			boost::asio::ip::tcp::resolver::query(
+				Family == KStreamOptions::Family::IPv4 ? boost::asio::ip::tcp::v4() : boost::asio::ip::tcp::v6(),
+				sHostname.c_str(),
+				sPort.c_str(),
+				boost::asio::ip::tcp::resolver::query::numeric_service
+			),
+			ec
+		);
+#else
 		return Resolver.resolve(
 			Family == KStreamOptions::Family::IPv4 ? boost::asio::ip::tcp::v4() : boost::asio::ip::tcp::v6(),
 			sHostname.c_str(),
@@ -89,6 +111,7 @@ CreateTCPQuery(
 			boost::asio::ip::tcp::resolver::numeric_service,
 			ec
 		);
+#endif
 	}
 
 } // CreateTCPQuery
@@ -110,15 +133,37 @@ CreateUDPQuery(
 
 	if (Family == KStreamOptions::Family::Any)
 	{
+#ifdef DEKAF2_CLASSIC_ASIO
+		return Resolver.resolve(
+			boost::asio::ip::udp::resolver::query(
+				sHostname.c_str(),
+				sPort.c_str(),
+				boost::asio::ip::udp::resolver::query::numeric_service
+			),
+			ec
+		);
+#else
 		return Resolver.resolve(
 			sHostname.c_str(),
 			sPort.c_str(),
 			boost::asio::ip::udp::resolver::numeric_service,
 			ec
 		);
+#endif
 	}
 	else
 	{
+#ifdef DEKAF2_CLASSIC_ASIO
+		return Resolver.resolve(
+			boost::asio::ip::udp::resolver::query(
+				Family == KStreamOptions::Family::IPv4 ? boost::asio::ip::udp::v4() : boost::asio::ip::udp::v6(),
+				sHostname.c_str(),
+				sPort.c_str(),
+				boost::asio::ip::udp::resolver::query::numeric_service
+			),
+			ec
+		);
+#else
 		return Resolver.resolve(
 			Family == KStreamOptions::Family::IPv4 ? boost::asio::ip::udp::v4() : boost::asio::ip::udp::v6(),
 			sHostname.c_str(),
@@ -126,6 +171,7 @@ CreateUDPQuery(
 			boost::asio::ip::udp::resolver::numeric_service,
 			ec
 		);
+#endif
 	}
 
 } // 

@@ -664,7 +664,17 @@ file(MAKE_DIRECTORY "${DEKAF2_GENERATED_FILES_DIR}")
 if (NOT EXISTS "${DEKAF2_GENERATED_FILES_DIR}/dekaf2")
 	# create a symlink to simulate the <dekaf2/> path for includes at library build time
 	# (we add DEKAF2_GENERATED_FILES_DIR to the include locations below)
-	execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}" "${DEKAF2_GENERATED_FILES_DIR}/dekaf2")
+	execute_process(
+		COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}" "${DEKAF2_GENERATED_FILES_DIR}/dekaf2"
+		RESULT_VARIABLE EXEC_RESULT
+	)
+	if (NOT EXEC_RESULT EQUAL 0 OR NOT EXISTS "${DEKAF2_GENERATED_FILES_DIR}/dekaf2")
+		if (IS_WINDOWS)
+			message(FATAL_ERROR "cannot create build time include dir symbolic link ${DEKAF2_GENERATED_FILES_DIR}/dekaf2 - see here how to fix it: https://stackoverflow.com/a/76292992")
+		else()
+			message(FATAL_ERROR "cannot create build time include dir symbolic link ${DEKAF2_GENERATED_FILES_DIR}/dekaf2")
+		endif()
+	endif()
 endif ()
 
 # test warning flags

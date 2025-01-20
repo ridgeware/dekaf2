@@ -357,7 +357,7 @@ if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_LZMA)
 	else()
 		# FindLibLZMA.cmake is causing troubles if not found and
 		# if the advanced state is not cleared..
-		mark_as_advanced(CLEAR LIBLZMA_INCLUDE_DIR LIBLZMA_LIBRARY )
+		mark_as_advanced(CLEAR LIBLZMA_INCLUDE_DIR LIBLZMA_LIBRARY LIBLZMA_LIBRARIES)
 		set(LIBLZMA_LIBRARY "")
 		set(LIBLZMA_INCLUDE_DIR "")
 	endif()

@@ -53,6 +53,7 @@ public:
 		Settings.sAllowedCipherSuites = Options("ciphers <suites>      : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
 		Settings.sBaseRoute           = Options("baseroute </path>     : route prefix, e.g. '/khttp', default none", "");
 		KStringViewZ sRestLog         = Options("restlog <file>        : write rest server log to <file> - default off", "");
+		Settings.KLogHeader           = Options("headerlog <x-klog>    : set header name to request and return trace logs, default off", "");
 
 		// do a final check if all required options were set
 		if (!Options.Check()) return 1;
@@ -81,8 +82,6 @@ public:
 		Settings.bMicrosecondTimerHeader = true;
 		// and its name is x-microseconds
 		Settings.TimerHeader = "x-microseconds";
-		// activate header logging
-		Settings.KLogHeader = "x-klog";
 
 		// set up basic authentication
 		if (!sUserAndPass.empty())

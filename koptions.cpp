@@ -1991,11 +1991,21 @@ std::pair<KStringView, KStringView> KOptions::IsolateOptionNamesFromHelp(KString
 
 	auto iPos = sOptionName.find(':');
 
-	if (iPos != npos)
+	for (;iPos != npos;)
 	{
-		sHelp = sOptionName.ToView(iPos + 1);
-		sHelp.Trim();
-		sOptionName.remove_suffix(sOptionName.size() - iPos);
+		// only count the colon as a help separator if it comes after
+		// a space or before a space - this permits parameter strings
+		// like 'user <user:pass> : set user and pass'
+		if ((iPos > 0 && KASCII::kIsSpace(sOptionName[iPos-1])) ||
+			iPos == sOptionName.size() ||
+			KASCII::kIsSpace(sOptionName[iPos+1]))
+		{
+			sHelp = sOptionName.ToView(iPos + 1);
+			sHelp.Trim();
+			sOptionName.remove_suffix(sOptionName.size() - iPos);
+			break;
+		}
+		iPos = sOptionName.find(':', ++iPos);
 	}
 
 	sOptionName.Trim();

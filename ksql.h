@@ -204,6 +204,8 @@ public:
 	enum OutputFormat
 	{
 		FORM_ASCII            = 'a',        ///< for OutputQuery() method
+		FORM_VERTICAL         = 'v',        ///< non-tabular
+		FORM_JSON             = 'j',
 		FORM_CSV              = 'c',
 		FORM_HTML             = 'h'
 	};
@@ -470,14 +472,6 @@ public:
 	/// enable an existing query timeout (needs timeout value > 0 and query type != None to be effective)
 	void EnableQueryTimeout()  { m_bEnableQueryTimeout = true;  }
 
-//----------
-private:
-//----------
-
-	bool ExecLastRawSQL (Flags iFlags=Flags::F_None, KStringView sAPI = "ExecLastRawSQL");
-	bool ExecLastRawQuery (Flags iFlags=Flags::F_None, KStringView sAPI = "ExecLastRawQuery");
-	bool ExecLastRawInsert(bool bIgnoreDupes=false);
-
 	inline
 	bool ExecRawSQL  (KSQLString sSQL, Flags iFlags = Flags::F_None, KStringView sAPI="ExecRawSQL")
 	{
@@ -491,6 +485,14 @@ private:
 		m_sLastSQL = std::move(sSQL);
 		return ExecLastRawQuery(iFlags, sAPI);
 	}
+
+//----------
+private:
+//----------
+
+	bool ExecLastRawSQL (Flags iFlags=Flags::F_None, KStringView sAPI = "ExecLastRawSQL");
+	bool ExecLastRawQuery (Flags iFlags=Flags::F_None, KStringView sAPI = "ExecLastRawQuery");
+	bool ExecLastRawInsert(bool bIgnoreDupes=false);
 
 	/// Executes a verbatim SQL statement that returns one single integer value or -1 on failure
 	/// @param sSQL  a SQL statement that returns one integer column
@@ -764,7 +766,7 @@ public:
 	bool   QueryStarted ()         { return (m_bQueryStarted); }
 	void   EndQuery (bool bDestructor=false);
 
-	std::size_t OutputQuery  (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout);
+	std::size_t OutputQuery  (KStringView sSQL, KString/*copy*/ sFormat, FILE* fpout = stdout);
 	std::size_t OutputQuery  (KStringView sSQL, OutputFormat iFormat=FORM_ASCII, FILE* fpout = stdout);
 	KString     QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat=FORM_ASCII, std::size_t* piNumRows=NULL);
 

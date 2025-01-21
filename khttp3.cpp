@@ -100,7 +100,7 @@ uint64_t SSL_Poll(uint64_t what, ::SSL* ssl)
 		return poll.revents;
 	}
 
-	kDebug(3, "SSL_poll failed, iResults = {}, revents = {}", iResults, poll.revents);
+	kDebug(4, "SSL_poll failed, iResults = {}, revents = {}", iResults, poll.revents);
 
 	return 0;
 
@@ -145,7 +145,7 @@ Stream::Stream(Session& session, Type type)
 	else
 	{
 		m_StreamID = ::SSL_get_stream_id(m_QuicStream.get());
-		kDebug(3, "[stream {}] created at fd {}", GetStreamID(), ::SSL_get_fd(m_QuicStream.get()));
+		kDebug(4, "[stream {}] created at fd {}", GetStreamID(), ::SSL_get_fd(m_QuicStream.get()));
 	}
 
 } // ctor
@@ -164,7 +164,7 @@ Stream::Stream(Session& session, ::SSL* QuicStream, Type type)
 	else
 	{
 		m_StreamID = ::SSL_get_stream_id(m_QuicStream.get());
-		kDebug(3, "[stream {}] accepted at fd {}", GetStreamID(), ::SSL_get_fd(m_QuicStream.get()));
+		kDebug(4, "[stream {}] accepted at fd {}", GetStreamID(), ::SSL_get_fd(m_QuicStream.get()));
 	}
 }
 
@@ -285,7 +285,7 @@ int Stream::ReadFromDataProvider(KStringView& sBuffer, uint32_t* iPFlags)
 	if (!m_DataProvider || m_DataProvider->IsEOF())
 	{
 		*iPFlags = NGHTTP3_DATA_FLAG_EOF;
-		kDebug(3, "EOF set");
+		kDebug(4, "EOF set");
 		return 0;
 	}
 
@@ -321,7 +321,7 @@ int Stream::AckedStreamData(std::size_t iReceived)
 {
 	m_iTotalAckedTXData += iReceived;
 
-	kDebug(3, "[stream {}] ACKed: {} (+{})", GetStreamID(), m_iTotalAckedTXData, iReceived);
+	kDebug(4, "[stream {}] ACKed: {} (+{})", GetStreamID(), m_iTotalAckedTXData, iReceived);
 
 	for (auto it = m_TXBuffer.begin(); it != m_TXBuffer.end();)
 	{
@@ -345,7 +345,7 @@ int Stream::AckedStreamData(std::size_t iReceived)
 int Stream::AddData(KStringView sData)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "[stream {}] received {} bytes", GetStreamID(), sData.size());
+	kDebug(4, "[stream {}] received {} bytes", GetStreamID(), sData.size());
 
 	if (m_DataConsumer)
 	{
@@ -440,7 +440,7 @@ nghttp3_ssize Stream::ReceiveFromQuic(bool bOnce)
 						return ec;
 					}
 
-					kDebug(3, "[stream {}] stream finished", m_StreamID);
+					kDebug(4, "[stream {}] stream finished", m_StreamID);
 				}
 				else if (::SSL_get_stream_read_state(m_QuicStream.get()) == SSL_STREAM_STATE_RESET_REMOTE)
 				{
@@ -460,13 +460,13 @@ nghttp3_ssize Stream::ReceiveFromQuic(bool bOnce)
 						return ec;
 					}
 
-					kDebug(3, "[stream {}] stream was reset (closed) by peer", m_StreamID);
+					kDebug(4, "[stream {}] stream was reset (closed) by peer", m_StreamID);
 					m_bDoneReceivedFin = true;
 				}
 				else
 				{
 					// Other error
-					kDebug(3, "[stream {}] unknown error", m_StreamID);
+					kDebug(4, "[stream {}] unknown error", m_StreamID);
 					return -2;
 				}
 			}
@@ -522,7 +522,7 @@ nghttp3_ssize Stream::ReceiveFromQuic(bool bOnce)
 
 		if (bOnce && ec2 > 0)
 		{
-			kDebug(3, "[stream {}] returning with bOnce and read bytes to stream: {}", m_StreamID, ec2);
+			kDebug(4, "[stream {}] returning with bOnce and read bytes to stream: {}", m_StreamID, ec2);
 			return ec2;
 		}
 	}
@@ -535,7 +535,7 @@ void Stream::Block()
 {
 	if (!m_bIsBlocked)
 	{
-		kDebug(3, "[stream {}] setting stream to block", GetStreamID());
+		kDebug(4, "[stream {}] setting stream to block", GetStreamID());
 		m_bIsBlocked = true;
 	}
 
@@ -550,7 +550,7 @@ void Stream::Unblock()
 {
 	if (m_bIsBlocked)
 	{
-		kDebug(3, "[stream {}] setting stream to unblock", GetStreamID());
+		kDebug(4, "[stream {}] setting stream to unblock", GetStreamID());
 		m_bIsBlocked = false;
 	}
 
@@ -566,7 +566,7 @@ bool Stream::SendToQuic(const nghttp3_vec* vecs, std::size_t num_vecs, bool bFin
 	DelWaitFor(WaitFor::Writes);
 	auto StreamID = GetStreamID();
 	auto iTotalLen = ::nghttp3_vec_len(vecs, num_vecs);
-	kDebug(3, "[stream {}] writing {} bytes", StreamID, iTotalLen);
+	kDebug(4, "[stream {}] writing {} bytes", StreamID, iTotalLen);
 	/*
 	 * we let SSL_write_ex2(3) to conclude the stream for us (send FIN)
 	 * after all data are written.
@@ -589,7 +589,7 @@ retry:
 		{
 			/* Already did STOP_SENDING and threw away stream, ignore */
 			written = vecs[i].len;
-			kDebug(3, "[stream {}] already closed", StreamID);
+			kDebug(4, "[stream {}] already closed", StreamID);
 		}
 		else if (!::SSL_write_ex2(
 			GetQuicStream(),
@@ -914,7 +914,7 @@ bool Session::HandleEvents(bool bWithResponses)
 		{
 			if (it->second->CanDelete())
 			{
-				kDebug(3, "[stream {}] will be purged", it->first);
+				kDebug(4, "[stream {}] will be purged", it->first);
 				it = m_Streams.erase(it);
 			}
 			else
@@ -1096,7 +1096,7 @@ Stream* Session::GetStream(Stream::ID StreamID)
 	{
 		// do not make this an error - it happens after closing a stream
 		// and a following check if the stream is at eof
-		kDebug(3, "cannot find stream ID {}", StreamID);
+		kDebug(4, "cannot find stream ID {}", StreamID);
 		return nullptr;
 	}
 
@@ -1123,7 +1123,7 @@ bool Session::DeleteStream(Stream::ID StreamID)
 {
 	if (m_Streams.erase(StreamID) == 1)
 	{
-		kDebug(3, "[stream {}] deleted stream", StreamID);
+		kDebug(4, "[stream {}] deleted stream", StreamID);
 		return true;
 	}
 
@@ -1260,7 +1260,7 @@ Stream::ID Session::NewRequest (std::unique_ptr<Stream> Stream)
 
 	if (Data.read_data)
 	{
-		kDebug(3, "[stream {}] we have request data to send", StreamID);
+		kDebug(4, "[stream {}] we have request data to send", StreamID);
 	}
 
 	return StreamID;
@@ -1379,7 +1379,7 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 
 	if (len != static_cast<std::size_t>(iRead))
 	{
-		kDebug(3, "[stream {}] requested {}, got {} bytes", StreamID, len, iRead);
+		kDebug(4, "[stream {}] requested {}, got {} bytes", StreamID, len, iRead);
 	}
 
 	return iRead;
@@ -1393,7 +1393,7 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 int Session::OnReceiveHeader(Stream::ID StreamID, KStringView sName, KStringView sValue, uint8_t iFlags)
 //-----------------------------------------------------------------------------
 {
-//	kDebug(3, "[stream {}] receive header", StreamID);
+//	kDebug(4, "[stream {}] receive header", StreamID);
 	auto Stream = GetStream(StreamID);
 
 	if (Stream)
@@ -1409,7 +1409,7 @@ int Session::OnReceiveHeader(Stream::ID StreamID, KStringView sName, KStringView
 int Session::OnEndHeaders(Stream::ID StreamID, int fin)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "[stream {}] headers complete", StreamID);
+	kDebug(4, "[stream {}] headers complete", StreamID);
 	auto Stream = GetStream(StreamID);
 
 	if (Stream)
@@ -1425,7 +1425,7 @@ int Session::OnEndHeaders(Stream::ID StreamID, int fin)
 int Session::OnReceiveData(Stream::ID StreamID, KStringView sData)
 //-----------------------------------------------------------------------------
 {
-//	kDebug(3, "[stream {}] receive data: {} bytes", StreamID, sData.size());
+//	kDebug(4, "[stream {}] receive data: {} bytes", StreamID, sData.size());
 	AddConsumedAppData(sData.size());
 
 	auto Stream = GetStream(StreamID);
@@ -1443,7 +1443,7 @@ int Session::OnReceiveData(Stream::ID StreamID, KStringView sData)
 int Session::OnEndStream(Stream::ID StreamID)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "[stream {}] stream ended", StreamID);
+	kDebug(4, "[stream {}] stream ended", StreamID);
 
 	auto Stream = GetStream(StreamID);
 
@@ -1460,7 +1460,7 @@ int Session::OnEndStream(Stream::ID StreamID)
 int Session::OnStreamClose(Stream::ID StreamID, uint64_t iAppErrorCode)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "[stream {}] stream closed", StreamID);
+	kDebug(4, "[stream {}] stream closed", StreamID);
 
 	auto Stream = GetStream(StreamID);
 
@@ -1477,7 +1477,7 @@ int Session::OnStreamClose(Stream::ID StreamID, uint64_t iAppErrorCode)
 int Session::OnStopSending(Stream::ID StreamID, uint64_t iAppErrorCode)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "[stream {}] stop sending", StreamID);
+	kDebug(4, "[stream {}] stop sending", StreamID);
 
 	return 0;
 
@@ -1487,7 +1487,7 @@ int Session::OnStopSending(Stream::ID StreamID, uint64_t iAppErrorCode)
 int Session::OnResetStream(Stream::ID StreamID, uint64_t iAppErrorCode)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "[stream {}] reset stream", StreamID);
+	kDebug(4, "[stream {}] reset stream", StreamID);
 	auto Stream = GetStream(StreamID);
 
 	if (Stream)
@@ -1503,7 +1503,7 @@ int Session::OnResetStream(Stream::ID StreamID, uint64_t iAppErrorCode)
 int Session::OnDeferredConsume(Stream::ID StreamID, std::size_t iConsumed)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "[stream {}] deferred consume: {} bytes", StreamID, iConsumed);
+	kDebug(4, "[stream {}] deferred consume: {} bytes", StreamID, iConsumed);
 	// TODO check if this should rather be -=
 	AddConsumedAppData(iConsumed);
 
@@ -1520,7 +1520,7 @@ int Session::OnDeferredConsume(Stream::ID StreamID, std::size_t iConsumed)
 )
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "[stream {}] data source read", StreamID);
+	kDebug(4, "[stream {}] data source read", StreamID);
 	auto Stream = GetStream(StreamID);
 
 	if (Stream)
@@ -1536,7 +1536,7 @@ int Session::OnDeferredConsume(Stream::ID StreamID, std::size_t iConsumed)
 int Session::OnAckedStreamData (Stream::ID StreamID, std::size_t iTotalReceived)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "[stream {}] acked {} bytes", StreamID, iTotalReceived);
+	kDebug(4, "[stream {}] acked {} bytes", StreamID, iTotalReceived);
 	auto Stream = GetStream(StreamID);
 
 	if (Stream)

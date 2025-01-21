@@ -340,7 +340,7 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 
 	for (;;)
 	{
-//		kDebug(3, "next deadline in {}", tNext - tNow);
+//		kDebug(4, "next deadline in {}", tNext - tNow);
 		std::this_thread::sleep_until(tNext);
 
 		// enable logging in this thread, the global instance of

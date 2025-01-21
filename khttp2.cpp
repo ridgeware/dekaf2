@@ -320,7 +320,7 @@ nghttp2_ssize Session::OnDataSourceReadCallback(
 		}
 	}
 
-	kDebug(3, "[stream {}] read {} bytes from data source{}", stream_id, iRead,
+	kDebug(4, "[stream {}] read {} bytes from data source{}", stream_id, iRead,
 		   (*data_flags & NGHTTP2_DATA_FLAG_EOF) ? ", EOF reached" : ""
 	);
 
@@ -441,7 +441,7 @@ Stream* Session::GetStream(Stream::ID StreamID)
 	{
 		// do not make this an error - it happens after closing a stream
 		// and a following check if the stream is at eof
-		kDebug(3, "cannot find stream ID {}", StreamID);
+		kDebug(4, "cannot find stream ID {}", StreamID);
 		return nullptr;
 	}
 
@@ -479,7 +479,7 @@ bool Session::DeleteStream(Stream::ID StreamID)
 {
 	if (m_Streams.erase(StreamID) == 1)
 	{
-		kDebug(3, "[stream {}] deleted stream", StreamID);
+		kDebug(4, "[stream {}] deleted stream", StreamID);
 		return true;
 	}
 
@@ -493,7 +493,7 @@ nghttp2_ssize Session::OnReceive (KBuffer data, int flags)
 {
 	auto iRead = m_TLSStream.direct_read_some(data.CharData(), data.capacity());
 	data.resize(iRead);
-	kDebug(3, "direct TLS read: {}", iRead);
+	kDebug(4, "direct TLS read: {}", iRead);
 	return iRead;
 
 } // OnReceive
@@ -502,7 +502,7 @@ nghttp2_ssize Session::OnReceive (KBuffer data, int flags)
 nghttp2_ssize Session::OnSend (KConstBuffer data, int flags)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "sending data frame of size {} to TLS", data.size());
+	kDebug(4, "sending data frame of size {} to TLS", data.size());
 
 	auto iWrote = kWrite(m_TLSStream, data.CharData(), data.size());
 
@@ -530,12 +530,12 @@ int Session::OnSendData (void* frame, const uint8_t* framehd, size_t length, KDa
 
 	if (Frame->data.padlen > 0)
 	{
-		kDebug(3, "[stream {}] padlen {}", Frame->hd.stream_id, Frame->data.padlen);
+		kDebug(4, "[stream {}] padlen {}", Frame->hd.stream_id, Frame->data.padlen);
 		char ch = char(Frame->data.padlen - 1);
 		kWrite(m_TLSStream, ch);
 	}
 
-	kDebug(3, "[stream {}] sending data frame of size {}", Frame->hd.stream_id, length);
+	kDebug(4, "[stream {}] sending data frame of size {}", Frame->hd.stream_id, length);
 
 	if (source.Read(m_TLSStream, length) != static_cast<std::size_t>(length))
 	{
@@ -545,7 +545,7 @@ int Session::OnSendData (void* frame, const uint8_t* framehd, size_t length, KDa
 
 	if (Frame->data.padlen > 1)
 	{
-		kDebug(3, "[stream {}] send padding of size {}", Frame->hd.stream_id, Frame->data.padlen - 1);
+		kDebug(4, "[stream {}] send padding of size {}", Frame->hd.stream_id, Frame->data.padlen - 1);
 
 		std::array<char, 100> zeroes;
 		std::size_t iPad = Frame->data.padlen - 1;
@@ -601,7 +601,7 @@ int Session::OnBeginHeaders (const void* frame)
 
 	if (Frame->hd.type == NGHTTP2_HEADERS && Frame->headers.cat == NGHTTP2_HCAT_RESPONSE)
 	{
-		kDebug(3, "[stream {}] response header start", Frame->hd.stream_id);
+		kDebug(4, "[stream {}] response header start", Frame->hd.stream_id);
 	}
 
 	return NGHTTP2_NO_ERROR;
@@ -614,23 +614,23 @@ int Session::OnFrameRecv (const void* frame)
 {
 	auto Frame = static_cast<const nghttp2_frame*>(frame);
 
-	kDebug(3, "[stream {}] frame type: {}, category {}", Frame->hd.stream_id, TranslateFrameType(Frame->hd.type), Frame->headers.cat);
+	kDebug(4, "[stream {}] frame type: {}, category {}", Frame->hd.stream_id, TranslateFrameType(Frame->hd.type), Frame->headers.cat);
 
 	if (Frame->hd.type == NGHTTP2_HEADERS && Frame->headers.cat == NGHTTP2_HCAT_RESPONSE)
 	{
-		kDebug(3, "[stream {}] all headers received", Frame->hd.stream_id);
+		kDebug(4, "[stream {}] all headers received", Frame->hd.stream_id);
 
 		auto Stream = GetStream(Frame->hd.stream_id);
 
 		if (Stream)
 		{
-			kDebug(3, "[stream {}] setting headers complete", Frame->hd.stream_id);
+			kDebug(4, "[stream {}] setting headers complete", Frame->hd.stream_id);
 			Stream->SetHeadersComplete();
 		}
 	}
 	else if (Frame->hd.flags & NGHTTP2_FLAG_END_STREAM)
 	{
-		kDebug(3, "[stream {}] last frame of stream", Frame->hd.stream_id);
+		kDebug(4, "[stream {}] last frame of stream", Frame->hd.stream_id);
 	}
 
 	return NGHTTP2_NO_ERROR;
@@ -641,7 +641,7 @@ int Session::OnFrameRecv (const void* frame)
 int Session::OnDataChunkRecv (uint8_t flags, Stream::ID stream_id, KConstBuffer data)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "[stream {}] received {} bytes", stream_id, data.size());
+	kDebug(4, "[stream {}] received {} bytes", stream_id, data.size());
 
 	auto Stream = GetStream(stream_id);
 
@@ -658,7 +658,7 @@ int Session::OnDataChunkRecv (uint8_t flags, Stream::ID stream_id, KConstBuffer 
 int Session::OnStreamClose (Stream::ID stream_id, uint32_t error_code)
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "[stream {}] closed with error_code={}", stream_id, error_code);
+	kDebug(4, "[stream {}] closed with error_code={}", stream_id, error_code);
 
 	if (!CloseStream(stream_id))
 	{
@@ -802,7 +802,7 @@ Stream::ID Session::NewRequest (Stream Stream,
 
 	if (Data.source.ptr)
 	{
-		kDebug(3, "[stream {}] we have request data to send", StreamID);
+		kDebug(4, "[stream {}] we have request data to send", StreamID);
 	}
 
 	if (StreamID < 0)
@@ -995,7 +995,7 @@ bool SingleStreamSession::ReadResponseHeaders(Stream::ID StreamID)
 		}
 
 		auto iRead = m_TLSStream.direct_read_some(TLSBuffer.data(), TLSBuffer.size());
-		kDebug(3, "[stream {}] direct TLS header read: {}", StreamID, iRead);
+		kDebug(4, "[stream {}] direct TLS header read: {}", StreamID, iRead);
 
 		if (iRead <= 0)
 		{
@@ -1057,7 +1057,7 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 		}
 
 		auto iReadTLS = m_TLSStream.direct_read_some(TLSBuffer.data(), TLSBuffer.size());
-		kDebug(3, "[stream {}] direct TLS data read: {}", StreamID, iReadTLS);
+		kDebug(4, "[stream {}] direct TLS data read: {}", StreamID, iReadTLS);
 
 		if (iReadTLS <= 0)
 		{
@@ -1073,7 +1073,7 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 
 	if (len != static_cast<std::size_t>(iRead))
 	{
-		kDebug(3, "[stream {}] requested {}, got {} bytes", StreamID, len, iRead);
+		kDebug(4, "[stream {}] requested {}, got {} bytes", StreamID, len, iRead);
 	}
 
 	return iRead;

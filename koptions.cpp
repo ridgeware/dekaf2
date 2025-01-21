@@ -851,14 +851,14 @@ void KOptions::SetDefaults(KStringView sCliDebugTo/*=KLog::STDOUT*/)
 		kDebug (1, "debug level set to: {}", KLog::getInstance().GetLevel());
 	};
 
-	Option("d0,d,dd,ddd")
+	Option("d0,d,dd,ddd,dddd")
 		.Help("increasing optional stdout debug levels", -1)
 	([this, sCliDebugTo, &SetKLogDebugging]()
 	{
 		SetKLogDebugging(GetCurrentArg(), sCliDebugTo, false);
 	});
 
-	Option("ud0,ud,udd,uddd")
+	Option("ud0,ud,udd,uddd,udddd")
 		.Help("increasing optional stdout debug levels, with microseconds timestamps", -1)
 	([this, sCliDebugTo, &SetKLogDebugging]()
 	 {

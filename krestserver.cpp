@@ -241,7 +241,7 @@ int KRESTServer::VerifyPerThreadKLogToHeader()
 #ifdef DEKAF2_KLOG_WITH_TCP
 	static constexpr KStringView s_sHeaderLoggingHelp {
 		"supported header logging commands:\n"
-		" -level <n> (or only <n>) :: set logging level (1..3)\n"
+		" -level <n> (or only <n>) :: set logging level (1..4)\n"
 		" -E, -egrep <expression>  :: match regular expression to log\n"
 		" -grep <substring>        :: match substring to log\n"
 		" -out <headers|log|json>  :: output target for this thread, default = headers\n"
@@ -336,7 +336,7 @@ int KRESTServer::VerifyPerThreadKLogToHeader()
 				case LEVEL:
 					iKLogLevel = sArg.UInt16();
 
-					if (iKLogLevel <= 0 || iKLogLevel > 3)
+					if (iKLogLevel <= 0 || iKLogLevel > 4)
 					{
 						bValid = false;
 					}

@@ -475,7 +475,7 @@ bool KROW::SetFlags (KStringView sColName, KCOL::Flags Flags)
 void KROW::PrintValuesForInsert(KSQLString& sSQL, DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	sSQL.ref() += "(";
 
@@ -524,7 +524,7 @@ void KROW::PrintValuesForInsert(KSQLString& sSQL, DBT iDBType) const
 KSQLString KROW::FormInsert (DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=false*/) const
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	m_sLastError.clear(); // reset
 	KSQLString sSQL;
@@ -586,7 +586,7 @@ KSQLString KROW::FormInsert (DBT iDBType, bool bIdentityInsert/*=false*/, bool b
 bool KROW::AppendInsert (KSQLString& sSQL, DBT iDBType, bool bIdentityInsert/*=false*/, bool bIgnore/*=true*/) const
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	if (sSQL.empty())
 	{
@@ -629,7 +629,7 @@ bool KROW::AppendInsert (KSQLString& sSQL, DBT iDBType, bool bIdentityInsert/*=f
 KSQLString KROW::FormUpdate (DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	m_sLastError.clear(); // reset
 	KSQLString sSQL;
@@ -759,7 +759,7 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 KSQLString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) const
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	m_sLastError.clear(); // reset
 	KSQLString sSQL;
@@ -844,7 +844,7 @@ KSQLString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) const
 KSQLString KROW::FormDelete (DBT iDBType) const
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	m_sLastError.clear(); // reset
 	KSQLString sSQL;
@@ -920,7 +920,7 @@ KSQLString KROW::FormDelete (DBT iDBType) const
 bool KROW::AddCol (KStringView sColName, const LJSON& Value, KCOL::Flags Flags, KCOL::Len iMaxLen)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	// make sure all type flags are removed
 	Flags &= KCOL::MODE_FLAGS;
@@ -970,13 +970,13 @@ bool KROW::AddCol (KStringView sColName, const LJSON& Value, KCOL::Flags Flags, 
 LJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	LJSON json = LJSON::object();
 
 	for (auto& col : *this)
 	{
-		kDebug (3, "{:35}: 0x{:08x} = {}", col.first, std::to_underlying(col.second.GetFlags()), col.second.FlagsToString());
+		kDebug (4, "{:35}: 0x{:08x} = {}", col.first, std::to_underlying(col.second.GetFlags()), col.second.FlagsToString());
 
 		KString sKey = col.first;
 
@@ -1128,7 +1128,7 @@ LJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 KString KROW::to_csv (bool bHeaders/*=false*/, CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	// shall we print modified header columns?
 	if (DEKAF2_UNLIKELY(bHeaders && (Flags & (KEYS_TO_LOWER | KEYS_TO_UPPER))))
@@ -1139,7 +1139,7 @@ KString KROW::to_csv (bool bHeaders/*=false*/, CONVERSION Flags/*=CONVERSION::NO
 
 		for (const auto& col : *this)
 		{
-			kDebug (3, "{:35}: 0x{:08x} = {}", col.first, std::to_underlying(col.second.GetFlags()), col.second.FlagsToString());
+			kDebug (4, "{:35}: 0x{:08x} = {}", col.first, std::to_underlying(col.second.GetFlags()), col.second.FlagsToString());
 
 			if (col.second.IsFlag(KCOL::NONCOLUMN))
 			{
@@ -1168,7 +1168,7 @@ KString KROW::to_csv (bool bHeaders/*=false*/, CONVERSION Flags/*=CONVERSION::NO
 
 		for (const auto& col : *this)
 		{
-			kDebug (3, "{:35}: 0x{:08x} = {}", col.first, std::to_underlying(col.second.GetFlags()), col.second.FlagsToString());
+			kDebug (4, "{:35}: 0x{:08x} = {}", col.first, std::to_underlying(col.second.GetFlags()), col.second.FlagsToString());
 
 			if (col.second.IsFlag(KCOL::NONCOLUMN))
 			{

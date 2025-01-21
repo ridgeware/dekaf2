@@ -535,7 +535,7 @@ KSQL::KSQL ()
 , m_QueryTimeout        (s_QueryTimeout)
 , m_QueryTypeForTimeout (s_QueryTypeForTimeout)
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	// enable the query timeout if the preset static values were good
 	m_bEnableQueryTimeout = m_QueryTimeout > std::chrono::milliseconds(0) && m_QueryTypeForTimeout != QueryType::None;
@@ -591,7 +591,7 @@ KSQL::KSQL (const KSQL& other)
 , m_iWarnIfOverMilliseconds(other.m_iWarnIfOverMilliseconds)
 , m_TimingCallback(other.m_TimingCallback)
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	ClearTempResultsFile();
 
@@ -788,7 +788,7 @@ void KSQL::FreeAll (bool bDestructor/*=false*/)
 } // FreeAll
 
 #define NOT_IF_ALREADY_OPEN(FUNC) \
-	kDebug (3, "..."); \
+	kDebug (4, "..."); \
 	if (IsConnectionOpen()) \
 	{ \
 		return SetError(kFormat("{} cannot change database connection when it's already open", FUNC)); \
@@ -951,7 +951,7 @@ bool KSQL::SetDBPort (int iDBPortNum)
 bool KSQL::SaveConnect (KStringViewZ sDBCFile)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	{
 		DBCFILEv2 dbc_v2;
@@ -1153,7 +1153,7 @@ bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
 	static bool s_fOCI8Initialized = false;
 	#endif
 
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	if (IsConnectionOpen())
 	{
@@ -1611,7 +1611,7 @@ void KSQL::CloseConnection (bool bDestructor/*=false*/)
 {
 	if (!bDestructor)
 	{
-		kDebug (3, "...");
+		kDebug (4, "...");
 	}
 
 	if (IsConnectionOpen())
@@ -2445,7 +2445,7 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError)
 bool KSQL::ParseSQL (KStringView sFormat, ...)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	m_iLastInsertID = 0;
 	EndQuery ();
@@ -2568,7 +2568,7 @@ bool KSQL::ExecParsedSQL ()
 bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	KAtScopeEnd( ClearErrorPrefix() );
 
@@ -3448,7 +3448,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 bool KSQL::ParseQuery (KStringView sFormat, ...)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	EndQuery ();
 	if (!OpenConnection(m_iConnectTimeoutSecs))
@@ -3697,7 +3697,7 @@ bool KSQL::ExecParsedQuery ()
 KROW::Index KSQL::GetNumCols ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	// FYI: there is nothing database specific in this member function
 
@@ -3715,7 +3715,7 @@ KROW::Index KSQL::GetNumCols ()
 bool KSQL::BufferResults ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	if (!QueryStarted())
 	{
@@ -3938,7 +3938,7 @@ bool KSQL::BufferResults ()
 bool KSQL::NextRow ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	if (DEKAF2_UNLIKELY(!QueryStarted()))
 	{
@@ -3953,7 +3953,7 @@ bool KSQL::NextRow ()
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// normal operation: return results in real time:
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		kDebug (3, "fetching row...");
+		kDebug (4, "fetching row...");
 
 		ClearError ();
 
@@ -3963,19 +3963,19 @@ bool KSQL::NextRow ()
 				// - - - - - - - - - - - - - - - - -
 			case API::MYSQL:
 				// - - - - - - - - - - - - - - - - -
-				kDebug (3, "mysql_fetch_row()...");
+				kDebug (4, "mysql_fetch_row()...");
 
 				m_MYSQLRow = mysql_fetch_row (m_dMYSQLResult);
 				if (DEKAF2_LIKELY(m_MYSQLRow != nullptr))
 				{
 					++m_iRowNum;
-					kDebug (3, "mysql_fetch_row gave us row {}", m_iRowNum);
+					kDebug (4, "mysql_fetch_row gave us row {}", m_iRowNum);
 					m_MYSQLRowLens = mysql_fetch_lengths(m_dMYSQLResult);
 					return true;
 				}
 				else
 				{
-					kDebug (3, "{} row{} fetched (end was hit)", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
+					kDebug (4, "{} row{} fetched (end was hit)", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
 					m_MYSQLRowLens = nullptr;
 					return false;
 				}
@@ -3992,14 +3992,14 @@ bool KSQL::NextRow ()
 				{
 					if (m_iOCI8FirstRowStat == OCI_NO_DATA)
 					{
-						kDebug (3, "OCIStmtExecute() said we were done");
+						kDebug (4, "OCIStmtExecute() said we were done");
 						return (false); // end of data from select
 					}
 
 					// OCI8: first row was already (implicitly) fetched by OCIStmtExecute() [yuk]
 					iErrorNum = m_iOCI8FirstRowStat;
 
-					kDebug (3, "OCI8: first row was already fetched by OCIStmtExecute()");
+					kDebug (4, "OCI8: first row was already fetched by OCIStmtExecute()");
 				}
 				else
 				{
@@ -4015,10 +4015,10 @@ bool KSQL::NextRow ()
 					KString sError;
 					if (!WasOCICallOK("NextRow:OCIStmtFetch", iErrorNum, sError))
 					{
-						kDebug (3, "OCIStmtFetch() says we're done");
+						kDebug (4, "OCIStmtFetch() says we're done");
 						return (false); // end of data from select
 					}
-					kDebug (3, "OCIStmtFetch() says we got row # {}", m_iRowNum+1);
+					kDebug (4, "OCIStmtFetch() says we got row # {}", m_iRowNum+1);
 				}
 
 				++m_iRowNum;
@@ -4029,7 +4029,7 @@ bool KSQL::NextRow ()
 			case API::OCI6:
 				// - - - - - - - - - - - - - - - - -
 			{
-				kDebug (3, "calling ofetch() to grab the next row...");
+				kDebug (4, "calling ofetch() to grab the next row...");
 
 				//  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 				auto iErrorNum = ofetch ((Cda_Def*)m_dOCI6ConnectionDataArea);
@@ -4037,20 +4037,20 @@ bool KSQL::NextRow ()
 				KString sError;
 				if (!WasOCICallOK("NextRow:ofetch", iErrorNum, sError))
 				{
-					kDebug (3, "ofetch() says we're done");
+					kDebug (4, "ofetch() says we're done");
 					return (false); // end of data from select
 				}
 
 				++m_iRowNum;
 
-				kDebug (3, "ofetch() says we got row # {}", m_iRowNum);
+				kDebug (4, "ofetch() says we got row # {}", m_iRowNum);
 
 				// map SQL nullptr values to zero-terminated C strings:
 				for (uint32_t ii=0; ii<m_iNumColumns; ++ii)
 				{
 					if (m_dColInfo[ii].indp < 0)
 					{
-						kDebug (3, "  fyi: row[{}]col[{}]: nullptr value from database changed to NIL (\"\")",
+						kDebug (4, "  fyi: row[{}]col[{}]: nullptr value from database changed to NIL (\"\")",
 								   m_iRowNum, m_dColInfo[ii].szColName);
 						m_dColInfo[ii].dszValue.get()[0] = 0;
 					}
@@ -4082,7 +4082,7 @@ bool KSQL::NextRow ()
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// results were placed in a tmp file
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-		kDebug (3, "fetching buffered row...");
+		kDebug (4, "fetching buffered row...");
 
 		if (!m_bFileIsOpen)
 		{
@@ -4114,7 +4114,7 @@ bool KSQL::NextRow ()
 
 			if (!bOK && !ii)
 			{
-				kDebug (3, "end of buffered results: fgets() returned nullptr");
+				kDebug (4, "end of buffered results: fgets() returned nullptr");
 				return (false);  // <-- no more rows
 			}
 
@@ -4162,11 +4162,11 @@ bool KSQL::NextRow ()
 
 			if (iDataLen > 50)
 			{
-				kDebug (3, "  from-buffer: row[{}]col[{}]: strlen()={}", m_iRowNum, ii+1, iDataLen);
+				kDebug (4, "  from-buffer: row[{}]col[{}]: strlen()={}", m_iRowNum, ii+1, iDataLen);
 			}
 			else
 			{
-				kDebug (3, "  from-buffer: row[{}]col[{}]: '{}'", m_iRowNum, ii+1, szStatLine);
+				kDebug (4, "  from-buffer: row[{}]col[{}]: '{}'", m_iRowNum, ii+1, szStatLine);
 			}
 
 			// now we know how big the data value is, so we can malloc for it:
@@ -4211,11 +4211,11 @@ bool KSQL::NextRow (KROW& Row, bool fTrimRight)
 
 	if (bGotOne)
 	{
-		kDebug (3, "  data: got row {}, now loading property sheet with {} column values...", m_iRowNum, GetNumCols());
+		kDebug (4, "  data: got row {}, now loading property sheet with {} column values...", m_iRowNum, GetNumCols());
 	}
 	else
 	{
-		kDebug (3, "  data: no more rows.");
+		kDebug (4, "  data: no more rows.");
 	}
 
 	// load up a property sheet so we can lookup values by column name:
@@ -4502,7 +4502,7 @@ const KSQL::KColInfo& KSQL::GetColProps (KROW::Index iOneBasedColNum)
 {
 	static KColInfo s_NullResult;
 
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	if (!QueryStarted())
 	{
@@ -4530,7 +4530,7 @@ const KSQL::KColInfo& KSQL::GetColProps (KROW::Index iOneBasedColNum)
 KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	if (!QueryStarted())
 	{
@@ -4621,15 +4621,15 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 		sRtnValue.TrimRight();
 	}
 
-	if (kWouldLog(3))
+	if (kWouldLog(4))
 	{
 		if (sRtnValue.size() > 50)
 		{
-			kDebug (3, "  data: row[{}]col[{}]: strlen()={}", m_iRowNum, iOneBasedColNum, sRtnValue.size());
+			kDebug (4, "  data: row[{}]col[{}]: strlen()={}", m_iRowNum, iOneBasedColNum, sRtnValue.size());
 		}
 		else
 		{
-			kDebug (3, "  data: row[{}]col[{}]: '{}'", m_iRowNum, iOneBasedColNum, sRtnValue);
+			kDebug (4, "  data: row[{}]col[{}]: '{}'", m_iRowNum, iOneBasedColNum, sRtnValue);
 		}
 	}
 
@@ -4641,7 +4641,7 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 KUnixTime KSQL::GetUnixTime (KROW::Index iOneBasedColNum)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	// FYI: there is nothing database specific in this member function
 	// (we get away with this by fetching all results as strings, then
@@ -4912,7 +4912,7 @@ bool KSQL::SetAPISet (API iAPISet)
 KSQL::Flags KSQL::SetFlags (Flags iFlags)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	// FYI: there is nothing database specific in this member function
 
@@ -4960,7 +4960,7 @@ KString KSQL::GetLastInfo()
 void KSQL::BuildTranslationList (TXList& pList, DBT iDBType)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	if (iDBType == DBT::NONE)
 	{
@@ -5025,7 +5025,7 @@ void KSQL::BuildTranslationList (TXList& pList, DBT iDBType)
 void KSQL::DoTranslations (KSQLString& sSQL)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3,
+	kDebug (4,
 			   "BEFORE:\n"
 			   "{}",
 				   sSQL);
@@ -5038,11 +5038,11 @@ void KSQL::DoTranslations (KSQLString& sSQL)
 
 	if (!kReplaceVariables(sSQL.ref(), s_sOpen, s_sClose, /*bQueryEnvironment=*/false, m_TxList))
 	{
-		kDebug (3, " --> no SQL translations.");
+		kDebug (4, " --> no SQL translations.");
 	}
 	else
 	{
-		kDebug (3, "AFTER:\n{}", sSQL);
+		kDebug (4, "AFTER:\n{}", sSQL);
 	}
 
 } // DoTranslations
@@ -6448,7 +6448,7 @@ bool KSQL::UpdateOrInsert (KROW& Row, const KROW& AdditionalInsertCols, bool* pb
 		return (true); // update caught something
 	}
 
-	kDebug (GetDebugLevel(), "update caught no rows: proceed to insert...");
+	kDebug (GetDebugLevel()+1, "update caught no rows: proceed to insert...");
 
 	if (pbInserted)
 	{
@@ -8933,11 +8933,11 @@ KString KSQL::ConvertTimestamp (KStringView sTimestamp)
 			sTimestamp.Left(4), sTimestamp.Mid(4,2), sTimestamp.Mid(6,2),
 			sTimestamp.Mid(9,2), sTimestamp.Mid(11,2), sTimestamp.Mid(13,2));
 
-		kDebug (3, "{} --> {}", sTimestamp, sNew);
+		kDebug (4, "{} --> {}", sTimestamp, sNew);
 	}
 	else
 	{
-		kDebug (3, "unchanged: {}", sTimestamp);
+		kDebug (4, "unchanged: {}", sTimestamp);
 	}
 
 	return sNew;

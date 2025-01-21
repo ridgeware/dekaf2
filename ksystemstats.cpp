@@ -87,7 +87,7 @@ int64_t NeverNegative (int64_t iN)
 bool KSystemStats::GatherAll ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	bool bOK = true;
 	if (!GatherProcInfo())          bOK = false;
@@ -238,7 +238,7 @@ KStringView KSystemStats::StatTypeToString(StatType iStatType)
 bool KSystemStats::GatherProcInfo ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	KString sVersion;
 	KString sLoadAvg;
@@ -353,7 +353,7 @@ bool KSystemStats::GatherProcInfo ()
 bool KSystemStats::GatherMiscInfo ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 /*
 // PROC_MISC file contents look like this
@@ -411,7 +411,7 @@ bool KSystemStats::GatherMiscInfo ()
 bool KSystemStats::GatherVmStatInfo ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 /*
 // PROC_VMSTAT contents look like this
@@ -517,7 +517,7 @@ void KSystemStats::AddDiskStat (KStringView sValue, KStringView sDevice, KString
 bool KSystemStats::GatherDiskStats ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 /*
  * PROC_DISKSTATS file contents look like this
@@ -603,7 +603,7 @@ bool KSystemStats::GatherDiskStats ()
 bool KSystemStats::GatherCpuInfo ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 /*
 // RHEL5 PROC_CPUINFO file looks like this
@@ -823,7 +823,7 @@ bool KSystemStats::GatherCpuInfo ()
 bool KSystemStats::GatherMemInfo ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 /*
 // PROC_MEMINFO file contents look like this
@@ -912,9 +912,7 @@ bool KSystemStats::GatherMemInfo ()
 bool KSystemStats::GatherNetstat ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
-	kDebug (3, "running netstat ...");
+	kDebug (4, "running netstat ...");
 
 	KInShell pipe;
 	pipe.SetReaderRightTrim("\r\n\t ");
@@ -1017,11 +1015,9 @@ bool KSystemStats::GatherNetstat ()
 bool KSystemStats::AddCalculations ()
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	// add a few hand-picked calculations (if we have the stats that compose them):
 
-	kDebug (3, "computing a few parms ...");
+	kDebug (4, "computing a few parms ...");
 	if (m_Stats.contains ("cpuinfo_num_cores"))
 	{
 		auto   nLoad    = m_Stats["load_average_1min"].sValue.Double();
@@ -1088,8 +1084,6 @@ bool KSystemStats::AddCalculations ()
 size_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNoShowMyself/*=true*/)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
-
 	m_Procs.clear();
 
 	KRegex kregex(sCommandRegex);
@@ -1102,7 +1096,7 @@ size_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNoSh
 	KStringView sFullCmd;
 	KString sLine;
 
-	kDebug (3, "running ps ...");
+	kDebug (4, "running ps ...");
 
 	if (pipe.Open ("ps -e -o pid,ppid,comm,command 2>&1"))
 	{
@@ -1191,7 +1185,7 @@ size_t KSystemStats::GatherProcs (KStringView sCommandRegex/*=""*/, bool bDoNoSh
 void KSystemStats::DumpStats (KOutStream& stream, DumpFormat iFormat/*=DumpFormat::TEXT*/, KStringView sGrepString/*=""*/)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	KRegex kregex(sGrepString);
 
@@ -1247,7 +1241,7 @@ void KSystemStats::DumpStats (KOutStream& stream, DumpFormat iFormat/*=DumpForma
 void KSystemStats::DumpProcs (KOutStream& stream, DumpFormat iFormat/*=DumpFormat::TEXT*/)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	switch (iFormat)
 	{
@@ -1295,7 +1289,7 @@ void KSystemStats::DumpProcs (KOutStream& stream, DumpFormat iFormat/*=DumpForma
 void KSystemStats::DumpProcTree (KOutStream& stream, uint64_t iStartWithPID/*=0*/)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	DumpPidTree (stream, iStartWithPID, 0);
 
@@ -1305,7 +1299,7 @@ void KSystemStats::DumpProcTree (KOutStream& stream, uint64_t iStartWithPID/*=0*
 void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t iLevel)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	kDebug (3, "ppid={}, level={}", iFromPID, iLevel);
 
@@ -1362,7 +1356,7 @@ void KSystemStats::DumpPidTree (KOutStream& stream, uint64_t iFromPID, uint64_t 
 uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStringView sMyUniqueIP, KStringRef& sResponse)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	KJSON   oBody;
 	KString sBody;
@@ -1454,7 +1448,7 @@ uint16_t KSystemStats::PushStats (KString/*copy*/ sURL, const KMIME& iMime, KStr
 KString KSystemStats::Backtrace (pid_t iPID)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, "...");
+	kDebug (4, "...");
 
 	KString sChain;
 

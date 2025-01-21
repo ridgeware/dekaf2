@@ -98,7 +98,7 @@ int main( int argc, char* const argv[] )
 
 	for (int ii=1; ii < argc; ++ii)
 	{
-		if (kStrIn (argv[ii], "-d,-dd,-ddd"))
+		if (kStrIn (argv[ii], "-d,-dd,-ddd,-dddd"))
 		{
 			iLast = ii;
 			KLog::getInstance()
@@ -123,10 +123,10 @@ int main( int argc, char* const argv[] )
 				++iLast;
 				++ii;
 				iLast = ii;
-				// if no -d option has been applied yet switch to -ddd
+				// if no -d option has been applied yet switch to -dddd
 				if (KLog::getInstance().GetLevel() <= 0)
 				{
-					KLog::getInstance().SetLevel (3);
+					KLog::getInstance().SetLevel (4);
 				}
 				KLog::getInstance()
 					.LogWithGrepExpression(true, KStringView(argv[ii-1]) == "-dgrepv"_ksv, argv[ii])

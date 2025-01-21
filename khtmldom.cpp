@@ -137,9 +137,9 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 	bool bLastWasSpace  = bIsFirstAfterLinefeed;
 
 #if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
-	kDebug(3, "up: <{}{}, Indent={}, IsStandalone={}, IsInline={}, IsRoot={}, IsFirst={}", m_Name, '>', iIndent, bIsStandalone, bIsInline, bIsRoot, bIsFirstAfterLinefeed);
+	kDebug(4, "up: <{}{}, Indent={}, IsStandalone={}, IsInline={}, IsRoot={}, IsFirst={}", m_Name, '>', iIndent, bIsStandalone, bIsInline, bIsRoot, bIsFirstAfterLinefeed);
 #else
-	kDebug(3, "up: <{}>, Indent={}, IsStandalone={}, IsInline={}, IsRoot={}, IsFirst={}", m_Name, iIndent, bIsStandalone, bIsInline, bIsRoot, bIsFirstAfterLinefeed);
+	kDebug(4, "up: <{}>, Indent={}, IsStandalone={}, IsInline={}, IsRoot={}, IsFirst={}", m_Name, iIndent, bIsStandalone, bIsInline, bIsRoot, bIsFirstAfterLinefeed);
 #endif
 
 	auto PrintIndent   = [&bIsFirstAfterLinefeed,&bLastWasSpace,chIndent,&OutStream](uint16_t iIndent)
@@ -182,7 +182,7 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 
 		if (bIsStandalone)
 		{
-			kDebug(3, "down: <{}/>", m_Name);
+			kDebug(4, "down: <{}/>", m_Name);
 
 			static constexpr bool bXHTML = false;
 
@@ -228,7 +228,7 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 
 	for (const auto& it : m_Children)
 	{
-		kDebug(3, "child: {}", it->TypeName());
+		kDebug(4, "child: {}", it->TypeName());
 
 		auto iType { it->Type() };
 
@@ -341,9 +341,9 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 	}
 
 #if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
-	kDebug(3, "down: </{}{}", m_Name, '>');
+	kDebug(4, "down: </{}{}", m_Name, '>');
 #else
-	kDebug(3, "down: </{}>", m_Name);
+	kDebug(4, "down: </{}>", m_Name);
 #endif
 	return bIsFirstAfterLinefeed;
 

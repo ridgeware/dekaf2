@@ -313,7 +313,7 @@ void KWebObjectBase::TraverseAndSync(KWebObjectBase* Element,
 
 			if (p != QueryParms.end())
 			{
-				kDebug(2, "found name: {} == {} for {}", p->first, p->second, Element->TypeName());
+				kDebug(3, "found name: {} == {} for {}", p->first, p->second, Element->TypeName());
 
 				if (LastLabeledInput)
 				{
@@ -337,7 +337,7 @@ void KWebObjectBase::TraverseAndSync(KWebObjectBase* Element,
 
 				if (p != QueryParms.end())
 				{
-					kDebug(2, "found name: {} == {} for {}", p->first, p->second, LastLabeledInput->TypeName());
+					kDebug(3, "found name: {} == {} for {}", p->first, p->second, LastLabeledInput->TypeName());
 
 					LastLabeledInput->Sync(Element, p->second);
 				}

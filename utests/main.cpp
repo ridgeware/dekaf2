@@ -15,10 +15,10 @@ KStringView g_Synopsis[] = {
 	"",
 	"dekaf2-utests - dekaf2 unit tests",
 	"",
-	"usage: dekaf2-utests [-k[k[k]]] ...see standard args below...",
+	"usage: dekaf2-utests [-k[k[k[k]]]] ...see standard args below...",
 	"",
 	"where:",
-	"  -k[k[k]]        : debug levels (to stdout)",
+	"  -k[k[k[k]]]        : debug levels (to stdout)",
 };
 
 #ifndef DEKAF2_DO_NOT_WARN_ABOUT_COW_STRING
@@ -74,7 +74,7 @@ int main( int argc, char* const argv[] )
 
 	for (int ii=1; ii < argc; ++ii)
 	{
-		if (kStrIn (argv[ii], "-k,-kk,-kkk"))
+		if (kStrIn (argv[ii], "-k,-kk,-kkk,-kkkk"))
 		{
 			iLast = ii;
 			KLog::getInstance()
@@ -90,7 +90,7 @@ int main( int argc, char* const argv[] )
 				.SetDebugLog(KLog::STDOUT);
 			kDebugLog (0, "{}: debug now set to {}", argv[ii], KLog::getInstance().GetLevel());
 		}
-		if (kStrIn (argv[ii], "-uk,-ukk,-ukkk"))
+		if (kStrIn (argv[ii], "-uk,-ukk,-ukkk,-ukkkk"))
 		{
 			iLast = ii;
 			KLog::getInstance()
@@ -118,7 +118,7 @@ int main( int argc, char* const argv[] )
 				// if no -k option has been applied yet switch to -kkk
 				if (KLog::getInstance().GetLevel() <= 0)
 				{
-					KLog::getInstance().SetLevel (3);
+					KLog::getInstance().SetLevel (4);
 				}
 				KLog::getInstance()
 					.LogWithGrepExpression(true, KStringView(argv[ii-1]) == "-dgrepv"_ksv, argv[ii])

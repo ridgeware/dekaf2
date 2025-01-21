@@ -518,7 +518,7 @@ void SetupOptions (KOptions& Options, Actions& Actions)
 		}
 	}).MinArgs(0);
 
-	Options.Command("set").Type(KOptions::Unsigned).Range(0, 3)
+	Options.Command("set").Type(KOptions::Unsigned).Range(0, 4)
 	([&](KStringViewZ sArg)
 	{
 		SetLevel(sArg.UInt16());
@@ -713,6 +713,7 @@ Trace:
 	Variables.insert("set1", iLevel == 1 ? "class=on" : "");
 	Variables.insert("set2", iLevel == 2 ? "class=on" : "");
 	Variables.insert("set3", iLevel == 3 ? "class=on" : "");
+	Variables.insert("set4", iLevel == 4 ? "class=on" : "");
 	Variables.insert("tracelevel1", iTraceLevel == -1 ? "class=on" : "");
 	Variables.insert("tracelevel2", iTraceLevel == -2 ? "class=on" : "");
 	Variables.insert("tracelevel3", iTraceLevel == -3 ? "class=on" : "");
@@ -848,6 +849,10 @@ int main (int argc, char* argv[])
 					if (sLine.starts_with("| DB2 |  KLOG |"))
 					{
  						style = "color: #505050";
+					}
+					else if (sLine.starts_with("| DB4 |"))
+					{
+						style = "color: #606060";
 					}
 					else if (sLine.starts_with("| DB3 |"))
 					{

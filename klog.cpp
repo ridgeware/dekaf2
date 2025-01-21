@@ -367,9 +367,9 @@ KLog& KLog::SetLevel(int iLevel)
 	{
 		iLevel = 0;
 	}
-	else if (iLevel > 3)
+	else if (iLevel > 4)
 	{
-		iLevel = 3;
+		iLevel = 4;
 	}
 
 	if (s_iLogLevel > 0 || iLevel > 0)
@@ -662,7 +662,7 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 	}
 
 	// file format of the debug "flag" file:
-	// line #1: "level" where level is numeric (-1 .. 3)
+	// line #1: "level" where level is numeric (-1 .. 4)
 	// following lines are key-value pairs in ini style
 	// with the keys
 	// log=        :: a pathname or a domain:host or syslog, stderr, stdout
@@ -714,9 +714,9 @@ void KLog::CheckDebugFlag(bool bForce/*=false*/)
 								{
 									iLvl = 0;
 								}
-								else if (iLvl > 3)
+								else if (iLvl > 4)
 								{
-									iLvl = 3;
+									iLvl = 4;
 								}
 								SetLevel(iLvl);
 							}

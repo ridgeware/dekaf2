@@ -186,7 +186,7 @@ int main (int argc, char* argv[])
 	for (int ii=1; ii < argc; ++ii)
 	{
 		KString sArg{argv[ii]};
-		if (kStrIn (sArg, "-d,-dd,-ddd"))
+		if (kStrIn (sArg, "-d,-dd,-ddd,-dddd"))
 		{
 			KLog::getInstance().SetDebugLog (KLog::STDOUT);
 			KLog::getInstance().SetLevel (static_cast<int>(sArg.size()) - 1);

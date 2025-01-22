@@ -1217,13 +1217,20 @@ void KRESTServer::Output()
 				}
 				else
 				{
-					if (kWouldLog(4) && !kIsBinary(sContent))
+					if (kWouldLog(4))
 					{
-						kDebugLog (4, kLimitSizeUTF8(sContent, 2048));
+						if (!kIsBinary(sContent))
+						{
+							kDebugLog (4, kLimitSizeUTF8(sContent, 2048));
+						}
+						else
+						{
+							kDebug (4, "sending {} bytes of binary data", sContent.size());
+						}
 					}
 					else
 					{
-						kDebug (3, "sending {} bytes of binary data", sContent.size());
+						kDebug (3, "sending {} bytes", sContent.size());
 					}
 					Write(sContent);
 				}

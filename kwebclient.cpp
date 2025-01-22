@@ -319,9 +319,9 @@ KString KWebClient::HttpRequest2Host (const KURL& HostURL, KURL URL, KHTTPMethod
 	{
 		if (!sResponse.empty())
 		{
-			if (!kIsBinary(sResponse))
+			if (kWouldLog(4) && !kIsBinary(sResponse))
 			{
-				kDebug(3, kLimitSizeUTF8(sResponse, 2048));
+				kDebug(4, kLimitSizeUTF8(sResponse, 2048));
 			}
 		}
 		kDebug(3, "received {} bytes", sResponse.size());

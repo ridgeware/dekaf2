@@ -3,6 +3,7 @@
 #include <dekaf2/krest.h>
 #include <dekaf2/krestroute.h>
 #include <dekaf2/khttperror.h>
+#include <dekaf2/kassociative.h>
 
 using namespace dekaf2;
 
@@ -15,6 +16,48 @@ class KHTTP : public KErrorBase
 //----------
 public:
 //----------
+
+	//-----------------------------------------------------------------------------
+	KUnorderedMap<KString, KString> SetupUsers(KStringViewZ sUserAndPass, KStringViewZ sUsersFile)
+	//-----------------------------------------------------------------------------
+	{
+		KUnorderedMap<KString, KString> UserAndPass;
+
+		if (!sUserAndPass.empty())
+		{
+			// check if we get a pair from here
+			auto Parts = sUserAndPass.Split(":");
+			if (Parts.size() != 2) SetError("need username:password");
+			UserAndPass.emplace(Parts[0], Parts[1]);
+		}
+
+		if (!sUsersFile.empty())
+		{
+			KInFile InFile(sUsersFile);
+			if (!InFile.is_open()) SetError(kFormat("unknown file: {}", sUsersFile));
+
+			for (auto& sLine : InFile)
+			{
+				sLine.Trim();
+
+				if (!sLine.empty() && !sLine.starts_with('#'))
+				{
+					auto Parts = sLine.Split(":");
+					if (!Parts.empty())
+					{
+						if (Parts.size() != 2) SetError("need lines with username:password");
+						auto p = UserAndPass.emplace(Parts[0], Parts [1]);
+						if (p.second == false) SetError(kFormat("duplicate user: {}", Parts[0]));
+					}
+				}
+			}
+
+			if (UserAndPass.empty()) SetError("no user and pass definitions found");
+		}
+
+		return UserAndPass;
+
+	} // SetupUsers
 
 	//-----------------------------------------------------------------------------
 	int Main(int argc, char** argv)
@@ -37,6 +80,7 @@ public:
 		bool bCreateAdHocIndex        = Options("autoindex             : create an automatic index.html for directories if index.html is not found, default false", false);
 		bool bAllowUpload             = Options("upload                : allow upload into directory, default false", false);
 		KStringViewZ sUserAndPass     = Options("user <user:password>  : set username and password for web access, default is open access", "");
+		KStringViewZ sUsersFile       = Options("users <pathname>      : set pathname for file with list of lines of user:pass", "");
 		KStringViewZ sRoute           = Options("route </path>         : route to serve from, defaults to \"/*\"", "/*");
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 		Settings.iPort                = Options("http <port>           : port number to bind to", 0);
@@ -54,9 +98,13 @@ public:
 		Settings.sBaseRoute           = Options("baseroute </path>     : route prefix, e.g. '/khttp', default none", "");
 		KStringViewZ sRestLog         = Options("restlog <file>        : write rest server log to <file> - default off", "");
 		Settings.KLogHeader           = Options("headerlog <x-klog>    : set header name to request and return trace logs, default off", "");
+		KStringViewZ sServer          = Options("server <xyz/1.0>      : set server header contents, default khttp/1.0", "khttp/1.0");
+		bool bQuiet                   = Options("quiet                 : force no output if no errors", false);
 
 		// do a final check if all required options were set
 		if (!Options.Check()) return 1;
+
+		if (!bQuiet) kPrintLine(":: KHTTP/1.0");
 
 		// verify some parms
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
@@ -84,20 +132,27 @@ public:
 		Settings.TimerHeader = "x-microseconds";
 
 		// set up basic authentication
-		if (!sUserAndPass.empty())
+		const auto UserAndPass = SetupUsers(sUserAndPass, sUsersFile);
+		if (!UserAndPass.empty())
 		{
-			auto Parts = sUserAndPass.Split(":");
-			if (Parts.size() != 2) SetError("need username:password");
-			
-			Settings.PreRouteCallback = [Parts](KRESTServer& HTTP)
+			Settings.PreRouteCallback = [&UserAndPass](KRESTServer& HTTP)
 			{
 				auto Basic = HTTP.Request.GetBasicAuthParms();
-				if (Basic.sUsername != Parts[0] || Basic.sPassword != Parts[1])
+				auto it = UserAndPass.find(Basic.sUsername);
+				if (it == UserAndPass.end() || it->second != Basic.sPassword)
 				{
 					HTTP.Response.Headers.Set(KHTTPHeader::WWW_AUTHENTICATE, "Basic realm=\"KHTTP\"");
-					throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "not authenticated" };
+					throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "not authorized" };
 				}
 			};
+		}
+		else
+		{
+			if (!bQuiet)
+			{
+				kPrintLine(">> configured with open {} access", bAllowUpload ? "read/write" : "read");
+				kPrintLine(">> use -user or -users options to restrict access");
+			}
 		}
 
 		KRESTRoutes Routes;
@@ -107,12 +162,16 @@ public:
 			if (!kDirExists(sWWWDir)) SetError(kFormat("www directory does not exist: {}", sWWWDir));
 			// add a web server for static files
 			Routes.AddWebServer(sWWWDir, sRoute, bCreateAdHocIndex, bAllowUpload);
+			if (!bQuiet) kPrintLine(":: serving files from: {}", sWWWDir);
 		}
+
+		if (!sServer.empty()) Settings.AddHeader(KHTTPHeader::SERVER, sServer);
 
 		// create the REST server instance
 		KREST Http;
 
 		// and run it
+		if (!bQuiet) kPrintLine(":: starting as '{}' on port {}", sServer, Settings.iPort);
 		if (!Http.Execute(Settings, Routes)) SetError(Http.CopyLastError());
 
 		return 0;

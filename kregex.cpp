@@ -65,7 +65,9 @@ using regex_t = cache_t::value_type;
 } // end of namespace kregex
 } // end of namespace detail
 
+namespace {
 detail::kregex::cache_t s_Cache;
+}
 
 //-----------------------------------------------------------------------------
 inline const detail::kregex::regex_t& rget(const KUniqueVoidPtr& p)

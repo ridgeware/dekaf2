@@ -481,10 +481,10 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 	}
 
 	// no matching route, return default route if available
-	if (m_DefaultRoute.Callback)
+	if (GetDefaultRoute().Callback)
 	{
 		kDebug (2, "not found, returning default route");
-		return m_DefaultRoute;
+		return GetDefaultRoute();
 	}
 
 	if (bCheckForWrongMethod)

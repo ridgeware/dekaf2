@@ -181,10 +181,10 @@ public:
 
 	}; // Options
 
-	/// the KRESTRoutes object used for routing
-	const KRESTRoutes& m_Routes;
-	/// the current set of Options
-	const Options&     m_Options;
+	/// get the KRESTRoutes object used for routing
+	const KRESTRoutes& GetRoutes() const { return m_Routes; }
+	/// get the current set of Options
+	const Options& GetOptions() const { return m_Options; };
 
 	//-----------------------------------------------------------------------------
 	/// @param Options the options for the KRESTServer
@@ -588,6 +588,9 @@ private:
 	static constexpr int iXMLPretty  { KXML::Default };
 
 	static const KRESTRoute s_EmptyRoute;
+
+	const KRESTRoutes& m_Routes;         // the KRESTRoutes object used for routing
+	const struct Options& m_Options;     // the current set of Options
 
 	KString     m_sRequestBody;
 	KString     m_sMessage;

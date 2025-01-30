@@ -55,6 +55,7 @@
 #include <dekaf2/kduration.h>
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/kbar.h>
+#include <dekaf2/kcookie.h>
 
 using namespace DEKAF2_NAMESPACE_NAME;
 
@@ -72,7 +73,7 @@ public:
 	int Main (int argc, char** argv);
 
 	static constexpr KStringViewZ s_sProjectName    { "kurl"  };
-	static constexpr KStringViewZ s_sProjectVersion { "0.0.2" };
+	static constexpr KStringViewZ s_sProjectVersion { "1.0.0" };
 
 	enum Flags
 	{
@@ -88,7 +89,8 @@ public:
 		FORCE_HTTP_2     = 1 << 8,
 		FORCE_HTTP_3     = 1 << 9,
 		FORCE_IPV4       = 1 << 10,
-		FORCE_IPV6       = 1 << 11
+		FORCE_IPV6       = 1 << 11,
+		ALLOW_SET_COOKIE = 1 << 12
 	};
 
 //----------
@@ -116,8 +118,11 @@ protected:
 		KString     sRequestCompression;
 		KString     sUsername;
 		KString     sPassword;
-		KString     sAWSProvider; //<provider1[:provider2[:region[:service]]]> --aws-sigv4 "aws:amz:us-west-1:es" --user "key:secret"
+		KString     sAWSProvider;    //<provider1[:provider2[:region[:service]]]> --aws-sigv4 "aws:amz:us-west-1:es" --user "key:secret"
 		HeaderMap   Headers;
+		KCookies    Cookies;         // request cookies, loaded with -b,cookie
+		KString     sLoadCookieJar;  // input filename for cookies
+		KString     sStoreCookieJar; // output filename for set-cookies
 		KHTTPMethod Method          { KHTTPMethod::GET };
 		enum Flags  Flags           { Flags::NONE };
 		uint16_t    iSecondsTimeout { 5 };

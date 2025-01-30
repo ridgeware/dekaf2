@@ -242,6 +242,22 @@ public:
 		return *this;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// get reference on the cookie jar, to read/write from file or manipulate manually
+	KCookies& GetCookies()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Cookies;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// get const reference on the cookie jar, to write to file or check manually
+	const KCookies& GetCookies() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Cookies;
+	}
+
 //------
 protected:
 //------

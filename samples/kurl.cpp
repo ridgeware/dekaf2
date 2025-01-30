@@ -388,8 +388,44 @@ kurl::kurl ()
 		.Option("O")
 		.Help("sets output file name to last path part of the URL")
 	([&]()
-	 {
+	{
 		BuildMRQ.AddOutput(sOutputToLastPathComponent);
+	});
+
+	m_CLI
+		.Option("b,cookie <data|filename>")
+		.Help("loads cookies as if sent by the server with set-cookie. If value does not contain a '=' "
+			  "it is supposed to be a filename in netscape cookie format to load")
+	([&](KStringViewZ sCookie)
+	{
+		BuildMRQ.Flags |= Flags::ALLOW_SET_COOKIE;
+
+		if (sCookie.find('=') == KStringViewZ::npos)
+		{
+			if (!sCookie.empty())
+			{
+				// treat this as a file name
+				if (!kFileExists(sCookie))
+				{
+					throw KOptions::Error(kFormat("cookie file does not exist: {}", sCookie));
+				}
+				BuildMRQ.sLoadCookieJar = sCookie;
+			}
+		}
+		else
+		{
+			// TBD treat this as a literal set-cookie request
+			throw KOptions::Error(kFormat("set-cookie not yet implemented: {}", sCookie));
+		}
+	});
+
+	m_CLI
+		.Option("c,cookie-jar <filename>")
+		.Help("saves cookies sent by the server with set-cookie in netscape cookie format")
+	([&](KStringViewZ sCookieJar)
+	{
+		BuildMRQ.Flags |= Flags::ALLOW_SET_COOKIE;
+		BuildMRQ.sLoadCookieJar = sCookieJar;
 	});
 
 	m_CLI
@@ -671,6 +707,22 @@ void kurl::ServerQuery ()
 			break;
 		}
 
+		if (!RQ->Config.sLoadCookieJar.empty())
+		{
+			// load cookies from a file
+			KInFile CookieJar(RQ->Config.sLoadCookieJar);
+			HTTP.GetCookies().Read(CookieJar);
+		}
+
+		if (!RQ->Config.Cookies.empty())
+		{
+			// load cookies from preset
+			HTTP.GetCookies().Add(RQ->Config.Cookies);
+		}
+
+		// overwrite default - KWebClient per default accepts all set-cookies
+		HTTP.AcceptCookies(RQ->Config.Flags & Flags::ALLOW_SET_COOKIE);
+
 		KOutFile OutFile;
 
 		// prepare the output
@@ -774,6 +826,12 @@ void kurl::ServerQuery ()
 		m_Results.Add(HTTP.Response.iStatusCode, tDuration.elapsed());
 
 		m_Progress.ProgressOne();
+
+		if (!RQ->Config.sStoreCookieJar.empty())
+		{
+			KOutFile CookieJar(RQ->Config.sStoreCookieJar);
+			HTTP.GetCookies().Write(CookieJar);
+		}
 
 		if (HTTP.Response.iStatusCode == 0)
 		{

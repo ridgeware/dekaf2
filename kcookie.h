@@ -151,6 +151,8 @@ class DEKAF2_PUBLIC KCookies
 public:
 //------
 
+	using Storage = std::vector<KCookie>;
+
 	/// parse sInput for cookie content and generate a new
 	/// cookie or overwrite an existing one
 	/// @param URL the URL from which this cookie is set
@@ -190,11 +192,49 @@ public:
 		return m_Cookies.empty();
 	}
 
+	Storage::iterator begin()
+	{
+		return m_Cookies.begin();
+	}
+
+	Storage::iterator end()
+	{
+		return m_Cookies.end();
+	}
+
+	Storage::const_iterator begin() const
+	{
+		return m_Cookies.begin();
+	}
+
+	Storage::const_iterator end() const
+	{
+		return m_Cookies.end();
+	}
+
+	/// add a cookie
+	bool Add(KCookie Cookie);
+
+	/// add a set of cookies
+	bool Add(KCookies Cookies);
+
+	KCookies& operator += (KCookie Cookie)
+	{
+		Add(std::move(Cookie));
+		return *this;
+	}
+
+	KCookies& operator += (KCookies Cookies)
+	{
+		Add(std::move(Cookies));
+		return *this;
+	}
+
 //------
 private:
 //------
 
-	std::vector<KCookie> m_Cookies;
+	Storage m_Cookies;
 
 }; // KCookies
 

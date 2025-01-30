@@ -497,6 +497,37 @@ bool KCookies::Read(KInStream& In)
 
 } // Read
 
+//-----------------------------------------------------------------------------
+bool KCookies::Add(KCookie Cookie)
+//-----------------------------------------------------------------------------
+{
+	if (Cookie.empty())
+	{
+		return false;
+	}
+
+	m_Cookies.push_back(std::move(Cookie));
+
+	return true;
+
+} // Add
+
+//-----------------------------------------------------------------------------
+bool KCookies::Add(KCookies Cookies)
+//-----------------------------------------------------------------------------
+{
+	for (auto& Cookie : Cookies)
+	{
+		if (!Add(std::move(Cookie)))
+		{
+			return false;
+		}
+	}
+
+	return true;
+
+} // Add
+
 static_assert(std::is_nothrow_move_constructible<KCookie>::value,
 			  "KCookie is intended to be nothrow move constructible, but is not!");
 

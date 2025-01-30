@@ -1264,7 +1264,7 @@ private:
 	KColInfos  m_dColInfo;
 
 //----------
-protected:
+public:
 //----------
 
 	/// sets m_sLastError, then either throws a KSQL exception if allowed to do, or returns false
